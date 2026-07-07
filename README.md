@@ -14,8 +14,6 @@ pip install -r requirements.txt
 ## 実行方法
 
 ```powershell
-cd FedSDA
-
 # 単発実験(提案手法、seed=0、図は results/ に保存)
 python run_experiment.py --mode FedSDA --seed 0 --plot-dir results
 
@@ -40,7 +38,7 @@ python run_comparative_trials.py --help
 ## コード構成
 
 ```
-FedSDA/
+.
 ├── run_experiment.py            # CLI: 単発実験
 ├── run_comparative_trials.py    # CLI: 複数シード比較試行
 ├── fedsda/                      # 実験パッケージ
@@ -56,8 +54,11 @@ FedSDA/
 │   └── trials.py                # 複数試行の実行・集計
 ├── colab_original/              # 分割前のColab版スクリプト(参照用バックアップ)
 ├── ALGORITHM.md                 # 論文の実装用仕様書
-└── main_jp.tex                  # 論文原稿
+└── main_jp.txx                  # 論文原稿(LaTeX)
 ```
+
+> 参照用に `microsoft/FedDrift` を `FedDrift/` へ clone している場合、それは
+> `.gitignore` によりこのリポジトリの追跡対象外となる。
 
 ## ハイパーパラメータ
 
