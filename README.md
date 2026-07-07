@@ -41,7 +41,7 @@ python run_comparative_trials.py --help
 .
 ├── run_experiment.py            # CLI: 単発実験
 ├── run_comparative_trials.py    # CLI: 複数シード比較試行
-├── fedsda/                      # 実験パッケージ
+├── FedSDA/                      # 実験パッケージ
 │   ├── config.py                # ★ハイパーパラメータの一元管理
 │   ├── data.py                  # 合成データ生成・ドリフトスケジュール
 │   ├── models.py                # SimpleMLP(2次元入力の二値分類)
@@ -62,7 +62,7 @@ python run_comparative_trials.py --help
 
 ## ハイパーパラメータ
 
-全ハイパーパラメータは [fedsda/config.py](fedsda/config.py) に一元管理されている
+全ハイパーパラメータは [FedSDA/config.py](FedSDA/config.py) に一元管理されている
 (論文の記号 K, τ, L, E_init, δ_adwin, N_FIFO, γ_dist との対応もコメントに記載)。
 
 既定値の概要:
@@ -76,7 +76,7 @@ python run_comparative_trials.py --help
 
 ```python
 # ファイルを直接編集するか、コードから上書きする(各モジュールは実行時に参照)
-from fedsda import config
+from FedSDA import config
 config.TOTAL_DATA_POINTS = 300   # 例: 縮小実験
 config.ADWIN_DELTA = 0.01        # 例: 検出感度の変更
 ```

@@ -4,7 +4,7 @@
 - run_random_drift_experiment: 1回分の実験実行
 - run_comparative_trials: 複数シードでの比較試行
 
-ハイパーパラメータは fedsda/config.py で一元管理する。
+ハイパーパラメータは FedSDA/config.py で一元管理する。
 """
 from . import config
 from .adwin import FullScanADWIN

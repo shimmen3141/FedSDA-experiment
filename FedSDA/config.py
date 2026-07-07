@@ -1,7 +1,7 @@
 """実験ハイパーパラメータの一元管理。
 
 全モジュールはここから値を参照する。実験時にコードから上書きする場合は
-`from fedsda import config; config.TOTAL_DATA_POINTS = 300` のように
+`from FedSDA import config; config.TOTAL_DATA_POINTS = 300` のように
 モジュール属性を書き換えればよい(各モジュールは呼び出し時に参照する)。
 
 括弧内は論文 (main_jp.tex / ALGORITHM.md) の記号との対応。

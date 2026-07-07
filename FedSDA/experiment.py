@@ -164,7 +164,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
 
     plot_dir を指定すると図をそのディレクトリに保存し、None なら画面表示する
     (show_plot=False なら描画自体を行わない)。
-    実験規模などのハイパーパラメータは fedsda/config.py で管理する。
+    実験規模などのハイパーパラメータは FedSDA/config.py で管理する。
     """
     try:
         spec = MODE_SPECS[mode]

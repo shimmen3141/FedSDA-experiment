@@ -6,8 +6,8 @@
 """
 import argparse
 
-from fedsda import config, run_random_drift_experiment
-from fedsda.experiment import MODE_SPECS
+from FedSDA import config, run_random_drift_experiment
+from FedSDA.experiment import MODE_SPECS
 
 MODES = list(MODE_SPECS)
 
