@@ -1,8 +1,11 @@
 """クライアント実装。
 
 - BaseClient: モデル保持・統計量・データストア・サーバ連携などの共通機能
-- AdwinClient: 提案手法。ADWIN + FIFOバッファによる逐次ドリフト検出
+- AdwinClient: 提案手法 (FedSDA)。ADWIN + FIFOバッファによる逐次ドリフト検出
 - PeriodicClient: FedDriftベースライン。固定バッチ単位の損失増分による検出
+
+比較手法を追加する場合は BaseClient を継承し、experiment.py の MODE_SPECS に
+エントリを登録する。
 """
 import copy
 import math
@@ -18,10 +21,9 @@ from .models import SimpleMLP
 
 
 class BaseClient:
-    def __init__(self, client_id, server, initial_models, initial_stats=None,
+    def __init__(self, client_id, initial_models, initial_stats=None,
                  distance_threshold=None, verbose=True):
         self.client_id = client_id
-        self.server = server
         self.distance_threshold = (distance_threshold if distance_threshold is not None
                                    else config.DISTANCE_THRESHOLD)
         self.verbose = verbose
@@ -35,14 +37,14 @@ class BaseClient:
         else:
             self.model_stats = {mid: {'n': 0, 'mean': 0.0, 'M2': 0.0} for mid in initial_models}
 
-        self.train_data_store = defaultdict(list)
-        self.stored_data = defaultdict(list)
+        self.train_data_store = defaultdict(list)   # 学習用データ(モデルIDごと)
+        self.stored_data = defaultdict(list)        # サーバ評価用データ(モデルIDごと)
         self.stored_data_limit = config.STORED_DATA_LIMIT
 
-        # pending を保持するが、作成直後は next-round まで ready にしない設計
+        # 新規作成モデルの引き渡し。ready=False の間はサーバの回収対象にならない
         self.pending_model_params = None
         self.pending_model_stats = None
-        self.pending_model_ready = True  # True: server will collect; False: wait one round
+        self.pending_model_ready = True
 
         # per-sample logs
         self.history_model_id = []
@@ -62,6 +64,9 @@ class BaseClient:
 
         self.next_temp_id = -100 - self.client_id
 
+    # ------------------------------------------------------------
+    # 損失統計(Welford法によるオンライン平均・分散)
+    # ------------------------------------------------------------
     def _update_model_stats(self, model_id, value):
         stats = self.model_stats.setdefault(model_id, {'n': 0, 'mean': 0.0, 'M2': 0.0})
         stats['n'] += 1
@@ -77,6 +82,9 @@ class BaseClient:
         variance = stats['M2'] / (stats['n'] - 1)
         return stats['mean'], variance
 
+    # ------------------------------------------------------------
+    # データ管理
+    # ------------------------------------------------------------
     def _store_evaluation_data(self, model_id, data_list):
         if model_id < 0:
             return
@@ -88,6 +96,28 @@ class BaseClient:
         current_stored.extend(sampled)
         if len(current_stored) > self.stored_data_limit:
             self.stored_data[model_id] = current_stored[-self.stored_data_limit:]
+
+    def _absorb_into_store(self, model_id, data_list):
+        """データを model_id の学習ストアへ追加し、そのモデルの損失統計を更新する。"""
+        model = self.models[model_id]
+        for d in data_list:
+            self.train_data_store[model_id].append(d)
+            with torch.no_grad():
+                l_val = model.get_absolute_error(d[0], d[1])
+            self._update_model_stats(model_id, l_val)
+
+    # ------------------------------------------------------------
+    # 予測ログ・学習
+    # ------------------------------------------------------------
+    def _record_prediction(self, x, y, concept_id):
+        """現在のモデルで1サンプルを予測し、per-sample ログに記録する。"""
+        current_model = self.models[self.current_model_id]
+        pred = current_model.predict(x)
+        acc = 1.0 if pred.view(-1)[0].item() == y.view(-1)[0].item() else 0.0
+
+        self.history_accuracy.append(acc)
+        self.history_concept.append(concept_id)
+        self.history_model_id.append(self.current_model_id)
 
     def train_all_held_models(self, count_multiplier=1):
         updates_needed = self.updates_per_step * count_multiplier
@@ -103,21 +133,71 @@ class BaseClient:
                 by = torch.cat([d[1] for d in batch])
                 model.update(bx, by)
 
+    # ------------------------------------------------------------
+    # 新規モデルの作成
+    # ------------------------------------------------------------
+    def _spawn_new_model(self, bx, by, pending_ready):
+        """現在のモデルを起点に新規モデルを作成・初期学習し、pending 登録する。
+
+        戻り値: (テンポラリID, 初期学習後の平均損失)
+        pending_ready=False の場合、次ラウンドまでサーバに回収されない。
+        """
+        temp_id = self._alloc_temp_id()
+        if self.verbose:
+            print(f"  -> Unknown Drift! New Model (Temp ID: {temp_id})")
+
+        m = len(bx)
+        new_model = SimpleMLP()
+        new_model.set_params(self.models[self.current_model_id].get_params())
+        new_model.set_optimizer_sgd(lr=config.NEW_MODEL_LR)
+
+        dataset = torch.utils.data.TensorDataset(bx, by)
+        loader = torch.utils.data.DataLoader(
+            dataset, batch_size=min(config.CLIENT_BATCH_SIZE, m), shuffle=True)
+        for _ in range(config.NEW_MODEL_EPOCHS):
+            for b_x, b_y in loader:
+                new_model.update(b_x, b_y)
+
+        self.models[temp_id] = new_model
+
+        with torch.no_grad():
+            preds = new_model(bx)
+            final_loss = torch.abs(preds - by)
+            init_mean = float(torch.mean(final_loss).item())
+            init_var = float(torch.var(final_loss).item())
+            if math.isnan(init_var):
+                init_var = 0.1
+
+        self.model_stats[temp_id] = {'n': m, 'mean': init_mean, 'M2': init_var * max(1, (m - 1))}
+        self.pending_model_params = new_model.get_params()
+        self.pending_model_stats = self.model_stats[temp_id]
+        self.pending_model_ready = pending_ready
+        return temp_id, init_mean
+
+    def _alloc_temp_id(self):
+        """新しい一意のテンポラリ（負）IDを返す。呼び出すたびに減らしていく。"""
+        temp_id = self.next_temp_id
+        self.next_temp_id -= 1
+        return temp_id
+
+    # ------------------------------------------------------------
+    # サーバ連携
+    # ------------------------------------------------------------
     def has_pending_model(self):
-        # pending があり、且つ ready フラグが True の場合のみ、サーバが回収対象とみなす
-        return (self.pending_model_params is not None) and bool(getattr(self, "pending_model_ready", True))
+        return (self.pending_model_params is not None) and self.pending_model_ready
 
     def get_pending_model_info(self):
         return self.pending_model_params, self.pending_model_stats
 
     def promote_pending_to_ready(self):
         """ラウンド境界などで呼ぶ: pending がある場合に next-aggregation で回収可能にする"""
-        if self.pending_model_params is not None and not getattr(self, "pending_model_ready", True):
+        if self.pending_model_params is not None and not self.pending_model_ready:
             self.pending_model_ready = True
             if self.verbose:
                 print(f"Client {self.client_id}: pending model promoted to ready for next aggregation.")
 
     def confirm_model_registration(self, new_global_id):
+        """サーバが pending モデルを回収した際、テンポラリIDをグローバルIDへ付け替える。"""
         temp_id = self.current_model_id
         if temp_id >= 0:
             self.pending_model_params = None
@@ -140,7 +220,6 @@ class BaseClient:
         if temp_id in self.stored_data:
             self.stored_data[new_global_id] = self.stored_data.pop(temp_id)
 
-        # confirm されれば pending はクリア
         self.current_model_id = new_global_id
         self.pending_model_params = None
         self.pending_model_stats = None
@@ -155,6 +234,7 @@ class BaseClient:
         return ids
 
     def evaluate_model(self, params, target_model_id):
+        """サーバからの評価依頼: 指定パラメータのモデルを手元データで評価する。"""
         eval_data = []
         if target_model_id in self.stored_data and len(self.stored_data[target_model_id]) > 5:
             eval_data = self.stored_data[target_model_id]
@@ -232,99 +312,85 @@ class BaseClient:
         if self.current_model_id in id_mapping:
             self.current_model_id = id_mapping[self.current_model_id]
 
-    def _alloc_temp_id(self):
-        """新しい一意のテンポラリ（負）IDを返す。呼び出すたびに減らしていく。"""
-        temp_id = self.next_temp_id
-        self.next_temp_id -= 1
-        return temp_id
-
 
 class AdwinClient(BaseClient):
-    """提案手法クライアント: ADWIN + FIFOバッファによる逐次(1サンプル単位)処理。"""
+    """提案手法 (FedSDA) クライアント: ADWIN + FIFOバッファによる逐次(1サンプル単位)処理。"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.adwin = FullScanADWIN(delta=config.ADWIN_DELTA)
-        self.buffer = deque()
-        self.safe_margin = config.FIFO_BUFFER_SIZE
+        self.buffer = deque()                       # FIFOバッファ(検知遅延中のデータ保留)
+        self.safe_margin = config.FIFO_BUFFER_SIZE  # バッファ長 N_FIFO
 
-    # process_one_step: simplified signature, uses self.processed_samples internally
     def process_one_step(self, x_in, y_in, concept_id):
+        """1サンプルを処理する: 予測 → ADWIN更新 → (ドリフト解決 | 平時処理) → 学習。"""
         start_time = time.perf_counter()
         x = x_in.unsqueeze(0) if x_in.dim() == 1 else x_in
         y = y_in.unsqueeze(0) if y_in.dim() == 1 else y_in
 
         # current sample index for this client (before increment)
         idx = self.processed_samples
-        # advance processed_samples (so subsequent call sees next index)
         self.processed_samples += 1
 
-        current_model = self.models[self.current_model_id]
-        pred = current_model.predict(x)
-        acc = 1.0 if pred.view(-1)[0].item() == y.view(-1)[0].item() else 0.0
+        self._record_prediction(x, y, concept_id)
 
-        # per-sample logs
-        self.history_accuracy.append(acc)
-        self.history_concept.append(concept_id)
-        self.history_model_id.append(self.current_model_id)
-
-        error = current_model.get_absolute_error(x, y)
+        error = self.models[self.current_model_id].get_absolute_error(x, y)
         self.adwin.update(error)
         self.buffer.append((x, y))
 
         drift_type = 0
 
-        if self.adwin.drift_detected:
-            # record detector's detection position for potential debug/visualization
+        # ADWIN の統計的検知、または保険的な強制チェックのどちらかが発火したら解決処理へ
+        if self.adwin.drift_detected or self._forced_drift_check(idx):
             self.detected_event_positions.append(idx)
-            # pass sample_idx to _resolve_drift for fine-grained logging
             drift_type = self._resolve_drift(sample_idx=idx)
         else:
-            # --- forced-check: ADWIN未検出でもウィンドウ幅と損失がドリフトを示唆する場合 ---
-            width = self.adwin.width
-            lower_bound = max(0, self.safe_margin - 5)
-            upper_bound = max(100, 2 * max(0, (self.safe_margin - 5)))
-
-            forced_triggered = False
-            if lower_bound <= width <= upper_bound and width > 0 and self.current_model_id >= 0:
-                # compute current model loss on the ADWIN-windowed buffer (use buffer tail of length width)
-                # Ensure buffer length matches or exceeds width
-                if len(self.buffer) >= width:
-                    tail = list(self.buffer)[-width:]
-                    bx = torch.cat([d[0] for d in tail])
-                    by = torch.cat([d[1] for d in tail])
-                    with torch.no_grad():
-                        preds = current_model(bx)
-                        window_loss = float(torch.mean(torch.abs(preds - by)).item())
-                    hist_mean, _ = self._get_model_stats(self.current_model_id)
-
-                    if hist_mean > 0.0 and (window_loss >= hist_mean + self.distance_threshold):
-                        forced_triggered = True
-                        if self.verbose:
-                            print(f"Client {self.client_id} [sample={idx}]: Forced drift-check triggered (win={width}, loss={window_loss:.3f}, base={hist_mean:.3f}, thr={self.distance_threshold:.3f})")
-
-            if forced_triggered:
-                # perform same resolution flow as when ADWIN signals
-                self.detected_event_positions.append(idx)
-                drift_type = self._resolve_drift(sample_idx=idx)
-            else:
-                # normal behavior: commit old buffered samples to training stats & data store, then train
-                while len(self.buffer) > self.safe_margin:
-                    old_x, old_y = self.buffer.popleft()
-                    loss_val = current_model.get_absolute_error(old_x, old_y)
-                    self._update_model_stats(self.current_model_id, loss_val)
-                    self.train_data_store[self.current_model_id].append((old_x, old_y))
-                self.train_all_held_models(count_multiplier=1)
+            # 平時: バッファ長 N_FIFO を超えた分だけ古いデータをストアへ確定し、学習する
+            while len(self.buffer) > self.safe_margin:
+                old_x, old_y = self.buffer.popleft()
+                loss_val = self.models[self.current_model_id].get_absolute_error(old_x, old_y)
+                self._update_model_stats(self.current_model_id, loss_val)
+                self.train_data_store[self.current_model_id].append((old_x, old_y))
+            self.train_all_held_models(count_multiplier=1)
 
         self.history_drift_type.append(drift_type)
 
-        end_time = time.perf_counter()
-        elapsed_ms = (end_time - start_time) * 1000
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
         num_global = sum(1 for mid in self.models.keys() if mid >= 0)
         self.processing_times[num_global].append(elapsed_ms)
 
-    # _resolve_drift records local switches into self.local_switch_positions
+    def _forced_drift_check(self, idx):
+        """ADWIN未検知でも、直近ウィンドウの損失がベースラインから閾値以上悪化して
+        いればドリフト解決を強制する保険的チェック。"""
+        width = self.adwin.width
+        lower_bound = max(0, self.safe_margin - 5)
+        upper_bound = max(100, 2 * max(0, (self.safe_margin - 5)))
+
+        if not (lower_bound <= width <= upper_bound and width > 0 and self.current_model_id >= 0):
+            return False
+        if len(self.buffer) < width:
+            return False
+
+        # ADWINウィンドウに対応するバッファ末尾で現行モデルの損失を測る
+        tail = list(self.buffer)[-width:]
+        bx = torch.cat([d[0] for d in tail])
+        by = torch.cat([d[1] for d in tail])
+        with torch.no_grad():
+            preds = self.models[self.current_model_id](bx)
+            window_loss = float(torch.mean(torch.abs(preds - by)).item())
+        hist_mean, _ = self._get_model_stats(self.current_model_id)
+
+        if hist_mean > 0.0 and (window_loss >= hist_mean + self.distance_threshold):
+            if self.verbose:
+                print(f"Client {self.client_id} [sample={idx}]: Forced drift-check triggered "
+                      f"(win={width}, loss={window_loss:.3f}, base={hist_mean:.3f}, "
+                      f"thr={self.distance_threshold:.3f})")
+            return True
+        return False
+
     def _resolve_drift(self, sample_idx):
+        """ドリフト解決: バッファを新旧概念に分割し、モデル切替 or 新規作成を行う。"""
+        # ADWINの縮小後ウィンドウ幅 = 新概念のデータ数として、バッファを事後分割する
         buffer_list = list(self.buffer)
         n_new_concept = self.adwin.width
 
@@ -335,13 +401,10 @@ class AdwinClient(BaseClient):
             old_data = buffer_list[:-n_new_concept]
             drift_data = buffer_list[-n_new_concept:]
 
+        # 旧概念のデータは直前まで使っていたモデルへ確定
         if len(old_data) > 0:
             self._store_evaluation_data(self.current_model_id, old_data)
-            for d in old_data:
-                self.train_data_store[self.current_model_id].append(d)
-                with torch.no_grad():
-                    l_val = self.models[self.current_model_id].get_absolute_error(d[0], d[1])
-                self._update_model_stats(self.current_model_id, l_val)
+            self._absorb_into_store(self.current_model_id, old_data)
 
         if len(drift_data) < config.MIN_DRIFT_DATA:
             self.adwin.reset()
@@ -352,8 +415,8 @@ class AdwinClient(BaseClient):
 
         bx = torch.cat([d[0] for d in drift_data])
         by = torch.cat([d[1] for d in drift_data])
-        m = len(drift_data)
 
+        # 各既存モデルの新概念データに対する損失を、ベースラインと比較して適合候補を集める
         valid_candidates = []
         for m_id, model in self.models.items():
             with torch.no_grad():
@@ -365,16 +428,16 @@ class AdwinClient(BaseClient):
                 if self.verbose:
                     print(f"  Check M{m_id}: No baseline (n=0) -> treat as not-matching. (Loss={loss:.3f})")
                 continue
-            else:
-                diff = loss - hist_mean
-                if self.verbose:
-                    print(f"  Check M{m_id}: Diff={diff:.3f} vs Thr={self.distance_threshold:.3f} (Loss={loss:.3f}, Base={hist_mean:.3f})")
-                if diff <= self.distance_threshold:
-                    valid_candidates.append((m_id, loss))
 
-        drift_type = 0
+            diff = loss - hist_mean
+            if self.verbose:
+                print(f"  Check M{m_id}: Diff={diff:.3f} vs Thr={self.distance_threshold:.3f} "
+                      f"(Loss={loss:.3f}, Base={hist_mean:.3f})")
+            if diff <= self.distance_threshold:
+                valid_candidates.append((m_id, loss))
 
         if valid_candidates:
+            # 既知のコンセプト: 適合候補のうち損失最小のモデルへ切替(または現状維持)
             best_model_id, min_loss = min(valid_candidates, key=lambda x: x[1])
             if best_model_id != self.current_model_id:
                 if self.verbose:
@@ -386,50 +449,16 @@ class AdwinClient(BaseClient):
             else:
                 if self.verbose:
                     print(f"  -> Keep current Model {self.current_model_id} (Loss {min_loss:.3f})")
+                drift_type = 0
 
-            for d in drift_data:
-                self.train_data_store[self.current_model_id].append(d)
-                with torch.no_grad():
-                    l_val = self.models[self.current_model_id].get_absolute_error(d[0], d[1])
-                self._update_model_stats(self.current_model_id, l_val)
+            self._absorb_into_store(self.current_model_id, drift_data)
         else:
-            temp_id = self._alloc_temp_id()
-            if self.verbose:
-                print(f"  -> Unknown Drift! New Model (Temp ID: {temp_id})")
-
-            new_model = SimpleMLP()
-            current_params = self.models[self.current_model_id].get_params()
-            new_model.set_params(current_params)
-            new_model.set_optimizer_sgd(lr=config.NEW_MODEL_LR)
-
-            n_epochs = config.NEW_MODEL_EPOCHS
-            dataset = torch.utils.data.TensorDataset(bx, by)
-            loader = torch.utils.data.DataLoader(dataset, batch_size=min(config.CLIENT_BATCH_SIZE, m), shuffle=True)
-            for _ in range(n_epochs):
-                for b_x, b_y in loader:
-                    new_model.update(b_x, b_y)
-
-            self.models[temp_id] = new_model
-            # 記録は sample_idx で行う（ずれ防止）
+            # 未知のコンセプト: 新規モデルを作成(作成ラウンド内ではサーバへ送らない)
+            temp_id, _ = self._spawn_new_model(bx, by, pending_ready=False)
             self.local_switch_positions.append(sample_idx)
             self.current_model_id = temp_id
-
-            with torch.no_grad():
-                preds = new_model(bx)
-                final_loss = torch.abs(preds - by)
-                init_mean = float(torch.mean(final_loss).item())
-                init_var = float(torch.var(final_loss).item())
-                if math.isnan(init_var):
-                    init_var = 0.1
-
-            self.model_stats[temp_id] = {'n': m, 'mean': init_mean, 'M2': init_var * max(1, (m - 1))}
-            # pending に登録するが、作成ラウンド内ではサーバへ送らない（ready=False）
-            self.pending_model_params = new_model.get_params()
-            self.pending_model_stats = self.model_stats[temp_id]
-            self.pending_model_ready = False
             drift_type = 2
-            for d in drift_data:
-                self.train_data_store[temp_id].append(d)
+            self.train_data_store[temp_id].extend(drift_data)
 
         self.adwin.reset()
         self.buffer.clear()
@@ -444,6 +473,7 @@ class PeriodicClient(BaseClient):
         self.last_min_loss = None
 
     def phase1_detect(self, batch_data, t, concept_id):
+        """バッチ全体を予測・ログした後、バッチ単位でドリフト判定とモデル選択を行う。"""
         processed_batch_data = []
         batch_x = []
         batch_y = []
@@ -458,24 +488,16 @@ class PeriodicClient(BaseClient):
             batch_x.append(x)
             batch_y.append(y)
 
-            current_model = self.models[self.current_model_id]
-            pred = current_model.predict(x)
-            acc = 1.0 if pred.view(-1)[0].item() == y.view(-1)[0].item() else 0.0
-
-            self.history_accuracy.append(acc)
-            self.history_concept.append(concept_id)
-            self.history_model_id.append(self.current_model_id)
-
-            # mark this sample processed
+            self._record_prediction(x, y, concept_id)
             self.processed_samples += 1
 
         bx = torch.cat(batch_x)
         by = torch.cat(batch_y)
         m = len(batch_data)
 
+        # 全モデルの中で最小損失のモデルを求める
         min_loss = float('inf')
         best_model_id = self.current_model_id
-
         for m_id, model in self.models.items():
             with torch.no_grad():
                 preds = model(bx)
@@ -484,75 +506,33 @@ class PeriodicClient(BaseClient):
                 min_loss = loss
                 best_model_id = m_id
 
-        drift_type = 0
-        is_drift = False
-
-        if self.last_min_loss is not None:
-            if min_loss > self.last_min_loss + self.distance_threshold:
-                is_drift = True
-                if self.verbose:
-                    print(f"Client {self.client_id} [t={t}]: Drift Detected (Loss {min_loss:.3f})")
+        # ドリフト判定: 最小損失が前バッチから閾値以上増加したか(FedDrift方式)
+        is_drift = (self.last_min_loss is not None
+                    and min_loss > self.last_min_loss + self.distance_threshold)
 
         if is_drift:
-            # record detector's detection position for debugging (not plotted by default)
+            if self.verbose:
+                print(f"Client {self.client_id} [t={t}]: Drift Detected (Loss {min_loss:.3f})")
             self.detected_event_positions.append(start_idx)
 
-            temp_id = self._alloc_temp_id()
-            if self.verbose:
-                print(f"  -> Unknown Drift! New Model (Temp ID: {temp_id})")
-            new_model = SimpleMLP()
-            current_params = self.models[self.current_model_id].get_params()
-            new_model.set_params(current_params)
-            new_model.set_optimizer_sgd(lr=config.NEW_MODEL_LR)
-
-            n_epochs = config.NEW_MODEL_EPOCHS
-            dataset = torch.utils.data.TensorDataset(bx, by)
-            loader = torch.utils.data.DataLoader(dataset, batch_size=min(config.CLIENT_BATCH_SIZE, m), shuffle=True)
-            for _ in range(n_epochs):
-                for b_x, b_y in loader:
-                    new_model.update(b_x, b_y)
-
-            self.models[temp_id] = new_model
-            # batch の最後のサンプルインデックスで切替記録（start_idx + m - 1）
-            switch_idx = start_idx + m - 1
-            self.local_switch_positions.append(switch_idx)
+            # FedDriftでは新規モデルを作成ラウンド内でサーバへ送る(ready=True)
+            temp_id, init_mean = self._spawn_new_model(bx, by, pending_ready=True)
+            # batch の最後のサンプルインデックスで切替記録
+            self.local_switch_positions.append(start_idx + m - 1)
             self.current_model_id = temp_id
-
-            with torch.no_grad():
-                preds = new_model(bx)
-                final_loss = torch.abs(preds - by)
-                init_mean = float(torch.mean(final_loss).item())
-                init_var = float(torch.var(final_loss).item())
-                if math.isnan(init_var):
-                    init_var = 0.1
-
-            self.model_stats[temp_id] = {'n': m, 'mean': init_mean, 'M2': init_var * max(1, (m - 1))}
-            # FedDriftでは作成ラウンド内でサーバへ送る（ready=True）
-            self.pending_model_params = new_model.get_params()
-            self.pending_model_stats = self.model_stats[temp_id]
-            self.pending_model_ready = True
             drift_type = 2
-
             self.last_min_loss = init_mean
-
-            for d in processed_batch_data:
-                self.train_data_store[temp_id].append(d)
+            self.train_data_store[temp_id].extend(processed_batch_data)
         else:
+            drift_type = 0
             if best_model_id != self.current_model_id:
                 if self.verbose:
                     print(f"  -> Switch to Model {best_model_id}")
-                # batch の最後のサンプルインデックスで切替記録
-                switch_idx = start_idx + m - 1
-                self.local_switch_positions.append(switch_idx)
+                self.local_switch_positions.append(start_idx + m - 1)
                 self.current_model_id = best_model_id
                 drift_type = 1
 
-            for (x, y) in processed_batch_data:
-                with torch.no_grad():
-                    l_val = self.models[self.current_model_id].get_absolute_error(x, y)
-                self._update_model_stats(self.current_model_id, l_val)
-                self.train_data_store[self.current_model_id].append((x, y))
-
+            self._absorb_into_store(self.current_model_id, processed_batch_data)
             self.last_min_loss = min_loss
 
         self._store_evaluation_data(self.current_model_id, processed_batch_data)

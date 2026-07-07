@@ -1,12 +1,19 @@
 """ランダムドリフト実験の本体。
 
-mode:
+実験モードは MODE_SPECS で定義する:
 - 'FedSDA'                : 提案手法(ADWIN逐次検出 + サーバ集約)
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
+
+比較手法を追加する場合は、クライアントクラス(clients.py)を実装して
+MODE_SPECS にエントリを足す。処理の流れが既存2種と異なる場合は、
+タイムステップ実行関数(_run_*_timestep)も追加する。
 """
+import os
 import random
 import time
+from dataclasses import dataclass
+from typing import Callable
 
 import numpy as np
 import torch
@@ -20,6 +27,76 @@ from .plotting import plot_client_details, plot_system_overview
 from .server import Server
 
 
+# ==========================================
+# タイムステップ実行(処理スタイルごと)
+# ==========================================
+def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, verbose):
+    """1サンプルずつ逐次処理するスタイル(ADWIN系)の1タイムステップ。
+
+    K ステップの逐次処理を r_rounds 回行い、各ラウンド末にサーバ同期する。
+    """
+    for r in range(config.R_ROUNDS):
+        r_offset = r * config.K_STEPS
+        for k in range(config.K_STEPS):
+            k_idx = r_offset + k
+            if k_idx >= len(data[0]):
+                break
+            for i, c in enumerate(clients):
+                x_in, y_in = data[i][k_idx]
+                c.process_one_step(x_in, y_in, concepts[i][k_idx])
+
+        if use_server:
+            # 新規モデルがあるときだけクラスタリングを行う
+            has_new = any(c.has_pending_model() for c in clients)
+            server.run_aggregation_and_merge(t, clustering_enabled=has_new)
+            # aggregation 後に pending -> ready を行い、次ラウンドで回収されるようにする
+            for c in clients:
+                c.promote_pending_to_ready()
+        else:
+            if verbose and random.random() < 0.01:
+                print(f"  [without_server] t={t}, r={r}: skipped server aggregation (local-only).")
+
+
+def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose):
+    """バッチ一括処理するスタイル(FedDrift系)の1タイムステップ。
+
+    検出フェーズ(クラスタリングあり)の後、学習フェーズ(集約のみ)を行う。
+    """
+    for i, c in enumerate(clients):
+        c.phase1_detect(data[i], t, concepts[i][-1])
+    server.run_aggregation_and_merge(t, clustering_enabled=True)
+    for c in clients:
+        c.promote_pending_to_ready()
+
+    for _ in range(config.R_ROUNDS):
+        for c in clients:
+            c.phase2_train(k_steps=config.K_STEPS)
+        server.run_aggregation_and_merge(t, clustering_enabled=False)
+        for c in clients:
+            c.promote_pending_to_ready()
+
+
+# ==========================================
+# モード定義
+# ==========================================
+@dataclass(frozen=True)
+class ModeSpec:
+    """実験モードの定義。比較手法の追加はここにエントリを足す。"""
+    client_cls: type
+    run_timestep: Callable
+    use_server: bool = True
+
+
+MODE_SPECS = {
+    'FedSDA': ModeSpec(AdwinClient, _run_per_sample_timestep),
+    'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep),
+    'FedSDA_without_server': ModeSpec(AdwinClient, _run_per_sample_timestep, use_server=False),
+}
+
+
+# ==========================================
+# セットアップ
+# ==========================================
 def _pretrain_initial_model():
     """concept 0 のデータでモデル0を事前学習し、ベースライン統計も算出する。"""
     n_samples = config.PRETRAIN_SAMPLES
@@ -53,6 +130,34 @@ def _pretrain_initial_model():
     return model0, stats_0
 
 
+def _setup_server_and_clients(spec, distance_threshold, verbose):
+    """初期モデルの事前学習、サーバ登録、クライアント生成を行う。"""
+    model0, stats_0 = _pretrain_initial_model()
+
+    server = Server(distance_threshold=distance_threshold, verbose=verbose)
+    server.register_model_params(0, model0.get_params())
+    server.register_model_stats(0, stats_0)
+
+    clients = []
+    for i in range(config.N_CLIENTS):
+        c = spec.client_cls(
+            client_id=i,
+            initial_models={0: model0},
+            initial_stats={0: stats_0},
+            distance_threshold=distance_threshold,
+            verbose=verbose
+        )
+        # サーバを使うモードのみ register する
+        if spec.use_server:
+            server.register_client(c)
+        clients.append(c)
+
+    return server, clients
+
+
+# ==========================================
+# 実験本体
+# ==========================================
 def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
                                 random_seed=None, verbose=True, show_plot=True, plot_dir=None):
     """1回分の実験を実行し、メトリクスの dict を返す。
@@ -61,134 +166,54 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     (show_plot=False なら描画自体を行わない)。
     実験規模などのハイパーパラメータは fedsda/config.py で管理する。
     """
+    try:
+        spec = MODE_SPECS[mode]
+    except KeyError:
+        raise ValueError(f"Unknown mode: {mode!r} (choose from {sorted(MODE_SPECS)})") from None
+
     if distance_threshold is None:
         distance_threshold = config.DISTANCE_THRESHOLD
-
-    n_clients = config.N_CLIENTS
-    r_rounds = config.R_ROUNDS
-    k_steps = config.K_STEPS
-    total_data_points = config.TOTAL_DATA_POINTS
 
     if random_seed is not None:
         random.seed(random_seed)
         np.random.seed(random_seed)
         torch.manual_seed(random_seed)
 
-    if mode not in ('FedSDA', 'FedDrift', 'FedSDA_without_server'):
-        raise ValueError(f"Unknown mode: {mode!r}")
-
-    no_federated = False
-    if mode == 'FedSDA_without_server':
-        is_proposed = True
-        no_federated = True
-    else:
-        is_proposed = (mode == 'FedSDA')
-
     print(f"=== System Experiment: {mode} (Threshold={distance_threshold}) ===")
 
-    # --- 初期モデルとサーバ・クライアントのセットアップ ---
-    model0, stats_0 = _pretrain_initial_model()
-    initial_models = {0: model0}
-    initial_stats = {0: stats_0}
-    init_params = model0.get_params()
-
-    server = Server(distance_threshold=distance_threshold, verbose=verbose)
-    server.register_model_params(0, init_params)
-    server.register_model_stats(0, stats_0)
-
-    clients = []
-    ClientClass = AdwinClient if is_proposed else PeriodicClient
-
-    for i in range(n_clients):
-        c = ClientClass(
-            client_id=i,
-            server=server,
-            initial_models=initial_models,
-            initial_stats=initial_stats,
-            distance_threshold=distance_threshold,
-            verbose=verbose
-        )
-        # サーバを使うモードのみ register する（FedSDA_without_server では登録しない）
-        if not no_federated:
-            server.register_client(c)
-        clients.append(c)
+    server, clients = _setup_server_and_clients(spec, distance_threshold, verbose)
 
     if verbose:
         print("Clients initialized. All holding Model 0.")
 
     # --- ドリフトスケジュールとデータストリームの生成 ---
-    data_per_time = r_rounds * k_steps
-    t_steps = total_data_points // data_per_time
+    data_per_time = config.R_ROUNDS * config.K_STEPS
+    t_steps = config.TOTAL_DATA_POINTS // data_per_time
 
-    client_concept_schedule = make_concept_schedules(n_clients, total_data_points)
+    client_concept_schedule = make_concept_schedules(config.N_CLIENTS, config.TOTAL_DATA_POINTS)
     true_drift_events = extract_true_drift_events(client_concept_schedule)
     all_client_data = build_data_streams(client_concept_schedule)
 
     if verbose:
-        print(f"Simulation Start (Total Data={total_data_points}, Mode={mode})...")
+        print(f"Simulation Start (Total Data={config.TOTAL_DATA_POINTS}, Mode={mode})...")
 
-    global_data_idx = 0
-
-    # --- measure wall-clock runtime for the whole experiment ---
+    # --- シミュレーションループ ---
     exp_start = time.perf_counter()
 
     for t in range(t_steps):
-        if verbose and t % 5 == 0:
-            print(f"--- Time {t} (Data Index {global_data_idx}) ---")
-
         start_idx = t * data_per_time
-        end_idx = (t + 1) * data_per_time
+        end_idx = start_idx + data_per_time
 
-        current_time_data = [all_client_data[i][start_idx:end_idx] for i in range(n_clients)]
-        current_time_concepts = [client_concept_schedule[i][start_idx:end_idx] for i in range(n_clients)]
+        if verbose and t % 5 == 0:
+            print(f"--- Time {t} (Data Index {start_idx}) ---")
 
-        if is_proposed:
-            chunk_size = k_steps
-            for r in range(r_rounds):
-                r_offset = r * chunk_size
-                for k in range(k_steps):
-                    k_idx = r_offset + k
-                    if k_idx >= len(current_time_data[0]):
-                        break
-                    for i, c in enumerate(clients):
-                        x_in, y_in = current_time_data[i][k_idx]
-                        con = current_time_concepts[i][k_idx]
-                        c.process_one_step(x_in, y_in, con)
+        current_time_data = [stream[start_idx:end_idx] for stream in all_client_data]
+        current_time_concepts = [sched[start_idx:end_idx] for sched in client_concept_schedule]
 
-                # Proposed: サーバ同期は no_federated フラグで制御
-                if not no_federated:
-                    has_new = any(c.has_pending_model() for c in clients)
-                    server.run_aggregation_and_merge(t, clustering_enabled=has_new)
-                    # aggregation 後に "pending -> ready" を行い、次ラウンドで回収されるようにする
-                    for c in clients:
-                        c.promote_pending_to_ready()
-                else:
-                    # without_server: ローカル処理のみ、サーバは呼ばない
-                    if verbose and random.random() < 0.01:
-                        print(f"  [without_server] t={t}, r={r}: skipped server aggregation (local-only).")
-        else:
-            # FedDrift baseline behavior (unchanged)
-            for i, c in enumerate(clients):
-                batch_data = current_time_data[i]
-                last_con = current_time_concepts[i][-1]
-                c.phase1_detect(batch_data, t, last_con)
-            # baseline always performs server cluster/aggregate here (we keep same behavior)
-            server.run_aggregation_and_merge(t, clustering_enabled=True)
-            for c in clients:
-                c.promote_pending_to_ready()
+        spec.run_timestep(clients, server, current_time_data, current_time_concepts,
+                          t, spec.use_server, verbose)
 
-            for r in range(r_rounds):
-                for c in clients:
-                    c.phase2_train(k_steps=k_steps)
-                # This aggregation only updates models (no clustering)
-                server.run_aggregation_and_merge(t, clustering_enabled=False)
-                for c in clients:
-                    c.promote_pending_to_ready()
-
-        global_data_idx += data_per_time
-
-    exp_end = time.perf_counter()
-    runtime_seconds = exp_end - exp_start
+    runtime_seconds = time.perf_counter() - exp_start
 
     if verbose:
         print("Simulation Finished.")
@@ -196,11 +221,11 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
 
     # --- メトリクス計算 ---
     results = compute_metrics(clients, true_drift_events)
-    if no_federated:
+    if spec.use_server:
+        results["final_model_count"] = len(server.global_models)
+    else:
         # サーバ集約がないため、クライアントが保持するローカルモデル数の平均を報告する
         results["final_model_count"] = float(np.mean([len(c.models) for c in clients]))
-    else:
-        results["final_model_count"] = len(server.global_models)
     results["runtime_seconds"] = runtime_seconds
 
     if verbose:
@@ -217,7 +242,6 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     # --- 可視化 ---
     if show_plot:
         if plot_dir is not None:
-            import os
             os.makedirs(plot_dir, exist_ok=True)
             seed_tag = f"seed{random_seed}" if random_seed is not None else "noseed"
             overview_path = os.path.join(plot_dir, f"{mode}_{seed_tag}_overview.png")

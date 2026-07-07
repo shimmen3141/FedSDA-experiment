@@ -7,8 +7,9 @@
 import argparse
 
 from fedsda import config, run_random_drift_experiment
+from fedsda.experiment import MODE_SPECS
 
-MODES = ['FedSDA', 'FedDrift', 'FedSDA_without_server']
+MODES = list(MODE_SPECS)
 
 
 def main():
