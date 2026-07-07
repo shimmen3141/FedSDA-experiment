@@ -18,6 +18,9 @@ def generate_data(concept_id, n_samples=1):
     n_samples == 1 のとき (x: FloatTensor(2,), y: FloatTensor(1,)) を返し、
     それ以外は (X: FloatTensor(n,2), Y: FloatTensor(n,1)) を返す。
     """
+    if concept_id not in (0, 1, 2, 3):
+        raise ValueError(f"Unknown concept_id: {concept_id}")
+
     x_list = []
     y_list = []
 

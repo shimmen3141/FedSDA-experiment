@@ -162,6 +162,11 @@ class Server:
         return stats_matrix
 
     def perform_hierarchical_clustering(self, model_ids, stats_matrix):
+        """損失ベースの距離が閾値以下のモデル対を辺とみなし、連結成分をクラスタとして返す。
+
+        距離 dist(i,j) = max(「モデルiをjのデータで評価した際の損失悪化量」, その逆向き)。
+        評価サンプル数が CLUSTER_MIN_EVAL_N 未満の対は判定しない。
+        """
         if self.verbose:
             print(f"Server: Clustering models (Threshold={self.distance_threshold})...")
 
