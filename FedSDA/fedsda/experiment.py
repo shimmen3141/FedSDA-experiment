@@ -108,7 +108,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
             distance_threshold=distance_threshold,
             verbose=verbose
         )
-        # サーバを使うモードのみ register する（NoFedでは登録しない）
+        # サーバを使うモードのみ register する（FedSDA_without_server では登録しない）
         if not no_federated:
             server.register_client(c)
         clients.append(c)
@@ -163,9 +163,9 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
                     for c in clients:
                         c.promote_pending_to_ready()
                 else:
-                    # NoFed: ローカル処理のみ、サーバは呼ばない
+                    # without_server: ローカル処理のみ、サーバは呼ばない
                     if verbose and random.random() < 0.01:
-                        print(f"  [NoFed] t={t}, r={r}: skipped server aggregation (local-only).")
+                        print(f"  [without_server] t={t}, r={r}: skipped server aggregation (local-only).")
         else:
             # FedDrift baseline behavior (unchanged)
             for i, c in enumerate(clients):
@@ -196,7 +196,11 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
 
     # --- メトリクス計算 ---
     results = compute_metrics(clients, true_drift_events)
-    results["final_model_count"] = len(server.global_models)
+    if no_federated:
+        # サーバ集約がないため、クライアントが保持するローカルモデル数の平均を報告する
+        results["final_model_count"] = float(np.mean([len(c.models) for c in clients]))
+    else:
+        results["final_model_count"] = len(server.global_models)
     results["runtime_seconds"] = runtime_seconds
 
     if verbose:

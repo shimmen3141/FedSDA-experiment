@@ -19,7 +19,7 @@ def run_comparative_trials(
 ):
     """実験を複数回回すユーティリティ。各試行ごとに res を print する。"""
     if modes is None:
-        modes = ['FedDrift', 'FedDrift_adwin_serial']
+        modes = ['FedSDA', 'FedDrift']
 
     overall_summary = {}
 

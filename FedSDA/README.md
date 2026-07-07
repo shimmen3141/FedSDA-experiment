@@ -17,7 +17,7 @@ pip install -r requirements.txt
 cd FedSDA
 
 # 単発実験(提案手法、seed=0、図は results/ に保存)
-python run_experiment.py --mode FedDrift_adwin_serial --seed 0 --plot-dir results
+python run_experiment.py --mode FedSDA --seed 0 --plot-dir results
 
 # 3モード × 10シードの比較試行
 python run_comparative_trials.py --n-trials 10 --plot-dir results
@@ -33,9 +33,9 @@ python run_comparative_trials.py --help
 
 | mode | 内容 |
 |---|---|
-| `FedDrift_adwin_serial` | **提案手法**: ADWIN逐次検出 + FIFOバッファ + サーバ集約 |
+| `FedSDA` | **提案手法**: ADWIN逐次検出 + FIFOバッファ + サーバ集約 |
 | `FedDrift` | ベースライン: 固定バッチ検出 + サーバ集約 |
-| `NoFed_adwin_serial` | 提案手法のローカルのみ版(サーバ集約なし) |
+| `FedSDA_without_server` | 提案手法のローカルのみ版(サーバ集約なし) |
 
 ## コード構成
 

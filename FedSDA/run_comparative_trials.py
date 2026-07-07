@@ -2,13 +2,13 @@
 
 例:
     python run_comparative_trials.py --n-trials 10 --plot-dir results
-    python run_comparative_trials.py --modes FedDrift FedDrift_adwin_serial --n-trials 3
+    python run_comparative_trials.py --modes FedSDA FedDrift --n-trials 3
 """
 import argparse
 
 from fedsda import config, run_comparative_trials
 
-MODES = ['FedDrift', 'FedDrift_adwin_serial', 'NoFed_adwin_serial']
+MODES = ['FedSDA', 'FedDrift', 'FedSDA_without_server']
 
 
 def main():
