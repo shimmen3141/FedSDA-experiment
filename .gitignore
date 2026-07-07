@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 実験成果物
+results/
+*.png
+
+# OS / エディタ
+.DS_Store
+.vscode/
+.idea/
