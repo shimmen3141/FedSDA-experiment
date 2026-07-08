@@ -37,6 +37,7 @@ python run_comparative_trials.py --help
 | `FedSDA` | **提案手法**: ADWIN逐次検出 + FIFOバッファ + サーバ集約 |
 | `FedDrift` | ベースライン: 固定バッチ検出 + サーバ集約 |
 | `FedSDA_without_server` | 提案手法のローカルのみ版(サーバ集約なし) |
+| `Oblivious` | ベースライン: 単一モデル・FedAvg・無適応(FedDrift の Oblivious) |
 
 ### データセット(`--dataset`)
 

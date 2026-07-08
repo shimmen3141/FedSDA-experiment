@@ -4,6 +4,7 @@
 - 'FedSDA'                : 提案手法(ADWIN逐次検出 + サーバ集約)
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
+- 'Oblivious'            : ベースライン(単一モデル・FedAvg・無適応)
 
 比較手法を追加する場合は、クライアントクラス(clients.py)を実装して
 MODE_SPECS にエントリを足す。処理の流れが既存2種と異なる場合は、
@@ -19,7 +20,7 @@ import numpy as np
 import torch
 
 from . import config
-from .clients import AdwinClient, PeriodicClient
+from .clients import AdwinClient, ObliviousClient, PeriodicClient
 from .data import build_data_streams, extract_true_drift_events, generate_data, make_concept_schedules
 from .metrics import compute_metrics
 from .models import SimpleMLP
@@ -91,6 +92,7 @@ MODE_SPECS = {
     'FedSDA': ModeSpec(AdwinClient, _run_per_sample_timestep),
     'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep),
     'FedSDA_without_server': ModeSpec(AdwinClient, _run_per_sample_timestep, use_server=False),
+    'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep),
 }
 
 
