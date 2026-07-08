@@ -1,8 +1,12 @@
-"""中央サーバ(FedDrift準拠)。
+"""中央サーバ。
 
-- 新規モデルの回収とグローバルID発行
-- モデルIDごとの加重平均(FedAvg)とベースライン統計の集約
-- クロス評価 → 階層的クラスタリングによるモデルマージ
+- BaseServer: 新規モデルの回収・モデルIDごとの加重平均(FedAvg)・ブロードキャストの
+  共通土台。クラスタリングを持たない手法(単一モデル・Oblivious 等)はこれで十分。
+- ClusteringServer: FedDrift 式のクロス評価 + 階層的クラスタリングによるモデルマージを
+  追加する(FedSDA / FedDrift が使用)。
+
+新しいサーバ手法(IFCA / CFL / アンサンブル等)を追加する場合は BaseServer を継承し、
+experiment.py の MODE_SPECS の server_cls に登録する。
 """
 import copy
 import random
@@ -11,7 +15,9 @@ from collections import defaultdict
 from . import config
 
 
-class Server:
+class BaseServer:
+    """回収・FedAvg・ブロードキャストのみを行う基底サーバ(クラスタリングなし)。"""
+
     def __init__(self, distance_threshold=None, verbose=True):
         self.global_models = {}
         self.next_model_id = 1
@@ -36,6 +42,22 @@ class Server:
         self.global_stats[model_id] = copy.deepcopy(stats)
 
     def run_aggregation_and_merge(self, t, clustering_enabled=True):
+        """1回のサーバ処理: 新規モデル回収 → (任意でクラスタリング) → FedAvg → 配布。
+
+        clustering_enabled は _maybe_cluster に渡すフラグ。BaseServer はクラスタリングを
+        持たないため無視される(サブクラスが利用する)。
+        """
+        self._collect_pending_models(t)
+
+        active_ids = sorted(list(self.global_models.keys()))
+        if clustering_enabled:
+            active_ids = self._maybe_cluster(t, active_ids)
+
+        self.update_global_models(active_ids)
+        self.broadcast_models()
+
+    def _collect_pending_models(self, t):
+        """各クライアントの pending(新規作成)モデルを回収しグローバルIDを発行する。"""
         new_registrations = 0
         for c in self.clients:
             if c.has_pending_model():
@@ -49,46 +71,12 @@ class Server:
         if new_registrations > 0 and self.verbose:
             print(f"Server [t={t}]: Collected {new_registrations} new models.")
 
-        active_ids = sorted(list(self.global_models.keys()))
-        M = len(active_ids)
-
-        if clustering_enabled and M > 1:
-            stats_matrix = self._cross_evaluate(active_ids)
-            clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
-
-            if len(clusters) < M:
-                if self.verbose:
-                    print(f"\nServer [t={t}]: MERGE EXECUTED")
-                    print(f"  - Before: {active_ids}")
-                    print(f"  - Clusters: {clusters}")
-
-                id_mapping = {}
-                new_ids = []
-                for cluster in clusters:
-                    rep_id = min(cluster)
-                    new_ids.append(rep_id)
-                    for old_id in cluster:
-                        id_mapping[old_id] = rep_id
-
-                for c in self.clients:
-                    c.apply_server_mapping(id_mapping, self.global_models, self.global_stats)
-
-                for old_id in active_ids:
-                    if old_id not in new_ids:
-                        if old_id in self.global_models:
-                            del self.global_models[old_id]
-                        if old_id in self.global_stats:
-                            del self.global_stats[old_id]
-
-                if self.verbose:
-                    print(f"  - After IDs: {sorted(list(self.global_models.keys()))}\n")
-
-                active_ids = sorted(list(self.global_models.keys()))
-
-        self.update_global_models(active_ids)
-        self.broadcast_models()
+    def _maybe_cluster(self, t, active_ids):
+        """クラスタリング/マージのフック。BaseServer では何もしない。"""
+        return active_ids
 
     def update_global_models(self, active_ids):
+        """モデルIDごとに、参加クライアントのパラメータをデータ量で加重平均(FedAvg)。"""
         for mid in active_ids:
             participant_clients = []
             for c in self.clients:
@@ -136,6 +124,53 @@ class Server:
     def broadcast_models(self):
         for c in self.clients:
             c.apply_server_mapping({}, self.global_models, self.global_stats)
+
+
+class ClusteringServer(BaseServer):
+    """FedDrift 式サーバ: クロス評価による損失距離行列 → 階層的クラスタリング → マージ。"""
+
+    def _maybe_cluster(self, t, active_ids):
+        M = len(active_ids)
+        if M <= 1:
+            return active_ids
+
+        stats_matrix = self._cross_evaluate(active_ids)
+        clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
+
+        if len(clusters) < M:
+            active_ids = self._merge_clusters(t, active_ids, clusters)
+
+        return active_ids
+
+    def _merge_clusters(self, t, active_ids, clusters):
+        """各クラスタを代表ID(最小ID)に統合し、クライアント・グローバル状態を更新する。"""
+        if self.verbose:
+            print(f"\nServer [t={t}]: MERGE EXECUTED")
+            print(f"  - Before: {active_ids}")
+            print(f"  - Clusters: {clusters}")
+
+        id_mapping = {}
+        new_ids = []
+        for cluster in clusters:
+            rep_id = min(cluster)
+            new_ids.append(rep_id)
+            for old_id in cluster:
+                id_mapping[old_id] = rep_id
+
+        for c in self.clients:
+            c.apply_server_mapping(id_mapping, self.global_models, self.global_stats)
+
+        for old_id in active_ids:
+            if old_id not in new_ids:
+                if old_id in self.global_models:
+                    del self.global_models[old_id]
+                if old_id in self.global_stats:
+                    del self.global_stats[old_id]
+
+        if self.verbose:
+            print(f"  - After IDs: {sorted(list(self.global_models.keys()))}\n")
+
+        return sorted(list(self.global_models.keys()))
 
     def _cross_evaluate(self, model_ids):
         holders = defaultdict(list)

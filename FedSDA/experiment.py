@@ -25,7 +25,7 @@ from .data import build_data_streams, extract_true_drift_events, generate_data, 
 from .metrics import compute_metrics
 from .models import SimpleMLP
 from .plotting import plot_client_details, plot_system_overview
-from .server import Server
+from .server import BaseServer, ClusteringServer
 
 
 # ==========================================
@@ -86,13 +86,14 @@ class ModeSpec:
     client_cls: type
     run_timestep: Callable
     use_server: bool = True
+    server_cls: type = ClusteringServer
 
 
 MODE_SPECS = {
-    'FedSDA': ModeSpec(AdwinClient, _run_per_sample_timestep),
-    'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep),
+    'FedSDA': ModeSpec(AdwinClient, _run_per_sample_timestep, server_cls=ClusteringServer),
+    'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep, server_cls=ClusteringServer),
     'FedSDA_without_server': ModeSpec(AdwinClient, _run_per_sample_timestep, use_server=False),
-    'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep),
+    'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep, server_cls=BaseServer),
 }
 
 
@@ -136,7 +137,7 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
     """初期モデルの事前学習、サーバ登録、クライアント生成を行う。"""
     model0, stats_0 = _pretrain_initial_model()
 
-    server = Server(distance_threshold=distance_threshold, verbose=verbose)
+    server = spec.server_cls(distance_threshold=distance_threshold, verbose=verbose)
     server.register_model_params(0, model0.get_params())
     server.register_model_stats(0, stats_0)
 
