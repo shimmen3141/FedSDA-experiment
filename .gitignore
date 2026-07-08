@@ -9,8 +9,9 @@ venv/
 results/
 *.png
 
-# 参照用に clone した外部リポジトリ(この repo には含めない)
+# 参照用に clone した外部リポジトリ・論文(この repo には含めない)
 /FedDrift/
+/FedDrift_paper/
 
 # OS / エディタ
 .DS_Store

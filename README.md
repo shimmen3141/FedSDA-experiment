@@ -43,9 +43,11 @@ python run_comparative_trials.py --help
 | dataset | 内容 |
 |---|---|
 | `blobs`(既定) | 独自の2次元合成(ガウス塊 / 同心円)、4概念 |
-| `sea` | **FedDrift SEA-4 互換**。特徴 f1,f2,f3 ~ U[0,10](f1 はノイズ)、label = 1 iff (f2+f3) > 閾値 |
+| `sea` | **FedDrift SEA-4**。特徴 x1,x2,x3 ~ U[0,10](x3 はノイズ)、label = 1 iff (x1+x2) ≤ 閾値 |
 
-`sea` の閾値・ノイズ率は [FedSDA/config.py](FedSDA/config.py) の `SEA_THRESHOLDS`(FedDrift同梱データから復元した `{0:8, 1:9, 2:7, 3:9}`)/ `SEA_LABEL_NOISE`(0.10)で定義。FedDrift の実データでは概念1と3(0始まり)が閾値9.0で同一分布になっているため、4概念を明確に区別したい場合は `SEA_THRESHOLDS[3]` を `9.5`(古典SEA)に変更する。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
+`sea` の閾値・ノイズ率は [FedSDA/config.py](FedSDA/config.py) の `SEA_THRESHOLDS`(FedDrift論文 appendix の A,B,C,D = `{0:9, 1:8, 2:7, 3:9.5}`)/ `SEA_LABEL_NOISE`(0.10)で定義。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
+
+> **データセット定義の注記**: FedDrift 同梱の `concept4.csv` は実測 θ≈9.0 で `concept2` と重複する(データ配布側のズレ)。本実装は**論文 appendix の正準定義** θ_D=9.5 に合わせ、4概念が区別されるようにしている。信号特徴は論文どおり x1+x2(x3 がノイズ)。
 
 > **注**: ドリフトスケジュール(いつ・何回ドリフトするか)は FedDrift と異なり、本実装は各サンプルで確率的に複数回発生させる方式のまま(`make_concept_schedules`)。データセットのみ FedDrift 互換にしている。
 

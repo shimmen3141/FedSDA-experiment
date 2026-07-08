@@ -20,12 +20,12 @@ TOTAL_DATA_POINTS = 3000    # クライアントあたりの総データ数
 # ==========================================
 DATASET = 'blobs'          # 'blobs'(2次元合成) or 'sea'(FedDrift SEA-4 互換)
 
-# SEA-4 (FedDrift互換): 特徴 f1,f2,f3 ~ U[0,10]。f1 はノイズ特徴で、
-# label = 1 iff (f2 + f3) > 閾値。閾値は FedDrift の同梱データから復元した値。
-# 注: 概念1と3(0始まり)は閾値9.0で同一分布(FedDrift実データの性質)。
-#     4概念すべてを区別したい場合は 3 の値を 9.5(古典SEA)に変更する。
-SEA_THRESHOLDS = {0: 8.0, 1: 9.0, 2: 7.0, 3: 9.0}
-SEA_LABEL_NOISE = 0.10     # 各概念に内在するラベルノイズ率(SEAベンチマークの標準)
+# SEA-4 (FedDrift論文 appendix の定義): 特徴 x1,x2,x3 ~ U[0,10]。x3 はノイズ特徴で、
+# label = 1 iff (x1 + x2) <= 閾値。閾値は概念 A,B,C,D で {9, 8, 7, 9.5}。
+# 注: FedDrift 同梱の concept4.csv は実測 θ≈9.0 で concept2 と重複する(データ配布側のズレ)
+#     が、論文の正準定義に合わせ θ_D=9.5 として4概念を区別する。
+SEA_THRESHOLDS = {0: 9.0, 1: 8.0, 2: 7.0, 3: 9.5}
+SEA_LABEL_NOISE = 0.10     # 各概念に内在するラベルノイズ率(SEAベンチマークの標準10%)
 
 _FEATURE_DIMS = {'blobs': 2, 'sea': 3}
 

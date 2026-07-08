@@ -6,8 +6,8 @@ blobs(2クラス分類・2次元特徴):
 - concept 0 / 2: 2つのガウス塊(ラベルと中心の対応が 0 と 2 で反転)
 - concept 1 / 3: 同心円(内側/外側とラベルの対応が 1 と 3 で反転)
 
-sea(FedDrift SEA-4 互換・2クラス分類・3次元特徴):
-- 特徴 f1,f2,f3 ~ U[0,10]、f1 はノイズ特徴、label = 1 iff (f2+f3) > 閾値
+sea(FedDrift SEA-4・2クラス分類・3次元特徴):
+- 特徴 x1,x2,x3 ~ U[0,10]、x3 はノイズ特徴、label = 1 iff (x1+x2) <= 閾値
 - 閾値・ノイズ率は config.SEA_THRESHOLDS / config.SEA_LABEL_NOISE
 """
 import random
@@ -88,10 +88,10 @@ def _generate_blobs(concept_id, n_samples):
 
 
 def _generate_sea(concept_id, n_samples):
-    """FedDrift SEA-4 互換の3次元合成データ。(x_list, y_list) を返す。
+    """FedDrift SEA-4 の3次元合成データ。(x_list, y_list) を返す。
 
-    f1,f2,f3 ~ U[0,10](f1 はノイズ特徴)、label = 1 iff (f2+f3) > 閾値。
-    確率 config.SEA_LABEL_NOISE でラベルを反転する。
+    x1,x2,x3 ~ U[0,10](x3 はノイズ特徴)、label = 1 iff (x1+x2) <= 閾値
+    (FedDrift 論文 appendix の定義)。確率 config.SEA_LABEL_NOISE でラベルを反転する。
     """
     theta = config.SEA_THRESHOLDS[concept_id]
     noise_prob = config.SEA_LABEL_NOISE
@@ -100,7 +100,7 @@ def _generate_sea(concept_id, n_samples):
     y_list = []
     for _ in range(n_samples):
         f = np.random.uniform(0.0, 10.0, size=3)
-        label = 1.0 if (f[1] + f[2]) > theta else 0.0
+        label = 1.0 if (f[0] + f[1]) <= theta else 0.0
         if np.random.rand() < noise_prob:
             label = 1.0 - label
         x_list.append(f)
