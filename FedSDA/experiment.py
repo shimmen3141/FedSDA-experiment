@@ -133,6 +133,49 @@ def _pretrain_initial_model():
     return model0, stats_0
 
 
+def _build_paper_eval(schedule, data_per_time, t_steps, n_clients):
+    """論文式(次時刻テスト・ドリフト時刻除外)の評価用データとフラグを用意する。
+
+    各(クライアント c, 時刻 τ)について:
+      - test_concept: τ+1 の先頭コンセプト(最終時刻は自身の末尾コンセプト)。
+        そのコンセプトから held-out テストデータを生成する。
+      - is_drift: τ の学習末コンセプトと test_concept が異なるか(境界でドリフト
+        =まだ適応できていない時刻)。True の (c, τ) は「ドリフト除外」平均から外す。
+
+    テストデータ生成による np.random の消費は前後で状態復元し、既存の乱数列
+    (=学習・クラスタリングの再現性)に影響させない。
+    """
+    def test_concept(c, tau):
+        if tau < t_steps - 1:
+            return schedule[c][(tau + 1) * data_per_time]
+        return schedule[c][tau * data_per_time + data_per_time - 1]
+
+    def train_end_concept(c, tau):
+        return schedule[c][(tau + 1) * data_per_time - 1]
+
+    is_drift = [[test_concept(c, tau) != train_end_concept(c, tau)
+                 for tau in range(t_steps)] for c in range(n_clients)]
+
+    rng_state = np.random.get_state()
+    test_sets = [[generate_data(test_concept(c, tau), config.PAPER_TEST_SAMPLES)
+                  for tau in range(t_steps)] for c in range(n_clients)]
+    np.random.set_state(rng_state)
+
+    return test_sets, is_drift
+
+
+def _eval_paper_accuracy(clients, test_sets, t):
+    """各クライアントの現在モデルを、時刻 t の held-out テストデータで評価した精度リスト。"""
+    accs = []
+    for c_idx, client in enumerate(clients):
+        X, Y = test_sets[c_idx][t]
+        model = client.models[client.current_model_id]
+        with torch.no_grad():
+            preds = (model(X) > 0.5).float().view(-1)
+        accs.append((preds == Y.view(-1)).float().mean().item())
+    return accs
+
+
 def _setup_server_and_clients(spec, distance_threshold, verbose):
     """初期モデルの事前学習、サーバ登録、クライアント生成を行う。"""
     model0, stats_0 = _pretrain_initial_model()
@@ -197,6 +240,11 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     true_drift_events = extract_true_drift_events(client_concept_schedule)
     all_client_data = build_data_streams(client_concept_schedule)
 
+    # 論文式(次時刻テスト・ドリフト除外)の評価用データ・フラグ(既存の乱数列に影響しない)
+    paper_test_sets, paper_is_drift = _build_paper_eval(
+        client_concept_schedule, data_per_time, t_steps, config.N_CLIENTS)
+    paper_accs = []  # (時刻ごと) 各クライアントの次時刻テスト精度
+
     if verbose:
         print(f"Simulation Start (Total Data={config.TOTAL_DATA_POINTS}, Mode={mode})...")
 
@@ -216,6 +264,9 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         spec.run_timestep(clients, server, current_time_data, current_time_concepts,
                           t, spec.use_server, verbose)
 
+        # 論文式の精度: この時刻の学習後、held-out テストデータで評価(RNG中立)
+        paper_accs.append(_eval_paper_accuracy(clients, paper_test_sets, t))
+
     runtime_seconds = time.perf_counter() - exp_start
 
     if verbose:
@@ -231,9 +282,18 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         results["final_model_count"] = float(np.mean([len(c.models) for c in clients]))
     results["runtime_seconds"] = runtime_seconds
 
+    # --- 論文式の精度(次時刻テスト。ドリフト除外版と全時刻版)---
+    all_p = [a for t in range(t_steps) for a in paper_accs[t]]
+    nondrift_p = [paper_accs[t][c] for t in range(t_steps)
+                  for c in range(config.N_CLIENTS) if not paper_is_drift[c][t]]
+    results["paper_accuracy"] = float(np.mean(nondrift_p)) if nondrift_p else float('nan')
+    results["paper_accuracy_all"] = float(np.mean(all_p)) if all_p else float('nan')
+
     if verbose:
         print("\n=== Experiment Metrics ===")
-        print(f"  Accuracy: {results['accuracy']:.4f}")
+        print(f"  Accuracy (prequential): {results['accuracy']:.4f}")
+        print(f"  Accuracy (paper, omit-drift): {results['paper_accuracy']:.4f}")
+        print(f"  Accuracy (paper, all-time): {results['paper_accuracy_all']:.4f}")
         print(f"  Recall (TP Rate): {results['recall']:.4f}")
         print(f"  Precision: {results['precision']:.4f}")
         print(f"  Avg Delay: {results['avg_delay']:.1f} steps")

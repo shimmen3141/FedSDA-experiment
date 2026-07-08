@@ -54,6 +54,19 @@ python run_comparative_trials.py --help
 
 > **注**: ドリフトスケジュール(いつ・何回ドリフトするか)は FedDrift と異なり、本実装は各サンプルで確率的に複数回発生させる方式のまま(`make_concept_schedules`)。データセットのみ FedDrift 互換にしている。
 
+### 評価指標(結果 dict のキー)
+
+| キー | 意味 |
+|---|---|
+| `accuracy` | prequential(逐次)精度: 各サンプルを予測→即学習した際の当否の平均 |
+| `paper_accuracy` | **論文式**: 各時刻の学習後に次時刻コンセプトの held-out データで評価。ドリフト時刻を除外した平均(論文 Table と比較可能) |
+| `paper_accuracy_all` | 論文式(全時刻版・ドリフト時刻も含む) |
+| `recall` / `precision` / `f1` | ドリフト検出の質(ローカル切替を検出とみなし真のドリフトと照合) |
+| `avg_delay` | 平均検出遅延(サンプル数) |
+| `final_model_count` | 最終モデル数(サーバ集約あり)/ クライアント平均保持数(なし) |
+
+論文式精度は [FedSDA/config.py](FedSDA/config.py) の `PAPER_TEST_SAMPLES` でテストサイズを設定。テストデータ生成は乱数状態を保存・復元するため、既存の学習の再現性には影響しない。
+
 ## コード構成
 
 ```
