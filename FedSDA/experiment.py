@@ -136,11 +136,14 @@ def _pretrain_initial_model():
 def _build_paper_eval(schedule, data_per_time, t_steps, n_clients):
     """論文式(次時刻テスト・ドリフト時刻除外)の評価用データとフラグを用意する。
 
-    各(クライアント c, 時刻 τ)について:
-      - test_concept: τ+1 の先頭コンセプト(最終時刻は自身の末尾コンセプト)。
-        そのコンセプトから held-out テストデータを生成する。
-      - is_drift: τ の学習末コンセプトと test_concept が異なるか(境界でドリフト
-        =まだ適応できていない時刻)。True の (c, τ) は「ドリフト除外」平均から外す。
+    本実装のドリフトは per-sample にランダムな位置で発生する(FedDrift のように
+    時刻ブロック境界に限定されない)。そのため各(クライアント c, 時刻ブロック τ)に
+    ついて:
+      - test_concept: τ+1 の先頭コンセプト(最終時刻は自身の末尾コンセプト)から
+        held-out テストデータを生成する。
+      - is_drift: ブロック τ(サンプル [τ·dpt, (τ+1)·dpt))の内部でコンセプトが
+        変化するか。True(=ドリフト発生ブロックで適応途中)の (c, τ) は
+        「ドリフト除外」平均から外す。
 
     テストデータ生成による np.random の消費は前後で状態復元し、既存の乱数列
     (=学習・クラスタリングの再現性)に影響させない。
@@ -150,11 +153,14 @@ def _build_paper_eval(schedule, data_per_time, t_steps, n_clients):
             return schedule[c][(tau + 1) * data_per_time]
         return schedule[c][tau * data_per_time + data_per_time - 1]
 
-    def train_end_concept(c, tau):
-        return schedule[c][(tau + 1) * data_per_time - 1]
+    def block_has_drift(c, tau):
+        # ブロック τ の内部(先頭サンプルへの遷移も含む)でコンセプトが変化するか
+        start = max(1, tau * data_per_time)
+        end = (tau + 1) * data_per_time
+        return any(schedule[c][p] != schedule[c][p - 1] for p in range(start, end))
 
-    is_drift = [[test_concept(c, tau) != train_end_concept(c, tau)
-                 for tau in range(t_steps)] for c in range(n_clients)]
+    is_drift = [[block_has_drift(c, tau) for tau in range(t_steps)]
+                for c in range(n_clients)]
 
     rng_state = np.random.get_state()
     test_sets = [[generate_data(test_concept(c, tau), config.PAPER_TEST_SAMPLES)
