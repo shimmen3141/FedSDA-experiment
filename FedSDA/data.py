@@ -9,6 +9,12 @@ blobs(2クラス分類・2次元特徴):
 sea(FedDrift SEA-4・2クラス分類・3次元特徴):
 - 特徴 x1,x2,x3 ~ U[0,10]、x3 はノイズ特徴、label = 1 iff (x1+x2) <= 閾値
 - 閾値・ノイズ率は config.SEA_THRESHOLDS / config.SEA_LABEL_NOISE
+
+circle(FedDrift CIRCLE-2・2クラス分類・2次元特徴):
+- 特徴 x1,x2 ~ U[0,1]^2、概念別の円の外側を label=1(config.CIRCLE_PARAMS)
+
+sine(FedDrift SINE-2・2クラス分類・2次元特徴):
+- 特徴 x1,x2 ~ U[0,1]^2、概念0: x2<=sin(x1) を label=1、概念1: 反転
 """
 import random
 
@@ -28,13 +34,17 @@ def generate_data(concept_id, n_samples=1, dataset=None):
     """
     if dataset is None:
         dataset = config.DATASET
-    if concept_id not in range(config.NUM_CONCEPTS):
-        raise ValueError(f"Unknown concept_id: {concept_id}")
+    if concept_id not in range(config.num_concepts(dataset)):
+        raise ValueError(f"Unknown concept_id {concept_id} for dataset {dataset!r}")
 
     if dataset == 'blobs':
         x_list, y_list = _generate_blobs(concept_id, n_samples)
     elif dataset == 'sea':
         x_list, y_list = _generate_sea(concept_id, n_samples)
+    elif dataset == 'circle':
+        x_list, y_list = _generate_circle(concept_id, n_samples)
+    elif dataset == 'sine':
+        x_list, y_list = _generate_sine(concept_id, n_samples)
     else:
         raise ValueError(f"Unknown dataset: {dataset!r}")
 
@@ -109,6 +119,45 @@ def _generate_sea(concept_id, n_samples):
     return x_list, y_list
 
 
+def _generate_circle(concept_id, n_samples):
+    """FedDrift CIRCLE-2 の2次元合成データ。(x_list, y_list) を返す。
+
+    x1,x2 ~ U[0,1]^2、概念別の円 (cx,cy,r) の外側を label=1 とする。
+    """
+    cx, cy, r = config.CIRCLE_PARAMS[concept_id]
+
+    x_list = []
+    y_list = []
+    for _ in range(n_samples):
+        f = np.random.uniform(0.0, 1.0, size=2)
+        z = (f[0] - cx) ** 2 + (f[1] - cy) ** 2 - r ** 2
+        label = 1.0 if z > 0 else 0.0
+        x_list.append(f)
+        y_list.append(label)
+
+    return x_list, y_list
+
+
+def _generate_sine(concept_id, n_samples):
+    """FedDrift SINE-2 の2次元合成データ。(x_list, y_list) を返す。
+
+    x1,x2 ~ U[0,1]^2、概念0: label = 1 iff x2 <= sin(x1)、概念1: そのラベルを反転。
+    """
+    x_list = []
+    y_list = []
+    for _ in range(n_samples):
+        f = np.random.uniform(0.0, 1.0, size=2)
+        below = f[1] <= np.sin(f[0])
+        if concept_id == 0:
+            label = 1.0 if below else 0.0
+        else:
+            label = 0.0 if below else 1.0
+        x_list.append(f)
+        y_list.append(label)
+
+    return x_list, y_list
+
+
 def make_concept_schedules(n_clients, total_data_points,
                            min_stable_period=None, drift_prob=None):
     """クライアントごとのコンセプト系列(長さ total_data_points)を生成する。
@@ -128,7 +177,7 @@ def make_concept_schedules(n_clients, total_data_points,
         last_drift = 0
         for data_idx in range(total_data_points):
             if (data_idx - last_drift > min_stable_period) and (random.random() < drift_prob):
-                candidates = [cid for cid in range(config.NUM_CONCEPTS) if cid != curr]
+                candidates = [cid for cid in range(config.num_concepts()) if cid != curr]
                 curr = random.choice(candidates)
                 last_drift = data_idx
             schedule.append(curr)

@@ -79,7 +79,7 @@ def plot_system_overview(clients, mode, avg_accuracy, save_path=None):
     plt.yticks(range(n_clients), [f"Client {i}" for i in range(n_clients)])
     plt.title(f"Concept (Color) vs Model ID (Text) [{mode}]")
 
-    n_concepts = min(config.NUM_CONCEPTS, len(colors))
+    n_concepts = min(config.num_concepts(), len(colors))
     patches = [plt.Rectangle((0, 0), 1, 1, color=colors[i]) for i in range(n_concepts)]
     marker_handle = Line2D([0], [0], marker='^', color='red', linestyle='None', markersize=8)
     handles = patches + [marker_handle]

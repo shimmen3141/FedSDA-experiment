@@ -40,10 +40,12 @@ python run_comparative_trials.py --help
 
 ### データセット(`--dataset`)
 
-| dataset | 内容 |
-|---|---|
-| `blobs`(既定) | 独自の2次元合成(ガウス塊 / 同心円)、4概念 |
-| `sea` | **FedDrift SEA-4**。特徴 x1,x2,x3 ~ U[0,10](x3 はノイズ)、label = 1 iff (x1+x2) ≤ 閾値 |
+| dataset | 概念数 | 内容 |
+|---|---|---|
+| `blobs`(既定) | 4 | 独自の2次元合成(ガウス塊 / 同心円) |
+| `sea` | 4 | **FedDrift SEA-4**。x1,x2,x3 ~ U[0,10](x3 ノイズ)、label = 1 iff (x1+x2) ≤ 閾値 |
+| `circle` | 2 | **FedDrift CIRCLE-2**。x1,x2 ~ U[0,1]²、概念別の円の外側を label=1(小さな概念変化) |
+| `sine` | 2 | **FedDrift SINE-2**。x1,x2 ~ U[0,1]²、概念0: x2≤sin(x1) を label=1、概念1: 反転(大きな概念変化) |
 
 `sea` の閾値・ノイズ率は [FedSDA/config.py](FedSDA/config.py) の `SEA_THRESHOLDS`(FedDrift論文 appendix の A,B,C,D = `{0:9, 1:8, 2:7, 3:9.5}`)/ `SEA_LABEL_NOISE`(0.10)で定義。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
 
