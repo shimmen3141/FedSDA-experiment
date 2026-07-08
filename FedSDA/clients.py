@@ -149,7 +149,7 @@ class BaseClient:
         m = len(bx)
         new_model = SimpleMLP()
         new_model.set_params(self.models[self.current_model_id].get_params())
-        new_model.set_optimizer_sgd(lr=config.NEW_MODEL_LR)
+        new_model.reset_optimizer(lr=config.NEW_MODEL_LR)
 
         dataset = torch.utils.data.TensorDataset(bx, by)
         loader = torch.utils.data.DataLoader(

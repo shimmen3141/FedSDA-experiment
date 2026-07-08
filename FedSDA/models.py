@@ -24,7 +24,17 @@ class SimpleMLP(nn.Module):
             nn.Sigmoid()
         )
         self.loss_fn = nn.BCELoss()
-        self.optimizer = optim.SGD(self.parameters(), lr=config.BASE_LR)
+        self.optimizer = self._build_optimizer(config.BASE_LR)
+
+    def _build_optimizer(self, lr):
+        """config.OPTIMIZER に従って最適化器を構築する。"""
+        if config.OPTIMIZER == 'adam':
+            return optim.Adam(self.parameters(), lr=lr,
+                              weight_decay=config.WEIGHT_DECAY, amsgrad=config.AMSGRAD)
+        elif config.OPTIMIZER == 'sgd':
+            return optim.SGD(self.parameters(), lr=lr)
+        else:
+            raise ValueError(f"Unknown optimizer: {config.OPTIMIZER!r}")
 
     def forward(self, x):
         return self.net(x)
@@ -58,9 +68,10 @@ class SimpleMLP(nn.Module):
         self.optimizer.step()
         return loss.item()
 
-    def set_optimizer_sgd(self, lr=None):
+    def reset_optimizer(self, lr=None):
+        """最適化器を作り直す(新規モデルの初期学習前に内部状態をリセット)。"""
         lr = lr if lr is not None else config.NEW_MODEL_LR
-        self.optimizer = optim.SGD(self.parameters(), lr=lr)
+        self.optimizer = self._build_optimizer(lr)
 
     def get_params(self):
         return copy.deepcopy(self.state_dict())
