@@ -17,6 +17,9 @@ pip install -r requirements.txt
 # 単発実験(提案手法、seed=0、図は results/ に保存)
 python run_experiment.py --mode FedSDA --seed 0 --plot-dir results
 
+# データセットを SEA-4(FedDrift互換)に切り替え
+python run_experiment.py --mode FedSDA --seed 0 --dataset sea
+
 # 3モード × 10シードの比較試行
 python run_comparative_trials.py --n-trials 10 --plot-dir results
 
@@ -34,6 +37,17 @@ python run_comparative_trials.py --help
 | `FedSDA` | **提案手法**: ADWIN逐次検出 + FIFOバッファ + サーバ集約 |
 | `FedDrift` | ベースライン: 固定バッチ検出 + サーバ集約 |
 | `FedSDA_without_server` | 提案手法のローカルのみ版(サーバ集約なし) |
+
+### データセット(`--dataset`)
+
+| dataset | 内容 |
+|---|---|
+| `blobs`(既定) | 独自の2次元合成(ガウス塊 / 同心円)、4概念 |
+| `sea` | **FedDrift SEA-4 互換**。特徴 f1,f2,f3 ~ U[0,10](f1 はノイズ)、label = 1 iff (f2+f3) > 閾値 |
+
+`sea` の閾値・ノイズ率は [FedSDA/config.py](FedSDA/config.py) の `SEA_THRESHOLDS`(FedDrift同梱データから復元した `{0:8, 1:9, 2:7, 3:9}`)/ `SEA_LABEL_NOISE`(0.10)で定義。FedDrift の実データでは概念1と3(0始まり)が閾値9.0で同一分布になっているため、4概念を明確に区別したい場合は `SEA_THRESHOLDS[3]` を `9.5`(古典SEA)に変更する。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
+
+> **注**: ドリフトスケジュール(いつ・何回ドリフトするか)は FedDrift と異なり、本実装は各サンプルで確率的に複数回発生させる方式のまま(`make_concept_schedules`)。データセットのみ FedDrift 互換にしている。
 
 ## コード構成
 

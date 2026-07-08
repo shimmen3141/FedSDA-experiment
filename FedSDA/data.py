@@ -1,8 +1,14 @@
 """合成データ生成とコンセプトドリフトのスケジュール生成。
 
-コンセプト定義(2クラス分類・2次元特徴):
+データセットは config.DATASET で切り替える。
+
+blobs(2クラス分類・2次元特徴):
 - concept 0 / 2: 2つのガウス塊(ラベルと中心の対応が 0 と 2 で反転)
 - concept 1 / 3: 同心円(内側/外側とラベルの対応が 1 と 3 で反転)
+
+sea(FedDrift SEA-4 互換・2クラス分類・3次元特徴):
+- 特徴 f1,f2,f3 ~ U[0,10]、f1 はノイズ特徴、label = 1 iff (f2+f3) > 閾値
+- 閾値・ノイズ率は config.SEA_THRESHOLDS / config.SEA_LABEL_NOISE
 """
 import random
 
@@ -12,15 +18,34 @@ import torch
 from . import config
 
 
-def generate_data(concept_id, n_samples=1):
+def generate_data(concept_id, n_samples=1, dataset=None):
     """指定コンセプトからデータを生成する。
 
-    n_samples == 1 のとき (x: FloatTensor(2,), y: FloatTensor(1,)) を返し、
-    それ以外は (X: FloatTensor(n,2), Y: FloatTensor(n,1)) を返す。
+    dataset を省略すると config.DATASET を用いる。特徴次元 d は
+    config.input_dim(dataset)。n_samples == 1 のとき (x: FloatTensor(d,),
+    y: FloatTensor(1,)) を、それ以外は (X: FloatTensor(n,d), Y: FloatTensor(n,1))
+    を返す。
     """
-    if concept_id not in (0, 1, 2, 3):
+    if dataset is None:
+        dataset = config.DATASET
+    if concept_id not in range(config.NUM_CONCEPTS):
         raise ValueError(f"Unknown concept_id: {concept_id}")
 
+    if dataset == 'blobs':
+        x_list, y_list = _generate_blobs(concept_id, n_samples)
+    elif dataset == 'sea':
+        x_list, y_list = _generate_sea(concept_id, n_samples)
+    else:
+        raise ValueError(f"Unknown dataset: {dataset!r}")
+
+    if n_samples == 1:
+        return torch.FloatTensor(x_list[0]), torch.FloatTensor([y_list[0]])
+    else:
+        return torch.FloatTensor(np.array(x_list)), torch.FloatTensor(np.array(y_list)).unsqueeze(1)
+
+
+def _generate_blobs(concept_id, n_samples):
+    """2次元合成データ(ガウス塊 / 同心円)。(x_list, y_list) を返す。"""
     x_list = []
     y_list = []
 
@@ -59,10 +84,29 @@ def generate_data(concept_id, n_samples=1):
             x_list.append(x)
             y_list.append(label)
 
-    if n_samples == 1:
-        return torch.FloatTensor(x_list[0]), torch.FloatTensor([y_list[0]])
-    else:
-        return torch.FloatTensor(np.array(x_list)), torch.FloatTensor(np.array(y_list)).unsqueeze(1)
+    return x_list, y_list
+
+
+def _generate_sea(concept_id, n_samples):
+    """FedDrift SEA-4 互換の3次元合成データ。(x_list, y_list) を返す。
+
+    f1,f2,f3 ~ U[0,10](f1 はノイズ特徴)、label = 1 iff (f2+f3) > 閾値。
+    確率 config.SEA_LABEL_NOISE でラベルを反転する。
+    """
+    theta = config.SEA_THRESHOLDS[concept_id]
+    noise_prob = config.SEA_LABEL_NOISE
+
+    x_list = []
+    y_list = []
+    for _ in range(n_samples):
+        f = np.random.uniform(0.0, 10.0, size=3)
+        label = 1.0 if (f[1] + f[2]) > theta else 0.0
+        if np.random.rand() < noise_prob:
+            label = 1.0 - label
+        x_list.append(f)
+        y_list.append(label)
+
+    return x_list, y_list
 
 
 def make_concept_schedules(n_clients, total_data_points,

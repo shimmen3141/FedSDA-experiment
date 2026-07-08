@@ -9,12 +9,14 @@ from . import config
 
 
 class SimpleMLP(nn.Module):
-    """2次元入力の二値分類MLP(損失: BCE、出力: Sigmoid)。"""
+    """二値分類MLP(損失: BCE、出力: Sigmoid)。入力次元は config.DATASET に追従。"""
 
-    def __init__(self):
+    def __init__(self, input_dim=None):
         super(SimpleMLP, self).__init__()
+        if input_dim is None:
+            input_dim = config.input_dim()
         self.net = nn.Sequential(
-            nn.Linear(2, 32),
+            nn.Linear(input_dim, 32),
             nn.ReLU(),
             nn.Linear(32, 32),
             nn.ReLU(),

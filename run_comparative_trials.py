@@ -20,12 +20,16 @@ def main():
     parser.add_argument("--modes", nargs="+", choices=MODES, default=MODES,
                         help=f"実行するモード (default: 全モード)")
     parser.add_argument("--start-seed", type=int, default=0, help="開始シード (default: 0)")
+    parser.add_argument("--dataset", choices=list(config._FEATURE_DIMS), default=config.DATASET,
+                        help=f"データセット (default: {config.DATASET})")
     parser.add_argument("--no-plot", action="store_true", help="最終試行のプロットも生成しない")
     parser.add_argument("--plot-dir", default=None,
                         help="図の保存先ディレクトリ。未指定なら画面表示 (plt.show)")
     parser.add_argument("--verbose-per-trial", action="store_true",
                         help="最終試行の詳細ログを表示する")
     args = parser.parse_args()
+
+    config.DATASET = args.dataset
 
     summary = run_comparative_trials(
         n_trials=args.n_trials,

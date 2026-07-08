@@ -19,11 +19,15 @@ def main():
     parser.add_argument("--threshold", type=float, default=config.DISTANCE_THRESHOLD,
                         help=f"距離閾値 gamma_dist (default: {config.DISTANCE_THRESHOLD})")
     parser.add_argument("--seed", type=int, default=0, help="乱数シード (default: 0)")
+    parser.add_argument("--dataset", choices=list(config._FEATURE_DIMS), default=config.DATASET,
+                        help=f"データセット (default: {config.DATASET})")
     parser.add_argument("--quiet", action="store_true", help="詳細ログを抑制する")
     parser.add_argument("--no-plot", action="store_true", help="プロットを生成しない")
     parser.add_argument("--plot-dir", default=None,
                         help="図の保存先ディレクトリ。未指定なら画面表示 (plt.show)")
     args = parser.parse_args()
+
+    config.DATASET = args.dataset
 
     results = run_random_drift_experiment(
         mode=args.mode,
