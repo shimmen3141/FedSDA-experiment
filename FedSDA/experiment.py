@@ -288,6 +288,11 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         results["final_model_count"] = float(np.mean([len(c.models) for c in clients]))
     results["runtime_seconds"] = runtime_seconds
 
+    # --- 通信量(モデル転送数。up=クライアント→サーバ, down=サーバ→クライアント)---
+    results["comm_upload"] = server.comm_up
+    results["comm_download"] = server.comm_down
+    results["comm_total"] = server.comm_up + server.comm_down
+
     # --- 論文式の精度(次時刻テスト。ドリフト除外版と全時刻版)---
     all_p = [a for t in range(t_steps) for a in paper_accs[t]]
     nondrift_p = [paper_accs[t][c] for t in range(t_steps)
@@ -306,6 +311,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         print(f"  Final Global Models: {results['final_model_count']}")
         print(f"  Total Local Switches (total_detect): {results['total_detect']}")
         print(f"  TP / FP / FN: {results['tp']} / {results['fp']} / {results['fn']}")
+        print(f"  Comm (up / down / total): {results['comm_upload']} / {results['comm_download']} / {results['comm_total']}")
         print(f"  Runtime: {runtime_seconds:.3f} sec")
 
     # --- 可視化 ---

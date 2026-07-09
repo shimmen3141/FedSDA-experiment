@@ -27,6 +27,10 @@ class BaseServer:
         self.verbose = verbose
         self.global_stats = defaultdict(lambda: {'n': 0, 'mean': 0.0, 'M2': 0.0})
 
+        # 通信量カウンタ(1単位 = 1モデルのパラメータを1回転送。全モデル同一サイズ)
+        self.comm_up = 0    # クライアント→サーバ(新規モデル回収・FedAvg のアップロード)
+        self.comm_down = 0  # サーバ→クライアント(ブロードキャスト・クロス評価のモデル送信)
+
     def register_client(self, client):
         self.clients.append(client)
 
@@ -62,6 +66,7 @@ class BaseServer:
         for c in self.clients:
             if c.has_pending_model():
                 params, stats = c.get_pending_model_info()
+                self.comm_up += 1  # クライアントが新規モデルをアップロード
                 new_global_id = self.request_new_model_id()
                 self.register_model_params(new_global_id, params)
                 self.register_model_stats(new_global_id, stats)
@@ -96,6 +101,7 @@ class BaseServer:
                 if n_data == 0:
                     continue
 
+                self.comm_up += 1  # クライアントが mid のパラメータをアップロード(FedAvg)
                 params = c.models[mid].get_params()
                 if new_params is None:
                     new_params = copy.deepcopy(params)
@@ -122,6 +128,8 @@ class BaseServer:
                 self.global_stats[mid] = {'n': total_n_stat, 'mean': avg_mean, 'M2': 0.0}
 
     def broadcast_models(self):
+        # 全グローバルモデルを全クライアントへ配布(ダウンロード)
+        self.comm_down += len(self.global_models) * len(self.clients)
         for c in self.clients:
             c.apply_server_mapping({}, self.global_models, self.global_stats)
 
@@ -157,6 +165,8 @@ class ClusteringServer(BaseServer):
             for old_id in cluster:
                 id_mapping[old_id] = rep_id
 
+        # マージ後モデルを全クライアントへ再配布(ダウンロード)
+        self.comm_down += len(self.global_models) * len(self.clients)
         for c in self.clients:
             c.apply_server_mapping(id_mapping, self.global_models, self.global_stats)
 
@@ -187,6 +197,9 @@ class ClusteringServer(BaseServer):
                 target_clients = holders.get(id_j, [])
                 if len(target_clients) > config.CROSS_EVAL_MAX_CLIENTS:
                     target_clients = random.sample(target_clients, config.CROSS_EVAL_MAX_CLIENTS)
+
+                # 評価のためモデル id_i を各対象クライアントへ送信(ダウンロード)
+                self.comm_down += len(target_clients)
 
                 total_n, total_S, total_SS = 0, 0.0, 0.0
                 for c in target_clients:
