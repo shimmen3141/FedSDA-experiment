@@ -101,7 +101,8 @@ def plot_pareto(rows, datasets, batches, path):
             if a:
                 fx.append(a[0]); fxe.append(a[1]); fy.append(a[2]); fye.append(a[3]); labels.append(b)
         if fx:
-            order = np.argsort(fx)
+            # 掃引パラメータ(バッチサイズ)順に線を結ぶ(通信量は batch に単調でないため)
+            order = np.argsort(labels)
             fx = np.array(fx)[order]; fy = np.array(fy)[order]
             fxe = np.array(fxe)[order]; fye = np.array(fye)[order]
             labels = [labels[i] for i in order]
