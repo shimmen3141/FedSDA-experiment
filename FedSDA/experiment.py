@@ -207,6 +207,18 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
     return server, clients
 
 
+def _mode_param_summary(mode, distance_threshold):
+    """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
+    if mode in ('FedSDA', 'FedSDA_without_server'):
+        return (f"gamma_dist={distance_threshold}, delta_adwin={config.ADWIN_DELTA}, "
+                f"N_FIFO={config.FIFO_BUFFER_SIZE}")
+    if mode == 'FedDrift':
+        return f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}"
+    if mode == 'Oblivious':
+        return "single model, no adaptation"
+    return f"threshold={distance_threshold}"
+
+
 # ==========================================
 # 実験本体
 # ==========================================
@@ -231,7 +243,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         np.random.seed(random_seed)
         torch.manual_seed(random_seed)
 
-    print(f"=== System Experiment: {mode} (Threshold={distance_threshold}) ===")
+    print(f"=== System Experiment: {mode} ({_mode_param_summary(mode, distance_threshold)}) ===")
 
     server, clients = _setup_server_and_clients(spec, distance_threshold, verbose)
 
