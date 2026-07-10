@@ -194,8 +194,8 @@ def plot_pareto(rows, datasets, path):
     for r in rows:
         if r["series"] != "Oblivious" and r["series"] not in sweep_series:
             sweep_series.append(r["series"])
-    palette = [("tab:blue", "*"), ("tab:red", "o"), ("tab:orange", "s"),
-               ("tab:green", "^"), ("tab:purple", "D")]
+    palette = [("tab:blue", "D"), ("tab:red", "o"), ("tab:orange", "s"),
+               ("tab:green", "^"), ("tab:purple", "v")]
     style = {s: palette[i % len(palette)] for i, s in enumerate(sweep_series)}
 
     n = len(datasets)
@@ -203,7 +203,9 @@ def plot_pareto(rows, datasets, path):
     for ax, ds in zip(axes[0], datasets):
         ds_rows = [r for r in rows if r["dataset"] == ds]
 
-        for s in sweep_series:
+        # 系列ごとにラベルのオフセット方向を変えて系列間の重なりを軽減
+        label_offsets = [(6, 8), (7, -13), (-18, 8), (-18, -13), (6, 18)]
+        for si, s in enumerate(sweep_series):
             srows = [r for r in ds_rows if r["series"] == s]
             vals = sorted(set(r["sweep_value"] for r in srows))
             xs, ys, xe, ye = [], [], [], []
@@ -214,16 +216,23 @@ def plot_pareto(rows, datasets, path):
             if not xs:
                 continue
             color, marker = style[s]
-            msize = 18 if marker == "*" else 7
-            ax.errorbar(xs, ys, xerr=xe, yerr=ye, marker=marker, color=color, markersize=msize,
+            ax.errorbar(xs, ys, xerr=xe, yerr=ye, marker=marker, color=color, markersize=8,
                         capsize=3, label=s, zorder=2, alpha=0.85,
                         markeredgecolor="white", markeredgewidth=0.6)
-            # 値ラベルは重なり軽減のため白背景 boxで表示。系列ごとに上下へずらす
-            dy = 6 if marker == "*" else (6 if marker == "o" else -10)
-            for v, x, y in zip(vals, xs, ys):
-                ax.annotate(f"{v:g}", (x, y), fontsize=7, color=color,
-                            xytext=(4, dy), textcoords="offset points",
-                            bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.5))
+            ox, oy = label_offsets[si % len(label_offsets)]
+            box = dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.55)
+            # 点が密集している系列はラベルを値域1つにまとめる(掃引に不感=ロバストの意)
+            clustered = (len(xs) > 1 and min(xs) > 0 and max(xs) / min(xs) < 1.6
+                         and (max(ys) - min(ys)) < 0.02)
+            if clustered:
+                cx = float(np.exp(np.mean(np.log(xs))))
+                cy = float(np.mean(ys))
+                ax.annotate(f"{min(vals):g}–{max(vals):g}", (cx, cy), fontsize=7, color=color,
+                            xytext=(ox, oy), textcoords="offset points", bbox=box)
+            else:
+                for v, x, y in zip(vals, xs, ys):
+                    ax.annotate(f"{v:g}", (x, y), fontsize=7, color=color,
+                                xytext=(ox, oy), textcoords="offset points", bbox=box)
 
         a = _agg([r for r in ds_rows if r["series"] == "Oblivious"])
         if a:
