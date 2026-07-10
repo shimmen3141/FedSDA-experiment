@@ -107,6 +107,24 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     return rows
 
 
+def _experiment_slug(datasets, seeds, total_data, tag=None):
+    """実験内容がわかる出力ファイル名(拡張子なし)を組み立てる。
+
+    例: pareto_sea-circle-sine_seed0_n5000 / pareto_sea_seeds0-2_n5000_myrun
+    """
+    ds = "-".join(datasets)
+    if len(seeds) == 1:
+        sd = f"seed{seeds[0]}"
+    elif seeds == list(range(seeds[0], seeds[-1] + 1)):
+        sd = f"seeds{seeds[0]}-{seeds[-1]}"
+    else:
+        sd = "seeds" + "-".join(str(s) for s in seeds)
+    parts = [f"pareto_{ds}", sd, f"n{total_data}"]
+    if tag:
+        parts.append(tag)
+    return "_".join(parts)
+
+
 def write_csv(rows, path):
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=ROW_KEYS)
@@ -197,6 +215,7 @@ def main():
                         help="FedSDA で固定する γ_dist(既定 config.DISTANCE_THRESHOLD)")
     parser.add_argument("--total-data", type=int, default=None, help="TOTAL_DATA_POINTS 上書き")
     parser.add_argument("--out-dir", default="results/pareto")
+    parser.add_argument("--tag", default=None, help="出力ファイル名に付ける任意の識別子")
     parser.add_argument("--quick", action="store_true", help="動作確認用の小規模設定")
     args = parser.parse_args()
 
@@ -215,7 +234,9 @@ def main():
     fixed_gamma = args.fixed_gamma if args.fixed_gamma is not None else config.DISTANCE_THRESHOLD
 
     os.makedirs(args.out_dir, exist_ok=True)
+    slug = _experiment_slug(args.datasets, args.seeds, config.TOTAL_DATA_POINTS, args.tag)
     n_runs = len(args.datasets) * len(args.seeds) * (len(args.adwin_deltas) + 1 + len(args.batches) + len(args.deltas))
+    print(f"Experiment: {slug}")
     print(f"Datasets={args.datasets} seeds={args.seeds} TOTAL_DATA_POINTS={config.TOTAL_DATA_POINTS}")
     print(f"batches={args.batches} deltas={args.deltas} adwin_deltas={args.adwin_deltas}")
     print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma}")
@@ -223,8 +244,8 @@ def main():
 
     rows = run_sweep(args.datasets, args.seeds, args.batches, args.deltas, args.adwin_deltas,
                      fixed_delta, fixed_batch, fixed_gamma)
-    write_csv(rows, os.path.join(args.out_dir, "pareto_results.csv"))
-    plot_pareto(rows, args.datasets, os.path.join(args.out_dir, "pareto_accuracy_vs_comm.png"))
+    write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
+    plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"))
     print("Done.")
 
 
