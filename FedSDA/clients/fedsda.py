@@ -19,7 +19,7 @@ class AdwinClient(BaseClient):
         super().__init__(*args, **kwargs)
         self.adwin = FullScanADWIN(delta=config.ADWIN_DELTA)
         self.buffer = deque()                       # FIFOバッファ(検知遅延中のデータ保留)
-        self.safe_margin = config.FIFO_BUFFER_SIZE  # バッファ長 N_FIFO
+        self.fifo_size = config.FIFO_BUFFER_SIZE    # FIFOバッファ長 N_FIFO
 
     def process_one_step(self, x_in, y_in, concept_id):
         """1サンプルを処理する: 予測 → ADWIN更新 → (ドリフト解決 | 平時処理) → 学習。"""
@@ -45,7 +45,7 @@ class AdwinClient(BaseClient):
             drift_type = self._resolve_drift(sample_idx=idx)
         else:
             # 平時: バッファ長 N_FIFO を超えた分だけ古いデータをストアへ確定し、学習する
-            while len(self.buffer) > self.safe_margin:
+            while len(self.buffer) > self.fifo_size:
                 old_x, old_y = self.buffer.popleft()
                 loss_val = self.models[self.current_model_id].get_absolute_error(old_x, old_y)
                 self._update_model_stats(self.current_model_id, loss_val)
@@ -62,8 +62,8 @@ class AdwinClient(BaseClient):
         """ADWIN未検知でも、直近ウィンドウの損失がベースラインから閾値以上悪化して
         いればドリフト解決を強制する保険的チェック。"""
         width = self.adwin.width
-        lower_bound = max(0, self.safe_margin - 5)
-        upper_bound = max(100, 2 * max(0, (self.safe_margin - 5)))
+        lower_bound = max(0, self.fifo_size - 5)
+        upper_bound = max(100, 2 * max(0, (self.fifo_size - 5)))
 
         if not (lower_bound <= width <= upper_bound and width > 0 and self.current_model_id >= 0):
             return False

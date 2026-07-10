@@ -18,8 +18,8 @@ class PeriodicClient(BaseClient):
         self.detect_buffer = []                             # 検出待ちのデータ
         self.detect_batch_size = config.FEDDRIFT_DETECT_BATCH
 
-    def observe(self, batch_data, concept_ids):
-        """時刻ブロックのデータを1件ずつ観測(予測ログ + 検出バッファへ蓄積)。
+    def process_batch(self, batch_data, concept_ids):
+        """時刻ブロックのデータを1件ずつ処理(予測ログ + 検出バッファへ蓄積)。
 
         バッファが検出バッチサイズに達するたびに検出+割り当てを実行する。検出バッチは
         時刻粒度(data_per_time)と独立で、複数時刻にまたがって蓄積されることもある。
@@ -95,5 +95,5 @@ class PeriodicClient(BaseClient):
         self._store_evaluation_data(self.current_model_id, processed_batch_data)
         return drift_type
 
-    def phase2_train(self, k_steps):
+    def local_train(self, k_steps):
         self.train_all_held_models(count_multiplier=k_steps)

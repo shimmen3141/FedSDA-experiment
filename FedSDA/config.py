@@ -82,7 +82,7 @@ ADWIN_MIN_WIDTH = 10        # 検定を開始する最小ウィンドウ幅
 # クライアント(ドリフト解決・データ管理)
 # ==========================================
 DISTANCE_THRESHOLD = 0.1    # モデル適合判定の距離閾値 (gamma_dist)。サーバのマージ判定と共用
-FIFO_BUFFER_SIZE = 30       # FIFOバッファ長 = safe_margin (N_FIFO)
+FIFO_BUFFER_SIZE = 30       # FIFOバッファ長 (N_FIFO)
 MIN_DRIFT_DATA = 5          # ドリフト解決に必要な新概念データの最小数
 STORED_DATA_LIMIT = 50      # モデルごとの評価用データストア上限
 EVAL_STORE_SAMPLE_SIZE = 20 # 評価用ストアへ1回に追加するサンプル数上限

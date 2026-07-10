@@ -49,7 +49,7 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
         if use_server:
             # 新規モデルがあるときだけクラスタリングを行う
             has_new = any(c.has_pending_model() for c in clients)
-            server.run_aggregation_and_merge(t, clustering_enabled=has_new)
+            server.run_round(t, clustering_enabled=has_new)
             # aggregation 後に pending -> ready を行い、次ラウンドで回収されるようにする
             for c in clients:
                 c.promote_pending_to_ready()
@@ -64,15 +64,15 @@ def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose)
     検出フェーズ(クラスタリングあり)の後、学習フェーズ(集約のみ)を行う。
     """
     for i, c in enumerate(clients):
-        c.observe(data[i], concepts[i])
-    server.run_aggregation_and_merge(t, clustering_enabled=True)
+        c.process_batch(data[i], concepts[i])
+    server.run_round(t, clustering_enabled=True)
     for c in clients:
         c.promote_pending_to_ready()
 
     for _ in range(config.R_ROUNDS):
         for c in clients:
-            c.phase2_train(k_steps=config.K_STEPS)
-        server.run_aggregation_and_merge(t, clustering_enabled=False)
+            c.local_train(k_steps=config.K_STEPS)
+        server.run_round(t, clustering_enabled=False)
         for c in clients:
             c.promote_pending_to_ready()
 
@@ -279,7 +279,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         for c in buffering_clients:
             c.flush()
         if spec.use_server and any(c.has_pending_model() for c in clients):
-            server.run_aggregation_and_merge(t, clustering_enabled=True)
+            server.run_round(t, clustering_enabled=True)
             for c in clients:
                 c.promote_pending_to_ready()
 

@@ -45,7 +45,7 @@ class BaseServer:
     def register_model_stats(self, model_id, stats):
         self.global_stats[model_id] = copy.deepcopy(stats)
 
-    def run_aggregation_and_merge(self, t, clustering_enabled=True):
+    def run_round(self, t, clustering_enabled=True):
         """1回のサーバ処理: 新規モデル回収 → (任意でクラスタリング) → FedAvg → 配布。
 
         clustering_enabled は _maybe_cluster に渡すフラグ。BaseServer はクラスタリングを
