@@ -21,6 +21,8 @@ def main():
     parser.add_argument("--seed", type=int, default=0, help="乱数シード (default: 0)")
     parser.add_argument("--dataset", choices=list(config._FEATURE_DIMS), default=config.DATASET,
                         help=f"データセット (default: {config.DATASET})")
+    parser.add_argument("--feddrift-batch", type=int, default=config.FEDDRIFT_DETECT_BATCH,
+                        help=f"FedDrift の検出バッチサイズ (default: {config.FEDDRIFT_DETECT_BATCH})")
     parser.add_argument("--quiet", action="store_true", help="詳細ログを抑制する")
     parser.add_argument("--no-plot", action="store_true", help="プロットを生成しない")
     parser.add_argument("--plot-dir", default=None,
@@ -28,6 +30,7 @@ def main():
     args = parser.parse_args()
 
     config.DATASET = args.dataset
+    config.FEDDRIFT_DETECT_BATCH = args.feddrift_batch
 
     results = run_random_drift_experiment(
         mode=args.mode,

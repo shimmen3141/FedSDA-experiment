@@ -20,6 +20,9 @@ python run_experiment.py --mode FedSDA --seed 0 --plot-dir results
 # データセットを SEA-4(FedDrift互換)に切り替え
 python run_experiment.py --mode FedSDA --seed 0 --dataset sea
 
+# FedDrift の検出バッチサイズを掃引(精度–通信量トレードオフの観察)
+python run_experiment.py --mode FedDrift --feddrift-batch 500 --seed 0
+
 # 3モード × 10シードの比較試行
 python run_comparative_trials.py --n-trials 10 --plot-dir results
 
