@@ -151,10 +151,14 @@ def plot_pareto(rows, datasets, path):
             color, marker = style[s]
             msize = 18 if marker == "*" else 7
             ax.errorbar(xs, ys, xerr=xe, yerr=ye, marker=marker, color=color, markersize=msize,
-                        capsize=3, label=s, zorder=2)
+                        capsize=3, label=s, zorder=2, alpha=0.85,
+                        markeredgecolor="white", markeredgewidth=0.6)
+            # 値ラベルは重なり軽減のため白背景 boxで表示。系列ごとに上下へずらす
+            dy = 6 if marker == "*" else (6 if marker == "o" else -10)
             for v, x, y in zip(vals, xs, ys):
                 ax.annotate(f"{v:g}", (x, y), fontsize=7, color=color,
-                            xytext=(3, 3), textcoords="offset points")
+                            xytext=(4, dy), textcoords="offset points",
+                            bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.5))
 
         a = _agg([r for r in ds_rows if r["series"] == "Oblivious"])
         if a:
