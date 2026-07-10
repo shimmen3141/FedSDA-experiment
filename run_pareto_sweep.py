@@ -1,17 +1,19 @@
 """精度–通信量トレードオフの掃引実験(複数シード × 複数データセット)。
 
 各データセット・各シードで以下を実行し、結果を CSV と散布図に出力する:
-- FedSDA    : 提案手法(検出バッチ非依存の1点)
+- FedSDA    : δ_adwin(検出感度)を掃引した曲線(γ_dist は固定)
+- FedDrift  : (1) 検出バッチを掃引(δ 固定)、(2) 検出閾値 δ を掃引(バッチ固定)の2曲線
 - Oblivious : 単一モデル・無適応(基準線)
-- FedDrift  : 検出バッチサイズ(--batches)を掃引した曲線
 
+FedDrift の各掃引では、固定した側のパラメータを凡例に明示する
+(例: "FedDrift batch sweep (δ=0.1)", "FedDrift δ sweep (batch=50)")。
 散布図は横軸=通信量(モデル転送数, 対数)、縦軸=paper_accuracy。FedSDA が
-FedDrift の曲線の左上(高精度・低通信)を取れば「パレート支配」を示せる。
+FedDrift の各曲線の左上(高精度・低通信)を取れば「パレート支配」を示せる。
 
 例:
     python run_pareto_sweep.py --quick                       # 動作確認(小規模)
-    python run_pareto_sweep.py --datasets blobs sea --seeds 0 1 2
-    python run_pareto_sweep.py                               # 既定(全4データセット × 5シード)
+    python run_pareto_sweep.py --datasets sea sine --seeds 0 1 2
+    python run_pareto_sweep.py                               # 既定(全4データセット × 5シード)※長時間
 """
 import argparse
 import csv
@@ -31,55 +33,89 @@ METRIC_KEYS = [
     "comm_upload", "comm_download", "comm_total",
     "final_model_count", "precision", "recall", "f1", "avg_delay", "total_detect",
 ]
+ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
+            "feddrift_batch", "distance_threshold", "adwin_delta"] + METRIC_KEYS
 
 
-def _run(mode, dataset, seed, feddrift_batch=None):
+def _run(mode, dataset, seed, series, sweep_value,
+         feddrift_batch=None, distance_threshold=None, adwin_delta=None):
     config.DATASET = dataset
     if feddrift_batch is not None:
         config.FEDDRIFT_DETECT_BATCH = feddrift_batch
-    r = run_random_drift_experiment(mode=mode, random_seed=seed, verbose=False, show_plot=False)
-    row = {"mode": mode, "dataset": dataset, "seed": seed,
-           "feddrift_batch": feddrift_batch if feddrift_batch is not None else ""}
+    if adwin_delta is not None:
+        config.ADWIN_DELTA = adwin_delta
+    r = run_random_drift_experiment(mode=mode, distance_threshold=distance_threshold,
+                                    random_seed=seed, verbose=False, show_plot=False)
+    row = {
+        "mode": mode, "dataset": dataset, "seed": seed, "series": series, "sweep_value": sweep_value,
+        "feddrift_batch": config.FEDDRIFT_DETECT_BATCH,
+        "distance_threshold": distance_threshold if distance_threshold is not None else config.DISTANCE_THRESHOLD,
+        "adwin_delta": config.ADWIN_DELTA,
+    }
     for k in METRIC_KEYS:
         row[k] = r.get(k)
     return row
 
 
-def run_sweep(datasets, seeds, batches):
+def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed_batch, fixed_gamma):
+    default_adwin = config.ADWIN_DELTA
+    fd_batch_series = f"FedDrift batch sweep (δ={fixed_delta})"
+    fd_delta_series = f"FedDrift δ sweep (batch={fixed_batch})"
+    sda_series = f"FedSDA δ_adwin sweep (γ={fixed_gamma})"
+
     rows = []
-    total = len(datasets) * len(seeds) * (2 + len(batches))
+    jobs_per = len(adwin_deltas) + 1 + len(batches) + len(deltas)
+    total = len(datasets) * len(seeds) * jobs_per
     done = 0
     t0 = time.perf_counter()
+
+    def do(tag, **kw):
+        nonlocal done
+        done += 1
+        try:
+            row = _run(**kw)
+            rows.append(row)
+            print(f"[{done}/{total}] {tag}: paper_acc={row['paper_accuracy']:.4f} "
+                  f"comm={row['comm_total']} models={row['final_model_count']} "
+                  f"({time.perf_counter()-t0:.0f}s)")
+        except Exception:
+            print(f"[{done}/{total}] {tag}: FAILED")
+            traceback.print_exc()
+
     for dataset in datasets:
         for seed in seeds:
-            jobs = [("FedSDA", None), ("Oblivious", None)]
-            jobs += [("FedDrift", b) for b in batches]
-            for mode, b in jobs:
-                done += 1
-                tag = f"{dataset}/{mode}" + (f"/batch{b}" if b is not None else "") + f"/seed{seed}"
-                try:
-                    row = _run(mode, dataset, seed, feddrift_batch=b)
-                    rows.append(row)
-                    print(f"[{done}/{total}] {tag}: paper_acc={row['paper_accuracy']:.4f} "
-                          f"comm={row['comm_total']} models={row['final_model_count']} "
-                          f"({time.perf_counter()-t0:.0f}s)")
-                except Exception:
-                    print(f"[{done}/{total}] {tag}: FAILED")
-                    traceback.print_exc()
+            # FedSDA: δ_adwin 掃引(γ_dist 固定)
+            for da in adwin_deltas:
+                do(f"{dataset}/FedSDA/da={da}/s{seed}", mode="FedSDA", dataset=dataset, seed=seed,
+                   series=sda_series, sweep_value=da, distance_threshold=fixed_gamma, adwin_delta=da)
+            config.ADWIN_DELTA = default_adwin
+
+            # Oblivious: 単一点(基準)
+            do(f"{dataset}/Oblivious/s{seed}", mode="Oblivious", dataset=dataset, seed=seed,
+               series="Oblivious", sweep_value=None)
+
+            # FedDrift: 検出バッチ掃引(δ 固定)
+            for b in batches:
+                do(f"{dataset}/FedDrift/batch{b}/s{seed}", mode="FedDrift", dataset=dataset, seed=seed,
+                   series=fd_batch_series, sweep_value=b, feddrift_batch=b, distance_threshold=fixed_delta)
+
+            # FedDrift: 検出閾値 δ 掃引(バッチ固定)
+            for d in deltas:
+                do(f"{dataset}/FedDrift/delta{d}/s{seed}", mode="FedDrift", dataset=dataset, seed=seed,
+                   series=fd_delta_series, sweep_value=d, feddrift_batch=fixed_batch, distance_threshold=d)
+
     return rows
 
 
 def write_csv(rows, path):
-    fields = ["mode", "dataset", "seed", "feddrift_batch"] + METRIC_KEYS
     with open(path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
+        w = csv.DictWriter(f, fieldnames=ROW_KEYS)
         w.writeheader()
         w.writerows(rows)
     print(f"CSV saved: {path}")
 
 
 def _agg(rows, x_key="comm_total", y_key="paper_accuracy"):
-    """(x_mean, x_std, y_mean, y_std) を返す。空なら None。"""
     if not rows:
         return None
     xs = np.array([r[x_key] for r in rows], dtype=float)
@@ -87,39 +123,40 @@ def _agg(rows, x_key="comm_total", y_key="paper_accuracy"):
     return xs.mean(), xs.std(), ys.mean(), ys.std()
 
 
-def plot_pareto(rows, datasets, batches, path):
+def plot_pareto(rows, datasets, path):
+    # Oblivious を除く掃引系列に色・マーカーを割り当てる
+    sweep_series = []
+    for r in rows:
+        if r["series"] != "Oblivious" and r["series"] not in sweep_series:
+            sweep_series.append(r["series"])
+    palette = [("tab:blue", "*"), ("tab:red", "o"), ("tab:orange", "s"),
+               ("tab:green", "^"), ("tab:purple", "D")]
+    style = {s: palette[i % len(palette)] for i, s in enumerate(sweep_series)}
+
     n = len(datasets)
-    fig, axes = plt.subplots(1, n, figsize=(6 * n, 5), squeeze=False)
+    fig, axes = plt.subplots(1, n, figsize=(6.5 * n, 5.5), squeeze=False)
     for ax, ds in zip(axes[0], datasets):
         ds_rows = [r for r in rows if r["dataset"] == ds]
 
-        # FedDrift 曲線(バッチごとにシード集約)
-        fx, fy, fxe, fye, labels = [], [], [], [], []
-        for b in batches:
-            sub = [r for r in ds_rows if r["mode"] == "FedDrift" and r["feddrift_batch"] == b]
-            a = _agg(sub)
-            if a:
-                fx.append(a[0]); fxe.append(a[1]); fy.append(a[2]); fye.append(a[3]); labels.append(b)
-        if fx:
-            # 掃引パラメータ(バッチサイズ)順に線を結ぶ(通信量は batch に単調でないため)
-            order = np.argsort(labels)
-            fx = np.array(fx)[order]; fy = np.array(fy)[order]
-            fxe = np.array(fxe)[order]; fye = np.array(fye)[order]
-            labels = [labels[i] for i in order]
-            ax.errorbar(fx, fy, xerr=fxe, yerr=fye, marker="o", color="tab:red",
-                        capsize=3, label="FedDrift (batch sweep)", zorder=2)
-            for b, x, y in zip(labels, fx, fy):
-                ax.annotate(f"b={b}", (x, y), fontsize=8, xytext=(4, 4),
-                            textcoords="offset points")
+        for s in sweep_series:
+            srows = [r for r in ds_rows if r["series"] == s]
+            vals = sorted(set(r["sweep_value"] for r in srows))
+            xs, ys, xe, ye = [], [], [], []
+            for v in vals:
+                a = _agg([r for r in srows if r["sweep_value"] == v])
+                if a:
+                    xs.append(a[0]); xe.append(a[1]); ys.append(a[2]); ye.append(a[3])
+            if not xs:
+                continue
+            color, marker = style[s]
+            msize = 18 if marker == "*" else 7
+            ax.errorbar(xs, ys, xerr=xe, yerr=ye, marker=marker, color=color, markersize=msize,
+                        capsize=3, label=s, zorder=2)
+            for v, x, y in zip(vals, xs, ys):
+                ax.annotate(f"{v:g}", (x, y), fontsize=7, color=color,
+                            xytext=(3, 3), textcoords="offset points")
 
-        # FedSDA(1点)
-        a = _agg([r for r in ds_rows if r["mode"] == "FedSDA"])
-        if a:
-            ax.errorbar([a[0]], [a[2]], xerr=[a[1]], yerr=[a[3]], marker="*", markersize=18,
-                        color="tab:blue", capsize=3, label="FedSDA", zorder=3)
-
-        # Oblivious(基準線)
-        a = _agg([r for r in ds_rows if r["mode"] == "Oblivious"])
+        a = _agg([r for r in ds_rows if r["series"] == "Oblivious"])
         if a:
             ax.axhline(a[2], color="gray", linestyle="--", label="Oblivious", zorder=1)
 
@@ -130,7 +167,7 @@ def plot_pareto(rows, datasets, batches, path):
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize="small")
 
-    fig.suptitle("Accuracy vs Communication (FedSDA dominates FedDrift's tradeoff curve)")
+    fig.suptitle("Accuracy vs Communication: FedSDA vs FedDrift (batch / δ sweeps)")
     fig.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -143,30 +180,47 @@ def main():
     parser.add_argument("--datasets", nargs="+", choices=all_datasets, default=all_datasets)
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4])
     parser.add_argument("--batches", nargs="+", type=int, default=[10, 25, 50, 100, 200, 500],
-                        help="FedDrift の検出バッチ掃引値")
-    parser.add_argument("--total-data", type=int, default=None,
-                        help="TOTAL_DATA_POINTS の上書き(短時間実行用)")
+                        help="FedDrift 検出バッチ掃引値")
+    parser.add_argument("--deltas", nargs="+", type=float, default=[0.02, 0.05, 0.1, 0.15, 0.2],
+                        help="FedDrift 検出閾値 δ 掃引値")
+    parser.add_argument("--adwin-deltas", nargs="+", type=float, default=[0.01, 0.05, 0.1, 0.2, 0.3],
+                        help="FedSDA δ_adwin 掃引値")
+    parser.add_argument("--fixed-delta", type=float, default=None,
+                        help="バッチ掃引時に固定する FedDrift δ(既定 config.DISTANCE_THRESHOLD)")
+    parser.add_argument("--fixed-batch", type=int, default=None,
+                        help="δ 掃引時に固定する FedDrift 検出バッチ(既定 config.FEDDRIFT_DETECT_BATCH)")
+    parser.add_argument("--fixed-gamma", type=float, default=None,
+                        help="FedSDA で固定する γ_dist(既定 config.DISTANCE_THRESHOLD)")
+    parser.add_argument("--total-data", type=int, default=None, help="TOTAL_DATA_POINTS 上書き")
     parser.add_argument("--out-dir", default="results/pareto")
-    parser.add_argument("--quick", action="store_true",
-                        help="動作確認用の小規模設定(blobs, seed0, batch{50,500}, 総数600)")
+    parser.add_argument("--quick", action="store_true", help="動作確認用の小規模設定")
     args = parser.parse_args()
 
     if args.quick:
         args.datasets = ["blobs"]
         args.seeds = [0]
         args.batches = [50, 500]
+        args.deltas = [0.1, 0.2]
+        args.adwin_deltas = [0.05, 0.3]
         config.TOTAL_DATA_POINTS = 600
     elif args.total_data is not None:
         config.TOTAL_DATA_POINTS = args.total_data
 
-    os.makedirs(args.out_dir, exist_ok=True)
-    print(f"Datasets={args.datasets} seeds={args.seeds} batches={args.batches} "
-          f"TOTAL_DATA_POINTS={config.TOTAL_DATA_POINTS}")
+    fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.DISTANCE_THRESHOLD
+    fixed_batch = args.fixed_batch if args.fixed_batch is not None else config.FEDDRIFT_DETECT_BATCH
+    fixed_gamma = args.fixed_gamma if args.fixed_gamma is not None else config.DISTANCE_THRESHOLD
 
-    rows = run_sweep(args.datasets, args.seeds, args.batches)
+    os.makedirs(args.out_dir, exist_ok=True)
+    n_runs = len(args.datasets) * len(args.seeds) * (len(args.adwin_deltas) + 1 + len(args.batches) + len(args.deltas))
+    print(f"Datasets={args.datasets} seeds={args.seeds} TOTAL_DATA_POINTS={config.TOTAL_DATA_POINTS}")
+    print(f"batches={args.batches} deltas={args.deltas} adwin_deltas={args.adwin_deltas}")
+    print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma}")
+    print(f"Total runs = {n_runs}  (フルスケールでは1実験~60-90秒。長時間になり得ます)")
+
+    rows = run_sweep(args.datasets, args.seeds, args.batches, args.deltas, args.adwin_deltas,
+                     fixed_delta, fixed_batch, fixed_gamma)
     write_csv(rows, os.path.join(args.out_dir, "pareto_results.csv"))
-    plot_pareto(rows, args.datasets, args.batches,
-                os.path.join(args.out_dir, "pareto_accuracy_vs_comm.png"))
+    plot_pareto(rows, args.datasets, os.path.join(args.out_dir, "pareto_accuracy_vs_comm.png"))
     print("Done.")
 
 
