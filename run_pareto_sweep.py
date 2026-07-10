@@ -133,6 +133,53 @@ def write_csv(rows, path):
     print(f"CSV saved: {path}")
 
 
+def _load_csv(path):
+    """write_csv が出力した結果CSVを読み込み、数値型に復元した行リストを返す。"""
+    rows = []
+    with open(path) as f:
+        for r in csv.DictReader(f):
+            row = dict(r)
+            row["seed"] = int(float(row["seed"]))
+            row["sweep_value"] = (float(row["sweep_value"])
+                                  if row["sweep_value"] not in ("", "None") else None)
+            row["feddrift_batch"] = (int(float(row["feddrift_batch"]))
+                                     if row["feddrift_batch"] not in ("", "None") else "")
+            for k in ["distance_threshold", "adwin_delta"] + METRIC_KEYS:
+                v = row.get(k)
+                row[k] = float(v) if v not in (None, "", "None") else float("nan")
+            rows.append(row)
+    return rows
+
+
+def combine_and_plot(patterns, out_dir, tag=None):
+    """複数の結果CSV(glob可)を読み込み、シード平均の散布図を描画する。"""
+    import glob
+    paths = []
+    for pat in patterns:
+        paths.extend(sorted(glob.glob(pat)))
+    paths = sorted(set(paths))
+    if not paths:
+        print("No CSV matched the given pattern(s).")
+        return
+    rows = []
+    for p in paths:
+        rows.extend(_load_csv(p))
+        print(f"loaded: {p}")
+
+    canon = list(config._FEATURE_DIMS)
+    datasets = [d for d in canon if any(r["dataset"] == d for r in rows)]
+    seeds = sorted(set(r["seed"] for r in rows))
+    ds_slug = "-".join(datasets)
+    sd = f"seed{seeds[0]}" if len(seeds) == 1 else "seeds" + "-".join(str(s) for s in seeds)
+    name = f"pareto_combined_{ds_slug}_{sd}" + (f"_{tag}" if tag else "")
+
+    os.makedirs(out_dir, exist_ok=True)
+    out_png = os.path.join(out_dir, f"{name}.png")
+    print(f"Combining {len(paths)} CSV(s), datasets={datasets}, seeds={seeds} "
+          f"(誤差棒 = シード間の標準偏差)")
+    plot_pareto(rows, datasets, out_png)
+
+
 def _agg(rows, x_key="comm_total", y_key="paper_accuracy"):
     if not rows:
         return None
@@ -216,8 +263,15 @@ def main():
     parser.add_argument("--total-data", type=int, default=None, help="TOTAL_DATA_POINTS 上書き")
     parser.add_argument("--out-dir", default="results/pareto")
     parser.add_argument("--tag", default=None, help="出力ファイル名に付ける任意の識別子")
+    parser.add_argument("--plot-csvs", nargs="+", default=None,
+                        help="実験は行わず、指定した結果CSV(glob可)を読み込みシード平均で再描画する")
     parser.add_argument("--quick", action="store_true", help="動作確認用の小規模設定")
     args = parser.parse_args()
+
+    # 集約プロットモード: 既存CSVを読み込みシード平均で描画して終了
+    if args.plot_csvs:
+        combine_and_plot(args.plot_csvs, args.out_dir, args.tag)
+        return
 
     if args.quick:
         args.datasets = ["blobs"]

@@ -26,6 +26,12 @@ python run_experiment.py --mode FedDrift --feddrift-batch 500 --seed 0
 # 3モード × 10シードの比較試行
 python run_comparative_trials.py --n-trials 10 --plot-dir results
 
+# 精度–通信量の掃引(FedSDA δ_adwin / FedDrift バッチ・δ)。結果は実験内容がわかる名前で保存
+python run_pareto_sweep.py --datasets sea circle sine --seeds 0
+
+# 掃引をシードごとに分割して積み増した後、複数CSVをシード平均で1枚に再描画
+python run_pareto_sweep.py --plot-csvs "results/pareto/pareto_sea-circle-sine_seed*_n5000.csv"
+
 # オプション確認
 python run_experiment.py --help
 python run_comparative_trials.py --help
