@@ -23,7 +23,9 @@ class PeriodicClient(BaseClient):
 
         バッファが検出バッチサイズに達するたびに検出+割り当てを実行する。検出バッチは
         時刻粒度(data_per_time)と独立で、複数時刻にまたがって蓄積されることもある。
+        この呼び出し中に検出バッチが1回でも完了したら True を返す(通信タイミングの判定用)。
         """
+        fired = False
         for (x_in, y_in), con in zip(batch_data, concept_ids):
             x = x_in.unsqueeze(0) if x_in.dim() == 1 else x_in
             y = y_in.unsqueeze(0) if y_in.dim() == 1 else y_in
@@ -36,7 +38,9 @@ class PeriodicClient(BaseClient):
             if len(self.detect_buffer) >= self.detect_batch_size:
                 drift_type = self._detect_and_assign(self.detect_buffer)
                 self.detect_buffer = []
+                fired = True
             self.history_drift_type.append(drift_type)
+        return fired
 
     def flush(self):
         """ストリーム終端で残った検出バッファ(部分バッチ)を検出+割り当てする。"""

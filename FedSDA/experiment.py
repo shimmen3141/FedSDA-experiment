@@ -59,22 +59,29 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
 
 
 def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose):
-    """バッチ一括処理するスタイル(FedDrift系)の1タイムステップ。
+    """バッチ処理するスタイル(FedDrift系)の1タイムステップ。
 
-    検出フェーズ(クラスタリングあり)の後、学習フェーズ(集約のみ)を行う。
+    通信(集約・クラスタリング・配布)は検出バッチが完了した時刻のみ行うことで、
+    通信量を検出バッチサイズに反比例させ、FedDrift 本来のバッチ単位通信に忠実にする。
+    一方でローカル学習は毎時刻行い、1更新/サンプル/モデルの予算を FedSDA と揃える。
     """
-    for i, c in enumerate(clients):
-        c.process_batch(data[i], concepts[i])
-    server.run_round(t, clustering_enabled=True)
-    for c in clients:
-        c.promote_pending_to_ready()
+    # 全クライアントを処理(ロックステップなので fired は全員一致)。any は使わず全員評価
+    fired = any([c.process_batch(data[i], concepts[i]) for i, c in enumerate(clients)])
 
+    # 検出バッチ完了時のみ: クラスタリング付き集約
+    if fired:
+        server.run_round(t, clustering_enabled=True)
+        for c in clients:
+            c.promote_pending_to_ready()
+
+    # ローカル学習は毎時刻。集約・配布は検出バッチ完了時のみ
     for _ in range(config.R_ROUNDS):
         for c in clients:
             c.local_train(k_steps=config.K_STEPS)
-        server.run_round(t, clustering_enabled=False)
-        for c in clients:
-            c.promote_pending_to_ready()
+        if fired:
+            server.run_round(t, clustering_enabled=False)
+            for c in clients:
+                c.promote_pending_to_ready()
 
 
 # ==========================================
