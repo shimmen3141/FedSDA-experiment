@@ -64,7 +64,7 @@ def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose)
     検出フェーズ(クラスタリングあり)の後、学習フェーズ(集約のみ)を行う。
     """
     for i, c in enumerate(clients):
-        c.phase1_detect(data[i], t, concepts[i][-1])
+        c.observe(data[i], concepts[i])
     server.run_aggregation_and_merge(t, clustering_enabled=True)
     for c in clients:
         c.promote_pending_to_ready()
@@ -272,6 +272,16 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
 
         # 論文式の精度: この時刻の学習後、held-out テストデータで評価(RNG中立)
         paper_accs.append(_eval_paper_accuracy(clients, paper_test_sets, t))
+
+    # バッファ型手法(FedDrift)の終端フラッシュ: 未検出の残りバッチを処理し新規モデルを回収
+    buffering_clients = [c for c in clients if hasattr(c, 'flush')]
+    if buffering_clients:
+        for c in buffering_clients:
+            c.flush()
+        if spec.use_server and any(c.has_pending_model() for c in clients):
+            server.run_aggregation_and_merge(t, clustering_enabled=True)
+            for c in clients:
+                c.promote_pending_to_ready()
 
     runtime_seconds = time.perf_counter() - exp_start
 
