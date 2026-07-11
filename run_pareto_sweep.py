@@ -38,12 +38,14 @@ ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
 
 
 def _run(mode, dataset, seed, series, sweep_value,
-         feddrift_batch=None, distance_threshold=None, adwin_delta=None):
+         feddrift_batch=None, distance_threshold=None, adwin_delta=None, k_steps=None):
     config.DATASET = dataset
     if feddrift_batch is not None:
         config.FEDDRIFT_DETECT_BATCH = feddrift_batch
     if adwin_delta is not None:
         config.ADWIN_DELTA = adwin_delta
+    if k_steps is not None:
+        config.K_STEPS = k_steps
     r = run_random_drift_experiment(mode=mode, distance_threshold=distance_threshold,
                                     random_seed=seed, verbose=False, show_plot=False)
     row = {
@@ -57,14 +59,19 @@ def _run(mode, dataset, seed, series, sweep_value,
     return row
 
 
-def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed_batch, fixed_gamma):
+def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed_batch, fixed_gamma,
+              kstep_sweep=(), fixed_adwin=None):
     default_adwin = config.ADWIN_DELTA
+    default_kstep = config.K_STEPS
+    if fixed_adwin is None:
+        fixed_adwin = default_adwin
     fd_batch_series = f"FedDrift batch sweep (δ={fixed_delta})"
     fd_delta_series = f"FedDrift δ sweep (batch={fixed_batch})"
     sda_series = f"FedSDA δ_adwin sweep (γ={fixed_gamma})"
+    ks_series = f"FedSDA K_STEPS sweep (δ_adwin={fixed_adwin})"
 
     rows = []
-    jobs_per = len(adwin_deltas) + 1 + len(batches) + len(deltas)
+    jobs_per = len(adwin_deltas) + len(kstep_sweep) + 1 + len(batches) + len(deltas)
     total = len(datasets) * len(seeds) * jobs_per
     done = 0
     t0 = time.perf_counter()
@@ -88,6 +95,14 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
             for da in adwin_deltas:
                 do(f"{dataset}/FedSDA/da={da}/s{seed}", mode="FedSDA", dataset=dataset, seed=seed,
                    series=sda_series, sweep_value=da, distance_threshold=fixed_gamma, adwin_delta=da)
+            config.ADWIN_DELTA = default_adwin
+
+            # FedSDA: K_STEPS 掃引(通信間隔。δ_adwin 固定。オプトイン)
+            for k in kstep_sweep:
+                do(f"{dataset}/FedSDA/K={k}/s{seed}", mode="FedSDA", dataset=dataset, seed=seed,
+                   series=ks_series, sweep_value=k, distance_threshold=fixed_gamma,
+                   adwin_delta=fixed_adwin, k_steps=k)
+            config.K_STEPS = default_kstep
             config.ADWIN_DELTA = default_adwin
 
             # Oblivious: 単一点(基準)
@@ -302,12 +317,16 @@ def main():
     all_datasets = list(config._FEATURE_DIMS)
     parser.add_argument("--datasets", nargs="+", choices=all_datasets, default=all_datasets)
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4])
-    parser.add_argument("--batches", nargs="+", type=int, default=[10, 25, 50, 100, 200, 500],
-                        help="FedDrift 検出バッチ掃引値")
-    parser.add_argument("--deltas", nargs="+", type=float, default=[0.02, 0.05, 0.1, 0.15, 0.2],
-                        help="FedDrift 検出閾値 δ 掃引値")
-    parser.add_argument("--adwin-deltas", nargs="+", type=float, default=[0.01, 0.05, 0.1, 0.2, 0.3],
-                        help="FedSDA δ_adwin 掃引値")
+    parser.add_argument("--batches", nargs="*", type=int, default=[10, 25, 50, 100, 200, 500],
+                        help="FedDrift 検出バッチ掃引値(空指定で無効化)")
+    parser.add_argument("--deltas", nargs="*", type=float, default=[0.02, 0.05, 0.1, 0.15, 0.2],
+                        help="FedDrift 検出閾値 δ 掃引値(空指定で無効化)")
+    parser.add_argument("--adwin-deltas", nargs="*", type=float, default=[0.01, 0.05, 0.1, 0.2, 0.3],
+                        help="FedSDA δ_adwin 掃引値(空指定で無効化)")
+    parser.add_argument("--kstep-sweep", nargs="*", type=int, default=[],
+                        help="FedSDA の K_STEPS(通信間隔)掃引値。指定時のみ実行(オプトイン)")
+    parser.add_argument("--fixed-adwin", type=float, default=None,
+                        help="K_STEPS 掃引時に固定する δ_adwin(既定 config.ADWIN_DELTA)")
     parser.add_argument("--fixed-delta", type=float, default=None,
                         help="バッチ掃引時に固定する FedDrift δ(既定 config.DISTANCE_THRESHOLD)")
     parser.add_argument("--fixed-batch", type=int, default=None,
@@ -340,18 +359,22 @@ def main():
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.DISTANCE_THRESHOLD
     fixed_batch = args.fixed_batch if args.fixed_batch is not None else config.FEDDRIFT_DETECT_BATCH
     fixed_gamma = args.fixed_gamma if args.fixed_gamma is not None else config.DISTANCE_THRESHOLD
+    fixed_adwin = args.fixed_adwin if args.fixed_adwin is not None else config.ADWIN_DELTA
 
     os.makedirs(args.out_dir, exist_ok=True)
     slug = _experiment_slug(args.datasets, args.seeds, config.TOTAL_DATA_POINTS, args.tag)
-    n_runs = len(args.datasets) * len(args.seeds) * (len(args.adwin_deltas) + 1 + len(args.batches) + len(args.deltas))
+    n_runs = len(args.datasets) * len(args.seeds) * (
+        len(args.adwin_deltas) + len(args.kstep_sweep) + 1 + len(args.batches) + len(args.deltas))
     print(f"Experiment: {slug}")
     print(f"Datasets={args.datasets} seeds={args.seeds} TOTAL_DATA_POINTS={config.TOTAL_DATA_POINTS}")
-    print(f"batches={args.batches} deltas={args.deltas} adwin_deltas={args.adwin_deltas}")
-    print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma}")
+    print(f"batches={args.batches} deltas={args.deltas} adwin_deltas={args.adwin_deltas} "
+          f"kstep_sweep={args.kstep_sweep}")
+    print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma} adwin={fixed_adwin}")
     print(f"Total runs = {n_runs}  (フルスケールでは1実験~60-90秒。長時間になり得ます)")
 
     rows = run_sweep(args.datasets, args.seeds, args.batches, args.deltas, args.adwin_deltas,
-                     fixed_delta, fixed_batch, fixed_gamma)
+                     fixed_delta, fixed_batch, fixed_gamma,
+                     kstep_sweep=args.kstep_sweep, fixed_adwin=fixed_adwin)
     write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
     plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"))
     print("Done.")
