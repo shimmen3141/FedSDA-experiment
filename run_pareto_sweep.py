@@ -126,7 +126,7 @@ def _experiment_slug(datasets, seeds, total_data, tag=None):
 
 
 def write_csv(rows, path):
-    with open(path, "w", newline="") as f:
+    with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=ROW_KEYS)
         w.writeheader()
         w.writerows(rows)
@@ -136,7 +136,7 @@ def write_csv(rows, path):
 def _load_csv(path):
     """write_csv が出力した結果CSVを読み込み、数値型に復元した行リストを返す。"""
     rows = []
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for r in csv.DictReader(f):
             row = dict(r)
             row["seed"] = int(float(row["seed"]))
@@ -149,6 +149,51 @@ def _load_csv(path):
                 row[k] = float(v) if v not in (None, "", "None") else float("nan")
             rows.append(row)
     return rows
+
+
+def write_markdown_table(rows, path):
+    """(データセット, 系列, 掃引値)ごとにシード平均した Markdown 表を書き出す。"""
+    from collections import defaultdict
+    canon = list(config._FEATURE_DIMS)
+    datasets = [d for d in canon if any(r["dataset"] == d for r in rows)]
+
+    def order_key(item):
+        series, sv = item
+        base = 0 if series == "Oblivious" else (1 if "FedSDA" in series
+                                                else (2 if "batch" in series else 3))
+        try:
+            v = float(sv) if sv not in (None, "", "None") else -1.0
+        except (TypeError, ValueError):
+            v = -1.0
+        return (base, v)
+
+    lines = []
+    for ds in datasets:
+        ds_rows = [r for r in rows if r["dataset"] == ds]
+        groups = defaultdict(list)
+        for r in ds_rows:
+            groups[(r["series"], r["sweep_value"])].append(r)
+
+        lines.append(f"### {ds}")
+        lines.append("")
+        lines.append("| Method | sweep | Accuracy (paper) | Comm (transfers) | Models |")
+        lines.append("|---|---|---:|---:|---:|")
+        for (series, sv) in sorted(groups.keys(), key=order_key):
+            rs = groups[(series, sv)]
+            acc = np.array([float(x["paper_accuracy"]) for x in rs])
+            comm = np.array([float(x["comm_total"]) for x in rs])
+            models = np.array([float(x["final_model_count"]) for x in rs])
+            svtxt = "–" if sv in (None, "", "None") else f"{float(sv):g}"
+            lines.append(f"| {series} | {svtxt} | {acc.mean():.4f} ± {acc.std():.4f} | "
+                         f"{comm.mean():,.0f} | {models.mean():.1f} |")
+        lines.append("")
+
+    n_seeds = len(set(r["seed"] for r in rows))
+    lines.append(f"*{n_seeds} シード平均。Accuracy は paper_accuracy(次時刻テスト・ドリフト除外)"
+                 f"の平均±標準偏差。Comm はモデル転送数。*")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(f"Table saved: {path}")
 
 
 def combine_and_plot(patterns, out_dir, tag=None):
@@ -174,10 +219,10 @@ def combine_and_plot(patterns, out_dir, tag=None):
     name = f"pareto_combined_{ds_slug}_{sd}" + (f"_{tag}" if tag else "")
 
     os.makedirs(out_dir, exist_ok=True)
-    out_png = os.path.join(out_dir, f"{name}.png")
     print(f"Combining {len(paths)} CSV(s), datasets={datasets}, seeds={seeds} "
-          f"(誤差棒 = シード間の標準偏差)")
-    plot_pareto(rows, datasets, out_png)
+          f"(誤差棒/± = シード間の標準偏差)")
+    plot_pareto(rows, datasets, os.path.join(out_dir, f"{name}.png"))
+    write_markdown_table(rows, os.path.join(out_dir, f"{name}.md"))
 
 
 def _agg(rows, x_key="comm_total", y_key="paper_accuracy"):
