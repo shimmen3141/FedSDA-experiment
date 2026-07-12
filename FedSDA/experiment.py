@@ -229,12 +229,50 @@ def _mode_param_summary(mode, distance_threshold):
 # ==========================================
 # 実験本体
 # ==========================================
+def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed):
+    """per-sample の生データを 1 つの .npz にまとめて保存する(gitignore 前提の軽量形式)。
+
+    - history_accuracy: (N_CLIENTS, N_SAMPLES) の int8 (各サンプルの当否 0/1)
+    - drift_client_ids / drift_positions: 真のドリフトを (クライアントid, サンプルindex) の
+      並列配列で平坦化(可変長を object 配列にせず保持)
+    - dataset/mode/label/seed/min_stable/k_steps: 分析時のグループ化・Δ上限用メタデータ
+    """
+    out_dir = os.path.dirname(raw_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
+    hist = np.asarray([c.history_accuracy for c in clients], dtype=np.int8)
+
+    d_cids, d_pos = [], []
+    for ci, positions in true_drift_events.items():
+        for p in positions:
+            d_cids.append(ci)
+            d_pos.append(p)
+
+    np.savez_compressed(
+        raw_path,
+        history_accuracy=hist,
+        drift_client_ids=np.asarray(d_cids, dtype=np.int32),
+        drift_positions=np.asarray(d_pos, dtype=np.int32),
+        dataset=str(config.DATASET),
+        mode=str(mode),
+        label=str(label),
+        seed=(int(seed) if seed is not None else -1),
+        min_stable=int(config.MIN_STABLE_PERIOD),
+        k_steps=int(config.K_STEPS),
+        total_data=int(config.TOTAL_DATA_POINTS),
+    )
+
+
 def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
-                                random_seed=None, verbose=True, show_plot=True, plot_dir=None):
+                                random_seed=None, verbose=True, show_plot=True, plot_dir=None,
+                                raw_path=None, raw_label=None):
     """1回分の実験を実行し、メトリクスの dict を返す。
 
     plot_dir を指定すると図をそのディレクトリに保存し、None なら画面表示する
     (show_plot=False なら描画自体を行わない)。
+    raw_path を指定すると、回復曲線 acc(Δ) 等の事後分析用に per-sample の生データ
+    (クライアント別 history_accuracy と真のドリフト位置、メタデータ)を .npz に保存する。
     実験規模などのハイパーパラメータは FedSDA/config.py で管理する。
     """
     try:
@@ -328,6 +366,11 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
                   for c in range(config.N_CLIENTS) if not paper_is_drift[c][t]]
     results["paper_accuracy"] = float(np.mean(nondrift_p)) if nondrift_p else float('nan')
     results["paper_accuracy_all"] = float(np.mean(all_p)) if all_p else float('nan')
+
+    # --- 生データの保存(回復曲線などの事後分析用)---
+    if raw_path is not None:
+        _save_raw_run(raw_path, clients, true_drift_events, mode,
+                      raw_label if raw_label is not None else mode, random_seed)
 
     if verbose:
         print("\n=== Experiment Metrics ===")

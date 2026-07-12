@@ -9,6 +9,7 @@ venv/
 results/
 exp_results/
 *.png
+*.npz
 
 # 参照用に clone した外部リポジトリ・論文(この repo には含めない)
 /FedDrift/

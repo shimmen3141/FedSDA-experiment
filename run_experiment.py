@@ -5,6 +5,7 @@
     python run_experiment.py --mode FedDrift --seed 0 --plot-dir results
 """
 import argparse
+import os
 
 from FedSDA import config, run_random_drift_experiment
 from FedSDA.experiment import MODE_SPECS
@@ -27,10 +28,16 @@ def main():
     parser.add_argument("--no-plot", action="store_true", help="プロットを生成しない")
     parser.add_argument("--plot-dir", default=None,
                         help="図の保存先ディレクトリ。未指定なら画面表示 (plt.show)")
+    parser.add_argument("--raw-dir", default=None,
+                        help="生データ(.npz)の保存先ディレクトリ。回復曲線などの事後分析用")
     args = parser.parse_args()
 
     config.DATASET = args.dataset
     config.FEDDRIFT_DETECT_BATCH = args.feddrift_batch
+
+    raw_path = None
+    if args.raw_dir is not None:
+        raw_path = os.path.join(args.raw_dir, f"{args.mode}_{args.dataset}_seed{args.seed}.npz")
 
     results = run_random_drift_experiment(
         mode=args.mode,
@@ -39,6 +46,8 @@ def main():
         verbose=not args.quiet,
         show_plot=not args.no_plot,
         plot_dir=args.plot_dir,
+        raw_path=raw_path,
+        raw_label=args.mode,
     )
     print("\nFinal results:", results)
 

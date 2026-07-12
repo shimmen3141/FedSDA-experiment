@@ -37,8 +37,15 @@ ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
             "feddrift_batch", "distance_threshold", "adwin_delta"] + METRIC_KEYS
 
 
+def _slug(text):
+    """ファイル名に使える形へ簡易サニタイズ(英数以外は _ にまとめる)。"""
+    import re
+    return re.sub(r"_+", "_", re.sub(r"[^0-9A-Za-z]+", "_", str(text))).strip("_")
+
+
 def _run(mode, dataset, seed, series, sweep_value,
-         feddrift_batch=None, distance_threshold=None, adwin_delta=None, k_steps=None):
+         feddrift_batch=None, distance_threshold=None, adwin_delta=None, k_steps=None,
+         raw_dir=None):
     config.DATASET = dataset
     if feddrift_batch is not None:
         config.FEDDRIFT_DETECT_BATCH = feddrift_batch
@@ -46,8 +53,21 @@ def _run(mode, dataset, seed, series, sweep_value,
         config.ADWIN_DELTA = adwin_delta
     if k_steps is not None:
         config.K_STEPS = k_steps
+
+    # 回復曲線分析は label 単位でグループ化する(seed をまたいで平均)。掃引値が異なれば
+    # 別ハイパーパラメータ設定なので、label に掃引値を含めて別系列として扱う。
+    raw_path = None
+    raw_label = series
+    if raw_dir is not None:
+        sv = "na" if sweep_value in (None, "", "None") else f"{sweep_value:g}"
+        fname = f"{_slug(series)}_{dataset}_seed{seed}_sv{sv}.npz"
+        raw_path = os.path.join(raw_dir, fname)
+        if sweep_value not in (None, "", "None"):
+            raw_label = f"{series} [{sweep_value:g}]"
+
     r = run_random_drift_experiment(mode=mode, distance_threshold=distance_threshold,
-                                    random_seed=seed, verbose=False, show_plot=False)
+                                    random_seed=seed, verbose=False, show_plot=False,
+                                    raw_path=raw_path, raw_label=raw_label)
     row = {
         "mode": mode, "dataset": dataset, "seed": seed, "series": series, "sweep_value": sweep_value,
         "feddrift_batch": config.FEDDRIFT_DETECT_BATCH,
@@ -60,7 +80,7 @@ def _run(mode, dataset, seed, series, sweep_value,
 
 
 def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed_batch, fixed_gamma,
-              kstep_sweep=(), fixed_adwin=None):
+              kstep_sweep=(), fixed_adwin=None, raw_dir=None):
     default_adwin = config.ADWIN_DELTA
     default_kstep = config.K_STEPS
     if fixed_adwin is None:
@@ -80,7 +100,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
         nonlocal done
         done += 1
         try:
-            row = _run(**kw)
+            row = _run(raw_dir=raw_dir, **kw)
             rows.append(row)
             print(f"[{done}/{total}] {tag}: paper_acc={row['paper_accuracy']:.4f} "
                   f"comm={row['comm_total']} models={row['final_model_count']} "
@@ -335,6 +355,8 @@ def main():
                         help="FedSDA で固定する γ_dist(既定 config.DISTANCE_THRESHOLD)")
     parser.add_argument("--total-data", type=int, default=None, help="TOTAL_DATA_POINTS 上書き")
     parser.add_argument("--out-dir", default="results/pareto")
+    parser.add_argument("--raw-dir", default=None,
+                        help="各実験の生データ(.npz)を保存するディレクトリ。回復曲線の事後分析用")
     parser.add_argument("--tag", default=None, help="出力ファイル名に付ける任意の識別子")
     parser.add_argument("--plot-csvs", nargs="+", default=None,
                         help="実験は行わず、指定した結果CSV(glob可)を読み込みシード平均で再描画する")
@@ -372,9 +394,13 @@ def main():
     print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma} adwin={fixed_adwin}")
     print(f"Total runs = {n_runs}  (フルスケールでは1実験~60-90秒。長時間になり得ます)")
 
+    if args.raw_dir:
+        os.makedirs(args.raw_dir, exist_ok=True)
+        print(f"Raw per-run data (.npz) -> {args.raw_dir}")
+
     rows = run_sweep(args.datasets, args.seeds, args.batches, args.deltas, args.adwin_deltas,
                      fixed_delta, fixed_batch, fixed_gamma,
-                     kstep_sweep=args.kstep_sweep, fixed_adwin=fixed_adwin)
+                     kstep_sweep=args.kstep_sweep, fixed_adwin=fixed_adwin, raw_dir=args.raw_dir)
     write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
     plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"))
     print("Done.")
