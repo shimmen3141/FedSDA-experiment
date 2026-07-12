@@ -337,14 +337,14 @@ def main():
     all_datasets = list(config._FEATURE_DIMS)
     parser.add_argument("--datasets", nargs="+", choices=all_datasets, default=all_datasets)
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4])
-    parser.add_argument("--batches", nargs="*", type=int, default=[10, 25, 50, 100, 200, 500],
+    parser.add_argument("--batches", nargs="*", type=int, default=[25, 50, 100, 200, 500],
                         help="FedDrift 検出バッチ掃引値(空指定で無効化)")
-    parser.add_argument("--deltas", nargs="*", type=float, default=[0.02, 0.05, 0.1, 0.15, 0.2],
+    parser.add_argument("--deltas", nargs="*", type=float, default=[0.05, 0.1, 0.15, 0.2],
                         help="FedDrift 検出閾値 δ 掃引値(空指定で無効化)")
     parser.add_argument("--adwin-deltas", nargs="*", type=float, default=[0.01, 0.05, 0.1, 0.2, 0.3],
                         help="FedSDA δ_adwin 掃引値(空指定で無効化)")
-    parser.add_argument("--kstep-sweep", nargs="*", type=int, default=[],
-                        help="FedSDA の K_STEPS(通信間隔)掃引値。指定時のみ実行(オプトイン)")
+    parser.add_argument("--kstep-sweep", nargs="*", type=int, default=[25, 50, 100, 200, 500],
+                        help="FedSDA の K_STEPS(通信間隔)掃引値(空指定で無効化)")
     parser.add_argument("--fixed-adwin", type=float, default=None,
                         help="K_STEPS 掃引時に固定する δ_adwin(既定 config.ADWIN_DELTA)")
     parser.add_argument("--fixed-delta", type=float, default=None,
@@ -355,7 +355,7 @@ def main():
                         help="FedSDA で固定する γ_dist(既定 config.DISTANCE_THRESHOLD)")
     parser.add_argument("--total-data", type=int, default=None, help="TOTAL_DATA_POINTS 上書き")
     parser.add_argument("--out-dir", default="results/pareto")
-    parser.add_argument("--raw-dir", default=None,
+    parser.add_argument("--raw-dir", default="results/raw",
                         help="各実験の生データ(.npz)を保存するディレクトリ。回復曲線の事後分析用")
     parser.add_argument("--tag", default=None, help="出力ファイル名に付ける任意の識別子")
     parser.add_argument("--plot-csvs", nargs="+", default=None,
