@@ -31,6 +31,20 @@ import numpy as np
 _CANON_DATASETS = ["blobs", "sea", "circle", "sine"]
 
 
+def infer_out_dir(npz_paths):
+    """分析対象 .npz の場所から、紐づく results ディレクトリ内の recovery/ を推定する。
+
+    典型レイアウト results_<stamp>/raw/*.npz に対し results_<stamp>/recovery を返す
+    (npz の共通親ディレクトリが raw なら、その親=実験ディレクトリの直下に置く)。
+    複数実験にまたがる glob の場合は共通祖先ディレクトリ直下の recovery/ に集約する。
+    """
+    dirs = [os.path.dirname(p) or "." for p in npz_paths]
+    common = os.path.commonpath(dirs)
+    if os.path.basename(common) == "raw":
+        common = os.path.dirname(common) or "."
+    return os.path.join(common, "recovery")
+
+
 def load_npz(path):
     d = np.load(path, allow_pickle=False)
     return {
@@ -180,8 +194,9 @@ def main():
     parser = argparse.ArgumentParser(description="Recovery-curve analysis from raw .npz runs")
     parser.add_argument("--npz", nargs="+", required=True,
                         help="生データ .npz のパス(glob 可)")
-    parser.add_argument("--out-dir", default="results/recovery",
-                        help="図・表の出力先(default: results/recovery)")
+    parser.add_argument("--out-dir", default=None,
+                        help="図・表の出力先。未指定なら --npz が属する results ディレクトリ内の "
+                             "recovery/(例: results_<stamp>/raw/*.npz → results_<stamp>/recovery)")
     parser.add_argument("--max-delta", type=int, default=250,
                         help="回復曲線の Δ 上限(MIN_STABLE_PERIOD 未満に。default: 250)")
     parser.add_argument("--window", type=int, default=200,
@@ -200,6 +215,11 @@ def main():
         return
     recs = [load_npz(p) for p in paths]
     print(f"Loaded {len(recs)} npz file(s).")
+
+    # --out-dir 未指定なら、分析対象 .npz が属する results ディレクトリ内の recovery/ へ出す
+    if args.out_dir is None:
+        args.out_dir = infer_out_dir(paths)
+        print(f"[out-dir] 未指定のため推定: {args.out_dir}")
 
     # 窓が単一安定区間に収まるか軽く検証(MIN_STABLE_PERIOD 未満であること)
     min_stable = min(r["min_stable"] for r in recs)

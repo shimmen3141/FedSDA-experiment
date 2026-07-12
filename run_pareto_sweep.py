@@ -28,6 +28,11 @@ import numpy as np
 
 from FedSDA import config, run_random_drift_experiment
 
+# この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
+# 既定の出力先は results_<YYYYMMDD_HHMMSS>/... となり実行ごとに別ディレクトリへ分かれる。
+_RUN_STAMP = time.strftime("%Y%m%d_%H%M%S")
+_DEFAULT_RUN_DIR = f"results_{_RUN_STAMP}"
+
 METRIC_KEYS = [
     "paper_accuracy", "paper_accuracy_all", "accuracy",
     "comm_upload", "comm_download", "comm_total",
@@ -354,9 +359,11 @@ def main():
     parser.add_argument("--fixed-gamma", type=float, default=None,
                         help="FedSDA で固定する γ_dist(既定 config.DISTANCE_THRESHOLD)")
     parser.add_argument("--total-data", type=int, default=None, help="TOTAL_DATA_POINTS 上書き")
-    parser.add_argument("--out-dir", default="results/pareto")
-    parser.add_argument("--raw-dir", default="results/raw",
-                        help="各実験の生データ(.npz)を保存するディレクトリ。回復曲線の事後分析用")
+    parser.add_argument("--out-dir", default=f"{_DEFAULT_RUN_DIR}/pareto",
+                        help="結果CSV・図の出力先(既定: results_<実行時刻>/pareto)")
+    parser.add_argument("--raw-dir", default=f"{_DEFAULT_RUN_DIR}/raw",
+                        help="各実験の生データ(.npz)の保存先。回復曲線の事後分析用"
+                             "(既定: results_<実行時刻>/raw)")
     parser.add_argument("--tag", default=None, help="出力ファイル名に付ける任意の識別子")
     parser.add_argument("--plot-csvs", nargs="+", default=None,
                         help="実験は行わず、指定した結果CSV(glob可)を読み込みシード平均で再描画する")
