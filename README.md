@@ -32,6 +32,10 @@ python run_pareto_sweep.py --datasets sea circle sine --seeds 0
 # 掃引をシードごとに分割して積み増した後、複数CSVをシード平均で1枚に再描画
 python run_pareto_sweep.py --plot-csvs "results/pareto/pareto_sea-circle-sine_seed*_n5000.csv"
 
+# 回復曲線(適応速度)分析: 生データを保存 → acc(Δ) を集計・描画
+python run_pareto_sweep.py --datasets sine --seeds 0 1 2 --raw-dir results/raw
+python recovery_analysis.py --npz "results/raw/*sine*.npz"
+
 # オプション確認
 python run_experiment.py --help
 python run_comparative_trials.py --help
@@ -78,6 +82,22 @@ python run_comparative_trials.py --help
 論文式精度は [FedSDA/config.py](FedSDA/config.py) の `PAPER_TEST_SAMPLES` でテストサイズを設定。テストデータ生成は乱数状態を保存・復元するため、既存の学習の再現性には影響しない。
 
 通信量は「1単位 = 1モデルのパラメータを1回転送」(全モデル同一サイズのため転送数がバイト量に比例)。クラスタ化FLの通信は O(モデル数 × クライアント数) でスケールするため、偽陽性が少なく余計なモデルを作らない手法ほど通信量が小さくなる(クロス評価の返り値=統計3値は微小のため非計上)。
+
+### 回復曲線(適応速度)分析
+
+検出遅延(recall/precision/avg_delay)は手法ごとに検出の定義が揺れ、特に大バッチ FedDrift では比較に使いにくい。そこで **outcome ベースの適応速度指標**として回復曲線 acc(Δ) を用意している。
+
+- `--raw-dir` を付けて実験を回すと、各 run の per-sample 生データ(クライアント別 `history_accuracy`、真のドリフト位置、メタデータ)を軽量な `.npz`(gitignore 対象)に保存する。`run_experiment.py` / `run_pareto_sweep.py` の両方で使える。
+- `recovery_analysis.py` が `.npz` を読み込み、各ドリフト発生点を Δ=0 に揃えて「ドリフト後 Δ サンプル時点の平均精度 acc(Δ)」を集計する。
+
+出力:
+
+| 出力 | 内容 |
+|---|---|
+| 図 (`recovery_*.png`) | データセット別に acc(Δ) を手法ごとに重ね描き(シード間 std を帯で表示) |
+| 表 (`recovery_*.md`) | 固定オフセット精度 `acc@Δ`(既定 Δ=20/50/100)と、固定窓 `[0, W)` の平均精度 |
+
+固定窓の平均精度は「適応リグレット = 基準精度 − 平均精度」に相当し、値が高いほど適応が速い。窓幅 W(既定200)と Δ 上限(既定250)はいずれも `MIN_STABLE_PERIOD`(300)未満に取るため、集計窓が必ず単一の安定区間に収まり次ドリフトが混入しない(ランダムなドリフト間隔に値が振り回されない)。生データを保存しておけば、数時間かかる掃引を再実行せずに事後的に指標を計算できる。
 
 ## コード構成
 
