@@ -5,9 +5,10 @@ __pycache__/
 .venv/
 venv/
 
-# 実験成果物
+# 実験成果物(結果ディレクトリは results_<実行時刻> の規約で命名し一括無視。
+# 新しい実行ディレクトリを作っても .gitignore への追記は不要)
 results/
-exp_results/
+results_*/
 *.png
 *.npz
 
