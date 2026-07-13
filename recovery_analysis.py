@@ -20,6 +20,7 @@ run_experiment.py / run_pareto_sweep.py の --raw-dir で保存した .npz を�
 import argparse
 import glob
 import os
+import re
 from collections import defaultdict
 
 import matplotlib
@@ -111,31 +112,47 @@ def _ordered_datasets(keys):
            [d for d in sorted(present) if d not in _CANON_DATASETS]
 
 
+def _sweep_val(label):
+    """ラベル末尾の "[値]" から掃引値の文字列を取り出す(無ければ None)。"""
+    m = re.search(r"\[([^\]]+)\]\s*$", label)
+    return m.group(1) if m else None
+
+
 def _sorted_labels(labels):
-    """凡例順: Oblivious → FedSDA → FedDrift → その他。"""
+    """凡例順: Oblivious → FedSDA → FedDrift → その他。同一系列内は掃引値の昇順。"""
     def rank(lab):
-        if "Oblivious" in lab:
-            return (0, lab)
-        if "FedSDA" in lab:
-            return (1, lab)
-        if "FedDrift" in lab:
-            return (2, lab)
-        return (3, lab)
+        grp = 0 if "Oblivious" in lab else (1 if "FedSDA" in lab
+                                            else (2 if "FedDrift" in lab else 3))
+        sv = _sweep_val(lab)
+        try:
+            num = float(sv) if sv is not None else -1.0
+        except ValueError:
+            num = -1.0
+        return (grp, lab.split("[")[0], num, lab)
     return sorted(labels, key=rank)
 
 
-def plot_recovery(agg, max_delta, out_path, window):
+def plot_recovery(agg, max_delta, out_path, window, title,
+                  label_filter=None, label_display=None):
+    """回復曲線を描く。label_filter で系列を絞り込み、label_display で凡例名を整形する。
+
+    label_filter(label)->bool: True の系列だけ描画(None なら全系列)。
+    label_display(label)->str: 凡例に出す表示名(None ならラベルそのまま)。
+    """
     datasets = _ordered_datasets(agg.keys())
     deltas = np.arange(max_delta + 1)
     n = len(datasets)
     fig, axes = plt.subplots(1, n, figsize=(6.0 * n, 4.8), squeeze=False)
     for ax, ds in zip(axes[0], datasets):
-        labels = _sorted_labels([lab for (d, lab) in agg if d == ds])
-        for lab in labels:
+        labels = [lab for (d, lab) in agg if d == ds]
+        if label_filter is not None:
+            labels = [lab for lab in labels if label_filter(lab)]
+        for lab in _sorted_labels(labels):
             info = agg[(ds, lab)]
             mean = info["mean"]
             std = info["std"]
-            line, = ax.plot(deltas, mean, label=lab, linewidth=1.8)
+            disp = label_display(lab) if label_display else lab
+            line, = ax.plot(deltas, mean, label=disp, linewidth=1.8)
             if np.any(std > 0):
                 ax.fill_between(deltas, mean - std, mean + std,
                                 color=line.get_color(), alpha=0.15)
@@ -146,7 +163,7 @@ def plot_recovery(agg, max_delta, out_path, window):
         ax.set_ylabel("accuracy acc(Δ)")
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize="small")
-    fig.suptitle("Recovery curves: accuracy vs samples since drift")
+    fig.suptitle(title)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -204,6 +221,10 @@ def main():
     parser.add_argument("--checkpoints", nargs="+", type=int, default=[20, 50, 100],
                         help="表に出す固定オフセット Δ(default: 20 50 100)")
     parser.add_argument("--tag", default=None, help="出力ファイル名に付ける識別子")
+    parser.add_argument("--main-adwin", type=float, default=0.05,
+                        help="手法間比較図で FedSDA の代表とする δ_adwin(default: 0.05)")
+    parser.add_argument("--main-batch", type=int, default=50,
+                        help="手法間比較図で FedDrift の代表とする検出バッチ(default: 50)")
     args = parser.parse_args()
 
     paths = []
@@ -233,10 +254,54 @@ def main():
     datasets = _ordered_datasets(agg.keys())
     seeds = sorted(set(r["seed"] for r in recs))
     sd = f"seed{seeds[0]}" if len(seeds) == 1 else "seeds" + "-".join(str(s) for s in seeds)
-    name = f"recovery_{'-'.join(datasets)}_{sd}" + (f"_{args.tag}" if args.tag else "")
+    base = f"{'-'.join(datasets)}_{sd}" + (f"_{args.tag}" if args.tag else "")
 
-    plot_recovery(agg, args.max_delta, os.path.join(args.out_dir, f"{name}.png"), args.window)
-    write_table(agg, args.checkpoints, args.window, os.path.join(args.out_dir, f"{name}.md"))
+    def out(name):
+        return os.path.join(args.out_dir, name)
+
+    # 系列の同定に使う部分文字列(run_pareto_sweep が付けるラベルに基づく):
+    #   δ_adwin 掃引 → "adwin sweep" / FedDrift 検出バッチ掃引 → "batch sweep"
+    # K_STEPS 掃引("K_STEPS sweep")と FedDrift δ 掃引("δ sweep")は回復図では扱わない
+    # (前者は回復速度にほぼ不感、後者は batch 掃引と一点重複するため)。
+    rep_adwin, rep_batch = f"[{args.main_adwin:g}]", f"[{args.main_batch:g}]"
+
+    def is_ob(lab):
+        return "Oblivious" in lab
+
+    def main_disp(lab):
+        if is_ob(lab):
+            return "Oblivious"
+        if "adwin sweep" in lab:
+            return f"FedSDA (δ_adwin={_sweep_val(lab)})"
+        if "batch sweep" in lab:
+            return f"FedDrift (batch={_sweep_val(lab)})"
+        return lab
+
+    # 図A: 手法間比較(各手法の代表設定のみ)
+    plot_recovery(
+        agg, args.max_delta, out(f"recovery_main_{base}.png"), args.window,
+        title="Recovery: method comparison (representative configs)",
+        label_filter=lambda lab: (is_ob(lab)
+                                  or ("adwin sweep" in lab and lab.endswith(rep_adwin))
+                                  or ("batch sweep" in lab and lab.endswith(rep_batch))),
+        label_display=main_disp)
+
+    # 図B: FedSDA δ_adwin 感度(全掃引値 + 基準線)
+    plot_recovery(
+        agg, args.max_delta, out(f"recovery_sweep_adwin_{base}.png"), args.window,
+        title="Recovery: FedSDA δ_adwin sensitivity",
+        label_filter=lambda lab: is_ob(lab) or "adwin sweep" in lab,
+        label_display=lambda lab: "Oblivious" if is_ob(lab) else f"δ_adwin={_sweep_val(lab)}")
+
+    # 図C: FedDrift 検出バッチ感度(全掃引値 + 基準線)
+    plot_recovery(
+        agg, args.max_delta, out(f"recovery_sweep_batch_{base}.png"), args.window,
+        title="Recovery: FedDrift batch-size sensitivity",
+        label_filter=lambda lab: is_ob(lab) or "batch sweep" in lab,
+        label_display=lambda lab: "Oblivious" if is_ob(lab) else f"batch={_sweep_val(lab)}")
+
+    # 表は全系列を残す(行なら判読でき、後から任意設定を参照できる)
+    write_table(agg, args.checkpoints, args.window, out(f"recovery_{base}.md"))
     print("Done.")
 
 
