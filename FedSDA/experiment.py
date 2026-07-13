@@ -235,13 +235,20 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed):
     - history_accuracy: (N_CLIENTS, N_SAMPLES) の int8 (各サンプルの当否 0/1)
     - drift_client_ids / drift_positions: 真のドリフトを (クライアントid, サンプルindex) の
       並列配列で平坦化(可変長を object 配列にせず保持)
+    - history_model_id: (N_CLIENTS, N_SAMPLES) の int32 (各サンプルで選択中のモデルID)
+    - switch_client_ids / switch_positions: ローカルで実際にモデル切替が起きた位置を
+      (クライアントid, サンプルindex) の並列配列で平坦化
     - dataset/mode/label/seed/min_stable/k_steps: 分析時のグループ化・Δ上限用メタデータ
+
+    注: history_model_id / switch_* は後から追加した純増キー。これらを持たない旧 .npz
+    でも読み手が `key in npz` で存在判定すれば従来どおり読める(形式は後方互換)。
     """
     out_dir = os.path.dirname(raw_path)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
 
     hist = np.asarray([c.history_accuracy for c in clients], dtype=np.int8)
+    model_id_hist = np.asarray([c.history_model_id for c in clients], dtype=np.int32)
 
     d_cids, d_pos = [], []
     for ci, positions in true_drift_events.items():
@@ -249,11 +256,21 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed):
             d_cids.append(ci)
             d_pos.append(p)
 
+    # モデル切替が実際に起きたサンプル位置(検出として数えるもの)を平坦化
+    s_cids, s_pos = [], []
+    for ci, c in enumerate(clients):
+        for p in getattr(c, "local_switch_positions", []):
+            s_cids.append(ci)
+            s_pos.append(p)
+
     np.savez_compressed(
         raw_path,
         history_accuracy=hist,
         drift_client_ids=np.asarray(d_cids, dtype=np.int32),
         drift_positions=np.asarray(d_pos, dtype=np.int32),
+        history_model_id=model_id_hist,
+        switch_client_ids=np.asarray(s_cids, dtype=np.int32),
+        switch_positions=np.asarray(s_pos, dtype=np.int32),
         dataset=str(config.DATASET),
         mode=str(mode),
         label=str(label),
