@@ -48,7 +48,7 @@ def infer_out_dir(npz_paths):
 
 def load_npz(path):
     d = np.load(path, allow_pickle=False)
-    return {
+    rec = {
         "history": d["history_accuracy"],        # (N_CLIENTS, N_SAMPLES) int8 の 0/1
         "d_cids": d["drift_client_ids"],
         "d_pos": d["drift_positions"],
@@ -57,6 +57,13 @@ def load_npz(path):
         "seed": int(d["seed"]),
         "min_stable": int(d["min_stable"]),
     }
+    # 後から追加した純増キー(モデル切替)。旧 .npz には無いので存在時のみ載せる。
+    if "history_model_id" in d:
+        rec["model_id"] = d["history_model_id"]   # (N_CLIENTS, N_SAMPLES) int32
+    if "switch_client_ids" in d and "switch_positions" in d:
+        rec["s_cids"] = d["switch_client_ids"]
+        rec["s_pos"] = d["switch_positions"]
+    return rec
 
 
 def curve_sums(rec, max_delta):
@@ -207,6 +214,75 @@ def write_table(agg, checkpoints, window, out_path):
     print(f"Table saved: {out_path}")
 
 
+def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200,
+                              checkpoints=(20, 50, 100), main_adwin=0.05, main_batch=50):
+    """レコード列から回復図3枚(手法間比較・δ_adwin感度・batch感度)と表を出力する。
+
+    run_pareto_sweep.py からの自動実行と、recovery_analysis.py 単体の main の両方から
+    呼ぶ共通処理。out_dir は呼び出し側で解決済みのものを渡す。
+    """
+    # 窓が単一安定区間に収まるか軽く検証(MIN_STABLE_PERIOD 未満であること)
+    min_stable = min(r["min_stable"] for r in recs)
+    if max_delta >= min_stable or window > min_stable:
+        print(f"[warn] max_delta({max_delta})/window({window}) が MIN_STABLE_PERIOD"
+              f"({min_stable}) 以上です。次ドリフトが混入する可能性があります。")
+
+    agg = aggregate(recs, max_delta)
+
+    os.makedirs(out_dir, exist_ok=True)
+    datasets = _ordered_datasets(agg.keys())
+    seeds = sorted(set(r["seed"] for r in recs))
+    sd = f"seed{seeds[0]}" if len(seeds) == 1 else "seeds" + "-".join(str(s) for s in seeds)
+    base = f"{'-'.join(datasets)}_{sd}" + (f"_{tag}" if tag else "")
+
+    def out(name):
+        return os.path.join(out_dir, name)
+
+    # 系列の同定に使う部分文字列(run_pareto_sweep が付けるラベルに基づく):
+    #   δ_adwin 掃引 → "adwin sweep" / FedDrift 検出バッチ掃引 → "batch sweep"
+    # K_STEPS 掃引("K_STEPS sweep")と FedDrift δ 掃引("δ sweep")は回復図では扱わない
+    # (前者は回復速度にほぼ不感、後者は batch 掃引と一点重複するため)。
+    rep_adwin, rep_batch = f"[{main_adwin:g}]", f"[{main_batch:g}]"
+
+    def is_ob(lab):
+        return "Oblivious" in lab
+
+    def main_disp(lab):
+        if is_ob(lab):
+            return "Oblivious"
+        if "adwin sweep" in lab:
+            return f"FedSDA (δ_adwin={_sweep_val(lab)})"
+        if "batch sweep" in lab:
+            return f"FedDrift (batch={_sweep_val(lab)})"
+        return lab
+
+    # 図A: 手法間比較(各手法の代表設定のみ)
+    plot_recovery(
+        agg, max_delta, out(f"recovery_main_{base}.png"), window,
+        title="Recovery: method comparison (representative configs)",
+        label_filter=lambda lab: (is_ob(lab)
+                                  or ("adwin sweep" in lab and lab.endswith(rep_adwin))
+                                  or ("batch sweep" in lab and lab.endswith(rep_batch))),
+        label_display=main_disp)
+
+    # 図B: FedSDA δ_adwin 感度(全掃引値 + 基準線)
+    plot_recovery(
+        agg, max_delta, out(f"recovery_sweep_adwin_{base}.png"), window,
+        title="Recovery: FedSDA δ_adwin sensitivity",
+        label_filter=lambda lab: is_ob(lab) or "adwin sweep" in lab,
+        label_display=lambda lab: "Oblivious" if is_ob(lab) else f"δ_adwin={_sweep_val(lab)}")
+
+    # 図C: FedDrift 検出バッチ感度(全掃引値 + 基準線)
+    plot_recovery(
+        agg, max_delta, out(f"recovery_sweep_batch_{base}.png"), window,
+        title="Recovery: FedDrift batch-size sensitivity",
+        label_filter=lambda lab: is_ob(lab) or "batch sweep" in lab,
+        label_display=lambda lab: "Oblivious" if is_ob(lab) else f"batch={_sweep_val(lab)}")
+
+    # 表は全系列を残す(行なら判読でき、後から任意設定を参照できる)
+    write_table(agg, checkpoints, window, out(f"recovery_{base}.md"))
+
+
 def main():
     parser = argparse.ArgumentParser(description="Recovery-curve analysis from raw .npz runs")
     parser.add_argument("--npz", nargs="+", required=True,
@@ -242,66 +318,9 @@ def main():
         args.out_dir = infer_out_dir(paths)
         print(f"[out-dir] 未指定のため推定: {args.out_dir}")
 
-    # 窓が単一安定区間に収まるか軽く検証(MIN_STABLE_PERIOD 未満であること)
-    min_stable = min(r["min_stable"] for r in recs)
-    if args.max_delta >= min_stable or args.window > min_stable:
-        print(f"[warn] max_delta({args.max_delta})/window({args.window}) が MIN_STABLE_PERIOD"
-              f"({min_stable}) 以上です。次ドリフトが混入する可能性があります。")
-
-    agg = aggregate(recs, args.max_delta)
-
-    os.makedirs(args.out_dir, exist_ok=True)
-    datasets = _ordered_datasets(agg.keys())
-    seeds = sorted(set(r["seed"] for r in recs))
-    sd = f"seed{seeds[0]}" if len(seeds) == 1 else "seeds" + "-".join(str(s) for s in seeds)
-    base = f"{'-'.join(datasets)}_{sd}" + (f"_{args.tag}" if args.tag else "")
-
-    def out(name):
-        return os.path.join(args.out_dir, name)
-
-    # 系列の同定に使う部分文字列(run_pareto_sweep が付けるラベルに基づく):
-    #   δ_adwin 掃引 → "adwin sweep" / FedDrift 検出バッチ掃引 → "batch sweep"
-    # K_STEPS 掃引("K_STEPS sweep")と FedDrift δ 掃引("δ sweep")は回復図では扱わない
-    # (前者は回復速度にほぼ不感、後者は batch 掃引と一点重複するため)。
-    rep_adwin, rep_batch = f"[{args.main_adwin:g}]", f"[{args.main_batch:g}]"
-
-    def is_ob(lab):
-        return "Oblivious" in lab
-
-    def main_disp(lab):
-        if is_ob(lab):
-            return "Oblivious"
-        if "adwin sweep" in lab:
-            return f"FedSDA (δ_adwin={_sweep_val(lab)})"
-        if "batch sweep" in lab:
-            return f"FedDrift (batch={_sweep_val(lab)})"
-        return lab
-
-    # 図A: 手法間比較(各手法の代表設定のみ)
-    plot_recovery(
-        agg, args.max_delta, out(f"recovery_main_{base}.png"), args.window,
-        title="Recovery: method comparison (representative configs)",
-        label_filter=lambda lab: (is_ob(lab)
-                                  or ("adwin sweep" in lab and lab.endswith(rep_adwin))
-                                  or ("batch sweep" in lab and lab.endswith(rep_batch))),
-        label_display=main_disp)
-
-    # 図B: FedSDA δ_adwin 感度(全掃引値 + 基準線)
-    plot_recovery(
-        agg, args.max_delta, out(f"recovery_sweep_adwin_{base}.png"), args.window,
-        title="Recovery: FedSDA δ_adwin sensitivity",
-        label_filter=lambda lab: is_ob(lab) or "adwin sweep" in lab,
-        label_display=lambda lab: "Oblivious" if is_ob(lab) else f"δ_adwin={_sweep_val(lab)}")
-
-    # 図C: FedDrift 検出バッチ感度(全掃引値 + 基準線)
-    plot_recovery(
-        agg, args.max_delta, out(f"recovery_sweep_batch_{base}.png"), args.window,
-        title="Recovery: FedDrift batch-size sensitivity",
-        label_filter=lambda lab: is_ob(lab) or "batch sweep" in lab,
-        label_display=lambda lab: "Oblivious" if is_ob(lab) else f"batch={_sweep_val(lab)}")
-
-    # 表は全系列を残す(行なら判読でき、後から任意設定を参照できる)
-    write_table(agg, args.checkpoints, args.window, out(f"recovery_{base}.md"))
+    generate_recovery_outputs(recs, args.out_dir, tag=args.tag, max_delta=args.max_delta,
+                              window=args.window, checkpoints=args.checkpoints,
+                              main_adwin=args.main_adwin, main_batch=args.main_batch)
     print("Done.")
 
 

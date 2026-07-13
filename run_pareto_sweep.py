@@ -364,6 +364,9 @@ def main():
     parser.add_argument("--raw-dir", default=f"{_DEFAULT_RUN_DIR}/raw",
                         help="各実験の生データ(.npz)の保存先。回復曲線の事後分析用"
                              "(既定: results_<実行時刻>/raw)")
+    parser.add_argument("--no-recovery", action="store_true",
+                        help="掃引後の回復図・表の自動生成を抑止する"
+                             "(後から recovery_analysis.py で個別に実行できる)")
     parser.add_argument("--tag", default=None, help="出力ファイル名に付ける任意の識別子")
     parser.add_argument("--plot-csvs", nargs="+", default=None,
                         help="実験は行わず、指定した結果CSV(glob可)を読み込みシード平均で再描画する")
@@ -410,6 +413,21 @@ def main():
                      kstep_sweep=args.kstep_sweep, fixed_adwin=fixed_adwin, raw_dir=args.raw_dir)
     write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
     plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"))
+
+    # 掃引で保存した生データ(.npz)から回復図・表を自動生成する。
+    # recovery は軽い事後分析なので、パラメータを変えて後から recovery_analysis.py 単体で
+    # 何度でも回せる(--no-recovery でこの自動実行を抑止)。
+    if not args.no_recovery and args.raw_dir:
+        import glob
+        from recovery_analysis import load_npz, generate_recovery_outputs, infer_out_dir
+        npz_paths = sorted(glob.glob(os.path.join(args.raw_dir, "*.npz")))
+        if npz_paths:
+            rec_dir = infer_out_dir(npz_paths)
+            print(f"回復分析: {len(npz_paths)} npz -> {rec_dir}")
+            recs = [load_npz(p) for p in npz_paths]
+            generate_recovery_outputs(recs, rec_dir, tag=args.tag)
+        else:
+            print("回復分析: raw npz が見つからないためスキップ")
     print("Done.")
 
 
