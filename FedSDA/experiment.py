@@ -58,25 +58,29 @@ def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose)
 
     検出バッチ(FEDDRIFT_DETECT_BATCH)が完了したチャンクでのみ通信(集約・クラスタリング・
     配布)を行い、通信量を検出バッチサイズに反比例させ FedDrift 本来のバッチ単位通信に忠実に
-    する。一方でローカル学習は毎チャンク FEDDRIFT_LOCAL_STEPS 行い、総ローカル更新数を
-    FedSDA(=TOTAL_DATA_POINTS × UPDATES_PER_STEP)と揃える。
+    する。完了時は論文の R ラウンドに倣い、{ローカル学習 FEDDRIFT_LOCAL_STEPS → 集約} を
+    config.FEDDRIFT_ROUNDS 回繰り返す(既定 1)。R>1 は論文忠実(バッチ収束学習)だが更新数・
+    通信量が R 倍になる。バッチ未完了のチャンクは継続的なローカル学習のみ(通信なし)。
     """
     # 全クライアントを処理(ロックステップなので fired は全員一致)。any は使わず全員評価
     fired = any([c.process_batch(data[i], concepts[i]) for i, c in enumerate(clients)])
 
-    # 検出バッチ完了時のみ: クラスタリング付き集約
     if fired:
+        # 検出バッチ完了: クラスタリング付き集約を1回(モデル併合/割当)
         server.run_round(t, clustering_enabled=True)
         for c in clients:
             c.promote_pending_to_ready()
-
-    # ローカル学習は毎チャンク。集約・配布は検出バッチ完了時のみ
-    for c in clients:
-        c.local_train(k_steps=config.FEDDRIFT_LOCAL_STEPS)
-    if fired:
-        server.run_round(t, clustering_enabled=False)
+        # 論文 R に対応: {ローカル学習 → 集約} を FEDDRIFT_ROUNDS 回
+        for _ in range(config.FEDDRIFT_ROUNDS):
+            for c in clients:
+                c.local_train(k_steps=config.FEDDRIFT_LOCAL_STEPS)
+            server.run_round(t, clustering_enabled=False)
+            for c in clients:
+                c.promote_pending_to_ready()
+    else:
+        # バッチ未完了: 継続的なローカル学習のみ(通信なし)
         for c in clients:
-            c.promote_pending_to_ready()
+            c.local_train(k_steps=config.FEDDRIFT_LOCAL_STEPS)
 
 
 # ==========================================
@@ -170,7 +174,8 @@ def _mode_param_summary(mode, distance_threshold):
         return (f"gamma_dist={distance_threshold}, delta_adwin={config.ADWIN_DELTA}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}")
     if mode == 'FedDrift':
-        return f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}"
+        return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}, "
+                f"rounds={config.FEDDRIFT_ROUNDS}")
     if mode == 'Oblivious':
         return "single model, no adaptation"
     return f"threshold={distance_threshold}"
