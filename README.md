@@ -86,15 +86,14 @@ python run_comparative_trials.py --help
 
 | キー | 意味 |
 |---|---|
-| `accuracy` | prequential(逐次)精度: 各サンプルを予測→即学習した際の当否の平均 |
-| `paper_accuracy` | **論文式**: 各時刻の学習後に次時刻コンセプトの held-out データで評価。ドリフト時刻を除外した平均(論文 Table と比較可能) |
-| `paper_accuracy_all` | 論文式(全時刻版・ドリフト時刻も含む) |
+| `accuracy` | prequential(逐次)精度: 各サンプルを予測→即学習した際の当否の平均。**全期間の総合精度** |
+| `stable_accuracy` | **定常精度**: 各真ドリフト直後 `STABLE_WINDOW`(=W)サンプル(回復中)を除外した prequential 精度。回復曲線 acc(Δ) の Δ≥W の裾に相当 |
 | `recall` / `precision` / `f1` | ドリフト検出の質(ローカル切替を検出とみなし真のドリフトと照合) |
 | `avg_delay` | 平均検出遅延(サンプル数) |
 | `final_model_count` | 最終モデル数(サーバ集約あり)/ クライアント平均保持数(なし) |
 | `comm_upload` / `comm_download` / `comm_total` | 通信量(モデル転送数)。up=クライアント→サーバ、down=サーバ→クライアント(ブロードキャスト+クロス評価) |
 
-論文式精度は [FedSDA/config.py](FedSDA/config.py) の `PAPER_TEST_SAMPLES` でテストサイズを設定。テストデータ生成は乱数状態を保存・復元するため、既存の学習の再現性には影響しない。
+定常精度の回復除外窓 W は [FedSDA/config.py](FedSDA/config.py) の `STABLE_WINDOW`(既定200)で設定。最も遅い回復のプラトーを越える大きめ固定値で、`MIN_STABLE_PERIOD` 未満(次ドリフトを跨がない)。適応の**速さ**は回復曲線 acc(Δ)([recovery_analysis.py](recovery_analysis.py))で別途評価する。
 
 通信量は「1単位 = 1モデルのパラメータを1回転送」(全モデル同一サイズのため転送数がバイト量に比例)。クラスタ化FLの通信は O(モデル数 × クライアント数) でスケールするため、偽陽性が少なく余計なモデルを作らない手法ほど通信量が小さくなる(クロス評価の返り値=統計3値は微小のため非計上)。
 
@@ -134,6 +133,7 @@ python run_comparative_trials.py --help
 ├── colab_original/              # 分割前のColab版スクリプト(参照用バックアップ)
 ├── ALGORITHM.md                 # 論文の実装用仕様書
 ├── DIFFERENCES_FROM_FEDDRIFT.md # FedDrift 元論文との相違点まとめ
+├── HYPERPARAMETERS.md           # 全変数の意味・使用手法・仕様の一覧
 └── main_jp.tex                  # 論文原稿(LaTeX)
 ```
 
@@ -143,14 +143,16 @@ python run_comparative_trials.py --help
 ## ハイパーパラメータ
 
 全ハイパーパラメータは [FedSDA/config.py](FedSDA/config.py) に一元管理されている
-(論文の記号 K, τ, L, E_init, δ_adwin, N_FIFO, γ_dist との対応もコメントに記載)。
+(論文の記号 K, R, τ, L, E_init, δ_adwin, N_FIFO, γ_dist との対応もコメントに記載)。
+**各変数の意味・使用手法(FedSDA / FedDrift / 共通)・仕様は
+[HYPERPARAMETERS.md](HYPERPARAMETERS.md) に一覧化している。**
 
 既定値の概要:
 
-- 実験規模: クライアント数 10、総データ数 3000/クライアント、1ラウンド = 50 ステップ
+- 実験規模: クライアント数 10、総データ数 5000/クライアント、1ラウンド = 50 ステップ
 - データ: コンセプト数 4(ガウス2塊×ラベル反転、同心円×ラベル反転)
 - ドリフト: 安定期間300サンプル経過後、毎サンプル確率0.0015で別コンセプトへ遷移
-- 検出: ADWIN δ=0.05、FIFOバッファ長 30、距離閾値 γ_dist=0.1
+- 検出: FedSDA=ADWIN δ=0.05・FIFOバッファ長 30・距離閾値 γ_dist=0.1、FedDrift=検出バッチ 50・通信ラウンド R=1
 
 変更方法:
 
