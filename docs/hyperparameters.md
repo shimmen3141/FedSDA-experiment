@@ -1,8 +1,8 @@
 # ハイパーパラメータ・変数リファレンス
 
-本実装([FedSDA/config.py](FedSDA/config.py))の全ハイパーパラメータを、**意味・使用手法・既定値**の観点で一覧化する。実行時はコードから `from FedSDA import config; config.X = ...`で上書きできる(各モジュールは呼び出し時に `config.X` を参照する)。
+本実装([FedSDA/config.py](../FedSDA/config.py))の全ハイパーパラメータを、**意味・使用手法・既定値**の観点で一覧化する。実行時はコードから `from FedSDA import config; config.X = ...`で上書きできる(各モジュールは呼び出し時に `config.X` を参照する)。
 
-論文(FedDrift 元論文)との対応・相違は [DIFFERENCES_FROM_FEDDRIFT.md](DIFFERENCES_FROM_FEDDRIFT.md)、アルゴリズム詳細は ALGORITHM.md を参照。
+論文(FedDrift 元論文)との対応・相違は [differences-from-feddrift.md](differences-from-feddrift.md)、アルゴリズム詳細は [fedsda-algorithm.md](fedsda-algorithm.md) を参照。
 
 ---
 
@@ -152,4 +152,4 @@
 | `final_model_count` | 最終モデル数(集約あり)/ クライアント平均保持数(なし) |
 | `comm_upload` / `comm_download` / `comm_total` | 通信量(モデル転送数) |
 
-適応の**速さ**(回復曲線 acc(Δ)・`T90` 等)は [recovery_analysis.py](recovery_analysis.py) で別途評価する。
+適応の**速さ**(回復曲線 acc(Δ)・`T90` 等)は [recovery_analysis.py](../recovery_analysis.py) で別途評価する。

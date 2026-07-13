@@ -1,7 +1,7 @@
 # FedSDA 実験コード
 
 FedSDA (Statistical Drift-aware Assignment for Federated Learning) の比較実験。
-アルゴリズムの詳細は [ALGORITHM.md](ALGORITHM.md)、論文本体は [main_jp.tex](main_jp.tex) を参照。
+アルゴリズムの詳細は [docs/fedsda-algorithm.md](docs/fedsda-algorithm.md)、論文本体は [main_jp.tex](main_jp.tex) を参照。
 
 ## セットアップ
 
@@ -78,7 +78,7 @@ python run_comparative_trials.py --help
 `sea` の閾値・ノイズ率は [FedSDA/config.py](FedSDA/config.py) の `SEA_THRESHOLDS`(FedDrift論文 appendix の A,B,C,D = `{0:9, 1:8, 2:7, 3:9.5}`)/ `SEA_LABEL_NOISE`(0.10)で定義。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
 
 > **FedDrift 元論文との相違点**（データセット定義・ドリフトスケジュール・学習パラメータ・
-> 評価指標の細かな差異）は [DIFFERENCES_FROM_FEDDRIFT.md](DIFFERENCES_FROM_FEDDRIFT.md) に
+> 評価指標の細かな差異）は [docs/differences-from-feddrift.md](docs/differences-from-feddrift.md) に
 > 一元的にまとめている。要点: sine/circle/sea の**生成規則は論文・参照コードに忠実**、
 > blobs は独自データ、ドリフトの出し方は per-sample 逐次のため論文と異なる(意図的)。
 
@@ -131,9 +131,11 @@ python run_comparative_trials.py --help
 │   ├── plotting.py              # 可視化(保存 or 表示)
 │   └── trials.py                # 複数試行の実行・集計
 ├── colab_original/              # 分割前のColab版スクリプト(参照用バックアップ)
-├── ALGORITHM.md                 # 論文の実装用仕様書
-├── DIFFERENCES_FROM_FEDDRIFT.md # FedDrift 元論文との相違点まとめ
-├── HYPERPARAMETERS.md           # 全変数の意味・使用手法・仕様の一覧
+├── docs/                        # ドキュメント
+│   ├── fedsda-algorithm.md      # FedSDA 実装仕様書
+│   ├── differences-from-feddrift.md # FedDrift 元論文との相違点まとめ
+│   ├── hyperparameters.md       # 全変数の意味・使用手法・仕様の一覧
+│   └── sequence-diagrams.md     # FedSDA/FedDrift の処理フロー(mermaid)
 └── main_jp.tex                  # 論文原稿(LaTeX)
 ```
 
@@ -145,7 +147,7 @@ python run_comparative_trials.py --help
 全ハイパーパラメータは [FedSDA/config.py](FedSDA/config.py) に一元管理されている
 (論文の記号 K, R, τ, L, E_init, δ_adwin, N_FIFO, γ_dist との対応もコメントに記載)。
 **各変数の意味・使用手法(FedSDA / FedDrift / 共通)・仕様は
-[HYPERPARAMETERS.md](HYPERPARAMETERS.md) に一覧化している。**
+[docs/hyperparameters.md](docs/hyperparameters.md) に一覧化している。**
 
 既定値の概要:
 
