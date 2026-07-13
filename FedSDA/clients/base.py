@@ -54,7 +54,7 @@ class BaseClient:
         self.local_switch_positions = []           # ローカルで実際に切替が発生したサンプルインデックス（検出として数えるもの）
 
         self.batch_size = config.CLIENT_BATCH_SIZE
-        self.updates_per_step = config.UPDATES_PER_STEP
+        self.updates_per_sample = config.UPDATES_PER_SAMPLE
 
         self.next_temp_id = -100 - self.client_id
 
@@ -114,7 +114,7 @@ class BaseClient:
         self.history_model_id.append(self.current_model_id)
 
     def train_all_held_models(self, count_multiplier=1):
-        updates_needed = self.updates_per_step * count_multiplier
+        updates_needed = self.updates_per_sample * count_multiplier
         for m_id, data_list in self.train_data_store.items():
             if m_id not in self.models:
                 continue

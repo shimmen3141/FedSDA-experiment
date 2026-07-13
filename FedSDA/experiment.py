@@ -54,33 +54,32 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
 
 
 def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose):
-    """バッチ処理するスタイル(FedDrift系)の1チャンク。
+    """バッチ処理するスタイル(FedDrift系)の1検出バッチ。
 
-    検出バッチ(FEDDRIFT_DETECT_BATCH)が完了したチャンクでのみ通信(集約・クラスタリング・
-    配布)を行い、通信量を検出バッチサイズに反比例させ FedDrift 本来のバッチ単位通信に忠実に
-    する。完了時は論文の R ラウンドに倣い、{ローカル学習 FEDDRIFT_LOCAL_STEPS → 集約} を
-    config.FEDDRIFT_ROUNDS 回繰り返す(既定 1)。R>1 は論文忠実(バッチ収束学習)だが更新数・
-    通信量が R 倍になる。バッチ未完了のチャンクは継続的なローカル学習のみ(通信なし)。
+    1 ラウンドで処理するサンプル数 ＝ 検出バッチ(FEDDRIFT_DETECT_BATCH 件)なので、1 回の呼び出しで
+    必ず検出バッチが完成し、検出+割り当て+通信を行う(通信量は検出バッチサイズに反比例)。完了後は論文の R
+    ラウンドに倣い、{配布 → ローカル学習 → 集約} を config.FEDDRIFT_ROUNDS 回繰り返す(既定 1)。
+    1 ラウンドのローカル学習量は FEDDRIFT_DETECT_BATCH × UPDATES_PER_SAMPLE 更新(= FedSDA の
+    同区間の予算と一致)なので、R=1 のとき総ローカル更新数は FedSDA と等しい(公平比較)。R>1 は
+    論文忠実(バッチ収束学習)だが更新数・通信量が R 倍になる。
     """
-    # 全クライアントを処理(ロックステップなので fired は全員一致)。any は使わず全員評価
-    fired = any([c.process_batch(data[i], concepts[i]) for i, c in enumerate(clients)])
+    # 全クライアントで検出バッチを処理(process_batch 内で必ず1回発火する)
+    for i, c in enumerate(clients):
+        c.process_batch(data[i], concepts[i])
 
-    if fired:
-        # 検出バッチ完了: クラスタリング付き集約を1回(モデル併合/割当)
-        server.run_round(t, clustering_enabled=True)
+    # 検出バッチ完了: クラスタリング付き集約(モデル併合/割当)
+    server.run_round(t, clustering_enabled=True)
+    for c in clients:
+        c.promote_pending_to_ready()
+
+    # 論文 R に対応: {配布 → ローカル学習 → 集約} を FEDDRIFT_ROUNDS 回。
+    # 1 ラウンドの学習量 = FEDDRIFT_DETECT_BATCH × UPDATES_PER_SAMPLE 更新(=1バッチ分の予算)。
+    for _ in range(config.FEDDRIFT_ROUNDS):
+        for c in clients:
+            c.local_train(k_steps=config.FEDDRIFT_DETECT_BATCH)
+        server.run_round(t, clustering_enabled=False)
         for c in clients:
             c.promote_pending_to_ready()
-        # 論文 R に対応: {ローカル学習 → 集約} を FEDDRIFT_ROUNDS 回
-        for _ in range(config.FEDDRIFT_ROUNDS):
-            for c in clients:
-                c.local_train(k_steps=config.FEDDRIFT_LOCAL_STEPS)
-            server.run_round(t, clustering_enabled=False)
-            for c in clients:
-                c.promote_pending_to_ready()
-    else:
-        # バッチ未完了: 継続的なローカル学習のみ(通信なし)
-        for c in clients:
-            c.local_train(k_steps=config.FEDDRIFT_LOCAL_STEPS)
 
 
 # ==========================================
@@ -93,15 +92,15 @@ class ModeSpec:
     run_timestep: Callable
     use_server: bool = True
     server_cls: type = ClusteringServer
-    # 1ラウンド(=同期チャンク)のサンプル数を持つ config 属性名。逐次系は集約間隔
-    # AGG_INTERVAL、FedDrift はローカル更新数 FEDDRIFT_LOCAL_STEPS(集約は検出バッチ側)。
+    # 1ラウンドで処理するサンプル数を持つ config 属性名。逐次系は集約間隔 AGG_INTERVAL、
+    # FedDrift は検出バッチ FEDDRIFT_DETECT_BATCH(処理=検出=通信の単位)。
     chunk_attr: str = 'AGG_INTERVAL'
 
 
 MODE_SPECS = {
     'FedSDA': ModeSpec(AdwinClient, _run_per_sample_timestep, server_cls=ClusteringServer),
     'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep, server_cls=ClusteringServer,
-                         chunk_attr='FEDDRIFT_LOCAL_STEPS'),
+                         chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedSDA_without_server': ModeSpec(AdwinClient, _run_per_sample_timestep, use_server=False),
     'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep, server_cls=BaseServer),
 }
@@ -268,8 +267,8 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         print("Clients initialized. All holding Model 0.")
 
     # --- ドリフトスケジュールとデータストリームの生成 ---
-    # 1ラウンド(チャンク)のサンプル数は手法依存: 逐次系=AGG_INTERVAL(集約間隔)、
-    # FedDrift=FEDDRIFT_LOCAL_STEPS(ローカル更新数。集約は検出バッチ側)。
+    # 1ラウンドで処理するサンプル数は手法依存: 逐次系=AGG_INTERVAL(集約間隔)、
+    # FedDrift=FEDDRIFT_DETECT_BATCH(処理=検出=通信の単位)。
     chunk = getattr(config, spec.chunk_attr)
     t_steps = config.TOTAL_DATA_POINTS // chunk
 

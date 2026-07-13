@@ -14,20 +14,21 @@
 |---|---|---|
 | 処理単位 | **per-sample 逐次**(オンライン単一パス) | **バッチ**(サンプルを溜めてから処理) |
 | ドリフト検出 | ADWIN(サンプルごとに統計検定) | 損失増分(検出バッチ完了ごと) |
-| 1 ラウンドの長さ | `AGG_INTERVAL` サンプル | `FEDDRIFT_LOCAL_STEPS` ステップ |
+| 1ラウンドで処理するサンプル数 | `AGG_INTERVAL` | `FEDDRIFT_DETECT_BATCH`(=検出=通信の単位) |
+| 1 ラウンドの学習量 | `AGG_INTERVAL` × `UPDATES_PER_SAMPLE` 更新 | `FEDDRIFT_DETECT_BATCH` × `UPDATES_PER_SAMPLE` 更新 |
 | 集約(通信)の契機 | 毎ラウンド末(= `AGG_INTERVAL` サンプルごと) | 検出バッチ完了時のみ(= `FEDDRIFT_DETECT_BATCH` ごと) |
 | バッチあたり反復 | なし(各サンプル1回) | `FEDDRIFT_ROUNDS` 回(論文 R。既定 1) |
 
-**重要な不変量**: 1 モデルあたりの総ローカル更新数は、FedSDA・FedDrift(R=1)とも `TOTAL_DATA_POINTS × UPDATES_PER_STEP` で**一定**(`AGG_INTERVAL` / `FEDDRIFT_LOCAL_STEPS`の値に依存しない)。この予算一致が両手法の公平比較の土台になっている。`FEDDRIFT_ROUNDS` を 1 より大きくすると FedDrift 側だけ更新数・通信量が R 倍になり、この一致は崩れる(論文忠実な FedDrift 再現用)。
+**重要な不変量**: 1 モデルあたりの総ローカル更新数は、FedSDA・FedDrift(R=1)とも `TOTAL_DATA_POINTS × UPDATES_PER_SAMPLE` で**一定**(`AGG_INTERVAL` / `FEDDRIFT_DETECT_BATCH` の値に依存しない)。この予算一致が両手法の公平比較の土台になっている。`FEDDRIFT_ROUNDS` を 1 より大きくすると FedDrift 側だけ更新数・通信量が R 倍になり、この一致は崩れる(論文忠実な FedDrift 再現用)。
 
 論文記号との対応:
 
 | 論文記号 | 意味 | 本実装 |
 |---|---|---|
-| K | 1 ラウンドのローカル学習ステップ数 | `AGG_INTERVAL`(FedSDA)/ `FEDDRIFT_LOCAL_STEPS`(FedDrift) |
+| K | 1 ラウンドのローカル学習ステップ数 | 処理サンプル数 × `UPDATES_PER_SAMPLE`(FedSDA: `AGG_INTERVAL`、FedDrift: `FEDDRIFT_DETECT_BATCH`) |
 | R | 1 時刻の通信ラウンド数 | `FEDDRIFT_ROUNDS`(FedDrift のみ、既定 1)。FedSDA は対応物なし |
 | B | ミニバッチサイズ | `CLIENT_BATCH_SIZE` |
-| L | 1 サンプルあたり更新回数 | `UPDATES_PER_STEP` |
+| L | 1 データ点あたり更新回数 | `UPDATES_PER_SAMPLE`(両手法共通) |
 | η | 学習率 | `BASE_LR` / `NEW_MODEL_LR` |
 | δ_adwin | ADWIN 信頼度 | `ADWIN_DELTA`(FedSDA) |
 | γ_dist | モデル適合/マージ距離閾値 | `DISTANCE_THRESHOLD` |
@@ -41,7 +42,6 @@
 | `N_CLIENTS` | クライアント数 C | 共通 | 10 |
 | `TOTAL_DATA_POINTS` | クライアントあたり総データ数(単一パス) | 共通 | 5000 |
 | `AGG_INTERVAL` | **FedSDA/Oblivious**: 集約までのサンプル数(=1 ラウンド長。集約間隔でもある) | FedSDA / Oblivious | 50 |
-| `FEDDRIFT_LOCAL_STEPS` | **FedDrift**: 1 ラウンドのローカル学習ステップ数(論文 K)。集約間隔とは分離 | FedDrift | 50 |
 
 ---
 
@@ -81,7 +81,7 @@
 | `AMSGRAD` | Adam の amsgrad(論文設定) | 共通 | True |
 | `NEW_MODEL_EPOCHS` | 新規モデル作成時の初期学習エポック数 (E_init) | 共通 | 30 |
 | `CLIENT_BATCH_SIZE` | ローカル更新のミニバッチサイズ B | 共通 | 32 |
-| `UPDATES_PER_STEP` | 1 ステップあたりのローカル更新回数 L | 共通 | 1 |
+| `UPDATES_PER_SAMPLE` | 1 データ点あたりの勾配更新回数 L(学習強度)。両手法共通=公平比較の予算なので分けない | 共通 | 1 |
 | `PRETRAIN_SAMPLES` / `PRETRAIN_EPOCHS` / `PRETRAIN_BATCH_SIZE` | 初期モデル(モデル0)の事前学習設定 | 共通 | 500 / 10 / 32 |
 
 ---
@@ -113,8 +113,8 @@
 
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
-| `FEDDRIFT_DETECT_BATCH` | 検出バッチサイズ(論文の時刻粒度 500 を独立化)。**このバッチ完了時にのみ集約**するため通信間隔も兼ねる | FedDrift | 50 |
-| `FEDDRIFT_ROUNDS` | 1 検出バッチあたりの通信ラウンド数(論文 R)。完了時に {ローカル学習 → 集約} を R 回。**既定 1 は FedSDA と予算一致の公平比較用**。R>1 は論文忠実だが更新数・通信が R 倍 | FedDrift | 1 |
+| `FEDDRIFT_DETECT_BATCH` | 検出バッチサイズ ＝ **1ラウンドで処理するサンプル数**(論文の時刻粒度 500 を独立化)。検出粒度・集約(通信)間隔・1ラウンドの学習量(`× UPDATES_PER_SAMPLE`)を兼ねる | FedDrift | 50 |
+| `FEDDRIFT_ROUNDS` | 1 検出バッチあたりの通信ラウンド数(論文 R)。完了時に {配布 → ローカル学習 → 集約} を R 回。**既定 1 は FedSDA と予算一致の公平比較用**。R>1 は論文忠実だが更新数・通信が R 倍 | FedDrift | 1 |
 
 > `FEDDRIFT_DETECT_BATCH`(検出粒度 ↔ 通信)と `FEDDRIFT_ROUNDS`(バッチあたり収束度 ↔ 通信)は
 > **直交する 2 つの通信軸**。前者は「どの粒度で検出・通信するか」、後者は「1 バッチをどれだけ学習し切るか」。パレート分析では独立に掃引できる。
