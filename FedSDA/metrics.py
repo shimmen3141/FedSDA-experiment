@@ -3,12 +3,36 @@
 検出イベントは「ローカルで実際にモデル切替を実行した位置 (local_switch_positions)」
 として数え、真のドリフト位置と greedy マッチングして TP/FP/FN を算出する。
 """
+import bisect
+
 from . import config
 
 
-def compute_metrics(clients, true_drift_events, delay_tolerance=None):
+def _stable_accuracy(clients, true_drift_events, window):
+    """定常精度: 各真ドリフト直後 window サンプル(回復中)を除いた prequential 精度。
+
+    サンプル idx は、直前(idx 以下)の真ドリフト位置 p が存在し idx < p + window のとき
+    「回復中」として平均から除外する。最初のドリフト前の区間は定常として含める。
+    = 回復曲線 acc(Δ) の Δ≥window の裾に相当するスカラー(全クライアント・全区間プール)。
+    """
+    correct = 0
+    total = 0
+    for i, c in enumerate(clients):
+        drifts = sorted(true_drift_events[i])
+        for idx, acc in enumerate(c.history_accuracy):
+            j = bisect.bisect_right(drifts, idx) - 1  # idx 以下で最も近い真ドリフト
+            if j >= 0 and idx < drifts[j] + window:
+                continue  # 回復窓 [p, p+window) 内は除外
+            correct += acc
+            total += 1
+    return correct / total if total > 0 else float('nan')
+
+
+def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_window=None):
     if delay_tolerance is None:
         delay_tolerance = config.DELAY_TOLERANCE
+    if stable_window is None:
+        stable_window = config.STABLE_WINDOW
     all_accs = []
     for c in clients:
         all_accs.extend(c.history_accuracy)
@@ -57,6 +81,7 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None):
 
     return {
         "accuracy": avg_accuracy,
+        "stable_accuracy": _stable_accuracy(clients, true_drift_events, stable_window),
         "recall": recall,
         "precision": precision,
         "f1": f1,

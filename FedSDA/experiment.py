@@ -32,38 +32,34 @@ from .server import BaseServer, ClusteringServer
 # タイムステップ実行(処理スタイルごと)
 # ==========================================
 def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, verbose):
-    """1サンプルずつ逐次処理するスタイル(ADWIN系)の1タイムステップ。
+    """1サンプルずつ逐次処理するスタイル(ADWIN系)の1ラウンド。
 
-    K ステップの逐次処理を r_rounds 回行い、各ラウンド末にサーバ同期する。
+    1ラウンド = AGG_INTERVAL サンプル(=data のチャンク長)を逐次処理し、末尾でサーバ同期する。
     """
-    for r in range(config.R_ROUNDS):
-        r_offset = r * config.K_STEPS
-        for k in range(config.K_STEPS):
-            k_idx = r_offset + k
-            if k_idx >= len(data[0]):
-                break
-            for i, c in enumerate(clients):
-                x_in, y_in = data[i][k_idx]
-                c.process_one_step(x_in, y_in, concepts[i][k_idx])
+    for k in range(len(data[0])):
+        for i, c in enumerate(clients):
+            x_in, y_in = data[i][k]
+            c.process_one_step(x_in, y_in, concepts[i][k])
 
-        if use_server:
-            # 新規モデルがあるときだけクラスタリングを行う
-            has_new = any(c.has_pending_model() for c in clients)
-            server.run_round(t, clustering_enabled=has_new)
-            # aggregation 後に pending -> ready を行い、次ラウンドで回収されるようにする
-            for c in clients:
-                c.promote_pending_to_ready()
-        else:
-            if verbose and random.random() < 0.01:
-                print(f"  [without_server] t={t}, r={r}: skipped server aggregation (local-only).")
+    if use_server:
+        # 新規モデルがあるときだけクラスタリングを行う
+        has_new = any(c.has_pending_model() for c in clients)
+        server.run_round(t, clustering_enabled=has_new)
+        # aggregation 後に pending -> ready を行い、次ラウンドで回収されるようにする
+        for c in clients:
+            c.promote_pending_to_ready()
+    else:
+        if verbose and random.random() < 0.01:
+            print(f"  [without_server] t={t}: skipped server aggregation (local-only).")
 
 
 def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose):
-    """バッチ処理するスタイル(FedDrift系)の1タイムステップ。
+    """バッチ処理するスタイル(FedDrift系)の1チャンク。
 
-    通信(集約・クラスタリング・配布)は検出バッチが完了した時刻のみ行うことで、
-    通信量を検出バッチサイズに反比例させ、FedDrift 本来のバッチ単位通信に忠実にする。
-    一方でローカル学習は毎時刻行い、1更新/サンプル/モデルの予算を FedSDA と揃える。
+    検出バッチ(FEDDRIFT_DETECT_BATCH)が完了したチャンクでのみ通信(集約・クラスタリング・
+    配布)を行い、通信量を検出バッチサイズに反比例させ FedDrift 本来のバッチ単位通信に忠実に
+    する。一方でローカル学習は毎チャンク FEDDRIFT_LOCAL_STEPS 行い、総ローカル更新数を
+    FedSDA(=TOTAL_DATA_POINTS × UPDATES_PER_STEP)と揃える。
     """
     # 全クライアントを処理(ロックステップなので fired は全員一致)。any は使わず全員評価
     fired = any([c.process_batch(data[i], concepts[i]) for i, c in enumerate(clients)])
@@ -74,14 +70,13 @@ def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose)
         for c in clients:
             c.promote_pending_to_ready()
 
-    # ローカル学習は毎時刻。集約・配布は検出バッチ完了時のみ
-    for _ in range(config.R_ROUNDS):
+    # ローカル学習は毎チャンク。集約・配布は検出バッチ完了時のみ
+    for c in clients:
+        c.local_train(k_steps=config.FEDDRIFT_LOCAL_STEPS)
+    if fired:
+        server.run_round(t, clustering_enabled=False)
         for c in clients:
-            c.local_train(k_steps=config.K_STEPS)
-        if fired:
-            server.run_round(t, clustering_enabled=False)
-            for c in clients:
-                c.promote_pending_to_ready()
+            c.promote_pending_to_ready()
 
 
 # ==========================================
@@ -94,11 +89,15 @@ class ModeSpec:
     run_timestep: Callable
     use_server: bool = True
     server_cls: type = ClusteringServer
+    # 1ラウンド(=同期チャンク)のサンプル数を持つ config 属性名。逐次系は集約間隔
+    # AGG_INTERVAL、FedDrift はローカル更新数 FEDDRIFT_LOCAL_STEPS(集約は検出バッチ側)。
+    chunk_attr: str = 'AGG_INTERVAL'
 
 
 MODE_SPECS = {
     'FedSDA': ModeSpec(AdwinClient, _run_per_sample_timestep, server_cls=ClusteringServer),
-    'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep, server_cls=ClusteringServer),
+    'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep, server_cls=ClusteringServer,
+                         chunk_attr='FEDDRIFT_LOCAL_STEPS'),
     'FedSDA_without_server': ModeSpec(AdwinClient, _run_per_sample_timestep, use_server=False),
     'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep, server_cls=BaseServer),
 }
@@ -138,55 +137,6 @@ def _pretrain_initial_model():
         stats_0['M2'] += delta * delta2
 
     return model0, stats_0
-
-
-def _build_paper_eval(schedule, data_per_time, t_steps, n_clients):
-    """論文式(次時刻テスト・ドリフト時刻除外)の評価用データとフラグを用意する。
-
-    本実装のドリフトは per-sample にランダムな位置で発生する(FedDrift のように
-    時刻ブロック境界に限定されない)。そのため各(クライアント c, 時刻ブロック τ)に
-    ついて:
-      - test_concept: τ+1 の先頭コンセプト(最終時刻は自身の末尾コンセプト)から
-        held-out テストデータを生成する。
-      - is_drift: ブロック τ(サンプル [τ·dpt, (τ+1)·dpt))の内部でコンセプトが
-        変化するか。True(=ドリフト発生ブロックで適応途中)の (c, τ) は
-        「ドリフト除外」平均から外す。
-
-    テストデータ生成による np.random の消費は前後で状態復元し、既存の乱数列
-    (=学習・クラスタリングの再現性)に影響させない。
-    """
-    def test_concept(c, tau):
-        if tau < t_steps - 1:
-            return schedule[c][(tau + 1) * data_per_time]
-        return schedule[c][tau * data_per_time + data_per_time - 1]
-
-    def block_has_drift(c, tau):
-        # ブロック τ の内部(先頭サンプルへの遷移も含む)でコンセプトが変化するか
-        start = max(1, tau * data_per_time)
-        end = (tau + 1) * data_per_time
-        return any(schedule[c][p] != schedule[c][p - 1] for p in range(start, end))
-
-    is_drift = [[block_has_drift(c, tau) for tau in range(t_steps)]
-                for c in range(n_clients)]
-
-    rng_state = np.random.get_state()
-    test_sets = [[generate_data(test_concept(c, tau), config.PAPER_TEST_SAMPLES)
-                  for tau in range(t_steps)] for c in range(n_clients)]
-    np.random.set_state(rng_state)
-
-    return test_sets, is_drift
-
-
-def _eval_paper_accuracy(clients, test_sets, t):
-    """各クライアントの現在モデルを、時刻 t の held-out テストデータで評価した精度リスト。"""
-    accs = []
-    for c_idx, client in enumerate(clients):
-        X, Y = test_sets[c_idx][t]
-        model = client.models[client.current_model_id]
-        with torch.no_grad():
-            preds = (model(X) > 0.5).float().view(-1)
-        accs.append((preds == Y.view(-1)).float().mean().item())
-    return accs
 
 
 def _setup_server_and_clients(spec, distance_threshold, verbose):
@@ -238,7 +188,7 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed):
     - history_model_id: (N_CLIENTS, N_SAMPLES) の int32 (各サンプルで選択中のモデルID)
     - switch_client_ids / switch_positions: ローカルで実際にモデル切替が起きた位置を
       (クライアントid, サンプルindex) の並列配列で平坦化
-    - dataset/mode/label/seed/min_stable/k_steps: 分析時のグループ化・Δ上限用メタデータ
+    - dataset/mode/label/seed/min_stable/agg_interval: 分析時のグループ化・Δ上限用メタデータ
 
     注: history_model_id / switch_* は後から追加した純増キー。これらを持たない旧 .npz
     でも読み手が `key in npz` で存在判定すれば従来どおり読める(形式は後方互換)。
@@ -276,7 +226,7 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed):
         label=str(label),
         seed=(int(seed) if seed is not None else -1),
         min_stable=int(config.MIN_STABLE_PERIOD),
-        k_steps=int(config.K_STEPS),
+        agg_interval=int(config.AGG_INTERVAL),
         total_data=int(config.TOTAL_DATA_POINTS),
     )
 
@@ -313,17 +263,14 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         print("Clients initialized. All holding Model 0.")
 
     # --- ドリフトスケジュールとデータストリームの生成 ---
-    data_per_time = config.R_ROUNDS * config.K_STEPS
-    t_steps = config.TOTAL_DATA_POINTS // data_per_time
+    # 1ラウンド(チャンク)のサンプル数は手法依存: 逐次系=AGG_INTERVAL(集約間隔)、
+    # FedDrift=FEDDRIFT_LOCAL_STEPS(ローカル更新数。集約は検出バッチ側)。
+    chunk = getattr(config, spec.chunk_attr)
+    t_steps = config.TOTAL_DATA_POINTS // chunk
 
     client_concept_schedule = make_concept_schedules(config.N_CLIENTS, config.TOTAL_DATA_POINTS)
     true_drift_events = extract_true_drift_events(client_concept_schedule)
     all_client_data = build_data_streams(client_concept_schedule)
-
-    # 論文式(次時刻テスト・ドリフト除外)の評価用データ・フラグ(既存の乱数列に影響しない)
-    paper_test_sets, paper_is_drift = _build_paper_eval(
-        client_concept_schedule, data_per_time, t_steps, config.N_CLIENTS)
-    paper_accs = []  # (時刻ごと) 各クライアントの次時刻テスト精度
 
     if verbose:
         print(f"Simulation Start (Total Data={config.TOTAL_DATA_POINTS}, Mode={mode})...")
@@ -332,20 +279,17 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     exp_start = time.perf_counter()
 
     for t in range(t_steps):
-        start_idx = t * data_per_time
-        end_idx = start_idx + data_per_time
+        start_idx = t * chunk
+        end_idx = start_idx + chunk
 
         if verbose and t % 5 == 0:
-            print(f"--- Time {t} (Data Index {start_idx}) ---")
+            print(f"--- Round {t} (Data Index {start_idx}) ---")
 
         current_time_data = [stream[start_idx:end_idx] for stream in all_client_data]
         current_time_concepts = [sched[start_idx:end_idx] for sched in client_concept_schedule]
 
         spec.run_timestep(clients, server, current_time_data, current_time_concepts,
                           t, spec.use_server, verbose)
-
-        # 論文式の精度: この時刻の学習後、held-out テストデータで評価(RNG中立)
-        paper_accs.append(_eval_paper_accuracy(clients, paper_test_sets, t))
 
     # バッファ型手法(FedDrift)の終端フラッシュ: 未検出の残りバッチを処理し新規モデルを回収
     buffering_clients = [c for c in clients if hasattr(c, 'flush')]
@@ -377,12 +321,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     results["comm_download"] = server.comm_down
     results["comm_total"] = server.comm_up + server.comm_down
 
-    # --- 論文式の精度(次時刻テスト。ドリフト除外版と全時刻版)---
-    all_p = [a for t in range(t_steps) for a in paper_accs[t]]
-    nondrift_p = [paper_accs[t][c] for t in range(t_steps)
-                  for c in range(config.N_CLIENTS) if not paper_is_drift[c][t]]
-    results["paper_accuracy"] = float(np.mean(nondrift_p)) if nondrift_p else float('nan')
-    results["paper_accuracy_all"] = float(np.mean(all_p)) if all_p else float('nan')
+    # 定常精度 stable_accuracy(回復窓除外)は compute_metrics で算出済み。
 
     # --- 生データの保存(回復曲線などの事後分析用)---
     if raw_path is not None:
@@ -392,8 +331,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     if verbose:
         print("\n=== Experiment Metrics ===")
         print(f"  Accuracy (prequential): {results['accuracy']:.4f}")
-        print(f"  Accuracy (paper, omit-drift): {results['paper_accuracy']:.4f}")
-        print(f"  Accuracy (paper, all-time): {results['paper_accuracy_all']:.4f}")
+        print(f"  Accuracy (stable, omit-recovery W={config.STABLE_WINDOW}): {results['stable_accuracy']:.4f}")
         print(f"  Recall (TP Rate): {results['recall']:.4f}")
         print(f"  Precision: {results['precision']:.4f}")
         print(f"  Avg Delay: {results['avg_delay']:.1f} steps")

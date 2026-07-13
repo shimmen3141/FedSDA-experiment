@@ -7,7 +7,7 @@
 
 FedDrift の各掃引では、固定した側のパラメータを凡例に明示する
 (例: "FedDrift batch sweep (δ=0.1)", "FedDrift δ sweep (batch=50)")。
-散布図は横軸=通信量(モデル転送数, 対数)、縦軸=paper_accuracy。FedSDA が
+散布図は横軸=通信量(モデル転送数, 対数)、縦軸=stable_accuracy(定常精度)。FedSDA が
 FedDrift の各曲線の左上(高精度・低通信)を取れば「パレート支配」を示せる。
 
 例:
@@ -34,7 +34,7 @@ _RUN_STAMP = time.strftime("%Y%m%d_%H%M%S")
 _DEFAULT_RUN_DIR = f"results_{_RUN_STAMP}"
 
 METRIC_KEYS = [
-    "paper_accuracy", "paper_accuracy_all", "accuracy",
+    "stable_accuracy", "accuracy",
     "comm_upload", "comm_download", "comm_total",
     "final_model_count", "precision", "recall", "f1", "avg_delay", "total_detect",
 ]
@@ -49,15 +49,15 @@ def _slug(text):
 
 
 def _run(mode, dataset, seed, series, sweep_value,
-         feddrift_batch=None, distance_threshold=None, adwin_delta=None, k_steps=None,
+         feddrift_batch=None, distance_threshold=None, adwin_delta=None, agg_interval=None,
          raw_dir=None):
     config.DATASET = dataset
     if feddrift_batch is not None:
         config.FEDDRIFT_DETECT_BATCH = feddrift_batch
     if adwin_delta is not None:
         config.ADWIN_DELTA = adwin_delta
-    if k_steps is not None:
-        config.K_STEPS = k_steps
+    if agg_interval is not None:
+        config.AGG_INTERVAL = agg_interval
 
     # 回復曲線分析は label 単位でグループ化する(seed をまたいで平均)。掃引値が異なれば
     # 別ハイパーパラメータ設定なので、label に掃引値を含めて別系列として扱う。
@@ -85,18 +85,18 @@ def _run(mode, dataset, seed, series, sweep_value,
 
 
 def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed_batch, fixed_gamma,
-              kstep_sweep=(), fixed_adwin=None, raw_dir=None):
+              agg_sweep=(), fixed_adwin=None, raw_dir=None):
     default_adwin = config.ADWIN_DELTA
-    default_kstep = config.K_STEPS
+    default_agg = config.AGG_INTERVAL
     if fixed_adwin is None:
         fixed_adwin = default_adwin
     fd_batch_series = f"FedDrift batch sweep (δ={fixed_delta})"
     fd_delta_series = f"FedDrift δ sweep (batch={fixed_batch})"
     sda_series = f"FedSDA δ_adwin sweep (γ={fixed_gamma})"
-    ks_series = f"FedSDA K_STEPS sweep (δ_adwin={fixed_adwin})"
+    ks_series = f"FedSDA AGG_INTERVAL sweep (δ_adwin={fixed_adwin})"
 
     rows = []
-    jobs_per = len(adwin_deltas) + len(kstep_sweep) + 1 + len(batches) + len(deltas)
+    jobs_per = len(adwin_deltas) + len(agg_sweep) + 1 + len(batches) + len(deltas)
     total = len(datasets) * len(seeds) * jobs_per
     done = 0
     t0 = time.perf_counter()
@@ -107,7 +107,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
         try:
             row = _run(raw_dir=raw_dir, **kw)
             rows.append(row)
-            print(f"[{done}/{total}] {tag}: paper_acc={row['paper_accuracy']:.4f} "
+            print(f"[{done}/{total}] {tag}: stable_acc={row['stable_accuracy']:.4f} "
                   f"comm={row['comm_total']} models={row['final_model_count']} "
                   f"({time.perf_counter()-t0:.0f}s)")
         except Exception:
@@ -122,12 +122,12 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
                    series=sda_series, sweep_value=da, distance_threshold=fixed_gamma, adwin_delta=da)
             config.ADWIN_DELTA = default_adwin
 
-            # FedSDA: K_STEPS 掃引(通信間隔。δ_adwin 固定。オプトイン)
-            for k in kstep_sweep:
-                do(f"{dataset}/FedSDA/K={k}/s{seed}", mode="FedSDA", dataset=dataset, seed=seed,
+            # FedSDA: AGG_INTERVAL 掃引(集約間隔。δ_adwin 固定。オプトイン)
+            for k in agg_sweep:
+                do(f"{dataset}/FedSDA/agg={k}/s{seed}", mode="FedSDA", dataset=dataset, seed=seed,
                    series=ks_series, sweep_value=k, distance_threshold=fixed_gamma,
-                   adwin_delta=fixed_adwin, k_steps=k)
-            config.K_STEPS = default_kstep
+                   adwin_delta=fixed_adwin, agg_interval=k)
+            config.AGG_INTERVAL = default_agg
             config.ADWIN_DELTA = default_adwin
 
             # Oblivious: 単一点(基準)
@@ -216,11 +216,11 @@ def write_markdown_table(rows, path):
 
         lines.append(f"### {ds}")
         lines.append("")
-        lines.append("| Method | sweep | Accuracy (paper) | Comm (transfers) | Models |")
+        lines.append("| Method | sweep | Accuracy (stable) | Comm (transfers) | Models |")
         lines.append("|---|---|---:|---:|---:|")
         for (series, sv) in sorted(groups.keys(), key=order_key):
             rs = groups[(series, sv)]
-            acc = np.array([float(x["paper_accuracy"]) for x in rs])
+            acc = np.array([float(x["stable_accuracy"]) for x in rs])
             comm = np.array([float(x["comm_total"]) for x in rs])
             models = np.array([float(x["final_model_count"]) for x in rs])
             svtxt = "–" if sv in (None, "", "None") else f"{float(sv):g}"
@@ -229,8 +229,9 @@ def write_markdown_table(rows, path):
         lines.append("")
 
     n_seeds = len(set(r["seed"] for r in rows))
-    lines.append(f"*{n_seeds} シード平均。Accuracy は paper_accuracy(次時刻テスト・ドリフト除外)"
-                 f"の平均±標準偏差。Comm はモデル転送数。*")
+    lines.append(f"*{n_seeds} シード平均。Accuracy は stable_accuracy(定常精度・回復窓 "
+                 f"W={config.STABLE_WINDOW} を除外した prequential 精度)の平均±標準偏差。"
+                 f"Comm はモデル転送数。*")
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print(f"Table saved: {path}")
@@ -265,7 +266,7 @@ def combine_and_plot(patterns, out_dir, tag=None):
     write_markdown_table(rows, os.path.join(out_dir, f"{name}.md"))
 
 
-def _agg(rows, x_key="comm_total", y_key="paper_accuracy"):
+def _agg(rows, x_key="comm_total", y_key="stable_accuracy"):
     if not rows:
         return None
     xs = np.array([r[x_key] for r in rows], dtype=float)
@@ -326,7 +327,7 @@ def plot_pareto(rows, datasets, path):
         ax.set_xscale("log")
         ax.set_title(ds)
         ax.set_xlabel("Communication (model transfers, log)")
-        ax.set_ylabel("paper_accuracy (omit-drift)")
+        ax.set_ylabel("stable_accuracy (omit-recovery)")
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize="small")
 
@@ -348,10 +349,10 @@ def main():
                         help="FedDrift 検出閾値 δ 掃引値(空指定で無効化)")
     parser.add_argument("--adwin-deltas", nargs="*", type=float, default=[0.01, 0.05, 0.1, 0.2, 0.3],
                         help="FedSDA δ_adwin 掃引値(空指定で無効化)")
-    parser.add_argument("--kstep-sweep", nargs="*", type=int, default=[25, 50, 100, 200, 500],
-                        help="FedSDA の K_STEPS(通信間隔)掃引値(空指定で無効化)")
+    parser.add_argument("--agg-sweep", nargs="*", type=int, default=[25, 50, 100, 200, 500],
+                        help="FedSDA の AGG_INTERVAL(集約間隔)掃引値(空指定で無効化)")
     parser.add_argument("--fixed-adwin", type=float, default=None,
-                        help="K_STEPS 掃引時に固定する δ_adwin(既定 config.ADWIN_DELTA)")
+                        help="AGG_INTERVAL 掃引時に固定する δ_adwin(既定 config.ADWIN_DELTA)")
     parser.add_argument("--fixed-delta", type=float, default=None,
                         help="バッチ掃引時に固定する FedDrift δ(既定 config.DISTANCE_THRESHOLD)")
     parser.add_argument("--fixed-batch", type=int, default=None,
@@ -396,11 +397,11 @@ def main():
     os.makedirs(args.out_dir, exist_ok=True)
     slug = _experiment_slug(args.datasets, args.seeds, config.TOTAL_DATA_POINTS, args.tag)
     n_runs = len(args.datasets) * len(args.seeds) * (
-        len(args.adwin_deltas) + len(args.kstep_sweep) + 1 + len(args.batches) + len(args.deltas))
+        len(args.adwin_deltas) + len(args.agg_sweep) + 1 + len(args.batches) + len(args.deltas))
     print(f"Experiment: {slug}")
     print(f"Datasets={args.datasets} seeds={args.seeds} TOTAL_DATA_POINTS={config.TOTAL_DATA_POINTS}")
     print(f"batches={args.batches} deltas={args.deltas} adwin_deltas={args.adwin_deltas} "
-          f"kstep_sweep={args.kstep_sweep}")
+          f"agg_sweep={args.agg_sweep}")
     print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma} adwin={fixed_adwin}")
     print(f"Total runs = {n_runs}  (フルスケールでは1実験~60-90秒。長時間になり得ます)")
 
@@ -410,7 +411,7 @@ def main():
 
     rows = run_sweep(args.datasets, args.seeds, args.batches, args.deltas, args.adwin_deltas,
                      fixed_delta, fixed_batch, fixed_gamma,
-                     kstep_sweep=args.kstep_sweep, fixed_adwin=fixed_adwin, raw_dir=args.raw_dir)
+                     agg_sweep=args.agg_sweep, fixed_adwin=fixed_adwin, raw_dir=args.raw_dir)
     write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
     plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"))
 

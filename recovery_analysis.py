@@ -240,7 +240,7 @@ def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200
 
     # 系列の同定に使う部分文字列(run_pareto_sweep が付けるラベルに基づく):
     #   δ_adwin 掃引 → "adwin sweep" / FedDrift 検出バッチ掃引 → "batch sweep"
-    # K_STEPS 掃引("K_STEPS sweep")と FedDrift δ 掃引("δ sweep")は回復図では扱わない
+    # AGG_INTERVAL 掃引("AGG_INTERVAL sweep")と FedDrift δ 掃引("δ sweep")は回復図では扱わない
     # (前者は回復速度にほぼ不感、後者は batch 掃引と一点重複するため)。
     rep_adwin, rep_batch = f"[{main_adwin:g}]", f"[{main_batch:g}]"
 

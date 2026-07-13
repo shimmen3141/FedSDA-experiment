@@ -52,7 +52,7 @@ TOTAL_DATA_POINTS = 600
 
 # 比較対象の指標(runtime など非決定的な値は含めない)
 METRIC_KEYS = [
-    "accuracy", "paper_accuracy", "paper_accuracy_all",
+    "accuracy", "stable_accuracy",
     "comm_upload", "comm_download", "comm_total",
     "final_model_count", "precision", "recall", "f1",
     "avg_delay", "total_detect",

@@ -1,7 +1,8 @@
 """FedDrift ベースライン クライアント。
 
 「全モデルの最小損失」の増分を監視し、閾値超過でドリフト判定する。検出は
-config.FEDDRIFT_DETECT_BATCH 件ごとに行い、時刻粒度(K_STEPS)からは分離している。
+config.FEDDRIFT_DETECT_BATCH 件ごとに行い、ローカル学習ステップ数(FEDDRIFT_LOCAL_STEPS)
+からは分離している。
 """
 import torch
 
