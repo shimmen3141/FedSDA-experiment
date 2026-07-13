@@ -63,9 +63,10 @@ python run_comparative_trials.py --help
 
 `sea` の閾値・ノイズ率は [FedSDA/config.py](FedSDA/config.py) の `SEA_THRESHOLDS`(FedDrift論文 appendix の A,B,C,D = `{0:9, 1:8, 2:7, 3:9.5}`)/ `SEA_LABEL_NOISE`(0.10)で定義。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
 
-> **データセット定義の注記**: FedDrift 同梱の `concept4.csv` は実測 θ≈9.0 で `concept2` と重複する(データ配布側のズレ)。本実装は**論文 appendix の正準定義** θ_D=9.5 に合わせ、4概念が区別されるようにしている。信号特徴は論文どおり x1+x2(x3 がノイズ)。
-
-> **注**: ドリフトスケジュール(いつ・何回ドリフトするか)は FedDrift と異なり、本実装は各サンプルで確率的に複数回発生させる方式のまま(`make_concept_schedules`)。データセットのみ FedDrift 互換にしている。
+> **FedDrift 元論文との相違点**（データセット定義・ドリフトスケジュール・学習パラメータ・
+> 評価指標の細かな差異）は [DIFFERENCES_FROM_FEDDRIFT.md](DIFFERENCES_FROM_FEDDRIFT.md) に
+> 一元的にまとめている。要点: sine/circle/sea の**生成規則は論文・参照コードに忠実**、
+> blobs は独自データ、ドリフトの出し方は per-sample 逐次のため論文と異なる(意図的)。
 
 ### 評価指標(結果 dict のキー)
 
@@ -118,7 +119,8 @@ python run_comparative_trials.py --help
 │   └── trials.py                # 複数試行の実行・集計
 ├── colab_original/              # 分割前のColab版スクリプト(参照用バックアップ)
 ├── ALGORITHM.md                 # 論文の実装用仕様書
-└── main_jp.txx                  # 論文原稿(LaTeX)
+├── DIFFERENCES_FROM_FEDDRIFT.md # FedDrift 元論文との相違点まとめ
+└── main_jp.tex                  # 論文原稿(LaTeX)
 ```
 
 > 参照用に `microsoft/FedDrift` を `FedDrift/` へ clone している場合、それは
