@@ -130,12 +130,12 @@ python run_comparative_trials.py --help
 │   ├── metrics.py               # 検出性能メトリクス(TP/FP/FN, 遅延など)
 │   ├── plotting.py              # 可視化(保存 or 表示)
 │   └── trials.py                # 複数試行の実行・集計
-├── colab_original/              # 分割前のColab版スクリプト(参照用バックアップ)
 ├── docs/                        # ドキュメント
 │   ├── fedsda-algorithm.md      # FedSDA 実装仕様書
 │   ├── differences-from-feddrift.md # FedDrift 元論文との相違点まとめ
 │   ├── hyperparameters.md       # 全変数の意味・使用手法・仕様の一覧
 │   └── sequence-diagrams.md     # FedSDA/FedDrift の処理フロー(mermaid)
+├── results/                     # 実験成果物(results_<実行時刻>/ 単位。.gitignore 済み)
 └── main_jp.tex                  # 論文原稿(LaTeX)
 ```
 

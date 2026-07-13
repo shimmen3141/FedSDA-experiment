@@ -35,7 +35,7 @@ _CANON_DATASETS = ["blobs", "sea", "circle", "sine"]
 def infer_out_dir(npz_paths):
     """分析対象 .npz の場所から、紐づく results ディレクトリ内の recovery/ を推定する。
 
-    典型レイアウト results_<stamp>/raw/*.npz に対し results_<stamp>/recovery を返す
+    典型レイアウト results/results_<stamp>/raw/*.npz に対し results/results_<stamp>/recovery を返す
     (npz の共通親ディレクトリが raw なら、その親=実験ディレクトリの直下に置く)。
     複数実験にまたがる glob の場合は共通祖先ディレクトリ直下の recovery/ に集約する。
     """
@@ -289,7 +289,7 @@ def main():
                         help="生データ .npz のパス(glob 可)")
     parser.add_argument("--out-dir", default=None,
                         help="図・表の出力先。未指定なら --npz が属する results ディレクトリ内の "
-                             "recovery/(例: results_<stamp>/raw/*.npz → results_<stamp>/recovery)")
+                             "recovery/(例: results/results_<stamp>/raw/*.npz → results/results_<stamp>/recovery)")
     parser.add_argument("--max-delta", type=int, default=250,
                         help="回復曲線の Δ 上限(MIN_STABLE_PERIOD 未満に。default: 250)")
     parser.add_argument("--window", type=int, default=200,

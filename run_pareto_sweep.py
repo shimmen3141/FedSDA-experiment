@@ -29,9 +29,9 @@ import numpy as np
 from FedSDA import config, run_random_drift_experiment
 
 # この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
-# 既定の出力先は results_<YYYYMMDD_HHMMSS>/... となり実行ごとに別ディレクトリへ分かれる。
+# 既定の出力先は results/results_<YYYYMMDD_HHMMSS>/... となり実行ごとに別ディレクトリへ分かれる。
 _RUN_STAMP = time.strftime("%Y%m%d_%H%M%S")
-_DEFAULT_RUN_DIR = f"results_{_RUN_STAMP}"
+_DEFAULT_RUN_DIR = f"results/results_{_RUN_STAMP}"
 
 METRIC_KEYS = [
     "stable_accuracy", "accuracy",
@@ -361,10 +361,10 @@ def main():
                         help="FedSDA で固定する γ_dist(既定 config.DISTANCE_THRESHOLD)")
     parser.add_argument("--total-data", type=int, default=None, help="TOTAL_DATA_POINTS 上書き")
     parser.add_argument("--out-dir", default=f"{_DEFAULT_RUN_DIR}/pareto",
-                        help="結果CSV・図の出力先(既定: results_<実行時刻>/pareto)")
+                        help="結果CSV・図の出力先(既定: results/results_<実行時刻>/pareto)")
     parser.add_argument("--raw-dir", default=f"{_DEFAULT_RUN_DIR}/raw",
                         help="各実験の生データ(.npz)の保存先。回復曲線の事後分析用"
-                             "(既定: results_<実行時刻>/raw)")
+                             "(既定: results/results_<実行時刻>/raw)")
     parser.add_argument("--no-recovery", action="store_true",
                         help="掃引後の回復図・表の自動生成を抑止する"
                              "(後から recovery_analysis.py で個別に実行できる)")
