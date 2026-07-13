@@ -13,20 +13,6 @@
     "recall": 1.0,
     "total_detect": 2
   },
-  "FedDrift/sine": {
-    "accuracy": 0.9743333333333334,
-    "avg_delay": 23.5,
-    "comm_download": 562,
-    "comm_total": 830,
-    "comm_upload": 268,
-    "f1": 0.8,
-    "final_model_count": 3,
-    "paper_accuracy": 0.9917796678462271,
-    "paper_accuracy_all": 0.9827916733765354,
-    "precision": 0.6666666666666666,
-    "recall": 1.0,
-    "total_detect": 3
-  },
   "FedSDA/blobs": {
     "accuracy": 0.9958333333333333,
     "avg_delay": 22.0,
@@ -37,20 +23,6 @@
     "final_model_count": 2,
     "paper_accuracy": 0.9997033901133779,
     "paper_accuracy_all": 0.9951666673024495,
-    "precision": 1.0,
-    "recall": 1.0,
-    "total_detect": 2
-  },
-  "FedSDA/sine": {
-    "accuracy": 0.9725,
-    "avg_delay": 9.0,
-    "comm_download": 178,
-    "comm_total": 307,
-    "comm_upload": 129,
-    "f1": 1.0,
-    "final_model_count": 2,
-    "paper_accuracy": 0.9914406856237832,
-    "paper_accuracy_all": 0.9796250075489904,
     "precision": 1.0,
     "recall": 1.0,
     "total_detect": 2

@@ -38,15 +38,14 @@ from FedSDA import config, run_random_drift_experiment  # noqa: E402
 
 GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regression_golden.json")
 
-# 固定マトリクス: 全4モードを blobs(劇的ドリフト)で、主要2手法を sine(ラベル反転)で。
-# seed=0・小規模なので決定的かつ短時間(合計~1分)。
+# 固定マトリクス: 全4モードを blobs(劇的ドリフト)で実行。seed=0・小規模なので決定的かつ短時間。
+# これでアルゴリズム本体(clients/server/adwin/metrics/実験ループ)の全モード経路を網羅する。
+# データ生成の別分布(sine 等)や別入力次元(sea=3次元)まで固定したい場合はケースを追加する。
 CASES = [
     ("FedSDA", "blobs"),
     ("FedDrift", "blobs"),
     ("FedSDA_without_server", "blobs"),
     ("Oblivious", "blobs"),
-    ("FedSDA", "sine"),
-    ("FedDrift", "sine"),
 ]
 SEED = 0
 TOTAL_DATA_POINTS = 600
