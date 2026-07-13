@@ -1,3 +1,8 @@
-numpy
-torch
-matplotlib
+# 実行時の依存(版固定)。数値リグレッションテスト(tests/regression_golden.json)は
+# これらの版で生成した値に固定されるため、更新する場合は golden も --update で取り直す。
+numpy==2.4.6
+matplotlib==3.11.0
+# torch は CPU ビルド。PyPI 既定(Windows/macOS)では CPU 版が入る。ローカル版識別子は +cpu。
+# 別プラットフォーム/CUDA では対応ホイールを別途指定すること:
+#   pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/cpu
+torch==2.12.1
