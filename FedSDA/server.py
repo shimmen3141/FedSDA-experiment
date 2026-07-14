@@ -294,15 +294,26 @@ class ClusteringServerV2(ClusteringServer):
       (c) 配布はラウンド末の1回のみ(v1 のマージ発生ラウンドの二重配布を解消)、
       (d) マージ発生ラウンドでも当該ラウンドのローカル学習が FedAvg に反映される
           (v1 はマージ時の再配布がローカル学習を上書きする)。
+
+    さらに新規モデルの回収を「グローバルID の採番だけ」にし、パラメータ送信を FedAvg の
+    1回に集約する。v1 はクロス評価を FedAvg より前に行う都合で、回収時にもパラメータを
+    送る必要があり新規モデルを二重送信するが、v2 はクロス評価が FedAvg 後なのでこの
+    二重送信を解消できる(新規モデルは保持クライアント1台のみのため FedAvg は恒等)。
     クライアント側の挙動(ADWIN 検知・新規モデルの次ラウンド回収)は v1 と共通。
     """
 
     def run_round(self, t, clustering_enabled=True):
-        """1回のサーバ処理(v2): 回収 → FedAvg → (任意でクラスタリング) → 配布。"""
-        self._collect_pending_models(t)
-        active_ids = sorted(list(self.global_models.keys()))
+        """1回のサーバ処理(v2): 新規登録 → FedAvg → (任意でクラスタリング) → 配布。
 
-        # 先に FedAvg: 今ラウンドのローカル学習をグローバルモデルへ反映する
+        新規モデルは回収でグローバルID を採番するだけにし、パラメータ送信は次の FedAvg に
+        1回集約する(v1 の二重送信を解消)。
+        """
+        self._register_new_models(t)
+
+        # 全クライアントが保持するグローバルモデルID(既存 + 今ラウンド採番の新規)
+        active_ids = sorted({mid for c in self.clients for mid in c.models if mid >= 0})
+
+        # FedAvg: パラメータ送信はここ1回のみ。今ラウンドのローカル学習が反映される
         agg_weights = self.update_global_models(active_ids)
 
         id_mapping = {}
@@ -311,6 +322,21 @@ class ClusteringServerV2(ClusteringServer):
 
         # 配布は1回のみ。マージの ID 付け替えも同時に適用する
         self.broadcast_models(id_mapping)
+
+    def _register_new_models(self, t):
+        """pending の新規モデルにグローバルID を採番する(パラメータ送信なし)。
+
+        パラメータは後段の update_global_models(FedAvg)で1回だけ送るため、回収時に
+        パラメータを送る _collect_pending_models(v1 が使う)は用いない。採番順は
+        _collect_pending_models と同一(クライアント走査順)なので ID の付き方は変わらない。
+        """
+        n_new = 0
+        for c in self.clients:
+            if c.has_pending_model():
+                c.confirm_model_registration(self.request_new_model_id())
+                n_new += 1
+        if n_new > 0 and self.verbose:
+            print(f"Server [t={t}]: Registered {n_new} new models (params sent once in FedAvg).")
 
     def _cluster_and_merge(self, t, active_ids, agg_weights):
         """FedAvg 済みモデルでクロス評価・クラスタリングし、マージは加重平均で統合する。
