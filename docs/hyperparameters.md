@@ -42,6 +42,7 @@
 | `N_CLIENTS` | クライアント数 C | 共通 | 10 |
 | `TOTAL_DATA_POINTS` | クライアントあたり総データ数(単一パス) | 共通 | 5000 |
 | `AGG_INTERVAL` | **FedSDA/Oblivious**: 集約までのサンプル数(=1 ラウンド長。集約間隔でもある) | FedSDA / Oblivious | 50 |
+| `LOCAL_UPDATE_TAU` | ローカル更新間隔 τ(論文の「t mod τ = 0」)。τ サンプルごとに τ×`UPDATES_PER_SAMPLE` 回まとめて更新(総更新回数は不変)。1=毎サンプル(v1 挙動)。v1/v2 比較の掃引軸 | FedSDA / Oblivious | 1 |
 
 ---
 
@@ -130,6 +131,11 @@
 
 > サーバは生データを集めず、配布モデルを現地評価させて**集約統計量 (n, Σℓ, Σℓ²) のみ**を
 > 集める federated 設計(詳細は DIFFERENCES §5)。`DISTANCE_THRESHOLD` をマージ判定に共用。
+
+> **v1/v2 の切替**: サーバ処理順序の v2(FedAvg先行・加重平均マージ・配布1回)は config ノブ
+> ではなく**モード `FedSDA_v2`**(`ClusteringServerV2`)で選択する。τ(`LOCAL_UPDATE_TAU`)と
+> 直交しており、{`FedSDA`, `FedSDA_v2`} × {τ=1, τ>1} の4構成でアブレーションできる。
+> 詳細は [sequence-diagrams.md](sequence-diagrams.md)。
 
 ---
 

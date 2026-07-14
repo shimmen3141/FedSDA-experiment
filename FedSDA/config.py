@@ -88,6 +88,9 @@ STABLE_WINDOW = 200         # 定常精度 stable_accuracy の回復除外窓 W(
 # 逐次処理 (FedSDA / Oblivious)
 # ==========================================
 AGG_INTERVAL = 50           # 1ラウンドで処理するサンプル数(=集約間隔)。FedDrift は FEDDRIFT_DETECT_BATCH を使う
+# ローカル更新間隔 τ(論文の「t mod τ = 0」)。τ サンプルごとに τ×UPDATES_PER_SAMPLE 回まとめて
+# 更新する(総更新回数は不変)。1 = 毎サンプル更新(v1 挙動)。v2 比較実験の掃引軸
+LOCAL_UPDATE_TAU = 1
 
 # ==========================================
 # FedSDA: ドリフト検出 (ADWIN) と解決

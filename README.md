@@ -61,7 +61,8 @@ python run_comparative_trials.py --help
 
 | mode | 内容 |
 |---|---|
-| `FedSDA` | **提案手法**: ADWIN逐次検出 + FIFOバッファ + サーバ集約 |
+| `FedSDA` | **提案手法 v1**: ADWIN逐次検出 + FIFOバッファ + サーバ集約 |
+| `FedSDA_v2` | **提案手法 v2**: v1 + FedAvg先行サーバ(更新後モデルでクラスタリング・加重平均マージ・配布1回)。`LOCAL_UPDATE_TAU` と組合せて v1/v2 比較([docs/sequence-diagrams.md](docs/sequence-diagrams.md)) |
 | `FedDrift` | ベースライン: 固定バッチ検出 + サーバ集約 |
 | `FedSDA_without_server` | 提案手法のローカルのみ版(サーバ集約なし) |
 | `Oblivious` | ベースライン: 単一モデル・FedAvg・無適応(FedDrift の Oblivious) |

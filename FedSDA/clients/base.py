@@ -55,6 +55,7 @@ class BaseClient:
 
         self.batch_size = config.CLIENT_BATCH_SIZE
         self.updates_per_sample = config.UPDATES_PER_SAMPLE
+        self._pending_updates = 0   # LOCAL_UPDATE_TAU>1 のとき保留中のローカル更新(サンプル数)
 
         self.next_temp_id = -100 - self.client_id
 
@@ -112,6 +113,22 @@ class BaseClient:
         self.history_accuracy.append(acc)
         self.history_concept.append(concept_id)
         self.history_model_id.append(self.current_model_id)
+
+    def train_step(self):
+        """平時の1サンプル分のローカル更新(逐次手法用)。
+
+        LOCAL_UPDATE_TAU(τ)サンプルごとにまとめて τ×UPDATES_PER_SAMPLE 回実行する
+        (論文の「t mod τ = 0」)。総更新回数は τ に依らず不変。τ=1 で毎サンプル更新(v1 挙動)。
+        """
+        self._pending_updates += 1
+        if self._pending_updates >= config.LOCAL_UPDATE_TAU:
+            self.flush_pending_updates()
+
+    def flush_pending_updates(self):
+        """保留中のローカル更新を実行する(ラウンド境界・ドリフト解決前に呼ぶ。τ=1 では実質 no-op)。"""
+        if self._pending_updates > 0:
+            self.train_all_held_models(count_multiplier=self._pending_updates)
+            self._pending_updates = 0
 
     def train_all_held_models(self, count_multiplier=1):
         updates_needed = self.updates_per_sample * count_multiplier

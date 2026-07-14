@@ -25,7 +25,7 @@ class ObliviousClient(BaseClient):
         loss_val = self.models[self.current_model_id].get_absolute_error(x, y)
         self._update_model_stats(self.current_model_id, loss_val)
         self.train_data_store[self.current_model_id].append((x, y))
-        self.train_all_held_models(count_multiplier=1)
+        self.train_step()
 
         self.history_drift_type.append(0)
 

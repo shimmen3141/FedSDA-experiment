@@ -41,6 +41,8 @@ class AdwinClient(BaseClient):
 
         # ADWIN の統計的検知、または保険的な強制チェックのどちらかが発火したら解決処理へ
         if self.adwin.drift_detected or self._forced_drift_check(idx):
+            # τ>1 で保留中の更新をドリフト解決前に消化する(τ=1 では no-op)
+            self.flush_pending_updates()
             self.detected_event_positions.append(idx)
             drift_type = self._resolve_drift(sample_idx=idx)
         else:
@@ -50,7 +52,7 @@ class AdwinClient(BaseClient):
                 loss_val = self.models[self.current_model_id].get_absolute_error(old_x, old_y)
                 self._update_model_stats(self.current_model_id, loss_val)
                 self.train_data_store[self.current_model_id].append((old_x, old_y))
-            self.train_all_held_models(count_multiplier=1)
+            self.train_step()
 
         self.history_drift_type.append(drift_type)
 

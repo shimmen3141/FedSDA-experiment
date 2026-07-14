@@ -25,6 +25,19 @@
     "stable_accuracy": 1.0,
     "total_detect": 2
   },
+  "FedSDA_v2/sine": {
+    "accuracy": 0.9732,
+    "avg_delay": 9.153846153846153,
+    "comm_download": 535,
+    "comm_total": 970,
+    "comm_upload": 435,
+    "f1": 1.0,
+    "final_model_count": 2,
+    "precision": 1.0,
+    "recall": 1.0,
+    "stable_accuracy": 0.9838040841874658,
+    "total_detect": 13
+  },
   "FedSDA_without_server/blobs": {
     "accuracy": 0.9923333333333333,
     "avg_delay": 22.0,

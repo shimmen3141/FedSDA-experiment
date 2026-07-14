@@ -1,7 +1,8 @@
 """ランダムドリフト実験の本体。
 
 実験モードは MODE_SPECS で定義する:
-- 'FedSDA'                : 提案手法(ADWIN逐次検出 + サーバ集約)
+- 'FedSDA'                : 提案手法 v1(ADWIN逐次検出 + サーバ集約)
+- 'FedSDA_v2'             : 提案手法 v2(v1 + FedAvg先行サーバ。docs/sequence-diagrams.md)
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
 - 'Oblivious'            : ベースライン(単一モデル・FedAvg・無適応)
@@ -25,7 +26,7 @@ from .data import build_data_streams, extract_true_drift_events, generate_data, 
 from .metrics import compute_metrics
 from .models import SimpleMLP
 from .plotting import plot_client_details, plot_system_overview
-from .server import BaseServer, ClusteringServer
+from .server import BaseServer, ClusteringServer, ClusteringServerV2
 
 
 # ==========================================
@@ -40,6 +41,10 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
         for i, c in enumerate(clients):
             x_in, y_in = data[i][k]
             c.process_one_step(x_in, y_in, concepts[i][k])
+
+    # LOCAL_UPDATE_TAU>1 で保留中のローカル更新をラウンド境界で消化する(τ=1 では no-op)
+    for c in clients:
+        c.flush_pending_updates()
 
     if use_server:
         # 新規モデルがあるときだけクラスタリングを行う
@@ -99,6 +104,9 @@ class ModeSpec:
 
 MODE_SPECS = {
     'FedSDA': ModeSpec(AdwinClient, _run_per_sample_timestep, server_cls=ClusteringServer),
+    # v2: サーバ処理を FedAvg 先行(回収→FedAvg→クラスタリング→配布)に変えた設計版。
+    # クライアント側は v1 と共通。τ(LOCAL_UPDATE_TAU)と組み合わせて v1/v2 比較を行う。
+    'FedSDA_v2': ModeSpec(AdwinClient, _run_per_sample_timestep, server_cls=ClusteringServerV2),
     'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep, server_cls=ClusteringServer,
                          chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedSDA_without_server': ModeSpec(AdwinClient, _run_per_sample_timestep, use_server=False),
@@ -169,9 +177,9 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
 
 def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
-    if mode in ('FedSDA', 'FedSDA_without_server'):
+    if mode in ('FedSDA', 'FedSDA_v2', 'FedSDA_without_server'):
         return (f"gamma_dist={distance_threshold}, delta_adwin={config.ADWIN_DELTA}, "
-                f"N_FIFO={config.FIFO_BUFFER_SIZE}")
+                f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}")
     if mode == 'FedDrift':
         return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}, "
                 f"rounds={config.FEDDRIFT_ROUNDS}")

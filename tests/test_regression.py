@@ -38,14 +38,17 @@ from FedSDA import config, run_random_drift_experiment  # noqa: E402
 
 GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regression_golden.json")
 
-# 固定マトリクス: 全4モードを blobs(劇的ドリフト)で実行。seed=0・小規模なので決定的かつ短時間。
+# 固定マトリクス: (mode, dataset, config上書き)。seed=0・小規模なので決定的かつ短時間。
 # これでアルゴリズム本体(clients/server/adwin/metrics/実験ループ)の全モード経路を網羅する。
-# データ生成の別分布(sine 等)や別入力次元(sea=3次元)まで固定したい場合はケースを追加する。
+# データ生成の別分布や別入力次元(sea=3次元)まで固定したい場合はケースを追加する。
+# FedSDA_v2 は sine(マージが発生し v2 の加重平均マージ経路を通る)+ τ=10 で v2 特有の
+# 経路(FedAvg先行サーバ・τ バッチ更新)を固定する。
 CASES = [
-    ("FedSDA", "blobs"),
-    ("FedDrift", "blobs"),
-    ("FedSDA_without_server", "blobs"),
-    ("Oblivious", "blobs"),
+    ("FedSDA", "blobs", {}),
+    ("FedDrift", "blobs", {}),
+    ("FedSDA_without_server", "blobs", {}),
+    ("Oblivious", "blobs", {}),
+    ("FedSDA_v2", "sine", {"TOTAL_DATA_POINTS": 1500, "LOCAL_UPDATE_TAU": 10}),
 ]
 SEED = 0
 TOTAL_DATA_POINTS = 600
@@ -61,19 +64,31 @@ METRIC_KEYS = [
 DEFAULT_TOL = 1e-9  # 「完全一致」に近い厳密さ。FP 揺れで誤検知するなら --tol で緩める
 
 
-def _run_case(mode, dataset):
-    """1 ケースを実行し、比較対象メトリクスの dict を返す(実験ログは抑止)。"""
+def _run_case(mode, dataset, overrides=None):
+    """1 ケースを実行し、比較対象メトリクスの dict を返す(実験ログは抑止)。
+
+    overrides で指定した config 属性はケース実行中のみ上書きし、終了後に復元する
+    (後続ケースへ設定が漏れないように)。
+    """
     config.DATASET = dataset
     config.TOTAL_DATA_POINTS = TOTAL_DATA_POINTS
-    with redirect_stdout(io.StringIO()):
-        r = run_random_drift_experiment(mode=mode, random_seed=SEED,
-                                        verbose=False, show_plot=False)
+    overrides = overrides or {}
+    saved = {k: getattr(config, k) for k in overrides}
+    for k, v in overrides.items():
+        setattr(config, k, v)
+    try:
+        with redirect_stdout(io.StringIO()):
+            r = run_random_drift_experiment(mode=mode, random_seed=SEED,
+                                            verbose=False, show_plot=False)
+    finally:
+        for k, v in saved.items():
+            setattr(config, k, v)
     return {k: r.get(k) for k in METRIC_KEYS}
 
 
 def compute_all():
     """全ケースを実行し {"mode/dataset": {metric: value}} を返す。"""
-    return {f"{mode}/{ds}": _run_case(mode, ds) for mode, ds in CASES}
+    return {f"{mode}/{ds}": _run_case(mode, ds, ov) for mode, ds, ov in CASES}
 
 
 def _env():

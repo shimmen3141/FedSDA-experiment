@@ -81,7 +81,12 @@ class BaseServer:
         return active_ids
 
     def update_global_models(self, active_ids):
-        """モデルIDごとに、参加クライアントのパラメータをデータ量で加重平均(FedAvg)。"""
+        """モデルIDごとに、参加クライアントのパラメータをデータ量で加重平均(FedAvg)。
+
+        戻り値: {モデルID: 総データ量}(FedAvg の重みの合計)。マージ時の加重平均など
+        呼び出し側で流用できる(v1 経路は無視してよい)。
+        """
+        agg_weights = {}
         for mid in active_ids:
             participant_clients = []
             for c in self.clients:
@@ -127,11 +132,19 @@ class BaseServer:
                 avg_mean = weighted_mean_sum / total_n_stat
                 self.global_stats[mid] = {'n': total_n_stat, 'mean': avg_mean, 'M2': 0.0}
 
-    def broadcast_models(self):
-        # 全グローバルモデルを全クライアントへ配布(ダウンロード)
+            agg_weights[mid] = total_weight
+
+        return agg_weights
+
+    def broadcast_models(self, id_mapping=None):
+        """全グローバルモデルを全クライアントへ配布(ダウンロード)。
+
+        id_mapping を渡すと、マージ等によるモデルIDの付け替えを配布と同時に適用する
+        (省略時は付け替えなし=従来挙動)。
+        """
         self.comm_down += len(self.global_models) * len(self.clients)
         for c in self.clients:
-            c.apply_server_mapping({}, self.global_models, self.global_stats)
+            c.apply_server_mapping(id_mapping or {}, self.global_models, self.global_stats)
 
 
 class ClusteringServer(BaseServer):
@@ -265,3 +278,112 @@ class ClusteringServer(BaseServer):
                             stack.append(neighbor)
                 clusters.append(sorted(component))
         return clusters
+
+
+class ClusteringServerV2(ClusteringServer):
+    """FedSDA v2 サーバ(docs/sequence-diagrams.md の設計版。モード 'FedSDA_v2')。
+
+    v1(ClusteringServer)との違いはラウンド内の処理順序:
+      v1: 回収 → クロス評価/クラスタリング(前ラウンド末のモデルで評価) → FedAvg → 配布
+      v2: 回収 → FedAvg → クロス評価/クラスタリング(今ラウンドの学習を反映したモデルで評価) → 配布
+
+    これにより
+      (a) 距離評価の鮮度が揃う(v1 は既存モデルだけ1ラウンド古い非対称な比較になる)、
+      (b) マージはサーバ側でメンバーの FedAvg 済みパラメータをデータ量加重平均して統合できる
+          (v1 のように非代表側のパラメータを破棄しない。追加通信なし)、
+      (c) 配布はラウンド末の1回のみ(v1 のマージ発生ラウンドの二重配布を解消)、
+      (d) マージ発生ラウンドでも当該ラウンドのローカル学習が FedAvg に反映される
+          (v1 はマージ時の再配布がローカル学習を上書きする)。
+    クライアント側の挙動(ADWIN 検知・新規モデルの次ラウンド回収)は v1 と共通。
+    """
+
+    def run_round(self, t, clustering_enabled=True):
+        """1回のサーバ処理(v2): 回収 → FedAvg → (任意でクラスタリング) → 配布。"""
+        self._collect_pending_models(t)
+        active_ids = sorted(list(self.global_models.keys()))
+
+        # 先に FedAvg: 今ラウンドのローカル学習をグローバルモデルへ反映する
+        agg_weights = self.update_global_models(active_ids)
+
+        id_mapping = {}
+        if clustering_enabled:
+            id_mapping = self._cluster_and_merge(t, active_ids, agg_weights)
+
+        # 配布は1回のみ。マージの ID 付け替えも同時に適用する
+        self.broadcast_models(id_mapping)
+
+    def _cluster_and_merge(self, t, active_ids, agg_weights):
+        """FedAvg 済みモデルでクロス評価・クラスタリングし、マージは加重平均で統合する。
+
+        v1 の _merge_clusters と異なり再配布は行わず、id_mapping を返して
+        run_round 末尾の broadcast_models に適用を委ねる。
+        """
+        M = len(active_ids)
+        if M <= 1:
+            return {}
+
+        stats_matrix = self._cross_evaluate(active_ids)
+        clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
+        if len(clusters) >= M:
+            return {}
+
+        if self.verbose:
+            print(f"\nServer [t={t}]: MERGE EXECUTED (v2: weighted average)")
+            print(f"  - Before: {active_ids}")
+            print(f"  - Clusters: {clusters}")
+
+        id_mapping = {}
+        for cluster in clusters:
+            rep_id = min(cluster)
+            for old_id in cluster:
+                id_mapping[old_id] = rep_id
+            if len(cluster) > 1:
+                self.global_models[rep_id] = self._weighted_average_params(cluster, agg_weights)
+                self._merge_stats(rep_id, cluster)
+
+        # 非代表IDのグローバル状態を削除(クライアント側の付け替えは broadcast で行う)
+        for old_id in active_ids:
+            if id_mapping.get(old_id, old_id) != old_id:
+                if old_id in self.global_models:
+                    del self.global_models[old_id]
+                if old_id in self.global_stats:
+                    del self.global_stats[old_id]
+
+        if self.verbose:
+            print(f"  - After IDs: {sorted(list(self.global_models.keys()))}\n")
+        return id_mapping
+
+    def _weighted_average_params(self, cluster, agg_weights):
+        """クラスタメンバーの FedAvg 済みパラメータをデータ量で加重平均する。
+
+        加重平均の結合則により「統合クラスタの全データでの加重平均」と同値になる。
+        重みが全て 0 の場合は代表(最小ID)のパラメータを維持する。
+        """
+        weights = {m: max(agg_weights.get(m, 0), 0) for m in cluster}
+        total = sum(weights.values())
+        if total <= 0:
+            return self.global_models[min(cluster)]
+
+        avg = None
+        for m in cluster:
+            w = weights[m]
+            if w == 0:
+                continue
+            params = self.global_models[m]
+            if avg is None:
+                avg = {k: v * w for k, v in params.items()}
+            else:
+                for k in avg:
+                    avg[k] = avg[k] + params[k] * w
+        for k in avg:
+            avg[k] = avg[k] / total
+        return avg
+
+    def _merge_stats(self, rep_id, cluster):
+        """クラスタメンバーの損失統計を n 加重平均で統合する(update_global_models と同じ簡易形)。"""
+        members = [m for m in cluster if m in self.global_stats]
+        total_n = sum(self.global_stats[m]['n'] for m in members)
+        if total_n > 0:
+            mean = sum(self.global_stats[m]['mean'] * self.global_stats[m]['n']
+                       for m in members) / total_n
+            self.global_stats[rep_id] = {'n': total_n, 'mean': mean, 'M2': 0.0}
