@@ -26,7 +26,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from FedSDA import config, run_random_drift_experiment
+from federated_drift_experiment import config, run_random_drift_experiment
 
 # この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
 # 既定の出力先は results/results_<YYYYMMDD_HHMMSS>/... となり実行ごとに別ディレクトリへ分かれる。
@@ -35,7 +35,8 @@ _DEFAULT_RUN_DIR = f"results/results_{_RUN_STAMP}"
 
 METRIC_KEYS = [
     "stable_accuracy", "accuracy",
-    "comm_upload", "comm_download", "comm_total",
+    "comm_models_up", "comm_models_down", "comm_models_total",
+    "comm_messages_up", "comm_messages_down", "comm_messages_total",
     "final_model_count", "precision", "recall", "f1", "avg_delay", "total_detect",
 ]
 ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
@@ -108,7 +109,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
             row = _run(raw_dir=raw_dir, **kw)
             rows.append(row)
             print(f"[{done}/{total}] {tag}: stable_acc={row['stable_accuracy']:.4f} "
-                  f"comm={row['comm_total']} models={row['final_model_count']} "
+                  f"comm={row['comm_models_total']} models={row['final_model_count']} "
                   f"({time.perf_counter()-t0:.0f}s)")
         except Exception:
             print(f"[{done}/{total}] {tag}: FAILED")
@@ -221,7 +222,7 @@ def write_markdown_table(rows, path):
         for (series, sv) in sorted(groups.keys(), key=order_key):
             rs = groups[(series, sv)]
             acc = np.array([float(x["stable_accuracy"]) for x in rs])
-            comm = np.array([float(x["comm_total"]) for x in rs])
+            comm = np.array([float(x["comm_models_total"]) for x in rs])
             models = np.array([float(x["final_model_count"]) for x in rs])
             svtxt = "–" if sv in (None, "", "None") else f"{float(sv):g}"
             lines.append(f"| {series} | {svtxt} | {acc.mean():.4f} ± {acc.std():.4f} | "
@@ -266,7 +267,7 @@ def combine_and_plot(patterns, out_dir, tag=None):
     write_markdown_table(rows, os.path.join(out_dir, f"{name}.md"))
 
 
-def _agg(rows, x_key="comm_total", y_key="stable_accuracy"):
+def _agg(rows, x_key="comm_models_total", y_key="stable_accuracy"):
     if not rows:
         return None
     xs = np.array([r[x_key] for r in rows], dtype=float)

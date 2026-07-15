@@ -1,7 +1,7 @@
 """実験ハイパーパラメータの一元管理。
 
 全モジュールはここから値を参照する。実験時にコードから上書きする場合は
-`from FedSDA import config; config.TOTAL_DATA_POINTS = 300` のように
+`from federated_drift_experiment import config; config.TOTAL_DATA_POINTS = 300` のように
 モジュール属性を書き換えればよい(各モジュールは呼び出し時に参照する)。
 
 各変数の意味・使用手法・設計上の役割は docs/hyperparameters.md に一覧化している。

@@ -4,13 +4,13 @@
 実装(`server.run_round` の末尾)に合わせて**ループの最後**に置く(各ループは直前の配布で得た
 モデルで開始する)。クロス評価の依頼はモデル対 (i, j) ごとにモデル i を最大
 `CROSS_EVAL_MAX_CLIENTS` 台のクライアントへ送る転送だが、図では1往復に代表させて描く
-(損失統計の返送は軽量のため通信量カウント comm_up/down の対象外)。
+(評価依頼・損失統計返送は `comm_messages_down/up`、モデル本体は `comm_models_down/up` で別々に数える)。
 
 FedSDA は **v1（モード `FedSDA`）** と **v2（モード `FedSDA_v2`）** を載せる。
 
 **v1 と v2 の違いはサーバ処理の順序**(と、その帰結としての新規モデルのアップロード方式)。
 モードで切替(実装: `server.py::ClusteringServer` / `ClusteringServerV2`。クライアント側は
-両者とも同じ `AdwinClient`):
+両者とも同じ `FedSDAClient`):
 - v1(`FedSDA`): 回収(新規のパラメータ送信) → クロス評価 → クラスタリング/マージ(再配布) → FedAvg(新規を再送=二重送信) → 配布
 - v2(`FedSDA_v2`): 回収(ID採番のみ) → FedAvg(新規もここで1回だけ送信) → クロス評価 → クラスタリング/マージ(サーバ内加重平均) → 配布
 - v2 の狙い: **今ラウンドの学習を反映した(FedAvg 済み)モデル同士でクラスタリング**できる
@@ -35,7 +35,7 @@ FedSDA は **v1（モード `FedSDA`）** と **v2（モード `FedSDA_v2`）** 
 
 ## FedSDA v1（現行実装）
 
-`FedSDA/experiment.py::_run_per_sample_timestep` / `clients/fedsda.py` / `server.py::run_round` に
+`federated_drift_experiment/experiment.py::_run_per_sample_timestep` / `clients/fedsda.py` / `server.py::run_round` に
 忠実な図。ブロードキャストはラウンド末に行われ、次ラウンドはその配布済みモデルで開始する。
 
 ```mermaid

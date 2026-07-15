@@ -7,8 +7,8 @@
 import argparse
 import os
 
-from FedSDA import config, run_random_drift_experiment
-from FedSDA.experiment import MODE_SPECS
+from federated_drift_experiment import config, run_random_drift_experiment
+from federated_drift_experiment.experiment import MODE_SPECS
 
 MODES = list(MODE_SPECS)
 

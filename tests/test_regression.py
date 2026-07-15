@@ -29,12 +29,12 @@ import os
 import sys
 from contextlib import redirect_stdout
 
-# tests/ から実行しても `from FedSDA import ...` が通るようにリポジトリルートを追加
+# tests/ から実行してもパッケージをimportできるようにリポジトリルートを追加
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from FedSDA import config, run_random_drift_experiment  # noqa: E402
+from federated_drift_experiment import config, run_random_drift_experiment  # noqa: E402
 
 GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regression_golden.json")
 
@@ -63,7 +63,8 @@ TOTAL_DATA_POINTS = 600
 # 比較対象の指標(runtime など非決定的な値は含めない)
 METRIC_KEYS = [
     "accuracy", "stable_accuracy",
-    "comm_upload", "comm_download", "comm_total",
+    "comm_models_up", "comm_models_down", "comm_models_total",
+    "comm_messages_up", "comm_messages_down", "comm_messages_total",
     "final_model_count", "precision", "recall", "f1",
     "avg_delay", "total_detect",
 ]

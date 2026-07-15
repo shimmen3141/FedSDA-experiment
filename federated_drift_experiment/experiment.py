@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 from . import config
-from .clients import AdwinClient, FedDriftV2Client, ObliviousClient, PeriodicClient
+from .clients import FedDriftClient, FedDriftV2Client, FedSDAClient, ObliviousClient
 from .data import build_data_streams, extract_true_drift_events, generate_data, make_concept_schedules
 from .metrics import compute_metrics
 from .models import SimpleMLP
@@ -48,6 +48,7 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
         c.flush_pending_updates()
 
     if use_server:
+        server.record_client_state_summaries()
         # 新規モデルがあるときだけクラスタリングを行う
         has_new = any(c.has_pending_model() for c in clients)
         server.run_round(t, clustering_enabled=has_new)
@@ -74,6 +75,7 @@ def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose)
         c.process_batch(data[i], concepts[i])
 
     # 検出バッチ完了: クラスタリング付き集約(モデル併合/割当)
+    server.record_client_state_summaries()
     server.run_round(t, clustering_enabled=True)
     for c in clients:
         c.promote_pending_to_ready()
@@ -116,16 +118,16 @@ class ModeSpec:
 
 
 MODE_SPECS = {
-    'FedSDA': ModeSpec(AdwinClient, _run_per_sample_timestep, server_cls=ClusteringServer),
+    'FedSDA': ModeSpec(FedSDAClient, _run_per_sample_timestep, server_cls=ClusteringServer),
     # v2: サーバ処理を FedAvg 先行(回収→FedAvg→クラスタリング→配布)に変えた設計版。
     # クライアント側は v1 と共通。τ(LOCAL_UPDATE_TAU)と組み合わせて v1/v2 比較を行う。
-    'FedSDA_v2': ModeSpec(AdwinClient, _run_per_sample_timestep, server_cls=ClusteringServerV2),
-    'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep, server_cls=ClusteringServer,
+    'FedSDA_v2': ModeSpec(FedSDAClient, _run_per_sample_timestep, server_cls=ClusteringServerV2),
+    'FedDrift': ModeSpec(FedDriftClient, _run_batch_timestep, server_cls=ClusteringServer,
                          chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedDrift_v2': ModeSpec(FedDriftV2Client, _run_feddrift_v2_timestep,
                             server_cls=FedDriftV2Server,
                             chunk_attr='FEDDRIFT_DETECT_BATCH'),
-    'FedSDA_without_server': ModeSpec(AdwinClient, _run_per_sample_timestep, use_server=False),
+    'FedSDA_without_server': ModeSpec(FedSDAClient, _run_per_sample_timestep, use_server=False),
     'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep, server_cls=BaseServer),
 }
 
@@ -273,7 +275,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     (show_plot=False なら描画自体を行わない)。
     raw_path を指定すると、回復曲線 acc(Δ) 等の事後分析用に per-sample の生データ
     (クライアント別 history_accuracy と真のドリフト位置、メタデータ)を .npz に保存する。
-    実験規模などのハイパーパラメータは FedSDA/config.py で管理する。
+    実験規模などのハイパーパラメータは federated_drift_experiment/config.py で管理する。
     """
     try:
         spec = MODE_SPECS[mode]
@@ -350,12 +352,12 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     results["runtime_seconds"] = runtime_seconds
 
     # --- 通信量(モデル転送数。up=クライアント→サーバ, down=サーバ→クライアント)---
-    results["comm_upload"] = server.comm_up
-    results["comm_download"] = server.comm_down
-    results["comm_total"] = server.comm_up + server.comm_down
-    results["control_upload"] = server.control_up
-    results["control_download"] = server.control_down
-    results["control_total"] = server.control_up + server.control_down
+    results["comm_models_up"] = server.comm_models_up
+    results["comm_models_down"] = server.comm_models_down
+    results["comm_models_total"] = server.comm_models_up + server.comm_models_down
+    results["comm_messages_up"] = server.comm_messages_up
+    results["comm_messages_down"] = server.comm_messages_down
+    results["comm_messages_total"] = server.comm_messages_up + server.comm_messages_down
 
     # 定常精度 stable_accuracy(回復窓除外)は compute_metrics で算出済み。
 
@@ -374,7 +376,10 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         print(f"  Final Global Models: {results['final_model_count']}")
         print(f"  Total Local Switches (total_detect): {results['total_detect']}")
         print(f"  TP / FP / FN: {results['tp']} / {results['fp']} / {results['fn']}")
-        print(f"  Comm (up / down / total): {results['comm_upload']} / {results['comm_download']} / {results['comm_total']}")
+        print(f"  Model comm (up / down / total): {results['comm_models_up']} / "
+              f"{results['comm_models_down']} / {results['comm_models_total']}")
+        print(f"  Message comm (up / down / total): {results['comm_messages_up']} / "
+              f"{results['comm_messages_down']} / {results['comm_messages_total']}")
         print(f"  Runtime: {runtime_seconds:.3f} sec")
 
     # --- 可視化 ---

@@ -4,11 +4,11 @@
 - run_random_drift_experiment: 1回分の実験実行
 - run_comparative_trials: 複数シードでの比較試行
 
-ハイパーパラメータは FedSDA/config.py で一元管理する。
+ハイパーパラメータは federated_drift_experiment/config.py で一元管理する。
 """
 from . import config
 from .adwin import FullScanADWIN
-from .clients import AdwinClient, BaseClient, FedDriftV2Client, ObliviousClient, PeriodicClient
+from .clients import BaseClient, FedDriftClient, FedDriftV2Client, FedSDAClient, ObliviousClient
 from .data import generate_data, make_concept_schedules
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
@@ -18,9 +18,9 @@ from .trials import run_comparative_trials
 __all__ = [
     "config",
     "FullScanADWIN",
-    "AdwinClient",
+    "FedSDAClient",
     "BaseClient",
-    "PeriodicClient",
+    "FedDriftClient",
     "FedDriftV2Client",
     "ObliviousClient",
     "generate_data",

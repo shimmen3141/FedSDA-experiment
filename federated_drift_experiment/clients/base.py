@@ -15,6 +15,8 @@ from ..models import SimpleMLP
 
 
 class BaseClient:
+    reports_state_summary = False
+
     def __init__(self, client_id, initial_models, initial_stats=None,
                  distance_threshold=None, verbose=True):
         self.client_id = client_id

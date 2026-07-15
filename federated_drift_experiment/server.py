@@ -29,13 +29,19 @@ class BaseServer:
         self.global_stats = defaultdict(lambda: {'n': 0, 'mean': 0.0, 'M2': 0.0})
 
         # 通信量カウンタ(1単位 = 1モデルのパラメータを1回転送。全モデル同一サイズ)
-        self.comm_up = 0    # クライアント→サーバ(新規モデル回収・FedAvg のアップロード)
-        self.comm_down = 0  # サーバ→クライアント(ブロードキャスト・クロス評価のモデル送信)
-        self.control_up = 0
-        self.control_down = 0
+        self.comm_models_up = 0    # クライアント→サーバのモデルパラメータ転送数
+        self.comm_models_down = 0  # サーバ→クライアントのモデルパラメータ転送数
+        self.comm_messages_up = 0  # クライアント→サーバの軽量メッセージ数
+        self.comm_messages_down = 0  # サーバ→クライアントの軽量メッセージ数
 
     def register_client(self, client):
         self.clients.append(client)
+
+    def record_client_state_summaries(self):
+        """モデル割当・ドリフト状態を報告する軽量メッセージを数える。"""
+        self.comm_messages_up += sum(
+            1 for client in self.clients if client.reports_state_summary
+        )
 
     def request_new_model_id(self):
         new_id = self.next_model_id
@@ -69,11 +75,13 @@ class BaseServer:
         for c in self.clients:
             if c.has_pending_model():
                 params, stats = c.get_pending_model_info()
-                self.comm_up += 1  # クライアントが新規モデルをアップロード
+                self.comm_models_up += 1  # クライアントが新規モデルをアップロード
+                self.comm_messages_up += 1  # 新規モデル登録通知
                 new_global_id = self.request_new_model_id()
                 self.register_model_params(new_global_id, params)
                 self.register_model_stats(new_global_id, stats)
                 c.confirm_model_registration(new_global_id)
+                self.comm_messages_down += 1  # 新規モデルIDの割当
                 new_registrations += 1
 
         if new_registrations > 0 and self.verbose:
@@ -109,7 +117,7 @@ class BaseServer:
                 if n_data == 0:
                     continue
 
-                self.comm_up += 1  # クライアントが mid のパラメータをアップロード(FedAvg)
+                self.comm_models_up += 1  # クライアントが mid のパラメータをアップロード(FedAvg)
                 params = c.models[mid].get_params()
                 if new_params is None:
                     new_params = copy.deepcopy(params)
@@ -145,7 +153,9 @@ class BaseServer:
         id_mapping を渡すと、マージ等によるモデルIDの付け替えを配布と同時に適用する
         (省略時は付け替えなし=従来挙動)。
         """
-        self.comm_down += len(self.global_models) * len(self.clients)
+        self.comm_models_down += len(self.global_models) * len(self.clients)
+        if id_mapping:
+            self.comm_messages_down += len(self.clients)
         for c in self.clients:
             c.apply_server_mapping(id_mapping or {}, self.global_models, self.global_stats)
 
@@ -186,7 +196,8 @@ class ClusteringServer(BaseServer):
                 id_mapping[old_id] = rep_id
 
         # マージ後モデルを全クライアントへ再配布(ダウンロード)
-        self.comm_down += len(self.global_models) * len(self.clients)
+        self.comm_models_down += len(self.global_models) * len(self.clients)
+        self.comm_messages_down += len(self.clients)  # 統合後のモデルID対応
         for c in self.clients:
             c.apply_server_mapping(id_mapping, self.global_models, self.global_stats)
 
@@ -218,13 +229,12 @@ class ClusteringServer(BaseServer):
                 if len(target_clients) > config.CROSS_EVAL_MAX_CLIENTS:
                     target_clients = random.sample(target_clients, config.CROSS_EVAL_MAX_CLIENTS)
 
+                # 評価依頼と評価統計は、モデル転送とは別の軽量メッセージとして全方式で数える。
+                self.comm_messages_down += len(target_clients)
+                self.comm_messages_up += len(target_clients)
                 if send_model_params:
                     # v1: 評価のためモデル id_i を各対象クライアントへ再送する。
-                    self.comm_down += len(target_clients)
-                else:
-                    # v2: 配布済みモデルを再利用し、依頼と統計だけを軽量通信として数える。
-                    self.control_down += len(target_clients)
-                    self.control_up += len(target_clients)
+                    self.comm_models_down += len(target_clients)
 
                 total_n, total_S, total_SS = 0, 0.0, 0.0
                 for c in target_clients:
@@ -436,7 +446,7 @@ class FedDriftV2Server(ClusteringServer):
 
     def prepare_timestep(self, t):
         """隔離解除済みモデルをクラスタリングし、新規隔離モデルへIDを割り当てる。"""
-        self.control_up += len(self.clients)  # 割当・ドリフト要約
+        self.record_client_state_summaries()
         self._cluster_mature_models(t)
         self._register_isolated_models(t)
 
@@ -458,7 +468,7 @@ class FedDriftV2Server(ClusteringServer):
             model_id = self.request_new_model_id()
             client.confirm_model_registration(model_id)
             self.isolated_until[model_id] = t + self.isolation_timesteps
-            self.control_down += 1  # モデルIDの割当
+            self.comm_messages_down += 1  # モデルIDの割当
 
     def _cluster_mature_models(self, t):
         mature_ids = self.mature_model_ids(t)
@@ -512,6 +522,7 @@ class FedDriftV2Server(ClusteringServer):
 
         for client in self.clients:
             client.apply_cached_merge(clusters, cluster_weights, new_stats)
+        self.comm_messages_down += len(self.clients)  # キャッシュマージの構成と重み
 
         self.global_models = new_models
         self.global_stats = defaultdict(

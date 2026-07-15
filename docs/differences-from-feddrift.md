@@ -16,7 +16,7 @@
 
 ## 1. データセット定義
 
-FedDrift 由来の 3 データセット（sine / circle / sea）の**生成規則は論文・参照コードに忠実**。実装は `FedSDA/data.py`。
+FedDrift 由来の 3 データセット（sine / circle / sea）の**生成規則は論文・参照コードに忠実**。実装は `federated_drift_experiment/data.py`。
 
 | dataset | 生成規則 | 参照との照合 | 判定 |
 |---|---|---|---|

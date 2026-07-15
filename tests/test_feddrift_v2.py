@@ -7,12 +7,12 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from FedSDA import config
-from FedSDA.clients import FedDriftV2Client
-from FedSDA.clustering import cluster_models
-from FedSDA.experiment import _run_feddrift_v2_timestep
-from FedSDA.models import SimpleMLP
-from FedSDA.server import FedDriftV2Server
+from federated_drift_experiment import config
+from federated_drift_experiment.clients import FedDriftV2Client
+from federated_drift_experiment.clustering import cluster_models
+from federated_drift_experiment.experiment import _run_feddrift_v2_timestep
+from federated_drift_experiment.models import SimpleMLP
+from federated_drift_experiment.server import FedDriftV2Server
 
 
 def test_linkage_strategies_distinguish_chain_merges():
@@ -98,5 +98,5 @@ def test_timestep_uses_exactly_configured_fedavg_rounds(monkeypatch):
     )
 
     # 2クライアント × 1モデル × 2ラウンド。クラスタリング用の余分なFedAvgはない。
-    assert server.comm_up == 4
-    assert server.comm_down == 4
+    assert server.comm_models_up == 4
+    assert server.comm_models_down == 4

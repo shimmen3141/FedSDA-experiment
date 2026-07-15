@@ -77,7 +77,7 @@ python run_comparative_trials.py --help
 | `circle` | 2 | **FedDrift CIRCLE-2**。x1,x2 ~ U[0,1]²、概念別の円の外側を label=1(小さな概念変化) |
 | `sine` | 2 | **FedDrift SINE-2**。x1,x2 ~ U[0,1]²、概念0: x2≤sin(x1) を label=1、概念1: 反転(大きな概念変化) |
 
-`sea` の閾値・ノイズ率は [FedSDA/config.py](FedSDA/config.py) の `SEA_THRESHOLDS`(FedDrift論文 appendix の A,B,C,D = `{0:9, 1:8, 2:7, 3:9.5}`)/ `SEA_LABEL_NOISE`(0.10)で定義。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
+`sea` の閾値・ノイズ率は [federated_drift_experiment/config.py](federated_drift_experiment/config.py) の `SEA_THRESHOLDS`(FedDrift論文 appendix の A,B,C,D = `{0:9, 1:8, 2:7, 3:9.5}`)/ `SEA_LABEL_NOISE`(0.10)で定義。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
 
 > **FedDrift 元論文との相違点**（データセット定義・ドリフトスケジュール・学習パラメータ・
 > 評価指標の細かな差異）は [docs/differences-from-feddrift.md](docs/differences-from-feddrift.md) に
@@ -93,11 +93,13 @@ python run_comparative_trials.py --help
 | `recall` / `precision` / `f1` | ドリフト検出の質(ローカル切替を検出とみなし真のドリフトと照合) |
 | `avg_delay` | 平均検出遅延(サンプル数) |
 | `final_model_count` | 最終モデル数(サーバ集約あり)/ クライアント平均保持数(なし) |
-| `comm_upload` / `comm_download` / `comm_total` | 通信量(モデル転送数)。up=クライアント→サーバ、down=サーバ→クライアント(ブロードキャスト+クロス評価) |
+| `comm_models_up` / `comm_models_down` / `comm_models_total` | モデルパラメータ転送数。up=クライアント→サーバ、down=サーバ→クライアント |
+| `comm_messages_up` / `comm_messages_down` / `comm_messages_total` | 割当・ドリフト要約、クロス評価依頼・統計返送、ID割当、マージ通知などの軽量メッセージ数 |
 
-定常精度の回復除外窓 W は [FedSDA/config.py](FedSDA/config.py) の `STABLE_WINDOW`(既定200)で設定。最も遅い回復のプラトーを越える大きめ固定値で、`MIN_STABLE_PERIOD` 未満(次ドリフトを跨がない)。適応の**速さ**は回復曲線 acc(Δ)([recovery_analysis.py](recovery_analysis.py))で別途評価する。
+定常精度の回復除外窓 W は [federated_drift_experiment/config.py](federated_drift_experiment/config.py) の `STABLE_WINDOW`(既定200)で設定。最も遅い回復のプラトーを越える大きめ固定値で、`MIN_STABLE_PERIOD` 未満(次ドリフトを跨がない)。適応の**速さ**は回復曲線 acc(Δ)([recovery_analysis.py](recovery_analysis.py))で別途評価する。
 
-通信量は「1単位 = 1モデルのパラメータを1回転送」(全モデル同一サイズのため転送数がバイト量に比例)。クラスタ化FLの通信は O(モデル数 × クライアント数) でスケールするため、偽陽性が少なく余計なモデルを作らない手法ほど通信量が小さくなる(クロス評価の返り値=統計3値は微小のため非計上)。
+モデル通信量は「1単位 = 1モデルのパラメータを1回転送」とする。軽量メッセージはモデル転送と
+サイズが異なるため別指標で数え、両者を単純加算しない。
 
 ### 回復曲線(適応速度)分析
 
@@ -121,12 +123,12 @@ python run_comparative_trials.py --help
 .
 ├── run_experiment.py            # CLI: 単発実験
 ├── run_comparative_trials.py    # CLI: 複数シード比較試行
-├── FedSDA/                      # 実験パッケージ
+├── federated_drift_experiment/ # 連合ドリフト実験パッケージ
 │   ├── config.py                # ★ハイパーパラメータの一元管理
 │   ├── data.py                  # 合成データ生成・ドリフトスケジュール
 │   ├── models.py                # SimpleMLP(2次元入力の二値分類)
 │   ├── adwin.py                 # FullScanADWIN(全分割点走査のADWIN)
-│   ├── clients.py               # BaseClient / AdwinClient(提案) / PeriodicClient(FedDrift)
+│   ├── clients/                 # BaseClient / FedSDAClient / FedDriftClient
 │   ├── server.py                # サーバ(FedAvg集約・階層的クラスタリングマージ)
 │   ├── experiment.py            # 実験本体 run_random_drift_experiment
 │   ├── metrics.py               # 検出性能メトリクス(TP/FP/FN, 遅延など)
@@ -146,7 +148,7 @@ python run_comparative_trials.py --help
 
 ## ハイパーパラメータ
 
-全ハイパーパラメータは [FedSDA/config.py](FedSDA/config.py) に一元管理されている
+全ハイパーパラメータは [federated_drift_experiment/config.py](federated_drift_experiment/config.py) に一元管理されている
 (論文の記号 K, R, τ, L, E_init, δ_adwin, N_FIFO, γ_dist との対応もコメントに記載)。
 **各変数の意味・使用手法(FedSDA / FedDrift / 共通)・仕様は
 [docs/hyperparameters.md](docs/hyperparameters.md) に一覧化している。**
@@ -162,7 +164,7 @@ python run_comparative_trials.py --help
 
 ```python
 # ファイルを直接編集するか、コードから上書きする(各モジュールは実行時に参照)
-from FedSDA import config
+from federated_drift_experiment import config
 config.TOTAL_DATA_POINTS = 300   # 例: 縮小実験
 config.ADWIN_DELTA = 0.01        # 例: 検出感度の変更
 ```

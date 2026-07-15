@@ -1,6 +1,6 @@
 # ハイパーパラメータ・変数リファレンス
 
-本実装([FedSDA/config.py](../FedSDA/config.py))の全ハイパーパラメータを、**意味・使用手法・既定値**の観点で一覧化する。実行時はコードから `from FedSDA import config; config.X = ...`で上書きできる(各モジュールは呼び出し時に `config.X` を参照する)。
+本実装([federated_drift_experiment/config.py](../federated_drift_experiment/config.py))の全ハイパーパラメータを、**意味・使用手法・既定値**の観点で一覧化する。実行時はコードから `from federated_drift_experiment import config; config.X = ...`で上書きできる(各モジュールは呼び出し時に `config.X` を参照する)。
 
 論文(FedDrift 元論文)との対応・相違は [differences-from-feddrift.md](differences-from-feddrift.md)、アルゴリズム詳細は [fedsda-algorithm.md](fedsda-algorithm.md) を参照。
 
@@ -158,7 +158,7 @@
 | `recall` / `precision` / `f1` | ドリフト検出の質(ローカル切替を検出とみなし真ドリフトと照合) |
 | `avg_delay` | 平均検出遅延(サンプル数) |
 | `final_model_count` | 最終モデル数(集約あり)/ クライアント平均保持数(なし) |
-| `comm_upload` / `comm_download` / `comm_total` | 通信量(モデル転送数) |
-| `control_upload` / `control_download` / `control_total` | 割当通知・クロス評価依頼・評価統計・ID割当などの軽量制御メッセージ数 |
+| `comm_models_up` / `comm_models_down` / `comm_models_total` | モデルパラメータ転送数 |
+| `comm_messages_up` / `comm_messages_down` / `comm_messages_total` | 割当・ドリフト要約、クロス評価依頼・評価統計、ID割当、マージ通知などの軽量メッセージ数 |
 
 適応の**速さ**(回復曲線 acc(Δ)・`T90` 等)は [recovery_analysis.py](../recovery_analysis.py) で別途評価する。

@@ -12,8 +12,10 @@ from ..adwin import FullScanADWIN
 from .base import BaseClient
 
 
-class AdwinClient(BaseClient):
+class FedSDAClient(BaseClient):
     """提案手法 (FedSDA) クライアント: ADWIN + FIFOバッファによる逐次(1サンプル単位)処理。"""
+
+    reports_state_summary = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
