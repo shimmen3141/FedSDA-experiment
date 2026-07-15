@@ -12,7 +12,7 @@ from federated_drift_experiment.clients import FedDriftV2Client
 from federated_drift_experiment.clustering import cluster_models
 from federated_drift_experiment.experiment import _run_feddrift_v2_timestep
 from federated_drift_experiment.models import SimpleMLP
-from federated_drift_experiment.server import FedDriftV2Server
+from federated_drift_experiment.servers import FedDriftV2Server
 
 
 def test_linkage_strategies_distinguish_chain_merges():

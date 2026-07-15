@@ -9,7 +9,7 @@
 FedSDA は **v1（モード `FedSDA`）** と **v2（モード `FedSDA_v2`）** を載せる。
 
 **v1 と v2 の違いはサーバ処理の順序**(と、その帰結としての新規モデルのアップロード方式)。
-モードで切替(実装: `server.py::ClusteringServer` / `ClusteringServerV2`。クライアント側は
+モードで切替(実装: `servers/clustering.py::ClusteringServer` / `servers/fedsda.py::FedSDAV2Server`。クライアント側は
 両者とも同じ `FedSDAClient`):
 - v1(`FedSDA`): 回収(新規のパラメータ送信) → クロス評価 → クラスタリング/マージ(再配布) → FedAvg(新規を再送=二重送信) → 配布
 - v2(`FedSDA_v2`): 回収(ID採番のみ) → FedAvg(新規もここで1回だけ送信) → クロス評価 → クラスタリング/マージ(サーバ内加重平均) → 配布
@@ -36,7 +36,7 @@ FedSDA は **v1（モード `FedSDA`）** と **v2（モード `FedSDA_v2`）** 
 
 ## FedSDA v1（現行実装）
 
-`federated_drift_experiment/experiment.py::_run_per_sample_timestep` / `clients/fedsda.py` / `server.py::run_round` に
+`federated_drift_experiment/experiment.py::_run_per_sample_timestep` / `clients/fedsda.py` / `servers/base.py::BaseServer.run_round` に
 忠実な図。ブロードキャストはラウンド末に行われ、次ラウンドはその配布済みモデルで開始する。
 
 ```mermaid
@@ -88,7 +88,7 @@ sequenceDiagram
 
 ## FedSDA v2（モード `FedSDA_v2`）
 
-実装は `server.py::ClusteringServerV2`(クライアント側は v1 と共通)。v1 との違いは次の3点で、
+実装は `servers/fedsda.py::FedSDAV2Server`(クライアント側は v1 と共通)。v1 との違いは次の3点で、
 他は v1 と同一構造:
 - **FedAvg をクロス評価/クラスタリングより先**に行う(今ラウンドの学習を反映したモデルで距離評価)。
 - **マージをサーバ内のデータ量加重平均**で行い再配布を省く(配布1回)。

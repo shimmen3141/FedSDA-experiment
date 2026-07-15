@@ -12,7 +12,7 @@ from .clients import BaseClient, FedDriftClient, FedDriftV2Client, FedSDAClient,
 from .data import generate_data, make_concept_schedules
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
-from .server import BaseServer, ClusteringServer, ClusteringServerV2, FedDriftV2Server
+from .servers import BaseServer, ClusteringServer, FedDriftV2Server, FedSDAV2Server
 from .trials import run_comparative_trials
 
 __all__ = [
@@ -29,7 +29,7 @@ __all__ = [
     "SimpleMLP",
     "BaseServer",
     "ClusteringServer",
-    "ClusteringServerV2",
+    "FedSDAV2Server",
     "FedDriftV2Server",
     "run_comparative_trials",
 ]

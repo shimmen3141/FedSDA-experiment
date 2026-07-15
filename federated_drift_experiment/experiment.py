@@ -27,7 +27,7 @@ from .data import build_data_streams, extract_true_drift_events, generate_data, 
 from .metrics import compute_metrics
 from .models import SimpleMLP
 from .plotting import plot_client_details, plot_system_overview
-from .server import BaseServer, ClusteringServer, ClusteringServerV2, FedDriftV2Server
+from .servers import BaseServer, ClusteringServer, FedDriftV2Server, FedSDAV2Server
 
 
 # ==========================================
@@ -121,7 +121,7 @@ MODE_SPECS = {
     'FedSDA': ModeSpec(FedSDAClient, _run_per_sample_timestep, server_cls=ClusteringServer),
     # v2: サーバ処理を FedAvg 先行(回収→FedAvg→クラスタリング→配布)に変えた設計版。
     # クライアント側は v1 と共通。τ(LOCAL_UPDATE_TAU)と組み合わせて v1/v2 比較を行う。
-    'FedSDA_v2': ModeSpec(FedSDAClient, _run_per_sample_timestep, server_cls=ClusteringServerV2),
+    'FedSDA_v2': ModeSpec(FedSDAClient, _run_per_sample_timestep, server_cls=FedSDAV2Server),
     'FedDrift': ModeSpec(FedDriftClient, _run_batch_timestep, server_cls=ClusteringServer,
                          chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedDrift_v2': ModeSpec(FedDriftV2Client, _run_feddrift_v2_timestep,

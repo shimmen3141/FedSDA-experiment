@@ -129,7 +129,8 @@ python run_comparative_trials.py --help
 │   ├── models.py                # SimpleMLP(2次元入力の二値分類)
 │   ├── adwin.py                 # FullScanADWIN(全分割点走査のADWIN)
 │   ├── clients/                 # BaseClient / FedSDAClient / FedDriftClient
-│   ├── server.py                # サーバ(FedAvg集約・階層的クラスタリングマージ)
+│   ├── servers/                 # Base / 共通クラスタリング / FedSDA / FedDrift サーバ
+│   ├── server.py                # 旧サーバimportパスの互換窓口
 │   ├── experiment.py            # 実験本体 run_random_drift_experiment
 │   ├── metrics.py               # 検出性能メトリクス(TP/FP/FN, 遅延など)
 │   ├── plotting.py              # 可視化(保存 or 表示)
