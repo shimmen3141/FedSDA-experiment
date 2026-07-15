@@ -92,7 +92,7 @@
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
 | `ADWIN_DELTA` | ADWIN 信頼度パラメータ δ_adwin(小さいほど検出保守的) | FedSDA | 0.05 |
-| `FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS` | 新規モデル作成後、サーバへアップロード可能になるまでの学習ラウンド数。1なら作成の次ラウンド末に送信 | FedSDA | 1 |
+| `FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS` | 新規モデル作成後、サーバへアップロード可能になるまでの学習ラウンド数。1なら作成の次ラウンド末に送信。v3では初回配布後の次ラウンドからキャッシュ評価可能 | FedSDA | 1 |
 | `ADWIN_MAX_WINDOW` | ADWIN ウィンドウ幅の上限 | FedSDA | 1000 |
 | `ADWIN_MIN_WIDTH` | 検定を開始する最小ウィンドウ幅 | FedSDA | 10 |
 
@@ -138,6 +138,8 @@
 > **v1/v2 の切替**: サーバ処理順序の v2(FedAvg先行・加重平均マージ・配布1回)は config ノブ
 > ではなく**モード `FedSDA_v2`**(`FedSDAV2Server`)で選択する。τ(`LOCAL_UPDATE_TAU`)と
 > 直交しており、{`FedSDA`, `FedSDA_v2`} × {τ=1, τ>1} の4構成でアブレーションできる。
+> 通信削減版は**モード `FedSDA_v3`**(`FedSDAV3Server`)で選択し、前回配布モデルのキャッシュで
+> クロス評価するため、評価用のモデル再送を行わない。
 > 詳細は [sequence-diagrams.md](sequence-diagrams.md)。
 
 ---

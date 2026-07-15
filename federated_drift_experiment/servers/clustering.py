@@ -61,7 +61,12 @@ class ClusteringServer(BaseServer):
 
         return sorted(list(self.global_models.keys()))
 
-    def _cross_evaluate(self, model_ids, send_model_params=True):
+    def _cross_evaluate(self, model_ids, send_model_params=True, use_client_cache=False):
+        """モデル対をクライアントで評価し、集約統計を返す。
+
+        use_client_cache=True は、事前に全対象モデルが配布済みであるプロトコル専用。
+        この場合はモデル本体を再送せず、クライアントの不変キャッシュを評価する。
+        """
         holders = defaultdict(list)
         for c in self.clients:
             held_ids = c.get_held_model_ids()
@@ -86,7 +91,10 @@ class ClusteringServer(BaseServer):
 
                 total_n, total_S, total_SS = 0, 0.0, 0.0
                 for c in target_clients:
-                    n, S, SS = c.evaluate_model(params_i, target_model_id=id_j)
+                    if use_client_cache:
+                        n, S, SS = c.evaluate_cached_model(id_i, target_model_id=id_j)
+                    else:
+                        n, S, SS = c.evaluate_model(params_i, target_model_id=id_j)
                     total_n += n; total_S += S; total_SS += SS
 
                 stats_matrix[id_i][id_j] = (total_n, total_S, total_SS)

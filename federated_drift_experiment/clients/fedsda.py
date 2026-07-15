@@ -26,6 +26,12 @@ class FedSDAClient(BaseClient):
         if self.model_upload_delay_rounds < 1:
             raise ValueError("FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS must be at least 1")
         self._pending_upload_rounds = 0
+        # v3 のクロス評価では、ローカル学習中の models ではなく直近の配布時点を使う。
+        self.cached_global_model_params = {
+            model_id: model.get_params() for model_id, model in self.models.items()
+            if model_id >= 0
+        }
+        self._refresh_cache_on_mapping = True
 
     def _spawn_new_model(self, bx, by, pending_ready=False):
         """新規モデルを作成し、設定された学習ラウンド数だけアップロードを保留する。"""
@@ -40,6 +46,31 @@ class FedSDAClient(BaseClient):
         self._pending_upload_rounds -= 1
         if self._pending_upload_rounds <= 0:
             super().promote_pending_to_ready()
+
+    def evaluate_cached_model(self, model_id, target_model_id):
+        """直近のサーバ配布時点のモデルを、指定モデル用の手元データで評価する。"""
+        try:
+            params = self.cached_global_model_params[model_id]
+        except KeyError:
+            raise ValueError(f"モデル{model_id}はまだクライアントへ配布されていません") from None
+        return self.evaluate_model(params, target_model_id)
+
+    def apply_cached_merge(self, clusters, cluster_weights, global_stats=None):
+        """ローカル学習モデルを統合するが、評価用キャッシュは次の配布まで維持する。"""
+        self._refresh_cache_on_mapping = False
+        try:
+            super().apply_cached_merge(clusters, cluster_weights, global_stats)
+        finally:
+            self._refresh_cache_on_mapping = True
+
+    def apply_server_mapping(self, id_mapping, new_global_models, new_global_stats=None):
+        """サーバ配布を適用し、v3の次回クロス評価用キャッシュを更新する。"""
+        super().apply_server_mapping(id_mapping, new_global_models, new_global_stats)
+        if self._refresh_cache_on_mapping:
+            self.cached_global_model_params = {
+                model_id: model.get_params() for model_id, model in self.models.items()
+                if model_id >= 0
+            }
 
     def process_one_step(self, x_in, y_in, concept_id):
         """1サンプルを処理する: 予測 → ADWIN更新 → (ドリフト解決 | 平時処理) → 学習。"""

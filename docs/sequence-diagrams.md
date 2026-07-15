@@ -6,13 +6,15 @@
 `CROSS_EVAL_MAX_CLIENTS` 台のクライアントへ送る転送だが、図では1往復に代表させて描く
 (評価依頼・損失統計返送は `comm_messages_down/up`、モデル本体は `comm_models_down/up` で別々に数える)。
 
-FedSDA は **v1（モード `FedSDA`）** と **v2（モード `FedSDA_v2`）** を載せる。
+FedSDA は **v1（モード `FedSDA`）**、**v2（モード `FedSDA_v2`）**、
+**v3（モード `FedSDA_v3`）** を載せる。
 
 **v1 と v2 の違いはサーバ処理の順序**(と、その帰結としての新規モデルのアップロード方式)。
 モードで切替(実装: `servers/clustering.py::ClusteringServer` / `servers/fedsda.py::FedSDAV2Server`。クライアント側は
 両者とも同じ `FedSDAClient`):
 - v1(`FedSDA`): 回収(新規のパラメータ送信) → クロス評価 → クラスタリング/マージ(再配布) → FedAvg(新規を再送=二重送信) → 配布
 - v2(`FedSDA_v2`): 回収(ID採番のみ) → FedAvg(新規もここで1回だけ送信) → クロス評価 → クラスタリング/マージ(サーバ内加重平均) → 配布
+- v3(`FedSDA_v3`): 配布済みキャッシュでクロス評価 → クラスタリング → 新規ID採番 → FedAvg → 配布
 - v2 の狙い: **今ラウンドの学習を反映した(FedAvg 済み)モデル同士でクラスタリング**できる
   (v1 のクロス評価は前ラウンド末のモデルを配るため、既存モデルだけ1ラウンド古い非対称な評価に
   なる)。また v1 のマージ発生ラウンドの**二重ブロードキャスト**(マージ時の再配布 + ラウンド末の
@@ -20,7 +22,7 @@ FedSDA は **v1（モード `FedSDA`）** と **v2（モード `FedSDA_v2`）** 
   なので、回収時にパラメータを送る必要がない)。
 
 **τ(`LOCAL_UPDATE_TAU`)はこれと直交する config ノブ**で、**モードに依らず全逐次手法
-(FedSDA / FedSDA_v2 / Oblivious 等)に適用される**(実装: `clients/base.py::train_step`)。
+(FedSDA / FedSDA_v2 / FedSDA_v3 / Oblivious 等)に適用される**(実装: `clients/base.py::train_step`)。
 τ サンプルごとに τ×`UPDATES_PER_SAMPLE` 回まとめて更新する(総更新回数は不変。τ=1 で毎サンプル。
 ラウンド境界・ドリフト解決前にフラッシュ)。「更新頻度 ↔ モデル鮮度」のトレードオフ軸。
 
@@ -139,10 +141,11 @@ sequenceDiagram
 
 ---
 
-## FedSDA v3（キャッシュ利用による通信削減案・未実装）
+## FedSDA v3（モード `FedSDA_v3`）
 
-FedSDA v3 は、FedDrift v2 と同様に、前ラウンド末に配布済みのモデルをクライアントがキャッシュし、
-クロス評価時にモデル本体を再送しない設計案である。基本となるモデル通信は、各ラウンドの
+実装は `servers/fedsda.py::FedSDAV3Server` と
+`experiment.py::_run_fedsda_v3_timestep`。FedDrift v2 と同様に、前ラウンド末に配布済みのモデルを
+クライアントが不変キャッシュとして保持し、クロス評価時にモデル本体を再送しない。基本となるモデル通信は、各ラウンドの
 `FedAvg アップロード1回 + 全モデルブロードキャスト1回` の1往復だけになる。
 
 FedSDA v2 は今ラウンドのFedAvg済みモデルでクロス評価するため、評価担当クライアントへ最新モデルを
@@ -214,7 +217,7 @@ sequenceDiagram
 既定値 `FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS=1` では、新規モデルは作成の次ラウンドで学習された後、
 そのラウンド末にアップロード・配布され、さらに次のラウンドからクロス評価対象になる。
 
-| 項目 | FedSDA v2 | FedSDA v3案 |
+| 項目 | FedSDA v2 | FedSDA v3 |
 |---|---|---|
 | クロス評価モデル | 今ラウンドのFedAvg済みモデル | 前ラウンド末の配布済みモデル |
 | クロス評価用モデル送信 | 必要 | 不要（キャッシュ利用） |

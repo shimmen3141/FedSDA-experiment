@@ -63,6 +63,7 @@ python run_comparative_trials.py --help
 |---|---|
 | `FedSDA` | **提案手法 v1**: ADWIN逐次検出 + FIFOバッファ + サーバ集約 |
 | `FedSDA_v2` | **提案手法 v2**: v1 + FedAvg先行サーバ(更新後モデルでクラスタリング・加重平均マージ・配布1回)。`LOCAL_UPDATE_TAU` と組合せて v1/v2 比較([docs/sequence-diagrams.md](docs/sequence-diagrams.md)) |
+| `FedSDA_v3` | **提案手法 v3**: 配布済みモデルのキャッシュでクロス評価し、モデル通信をFedAvgと通常配布の1往復に集約 |
 | `FedDrift` | ベースライン: 固定バッチ検出 + サーバ集約 |
 | `FedDrift_v2` | 論文準拠フロー: 新規モデル隔離 + 選択可能linkage + 正確にR回のFedAvg |
 | `FedSDA_without_server` | 提案手法のローカルのみ版(サーバ集約なし) |

@@ -1,5 +1,8 @@
 """FedSDA固有のサーバ実装。"""
 
+from collections import defaultdict
+
+from .. import config
 from .clustering import ClusteringServer
 
 
@@ -136,3 +139,115 @@ class FedSDAV2Server(ClusteringServer):
             mean = sum(self.global_stats[m]['mean'] * self.global_stats[m]['n']
                        for m in members) / total_n
             self.global_stats[rep_id] = {'n': total_n, 'mean': mean, 'M2': 0.0}
+
+
+class FedSDAV3Server(FedSDAV2Server):
+    """配布済みモデルのキャッシュでクロス評価するFedSDA v3サーバ。"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model_weights = {}
+        # 初回配布を終え、次ラウンドのクラスタリングを待つ新規モデル。
+        self.models_pending_clustering = set()
+
+    def register_model_params(self, model_id, params):
+        super().register_model_params(model_id, params)
+        self.model_weights.setdefault(model_id, config.PRETRAIN_SAMPLES)
+
+    def run_round(self, t):
+        """キャッシュ評価・新規登録・FedAvg・通常配布をこの順で1回ずつ行う。"""
+        self._cluster_distributed_models(t)
+        new_model_ids = self._register_new_models(t)
+
+        active_ids = sorted({
+            model_id for client in self.clients
+            for model_id in client.models if model_id >= 0
+        })
+        round_weights = self.update_global_models(active_ids)
+        for model_id, weight in round_weights.items():
+            if weight > 0:
+                self.model_weights[model_id] = weight
+
+        self.broadcast_models()
+        # この配布によって初めて全クライアントのキャッシュに入る。
+        self.models_pending_clustering.update(new_model_ids)
+
+    def _register_new_models(self, t):
+        """送信可能な新規モデルへIDを割り当て、初回FedAvgの対象にする。"""
+        new_model_ids = []
+        for client in self.clients:
+            if not client.has_pending_model():
+                continue
+            model_id = self.request_new_model_id()
+            client.confirm_model_registration(model_id)
+            self.comm_messages_down += 1
+            new_model_ids.append(model_id)
+
+        if new_model_ids and self.verbose:
+            print(f"Server [t={t}]: Registered {len(new_model_ids)} new cached models.")
+        return new_model_ids
+
+    def _cluster_distributed_models(self, t):
+        """初回配布済みの新規モデルがある場合だけ、キャッシュで距離評価する。"""
+        if not self.models_pending_clustering:
+            return
+
+        model_ids = sorted(self.global_models)
+        self.models_pending_clustering.clear()
+        if len(model_ids) <= 1:
+            return
+
+        stats_matrix = self._cross_evaluate(
+            model_ids,
+            send_model_params=False,
+            use_client_cache=True,
+        )
+        clusters = self.perform_hierarchical_clustering(model_ids, stats_matrix)
+        if len(clusters) < len(model_ids):
+            self._merge_cached_clusters(t, clusters)
+
+    def _merge_cached_clusters(self, t, clusters):
+        """配布済みモデルを累積重みで統合し、クライアントの学習状態にも対応を適用する。"""
+        if self.verbose:
+            print(f"\nServer [t={t}]: MERGE EXECUTED (FedSDA v3, cached)")
+            print(f"  - Clusters: {clusters}")
+
+        cluster_weights = {}
+        new_models = {}
+        new_stats = {}
+        new_model_weights = {}
+
+        for cluster in clusters:
+            representative = min(cluster)
+            weights = {
+                model_id: max(self.model_weights.get(model_id, 0), 0)
+                for model_id in cluster
+            }
+            if sum(weights.values()) <= 0:
+                weights = {model_id: 1 for model_id in cluster}
+
+            cluster_weights[representative] = weights
+            new_models[representative] = self._weighted_average_params(cluster, weights)
+            new_stats[representative] = self._combined_stats(cluster)
+            new_model_weights[representative] = sum(weights.values())
+
+        for client in self.clients:
+            client.apply_cached_merge(clusters, cluster_weights, new_stats)
+        self.comm_messages_down += len(self.clients)
+
+        self.global_models = new_models
+        self.global_stats = defaultdict(
+            lambda: {'n': 0, 'mean': 0.0, 'M2': 0.0}, new_stats
+        )
+        self.model_weights = new_model_weights
+
+    def _combined_stats(self, cluster):
+        members = [model_id for model_id in cluster if model_id in self.global_stats]
+        total_n = sum(self.global_stats[model_id]['n'] for model_id in members)
+        if total_n == 0:
+            return {'n': 0, 'mean': 0.0, 'M2': 0.0}
+        mean = sum(
+            self.global_stats[model_id]['mean'] * self.global_stats[model_id]['n']
+            for model_id in members
+        ) / total_n
+        return {'n': total_n, 'mean': mean, 'M2': 0.0}

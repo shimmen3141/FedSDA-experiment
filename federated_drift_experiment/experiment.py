@@ -3,6 +3,7 @@
 実験モードは MODE_SPECS で定義する:
 - 'FedSDA'                : 提案手法 v1(ADWIN逐次検出 + サーバ集約)
 - 'FedSDA_v2'             : 提案手法 v2(v1 + FedAvg先行サーバ。docs/sequence-diagrams.md)
+- 'FedSDA_v3'             : 提案手法 v3(配布済みモデルのキャッシュでクロス評価)
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
 - 'FedDrift_v2'           : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
@@ -27,17 +28,20 @@ from .data import build_data_streams, extract_true_drift_events, generate_data, 
 from .metrics import compute_metrics
 from .models import SimpleMLP
 from .plotting import plot_client_details, plot_system_overview
-from .servers import BaseServer, ClusteringServer, FedDriftV2Server, FedSDAV2Server
+from .servers import (
+    BaseServer,
+    ClusteringServer,
+    FedDriftV2Server,
+    FedSDAV2Server,
+    FedSDAV3Server,
+)
 
 
 # ==========================================
 # タイムステップ実行(処理スタイルごと)
 # ==========================================
-def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, verbose):
-    """1サンプルずつ逐次処理するスタイル(ADWIN系)の1ラウンド。
-
-    1ラウンド = AGG_INTERVAL サンプル(=data のチャンク長)を逐次処理し、末尾でサーバ同期する。
-    """
+def _process_per_sample_round(clients, data, concepts):
+    """全クライアントの逐次データ処理とラウンド末の保留学習を行う。"""
     for k in range(len(data[0])):
         for i, c in enumerate(clients):
             x_in, y_in = data[i][k]
@@ -46,6 +50,14 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
     # LOCAL_UPDATE_TAU>1 で保留中のローカル更新をラウンド境界で消化する(τ=1 では no-op)
     for c in clients:
         c.flush_pending_updates()
+
+
+def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, verbose):
+    """1サンプルずつ逐次処理するスタイル(ADWIN系)の1ラウンド。
+
+    1ラウンド = AGG_INTERVAL サンプル(=data のチャンク長)を逐次処理し、末尾でサーバ同期する。
+    """
+    _process_per_sample_round(clients, data, concepts)
 
     if use_server:
         server.record_client_state_summaries()
@@ -58,6 +70,15 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
     else:
         if verbose and random.random() < 0.01:
             print(f"  [without_server] t={t}: skipped server aggregation (local-only).")
+
+
+def _run_fedsda_v3_timestep(clients, server, data, concepts, t, use_server, verbose):
+    """FedSDA v3: 逐次学習後、キャッシュ評価を含む専用サーバラウンドを行う。"""
+    _process_per_sample_round(clients, data, concepts)
+    server.record_client_state_summaries()
+    server.run_round(t)
+    for client in clients:
+        client.promote_pending_to_ready()
 
 
 def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose):
@@ -122,6 +143,7 @@ MODE_SPECS = {
     # v2: サーバ処理を FedAvg 先行(回収→FedAvg→クラスタリング→配布)に変えた設計版。
     # クライアント側は v1 と共通。τ(LOCAL_UPDATE_TAU)と組み合わせて v1/v2 比較を行う。
     'FedSDA_v2': ModeSpec(FedSDAClient, _run_per_sample_timestep, server_cls=FedSDAV2Server),
+    'FedSDA_v3': ModeSpec(FedSDAClient, _run_fedsda_v3_timestep, server_cls=FedSDAV3Server),
     'FedDrift': ModeSpec(FedDriftClient, _run_batch_timestep, server_cls=ClusteringServer,
                          chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedDrift_v2': ModeSpec(FedDriftV2Client, _run_feddrift_v2_timestep,
@@ -195,7 +217,7 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
 
 def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
-    if mode in ('FedSDA', 'FedSDA_v2', 'FedSDA_without_server'):
+    if mode in ('FedSDA', 'FedSDA_v2', 'FedSDA_v3', 'FedSDA_without_server'):
         return (f"gamma_dist={distance_threshold}, delta_adwin={config.ADWIN_DELTA}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "
                 f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}")
