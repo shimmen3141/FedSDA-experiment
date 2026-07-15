@@ -197,7 +197,8 @@ def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
     if mode in ('FedSDA', 'FedSDA_v2', 'FedSDA_without_server'):
         return (f"gamma_dist={distance_threshold}, delta_adwin={config.ADWIN_DELTA}, "
-                f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}")
+                f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "
+                f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}")
     if mode == 'FedDrift':
         return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}, "
                 f"rounds={config.FEDDRIFT_ROUNDS}")

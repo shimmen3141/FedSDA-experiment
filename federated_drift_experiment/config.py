@@ -96,6 +96,7 @@ LOCAL_UPDATE_TAU = 1
 # FedSDA: ドリフト検出 (ADWIN) と解決
 # ==========================================
 ADWIN_DELTA = 0.05          # ADWIN 信頼度パラメータ (delta_adwin)
+FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS = 1  # 新規モデルを作成してからアップロード可能になるまでの学習ラウンド数
 ADWIN_MAX_WINDOW = 1000     # ADWIN ウィンドウ幅の上限
 ADWIN_MIN_WIDTH = 10        # 検定を開始する最小ウィンドウ幅
 FIFO_BUFFER_SIZE = 30       # FIFO遅延バッファ長 (N_FIFO)

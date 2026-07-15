@@ -22,6 +22,24 @@ class FedSDAClient(BaseClient):
         self.adwin = FullScanADWIN(delta=config.ADWIN_DELTA)
         self.buffer = deque()                       # FIFOバッファ(検知遅延中のデータ保留)
         self.fifo_size = config.FIFO_BUFFER_SIZE    # FIFOバッファ長 N_FIFO
+        self.model_upload_delay_rounds = int(config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS)
+        if self.model_upload_delay_rounds < 1:
+            raise ValueError("FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS must be at least 1")
+        self._pending_upload_rounds = 0
+
+    def _spawn_new_model(self, bx, by, pending_ready=False):
+        """新規モデルを作成し、設定された学習ラウンド数だけアップロードを保留する。"""
+        result = super()._spawn_new_model(bx, by, pending_ready=False)
+        self._pending_upload_rounds = self.model_upload_delay_rounds
+        return result
+
+    def promote_pending_to_ready(self):
+        """ラウンド境界で保留期間を進め、満了した新規モデルを送信可能にする。"""
+        if self.pending_model_params is None or self.pending_model_ready:
+            return
+        self._pending_upload_rounds -= 1
+        if self._pending_upload_rounds <= 0:
+            super().promote_pending_to_ready()
 
     def process_one_step(self, x_in, y_in, concept_id):
         """1サンプルを処理する: 予測 → ADWIN更新 → (ドリフト解決 | 平時処理) → 学習。"""
