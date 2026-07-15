@@ -114,8 +114,9 @@
 
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
-| `FEDDRIFT_DETECT_BATCH` | 検出バッチサイズ ＝ **1ラウンドで処理するサンプル数**(論文の時刻粒度 500 を独立化)。検出粒度・集約(通信)間隔・1ラウンドの学習量(`× UPDATES_PER_SAMPLE`)を兼ねる | FedDrift | 50 |
-| `FEDDRIFT_ROUNDS` | 1 検出バッチあたりの通信ラウンド数(論文 R)。完了時に {配布 → ローカル学習 → 集約} を R 回。**既定 1 は FedSDA と予算一致の公平比較用**。R>1 は論文忠実だが更新数・通信が R 倍 | FedDrift | 1 |
+| `FEDDRIFT_DETECT_BATCH` | 検出バッチサイズ ＝ **1ラウンドで処理するサンプル数**(論文の時刻粒度 500 を独立化)。検出粒度・集約(通信)間隔・1ラウンドの学習量(`× UPDATES_PER_SAMPLE`)を兼ねる | FedDrift / FedDrift_v2 | 50 |
+| `FEDDRIFT_ROUNDS` | 1 検出バッチあたりの通信ラウンド数(論文 R)。v2 は {ローカル学習 → 集約 → 配布} を正確に R 回実行する。**既定 1 は FedSDA と予算一致の公平比較用** | FedDrift / FedDrift_v2 | 1 |
+| `FEDDRIFT_ISOLATION_TIMESTEPS` | 新規モデルをクロス評価・マージから外す時刻数 W。1なら作成時刻だけ隔離し、次時刻から対象。参照実装の既定構成に対応 | FedDrift_v2 | 1 |
 
 > `FEDDRIFT_DETECT_BATCH`(検出粒度 ↔ 通信)と `FEDDRIFT_ROUNDS`(バッチあたり収束度 ↔ 通信)は
 > **直交する 2 つの通信軸**。前者は「どの粒度で検出・通信するか」、後者は「1 バッチをどれだけ学習し切るか」。パレート分析では独立に掃引できる。
@@ -128,6 +129,7 @@
 |---|---|---|---|
 | `CROSS_EVAL_MAX_CLIENTS` | クロス評価で 1 モデルあたりに使うクライアント数上限 | サーバ | 3 |
 | `CLUSTER_MIN_EVAL_N` | マージ判定に必要な評価サンプルの最小数 | サーバ | 5 |
+| `CLUSTER_LINKAGE` | 共通クラスタリング戦略。`complete`=FedDrift論文のmax-linkage、`connected`=閾値グラフの連結成分(single-linkage cut相当) | FedDrift_v2（他のクラスタリング手法にも再利用可能） | `complete` |
 
 > サーバは生データを集めず、配布モデルを現地評価させて**集約統計量 (n, Σℓ, Σℓ²) のみ**を
 > 集める federated 設計(詳細は DIFFERENCES §5)。`DISTANCE_THRESHOLD` をマージ判定に共用。
@@ -157,5 +159,6 @@
 | `avg_delay` | 平均検出遅延(サンプル数) |
 | `final_model_count` | 最終モデル数(集約あり)/ クライアント平均保持数(なし) |
 | `comm_upload` / `comm_download` / `comm_total` | 通信量(モデル転送数) |
+| `control_upload` / `control_download` / `control_total` | 割当通知・クロス評価依頼・評価統計・ID割当などの軽量制御メッセージ数 |
 
 適応の**速さ**(回復曲線 acc(Δ)・`T90` 等)は [recovery_analysis.py](../recovery_analysis.py) で別途評価する。

@@ -91,3 +91,15 @@ FedSDA 側の対応変数（`AGG_INTERVAL` 等）や手法間の使い分けは 
 
 - **サーバ側モデル間距離の評価**: FedDrift 公開実装は aggregator が全クライアントの生データ（`all_data`）を中央に集めて距離を計算する**シミュレーション近道**を取る。本実装はこれに倣わず、評価対象モデルをデータ保持クライアントへ配布して現地評価させ、**集約統計量 (n, Σℓ, Σℓ²) のみ**を返す federated な形にしている（サブサンプリング `CROSS_EVAL_MAX_CLIENTS` / `EVAL_MAX_SAMPLES` による近似）。詳細と根拠は [fedsda-algorithm.md](fedsda-algorithm.md) §3 を参照。
 - **FedDrift は再実装**であり、参照コードをそのまま呼んでいるわけではない。sea も CSV を読まず生成器で論文定義を再現している。
+
+## FedDrift v1 / v2 の位置付け
+
+- モード `FedDrift` は既存結果の再現用に従来フローを維持する。検出時のクラスタリング付き集約1回と、
+  その後の `FEDDRIFT_ROUNDS` 回を実行し、クラスタリングは閾値グラフの連結成分を使う。
+- モード `FedDrift_v2` は監査結果を反映した論文準拠フローである。新規モデルを
+  `FEDDRIFT_ISOLATION_TIMESTEPS` 時刻だけ隔離し、FedAvgは正確に `FEDDRIFT_ROUNDS` 回だけ実行する。
+- v2のクラスタリングは共通設定 `CLUSTER_LINKAGE` で `complete`（論文のmax-linkage、既定）または
+  `connected`（従来方式）を選べる。原手法との比較値には `complete` を使い、`connected` は
+  クラスタリング方式のアブレーションとして報告する。
+- v2のクロス評価は配布済みモデルのクライアントキャッシュを再利用する。モデルパラメータ通信は
+  `comm_*`、評価依頼・統計返送などは `control_*` へ分離して数える。
