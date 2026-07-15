@@ -165,7 +165,7 @@ class BaseClient:
         dataset = torch.utils.data.TensorDataset(bx, by)
         loader = torch.utils.data.DataLoader(
             dataset, batch_size=min(config.CLIENT_BATCH_SIZE, m), shuffle=True)
-        for _ in range(config.NEW_MODEL_EPOCHS):
+        for _ in range(self.new_model_initial_epochs()):
             for b_x, b_y in loader:
                 new_model.update(b_x, b_y)
 
@@ -184,6 +184,10 @@ class BaseClient:
         self.pending_model_stats = self.model_stats[temp_id]
         self.pending_model_ready = pending_ready
         return temp_id, init_mean
+
+    def new_model_initial_epochs(self):
+        """新規モデルの作成時に直ちに実行するローカル学習エポック数。"""
+        return config.NEW_MODEL_EPOCHS
 
     def _alloc_temp_id(self):
         """新しい一意のテンポラリ（負）IDを返す。呼び出すたびに減らしていく。"""
@@ -265,6 +269,37 @@ class BaseClient:
             preds = temp_model(X)
             errors = torch.abs(preds - y).numpy().flatten()
         return len(errors), float(errors.sum()), float((errors ** 2).sum())
+
+    def apply_cached_merge(self, clusters, cluster_weights, global_stats=None):
+        """クライアントが保持済みのモデルから、サーバ指定のマージを適用する。
+
+        通信するのはクラスタ構成とスカラー重みだけでよい。マージ後のパラメータを
+        クライアント側で再構成し、次の通常ブロードキャストまでの追加モデル受信を避ける。
+        """
+        id_mapping = {}
+        merged_models = {}
+
+        for cluster in clusters:
+            representative = min(cluster)
+            weights = cluster_weights[representative]
+            total_weight = sum(weights.values())
+            if total_weight <= 0:
+                weights = {mid: 1.0 for mid in cluster}
+                total_weight = float(len(cluster))
+
+            merged_params = None
+            for mid in cluster:
+                id_mapping[mid] = representative
+                params = self.models[mid].get_params()
+                weight = weights[mid] / total_weight
+                if merged_params is None:
+                    merged_params = {name: value * weight for name, value in params.items()}
+                else:
+                    for name, value in params.items():
+                        merged_params[name] = merged_params[name] + value * weight
+            merged_models[representative] = merged_params
+
+        self.apply_server_mapping(id_mapping, merged_models, global_stats)
 
     def apply_server_mapping(self, id_mapping, new_global_models, new_global_stats=None):
         # ID mapping を適用する前に current_model_id が変わるかどうかチェックしてログする

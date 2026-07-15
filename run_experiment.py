@@ -24,6 +24,12 @@ def main():
                         help=f"データセット (default: {config.DATASET})")
     parser.add_argument("--feddrift-batch", type=int, default=config.FEDDRIFT_DETECT_BATCH,
                         help=f"FedDrift の検出バッチサイズ (default: {config.FEDDRIFT_DETECT_BATCH})")
+    parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
+                        default=config.CLUSTER_LINKAGE,
+                        help=f"共通クラスタリング戦略 (default: {config.CLUSTER_LINKAGE})")
+    parser.add_argument("--feddrift-isolation", type=int,
+                        default=config.FEDDRIFT_ISOLATION_TIMESTEPS,
+                        help="FedDrift v2 の新規モデル隔離時刻数 W (default: 1)")
     parser.add_argument("--quiet", action="store_true", help="詳細ログを抑制する")
     parser.add_argument("--no-plot", action="store_true", help="プロットを生成しない")
     parser.add_argument("--plot-dir", default=None,
@@ -34,6 +40,8 @@ def main():
 
     config.DATASET = args.dataset
     config.FEDDRIFT_DETECT_BATCH = args.feddrift_batch
+    config.CLUSTER_LINKAGE = args.cluster_linkage
+    config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation
 
     raw_path = None
     if args.raw_dir is not None:

@@ -4,6 +4,7 @@
 - 'FedSDA'                : 提案手法 v1(ADWIN逐次検出 + サーバ集約)
 - 'FedSDA_v2'             : 提案手法 v2(v1 + FedAvg先行サーバ。docs/sequence-diagrams.md)
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
+- 'FedDrift_v2'           : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
 - 'Oblivious'            : ベースライン(単一モデル・FedAvg・無適応)
 
@@ -21,12 +22,12 @@ import numpy as np
 import torch
 
 from . import config
-from .clients import AdwinClient, ObliviousClient, PeriodicClient
+from .clients import AdwinClient, FedDriftV2Client, ObliviousClient, PeriodicClient
 from .data import build_data_streams, extract_true_drift_events, generate_data, make_concept_schedules
 from .metrics import compute_metrics
 from .models import SimpleMLP
 from .plotting import plot_client_details, plot_system_overview
-from .server import BaseServer, ClusteringServer, ClusteringServerV2
+from .server import BaseServer, ClusteringServer, ClusteringServerV2, FedDriftV2Server
 
 
 # ==========================================
@@ -87,6 +88,18 @@ def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose)
             c.promote_pending_to_ready()
 
 
+def _run_feddrift_v2_timestep(clients, server, data, concepts, t, use_server, verbose):
+    """FedDrift v2: 隔離解除済みモデルを統合後、正確にR学習ラウンド実行する。"""
+    for i, client in enumerate(clients):
+        client.process_batch(data[i], concepts[i])
+
+    server.prepare_timestep(t)
+    for _ in range(config.FEDDRIFT_ROUNDS):
+        for client in clients:
+            client.local_train(k_steps=config.FEDDRIFT_DETECT_BATCH)
+        server.run_training_round(t)
+
+
 # ==========================================
 # モード定義
 # ==========================================
@@ -109,6 +122,9 @@ MODE_SPECS = {
     'FedSDA_v2': ModeSpec(AdwinClient, _run_per_sample_timestep, server_cls=ClusteringServerV2),
     'FedDrift': ModeSpec(PeriodicClient, _run_batch_timestep, server_cls=ClusteringServer,
                          chunk_attr='FEDDRIFT_DETECT_BATCH'),
+    'FedDrift_v2': ModeSpec(FedDriftV2Client, _run_feddrift_v2_timestep,
+                            server_cls=FedDriftV2Server,
+                            chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedSDA_without_server': ModeSpec(AdwinClient, _run_per_sample_timestep, use_server=False),
     'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep, server_cls=BaseServer),
 }
@@ -183,6 +199,11 @@ def _mode_param_summary(mode, distance_threshold):
     if mode == 'FedDrift':
         return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}, "
                 f"rounds={config.FEDDRIFT_ROUNDS}")
+    if mode == 'FedDrift_v2':
+        return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}, "
+                f"rounds={config.FEDDRIFT_ROUNDS}, "
+                f"linkage={getattr(config, 'CLUSTER_LINKAGE', 'connected')}, "
+                f"isolation_W={getattr(config, 'FEDDRIFT_ISOLATION_TIMESTEPS', 0)}")
     if mode == 'Oblivious':
         return "single model, no adaptation"
     return f"threshold={distance_threshold}"
@@ -332,6 +353,9 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     results["comm_upload"] = server.comm_up
     results["comm_download"] = server.comm_down
     results["comm_total"] = server.comm_up + server.comm_down
+    results["control_upload"] = server.control_up
+    results["control_download"] = server.control_down
+    results["control_total"] = server.control_up + server.control_down
 
     # 定常精度 stable_accuracy(回復窓除外)は compute_metrics で算出済み。
 

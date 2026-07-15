@@ -22,6 +22,12 @@ def main():
     parser.add_argument("--start-seed", type=int, default=0, help="開始シード (default: 0)")
     parser.add_argument("--dataset", choices=list(config._FEATURE_DIMS), default=config.DATASET,
                         help=f"データセット (default: {config.DATASET})")
+    parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
+                        default=config.CLUSTER_LINKAGE,
+                        help=f"共通クラスタリング戦略 (default: {config.CLUSTER_LINKAGE})")
+    parser.add_argument("--feddrift-isolation", type=int,
+                        default=config.FEDDRIFT_ISOLATION_TIMESTEPS,
+                        help="FedDrift v2 の新規モデル隔離時刻数 W (default: 1)")
     parser.add_argument("--no-plot", action="store_true", help="最終試行のプロットも生成しない")
     parser.add_argument("--plot-dir", default=None,
                         help="図の保存先ディレクトリ。未指定なら画面表示 (plt.show)")
@@ -30,6 +36,8 @@ def main():
     args = parser.parse_args()
 
     config.DATASET = args.dataset
+    config.CLUSTER_LINKAGE = args.cluster_linkage
+    config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation
 
     summary = run_comparative_trials(
         n_trials=args.n_trials,

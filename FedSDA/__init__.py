@@ -8,11 +8,11 @@
 """
 from . import config
 from .adwin import FullScanADWIN
-from .clients import AdwinClient, BaseClient, ObliviousClient, PeriodicClient
+from .clients import AdwinClient, BaseClient, FedDriftV2Client, ObliviousClient, PeriodicClient
 from .data import generate_data, make_concept_schedules
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
-from .server import BaseServer, ClusteringServer, ClusteringServerV2
+from .server import BaseServer, ClusteringServer, ClusteringServerV2, FedDriftV2Server
 from .trials import run_comparative_trials
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "AdwinClient",
     "BaseClient",
     "PeriodicClient",
+    "FedDriftV2Client",
     "ObliviousClient",
     "generate_data",
     "make_concept_schedules",
@@ -29,5 +30,6 @@ __all__ = [
     "BaseServer",
     "ClusteringServer",
     "ClusteringServerV2",
+    "FedDriftV2Server",
     "run_comparative_trials",
 ]

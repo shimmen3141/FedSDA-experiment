@@ -101,3 +101,10 @@ class PeriodicClient(BaseClient):
 
     def local_train(self, k_steps):
         self.train_all_held_models(count_multiplier=k_steps)
+
+
+class FedDriftV2Client(PeriodicClient):
+    """論文準拠の初期化を行い、学習は設定されたRラウンド内だけで実行する。"""
+
+    def new_model_initial_epochs(self):
+        return 0

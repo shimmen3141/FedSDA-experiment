@@ -10,7 +10,7 @@
 """
 from .base import BaseClient
 from .fedsda import AdwinClient
-from .feddrift import PeriodicClient
+from .feddrift import FedDriftV2Client, PeriodicClient
 from .oblivious import ObliviousClient
 
-__all__ = ["BaseClient", "AdwinClient", "PeriodicClient", "ObliviousClient"]
+__all__ = ["BaseClient", "AdwinClient", "PeriodicClient", "FedDriftV2Client", "ObliviousClient"]

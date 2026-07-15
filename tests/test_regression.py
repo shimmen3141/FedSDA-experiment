@@ -46,6 +46,13 @@ GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regressi
 CASES = [
     ("FedSDA", "blobs", {}),
     ("FedDrift", "blobs", {}),
+    ("FedDrift_v2", "blobs", {
+        "TOTAL_DATA_POINTS": 300,
+        "N_CLIENTS": 4,
+        "PRETRAIN_SAMPLES": 100,
+        "MIN_STABLE_PERIOD": 50,
+        "DRIFT_PROB": 0.03,
+    }),
     ("FedSDA_without_server", "blobs", {}),
     ("Oblivious", "blobs", {}),
     ("FedSDA_v2", "sine", {"TOTAL_DATA_POINTS": 1500, "LOCAL_UPDATE_TAU": 10}),
