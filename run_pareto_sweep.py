@@ -1,9 +1,9 @@
 """精度–通信量トレードオフの掃引実験(複数シード × 複数データセット)。
 
 各データセット・各シードで以下を実行し、結果を CSV と散布図に出力する:
-- FedSDA    : δ_adwin(検出感度)を掃引した曲線(γ_dist は固定)
-- FedDrift  : (1) 検出バッチを掃引(δ 固定)、(2) 検出閾値 δ を掃引(バッチ固定)の2曲線
-- Oblivious : 単一モデル・無適応(基準線)
+- FedSDA v1/v2/v3: δ_adwin と AGG_INTERVAL の掃引
+- FedDrift v1/v2 : 検出バッチと検出閾値 δ の掃引
+- FedSDA_without_server / Oblivious: 単一点の基準線
 
 FedDrift の各掃引では、固定した側のパラメータを凡例に明示する
 (例: "FedDrift batch sweep (δ=0.1)", "FedDrift δ sweep (batch=50)")。
@@ -40,7 +40,11 @@ METRIC_KEYS = [
     "final_model_count", "precision", "recall", "f1", "avg_delay", "total_detect",
 ]
 ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
-            "feddrift_batch", "distance_threshold", "adwin_delta"] + METRIC_KEYS
+            "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta"] + METRIC_KEYS
+
+FEDSDA_SWEEP_MODES = ("FedSDA", "FedSDA_v2", "FedSDA_v3")
+FEDDRIFT_SWEEP_MODES = ("FedDrift", "FedDrift_v2")
+BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
 
 
 def _slug(text):
@@ -77,6 +81,7 @@ def _run(mode, dataset, seed, series, sweep_value,
     row = {
         "mode": mode, "dataset": dataset, "seed": seed, "series": series, "sweep_value": sweep_value,
         "feddrift_batch": config.FEDDRIFT_DETECT_BATCH,
+        "agg_interval": config.AGG_INTERVAL,
         "distance_threshold": distance_threshold if distance_threshold is not None else config.DISTANCE_THRESHOLD,
         "adwin_delta": config.ADWIN_DELTA,
     }
@@ -86,18 +91,17 @@ def _run(mode, dataset, seed, series, sweep_value,
 
 
 def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed_batch, fixed_gamma,
-              agg_sweep=(), fixed_adwin=None, raw_dir=None):
+              agg_sweep=(), fixed_adwin=None, raw_dir=None,
+              fedsda_modes=FEDSDA_SWEEP_MODES, feddrift_modes=FEDDRIFT_SWEEP_MODES,
+              baseline_modes=BASELINE_MODES):
     default_adwin = config.ADWIN_DELTA
     default_agg = config.AGG_INTERVAL
     if fixed_adwin is None:
         fixed_adwin = default_adwin
-    fd_batch_series = f"FedDrift batch sweep (δ={fixed_delta})"
-    fd_delta_series = f"FedDrift δ sweep (batch={fixed_batch})"
-    sda_series = f"FedSDA δ_adwin sweep (γ={fixed_gamma})"
-    ks_series = f"FedSDA AGG_INTERVAL sweep (δ_adwin={fixed_adwin})"
-
     rows = []
-    jobs_per = len(adwin_deltas) + len(agg_sweep) + 1 + len(batches) + len(deltas)
+    jobs_per = (len(fedsda_modes) * (len(adwin_deltas) + len(agg_sweep))
+                + len(feddrift_modes) * (len(batches) + len(deltas))
+                + len(baseline_modes))
     total = len(datasets) * len(seeds) * jobs_per
     done = 0
     t0 = time.perf_counter()
@@ -117,33 +121,40 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
 
     for dataset in datasets:
         for seed in seeds:
-            # FedSDA: δ_adwin 掃引(γ_dist 固定)
-            for da in adwin_deltas:
-                do(f"{dataset}/FedSDA/da={da}/s{seed}", mode="FedSDA", dataset=dataset, seed=seed,
-                   series=sda_series, sweep_value=da, distance_threshold=fixed_gamma, adwin_delta=da)
-            config.ADWIN_DELTA = default_adwin
+            for mode in fedsda_modes:
+                delta_series = f"{mode} δ_adwin sweep (γ={fixed_gamma})"
+                agg_series = f"{mode} AGG_INTERVAL sweep (δ_adwin={fixed_adwin})"
+                for adwin_delta in adwin_deltas:
+                    do(f"{dataset}/{mode}/da={adwin_delta}/s{seed}",
+                       mode=mode, dataset=dataset, seed=seed, series=delta_series,
+                       sweep_value=adwin_delta, distance_threshold=fixed_gamma,
+                       adwin_delta=adwin_delta, agg_interval=default_agg)
+                for agg_interval in agg_sweep:
+                    do(f"{dataset}/{mode}/agg={agg_interval}/s{seed}",
+                       mode=mode, dataset=dataset, seed=seed, series=agg_series,
+                       sweep_value=agg_interval, distance_threshold=fixed_gamma,
+                       adwin_delta=fixed_adwin, agg_interval=agg_interval)
+                config.AGG_INTERVAL = default_agg
+                config.ADWIN_DELTA = default_adwin
 
-            # FedSDA: AGG_INTERVAL 掃引(集約間隔。δ_adwin 固定。オプトイン)
-            for k in agg_sweep:
-                do(f"{dataset}/FedSDA/agg={k}/s{seed}", mode="FedSDA", dataset=dataset, seed=seed,
-                   series=ks_series, sweep_value=k, distance_threshold=fixed_gamma,
-                   adwin_delta=fixed_adwin, agg_interval=k)
-            config.AGG_INTERVAL = default_agg
-            config.ADWIN_DELTA = default_adwin
+            for mode in baseline_modes:
+                do(f"{dataset}/{mode}/s{seed}", mode=mode, dataset=dataset, seed=seed,
+                   series=mode, sweep_value=None, adwin_delta=default_adwin,
+                   agg_interval=default_agg)
 
-            # Oblivious: 単一点(基準)
-            do(f"{dataset}/Oblivious/s{seed}", mode="Oblivious", dataset=dataset, seed=seed,
-               series="Oblivious", sweep_value=None)
-
-            # FedDrift: 検出バッチ掃引(δ 固定)
-            for b in batches:
-                do(f"{dataset}/FedDrift/batch{b}/s{seed}", mode="FedDrift", dataset=dataset, seed=seed,
-                   series=fd_batch_series, sweep_value=b, feddrift_batch=b, distance_threshold=fixed_delta)
-
-            # FedDrift: 検出閾値 δ 掃引(バッチ固定)
-            for d in deltas:
-                do(f"{dataset}/FedDrift/delta{d}/s{seed}", mode="FedDrift", dataset=dataset, seed=seed,
-                   series=fd_delta_series, sweep_value=d, feddrift_batch=fixed_batch, distance_threshold=d)
+            for mode in feddrift_modes:
+                batch_series = f"{mode} batch sweep (δ={fixed_delta})"
+                delta_series = f"{mode} δ sweep (batch={fixed_batch})"
+                for batch in batches:
+                    do(f"{dataset}/{mode}/batch{batch}/s{seed}",
+                       mode=mode, dataset=dataset, seed=seed, series=batch_series,
+                       sweep_value=batch, feddrift_batch=batch,
+                       distance_threshold=fixed_delta)
+                for delta in deltas:
+                    do(f"{dataset}/{mode}/delta{delta}/s{seed}",
+                       mode=mode, dataset=dataset, seed=seed, series=delta_series,
+                       sweep_value=delta, feddrift_batch=fixed_batch,
+                       distance_threshold=delta)
 
     return rows
 
@@ -185,6 +196,9 @@ def _load_csv(path):
                                   if row["sweep_value"] not in ("", "None") else None)
             row["feddrift_batch"] = (int(float(row["feddrift_batch"]))
                                      if row["feddrift_batch"] not in ("", "None") else "")
+            agg_interval = row.get("agg_interval")
+            row["agg_interval"] = (int(float(agg_interval))
+                                   if agg_interval not in (None, "", "None") else "")
             for k in ["distance_threshold", "adwin_delta"] + METRIC_KEYS:
                 v = row.get(k)
                 row[k] = float(v) if v not in (None, "", "None") else float("nan")
@@ -200,8 +214,8 @@ def write_markdown_table(rows, path):
 
     def order_key(item):
         series, sv = item
-        base = 0 if series == "Oblivious" else (1 if "FedSDA" in series
-                                                else (2 if "batch" in series else 3))
+        base = (0 if series in BASELINE_MODES else
+                (1 if "FedSDA" in series else (2 if "batch" in series else 3)))
         try:
             v = float(sv) if sv not in (None, "", "None") else -1.0
         except (TypeError, ValueError):
@@ -275,11 +289,28 @@ def _agg(rows, x_key="comm_models_total", y_key="stable_accuracy"):
     return xs.mean(), xs.std(), ys.mean(), ys.std()
 
 
+def _fixed_parameter_label(rows, key, display_name):
+    """基準方式で固定したパラメータを凡例用に整形する。"""
+    values = []
+    for row in rows:
+        value = row.get(key)
+        if value in (None, "", "None"):
+            continue
+        numeric = float(value)
+        if np.isfinite(numeric) and numeric not in values:
+            values.append(numeric)
+    if len(values) == 1:
+        return f"{display_name}={values[0]:g}"
+    if len(values) > 1:
+        return f"{display_name}=varied"
+    return f"{display_name}=?"
+
+
 def plot_pareto(rows, datasets, path):
-    # Oblivious を除く掃引系列に色・マーカーを割り当てる
+    # 単一点の基準方式を除く掃引系列に色・マーカーを割り当てる
     sweep_series = []
     for r in rows:
-        if r["series"] != "Oblivious" and r["series"] not in sweep_series:
+        if r["series"] not in BASELINE_MODES and r["series"] not in sweep_series:
             sweep_series.append(r["series"])
     palette = [("tab:blue", "D"), ("tab:red", "o"), ("tab:orange", "s"),
                ("tab:green", "^"), ("tab:purple", "v")]
@@ -321,9 +352,27 @@ def plot_pareto(rows, datasets, path):
                     ax.annotate(f"{v:g}", (x, y), fontsize=7, color=color,
                                 xytext=(ox, oy), textcoords="offset points", bbox=box)
 
-        a = _agg([r for r in ds_rows if r["series"] == "Oblivious"])
-        if a:
-            ax.axhline(a[2], color="gray", linestyle="--", label="Oblivious", zorder=1)
+        baseline_styles = {
+            "Oblivious": ("gray", "--"),
+            "FedSDA_without_server": ("black", ":"),
+        }
+        for baseline in BASELINE_MODES:
+            baseline_rows = [r for r in ds_rows if r["series"] == baseline]
+            a = _agg(baseline_rows)
+            if not a:
+                continue
+            color, linestyle = baseline_styles[baseline]
+            if baseline == "Oblivious":
+                parameter = _fixed_parameter_label(
+                    baseline_rows, "agg_interval", "AGG_INTERVAL")
+            else:
+                parameter = _fixed_parameter_label(
+                    baseline_rows, "adwin_delta", "δ_adwin")
+            # 線はシード平均、半透明帯はシード間の±1標準偏差を表す。
+            ax.axhline(a[2], color=color, linestyle=linestyle,
+                       label=f"{baseline} ({parameter}, mean±std)", zorder=1)
+            if a[3] > 0:
+                ax.axhspan(a[2] - a[3], a[2] + a[3], color=color, alpha=0.10, zorder=0)
 
         ax.set_xscale("log")
         ax.set_title(ds)
@@ -344,6 +393,15 @@ def main():
     all_datasets = list(config._FEATURE_DIMS)
     parser.add_argument("--datasets", nargs="+", choices=all_datasets, default=all_datasets)
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4])
+    parser.add_argument("--fedsda-modes", nargs="*", choices=FEDSDA_SWEEP_MODES,
+                        default=list(FEDSDA_SWEEP_MODES),
+                        help="δ_adwin・AGG_INTERVALを掃引するFedSDAモード")
+    parser.add_argument("--feddrift-modes", nargs="*", choices=FEDDRIFT_SWEEP_MODES,
+                        default=list(FEDDRIFT_SWEEP_MODES),
+                        help="検出バッチ・距離閾値を掃引するFedDriftモード")
+    parser.add_argument("--baseline-modes", nargs="*", choices=BASELINE_MODES,
+                        default=list(BASELINE_MODES),
+                        help="単一点の平均線・標準偏差帯として描画する基準モード")
     parser.add_argument("--batches", nargs="*", type=int, default=[25, 50, 100, 200, 500],
                         help="FedDrift 検出バッチ掃引値(空指定で無効化)")
     parser.add_argument("--deltas", nargs="*", type=float, default=[0.05, 0.1, 0.15, 0.2],
@@ -386,7 +444,11 @@ def main():
         args.batches = [50, 500]
         args.deltas = [0.1, 0.2]
         args.adwin_deltas = [0.05, 0.3]
+        args.agg_sweep = [50, 500]
+        config.N_CLIENTS = 4
         config.TOTAL_DATA_POINTS = 600
+        config.PRETRAIN_SAMPLES = 100
+        config.PRETRAIN_EPOCHS = 5
     elif args.total_data is not None:
         config.TOTAL_DATA_POINTS = args.total_data
 
@@ -398,11 +460,15 @@ def main():
     os.makedirs(args.out_dir, exist_ok=True)
     slug = _experiment_slug(args.datasets, args.seeds, config.TOTAL_DATA_POINTS, args.tag)
     n_runs = len(args.datasets) * len(args.seeds) * (
-        len(args.adwin_deltas) + len(args.agg_sweep) + 1 + len(args.batches) + len(args.deltas))
+        len(args.fedsda_modes) * (len(args.adwin_deltas) + len(args.agg_sweep))
+        + len(args.feddrift_modes) * (len(args.batches) + len(args.deltas))
+        + len(args.baseline_modes))
     print(f"Experiment: {slug}")
     print(f"Datasets={args.datasets} seeds={args.seeds} TOTAL_DATA_POINTS={config.TOTAL_DATA_POINTS}")
     print(f"batches={args.batches} deltas={args.deltas} adwin_deltas={args.adwin_deltas} "
           f"agg_sweep={args.agg_sweep}")
+    print(f"modes: FedSDA={args.fedsda_modes} FedDrift={args.feddrift_modes} "
+          f"baselines={args.baseline_modes}")
     print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma} adwin={fixed_adwin}")
     print(f"Total runs = {n_runs}  (フルスケールでは1実験~60-90秒。長時間になり得ます)")
 
@@ -412,7 +478,9 @@ def main():
 
     rows = run_sweep(args.datasets, args.seeds, args.batches, args.deltas, args.adwin_deltas,
                      fixed_delta, fixed_batch, fixed_gamma,
-                     agg_sweep=args.agg_sweep, fixed_adwin=fixed_adwin, raw_dir=args.raw_dir)
+                     agg_sweep=args.agg_sweep, fixed_adwin=fixed_adwin, raw_dir=args.raw_dir,
+                     fedsda_modes=args.fedsda_modes, feddrift_modes=args.feddrift_modes,
+                     baseline_modes=args.baseline_modes)
     write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
     plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"))
 

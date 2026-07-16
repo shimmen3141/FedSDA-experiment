@@ -1,0 +1,101 @@
+import csv
+import os
+import sys
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+import run_pareto_sweep as sweep
+
+
+def _fake_row(**kwargs):
+    row = dict(kwargs)
+    row.update({key: 0.0 for key in sweep.METRIC_KEYS})
+    return row
+
+
+def test_run_sweep_schedules_selected_versions(monkeypatch):
+    calls = []
+
+    def fake_run(**kwargs):
+        calls.append(dict(kwargs))
+        return _fake_row(**kwargs)
+
+    monkeypatch.setattr(sweep, "_run", fake_run)
+    rows = sweep.run_sweep(
+        datasets=["sea"], seeds=[0], batches=[25], deltas=[0.1, 0.2],
+        adwin_deltas=[0.05, 0.3], fixed_delta=0.1, fixed_batch=50,
+        fixed_gamma=0.1, agg_sweep=[100], fixed_adwin=0.1,
+        fedsda_modes=["FedSDA_v2", "FedSDA_v3"],
+        feddrift_modes=["FedDrift_v2"],
+        baseline_modes=["FedSDA_without_server", "Oblivious"],
+    )
+
+    assert len(rows) == 11
+    assert {call["mode"] for call in calls} == {
+        "FedSDA_v2", "FedSDA_v3", "FedDrift_v2",
+        "FedSDA_without_server", "Oblivious",
+    }
+    for mode in ("FedSDA_v2", "FedSDA_v3"):
+        mode_calls = [call for call in calls if call["mode"] == mode]
+        assert [call["agg_interval"] for call in mode_calls] == [
+            sweep.config.AGG_INTERVAL, sweep.config.AGG_INTERVAL, 100,
+        ]
+
+
+def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
+    old_keys = [key for key in sweep.ROW_KEYS if key != "agg_interval"]
+    path = tmp_path / "old.csv"
+    row = {key: "0" for key in old_keys}
+    row.update({
+        "mode": "FedSDA", "dataset": "sea", "series": "FedSDA sweep",
+        "sweep_value": "0.1", "feddrift_batch": "50",
+    })
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=old_keys)
+        writer.writeheader()
+        writer.writerow(row)
+
+    loaded = sweep._load_csv(path)
+
+    assert loaded[0]["agg_interval"] == ""
+    assert loaded[0]["sweep_value"] == 0.1
+
+
+def test_plot_pareto_draws_baseline_standard_deviation_band(tmp_path, monkeypatch):
+    spans = []
+    line_labels = []
+    original = sweep.plt.Axes.axhspan
+    original_line = sweep.plt.Axes.axhline
+
+    def record_span(self, ymin, ymax, *args, **kwargs):
+        spans.append((ymin, ymax))
+        return original(self, ymin, ymax, *args, **kwargs)
+
+    def record_line(self, y, *args, **kwargs):
+        line_labels.append(kwargs.get("label"))
+        return original_line(self, y, *args, **kwargs)
+
+    monkeypatch.setattr(sweep.plt.Axes, "axhspan", record_span)
+    monkeypatch.setattr(sweep.plt.Axes, "axhline", record_line)
+    rows = []
+    for mode, accuracies in {
+        "FedSDA_without_server": (0.7, 0.9),
+        "Oblivious": (0.6, 0.8),
+    }.items():
+        for seed, accuracy in enumerate(accuracies):
+            rows.append({
+                "mode": mode, "dataset": "sea", "seed": seed, "series": mode,
+                "sweep_value": None, "comm_models_total": 0.0,
+                "stable_accuracy": accuracy, "agg_interval": 50,
+                "adwin_delta": 0.1,
+            })
+
+    path = tmp_path / "pareto.png"
+    sweep.plot_pareto(rows, ["sea"], path)
+
+    assert path.exists()
+    assert len(spans) == 2
+    assert "FedSDA_without_server (δ_adwin=0.1, mean±std)" in line_labels
+    assert "Oblivious (AGG_INTERVAL=50, mean±std)" in line_labels

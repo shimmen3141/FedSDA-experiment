@@ -43,6 +43,10 @@ python run_comparative_trials.py --n-trials 10 --plot-dir results
 # 精度–通信量の掃引(FedSDA δ_adwin / FedDrift バッチ・δ)。結果は実験内容がわかる名前で保存
 python run_pareto_sweep.py --datasets sea circle sine --seeds 0
 
+# バージョンを限定して掃引（未指定時は FedSDA v1/v2/v3、FedDrift v1/v2 をすべて実行）
+python run_pareto_sweep.py --datasets sea --seeds 0 1 2 `
+  --fedsda-modes FedSDA_v2 FedSDA_v3 --feddrift-modes FedDrift_v2
+
 # 掃引をシードごとに分割して積み増した後、複数CSVをシード平均で1枚に再描画
 python run_pareto_sweep.py --plot-csvs "results/pareto/pareto_sea-circle-sine_seed*_n5000.csv"
 
@@ -54,6 +58,11 @@ python recovery_analysis.py --npz "results/raw/*sine*.npz"
 python run_experiment.py --help
 python run_comparative_trials.py --help
 ```
+
+Pareto 図では `FedSDA_without_server` と `Oblivious` を通信量に依存しない基準として横線で描く。
+横線はシード平均、半透明の帯はシード間の ±1 標準偏差である。1 シードだけの場合は標準偏差が
+0 のため帯は表示されない。凡例には前者の固定 `δ_adwin`、後者の固定 `AGG_INTERVAL` も示す。
+通信量 0 の点を対数軸に置く表現ではなく、精度の参照線として表示する。
 
 `--plot-dir` を省略すると図はウィンドウ表示(`plt.show()`)になる。
 
