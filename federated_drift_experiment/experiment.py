@@ -6,6 +6,8 @@
 - 'FedSDA_v2.1'           : v2 + 全体・正解クラス別ADWIN
 - 'FedSDA_v3'             : 提案手法 v3(配布済みモデルのキャッシュでクロス評価)
 - 'FedSDA_v3.1'           : v3 + 全体・正解クラス別ADWIN
+- 'FedSDA_v2.3'           : v2 + bounded mean e-SR検知
+- 'FedSDA_v3.3'           : v3 + bounded mean e-SR検知
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
 - 'FedDrift_v2'           : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
@@ -27,6 +29,7 @@ import torch
 from . import config
 from .clients import (
     ClassConditionalFedSDAClient,
+    EDetectorFedSDAClient,
     FedDriftClient,
     FedDriftV2Client,
     FedSDAClient,
@@ -162,6 +165,16 @@ MODE_SPECS = {
         _run_fedsda_v3_timestep,
         server_cls=FedSDAV3Server,
     ),
+    'FedSDA_v2.3': ModeSpec(
+        EDetectorFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDAV2Server,
+    ),
+    'FedSDA_v3.3': ModeSpec(
+        EDetectorFedSDAClient,
+        _run_fedsda_v3_timestep,
+        server_cls=FedSDAV3Server,
+    ),
     'FedDrift': ModeSpec(FedDriftClient, _run_batch_timestep, server_cls=ClusteringServer,
                          chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedDrift_v2': ModeSpec(FedDriftV2Client, _run_feddrift_v2_timestep,
@@ -236,10 +249,14 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
 def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
     if mode in (
-        'FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v3', 'FedSDA_v3.1',
+        'FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v2.3',
+        'FedSDA_v3', 'FedSDA_v3.1', 'FedSDA_v3.3',
         'FedSDA_without_server',
     ):
-        return (f"gamma_dist={distance_threshold}, delta_adwin={config.ADWIN_DELTA}, "
+        detector_param = (f"alpha_e={config.E_DETECTOR_ALPHA}"
+                          if mode in ('FedSDA_v2.3', 'FedSDA_v3.3')
+                          else f"delta_adwin={config.ADWIN_DELTA}")
+        return (f"gamma_dist={distance_threshold}, {detector_param}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "
                 f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}")
     if mode == 'FedDrift':
@@ -265,6 +282,7 @@ _COMPUTE_COUNTER_KEYS = (
     "cross_evaluation_forward_calls", "cross_evaluation_examples",
     "initialization_forward_calls", "initialization_examples",
     "training_forward_calls", "training_examples", "optimizer_steps",
+    "drift_detector_updates", "drift_detector_hypotheses",
 )
 _PHASE_TIME_KEYS = ("online", "training", "cross_evaluation")
 
@@ -338,6 +356,16 @@ def _add_telemetry_results(results, clients, telemetry):
     results["max_model_count"] = float(model_counts.max()) if model_counts.size else 0.0
     results["model_count_auc"] = float(model_counts.sum())
 
+    detector_histories = [
+        getattr(client, "history_detector_log_e", None) for client in clients
+    ]
+    if detector_histories and all(history is not None for history in detector_histories):
+        finite_scores = [
+            score for history in detector_histories for score in history if np.isfinite(score)
+        ]
+        results["e_detector_max_log_e"] = max(finite_scores, default=float("-inf"))
+        results["e_detector_alpha"] = float(config.E_DETECTOR_ALPHA)
+
 
 def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telemetry):
     """per-sample の生データを 1 つの .npz にまとめて保存する(gitignore 前提の軽量形式)。
@@ -388,6 +416,11 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
         f"round_client_{key}_seconds": np.asarray(values, dtype=np.float64)
         for key, values in telemetry["client_phase_seconds"].items()
     })
+    if clients and all(hasattr(client, "history_detector_log_e") for client in clients):
+        telemetry_arrays["history_detector_log_e"] = np.asarray(
+            [client.history_detector_log_e for client in clients], dtype=np.float64)
+        telemetry_arrays["e_detector_alpha"] = np.asarray(
+            config.E_DETECTOR_ALPHA, dtype=np.float64)
 
     np.savez_compressed(
         raw_path,

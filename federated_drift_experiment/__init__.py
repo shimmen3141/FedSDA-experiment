@@ -11,12 +11,14 @@ from .adwin import FullScanADWIN
 from .clients import (
     BaseClient,
     ClassConditionalFedSDAClient,
+    EDetectorFedSDAClient,
     FedDriftClient,
     FedDriftV2Client,
     FedSDAClient,
     ObliviousClient,
 )
 from .data import generate_data, make_concept_schedules
+from .drift_detectors import BoundedMeanEDetector
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
 from .servers import BaseServer, ClusteringServer, FedDriftV2Server, FedSDAV2Server, FedSDAV3Server
@@ -27,6 +29,8 @@ __all__ = [
     "FullScanADWIN",
     "FedSDAClient",
     "ClassConditionalFedSDAClient",
+    "EDetectorFedSDAClient",
+    "BoundedMeanEDetector",
     "BaseClient",
     "FedDriftClient",
     "FedDriftV2Client",

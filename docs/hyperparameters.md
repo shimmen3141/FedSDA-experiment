@@ -92,6 +92,7 @@
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
 | `ADWIN_DELTA` | ADWIN 信頼度パラメータ δ_adwin(小さいほど検出保守的) | FedSDA | 0.05 |
+| `E_DETECTOR_ALPHA` | v2.3/v3.3のe-SR誤警報制御値。ARLを少なくとも`1/alpha`とするため、小さいほど保守的 | FedSDA v2.3/v3.3 | 0.001 |
 | `FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS` | 新規モデル作成後、サーバへアップロード可能になるまでの学習ラウンド数。1なら作成の次ラウンド末に送信。v3では初回配布後の次ラウンドからキャッシュ評価可能 | FedSDA | 1 |
 | `ADWIN_MAX_WINDOW` | ADWIN ウィンドウ幅の上限 | FedSDA | 1000 |
 | `ADWIN_MIN_WIDTH` | 検定を開始する最小ウィンドウ幅 | FedSDA | 10 |
@@ -142,6 +143,13 @@
 `FedSDA_v2.1`はv2と同じサーバ・通信パラメータを使い、全体ADWINと正解クラス別ADWINを
 同じ`ADWIN_DELTA`で並列監視する。検知器別のdeltaは設けず、v2との差を検知系列の条件付けだけに限定する。
 `FedSDA_v3.1`も同じクライアント検知を使い、サーバ側はv3のキャッシュ評価フローを維持する。
+
+`FedSDA_v2.3` / `FedSDA_v3.3`はADWINを使わず、[0,1]の全体損失に対する
+混合Shiryaev–Roberts型e-detectorを使う。候補変化点ごとにe-processを開始し、
+統合e値が`1/E_DETECTOR_ALPHA`以上になった場合に最大寄与候補をFIFO分割点とする。
+既定値0.001の意味は「各検知区間で平均誤警報間隔1000観測以上」であり、
+実験全体の誤検知確率0.1%ではない。また、区間開始時の標本損失平均を定常平均上限として
+使うため、理論保証はこの上限仮定が成立する場合に限られる。無補正の強制チェックは無効化する。
 > 通信削減版は**モード `FedSDA_v3`**(`FedSDAV3Server`)で選択し、前回配布モデルのキャッシュで
 > クロス評価するため、評価用のモデル再送を行わない。
 > 詳細は [sequence-diagrams.md](sequence-diagrams.md)。
@@ -169,6 +177,7 @@
 | `comm_messages_up` / `comm_messages_down` / `comm_messages_total` | 割当・ドリフト要約、クロス評価依頼・評価統計、ID割当、マージ通知などの軽量メッセージ数 |
 | `compute_inference_examples_total` | 予測・検出・統計更新・クロス評価・初期化でモデルに入力した延べサンプル数 |
 | `compute_training_examples_total` / `compute_optimizer_steps_total` | 学習でモデルに入力した延べサンプル数 / optimizer 更新回数 |
+| `compute_drift_detector_updates_total` / `compute_drift_detector_hypotheses_total` | 検知器更新回数 / ADWINの分割またはe-SRの候補×賭け率を評価した延べ数 |
 | `compute_model_examples_total` | 推論系と学習を合わせた延べモデル入力サンプル数 |
 | `client_online_seconds_sum` / `client_training_seconds_sum` / `client_cross_evaluation_seconds_sum` | 全クライアントの用途別処理時間の合計(実行環境依存) |
 | `client_compute_seconds_sum` / `client_compute_seconds_max` | クライアント処理時間の総和 / 最も重いクライアントの累積時間 |

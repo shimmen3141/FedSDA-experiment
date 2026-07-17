@@ -41,12 +41,16 @@ METRIC_KEYS = [
     "runtime_seconds", "client_compute_seconds_sum", "client_compute_seconds_max",
     "compute_inference_examples_total", "compute_training_examples_total",
     "compute_model_examples_total", "compute_optimizer_steps_total",
+    "compute_drift_detector_updates_total", "compute_drift_detector_hypotheses_total",
     "mean_model_count", "max_model_count", "model_count_auc",
 ]
 ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
             "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta"] + METRIC_KEYS
 
-FEDSDA_SWEEP_MODES = ("FedSDA", "FedSDA_v2", "FedSDA_v2.1", "FedSDA_v3", "FedSDA_v3.1")
+FEDSDA_SWEEP_MODES = (
+    "FedSDA", "FedSDA_v2", "FedSDA_v2.1", "FedSDA_v2.3",
+    "FedSDA_v3", "FedSDA_v3.1", "FedSDA_v3.3",
+)
 FEDDRIFT_SWEEP_MODES = ("FedDrift", "FedDrift_v2")
 BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
 
@@ -319,8 +323,10 @@ def _series_style(series):
         "FedSDA": "tab:green",
         "FedSDA_v2": "tab:blue",
         "FedSDA_v2.1": "tab:cyan",
+        "FedSDA_v2.3": "deepskyblue",
         "FedSDA_v3": "tab:orange",
         "FedSDA_v3.1": "tab:pink",
+        "FedSDA_v3.3": "tab:olive",
         "FedDrift": "tab:purple",
         "FedDrift_v2": "tab:red",
     }

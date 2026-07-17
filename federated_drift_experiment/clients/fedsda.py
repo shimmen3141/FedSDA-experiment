@@ -9,6 +9,7 @@ import torch
 
 from .. import config
 from ..adwin import FullScanADWIN
+from ..drift_detectors import BoundedMeanEDetector
 from .base import BaseClient
 
 
@@ -119,7 +120,11 @@ class FedSDAClient(BaseClient):
 
     def _update_drift_detectors(self, error, y, sample_idx):
         """全体損失ADWINを更新し、ドリフト検知の有無を返す。"""
+        scan_width = min(self.adwin.width + 1, self.adwin.max_window_size)
         self.adwin.update(error)
+        self.compute_counters["drift_detector_updates"] += 1
+        if scan_width >= config.ADWIN_MIN_WIDTH:
+            self.compute_counters["drift_detector_hypotheses"] += scan_width - 1
         return self.adwin.drift_detected
 
     def _new_concept_sample_count(self, buffer_list, sample_idx):
@@ -129,6 +134,9 @@ class FedSDAClient(BaseClient):
     def _reset_drift_detectors(self):
         """ドリフト解決後に検知器を初期状態へ戻す。"""
         self.adwin.reset()
+
+    def _detector_label(self):
+        return "ADWIN"
 
     def _forced_drift_check(self, idx):
         """ADWIN未検知でも、直近ウィンドウの損失がベースラインから閾値以上悪化して
@@ -183,7 +191,8 @@ class FedSDAClient(BaseClient):
             return 0
 
         if self.verbose:
-            print(f"Client {self.client_id} [sample={sample_idx}]: ADWIN Drift Detected.")
+            print(f"Client {self.client_id} [sample={sample_idx}]: "
+                  f"{self._detector_label()} Drift Detected.")
 
         bx = torch.cat([d[0] for d in drift_data])
         by = torch.cat([d[1] for d in drift_data])
@@ -260,7 +269,11 @@ class ClassConditionalFedSDAClient(FedSDAClient):
         detector = self.class_adwins[class_id]
         positions = self.class_adwin_positions[class_id]
         positions.append(sample_idx)
+        scan_width = min(detector.width + 1, detector.max_window_size)
         detector.update(error)
+        self.compute_counters["drift_detector_updates"] += 1
+        if scan_width >= config.ADWIN_MIN_WIDTH:
+            self.compute_counters["drift_detector_hypotheses"] += scan_width - 1
 
         # ADWINが最大窓制限またはドリフト検知で削除した古い標本位置を同期して除く。
         while len(positions) > detector.width:
@@ -284,3 +297,50 @@ class ClassConditionalFedSDAClient(FedSDAClient):
             detector.reset()
         self.class_adwin_positions.clear()
         self._class_drift_start = None
+
+
+class EDetectorFedSDAClient(FedSDAClient):
+    """全体損失をbounded mean e-SRで監視するFedSDAクライアント。
+
+    v2.3/v3.3のアブレーション用に、クラス別ADWINと保険的な強制チェックは
+    組み合わせない。基準平均は検知区間開始時の現行モデル損失統計から固定する。
+    e-detectorの厳密なARL保証には、この値が定常時の条件付き平均上限であることが
+    必要であり、標本平均を使う本実装では近似的な仮定になる。
+    """
+
+    _MIN_BASELINE = 0.01
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.e_detector = BoundedMeanEDetector(
+            baseline=self._e_detector_baseline(),
+            alpha=config.E_DETECTOR_ALPHA,
+            max_candidates=config.ADWIN_MAX_WINDOW,
+        )
+        self.history_detector_log_e = []
+
+    def _e_detector_baseline(self):
+        mean, _ = self._get_model_stats(self.current_model_id)
+        return min(1.0 - 1e-6, max(self._MIN_BASELINE, mean))
+
+    def _update_drift_detectors(self, error, y, sample_idx):
+        self.e_detector.update(error)
+        self.compute_counters["drift_detector_updates"] += 1
+        self.compute_counters["drift_detector_hypotheses"] += (
+            self.e_detector.active_hypothesis_count
+        )
+        self.history_detector_log_e.append(self.e_detector.log_e_value)
+        return self.e_detector.drift_detected
+
+    def _forced_drift_check(self, idx):
+        # 無補正の別経路をOR接続するとe-detectorの誤警報制御を解釈できないため無効化する。
+        return False
+
+    def _new_concept_sample_count(self, buffer_list, sample_idx):
+        return min(len(buffer_list), self.e_detector.width)
+
+    def _reset_drift_detectors(self):
+        self.e_detector.reset(self._e_detector_baseline())
+
+    def _detector_label(self):
+        return "e-SR"
