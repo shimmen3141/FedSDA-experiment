@@ -3,6 +3,8 @@
 「全モデルの最小損失」の増分を監視し、閾値超過でドリフト判定する。検出は
 config.FEDDRIFT_DETECT_BATCH 件(=1ラウンドで処理するサンプル数)ごとに行う。
 """
+import time
+
 import torch
 
 from .. import config
@@ -27,6 +29,8 @@ class FedDriftClient(BaseClient):
         時刻粒度(data_per_time)と独立で、複数時刻にまたがって蓄積されることもある。
         この呼び出し中に検出バッチが1回でも完了したら True を返す(通信タイミングの判定用)。
         """
+        start_time = time.perf_counter()
+        training_before = self.phase_seconds["training"]
         fired = False
         for (x_in, y_in), con in zip(batch_data, concept_ids):
             x = x_in.unsqueeze(0) if x_in.dim() == 1 else x_in
@@ -42,6 +46,9 @@ class FedDriftClient(BaseClient):
                 self.detect_buffer = []
                 fired = True
             self.history_drift_type.append(drift_type)
+        elapsed = time.perf_counter() - start_time
+        training_elapsed = self.phase_seconds["training"] - training_before
+        self.phase_seconds["online"] += max(0.0, elapsed - training_elapsed)
         return fired
 
     def flush(self):
@@ -64,6 +71,7 @@ class FedDriftClient(BaseClient):
         best_model_id = self.current_model_id
         for m_id, model in self.models.items():
             with torch.no_grad():
+                self._record_model_compute("detection", len(bx))
                 preds = model(bx)
                 loss = float(torch.mean(torch.abs(preds - by)).item())
             if loss < min_loss:

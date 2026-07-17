@@ -6,6 +6,7 @@ BaseClient はモデル保持・損失統計・データストア・新規モデ
 import copy
 import math
 import random
+import time
 from collections import defaultdict
 
 import torch
@@ -49,6 +50,11 @@ class BaseClient:
         self.history_concept = []
         self.processing_times = defaultdict(list)
 
+        # 計算量は「呼出し回数」と「処理サンプル数」を分けて記録する。
+        # 実行時間は環境依存なので、再現性の高いカウンタとは別に保持する。
+        self.compute_counters = defaultdict(int)
+        self.phase_seconds = defaultdict(float)
+
         # per-sample index and detection positions
         self.processed_samples = 0                 # number of processed samples for this client
         self.detected_event_positions = []         # detector internal detection positions (debug)
@@ -60,6 +66,18 @@ class BaseClient:
         self._pending_updates = 0   # LOCAL_UPDATE_TAU>1 のとき保留中のローカル更新(サンプル数)
 
         self.next_temp_id = -100 - self.client_id
+
+    def _record_model_compute(self, phase, examples, calls=1):
+        """モデル計算を用途別に記録する。examples はモデルへ入力した標本数。"""
+        self.compute_counters[f"{phase}_forward_calls"] += int(calls)
+        self.compute_counters[f"{phase}_examples"] += int(examples)
+
+    def telemetry_snapshot(self):
+        """ラウンド差分を計算できるよう、累積計測値のコピーを返す。"""
+        return {
+            "counters": dict(self.compute_counters),
+            "phase_seconds": dict(self.phase_seconds),
+        }
 
     # ------------------------------------------------------------
     # 損失統計(Welford法によるオンライン平均・分散)
@@ -100,6 +118,7 @@ class BaseClient:
         for d in data_list:
             self.train_data_store[model_id].append(d)
             with torch.no_grad():
+                self._record_model_compute("statistics", len(d[0]))
                 l_val = model.get_absolute_error(d[0], d[1])
             self._update_model_stats(model_id, l_val)
 
@@ -109,6 +128,7 @@ class BaseClient:
     def _record_prediction(self, x, y, concept_id):
         """現在のモデルで1サンプルを予測し、per-sample ログに記録する。"""
         current_model = self.models[self.current_model_id]
+        self._record_model_compute("prediction", len(x))
         pred = current_model.predict(x)
         acc = 1.0 if pred.view(-1)[0].item() == y.view(-1)[0].item() else 0.0
 
@@ -133,6 +153,7 @@ class BaseClient:
             self._pending_updates = 0
 
     def train_all_held_models(self, count_multiplier=1):
+        start_time = time.perf_counter()
         updates_needed = self.updates_per_sample * count_multiplier
         for m_id, data_list in self.train_data_store.items():
             if m_id not in self.models:
@@ -145,6 +166,9 @@ class BaseClient:
                 bx = torch.cat([d[0] for d in batch])
                 by = torch.cat([d[1] for d in batch])
                 model.update(bx, by)
+                self._record_model_compute("training", len(bx))
+                self.compute_counters["optimizer_steps"] += 1
+        self.phase_seconds["training"] += time.perf_counter() - start_time
 
     # ------------------------------------------------------------
     # 新規モデルの作成
@@ -167,13 +191,18 @@ class BaseClient:
         dataset = torch.utils.data.TensorDataset(bx, by)
         loader = torch.utils.data.DataLoader(
             dataset, batch_size=min(config.CLIENT_BATCH_SIZE, m), shuffle=True)
+        training_start = time.perf_counter()
         for _ in range(self.new_model_initial_epochs()):
             for b_x, b_y in loader:
                 new_model.update(b_x, b_y)
+                self._record_model_compute("training", len(b_x))
+                self.compute_counters["optimizer_steps"] += 1
+        self.phase_seconds["training"] += time.perf_counter() - training_start
 
         self.models[temp_id] = new_model
 
         with torch.no_grad():
+            self._record_model_compute("initialization", len(bx))
             preds = new_model(bx)
             final_loss = torch.abs(preds - by)
             init_mean = float(torch.mean(final_loss).item())
@@ -252,6 +281,7 @@ class BaseClient:
 
     def evaluate_model(self, params, target_model_id):
         """サーバからの評価依頼: 指定パラメータのモデルを手元データで評価する。"""
+        start_time = time.perf_counter()
         eval_data = []
         if target_model_id in self.stored_data and len(self.stored_data[target_model_id]) > 5:
             eval_data = self.stored_data[target_model_id]
@@ -259,6 +289,7 @@ class BaseClient:
             eval_data = self.train_data_store[target_model_id]
 
         if len(eval_data) < 5:
+            self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
             return 0, 0.0, 0.0
         if len(eval_data) > config.EVAL_MAX_SAMPLES:
             eval_data = random.sample(eval_data, config.EVAL_MAX_SAMPLES)
@@ -268,8 +299,10 @@ class BaseClient:
         temp_model = SimpleMLP()
         temp_model.set_params(params)
         with torch.no_grad():
+            self._record_model_compute("cross_evaluation", len(X))
             preds = temp_model(X)
             errors = torch.abs(preds - y).numpy().flatten()
+        self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
         return len(errors), float(errors.sum()), float((errors ** 2).sum())
 
     def apply_cached_merge(self, clusters, cluster_weights, global_stats=None):

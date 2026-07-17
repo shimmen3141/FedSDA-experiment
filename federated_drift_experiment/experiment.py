@@ -237,7 +237,88 @@ def _mode_param_summary(mode, distance_threshold):
 # ==========================================
 # 実験本体
 # ==========================================
-def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed):
+_COMPUTE_COUNTER_KEYS = (
+    "prediction_forward_calls", "prediction_examples",
+    "detection_forward_calls", "detection_examples",
+    "statistics_forward_calls", "statistics_examples",
+    "cross_evaluation_forward_calls", "cross_evaluation_examples",
+    "initialization_forward_calls", "initialization_examples",
+    "training_forward_calls", "training_examples", "optimizer_steps",
+)
+_PHASE_TIME_KEYS = ("online", "training", "cross_evaluation")
+
+
+def _new_round_telemetry():
+    """ラウンド時系列を保持する内部コンテナを作る。"""
+    return {
+        "global_model_count": [],
+        "client_held_model_count": [],
+        "pending_clustering_count": [],
+        "client_counters": {key: [] for key in _COMPUTE_COUNTER_KEYS},
+        "client_phase_seconds": {key: [] for key in _PHASE_TIME_KEYS},
+    }
+
+
+def _record_round_telemetry(telemetry, clients, server, use_server, before):
+    """1ラウンド分のモデル数と、クライアント別の計測値差分を記録する。"""
+    after = [client.telemetry_snapshot() for client in clients]
+    held_counts = [len(client.models) for client in clients]
+    global_count = len(server.global_models) if use_server else float(np.mean(held_counts))
+    pending_count = len(getattr(server, "models_pending_clustering", ()))
+
+    telemetry["global_model_count"].append(global_count)
+    telemetry["client_held_model_count"].append(held_counts)
+    telemetry["pending_clustering_count"].append(pending_count)
+
+    for key in _COMPUTE_COUNTER_KEYS:
+        telemetry["client_counters"][key].append([
+            current["counters"].get(key, 0) - previous["counters"].get(key, 0)
+            for current, previous in zip(after, before)
+        ])
+    for key in _PHASE_TIME_KEYS:
+        telemetry["client_phase_seconds"][key].append([
+            current["phase_seconds"].get(key, 0.0)
+            - previous["phase_seconds"].get(key, 0.0)
+            for current, previous in zip(after, before)
+        ])
+
+
+def _add_telemetry_results(results, clients, telemetry):
+    """時系列と累積カウンタから、比較しやすいスカラー指標を作る。"""
+    totals = {
+        key: sum(client.compute_counters.get(key, 0) for client in clients)
+        for key in _COMPUTE_COUNTER_KEYS
+    }
+    for key, value in totals.items():
+        results[f"compute_{key}_total"] = value
+
+    inference_phases = ("prediction", "detection", "statistics", "cross_evaluation", "initialization")
+    results["compute_inference_examples_total"] = sum(
+        totals[f"{phase}_examples"] for phase in inference_phases
+    )
+    results["compute_model_examples_total"] = (
+        results["compute_inference_examples_total"] + totals["training_examples"]
+    )
+
+    client_compute_seconds = []
+    for client in clients:
+        phase_total = 0.0
+        for phase in _PHASE_TIME_KEYS:
+            seconds = client.phase_seconds.get(phase, 0.0)
+            results.setdefault(f"client_{phase}_seconds_sum", 0.0)
+            results[f"client_{phase}_seconds_sum"] += seconds
+            phase_total += seconds
+        client_compute_seconds.append(phase_total)
+    results["client_compute_seconds_sum"] = sum(client_compute_seconds)
+    results["client_compute_seconds_max"] = max(client_compute_seconds, default=0.0)
+
+    model_counts = np.asarray(telemetry["global_model_count"], dtype=float)
+    results["mean_model_count"] = float(model_counts.mean()) if model_counts.size else 0.0
+    results["max_model_count"] = float(model_counts.max()) if model_counts.size else 0.0
+    results["model_count_auc"] = float(model_counts.sum())
+
+
+def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telemetry):
     """per-sample の生データを 1 つの .npz にまとめて保存する(gitignore 前提の軽量形式)。
 
     - history_accuracy: (N_CLIENTS, N_SAMPLES) の int8 (各サンプルの当否 0/1)
@@ -271,6 +352,22 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed):
             s_cids.append(ci)
             s_pos.append(p)
 
+    telemetry_arrays = {
+        "round_global_model_count": np.asarray(telemetry["global_model_count"], dtype=np.float64),
+        "round_client_held_model_count": np.asarray(
+            telemetry["client_held_model_count"], dtype=np.int32),
+        "round_pending_clustering_count": np.asarray(
+            telemetry["pending_clustering_count"], dtype=np.int32),
+    }
+    telemetry_arrays.update({
+        f"round_client_{key}": np.asarray(values, dtype=np.int64)
+        for key, values in telemetry["client_counters"].items()
+    })
+    telemetry_arrays.update({
+        f"round_client_{key}_seconds": np.asarray(values, dtype=np.float64)
+        for key, values in telemetry["client_phase_seconds"].items()
+    })
+
     np.savez_compressed(
         raw_path,
         history_accuracy=hist,
@@ -286,6 +383,7 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed):
         min_stable=int(config.MIN_STABLE_PERIOD),
         agg_interval=int(config.AGG_INTERVAL),
         total_data=int(config.TOTAL_DATA_POINTS),
+        **telemetry_arrays,
     )
 
 
@@ -335,6 +433,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
 
     # --- シミュレーションループ ---
     exp_start = time.perf_counter()
+    telemetry = _new_round_telemetry()
 
     for t in range(t_steps):
         start_idx = t * chunk
@@ -345,9 +444,12 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
 
         current_time_data = [stream[start_idx:end_idx] for stream in all_client_data]
         current_time_concepts = [sched[start_idx:end_idx] for sched in client_concept_schedule]
+        telemetry_before = [client.telemetry_snapshot() for client in clients]
 
         spec.run_timestep(clients, server, current_time_data, current_time_concepts,
                           t, spec.use_server, verbose)
+        _record_round_telemetry(
+            telemetry, clients, server, spec.use_server, telemetry_before)
 
     # バッファ型手法(FedDrift)の終端フラッシュ: 未検出の残りバッチを処理し新規モデルを回収
     buffering_clients = [c for c in clients if hasattr(c, 'flush')]
@@ -378,6 +480,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         # サーバ集約がないため、クライアントが保持するローカルモデル数の平均を報告する
         results["final_model_count"] = float(np.mean([len(c.models) for c in clients]))
     results["runtime_seconds"] = runtime_seconds
+    _add_telemetry_results(results, clients, telemetry)
 
     # --- 通信量(モデル転送数。up=クライアント→サーバ, down=サーバ→クライアント)---
     results["comm_models_up"] = server.comm_models_up
@@ -392,7 +495,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     # --- 生データの保存(回復曲線などの事後分析用)---
     if raw_path is not None:
         _save_raw_run(raw_path, clients, true_drift_events, mode,
-                      raw_label if raw_label is not None else mode, random_seed)
+                      raw_label if raw_label is not None else mode, random_seed, telemetry)
 
     if verbose:
         print("\n=== Experiment Metrics ===")
@@ -409,6 +512,10 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         print(f"  Message comm (up / down / total): {results['comm_messages_up']} / "
               f"{results['comm_messages_down']} / {results['comm_messages_total']}")
         print(f"  Runtime: {runtime_seconds:.3f} sec")
+        print(f"  Model examples / optimizer steps: {results['compute_model_examples_total']} / "
+              f"{results['compute_optimizer_steps_total']}")
+        print(f"  Mean / max models per round: {results['mean_model_count']:.2f} / "
+              f"{results['max_model_count']:.0f}")
 
     # --- 可視化 ---
     if show_plot:

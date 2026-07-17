@@ -75,6 +75,7 @@ class FedSDAClient(BaseClient):
     def process_one_step(self, x_in, y_in, concept_id):
         """1サンプルを処理する: 予測 → ADWIN更新 → (ドリフト解決 | 平時処理) → 学習。"""
         start_time = time.perf_counter()
+        training_before = self.phase_seconds["training"]
         x = x_in.unsqueeze(0) if x_in.dim() == 1 else x_in
         y = y_in.unsqueeze(0) if y_in.dim() == 1 else y_in
 
@@ -84,6 +85,7 @@ class FedSDAClient(BaseClient):
 
         self._record_prediction(x, y, concept_id)
 
+        self._record_model_compute("detection", len(x))
         error = self.models[self.current_model_id].get_absolute_error(x, y)
         self.adwin.update(error)
         self.buffer.append((x, y))
@@ -100,6 +102,7 @@ class FedSDAClient(BaseClient):
             # 平時: バッファ長 N_FIFO を超えた分だけ古いデータをストアへ確定し、学習する
             while len(self.buffer) > self.fifo_size:
                 old_x, old_y = self.buffer.popleft()
+                self._record_model_compute("statistics", len(old_x))
                 loss_val = self.models[self.current_model_id].get_absolute_error(old_x, old_y)
                 self._update_model_stats(self.current_model_id, loss_val)
                 self.train_data_store[self.current_model_id].append((old_x, old_y))
@@ -107,7 +110,10 @@ class FedSDAClient(BaseClient):
 
         self.history_drift_type.append(drift_type)
 
-        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        elapsed = time.perf_counter() - start_time
+        training_elapsed = self.phase_seconds["training"] - training_before
+        self.phase_seconds["online"] += max(0.0, elapsed - training_elapsed)
+        elapsed_ms = elapsed * 1000
         num_global = sum(1 for mid in self.models.keys() if mid >= 0)
         self.processing_times[num_global].append(elapsed_ms)
 
@@ -128,6 +134,7 @@ class FedSDAClient(BaseClient):
         bx = torch.cat([d[0] for d in tail])
         by = torch.cat([d[1] for d in tail])
         with torch.no_grad():
+            self._record_model_compute("detection", len(bx))
             preds = self.models[self.current_model_id](bx)
             window_loss = float(torch.mean(torch.abs(preds - by)).item())
         hist_mean, _ = self._get_model_stats(self.current_model_id)
@@ -172,6 +179,7 @@ class FedSDAClient(BaseClient):
         valid_candidates = []
         for m_id, model in self.models.items():
             with torch.no_grad():
+                self._record_model_compute("detection", len(bx))
                 preds = model(bx)
                 loss = float(torch.mean(torch.abs(preds - by)).item())
             hist_mean, _ = self._get_model_stats(m_id)

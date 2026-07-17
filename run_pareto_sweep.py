@@ -38,6 +38,10 @@ METRIC_KEYS = [
     "comm_models_up", "comm_models_down", "comm_models_total",
     "comm_messages_up", "comm_messages_down", "comm_messages_total",
     "final_model_count", "precision", "recall", "f1", "avg_delay", "total_detect",
+    "runtime_seconds", "client_compute_seconds_sum", "client_compute_seconds_max",
+    "compute_inference_examples_total", "compute_training_examples_total",
+    "compute_model_examples_total", "compute_optimizer_steps_total",
+    "mean_model_count", "max_model_count", "model_count_auc",
 ]
 ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
             "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta"] + METRIC_KEYS

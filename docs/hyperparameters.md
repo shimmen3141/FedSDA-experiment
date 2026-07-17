@@ -163,5 +163,17 @@
 | `final_model_count` | プロトコル終端処理後の最終モデル数(集約あり)/ クライアント平均保持数(なし)。終端処理は追加学習・未送信モデル回収を行わず、FedSDA v3で初回配布済みの評価待ちモデルだけをキャッシュ評価・マージする |
 | `comm_models_up` / `comm_models_down` / `comm_models_total` | モデルパラメータ転送数 |
 | `comm_messages_up` / `comm_messages_down` / `comm_messages_total` | 割当・ドリフト要約、クロス評価依頼・評価統計、ID割当、マージ通知などの軽量メッセージ数 |
+| `compute_inference_examples_total` | 予測・検出・統計更新・クロス評価・初期化でモデルに入力した延べサンプル数 |
+| `compute_training_examples_total` / `compute_optimizer_steps_total` | 学習でモデルに入力した延べサンプル数 / optimizer 更新回数 |
+| `compute_model_examples_total` | 推論系と学習を合わせた延べモデル入力サンプル数 |
+| `client_online_seconds_sum` / `client_training_seconds_sum` / `client_cross_evaluation_seconds_sum` | 全クライアントの用途別処理時間の合計(実行環境依存) |
+| `client_compute_seconds_sum` / `client_compute_seconds_max` | クライアント処理時間の総和 / 最も重いクライアントの累積時間 |
+| `mean_model_count` / `max_model_count` / `model_count_auc` | ラウンド末モデル数の平均 / 最大 / 全ラウンド和。サーバなしではクライアント平均保持数 |
+
+`raw_path` を指定した実験の `.npz` には、`round_global_model_count`、
+`round_client_held_model_count`、`round_pending_clustering_count` に加え、
+`round_client_*_examples`、`round_client_optimizer_steps`、用途別の
+`round_client_*_seconds` を保存する。カウンタはクライアント別・ラウンド別の差分であり、
+処理時間よりもハードウェア差の影響を受けにくい比較指標として扱う。
 
 適応の**速さ**(回復曲線 acc(Δ)・`T90` 等)は [recovery_analysis.py](../recovery_analysis.py) で別途評価する。
