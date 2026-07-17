@@ -94,6 +94,25 @@
     "stable_accuracy": 0.9602977667493796,
     "total_detect": 4
   },
+  "FedSDA_v2.2_ucb/circle": {
+    "accuracy": 0.9525,
+    "avg_delay": 0.0,
+    "change_point_bias": 63.0,
+    "change_point_estimate_count": 1,
+    "change_point_mae": 63.0,
+    "comm_messages_down": 8,
+    "comm_messages_total": 136,
+    "comm_messages_up": 128,
+    "comm_models_down": 158,
+    "comm_models_total": 282,
+    "comm_models_up": 124,
+    "f1": 0.0,
+    "final_model_count": 2,
+    "precision": 0.0,
+    "recall": 0.0,
+    "stable_accuracy": 0.9606522509748316,
+    "total_detect": 2
+  },
   "FedSDA_v2.3/circle": {
     "accuracy": 0.9563333333333334,
     "avg_delay": 59.0,
@@ -112,6 +131,25 @@
     "recall": 1.0,
     "stable_accuracy": 0.9615384615384616,
     "total_detect": 4
+  },
+  "FedSDA_v2.3_ucb/circle": {
+    "accuracy": 0.9536666666666667,
+    "avg_delay": 67.0,
+    "change_point_bias": 63.0,
+    "change_point_estimate_count": 1,
+    "change_point_mae": 63.0,
+    "comm_messages_down": 8,
+    "comm_messages_total": 136,
+    "comm_messages_up": 128,
+    "comm_models_down": 158,
+    "comm_models_total": 283,
+    "comm_models_up": 125,
+    "f1": 0.5,
+    "final_model_count": 2,
+    "precision": 0.5,
+    "recall": 0.5,
+    "stable_accuracy": 0.9606522509748316,
+    "total_detect": 2
   },
   "FedSDA_v2/sine": {
     "accuracy": 0.9732,

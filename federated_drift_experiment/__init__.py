@@ -20,6 +20,11 @@ from .clients import (
 )
 from .data import generate_data, make_concept_schedules
 from .e_detector import BoundedMeanEDetector
+from .e_detector_baselines import (
+    EDetectorBaselineEstimator,
+    EmpiricalBernsteinUCB,
+    HistoricalMeanBaseline,
+)
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
 from .servers import BaseServer, ClusteringServer, FedDriftV2Server, FedSDAV2Server, FedSDAV3Server
@@ -33,6 +38,9 @@ __all__ = [
     "ClassConditionalEDetectorFedSDAClient",
     "EDetectorFedSDAClient",
     "BoundedMeanEDetector",
+    "EDetectorBaselineEstimator",
+    "HistoricalMeanBaseline",
+    "EmpiricalBernsteinUCB",
     "BaseClient",
     "FedDriftClient",
     "FedDriftV2Client",

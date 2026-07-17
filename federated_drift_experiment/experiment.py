@@ -10,6 +10,7 @@
 - 'FedSDA_v3.2'           : v3 + bounded mean e-SR検知
 - 'FedSDA_v2.3'           : v2 + 全体・正解クラス別e-SR混合検知
 - 'FedSDA_v3.3'           : v3 + 全体・正解クラス別e-SR混合検知
+- '*_ucb'                 : 対応するe-SRモード + empirical Bernstein基準平均UCB
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
 - 'FedDrift_v2'           : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
@@ -22,7 +23,7 @@ MODE_SPECS にエントリを足す。処理の流れが既存2種と異なる�
 import os
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 import numpy as np
@@ -150,6 +151,8 @@ class ModeSpec:
     # 1ラウンドで処理するサンプル数を持つ config 属性名。逐次系は集約間隔 AGG_INTERVAL、
     # FedDrift は検出バッチ FEDDRIFT_DETECT_BATCH(処理=検出=通信の単位)。
     chunk_attr: str = 'AGG_INTERVAL'
+    # 検出器戦略など、モード固有のクライアント構築引数。
+    client_kwargs: dict = field(default_factory=dict)
 
 
 MODE_SPECS = {
@@ -188,6 +191,30 @@ MODE_SPECS = {
         _run_fedsda_v3_timestep,
         server_cls=FedSDAV3Server,
     ),
+    'FedSDA_v2.2_ucb': ModeSpec(
+        EDetectorFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDAV2Server,
+        client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
+    ),
+    'FedSDA_v3.2_ucb': ModeSpec(
+        EDetectorFedSDAClient,
+        _run_fedsda_v3_timestep,
+        server_cls=FedSDAV3Server,
+        client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
+    ),
+    'FedSDA_v2.3_ucb': ModeSpec(
+        ClassConditionalEDetectorFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDAV2Server,
+        client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
+    ),
+    'FedSDA_v3.3_ucb': ModeSpec(
+        ClassConditionalEDetectorFedSDAClient,
+        _run_fedsda_v3_timestep,
+        server_cls=FedSDAV3Server,
+        client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
+    ),
     'FedDrift': ModeSpec(FedDriftClient, _run_batch_timestep, server_cls=ClusteringServer,
                          chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedDrift_v2': ModeSpec(FedDriftV2Client, _run_feddrift_v2_timestep,
@@ -208,7 +235,7 @@ def _pretrain_initial_model():
     batch_size = config.PRETRAIN_BATCH_SIZE
 
     model0 = SimpleMLP()
-    stats_0 = {'n': 0, 'mean': 0.0, 'M2': 0.0}
+    stats_0 = {'n': 0, 'mean': 0.0, 'M2': 0.0, 'class_stats': {}}
 
     replay_buf = []
     for _ in range(n_samples):
@@ -230,6 +257,15 @@ def _pretrain_initial_model():
         stats_0['mean'] += delta / stats_0['n']
         delta2 = loss_val - stats_0['mean']
         stats_0['M2'] += delta * delta2
+        class_id = int(y.view(-1)[0].item())
+        class_stats = stats_0['class_stats'].setdefault(
+            class_id, {'n': 0, 'mean': 0.0, 'M2': 0.0}
+        )
+        class_stats['n'] += 1
+        class_delta = loss_val - class_stats['mean']
+        class_stats['mean'] += class_delta / class_stats['n']
+        class_delta2 = loss_val - class_stats['mean']
+        class_stats['M2'] += class_delta * class_delta2
 
     return model0, stats_0
 
@@ -249,7 +285,8 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
             initial_models={0: model0},
             initial_stats={0: stats_0},
             distance_threshold=distance_threshold,
-            verbose=verbose
+            verbose=verbose,
+            **spec.client_kwargs,
         )
         # サーバを使うモードのみ register する
         if spec.use_server:
@@ -264,15 +301,23 @@ def _mode_param_summary(mode, distance_threshold):
     if mode in (
         'FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v2.2', 'FedSDA_v2.3',
         'FedSDA_v3', 'FedSDA_v3.1', 'FedSDA_v3.2', 'FedSDA_v3.3',
+        'FedSDA_v2.2_ucb', 'FedSDA_v2.3_ucb',
+        'FedSDA_v3.2_ucb', 'FedSDA_v3.3_ucb',
         'FedSDA_without_server',
     ):
         detector_param = (f"alpha_e={config.E_DETECTOR_ALPHA}"
                           if mode in (
                               'FedSDA_v2.2', 'FedSDA_v2.3',
                               'FedSDA_v3.2', 'FedSDA_v3.3',
+                              'FedSDA_v2.2_ucb', 'FedSDA_v2.3_ucb',
+                              'FedSDA_v3.2_ucb', 'FedSDA_v3.3_ucb',
                           )
                           else f"delta_adwin={config.ADWIN_DELTA}")
-        return (f"gamma_dist={distance_threshold}, {detector_param}, "
+        baseline_param = (
+            f", baseline=empirical_bernstein_ucb(beta={config.E_DETECTOR_BASELINE_BETA})"
+            if mode.endswith("_ucb") else ""
+        )
+        return (f"gamma_dist={distance_threshold}, {detector_param}{baseline_param}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "
                 f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}")
     if mode == 'FedDrift':
@@ -381,6 +426,15 @@ def _add_telemetry_results(results, clients, telemetry):
         ]
         results["e_detector_max_log_e"] = max(finite_scores, default=float("-inf"))
         results["e_detector_alpha"] = float(config.E_DETECTOR_ALPHA)
+        strategies = {
+            client.baseline_estimator.name for client in clients
+            if hasattr(client, "baseline_estimator")
+        }
+        if len(strategies) == 1:
+            results["e_detector_baseline_strategy"] = strategies.pop()
+            results["e_detector_baseline_beta"] = float(
+                config.E_DETECTOR_BASELINE_BETA
+            )
 
 
 def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telemetry):
@@ -447,6 +501,12 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
             [client.history_detector_log_e for client in clients], dtype=np.float64)
         telemetry_arrays["e_detector_alpha"] = np.asarray(
             config.E_DETECTOR_ALPHA, dtype=np.float64)
+        telemetry_arrays["e_detector_baseline_strategy"] = np.asarray(
+            clients[0].baseline_estimator.name
+        )
+        telemetry_arrays["e_detector_baseline_beta"] = np.asarray(
+            config.E_DETECTOR_BASELINE_BETA, dtype=np.float64
+        )
 
     np.savez_compressed(
         raw_path,

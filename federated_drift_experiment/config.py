@@ -101,6 +101,7 @@ ADWIN_MIN_WIDTH = 10        # 検定を開始する最小ウィンドウ幅
 FEDSDA_ENABLE_FORCED_DRIFT_CHECK = True  # ADWIN未検知時の保険的な損失増分チェック
 
 E_DETECTOR_ALPHA = 0.001    # e-SRの誤警報制御値。平均誤警報間隔(ARL)を1/alpha以上にする
+E_DETECTOR_BASELINE_BETA = 0.05  # empirical Bernstein基準平均UCBの未被覆確率
 
 FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS = 1  # 新規モデルを作成してからアップロード可能になるまでの学習ラウンド数
 FIFO_BUFFER_SIZE = 30       # FIFO遅延バッファ長 (N_FIFO)

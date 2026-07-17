@@ -83,13 +83,24 @@ class BaseClient:
     # ------------------------------------------------------------
     # 損失統計(Welford法によるオンライン平均・分散)
     # ------------------------------------------------------------
-    def _update_model_stats(self, model_id, value):
-        stats = self.model_stats.setdefault(model_id, {'n': 0, 'mean': 0.0, 'M2': 0.0})
+    @staticmethod
+    def _update_running_stats(stats, value):
+        """Welford法で1標本を統計辞書へ追加する。"""
         stats['n'] += 1
         delta = value - stats['mean']
         stats['mean'] += delta / stats['n']
         delta2 = value - stats['mean']
         stats['M2'] += delta * delta2
+
+    def _update_model_stats(self, model_id, value, class_id=None):
+        stats = self.model_stats.setdefault(model_id, {'n': 0, 'mean': 0.0, 'M2': 0.0})
+        self._update_running_stats(stats, value)
+        if class_id is not None:
+            class_stats = stats.setdefault('class_stats', {})
+            per_class = class_stats.setdefault(
+                int(class_id), {'n': 0, 'mean': 0.0, 'M2': 0.0}
+            )
+            self._update_running_stats(per_class, value)
 
     def _get_model_stats(self, model_id):
         stats = self.model_stats.get(model_id)
@@ -121,7 +132,8 @@ class BaseClient:
             with torch.no_grad():
                 self._record_model_compute("statistics", len(d[0]))
                 l_val = model.get_absolute_error(d[0], d[1])
-            self._update_model_stats(model_id, l_val)
+            class_id = int(d[1].view(-1)[0].item())
+            self._update_model_stats(model_id, l_val, class_id=class_id)
 
     # ------------------------------------------------------------
     # 予測ログ・学習
@@ -211,7 +223,26 @@ class BaseClient:
             if math.isnan(init_var):
                 init_var = 0.1
 
-        self.model_stats[temp_id] = {'n': m, 'mean': init_mean, 'M2': init_var * max(1, (m - 1))}
+        class_stats = {}
+        flat_labels = by.view(-1)
+        flat_losses = final_loss.view(-1)
+        for class_id in (0, 1):
+            selected = flat_losses[flat_labels == float(class_id)]
+            if len(selected) == 0:
+                continue
+            class_mean = float(torch.mean(selected).item())
+            class_var = float(torch.var(selected).item()) if len(selected) > 1 else 0.0
+            class_stats[class_id] = {
+                'n': len(selected),
+                'mean': class_mean,
+                'M2': class_var * max(0, len(selected) - 1),
+            }
+        self.model_stats[temp_id] = {
+            'n': m,
+            'mean': init_mean,
+            'M2': init_var * max(1, (m - 1)),
+            'class_stats': class_stats,
+        }
         self.pending_model_params = new_model.get_params()
         self.pending_model_stats = self.model_stats[temp_id]
         self.pending_model_ready = pending_ready

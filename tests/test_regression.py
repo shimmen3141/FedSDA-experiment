@@ -48,6 +48,8 @@ CASES = [
     ("FedSDA_v2.1", "circle", {}),
     ("FedSDA_v2.2", "circle", {}),
     ("FedSDA_v2.3", "circle", {}),
+    ("FedSDA_v2.2_ucb", "circle", {}),
+    ("FedSDA_v2.3_ucb", "circle", {}),
     ("FedSDA_v3", "blobs", {}),
     ("FedSDA_v3.1", "circle", {}),
     ("FedSDA_v3.2", "circle", {}),

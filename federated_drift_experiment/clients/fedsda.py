@@ -11,6 +11,7 @@ import torch
 from .. import config
 from ..adwin import FullScanADWIN
 from ..e_detector import BoundedMeanEDetector
+from ..e_detector_baselines import make_baseline_estimator
 from .base import BaseClient
 
 
@@ -107,7 +108,10 @@ class FedSDAClient(BaseClient):
                 old_x, old_y = self.buffer.popleft()
                 self._record_model_compute("statistics", len(old_x))
                 loss_val = self.models[self.current_model_id].get_absolute_error(old_x, old_y)
-                self._update_model_stats(self.current_model_id, loss_val)
+                class_id = int(old_y.view(-1)[0].item())
+                self._update_model_stats(
+                    self.current_model_id, loss_val, class_id=class_id
+                )
                 self.train_data_store[self.current_model_id].append((old_x, old_y))
             self.train_step()
 
@@ -317,10 +321,11 @@ class EDetectorFedSDAClient(FedSDAClient):
     必要であり、標本平均を使う本実装では近似的な仮定になる。
     """
 
-    _MIN_BASELINE = 0.01
-
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, baseline_strategy="historical_mean", **kwargs):
         super().__init__(*args, **kwargs)
+        self.baseline_estimator = make_baseline_estimator(
+            baseline_strategy, beta=config.E_DETECTOR_BASELINE_BETA
+        )
         self.e_detector = BoundedMeanEDetector(
             baseline=self._e_detector_baseline(),
             alpha=config.E_DETECTOR_ALPHA,
@@ -328,9 +333,13 @@ class EDetectorFedSDAClient(FedSDAClient):
         )
         self.history_detector_log_e = []
 
-    def _e_detector_baseline(self):
-        mean, _ = self._get_model_stats(self.current_model_id)
-        return min(1.0 - 1e-6, max(self._MIN_BASELINE, mean))
+    def _e_detector_baseline(self, class_id=None):
+        stats = self.model_stats.get(self.current_model_id, {})
+        # 従来mean方式のv2.3/v3.3は全体平均を共用し、既存結果を維持する。
+        # UCB方式だけはクラス条件付き上限を構成するためクラス別統計を使う。
+        if class_id is not None and self.baseline_estimator.name != "historical_mean":
+            stats = stats.get("class_stats", {}).get(class_id, {})
+        return self.baseline_estimator.estimate(stats)
 
     def _update_drift_detectors(self, error, y, sample_idx):
         self.e_detector.update(error)
@@ -372,9 +381,9 @@ class ClassConditionalEDetectorFedSDAClient(EDetectorFedSDAClient):
         self.class_e_positions = defaultdict(deque)
         self._class_drift_start = None
 
-    def _new_class_detector(self):
+    def _new_class_detector(self, class_id):
         return BoundedMeanEDetector(
-            baseline=self._e_detector_baseline(),
+            baseline=self._e_detector_baseline(class_id=class_id),
             alpha=config.E_DETECTOR_ALPHA,
             max_candidates=config.ADWIN_MAX_WINDOW,
         )
@@ -394,7 +403,7 @@ class ClassConditionalEDetectorFedSDAClient(EDetectorFedSDAClient):
             raise ValueError("クラス条件付きe-SRは二値ラベル0/1を前提とします")
         detector = self.class_e_detectors.get(class_id)
         if detector is None:
-            detector = self._new_class_detector()
+            detector = self._new_class_detector(class_id)
             self.class_e_detectors[class_id] = detector
         positions = self.class_e_positions[class_id]
         positions.append(sample_idx)

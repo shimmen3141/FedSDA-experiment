@@ -46,11 +46,14 @@ METRIC_KEYS = [
     "mean_model_count", "max_model_count", "model_count_auc",
 ]
 ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
-            "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta"] + METRIC_KEYS
+            "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta",
+            "e_detector_baseline_strategy", "e_detector_baseline_beta"] + METRIC_KEYS
 
 FEDSDA_SWEEP_MODES = (
     "FedSDA", "FedSDA_v2", "FedSDA_v2.1", "FedSDA_v2.2", "FedSDA_v2.3",
     "FedSDA_v3", "FedSDA_v3.1", "FedSDA_v3.2", "FedSDA_v3.3",
+    "FedSDA_v2.2_ucb", "FedSDA_v2.3_ucb",
+    "FedSDA_v3.2_ucb", "FedSDA_v3.3_ucb",
 )
 FEDDRIFT_SWEEP_MODES = ("FedDrift", "FedDrift_v2")
 BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
@@ -93,6 +96,8 @@ def _run(mode, dataset, seed, series, sweep_value,
         "agg_interval": config.AGG_INTERVAL,
         "distance_threshold": distance_threshold if distance_threshold is not None else config.DISTANCE_THRESHOLD,
         "adwin_delta": config.ADWIN_DELTA,
+        "e_detector_baseline_strategy": r.get("e_detector_baseline_strategy"),
+        "e_detector_baseline_beta": r.get("e_detector_baseline_beta"),
     }
     for k in METRIC_KEYS:
         row[k] = r.get(k)
@@ -131,8 +136,13 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     for dataset in datasets:
         for seed in seeds:
             for mode in fedsda_modes:
+                is_e_detector = ".2" in mode or ".3" in mode
                 delta_series = f"{mode} δ_adwin sweep (γ={fixed_gamma})"
-                agg_series = f"{mode} AGG_INTERVAL sweep (δ_adwin={fixed_adwin})"
+                fixed_detector = (
+                    f"alpha_e={config.E_DETECTOR_ALPHA}"
+                    if is_e_detector else f"δ_adwin={fixed_adwin}"
+                )
+                agg_series = f"{mode} AGG_INTERVAL sweep ({fixed_detector})"
                 for adwin_delta in adwin_deltas:
                     do(f"{dataset}/{mode}/da={adwin_delta}/s{seed}",
                        mode=mode, dataset=dataset, seed=seed, series=delta_series,
@@ -208,7 +218,7 @@ def _load_csv(path):
             agg_interval = row.get("agg_interval")
             row["agg_interval"] = (int(float(agg_interval))
                                    if agg_interval not in (None, "", "None") else "")
-            for k in ["distance_threshold", "adwin_delta"] + METRIC_KEYS:
+            for k in ["distance_threshold", "adwin_delta", "e_detector_baseline_beta"] + METRIC_KEYS:
                 v = row.get(k)
                 row[k] = float(v) if v not in (None, "", "None") else float("nan")
             rows.append(row)
@@ -330,6 +340,10 @@ def _series_style(series):
         "FedSDA_v3.1": "tab:pink",
         "FedSDA_v3.2": "tab:olive",
         "FedSDA_v3.3": "darkolivegreen",
+        "FedSDA_v2.2_ucb": "royalblue",
+        "FedSDA_v2.3_ucb": "navy",
+        "FedSDA_v3.2_ucb": "yellowgreen",
+        "FedSDA_v3.3_ucb": "darkgreen",
         "FedDrift": "tab:purple",
         "FedDrift_v2": "tab:red",
     }
