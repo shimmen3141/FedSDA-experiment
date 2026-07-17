@@ -2,7 +2,9 @@
 
 本実装([federated_drift_experiment/config.py](../federated_drift_experiment/config.py))の全ハイパーパラメータを、**意味・使用手法・既定値**の観点で一覧化する。実行時はコードから `from federated_drift_experiment import config; config.X = ...`で上書きできる(各モジュールは呼び出し時に `config.X` を参照する)。
 
-論文(FedDrift 元論文)との対応・相違は [differences-from-feddrift.md](differences-from-feddrift.md)、アルゴリズム詳細は [fedsda-algorithm.md](fedsda-algorithm.md) を参照。
+論文(FedDrift 元論文)との対応・相違は [differences-from-feddrift.md](differences-from-feddrift.md)、
+アルゴリズム詳細は [fedsda-algorithm.md](fedsda-algorithm.md)、ADWINとe-detectorの理論・比較条件は
+[drift-detection.md](drift-detection.md) を参照。
 
 ---
 
@@ -92,7 +94,7 @@
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
 | `ADWIN_DELTA` | ADWIN 信頼度パラメータ δ_adwin(小さいほど検出保守的) | FedSDA | 0.05 |
-| `E_DETECTOR_ALPHA` | v2.3/v3.3のe-SR誤警報制御値。ARLを少なくとも`1/alpha`とするため、小さいほど保守的 | FedSDA v2.3/v3.3 | 0.001 |
+| `E_DETECTOR_ALPHA` | v2.2/v3.2のe-SR誤警報制御値。ARLを少なくとも`1/alpha`とするため、小さいほど保守的 | FedSDA v2.2/v3.2 | 0.001 |
 | `FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS` | 新規モデル作成後、サーバへアップロード可能になるまでの学習ラウンド数。1なら作成の次ラウンド末に送信。v3では初回配布後の次ラウンドからキャッシュ評価可能 | FedSDA | 1 |
 | `ADWIN_MAX_WINDOW` | ADWIN ウィンドウ幅の上限 | FedSDA | 1000 |
 | `ADWIN_MIN_WIDTH` | 検定を開始する最小ウィンドウ幅 | FedSDA | 10 |
@@ -144,7 +146,7 @@
 同じ`ADWIN_DELTA`で並列監視する。検知器別のdeltaは設けず、v2との差を検知系列の条件付けだけに限定する。
 `FedSDA_v3.1`も同じクライアント検知を使い、サーバ側はv3のキャッシュ評価フローを維持する。
 
-`FedSDA_v2.3` / `FedSDA_v3.3`はADWINを使わず、[0,1]の全体損失に対する
+`FedSDA_v2.2` / `FedSDA_v3.2`はADWINを使わず、[0,1]の全体損失に対する
 混合Shiryaev–Roberts型e-detectorを使う。候補変化点ごとにe-processを開始し、
 統合e値が`1/E_DETECTOR_ALPHA`以上になった場合に最大寄与候補をFIFO分割点とする。
 既定値0.001の意味は「各検知区間で平均誤警報間隔1000観測以上」であり、

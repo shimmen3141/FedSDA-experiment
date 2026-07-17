@@ -48,8 +48,8 @@ ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
             "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta"] + METRIC_KEYS
 
 FEDSDA_SWEEP_MODES = (
-    "FedSDA", "FedSDA_v2", "FedSDA_v2.1", "FedSDA_v2.3",
-    "FedSDA_v3", "FedSDA_v3.1", "FedSDA_v3.3",
+    "FedSDA", "FedSDA_v2", "FedSDA_v2.1", "FedSDA_v2.2",
+    "FedSDA_v3", "FedSDA_v3.1", "FedSDA_v3.2",
 )
 FEDDRIFT_SWEEP_MODES = ("FedDrift", "FedDrift_v2")
 BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
@@ -323,10 +323,10 @@ def _series_style(series):
         "FedSDA": "tab:green",
         "FedSDA_v2": "tab:blue",
         "FedSDA_v2.1": "tab:cyan",
-        "FedSDA_v2.3": "deepskyblue",
+        "FedSDA_v2.2": "deepskyblue",
         "FedSDA_v3": "tab:orange",
         "FedSDA_v3.1": "tab:pink",
-        "FedSDA_v3.3": "tab:olive",
+        "FedSDA_v3.2": "tab:olive",
         "FedDrift": "tab:purple",
         "FedDrift_v2": "tab:red",
     }

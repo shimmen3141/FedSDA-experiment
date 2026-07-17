@@ -6,7 +6,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from federated_drift_experiment.clients import EDetectorFedSDAClient, FedSDAClient
-from federated_drift_experiment.drift_detectors import BoundedMeanEDetector
+from federated_drift_experiment.e_detector import BoundedMeanEDetector
 from federated_drift_experiment.experiment import MODE_SPECS
 from federated_drift_experiment.models import SimpleMLP
 from federated_drift_experiment.servers import FedSDAV2Server, FedSDAV3Server
@@ -39,10 +39,10 @@ def test_bounded_mean_e_detector_stays_quiet_below_baseline():
 def test_e_detector_modes_reuse_server_flows_without_changing_existing_modes():
     assert MODE_SPECS["FedSDA_v2"].client_cls is FedSDAClient
     assert MODE_SPECS["FedSDA_v3"].client_cls is FedSDAClient
-    assert MODE_SPECS["FedSDA_v2.3"].client_cls is EDetectorFedSDAClient
-    assert MODE_SPECS["FedSDA_v3.3"].client_cls is EDetectorFedSDAClient
-    assert MODE_SPECS["FedSDA_v2.3"].server_cls is FedSDAV2Server
-    assert MODE_SPECS["FedSDA_v3.3"].server_cls is FedSDAV3Server
+    assert MODE_SPECS["FedSDA_v2.2"].client_cls is EDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_v3.2"].client_cls is EDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_v2.2"].server_cls is FedSDAV2Server
+    assert MODE_SPECS["FedSDA_v3.2"].server_cls is FedSDAV3Server
 
 
 def test_e_detector_client_disables_uncontrolled_forced_check():

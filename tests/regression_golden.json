@@ -63,7 +63,7 @@
     "stable_accuracy": 0.9595887982984758,
     "total_detect": 2
   },
-  "FedSDA_v2.3/circle": {
+  "FedSDA_v2.2/circle": {
     "accuracy": 0.9555,
     "avg_delay": 70.0,
     "comm_messages_down": 25,
@@ -111,7 +111,7 @@
     "stable_accuracy": 0.9595887982984758,
     "total_detect": 2
   },
-  "FedSDA_v3.3/circle": {
+  "FedSDA_v3.2/circle": {
     "accuracy": 0.9561666666666667,
     "avg_delay": 70.0,
     "comm_messages_down": 29,

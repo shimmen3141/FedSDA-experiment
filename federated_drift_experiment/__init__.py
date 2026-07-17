@@ -18,7 +18,7 @@ from .clients import (
     ObliviousClient,
 )
 from .data import generate_data, make_concept_schedules
-from .drift_detectors import BoundedMeanEDetector
+from .e_detector import BoundedMeanEDetector
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
 from .servers import BaseServer, ClusteringServer, FedDriftV2Server, FedSDAV2Server, FedSDAV3Server

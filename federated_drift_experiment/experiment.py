@@ -6,8 +6,8 @@
 - 'FedSDA_v2.1'           : v2 + 全体・正解クラス別ADWIN
 - 'FedSDA_v3'             : 提案手法 v3(配布済みモデルのキャッシュでクロス評価)
 - 'FedSDA_v3.1'           : v3 + 全体・正解クラス別ADWIN
-- 'FedSDA_v2.3'           : v2 + bounded mean e-SR検知
-- 'FedSDA_v3.3'           : v3 + bounded mean e-SR検知
+- 'FedSDA_v2.2'           : v2 + bounded mean e-SR検知
+- 'FedSDA_v3.2'           : v3 + bounded mean e-SR検知
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
 - 'FedDrift_v2'           : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
@@ -165,12 +165,12 @@ MODE_SPECS = {
         _run_fedsda_v3_timestep,
         server_cls=FedSDAV3Server,
     ),
-    'FedSDA_v2.3': ModeSpec(
+    'FedSDA_v2.2': ModeSpec(
         EDetectorFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDAV2Server,
     ),
-    'FedSDA_v3.3': ModeSpec(
+    'FedSDA_v3.2': ModeSpec(
         EDetectorFedSDAClient,
         _run_fedsda_v3_timestep,
         server_cls=FedSDAV3Server,
@@ -249,12 +249,12 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
 def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
     if mode in (
-        'FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v2.3',
-        'FedSDA_v3', 'FedSDA_v3.1', 'FedSDA_v3.3',
+        'FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v2.2',
+        'FedSDA_v3', 'FedSDA_v3.1', 'FedSDA_v3.2',
         'FedSDA_without_server',
     ):
         detector_param = (f"alpha_e={config.E_DETECTOR_ALPHA}"
-                          if mode in ('FedSDA_v2.3', 'FedSDA_v3.3')
+                          if mode in ('FedSDA_v2.2', 'FedSDA_v3.2')
                           else f"delta_adwin={config.ADWIN_DELTA}")
         return (f"gamma_dist={distance_threshold}, {detector_param}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "

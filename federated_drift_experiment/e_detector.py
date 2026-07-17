@@ -1,4 +1,4 @@
-"""逐次ドリフト検知器。
+"""bounded mean向け混合Shiryaev--Roberts型e-detector。
 
 ADWINとは独立に、bounded mean向けShiryaev--Roberts型e-detectorを提供する。
 入力は[0, 1]の損失で、定常時の条件付き平均がbaseline以下という仮定を置く。

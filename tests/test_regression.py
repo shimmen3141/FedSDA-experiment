@@ -46,10 +46,10 @@ GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regressi
 CASES = [
     ("FedSDA", "blobs", {}),
     ("FedSDA_v2.1", "circle", {}),
-    ("FedSDA_v2.3", "circle", {}),
+    ("FedSDA_v2.2", "circle", {}),
     ("FedSDA_v3", "blobs", {}),
     ("FedSDA_v3.1", "circle", {}),
-    ("FedSDA_v3.3", "circle", {}),
+    ("FedSDA_v3.2", "circle", {}),
     ("FedDrift", "blobs", {}),
     ("FedDrift_v2", "blobs", {
         "TOTAL_DATA_POINTS": 300,

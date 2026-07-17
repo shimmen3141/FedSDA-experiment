@@ -5,6 +5,9 @@
 - **ベース手法**: FedDrift (Jothimurugesan et al., 2023) — 複数グローバルモデル + ドリフト検知 + 階層的クラスタリング
 - **提案の核**: FedDrift の固定閾値・バッチ単位のヒューリスティックなドリフト検知を、**ADWIN (Bifet & Gavaldà, 2007) による統計的検知**に置き換え、さらに **FIFO 遅延バッファ**により検知遅延中のデータ混入(コンセプト混合)を防ぐ。
 
+検出器の数式、e-detector版、および両者の比較条件は
+[drift-detection.md](drift-detection.md) にまとめる。
+
 ---
 
 ## 1. 背景(簡潔に)

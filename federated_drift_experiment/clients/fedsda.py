@@ -9,7 +9,7 @@ import torch
 
 from .. import config
 from ..adwin import FullScanADWIN
-from ..drift_detectors import BoundedMeanEDetector
+from ..e_detector import BoundedMeanEDetector
 from .base import BaseClient
 
 
@@ -302,7 +302,7 @@ class ClassConditionalFedSDAClient(FedSDAClient):
 class EDetectorFedSDAClient(FedSDAClient):
     """全体損失をbounded mean e-SRで監視するFedSDAクライアント。
 
-    v2.3/v3.3のアブレーション用に、クラス別ADWINと保険的な強制チェックは
+    v2.2/v3.2のアブレーション用に、クラス別ADWINと保険的な強制チェックは
     組み合わせない。基準平均は検知区間開始時の現行モデル損失統計から固定する。
     e-detectorの厳密なARL保証には、この値が定常時の条件付き平均上限であることが
     必要であり、標本平均を使う本実装では近似的な仮定になる。
