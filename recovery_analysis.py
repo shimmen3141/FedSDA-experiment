@@ -125,6 +125,18 @@ def _sweep_val(label):
     return m.group(1) if m else None
 
 
+def _method_name(label):
+    """掃引ラベル先頭から、バージョンを含む実験モード名を取り出す。"""
+    return label.split(maxsplit=1)[0]
+
+
+def _recovery_label(label, parameter):
+    """バージョンと代表パラメータを失わない回復図の凡例名を返す。"""
+    method = _method_name(label)
+    value = _sweep_val(label)
+    return method if value is None else f"{method} ({parameter}={value})"
+
+
 def _sorted_labels(labels):
     """凡例順: Oblivious → FedSDA → FedDrift → その他。同一系列内は掃引値の昇順。"""
     def rank(lab):
@@ -247,20 +259,25 @@ def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200
     def is_ob(lab):
         return "Oblivious" in lab
 
+    def is_without_server(lab):
+        return _method_name(lab) == "FedSDA_without_server"
+
     def main_disp(lab):
         if is_ob(lab):
             return "Oblivious"
+        if is_without_server(lab):
+            return "FedSDA_without_server"
         if "adwin sweep" in lab:
-            return f"FedSDA (δ_adwin={_sweep_val(lab)})"
+            return _recovery_label(lab, "δ_adwin")
         if "batch sweep" in lab:
-            return f"FedDrift (batch={_sweep_val(lab)})"
+            return _recovery_label(lab, "batch")
         return lab
 
     # 図A: 手法間比較(各手法の代表設定のみ)
     plot_recovery(
         agg, max_delta, out(f"recovery_main_{base}.png"), window,
         title="Recovery: method comparison (representative configs)",
-        label_filter=lambda lab: (is_ob(lab)
+        label_filter=lambda lab: (is_ob(lab) or is_without_server(lab)
                                   or ("adwin sweep" in lab and lab.endswith(rep_adwin))
                                   or ("batch sweep" in lab and lab.endswith(rep_batch))),
         label_display=main_disp)
@@ -269,15 +286,18 @@ def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200
     plot_recovery(
         agg, max_delta, out(f"recovery_sweep_adwin_{base}.png"), window,
         title="Recovery: FedSDA δ_adwin sensitivity",
-        label_filter=lambda lab: is_ob(lab) or "adwin sweep" in lab,
-        label_display=lambda lab: "Oblivious" if is_ob(lab) else f"δ_adwin={_sweep_val(lab)}")
+        label_filter=lambda lab: is_ob(lab) or is_without_server(lab) or "adwin sweep" in lab,
+        label_display=lambda lab: ("Oblivious" if is_ob(lab) else
+                                   ("FedSDA_without_server" if is_without_server(lab) else
+                                    _recovery_label(lab, "δ_adwin"))))
 
     # 図C: FedDrift 検出バッチ感度(全掃引値 + 基準線)
     plot_recovery(
         agg, max_delta, out(f"recovery_sweep_batch_{base}.png"), window,
         title="Recovery: FedDrift batch-size sensitivity",
         label_filter=lambda lab: is_ob(lab) or "batch sweep" in lab,
-        label_display=lambda lab: "Oblivious" if is_ob(lab) else f"batch={_sweep_val(lab)}")
+        label_display=lambda lab: ("Oblivious" if is_ob(lab) else
+                                   _recovery_label(lab, "batch")))
 
     # 表は全系列を残す(行なら判読でき、後から任意設定を参照できる)
     write_table(agg, checkpoints, window, out(f"recovery_{base}.md"))

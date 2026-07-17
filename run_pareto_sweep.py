@@ -231,28 +231,31 @@ def write_markdown_table(rows, path):
 
         lines.append(f"### {ds}")
         lines.append("")
-        lines.append("| Method | sweep | Accuracy (stable) | Comm (transfers) | Models |")
-        lines.append("|---|---|---:|---:|---:|")
+        lines.append("| Method | sweep | Accuracy (overall) | Accuracy (stable) | Comm (transfers) | Models |")
+        lines.append("|---|---|---:|---:|---:|---:|")
         for (series, sv) in sorted(groups.keys(), key=order_key):
             rs = groups[(series, sv)]
-            acc = np.array([float(x["stable_accuracy"]) for x in rs])
+            overall_acc = np.array([float(x["accuracy"]) for x in rs])
+            stable_acc = np.array([float(x["stable_accuracy"]) for x in rs])
             comm = np.array([float(x["comm_models_total"]) for x in rs])
             models = np.array([float(x["final_model_count"]) for x in rs])
             svtxt = "–" if sv in (None, "", "None") else f"{float(sv):g}"
-            lines.append(f"| {series} | {svtxt} | {acc.mean():.4f} ± {acc.std():.4f} | "
+            lines.append(f"| {series} | {svtxt} | "
+                         f"{overall_acc.mean():.4f} ± {overall_acc.std():.4f} | "
+                         f"{stable_acc.mean():.4f} ± {stable_acc.std():.4f} | "
                          f"{comm.mean():,.0f} | {models.mean():.1f} |")
         lines.append("")
 
     n_seeds = len(set(r["seed"] for r in rows))
-    lines.append(f"*{n_seeds} シード平均。Accuracy は stable_accuracy(定常精度・回復窓 "
-                 f"W={config.STABLE_WINDOW} を除外した prequential 精度)の平均±標準偏差。"
+    lines.append(f"*{n_seeds} シード平均。overall は全期間の prequential 精度、stable は回復窓 "
+                 f"W={config.STABLE_WINDOW} を除外した定常精度で、いずれも平均±標準偏差。"
                  f"Comm はモデル転送数。*")
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print(f"Table saved: {path}")
 
 
-def combine_and_plot(patterns, out_dir, tag=None):
+def combine_and_plot(patterns, out_dir, tag=None, plot_metric="stable_accuracy"):
     """複数の結果CSV(glob可)を読み込み、シード平均の散布図を描画する。"""
     import glob
     paths = []
@@ -277,7 +280,7 @@ def combine_and_plot(patterns, out_dir, tag=None):
     os.makedirs(out_dir, exist_ok=True)
     print(f"Combining {len(paths)} CSV(s), datasets={datasets}, seeds={seeds} "
           f"(誤差棒/± = シード間の標準偏差)")
-    plot_pareto(rows, datasets, os.path.join(out_dir, f"{name}.png"))
+    plot_pareto(rows, datasets, os.path.join(out_dir, f"{name}.png"), y_key=plot_metric)
     write_markdown_table(rows, os.path.join(out_dir, f"{name}.md"))
 
 
@@ -306,15 +309,35 @@ def _fixed_parameter_label(rows, key, display_name):
     return f"{display_name}=?"
 
 
-def plot_pareto(rows, datasets, path):
-    # 単一点の基準方式を除く掃引系列に色・マーカーを割り当てる
+def _series_style(series):
+    """手法を色、掃引対象をマーカーと線種で表し、系列の見分けを保つ。"""
+    method_colors = {
+        "FedSDA": "tab:green",
+        "FedSDA_v2": "tab:blue",
+        "FedSDA_v3": "tab:orange",
+        "FedDrift": "tab:purple",
+        "FedDrift_v2": "tab:red",
+    }
+    method = series.split(maxsplit=1)[0]
+    color = method_colors.get(method, "tab:brown")
+    if "AGG_INTERVAL sweep" in series:
+        return color, "s", "--"
+    if "batch sweep" in series:
+        return color, "^", "-."
+    if "δ_adwin sweep" in series:
+        return color, "o", "-"
+    if "δ sweep" in series:
+        return color, "D", ":"
+    return color, "X", "-"
+
+
+def plot_pareto(rows, datasets, path, y_key="stable_accuracy"):
+    # 色は手法、マーカーと線種は掃引対象を表す。
     sweep_series = []
     for r in rows:
         if r["series"] not in BASELINE_MODES and r["series"] not in sweep_series:
             sweep_series.append(r["series"])
-    palette = [("tab:blue", "D"), ("tab:red", "o"), ("tab:orange", "s"),
-               ("tab:green", "^"), ("tab:purple", "v")]
-    style = {s: palette[i % len(palette)] for i, s in enumerate(sweep_series)}
+    style = {series: _series_style(series) for series in sweep_series}
 
     n = len(datasets)
     fig, axes = plt.subplots(1, n, figsize=(6.5 * n, 5.5), squeeze=False)
@@ -328,14 +351,14 @@ def plot_pareto(rows, datasets, path):
             vals = sorted(set(r["sweep_value"] for r in srows))
             xs, ys, xe, ye = [], [], [], []
             for v in vals:
-                a = _agg([r for r in srows if r["sweep_value"] == v])
+                a = _agg([r for r in srows if r["sweep_value"] == v], y_key=y_key)
                 if a:
                     xs.append(a[0]); xe.append(a[1]); ys.append(a[2]); ye.append(a[3])
             if not xs:
                 continue
-            color, marker = style[s]
+            color, marker, linestyle = style[s]
             ax.errorbar(xs, ys, xerr=xe, yerr=ye, marker=marker, color=color, markersize=8,
-                        capsize=3, label=s, zorder=2, alpha=0.85,
+                        linestyle=linestyle, capsize=3, label=s, zorder=2, alpha=0.85,
                         markeredgecolor="white", markeredgewidth=0.6)
             ox, oy = label_offsets[si % len(label_offsets)]
             box = dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.55)
@@ -358,7 +381,7 @@ def plot_pareto(rows, datasets, path):
         }
         for baseline in BASELINE_MODES:
             baseline_rows = [r for r in ds_rows if r["series"] == baseline]
-            a = _agg(baseline_rows)
+            a = _agg(baseline_rows, y_key=y_key)
             if not a:
                 continue
             color, linestyle = baseline_styles[baseline]
@@ -377,7 +400,9 @@ def plot_pareto(rows, datasets, path):
         ax.set_xscale("log")
         ax.set_title(ds)
         ax.set_xlabel("Communication (model transfers, log)")
-        ax.set_ylabel("stable_accuracy (omit-recovery)")
+        ylabel = ("stable_accuracy (omit-recovery)" if y_key == "stable_accuracy"
+                  else "accuracy (overall prequential)")
+        ax.set_ylabel(ylabel)
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize="small")
 
@@ -430,12 +455,15 @@ def main():
     parser.add_argument("--tag", default=None, help="出力ファイル名に付ける任意の識別子")
     parser.add_argument("--plot-csvs", nargs="+", default=None,
                         help="実験は行わず、指定した結果CSV(glob可)を読み込みシード平均で再描画する")
+    parser.add_argument("--plot-metric", choices=["stable_accuracy", "accuracy"],
+                        default="stable_accuracy",
+                        help="Pareto図の縦軸に使う精度指標(既定: stable_accuracy)")
     parser.add_argument("--quick", action="store_true", help="動作確認用の小規模設定")
     args = parser.parse_args()
 
     # 集約プロットモード: 既存CSVを読み込みシード平均で描画して終了
     if args.plot_csvs:
-        combine_and_plot(args.plot_csvs, args.out_dir, args.tag)
+        combine_and_plot(args.plot_csvs, args.out_dir, args.tag, args.plot_metric)
         return
 
     if args.quick:
@@ -482,7 +510,8 @@ def main():
                      fedsda_modes=args.fedsda_modes, feddrift_modes=args.feddrift_modes,
                      baseline_modes=args.baseline_modes)
     write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
-    plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"))
+    plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"),
+                y_key=args.plot_metric)
 
     # 掃引で保存した生データ(.npz)から回復図・表を自動生成する。
     # recovery は軽い事後分析なので、パラメータを変えて後から recovery_analysis.py 単体で

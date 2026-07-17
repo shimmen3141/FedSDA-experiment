@@ -63,6 +63,16 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
     assert loaded[0]["sweep_value"] == 0.1
 
 
+def test_series_style_distinguishes_method_and_sweep_type():
+    fedsda_delta = sweep._series_style("FedSDA_v2 δ_adwin sweep (γ=0.1)")
+    feddrift_delta = sweep._series_style("FedDrift_v2 δ sweep (batch=50)")
+    fedsda_agg = sweep._series_style("FedSDA_v2 AGG_INTERVAL sweep (δ_adwin=0.05)")
+
+    assert fedsda_delta != feddrift_delta
+    assert fedsda_delta[0] == fedsda_agg[0]
+    assert fedsda_delta[1:] != fedsda_agg[1:]
+
+
 def test_plot_pareto_draws_baseline_standard_deviation_band(tmp_path, monkeypatch):
     spans = []
     line_labels = []
@@ -99,3 +109,16 @@ def test_plot_pareto_draws_baseline_standard_deviation_band(tmp_path, monkeypatc
     assert len(spans) == 2
     assert "FedSDA_without_server (δ_adwin=0.1, mean±std)" in line_labels
     assert "Oblivious (AGG_INTERVAL=50, mean±std)" in line_labels
+
+
+def test_plot_pareto_can_use_overall_accuracy(tmp_path):
+    rows = [{
+        "mode": "FedSDA_v2", "dataset": "sea", "seed": 0,
+        "series": "FedSDA_v2 δ_adwin sweep (γ=0.1)", "sweep_value": 0.1,
+        "comm_models_total": 100.0, "stable_accuracy": 0.9, "accuracy": 0.8,
+    }]
+
+    path = tmp_path / "overall.png"
+    sweep.plot_pareto(rows, ["sea"], path, y_key="accuracy")
+
+    assert path.exists()
