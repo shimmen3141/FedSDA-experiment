@@ -47,9 +47,11 @@ CASES = [
     ("FedSDA", "blobs", {}),
     ("FedSDA_v2.1", "circle", {}),
     ("FedSDA_v2.2", "circle", {}),
+    ("FedSDA_v2.3", "circle", {}),
     ("FedSDA_v3", "blobs", {}),
     ("FedSDA_v3.1", "circle", {}),
     ("FedSDA_v3.2", "circle", {}),
+    ("FedSDA_v3.3", "circle", {}),
     ("FedDrift", "blobs", {}),
     ("FedDrift_v2", "blobs", {
         "TOTAL_DATA_POINTS": 300,
@@ -72,6 +74,7 @@ METRIC_KEYS = [
     "comm_messages_up", "comm_messages_down", "comm_messages_total",
     "final_model_count", "precision", "recall", "f1",
     "avg_delay", "total_detect",
+    "change_point_mae", "change_point_bias", "change_point_estimate_count",
 ]
 
 DEFAULT_TOL = 1e-9  # 「完全一致」に近い厳密さ。FP 揺れで誤検知するなら --tol で緩める

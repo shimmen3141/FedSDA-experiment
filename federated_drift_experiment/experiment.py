@@ -8,6 +8,8 @@
 - 'FedSDA_v3.1'           : v3 + 全体・正解クラス別ADWIN
 - 'FedSDA_v2.2'           : v2 + bounded mean e-SR検知
 - 'FedSDA_v3.2'           : v3 + bounded mean e-SR検知
+- 'FedSDA_v2.3'           : v2 + 全体・正解クラス別e-SR混合検知
+- 'FedSDA_v3.3'           : v3 + 全体・正解クラス別e-SR混合検知
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
 - 'FedDrift_v2'           : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
@@ -28,6 +30,7 @@ import torch
 
 from . import config
 from .clients import (
+    ClassConditionalEDetectorFedSDAClient,
     ClassConditionalFedSDAClient,
     EDetectorFedSDAClient,
     FedDriftClient,
@@ -175,6 +178,16 @@ MODE_SPECS = {
         _run_fedsda_v3_timestep,
         server_cls=FedSDAV3Server,
     ),
+    'FedSDA_v2.3': ModeSpec(
+        ClassConditionalEDetectorFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDAV2Server,
+    ),
+    'FedSDA_v3.3': ModeSpec(
+        ClassConditionalEDetectorFedSDAClient,
+        _run_fedsda_v3_timestep,
+        server_cls=FedSDAV3Server,
+    ),
     'FedDrift': ModeSpec(FedDriftClient, _run_batch_timestep, server_cls=ClusteringServer,
                          chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedDrift_v2': ModeSpec(FedDriftV2Client, _run_feddrift_v2_timestep,
@@ -249,12 +262,15 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
 def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
     if mode in (
-        'FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v2.2',
-        'FedSDA_v3', 'FedSDA_v3.1', 'FedSDA_v3.2',
+        'FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v2.2', 'FedSDA_v2.3',
+        'FedSDA_v3', 'FedSDA_v3.1', 'FedSDA_v3.2', 'FedSDA_v3.3',
         'FedSDA_without_server',
     ):
         detector_param = (f"alpha_e={config.E_DETECTOR_ALPHA}"
-                          if mode in ('FedSDA_v2.2', 'FedSDA_v3.2')
+                          if mode in (
+                              'FedSDA_v2.2', 'FedSDA_v2.3',
+                              'FedSDA_v3.2', 'FedSDA_v3.3',
+                          )
                           else f"delta_adwin={config.ADWIN_DELTA}")
         return (f"gamma_dist={distance_threshold}, {detector_param}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "
@@ -376,6 +392,7 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
     - history_model_id: (N_CLIENTS, N_SAMPLES) の int32 (各サンプルで選択中のモデルID)
     - switch_client_ids / switch_positions: ローカルで実際にモデル切替が起きた位置を
       (クライアントid, サンプルindex) の並列配列で平坦化
+    - estimated_drift_start_*: 検知ごとに検出器が推定した変化開始位置
     - dataset/mode/label/seed/min_stable/agg_interval: 分析時のグループ化・Δ上限用メタデータ
 
     注: history_model_id / switch_* は後から追加した純増キー。これらを持たない旧 .npz
@@ -400,6 +417,15 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
         for p in getattr(c, "local_switch_positions", []):
             s_cids.append(ci)
             s_pos.append(p)
+
+    e_cids, e_alarm_pos, e_start_pos = [], [], []
+    for ci, client in enumerate(clients):
+        alarms = getattr(client, "detected_event_positions", [])
+        estimates = getattr(client, "estimated_drift_start_positions", [])
+        for alarm, estimate in zip(alarms, estimates):
+            e_cids.append(ci)
+            e_alarm_pos.append(alarm)
+            e_start_pos.append(estimate)
 
     telemetry_arrays = {
         "round_global_model_count": np.asarray(telemetry["global_model_count"], dtype=np.float64),
@@ -430,6 +456,9 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
         history_model_id=model_id_hist,
         switch_client_ids=np.asarray(s_cids, dtype=np.int32),
         switch_positions=np.asarray(s_pos, dtype=np.int32),
+        estimated_drift_start_client_ids=np.asarray(e_cids, dtype=np.int32),
+        estimated_drift_alarm_positions=np.asarray(e_alarm_pos, dtype=np.int32),
+        estimated_drift_start_positions=np.asarray(e_start_pos, dtype=np.int32),
         dataset=str(config.DATASET),
         mode=str(mode),
         label=str(label),

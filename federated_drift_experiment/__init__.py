@@ -10,6 +10,7 @@ from . import config
 from .adwin import FullScanADWIN
 from .clients import (
     BaseClient,
+    ClassConditionalEDetectorFedSDAClient,
     ClassConditionalFedSDAClient,
     EDetectorFedSDAClient,
     FedDriftClient,
@@ -29,6 +30,7 @@ __all__ = [
     "FullScanADWIN",
     "FedSDAClient",
     "ClassConditionalFedSDAClient",
+    "ClassConditionalEDetectorFedSDAClient",
     "EDetectorFedSDAClient",
     "BoundedMeanEDetector",
     "BaseClient",

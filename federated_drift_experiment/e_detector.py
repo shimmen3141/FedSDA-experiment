@@ -111,3 +111,10 @@ class BoundedMeanEDetector:
     def active_hypothesis_count(self):
         """今回の更新で評価した候補変化点×賭け率の数。"""
         return len(self._candidate_starts) * len(self.lambdas)
+
+    @property
+    def retained_start_time(self):
+        """保持中の最古候補が属する検出器内の1始まり時刻。"""
+        if not len(self._candidate_starts):
+            return None
+        return int(self._candidate_starts[0])

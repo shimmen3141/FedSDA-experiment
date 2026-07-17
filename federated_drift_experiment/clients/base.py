@@ -58,6 +58,7 @@ class BaseClient:
         # per-sample index and detection positions
         self.processed_samples = 0                 # number of processed samples for this client
         self.detected_event_positions = []         # detector internal detection positions (debug)
+        self.estimated_drift_start_positions = []  # 各検知に対応する検出器推定の変化開始位置
         self.mapping_change_positions = []         # server mapping-induced model changes (debug/plot)
         self.local_switch_positions = []           # ローカルで実際に切替が発生したサンプルインデックス（検出として数えるもの）
 

@@ -28,6 +28,26 @@ def _stable_accuracy(clients, true_drift_events, window):
     return correct / total if total > 0 else float('nan')
 
 
+def _change_point_errors(clients, true_drift_events, delay_tolerance):
+    """真の変化後に発火した検知と、その検出器推定変化点の誤差を対応付ける。"""
+    errors = []
+    for client_id, client in enumerate(clients):
+        alarms = list(getattr(client, "detected_event_positions", []))
+        estimates = list(getattr(client, "estimated_drift_start_positions", []))
+        if len(alarms) != len(estimates):
+            continue
+        used = set()
+        for true_position in sorted(true_drift_events[client_id]):
+            for index, alarm_position in enumerate(alarms):
+                if index in used:
+                    continue
+                if true_position <= alarm_position <= true_position + delay_tolerance:
+                    errors.append(estimates[index] - true_position)
+                    used.add(index)
+                    break
+    return errors
+
+
 def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_window=None):
     if delay_tolerance is None:
         delay_tolerance = config.DELAY_TOLERANCE
@@ -78,6 +98,17 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
     avg_delay = sum(delays) / len(delays) if delays else 0.0
+    change_point_errors = _change_point_errors(
+        clients, true_drift_events, delay_tolerance
+    )
+    change_point_mae = (
+        sum(abs(error) for error in change_point_errors) / len(change_point_errors)
+        if change_point_errors else 0.0
+    )
+    change_point_bias = (
+        sum(change_point_errors) / len(change_point_errors)
+        if change_point_errors else 0.0
+    )
 
     return {
         "accuracy": avg_accuracy,
@@ -88,6 +119,9 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         "miss_rate": fn_rate,
         "fdr": fdr,
         "avg_delay": avg_delay,
+        "change_point_mae": change_point_mae,
+        "change_point_bias": change_point_bias,
+        "change_point_estimate_count": len(change_point_errors),
         "total_true": total_true_drifts,
         "total_detect": total_detections,
         "tp": total_tp,

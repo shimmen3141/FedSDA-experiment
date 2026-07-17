@@ -38,6 +38,7 @@ METRIC_KEYS = [
     "comm_models_up", "comm_models_down", "comm_models_total",
     "comm_messages_up", "comm_messages_down", "comm_messages_total",
     "final_model_count", "precision", "recall", "f1", "avg_delay", "total_detect",
+    "change_point_mae", "change_point_bias", "change_point_estimate_count",
     "runtime_seconds", "client_compute_seconds_sum", "client_compute_seconds_max",
     "compute_inference_examples_total", "compute_training_examples_total",
     "compute_model_examples_total", "compute_optimizer_steps_total",
@@ -48,8 +49,8 @@ ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
             "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta"] + METRIC_KEYS
 
 FEDSDA_SWEEP_MODES = (
-    "FedSDA", "FedSDA_v2", "FedSDA_v2.1", "FedSDA_v2.2",
-    "FedSDA_v3", "FedSDA_v3.1", "FedSDA_v3.2",
+    "FedSDA", "FedSDA_v2", "FedSDA_v2.1", "FedSDA_v2.2", "FedSDA_v2.3",
+    "FedSDA_v3", "FedSDA_v3.1", "FedSDA_v3.2", "FedSDA_v3.3",
 )
 FEDDRIFT_SWEEP_MODES = ("FedDrift", "FedDrift_v2")
 BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
@@ -324,9 +325,11 @@ def _series_style(series):
         "FedSDA_v2": "tab:blue",
         "FedSDA_v2.1": "tab:cyan",
         "FedSDA_v2.2": "deepskyblue",
+        "FedSDA_v2.3": "dodgerblue",
         "FedSDA_v3": "tab:orange",
         "FedSDA_v3.1": "tab:pink",
         "FedSDA_v3.2": "tab:olive",
+        "FedSDA_v3.3": "darkolivegreen",
         "FedDrift": "tab:purple",
         "FedDrift_v2": "tab:red",
     }

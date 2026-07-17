@@ -98,6 +98,7 @@ LOCAL_UPDATE_TAU = 1
 ADWIN_DELTA = 0.05          # ADWIN 信頼度パラメータ (delta_adwin)
 ADWIN_MAX_WINDOW = 1000     # ADWIN ウィンドウ幅の上限
 ADWIN_MIN_WIDTH = 10        # 検定を開始する最小ウィンドウ幅
+FEDSDA_ENABLE_FORCED_DRIFT_CHECK = True  # ADWIN未検知時の保険的な損失増分チェック
 
 E_DETECTOR_ALPHA = 0.001    # e-SRの誤警報制御値。平均誤警報間隔(ARL)を1/alpha以上にする
 

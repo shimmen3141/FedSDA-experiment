@@ -1,11 +1,18 @@
 import os
 import sys
 
+import torch
+
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from federated_drift_experiment.clients import EDetectorFedSDAClient, FedSDAClient
+from federated_drift_experiment import config
+from federated_drift_experiment.clients import (
+    ClassConditionalEDetectorFedSDAClient,
+    EDetectorFedSDAClient,
+    FedSDAClient,
+)
 from federated_drift_experiment.e_detector import BoundedMeanEDetector
 from federated_drift_experiment.experiment import MODE_SPECS
 from federated_drift_experiment.models import SimpleMLP
@@ -53,3 +60,47 @@ def test_e_detector_client_disables_uncontrolled_forced_check():
         verbose=False,
     )
     assert not client._forced_drift_check(100)
+
+
+def test_forced_check_can_be_disabled_without_changing_default(monkeypatch):
+    client = FedSDAClient(
+        client_id=0,
+        initial_models={0: SimpleMLP()},
+        initial_stats={0: {"n": 100, "mean": 0.2, "M2": 1.0}},
+        verbose=False,
+    )
+    monkeypatch.setattr(config, "FEDSDA_ENABLE_FORCED_DRIFT_CHECK", False)
+    assert not client._forced_drift_check(100)
+
+
+def test_class_conditional_e_detector_finds_class_local_increase():
+    client = ClassConditionalEDetectorFedSDAClient(
+        client_id=0,
+        initial_models={0: SimpleMLP()},
+        initial_stats={0: {"n": 100, "mean": 0.6, "M2": 1.0}},
+        verbose=False,
+    )
+
+    detected = None
+    for sample_idx in range(800):
+        class_id = sample_idx % 2
+        if sample_idx < 400:
+            error = 0.1 if class_id == 0 else 0.5
+        else:
+            error = 1.0 if class_id == 0 else 0.0
+        y = torch.tensor([[float(class_id)]])
+        if client._update_drift_detectors(error, y, sample_idx):
+            detected = sample_idx
+            break
+
+    assert detected is not None
+    assert detected >= 400
+    assert client._class_drift_start is not None
+    assert client._class_drift_start >= 400
+
+
+def test_class_conditional_e_detector_modes_reuse_v2_and_v3_servers():
+    assert MODE_SPECS["FedSDA_v2.3"].client_cls is ClassConditionalEDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_v3.3"].client_cls is ClassConditionalEDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_v2.3"].server_cls is FedSDAV2Server
+    assert MODE_SPECS["FedSDA_v3.3"].server_cls is FedSDAV3Server

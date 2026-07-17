@@ -2,6 +2,7 @@
 
 ADWIN による統計的ドリフト検出 + FIFOバッファによる逐次(1サンプル単位)処理。
 """
+import math
 import time
 from collections import defaultdict, deque
 
@@ -98,6 +99,7 @@ class FedSDAClient(BaseClient):
             # τ>1 で保留中の更新をドリフト解決前に消化する(τ=1 では no-op)
             self.flush_pending_updates()
             self.detected_event_positions.append(idx)
+            self.estimated_drift_start_positions.append(self._estimated_drift_start(idx))
             drift_type = self._resolve_drift(sample_idx=idx)
         else:
             # 平時: バッファ長 N_FIFO を超えた分だけ古いデータをストアへ確定し、学習する
@@ -131,6 +133,11 @@ class FedSDAClient(BaseClient):
         """検知器が推定した新概念側のサンプル数を返す。"""
         return min(len(buffer_list), self.adwin.width)
 
+    def _estimated_drift_start(self, sample_idx):
+        """検知器が推定した新概念側の先頭サンプル位置を返す。"""
+        n_new = self._new_concept_sample_count(list(self.buffer), sample_idx)
+        return max(0, sample_idx - n_new + 1)
+
     def _reset_drift_detectors(self):
         """ドリフト解決後に検知器を初期状態へ戻す。"""
         self.adwin.reset()
@@ -141,6 +148,8 @@ class FedSDAClient(BaseClient):
     def _forced_drift_check(self, idx):
         """ADWIN未検知でも、直近ウィンドウの損失がベースラインから閾値以上悪化して
         いればドリフト解決を強制する保険的チェック。"""
+        if not config.FEDSDA_ENABLE_FORCED_DRIFT_CHECK:
+            return False
         width = self.adwin.width
         lower_bound = max(0, self.fifo_size - 5)
         upper_bound = max(100, 2 * max(0, (self.fifo_size - 5)))
@@ -344,3 +353,100 @@ class EDetectorFedSDAClient(FedSDAClient):
 
     def _detector_label(self):
         return "e-SR"
+
+
+class ClassConditionalEDetectorFedSDAClient(EDetectorFedSDAClient):
+    """全体損失と正解クラス別損失のe-SRを固定重みで混合するクライアント。
+
+    全体・クラス0・クラス1へ各1/3の重みを割り当て、混合e値が閾値を超えたときに
+    検知する。クラス別系列は該当クラスのサンプル到着時だけ更新する。クラス別の
+    事前統計を保持していないため、開始時の基準平均には全体モデル統計を共用する。
+    従ってクラス条件付き平均もこの基準以下という追加仮定が必要になる。
+    """
+
+    _COMPONENT_WEIGHT = 1.0 / 3.0
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.class_e_detectors = {}
+        self.class_e_positions = defaultdict(deque)
+        self._class_drift_start = None
+
+    def _new_class_detector(self):
+        return BoundedMeanEDetector(
+            baseline=self._e_detector_baseline(),
+            alpha=config.E_DETECTOR_ALPHA,
+            max_candidates=config.ADWIN_MAX_WINDOW,
+        )
+
+    def _update_component(self, detector, error):
+        detector.update(error)
+        self.compute_counters["drift_detector_updates"] += 1
+        self.compute_counters["drift_detector_hypotheses"] += (
+            detector.active_hypothesis_count
+        )
+
+    def _update_drift_detectors(self, error, y, sample_idx):
+        self._update_component(self.e_detector, error)
+
+        class_id = int(y.view(-1)[0].item())
+        if class_id not in (0, 1):
+            raise ValueError("クラス条件付きe-SRは二値ラベル0/1を前提とします")
+        detector = self.class_e_detectors.get(class_id)
+        if detector is None:
+            detector = self._new_class_detector()
+            self.class_e_detectors[class_id] = detector
+        positions = self.class_e_positions[class_id]
+        positions.append(sample_idx)
+        self._update_component(detector, error)
+        while len(positions) > detector.max_candidates:
+            positions.popleft()
+
+        component_logs = {
+            "overall": self.e_detector.log_e_value + math.log(self._COMPONENT_WEIGHT),
+            class_id: detector.log_e_value + math.log(self._COMPONENT_WEIGHT),
+        }
+        # 未観測の二値クラスには固定した残り1/3を割り当てたままにする。
+        for other_id, other_detector in self.class_e_detectors.items():
+            if other_id != class_id:
+                component_logs[other_id] = (
+                    other_detector.log_e_value + math.log(self._COMPONENT_WEIGHT)
+                )
+
+        finite_logs = [value for value in component_logs.values() if math.isfinite(value)]
+        if finite_logs:
+            maximum = max(finite_logs)
+            combined_log_e = maximum + math.log(
+                sum(math.exp(value - maximum) for value in finite_logs)
+            )
+        else:
+            combined_log_e = -math.inf
+        self.history_detector_log_e.append(combined_log_e)
+
+        if combined_log_e < self.e_detector.log_threshold:
+            self._class_drift_start = None
+            return False
+
+        best_component = max(component_logs, key=component_logs.get)
+        if best_component == "overall":
+            self._class_drift_start = None
+        else:
+            best_detector = self.class_e_detectors[best_component]
+            best_positions = self.class_e_positions[best_component]
+            offset = best_detector.split_start - best_detector.retained_start_time
+            self._class_drift_start = best_positions[max(0, min(offset, len(best_positions) - 1))]
+        return True
+
+    def _new_concept_sample_count(self, buffer_list, sample_idx):
+        if self._class_drift_start is None:
+            return super()._new_concept_sample_count(buffer_list, sample_idx)
+        return min(len(buffer_list), sample_idx - self._class_drift_start + 1)
+
+    def _reset_drift_detectors(self):
+        super()._reset_drift_detectors()
+        self.class_e_detectors.clear()
+        self.class_e_positions.clear()
+        self._class_drift_start = None
+
+    def _detector_label(self):
+        return "overall + class-conditional e-SR mixture"
