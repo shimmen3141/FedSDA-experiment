@@ -47,6 +47,7 @@ CASES = [
     ("FedSDA", "blobs", {}),
     ("FedSDA_v2.1", "circle", {}),
     ("FedSDA_v3", "blobs", {}),
+    ("FedSDA_v3.1", "circle", {}),
     ("FedDrift", "blobs", {}),
     ("FedDrift_v2", "blobs", {
         "TOTAL_DATA_POINTS": 300,

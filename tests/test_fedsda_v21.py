@@ -10,7 +10,7 @@ if _REPO_ROOT not in sys.path:
 from federated_drift_experiment.clients import ClassConditionalFedSDAClient, FedSDAClient
 from federated_drift_experiment.experiment import MODE_SPECS
 from federated_drift_experiment.models import SimpleMLP
-from federated_drift_experiment.servers import FedSDAV2Server
+from federated_drift_experiment.servers import FedSDAV2Server, FedSDAV3Server
 
 
 def _make_client():
@@ -46,3 +46,9 @@ def test_v21_reuses_v2_server_without_changing_v2_client():
     assert MODE_SPECS["FedSDA_v2"].client_cls is FedSDAClient
     assert MODE_SPECS["FedSDA_v2.1"].client_cls is ClassConditionalFedSDAClient
     assert MODE_SPECS["FedSDA_v2.1"].server_cls is FedSDAV2Server
+
+
+def test_v31_reuses_class_conditional_client_with_v3_server():
+    assert MODE_SPECS["FedSDA_v3"].client_cls is FedSDAClient
+    assert MODE_SPECS["FedSDA_v3.1"].client_cls is ClassConditionalFedSDAClient
+    assert MODE_SPECS["FedSDA_v3.1"].server_cls is FedSDAV3Server

@@ -79,6 +79,22 @@
     "stable_accuracy": 0.9838040841874658,
     "total_detect": 13
   },
+  "FedSDA_v3.1/circle": {
+    "accuracy": 0.95,
+    "avg_delay": 94.0,
+    "comm_messages_down": 29,
+    "comm_messages_total": 176,
+    "comm_messages_up": 147,
+    "comm_models_down": 140,
+    "comm_models_total": 262,
+    "comm_models_up": 122,
+    "f1": 0.5,
+    "final_model_count": 3,
+    "precision": 0.5,
+    "recall": 0.5,
+    "stable_accuracy": 0.9595887982984758,
+    "total_detect": 2
+  },
   "FedSDA_v3/blobs": {
     "accuracy": 0.9961666666666666,
     "avg_delay": 19.5,

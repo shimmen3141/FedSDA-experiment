@@ -141,6 +141,7 @@
 
 `FedSDA_v2.1`はv2と同じサーバ・通信パラメータを使い、全体ADWINと正解クラス別ADWINを
 同じ`ADWIN_DELTA`で並列監視する。検知器別のdeltaは設けず、v2との差を検知系列の条件付けだけに限定する。
+`FedSDA_v3.1`も同じクライアント検知を使い、サーバ側はv3のキャッシュ評価フローを維持する。
 > 通信削減版は**モード `FedSDA_v3`**(`FedSDAV3Server`)で選択し、前回配布モデルのキャッシュで
 > クロス評価するため、評価用のモデル再送を行わない。
 > 詳細は [sequence-diagrams.md](sequence-diagrams.md)。

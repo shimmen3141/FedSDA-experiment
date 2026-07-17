@@ -5,6 +5,7 @@
 - 'FedSDA_v2'             : 提案手法 v2(v1 + FedAvg先行サーバ。docs/sequence-diagrams.md)
 - 'FedSDA_v2.1'           : v2 + 全体・正解クラス別ADWIN
 - 'FedSDA_v3'             : 提案手法 v3(配布済みモデルのキャッシュでクロス評価)
+- 'FedSDA_v3.1'           : v3 + 全体・正解クラス別ADWIN
 - 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
 - 'FedDrift_v2'           : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
@@ -156,6 +157,11 @@ MODE_SPECS = {
         server_cls=FedSDAV2Server,
     ),
     'FedSDA_v3': ModeSpec(FedSDAClient, _run_fedsda_v3_timestep, server_cls=FedSDAV3Server),
+    'FedSDA_v3.1': ModeSpec(
+        ClassConditionalFedSDAClient,
+        _run_fedsda_v3_timestep,
+        server_cls=FedSDAV3Server,
+    ),
     'FedDrift': ModeSpec(FedDriftClient, _run_batch_timestep, server_cls=ClusteringServer,
                          chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedDrift_v2': ModeSpec(FedDriftV2Client, _run_feddrift_v2_timestep,
@@ -229,7 +235,10 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
 
 def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
-    if mode in ('FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v3', 'FedSDA_without_server'):
+    if mode in (
+        'FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v3', 'FedSDA_v3.1',
+        'FedSDA_without_server',
+    ):
         return (f"gamma_dist={distance_threshold}, delta_adwin={config.ADWIN_DELTA}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "
                 f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}")
