@@ -3,7 +3,7 @@
 ADWIN による統計的ドリフト検出 + FIFOバッファによる逐次(1サンプル単位)処理。
 """
 import time
-from collections import deque
+from collections import defaultdict, deque
 
 import torch
 
@@ -87,13 +87,13 @@ class FedSDAClient(BaseClient):
 
         self._record_model_compute("detection", len(x))
         error = self.models[self.current_model_id].get_absolute_error(x, y)
-        self.adwin.update(error)
+        drift_detected = self._update_drift_detectors(error, y, idx)
         self.buffer.append((x, y))
 
         drift_type = 0
 
         # ADWIN の統計的検知、または保険的な強制チェックのどちらかが発火したら解決処理へ
-        if self.adwin.drift_detected or self._forced_drift_check(idx):
+        if drift_detected or self._forced_drift_check(idx):
             # τ>1 で保留中の更新をドリフト解決前に消化する(τ=1 では no-op)
             self.flush_pending_updates()
             self.detected_event_positions.append(idx)
@@ -116,6 +116,19 @@ class FedSDAClient(BaseClient):
         elapsed_ms = elapsed * 1000
         num_global = sum(1 for mid in self.models.keys() if mid >= 0)
         self.processing_times[num_global].append(elapsed_ms)
+
+    def _update_drift_detectors(self, error, y, sample_idx):
+        """全体損失ADWINを更新し、ドリフト検知の有無を返す。"""
+        self.adwin.update(error)
+        return self.adwin.drift_detected
+
+    def _new_concept_sample_count(self, buffer_list, sample_idx):
+        """検知器が推定した新概念側のサンプル数を返す。"""
+        return min(len(buffer_list), self.adwin.width)
+
+    def _reset_drift_detectors(self):
+        """ドリフト解決後に検知器を初期状態へ戻す。"""
+        self.adwin.reset()
 
     def _forced_drift_check(self, idx):
         """ADWIN未検知でも、直近ウィンドウの損失がベースラインから閾値以上悪化して
@@ -151,7 +164,7 @@ class FedSDAClient(BaseClient):
         """ドリフト解決: バッファを新旧概念に分割し、モデル切替 or 新規作成を行う。"""
         # ADWINの縮小後ウィンドウ幅 = 新概念のデータ数として、バッファを事後分割する
         buffer_list = list(self.buffer)
-        n_new_concept = self.adwin.width
+        n_new_concept = self._new_concept_sample_count(buffer_list, sample_idx)
 
         if len(buffer_list) <= n_new_concept:
             drift_data = buffer_list
@@ -166,7 +179,7 @@ class FedSDAClient(BaseClient):
             self._absorb_into_store(self.current_model_id, old_data)
 
         if len(drift_data) < config.MIN_DRIFT_DATA:
-            self.adwin.reset()
+            self._reset_drift_detectors()
             return 0
 
         if self.verbose:
@@ -220,6 +233,54 @@ class FedSDAClient(BaseClient):
             drift_type = 2
             self.train_data_store[temp_id].extend(drift_data)
 
-        self.adwin.reset()
+        self._reset_drift_detectors()
         self.buffer.clear()
         return drift_type
+
+
+class ClassConditionalFedSDAClient(FedSDAClient):
+    """全体損失と正解クラス別損失を並列監視するFedSDAクライアント。
+
+    全体ADWINが検知した場合は従来と同じ分割点を使う。全体が未検知で
+    クラス別ADWINだけが検知した場合は、そのクラスの新ウィンドウに残った
+    最初のサンプル位置を新概念の開始位置としてFIFOバッファを分割する。
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.class_adwins = defaultdict(
+            lambda: FullScanADWIN(delta=config.ADWIN_DELTA)
+        )
+        self.class_adwin_positions = defaultdict(deque)
+        self._class_drift_start = None
+
+    def _update_drift_detectors(self, error, y, sample_idx):
+        overall_detected = super()._update_drift_detectors(error, y, sample_idx)
+        class_id = int(y.view(-1)[0].item())
+        detector = self.class_adwins[class_id]
+        positions = self.class_adwin_positions[class_id]
+        positions.append(sample_idx)
+        detector.update(error)
+
+        # ADWINが最大窓制限またはドリフト検知で削除した古い標本位置を同期して除く。
+        while len(positions) > detector.width:
+            positions.popleft()
+
+        class_detected = detector.drift_detected
+        if not overall_detected and class_detected and positions:
+            self._class_drift_start = positions[0]
+        else:
+            self._class_drift_start = None
+        return overall_detected or class_detected
+
+    def _new_concept_sample_count(self, buffer_list, sample_idx):
+        if self.adwin.drift_detected or self._class_drift_start is None:
+            return super()._new_concept_sample_count(buffer_list, sample_idx)
+        return min(len(buffer_list), sample_idx - self._class_drift_start + 1)
+
+    def _reset_drift_detectors(self):
+        super()._reset_drift_detectors()
+        for detector in self.class_adwins.values():
+            detector.reset()
+        self.class_adwin_positions.clear()
+        self._class_drift_start = None

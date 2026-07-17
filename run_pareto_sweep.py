@@ -46,7 +46,7 @@ METRIC_KEYS = [
 ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
             "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta"] + METRIC_KEYS
 
-FEDSDA_SWEEP_MODES = ("FedSDA", "FedSDA_v2", "FedSDA_v3")
+FEDSDA_SWEEP_MODES = ("FedSDA", "FedSDA_v2", "FedSDA_v2.1", "FedSDA_v3")
 FEDDRIFT_SWEEP_MODES = ("FedDrift", "FedDrift_v2")
 BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
 
@@ -318,6 +318,7 @@ def _series_style(series):
     method_colors = {
         "FedSDA": "tab:green",
         "FedSDA_v2": "tab:blue",
+        "FedSDA_v2.1": "tab:cyan",
         "FedSDA_v3": "tab:orange",
         "FedDrift": "tab:purple",
         "FedDrift_v2": "tab:red",

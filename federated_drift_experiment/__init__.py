@@ -8,7 +8,14 @@
 """
 from . import config
 from .adwin import FullScanADWIN
-from .clients import BaseClient, FedDriftClient, FedDriftV2Client, FedSDAClient, ObliviousClient
+from .clients import (
+    BaseClient,
+    ClassConditionalFedSDAClient,
+    FedDriftClient,
+    FedDriftV2Client,
+    FedSDAClient,
+    ObliviousClient,
+)
 from .data import generate_data, make_concept_schedules
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
@@ -19,6 +26,7 @@ __all__ = [
     "config",
     "FullScanADWIN",
     "FedSDAClient",
+    "ClassConditionalFedSDAClient",
     "BaseClient",
     "FedDriftClient",
     "FedDriftV2Client",

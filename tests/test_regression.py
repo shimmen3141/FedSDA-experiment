@@ -45,6 +45,7 @@ GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regressi
 # 経路(FedAvg先行サーバ・τ バッチ更新)を固定する。
 CASES = [
     ("FedSDA", "blobs", {}),
+    ("FedSDA_v2.1", "circle", {}),
     ("FedSDA_v3", "blobs", {}),
     ("FedDrift", "blobs", {}),
     ("FedDrift_v2", "blobs", {

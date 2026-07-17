@@ -138,6 +138,9 @@
 > **v1/v2 の切替**: サーバ処理順序の v2(FedAvg先行・加重平均マージ・配布1回)は config ノブ
 > ではなく**モード `FedSDA_v2`**(`FedSDAV2Server`)で選択する。τ(`LOCAL_UPDATE_TAU`)と
 > 直交しており、{`FedSDA`, `FedSDA_v2`} × {τ=1, τ>1} の4構成でアブレーションできる。
+
+`FedSDA_v2.1`はv2と同じサーバ・通信パラメータを使い、全体ADWINと正解クラス別ADWINを
+同じ`ADWIN_DELTA`で並列監視する。検知器別のdeltaは設けず、v2との差を検知系列の条件付けだけに限定する。
 > 通信削減版は**モード `FedSDA_v3`**(`FedSDAV3Server`)で選択し、前回配布モデルのキャッシュで
 > クロス評価するため、評価用のモデル再送を行わない。
 > 詳細は [sequence-diagrams.md](sequence-diagrams.md)。

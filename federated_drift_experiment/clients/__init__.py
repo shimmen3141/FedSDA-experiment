@@ -9,8 +9,11 @@
 ここで re-export した上で experiment.py の MODE_SPECS に登録する。
 """
 from .base import BaseClient
-from .fedsda import FedSDAClient
+from .fedsda import ClassConditionalFedSDAClient, FedSDAClient
 from .feddrift import FedDriftClient, FedDriftV2Client
 from .oblivious import ObliviousClient
 
-__all__ = ["BaseClient", "FedSDAClient", "FedDriftClient", "FedDriftV2Client", "ObliviousClient"]
+__all__ = [
+    "BaseClient", "FedSDAClient", "ClassConditionalFedSDAClient",
+    "FedDriftClient", "FedDriftV2Client", "ObliviousClient",
+]
