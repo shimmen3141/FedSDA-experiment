@@ -59,6 +59,14 @@ class BaseServer:
         self.update_global_models(active_ids)
         self.broadcast_models()
 
+    def finalize_protocol(self, t):
+        """ストリーム終端で、学習を伴わない未完了プロトコル処理を確定する。
+
+        通常のサーバには終端まで持ち越す処理がないため何もしない。終端処理を持つ方式も、
+        新しい学習ラウンドや未送信モデルの回収は行わず、既に通信済みの状態だけを確定する。
+        """
+        return
+
     def _collect_pending_models(self, t):
         """各クライアントの pending(新規作成)モデルを回収しグローバルIDを発行する。"""
         new_registrations = 0

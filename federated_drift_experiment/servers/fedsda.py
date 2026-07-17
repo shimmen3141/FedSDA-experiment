@@ -172,6 +172,15 @@ class FedSDAV3Server(FedSDAV2Server):
         # この配布によって初めて全クライアントのキャッシュに入る。
         self.models_pending_clustering.update(new_model_ids)
 
+    def finalize_protocol(self, t):
+        """初回配布済みで評価待ちのモデルだけを、追加学習なしでクラスタリングする。
+
+        ローカルで未送信のpendingモデルはv1/v2と同様に回収しない。これにより全方式の
+        final_model_countを「実行済み通信に対応するプロトコルを確定した後」で統一する。
+        キャッシュ評価の依頼・統計返送は実通信なので、軽量メッセージとして通常どおり数える。
+        """
+        self._cluster_distributed_models(t)
+
     def _register_new_models(self, t):
         """送信可能な新規モデルへIDを割り当て、初回FedAvgの対象にする。"""
         new_model_ids = []

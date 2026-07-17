@@ -112,3 +112,39 @@ def test_cached_merge_is_applied_before_fedavg(monkeypatch):
     assert sorted(server.global_models) == [0]
     assert sorted(model_id for model_id in client.models if model_id >= 0) == [0]
     assert client.current_model_id == 0
+
+
+def test_finalize_protocol_clusters_only_distributed_pending_models(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS", 1)
+    monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 1)
+    client, server = _make_client_and_server()
+
+    bx = torch.zeros((config.CLIENT_BATCH_SIZE, config.input_dim()))
+    by = torch.zeros((config.CLIENT_BATCH_SIZE, 1))
+    temp_id, _ = client._spawn_new_model(bx, by)
+    client.current_model_id = temp_id
+    client.train_data_store[temp_id].extend(
+        (bx[index:index + 1], by[index:index + 1]) for index in range(len(bx))
+    )
+    client.promote_pending_to_ready()
+    server.run_round(t=0)
+    new_model_id = client.current_model_id
+    assert new_model_id in server.models_pending_clustering
+
+    monkeypatch.setattr(
+        server,
+        "perform_hierarchical_clustering",
+        lambda model_ids, stats_matrix: [[0, new_model_id]],
+    )
+    models_up_before = server.comm_models_up
+    models_down_before = server.comm_models_down
+    messages_before = server.comm_messages_up + server.comm_messages_down
+
+    server.finalize_protocol(t=1)
+
+    assert sorted(server.global_models) == [0]
+    assert server.models_pending_clustering == set()
+    # 終端処理は配布済みキャッシュを使い、モデル本体の追加通信や学習を行わない。
+    assert server.comm_models_up == models_up_before
+    assert server.comm_models_down == models_down_before
+    assert server.comm_messages_up + server.comm_messages_down > messages_before

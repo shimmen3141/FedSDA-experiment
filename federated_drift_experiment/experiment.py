@@ -359,6 +359,11 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
             for c in clients:
                 c.promote_pending_to_ready()
 
+    # 全方式に共通の終端フック。追加学習や未送信モデルの回収は行わず、既に開始済みの
+    # プロトコル処理だけを確定してから通信量・最終モデル数を測る。
+    if spec.use_server:
+        server.finalize_protocol(t_steps)
+
     runtime_seconds = time.perf_counter() - exp_start
 
     if verbose:

@@ -160,7 +160,7 @@
 | `stable_accuracy` | **定常精度** = 回復窓 W を除外した prequential(回復曲線 acc(Δ) の Δ≥W の裾) |
 | `recall` / `precision` / `f1` | ドリフト検出の質(ローカル切替を検出とみなし真ドリフトと照合) |
 | `avg_delay` | 平均検出遅延(サンプル数) |
-| `final_model_count` | 最終モデル数(集約あり)/ クライアント平均保持数(なし) |
+| `final_model_count` | プロトコル終端処理後の最終モデル数(集約あり)/ クライアント平均保持数(なし)。終端処理は追加学習・未送信モデル回収を行わず、FedSDA v3で初回配布済みの評価待ちモデルだけをキャッシュ評価・マージする |
 | `comm_models_up` / `comm_models_down` / `comm_models_total` | モデルパラメータ転送数 |
 | `comm_messages_up` / `comm_messages_down` / `comm_messages_total` | 割当・ドリフト要約、クロス評価依頼・評価統計、ID割当、マージ通知などの軽量メッセージ数 |
 
