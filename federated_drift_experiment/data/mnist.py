@@ -20,7 +20,7 @@ def default_data_dir():
     configured = os.environ.get("FDE_MNIST_DATA_DIR")
     if configured:
         return Path(configured)
-    return Path(__file__).resolve().parents[1] / "data" / "mnist"
+    return Path(__file__).resolve().parents[2] / "data" / "mnist"
 
 
 def _ensure_file(path):

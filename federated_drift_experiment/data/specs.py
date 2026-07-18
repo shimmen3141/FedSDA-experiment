@@ -1,4 +1,4 @@
-"""データセット固有の構造と実験条件を一元管理する。"""
+"""データセット固有の構造とモデル条件を一元管理する。"""
 from dataclasses import dataclass
 
 
@@ -12,12 +12,10 @@ class DatasetSpec:
 
 
 DATASET_SPECS = {
-    # 既存データセットは従来の確率的ドリフトを維持する。
     "blobs": DatasetSpec(2, 4),
     "sea": DatasetSpec(3, 4),
     "circle": DatasetSpec(2, 2),
     "sine": DatasetSpec(2, 2),
-    # FedDrift論文と元実装の固定コンセプト系列を用いる条件。
     "sea2": DatasetSpec(3, 2),
     "mnist2": DatasetSpec(
         784, 2, num_classes=10,

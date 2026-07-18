@@ -8,16 +8,17 @@ import torch
 
 from federated_drift_experiment import config
 from federated_drift_experiment import data
-from federated_drift_experiment.concept_schedules import (
+from federated_drift_experiment.data.schedules import (
     FEDDRIFT_2CONCEPT_PATTERN,
     FEDDRIFT_4CONCEPT_PATTERN,
     expand_feddrift_pattern,
 )
-from federated_drift_experiment.mnist_data import (
+from federated_drift_experiment.data.mnist import (
     _read_images,
     _read_labels,
     apply_mnist_concept,
 )
+from federated_drift_experiment.data import streams
 from federated_drift_experiment.models import SimpleMLP
 from federated_drift_experiment.experiment import run_random_drift_experiment
 
@@ -101,8 +102,8 @@ def test_idx_reader_parses_mnist_files(tmp_path):
 
 
 def test_generate_mnist_data_uses_concept_transform(monkeypatch):
-    monkeypatch.setattr(
-        data, "sample_mnist",
+    monkeypatch.setitem(
+        streams._GENERATORS, "mnist2",
         lambda concept_id, n: (
             np.zeros((n, 784), dtype=np.float32),
             apply_mnist_concept(np.full(n, 1), concept_id),
@@ -138,7 +139,7 @@ def test_mnist_multiclass_path_runs_through_feddrift(monkeypatch):
         features[np.arange(n_samples), labels] = 1.0
         return features, apply_mnist_concept(labels, concept_id)
 
-    monkeypatch.setattr(data, "sample_mnist", fake_mnist)
+    monkeypatch.setitem(streams._GENERATORS, "mnist2", fake_mnist)
     for name, value in {
         "DATASET": "mnist2",
         "CONCEPT_SCHEDULE": "feddrift_fixed",

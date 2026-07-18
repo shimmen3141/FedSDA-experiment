@@ -17,8 +17,8 @@
 ## 1. データセット定義
 
 FedDrift 由来の合成データとMNISTの生成規則は論文・参照コードに合わせている。実装は
-`federated_drift_experiment/data.py`、固定系列は `concept_schedules.py`、MNIST読込みと
-概念変換は `mnist_data.py` に分離している。
+`federated_drift_experiment/data/`へ集約し、合成生成器は`synthetic.py`、固定系列は
+`schedules.py`、MNIST読込みと概念変換は`mnist.py`に分離している。
 
 | dataset | 生成規則 | 参照との照合 | 判定 |
 |---|---|---|---|
@@ -48,7 +48,7 @@ FedDrift 由来の合成データとMNISTの生成規則は論文・参照コー
 
 | 項目 | 論文 / FedDrift | 本実装 | 実装箇所 |
 |---|---|---|---|
-| ドリフト系列 | 10 時刻 × 500 サンプル/クライアント、**固定 staggered パターン**、切替は時刻境界のみ | `feddrift_fixed`は一致。既定`random`は`MIN_STABLE_PERIOD`後に確率`DRIFT_PROB`で切替 | `data.py::make_concept_schedules` |
+| ドリフト系列 | 10 時刻 × 500 サンプル/クライアント、**固定 staggered パターン**、切替は時刻境界のみ | `feddrift_fixed`は一致。既定`random`は`MIN_STABLE_PERIOD`後に確率`DRIFT_PROB`で切替 | `data/schedules.py::make_concept_schedules` |
 | 切替回数 | `A.cp` / `B.cp` で規定 | `feddrift_fixed`は一致。`random`は再帰的に複数回 | 同上 |
 | 検出単位 | 時刻（500 サンプル）単位で検出 | `FEDDRIFT_DETECT_BATCH`(既定 50) 件ごと。完了時にのみ集約するため通信間隔も兼ねる（§3） | `clients/feddrift.py` |
 | 学習の反復 | 固定 500 サンプルに R=100 ラウンド（≒反復エポック） | 既定は単一パス相当（`FEDDRIFT_ROUNDS`=1）。R を上げれば論文どおりの反復学習も可（§3） | `experiment.py` |

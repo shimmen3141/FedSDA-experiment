@@ -7,7 +7,7 @@
 各変数の意味・使用手法・設計上の役割は docs/hyperparameters.md に一覧化している。
 括弧内は論文 (main_jp.tex / docs/fedsda-algorithm.md) の記号との対応。
 """
-from .dataset_specs import DATASET_SPECS, get_dataset_spec
+from .data.specs import DATASET_SPECS, get_dataset_spec
 
 # ##########################################
 # 共通パラメータ (FedSDA / FedDrift / Oblivious)
@@ -22,7 +22,7 @@ TOTAL_DATA_POINTS = 5000    # クライアントあたりの総データ数(FedD
 # ==========================================
 # データセット
 # ==========================================
-DATASET = 'blobs'          # 利用可能な名前は dataset_specs.py を参照
+DATASET = 'blobs'          # 利用可能な名前は data/specs.py を参照
 CONCEPT_SCHEDULE = 'random'  # 'random' / 'feddrift_fixed'（データ分布と独立）
 CONCEPT_SCHEDULES = ('random', 'feddrift_fixed')
 
