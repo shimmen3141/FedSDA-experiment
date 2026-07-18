@@ -435,7 +435,12 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy"):
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize="small")
 
-    fig.suptitle("Accuracy vs Communication: FedSDA vs FedDrift (batch / δ sweeps)")
+    methods = []
+    for row in rows:
+        method = row["mode"]
+        if method not in methods:
+            methods.append(method)
+    fig.suptitle("Accuracy vs Communication by Method\n" + ", ".join(methods))
     fig.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)

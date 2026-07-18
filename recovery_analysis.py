@@ -28,6 +28,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from federated_drift_experiment import config
+
 # データセットの正準表示順(存在するものだけ使う)
 _CANON_DATASETS = ["blobs", "sea", "circle", "sine"]
 
@@ -137,6 +139,55 @@ def _recovery_label(label, parameter):
     return method if value is None else f"{method} ({parameter}={value})"
 
 
+_SWEEP_PARAMETERS = (
+    ("AGG_INTERVAL sweep", "AGG_INTERVAL"),
+    ("adwin sweep", "δ_adwin"),
+    ("batch sweep", "batch"),
+    ("δ sweep", "δ"),
+)
+
+
+def _sweep_parameter(label):
+    """系列ラベルから掃引対象のパラメータ名を返す。"""
+    for marker, parameter in _SWEEP_PARAMETERS:
+        if marker in label:
+            return parameter
+    return None
+
+
+def _matches_representative_value(label, representative_values):
+    """掃引点が、指定された代表値と一致するか判定する。"""
+    parameter = _sweep_parameter(label)
+    value = _sweep_val(label)
+    if parameter is None or value is None or parameter not in representative_values:
+        return False
+    try:
+        return np.isclose(float(value), float(representative_values[parameter]))
+    except ValueError:
+        return value == str(representative_values[parameter])
+
+
+def _representative_labels(labels, representative_values):
+    """各手法から固定実行、または既定値の掃引点を1系列選ぶ。"""
+    by_method = defaultdict(list)
+    for label in labels:
+        by_method[_method_name(label)].append(label)
+
+    selected = set()
+    for method, method_labels in by_method.items():
+        fixed = [label for label in method_labels if _sweep_parameter(label) is None]
+        candidates = fixed or [
+            label for label in method_labels
+            if _matches_representative_value(label, representative_values)
+        ]
+        if not candidates:
+            print(f"[warn] representative config is unavailable: {method}")
+            continue
+        # 同じ既定設定が複数の掃引に含まれる場合も、手法ごとに1系列だけ描く。
+        selected.add(_sorted_labels(candidates)[0])
+    return selected
+
+
 def _sorted_labels(labels):
     """凡例順: Oblivious → FedSDA → FedDrift → その他。同一系列内は掃引値の昇順。"""
     def rank(lab):
@@ -159,6 +210,13 @@ def plot_recovery(agg, max_delta, out_path, window, title,
     label_display(label)->str: 凡例に出す表示名(None ならラベルそのまま)。
     """
     datasets = _ordered_datasets(agg.keys())
+    selected = [
+        (ds, lab) for ds, lab in agg
+        if label_filter is None or label_filter(lab)
+    ]
+    if not selected:
+        print(f"[skip] no series for plot: {title}")
+        return False
     deltas = np.arange(max_delta + 1)
     n = len(datasets)
     fig, axes = plt.subplots(1, n, figsize=(6.0 * n, 4.8), squeeze=False)
@@ -187,6 +245,7 @@ def plot_recovery(agg, max_delta, out_path, window, title,
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"Plot saved: {out_path}")
+    return True
 
 
 def write_table(agg, checkpoints, window, out_path):
@@ -227,7 +286,8 @@ def write_table(agg, checkpoints, window, out_path):
 
 
 def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200,
-                              checkpoints=(20, 50, 100), main_adwin=0.05, main_batch=50):
+                              checkpoints=(20, 50, 100), main_adwin=None,
+                              main_batch=None, main_agg=None, main_distance=None):
     """レコード列から回復図3枚(手法間比較・δ_adwin感度・batch感度)と表を出力する。
 
     run_pareto_sweep.py からの自動実行と、recovery_analysis.py 単体の main の両方から
@@ -250,11 +310,12 @@ def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200
     def out(name):
         return os.path.join(out_dir, name)
 
-    # 系列の同定に使う部分文字列(run_pareto_sweep が付けるラベルに基づく):
-    #   δ_adwin 掃引 → "adwin sweep" / FedDrift 検出バッチ掃引 → "batch sweep"
-    # AGG_INTERVAL 掃引("AGG_INTERVAL sweep")と FedDrift δ 掃引("δ sweep")は回復図では扱わない
-    # (前者は回復速度にほぼ不感、後者は batch 掃引と一点重複するため)。
-    rep_adwin, rep_batch = f"[{main_adwin:g}]", f"[{main_batch:g}]"
+    representative_values = {
+        "δ_adwin": config.ADWIN_DELTA if main_adwin is None else main_adwin,
+        "batch": config.FEDDRIFT_DETECT_BATCH if main_batch is None else main_batch,
+        "AGG_INTERVAL": config.AGG_INTERVAL if main_agg is None else main_agg,
+        "δ": config.DISTANCE_THRESHOLD if main_distance is None else main_distance,
+    }
 
     def is_ob(lab):
         return "Oblivious" in lab
@@ -267,37 +328,42 @@ def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200
             return "Oblivious"
         if is_without_server(lab):
             return "FedSDA_without_server"
-        if "adwin sweep" in lab:
-            return _recovery_label(lab, "δ_adwin")
-        if "batch sweep" in lab:
-            return _recovery_label(lab, "batch")
-        return lab
+        parameter = _sweep_parameter(lab)
+        return _recovery_label(lab, parameter) if parameter else lab
+
+    representative = _representative_labels(
+        [lab for _, lab in agg], representative_values
+    )
 
     # 図A: 手法間比較(各手法の代表設定のみ)
     plot_recovery(
         agg, max_delta, out(f"recovery_main_{base}.png"), window,
         title="Recovery: method comparison (representative configs)",
-        label_filter=lambda lab: (is_ob(lab) or is_without_server(lab)
-                                  or ("adwin sweep" in lab and lab.endswith(rep_adwin))
-                                  or ("batch sweep" in lab and lab.endswith(rep_batch))),
+        label_filter=lambda lab: lab in representative,
         label_display=main_disp)
 
     # 図B: FedSDA δ_adwin 感度(全掃引値 + 基準線)
-    plot_recovery(
-        agg, max_delta, out(f"recovery_sweep_adwin_{base}.png"), window,
-        title="Recovery: FedSDA δ_adwin sensitivity",
-        label_filter=lambda lab: is_ob(lab) or is_without_server(lab) or "adwin sweep" in lab,
-        label_display=lambda lab: ("Oblivious" if is_ob(lab) else
-                                   ("FedSDA_without_server" if is_without_server(lab) else
-                                    _recovery_label(lab, "δ_adwin"))))
+    if any("adwin sweep" in lab for _, lab in agg):
+        plot_recovery(
+            agg, max_delta, out(f"recovery_sweep_adwin_{base}.png"), window,
+            title="Recovery: FedSDA δ_adwin sensitivity",
+            label_filter=lambda lab: is_ob(lab) or is_without_server(lab) or "adwin sweep" in lab,
+            label_display=lambda lab: ("Oblivious" if is_ob(lab) else
+                                       ("FedSDA_without_server" if is_without_server(lab) else
+                                        _recovery_label(lab, "δ_adwin"))))
+    else:
+        print("[skip] no δ_adwin sweep series")
 
     # 図C: FedDrift 検出バッチ感度(全掃引値 + 基準線)
-    plot_recovery(
-        agg, max_delta, out(f"recovery_sweep_batch_{base}.png"), window,
-        title="Recovery: FedDrift batch-size sensitivity",
-        label_filter=lambda lab: is_ob(lab) or "batch sweep" in lab,
-        label_display=lambda lab: ("Oblivious" if is_ob(lab) else
-                                   _recovery_label(lab, "batch")))
+    if any("batch sweep" in lab for _, lab in agg):
+        plot_recovery(
+            agg, max_delta, out(f"recovery_sweep_batch_{base}.png"), window,
+            title="Recovery: FedDrift batch-size sensitivity",
+            label_filter=lambda lab: is_ob(lab) or "batch sweep" in lab,
+            label_display=lambda lab: ("Oblivious" if is_ob(lab) else
+                                       _recovery_label(lab, "batch")))
+    else:
+        print("[skip] no FedDrift batch sweep series")
 
     # 表は全系列を残す(行なら判読でき、後から任意設定を参照できる)
     write_table(agg, checkpoints, window, out(f"recovery_{base}.md"))
@@ -321,6 +387,10 @@ def main():
                         help="手法間比較図で FedSDA の代表とする δ_adwin(default: 0.05)")
     parser.add_argument("--main-batch", type=int, default=50,
                         help="手法間比較図で FedDrift の代表とする検出バッチ(default: 50)")
+    parser.add_argument("--main-agg", type=int, default=config.AGG_INTERVAL,
+                        help="手法間比較図で代表とするAGG_INTERVAL")
+    parser.add_argument("--main-distance", type=float, default=config.DISTANCE_THRESHOLD,
+                        help="手法間比較図で代表とするFedDriftの距離閾値δ")
     args = parser.parse_args()
 
     paths = []
@@ -340,7 +410,8 @@ def main():
 
     generate_recovery_outputs(recs, args.out_dir, tag=args.tag, max_delta=args.max_delta,
                               window=args.window, checkpoints=args.checkpoints,
-                              main_adwin=args.main_adwin, main_batch=args.main_batch)
+                              main_adwin=args.main_adwin, main_batch=args.main_batch,
+                              main_agg=args.main_agg, main_distance=args.main_distance)
     print("Done.")
 
 

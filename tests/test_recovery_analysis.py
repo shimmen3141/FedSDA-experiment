@@ -5,7 +5,12 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from recovery_analysis import _method_name, _recovery_label
+from recovery_analysis import (
+    _method_name,
+    _recovery_label,
+    _representative_labels,
+    plot_recovery,
+)
 
 
 def test_recovery_label_preserves_method_version():
@@ -16,3 +21,37 @@ def test_recovery_label_preserves_method_version():
     assert _recovery_label(
         "FedDrift_v2 batch sweep (δ=0.1) [50]", "batch"
     ) == "FedDrift_v2 (batch=50)"
+
+
+def test_representative_labels_select_one_default_config_per_version():
+    labels = [
+        "FedSDA_v2.1 AGG_INTERVAL sweep (δ_adwin=0.05) [25]",
+        "FedSDA_v2.1 AGG_INTERVAL sweep (δ_adwin=0.05) [50]",
+        "FedSDA_v2.1 δ_adwin sweep (γ=0.1) [0.05]",
+        "FedSDA_v3.1 AGG_INTERVAL sweep (δ_adwin=0.05) [50]",
+    ]
+    selected = _representative_labels(
+        labels, {"AGG_INTERVAL": 50, "δ_adwin": 0.05}
+    )
+
+    assert len(selected) == 2
+    assert all("AGG_INTERVAL" in label and "[50]" in label for label in selected)
+    assert {label.split(maxsplit=1)[0] for label in selected} == {
+        "FedSDA_v2.1", "FedSDA_v3.1"
+    }
+
+
+def test_plot_recovery_skips_file_when_no_series(tmp_path):
+    output = tmp_path / "empty.png"
+    agg = {
+        ("circle", "FedSDA_v2.1 AGG_INTERVAL sweep [50]"): {
+            "mean": [1.0], "std": [0.0], "n_drifts": 1, "n_seeds": 1,
+        }
+    }
+
+    generated = plot_recovery(
+        agg, 0, output, 0, "empty", label_filter=lambda _: False
+    )
+
+    assert generated is False
+    assert not output.exists()
