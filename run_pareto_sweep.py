@@ -449,53 +449,91 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy"):
     print(f"Plot saved: {path}")
 
 
+def build_parser():
+    """関連するオプションを手法・用途ごとにまとめたCLIパーサーを返す。"""
+    parser = argparse.ArgumentParser(
+        description="FedSDA accuracy-communication Pareto sweep",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""指定例:
+  FedSDAだけ実行:
+    --feddrift-modes --baseline-modes
+  FedSDAのAGG_INTERVAL掃引だけ実行:
+    --adwin-deltas --agg-sweep 25 50 100
+  FedDriftの距離閾値δ掃引だけ実行:
+    --batches --deltas 0.05 0.1 0.2
+  既存CSVだけ再描画:
+    --plot-csvs results/pareto/*.csv --plot-metric accuracy
+
+値を取らない空指定の例は「--batches」のように、次のオプションを直後に置く。
+""",
+    )
+    all_datasets = list(config._FEATURE_DIMS)
+    scope = parser.add_argument_group("実験対象・規模")
+    scope.add_argument("--datasets", nargs="+", choices=all_datasets, default=all_datasets,
+                       help="対象データセット(既定: 全データセット)")
+    scope.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4],
+                       help="乱数シード(既定: 0 1 2 3 4)")
+    scope.add_argument("--total-data", type=int, default=None,
+                       help="TOTAL_DATA_POINTSを上書き")
+    scope.add_argument("--quick", action="store_true",
+                       help="データセット・シード・掃引値・データ量を小規模設定で上書き")
+
+    fedsda = parser.add_argument_group("FedSDAの手法・掃引")
+    fedsda.add_argument("--fedsda-modes", nargs="*", choices=FEDSDA_SWEEP_MODES,
+                        default=list(FEDSDA_SWEEP_MODES),
+                        help="対象モード。空指定でFedSDAをすべて無効化")
+    fedsda.add_argument("--adwin-deltas", nargs="*", type=float,
+                        default=[0.01, 0.05, 0.1, 0.2, 0.3],
+                        help="δ_adwin掃引値。空指定でこの掃引を無効化")
+    fedsda.add_argument("--agg-sweep", nargs="*", type=int,
+                        default=[25, 50, 100, 200, 500],
+                        help="AGG_INTERVAL掃引値。空指定でこの掃引を無効化")
+    fedsda.add_argument("--fixed-adwin", type=float, default=None,
+                        help="AGG_INTERVAL掃引中の固定δ_adwin。--agg-sweepが空なら未使用")
+    fedsda.add_argument("--fixed-gamma", type=float, default=None,
+                        help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
+
+    feddrift = parser.add_argument_group("FedDriftの手法・掃引")
+    feddrift.add_argument("--feddrift-modes", nargs="*", choices=FEDDRIFT_SWEEP_MODES,
+                          default=list(FEDDRIFT_SWEEP_MODES),
+                          help="対象モード。空指定でFedDriftをすべて無効化")
+    feddrift.add_argument("--batches", nargs="*", type=int,
+                          default=[25, 50, 100, 200, 500],
+                          help="検出バッチ掃引値。空指定でこの掃引を無効化")
+    feddrift.add_argument("--fixed-delta", type=float, default=None,
+                          help="バッチ掃引中の固定距離閾値δ。--batchesが空なら未使用")
+    feddrift.add_argument("--deltas", nargs="*", type=float,
+                          default=[0.05, 0.1, 0.15, 0.2],
+                          help="距離閾値δの掃引値。空指定でこの掃引を無効化")
+    feddrift.add_argument("--fixed-batch", type=int, default=None,
+                          help="δ掃引中の固定検出バッチ。--deltasが空なら未使用")
+
+    baselines = parser.add_argument_group("基準手法")
+    baselines.add_argument("--baseline-modes", nargs="*", choices=BASELINE_MODES,
+                           default=list(BASELINE_MODES),
+                           help="単一点の基準線。空指定で基準手法をすべて無効化")
+
+    output = parser.add_argument_group("新規実験の出力・回復分析")
+    output.add_argument("--out-dir", default=f"{_DEFAULT_RUN_DIR}/pareto",
+                        help="結果CSV・図の出力先(既定: results/results_<実行時刻>/pareto)")
+    output.add_argument("--raw-dir", default=f"{_DEFAULT_RUN_DIR}/raw",
+                        help="生データ(.npz)の保存先。空文字なら保存と回復分析を無効化")
+    output.add_argument("--no-recovery", action="store_true",
+                        help="生データは保存するが、掃引後の回復図・表の自動生成を抑止")
+    output.add_argument("--tag", default=None, help="出力ファイル名に付ける識別子")
+
+    replot = parser.add_argument_group("既存CSVの再描画")
+    replot.add_argument("--plot-csvs", nargs="+", default=None,
+                        help="実験を行わず指定CSV(glob可)を再描画。他の実験設定は無視")
+    replot.add_argument("--plot-metric", choices=["stable_accuracy", "accuracy"],
+                        default="stable_accuracy",
+                        help="Pareto図の縦軸。新規実験と再描画の両方に適用")
+    return parser
+
+
 def main():
     configure_torch_threads()
-    parser = argparse.ArgumentParser(description="FedSDA accuracy-communication Pareto sweep")
-    all_datasets = list(config._FEATURE_DIMS)
-    parser.add_argument("--datasets", nargs="+", choices=all_datasets, default=all_datasets)
-    parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4])
-    parser.add_argument("--fedsda-modes", nargs="*", choices=FEDSDA_SWEEP_MODES,
-                        default=list(FEDSDA_SWEEP_MODES),
-                        help="δ_adwin・AGG_INTERVALを掃引するFedSDAモード")
-    parser.add_argument("--feddrift-modes", nargs="*", choices=FEDDRIFT_SWEEP_MODES,
-                        default=list(FEDDRIFT_SWEEP_MODES),
-                        help="検出バッチ・距離閾値を掃引するFedDriftモード")
-    parser.add_argument("--baseline-modes", nargs="*", choices=BASELINE_MODES,
-                        default=list(BASELINE_MODES),
-                        help="単一点の平均線・標準偏差帯として描画する基準モード")
-    parser.add_argument("--batches", nargs="*", type=int, default=[25, 50, 100, 200, 500],
-                        help="FedDrift 検出バッチ掃引値(空指定で無効化)")
-    parser.add_argument("--deltas", nargs="*", type=float, default=[0.05, 0.1, 0.15, 0.2],
-                        help="FedDrift 検出閾値 δ 掃引値(空指定で無効化)")
-    parser.add_argument("--adwin-deltas", nargs="*", type=float, default=[0.01, 0.05, 0.1, 0.2, 0.3],
-                        help="FedSDA δ_adwin 掃引値(空指定で無効化)")
-    parser.add_argument("--agg-sweep", nargs="*", type=int, default=[25, 50, 100, 200, 500],
-                        help="FedSDA の AGG_INTERVAL(集約間隔)掃引値(空指定で無効化)")
-    parser.add_argument("--fixed-adwin", type=float, default=None,
-                        help="AGG_INTERVAL 掃引時に固定する δ_adwin(既定 config.ADWIN_DELTA)")
-    parser.add_argument("--fixed-delta", type=float, default=None,
-                        help="バッチ掃引時に固定する FedDrift δ(既定 config.DISTANCE_THRESHOLD)")
-    parser.add_argument("--fixed-batch", type=int, default=None,
-                        help="δ 掃引時に固定する FedDrift 検出バッチ(既定 config.FEDDRIFT_DETECT_BATCH)")
-    parser.add_argument("--fixed-gamma", type=float, default=None,
-                        help="FedSDA で固定する γ_dist(既定 config.DISTANCE_THRESHOLD)")
-    parser.add_argument("--total-data", type=int, default=None, help="TOTAL_DATA_POINTS 上書き")
-    parser.add_argument("--out-dir", default=f"{_DEFAULT_RUN_DIR}/pareto",
-                        help="結果CSV・図の出力先(既定: results/results_<実行時刻>/pareto)")
-    parser.add_argument("--raw-dir", default=f"{_DEFAULT_RUN_DIR}/raw",
-                        help="各実験の生データ(.npz)の保存先。回復曲線の事後分析用"
-                             "(既定: results/results_<実行時刻>/raw)")
-    parser.add_argument("--no-recovery", action="store_true",
-                        help="掃引後の回復図・表の自動生成を抑止する"
-                             "(後から recovery_analysis.py で個別に実行できる)")
-    parser.add_argument("--tag", default=None, help="出力ファイル名に付ける任意の識別子")
-    parser.add_argument("--plot-csvs", nargs="+", default=None,
-                        help="実験は行わず、指定した結果CSV(glob可)を読み込みシード平均で再描画する")
-    parser.add_argument("--plot-metric", choices=["stable_accuracy", "accuracy"],
-                        default="stable_accuracy",
-                        help="Pareto図の縦軸に使う精度指標(既定: stable_accuracy)")
-    parser.add_argument("--quick", action="store_true", help="動作確認用の小規模設定")
+    parser = build_parser()
     args = parser.parse_args()
 
     # 集約プロットモード: 既存CSVを読み込みシード平均で描画して終了

@@ -10,6 +10,19 @@ if _REPO_ROOT not in sys.path:
 import run_pareto_sweep as sweep
 
 
+def test_cli_help_groups_related_sweep_options():
+    help_text = sweep.build_parser().format_help()
+
+    assert "FedSDAの手法・掃引" in help_text
+    assert "--fixed-adwin" in help_text
+    assert "--agg-sweepが空なら未使用" in help_text
+    assert "FedDriftの手法・掃引" in help_text
+    assert "--fixed-delta" in help_text
+    assert "--batchesが空なら未使用" in help_text
+    assert "既存CSVの再描画" in help_text
+    assert "他の実験設定は無視" in help_text
+
+
 def _fake_row(**kwargs):
     row = dict(kwargs)
     row.update({key: 0.0 for key in sweep.METRIC_KEYS})
