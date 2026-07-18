@@ -23,6 +23,19 @@ def test_cli_help_groups_related_sweep_options():
     assert "他の実験設定は無視" in help_text
 
 
+def test_new_paper_datasets_are_opt_in_for_default_sweep():
+    parser = sweep.build_parser()
+    defaults = parser.parse_args([])
+    assert defaults.datasets == ["blobs", "sea", "circle", "sine"]
+    assert defaults.concept_schedule == "random"
+    selected = parser.parse_args([
+        "--datasets", "sea2", "mnist2", "mnist4",
+        "--concept-schedule", "feddrift_fixed",
+    ])
+    assert selected.datasets == ["sea2", "mnist2", "mnist4"]
+    assert selected.concept_schedule == "feddrift_fixed"
+
+
 def _fake_row(**kwargs):
     row = dict(kwargs)
     row.update({key: 0.0 for key in sweep.METRIC_KEYS})
@@ -62,7 +75,7 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
     old_keys = [
         key for key in sweep.ROW_KEYS
         if key not in (
-            "agg_interval", "e_detector_baseline_strategy",
+            "concept_schedule", "agg_interval", "e_detector_baseline_strategy",
             "e_detector_baseline_beta",
         )
     ]
@@ -80,6 +93,7 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
     loaded = sweep._load_csv(path)
 
     assert loaded[0]["agg_interval"] == ""
+    assert loaded[0]["concept_schedule"] == "random"
     assert "e_detector_baseline_strategy" not in loaded[0]
     assert math.isnan(loaded[0]["e_detector_baseline_beta"])
     assert loaded[0]["sweep_value"] == 0.1

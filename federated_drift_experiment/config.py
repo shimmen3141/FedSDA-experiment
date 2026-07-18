@@ -7,6 +7,7 @@
 各変数の意味・使用手法・設計上の役割は docs/hyperparameters.md に一覧化している。
 括弧内は論文 (main_jp.tex / docs/fedsda-algorithm.md) の記号との対応。
 """
+from .dataset_specs import DATASET_SPECS, get_dataset_spec
 
 # ##########################################
 # 共通パラメータ (FedSDA / FedDrift / Oblivious)
@@ -21,15 +22,17 @@ TOTAL_DATA_POINTS = 5000    # クライアントあたりの総データ数(FedD
 # ==========================================
 # データセット
 # ==========================================
-DATASET = 'blobs'          # 'blobs'(2次元合成) / 'sea' / 'circle' / 'sine'(いずれもFedDrift)
+DATASET = 'blobs'          # 利用可能な名前は dataset_specs.py を参照
+CONCEPT_SCHEDULE = 'random'  # 'random' / 'feddrift_fixed'（データ分布と独立）
+CONCEPT_SCHEDULES = ('random', 'feddrift_fixed')
 
 # 各データセット(SEA-4/CIRCLE-2/SINE-2)の生成規則は data.py と docs/differences-from-feddrift.md §1 を参照。
 SEA_THRESHOLDS = {0: 9.0, 1: 8.0, 2: 7.0, 3: 9.5}   # 各概念の閾値 θ(論文 appendix 準拠。concept4=9.5 で4概念を区別)
 SEA_LABEL_NOISE = 0.10     # 各概念に内在するラベルノイズ率(SEA標準10%)
 CIRCLE_PARAMS = {0: (0.2, 0.5, 0.15), 1: (0.6, 0.5, 0.25)}   # CIRCLE-2 各概念の円 (cx, cy, r)
 
-_FEATURE_DIMS = {'blobs': 2, 'sea': 3, 'circle': 2, 'sine': 2}
-_DATASET_CONCEPTS = {'blobs': 4, 'sea': 4, 'circle': 2, 'sine': 2}
+_FEATURE_DIMS = {name: spec.input_dim for name, spec in DATASET_SPECS.items()}
+_DATASET_CONCEPTS = {name: spec.num_concepts for name, spec in DATASET_SPECS.items()}
 
 
 def input_dim(dataset=None):
@@ -40,6 +43,16 @@ def input_dim(dataset=None):
 def num_concepts(dataset=None):
     """現在のデータセットのコンセプト数を返す。"""
     return _DATASET_CONCEPTS[dataset if dataset is not None else DATASET]
+
+
+def num_classes(dataset=None):
+    """データセットのクラス数を返す。"""
+    return get_dataset_spec(dataset if dataset is not None else DATASET).num_classes
+
+
+def dataset_spec(dataset=None):
+    """データセット固有のモデル・系列設定を返す。"""
+    return get_dataset_spec(dataset if dataset is not None else DATASET)
 
 
 # ==========================================

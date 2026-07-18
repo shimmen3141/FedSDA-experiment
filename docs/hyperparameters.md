@@ -52,12 +52,17 @@
 
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
-| `DATASET` | 使用データ `blobs`(既定・独自2D)/ `sea` / `circle` / `sine`(後3つは FedDrift 由来) | 共通 | `blobs` |
+| `DATASET` | 使用データ `blobs` / `sea` / `sea2` / `circle` / `sine` / `mnist2` / `mnist4` | 共通 | `blobs` |
+| `CONCEPT_SCHEDULE` | 概念切替方式 `random` / `feddrift_fixed` | 共通 | `random` |
 | `SEA_THRESHOLDS` | SEA-4 各概念の閾値 θ(論文 appendix 準拠 {9,8,7,9.5}) | sea のみ | `{0:9,1:8,2:7,3:9.5}` |
 | `SEA_LABEL_NOISE` | SEA の内在ラベルノイズ率(標準 10%) | sea のみ | 0.10 |
 | `CIRCLE_PARAMS` | CIRCLE-2 各概念の円 (cx,cy,r) | circle のみ | `{0:(0.2,0.5,0.15),1:(0.6,0.5,0.25)}` |
 
-補助関数: `input_dim()` = 特徴次元、`num_concepts()` = 概念数(データセットに追従)。
+補助関数: `input_dim()` = 特徴次元、`num_concepts()` = 概念数、`num_classes()` = クラス数。
+スケジュールはデータセットと独立して選ぶ。`feddrift_fixed`は2概念データセットでFedDrift
+元実装の`A.cp`、4概念データセットで`B.cp`の10時点固定系列を使う。5000サンプルでは
+1時点を500サンプルに展開し、異なる総サンプル数では10等分する。
+MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3` を使う。
 
 ---
 

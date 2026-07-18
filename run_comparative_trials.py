@@ -25,6 +25,9 @@ def main():
     parser.add_argument("--start-seed", type=int, default=0, help="開始シード (default: 0)")
     parser.add_argument("--dataset", choices=list(config._FEATURE_DIMS), default=config.DATASET,
                         help=f"データセット (default: {config.DATASET})")
+    parser.add_argument("--concept-schedule", choices=config.CONCEPT_SCHEDULES,
+                        default=config.CONCEPT_SCHEDULE,
+                        help=f"概念切替方式 (default: {config.CONCEPT_SCHEDULE})")
     parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
                         default=config.CLUSTER_LINKAGE,
                         help=f"共通クラスタリング戦略 (default: {config.CLUSTER_LINKAGE})")
@@ -39,6 +42,7 @@ def main():
     args = parser.parse_args()
 
     config.DATASET = args.dataset
+    config.CONCEPT_SCHEDULE = args.concept_schedule
     config.CLUSTER_LINKAGE = args.cluster_linkage
     config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation
 

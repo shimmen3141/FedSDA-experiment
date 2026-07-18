@@ -169,8 +169,8 @@ class FedSDAClient(BaseClient):
         by = torch.cat([d[1] for d in tail])
         with torch.no_grad():
             self._record_model_compute("detection", len(bx))
-            preds = self.models[self.current_model_id](bx)
-            window_loss = float(torch.mean(torch.abs(preds - by)).item())
+            errors = self.models[self.current_model_id].per_sample_error(bx, by)
+            window_loss = float(torch.mean(errors).item())
         hist_mean, _ = self._get_model_stats(self.current_model_id)
 
         if hist_mean > 0.0 and (window_loss >= hist_mean + self.distance_threshold):
@@ -215,8 +215,8 @@ class FedSDAClient(BaseClient):
         for m_id, model in self.models.items():
             with torch.no_grad():
                 self._record_model_compute("detection", len(bx))
-                preds = model(bx)
-                loss = float(torch.mean(torch.abs(preds - by)).item())
+                errors = model.per_sample_error(bx, by)
+                loss = float(torch.mean(errors).item())
             hist_mean, _ = self._get_model_stats(m_id)
 
             if hist_mean == 0.0:
@@ -367,16 +367,15 @@ class EDetectorFedSDAClient(FedSDAClient):
 class ClassConditionalEDetectorFedSDAClient(EDetectorFedSDAClient):
     """全体損失と正解クラス別損失のe-SRを固定重みで混合するクライアント。
 
-    全体・クラス0・クラス1へ各1/3の重みを割り当て、混合e値が閾値を超えたときに
+    全体系列と各クラス系列へ等しい重みを割り当て、混合e値が閾値を超えたときに
     検知する。クラス別系列は該当クラスのサンプル到着時だけ更新する。クラス別の
     事前統計を保持していないため、開始時の基準平均には全体モデル統計を共用する。
     従ってクラス条件付き平均もこの基準以下という追加仮定が必要になる。
     """
 
-    _COMPONENT_WEIGHT = 1.0 / 3.0
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.component_weight = 1.0 / (config.num_classes() + 1)
         self.class_e_detectors = {}
         self.class_e_positions = defaultdict(deque)
         self._class_drift_start = None
@@ -399,8 +398,8 @@ class ClassConditionalEDetectorFedSDAClient(EDetectorFedSDAClient):
         self._update_component(self.e_detector, error)
 
         class_id = int(y.view(-1)[0].item())
-        if class_id not in (0, 1):
-            raise ValueError("クラス条件付きe-SRは二値ラベル0/1を前提とします")
+        if class_id not in range(config.num_classes()):
+            raise ValueError(f"クラスIDが範囲外です: {class_id}")
         detector = self.class_e_detectors.get(class_id)
         if detector is None:
             detector = self._new_class_detector(class_id)
@@ -412,14 +411,14 @@ class ClassConditionalEDetectorFedSDAClient(EDetectorFedSDAClient):
             positions.popleft()
 
         component_logs = {
-            "overall": self.e_detector.log_e_value + math.log(self._COMPONENT_WEIGHT),
-            class_id: detector.log_e_value + math.log(self._COMPONENT_WEIGHT),
+            "overall": self.e_detector.log_e_value + math.log(self.component_weight),
+            class_id: detector.log_e_value + math.log(self.component_weight),
         }
-        # 未観測の二値クラスには固定した残り1/3を割り当てたままにする。
+        # 既に観測した他クラスの検出器も、最後に更新したe値で混合する。
         for other_id, other_detector in self.class_e_detectors.items():
             if other_id != class_id:
                 component_logs[other_id] = (
-                    other_detector.log_e_value + math.log(self._COMPONENT_WEIGHT)
+                    other_detector.log_e_value + math.log(self.component_weight)
                 )
 
         finite_logs = [value for value in component_logs.values() if math.isfinite(value)]

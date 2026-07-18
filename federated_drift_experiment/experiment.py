@@ -447,7 +447,8 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
     - switch_client_ids / switch_positions: ローカルで実際にモデル切替が起きた位置を
       (クライアントid, サンプルindex) の並列配列で平坦化
     - estimated_drift_start_*: 検知ごとに検出器が推定した変化開始位置
-    - dataset/mode/label/seed/min_stable/agg_interval: 分析時のグループ化・Δ上限用メタデータ
+    - dataset/concept_schedule/mode/label/seed/min_stable/agg_interval:
+      分析時のグループ化・Δ上限用メタデータ
 
     注: history_model_id / switch_* は後から追加した純増キー。これらを持たない旧 .npz
     でも読み手が `key in npz` で存在判定すれば従来どおり読める(形式は後方互換)。
@@ -520,6 +521,7 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
         estimated_drift_alarm_positions=np.asarray(e_alarm_pos, dtype=np.int32),
         estimated_drift_start_positions=np.asarray(e_start_pos, dtype=np.int32),
         dataset=str(config.DATASET),
+        concept_schedule=str(config.CONCEPT_SCHEDULE),
         mode=str(mode),
         label=str(label),
         seed=(int(seed) if seed is not None else -1),
@@ -623,6 +625,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         # サーバ集約がないため、クライアントが保持するローカルモデル数の平均を報告する
         results["final_model_count"] = float(np.mean([len(c.models) for c in clients]))
     results["runtime_seconds"] = runtime_seconds
+    results["concept_schedule"] = config.CONCEPT_SCHEDULE
     _add_telemetry_results(results, clients, telemetry)
 
     # --- 通信量(モデル転送数。up=クライアント→サーバ, down=サーバ→クライアント)---

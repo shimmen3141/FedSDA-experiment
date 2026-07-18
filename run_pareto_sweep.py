@@ -47,7 +47,7 @@ METRIC_KEYS = [
     "compute_drift_detector_updates_total", "compute_drift_detector_hypotheses_total",
     "mean_model_count", "max_model_count", "model_count_auc",
 ]
-ROW_KEYS = ["mode", "dataset", "seed", "series", "sweep_value",
+ROW_KEYS = ["mode", "dataset", "concept_schedule", "seed", "series", "sweep_value",
             "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta",
             "e_detector_baseline_strategy", "e_detector_baseline_beta"] + METRIC_KEYS
 
@@ -69,8 +69,11 @@ def _slug(text):
 
 def _run(mode, dataset, seed, series, sweep_value,
          feddrift_batch=None, distance_threshold=None, adwin_delta=None, agg_interval=None,
-         raw_dir=None):
+         raw_dir=None, concept_schedule=None):
     config.DATASET = dataset
+    if concept_schedule is None:
+        concept_schedule = config.CONCEPT_SCHEDULE
+    config.CONCEPT_SCHEDULE = concept_schedule
     if feddrift_batch is not None:
         config.FEDDRIFT_DETECT_BATCH = feddrift_batch
     if adwin_delta is not None:
@@ -81,19 +84,22 @@ def _run(mode, dataset, seed, series, sweep_value,
     # 回復曲線分析は label 単位でグループ化する(seed をまたいで平均)。掃引値が異なれば
     # 別ハイパーパラメータ設定なので、label に掃引値を含めて別系列として扱う。
     raw_path = None
-    raw_label = series
+    display_series = (series if concept_schedule == "random"
+                      else f"{series} [{concept_schedule}]")
+    raw_label = display_series
     if raw_dir is not None:
         sv = "na" if sweep_value in (None, "", "None") else f"{sweep_value:g}"
-        fname = f"{_slug(series)}_{dataset}_seed{seed}_sv{sv}.npz"
+        fname = f"{_slug(display_series)}_{dataset}_seed{seed}_sv{sv}.npz"
         raw_path = os.path.join(raw_dir, fname)
         if sweep_value not in (None, "", "None"):
-            raw_label = f"{series} [{sweep_value:g}]"
+            raw_label = f"{display_series} [{sweep_value:g}]"
 
     r = run_random_drift_experiment(mode=mode, distance_threshold=distance_threshold,
                                     random_seed=seed, verbose=False, show_plot=False,
                                     raw_path=raw_path, raw_label=raw_label)
     row = {
-        "mode": mode, "dataset": dataset, "seed": seed, "series": series, "sweep_value": sweep_value,
+        "mode": mode, "dataset": dataset, "concept_schedule": concept_schedule,
+        "seed": seed, "series": display_series, "sweep_value": sweep_value,
         "feddrift_batch": config.FEDDRIFT_DETECT_BATCH,
         "agg_interval": config.AGG_INTERVAL,
         "distance_threshold": distance_threshold if distance_threshold is not None else config.DISTANCE_THRESHOLD,
@@ -109,7 +115,9 @@ def _run(mode, dataset, seed, series, sweep_value,
 def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed_batch, fixed_gamma,
               agg_sweep=(), fixed_adwin=None, raw_dir=None,
               fedsda_modes=FEDSDA_SWEEP_MODES, feddrift_modes=FEDDRIFT_SWEEP_MODES,
-              baseline_modes=BASELINE_MODES):
+              baseline_modes=BASELINE_MODES, concept_schedule=None):
+    if concept_schedule is None:
+        concept_schedule = config.CONCEPT_SCHEDULE
     default_adwin = config.ADWIN_DELTA
     default_agg = config.AGG_INTERVAL
     if fixed_adwin is None:
@@ -126,7 +134,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
         nonlocal done
         done += 1
         try:
-            row = _run(raw_dir=raw_dir, **kw)
+            row = _run(raw_dir=raw_dir, concept_schedule=concept_schedule, **kw)
             rows.append(row)
             print(f"[{done}/{total}] {tag}: stable_acc={row['stable_accuracy']:.4f} "
                   f"comm={row['comm_models_total']} models={row['final_model_count']} "
@@ -180,7 +188,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     return rows
 
 
-def _experiment_slug(datasets, seeds, total_data, tag=None):
+def _experiment_slug(datasets, seeds, total_data, tag=None, concept_schedule="random"):
     """実験内容がわかる出力ファイル名(拡張子なし)を組み立てる。
 
     例: pareto_sea-circle-sine_seed0_n5000 / pareto_sea_seeds0-2_n5000_myrun
@@ -193,6 +201,8 @@ def _experiment_slug(datasets, seeds, total_data, tag=None):
     else:
         sd = "seeds" + "-".join(str(s) for s in seeds)
     parts = [f"pareto_{ds}", sd, f"n{total_data}"]
+    if concept_schedule != "random":
+        parts.append(concept_schedule)
     if tag:
         parts.append(tag)
     return "_".join(parts)
@@ -212,6 +222,7 @@ def _load_csv(path):
     with open(path, encoding="utf-8") as f:
         for r in csv.DictReader(f):
             row = dict(r)
+            row.setdefault("concept_schedule", "random")
             row["seed"] = int(float(row["seed"]))
             row["sweep_value"] = (float(row["sweep_value"])
                                   if row["sweep_value"] not in ("", "None") else None)
@@ -468,9 +479,14 @@ def build_parser():
 """,
     )
     all_datasets = list(config._FEATURE_DIMS)
+    # 新規の固定系列・MNISTは計算量とデータ取得が異なるため、明示指定時だけ実行する。
+    default_datasets = ["blobs", "sea", "circle", "sine"]
     scope = parser.add_argument_group("実験対象・規模")
-    scope.add_argument("--datasets", nargs="+", choices=all_datasets, default=all_datasets,
-                       help="対象データセット(既定: 全データセット)")
+    scope.add_argument("--datasets", nargs="+", choices=all_datasets, default=default_datasets,
+                       help="対象データセット(既定: blobs sea circle sine。MNIST等は明示指定)")
+    scope.add_argument("--concept-schedule", choices=config.CONCEPT_SCHEDULES,
+                       default=config.CONCEPT_SCHEDULE,
+                       help=f"全データセットに適用する概念切替方式(既定: {config.CONCEPT_SCHEDULE})")
     scope.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4],
                        help="乱数シード(既定: 0 1 2 3 4)")
     scope.add_argument("--total-data", type=int, default=None,
@@ -554,6 +570,7 @@ def main():
         config.PRETRAIN_EPOCHS = 5
     elif args.total_data is not None:
         config.TOTAL_DATA_POINTS = args.total_data
+    config.CONCEPT_SCHEDULE = args.concept_schedule
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.DISTANCE_THRESHOLD
     fixed_batch = args.fixed_batch if args.fixed_batch is not None else config.FEDDRIFT_DETECT_BATCH
@@ -561,13 +578,17 @@ def main():
     fixed_adwin = args.fixed_adwin if args.fixed_adwin is not None else config.ADWIN_DELTA
 
     os.makedirs(args.out_dir, exist_ok=True)
-    slug = _experiment_slug(args.datasets, args.seeds, config.TOTAL_DATA_POINTS, args.tag)
+    slug = _experiment_slug(
+        args.datasets, args.seeds, config.TOTAL_DATA_POINTS, args.tag,
+        concept_schedule=args.concept_schedule,
+    )
     n_runs = len(args.datasets) * len(args.seeds) * (
         len(args.fedsda_modes) * (len(args.adwin_deltas) + len(args.agg_sweep))
         + len(args.feddrift_modes) * (len(args.batches) + len(args.deltas))
         + len(args.baseline_modes))
     print(f"Experiment: {slug}")
-    print(f"Datasets={args.datasets} seeds={args.seeds} TOTAL_DATA_POINTS={config.TOTAL_DATA_POINTS}")
+    print(f"Datasets={args.datasets} schedule={args.concept_schedule} "
+          f"seeds={args.seeds} TOTAL_DATA_POINTS={config.TOTAL_DATA_POINTS}")
     print(f"batches={args.batches} deltas={args.deltas} adwin_deltas={args.adwin_deltas} "
           f"agg_sweep={args.agg_sweep}")
     print(f"modes: FedSDA={args.fedsda_modes} FedDrift={args.feddrift_modes} "
@@ -583,7 +604,8 @@ def main():
                      fixed_delta, fixed_batch, fixed_gamma,
                      agg_sweep=args.agg_sweep, fixed_adwin=fixed_adwin, raw_dir=args.raw_dir,
                      fedsda_modes=args.fedsda_modes, feddrift_modes=args.feddrift_modes,
-                     baseline_modes=args.baseline_modes)
+                     baseline_modes=args.baseline_modes,
+                     concept_schedule=args.concept_schedule)
     write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
     plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"),
                 y_key=args.plot_metric)

@@ -16,12 +16,12 @@ circle(FedDrift CIRCLE-2・2クラス分類・2次元特徴):
 sine(FedDrift SINE-2・2クラス分類・2次元特徴):
 - 特徴 x1,x2 ~ U[0,1]^2、概念0: x2<=sin(x1) を label=1、概念1: 反転
 """
-import random
-
 import numpy as np
 import torch
 
 from . import config
+from .concept_schedules import make_feddrift_fixed_schedules, make_random_schedules
+from .mnist_data import sample_mnist
 
 
 def generate_data(concept_id, n_samples=1, dataset=None):
@@ -39,12 +39,14 @@ def generate_data(concept_id, n_samples=1, dataset=None):
 
     if dataset == 'blobs':
         x_list, y_list = _generate_blobs(concept_id, n_samples)
-    elif dataset == 'sea':
+    elif dataset in ('sea', 'sea2'):
         x_list, y_list = _generate_sea(concept_id, n_samples)
     elif dataset == 'circle':
         x_list, y_list = _generate_circle(concept_id, n_samples)
     elif dataset == 'sine':
         x_list, y_list = _generate_sine(concept_id, n_samples)
+    elif dataset in ('mnist2', 'mnist4'):
+        x_list, y_list = sample_mnist(concept_id, n_samples)
     else:
         raise ValueError(f"Unknown dataset: {dataset!r}")
 
@@ -159,30 +161,35 @@ def _generate_sine(concept_id, n_samples):
 
 
 def make_concept_schedules(n_clients, total_data_points,
-                           min_stable_period=None, drift_prob=None):
+                           min_stable_period=None, drift_prob=None,
+                           schedule_type=None, dataset=None):
     """クライアントごとのコンセプト系列(長さ total_data_points)を生成する。
 
-    直近のドリフトから min_stable_period サンプル経過後、毎サンプル確率
-    drift_prob で別コンセプトへ遷移する。
+    randomは最小安定期間後に毎サンプル確率で遷移し、feddrift_fixedは
+    概念数に対応するFedDrift元実装の10時点固定系列を展開する。
+    schedule_type / datasetを省略するとconfigの現在値を用いる。
     """
     if min_stable_period is None:
         min_stable_period = config.MIN_STABLE_PERIOD
     if drift_prob is None:
         drift_prob = config.DRIFT_PROB
+    if schedule_type is None:
+        schedule_type = config.CONCEPT_SCHEDULE
+    if schedule_type not in config.CONCEPT_SCHEDULES:
+        raise ValueError(f"Unknown concept schedule: {schedule_type!r}")
+    num_concepts = config.num_concepts(dataset)
 
-    schedules = []
-    for _ in range(n_clients):
-        schedule = []
-        curr = 0
-        last_drift = 0
-        for data_idx in range(total_data_points):
-            if (data_idx - last_drift > min_stable_period) and (random.random() < drift_prob):
-                candidates = [cid for cid in range(config.num_concepts()) if cid != curr]
-                curr = random.choice(candidates)
-                last_drift = data_idx
-            schedule.append(curr)
-        schedules.append(schedule)
-    return schedules
+    if schedule_type == "feddrift_fixed":
+        return make_feddrift_fixed_schedules(
+            n_clients, total_data_points, num_concepts
+        )
+    return make_random_schedules(
+        n_clients,
+        total_data_points,
+        num_concepts,
+        min_stable_period,
+        drift_prob,
+    )
 
 
 def extract_true_drift_events(schedules):

@@ -25,6 +25,9 @@ def main():
     parser.add_argument("--seed", type=int, default=0, help="乱数シード (default: 0)")
     parser.add_argument("--dataset", choices=list(config._FEATURE_DIMS), default=config.DATASET,
                         help=f"データセット (default: {config.DATASET})")
+    parser.add_argument("--concept-schedule", choices=config.CONCEPT_SCHEDULES,
+                        default=config.CONCEPT_SCHEDULE,
+                        help=f"概念切替方式 (default: {config.CONCEPT_SCHEDULE})")
     parser.add_argument("--feddrift-batch", type=int, default=config.FEDDRIFT_DETECT_BATCH,
                         help=f"FedDrift の検出バッチサイズ (default: {config.FEDDRIFT_DETECT_BATCH})")
     parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
@@ -42,13 +45,17 @@ def main():
     args = parser.parse_args()
 
     config.DATASET = args.dataset
+    config.CONCEPT_SCHEDULE = args.concept_schedule
     config.FEDDRIFT_DETECT_BATCH = args.feddrift_batch
     config.CLUSTER_LINKAGE = args.cluster_linkage
     config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation
 
     raw_path = None
     if args.raw_dir is not None:
-        raw_path = os.path.join(args.raw_dir, f"{args.mode}_{args.dataset}_seed{args.seed}.npz")
+        raw_path = os.path.join(
+            args.raw_dir,
+            f"{args.mode}_{args.dataset}_{args.concept_schedule}_seed{args.seed}.npz",
+        )
 
     results = run_random_drift_experiment(
         mode=args.mode,

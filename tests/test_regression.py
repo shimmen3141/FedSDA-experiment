@@ -89,6 +89,8 @@ def _run_case(mode, dataset, overrides=None):
     (後続ケースへ設定が漏れないように)。
     """
     config.DATASET = dataset
+    original_schedule = config.CONCEPT_SCHEDULE
+    config.CONCEPT_SCHEDULE = "random"
     config.TOTAL_DATA_POINTS = TOTAL_DATA_POINTS
     overrides = overrides or {}
     saved = {k: getattr(config, k) for k in overrides}
@@ -99,6 +101,7 @@ def _run_case(mode, dataset, overrides=None):
             r = run_random_drift_experiment(mode=mode, random_seed=SEED,
                                             verbose=False, show_plot=False)
     finally:
+        config.CONCEPT_SCHEDULE = original_schedule
         for k, v in saved.items():
             setattr(config, k, v)
     return {k: r.get(k) for k in METRIC_KEYS}

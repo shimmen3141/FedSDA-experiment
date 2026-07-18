@@ -11,6 +11,7 @@ results/
 results_*/
 *.png
 *.npz
+/data/mnist/
 
 # 参照用に clone した外部リポジトリ・論文(この repo には含めない)
 /FedDrift/

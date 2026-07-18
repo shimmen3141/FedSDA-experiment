@@ -199,7 +199,7 @@ class BaseClient:
         m = len(bx)
         new_model = SimpleMLP()
         new_model.set_params(self.models[self.current_model_id].get_params())
-        new_model.reset_optimizer(lr=config.NEW_MODEL_LR)
+        new_model.reset_optimizer()
 
         dataset = torch.utils.data.TensorDataset(bx, by)
         loader = torch.utils.data.DataLoader(
@@ -216,8 +216,7 @@ class BaseClient:
 
         with torch.no_grad():
             self._record_model_compute("initialization", len(bx))
-            preds = new_model(bx)
-            final_loss = torch.abs(preds - by)
+            final_loss = new_model.per_sample_error(bx, by)
             init_mean = float(torch.mean(final_loss).item())
             init_var = float(torch.var(final_loss).item())
             if math.isnan(init_var):
@@ -226,8 +225,8 @@ class BaseClient:
         class_stats = {}
         flat_labels = by.view(-1)
         flat_losses = final_loss.view(-1)
-        for class_id in (0, 1):
-            selected = flat_losses[flat_labels == float(class_id)]
+        for class_id in range(new_model.num_classes):
+            selected = flat_losses[flat_labels == class_id]
             if len(selected) == 0:
                 continue
             class_mean = float(torch.mean(selected).item())
@@ -332,8 +331,7 @@ class BaseClient:
         temp_model.set_params(params)
         with torch.no_grad():
             self._record_model_compute("cross_evaluation", len(X))
-            preds = temp_model(X)
-            errors = torch.abs(preds - y).numpy().flatten()
+            errors = temp_model.per_sample_error(X, y).numpy().flatten()
         self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
         return len(errors), float(errors.sum()), float((errors ** 2).sum())
 

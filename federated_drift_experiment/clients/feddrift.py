@@ -72,8 +72,8 @@ class FedDriftClient(BaseClient):
         for m_id, model in self.models.items():
             with torch.no_grad():
                 self._record_model_compute("detection", len(bx))
-                preds = model(bx)
-                loss = float(torch.mean(torch.abs(preds - by)).item())
+                errors = model.per_sample_error(bx, by)
+                loss = float(torch.mean(errors).item())
             if loss < min_loss:
                 min_loss = loss
                 best_model_id = m_id
