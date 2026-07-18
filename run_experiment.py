@@ -7,6 +7,8 @@
 import argparse
 import os
 
+from experiment_runtime import configure_torch_threads
+
 from federated_drift_experiment import config, run_random_drift_experiment
 from federated_drift_experiment.experiment import MODE_SPECS
 
@@ -14,6 +16,7 @@ MODES = list(MODE_SPECS)
 
 
 def main():
+    configure_torch_threads()
     parser = argparse.ArgumentParser(description="FedSDA single experiment runner")
     parser.add_argument("--mode", choices=MODES, default='FedSDA',
                         help="実験モード (default: FedSDA)")

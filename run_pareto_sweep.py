@@ -21,6 +21,8 @@ import os
 import time
 import traceback
 
+from experiment_runtime import configure_torch_threads
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -448,6 +450,7 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy"):
 
 
 def main():
+    configure_torch_threads()
     parser = argparse.ArgumentParser(description="FedSDA accuracy-communication Pareto sweep")
     all_datasets = list(config._FEATURE_DIMS)
     parser.add_argument("--datasets", nargs="+", choices=all_datasets, default=all_datasets)

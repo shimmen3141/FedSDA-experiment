@@ -6,6 +6,8 @@
 """
 import argparse
 
+from experiment_runtime import configure_torch_threads
+
 from federated_drift_experiment import config, run_comparative_trials
 from federated_drift_experiment.experiment import MODE_SPECS
 
@@ -13,6 +15,7 @@ MODES = list(MODE_SPECS)
 
 
 def main():
+    configure_torch_threads()
     parser = argparse.ArgumentParser(description="FedSDA comparative trials runner")
     parser.add_argument("--n-trials", type=int, default=10, help="モードごとの試行回数 (default: 10)")
     parser.add_argument("--threshold", type=float, default=config.DISTANCE_THRESHOLD,

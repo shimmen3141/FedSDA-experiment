@@ -59,6 +59,24 @@ python run_experiment.py --help
 python run_comparative_trials.py --help
 ```
 
+### CPUスレッド設定
+
+CLI実験では、小さいPyTorch演算を大量に繰り返す際の過剰並列化を避けるため、
+`OMP_NUM_THREADS=1`、`MKL_NUM_THREADS=1`を既定値とする。PyTorchのintra-opスレッド数も
+`OMP_NUM_THREADS`に合わせ、inter-opスレッド数は1に固定する。外部で指定した環境変数は
+上書きしないため、必要なら実行環境ごとに変更できる。
+
+Linuxサーバでユーザーサイトのパッケージを混入させず実行する例:
+
+```bash
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONNOUSERSITE=1 \
+PYTORCH_NVML_BASED_CUDA_CHECK=1 \
+python -u run_pareto_sweep.py 2>&1 | tee run_pareto_sweep.log
+```
+
+`PYTHONNOUSERSITE`はPython起動時に処理されるため、必要な場合はコマンド側で指定する。
+`PYTHONWARNINGS=ignore`は数値警告や非推奨APIの警告も隠すため、通常の実験では設定しない。
+
 Pareto 図では `FedSDA_without_server` と `Oblivious` を通信量に依存しない基準として横線で描く。
 横線はシード平均、半透明の帯はシード間の ±1 標準偏差である。1 シードだけの場合は標準偏差が
 0 のため帯は表示されない。凡例には前者の固定 `δ_adwin`、後者の固定 `AGG_INTERVAL` も示す。
