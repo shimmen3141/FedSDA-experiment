@@ -15,18 +15,23 @@ def test_cli_help_groups_related_sweep_options():
 
     assert "FedSDAの手法・掃引" in help_text
     assert "--fixed-adwin" in help_text
+    assert "--fixed-agg" in help_text
     assert "--agg-sweepが空なら未使用" in help_text
     assert "FedDriftの手法・掃引" in help_text
     assert "--fixed-delta" in help_text
     assert "--batchesが空なら未使用" in help_text
     assert "既存CSVの再描画" in help_text
     assert "他の実験設定は無視" in help_text
+    assert "--plot-x-metric" in help_text
+    assert "--plot-sweep-kind" in help_text
 
 
-def test_new_paper_datasets_are_opt_in_for_default_sweep():
+def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     parser = sweep.build_parser()
     defaults = parser.parse_args([])
-    assert defaults.datasets == ["blobs", "sea", "circle", "sine"]
+    assert defaults.datasets == ["sea", "circle", "sine"]
+    assert defaults.agg_sweep == [50, 100, 200, 500]
+    assert defaults.batches == [50, 100, 200, 500]
     assert defaults.concept_schedule == "random"
     selected = parser.parse_args([
         "--datasets", "sea2", "mnist2", "mnist4",
@@ -69,6 +74,25 @@ def test_run_sweep_schedules_selected_versions(monkeypatch):
         assert [call["agg_interval"] for call in mode_calls] == [
             sweep.config.AGG_INTERVAL, sweep.config.AGG_INTERVAL, 100,
         ]
+
+
+def test_adwin_sweep_uses_fixed_aggregation_interval(monkeypatch):
+    calls = []
+
+    def fake_run(**kwargs):
+        calls.append(dict(kwargs))
+        return _fake_row(**kwargs)
+
+    monkeypatch.setattr(sweep, "_run", fake_run)
+    sweep.run_sweep(
+        datasets=["sea"], seeds=[0], batches=[], deltas=[],
+        adwin_deltas=[0.05], fixed_delta=0.1, fixed_batch=50,
+        fixed_gamma=0.1, agg_sweep=[], fixed_adwin=0.1, fixed_agg=500,
+        fedsda_modes=["FedSDA_v2"], feddrift_modes=[], baseline_modes=[],
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["agg_interval"] == 500
 
 
 def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
@@ -157,4 +181,40 @@ def test_plot_pareto_can_use_overall_accuracy(tmp_path):
     path = tmp_path / "overall.png"
     sweep.plot_pareto(rows, ["sea"], path, y_key="accuracy")
 
+    assert path.exists()
+
+
+def test_replot_filter_selects_interval_sweeps_and_plot_accepts_compute_x(tmp_path):
+    rows = [
+        {
+            "mode": "FedSDA_v2.1", "dataset": "sea", "seed": 0,
+            "series": "FedSDA_v2.1 AGG_INTERVAL sweep", "sweep_value": 50.0,
+            "compute_model_examples_total": 1000.0,
+            "stable_accuracy": 0.9, "accuracy": 0.8,
+        },
+        {
+            "mode": "FedSDA_v2.1", "dataset": "sea", "seed": 0,
+            "series": "FedSDA_v2.1 δ_adwin sweep", "sweep_value": 0.1,
+            "compute_model_examples_total": 1100.0,
+            "stable_accuracy": 0.91, "accuracy": 0.81,
+        },
+        {
+            "mode": "FedDrift_v2", "dataset": "sea", "seed": 0,
+            "series": "FedDrift_v2 batch sweep", "sweep_value": 50.0,
+            "compute_model_examples_total": 900.0,
+            "stable_accuracy": 0.88, "accuracy": 0.79,
+        },
+    ]
+    filtered = sweep._filter_replot_rows(
+        rows, modes=["FedSDA_v2.1", "FedDrift_v2"], sweep_kind="interval"
+    )
+    assert [row["series"] for row in filtered] == [
+        "FedSDA_v2.1 AGG_INTERVAL sweep", "FedDrift_v2 batch sweep"
+    ]
+
+    path = tmp_path / "compute.png"
+    sweep.plot_pareto(
+        filtered, ["sea"], path, y_key="accuracy",
+        x_key="compute_model_examples_total",
+    )
     assert path.exists()

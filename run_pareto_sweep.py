@@ -60,6 +60,14 @@ FEDSDA_SWEEP_MODES = (
 FEDDRIFT_SWEEP_MODES = ("FedDrift", "FedDrift_v2")
 BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
 
+PLOT_X_LABELS = {
+    "comm_models_total": "Communication (model transfers, log)",
+    "compute_model_examples_total": "Model-processed examples (log)",
+    "compute_optimizer_steps_total": "Optimizer steps (log)",
+    "client_compute_seconds_sum": "Client compute time (seconds, log)",
+    "runtime_seconds": "Runtime (seconds, log)",
+}
+
 
 def _slug(text):
     """ファイル名に使える形へ簡易サニタイズ(英数以外は _ にまとめる)。"""
@@ -113,7 +121,7 @@ def _run(mode, dataset, seed, series, sweep_value,
 
 
 def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed_batch, fixed_gamma,
-              agg_sweep=(), fixed_adwin=None, raw_dir=None,
+              agg_sweep=(), fixed_adwin=None, fixed_agg=None, raw_dir=None,
               fedsda_modes=FEDSDA_SWEEP_MODES, feddrift_modes=FEDDRIFT_SWEEP_MODES,
               baseline_modes=BASELINE_MODES, concept_schedule=None):
     if concept_schedule is None:
@@ -122,6 +130,8 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     default_agg = config.AGG_INTERVAL
     if fixed_adwin is None:
         fixed_adwin = default_adwin
+    if fixed_agg is None:
+        fixed_agg = default_agg
     rows = []
     jobs_per = (len(fedsda_modes) * (len(adwin_deltas) + len(agg_sweep))
                 + len(feddrift_modes) * (len(batches) + len(deltas))
@@ -157,7 +167,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
                     do(f"{dataset}/{mode}/da={adwin_delta}/s{seed}",
                        mode=mode, dataset=dataset, seed=seed, series=delta_series,
                        sweep_value=adwin_delta, distance_threshold=fixed_gamma,
-                       adwin_delta=adwin_delta, agg_interval=default_agg)
+                       adwin_delta=adwin_delta, agg_interval=fixed_agg)
                 for agg_interval in agg_sweep:
                     do(f"{dataset}/{mode}/agg={agg_interval}/s{seed}",
                        mode=mode, dataset=dataset, seed=seed, series=agg_series,
@@ -238,7 +248,7 @@ def _load_csv(path):
     return rows
 
 
-def write_markdown_table(rows, path):
+def write_markdown_table(rows, path, x_key="comm_models_total"):
     """(データセット, 系列, 掃引値)ごとにシード平均した Markdown 表を書き出す。"""
     from collections import defaultdict
     canon = list(config._FEATURE_DIMS)
@@ -263,31 +273,49 @@ def write_markdown_table(rows, path):
 
         lines.append(f"### {ds}")
         lines.append("")
-        lines.append("| Method | sweep | Accuracy (overall) | Accuracy (stable) | Comm (transfers) | Models |")
+        x_label = PLOT_X_LABELS.get(x_key, x_key).replace(" (log)", "")
+        lines.append(f"| Method | sweep | Accuracy (overall) | Accuracy (stable) | {x_label} | Models |")
         lines.append("|---|---|---:|---:|---:|---:|")
         for (series, sv) in sorted(groups.keys(), key=order_key):
             rs = groups[(series, sv)]
             overall_acc = np.array([float(x["accuracy"]) for x in rs])
             stable_acc = np.array([float(x["stable_accuracy"]) for x in rs])
-            comm = np.array([float(x["comm_models_total"]) for x in rs])
+            x_values = np.array([float(x[x_key]) for x in rs])
             models = np.array([float(x["final_model_count"]) for x in rs])
             svtxt = "–" if sv in (None, "", "None") else f"{float(sv):g}"
             lines.append(f"| {series} | {svtxt} | "
                          f"{overall_acc.mean():.4f} ± {overall_acc.std():.4f} | "
                          f"{stable_acc.mean():.4f} ± {stable_acc.std():.4f} | "
-                         f"{comm.mean():,.0f} | {models.mean():.1f} |")
+                         f"{x_values.mean():,.2f} | {models.mean():.1f} |")
         lines.append("")
 
     n_seeds = len(set(r["seed"] for r in rows))
     lines.append(f"*{n_seeds} シード平均。overall は全期間の prequential 精度、stable は回復窓 "
                  f"W={config.STABLE_WINDOW} を除外した定常精度で、いずれも平均±標準偏差。"
-                 f"Comm はモデル転送数。*")
+                 f"横軸集計値は `{x_key}`。*")
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print(f"Table saved: {path}")
 
 
-def combine_and_plot(patterns, out_dir, tag=None, plot_metric="stable_accuracy"):
+def _filter_replot_rows(rows, modes=None, sweep_kind="all"):
+    """既存CSVから再描画対象の手法・掃引系列だけを選ぶ。"""
+    if modes:
+        rows = [row for row in rows if row["mode"] in modes]
+    if sweep_kind == "interval":
+        rows = [
+            row for row in rows
+            if ((row["mode"].startswith("FedSDA")
+                 and "AGG_INTERVAL sweep" in row["series"])
+                or (row["mode"].startswith("FedDrift")
+                    and "batch sweep" in row["series"]))
+        ]
+    return rows
+
+
+def combine_and_plot(patterns, out_dir, tag=None, plot_metric="stable_accuracy",
+                     plot_x_metric="comm_models_total", modes=None,
+                     sweep_kind="all"):
     """複数の結果CSV(glob可)を読み込み、シード平均の散布図を描画する。"""
     import glob
     paths = []
@@ -301,6 +329,10 @@ def combine_and_plot(patterns, out_dir, tag=None, plot_metric="stable_accuracy")
     for p in paths:
         rows.extend(_load_csv(p))
         print(f"loaded: {p}")
+    rows = _filter_replot_rows(rows, modes=modes, sweep_kind=sweep_kind)
+    if not rows:
+        print("No rows remained after applying plot filters.")
+        return
 
     canon = list(config._FEATURE_DIMS)
     datasets = [d for d in canon if any(r["dataset"] == d for r in rows)]
@@ -312,8 +344,13 @@ def combine_and_plot(patterns, out_dir, tag=None, plot_metric="stable_accuracy")
     os.makedirs(out_dir, exist_ok=True)
     print(f"Combining {len(paths)} CSV(s), datasets={datasets}, seeds={seeds} "
           f"(誤差棒/± = シード間の標準偏差)")
-    plot_pareto(rows, datasets, os.path.join(out_dir, f"{name}.png"), y_key=plot_metric)
-    write_markdown_table(rows, os.path.join(out_dir, f"{name}.md"))
+    plot_pareto(
+        rows, datasets, os.path.join(out_dir, f"{name}.png"),
+        y_key=plot_metric, x_key=plot_x_metric,
+    )
+    write_markdown_table(
+        rows, os.path.join(out_dir, f"{name}.md"), x_key=plot_x_metric
+    )
 
 
 def _agg(rows, x_key="comm_models_total", y_key="stable_accuracy"):
@@ -373,7 +410,8 @@ def _series_style(series):
     return color, "X", "-"
 
 
-def plot_pareto(rows, datasets, path, y_key="stable_accuracy"):
+def plot_pareto(rows, datasets, path, y_key="stable_accuracy",
+                x_key="comm_models_total"):
     # 色は手法、マーカーと線種は掃引対象を表す。
     sweep_series = []
     for r in rows:
@@ -393,7 +431,10 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy"):
             vals = sorted(set(r["sweep_value"] for r in srows))
             xs, ys, xe, ye = [], [], [], []
             for v in vals:
-                a = _agg([r for r in srows if r["sweep_value"] == v], y_key=y_key)
+                a = _agg(
+                    [r for r in srows if r["sweep_value"] == v],
+                    x_key=x_key, y_key=y_key,
+                )
                 if a:
                     xs.append(a[0]); xe.append(a[1]); ys.append(a[2]); ye.append(a[3])
             if not xs:
@@ -423,7 +464,7 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy"):
         }
         for baseline in BASELINE_MODES:
             baseline_rows = [r for r in ds_rows if r["series"] == baseline]
-            a = _agg(baseline_rows, y_key=y_key)
+            a = _agg(baseline_rows, x_key=x_key, y_key=y_key)
             if not a:
                 continue
             color, linestyle = baseline_styles[baseline]
@@ -441,7 +482,7 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy"):
 
         ax.set_xscale("log")
         ax.set_title(ds)
-        ax.set_xlabel("Communication (model transfers, log)")
+        ax.set_xlabel(PLOT_X_LABELS.get(x_key, x_key))
         ylabel = ("stable_accuracy (omit-recovery)" if y_key == "stable_accuracy"
                   else "accuracy (overall prequential)")
         ax.set_ylabel(ylabel)
@@ -453,7 +494,7 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy"):
         method = row["mode"]
         if method not in methods:
             methods.append(method)
-    fig.suptitle("Accuracy vs Communication by Method\n" + ", ".join(methods))
+    fig.suptitle(f"{y_key} vs {x_key} by Method\n" + ", ".join(methods))
     fig.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -479,11 +520,11 @@ def build_parser():
 """,
     )
     all_datasets = list(config._FEATURE_DIMS)
-    # 新規の固定系列・MNISTは計算量とデータ取得が異なるため、明示指定時だけ実行する。
-    default_datasets = ["blobs", "sea", "circle", "sine"]
+    # blobs・固定系列・MNISTは計算量や実験上の位置づけが異なるため、明示指定時だけ実行する。
+    default_datasets = ["sea", "circle", "sine"]
     scope = parser.add_argument_group("実験対象・規模")
     scope.add_argument("--datasets", nargs="+", choices=all_datasets, default=default_datasets,
-                       help="対象データセット(既定: blobs sea circle sine。MNIST等は明示指定)")
+                       help="対象データセット(既定: sea circle sine。blobs・MNIST等は明示指定)")
     scope.add_argument("--concept-schedule", choices=config.CONCEPT_SCHEDULES,
                        default=config.CONCEPT_SCHEDULE,
                        help=f"全データセットに適用する概念切替方式(既定: {config.CONCEPT_SCHEDULE})")
@@ -502,10 +543,12 @@ def build_parser():
                         default=[0.01, 0.05, 0.1, 0.2, 0.3],
                         help="δ_adwin掃引値。空指定でこの掃引を無効化")
     fedsda.add_argument("--agg-sweep", nargs="*", type=int,
-                        default=[25, 50, 100, 200, 500],
+                        default=[50, 100, 200, 500],
                         help="AGG_INTERVAL掃引値。空指定でこの掃引を無効化")
     fedsda.add_argument("--fixed-adwin", type=float, default=None,
                         help="AGG_INTERVAL掃引中の固定δ_adwin。--agg-sweepが空なら未使用")
+    fedsda.add_argument("--fixed-agg", type=int, default=None,
+                        help="δ_adwin掃引中の固定AGG_INTERVAL。--adwin-deltasが空なら未使用")
     fedsda.add_argument("--fixed-gamma", type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
 
@@ -514,7 +557,7 @@ def build_parser():
                           default=list(FEDDRIFT_SWEEP_MODES),
                           help="対象モード。空指定でFedDriftをすべて無効化")
     feddrift.add_argument("--batches", nargs="*", type=int,
-                          default=[25, 50, 100, 200, 500],
+                          default=[50, 100, 200, 500],
                           help="検出バッチ掃引値。空指定でこの掃引を無効化")
     feddrift.add_argument("--fixed-delta", type=float, default=None,
                           help="バッチ掃引中の固定距離閾値δ。--batchesが空なら未使用")
@@ -544,6 +587,15 @@ def build_parser():
     replot.add_argument("--plot-metric", choices=["stable_accuracy", "accuracy"],
                         default="stable_accuracy",
                         help="Pareto図の縦軸。新規実験と再描画の両方に適用")
+    replot.add_argument("--plot-x-metric", choices=list(PLOT_X_LABELS),
+                        default="comm_models_total",
+                        help="再描画時の横軸。計算量・実行時間も選択可能")
+    replot.add_argument("--plot-modes", nargs="*",
+                        choices=FEDSDA_SWEEP_MODES + FEDDRIFT_SWEEP_MODES + BASELINE_MODES,
+                        default=None,
+                        help="再描画対象の手法。未指定ならCSV内の全手法")
+    replot.add_argument("--plot-sweep-kind", choices=("all", "interval"), default="all",
+                        help="intervalでFedSDAのAGG_INTERVALとFedDriftのbatch掃引だけを描画")
     return parser
 
 
@@ -554,7 +606,11 @@ def main():
 
     # 集約プロットモード: 既存CSVを読み込みシード平均で描画して終了
     if args.plot_csvs:
-        combine_and_plot(args.plot_csvs, args.out_dir, args.tag, args.plot_metric)
+        combine_and_plot(
+            args.plot_csvs, args.out_dir, args.tag, args.plot_metric,
+            plot_x_metric=args.plot_x_metric, modes=args.plot_modes,
+            sweep_kind=args.plot_sweep_kind,
+        )
         return
 
     if args.quick:
@@ -576,6 +632,7 @@ def main():
     fixed_batch = args.fixed_batch if args.fixed_batch is not None else config.FEDDRIFT_DETECT_BATCH
     fixed_gamma = args.fixed_gamma if args.fixed_gamma is not None else config.DISTANCE_THRESHOLD
     fixed_adwin = args.fixed_adwin if args.fixed_adwin is not None else config.ADWIN_DELTA
+    fixed_agg = args.fixed_agg if args.fixed_agg is not None else config.AGG_INTERVAL
 
     os.makedirs(args.out_dir, exist_ok=True)
     slug = _experiment_slug(
@@ -593,7 +650,8 @@ def main():
           f"agg_sweep={args.agg_sweep}")
     print(f"modes: FedSDA={args.fedsda_modes} FedDrift={args.feddrift_modes} "
           f"baselines={args.baseline_modes}")
-    print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma} adwin={fixed_adwin}")
+    print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma} "
+          f"adwin={fixed_adwin} agg={fixed_agg}")
     print(f"Total runs = {n_runs}  (フルスケールでは1実験~60-90秒。長時間になり得ます)")
 
     if args.raw_dir:
@@ -602,7 +660,8 @@ def main():
 
     rows = run_sweep(args.datasets, args.seeds, args.batches, args.deltas, args.adwin_deltas,
                      fixed_delta, fixed_batch, fixed_gamma,
-                     agg_sweep=args.agg_sweep, fixed_adwin=fixed_adwin, raw_dir=args.raw_dir,
+                     agg_sweep=args.agg_sweep, fixed_adwin=fixed_adwin,
+                     fixed_agg=fixed_agg, raw_dir=args.raw_dir,
                      fedsda_modes=args.fedsda_modes, feddrift_modes=args.feddrift_modes,
                      baseline_modes=args.baseline_modes,
                      concept_schedule=args.concept_schedule)
