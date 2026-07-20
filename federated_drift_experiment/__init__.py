@@ -15,10 +15,12 @@ from .clients import (
     EDetectorFedSDAClient,
     FedDriftClient,
     FedSDAClient,
+    HDDMFedSDAClient,
     ObliviousClient,
 )
 from .data import generate_data, make_concept_schedules
 from .e_detector import BoundedMeanEDetector
+from .hddm import HDDMA, HDDMW
 from .e_detector_baselines import (
     EDetectorBaselineEstimator,
     EmpiricalBernsteinUCB,
@@ -42,7 +44,10 @@ __all__ = [
     "ClassConditionalFedSDAClient",
     "ClassConditionalEDetectorFedSDAClient",
     "EDetectorFedSDAClient",
+    "HDDMFedSDAClient",
     "BoundedMeanEDetector",
+    "HDDMA",
+    "HDDMW",
     "EDetectorBaselineEstimator",
     "HistoricalMeanBaseline",
     "EmpiricalBernsteinUCB",

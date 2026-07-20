@@ -95,6 +95,29 @@ def test_adwin_sweep_uses_fixed_aggregation_interval(monkeypatch):
     assert calls[0]["agg_interval"] == 500
 
 
+def test_adwin_delta_sweep_skips_non_adwin_detectors(monkeypatch):
+    calls = []
+
+    def fake_run(**kwargs):
+        calls.append(dict(kwargs))
+        return _fake_row(**kwargs)
+
+    monkeypatch.setattr(sweep, "_run", fake_run)
+    sweep.run_sweep(
+        datasets=["sea"], seeds=[0], batches=[], deltas=[],
+        adwin_deltas=[0.05, 0.1], fixed_delta=0.1, fixed_batch=50,
+        fixed_gamma=0.1, agg_sweep=[100], fixed_adwin=0.1,
+        fedsda_modes=["FedSDA_NoCached_ESR", "FedSDA_NoCached_HDDMA"],
+        feddrift_modes=[], baseline_modes=[],
+    )
+
+    assert len(calls) == 2
+    assert {call["mode"] for call in calls} == {
+        "FedSDA_NoCached_ESR", "FedSDA_NoCached_HDDMA",
+    }
+    assert all("AGG_INTERVAL sweep" in call["series"] for call in calls)
+
+
 def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
     old_keys = [
         key for key in sweep.ROW_KEYS

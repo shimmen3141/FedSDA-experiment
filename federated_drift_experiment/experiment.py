@@ -29,6 +29,7 @@ from .clients import (
     EDetectorFedSDAClient,
     FedDriftClient,
     FedSDAClient,
+    HDDMFedSDAClient,
     ObliviousClient,
 )
 from .data import build_data_streams, extract_true_drift_events, generate_data, make_concept_schedules
@@ -153,6 +154,30 @@ MODE_SPECS = {
         _run_fedsda_cached_timestep,
         server_cls=FedSDACachedServer,
     ),
+    'FedSDA_NoCached_HDDMA': ModeSpec(
+        HDDMFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDANoCachedServer,
+        client_kwargs={'hddm_variant': 'A'},
+    ),
+    'FedSDA_NoCached_HDDMW': ModeSpec(
+        HDDMFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDANoCachedServer,
+        client_kwargs={'hddm_variant': 'W'},
+    ),
+    'FedSDA_Cached_HDDMA': ModeSpec(
+        HDDMFedSDAClient,
+        _run_fedsda_cached_timestep,
+        server_cls=FedSDACachedServer,
+        client_kwargs={'hddm_variant': 'A'},
+    ),
+    'FedSDA_Cached_HDDMW': ModeSpec(
+        HDDMFedSDAClient,
+        _run_fedsda_cached_timestep,
+        server_cls=FedSDACachedServer,
+        client_kwargs={'hddm_variant': 'W'},
+    ),
     'FedSDA_NoCached_ESR_UCB': ModeSpec(
         EDetectorFedSDAClient,
         _run_per_sample_timestep,
@@ -259,9 +284,14 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
 def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
     if mode in FEDSDA_MODES or mode == 'FedSDA_without_server':
-        detector_param = (f"alpha_e={config.E_DETECTOR_ALPHA}"
-                          if '_ESR' in mode
-                          else f"delta_adwin={config.ADWIN_DELTA}")
+        if '_ESR' in mode:
+            detector_param = f"alpha_e={config.E_DETECTOR_ALPHA}"
+        elif '_HDDM' in mode:
+            detector_param = f"hddm_confidence={config.HDDM_DRIFT_CONFIDENCE}"
+            if mode.endswith("HDDMW"):
+                detector_param += f", lambda={config.HDDM_W_LAMBDA}"
+        else:
+            detector_param = f"delta_adwin={config.ADWIN_DELTA}"
         baseline_param = (
             f", baseline=empirical_bernstein_ucb(beta={config.E_DETECTOR_BASELINE_BETA})"
             if mode.endswith("_UCB") else ""

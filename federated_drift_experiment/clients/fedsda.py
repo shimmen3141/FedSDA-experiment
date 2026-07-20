@@ -12,6 +12,7 @@ from .. import config
 from ..adwin import FullScanADWIN
 from ..e_detector import BoundedMeanEDetector
 from ..e_detector_baselines import make_baseline_estimator
+from ..hddm import HDDMA, HDDMW
 from .base import BaseClient
 
 
@@ -310,6 +311,47 @@ class ClassConditionalFedSDAClient(FedSDAClient):
             detector.reset()
         self.class_adwin_positions.clear()
         self._class_drift_start = None
+
+
+class HDDMFedSDAClient(FedSDAClient):
+    """全体損失を一方向HDDM-AまたはHDDM-Wで監視するFedSDAクライアント。"""
+
+    DETECTOR_FACTORIES = {
+        "A": lambda: HDDMA(
+            drift_confidence=config.HDDM_DRIFT_CONFIDENCE,
+            warning_confidence=config.HDDM_WARNING_CONFIDENCE,
+        ),
+        "W": lambda: HDDMW(
+            drift_confidence=config.HDDM_DRIFT_CONFIDENCE,
+            warning_confidence=config.HDDM_WARNING_CONFIDENCE,
+            lambda_option=config.HDDM_W_LAMBDA,
+        ),
+    }
+
+    def __init__(self, *args, hddm_variant="A", **kwargs):
+        try:
+            factory = self.DETECTOR_FACTORIES[hddm_variant]
+        except KeyError:
+            raise ValueError("hddm_variantは'A'または'W'である必要があります") from None
+        super().__init__(*args, **kwargs)
+        self.hddm_variant = hddm_variant
+        # 基底クラスの検出器スロットを差し替え、バッファ・解決処理は共用する。
+        self.adwin = factory()
+
+    def _update_drift_detectors(self, error, y, sample_idx):
+        self.adwin.update(error)
+        self.compute_counters["drift_detector_updates"] += 1
+        self.compute_counters["drift_detector_hypotheses"] += (
+            self.adwin.active_hypothesis_count
+        )
+        return self.adwin.drift_detected
+
+    def _forced_drift_check(self, idx):
+        # 検出器間比較を明確にするため、ADWIN用の補助判定は併用しない。
+        return False
+
+    def _detector_label(self):
+        return f"HDDM-{self.hddm_variant}"
 
 
 class EDetectorFedSDAClient(FedSDAClient):

@@ -134,7 +134,9 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     if fixed_agg is None:
         fixed_agg = default_agg
     rows = []
-    jobs_per = (len(fedsda_modes) * (len(adwin_deltas) + len(agg_sweep))
+    adwin_mode_count = sum("_ADWIN" in mode for mode in fedsda_modes)
+    jobs_per = (adwin_mode_count * len(adwin_deltas)
+                + len(fedsda_modes) * len(agg_sweep)
                 + len(feddrift_modes) * (len(batches) + len(deltas))
                 + len(baseline_modes))
     total = len(datasets) * len(seeds) * jobs_per
@@ -158,17 +160,21 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
         for seed in seeds:
             for mode in fedsda_modes:
                 is_e_detector = "_ESR" in mode
-                delta_series = f"{mode} δ_adwin sweep (γ={fixed_gamma})"
-                fixed_detector = (
-                    f"alpha_e={config.E_DETECTOR_ALPHA}"
-                    if is_e_detector else f"δ_adwin={fixed_adwin}"
-                )
+                is_hddm = "_HDDM" in mode
+                if is_e_detector:
+                    fixed_detector = f"alpha_e={config.E_DETECTOR_ALPHA}"
+                elif is_hddm:
+                    fixed_detector = f"confidence={config.HDDM_DRIFT_CONFIDENCE}"
+                else:
+                    fixed_detector = f"δ_adwin={fixed_adwin}"
                 agg_series = f"{mode} AGG_INTERVAL sweep ({fixed_detector})"
-                for adwin_delta in adwin_deltas:
-                    do(f"{dataset}/{mode}/da={adwin_delta}/s{seed}",
-                       mode=mode, dataset=dataset, seed=seed, series=delta_series,
-                       sweep_value=adwin_delta, distance_threshold=fixed_gamma,
-                       adwin_delta=adwin_delta, agg_interval=fixed_agg)
+                if "_ADWIN" in mode:
+                    delta_series = f"{mode} δ_adwin sweep (γ={fixed_gamma})"
+                    for adwin_delta in adwin_deltas:
+                        do(f"{dataset}/{mode}/da={adwin_delta}/s{seed}",
+                           mode=mode, dataset=dataset, seed=seed, series=delta_series,
+                           sweep_value=adwin_delta, distance_threshold=fixed_gamma,
+                           adwin_delta=adwin_delta, agg_interval=fixed_agg)
                 for agg_interval in agg_sweep:
                     do(f"{dataset}/{mode}/agg={agg_interval}/s{seed}",
                        mode=mode, dataset=dataset, seed=seed, series=agg_series,
@@ -390,10 +396,14 @@ def _series_style(series):
         "FedSDA_NoCached_ADWIN": "tab:blue",
         "FedSDA_NoCached_ClassADWIN": "tab:cyan",
         "FedSDA_NoCached_ESR": "deepskyblue",
+        "FedSDA_NoCached_HDDMA": "cornflowerblue",
+        "FedSDA_NoCached_HDDMW": "slateblue",
         "FedSDA_NoCached_ClassESR": "dodgerblue",
         "FedSDA_Cached_ADWIN": "tab:orange",
         "FedSDA_Cached_ClassADWIN": "tab:pink",
         "FedSDA_Cached_ESR": "tab:olive",
+        "FedSDA_Cached_HDDMA": "goldenrod",
+        "FedSDA_Cached_HDDMW": "darkorange",
         "FedSDA_Cached_ClassESR": "darkolivegreen",
         "FedSDA_NoCached_ESR_UCB": "royalblue",
         "FedSDA_NoCached_ClassESR_UCB": "navy",
