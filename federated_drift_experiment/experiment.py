@@ -1,18 +1,11 @@
 """ランダムドリフト実験の本体。
 
-実験モードは MODE_SPECS で定義する:
-- 'FedSDA'                : 提案手法 v1(ADWIN逐次検出 + サーバ集約)
-- 'FedSDA_v2'             : 提案手法 v2(v1 + FedAvg先行サーバ。docs/sequence-diagrams.md)
-- 'FedSDA_v2.1'           : v2 + 全体・正解クラス別ADWIN
-- 'FedSDA_v3'             : 提案手法 v3(配布済みモデルのキャッシュでクロス評価)
-- 'FedSDA_v3.1'           : v3 + 全体・正解クラス別ADWIN
-- 'FedSDA_v2.2'           : v2 + bounded mean e-SR検知
-- 'FedSDA_v3.2'           : v3 + bounded mean e-SR検知
-- 'FedSDA_v2.3'           : v2 + 全体・正解クラス別e-SR混合検知
-- 'FedSDA_v3.3'           : v3 + 全体・正解クラス別e-SR混合検知
-- '*_ucb'                 : 対応するe-SRモード + empirical Bernstein基準平均UCB
-- 'FedDrift'              : ベースライン(固定バッチ検出 + サーバ集約)
-- 'FedDrift_v2'           : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
+実験モードは MODE_SPECS で定義する。FedSDAは次の2軸を名前に明示する:
+- 'NoCached' / 'Cached'   : 現ラウンドモデル評価 / 配布済みキャッシュ評価
+- 'ADWIN' / 'ClassADWIN'  : 全体損失 / 全体・正解クラス別ADWIN
+- 'ESR' / 'ClassESR'      : 全体損失 / 全体・正解クラス別e-SR
+- '*_UCB'                 : empirical Bernstein基準平均UCB
+- 'FedDrift'              : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
 - 'Oblivious'            : ベースライン(単一モデル・FedAvg・無適応)
 
@@ -35,20 +28,19 @@ from .clients import (
     ClassConditionalFedSDAClient,
     EDetectorFedSDAClient,
     FedDriftClient,
-    FedDriftV2Client,
     FedSDAClient,
     ObliviousClient,
 )
 from .data import build_data_streams, extract_true_drift_events, generate_data, make_concept_schedules
 from .metrics import compute_metrics
 from .models import SimpleMLP
+from .mode_names import FEDSDA_MODES
 from .plotting import plot_client_details, plot_system_overview
 from .servers import (
     BaseServer,
-    ClusteringServer,
-    FedDriftV2Server,
-    FedSDAV2Server,
-    FedSDAV3Server,
+    FedDriftServer,
+    FedSDACachedServer,
+    FedSDANoCachedServer,
 )
 
 
@@ -87,8 +79,8 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
             print(f"  [without_server] t={t}: skipped server aggregation (local-only).")
 
 
-def _run_fedsda_v3_timestep(clients, server, data, concepts, t, use_server, verbose):
-    """FedSDA v3: 逐次学習後、キャッシュ評価を含む専用サーバラウンドを行う。"""
+def _run_fedsda_cached_timestep(clients, server, data, concepts, t, use_server, verbose):
+    """FedSDA Cached: 逐次学習後、キャッシュ評価を含むサーバラウンドを行う。"""
     _process_per_sample_round(clients, data, concepts)
     server.record_client_state_summaries()
     server.run_round(t)
@@ -96,38 +88,8 @@ def _run_fedsda_v3_timestep(clients, server, data, concepts, t, use_server, verb
         client.promote_pending_to_ready()
 
 
-def _run_batch_timestep(clients, server, data, concepts, t, use_server, verbose):
-    """バッチ処理するスタイル(FedDrift系)の1検出バッチ。
-
-    1 ラウンドで処理するサンプル数 ＝ 検出バッチ(FEDDRIFT_DETECT_BATCH 件)なので、1 回の呼び出しで
-    必ず検出バッチが完成し、検出+割り当て+通信を行う(通信量は検出バッチサイズに反比例)。完了後は論文の R
-    ラウンドに倣い、{配布 → ローカル学習 → 集約} を config.FEDDRIFT_ROUNDS 回繰り返す(既定 1)。
-    1 ラウンドのローカル学習量は FEDDRIFT_DETECT_BATCH × UPDATES_PER_SAMPLE 更新(= FedSDA の
-    同区間の予算と一致)なので、R=1 のとき総ローカル更新数は FedSDA と等しい(公平比較)。R>1 は
-    論文忠実(バッチ収束学習)だが更新数・通信量が R 倍になる。
-    """
-    # 全クライアントで検出バッチを処理(process_batch 内で必ず1回発火する)
-    for i, c in enumerate(clients):
-        c.process_batch(data[i], concepts[i])
-
-    # 検出バッチ完了: クラスタリング付き集約(モデル併合/割当)
-    server.record_client_state_summaries()
-    server.run_round(t, clustering_enabled=True)
-    for c in clients:
-        c.promote_pending_to_ready()
-
-    # 論文 R に対応: {配布 → ローカル学習 → 集約} を FEDDRIFT_ROUNDS 回。
-    # 1 ラウンドの学習量 = FEDDRIFT_DETECT_BATCH × UPDATES_PER_SAMPLE 更新(=1バッチ分の予算)。
-    for _ in range(config.FEDDRIFT_ROUNDS):
-        for c in clients:
-            c.local_train(k_steps=config.FEDDRIFT_DETECT_BATCH)
-        server.run_round(t, clustering_enabled=False)
-        for c in clients:
-            c.promote_pending_to_ready()
-
-
-def _run_feddrift_v2_timestep(clients, server, data, concepts, t, use_server, verbose):
-    """FedDrift v2: 隔離解除済みモデルを統合後、正確にR学習ラウンド実行する。"""
+def _run_feddrift_timestep(clients, server, data, concepts, t, use_server, verbose):
+    """FedDrift: 隔離解除済みモデルを統合後、正確にR学習ラウンド実行する。"""
     for i, client in enumerate(clients):
         client.process_batch(data[i], concepts[i])
 
@@ -147,7 +109,7 @@ class ModeSpec:
     client_cls: type
     run_timestep: Callable
     use_server: bool = True
-    server_cls: type = ClusteringServer
+    server_cls: type = BaseServer
     # 1ラウンドで処理するサンプル数を持つ config 属性名。逐次系は集約間隔 AGG_INTERVAL、
     # FedDrift は検出バッチ FEDDRIFT_DETECT_BATCH(処理=検出=通信の単位)。
     chunk_attr: str = 'AGG_INTERVAL'
@@ -156,70 +118,68 @@ class ModeSpec:
 
 
 MODE_SPECS = {
-    'FedSDA': ModeSpec(FedSDAClient, _run_per_sample_timestep, server_cls=ClusteringServer),
-    # v2: サーバ処理を FedAvg 先行(回収→FedAvg→クラスタリング→配布)に変えた設計版。
-    # クライアント側は v1 と共通。τ(LOCAL_UPDATE_TAU)と組み合わせて v1/v2 比較を行う。
-    'FedSDA_v2': ModeSpec(FedSDAClient, _run_per_sample_timestep, server_cls=FedSDAV2Server),
-    'FedSDA_v2.1': ModeSpec(
+    # NoCachedはFedAvg先行(回収→FedAvg→クラスタリング→配布)で処理する。
+    'FedSDA_NoCached_ADWIN': ModeSpec(
+        FedSDAClient, _run_per_sample_timestep, server_cls=FedSDANoCachedServer),
+    'FedSDA_NoCached_ClassADWIN': ModeSpec(
         ClassConditionalFedSDAClient,
         _run_per_sample_timestep,
-        server_cls=FedSDAV2Server,
+        server_cls=FedSDANoCachedServer,
     ),
-    'FedSDA_v3': ModeSpec(FedSDAClient, _run_fedsda_v3_timestep, server_cls=FedSDAV3Server),
-    'FedSDA_v3.1': ModeSpec(
+    'FedSDA_Cached_ADWIN': ModeSpec(
+        FedSDAClient, _run_fedsda_cached_timestep, server_cls=FedSDACachedServer),
+    'FedSDA_Cached_ClassADWIN': ModeSpec(
         ClassConditionalFedSDAClient,
-        _run_fedsda_v3_timestep,
-        server_cls=FedSDAV3Server,
+        _run_fedsda_cached_timestep,
+        server_cls=FedSDACachedServer,
     ),
-    'FedSDA_v2.2': ModeSpec(
+    'FedSDA_NoCached_ESR': ModeSpec(
         EDetectorFedSDAClient,
         _run_per_sample_timestep,
-        server_cls=FedSDAV2Server,
+        server_cls=FedSDANoCachedServer,
     ),
-    'FedSDA_v3.2': ModeSpec(
+    'FedSDA_Cached_ESR': ModeSpec(
         EDetectorFedSDAClient,
-        _run_fedsda_v3_timestep,
-        server_cls=FedSDAV3Server,
+        _run_fedsda_cached_timestep,
+        server_cls=FedSDACachedServer,
     ),
-    'FedSDA_v2.3': ModeSpec(
+    'FedSDA_NoCached_ClassESR': ModeSpec(
         ClassConditionalEDetectorFedSDAClient,
         _run_per_sample_timestep,
-        server_cls=FedSDAV2Server,
+        server_cls=FedSDANoCachedServer,
     ),
-    'FedSDA_v3.3': ModeSpec(
+    'FedSDA_Cached_ClassESR': ModeSpec(
         ClassConditionalEDetectorFedSDAClient,
-        _run_fedsda_v3_timestep,
-        server_cls=FedSDAV3Server,
+        _run_fedsda_cached_timestep,
+        server_cls=FedSDACachedServer,
     ),
-    'FedSDA_v2.2_ucb': ModeSpec(
+    'FedSDA_NoCached_ESR_UCB': ModeSpec(
         EDetectorFedSDAClient,
         _run_per_sample_timestep,
-        server_cls=FedSDAV2Server,
+        server_cls=FedSDANoCachedServer,
         client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
     ),
-    'FedSDA_v3.2_ucb': ModeSpec(
+    'FedSDA_Cached_ESR_UCB': ModeSpec(
         EDetectorFedSDAClient,
-        _run_fedsda_v3_timestep,
-        server_cls=FedSDAV3Server,
+        _run_fedsda_cached_timestep,
+        server_cls=FedSDACachedServer,
         client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
     ),
-    'FedSDA_v2.3_ucb': ModeSpec(
+    'FedSDA_NoCached_ClassESR_UCB': ModeSpec(
         ClassConditionalEDetectorFedSDAClient,
         _run_per_sample_timestep,
-        server_cls=FedSDAV2Server,
+        server_cls=FedSDANoCachedServer,
         client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
     ),
-    'FedSDA_v3.3_ucb': ModeSpec(
+    'FedSDA_Cached_ClassESR_UCB': ModeSpec(
         ClassConditionalEDetectorFedSDAClient,
-        _run_fedsda_v3_timestep,
-        server_cls=FedSDAV3Server,
+        _run_fedsda_cached_timestep,
+        server_cls=FedSDACachedServer,
         client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
     ),
-    'FedDrift': ModeSpec(FedDriftClient, _run_batch_timestep, server_cls=ClusteringServer,
-                         chunk_attr='FEDDRIFT_DETECT_BATCH'),
-    'FedDrift_v2': ModeSpec(FedDriftV2Client, _run_feddrift_v2_timestep,
-                            server_cls=FedDriftV2Server,
-                            chunk_attr='FEDDRIFT_DETECT_BATCH'),
+    'FedDrift': ModeSpec(
+        FedDriftClient, _run_feddrift_timestep, server_cls=FedDriftServer,
+        chunk_attr='FEDDRIFT_DETECT_BATCH'),
     'FedSDA_without_server': ModeSpec(FedSDAClient, _run_per_sample_timestep, use_server=False),
     'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep, server_cls=BaseServer),
 }
@@ -298,32 +258,18 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
 
 def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
-    if mode in (
-        'FedSDA', 'FedSDA_v2', 'FedSDA_v2.1', 'FedSDA_v2.2', 'FedSDA_v2.3',
-        'FedSDA_v3', 'FedSDA_v3.1', 'FedSDA_v3.2', 'FedSDA_v3.3',
-        'FedSDA_v2.2_ucb', 'FedSDA_v2.3_ucb',
-        'FedSDA_v3.2_ucb', 'FedSDA_v3.3_ucb',
-        'FedSDA_without_server',
-    ):
+    if mode in FEDSDA_MODES or mode == 'FedSDA_without_server':
         detector_param = (f"alpha_e={config.E_DETECTOR_ALPHA}"
-                          if mode in (
-                              'FedSDA_v2.2', 'FedSDA_v2.3',
-                              'FedSDA_v3.2', 'FedSDA_v3.3',
-                              'FedSDA_v2.2_ucb', 'FedSDA_v2.3_ucb',
-                              'FedSDA_v3.2_ucb', 'FedSDA_v3.3_ucb',
-                          )
+                          if '_ESR' in mode
                           else f"delta_adwin={config.ADWIN_DELTA}")
         baseline_param = (
             f", baseline=empirical_bernstein_ucb(beta={config.E_DETECTOR_BASELINE_BETA})"
-            if mode.endswith("_ucb") else ""
+            if mode.endswith("_UCB") else ""
         )
         return (f"gamma_dist={distance_threshold}, {detector_param}{baseline_param}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "
                 f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}")
     if mode == 'FedDrift':
-        return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}, "
-                f"rounds={config.FEDDRIFT_ROUNDS}")
-    if mode == 'FedDrift_v2':
         return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}, "
                 f"rounds={config.FEDDRIFT_ROUNDS}, "
                 f"linkage={getattr(config, 'CLUSTER_LINKAGE', 'connected')}, "

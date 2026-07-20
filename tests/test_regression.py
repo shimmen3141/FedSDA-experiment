@@ -35,27 +35,26 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from federated_drift_experiment import config, run_random_drift_experiment  # noqa: E402
+from federated_drift_experiment.mode_names import normalize_legacy_mode  # noqa: E402
 
 GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regression_golden.json")
 
 # 固定マトリクス: (mode, dataset, config上書き)。seed=0・小規模なので決定的かつ短時間。
 # これでアルゴリズム本体(clients/server/adwin/metrics/実験ループ)の全モード経路を網羅する。
 # データ生成の別分布や別入力次元(sea=3次元)まで固定したい場合はケースを追加する。
-# FedSDA_v2 は sine(マージが発生し v2 の加重平均マージ経路を通る)+ τ=10 で v2 特有の
+# FedSDA_NoCached_ADWIN は sine(マージが発生する)+ τ=10 でNoCached固有の
 # 経路(FedAvg先行サーバ・τ バッチ更新)を固定する。
 CASES = [
-    ("FedSDA", "blobs", {}),
-    ("FedSDA_v2.1", "circle", {}),
-    ("FedSDA_v2.2", "circle", {}),
-    ("FedSDA_v2.3", "circle", {}),
-    ("FedSDA_v2.2_ucb", "circle", {}),
-    ("FedSDA_v2.3_ucb", "circle", {}),
-    ("FedSDA_v3", "blobs", {}),
-    ("FedSDA_v3.1", "circle", {}),
-    ("FedSDA_v3.2", "circle", {}),
-    ("FedSDA_v3.3", "circle", {}),
-    ("FedDrift", "blobs", {}),
-    ("FedDrift_v2", "blobs", {
+    ("FedSDA_NoCached_ClassADWIN", "circle", {}),
+    ("FedSDA_NoCached_ESR", "circle", {}),
+    ("FedSDA_NoCached_ClassESR", "circle", {}),
+    ("FedSDA_NoCached_ESR_UCB", "circle", {}),
+    ("FedSDA_NoCached_ClassESR_UCB", "circle", {}),
+    ("FedSDA_Cached_ADWIN", "blobs", {}),
+    ("FedSDA_Cached_ClassADWIN", "circle", {}),
+    ("FedSDA_Cached_ESR", "circle", {}),
+    ("FedSDA_Cached_ClassESR", "circle", {}),
+    ("FedDrift", "blobs", {
         "TOTAL_DATA_POINTS": 300,
         "N_CLIENTS": 4,
         "PRETRAIN_SAMPLES": 100,
@@ -64,7 +63,8 @@ CASES = [
     }),
     ("FedSDA_without_server", "blobs", {}),
     ("Oblivious", "blobs", {}),
-    ("FedSDA_v2", "sine", {"TOTAL_DATA_POINTS": 1500, "LOCAL_UPDATE_TAU": 10}),
+    ("FedSDA_NoCached_ADWIN", "sine", {
+        "TOTAL_DATA_POINTS": 1500, "LOCAL_UPDATE_TAU": 10}),
 ]
 SEED = 0
 TOTAL_DATA_POINTS = 600
@@ -145,7 +145,16 @@ def compare(current, golden, tol):
 
 def _load_golden():
     with open(GOLDEN_PATH, encoding="utf-8") as f:
-        return json.load(f)
+        stored = json.load(f)
+    normalized = {key: value for key, value in stored.items() if key.startswith("_")}
+    for key, value in stored.items():
+        if key.startswith("_"):
+            continue
+        mode, dataset = key.split("/", 1)
+        if mode in ("FedSDA", "FedDrift"):
+            continue
+        normalized[f"{normalize_legacy_mode(mode)}/{dataset}"] = value
+    return normalized
 
 
 def main():

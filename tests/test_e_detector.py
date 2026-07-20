@@ -16,7 +16,7 @@ from federated_drift_experiment.clients import (
 from federated_drift_experiment.e_detector import BoundedMeanEDetector
 from federated_drift_experiment.experiment import MODE_SPECS
 from federated_drift_experiment.models import SimpleMLP
-from federated_drift_experiment.servers import FedSDAV2Server, FedSDAV3Server
+from federated_drift_experiment.servers import FedSDACachedServer, FedSDANoCachedServer
 
 
 def test_bounded_mean_e_detector_detects_upward_shift_and_returns_split():
@@ -44,12 +44,12 @@ def test_bounded_mean_e_detector_stays_quiet_below_baseline():
 
 
 def test_e_detector_modes_reuse_server_flows_without_changing_existing_modes():
-    assert MODE_SPECS["FedSDA_v2"].client_cls is FedSDAClient
-    assert MODE_SPECS["FedSDA_v3"].client_cls is FedSDAClient
-    assert MODE_SPECS["FedSDA_v2.2"].client_cls is EDetectorFedSDAClient
-    assert MODE_SPECS["FedSDA_v3.2"].client_cls is EDetectorFedSDAClient
-    assert MODE_SPECS["FedSDA_v2.2"].server_cls is FedSDAV2Server
-    assert MODE_SPECS["FedSDA_v3.2"].server_cls is FedSDAV3Server
+    assert MODE_SPECS["FedSDA_NoCached_ADWIN"].client_cls is FedSDAClient
+    assert MODE_SPECS["FedSDA_Cached_ADWIN"].client_cls is FedSDAClient
+    assert MODE_SPECS["FedSDA_NoCached_ESR"].client_cls is EDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_Cached_ESR"].client_cls is EDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_NoCached_ESR"].server_cls is FedSDANoCachedServer
+    assert MODE_SPECS["FedSDA_Cached_ESR"].server_cls is FedSDACachedServer
 
 
 def test_e_detector_client_disables_uncontrolled_forced_check():
@@ -99,8 +99,8 @@ def test_class_conditional_e_detector_finds_class_local_increase():
     assert client._class_drift_start >= 400
 
 
-def test_class_conditional_e_detector_modes_reuse_v2_and_v3_servers():
-    assert MODE_SPECS["FedSDA_v2.3"].client_cls is ClassConditionalEDetectorFedSDAClient
-    assert MODE_SPECS["FedSDA_v3.3"].client_cls is ClassConditionalEDetectorFedSDAClient
-    assert MODE_SPECS["FedSDA_v2.3"].server_cls is FedSDAV2Server
-    assert MODE_SPECS["FedSDA_v3.3"].server_cls is FedSDAV3Server
+def test_class_conditional_e_detector_modes_reuse_protocol_servers():
+    assert MODE_SPECS["FedSDA_NoCached_ClassESR"].client_cls is ClassConditionalEDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_Cached_ClassESR"].client_cls is ClassConditionalEDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_NoCached_ClassESR"].server_cls is FedSDANoCachedServer
+    assert MODE_SPECS["FedSDA_Cached_ClassESR"].server_cls is FedSDACachedServer

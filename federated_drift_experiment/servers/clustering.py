@@ -1,4 +1,4 @@
-"""FedSDA v1とFedDrift v1で共有するクラスタリングサーバ。"""
+"""クロス評価と階層クラスタリングを提供する共通サーバ。"""
 
 import random
 from collections import defaultdict
@@ -8,58 +8,12 @@ from ..clustering import cluster_models
 from .base import BaseServer
 
 
-class ClusteringServer(BaseServer):
-    """FedDrift 式サーバ: クロス評価による損失距離行列 → 階層的クラスタリング → マージ。"""
+class CrossEvaluationClusteringServer(BaseServer):
+    """クロス評価と、その統計に基づく階層クラスタリングを共有する基底サーバ。"""
 
     def __init__(self, *args, linkage="connected", **kwargs):
         super().__init__(*args, **kwargs)
         self.linkage = linkage
-
-    def _maybe_cluster(self, t, active_ids):
-        M = len(active_ids)
-        if M <= 1:
-            return active_ids
-
-        stats_matrix = self._cross_evaluate(active_ids)
-        clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
-
-        if len(clusters) < M:
-            active_ids = self._merge_clusters(t, active_ids, clusters)
-
-        return active_ids
-
-    def _merge_clusters(self, t, active_ids, clusters):
-        """各クラスタを代表ID(最小ID)に統合し、クライアント・グローバル状態を更新する。"""
-        if self.verbose:
-            print(f"\nServer [t={t}]: MERGE EXECUTED")
-            print(f"  - Before: {active_ids}")
-            print(f"  - Clusters: {clusters}")
-
-        id_mapping = {}
-        new_ids = []
-        for cluster in clusters:
-            rep_id = min(cluster)
-            new_ids.append(rep_id)
-            for old_id in cluster:
-                id_mapping[old_id] = rep_id
-
-        # マージ後モデルを全クライアントへ再配布(ダウンロード)
-        self.comm_models_down += len(self.global_models) * len(self.clients)
-        self.comm_messages_down += len(self.clients)  # 統合後のモデルID対応
-        for c in self.clients:
-            c.apply_server_mapping(id_mapping, self.global_models, self.global_stats)
-
-        for old_id in active_ids:
-            if old_id not in new_ids:
-                if old_id in self.global_models:
-                    del self.global_models[old_id]
-                if old_id in self.global_stats:
-                    del self.global_stats[old_id]
-
-        if self.verbose:
-            print(f"  - After IDs: {sorted(list(self.global_models.keys()))}\n")
-
-        return sorted(list(self.global_models.keys()))
 
     def _cross_evaluate(self, model_ids, send_model_params=True, use_client_cache=False):
         """モデル対をクライアントで評価し、集約統計を返す。
@@ -86,7 +40,7 @@ class ClusteringServer(BaseServer):
                 self.comm_messages_down += len(target_clients)
                 self.comm_messages_up += len(target_clients)
                 if send_model_params:
-                    # v1: 評価のためモデル id_i を各対象クライアントへ再送する。
+                    # キャッシュを使わない評価ではモデルを各対象クライアントへ送る。
                     self.comm_models_down += len(target_clients)
 
                 total_n, total_S, total_SS = 0, 0.0, 0.0

@@ -8,11 +8,11 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from federated_drift_experiment import config
-from federated_drift_experiment.clients import FedDriftV2Client
+from federated_drift_experiment.clients import FedDriftClient
 from federated_drift_experiment.clustering import cluster_models
-from federated_drift_experiment.experiment import _run_feddrift_v2_timestep
+from federated_drift_experiment.experiment import _run_feddrift_timestep
 from federated_drift_experiment.models import SimpleMLP
-from federated_drift_experiment.servers import FedDriftV2Server
+from federated_drift_experiment.servers import FedDriftServer
 
 
 def test_linkage_strategies_distinguish_chain_merges():
@@ -25,14 +25,14 @@ def test_linkage_strategies_distinguish_chain_merges():
 def test_new_model_is_mature_after_configured_isolation_window():
     initial_model = SimpleMLP()
     initial_stats = {0: {'n': 10, 'mean': 0.1, 'M2': 0.0}}
-    client = FedDriftV2Client(
+    client = FedDriftClient(
         client_id=0,
         initial_models={0: initial_model},
         initial_stats=initial_stats,
         distance_threshold=0.1,
         verbose=False,
     )
-    server = FedDriftV2Server(
+    server = FedDriftServer(
         distance_threshold=0.1,
         isolation_timesteps=1,
         linkage="complete",
@@ -65,7 +65,7 @@ def test_timestep_uses_exactly_configured_fedavg_rounds(monkeypatch):
     initial_model = SimpleMLP()
     initial_stats = {0: {'n': 10, 'mean': 0.1, 'M2': 0.0}}
     clients = [
-        FedDriftV2Client(
+        FedDriftClient(
             client_id=client_id,
             initial_models={0: initial_model},
             initial_stats=initial_stats,
@@ -74,7 +74,7 @@ def test_timestep_uses_exactly_configured_fedavg_rounds(monkeypatch):
         )
         for client_id in range(2)
     ]
-    server = FedDriftV2Server(
+    server = FedDriftServer(
         distance_threshold=0.1,
         isolation_timesteps=1,
         linkage="complete",
@@ -93,7 +93,7 @@ def test_timestep_uses_exactly_configured_fedavg_rounds(monkeypatch):
         data.append([(xs[i], ys[i]) for i in range(2)])
         concepts.append([0, 0])
 
-    _run_feddrift_v2_timestep(
+    _run_feddrift_timestep(
         clients, server, data, concepts, t=0, use_server=True, verbose=False
     )
 

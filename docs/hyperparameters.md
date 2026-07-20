@@ -44,7 +44,7 @@
 | `N_CLIENTS` | クライアント数 C | 共通 | 10 |
 | `TOTAL_DATA_POINTS` | クライアントあたり総データ数(単一パス) | 共通 | 5000 |
 | `AGG_INTERVAL` | **FedSDA/Oblivious**: 集約までのサンプル数(=1 ラウンド長。集約間隔でもある) | FedSDA / Oblivious | 50 |
-| `LOCAL_UPDATE_TAU` | ローカル更新間隔 τ(論文の「t mod τ = 0」)。τ サンプルごとに τ×`UPDATES_PER_SAMPLE` 回まとめて更新(総更新回数は不変)。1=毎サンプル(v1 挙動)。v1/v2 比較の掃引軸 | FedSDA / Oblivious | 1 |
+| `LOCAL_UPDATE_TAU` | ローカル更新間隔 τ(論文の「t mod τ = 0」)。τ サンプルごとに τ×`UPDATES_PER_SAMPLE` 回まとめて更新(総更新回数は不変)。1=毎サンプル | FedSDA / Oblivious | 1 |
 
 ---
 
@@ -99,9 +99,9 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
 | `ADWIN_DELTA` | ADWIN 信頼度パラメータ δ_adwin(小さいほど検出保守的) | FedSDA | 0.05 |
-| `E_DETECTOR_ALPHA` | e-SR誤警報制御値。ARLを少なくとも`1/alpha`とするため、小さいほど保守的 | FedSDA v2.2/v2.3/v3.2/v3.3 | 0.001 |
-| `E_DETECTOR_BASELINE_BETA` | empirical Bernstein基準平均UCBの未被覆確率。小さいほど基準が保守的 | e-SRの`*_ucb`モード | 0.05 |
-| `FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS` | 新規モデル作成後、サーバへアップロード可能になるまでの学習ラウンド数。1なら作成の次ラウンド末に送信。v3では初回配布後の次ラウンドからキャッシュ評価可能 | FedSDA | 1 |
+| `E_DETECTOR_ALPHA` | e-SR誤警報制御値。ARLを少なくとも`1/alpha`とするため、小さいほど保守的 | FedSDA ESR系 | 0.001 |
+| `E_DETECTOR_BASELINE_BETA` | empirical Bernstein基準平均UCBの未被覆確率。小さいほど基準が保守的 | e-SRの`*_UCB`モード | 0.05 |
+| `FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS` | 新規モデル作成後、サーバへアップロード可能になるまでの学習ラウンド数。1なら作成の次ラウンド末に送信。Cachedでは初回配布後の次ラウンドからキャッシュ評価可能 | FedSDA | 1 |
 | `ADWIN_MAX_WINDOW` | ADWIN ウィンドウ幅の上限 | FedSDA | 1000 |
 | `ADWIN_MIN_WIDTH` | 検定を開始する最小ウィンドウ幅 | FedSDA | 10 |
 | `FEDSDA_ENABLE_FORCED_DRIFT_CHECK` | ADWIN未発火時の保険的な損失増分チェックを使うか。検出器単体比較では`False` | ADWIN系FedSDA | `True` |
@@ -125,9 +125,9 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
-| `FEDDRIFT_DETECT_BATCH` | 検出バッチサイズ ＝ **1ラウンドで処理するサンプル数**(論文の時刻粒度 500 を独立化)。検出粒度・集約(通信)間隔・1ラウンドの学習量(`× UPDATES_PER_SAMPLE`)を兼ねる | FedDrift / FedDrift_v2 | 50 |
-| `FEDDRIFT_ROUNDS` | 1 検出バッチあたりの通信ラウンド数(論文 R)。v2 は {ローカル学習 → 集約 → 配布} を正確に R 回実行する。**既定 1 は FedSDA と予算一致の公平比較用** | FedDrift / FedDrift_v2 | 1 |
-| `FEDDRIFT_ISOLATION_TIMESTEPS` | 新規モデルをクロス評価・マージから外す時刻数 W。1なら作成時刻だけ隔離し、次時刻から対象。参照実装の既定構成に対応 | FedDrift_v2 | 1 |
+| `FEDDRIFT_DETECT_BATCH` | 検出バッチサイズ ＝ **1ラウンドで処理するサンプル数**(論文の時刻粒度 500 を独立化)。検出粒度・集約(通信)間隔・1ラウンドの学習量(`× UPDATES_PER_SAMPLE`)を兼ねる | FedDrift | 50 |
+| `FEDDRIFT_ROUNDS` | 1 検出バッチあたりの通信ラウンド数(論文 R)。{ローカル学習 → 集約 → 配布} を正確に R 回実行する。**既定 1 は FedSDA と予算一致の公平比較用** | FedDrift | 1 |
+| `FEDDRIFT_ISOLATION_TIMESTEPS` | 新規モデルをクロス評価・マージから外す時刻数 W。1なら作成時刻だけ隔離し、次時刻から対象。参照実装の既定構成に対応 | FedDrift | 1 |
 
 > `FEDDRIFT_DETECT_BATCH`(検出粒度 ↔ 通信)と `FEDDRIFT_ROUNDS`(バッチあたり収束度 ↔ 通信)は
 > **直交する 2 つの通信軸**。前者は「どの粒度で検出・通信するか」、後者は「1 バッチをどれだけ学習し切るか」。パレート分析では独立に掃引できる。
@@ -140,35 +140,32 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 |---|---|---|---|
 | `CROSS_EVAL_MAX_CLIENTS` | クロス評価で 1 モデルあたりに使うクライアント数上限 | サーバ | 3 |
 | `CLUSTER_MIN_EVAL_N` | マージ判定に必要な評価サンプルの最小数 | サーバ | 5 |
-| `CLUSTER_LINKAGE` | 共通クラスタリング戦略。`complete`=FedDrift論文のmax-linkage、`connected`=閾値グラフの連結成分(single-linkage cut相当) | FedDrift_v2（他のクラスタリング手法にも再利用可能） | `complete` |
+| `CLUSTER_LINKAGE` | 共通クラスタリング戦略。`complete`=FedDrift論文のmax-linkage、`connected`=閾値グラフの連結成分(single-linkage cut相当) | FedDrift（他のクラスタリング手法にも再利用可能） | `complete` |
 
 > サーバは生データを集めず、配布モデルを現地評価させて**集約統計量 (n, Σℓ, Σℓ²) のみ**を
 > 集める federated 設計(詳細は DIFFERENCES §5)。`DISTANCE_THRESHOLD` をマージ判定に共用。
 
-> **v1/v2 の切替**: サーバ処理順序の v2(FedAvg先行・加重平均マージ・配布1回)は config ノブ
-> ではなく**モード `FedSDA_v2`**(`FedSDAV2Server`)で選択する。τ(`LOCAL_UPDATE_TAU`)と
-> 直交しており、{`FedSDA`, `FedSDA_v2`} × {τ=1, τ>1} の4構成でアブレーションできる。
+> 通信プロトコルはモード名の`NoCached` / `Cached`で選択する。τ(`LOCAL_UPDATE_TAU`)とは
+> 直交しているため、通信プロトコルとローカル更新頻度を独立に比較できる。
 
-`FedSDA_v2.1`はv2と同じサーバ・通信パラメータを使い、全体ADWINと正解クラス別ADWINを
-同じ`ADWIN_DELTA`で並列監視する。検知器別のdeltaは設けず、v2との差を検知系列の条件付けだけに限定する。
-`FedSDA_v3.1`も同じクライアント検知を使い、サーバ側はv3のキャッシュ評価フローを維持する。
+`ClassADWIN`は全体ADWINと正解クラス別ADWINを同じ`ADWIN_DELTA`で並列監視する。
 
-`FedSDA_v2.2` / `FedSDA_v3.2`はADWINを使わず、[0,1]の全体損失に対する
+`ESR`はADWINを使わず、[0,1]の全体損失に対する
 混合Shiryaev–Roberts型e-detectorを使う。候補変化点ごとにe-processを開始し、
 統合e値が`1/E_DETECTOR_ALPHA`以上になった場合に最大寄与候補をFIFO分割点とする。
 既定値0.001の意味は「各検知区間で平均誤警報間隔1000観測以上」であり、
 実験全体の誤検知確率0.1%ではない。また、区間開始時の標本損失平均を定常平均上限として
 使うため、理論保証はこの上限仮定が成立する場合に限られる。無補正の強制チェックは無効化する。
 
-`FedSDA_v2.3` / `FedSDA_v3.3`は全体損失、正解クラス0、正解クラス1のe-SRへ
+`ClassESR`は全体損失、正解クラス0、正解クラス1のe-SRへ
 各`1/3`の固定重みを割り当て、混合e値で検知する。新しい重みパラメータは設けない。
 従来mean方式との後方互換のため、各クラスも全体モデル損失の基準平均を共用する。
 
-各e-SRモードの`*_ucb`版は、標本平均の代わりに`n, mean, M2`から計算したempirical Bernstein
+各e-SRモードの`*_UCB`版は、標本平均の代わりに`n, mean, M2`から計算したempirical Bernstein
 上側信頼限界を基準平均に使う。クラス条件付き版ではクラス別`n, mean, M2`を使う。
 較正標本が2件未満なら基準をほぼ1として検知を保守的に停止する。UCBは較正平均の未被覆を
 制御するが、オンライン更新後の将来の条件付き平均まで自動的に保証するものではない。
-> 通信削減版は**モード `FedSDA_v3`**(`FedSDAV3Server`)で選択し、前回配布モデルのキャッシュで
+> 通信削減版は**Cachedモード**(`FedSDACachedServer`)で選択し、前回配布モデルのキャッシュで
 > クロス評価するため、評価用のモデル再送を行わない。
 > 詳細は [sequence-diagrams.md](sequence-diagrams.md)。
 
@@ -190,7 +187,7 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 | `stable_accuracy` | **定常精度** = 回復窓 W を除外した prequential(回復曲線 acc(Δ) の Δ≥W の裾) |
 | `recall` / `precision` / `f1` | ドリフト検出の質(ローカル切替を検出とみなし真ドリフトと照合) |
 | `avg_delay` | 平均検出遅延(サンプル数) |
-| `final_model_count` | プロトコル終端処理後の最終モデル数(集約あり)/ クライアント平均保持数(なし)。終端処理は追加学習・未送信モデル回収を行わず、FedSDA v3で初回配布済みの評価待ちモデルだけをキャッシュ評価・マージする |
+| `final_model_count` | プロトコル終端処理後の最終モデル数(集約あり)/ クライアント平均保持数(なし)。終端処理は追加学習・未送信モデル回収を行わず、Cachedで初回配布済みの評価待ちモデルだけをキャッシュ評価・マージする |
 | `comm_models_up` / `comm_models_down` / `comm_models_total` | モデルパラメータ転送数 |
 | `comm_messages_up` / `comm_messages_down` / `comm_messages_total` | 割当・ドリフト要約、クロス評価依頼・評価統計、ID割当、マージ通知などの軽量メッセージ数 |
 | `compute_inference_examples_total` | 予測・検出・統計更新・クロス評価・初期化でモデルに入力した延べサンプル数 |

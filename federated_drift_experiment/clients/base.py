@@ -153,7 +153,7 @@ class BaseClient:
         """平時の1サンプル分のローカル更新(逐次手法用)。
 
         LOCAL_UPDATE_TAU(τ)サンプルごとにまとめて τ×UPDATES_PER_SAMPLE 回実行する
-        (論文の「t mod τ = 0」)。総更新回数は τ に依らず不変。τ=1 で毎サンプル更新(v1 挙動)。
+        (論文の「t mod τ = 0」)。総更新回数は τ に依らず不変。τ=1 で毎サンプル更新。
         """
         self._pending_updates += 1
         if self._pending_updates >= config.LOCAL_UPDATE_TAU:

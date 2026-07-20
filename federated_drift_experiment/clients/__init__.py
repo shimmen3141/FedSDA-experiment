@@ -15,11 +15,11 @@ from .fedsda import (
     EDetectorFedSDAClient,
     FedSDAClient,
 )
-from .feddrift import FedDriftClient, FedDriftV2Client
+from .feddrift import FedDriftClient
 from .oblivious import ObliviousClient
 
 __all__ = [
     "BaseClient", "FedSDAClient", "ClassConditionalFedSDAClient", "EDetectorFedSDAClient",
     "ClassConditionalEDetectorFedSDAClient",
-    "FedDriftClient", "FedDriftV2Client", "ObliviousClient",
+    "FedDriftClient", "ObliviousClient",
 ]

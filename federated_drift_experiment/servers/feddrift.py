@@ -3,10 +3,10 @@
 from collections import defaultdict
 
 from .. import config
-from .clustering import ClusteringServer
+from .clustering import CrossEvaluationClusteringServer
 
 
-class FedDriftV2Server(ClusteringServer):
+class FedDriftServer(CrossEvaluationClusteringServer):
     """新規モデル隔離と正確なR回のFedAvgを行うFedDrift時刻プロトコル。"""
 
     def __init__(self, *args, linkage=None, isolation_timesteps=None, **kwargs):
@@ -80,7 +80,7 @@ class FedDriftV2Server(ClusteringServer):
 
     def _merge_cached_clusters(self, t, clusters):
         if self.verbose:
-            print(f"\nServer [t={t}]: MERGE EXECUTED (FedDrift v2, {self.linkage})")
+            print(f"\nServer [t={t}]: MERGE EXECUTED (FedDrift, {self.linkage})")
             print(f"  - Clusters: {clusters}")
 
         cluster_weights = {}

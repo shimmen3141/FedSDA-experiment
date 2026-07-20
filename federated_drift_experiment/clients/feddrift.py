@@ -11,7 +11,7 @@ from .. import config
 from .base import BaseClient
 
 
-class FedDriftClient(BaseClient):
+class BaseFedDriftClient(BaseClient):
     """FedDriftベースライン: 検出バッチ単位で最小損失の増分によりドリフト判定する。"""
 
     reports_state_summary = True
@@ -113,7 +113,7 @@ class FedDriftClient(BaseClient):
         self.train_all_held_models(count_multiplier=k_steps)
 
 
-class FedDriftV2Client(FedDriftClient):
+class FedDriftClient(BaseFedDriftClient):
     """論文準拠の初期化を行い、学習は設定されたRラウンド内だけで実行する。"""
 
     def new_model_initial_epochs(self):

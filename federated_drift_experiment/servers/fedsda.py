@@ -3,36 +3,24 @@
 from collections import defaultdict
 
 from .. import config
-from .clustering import ClusteringServer
+from .clustering import CrossEvaluationClusteringServer
 
 
-class FedSDAV2Server(ClusteringServer):
-    """FedSDA v2 サーバ(docs/sequence-diagrams.md の設計版。モード 'FedSDA_v2')。
+class FedSDANoCachedServer(CrossEvaluationClusteringServer):
+    """現ラウンドのFedAvg済みモデルをクロス評価するFedSDA NoCachedサーバ。
 
-    v1(ClusteringServer)との違いはラウンド内の処理順序:
-      v1: 回収 → クロス評価/クラスタリング(前ラウンド末のモデルで評価) → FedAvg → 配布
-      v2: 回収 → FedAvg → クロス評価/クラスタリング(今ラウンドの学習を反映したモデルで評価) → 配布
+    ラウンド内の処理順序は、回収 → FedAvg → クロス評価/クラスタリング → 配布。
 
-    これにより
-      (a) 距離評価の鮮度が揃う(v1 は既存モデルだけ1ラウンド古い非対称な比較になる)、
-      (b) マージはサーバ側でメンバーの FedAvg 済みパラメータをデータ量加重平均して統合できる
-          (v1 のように非代表側のパラメータを破棄しない。追加通信なし)、
-      (c) 配布はラウンド末の1回のみ(v1 のマージ発生ラウンドの二重配布を解消)、
-      (d) マージ発生ラウンドでも当該ラウンドのローカル学習が FedAvg に反映される
-          (v1 はマージ時の再配布がローカル学習を上書きする)。
-
-    さらに新規モデルの回収を「グローバルID の採番だけ」にし、パラメータ送信を FedAvg の
-    1回に集約する。v1 はクロス評価を FedAvg より前に行う都合で、回収時にもパラメータを
-    送る必要があり新規モデルを二重送信するが、v2 はクロス評価が FedAvg 後なのでこの
-    二重送信を解消できる(新規モデルは保持クライアント1台のみのため FedAvg は恒等)。
-    クライアント側の挙動(ADWIN 検知・設定された待機後の新規モデル回収)は v1 と共通。
+    距離評価には同じラウンドの学習を反映し、マージはFedAvg済みパラメータの
+    データ量加重平均で行う。新規モデルはIDだけを先に採番し、パラメータ送信を
+    FedAvgのアップロードへ集約する。配布はラウンド末の1回だけ行う。
     """
 
     def run_round(self, t, clustering_enabled=True):
-        """1回のサーバ処理(v2): 新規登録 → FedAvg → (任意でクラスタリング) → 配布。
+        """新規登録 → FedAvg → (任意でクラスタリング) → 配布を実行する。
 
         新規モデルは回収でグローバルID を採番するだけにし、パラメータ送信は次の FedAvg に
-        1回集約する(v1 の二重送信を解消)。
+        1回に集約する。
         """
         self._register_new_models(t)
 
@@ -53,7 +41,7 @@ class FedSDAV2Server(ClusteringServer):
         """pending の新規モデルにグローバルID を採番する(パラメータ送信なし)。
 
         パラメータは後段の update_global_models(FedAvg)で1回だけ送るため、回収時に
-        パラメータを送る _collect_pending_models(v1 が使う)は用いない。採番順は
+        パラメータを送る _collect_pending_models は用いない。採番順は
         _collect_pending_models と同一(クライアント走査順)なので ID の付き方は変わらない。
         """
         n_new = 0
@@ -67,8 +55,7 @@ class FedSDAV2Server(ClusteringServer):
     def _cluster_and_merge(self, t, active_ids, agg_weights):
         """FedAvg 済みモデルでクロス評価・クラスタリングし、マージは加重平均で統合する。
 
-        v1 の _merge_clusters と異なり再配布は行わず、id_mapping を返して
-        run_round 末尾の broadcast_models に適用を委ねる。
+        再配布は行わず、id_mappingをrun_round末尾のbroadcast_modelsへ渡す。
         """
         M = len(active_ids)
         if M <= 1:
@@ -80,7 +67,7 @@ class FedSDAV2Server(ClusteringServer):
             return {}
 
         if self.verbose:
-            print(f"\nServer [t={t}]: MERGE EXECUTED (v2: weighted average)")
+            print(f"\nServer [t={t}]: MERGE EXECUTED (NoCached: weighted average)")
             print(f"  - Before: {active_ids}")
             print(f"  - Clusters: {clusters}")
 
@@ -141,8 +128,8 @@ class FedSDAV2Server(ClusteringServer):
             self.global_stats[rep_id] = {'n': total_n, 'mean': mean, 'M2': 0.0}
 
 
-class FedSDAV3Server(FedSDAV2Server):
-    """配布済みモデルのキャッシュでクロス評価するFedSDA v3サーバ。"""
+class FedSDACachedServer(FedSDANoCachedServer):
+    """配布済みモデルのキャッシュでクロス評価するFedSDA Cachedサーバ。"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -175,7 +162,7 @@ class FedSDAV3Server(FedSDAV2Server):
     def finalize_protocol(self, t):
         """初回配布済みで評価待ちのモデルだけを、追加学習なしでクラスタリングする。
 
-        ローカルで未送信のpendingモデルはv1/v2と同様に回収しない。これにより全方式の
+        ローカルで未送信のpendingモデルは回収しない。これにより全方式の
         final_model_countを「実行済み通信に対応するプロトコルを確定した後」で統一する。
         キャッシュ評価の依頼・統計返送は実通信なので、軽量メッセージとして通常どおり数える。
         """
@@ -218,7 +205,7 @@ class FedSDAV3Server(FedSDAV2Server):
     def _merge_cached_clusters(self, t, clusters):
         """配布済みモデルを累積重みで統合し、クライアントの学習状態にも対応を適用する。"""
         if self.verbose:
-            print(f"\nServer [t={t}]: MERGE EXECUTED (FedSDA v3, cached)")
+            print(f"\nServer [t={t}]: MERGE EXECUTED (FedSDA Cached)")
             print(f"  - Clusters: {clusters}")
 
         cluster_weights = {}

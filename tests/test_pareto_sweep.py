@@ -59,17 +59,17 @@ def test_run_sweep_schedules_selected_versions(monkeypatch):
         datasets=["sea"], seeds=[0], batches=[25], deltas=[0.1, 0.2],
         adwin_deltas=[0.05, 0.3], fixed_delta=0.1, fixed_batch=50,
         fixed_gamma=0.1, agg_sweep=[100], fixed_adwin=0.1,
-        fedsda_modes=["FedSDA_v2", "FedSDA_v3"],
-        feddrift_modes=["FedDrift_v2"],
+        fedsda_modes=["FedSDA_NoCached_ADWIN", "FedSDA_Cached_ADWIN"],
+        feddrift_modes=["FedDrift"],
         baseline_modes=["FedSDA_without_server", "Oblivious"],
     )
 
     assert len(rows) == 11
     assert {call["mode"] for call in calls} == {
-        "FedSDA_v2", "FedSDA_v3", "FedDrift_v2",
+        "FedSDA_NoCached_ADWIN", "FedSDA_Cached_ADWIN", "FedDrift",
         "FedSDA_without_server", "Oblivious",
     }
-    for mode in ("FedSDA_v2", "FedSDA_v3"):
+    for mode in ("FedSDA_NoCached_ADWIN", "FedSDA_Cached_ADWIN"):
         mode_calls = [call for call in calls if call["mode"] == mode]
         assert [call["agg_interval"] for call in mode_calls] == [
             sweep.config.AGG_INTERVAL, sweep.config.AGG_INTERVAL, 100,
@@ -88,7 +88,7 @@ def test_adwin_sweep_uses_fixed_aggregation_interval(monkeypatch):
         datasets=["sea"], seeds=[0], batches=[], deltas=[],
         adwin_deltas=[0.05], fixed_delta=0.1, fixed_batch=50,
         fixed_gamma=0.1, agg_sweep=[], fixed_adwin=0.1, fixed_agg=500,
-        fedsda_modes=["FedSDA_v2"], feddrift_modes=[], baseline_modes=[],
+        fedsda_modes=["FedSDA_NoCached_ADWIN"], feddrift_modes=[], baseline_modes=[],
     )
 
     assert len(calls) == 1
@@ -116,6 +116,8 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
 
     loaded = sweep._load_csv(path)
 
+    assert loaded[0]["mode"] == "FedSDA_Legacy"
+    assert loaded[0]["series"] == "FedSDA_Legacy sweep"
     assert loaded[0]["agg_interval"] == ""
     assert loaded[0]["concept_schedule"] == "random"
     assert "e_detector_baseline_strategy" not in loaded[0]
@@ -124,9 +126,9 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
 
 
 def test_series_style_distinguishes_method_and_sweep_type():
-    fedsda_delta = sweep._series_style("FedSDA_v2 δ_adwin sweep (γ=0.1)")
-    feddrift_delta = sweep._series_style("FedDrift_v2 δ sweep (batch=50)")
-    fedsda_agg = sweep._series_style("FedSDA_v2 AGG_INTERVAL sweep (δ_adwin=0.05)")
+    fedsda_delta = sweep._series_style("FedSDA_NoCached_ADWIN δ_adwin sweep (γ=0.1)")
+    feddrift_delta = sweep._series_style("FedDrift δ sweep (batch=50)")
+    fedsda_agg = sweep._series_style("FedSDA_NoCached_ADWIN AGG_INTERVAL sweep (δ_adwin=0.05)")
 
     assert fedsda_delta != feddrift_delta
     assert fedsda_delta[0] == fedsda_agg[0]
@@ -173,8 +175,8 @@ def test_plot_pareto_draws_baseline_standard_deviation_band(tmp_path, monkeypatc
 
 def test_plot_pareto_can_use_overall_accuracy(tmp_path):
     rows = [{
-        "mode": "FedSDA_v2", "dataset": "sea", "seed": 0,
-        "series": "FedSDA_v2 δ_adwin sweep (γ=0.1)", "sweep_value": 0.1,
+        "mode": "FedSDA_NoCached_ADWIN", "dataset": "sea", "seed": 0,
+        "series": "FedSDA_NoCached_ADWIN δ_adwin sweep (γ=0.1)", "sweep_value": 0.1,
         "comm_models_total": 100.0, "stable_accuracy": 0.9, "accuracy": 0.8,
     }]
 
@@ -187,29 +189,29 @@ def test_plot_pareto_can_use_overall_accuracy(tmp_path):
 def test_replot_filter_selects_interval_sweeps_and_plot_accepts_compute_x(tmp_path):
     rows = [
         {
-            "mode": "FedSDA_v2.1", "dataset": "sea", "seed": 0,
-            "series": "FedSDA_v2.1 AGG_INTERVAL sweep", "sweep_value": 50.0,
+            "mode": "FedSDA_NoCached_ClassADWIN", "dataset": "sea", "seed": 0,
+            "series": "FedSDA_NoCached_ClassADWIN AGG_INTERVAL sweep", "sweep_value": 50.0,
             "compute_model_examples_total": 1000.0,
             "stable_accuracy": 0.9, "accuracy": 0.8,
         },
         {
-            "mode": "FedSDA_v2.1", "dataset": "sea", "seed": 0,
-            "series": "FedSDA_v2.1 δ_adwin sweep", "sweep_value": 0.1,
+            "mode": "FedSDA_NoCached_ClassADWIN", "dataset": "sea", "seed": 0,
+            "series": "FedSDA_NoCached_ClassADWIN δ_adwin sweep", "sweep_value": 0.1,
             "compute_model_examples_total": 1100.0,
             "stable_accuracy": 0.91, "accuracy": 0.81,
         },
         {
-            "mode": "FedDrift_v2", "dataset": "sea", "seed": 0,
-            "series": "FedDrift_v2 batch sweep", "sweep_value": 50.0,
+            "mode": "FedDrift", "dataset": "sea", "seed": 0,
+            "series": "FedDrift batch sweep", "sweep_value": 50.0,
             "compute_model_examples_total": 900.0,
             "stable_accuracy": 0.88, "accuracy": 0.79,
         },
     ]
     filtered = sweep._filter_replot_rows(
-        rows, modes=["FedSDA_v2.1", "FedDrift_v2"], sweep_kind="interval"
+        rows, modes=["FedSDA_NoCached_ClassADWIN", "FedDrift"], sweep_kind="interval"
     )
     assert [row["series"] for row in filtered] == [
-        "FedSDA_v2.1 AGG_INTERVAL sweep", "FedDrift_v2 batch sweep"
+        "FedSDA_NoCached_ClassADWIN AGG_INTERVAL sweep", "FedDrift batch sweep"
     ]
 
     path = tmp_path / "compute.png"

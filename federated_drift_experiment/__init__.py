@@ -14,7 +14,6 @@ from .clients import (
     ClassConditionalFedSDAClient,
     EDetectorFedSDAClient,
     FedDriftClient,
-    FedDriftV2Client,
     FedSDAClient,
     ObliviousClient,
 )
@@ -27,7 +26,13 @@ from .e_detector_baselines import (
 )
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
-from .servers import BaseServer, ClusteringServer, FedDriftV2Server, FedSDAV2Server, FedSDAV3Server
+from .servers import (
+    BaseServer,
+    CrossEvaluationClusteringServer,
+    FedDriftServer,
+    FedSDACachedServer,
+    FedSDANoCachedServer,
+)
 from .trials import run_comparative_trials
 
 __all__ = [
@@ -43,16 +48,15 @@ __all__ = [
     "EmpiricalBernsteinUCB",
     "BaseClient",
     "FedDriftClient",
-    "FedDriftV2Client",
     "ObliviousClient",
     "generate_data",
     "make_concept_schedules",
     "run_random_drift_experiment",
     "SimpleMLP",
     "BaseServer",
-    "ClusteringServer",
-    "FedSDAV2Server",
-    "FedSDAV3Server",
-    "FedDriftV2Server",
+    "CrossEvaluationClusteringServer",
+    "FedSDANoCachedServer",
+    "FedSDACachedServer",
+    "FedDriftServer",
     "run_comparative_trials",
 ]

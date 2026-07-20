@@ -29,6 +29,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from federated_drift_experiment import config
+from federated_drift_experiment.mode_names import (
+    normalize_legacy_mode,
+    normalize_legacy_series,
+)
 
 # データセットの正準表示順(存在するものだけ使う)
 _CANON_DATASETS = ["blobs", "sea", "circle", "sine"]
@@ -50,12 +54,15 @@ def infer_out_dir(npz_paths):
 
 def load_npz(path):
     d = np.load(path, allow_pickle=False)
+    label = str(d["label"])
+    old_mode = label.split(maxsplit=1)[0]
+    label = normalize_legacy_series(label, old_mode, normalize_legacy_mode(old_mode))
     rec = {
         "history": d["history_accuracy"],        # (N_CLIENTS, N_SAMPLES) int8 の 0/1
         "d_cids": d["drift_client_ids"],
         "d_pos": d["drift_positions"],
         "dataset": str(d["dataset"]),
-        "label": str(d["label"]),
+        "label": label,
         "seed": int(d["seed"]),
         "min_stable": int(d["min_stable"]),
     }

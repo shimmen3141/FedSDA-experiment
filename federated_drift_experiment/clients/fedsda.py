@@ -29,7 +29,7 @@ class FedSDAClient(BaseClient):
         if self.model_upload_delay_rounds < 1:
             raise ValueError("FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS must be at least 1")
         self._pending_upload_rounds = 0
-        # v3 のクロス評価では、ローカル学習中の models ではなく直近の配布時点を使う。
+        # Cachedのクロス評価では、ローカル学習中ではなく直近の配布時点を使う。
         self.cached_global_model_params = {
             model_id: model.get_params() for model_id, model in self.models.items()
             if model_id >= 0
@@ -67,7 +67,7 @@ class FedSDAClient(BaseClient):
             self._refresh_cache_on_mapping = True
 
     def apply_server_mapping(self, id_mapping, new_global_models, new_global_stats=None):
-        """サーバ配布を適用し、v3の次回クロス評価用キャッシュを更新する。"""
+        """サーバ配布を適用し、Cachedの次回クロス評価用キャッシュを更新する。"""
         super().apply_server_mapping(id_mapping, new_global_models, new_global_stats)
         if self._refresh_cache_on_mapping:
             self.cached_global_model_params = {
@@ -315,7 +315,7 @@ class ClassConditionalFedSDAClient(FedSDAClient):
 class EDetectorFedSDAClient(FedSDAClient):
     """全体損失をbounded mean e-SRで監視するFedSDAクライアント。
 
-    v2.2/v3.2のアブレーション用に、クラス別ADWINと保険的な強制チェックは
+    ESRモードのアブレーション用に、クラス別ADWINと保険的な強制チェックは
     組み合わせない。基準平均は検知区間開始時の現行モデル損失統計から固定する。
     e-detectorの厳密なARL保証には、この値が定常時の条件付き平均上限であることが
     必要であり、標本平均を使う本実装では近似的な仮定になる。
@@ -335,7 +335,7 @@ class EDetectorFedSDAClient(FedSDAClient):
 
     def _e_detector_baseline(self, class_id=None):
         stats = self.model_stats.get(self.current_model_id, {})
-        # 従来mean方式のv2.3/v3.3は全体平均を共用し、既存結果を維持する。
+        # ClassESRのmean方式は全体平均を共用し、既存結果を維持する。
         # UCB方式だけはクラス条件付き上限を構成するためクラス別統計を使う。
         if class_id is not None and self.baseline_estimator.name != "historical_mean":
             stats = stats.get("class_stats", {}).get(class_id, {})

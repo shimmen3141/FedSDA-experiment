@@ -155,7 +155,7 @@ def test_mnist_multiclass_path_runs_through_feddrift(monkeypatch):
         monkeypatch.setattr(config, name, value)
 
     result = run_random_drift_experiment(
-        mode="FedDrift_v2", random_seed=0, verbose=False, show_plot=False
+        mode="FedDrift", random_seed=0, verbose=False, show_plot=False
     )
     assert 0.0 <= result["accuracy"] <= 1.0
     assert result["total_true"] == 1

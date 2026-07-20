@@ -1,8 +1,8 @@
 """精度–通信量トレードオフの掃引実験(複数シード × 複数データセット)。
 
 各データセット・各シードで以下を実行し、結果を CSV と散布図に出力する:
-- FedSDA v1/v2/v3: δ_adwin と AGG_INTERVAL の掃引
-- FedDrift v1/v2 : 検出バッチと検出閾値 δ の掃引
+- FedSDA Cached/NoCached: 検出器パラメータと AGG_INTERVAL の掃引
+- FedDrift: 検出バッチと検出閾値 δ の掃引
 - FedSDA_without_server / Oblivious: 単一点の基準線
 
 FedDrift の各掃引では、固定した側のパラメータを凡例に明示する
@@ -29,6 +29,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from federated_drift_experiment import config, run_random_drift_experiment
+from federated_drift_experiment.mode_names import (
+    BASELINE_MODES,
+    FEDDRIFT_MODES,
+    FEDSDA_MODES,
+    normalize_legacy_mode,
+    normalize_legacy_series,
+)
 
 # この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
 # 既定の出力先は results/results_<YYYYMMDD_HHMMSS>/... となり実行ごとに別ディレクトリへ分かれる。
@@ -51,14 +58,8 @@ ROW_KEYS = ["mode", "dataset", "concept_schedule", "seed", "series", "sweep_valu
             "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta",
             "e_detector_baseline_strategy", "e_detector_baseline_beta"] + METRIC_KEYS
 
-FEDSDA_SWEEP_MODES = (
-    "FedSDA", "FedSDA_v2", "FedSDA_v2.1", "FedSDA_v2.2", "FedSDA_v2.3",
-    "FedSDA_v3", "FedSDA_v3.1", "FedSDA_v3.2", "FedSDA_v3.3",
-    "FedSDA_v2.2_ucb", "FedSDA_v2.3_ucb",
-    "FedSDA_v3.2_ucb", "FedSDA_v3.3_ucb",
-)
-FEDDRIFT_SWEEP_MODES = ("FedDrift", "FedDrift_v2")
-BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
+FEDSDA_SWEEP_MODES = FEDSDA_MODES
+FEDDRIFT_SWEEP_MODES = FEDDRIFT_MODES
 
 PLOT_X_LABELS = {
     "comm_models_total": "Communication (model transfers, log)",
@@ -156,7 +157,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     for dataset in datasets:
         for seed in seeds:
             for mode in fedsda_modes:
-                is_e_detector = ".2" in mode or ".3" in mode
+                is_e_detector = "_ESR" in mode
                 delta_series = f"{mode} δ_adwin sweep (γ={fixed_gamma})"
                 fixed_detector = (
                     f"alpha_e={config.E_DETECTOR_ALPHA}"
@@ -232,6 +233,11 @@ def _load_csv(path):
     with open(path, encoding="utf-8") as f:
         for r in csv.DictReader(f):
             row = dict(r)
+            old_mode = row["mode"]
+            row["mode"] = normalize_legacy_mode(old_mode)
+            row["series"] = normalize_legacy_series(
+                row.get("series", ""), old_mode, row["mode"]
+            )
             row.setdefault("concept_schedule", "random")
             row["seed"] = int(float(row["seed"]))
             row["sweep_value"] = (float(row["sweep_value"])
@@ -381,21 +387,20 @@ def _fixed_parameter_label(rows, key, display_name):
 def _series_style(series):
     """手法を色、掃引対象をマーカーと線種で表し、系列の見分けを保つ。"""
     method_colors = {
-        "FedSDA": "tab:green",
-        "FedSDA_v2": "tab:blue",
-        "FedSDA_v2.1": "tab:cyan",
-        "FedSDA_v2.2": "deepskyblue",
-        "FedSDA_v2.3": "dodgerblue",
-        "FedSDA_v3": "tab:orange",
-        "FedSDA_v3.1": "tab:pink",
-        "FedSDA_v3.2": "tab:olive",
-        "FedSDA_v3.3": "darkolivegreen",
-        "FedSDA_v2.2_ucb": "royalblue",
-        "FedSDA_v2.3_ucb": "navy",
-        "FedSDA_v3.2_ucb": "yellowgreen",
-        "FedSDA_v3.3_ucb": "darkgreen",
-        "FedDrift": "tab:purple",
-        "FedDrift_v2": "tab:red",
+        "FedSDA_NoCached_ADWIN": "tab:blue",
+        "FedSDA_NoCached_ClassADWIN": "tab:cyan",
+        "FedSDA_NoCached_ESR": "deepskyblue",
+        "FedSDA_NoCached_ClassESR": "dodgerblue",
+        "FedSDA_Cached_ADWIN": "tab:orange",
+        "FedSDA_Cached_ClassADWIN": "tab:pink",
+        "FedSDA_Cached_ESR": "tab:olive",
+        "FedSDA_Cached_ClassESR": "darkolivegreen",
+        "FedSDA_NoCached_ESR_UCB": "royalblue",
+        "FedSDA_NoCached_ClassESR_UCB": "navy",
+        "FedSDA_Cached_ESR_UCB": "yellowgreen",
+        "FedSDA_Cached_ClassESR_UCB": "darkgreen",
+        "FedSDA_Legacy": "tab:green",
+        "FedDrift": "tab:red",
     }
     method = series.split(maxsplit=1)[0]
     color = method_colors.get(method, "tab:brown")

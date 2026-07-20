@@ -1,7 +1,7 @@
 """単発実験のCLIエントリポイント。
 
 例:
-    python run_experiment.py --mode FedSDA --seed 0
+    python run_experiment.py --mode FedSDA_NoCached_ADWIN --seed 0
     python run_experiment.py --mode FedDrift --seed 0 --plot-dir results
 """
 import argparse
@@ -18,8 +18,8 @@ MODES = list(MODE_SPECS)
 def main():
     configure_torch_threads()
     parser = argparse.ArgumentParser(description="FedSDA single experiment runner")
-    parser.add_argument("--mode", choices=MODES, default='FedSDA',
-                        help="実験モード (default: FedSDA)")
+    parser.add_argument("--mode", choices=MODES, default='FedSDA_NoCached_ADWIN',
+                        help="実験モード (default: FedSDA_NoCached_ADWIN)")
     parser.add_argument("--threshold", type=float, default=config.DISTANCE_THRESHOLD,
                         help=f"距離閾値 gamma_dist (default: {config.DISTANCE_THRESHOLD})")
     parser.add_argument("--seed", type=int, default=0, help="乱数シード (default: 0)")
@@ -35,7 +35,7 @@ def main():
                         help=f"共通クラスタリング戦略 (default: {config.CLUSTER_LINKAGE})")
     parser.add_argument("--feddrift-isolation", type=int,
                         default=config.FEDDRIFT_ISOLATION_TIMESTEPS,
-                        help="FedDrift v2 の新規モデル隔離時刻数 W (default: 1)")
+                        help="FedDriftの新規モデル隔離時刻数 W (default: 1)")
     parser.add_argument("--quiet", action="store_true", help="詳細ログを抑制する")
     parser.add_argument("--no-plot", action="store_true", help="プロットを生成しない")
     parser.add_argument("--plot-dir", default=None,

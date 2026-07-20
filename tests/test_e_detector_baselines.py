@@ -29,11 +29,11 @@ def test_baseline_strategy_factory_rejects_unknown_name():
 
 
 def test_ucb_modes_inject_strategy_without_changing_mean_modes():
-    assert MODE_SPECS["FedSDA_v2.2"].client_kwargs == {}
-    assert MODE_SPECS["FedSDA_v3.3"].client_kwargs == {}
+    assert MODE_SPECS["FedSDA_NoCached_ESR"].client_kwargs == {}
+    assert MODE_SPECS["FedSDA_Cached_ClassESR"].client_kwargs == {}
     for mode in (
-        "FedSDA_v2.2_ucb", "FedSDA_v2.3_ucb",
-        "FedSDA_v3.2_ucb", "FedSDA_v3.3_ucb",
+        "FedSDA_NoCached_ESR_UCB", "FedSDA_NoCached_ClassESR_UCB",
+        "FedSDA_Cached_ESR_UCB", "FedSDA_Cached_ClassESR_UCB",
     ):
         assert MODE_SPECS[mode].client_kwargs == {
             "baseline_strategy": "empirical_bernstein_ucb"

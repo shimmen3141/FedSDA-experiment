@@ -10,7 +10,7 @@ if _REPO_ROOT not in sys.path:
 from federated_drift_experiment import config
 from federated_drift_experiment.clients import FedSDAClient
 from federated_drift_experiment.models import SimpleMLP
-from federated_drift_experiment.servers import FedSDAV3Server
+from federated_drift_experiment.servers import FedSDACachedServer
 
 
 def _make_client_and_server():
@@ -23,7 +23,7 @@ def _make_client_and_server():
         distance_threshold=0.1,
         verbose=False,
     )
-    server = FedSDAV3Server(distance_threshold=0.1, verbose=False)
+    server = FedSDACachedServer(distance_threshold=0.1, verbose=False)
     server.register_model_params(0, model.get_params())
     server.register_model_stats(0, stats[0])
     server.register_client(client)

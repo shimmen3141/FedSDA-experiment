@@ -5,16 +5,16 @@
 
 from .servers import (
     BaseServer,
-    ClusteringServer,
-    FedDriftV2Server,
-    FedSDAV2Server,
-    FedSDAV3Server,
+    CrossEvaluationClusteringServer,
+    FedDriftServer,
+    FedSDACachedServer,
+    FedSDANoCachedServer,
 )
 
 __all__ = [
     "BaseServer",
-    "ClusteringServer",
-    "FedDriftV2Server",
-    "FedSDAV2Server",
-    "FedSDAV3Server",
+    "CrossEvaluationClusteringServer",
+    "FedDriftServer",
+    "FedSDANoCachedServer",
+    "FedSDACachedServer",
 ]

@@ -2,7 +2,7 @@
 
 例:
     python run_comparative_trials.py --n-trials 10 --plot-dir results
-    python run_comparative_trials.py --modes FedSDA FedDrift --n-trials 3
+    python run_comparative_trials.py --modes FedSDA_NoCached_ADWIN FedDrift --n-trials 3
 """
 import argparse
 
@@ -33,7 +33,7 @@ def main():
                         help=f"共通クラスタリング戦略 (default: {config.CLUSTER_LINKAGE})")
     parser.add_argument("--feddrift-isolation", type=int,
                         default=config.FEDDRIFT_ISOLATION_TIMESTEPS,
-                        help="FedDrift v2 の新規モデル隔離時刻数 W (default: 1)")
+                        help="FedDriftの新規モデル隔離時刻数 W (default: 1)")
     parser.add_argument("--no-plot", action="store_true", help="最終試行のプロットも生成しない")
     parser.add_argument("--plot-dir", default=None,
                         help="図の保存先ディレクトリ。未指定なら画面表示 (plt.show)")

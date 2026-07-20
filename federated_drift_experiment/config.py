@@ -102,7 +102,7 @@ STABLE_WINDOW = 200         # 定常精度 stable_accuracy の回復除外窓 W(
 # ==========================================
 AGG_INTERVAL = 50           # 1ラウンドで処理するサンプル数(=集約間隔)。FedDrift は FEDDRIFT_DETECT_BATCH を使う
 # ローカル更新間隔 τ(論文の「t mod τ = 0」)。τ サンプルごとに τ×UPDATES_PER_SAMPLE 回まとめて
-# 更新する(総更新回数は不変)。1 = 毎サンプル更新(v1 挙動)。v2 比較実験の掃引軸
+# 更新する(総更新回数は不変)。1 = 毎サンプル更新。
 LOCAL_UPDATE_TAU = 1
 
 # ==========================================
@@ -136,6 +136,6 @@ FEDDRIFT_ISOLATION_TIMESTEPS = 1
 DISTANCE_THRESHOLD = 0.1    # モデル適合/マージ判定の距離閾値 (gamma_dist)。FedDrift の検出閾値にも流用
 CROSS_EVAL_MAX_CLIENTS = 3  # クロス評価で1モデルあたりに使うクライアント数上限
 CLUSTER_MIN_EVAL_N = 5      # マージ判定に必要な評価サンプルの最小数
-# FedDrift v2 など、方式を明示して使うサーバの共通クラスタリング戦略。
+# FedDriftなど、方式を明示して使うサーバの共通クラスタリング戦略。
 # 'complete'=論文の max-linkage、'connected'=従来の閾値グラフ連結成分。
 CLUSTER_LINKAGE = 'complete'
