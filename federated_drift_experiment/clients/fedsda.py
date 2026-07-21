@@ -1,9 +1,7 @@
-"""FedSDA(提案手法)クライアント。
-
-ADWIN による統計的ドリフト検出 + FIFOバッファによる逐次(1サンプル単位)処理。
-"""
+"""FedSDAの共通逐次処理とADWIN・e-SR・HDDM検出器別クライアント。"""
 import math
 import time
+from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 
 import torch
@@ -16,14 +14,13 @@ from ..hddm import HDDMA, HDDMW
 from .base import BaseClient
 
 
-class FedSDAClient(BaseClient):
-    """提案手法 (FedSDA) クライアント: ADWIN + FIFOバッファによる逐次(1サンプル単位)処理。"""
+class FedSDAClient(BaseClient, ABC):
+    """検出器に依存しないFedSDAの逐次処理・ドリフト解決基底クラス。"""
 
     reports_state_summary = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.adwin = FullScanADWIN(delta=config.ADWIN_DELTA)
         self.buffer = deque()                       # FIFOバッファ(検知遅延中のデータ保留)
         self.fifo_size = config.FIFO_BUFFER_SIZE    # FIFOバッファ長 N_FIFO
         self.model_upload_delay_rounds = int(config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS)
@@ -77,7 +74,7 @@ class FedSDAClient(BaseClient):
             }
 
     def process_one_step(self, x_in, y_in, concept_id):
-        """1サンプルを処理する: 予測 → ADWIN更新 → (ドリフト解決 | 平時処理) → 学習。"""
+        """1サンプルを処理する: 予測 → 検出器更新 → (ドリフト解決 | 平時処理) → 学習。"""
         start_time = time.perf_counter()
         training_before = self.phase_seconds["training"]
         x = x_in.unsqueeze(0) if x_in.dim() == 1 else x_in
@@ -96,7 +93,7 @@ class FedSDAClient(BaseClient):
 
         drift_type = 0
 
-        # ADWIN の統計的検知、または保険的な強制チェックのどちらかが発火したら解決処理へ
+        # 統計的検知、または検出器固有の補助チェックが発火したら解決処理へ
         if drift_detected or self._forced_drift_check(idx):
             # τ>1 で保留中の更新をドリフト解決前に消化する(τ=1 では no-op)
             self.flush_pending_updates()
@@ -125,8 +122,117 @@ class FedSDAClient(BaseClient):
         num_global = sum(1 for mid in self.models.keys() if mid >= 0)
         self.processing_times[num_global].append(elapsed_ms)
 
+    @abstractmethod
     def _update_drift_detectors(self, error, y, sample_idx):
-        """全体損失ADWINを更新し、ドリフト検知の有無を返す。"""
+        """検出器を更新し、ドリフト検知の有無を返す。"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def _new_concept_sample_count(self, buffer_list, sample_idx):
+        """検出器が推定した新概念側のサンプル数を返す。"""
+        raise NotImplementedError
+
+    def _estimated_drift_start(self, sample_idx):
+        """検知器が推定した新概念側の先頭サンプル位置を返す。"""
+        n_new = self._new_concept_sample_count(list(self.buffer), sample_idx)
+        return max(0, sample_idx - n_new + 1)
+
+    @abstractmethod
+    def _reset_drift_detectors(self):
+        """ドリフト解決後に検出器を初期状態へ戻す。"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def _detector_label(self):
+        raise NotImplementedError
+
+    def _forced_drift_check(self, idx):
+        """検出器固有の補助チェック。既定では統計的検出だけを使う。"""
+        return False
+
+    def _resolve_drift(self, sample_idx):
+        """FIFOを新旧概念に分割し、モデル切替または新規作成を行う。"""
+        buffer_list = list(self.buffer)
+        n_new_concept = self._new_concept_sample_count(buffer_list, sample_idx)
+
+        if len(buffer_list) <= n_new_concept:
+            drift_data = buffer_list
+            old_data = []
+        else:
+            old_data = buffer_list[:-n_new_concept]
+            drift_data = buffer_list[-n_new_concept:]
+
+        if old_data:
+            self._store_evaluation_data(self.current_model_id, old_data)
+            self._absorb_into_store(self.current_model_id, old_data)
+
+        if len(drift_data) < config.MIN_DRIFT_DATA:
+            self._reset_drift_detectors()
+            return 0
+
+        if self.verbose:
+            print(f"Client {self.client_id} [sample={sample_idx}]: "
+                  f"{self._detector_label()} Drift Detected.")
+
+        bx = torch.cat([data[0] for data in drift_data])
+        by = torch.cat([data[1] for data in drift_data])
+        valid_candidates = []
+        for model_id, model in self.models.items():
+            with torch.no_grad():
+                self._record_model_compute("detection", len(bx))
+                errors = model.per_sample_error(bx, by)
+                loss = float(torch.mean(errors).item())
+            historical_mean, _ = self._get_model_stats(model_id)
+
+            if historical_mean == 0.0:
+                if self.verbose:
+                    print(f"  Check M{model_id}: No baseline (n=0) -> "
+                          f"treat as not-matching. (Loss={loss:.3f})")
+                continue
+
+            difference = loss - historical_mean
+            if self.verbose:
+                print(f"  Check M{model_id}: Diff={difference:.3f} vs "
+                      f"Thr={self.distance_threshold:.3f} "
+                      f"(Loss={loss:.3f}, Base={historical_mean:.3f})")
+            if difference <= self.distance_threshold:
+                valid_candidates.append((model_id, loss))
+
+        if valid_candidates:
+            best_model_id, minimum_loss = min(valid_candidates, key=lambda item: item[1])
+            if best_model_id != self.current_model_id:
+                if self.verbose:
+                    print(f"  -> Switch to Model {best_model_id} "
+                          f"(Loss {minimum_loss:.3f})")
+                self.local_switch_positions.append(sample_idx)
+                self.current_model_id = best_model_id
+                drift_type = 1
+            else:
+                if self.verbose:
+                    print(f"  -> Keep current Model {self.current_model_id} "
+                          f"(Loss {minimum_loss:.3f})")
+                drift_type = 0
+            self._absorb_into_store(self.current_model_id, drift_data)
+        else:
+            temporary_id, _ = self._spawn_new_model(bx, by, pending_ready=False)
+            self.local_switch_positions.append(sample_idx)
+            self.current_model_id = temporary_id
+            drift_type = 2
+            self.train_data_store[temporary_id].extend(drift_data)
+
+        self._reset_drift_detectors()
+        self.buffer.clear()
+        return drift_type
+
+
+class ADWINFedSDAClient(FedSDAClient):
+    """全体損失をADWINで監視するFedSDAクライアント。"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.adwin = FullScanADWIN(delta=config.ADWIN_DELTA)
+
+    def _update_drift_detectors(self, error, y, sample_idx):
         scan_width = min(self.adwin.width + 1, self.adwin.max_window_size)
         self.adwin.update(error)
         self.compute_counters["drift_detector_updates"] += 1
@@ -135,24 +241,16 @@ class FedSDAClient(BaseClient):
         return self.adwin.drift_detected
 
     def _new_concept_sample_count(self, buffer_list, sample_idx):
-        """検知器が推定した新概念側のサンプル数を返す。"""
         return min(len(buffer_list), self.adwin.width)
 
-    def _estimated_drift_start(self, sample_idx):
-        """検知器が推定した新概念側の先頭サンプル位置を返す。"""
-        n_new = self._new_concept_sample_count(list(self.buffer), sample_idx)
-        return max(0, sample_idx - n_new + 1)
-
     def _reset_drift_detectors(self):
-        """ドリフト解決後に検知器を初期状態へ戻す。"""
         self.adwin.reset()
 
     def _detector_label(self):
         return "ADWIN"
 
     def _forced_drift_check(self, idx):
-        """ADWIN未検知でも、直近ウィンドウの損失がベースラインから閾値以上悪化して
-        いればドリフト解決を強制する保険的チェック。"""
+        """ADWIN未検知でも、直近ウィンドウの損失悪化を確認する保険的チェック。"""
         if not config.FEDSDA_ENABLE_FORCED_DRIFT_CHECK:
             return False
         width = self.adwin.width
@@ -182,86 +280,7 @@ class FedSDAClient(BaseClient):
             return True
         return False
 
-    def _resolve_drift(self, sample_idx):
-        """ドリフト解決: バッファを新旧概念に分割し、モデル切替 or 新規作成を行う。"""
-        # ADWINの縮小後ウィンドウ幅 = 新概念のデータ数として、バッファを事後分割する
-        buffer_list = list(self.buffer)
-        n_new_concept = self._new_concept_sample_count(buffer_list, sample_idx)
-
-        if len(buffer_list) <= n_new_concept:
-            drift_data = buffer_list
-            old_data = []
-        else:
-            old_data = buffer_list[:-n_new_concept]
-            drift_data = buffer_list[-n_new_concept:]
-
-        # 旧概念のデータは直前まで使っていたモデルへ確定
-        if len(old_data) > 0:
-            self._store_evaluation_data(self.current_model_id, old_data)
-            self._absorb_into_store(self.current_model_id, old_data)
-
-        if len(drift_data) < config.MIN_DRIFT_DATA:
-            self._reset_drift_detectors()
-            return 0
-
-        if self.verbose:
-            print(f"Client {self.client_id} [sample={sample_idx}]: "
-                  f"{self._detector_label()} Drift Detected.")
-
-        bx = torch.cat([d[0] for d in drift_data])
-        by = torch.cat([d[1] for d in drift_data])
-
-        # 各既存モデルの新概念データに対する損失を、ベースラインと比較して適合候補を集める
-        valid_candidates = []
-        for m_id, model in self.models.items():
-            with torch.no_grad():
-                self._record_model_compute("detection", len(bx))
-                errors = model.per_sample_error(bx, by)
-                loss = float(torch.mean(errors).item())
-            hist_mean, _ = self._get_model_stats(m_id)
-
-            if hist_mean == 0.0:
-                if self.verbose:
-                    print(f"  Check M{m_id}: No baseline (n=0) -> treat as not-matching. (Loss={loss:.3f})")
-                continue
-
-            diff = loss - hist_mean
-            if self.verbose:
-                print(f"  Check M{m_id}: Diff={diff:.3f} vs Thr={self.distance_threshold:.3f} "
-                      f"(Loss={loss:.3f}, Base={hist_mean:.3f})")
-            if diff <= self.distance_threshold:
-                valid_candidates.append((m_id, loss))
-
-        if valid_candidates:
-            # 既知のコンセプト: 適合候補のうち損失最小のモデルへ切替(または現状維持)
-            best_model_id, min_loss = min(valid_candidates, key=lambda x: x[1])
-            if best_model_id != self.current_model_id:
-                if self.verbose:
-                    print(f"  -> Switch to Model {best_model_id} (Loss {min_loss:.3f})")
-                # 記録は sample_idx で行う（ずれ防止）
-                self.local_switch_positions.append(sample_idx)
-                self.current_model_id = best_model_id
-                drift_type = 1
-            else:
-                if self.verbose:
-                    print(f"  -> Keep current Model {self.current_model_id} (Loss {min_loss:.3f})")
-                drift_type = 0
-
-            self._absorb_into_store(self.current_model_id, drift_data)
-        else:
-            # 未知のコンセプト: 新規モデルを作成(作成ラウンド内ではサーバへ送らない)
-            temp_id, _ = self._spawn_new_model(bx, by, pending_ready=False)
-            self.local_switch_positions.append(sample_idx)
-            self.current_model_id = temp_id
-            drift_type = 2
-            self.train_data_store[temp_id].extend(drift_data)
-
-        self._reset_drift_detectors()
-        self.buffer.clear()
-        return drift_type
-
-
-class ClassConditionalFedSDAClient(FedSDAClient):
+class ClassConditionalADWINFedSDAClient(ADWINFedSDAClient):
     """全体損失と正解クラス別損失を並列監視するFedSDAクライアント。
 
     全体ADWINが検知した場合は従来と同じ分割点を使う。全体が未検知で
@@ -335,16 +354,21 @@ class HDDMFedSDAClient(FedSDAClient):
             raise ValueError("hddm_variantは'A'または'W'である必要があります") from None
         super().__init__(*args, **kwargs)
         self.hddm_variant = hddm_variant
-        # 基底クラスの検出器スロットを差し替え、バッファ・解決処理は共用する。
-        self.adwin = factory()
+        self.hddm = factory()
 
     def _update_drift_detectors(self, error, y, sample_idx):
-        self.adwin.update(error)
+        self.hddm.update(error)
         self.compute_counters["drift_detector_updates"] += 1
         self.compute_counters["drift_detector_hypotheses"] += (
-            self.adwin.active_hypothesis_count
+            self.hddm.active_hypothesis_count
         )
-        return self.adwin.drift_detected
+        return self.hddm.drift_detected
+
+    def _new_concept_sample_count(self, buffer_list, sample_idx):
+        return min(len(buffer_list), self.hddm.width)
+
+    def _reset_drift_detectors(self):
+        self.hddm.reset()
 
     def _forced_drift_check(self, idx):
         # 検出器間比較を明確にするため、ADWIN用の補助判定は併用しない。
@@ -354,7 +378,7 @@ class HDDMFedSDAClient(FedSDAClient):
         return f"HDDM-{self.hddm_variant}"
 
 
-class EDetectorFedSDAClient(FedSDAClient):
+class ESRFedSDAClient(FedSDAClient):
     """全体損失をbounded mean e-SRで監視するFedSDAクライアント。
 
     ESRモードのアブレーション用に、クラス別ADWINと保険的な強制チェックは
@@ -406,7 +430,7 @@ class EDetectorFedSDAClient(FedSDAClient):
         return "e-SR"
 
 
-class ClassConditionalEDetectorFedSDAClient(EDetectorFedSDAClient):
+class ClassConditionalESRFedSDAClient(ESRFedSDAClient):
     """全体損失と正解クラス別損失のe-SRを固定重みで混合するクライアント。
 
     全体系列と各クラス系列へ等しい重みを割り当て、混合e値が閾値を超えたときに

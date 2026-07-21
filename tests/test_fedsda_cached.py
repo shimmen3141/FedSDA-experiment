@@ -8,7 +8,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from federated_drift_experiment import config
-from federated_drift_experiment.clients import FedSDAClient
+from federated_drift_experiment.clients import ADWINFedSDAClient
 from federated_drift_experiment.models import SimpleMLP
 from federated_drift_experiment.servers import FedSDACachedServer
 
@@ -16,7 +16,7 @@ from federated_drift_experiment.servers import FedSDACachedServer
 def _make_client_and_server():
     model = SimpleMLP()
     stats = {0: {'n': 10, 'mean': 0.1, 'M2': 0.0}}
-    client = FedSDAClient(
+    client = ADWINFedSDAClient(
         client_id=0,
         initial_models={0: model},
         initial_stats=stats,

@@ -9,9 +9,9 @@ if _REPO_ROOT not in sys.path:
 
 from federated_drift_experiment import config
 from federated_drift_experiment.clients import (
-    ClassConditionalEDetectorFedSDAClient,
-    EDetectorFedSDAClient,
-    FedSDAClient,
+    ADWINFedSDAClient,
+    ClassConditionalESRFedSDAClient,
+    ESRFedSDAClient,
 )
 from federated_drift_experiment.e_detector import BoundedMeanEDetector
 from federated_drift_experiment.experiment import MODE_SPECS
@@ -44,26 +44,27 @@ def test_bounded_mean_e_detector_stays_quiet_below_baseline():
 
 
 def test_e_detector_modes_reuse_server_flows_without_changing_existing_modes():
-    assert MODE_SPECS["FedSDA_NoCached_ADWIN"].client_cls is FedSDAClient
-    assert MODE_SPECS["FedSDA_Cached_ADWIN"].client_cls is FedSDAClient
-    assert MODE_SPECS["FedSDA_NoCached_ESR"].client_cls is EDetectorFedSDAClient
-    assert MODE_SPECS["FedSDA_Cached_ESR"].client_cls is EDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_NoCached_ADWIN"].client_cls is ADWINFedSDAClient
+    assert MODE_SPECS["FedSDA_Cached_ADWIN"].client_cls is ADWINFedSDAClient
+    assert MODE_SPECS["FedSDA_NoCached_ESR"].client_cls is ESRFedSDAClient
+    assert MODE_SPECS["FedSDA_Cached_ESR"].client_cls is ESRFedSDAClient
     assert MODE_SPECS["FedSDA_NoCached_ESR"].server_cls is FedSDANoCachedServer
     assert MODE_SPECS["FedSDA_Cached_ESR"].server_cls is FedSDACachedServer
 
 
 def test_e_detector_client_disables_uncontrolled_forced_check():
-    client = EDetectorFedSDAClient(
+    client = ESRFedSDAClient(
         client_id=0,
         initial_models={0: SimpleMLP()},
         initial_stats={0: {"n": 100, "mean": 0.2, "M2": 1.0}},
         verbose=False,
     )
+    assert not hasattr(client, "adwin")
     assert not client._forced_drift_check(100)
 
 
 def test_forced_check_can_be_disabled_without_changing_default(monkeypatch):
-    client = FedSDAClient(
+    client = ADWINFedSDAClient(
         client_id=0,
         initial_models={0: SimpleMLP()},
         initial_stats={0: {"n": 100, "mean": 0.2, "M2": 1.0}},
@@ -74,7 +75,7 @@ def test_forced_check_can_be_disabled_without_changing_default(monkeypatch):
 
 
 def test_class_conditional_e_detector_finds_class_local_increase():
-    client = ClassConditionalEDetectorFedSDAClient(
+    client = ClassConditionalESRFedSDAClient(
         client_id=0,
         initial_models={0: SimpleMLP()},
         initial_stats={0: {"n": 100, "mean": 0.6, "M2": 1.0}},
@@ -100,7 +101,7 @@ def test_class_conditional_e_detector_finds_class_local_increase():
 
 
 def test_class_conditional_e_detector_modes_reuse_protocol_servers():
-    assert MODE_SPECS["FedSDA_NoCached_ClassESR"].client_cls is ClassConditionalEDetectorFedSDAClient
-    assert MODE_SPECS["FedSDA_Cached_ClassESR"].client_cls is ClassConditionalEDetectorFedSDAClient
+    assert MODE_SPECS["FedSDA_NoCached_ClassESR"].client_cls is ClassConditionalESRFedSDAClient
+    assert MODE_SPECS["FedSDA_Cached_ClassESR"].client_cls is ClassConditionalESRFedSDAClient
     assert MODE_SPECS["FedSDA_NoCached_ClassESR"].server_cls is FedSDANoCachedServer
     assert MODE_SPECS["FedSDA_Cached_ClassESR"].server_cls is FedSDACachedServer

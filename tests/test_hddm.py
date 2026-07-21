@@ -58,5 +58,6 @@ def test_hddm_client_disables_adwin_forced_check():
         hddm_variant="W",
         verbose=False,
     )
+    assert not hasattr(client, "adwin")
+    assert hasattr(client, "hddm")
     assert not client._forced_drift_check(100)
-

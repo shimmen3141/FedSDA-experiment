@@ -33,6 +33,9 @@ from federated_drift_experiment.mode_names import (
     BASELINE_MODES,
     FEDDRIFT_MODES,
     FEDSDA_MODES,
+    is_adwin_mode,
+    is_esr_mode,
+    is_hddm_mode,
     normalize_legacy_mode,
     normalize_legacy_series,
 )
@@ -134,7 +137,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     if fixed_agg is None:
         fixed_agg = default_agg
     rows = []
-    adwin_mode_count = sum("_ADWIN" in mode for mode in fedsda_modes)
+    adwin_mode_count = sum(is_adwin_mode(mode) for mode in fedsda_modes)
     jobs_per = (adwin_mode_count * len(adwin_deltas)
                 + len(fedsda_modes) * len(agg_sweep)
                 + len(feddrift_modes) * (len(batches) + len(deltas))
@@ -159,8 +162,8 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     for dataset in datasets:
         for seed in seeds:
             for mode in fedsda_modes:
-                is_e_detector = "_ESR" in mode
-                is_hddm = "_HDDM" in mode
+                is_e_detector = is_esr_mode(mode)
+                is_hddm = is_hddm_mode(mode)
                 if is_e_detector:
                     fixed_detector = f"alpha_e={config.E_DETECTOR_ALPHA}"
                 elif is_hddm:
@@ -168,7 +171,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
                 else:
                     fixed_detector = f"δ_adwin={fixed_adwin}"
                 agg_series = f"{mode} AGG_INTERVAL sweep ({fixed_detector})"
-                if "_ADWIN" in mode:
+                if is_adwin_mode(mode):
                     delta_series = f"{mode} δ_adwin sweep (γ={fixed_gamma})"
                     for adwin_delta in adwin_deltas:
                         do(f"{dataset}/{mode}/da={adwin_delta}/s{seed}",

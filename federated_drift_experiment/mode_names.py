@@ -22,6 +22,30 @@ FEDSDA_MODES = (
 FEDDRIFT_MODES = ("FedDrift",)
 BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
 
+
+def fedsda_detector_name(mode):
+    """FedSDAモード名から検出器部分を返す。UCBは基準平均方式として除外する。"""
+    if mode == "FedSDA_without_server":
+        return "ADWIN"
+    if mode not in FEDSDA_MODES:
+        return None
+    detector = mode.rsplit("_", 1)[-1]
+    if detector == "UCB":
+        detector = mode.rsplit("_", 2)[-2]
+    return detector
+
+
+def is_adwin_mode(mode):
+    return fedsda_detector_name(mode) in {"ADWIN", "ClassADWIN"}
+
+
+def is_esr_mode(mode):
+    return fedsda_detector_name(mode) in {"ESR", "ClassESR"}
+
+
+def is_hddm_mode(mode):
+    return fedsda_detector_name(mode) in {"HDDMA", "HDDMW"}
+
 # 過去のCSV・NPZを新しい解析コードで引き続き利用するための読み込み専用変換。
 # v1は新しい正式手法と混同しないようLegacyとして明示する。
 LEGACY_MODE_NAMES = {

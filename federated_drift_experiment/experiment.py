@@ -24,9 +24,10 @@ import torch
 
 from . import config
 from .clients import (
-    ClassConditionalEDetectorFedSDAClient,
-    ClassConditionalFedSDAClient,
-    EDetectorFedSDAClient,
+    ADWINFedSDAClient,
+    ClassConditionalADWINFedSDAClient,
+    ClassConditionalESRFedSDAClient,
+    ESRFedSDAClient,
     FedDriftClient,
     FedSDAClient,
     HDDMFedSDAClient,
@@ -35,7 +36,7 @@ from .clients import (
 from .data import build_data_streams, extract_true_drift_events, generate_data, make_concept_schedules
 from .metrics import compute_metrics
 from .models import SimpleMLP
-from .mode_names import FEDSDA_MODES
+from .mode_names import FEDSDA_MODES, is_esr_mode, is_hddm_mode
 from .plotting import plot_client_details, plot_system_overview
 from .servers import (
     BaseServer,
@@ -121,36 +122,36 @@ class ModeSpec:
 MODE_SPECS = {
     # NoCachedはFedAvg先行(回収→FedAvg→クラスタリング→配布)で処理する。
     'FedSDA_NoCached_ADWIN': ModeSpec(
-        FedSDAClient, _run_per_sample_timestep, server_cls=FedSDANoCachedServer),
+        ADWINFedSDAClient, _run_per_sample_timestep, server_cls=FedSDANoCachedServer),
     'FedSDA_NoCached_ClassADWIN': ModeSpec(
-        ClassConditionalFedSDAClient,
+        ClassConditionalADWINFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
     ),
     'FedSDA_Cached_ADWIN': ModeSpec(
-        FedSDAClient, _run_fedsda_cached_timestep, server_cls=FedSDACachedServer),
+        ADWINFedSDAClient, _run_fedsda_cached_timestep, server_cls=FedSDACachedServer),
     'FedSDA_Cached_ClassADWIN': ModeSpec(
-        ClassConditionalFedSDAClient,
+        ClassConditionalADWINFedSDAClient,
         _run_fedsda_cached_timestep,
         server_cls=FedSDACachedServer,
     ),
     'FedSDA_NoCached_ESR': ModeSpec(
-        EDetectorFedSDAClient,
+        ESRFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
     ),
     'FedSDA_Cached_ESR': ModeSpec(
-        EDetectorFedSDAClient,
+        ESRFedSDAClient,
         _run_fedsda_cached_timestep,
         server_cls=FedSDACachedServer,
     ),
     'FedSDA_NoCached_ClassESR': ModeSpec(
-        ClassConditionalEDetectorFedSDAClient,
+        ClassConditionalESRFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
     ),
     'FedSDA_Cached_ClassESR': ModeSpec(
-        ClassConditionalEDetectorFedSDAClient,
+        ClassConditionalESRFedSDAClient,
         _run_fedsda_cached_timestep,
         server_cls=FedSDACachedServer,
     ),
@@ -179,25 +180,25 @@ MODE_SPECS = {
         client_kwargs={'hddm_variant': 'W'},
     ),
     'FedSDA_NoCached_ESR_UCB': ModeSpec(
-        EDetectorFedSDAClient,
+        ESRFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
         client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
     ),
     'FedSDA_Cached_ESR_UCB': ModeSpec(
-        EDetectorFedSDAClient,
+        ESRFedSDAClient,
         _run_fedsda_cached_timestep,
         server_cls=FedSDACachedServer,
         client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
     ),
     'FedSDA_NoCached_ClassESR_UCB': ModeSpec(
-        ClassConditionalEDetectorFedSDAClient,
+        ClassConditionalESRFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
         client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
     ),
     'FedSDA_Cached_ClassESR_UCB': ModeSpec(
-        ClassConditionalEDetectorFedSDAClient,
+        ClassConditionalESRFedSDAClient,
         _run_fedsda_cached_timestep,
         server_cls=FedSDACachedServer,
         client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
@@ -205,7 +206,8 @@ MODE_SPECS = {
     'FedDrift': ModeSpec(
         FedDriftClient, _run_feddrift_timestep, server_cls=FedDriftServer,
         chunk_attr='FEDDRIFT_DETECT_BATCH'),
-    'FedSDA_without_server': ModeSpec(FedSDAClient, _run_per_sample_timestep, use_server=False),
+    'FedSDA_without_server': ModeSpec(
+        ADWINFedSDAClient, _run_per_sample_timestep, use_server=False),
     'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep, server_cls=BaseServer),
 }
 
@@ -284,9 +286,9 @@ def _setup_server_and_clients(spec, distance_threshold, verbose):
 def _mode_param_summary(mode, distance_threshold):
     """ログ表示用に、手法ごとの関連ハイパーパラメータを1行にまとめる。"""
     if mode in FEDSDA_MODES or mode == 'FedSDA_without_server':
-        if '_ESR' in mode:
+        if is_esr_mode(mode):
             detector_param = f"alpha_e={config.E_DETECTOR_ALPHA}"
-        elif '_HDDM' in mode:
+        elif is_hddm_mode(mode):
             detector_param = f"hddm_confidence={config.HDDM_DRIFT_CONFIDENCE}"
             if mode.endswith("HDDMW"):
                 detector_param += f", lambda={config.HDDM_W_LAMBDA}"

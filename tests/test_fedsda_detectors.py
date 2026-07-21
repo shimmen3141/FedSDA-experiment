@@ -2,24 +2,39 @@ import os
 import sys
 
 import torch
+import pytest
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from federated_drift_experiment.clients import ClassConditionalFedSDAClient, FedSDAClient
+from federated_drift_experiment.clients import (
+    ADWINFedSDAClient,
+    ClassConditionalADWINFedSDAClient,
+    FedSDAClient,
+)
 from federated_drift_experiment.experiment import MODE_SPECS
 from federated_drift_experiment.models import SimpleMLP
 from federated_drift_experiment.servers import FedSDACachedServer, FedSDANoCachedServer
 
 
 def _make_client():
-    return ClassConditionalFedSDAClient(
+    return ClassConditionalADWINFedSDAClient(
         client_id=0,
         initial_models={0: SimpleMLP()},
         initial_stats={0: {"n": 10, "mean": 0.1, "M2": 0.0}},
         verbose=False,
     )
+
+
+def test_fedsda_base_requires_a_detector_implementation():
+    with pytest.raises(TypeError):
+        FedSDAClient(
+            client_id=0,
+            initial_models={0: SimpleMLP()},
+            initial_stats={0: {"n": 10, "mean": 0.1, "M2": 0.0}},
+            verbose=False,
+        )
 
 
 def test_class_adwin_detects_change_hidden_in_overall_loss():
@@ -43,12 +58,12 @@ def test_class_adwin_detects_change_hidden_in_overall_loss():
 
 
 def test_class_adwin_reuses_no_cached_server():
-    assert MODE_SPECS["FedSDA_NoCached_ADWIN"].client_cls is FedSDAClient
-    assert MODE_SPECS["FedSDA_NoCached_ClassADWIN"].client_cls is ClassConditionalFedSDAClient
+    assert MODE_SPECS["FedSDA_NoCached_ADWIN"].client_cls is ADWINFedSDAClient
+    assert MODE_SPECS["FedSDA_NoCached_ClassADWIN"].client_cls is ClassConditionalADWINFedSDAClient
     assert MODE_SPECS["FedSDA_NoCached_ClassADWIN"].server_cls is FedSDANoCachedServer
 
 
 def test_cached_class_adwin_reuses_class_conditional_client():
-    assert MODE_SPECS["FedSDA_Cached_ADWIN"].client_cls is FedSDAClient
-    assert MODE_SPECS["FedSDA_Cached_ClassADWIN"].client_cls is ClassConditionalFedSDAClient
+    assert MODE_SPECS["FedSDA_Cached_ADWIN"].client_cls is ADWINFedSDAClient
+    assert MODE_SPECS["FedSDA_Cached_ClassADWIN"].client_cls is ClassConditionalADWINFedSDAClient
     assert MODE_SPECS["FedSDA_Cached_ClassADWIN"].server_cls is FedSDACachedServer
