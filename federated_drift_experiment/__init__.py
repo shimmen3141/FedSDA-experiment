@@ -23,11 +23,6 @@ from .clients import (
 from .data import generate_data, make_concept_schedules
 from .e_detector import BoundedMeanEDetector
 from .hddm import HDDMA, HDDMW
-from .e_detector_baselines import (
-    EDetectorBaselineEstimator,
-    EmpiricalBernsteinUCB,
-    HistoricalMeanBaseline,
-)
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
 from .servers import (
@@ -52,9 +47,6 @@ __all__ = [
     "BoundedMeanEDetector",
     "HDDMA",
     "HDDMW",
-    "EDetectorBaselineEstimator",
-    "HistoricalMeanBaseline",
-    "EmpiricalBernsteinUCB",
     "BaseClient",
     "FedDriftClient",
     "ObliviousClient",

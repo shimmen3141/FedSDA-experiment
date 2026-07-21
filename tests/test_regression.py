@@ -48,8 +48,6 @@ CASES = [
     ("FedSDA_NoCached_ClassADWIN", "circle", {}),
     ("FedSDA_NoCached_ESR", "circle", {}),
     ("FedSDA_NoCached_ClassESR", "circle", {}),
-    ("FedSDA_NoCached_ESR_UCB", "circle", {}),
-    ("FedSDA_NoCached_ClassESR_UCB", "circle", {}),
     ("FedSDA_Cached_ADWIN", "blobs", {}),
     ("FedSDA_Cached_ClassADWIN", "circle", {}),
     ("FedSDA_Cached_ESR", "circle", {}),

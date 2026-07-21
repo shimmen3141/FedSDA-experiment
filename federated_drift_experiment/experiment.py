@@ -4,7 +4,6 @@
 - 'NoCached' / 'Cached'   : 現ラウンドモデル評価 / 配布済みキャッシュ評価
 - 'ADWIN' / 'ClassADWIN'  : 全体損失 / 全体・正解クラス別ADWIN
 - 'ESR' / 'ClassESR'      : 全体損失 / 全体・正解クラス別e-SR
-- '*_UCB'                 : empirical Bernstein基準平均UCB
 - 'FedDrift'              : 論文準拠フロー(隔離 + R回同期 + 選択可能linkage)
 - 'FedSDA_without_server' : 提案手法のローカルのみ版(サーバ集約なし)
 - 'Oblivious'            : ベースライン(単一モデル・FedAvg・無適応)
@@ -195,30 +194,6 @@ MODE_SPECS = {
         server_cls=FedSDACachedServer,
         client_kwargs={'hddm_variant': 'W'},
     ),
-    'FedSDA_NoCached_ESR_UCB': ModeSpec(
-        ESRFedSDAClient,
-        _run_per_sample_timestep,
-        server_cls=FedSDANoCachedServer,
-        client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
-    ),
-    'FedSDA_Cached_ESR_UCB': ModeSpec(
-        ESRFedSDAClient,
-        _run_fedsda_cached_timestep,
-        server_cls=FedSDACachedServer,
-        client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
-    ),
-    'FedSDA_NoCached_ClassESR_UCB': ModeSpec(
-        ClassConditionalESRFedSDAClient,
-        _run_per_sample_timestep,
-        server_cls=FedSDANoCachedServer,
-        client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
-    ),
-    'FedSDA_Cached_ClassESR_UCB': ModeSpec(
-        ClassConditionalESRFedSDAClient,
-        _run_fedsda_cached_timestep,
-        server_cls=FedSDACachedServer,
-        client_kwargs={'baseline_strategy': 'empirical_bernstein_ucb'},
-    ),
     'FedDrift': ModeSpec(
         FedDriftClient, _run_feddrift_timestep, server_cls=FedDriftServer,
         chunk_attr='FEDDRIFT_DETECT_BATCH'),
@@ -310,11 +285,7 @@ def _mode_param_summary(mode, distance_threshold):
                 detector_param += f", lambda={config.HDDM_W_LAMBDA}"
         else:
             detector_param = f"delta_adwin={config.ADWIN_DELTA}"
-        baseline_param = (
-            f", baseline=empirical_bernstein_ucb(beta={config.E_DETECTOR_BASELINE_BETA})"
-            if mode.endswith("_UCB") else ""
-        )
-        return (f"gamma_dist={distance_threshold}, {detector_param}{baseline_param}, "
+        return (f"gamma_dist={distance_threshold}, {detector_param}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "
                 f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}")
     if mode == 'FedDrift':
@@ -420,15 +391,6 @@ def _add_telemetry_results(results, clients, telemetry):
         ]
         results["e_detector_max_log_e"] = max(finite_scores, default=float("-inf"))
         results["e_detector_alpha"] = float(config.E_DETECTOR_ALPHA)
-        strategies = {
-            client.baseline_estimator.name for client in clients
-            if hasattr(client, "baseline_estimator")
-        }
-        if len(strategies) == 1:
-            results["e_detector_baseline_strategy"] = strategies.pop()
-            results["e_detector_baseline_beta"] = float(
-                config.E_DETECTOR_BASELINE_BETA
-            )
 
 
 def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telemetry):
@@ -496,12 +458,6 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
             [client.history_detector_log_e for client in clients], dtype=np.float64)
         telemetry_arrays["e_detector_alpha"] = np.asarray(
             config.E_DETECTOR_ALPHA, dtype=np.float64)
-        telemetry_arrays["e_detector_baseline_strategy"] = np.asarray(
-            clients[0].baseline_estimator.name
-        )
-        telemetry_arrays["e_detector_baseline_beta"] = np.asarray(
-            config.E_DETECTOR_BASELINE_BETA, dtype=np.float64
-        )
 
     np.savez_compressed(
         raw_path,

@@ -15,10 +15,6 @@ FEDSDA_MODES = (
     "FedSDA_Cached_HDDMA",
     "FedSDA_Cached_ClassHDDMA",
     "FedSDA_Cached_HDDMW",
-    "FedSDA_NoCached_ESR_UCB",
-    "FedSDA_NoCached_ClassESR_UCB",
-    "FedSDA_Cached_ESR_UCB",
-    "FedSDA_Cached_ClassESR_UCB",
 )
 
 FEDDRIFT_MODES = ("FedDrift",)
@@ -26,14 +22,12 @@ BASELINE_MODES = ("FedSDA_without_server", "Oblivious")
 
 
 def fedsda_detector_name(mode):
-    """FedSDAモード名から検出器部分を返す。UCBは基準平均方式として除外する。"""
+    """FedSDAモード名から検出器部分を返す。"""
     if mode == "FedSDA_without_server":
         return "ADWIN"
     if mode not in FEDSDA_MODES:
         return None
     detector = mode.rsplit("_", 1)[-1]
-    if detector == "UCB":
-        detector = mode.rsplit("_", 2)[-2]
     return detector
 
 
@@ -60,10 +54,6 @@ LEGACY_MODE_NAMES = {
     "FedSDA_v3.1": "FedSDA_Cached_ClassADWIN",
     "FedSDA_v3.2": "FedSDA_Cached_ESR",
     "FedSDA_v3.3": "FedSDA_Cached_ClassESR",
-    "FedSDA_v2.2_ucb": "FedSDA_NoCached_ESR_UCB",
-    "FedSDA_v2.3_ucb": "FedSDA_NoCached_ClassESR_UCB",
-    "FedSDA_v3.2_ucb": "FedSDA_Cached_ESR_UCB",
-    "FedSDA_v3.3_ucb": "FedSDA_Cached_ClassESR_UCB",
     "FedDrift_v2": "FedDrift",
 }
 

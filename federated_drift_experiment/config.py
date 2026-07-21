@@ -114,7 +114,6 @@ ADWIN_MIN_WIDTH = 10        # 検定を開始する最小ウィンドウ幅
 FEDSDA_ENABLE_FORCED_DRIFT_CHECK = True  # ADWIN未検知時の保険的な損失増分チェック
 
 E_DETECTOR_ALPHA = 0.001    # e-SRの誤警報制御値。平均誤警報間隔(ARL)を1/alpha以上にする
-E_DETECTOR_BASELINE_BETA = 0.05  # empirical Bernstein基準平均UCBの未被覆確率
 HDDM_DRIFT_CONFIDENCE = 0.001    # HDDM-A/Wのドリフト判定信頼度
 HDDM_WARNING_CONFIDENCE = 0.005  # HDDM-A/Wの警告判定信頼度（記録用）
 HDDM_W_LAMBDA = 0.05             # HDDM-WのEWMAで新しい損失へ与える重み

@@ -1,5 +1,4 @@
 import csv
-import math
 import os
 import sys
 
@@ -121,10 +120,7 @@ def test_adwin_delta_sweep_skips_non_adwin_detectors(monkeypatch):
 def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
     old_keys = [
         key for key in sweep.ROW_KEYS
-        if key not in (
-            "concept_schedule", "agg_interval", "e_detector_baseline_strategy",
-            "e_detector_baseline_beta",
-        )
+        if key not in ("concept_schedule", "agg_interval")
     ]
     path = tmp_path / "old.csv"
     row = {key: "0" for key in old_keys}
@@ -143,8 +139,6 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
     assert loaded[0]["series"] == "FedSDA_Legacy sweep"
     assert loaded[0]["agg_interval"] == ""
     assert loaded[0]["concept_schedule"] == "random"
-    assert "e_detector_baseline_strategy" not in loaded[0]
-    assert math.isnan(loaded[0]["e_detector_baseline_beta"])
     assert loaded[0]["sweep_value"] == 0.1
 
 

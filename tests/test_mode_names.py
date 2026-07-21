@@ -24,9 +24,9 @@ def test_legacy_result_names_map_to_current_names():
     assert normalize_legacy_mode("FedSDA") == "FedSDA_Legacy"
 
 
-def test_detector_family_is_parsed_for_overall_class_and_ucb_modes():
+def test_detector_family_is_parsed_for_overall_and_class_modes():
     assert fedsda_detector_name("FedSDA_NoCached_ADWIN") == "ADWIN"
     assert fedsda_detector_name("FedSDA_NoCached_ClassADWIN") == "ClassADWIN"
-    assert fedsda_detector_name("FedSDA_Cached_ClassESR_UCB") == "ClassESR"
+    assert fedsda_detector_name("FedSDA_Cached_ClassESR") == "ClassESR"
     assert is_adwin_mode("FedSDA_NoCached_ClassADWIN")
     assert is_esr_mode("FedSDA_Cached_ClassESR")

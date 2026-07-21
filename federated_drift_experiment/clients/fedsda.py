@@ -9,7 +9,6 @@ import torch
 from .. import config
 from ..adwin import FullScanADWIN
 from ..e_detector import BoundedMeanEDetector
-from ..e_detector_baselines import make_baseline_estimator
 from ..hddm import HDDMA, HDDMW
 from .base import BaseClient
 
@@ -450,11 +449,8 @@ class ESRFedSDAClient(FedSDAClient):
     必要であり、標本平均を使う本実装では近似的な仮定になる。
     """
 
-    def __init__(self, *args, baseline_strategy="historical_mean", **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.baseline_estimator = make_baseline_estimator(
-            baseline_strategy, beta=config.E_DETECTOR_BASELINE_BETA
-        )
         self.e_detector = BoundedMeanEDetector(
             baseline=self._e_detector_baseline(),
             alpha=config.E_DETECTOR_ALPHA,
@@ -462,13 +458,11 @@ class ESRFedSDAClient(FedSDAClient):
         )
         self.history_detector_log_e = []
 
-    def _e_detector_baseline(self, class_id=None):
+    def _e_detector_baseline(self):
         stats = self.model_stats.get(self.current_model_id, {})
-        # ClassESRのmean方式は全体平均を共用し、既存結果を維持する。
-        # UCB方式だけはクラス条件付き上限を構成するためクラス別統計を使う。
-        if class_id is not None and self.baseline_estimator.name != "historical_mean":
-            stats = stats.get("class_stats", {}).get(class_id, {})
-        return self.baseline_estimator.estimate(stats)
+        if not stats or stats.get("n", 0) < 1:
+            return 0.01
+        return min(1.0 - 1e-6, max(0.01, float(stats["mean"])))
 
     def _update_drift_detectors(self, error, y, sample_idx):
         self.e_detector.update(error)
@@ -511,7 +505,7 @@ class ClassConditionalESRFedSDAClient(ESRFedSDAClient):
 
     def _new_class_detector(self, class_id):
         return BoundedMeanEDetector(
-            baseline=self._e_detector_baseline(class_id=class_id),
+            baseline=self._e_detector_baseline(),
             alpha=config.E_DETECTOR_ALPHA,
             max_candidates=config.ADWIN_MAX_WINDOW,
         )

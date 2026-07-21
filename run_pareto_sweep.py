@@ -59,7 +59,7 @@ METRIC_KEYS = [
 ]
 ROW_KEYS = ["mode", "dataset", "concept_schedule", "seed", "series", "sweep_value",
             "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta",
-            "e_detector_baseline_strategy", "e_detector_baseline_beta"] + METRIC_KEYS
+            ] + METRIC_KEYS
 
 FEDSDA_SWEEP_MODES = FEDSDA_MODES
 FEDDRIFT_SWEEP_MODES = FEDDRIFT_MODES
@@ -116,8 +116,6 @@ def _run(mode, dataset, seed, series, sweep_value,
         "agg_interval": config.AGG_INTERVAL,
         "distance_threshold": distance_threshold if distance_threshold is not None else config.DISTANCE_THRESHOLD,
         "adwin_delta": config.ADWIN_DELTA,
-        "e_detector_baseline_strategy": r.get("e_detector_baseline_strategy"),
-        "e_detector_baseline_beta": r.get("e_detector_baseline_beta"),
     }
     for k in METRIC_KEYS:
         row[k] = r.get(k)
@@ -256,7 +254,7 @@ def _load_csv(path):
             agg_interval = row.get("agg_interval")
             row["agg_interval"] = (int(float(agg_interval))
                                    if agg_interval not in (None, "", "None") else "")
-            for k in ["distance_threshold", "adwin_delta", "e_detector_baseline_beta"] + METRIC_KEYS:
+            for k in ["distance_threshold", "adwin_delta"] + METRIC_KEYS:
                 v = row.get(k)
                 row[k] = float(v) if v not in (None, "", "None") else float("nan")
             rows.append(row)
@@ -410,10 +408,6 @@ def _series_style(series):
         "FedSDA_Cached_ClassHDDMA": "peru",
         "FedSDA_Cached_HDDMW": "darkorange",
         "FedSDA_Cached_ClassESR": "darkolivegreen",
-        "FedSDA_NoCached_ESR_UCB": "royalblue",
-        "FedSDA_NoCached_ClassESR_UCB": "navy",
-        "FedSDA_Cached_ESR_UCB": "yellowgreen",
-        "FedSDA_Cached_ClassESR_UCB": "darkgreen",
         "FedSDA_Legacy": "tab:green",
         "FedDrift": "tab:red",
     }
