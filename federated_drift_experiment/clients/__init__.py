@@ -13,6 +13,7 @@ from .fedsda import (
     ADWINFedSDAClient,
     ClassConditionalADWINFedSDAClient,
     ClassConditionalESRFedSDAClient,
+    ClassConditionalHDDMAFedSDAClient,
     ESRFedSDAClient,
     FedSDAClient,
     HDDMFedSDAClient,
@@ -24,6 +25,7 @@ __all__ = [
     "BaseClient", "FedSDAClient", "ADWINFedSDAClient",
     "ClassConditionalADWINFedSDAClient", "ESRFedSDAClient",
     "ClassConditionalESRFedSDAClient",
+    "ClassConditionalHDDMAFedSDAClient",
     "HDDMFedSDAClient",
     "FedDriftClient", "ObliviousClient",
 ]

@@ -378,6 +378,69 @@ class HDDMFedSDAClient(FedSDAClient):
         return f"HDDM-{self.hddm_variant}"
 
 
+class ClassConditionalHDDMAFedSDAClient(HDDMFedSDAClient):
+    """全体損失と正解クラス別損失をHDDM-Aで並列監視するクライアント。"""
+
+    def __init__(self, *args, **kwargs):
+        kwargs["hddm_variant"] = "A"
+        super().__init__(*args, **kwargs)
+        # 各系列は同じHDDM設定を使う。多重検定補正が必要な場合は、
+        # 実験側で系列数を考慮したconfidenceを明示的に設定する。
+        self.component_drift_confidence = config.HDDM_DRIFT_CONFIDENCE
+        self.component_warning_confidence = config.HDDM_WARNING_CONFIDENCE
+        self.hddm = self._new_component_detector()
+        self.class_hddms = defaultdict(self._new_component_detector)
+        self.class_hddm_positions = defaultdict(
+            lambda: deque(maxlen=self.fifo_size)
+        )
+        self._class_drift_start = None
+
+    def _new_component_detector(self):
+        return HDDMA(
+            drift_confidence=self.component_drift_confidence,
+            warning_confidence=self.component_warning_confidence,
+        )
+
+    def _update_drift_detectors(self, error, y, sample_idx):
+        overall_detected = super()._update_drift_detectors(error, y, sample_idx)
+        class_id = int(y.view(-1)[0].item())
+        detector = self.class_hddms[class_id]
+        positions = self.class_hddm_positions[class_id]
+        positions.append(sample_idx)
+        detector.update(error)
+        self.compute_counters["drift_detector_updates"] += 1
+        self.compute_counters["drift_detector_hypotheses"] += (
+            detector.active_hypothesis_count
+        )
+
+        if overall_detected:
+            self._class_drift_start = None
+            return True
+        if not detector.drift_detected:
+            self._class_drift_start = None
+            return False
+
+        retained_width = min(detector.width, len(positions))
+        self._class_drift_start = positions[-retained_width]
+        return True
+
+    def _new_concept_sample_count(self, buffer_list, sample_idx):
+        if self.hddm.drift_detected or self._class_drift_start is None:
+            return super()._new_concept_sample_count(buffer_list, sample_idx)
+        return min(len(buffer_list), sample_idx - self._class_drift_start + 1)
+
+    def _reset_drift_detectors(self):
+        super()._reset_drift_detectors()
+        for detector in self.class_hddms.values():
+            detector.reset()
+        self.class_hddms.clear()
+        self.class_hddm_positions.clear()
+        self._class_drift_start = None
+
+    def _detector_label(self):
+        return "overall + class-conditional HDDM-A"
+
+
 class ESRFedSDAClient(FedSDAClient):
     """全体損失をbounded mean e-SRで監視するFedSDAクライアント。
 

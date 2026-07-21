@@ -103,7 +103,7 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 | `ADWIN_MIN_WIDTH` | 検定を開始する最小ウィンドウ幅 | FedSDA | 10 |
 | `E_DETECTOR_ALPHA` | e-SR誤警報制御値。ARLを少なくとも`1/alpha`とするため、小さいほど保守的 | FedSDA ESR系 | 0.001 |
 | `E_DETECTOR_BASELINE_BETA` | empirical Bernstein基準平均UCBの未被覆確率。小さいほど基準が保守的 | e-SRの`*_UCB`モード | 0.05 |
-| `HDDM_DRIFT_CONFIDENCE` | HDDM-A/Wのドリフト境界に使う信頼度。小さいほど保守的 | HDDM系FedSDA | 0.001 |
+| `HDDM_DRIFT_CONFIDENCE` | HDDM-A/Wの各検出系列のドリフト境界に使うconfidence。小さいほど保守的 | HDDM系FedSDA | 0.001 |
 | `HDDM_WARNING_CONFIDENCE` | HDDM-A/Wの警告境界に使う信頼度。モデル切替には直接使わない | HDDM系FedSDA | 0.005 |
 | `HDDM_W_LAMBDA` | HDDM-WのEWMAで最新損失へ与える重み | HDDM-W系FedSDA | 0.05 |
 | `FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS` | 新規モデル作成後、サーバへアップロード可能になるまでの学習ラウンド数。1なら作成の次ラウンド末に送信。Cachedでは初回配布後の次ラウンドからキャッシュ評価可能 | FedSDA | 1 |
@@ -155,6 +155,9 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 
 `HDDMA` / `HDDMW`は全体の有界損失を一方向に監視する。HDDM-Aは累積平均、HDDM-Wは
 EWMAを使い、ドリフト境界超過時だけモデル切替処理へ進む。強制ドリフトチェックは併用しない。
+`ClassHDDMA`は全体と正解クラス別系列へ同じconfidenceでHDDM-Aを適用し、追加の
+ハイパーパラメータは持たない。Bonferroni型の補正が必要な場合は、利用者が系列数を考慮して
+`HDDM_DRIFT_CONFIDENCE`と警告confidenceを設定する。
 
 `ESR`はADWINを使わず、[0,1]の全体損失に対する
 混合Shiryaev–Roberts型e-detectorを使う。候補変化点ごとにe-processを開始し、

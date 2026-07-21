@@ -27,6 +27,7 @@ from .clients import (
     ADWINFedSDAClient,
     ClassConditionalADWINFedSDAClient,
     ClassConditionalESRFedSDAClient,
+    ClassConditionalHDDMAFedSDAClient,
     ESRFedSDAClient,
     FedDriftClient,
     FedSDAClient,
@@ -36,7 +37,12 @@ from .clients import (
 from .data import build_data_streams, extract_true_drift_events, generate_data, make_concept_schedules
 from .metrics import compute_metrics
 from .models import SimpleMLP
-from .mode_names import FEDSDA_MODES, is_esr_mode, is_hddm_mode
+from .mode_names import (
+    FEDSDA_MODES,
+    fedsda_detector_name,
+    is_esr_mode,
+    is_hddm_mode,
+)
 from .plotting import plot_client_details, plot_system_overview
 from .servers import (
     BaseServer,
@@ -161,6 +167,11 @@ MODE_SPECS = {
         server_cls=FedSDANoCachedServer,
         client_kwargs={'hddm_variant': 'A'},
     ),
+    'FedSDA_NoCached_ClassHDDMA': ModeSpec(
+        ClassConditionalHDDMAFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDANoCachedServer,
+    ),
     'FedSDA_NoCached_HDDMW': ModeSpec(
         HDDMFedSDAClient,
         _run_per_sample_timestep,
@@ -172,6 +183,11 @@ MODE_SPECS = {
         _run_fedsda_cached_timestep,
         server_cls=FedSDACachedServer,
         client_kwargs={'hddm_variant': 'A'},
+    ),
+    'FedSDA_Cached_ClassHDDMA': ModeSpec(
+        ClassConditionalHDDMAFedSDAClient,
+        _run_fedsda_cached_timestep,
+        server_cls=FedSDACachedServer,
     ),
     'FedSDA_Cached_HDDMW': ModeSpec(
         HDDMFedSDAClient,

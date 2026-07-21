@@ -6,12 +6,14 @@ FEDSDA_MODES = (
     "FedSDA_NoCached_ESR",
     "FedSDA_NoCached_ClassESR",
     "FedSDA_NoCached_HDDMA",
+    "FedSDA_NoCached_ClassHDDMA",
     "FedSDA_NoCached_HDDMW",
     "FedSDA_Cached_ADWIN",
     "FedSDA_Cached_ClassADWIN",
     "FedSDA_Cached_ESR",
     "FedSDA_Cached_ClassESR",
     "FedSDA_Cached_HDDMA",
+    "FedSDA_Cached_ClassHDDMA",
     "FedSDA_Cached_HDDMW",
     "FedSDA_NoCached_ESR_UCB",
     "FedSDA_NoCached_ClassESR_UCB",
@@ -44,7 +46,7 @@ def is_esr_mode(mode):
 
 
 def is_hddm_mode(mode):
-    return fedsda_detector_name(mode) in {"HDDMA", "HDDMW"}
+    return fedsda_detector_name(mode) in {"HDDMA", "ClassHDDMA", "HDDMW"}
 
 # 過去のCSV・NPZを新しい解析コードで引き続き利用するための読み込み専用変換。
 # v1は新しい正式手法と混同しないようLegacyとして明示する。
