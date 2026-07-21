@@ -71,3 +71,21 @@ def normalize_legacy_series(series, old_mode, new_mode):
         return new_mode
     prefix = f"{old_mode} "
     return f"{new_mode} {series[len(prefix):]}" if series.startswith(prefix) else series
+
+
+def normalize_series_notation(series):
+    """過去の掃引系列表記を現在の論文・凡例記号へ統一する。"""
+    if not series:
+        return series
+    normalized = str(series)
+    normalized = normalized.replace("AGG_INTERVAL sweep", "A sweep")
+    normalized = normalized.replace("δ_adwin sweep", "δ_ADWIN sweep")
+    normalized = normalized.replace("δ_adwin=", "δ_ADWIN=")
+    if normalized.startswith("FedDrift"):
+        normalized = normalized.replace("batch sweep", "B_detect sweep")
+        normalized = normalized.replace(" δ sweep", " δ_FedDrift sweep")
+        normalized = normalized.replace(" δ_drift sweep", " δ_FedDrift sweep")
+        normalized = normalized.replace("batch=", "B_detect=")
+        normalized = normalized.replace("(δ=", "(δ_FedDrift=")
+        normalized = normalized.replace("(δ_drift=", "(δ_FedDrift=")
+    return normalized

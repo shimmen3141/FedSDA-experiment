@@ -23,17 +23,24 @@
 
 **重要な不変量**: 1 モデルあたりの総ローカル更新数は、FedSDA・FedDrift(R=1)とも `TOTAL_DATA_POINTS × UPDATES_PER_SAMPLE` で**一定**(`AGG_INTERVAL` / `FEDDRIFT_DETECT_BATCH` の値に依存しない)。この予算一致が両手法の公平比較の土台になっている。`FEDDRIFT_ROUNDS` を 1 より大きくすると FedDrift 側だけ更新数・通信量が R 倍になり、この一致は崩れる(論文忠実な FedDrift 再現用)。
 
-論文記号との対応:
+論文・Pareto凡例の記号とコードとの対応:
 
 | 論文記号 | 意味 | 本実装 |
 |---|---|---|
-| K | 1 ラウンドのローカル学習ステップ数 | 処理サンプル数 × `UPDATES_PER_SAMPLE`(FedSDA: `AGG_INTERVAL`、FedDrift: `FEDDRIFT_DETECT_BATCH`) |
+| A | FedSDAの集約間隔（1通信ラウンドの処理サンプル数） | `AGG_INTERVAL` |
+| B_detect | FedDriftの検出バッチサイズ | `FEDDRIFT_DETECT_BATCH` |
+| K | 1 ラウンドのローカル学習ステップ数 | 処理サンプル数 × `UPDATES_PER_SAMPLE` |
 | R | 1 時刻の通信ラウンド数 | `FEDDRIFT_ROUNDS`(FedDrift のみ、既定 1)。FedSDA は対応物なし |
-| B | ミニバッチサイズ | `CLIENT_BATCH_SIZE` |
+| B_train | ローカル学習のミニバッチサイズ | `CLIENT_BATCH_SIZE` |
 | L | 1 データ点あたり更新回数 | `UPDATES_PER_SAMPLE`(両手法共通) |
 | η | 学習率 | `BASE_LR` / `NEW_MODEL_LR` |
-| δ_adwin | ADWIN 信頼度 | `ADWIN_DELTA`(FedSDA) |
-| γ_dist | モデル適合/マージ距離閾値 | `DISTANCE_THRESHOLD` |
+| δ_ADWIN | ADWIN信頼度 | `ADWIN_DELTA`（FedSDA） |
+| δ_FedDrift | FedDriftのドリフト検出・モデルマージ共有閾値 | `DISTANCE_THRESHOLD`（FedDriftでの用途） |
+| γ | FedSDAのモデル適合・マージ距離閾値 | `DISTANCE_THRESHOLD`（FedSDAでの用途） |
+
+FedDrift内では、元論文に合わせてドリフト検出とモデルマージの両方に同じ
+`δ_FedDrift`を使う。FedSDAの`γ`とはアルゴリズム上の意味を区別して表示するが、現実装では
+どちらも`DISTANCE_THRESHOLD`を用途別に参照する。設定変数自体は現段階では分離しない。
 
 ---
 

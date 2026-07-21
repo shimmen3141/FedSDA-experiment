@@ -32,6 +32,7 @@ from federated_drift_experiment import config
 from federated_drift_experiment.mode_names import (
     normalize_legacy_mode,
     normalize_legacy_series,
+    normalize_series_notation,
 )
 
 # データセットの正準表示順(存在するものだけ使う)
@@ -57,6 +58,7 @@ def load_npz(path):
     label = str(d["label"])
     old_mode = label.split(maxsplit=1)[0]
     label = normalize_legacy_series(label, old_mode, normalize_legacy_mode(old_mode))
+    label = normalize_series_notation(label)
     rec = {
         "history": d["history_accuracy"],        # (N_CLIENTS, N_SAMPLES) int8 の 0/1
         "d_cids": d["drift_client_ids"],
@@ -147,10 +149,10 @@ def _recovery_label(label, parameter):
 
 
 _SWEEP_PARAMETERS = (
-    ("AGG_INTERVAL sweep", "AGG_INTERVAL"),
-    ("adwin sweep", "δ_adwin"),
-    ("batch sweep", "batch"),
-    ("δ sweep", "δ"),
+    ("A sweep", "A"),
+    ("δ_ADWIN sweep", "δ_ADWIN"),
+    ("B_detect sweep", "B_detect"),
+    ("δ_FedDrift sweep", "δ_FedDrift"),
 )
 
 
@@ -318,10 +320,10 @@ def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200
         return os.path.join(out_dir, name)
 
     representative_values = {
-        "δ_adwin": config.ADWIN_DELTA if main_adwin is None else main_adwin,
-        "batch": config.FEDDRIFT_DETECT_BATCH if main_batch is None else main_batch,
-        "AGG_INTERVAL": config.AGG_INTERVAL if main_agg is None else main_agg,
-        "δ": config.DISTANCE_THRESHOLD if main_distance is None else main_distance,
+        "δ_ADWIN": config.ADWIN_DELTA if main_adwin is None else main_adwin,
+        "B_detect": config.FEDDRIFT_DETECT_BATCH if main_batch is None else main_batch,
+        "A": config.AGG_INTERVAL if main_agg is None else main_agg,
+        "δ_FedDrift": config.DISTANCE_THRESHOLD if main_distance is None else main_distance,
     }
 
     def is_ob(lab):
@@ -349,28 +351,28 @@ def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200
         label_filter=lambda lab: lab in representative,
         label_display=main_disp)
 
-    # 図B: FedSDA δ_adwin 感度(全掃引値 + 基準線)
-    if any("adwin sweep" in lab for _, lab in agg):
+    # 図B: FedSDA δ_ADWIN感度（全掃引値 + 基準線）
+    if any("δ_ADWIN sweep" in lab for _, lab in agg):
         plot_recovery(
             agg, max_delta, out(f"recovery_sweep_adwin_{base}.png"), window,
-            title="Recovery: FedSDA δ_adwin sensitivity",
-            label_filter=lambda lab: is_ob(lab) or is_without_server(lab) or "adwin sweep" in lab,
+            title="Recovery: FedSDA δ_ADWIN sensitivity",
+            label_filter=lambda lab: is_ob(lab) or is_without_server(lab) or "δ_ADWIN sweep" in lab,
             label_display=lambda lab: ("Oblivious" if is_ob(lab) else
                                        ("FedSDA_without_server" if is_without_server(lab) else
-                                        _recovery_label(lab, "δ_adwin"))))
+                                        _recovery_label(lab, "δ_ADWIN"))))
     else:
-        print("[skip] no δ_adwin sweep series")
+        print("[skip] no δ_ADWIN sweep series")
 
     # 図C: FedDrift 検出バッチ感度(全掃引値 + 基準線)
-    if any("batch sweep" in lab for _, lab in agg):
+    if any("B_detect sweep" in lab for _, lab in agg):
         plot_recovery(
             agg, max_delta, out(f"recovery_sweep_batch_{base}.png"), window,
-            title="Recovery: FedDrift batch-size sensitivity",
-            label_filter=lambda lab: is_ob(lab) or "batch sweep" in lab,
+            title="Recovery: FedDrift B_detect sensitivity",
+            label_filter=lambda lab: is_ob(lab) or "B_detect sweep" in lab,
             label_display=lambda lab: ("Oblivious" if is_ob(lab) else
-                                       _recovery_label(lab, "batch")))
+                                       _recovery_label(lab, "B_detect")))
     else:
-        print("[skip] no FedDrift batch sweep series")
+        print("[skip] no FedDrift B_detect sweep series")
 
     # 表は全系列を残す(行なら判読でき、後から任意設定を参照できる)
     write_table(agg, checkpoints, window, out(f"recovery_{base}.md"))
@@ -391,13 +393,13 @@ def main():
                         help="表に出す固定オフセット Δ(default: 20 50 100)")
     parser.add_argument("--tag", default=None, help="出力ファイル名に付ける識別子")
     parser.add_argument("--main-adwin", type=float, default=0.05,
-                        help="手法間比較図で FedSDA の代表とする δ_adwin(default: 0.05)")
+                        help="手法間比較図でFedSDAの代表とするδ_ADWIN（default: 0.05）")
     parser.add_argument("--main-batch", type=int, default=50,
-                        help="手法間比較図で FedDrift の代表とする検出バッチ(default: 50)")
+                        help="手法間比較図でFedDriftの代表とするB_detect（default: 50）")
     parser.add_argument("--main-agg", type=int, default=config.AGG_INTERVAL,
-                        help="手法間比較図で代表とするAGG_INTERVAL")
+                        help="手法間比較図で代表とするA（AGG_INTERVAL）")
     parser.add_argument("--main-distance", type=float, default=config.DISTANCE_THRESHOLD,
-                        help="手法間比較図で代表とするFedDriftの距離閾値δ")
+                        help="手法間比較図で代表とするFedDriftのδ_FedDrift")
     args = parser.parse_args()
 
     paths = []

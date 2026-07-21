@@ -6,7 +6,7 @@
 - FedSDA_without_server / Oblivious: 単一点の基準線
 
 FedDrift の各掃引では、固定した側のパラメータを凡例に明示する
-(例: "FedDrift batch sweep (δ=0.1)", "FedDrift δ sweep (batch=50)")。
+(例: "FedDrift B_detect sweep (δ_FedDrift=0.1)", "FedDrift δ_FedDrift sweep (B_detect=50)")。
 散布図は横軸=通信量(モデル転送数, 対数)、縦軸=stable_accuracy(定常精度)。FedSDA が
 FedDrift の各曲線の左上(高精度・低通信)を取れば「パレート支配」を示せる。
 
@@ -38,6 +38,7 @@ from federated_drift_experiment.mode_names import (
     is_hddm_mode,
     normalize_legacy_mode,
     normalize_legacy_series,
+    normalize_series_notation,
 )
 
 # この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
@@ -167,10 +168,10 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
                 elif is_hddm:
                     fixed_detector = f"confidence={config.HDDM_DRIFT_CONFIDENCE}"
                 else:
-                    fixed_detector = f"δ_adwin={fixed_adwin}"
-                agg_series = f"{mode} AGG_INTERVAL sweep ({fixed_detector})"
+                    fixed_detector = f"δ_ADWIN={fixed_adwin}"
+                agg_series = f"{mode} A sweep ({fixed_detector}, γ={fixed_gamma})"
                 if is_adwin_mode(mode):
-                    delta_series = f"{mode} δ_adwin sweep (γ={fixed_gamma})"
+                    delta_series = f"{mode} δ_ADWIN sweep (A={fixed_agg}, γ={fixed_gamma})"
                     for adwin_delta in adwin_deltas:
                         do(f"{dataset}/{mode}/da={adwin_delta}/s{seed}",
                            mode=mode, dataset=dataset, seed=seed, series=delta_series,
@@ -190,8 +191,8 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
                    agg_interval=default_agg)
 
             for mode in feddrift_modes:
-                batch_series = f"{mode} batch sweep (δ={fixed_delta})"
-                delta_series = f"{mode} δ sweep (batch={fixed_batch})"
+                batch_series = f"{mode} B_detect sweep (δ_FedDrift={fixed_delta})"
+                delta_series = f"{mode} δ_FedDrift sweep (B_detect={fixed_batch})"
                 for batch in batches:
                     do(f"{dataset}/{mode}/batch{batch}/s{seed}",
                        mode=mode, dataset=dataset, seed=seed, series=batch_series,
@@ -245,6 +246,7 @@ def _load_csv(path):
             row["series"] = normalize_legacy_series(
                 row.get("series", ""), old_mode, row["mode"]
             )
+            row["series"] = normalize_series_notation(row["series"])
             row.setdefault("concept_schedule", "random")
             row["seed"] = int(float(row["seed"]))
             row["sweep_value"] = (float(row["sweep_value"])
@@ -319,9 +321,9 @@ def _filter_replot_rows(rows, modes=None, sweep_kind="all"):
         rows = [
             row for row in rows
             if ((row["mode"].startswith("FedSDA")
-                 and "AGG_INTERVAL sweep" in row["series"])
+                 and "A sweep" in row["series"])
                 or (row["mode"].startswith("FedDrift")
-                    and "batch sweep" in row["series"]))
+                    and "B_detect sweep" in row["series"]))
         ]
     return rows
 
@@ -413,13 +415,13 @@ def _series_style(series):
     }
     method = series.split(maxsplit=1)[0]
     color = method_colors.get(method, "tab:brown")
-    if "AGG_INTERVAL sweep" in series:
+    if "A sweep" in series:
         return color, "s", "--"
-    if "batch sweep" in series:
+    if "B_detect sweep" in series:
         return color, "^", "-."
-    if "δ_adwin sweep" in series:
+    if "δ_ADWIN sweep" in series:
         return color, "o", "-"
-    if "δ sweep" in series:
+    if "δ_FedDrift sweep" in series:
         return color, "D", ":"
     return color, "X", "-"
 
@@ -484,10 +486,10 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy",
             color, linestyle = baseline_styles[baseline]
             if baseline == "Oblivious":
                 parameter = _fixed_parameter_label(
-                    baseline_rows, "agg_interval", "AGG_INTERVAL")
+                    baseline_rows, "agg_interval", "A")
             else:
                 parameter = _fixed_parameter_label(
-                    baseline_rows, "adwin_delta", "δ_adwin")
+                    baseline_rows, "adwin_delta", "δ_ADWIN")
             # 線はシード平均、半透明帯はシード間の±1標準偏差を表す。
             ax.axhline(a[2], color=color, linestyle=linestyle,
                        label=f"{baseline} ({parameter}, mean±std)", zorder=1)
@@ -555,14 +557,14 @@ def build_parser():
                         help="対象モード。空指定でFedSDAをすべて無効化")
     fedsda.add_argument("--adwin-deltas", nargs="*", type=float,
                         default=[0.01, 0.05, 0.1, 0.2, 0.3],
-                        help="δ_adwin掃引値。空指定でこの掃引を無効化")
+                        help="δ_ADWIN掃引値。空指定でこの掃引を無効化")
     fedsda.add_argument("--agg-sweep", nargs="*", type=int,
                         default=[50, 100, 200, 500],
-                        help="AGG_INTERVAL掃引値。空指定でこの掃引を無効化")
+                        help="集約間隔A（AGG_INTERVAL）の掃引値。空指定で無効化")
     fedsda.add_argument("--fixed-adwin", type=float, default=None,
-                        help="AGG_INTERVAL掃引中の固定δ_adwin。--agg-sweepが空なら未使用")
+                        help="A掃引中の固定δ_ADWIN。--agg-sweepが空なら未使用")
     fedsda.add_argument("--fixed-agg", type=int, default=None,
-                        help="δ_adwin掃引中の固定AGG_INTERVAL。--adwin-deltasが空なら未使用")
+                        help="δ_ADWIN掃引中の固定A。--adwin-deltasが空なら未使用")
     fedsda.add_argument("--fixed-gamma", type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
 
@@ -572,14 +574,14 @@ def build_parser():
                           help="対象モード。空指定でFedDriftをすべて無効化")
     feddrift.add_argument("--batches", nargs="*", type=int,
                           default=[50, 100, 200, 500],
-                          help="検出バッチ掃引値。空指定でこの掃引を無効化")
+                          help="検出バッチB_detectの掃引値。空指定でこの掃引を無効化")
     feddrift.add_argument("--fixed-delta", type=float, default=None,
-                          help="バッチ掃引中の固定距離閾値δ。--batchesが空なら未使用")
+                          help="B_detect掃引中の固定δ_FedDrift。--batchesが空なら未使用")
     feddrift.add_argument("--deltas", nargs="*", type=float,
                           default=[0.05, 0.1, 0.15, 0.2],
-                          help="距離閾値δの掃引値。空指定でこの掃引を無効化")
+                          help="δ_FedDriftの掃引値。空指定でこの掃引を無効化")
     feddrift.add_argument("--fixed-batch", type=int, default=None,
-                          help="δ掃引中の固定検出バッチ。--deltasが空なら未使用")
+                          help="δ_FedDrift掃引中の固定B_detect。--deltasが空なら未使用")
 
     baselines = parser.add_argument_group("基準手法")
     baselines.add_argument("--baseline-modes", nargs="*", choices=BASELINE_MODES,
@@ -609,7 +611,7 @@ def build_parser():
                         default=None,
                         help="再描画対象の手法。未指定ならCSV内の全手法")
     replot.add_argument("--plot-sweep-kind", choices=("all", "interval"), default="all",
-                        help="intervalでFedSDAのAGG_INTERVALとFedDriftのbatch掃引だけを描画")
+                        help="intervalでFedSDAのAとFedDriftのB_detect掃引だけを描画")
     return parser
 
 

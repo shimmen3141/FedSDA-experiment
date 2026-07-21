@@ -7,6 +7,7 @@ from federated_drift_experiment.mode_names import (
     is_adwin_mode,
     is_esr_mode,
     normalize_legacy_mode,
+    normalize_series_notation,
 )
 
 
@@ -30,3 +31,15 @@ def test_detector_family_is_parsed_for_overall_and_class_modes():
     assert fedsda_detector_name("FedSDA_Cached_ClassESR") == "ClassESR"
     assert is_adwin_mode("FedSDA_NoCached_ClassADWIN")
     assert is_esr_mode("FedSDA_Cached_ClassESR")
+
+
+def test_old_sweep_notation_maps_to_current_plot_symbols():
+    assert normalize_series_notation(
+        "FedSDA_NoCached_ADWIN AGG_INTERVAL sweep (δ_adwin=0.05)"
+    ) == "FedSDA_NoCached_ADWIN A sweep (δ_ADWIN=0.05)"
+    assert normalize_series_notation(
+        "FedDrift batch sweep (δ=0.1)"
+    ) == "FedDrift B_detect sweep (δ_FedDrift=0.1)"
+    assert normalize_series_notation(
+        "FedDrift δ sweep (batch=50)"
+    ) == "FedDrift δ_FedDrift sweep (B_detect=50)"

@@ -114,7 +114,7 @@ def test_adwin_delta_sweep_skips_non_adwin_detectors(monkeypatch):
     assert {call["mode"] for call in calls} == {
         "FedSDA_NoCached_ESR", "FedSDA_NoCached_HDDMA",
     }
-    assert all("AGG_INTERVAL sweep" in call["series"] for call in calls)
+    assert all("A sweep" in call["series"] for call in calls)
 
 
 def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
@@ -143,9 +143,9 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
 
 
 def test_series_style_distinguishes_method_and_sweep_type():
-    fedsda_delta = sweep._series_style("FedSDA_NoCached_ADWIN δ_adwin sweep (γ=0.1)")
-    feddrift_delta = sweep._series_style("FedDrift δ sweep (batch=50)")
-    fedsda_agg = sweep._series_style("FedSDA_NoCached_ADWIN AGG_INTERVAL sweep (δ_adwin=0.05)")
+    fedsda_delta = sweep._series_style("FedSDA_NoCached_ADWIN δ_ADWIN sweep (A=50, γ=0.1)")
+    feddrift_delta = sweep._series_style("FedDrift δ_FedDrift sweep (B_detect=50)")
+    fedsda_agg = sweep._series_style("FedSDA_NoCached_ADWIN A sweep (δ_ADWIN=0.05, γ=0.1)")
 
     assert fedsda_delta != feddrift_delta
     assert fedsda_delta[0] == fedsda_agg[0]
@@ -186,14 +186,14 @@ def test_plot_pareto_draws_baseline_standard_deviation_band(tmp_path, monkeypatc
 
     assert path.exists()
     assert len(spans) == 2
-    assert "FedSDA_without_server (δ_adwin=0.1, mean±std)" in line_labels
-    assert "Oblivious (AGG_INTERVAL=50, mean±std)" in line_labels
+    assert "FedSDA_without_server (δ_ADWIN=0.1, mean±std)" in line_labels
+    assert "Oblivious (A=50, mean±std)" in line_labels
 
 
 def test_plot_pareto_can_use_overall_accuracy(tmp_path):
     rows = [{
         "mode": "FedSDA_NoCached_ADWIN", "dataset": "sea", "seed": 0,
-        "series": "FedSDA_NoCached_ADWIN δ_adwin sweep (γ=0.1)", "sweep_value": 0.1,
+        "series": "FedSDA_NoCached_ADWIN δ_ADWIN sweep (A=50, γ=0.1)", "sweep_value": 0.1,
         "comm_models_total": 100.0, "stable_accuracy": 0.9, "accuracy": 0.8,
     }]
 
@@ -207,19 +207,19 @@ def test_replot_filter_selects_interval_sweeps_and_plot_accepts_compute_x(tmp_pa
     rows = [
         {
             "mode": "FedSDA_NoCached_ClassADWIN", "dataset": "sea", "seed": 0,
-            "series": "FedSDA_NoCached_ClassADWIN AGG_INTERVAL sweep", "sweep_value": 50.0,
+            "series": "FedSDA_NoCached_ClassADWIN A sweep", "sweep_value": 50.0,
             "compute_model_examples_total": 1000.0,
             "stable_accuracy": 0.9, "accuracy": 0.8,
         },
         {
             "mode": "FedSDA_NoCached_ClassADWIN", "dataset": "sea", "seed": 0,
-            "series": "FedSDA_NoCached_ClassADWIN δ_adwin sweep", "sweep_value": 0.1,
+            "series": "FedSDA_NoCached_ClassADWIN δ_ADWIN sweep", "sweep_value": 0.1,
             "compute_model_examples_total": 1100.0,
             "stable_accuracy": 0.91, "accuracy": 0.81,
         },
         {
             "mode": "FedDrift", "dataset": "sea", "seed": 0,
-            "series": "FedDrift batch sweep", "sweep_value": 50.0,
+            "series": "FedDrift B_detect sweep", "sweep_value": 50.0,
             "compute_model_examples_total": 900.0,
             "stable_accuracy": 0.88, "accuracy": 0.79,
         },
@@ -228,7 +228,7 @@ def test_replot_filter_selects_interval_sweeps_and_plot_accepts_compute_x(tmp_pa
         rows, modes=["FedSDA_NoCached_ClassADWIN", "FedDrift"], sweep_kind="interval"
     )
     assert [row["series"] for row in filtered] == [
-        "FedSDA_NoCached_ClassADWIN AGG_INTERVAL sweep", "FedDrift batch sweep"
+        "FedSDA_NoCached_ClassADWIN A sweep", "FedDrift B_detect sweep"
     ]
 
     path = tmp_path / "compute.png"
