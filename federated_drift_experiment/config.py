@@ -70,6 +70,10 @@ NEW_MODEL_LR = 0.01        # 新規モデル初期学習時の学習率
 WEIGHT_DECAY = 1e-3        # Adam の weight_decay(論文設定)
 AMSGRAD = True             # Adam の amsgrad(論文設定)
 NEW_MODEL_EPOCHS = 30       # 新規モデル作成時の初期学習エポック数 (E_init)
+NEW_MODEL_TRAINING = "fixed"  # fixed / none / early_stopping
+NEW_MODEL_EARLY_STOPPING_PATIENCE = 3
+NEW_MODEL_EARLY_STOPPING_MIN_DELTA = 1e-4
+NEW_MODEL_VALIDATION_FRACTION = 0.2
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)
 UPDATES_PER_SAMPLE = 1      # 1データ点あたりの勾配更新回数 (論文 L・学習強度)。両手法共通=公平比較の予算
 

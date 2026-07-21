@@ -94,7 +94,11 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 | `NEW_MODEL_LR` | 新規モデル初期学習時の学習率 | 共通 | 0.01 |
 | `WEIGHT_DECAY` | Adam の weight_decay(論文設定) | 共通 | 1e-3 |
 | `AMSGRAD` | Adam の amsgrad(論文設定) | 共通 | True |
-| `NEW_MODEL_EPOCHS` | 新規モデル作成時の初期学習エポック数 (E_init) | 共通 | 30 |
+| `NEW_MODEL_EPOCHS` | 新規モデル作成時の固定エポック数、またはearly stoppingの最大エポック数 (E_init) | 共通 | 30 |
+| `NEW_MODEL_TRAINING` | 新規モデルの初期学習戦略 (`fixed` / `none` / `early_stopping`) | FedSDA | `fixed` |
+| `NEW_MODEL_EARLY_STOPPING_PATIENCE` | 検証損失が改善しない状態を許容するエポック数 | FedSDA early stopping | 3 |
+| `NEW_MODEL_EARLY_STOPPING_MIN_DELTA` | 検証損失の最小改善量 | FedSDA early stopping | 1e-4 |
+| `NEW_MODEL_VALIDATION_FRACTION` | 検知区間から検証用に確保する割合 | FedSDA early stopping | 0.2 |
 | `CLIENT_BATCH_SIZE` | ローカル更新のミニバッチサイズ B | 共通 | 32 |
 | `UPDATES_PER_SAMPLE` | 1 データ点あたりの勾配更新回数 L(学習強度)。両手法共通=公平比較の予算なので分けない | 共通 | 1 |
 | `PRETRAIN_SAMPLES` / `PRETRAIN_EPOCHS` / `PRETRAIN_BATCH_SIZE` | 初期モデル(モデル0)の事前学習設定 | 共通 | 500 / 10 / 32 |

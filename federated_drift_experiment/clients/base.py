@@ -201,15 +201,8 @@ class BaseClient:
         new_model.set_params(self.models[self.current_model_id].get_params())
         new_model.reset_optimizer()
 
-        dataset = torch.utils.data.TensorDataset(bx, by)
-        loader = torch.utils.data.DataLoader(
-            dataset, batch_size=min(config.CLIENT_BATCH_SIZE, m), shuffle=True)
         training_start = time.perf_counter()
-        for _ in range(self.new_model_initial_epochs()):
-            for b_x, b_y in loader:
-                new_model.update(b_x, b_y)
-                self._record_model_compute("training", len(b_x))
-                self.compute_counters["optimizer_steps"] += 1
+        self._train_new_model(new_model, bx, by)
         self.phase_seconds["training"] += time.perf_counter() - training_start
 
         self.models[temp_id] = new_model
@@ -250,6 +243,81 @@ class BaseClient:
     def new_model_initial_epochs(self):
         """新規モデルの作成時に直ちに実行するローカル学習エポック数。"""
         return config.NEW_MODEL_EPOCHS
+
+    def _train_new_model(self, model, bx, by):
+        """設定された戦略で新規モデルを初期学習する。"""
+        strategy = config.NEW_MODEL_TRAINING
+        if strategy == "none":
+            return
+        if strategy == "fixed":
+            self._train_new_model_fixed(model, bx, by)
+            return
+        if strategy == "early_stopping":
+            self._train_new_model_early_stopping(model, bx, by)
+            return
+        raise ValueError(
+            "NEW_MODEL_TRAINING must be 'fixed', 'none', or 'early_stopping'"
+        )
+
+    def _update_new_model_epochs(self, model, dataset, epochs):
+        loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=min(config.CLIENT_BATCH_SIZE, len(dataset)),
+            shuffle=True,
+        )
+        for _ in range(epochs):
+            for b_x, b_y in loader:
+                model.update(b_x, b_y)
+                self._record_model_compute("training", len(b_x))
+                self.compute_counters["optimizer_steps"] += 1
+
+    def _train_new_model_fixed(self, model, bx, by):
+        dataset = torch.utils.data.TensorDataset(bx, by)
+        self._update_new_model_epochs(
+            model, dataset, self.new_model_initial_epochs()
+        )
+
+    def _train_new_model_early_stopping(self, model, bx, by):
+        """検知区間を学習・検証に分け、検証損失が改善しなくなったら停止する。"""
+        sample_count = len(bx)
+        validation_count = max(
+            1, int(round(sample_count * config.NEW_MODEL_VALIDATION_FRACTION))
+        )
+        # 学習標本を最低1件確保できない小区間では固定学習へフォールバックする。
+        if sample_count - validation_count < 1:
+            self._train_new_model_fixed(model, bx, by)
+            return
+
+        indices = torch.randperm(sample_count)
+        validation_indices = indices[:validation_count]
+        training_indices = indices[validation_count:]
+        training_data = torch.utils.data.TensorDataset(
+            bx[training_indices], by[training_indices]
+        )
+        validation_x = bx[validation_indices]
+        validation_y = by[validation_indices]
+
+        best_loss = math.inf
+        best_params = model.get_params()
+        stale_epochs = 0
+        patience = config.NEW_MODEL_EARLY_STOPPING_PATIENCE
+        min_delta = config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA
+        for _ in range(self.new_model_initial_epochs()):
+            self._update_new_model_epochs(model, training_data, 1)
+            with torch.no_grad():
+                self._record_model_compute("initialization", len(validation_x))
+                validation_loss = float(
+                    model.per_sample_error(validation_x, validation_y).mean().item()
+                )
+            if validation_loss < best_loss - min_delta:
+                best_loss = validation_loss
+                best_params = model.get_params()
+                stale_epochs = 0
+            else:
+                stale_epochs += 1
+                if stale_epochs >= patience:
+                    break
+        model.set_params(best_params)
 
     def _alloc_temp_id(self):
         """新しい一意のテンポラリ（負）IDを返す。呼び出すたびに減らしていく。"""

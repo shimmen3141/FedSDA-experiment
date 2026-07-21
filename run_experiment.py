@@ -28,6 +28,20 @@ def main():
     parser.add_argument("--concept-schedule", choices=config.CONCEPT_SCHEDULES,
                         default=config.CONCEPT_SCHEDULE,
                         help=f"概念切替方式 (default: {config.CONCEPT_SCHEDULE})")
+    parser.add_argument("--total-data", type=int, default=None,
+                        help="クライアントごとの総サンプル数を一時的に上書きする")
+    parser.add_argument("--n-clients", type=int, default=None,
+                        help="クライアント数を一時的に上書きする")
+    parser.add_argument(
+        "--new-model-training",
+        choices=("fixed", "none", "early_stopping"),
+        default=config.NEW_MODEL_TRAINING,
+        help="FedSDAの新規モデル初期学習戦略",
+    )
+    parser.add_argument(
+        "--new-model-epochs", type=int, default=config.NEW_MODEL_EPOCHS,
+        help="fixedのエポック数、またはearly_stoppingの最大エポック数",
+    )
     parser.add_argument("--feddrift-batch", type=int, default=config.FEDDRIFT_DETECT_BATCH,
                         help=f"FedDrift の検出バッチサイズ (default: {config.FEDDRIFT_DETECT_BATCH})")
     parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
@@ -46,6 +60,12 @@ def main():
 
     config.DATASET = args.dataset
     config.CONCEPT_SCHEDULE = args.concept_schedule
+    if args.total_data is not None:
+        config.TOTAL_DATA_POINTS = args.total_data
+    if args.n_clients is not None:
+        config.N_CLIENTS = args.n_clients
+    config.NEW_MODEL_TRAINING = args.new_model_training
+    config.NEW_MODEL_EPOCHS = args.new_model_epochs
     config.FEDDRIFT_DETECT_BATCH = args.feddrift_batch
     config.CLUSTER_LINKAGE = args.cluster_linkage
     config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation
