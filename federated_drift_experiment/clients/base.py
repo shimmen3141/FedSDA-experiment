@@ -13,6 +13,7 @@ import torch
 
 from .. import config
 from ..models import SimpleMLP
+from ..adaptation_events import AdaptationEvent
 
 
 # 初期化パラメータを省略した既存呼び出しでは、従来どおり現行モデルを使う。
@@ -65,6 +66,7 @@ class BaseClient:
         self.estimated_drift_start_positions = []  # 各検知に対応する検出器推定の変化開始位置
         self.mapping_change_positions = []         # server mapping-induced model changes (debug/plot)
         self.local_switch_positions = []           # ローカルで実際に切替が発生したサンプルインデックス（検出として数えるもの）
+        self.adaptation_events = []                 # 検出後の判断・モデル操作の構造化ログ
 
         self.batch_size = config.CLIENT_BATCH_SIZE
         self.updates_per_sample = config.UPDATES_PER_SAMPLE
@@ -83,6 +85,10 @@ class BaseClient:
             "counters": dict(self.compute_counters),
             "phase_seconds": dict(self.phase_seconds),
         }
+
+    def _record_adaptation_event(self, **kwargs):
+        """モデル操作の診断に用いる不変なイベントを追加する。"""
+        self.adaptation_events.append(AdaptationEvent(**kwargs))
 
     # ------------------------------------------------------------
     # 損失統計(Welford法によるオンライン平均・分散)
@@ -208,7 +214,6 @@ class BaseClient:
         if self.verbose:
             print(f"  -> Unknown Drift! New Model (Temp ID: {temp_id})")
 
-        m = len(bx)
         new_model = SimpleMLP()
         if initialization_params is USE_CURRENT_MODEL_PARAMS:
             initialization_params = self.models[self.current_model_id].get_params()
@@ -219,6 +224,16 @@ class BaseClient:
         self._train_new_model(new_model, bx, by)
         self.phase_seconds["training"] += time.perf_counter() - training_start
 
+        self._register_trained_new_model(
+            temp_id, new_model, bx, by, pending_ready=pending_ready
+        )
+        return temp_id, self.model_stats[temp_id]['mean']
+
+    def _register_trained_new_model(
+        self, temp_id, new_model, bx, by, pending_ready
+    ):
+        """学習済みモデルをローカル状態とpending送信へ登録する。"""
+        m = len(bx)
         self.models[temp_id] = new_model
 
         with torch.no_grad():
@@ -252,7 +267,6 @@ class BaseClient:
         self.pending_model_params = new_model.get_params()
         self.pending_model_stats = self.model_stats[temp_id]
         self.pending_model_ready = pending_ready
-        return temp_id, init_mean
 
     def new_model_initial_epochs(self):
         """新規モデルの作成時に直ちに実行するローカル学習エポック数。"""
@@ -455,6 +469,13 @@ class BaseClient:
             if new_id != self.current_model_id:
                 # マッピングによる切替位置を記録（processed_samples は現在まで処理したサンプル数）
                 self.mapping_change_positions.append(self.processed_samples)
+                self._record_adaptation_event(
+                    position=self.processed_samples,
+                    detector="server",
+                    action="server_merge",
+                    old_model_id=self.current_model_id,
+                    new_model_id=new_id,
+                )
 
         # 1. 統計量のマージ（簡易）
         new_stats = {}

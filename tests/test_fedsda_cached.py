@@ -9,6 +9,7 @@ if _REPO_ROOT not in sys.path:
 
 from federated_drift_experiment import config
 from federated_drift_experiment.clients import ADWINFedSDAClient
+from federated_drift_experiment.experiment import _run_per_sample_timestep
 from federated_drift_experiment.models import SimpleMLP
 from federated_drift_experiment.servers import FedSDACachedServer
 
@@ -28,6 +29,80 @@ def _make_client_and_server():
     server.register_model_stats(0, stats[0])
     server.register_client(client)
     return client, server
+
+
+def test_every_round_policy_clusters_without_new_models(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_CLUSTERING_POLICY", "every_round")
+    client, server = _make_client_and_server()
+
+    second_model = SimpleMLP()
+    client.models[1] = second_model
+    client.cached_global_model_params[1] = second_model.get_params()
+    server.register_model_params(1, second_model.get_params())
+    server.register_model_stats(1, {'n': 10, 'mean': 0.2, 'M2': 0.0})
+
+    calls = []
+    monkeypatch.setattr(
+        server,
+        "_cross_evaluate",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or {},
+    )
+    monkeypatch.setattr(
+        server,
+        "perform_hierarchical_clustering",
+        lambda model_ids, stats_matrix: [[model_id] for model_id in model_ids],
+    )
+
+    server.run_round(t=0)
+    server.run_round(t=1)
+
+    assert len(calls) == 2
+    assert all(call[1] == {
+        "send_model_params": False,
+        "use_client_cache": True,
+    } for call in calls)
+
+
+def test_cached_server_rejects_unknown_clustering_policy(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_CLUSTERING_POLICY", "unknown")
+    try:
+        FedSDACachedServer(distance_threshold=0.1, verbose=False)
+    except ValueError as error:
+        assert "unknown" in str(error)
+    else:
+        raise AssertionError("Unknown clustering policy must be rejected")
+
+
+def test_no_cached_every_round_policy_enables_clustering_without_new_models(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_CLUSTERING_POLICY", "every_round")
+
+    class Client:
+        def process_one_step(self, *args):
+            pass
+
+        def flush_pending_updates(self):
+            pass
+
+        def has_pending_model(self):
+            return False
+
+        def promote_pending_to_ready(self):
+            pass
+
+    class Server:
+        def record_client_state_summaries(self):
+            pass
+
+        def run_round(self, t, clustering_enabled):
+            self.clustering_enabled = clustering_enabled
+
+    server = Server()
+    sample = (torch.zeros((1, config.input_dim())), torch.zeros((1, 1)))
+    _run_per_sample_timestep(
+        [Client()], server, [[sample]], [[0]], t=0, use_server=True, verbose=False,
+    )
+
+    assert server.clustering_enabled is True
 
 
 def test_evaluation_cache_is_not_changed_by_local_training():

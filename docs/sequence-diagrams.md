@@ -408,3 +408,7 @@ sequenceDiagram
 `FEDDRIFT_ISOLATION_TIMESTEPS` はFedDriftのクロス評価・マージ隔離期間であり、FedSDAのpending
 モデル回収遅延とは意味が異なるため共有していない。FedSDAは引き続き、作成ラウンドでは回収せず
 次ラウンドの学習後に送信する既存動作を維持する。
+FedSDAのクラスタリング時機は `FEDSDA_CLUSTERING_POLICY` で切り替える。
+`on_new_model`（既定）は新規モデルの初回配布後だけ、`every_round` はモデルが2個以上ある各集約ラウンドで
+クロス評価・階層クラスタリングを行う。`every_round` でも前ラウンド末に配布されたモデルキャッシュを使うため、
+評価用モデル本体の再送は増えない。増えるのは評価計算と軽量な評価依頼・評価統計返送である。

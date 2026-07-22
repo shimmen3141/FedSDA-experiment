@@ -77,7 +77,10 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
         server.record_client_state_summaries()
         # 新規モデルがあるときだけクラスタリングを行う
         has_new = any(c.has_pending_model() for c in clients)
-        server.run_round(t, clustering_enabled=has_new)
+        clustering_enabled = (
+            config.FEDSDA_CLUSTERING_POLICY == 'every_round' or has_new
+        )
+        server.run_round(t, clustering_enabled=clustering_enabled)
         # aggregation 後に pending -> ready を行い、次ラウンドで回収されるようにする
         for c in clients:
             c.promote_pending_to_ready()
@@ -445,6 +448,30 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
             e_start_pos.append(estimate)
             detector_candidate_start_pos.append(detector_estimate)
 
+    adaptation_client_ids = []
+    adaptation_positions = []
+    adaptation_actions = []
+    adaptation_detectors = []
+    adaptation_old_model_ids = []
+    adaptation_new_model_ids = []
+    adaptation_episode_ids = []
+    adaptation_estimated_change_points = []
+    for client_id, client in enumerate(clients):
+        for event in getattr(client, "adaptation_events", []):
+            adaptation_client_ids.append(client_id)
+            adaptation_positions.append(event.position)
+            adaptation_actions.append(event.action)
+            adaptation_detectors.append(event.detector)
+            adaptation_old_model_ids.append(event.old_model_id)
+            adaptation_new_model_ids.append(event.new_model_id)
+            adaptation_episode_ids.append(
+                -1 if event.episode_id is None else event.episode_id
+            )
+            adaptation_estimated_change_points.append(
+                -1 if event.estimated_change_point is None
+                else event.estimated_change_point
+            )
+
     telemetry_arrays = {
         "round_global_model_count": np.asarray(telemetry["global_model_count"], dtype=np.float64),
         "round_client_held_model_count": np.asarray(
@@ -479,6 +506,16 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
         estimated_drift_start_positions=np.asarray(e_start_pos, dtype=np.int32),
         detector_candidate_start_positions=np.asarray(
             detector_candidate_start_pos, dtype=np.int32
+        ),
+        adaptation_client_ids=np.asarray(adaptation_client_ids, dtype=np.int32),
+        adaptation_positions=np.asarray(adaptation_positions, dtype=np.int32),
+        adaptation_actions=np.asarray(adaptation_actions, dtype=np.str_),
+        adaptation_detectors=np.asarray(adaptation_detectors, dtype=np.str_),
+        adaptation_old_model_ids=np.asarray(adaptation_old_model_ids, dtype=np.int32),
+        adaptation_new_model_ids=np.asarray(adaptation_new_model_ids, dtype=np.int32),
+        adaptation_episode_ids=np.asarray(adaptation_episode_ids, dtype=np.int32),
+        adaptation_estimated_change_points=np.asarray(
+            adaptation_estimated_change_points, dtype=np.int32
         ),
         dataset=str(config.DATASET),
         concept_schedule=str(config.CONCEPT_SCHEDULE),

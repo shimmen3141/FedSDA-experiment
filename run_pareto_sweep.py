@@ -52,6 +52,13 @@ METRIC_KEYS = [
     "comm_messages_up", "comm_messages_down", "comm_messages_total",
     "final_model_count", "precision", "recall", "f1", "avg_delay", "total_detect",
     "change_point_mae", "change_point_bias", "change_point_estimate_count",
+    "alarm_precision", "alarm_recall", "alarm_f1", "alarm_total",
+    "switch_fp_early", "switch_fp_late", "switch_fp_duplicate", "switch_fp_isolated",
+    "adaptation_reuse_count", "adaptation_reuse_precision",
+    "adaptation_create_count", "adaptation_create_precision",
+    "adaptation_create_rejected_count",
+    "adaptation_maintain_count", "adaptation_episode_suppressed_count",
+    "server_mapping_change_count",
     "runtime_seconds", "client_compute_seconds_sum", "client_compute_seconds_max",
     "compute_inference_examples_total", "compute_training_examples_total",
     "compute_model_examples_total", "compute_optimizer_steps_total",
@@ -59,7 +66,9 @@ METRIC_KEYS = [
     "mean_model_count", "max_model_count", "model_count_auc",
 ]
 ROW_KEYS = ["mode", "dataset", "concept_schedule", "seed", "series", "sweep_value",
-            "feddrift_batch", "agg_interval", "distance_threshold", "adwin_delta",
+            "feddrift_batch", "agg_interval", "clustering_policy", "detection_episodes",
+            "new_model_creation_policy",
+            "distance_threshold", "adwin_delta",
             ] + METRIC_KEYS
 
 FEDSDA_SWEEP_MODES = FEDSDA_MODES
@@ -99,6 +108,16 @@ def _run(mode, dataset, seed, series, sweep_value,
     raw_path = None
     display_series = (series if concept_schedule == "random"
                       else f"{series} [{concept_schedule}]")
+    if "FedSDA" in mode and config.FEDSDA_CLUSTERING_POLICY != "on_new_model":
+        display_series = (
+            f"{display_series} [cluster={config.FEDSDA_CLUSTERING_POLICY}]"
+        )
+    if "FedSDA" in mode and config.FEDSDA_DETECTION_EPISODES_ENABLED:
+        display_series = f"{display_series} [episodes]"
+    if "FedSDA" in mode and config.NEW_MODEL_CREATION_POLICY != "immediate":
+        display_series = (
+            f"{display_series} [creation={config.NEW_MODEL_CREATION_POLICY}]"
+        )
     raw_label = display_series
     if raw_dir is not None:
         sv = "na" if sweep_value in (None, "", "None") else f"{sweep_value:g}"
@@ -115,6 +134,9 @@ def _run(mode, dataset, seed, series, sweep_value,
         "seed": seed, "series": display_series, "sweep_value": sweep_value,
         "feddrift_batch": config.FEDDRIFT_DETECT_BATCH,
         "agg_interval": config.AGG_INTERVAL,
+        "clustering_policy": config.FEDSDA_CLUSTERING_POLICY,
+        "detection_episodes": config.FEDSDA_DETECTION_EPISODES_ENABLED,
+        "new_model_creation_policy": config.NEW_MODEL_CREATION_POLICY,
         "distance_threshold": distance_threshold if distance_threshold is not None else config.DISTANCE_THRESHOLD,
         "adwin_delta": config.ADWIN_DELTA,
     }
@@ -256,6 +278,9 @@ def _load_csv(path):
             agg_interval = row.get("agg_interval")
             row["agg_interval"] = (int(float(agg_interval))
                                    if agg_interval not in (None, "", "None") else "")
+            row.setdefault("clustering_policy", "on_new_model")
+            row.setdefault("detection_episodes", "False")
+            row.setdefault("new_model_creation_policy", "immediate")
             for k in ["distance_threshold", "adwin_delta"] + METRIC_KEYS:
                 v = row.get(k)
                 row[k] = float(v) if v not in (None, "", "None") else float("nan")
@@ -565,6 +590,24 @@ def build_parser():
                         help="A掃引中の固定δ_ADWIN。--agg-sweepが空なら未使用")
     fedsda.add_argument("--fixed-agg", type=int, default=None,
                         help="δ_ADWIN掃引中の固定A。--adwin-deltasが空なら未使用")
+    fedsda.add_argument(
+        "--clustering-policy",
+        choices=config.FEDSDA_CLUSTERING_POLICIES,
+        default=config.FEDSDA_CLUSTERING_POLICY,
+        help="FedSDAのクラスタリング頻度",
+    )
+    fedsda.add_argument(
+        "--detection-episodes",
+        action=argparse.BooleanOptionalAction,
+        default=config.FEDSDA_DETECTION_EPISODES_ENABLED,
+        help="近接した検出をN_FIFO幅の一つの適応エピソードへ統合する",
+    )
+    fedsda.add_argument(
+        "--new-model-creation-policy",
+        choices=config.NEW_MODEL_CREATION_POLICIES,
+        default=config.NEW_MODEL_CREATION_POLICY,
+        help="FedSDAの新規モデル作成方針（immediate / validated）",
+    )
     fedsda.add_argument("--fixed-gamma", type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
 
@@ -643,6 +686,9 @@ def main():
     elif args.total_data is not None:
         config.TOTAL_DATA_POINTS = args.total_data
     config.CONCEPT_SCHEDULE = args.concept_schedule
+    config.FEDSDA_CLUSTERING_POLICY = args.clustering_policy
+    config.FEDSDA_DETECTION_EPISODES_ENABLED = args.detection_episodes
+    config.NEW_MODEL_CREATION_POLICY = args.new_model_creation_policy
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.DISTANCE_THRESHOLD
     fixed_batch = args.fixed_batch if args.fixed_batch is not None else config.FEDDRIFT_DETECT_BATCH

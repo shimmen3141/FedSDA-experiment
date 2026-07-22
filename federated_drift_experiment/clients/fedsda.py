@@ -10,6 +10,12 @@ from .. import config
 from ..adwin import FullScanADWIN
 from ..e_detector import BoundedMeanEDetector
 from ..hddm import HDDMA, HDDMW
+from ..detection_episode import DetectionEpisodeController
+from ..models import SimpleMLP
+from ..provisional_model import (
+    has_consistent_validation_advantage,
+    temporal_holdout,
+)
 from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
 
 
@@ -33,6 +39,10 @@ class FedSDAClient(BaseClient, ABC):
             if model_id >= 0
         }
         self._refresh_cache_on_mapping = True
+        self.detection_episodes = DetectionEpisodeController(
+            enabled=config.FEDSDA_DETECTION_EPISODES_ENABLED,
+            length=self.fifo_size,
+        )
 
     def _spawn_new_model(
         self,
@@ -109,11 +119,26 @@ class FedSDAClient(BaseClient, ABC):
             # τ>1 で保留中の更新をドリフト解決前に消化する(τ=1 では no-op)
             self.flush_pending_updates()
             self.detected_event_positions.append(idx)
-            self.estimated_drift_start_positions.append(self._estimated_drift_start(idx))
+            estimated_start = self._estimated_drift_start(idx)
+            self.estimated_drift_start_positions.append(estimated_start)
             self.detector_candidate_start_positions.append(
                 self._detector_candidate_start(idx)
             )
-            drift_type = self._resolve_drift(sample_idx=idx)
+            operation_allowed, episode_id = self.detection_episodes.observe_detection(idx)
+            if operation_allowed:
+                drift_type = self._resolve_drift(
+                    sample_idx=idx,
+                    estimated_start=estimated_start,
+                    episode_id=episode_id,
+                )
+                if drift_type in (1, 2):
+                    self.detection_episodes.mark_operation()
+            else:
+                drift_type = self._resolve_episode_duplicate(
+                    sample_idx=idx,
+                    estimated_start=estimated_start,
+                    episode_id=episode_id,
+                )
         else:
             # 平時: バッファ長 N_FIFO を超えた分だけ古いデータをストアへ確定し、学習する
             while len(self.buffer) > self.fifo_size:
@@ -207,8 +232,92 @@ class FedSDAClient(BaseClient, ABC):
             "or 'average'"
         )
 
-    def _resolve_drift(self, sample_idx):
+    def _spawn_validated_provisional_model(
+        self, bx, by, initialization_params
+    ):
+        """時系列holdoutで既存モデルへの継続的優位を確認してから登録する。"""
+        holdout = temporal_holdout(
+            bx, by, config.NEW_MODEL_VALIDATION_FRACTION
+        )
+        if holdout is None:
+            return None
+
+        candidate = SimpleMLP()
+        candidate.set_params(initialization_params)
+        candidate.reset_optimizer()
+        training_start = time.perf_counter()
+        self._train_new_model(
+            candidate, holdout.training_x, holdout.training_y
+        )
+        self.phase_seconds["training"] += time.perf_counter() - training_start
+
+        with torch.no_grad():
+            self._record_model_compute(
+                "initialization", len(holdout.validation_x)
+            )
+            candidate_losses = candidate.per_sample_error(
+                holdout.validation_x, holdout.validation_y
+            )
+
+            reference_losses = []
+            for model in self.models.values():
+                self._record_model_compute(
+                    "detection", len(holdout.validation_x)
+                )
+                losses = model.per_sample_error(
+                    holdout.validation_x, holdout.validation_y
+                )
+                reference_losses.append(losses)
+
+        if not reference_losses:
+            return None
+        best_reference = min(
+            reference_losses,
+            key=lambda losses: float(losses.mean().item()),
+        )
+        accepted = has_consistent_validation_advantage(
+            candidate_losses,
+            best_reference,
+            min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
+        )
+        if not accepted:
+            return None
+
+        temp_id = self._alloc_temp_id()
+        if self.verbose:
+            print(f"  -> Validated New Model (Temp ID: {temp_id})")
+        self._register_trained_new_model(
+            temp_id,
+            candidate,
+            bx,
+            by,
+            pending_ready=False,
+        )
+        self._pending_upload_rounds = self.model_upload_delay_rounds
+        return temp_id
+
+    def _resolve_episode_duplicate(self, sample_idx, estimated_start, episode_id):
+        """同一エピソードの追加検出を記録し、モデルを再操作せず学習へ反映する。"""
+        old_model_id = self.current_model_id
+        buffered_data = list(self.buffer)
+        if buffered_data:
+            self._absorb_into_store(self.current_model_id, buffered_data)
+        self._record_adaptation_event(
+            position=sample_idx,
+            detector=self._detector_label(),
+            action="episode_suppressed",
+            old_model_id=old_model_id,
+            new_model_id=self.current_model_id,
+            estimated_change_point=estimated_start,
+            episode_id=episode_id,
+        )
+        self._reset_drift_detectors()
+        self.buffer.clear()
+        return 0
+
+    def _resolve_drift(self, sample_idx, estimated_start=None, episode_id=None):
         """FIFOを新旧概念に分割し、モデル切替または新規作成を行う。"""
+        old_model_id = self.current_model_id
         buffer_list = list(self.buffer)
         n_new_concept = min(
             len(buffer_list), self._estimated_new_concept_span(sample_idx)
@@ -226,6 +335,15 @@ class FedSDAClient(BaseClient, ABC):
             self._absorb_into_store(self.current_model_id, old_data)
 
         if len(drift_data) < config.MIN_DRIFT_DATA:
+            self._record_adaptation_event(
+                position=sample_idx,
+                detector=self._detector_label(),
+                action="insufficient_data",
+                old_model_id=old_model_id,
+                new_model_id=self.current_model_id,
+                estimated_change_point=estimated_start,
+                episode_id=episode_id,
+            )
             self._reset_drift_detectors()
             return 0
 
@@ -271,12 +389,14 @@ class FedSDAClient(BaseClient, ABC):
                 self.local_switch_positions.append(sample_idx)
                 self.current_model_id = best_model_id
                 drift_type = 1
+                action = "reuse"
                 drift_data = buffer_drift_data
             else:
                 if self.verbose:
                     print(f"  -> Keep current Model {self.current_model_id} "
                           f"(Loss {minimum_loss:.3f})")
                 drift_type = 0
+                action = "maintain"
                 drift_data = buffer_drift_data
             self._absorb_into_store(self.current_model_id, drift_data)
         else:
@@ -287,17 +407,45 @@ class FedSDAClient(BaseClient, ABC):
             initialization_params = self._select_initialization_params(
                 evaluated_candidates
             )
-            temporary_id, _ = self._spawn_new_model(
-                initial_bx,
-                initial_by,
-                pending_ready=False,
-                initialization_params=initialization_params,
-            )
+            if config.NEW_MODEL_CREATION_POLICY == "immediate":
+                temporary_id, _ = self._spawn_new_model(
+                    initial_bx,
+                    initial_by,
+                    pending_ready=False,
+                    initialization_params=initialization_params,
+                )
+            elif config.NEW_MODEL_CREATION_POLICY == "validated":
+                temporary_id = self._spawn_validated_provisional_model(
+                    initial_bx,
+                    initial_by,
+                    initialization_params,
+                )
+            else:
+                raise ValueError(
+                    "NEW_MODEL_CREATION_POLICY must be 'immediate' or 'validated'"
+                )
+
             drift_data = buffer_drift_data
-            self.local_switch_positions.append(sample_idx)
-            self.current_model_id = temporary_id
-            drift_type = 2
-            self.train_data_store[temporary_id].extend(drift_data)
+            if temporary_id is None:
+                self._absorb_into_store(self.current_model_id, drift_data)
+                drift_type = 0
+                action = "create_rejected"
+            else:
+                self.local_switch_positions.append(sample_idx)
+                self.current_model_id = temporary_id
+                drift_type = 2
+                action = "create"
+                self.train_data_store[temporary_id].extend(drift_data)
+
+        self._record_adaptation_event(
+            position=sample_idx,
+            detector=self._detector_label(),
+            action=action,
+            old_model_id=old_model_id,
+            new_model_id=self.current_model_id,
+            estimated_change_point=estimated_start,
+            episode_id=episode_id,
+        )
 
         self._reset_drift_detectors()
         self.buffer.clear()

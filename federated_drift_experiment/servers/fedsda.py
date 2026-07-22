@@ -133,6 +133,13 @@ class FedSDACachedServer(FedSDANoCachedServer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.clustering_policy = config.FEDSDA_CLUSTERING_POLICY
+        if self.clustering_policy not in config.FEDSDA_CLUSTERING_POLICIES:
+            choices = ", ".join(config.FEDSDA_CLUSTERING_POLICIES)
+            raise ValueError(
+                f"Unknown Cached clustering policy: {self.clustering_policy!r}. "
+                f"Choose one of: {choices}."
+            )
         self.model_weights = {}
         # 初回配布を終え、次ラウンドのクラスタリングを待つ新規モデル。
         self.models_pending_clustering = set()
@@ -184,8 +191,8 @@ class FedSDACachedServer(FedSDANoCachedServer):
         return new_model_ids
 
     def _cluster_distributed_models(self, t):
-        """初回配布済みの新規モデルがある場合だけ、キャッシュで距離評価する。"""
-        if not self.models_pending_clustering:
+        """設定された実行方針に従い、配布済みキャッシュで距離評価する。"""
+        if not self._clustering_is_due():
             return
 
         model_ids = sorted(self.global_models)
@@ -201,6 +208,12 @@ class FedSDACachedServer(FedSDANoCachedServer):
         clusters = self.perform_hierarchical_clustering(model_ids, stats_matrix)
         if len(clusters) < len(model_ids):
             self._merge_cached_clusters(t, clusters)
+
+    def _clustering_is_due(self):
+        """現在の集約ラウンドでクラスタリングを実行するかを返す。"""
+        if self.clustering_policy == 'every_round':
+            return True
+        return bool(self.models_pending_clustering)
 
     def _merge_cached_clusters(self, t, clusters):
         """配布済みモデルを累積重みで統合し、クライアントの学習状態にも対応を適用する。"""

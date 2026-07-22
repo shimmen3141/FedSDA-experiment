@@ -53,6 +53,24 @@ def main():
     parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
                         default=config.CLUSTER_LINKAGE,
                         help=f"共通クラスタリング戦略 (default: {config.CLUSTER_LINKAGE})")
+    parser.add_argument(
+        "--clustering-policy",
+        choices=config.FEDSDA_CLUSTERING_POLICIES,
+        default=config.FEDSDA_CLUSTERING_POLICY,
+        help="FedSDAのクラスタリング頻度",
+    )
+    parser.add_argument(
+        "--detection-episodes",
+        action=argparse.BooleanOptionalAction,
+        default=config.FEDSDA_DETECTION_EPISODES_ENABLED,
+        help="近接した検出をN_FIFO幅の一つの適応エピソードへ統合する",
+    )
+    parser.add_argument(
+        "--new-model-creation-policy",
+        choices=config.NEW_MODEL_CREATION_POLICIES,
+        default=config.NEW_MODEL_CREATION_POLICY,
+        help="FedSDAの新規モデル作成方針（immediate / validated）",
+    )
     parser.add_argument("--feddrift-isolation", type=int,
                         default=config.FEDDRIFT_ISOLATION_TIMESTEPS,
                         help="FedDriftの新規モデル隔離時刻数 W (default: 1)")
@@ -75,6 +93,9 @@ def main():
     config.NEW_MODEL_INITIALIZATION = args.new_model_initialization
     config.FEDDRIFT_DETECT_BATCH = args.feddrift_batch
     config.CLUSTER_LINKAGE = args.cluster_linkage
+    config.FEDSDA_CLUSTERING_POLICY = args.clustering_policy
+    config.FEDSDA_DETECTION_EPISODES_ENABLED = args.detection_episodes
+    config.NEW_MODEL_CREATION_POLICY = args.new_model_creation_policy
     config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation
 
     raw_path = None

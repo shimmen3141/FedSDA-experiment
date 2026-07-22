@@ -4,8 +4,47 @@
 として数え、真のドリフト位置と greedy マッチングして TP/FP/FN を算出する。
 """
 import bisect
+from collections import Counter
 
 from . import config
+
+
+def _match_events(true_positions, event_positions, delay_tolerance):
+    """既存指標と同じgreedy規則で真のドリフトとイベントを一対一対応付けする。"""
+    used = set()
+    matched_true = set()
+    delays = []
+    for true_index, true_position in enumerate(true_positions):
+        for event_index, event_position in enumerate(event_positions):
+            if event_index in used:
+                continue
+            if true_position <= event_position <= true_position + delay_tolerance:
+                used.add(event_index)
+                matched_true.add(true_index)
+                delays.append(event_position - true_position)
+                break
+    return used, matched_true, delays
+
+
+def _classify_unmatched_events(true_positions, event_positions, used, tolerance):
+    """未対応イベントを重複・早期・遅延・単独へ排他的に分類する。
+
+    早期は真の変化前tolerance以内、遅延は許容窓終了後tolerance以内とする。
+    それ以外は単独イベントなので、区分の境界は評価の許容遅延だけで再現できる。
+    """
+    counts = Counter()
+    for index, position in enumerate(event_positions):
+        if index in used:
+            continue
+        if any(td <= position <= td + tolerance for td in true_positions):
+            counts["duplicate"] += 1
+        elif any(td - tolerance <= position < td for td in true_positions):
+            counts["early"] += 1
+        elif any(td + tolerance < position <= td + 2 * tolerance for td in true_positions):
+            counts["late"] += 1
+        else:
+            counts["isolated"] += 1
+    return counts
 
 
 def _stable_accuracy(clients, true_drift_events, window):
@@ -63,6 +102,13 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
     total_fp = 0
     total_true_drifts = 0
     delays = []
+    fp_types = Counter()
+    alarm_true_total = 0
+    alarm_event_total = 0
+    alarm_tp_total = 0
+    operation_counts = Counter()
+    operation_tp = Counter()
+    server_mapping_changes = 0
 
     total_local_switches = sum(len(c.local_switch_positions) for c in clients)
 
@@ -70,25 +116,45 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
     for i, c in enumerate(clients):
         true_drifts = list(true_drift_events[i])  # sample indices where concept changed
         local_sw = sorted(c.local_switch_positions)
-        used = set()
+        used, matched_true, client_delays = _match_events(
+            true_drifts, local_sw, delay_tolerance
+        )
+        delays.extend(client_delays)
+        total_tp += len(used)
+        total_fn += len(true_drifts) - len(matched_true)
+        total_true_drifts += len(true_drifts)
+        total_fp += len(local_sw) - len(used)
+        fp_types.update(
+            _classify_unmatched_events(
+                true_drifts, local_sw, used, delay_tolerance
+            )
+        )
 
-        for td_time in true_drifts:
-            total_true_drifts += 1
-            matched = False
-            for j, sw in enumerate(local_sw):
-                if j in used:
-                    continue
-                if td_time <= sw <= td_time + delay_tolerance:
-                    total_tp += 1
-                    delays.append(sw - td_time)
-                    used.add(j)
-                    matched = True
-                    break
-            if not matched:
-                total_fn += 1
+        alarms = sorted(getattr(c, "detected_event_positions", []))
+        alarm_used, alarm_matched, _ = _match_events(
+            true_drifts, alarms, delay_tolerance
+        )
+        alarm_true_total += len(true_drifts)
+        alarm_event_total += len(alarms)
+        alarm_tp_total += len(alarm_used)
 
-        # remaining unused local switches count as FP
-        total_fp += (len(local_sw) - len(used))
+        events = list(getattr(c, "adaptation_events", []))
+        actionable = [event for event in events if event.action in ("reuse", "create")]
+        actionable_positions = [event.position for event in actionable]
+        action_used, _, _ = _match_events(
+            true_drifts, actionable_positions, delay_tolerance
+        )
+        for event_index, event in enumerate(actionable):
+            operation_counts[event.action] += 1
+            if event_index in action_used:
+                operation_tp[event.action] += 1
+        operation_counts.update(
+            event.action for event in events
+            if event.action not in ("reuse", "create", "server_merge")
+        )
+        server_mapping_changes += sum(
+            event.action == "server_merge" for event in events
+        )
 
     total_detections = total_local_switches  # 検出は「ローカルで実際に切替を実行した回数」
     fn_rate = total_fn / total_true_drifts if total_true_drifts > 0 else 0.0
@@ -98,6 +164,14 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
     avg_delay = sum(delays) / len(delays) if delays else 0.0
+    alarm_precision = (
+        alarm_tp_total / alarm_event_total if alarm_event_total else 0.0
+    )
+    alarm_recall = alarm_tp_total / alarm_true_total if alarm_true_total else 0.0
+    alarm_f1 = (
+        2 * alarm_precision * alarm_recall / (alarm_precision + alarm_recall)
+        if alarm_precision + alarm_recall > 0 else 0.0
+    )
     change_point_errors = _change_point_errors(
         clients, true_drift_events, delay_tolerance
     )
@@ -127,4 +201,26 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         "tp": total_tp,
         "fp": total_fp,
         "fn": total_fn,
+        "alarm_precision": alarm_precision,
+        "alarm_recall": alarm_recall,
+        "alarm_f1": alarm_f1,
+        "alarm_total": alarm_event_total,
+        "switch_fp_early": fp_types["early"],
+        "switch_fp_late": fp_types["late"],
+        "switch_fp_duplicate": fp_types["duplicate"],
+        "switch_fp_isolated": fp_types["isolated"],
+        "adaptation_reuse_count": operation_counts["reuse"],
+        "adaptation_reuse_precision": (
+            operation_tp["reuse"] / operation_counts["reuse"]
+            if operation_counts["reuse"] else 0.0
+        ),
+        "adaptation_create_count": operation_counts["create"],
+        "adaptation_create_precision": (
+            operation_tp["create"] / operation_counts["create"]
+            if operation_counts["create"] else 0.0
+        ),
+        "adaptation_create_rejected_count": operation_counts["create_rejected"],
+        "adaptation_maintain_count": operation_counts["maintain"],
+        "adaptation_episode_suppressed_count": operation_counts["episode_suppressed"],
+        "server_mapping_change_count": server_mapping_changes,
     }
