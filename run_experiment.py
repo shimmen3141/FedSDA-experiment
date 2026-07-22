@@ -33,11 +33,6 @@ def main():
     parser.add_argument("--n-clients", type=int, default=None,
                         help="クライアント数を一時的に上書きする")
     parser.add_argument(
-        "--recent-assignment-journal", type=int,
-        default=config.RECENT_ASSIGNMENT_JOURNAL_SIZE,
-        help="遅延検知後に再割当できる確定済みサンプル数。0で無効化",
-    )
-    parser.add_argument(
         "--new-model-training",
         choices=("fixed", "none", "early_stopping"),
         default=config.NEW_MODEL_TRAINING,
@@ -75,7 +70,6 @@ def main():
         config.TOTAL_DATA_POINTS = args.total_data
     if args.n_clients is not None:
         config.N_CLIENTS = args.n_clients
-    config.RECENT_ASSIGNMENT_JOURNAL_SIZE = args.recent_assignment_journal
     config.NEW_MODEL_TRAINING = args.new_model_training
     config.NEW_MODEL_EPOCHS = args.new_model_epochs
     config.NEW_MODEL_INITIALIZATION = args.new_model_initialization

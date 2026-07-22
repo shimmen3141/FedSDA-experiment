@@ -309,8 +309,6 @@ _COMPUTE_COUNTER_KEYS = (
     "initialization_forward_calls", "initialization_examples",
     "training_forward_calls", "training_examples", "optimizer_steps",
     "drift_detector_updates", "drift_detector_hypotheses",
-    "journal_initial_training_examples", "journal_reassignment_candidates",
-    "reassigned_samples",
 )
 _PHASE_TIME_KEYS = ("online", "training", "cross_evaluation")
 

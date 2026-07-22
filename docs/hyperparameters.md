@@ -128,7 +128,6 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 |---|---|---|---|
 | `DISTANCE_THRESHOLD` | モデル適合判定の距離閾値 γ_dist(サーバのマージ判定と共用) | FedSDA / サーバ | 0.1 |
 | `FIFO_BUFFER_SIZE` | FIFO 遅延バッファ長 N_FIFO(検知遅延中の混合防止) | FedSDA | 30 |
-| `RECENT_ASSIGNMENT_JOURNAL_SIZE` | FIFO外へ確定後も記録し、検出器の候補開始点以降を遅延検知後の再割当と新規モデル初期学習に利用する直近サンプル数。既存モデルの適合判定には混ぜず、過去の勾配更新自体も巻き戻さない | FedSDA | 0 |
 | `MIN_DRIFT_DATA` | ドリフト解決に必要な新概念データの最小数 | FedSDA | 5 |
 | `STORED_DATA_LIMIT` | モデルごとの評価用データストア上限 | 共通(クライアント) | 50 |
 | `EVAL_STORE_SAMPLE_SIZE` | 評価用ストアへ 1 回に追加するサンプル数上限 | 共通(クライアント) | 20 |

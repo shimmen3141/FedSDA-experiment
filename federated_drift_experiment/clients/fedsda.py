@@ -10,7 +10,6 @@ from .. import config
 from ..adwin import FullScanADWIN
 from ..e_detector import BoundedMeanEDetector
 from ..hddm import HDDMA, HDDMW
-from .assignment_journal import RecentAssignmentJournal
 from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
 
 
@@ -23,9 +22,6 @@ class FedSDAClient(BaseClient, ABC):
         super().__init__(*args, **kwargs)
         self.buffer = deque()                       # FIFOバッファ(検知遅延中のデータ保留)
         self.fifo_size = config.FIFO_BUFFER_SIZE    # FIFOバッファ長 N_FIFO
-        self.assignment_journal = RecentAssignmentJournal(
-            config.RECENT_ASSIGNMENT_JOURNAL_SIZE
-        )
         self.detector_candidate_start_positions = []
         self.model_upload_delay_rounds = int(config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS)
         if self.model_upload_delay_rounds < 1:
@@ -128,14 +124,7 @@ class FedSDAClient(BaseClient, ABC):
                 self._update_model_stats(
                     self.current_model_id, loss_val, class_id=class_id
                 )
-                data_item = (old_x, old_y)
-                self.train_data_store[self.current_model_id].append(data_item)
-                self.assignment_journal.record(
-                    sample_idx=idx - self.fifo_size,
-                    data=data_item,
-                    loss=loss_val,
-                    class_id=class_id,
-                )
+                self.train_data_store[self.current_model_id].append((old_x, old_y))
             self.train_step()
 
         self.history_drift_type.append(drift_type)
@@ -171,17 +160,6 @@ class FedSDAClient(BaseClient, ABC):
             0,
             sample_idx - self._estimated_new_concept_span(sample_idx) + 1,
         )
-
-    def _reassign_journal_data(self, estimated_start):
-        candidate_count = self.assignment_journal.count_since(estimated_start)
-        self.compute_counters["journal_reassignment_candidates"] += candidate_count
-        data = self.assignment_journal.reassign_since(
-            estimated_start,
-            self.train_data_store,
-            self.model_stats,
-        )
-        self.compute_counters["reassigned_samples"] += len(data)
-        return data
 
     @abstractmethod
     def _reset_drift_detectors(self):
@@ -232,12 +210,6 @@ class FedSDAClient(BaseClient, ABC):
     def _resolve_drift(self, sample_idx):
         """FIFOを新旧概念に分割し、モデル切替または新規作成を行う。"""
         buffer_list = list(self.buffer)
-        estimated_start = max(
-            0,
-            sample_idx
-            - self._estimated_new_concept_span(sample_idx)
-            + 1,
-        )
         n_new_concept = min(
             len(buffer_list), self._estimated_new_concept_span(sample_idx)
         )
@@ -264,7 +236,6 @@ class FedSDAClient(BaseClient, ABC):
                   f"{self._detector_label()} Drift Detected.")
 
         # 既存モデルの適合判定には、検出器が保持していたFIFOだけを使う。
-        # journalは判定窓を暗黙に広げず、切替後の再割当と新規モデル初期学習に使う。
         bx = torch.cat([data[0] for data in buffer_drift_data])
         by = torch.cat([data[1] for data in buffer_drift_data])
         evaluated_candidates = []
@@ -300,26 +271,17 @@ class FedSDAClient(BaseClient, ABC):
                 self.local_switch_positions.append(sample_idx)
                 self.current_model_id = best_model_id
                 drift_type = 1
-                drift_data = (
-                    self._reassign_journal_data(estimated_start)
-                    + buffer_drift_data
-                )
+                drift_data = buffer_drift_data
             else:
                 if self.verbose:
                     print(f"  -> Keep current Model {self.current_model_id} "
                           f"(Loss {minimum_loss:.3f})")
                 drift_type = 0
-                # 現行モデルを維持する場合、journal分は既に正しいストアにある。
                 drift_data = buffer_drift_data
             self._absorb_into_store(self.current_model_id, drift_data)
         else:
-            journal_data = self.assignment_journal.preview_since(estimated_start)
-            self.compute_counters["journal_initial_training_examples"] += len(
-                journal_data
-            )
-            initial_training_data = journal_data + buffer_drift_data
-            initial_bx = torch.cat([data[0] for data in initial_training_data])
-            initial_by = torch.cat([data[1] for data in initial_training_data])
+            initial_bx = torch.cat([data[0] for data in buffer_drift_data])
+            initial_by = torch.cat([data[1] for data in buffer_drift_data])
             # 再利用閾値には届かなかった既存モデルのうち、ドリフト後データへ
             # 最も適合するモデルを新規モデルの初期値として利用する。
             initialization_params = self._select_initialization_params(
@@ -331,10 +293,7 @@ class FedSDAClient(BaseClient, ABC):
                 pending_ready=False,
                 initialization_params=initialization_params,
             )
-            drift_data = (
-                self._reassign_journal_data(estimated_start)
-                + buffer_drift_data
-            )
+            drift_data = buffer_drift_data
             self.local_switch_positions.append(sample_idx)
             self.current_model_id = temporary_id
             drift_type = 2
@@ -342,7 +301,6 @@ class FedSDAClient(BaseClient, ABC):
 
         self._reset_drift_detectors()
         self.buffer.clear()
-        self.assignment_journal.clear()
         return drift_type
 
 

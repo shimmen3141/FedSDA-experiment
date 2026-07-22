@@ -56,9 +56,6 @@ METRIC_KEYS = [
     "compute_inference_examples_total", "compute_training_examples_total",
     "compute_model_examples_total", "compute_optimizer_steps_total",
     "compute_drift_detector_updates_total", "compute_drift_detector_hypotheses_total",
-    "compute_journal_initial_training_examples_total",
-    "compute_journal_reassignment_candidates_total",
-    "compute_reassigned_samples_total",
     "mean_model_count", "max_model_count", "model_count_auc",
 ]
 ROW_KEYS = ["mode", "dataset", "concept_schedule", "seed", "series", "sweep_value",
