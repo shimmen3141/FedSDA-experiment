@@ -15,6 +15,10 @@ from .. import config
 from ..models import SimpleMLP
 
 
+# 初期化パラメータを省略した既存呼び出しでは、従来どおり現行モデルを使う。
+USE_CURRENT_MODEL_PARAMS = object()
+
+
 class BaseClient:
     reports_state_summary = False
 
@@ -186,8 +190,16 @@ class BaseClient:
     # ------------------------------------------------------------
     # 新規モデルの作成
     # ------------------------------------------------------------
-    def _spawn_new_model(self, bx, by, pending_ready):
-        """現在のモデルを起点に新規モデルを作成・初期学習し、pending 登録する。
+    def _spawn_new_model(
+        self,
+        bx,
+        by,
+        pending_ready,
+        initialization_params=USE_CURRENT_MODEL_PARAMS,
+    ):
+        """指定した既存モデルを起点に新規モデルを作成・初期学習し、pending登録する。
+
+        初期化元を省略した場合は現在のモデルを使う。
 
         戻り値: (テンポラリID, 初期学習後の平均損失)
         pending_ready=False の場合、次ラウンドまでサーバに回収されない。
@@ -198,7 +210,9 @@ class BaseClient:
 
         m = len(bx)
         new_model = SimpleMLP()
-        new_model.set_params(self.models[self.current_model_id].get_params())
+        if initialization_params is USE_CURRENT_MODEL_PARAMS:
+            initialization_params = self.models[self.current_model_id].get_params()
+        new_model.set_params(initialization_params)
         new_model.reset_optimizer()
 
         training_start = time.perf_counter()

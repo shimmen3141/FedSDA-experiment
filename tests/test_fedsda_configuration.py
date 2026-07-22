@@ -55,6 +55,79 @@ def test_new_model_training_none_keeps_copied_parameters(monkeypatch):
     assert client.compute_counters["optimizer_steps"] == 0
 
 
+def test_new_model_can_copy_selected_existing_model(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    client = _make_client()
+    selected_model = SimpleMLP()
+    selected_params = selected_model.get_params()
+    selected_params = {
+        name: torch.full_like(value, 0.25)
+        for name, value in selected_params.items()
+    }
+    selected_model.set_params(selected_params)
+    client.models[1] = selected_model
+    client.model_stats[1] = {'n': 10, 'mean': 0.1, 'M2': 0.0}
+    bx = torch.randn((config.CLIENT_BATCH_SIZE, config.input_dim()))
+    by = torch.zeros((config.CLIENT_BATCH_SIZE, 1))
+
+    temporary_id, _ = client._spawn_new_model(
+        bx, by, initialization_params=selected_params
+    )
+
+    created_params = client.models[temporary_id].get_params()
+    assert all(
+        torch.equal(selected_params[name], created_params[name])
+        for name in selected_params
+    )
+
+
+def test_new_model_initializer_is_lowest_loss_evaluated_model(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_INITIALIZATION", "best_candidate")
+    client = _make_client()
+    client.models[1] = SimpleMLP()
+
+    selected = client._select_initialization_params([
+        (0, 0.8),
+        (1, 0.3),
+    ])
+
+    expected = client.models[1].get_params()
+    assert all(torch.equal(selected[name], expected[name]) for name in expected)
+
+
+def test_new_model_initializer_can_use_current_model(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_INITIALIZATION", "current")
+    client = _make_client()
+    client.current_model_id = 0
+
+    selected = client._select_initialization_params([(0, 0.1), (1, 0.2)])
+
+    expected = client.models[0].get_params()
+    assert all(torch.equal(selected[name], expected[name]) for name in expected)
+
+
+def test_new_model_initializer_can_average_existing_models(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_INITIALIZATION", "average")
+    client = _make_client()
+    first = client.models[0].get_params()
+    first = {name: torch.zeros_like(value) for name, value in first.items()}
+    client.models[0].set_params(first)
+    second_model = SimpleMLP()
+    second = {
+        name: torch.full_like(value, 0.5)
+        for name, value in second_model.get_params().items()
+    }
+    second_model.set_params(second)
+    client.models[1] = second_model
+
+    selected = client._select_initialization_params([])
+
+    assert all(
+        torch.equal(selected[name], torch.full_like(selected[name], 0.25))
+        for name in selected
+    )
+
+
 def test_new_model_training_early_stopping_uses_at_most_max_epochs(monkeypatch):
     monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "early_stopping")
     monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 8)

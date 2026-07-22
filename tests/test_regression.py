@@ -153,7 +153,9 @@ def _load_golden():
         if key.startswith("_"):
             continue
         mode, dataset = key.split("/", 1)
-        if mode in ("FedSDA", "FedDrift"):
+        # FedSDA は旧v1の曖昧な名称なので比較対象外とする。
+        # FedDrift は現在の正式モード名であり、除外してはいけない。
+        if mode == "FedSDA":
             continue
         normalized[f"{normalize_legacy_mode(mode)}/{dataset}"] = value
     return normalized

@@ -47,6 +47,12 @@ def main():
         "--new-model-epochs", type=int, default=config.NEW_MODEL_EPOCHS,
         help="fixedのエポック数、またはearly_stoppingの最大エポック数",
     )
+    parser.add_argument(
+        "--new-model-initialization",
+        choices=("current", "best_candidate", "average"),
+        default=config.NEW_MODEL_INITIALIZATION,
+        help="FedSDAの新規モデルを初期化する既存モデルの選択方法",
+    )
     parser.add_argument("--feddrift-batch", type=int, default=config.FEDDRIFT_DETECT_BATCH,
                         help=f"FedDrift の検出バッチサイズ (default: {config.FEDDRIFT_DETECT_BATCH})")
     parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
@@ -72,6 +78,7 @@ def main():
     config.RECENT_ASSIGNMENT_JOURNAL_SIZE = args.recent_assignment_journal
     config.NEW_MODEL_TRAINING = args.new_model_training
     config.NEW_MODEL_EPOCHS = args.new_model_epochs
+    config.NEW_MODEL_INITIALIZATION = args.new_model_initialization
     config.FEDDRIFT_DETECT_BATCH = args.feddrift_batch
     config.CLUSTER_LINKAGE = args.cluster_linkage
     config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation

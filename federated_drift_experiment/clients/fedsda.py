@@ -11,7 +11,7 @@ from ..adwin import FullScanADWIN
 from ..e_detector import BoundedMeanEDetector
 from ..hddm import HDDMA, HDDMW
 from .assignment_journal import RecentAssignmentJournal
-from .base import BaseClient
+from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
 
 
 class FedSDAClient(BaseClient, ABC):
@@ -38,9 +38,20 @@ class FedSDAClient(BaseClient, ABC):
         }
         self._refresh_cache_on_mapping = True
 
-    def _spawn_new_model(self, bx, by, pending_ready=False):
+    def _spawn_new_model(
+        self,
+        bx,
+        by,
+        pending_ready=False,
+        initialization_params=USE_CURRENT_MODEL_PARAMS,
+    ):
         """新規モデルを作成し、設定された学習ラウンド数だけアップロードを保留する。"""
-        result = super()._spawn_new_model(bx, by, pending_ready=False)
+        result = super()._spawn_new_model(
+            bx,
+            by,
+            pending_ready=False,
+            initialization_params=initialization_params,
+        )
         self._pending_upload_rounds = self.model_upload_delay_rounds
         return result
 
@@ -185,6 +196,39 @@ class FedSDAClient(BaseClient, ABC):
         """検出器固有の補助チェック。既定では統計的検出だけを使う。"""
         return False
 
+    def _average_model_params(self):
+        """クライアントが保持する既存モデルの単純パラメータ平均を返す。"""
+        model_params = [model.get_params() for model in self.models.values()]
+        if not model_params:
+            return None
+        averaged = {}
+        for name in model_params[0]:
+            values = [params[name] for params in model_params]
+            if values[0].is_floating_point() or values[0].is_complex():
+                averaged[name] = torch.stack(values).mean(dim=0)
+            else:
+                averaged[name] = values[0].clone()
+        return averaged
+
+    def _select_initialization_params(self, evaluated_candidates):
+        """設定された方針に従い、新規モデルの初期パラメータを返す。"""
+        strategy = config.NEW_MODEL_INITIALIZATION
+        if strategy == "current":
+            return self.models[self.current_model_id].get_params()
+        if strategy == "best_candidate":
+            model_id = (
+                min(evaluated_candidates, key=lambda item: item[1])[0]
+                if evaluated_candidates
+                else self.current_model_id
+            )
+            return self.models[model_id].get_params()
+        if strategy == "average":
+            return self._average_model_params()
+        raise ValueError(
+            "NEW_MODEL_INITIALIZATION must be 'current', 'best_candidate', "
+            "or 'average'"
+        )
+
     def _resolve_drift(self, sample_idx):
         """FIFOを新旧概念に分割し、モデル切替または新規作成を行う。"""
         buffer_list = list(self.buffer)
@@ -223,6 +267,7 @@ class FedSDAClient(BaseClient, ABC):
         # journalは判定窓を暗黙に広げず、切替後の再割当と新規モデル初期学習に使う。
         bx = torch.cat([data[0] for data in buffer_drift_data])
         by = torch.cat([data[1] for data in buffer_drift_data])
+        evaluated_candidates = []
         valid_candidates = []
         for model_id, model in self.models.items():
             with torch.no_grad():
@@ -238,6 +283,7 @@ class FedSDAClient(BaseClient, ABC):
                 continue
 
             difference = loss - historical_mean
+            evaluated_candidates.append((model_id, loss))
             if self.verbose:
                 print(f"  Check M{model_id}: Diff={difference:.3f} vs "
                       f"Thr={self.distance_threshold:.3f} "
@@ -274,8 +320,16 @@ class FedSDAClient(BaseClient, ABC):
             initial_training_data = journal_data + buffer_drift_data
             initial_bx = torch.cat([data[0] for data in initial_training_data])
             initial_by = torch.cat([data[1] for data in initial_training_data])
+            # 再利用閾値には届かなかった既存モデルのうち、ドリフト後データへ
+            # 最も適合するモデルを新規モデルの初期値として利用する。
+            initialization_params = self._select_initialization_params(
+                evaluated_candidates
+            )
             temporary_id, _ = self._spawn_new_model(
-                initial_bx, initial_by, pending_ready=False
+                initial_bx,
+                initial_by,
+                pending_ready=False,
+                initialization_params=initialization_params,
             )
             drift_data = (
                 self._reassign_journal_data(estimated_start)
