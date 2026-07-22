@@ -90,7 +90,11 @@ def _run_case(mode, dataset, overrides=None):
     original_schedule = config.CONCEPT_SCHEDULE
     config.CONCEPT_SCHEDULE = "random"
     config.TOTAL_DATA_POINTS = TOTAL_DATA_POINTS
-    overrides = overrides or {}
+    # 新しい再割当機構を無効化し、既存手法の従来結果を継続監視する。
+    overrides = {
+        "RECENT_ASSIGNMENT_JOURNAL_SIZE": 0,
+        **(overrides or {}),
+    }
     saved = {k: getattr(config, k) for k in overrides}
     for k, v in overrides.items():
         setattr(config, k, v)

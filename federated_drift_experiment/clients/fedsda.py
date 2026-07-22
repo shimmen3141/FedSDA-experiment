@@ -10,6 +10,7 @@ from .. import config
 from ..adwin import FullScanADWIN
 from ..e_detector import BoundedMeanEDetector
 from ..hddm import HDDMA, HDDMW
+from .assignment_journal import RecentAssignmentJournal
 from .base import BaseClient
 
 
@@ -22,6 +23,10 @@ class FedSDAClient(BaseClient, ABC):
         super().__init__(*args, **kwargs)
         self.buffer = deque()                       # FIFOバッファ(検知遅延中のデータ保留)
         self.fifo_size = config.FIFO_BUFFER_SIZE    # FIFOバッファ長 N_FIFO
+        self.assignment_journal = RecentAssignmentJournal(
+            config.RECENT_ASSIGNMENT_JOURNAL_SIZE
+        )
+        self.detector_candidate_start_positions = []
         self.model_upload_delay_rounds = int(config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS)
         if self.model_upload_delay_rounds < 1:
             raise ValueError("FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS must be at least 1")
@@ -98,6 +103,9 @@ class FedSDAClient(BaseClient, ABC):
             self.flush_pending_updates()
             self.detected_event_positions.append(idx)
             self.estimated_drift_start_positions.append(self._estimated_drift_start(idx))
+            self.detector_candidate_start_positions.append(
+                self._detector_candidate_start(idx)
+            )
             drift_type = self._resolve_drift(sample_idx=idx)
         else:
             # 平時: バッファ長 N_FIFO を超えた分だけ古いデータをストアへ確定し、学習する
@@ -109,7 +117,14 @@ class FedSDAClient(BaseClient, ABC):
                 self._update_model_stats(
                     self.current_model_id, loss_val, class_id=class_id
                 )
-                self.train_data_store[self.current_model_id].append((old_x, old_y))
+                data_item = (old_x, old_y)
+                self.train_data_store[self.current_model_id].append(data_item)
+                self.assignment_journal.record(
+                    sample_idx=idx - self.fifo_size,
+                    data=data_item,
+                    loss=loss_val,
+                    class_id=class_id,
+                )
             self.train_step()
 
         self.history_drift_type.append(drift_type)
@@ -127,14 +142,35 @@ class FedSDAClient(BaseClient, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _new_concept_sample_count(self, buffer_list, sample_idx):
-        """検出器が推定した新概念側のサンプル数を返す。"""
+    def _estimated_new_concept_span(self, sample_idx):
+        """検出器の候補開始点から現在までの長さを返す。"""
         raise NotImplementedError
 
     def _estimated_drift_start(self, sample_idx):
-        """検知器が推定した新概念側の先頭サンプル位置を返す。"""
-        n_new = self._new_concept_sample_count(list(self.buffer), sample_idx)
+        """FIFO内で実際に新概念側として扱う先頭位置を返す。"""
+        n_new = min(
+            len(self.buffer),
+            self._estimated_new_concept_span(sample_idx),
+        )
         return max(0, sample_idx - n_new + 1)
+
+    def _detector_candidate_start(self, sample_idx):
+        """FIFO長で打ち切らない、検出器本来の候補開始位置を返す。"""
+        return max(
+            0,
+            sample_idx - self._estimated_new_concept_span(sample_idx) + 1,
+        )
+
+    def _reassign_journal_data(self, estimated_start):
+        candidate_count = self.assignment_journal.count_since(estimated_start)
+        self.compute_counters["journal_reassignment_candidates"] += candidate_count
+        data = self.assignment_journal.reassign_since(
+            estimated_start,
+            self.train_data_store,
+            self.model_stats,
+        )
+        self.compute_counters["reassigned_samples"] += len(data)
+        return data
 
     @abstractmethod
     def _reset_drift_detectors(self):
@@ -152,7 +188,15 @@ class FedSDAClient(BaseClient, ABC):
     def _resolve_drift(self, sample_idx):
         """FIFOを新旧概念に分割し、モデル切替または新規作成を行う。"""
         buffer_list = list(self.buffer)
-        n_new_concept = self._new_concept_sample_count(buffer_list, sample_idx)
+        estimated_start = max(
+            0,
+            sample_idx
+            - self._estimated_new_concept_span(sample_idx)
+            + 1,
+        )
+        n_new_concept = min(
+            len(buffer_list), self._estimated_new_concept_span(sample_idx)
+        )
 
         if len(buffer_list) <= n_new_concept:
             drift_data = buffer_list
@@ -169,12 +213,16 @@ class FedSDAClient(BaseClient, ABC):
             self._reset_drift_detectors()
             return 0
 
+        buffer_drift_data = drift_data
+
         if self.verbose:
             print(f"Client {self.client_id} [sample={sample_idx}]: "
                   f"{self._detector_label()} Drift Detected.")
 
-        bx = torch.cat([data[0] for data in drift_data])
-        by = torch.cat([data[1] for data in drift_data])
+        # 既存モデルの適合判定には、検出器が保持していたFIFOだけを使う。
+        # journalは判定窓を暗黙に広げず、切替後の再割当と新規モデル初期学習に使う。
+        bx = torch.cat([data[0] for data in buffer_drift_data])
+        by = torch.cat([data[1] for data in buffer_drift_data])
         valid_candidates = []
         for model_id, model in self.models.items():
             with torch.no_grad():
@@ -206,14 +254,33 @@ class FedSDAClient(BaseClient, ABC):
                 self.local_switch_positions.append(sample_idx)
                 self.current_model_id = best_model_id
                 drift_type = 1
+                drift_data = (
+                    self._reassign_journal_data(estimated_start)
+                    + buffer_drift_data
+                )
             else:
                 if self.verbose:
                     print(f"  -> Keep current Model {self.current_model_id} "
                           f"(Loss {minimum_loss:.3f})")
                 drift_type = 0
+                # 現行モデルを維持する場合、journal分は既に正しいストアにある。
+                drift_data = buffer_drift_data
             self._absorb_into_store(self.current_model_id, drift_data)
         else:
-            temporary_id, _ = self._spawn_new_model(bx, by, pending_ready=False)
+            journal_data = self.assignment_journal.preview_since(estimated_start)
+            self.compute_counters["journal_initial_training_examples"] += len(
+                journal_data
+            )
+            initial_training_data = journal_data + buffer_drift_data
+            initial_bx = torch.cat([data[0] for data in initial_training_data])
+            initial_by = torch.cat([data[1] for data in initial_training_data])
+            temporary_id, _ = self._spawn_new_model(
+                initial_bx, initial_by, pending_ready=False
+            )
+            drift_data = (
+                self._reassign_journal_data(estimated_start)
+                + buffer_drift_data
+            )
             self.local_switch_positions.append(sample_idx)
             self.current_model_id = temporary_id
             drift_type = 2
@@ -221,6 +288,7 @@ class FedSDAClient(BaseClient, ABC):
 
         self._reset_drift_detectors()
         self.buffer.clear()
+        self.assignment_journal.clear()
         return drift_type
 
 
@@ -239,8 +307,8 @@ class ADWINFedSDAClient(FedSDAClient):
             self.compute_counters["drift_detector_hypotheses"] += scan_width - 1
         return self.adwin.drift_detected
 
-    def _new_concept_sample_count(self, buffer_list, sample_idx):
-        return min(len(buffer_list), self.adwin.width)
+    def _estimated_new_concept_span(self, sample_idx):
+        return self.adwin.width
 
     def _reset_drift_detectors(self):
         self.adwin.reset()
@@ -318,10 +386,10 @@ class ClassConditionalADWINFedSDAClient(ADWINFedSDAClient):
             self._class_drift_start = None
         return overall_detected or class_detected
 
-    def _new_concept_sample_count(self, buffer_list, sample_idx):
+    def _estimated_new_concept_span(self, sample_idx):
         if self.adwin.drift_detected or self._class_drift_start is None:
-            return super()._new_concept_sample_count(buffer_list, sample_idx)
-        return min(len(buffer_list), sample_idx - self._class_drift_start + 1)
+            return super()._estimated_new_concept_span(sample_idx)
+        return sample_idx - self._class_drift_start + 1
 
     def _reset_drift_detectors(self):
         super()._reset_drift_detectors()
@@ -363,8 +431,8 @@ class HDDMFedSDAClient(FedSDAClient):
         )
         return self.hddm.drift_detected
 
-    def _new_concept_sample_count(self, buffer_list, sample_idx):
-        return min(len(buffer_list), self.hddm.width)
+    def _estimated_new_concept_span(self, sample_idx):
+        return self.hddm.width
 
     def _reset_drift_detectors(self):
         self.hddm.reset()
@@ -423,10 +491,10 @@ class ClassConditionalHDDMAFedSDAClient(HDDMFedSDAClient):
         self._class_drift_start = positions[-retained_width]
         return True
 
-    def _new_concept_sample_count(self, buffer_list, sample_idx):
+    def _estimated_new_concept_span(self, sample_idx):
         if self.hddm.drift_detected or self._class_drift_start is None:
-            return super()._new_concept_sample_count(buffer_list, sample_idx)
-        return min(len(buffer_list), sample_idx - self._class_drift_start + 1)
+            return super()._estimated_new_concept_span(sample_idx)
+        return sample_idx - self._class_drift_start + 1
 
     def _reset_drift_detectors(self):
         super()._reset_drift_detectors()
@@ -477,8 +545,9 @@ class ESRFedSDAClient(FedSDAClient):
         # 無補正の別経路をOR接続するとe-detectorの誤警報制御を解釈できないため無効化する。
         return False
 
-    def _new_concept_sample_count(self, buffer_list, sample_idx):
-        return min(len(buffer_list), self.e_detector.width)
+    def _estimated_new_concept_span(self, sample_idx):
+        # e-SRの最大wealth候補の年齢であり、変化点推定の保証は持たない。
+        return self.e_detector.width
 
     def _reset_drift_detectors(self):
         self.e_detector.reset(self._e_detector_baseline())
@@ -568,10 +637,10 @@ class ClassConditionalESRFedSDAClient(ESRFedSDAClient):
             self._class_drift_start = best_positions[max(0, min(offset, len(best_positions) - 1))]
         return True
 
-    def _new_concept_sample_count(self, buffer_list, sample_idx):
+    def _estimated_new_concept_span(self, sample_idx):
         if self._class_drift_start is None:
-            return super()._new_concept_sample_count(buffer_list, sample_idx)
-        return min(len(buffer_list), sample_idx - self._class_drift_start + 1)
+            return super()._estimated_new_concept_span(sample_idx)
+        return sample_idx - self._class_drift_start + 1
 
     def _reset_drift_detectors(self):
         super()._reset_drift_detectors()

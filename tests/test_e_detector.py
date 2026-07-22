@@ -63,6 +63,20 @@ def test_e_detector_client_disables_uncontrolled_forced_check():
     assert not client._forced_drift_check(100)
 
 
+def test_e_detector_candidate_start_is_recorded_without_changing_fifo_split():
+    client = ESRFedSDAClient(
+        client_id=0,
+        initial_models={0: SimpleMLP()},
+        initial_stats={0: {"n": 100, "mean": 0.2, "M2": 1.0}},
+        verbose=False,
+    )
+    client.e_detector.width = 80
+    client.buffer.extend([(None, None)] * 30)
+
+    assert client._estimated_drift_start(100) == 71
+    assert client._detector_candidate_start(100) == 21
+
+
 def test_forced_check_can_be_disabled_without_changing_default(monkeypatch):
     client = ADWINFedSDAClient(
         client_id=0,

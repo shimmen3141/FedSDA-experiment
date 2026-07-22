@@ -309,6 +309,8 @@ _COMPUTE_COUNTER_KEYS = (
     "initialization_forward_calls", "initialization_examples",
     "training_forward_calls", "training_examples", "optimizer_steps",
     "drift_detector_updates", "drift_detector_hypotheses",
+    "journal_initial_training_examples", "journal_reassignment_candidates",
+    "reassigned_samples",
 )
 _PHASE_TIME_KEYS = ("online", "training", "cross_evaluation")
 
@@ -430,13 +432,20 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
             s_pos.append(p)
 
     e_cids, e_alarm_pos, e_start_pos = [], [], []
+    detector_candidate_start_pos = []
     for ci, client in enumerate(clients):
         alarms = getattr(client, "detected_event_positions", [])
         estimates = getattr(client, "estimated_drift_start_positions", [])
-        for alarm, estimate in zip(alarms, estimates):
+        detector_estimates = getattr(
+            client, "detector_candidate_start_positions", estimates
+        )
+        for alarm, estimate, detector_estimate in zip(
+            alarms, estimates, detector_estimates
+        ):
             e_cids.append(ci)
             e_alarm_pos.append(alarm)
             e_start_pos.append(estimate)
+            detector_candidate_start_pos.append(detector_estimate)
 
     telemetry_arrays = {
         "round_global_model_count": np.asarray(telemetry["global_model_count"], dtype=np.float64),
@@ -470,6 +479,9 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
         estimated_drift_start_client_ids=np.asarray(e_cids, dtype=np.int32),
         estimated_drift_alarm_positions=np.asarray(e_alarm_pos, dtype=np.int32),
         estimated_drift_start_positions=np.asarray(e_start_pos, dtype=np.int32),
+        detector_candidate_start_positions=np.asarray(
+            detector_candidate_start_pos, dtype=np.int32
+        ),
         dataset=str(config.DATASET),
         concept_schedule=str(config.CONCEPT_SCHEDULE),
         mode=str(mode),
