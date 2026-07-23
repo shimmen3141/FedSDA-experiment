@@ -10,13 +10,12 @@ from pathlib import Path
 
 import numpy as np
 
-from federated_drift_experiment.data import (
+from federated_drift_experiment.compatibility import (
+    LEGACY_MODE_NAMES,
     normalize_dataset_in_text,
     normalize_dataset_name,
-)
-from federated_drift_experiment.mode_names import (
-    LEGACY_MODE_NAMES,
     normalize_legacy_mode,
+    normalize_names_in_text,
 )
 
 
@@ -36,27 +35,6 @@ def _io_path(path):
 def _is_ucb(value):
     text = str(value).lower()
     return any(marker in text for marker in UCB_MARKERS) or text.endswith("ucb")
-
-
-def normalize_method_in_text(value):
-    """文章・ファイル名中の旧手法名だけを正規名へ変換する。"""
-    normalized = str(value)
-    for old_mode, new_mode in sorted(
-        LEGACY_MODE_NAMES.items(), key=lambda item: len(item[0]), reverse=True
-    ):
-        if old_mode == "FedSDA":
-            # 現行名（FedSDA_Cached_*等）の接頭辞は旧v1名とみなさない。
-            pattern = rf"(?<![0-9A-Za-z_]){re.escape(old_mode)}(?![0-9A-Za-z_])"
-            normalized = re.sub(pattern, new_mode, normalized)
-        else:
-            # バージョン付き旧名は、ファイル名の区切り「_」の前でも置換する。
-            normalized = normalized.replace(old_mode, new_mode)
-    return normalized
-
-
-def normalize_names_in_text(value):
-    """パラメータ表記には触れず、手法名・データセット名だけを変換する。"""
-    return normalize_dataset_in_text(normalize_method_in_text(value))
 
 
 def _scalar_text(value):
@@ -251,10 +229,7 @@ def _contains_legacy_method(value):
 
 def _contains_legacy_dataset_token(value):
     text = str(value)
-    return any(
-        re.search(rf"(?<![0-9A-Za-z]){re.escape(old)}(?![0-9A-Za-z])", text)
-        for old in ("sea", "circle", "sine")
-    )
+    return normalize_dataset_in_text(text) != text
 
 
 def validate_migration(source_root, staging_root, manifest):

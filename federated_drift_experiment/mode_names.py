@@ -1,4 +1,6 @@
-"""実験モード名と旧結果ファイルの互換変換を一元管理する。"""
+"""現在の実験モード名と表示用系列名を管理する。"""
+
+from .compatibility import LEGACY_MODE_NAMES, normalize_legacy_mode
 
 FEDSDA_MODES = (
     "FedSDA_NoCached_ADWIN",
@@ -41,27 +43,6 @@ def is_esr_mode(mode):
 
 def is_hddm_mode(mode):
     return fedsda_detector_name(mode) in {"HDDMA", "ClassHDDMA", "HDDMW"}
-
-# 過去のCSV・NPZを新しい解析コードで引き続き利用するための読み込み専用変換。
-# v1は新しい正式手法と混同しないようLegacyとして明示する。
-LEGACY_MODE_NAMES = {
-    "FedSDA": "FedSDA_Legacy",
-    "FedSDA_v2": "FedSDA_NoCached_ADWIN",
-    "FedSDA_v2.1": "FedSDA_NoCached_ClassADWIN",
-    "FedSDA_v2.2": "FedSDA_NoCached_ESR",
-    "FedSDA_v2.3": "FedSDA_NoCached_ClassESR",
-    "FedSDA_v3": "FedSDA_Cached_ADWIN",
-    "FedSDA_v3.1": "FedSDA_Cached_ClassADWIN",
-    "FedSDA_v3.2": "FedSDA_Cached_ESR",
-    "FedSDA_v3.3": "FedSDA_Cached_ClassESR",
-    "FedDrift_v2": "FedDrift",
-}
-
-
-def normalize_legacy_mode(mode):
-    """旧バージョン名を現在の結果表示名へ変換する。"""
-    return LEGACY_MODE_NAMES.get(mode, mode)
-
 
 def normalize_legacy_series(series, old_mode, new_mode):
     """系列名の先頭に含まれる旧モード名だけを置換する。"""

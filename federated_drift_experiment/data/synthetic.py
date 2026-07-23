@@ -31,7 +31,7 @@ def generate_blobs(concept_id, n_samples):
     return x_list, y_list
 
 
-def generate_sea(concept_id, n_samples):
+def generate_sea4(concept_id, n_samples):
     """FedDrift SEAの3次元合成データを返す。"""
     theta = config.SEA_THRESHOLDS[concept_id]
     x_list = []
@@ -46,7 +46,7 @@ def generate_sea(concept_id, n_samples):
     return x_list, y_list
 
 
-def generate_circle(concept_id, n_samples):
+def generate_circle2(concept_id, n_samples):
     """FedDrift CIRCLE-2の2次元合成データを返す。"""
     cx, cy, radius = config.CIRCLE_PARAMS[concept_id]
     x_list = []
@@ -59,7 +59,7 @@ def generate_circle(concept_id, n_samples):
     return x_list, y_list
 
 
-def generate_sine(concept_id, n_samples):
+def generate_sine2(concept_id, n_samples):
     """FedDrift SINE-2の2次元合成データを返す。"""
     x_list = []
     y_list = []

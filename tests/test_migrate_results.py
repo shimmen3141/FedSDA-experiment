@@ -2,7 +2,7 @@ import csv
 
 import numpy as np
 
-from migrate_all_results import (
+from tools.migrations.migrate_results import (
     activate_migration,
     migrate_results_tree,
 )

@@ -189,8 +189,8 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 まずステージングを作成して検証し、その後に切り替える。
 
 ```bash
-python migrate_all_results.py
-python migrate_all_results.py --apply
+python -m tools.migrations.migrate_results
+python -m tools.migrations.migrate_results --apply
 ```
 
 CSV・NPZのメタデータ、ファイル名、Markdown・ログを変換する。パラメータ名と数値は
@@ -198,27 +198,31 @@ CSV・NPZのメタデータ、ファイル名、Markdown・ログを変換する
 移行前ディレクトリに保存する。切り替え時も旧`results/`を日時付きバックアップとして
 残す。変換件数・除外した派生成果物・バックアップ元は`migration_manifest.json`で確認できる。
 
-旧凡例のパラメータ表記まで変換する従来の部分移行が必要な場合に限り、
-元ディレクトリとは別の出力先を指定して次を使う。
-
-```bash
-python migrate_result_modes.py results/results_YYYYMMDD_HHMMSS --output results/results_YYYYMMDD_HHMMSS_migrated
-```
+パラメータ名は移行対象に含めない。詳細は
+[`tools/migrations/README.md`](tools/migrations/README.md)を参照。
 
 ### FedDrift固定ベースライン
 
 検証済みの既存結果から、FedDriftの固定比較データをデータセット別に作成する。
 
 ```bash
-python build_feddrift_baseline.py
+python -m tools.baselines.build_feddrift \
+  --output results/baselines/feddrift_new
 ```
 
 出力先は`results/baselines/feddrift/`で、各データセットに`metrics.csv`と
 `raw/*.npz`を配置する。元結果は変更しない。表記は論文・凡例に合わせて
 `FedDrift`、`B_detect`、`delta_feddrift`へ正規化し、コード上の
 `FEDDRIFT_DETECT_BATCH`、`DISTANCE_THRESHOLD`との対応や元ファイルのSHA-256を
-`manifest.json`へ記録する。既存の出力先は上書きしないため、再生成時は内容を
-確認した上で別の`--output`を指定する。
+`manifest.json`へ記録する。入力結果は
+[`tools/baselines/feddrift_sources.json`](tools/baselines/feddrift_sources.json)
+で管理する。
+
+追加シード・掃引・データセットを既存baselineへ統合する場合は、追加結果を記載した
+入力JSONを`--source-config`で指定して`--extend`を使う。既存ディレクトリへ直接追記せず、
+一時ディレクトリ上で重複・競合・CSV/NPZ件数を検査してから切り替え、旧baselineを
+日時付きバックアップとして残す。詳細は
+[`tools/baselines/README.md`](tools/baselines/README.md)を参照。
 
 ## コード構成
 
@@ -226,10 +230,11 @@ python build_feddrift_baseline.py
 .
 ├── run_experiment.py            # CLI: 単発実験
 ├── run_comparative_trials.py    # CLI: 複数シード比較試行
-├── migrate_all_results.py       # results全体の手法名・データセット名を安全に移行
-├── migrate_result_modes.py      # 過去CSV/NPZの非破壊モード名移行
-├── build_feddrift_baseline.py   # 既存結果からFedDrift固定比較データを作成
+├── tools/
+│   ├── migrations/              # 過去resultsの名称移行
+│   └── baselines/               # 固定比較データの構築・拡張
 ├── federated_drift_experiment/ # 連合ドリフト実験パッケージ
+│   ├── compatibility.py         # 旧手法名・旧データセット名の後方互換定義
 │   ├── config.py                # ★ハイパーパラメータの一元管理
 │   ├── data.py                  # 合成データ生成・ドリフトスケジュール
 │   ├── models.py                # SimpleMLP(2次元入力の二値分類)

@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from . import config
-from .data.names import normalize_dataset_name
+from .compatibility import normalize_dataset_name
 
 
 class SimpleMLP(nn.Module):

@@ -1,7 +1,7 @@
 """データセット固有の構造とモデル条件を一元管理する。"""
 from dataclasses import dataclass
 
-from .names import normalize_dataset_name
+from ..compatibility import normalize_dataset_name
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,6 @@
 """データ生成と概念スケジュールの公開API。"""
 from .schedules import extract_true_drift_events, make_concept_schedules
-from .names import (
+from ..compatibility import (
     dataset_cli_choices,
     normalize_dataset_in_text,
     normalize_dataset_name,

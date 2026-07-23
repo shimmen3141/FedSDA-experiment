@@ -1,0 +1,14 @@
+[
+  {
+    "root": "results/results_20260718_222845",
+    "csv_path": "results/results_20260718_222845/pareto/pareto_sea4-circle2-sine2_seeds0-4_n5000_adwin_feddrift.csv",
+    "datasets": ["sea4", "circle2", "sine2"],
+    "concept_schedule": "random"
+  },
+  {
+    "root": "results/results_20260719_083206",
+    "csv_path": "results/results_20260719_083206/pareto/pareto_mnist2-sea2_seeds0-4_n5000_mnist2-sea2-random-e-detectors.csv",
+    "datasets": ["mnist2", "sea2"],
+    "concept_schedule": "random"
+  }
+]

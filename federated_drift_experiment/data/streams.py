@@ -4,16 +4,21 @@ import torch
 
 from .. import config
 from .mnist import sample_mnist
-from .names import normalize_dataset_name
-from .synthetic import generate_blobs, generate_circle, generate_sea, generate_sine
+from ..compatibility import normalize_dataset_name
+from .synthetic import (
+    generate_blobs,
+    generate_circle2,
+    generate_sea4,
+    generate_sine2,
+)
 
 
 _GENERATORS = {
     "blobs": generate_blobs,
-    "sea4": generate_sea,
-    "sea2": generate_sea,
-    "circle2": generate_circle,
-    "sine2": generate_sine,
+    "sea4": generate_sea4,
+    "sea2": generate_sea4,
+    "circle2": generate_circle2,
+    "sine2": generate_sine2,
     "mnist2": sample_mnist,
     "mnist4": sample_mnist,
 }
