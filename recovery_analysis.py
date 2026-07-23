@@ -15,7 +15,7 @@ run_experiment.py / run_pareto_sweep.py の --raw-dir で保存した .npz を�
 
 例:
     python recovery_analysis.py --npz "results/raw/*.npz"
-    python recovery_analysis.py --npz "results/raw/*sine*.npz" --window 200 --checkpoints 20 50 100
+    python recovery_analysis.py --npz "results/raw/*sine2*.npz" --window 200 --checkpoints 20 50 100
 """
 import argparse
 import glob
@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from federated_drift_experiment import config
+from federated_drift_experiment.data import normalize_dataset_name
 from federated_drift_experiment.mode_names import (
     normalize_legacy_mode,
     normalize_legacy_series,
@@ -36,7 +37,9 @@ from federated_drift_experiment.mode_names import (
 )
 
 # データセットの正準表示順(存在するものだけ使う)
-_CANON_DATASETS = ["blobs", "sea", "circle", "sine"]
+_CANON_DATASETS = [
+    "blobs", "sea2", "sea4", "circle2", "sine2", "mnist2", "mnist4"
+]
 
 
 def infer_out_dir(npz_paths):
@@ -63,7 +66,7 @@ def load_npz(path):
         "history": d["history_accuracy"],        # (N_CLIENTS, N_SAMPLES) int8 の 0/1
         "d_cids": d["drift_client_ids"],
         "d_pos": d["drift_positions"],
-        "dataset": str(d["dataset"]),
+        "dataset": normalize_dataset_name(str(d["dataset"])),
         "label": label,
         "seed": int(d["seed"]),
         "min_stable": int(d["min_stable"]),

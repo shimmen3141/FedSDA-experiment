@@ -44,7 +44,7 @@ def test_representative_labels_select_one_default_config_per_version():
 def test_plot_recovery_skips_file_when_no_series(tmp_path):
     output = tmp_path / "empty.png"
     agg = {
-        ("circle", "FedSDA_NoCached_ClassADWIN A sweep [50]"): {
+        ("circle2", "FedSDA_NoCached_ClassADWIN A sweep [50]"): {
             "mean": [1.0], "std": [0.0], "n_drifts": 1, "n_seeds": 1,
         }
     }

@@ -12,7 +12,7 @@ FedDrift の各曲線の左上(高精度・低通信)を取れば「パレート
 
 例:
     python run_pareto_sweep.py --quick                       # 動作確認(小規模)
-    python run_pareto_sweep.py --datasets sea sine --seeds 0 1 2
+    python run_pareto_sweep.py --datasets sea4 sine2 --seeds 0 1 2
     python run_pareto_sweep.py                               # 既定(全4データセット × 5シード)※長時間
 """
 import argparse
@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from federated_drift_experiment import config, run_random_drift_experiment
+from federated_drift_experiment.data import dataset_cli_choices, normalize_dataset_name
 from federated_drift_experiment.mode_names import (
     BASELINE_MODES,
     FEDDRIFT_MODES,
@@ -257,7 +258,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
 def _experiment_slug(datasets, seeds, total_data, tag=None, concept_schedule="random"):
     """実験内容がわかる出力ファイル名(拡張子なし)を組み立てる。
 
-    例: pareto_sea-circle-sine_seed0_n5000 / pareto_sea_seeds0-2_n5000_myrun
+    例: pareto_sea4-circle2-sine2_seed0_n5000 / pareto_sea4_seeds0-2_n5000_myrun
     """
     ds = "-".join(datasets)
     if len(seeds) == 1:
@@ -295,11 +296,17 @@ def _load_csv(path):
             )
             row["series"] = normalize_series_notation(row["series"])
             row.setdefault("concept_schedule", "random")
+            row["dataset"] = normalize_dataset_name(row["dataset"])
             row["seed"] = int(float(row["seed"]))
             row["sweep_value"] = (float(row["sweep_value"])
                                   if row["sweep_value"] not in ("", "None") else None)
-            row["feddrift_batch"] = (int(float(row["feddrift_batch"]))
-                                     if row["feddrift_batch"] not in ("", "None") else "")
+            feddrift_batch = row.get("feddrift_batch", row.get("b_detect"))
+            row["feddrift_batch"] = (
+                int(float(feddrift_batch))
+                if feddrift_batch not in (None, "", "None") else ""
+            )
+            if "distance_threshold" not in row and "delta_feddrift" in row:
+                row["distance_threshold"] = row["delta_feddrift"]
             agg_interval = row.get("agg_interval")
             row["agg_interval"] = (int(float(agg_interval))
                                    if agg_interval not in (None, "", "None") else "")
@@ -590,12 +597,12 @@ def build_parser():
 値を取らない空指定の例は「--batches」のように、次のオプションを直後に置く。
 """,
     )
-    all_datasets = list(config._FEATURE_DIMS)
+    all_datasets = dataset_cli_choices(config._FEATURE_DIMS)
     # blobs・固定系列・MNISTは計算量や実験上の位置づけが異なるため、明示指定時だけ実行する。
-    default_datasets = ["sea", "circle", "sine"]
+    default_datasets = ["sea4", "circle2", "sine2"]
     scope = parser.add_argument_group("実験対象・規模")
     scope.add_argument("--datasets", nargs="+", choices=all_datasets, default=default_datasets,
-                       help="対象データセット(既定: sea circle sine。blobs・MNIST等は明示指定)")
+                       help="対象データセット(既定: sea4 circle2 sine2。blobs・MNIST等は明示指定)")
     scope.add_argument("--concept-schedule", choices=config.CONCEPT_SCHEDULES,
                        default=config.CONCEPT_SCHEDULE,
                        help=f"全データセットに適用する概念切替方式(既定: {config.CONCEPT_SCHEDULE})")
@@ -701,6 +708,7 @@ def main():
     configure_torch_threads()
     parser = build_parser()
     args = parser.parse_args()
+    args.datasets = [normalize_dataset_name(dataset) for dataset in args.datasets]
 
     if args.fifo_size < 1:
         parser.error("--fifo-size must be at least 1")

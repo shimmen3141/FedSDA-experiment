@@ -10,6 +10,7 @@ import os
 from experiment_runtime import configure_torch_threads
 
 from federated_drift_experiment import config, run_random_drift_experiment
+from federated_drift_experiment.data import dataset_cli_choices, normalize_dataset_name
 from federated_drift_experiment.experiment import MODE_SPECS
 
 MODES = list(MODE_SPECS)
@@ -23,7 +24,8 @@ def main():
     parser.add_argument("--threshold", type=float, default=config.DISTANCE_THRESHOLD,
                         help=f"距離閾値 gamma_dist (default: {config.DISTANCE_THRESHOLD})")
     parser.add_argument("--seed", type=int, default=0, help="乱数シード (default: 0)")
-    parser.add_argument("--dataset", choices=list(config._FEATURE_DIMS), default=config.DATASET,
+    parser.add_argument("--dataset", choices=dataset_cli_choices(config._FEATURE_DIMS),
+                        default=config.DATASET,
                         help=f"データセット (default: {config.DATASET})")
     parser.add_argument("--concept-schedule", choices=config.CONCEPT_SCHEDULES,
                         default=config.CONCEPT_SCHEDULE,
@@ -96,6 +98,7 @@ def main():
     if not 0.0 < args.new_model_validation_fraction < 1.0:
         parser.error("--new-model-validation-fraction must be between 0 and 1")
 
+    args.dataset = normalize_dataset_name(args.dataset)
     config.DATASET = args.dataset
     config.CONCEPT_SCHEDULE = args.concept_schedule
     if args.total_data is not None:

@@ -8,6 +8,7 @@
 括弧内は論文 (main_jp.tex / docs/fedsda-algorithm.md) の記号との対応。
 """
 from .data.specs import DATASET_SPECS, get_dataset_spec
+from .data.names import normalize_dataset_name
 
 # ##########################################
 # 共通パラメータ (FedSDA / FedDrift / Oblivious)
@@ -22,7 +23,7 @@ TOTAL_DATA_POINTS = 5000    # クライアントあたりの総データ数(FedD
 # ==========================================
 # データセット
 # ==========================================
-DATASET = 'blobs'          # 利用可能な名前は data/specs.py を参照
+DATASET = 'blobs'          # 利用可能な正規名は data/specs.py を参照
 CONCEPT_SCHEDULE = 'random'  # 'random' / 'feddrift_fixed'（データ分布と独立）
 CONCEPT_SCHEDULES = ('random', 'feddrift_fixed')
 
@@ -37,12 +38,16 @@ _DATASET_CONCEPTS = {name: spec.num_concepts for name, spec in DATASET_SPECS.ite
 
 def input_dim(dataset=None):
     """現在のデータセットの入力特徴次元を返す(モデルの入力層サイズに使用)。"""
-    return _FEATURE_DIMS[dataset if dataset is not None else DATASET]
+    return _FEATURE_DIMS[normalize_dataset_name(
+        dataset if dataset is not None else DATASET
+    )]
 
 
 def num_concepts(dataset=None):
     """現在のデータセットのコンセプト数を返す。"""
-    return _DATASET_CONCEPTS[dataset if dataset is not None else DATASET]
+    return _DATASET_CONCEPTS[normalize_dataset_name(
+        dataset if dataset is not None else DATASET
+    )]
 
 
 def num_classes(dataset=None):

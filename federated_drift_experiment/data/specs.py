@@ -1,6 +1,8 @@
 """データセット固有の構造とモデル条件を一元管理する。"""
 from dataclasses import dataclass
 
+from .names import normalize_dataset_name
+
 
 @dataclass(frozen=True)
 class DatasetSpec:
@@ -13,9 +15,9 @@ class DatasetSpec:
 
 DATASET_SPECS = {
     "blobs": DatasetSpec(2, 4),
-    "sea": DatasetSpec(3, 4),
-    "circle": DatasetSpec(2, 2),
-    "sine": DatasetSpec(2, 2),
+    "sea4": DatasetSpec(3, 4),
+    "circle2": DatasetSpec(2, 2),
+    "sine2": DatasetSpec(2, 2),
     "sea2": DatasetSpec(3, 2),
     "mnist2": DatasetSpec(
         784, 2, num_classes=10,
@@ -29,6 +31,7 @@ DATASET_SPECS = {
 
 
 def get_dataset_spec(dataset: str) -> DatasetSpec:
+    dataset = normalize_dataset_name(dataset)
     try:
         return DATASET_SPECS[dataset]
     except KeyError as exc:

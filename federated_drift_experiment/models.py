@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from . import config
+from .data.names import normalize_dataset_name
 
 
 class SimpleMLP(nn.Module):
@@ -13,7 +14,9 @@ class SimpleMLP(nn.Module):
 
     def __init__(self, input_dim=None, dataset=None):
         super(SimpleMLP, self).__init__()
-        self.dataset = dataset if dataset is not None else config.DATASET
+        self.dataset = normalize_dataset_name(
+            dataset if dataset is not None else config.DATASET
+        )
         spec = config.dataset_spec(self.dataset)
         if input_dim is None:
             input_dim = spec.input_dim

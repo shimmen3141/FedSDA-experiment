@@ -4,15 +4,16 @@ import torch
 
 from .. import config
 from .mnist import sample_mnist
+from .names import normalize_dataset_name
 from .synthetic import generate_blobs, generate_circle, generate_sea, generate_sine
 
 
 _GENERATORS = {
     "blobs": generate_blobs,
-    "sea": generate_sea,
+    "sea4": generate_sea,
     "sea2": generate_sea,
-    "circle": generate_circle,
-    "sine": generate_sine,
+    "circle2": generate_circle,
+    "sine2": generate_sine,
     "mnist2": sample_mnist,
     "mnist4": sample_mnist,
 }
@@ -21,6 +22,7 @@ _GENERATORS = {
 def generate_data(concept_id, n_samples=1, dataset=None):
     """指定データセット・コンセプトからテンソル形式の標本を生成する。"""
     dataset = config.DATASET if dataset is None else dataset
+    dataset = normalize_dataset_name(dataset)
     if concept_id not in range(config.num_concepts(dataset)):
         raise ValueError(f"Unknown concept_id {concept_id} for dataset {dataset!r}")
     try:

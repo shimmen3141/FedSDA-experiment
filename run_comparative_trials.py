@@ -9,6 +9,7 @@ import argparse
 from experiment_runtime import configure_torch_threads
 
 from federated_drift_experiment import config, run_comparative_trials
+from federated_drift_experiment.data import dataset_cli_choices, normalize_dataset_name
 from federated_drift_experiment.experiment import MODE_SPECS
 
 MODES = list(MODE_SPECS)
@@ -23,7 +24,8 @@ def main():
     parser.add_argument("--modes", nargs="+", choices=MODES, default=MODES,
                         help=f"実行するモード (default: 全モード)")
     parser.add_argument("--start-seed", type=int, default=0, help="開始シード (default: 0)")
-    parser.add_argument("--dataset", choices=list(config._FEATURE_DIMS), default=config.DATASET,
+    parser.add_argument("--dataset", choices=dataset_cli_choices(config._FEATURE_DIMS),
+                        default=config.DATASET,
                         help=f"データセット (default: {config.DATASET})")
     parser.add_argument("--concept-schedule", choices=config.CONCEPT_SCHEDULES,
                         default=config.CONCEPT_SCHEDULE,
@@ -41,7 +43,7 @@ def main():
                         help="最終試行の詳細ログを表示する")
     args = parser.parse_args()
 
-    config.DATASET = args.dataset
+    config.DATASET = normalize_dataset_name(args.dataset)
     config.CONCEPT_SCHEDULE = args.concept_schedule
     config.CLUSTER_LINKAGE = args.cluster_linkage
     config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation

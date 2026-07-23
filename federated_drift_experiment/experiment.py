@@ -33,7 +33,13 @@ from .clients import (
     HDDMFedSDAClient,
     ObliviousClient,
 )
-from .data import build_data_streams, extract_true_drift_events, generate_data, make_concept_schedules
+from .data import (
+    build_data_streams,
+    extract_true_drift_events,
+    generate_data,
+    make_concept_schedules,
+    normalize_dataset_name,
+)
 from .metrics import compute_metrics
 from .models import SimpleMLP
 from .mode_names import (
@@ -595,6 +601,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     (クライアント別 history_accuracy と真のドリフト位置、メタデータ)を .npz に保存する。
     実験規模などのハイパーパラメータは federated_drift_experiment/config.py で管理する。
     """
+    config.DATASET = normalize_dataset_name(config.DATASET)
     try:
         spec = MODE_SPECS[mode]
     except KeyError:

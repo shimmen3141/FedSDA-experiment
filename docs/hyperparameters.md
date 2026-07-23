@@ -59,11 +59,11 @@ FedDrift内では、元論文に合わせてドリフト検出とモデルマー
 
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
-| `DATASET` | 使用データ `blobs` / `sea` / `sea2` / `circle` / `sine` / `mnist2` / `mnist4` | 共通 | `blobs` |
+| `DATASET` | 使用データ `blobs` / `sea2` / `sea4` / `circle2` / `sine2` / `mnist2` / `mnist4` | 共通 | `blobs` |
 | `CONCEPT_SCHEDULE` | 概念切替方式 `random` / `feddrift_fixed` | 共通 | `random` |
-| `SEA_THRESHOLDS` | SEA-4 各概念の閾値 θ(論文 appendix 準拠 {9,8,7,9.5}) | sea / sea2 | `{0:9,1:8,2:7,3:9.5}` |
-| `SEA_LABEL_NOISE` | SEA の内在ラベルノイズ率(標準 10%) | sea のみ | 0.10 |
-| `CIRCLE_PARAMS` | CIRCLE-2 各概念の円 (cx,cy,r) | circle のみ | `{0:(0.2,0.5,0.15),1:(0.6,0.5,0.25)}` |
+| `SEA_THRESHOLDS` | SEA-4 各概念の閾値 θ(論文 appendix 準拠 {9,8,7,9.5}) | sea4 / sea2 | `{0:9,1:8,2:7,3:9.5}` |
+| `SEA_LABEL_NOISE` | SEA の内在ラベルノイズ率(標準 10%) | sea4 / sea2 | 0.10 |
+| `CIRCLE_PARAMS` | CIRCLE-2 各概念の円 (cx,cy,r) | circle2 のみ | `{0:(0.2,0.5,0.15),1:(0.6,0.5,0.25)}` |
 
 補助関数: `input_dim()` = 特徴次元、`num_concepts()` = 概念数、`num_classes()` = クラス数。
 スケジュールはデータセットと独立して選ぶ。`feddrift_fixed`は2概念データセットでFedDrift

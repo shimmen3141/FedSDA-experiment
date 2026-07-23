@@ -7,6 +7,10 @@ from pathlib import Path
 
 import numpy as np
 
+from federated_drift_experiment.data import (
+    normalize_dataset_in_text,
+    normalize_dataset_name,
+)
 from federated_drift_experiment.mode_names import (
     LEGACY_MODE_NAMES,
     normalize_legacy_mode,
@@ -39,7 +43,7 @@ def _normalized_name(name):
         if old_mode in name:
             name = name.replace(old_mode, new_mode, 1)
             break
-    return normalize_series_notation(name)
+    return normalize_dataset_in_text(normalize_series_notation(name))
 
 
 def _target_path(source_file, source_root, output_root):
@@ -72,6 +76,8 @@ def migrate_csv(source, target):
             continue
         if "mode" in row:
             row["mode"] = normalize_legacy_mode(old_mode)
+        if "dataset" in row:
+            row["dataset"] = normalize_dataset_name(row["dataset"])
         for key in ("series", "label"):
             if key in row:
                 row[key] = _normalized_text(row[key], old_mode)
@@ -106,6 +112,9 @@ def migrate_npz(source, target):
 
     if "mode" in arrays:
         arrays["mode"] = np.asarray(normalize_legacy_mode(old_mode))
+    if "dataset" in arrays:
+        dataset = _scalar_text(arrays["dataset"])
+        arrays["dataset"] = np.asarray(normalize_dataset_name(dataset))
     if "label" in arrays:
         arrays["label"] = np.asarray(_normalized_text(label, old_mode))
 

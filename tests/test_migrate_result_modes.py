@@ -42,7 +42,7 @@ def test_migration_normalizes_modes_and_removes_ucb(tmp_path):
         "series": "FedSDA_NoCached_ESR A sweep (δ_ADWIN=0.05)",
         "accuracy": "0.9",
     }]
-    migrated_npz = output / "FedSDA_Cached_ClassESR_circle.npz"
+    migrated_npz = output / "FedSDA_Cached_ClassESR_circle2.npz"
     with np.load(migrated_npz, allow_pickle=False) as archive:
         assert archive["mode"].item() == "FedSDA_Cached_ClassESR"
         assert archive["label"].item() == "FedSDA_Cached_ClassESR A sweep (δ_ADWIN=0.05)"

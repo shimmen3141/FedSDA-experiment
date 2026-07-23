@@ -28,7 +28,7 @@ def test_cli_help_groups_related_sweep_options():
 def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     parser = sweep.build_parser()
     defaults = parser.parse_args([])
-    assert defaults.datasets == ["sea", "circle", "sine"]
+    assert defaults.datasets == ["sea4", "circle2", "sine2"]
     assert defaults.agg_sweep == [50, 100, 200, 500]
     assert defaults.batches == [50, 100, 200, 500]
     assert defaults.concept_schedule == "random"
@@ -55,7 +55,7 @@ def test_run_sweep_schedules_selected_versions(monkeypatch):
 
     monkeypatch.setattr(sweep, "_run", fake_run)
     rows = sweep.run_sweep(
-        datasets=["sea"], seeds=[0], batches=[25], deltas=[0.1, 0.2],
+        datasets=["sea4"], seeds=[0], batches=[25], deltas=[0.1, 0.2],
         adwin_deltas=[0.05, 0.3], fixed_delta=0.1, fixed_batch=50,
         fixed_gamma=0.1, agg_sweep=[100], fixed_adwin=0.1,
         fedsda_modes=["FedSDA_NoCached_ADWIN", "FedSDA_Cached_ADWIN"],
@@ -84,7 +84,7 @@ def test_adwin_sweep_uses_fixed_aggregation_interval(monkeypatch):
 
     monkeypatch.setattr(sweep, "_run", fake_run)
     sweep.run_sweep(
-        datasets=["sea"], seeds=[0], batches=[], deltas=[],
+        datasets=["sea4"], seeds=[0], batches=[], deltas=[],
         adwin_deltas=[0.05], fixed_delta=0.1, fixed_batch=50,
         fixed_gamma=0.1, agg_sweep=[], fixed_adwin=0.1, fixed_agg=500,
         fedsda_modes=["FedSDA_NoCached_ADWIN"], feddrift_modes=[], baseline_modes=[],
@@ -103,7 +103,7 @@ def test_adwin_delta_sweep_skips_non_adwin_detectors(monkeypatch):
 
     monkeypatch.setattr(sweep, "_run", fake_run)
     sweep.run_sweep(
-        datasets=["sea"], seeds=[0], batches=[], deltas=[],
+        datasets=["sea4"], seeds=[0], batches=[], deltas=[],
         adwin_deltas=[0.05, 0.1], fixed_delta=0.1, fixed_batch=50,
         fixed_gamma=0.1, agg_sweep=[100], fixed_adwin=0.1,
         fedsda_modes=["FedSDA_NoCached_ESR", "FedSDA_NoCached_HDDMA"],
@@ -139,12 +139,39 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
     loaded = sweep._load_csv(path)
 
     assert loaded[0]["mode"] == "FedSDA_Legacy"
+    assert loaded[0]["dataset"] == "sea4"
     assert loaded[0]["series"] == "FedSDA_Legacy sweep"
     assert loaded[0]["agg_interval"] == ""
     assert loaded[0]["clustering_policy"] == "on_new_model"
     assert loaded[0]["detection_episodes"] == "False"
     assert loaded[0]["concept_schedule"] == "random"
     assert loaded[0]["sweep_value"] == 0.1
+
+
+def test_load_csv_accepts_canonical_feddrift_baseline_names(tmp_path):
+    path = tmp_path / "feddrift.csv"
+    row = {key: "0" for key in sweep.METRIC_KEYS}
+    row.update({
+        "mode": "FedDrift",
+        "dataset": "circle2",
+        "concept_schedule": "random",
+        "seed": "0",
+        "series": "FedDrift B_detect sweep (delta_feddrift=0.1)",
+        "sweep_parameter": "b_detect",
+        "sweep_value": "50",
+        "b_detect": "50",
+        "delta_feddrift": "0.1",
+    })
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=list(row))
+        writer.writeheader()
+        writer.writerow(row)
+
+    loaded = sweep._load_csv(path)
+
+    assert loaded[0]["mode"] == "FedDrift"
+    assert loaded[0]["feddrift_batch"] == 50
+    assert loaded[0]["distance_threshold"] == 0.1
 
 
 def test_series_style_distinguishes_method_and_sweep_type():
@@ -180,14 +207,14 @@ def test_plot_pareto_draws_baseline_standard_deviation_band(tmp_path, monkeypatc
     }.items():
         for seed, accuracy in enumerate(accuracies):
             rows.append({
-                "mode": mode, "dataset": "sea", "seed": seed, "series": mode,
+                "mode": mode, "dataset": "sea4", "seed": seed, "series": mode,
                 "sweep_value": None, "comm_models_total": 0.0,
                 "stable_accuracy": accuracy, "agg_interval": 50,
                 "adwin_delta": 0.1,
             })
 
     path = tmp_path / "pareto.png"
-    sweep.plot_pareto(rows, ["sea"], path)
+    sweep.plot_pareto(rows, ["sea4"], path)
 
     assert path.exists()
     assert len(spans) == 2
@@ -197,13 +224,13 @@ def test_plot_pareto_draws_baseline_standard_deviation_band(tmp_path, monkeypatc
 
 def test_plot_pareto_can_use_overall_accuracy(tmp_path):
     rows = [{
-        "mode": "FedSDA_NoCached_ADWIN", "dataset": "sea", "seed": 0,
+        "mode": "FedSDA_NoCached_ADWIN", "dataset": "sea4", "seed": 0,
         "series": "FedSDA_NoCached_ADWIN δ_ADWIN sweep (A=50, γ=0.1)", "sweep_value": 0.1,
         "comm_models_total": 100.0, "stable_accuracy": 0.9, "accuracy": 0.8,
     }]
 
     path = tmp_path / "overall.png"
-    sweep.plot_pareto(rows, ["sea"], path, y_key="accuracy")
+    sweep.plot_pareto(rows, ["sea4"], path, y_key="accuracy")
 
     assert path.exists()
 
@@ -211,19 +238,19 @@ def test_plot_pareto_can_use_overall_accuracy(tmp_path):
 def test_replot_filter_selects_interval_sweeps_and_plot_accepts_compute_x(tmp_path):
     rows = [
         {
-            "mode": "FedSDA_NoCached_ClassADWIN", "dataset": "sea", "seed": 0,
+            "mode": "FedSDA_NoCached_ClassADWIN", "dataset": "sea4", "seed": 0,
             "series": "FedSDA_NoCached_ClassADWIN A sweep", "sweep_value": 50.0,
             "compute_model_examples_total": 1000.0,
             "stable_accuracy": 0.9, "accuracy": 0.8,
         },
         {
-            "mode": "FedSDA_NoCached_ClassADWIN", "dataset": "sea", "seed": 0,
+            "mode": "FedSDA_NoCached_ClassADWIN", "dataset": "sea4", "seed": 0,
             "series": "FedSDA_NoCached_ClassADWIN δ_ADWIN sweep", "sweep_value": 0.1,
             "compute_model_examples_total": 1100.0,
             "stable_accuracy": 0.91, "accuracy": 0.81,
         },
         {
-            "mode": "FedDrift", "dataset": "sea", "seed": 0,
+            "mode": "FedDrift", "dataset": "sea4", "seed": 0,
             "series": "FedDrift B_detect sweep", "sweep_value": 50.0,
             "compute_model_examples_total": 900.0,
             "stable_accuracy": 0.88, "accuracy": 0.79,
@@ -238,7 +265,7 @@ def test_replot_filter_selects_interval_sweeps_and_plot_accepts_compute_x(tmp_pa
 
     path = tmp_path / "compute.png"
     sweep.plot_pareto(
-        filtered, ["sea"], path, y_key="accuracy",
+        filtered, ["sea4"], path, y_key="accuracy",
         x_key="compute_model_examples_total",
     )
     assert path.exists()

@@ -41,17 +41,17 @@ GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regressi
 
 # 固定マトリクス: (mode, dataset, config上書き)。seed=0・小規模なので決定的かつ短時間。
 # これでアルゴリズム本体(clients/server/adwin/metrics/実験ループ)の全モード経路を網羅する。
-# データ生成の別分布や別入力次元(sea=3次元)まで固定したい場合はケースを追加する。
-# FedSDA_NoCached_ADWIN は sine(マージが発生する)+ τ=10 でNoCached固有の
+# データ生成の別分布や別入力次元(sea4=3次元)まで固定したい場合はケースを追加する。
+# FedSDA_NoCached_ADWIN は sine2(マージが発生する)+ τ=10 でNoCached固有の
 # 経路(FedAvg先行サーバ・τ バッチ更新)を固定する。
 CASES = [
-    ("FedSDA_NoCached_ClassADWIN", "circle", {}),
-    ("FedSDA_NoCached_ESR", "circle", {}),
-    ("FedSDA_NoCached_ClassESR", "circle", {}),
+    ("FedSDA_NoCached_ClassADWIN", "circle2", {}),
+    ("FedSDA_NoCached_ESR", "circle2", {}),
+    ("FedSDA_NoCached_ClassESR", "circle2", {}),
     ("FedSDA_Cached_ADWIN", "blobs", {}),
-    ("FedSDA_Cached_ClassADWIN", "circle", {}),
-    ("FedSDA_Cached_ESR", "circle", {}),
-    ("FedSDA_Cached_ClassESR", "circle", {}),
+    ("FedSDA_Cached_ClassADWIN", "circle2", {}),
+    ("FedSDA_Cached_ESR", "circle2", {}),
+    ("FedSDA_Cached_ClassESR", "circle2", {}),
     ("FedDrift", "blobs", {
         "TOTAL_DATA_POINTS": 300,
         "N_CLIENTS": 4,
@@ -61,7 +61,7 @@ CASES = [
     }),
     ("FedSDA_without_server", "blobs", {}),
     ("Oblivious", "blobs", {}),
-    ("FedSDA_NoCached_ADWIN", "sine", {
+    ("FedSDA_NoCached_ADWIN", "sine2", {
         "TOTAL_DATA_POINTS": 1500, "LOCAL_UPDATE_TAU": 10}),
 ]
 SEED = 0
