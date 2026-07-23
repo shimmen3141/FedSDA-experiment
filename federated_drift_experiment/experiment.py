@@ -472,6 +472,38 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
                 else event.estimated_change_point
             )
 
+    provisional_client_ids = []
+    provisional_positions = []
+    provisional_detectors = []
+    provisional_accepted = []
+    provisional_reasons = []
+    provisional_interval_counts = []
+    provisional_training_counts = []
+    provisional_validation_counts = []
+    provisional_reference_model_ids = []
+    provisional_candidate_mean_losses = []
+    provisional_reference_mean_losses = []
+    provisional_candidate_recent_losses = []
+    provisional_reference_recent_losses = []
+    for client_id, client in enumerate(clients):
+        for decision in getattr(client, "provisional_model_decisions", []):
+            provisional_client_ids.append(client_id)
+            provisional_positions.append(decision.position)
+            provisional_detectors.append(decision.detector)
+            provisional_accepted.append(decision.accepted)
+            provisional_reasons.append(decision.reason)
+            provisional_interval_counts.append(decision.interval_count)
+            provisional_training_counts.append(decision.training_count)
+            provisional_validation_counts.append(decision.validation_count)
+            provisional_reference_model_ids.append(
+                -1 if decision.reference_model_id is None
+                else decision.reference_model_id
+            )
+            provisional_candidate_mean_losses.append(decision.candidate_mean_loss)
+            provisional_reference_mean_losses.append(decision.reference_mean_loss)
+            provisional_candidate_recent_losses.append(decision.candidate_recent_loss)
+            provisional_reference_recent_losses.append(decision.reference_recent_loss)
+
     telemetry_arrays = {
         "round_global_model_count": np.asarray(telemetry["global_model_count"], dtype=np.float64),
         "round_client_held_model_count": np.asarray(
@@ -516,6 +548,29 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
         adaptation_episode_ids=np.asarray(adaptation_episode_ids, dtype=np.int32),
         adaptation_estimated_change_points=np.asarray(
             adaptation_estimated_change_points, dtype=np.int32
+        ),
+        provisional_client_ids=np.asarray(provisional_client_ids, dtype=np.int32),
+        provisional_positions=np.asarray(provisional_positions, dtype=np.int32),
+        provisional_detectors=np.asarray(provisional_detectors, dtype=np.str_),
+        provisional_accepted=np.asarray(provisional_accepted, dtype=np.bool_),
+        provisional_reasons=np.asarray(provisional_reasons, dtype=np.str_),
+        provisional_interval_counts=np.asarray(provisional_interval_counts, dtype=np.int32),
+        provisional_training_counts=np.asarray(provisional_training_counts, dtype=np.int32),
+        provisional_validation_counts=np.asarray(provisional_validation_counts, dtype=np.int32),
+        provisional_reference_model_ids=np.asarray(
+            provisional_reference_model_ids, dtype=np.int32
+        ),
+        provisional_candidate_mean_losses=np.asarray(
+            provisional_candidate_mean_losses, dtype=np.float64
+        ),
+        provisional_reference_mean_losses=np.asarray(
+            provisional_reference_mean_losses, dtype=np.float64
+        ),
+        provisional_candidate_recent_losses=np.asarray(
+            provisional_candidate_recent_losses, dtype=np.float64
+        ),
+        provisional_reference_recent_losses=np.asarray(
+            provisional_reference_recent_losses, dtype=np.float64
         ),
         dataset=str(config.DATASET),
         concept_schedule=str(config.CONCEPT_SCHEDULE),

@@ -13,8 +13,10 @@ from ..hddm import HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
 from ..models import SimpleMLP
 from ..provisional_model import (
+    ProvisionalModelDecision,
     has_consistent_validation_advantage,
     temporal_holdout,
+    validation_rejection_reason,
 )
 from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
 
@@ -29,6 +31,7 @@ class FedSDAClient(BaseClient, ABC):
         self.buffer = deque()                       # FIFOバッファ(検知遅延中のデータ保留)
         self.fifo_size = config.FIFO_BUFFER_SIZE    # FIFOバッファ長 N_FIFO
         self.detector_candidate_start_positions = []
+        self.provisional_model_decisions = []
         self.model_upload_delay_rounds = int(config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS)
         if self.model_upload_delay_rounds < 1:
             raise ValueError("FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS must be at least 1")
@@ -233,13 +236,27 @@ class FedSDAClient(BaseClient, ABC):
         )
 
     def _spawn_validated_provisional_model(
-        self, bx, by, initialization_params
+        self, bx, by, initialization_params, sample_idx
     ):
         """時系列holdoutで既存モデルへの継続的優位を確認してから登録する。"""
         holdout = temporal_holdout(
             bx, by, config.NEW_MODEL_VALIDATION_FRACTION
         )
         if holdout is None:
+            self.provisional_model_decisions.append(ProvisionalModelDecision(
+                position=sample_idx,
+                detector=self._detector_label(),
+                accepted=False,
+                reason="insufficient_data",
+                interval_count=len(bx),
+                training_count=0,
+                validation_count=0,
+                reference_model_id=None,
+                candidate_mean_loss=math.nan,
+                reference_mean_loss=math.nan,
+                candidate_recent_loss=math.nan,
+                reference_recent_loss=math.nan,
+            ))
             return None
 
         candidate = SimpleMLP()
@@ -260,26 +277,50 @@ class FedSDAClient(BaseClient, ABC):
             )
 
             reference_losses = []
-            for model in self.models.values():
+            for model_id, model in self.models.items():
                 self._record_model_compute(
                     "detection", len(holdout.validation_x)
                 )
                 losses = model.per_sample_error(
                     holdout.validation_x, holdout.validation_y
                 )
-                reference_losses.append(losses)
+                reference_losses.append((model_id, losses))
 
         if not reference_losses:
             return None
-        best_reference = min(
+        reference_model_id, best_reference = min(
             reference_losses,
-            key=lambda losses: float(losses.mean().item()),
+            key=lambda item: float(item[1].mean().item()),
+        )
+        recent_start = len(candidate_losses) // 2
+        reason = validation_rejection_reason(
+            candidate_losses,
+            best_reference,
+            min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
         )
         accepted = has_consistent_validation_advantage(
             candidate_losses,
             best_reference,
             min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
         )
+        self.provisional_model_decisions.append(ProvisionalModelDecision(
+            position=sample_idx,
+            detector=self._detector_label(),
+            accepted=accepted,
+            reason=reason,
+            interval_count=len(bx),
+            training_count=len(holdout.training_x),
+            validation_count=len(holdout.validation_x),
+            reference_model_id=reference_model_id,
+            candidate_mean_loss=float(candidate_losses.mean().item()),
+            reference_mean_loss=float(best_reference.mean().item()),
+            candidate_recent_loss=float(
+                candidate_losses[recent_start:].mean().item()
+            ),
+            reference_recent_loss=float(
+                best_reference[recent_start:].mean().item()
+            ),
+        ))
         if not accepted:
             return None
 
@@ -319,8 +360,9 @@ class FedSDAClient(BaseClient, ABC):
         """FIFOを新旧概念に分割し、モデル切替または新規作成を行う。"""
         old_model_id = self.current_model_id
         buffer_list = list(self.buffer)
+        estimated_span = self._estimated_new_concept_span(sample_idx)
         n_new_concept = min(
-            len(buffer_list), self._estimated_new_concept_span(sample_idx)
+            len(buffer_list), estimated_span
         )
 
         if len(buffer_list) <= n_new_concept:
@@ -329,6 +371,7 @@ class FedSDAClient(BaseClient, ABC):
         else:
             old_data = buffer_list[:-n_new_concept]
             drift_data = buffer_list[-n_new_concept:]
+
 
         if old_data:
             self._store_evaluation_data(self.current_model_id, old_data)
@@ -400,8 +443,8 @@ class FedSDAClient(BaseClient, ABC):
                 drift_data = buffer_drift_data
             self._absorb_into_store(self.current_model_id, drift_data)
         else:
-            initial_bx = torch.cat([data[0] for data in buffer_drift_data])
-            initial_by = torch.cat([data[1] for data in buffer_drift_data])
+            initial_bx = bx
+            initial_by = by
             # 再利用閾値には届かなかった既存モデルのうち、ドリフト後データへ
             # 最も適合するモデルを新規モデルの初期値として利用する。
             initialization_params = self._select_initialization_params(
@@ -419,6 +462,7 @@ class FedSDAClient(BaseClient, ABC):
                     initial_bx,
                     initial_by,
                     initialization_params,
+                    sample_idx,
                 )
             else:
                 raise ValueError(

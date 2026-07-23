@@ -1,8 +1,10 @@
 import torch
 
 from federated_drift_experiment.provisional_model import (
+    ProvisionalModelDecision,
     has_consistent_validation_advantage,
     temporal_holdout,
+    validation_rejection_reason,
 )
 
 
@@ -36,3 +38,34 @@ def test_validation_advantage_must_hold_for_full_and_recent_intervals():
     assert not has_consistent_validation_advantage(
         recently_worse, reference, min_delta=0.01
     )
+
+
+def test_validation_rejection_reason_identifies_failed_time_range():
+    reference = torch.tensor([0.8, 0.8, 0.8, 0.8])
+
+    assert validation_rejection_reason(
+        torch.tensor([0.6, 0.6, 0.9, 0.9]), reference, 0.01
+    ) == "recent_interval"
+    assert validation_rejection_reason(
+        torch.tensor([0.9, 0.9, 0.9, 0.9]), reference, 0.01
+    ) == "full_and_recent"
+
+
+def test_provisional_decision_exposes_candidate_advantage_margins():
+    decision = ProvisionalModelDecision(
+        position=100,
+        detector="e-SR",
+        accepted=True,
+        reason="accepted",
+        interval_count=30,
+        training_count=24,
+        validation_count=6,
+        reference_model_id=2,
+        candidate_mean_loss=0.2,
+        reference_mean_loss=0.5,
+        candidate_recent_loss=0.3,
+        reference_recent_loss=0.4,
+    )
+
+    assert abs(decision.full_margin - 0.3) < 1e-12
+    assert abs(decision.recent_margin - 0.1) < 1e-12

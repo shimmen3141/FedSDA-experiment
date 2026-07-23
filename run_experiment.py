@@ -71,6 +71,15 @@ def main():
         default=config.NEW_MODEL_CREATION_POLICY,
         help="FedSDAの新規モデル作成方針（immediate / validated）",
     )
+    parser.add_argument(
+        "--fifo-size", type=int, default=config.FIFO_BUFFER_SIZE,
+        help="FedSDAのFIFOバッファ長 N_FIFO",
+    )
+    parser.add_argument(
+        "--new-model-validation-fraction", type=float,
+        default=config.NEW_MODEL_VALIDATION_FRACTION,
+        help="検証付き仮モデルで末尾から検証用に確保する割合",
+    )
     parser.add_argument("--feddrift-isolation", type=int,
                         default=config.FEDDRIFT_ISOLATION_TIMESTEPS,
                         help="FedDriftの新規モデル隔離時刻数 W (default: 1)")
@@ -81,6 +90,11 @@ def main():
     parser.add_argument("--raw-dir", default=None,
                         help="生データ(.npz)の保存先ディレクトリ。回復曲線などの事後分析用")
     args = parser.parse_args()
+
+    if args.fifo_size < 1:
+        parser.error("--fifo-size must be at least 1")
+    if not 0.0 < args.new_model_validation_fraction < 1.0:
+        parser.error("--new-model-validation-fraction must be between 0 and 1")
 
     config.DATASET = args.dataset
     config.CONCEPT_SCHEDULE = args.concept_schedule
@@ -96,6 +110,8 @@ def main():
     config.FEDSDA_CLUSTERING_POLICY = args.clustering_policy
     config.FEDSDA_DETECTION_EPISODES_ENABLED = args.detection_episodes
     config.NEW_MODEL_CREATION_POLICY = args.new_model_creation_policy
+    config.FIFO_BUFFER_SIZE = args.fifo_size
+    config.NEW_MODEL_VALIDATION_FRACTION = args.new_model_validation_fraction
     config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation
 
     raw_path = None

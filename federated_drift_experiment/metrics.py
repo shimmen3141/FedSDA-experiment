@@ -4,6 +4,7 @@
 として数え、真のドリフト位置と greedy マッチングして TP/FP/FN を算出する。
 """
 import bisect
+import math
 from collections import Counter
 
 from . import config
@@ -109,6 +110,10 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
     operation_counts = Counter()
     operation_tp = Counter()
     server_mapping_changes = 0
+    provisional_decisions = []
+    provisional_matched_count = 0
+    provisional_accepted_matched_count = 0
+    provisional_rejected_matched_count = 0
 
     total_local_switches = sum(len(c.local_switch_positions) for c in clients)
 
@@ -155,6 +160,21 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         server_mapping_changes += sum(
             event.action == "server_merge" for event in events
         )
+        client_provisional = list(
+            getattr(c, "provisional_model_decisions", [])
+        )
+        provisional_decisions.extend(client_provisional)
+        proposal_used, _, _ = _match_events(
+            true_drifts,
+            [decision.position for decision in client_provisional],
+            delay_tolerance,
+        )
+        provisional_matched_count += len(proposal_used)
+        for decision_index in proposal_used:
+            if client_provisional[decision_index].accepted:
+                provisional_accepted_matched_count += 1
+            else:
+                provisional_rejected_matched_count += 1
 
     total_detections = total_local_switches  # 検出は「ローカルで実際に切替を実行した回数」
     fn_rate = total_fn / total_true_drifts if total_true_drifts > 0 else 0.0
@@ -183,6 +203,13 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         sum(change_point_errors) / len(change_point_errors)
         if change_point_errors else 0.0
     )
+    accepted_proposals = [decision for decision in provisional_decisions if decision.accepted]
+    rejected_proposals = [decision for decision in provisional_decisions if not decision.accepted]
+
+    def decision_mean(decisions, attribute):
+        values = [float(getattr(decision, attribute)) for decision in decisions]
+        values = [value for value in values if math.isfinite(value)]
+        return sum(values) / len(values) if values else 0.0
 
     return {
         "accuracy": avg_accuracy,
@@ -220,6 +247,51 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
             if operation_counts["create"] else 0.0
         ),
         "adaptation_create_rejected_count": operation_counts["create_rejected"],
+        "provisional_proposal_count": len(provisional_decisions),
+        "provisional_acceptance_rate": (
+            len(accepted_proposals) / len(provisional_decisions)
+            if provisional_decisions else 0.0
+        ),
+        "provisional_matched_true_count": provisional_matched_count,
+        "provisional_accepted_matched_true_count": provisional_accepted_matched_count,
+        "provisional_rejected_matched_true_count": provisional_rejected_matched_count,
+        "provisional_accepted_precision": (
+            provisional_accepted_matched_count / len(accepted_proposals)
+            if accepted_proposals else 0.0
+        ),
+        "provisional_interval_count_mean": decision_mean(
+            provisional_decisions, "interval_count"
+        ),
+        "provisional_training_count_mean": decision_mean(
+            provisional_decisions, "training_count"
+        ),
+        "provisional_validation_count_mean": decision_mean(
+            provisional_decisions, "validation_count"
+        ),
+        "provisional_accepted_full_margin_mean": decision_mean(
+            accepted_proposals, "full_margin"
+        ),
+        "provisional_accepted_recent_margin_mean": decision_mean(
+            accepted_proposals, "recent_margin"
+        ),
+        "provisional_rejected_full_margin_mean": decision_mean(
+            rejected_proposals, "full_margin"
+        ),
+        "provisional_rejected_recent_margin_mean": decision_mean(
+            rejected_proposals, "recent_margin"
+        ),
+        "provisional_reject_insufficient_data_count": sum(
+            decision.reason == "insufficient_data" for decision in rejected_proposals
+        ),
+        "provisional_reject_full_interval_count": sum(
+            decision.reason == "full_interval" for decision in rejected_proposals
+        ),
+        "provisional_reject_recent_interval_count": sum(
+            decision.reason == "recent_interval" for decision in rejected_proposals
+        ),
+        "provisional_reject_full_and_recent_count": sum(
+            decision.reason == "full_and_recent" for decision in rejected_proposals
+        ),
         "adaptation_maintain_count": operation_counts["maintain"],
         "adaptation_episode_suppressed_count": operation_counts["episode_suppressed"],
         "server_mapping_change_count": server_mapping_changes,
