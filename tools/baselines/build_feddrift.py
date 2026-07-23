@@ -13,11 +13,6 @@ from pathlib import Path
 import numpy as np
 
 from federated_drift_experiment.data import normalize_dataset_name
-from federated_drift_experiment.mode_names import (
-    normalize_legacy_mode,
-    normalize_legacy_series,
-    normalize_series_notation,
-)
 from federated_drift_experiment.parameter_schema import (
     PARAMETER_SCHEMA_VERSION,
     parameter,
@@ -29,7 +24,7 @@ DEFAULT_BATCHES = (50, 100, 200, 500)
 
 # FedDriftでは使用しない設定値は固定ベースラインのCSVから除外する。
 IRRELEVANT_COLUMNS = {
-    "agg_interval",
+    "aggregation_interval",
     "adwin_delta",
     "e_detector_baseline_strategy",
     "e_detector_baseline_beta",
@@ -40,12 +35,6 @@ IRRELEVANT_COLUMNS = {
     "new_model_validation_fraction",
 }
 
-PARAMETER_COLUMN_NAMES = {
-    "feddrift_batch": parameter("feddrift_detection_batch_size").csv_name,
-    "b_detect": parameter("feddrift_detection_batch_size").csv_name,
-    "distance_threshold": parameter("feddrift_distance_threshold").csv_name,
-    "delta_feddrift": parameter("feddrift_distance_threshold").csv_name,
-}
 FEDDRIFT_BATCH = parameter("feddrift_detection_batch_size").csv_name
 FEDDRIFT_DISTANCE = parameter("feddrift_distance_threshold").csv_name
 
@@ -105,35 +94,15 @@ def _scalar_text(value):
     return str(scalar)
 
 
-def _normalize_series(value, old_mode):
-    renamed = normalize_legacy_series(
-        str(value), old_mode, normalize_legacy_mode(old_mode)
-    )
-    return normalize_series_notation(renamed)
-
-
 def _canonical_series(value, old_mode):
-    """文字化けした旧δ表記に依存せず、系列名を標準表記へそろえる。"""
-    normalized = _normalize_series(value, old_mode)
-    lower = normalized.lower()
-    if "batch sweep" in lower or "b_detect sweep" in lower:
-        match = re.search(r"\((?:[^=]+)=([0-9.]+)\)", normalized)
-        fixed = match.group(1) if match else "0.1"
-        batch = parameter("feddrift_detection_batch_size")
-        distance = parameter("feddrift_distance_threshold")
-        return (
-            f"FedDrift {batch.paper_symbol} sweep "
-            f"({distance.paper_symbol}={fixed})"
-        )
-    if "sweep" in lower:
-        match = re.search(r"(?:batch|B_detect)=([0-9.]+)", normalized)
-        fixed = match.group(1) if match else "50"
-        batch = parameter("feddrift_detection_batch_size")
-        distance = parameter("feddrift_distance_threshold")
-        return (
-            f"FedDrift {distance.paper_symbol} sweep "
-            f"({batch.paper_symbol}={fixed})"
-        )
+    """正規スキーマのFedDrift系列名を検証して返す。"""
+    if old_mode != "FedDrift":
+        raise ValueError(f"FedDrift以外の入力モードです: {old_mode!r}")
+    normalized = str(value)
+    if "sweep" in normalized and not (
+        "B_detect sweep" in normalized or "δ_FedDrift sweep" in normalized
+    ):
+        raise ValueError(f"旧形式または未知の系列名です: {normalized!r}")
     return normalized
 
 
@@ -150,9 +119,8 @@ def _canonical_fieldnames(source_fieldnames):
     for name in source_fieldnames:
         if name in IRRELEVANT_COLUMNS:
             continue
-        target = PARAMETER_COLUMN_NAMES.get(name, name)
-        if target not in fieldnames:
-            fieldnames.append(target)
+        if name not in fieldnames:
+            fieldnames.append(name)
     if "concept_schedule" not in fieldnames:
         fieldnames.insert(fieldnames.index("seed"), "concept_schedule")
     if "parameter_schema_version" not in fieldnames:
@@ -169,8 +137,8 @@ def _canonical_row(row, concept_schedule):
     for name, value in row.items():
         if name in IRRELEVANT_COLUMNS:
             continue
-        result[PARAMETER_COLUMN_NAMES.get(name, name)] = value
-    result["mode"] = normalize_legacy_mode(old_mode)
+        result[name] = value
+    result["mode"] = old_mode
     result["parameter_schema_version"] = PARAMETER_SCHEMA_VERSION
     result["dataset"] = normalize_dataset_name(row["dataset"])
     result["series"] = series
@@ -187,15 +155,19 @@ def _read_source_rows(source, batches):
         fieldnames = _canonical_fieldnames(reader.fieldnames)
         rows = []
         for row in reader:
-            if normalize_legacy_mode(row.get("mode", "")) != "FedDrift":
+            if row.get("mode", "") != "FedDrift":
                 continue
+            if int(row.get("parameter_schema_version") or -1) != PARAMETER_SCHEMA_VERSION:
+                raise ValueError(
+                    f"未対応のパラメータスキーマです: {source.csv_path}"
+                )
             if row.get("dataset") not in source.datasets:
                 continue
-            batch_value = (
-                row.get(FEDDRIFT_BATCH)
-                or row.get("feddrift_batch")
-                or row.get("b_detect")
-            )
+            batch_value = row.get(FEDDRIFT_BATCH)
+            if batch_value in (None, ""):
+                raise ValueError(
+                    f"正規列 {FEDDRIFT_BATCH!r} がありません: {source.csv_path}"
+                )
             if int(float(batch_value)) not in batches:
                 continue
             rows.append(_canonical_row(row, source.concept_schedule))
@@ -208,7 +180,7 @@ def _raw_parameters(label, filename, source_mode):
     match = re.search(r"_sv(.+)\.npz$", filename)
     if not match:
         raise ValueError(f"掃引値をファイル名から取得できません: {filename}")
-    sweep_text = match.group(1).replace("_", ".")
+    sweep_text = match.group(1).replace("_", ".").replace("p", ".")
     sweep_value = float(sweep_text)
     if sweep_parameter == FEDDRIFT_BATCH:
         return series, sweep_parameter, int(sweep_value), 0.1, sweep_value
@@ -229,6 +201,8 @@ def _copy_raw_files(source, output_root, batches):
     for path in sorted(source.raw_dir.glob("FedDrift*.npz")):
         with np.load(path, allow_pickle=False) as archive:
             arrays = {key: archive[key] for key in archive.files}
+        if int(np.asarray(arrays.get("parameter_schema_version", -1)).item()) != PARAMETER_SCHEMA_VERSION:
+            raise ValueError(f"未対応のパラメータスキーマです: {path}")
         source_dataset = _scalar_text(arrays.get("dataset", ""))
         if source_dataset not in source.datasets:
             continue

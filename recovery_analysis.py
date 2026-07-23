@@ -30,11 +30,8 @@ import numpy as np
 
 from federated_drift_experiment import config
 from federated_drift_experiment.data import normalize_dataset_name
-from federated_drift_experiment.mode_names import (
-    normalize_legacy_mode,
-    normalize_legacy_series,
-    normalize_series_notation,
-)
+from federated_drift_experiment.mode_names import BASELINE_MODES, FEDDRIFT_MODES, FEDSDA_MODES
+from federated_drift_experiment.parameter_schema import PARAMETER_SCHEMA_VERSION
 
 # データセットの正準表示順(存在するものだけ使う)
 _CANON_DATASETS = [
@@ -58,10 +55,12 @@ def infer_out_dir(npz_paths):
 
 def load_npz(path):
     d = np.load(path, allow_pickle=False)
+    if int(d.get("parameter_schema_version", -1)) != PARAMETER_SCHEMA_VERSION:
+        raise ValueError(f"Unsupported parameter schema: {path}")
+    mode = str(d["mode"])
+    if mode not in set(FEDSDA_MODES + FEDDRIFT_MODES + BASELINE_MODES):
+        raise ValueError(f"Unknown mode in result: {mode!r}")
     label = str(d["label"])
-    old_mode = label.split(maxsplit=1)[0]
-    label = normalize_legacy_series(label, old_mode, normalize_legacy_mode(old_mode))
-    label = normalize_series_notation(label)
     rec = {
         "history": d["history_accuracy"],        # (N_CLIENTS, N_SAMPLES) int8 の 0/1
         "d_cids": d["drift_client_ids"],

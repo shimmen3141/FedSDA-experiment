@@ -20,30 +20,37 @@ def _write_source(
     pareto.parent.mkdir(parents=True)
     raw.mkdir()
     fieldnames = [
-        "mode", "dataset", "seed", "series", "sweep_value",
-        "feddrift_batch", "agg_interval", "distance_threshold",
-        "adwin_delta", "accuracy",
+        "parameter_schema_version", "mode", "dataset", "concept_schedule",
+        "seed", "series", "sweep_parameter", "sweep_value",
+        FEDDRIFT_BATCH, FEDDRIFT_DISTANCE, "accuracy",
     ]
     batches = batches or ([25, 50] if include_batch25 else [50])
     rows = []
     for batch in batches:
         rows.append({
-            "mode": "FedDrift_v2",
+            "parameter_schema_version": 1,
+            "mode": "FedDrift",
             "dataset": dataset,
+            "concept_schedule": "random",
             "seed": seed,
-            "series": "FedDrift_v2 batch sweep (delta=0.1)",
+            "series": "FedDrift B_detect sweep (δ_FedDrift=0.1)",
+            "sweep_parameter": FEDDRIFT_BATCH,
             "sweep_value": batch,
-            "feddrift_batch": batch,
-            "agg_interval": 50,
-            "distance_threshold": 0.1,
-            "adwin_delta": 0.05,
+            FEDDRIFT_BATCH: batch,
+            FEDDRIFT_DISTANCE: 0.1,
             "accuracy": accuracy,
         })
         np.savez_compressed(
-            raw / f"FedDrift_v2_batch_sweep_0_1_{dataset}_seed{seed}_sv{batch}.npz",
-            mode=np.asarray("FedDrift_v2"),
+            raw / f"FedDrift_B_detect_sweep_{dataset}_seed{seed}_sv{batch}.npz",
+            parameter_schema_version=np.asarray(1),
+            mode=np.asarray("FedDrift"),
             dataset=np.asarray(dataset),
-            label=np.asarray(f"FedDrift_v2 batch sweep (delta=0.1) [{batch}]"),
+            concept_schedule=np.asarray("random"),
+            label=np.asarray(f"FedDrift B_detect sweep (δ_FedDrift=0.1) [{batch}]"),
+            sweep_parameter=np.asarray(FEDDRIFT_BATCH),
+            sweep_value=np.asarray(batch),
+            feddrift_detection_batch_size=np.asarray(batch),
+            feddrift_distance_threshold=np.asarray(0.1),
             seed=np.asarray(seed),
             history_accuracy=np.asarray([[1, 0]], dtype=np.int8),
         )
@@ -56,8 +63,8 @@ def _write_source(
     )
 
 
-def test_build_baseline_normalizes_names_and_groups_by_dataset(tmp_path):
-    source = _write_source(tmp_path / "source", "circle", include_batch25=True)
+def test_build_baseline_groups_canonical_results_by_dataset(tmp_path):
+    source = _write_source(tmp_path / "source", "circle2", include_batch25=True)
     output = tmp_path / "baseline"
 
     manifest = build_baseline(
@@ -101,7 +108,7 @@ def test_build_baseline_normalizes_names_and_groups_by_dataset(tmp_path):
 
 
 def test_build_baseline_refuses_to_overwrite_existing_output(tmp_path):
-    source = _write_source(tmp_path / "source", "circle")
+    source = _write_source(tmp_path / "source", "circle2")
     output = tmp_path / "baseline"
     output.mkdir()
 
@@ -114,8 +121,8 @@ def test_build_baseline_refuses_to_overwrite_existing_output(tmp_path):
 
 
 def test_extend_baseline_adds_new_seed_atomically_and_keeps_backup(tmp_path):
-    initial = _write_source(tmp_path / "initial", "circle", seed=0)
-    additional = _write_source(tmp_path / "additional", "circle", seed=1)
+    initial = _write_source(tmp_path / "initial", "circle2", seed=0)
+    additional = _write_source(tmp_path / "additional", "circle2", seed=1)
     output = tmp_path / "baseline"
     backup = tmp_path / "baseline_before_extension"
     build_baseline(sources=(initial,), output_root=output)
@@ -146,8 +153,8 @@ def test_extend_baseline_adds_new_seed_atomically_and_keeps_backup(tmp_path):
 
 
 def test_extend_baseline_rejects_conflicting_duplicate(tmp_path):
-    initial = _write_source(tmp_path / "initial", "circle", accuracy=0.9)
-    conflicting = _write_source(tmp_path / "conflict", "circle", accuracy=0.8)
+    initial = _write_source(tmp_path / "initial", "circle2", accuracy=0.9)
+    conflicting = _write_source(tmp_path / "conflict", "circle2", accuracy=0.8)
     output = tmp_path / "baseline"
     build_baseline(sources=(initial,), output_root=output)
 
@@ -166,8 +173,8 @@ def test_extend_baseline_rejects_conflicting_duplicate(tmp_path):
 
 
 def test_extend_baseline_adds_new_sweep_value(tmp_path):
-    initial = _write_source(tmp_path / "initial", "circle", batches=[50])
-    additional = _write_source(tmp_path / "additional", "circle", batches=[100])
+    initial = _write_source(tmp_path / "initial", "circle2", batches=[50])
+    additional = _write_source(tmp_path / "additional", "circle2", batches=[100])
     output = tmp_path / "baseline"
     build_baseline(sources=(initial,), output_root=output, batches=(50,))
 

@@ -210,7 +210,7 @@ CLIでは `--clustering-policy` で指定する。Cached方式はクライアン
 用いるため、クロス評価に伴うモデルパラメータの再送は発生しない。NoCached方式は現ラウンドのFedAvg済み
 モデルを評価用に送信する。ただし、どちらも `every_round` は評価計算と
 軽量な評価依頼・統計返送を毎ラウンド追加する。Pareto CSVには再現性のため
-`clustering_policy` 列を記録し、旧CSVの欠損値は `on_new_model` と解釈する。
+`clustering_policy` 列を記録する。正規スキーマではこの列を必須とする。
 
 ### 検出エピソード
 

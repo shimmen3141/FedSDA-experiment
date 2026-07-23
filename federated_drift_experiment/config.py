@@ -8,7 +8,7 @@
 括弧内は論文 (main_jp.tex / docs/fedsda-algorithm.md) の記号との対応。
 """
 from .data.specs import DATASET_SPECS, get_dataset_spec
-from .compatibility import normalize_dataset_name
+from .data.names import normalize_dataset_name
 
 # ##########################################
 # 共通パラメータ (FedSDA / FedDrift / Oblivious)

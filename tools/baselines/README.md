@@ -2,7 +2,8 @@
 
 `build_feddrift.py`は、既存実験のCSV・NPZから比較用のFedDriftベースラインを
 データセット別に構築します。入力は`feddrift_sources.json`で管理し、日付付きの
-結果パスをPythonコードへ埋め込みません。
+結果パスをPythonコードへ埋め込みません。入力は`parameter_schema_version=1`の
+正規スキーマに限定し、旧手法名・旧データセット名・旧パラメータ列は変換せず拒否します。
 
 新規構築:
 

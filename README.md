@@ -130,9 +130,9 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 | `mnist2` | 2 | **FedDrift MNIST-2**。元ラベルと1↔2置換 |
 | `mnist4` | 4 | **FedDrift MNIST-4**。元ラベル、1↔2、3↔4、5↔6置換 |
 
-データセット名は論文の概念数に合わせて正規化している。過去コマンドとの互換性のため
-`sea` / `circle` / `sine`も入力時には受理するが、内部処理と新しいCSV/NPZには
-`sea4` / `circle2` / `sine2`を記録する。過去CSV/NPZも解析・移行時に同じ正規名へ変換する。
+データセット名は論文の概念数に合わせた正規名だけを受理する。
+旧名`sea` / `circle` / `sine`は受理せず、それぞれ
+`sea4` / `circle2` / `sine2`を指定する。
 
 `sea4` の閾値・ノイズ率は [federated_drift_experiment/config.py](federated_drift_experiment/config.py) の `SEA_THRESHOLDS`(FedDrift論文 appendix の A,B,C,D = `{0:9, 1:8, 2:7, 3:9.5}`)/ `SEA_LABEL_NOISE`(0.10)で定義。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
 
@@ -183,24 +183,6 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 
 固定窓の平均精度は「適応リグレット = 基準精度 − 平均精度」に相当し、値が高いほど適応が速い。窓幅 W(既定200)と Δ 上限(既定250)はいずれも `MIN_STABLE_PERIOD`(300)未満に取るため、集計窓が必ず単一の安定区間に収まり次ドリフトが混入しない(ランダムなドリフト間隔に値が振り回されない)。生データを保存しておけば、数時間かかる掃引を再実行せずに事後的に指標を計算できる。
 
-### 過去結果の手法名・データセット名移行
-
-`results/`全体の旧手法名・旧データセット名だけを現在表記へ移行する場合は、
-まずステージングを作成して検証し、その後に切り替える。
-
-```bash
-python -m tools.migrations.migrate_results
-python -m tools.migrations.migrate_results --apply
-```
-
-CSV・NPZのメタデータ、ファイル名、Markdown・ログを変換する。パラメータ名と数値は
-変更しない。埋め込み文字列を安全に置換できないPNGは新しい`results/`へコピーせず、
-移行前ディレクトリに保存する。切り替え時も旧`results/`を日時付きバックアップとして
-残す。変換件数・除外した派生成果物・バックアップ元は`migration_manifest.json`で確認できる。
-
-パラメータ名は移行対象に含めない。詳細は
-[`tools/migrations/README.md`](tools/migrations/README.md)を参照。
-
 ### FedDrift固定ベースライン
 
 検証済みの既存結果から、FedDriftの固定比較データをデータセット別に作成する。
@@ -212,7 +194,7 @@ python -m tools.baselines.build_feddrift \
 
 出力先は`results/baselines/feddrift/`で、各データセットに`metrics.csv`と
 `raw/*.npz`を配置する。元結果は変更しない。表記は論文・凡例に合わせて
-`FedDrift`、`B_detect`、`delta_feddrift`へ正規化し、コード上の
+`FedDrift`、`feddrift_detection_batch_size`、`feddrift_distance_threshold`を使用し、コード上の
 `FEDDRIFT_DETECTION_BATCH_SIZE`、`FEDDRIFT_DISTANCE_THRESHOLD`との対応や元ファイルのSHA-256を
 `manifest.json`へ記録する。入力結果は
 [`tools/baselines/feddrift_sources.json`](tools/baselines/feddrift_sources.json)
@@ -231,12 +213,10 @@ python -m tools.baselines.build_feddrift \
 ├── run_experiment.py            # CLI: 単発実験
 ├── run_comparative_trials.py    # CLI: 複数シード比較試行
 ├── tools/
-│   ├── migrations/              # 過去resultsの名称移行
 │   └── baselines/               # 固定比較データの構築・拡張
 ├── federated_drift_experiment/ # 連合ドリフト実験パッケージ
-│   ├── compatibility.py         # 旧手法名・旧データセット名の後方互換定義
 │   ├── config.py                # ★ハイパーパラメータの一元管理
-│   ├── data.py                  # 合成データ生成・ドリフトスケジュール
+│   ├── data/                    # データ名・生成・概念スケジュール
 │   ├── models.py                # SimpleMLP(2次元入力の二値分類)
 │   ├── adwin.py                 # FullScanADWIN(全分割点走査のADWIN)
 │   ├── hddm.py                  # HDDM-A/W（平均・EWMAの有界損失検出）

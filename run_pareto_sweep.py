@@ -37,9 +37,6 @@ from federated_drift_experiment.mode_names import (
     is_adwin_mode,
     is_esr_mode,
     is_hddm_mode,
-    normalize_legacy_mode,
-    normalize_legacy_series,
-    normalize_series_notation,
 )
 from federated_drift_experiment.parameter_schema import (
     PARAMETER_SCHEMA_VERSION,
@@ -312,43 +309,44 @@ def write_csv(rows, path):
 
 
 def _load_csv(path):
-    """write_csv が出力した結果CSVを読み込み、数値型に復元した行リストを返す。"""
+    """正規スキーマの結果CSVを読み込み、数値型に復元する。"""
     rows = []
     with open(path, encoding="utf-8") as f:
-        for r in csv.DictReader(f):
+        reader = csv.DictReader(f)
+        legacy_columns = {
+            "feddrift_batch", "b_detect", "agg_interval",
+            "fedsda_aggregation_interval", "distance_threshold",
+            "delta_feddrift",
+        }
+        if legacy_columns & set(reader.fieldnames or ()):
+            raise ValueError(f"Legacy parameter columns are not supported: {path}")
+        for r in reader:
             row = dict(r)
-            old_mode = row["mode"]
-            row["mode"] = normalize_legacy_mode(old_mode)
-            row["series"] = normalize_legacy_series(
-                row.get("series", ""), old_mode, row["mode"]
-            )
-            row["series"] = normalize_series_notation(row["series"])
-            row.setdefault("concept_schedule", "random")
+            if int(row.get("parameter_schema_version") or -1) != PARAMETER_SCHEMA_VERSION:
+                raise ValueError(f"Unsupported parameter schema: {path}")
+            if row["mode"] not in set(FEDSDA_MODES + FEDDRIFT_MODES + BASELINE_MODES):
+                raise ValueError(f"Unknown mode in result: {row['mode']!r}")
+            row["series"] = row.get("series", "")
+            if not row.get("concept_schedule"):
+                raise ValueError(f"Missing concept_schedule: {path}")
             row["dataset"] = normalize_dataset_name(row["dataset"])
             row["seed"] = int(float(row["seed"]))
             row.setdefault("parameter_schema_version", "")
             row.setdefault("sweep_parameter", "")
             row["sweep_value"] = (float(row["sweep_value"])
                                   if row["sweep_value"] not in ("", "None") else None)
-            feddrift_batch = row.get(
-                FEDDRIFT_DETECTION_BATCH_SIZE,
-                row.get("feddrift_batch", row.get("b_detect")),
-            )
+            feddrift_batch = row.get(FEDDRIFT_DETECTION_BATCH_SIZE)
             row[FEDDRIFT_DETECTION_BATCH_SIZE] = (
                 int(float(feddrift_batch))
                 if feddrift_batch not in (None, "", "None") else ""
             )
-            agg_interval = row.get(AGGREGATION_INTERVAL, row.get("agg_interval"))
+            agg_interval = row.get(AGGREGATION_INTERVAL)
             row[AGGREGATION_INTERVAL] = (
                 int(float(agg_interval))
                 if agg_interval not in (None, "", "None") else ""
             )
-            old_distance = row.get("distance_threshold")
-            feddrift_distance = row.get(
-                FEDDRIFT_DISTANCE_THRESHOLD,
-                row.get("delta_feddrift", old_distance),
-            )
-            fedsda_distance = row.get(FEDSDA_DISTANCE_THRESHOLD, old_distance)
+            feddrift_distance = row.get(FEDDRIFT_DISTANCE_THRESHOLD)
+            fedsda_distance = row.get(FEDSDA_DISTANCE_THRESHOLD)
             row[FEDDRIFT_DISTANCE_THRESHOLD] = (
                 float(feddrift_distance)
                 if row["mode"] in FEDDRIFT_MODES
@@ -359,21 +357,7 @@ def _load_csv(path):
                 if row["mode"] in FEDSDA_MODES
                 and fedsda_distance not in (None, "", "None") else float("nan")
             )
-            row[ADWIN_DELTA] = row.get(ADWIN_DELTA, row.get("adwin_delta", ""))
-            sweep_aliases = {
-                "b_detect": FEDDRIFT_DETECTION_BATCH_SIZE,
-                "feddrift_batch": FEDDRIFT_DETECTION_BATCH_SIZE,
-                "delta_feddrift": FEDDRIFT_DISTANCE_THRESHOLD,
-                "agg_interval": AGGREGATION_INTERVAL,
-                "distance_threshold": (
-                    FEDDRIFT_DISTANCE_THRESHOLD
-                    if row["mode"] in FEDDRIFT_MODES
-                    else FEDSDA_DISTANCE_THRESHOLD
-                ),
-            }
-            row["sweep_parameter"] = sweep_aliases.get(
-                row["sweep_parameter"], row["sweep_parameter"]
-            )
+            row[ADWIN_DELTA] = row.get(ADWIN_DELTA, "")
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")

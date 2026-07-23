@@ -144,7 +144,7 @@ def test_adwin_delta_sweep_skips_non_adwin_detectors(monkeypatch):
     assert all("A sweep" in call["series"] for call in calls)
 
 
-def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
+def test_load_csv_rejects_legacy_parameter_columns(tmp_path):
     old_keys = [
         key for key in sweep.ROW_KEYS
         if key not in (
@@ -168,16 +168,12 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
         writer.writeheader()
         writer.writerow(row)
 
-    loaded = sweep._load_csv(path)
-
-    assert loaded[0]["mode"] == "FedSDA_Legacy"
-    assert loaded[0]["dataset"] == "sea4"
-    assert loaded[0]["series"] == "FedSDA_Legacy sweep"
-    assert loaded[0][sweep.AGGREGATION_INTERVAL] == ""
-    assert loaded[0]["clustering_policy"] == "on_new_model"
-    assert loaded[0]["detection_episodes"] == "False"
-    assert loaded[0]["concept_schedule"] == "random"
-    assert loaded[0]["sweep_value"] == 0.1
+    try:
+        sweep._load_csv(path)
+    except ValueError as error:
+        assert "Legacy parameter columns" in str(error)
+    else:
+        raise AssertionError("旧パラメータ列を受理してはいけない")
 
 
 def test_load_csv_accepts_canonical_feddrift_baseline_names(tmp_path):
@@ -185,14 +181,15 @@ def test_load_csv_accepts_canonical_feddrift_baseline_names(tmp_path):
     row = {key: "0" for key in sweep.METRIC_KEYS}
     row.update({
         "mode": "FedDrift",
+        "parameter_schema_version": "1",
         "dataset": "circle2",
         "concept_schedule": "random",
         "seed": "0",
-        "series": "FedDrift B_detect sweep (delta_feddrift=0.1)",
-        "sweep_parameter": "b_detect",
+        "series": "FedDrift B_detect sweep (δ_FedDrift=0.1)",
+        "sweep_parameter": sweep.FEDDRIFT_DETECTION_BATCH_SIZE,
         "sweep_value": "50",
-        "b_detect": "50",
-        "delta_feddrift": "0.1",
+        sweep.FEDDRIFT_DETECTION_BATCH_SIZE: "50",
+        sweep.FEDDRIFT_DISTANCE_THRESHOLD: "0.1",
     })
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=list(row))

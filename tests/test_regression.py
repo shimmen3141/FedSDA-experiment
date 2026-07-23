@@ -35,7 +35,6 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from federated_drift_experiment import config, run_random_drift_experiment  # noqa: E402
-from federated_drift_experiment.mode_names import normalize_legacy_mode  # noqa: E402
 
 GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "regression_golden.json")
 
@@ -144,17 +143,7 @@ def compare(current, golden, tol):
 def _load_golden():
     with open(GOLDEN_PATH, encoding="utf-8") as f:
         stored = json.load(f)
-    normalized = {key: value for key, value in stored.items() if key.startswith("_")}
-    for key, value in stored.items():
-        if key.startswith("_"):
-            continue
-        mode, dataset = key.split("/", 1)
-        # FedSDA は旧v1の曖昧な名称なので比較対象外とする。
-        # FedDrift は現在の正式モード名であり、除外してはいけない。
-        if mode == "FedSDA":
-            continue
-        normalized[f"{normalize_legacy_mode(mode)}/{dataset}"] = value
-    return normalized
+    return stored
 
 
 def main():

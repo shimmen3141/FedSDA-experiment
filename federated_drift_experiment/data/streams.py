@@ -4,7 +4,7 @@ import torch
 
 from .. import config
 from .mnist import sample_mnist
-from ..compatibility import normalize_dataset_name
+from .names import normalize_dataset_name
 from .synthetic import (
     generate_blobs,
     generate_circle2,
