@@ -10,6 +10,8 @@ class FedDriftServer(CrossEvaluationClusteringServer):
     """新規モデル隔離と正確なR回のFedAvgを行うFedDrift時刻プロトコル。"""
 
     def __init__(self, *args, linkage=None, isolation_timesteps=None, **kwargs):
+        if kwargs.get("distance_threshold") is None:
+            kwargs["distance_threshold"] = config.FEDDRIFT_DISTANCE_THRESHOLD
         super().__init__(
             *args,
             linkage=linkage or config.CLUSTER_LINKAGE,

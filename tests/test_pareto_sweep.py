@@ -13,12 +13,12 @@ def test_cli_help_groups_related_sweep_options():
     help_text = sweep.build_parser().format_help()
 
     assert "FedSDAの手法・掃引" in help_text
-    assert "--fixed-adwin" in help_text
-    assert "--fixed-agg" in help_text
-    assert "--agg-sweepが空なら未使用" in help_text
+    assert "--fixed-adwin-delta" in help_text
+    assert "--fixed-aggregation-interval" in help_text
+    assert "--aggregation-intervals" in help_text
     assert "FedDriftの手法・掃引" in help_text
-    assert "--fixed-delta" in help_text
-    assert "--batchesが空なら未使用" in help_text
+    assert "--fixed-feddrift-distance-threshold" in help_text
+    assert "--feddrift-detection-batch-sizes" in help_text
     assert "既存CSVの再描画" in help_text
     assert "他の実験設定は無視" in help_text
     assert "--plot-x-metric" in help_text
@@ -46,6 +46,33 @@ def _fake_row(**kwargs):
     return row
 
 
+def test_new_rows_use_method_specific_parameter_schema(monkeypatch):
+    monkeypatch.setattr(
+        sweep,
+        "run_random_drift_experiment",
+        lambda **kwargs: {key: 0.0 for key in sweep.METRIC_KEYS},
+    )
+
+    row = sweep._run(
+        mode="FedDrift",
+        dataset="sea4",
+        seed=0,
+        series="FedDrift B_detect sweep (δ_FedDrift=0.1)",
+        sweep_parameter=sweep.FEDDRIFT_DETECTION_BATCH_SIZE,
+        sweep_value=50,
+        feddrift_batch=50,
+        distance_threshold=0.1,
+    )
+
+    assert row["parameter_schema_version"] == 1
+    assert row["sweep_parameter"] == sweep.FEDDRIFT_DETECTION_BATCH_SIZE
+    assert row[sweep.FEDDRIFT_DETECTION_BATCH_SIZE] == 50
+    assert row[sweep.FEDDRIFT_DISTANCE_THRESHOLD] == 0.1
+    assert row[sweep.AGGREGATION_INTERVAL] is None
+    assert row[sweep.FEDSDA_DISTANCE_THRESHOLD] is None
+    assert row[sweep.ADWIN_DELTA] is None
+
+
 def test_run_sweep_schedules_selected_versions(monkeypatch):
     calls = []
 
@@ -71,7 +98,7 @@ def test_run_sweep_schedules_selected_versions(monkeypatch):
     for mode in ("FedSDA_NoCached_ADWIN", "FedSDA_Cached_ADWIN"):
         mode_calls = [call for call in calls if call["mode"] == mode]
         assert [call["agg_interval"] for call in mode_calls] == [
-            sweep.config.AGG_INTERVAL, sweep.config.AGG_INTERVAL, 100,
+            sweep.config.AGGREGATION_INTERVAL, sweep.config.AGGREGATION_INTERVAL, 100,
         ]
 
 
@@ -121,10 +148,15 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
     old_keys = [
         key for key in sweep.ROW_KEYS
         if key not in (
-            "concept_schedule", "agg_interval", "clustering_policy",
+            "parameter_schema_version", "sweep_parameter",
+            "concept_schedule", sweep.AGGREGATION_INTERVAL,
+            sweep.FEDDRIFT_DETECTION_BATCH_SIZE,
+            sweep.FEDSDA_DISTANCE_THRESHOLD,
+            sweep.FEDDRIFT_DISTANCE_THRESHOLD,
+            "clustering_policy",
             "detection_episodes",
         )
-    ]
+    ] + ["feddrift_batch", "distance_threshold"]
     path = tmp_path / "old.csv"
     row = {key: "0" for key in old_keys}
     row.update({
@@ -141,7 +173,7 @@ def test_load_csv_accepts_previous_format_without_agg_interval(tmp_path):
     assert loaded[0]["mode"] == "FedSDA_Legacy"
     assert loaded[0]["dataset"] == "sea4"
     assert loaded[0]["series"] == "FedSDA_Legacy sweep"
-    assert loaded[0]["agg_interval"] == ""
+    assert loaded[0][sweep.AGGREGATION_INTERVAL] == ""
     assert loaded[0]["clustering_policy"] == "on_new_model"
     assert loaded[0]["detection_episodes"] == "False"
     assert loaded[0]["concept_schedule"] == "random"
@@ -170,8 +202,9 @@ def test_load_csv_accepts_canonical_feddrift_baseline_names(tmp_path):
     loaded = sweep._load_csv(path)
 
     assert loaded[0]["mode"] == "FedDrift"
-    assert loaded[0]["feddrift_batch"] == 50
-    assert loaded[0]["distance_threshold"] == 0.1
+    assert loaded[0][sweep.FEDDRIFT_DETECTION_BATCH_SIZE] == 50
+    assert loaded[0][sweep.FEDDRIFT_DISTANCE_THRESHOLD] == 0.1
+    assert loaded[0]["sweep_parameter"] == sweep.FEDDRIFT_DETECTION_BATCH_SIZE
 
 
 def test_series_style_distinguishes_method_and_sweep_type():
@@ -209,8 +242,9 @@ def test_plot_pareto_draws_baseline_standard_deviation_band(tmp_path, monkeypatc
             rows.append({
                 "mode": mode, "dataset": "sea4", "seed": seed, "series": mode,
                 "sweep_value": None, "comm_models_total": 0.0,
-                "stable_accuracy": accuracy, "agg_interval": 50,
-                "adwin_delta": 0.1,
+                "stable_accuracy": accuracy,
+                sweep.AGGREGATION_INTERVAL: 50,
+                sweep.ADWIN_DELTA: 0.1,
             })
 
     path = tmp_path / "pareto.png"

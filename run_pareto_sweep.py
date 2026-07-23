@@ -1,7 +1,7 @@
 """精度–通信量トレードオフの掃引実験(複数シード × 複数データセット)。
 
 各データセット・各シードで以下を実行し、結果を CSV と散布図に出力する:
-- FedSDA Cached/NoCached: 検出器パラメータと AGG_INTERVAL の掃引
+- FedSDA Cached/NoCached: 検出器パラメータと AGGREGATION_INTERVAL の掃引
 - FedDrift: 検出バッチと検出閾値 δ の掃引
 - FedSDA_without_server / Oblivious: 単一点の基準線
 
@@ -41,6 +41,10 @@ from federated_drift_experiment.mode_names import (
     normalize_legacy_series,
     normalize_series_notation,
 )
+from federated_drift_experiment.parameter_schema import (
+    PARAMETER_SCHEMA_VERSION,
+    parameter,
+)
 
 # この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
 # 既定の出力先は results/results_<YYYYMMDD_HHMMSS>/... となり実行ごとに別ディレクトリへ分かれる。
@@ -79,11 +83,19 @@ METRIC_KEYS = [
     "compute_drift_detector_updates_total", "compute_drift_detector_hypotheses_total",
     "mean_model_count", "max_model_count", "model_count_auc",
 ]
-ROW_KEYS = ["mode", "dataset", "concept_schedule", "seed", "series", "sweep_value",
-            "feddrift_batch", "agg_interval", "clustering_policy", "detection_episodes",
+AGGREGATION_INTERVAL = parameter("aggregation_interval").csv_name
+FEDDRIFT_DETECTION_BATCH_SIZE = parameter("feddrift_detection_batch_size").csv_name
+FEDSDA_DISTANCE_THRESHOLD = parameter("fedsda_distance_threshold").csv_name
+FEDDRIFT_DISTANCE_THRESHOLD = parameter("feddrift_distance_threshold").csv_name
+ADWIN_DELTA = parameter("adwin_delta").csv_name
+
+ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
+            "seed", "series", "sweep_parameter", "sweep_value",
+            FEDDRIFT_DETECTION_BATCH_SIZE, AGGREGATION_INTERVAL,
+            "clustering_policy", "detection_episodes",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
-            "distance_threshold", "adwin_delta",
+            FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
             ] + METRIC_KEYS
 
 FEDSDA_SWEEP_MODES = FEDSDA_MODES
@@ -104,7 +116,7 @@ def _slug(text):
     return re.sub(r"_+", "_", re.sub(r"[^0-9A-Za-z]+", "_", str(text))).strip("_")
 
 
-def _run(mode, dataset, seed, series, sweep_value,
+def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
          feddrift_batch=None, distance_threshold=None, adwin_delta=None, agg_interval=None,
          raw_dir=None, concept_schedule=None):
     config.DATASET = dataset
@@ -112,11 +124,11 @@ def _run(mode, dataset, seed, series, sweep_value,
         concept_schedule = config.CONCEPT_SCHEDULE
     config.CONCEPT_SCHEDULE = concept_schedule
     if feddrift_batch is not None:
-        config.FEDDRIFT_DETECT_BATCH = feddrift_batch
+        config.FEDDRIFT_DETECTION_BATCH_SIZE = feddrift_batch
     if adwin_delta is not None:
         config.ADWIN_DELTA = adwin_delta
     if agg_interval is not None:
-        config.AGG_INTERVAL = agg_interval
+        config.AGGREGATION_INTERVAL = agg_interval
 
     # 回復曲線分析は label 単位でグループ化する(seed をまたいで平均)。掃引値が異なれば
     # 別ハイパーパラメータ設定なので、label に掃引値を含めて別系列として扱う。
@@ -154,17 +166,29 @@ def _run(mode, dataset, seed, series, sweep_value,
                                     random_seed=seed, verbose=False, show_plot=False,
                                     raw_path=raw_path, raw_label=raw_label)
     row = {
+        "parameter_schema_version": PARAMETER_SCHEMA_VERSION,
         "mode": mode, "dataset": dataset, "concept_schedule": concept_schedule,
-        "seed": seed, "series": display_series, "sweep_value": sweep_value,
-        "feddrift_batch": config.FEDDRIFT_DETECT_BATCH,
-        "agg_interval": config.AGG_INTERVAL,
+        "seed": seed, "series": display_series,
+        "sweep_parameter": sweep_parameter, "sweep_value": sweep_value,
+        FEDDRIFT_DETECTION_BATCH_SIZE: (
+            config.FEDDRIFT_DETECTION_BATCH_SIZE if mode in FEDDRIFT_MODES else None
+        ),
+        AGGREGATION_INTERVAL: (
+            config.AGGREGATION_INTERVAL
+            if mode in FEDSDA_MODES or mode in BASELINE_MODES else None
+        ),
         "clustering_policy": config.FEDSDA_CLUSTERING_POLICY,
         "detection_episodes": config.FEDSDA_DETECTION_EPISODES_ENABLED,
         "new_model_creation_policy": config.NEW_MODEL_CREATION_POLICY,
         "fifo_size": config.FIFO_BUFFER_SIZE,
         "new_model_validation_fraction": config.NEW_MODEL_VALIDATION_FRACTION,
-        "distance_threshold": distance_threshold if distance_threshold is not None else config.DISTANCE_THRESHOLD,
-        "adwin_delta": config.ADWIN_DELTA,
+        FEDSDA_DISTANCE_THRESHOLD: (
+            distance_threshold if mode in FEDSDA_MODES else None
+        ),
+        FEDDRIFT_DISTANCE_THRESHOLD: (
+            distance_threshold if mode in FEDDRIFT_MODES else None
+        ),
+        ADWIN_DELTA: config.ADWIN_DELTA if is_adwin_mode(mode) else None,
     }
     for k in METRIC_KEYS:
         row[k] = r.get(k)
@@ -178,7 +202,7 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     if concept_schedule is None:
         concept_schedule = config.CONCEPT_SCHEDULE
     default_adwin = config.ADWIN_DELTA
-    default_agg = config.AGG_INTERVAL
+    default_agg = config.AGGREGATION_INTERVAL
     if fixed_adwin is None:
         fixed_adwin = default_adwin
     if fixed_agg is None:
@@ -223,14 +247,16 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
                     for adwin_delta in adwin_deltas:
                         do(f"{dataset}/{mode}/da={adwin_delta}/s{seed}",
                            mode=mode, dataset=dataset, seed=seed, series=delta_series,
-                           sweep_value=adwin_delta, distance_threshold=fixed_gamma,
+                           sweep_parameter=ADWIN_DELTA, sweep_value=adwin_delta,
+                           distance_threshold=fixed_gamma,
                            adwin_delta=adwin_delta, agg_interval=fixed_agg)
                 for agg_interval in agg_sweep:
                     do(f"{dataset}/{mode}/agg={agg_interval}/s{seed}",
                        mode=mode, dataset=dataset, seed=seed, series=agg_series,
+                       sweep_parameter=AGGREGATION_INTERVAL,
                        sweep_value=agg_interval, distance_threshold=fixed_gamma,
                        adwin_delta=fixed_adwin, agg_interval=agg_interval)
-                config.AGG_INTERVAL = default_agg
+                config.AGGREGATION_INTERVAL = default_agg
                 config.ADWIN_DELTA = default_adwin
 
             for mode in baseline_modes:
@@ -244,11 +270,13 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
                 for batch in batches:
                     do(f"{dataset}/{mode}/batch{batch}/s{seed}",
                        mode=mode, dataset=dataset, seed=seed, series=batch_series,
+                       sweep_parameter=FEDDRIFT_DETECTION_BATCH_SIZE,
                        sweep_value=batch, feddrift_batch=batch,
                        distance_threshold=fixed_delta)
                 for delta in deltas:
                     do(f"{dataset}/{mode}/delta{delta}/s{seed}",
                        mode=mode, dataset=dataset, seed=seed, series=delta_series,
+                       sweep_parameter=FEDDRIFT_DISTANCE_THRESHOLD,
                        sweep_value=delta, feddrift_batch=fixed_batch,
                        distance_threshold=delta)
 
@@ -298,18 +326,54 @@ def _load_csv(path):
             row.setdefault("concept_schedule", "random")
             row["dataset"] = normalize_dataset_name(row["dataset"])
             row["seed"] = int(float(row["seed"]))
+            row.setdefault("parameter_schema_version", "")
+            row.setdefault("sweep_parameter", "")
             row["sweep_value"] = (float(row["sweep_value"])
                                   if row["sweep_value"] not in ("", "None") else None)
-            feddrift_batch = row.get("feddrift_batch", row.get("b_detect"))
-            row["feddrift_batch"] = (
+            feddrift_batch = row.get(
+                FEDDRIFT_DETECTION_BATCH_SIZE,
+                row.get("feddrift_batch", row.get("b_detect")),
+            )
+            row[FEDDRIFT_DETECTION_BATCH_SIZE] = (
                 int(float(feddrift_batch))
                 if feddrift_batch not in (None, "", "None") else ""
             )
-            if "distance_threshold" not in row and "delta_feddrift" in row:
-                row["distance_threshold"] = row["delta_feddrift"]
-            agg_interval = row.get("agg_interval")
-            row["agg_interval"] = (int(float(agg_interval))
-                                   if agg_interval not in (None, "", "None") else "")
+            agg_interval = row.get(AGGREGATION_INTERVAL, row.get("agg_interval"))
+            row[AGGREGATION_INTERVAL] = (
+                int(float(agg_interval))
+                if agg_interval not in (None, "", "None") else ""
+            )
+            old_distance = row.get("distance_threshold")
+            feddrift_distance = row.get(
+                FEDDRIFT_DISTANCE_THRESHOLD,
+                row.get("delta_feddrift", old_distance),
+            )
+            fedsda_distance = row.get(FEDSDA_DISTANCE_THRESHOLD, old_distance)
+            row[FEDDRIFT_DISTANCE_THRESHOLD] = (
+                float(feddrift_distance)
+                if row["mode"] in FEDDRIFT_MODES
+                and feddrift_distance not in (None, "", "None") else float("nan")
+            )
+            row[FEDSDA_DISTANCE_THRESHOLD] = (
+                float(fedsda_distance)
+                if row["mode"] in FEDSDA_MODES
+                and fedsda_distance not in (None, "", "None") else float("nan")
+            )
+            row[ADWIN_DELTA] = row.get(ADWIN_DELTA, row.get("adwin_delta", ""))
+            sweep_aliases = {
+                "b_detect": FEDDRIFT_DETECTION_BATCH_SIZE,
+                "feddrift_batch": FEDDRIFT_DETECTION_BATCH_SIZE,
+                "delta_feddrift": FEDDRIFT_DISTANCE_THRESHOLD,
+                "agg_interval": AGGREGATION_INTERVAL,
+                "distance_threshold": (
+                    FEDDRIFT_DISTANCE_THRESHOLD
+                    if row["mode"] in FEDDRIFT_MODES
+                    else FEDSDA_DISTANCE_THRESHOLD
+                ),
+            }
+            row["sweep_parameter"] = sweep_aliases.get(
+                row["sweep_parameter"], row["sweep_parameter"]
+            )
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
@@ -318,7 +382,7 @@ def _load_csv(path):
                 "new_model_validation_fraction",
                 str(config.NEW_MODEL_VALIDATION_FRACTION),
             )
-            for k in ["distance_threshold", "adwin_delta"] + METRIC_KEYS:
+            for k in [ADWIN_DELTA] + METRIC_KEYS:
                 v = row.get(k)
                 row[k] = float(v) if v not in (None, "", "None") else float("nan")
             rows.append(row)
@@ -548,10 +612,10 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy",
             color, linestyle = baseline_styles[baseline]
             if baseline == "Oblivious":
                 parameter = _fixed_parameter_label(
-                    baseline_rows, "agg_interval", "A")
+                    baseline_rows, AGGREGATION_INTERVAL, "A")
             else:
                 parameter = _fixed_parameter_label(
-                    baseline_rows, "adwin_delta", "δ_ADWIN")
+                    baseline_rows, ADWIN_DELTA, "δ_ADWIN")
             # 線はシード平均、半透明帯はシード間の±1標準偏差を表す。
             ax.axhline(a[2], color=color, linestyle=linestyle,
                        label=f"{baseline} ({parameter}, mean±std)", zorder=1)
@@ -587,8 +651,8 @@ def build_parser():
         epilog="""指定例:
   FedSDAだけ実行:
     --feddrift-modes --baseline-modes
-  FedSDAのAGG_INTERVAL掃引だけ実行:
-    --adwin-deltas --agg-sweep 25 50 100
+  FedSDAのAGGREGATION_INTERVAL掃引だけ実行:
+    --adwin-deltas --aggregation-intervals 50 100
   FedDriftの距離閾値δ掃引だけ実行:
     --batches --deltas 0.05 0.1 0.2
   既存CSVだけ再描画:
@@ -620,12 +684,15 @@ def build_parser():
     fedsda.add_argument("--adwin-deltas", nargs="*", type=float,
                         default=[0.01, 0.05, 0.1, 0.2, 0.3],
                         help="δ_ADWIN掃引値。空指定でこの掃引を無効化")
-    fedsda.add_argument("--agg-sweep", nargs="*", type=int,
+    fedsda.add_argument("--aggregation-intervals", dest="agg_sweep",
+                        nargs="*", type=int,
                         default=[50, 100, 200, 500],
-                        help="集約間隔A（AGG_INTERVAL）の掃引値。空指定で無効化")
-    fedsda.add_argument("--fixed-adwin", type=float, default=None,
+                        help="集約間隔Aの掃引値。空指定で無効化")
+    fedsda.add_argument("--fixed-adwin-delta", dest="fixed_adwin",
+                        type=float, default=None,
                         help="A掃引中の固定δ_ADWIN。--agg-sweepが空なら未使用")
-    fedsda.add_argument("--fixed-agg", type=int, default=None,
+    fedsda.add_argument("--fixed-aggregation-interval", dest="fixed_agg",
+                        type=int, default=None,
                         help="δ_ADWIN掃引中の固定A。--adwin-deltasが空なら未使用")
     fedsda.add_argument(
         "--clustering-policy",
@@ -654,22 +721,27 @@ def build_parser():
         default=config.NEW_MODEL_VALIDATION_FRACTION,
         help="検証付き仮モデルで末尾から検証用に確保する割合",
     )
-    fedsda.add_argument("--fixed-gamma", type=float, default=None,
+    fedsda.add_argument("--fedsda-distance-threshold", dest="fixed_gamma",
+                        type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
 
     feddrift = parser.add_argument_group("FedDriftの手法・掃引")
     feddrift.add_argument("--feddrift-modes", nargs="*", choices=FEDDRIFT_SWEEP_MODES,
                           default=list(FEDDRIFT_SWEEP_MODES),
                           help="対象モード。空指定でFedDriftをすべて無効化")
-    feddrift.add_argument("--batches", nargs="*", type=int,
+    feddrift.add_argument("--feddrift-detection-batch-sizes", dest="batches",
+                          nargs="*", type=int,
                           default=[50, 100, 200, 500],
                           help="検出バッチB_detectの掃引値。空指定でこの掃引を無効化")
-    feddrift.add_argument("--fixed-delta", type=float, default=None,
+    feddrift.add_argument("--fixed-feddrift-distance-threshold", dest="fixed_delta",
+                          type=float, default=None,
                           help="B_detect掃引中の固定δ_FedDrift。--batchesが空なら未使用")
-    feddrift.add_argument("--deltas", nargs="*", type=float,
+    feddrift.add_argument("--feddrift-distance-thresholds", dest="deltas",
+                          nargs="*", type=float,
                           default=[0.05, 0.1, 0.15, 0.2],
                           help="δ_FedDriftの掃引値。空指定でこの掃引を無効化")
-    feddrift.add_argument("--fixed-batch", type=int, default=None,
+    feddrift.add_argument("--fixed-feddrift-detection-batch-size",
+                          dest="fixed_batch", type=int, default=None,
                           help="δ_FedDrift掃引中の固定B_detect。--deltasが空なら未使用")
 
     baselines = parser.add_argument_group("基準手法")
@@ -744,11 +816,11 @@ def main():
     config.FIFO_BUFFER_SIZE = args.fifo_size
     config.NEW_MODEL_VALIDATION_FRACTION = args.new_model_validation_fraction
 
-    fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.DISTANCE_THRESHOLD
-    fixed_batch = args.fixed_batch if args.fixed_batch is not None else config.FEDDRIFT_DETECT_BATCH
-    fixed_gamma = args.fixed_gamma if args.fixed_gamma is not None else config.DISTANCE_THRESHOLD
+    fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.FEDDRIFT_DISTANCE_THRESHOLD
+    fixed_batch = args.fixed_batch if args.fixed_batch is not None else config.FEDDRIFT_DETECTION_BATCH_SIZE
+    fixed_gamma = args.fixed_gamma if args.fixed_gamma is not None else config.FEDSDA_DISTANCE_THRESHOLD
     fixed_adwin = args.fixed_adwin if args.fixed_adwin is not None else config.ADWIN_DELTA
-    fixed_agg = args.fixed_agg if args.fixed_agg is not None else config.AGG_INTERVAL
+    fixed_agg = args.fixed_agg if args.fixed_agg is not None else config.AGGREGATION_INTERVAL
 
     os.makedirs(args.out_dir, exist_ok=True)
     slug = _experiment_slug(

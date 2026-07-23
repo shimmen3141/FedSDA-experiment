@@ -16,6 +16,11 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
     FedAvgのアップロードへ集約する。配布はラウンド末の1回だけ行う。
     """
 
+    def __init__(self, *args, **kwargs):
+        if kwargs.get("distance_threshold") is None:
+            kwargs["distance_threshold"] = config.FEDSDA_DISTANCE_THRESHOLD
+        super().__init__(*args, **kwargs)
+
     def run_round(self, t, clustering_enabled=True):
         """新規登録 → FedAvg → (任意でクラスタリング) → 配布を実行する。
 

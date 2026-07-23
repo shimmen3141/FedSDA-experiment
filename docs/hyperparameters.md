@@ -6,6 +6,17 @@
 アルゴリズム詳細は [fedsda-algorithm.md](fedsda-algorithm.md)、ADWINとe-detectorの理論・比較条件は
 [drift-detection.md](drift-detection.md) を参照。
 
+コード定数・CSV/NPZ列・CLI・論文記号の正本は
+[`parameter_schema.py`](../federated_drift_experiment/parameter_schema.py)である。
+
+| 正規ID（CSV/NPZ） | コード定数 | 論文・凡例 | CLI |
+|---|---|---|---|
+| `aggregation_interval` | `AGGREGATION_INTERVAL` | A | `--aggregation-intervals` |
+| `feddrift_detection_batch_size` | `FEDDRIFT_DETECTION_BATCH_SIZE` | B_detect | `--feddrift-detection-batch-sizes` |
+| `fedsda_distance_threshold` | `FEDSDA_DISTANCE_THRESHOLD` | γ | `--fedsda-distance-threshold` |
+| `feddrift_distance_threshold` | `FEDDRIFT_DISTANCE_THRESHOLD` | δ_FedDrift | `--feddrift-distance-thresholds` |
+| `adwin_delta` | `ADWIN_DELTA` | δ_ADWIN | `--adwin-deltas` |
+
 ---
 
 ## 0. 前提: FedSDA と FedDrift の処理モデルの違い
@@ -16,31 +27,31 @@
 |---|---|---|
 | 処理単位 | **per-sample 逐次**(オンライン単一パス) | **バッチ**(サンプルを溜めてから処理) |
 | ドリフト検出 | ADWIN(サンプルごとに統計検定) | 損失増分(検出バッチ完了ごと) |
-| 1ラウンドで処理するサンプル数 | `AGG_INTERVAL` | `FEDDRIFT_DETECT_BATCH`(=検出=通信の単位) |
-| 1 ラウンドの学習量 | `AGG_INTERVAL` × `UPDATES_PER_SAMPLE` 更新 | `FEDDRIFT_DETECT_BATCH` × `UPDATES_PER_SAMPLE` 更新 |
-| 集約(通信)の契機 | 毎ラウンド末(= `AGG_INTERVAL` サンプルごと) | 検出バッチ完了時のみ(= `FEDDRIFT_DETECT_BATCH` ごと) |
+| 1ラウンドで処理するサンプル数 | `AGGREGATION_INTERVAL` | `FEDDRIFT_DETECTION_BATCH_SIZE`(=検出=通信の単位) |
+| 1 ラウンドの学習量 | `AGGREGATION_INTERVAL` × `UPDATES_PER_SAMPLE` 更新 | `FEDDRIFT_DETECTION_BATCH_SIZE` × `UPDATES_PER_SAMPLE` 更新 |
+| 集約(通信)の契機 | 毎ラウンド末(= `AGGREGATION_INTERVAL` サンプルごと) | 検出バッチ完了時のみ(= `FEDDRIFT_DETECTION_BATCH_SIZE` ごと) |
 | バッチあたり反復 | なし(各サンプル1回) | `FEDDRIFT_ROUNDS` 回(論文 R。既定 1) |
 
-**重要な不変量**: 1 モデルあたりの総ローカル更新数は、FedSDA・FedDrift(R=1)とも `TOTAL_DATA_POINTS × UPDATES_PER_SAMPLE` で**一定**(`AGG_INTERVAL` / `FEDDRIFT_DETECT_BATCH` の値に依存しない)。この予算一致が両手法の公平比較の土台になっている。`FEDDRIFT_ROUNDS` を 1 より大きくすると FedDrift 側だけ更新数・通信量が R 倍になり、この一致は崩れる(論文忠実な FedDrift 再現用)。
+**重要な不変量**: 1 モデルあたりの総ローカル更新数は、FedSDA・FedDrift(R=1)とも `TOTAL_DATA_POINTS × UPDATES_PER_SAMPLE` で**一定**(`AGGREGATION_INTERVAL` / `FEDDRIFT_DETECTION_BATCH_SIZE` の値に依存しない)。この予算一致が両手法の公平比較の土台になっている。`FEDDRIFT_ROUNDS` を 1 より大きくすると FedDrift 側だけ更新数・通信量が R 倍になり、この一致は崩れる(論文忠実な FedDrift 再現用)。
 
 論文・Pareto凡例の記号とコードとの対応:
 
 | 論文記号 | 意味 | 本実装 |
 |---|---|---|
-| A | FedSDAの集約間隔（1通信ラウンドの処理サンプル数） | `AGG_INTERVAL` |
-| B_detect | FedDriftの検出バッチサイズ | `FEDDRIFT_DETECT_BATCH` |
+| A | FedSDAの集約間隔（1通信ラウンドの処理サンプル数） | `AGGREGATION_INTERVAL` |
+| B_detect | FedDriftの検出バッチサイズ | `FEDDRIFT_DETECTION_BATCH_SIZE` |
 | K | 1 ラウンドのローカル学習ステップ数 | 処理サンプル数 × `UPDATES_PER_SAMPLE` |
 | R | 1 時刻の通信ラウンド数 | `FEDDRIFT_ROUNDS`(FedDrift のみ、既定 1)。FedSDA は対応物なし |
 | B_train | ローカル学習のミニバッチサイズ | `CLIENT_BATCH_SIZE` |
 | L | 1 データ点あたり更新回数 | `UPDATES_PER_SAMPLE`(両手法共通) |
 | η | 学習率 | `BASE_LR` / `NEW_MODEL_LR` |
 | δ_ADWIN | ADWIN信頼度 | `ADWIN_DELTA`（FedSDA） |
-| δ_FedDrift | FedDriftのドリフト検出・モデルマージ共有閾値 | `DISTANCE_THRESHOLD`（FedDriftでの用途） |
-| γ | FedSDAのモデル適合・マージ距離閾値 | `DISTANCE_THRESHOLD`（FedSDAでの用途） |
+| δ_FedDrift | FedDriftのドリフト検出・モデルマージ共有閾値 | `FEDDRIFT_DISTANCE_THRESHOLD` |
+| γ | FedSDAのモデル適合・マージ距離閾値 | `FEDSDA_DISTANCE_THRESHOLD` |
 
 FedDrift内では、元論文に合わせてドリフト検出とモデルマージの両方に同じ
 `δ_FedDrift`を使う。FedSDAの`γ`とはアルゴリズム上の意味を区別して表示するが、現実装では
-どちらも`DISTANCE_THRESHOLD`を用途別に参照する。設定変数自体は現段階では分離しない。
+意味が異なるため、コード定数も手法別に分離する。
 
 ---
 
@@ -50,8 +61,8 @@ FedDrift内では、元論文に合わせてドリフト検出とモデルマー
 |---|---|---|---|
 | `N_CLIENTS` | クライアント数 C | 共通 | 10 |
 | `TOTAL_DATA_POINTS` | クライアントあたり総データ数(単一パス) | 共通 | 5000 |
-| `AGG_INTERVAL` | **FedSDA/Oblivious**: 集約までのサンプル数(=1 ラウンド長。集約間隔でもある) | FedSDA / Oblivious | 50 |
-| `LOCAL_UPDATE_TAU` | ローカル更新間隔 τ(論文の「t mod τ = 0」)。τ サンプルごとに τ×`UPDATES_PER_SAMPLE` 回まとめて更新(総更新回数は不変)。1=毎サンプル | FedSDA / Oblivious | 1 |
+| `AGGREGATION_INTERVAL` | **FedSDA/Oblivious**: 集約までのサンプル数(=1 ラウンド長。集約間隔でもある) | FedSDA / Oblivious | 50 |
+| `LOCAL_UPDATE_INTERVAL` | ローカル更新間隔 τ(論文の「t mod τ = 0」)。τ サンプルごとに τ×`UPDATES_PER_SAMPLE` 回まとめて更新(総更新回数は不変)。1=毎サンプル | FedSDA / Oblivious | 1 |
 
 ---
 
@@ -127,7 +138,7 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
-| `DISTANCE_THRESHOLD` | モデル適合判定の距離閾値 γ_dist(サーバのマージ判定と共用) | FedSDA / サーバ | 0.1 |
+| `FEDSDA_DISTANCE_THRESHOLD` | モデル適合判定の距離閾値 γ_dist(サーバのマージ判定と共用) | FedSDA / サーバ | 0.1 |
 | `FIFO_BUFFER_SIZE` | FIFO 遅延バッファ長 N_FIFO(検知遅延中の混合防止) | FedSDA | 30 |
 | `MIN_DRIFT_DATA` | ドリフト解決に必要な新概念データの最小数 | FedSDA | 5 |
 | `STORED_DATA_LIMIT` | モデルごとの評価用データストア上限 | 共通(クライアント) | 50 |
@@ -140,11 +151,11 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 
 | 変数 | 意味 | 使用 | 既定 |
 |---|---|---|---|
-| `FEDDRIFT_DETECT_BATCH` | 検出バッチサイズ ＝ **1ラウンドで処理するサンプル数**(論文の時刻粒度 500 を独立化)。検出粒度・集約(通信)間隔・1ラウンドの学習量(`× UPDATES_PER_SAMPLE`)を兼ねる | FedDrift | 50 |
+| `FEDDRIFT_DETECTION_BATCH_SIZE` | 検出バッチサイズ ＝ **1ラウンドで処理するサンプル数**(論文の時刻粒度 500 を独立化)。検出粒度・集約(通信)間隔・1ラウンドの学習量(`× UPDATES_PER_SAMPLE`)を兼ねる | FedDrift | 50 |
 | `FEDDRIFT_ROUNDS` | 1 検出バッチあたりの通信ラウンド数(論文 R)。{ローカル学習 → 集約 → 配布} を正確に R 回実行する。**既定 1 は FedSDA と予算一致の公平比較用** | FedDrift | 1 |
 | `FEDDRIFT_ISOLATION_TIMESTEPS` | 新規モデルをクロス評価・マージから外す時刻数 W。1なら作成時刻だけ隔離し、次時刻から対象。参照実装の既定構成に対応 | FedDrift | 1 |
 
-> `FEDDRIFT_DETECT_BATCH`(検出粒度 ↔ 通信)と `FEDDRIFT_ROUNDS`(バッチあたり収束度 ↔ 通信)は
+> `FEDDRIFT_DETECTION_BATCH_SIZE`(検出粒度 ↔ 通信)と `FEDDRIFT_ROUNDS`(バッチあたり収束度 ↔ 通信)は
 > **直交する 2 つの通信軸**。前者は「どの粒度で検出・通信するか」、後者は「1 バッチをどれだけ学習し切るか」。パレート分析では独立に掃引できる。
 
 ---
@@ -158,9 +169,9 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 | `CLUSTER_LINKAGE` | 共通クラスタリング戦略。`complete`=FedDrift論文のmax-linkage、`connected`=閾値グラフの連結成分(single-linkage cut相当) | FedDrift（他のクラスタリング手法にも再利用可能） | `complete` |
 
 > サーバは生データを集めず、配布モデルを現地評価させて**集約統計量 (n, Σℓ, Σℓ²) のみ**を
-> 集める federated 設計(詳細は DIFFERENCES §5)。`DISTANCE_THRESHOLD` をマージ判定に共用。
+> 集める federated 設計(詳細は DIFFERENCES §5)。`FEDDRIFT_DISTANCE_THRESHOLD` をマージ判定に共用。
 
-> 通信プロトコルはモード名の`NoCached` / `Cached`で選択する。τ(`LOCAL_UPDATE_TAU`)とは
+> 通信プロトコルはモード名の`NoCached` / `Cached`で選択する。τ(`LOCAL_UPDATE_INTERVAL`)とは
 > 直交しているため、通信プロトコルとローカル更新頻度を独立に比較できる。
 
 `ClassADWIN`は全体ADWINと正解クラス別ADWINを同じ`ADWIN_DELTA`で並列監視する。

@@ -10,7 +10,8 @@ from .experiment import run_random_drift_experiment
 
 def run_comparative_trials(
     n_trials=10,
-    threshold=0.1,
+    fedsda_distance_threshold=0.1,
+    feddrift_distance_threshold=0.1,
     modes=None,
     start_seed=0,
     show_plot_last=True,
@@ -26,6 +27,10 @@ def run_comparative_trials(
     for mode in modes:
         metrics_list = defaultdict(list)
         print("\n" + "=" * 60)
+        threshold = (
+            feddrift_distance_threshold if mode == "FedDrift"
+            else fedsda_distance_threshold
+        )
         print(f"Running {n_trials} trials for MODE: {mode} (Thr={threshold})")
         print("=" * 60)
 

@@ -150,7 +150,7 @@ def test_mnist_multiclass_path_runs_through_feddrift(monkeypatch):
         "PRETRAIN_BATCH_SIZE": 5,
         "CLIENT_BATCH_SIZE": 5,
         "NEW_MODEL_EPOCHS": 1,
-        "FEDDRIFT_DETECT_BATCH": 5,
+        "FEDDRIFT_DETECTION_BATCH_SIZE": 5,
     }.items():
         monkeypatch.setattr(config, name, value)
 

@@ -21,8 +21,8 @@ def main():
     parser = argparse.ArgumentParser(description="FedSDA single experiment runner")
     parser.add_argument("--mode", choices=MODES, default='FedSDA_NoCached_ADWIN',
                         help="実験モード (default: FedSDA_NoCached_ADWIN)")
-    parser.add_argument("--threshold", type=float, default=config.DISTANCE_THRESHOLD,
-                        help=f"距離閾値 gamma_dist (default: {config.DISTANCE_THRESHOLD})")
+    parser.add_argument("--distance-threshold", type=float, default=None,
+                        help="実行手法の距離閾値（未指定時は手法別の既定値）")
     parser.add_argument("--seed", type=int, default=0, help="乱数シード (default: 0)")
     parser.add_argument("--dataset", choices=dataset_cli_choices(config._FEATURE_DIMS),
                         default=config.DATASET,
@@ -50,8 +50,8 @@ def main():
         default=config.NEW_MODEL_INITIALIZATION,
         help="FedSDAの新規モデルを初期化する既存モデルの選択方法",
     )
-    parser.add_argument("--feddrift-batch", type=int, default=config.FEDDRIFT_DETECT_BATCH,
-                        help=f"FedDrift の検出バッチサイズ (default: {config.FEDDRIFT_DETECT_BATCH})")
+    parser.add_argument("--feddrift-batch", type=int, default=config.FEDDRIFT_DETECTION_BATCH_SIZE,
+                        help=f"FedDrift の検出バッチサイズ (default: {config.FEDDRIFT_DETECTION_BATCH_SIZE})")
     parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
                         default=config.CLUSTER_LINKAGE,
                         help=f"共通クラスタリング戦略 (default: {config.CLUSTER_LINKAGE})")
@@ -108,7 +108,7 @@ def main():
     config.NEW_MODEL_TRAINING = args.new_model_training
     config.NEW_MODEL_EPOCHS = args.new_model_epochs
     config.NEW_MODEL_INITIALIZATION = args.new_model_initialization
-    config.FEDDRIFT_DETECT_BATCH = args.feddrift_batch
+    config.FEDDRIFT_DETECTION_BATCH_SIZE = args.feddrift_batch
     config.CLUSTER_LINKAGE = args.cluster_linkage
     config.FEDSDA_CLUSTERING_POLICY = args.clustering_policy
     config.FEDSDA_DETECTION_EPISODES_ENABLED = args.detection_episodes
@@ -126,7 +126,7 @@ def main():
 
     results = run_random_drift_experiment(
         mode=args.mode,
-        distance_threshold=args.threshold,
+        distance_threshold=args.distance_threshold,
         random_seed=args.seed,
         verbose=not args.quiet,
         show_plot=not args.no_plot,

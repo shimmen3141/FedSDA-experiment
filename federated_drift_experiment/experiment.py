@@ -48,6 +48,7 @@ from .mode_names import (
     is_esr_mode,
     is_hddm_mode,
 )
+from .parameter_schema import PARAMETER_SCHEMA_VERSION
 from .plotting import plot_client_details, plot_system_overview
 from .servers import (
     BaseServer,
@@ -67,7 +68,7 @@ def _process_per_sample_round(clients, data, concepts):
             x_in, y_in = data[i][k]
             c.process_one_step(x_in, y_in, concepts[i][k])
 
-    # LOCAL_UPDATE_TAU>1 で保留中のローカル更新をラウンド境界で消化する(τ=1 では no-op)
+    # LOCAL_UPDATE_INTERVAL>1 で保留中のローカル更新をラウンド境界で消化する(τ=1 では no-op)
     for c in clients:
         c.flush_pending_updates()
 
@@ -75,7 +76,7 @@ def _process_per_sample_round(clients, data, concepts):
 def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, verbose):
     """1サンプルずつ逐次処理するスタイル(ADWIN系)の1ラウンド。
 
-    1ラウンド = AGG_INTERVAL サンプル(=data のチャンク長)を逐次処理し、末尾でサーバ同期する。
+    1ラウンド = AGGREGATION_INTERVAL サンプル(=data のチャンク長)を逐次処理し、末尾でサーバ同期する。
     """
     _process_per_sample_round(clients, data, concepts)
 
@@ -112,7 +113,7 @@ def _run_feddrift_timestep(clients, server, data, concepts, t, use_server, verbo
     server.prepare_timestep(t)
     for _ in range(config.FEDDRIFT_ROUNDS):
         for client in clients:
-            client.local_train(k_steps=config.FEDDRIFT_DETECT_BATCH)
+            client.local_train(k_steps=config.FEDDRIFT_DETECTION_BATCH_SIZE)
         server.run_training_round(t)
 
 
@@ -126,9 +127,9 @@ class ModeSpec:
     run_timestep: Callable
     use_server: bool = True
     server_cls: type = BaseServer
-    # 1ラウンドで処理するサンプル数を持つ config 属性名。逐次系は集約間隔 AGG_INTERVAL、
-    # FedDrift は検出バッチ FEDDRIFT_DETECT_BATCH(処理=検出=通信の単位)。
-    chunk_attr: str = 'AGG_INTERVAL'
+    # 1ラウンドで処理するサンプル数を持つ config 属性名。逐次系は共有集約間隔、
+    # FedDrift は検出バッチ(処理=検出=通信の単位)。
+    chunk_attr: str = 'AGGREGATION_INTERVAL'
     # 検出器戦略など、モード固有のクライアント構築引数。
     client_kwargs: dict = field(default_factory=dict)
 
@@ -205,7 +206,7 @@ MODE_SPECS = {
     ),
     'FedDrift': ModeSpec(
         FedDriftClient, _run_feddrift_timestep, server_cls=FedDriftServer,
-        chunk_attr='FEDDRIFT_DETECT_BATCH'),
+        chunk_attr='FEDDRIFT_DETECTION_BATCH_SIZE'),
     'FedSDA_without_server': ModeSpec(
         ADWINFedSDAClient, _run_per_sample_timestep, use_server=False),
     'Oblivious': ModeSpec(ObliviousClient, _run_per_sample_timestep, server_cls=BaseServer),
@@ -295,10 +296,10 @@ def _mode_param_summary(mode, distance_threshold):
         else:
             detector_param = f"delta_adwin={config.ADWIN_DELTA}"
         return (f"gamma_dist={distance_threshold}, {detector_param}, "
-                f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_TAU}, "
+                f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_INTERVAL}, "
                 f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}")
     if mode == 'FedDrift':
-        return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECT_BATCH}, "
+        return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECTION_BATCH_SIZE}, "
                 f"rounds={config.FEDDRIFT_ROUNDS}, "
                 f"linkage={getattr(config, 'CLUSTER_LINKAGE', 'connected')}, "
                 f"isolation_W={getattr(config, 'FEDDRIFT_ISOLATION_TIMESTEPS', 0)}")
@@ -402,7 +403,18 @@ def _add_telemetry_results(results, clients, telemetry):
         results["e_detector_alpha"] = float(config.E_DETECTOR_ALPHA)
 
 
-def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telemetry):
+def _save_raw_run(
+    raw_path,
+    clients,
+    true_drift_events,
+    mode,
+    label,
+    seed,
+    telemetry,
+    distance_threshold,
+    sweep_parameter=None,
+    sweep_value=None,
+):
     """per-sample の生データを 1 つの .npz にまとめて保存する(gitignore 前提の軽量形式)。
 
     - history_accuracy: (N_CLIENTS, N_SAMPLES) の int8 (各サンプルの当否 0/1)
@@ -531,6 +543,14 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
         telemetry_arrays["e_detector_alpha"] = np.asarray(
             config.E_DETECTOR_ALPHA, dtype=np.float64)
 
+    is_fedsda = mode.startswith("FedSDA")
+    is_feddrift = mode == "FedDrift"
+    uses_aggregation = is_fedsda or mode == "Oblivious"
+    uses_adwin = (
+        fedsda_detector_name(mode) in {"ADWIN", "ClassADWIN"}
+        or mode == "FedSDA_without_server"
+    )
+
     np.savez_compressed(
         raw_path,
         history_accuracy=hist,
@@ -582,9 +602,30 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
         concept_schedule=str(config.CONCEPT_SCHEDULE),
         mode=str(mode),
         label=str(label),
+        parameter_schema_version=np.asarray(
+            PARAMETER_SCHEMA_VERSION, dtype=np.int32
+        ),
+        sweep_parameter=np.asarray(sweep_parameter or "", dtype=np.str_),
+        sweep_value=np.asarray(
+            np.nan if sweep_value is None else sweep_value, dtype=np.float64
+        ),
         seed=(int(seed) if seed is not None else -1),
         min_stable=int(config.MIN_STABLE_PERIOD),
-        agg_interval=int(config.AGG_INTERVAL),
+        aggregation_interval=np.asarray(
+            config.AGGREGATION_INTERVAL if uses_aggregation else -1, dtype=np.int32
+        ),
+        feddrift_detection_batch_size=np.asarray(
+            config.FEDDRIFT_DETECTION_BATCH_SIZE if is_feddrift else -1, dtype=np.int32
+        ),
+        fedsda_distance_threshold=np.asarray(
+            distance_threshold if is_fedsda else np.nan, dtype=np.float64
+        ),
+        feddrift_distance_threshold=np.asarray(
+            distance_threshold if is_feddrift else np.nan, dtype=np.float64
+        ),
+        adwin_delta=np.asarray(
+            config.ADWIN_DELTA if uses_adwin else np.nan, dtype=np.float64
+        ),
         total_data=int(config.TOTAL_DATA_POINTS),
         **telemetry_arrays,
     )
@@ -592,7 +633,8 @@ def _save_raw_run(raw_path, clients, true_drift_events, mode, label, seed, telem
 
 def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
                                 random_seed=None, verbose=True, show_plot=True, plot_dir=None,
-                                raw_path=None, raw_label=None):
+                                raw_path=None, raw_label=None,
+                                raw_sweep_parameter=None, raw_sweep_value=None):
     """1回分の実験を実行し、メトリクスの dict を返す。
 
     plot_dir を指定すると図をそのディレクトリに保存し、None なら画面表示する
@@ -608,7 +650,11 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         raise ValueError(f"Unknown mode: {mode!r} (choose from {sorted(MODE_SPECS)})") from None
 
     if distance_threshold is None:
-        distance_threshold = config.DISTANCE_THRESHOLD
+        distance_threshold = (
+            config.FEDDRIFT_DISTANCE_THRESHOLD
+            if mode in {"FedDrift"}
+            else config.FEDSDA_DISTANCE_THRESHOLD
+        )
 
     if random_seed is not None:
         random.seed(random_seed)
@@ -623,8 +669,8 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         print("Clients initialized. All holding Model 0.")
 
     # --- ドリフトスケジュールとデータストリームの生成 ---
-    # 1ラウンドで処理するサンプル数は手法依存: 逐次系=AGG_INTERVAL(集約間隔)、
-    # FedDrift=FEDDRIFT_DETECT_BATCH(処理=検出=通信の単位)。
+    # 1ラウンドで処理するサンプル数は手法依存: 逐次系=AGGREGATION_INTERVAL(集約間隔)、
+    # FedDrift=FEDDRIFT_DETECTION_BATCH_SIZE(処理=検出=通信の単位)。
     chunk = getattr(config, spec.chunk_attr)
     t_steps = config.TOTAL_DATA_POINTS // chunk
 
@@ -700,7 +746,9 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     # --- 生データの保存(回復曲線などの事後分析用)---
     if raw_path is not None:
         _save_raw_run(raw_path, clients, true_drift_events, mode,
-                      raw_label if raw_label is not None else mode, random_seed, telemetry)
+                      raw_label if raw_label is not None else mode,
+                      random_seed, telemetry, distance_threshold,
+                      raw_sweep_parameter, raw_sweep_value)
 
     if verbose:
         print("\n=== Experiment Metrics ===")

@@ -27,6 +27,8 @@ class FedSDAClient(BaseClient, ABC):
     reports_state_summary = True
 
     def __init__(self, *args, **kwargs):
+        if kwargs.get("distance_threshold") is None:
+            kwargs["distance_threshold"] = config.FEDSDA_DISTANCE_THRESHOLD
         super().__init__(*args, **kwargs)
         self.buffer = deque()                       # FIFOバッファ(検知遅延中のデータ保留)
         self.fifo_size = config.FIFO_BUFFER_SIZE    # FIFOバッファ長 N_FIFO

@@ -50,7 +50,7 @@ FedDrift 由来の合成データとMNISTの生成規則は論文・参照コー
 |---|---|---|---|
 | ドリフト系列 | 10 時刻 × 500 サンプル/クライアント、**固定 staggered パターン**、切替は時刻境界のみ | `feddrift_fixed`は一致。既定`random`は`MIN_STABLE_PERIOD`後に確率`DRIFT_PROB`で切替 | `data/schedules.py::make_concept_schedules` |
 | 切替回数 | `A.cp` / `B.cp` で規定 | `feddrift_fixed`は一致。`random`は再帰的に複数回 | 同上 |
-| 検出単位 | 時刻（500 サンプル）単位で検出 | `FEDDRIFT_DETECT_BATCH`(既定 50) 件ごと。完了時にのみ集約するため通信間隔も兼ねる（§3） | `clients/feddrift.py` |
+| 検出単位 | 時刻（500 サンプル）単位で検出 | `FEDDRIFT_DETECTION_BATCH_SIZE`(既定 50) 件ごと。完了時にのみ集約するため通信間隔も兼ねる（§3） | `clients/feddrift.py` |
 | 学習の反復 | 固定 500 サンプルに R=100 ラウンド（≒反復エポック） | 既定は単一パス相当（`FEDDRIFT_ROUNDS`=1）。R を上げれば論文どおりの反復学習も可（§3） | `experiment.py` |
 
 従来名における「切替回数」の相違は recovery 分析に直結する。本実装は1ランで多数の
@@ -64,21 +64,21 @@ FedDrift 由来の合成データとMNISTの生成規則は論文・参照コー
 
 | 記号 | 説明 | 論文（合成データ） | 本実装（FedDrift） | 判定 |
 |---|---|---|---|---|
-| K | 1 ラウンドあたりのローカル学習ステップ数 | 50 | `FEDDRIFT_DETECT_BATCH × UPDATES_PER_SAMPLE`（既定 50×1） | ✅ |
+| K | 1 ラウンドあたりのローカル学習ステップ数 | 50 | `FEDDRIFT_DETECTION_BATCH_SIZE × UPDATES_PER_SAMPLE`（既定 50×1） | ✅ |
 | η | 学習率（SINE/CIRCLE/SEA） | 10⁻² | `BASE_LR=0.01` | ✅ |
 | — | Adam weight_decay / amsgrad | 10⁻³ / True | `WEIGHT_DECAY=1e-3` / `AMSGRAD=True` | ✅ |
 | B | ミニバッチサイズ | 50 | `CLIENT_BATCH_SIZE=32` | ⚠️ |
 | L | 1 データ点あたりのローカル更新回数 | （明記なし） | `UPDATES_PER_SAMPLE=1`（両手法共通） | — |
-| （検出/時刻粒度） | 1 時刻あたりのデータ数＝検出単位 | 500 | `FEDDRIFT_DETECT_BATCH=50`（＝1ラウンドの処理サンプル数） | ⚠️ |
+| （検出/時刻粒度） | 1 時刻あたりのデータ数＝検出単位 | 500 | `FEDDRIFT_DETECTION_BATCH_SIZE=50`（＝1ラウンドの処理サンプル数） | ⚠️ |
 | R | 1 時刻あたりの通信ラウンド数 | 100 | `FEDDRIFT_ROUNDS=1`（既定。下記） | ⚠️ |
 
 ### 補足: 検出粒度・学習量・R の扱い
 
-- **検出単位 ＝ `FEDDRIFT_DETECT_BATCH`（＝1ラウンドで処理するサンプル数）**。元 FedDrift は**時刻(500 サンプル)単位で検出**する。これを独立パラメータ化し既定 50 とした（概念は論文の時刻粒度そのもの、値のみ相違）。主ループはこの件数を 1 ラウンドで処理し、溜まるたびに検出+割り当て+**通信**を行う（＝**集約(通信)間隔も兼ねる**。掃引で大きくすると通信量が反比例して減る＝精度–通信量トレードオフの軸）。
-- **1 ラウンドの学習量（論文 K）＝ `FEDDRIFT_DETECT_BATCH × UPDATES_PER_SAMPLE`**。バッチの各データ点に対し FedSDA と同じ `UPDATES_PER_SAMPLE` 回の更新を行うのと同予算。これにより**総ローカル更新数は `FEDDRIFT_DETECT_BATCH` に依らず `TOTAL_DATA_POINTS × UPDATES_PER_SAMPLE`（R=1 なら FedSDA と一致）**となり、検出バッチを掃引しても学習量が変わらない（通信だけを変数にできる）。
-- **R ＝ `FEDDRIFT_ROUNDS`**。論文はバッチを R=100 ラウンド収束まで反復学習する。本実装は**既定 R=1**で、これは比較対象の FedSDA が**オンライン単一パス**（各データ点 1 回）で、その学習・通信予算と揃えるため。`FEDDRIFT_ROUNDS=100` にすれば論文忠実な FedDrift（バッチ収束学習）を再現できるが、総更新数・総通信量が R 倍になり FedSDA との予算一致は崩れる。R は `FEDDRIFT_DETECT_BATCH`（検出粒度↔通信）と**直交する第2の通信軸**（バッチあたり収束度↔通信）。
+- **検出単位 ＝ `FEDDRIFT_DETECTION_BATCH_SIZE`（＝1ラウンドで処理するサンプル数）**。元 FedDrift は**時刻(500 サンプル)単位で検出**する。これを独立パラメータ化し既定 50 とした（概念は論文の時刻粒度そのもの、値のみ相違）。主ループはこの件数を 1 ラウンドで処理し、溜まるたびに検出+割り当て+**通信**を行う（＝**集約(通信)間隔も兼ねる**。掃引で大きくすると通信量が反比例して減る＝精度–通信量トレードオフの軸）。
+- **1 ラウンドの学習量（論文 K）＝ `FEDDRIFT_DETECTION_BATCH_SIZE × UPDATES_PER_SAMPLE`**。バッチの各データ点に対し FedSDA と同じ `UPDATES_PER_SAMPLE` 回の更新を行うのと同予算。これにより**総ローカル更新数は `FEDDRIFT_DETECTION_BATCH_SIZE` に依らず `TOTAL_DATA_POINTS × UPDATES_PER_SAMPLE`（R=1 なら FedSDA と一致）**となり、検出バッチを掃引しても学習量が変わらない（通信だけを変数にできる）。
+- **R ＝ `FEDDRIFT_ROUNDS`**。論文はバッチを R=100 ラウンド収束まで反復学習する。本実装は**既定 R=1**で、これは比較対象の FedSDA が**オンライン単一パス**（各データ点 1 回）で、その学習・通信予算と揃えるため。`FEDDRIFT_ROUNDS=100` にすれば論文忠実な FedDrift（バッチ収束学習）を再現できるが、総更新数・総通信量が R 倍になり FedSDA との予算一致は崩れる。R は `FEDDRIFT_DETECTION_BATCH_SIZE`（検出粒度↔通信）と**直交する第2の通信軸**（バッチあたり収束度↔通信）。
 
-FedSDA 側の対応変数（`AGG_INTERVAL` 等）や手法間の使い分けは [hyperparameters.md](hyperparameters.md) を参照。
+FedSDA 側の対応変数（`AGGREGATION_INTERVAL` 等）や手法間の使い分けは [hyperparameters.md](hyperparameters.md) を参照。
 
 ---
 
@@ -87,7 +87,7 @@ FedSDA 側の対応変数（`AGG_INTERVAL` 等）や手法間の使い分けは 
 | 項目 | 論文 | 本実装 |
 |---|---|---|
 | 主指標 | 各時刻 τ の学習後、τ+1 の（次概念）held-out で test accuracy（ドリフト時刻除外） | prequential `accuracy`（全期間の総合精度）+ `stable_accuracy`（定常精度: 真ドリフト直後 `STABLE_WINDOW`=W サンプルを除外した prequential）+ 回復曲線 acc(Δ)（適応速度）の3層。論文流の「次時刻 held-out・ブロック評価」は per-sample ランダムドリフト設定に噛み合わない（＆ prequential と役割が重複）ため標準実行では用いない |
-| 検出閾値 | 損失/距離の閾値で検出 | `DISTANCE_THRESHOLD`（損失増分の閾値）。`run_pareto_sweep.py` で掃引し感度を提示 |
+| 検出閾値 | 損失/距離の閾値で検出 | `FEDDRIFT_DISTANCE_THRESHOLD`（損失増分の閾値）。`run_pareto_sweep.py` で掃引し感度を提示 |
 
 **実装忠実性の検証**: 論文式（各時刻の学習後に次時刻コンセプトの held-out で評価・ドリフト時刻除外）で本実装の FedDrift 再実装は論文値（SINE ≈97.4%）にほぼ一致することを確認済み。厳密な論文再現が必要な場合は、境界ドリフト・固定バッチの専用設（`FEDDRIFT_ROUNDS`=100 等）で別途評価する。
 

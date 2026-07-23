@@ -5,6 +5,8 @@ import numpy as np
 
 from tools.baselines.build_feddrift import (
     BaselineSource,
+    FEDDRIFT_BATCH,
+    FEDDRIFT_DISTANCE,
     build_baseline,
     extend_baseline,
 )
@@ -69,25 +71,29 @@ def test_build_baseline_normalizes_names_and_groups_by_dataset(tmp_path):
         fieldnames = file.seek(0) or next(csv.reader(file))
 
     assert len(rows) == 1
+    assert rows[0]["parameter_schema_version"] == "1"
     assert rows[0]["dataset"] == "circle2"
     assert rows[0]["mode"] == "FedDrift"
     assert rows[0]["series"] == (
-        "FedDrift B_detect sweep (delta_feddrift=0.1)"
+        "FedDrift B_detect sweep (δ_FedDrift=0.1)"
     )
-    assert rows[0]["sweep_parameter"] == "b_detect"
-    assert rows[0]["b_detect"] == "50"
-    assert rows[0]["delta_feddrift"] == "0.1"
+    assert rows[0]["sweep_parameter"] == FEDDRIFT_BATCH
+    assert rows[0][FEDDRIFT_BATCH] == "50"
+    assert rows[0][FEDDRIFT_DISTANCE] == "0.1"
     assert rows[0]["concept_schedule"] == "random"
     assert "feddrift_batch" not in fieldnames
     assert "distance_threshold" not in fieldnames
     assert "agg_interval" not in fieldnames
     assert "adwin_delta" not in fieldnames
 
-    raw_path = output / "circle2" / "raw" / "b_detect_sweep_seed0_b50.npz"
+    raw_path = (
+        output / "circle2" / "raw"
+        / f"{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
+    )
     with np.load(raw_path, allow_pickle=False) as archive:
         assert archive["mode"].item() == "FedDrift"
-        assert archive["b_detect"].item() == 50
-        assert archive["delta_feddrift"].item() == 0.1
+        assert archive[FEDDRIFT_BATCH].item() == 50
+        assert archive[FEDDRIFT_DISTANCE].item() == 0.1
         assert archive["concept_schedule"].item() == "random"
 
     assert manifest["datasets"]["circle2"]["metrics_rows"] == 1
@@ -121,7 +127,10 @@ def test_extend_baseline_adds_new_seed_atomically_and_keeps_backup(tmp_path):
     )
 
     assert actual_backup == backup.resolve()
-    assert (backup / "circle2" / "raw" / "b_detect_sweep_seed0_b50.npz").is_file()
+    assert (
+        backup / "circle2" / "raw"
+        / f"{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
+    ).is_file()
     with (output / "circle2" / "metrics.csv").open(
         encoding="utf-8", newline=""
     ) as file:
@@ -130,7 +139,10 @@ def test_extend_baseline_adds_new_seed_atomically_and_keeps_backup(tmp_path):
     assert manifest["selection"]["seeds"] == [0, 1]
     assert manifest["last_extension"]["added_results"] == 1
     assert manifest["datasets"]["circle2"]["metrics_rows"] == 2
-    assert (output / "circle2" / "raw" / "b_detect_sweep_seed1_b50.npz").is_file()
+    assert (
+        output / "circle2" / "raw"
+        / f"{FEDDRIFT_BATCH}_sweep_seed1_b50.npz"
+    ).is_file()
 
 
 def test_extend_baseline_rejects_conflicting_duplicate(tmp_path):
@@ -163,6 +175,9 @@ def test_extend_baseline_adds_new_sweep_value(tmp_path):
         sources=(additional,), output_root=output, batches=(100,)
     )
 
-    assert manifest["selection"]["b_detect"] == [50, 100]
+    assert manifest["selection"][FEDDRIFT_BATCH] == [50, 100]
     assert manifest["last_extension"]["added_results"] == 1
-    assert (output / "circle2" / "raw" / "b_detect_sweep_seed0_b100.npz").is_file()
+    assert (
+        output / "circle2" / "raw"
+        / f"{FEDDRIFT_BATCH}_sweep_seed0_b100.npz"
+    ).is_file()

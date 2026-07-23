@@ -26,8 +26,7 @@ class BaseClient:
     def __init__(self, client_id, initial_models, initial_stats=None,
                  distance_threshold=None, verbose=True):
         self.client_id = client_id
-        self.distance_threshold = (distance_threshold if distance_threshold is not None
-                                   else config.DISTANCE_THRESHOLD)
+        self.distance_threshold = distance_threshold
         self.verbose = verbose
 
         # models: {model_id: SimpleMLP()}
@@ -70,7 +69,7 @@ class BaseClient:
 
         self.batch_size = config.CLIENT_BATCH_SIZE
         self.updates_per_sample = config.UPDATES_PER_SAMPLE
-        self._pending_updates = 0   # LOCAL_UPDATE_TAU>1 のとき保留中のローカル更新(サンプル数)
+        self._pending_updates = 0   # LOCAL_UPDATE_INTERVAL>1 のとき保留中のローカル更新(サンプル数)
 
         self.next_temp_id = -100 - self.client_id
 
@@ -162,11 +161,11 @@ class BaseClient:
     def train_step(self):
         """平時の1サンプル分のローカル更新(逐次手法用)。
 
-        LOCAL_UPDATE_TAU(τ)サンプルごとにまとめて τ×UPDATES_PER_SAMPLE 回実行する
+        LOCAL_UPDATE_INTERVAL(τ)サンプルごとにまとめて τ×UPDATES_PER_SAMPLE 回実行する
         (論文の「t mod τ = 0」)。総更新回数は τ に依らず不変。τ=1 で毎サンプル更新。
         """
         self._pending_updates += 1
-        if self._pending_updates >= config.LOCAL_UPDATE_TAU:
+        if self._pending_updates >= config.LOCAL_UPDATE_INTERVAL:
             self.flush_pending_updates()
 
     def flush_pending_updates(self):

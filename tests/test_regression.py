@@ -62,7 +62,7 @@ CASES = [
     ("FedSDA_without_server", "blobs", {}),
     ("Oblivious", "blobs", {}),
     ("FedSDA_NoCached_ADWIN", "sine2", {
-        "TOTAL_DATA_POINTS": 1500, "LOCAL_UPDATE_TAU": 10}),
+        "TOTAL_DATA_POINTS": 1500, "LOCAL_UPDATE_INTERVAL": 10}),
 ]
 SEED = 0
 TOTAL_DATA_POINTS = 600

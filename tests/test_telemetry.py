@@ -15,7 +15,7 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 100)
     monkeypatch.setattr(config, "N_CLIENTS", 2)
     monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 20)
-    monkeypatch.setattr(config, "AGG_INTERVAL", 20)
+    monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 20)
     monkeypatch.setattr(config, "CLIENT_BATCH_SIZE", 10)
     raw_path = tmp_path / "telemetry.npz"
 
@@ -42,3 +42,8 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
             "compute_optimizer_steps_total"
         ]
         assert np.all(raw["round_global_model_count"] == 1.0)
+        assert raw["parameter_schema_version"].item() == 1
+        assert raw["aggregation_interval"].item() == 20
+        assert raw["feddrift_detection_batch_size"].item() == -1
+        assert np.isnan(raw["fedsda_distance_threshold"].item())
+        assert np.isnan(raw["feddrift_distance_threshold"].item())

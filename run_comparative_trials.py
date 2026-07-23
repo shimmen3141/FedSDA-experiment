@@ -19,8 +19,10 @@ def main():
     configure_torch_threads()
     parser = argparse.ArgumentParser(description="FedSDA comparative trials runner")
     parser.add_argument("--n-trials", type=int, default=10, help="モードごとの試行回数 (default: 10)")
-    parser.add_argument("--threshold", type=float, default=config.DISTANCE_THRESHOLD,
-                        help=f"距離閾値 gamma_dist (default: {config.DISTANCE_THRESHOLD})")
+    parser.add_argument("--fedsda-distance-threshold", type=float,
+                        default=config.FEDSDA_DISTANCE_THRESHOLD)
+    parser.add_argument("--feddrift-distance-threshold", type=float,
+                        default=config.FEDDRIFT_DISTANCE_THRESHOLD)
     parser.add_argument("--modes", nargs="+", choices=MODES, default=MODES,
                         help=f"実行するモード (default: 全モード)")
     parser.add_argument("--start-seed", type=int, default=0, help="開始シード (default: 0)")
@@ -50,7 +52,8 @@ def main():
 
     summary = run_comparative_trials(
         n_trials=args.n_trials,
-        threshold=args.threshold,
+        fedsda_distance_threshold=args.fedsda_distance_threshold,
+        feddrift_distance_threshold=args.feddrift_distance_threshold,
         modes=args.modes,
         start_seed=args.start_seed,
         show_plot_last=not args.no_plot,

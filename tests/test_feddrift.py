@@ -59,7 +59,7 @@ def test_new_model_is_mature_after_configured_isolation_window():
 
 
 def test_timestep_uses_exactly_configured_fedavg_rounds(monkeypatch):
-    monkeypatch.setattr(config, "FEDDRIFT_DETECT_BATCH", 2)
+    monkeypatch.setattr(config, "FEDDRIFT_DETECTION_BATCH_SIZE", 2)
     monkeypatch.setattr(config, "FEDDRIFT_ROUNDS", 2)
 
     initial_model = SimpleMLP()

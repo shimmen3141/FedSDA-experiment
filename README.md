@@ -213,7 +213,7 @@ python -m tools.baselines.build_feddrift \
 出力先は`results/baselines/feddrift/`で、各データセットに`metrics.csv`と
 `raw/*.npz`を配置する。元結果は変更しない。表記は論文・凡例に合わせて
 `FedDrift`、`B_detect`、`delta_feddrift`へ正規化し、コード上の
-`FEDDRIFT_DETECT_BATCH`、`DISTANCE_THRESHOLD`との対応や元ファイルのSHA-256を
+`FEDDRIFT_DETECTION_BATCH_SIZE`、`FEDDRIFT_DISTANCE_THRESHOLD`との対応や元ファイルのSHA-256を
 `manifest.json`へ記録する。入力結果は
 [`tools/baselines/feddrift_sources.json`](tools/baselines/feddrift_sources.json)
 で管理する。

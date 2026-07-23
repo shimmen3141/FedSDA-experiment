@@ -1,7 +1,7 @@
 """FedDrift ベースライン クライアント。
 
 「全モデルの最小損失」の増分を監視し、閾値超過でドリフト判定する。検出は
-config.FEDDRIFT_DETECT_BATCH 件(=1ラウンドで処理するサンプル数)ごとに行う。
+config.FEDDRIFT_DETECTION_BATCH_SIZE 件(=1ラウンドで処理するサンプル数)ごとに行う。
 """
 import time
 
@@ -20,7 +20,9 @@ class BaseFedDriftClient(BaseClient):
         super().__init__(*args, **kwargs)
         self.last_min_loss = None
         self.detect_buffer = []                             # 検出待ちのデータ
-        self.detect_batch_size = config.FEDDRIFT_DETECT_BATCH
+        if self.distance_threshold is None:
+            self.distance_threshold = config.FEDDRIFT_DISTANCE_THRESHOLD
+        self.detect_batch_size = config.FEDDRIFT_DETECTION_BATCH_SIZE
 
     def process_batch(self, batch_data, concept_ids):
         """時刻ブロックのデータを1件ずつ処理(予測ログ + 検出バッファへ蓄積)。

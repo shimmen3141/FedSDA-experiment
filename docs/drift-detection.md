@@ -34,7 +34,7 @@ ADWIN（ADaptive WINdowing）は可変長ウィンドウ`W`を保持し、候補
 
 ADWIN系の既定モードには、ADWINが未発火でも見逃しを補う保険的チェックがある。
 ADWINの現在の窓幅に対応するFIFO末尾について現行モデルの平均損失を再計算し、モデル履歴の
-平均損失より`DISTANCE_THRESHOLD`以上悪化していればドリフト解決を開始する。これはADWINの
+平均損失より`FEDSDA_DISTANCE_THRESHOLD`以上悪化していればドリフト解決を開始する。これはADWINの
 統計検定ではなくヒューリスティックな別経路である。
 
 `FEDSDA_ENABLE_FORCED_DRIFT_CHECK=False`でADWIN系モードの強制チェックだけを無効化できる。

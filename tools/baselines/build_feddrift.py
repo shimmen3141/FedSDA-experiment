@@ -18,6 +18,10 @@ from federated_drift_experiment.mode_names import (
     normalize_legacy_series,
     normalize_series_notation,
 )
+from federated_drift_experiment.parameter_schema import (
+    PARAMETER_SCHEMA_VERSION,
+    parameter,
+)
 
 
 DEFAULT_OUTPUT = Path("results/baselines/feddrift")
@@ -37,9 +41,13 @@ IRRELEVANT_COLUMNS = {
 }
 
 PARAMETER_COLUMN_NAMES = {
-    "feddrift_batch": "b_detect",
-    "distance_threshold": "delta_feddrift",
+    "feddrift_batch": parameter("feddrift_detection_batch_size").csv_name,
+    "b_detect": parameter("feddrift_detection_batch_size").csv_name,
+    "distance_threshold": parameter("feddrift_distance_threshold").csv_name,
+    "delta_feddrift": parameter("feddrift_distance_threshold").csv_name,
 }
+FEDDRIFT_BATCH = parameter("feddrift_detection_batch_size").csv_name
+FEDDRIFT_DISTANCE = parameter("feddrift_distance_threshold").csv_name
 
 
 @dataclass(frozen=True)
@@ -111,16 +119,30 @@ def _canonical_series(value, old_mode):
     if "batch sweep" in lower or "b_detect sweep" in lower:
         match = re.search(r"\((?:[^=]+)=([0-9.]+)\)", normalized)
         fixed = match.group(1) if match else "0.1"
-        return f"FedDrift B_detect sweep (delta_feddrift={fixed})"
+        batch = parameter("feddrift_detection_batch_size")
+        distance = parameter("feddrift_distance_threshold")
+        return (
+            f"FedDrift {batch.paper_symbol} sweep "
+            f"({distance.paper_symbol}={fixed})"
+        )
     if "sweep" in lower:
         match = re.search(r"(?:batch|B_detect)=([0-9.]+)", normalized)
         fixed = match.group(1) if match else "50"
-        return f"FedDrift delta_feddrift sweep (B_detect={fixed})"
-    return normalized.replace("δ_FedDrift", "delta_feddrift")
+        batch = parameter("feddrift_detection_batch_size")
+        distance = parameter("feddrift_distance_threshold")
+        return (
+            f"FedDrift {distance.paper_symbol} sweep "
+            f"({batch.paper_symbol}={fixed})"
+        )
+    return normalized
 
 
 def _sweep_parameter(series):
-    return "b_detect" if "B_detect sweep" in series else "delta_feddrift"
+    return (
+        FEDDRIFT_BATCH
+        if "B_detect sweep" in series
+        else FEDDRIFT_DISTANCE
+    )
 
 
 def _canonical_fieldnames(source_fieldnames):
@@ -133,6 +155,8 @@ def _canonical_fieldnames(source_fieldnames):
             fieldnames.append(target)
     if "concept_schedule" not in fieldnames:
         fieldnames.insert(fieldnames.index("seed"), "concept_schedule")
+    if "parameter_schema_version" not in fieldnames:
+        fieldnames.insert(0, "parameter_schema_version")
     if "sweep_parameter" not in fieldnames:
         fieldnames.insert(fieldnames.index("sweep_value"), "sweep_parameter")
     return fieldnames
@@ -147,6 +171,7 @@ def _canonical_row(row, concept_schedule):
             continue
         result[PARAMETER_COLUMN_NAMES.get(name, name)] = value
     result["mode"] = normalize_legacy_mode(old_mode)
+    result["parameter_schema_version"] = PARAMETER_SCHEMA_VERSION
     result["dataset"] = normalize_dataset_name(row["dataset"])
     result["series"] = series
     result["concept_schedule"] = row.get("concept_schedule") or concept_schedule
@@ -166,7 +191,12 @@ def _read_source_rows(source, batches):
                 continue
             if row.get("dataset") not in source.datasets:
                 continue
-            if int(float(row["feddrift_batch"])) not in batches:
+            batch_value = (
+                row.get(FEDDRIFT_BATCH)
+                or row.get("feddrift_batch")
+                or row.get("b_detect")
+            )
+            if int(float(batch_value)) not in batches:
                 continue
             rows.append(_canonical_row(row, source.concept_schedule))
     return fieldnames, rows
@@ -180,7 +210,7 @@ def _raw_parameters(label, filename, source_mode):
         raise ValueError(f"掃引値をファイル名から取得できません: {filename}")
     sweep_text = match.group(1).replace("_", ".")
     sweep_value = float(sweep_text)
-    if sweep_parameter == "b_detect":
+    if sweep_parameter == FEDDRIFT_BATCH:
         return series, sweep_parameter, int(sweep_value), 0.1, sweep_value
     return series, sweep_parameter, 50, sweep_value, sweep_value
 
@@ -190,7 +220,7 @@ def _number_slug(value):
 
 
 def _raw_target_name(seed, sweep_parameter, sweep_value):
-    short = "b" if sweep_parameter == "b_detect" else "d"
+    short = "b" if sweep_parameter == FEDDRIFT_BATCH else "d"
     return f"{sweep_parameter}_sweep_seed{seed}_{short}{_number_slug(sweep_value)}.npz"
 
 
@@ -219,8 +249,11 @@ def _copy_raw_files(source, output_root, batches):
             _scalar_text(arrays.get("concept_schedule", ""))
             or source.concept_schedule
         )
-        arrays["b_detect"] = np.asarray(b_detect, dtype=np.int32)
-        arrays["delta_feddrift"] = np.asarray(delta, dtype=np.float64)
+        arrays["parameter_schema_version"] = np.asarray(
+            PARAMETER_SCHEMA_VERSION, dtype=np.int32
+        )
+        arrays[FEDDRIFT_BATCH] = np.asarray(b_detect, dtype=np.int32)
+        arrays[FEDDRIFT_DISTANCE] = np.asarray(delta, dtype=np.float64)
         arrays["sweep_parameter"] = np.asarray(parameter)
         arrays["sweep_value"] = np.asarray(sweep_value, dtype=np.float64)
 
@@ -307,6 +340,7 @@ def build_baseline(sources=None, output_root=DEFAULT_OUTPUT,
         "baseline": "FedDrift",
         "status": "immutable_reference",
         "schema_version": 1,
+        "parameter_schema_version": PARAMETER_SCHEMA_VERSION,
         "selection": {
             "datasets": sorted(dataset_records),
             "seeds": sorted({int(row["seed"]) for row in all_rows}),
@@ -314,16 +348,18 @@ def build_baseline(sources=None, output_root=DEFAULT_OUTPUT,
             "concept_schedule": sorted({
                 row["concept_schedule"] for row in all_rows
             }),
-            "b_detect": sorted({
-                int(float(row["b_detect"])) for row in all_rows
+            FEDDRIFT_BATCH: sorted({
+                int(float(row[FEDDRIFT_BATCH])) for row in all_rows
             }),
-            "delta_feddrift": sorted({
-                float(row["delta_feddrift"]) for row in all_rows
+            FEDDRIFT_DISTANCE: sorted({
+                float(row[FEDDRIFT_DISTANCE]) for row in all_rows
             }),
         },
         "code_mapping": {
-            "B_detect": "FEDDRIFT_DETECT_BATCH",
-            "delta_feddrift": "DISTANCE_THRESHOLD",
+            parameter("feddrift_detection_batch_size").paper_symbol:
+                "FEDDRIFT_DETECTION_BATCH_SIZE",
+            parameter("feddrift_distance_threshold").paper_symbol:
+                "FEDDRIFT_DISTANCE_THRESHOLD",
         },
         "unavailable_new_metrics": [
             "alarm_precision", "alarm_recall", "alarm_f1", "alarm_total",
@@ -483,8 +519,8 @@ def _refresh_manifest(root, existing_manifest, incoming_manifest, added):
             )
         for row in rows:
             seeds.add(int(row["seed"]))
-            batches.add(int(float(row["b_detect"])))
-            deltas.add(float(row["delta_feddrift"]))
+            batches.add(int(float(row[FEDDRIFT_BATCH])))
+            deltas.add(float(row[FEDDRIFT_DISTANCE]))
             schedules.add(row.get("concept_schedule", "random"))
             if row.get("total_data"):
                 total_data_values.add(int(float(row["total_data"])))
@@ -509,8 +545,8 @@ def _refresh_manifest(root, existing_manifest, incoming_manifest, added):
         "seeds": sorted(seeds),
         "total_data": sorted(total_data_values),
         "concept_schedule": sorted(schedules),
-        "b_detect": sorted(batches),
-        "delta_feddrift": sorted(deltas),
+        FEDDRIFT_BATCH: sorted(batches),
+        FEDDRIFT_DISTANCE: sorted(deltas),
     })
     manifest["sources"] = (
         existing_manifest.get("sources", []) + incoming_manifest.get("sources", [])

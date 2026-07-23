@@ -13,8 +13,7 @@ class BaseServer:
         self.global_models = {}
         self.next_model_id = 1
         self.clients = []
-        self.distance_threshold = (distance_threshold if distance_threshold is not None
-                                   else config.DISTANCE_THRESHOLD)
+        self.distance_threshold = distance_threshold
         self.verbose = verbose
         self.global_stats = defaultdict(lambda: {'n': 0, 'mean': 0.0, 'M2': 0.0})
 

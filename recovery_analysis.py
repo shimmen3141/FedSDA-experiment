@@ -324,9 +324,9 @@ def generate_recovery_outputs(recs, out_dir, tag=None, max_delta=250, window=200
 
     representative_values = {
         "δ_ADWIN": config.ADWIN_DELTA if main_adwin is None else main_adwin,
-        "B_detect": config.FEDDRIFT_DETECT_BATCH if main_batch is None else main_batch,
-        "A": config.AGG_INTERVAL if main_agg is None else main_agg,
-        "δ_FedDrift": config.DISTANCE_THRESHOLD if main_distance is None else main_distance,
+        "B_detect": config.FEDDRIFT_DETECTION_BATCH_SIZE if main_batch is None else main_batch,
+        "A": config.AGGREGATION_INTERVAL if main_agg is None else main_agg,
+        "δ_FedDrift": config.FEDDRIFT_DISTANCE_THRESHOLD if main_distance is None else main_distance,
     }
 
     def is_ob(lab):
@@ -399,9 +399,9 @@ def main():
                         help="手法間比較図でFedSDAの代表とするδ_ADWIN（default: 0.05）")
     parser.add_argument("--main-batch", type=int, default=50,
                         help="手法間比較図でFedDriftの代表とするB_detect（default: 50）")
-    parser.add_argument("--main-agg", type=int, default=config.AGG_INTERVAL,
-                        help="手法間比較図で代表とするA（AGG_INTERVAL）")
-    parser.add_argument("--main-distance", type=float, default=config.DISTANCE_THRESHOLD,
+    parser.add_argument("--main-agg", type=int, default=config.AGGREGATION_INTERVAL,
+                        help="手法間比較図で代表とするA（AGGREGATION_INTERVAL）")
+    parser.add_argument("--main-distance", type=float, default=config.FEDDRIFT_DISTANCE_THRESHOLD,
                         help="手法間比較図で代表とするFedDriftのδ_FedDrift")
     args = parser.parse_args()
 
