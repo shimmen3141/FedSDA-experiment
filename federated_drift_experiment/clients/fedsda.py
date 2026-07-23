@@ -7,9 +7,7 @@ from collections import defaultdict, deque
 import torch
 
 from .. import config
-from ..adwin import FullScanADWIN
-from ..e_detector import BoundedMeanEDetector
-from ..hddm import HDDMA, HDDMW
+from ..drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
 from ..models import SimpleMLP
 from ..provisional_model import (

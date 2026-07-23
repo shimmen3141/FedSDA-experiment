@@ -9,7 +9,7 @@ from collections import deque
 
 import numpy as np
 
-from . import config
+from .. import config
 
 
 class FullScanADWIN:

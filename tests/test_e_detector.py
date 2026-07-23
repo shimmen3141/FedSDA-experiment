@@ -13,7 +13,7 @@ from federated_drift_experiment.clients import (
     ClassConditionalESRFedSDAClient,
     ESRFedSDAClient,
 )
-from federated_drift_experiment.e_detector import BoundedMeanEDetector
+from federated_drift_experiment.drift_detectors import BoundedMeanEDetector
 from federated_drift_experiment.experiment import MODE_SPECS
 from federated_drift_experiment.models import SimpleMLP
 from federated_drift_experiment.servers import FedSDACachedServer, FedSDANoCachedServer

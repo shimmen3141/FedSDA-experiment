@@ -7,7 +7,7 @@ from federated_drift_experiment.clients import (
     HDDMFedSDAClient,
 )
 from federated_drift_experiment.experiment import MODE_SPECS
-from federated_drift_experiment.hddm import HDDMA, HDDMW
+from federated_drift_experiment.drift_detectors import HDDMA, HDDMW
 from federated_drift_experiment.models import SimpleMLP
 from federated_drift_experiment.servers import FedSDACachedServer, FedSDANoCachedServer
 

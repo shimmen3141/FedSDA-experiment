@@ -7,7 +7,6 @@
 ハイパーパラメータは federated_drift_experiment/config.py で一元管理する。
 """
 from . import config
-from .adwin import FullScanADWIN
 from .clients import (
     BaseClient,
     ADWINFedSDAClient,
@@ -21,8 +20,7 @@ from .clients import (
     ObliviousClient,
 )
 from .data import generate_data, make_concept_schedules
-from .e_detector import BoundedMeanEDetector
-from .hddm import HDDMA, HDDMW
+from .drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from .experiment import run_random_drift_experiment
 from .models import SimpleMLP
 from .servers import (
