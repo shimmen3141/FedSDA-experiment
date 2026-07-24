@@ -268,6 +268,13 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         "provisional_validation_count_mean": decision_mean(
             provisional_decisions, "validation_count"
         ),
+        "provisional_forward_count": sum(
+            decision.validation_source == "forward"
+            for decision in provisional_decisions
+        ),
+        "provisional_resolution_delay_mean": decision_mean(
+            provisional_decisions, "resolution_delay"
+        ),
         "provisional_accepted_full_margin_mean": decision_mean(
             accepted_proposals, "full_margin"
         ),
@@ -282,6 +289,10 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         ),
         "provisional_reject_insufficient_data_count": sum(
             decision.reason == "insufficient_data" for decision in rejected_proposals
+        ),
+        "provisional_reject_insufficient_forward_data_count": sum(
+            decision.reason == "insufficient_forward_data"
+            for decision in rejected_proposals
         ),
         "provisional_reject_full_interval_count": sum(
             decision.reason == "full_interval" for decision in rejected_proposals

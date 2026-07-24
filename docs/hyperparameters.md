@@ -111,7 +111,8 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 | `NEW_MODEL_EARLY_STOPPING_PATIENCE` | 検証損失が改善しない状態を許容するエポック数 | FedSDA early stopping | 3 |
 | `NEW_MODEL_EARLY_STOPPING_MIN_DELTA` | 検証損失の最小改善量 | FedSDA early stopping | 1e-4 |
 | `NEW_MODEL_VALIDATION_FRACTION` | 検知区間から検証用に確保する割合 | FedSDA early stopping | 0.2 |
-| `NEW_MODEL_CREATION_POLICY` | 新規モデルの作成方針 (`immediate` / `validated`)。`validated` は検知区間の末尾を時系列検証区間として保持し、仮モデルが最良の既存モデルより区間全体・直近半分の双方で優れる場合だけ採用する | FedSDA | `immediate` |
+| `NEW_MODEL_CREATION_POLICY` | 新規モデルの作成方針 (`immediate` / `validated` / `forward_validated`)。`validated` は検知区間末尾、`forward_validated` は警報後に到着する未学習データで仮モデルを検証する | FedSDA | `immediate` |
+| `NEW_MODEL_FORWARD_VALIDATION_SAMPLES` | `forward_validated`で採否確定までに観測する警報後サンプル数 | FedSDA | 10 |
 | `CLIENT_BATCH_SIZE` | ローカル更新のミニバッチサイズ B | 共通 | 32 |
 | `UPDATES_PER_SAMPLE` | 1 データ点あたりの勾配更新回数 L(学習強度)。両手法共通=公平比較の予算なので分けない | 共通 | 1 |
 | `PRETRAIN_SAMPLES` / `PRETRAIN_EPOCHS` / `PRETRAIN_BATCH_SIZE` | 初期モデル(モデル0)の事前学習設定 | 共通 | 500 / 10 / 32 |
@@ -234,6 +235,13 @@ CLIでは `--fifo-size` と `--new-model-validation-fraction` を実験単位で
 検証に使い、その検証区間の直近10件も別条件として確認する。割合0.52なら学習24件・検証26件・
 直近13件となる。既定値30・0.2は変更しない。
 
+
+`--new-model-creation-policy forward_validated`では、検知区間全体からshadow candidateを
+学習し、既存モデルは警報時点のパラメータで固定する。その後
+`--new-model-forward-validation-samples`件の新着サンプルを、オンライン学習より前に候補と
+既存モデルの双方で評価する。候補が全検証区間と直近半分の両方で最良の既存モデルを上回った
+場合だけ正式登録する。推定区間のデータは採否確定まで保留し、採用時は新モデル、棄却時は
+その時点の現行モデルのデータストアへ確定する。
 
 Pareto CSVには提案数・採用率・平均区間長・採用／棄却時の損失差と、棄却理由別件数を記録する。
 さらに真のドリフトとの許容窓内対応数、採用提案のprecision、真のドリフトに対応した棄却数も評価専用

@@ -77,11 +77,12 @@ AMSGRAD = True             # Adam の amsgrad(論文設定)
 NEW_MODEL_EPOCHS = 30       # 新規モデル作成時の初期学習エポック数 (E_init)
 NEW_MODEL_TRAINING = "early_stopping"  # fixed / none / early_stopping
 NEW_MODEL_INITIALIZATION = "best_candidate"  # current / best_candidate / average
-NEW_MODEL_CREATION_POLICY = "immediate"  # immediate / validated
-NEW_MODEL_CREATION_POLICIES = ("immediate", "validated")
+NEW_MODEL_CREATION_POLICY = "immediate"  # immediate / validated / forward_validated
+NEW_MODEL_CREATION_POLICIES = ("immediate", "validated", "forward_validated")
 NEW_MODEL_EARLY_STOPPING_PATIENCE = 3
 NEW_MODEL_EARLY_STOPPING_MIN_DELTA = 1e-4
 NEW_MODEL_VALIDATION_FRACTION = 0.2
+NEW_MODEL_FORWARD_VALIDATION_SAMPLES = 10
 FEDSDA_DETECTION_EPISODES_ENABLED = False  # 近接検出をN_FIFO幅の1エピソードへ統合する
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)
 UPDATES_PER_SAMPLE = 1      # 1データ点あたりの勾配更新回数 (論文 L・学習強度)。両手法共通=公平比較の予算

@@ -140,3 +140,70 @@ def test_new_model_training_early_stopping_uses_at_most_max_epochs(monkeypatch):
 
     # 学習部分は1ミニバッチなので、更新回数は最大エポック数以下になる。
     assert 1 <= client.compute_counters["optimizer_steps"] <= config.NEW_MODEL_EPOCHS
+
+
+def test_forward_validation_accepts_candidate_after_future_samples(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)
+    client = _make_client()
+    bx = torch.randn((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    held_data = [
+        (bx[index:index + 1], by[index:index + 1])
+        for index in range(len(bx))
+    ]
+
+    client._begin_forward_validation(
+        bx,
+        by,
+        held_data,
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+    )
+    session = client._forward_validation
+    for _ in range(3):
+        session.append_losses(0.1, {0: 0.5})
+
+    drift_type = client._finalize_forward_validation(sample_idx=103)
+
+    assert drift_type == 2
+    assert client.current_model_id < 0
+    assert client.local_switch_positions == [103]
+    assert client.provisional_model_decisions[0].accepted
+    assert client.provisional_model_decisions[0].validation_source == "forward"
+    assert client.provisional_model_decisions[0].resolution_delay == 3
+    assert len(client.train_data_store[client.current_model_id]) == len(held_data)
+
+
+def test_incomplete_forward_validation_is_rejected_at_end(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)
+    client = _make_client()
+    bx = torch.randn((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    held_data = [
+        (bx[index:index + 1], by[index:index + 1])
+        for index in range(len(bx))
+    ]
+    client._begin_forward_validation(
+        bx,
+        by,
+        held_data,
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+    )
+    client._forward_validation.append_losses(0.1, {0: 0.5})
+    client.processed_samples = 102
+
+    client.finalize_incomplete_forward_validation()
+
+    decision = client.provisional_model_decisions[0]
+    assert not decision.accepted
+    assert decision.reason == "insufficient_forward_data"
+    assert decision.validation_count == 1
+    assert client._forward_validation is None
+    assert len(client.train_data_store[0]) == len(held_data)

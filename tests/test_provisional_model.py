@@ -1,11 +1,36 @@
 import torch
 
 from federated_drift_experiment.provisional_model import (
+    ForwardValidationSession,
     ProvisionalModelDecision,
     has_consistent_validation_advantage,
     temporal_holdout,
     validation_rejection_reason,
 )
+
+
+def test_forward_validation_session_waits_for_target_count():
+    session = ForwardValidationSession(
+        proposal_position=10,
+        estimated_change_point=8,
+        episode_id=None,
+        old_model_id=0,
+        detector="e-SR",
+        candidate=object(),
+        training_x=torch.zeros((3, 1)),
+        training_y=torch.zeros((3, 1)),
+        held_data=[],
+        reference_models={0: object()},
+        target_count=3,
+    )
+
+    session.append_losses(0.2, {0: 0.4})
+    session.append_losses(0.3, {0: 0.5})
+    assert not session.ready
+
+    session.append_losses(0.1, {0: 0.6})
+    assert session.ready
+    assert session.validation_count == 3
 
 
 def test_temporal_holdout_reserves_latest_samples_for_validation():

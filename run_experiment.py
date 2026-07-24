@@ -82,6 +82,11 @@ def main():
         default=config.NEW_MODEL_VALIDATION_FRACTION,
         help="検証付き仮モデルで末尾から検証用に確保する割合",
     )
+    parser.add_argument(
+        "--new-model-forward-validation-samples", type=int,
+        default=config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES,
+        help="警報後の前向き検証に使うサンプル数",
+    )
     parser.add_argument("--feddrift-isolation", type=int,
                         default=config.FEDDRIFT_ISOLATION_TIMESTEPS,
                         help="FedDriftの新規モデル隔離時刻数 W (default: 1)")
@@ -97,6 +102,8 @@ def main():
         parser.error("--fifo-size must be at least 1")
     if not 0.0 < args.new_model_validation_fraction < 1.0:
         parser.error("--new-model-validation-fraction must be between 0 and 1")
+    if args.new_model_forward_validation_samples < 2:
+        parser.error("--new-model-forward-validation-samples must be at least 2")
 
     args.dataset = normalize_dataset_name(args.dataset)
     config.DATASET = args.dataset
@@ -115,6 +122,9 @@ def main():
     config.NEW_MODEL_CREATION_POLICY = args.new_model_creation_policy
     config.FIFO_BUFFER_SIZE = args.fifo_size
     config.NEW_MODEL_VALIDATION_FRACTION = args.new_model_validation_fraction
+    config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES = (
+        args.new_model_forward_validation_samples
+    )
     config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation
 
     raw_path = None

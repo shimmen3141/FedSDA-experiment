@@ -1,6 +1,6 @@
 """新規モデル候補の時系列holdout分割と受入判定。"""
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 import torch
 
@@ -29,6 +29,8 @@ class ProvisionalModelDecision:
     reference_mean_loss: float
     candidate_recent_loss: float
     reference_recent_loss: float
+    resolution_position: Optional[int] = None
+    validation_source: str = "historical"
 
     @property
     def full_margin(self):
@@ -39,6 +41,55 @@ class ProvisionalModelDecision:
     def recent_margin(self):
         """正なら仮モデルが検証区間の直近半分で優れる。"""
         return self.reference_recent_loss - self.candidate_recent_loss
+
+    @property
+    def resolution_delay(self):
+        """警報から採否確定までに観測したサンプル数を返す。"""
+        if self.resolution_position is None:
+            return 0
+        return self.resolution_position - self.position
+
+
+@dataclass
+class ForwardValidationSession:
+    """警報後データでshadow candidateを検証する未確定状態。"""
+
+    proposal_position: int
+    estimated_change_point: Optional[int]
+    episode_id: Optional[int]
+    old_model_id: int
+    detector: str
+    candidate: Any
+    training_x: torch.Tensor
+    training_y: torch.Tensor
+    held_data: list
+    reference_models: dict
+    target_count: int
+    candidate_losses: list[float] = field(default_factory=list)
+    reference_losses: dict[int, list[float]] = field(default_factory=dict)
+
+    def __post_init__(self):
+        if self.target_count < 2:
+            raise ValueError("forward validation requires at least 2 samples")
+        if not self.reference_losses:
+            self.reference_losses = {
+                model_id: [] for model_id in self.reference_models
+            }
+
+    @property
+    def ready(self):
+        return len(self.candidate_losses) >= self.target_count
+
+    @property
+    def validation_count(self):
+        return len(self.candidate_losses)
+
+    def append_losses(self, candidate_loss, reference_losses):
+        self.candidate_losses.append(float(candidate_loss))
+        for model_id in self.reference_losses:
+            self.reference_losses[model_id].append(
+                float(reference_losses[model_id])
+            )
 
 
 def temporal_holdout(bx, by, validation_fraction):

@@ -115,7 +115,9 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 同一エピソードへ統合し、モデル再利用・新規作成を最大1回に制限します。既定では無効です。
 
 新規モデルを直ちに作らず、末尾の時系列ホールドアウトで最良の既存モデルより一貫して良い場合だけ
-採用するには `--new-model-creation-policy validated` を指定します。既定の `immediate` は従来動作を
+採用するには `--new-model-creation-policy validated` を指定します。警報後の新着データで
+検証する場合は `--new-model-creation-policy forward_validated
+--new-model-forward-validation-samples 10` を指定します。既定の `immediate` は従来動作を
 保ちます。この設定は検出エピソードの有無とは独立です。
 
 ### データセット(`--dataset`)

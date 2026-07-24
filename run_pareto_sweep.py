@@ -64,11 +64,13 @@ METRIC_KEYS = [
     "provisional_rejected_matched_true_count", "provisional_accepted_precision",
     "provisional_interval_count_mean", "provisional_training_count_mean",
     "provisional_validation_count_mean",
+    "provisional_forward_count", "provisional_resolution_delay_mean",
     "provisional_accepted_full_margin_mean",
     "provisional_accepted_recent_margin_mean",
     "provisional_rejected_full_margin_mean",
     "provisional_rejected_recent_margin_mean",
     "provisional_reject_insufficient_data_count",
+    "provisional_reject_insufficient_forward_data_count",
     "provisional_reject_full_interval_count",
     "provisional_reject_recent_interval_count",
     "provisional_reject_full_and_recent_count",
@@ -92,6 +94,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "clustering_policy", "detection_episodes",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
+            "new_model_forward_validation_samples",
             FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
             ] + METRIC_KEYS
 
@@ -151,6 +154,14 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
         display_series = (
             f"{display_series} [validation={config.NEW_MODEL_VALIDATION_FRACTION:g}]"
         )
+    if (
+        "FedSDA" in mode
+        and config.NEW_MODEL_CREATION_POLICY == "forward_validated"
+    ):
+        display_series = (
+            f"{display_series} "
+            f"[forward={config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES}]"
+        )
     raw_label = display_series
     if raw_dir is not None:
         sv = "na" if sweep_value in (None, "", "None") else f"{sweep_value:g}"
@@ -179,6 +190,8 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
         "new_model_creation_policy": config.NEW_MODEL_CREATION_POLICY,
         "fifo_size": config.FIFO_BUFFER_SIZE,
         "new_model_validation_fraction": config.NEW_MODEL_VALIDATION_FRACTION,
+        "new_model_forward_validation_samples":
+            config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES,
         FEDSDA_DISTANCE_THRESHOLD: (
             distance_threshold if mode in FEDSDA_MODES else None
         ),
@@ -705,6 +718,11 @@ def build_parser():
         default=config.NEW_MODEL_VALIDATION_FRACTION,
         help="検証付き仮モデルで末尾から検証用に確保する割合",
     )
+    fedsda.add_argument(
+        "--new-model-forward-validation-samples", type=int,
+        default=config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES,
+        help="警報後の前向き検証に使うサンプル数",
+    )
     fedsda.add_argument("--fedsda-distance-threshold", dest="fixed_gamma",
                         type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
@@ -770,6 +788,8 @@ def main():
         parser.error("--fifo-size must be at least 1")
     if not 0.0 < args.new_model_validation_fraction < 1.0:
         parser.error("--new-model-validation-fraction must be between 0 and 1")
+    if args.new_model_forward_validation_samples < 2:
+        parser.error("--new-model-forward-validation-samples must be at least 2")
 
     # 集約プロットモード: 既存CSVを読み込みシード平均で描画して終了
     if args.plot_csvs:
@@ -799,6 +819,9 @@ def main():
     config.NEW_MODEL_CREATION_POLICY = args.new_model_creation_policy
     config.FIFO_BUFFER_SIZE = args.fifo_size
     config.NEW_MODEL_VALIDATION_FRACTION = args.new_model_validation_fraction
+    config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES = (
+        args.new_model_forward_validation_samples
+    )
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.FEDDRIFT_DISTANCE_THRESHOLD
     fixed_batch = args.fixed_batch if args.fixed_batch is not None else config.FEDDRIFT_DETECTION_BATCH_SIZE

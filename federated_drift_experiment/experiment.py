@@ -503,6 +503,8 @@ def _save_raw_run(
     provisional_reference_mean_losses = []
     provisional_candidate_recent_losses = []
     provisional_reference_recent_losses = []
+    provisional_resolution_positions = []
+    provisional_validation_sources = []
     for client_id, client in enumerate(clients):
         for decision in getattr(client, "provisional_model_decisions", []):
             provisional_client_ids.append(client_id)
@@ -521,6 +523,12 @@ def _save_raw_run(
             provisional_reference_mean_losses.append(decision.reference_mean_loss)
             provisional_candidate_recent_losses.append(decision.candidate_recent_loss)
             provisional_reference_recent_losses.append(decision.reference_recent_loss)
+            provisional_resolution_positions.append(
+                decision.resolution_position
+                if decision.resolution_position is not None
+                else decision.position
+            )
+            provisional_validation_sources.append(decision.validation_source)
 
     telemetry_arrays = {
         "round_global_model_count": np.asarray(telemetry["global_model_count"], dtype=np.float64),
@@ -597,6 +605,12 @@ def _save_raw_run(
         ),
         provisional_reference_recent_losses=np.asarray(
             provisional_reference_recent_losses, dtype=np.float64
+        ),
+        provisional_resolution_positions=np.asarray(
+            provisional_resolution_positions, dtype=np.int32
+        ),
+        provisional_validation_sources=np.asarray(
+            provisional_validation_sources, dtype=np.str_
         ),
         dataset=str(config.DATASET),
         concept_schedule=str(config.CONCEPT_SCHEDULE),
@@ -702,6 +716,13 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
             telemetry, clients, server, spec.use_server, telemetry_before)
 
     # バッファ型手法(FedDrift)の終端フラッシュ: 未検出の残りバッチを処理し新規モデルを回収
+    for client in clients:
+        finalize_forward = getattr(
+            client, "finalize_incomplete_forward_validation", None
+        )
+        if finalize_forward is not None:
+            finalize_forward()
+
     buffering_clients = [c for c in clients if hasattr(c, 'flush')]
     if buffering_clients:
         for c in buffering_clients:

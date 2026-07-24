@@ -11,6 +11,7 @@ from ..drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
 from ..models import SimpleMLP
 from ..provisional_model import (
+    ForwardValidationSession,
     ProvisionalModelDecision,
     has_consistent_validation_advantage,
     temporal_holdout,
@@ -32,6 +33,14 @@ class FedSDAClient(BaseClient, ABC):
         self.fifo_size = config.FIFO_BUFFER_SIZE    # FIFOバッファ長 N_FIFO
         self.detector_candidate_start_positions = []
         self.provisional_model_decisions = []
+        self._forward_validation = None
+        self.forward_validation_samples = int(
+            config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES
+        )
+        if self.forward_validation_samples < 2:
+            raise ValueError(
+                "NEW_MODEL_FORWARD_VALIDATION_SAMPLES must be at least 2"
+            )
         self.model_upload_delay_rounds = int(config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS)
         if self.model_upload_delay_rounds < 1:
             raise ValueError("FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS must be at least 1")
@@ -46,6 +55,181 @@ class FedSDAClient(BaseClient, ABC):
             enabled=config.FEDSDA_DETECTION_EPISODES_ENABLED,
             length=self.fifo_size,
         )
+
+    def _snapshot_reference_models(self):
+        """前向き検証中の比較対象を警報時点のパラメータで固定する。"""
+        snapshots = {}
+        for model_id, model in self.models.items():
+            snapshot = SimpleMLP()
+            snapshot.set_params(model.get_params())
+            snapshots[model_id] = snapshot
+        return snapshots
+
+    def _begin_forward_validation(
+        self,
+        bx,
+        by,
+        drift_data,
+        initialization_params,
+        sample_idx,
+        estimated_start,
+        episode_id,
+    ):
+        """推定区間で候補を学習し、警報後データによる採否判定を開始する。"""
+        candidate = SimpleMLP()
+        candidate.set_params(initialization_params)
+        candidate.reset_optimizer()
+        training_start = time.perf_counter()
+        self._train_new_model(candidate, bx, by)
+        self.phase_seconds["training"] += time.perf_counter() - training_start
+        self._forward_validation = ForwardValidationSession(
+            proposal_position=sample_idx,
+            estimated_change_point=estimated_start,
+            episode_id=episode_id,
+            old_model_id=self.current_model_id,
+            detector=self._detector_label(),
+            candidate=candidate,
+            training_x=bx,
+            training_y=by,
+            held_data=list(drift_data),
+            reference_models=self._snapshot_reference_models(),
+            target_count=self.forward_validation_samples,
+        )
+
+    def _observe_forward_validation(self, x, y, sample_idx):
+        """最新サンプルをshadow candidateと警報時点の既存モデルで評価する。"""
+        session = self._forward_validation
+        if session is None:
+            return 0
+        with torch.no_grad():
+            self._record_model_compute("detection", len(x))
+            candidate_loss = float(
+                session.candidate.per_sample_error(x, y).mean().item()
+            )
+            reference_losses = {}
+            for model_id, model in session.reference_models.items():
+                self._record_model_compute("detection", len(x))
+                reference_losses[model_id] = float(
+                    model.per_sample_error(x, y).mean().item()
+                )
+        session.append_losses(candidate_loss, reference_losses)
+        if not session.ready:
+            return 0
+        return self._finalize_forward_validation(sample_idx)
+
+    def _finalize_forward_validation(self, sample_idx):
+        """規定数の警報後サンプルから候補を正式採用または棄却する。"""
+        session = self._forward_validation
+        if session is None or not session.ready:
+            return 0
+        candidate_losses = torch.tensor(session.candidate_losses)
+        reference_model_id = min(
+            session.reference_losses,
+            key=lambda model_id: sum(session.reference_losses[model_id]),
+        )
+        reference_losses = torch.tensor(
+            session.reference_losses[reference_model_id]
+        )
+        accepted = has_consistent_validation_advantage(
+            candidate_losses,
+            reference_losses,
+            min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
+        )
+        reason = validation_rejection_reason(
+            candidate_losses,
+            reference_losses,
+            min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
+        )
+        recent_start = len(candidate_losses) // 2
+        self.provisional_model_decisions.append(ProvisionalModelDecision(
+            position=session.proposal_position,
+            detector=session.detector,
+            accepted=accepted,
+            reason=reason,
+            interval_count=len(session.training_x),
+            training_count=len(session.training_x),
+            validation_count=session.validation_count,
+            reference_model_id=reference_model_id,
+            candidate_mean_loss=float(candidate_losses.mean().item()),
+            reference_mean_loss=float(reference_losses.mean().item()),
+            candidate_recent_loss=float(
+                candidate_losses[recent_start:].mean().item()
+            ),
+            reference_recent_loss=float(
+                reference_losses[recent_start:].mean().item()
+            ),
+            resolution_position=sample_idx,
+            validation_source="forward",
+        ))
+
+        old_model_id = self.current_model_id
+        if accepted:
+            temp_id = self._alloc_temp_id()
+            self._register_trained_new_model(
+                temp_id,
+                session.candidate,
+                session.training_x,
+                session.training_y,
+                pending_ready=False,
+            )
+            self._pending_upload_rounds = self.model_upload_delay_rounds
+            self.train_data_store[temp_id].extend(session.held_data)
+            self.current_model_id = temp_id
+            self.local_switch_positions.append(sample_idx)
+            self.detection_episodes.mark_operation()
+            action = "create"
+            drift_type = 2
+        else:
+            self._absorb_into_store(self.current_model_id, session.held_data)
+            action = "create_rejected"
+            drift_type = 0
+        self._record_adaptation_event(
+            position=sample_idx,
+            detector=session.detector,
+            action=action,
+            old_model_id=old_model_id,
+            new_model_id=self.current_model_id,
+            estimated_change_point=session.estimated_change_point,
+            episode_id=session.episode_id,
+        )
+        self._forward_validation = None
+        return drift_type
+
+    def finalize_incomplete_forward_validation(self):
+        """実験終端で未完了の前向き検証を棄却し、保留データを回収する。"""
+        session = self._forward_validation
+        if session is None:
+            return
+        resolution_position = max(
+            session.proposal_position, self.processed_samples - 1
+        )
+        self.provisional_model_decisions.append(ProvisionalModelDecision(
+            position=session.proposal_position,
+            detector=session.detector,
+            accepted=False,
+            reason="insufficient_forward_data",
+            interval_count=len(session.training_x),
+            training_count=len(session.training_x),
+            validation_count=session.validation_count,
+            reference_model_id=None,
+            candidate_mean_loss=math.nan,
+            reference_mean_loss=math.nan,
+            candidate_recent_loss=math.nan,
+            reference_recent_loss=math.nan,
+            resolution_position=resolution_position,
+            validation_source="forward",
+        ))
+        self._absorb_into_store(self.current_model_id, session.held_data)
+        self._record_adaptation_event(
+            position=resolution_position,
+            detector=session.detector,
+            action="create_rejected",
+            old_model_id=self.current_model_id,
+            new_model_id=self.current_model_id,
+            estimated_change_point=session.estimated_change_point,
+            episode_id=session.episode_id,
+        )
+        self._forward_validation = None
 
     def _spawn_new_model(
         self,
@@ -110,12 +294,12 @@ class FedSDAClient(BaseClient, ABC):
 
         self._record_prediction(x, y, concept_id)
 
+        drift_type = self._observe_forward_validation(x, y, idx)
+
         self._record_model_compute("detection", len(x))
         error = self.models[self.current_model_id].get_absolute_error(x, y)
         drift_detected = self._update_drift_detectors(error, y, idx)
         self.buffer.append((x, y))
-
-        drift_type = 0
 
         # 統計的検知、または検出器固有の補助チェックが発火したら解決処理へ
         if drift_detected or self._forced_drift_check(idx):
@@ -360,6 +544,20 @@ class FedSDAClient(BaseClient, ABC):
         """FIFOを新旧概念に分割し、モデル切替または新規作成を行う。"""
         old_model_id = self.current_model_id
         buffer_list = list(self.buffer)
+        if self._forward_validation is not None:
+            self._absorb_into_store(self.current_model_id, buffer_list)
+            self._record_adaptation_event(
+                position=sample_idx,
+                detector=self._detector_label(),
+                action="forward_validation_pending",
+                old_model_id=old_model_id,
+                new_model_id=self.current_model_id,
+                estimated_change_point=estimated_start,
+                episode_id=episode_id,
+            )
+            self._reset_drift_detectors()
+            self.buffer.clear()
+            return 0
         estimated_span = self._estimated_new_concept_span(sample_idx)
         n_new_concept = min(
             len(buffer_list), estimated_span
@@ -464,13 +662,28 @@ class FedSDAClient(BaseClient, ABC):
                     initialization_params,
                     sample_idx,
                 )
+            elif config.NEW_MODEL_CREATION_POLICY == "forward_validated":
+                self._begin_forward_validation(
+                    initial_bx,
+                    initial_by,
+                    drift_data,
+                    initialization_params,
+                    sample_idx,
+                    estimated_start,
+                    episode_id,
+                )
+                temporary_id = None
             else:
                 raise ValueError(
-                    "NEW_MODEL_CREATION_POLICY must be 'immediate' or 'validated'"
+                    "NEW_MODEL_CREATION_POLICY must be 'immediate', "
+                    "'validated', or 'forward_validated'"
                 )
 
             drift_data = buffer_drift_data
-            if temporary_id is None:
+            if config.NEW_MODEL_CREATION_POLICY == "forward_validated":
+                drift_type = 0
+                action = "create_pending"
+            elif temporary_id is None:
                 self._absorb_into_store(self.current_model_id, drift_data)
                 drift_type = 0
                 action = "create_rejected"
