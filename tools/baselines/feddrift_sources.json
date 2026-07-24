@@ -10,5 +10,11 @@
     "csv_path": "results/results_20260719_083206/pareto/pareto_mnist2-sea2_seeds0-4_n5000_mnist2-sea2-random-e-detectors.csv",
     "datasets": ["mnist2", "sea2"],
     "concept_schedule": "random"
+  },
+  {
+    "root": "results/results_20260724_014833",
+    "csv_path": "results/results_20260724_014833/pareto/pareto_mnist4_seeds0-4_n5000_feddrift_fixed_mnist4-feddrift-sweep.csv",
+    "datasets": ["mnist4"],
+    "concept_schedule": "feddrift_fixed"
   }
 ]

@@ -188,3 +188,29 @@ def test_extend_baseline_adds_new_sweep_value(tmp_path):
         output / "circle2" / "raw"
         / f"{FEDDRIFT_BATCH}_sweep_seed0_b100.npz"
     ).is_file()
+
+
+def test_build_baseline_prefers_explicit_sweep_parameter(tmp_path):
+    source = _write_source(tmp_path / "source", "circle2")
+    with source.csv_path.open(encoding="utf-8", newline="") as file:
+        rows = list(csv.DictReader(file))
+        fieldnames = tuple(rows[0])
+    rows[0]["series"] = "FedDrift"
+    with source.csv_path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    output = tmp_path / "baseline"
+    build_baseline(sources=(source,), output_root=output)
+
+    with (output / "circle2" / "metrics.csv").open(
+        encoding="utf-8", newline=""
+    ) as file:
+        row = next(csv.DictReader(file))
+    assert row["sweep_parameter"] == FEDDRIFT_BATCH
+    assert row["sweep_value"] == "50"
+    assert (
+        output / "circle2" / "raw"
+        / f"{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
+    ).is_file()

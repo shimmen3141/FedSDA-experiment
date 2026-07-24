@@ -143,7 +143,20 @@ def _canonical_row(row, concept_schedule):
     result["dataset"] = normalize_dataset_name(row["dataset"])
     result["series"] = series
     result["concept_schedule"] = row.get("concept_schedule") or concept_schedule
-    result["sweep_parameter"] = _sweep_parameter(series)
+    sweep_parameter = row.get("sweep_parameter", "")
+    if sweep_parameter not in {FEDDRIFT_BATCH, FEDDRIFT_DISTANCE}:
+        sweep_value = float(row["sweep_value"])
+        batch_value = float(row[FEDDRIFT_BATCH])
+        distance_value = float(row[FEDDRIFT_DISTANCE])
+        matches_batch = np.isclose(sweep_value, batch_value)
+        matches_distance = np.isclose(sweep_value, distance_value)
+        if matches_batch and not matches_distance:
+            sweep_parameter = FEDDRIFT_BATCH
+        elif matches_distance and not matches_batch:
+            sweep_parameter = FEDDRIFT_DISTANCE
+        else:
+            sweep_parameter = _sweep_parameter(series)
+    result["sweep_parameter"] = sweep_parameter
     return result
 
 
@@ -174,14 +187,30 @@ def _read_source_rows(source, batches):
     return fieldnames, rows
 
 
-def _raw_parameters(label, filename, source_mode):
+def _raw_parameters(
+    label,
+    filename,
+    source_mode,
+    stored_parameter="",
+    stored_sweep_value=None,
+):
     series = _canonical_series(label, source_mode)
-    sweep_parameter = _sweep_parameter(series)
+    sweep_parameter = (
+        stored_parameter
+        if stored_parameter in {FEDDRIFT_BATCH, FEDDRIFT_DISTANCE}
+        else _sweep_parameter(series)
+    )
     match = re.search(r"_sv(.+)\.npz$", filename)
     if not match:
         raise ValueError(f"掃引値をファイル名から取得できません: {filename}")
     sweep_text = match.group(1).replace("_", ".").replace("p", ".")
-    sweep_value = float(sweep_text)
+    filename_sweep_value = float(sweep_text)
+    sweep_value = (
+        float(stored_sweep_value)
+        if stored_sweep_value is not None
+        and np.isfinite(float(stored_sweep_value))
+        else filename_sweep_value
+    )
     if sweep_parameter == FEDDRIFT_BATCH:
         return series, sweep_parameter, int(sweep_value), 0.1, sweep_value
     return series, sweep_parameter, 50, sweep_value, sweep_value
@@ -209,8 +238,18 @@ def _copy_raw_files(source, output_root, batches):
         dataset = normalize_dataset_name(source_dataset)
         label = _scalar_text(arrays.get("label", "")) or ""
         source_mode = _scalar_text(arrays.get("mode", "")) or ""
+        stored_parameter = _scalar_text(
+            arrays.get("sweep_parameter", "")
+        ) or ""
+        stored_sweep_value = np.asarray(
+            arrays.get("sweep_value", np.nan)
+        ).item()
         series, parameter, b_detect, delta, sweep_value = _raw_parameters(
-            label, path.name, source_mode
+            label,
+            path.name,
+            source_mode,
+            stored_parameter=stored_parameter,
+            stored_sweep_value=stored_sweep_value,
         )
         if b_detect not in batches:
             continue
