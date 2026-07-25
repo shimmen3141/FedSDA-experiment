@@ -13,7 +13,8 @@ from tools.baselines.build_feddrift import (
 
 
 def _write_source(
-    root, dataset, include_batch25=False, seed=0, accuracy=0.9, batches=None
+    root, dataset, include_batch25=False, seed=0, accuracy=0.9, batches=None,
+    concept_schedule="random",
 ):
     pareto = root / "pareto" / "pareto.csv"
     raw = root / "raw"
@@ -31,7 +32,7 @@ def _write_source(
             "parameter_schema_version": 1,
             "mode": "FedDrift",
             "dataset": dataset,
-            "concept_schedule": "random",
+            "concept_schedule": concept_schedule,
             "seed": seed,
             "series": "FedDrift B_detect sweep (δ_FedDrift=0.1)",
             "sweep_parameter": FEDDRIFT_BATCH,
@@ -45,7 +46,7 @@ def _write_source(
             parameter_schema_version=np.asarray(1),
             mode=np.asarray("FedDrift"),
             dataset=np.asarray(dataset),
-            concept_schedule=np.asarray("random"),
+            concept_schedule=np.asarray(concept_schedule),
             label=np.asarray(f"FedDrift B_detect sweep (δ_FedDrift=0.1) [{batch}]"),
             sweep_parameter=np.asarray(FEDDRIFT_BATCH),
             sweep_value=np.asarray(batch),
@@ -59,7 +60,8 @@ def _write_source(
         writer.writeheader()
         writer.writerows(rows)
     return BaselineSource(
-        root=root, csv_path=pareto, datasets=(dataset,)
+        root=root, csv_path=pareto, datasets=(dataset,),
+        concept_schedule=concept_schedule,
     )
 
 
@@ -95,7 +97,7 @@ def test_build_baseline_groups_canonical_results_by_dataset(tmp_path):
 
     raw_path = (
         output / "circle2" / "raw"
-        / f"{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
+        / f"random_{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
     )
     with np.load(raw_path, allow_pickle=False) as archive:
         assert archive["mode"].item() == "FedDrift"
@@ -136,7 +138,7 @@ def test_extend_baseline_adds_new_seed_atomically_and_keeps_backup(tmp_path):
     assert actual_backup == backup.resolve()
     assert (
         backup / "circle2" / "raw"
-        / f"{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
+        / f"random_{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
     ).is_file()
     with (output / "circle2" / "metrics.csv").open(
         encoding="utf-8", newline=""
@@ -148,7 +150,7 @@ def test_extend_baseline_adds_new_seed_atomically_and_keeps_backup(tmp_path):
     assert manifest["datasets"]["circle2"]["metrics_rows"] == 2
     assert (
         output / "circle2" / "raw"
-        / f"{FEDDRIFT_BATCH}_sweep_seed1_b50.npz"
+        / f"random_{FEDDRIFT_BATCH}_sweep_seed1_b50.npz"
     ).is_file()
 
 
@@ -186,7 +188,7 @@ def test_extend_baseline_adds_new_sweep_value(tmp_path):
     assert manifest["last_extension"]["added_results"] == 1
     assert (
         output / "circle2" / "raw"
-        / f"{FEDDRIFT_BATCH}_sweep_seed0_b100.npz"
+        / f"random_{FEDDRIFT_BATCH}_sweep_seed0_b100.npz"
     ).is_file()
 
 
@@ -212,5 +214,36 @@ def test_build_baseline_prefers_explicit_sweep_parameter(tmp_path):
     assert row["sweep_value"] == "50"
     assert (
         output / "circle2" / "raw"
-        / f"{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
+        / f"random_{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
+    ).is_file()
+
+
+def test_build_baseline_keeps_same_sweep_for_multiple_schedules(tmp_path):
+    random_source = _write_source(
+        tmp_path / "random", "mnist4", concept_schedule="random"
+    )
+    fixed_source = _write_source(
+        tmp_path / "fixed", "mnist4", concept_schedule="feddrift_fixed"
+    )
+    output = tmp_path / "baseline"
+
+    manifest = build_baseline(
+        sources=(random_source, fixed_source), output_root=output
+    )
+
+    with (output / "mnist4" / "metrics.csv").open(
+        encoding="utf-8", newline=""
+    ) as file:
+        rows = list(csv.DictReader(file))
+    assert [row["concept_schedule"] for row in rows] == [
+        "feddrift_fixed", "random"
+    ]
+    assert manifest["datasets"]["mnist4"]["metrics_rows"] == 2
+    assert (
+        output / "mnist4" / "raw"
+        / f"feddrift_fixed_{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
+    ).is_file()
+    assert (
+        output / "mnist4" / "raw"
+        / f"random_{FEDDRIFT_BATCH}_sweep_seed0_b50.npz"
     ).is_file()

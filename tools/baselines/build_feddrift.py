@@ -220,9 +220,12 @@ def _number_slug(value):
     return f"{float(value):g}".replace(".", "p")
 
 
-def _raw_target_name(seed, sweep_parameter, sweep_value):
+def _raw_target_name(seed, sweep_parameter, sweep_value, concept_schedule):
     short = "b" if sweep_parameter == FEDDRIFT_BATCH else "d"
-    return f"{sweep_parameter}_sweep_seed{seed}_{short}{_number_slug(sweep_value)}.npz"
+    return (
+        f"{concept_schedule}_{sweep_parameter}_sweep_"
+        f"seed{seed}_{short}{_number_slug(sweep_value)}.npz"
+    )
 
 
 def _copy_raw_files(source, output_root, batches):
@@ -272,7 +275,9 @@ def _copy_raw_files(source, output_root, batches):
 
         target = (
             output_root / dataset / "raw"
-            / _raw_target_name(seed, parameter, sweep_value)
+            / _raw_target_name(
+                seed, parameter, sweep_value, arrays["concept_schedule"].item()
+            )
         )
         if target.exists():
             raise FileExistsError(f"出力先が重複しています: {target}")
@@ -320,7 +325,8 @@ def build_baseline(sources=None, output_root=DEFAULT_OUTPUT,
     dataset_records = {}
     for dataset, rows in sorted(rows_by_dataset.items()):
         rows.sort(key=lambda row: (
-            int(row["seed"]), row["sweep_parameter"], float(row["sweep_value"])
+            row["concept_schedule"], int(row["seed"]),
+            row["sweep_parameter"], float(row["sweep_value"])
         ))
         metrics_path = output_root / dataset / "metrics.csv"
         metrics_path.parent.mkdir(parents=True, exist_ok=True)
@@ -478,11 +484,15 @@ def _merge_baseline_trees(staging_root, incoming_root):
             key = _result_key(new_row)
             incoming_raw = (
                 incoming_root / dataset / "raw"
-                / _raw_target_name(new_row["seed"], key[2], key[3])
+                / _raw_target_name(
+                    new_row["seed"], key[2], key[3], key[1]
+                )
             )
             existing_raw = (
                 staging_root / dataset / "raw"
-                / _raw_target_name(new_row["seed"], key[2], key[3])
+                / _raw_target_name(
+                    new_row["seed"], key[2], key[3], key[1]
+                )
             )
             if key in rows:
                 rows[key] = _merge_duplicate_row(rows[key], new_row, incoming_metrics)
@@ -494,7 +504,8 @@ def _merge_baseline_trees(staging_root, incoming_root):
             added += 1
 
         ordered_rows = sorted(rows.values(), key=lambda row: (
-            int(row["seed"]), row["sweep_parameter"], float(row["sweep_value"])
+            row.get("concept_schedule", "random"), int(row["seed"]),
+            row["sweep_parameter"], float(row["sweep_value"])
         ))
         with existing_metrics.open("w", newline="", encoding="utf-8") as file:
             writer = csv.DictWriter(file, fieldnames=fields)
