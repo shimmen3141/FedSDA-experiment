@@ -158,8 +158,9 @@ def select_forward_fitting_reference(
     reference_losses,
     reference_historical_means,
     distance_threshold,
+    preferred_model_id=None,
 ):
-    """前向きデータでも履歴平均から閾値内に収まる最良の既存モデルを返す。"""
+    """前向きデータでも履歴平均から閾値内に収まる既存モデルを返す。"""
     fitting = []
     for model_id, losses in reference_losses.items():
         if model_id not in reference_historical_means or not losses:
@@ -170,4 +171,7 @@ def select_forward_fitting_reference(
             fitting.append((mean_loss, model_id))
     if not fitting:
         return None
+    fitting_ids = {model_id for _, model_id in fitting}
+    if preferred_model_id in fitting_ids:
+        return preferred_model_id
     return min(fitting)[1]

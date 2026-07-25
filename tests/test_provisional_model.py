@@ -101,6 +101,20 @@ def test_forward_requalification_returns_none_when_all_references_mismatch():
     assert selected is None
 
 
+def test_forward_requalification_prefers_current_model_when_it_still_fits():
+    selected = select_forward_fitting_reference(
+        reference_losses={
+            0: [0.18, 0.18],
+            1: [0.12, 0.12],
+        },
+        reference_historical_means={0: 0.10, 1: 0.10},
+        distance_threshold=0.10,
+        preferred_model_id=0,
+    )
+
+    assert selected == 0
+
+
 def test_provisional_decision_exposes_candidate_advantage_margins():
     decision = ProvisionalModelDecision(
         position=100,

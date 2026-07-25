@@ -20,7 +20,15 @@ from ..provisional_model import (
 )
 from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
 
-_FORWARD_VALIDATION_POLICIES = {"forward_validated", "forward_requalified"}
+_FORWARD_VALIDATION_POLICIES = {
+    "forward_validated",
+    "forward_requalified",
+    "forward_requalified_current_first",
+}
+_FORWARD_REQUALIFICATION_POLICIES = {
+    "forward_requalified",
+    "forward_requalified_current_first",
+}
 
 
 class FedSDAClient(BaseClient, ABC):
@@ -138,7 +146,7 @@ class FedSDAClient(BaseClient, ABC):
             key=lambda model_id: sum(session.reference_losses[model_id]),
         )
         requalified_model_id = None
-        if config.NEW_MODEL_CREATION_POLICY == "forward_requalified":
+        if config.NEW_MODEL_CREATION_POLICY in _FORWARD_REQUALIFICATION_POLICIES:
             available_losses = {
                 model_id: losses
                 for model_id, losses in session.reference_losses.items()
@@ -148,6 +156,12 @@ class FedSDAClient(BaseClient, ABC):
                 available_losses,
                 session.reference_historical_means,
                 self.distance_threshold,
+                preferred_model_id=(
+                    self.current_model_id
+                    if config.NEW_MODEL_CREATION_POLICY
+                    == "forward_requalified_current_first"
+                    else None
+                ),
             )
             if requalified_model_id is not None:
                 reference_model_id = requalified_model_id
@@ -156,7 +170,17 @@ class FedSDAClient(BaseClient, ABC):
         )
         if requalified_model_id is not None:
             accepted = False
-            reason = "reference_refit"
+            if (
+                config.NEW_MODEL_CREATION_POLICY
+                == "forward_requalified_current_first"
+            ):
+                reason = (
+                    "current_reference_refit"
+                    if requalified_model_id == self.current_model_id
+                    else "alternative_reference_refit"
+                )
+            else:
+                reason = "reference_refit"
         else:
             accepted = has_consistent_validation_advantage(
                 candidate_losses,
@@ -717,9 +741,8 @@ class FedSDAClient(BaseClient, ABC):
                 temporary_id = None
             else:
                 raise ValueError(
-                    "NEW_MODEL_CREATION_POLICY must be 'immediate', "
-                    "'validated', 'forward_validated', or "
-                    "'forward_requalified'"
+                    "NEW_MODEL_CREATION_POLICY must be one of "
+                    f"{config.NEW_MODEL_CREATION_POLICIES}"
                 )
 
             drift_data = buffer_drift_data

@@ -331,7 +331,20 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
             decision.reason == "full_and_recent" for decision in rejected_proposals
         ),
         "provisional_reject_reference_refit_count": sum(
-            decision.reason == "reference_refit" for decision in rejected_proposals
+            decision.reason in {
+                "reference_refit",
+                "current_reference_refit",
+                "alternative_reference_refit",
+            }
+            for decision in rejected_proposals
+        ),
+        "provisional_reject_current_refit_count": sum(
+            decision.reason == "current_reference_refit"
+            for decision in rejected_proposals
+        ),
+        "provisional_reject_alternative_refit_count": sum(
+            decision.reason == "alternative_reference_refit"
+            for decision in rejected_proposals
         ),
         "provisional_reference_excess_mean": decision_mean(
             [

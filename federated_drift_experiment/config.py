@@ -83,6 +83,7 @@ NEW_MODEL_CREATION_POLICIES = (
     "validated",
     "forward_validated",
     "forward_requalified",
+    "forward_requalified_current_first",
 )
 NEW_MODEL_EARLY_STOPPING_PATIENCE = 3
 NEW_MODEL_EARLY_STOPPING_MIN_DELTA = 1e-4

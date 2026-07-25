@@ -217,6 +217,49 @@ def test_forward_requalification_reuses_fitting_existing_model(monkeypatch):
     assert len(client.train_data_store[1]) == len(held_data)
 
 
+def test_forward_requalification_keeps_fitting_current_model(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)
+    monkeypatch.setattr(
+        config,
+        "NEW_MODEL_CREATION_POLICY",
+        "forward_requalified_current_first",
+    )
+    client = _make_client()
+    client.models[1] = SimpleMLP()
+    client.model_stats[1] = {"n": 10, "mean": 0.1, "M2": 0.0}
+    bx = torch.randn((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    held_data = [
+        (bx[index:index + 1], by[index:index + 1])
+        for index in range(len(bx))
+    ]
+
+    client._begin_forward_validation(
+        bx,
+        by,
+        held_data,
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+    )
+    session = client._forward_validation
+    for _ in range(3):
+        session.append_losses(0.05, {0: 0.18, 1: 0.12})
+
+    drift_type = client._finalize_forward_validation(sample_idx=103)
+
+    decision = client.provisional_model_decisions[0]
+    assert drift_type == 0
+    assert client.current_model_id == 0
+    assert client.local_switch_positions == []
+    assert not decision.accepted
+    assert decision.reason == "current_reference_refit"
+    assert decision.reference_model_id == 0
+    assert len(client.train_data_store[0]) == len(held_data)
+
+
 def test_incomplete_forward_validation_is_rejected_at_end(monkeypatch):
     monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
     monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)
