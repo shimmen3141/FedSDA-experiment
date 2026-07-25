@@ -128,6 +128,26 @@ def test_new_model_initializer_can_average_existing_models(monkeypatch):
     )
 
 
+def test_model_reuse_policy_can_prefer_current_model(monkeypatch):
+    client = _make_client()
+    candidates = [(0, 0.30), (1, 0.10)]
+
+    monkeypatch.setattr(config, "FEDSDA_MODEL_REUSE_POLICY", "best_fit")
+    assert client._select_reuse_candidate(candidates) == (1, 0.10)
+
+    monkeypatch.setattr(config, "FEDSDA_MODEL_REUSE_POLICY", "current_first")
+    assert client._select_reuse_candidate(candidates) == (0, 0.30)
+
+
+def test_current_first_reuse_falls_back_to_best_alternative(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_MODEL_REUSE_POLICY", "current_first")
+    client = _make_client()
+
+    assert client._select_reuse_candidate(
+        [(1, 0.20), (2, 0.10)]
+    ) == (2, 0.10)
+
+
 def test_new_model_training_early_stopping_uses_at_most_max_epochs(monkeypatch):
     monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "early_stopping")
     monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 8)

@@ -62,6 +62,12 @@ def main():
         help="FedSDAのクラスタリング頻度",
     )
     parser.add_argument(
+        "--model-reuse-policy",
+        choices=config.FEDSDA_MODEL_REUSE_POLICIES,
+        default=config.FEDSDA_MODEL_REUSE_POLICY,
+        help="ドリフト検出直後に適合した既存モデルの選択方針",
+    )
+    parser.add_argument(
         "--detection-episodes",
         action=argparse.BooleanOptionalAction,
         default=config.FEDSDA_DETECTION_EPISODES_ENABLED,
@@ -118,6 +124,7 @@ def main():
     config.FEDDRIFT_DETECTION_BATCH_SIZE = args.feddrift_batch
     config.CLUSTER_LINKAGE = args.cluster_linkage
     config.FEDSDA_CLUSTERING_POLICY = args.clustering_policy
+    config.FEDSDA_MODEL_REUSE_POLICY = args.model_reuse_policy
     config.FEDSDA_DETECTION_EPISODES_ENABLED = args.detection_episodes
     config.NEW_MODEL_CREATION_POLICY = args.new_model_creation_policy
     config.FIFO_BUFFER_SIZE = args.fifo_size

@@ -4,6 +4,9 @@ FedSDAでは、ドリフト警報後に既存モデルが距離閾値を満た�
 `NEW_MODEL_CREATION_POLICY` で選択する。検出器、Cached/NoCached、初期化方法、
 early stoppingとは独立した設定である。
 
+ドリフト検出直後の既存モデル再利用は、これとは独立した
+`FEDSDA_MODEL_REUSE_POLICY` で制御する。詳細は [model-reuse.md](model-reuse.md) を参照。
+
 ## 各方式
 
 | 方針 | 学習データ | 検証データ | 新規作成の条件 | 確定の遅延 |

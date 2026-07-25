@@ -100,6 +100,8 @@ def test_metrics_classify_switch_false_positives_and_actions():
     assert metrics["adaptation_create_precision"] == 1.0
     assert metrics["adaptation_episode_suppressed_count"] == 1
     assert metrics["adaptation_create_rejected_count"] == 1
+    assert metrics["model_reuse_current_fit_count"] == 0
+    assert metrics["model_reuse_alternative_fit_count"] == 0
     assert metrics["server_mapping_change_count"] == 1
     assert metrics["provisional_proposal_count"] == 2
     assert metrics["provisional_acceptance_rate"] == 0.5

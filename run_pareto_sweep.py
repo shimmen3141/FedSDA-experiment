@@ -59,6 +59,7 @@ METRIC_KEYS = [
     "adaptation_reuse_count", "adaptation_reuse_precision",
     "adaptation_create_count", "adaptation_create_precision",
     "adaptation_create_rejected_count",
+    "model_reuse_current_fit_count", "model_reuse_alternative_fit_count",
     "provisional_proposal_count", "provisional_acceptance_rate",
     "provisional_matched_true_count", "provisional_accepted_matched_true_count",
     "provisional_rejected_matched_true_count", "provisional_accepted_precision",
@@ -99,7 +100,7 @@ ADWIN_DELTA = parameter("adwin_delta").csv_name
 ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "seed", "series", "sweep_parameter", "sweep_value",
             FEDDRIFT_DETECTION_BATCH_SIZE, AGGREGATION_INTERVAL,
-            "clustering_policy", "detection_episodes",
+            "clustering_policy", "model_reuse_policy", "detection_episodes",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
             "new_model_forward_validation_samples",
@@ -146,6 +147,10 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
     if "FedSDA" in mode and config.FEDSDA_CLUSTERING_POLICY != "on_new_model":
         display_series = (
             f"{display_series} [cluster={config.FEDSDA_CLUSTERING_POLICY}]"
+        )
+    if "FedSDA" in mode and config.FEDSDA_MODEL_REUSE_POLICY != "best_fit":
+        display_series = (
+            f"{display_series} [reuse={config.FEDSDA_MODEL_REUSE_POLICY}]"
         )
     if "FedSDA" in mode and config.FEDSDA_DETECTION_EPISODES_ENABLED:
         display_series = f"{display_series} [episodes]"
@@ -198,6 +203,7 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
             if mode in FEDSDA_MODES or mode in BASELINE_MODES else None
         ),
         "clustering_policy": config.FEDSDA_CLUSTERING_POLICY,
+        "model_reuse_policy": config.FEDSDA_MODEL_REUSE_POLICY,
         "detection_episodes": config.FEDSDA_DETECTION_EPISODES_ENABLED,
         "new_model_creation_policy": config.NEW_MODEL_CREATION_POLICY,
         "fifo_size": config.FIFO_BUFFER_SIZE,
@@ -384,6 +390,7 @@ def _load_csv(path):
             )
             row[ADWIN_DELTA] = row.get(ADWIN_DELTA, "")
             row.setdefault("clustering_policy", "on_new_model")
+            row.setdefault("model_reuse_policy", "best_fit")
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
             row.setdefault("fifo_size", str(config.FIFO_BUFFER_SIZE))
@@ -710,6 +717,12 @@ def build_parser():
         help="FedSDAのクラスタリング頻度",
     )
     fedsda.add_argument(
+        "--model-reuse-policy",
+        choices=config.FEDSDA_MODEL_REUSE_POLICIES,
+        default=config.FEDSDA_MODEL_REUSE_POLICY,
+        help="ドリフト検出直後に適合した既存モデルの選択方針",
+    )
+    fedsda.add_argument(
         "--detection-episodes",
         action=argparse.BooleanOptionalAction,
         default=config.FEDSDA_DETECTION_EPISODES_ENABLED,
@@ -827,6 +840,7 @@ def main():
         config.TOTAL_DATA_POINTS = args.total_data
     config.CONCEPT_SCHEDULE = args.concept_schedule
     config.FEDSDA_CLUSTERING_POLICY = args.clustering_policy
+    config.FEDSDA_MODEL_REUSE_POLICY = args.model_reuse_policy
     config.FEDSDA_DETECTION_EPISODES_ENABLED = args.detection_episodes
     config.NEW_MODEL_CREATION_POLICY = args.new_model_creation_policy
     config.FIFO_BUFFER_SIZE = args.fifo_size

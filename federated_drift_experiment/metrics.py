@@ -262,6 +262,16 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
             if operation_counts["create"] else 0.0
         ),
         "adaptation_create_rejected_count": operation_counts["create_rejected"],
+        "model_reuse_current_fit_count": sum(
+            getattr(client, "reuse_selection_counts", {}).get("current_fit", 0)
+            for client in clients
+        ),
+        "model_reuse_alternative_fit_count": sum(
+            getattr(client, "reuse_selection_counts", {}).get(
+                "alternative_fit", 0
+            )
+            for client in clients
+        ),
         "provisional_proposal_count": len(provisional_decisions),
         "provisional_acceptance_rate": (
             len(accepted_proposals) / len(provisional_decisions)

@@ -44,6 +44,7 @@ class FedSDAClient(BaseClient, ABC):
         self.fifo_size = config.FIFO_BUFFER_SIZE    # FIFOバッファ長 N_FIFO
         self.detector_candidate_start_positions = []
         self.provisional_model_decisions = []
+        self.reuse_selection_counts = defaultdict(int)
         self._forward_validation = None
         self.forward_validation_samples = int(
             config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES
@@ -485,6 +486,26 @@ class FedSDAClient(BaseClient, ABC):
             "or 'average'"
         )
 
+    def _select_reuse_candidate(self, valid_candidates):
+        """設定された再利用方針に従い、適合済みの既存モデルを一つ選ぶ。"""
+        policy = config.FEDSDA_MODEL_REUSE_POLICY
+        if policy == "current_first":
+            current = next(
+                (
+                    candidate for candidate in valid_candidates
+                    if candidate[0] == self.current_model_id
+                ),
+                None,
+            )
+            if current is not None:
+                return current
+        elif policy != "best_fit":
+            raise ValueError(
+                "FEDSDA_MODEL_REUSE_POLICY must be one of "
+                f"{config.FEDSDA_MODEL_REUSE_POLICIES}"
+            )
+        return min(valid_candidates, key=lambda item: item[1])
+
     def _spawn_validated_provisional_model(
         self, bx, by, initialization_params, sample_idx
     ):
@@ -688,8 +709,11 @@ class FedSDAClient(BaseClient, ABC):
                 valid_candidates.append((model_id, loss))
 
         if valid_candidates:
-            best_model_id, minimum_loss = min(valid_candidates, key=lambda item: item[1])
+            best_model_id, minimum_loss = self._select_reuse_candidate(
+                valid_candidates
+            )
             if best_model_id != self.current_model_id:
+                self.reuse_selection_counts["alternative_fit"] += 1
                 if self.verbose:
                     print(f"  -> Switch to Model {best_model_id} "
                           f"(Loss {minimum_loss:.3f})")
@@ -699,6 +723,7 @@ class FedSDAClient(BaseClient, ABC):
                 action = "reuse"
                 drift_data = buffer_drift_data
             else:
+                self.reuse_selection_counts["current_fit"] += 1
                 if self.verbose:
                     print(f"  -> Keep current Model {self.current_model_id} "
                           f"(Loss {minimum_loss:.3f})")
