@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from federated_drift_experiment.adaptation_events import AdaptationEvent
 from federated_drift_experiment.detection_episode import DetectionEpisodeController
-from federated_drift_experiment.metrics import compute_metrics
+from federated_drift_experiment.metrics import compute_metrics, match_events
 from federated_drift_experiment.provisional_model import ProvisionalModelDecision
 
 
@@ -27,6 +27,16 @@ def test_disabled_detection_episode_preserves_existing_behavior():
     assert controller.observe_detection(100) == (True, None)
     controller.mark_operation()
     assert controller.observe_detection(101) == (True, None)
+
+
+def test_match_events_returns_proposal_indices_used_by_greedy_matching():
+    used, matched_true, delays = match_events(
+        [100, 300], [50, 120, 130, 350], delay_tolerance=50
+    )
+
+    assert used == {1, 3}
+    assert matched_true == {0, 1}
+    assert delays == [20, 50]
 
 
 def test_metrics_classify_switch_false_positives_and_actions():
@@ -99,3 +109,5 @@ def test_metrics_classify_switch_false_positives_and_actions():
     assert metrics["provisional_accepted_precision"] == 1.0
     assert metrics["provisional_reject_full_and_recent_count"] == 1
     assert abs(metrics["provisional_accepted_full_margin_mean"] - 0.3) < 1e-12
+    assert abs(metrics["provisional_matched_full_margin_mean"] - 0.3) < 1e-12
+    assert abs(metrics["provisional_unmatched_full_margin_mean"] + 0.2) < 1e-12

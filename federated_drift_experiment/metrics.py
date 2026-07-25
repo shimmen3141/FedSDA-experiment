@@ -10,7 +10,7 @@ from collections import Counter
 from . import config
 
 
-def _match_events(true_positions, event_positions, delay_tolerance):
+def match_events(true_positions, event_positions, delay_tolerance):
     """既存指標と同じgreedy規則で真のドリフトとイベントを一対一対応付けする。"""
     used = set()
     matched_true = set()
@@ -114,6 +114,7 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
     provisional_matched_count = 0
     provisional_accepted_matched_count = 0
     provisional_rejected_matched_count = 0
+    provisional_match_flags = []
 
     total_local_switches = sum(len(c.local_switch_positions) for c in clients)
 
@@ -121,7 +122,7 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
     for i, c in enumerate(clients):
         true_drifts = list(true_drift_events[i])  # sample indices where concept changed
         local_sw = sorted(c.local_switch_positions)
-        used, matched_true, client_delays = _match_events(
+        used, matched_true, client_delays = match_events(
             true_drifts, local_sw, delay_tolerance
         )
         delays.extend(client_delays)
@@ -136,7 +137,7 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         )
 
         alarms = sorted(getattr(c, "detected_event_positions", []))
-        alarm_used, alarm_matched, _ = _match_events(
+        alarm_used, alarm_matched, _ = match_events(
             true_drifts, alarms, delay_tolerance
         )
         alarm_true_total += len(true_drifts)
@@ -146,7 +147,7 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         events = list(getattr(c, "adaptation_events", []))
         actionable = [event for event in events if event.action in ("reuse", "create")]
         actionable_positions = [event.position for event in actionable]
-        action_used, _, _ = _match_events(
+        action_used, _, _ = match_events(
             true_drifts, actionable_positions, delay_tolerance
         )
         for event_index, event in enumerate(actionable):
@@ -164,10 +165,14 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
             getattr(c, "provisional_model_decisions", [])
         )
         provisional_decisions.extend(client_provisional)
-        proposal_used, _, _ = _match_events(
+        proposal_used, _, _ = match_events(
             true_drifts,
             [decision.position for decision in client_provisional],
             delay_tolerance,
+        )
+        provisional_match_flags.extend(
+            decision_index in proposal_used
+            for decision_index in range(len(client_provisional))
         )
         provisional_matched_count += len(proposal_used)
         for decision_index in proposal_used:
@@ -205,6 +210,16 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
     )
     accepted_proposals = [decision for decision in provisional_decisions if decision.accepted]
     rejected_proposals = [decision for decision in provisional_decisions if not decision.accepted]
+    matched_proposals = [
+        decision for decision, matched in zip(
+            provisional_decisions, provisional_match_flags
+        ) if matched
+    ]
+    unmatched_proposals = [
+        decision for decision, matched in zip(
+            provisional_decisions, provisional_match_flags
+        ) if not matched
+    ]
 
     def decision_mean(decisions, attribute):
         values = [float(getattr(decision, attribute)) for decision in decisions]
@@ -286,6 +301,18 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         ),
         "provisional_rejected_recent_margin_mean": decision_mean(
             rejected_proposals, "recent_margin"
+        ),
+        "provisional_matched_full_margin_mean": decision_mean(
+            matched_proposals, "full_margin"
+        ),
+        "provisional_matched_recent_margin_mean": decision_mean(
+            matched_proposals, "recent_margin"
+        ),
+        "provisional_unmatched_full_margin_mean": decision_mean(
+            unmatched_proposals, "full_margin"
+        ),
+        "provisional_unmatched_recent_margin_mean": decision_mean(
+            unmatched_proposals, "recent_margin"
         ),
         "provisional_reject_insufficient_data_count": sum(
             decision.reason == "insufficient_data" for decision in rejected_proposals

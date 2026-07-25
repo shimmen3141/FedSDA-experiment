@@ -40,7 +40,7 @@ from .data import (
     make_concept_schedules,
     normalize_dataset_name,
 )
-from .metrics import compute_metrics
+from .metrics import compute_metrics, match_events
 from .models import SimpleMLP
 from .mode_names import (
     FEDSDA_MODES,
@@ -505,8 +505,15 @@ def _save_raw_run(
     provisional_reference_recent_losses = []
     provisional_resolution_positions = []
     provisional_validation_sources = []
+    provisional_matched_true = []
     for client_id, client in enumerate(clients):
-        for decision in getattr(client, "provisional_model_decisions", []):
+        decisions = list(getattr(client, "provisional_model_decisions", []))
+        matched_indices, _, _ = match_events(
+            list(true_drift_events[client_id]),
+            [decision.position for decision in decisions],
+            config.DELAY_TOLERANCE,
+        )
+        for decision_index, decision in enumerate(decisions):
             provisional_client_ids.append(client_id)
             provisional_positions.append(decision.position)
             provisional_detectors.append(decision.detector)
@@ -529,6 +536,7 @@ def _save_raw_run(
                 else decision.position
             )
             provisional_validation_sources.append(decision.validation_source)
+            provisional_matched_true.append(decision_index in matched_indices)
 
     telemetry_arrays = {
         "round_global_model_count": np.asarray(telemetry["global_model_count"], dtype=np.float64),
@@ -611,6 +619,9 @@ def _save_raw_run(
         ),
         provisional_validation_sources=np.asarray(
             provisional_validation_sources, dtype=np.str_
+        ),
+        provisional_matched_true=np.asarray(
+            provisional_matched_true, dtype=np.bool_
         ),
         dataset=str(config.DATASET),
         concept_schedule=str(config.CONCEPT_SCHEDULE),
