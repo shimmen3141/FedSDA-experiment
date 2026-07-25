@@ -77,8 +77,13 @@ AMSGRAD = True             # Adam の amsgrad(論文設定)
 NEW_MODEL_EPOCHS = 30       # 新規モデル作成時の初期学習エポック数 (E_init)
 NEW_MODEL_TRAINING = "early_stopping"  # fixed / none / early_stopping
 NEW_MODEL_INITIALIZATION = "best_candidate"  # current / best_candidate / average
-NEW_MODEL_CREATION_POLICY = "immediate"  # immediate / validated / forward_validated
-NEW_MODEL_CREATION_POLICIES = ("immediate", "validated", "forward_validated")
+NEW_MODEL_CREATION_POLICY = "immediate"
+NEW_MODEL_CREATION_POLICIES = (
+    "immediate",
+    "validated",
+    "forward_validated",
+    "forward_requalified",
+)
 NEW_MODEL_EARLY_STOPPING_PATIENCE = 3
 NEW_MODEL_EARLY_STOPPING_MIN_DELTA = 1e-4
 NEW_MODEL_VALIDATION_FRACTION = 0.2

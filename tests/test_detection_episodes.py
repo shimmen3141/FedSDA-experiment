@@ -108,6 +108,7 @@ def test_metrics_classify_switch_false_positives_and_actions():
     assert metrics["provisional_rejected_matched_true_count"] == 0
     assert metrics["provisional_accepted_precision"] == 1.0
     assert metrics["provisional_reject_full_and_recent_count"] == 1
+    assert metrics["provisional_reject_reference_refit_count"] == 0
     assert abs(metrics["provisional_accepted_full_margin_mean"] - 0.3) < 1e-12
     assert abs(metrics["provisional_matched_full_margin_mean"] - 0.3) < 1e-12
     assert abs(metrics["provisional_unmatched_full_margin_mean"] + 0.2) < 1e-12

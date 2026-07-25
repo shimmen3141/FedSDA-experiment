@@ -4,6 +4,7 @@ from federated_drift_experiment.provisional_model import (
     ForwardValidationSession,
     ProvisionalModelDecision,
     has_consistent_validation_advantage,
+    select_forward_fitting_reference,
     temporal_holdout,
     validation_rejection_reason,
 )
@@ -74,6 +75,30 @@ def test_validation_rejection_reason_identifies_failed_time_range():
     assert validation_rejection_reason(
         torch.tensor([0.9, 0.9, 0.9, 0.9]), reference, 0.01
     ) == "full_and_recent"
+
+
+def test_forward_requalification_selects_best_still_fitting_reference():
+    selected = select_forward_fitting_reference(
+        reference_losses={
+            0: [0.25, 0.25],
+            1: [0.16, 0.18],
+            2: [0.40, 0.40],
+        },
+        reference_historical_means={0: 0.10, 1: 0.10, 2: 0.10},
+        distance_threshold=0.10,
+    )
+
+    assert selected == 1
+
+
+def test_forward_requalification_returns_none_when_all_references_mismatch():
+    selected = select_forward_fitting_reference(
+        reference_losses={0: [0.25, 0.25], 1: [0.31, 0.29]},
+        reference_historical_means={0: 0.10, 1: 0.10},
+        distance_threshold=0.10,
+    )
+
+    assert selected is None
 
 
 def test_provisional_decision_exposes_candidate_advantage_margins():

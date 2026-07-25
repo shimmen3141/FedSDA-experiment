@@ -330,6 +330,16 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         "provisional_reject_full_and_recent_count": sum(
             decision.reason == "full_and_recent" for decision in rejected_proposals
         ),
+        "provisional_reject_reference_refit_count": sum(
+            decision.reason == "reference_refit" for decision in rejected_proposals
+        ),
+        "provisional_reference_excess_mean": decision_mean(
+            [
+                decision for decision in provisional_decisions
+                if math.isfinite(decision.reference_excess)
+            ],
+            "reference_excess",
+        ),
         "adaptation_maintain_count": operation_counts["maintain"],
         "adaptation_episode_suppressed_count": operation_counts["episode_suppressed"],
         "server_mapping_change_count": server_mapping_changes,

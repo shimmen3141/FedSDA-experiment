@@ -14,10 +14,13 @@ from ..provisional_model import (
     ForwardValidationSession,
     ProvisionalModelDecision,
     has_consistent_validation_advantage,
+    select_forward_fitting_reference,
     temporal_holdout,
     validation_rejection_reason,
 )
 from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
+
+_FORWARD_VALIDATION_POLICIES = {"forward_validated", "forward_requalified"}
 
 
 class FedSDAClient(BaseClient, ABC):
@@ -82,6 +85,12 @@ class FedSDAClient(BaseClient, ABC):
         training_start = time.perf_counter()
         self._train_new_model(candidate, bx, by)
         self.phase_seconds["training"] += time.perf_counter() - training_start
+        reference_models = self._snapshot_reference_models()
+        reference_historical_means = {}
+        for model_id in reference_models:
+            stats = self.model_stats.get(model_id)
+            if stats is not None and stats.get("n", 0) >= 2:
+                reference_historical_means[model_id] = float(stats["mean"])
         self._forward_validation = ForwardValidationSession(
             proposal_position=sample_idx,
             estimated_change_point=estimated_start,
@@ -92,8 +101,9 @@ class FedSDAClient(BaseClient, ABC):
             training_x=bx,
             training_y=by,
             held_data=list(drift_data),
-            reference_models=self._snapshot_reference_models(),
+            reference_models=reference_models,
             target_count=self.forward_validation_samples,
+            reference_historical_means=reference_historical_means,
         )
 
     def _observe_forward_validation(self, x, y, sample_idx):
@@ -127,19 +137,37 @@ class FedSDAClient(BaseClient, ABC):
             session.reference_losses,
             key=lambda model_id: sum(session.reference_losses[model_id]),
         )
+        requalified_model_id = None
+        if config.NEW_MODEL_CREATION_POLICY == "forward_requalified":
+            available_losses = {
+                model_id: losses
+                for model_id, losses in session.reference_losses.items()
+                if model_id in self.models
+            }
+            requalified_model_id = select_forward_fitting_reference(
+                available_losses,
+                session.reference_historical_means,
+                self.distance_threshold,
+            )
+            if requalified_model_id is not None:
+                reference_model_id = requalified_model_id
         reference_losses = torch.tensor(
             session.reference_losses[reference_model_id]
         )
-        accepted = has_consistent_validation_advantage(
-            candidate_losses,
-            reference_losses,
-            min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
-        )
-        reason = validation_rejection_reason(
-            candidate_losses,
-            reference_losses,
-            min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
-        )
+        if requalified_model_id is not None:
+            accepted = False
+            reason = "reference_refit"
+        else:
+            accepted = has_consistent_validation_advantage(
+                candidate_losses,
+                reference_losses,
+                min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
+            )
+            reason = validation_rejection_reason(
+                candidate_losses,
+                reference_losses,
+                min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
+            )
         recent_start = len(candidate_losses) // 2
         self.provisional_model_decisions.append(ProvisionalModelDecision(
             position=session.proposal_position,
@@ -160,6 +188,9 @@ class FedSDAClient(BaseClient, ABC):
             ),
             resolution_position=sample_idx,
             validation_source="forward",
+            reference_historical_mean=session.reference_historical_means.get(
+                reference_model_id, math.nan
+            ),
         ))
 
         old_model_id = self.current_model_id
@@ -179,6 +210,17 @@ class FedSDAClient(BaseClient, ABC):
             self.detection_episodes.mark_operation()
             action = "create"
             drift_type = 2
+        elif requalified_model_id is not None:
+            self.current_model_id = requalified_model_id
+            self._absorb_into_store(self.current_model_id, session.held_data)
+            if self.current_model_id != old_model_id:
+                self.local_switch_positions.append(sample_idx)
+                self.detection_episodes.mark_operation()
+                action = "reuse"
+                drift_type = 1
+            else:
+                action = "maintain"
+                drift_type = 0
         else:
             self._absorb_into_store(self.current_model_id, session.held_data)
             action = "create_rejected"
@@ -662,7 +704,7 @@ class FedSDAClient(BaseClient, ABC):
                     initialization_params,
                     sample_idx,
                 )
-            elif config.NEW_MODEL_CREATION_POLICY == "forward_validated":
+            elif config.NEW_MODEL_CREATION_POLICY in _FORWARD_VALIDATION_POLICIES:
                 self._begin_forward_validation(
                     initial_bx,
                     initial_by,
@@ -676,11 +718,12 @@ class FedSDAClient(BaseClient, ABC):
             else:
                 raise ValueError(
                     "NEW_MODEL_CREATION_POLICY must be 'immediate', "
-                    "'validated', or 'forward_validated'"
+                    "'validated', 'forward_validated', or "
+                    "'forward_requalified'"
                 )
 
             drift_data = buffer_drift_data
-            if config.NEW_MODEL_CREATION_POLICY == "forward_validated":
+            if config.NEW_MODEL_CREATION_POLICY in _FORWARD_VALIDATION_POLICIES:
                 drift_type = 0
                 action = "create_pending"
             elif temporary_id is None:

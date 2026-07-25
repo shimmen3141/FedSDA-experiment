@@ -118,7 +118,10 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 採用するには `--new-model-creation-policy validated` を指定します。警報後の新着データで
 検証する場合は `--new-model-creation-policy forward_validated
 --new-model-forward-validation-samples 10` を指定します。既定の `immediate` は従来動作を
-保ちます。この設定は検出エピソードの有無とは独立です。
+保ちます。既存モデルの再適合確認を先に行う方式は
+`--new-model-creation-policy forward_requalified` です。この設定は検出エピソードの有無とは
+独立です。各方式のデータ分割と判定順序は
+[docs/new-model-creation.md](docs/new-model-creation.md) を参照してください。
 
 ### データセット(`--dataset`)
 

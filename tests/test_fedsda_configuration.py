@@ -145,6 +145,7 @@ def test_new_model_training_early_stopping_uses_at_most_max_epochs(monkeypatch):
 def test_forward_validation_accepts_candidate_after_future_samples(monkeypatch):
     monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
     monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "forward_validated")
     client = _make_client()
     bx = torch.randn((4, config.input_dim()))
     by = torch.zeros((4, 1))
@@ -175,6 +176,45 @@ def test_forward_validation_accepts_candidate_after_future_samples(monkeypatch):
     assert client.provisional_model_decisions[0].validation_source == "forward"
     assert client.provisional_model_decisions[0].resolution_delay == 3
     assert len(client.train_data_store[client.current_model_id]) == len(held_data)
+
+
+def test_forward_requalification_reuses_fitting_existing_model(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "forward_requalified")
+    client = _make_client()
+    client.models[1] = SimpleMLP()
+    client.model_stats[1] = {"n": 10, "mean": 0.1, "M2": 0.0}
+    bx = torch.randn((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    held_data = [
+        (bx[index:index + 1], by[index:index + 1])
+        for index in range(len(bx))
+    ]
+
+    client._begin_forward_validation(
+        bx,
+        by,
+        held_data,
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+    )
+    session = client._forward_validation
+    for _ in range(3):
+        session.append_losses(0.05, {0: 0.5, 1: 0.15})
+
+    drift_type = client._finalize_forward_validation(sample_idx=103)
+
+    decision = client.provisional_model_decisions[0]
+    assert drift_type == 1
+    assert client.current_model_id == 1
+    assert not decision.accepted
+    assert decision.reason == "reference_refit"
+    assert decision.reference_model_id == 1
+    assert abs(decision.reference_excess - 0.05) < 1e-6
+    assert len(client.train_data_store[1]) == len(held_data)
 
 
 def test_incomplete_forward_validation_is_rejected_at_end(monkeypatch):

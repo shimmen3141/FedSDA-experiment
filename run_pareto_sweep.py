@@ -78,6 +78,8 @@ METRIC_KEYS = [
     "provisional_reject_full_interval_count",
     "provisional_reject_recent_interval_count",
     "provisional_reject_full_and_recent_count",
+    "provisional_reject_reference_refit_count",
+    "provisional_reference_excess_mean",
     "adaptation_maintain_count", "adaptation_episode_suppressed_count",
     "server_mapping_change_count",
     "runtime_seconds", "client_compute_seconds_sum", "client_compute_seconds_max",
@@ -160,7 +162,9 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
         )
     if (
         "FedSDA" in mode
-        and config.NEW_MODEL_CREATION_POLICY == "forward_validated"
+        and config.NEW_MODEL_CREATION_POLICY in {
+            "forward_validated", "forward_requalified"
+        }
     ):
         display_series = (
             f"{display_series} "

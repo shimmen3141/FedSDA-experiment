@@ -501,6 +501,7 @@ def _save_raw_run(
     provisional_reference_model_ids = []
     provisional_candidate_mean_losses = []
     provisional_reference_mean_losses = []
+    provisional_reference_historical_means = []
     provisional_candidate_recent_losses = []
     provisional_reference_recent_losses = []
     provisional_resolution_positions = []
@@ -528,6 +529,9 @@ def _save_raw_run(
             )
             provisional_candidate_mean_losses.append(decision.candidate_mean_loss)
             provisional_reference_mean_losses.append(decision.reference_mean_loss)
+            provisional_reference_historical_means.append(
+                decision.reference_historical_mean
+            )
             provisional_candidate_recent_losses.append(decision.candidate_recent_loss)
             provisional_reference_recent_losses.append(decision.reference_recent_loss)
             provisional_resolution_positions.append(
@@ -607,6 +611,9 @@ def _save_raw_run(
         ),
         provisional_reference_mean_losses=np.asarray(
             provisional_reference_mean_losses, dtype=np.float64
+        ),
+        provisional_reference_historical_means=np.asarray(
+            provisional_reference_historical_means, dtype=np.float64
         ),
         provisional_candidate_recent_losses=np.asarray(
             provisional_candidate_recent_losses, dtype=np.float64

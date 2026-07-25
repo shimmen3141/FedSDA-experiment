@@ -31,6 +31,7 @@ class ProvisionalModelDecision:
     reference_recent_loss: float
     resolution_position: Optional[int] = None
     validation_source: str = "historical"
+    reference_historical_mean: float = float("nan")
 
     @property
     def full_margin(self):
@@ -49,6 +50,11 @@ class ProvisionalModelDecision:
             return 0
         return self.resolution_position - self.position
 
+    @property
+    def reference_excess(self):
+        """前向き区間損失が参照モデルの履歴平均をどれだけ上回ったかを返す。"""
+        return self.reference_mean_loss - self.reference_historical_mean
+
 
 @dataclass
 class ForwardValidationSession:
@@ -65,6 +71,7 @@ class ForwardValidationSession:
     held_data: list
     reference_models: dict
     target_count: int
+    reference_historical_means: dict[int, float] = field(default_factory=dict)
     candidate_losses: list[float] = field(default_factory=list)
     reference_losses: dict[int, list[float]] = field(default_factory=dict)
 
@@ -145,3 +152,22 @@ def validation_rejection_reason(candidate_losses, reference_losses, min_delta):
     if recent_failed:
         return "recent_interval"
     return "accepted"
+
+
+def select_forward_fitting_reference(
+    reference_losses,
+    reference_historical_means,
+    distance_threshold,
+):
+    """前向きデータでも履歴平均から閾値内に収まる最良の既存モデルを返す。"""
+    fitting = []
+    for model_id, losses in reference_losses.items():
+        if model_id not in reference_historical_means or not losses:
+            continue
+        mean_loss = float(torch.as_tensor(losses).mean().item())
+        historical_mean = float(reference_historical_means[model_id])
+        if mean_loss - historical_mean <= distance_threshold:
+            fitting.append((mean_loss, model_id))
+    if not fitting:
+        return None
+    return min(fitting)[1]
