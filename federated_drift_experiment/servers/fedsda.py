@@ -52,7 +52,9 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         n_new = 0
         for c in self.clients:
             if c.has_pending_model():
-                c.confirm_model_registration(self.request_new_model_id())
+                model_id = self.request_new_model_id()
+                self.record_model_registration(model_id, t, c)
+                c.confirm_model_registration(model_id)
                 n_new += 1
         if n_new > 0 and self.verbose:
             print(f"Server [t={t}]: Registered {n_new} new models (params sent once in FedAvg).")
@@ -68,6 +70,7 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
 
         stats_matrix = self._cross_evaluate(active_ids)
         clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
+        self.record_clustering_diagnostics(t, active_ids, clusters)
         if len(clusters) >= M:
             return {}
 
@@ -187,6 +190,7 @@ class FedSDACachedServer(FedSDANoCachedServer):
             if not client.has_pending_model():
                 continue
             model_id = self.request_new_model_id()
+            self.record_model_registration(model_id, t, client)
             client.confirm_model_registration(model_id)
             self.comm_messages_down += 1
             new_model_ids.append(model_id)
@@ -211,6 +215,7 @@ class FedSDACachedServer(FedSDANoCachedServer):
             use_client_cache=True,
         )
         clusters = self.perform_hierarchical_clustering(model_ids, stats_matrix)
+        self.record_clustering_diagnostics(t, model_ids, clusters)
         if len(clusters) < len(model_ids):
             self._merge_cached_clusters(t, clusters)
 

@@ -406,6 +406,7 @@ def _add_telemetry_results(results, clients, telemetry):
 def _save_raw_run(
     raw_path,
     clients,
+    server,
     true_drift_events,
     mode,
     label,
@@ -542,6 +543,16 @@ def _save_raw_run(
             provisional_validation_sources.append(decision.validation_source)
             provisional_matched_true.append(decision_index in matched_indices)
 
+    registrations = server.model_lineage.registrations
+    clustering_observations = server.model_lineage.clustering_observations
+    final_model_ids = set(server.global_models)
+    model_selection_counts = {
+        registration.model_id: int(np.count_nonzero(
+            model_id_hist == registration.model_id
+        ))
+        for registration in registrations
+    }
+
     telemetry_arrays = {
         "round_global_model_count": np.asarray(telemetry["global_model_count"], dtype=np.float64),
         "round_client_held_model_count": np.asarray(
@@ -629,6 +640,88 @@ def _save_raw_run(
         ),
         provisional_matched_true=np.asarray(
             provisional_matched_true, dtype=np.bool_
+        ),
+        model_registration_ids=np.asarray(
+            [registration.model_id for registration in registrations],
+            dtype=np.int32,
+        ),
+        model_registration_rounds=np.asarray(
+            [registration.round_index for registration in registrations],
+            dtype=np.int32,
+        ),
+        model_registration_client_ids=np.asarray(
+            [registration.client_id for registration in registrations],
+            dtype=np.int32,
+        ),
+        model_registration_final_active=np.asarray(
+            [registration.model_id in final_model_ids for registration in registrations],
+            dtype=np.bool_,
+        ),
+        model_registration_selection_counts=np.asarray(
+            [
+                model_selection_counts[registration.model_id]
+                for registration in registrations
+            ],
+            dtype=np.int64,
+        ),
+        clustering_rounds=np.asarray(
+            [observation.round_index for observation in clustering_observations],
+            dtype=np.int32,
+        ),
+        clustering_model_ids=np.asarray(
+            [observation.model_id for observation in clustering_observations],
+            dtype=np.int32,
+        ),
+        clustering_nearest_model_ids=np.asarray(
+            [observation.nearest_model_id for observation in clustering_observations],
+            dtype=np.int32,
+        ),
+        clustering_nearest_distances=np.asarray(
+            [observation.nearest_distance for observation in clustering_observations],
+            dtype=np.float64,
+        ),
+        clustering_representative_model_ids=np.asarray(
+            [
+                observation.representative_model_id
+                for observation in clustering_observations
+            ],
+            dtype=np.int32,
+        ),
+        clustering_cluster_sizes=np.asarray(
+            [observation.cluster_size for observation in clustering_observations],
+            dtype=np.int32,
+        ),
+        clustering_cluster_max_distances=np.asarray(
+            [
+                observation.cluster_max_distance
+                for observation in clustering_observations
+            ],
+            dtype=np.float64,
+        ),
+        clustering_evaluated_pair_counts=np.asarray(
+            [
+                observation.cluster_evaluated_pairs
+                for observation in clustering_observations
+            ],
+            dtype=np.int32,
+        ),
+        clustering_possible_pair_counts=np.asarray(
+            [
+                observation.cluster_possible_pairs
+                for observation in clustering_observations
+            ],
+            dtype=np.int32,
+        ),
+        clustering_participated_in_merge=np.asarray(
+            [
+                observation.participated_in_merge
+                for observation in clustering_observations
+            ],
+            dtype=np.bool_,
+        ),
+        clustering_absorbed=np.asarray(
+            [observation.absorbed for observation in clustering_observations],
+            dtype=np.bool_,
         ),
         dataset=str(config.DATASET),
         concept_schedule=str(config.CONCEPT_SCHEDULE),
@@ -784,7 +877,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
 
     # --- 生データの保存(回復曲線などの事後分析用)---
     if raw_path is not None:
-        _save_raw_run(raw_path, clients, true_drift_events, mode,
+        _save_raw_run(raw_path, clients, server, true_drift_events, mode,
                       raw_label if raw_label is not None else mode,
                       random_seed, telemetry, distance_threshold,
                       raw_sweep_parameter, raw_sweep_value)

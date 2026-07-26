@@ -14,6 +14,7 @@ class CrossEvaluationClusteringServer(BaseServer):
     def __init__(self, *args, linkage="connected", **kwargs):
         super().__init__(*args, **kwargs)
         self.linkage = linkage
+        self._last_pair_distances = {}
 
     def _cross_evaluate(self, model_ids, send_model_params=True, use_client_cache=False):
         """モデル対をクライアントで評価し、集約統計を返す。
@@ -93,5 +94,15 @@ class CrossEvaluationClusteringServer(BaseServer):
                     if self.verbose and random.random() < 0.1:
                         print(f"  MERGE candidate: {id_i}-{id_j} (Dist={dist:.3f})")
 
+        self._last_pair_distances = pair_distances
         return cluster_models(model_ids, pair_distances,
                               self.distance_threshold, self.linkage)
+
+    def record_clustering_diagnostics(self, t, model_ids, clusters):
+        """直前の距離計算とクラスタ割当を診断履歴へ保存する。"""
+        self.model_lineage.record_clustering(
+            t,
+            model_ids,
+            self._last_pair_distances,
+            clusters,
+        )

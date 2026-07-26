@@ -52,6 +52,7 @@ class FedDriftServer(CrossEvaluationClusteringServer):
             if not client.has_pending_model():
                 continue
             model_id = self.request_new_model_id()
+            self.record_model_registration(model_id, t, client)
             client.confirm_model_registration(model_id)
             self.isolated_until[model_id] = t + self.isolation_timesteps
             self.comm_messages_down += 1  # モデルIDの割当
@@ -63,6 +64,7 @@ class FedDriftServer(CrossEvaluationClusteringServer):
 
         stats_matrix = self._cross_evaluate(mature_ids, send_model_params=False)
         mature_clusters = self.perform_hierarchical_clustering(mature_ids, stats_matrix)
+        self.record_clustering_diagnostics(t, mature_ids, mature_clusters)
         if len(mature_clusters) == len(mature_ids):
             return
 

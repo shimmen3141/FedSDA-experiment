@@ -47,3 +47,9 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
         assert raw["feddrift_detection_batch_size"].item() == -1
         assert np.isnan(raw["fedsda_distance_threshold"].item())
         assert np.isnan(raw["feddrift_distance_threshold"].item())
+        assert raw["model_registration_ids"].tolist() == [0]
+        assert raw["model_registration_rounds"].tolist() == [-1]
+        assert raw["model_registration_client_ids"].tolist() == [-1]
+        assert raw["model_registration_final_active"].tolist() == [True]
+        assert raw["model_registration_selection_counts"].tolist() == [200]
+        assert raw["clustering_rounds"].shape == (0,)

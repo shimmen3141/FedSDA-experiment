@@ -144,6 +144,11 @@ def test_new_model_is_clustered_only_after_first_broadcast(monkeypatch):
     server.run_round(t=0)
     new_model_id = client.current_model_id
     assert new_model_id >= 0
+    registration = next(
+        item for item in server.model_lineage.registrations
+        if item.model_id == new_model_id
+    )
+    assert (registration.round_index, registration.client_id) == (0, 0)
     assert cross_evaluation_calls == []
     assert new_model_id in client.cached_global_model_params
     assert new_model_id in server.models_pending_clustering
@@ -159,6 +164,11 @@ def test_new_model_is_clustered_only_after_first_broadcast(monkeypatch):
     # クロス評価ではモデルを再送せず、通常ブロードキャスト分だけ増える。
     assert server.comm_models_down - models_down_before == len(server.global_models)
     assert server.models_pending_clustering == set()
+    assert {
+        observation.model_id
+        for observation in server.model_lineage.clustering_observations
+        if observation.round_index == 1
+    } == {0, new_model_id}
 
 
 def test_cached_merge_is_applied_before_fedavg(monkeypatch):

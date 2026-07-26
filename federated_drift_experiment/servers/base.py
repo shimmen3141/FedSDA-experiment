@@ -4,6 +4,7 @@ import copy
 from collections import defaultdict
 
 from .. import config
+from ..model_lineage import ModelLineageRecorder
 
 
 class BaseServer:
@@ -16,6 +17,7 @@ class BaseServer:
         self.distance_threshold = distance_threshold
         self.verbose = verbose
         self.global_stats = defaultdict(lambda: {'n': 0, 'mean': 0.0, 'M2': 0.0})
+        self.model_lineage = ModelLineageRecorder()
 
         # 通信量カウンタ(1単位 = 1モデルのパラメータを1回転送。全モデル同一サイズ)
         self.comm_models_up = 0    # クライアント→サーバのモデルパラメータ転送数
@@ -39,6 +41,15 @@ class BaseServer:
 
     def register_model_params(self, model_id, params):
         self.global_models[model_id] = copy.deepcopy(params)
+        self.model_lineage.ensure_model(model_id)
+
+    def record_model_registration(self, model_id, t, client):
+        """クライアント由来の新規モデルについて作成元を記録する。"""
+        self.model_lineage.register_model(
+            model_id,
+            round_index=t,
+            client_id=getattr(client, "client_id", -1),
+        )
 
     def register_model_stats(self, model_id, stats):
         self.global_stats[model_id] = copy.deepcopy(stats)
@@ -77,6 +88,7 @@ class BaseServer:
                 new_global_id = self.request_new_model_id()
                 self.register_model_params(new_global_id, params)
                 self.register_model_stats(new_global_id, stats)
+                self.record_model_registration(new_global_id, t, c)
                 c.confirm_model_registration(new_global_id)
                 self.comm_messages_down += 1  # 新規モデルIDの割当
                 new_registrations += 1
