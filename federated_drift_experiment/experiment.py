@@ -634,9 +634,6 @@ def _save_raw_run(
         concept_schedule=str(config.CONCEPT_SCHEDULE),
         mode=str(mode),
         label=str(label),
-        model_reuse_policy=np.asarray(
-            config.FEDSDA_MODEL_REUSE_POLICY, dtype=np.str_
-        ),
         parameter_schema_version=np.asarray(
             PARAMETER_SCHEMA_VERSION, dtype=np.int32
         ),

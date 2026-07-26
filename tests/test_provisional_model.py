@@ -3,7 +3,9 @@ import torch
 from federated_drift_experiment.provisional_model import (
     ForwardValidationSession,
     ProvisionalModelDecision,
+    disjoint_validation_rejection_reason,
     has_consistent_validation_advantage,
+    has_disjoint_validation_advantage,
     select_forward_fitting_reference,
     temporal_holdout,
     validation_rejection_reason,
@@ -75,6 +77,20 @@ def test_validation_rejection_reason_identifies_failed_time_range():
     assert validation_rejection_reason(
         torch.tensor([0.9, 0.9, 0.9, 0.9]), reference, 0.01
     ) == "full_and_recent"
+
+
+def test_disjoint_validation_advantage_requires_both_halves():
+    reference = torch.tensor([0.8, 0.8, 0.8, 0.8])
+
+    assert has_disjoint_validation_advantage(
+        torch.tensor([0.6, 0.6, 0.7, 0.7]), reference, min_delta=0.01
+    )
+    assert not has_disjoint_validation_advantage(
+        torch.tensor([0.9, 0.9, 0.2, 0.2]), reference, min_delta=0.01
+    )
+    assert disjoint_validation_rejection_reason(
+        torch.tensor([0.9, 0.9, 0.2, 0.2]), reference, min_delta=0.01
+    ) == "first_interval"
 
 
 def test_forward_requalification_selects_best_still_fitting_reference():

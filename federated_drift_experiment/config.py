@@ -84,6 +84,7 @@ NEW_MODEL_CREATION_POLICIES = (
     "forward_validated",
     "forward_requalified",
     "forward_requalified_current_first",
+    "forward_persistent",
 )
 NEW_MODEL_EARLY_STOPPING_PATIENCE = 3
 NEW_MODEL_EARLY_STOPPING_MIN_DELTA = 1e-4
@@ -166,7 +167,3 @@ CLUSTER_LINKAGE = 'complete'
 # 'on_new_model'=新規モデルの初回配布後のみ、'every_round'=各集約ラウンドで実行。
 FEDSDA_CLUSTERING_POLICY = 'on_new_model'
 FEDSDA_CLUSTERING_POLICIES = ('on_new_model', 'every_round')
-# ドリフト検出直後に複数の既存モデルが適合した場合の選択方針。
-# 'best_fit'=損失最小、'current_first'=現行モデルが適合する限り維持。
-FEDSDA_MODEL_REUSE_POLICY = 'best_fit'
-FEDSDA_MODEL_REUSE_POLICIES = ('best_fit', 'current_first')

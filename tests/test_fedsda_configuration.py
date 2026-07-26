@@ -128,24 +128,11 @@ def test_new_model_initializer_can_average_existing_models(monkeypatch):
     )
 
 
-def test_model_reuse_policy_can_prefer_current_model(monkeypatch):
+def test_model_reuse_selects_best_fitting_model():
     client = _make_client()
     candidates = [(0, 0.30), (1, 0.10)]
 
-    monkeypatch.setattr(config, "FEDSDA_MODEL_REUSE_POLICY", "best_fit")
     assert client._select_reuse_candidate(candidates) == (1, 0.10)
-
-    monkeypatch.setattr(config, "FEDSDA_MODEL_REUSE_POLICY", "current_first")
-    assert client._select_reuse_candidate(candidates) == (0, 0.30)
-
-
-def test_current_first_reuse_falls_back_to_best_alternative(monkeypatch):
-    monkeypatch.setattr(config, "FEDSDA_MODEL_REUSE_POLICY", "current_first")
-    client = _make_client()
-
-    assert client._select_reuse_candidate(
-        [(1, 0.20), (2, 0.10)]
-    ) == (2, 0.10)
 
 
 def test_new_model_training_early_stopping_uses_at_most_max_epochs(monkeypatch):
@@ -196,6 +183,40 @@ def test_forward_validation_accepts_candidate_after_future_samples(monkeypatch):
     assert client.provisional_model_decisions[0].validation_source == "forward"
     assert client.provisional_model_decisions[0].resolution_delay == 3
     assert len(client.train_data_store[client.current_model_id]) == len(held_data)
+
+
+def test_forward_persistent_rejects_advantage_limited_to_second_half(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 4)
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "forward_persistent")
+    client = _make_client()
+    bx = torch.randn((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    held_data = [
+        (bx[index:index + 1], by[index:index + 1])
+        for index in range(len(bx))
+    ]
+
+    client._begin_forward_validation(
+        bx,
+        by,
+        held_data,
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+    )
+    session = client._forward_validation
+    for candidate_loss in (0.9, 0.9, 0.2, 0.2):
+        session.append_losses(candidate_loss, {0: 0.8})
+
+    drift_type = client._finalize_forward_validation(sample_idx=104)
+
+    decision = client.provisional_model_decisions[0]
+    assert drift_type == 0
+    assert client.current_model_id == 0
+    assert not decision.accepted
+    assert decision.reason == "first_interval"
 
 
 def test_forward_requalification_reuses_fitting_existing_model(monkeypatch):

@@ -16,7 +16,7 @@ def test_cli_help_groups_related_sweep_options():
     assert "--fixed-adwin-delta" in help_text
     assert "--fixed-aggregation-interval" in help_text
     assert "--aggregation-intervals" in help_text
-    assert "--model-reuse-policy" in help_text
+    assert "--model-reuse-policy" not in help_text
     assert "FedDriftの手法・掃引" in help_text
     assert "--fixed-feddrift-distance-threshold" in help_text
     assert "--feddrift-detection-batch-sizes" in help_text
@@ -33,7 +33,6 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.agg_sweep == [50, 100, 200, 500]
     assert defaults.batches == [50, 100, 200, 500]
     assert defaults.concept_schedule == "random"
-    assert defaults.model_reuse_policy == "best_fit"
     selected = parser.parse_args([
         "--datasets", "sea2", "mnist2", "mnist4",
         "--concept-schedule", "feddrift_fixed",

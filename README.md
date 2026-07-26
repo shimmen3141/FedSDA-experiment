@@ -124,10 +124,10 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 `--new-model-creation-policy forward_requalified_current_first` です。各方式のデータ分割と判定順序は
 [docs/new-model-creation.md](docs/new-model-creation.md) を参照してください。
 
-ドリフト検出直後に複数の既存モデルが適合した場合は、既定では損失最小モデルを選びます。
-現行モデルが適合している限り維持する比較方式は
-`--model-reuse-policy current_first` で有効にできます。新規モデル作成時の再適合判定とは
-独立した設定です。詳細は [docs/model-reuse.md](docs/model-reuse.md) を参照してください。
+独立した前半・後半の両方で候補モデルの優位が持続することを要求する方式は
+`--new-model-creation-policy forward_persistent` です。ドリフト検出直後の既存モデル再利用では、
+適合モデルのうち損失最小のモデルを常に選びます。詳細は
+[docs/model-reuse.md](docs/model-reuse.md) を参照してください。
 
 ### データセット(`--dataset`)
 

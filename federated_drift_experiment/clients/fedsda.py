@@ -13,22 +13,15 @@ from ..models import SimpleMLP
 from ..provisional_model import (
     ForwardValidationSession,
     ProvisionalModelDecision,
+    disjoint_validation_rejection_reason,
+    forward_creation_policy,
     has_consistent_validation_advantage,
+    has_disjoint_validation_advantage,
     select_forward_fitting_reference,
     temporal_holdout,
     validation_rejection_reason,
 )
 from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
-
-_FORWARD_VALIDATION_POLICIES = {
-    "forward_validated",
-    "forward_requalified",
-    "forward_requalified_current_first",
-}
-_FORWARD_REQUALIFICATION_POLICIES = {
-    "forward_requalified",
-    "forward_requalified_current_first",
-}
 
 
 class FedSDAClient(BaseClient, ABC):
@@ -142,12 +135,17 @@ class FedSDAClient(BaseClient, ABC):
         if session is None or not session.ready:
             return 0
         candidate_losses = torch.tensor(session.candidate_losses)
+        policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
+        if policy is None:
+            raise ValueError(
+                "forward validation requires a forward creation policy"
+            )
         reference_model_id = min(
             session.reference_losses,
             key=lambda model_id: sum(session.reference_losses[model_id]),
         )
         requalified_model_id = None
-        if config.NEW_MODEL_CREATION_POLICY in _FORWARD_REQUALIFICATION_POLICIES:
+        if policy.requalify_references:
             available_losses = {
                 model_id: losses
                 for model_id, losses in session.reference_losses.items()
@@ -158,10 +156,7 @@ class FedSDAClient(BaseClient, ABC):
                 session.reference_historical_means,
                 self.distance_threshold,
                 preferred_model_id=(
-                    self.current_model_id
-                    if config.NEW_MODEL_CREATION_POLICY
-                    == "forward_requalified_current_first"
-                    else None
+                    self.current_model_id if policy.prefer_current_reference else None
                 ),
             )
             if requalified_model_id is not None:
@@ -171,10 +166,7 @@ class FedSDAClient(BaseClient, ABC):
         )
         if requalified_model_id is not None:
             accepted = False
-            if (
-                config.NEW_MODEL_CREATION_POLICY
-                == "forward_requalified_current_first"
-            ):
+            if policy.prefer_current_reference:
                 reason = (
                     "current_reference_refit"
                     if requalified_model_id == self.current_model_id
@@ -182,6 +174,17 @@ class FedSDAClient(BaseClient, ABC):
                 )
             else:
                 reason = "reference_refit"
+        elif policy.require_disjoint_persistence:
+            accepted = has_disjoint_validation_advantage(
+                candidate_losses,
+                reference_losses,
+                min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
+            )
+            reason = disjoint_validation_rejection_reason(
+                candidate_losses,
+                reference_losses,
+                min_delta=config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA,
+            )
         else:
             accepted = has_consistent_validation_advantage(
                 candidate_losses,
@@ -487,23 +490,7 @@ class FedSDAClient(BaseClient, ABC):
         )
 
     def _select_reuse_candidate(self, valid_candidates):
-        """設定された再利用方針に従い、適合済みの既存モデルを一つ選ぶ。"""
-        policy = config.FEDSDA_MODEL_REUSE_POLICY
-        if policy == "current_first":
-            current = next(
-                (
-                    candidate for candidate in valid_candidates
-                    if candidate[0] == self.current_model_id
-                ),
-                None,
-            )
-            if current is not None:
-                return current
-        elif policy != "best_fit":
-            raise ValueError(
-                "FEDSDA_MODEL_REUSE_POLICY must be one of "
-                f"{config.FEDSDA_MODEL_REUSE_POLICIES}"
-            )
+        """適合済み既存モデルのうち、区間平均損失が最小のものを選ぶ。"""
         return min(valid_candidates, key=lambda item: item[1])
 
     def _spawn_validated_provisional_model(
@@ -753,7 +740,7 @@ class FedSDAClient(BaseClient, ABC):
                     initialization_params,
                     sample_idx,
                 )
-            elif config.NEW_MODEL_CREATION_POLICY in _FORWARD_VALIDATION_POLICIES:
+            elif forward_creation_policy(config.NEW_MODEL_CREATION_POLICY) is not None:
                 self._begin_forward_validation(
                     initial_bx,
                     initial_by,
@@ -771,7 +758,7 @@ class FedSDAClient(BaseClient, ABC):
                 )
 
             drift_data = buffer_drift_data
-            if config.NEW_MODEL_CREATION_POLICY in _FORWARD_VALIDATION_POLICIES:
+            if forward_creation_policy(config.NEW_MODEL_CREATION_POLICY) is not None:
                 drift_type = 0
                 action = "create_pending"
             elif temporary_id is None:

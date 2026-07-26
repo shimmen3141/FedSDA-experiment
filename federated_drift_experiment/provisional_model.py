@@ -6,6 +6,30 @@ import torch
 
 
 @dataclass(frozen=True)
+class ForwardCreationPolicy:
+    """前向き検証方式を構成する直交した判断規則。"""
+
+    requalify_references: bool
+    prefer_current_reference: bool
+    require_disjoint_persistence: bool
+
+
+FORWARD_CREATION_POLICIES = {
+    "forward_validated": ForwardCreationPolicy(False, False, False),
+    "forward_requalified": ForwardCreationPolicy(True, False, False),
+    "forward_requalified_current_first": ForwardCreationPolicy(
+        True, True, False
+    ),
+    "forward_persistent": ForwardCreationPolicy(True, True, True),
+}
+
+
+def forward_creation_policy(name):
+    """前向き検証方式でなければNone、該当すれば方式定義を返す。"""
+    return FORWARD_CREATION_POLICIES.get(name)
+
+
+@dataclass(frozen=True)
 class TemporalHoldout:
     training_x: torch.Tensor
     training_y: torch.Tensor
@@ -151,6 +175,51 @@ def validation_rejection_reason(candidate_losses, reference_losses, min_delta):
         return "full_interval"
     if recent_failed:
         return "recent_interval"
+    return "accepted"
+
+
+def has_disjoint_validation_advantage(
+    candidate_losses,
+    reference_losses,
+    min_delta,
+):
+    """重複しない前半・後半の両方で候補が優れるかを判定する。"""
+    if len(candidate_losses) != len(reference_losses) or len(candidate_losses) < 2:
+        return False
+    split = len(candidate_losses) // 2
+    partitions = (
+        (candidate_losses[:split], reference_losses[:split]),
+        (candidate_losses[split:], reference_losses[split:]),
+    )
+    return all(
+        len(candidate) > 0
+        and float(candidate.mean().item())
+        < float(reference.mean().item()) - min_delta
+        for candidate, reference in partitions
+    )
+
+
+def disjoint_validation_rejection_reason(
+    candidate_losses,
+    reference_losses,
+    min_delta,
+):
+    """持続性判定で不合格になった独立区間を返す。"""
+    split = len(candidate_losses) // 2
+    first_margin = float(
+        reference_losses[:split].mean() - candidate_losses[:split].mean()
+    )
+    second_margin = float(
+        reference_losses[split:].mean() - candidate_losses[split:].mean()
+    )
+    first_failed = first_margin <= min_delta
+    second_failed = second_margin <= min_delta
+    if first_failed and second_failed:
+        return "first_and_second"
+    if first_failed:
+        return "first_interval"
+    if second_failed:
+        return "second_interval"
     return "accepted"
 
 

@@ -340,6 +340,16 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
         "provisional_reject_full_and_recent_count": sum(
             decision.reason == "full_and_recent" for decision in rejected_proposals
         ),
+        "provisional_reject_first_interval_count": sum(
+            decision.reason == "first_interval" for decision in rejected_proposals
+        ),
+        "provisional_reject_second_interval_count": sum(
+            decision.reason == "second_interval" for decision in rejected_proposals
+        ),
+        "provisional_reject_first_and_second_count": sum(
+            decision.reason == "first_and_second"
+            for decision in rejected_proposals
+        ),
         "provisional_reject_reference_refit_count": sum(
             decision.reason in {
                 "reference_refit",
