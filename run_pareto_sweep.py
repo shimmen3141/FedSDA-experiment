@@ -88,7 +88,6 @@ METRIC_KEYS = [
     "provisional_reference_excess_mean",
     "adaptation_maintain_count", "adaptation_episode_suppressed_count",
     "server_mapping_change_count",
-    "lineage_fork_count", "lineage_update_count",
     "runtime_seconds", "client_compute_seconds_sum", "client_compute_seconds_max",
     "compute_inference_examples_total", "compute_training_examples_total",
     "compute_model_examples_total", "compute_optimizer_steps_total",
@@ -175,7 +174,6 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
             "forward_requalified_current_first",
             "forward_persistent",
             "shadow_tournament",
-            "forward_lineage",
         }
     ):
         display_series = (

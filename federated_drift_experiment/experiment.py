@@ -545,7 +545,6 @@ def _save_raw_run(
 
     registrations = server.model_lineage.registrations
     clustering_observations = server.model_lineage.clustering_observations
-    copy_on_write_decisions = server.model_lineage.copy_on_write_decisions
     final_model_ids = set(server.global_models)
     model_selection_counts = {
         registration.model_id: int(np.count_nonzero(
@@ -664,26 +663,6 @@ def _save_raw_run(
                 for registration in registrations
             ],
             dtype=np.int64,
-        ),
-        copy_on_write_rounds=np.asarray(
-            [decision.round_index for decision in copy_on_write_decisions],
-            dtype=np.int32,
-        ),
-        copy_on_write_client_ids=np.asarray(
-            [decision.client_id for decision in copy_on_write_decisions],
-            dtype=np.int32,
-        ),
-        copy_on_write_parent_model_ids=np.asarray(
-            [decision.parent_model_id for decision in copy_on_write_decisions],
-            dtype=np.int32,
-        ),
-        copy_on_write_target_model_ids=np.asarray(
-            [decision.target_model_id for decision in copy_on_write_decisions],
-            dtype=np.int32,
-        ),
-        copy_on_write_decisions=np.asarray(
-            [decision.decision for decision in copy_on_write_decisions],
-            dtype=np.str_,
         ),
         clustering_rounds=np.asarray(
             [observation.round_index for observation in clustering_observations],
@@ -893,13 +872,6 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     results["comm_messages_up"] = server.comm_messages_up
     results["comm_messages_down"] = server.comm_messages_down
     results["comm_messages_total"] = server.comm_messages_up + server.comm_messages_down
-    copy_on_write_decisions = server.model_lineage.copy_on_write_decisions
-    results["lineage_fork_count"] = sum(
-        decision.decision == "fork" for decision in copy_on_write_decisions
-    )
-    results["lineage_update_count"] = sum(
-        decision.decision == "update" for decision in copy_on_write_decisions
-    )
 
     # 定常精度 stable_accuracy(回復窓除外)は compute_metrics で算出済み。
 

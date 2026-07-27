@@ -46,8 +46,6 @@ class BaseClient:
         self.pending_model_params = None
         self.pending_model_stats = None
         self.pending_model_ready = True
-        self.pending_parent_model_id = None
-        self.pending_registration_strategy = None
 
         # per-sample logs
         self.history_model_id = []
@@ -363,13 +361,6 @@ class BaseClient:
     def get_pending_model_info(self):
         return self.pending_model_params, self.pending_model_stats
 
-    def get_pending_registration_metadata(self):
-        """pendingモデルの親IDとサーバ登録方式を返す。"""
-        return {
-            "parent_model_id": self.pending_parent_model_id,
-            "strategy": self.pending_registration_strategy,
-        }
-
     def promote_pending_to_ready(self):
         """ラウンド境界などで呼ぶ: pending がある場合に next-aggregation で回収可能にする"""
         if self.pending_model_params is not None and not self.pending_model_ready:
@@ -384,8 +375,6 @@ class BaseClient:
             self.pending_model_params = None
             self.pending_model_stats = None
             self.pending_model_ready = True
-            self.pending_parent_model_id = None
-            self.pending_registration_strategy = None
             return
 
         if temp_id in self.models:
@@ -407,8 +396,6 @@ class BaseClient:
         self.pending_model_params = None
         self.pending_model_stats = None
         self.pending_model_ready = True
-        self.pending_parent_model_id = None
-        self.pending_registration_strategy = None
 
     def get_held_model_ids(self):
         ids = set()

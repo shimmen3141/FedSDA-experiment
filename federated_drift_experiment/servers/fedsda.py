@@ -1,18 +1,9 @@
 """FedSDA固有のサーバ実装。"""
 
 from collections import defaultdict
-from dataclasses import dataclass, field
 
 from .. import config
 from .clustering import CrossEvaluationClusteringServer
-
-
-@dataclass
-class PendingRegistrationBatch:
-    """同じラウンドで確定した新規forkと親モデル更新を保持する。"""
-
-    new_model_ids: list[int] = field(default_factory=list)
-    replacements: dict[int, tuple] = field(default_factory=dict)
 
 
 class FedSDANoCachedServer(CrossEvaluationClusteringServer):
@@ -36,18 +27,13 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         新規モデルは回収でグローバルID を採番するだけにし、パラメータ送信は次の FedAvg に
         1回に集約する。
         """
-        registrations = self._register_new_models(t)
+        self._register_new_models(t)
 
         # 全クライアントが保持するグローバルモデルID(既存 + 今ラウンド採番の新規)
         active_ids = sorted({mid for c in self.clients for mid in c.models if mid >= 0})
 
         # FedAvg: パラメータ送信はここ1回のみ。今ラウンドのローカル学習が反映される
-        aggregated_ids = [
-            model_id for model_id in active_ids
-            if model_id not in registrations.replacements
-        ]
-        agg_weights = self.update_global_models(aggregated_ids)
-        self._apply_parent_replacements(registrations.replacements, agg_weights)
+        agg_weights = self.update_global_models(active_ids)
 
         id_mapping = {}
         if clustering_enabled:
@@ -63,80 +49,15 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         パラメータを送る _collect_pending_models は用いない。採番順は
         _collect_pending_models と同一(クライアント走査順)なので ID の付き方は変わらない。
         """
-        registrations = PendingRegistrationBatch()
-        pending_clients = [
-            client for client in self.clients if client.has_pending_model()
-        ]
-        copy_on_write_counts = defaultdict(int)
-        for client in pending_clients:
-            metadata = self._pending_registration_metadata(client)
-            if metadata["strategy"] == "copy_on_write":
-                copy_on_write_counts[metadata["parent_model_id"]] += 1
-
-        for c in pending_clients:
-            metadata = self._pending_registration_metadata(c)
-            parent_id = metadata["parent_model_id"]
-            other_parent_users = any(
-                other is not c and other.current_model_id == parent_id
-                for other in self.clients
-            )
-            replace_parent = (
-                metadata["strategy"] == "copy_on_write"
-                and parent_id is not None
-                and parent_id >= 0
-                and parent_id in self.global_models
-                and copy_on_write_counts[parent_id] == 1
-                and not other_parent_users
-            )
-            if replace_parent:
-                params, stats = c.get_pending_model_info()
-                registrations.replacements[parent_id] = (params, stats, c)
-                c.confirm_model_registration(parent_id)
-                self.model_lineage.record_copy_on_write(
-                    round_index=t,
-                    client_id=c.client_id,
-                    parent_model_id=parent_id,
-                    target_model_id=parent_id,
-                    decision="update",
-                )
-            else:
+        n_new = 0
+        for c in self.clients:
+            if c.has_pending_model():
                 model_id = self.request_new_model_id()
                 self.record_model_registration(model_id, t, c)
                 c.confirm_model_registration(model_id)
-                registrations.new_model_ids.append(model_id)
-                if metadata["strategy"] == "copy_on_write":
-                    self.model_lineage.record_copy_on_write(
-                        round_index=t,
-                        client_id=c.client_id,
-                        parent_model_id=parent_id,
-                        target_model_id=model_id,
-                        decision="fork",
-                    )
-        if registrations.new_model_ids and self.verbose:
-            print(
-                f"Server [t={t}]: Registered "
-                f"{len(registrations.new_model_ids)} new models "
-                "(params sent once in FedAvg)."
-            )
-        return registrations
-
-    @staticmethod
-    def _pending_registration_metadata(client):
-        """旧来のテスト用クライアントは通常の新規登録として扱う。"""
-        getter = getattr(client, "get_pending_registration_metadata", None)
-        if getter is None:
-            return {"parent_model_id": None, "strategy": None}
-        return getter()
-
-    def _apply_parent_replacements(self, replacements, agg_weights):
-        """単独利用の親モデルを候補で置換し、旧状態とのFedAvg混合を避ける。"""
-        for parent_id, (params, stats, _client) in replacements.items():
-            self.register_model_params(parent_id, params)
-            self.register_model_stats(parent_id, stats)
-            self.comm_models_up += 1
-            self.comm_messages_up += 1
-            self.comm_messages_down += 1
-            agg_weights[parent_id] = max(int(stats.get("n", 0)), 1)
+                n_new += 1
+        if n_new > 0 and self.verbose:
+            print(f"Server [t={t}]: Registered {n_new} new models (params sent once in FedAvg).")
 
     def _cluster_and_merge(self, t, active_ids, agg_weights):
         """FedAvg 済みモデルでクロス評価・クラスタリングし、マージは加重平均で統合する。
@@ -238,27 +159,20 @@ class FedSDACachedServer(FedSDANoCachedServer):
     def run_round(self, t):
         """キャッシュ評価・新規登録・FedAvg・通常配布をこの順で1回ずつ行う。"""
         self._cluster_distributed_models(t)
-        registrations = self._register_new_models(t)
+        new_model_ids = self._register_new_models(t)
 
         active_ids = sorted({
             model_id for client in self.clients
             for model_id in client.models if model_id >= 0
         })
-        aggregated_ids = [
-            model_id for model_id in active_ids
-            if model_id not in registrations.replacements
-        ]
-        round_weights = self.update_global_models(aggregated_ids)
-        self._apply_parent_replacements(
-            registrations.replacements, round_weights
-        )
+        round_weights = self.update_global_models(active_ids)
         for model_id, weight in round_weights.items():
             if weight > 0:
                 self.model_weights[model_id] = weight
 
         self.broadcast_models()
         # この配布によって初めて全クライアントのキャッシュに入る。
-        self.models_pending_clustering.update(registrations.new_model_ids)
+        self.models_pending_clustering.update(new_model_ids)
 
     def finalize_protocol(self, t):
         """初回配布済みで評価待ちのモデルだけを、追加学習なしでクラスタリングする。
@@ -271,9 +185,19 @@ class FedSDACachedServer(FedSDANoCachedServer):
 
     def _register_new_models(self, t):
         """送信可能な新規モデルへIDを割り当て、初回FedAvgの対象にする。"""
-        registrations = super()._register_new_models(t)
-        self.comm_messages_down += len(registrations.new_model_ids)
-        return registrations
+        new_model_ids = []
+        for client in self.clients:
+            if not client.has_pending_model():
+                continue
+            model_id = self.request_new_model_id()
+            self.record_model_registration(model_id, t, client)
+            client.confirm_model_registration(model_id)
+            self.comm_messages_down += 1
+            new_model_ids.append(model_id)
+
+        if new_model_ids and self.verbose:
+            print(f"Server [t={t}]: Registered {len(new_model_ids)} new cached models.")
+        return new_model_ids
 
     def _cluster_distributed_models(self, t):
         """設定された実行方針に従い、配布済みキャッシュで距離評価する。"""

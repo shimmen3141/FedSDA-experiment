@@ -65,24 +65,3 @@ def test_model_lineage_marks_missing_distances_explicitly():
     assert math.isnan(observation.nearest_distance)
     assert observation.cluster_evaluated_pairs == 0
     assert observation.cluster_possible_pairs == 0
-
-
-def test_model_lineage_records_copy_on_write_decision():
-    recorder = ModelLineageRecorder()
-
-    recorder.record_copy_on_write(
-        round_index=4,
-        client_id=2,
-        parent_model_id=3,
-        target_model_id=7,
-        decision="fork",
-    )
-
-    decision = recorder.copy_on_write_decisions[0]
-    assert (
-        decision.round_index,
-        decision.client_id,
-        decision.parent_model_id,
-        decision.target_model_id,
-        decision.decision,
-    ) == (4, 2, 3, 7, "fork")
