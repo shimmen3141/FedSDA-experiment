@@ -13,6 +13,7 @@ class ForwardCreationPolicy:
     prefer_current_reference: bool
     require_disjoint_persistence: bool
     train_reference_shadows: bool = False
+    lineage_copy_on_write: bool = False
 
 
 FORWARD_CREATION_POLICIES = {
@@ -24,6 +25,9 @@ FORWARD_CREATION_POLICIES = {
     "forward_persistent": ForwardCreationPolicy(True, True, True),
     "shadow_tournament": ForwardCreationPolicy(
         False, False, False, train_reference_shadows=True
+    ),
+    "forward_lineage": ForwardCreationPolicy(
+        True, True, True, lineage_copy_on_write=True
     ),
 }
 
@@ -99,6 +103,7 @@ class ForwardValidationSession:
     held_data: list
     reference_models: dict
     target_count: int
+    initialization_parent_id: Optional[int] = None
     reference_historical_means: dict[int, float] = field(default_factory=dict)
     candidate_losses: list[float] = field(default_factory=list)
     reference_losses: dict[int, list[float]] = field(default_factory=dict)

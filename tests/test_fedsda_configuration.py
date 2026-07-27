@@ -219,6 +219,38 @@ def test_forward_persistent_rejects_advantage_limited_to_second_half(monkeypatch
     assert decision.reason == "first_interval"
 
 
+def test_forward_lineage_preserves_initialization_parent_for_registration(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 4)
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "forward_lineage")
+    client = _make_client()
+    bx = torch.randn((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    client._begin_forward_validation(
+        bx,
+        by,
+        [],
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+        initialization_parent_id=0,
+    )
+    session = client._forward_validation
+    # 再適合判定を通さず、独立した前半・後半の双方で候補を勝たせる。
+    session.reference_historical_means.clear()
+    for _ in range(4):
+        session.append_losses(0.1, {0: 0.5})
+
+    client._finalize_forward_validation(sample_idx=104)
+
+    assert client.current_model_id < 0
+    assert client.pending_parent_model_id == 0
+    assert client.pending_registration_strategy == "copy_on_write"
+
+
 def test_shadow_tournament_trains_candidate_and_all_reference_shadows(monkeypatch):
     monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
     monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)

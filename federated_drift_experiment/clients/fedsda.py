@@ -97,6 +97,7 @@ class FedSDAClient(BaseClient, ABC):
         sample_idx,
         estimated_start,
         episode_id,
+        initialization_parent_id=None,
     ):
         """推定区間で候補を学習し、警報後データによる採否判定を開始する。"""
         candidate = SimpleMLP()
@@ -126,6 +127,7 @@ class FedSDAClient(BaseClient, ABC):
             held_data=list(drift_data),
             reference_models=reference_models,
             target_count=self.forward_validation_samples,
+            initialization_parent_id=initialization_parent_id,
             reference_historical_means=reference_historical_means,
         )
 
@@ -264,6 +266,9 @@ class FedSDAClient(BaseClient, ABC):
                 session.training_y,
                 pending_ready=False,
             )
+            if policy.lineage_copy_on_write:
+                self.pending_parent_model_id = session.initialization_parent_id
+                self.pending_registration_strategy = "copy_on_write"
             self._pending_upload_rounds = self.model_upload_delay_rounds
             self.train_data_store[temp_id].extend(session.held_data)
             self.current_model_id = temp_id
@@ -536,6 +541,24 @@ class FedSDAClient(BaseClient, ABC):
             "or 'average'"
         )
 
+    def _select_initialization_parent_id(self, evaluated_candidates):
+        """初期化元として使う既存モデルIDを返す。平均初期化には単一の親を置かない。"""
+        strategy = config.NEW_MODEL_INITIALIZATION
+        if strategy == "current":
+            return self.current_model_id
+        if strategy == "best_candidate":
+            return (
+                min(evaluated_candidates, key=lambda item: item[1])[0]
+                if evaluated_candidates
+                else self.current_model_id
+            )
+        if strategy == "average":
+            return None
+        raise ValueError(
+            "NEW_MODEL_INITIALIZATION must be 'current', 'best_candidate', "
+            "or 'average'"
+        )
+
     def _select_reuse_candidate(self, valid_candidates):
         """適合済み既存モデルのうち、区間平均損失が最小のものを選ぶ。"""
         return min(valid_candidates, key=lambda item: item[1])
@@ -773,6 +796,9 @@ class FedSDAClient(BaseClient, ABC):
             initialization_params = self._select_initialization_params(
                 evaluated_candidates
             )
+            initialization_parent_id = self._select_initialization_parent_id(
+                evaluated_candidates
+            )
             if config.NEW_MODEL_CREATION_POLICY == "immediate":
                 temporary_id, _ = self._spawn_new_model(
                     initial_bx,
@@ -796,6 +822,7 @@ class FedSDAClient(BaseClient, ABC):
                     sample_idx,
                     estimated_start,
                     episode_id,
+                    initialization_parent_id,
                 )
                 temporary_id = None
             else:

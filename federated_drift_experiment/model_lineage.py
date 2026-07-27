@@ -14,6 +14,17 @@ class ModelRegistration:
 
 
 @dataclass(frozen=True)
+class CopyOnWriteDecision:
+    """候補を親モデル更新または新規forkとして確定した記録。"""
+
+    round_index: int
+    client_id: int
+    parent_model_id: int
+    target_model_id: int
+    decision: str
+
+
+@dataclass(frozen=True)
 class ClusteringObservation:
     """1回のクラスタリングにおける1モデル分の診断値。"""
 
@@ -36,6 +47,7 @@ class ModelLineageRecorder:
     def __init__(self):
         self._registrations = {}
         self.clustering_observations = []
+        self.copy_on_write_decisions = []
 
     @property
     def registrations(self):
@@ -58,6 +70,29 @@ class ModelLineageRecorder:
                 round_index=-1,
                 client_id=-1,
             ),
+        )
+
+    def record_copy_on_write(
+        self,
+        round_index,
+        client_id,
+        parent_model_id,
+        target_model_id,
+        decision,
+    ):
+        """copy-on-writeのfork/update判定を時系列診断用に保存する。"""
+        if decision not in {"fork", "update"}:
+            raise ValueError("decision must be 'fork' or 'update'")
+        self.copy_on_write_decisions.append(
+            CopyOnWriteDecision(
+                round_index=int(round_index),
+                client_id=int(client_id),
+                parent_model_id=(
+                    -1 if parent_model_id is None else int(parent_model_id)
+                ),
+                target_model_id=int(target_model_id),
+                decision=decision,
+            )
         )
 
     def record_clustering(self, round_index, model_ids, pair_distances, clusters):

@@ -11,7 +11,10 @@ from federated_drift_experiment import config
 from federated_drift_experiment.clients import ADWINFedSDAClient
 from federated_drift_experiment.experiment import _run_per_sample_timestep
 from federated_drift_experiment.models import SimpleMLP
-from federated_drift_experiment.servers import FedSDACachedServer
+from federated_drift_experiment.servers import (
+    FedSDACachedServer,
+    FedSDANoCachedServer,
+)
 
 
 def _make_client_and_server():
@@ -169,6 +172,97 @@ def test_new_model_is_clustered_only_after_first_broadcast(monkeypatch):
         for observation in server.model_lineage.clustering_observations
         if observation.round_index == 1
     } == {0, new_model_id}
+
+
+def test_lineage_copy_on_write_updates_parent_when_no_other_client_uses_it(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS", 1)
+    monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 1)
+    client, server = _make_client_and_server()
+    bx = torch.zeros((config.CLIENT_BATCH_SIZE, config.input_dim()))
+    by = torch.zeros((config.CLIENT_BATCH_SIZE, 1))
+    temp_id, _ = client._spawn_new_model(bx, by)
+    client.current_model_id = temp_id
+    client.train_data_store[temp_id].extend(
+        (bx[index:index + 1], by[index:index + 1]) for index in range(len(bx))
+    )
+    client.pending_parent_model_id = 0
+    client.pending_registration_strategy = "copy_on_write"
+    client.promote_pending_to_ready()
+
+    server.run_round(t=0)
+
+    assert client.current_model_id == 0
+    assert sorted(server.global_models) == [0]
+    decision = server.model_lineage.copy_on_write_decisions[0]
+    assert (decision.decision, decision.parent_model_id,
+            decision.target_model_id) == ("update", 0, 0)
+
+
+def test_no_cached_lineage_copy_on_write_updates_parent(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS", 1)
+    monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 1)
+    model = SimpleMLP()
+    stats = {0: {"n": 10, "mean": 0.1, "M2": 0.0}}
+    client = ADWINFedSDAClient(
+        client_id=0,
+        initial_models={0: model},
+        initial_stats=stats,
+        distance_threshold=0.1,
+        verbose=False,
+    )
+    server = FedSDANoCachedServer(distance_threshold=0.1, verbose=False)
+    server.register_model_params(0, model.get_params())
+    server.register_model_stats(0, stats[0])
+    server.register_client(client)
+    bx = torch.zeros((config.CLIENT_BATCH_SIZE, config.input_dim()))
+    by = torch.zeros((config.CLIENT_BATCH_SIZE, 1))
+    temp_id, _ = client._spawn_new_model(bx, by)
+    client.current_model_id = temp_id
+    client.pending_parent_model_id = 0
+    client.pending_registration_strategy = "copy_on_write"
+    client.promote_pending_to_ready()
+
+    server.run_round(t=0, clustering_enabled=False)
+
+    assert client.current_model_id == 0
+    assert sorted(server.global_models) == [0]
+    assert server.model_lineage.copy_on_write_decisions[0].decision == "update"
+
+
+def test_lineage_copy_on_write_forks_when_another_client_uses_parent(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS", 1)
+    monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 1)
+    client, server = _make_client_and_server()
+    second_model = SimpleMLP()
+    second_client = ADWINFedSDAClient(
+        client_id=1,
+        initial_models={0: second_model},
+        initial_stats={0: {"n": 10, "mean": 0.1, "M2": 0.0}},
+        distance_threshold=0.1,
+        verbose=False,
+    )
+    server.register_client(second_client)
+    bx = torch.zeros((config.CLIENT_BATCH_SIZE, config.input_dim()))
+    by = torch.zeros((config.CLIENT_BATCH_SIZE, 1))
+    temp_id, _ = client._spawn_new_model(bx, by)
+    client.current_model_id = temp_id
+    client.train_data_store[temp_id].extend(
+        (bx[index:index + 1], by[index:index + 1]) for index in range(len(bx))
+    )
+    client.pending_parent_model_id = 0
+    client.pending_registration_strategy = "copy_on_write"
+    client.promote_pending_to_ready()
+
+    server.run_round(t=0)
+
+    assert client.current_model_id == 1
+    assert second_client.current_model_id == 0
+    assert sorted(server.global_models) == [0, 1]
+    decision = server.model_lineage.copy_on_write_decisions[0]
+    assert (decision.decision, decision.parent_model_id,
+            decision.target_model_id) == ("fork", 0, 1)
 
 
 def test_cached_merge_is_applied_before_fedavg(monkeypatch):
