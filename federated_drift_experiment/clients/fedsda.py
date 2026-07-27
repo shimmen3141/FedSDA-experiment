@@ -70,6 +70,24 @@ class FedSDAClient(BaseClient, ABC):
             snapshots[model_id] = snapshot
         return snapshots
 
+    def _train_reference_shadows(self, reference_models, bx, by):
+        """既存モデルのshadowへ候補と同じ検知区間学習を適用する。"""
+        training_start = time.perf_counter()
+        for model in reference_models.values():
+            model.reset_optimizer()
+            self._train_new_model(model, bx, by)
+        self.phase_seconds["training"] += time.perf_counter() - training_start
+
+    def _update_tournament_shadows(self, session, x, y):
+        """評価済みのforwardサンプルで全shadowを同じ回数だけ更新する。"""
+        models = [session.candidate, *session.reference_models.values()]
+        training_start = time.perf_counter()
+        for model in models:
+            model.update(x, y)
+            self._record_model_compute("training", len(x))
+            self.compute_counters["optimizer_steps"] += 1
+        self.phase_seconds["training"] += time.perf_counter() - training_start
+
     def _begin_forward_validation(
         self,
         bx,
@@ -88,6 +106,9 @@ class FedSDAClient(BaseClient, ABC):
         self._train_new_model(candidate, bx, by)
         self.phase_seconds["training"] += time.perf_counter() - training_start
         reference_models = self._snapshot_reference_models()
+        policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
+        if policy is not None and policy.train_reference_shadows:
+            self._train_reference_shadows(reference_models, bx, by)
         reference_historical_means = {}
         for model_id in reference_models:
             stats = self.model_stats.get(model_id)
@@ -125,6 +146,9 @@ class FedSDAClient(BaseClient, ABC):
                     model.per_sample_error(x, y).mean().item()
                 )
         session.append_losses(candidate_loss, reference_losses)
+        policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
+        if policy is not None and policy.train_reference_shadows:
+            self._update_tournament_shadows(session, x, y)
         if not session.ready:
             return 0
         return self._finalize_forward_validation(sample_idx)
@@ -164,7 +188,16 @@ class FedSDAClient(BaseClient, ABC):
         reference_losses = torch.tensor(
             session.reference_losses[reference_model_id]
         )
-        if requalified_model_id is not None:
+        tournament_reference_won = False
+        if policy.train_reference_shadows:
+            accepted = (
+                float(candidate_losses.mean().item())
+                < float(reference_losses.mean().item())
+                - config.NEW_MODEL_EARLY_STOPPING_MIN_DELTA
+            )
+            tournament_reference_won = not accepted
+            reason = "candidate_won" if accepted else "reference_won"
+        elif requalified_model_id is not None:
             accepted = False
             if policy.prefer_current_reference:
                 reason = (
@@ -238,6 +271,20 @@ class FedSDAClient(BaseClient, ABC):
             self.detection_episodes.mark_operation()
             action = "create"
             drift_type = 2
+        elif tournament_reference_won:
+            winning_shadow = session.reference_models[reference_model_id]
+            self.models[reference_model_id].set_params(winning_shadow.get_params())
+            self.models[reference_model_id].reset_optimizer()
+            self.current_model_id = reference_model_id
+            self._absorb_into_store(self.current_model_id, session.held_data)
+            if self.current_model_id != old_model_id:
+                self.local_switch_positions.append(sample_idx)
+                self.detection_episodes.mark_operation()
+                action = "reuse"
+                drift_type = 1
+            else:
+                action = "maintain"
+                drift_type = 0
         elif requalified_model_id is not None:
             self.current_model_id = requalified_model_id
             self._absorb_into_store(self.current_model_id, session.held_data)

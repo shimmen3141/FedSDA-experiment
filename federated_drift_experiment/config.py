@@ -85,6 +85,7 @@ NEW_MODEL_CREATION_POLICIES = (
     "forward_requalified",
     "forward_requalified_current_first",
     "forward_persistent",
+    "shadow_tournament",
 )
 NEW_MODEL_EARLY_STOPPING_PATIENCE = 3
 NEW_MODEL_EARLY_STOPPING_MIN_DELTA = 1e-4

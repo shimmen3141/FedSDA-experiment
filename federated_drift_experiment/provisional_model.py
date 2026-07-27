@@ -12,6 +12,7 @@ class ForwardCreationPolicy:
     requalify_references: bool
     prefer_current_reference: bool
     require_disjoint_persistence: bool
+    train_reference_shadows: bool = False
 
 
 FORWARD_CREATION_POLICIES = {
@@ -21,6 +22,9 @@ FORWARD_CREATION_POLICIES = {
         True, True, False
     ),
     "forward_persistent": ForwardCreationPolicy(True, True, True),
+    "shadow_tournament": ForwardCreationPolicy(
+        False, False, False, train_reference_shadows=True
+    ),
 }
 
 

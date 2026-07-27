@@ -173,6 +173,7 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
             "forward_requalified",
             "forward_requalified_current_first",
             "forward_persistent",
+            "shadow_tournament",
         }
     ):
         display_series = (

@@ -219,6 +219,88 @@ def test_forward_persistent_rejects_advantage_limited_to_second_half(monkeypatch
     assert decision.reason == "first_interval"
 
 
+def test_shadow_tournament_trains_candidate_and_all_reference_shadows(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "shadow_tournament")
+    client = _make_client()
+    client.models[1] = SimpleMLP()
+    client.model_stats[1] = {"n": 10, "mean": 0.1, "M2": 0.0}
+    bx = torch.randn((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    calls = []
+
+    def record_training(model, training_x, training_y):
+        calls.append((model, training_x, training_y))
+
+    monkeypatch.setattr(client, "_train_new_model", record_training)
+    client._begin_forward_validation(
+        bx,
+        by,
+        [],
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+    )
+
+    # 候補1個と既存モデル2個へ、同一の検知区間を渡す。
+    assert len(calls) == 3
+    assert all(training_x is bx and training_y is by
+               for _, training_x, training_y in calls)
+
+    steps_before = client.compute_counters["optimizer_steps"]
+    client._observe_forward_validation(
+        torch.zeros((1, config.input_dim())),
+        torch.zeros((1, 1)),
+        sample_idx=101,
+    )
+    # forward損失を記録した後も、全shadowを同じ1回ずつ更新する。
+    assert client.compute_counters["optimizer_steps"] - steps_before == 3
+
+
+def test_shadow_tournament_adopts_winning_reference_without_new_id(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "shadow_tournament")
+    client = _make_client()
+    bx = torch.randn((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    held_data = [
+        (bx[index:index + 1], by[index:index + 1])
+        for index in range(len(bx))
+    ]
+    client._begin_forward_validation(
+        bx,
+        by,
+        held_data,
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+    )
+    session = client._forward_validation
+    winning_params = {
+        name: torch.full_like(value, 0.125)
+        for name, value in session.reference_models[0].get_params().items()
+    }
+    session.reference_models[0].set_params(winning_params)
+    for _ in range(3):
+        session.append_losses(0.4, {0: 0.2})
+
+    drift_type = client._finalize_forward_validation(sample_idx=103)
+
+    assert drift_type == 0
+    assert client.current_model_id == 0
+    assert set(client.models) == {0}
+    assert client.provisional_model_decisions[0].reason == "reference_won"
+    adopted_params = client.models[0].get_params()
+    assert all(
+        torch.equal(adopted_params[name], winning_params[name])
+        for name in winning_params
+    )
+
+
 def test_forward_requalification_reuses_fitting_existing_model(monkeypatch):
     monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
     monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)
