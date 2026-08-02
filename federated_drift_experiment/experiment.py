@@ -165,6 +165,12 @@ MODE_SPECS = {
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
     ),
+    'FedSDA_NoCached_HierarchicalClassESR': ModeSpec(
+        ClassConditionalESRFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDANoCachedServer,
+        client_kwargs={'overall_component_weight': 0.5},
+    ),
     'FedSDA_Cached_ClassESR': ModeSpec(
         ClassConditionalESRFedSDAClient,
         _run_fedsda_cached_timestep,

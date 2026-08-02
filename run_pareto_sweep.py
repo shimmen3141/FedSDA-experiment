@@ -544,6 +544,7 @@ def _series_style(series):
         "FedSDA_NoCached_ClassHDDMA": "mediumslateblue",
         "FedSDA_NoCached_HDDMW": "slateblue",
         "FedSDA_NoCached_ClassESR": "dodgerblue",
+        "FedSDA_NoCached_HierarchicalClassESR": "royalblue",
         "FedSDA_Cached_ADWIN": "tab:orange",
         "FedSDA_Cached_ClassADWIN": "tab:pink",
         "FedSDA_Cached_ESR": "tab:olive",
@@ -572,7 +573,8 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy",
     # 色は手法、マーカーと線種は掃引対象を表す。
     sweep_series = []
     for r in rows:
-        if r["series"] not in BASELINE_MODES and r["series"] not in sweep_series:
+        # series にはスケジュール等の補足が付くため、baseline は mode で識別する。
+        if r["mode"] not in BASELINE_MODES and r["series"] not in sweep_series:
             sweep_series.append(r["series"])
     style = {series: _series_style(series) for series in sweep_series}
 
@@ -585,7 +587,11 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy",
         label_offsets = [(6, 8), (7, -13), (-18, 8), (-18, -13), (6, 18)]
         for si, s in enumerate(sweep_series):
             srows = [r for r in ds_rows if r["series"] == s]
-            vals = sorted(set(r["sweep_value"] for r in srows))
+            # baseline 以外でも値のない補助系列が混入した場合は注釈対象にしない。
+            vals = sorted({
+                r["sweep_value"] for r in srows
+                if r.get("sweep_value") is not None
+            })
             xs, ys, xe, ye = [], [], [], []
             for v in vals:
                 a = _agg(
@@ -620,7 +626,7 @@ def plot_pareto(rows, datasets, path, y_key="stable_accuracy",
             "FedSDA_without_server": ("black", ":"),
         }
         for baseline in BASELINE_MODES:
-            baseline_rows = [r for r in ds_rows if r["series"] == baseline]
+            baseline_rows = [r for r in ds_rows if r["mode"] == baseline]
             a = _agg(baseline_rows, x_key=x_key, y_key=y_key)
             if not a:
                 continue

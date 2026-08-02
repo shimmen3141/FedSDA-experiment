@@ -5,6 +5,7 @@ FEDSDA_MODES = (
     "FedSDA_NoCached_ClassADWIN",
     "FedSDA_NoCached_ESR",
     "FedSDA_NoCached_ClassESR",
+    "FedSDA_NoCached_HierarchicalClassESR",
     "FedSDA_NoCached_HDDMA",
     "FedSDA_NoCached_ClassHDDMA",
     "FedSDA_NoCached_HDDMW",
@@ -36,7 +37,9 @@ def is_adwin_mode(mode):
 
 
 def is_esr_mode(mode):
-    return fedsda_detector_name(mode) in {"ESR", "ClassESR"}
+    return fedsda_detector_name(mode) in {
+        "ESR", "ClassESR", "HierarchicalClassESR",
+    }
 
 
 def is_hddm_mode(mode):

@@ -238,7 +238,8 @@ def test_plot_pareto_draws_baseline_standard_deviation_band(tmp_path, monkeypatc
     }.items():
         for seed, accuracy in enumerate(accuracies):
             rows.append({
-                "mode": mode, "dataset": "sea4", "seed": seed, "series": mode,
+                "mode": mode, "dataset": "sea4", "seed": seed,
+                "series": f"{mode} [feddrift_fixed]",
                 "sweep_value": None, "comm_models_total": 0.0,
                 "stable_accuracy": accuracy,
                 sweep.AGGREGATION_INTERVAL: 50,

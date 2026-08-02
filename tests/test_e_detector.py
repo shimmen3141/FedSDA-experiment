@@ -1,6 +1,7 @@
 import os
 import sys
 
+import pytest
 import torch
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -119,3 +120,30 @@ def test_class_conditional_e_detector_modes_reuse_protocol_servers():
     assert MODE_SPECS["FedSDA_Cached_ClassESR"].client_cls is ClassConditionalESRFedSDAClient
     assert MODE_SPECS["FedSDA_NoCached_ClassESR"].server_cls is FedSDANoCachedServer
     assert MODE_SPECS["FedSDA_Cached_ClassESR"].server_cls is FedSDACachedServer
+
+
+def test_class_esr_component_weights_keep_existing_equal_mixture():
+    client = ClassConditionalESRFedSDAClient(
+        client_id=0,
+        initial_models={0: SimpleMLP()},
+        initial_stats={0: {"n": 100, "mean": 0.2, "M2": 1.0}},
+        verbose=False,
+    )
+
+    assert client.overall_component_weight == pytest.approx(1.0 / 3.0)
+    assert client.class_component_weight == pytest.approx(1.0 / 3.0)
+
+
+def test_hierarchical_class_esr_assigns_half_to_overall_family():
+    spec = MODE_SPECS["FedSDA_NoCached_HierarchicalClassESR"]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP()},
+        initial_stats={0: {"n": 100, "mean": 0.2, "M2": 1.0}},
+        verbose=False,
+        **spec.client_kwargs,
+    )
+
+    assert client.overall_component_weight == 0.5
+    assert client.class_component_weight == 0.25
+    assert spec.server_cls is FedSDANoCachedServer

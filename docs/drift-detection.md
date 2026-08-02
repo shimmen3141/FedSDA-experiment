@@ -90,6 +90,10 @@ ClassESRでは、全体損失と二値の正解クラス別損失を監視する
 検知時は寄与最大の成分を選び、クラス成分ならそのクラス系列の候補開始位置を元のサンプル位置へ
 戻してFIFOを分割する。
 
+`HierarchicalClassESR`は、全体変化の証拠をクラス数によって過度に希釈しないため、全体系列へ
+`1/2`、クラス別系列の集合へ`1/2`を配分する。二値分類では全体系列が`1/2`、各クラス系列が
+`1/4`となる。従来の均等混合ClassESRは変更せず、独立した比較モードとして実装する。
+
 クラス別e-SRにも全体モデル統計から得た基準平均を使う。ARL保証をクラス別成分まで厳密に
 解釈するには、各クラスの定常時条件付き平均も対応する基準以下という追加仮定が必要である。
 
@@ -145,6 +149,7 @@ ClassHDDMAでは全体損失と正解クラス別損失を並列監視し、各�
 | `FedSDA_NoCached_ClassADWIN` | 実装済み | 全体損失ADWIN + 正解クラス別ADWIN | 強制ドリフトチェックあり | NoCached |
 | `FedSDA_NoCached_ESR` | 実装済み | bounded mean向け混合e-SR detector | 強制チェックなし | NoCached |
 | `FedSDA_NoCached_ClassESR` | 実装済み | 全体 + 正解クラス別e-SRの固定重み混合 | 強制チェックなし | NoCached |
+| `FedSDA_NoCached_HierarchicalClassESR` | 実装済み | 全体系1/2 + クラス別系1/2の階層混合e-SR | 強制チェックなし | NoCached |
 | `FedSDA_NoCached_HDDMA` / `HDDMW` | 実装済み | 全体損失HDDM-A / HDDM-W | 強制チェックなし | NoCached |
 | `FedSDA_NoCached_ClassHDDMA` | 実装済み | 全体 + 正解クラス別HDDM-A | 強制チェックなし | NoCached |
 | `FedSDA_Cached_ADWIN` | 実装済み | 全体損失ADWIN | 強制ドリフトチェックあり | Cached |

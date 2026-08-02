@@ -1107,9 +1107,18 @@ class ClassConditionalESRFedSDAClient(ESRFedSDAClient):
     従ってクラス条件付き平均もこの基準以下という追加仮定が必要になる。
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, overall_component_weight=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.component_weight = 1.0 / (config.num_classes() + 1)
+        class_count = config.num_classes()
+        if overall_component_weight is None:
+            # 従来方式では、全体系列と各クラス系列へ均等に重みを配分する。
+            overall_component_weight = 1.0 / (class_count + 1)
+        if not 0.0 < overall_component_weight < 1.0:
+            raise ValueError("overall_component_weight must be between 0 and 1")
+        self.overall_component_weight = float(overall_component_weight)
+        self.class_component_weight = (
+            (1.0 - self.overall_component_weight) / class_count
+        )
         self.class_e_detectors = {}
         self.class_e_positions = defaultdict(deque)
         self._class_drift_start = None
@@ -1145,14 +1154,21 @@ class ClassConditionalESRFedSDAClient(ESRFedSDAClient):
             positions.popleft()
 
         component_logs = {
-            "overall": self.e_detector.log_e_value + math.log(self.component_weight),
-            class_id: detector.log_e_value + math.log(self.component_weight),
+            "overall": (
+                self.e_detector.log_e_value
+                + math.log(self.overall_component_weight)
+            ),
+            class_id: (
+                detector.log_e_value
+                + math.log(self.class_component_weight)
+            ),
         }
         # 既に観測した他クラスの検出器も、最後に更新したe値で混合する。
         for other_id, other_detector in self.class_e_detectors.items():
             if other_id != class_id:
                 component_logs[other_id] = (
-                    other_detector.log_e_value + math.log(self.component_weight)
+                    other_detector.log_e_value
+                    + math.log(self.class_component_weight)
                 )
 
         finite_logs = [value for value in component_logs.values() if math.isfinite(value)]
