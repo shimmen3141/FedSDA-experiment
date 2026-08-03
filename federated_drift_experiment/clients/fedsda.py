@@ -9,6 +9,7 @@ import torch
 from .. import config
 from ..drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
+from ..expert_routing import AdaHedgeRouter
 from ..models import SimpleMLP
 from ..provisional_model import (
     ForwardValidationSession,
@@ -1123,6 +1124,7 @@ class ClassConditionalESRFedSDAClient(ESRFedSDAClient):
         self.class_e_positions = defaultdict(deque)
         self._class_drift_start = None
 
+
     def _new_class_detector(self, class_id):
         return BoundedMeanEDetector(
             baseline=self._e_detector_baseline(),
@@ -1208,3 +1210,77 @@ class ClassConditionalESRFedSDAClient(ESRFedSDAClient):
 
     def _detector_label(self):
         return "overall + class-conditional e-SR mixture"
+
+
+class SoftRoutingClassConditionalESRFedSDAClient(
+    ClassConditionalESRFedSDAClient
+):
+    """保持モデルの予測をAdaHedgeで統合するClassESRクライアント。
+
+    検出・モデル操作・学習・通信は既存ClassESRと同一に保ち、prequential
+    予測だけをソフト化する。これによりハード切替回避の寄与を独立に測る。
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.expert_router = AdaHedgeRouter()
+        self.history_routing_effective_experts = []
+        self.history_routing_max_weight = []
+
+    def _record_prediction(self, x, y, concept_id):
+        model_ids = tuple(sorted(self.models))
+        probabilities = self.expert_router.probabilities(model_ids)
+        model_losses = {}
+        weighted_scores = None
+
+        with torch.no_grad():
+            for model_id in model_ids:
+                model = self.models[model_id]
+                scores = model.forward(x)
+                if model.num_classes > 2:
+                    scores = torch.softmax(scores, dim=1)
+                weighted = scores * probabilities[model_id]
+                weighted_scores = (
+                    weighted if weighted_scores is None
+                    else weighted_scores + weighted
+                )
+                model_losses[model_id] = float(
+                    model.per_sample_error(x, y).mean().item()
+                )
+        self._record_model_compute(
+            "prediction", len(x) * len(model_ids), calls=len(model_ids)
+        )
+
+        if self.models[model_ids[0]].num_classes == 2:
+            prediction = (weighted_scores > 0.5).float()
+        else:
+            prediction = torch.argmax(
+                weighted_scores, dim=1, keepdim=True
+            ).float()
+        accuracy = (
+            1.0
+            if prediction.view(-1)[0].item() == y.view(-1)[0].item()
+            else 0.0
+        )
+
+        # 単一IDが必要な既存診断には、最大重みの専門家を記録する。
+        maximum = max(probabilities.values())
+        leaders = [
+            model_id for model_id, weight in probabilities.items()
+            if weight == maximum
+        ]
+        routed_model_id = (
+            self.current_model_id
+            if self.current_model_id in leaders
+            else min(leaders)
+        )
+        self.history_accuracy.append(accuracy)
+        self.history_concept.append(concept_id)
+        self.history_model_id.append(routed_model_id)
+        self.history_routing_effective_experts.append(
+            self.expert_router.effective_expert_count(probabilities)
+        )
+        self.history_routing_max_weight.append(maximum)
+
+        # prequential順序を守り、予測後に正解ラベルで重みを更新する。
+        self.expert_router.update(model_losses, probabilities)

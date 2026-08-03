@@ -545,6 +545,7 @@ def _series_style(series):
         "FedSDA_NoCached_HDDMW": "slateblue",
         "FedSDA_NoCached_ClassESR": "dodgerblue",
         "FedSDA_NoCached_HierarchicalClassESR": "royalblue",
+        "FedSDA_NoCached_ClassESR_SoftRouting": "deepskyblue",
         "FedSDA_Cached_ADWIN": "tab:orange",
         "FedSDA_Cached_ClassADWIN": "tab:pink",
         "FedSDA_Cached_ESR": "tab:olive",

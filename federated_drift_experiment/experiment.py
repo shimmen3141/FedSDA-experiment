@@ -32,6 +32,7 @@ from .clients import (
     FedSDAClient,
     HDDMFedSDAClient,
     ObliviousClient,
+    SoftRoutingClassConditionalESRFedSDAClient,
 )
 from .data import (
     build_data_streams,
@@ -170,6 +171,11 @@ MODE_SPECS = {
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
         client_kwargs={'overall_component_weight': 0.5},
+    ),
+    'FedSDA_NoCached_ClassESR_SoftRouting': ModeSpec(
+        SoftRoutingClassConditionalESRFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDANoCachedServer,
     ),
     'FedSDA_Cached_ClassESR': ModeSpec(
         ClassConditionalESRFedSDAClient,
@@ -579,6 +585,22 @@ def _save_raw_run(
             [client.history_detector_log_e for client in clients], dtype=np.float64)
         telemetry_arrays["e_detector_alpha"] = np.asarray(
             config.E_DETECTOR_ALPHA, dtype=np.float64)
+    if clients and all(
+        hasattr(client, "history_routing_effective_experts")
+        for client in clients
+    ):
+        telemetry_arrays["history_routing_effective_experts"] = np.asarray(
+            [client.history_routing_effective_experts for client in clients],
+            dtype=np.float64,
+        )
+        telemetry_arrays["history_routing_max_weight"] = np.asarray(
+            [client.history_routing_max_weight for client in clients],
+            dtype=np.float64,
+        )
+        telemetry_arrays["routing_pool_reset_counts"] = np.asarray(
+            [client.expert_router.pool_reset_count for client in clients],
+            dtype=np.int32,
+        )
 
     is_fedsda = mode.startswith("FedSDA")
     is_feddrift = mode == "FedDrift"

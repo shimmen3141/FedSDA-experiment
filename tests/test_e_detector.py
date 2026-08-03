@@ -13,6 +13,7 @@ from federated_drift_experiment.clients import (
     ADWINFedSDAClient,
     ClassConditionalESRFedSDAClient,
     ESRFedSDAClient,
+    SoftRoutingClassConditionalESRFedSDAClient,
 )
 from federated_drift_experiment.drift_detectors import BoundedMeanEDetector
 from federated_drift_experiment.experiment import MODE_SPECS
@@ -146,4 +147,12 @@ def test_hierarchical_class_esr_assigns_half_to_overall_family():
 
     assert client.overall_component_weight == 0.5
     assert client.class_component_weight == 0.25
+    assert spec.server_cls is FedSDANoCachedServer
+
+
+def test_soft_routing_class_esr_is_an_isolated_prediction_variant():
+    spec = MODE_SPECS["FedSDA_NoCached_ClassESR_SoftRouting"]
+
+    assert spec.client_cls is SoftRoutingClassConditionalESRFedSDAClient
+    assert issubclass(spec.client_cls, ClassConditionalESRFedSDAClient)
     assert spec.server_cls is FedSDANoCachedServer

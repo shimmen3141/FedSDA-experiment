@@ -96,6 +96,7 @@ Pareto 図では `FedSDA_without_server` と `Oblivious` を通信量に依存�
 | `FedSDA_NoCached_ESR` | NoCached + bounded mean向け混合Shiryaev–Roberts型e-detector |
 | `FedSDA_NoCached_ClassESR` | NoCached + 全体・正解クラス別e-SRの固定重み混合 |
 | `FedSDA_NoCached_HierarchicalClassESR` | NoCached + 全体系へ1/2、クラス別系全体へ1/2を配分する階層混合e-SR |
+| `FedSDA_NoCached_ClassESR_SoftRouting` | ClassESRの処理を維持し、保持モデルの予測だけをAdaHedgeで重み付き統合 |
 | `FedSDA_NoCached_HDDMA` / `FedSDA_NoCached_HDDMW` | NoCached + 全体損失HDDM-A / HDDM-W |
 | `FedSDA_NoCached_ClassHDDMA` | NoCached + 全体・正解クラス別HDDM-A |
 | `FedSDA_Cached_ADWIN` | 配布済みモデルのキャッシュでクロス評価し、全体損失ADWINで検出 |
