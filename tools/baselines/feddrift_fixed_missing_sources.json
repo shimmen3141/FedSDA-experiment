@@ -1,0 +1,8 @@
+[
+  {
+    "root": "results/results_20260803_090426_feddrift-fixed-missing",
+    "csv_path": "results/results_20260803_090426_feddrift-fixed-missing/pareto/pareto_sea2-sea4-circle2-sine2-mnist2_seeds0-4_n5000_feddrift_fixed_feddrift-fixed-missing.csv",
+    "datasets": ["sea2", "sea4", "circle2", "sine2", "mnist2"],
+    "concept_schedule": "feddrift_fixed"
+  }
+]
