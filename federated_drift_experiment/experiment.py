@@ -32,6 +32,7 @@ from .clients import (
     FedSDAClient,
     HDDMFedSDAClient,
     ObliviousClient,
+    RestartingSoftRoutingClassConditionalESRFedSDAClient,
     SoftRoutingClassConditionalESRFedSDAClient,
 )
 from .data import (
@@ -174,6 +175,11 @@ MODE_SPECS = {
     ),
     'FedSDA_NoCached_ClassESR_SoftRouting': ModeSpec(
         SoftRoutingClassConditionalESRFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDANoCachedServer,
+    ),
+    'FedSDA_NoCached_ClassESR_RestartingSoftRouting': ModeSpec(
+        RestartingSoftRoutingClassConditionalESRFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
     ),
@@ -599,6 +605,10 @@ def _save_raw_run(
         )
         telemetry_arrays["routing_pool_reset_counts"] = np.asarray(
             [client.expert_router.pool_reset_count for client in clients],
+            dtype=np.int32,
+        )
+        telemetry_arrays["routing_concept_restart_counts"] = np.asarray(
+            [client.expert_router.concept_restart_count for client in clients],
             dtype=np.int32,
         )
 

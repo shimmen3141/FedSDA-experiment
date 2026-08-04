@@ -48,3 +48,15 @@ def test_adahedge_update_is_stable_for_large_learning_rate():
     router.update({0: 1.0, 1: 1.0}, probabilities)
 
     assert math.isfinite(router.mixability_gap)
+
+
+def test_adahedge_concept_restart_discards_old_losses():
+    router = AdaHedgeRouter()
+    probabilities = router.probabilities([0, 1])
+    router.update({0: 0.0, 1: 1.0}, probabilities)
+
+    router.restart_for_concept()
+
+    assert router.probabilities([0, 1]) == {0: 0.5, 1: 0.5}
+    assert router.concept_restart_count == 1
+    assert router.pool_reset_count == 0

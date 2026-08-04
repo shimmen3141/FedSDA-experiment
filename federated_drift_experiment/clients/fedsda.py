@@ -62,6 +62,16 @@ class FedSDAClient(BaseClient, ABC):
             length=self.fifo_size,
         )
 
+    def _on_local_model_change(self, old_model_id, new_model_id):
+        """クライアント内で確定したモデル切替後の拡張フック。"""
+
+    def _set_local_current_model(self, model_id):
+        """ローカルな再利用・新規作成による現行モデル変更を一元化する。"""
+        old_model_id = self.current_model_id
+        self.current_model_id = model_id
+        if model_id != old_model_id:
+            self._on_local_model_change(old_model_id, model_id)
+
     def _snapshot_reference_models(self):
         """前向き検証中の比較対象を警報時点のパラメータで固定する。"""
         snapshots = {}
@@ -267,7 +277,7 @@ class FedSDAClient(BaseClient, ABC):
             )
             self._pending_upload_rounds = self.model_upload_delay_rounds
             self.train_data_store[temp_id].extend(session.held_data)
-            self.current_model_id = temp_id
+            self._set_local_current_model(temp_id)
             self.local_switch_positions.append(sample_idx)
             self.detection_episodes.mark_operation()
             action = "create"
@@ -276,7 +286,7 @@ class FedSDAClient(BaseClient, ABC):
             winning_shadow = session.reference_models[reference_model_id]
             self.models[reference_model_id].set_params(winning_shadow.get_params())
             self.models[reference_model_id].reset_optimizer()
-            self.current_model_id = reference_model_id
+            self._set_local_current_model(reference_model_id)
             self._absorb_into_store(self.current_model_id, session.held_data)
             if self.current_model_id != old_model_id:
                 self.local_switch_positions.append(sample_idx)
@@ -287,7 +297,7 @@ class FedSDAClient(BaseClient, ABC):
                 action = "maintain"
                 drift_type = 0
         elif requalified_model_id is not None:
-            self.current_model_id = requalified_model_id
+            self._set_local_current_model(requalified_model_id)
             self._absorb_into_store(self.current_model_id, session.held_data)
             if self.current_model_id != old_model_id:
                 self.local_switch_positions.append(sample_idx)
@@ -753,7 +763,7 @@ class FedSDAClient(BaseClient, ABC):
                     print(f"  -> Switch to Model {best_model_id} "
                           f"(Loss {minimum_loss:.3f})")
                 self.local_switch_positions.append(sample_idx)
-                self.current_model_id = best_model_id
+                self._set_local_current_model(best_model_id)
                 drift_type = 1
                 action = "reuse"
                 drift_data = buffer_drift_data
@@ -815,7 +825,7 @@ class FedSDAClient(BaseClient, ABC):
                 action = "create_rejected"
             else:
                 self.local_switch_positions.append(sample_idx)
-                self.current_model_id = temporary_id
+                self._set_local_current_model(temporary_id)
                 drift_type = 2
                 action = "create"
                 self.train_data_store[temporary_id].extend(drift_data)
@@ -1284,3 +1294,12 @@ class SoftRoutingClassConditionalESRFedSDAClient(
 
         # prequential順序を守り、予測後に正解ラベルで重みを更新する。
         self.expert_router.update(model_losses, probabilities)
+
+
+class RestartingSoftRoutingClassConditionalESRFedSDAClient(
+    SoftRoutingClassConditionalESRFedSDAClient
+):
+    """確定した概念切替ごとにAdaHedgeを再始動するSoftRouting。"""
+
+    def _on_local_model_change(self, old_model_id, new_model_id):
+        self.expert_router.restart_for_concept()
