@@ -33,7 +33,6 @@ from .clients import (
     HDDMFedSDAClient,
     ObliviousClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
-    SoftRoutingClassConditionalESRFedSDAClient,
 )
 from .data import (
     build_data_streams,
@@ -164,17 +163,6 @@ MODE_SPECS = {
     ),
     'FedSDA_NoCached_ClassESR': ModeSpec(
         ClassConditionalESRFedSDAClient,
-        _run_per_sample_timestep,
-        server_cls=FedSDANoCachedServer,
-    ),
-    'FedSDA_NoCached_HierarchicalClassESR': ModeSpec(
-        ClassConditionalESRFedSDAClient,
-        _run_per_sample_timestep,
-        server_cls=FedSDANoCachedServer,
-        client_kwargs={'overall_component_weight': 0.5},
-    ),
-    'FedSDA_NoCached_ClassESR_SoftRouting': ModeSpec(
-        SoftRoutingClassConditionalESRFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
     ),

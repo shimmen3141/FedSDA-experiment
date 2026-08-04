@@ -5,8 +5,6 @@ FEDSDA_MODES = (
     "FedSDA_NoCached_ClassADWIN",
     "FedSDA_NoCached_ESR",
     "FedSDA_NoCached_ClassESR",
-    "FedSDA_NoCached_HierarchicalClassESR",
-    "FedSDA_NoCached_ClassESR_SoftRouting",
     "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
     "FedSDA_NoCached_HDDMA",
     "FedSDA_NoCached_ClassHDDMA",
@@ -32,7 +30,7 @@ def fedsda_detector_name(mode):
         return None
     detector_names = {
         "ADWIN", "ClassADWIN", "ESR", "ClassESR",
-        "HierarchicalClassESR", "HDDMA", "ClassHDDMA", "HDDMW",
+        "HDDMA", "ClassHDDMA", "HDDMW",
     }
     return next(
         (part for part in mode.split("_") if part in detector_names),
@@ -46,7 +44,7 @@ def is_adwin_mode(mode):
 
 def is_esr_mode(mode):
     return fedsda_detector_name(mode) in {
-        "ESR", "ClassESR", "HierarchicalClassESR",
+        "ESR", "ClassESR",
     }
 
 

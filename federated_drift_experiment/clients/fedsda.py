@@ -1222,7 +1222,7 @@ class ClassConditionalESRFedSDAClient(ESRFedSDAClient):
         return "overall + class-conditional e-SR mixture"
 
 
-class SoftRoutingClassConditionalESRFedSDAClient(
+class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
     ClassConditionalESRFedSDAClient
 ):
     """保持モデルの予測をAdaHedgeで統合するClassESRクライアント。
@@ -1297,7 +1297,7 @@ class SoftRoutingClassConditionalESRFedSDAClient(
 
 
 class RestartingSoftRoutingClassConditionalESRFedSDAClient(
-    SoftRoutingClassConditionalESRFedSDAClient
+    _AdaHedgeRoutingClassConditionalESRFedSDAClient
 ):
     """確定した概念切替ごとにAdaHedgeを再始動するSoftRouting。"""
 

@@ -14,7 +14,6 @@ from federated_drift_experiment.clients import (
     ClassConditionalESRFedSDAClient,
     ESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
-    SoftRoutingClassConditionalESRFedSDAClient,
 )
 from federated_drift_experiment.drift_detectors import BoundedMeanEDetector
 from federated_drift_experiment.experiment import MODE_SPECS
@@ -134,29 +133,6 @@ def test_class_esr_component_weights_keep_existing_equal_mixture():
 
     assert client.overall_component_weight == pytest.approx(1.0 / 3.0)
     assert client.class_component_weight == pytest.approx(1.0 / 3.0)
-
-
-def test_hierarchical_class_esr_assigns_half_to_overall_family():
-    spec = MODE_SPECS["FedSDA_NoCached_HierarchicalClassESR"]
-    client = spec.client_cls(
-        client_id=0,
-        initial_models={0: SimpleMLP()},
-        initial_stats={0: {"n": 100, "mean": 0.2, "M2": 1.0}},
-        verbose=False,
-        **spec.client_kwargs,
-    )
-
-    assert client.overall_component_weight == 0.5
-    assert client.class_component_weight == 0.25
-    assert spec.server_cls is FedSDANoCachedServer
-
-
-def test_soft_routing_class_esr_is_an_isolated_prediction_variant():
-    spec = MODE_SPECS["FedSDA_NoCached_ClassESR_SoftRouting"]
-
-    assert spec.client_cls is SoftRoutingClassConditionalESRFedSDAClient
-    assert issubclass(spec.client_cls, ClassConditionalESRFedSDAClient)
-    assert spec.server_cls is FedSDANoCachedServer
 
 
 def test_restarting_soft_routing_restarts_only_after_model_change():
