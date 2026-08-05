@@ -13,6 +13,7 @@ from federated_drift_experiment.clients import (
     ADWINFedSDAClient,
     ClassConditionalESRFedSDAClient,
     ESRFedSDAClient,
+    ProtectedSoftRoutingClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
 )
 from federated_drift_experiment.drift_detectors import BoundedMeanEDetector
@@ -157,3 +158,31 @@ def test_restarting_soft_routing_restarts_only_after_model_change():
     assert client.expert_router.concept_restart_count == 1
     assert client.expert_router.probabilities([0, 1]) == {0: 0.5, 1: 0.5}
     assert spec.client_cls is RestartingSoftRoutingClassConditionalESRFedSDAClient
+
+
+def test_protected_soft_routing_keeps_incumbent_until_proposal_is_better():
+    spec = MODE_SPECS["FedSDA_NoCached_ClassESR_ProtectedSoftRouting"]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP()},
+        initial_stats={
+            0: {"n": 100, "mean": 0.2, "M2": 1.0},
+            1: {"n": 100, "mean": 0.2, "M2": 1.0},
+        },
+        verbose=False,
+    )
+    proposal = client.expert_router.probabilities([0, 1])
+
+    protected = client._prediction_probabilities(proposal)
+
+    assert protected == {0: 1.0, 1: 0.0}
+    assert client.history_routing_gate_open == [False]
+
+    client.expert_router.cumulative_losses = {0: 2.0, 1: 0.0}
+    proposal = {0: 0.25, 1: 0.75}
+
+    released = client._prediction_probabilities(proposal)
+
+    assert released == proposal
+    assert client.history_routing_gate_open[-1]
+    assert spec.client_cls is ProtectedSoftRoutingClassConditionalESRFedSDAClient

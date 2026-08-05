@@ -1236,10 +1236,17 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.expert_router = AdaHedgeRouter()
         self.history_routing_effective_experts = []
         self.history_routing_max_weight = []
+        self.history_routing_gate_open = []
+
+    def _prediction_probabilities(self, proposal_probabilities):
+        """AdaHedgeの提案重みを実際の予測重みへ変換する。"""
+        self.history_routing_gate_open.append(True)
+        return proposal_probabilities
 
     def _record_prediction(self, x, y, concept_id):
         model_ids = tuple(sorted(self.models))
-        probabilities = self.expert_router.probabilities(model_ids)
+        proposal_probabilities = self.expert_router.probabilities(model_ids)
+        probabilities = self._prediction_probabilities(proposal_probabilities)
         model_losses = {}
         weighted_scores = None
 
@@ -1293,7 +1300,8 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.history_routing_max_weight.append(maximum)
 
         # prequential順序を守り、予測後に正解ラベルで重みを更新する。
-        self.expert_router.update(model_losses, probabilities)
+        # 保護方式でもAdaHedge自体は提案分布で更新し、反実仮想の学習を続ける。
+        self.expert_router.update(model_losses, proposal_probabilities)
 
 
 class RestartingSoftRoutingClassConditionalESRFedSDAClient(
@@ -1303,3 +1311,25 @@ class RestartingSoftRoutingClassConditionalESRFedSDAClient(
 
     def _on_local_model_change(self, old_model_id, new_model_id):
         self.expert_router.restart_for_concept()
+
+
+class ProtectedSoftRoutingClassConditionalESRFedSDAClient(
+    RestartingSoftRoutingClassConditionalESRFedSDAClient
+):
+    """現行モデルより累積損失が小さい場合だけ混合予測を採用する。"""
+
+    def _prediction_probabilities(self, proposal_probabilities):
+        cumulative_losses = self.expert_router.cumulative_losses
+        incumbent_loss = cumulative_losses[self.current_model_id]
+        proposal_loss = sum(
+            proposal_probabilities[model_id] * cumulative_losses[model_id]
+            for model_id in proposal_probabilities
+        )
+        gate_open = proposal_loss < incumbent_loss
+        self.history_routing_gate_open.append(gate_open)
+        if gate_open:
+            return proposal_probabilities
+        return {
+            model_id: 1.0 if model_id == self.current_model_id else 0.0
+            for model_id in proposal_probabilities
+        }

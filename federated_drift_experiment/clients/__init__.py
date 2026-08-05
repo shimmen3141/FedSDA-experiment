@@ -17,6 +17,7 @@ from .fedsda import (
     ESRFedSDAClient,
     FedSDAClient,
     HDDMFedSDAClient,
+    ProtectedSoftRoutingClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
 )
 from .feddrift import FedDriftClient
@@ -28,6 +29,7 @@ __all__ = [
     "ClassConditionalESRFedSDAClient",
     "ClassConditionalHDDMAFedSDAClient",
     "HDDMFedSDAClient",
+    "ProtectedSoftRoutingClassConditionalESRFedSDAClient",
     "RestartingSoftRoutingClassConditionalESRFedSDAClient",
     "FedDriftClient", "ObliviousClient",
 ]

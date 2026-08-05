@@ -32,6 +32,7 @@ from .clients import (
     FedSDAClient,
     HDDMFedSDAClient,
     ObliviousClient,
+    ProtectedSoftRoutingClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
 )
 from .data import (
@@ -168,6 +169,11 @@ MODE_SPECS = {
     ),
     'FedSDA_NoCached_ClassESR_RestartingSoftRouting': ModeSpec(
         RestartingSoftRoutingClassConditionalESRFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=FedSDANoCachedServer,
+    ),
+    'FedSDA_NoCached_ClassESR_ProtectedSoftRouting': ModeSpec(
+        ProtectedSoftRoutingClassConditionalESRFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
     ),
@@ -598,6 +604,10 @@ def _save_raw_run(
         telemetry_arrays["routing_concept_restart_counts"] = np.asarray(
             [client.expert_router.concept_restart_count for client in clients],
             dtype=np.int32,
+        )
+        telemetry_arrays["history_routing_gate_open"] = np.asarray(
+            [client.history_routing_gate_open for client in clients],
+            dtype=np.bool_,
         )
 
     is_fedsda = mode.startswith("FedSDA")

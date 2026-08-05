@@ -31,3 +31,4 @@ def test_detector_family_is_parsed_for_overall_and_class_modes():
         "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
     ) == "ClassESR"
     assert is_esr_mode("FedSDA_NoCached_ClassESR_RestartingSoftRouting")
+    assert is_esr_mode("FedSDA_NoCached_ClassESR_ProtectedSoftRouting")

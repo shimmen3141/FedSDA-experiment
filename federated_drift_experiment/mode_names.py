@@ -6,6 +6,7 @@ FEDSDA_MODES = (
     "FedSDA_NoCached_ESR",
     "FedSDA_NoCached_ClassESR",
     "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
+    "FedSDA_NoCached_ClassESR_ProtectedSoftRouting",
     "FedSDA_NoCached_HDDMA",
     "FedSDA_NoCached_ClassHDDMA",
     "FedSDA_NoCached_HDDMW",
