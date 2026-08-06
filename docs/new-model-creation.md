@@ -13,12 +13,13 @@ early stoppingとは独立した設定である。
 |---|---|---|---|---|
 | `immediate` | 検知区間 | なし | 直ちに作成 | なし |
 | `validated` | 検知区間の前半 | 同区間の末尾 | 候補が最良既存モデルより区間全体・直近半分の双方で良い | なし |
-| `forward_validated` | 検知区間全体 | 警報後の新着 `K` 件 | 候補が最良既存モデルより全 `K` 件・直近半分の双方で良い | `K` 件 |
-| `forward_requalified` | 検知区間全体 | 警報後の新着 `K` 件 | 全既存モデルが再適合に失敗し、かつ候補が相対比較にも勝つ | `K` 件 |
-| `forward_requalified_current_first` | 検知区間全体 | 警報後の新着 `K` 件 | 現行モデルを優先して再適合を確認し、全既存モデルが不適合の場合だけ候補を比較 | `K` 件 |
-| `forward_persistent` | 検知区間全体 | 警報後の新着 `K` 件 | 現行モデル優先の再適合に全既存モデルが失敗し、かつ候補が重複しない前半・後半の双方で良い | `K` 件 |
+| `forward_validated` | 検知区間全体 | 警報後の新着 `N_forward` 件 | 候補が最良既存モデルより全 `N_forward` 件・直近半分の双方で良い | `N_forward` 件 |
+| `forward_requalified` | 検知区間全体 | 警報後の新着 `N_forward` 件 | 全既存モデルが再適合に失敗し、かつ候補が相対比較にも勝つ | `N_forward` 件 |
+| `forward_requalified_current_first` | 検知区間全体 | 警報後の新着 `N_forward` 件 | 現行モデルを優先して再適合を確認し、全既存モデルが不適合の場合だけ候補を比較 | `N_forward` 件 |
+| `forward_persistent` | 検知区間全体 | 警報後の新着 `N_forward` 件 | 現行モデル優先の再適合に全既存モデルが失敗し、かつ候補が重複しない前半・後半の双方で良い | `N_forward` 件 |
 
-`K` は `NEW_MODEL_FORWARD_VALIDATION_SAMPLES` で指定する。
+`N_forward` は `NEW_MODEL_FORWARD_VALIDATION_SAMPLES` で指定する。論文・アルゴリズム記述で
+1ラウンドのローカルステップ数を表す `K` とは異なる。
 
 ## validated
 
@@ -65,7 +66,7 @@ early stoppingとは独立した設定である。
 ## forward_persistent
 
 `forward_requalified_current_first` と同じ順序で既存モデルを再適合させる。全既存モデルが
-不適合の場合、警報後の新着 `K` 件を時系列順に重複しない前半・後半へ分ける。
+不適合の場合、警報後の新着 `N_forward` 件を時系列順に重複しない前半・後半へ分ける。
 候補モデルが最良参照モデルより両区間で良い場合だけ新規モデルとして採用する。
 
 従来の「全区間と直近半分」は区間が重複するため、後半だけの大きな改善で全区間の平均も

@@ -15,14 +15,14 @@
 
 1. 新規モデル候補を作成し、検知区間で初期学習する。
 2. 警報時点の全既存モデルをshadowとして複製し、候補と同じ検知区間・同じ初期学習方式で学習する。
-3. 警報後の新着データを `K=NEW_MODEL_FORWARD_VALIDATION_SAMPLES` 件観測する。
+3. 警報後の新着データを `N_forward=NEW_MODEL_FORWARD_VALIDATION_SAMPLES` 件観測する。
 4. 各サンプルについて、候補と全shadowの損失を更新前に記録し、その後に全モデルを同じ1回ずつ更新する。
-5. `K` 件の平均損失が最小のモデルを採用する。候補は最良既存shadowより
+5. `N_forward` 件の平均損失が最小のモデルを採用する。候補は最良既存shadowより
    `NEW_MODEL_EARLY_STOPPING_MIN_DELTA` 以上良い場合だけ勝者とする。
 
 候補が勝った場合だけ新しいモデルIDを作る。既存shadowが勝った場合は新しいIDを作らず、
 勝者の学習済みパラメータを対応する既存モデルIDへ反映する。判定は予測クラスの正解率ではなく
-連続値の損失で行うため、小さい `K` でも同率が過度に増えにくい。
+連続値の損失で行うため、小さい `N_forward` でも同率が過度に増えにくい。
 
 ## 他の閾値との関係
 
@@ -34,5 +34,6 @@ shadow tournamentは `γ=FEDSDA_DISTANCE_THRESHOLD` を完全には置き換え�
 
 計算量は保持モデル数に比例して増える。候補と全既存shadowに検知区間学習とforward更新を
 行うため、精度・通信量だけでなく `compute_model_examples_total` と
-`compute_optimizer_steps_total` も比較する。`K=10` は小標本の影響を受けやすいため、
-少なくとも `K=30` も併記する。
+`compute_optimizer_steps_total` も比較する。`N_forward=10` は小標本の影響を受けやすいため、
+少なくとも `N_forward=30` も併記する。論文・アルゴリズム記述のローカルステップ数`K`とは
+異なる記号である。

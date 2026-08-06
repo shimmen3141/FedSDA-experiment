@@ -88,6 +88,13 @@ PARAMETERS = (
         cli_name=None,
         methods=("FedSDA", "FedDrift", "Oblivious"),
     ),
+    ParameterSpec(
+        id="new_model_forward_validation_samples",
+        code_name="NEW_MODEL_FORWARD_VALIDATION_SAMPLES",
+        paper_symbol="N_forward",
+        cli_name="new-model-forward-validation-samples",
+        methods=("FedSDA",),
+    ),
 )
 
 PARAMETERS_BY_ID = {parameter.id: parameter for parameter in PARAMETERS}

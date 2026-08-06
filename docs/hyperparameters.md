@@ -16,6 +16,7 @@
 | `fedsda_distance_threshold` | `FEDSDA_DISTANCE_THRESHOLD` | γ | `--fedsda-distance-threshold` |
 | `feddrift_distance_threshold` | `FEDDRIFT_DISTANCE_THRESHOLD` | δ_FedDrift | `--feddrift-distance-thresholds` |
 | `adwin_delta` | `ADWIN_DELTA` | δ_ADWIN | `--adwin-deltas` |
+| `new_model_forward_validation_samples` | `NEW_MODEL_FORWARD_VALIDATION_SAMPLES` | N_forward | `--new-model-forward-validation-samples` |
 
 ---
 
@@ -112,7 +113,7 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 | `NEW_MODEL_EARLY_STOPPING_MIN_DELTA` | 検証損失の最小改善量 | FedSDA early stopping | 1e-4 |
 | `NEW_MODEL_VALIDATION_FRACTION` | 検知区間から検証用に確保する割合 | FedSDA early stopping | 0.2 |
 | `NEW_MODEL_CREATION_POLICY` | 新規モデルの作成方針。`forward_persistent` は独立した前半・後半の両方で候補の優位を要求する。詳細は [new-model-creation.md](new-model-creation.md) を参照 | FedSDA | `immediate` |
-| `NEW_MODEL_FORWARD_VALIDATION_SAMPLES` | 各forward方式で採否確定までに観測する警報後サンプル数 | FedSDA | 10 |
+| `NEW_MODEL_FORWARD_VALIDATION_SAMPLES` | 各forward方式で採否確定までに観測する警報後サンプル数 N_forward | FedSDA | 10 |
 | `CLIENT_BATCH_SIZE` | ローカル更新のミニバッチサイズ B | 共通 | 32 |
 | `UPDATES_PER_SAMPLE` | 1 データ点あたりの勾配更新回数 L(学習強度)。両手法共通=公平比較の予算なので分けない | 共通 | 1 |
 | `PRETRAIN_SAMPLES` / `PRETRAIN_EPOCHS` / `PRETRAIN_BATCH_SIZE` | 初期モデル(モデル0)の事前学習設定 | 共通 | 500 / 10 / 32 |

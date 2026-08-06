@@ -33,3 +33,8 @@ def test_shared_code_value_keeps_method_specific_semantics():
     assert fedsda.csv_name != feddrift.csv_name
     assert fedsda.paper_symbol == "γ"
     assert feddrift.paper_symbol == "δ_FedDrift"
+
+    forward = parameter("new_model_forward_validation_samples")
+    assert forward.code_name == "NEW_MODEL_FORWARD_VALIDATION_SAMPLES"
+    assert forward.paper_symbol == "N_forward"
+    assert cli_option(forward.id) == "--new-model-forward-validation-samples"
