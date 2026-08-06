@@ -17,6 +17,7 @@ FedDrift の各曲線の左上(高精度・低通信)を取れば「パレート
 """
 import argparse
 import csv
+import hashlib
 import os
 import time
 import traceback
@@ -88,6 +89,8 @@ METRIC_KEYS = [
     "provisional_reference_excess_mean",
     "adaptation_maintain_count", "adaptation_episode_suppressed_count",
     "server_mapping_change_count",
+    "merge_validation_proposal_count", "merge_validation_accept_count",
+    "merge_validation_reject_count", "merge_validation_example_count",
     "runtime_seconds", "client_compute_seconds_sum", "client_compute_seconds_max",
     "compute_inference_examples_total", "compute_training_examples_total",
     "compute_model_examples_total", "compute_optimizer_steps_total",
@@ -103,7 +106,8 @@ ADWIN_DELTA = parameter("adwin_delta").csv_name
 ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "seed", "series", "sweep_parameter", "sweep_value",
             FEDDRIFT_DETECTION_BATCH_SIZE, AGGREGATION_INTERVAL,
-            "clustering_policy", "clustering_decision", "detection_episodes",
+            "clustering_policy", "clustering_decision", "merge_validation",
+            "detection_episodes",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
             "new_model_forward_validation_samples",
@@ -156,6 +160,11 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
             f"{display_series} [cluster-decision="
             f"{config.FEDSDA_CLUSTERING_DECISION}]"
         )
+    if "FedSDA" in mode and config.FEDSDA_MERGE_VALIDATION != "none":
+        display_series = (
+            f"{display_series} [merge-validation="
+            f"{config.FEDSDA_MERGE_VALIDATION}]"
+        )
     if "FedSDA" in mode and config.FEDSDA_DETECTION_EPISODES_ENABLED:
         display_series = f"{display_series} [episodes]"
     if "FedSDA" in mode and config.NEW_MODEL_CREATION_POLICY != "immediate":
@@ -188,7 +197,12 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
     raw_label = display_series
     if raw_dir is not None:
         sv = "na" if sweep_value in (None, "", "None") else f"{sweep_value:g}"
-        fname = f"{_slug(display_series)}_{dataset}_seed{seed}_sv{sv}.npz"
+        setting_hash = hashlib.sha256(
+            display_series.encode("utf-8")
+        ).hexdigest()[:10]
+        fname = (
+            f"{_slug(mode)}_{dataset}_seed{seed}_sv{sv}_{setting_hash}.npz"
+        )
         raw_path = os.path.join(raw_dir, fname)
         if sweep_value not in (None, "", "None"):
             raw_label = f"{display_series} [{sweep_value:g}]"
@@ -210,6 +224,7 @@ def _run(mode, dataset, seed, series, sweep_value, sweep_parameter=None,
         ),
         "clustering_policy": config.FEDSDA_CLUSTERING_POLICY,
         "clustering_decision": config.FEDSDA_CLUSTERING_DECISION,
+        "merge_validation": config.FEDSDA_MERGE_VALIDATION,
         "detection_episodes": config.FEDSDA_DETECTION_EPISODES_ENABLED,
         "new_model_creation_policy": config.NEW_MODEL_CREATION_POLICY,
         "fifo_size": config.FIFO_BUFFER_SIZE,
@@ -397,6 +412,7 @@ def _load_csv(path):
             row[ADWIN_DELTA] = row.get(ADWIN_DELTA, "")
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("clustering_decision", "distance")
+            row.setdefault("merge_validation", "none")
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
             row.setdefault("fifo_size", str(config.FIFO_BUFFER_SIZE))
@@ -739,6 +755,12 @@ def build_parser():
         ),
     )
     fedsda.add_argument(
+        "--merge-validation",
+        choices=config.FEDSDA_MERGE_VALIDATION_POLICIES,
+        default=config.FEDSDA_MERGE_VALIDATION,
+        help="FedSDAの仮統合モデル検証（none / candidate_loss）",
+    )
+    fedsda.add_argument(
         "--detection-episodes",
         action=argparse.BooleanOptionalAction,
         default=config.FEDSDA_DETECTION_EPISODES_ENABLED,
@@ -857,6 +879,7 @@ def main():
     config.CONCEPT_SCHEDULE = args.concept_schedule
     config.FEDSDA_CLUSTERING_POLICY = args.clustering_policy
     config.FEDSDA_CLUSTERING_DECISION = args.clustering_decision
+    config.FEDSDA_MERGE_VALIDATION = args.merge_validation
     config.FEDSDA_DETECTION_EPISODES_ENABLED = args.detection_episodes
     config.NEW_MODEL_CREATION_POLICY = args.new_model_creation_policy
     config.FIFO_BUFFER_SIZE = args.fifo_size

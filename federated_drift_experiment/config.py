@@ -171,3 +171,5 @@ FEDSDA_CLUSTERING_POLICIES = ('on_new_model', 'every_round')
 FEDSDA_CLUSTERING_DECISION = 'distance'
 FEDSDA_CLUSTERING_DECISIONS = ('distance', 'confidence', 'confidence_margin')
 FEDSDA_CLUSTERING_CONFIDENCE = 0.95
+FEDSDA_MERGE_VALIDATION = 'none'
+FEDSDA_MERGE_VALIDATION_POLICIES = ('none', 'candidate_loss')

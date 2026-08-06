@@ -1,5 +1,6 @@
 """FedSDA固有のサーバ実装。"""
 
+import random
 from collections import defaultdict
 
 from .. import config
@@ -24,6 +25,17 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
             "clustering_confidence", config.FEDSDA_CLUSTERING_CONFIDENCE
         )
         super().__init__(*args, **kwargs)
+        self.merge_validation = config.FEDSDA_MERGE_VALIDATION
+        if self.merge_validation not in config.FEDSDA_MERGE_VALIDATION_POLICIES:
+            choices = ", ".join(config.FEDSDA_MERGE_VALIDATION_POLICIES)
+            raise ValueError(
+                f"未対応の統合後モデル検証: {self.merge_validation!r}。"
+                f"選択肢: {choices}"
+            )
+        self.merge_validation_proposal_count = 0
+        self.merge_validation_accept_count = 0
+        self.merge_validation_reject_count = 0
+        self.merge_validation_example_count = 0
 
     def run_round(self, t, clustering_enabled=True):
         """新規登録 → FedAvg → (任意でクラスタリング) → 配布を実行する。
@@ -74,6 +86,7 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
 
         stats_matrix = self._cross_evaluate(active_ids)
         clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
+        clusters = self._validate_merge_candidates(clusters, agg_weights)
         self.record_clustering_diagnostics(t, active_ids, clusters)
         if len(clusters) >= M:
             return {}
@@ -103,6 +116,62 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         if self.verbose:
             print(f"  - After IDs: {sorted(list(self.global_models.keys()))}\n")
         return id_mapping
+
+    def _validate_merge_candidates(self, clusters, model_weights):
+        """仮統合モデルが構成モデルより実測損失を悪化させない場合だけ統合する。"""
+        if self.merge_validation == "none":
+            return clusters
+
+        validated = []
+        for cluster in clusters:
+            if len(cluster) <= 1:
+                validated.append(cluster)
+                continue
+            self.merge_validation_proposal_count += 1
+            candidate_params = self._weighted_average_params(cluster, model_weights)
+            if self._merged_candidate_is_acceptable(cluster, candidate_params):
+                self.merge_validation_accept_count += 1
+                validated.append(cluster)
+            else:
+                self.merge_validation_reject_count += 1
+                validated.extend([[model_id] for model_id in cluster])
+        return validated
+
+    def _merged_candidate_is_acceptable(self, cluster, candidate_params):
+        """同一サンプル上の候補−個別モデル損失の平均が0以下かを返す。"""
+        holders = defaultdict(list)
+        for client in self.clients:
+            for model_id in client.get_held_model_ids():
+                holders[model_id].append(client)
+
+        total_n = 0
+        total_difference = 0.0
+        for model_id in cluster:
+            target_clients = holders.get(model_id, [])
+            if len(target_clients) > config.CROSS_EVAL_MAX_CLIENTS:
+                target_clients = random.sample(
+                    target_clients, config.CROSS_EVAL_MAX_CLIENTS
+                )
+            target_n = 0
+            for client in target_clients:
+                # 参照モデルは直前のクロス評価またはCached配布で保持済みとし、
+                # この追加フェーズでは仮統合モデル本体だけを送信する。
+                self.comm_messages_down += 1
+                self.comm_messages_up += 1
+                self.comm_models_down += 1
+                n, difference_sum, _ = client.evaluate_model_pair(
+                    candidate_params,
+                    self.global_models[model_id],
+                    target_model_id=model_id,
+                )
+                target_n += n
+                total_n += n
+                total_difference += difference_sum
+            if target_n < config.CLUSTER_MIN_EVAL_N:
+                return False
+
+        self.merge_validation_example_count += total_n
+        return total_n > 0 and total_difference / total_n <= 0.0
 
     def _weighted_average_params(self, cluster, agg_weights):
         """クラスタメンバーの FedAvg 済みパラメータをデータ量で加重平均する。
@@ -219,6 +288,7 @@ class FedSDACachedServer(FedSDANoCachedServer):
             use_client_cache=True,
         )
         clusters = self.perform_hierarchical_clustering(model_ids, stats_matrix)
+        clusters = self._validate_merge_candidates(clusters, self.model_weights)
         self.record_clustering_diagnostics(t, model_ids, clusters)
         if len(clusters) < len(model_ids):
             self._merge_cached_clusters(t, clusters)
