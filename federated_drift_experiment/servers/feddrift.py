@@ -12,6 +12,8 @@ class FedDriftServer(CrossEvaluationClusteringServer):
     def __init__(self, *args, linkage=None, isolation_timesteps=None, **kwargs):
         if kwargs.get("distance_threshold") is None:
             kwargs["distance_threshold"] = config.FEDDRIFT_DISTANCE_THRESHOLD
+        # FedDriftは元論文の固定距離閾値による判定を維持する。
+        kwargs["clustering_decision"] = "distance"
         super().__init__(
             *args,
             linkage=linkage or config.CLUSTER_LINKAGE,

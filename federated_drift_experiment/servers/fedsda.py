@@ -19,6 +19,10 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
     def __init__(self, *args, **kwargs):
         if kwargs.get("distance_threshold") is None:
             kwargs["distance_threshold"] = config.FEDSDA_DISTANCE_THRESHOLD
+        kwargs.setdefault("clustering_decision", config.FEDSDA_CLUSTERING_DECISION)
+        kwargs.setdefault(
+            "clustering_confidence", config.FEDSDA_CLUSTERING_CONFIDENCE
+        )
         super().__init__(*args, **kwargs)
 
     def run_round(self, t, clustering_enabled=True):

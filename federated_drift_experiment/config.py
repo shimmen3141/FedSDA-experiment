@@ -168,3 +168,6 @@ CLUSTER_LINKAGE = 'complete'
 # 'on_new_model'=新規モデルの初回配布後のみ、'every_round'=各集約ラウンドで実行。
 FEDSDA_CLUSTERING_POLICY = 'on_new_model'
 FEDSDA_CLUSTERING_POLICIES = ('on_new_model', 'every_round')
+FEDSDA_CLUSTERING_DECISION = 'distance'
+FEDSDA_CLUSTERING_DECISIONS = ('distance', 'confidence')
+FEDSDA_CLUSTERING_CONFIDENCE = 0.95

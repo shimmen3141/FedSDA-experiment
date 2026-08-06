@@ -787,6 +787,12 @@ def _save_raw_run(
         adwin_delta=np.asarray(
             config.ADWIN_DELTA if uses_adwin else np.nan, dtype=np.float64
         ),
+        clustering_policy=np.asarray(
+            config.FEDSDA_CLUSTERING_POLICY if is_fedsda else "", dtype=np.str_
+        ),
+        clustering_decision=np.asarray(
+            config.FEDSDA_CLUSTERING_DECISION if is_fedsda else "", dtype=np.str_
+        ),
         total_data=int(config.TOTAL_DATA_POINTS),
         **telemetry_arrays,
     )

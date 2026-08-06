@@ -1,9 +1,51 @@
 """FedSDA・FedDriftのサーバで共有するモデルクラスタリング戦略。"""
 
+import math
 from collections import deque
 
 
 SUPPORTED_LINKAGES = frozenset({"connected", "complete"})
+SUPPORTED_CLUSTERING_DECISIONS = frozenset({"distance", "confidence"})
+
+
+def mean_loss(stats):
+    """``(n, sum, sum_sq)`` 形式の評価統計から平均損失を返す。"""
+    n, total, _ = stats
+    if n <= 0:
+        raise ValueError("平均損失の計算には1件以上の評価が必要です")
+    return total / n
+
+
+def standardized_mean_increase(target_stats, reference_stats):
+    """2つの独立標本間における平均損失増加の標準化量を返す。
+
+    クロス評価では同じモデルを異なるクライアント集合で評価するため、対応のない
+    Welch型の標準誤差を使う。分散が0の場合も決定的に扱う。
+    """
+    target_n, target_sum, target_sum_sq = target_stats
+    reference_n, reference_sum, reference_sum_sq = reference_stats
+    if target_n < 2 or reference_n < 2:
+        raise ValueError("標準化には各標本2件以上の評価が必要です")
+
+    target_mean = target_sum / target_n
+    reference_mean = reference_sum / reference_n
+    increase = target_mean - reference_mean
+
+    target_var = max(
+        (target_sum_sq - target_sum * target_sum / target_n) / (target_n - 1),
+        0.0,
+    )
+    reference_var = max(
+        (reference_sum_sq - reference_sum * reference_sum / reference_n)
+        / (reference_n - 1),
+        0.0,
+    )
+    standard_error = math.sqrt(
+        target_var / target_n + reference_var / reference_n
+    )
+    if math.isclose(standard_error, 0.0, abs_tol=1e-12):
+        return math.inf if increase > 0.0 else 0.0
+    return increase / standard_error
 
 
 def cluster_models(model_ids, pair_distances, threshold, linkage):

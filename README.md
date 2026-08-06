@@ -113,6 +113,11 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 `--clustering-policy every_round`（各集約ラウンド）を選択できます。Cached系は配布済みモデルの
 クライアントキャッシュを評価するため、毎ラウンド方式でもクロス評価時にモデル本体を再送しません。
 
+統合判定は`--clustering-decision distance`（固定損失距離、既定）または
+`--clustering-decision confidence`（クロス評価の分散を考慮した識別可能性）から選択できます。
+後者も既存のクロス評価統計だけを使うため、追加のモデル通信は発生しません。詳細は
+[ハイパーパラメータ・変数リファレンス](docs/hyperparameters.md#fedsdaのクラスタリング判定)を参照してください。
+
 `--detection-episodes` を指定すると、最初の検出から `N_FIFO` サンプル以内の追加検出を
 同一エピソードへ統合し、モデル再利用・新規作成を最大1回に制限します。既定では無効です。
 
