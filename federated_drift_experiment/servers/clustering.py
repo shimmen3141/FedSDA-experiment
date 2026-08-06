@@ -114,10 +114,15 @@ class CrossEvaluationClusteringServer(BaseServer):
                 dist = max(diff_i_to_j, diff_j_to_i)
                 pair_distances[(id_i, id_j)] = dist
 
-                if self.clustering_decision == "confidence":
+                if self.clustering_decision in {"confidence", "confidence_margin"}:
+                    margin = (
+                        self.distance_threshold
+                        if self.clustering_decision == "confidence_margin"
+                        else 0.0
+                    )
                     score = max(
-                        standardized_mean_increase(stats_ij, stats_ii),
-                        standardized_mean_increase(stats_ji, stats_jj),
+                        standardized_mean_increase(stats_ij, stats_ii, margin),
+                        standardized_mean_increase(stats_ji, stats_jj, margin),
                     )
                 else:
                     score = dist
@@ -141,7 +146,7 @@ class CrossEvaluationClusteringServer(BaseServer):
 
     def _clustering_cutoff(self):
         """選択中の判定尺度に対応するクラスタ分割閾値を返す。"""
-        if self.clustering_decision == "confidence":
+        if self.clustering_decision in {"confidence", "confidence_margin"}:
             return NormalDist().inv_cdf(self.clustering_confidence)
         return self.distance_threshold
 

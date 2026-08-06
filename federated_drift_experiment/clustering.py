@@ -5,7 +5,9 @@ from collections import deque
 
 
 SUPPORTED_LINKAGES = frozenset({"connected", "complete"})
-SUPPORTED_CLUSTERING_DECISIONS = frozenset({"distance", "confidence"})
+SUPPORTED_CLUSTERING_DECISIONS = frozenset(
+    {"distance", "confidence", "confidence_margin"}
+)
 
 
 def mean_loss(stats):
@@ -16,7 +18,7 @@ def mean_loss(stats):
     return total / n
 
 
-def standardized_mean_increase(target_stats, reference_stats):
+def standardized_mean_increase(target_stats, reference_stats, margin=0.0):
     """2つの独立標本間における平均損失増加の標準化量を返す。
 
     クロス評価では同じモデルを異なるクライアント集合で評価するため、対応のない
@@ -29,7 +31,7 @@ def standardized_mean_increase(target_stats, reference_stats):
 
     target_mean = target_sum / target_n
     reference_mean = reference_sum / reference_n
-    increase = target_mean - reference_mean
+    increase = target_mean - reference_mean - margin
 
     target_var = max(
         (target_sum_sq - target_sum * target_sum / target_n) / (target_n - 1),

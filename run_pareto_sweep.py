@@ -733,7 +733,10 @@ def build_parser():
         "--clustering-decision",
         choices=config.FEDSDA_CLUSTERING_DECISIONS,
         default=config.FEDSDA_CLUSTERING_DECISION,
-        help="FedSDAのモデル統合判定（distance / confidence）",
+        help=(
+            "FedSDAのモデル統合判定 "
+            "(distance / confidence / confidence_margin)"
+        ),
     )
     fedsda.add_argument(
         "--detection-episodes",

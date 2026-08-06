@@ -114,7 +114,8 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 クライアントキャッシュを評価するため、毎ラウンド方式でもクロス評価時にモデル本体を再送しません。
 
 統合判定は`--clustering-decision distance`（固定損失距離、既定）または
-`--clustering-decision confidence`（クロス評価の分散を考慮した識別可能性）から選択できます。
+`--clustering-decision confidence`（ゼロとの差の識別可能性）、または
+`--clustering-decision confidence_margin`（γを超える実用的差の識別可能性）から選択できます。
 後者も既存のクロス評価統計だけを使うため、追加のモデル通信は発生しません。詳細は
 [ハイパーパラメータ・変数リファレンス](docs/hyperparameters.md#fedsdaのクラスタリング判定)を参照してください。
 

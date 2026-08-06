@@ -56,6 +56,44 @@ def test_confidence_decision_keeps_clearly_distinct_pair(monkeypatch):
     assert server.perform_hierarchical_clustering([0, 1], stats) == [[0], [1]]
 
 
+def test_confidence_margin_ignores_precise_but_practically_small_difference(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_DECISION", "confidence_margin"
+    )
+    # 低分散なのでゼロとの差は明確だが、平均差は実用許容幅γ未満。
+    stats = _two_model_stats([0.10] * 20, [0.12] * 20)
+    margin_server = FedSDANoCachedServer(
+        distance_threshold=0.05,
+        linkage="complete",
+        verbose=False,
+    )
+    confidence_server = FedSDANoCachedServer(
+        distance_threshold=0.05,
+        linkage="complete",
+        clustering_decision="confidence",
+        verbose=False,
+    )
+
+    assert margin_server.perform_hierarchical_clustering([0, 1], stats) == [[0, 1]]
+    assert confidence_server.perform_hierarchical_clustering([0, 1], stats) == [[0], [1]]
+
+
+def test_confidence_margin_keeps_difference_clearly_above_margin(monkeypatch):
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_DECISION", "confidence_margin"
+    )
+    stats = _two_model_stats([0.1] * 10, [0.3] * 10)
+    server = FedSDANoCachedServer(
+        distance_threshold=0.1,
+        linkage="complete",
+        verbose=False,
+    )
+
+    assert server.perform_hierarchical_clustering([0, 1], stats) == [[0], [1]]
+
+
 def test_feddrift_always_uses_paper_distance_decision(monkeypatch):
     monkeypatch.setattr(config, "FEDSDA_CLUSTERING_DECISION", "confidence")
 

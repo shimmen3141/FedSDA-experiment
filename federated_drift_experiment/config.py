@@ -169,5 +169,5 @@ CLUSTER_LINKAGE = 'complete'
 FEDSDA_CLUSTERING_POLICY = 'on_new_model'
 FEDSDA_CLUSTERING_POLICIES = ('on_new_model', 'every_round')
 FEDSDA_CLUSTERING_DECISION = 'distance'
-FEDSDA_CLUSTERING_DECISIONS = ('distance', 'confidence')
+FEDSDA_CLUSTERING_DECISIONS = ('distance', 'confidence', 'confidence_margin')
 FEDSDA_CLUSTERING_CONFIDENCE = 0.95
