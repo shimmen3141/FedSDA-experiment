@@ -430,39 +430,6 @@ class BaseClient:
         self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
         return len(errors), float(errors.sum()), float((errors ** 2).sum())
 
-    def evaluate_model_pair(self, candidate_params, reference_params, target_model_id):
-        """同じ手元データ上で候補モデルと参照モデルの損失差を評価する。"""
-        start_time = time.perf_counter()
-        eval_data = []
-        if target_model_id in self.stored_data and len(self.stored_data[target_model_id]) > 5:
-            eval_data = self.stored_data[target_model_id]
-        elif target_model_id == self.current_model_id and len(self.train_data_store[target_model_id]) > 10:
-            eval_data = self.train_data_store[target_model_id]
-
-        if len(eval_data) < 5:
-            self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
-            return 0, 0.0, 0.0
-        if len(eval_data) > config.EVAL_MAX_SAMPLES:
-            eval_data = random.sample(eval_data, config.EVAL_MAX_SAMPLES)
-
-        X = torch.cat([item[0] for item in eval_data])
-        y = torch.cat([item[1] for item in eval_data])
-        candidate = SimpleMLP()
-        candidate.set_params(candidate_params)
-        reference = SimpleMLP()
-        reference.set_params(reference_params)
-        with torch.no_grad():
-            self._record_model_compute("cross_evaluation", 2 * len(X))
-            candidate_errors = candidate.per_sample_error(X, y).numpy().flatten()
-            reference_errors = reference.per_sample_error(X, y).numpy().flatten()
-        differences = candidate_errors - reference_errors
-        self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
-        return (
-            len(differences),
-            float(differences.sum()),
-            float((differences ** 2).sum()),
-        )
-
     def apply_cached_merge(self, clusters, cluster_weights, global_stats=None):
         """クライアントが保持済みのモデルから、サーバ指定のマージを適用する。
 

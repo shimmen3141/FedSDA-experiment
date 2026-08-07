@@ -793,9 +793,6 @@ def _save_raw_run(
         clustering_decision=np.asarray(
             config.FEDSDA_CLUSTERING_DECISION if is_fedsda else "", dtype=np.str_
         ),
-        merge_validation=np.asarray(
-            config.FEDSDA_MERGE_VALIDATION if is_fedsda else "", dtype=np.str_
-        ),
         total_data=int(config.TOTAL_DATA_POINTS),
         **telemetry_arrays,
     )
@@ -917,19 +914,6 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     results["comm_messages_up"] = server.comm_messages_up
     results["comm_messages_down"] = server.comm_messages_down
     results["comm_messages_total"] = server.comm_messages_up + server.comm_messages_down
-    results["merge_validation_proposal_count"] = getattr(
-        server, "merge_validation_proposal_count", 0
-    )
-    results["merge_validation_accept_count"] = getattr(
-        server, "merge_validation_accept_count", 0
-    )
-    results["merge_validation_reject_count"] = getattr(
-        server, "merge_validation_reject_count", 0
-    )
-    results["merge_validation_example_count"] = getattr(
-        server, "merge_validation_example_count", 0
-    )
-
     # 定常精度 stable_accuracy(回復窓除外)は compute_metrics で算出済み。
 
     # --- 生データの保存(回復曲線などの事後分析用)---

@@ -119,10 +119,6 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 後者も既存のクロス評価統計だけを使うため、追加のモデル通信は発生しません。詳細は
 [ハイパーパラメータ・変数リファレンス](docs/hyperparameters.md#fedsdaのクラスタリング判定)を参照してください。
 
-`--merge-validation candidate_loss`を追加すると、統合候補の加重平均モデルを同じ保持データで
-再評価し、実測損失を悪化させない候補だけを採用します。仮統合モデルを送る追加評価フェーズが
-発生するため、通信量・計算量と統合後のモデル削減を合わせて比較してください。
-
 `--detection-episodes` を指定すると、最初の検出から `N_FIFO` サンプル以内の追加検出を
 同一エピソードへ統合し、モデル再利用・新規作成を最大1回に制限します。既定では無効です。
 
@@ -228,6 +224,9 @@ python -m tools.baselines.build_feddrift \
 一時ディレクトリ上で重複・競合・CSV/NPZ件数を検査してから切り替え、旧baselineを
 日時付きバックアップとして残す。詳細は
 [`tools/baselines/README.md`](tools/baselines/README.md)を参照。
+
+FedSDAを含む固定ベースラインのディレクトリ構成と、固定値・掃引値の確認方法は
+[`docs/baselines.md`](docs/baselines.md)を参照。
 
 ## コード構成
 
