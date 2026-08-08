@@ -15,6 +15,7 @@ MODE_SPECS にエントリを足す。処理の流れが既存2種と異なる�
 import os
 import random
 import time
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -415,6 +416,42 @@ def _add_telemetry_results(results, clients, telemetry):
         results["e_detector_alpha"] = float(config.E_DETECTOR_ALPHA)
 
 
+def _add_model_diagnostic_results(results, clients, server):
+    """モデル別学習量の断片化と、モデル対の予測相補性を集約する。"""
+    assigned_by_model = defaultdict(int)
+    training_by_model = defaultdict(int)
+    steps_by_model = defaultdict(int)
+    for client in clients:
+        for model_id in client.models:
+            assigned_by_model[model_id] += len(client.train_data_store.get(model_id, ()))
+            training_by_model[model_id] += client.model_training_examples.get(model_id, 0)
+            steps_by_model[model_id] += client.model_optimizer_steps.get(model_id, 0)
+
+    def summarize(prefix, values):
+        array = np.asarray(list(values), dtype=float)
+        results[f"{prefix}_total"] = float(array.sum()) if array.size else 0.0
+        results[f"{prefix}_mean"] = float(array.mean()) if array.size else 0.0
+        results[f"{prefix}_min"] = float(array.min()) if array.size else 0.0
+        mean = float(array.mean()) if array.size else 0.0
+        results[f"{prefix}_cv"] = (
+            float(array.std() / mean) if mean > 0.0 else 0.0
+        )
+
+    summarize("model_assigned_samples", assigned_by_model.values())
+    summarize("model_training_examples", training_by_model.values())
+    summarize("model_optimizer_steps", steps_by_model.values())
+
+    summary = getattr(server, "pair_diagnostic_summary", lambda: {})()
+    defaults = {
+        "model_pair_evaluation_count": 0,
+        "model_pair_sample_count": 0,
+        "model_pair_correctness_disagreement_rate": 0.0,
+        "model_pair_oracle_gain_rate": 0.0,
+        "model_pair_both_correct_rate": 0.0,
+    }
+    results.update({**defaults, **summary})
+
+
 def _save_raw_run(
     raw_path,
     clients,
@@ -608,6 +645,47 @@ def _save_raw_run(
         telemetry_arrays["history_routing_gate_open"] = np.asarray(
             [client.history_routing_gate_open for client in clients],
             dtype=np.bool_,
+        )
+
+    model_client_ids = []
+    model_ids = []
+    model_assigned_samples = []
+    model_training_examples = []
+    model_optimizer_steps = []
+    for client in clients:
+        for model_id in sorted(client.models):
+            model_client_ids.append(client.client_id)
+            model_ids.append(model_id)
+            model_assigned_samples.append(
+                len(client.train_data_store.get(model_id, ()))
+            )
+            model_training_examples.append(
+                client.model_training_examples.get(model_id, 0)
+            )
+            model_optimizer_steps.append(
+                client.model_optimizer_steps.get(model_id, 0)
+            )
+    telemetry_arrays.update({
+        "model_diagnostic_client_ids": np.asarray(model_client_ids, dtype=np.int32),
+        "model_diagnostic_model_ids": np.asarray(model_ids, dtype=np.int32),
+        "model_diagnostic_assigned_samples": np.asarray(
+            model_assigned_samples, dtype=np.int64
+        ),
+        "model_diagnostic_training_examples": np.asarray(
+            model_training_examples, dtype=np.int64
+        ),
+        "model_diagnostic_optimizer_steps": np.asarray(
+            model_optimizer_steps, dtype=np.int64
+        ),
+    })
+    pair_records = getattr(server, "pair_prediction_diagnostics", ())
+    for key in (
+        "candidate_model_id", "target_model_id", "n",
+        "candidate_only_correct", "target_only_correct",
+        "both_correct", "both_wrong",
+    ):
+        telemetry_arrays[f"model_pair_{key}"] = np.asarray(
+            [record[key] for record in pair_records], dtype=np.int64
         )
 
     is_fedsda = mode.startswith("FedSDA")
@@ -906,6 +984,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     results["runtime_seconds"] = runtime_seconds
     results["concept_schedule"] = config.CONCEPT_SCHEDULE
     _add_telemetry_results(results, clients, telemetry)
+    _add_model_diagnostic_results(results, clients, server)
 
     # --- 通信量(モデル転送数。up=クライアント→サーバ, down=サーバ→クライアント)---
     results["comm_models_up"] = server.comm_models_up

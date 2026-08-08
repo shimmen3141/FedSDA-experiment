@@ -190,6 +190,8 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 | `compute_drift_detector_hypotheses_total` | ADWINの候補分割、またはe-SRの候補変化点×賭け率を評価した延べ数 |
 | `change_point_mae` / `change_point_bias` | 検出器が推定した変化開始位置の平均絶対誤差 / 符号付き平均誤差 |
 | `mean_model_count` / `max_model_count` / `model_count_auc` | ラウンド末モデル数の平均 / 最大 / 全ラウンド和 |
+| `model_assigned_samples_*` / `model_training_examples_*` / `model_optimizer_steps_*` | モデル別学習量の総量・平均・最小値・変動係数 |
+| `model_pair_correctness_disagreement_rate` / `model_pair_oracle_gain_rate` | FedSDAクロス評価上のモデル対予測相補性 / oracle選択による改善上限 |
 | `client_compute_seconds_sum` / `client_compute_seconds_max` | クライアント処理時間の総和 / クライアント別最大値(実行環境依存) |
 
 定常精度の回復除外窓 W は [federated_drift_experiment/config.py](federated_drift_experiment/config.py) の `STABLE_WINDOW`(既定200)で設定。最も遅い回復のプラトーを越える大きめ固定値で、`MIN_STABLE_PERIOD` 未満(次ドリフトを跨がない)。適応の**速さ**は回復曲線 acc(Δ)([recovery_analysis.py](recovery_analysis.py))で別途評価する。

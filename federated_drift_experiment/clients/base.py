@@ -58,6 +58,9 @@ class BaseClient:
         # 実行時間は環境依存なので、再現性の高いカウンタとは別に保持する。
         self.compute_counters = defaultdict(int)
         self.phase_seconds = defaultdict(float)
+        # モデル間で学習量が断片化しているかを診断するための累積値。
+        self.model_training_examples = defaultdict(int)
+        self.model_optimizer_steps = defaultdict(int)
 
         # per-sample index and detection positions
         self.processed_samples = 0                 # number of processed samples for this client
@@ -190,6 +193,8 @@ class BaseClient:
                 model.update(bx, by)
                 self._record_model_compute("training", len(bx))
                 self.compute_counters["optimizer_steps"] += 1
+                self.model_training_examples[m_id] += len(bx)
+                self.model_optimizer_steps[m_id] += 1
         self.phase_seconds["training"] += time.perf_counter() - start_time
 
     # ------------------------------------------------------------
@@ -220,13 +225,29 @@ class BaseClient:
         new_model.reset_optimizer()
 
         training_start = time.perf_counter()
+        training_examples_before = self.compute_counters["training_examples"]
+        optimizer_steps_before = self.compute_counters["optimizer_steps"]
         self._train_new_model(new_model, bx, by)
         self.phase_seconds["training"] += time.perf_counter() - training_start
 
         self._register_trained_new_model(
             temp_id, new_model, bx, by, pending_ready=pending_ready
         )
+        self._attribute_model_training(
+            temp_id, training_examples_before, optimizer_steps_before
+        )
         return temp_id, self.model_stats[temp_id]['mean']
+
+    def _attribute_model_training(
+        self, model_id, training_examples_before, optimizer_steps_before
+    ):
+        """直前の学習区間で増えた計算量を、採用されたモデルへ帰属させる。"""
+        self.model_training_examples[model_id] += (
+            self.compute_counters["training_examples"] - training_examples_before
+        )
+        self.model_optimizer_steps[model_id] += (
+            self.compute_counters["optimizer_steps"] - optimizer_steps_before
+        )
 
     def _register_trained_new_model(
         self, temp_id, new_model, bx, by, pending_ready
@@ -391,6 +412,14 @@ class BaseClient:
             self.train_data_store[new_global_id] = self.train_data_store.pop(temp_id)
         if temp_id in self.stored_data:
             self.stored_data[new_global_id] = self.stored_data.pop(temp_id)
+        if temp_id in self.model_training_examples:
+            self.model_training_examples[new_global_id] += (
+                self.model_training_examples.pop(temp_id)
+            )
+        if temp_id in self.model_optimizer_steps:
+            self.model_optimizer_steps[new_global_id] += (
+                self.model_optimizer_steps.pop(temp_id)
+            )
 
         self.current_model_id = new_global_id
         self.pending_model_params = None
@@ -408,17 +437,11 @@ class BaseClient:
     def evaluate_model(self, params, target_model_id):
         """サーバからの評価依頼: 指定パラメータのモデルを手元データで評価する。"""
         start_time = time.perf_counter()
-        eval_data = []
-        if target_model_id in self.stored_data and len(self.stored_data[target_model_id]) > 5:
-            eval_data = self.stored_data[target_model_id]
-        elif target_model_id == self.current_model_id and len(self.train_data_store[target_model_id]) > 10:
-            eval_data = self.train_data_store[target_model_id]
+        eval_data = self._cross_evaluation_data(target_model_id)
 
         if len(eval_data) < 5:
             self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
             return 0, 0.0, 0.0
-        if len(eval_data) > config.EVAL_MAX_SAMPLES:
-            eval_data = random.sample(eval_data, config.EVAL_MAX_SAMPLES)
 
         X = torch.cat([d[0] for d in eval_data])
         y = torch.cat([d[1] for d in eval_data])
@@ -429,6 +452,58 @@ class BaseClient:
             errors = temp_model.per_sample_error(X, y).numpy().flatten()
         self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
         return len(errors), float(errors.sum()), float((errors ** 2).sum())
+
+    def _cross_evaluation_data(self, target_model_id):
+        """通常評価と相補性評価で共通の対象標本を選ぶ。"""
+        if (
+            target_model_id in self.stored_data
+            and len(self.stored_data[target_model_id]) > 5
+        ):
+            data = self.stored_data[target_model_id]
+        elif (
+            target_model_id == self.current_model_id
+            and len(self.train_data_store[target_model_id]) > 10
+        ):
+            data = self.train_data_store[target_model_id]
+        else:
+            return []
+        if len(data) > config.EVAL_MAX_SAMPLES:
+            return random.sample(data, config.EVAL_MAX_SAMPLES)
+        return data
+
+    def evaluate_model_diagnostics(self, params, target_model_id):
+        """通常の損失統計に加え、候補と対象モデルの標本別正誤表を返す。"""
+        start_time = time.perf_counter()
+        eval_data = self._cross_evaluation_data(target_model_id)
+        target_model = self.models.get(target_model_id)
+        if len(eval_data) < 5 or target_model is None:
+            self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
+            return (0, 0.0, 0.0), None
+        X = torch.cat([d[0] for d in eval_data])
+        y = torch.cat([d[1] for d in eval_data])
+        candidate = SimpleMLP()
+        candidate.set_params(params)
+        with torch.no_grad():
+            self._record_model_compute("cross_evaluation", len(X) * 2, calls=2)
+            errors, candidate_predictions = candidate.per_sample_error_and_prediction(X, y)
+            errors = errors.numpy().flatten()
+            candidate_correct = candidate_predictions.view(-1) == y.view(-1)
+            target_correct = target_model.predict(X).view(-1) == y.view(-1)
+        candidate_only = int((candidate_correct & ~target_correct).sum().item())
+        target_only = int((~candidate_correct & target_correct).sum().item())
+        both_correct = int((candidate_correct & target_correct).sum().item())
+        both_wrong = len(X) - candidate_only - target_only - both_correct
+        self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
+        return (
+            (len(errors), float(errors.sum()), float((errors ** 2).sum())),
+            {
+                "n": len(errors),
+                "candidate_only_correct": candidate_only,
+                "target_only_correct": target_only,
+                "both_correct": both_correct,
+                "both_wrong": both_wrong,
+            },
+        )
 
     def apply_cached_merge(self, clusters, cluster_weights, global_stats=None):
         """クライアントが保持済みのモデルから、サーバ指定のマージを適用する。
@@ -510,6 +585,15 @@ class BaseClient:
             new_id = id_mapping.get(old_id, old_id)
             new_train_data[new_id].extend(data_list)
         self.train_data_store = new_train_data
+
+        new_training_examples = defaultdict(int)
+        new_optimizer_steps = defaultdict(int)
+        for old_id, value in self.model_training_examples.items():
+            new_training_examples[id_mapping.get(old_id, old_id)] += value
+        for old_id, value in self.model_optimizer_steps.items():
+            new_optimizer_steps[id_mapping.get(old_id, old_id)] += value
+        self.model_training_examples = new_training_examples
+        self.model_optimizer_steps = new_optimizer_steps
 
         # 3. グローバル配布モデルで上書き（ただし既に現地にテンポラリがある場合は残す処理を行う）
         temp_models = {mid: m for mid, m in list(self.models.items()) if mid < 0}

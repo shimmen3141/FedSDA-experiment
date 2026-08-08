@@ -114,8 +114,16 @@ class FedSDAClient(BaseClient, ABC):
         candidate.set_params(initialization_params)
         candidate.reset_optimizer()
         training_start = time.perf_counter()
+        training_examples_before = self.compute_counters["training_examples"]
+        optimizer_steps_before = self.compute_counters["optimizer_steps"]
         self._train_new_model(candidate, bx, by)
         self.phase_seconds["training"] += time.perf_counter() - training_start
+        candidate_training_examples = (
+            self.compute_counters["training_examples"] - training_examples_before
+        )
+        candidate_optimizer_steps = (
+            self.compute_counters["optimizer_steps"] - optimizer_steps_before
+        )
         reference_models = self._snapshot_reference_models()
         policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
         if policy is not None and policy.train_reference_shadows:
@@ -137,6 +145,8 @@ class FedSDAClient(BaseClient, ABC):
             held_data=list(drift_data),
             reference_models=reference_models,
             target_count=self.forward_validation_samples,
+            candidate_training_examples=candidate_training_examples,
+            candidate_optimizer_steps=candidate_optimizer_steps,
             reference_historical_means=reference_historical_means,
         )
 
@@ -275,6 +285,12 @@ class FedSDAClient(BaseClient, ABC):
                 session.training_y,
                 pending_ready=False,
             )
+            self.model_training_examples[temp_id] += (
+                session.candidate_training_examples
+            )
+            self.model_optimizer_steps[temp_id] += (
+                session.candidate_optimizer_steps
+            )
             self._pending_upload_rounds = self.model_upload_delay_rounds
             self.train_data_store[temp_id].extend(session.held_data)
             self._set_local_current_model(temp_id)
@@ -391,6 +407,16 @@ class FedSDAClient(BaseClient, ABC):
         except KeyError:
             raise ValueError(f"モデル{model_id}はまだクライアントへ配布されていません") from None
         return self.evaluate_model(params, target_model_id)
+
+    def evaluate_cached_model_diagnostics(self, model_id, target_model_id):
+        """配布済みキャッシュを使ってモデル対の正誤相補性も評価する。"""
+        try:
+            params = self.cached_global_model_params[model_id]
+        except KeyError:
+            raise ValueError(
+                f"モデル{model_id}はまだクライアントへ配布されていません"
+            ) from None
+        return self.evaluate_model_diagnostics(params, target_model_id)
 
     def apply_cached_merge(self, clusters, cluster_weights, global_stats=None):
         """ローカル学習モデルを統合するが、評価用キャッシュは次の配布まで維持する。"""
@@ -579,6 +605,8 @@ class FedSDAClient(BaseClient, ABC):
         candidate.set_params(initialization_params)
         candidate.reset_optimizer()
         training_start = time.perf_counter()
+        training_examples_before = self.compute_counters["training_examples"]
+        optimizer_steps_before = self.compute_counters["optimizer_steps"]
         self._train_new_model(
             candidate, holdout.training_x, holdout.training_y
         )
@@ -649,6 +677,9 @@ class FedSDAClient(BaseClient, ABC):
             bx,
             by,
             pending_ready=False,
+        )
+        self._attribute_model_training(
+            temp_id, training_examples_before, optimizer_steps_before
         )
         self._pending_upload_rounds = self.model_upload_delay_rounds
         return temp_id

@@ -99,6 +99,8 @@ class ForwardValidationSession:
     held_data: list
     reference_models: dict
     target_count: int
+    candidate_training_examples: int = 0
+    candidate_optimizer_steps: int = 0
     reference_historical_means: dict[int, float] = field(default_factory=dict)
     candidate_losses: list[float] = field(default_factory=list)
     reference_losses: dict[int, list[float]] = field(default_factory=dict)

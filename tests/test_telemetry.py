@@ -33,6 +33,10 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
     assert results["mean_model_count"] == 1.0
     assert results["max_model_count"] == 1.0
     assert results["client_compute_seconds_sum"] >= 0.0
+    assert results["model_training_examples_total"] > 0
+    assert results["model_optimizer_steps_total"] > 0
+    assert results["model_assigned_samples_total"] > 0
+    assert results["model_pair_evaluation_count"] == 0
 
     with np.load(raw_path) as raw:
         assert raw["round_global_model_count"].shape == (5,)
@@ -53,3 +57,8 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
         assert raw["model_registration_final_active"].tolist() == [True]
         assert raw["model_registration_selection_counts"].tolist() == [200]
         assert raw["clustering_rounds"].shape == (0,)
+        assert raw["model_diagnostic_client_ids"].shape == (2,)
+        assert raw["model_diagnostic_training_examples"].sum() == results[
+            "model_training_examples_total"
+        ]
+        assert raw["model_pair_n"].shape == (0,)

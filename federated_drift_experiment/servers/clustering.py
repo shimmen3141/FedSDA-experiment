@@ -23,6 +23,7 @@ class CrossEvaluationClusteringServer(BaseServer):
         linkage="connected",
         clustering_decision="distance",
         clustering_confidence=0.95,
+        collect_pair_diagnostics=False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -37,6 +38,8 @@ class CrossEvaluationClusteringServer(BaseServer):
             raise ValueError("クラスタリング信頼水準は0.5より大きく1未満にしてください")
         self.clustering_decision = clustering_decision
         self.clustering_confidence = clustering_confidence
+        self.collect_pair_diagnostics = collect_pair_diagnostics
+        self.pair_prediction_diagnostics = []
         self._last_pair_distances = {}
         self._last_pair_decision_scores = {}
 
@@ -70,7 +73,23 @@ class CrossEvaluationClusteringServer(BaseServer):
 
                 total_n, total_S, total_SS = 0, 0.0, 0.0
                 for c in target_clients:
-                    if use_client_cache:
+                    if self.collect_pair_diagnostics and id_i != id_j:
+                        if use_client_cache:
+                            stats, diagnostic = c.evaluate_cached_model_diagnostics(
+                                id_i, target_model_id=id_j
+                            )
+                        else:
+                            stats, diagnostic = c.evaluate_model_diagnostics(
+                                params_i, target_model_id=id_j
+                            )
+                        n, S, SS = stats
+                        if diagnostic is not None:
+                            self.pair_prediction_diagnostics.append({
+                                "candidate_model_id": id_i,
+                                "target_model_id": id_j,
+                                **diagnostic,
+                            })
+                    elif use_client_cache:
                         n, S, SS = c.evaluate_cached_model(id_i, target_model_id=id_j)
                     else:
                         n, S, SS = c.evaluate_model(params_i, target_model_id=id_j)
@@ -78,6 +97,36 @@ class CrossEvaluationClusteringServer(BaseServer):
 
                 stats_matrix[id_i][id_j] = (total_n, total_S, total_SS)
         return stats_matrix
+
+    def pair_diagnostic_summary(self):
+        """全クロス評価で観測したモデル対の正誤相補性を集約する。"""
+        records = self.pair_prediction_diagnostics
+        total = sum(item["n"] for item in records)
+        candidate_only = sum(item["candidate_only_correct"] for item in records)
+        target_only = sum(item["target_only_correct"] for item in records)
+        both_correct = sum(item["both_correct"] for item in records)
+        oracle_gain = sum(
+            min(item["candidate_only_correct"], item["target_only_correct"])
+            for item in records
+        )
+        if total == 0:
+            return {
+                "model_pair_evaluation_count": 0,
+                "model_pair_sample_count": 0,
+                "model_pair_correctness_disagreement_rate": 0.0,
+                "model_pair_oracle_gain_rate": 0.0,
+                "model_pair_both_correct_rate": 0.0,
+            }
+        return {
+            "model_pair_evaluation_count": len(records),
+            "model_pair_sample_count": total,
+            "model_pair_correctness_disagreement_rate": (
+                candidate_only + target_only
+            ) / total,
+            # 2モデルのうち良い方に対し、標本ごとのoracle選択で得られる上限改善。
+            "model_pair_oracle_gain_rate": oracle_gain / total,
+            "model_pair_both_correct_rate": both_correct / total,
+        }
 
     def perform_hierarchical_clustering(self, model_ids, stats_matrix):
         """損失ベースの距離が閾値以下のモデル対を辺とみなし、連結成分をクラスタとして返す。

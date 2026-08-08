@@ -43,6 +43,8 @@
 | `adaptation_action` | 再利用・新規作成・維持の判断 | `adaptation_*`, `model_reuse_*` |
 | `provisional_model` | 仮モデル方式の採否・標本数・棄却理由 | `provisional_*` |
 | `server_mapping` | サーバ割当変更 | `server_mapping_change_count` |
+| `model_learning` | モデル別の割当データ・学習サンプル・optimizer stepの分布 | `model_assigned_samples_*`, `model_training_examples_*`, `model_optimizer_steps_*` |
+| `model_complementarity` | 同一標本上のモデル対正誤表とoracle選択余地 | `model_pair_*` |
 
 コードから用途別に選ぶ場合は`metrics_in_profile("core")`、`"detection"`、
 `"adaptation"`、`"resource"`、`"all"`を使用できる。profileはCSV列を削るものではなく、
@@ -58,13 +60,21 @@
 - `comm_models_total`はモデル転送回数であり、モデル構造が同じ場合の比較を前提とする。
   共有バックボーン + 概念別ヘッドを導入する場合は、転送パラメータ数またはバイト数を別途追加する。
 
-## 5. 次に追加する診断指標
+## 5. モデル多様性と学習断片化の診断
 
-次の二群は有用だが、現時点では未実装であり、既存のCSV指標には含めない。
+モデル別学習量は、最終時点のモデルIDごとにクライアント間で集約する。CSVには総量・平均・最小値・
+変動係数（CV）だけを保存し、クライアント×モデルの詳細はNPZの`model_diagnostic_*`へ保存する。
+CVが大きい、または最小値が小さい場合は、一部モデルへ十分な学習量が届いていない可能性がある。
+`model_training_examples_total`は最終的に保持されたモデルへ帰属できる学習量であり、棄却された仮モデルや
+一時的shadowの学習は含めない。それらを含む全計算量は`compute_training_examples_total`で確認する。
 
-1. **モデル別学習量**: モデルごとの学習サンプル数、保存データ数、optimizer step数。
-2. **モデル対予測相補性**: 一致率と、`iのみ正解`、`jのみ正解`、`両方正解`、`両方不正解`のクロス表。
+モデル対予測相補性はFedSDAの既存クロス評価と同じ標本で計測する。追加のモデル通信は行わないが、
+対象モデル自身の予測を得るforward計算は追加される。NPZの`model_pair_*`には、候補のみ正解、対象のみ
+正解、両方正解、両方不正解の件数を保存する。CSVの主な要約は次のとおり。
 
-いずれも複数モデルを持つ方式に依存する診断値である。詳細系列はNPZへ保存し、CSVにはモデル間の
-中央値・最大値など、研究上の問いが固まった後に必要最小限の要約だけを追加する。これにより、
-手法固有の詳細値が主要比較表を過度に肥大化させることを防ぐ。
+- `model_pair_correctness_disagreement_rate`: 片方だけが正解した割合。
+- `model_pair_oracle_gain_rate`: 良い方の単一モデルに対し、標本ごとにoracle選択した場合の改善上限。
+- `model_pair_both_correct_rate`: 両モデルが正解した割合。
+
+これらは診断専用であり、現時点ではクラスタリング判定を変更しない。精度改善を主張する指標ではなく、
+モデルを残す利益と学習量断片化の原因を切り分けるために使用する。

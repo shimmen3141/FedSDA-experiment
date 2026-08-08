@@ -23,6 +23,7 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         kwargs.setdefault(
             "clustering_confidence", config.FEDSDA_CLUSTERING_CONFIDENCE
         )
+        kwargs.setdefault("collect_pair_diagnostics", True)
         super().__init__(*args, **kwargs)
 
     def run_round(self, t, clustering_enabled=True):

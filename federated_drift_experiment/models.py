@@ -77,6 +77,23 @@ class SimpleMLP(nn.Module):
         correct_probabilities = probabilities.gather(1, labels.unsqueeze(1)).squeeze(1)
         return 1.0 - correct_probabilities
 
+    def per_sample_error_and_prediction(self, x, y):
+        """1回のforwardから有界損失と予測クラスを同時に返す。"""
+        if x.dim() == 1:
+            x = x.unsqueeze(0)
+        scores = self.forward(x)
+        if self.num_classes == 2:
+            if y.dim() == 1:
+                y = y.unsqueeze(1)
+            return torch.abs(scores - y).view(-1), (scores > 0.5).float()
+        labels = y.view(-1).long()
+        probabilities = torch.softmax(scores, dim=1)
+        correct_probabilities = probabilities.gather(
+            1, labels.unsqueeze(1)
+        ).squeeze(1)
+        predictions = torch.argmax(scores, dim=1, keepdim=True).float()
+        return 1.0 - correct_probabilities, predictions
+
     def get_absolute_error(self, x, y):
         """|pred - y| の平均。[0,1] に収まるためADWINへの入力損失として使う。"""
         with torch.no_grad():

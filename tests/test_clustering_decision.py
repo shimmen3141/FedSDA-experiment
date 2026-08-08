@@ -104,3 +104,34 @@ def test_feddrift_always_uses_paper_distance_decision(monkeypatch):
     )
 
     assert server.clustering_decision == "distance"
+
+
+def test_fedsda_collects_pair_prediction_complementarity():
+    class DiagnosticClient:
+        def get_held_model_ids(self):
+            return [0, 1]
+
+        def evaluate_model(self, params, target_model_id):
+            return 10, 1.0, 0.1
+
+        def evaluate_model_diagnostics(self, params, target_model_id):
+            return (10, 1.0, 0.1), {
+                "n": 10,
+                "candidate_only_correct": 2,
+                "target_only_correct": 1,
+                "both_correct": 6,
+                "both_wrong": 1,
+            }
+
+    server = FedSDANoCachedServer(verbose=False)
+    server.global_models = {0: object(), 1: object()}
+    server.clients = [DiagnosticClient()]
+
+    server._cross_evaluate([0, 1], send_model_params=False)
+    summary = server.pair_diagnostic_summary()
+
+    assert summary["model_pair_evaluation_count"] == 2
+    assert summary["model_pair_sample_count"] == 20
+    assert summary["model_pair_correctness_disagreement_rate"] == 0.3
+    assert summary["model_pair_oracle_gain_rate"] == 0.1
+    assert summary["model_pair_both_correct_rate"] == 0.6

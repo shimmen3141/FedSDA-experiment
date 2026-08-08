@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 1
+METRIC_SCHEMA_VERSION = 2
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -140,6 +140,25 @@ METRICS = (
         ("mean_model_count", "max_model_count", "model_count_auc"),
         "model_population", SECONDARY, ALL_METHODS, False,
     ),
+    *_make(
+        (
+            "model_assigned_samples_total", "model_assigned_samples_mean",
+            "model_assigned_samples_min", "model_assigned_samples_cv",
+            "model_training_examples_total", "model_training_examples_mean",
+            "model_training_examples_min", "model_training_examples_cv",
+            "model_optimizer_steps_total", "model_optimizer_steps_mean",
+            "model_optimizer_steps_min", "model_optimizer_steps_cv",
+        ),
+        "model_learning", DIAGNOSTIC, ALL_METHODS, None,
+    ),
+    *_make(
+        (
+            "model_pair_evaluation_count", "model_pair_sample_count",
+            "model_pair_correctness_disagreement_rate",
+            "model_pair_oracle_gain_rate", "model_pair_both_correct_rate",
+        ),
+        "model_complementarity", DIAGNOSTIC, FEDSDA_METHODS, None,
+    ),
 )
 
 METRICS_BY_ID = {metric.id: metric for metric in METRICS}
@@ -159,6 +178,9 @@ METRIC_PROFILES = {
     }),
     "resource": tuple(metric.id for metric in METRICS if metric.group in {
         "communication", "runtime", "compute", "model_population",
+    }),
+    "model_diagnostics": tuple(metric.id for metric in METRICS if metric.group in {
+        "model_learning", "model_complementarity",
     }),
     "all": SCALAR_METRIC_IDS,
 }
