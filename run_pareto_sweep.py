@@ -43,58 +43,14 @@ from federated_drift_experiment.parameter_schema import (
     PARAMETER_SCHEMA_VERSION,
     parameter,
 )
+from federated_drift_experiment.metric_schema import SCALAR_METRIC_IDS
 
 # この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
 # 既定の出力先は results/results_<YYYYMMDD_HHMMSS>/... となり実行ごとに別ディレクトリへ分かれる。
 _RUN_STAMP = time.strftime("%Y%m%d_%H%M%S")
 _DEFAULT_RUN_DIR = f"results/results_{_RUN_STAMP}"
 
-METRIC_KEYS = [
-    "stable_accuracy", "accuracy",
-    "comm_models_up", "comm_models_down", "comm_models_total",
-    "comm_messages_up", "comm_messages_down", "comm_messages_total",
-    "final_model_count", "precision", "recall", "f1", "avg_delay", "total_detect",
-    "change_point_mae", "change_point_bias", "change_point_estimate_count",
-    "alarm_precision", "alarm_recall", "alarm_f1", "alarm_total",
-    "switch_fp_early", "switch_fp_late", "switch_fp_duplicate", "switch_fp_isolated",
-    "adaptation_reuse_count", "adaptation_reuse_precision",
-    "adaptation_create_count", "adaptation_create_precision",
-    "adaptation_create_rejected_count",
-    "model_reuse_current_fit_count", "model_reuse_alternative_fit_count",
-    "provisional_proposal_count", "provisional_acceptance_rate",
-    "provisional_matched_true_count", "provisional_accepted_matched_true_count",
-    "provisional_rejected_matched_true_count", "provisional_accepted_precision",
-    "provisional_interval_count_mean", "provisional_training_count_mean",
-    "provisional_validation_count_mean",
-    "provisional_forward_count", "provisional_resolution_delay_mean",
-    "provisional_accepted_full_margin_mean",
-    "provisional_accepted_recent_margin_mean",
-    "provisional_rejected_full_margin_mean",
-    "provisional_rejected_recent_margin_mean",
-    "provisional_matched_full_margin_mean",
-    "provisional_matched_recent_margin_mean",
-    "provisional_unmatched_full_margin_mean",
-    "provisional_unmatched_recent_margin_mean",
-    "provisional_reject_insufficient_data_count",
-    "provisional_reject_insufficient_forward_data_count",
-    "provisional_reject_full_interval_count",
-    "provisional_reject_recent_interval_count",
-    "provisional_reject_full_and_recent_count",
-    "provisional_reject_first_interval_count",
-    "provisional_reject_second_interval_count",
-    "provisional_reject_first_and_second_count",
-    "provisional_reject_reference_refit_count",
-    "provisional_reject_current_refit_count",
-    "provisional_reject_alternative_refit_count",
-    "provisional_reference_excess_mean",
-    "adaptation_maintain_count", "adaptation_episode_suppressed_count",
-    "server_mapping_change_count",
-    "runtime_seconds", "client_compute_seconds_sum", "client_compute_seconds_max",
-    "compute_inference_examples_total", "compute_training_examples_total",
-    "compute_model_examples_total", "compute_optimizer_steps_total",
-    "compute_drift_detector_updates_total", "compute_drift_detector_hypotheses_total",
-    "mean_model_count", "max_model_count", "model_count_auc",
-]
+METRIC_KEYS = list(SCALAR_METRIC_IDS)
 AGGREGATION_INTERVAL = parameter("aggregation_interval").csv_name
 FEDDRIFT_DETECTION_BATCH_SIZE = parameter("feddrift_detection_batch_size").csv_name
 FEDSDA_DISTANCE_THRESHOLD = parameter("fedsda_distance_threshold").csv_name

@@ -165,6 +165,10 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 
 ### 評価指標(結果 dict のキー)
 
+以下は主要指標の抜粋である。全指標の分類（主要・補助・診断）、適用できる手法、CSVとNPZの
+役割は[docs/metrics.md](docs/metrics.md)にまとめている。正規IDの正本は
+[`federated_drift_experiment/metric_schema.py`](federated_drift_experiment/metric_schema.py)である。
+
 | キー | 意味 |
 |---|---|
 | `accuracy` | prequential(逐次)精度: 各サンプルを予測→即学習した際の当否の平均。**全期間の総合精度** |
