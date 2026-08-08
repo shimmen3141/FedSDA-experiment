@@ -19,6 +19,7 @@ import argparse
 import csv
 import hashlib
 import os
+import sys
 import time
 import traceback
 
@@ -44,6 +45,11 @@ from federated_drift_experiment.parameter_schema import (
     parameter,
 )
 from federated_drift_experiment.metric_schema import SCALAR_METRIC_IDS
+from federated_drift_experiment.option_schema import (
+    explicit_option_ids,
+    validate_explicit_options,
+    validate_sweep_dependencies,
+)
 
 # この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
 # 既定の出力先は results/results_<YYYYMMDD_HHMMSS>/... となり実行ごとに別ディレクトリへ分かれる。
@@ -782,10 +788,11 @@ def build_parser():
     return parser
 
 
-def main():
+def main(argv=None):
     configure_torch_threads()
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(raw_argv)
     args.datasets = [normalize_dataset_name(dataset) for dataset in args.datasets]
 
     if args.fifo_size < 1:
@@ -803,6 +810,41 @@ def main():
             sweep_kind=args.plot_sweep_kind,
         )
         return
+
+    aliases = {
+        "fixed-adwin-delta": "adwin_delta",
+        "fixed-aggregation-interval": "aggregation_interval",
+        "fixed-feddrift-distance-threshold": "feddrift_distance_threshold",
+        "fixed-feddrift-detection-batch-size": "feddrift_detection_batch_size",
+    }
+    explicit_ids = list(explicit_option_ids(raw_argv, aliases=aliases))
+    # 空リストは適用ではなく、その掃引を明示的に無効化する指定である。
+    disabled_sweeps = {
+        "adwin_delta": args.adwin_deltas,
+        "aggregation_interval": args.agg_sweep,
+        "feddrift_detection_batch_size": args.batches,
+        "feddrift_distance_threshold": args.deltas,
+    }
+    explicit_ids = [
+        option_id for option_id in explicit_ids
+        if option_id not in disabled_sweeps or disabled_sweeps[option_id]
+    ]
+    selected_modes = tuple(
+        list(args.fedsda_modes) + list(args.feddrift_modes) + list(args.baseline_modes)
+    )
+    selections = {
+        "new_model_creation_policy": args.new_model_creation_policy,
+        "clustering_decision": args.clustering_decision,
+    }
+    issues = validate_explicit_options(selected_modes, selections, explicit_ids)
+    issues += validate_sweep_dependencies(raw_argv, {
+        "adwin-deltas": args.adwin_deltas,
+        "aggregation-intervals": args.agg_sweep,
+        "feddrift-detection-batch-sizes": args.batches,
+        "feddrift-distance-thresholds": args.deltas,
+    })
+    if issues:
+        parser.error("invalid option combination:\n  " + "\n  ".join(issues))
 
     if args.quick:
         args.datasets = ["blobs"]

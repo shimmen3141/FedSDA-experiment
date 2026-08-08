@@ -27,6 +27,10 @@ python tests/test_regression.py --update   # 意図的に挙動を変えた/初�
 
 ## 実行方法
 
+手法・検出器・新規モデル作成・クラスタリングなどのオプションについて、実装済み範囲、
+理論上の適用可能性、従属パラメータは[docs/options.md](docs/options.md)を参照。
+同文書の表とMermaid依存図は`option_schema.py`から自動生成される。
+
 ```powershell
 # 単発実験(提案手法、seed=0、図は results/ に保存)
 python run_experiment.py --mode FedSDA_NoCached_ADWIN --seed 0 --plot-dir results

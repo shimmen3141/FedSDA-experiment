@@ -6,18 +6,24 @@
 """
 import argparse
 import os
+import sys
 
 from experiment_runtime import configure_torch_threads
 
 from federated_drift_experiment import config, run_random_drift_experiment
 from federated_drift_experiment.data import dataset_cli_choices, normalize_dataset_name
 from federated_drift_experiment.experiment import MODE_SPECS
+from federated_drift_experiment.option_schema import (
+    explicit_option_ids,
+    validate_explicit_options,
+)
 
 MODES = list(MODE_SPECS)
 
 
-def main():
+def main(argv=None):
     configure_torch_threads()
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(description="FedSDA single experiment runner")
     parser.add_argument("--mode", choices=MODES, default='FedSDA_NoCached_ADWIN',
                         help="実験モード (default: FedSDA_NoCached_ADWIN)")
@@ -96,7 +102,7 @@ def main():
                         help="図の保存先ディレクトリ。未指定なら画面表示 (plt.show)")
     parser.add_argument("--raw-dir", default=None,
                         help="生データ(.npz)の保存先ディレクトリ。回復曲線などの事後分析用")
-    args = parser.parse_args()
+    args = parser.parse_args(raw_argv)
 
     if args.fifo_size < 1:
         parser.error("--fifo-size must be at least 1")
@@ -104,6 +110,24 @@ def main():
         parser.error("--new-model-validation-fraction must be between 0 and 1")
     if args.new_model_forward_validation_samples < 2:
         parser.error("--new-model-forward-validation-samples must be at least 2")
+
+    aliases = {"feddrift-batch": "feddrift_detection_batch_size"}
+    explicit_ids = list(explicit_option_ids(raw_argv, aliases=aliases))
+    if any(token == "--distance-threshold" or token.startswith("--distance-threshold=")
+           for token in raw_argv):
+        distance_option = (
+            "feddrift_distance_threshold" if args.mode == "FedDrift"
+            else "fedsda_distance_threshold"
+        )
+        explicit_ids.append(distance_option)
+    selections = {
+        "new_model_training": args.new_model_training,
+        "new_model_creation_policy": args.new_model_creation_policy,
+        "clustering_decision": config.FEDSDA_CLUSTERING_DECISION,
+    }
+    issues = validate_explicit_options((args.mode,), selections, explicit_ids)
+    if issues:
+        parser.error("invalid option combination:\n  " + "\n  ".join(issues))
 
     args.dataset = normalize_dataset_name(args.dataset)
     config.DATASET = args.dataset
