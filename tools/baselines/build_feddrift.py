@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from federated_drift_experiment.data import normalize_dataset_name
-from federated_drift_experiment.parameter_schema import (
+from federated_drift_experiment.experiment_spec.parameters import (
     PARAMETER_SCHEMA_VERSION,
     parameter,
 )

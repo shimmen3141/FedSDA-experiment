@@ -1,7 +1,7 @@
 # 実験指標の構成
 
 実験指標の正規ID、分類、適用範囲、CSV列順は
-[`metric_schema.py`](../federated_drift_experiment/metric_schema.py)を正本とする。
+[`experiment_spec/metrics.py`](../federated_drift_experiment/experiment_spec/metrics.py)を正本とする。
 指標を追加するときは、実験スクリプトへ列名を直接追加せず、このスキーマへ登録する。
 
 ## 1. 三つの利用階層

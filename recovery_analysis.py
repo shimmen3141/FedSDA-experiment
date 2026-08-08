@@ -31,7 +31,7 @@ import numpy as np
 from federated_drift_experiment import config
 from federated_drift_experiment.data import normalize_dataset_name
 from federated_drift_experiment.mode_names import BASELINE_MODES, FEDDRIFT_MODES, FEDSDA_MODES
-from federated_drift_experiment.parameter_schema import PARAMETER_SCHEMA_VERSION
+from federated_drift_experiment.experiment_spec.parameters import PARAMETER_SCHEMA_VERSION
 
 # データセットの正準表示順(存在するものだけ使う)
 _CANON_DATASETS = [

@@ -1,4 +1,4 @@
-from federated_drift_experiment.parameter_schema import (
+from federated_drift_experiment.experiment_spec.parameters import (
     PARAMETERS,
     PARAMETER_SCHEMA_VERSION,
     cli_option,

@@ -1,10 +1,10 @@
 # 実験オプションの依存構造
 
-この文書は`option_schema.py`から自動生成する。直接編集せず、
+この文書は`experiment_spec/options.py`から自動生成する。直接編集せず、
 `python -m tools.generate_option_docs`で更新する。
 対象はアルゴリズムの挙動を変えるオプションであり、出力先・seed・再描画などの
 実験運用オプションは含めない。数値パラメータのコード・CLI・論文記号の対応は
-`parameter_schema.py`を正本とする。
+`experiment_spec/parameters.py`を正本とする。
 
 ## 読み方
 
@@ -133,21 +133,33 @@ flowchart LR
 
 ## 掃引オプションの依存構造
 
-掃引値を空指定するとその系列を無効化する。対応する固定値も不要となり、
-固定値だけを明示した場合はCLIエラーとする。
+掃引は対応する`--no-*-sweep`で無効化する。対応する固定値も不要となり、
+無効化した掃引へ固定値だけを明示した場合はCLIエラーとする。
 
 ```mermaid
 flowchart LR
-  adwin_deltas["--adwin-deltas<br/>掃引値（空で無効）"]
+  adwin_deltas["--adwin-deltas<br/>1個以上の掃引値"]
   fixed_aggregation_interval["--fixed-aggregation-interval<br/>固定値"]
   adwin_deltas -->|non-empty| fixed_aggregation_interval
-  aggregation_intervals["--aggregation-intervals<br/>掃引値（空で無効）"]
+  aggregation_intervals["--aggregation-intervals<br/>1個以上の掃引値"]
   fixed_adwin_delta["--fixed-adwin-delta<br/>固定値"]
   aggregation_intervals -->|non-empty| fixed_adwin_delta
-  feddrift_detection_batch_sizes["--feddrift-detection-batch-sizes<br/>掃引値（空で無効）"]
+  feddrift_detection_batch_sizes["--feddrift-detection-batch-sizes<br/>1個以上の掃引値"]
   fixed_feddrift_distance_threshold["--fixed-feddrift-distance-threshold<br/>固定値"]
   feddrift_detection_batch_sizes -->|non-empty| fixed_feddrift_distance_threshold
-  feddrift_distance_thresholds["--feddrift-distance-thresholds<br/>掃引値（空で無効）"]
+  feddrift_distance_thresholds["--feddrift-distance-thresholds<br/>1個以上の掃引値"]
   fixed_feddrift_detection_batch_size["--fixed-feddrift-detection-batch-size<br/>固定値"]
   feddrift_distance_thresholds -->|non-empty| fixed_feddrift_detection_batch_size
 ```
+
+## 集合オプションの既定値と無効化
+
+| 対象 | 値指定 | 省略時 | 正式な無効化 | 従来の空指定 |
+|---|---|---|---|---|
+| `fedsda_modes` | `--fedsda-modes ...` | 全FedSDA mode | `--no-fedsda` | 不可 |
+| `feddrift_modes` | `--feddrift-modes ...` | FedDrift | `--no-feddrift` | 不可 |
+| `baseline_modes` | `--baseline-modes ...` | 全baseline | `--no-baselines` | 不可 |
+| `adwin_delta_sweep` | `--adwin-deltas ...` | 既定δ_ADWIN集合 | `--no-adwin-sweep` | 不可 |
+| `aggregation_sweep` | `--aggregation-intervals ...` | 既定A集合 | `--no-aggregation-sweep` | 不可 |
+| `feddrift_batch_sweep` | `--feddrift-detection-batch-sizes ...` | 既定B_detect集合 | `--no-feddrift-batch-sweep` | 不可 |
+| `feddrift_distance_sweep` | `--feddrift-distance-thresholds ...` | 既定δ_FedDrift集合 | `--no-feddrift-distance-sweep` | 不可 |

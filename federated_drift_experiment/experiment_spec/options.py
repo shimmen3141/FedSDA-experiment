@@ -68,6 +68,17 @@ class SweepDependency:
     description: str
 
 
+@dataclass(frozen=True)
+class CollectionControl:
+    """mode集合または掃引値集合の既定・無効化方法。"""
+
+    id: str
+    values_cli: str
+    disable_cli: str
+    default_behavior: str
+    legacy_empty_supported: bool = False
+
+
 CAPABILITIES = (
     CapabilitySpec("sample_wise_detection", "サンプル単位検出", "各到着サンプルで検出器を更新する"),
     CapabilitySpec("batch_wise_detection", "バッチ単位検出", "検出バッチ単位でモデル差を判定する"),
@@ -369,6 +380,26 @@ SWEEP_DEPENDENCIES = (
     ),
 )
 
+COLLECTION_CONTROLS = (
+    CollectionControl("fedsda_modes", "fedsda-modes", "no-fedsda", "全FedSDA mode"),
+    CollectionControl("feddrift_modes", "feddrift-modes", "no-feddrift", "FedDrift"),
+    CollectionControl("baseline_modes", "baseline-modes", "no-baselines", "全baseline"),
+    CollectionControl(
+        "adwin_delta_sweep", "adwin-deltas", "no-adwin-sweep", "既定δ_ADWIN集合",
+    ),
+    CollectionControl(
+        "aggregation_sweep", "aggregation-intervals", "no-aggregation-sweep", "既定A集合",
+    ),
+    CollectionControl(
+        "feddrift_batch_sweep", "feddrift-detection-batch-sizes",
+        "no-feddrift-batch-sweep", "既定B_detect集合",
+    ),
+    CollectionControl(
+        "feddrift_distance_sweep", "feddrift-distance-thresholds",
+        "no-feddrift-distance-sweep", "既定δ_FedDrift集合",
+    ),
+)
+
 CAPABILITIES_BY_ID = {item.id: item for item in CAPABILITIES}
 METHODS_BY_ID = {item.id: item for item in METHODS}
 OPTIONS_BY_ID = {item.id: item for item in OPTIONS}
@@ -590,7 +621,7 @@ def render_sweep_mermaid():
     for item in SWEEP_DEPENDENCIES:
         controller = item.controller_cli.replace("-", "_")
         dependent = item.dependent_cli.replace("-", "_")
-        lines.append(f'  {controller}["--{item.controller_cli}<br/>掃引値（空で無効）"]')
+        lines.append(f'  {controller}["--{item.controller_cli}<br/>1個以上の掃引値"]')
         lines.append(f'  {dependent}["--{item.dependent_cli}<br/>固定値"]')
         lines.append(f"  {controller} -->|non-empty| {dependent}")
     lines.append("```")
@@ -602,11 +633,11 @@ def render_option_document():
     lines = [
         "# 実験オプションの依存構造",
         "",
-        "この文書は`option_schema.py`から自動生成する。直接編集せず、",
+        "この文書は`experiment_spec/options.py`から自動生成する。直接編集せず、",
         "`python -m tools.generate_option_docs`で更新する。",
         "対象はアルゴリズムの挙動を変えるオプションであり、出力先・seed・再描画などの",
         "実験運用オプションは含めない。数値パラメータのコード・CLI・論文記号の対応は",
-        "`parameter_schema.py`を正本とする。",
+        "`experiment_spec/parameters.py`を正本とする。",
         "",
         "## 読み方",
         "",
@@ -662,10 +693,21 @@ def render_option_document():
     lines.extend([
         "## 掃引オプションの依存構造",
         "",
-        "掃引値を空指定するとその系列を無効化する。対応する固定値も不要となり、",
-        "固定値だけを明示した場合はCLIエラーとする。",
+        "掃引は対応する`--no-*-sweep`で無効化する。対応する固定値も不要となり、",
+        "無効化した掃引へ固定値だけを明示した場合はCLIエラーとする。",
         "",
         render_sweep_mermaid(),
         "",
+        "## 集合オプションの既定値と無効化",
+        "",
+        "| 対象 | 値指定 | 省略時 | 正式な無効化 | 従来の空指定 |",
+        "|---|---|---|---|---|",
     ])
+    for item in COLLECTION_CONTROLS:
+        legacy = "当面受理" if item.legacy_empty_supported else "不可"
+        lines.append(
+            f"| `{item.id}` | `--{item.values_cli} ...` | {item.default_behavior} | "
+            f"`--{item.disable_cli}` | {legacy} |"
+        )
+    lines.append("")
     return "\n".join(lines)

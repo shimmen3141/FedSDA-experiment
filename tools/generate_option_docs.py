@@ -1,8 +1,8 @@
-"""option_schema.pyからオプション依存文書を再生成する。"""
+"""experiment_spec/options.pyからオプション依存文書を再生成する。"""
 
 from pathlib import Path
 
-from federated_drift_experiment.option_schema import render_option_document
+from federated_drift_experiment.experiment_spec.options import render_option_document
 
 
 ROOT = Path(__file__).resolve().parents[1]

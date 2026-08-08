@@ -1,6 +1,6 @@
 import pytest
 
-from federated_drift_experiment.metric_schema import (
+from federated_drift_experiment.experiment_spec.metrics import (
     METRICS,
     METRICS_BY_ID,
     METRIC_PROFILES,

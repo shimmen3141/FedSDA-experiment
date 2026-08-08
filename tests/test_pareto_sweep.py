@@ -2,6 +2,8 @@ import csv
 import os
 import sys
 
+import pytest
+
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -39,6 +41,40 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     ])
     assert selected.datasets == ["sea2", "mnist2", "mnist4"]
     assert selected.concept_schedule == "feddrift_fixed"
+
+
+def test_explicit_disable_flags_resolve_to_empty_plan_collections():
+    argv = [
+        "--no-fedsda", "--no-feddrift", "--no-baselines",
+        "--no-adwin-sweep", "--no-aggregation-sweep",
+        "--no-feddrift-batch-sweep", "--no-feddrift-distance-sweep",
+    ]
+    parser = sweep.build_parser()
+    args = sweep.apply_collection_disables(parser, parser.parse_args(argv), argv)
+    assert args.fedsda_modes == []
+    assert args.feddrift_modes == []
+    assert args.baseline_modes == []
+    assert args.adwin_deltas == []
+    assert args.agg_sweep == []
+    assert args.batches == []
+    assert args.deltas == []
+
+
+def test_disable_flag_rejects_non_empty_values():
+    argv = ["--no-adwin-sweep", "--adwin-deltas", "0.05"]
+    parser = sweep.build_parser()
+    with pytest.raises(SystemExit):
+        sweep.apply_collection_disables(parser, parser.parse_args(argv), argv)
+
+
+@pytest.mark.parametrize("option", [
+    "--fedsda-modes", "--feddrift-modes", "--baseline-modes",
+    "--adwin-deltas", "--aggregation-intervals",
+    "--feddrift-detection-batch-sizes", "--feddrift-distance-thresholds",
+])
+def test_legacy_empty_collection_syntax_is_rejected(option):
+    with pytest.raises(SystemExit):
+        sweep.build_parser().parse_args([option])
 
 
 def _fake_row(**kwargs):

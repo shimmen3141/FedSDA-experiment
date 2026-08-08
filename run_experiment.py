@@ -13,7 +13,7 @@ from experiment_runtime import configure_torch_threads
 from federated_drift_experiment import config, run_random_drift_experiment
 from federated_drift_experiment.data import dataset_cli_choices, normalize_dataset_name
 from federated_drift_experiment.experiment import MODE_SPECS
-from federated_drift_experiment.option_schema import (
+from federated_drift_experiment.experiment_spec.options import (
     explicit_option_ids,
     validate_explicit_options,
 )

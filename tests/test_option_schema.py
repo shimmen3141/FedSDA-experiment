@@ -7,7 +7,7 @@ from federated_drift_experiment.mode_names import (
     BASELINE_MODES,
     FEDSDA_MODES,
 )
-from federated_drift_experiment.option_schema import (
+from federated_drift_experiment.experiment_spec.options import (
     CAPABILITIES_BY_ID,
     CHOICE_CONSTRAINTS,
     METHODS,

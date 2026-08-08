@@ -29,7 +29,10 @@ python tests/test_regression.py --update   # 意図的に挙動を変えた/初�
 
 手法・検出器・新規モデル作成・クラスタリングなどのオプションについて、実装済み範囲、
 理論上の適用可能性、従属パラメータは[docs/options.md](docs/options.md)を参照。
-同文書の表とMermaid依存図は`option_schema.py`から自動生成される。
+同文書の表とMermaid依存図は`experiment_spec/options.py`から自動生成される。
+一回のrun設定と掃引軸・固定値の分離は
+[docs/experiment-configuration.md](docs/experiment-configuration.md)を参照。
+長時間実験の前に同じコマンドへ`--print-plan`を付けると、実行対象と固定値を確認して終了する。
 
 ```powershell
 # 単発実験(提案手法、seed=0、図は results/ に保存)
@@ -171,7 +174,7 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 
 以下は主要指標の抜粋である。全指標の分類（主要・補助・診断）、適用できる手法、CSVとNPZの
 役割は[docs/metrics.md](docs/metrics.md)にまとめている。正規IDの正本は
-[`federated_drift_experiment/metric_schema.py`](federated_drift_experiment/metric_schema.py)である。
+[`federated_drift_experiment/experiment_spec/metrics.py`](federated_drift_experiment/experiment_spec/metrics.py)である。
 
 | キー | 意味 |
 |---|---|

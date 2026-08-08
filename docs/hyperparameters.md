@@ -7,7 +7,7 @@
 [drift-detection.md](drift-detection.md) を参照。
 
 コード定数・CSV/NPZ列・CLI・論文記号の正本は
-[`parameter_schema.py`](../federated_drift_experiment/parameter_schema.py)である。
+[`experiment_spec/parameters.py`](../federated_drift_experiment/experiment_spec/parameters.py)である。
 
 | 正規ID（CSV/NPZ） | コード定数 | 論文・凡例 | CLI |
 |---|---|---|---|

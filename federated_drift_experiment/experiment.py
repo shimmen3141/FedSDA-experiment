@@ -50,7 +50,7 @@ from .mode_names import (
     is_esr_mode,
     is_hddm_mode,
 )
-from .parameter_schema import PARAMETER_SCHEMA_VERSION
+from .experiment_spec.parameters import PARAMETER_SCHEMA_VERSION
 from .plotting import plot_client_details, plot_system_overview
 from .servers import (
     BaseServer,
