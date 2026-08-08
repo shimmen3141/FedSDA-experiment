@@ -1,5 +1,7 @@
 """FedSDA固有のサーバ実装。"""
 
+from collections import defaultdict
+
 from .. import config
 from .clustering import CrossEvaluationClusteringServer
 
