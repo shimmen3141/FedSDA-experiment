@@ -100,6 +100,20 @@ python -u run_pareto_sweep.py --datasets sea4 circle2 --seeds 0 1 2 3 4 --worker
 最初に`1`, `2`, `4`を同じ小規模条件で計測し、CPU割当数と物理メモリ内に収まる値を採用する。
 複数tmuxセッションを併用する場合の総並列数は「セッション数 × `--workers`」になる。
 
+研究室Linuxサーバでは、venv選択、`pipefail`、GNU time、ログ・raw・Pareto出力を
+`tools/run_server_sweep.sh`へまとめられる。関連する複数方式を同じ結果ルートへ保存する例:
+
+```bash
+FDE_RUN_DIR=results/results_20260809_example FDE_WORKERS=6 \
+  bash tools/run_server_sweep.sh pruning_off \
+  --datasets circle2 --seeds 0 1 2 3 4 --no-feddrift --no-baselines
+```
+
+既定では`.venv/bin/python`、4 worker、`PYTHONNOUSERSITE=1`、回復図の自動生成なしを使う。
+環境に応じて`FDE_VENV_DIR`、`FDE_PYTHON`、`FDE_WORKERS`、`FDE_NO_RECOVERY`を上書きできる。
+ラッパーが`--workers`、`--out-dir`、`--raw-dir`、`--tag`、`--no-recovery`を付与するため、
+これらは後続の実験オプションには記述しない。
+
 Pareto 図では `FedSDA_without_server` と `Oblivious` を通信量に依存しない基準として横線で描く。
 横線はシード平均、半透明の帯はシード間の ±1 標準偏差である。1 シードだけの場合は標準偏差が
 0 のため帯は表示されない。凡例には前者の固定 `δ_ADWIN`、後者の固定 `A` も示す。
