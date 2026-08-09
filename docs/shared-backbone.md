@@ -35,6 +35,24 @@ CSV・NPZには`shared_backbone_training`を保存し、既定以外ではPareto
 - `compute_head_optimizer_steps_total`: 概念別ヘッドoptimizerの更新回数。
 - `compute_optimizer_steps_total`: 従来との比較用に維持する論理的な概念モデル更新回数。
 
+## 集約後のルーティング再較正
+
+共有バックボーンをサーバで集約すると、同じ概念ヘッドでも予測関数が変化する。一方、
+AdaHedgeの累積損失は集約前の予測関数に対する証拠であり、そのまま保持すると現在のモデル間の
+優劣を正しく表さない場合がある。
+
+`--shared-backbone-routing-recalibration`で次を選択する。
+
+- `none`（既定）: 累積損失を維持し、従来の共有バックボーン結果と同じ挙動にする。
+- `aggregation_restart`: 各サーバ集約・配布の直後に累積損失とmixability gapだけを初期化する。
+  モデル、検出器、学習データ、概念切替状態は変更しない。再較正周期には既存の集約間隔`A`を
+  用いるため、新しい数値ハイパーパラメータは増えない。
+
+再始動回数はCSVの`routing_aggregation_restart_count`と、NPZの
+`routing_aggregation_restart_counts`で確認できる。この方式は特に`joint`で生じた
+「oracle accuracyは高いがSoftRoutingが良いモデルを回収できない」問題を切り分けるための
+実験条件であり、既定値にはしていない。
+
 ## 仮モデル
 
 正式採用済みの全概念ヘッドは同じバックボーンを参照する。`sequential`または`joint`では

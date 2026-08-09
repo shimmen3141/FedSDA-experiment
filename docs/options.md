@@ -29,6 +29,7 @@ flowchart LR
   end
   subgraph group_prediction[prediction]
     routing["<b>予測ルーティング</b><br/>hard | restarting_soft | protected_soft"]
+    shared_backbone_routing_recalibration["<b>共有バックボーン更新後のルーティング再較正</b><br/>none | aggregation_restart"]
   end
   subgraph group_model[model]
     model_architecture["<b>モデル構造</b><br/>independent | shared_backbone"]
@@ -66,6 +67,7 @@ flowchart LR
     feddrift_detection_batch_size["<b>FedDrift検出バッチ B_detect</b><br/>positive integer"]
   end
   model_architecture -->|"共有バックボーン構造のとき"| shared_backbone_training
+  model_architecture -->|"共有バックボーン構造のとき"| shared_backbone_routing_recalibration
   new_model_training -->|"初期学習を行うとき"| new_model_epochs
   new_model_creation_policy -->|"validatedのとき"| new_model_validation_fraction
   new_model_creation_policy -->|"forward系のとき"| new_model_forward_validation_samples
@@ -97,6 +99,7 @@ flowchart LR
 | `routing` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 保持モデルから予測を選択または混合する方式 |
 | `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか |
 | `shared_backbone_training` | cli: `--shared-backbone-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか |
+| `shared_backbone_routing_recalibration` | cli: `--shared-backbone-routing-recalibration` | 実装済み | 理論上のみ | 対象外 | 対象外 | サーバ集約で共有表現が変化した後にSoftRoutingの累積証拠を扱う方式 |
 | `new_model_creation_policy` | cli: `--new-model-creation-policy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 警報後に新規モデルを即時作成するか、検証してから採用するか |
 | `new_model_training` | cli: `--new-model-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 新規モデル候補の初期学習方法 |
 | `new_model_epochs` | cli: `--new-model-epochs` | 実装済み | 理論上のみ | 対象外 | 対象外 | fixedのエポック数またはearly_stoppingの最大エポック数 |

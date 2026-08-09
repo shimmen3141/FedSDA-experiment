@@ -60,3 +60,15 @@ def test_adahedge_concept_restart_discards_old_losses():
     assert router.probabilities([0, 1]) == {0: 0.5, 1: 0.5}
     assert router.concept_restart_count == 1
     assert router.pool_reset_count == 0
+
+
+def test_adahedge_aggregation_restart_has_separate_counter():
+    router = AdaHedgeRouter()
+    probabilities = router.probabilities([0, 1])
+    router.update({0: 0.0, 1: 1.0}, probabilities)
+
+    router.restart_after_aggregation()
+
+    assert router.probabilities([0, 1]) == {0: 0.5, 1: 0.5}
+    assert router.aggregation_restart_count == 1
+    assert router.concept_restart_count == 0

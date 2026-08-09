@@ -18,6 +18,7 @@ class AlgorithmOptions:
     new_model_validation_fraction: float
     new_model_forward_validation_samples: int
     shared_backbone_training: str
+    shared_backbone_routing_recalibration: str
 
     @classmethod
     def from_current_config(cls):
@@ -32,6 +33,9 @@ class AlgorithmOptions:
                 config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES
             ),
             shared_backbone_training=config.SHARED_BACKBONE_TRAINING,
+            shared_backbone_routing_recalibration=(
+                config.SHARED_BACKBONE_ROUTING_RECALIBRATION
+            ),
         )
 
     def config_overrides(self):
@@ -47,6 +51,9 @@ class AlgorithmOptions:
                 self.new_model_forward_validation_samples
             ),
             "SHARED_BACKBONE_TRAINING": self.shared_backbone_training,
+            "SHARED_BACKBONE_ROUTING_RECALIBRATION": (
+                self.shared_backbone_routing_recalibration
+            ),
         }
 
 

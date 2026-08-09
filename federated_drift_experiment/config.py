@@ -97,6 +97,11 @@ FEDSDA_DETECTION_EPISODES_ENABLED = False  # 近接検出をN_FIFO幅の1エピ�
 # frozen=共有部を固定して概念別ヘッドだけ更新する診断方式。
 SHARED_BACKBONE_TRAINING = "sequential"
 SHARED_BACKBONE_TRAINING_CHOICES = ("sequential", "joint", "frozen")
+# 共有表現がサーバ集約で変化した後に、SoftRoutingの古い累積損失を扱う方法。
+SHARED_BACKBONE_ROUTING_RECALIBRATION = "none"
+SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (
+    "none", "aggregation_restart",
+)
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)
 UPDATES_PER_SAMPLE = 1      # 1データ点あたりの勾配更新回数 (論文 L・学習強度)。両手法共通=公平比較の予算
 

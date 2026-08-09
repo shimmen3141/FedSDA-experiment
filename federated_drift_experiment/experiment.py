@@ -496,6 +496,11 @@ def _add_model_diagnostic_results(results, clients, server):
             if oracle_correct else 0.0
         ),
         "routing_missed_oracle_count": routing["missed_oracle_count"],
+        "routing_aggregation_restart_count": sum(
+            getattr(client.expert_router, "aggregation_restart_count", 0)
+            for client in clients
+            if hasattr(client, "expert_router")
+        ),
     })
 
 
@@ -687,6 +692,10 @@ def _save_raw_run(
         )
         telemetry_arrays["routing_concept_restart_counts"] = np.asarray(
             [client.expert_router.concept_restart_count for client in clients],
+            dtype=np.int32,
+        )
+        telemetry_arrays["routing_aggregation_restart_counts"] = np.asarray(
+            [client.expert_router.aggregation_restart_count for client in clients],
             dtype=np.int32,
         )
         telemetry_arrays["history_routing_gate_open"] = np.asarray(
@@ -928,6 +937,11 @@ def _save_raw_run(
         ),
         shared_backbone_training=np.asarray(
             config.SHARED_BACKBONE_TRAINING
+            if "_SharedBackbone_" in mode else "",
+            dtype=np.str_,
+        ),
+        shared_backbone_routing_recalibration=np.asarray(
+            config.SHARED_BACKBONE_ROUTING_RECALIBRATION
             if "_SharedBackbone_" in mode else "",
             dtype=np.str_,
         ),

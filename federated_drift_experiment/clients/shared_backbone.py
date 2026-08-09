@@ -53,6 +53,10 @@ class SharedBackboneRestartingSoftRoutingFedSDAClient(
     def _after_models_rebuilt(self):
         self._share_model_backbones()
 
+    def recalibrate_routing_after_aggregation(self):
+        """集約による共有表現の変化後にSoftRoutingを再較正する。"""
+        self.expert_router.restart_after_aggregation()
+
     def _routing_scores(self, x, model_ids):
         """特徴抽出を1回だけ行い、全概念別ヘッドを評価する。"""
         first = self.models[model_ids[0]]

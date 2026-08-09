@@ -79,6 +79,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "fifo_size", "new_model_validation_fraction",
             "new_model_forward_validation_samples",
             "shared_backbone_training",
+            "shared_backbone_routing_recalibration",
             FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
             ] + METRIC_KEYS
 
@@ -159,6 +160,14 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         display_series = (
             f"{display_series} [backbone={config.SHARED_BACKBONE_TRAINING}]"
         )
+    if (
+        "_SharedBackbone_" in mode
+        and config.SHARED_BACKBONE_ROUTING_RECALIBRATION != "none"
+    ):
+        display_series = (
+            f"{display_series} [routing-recalibration="
+            f"{config.SHARED_BACKBONE_ROUTING_RECALIBRATION}]"
+        )
     if "FedSDA" in mode:
         display_series = f"{display_series} [N_FIFO={config.FIFO_BUFFER_SIZE}]"
     if (
@@ -220,6 +229,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES,
         "shared_backbone_training": (
             config.SHARED_BACKBONE_TRAINING
+            if "_SharedBackbone_" in mode else None
+        ),
+        "shared_backbone_routing_recalibration": (
+            config.SHARED_BACKBONE_ROUTING_RECALIBRATION
             if "_SharedBackbone_" in mode else None
         ),
         FEDSDA_DISTANCE_THRESHOLD: (
@@ -892,6 +905,15 @@ def build_parser():
             "(sequential / joint / frozen)"
         ),
     )
+    fedsda.add_argument(
+        "--shared-backbone-routing-recalibration",
+        choices=config.SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES,
+        default=config.SHARED_BACKBONE_ROUTING_RECALIBRATION,
+        help=(
+            "サーバ集約後のSoftRouting再較正方式 "
+            "(none / aggregation_restart)"
+        ),
+    )
     fedsda.add_argument("--fedsda-distance-threshold", dest="fixed_gamma",
                         type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
@@ -1053,6 +1075,9 @@ def main(argv=None):
         "new_model_creation_policy": args.new_model_creation_policy,
         "clustering_decision": args.clustering_decision,
         "shared_backbone_training": args.shared_backbone_training,
+        "shared_backbone_routing_recalibration": (
+            args.shared_backbone_routing_recalibration
+        ),
     }
     issues = validate_explicit_options(selected_modes, selections, explicit_ids)
     issues += validate_sweep_dependencies(raw_argv, {
@@ -1089,6 +1114,9 @@ def main(argv=None):
             args.new_model_forward_validation_samples
         ),
         shared_backbone_training=args.shared_backbone_training,
+        shared_backbone_routing_recalibration=(
+            args.shared_backbone_routing_recalibration
+        ),
     )
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.FEDDRIFT_DISTANCE_THRESHOLD

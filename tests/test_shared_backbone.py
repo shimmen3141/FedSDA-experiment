@@ -185,6 +185,27 @@ def test_shared_server_counts_backbone_once_per_client_transfer():
     )
 
 
+def test_aggregation_restart_recalibrates_router_after_round(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "SHARED_BACKBONE_ROUTING_RECALIBRATION",
+        "aggregation_restart",
+    )
+    client = _two_head_client()
+    _populate_training_store(client)
+    probabilities = client.expert_router.probabilities([0, 1])
+    client.expert_router.update({0: 0.0, 1: 1.0}, probabilities)
+    server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    server.register_client(client)
+    server.register_model_params(0, client.models[0].get_params())
+    server.register_model_params(1, client.models[1].get_params())
+
+    server.run_round(1, clustering_enabled=False)
+
+    assert client.expert_router.probabilities([0, 1]) == {0: 0.5, 1: 0.5}
+    assert client.expert_router.aggregation_restart_count == 1
+
+
 def test_shared_backbone_experiment_reports_component_metrics(monkeypatch):
     monkeypatch.setattr(config, "DATASET", "circle2")
     monkeypatch.setattr(config, "N_CLIENTS", 2)

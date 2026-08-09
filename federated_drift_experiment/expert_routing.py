@@ -16,12 +16,21 @@ class AdaHedgeRouter:
         self.mixability_gap = 0.0
         self.pool_reset_count = 0
         self.concept_restart_count = 0
+        self.aggregation_restart_count = 0
+
+    def _clear_evidence(self):
+        self.cumulative_losses = {}
+        self.mixability_gap = 0.0
 
     def restart_for_concept(self):
         """確定したモデル操作後に、過去概念の累積損失を破棄する。"""
-        self.cumulative_losses = {}
-        self.mixability_gap = 0.0
+        self._clear_evidence()
         self.concept_restart_count += 1
+
+    def restart_after_aggregation(self):
+        """共有表現の集約更新後に、更新前のモデル比較証拠を破棄する。"""
+        self._clear_evidence()
+        self.aggregation_restart_count += 1
 
     def _synchronize(self, expert_ids):
         expert_ids = tuple(sorted(expert_ids))

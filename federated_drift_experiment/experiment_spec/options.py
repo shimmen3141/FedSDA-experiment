@@ -167,6 +167,20 @@ OPTIONS = (
         cli_name="shared-backbone-training",
     ),
     OptionSpec(
+        "shared_backbone_routing_recalibration",
+        "共有バックボーン更新後のルーティング再較正",
+        "prediction",
+        ("none", "aggregation_restart"),
+        "サーバ集約で共有表現が変化した後にSoftRoutingの累積証拠を扱う方式",
+        (FED_SDA,), (FED_SDA, FED_DRIFT),
+        requires_capabilities=("shared_representation", "soft_routing"),
+        active_when=(ActivationRule(
+            "model_architecture", ("shared_backbone",),
+            "共有バックボーン構造のとき",
+        ),),
+        cli_name="shared-backbone-routing-recalibration",
+    ),
+    OptionSpec(
         "new_model_creation_policy", "新規モデル作成方針", "adaptation",
         (
             "immediate", "validated", "forward_validated",

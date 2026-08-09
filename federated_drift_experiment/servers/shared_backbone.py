@@ -1,5 +1,6 @@
 """共有バックボーンと概念別ヘッドを集約するFedSDAサーバ。"""
 
+from .. import config
 from ..models import SharedBackboneMLP, parameter_payload_size
 from .fedsda import FedSDANoCachedServer
 
@@ -18,6 +19,16 @@ def _divide_params(params, denominator):
 
 class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
     """共有部をクライアントごとに1回、概念別ヘッドをIDごとに集約する。"""
+
+    def run_round(self, t, clustering_enabled=True):
+        """集約・配布後、必要なら更新前のルーティング証拠を破棄する。"""
+        super().run_round(t, clustering_enabled=clustering_enabled)
+        if (
+            config.SHARED_BACKBONE_ROUTING_RECALIBRATION
+            == "aggregation_restart"
+        ):
+            for client in self.clients:
+                client.recalibrate_routing_after_aggregation()
 
     def update_global_models(self, active_ids):
         """共有バックボーン1個と各概念ヘッドを別々の重みでFedAvgする。"""

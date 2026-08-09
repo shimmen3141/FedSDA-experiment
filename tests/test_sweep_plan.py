@@ -20,6 +20,7 @@ def _algorithm():
         new_model_validation_fraction=0.2,
         new_model_forward_validation_samples=10,
         shared_backbone_training="sequential",
+        shared_backbone_routing_recalibration="none",
     )
 
 
