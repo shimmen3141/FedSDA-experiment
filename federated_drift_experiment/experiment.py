@@ -343,6 +343,7 @@ _COMPUTE_COUNTER_KEYS = (
     "statistics_forward_calls", "statistics_examples",
     "cross_evaluation_forward_calls", "cross_evaluation_examples",
     "initialization_forward_calls", "initialization_examples",
+    "routing_recalibration_forward_calls", "routing_recalibration_examples",
     "training_forward_calls", "training_examples", "optimizer_steps",
     "backbone_optimizer_steps", "head_optimizer_steps",
     "backbone_examples", "head_examples",
@@ -395,7 +396,10 @@ def _add_telemetry_results(results, clients, telemetry):
     for key, value in totals.items():
         results[f"compute_{key}_total"] = value
 
-    inference_phases = ("prediction", "detection", "statistics", "cross_evaluation", "initialization")
+    inference_phases = (
+        "prediction", "detection", "statistics", "cross_evaluation",
+        "initialization", "routing_recalibration",
+    )
     results["compute_inference_examples_total"] = sum(
         totals[f"{phase}_examples"] for phase in inference_phases
     )
