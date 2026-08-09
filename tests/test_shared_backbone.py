@@ -206,6 +206,37 @@ def test_aggregation_restart_recalibrates_router_after_round(monkeypatch):
     assert client.expert_router.aggregation_restart_count == 1
 
 
+def test_fifo_replay_rebuilds_router_from_post_aggregation_predictions(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "SHARED_BACKBONE_ROUTING_RECALIBRATION",
+        "fifo_replay",
+    )
+    client = _two_head_client()
+    with torch.no_grad():
+        client.models[0].head.weight.zero_()
+        client.models[0].head.bias.fill_(5.0)
+        client.models[1].head.weight.zero_()
+        client.models[1].head.bias.fill_(-5.0)
+    for _ in range(4):
+        client.buffer.append((
+            torch.zeros(1, config.dataset_spec().input_dim),
+            torch.tensor([[0.0]]),
+        ))
+    probabilities = client.expert_router.probabilities([0, 1])
+    client.expert_router.update({0: 0.0, 1: 1.0}, probabilities)
+
+    client.recalibrate_routing_after_aggregation()
+
+    replayed = client.expert_router.probabilities([0, 1])
+    assert replayed[1] > replayed[0]
+    assert client.expert_router.aggregation_recalibration_count == 1
+    assert client.expert_router.aggregation_recalibration_sample_count == 4
+    assert client.compute_counters["routing_recalibration_examples"] == 8
+    assert client.compute_counters["backbone_examples"] == 4
+    assert client.compute_counters["head_examples"] == 8
+
+
 def test_shared_backbone_experiment_reports_component_metrics(monkeypatch):
     monkeypatch.setattr(config, "DATASET", "circle2")
     monkeypatch.setattr(config, "N_CLIENTS", 2)

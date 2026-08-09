@@ -23,10 +23,7 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
     def run_round(self, t, clustering_enabled=True):
         """集約・配布後、必要なら更新前のルーティング証拠を破棄する。"""
         super().run_round(t, clustering_enabled=clustering_enabled)
-        if (
-            config.SHARED_BACKBONE_ROUTING_RECALIBRATION
-            == "aggregation_restart"
-        ):
+        if config.SHARED_BACKBONE_ROUTING_RECALIBRATION != "none":
             for client in self.clients:
                 client.recalibrate_routing_after_aggregation()
 

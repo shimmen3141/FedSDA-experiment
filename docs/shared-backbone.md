@@ -47,11 +47,22 @@ AdaHedgeの累積損失は集約前の予測関数に対する証拠であり、
 - `aggregation_restart`: 各サーバ集約・配布の直後に累積損失とmixability gapだけを初期化する。
   モデル、検出器、学習データ、概念切替状態は変更しない。再較正周期には既存の集約間隔`A`を
   用いるため、新しい数値ハイパーパラメータは増えない。
+- `fifo_replay`: 集約後モデルをFIFO内の最新データで再評価し、古い累積損失を、その評価から
+  時系列順に再構築した証拠で置き換える。FIFOは検出遅延を吸収するために保持され、まだ過去の
+  概念モデルへ確定投入されていない区間であるため、現在分布を表す較正集合として利用する。
+  FIFOが空、または保持モデルが1個だけなら、有効な既存証拠を一律に消さず何もしない。
 
 再始動回数はCSVの`routing_aggregation_restart_count`と、NPZの
 `routing_aggregation_restart_counts`で確認できる。この方式は特に`joint`で生じた
 「oracle accuracyは高いがSoftRoutingが良いモデルを回収できない」問題を切り分けるための
 実験条件であり、既定値にはしていない。
+
+再較正を実施した回数と、再評価に実際に用いた標本数は、それぞれ
+`routing_aggregation_recalibration_count`と
+`routing_aggregation_recalibration_sample_count`で確認できる。`fifo_replay`は通信を追加せず、
+集約・配布済みのローカルモデルと観測済みFIFOデータだけを使う。ただし、集約ごとに最大で
+`N_FIFO × 保持モデル数`のヘッド評価が増える。この計算は`routing_recalibration_*`および
+`compute_backbone_examples_total`、`compute_head_examples_total`へ含める。
 
 ## 仮モデル
 
@@ -89,3 +100,40 @@ NoCachedサーバは各クライアントから次を集約する。
 この方式はモデル構造、ローカル学習の共有範囲、FedAvgの単位を同時に変更するため、既存方式の
 単なる高速実装ではなく独立した提案候補として扱う。比較ではaccuracy・stable accuracyだけでなく、
 パラメータ転送量、最終保持容量、バックボーン計算量、ヘッド計算量を併記する。
+
+## 既存研究との関係と研究上の位置づけ
+
+特徴抽出部を共有し、出力部だけを対象別に分ける発想自体は新規ではない。中央集約型の
+[Multi-Task Learning](https://doi.org/10.1023/A:1007379606734)におけるhard parameter sharingを
+基礎として、個人化連合学習でも次のような関連手法がある。
+
+- [FedPer](https://arxiv.org/abs/1912.00818)は、共通のbase層とクライアント固有の
+  personalization層を分離する。
+- [FedRep](https://proceedings.mlr.press/v139/collins21a.html)は、クライアント間で共有する
+  representationとクライアント固有headを交互に学習する。
+- [FedBABU](https://openreview.net/forum?id=HuaYQfggn5u)は、連合学習中にbodyを学習し、
+  headを個人化段階で調整する。
+- [FedCR](https://proceedings.mlr.press/v202/zhang23w.html)は、クライアント間の共通表現を
+  学習しつつ、各クライアントが個別predictorを持つ。
+
+これらの個人化連合学習では、分離単位は原則として「クライアント」である。本実装では、
+バックボーンはクライアント内の複数概念モデル間で共有され、headはサンプル単位の検出によって
+動的に発見された「概念」ごとに分かれる。headのモデルIDはサーバのクロス評価・クラスタリングを
+経てクライアント間でも対応付けられ、予測時にはSoftRoutingで複数headをオンライン混合する。
+
+非定常環境により近い関連研究として、
+[FedWeIT](https://proceedings.mlr.press/v139/yoon21b.html)は、モデルをglobal federated parameterと
+sparse task-specific parameterへ分解し、クライアント間で過去タスクの知識を選択的に転移する。
+一方、本実装は既知のタスク境界や固定タスクIDを前提にせず、連続ストリームから変化を検出し、
+概念モデルの生成・再利用・統合とルーティングを同じオンライン処理内で行う点が異なる。
+
+したがって研究上の主張は「共有バックボーンそのもの」ではなく、次の組合せに置くべきである。
+
+1. バッチ境界に依存しないサンプル単位の未知概念ドリフト検出。
+2. 動的に増減・統合される概念別headと、クライアント間での概念ID対応付け。
+3. 共有表現が集約で変化する状況に対応したオンラインルーティングと選択的再較正。
+4. 独立モデル方式に対する精度、負の転移、計算量、保持容量、通信量の実証比較。
+
+特に共有表現は、概念間の正の転移と計算・通信削減をもたらす一方、概念差の大きいデータでは
+負の転移や表現容量不足を起こし得る。この利得と干渉をドリフト・モデル管理と同時に評価することが、
+既存のクライアント個人化型手法との差を明確にする。

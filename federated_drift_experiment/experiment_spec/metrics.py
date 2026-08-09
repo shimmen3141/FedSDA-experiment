@@ -179,6 +179,8 @@ METRICS = (
             "routing_mixture_accuracy", "routing_leader_accuracy",
             "routing_oracle_gain_rate", "routing_oracle_recovery_rate",
             "routing_missed_oracle_count", "routing_aggregation_restart_count",
+            "routing_aggregation_recalibration_count",
+            "routing_aggregation_recalibration_sample_count",
         ),
         "soft_routing", DIAGNOSTIC, FEDSDA_METHODS, None,
     ),

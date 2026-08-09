@@ -170,7 +170,7 @@ OPTIONS = (
         "shared_backbone_routing_recalibration",
         "共有バックボーン更新後のルーティング再較正",
         "prediction",
-        ("none", "aggregation_restart"),
+        ("none", "aggregation_restart", "fifo_replay"),
         "サーバ集約で共有表現が変化した後にSoftRoutingの累積証拠を扱う方式",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("shared_representation", "soft_routing"),

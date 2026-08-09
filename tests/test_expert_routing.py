@@ -71,4 +71,22 @@ def test_adahedge_aggregation_restart_has_separate_counter():
 
     assert router.probabilities([0, 1]) == {0: 0.5, 1: 0.5}
     assert router.aggregation_restart_count == 1
+    assert router.aggregation_recalibration_count == 1
     assert router.concept_restart_count == 0
+
+
+def test_adahedge_replays_recent_losses_after_aggregation():
+    router = AdaHedgeRouter()
+    probabilities = router.probabilities([0, 1])
+    router.update({0: 0.0, 1: 1.0}, probabilities)
+
+    router.replay_after_aggregation([
+        {0: 0.9, 1: 0.1},
+        {0: 0.8, 1: 0.2},
+    ])
+
+    replayed = router.probabilities([0, 1])
+    assert replayed[1] > replayed[0]
+    assert router.aggregation_restart_count == 0
+    assert router.aggregation_recalibration_count == 1
+    assert router.aggregation_recalibration_sample_count == 2

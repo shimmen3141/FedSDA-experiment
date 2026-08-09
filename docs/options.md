@@ -29,7 +29,7 @@ flowchart LR
   end
   subgraph group_prediction[prediction]
     routing["<b>予測ルーティング</b><br/>hard | restarting_soft | protected_soft"]
-    shared_backbone_routing_recalibration["<b>共有バックボーン更新後のルーティング再較正</b><br/>none | aggregation_restart"]
+    shared_backbone_routing_recalibration["<b>共有バックボーン更新後のルーティング再較正</b><br/>none | aggregation_restart | fifo_replay"]
   end
   subgraph group_model[model]
     model_architecture["<b>モデル構造</b><br/>independent | shared_backbone"]

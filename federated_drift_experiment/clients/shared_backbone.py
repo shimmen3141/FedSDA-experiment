@@ -55,7 +55,58 @@ class SharedBackboneRestartingSoftRoutingFedSDAClient(
 
     def recalibrate_routing_after_aggregation(self):
         """集約による共有表現の変化後にSoftRoutingを再較正する。"""
-        self.expert_router.restart_after_aggregation()
+        strategy = config.SHARED_BACKBONE_ROUTING_RECALIBRATION
+        if strategy == "aggregation_restart":
+            self.expert_router.restart_after_aggregation()
+        elif strategy == "fifo_replay":
+            self.expert_router.replay_after_aggregation(
+                self._fifo_routing_loss_sequence()
+            )
+        elif strategy != "none":
+            raise ValueError(f"未知のルーティング再較正方式です: {strategy!r}")
+
+    def _fifo_routing_loss_sequence(self):
+        """集約後の全保持モデルをFIFO上で再評価し、時系列損失を返す。"""
+        samples = tuple(self.buffer)
+        model_ids = tuple(sorted(self.models))
+        if not samples or len(model_ids) <= 1:
+            return ()
+
+        x = torch.cat([sample_x for sample_x, _ in samples])
+        y = torch.cat([sample_y for _, sample_y in samples])
+        losses_by_model = {}
+        with torch.no_grad():
+            features = self.models[model_ids[0]].extract_features(x)
+            for model_id in model_ids:
+                model = self.models[model_id]
+                scores = model.forward_from_features(features)
+                if model.num_classes > 2:
+                    probabilities = torch.softmax(scores, dim=1)
+                    labels = y.view(-1).long()
+                    losses = 1.0 - probabilities.gather(
+                        1, labels.unsqueeze(1)
+                    ).squeeze(1)
+                else:
+                    losses = torch.abs(
+                        scores.view(-1) - y.view(-1).float()
+                    )
+                losses_by_model[model_id] = losses
+
+        sample_count = len(samples)
+        self._record_model_compute(
+            "routing_recalibration",
+            sample_count * len(model_ids),
+            calls=len(model_ids),
+            backbone_examples=sample_count,
+            head_examples=sample_count * len(model_ids),
+        )
+        return tuple(
+            {
+                model_id: float(losses_by_model[model_id][index].item())
+                for model_id in model_ids
+            }
+            for index in range(sample_count)
+        )
 
     def _routing_scores(self, x, model_ids):
         """特徴抽出を1回だけ行い、全概念別ヘッドを評価する。"""

@@ -17,6 +17,8 @@ class AdaHedgeRouter:
         self.pool_reset_count = 0
         self.concept_restart_count = 0
         self.aggregation_restart_count = 0
+        self.aggregation_recalibration_count = 0
+        self.aggregation_recalibration_sample_count = 0
 
     def _clear_evidence(self):
         self.cumulative_losses = {}
@@ -31,6 +33,19 @@ class AdaHedgeRouter:
         """共有表現の集約更新後に、更新前のモデル比較証拠を破棄する。"""
         self._clear_evidence()
         self.aggregation_restart_count += 1
+        self.aggregation_recalibration_count += 1
+
+    def replay_after_aggregation(self, loss_sequence):
+        """集約後モデルの損失系列で、ルーティング証拠を再構築する。"""
+        loss_sequence = tuple(loss_sequence)
+        if not loss_sequence:
+            return
+        self._clear_evidence()
+        self.aggregation_recalibration_count += 1
+        self.aggregation_recalibration_sample_count += len(loss_sequence)
+        for losses in loss_sequence:
+            probabilities = self.probabilities(losses)
+            self.update(losses, probabilities)
 
     def _synchronize(self, expert_ids):
         expert_ids = tuple(sorted(expert_ids))

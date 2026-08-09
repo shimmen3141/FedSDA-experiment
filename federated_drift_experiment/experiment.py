@@ -501,6 +501,20 @@ def _add_model_diagnostic_results(results, clients, server):
             for client in clients
             if hasattr(client, "expert_router")
         ),
+        "routing_aggregation_recalibration_count": sum(
+            getattr(client.expert_router, "aggregation_recalibration_count", 0)
+            for client in clients
+            if hasattr(client, "expert_router")
+        ),
+        "routing_aggregation_recalibration_sample_count": sum(
+            getattr(
+                client.expert_router,
+                "aggregation_recalibration_sample_count",
+                0,
+            )
+            for client in clients
+            if hasattr(client, "expert_router")
+        ),
     })
 
 
@@ -697,6 +711,22 @@ def _save_raw_run(
         telemetry_arrays["routing_aggregation_restart_counts"] = np.asarray(
             [client.expert_router.aggregation_restart_count for client in clients],
             dtype=np.int32,
+        )
+        telemetry_arrays["routing_aggregation_recalibration_counts"] = np.asarray(
+            [
+                client.expert_router.aggregation_recalibration_count
+                for client in clients
+            ],
+            dtype=np.int32,
+        )
+        telemetry_arrays[
+            "routing_aggregation_recalibration_sample_counts"
+        ] = np.asarray(
+            [
+                client.expert_router.aggregation_recalibration_sample_count
+                for client in clients
+            ],
+            dtype=np.int64,
         )
         telemetry_arrays["history_routing_gate_open"] = np.asarray(
             [client.history_routing_gate_open for client in clients],
