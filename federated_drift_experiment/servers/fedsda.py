@@ -25,8 +25,6 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         )
         kwargs.setdefault("collect_pair_diagnostics", True)
         super().__init__(*args, **kwargs)
-        self.dominated_model_pruning = config.FEDSDA_DOMINATED_MODEL_PRUNING
-        self.dominated_model_prune_count = 0
 
     def run_round(self, t, clustering_enabled=True):
         """新規登録 → FedAvg → (任意でクラスタリング) → 配布を実行する。
@@ -76,33 +74,15 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
             return {}
 
         stats_matrix = self._cross_evaluate(active_ids)
-        dominance_mapping = (
-            self.dominated_model_mapping(active_ids)
-            if self.dominated_model_pruning else {}
-        )
-        remaining_ids = [
-            model_id for model_id in active_ids
-            if model_id not in dominance_mapping
-        ]
-        clusters = self.perform_hierarchical_clustering(remaining_ids, stats_matrix)
-
-        # lineage上でも除去をモデル統合として追跡できるよう、優勢側のclusterへ含める。
-        diagnostic_clusters = [list(cluster) for cluster in clusters]
-        for loser, winner in dominance_mapping.items():
-            for cluster in diagnostic_clusters:
-                if winner in cluster:
-                    cluster.append(loser)
-                    break
-        self.record_clustering_diagnostics(t, active_ids, diagnostic_clusters)
-        if len(clusters) >= M and not dominance_mapping:
+        clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
+        self.record_clustering_diagnostics(t, active_ids, clusters)
+        if len(clusters) >= M:
             return {}
 
         if self.verbose:
             print(f"\nServer [t={t}]: MERGE EXECUTED (NoCached: weighted average)")
             print(f"  - Before: {active_ids}")
             print(f"  - Clusters: {clusters}")
-            if dominance_mapping:
-                print(f"  - Dominance pruning: {dominance_mapping}")
 
         id_mapping = {}
         for cluster in clusters:
@@ -112,13 +92,6 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
             if len(cluster) > 1:
                 self.global_models[rep_id] = self._weighted_average_params(cluster, agg_weights)
                 self._merge_stats(rep_id, cluster)
-
-        # 支配モデルは平均せず、優勢モデル（通常cluster後はその代表）へ付け替える。
-        for loser, winner in dominance_mapping.items():
-            final_winner = id_mapping.get(winner, winner)
-            id_mapping[loser] = final_winner
-            self._merge_stats(final_winner, [final_winner, loser])
-        self.dominated_model_prune_count += len(dominance_mapping)
 
         # 非代表IDのグローバル状態を削除(クライアント側の付け替えは broadcast で行う)
         for old_id in active_ids:
@@ -173,10 +146,6 @@ class FedSDACachedServer(FedSDANoCachedServer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.dominated_model_pruning:
-            raise ValueError(
-                "支配モデル除去は現在FedSDA NoCachedでのみ利用できます"
-            )
         self.clustering_policy = config.FEDSDA_CLUSTERING_POLICY
         if self.clustering_policy not in config.FEDSDA_CLUSTERING_POLICIES:
             choices = ", ".join(config.FEDSDA_CLUSTERING_POLICIES)

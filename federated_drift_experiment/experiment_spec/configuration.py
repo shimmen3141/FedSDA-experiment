@@ -17,14 +17,12 @@ class AlgorithmOptions:
     fifo_size: int
     new_model_validation_fraction: float
     new_model_forward_validation_samples: int
-    dominated_model_pruning: bool = False
 
     @classmethod
     def from_current_config(cls):
         return cls(
             clustering_policy=config.FEDSDA_CLUSTERING_POLICY,
             clustering_decision=config.FEDSDA_CLUSTERING_DECISION,
-            dominated_model_pruning=config.FEDSDA_DOMINATED_MODEL_PRUNING,
             detection_episodes=config.FEDSDA_DETECTION_EPISODES_ENABLED,
             new_model_creation_policy=config.NEW_MODEL_CREATION_POLICY,
             fifo_size=config.FIFO_BUFFER_SIZE,
@@ -39,7 +37,6 @@ class AlgorithmOptions:
         return {
             "FEDSDA_CLUSTERING_POLICY": self.clustering_policy,
             "FEDSDA_CLUSTERING_DECISION": self.clustering_decision,
-            "FEDSDA_DOMINATED_MODEL_PRUNING": self.dominated_model_pruning,
             "FEDSDA_DETECTION_EPISODES_ENABLED": self.detection_episodes,
             "NEW_MODEL_CREATION_POLICY": self.new_model_creation_policy,
             "FIFO_BUFFER_SIZE": self.fifo_size,

@@ -1,6 +1,5 @@
 """クロス評価と階層クラスタリングを提供する共通サーバ。"""
 
-import math
 import random
 from collections import defaultdict
 from statistics import NormalDist
@@ -102,90 +101,6 @@ class CrossEvaluationClusteringServer(BaseServer):
 
                 stats_matrix[id_i][id_j] = (total_n, total_S, total_SS)
         return stats_matrix
-
-    @staticmethod
-    def _one_sided_binomial_pvalue(successes, failures):
-        """不一致標本でsuccess側が優れる片側二項検定のp値を返す。"""
-        trials = successes + failures
-        if trials == 0 or successes <= failures:
-            return 1.0
-        return sum(
-            math.comb(trials, k) for k in range(successes, trials + 1)
-        ) / (2 ** trials)
-
-    def dominated_model_mapping(self, model_ids):
-        """直近クロス評価から、支配されたモデルの保守的な再割当を求める。
-
-        優勢モデルは、一方の保持データで有意に良く、もう一方でも
-        正解数の点推定が悪くない場合に限る。複数候補がある場合は、
-        不一致標本上の純勝ち数が最大の辺を優先する。
-        """
-        by_direction = defaultdict(lambda: {
-            "candidate_only_correct": 0,
-            "target_only_correct": 0,
-            "n": 0,
-        })
-        for record in self._last_pair_prediction_diagnostics:
-            key = (record["candidate_model_id"], record["target_model_id"])
-            for field in by_direction[key]:
-                by_direction[key][field] += int(record[field])
-
-        edges = []
-        ids = sorted(model_ids)
-        pair_count = max(1, len(ids) * (len(ids) - 1) // 2)
-        # 同一ラウンドで多数のモデル対を見るため、既存信頼水準をBonferroni配分する。
-        alpha = (1.0 - self.clustering_confidence) / pair_count
-        for index, left in enumerate(ids):
-            for right in ids[index + 1:]:
-                left_on_right = by_direction[(left, right)]
-                right_on_left = by_direction[(right, left)]
-                if min(left_on_right["n"], right_on_left["n"]) < config.CLUSTER_MIN_EVAL_N:
-                    continue
-
-                # leftがrightを支配: rightの領域で有意に良く、leftの領域でも悪くない。
-                left_gain = (
-                    left_on_right["candidate_only_correct"]
-                    - left_on_right["target_only_correct"]
-                )
-                left_home_gain = (
-                    right_on_left["target_only_correct"]
-                    - right_on_left["candidate_only_correct"]
-                )
-                if (
-                    left_home_gain >= 0
-                    and self._one_sided_binomial_pvalue(
-                        left_on_right["candidate_only_correct"],
-                        left_on_right["target_only_correct"],
-                    ) <= alpha
-                ):
-                    edges.append((left_gain + left_home_gain, left, right))
-
-                right_gain = (
-                    right_on_left["candidate_only_correct"]
-                    - right_on_left["target_only_correct"]
-                )
-                right_home_gain = (
-                    left_on_right["target_only_correct"]
-                    - left_on_right["candidate_only_correct"]
-                )
-                if (
-                    right_home_gain >= 0
-                    and self._one_sided_binomial_pvalue(
-                        right_on_left["candidate_only_correct"],
-                        right_on_left["target_only_correct"],
-                    ) <= alpha
-                ):
-                    edges.append((right_gain + right_home_gain, right, left))
-
-        # 支配先として採用したモデルを後から除去しない保守的なgreedy選択。
-        mapping = {}
-        protected = set()
-        for _, winner, loser in sorted(edges, reverse=True):
-            if winner in mapping or loser in mapping or loser in protected:
-                continue
-            mapping[loser] = winner
-            protected.add(winner)
-        return mapping
 
     def pair_diagnostic_summary(self):
         """全クロス評価で観測したモデル対の正誤相補性を集約する。"""

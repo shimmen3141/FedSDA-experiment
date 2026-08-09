@@ -101,6 +101,57 @@ def test_parallel_sweep_returns_rows_in_plan_order(monkeypatch):
     assert [row["seed"] for row in rows] == [0, 1, 2]
 
 
+def test_parallel_sweep_submits_expensive_runs_first_but_keeps_plan_order(
+    monkeypatch,
+):
+    experiments = [
+        SimpleNamespace(
+            dataset=dataset, mode="FedSDA_NoCached_ClassESR", seed=seed,
+            sweep_parameter=sweep.AGGREGATION_INTERVAL, sweep_value=50,
+        )
+        for seed, dataset in enumerate(("sea4", "mnist2", "mnist4", "circle2"))
+    ]
+    plan = SimpleNamespace(iter_experiments=lambda: iter(experiments))
+    submitted = []
+
+    class FakeFuture:
+        def __init__(self, row):
+            self.row = row
+
+        def result(self):
+            return self.row
+
+    class FakeExecutor:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def submit(self, function, experiment, raw_dir):
+            submitted.append(experiment.dataset)
+            return FakeFuture({
+                "seed": experiment.seed,
+                "stable_accuracy": 0.5,
+                "comm_models_total": 0,
+                "final_model_count": 1,
+            })
+
+    monkeypatch.setattr(sweep, "ProcessPoolExecutor", FakeExecutor)
+    monkeypatch.setattr(sweep, "as_completed", lambda futures: list(futures))
+    monkeypatch.setattr(
+        sweep.multiprocessing, "get_context", lambda method: method,
+    )
+
+    rows = sweep.run_sweep_plan(plan, workers=2, runtime_config={})
+
+    assert submitted == ["mnist4", "mnist2", "sea4", "circle2"]
+    assert [row["seed"] for row in rows] == [0, 1, 2, 3]
+
+
 def test_explicit_disable_flags_resolve_to_empty_plan_collections():
     argv = [
         "--no-fedsda", "--no-feddrift", "--no-baselines",

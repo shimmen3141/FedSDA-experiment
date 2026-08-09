@@ -90,7 +90,9 @@ python -u run_pareto_sweep.py 2>&1 | tee run_pareto_sweep.log
 独立したrun（データセット・seed・掃引値の組）を複数CPUプロセスで並列実行する場合は、
 `run_pareto_sweep.py --workers N`を指定する。既定値は`1`で、従来どおり逐次実行する。
 各worker内のOpenMP/MKLスレッド数は上記の既定値`1`なので、`--workers`と内部多重並列による
-CPU oversubscriptionを避けられる。例えば4 runを同時実行する場合は次のように指定する。
+CPU oversubscriptionを避けられる。並列実行時はMNIST、SoftRouting、小さい集約間隔など、
+長時間になりやすいrunから投入する。CSVの行順は従来の計画順へ戻すため、投入順の変更は
+実験結果や集計順に影響しない。例えば4 runを同時実行する場合は次のように指定する。
 
 ```bash
 python -u run_pareto_sweep.py --datasets sea4 circle2 --seeds 0 1 2 3 4 --workers 4
@@ -219,7 +221,6 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 | `mean_model_count` / `max_model_count` / `model_count_auc` | ラウンド末モデル数の平均 / 最大 / 全ラウンド和 |
 | `model_assigned_samples_*` / `model_training_examples_*` / `model_optimizer_steps_*` | モデル別学習量の総量・平均・最小値・変動係数 |
 | `model_pair_correctness_disagreement_rate` / `model_pair_oracle_gain_rate` | FedSDAクロス評価上のモデル対予測相補性 / oracle選択による改善上限 |
-| `dominated_model_prune_count` | クロス評価で支配され、優勢モデルへ再割当されたモデル数 |
 | `routing_oracle_accuracy` / `routing_mixture_accuracy` / `routing_oracle_recovery_rate` | SoftRoutingで正解可能だった上限・実混合精度・その回収率 |
 | `client_compute_seconds_sum` / `client_compute_seconds_max` | クライアント処理時間の総和 / クライアント別最大値(実行環境依存) |
 

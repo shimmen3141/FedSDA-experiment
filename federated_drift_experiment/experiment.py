@@ -450,9 +450,6 @@ def _add_model_diagnostic_results(results, clients, server):
         "model_pair_both_correct_rate": 0.0,
     }
     results.update({**defaults, **summary})
-    results["dominated_model_prune_count"] = int(
-        getattr(server, "dominated_model_prune_count", 0)
-    )
 
     routing = defaultdict(int)
     for client in clients:
@@ -911,10 +908,6 @@ def _save_raw_run(
         ),
         clustering_decision=np.asarray(
             config.FEDSDA_CLUSTERING_DECISION if is_fedsda else "", dtype=np.str_
-        ),
-        dominated_model_pruning=np.asarray(
-            config.FEDSDA_DOMINATED_MODEL_PRUNING if is_fedsda else False,
-            dtype=np.bool_,
         ),
         total_data=int(config.TOTAL_DATA_POINTS),
         **telemetry_arrays,

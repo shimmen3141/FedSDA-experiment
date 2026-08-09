@@ -74,7 +74,6 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "seed", "series", "sweep_parameter", "sweep_value",
             FEDDRIFT_DETECTION_BATCH_SIZE, AGGREGATION_INTERVAL,
             "clustering_policy", "clustering_decision",
-            "dominated_model_pruning",
             "detection_episodes",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
@@ -140,8 +139,6 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             f"{display_series} [cluster-decision="
             f"{config.FEDSDA_CLUSTERING_DECISION}]"
         )
-    if "FedSDA" in mode and config.FEDSDA_DOMINATED_MODEL_PRUNING:
-        display_series = f"{display_series} [dominance-pruning]"
     if "FedSDA" in mode and config.FEDSDA_DETECTION_EPISODES_ENABLED:
         display_series = f"{display_series} [episodes]"
     if "FedSDA" in mode and config.NEW_MODEL_CREATION_POLICY != "immediate":
@@ -201,7 +198,6 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         ),
         "clustering_policy": config.FEDSDA_CLUSTERING_POLICY,
         "clustering_decision": config.FEDSDA_CLUSTERING_DECISION,
-        "dominated_model_pruning": config.FEDSDA_DOMINATED_MODEL_PRUNING,
         "detection_episodes": config.FEDSDA_DETECTION_EPISODES_ENABLED,
         "new_model_creation_policy": config.NEW_MODEL_CREATION_POLICY,
         "fifo_size": config.FIFO_BUFFER_SIZE,
@@ -297,6 +293,47 @@ def _runtime_config_snapshot():
     }
 
 
+# 実行結果には影響しない投入順のヒント。異種データセットを同時に掃引するとき、
+# 長いrunを先に開始して終盤に少数の重いrunだけが残るのを避ける。
+_DATASET_EXECUTION_COST = {
+    "mnist4": 4,
+    "mnist2": 3,
+    "blobs": 2,
+    "sea4": 1,
+    "sea2": 1,
+    "circle2": 1,
+    "sine2": 1,
+}
+
+
+def _experiment_execution_priority(experiment):
+    """長時間になりやすいrunほど大きくなる投入優先度を返す。"""
+    dataset_cost = _DATASET_EXECUTION_COST.get(experiment.dataset, 0)
+    mode_cost = (
+        3 if "SoftRouting" in experiment.mode
+        else 2 if experiment.mode.startswith("FedSDA_")
+        else 1 if experiment.mode == "FedDrift"
+        else 0
+    )
+    parameter_value = getattr(experiment, "parameter_value", None)
+    if callable(parameter_value):
+        interval = parameter_value(
+            AGGREGATION_INTERVAL,
+            parameter_value(FEDDRIFT_DETECTION_BATCH_SIZE, float("inf")),
+        )
+    else:
+        interval = (
+            experiment.sweep_value
+            if experiment.sweep_parameter in {
+                AGGREGATION_INTERVAL, FEDDRIFT_DETECTION_BATCH_SIZE,
+            }
+            else float("inf")
+        )
+    # 小さい集約間隔・検出バッチは通信・評価回数が増えやすい。
+    interval_priority = -float(interval) if interval is not None else float("-inf")
+    return dataset_cost, mode_cost, interval_priority
+
+
 def run_sweep_plan(plan, raw_dir=None, workers=1, runtime_config=None):
     """SweepPlanが生成した解決済みrunを順序を保って実行する。"""
     if workers < 1:
@@ -332,7 +369,7 @@ def _run_sweep_sequential(experiments, raw_dir):
 
 
 def _run_sweep_parallel(experiments, raw_dir, workers, runtime_config):
-    """runを独立プロセスへ割り当て、計画順に結果を返す。"""
+    """重いrunから独立プロセスへ割り当て、計画順に結果を返す。"""
     total = len(experiments)
     rows_by_index = {}
     done = 0
@@ -344,9 +381,14 @@ def _run_sweep_parallel(experiments, raw_dir, workers, runtime_config):
         initializer=_initialize_sweep_worker,
         initargs=(runtime_config,),
     ) as executor:
+        execution_order = sorted(
+            enumerate(experiments),
+            key=lambda item: _experiment_execution_priority(item[1]),
+            reverse=True,
+        )
         future_to_index = {
             executor.submit(_execute_experiment, experiment, raw_dir): index
-            for index, experiment in enumerate(experiments)
+            for index, experiment in execution_order
         }
         for future in as_completed(future_to_index):
             index = future_to_index[future]
@@ -449,7 +491,6 @@ def _load_csv(path):
             row[ADWIN_DELTA] = row.get(ADWIN_DELTA, "")
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("clustering_decision", "distance")
-            row.setdefault("dominated_model_pruning", False)
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
             row.setdefault("fifo_size", str(config.FIFO_BUFFER_SIZE))
@@ -798,12 +839,6 @@ def build_parser():
         ),
     )
     fedsda.add_argument(
-        "--dominated-model-pruning",
-        action=argparse.BooleanOptionalAction,
-        default=config.FEDSDA_DOMINATED_MODEL_PRUNING,
-        help="クロス評価で支配されたFedSDAモデルを優勢モデルへ再割当する",
-    )
-    fedsda.add_argument(
         "--detection-episodes",
         action=argparse.BooleanOptionalAction,
         default=config.FEDSDA_DETECTION_EPISODES_ENABLED,
@@ -1017,7 +1052,6 @@ def main(argv=None):
     algorithm = AlgorithmOptions(
         clustering_policy=args.clustering_policy,
         clustering_decision=args.clustering_decision,
-        dominated_model_pruning=args.dominated_model_pruning,
         detection_episodes=args.detection_episodes,
         new_model_creation_policy=args.new_model_creation_policy,
         fifo_size=args.fifo_size,

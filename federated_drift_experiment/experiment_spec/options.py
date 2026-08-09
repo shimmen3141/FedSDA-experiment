@@ -259,14 +259,6 @@ OPTIONS = (
         requires_capabilities=("server_clustering",), cli_name="clustering-decision",
     ),
     OptionSpec(
-        "dominated_model_pruning", "支配モデル除去", "clustering",
-        ("enabled", "disabled"),
-        "クロス評価で一方的に劣るモデルを、平均せず優勢モデルへ再割当する",
-        (FED_SDA,), (FED_SDA,),
-        requires_capabilities=("server_clustering",),
-        cli_name="dominated-model-pruning",
-    ),
-    OptionSpec(
         "clustering_confidence", "クラスタリング信頼水準", "clustering_parameter",
         ("0 < confidence < 1",), "confidence系統合判定の信頼水準",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
