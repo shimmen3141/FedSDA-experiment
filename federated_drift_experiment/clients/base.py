@@ -12,7 +12,6 @@ from collections import defaultdict
 import torch
 
 from .. import config
-from ..models import SimpleMLP
 from ..adaptation_events import AdaptationEvent
 
 
@@ -29,8 +28,9 @@ class BaseClient:
         self.distance_threshold = distance_threshold
         self.verbose = verbose
 
-        # models: {model_id: SimpleMLP()}
+        # models: {model_id: 分類モデル}
         self.models = copy.deepcopy(initial_models)
+        self.model_cls = type(next(iter(initial_models.values())))
         self.current_model_id = 0
 
         if initial_stats:
@@ -76,10 +76,30 @@ class BaseClient:
 
         self.next_temp_id = -100 - self.client_id
 
-    def _record_model_compute(self, phase, examples, calls=1):
+    def _record_model_compute(
+        self, phase, examples, calls=1,
+        backbone_examples=None, head_examples=None,
+    ):
         """モデル計算を用途別に記録する。examples はモデルへ入力した標本数。"""
         self.compute_counters[f"{phase}_forward_calls"] += int(calls)
         self.compute_counters[f"{phase}_examples"] += int(examples)
+        self.compute_counters["backbone_examples"] += int(
+            examples if backbone_examples is None else backbone_examples
+        )
+        self.compute_counters["head_examples"] += int(
+            examples if head_examples is None else head_examples
+        )
+
+    def _new_model(self):
+        """評価候補などに使う独立した空モデルを作る。"""
+        return self.model_cls()
+
+    def _prepare_model_for_registration(self, model):
+        """正式登録するモデルへ構造固有の共有状態を適用するフック。"""
+        return model
+
+    def _after_models_rebuilt(self):
+        """サーバ配布後にモデル間の共有構造を復元するフック。"""
 
     def telemetry_snapshot(self):
         """ラウンド差分を計算できるよう、累積計測値のコピーを返す。"""
@@ -218,7 +238,7 @@ class BaseClient:
         if self.verbose:
             print(f"  -> Unknown Drift! New Model (Temp ID: {temp_id})")
 
-        new_model = SimpleMLP()
+        new_model = self._new_model()
         if initialization_params is USE_CURRENT_MODEL_PARAMS:
             initialization_params = self.models[self.current_model_id].get_params()
         new_model.set_params(initialization_params)
@@ -253,6 +273,7 @@ class BaseClient:
         self, temp_id, new_model, bx, by, pending_ready
     ):
         """学習済みモデルをローカル状態とpending送信へ登録する。"""
+        new_model = self._prepare_model_for_registration(new_model)
         m = len(bx)
         self.models[temp_id] = new_model
 
@@ -402,7 +423,7 @@ class BaseClient:
             self.models[new_global_id] = self.models.pop(temp_id)
         else:
             if self.pending_model_params is not None:
-                m = SimpleMLP()
+                m = self._new_model()
                 m.set_params(self.pending_model_params)
                 self.models[new_global_id] = m
 
@@ -445,7 +466,7 @@ class BaseClient:
 
         X = torch.cat([d[0] for d in eval_data])
         y = torch.cat([d[1] for d in eval_data])
-        temp_model = SimpleMLP()
+        temp_model = self._new_model()
         temp_model.set_params(params)
         with torch.no_grad():
             self._record_model_compute("cross_evaluation", len(X))
@@ -481,7 +502,7 @@ class BaseClient:
             return (0, 0.0, 0.0), None
         X = torch.cat([d[0] for d in eval_data])
         y = torch.cat([d[1] for d in eval_data])
-        candidate = SimpleMLP()
+        candidate = self._new_model()
         candidate.set_params(params)
         with torch.no_grad():
             self._record_model_compute("cross_evaluation", len(X) * 2, calls=2)
@@ -599,11 +620,12 @@ class BaseClient:
         temp_models = {mid: m for mid, m in list(self.models.items()) if mid < 0}
         self.models = {}
         for mid, params in new_global_models.items():
-            m = SimpleMLP()
+            m = self._new_model()
             m.set_params(params)
             self.models[mid] = m
         for mid, m in temp_models.items():
             self.models[mid] = m
+        self._after_models_rebuilt()
 
         # 4. current_model_id の map 適用（先に mapping_change_positions に記録済み）
         if self.current_model_id in id_mapping:

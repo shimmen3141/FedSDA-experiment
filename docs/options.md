@@ -30,6 +30,9 @@ flowchart LR
   subgraph group_prediction[prediction]
     routing["<b>予測ルーティング</b><br/>hard | restarting_soft | protected_soft"]
   end
+  subgraph group_model[model]
+    model_architecture["<b>モデル構造</b><br/>independent | shared_backbone"]
+  end
   subgraph group_adaptation[adaptation]
     new_model_creation_policy["<b>新規モデル作成方針</b><br/>immediate | validated | forward_validated | forward_requalified | forward_requalified_current_first | forward_persistent | shadow_tournament"]
     new_model_training["<b>新規モデル初期学習</b><br/>none | fixed | early_stopping"]
@@ -70,6 +73,8 @@ flowchart LR
   clustering_decision -->|"confidence系判定のとき"| clustering_confidence
   server_flow -.->|"restarting_soft: NoCachedが必要"| routing
   detector -.->|"restarting_soft: ClassESRが必要"| routing
+  server_flow -.->|"shared_backbone: NoCachedが必要"| model_architecture
+  routing -.->|"shared_backbone: Restarting SoftRoutingが必要"| model_architecture
   server_flow -.->|"protected_soft: NoCachedが必要"| routing
   detector -.->|"protected_soft: ClassESRが必要"| routing
   method --> server_flow
@@ -88,6 +93,7 @@ flowchart LR
 | `server_flow` | mode | 実装済み | 対象外 | 対象外 | 対象外 | FedAvg前後のモデルキャッシュ利用と通信順序 |
 | `detector` | mode | 実装済み | 対象外 | 実装済み | 対象外 | FedSDAクライアントが損失系列へ適用する検出器 |
 | `routing` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 保持モデルから予測を選択または混合する方式 |
+| `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか |
 | `new_model_creation_policy` | cli: `--new-model-creation-policy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 警報後に新規モデルを即時作成するか、検証してから採用するか |
 | `new_model_training` | cli: `--new-model-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 新規モデル候補の初期学習方法 |
 | `new_model_epochs` | cli: `--new-model-epochs` | 実装済み | 理論上のみ | 対象外 | 対象外 | fixedのエポック数またはearly_stoppingの最大エポック数 |
@@ -124,11 +130,12 @@ flowchart LR
 | `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
 | `detector` = `ClassADWIN` | `FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_Cached_ClassADWIN` | なし |  |
 | `detector` = `ESR` | `FedSDA_NoCached_ESR`<br/>`FedSDA_Cached_ESR` | なし |  |
-| `detector` = `ClassESR` | `FedSDA_NoCached_ClassESR`<br/>`FedSDA_Cached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | なし |  |
+| `detector` = `ClassESR` | `FedSDA_NoCached_ClassESR`<br/>`FedSDA_Cached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | なし |  |
 | `detector` = `HDDMA` | `FedSDA_NoCached_HDDMA`<br/>`FedSDA_Cached_HDDMA` | なし |  |
 | `detector` = `ClassHDDMA` | `FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_Cached_ClassHDDMA` | なし |  |
 | `detector` = `HDDMW` | `FedSDA_NoCached_HDDMW`<br/>`FedSDA_Cached_HDDMW` | なし |  |
-| `routing` = `restarting_soft` | `FedSDA_NoCached_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>ClassESRが必要 | 現在は専用modeでのみ実装 |
+| `routing` = `restarting_soft` | `FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>ClassESRが必要 | 現在は専用modeでのみ実装 |
+| `model_architecture` = `shared_backbone` | `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>Restarting SoftRoutingが必要 | 共有バックボーンは専用modeで実装 |
 | `routing` = `protected_soft` | `FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | NoCachedが必要<br/>ClassESRが必要 | 現在は専用modeでのみ実装 |
 
 ## 掃引オプションの依存構造

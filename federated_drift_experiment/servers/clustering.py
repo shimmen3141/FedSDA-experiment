@@ -71,7 +71,9 @@ class CrossEvaluationClusteringServer(BaseServer):
                 self.comm_messages_up += len(target_clients)
                 if send_model_params:
                     # キャッシュを使わない評価ではモデルを各対象クライアントへ送る。
-                    self.comm_models_down += len(target_clients)
+                    self.record_model_transfer(
+                        "down", params_i, count=len(target_clients)
+                    )
 
                 total_n, total_S, total_SS = 0, 0.0, 0.0
                 for c in target_clients:

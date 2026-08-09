@@ -132,6 +132,7 @@ Pareto 図では `FedSDA_without_server` と `Oblivious` を通信量に依存�
 | `FedSDA_NoCached_ESR` | NoCached + bounded mean向け混合Shiryaev–Roberts型e-detector |
 | `FedSDA_NoCached_ClassESR` | NoCached + 全体・正解クラス別e-SRの固定重み混合 |
 | `FedSDA_NoCached_ClassESR_RestartingSoftRouting` | モデル切替確定時にAdaHedgeを再始動するSoftRouting |
+| `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting` | 共有バックボーン＋概念別ヘッドで特徴抽出と表現学習を共有するRestarting SoftRouting |
 | `FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | AdaHedgeが現行モデルを累積損失で上回る場合だけ混合するSoftRouting |
 | `FedSDA_NoCached_HDDMA` / `FedSDA_NoCached_HDDMW` | NoCached + 全体損失HDDM-A / HDDM-W |
 | `FedSDA_NoCached_ClassHDDMA` | NoCached + 全体・正解クラス別HDDM-A |
@@ -214,11 +215,14 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 | `final_model_count` | 最終モデル数(サーバ集約あり)/ クライアント平均保持数(なし) |
 | `comm_models_up` / `comm_models_down` / `comm_models_total` | モデルパラメータ転送数。up=クライアント→サーバ、down=サーバ→クライアント |
 | `comm_messages_up` / `comm_messages_down` / `comm_messages_total` | 割当・ドリフト要約、クロス評価依頼・統計返送、ID割当、マージ通知などの軽量メッセージ数 |
+| `comm_parameter_values_*` / `comm_bytes_*` | モデル構造や共有部を考慮した転送パラメータ値数 / 実バイト数 |
 | `compute_inference_examples_total` / `compute_training_examples_total` | 推論系 / 学習でモデルに入力した延べサンプル数 |
+| `compute_backbone_examples_total` / `compute_head_examples_total` | 特徴抽出部 / 出力ヘッドが処理した延べサンプル数 |
 | `compute_optimizer_steps_total` | 全クライアントの optimizer 更新回数 |
 | `compute_drift_detector_hypotheses_total` | ADWINの候補分割、またはe-SRの候補変化点×賭け率を評価した延べ数 |
 | `change_point_mae` / `change_point_bias` | 検出器が推定した変化開始位置の平均絶対誤差 / 符号付き平均誤差 |
 | `mean_model_count` / `max_model_count` / `model_count_auc` | ラウンド末モデル数の平均 / 最大 / 全ラウンド和 |
+| `final_parameter_values` / `final_parameter_bytes` | 最終モデル集合が重複を除いて保持するパラメータ値数 / バイト数 |
 | `model_assigned_samples_*` / `model_training_examples_*` / `model_optimizer_steps_*` | モデル別学習量の総量・平均・最小値・変動係数 |
 | `model_pair_correctness_disagreement_rate` / `model_pair_oracle_gain_rate` | FedSDAクロス評価上のモデル対予測相補性 / oracle選択による改善上限 |
 | `routing_oracle_accuracy` / `routing_mixture_accuracy` / `routing_oracle_recovery_rate` | SoftRoutingで正解可能だった上限・実混合精度・その回収率 |

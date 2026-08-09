@@ -10,7 +10,6 @@ from .. import config
 from ..drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
 from ..expert_routing import AdaHedgeRouter
-from ..models import SimpleMLP
 from ..provisional_model import (
     ForwardValidationSession,
     ProvisionalModelDecision,
@@ -76,7 +75,7 @@ class FedSDAClient(BaseClient, ABC):
         """前向き検証中の比較対象を警報時点のパラメータで固定する。"""
         snapshots = {}
         for model_id, model in self.models.items():
-            snapshot = SimpleMLP()
+            snapshot = self._new_model()
             snapshot.set_params(model.get_params())
             snapshots[model_id] = snapshot
         return snapshots
@@ -110,7 +109,7 @@ class FedSDAClient(BaseClient, ABC):
         episode_id,
     ):
         """推定区間で候補を学習し、警報後データによる採否判定を開始する。"""
-        candidate = SimpleMLP()
+        candidate = self._new_model()
         candidate.set_params(initialization_params)
         candidate.reset_optimizer()
         training_start = time.perf_counter()
@@ -601,7 +600,7 @@ class FedSDAClient(BaseClient, ABC):
             ))
             return None
 
-        candidate = SimpleMLP()
+        candidate = self._new_model()
         candidate.set_params(initialization_params)
         candidate.reset_optimizer()
         training_start = time.perf_counter()
@@ -1283,6 +1282,14 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.history_routing_gate_open.append(True)
         return proposal_probabilities
 
+    def _routing_scores(self, x, model_ids):
+        """各独立モデルを評価し、SoftRouting用の出力を返す。"""
+        scores = {model_id: self.models[model_id].forward(x) for model_id in model_ids}
+        self._record_model_compute(
+            "prediction", len(x) * len(model_ids), calls=len(model_ids)
+        )
+        return scores
+
     def _record_prediction(self, x, y, concept_id):
         model_ids = tuple(sorted(self.models))
         proposal_probabilities = self.expert_router.probabilities(model_ids)
@@ -1292,9 +1299,10 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         weighted_scores = None
 
         with torch.no_grad():
+            scores_by_model = self._routing_scores(x, model_ids)
             for model_id in model_ids:
                 model = self.models[model_id]
-                scores = model.forward(x)
+                scores = scores_by_model[model_id]
                 if model.num_classes > 2:
                     scores = torch.softmax(scores, dim=1)
                 weighted = scores * probabilities[model_id]
@@ -1317,10 +1325,6 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                     model_prediction.view(-1)[0].item()
                     == y.view(-1)[0].item()
                 )
-        self._record_model_compute(
-            "prediction", len(x) * len(model_ids), calls=len(model_ids)
-        )
-
         if self.models[model_ids[0]].num_classes == 2:
             prediction = (weighted_scores > 0.5).float()
         else:

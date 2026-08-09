@@ -87,6 +87,7 @@ CAPABILITIES = (
     CapabilitySpec("future_sample_validation", "将来サンプル検証", "警報後の到着データで候補を評価できる"),
     CapabilitySpec("server_clustering", "サーバクラスタリング", "サーバでモデル統合を実行できる"),
     CapabilitySpec("soft_routing", "SoftRouting", "保持モデルの予測を重み付き混合できる"),
+    CapabilitySpec("shared_representation", "共有表現", "複数概念モデルで特徴抽出層を共有できる"),
 )
 
 METHODS = (
@@ -95,6 +96,7 @@ METHODS = (
         (
             "sample_wise_detection", "multiple_models", "provisional_model",
             "future_sample_validation", "server_clustering", "soft_routing",
+            "shared_representation",
         ),
     ),
     MethodSpec(
@@ -140,6 +142,14 @@ OPTIONS = (
         "routing", "予測ルーティング", "prediction",
         ("hard", "restarting_soft", "protected_soft"),
         "保持モデルから予測を選択または混合する方式",
+        (FED_SDA,), (FED_SDA, FED_DRIFT),
+        requires_capabilities=("multiple_models",),
+        configuration_surface="mode",
+    ),
+    OptionSpec(
+        "model_architecture", "モデル構造", "model",
+        ("independent", "shared_backbone"),
+        "概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("multiple_models",),
         configuration_surface="mode",
@@ -326,6 +336,7 @@ CHOICE_CONSTRAINTS = (
         (
             "FedSDA_NoCached_ClassESR", "FedSDA_Cached_ClassESR",
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ClassESR_ProtectedSoftRouting",
         ),
     ),
@@ -343,12 +354,24 @@ CHOICE_CONSTRAINTS = (
     ),
     ChoiceConstraint(
         "routing", ("restarting_soft",),
-        ("FedSDA_NoCached_ClassESR_RestartingSoftRouting",),
+        (
+            "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+        ),
         requires_selections=(
             ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
             ActivationRule("detector", ("ClassESR",), "ClassESRが必要"),
         ),
         note="現在は専用modeでのみ実装",
+    ),
+    ChoiceConstraint(
+        "model_architecture", ("shared_backbone",),
+        ("FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",),
+        requires_selections=(
+            ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
+            ActivationRule("routing", ("restarting_soft",), "Restarting SoftRoutingが必要"),
+        ),
+        note="共有バックボーンは専用modeで実装",
     ),
     ChoiceConstraint(
         "routing", ("protected_soft",),
@@ -493,6 +516,9 @@ def selections_for_mode(mode):
             selections["routing"] = "protected_soft"
         else:
             selections["routing"] = "hard"
+        selections["model_architecture"] = (
+            "shared_backbone" if "_SharedBackbone_" in mode else "independent"
+        )
     elif method_id == WITHOUT_SERVER:
         selections.update({"detector": "ADWIN", "routing": "hard"})
     elif method_id == FED_DRIFT:

@@ -86,7 +86,11 @@ FEDDRIFT_SWEEP_MODES = FEDDRIFT_MODES
 
 PLOT_X_LABELS = {
     "comm_models_total": "Communication (model transfers, log)",
+    "comm_parameter_values_total": "Communication (parameter values, log)",
+    "comm_bytes_total": "Communication (bytes, log)",
     "compute_model_examples_total": "Model-processed examples (log)",
+    "compute_backbone_examples_total": "Backbone-processed examples (log)",
+    "compute_head_examples_total": "Head-processed examples (log)",
     "compute_optimizer_steps_total": "Optimizer steps (log)",
     "client_compute_seconds_sum": "Client compute time (seconds, log)",
     "runtime_seconds": "Runtime (seconds, log)",

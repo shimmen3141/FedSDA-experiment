@@ -35,7 +35,7 @@
 |---|---|---|
 | `predictive_performance` | 予測性能 | `accuracy`, `stable_accuracy` |
 | `detection` | 真のドリフトとの照合 | `precision`, `recall`, `f1`, `avg_delay`, `total_detect` |
-| `communication` | モデル転送と軽量メッセージ | `comm_models_*`, `comm_messages_*` |
+| `communication` / `communication_volume` | モデル転送回数、軽量メッセージ、実パラメータ量 | `comm_models_*`, `comm_messages_*`, `comm_parameter_values_*`, `comm_bytes_*` |
 | `model_population` | モデル数の終値・時系列要約 | `final_model_count`, `mean_model_count`, `max_model_count`, `model_count_auc` |
 | `runtime` / `compute` | 時間とモデル計算回数 | `runtime_seconds`, `client_compute_seconds_*`, `compute_*` |
 | `change_point` | 推定変化点の誤差 | `change_point_mae`, `change_point_bias`, `change_point_estimate_count` |
@@ -59,7 +59,11 @@
 - 実行時間は環境依存なので、アルゴリズム比較では`compute_model_examples_total`や
   `compute_optimizer_steps_total`も併記する。
 - `comm_models_total`はモデル転送回数であり、モデル構造が同じ場合の比較を前提とする。
-  共有バックボーン + 概念別ヘッドを導入する場合は、転送パラメータ数またはバイト数を別途追加する。
+- `comm_parameter_values_total`と`comm_bytes_total`は共有部の重複送信を除いた実転送量であり、
+  異なるモデル構造の比較ではこちらを主要な通信量とする。
+- `compute_backbone_examples_total`と`compute_head_examples_total`は、共有表現による特徴抽出の
+  再利用を既存の論理モデル処理数と分けて示す。
+- `final_parameter_values`と`final_parameter_bytes`は、共有部を1個として数えた最終保持容量である。
 
 ## 5. モデル多様性と学習断片化の診断
 

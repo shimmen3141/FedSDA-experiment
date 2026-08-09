@@ -22,6 +22,7 @@ from .fedsda import (
 )
 from .feddrift import FedDriftClient
 from .oblivious import ObliviousClient
+from .shared_backbone import SharedBackboneRestartingSoftRoutingFedSDAClient
 
 __all__ = [
     "BaseClient", "FedSDAClient", "ADWINFedSDAClient",
@@ -31,5 +32,6 @@ __all__ = [
     "HDDMFedSDAClient",
     "ProtectedSoftRoutingClassConditionalESRFedSDAClient",
     "RestartingSoftRoutingClassConditionalESRFedSDAClient",
+    "SharedBackboneRestartingSoftRoutingFedSDAClient",
     "FedDriftClient", "ObliviousClient",
 ]

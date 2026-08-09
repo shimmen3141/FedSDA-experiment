@@ -4,6 +4,7 @@ from .base import BaseServer
 from .clustering import CrossEvaluationClusteringServer
 from .feddrift import FedDriftServer
 from .fedsda import FedSDACachedServer, FedSDANoCachedServer
+from .shared_backbone import SharedBackboneFedSDANoCachedServer
 
 __all__ = [
     "BaseServer",
@@ -11,4 +12,5 @@ __all__ = [
     "FedDriftServer",
     "FedSDANoCachedServer",
     "FedSDACachedServer",
+    "SharedBackboneFedSDANoCachedServer",
 ]

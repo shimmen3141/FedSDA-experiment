@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 3
+METRIC_SCHEMA_VERSION = 4
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -64,6 +64,14 @@ METRICS = (
     *_make(
         ("comm_messages_up", "comm_messages_down", "comm_messages_total"),
         "communication", SECONDARY, ALL_METHODS, False,
+    ),
+    *_make(
+        (
+            "comm_parameter_values_up", "comm_parameter_values_down",
+            "comm_parameter_values_total", "comm_bytes_up", "comm_bytes_down",
+            "comm_bytes_total",
+        ),
+        "communication_volume", PRIMARY, ALL_METHODS, False,
     ),
     *_make(
         ("final_model_count",), "model_population", PRIMARY, ALL_METHODS, False,
@@ -133,11 +141,15 @@ METRICS = (
             "compute_inference_examples_total", "compute_training_examples_total",
             "compute_model_examples_total", "compute_optimizer_steps_total",
             "compute_drift_detector_updates_total", "compute_drift_detector_hypotheses_total",
+            "compute_backbone_examples_total", "compute_head_examples_total",
         ),
         "compute", SECONDARY, ALL_METHODS, False,
     ),
     *_make(
-        ("mean_model_count", "max_model_count", "model_count_auc"),
+        (
+            "mean_model_count", "max_model_count", "model_count_auc",
+            "final_parameter_values", "final_parameter_bytes",
+        ),
         "model_population", SECONDARY, ALL_METHODS, False,
     ),
     *_make(
@@ -187,7 +199,8 @@ METRIC_PROFILES = {
         "soft_routing",
     }),
     "resource": tuple(metric.id for metric in METRICS if metric.group in {
-        "communication", "runtime", "compute", "model_population",
+        "communication", "communication_volume", "runtime", "compute",
+        "model_population",
     }),
     "model_diagnostics": tuple(metric.id for metric in METRICS if metric.group in {
         "model_learning", "model_complementarity",

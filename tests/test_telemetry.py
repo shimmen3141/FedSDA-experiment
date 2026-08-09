@@ -30,6 +30,17 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
     assert results["compute_prediction_examples_total"] == 200
     assert results["compute_optimizer_steps_total"] > 0
     assert results["compute_model_examples_total"] >= 200
+    assert results["compute_backbone_examples_total"] == results[
+        "compute_model_examples_total"
+    ]
+    assert results["compute_head_examples_total"] == results[
+        "compute_model_examples_total"
+    ]
+    assert results["comm_parameter_values_total"] > 0
+    assert results["comm_bytes_total"] == 4 * results[
+        "comm_parameter_values_total"
+    ]
+    assert results["final_parameter_values"] > 0
     assert results["mean_model_count"] == 1.0
     assert results["max_model_count"] == 1.0
     assert results["client_compute_seconds_sum"] >= 0.0
@@ -42,6 +53,8 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
         assert raw["round_global_model_count"].shape == (5,)
         assert raw["round_client_held_model_count"].shape == (5, 2)
         assert raw["round_client_prediction_examples"].shape == (5, 2)
+        assert raw["round_client_backbone_examples"].shape == (5, 2)
+        assert raw["round_client_head_examples"].shape == (5, 2)
         assert raw["round_client_optimizer_steps"].sum() == results[
             "compute_optimizer_steps_total"
         ]

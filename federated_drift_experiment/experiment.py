@@ -35,6 +35,7 @@ from .clients import (
     ObliviousClient,
     ProtectedSoftRoutingClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
+    SharedBackboneRestartingSoftRoutingFedSDAClient,
 )
 from .data import (
     build_data_streams,
@@ -44,7 +45,11 @@ from .data import (
     normalize_dataset_name,
 )
 from .metrics import compute_metrics, match_events
-from .models import SimpleMLP
+from .models import (
+    SharedBackboneMLP,
+    SimpleMLP,
+    model_collection_parameter_footprint,
+)
 from .mode_names import (
     FEDSDA_MODES,
     fedsda_detector_name,
@@ -58,6 +63,7 @@ from .servers import (
     FedDriftServer,
     FedSDACachedServer,
     FedSDANoCachedServer,
+    SharedBackboneFedSDANoCachedServer,
 )
 
 
@@ -135,6 +141,7 @@ class ModeSpec:
     chunk_attr: str = 'AGGREGATION_INTERVAL'
     # 検出器戦略など、モード固有のクライアント構築引数。
     client_kwargs: dict = field(default_factory=dict)
+    model_cls: type = SimpleMLP
 
 
 MODE_SPECS = {
@@ -172,6 +179,12 @@ MODE_SPECS = {
         RestartingSoftRoutingClassConditionalESRFedSDAClient,
         _run_per_sample_timestep,
         server_cls=FedSDANoCachedServer,
+    ),
+    'FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting': ModeSpec(
+        SharedBackboneRestartingSoftRoutingFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=SharedBackboneFedSDANoCachedServer,
+        model_cls=SharedBackboneMLP,
     ),
     'FedSDA_NoCached_ClassESR_ProtectedSoftRouting': ModeSpec(
         ProtectedSoftRoutingClassConditionalESRFedSDAClient,
@@ -229,13 +242,13 @@ MODE_SPECS = {
 # ==========================================
 # セットアップ
 # ==========================================
-def _pretrain_initial_model():
+def _pretrain_initial_model(model_cls=SimpleMLP):
     """concept 0 のデータでモデル0を事前学習し、ベースライン統計も算出する。"""
     n_samples = config.PRETRAIN_SAMPLES
     n_epochs = config.PRETRAIN_EPOCHS
     batch_size = config.PRETRAIN_BATCH_SIZE
 
-    model0 = SimpleMLP()
+    model0 = model_cls()
     stats_0 = {'n': 0, 'mean': 0.0, 'M2': 0.0, 'class_stats': {}}
 
     replay_buf = []
@@ -273,7 +286,7 @@ def _pretrain_initial_model():
 
 def _setup_server_and_clients(spec, distance_threshold, verbose):
     """初期モデルの事前学習、サーバ登録、クライアント生成を行う。"""
-    model0, stats_0 = _pretrain_initial_model()
+    model0, stats_0 = _pretrain_initial_model(spec.model_cls)
 
     server = spec.server_cls(distance_threshold=distance_threshold, verbose=verbose)
     server.register_model_params(0, model0.get_params())
@@ -331,6 +344,7 @@ _COMPUTE_COUNTER_KEYS = (
     "cross_evaluation_forward_calls", "cross_evaluation_examples",
     "initialization_forward_calls", "initialization_examples",
     "training_forward_calls", "training_examples", "optimizer_steps",
+    "backbone_examples", "head_examples",
     "drift_detector_updates", "drift_detector_hypotheses",
 )
 _PHASE_TIME_KEYS = ("online", "training", "cross_evaluation")
@@ -387,6 +401,8 @@ def _add_telemetry_results(results, clients, telemetry):
     results["compute_model_examples_total"] = (
         results["compute_inference_examples_total"] + totals["training_examples"]
     )
+    results["compute_backbone_examples_total"] = totals["backbone_examples"]
+    results["compute_head_examples_total"] = totals["head_examples"]
 
     client_compute_seconds = []
     for client in clients:
@@ -1031,6 +1047,29 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     results["comm_messages_up"] = server.comm_messages_up
     results["comm_messages_down"] = server.comm_messages_down
     results["comm_messages_total"] = server.comm_messages_up + server.comm_messages_down
+    results["comm_parameter_values_up"] = server.comm_parameter_values_up
+    results["comm_parameter_values_down"] = server.comm_parameter_values_down
+    results["comm_parameter_values_total"] = (
+        server.comm_parameter_values_up + server.comm_parameter_values_down
+    )
+    results["comm_bytes_up"] = server.comm_bytes_up
+    results["comm_bytes_down"] = server.comm_bytes_down
+    results["comm_bytes_total"] = server.comm_bytes_up + server.comm_bytes_down
+    if spec.use_server:
+        footprint_values, footprint_bytes = server.final_parameter_footprint()
+    else:
+        client_footprints = [
+            model_collection_parameter_footprint(client.models)
+            for client in clients
+        ]
+        footprint_values = float(np.mean(
+            [values for values, _ in client_footprints]
+        ))
+        footprint_bytes = float(np.mean(
+            [byte_count for _, byte_count in client_footprints]
+        ))
+    results["final_parameter_values"] = footprint_values
+    results["final_parameter_bytes"] = footprint_bytes
     # 定常精度 stable_accuracy(回復窓除外)は compute_metrics で算出済み。
 
     # --- 生データの保存(回復曲線などの事後分析用)---

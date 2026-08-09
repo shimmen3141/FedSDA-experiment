@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from .. import config
 from ..model_lineage import ModelLineageRecorder
+from ..models import parameter_payload_size
 
 
 class BaseServer:
@@ -19,11 +20,37 @@ class BaseServer:
         self.global_stats = defaultdict(lambda: {'n': 0, 'mean': 0.0, 'M2': 0.0})
         self.model_lineage = ModelLineageRecorder()
 
-        # 通信量カウンタ(1単位 = 1モデルのパラメータを1回転送。全モデル同一サイズ)
+        # 論理モデル転送回数と、モデル構造を反映した実パラメータ量を併記する。
         self.comm_models_up = 0    # クライアント→サーバのモデルパラメータ転送数
         self.comm_models_down = 0  # サーバ→クライアントのモデルパラメータ転送数
         self.comm_messages_up = 0  # クライアント→サーバの軽量メッセージ数
         self.comm_messages_down = 0  # サーバ→クライアントの軽量メッセージ数
+        self.comm_parameter_values_up = 0
+        self.comm_parameter_values_down = 0
+        self.comm_bytes_up = 0
+        self.comm_bytes_down = 0
+
+    def record_parameter_transfer(self, direction, params, count=1):
+        """転送したstate dictの値数とバイト数を方向別に加算する。"""
+        values, byte_count = parameter_payload_size(params)
+        if direction == "up":
+            self.comm_parameter_values_up += values * count
+            self.comm_bytes_up += byte_count * count
+        elif direction == "down":
+            self.comm_parameter_values_down += values * count
+            self.comm_bytes_down += byte_count * count
+        else:
+            raise ValueError(f"Unknown communication direction: {direction!r}")
+
+    def record_model_transfer(self, direction, params, count=1):
+        """従来のモデル転送回数と、構造非依存の転送量を同時に数える。"""
+        if direction == "up":
+            self.comm_models_up += count
+        elif direction == "down":
+            self.comm_models_down += count
+        else:
+            raise ValueError(f"Unknown communication direction: {direction!r}")
+        self.record_parameter_transfer(direction, params, count=count)
 
     def register_client(self, client):
         self.clients.append(client)
@@ -83,7 +110,7 @@ class BaseServer:
         for c in self.clients:
             if c.has_pending_model():
                 params, stats = c.get_pending_model_info()
-                self.comm_models_up += 1  # クライアントが新規モデルをアップロード
+                self.record_model_transfer("up", params)
                 self.comm_messages_up += 1  # 新規モデル登録通知
                 new_global_id = self.request_new_model_id()
                 self.register_model_params(new_global_id, params)
@@ -126,8 +153,8 @@ class BaseServer:
                 if n_data == 0:
                     continue
 
-                self.comm_models_up += 1  # クライアントが mid のパラメータをアップロード(FedAvg)
                 params = c.models[mid].get_params()
+                self.record_model_transfer("up", params)
                 if new_params is None:
                     new_params = copy.deepcopy(params)
                     for k in new_params:
@@ -162,8 +189,19 @@ class BaseServer:
         id_mapping を渡すと、マージ等によるモデルIDの付け替えを配布と同時に適用する
         (省略時は付け替えなし=従来挙動)。
         """
-        self.comm_models_down += len(self.global_models) * len(self.clients)
+        for params in self.global_models.values():
+            self.record_model_transfer("down", params, count=len(self.clients))
         if id_mapping:
             self.comm_messages_down += len(self.clients)
         for c in self.clients:
             c.apply_server_mapping(id_mapping or {}, self.global_models, self.global_stats)
+
+    def final_parameter_footprint(self):
+        """最終グローバルモデル群が占める値数とバイト数を返す。"""
+        values = 0
+        byte_count = 0
+        for params in self.global_models.values():
+            model_values, model_bytes = parameter_payload_size(params)
+            values += model_values
+            byte_count += model_bytes
+        return values, byte_count
