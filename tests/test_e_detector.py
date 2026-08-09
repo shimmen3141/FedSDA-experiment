@@ -160,6 +160,39 @@ def test_restarting_soft_routing_restarts_only_after_model_change():
     assert spec.client_cls is RestartingSoftRoutingClassConditionalESRFedSDAClient
 
 
+def test_restarting_soft_routing_records_oracle_recovery_diagnostics():
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP()},
+        initial_stats={
+            0: {"n": 100, "mean": 0.2, "M2": 1.0},
+            1: {"n": 100, "mean": 0.2, "M2": 1.0},
+        },
+        verbose=False,
+    )
+    # 等重み混合は0.5となって誤答するが、モデル1単体なら正答する。
+    client.models[0].forward = lambda x: torch.full((len(x), 1), 0.1)
+    client.models[1].forward = lambda x: torch.full((len(x), 1), 0.9)
+    client.models[0].per_sample_error = lambda x, y: torch.full((len(x),), 0.9)
+    client.models[1].per_sample_error = lambda x, y: torch.full((len(x),), 0.1)
+
+    client._record_prediction(
+        torch.zeros((1, config.dataset_spec().input_dim)), torch.ones((1, 1)), 0
+    )
+
+    assert client.routing_diagnostics == {
+        "sample_count": 1,
+        "oracle_correct_count": 1,
+        "mixture_correct_count": 0,
+        "leader_correct_count": 0,
+        "missed_oracle_count": 1,
+    }
+    assert client.history_routing_oracle_correct == [1]
+
+
 def test_protected_soft_routing_keeps_incumbent_until_proposal_is_better():
     spec = MODE_SPECS["FedSDA_NoCached_ClassESR_ProtectedSoftRouting"]
     client = spec.client_cls(

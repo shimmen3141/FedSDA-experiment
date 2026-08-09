@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 2
+METRIC_SCHEMA_VERSION = 3
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -159,6 +159,19 @@ METRICS = (
         ),
         "model_complementarity", DIAGNOSTIC, FEDSDA_METHODS, None,
     ),
+    *_make(
+        ("dominated_model_prune_count",),
+        "dominance_pruning", DIAGNOSTIC, FEDSDA_METHODS, None,
+    ),
+    *_make(
+        (
+            "routing_sample_count", "routing_oracle_accuracy",
+            "routing_mixture_accuracy", "routing_leader_accuracy",
+            "routing_oracle_gain_rate", "routing_oracle_recovery_rate",
+            "routing_missed_oracle_count",
+        ),
+        "soft_routing", DIAGNOSTIC, FEDSDA_METHODS, None,
+    ),
 )
 
 METRICS_BY_ID = {metric.id: metric for metric in METRICS}
@@ -175,12 +188,14 @@ METRIC_PROFILES = {
     }),
     "adaptation": tuple(metric.id for metric in METRICS if metric.group in {
         "adaptation_action", "provisional_model", "server_mapping",
+        "dominance_pruning", "soft_routing",
     }),
     "resource": tuple(metric.id for metric in METRICS if metric.group in {
         "communication", "runtime", "compute", "model_population",
     }),
     "model_diagnostics": tuple(metric.id for metric in METRICS if metric.group in {
-        "model_learning", "model_complementarity",
+        "model_learning", "model_complementarity", "dominance_pruning",
+        "soft_routing",
     }),
     "all": SCALAR_METRIC_IDS,
 }

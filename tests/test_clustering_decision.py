@@ -1,3 +1,5 @@
+import torch
+
 from federated_drift_experiment import config
 from federated_drift_experiment.clustering import standardized_mean_increase
 from federated_drift_experiment.servers import (
@@ -135,3 +137,62 @@ def test_fedsda_collects_pair_prediction_complementarity():
     assert summary["model_pair_correctness_disagreement_rate"] == 0.3
     assert summary["model_pair_oracle_gain_rate"] == 0.1
     assert summary["model_pair_both_correct_rate"] == 0.6
+
+
+def test_dominance_pruning_requires_significant_win_and_no_home_loss():
+    server = FedSDANoCachedServer(verbose=False)
+    server._last_pair_prediction_diagnostics = [
+        {
+            "candidate_model_id": 0, "target_model_id": 1, "n": 30,
+            "candidate_only_correct": 20, "target_only_correct": 0,
+            "both_correct": 8, "both_wrong": 2,
+        },
+        {
+            "candidate_model_id": 1, "target_model_id": 0, "n": 30,
+            "candidate_only_correct": 0, "target_only_correct": 5,
+            "both_correct": 23, "both_wrong": 2,
+        },
+    ]
+
+    assert server.dominated_model_mapping([0, 1]) == {1: 0}
+
+
+def test_dominance_pruning_keeps_complementary_models():
+    server = FedSDANoCachedServer(verbose=False)
+    server._last_pair_prediction_diagnostics = [
+        {
+            "candidate_model_id": 0, "target_model_id": 1, "n": 30,
+            "candidate_only_correct": 15, "target_only_correct": 0,
+            "both_correct": 10, "both_wrong": 5,
+        },
+        {
+            "candidate_model_id": 1, "target_model_id": 0, "n": 30,
+            "candidate_only_correct": 15, "target_only_correct": 0,
+            "both_correct": 10, "both_wrong": 5,
+        },
+    ]
+
+    assert server.dominated_model_mapping([0, 1]) == {}
+
+
+def test_no_cached_dominance_pruning_keeps_winner_parameters(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_DOMINATED_MODEL_PRUNING", True)
+    server = FedSDANoCachedServer(verbose=False)
+    server.global_models = {
+        0: {"weight": torch.tensor([1.0])},
+        1: {"weight": torch.tensor([9.0])},
+    }
+    server.global_stats[0] = {"n": 10, "mean": 0.1, "M2": 0.0}
+    server.global_stats[1] = {"n": 10, "mean": 0.4, "M2": 0.0}
+    monkeypatch.setattr(server, "_cross_evaluate", lambda ids: {})
+    monkeypatch.setattr(server, "dominated_model_mapping", lambda ids: {1: 0})
+    monkeypatch.setattr(
+        server, "perform_hierarchical_clustering", lambda ids, stats: [[0]]
+    )
+
+    mapping = server._cluster_and_merge(50, [0, 1], {0: 10, 1: 10})
+
+    assert mapping[1] == 0
+    assert server.global_models[0]["weight"].item() == 1.0
+    assert 1 not in server.global_models
+    assert server.dominated_model_prune_count == 1

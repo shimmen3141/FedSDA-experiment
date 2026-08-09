@@ -45,6 +45,8 @@
 | `server_mapping` | サーバ割当変更 | `server_mapping_change_count` |
 | `model_learning` | モデル別の割当データ・学習サンプル・optimizer stepの分布 | `model_assigned_samples_*`, `model_training_examples_*`, `model_optimizer_steps_*` |
 | `model_complementarity` | 同一標本上のモデル対正誤表とoracle選択余地 | `model_pair_*` |
+| `dominance_pruning` | クロス評価で支配されたモデルの除去回数 | `dominated_model_prune_count` |
+| `soft_routing` | SoftRoutingが全モデル中の正解可能性を回収できた割合 | `routing_*` |
 
 コードから用途別に選ぶ場合は`metrics_in_profile("core")`、`"detection"`、
 `"adaptation"`、`"resource"`、`"all"`を使用できる。profileはCSV列を削るものではなく、
@@ -75,6 +77,22 @@ CVが大きい、または最小値が小さい場合は、一部モデルへ十
 - `model_pair_correctness_disagreement_rate`: 片方だけが正解した割合。
 - `model_pair_oracle_gain_rate`: 良い方の単一モデルに対し、標本ごとにoracle選択した場合の改善上限。
 - `model_pair_both_correct_rate`: 両モデルが正解した割合。
+
+支配モデル除去を有効にした場合、`dominated_model_prune_count`は、通常の
+距離クラスタリングとは別に優勢モデルへ再割当されたモデル数を数える。
+判定には直近のクロス評価だけを使い、過去ラウンドの古い証拠は混ぜない。
+
+SoftRoutingでは、予測時にすでに計算している全保持モデルの出力から次を記録する。
+
+- `routing_oracle_accuracy`: 実混合または少なくとも一つの保持モデルが正解した割合。
+- `routing_mixture_accuracy`: 実際の重み付き混合が正解した割合。
+- `routing_leader_accuracy`: 最大重みモデル単体が正解した割合。
+- `routing_oracle_gain_rate`: oracle accuracyと実混合accuracyの差。
+- `routing_oracle_recovery_rate`: oracleが正解可能だった標本のうち実混合も正解した割合。
+- `routing_missed_oracle_count`: 正解モデルが存在したのに実混合が誤答した件数。
+
+NPZには`history_routing_oracle_correct`と`history_routing_leader_correct`も保存する。
+これらの指標は追加のモデルforwardや通信を発生させない。
 
 これらは診断専用であり、現時点ではクラスタリング判定を変更しない。精度改善を主張する指標ではなく、
 モデルを残す利益と学習量断片化の原因を切り分けるために使用する。

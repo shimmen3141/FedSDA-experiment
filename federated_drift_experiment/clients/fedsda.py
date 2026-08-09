@@ -1268,6 +1268,15 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.history_routing_effective_experts = []
         self.history_routing_max_weight = []
         self.history_routing_gate_open = []
+        self.history_routing_oracle_correct = []
+        self.history_routing_leader_correct = []
+        self.routing_diagnostics = {
+            "sample_count": 0,
+            "oracle_correct_count": 0,
+            "mixture_correct_count": 0,
+            "leader_correct_count": 0,
+            "missed_oracle_count": 0,
+        }
 
     def _prediction_probabilities(self, proposal_probabilities):
         """AdaHedgeの提案重みを実際の予測重みへ変換する。"""
@@ -1279,6 +1288,7 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         proposal_probabilities = self.expert_router.probabilities(model_ids)
         probabilities = self._prediction_probabilities(proposal_probabilities)
         model_losses = {}
+        model_correctness = {}
         weighted_scores = None
 
         with torch.no_grad():
@@ -1294,6 +1304,14 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                 )
                 model_losses[model_id] = float(
                     model.per_sample_error(x, y).mean().item()
+                )
+                if model.num_classes > 2:
+                    model_prediction = torch.argmax(scores, dim=1, keepdim=True)
+                else:
+                    model_prediction = (scores > 0.5).float()
+                model_correctness[model_id] = bool(
+                    model_prediction.view(-1)[0].item()
+                    == y.view(-1)[0].item()
                 )
         self._record_model_compute(
             "prediction", len(x) * len(model_ids), calls=len(model_ids)
@@ -1322,6 +1340,18 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             if self.current_model_id in leaders
             else min(leaders)
         )
+        # 混合自体が全単体モデルより良い場合もあるため、oracle候補には実混合も含める。
+        oracle_correct = bool(accuracy) or any(model_correctness.values())
+        leader_correct = model_correctness[routed_model_id]
+        self.routing_diagnostics["sample_count"] += 1
+        self.routing_diagnostics["oracle_correct_count"] += int(oracle_correct)
+        self.routing_diagnostics["mixture_correct_count"] += int(accuracy)
+        self.routing_diagnostics["leader_correct_count"] += int(leader_correct)
+        self.routing_diagnostics["missed_oracle_count"] += int(
+            oracle_correct and not accuracy
+        )
+        self.history_routing_oracle_correct.append(int(oracle_correct))
+        self.history_routing_leader_correct.append(int(leader_correct))
         self.history_accuracy.append(accuracy)
         self.history_concept.append(concept_id)
         self.history_model_id.append(routed_model_id)

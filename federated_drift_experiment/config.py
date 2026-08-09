@@ -171,3 +171,5 @@ FEDSDA_CLUSTERING_POLICIES = ('on_new_model', 'every_round')
 FEDSDA_CLUSTERING_DECISION = 'distance'
 FEDSDA_CLUSTERING_DECISIONS = ('distance', 'confidence', 'confidence_margin')
 FEDSDA_CLUSTERING_CONFIDENCE = 0.95
+# クロス評価で一方的に劣るモデルを、パラメータ平均せず優勢モデルへ再割当する。
+FEDSDA_DOMINATED_MODEL_PRUNING = False

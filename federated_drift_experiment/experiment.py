@@ -450,6 +450,39 @@ def _add_model_diagnostic_results(results, clients, server):
         "model_pair_both_correct_rate": 0.0,
     }
     results.update({**defaults, **summary})
+    results["dominated_model_prune_count"] = int(
+        getattr(server, "dominated_model_prune_count", 0)
+    )
+
+    routing = defaultdict(int)
+    for client in clients:
+        for key, value in getattr(client, "routing_diagnostics", {}).items():
+            routing[key] += int(value)
+    routing_samples = routing["sample_count"]
+    oracle_correct = routing["oracle_correct_count"]
+    results.update({
+        "routing_sample_count": routing_samples,
+        "routing_oracle_accuracy": (
+            oracle_correct / routing_samples if routing_samples else 0.0
+        ),
+        "routing_mixture_accuracy": (
+            routing["mixture_correct_count"] / routing_samples
+            if routing_samples else 0.0
+        ),
+        "routing_leader_accuracy": (
+            routing["leader_correct_count"] / routing_samples
+            if routing_samples else 0.0
+        ),
+        "routing_oracle_gain_rate": (
+            (oracle_correct - routing["mixture_correct_count"]) / routing_samples
+            if routing_samples else 0.0
+        ),
+        "routing_oracle_recovery_rate": (
+            routing["mixture_correct_count"] / oracle_correct
+            if oracle_correct else 0.0
+        ),
+        "routing_missed_oracle_count": routing["missed_oracle_count"],
+    })
 
 
 def _save_raw_run(
@@ -644,6 +677,14 @@ def _save_raw_run(
         )
         telemetry_arrays["history_routing_gate_open"] = np.asarray(
             [client.history_routing_gate_open for client in clients],
+            dtype=np.bool_,
+        )
+        telemetry_arrays["history_routing_oracle_correct"] = np.asarray(
+            [client.history_routing_oracle_correct for client in clients],
+            dtype=np.bool_,
+        )
+        telemetry_arrays["history_routing_leader_correct"] = np.asarray(
+            [client.history_routing_leader_correct for client in clients],
             dtype=np.bool_,
         )
 
@@ -870,6 +911,10 @@ def _save_raw_run(
         ),
         clustering_decision=np.asarray(
             config.FEDSDA_CLUSTERING_DECISION if is_fedsda else "", dtype=np.str_
+        ),
+        dominated_model_pruning=np.asarray(
+            config.FEDSDA_DOMINATED_MODEL_PRUNING if is_fedsda else False,
+            dtype=np.bool_,
         ),
         total_data=int(config.TOTAL_DATA_POINTS),
         **telemetry_arrays,

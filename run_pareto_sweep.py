@@ -72,6 +72,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "seed", "series", "sweep_parameter", "sweep_value",
             FEDDRIFT_DETECTION_BATCH_SIZE, AGGREGATION_INTERVAL,
             "clustering_policy", "clustering_decision",
+            "dominated_model_pruning",
             "detection_episodes",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
@@ -137,6 +138,8 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             f"{display_series} [cluster-decision="
             f"{config.FEDSDA_CLUSTERING_DECISION}]"
         )
+    if "FedSDA" in mode and config.FEDSDA_DOMINATED_MODEL_PRUNING:
+        display_series = f"{display_series} [dominance-pruning]"
     if "FedSDA" in mode and config.FEDSDA_DETECTION_EPISODES_ENABLED:
         display_series = f"{display_series} [episodes]"
     if "FedSDA" in mode and config.NEW_MODEL_CREATION_POLICY != "immediate":
@@ -196,6 +199,7 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         ),
         "clustering_policy": config.FEDSDA_CLUSTERING_POLICY,
         "clustering_decision": config.FEDSDA_CLUSTERING_DECISION,
+        "dominated_model_pruning": config.FEDSDA_DOMINATED_MODEL_PRUNING,
         "detection_episodes": config.FEDSDA_DETECTION_EPISODES_ENABLED,
         "new_model_creation_policy": config.NEW_MODEL_CREATION_POLICY,
         "fifo_size": config.FIFO_BUFFER_SIZE,
@@ -365,6 +369,7 @@ def _load_csv(path):
             row[ADWIN_DELTA] = row.get(ADWIN_DELTA, "")
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("clustering_decision", "distance")
+            row.setdefault("dominated_model_pruning", False)
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
             row.setdefault("fifo_size", str(config.FIFO_BUFFER_SIZE))
@@ -713,6 +718,12 @@ def build_parser():
         ),
     )
     fedsda.add_argument(
+        "--dominated-model-pruning",
+        action=argparse.BooleanOptionalAction,
+        default=config.FEDSDA_DOMINATED_MODEL_PRUNING,
+        help="クロス評価で支配されたFedSDAモデルを優勢モデルへ再割当する",
+    )
+    fedsda.add_argument(
         "--detection-episodes",
         action=argparse.BooleanOptionalAction,
         default=config.FEDSDA_DETECTION_EPISODES_ENABLED,
@@ -919,6 +930,7 @@ def main(argv=None):
     algorithm = AlgorithmOptions(
         clustering_policy=args.clustering_policy,
         clustering_decision=args.clustering_decision,
+        dominated_model_pruning=args.dominated_model_pruning,
         detection_episodes=args.detection_episodes,
         new_model_creation_policy=args.new_model_creation_policy,
         fifo_size=args.fifo_size,
