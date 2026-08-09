@@ -1302,13 +1302,17 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                     weighted if weighted_scores is None
                     else weighted_scores + weighted
                 )
-                model_losses[model_id] = float(
-                    model.per_sample_error(x, y).mean().item()
-                )
                 if model.num_classes > 2:
+                    labels = y.view(-1).long()
+                    losses = 1.0 - scores.gather(
+                        1, labels.unsqueeze(1)
+                    ).squeeze(1)
                     model_prediction = torch.argmax(scores, dim=1, keepdim=True)
                 else:
+                    losses = torch.abs(scores.view(-1) - y.view(-1).float())
                     model_prediction = (scores > 0.5).float()
+                # 予測に用いた出力から損失も計算し、同一モデルの二重forwardを避ける。
+                model_losses[model_id] = float(losses.mean().item())
                 model_correctness[model_id] = bool(
                     model_prediction.view(-1)[0].item()
                     == y.view(-1)[0].item()

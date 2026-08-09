@@ -16,8 +16,10 @@ FedDrift の各曲線の左上(高精度・低通信)を取れば「パレート
     python run_pareto_sweep.py                               # 既定(全4データセット × 5シード)※長時間
 """
 import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import csv
 import hashlib
+import multiprocessing
 import os
 import sys
 import time
@@ -246,39 +248,79 @@ def run_sweep(datasets, seeds, batches, deltas, adwin_deltas, fixed_delta, fixed
     return run_sweep_plan(plan, raw_dir=raw_dir)
 
 
-def run_sweep_plan(plan, raw_dir=None):
-    """SweepPlanが生成した解決済みrunだけを順に実行する。"""
+def _experiment_tag(experiment):
+    """進捗表示に使うrun識別子を返す。"""
+    tag = f"{experiment.dataset}/{experiment.mode}"
+    if experiment.sweep_parameter is not None:
+        tag += f"/{experiment.sweep_parameter}={experiment.sweep_value}"
+    return f"{tag}/s{experiment.seed}"
+
+
+def _execute_experiment(experiment, raw_dir):
+    """一つの解決済み実験設定を実行する。逐次・並列経路で共用する。"""
+    with experiment.activated():
+        distance_threshold = experiment.parameter_value(
+            FEDDRIFT_DISTANCE_THRESHOLD,
+            experiment.parameter_value(FEDSDA_DISTANCE_THRESHOLD),
+        )
+        return _run(
+            raw_dir=raw_dir,
+            concept_schedule=experiment.concept_schedule,
+            mode=experiment.mode, dataset=experiment.dataset,
+            seed=experiment.seed, series=experiment.series,
+            sweep_parameter=experiment.sweep_parameter,
+            sweep_value=experiment.sweep_value,
+            feddrift_batch=experiment.parameter_value(
+                FEDDRIFT_DETECTION_BATCH_SIZE
+            ),
+            distance_threshold=distance_threshold,
+            adwin_delta=experiment.parameter_value(ADWIN_DELTA),
+            agg_interval=experiment.parameter_value(AGGREGATION_INTERVAL),
+        )
+
+
+def _initialize_sweep_worker(runtime_config):
+    """spawnされたworkerへ実行環境と掃引全体の設定を反映する。"""
+    configure_torch_threads()
+    for name, value in runtime_config.items():
+        setattr(config, name, value)
+
+
+def _runtime_config_snapshot():
+    """ExperimentConfiguration外にある実験規模設定をworkerへ渡す。"""
+    return {
+        "TOTAL_DATA_POINTS": config.TOTAL_DATA_POINTS,
+        "N_CLIENTS": config.N_CLIENTS,
+        "PRETRAIN_SAMPLES": config.PRETRAIN_SAMPLES,
+        "PRETRAIN_EPOCHS": config.PRETRAIN_EPOCHS,
+        "CONCEPT_SCHEDULE": config.CONCEPT_SCHEDULE,
+    }
+
+
+def run_sweep_plan(plan, raw_dir=None, workers=1, runtime_config=None):
+    """SweepPlanが生成した解決済みrunを順序を保って実行する。"""
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
+    experiments = list(plan.iter_experiments())
+    if workers == 1:
+        return _run_sweep_sequential(experiments, raw_dir)
+    return _run_sweep_parallel(
+        experiments, raw_dir, workers,
+        _runtime_config_snapshot() if runtime_config is None else runtime_config,
+    )
+
+
+def _run_sweep_sequential(experiments, raw_dir):
+    """従来と同じ単一プロセスの実行経路。"""
     rows = []
-    total = plan.run_count
+    total = len(experiments)
     done = 0
     t0 = time.perf_counter()
-    for experiment in plan.iter_experiments():
+    for experiment in experiments:
         done += 1
-        value = experiment.sweep_value
-        tag = f"{experiment.dataset}/{experiment.mode}"
-        if experiment.sweep_parameter is not None:
-            tag += f"/{experiment.sweep_parameter}={value}"
-        tag += f"/s{experiment.seed}"
+        tag = _experiment_tag(experiment)
         try:
-            with experiment.activated():
-                distance_threshold = experiment.parameter_value(
-                    FEDDRIFT_DISTANCE_THRESHOLD,
-                    experiment.parameter_value(FEDSDA_DISTANCE_THRESHOLD),
-                )
-                row = _run(
-                    raw_dir=raw_dir,
-                    concept_schedule=experiment.concept_schedule,
-                    mode=experiment.mode, dataset=experiment.dataset,
-                    seed=experiment.seed, series=experiment.series,
-                    sweep_parameter=experiment.sweep_parameter,
-                    sweep_value=experiment.sweep_value,
-                    feddrift_batch=experiment.parameter_value(
-                        FEDDRIFT_DETECTION_BATCH_SIZE
-                    ),
-                    distance_threshold=distance_threshold,
-                    adwin_delta=experiment.parameter_value(ADWIN_DELTA),
-                    agg_interval=experiment.parameter_value(AGGREGATION_INTERVAL),
-                )
+            row = _execute_experiment(experiment, raw_dir)
             rows.append(row)
             print(f"[{done}/{total}] {tag}: stable_acc={row['stable_accuracy']:.4f} "
                   f"comm={row['comm_models_total']} models={row['final_model_count']} "
@@ -287,6 +329,44 @@ def run_sweep_plan(plan, raw_dir=None):
             print(f"[{done}/{total}] {tag}: FAILED")
             traceback.print_exc()
     return rows
+
+
+def _run_sweep_parallel(experiments, raw_dir, workers, runtime_config):
+    """runを独立プロセスへ割り当て、計画順に結果を返す。"""
+    total = len(experiments)
+    rows_by_index = {}
+    done = 0
+    t0 = time.perf_counter()
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(
+        max_workers=workers,
+        mp_context=context,
+        initializer=_initialize_sweep_worker,
+        initargs=(runtime_config,),
+    ) as executor:
+        future_to_index = {
+            executor.submit(_execute_experiment, experiment, raw_dir): index
+            for index, experiment in enumerate(experiments)
+        }
+        for future in as_completed(future_to_index):
+            index = future_to_index[future]
+            experiment = experiments[index]
+            done += 1
+            tag = _experiment_tag(experiment)
+            try:
+                row = future.result()
+                rows_by_index[index] = row
+                print(
+                    f"[{done}/{total}] {tag}: "
+                    f"stable_acc={row['stable_accuracy']:.4f} "
+                    f"comm={row['comm_models_total']} "
+                    f"models={row['final_model_count']} "
+                    f"({time.perf_counter()-t0:.0f}s)"
+                )
+            except Exception:
+                print(f"[{done}/{total}] {tag}: FAILED")
+                traceback.print_exc()
+    return [rows_by_index[index] for index in sorted(rows_by_index)]
 
 
 def _experiment_slug(datasets, seeds, total_data, tag=None, concept_schedule="random"):
@@ -796,6 +876,11 @@ def build_parser():
     output.add_argument("--print-plan", action="store_true",
                         help="解決済みのmode・掃引軸・固定値・run数を表示して終了")
 
+    output.add_argument(
+        "--workers", type=int, default=1,
+        help="独立runを並列実行するプロセス数（既定: 1）",
+    )
+
     replot = parser.add_argument_group("既存CSVの再描画")
     replot.add_argument("--plot-csvs", nargs="+", default=None,
                         help="実験を行わず指定CSV(glob可)を再描画。他の実験設定は無視")
@@ -866,6 +951,8 @@ def main(argv=None):
         parser.error("--new-model-validation-fraction must be between 0 and 1")
     if args.new_model_forward_validation_samples < 2:
         parser.error("--new-model-forward-validation-samples must be at least 2")
+    if args.workers < 1:
+        parser.error("--workers must be at least 1")
 
     # 集約プロットモード: 既存CSVを読み込みシード平均で描画して終了
     if args.plot_csvs:
@@ -979,12 +1066,13 @@ def main(argv=None):
     print(f"fixed: delta={fixed_delta} batch={fixed_batch} gamma={fixed_gamma} "
           f"adwin={fixed_adwin} agg={fixed_agg}")
     print(f"Total runs = {n_runs}  (フルスケールでは1実験~60-90秒。長時間になり得ます)")
+    print(f"Worker processes = {args.workers}")
 
     if args.raw_dir:
         os.makedirs(args.raw_dir, exist_ok=True)
         print(f"Raw per-run data (.npz) -> {args.raw_dir}")
 
-    rows = run_sweep_plan(plan, raw_dir=args.raw_dir)
+    rows = run_sweep_plan(plan, raw_dir=args.raw_dir, workers=args.workers)
     write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
     plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"),
                 y_key=args.plot_metric)

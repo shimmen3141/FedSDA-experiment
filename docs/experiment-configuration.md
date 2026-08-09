@@ -39,6 +39,13 @@ CLI -> SweepPlan -> ExperimentConfiguration -> activated() -> experiment
 特に、`activated()`はプロセス全体のモジュール状態を一時変更するため、同一プロセス内の並列runには
 対応しない。プロセスを分けた並列実験は、それぞれ独立した`config`を持つため現在の方式でも問題ない。
 
+`run_pareto_sweep.py --workers N`は、この性質を利用して解決済みの
+`ExperimentConfiguration`をspawn型の独立プロセスへ一つずつ渡す。各プロセス内ではrunを逐次実行し、
+親プロセスだけが最終CSVと図を生成する。完了順が変わっても、CSV行は`SweepPlan`の計画順へ戻す。
+`TOTAL_DATA_POINTS`、クライアント数、事前学習規模など、run設定の外側にある実験規模もworker初期化時に
+明示的に複製する。このため、並列数によって精度・通信量・検出・モデル数・計算回数は変化しない。
+一方、`runtime_seconds`と`client_compute_seconds_*`は資源競合を含む実測値なので一致対象ではない。
+
 ## 段階的な移行手順
 
 全面的な書換えを避け、設定を使う場所から順に次の単位で移行する。

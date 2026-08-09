@@ -1,6 +1,7 @@
 import csv
 import os
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -41,6 +42,63 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     ])
     assert selected.datasets == ["sea2", "mnist2", "mnist4"]
     assert selected.concept_schedule == "feddrift_fixed"
+
+
+def test_parallel_workers_are_explicit_and_positive():
+    parser = sweep.build_parser()
+    assert parser.parse_args([]).workers == 1
+    with pytest.raises(SystemExit):
+        sweep.main(["--workers", "0", "--print-plan"])
+
+
+def test_parallel_sweep_returns_rows_in_plan_order(monkeypatch):
+    experiments = [
+        SimpleNamespace(
+            dataset="sea4", mode="Oblivious", seed=seed,
+            sweep_parameter=None, sweep_value=None,
+        )
+        for seed in range(3)
+    ]
+    plan = SimpleNamespace(iter_experiments=lambda: iter(experiments))
+
+    class FakeFuture:
+        def __init__(self, row):
+            self.row = row
+
+        def result(self):
+            return self.row
+
+    class FakeExecutor:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def submit(self, function, experiment, raw_dir):
+            return FakeFuture({
+                "seed": experiment.seed,
+                "stable_accuracy": 0.5,
+                "comm_models_total": 0,
+                "final_model_count": 1,
+            })
+
+    monkeypatch.setattr(sweep, "ProcessPoolExecutor", FakeExecutor)
+    monkeypatch.setattr(
+        sweep, "as_completed", lambda futures: reversed(list(futures)),
+    )
+    monkeypatch.setattr(
+        sweep.multiprocessing, "get_context", lambda method: method,
+    )
+
+    rows = sweep.run_sweep_plan(
+        plan, workers=2, runtime_config={},
+    )
+
+    assert [row["seed"] for row in rows] == [0, 1, 2]
 
 
 def test_explicit_disable_flags_resolve_to_empty_plan_collections():

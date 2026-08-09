@@ -193,6 +193,39 @@ def test_restarting_soft_routing_records_oracle_recovery_diagnostics():
     assert client.history_routing_oracle_correct == [1]
 
 
+def test_soft_routing_reuses_prediction_forward_for_expert_loss():
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP()},
+        initial_stats={
+            0: {"n": 100, "mean": 0.2, "M2": 1.0},
+            1: {"n": 100, "mean": 0.2, "M2": 1.0},
+        },
+        verbose=False,
+    )
+    forward_calls = {0: 0, 1: 0}
+
+    for model_id, score in ((0, 0.1), (1, 0.9)):
+        def forward(x, model_id=model_id, score=score):
+            forward_calls[model_id] += 1
+            return torch.full((len(x), 1), score)
+
+        client.models[model_id].forward = forward
+        # 損失計算で二度目のforwardを行う旧経路へ戻った場合は失敗させる。
+        client.models[model_id].per_sample_error = lambda *_: pytest.fail(
+            "per_sample_error must not issue another forward"
+        )
+
+    client._record_prediction(
+        torch.zeros((1, config.dataset_spec().input_dim)), torch.ones((1, 1)), 0
+    )
+
+    assert forward_calls == {0: 1, 1: 1}
+
+
 def test_protected_soft_routing_keeps_incumbent_until_proposal_is_better():
     spec = MODE_SPECS["FedSDA_NoCached_ClassESR_ProtectedSoftRouting"]
     client = spec.client_cls(

@@ -87,6 +87,19 @@ python -u run_pareto_sweep.py 2>&1 | tee run_pareto_sweep.log
 `PYTHONNOUSERSITE`はPython起動時に処理されるため、必要な場合はコマンド側で指定する。
 `PYTHONWARNINGS=ignore`は数値警告や非推奨APIの警告も隠すため、通常の実験では設定しない。
 
+独立したrun（データセット・seed・掃引値の組）を複数CPUプロセスで並列実行する場合は、
+`run_pareto_sweep.py --workers N`を指定する。既定値は`1`で、従来どおり逐次実行する。
+各worker内のOpenMP/MKLスレッド数は上記の既定値`1`なので、`--workers`と内部多重並列による
+CPU oversubscriptionを避けられる。例えば4 runを同時実行する場合は次のように指定する。
+
+```bash
+python -u run_pareto_sweep.py --datasets sea4 circle2 --seeds 0 1 2 3 4 --workers 4
+```
+
+同時実行数を増やすとメモリ使用量も概ね増える。特にMNISTは各workerがデータキャッシュを持つため、
+最初に`1`, `2`, `4`を同じ小規模条件で計測し、CPU割当数と物理メモリ内に収まる値を採用する。
+複数tmuxセッションを併用する場合の総並列数は「セッション数 × `--workers`」になる。
+
 Pareto 図では `FedSDA_without_server` と `Oblivious` を通信量に依存しない基準として横線で描く。
 横線はシード平均、半透明の帯はシード間の ±1 標準偏差である。1 シードだけの場合は標準偏差が
 0 のため帯は表示されない。凡例には前者の固定 `δ_ADWIN`、後者の固定 `A` も示す。
