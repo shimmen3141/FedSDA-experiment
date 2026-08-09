@@ -344,6 +344,7 @@ _COMPUTE_COUNTER_KEYS = (
     "cross_evaluation_forward_calls", "cross_evaluation_examples",
     "initialization_forward_calls", "initialization_examples",
     "training_forward_calls", "training_examples", "optimizer_steps",
+    "backbone_optimizer_steps", "head_optimizer_steps",
     "backbone_examples", "head_examples",
     "drift_detector_updates", "drift_detector_hypotheses",
 )
@@ -924,6 +925,11 @@ def _save_raw_run(
         ),
         clustering_decision=np.asarray(
             config.FEDSDA_CLUSTERING_DECISION if is_fedsda else "", dtype=np.str_
+        ),
+        shared_backbone_training=np.asarray(
+            config.SHARED_BACKBONE_TRAINING
+            if "_SharedBackbone_" in mode else "",
+            dtype=np.str_,
         ),
         total_data=int(config.TOTAL_DATA_POINTS),
         **telemetry_arrays,

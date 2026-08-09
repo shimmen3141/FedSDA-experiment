@@ -203,13 +203,17 @@ class SharedBackboneMLP(SimpleMLP):
     def forward(self, x):
         return self.forward_from_features(self.extract_features(x))
 
+    def loss_from_features(self, features, y):
+        """抽出済み特徴から、この概念ヘッドの学習損失を計算する。"""
+        prediction = self.forward_from_features(features)
+        target = y if self.num_classes == 2 else y.view(-1).long()
+        return self.loss_fn(prediction, target)
+
     def update(self, x, y):
         """共有部を共通optimizerで、概念別ヘッドを専用optimizerで更新する。"""
         self.backbone.optimizer.zero_grad()
         self.head_optimizer.zero_grad()
-        prediction = self.forward(x)
-        target = y if self.num_classes == 2 else y.view(-1).long()
-        loss = self.loss_fn(prediction, target)
+        loss = self.loss_from_features(self.extract_features(x), y)
         loss.backward()
         self.backbone.optimizer.step()
         self.head_optimizer.step()

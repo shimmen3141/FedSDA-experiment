@@ -78,6 +78,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
             "new_model_forward_validation_samples",
+            "shared_backbone_training",
             FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
             ] + METRIC_KEYS
 
@@ -92,6 +93,8 @@ PLOT_X_LABELS = {
     "compute_backbone_examples_total": "Backbone-processed examples (log)",
     "compute_head_examples_total": "Head-processed examples (log)",
     "compute_optimizer_steps_total": "Optimizer steps (log)",
+    "compute_backbone_optimizer_steps_total": "Backbone optimizer steps (log)",
+    "compute_head_optimizer_steps_total": "Head optimizer steps (log)",
     "client_compute_seconds_sum": "Client compute time (seconds, log)",
     "runtime_seconds": "Runtime (seconds, log)",
 }
@@ -148,6 +151,13 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
     if "FedSDA" in mode and config.NEW_MODEL_CREATION_POLICY != "immediate":
         display_series = (
             f"{display_series} [creation={config.NEW_MODEL_CREATION_POLICY}]"
+        )
+    if (
+        "_SharedBackbone_" in mode
+        and config.SHARED_BACKBONE_TRAINING != "sequential"
+    ):
+        display_series = (
+            f"{display_series} [backbone={config.SHARED_BACKBONE_TRAINING}]"
         )
     if "FedSDA" in mode:
         display_series = f"{display_series} [N_FIFO={config.FIFO_BUFFER_SIZE}]"
@@ -208,6 +218,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         "new_model_validation_fraction": config.NEW_MODEL_VALIDATION_FRACTION,
         "new_model_forward_validation_samples":
             config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES,
+        "shared_backbone_training": (
+            config.SHARED_BACKBONE_TRAINING
+            if "_SharedBackbone_" in mode else None
+        ),
         FEDSDA_DISTANCE_THRESHOLD: (
             distance_threshold if mode in FEDSDA_MODES else None
         ),
@@ -495,6 +509,7 @@ def _load_csv(path):
             row[ADWIN_DELTA] = row.get(ADWIN_DELTA, "")
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("clustering_decision", "distance")
+            row.setdefault("shared_backbone_training", "sequential")
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
             row.setdefault("fifo_size", str(config.FIFO_BUFFER_SIZE))
@@ -868,6 +883,15 @@ def build_parser():
         default=config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES,
         help="警報後の前向き検証に使うサンプル数",
     )
+    fedsda.add_argument(
+        "--shared-backbone-training",
+        choices=config.SHARED_BACKBONE_TRAINING_CHOICES,
+        default=config.SHARED_BACKBONE_TRAINING,
+        help=(
+            "共有バックボーンの通常学習方式 "
+            "(sequential / joint / frozen)"
+        ),
+    )
     fedsda.add_argument("--fedsda-distance-threshold", dest="fixed_gamma",
                         type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
@@ -1028,6 +1052,7 @@ def main(argv=None):
     selections = {
         "new_model_creation_policy": args.new_model_creation_policy,
         "clustering_decision": args.clustering_decision,
+        "shared_backbone_training": args.shared_backbone_training,
     }
     issues = validate_explicit_options(selected_modes, selections, explicit_ids)
     issues += validate_sweep_dependencies(raw_argv, {
@@ -1063,6 +1088,7 @@ def main(argv=None):
         new_model_forward_validation_samples=(
             args.new_model_forward_validation_samples
         ),
+        shared_backbone_training=args.shared_backbone_training,
     )
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.FEDDRIFT_DISTANCE_THRESHOLD

@@ -218,6 +218,7 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 | `comm_parameter_values_*` / `comm_bytes_*` | モデル構造や共有部を考慮した転送パラメータ値数 / 実バイト数 |
 | `compute_inference_examples_total` / `compute_training_examples_total` | 推論系 / 学習でモデルに入力した延べサンプル数 |
 | `compute_backbone_examples_total` / `compute_head_examples_total` | 特徴抽出部 / 出力ヘッドが処理した延べサンプル数 |
+| `compute_backbone_optimizer_steps_total` / `compute_head_optimizer_steps_total` | 共有バックボーン / 概念別ヘッドの optimizer 更新回数 |
 | `compute_optimizer_steps_total` | 全クライアントの optimizer 更新回数 |
 | `compute_drift_detector_hypotheses_total` | ADWINの候補分割、またはe-SRの候補変化点×賭け率を評価した延べ数 |
 | `change_point_mae` / `change_point_bias` | 検出器が推定した変化開始位置の平均絶対誤差 / 符号付き平均誤差 |

@@ -38,6 +38,9 @@ def test_schema_choices_follow_runtime_configuration():
     assert option("new_model_creation_policy").choices == config.NEW_MODEL_CREATION_POLICIES
     assert option("clustering_policy").choices == config.FEDSDA_CLUSTERING_POLICIES
     assert option("clustering_decision").choices == config.FEDSDA_CLUSTERING_DECISIONS
+    assert option("shared_backbone_training").choices == (
+        config.SHARED_BACKBONE_TRAINING_CHOICES
+    )
     known_modes = set(FEDSDA_MODES) | set(BASELINE_MODES) | {"FedDrift"}
     assert all(
         set(item.implemented_modes) <= known_modes
@@ -109,6 +112,22 @@ def test_soft_routing_constraints_are_explicit():
     assert validate_selection("FedSDA", {
         "routing": "restarting_soft",
         "server_flow": "NoCached",
+        "detector": "ClassESR",
+    }) == ()
+
+
+def test_shared_backbone_training_requires_shared_architecture():
+    assert validate_selection("FedSDA", {
+        "model_architecture": "independent",
+        "shared_backbone_training": "joint",
+    }) == (
+        "shared_backbone_training is active only when 共有バックボーン構造のとき",
+    )
+    assert validate_selection("FedSDA", {
+        "model_architecture": "shared_backbone",
+        "shared_backbone_training": "joint",
+        "server_flow": "NoCached",
+        "routing": "restarting_soft",
         "detector": "ClassESR",
     }) == ()
 

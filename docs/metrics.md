@@ -63,6 +63,8 @@
   異なるモデル構造の比較ではこちらを主要な通信量とする。
 - `compute_backbone_examples_total`と`compute_head_examples_total`は、共有表現による特徴抽出の
   再利用を既存の論理モデル処理数と分けて示す。
+- `compute_backbone_optimizer_steps_total`と`compute_head_optimizer_steps_total`は、共有表現方式で
+  共有部と概念別ヘッドの実更新回数を分ける。非共有方式では適用外のため0となる。
 - `final_parameter_values`と`final_parameter_bytes`は、共有部を1個として数えた最終保持容量である。
 
 ## 5. モデル多様性と学習断片化の診断

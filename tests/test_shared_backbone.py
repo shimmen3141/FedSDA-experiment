@@ -26,6 +26,16 @@ def _two_head_client():
     )
 
 
+def _populate_training_store(client):
+    input_dim = config.dataset_spec().input_dim
+    for model_id in (0, 1):
+        for index in range(client.batch_size):
+            client.train_data_store[model_id].append((
+                torch.full((1, input_dim), float(index + model_id) / 10),
+                torch.tensor([[float((index + model_id) % 2)]]),
+            ))
+
+
 def test_shared_backbone_mode_has_dedicated_client_server_and_model():
     spec = MODE_SPECS[
         "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting"
@@ -72,6 +82,77 @@ def test_shared_soft_routing_extracts_features_once_for_two_heads():
     assert client.compute_counters["prediction_examples"] == 2
     assert client.compute_counters["backbone_examples"] == 1
     assert client.compute_counters["head_examples"] == 2
+
+
+def test_joint_training_updates_backbone_once_and_both_heads(monkeypatch):
+    monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "joint")
+    client = _two_head_client()
+    _populate_training_store(client)
+    backbone_before = {
+        name: value.clone() for name, value in client._shared_backbone().state_dict().items()
+    }
+    heads_before = {
+        model_id: {
+            name: value.clone() for name, value in model.head.state_dict().items()
+        }
+        for model_id, model in client.models.items()
+    }
+
+    client.train_all_held_models()
+
+    assert client.compute_counters["backbone_optimizer_steps"] == 1
+    assert client.compute_counters["head_optimizer_steps"] == 2
+    assert client.compute_counters["optimizer_steps"] == 2
+    assert any(
+        not torch.equal(value, backbone_before[name])
+        for name, value in client._shared_backbone().state_dict().items()
+    )
+    for model_id, model in client.models.items():
+        assert any(
+            not torch.equal(value, heads_before[model_id][name])
+            for name, value in model.head.state_dict().items()
+        )
+
+
+def test_frozen_training_keeps_backbone_and_updates_both_heads(monkeypatch):
+    monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "frozen")
+    client = _two_head_client()
+    _populate_training_store(client)
+    backbone_before = {
+        name: value.clone() for name, value in client._shared_backbone().state_dict().items()
+    }
+    heads_before = {
+        model_id: {
+            name: value.clone() for name, value in model.head.state_dict().items()
+        }
+        for model_id, model in client.models.items()
+    }
+
+    client.train_all_held_models()
+
+    assert client.compute_counters["backbone_optimizer_steps"] == 0
+    assert client.compute_counters["head_optimizer_steps"] == 2
+    assert all(
+        torch.equal(value, backbone_before[name])
+        for name, value in client._shared_backbone().state_dict().items()
+    )
+    for model_id, model in client.models.items():
+        assert any(
+            not torch.equal(value, heads_before[model_id][name])
+            for name, value in model.head.state_dict().items()
+        )
+
+
+def test_sequential_training_remains_the_default(monkeypatch):
+    monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "sequential")
+    client = _two_head_client()
+    _populate_training_store(client)
+
+    client.train_all_held_models()
+
+    assert client.compute_counters["backbone_optimizer_steps"] == 2
+    assert client.compute_counters["head_optimizer_steps"] == 2
+    assert client.compute_counters["optimizer_steps"] == 2
 
 
 def test_shared_server_counts_backbone_once_per_client_transfer():
@@ -123,4 +204,6 @@ def test_shared_backbone_experiment_reports_component_metrics(monkeypatch):
     assert results["comm_bytes_total"] > 0
     assert results["compute_backbone_examples_total"] > 0
     assert results["compute_head_examples_total"] > 0
+    assert results["compute_backbone_optimizer_steps_total"] > 0
+    assert results["compute_head_optimizer_steps_total"] > 0
     assert results["final_parameter_values"] > 0

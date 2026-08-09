@@ -36,6 +36,7 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.agg_sweep == [50, 100, 200, 500]
     assert defaults.batches == [50, 100, 200, 500]
     assert defaults.concept_schedule == "random"
+    assert defaults.shared_backbone_training == "sequential"
     selected = parser.parse_args([
         "--datasets", "sea2", "mnist2", "mnist4",
         "--concept-schedule", "feddrift_fixed",

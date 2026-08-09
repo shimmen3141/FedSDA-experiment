@@ -92,6 +92,11 @@ NEW_MODEL_EARLY_STOPPING_MIN_DELTA = 1e-4
 NEW_MODEL_VALIDATION_FRACTION = 0.2
 NEW_MODEL_FORWARD_VALIDATION_SAMPLES = 10
 FEDSDA_DETECTION_EPISODES_ENABLED = False  # 近接検出をN_FIFO幅の1エピソードへ統合する
+# 共有バックボーンの通常ローカル学習方式。
+# sequential=概念別ヘッドを従来どおり順次更新、joint=全ヘッドの損失で共有部を1回更新、
+# frozen=共有部を固定して概念別ヘッドだけ更新する診断方式。
+SHARED_BACKBONE_TRAINING = "sequential"
+SHARED_BACKBONE_TRAINING_CHOICES = ("sequential", "joint", "frozen")
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)
 UPDATES_PER_SAMPLE = 1      # 1データ点あたりの勾配更新回数 (論文 L・学習強度)。両手法共通=公平比較の予算
 

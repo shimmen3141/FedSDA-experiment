@@ -17,6 +17,7 @@ class AlgorithmOptions:
     fifo_size: int
     new_model_validation_fraction: float
     new_model_forward_validation_samples: int
+    shared_backbone_training: str
 
     @classmethod
     def from_current_config(cls):
@@ -30,6 +31,7 @@ class AlgorithmOptions:
             new_model_forward_validation_samples=(
                 config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES
             ),
+            shared_backbone_training=config.SHARED_BACKBONE_TRAINING,
         )
 
     def config_overrides(self):
@@ -44,6 +46,7 @@ class AlgorithmOptions:
             "NEW_MODEL_FORWARD_VALIDATION_SAMPLES": (
                 self.new_model_forward_validation_samples
             ),
+            "SHARED_BACKBONE_TRAINING": self.shared_backbone_training,
         }
 
 

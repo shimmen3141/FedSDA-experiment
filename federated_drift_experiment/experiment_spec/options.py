@@ -155,6 +155,18 @@ OPTIONS = (
         configuration_surface="mode",
     ),
     OptionSpec(
+        "shared_backbone_training", "共有バックボーン学習", "model",
+        ("sequential", "joint", "frozen"),
+        "通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか",
+        (FED_SDA,), (FED_SDA, FED_DRIFT),
+        requires_capabilities=("shared_representation",),
+        active_when=(ActivationRule(
+            "model_architecture", ("shared_backbone",),
+            "共有バックボーン構造のとき",
+        ),),
+        cli_name="shared-backbone-training",
+    ),
+    OptionSpec(
         "new_model_creation_policy", "新規モデル作成方針", "adaptation",
         (
             "immediate", "validated", "forward_validated",
@@ -587,6 +599,7 @@ def validate_explicit_options(modes, selections, explicit_ids):
                  if key == option_id or key in {
                      "new_model_creation_policy", "new_model_training",
                      "clustering_decision", "detector", "server_flow", "routing",
+                     "model_architecture", "shared_backbone_training",
                  }},
             )
             relevant = tuple(

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 4
+METRIC_SCHEMA_VERSION = 5
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -142,6 +142,8 @@ METRICS = (
             "compute_model_examples_total", "compute_optimizer_steps_total",
             "compute_drift_detector_updates_total", "compute_drift_detector_hypotheses_total",
             "compute_backbone_examples_total", "compute_head_examples_total",
+            "compute_backbone_optimizer_steps_total",
+            "compute_head_optimizer_steps_total",
         ),
         "compute", SECONDARY, ALL_METHODS, False,
     ),
