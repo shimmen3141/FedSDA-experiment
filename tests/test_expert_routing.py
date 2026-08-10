@@ -143,3 +143,57 @@ def test_adahedge_replays_when_expert_pool_changed():
     assert set(router.cumulative_losses) == {0, 1, 2}
     assert router.aggregation_recalibration_check_count == 1
     assert router.aggregation_recalibration_count == 1
+
+
+def test_adahedge_replays_when_challenger_wins_both_fifo_halves():
+    router = AdaHedgeRouter()
+    probabilities = router.probabilities([0, 1])
+    router.update({0: 0.1, 1: 0.9}, probabilities)
+
+    replayed = router.replay_after_aggregation_if_leader_persists([
+        {0: 0.8, 1: 0.2},
+        {0: 0.7, 1: 0.3},
+        {0: 0.9, 1: 0.1},
+        {0: 0.6, 1: 0.4},
+    ])
+
+    assert replayed is True
+    assert router.probabilities([0, 1])[1] > router.probabilities([0, 1])[0]
+    assert router.aggregation_recalibration_check_count == 1
+    assert router.aggregation_recalibration_skip_count == 0
+    assert router.aggregation_recalibration_count == 1
+
+
+def test_adahedge_skips_nonpersistent_fifo_challenger():
+    router = AdaHedgeRouter()
+    probabilities = router.probabilities([0, 1])
+    router.update({0: 0.1, 1: 0.9}, probabilities)
+    previous_losses = dict(router.cumulative_losses)
+    # 全体ではモデル1が良いが、前半では旧leaderのモデル0が良い。
+    loss_sequence = [
+        {0: 0.1, 1: 0.2},
+        {0: 0.1, 1: 0.2},
+        {0: 0.9, 1: 0.0},
+        {0: 0.9, 1: 0.0},
+    ]
+
+    replayed = router.replay_after_aggregation_if_leader_persists(loss_sequence)
+
+    assert replayed is False
+    assert router.cumulative_losses == previous_losses
+    assert router.aggregation_recalibration_check_count == 1
+    assert router.aggregation_recalibration_skip_count == 1
+    assert router.aggregation_recalibration_count == 0
+
+
+def test_adahedge_persistent_replay_requires_two_nonempty_halves():
+    router = AdaHedgeRouter()
+    probabilities = router.probabilities([0, 1])
+    router.update({0: 0.1, 1: 0.9}, probabilities)
+
+    replayed = router.replay_after_aggregation_if_leader_persists([
+        {0: 0.9, 1: 0.1},
+    ])
+
+    assert replayed is False
+    assert router.aggregation_recalibration_skip_count == 1

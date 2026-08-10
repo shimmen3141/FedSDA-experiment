@@ -172,7 +172,7 @@ OPTIONS = (
         "prediction",
         (
             "none", "aggregation_restart", "fifo_replay",
-            "leader_change_replay",
+            "leader_change_replay", "persistent_leader_change_replay",
         ),
         "サーバ集約で共有表現が変化した後にSoftRoutingの累積証拠を扱う方式",
         (FED_SDA,), (FED_SDA, FED_DRIFT),

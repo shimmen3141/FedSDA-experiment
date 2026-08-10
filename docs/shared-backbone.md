@@ -55,6 +55,10 @@ AdaHedgeの累積損失は集約前の予測関数に対する証拠であり、
   最良モデルを比較する。両者が同じなら累積損失とmixability gapをそのまま維持し、異なる場合だけ
   `fifo_replay`を行う。モデル集合が変わった場合は旧証拠を安全に対応付けられないためreplayする。
   同率時は現行モデルを優先する。新しい数値閾値は追加しない。
+- `persistent_leader_change_replay`: FIFO全体で選んだchallengerが、時系列順に重複なく分けた
+  前半・後半の両方で旧leaderよりpaired lossが小さい場合だけreplayする。片方だけの一時的な
+  改善では旧証拠を維持する。新規モデル作成の`forward_persistent`と同じ持続性原則を用い、
+  新しい数値閾値や検証窓長を追加しない。モデル集合が変わった場合は通常のreplayを行う。
 
 再始動回数はCSVの`routing_aggregation_restart_count`と、NPZの
 `routing_aggregation_restart_counts`で確認できる。この方式は特に`joint`で生じた
