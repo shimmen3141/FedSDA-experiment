@@ -41,6 +41,7 @@ from federated_drift_experiment.mode_names import (
     is_adwin_mode,
     is_esr_mode,
     is_hddm_mode,
+    is_shared_representation_mode,
 )
 from federated_drift_experiment.experiment_spec.parameters import (
     PARAMETER_SCHEMA_VERSION,
@@ -154,14 +155,14 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             f"{display_series} [creation={config.NEW_MODEL_CREATION_POLICY}]"
         )
     if (
-        "_SharedBackbone_" in mode
+        is_shared_representation_mode(mode)
         and config.SHARED_BACKBONE_TRAINING != "sequential"
     ):
         display_series = (
             f"{display_series} [backbone={config.SHARED_BACKBONE_TRAINING}]"
         )
     if (
-        "_SharedBackbone_" in mode
+        is_shared_representation_mode(mode)
         and config.SHARED_BACKBONE_ROUTING_RECALIBRATION != "none"
     ):
         display_series = (
@@ -229,11 +230,11 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES,
         "shared_backbone_training": (
             config.SHARED_BACKBONE_TRAINING
-            if "_SharedBackbone_" in mode else None
+            if is_shared_representation_mode(mode) else None
         ),
         "shared_backbone_routing_recalibration": (
             config.SHARED_BACKBONE_ROUTING_RECALIBRATION
-            if "_SharedBackbone_" in mode else None
+            if is_shared_representation_mode(mode) else None
         ),
         FEDSDA_DISTANCE_THRESHOLD: (
             distance_threshold if mode in FEDSDA_MODES else None
@@ -678,6 +679,8 @@ def _series_style(series):
         "FedSDA_NoCached_HDDMW": "slateblue",
         "FedSDA_NoCached_ClassESR": "dodgerblue",
         "FedSDA_NoCached_ClassESR_RestartingSoftRouting": "royalblue",
+        "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting": "darkviolet",
+        "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting": "mediumorchid",
         "FedSDA_NoCached_ClassESR_ProtectedSoftRouting": "mediumblue",
         "FedSDA_Cached_ADWIN": "tab:orange",
         "FedSDA_Cached_ClassADWIN": "tab:pink",

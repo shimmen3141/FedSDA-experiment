@@ -148,27 +148,27 @@ OPTIONS = (
     ),
     OptionSpec(
         "model_architecture", "モデル構造", "model",
-        ("independent", "shared_backbone"),
+        ("independent", "shared_backbone", "partial_shared_adapter"),
         "概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("multiple_models",),
         configuration_surface="mode",
     ),
     OptionSpec(
-        "shared_backbone_training", "共有バックボーン学習", "model",
+        "shared_backbone_training", "共有表現学習", "model",
         ("sequential", "joint", "frozen"),
         "通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("shared_representation",),
         active_when=(ActivationRule(
-            "model_architecture", ("shared_backbone",),
-            "共有バックボーン構造のとき",
+            "model_architecture", ("shared_backbone", "partial_shared_adapter"),
+            "共有表現構造のとき",
         ),),
         cli_name="shared-backbone-training",
     ),
     OptionSpec(
         "shared_backbone_routing_recalibration",
-        "共有バックボーン更新後のルーティング再較正",
+        "共有表現更新後のルーティング再較正",
         "prediction",
         (
             "none", "aggregation_restart", "fifo_replay",
@@ -178,8 +178,8 @@ OPTIONS = (
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("shared_representation", "soft_routing"),
         active_when=(ActivationRule(
-            "model_architecture", ("shared_backbone",),
-            "共有バックボーン構造のとき",
+            "model_architecture", ("shared_backbone", "partial_shared_adapter"),
+            "共有表現構造のとき",
         ),),
         cli_name="shared-backbone-routing-recalibration",
     ),
@@ -366,6 +366,7 @@ CHOICE_CONSTRAINTS = (
             "FedSDA_NoCached_ClassESR", "FedSDA_Cached_ClassESR",
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ClassESR_ProtectedSoftRouting",
         ),
     ),
@@ -386,6 +387,7 @@ CHOICE_CONSTRAINTS = (
         (
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",
         ),
         requires_selections=(
             ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
@@ -401,6 +403,15 @@ CHOICE_CONSTRAINTS = (
             ActivationRule("routing", ("restarting_soft",), "Restarting SoftRoutingが必要"),
         ),
         note="共有バックボーンは専用modeで実装",
+    ),
+    ChoiceConstraint(
+        "model_architecture", ("partial_shared_adapter",),
+        ("FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",),
+        requires_selections=(
+            ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
+            ActivationRule("routing", ("restarting_soft",), "Restarting SoftRoutingが必要"),
+        ),
+        note="部分共有adapterは専用modeで実装",
     ),
     ChoiceConstraint(
         "routing", ("protected_soft",),
@@ -545,9 +556,12 @@ def selections_for_mode(mode):
             selections["routing"] = "protected_soft"
         else:
             selections["routing"] = "hard"
-        selections["model_architecture"] = (
-            "shared_backbone" if "_SharedBackbone_" in mode else "independent"
-        )
+        if "_PartialSharedAdapter_" in mode:
+            selections["model_architecture"] = "partial_shared_adapter"
+        elif "_SharedBackbone_" in mode:
+            selections["model_architecture"] = "shared_backbone"
+        else:
+            selections["model_architecture"] = "independent"
     elif method_id == WITHOUT_SERVER:
         selections.update({"detector": "ADWIN", "routing": "hard"})
     elif method_id == FED_DRIFT:

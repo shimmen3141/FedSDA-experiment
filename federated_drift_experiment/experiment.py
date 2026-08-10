@@ -33,6 +33,7 @@ from .clients import (
     FedSDAClient,
     HDDMFedSDAClient,
     ObliviousClient,
+    PartialSharedAdapterRestartingSoftRoutingFedSDAClient,
     ProtectedSoftRoutingClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
@@ -46,6 +47,7 @@ from .data import (
 )
 from .metrics import compute_metrics, match_events
 from .models import (
+    PartialSharedAdapterMLP,
     SharedBackboneMLP,
     SimpleMLP,
     model_collection_parameter_footprint,
@@ -55,6 +57,7 @@ from .mode_names import (
     fedsda_detector_name,
     is_esr_mode,
     is_hddm_mode,
+    is_shared_representation_mode,
 )
 from .experiment_spec.parameters import PARAMETER_SCHEMA_VERSION
 from .plotting import plot_client_details, plot_system_overview
@@ -185,6 +188,12 @@ MODE_SPECS = {
         _run_per_sample_timestep,
         server_cls=SharedBackboneFedSDANoCachedServer,
         model_cls=SharedBackboneMLP,
+    ),
+    'FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting': ModeSpec(
+        PartialSharedAdapterRestartingSoftRoutingFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=SharedBackboneFedSDANoCachedServer,
+        model_cls=PartialSharedAdapterMLP,
     ),
     'FedSDA_NoCached_ClassESR_ProtectedSoftRouting': ModeSpec(
         ProtectedSoftRoutingClassConditionalESRFedSDAClient,
@@ -1007,12 +1016,12 @@ def _save_raw_run(
         ),
         shared_backbone_training=np.asarray(
             config.SHARED_BACKBONE_TRAINING
-            if "_SharedBackbone_" in mode else "",
+            if is_shared_representation_mode(mode) else "",
             dtype=np.str_,
         ),
         shared_backbone_routing_recalibration=np.asarray(
             config.SHARED_BACKBONE_ROUTING_RECALIBRATION
-            if "_SharedBackbone_" in mode else "",
+            if is_shared_representation_mode(mode) else "",
             dtype=np.str_,
         ),
         total_data=int(config.TOTAL_DATA_POINTS),

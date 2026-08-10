@@ -2,10 +2,12 @@ import torch
 
 from federated_drift_experiment import config, run_random_drift_experiment
 from federated_drift_experiment.clients import (
+    PartialSharedAdapterRestartingSoftRoutingFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
 )
 from federated_drift_experiment.experiment import MODE_SPECS
 from federated_drift_experiment.models import (
+    PartialSharedAdapterMLP,
     SharedBackboneMLP,
     parameter_payload_size,
 )
@@ -44,6 +46,40 @@ def test_shared_backbone_mode_has_dedicated_client_server_and_model():
     assert spec.client_cls is SharedBackboneRestartingSoftRoutingFedSDAClient
     assert spec.server_cls is SharedBackboneFedSDANoCachedServer
     assert spec.model_cls is SharedBackboneMLP
+
+
+def test_partial_shared_adapter_mode_has_dedicated_client_and_model():
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting"
+    ]
+
+    assert spec.client_cls is PartialSharedAdapterRestartingSoftRoutingFedSDAClient
+    assert spec.server_cls is SharedBackboneFedSDANoCachedServer
+    assert spec.model_cls is PartialSharedAdapterMLP
+
+
+def test_partial_shared_adapter_separates_shared_and_personalized_parameters(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    first = PartialSharedAdapterMLP()
+    second = PartialSharedAdapterMLP(backbone=first.backbone)
+
+    shared, personalized = PartialSharedAdapterMLP.split_params(first.get_params())
+
+    assert first.backbone is second.backbone
+    assert shared and all(name.startswith("backbone.") for name in shared)
+    assert any(name.startswith("adapter.") for name in personalized)
+    assert any(name.startswith("head.") for name in personalized)
+
+
+def test_partial_shared_adapter_uses_compact_affine_adapter_for_mnist(monkeypatch):
+    monkeypatch.setattr(config, "DATASET", "mnist2")
+    model = PartialSharedAdapterMLP()
+
+    assert model.adapter.net is None
+    assert model.adapter.scale.numel() == config.dataset_spec("mnist2").hidden_dims[0]
+    assert model.adapter.bias.numel() == config.dataset_spec("mnist2").hidden_dims[0]
 
 
 def test_shared_models_update_one_backbone_but_keep_separate_heads():
@@ -315,4 +351,25 @@ def test_shared_backbone_experiment_reports_component_metrics(monkeypatch):
     assert results["compute_head_examples_total"] > 0
     assert results["compute_backbone_optimizer_steps_total"] > 0
     assert results["compute_head_optimizer_steps_total"] > 0
+    assert results["final_parameter_values"] > 0
+
+
+def test_partial_shared_adapter_experiment_reports_component_metrics(monkeypatch):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    monkeypatch.setattr(config, "N_CLIENTS", 2)
+    monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 100)
+    monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 30)
+    monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
+    monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 50)
+
+    results = run_random_drift_experiment(
+        mode="FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",
+        random_seed=0,
+        verbose=False,
+        show_plot=False,
+    )
+
+    assert results["comm_parameter_values_total"] > 0
+    assert results["compute_backbone_examples_total"] > 0
+    assert results["compute_head_examples_total"] > 0
     assert results["final_parameter_values"] > 0

@@ -1,5 +1,20 @@
 # 共有バックボーン＋概念別ヘッド
 
+## 共有範囲
+
+共有表現には、次の二つの実験modeがある。
+
+- `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`: 全隠れ層を共有し、出力headだけを概念別にする。
+- `FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting`: 先頭隠れ層だけを共有し、後段adapterと出力headを概念別にする。
+
+部分共有方式は、全共有で生じた概念間の負の転移を抑えつつ、入力に近い低層表現の学習量と通信量を共有するための方式である。
+合成データの二層MLPでは、元の第1隠れ層を共有部、第2隠れ層を概念別adapterとして使う。
+MNIST2/MNIST4の一層MLPでは、共有隠れ層の後に特徴ごとのscaleとbiasからなる概念別adapterを置く。
+このアフィンadapterには幅のハイパーパラメータがなく、概念ごとの大きな全結合層の複製を避けられる。
+
+通信と集約では、共有部をクライアントごとに一度だけ転送・FedAvgし、adapterとheadをモデルIDごとに転送・FedAvgする。
+既存の`compute_head_*`指標は比較可能性を保つため、部分共有方式ではadapterとheadを合わせた概念固有部分を数える。
+
 ## 目的
 
 `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`は、既存の

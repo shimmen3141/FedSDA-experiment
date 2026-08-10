@@ -29,11 +29,11 @@ flowchart LR
   end
   subgraph group_prediction[prediction]
     routing["<b>予測ルーティング</b><br/>hard | restarting_soft | protected_soft"]
-    shared_backbone_routing_recalibration["<b>共有バックボーン更新後のルーティング再較正</b><br/>none | aggregation_restart | fifo_replay | leader_change_replay | persistent_leader_change_replay"]
+    shared_backbone_routing_recalibration["<b>共有表現更新後のルーティング再較正</b><br/>none | aggregation_restart | fifo_replay | leader_change_replay | persistent_leader_change_replay"]
   end
   subgraph group_model[model]
-    model_architecture["<b>モデル構造</b><br/>independent | shared_backbone"]
-    shared_backbone_training["<b>共有バックボーン学習</b><br/>sequential | joint | frozen"]
+    model_architecture["<b>モデル構造</b><br/>independent | shared_backbone | partial_shared_adapter"]
+    shared_backbone_training["<b>共有表現学習</b><br/>sequential | joint | frozen"]
   end
   subgraph group_adaptation[adaptation]
     new_model_creation_policy["<b>新規モデル作成方針</b><br/>immediate | validated | forward_validated | forward_requalified | forward_requalified_current_first | forward_persistent | shadow_tournament"]
@@ -66,8 +66,8 @@ flowchart LR
     aggregation_interval["<b>集約間隔 A</b><br/>positive integer"]
     feddrift_detection_batch_size["<b>FedDrift検出バッチ B_detect</b><br/>positive integer"]
   end
-  model_architecture -->|"共有バックボーン構造のとき"| shared_backbone_training
-  model_architecture -->|"共有バックボーン構造のとき"| shared_backbone_routing_recalibration
+  model_architecture -->|"共有表現構造のとき"| shared_backbone_training
+  model_architecture -->|"共有表現構造のとき"| shared_backbone_routing_recalibration
   new_model_training -->|"初期学習を行うとき"| new_model_epochs
   new_model_creation_policy -->|"validatedのとき"| new_model_validation_fraction
   new_model_creation_policy -->|"forward系のとき"| new_model_forward_validation_samples
@@ -79,6 +79,8 @@ flowchart LR
   detector -.->|"restarting_soft: ClassESRが必要"| routing
   server_flow -.->|"shared_backbone: NoCachedが必要"| model_architecture
   routing -.->|"shared_backbone: Restarting SoftRoutingが必要"| model_architecture
+  server_flow -.->|"partial_shared_adapter: NoCachedが必要"| model_architecture
+  routing -.->|"partial_shared_adapter: Restarting SoftRoutingが必要"| model_architecture
   server_flow -.->|"protected_soft: NoCachedが必要"| routing
   detector -.->|"protected_soft: ClassESRが必要"| routing
   method --> server_flow
@@ -136,12 +138,13 @@ flowchart LR
 | `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
 | `detector` = `ClassADWIN` | `FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_Cached_ClassADWIN` | なし |  |
 | `detector` = `ESR` | `FedSDA_NoCached_ESR`<br/>`FedSDA_Cached_ESR` | なし |  |
-| `detector` = `ClassESR` | `FedSDA_NoCached_ClassESR`<br/>`FedSDA_Cached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | なし |  |
+| `detector` = `ClassESR` | `FedSDA_NoCached_ClassESR`<br/>`FedSDA_Cached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | なし |  |
 | `detector` = `HDDMA` | `FedSDA_NoCached_HDDMA`<br/>`FedSDA_Cached_HDDMA` | なし |  |
 | `detector` = `ClassHDDMA` | `FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_Cached_ClassHDDMA` | なし |  |
 | `detector` = `HDDMW` | `FedSDA_NoCached_HDDMW`<br/>`FedSDA_Cached_HDDMW` | なし |  |
-| `routing` = `restarting_soft` | `FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>ClassESRが必要 | 現在は専用modeでのみ実装 |
+| `routing` = `restarting_soft` | `FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>ClassESRが必要 | 現在は専用modeでのみ実装 |
 | `model_architecture` = `shared_backbone` | `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>Restarting SoftRoutingが必要 | 共有バックボーンは専用modeで実装 |
+| `model_architecture` = `partial_shared_adapter` | `FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>Restarting SoftRoutingが必要 | 部分共有adapterは専用modeで実装 |
 | `routing` = `protected_soft` | `FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | NoCachedが必要<br/>ClassESRが必要 | 現在は専用modeでのみ実装 |
 
 ## 掃引オプションの依存構造

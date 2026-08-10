@@ -6,7 +6,6 @@ import time
 import torch
 
 from .. import config
-from ..models import SharedBackboneMLP
 from .fedsda import RestartingSoftRoutingClassConditionalESRFedSDAClient
 
 
@@ -22,8 +21,8 @@ class SharedBackboneRestartingSoftRoutingFedSDAClient(
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.model_cls is not SharedBackboneMLP:
-            raise TypeError("共有バックボーンmodeにはSharedBackboneMLPが必要です")
+        if not getattr(self.model_cls, "is_shared_backbone_model", False):
+            raise TypeError("共有表現modeには共有部を持つモデルが必要です")
         self._share_model_backbones()
 
     def _shared_backbone(self):
@@ -237,3 +236,13 @@ class SharedBackboneRestartingSoftRoutingFedSDAClient(
                 head_examples=total_examples,
             )
         self.phase_seconds["training"] += time.perf_counter() - start_time
+
+
+class PartialSharedAdapterRestartingSoftRoutingFedSDAClient(
+    SharedBackboneRestartingSoftRoutingFedSDAClient
+):
+    """部分共有表現と概念別adapterを使うClassESRクライアント。
+
+    通信、集約、仮モデル、SoftRoutingの処理は共有表現クライアントと共通で、
+    共有範囲と概念固有範囲の境界だけをモデル構造へ委譲する。
+    """
