@@ -33,6 +33,7 @@ from .clients import (
     FedSDAClient,
     HDDMFedSDAClient,
     ObliviousClient,
+    ResidualAdapterClassConditionalESRFedSDAClient,
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
     ProtectedSoftRoutingClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
@@ -188,6 +189,12 @@ MODE_SPECS = {
         _run_per_sample_timestep,
         server_cls=SharedBackboneFedSDANoCachedServer,
         model_cls=SharedBackboneMLP,
+    ),
+    'FedSDA_NoCached_ResidualAdapter_ClassESR': ModeSpec(
+        ResidualAdapterClassConditionalESRFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=SharedBackboneFedSDANoCachedServer,
+        model_cls=ResidualAdapterMLP,
     ),
     'FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting': ModeSpec(
         ResidualAdapterRestartingSoftRoutingFedSDAClient,

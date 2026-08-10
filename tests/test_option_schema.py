@@ -130,6 +130,18 @@ def test_shared_backbone_training_requires_shared_architecture():
         "routing": "restarting_soft",
         "detector": "ClassESR",
     }) == ()
+
+
+def test_routing_recalibration_requires_soft_routing():
+    assert validate_selection("FedSDA", {
+        "model_architecture": "residual_adapter",
+        "routing": "hard",
+        "server_flow": "NoCached",
+        "shared_backbone_routing_recalibration": "fifo_replay",
+    }) == (
+        "shared_backbone_routing_recalibration is active only when "
+        "Restarting SoftRoutingのとき",
+    )
     assert validate_selection("FedSDA", {
         "model_architecture": "residual_adapter",
         "shared_backbone_training": "joint",

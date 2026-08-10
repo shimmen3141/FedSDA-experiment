@@ -61,8 +61,10 @@
 
 ### 低ランク残差adapter
 
+`FedSDA_NoCached_ResidualAdapter_ClassESR`と
 `FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`は全隠れ層を共有し、概念別の低ランク
-非線形残差adapterと出力headを持つ。共有特徴`z`を概念`c`ごとに次のように補正する。
+非線形残差adapterと出力headを持つ。前者は現行モデルだけで予測するhard routingの対照方式、後者は
+全保持モデルを混合する方式である。共有特徴`z`を概念`c`ごとに次のように補正する。
 
 \[
 z_c = z + U_c\operatorname{ReLU}(V_c z)

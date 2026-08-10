@@ -182,7 +182,11 @@ OPTIONS = (
             "model_architecture",
             ("shared_backbone", "residual_adapter"),
             "共有表現構造のとき",
-        ),),
+        ), ActivationRule(
+            "routing",
+            ("restarting_soft",),
+            "Restarting SoftRoutingのとき",
+        )),
         cli_name="shared-backbone-routing-recalibration",
     ),
     OptionSpec(
@@ -380,6 +384,7 @@ CHOICE_CONSTRAINTS = (
             "FedSDA_NoCached_ClassESR", "FedSDA_Cached_ClassESR",
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassESR",
             "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ClassESR_ProtectedSoftRouting",
         ),
@@ -420,12 +425,14 @@ CHOICE_CONSTRAINTS = (
     ),
     ChoiceConstraint(
         "model_architecture", ("residual_adapter",),
-        ("FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",),
+        (
+            "FedSDA_NoCached_ResidualAdapter_ClassESR",
+            "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+        ),
         requires_selections=(
             ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
-            ActivationRule("routing", ("restarting_soft",), "Restarting SoftRoutingが必要"),
         ),
-        note="低ランク残差adapterは専用modeで実装",
+        note="低ランク残差adapterはhard routingとRestarting SoftRoutingで実装",
     ),
     ChoiceConstraint(
         "routing", ("protected_soft",),

@@ -23,7 +23,9 @@ from .fedsda import (
 from .feddrift import FedDriftClient
 from .oblivious import ObliviousClient
 from .shared_backbone import (
+    ResidualAdapterClassConditionalESRFedSDAClient,
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
+    SharedBackboneClassConditionalESRFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
 )
 
@@ -35,7 +37,9 @@ __all__ = [
     "HDDMFedSDAClient",
     "ProtectedSoftRoutingClassConditionalESRFedSDAClient",
     "RestartingSoftRoutingClassConditionalESRFedSDAClient",
+    "SharedBackboneClassConditionalESRFedSDAClient",
     "SharedBackboneRestartingSoftRoutingFedSDAClient",
+    "ResidualAdapterClassConditionalESRFedSDAClient",
     "ResidualAdapterRestartingSoftRoutingFedSDAClient",
     "FedDriftClient", "ObliviousClient",
 ]

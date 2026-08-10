@@ -2,6 +2,7 @@ import torch
 
 from federated_drift_experiment import config, run_random_drift_experiment
 from federated_drift_experiment.clients import (
+    ResidualAdapterClassConditionalESRFedSDAClient,
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
 )
@@ -56,6 +57,17 @@ def test_residual_adapter_mode_has_dedicated_client_and_model():
     assert spec.client_cls is ResidualAdapterRestartingSoftRoutingFedSDAClient
     assert spec.server_cls is SharedBackboneFedSDANoCachedServer
     assert spec.model_cls is ResidualAdapterMLP
+
+
+def test_residual_adapter_hard_routing_mode_has_dedicated_client_and_model():
+    spec = MODE_SPECS["FedSDA_NoCached_ResidualAdapter_ClassESR"]
+
+    assert spec.client_cls is ResidualAdapterClassConditionalESRFedSDAClient
+    assert spec.server_cls is SharedBackboneFedSDANoCachedServer
+    assert spec.model_cls is ResidualAdapterMLP
+    assert not issubclass(
+        spec.client_cls, ResidualAdapterRestartingSoftRoutingFedSDAClient
+    )
 
 
 def test_residual_adapter_starts_with_same_function_as_full_sharing(monkeypatch):
@@ -377,3 +389,24 @@ def test_residual_adapter_experiment_reports_component_metrics(monkeypatch):
     assert results["compute_backbone_examples_total"] > 0
     assert results["compute_head_examples_total"] > 0
     assert results["final_parameter_values"] > 0
+
+
+def test_residual_adapter_hard_routing_experiment_runs_without_router(monkeypatch):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    monkeypatch.setattr(config, "N_CLIENTS", 2)
+    monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 100)
+    monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 30)
+    monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
+    monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 50)
+
+    results = run_random_drift_experiment(
+        mode="FedSDA_NoCached_ResidualAdapter_ClassESR",
+        random_seed=0,
+        verbose=False,
+        show_plot=False,
+    )
+
+    assert results["comm_parameter_values_total"] > 0
+    assert results["compute_backbone_examples_total"] > 0
+    assert results["compute_head_examples_total"] > 0
+    assert results.get("routing_mixture_predictions_total", 0) == 0

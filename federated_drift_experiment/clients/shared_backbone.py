@@ -6,13 +6,14 @@ import time
 import torch
 
 from .. import config
-from .fedsda import RestartingSoftRoutingClassConditionalESRFedSDAClient
+from .fedsda import (
+    ClassConditionalESRFedSDAClient,
+    RestartingSoftRoutingClassConditionalESRFedSDAClient,
+)
 
 
-class SharedBackboneRestartingSoftRoutingFedSDAClient(
-    RestartingSoftRoutingClassConditionalESRFedSDAClient
-):
-    """ClassESR + RestartingSoftRoutingへ共有表現を追加したクライアント。
+class _SharedRepresentationFedSDAClientMixin:
+    """ClassESRクライアントへ共有表現の管理と共同学習を追加するmixin。
 
     正式採用済みモデルは一つの特徴抽出部を共有し、概念別ヘッドだけを独立して
     保持する。仮モデルと比較用shadowは独立したバックボーンで学習し、棄却時に
@@ -54,6 +55,9 @@ class SharedBackboneRestartingSoftRoutingFedSDAClient(
 
     def recalibrate_routing_after_aggregation(self):
         """集約による共有表現の変化後にSoftRoutingを再較正する。"""
+        # hard routingには累積ルーティング状態がないため再較正は不要。
+        if not hasattr(self, "expert_router"):
+            return
         strategy = config.SHARED_BACKBONE_ROUTING_RECALIBRATION
         if strategy == "aggregation_restart":
             self.expert_router.restart_after_aggregation()
@@ -236,6 +240,26 @@ class SharedBackboneRestartingSoftRoutingFedSDAClient(
                 head_examples=total_examples,
             )
         self.phase_seconds["training"] += time.perf_counter() - start_time
+
+
+class SharedBackboneClassConditionalESRFedSDAClient(
+    _SharedRepresentationFedSDAClientMixin,
+    ClassConditionalESRFedSDAClient,
+):
+    """共有バックボーンとhard routingを使うClassESRクライアント。"""
+
+
+class SharedBackboneRestartingSoftRoutingFedSDAClient(
+    _SharedRepresentationFedSDAClientMixin,
+    RestartingSoftRoutingClassConditionalESRFedSDAClient,
+):
+    """共有バックボーンとRestarting SoftRoutingを使うClassESRクライアント。"""
+
+
+class ResidualAdapterClassConditionalESRFedSDAClient(
+    SharedBackboneClassConditionalESRFedSDAClient
+):
+    """概念別低ランク残差adapterとhard routingを使うClassESRクライアント。"""
 
 
 class ResidualAdapterRestartingSoftRoutingFedSDAClient(
