@@ -24,6 +24,7 @@ from .feddrift import FedDriftClient
 from .oblivious import ObliviousClient
 from .shared_backbone import (
     PartialSharedAdapterRestartingSoftRoutingFedSDAClient,
+    ResidualAdapterRestartingSoftRoutingFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
 )
 
@@ -37,5 +38,6 @@ __all__ = [
     "RestartingSoftRoutingClassConditionalESRFedSDAClient",
     "SharedBackboneRestartingSoftRoutingFedSDAClient",
     "PartialSharedAdapterRestartingSoftRoutingFedSDAClient",
+    "ResidualAdapterRestartingSoftRoutingFedSDAClient",
     "FedDriftClient", "ObliviousClient",
 ]

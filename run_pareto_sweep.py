@@ -81,6 +81,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "new_model_forward_validation_samples",
             "shared_backbone_training",
             "shared_backbone_routing_recalibration",
+            "shared_adapter_rank",
             FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
             ] + METRIC_KEYS
 
@@ -169,6 +170,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             f"{display_series} [routing-recalibration="
             f"{config.SHARED_BACKBONE_ROUTING_RECALIBRATION}]"
         )
+    if "_ResidualAdapter_" in mode:
+        display_series = (
+            f"{display_series} [adapter-rank={config.SHARED_ADAPTER_RANK}]"
+        )
     if "FedSDA" in mode:
         display_series = f"{display_series} [N_FIFO={config.FIFO_BUFFER_SIZE}]"
     if (
@@ -235,6 +240,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         "shared_backbone_routing_recalibration": (
             config.SHARED_BACKBONE_ROUTING_RECALIBRATION
             if is_shared_representation_mode(mode) else None
+        ),
+        "shared_adapter_rank": (
+            config.SHARED_ADAPTER_RANK
+            if "_ResidualAdapter_" in mode else None
         ),
         FEDSDA_DISTANCE_THRESHOLD: (
             distance_threshold if mode in FEDSDA_MODES else None
@@ -524,6 +533,7 @@ def _load_csv(path):
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("clustering_decision", "distance")
             row.setdefault("shared_backbone_training", "sequential")
+            row.setdefault("shared_adapter_rank", "")
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
             row.setdefault("fifo_size", str(config.FIFO_BUFFER_SIZE))
@@ -681,6 +691,7 @@ def _series_style(series):
         "FedSDA_NoCached_ClassESR_RestartingSoftRouting": "royalblue",
         "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting": "darkviolet",
         "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting": "mediumorchid",
+        "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting": "deeppink",
         "FedSDA_NoCached_ClassESR_ProtectedSoftRouting": "mediumblue",
         "FedSDA_Cached_ADWIN": "tab:orange",
         "FedSDA_Cached_ClassADWIN": "tab:pink",
@@ -918,6 +929,11 @@ def build_parser():
             "leader_change_replay / persistent_leader_change_replay)"
         ),
     )
+    fedsda.add_argument(
+        "--shared-adapter-rank", type=int,
+        default=config.SHARED_ADAPTER_RANK,
+        help="概念別低ランク残差adapterの最大rank",
+    )
     fedsda.add_argument("--fedsda-distance-threshold", dest="fixed_gamma",
                         type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
@@ -1040,6 +1056,8 @@ def main(argv=None):
         parser.error("--new-model-validation-fraction must be between 0 and 1")
     if args.new_model_forward_validation_samples < 2:
         parser.error("--new-model-forward-validation-samples must be at least 2")
+    if args.shared_adapter_rank < 1:
+        parser.error("--shared-adapter-rank must be at least 1")
     if args.workers < 1:
         parser.error("--workers must be at least 1")
 
@@ -1082,6 +1100,7 @@ def main(argv=None):
         "shared_backbone_routing_recalibration": (
             args.shared_backbone_routing_recalibration
         ),
+        "shared_adapter_rank": args.shared_adapter_rank,
     }
     issues = validate_explicit_options(selected_modes, selections, explicit_ids)
     issues += validate_sweep_dependencies(raw_argv, {
@@ -1121,6 +1140,7 @@ def main(argv=None):
         shared_backbone_routing_recalibration=(
             args.shared_backbone_routing_recalibration
         ),
+        shared_adapter_rank=args.shared_adapter_rank,
     )
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.FEDDRIFT_DISTANCE_THRESHOLD

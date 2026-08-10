@@ -3,11 +3,13 @@ import torch
 from federated_drift_experiment import config, run_random_drift_experiment
 from federated_drift_experiment.clients import (
     PartialSharedAdapterRestartingSoftRoutingFedSDAClient,
+    ResidualAdapterRestartingSoftRoutingFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
 )
 from federated_drift_experiment.experiment import MODE_SPECS
 from federated_drift_experiment.models import (
     PartialSharedAdapterMLP,
+    ResidualAdapterMLP,
     SharedBackboneMLP,
     parameter_payload_size,
 )
@@ -56,6 +58,44 @@ def test_partial_shared_adapter_mode_has_dedicated_client_and_model():
     assert spec.client_cls is PartialSharedAdapterRestartingSoftRoutingFedSDAClient
     assert spec.server_cls is SharedBackboneFedSDANoCachedServer
     assert spec.model_cls is PartialSharedAdapterMLP
+
+
+def test_residual_adapter_mode_has_dedicated_client_and_model():
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting"
+    ]
+
+    assert spec.client_cls is ResidualAdapterRestartingSoftRoutingFedSDAClient
+    assert spec.server_cls is SharedBackboneFedSDANoCachedServer
+    assert spec.model_cls is ResidualAdapterMLP
+
+
+def test_residual_adapter_starts_with_same_function_as_full_sharing(monkeypatch):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    full = SharedBackboneMLP()
+    residual = ResidualAdapterMLP(backbone=full.backbone)
+    residual.head.load_state_dict(full.head.state_dict())
+    x = torch.randn(8, config.dataset_spec().input_dim)
+
+    assert residual.adapter.rank == min(
+        config.SHARED_ADAPTER_RANK, full.backbone.output_dim
+    )
+    assert torch.count_nonzero(residual.adapter.up.weight) == 0
+    assert torch.count_nonzero(residual.adapter.up.bias) == 0
+    assert torch.equal(full(x), residual(x))
+
+
+def test_residual_adapter_is_personalized_and_trainable(monkeypatch):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    model = ResidualAdapterMLP()
+    x = torch.randn(16, config.dataset_spec().input_dim)
+    y = torch.randint(0, 2, (16, 1)).float()
+
+    model.update(x, y)
+    _, personalized = model.split_params(model.get_params())
+
+    assert torch.count_nonzero(model.adapter.up.weight) > 0
+    assert any(name.startswith("adapter.") for name in personalized)
 
 
 def test_partial_shared_adapter_separates_shared_and_personalized_parameters(
@@ -364,6 +404,27 @@ def test_partial_shared_adapter_experiment_reports_component_metrics(monkeypatch
 
     results = run_random_drift_experiment(
         mode="FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",
+        random_seed=0,
+        verbose=False,
+        show_plot=False,
+    )
+
+    assert results["comm_parameter_values_total"] > 0
+    assert results["compute_backbone_examples_total"] > 0
+    assert results["compute_head_examples_total"] > 0
+    assert results["final_parameter_values"] > 0
+
+
+def test_residual_adapter_experiment_reports_component_metrics(monkeypatch):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    monkeypatch.setattr(config, "N_CLIENTS", 2)
+    monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 100)
+    monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 30)
+    monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
+    monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 50)
+
+    results = run_random_drift_experiment(
+        mode="FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
         random_seed=0,
         verbose=False,
         show_plot=False,

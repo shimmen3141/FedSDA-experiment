@@ -174,6 +174,26 @@ class ConceptAdapter(nn.Module):
         return features * self.scale + self.bias
 
 
+class ResidualConceptAdapter(nn.Module):
+    """完全共有表現へ概念別の低ランク非線形残差を加えるadapter。"""
+
+    def __init__(self, feature_dim, rank):
+        super().__init__()
+        self.rank = min(int(rank), int(feature_dim))
+        if self.rank < 1:
+            raise ValueError("残差adapterのrankは1以上である必要があります")
+        self.down = nn.Linear(feature_dim, self.rank)
+        self.activation = nn.ReLU()
+        self.up = nn.Linear(self.rank, feature_dim)
+        # 初期状態を恒等写像にし、完全共有モデルから安全に学習を開始する。
+        nn.init.zeros_(self.up.weight)
+        nn.init.zeros_(self.up.bias)
+
+    def forward(self, features):
+        residual = self.up(self.activation(self.down(features)))
+        return features + residual
+
+
 class SharedBackboneMLP(SimpleMLP):
     """共有特徴抽出層と概念別出力ヘッドからなる分類モデル。
 
@@ -329,6 +349,48 @@ class PartialSharedAdapterMLP(SharedBackboneMLP):
         self.adapter = ConceptAdapter(self.backbone.output_dim, adapter_dims)
         output_dim = 1 if self.num_classes == 2 else self.num_classes
         self.head = nn.Linear(self.adapter.output_dim, output_dim)
+        self.output_activation = nn.Sigmoid() if self.num_classes == 2 else nn.Identity()
+        self.loss_fn = nn.BCELoss() if self.num_classes == 2 else nn.CrossEntropyLoss()
+
+        default_lr = spec.learning_rate if spec.learning_rate is not None else config.BASE_LR
+        if not hasattr(self.backbone, "optimizer"):
+            self.backbone.optimizer = self._build_component_optimizer(
+                self.backbone.parameters(), default_lr
+            )
+        self.head_optimizer = self._build_component_optimizer(
+            self.personalized_parameters(), default_lr
+        )
+
+    def personalized_parameters(self):
+        return list(self.adapter.parameters()) + list(self.head.parameters())
+
+    def forward_from_features(self, features):
+        adapted = self.adapter(features)
+        return self.output_activation(self.head(adapted))
+
+
+class ResidualAdapterMLP(SharedBackboneMLP):
+    """完全共有表現にゼロ初期化の概念別低ランク残差を加えるMLP。"""
+
+    def __init__(self, input_dim=None, dataset=None, backbone=None):
+        nn.Module.__init__(self)
+        self.dataset = normalize_dataset_name(
+            dataset if dataset is not None else config.DATASET
+        )
+        spec = config.dataset_spec(self.dataset)
+        if input_dim is None:
+            input_dim = spec.input_dim
+        self.num_classes = spec.num_classes
+        self.backbone = (
+            backbone
+            if backbone is not None
+            else SharedFeatureBackbone(input_dim, spec.hidden_dims)
+        )
+        self.adapter = ResidualConceptAdapter(
+            self.backbone.output_dim, config.SHARED_ADAPTER_RANK
+        )
+        output_dim = 1 if self.num_classes == 2 else self.num_classes
+        self.head = nn.Linear(self.backbone.output_dim, output_dim)
         self.output_activation = nn.Sigmoid() if self.num_classes == 2 else nn.Identity()
         self.loss_fn = nn.BCELoss() if self.num_classes == 2 else nn.CrossEntropyLoss()
 

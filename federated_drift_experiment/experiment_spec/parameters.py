@@ -95,6 +95,13 @@ PARAMETERS = (
         cli_name="new-model-forward-validation-samples",
         methods=("FedSDA",),
     ),
+    ParameterSpec(
+        id="shared_adapter_rank",
+        code_name="SHARED_ADAPTER_RANK",
+        paper_symbol="R_adapter",
+        cli_name="shared-adapter-rank",
+        methods=("FedSDA_ResidualAdapter",),
+    ),
 )
 
 PARAMETERS_BY_ID = {parameter.id: parameter for parameter in PARAMETERS}

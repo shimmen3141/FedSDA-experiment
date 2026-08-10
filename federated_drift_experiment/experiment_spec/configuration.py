@@ -19,6 +19,7 @@ class AlgorithmOptions:
     new_model_forward_validation_samples: int
     shared_backbone_training: str
     shared_backbone_routing_recalibration: str
+    shared_adapter_rank: int = 16
 
     @classmethod
     def from_current_config(cls):
@@ -36,6 +37,7 @@ class AlgorithmOptions:
             shared_backbone_routing_recalibration=(
                 config.SHARED_BACKBONE_ROUTING_RECALIBRATION
             ),
+            shared_adapter_rank=config.SHARED_ADAPTER_RANK,
         )
 
     def config_overrides(self):
@@ -54,6 +56,7 @@ class AlgorithmOptions:
             "SHARED_BACKBONE_ROUTING_RECALIBRATION": (
                 self.shared_backbone_routing_recalibration
             ),
+            "SHARED_ADAPTER_RANK": self.shared_adapter_rank,
         }
 
 

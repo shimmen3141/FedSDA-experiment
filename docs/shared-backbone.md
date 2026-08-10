@@ -6,6 +6,7 @@
 
 - `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`: 全隠れ層を共有し、出力headだけを概念別にする。
 - `FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting`: 先頭隠れ層だけを共有し、後段adapterと出力headを概念別にする。
+- `FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`: 全隠れ層を共有し、概念別の低ランク非線形残差adapterと出力headを持つ。
 
 部分共有方式は、全共有で生じた概念間の負の転移を抑えつつ、入力に近い低層表現の学習量と通信量を共有するための方式である。
 合成データの二層MLPでは、元の第1隠れ層を共有部、第2隠れ層を概念別adapterとして使う。
@@ -14,6 +15,19 @@ MNIST2/MNIST4の一層MLPでは、共有隠れ層の後に特徴ごとのscale�
 
 通信と集約では、共有部をクライアントごとに一度だけ転送・FedAvgし、adapterとheadをモデルIDごとに転送・FedAvgする。
 既存の`compute_head_*`指標は比較可能性を保つため、部分共有方式ではadapterとheadを合わせた概念固有部分を数える。
+
+### 低ランク残差adapter
+
+低ランク残差方式は、共有特徴`z`を概念`c`ごとに次のように補正する。
+
+\[
+z_c = z + U_c\operatorname{ReLU}(V_c z)
+\]
+
+`U_c`のweightとbiasをゼロ初期化するため、学習開始時は`z_c = z`となり、完全共有方式と厳密に同じ予測から開始する。
+学習後は概念固有の非線形変換を獲得でき、線形headへ吸収されてしまうアフィンadapterの制約を避けられる。
+rankは`SHARED_ADAPTER_RANK`（CLIでは`--shared-adapter-rank`、既定16）で指定し、実際のrankは特徴次元を上限とする。
+共有バックボーンはクライアントごとに一度、残差adapterとheadはモデルIDごとに通信・FedAvgする。
 
 ## 目的
 

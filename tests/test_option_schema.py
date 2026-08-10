@@ -137,6 +137,13 @@ def test_shared_backbone_training_requires_shared_architecture():
         "routing": "restarting_soft",
         "detector": "ClassESR",
     }) == ()
+    assert validate_selection("FedSDA", {
+        "model_architecture": "residual_adapter",
+        "shared_backbone_training": "joint",
+        "server_flow": "NoCached",
+        "routing": "restarting_soft",
+        "detector": "ClassESR",
+    }) == ()
 
 
 def test_unknown_option_is_rejected():

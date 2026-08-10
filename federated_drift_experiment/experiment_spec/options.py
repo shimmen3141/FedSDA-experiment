@@ -148,7 +148,10 @@ OPTIONS = (
     ),
     OptionSpec(
         "model_architecture", "モデル構造", "model",
-        ("independent", "shared_backbone", "partial_shared_adapter"),
+        (
+            "independent", "shared_backbone", "partial_shared_adapter",
+            "residual_adapter",
+        ),
         "概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("multiple_models",),
@@ -161,7 +164,8 @@ OPTIONS = (
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("shared_representation",),
         active_when=(ActivationRule(
-            "model_architecture", ("shared_backbone", "partial_shared_adapter"),
+            "model_architecture",
+            ("shared_backbone", "partial_shared_adapter", "residual_adapter"),
             "共有表現構造のとき",
         ),),
         cli_name="shared-backbone-training",
@@ -178,10 +182,23 @@ OPTIONS = (
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("shared_representation", "soft_routing"),
         active_when=(ActivationRule(
-            "model_architecture", ("shared_backbone", "partial_shared_adapter"),
+            "model_architecture",
+            ("shared_backbone", "partial_shared_adapter", "residual_adapter"),
             "共有表現構造のとき",
         ),),
         cli_name="shared-backbone-routing-recalibration",
+    ),
+    OptionSpec(
+        "shared_adapter_rank", "概念別残差adapter rank R_adapter", "model",
+        ("positive integer",),
+        "低ランク残差adapterの最大rank。特徴次元を上限とする",
+        (FED_SDA,), (FED_SDA, FED_DRIFT),
+        requires_capabilities=("shared_representation",),
+        active_when=(ActivationRule(
+            "model_architecture", ("residual_adapter",),
+            "低ランク残差adapter構造のとき",
+        ),),
+        cli_name="shared-adapter-rank",
     ),
     OptionSpec(
         "new_model_creation_policy", "新規モデル作成方針", "adaptation",
@@ -367,6 +384,7 @@ CHOICE_CONSTRAINTS = (
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ClassESR_ProtectedSoftRouting",
         ),
     ),
@@ -388,6 +406,7 @@ CHOICE_CONSTRAINTS = (
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
         ),
         requires_selections=(
             ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
@@ -412,6 +431,15 @@ CHOICE_CONSTRAINTS = (
             ActivationRule("routing", ("restarting_soft",), "Restarting SoftRoutingが必要"),
         ),
         note="部分共有adapterは専用modeで実装",
+    ),
+    ChoiceConstraint(
+        "model_architecture", ("residual_adapter",),
+        ("FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",),
+        requires_selections=(
+            ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
+            ActivationRule("routing", ("restarting_soft",), "Restarting SoftRoutingが必要"),
+        ),
+        note="低ランク残差adapterは専用modeで実装",
     ),
     ChoiceConstraint(
         "routing", ("protected_soft",),
@@ -556,7 +584,9 @@ def selections_for_mode(mode):
             selections["routing"] = "protected_soft"
         else:
             selections["routing"] = "hard"
-        if "_PartialSharedAdapter_" in mode:
+        if "_ResidualAdapter_" in mode:
+            selections["model_architecture"] = "residual_adapter"
+        elif "_PartialSharedAdapter_" in mode:
             selections["model_architecture"] = "partial_shared_adapter"
         elif "_SharedBackbone_" in mode:
             selections["model_architecture"] = "shared_backbone"

@@ -34,6 +34,7 @@ from .clients import (
     HDDMFedSDAClient,
     ObliviousClient,
     PartialSharedAdapterRestartingSoftRoutingFedSDAClient,
+    ResidualAdapterRestartingSoftRoutingFedSDAClient,
     ProtectedSoftRoutingClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
@@ -48,6 +49,7 @@ from .data import (
 from .metrics import compute_metrics, match_events
 from .models import (
     PartialSharedAdapterMLP,
+    ResidualAdapterMLP,
     SharedBackboneMLP,
     SimpleMLP,
     model_collection_parameter_footprint,
@@ -195,6 +197,12 @@ MODE_SPECS = {
         server_cls=SharedBackboneFedSDANoCachedServer,
         model_cls=PartialSharedAdapterMLP,
     ),
+    'FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting': ModeSpec(
+        ResidualAdapterRestartingSoftRoutingFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=SharedBackboneFedSDANoCachedServer,
+        model_cls=ResidualAdapterMLP,
+    ),
     'FedSDA_NoCached_ClassESR_ProtectedSoftRouting': ModeSpec(
         ProtectedSoftRoutingClassConditionalESRFedSDAClient,
         _run_per_sample_timestep,
@@ -330,9 +338,14 @@ def _mode_param_summary(mode, distance_threshold):
                 detector_param += f", lambda={config.HDDM_W_LAMBDA}"
         else:
             detector_param = f"delta_adwin={config.ADWIN_DELTA}"
+        adapter_param = (
+            f", adapter_rank={config.SHARED_ADAPTER_RANK}"
+            if "_ResidualAdapter_" in mode else ""
+        )
         return (f"gamma_dist={distance_threshold}, {detector_param}, "
                 f"N_FIFO={config.FIFO_BUFFER_SIZE}, tau={config.LOCAL_UPDATE_INTERVAL}, "
-                f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}")
+                f"upload_delay={config.FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS}"
+                f"{adapter_param}")
     if mode == 'FedDrift':
         return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECTION_BATCH_SIZE}, "
                 f"rounds={config.FEDDRIFT_ROUNDS}, "
@@ -1023,6 +1036,10 @@ def _save_raw_run(
             config.SHARED_BACKBONE_ROUTING_RECALIBRATION
             if is_shared_representation_mode(mode) else "",
             dtype=np.str_,
+        ),
+        shared_adapter_rank=np.asarray(
+            config.SHARED_ADAPTER_RANK if "_ResidualAdapter_" in mode else -1,
+            dtype=np.int64,
         ),
         total_data=int(config.TOTAL_DATA_POINTS),
         **telemetry_arrays,

@@ -10,6 +10,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 import run_pareto_sweep as sweep
+from federated_drift_experiment import config
 
 
 def test_cli_help_groups_related_sweep_options():
@@ -38,6 +39,7 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.concept_schedule == "random"
     assert defaults.shared_backbone_training == "sequential"
     assert defaults.shared_backbone_routing_recalibration == "none"
+    assert defaults.shared_adapter_rank == config.SHARED_ADAPTER_RANK
     selected = parser.parse_args([
         "--datasets", "sea2", "mnist2", "mnist4",
         "--concept-schedule", "feddrift_fixed",

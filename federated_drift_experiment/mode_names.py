@@ -8,6 +8,7 @@ FEDSDA_MODES = (
     "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
     "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
     "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",
+    "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
     "FedSDA_NoCached_ClassESR_ProtectedSoftRouting",
     "FedSDA_NoCached_HDDMA",
     "FedSDA_NoCached_ClassHDDMA",
@@ -57,4 +58,6 @@ def is_hddm_mode(mode):
 
 def is_shared_representation_mode(mode):
     """複数の概念モデルが同じ特徴抽出部を共有するmodeかを返す。"""
-    return "_SharedBackbone_" in mode or "_PartialSharedAdapter_" in mode
+    return any(token in mode for token in (
+        "_SharedBackbone_", "_PartialSharedAdapter_", "_ResidualAdapter_",
+    ))

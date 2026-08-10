@@ -246,3 +246,9 @@ class PartialSharedAdapterRestartingSoftRoutingFedSDAClient(
     通信、集約、仮モデル、SoftRoutingの処理は共有表現クライアントと共通で、
     共有範囲と概念固有範囲の境界だけをモデル構造へ委譲する。
     """
+
+
+class ResidualAdapterRestartingSoftRoutingFedSDAClient(
+    SharedBackboneRestartingSoftRoutingFedSDAClient
+):
+    """ゼロ初期化の概念別低ランク残差adapterを使うClassESRクライアント。"""
