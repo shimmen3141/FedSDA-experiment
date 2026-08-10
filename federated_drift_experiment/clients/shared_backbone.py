@@ -238,16 +238,6 @@ class SharedBackboneRestartingSoftRoutingFedSDAClient(
         self.phase_seconds["training"] += time.perf_counter() - start_time
 
 
-class PartialSharedAdapterRestartingSoftRoutingFedSDAClient(
-    SharedBackboneRestartingSoftRoutingFedSDAClient
-):
-    """部分共有表現と概念別adapterを使うClassESRクライアント。
-
-    通信、集約、仮モデル、SoftRoutingの処理は共有表現クライアントと共通で、
-    共有範囲と概念固有範囲の境界だけをモデル構造へ委譲する。
-    """
-
-
 class ResidualAdapterRestartingSoftRoutingFedSDAClient(
     SharedBackboneRestartingSoftRoutingFedSDAClient
 ):

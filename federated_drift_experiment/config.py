@@ -104,7 +104,7 @@ SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (
     "persistent_leader_change_replay",
 )
 # 概念別低ランク残差adapterのrank。特徴次元より大きい場合は特徴次元へ丸める。
-SHARED_ADAPTER_RANK = 16
+SHARED_ADAPTER_RANK = 8
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)
 UPDATES_PER_SAMPLE = 1      # 1データ点あたりの勾配更新回数 (論文 L・学習強度)。両手法共通=公平比較の予算
 

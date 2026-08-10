@@ -33,7 +33,6 @@ from .clients import (
     FedSDAClient,
     HDDMFedSDAClient,
     ObliviousClient,
-    PartialSharedAdapterRestartingSoftRoutingFedSDAClient,
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
     ProtectedSoftRoutingClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
@@ -48,7 +47,6 @@ from .data import (
 )
 from .metrics import compute_metrics, match_events
 from .models import (
-    PartialSharedAdapterMLP,
     ResidualAdapterMLP,
     SharedBackboneMLP,
     SimpleMLP,
@@ -190,12 +188,6 @@ MODE_SPECS = {
         _run_per_sample_timestep,
         server_cls=SharedBackboneFedSDANoCachedServer,
         model_cls=SharedBackboneMLP,
-    ),
-    'FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting': ModeSpec(
-        PartialSharedAdapterRestartingSoftRoutingFedSDAClient,
-        _run_per_sample_timestep,
-        server_cls=SharedBackboneFedSDANoCachedServer,
-        model_cls=PartialSharedAdapterMLP,
     ),
     'FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting': ModeSpec(
         ResidualAdapterRestartingSoftRoutingFedSDAClient,

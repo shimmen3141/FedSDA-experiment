@@ -1,33 +1,78 @@
 # 共有バックボーン＋概念別ヘッド
 
-## 共有範囲
+## 実験要素の位置づけ
 
-共有表現には、次の二つの実験modeがある。
+共有表現の実験は、次の独立した関心を組み合わせて構成する。ただし、概念上の独立性と
+現行コードで選択可能な組合せは区別する。
 
-- `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`: 全隠れ層を共有し、出力headだけを概念別にする。
-- `FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting`: 先頭隠れ層だけを共有し、後段adapterと出力headを概念別にする。
-- `FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`: 全隠れ層を共有し、概念別の低ランク非線形残差adapterと出力headを持つ。
+| 層 | 主な選択肢 | 変更対象 | 依存関係 |
+|---|---|---|---|
+| モデル構造 | `independent` / `shared_backbone` / `residual_adapter` | パラメータの共有・概念固有範囲 | 複数モデルを持つ手法に適用 |
+| 共有表現のローカル学習 | `sequential` / `joint` / `frozen` | 共有部と概念固有部の更新則 | 共有表現を持つモデル構造だけで有効 |
+| 予測ルーティング | `hard` / `restarting_soft` / `protected_soft` | 正解観測前の予測の選択・混合 | モデル構造には原理上依存しない |
+| 集約後のルーティング再較正 | `none` / `fifo_replay`等 | SoftRoutingの累積損失 | 共有表現とSoftRoutingの両方が必要 |
 
-部分共有方式は、全共有で生じた概念間の負の転移を抑えつつ、入力に近い低層表現の学習量と通信量を共有するための方式である。
-合成データの二層MLPでは、元の第1隠れ層を共有部、第2隠れ層を概念別adapterとして使う。
-MNIST2/MNIST4の一層MLPでは、共有隠れ層の後に特徴ごとのscaleとbiasからなる概念別adapterを置く。
-このアフィンadapterには幅のハイパーパラメータがなく、概念ごとの大きな全結合層の複製を避けられる。
+したがって、`joint`と`frozen`はモデル構造に従属する学習オプションである。一方、SoftRoutingは
+独立モデルにも共有モデルにも適用できる予測オプションであり、実際に独立モデル用の
+`FedSDA_NoCached_ClassESR_RestartingSoftRouting`も実装されている。`fifo_replay`はSoftRouting一般ではなく、
+サーバ集約によって共有表現が同時に変化する場合だけ必要になる再較正である。
 
-通信と集約では、共有部をクライアントごとに一度だけ転送・FedAvgし、adapterとheadをモデルIDごとに転送・FedAvgする。
-既存の`compute_head_*`指標は比較可能性を保つため、部分共有方式ではadapterとheadを合わせた概念固有部分を数える。
+現行コードでは共有表現modeを`NoCached + ClassESR + Restarting SoftRouting`として実装しているため、
+共有モデルでhard routingや他検出器を選ぶ組合せは未実装である。これはモデル構造上の必然ではなく、
+検証済みの実装範囲を限定するための制約である。コード上の正確な依存関係は`docs/options.md`を参照する。
+
+```text
+モデル構造
+├─ independent
+├─ shared_backbone
+└─ residual_adapter
+   │
+   └─ 共有表現の学習: sequential / joint / frozen
+
+予測ルーティング（モデル構造から原理上独立）
+├─ hard
+├─ restarting_soft
+└─ protected_soft
+   │
+   └─ 共有表現との組合せだけ再較正: none / fifo_replay / ...
+```
+
+## モデル構造
+
+### 完全共有＋概念別head
+
+`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`は全隠れ層を共有し、出力headだけを
+概念別にする。共有量と計算再利用は最大になるが、概念間の負の転移や共有表現の容量不足が起こり得る。
+
+### 評価済みのAffine・部分共有adapter
+
+部分共有方式は、全共有で生じた概念間の負の転移を抑えつつ、入力に近い低層表現の学習量と通信量を
+共有するために評価した方式である。合成データの二層MLPでは、元の第1隠れ層を共有部、第2隠れ層を
+概念別adapterとして使った。MNIST2/MNIST4の一層MLPでは、共有隠れ層の後に特徴ごとのscaleとbiasから
+なる概念別Affine adapterを置いた。このadapterには幅のハイパーパラメータがなく、概念ごとの大きな
+全結合層の複製を避けられる。
+
+通信と集約では、共有部をクライアントごとに一度だけ転送・FedAvgし、adapterとheadをモデルIDごとに
+転送・FedAvgした。既存の`compute_head_*`指標ではadapterとheadを合わせた概念固有部分を数えた。
+
+しかし5シード比較では、Residual adapterに対する精度・通信量上の固有の優位がなく、特にMNIST4で
+大きく劣った。線形headの直前に置くAffine変換はheadへ吸収可能であり、概念固有の非線形表現を十分に
+増やせない。このため実験modeと実装は削除し、比較済みの不採用案として本節だけを残す。
 
 ### 低ランク残差adapter
 
-低ランク残差方式は、共有特徴`z`を概念`c`ごとに次のように補正する。
+`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`は全隠れ層を共有し、概念別の低ランク
+非線形残差adapterと出力headを持つ。共有特徴`z`を概念`c`ごとに次のように補正する。
 
 \[
 z_c = z + U_c\operatorname{ReLU}(V_c z)
 \]
 
-`U_c`のweightとbiasをゼロ初期化するため、学習開始時は`z_c = z`となり、完全共有方式と厳密に同じ予測から開始する。
-学習後は概念固有の非線形変換を獲得でき、線形headへ吸収されてしまうアフィンadapterの制約を避けられる。
-rankは`SHARED_ADAPTER_RANK`（CLIでは`--shared-adapter-rank`、既定16）で指定し、実際のrankは特徴次元を上限とする。
-共有バックボーンはクライアントごとに一度、残差adapterとheadはモデルIDごとに通信・FedAvgする。
+`U_c`のweightとbiasをゼロ初期化するため、学習開始時は`z_c = z`となり、完全共有方式と厳密に同じ
+予測から開始する。学習後は概念固有の非線形変換を獲得でき、線形headへ吸収されてしまうAffine
+adapterの制約を避けられる。rankは`SHARED_ADAPTER_RANK`（CLIでは`--shared-adapter-rank`、既定8）で
+指定し、実際のrankは特徴次元を上限とする。共有バックボーンはクライアントごとに一度、残差adapterとheadは
+モデルIDごとに通信・FedAvgする。
 
 ## 目的
 
@@ -42,6 +87,28 @@ rankは`SHARED_ADAPTER_RANK`（CLIでは`--shared-adapter-rank`、既定16）で
 - SoftRoutingで全モデルを評価するとき、特徴抽出を1サンプルにつき1回へ減らす。
 - 概念別ヘッドを残し、概念ごとの専門化と予測混合を維持する。
 - バックボーンを1回だけ転送し、モデル数に比例する重複通信を減らす。
+
+## FedSDAと組み合わせる意味
+
+共有バックボーン自体は一般的なmulti-task learningや個人化連合学習にも適用でき、FedSDAだけで
+成立する構造ではない。一方、タスク境界も概念IDも与えられないストリームで「何を共有し、何を
+概念別にするか」を決めるには、FedSDAの高粒度な検出・データ分割・モデル管理が次の役割を持つ。
+
+1. サンプル単位の統計的検出が、固定バッチ境界に依存せず概念別head・adapterを作る契機を与える。
+2. 検出区間とモデル別データストアが、概念固有部分へ異なる概念のデータが混入する量を抑える。
+3. 既存モデル再利用により、再帰概念では新しいheadを増やさず、既存の概念固有部分へ戻れる。
+4. クロス評価とクラスタリングが、クライアントごとに検出時刻が異なる概念モデルのIDを対応付け、
+   同じ概念のadapter・headだけをサーバで集約できる。
+5. 共有バックボーンは各概念に分断されていた表現学習量を統合し、概念別adapter・headはFedSDAが
+   発見した細粒度な差を保持する。
+6. SoftRoutingは検出・切替直後の概念帰属が不確かな期間に複数モデルを混合し、hardなモデル管理と
+   実際の予測の間を連続的につなぐ。
+
+この組合せの相乗効果は、「共有表現で全概念の学習量を利用すること」と「統計的に分割された
+概念固有部分で負の転移を抑えること」を同時に狙える点にある。逆に、検出や分割が不正確なら
+adapter・headの専門化も崩れ、共有部には相反する勾配が入る。そのため共有方式はFedSDAと無関係な
+付加機能ではなく、FedSDAの検出精度・再利用・クラスタリング品質と相互作用する提案候補として
+評価する。ただし、共有バックボーンそのものをFedSDA固有の新規性として主張してはならない。
 
 ## ローカル学習方式
 

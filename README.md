@@ -133,7 +133,6 @@ Pareto 図では `FedSDA_without_server` と `Oblivious` を通信量に依存�
 | `FedSDA_NoCached_ClassESR` | NoCached + 全体・正解クラス別e-SRの固定重み混合 |
 | `FedSDA_NoCached_ClassESR_RestartingSoftRouting` | モデル切替確定時にAdaHedgeを再始動するSoftRouting |
 | `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting` | 共有バックボーン＋概念別ヘッドで特徴抽出と表現学習を共有するRestarting SoftRouting |
-| `FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting` | 低層だけを共有し、概念別adapter＋headで負の転移を抑えるRestarting SoftRouting |
 | `FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | 完全共有と同じ予測から開始する概念別低ランク残差adapter＋Restarting SoftRouting |
 | `FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | AdaHedgeが現行モデルを累積損失で上回る場合だけ混合するSoftRouting |
 | `FedSDA_NoCached_HDDMA` / `FedSDA_NoCached_HDDMW` | NoCached + 全体損失HDDM-A / HDDM-W |

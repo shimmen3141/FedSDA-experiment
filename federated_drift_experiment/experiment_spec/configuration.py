@@ -19,7 +19,7 @@ class AlgorithmOptions:
     new_model_forward_validation_samples: int
     shared_backbone_training: str
     shared_backbone_routing_recalibration: str
-    shared_adapter_rank: int = 16
+    shared_adapter_rank: int = 8
 
     @classmethod
     def from_current_config(cls):

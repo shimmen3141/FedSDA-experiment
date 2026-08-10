@@ -11,6 +11,7 @@ results/baselines/fedsda/
 ├── creation_policies/<policy>/<dataset>/
 ├── protocols/<protocol>/<dataset>/
 ├── parameter_profiles/<profile>/<dataset>/
+├── architectures/<architecture>/<dataset>/
 ├── routing/<routing>/<dataset>/
 └── schedules/<schedule>/<mode>/<dataset>/
 ```
@@ -23,6 +24,10 @@ results/baselines/fedsda/
 `reference/` は現在の比較基準であり、ClassESR、random schedule、forward persistent、
 `N_FIFO=30`、`N_forward=10`、距離クラスタリングを基本構成とする。完全な値と掃引範囲は
 ルートの `manifest.json` を正本とする。
+
+`architectures/`は検出・モデル作成・クラスタリング等を固定し、モデル構造だけを変更した比較を置く。
+`residual_adapter_rank8/`には、joint学習、FIFO再較正、Restarting SoftRoutingを用いた低ランク残差
+adapterのrandom schedule・全6データセット・5シード・集約間隔`50/100/200/500`の結果を保存する。
 
 FedDrift は方式が一つであるため、`results/baselines/feddrift/<dataset>/` の
 データセット優先構成を維持する。

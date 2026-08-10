@@ -131,13 +131,6 @@ def test_shared_backbone_training_requires_shared_architecture():
         "detector": "ClassESR",
     }) == ()
     assert validate_selection("FedSDA", {
-        "model_architecture": "partial_shared_adapter",
-        "shared_backbone_training": "joint",
-        "server_flow": "NoCached",
-        "routing": "restarting_soft",
-        "detector": "ClassESR",
-    }) == ()
-    assert validate_selection("FedSDA", {
         "model_architecture": "residual_adapter",
         "shared_backbone_training": "joint",
         "server_flow": "NoCached",

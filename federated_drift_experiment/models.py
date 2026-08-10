@@ -143,37 +143,6 @@ class SharedFeatureBackbone(nn.Module):
         return self.net(x)
 
 
-class ConceptAdapter(nn.Module):
-    """共有特徴を概念ごとに補正する小さなadapter。
-
-    元のMLPに後段の隠れ層がある場合は、その層を概念固有部分として使う。
-    隠れ層が一つしかない場合は、特徴ごとのスケールとバイアスだけを学習し、
-    大きな全結合層を概念数だけ複製しない。
-    """
-
-    def __init__(self, input_dim, hidden_dims):
-        super().__init__()
-        self.output_dim = hidden_dims[-1] if hidden_dims else input_dim
-        if hidden_dims:
-            layers = []
-            previous_dim = input_dim
-            for hidden_dim in hidden_dims:
-                layers.extend((nn.Linear(previous_dim, hidden_dim), nn.ReLU()))
-                previous_dim = hidden_dim
-            self.net = nn.Sequential(*layers)
-            self.scale = None
-            self.bias = None
-        else:
-            self.net = None
-            self.scale = nn.Parameter(torch.ones(input_dim))
-            self.bias = nn.Parameter(torch.zeros(input_dim))
-
-    def forward(self, features):
-        if self.net is not None:
-            return self.net(features)
-        return features * self.scale + self.bias
-
-
 class ResidualConceptAdapter(nn.Module):
     """完全共有表現へ概念別の低ランク非線形残差を加えるadapter。"""
 
@@ -317,56 +286,6 @@ class SharedBackboneMLP(SimpleMLP):
     @staticmethod
     def combine_params(backbone, head):
         return {**copy.deepcopy(backbone), **copy.deepcopy(head)}
-
-
-class PartialSharedAdapterMLP(SharedBackboneMLP):
-    """低層表現だけを共有し、概念別adapterと分類headを持つMLP。
-
-    二層以上のMLPでは先頭隠れ層のみを共有し、残りの隠れ層をadapterとする。
-    一層MLPでは共有隠れ層の直後に特徴別アフィンadapterを置く。これにより、
-    元モデルの表現容量と比較可能性を保ちつつ、概念固有の補正を許す。
-    """
-
-    def __init__(self, input_dim=None, dataset=None, backbone=None):
-        nn.Module.__init__(self)
-        self.dataset = normalize_dataset_name(
-            dataset if dataset is not None else config.DATASET
-        )
-        spec = config.dataset_spec(self.dataset)
-        if input_dim is None:
-            input_dim = spec.input_dim
-        if not spec.hidden_dims:
-            raise ValueError("部分共有adapterには少なくとも一つの隠れ層が必要です")
-
-        self.num_classes = spec.num_classes
-        shared_dims = spec.hidden_dims[:1]
-        adapter_dims = spec.hidden_dims[1:]
-        self.backbone = (
-            backbone
-            if backbone is not None
-            else SharedFeatureBackbone(input_dim, shared_dims)
-        )
-        self.adapter = ConceptAdapter(self.backbone.output_dim, adapter_dims)
-        output_dim = 1 if self.num_classes == 2 else self.num_classes
-        self.head = nn.Linear(self.adapter.output_dim, output_dim)
-        self.output_activation = nn.Sigmoid() if self.num_classes == 2 else nn.Identity()
-        self.loss_fn = nn.BCELoss() if self.num_classes == 2 else nn.CrossEntropyLoss()
-
-        default_lr = spec.learning_rate if spec.learning_rate is not None else config.BASE_LR
-        if not hasattr(self.backbone, "optimizer"):
-            self.backbone.optimizer = self._build_component_optimizer(
-                self.backbone.parameters(), default_lr
-            )
-        self.head_optimizer = self._build_component_optimizer(
-            self.personalized_parameters(), default_lr
-        )
-
-    def personalized_parameters(self):
-        return list(self.adapter.parameters()) + list(self.head.parameters())
-
-    def forward_from_features(self, features):
-        adapted = self.adapter(features)
-        return self.output_activation(self.head(adapted))
 
 
 class ResidualAdapterMLP(SharedBackboneMLP):

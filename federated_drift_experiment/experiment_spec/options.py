@@ -148,10 +148,7 @@ OPTIONS = (
     ),
     OptionSpec(
         "model_architecture", "モデル構造", "model",
-        (
-            "independent", "shared_backbone", "partial_shared_adapter",
-            "residual_adapter",
-        ),
+        ("independent", "shared_backbone", "residual_adapter"),
         "概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("multiple_models",),
@@ -165,7 +162,7 @@ OPTIONS = (
         requires_capabilities=("shared_representation",),
         active_when=(ActivationRule(
             "model_architecture",
-            ("shared_backbone", "partial_shared_adapter", "residual_adapter"),
+            ("shared_backbone", "residual_adapter"),
             "共有表現構造のとき",
         ),),
         cli_name="shared-backbone-training",
@@ -183,7 +180,7 @@ OPTIONS = (
         requires_capabilities=("shared_representation", "soft_routing"),
         active_when=(ActivationRule(
             "model_architecture",
-            ("shared_backbone", "partial_shared_adapter", "residual_adapter"),
+            ("shared_backbone", "residual_adapter"),
             "共有表現構造のとき",
         ),),
         cli_name="shared-backbone-routing-recalibration",
@@ -383,7 +380,6 @@ CHOICE_CONSTRAINTS = (
             "FedSDA_NoCached_ClassESR", "FedSDA_Cached_ClassESR",
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
-            "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ClassESR_ProtectedSoftRouting",
         ),
@@ -405,7 +401,6 @@ CHOICE_CONSTRAINTS = (
         (
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
-            "FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
         ),
         requires_selections=(
@@ -422,15 +417,6 @@ CHOICE_CONSTRAINTS = (
             ActivationRule("routing", ("restarting_soft",), "Restarting SoftRoutingが必要"),
         ),
         note="共有バックボーンは専用modeで実装",
-    ),
-    ChoiceConstraint(
-        "model_architecture", ("partial_shared_adapter",),
-        ("FedSDA_NoCached_PartialSharedAdapter_ClassESR_RestartingSoftRouting",),
-        requires_selections=(
-            ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
-            ActivationRule("routing", ("restarting_soft",), "Restarting SoftRoutingが必要"),
-        ),
-        note="部分共有adapterは専用modeで実装",
     ),
     ChoiceConstraint(
         "model_architecture", ("residual_adapter",),
@@ -586,8 +572,6 @@ def selections_for_mode(mode):
             selections["routing"] = "hard"
         if "_ResidualAdapter_" in mode:
             selections["model_architecture"] = "residual_adapter"
-        elif "_PartialSharedAdapter_" in mode:
-            selections["model_architecture"] = "partial_shared_adapter"
         elif "_SharedBackbone_" in mode:
             selections["model_architecture"] = "shared_backbone"
         else:
