@@ -181,6 +181,8 @@ METRICS = (
             "routing_missed_oracle_count", "routing_aggregation_restart_count",
             "routing_aggregation_recalibration_count",
             "routing_aggregation_recalibration_sample_count",
+            "routing_aggregation_recalibration_check_count",
+            "routing_aggregation_recalibration_skip_count",
         ),
         "soft_routing", DIAGNOSTIC, FEDSDA_METHODS, None,
     ),

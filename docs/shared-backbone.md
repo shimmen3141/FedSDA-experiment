@@ -51,6 +51,10 @@ AdaHedgeの累積損失は集約前の予測関数に対する証拠であり、
   時系列順に再構築した証拠で置き換える。FIFOは検出遅延を吸収するために保持され、まだ過去の
   概念モデルへ確定投入されていない区間であるため、現在分布を表す較正集合として利用する。
   FIFOが空、または保持モデルが1個だけなら、有効な既存証拠を一律に消さず何もしない。
+- `leader_change_replay`: 集約前までの累積損失が選ぶleaderと、集約後モデルをFIFOで評価した
+  最良モデルを比較する。両者が同じなら累積損失とmixability gapをそのまま維持し、異なる場合だけ
+  `fifo_replay`を行う。モデル集合が変わった場合は旧証拠を安全に対応付けられないためreplayする。
+  同率時は現行モデルを優先する。新しい数値閾値は追加しない。
 
 再始動回数はCSVの`routing_aggregation_restart_count`と、NPZの
 `routing_aggregation_restart_counts`で確認できる。この方式は特に`joint`で生じた
@@ -63,6 +67,10 @@ AdaHedgeの累積損失は集約前の予測関数に対する証拠であり、
 集約・配布済みのローカルモデルと観測済みFIFOデータだけを使う。ただし、集約ごとに最大で
 `N_FIFO × 保持モデル数`のヘッド評価が増える。この計算は`routing_recalibration_*`および
 `compute_backbone_examples_total`、`compute_head_examples_total`へ含める。
+`leader_change_replay`の判定回数と、leaderが変わらず証拠を維持した回数は、それぞれ
+`routing_aggregation_recalibration_check_count`と
+`routing_aggregation_recalibration_skip_count`へ記録する。replayを省略した場合でもleader比較の
+FIFO評価は必要なため、計算量は`fifo_replay`とほぼ同じである。
 
 ## 仮モデル
 

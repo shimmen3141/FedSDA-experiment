@@ -100,7 +100,7 @@ SHARED_BACKBONE_TRAINING_CHOICES = ("sequential", "joint", "frozen")
 # 共有表現がサーバ集約で変化した後に、SoftRoutingの古い累積損失を扱う方法。
 SHARED_BACKBONE_ROUTING_RECALIBRATION = "none"
 SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (
-    "none", "aggregation_restart", "fifo_replay",
+    "none", "aggregation_restart", "fifo_replay", "leader_change_replay",
 )
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)
 UPDATES_PER_SAMPLE = 1      # 1データ点あたりの勾配更新回数 (論文 L・学習強度)。両手法共通=公平比較の予算

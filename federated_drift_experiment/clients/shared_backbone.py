@@ -62,6 +62,11 @@ class SharedBackboneRestartingSoftRoutingFedSDAClient(
             self.expert_router.replay_after_aggregation(
                 self._fifo_routing_loss_sequence()
             )
+        elif strategy == "leader_change_replay":
+            self.expert_router.replay_after_aggregation_if_leader_changed(
+                self._fifo_routing_loss_sequence(),
+                preferred_id=self.current_model_id,
+            )
         elif strategy != "none":
             raise ValueError(f"未知のルーティング再較正方式です: {strategy!r}")
 

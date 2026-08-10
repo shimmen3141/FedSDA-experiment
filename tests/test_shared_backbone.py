@@ -237,6 +237,37 @@ def test_fifo_replay_rebuilds_router_from_post_aggregation_predictions(monkeypat
     assert client.compute_counters["head_examples"] == 8
 
 
+def test_leader_change_replay_preserves_evidence_for_same_fifo_leader(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "SHARED_BACKBONE_ROUTING_RECALIBRATION",
+        "leader_change_replay",
+    )
+    client = _two_head_client()
+    with torch.no_grad():
+        client.models[0].head.weight.zero_()
+        client.models[0].head.bias.fill_(-5.0)
+        client.models[1].head.weight.zero_()
+        client.models[1].head.bias.fill_(5.0)
+    for _ in range(4):
+        client.buffer.append((
+            torch.zeros(1, config.dataset_spec().input_dim),
+            torch.tensor([[0.0]]),
+        ))
+    probabilities = client.expert_router.probabilities([0, 1])
+    client.expert_router.update({0: 0.0, 1: 1.0}, probabilities)
+    previous_losses = dict(client.expert_router.cumulative_losses)
+
+    client.recalibrate_routing_after_aggregation()
+
+    assert client.expert_router.cumulative_losses == previous_losses
+    assert client.expert_router.aggregation_recalibration_check_count == 1
+    assert client.expert_router.aggregation_recalibration_skip_count == 1
+    assert client.expert_router.aggregation_recalibration_count == 0
+    # replayを省略しても、leader判定のためのFIFO評価計算は発生する。
+    assert client.compute_counters["routing_recalibration_examples"] == 8
+
+
 def test_shared_backbone_experiment_reports_component_metrics(monkeypatch):
     monkeypatch.setattr(config, "DATASET", "circle2")
     monkeypatch.setattr(config, "N_CLIENTS", 2)

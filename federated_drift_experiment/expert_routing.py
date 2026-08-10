@@ -19,6 +19,8 @@ class AdaHedgeRouter:
         self.aggregation_restart_count = 0
         self.aggregation_recalibration_count = 0
         self.aggregation_recalibration_sample_count = 0
+        self.aggregation_recalibration_check_count = 0
+        self.aggregation_recalibration_skip_count = 0
 
     def _clear_evidence(self):
         self.cumulative_losses = {}
@@ -46,6 +48,50 @@ class AdaHedgeRouter:
         for losses in loss_sequence:
             probabilities = self.probabilities(losses)
             self.update(losses, probabilities)
+
+    @staticmethod
+    def _leader(losses, preferred_id=None):
+        """累積損失が最小の専門家を、同率時は現行モデル優先で返す。"""
+        minimum = min(losses.values())
+        leaders = [
+            expert_id for expert_id, loss in losses.items()
+            if loss == minimum
+        ]
+        if preferred_id in leaders:
+            return preferred_id
+        return min(leaders)
+
+    def replay_after_aggregation_if_leader_changed(
+        self, loss_sequence, preferred_id=None,
+    ):
+        """FIFO最良モデルが旧leaderと異なる場合だけ証拠を再構築する。"""
+        loss_sequence = tuple(loss_sequence)
+        if not loss_sequence:
+            return False
+        self.aggregation_recalibration_check_count += 1
+        expert_ids = set(loss_sequence[0])
+        if any(set(losses) != expert_ids for losses in loss_sequence):
+            raise ValueError("all replay losses must use the same experts")
+
+        # モデル集合が変わった場合、旧証拠を新しい集合へ安全に対応付けられない。
+        if set(self.cumulative_losses) != expert_ids:
+            self.replay_after_aggregation(loss_sequence)
+            return True
+
+        historical_leader = self._leader(
+            self.cumulative_losses, preferred_id=preferred_id
+        )
+        recent_losses = {
+            expert_id: sum(losses[expert_id] for losses in loss_sequence)
+            for expert_id in expert_ids
+        }
+        recent_leader = self._leader(recent_losses, preferred_id=preferred_id)
+        if recent_leader == historical_leader:
+            self.aggregation_recalibration_skip_count += 1
+            return False
+
+        self.replay_after_aggregation(loss_sequence)
+        return True
 
     def _synchronize(self, expert_ids):
         expert_ids = tuple(sorted(expert_ids))
