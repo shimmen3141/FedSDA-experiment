@@ -27,16 +27,6 @@ class GradientUpdateComparison:
     delta_ratio: float
 
 
-@dataclass(frozen=True)
-class GradientValidationSelection:
-    """独立した検証勾配に基づく更新候補の選択結果。"""
-
-    strategy: str
-    gradient: torch.Tensor
-    mean_alignment: float
-    pcgrad_alignment: float
-
-
 def flatten_parameter_gradients(gradients, parameters):
     """parameter順を保ち、未使用勾配をゼロとして一つのベクトルへ連結する。"""
     values = []
@@ -121,49 +111,6 @@ def compare_gradient_updates(reference, applied):
             .div(reference_norm)
             .item()
         ),
-    )
-
-
-def select_gradient_by_validation(
-    mean_gradient, pcgrad_gradient, validation_gradient,
-):
-    """検証勾配とのcosine類似度が高い更新方向を選ぶ。
-
-    学習・検証のいずれかの更新がゼロで比較不能な場合は ``None`` を返す。同点では
-    変更の少ないmeanを選び、PCGradを採用するための恣意的な優遇を設けない。
-    """
-    if not (
-        mean_gradient.shape
-        == pcgrad_gradient.shape
-        == validation_gradient.shape
-    ):
-        raise ValueError("選択対象と検証勾配の形状が一致していません")
-
-    validation_norm = torch.linalg.vector_norm(validation_gradient)
-    mean_norm = torch.linalg.vector_norm(mean_gradient)
-    pcgrad_norm = torch.linalg.vector_norm(pcgrad_gradient)
-    if (
-        validation_norm.item() == 0.0
-        or mean_norm.item() == 0.0
-        or pcgrad_norm.item() == 0.0
-    ):
-        return None
-
-    def alignment(candidate, candidate_norm):
-        return float(
-            torch.dot(validation_gradient, candidate).div(
-                validation_norm * candidate_norm
-            ).item()
-        )
-
-    mean_alignment = alignment(mean_gradient, mean_norm)
-    pcgrad_alignment = alignment(pcgrad_gradient, pcgrad_norm)
-    use_pcgrad = pcgrad_alignment > mean_alignment
-    return GradientValidationSelection(
-        strategy="pcgrad" if use_pcgrad else "mean",
-        gradient=pcgrad_gradient if use_pcgrad else mean_gradient,
-        mean_alignment=mean_alignment,
-        pcgrad_alignment=pcgrad_alignment,
     )
 
 

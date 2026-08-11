@@ -29,10 +29,10 @@ def _two_head_client():
     )
 
 
-def _populate_training_store(client, sample_multiplier=1):
+def _populate_training_store(client):
     input_dim = config.dataset_spec().input_dim
     for model_id in (0, 1):
-        for index in range(client.batch_size * sample_multiplier):
+        for index in range(client.batch_size):
             client.train_data_store[model_id].append((
                 torch.full((1, input_dim), float(index + model_id) / 10),
                 torch.tensor([[float((index + model_id) % 2)]]),
@@ -197,45 +197,6 @@ def test_pcgrad_joint_training_records_diagnostics_and_updates(monkeypatch):
         client.backbone_gradient_diagnostics["applied_conflict_count"]
         <= client.backbone_gradient_diagnostics["conflict_count"]
     )
-
-
-def test_heldout_selection_uses_disjoint_validation_batch(monkeypatch):
-    monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "joint")
-    monkeypatch.setattr(
-        config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "heldout_selected"
-    )
-    client = _two_head_client()
-    _populate_training_store(client, sample_multiplier=2)
-
-    client.train_all_held_models()
-
-    diagnostics = client.backbone_gradient_diagnostics
-    assert diagnostics["validation_selection_count"] == 1
-    assert diagnostics["validation_fallback_count"] == 0
-    assert (
-        diagnostics["validation_mean_selection_count"]
-        + diagnostics["validation_pcgrad_selection_count"]
-        == 1
-    )
-    assert client.compute_counters["gradient_validation_examples"] == (
-        2 * client.batch_size
-    )
-
-
-def test_heldout_selection_falls_back_to_mean_without_enough_data(monkeypatch):
-    monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "joint")
-    monkeypatch.setattr(
-        config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "heldout_selected"
-    )
-    client = _two_head_client()
-    _populate_training_store(client)
-
-    client.train_all_held_models()
-
-    diagnostics = client.backbone_gradient_diagnostics
-    assert diagnostics["validation_selection_count"] == 0
-    assert diagnostics["validation_fallback_count"] == 1
-    assert client.compute_counters["gradient_validation_examples"] == 0
 
 
 def test_frozen_training_keeps_backbone_and_updates_both_heads(monkeypatch):

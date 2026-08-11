@@ -225,7 +225,6 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 | `comm_messages_up` / `comm_messages_down` / `comm_messages_total` | 割当・ドリフト要約、クロス評価依頼・統計返送、ID割当、マージ通知などの軽量メッセージ数 |
 | `comm_parameter_values_*` / `comm_bytes_*` | モデル構造や共有部を考慮した転送パラメータ値数 / 実バイト数 |
 | `compute_inference_examples_total` / `compute_training_examples_total` | 推論系 / 学習でモデルに入力した延べサンプル数 |
-| `compute_gradient_validation_examples_total` | 共有勾配候補のheld-out選択に用いた延べサンプル数 |
 | `compute_backbone_examples_total` / `compute_head_examples_total` | 特徴抽出部 / 出力ヘッドが処理した延べサンプル数 |
 | `compute_backbone_optimizer_steps_total` / `compute_head_optimizer_steps_total` | 共有バックボーン / 概念別ヘッドの optimizer 更新回数 |
 | `compute_optimizer_steps_total` | 全クライアントの optimizer 更新回数 |

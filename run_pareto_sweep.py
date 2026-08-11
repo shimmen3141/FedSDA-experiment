@@ -960,10 +960,7 @@ def build_parser():
         "--shared-backbone-gradient-strategy",
         choices=config.SHARED_BACKBONE_GRADIENT_STRATEGY_CHOICES,
         default=config.SHARED_BACKBONE_GRADIENT_STRATEGY,
-        help=(
-            "joint共有学習の勾配統合方式 "
-            "(mean / pcgrad / heldout_selected)"
-        ),
+        help="joint共有学習の勾配統合方式 (mean / pcgrad)",
     )
     fedsda.add_argument(
         "--shared-backbone-routing-recalibration",

@@ -169,8 +169,8 @@ OPTIONS = (
     ),
     OptionSpec(
         "shared_backbone_gradient_strategy", "共有勾配統合", "model",
-        ("mean", "pcgrad", "heldout_selected"),
-        "共同学習時の概念別バックボーン勾配を平均、競合射影、または独立した直近標本による候補選択で統合する方式",
+        ("mean", "pcgrad"),
+        "共同学習時の概念別バックボーン勾配を平均または競合射影で統合する方式",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("shared_representation",),
         active_when=(ActivationRule(

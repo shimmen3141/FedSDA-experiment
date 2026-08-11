@@ -136,16 +136,6 @@ CSV・NPZには`shared_backbone_training`を保存し、既定以外ではPareto
 - `mean`（既定）: サンプル数で加重した平均勾配を用いる。従来の`joint`更新と同じである。
 - `pcgrad`: 二つの概念勾配の内積が負の場合だけ、一方から他方と競合する射影成分を除去してから
   サンプル数で加重平均する。競合しない勾配は変更せず、新しい数値閾値も追加しない。
-- `heldout_selected`: `mean`と`pcgrad`を候補とし、学習ミニバッチと重複しない各概念ストアの
-  直近ミニバッチで求めた検証勾配とのcosine類似度が高い候補を、その更新だけに適用する。
-  データセット名による分岐や新しい数値閾値は持たない。同点、ゼロ勾配、またはいずれかの
-  概念ストアで学習用と同数の検証標本を確保できない場合は`mean`へフォールバックする。
-
-`heldout_selected`は、PCGradの採否をデータセット単位で固定する方式ではない。Circle2で観測した
-負の転移の軽減を維持しつつ、Sine2で見られた有用な概念別方向の過剰な射影を、現在の独立標本に
-基づき更新単位で避けることを狙う。検証勾配は候補更新後の損失差を一次近似する。optimizer状態を
-複製して二つの仮更新を実行する方式より単純である一方、Adam適用後の厳密な損失比較ではない。
-検証用の数値ハイパーパラメータは増えないが、検証forward/backward分の計算量は増える。
 
 診断と更新を切り分けるため、`mean`でも概念勾配対を計測する。次をCSV・NPZへ保存する。
 
@@ -159,11 +149,6 @@ CSV・NPZには`shared_backbone_training`を保存し、既定以外ではPareto
 - `backbone_gradient_update_cosine_mean`: 通常の重み付きmean更新と実際に適用した更新の方向一致度。
 - `backbone_gradient_update_norm_ratio_mean`: mean更新に対する実適用更新のノルム比。
 - `backbone_gradient_update_delta_ratio_mean`: mean更新からの差分ノルムをmean更新ノルムで割った相対変形量。
-- `backbone_gradient_validation_pcgrad_selection_rate`: 比較可能だった更新のうちPCGradを選択した割合。
-- `backbone_gradient_validation_fallback_count`: 検証標本不足やゼロ勾配によりmeanへ戻した回数。
-- `backbone_gradient_validation_mean_alignment_mean` /
-  `backbone_gradient_validation_pcgrad_alignment_mean`: 検証勾配に対する各候補の平均cosine類似度。
-- `compute_gradient_validation_examples_total`: 候補選択の検証に入力した延べ標本数。
 
 適用前の指標は方式間で同じ診断対象を比較するために残し、適用後の指標はPCGradが競合をどこまで除去し、
 更新をどれだけ変形したかを調べるために併記する。
