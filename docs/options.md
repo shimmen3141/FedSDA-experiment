@@ -34,6 +34,7 @@ flowchart LR
   subgraph group_model[model]
     model_architecture["<b>モデル構造</b><br/>independent | shared_backbone | residual_adapter"]
     shared_backbone_training["<b>共有表現学習</b><br/>sequential | joint | frozen"]
+    shared_backbone_gradient_strategy["<b>共有勾配統合</b><br/>mean | pcgrad"]
     shared_adapter_rank["<b>概念別残差adapter rank R_adapter</b><br/>positive integer"]
   end
   subgraph group_adaptation[adaptation]
@@ -72,6 +73,7 @@ flowchart LR
     duplicate_policy["<b>既存実験重複ポリシー</b><br/>ignore | warn | error"]
   end
   model_architecture -->|"共有表現構造のとき"| shared_backbone_training
+  shared_backbone_training -->|"共有表現をjoint学習するとき"| shared_backbone_gradient_strategy
   model_architecture -->|"共有表現構造のとき"| shared_backbone_routing_recalibration
   routing -->|"Restarting SoftRoutingのとき"| shared_backbone_routing_recalibration
   model_architecture -->|"低ランク残差adapter構造のとき"| shared_adapter_rank
@@ -107,6 +109,7 @@ flowchart LR
 | `routing` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 保持モデルから予測を選択または混合する方式 |
 | `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか |
 | `shared_backbone_training` | cli: `--shared-backbone-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか |
+| `shared_backbone_gradient_strategy` | cli: `--shared-backbone-gradient-strategy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 共同学習時の概念別バックボーン勾配を平均または競合射影で統合する方式 |
 | `shared_backbone_routing_recalibration` | cli: `--shared-backbone-routing-recalibration` | 実装済み | 理論上のみ | 対象外 | 対象外 | サーバ集約で共有表現が変化した後にSoftRoutingの累積証拠を扱う方式 |
 | `shared_adapter_rank` | cli: `--shared-adapter-rank` | 実装済み | 理論上のみ | 対象外 | 対象外 | 低ランク残差adapterの最大rank。特徴次元を上限とする |
 | `new_model_creation_policy` | cli: `--new-model-creation-policy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 警報後に新規モデルを即時作成するか、検証してから採用するか |

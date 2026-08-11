@@ -6,6 +6,12 @@ import time
 import torch
 
 from .. import config
+from ..gradient_surgery import (
+    assign_flat_gradient,
+    flatten_parameter_gradients,
+    project_conflicting_gradients,
+    summarize_gradient_conflicts,
+)
 from .fedsda import (
     ClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
@@ -24,6 +30,12 @@ class _SharedRepresentationFedSDAClientMixin:
         super().__init__(*args, **kwargs)
         if not getattr(self.model_cls, "is_shared_backbone_model", False):
             raise TypeError("共有表現modeには共有部を持つモデルが必要です")
+        self.backbone_gradient_diagnostics = {
+            "pair_count": 0,
+            "conflict_count": 0,
+            "cosine_sum": 0.0,
+            "negative_cosine_sum": 0.0,
+        }
         self._share_model_backbones()
 
     def _shared_backbone(self):
@@ -207,20 +219,81 @@ class _SharedRepresentationFedSDAClientMixin:
                 with torch.no_grad():
                     all_features = backbone(all_x)
 
+            losses = []
             weighted_losses = []
+            example_counts = []
             offset = 0
             total_examples = 0
             for model_id, bx, by in batches:
                 batch_examples = len(bx)
                 features = all_features[offset:offset + batch_examples]
                 loss = self.models[model_id].loss_from_features(features, by)
+                losses.append(loss)
                 weighted_losses.append(loss * batch_examples)
+                example_counts.append(batch_examples)
                 offset += batch_examples
                 total_examples += batch_examples
 
             joint_loss = sum(weighted_losses) / total_examples
+            backbone_parameters = tuple(backbone.parameters())
+            gradient_vectors = []
+            gradient_example_counts = []
+            if update_backbone and len(losses) > 1:
+                gradient_records = sorted(
+                    (
+                        (model_id, loss, count)
+                        for (model_id, _, _), loss, count in zip(
+                            batches, losses, example_counts
+                        )
+                    ),
+                    key=lambda record: record[0],
+                )
+                gradient_vectors = [
+                    flatten_parameter_gradients(
+                        torch.autograd.grad(
+                            loss,
+                            backbone_parameters,
+                            retain_graph=True,
+                            allow_unused=True,
+                        ),
+                        backbone_parameters,
+                    )
+                    for _, loss, _ in gradient_records
+                ]
+                gradient_example_counts = [
+                    count for _, _, count in gradient_records
+                ]
+                summary = summarize_gradient_conflicts(gradient_vectors)
+                self.backbone_gradient_diagnostics["pair_count"] += (
+                    summary.pair_count
+                )
+                self.backbone_gradient_diagnostics["conflict_count"] += (
+                    summary.conflict_count
+                )
+                self.backbone_gradient_diagnostics["cosine_sum"] += (
+                    summary.cosine_sum
+                )
+                self.backbone_gradient_diagnostics["negative_cosine_sum"] += (
+                    summary.negative_cosine_sum
+                )
             joint_loss.backward()
             if update_backbone:
+                gradient_strategy = config.SHARED_BACKBONE_GRADIENT_STRATEGY
+                if gradient_strategy == "pcgrad":
+                    if gradient_vectors:
+                        projected = project_conflicting_gradients(gradient_vectors)
+                        combined = sum(
+                            vector * (count / total_examples)
+                            for vector, count in zip(
+                                projected, gradient_example_counts
+                            )
+                        )
+                        assign_flat_gradient(backbone_parameters, combined)
+                elif gradient_strategy != "mean":
+                    raise ValueError(
+                        "未知の共有バックボーン勾配統合方式です: "
+                        f"{gradient_strategy!r}"
+                    )
                 backbone.optimizer.step()
                 self.compute_counters["backbone_optimizer_steps"] += 1
             for model_id, bx, _ in batches:

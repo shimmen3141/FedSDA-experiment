@@ -138,6 +138,7 @@ def test_shared_soft_routing_extracts_features_once_for_two_heads():
 
 def test_joint_training_updates_backbone_once_and_both_heads(monkeypatch):
     monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "joint")
+    monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
     client = _two_head_client()
     _populate_training_store(client)
     backbone_before = {
@@ -155,6 +156,7 @@ def test_joint_training_updates_backbone_once_and_both_heads(monkeypatch):
     assert client.compute_counters["backbone_optimizer_steps"] == 1
     assert client.compute_counters["head_optimizer_steps"] == 2
     assert client.compute_counters["optimizer_steps"] == 2
+    assert client.backbone_gradient_diagnostics["pair_count"] == 1
     assert any(
         not torch.equal(value, backbone_before[name])
         for name, value in client._shared_backbone().state_dict().items()
@@ -164,6 +166,18 @@ def test_joint_training_updates_backbone_once_and_both_heads(monkeypatch):
             not torch.equal(value, heads_before[model_id][name])
             for name, value in model.head.state_dict().items()
         )
+
+
+def test_pcgrad_joint_training_records_diagnostics_and_updates(monkeypatch):
+    monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "joint")
+    monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "pcgrad")
+    client = _two_head_client()
+    _populate_training_store(client)
+
+    client.train_all_held_models()
+
+    assert client.compute_counters["backbone_optimizer_steps"] == 1
+    assert client.backbone_gradient_diagnostics["pair_count"] == 1
 
 
 def test_frozen_training_keeps_backbone_and_updates_both_heads(monkeypatch):

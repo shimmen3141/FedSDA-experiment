@@ -561,6 +561,29 @@ def _add_model_diagnostic_results(results, clients, server):
         ),
     })
 
+    gradient = defaultdict(float)
+    for client in clients:
+        for key, value in getattr(
+            client, "backbone_gradient_diagnostics", {}
+        ).items():
+            gradient[key] += value
+    pair_count = int(gradient["pair_count"])
+    conflict_count = int(gradient["conflict_count"])
+    results.update({
+        "backbone_gradient_pair_count": pair_count,
+        "backbone_gradient_conflict_count": conflict_count,
+        "backbone_gradient_conflict_rate": (
+            conflict_count / pair_count if pair_count else 0.0
+        ),
+        "backbone_gradient_cosine_mean": (
+            gradient["cosine_sum"] / pair_count if pair_count else 0.0
+        ),
+        "backbone_gradient_negative_cosine_mean": (
+            gradient["negative_cosine_sum"] / conflict_count
+            if conflict_count else 0.0
+        ),
+    })
+
 
 def _save_raw_run(
     raw_path,
@@ -835,6 +858,17 @@ def _save_raw_run(
             model_optimizer_steps, dtype=np.int64
         ),
     })
+    for key in (
+        "pair_count", "conflict_count", "cosine_sum", "negative_cosine_sum",
+    ):
+        dtype = np.float64 if "sum" in key else np.int64
+        telemetry_arrays[f"backbone_gradient_{key}s"] = np.asarray(
+            [
+                getattr(client, "backbone_gradient_diagnostics", {}).get(key, 0)
+                for client in clients
+            ],
+            dtype=dtype,
+        )
     pair_records = getattr(server, "pair_prediction_diagnostics", ())
     for key in (
         "candidate_model_id", "target_model_id", "n",
@@ -1031,6 +1065,12 @@ def _save_raw_run(
         shared_backbone_training=np.asarray(
             config.SHARED_BACKBONE_TRAINING
             if is_shared_representation_mode(mode) else "",
+            dtype=np.str_,
+        ),
+        shared_backbone_gradient_strategy=np.asarray(
+            config.SHARED_BACKBONE_GRADIENT_STRATEGY
+            if is_shared_representation_mode(mode)
+            and config.SHARED_BACKBONE_TRAINING == "joint" else "",
             dtype=np.str_,
         ),
         shared_backbone_routing_recalibration=np.asarray(

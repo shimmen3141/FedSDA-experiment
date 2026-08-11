@@ -38,6 +38,7 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.batches == [50, 100, 200, 500]
     assert defaults.concept_schedule == "random"
     assert defaults.shared_backbone_training == "sequential"
+    assert defaults.shared_backbone_gradient_strategy == "mean"
     assert defaults.shared_backbone_routing_recalibration == "none"
     assert defaults.shared_adapter_rank == config.SHARED_ADAPTER_RANK
     assert defaults.duplicate_policy == "error"

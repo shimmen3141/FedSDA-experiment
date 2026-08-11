@@ -89,6 +89,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "fifo_size", "new_model_validation_fraction",
             "new_model_forward_validation_samples",
             "shared_backbone_training",
+            "shared_backbone_gradient_strategy",
             "shared_backbone_routing_recalibration",
             "shared_adapter_rank",
             FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
@@ -173,6 +174,15 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         )
     if (
         is_shared_representation_mode(mode)
+        and config.SHARED_BACKBONE_TRAINING == "joint"
+        and config.SHARED_BACKBONE_GRADIENT_STRATEGY != "mean"
+    ):
+        display_series = (
+            f"{display_series} "
+            f"[gradient={config.SHARED_BACKBONE_GRADIENT_STRATEGY}]"
+        )
+    if (
+        is_shared_representation_mode(mode)
         and config.SHARED_BACKBONE_ROUTING_RECALIBRATION != "none"
     ):
         display_series = (
@@ -251,6 +261,11 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         "shared_backbone_training": (
             config.SHARED_BACKBONE_TRAINING
             if is_shared_representation_mode(mode) else None
+        ),
+        "shared_backbone_gradient_strategy": (
+            config.SHARED_BACKBONE_GRADIENT_STRATEGY
+            if is_shared_representation_mode(mode)
+            and config.SHARED_BACKBONE_TRAINING == "joint" else None
         ),
         "shared_backbone_routing_recalibration": (
             config.SHARED_BACKBONE_ROUTING_RECALIBRATION
@@ -550,6 +565,7 @@ def _load_csv(path):
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("clustering_decision", "distance")
             row.setdefault("shared_backbone_training", "sequential")
+            row.setdefault("shared_backbone_gradient_strategy", "")
             row.setdefault("shared_adapter_rank", "")
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
@@ -941,6 +957,12 @@ def build_parser():
         ),
     )
     fedsda.add_argument(
+        "--shared-backbone-gradient-strategy",
+        choices=config.SHARED_BACKBONE_GRADIENT_STRATEGY_CHOICES,
+        default=config.SHARED_BACKBONE_GRADIENT_STRATEGY,
+        help="joint共有学習の勾配統合方式 (mean / pcgrad)",
+    )
+    fedsda.add_argument(
         "--shared-backbone-routing-recalibration",
         choices=config.SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES,
         default=config.SHARED_BACKBONE_ROUTING_RECALIBRATION,
@@ -1131,6 +1153,9 @@ def main(argv=None):
         "new_model_creation_policy": args.new_model_creation_policy,
         "clustering_decision": args.clustering_decision,
         "shared_backbone_training": args.shared_backbone_training,
+        "shared_backbone_gradient_strategy": (
+            args.shared_backbone_gradient_strategy
+        ),
         "shared_backbone_routing_recalibration": (
             args.shared_backbone_routing_recalibration
         ),
@@ -1173,6 +1198,9 @@ def main(argv=None):
             args.new_model_forward_validation_samples
         ),
         shared_backbone_training=args.shared_backbone_training,
+        shared_backbone_gradient_strategy=(
+            args.shared_backbone_gradient_strategy
+        ),
         shared_backbone_routing_recalibration=(
             args.shared_backbone_routing_recalibration
         ),

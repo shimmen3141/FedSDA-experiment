@@ -97,6 +97,9 @@ FEDSDA_DETECTION_EPISODES_ENABLED = False  # 近接検出をN_FIFO幅の1エピ�
 # frozen=共有部を固定して概念別ヘッドだけ更新する診断方式。
 SHARED_BACKBONE_TRAINING = "sequential"
 SHARED_BACKBONE_TRAINING_CHOICES = ("sequential", "joint", "frozen")
+# joint学習で概念別勾配をそのまま平均するか、競合勾配だけ射影するかを選ぶ。
+SHARED_BACKBONE_GRADIENT_STRATEGY = "mean"
+SHARED_BACKBONE_GRADIENT_STRATEGY_CHOICES = ("mean", "pcgrad")
 # 共有表現がサーバ集約で変化した後に、SoftRoutingの古い累積損失を扱う方法。
 SHARED_BACKBONE_ROUTING_RECALIBRATION = "none"
 SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (

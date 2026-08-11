@@ -168,6 +168,18 @@ OPTIONS = (
         cli_name="shared-backbone-training",
     ),
     OptionSpec(
+        "shared_backbone_gradient_strategy", "共有勾配統合", "model",
+        ("mean", "pcgrad"),
+        "共同学習時の概念別バックボーン勾配を平均または競合射影で統合する方式",
+        (FED_SDA,), (FED_SDA, FED_DRIFT),
+        requires_capabilities=("shared_representation",),
+        active_when=(ActivationRule(
+            "shared_backbone_training", ("joint",),
+            "共有表現をjoint学習するとき",
+        ),),
+        cli_name="shared-backbone-gradient-strategy",
+    ),
+    OptionSpec(
         "shared_backbone_routing_recalibration",
         "共有表現更新後のルーティング再較正",
         "prediction",

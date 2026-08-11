@@ -151,6 +151,28 @@ def test_routing_recalibration_requires_soft_routing():
     }) == ()
 
 
+def test_pcgrad_requires_joint_shared_training():
+    assert validate_selection("FedSDA", {
+        "model_architecture": "residual_adapter",
+        "shared_backbone_training": "sequential",
+        "shared_backbone_gradient_strategy": "pcgrad",
+        "server_flow": "NoCached",
+        "routing": "restarting_soft",
+        "detector": "ClassESR",
+    }) == (
+        "shared_backbone_gradient_strategy is active only when "
+        "共有表現をjoint学習するとき",
+    )
+    assert validate_selection("FedSDA", {
+        "model_architecture": "residual_adapter",
+        "shared_backbone_training": "joint",
+        "shared_backbone_gradient_strategy": "pcgrad",
+        "server_flow": "NoCached",
+        "routing": "restarting_soft",
+        "detector": "ClassESR",
+    }) == ()
+
+
 def test_unknown_option_is_rejected():
     with pytest.raises(KeyError, match="Unknown option id"):
         option("unknown")

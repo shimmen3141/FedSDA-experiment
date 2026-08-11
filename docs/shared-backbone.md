@@ -9,6 +9,7 @@
 |---|---|---|---|
 | モデル構造 | `independent` / `shared_backbone` / `residual_adapter` | パラメータの共有・概念固有範囲 | 複数モデルを持つ手法に適用 |
 | 共有表現のローカル学習 | `sequential` / `joint` / `frozen` | 共有部と概念固有部の更新則 | 共有表現を持つモデル構造だけで有効 |
+| joint勾配統合 | `mean` / `pcgrad` | 概念別損失から得た共有部勾配の統合 | `joint`学習だけで有効 |
 | 予測ルーティング | `hard` / `restarting_soft` / `protected_soft` | 正解観測前の予測の選択・混合 | モデル構造には原理上依存しない |
 | 集約後のルーティング再較正 | `none` / `fifo_replay`等 | SoftRoutingの累積損失 | 共有表現とSoftRoutingの両方が必要 |
 
@@ -126,6 +127,26 @@ adapter・headの専門化も崩れ、共有部には相反する勾配が入る
 
 `joint`と`frozen`は学習則を変えるため高速化オプションではなく、独立した実験条件として扱う。
 CSV・NPZには`shared_backbone_training`を保存し、既定以外ではPareto凡例にも方式を表示する。
+
+### 概念間の勾配競合とPCGrad型更新
+
+`joint`では、各概念ヘッドの損失から共有バックボーンに対する勾配を個別に求める。
+`--shared-backbone-gradient-strategy`で統合方式を選択する。
+
+- `mean`（既定）: サンプル数で加重した平均勾配を用いる。従来の`joint`更新と同じである。
+- `pcgrad`: 二つの概念勾配の内積が負の場合だけ、一方から他方と競合する射影成分を除去してから
+  サンプル数で加重平均する。競合しない勾配は変更せず、新しい数値閾値も追加しない。
+
+診断と更新を切り分けるため、`mean`でも概念勾配対を計測する。次をCSV・NPZへ保存する。
+
+- `backbone_gradient_pair_count`: 比較可能だった概念勾配対の数。
+- `backbone_gradient_conflict_count` / `backbone_gradient_conflict_rate`: cosine類似度が負だった数と割合。
+- `backbone_gradient_cosine_mean`: 全勾配対の平均cosine類似度。
+- `backbone_gradient_negative_cosine_mean`: 競合した勾配対だけの平均cosine類似度。
+
+これにより、PCGradの精度差だけでなく、Circle2の負の転移と勾配競合率が対応するかを検証できる。
+PCGradはローカルoptimizerへ渡す共有勾配だけを変更し、通信内容・サーバ集約・概念別head更新・
+SoftRoutingは変更しない。一方、概念ごとの共有勾配を得るため、通常の平均より計算時間は増える。
 
 実際の更新回数は次の指標で確認できる。
 

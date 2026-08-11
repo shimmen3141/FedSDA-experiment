@@ -1,4 +1,5 @@
 import csv
+from dataclasses import replace
 import json
 from pathlib import Path
 
@@ -82,6 +83,24 @@ def test_csv_backfill_configuration_matches_resolved_experiment():
     assert configuration_from_result_row(row, 5000) == experiment_configuration(
         _experiment(), 5000,
     )
+
+
+def test_default_mean_gradient_strategy_keeps_legacy_configuration_identity():
+    default_configuration = experiment_configuration(_experiment(), 5000)
+    pcgrad_experiment = replace(
+        _experiment(),
+        algorithm=replace(
+            _experiment().algorithm,
+            shared_backbone_gradient_strategy="pcgrad",
+        ),
+    )
+
+    assert "shared_backbone_gradient_strategy" not in (
+        default_configuration["algorithm"]
+    )
+    assert experiment_configuration(pcgrad_experiment, 5000)["algorithm"][
+        "shared_backbone_gradient_strategy"
+    ] == "pcgrad"
 
 
 def test_provenance_changes_when_regression_golden_changes(tmp_path):

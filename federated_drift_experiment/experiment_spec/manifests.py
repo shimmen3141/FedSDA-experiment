@@ -107,7 +107,13 @@ def experiment_configuration(experiment, total_data):
     algorithm = asdict(experiment.algorithm)
     if "SharedBackbone" not in experiment.mode and "ResidualAdapter" not in experiment.mode:
         algorithm.pop("shared_backbone_training", None)
+        algorithm.pop("shared_backbone_gradient_strategy", None)
         algorithm.pop("shared_backbone_routing_recalibration", None)
+    elif (
+        algorithm.get("shared_backbone_training") != "joint"
+        or algorithm.get("shared_backbone_gradient_strategy") == "mean"
+    ):
+        algorithm.pop("shared_backbone_gradient_strategy", None)
     if "ResidualAdapter" not in experiment.mode:
         algorithm.pop("shared_adapter_rank", None)
     return {
@@ -175,6 +181,12 @@ def configuration_from_result_row(row, total_data):
                 "shared_backbone_routing_recalibration"
             ),
         })
+        gradient_strategy = row.get("shared_backbone_gradient_strategy")
+        if (
+            algorithm["shared_backbone_training"] == "joint"
+            and gradient_strategy not in (None, "", "mean")
+        ):
+            algorithm["shared_backbone_gradient_strategy"] = gradient_strategy
     if "ResidualAdapter" in mode:
         algorithm["shared_adapter_rank"] = _optional_number(
             row.get("shared_adapter_rank"), int,

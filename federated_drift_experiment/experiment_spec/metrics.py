@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 5
+METRIC_SCHEMA_VERSION = 6
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -175,6 +175,16 @@ METRICS = (
     ),
     *_make(
         (
+            "backbone_gradient_pair_count",
+            "backbone_gradient_conflict_count",
+            "backbone_gradient_conflict_rate",
+            "backbone_gradient_cosine_mean",
+            "backbone_gradient_negative_cosine_mean",
+        ),
+        "shared_gradient_conflict", DIAGNOSTIC, FEDSDA_METHODS, None,
+    ),
+    *_make(
+        (
             "routing_sample_count", "routing_oracle_accuracy",
             "routing_mixture_accuracy", "routing_leader_accuracy",
             "routing_oracle_gain_rate", "routing_oracle_recovery_rate",
@@ -210,7 +220,7 @@ METRIC_PROFILES = {
     }),
     "model_diagnostics": tuple(metric.id for metric in METRICS if metric.group in {
         "model_learning", "model_complementarity",
-        "soft_routing",
+        "soft_routing", "shared_gradient_conflict",
     }),
     "all": SCALAR_METRIC_IDS,
 }

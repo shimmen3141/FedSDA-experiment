@@ -20,6 +20,7 @@ class AlgorithmOptions:
     shared_backbone_training: str
     shared_backbone_routing_recalibration: str
     shared_adapter_rank: int = 8
+    shared_backbone_gradient_strategy: str = "mean"
 
     @classmethod
     def from_current_config(cls):
@@ -38,6 +39,9 @@ class AlgorithmOptions:
                 config.SHARED_BACKBONE_ROUTING_RECALIBRATION
             ),
             shared_adapter_rank=config.SHARED_ADAPTER_RANK,
+            shared_backbone_gradient_strategy=(
+                config.SHARED_BACKBONE_GRADIENT_STRATEGY
+            ),
         )
 
     def config_overrides(self):
@@ -57,6 +61,9 @@ class AlgorithmOptions:
                 self.shared_backbone_routing_recalibration
             ),
             "SHARED_ADAPTER_RANK": self.shared_adapter_rank,
+            "SHARED_BACKBONE_GRADIENT_STRATEGY": (
+                self.shared_backbone_gradient_strategy
+            ),
         }
 
 
