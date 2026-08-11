@@ -114,6 +114,9 @@ FDE_RUN_DIR=results/results_20260809_example FDE_WORKERS=6 \
   --datasets circle2 --seeds 0 1 2 3 4 --no-feddrift --no-baselines
 ```
 
+`FDE_RUN_DIR`を省略した通常実行では、結果ルートは
+`results/results_<日時>_<variant>/`になる。複数方式を一つの結果ルートへまとめる場合だけ、
+上例のように`FDE_RUN_DIR`を明示し、その下へ方式別サブディレクトリを作る。
 既定では`.venv/bin/python`、4 worker、`PYTHONNOUSERSITE=1`、回復図の自動生成なしを使う。
 環境に応じて`FDE_VENV_DIR`、`FDE_PYTHON`、`FDE_WORKERS`、`FDE_NO_RECOVERY`を上書きできる。
 ラッパーが`--workers`、`--out-dir`、`--raw-dir`、`--tag`、`--no-recovery`を付与するため、

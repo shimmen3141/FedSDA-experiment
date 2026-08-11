@@ -20,6 +20,7 @@ def test_server_sweep_wrapper_exposes_configurable_runtime_defaults():
     ):
         assert variable in source
     assert "set -euo pipefail" in source
+    assert 'results_$(date +%Y%m%d_%H%M%S)_$variant' in source
 
 
 @pytest.mark.skipif(_BASH_UNAVAILABLE, reason="POSIX bashが利用できない環境")

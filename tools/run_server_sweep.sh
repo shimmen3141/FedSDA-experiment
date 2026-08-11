@@ -7,7 +7,7 @@ Usage:
   FDE_RUN_DIR=<directory> [FDE_WORKERS=4] bash tools/run_server_sweep.sh <variant> <run_pareto_sweep options...>
 
 Environment variables:
-  FDE_RUN_DIR       Result root shared by related variants. If omitted, create a timestamped root.
+  FDE_RUN_DIR       Result root shared by related variants. If omitted, create results_<timestamp>_<variant>.
   FDE_WORKERS       Number of independent run processes (default: 4).
   FDE_VENV_DIR      Virtual environment directory (default: <repository>/.venv).
   FDE_PYTHON        Python executable override (default: <venv>/bin/python).
@@ -39,7 +39,13 @@ python_bin=${FDE_PYTHON:-"$venv_dir/bin/python"}
 time_bin=${FDE_TIME_BIN:-/usr/bin/time}
 no_recovery=${FDE_NO_RECOVERY:-1}
 tag=${FDE_TAG:-$variant}
-run_dir=${FDE_RUN_DIR:-"$repo_root/results/results_$(date +%Y%m%d_%H%M%S)"}
+if [[ -n ${FDE_RUN_DIR:-} ]]; then
+    run_dir=$FDE_RUN_DIR
+    variant_dir="$run_dir/$variant"
+else
+    run_dir="$repo_root/results/results_$(date +%Y%m%d_%H%M%S)_$variant"
+    variant_dir=$run_dir
+fi
 
 if [[ ! $workers =~ ^[1-9][0-9]*$ ]]; then
     echo "FDE_WORKERS must be a positive integer: $workers" >&2
@@ -61,7 +67,6 @@ done
 if [[ $run_dir != /* ]]; then
     run_dir="$repo_root/$run_dir"
 fi
-variant_dir="$run_dir/$variant"
 pareto_dir="$variant_dir/pareto"
 raw_dir="$variant_dir/raw"
 log_dir="$run_dir/logs"
