@@ -31,6 +31,8 @@ results/baselines/fedsda/
 `architectures/`は検出・モデル作成・クラスタリング等を固定し、モデル構造だけを変更した比較を置く。
 `residual_adapter_rank8/`には、joint学習、FIFO再較正、Restarting SoftRoutingを用いた低ランク残差
 adapterのrandom schedule・全6データセット・5シード・集約間隔`50/100/200/500`の結果を保存する。
+同じ構成の`feddrift_fixed` schedule結果は
+`schedules/feddrift_fixed/residual_adapter_rank8/<dataset>/`へ保存し、FedDrift固定baselineと直接比較できるようにする。
 
 ## 単一軸baselineと多因子ablation
 
@@ -39,6 +41,18 @@ adapterのrandom schedule・全6データセット・5シード・集約間隔`5
 study直下の`manifest.json`には、研究上の比較目的、全variantに共通する設定、比較軸、基準variantを
 記録する。各`variants/<variant_id>/manifest.json`には、そのvariant固有のmode・上書き設定・元実験・
 欠測データセット・出力ハッシュを記録する。
+
+実行manifestは実験開始時に機械生成する。一方、studyの`title`と`question`はログから推定せず、
+実験群をbaselineへ整理する時点でUTF-8のstudy定義へ人間が記述する。定義と各variant manifestから
+study manifestを再生成するコマンドは次のとおりである。
+
+```bash
+python -m tools.baselines.build_fedsda_study \
+  --definition tools/baselines/studies/residual_adapter_routing_ablation.json \
+  --study-root results/baselines/fedsda/studies/residual_adapter_routing_ablation
+```
+
+整理後の検証では末尾へ`--check`を付け、定義・variant・生成済みmanifestの不一致を検出する。
 
 `studies/residual_adapter_routing_ablation/`は、Residual Adapter rank 8について、hard routing、
 Restarting SoftRouting、集約後FIFO再較正の寄与を分離した比較である。全variantはrandom schedule、

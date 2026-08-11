@@ -1,0 +1,64 @@
+{
+  "study_id": "residual_adapter_routing_ablation",
+  "title": "Residual Adapterのルーティング・再較正ablation",
+  "status": "ablation_reference",
+  "question": "hard routing、Restarting SoftRouting、FIFO再較正の寄与を分離する",
+  "comparison_axes": {
+    "routing": [
+      "hard",
+      "restarting_soft"
+    ],
+    "shared_backbone_routing_recalibration": [
+      "not_applicable",
+      "none",
+      "fifo_replay"
+    ]
+  },
+  "common_configuration": {
+    "datasets": [
+      "circle2",
+      "mnist2",
+      "mnist4",
+      "sea2",
+      "sea4",
+      "sine2"
+    ],
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "total_data": 5000,
+    "concept_schedule": "random",
+    "aggregation_interval": [
+      50,
+      200
+    ],
+    "detector": "ClassESR",
+    "server_flow": "NoCached",
+    "fedsda_distance_threshold": 0.1,
+    "clustering_policy": "on_new_model",
+    "clustering_decision": "distance",
+    "new_model_creation_policy": "forward_persistent",
+    "fifo_size": 30,
+    "new_model_forward_validation_samples": 10,
+    "model_architecture": "residual_adapter",
+    "shared_backbone_training": "joint",
+    "shared_adapter_rank": 8,
+    "detection_episodes": false
+  },
+  "reference_variant": "restarting_soft_fifo_replay",
+  "variants": {
+    "hard_routing": {
+      "path": "variants/hard_routing"
+    },
+    "restarting_soft_no_recalibration": {
+      "path": "variants/restarting_soft_no_recalibration"
+    },
+    "restarting_soft_fifo_replay": {
+      "path": "variants/restarting_soft_fifo_replay"
+    }
+  }
+}
