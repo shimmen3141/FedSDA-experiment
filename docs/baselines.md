@@ -34,6 +34,9 @@ adapterのrandom schedule・全6データセット・5シード・集約間隔`5
 同じ構成の`feddrift_fixed` schedule結果は
 `schedules/feddrift_fixed/residual_adapter_rank8/<dataset>/`へ保存し、FedDrift固定baselineと直接比較できるようにする。
 
+`routing/restarting_soft_routing_class_esr/`には、独立モデル構造へRestarting SoftRoutingを適用した
+random schedule・全6データセット・5シード・集約間隔`50/100/200/500`の比較結果を保存する。
+
 ## 単一軸baselineと多因子ablation
 
 `detectors/`や`architectures/`などは、一つの主な比較軸を持つ方式の索引として使う。複数オプションの
