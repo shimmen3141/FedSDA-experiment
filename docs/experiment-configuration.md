@@ -2,6 +2,33 @@
 
 実験コードでは、「一回のrunで何を実行するか」と「何通りのrunを生成するか」を分離する。
 
+## 実行manifestと重複検出
+
+`run_pareto_sweep.py`は実験開始時、Pareto・raw出力先の共通親へ`manifest.json`を作成する。
+manifestには解決済みrun設定、CLI引数、コード・実行環境・回帰goldenのSHA-256、開始時刻を保存し、
+正常終了時にCSVハッシュ・raw件数・完了時刻を追記する。例外や中断を捕捉できた場合は`failed`、
+プロセスが強制終了した場合は`running`のまま残るため、未完了結果も区別できる。
+
+開始前には`results/`以下の完了manifestをrun単位で照合する。既定の`warn`は実験を継続し、
+`--duplicate-policy error`は同一設定・同一実装・同一数値環境・同一goldenのrunが一つでもあれば
+開始しない。コードまたはgoldenが異なる場合は「設定一致・由来相違」として表示するだけで、
+実験済みとは判定しない。照合自体が不要な場合だけ`--duplicate-policy ignore`を使う。
+
+過去のCSVにはコード由来が保存されていないため、次で事後manifestを作成できる。
+
+```bash
+python -m tools.experiments.manifests backfill results/results_YYYYMMDD_HHMMSS
+python -m tools.experiments.manifests backfill results --recursive
+```
+
+`--recursive`は各`pareto/`の親を独立した実験variantとして検出し、回復分析などのCSVを除外して
+一括補完する。このmanifestは`provenance_status=unknown_backfill`となり、将来の実験と設定が一致しても警告だけで
+自動停止の根拠にはしない。結果全体の一覧と重複群は次でMarkdown化できる。
+
+```bash
+python -m tools.experiments.manifests audit --results-root results --output results/experiment-manifest-audit.md
+```
+
 ## ExperimentConfiguration
 
 [`experiment_spec/configuration.py`](../federated_drift_experiment/experiment_spec/configuration.py)の

@@ -58,6 +58,11 @@ from federated_drift_experiment.experiment_spec.options import (
     validate_sweep_dependencies,
 )
 from federated_drift_experiment.experiment_spec.sweep import create_sweep_plan
+from federated_drift_experiment.experiment_spec.manifests import (
+    ExperimentManifestSession,
+    format_overlap_summary,
+    overlap_run_count,
+)
 
 # この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
 # 既定の出力先は results/results_<YYYYMMDD_HHMMSS>/... となり実行ごとに別ディレクトリへ分かれる。
@@ -980,6 +985,19 @@ def build_parser():
     output.add_argument("--tag", default=None, help="出力ファイル名に付ける識別子")
     output.add_argument("--print-plan", action="store_true",
                         help="解決済みのmode・掃引軸・固定値・run数を表示して終了")
+    output.add_argument(
+        "--manifest", action=argparse.BooleanOptionalAction, default=True,
+        help="実験計画・コード由来・完了状態をvariant直下のmanifest.jsonへ保存",
+    )
+    output.add_argument(
+        "--duplicate-policy", choices=("ignore", "warn", "error"),
+        default="warn",
+        help="同一設定・同一コード・同一goldenの完了runを開始前に扱う方法",
+    )
+    output.add_argument(
+        "--existing-results-root", default="results",
+        help="重複照合で走査する結果ルート",
+    )
 
     output.add_argument(
         "--workers", type=int, default=1,
@@ -1101,6 +1119,8 @@ def main(argv=None):
             args.shared_backbone_routing_recalibration
         ),
         "shared_adapter_rank": args.shared_adapter_rank,
+        "experiment_manifest": "on" if args.manifest else "off",
+        "duplicate_policy": args.duplicate_policy,
     }
     issues = validate_explicit_options(selected_modes, selections, explicit_ids)
     issues += validate_sweep_dependencies(raw_argv, {
@@ -1188,25 +1208,55 @@ def main(argv=None):
         os.makedirs(args.raw_dir, exist_ok=True)
         print(f"Raw per-run data (.npz) -> {args.raw_dir}")
 
-    rows = run_sweep_plan(plan, raw_dir=args.raw_dir, workers=args.workers)
-    write_csv(rows, os.path.join(args.out_dir, f"{slug}.csv"))
-    plot_pareto(rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"),
-                y_key=args.plot_metric)
+    manifest_session = None
+    if args.manifest:
+        manifest_session = ExperimentManifestSession.start(
+            plan=plan, total_data=config.TOTAL_DATA_POINTS,
+            argv=raw_argv, out_dir=args.out_dir, raw_dir=args.raw_dir,
+            tag=args.tag, results_root=args.existing_results_root,
+        )
+        if args.duplicate_policy != "ignore":
+            print(format_overlap_summary(manifest_session.manifest["overlaps"]))
+        exact_overlap = overlap_run_count(
+            manifest_session.manifest["overlaps"], "exact",
+        )
+        if args.duplicate_policy == "error" and exact_overlap:
+            error = RuntimeError(
+                f"{exact_overlap} runsは同一コード・goldenで完了済みです"
+            )
+            manifest_session.fail(error)
+            parser.error(str(error))
 
-    # 掃引で保存した生データ(.npz)から回復図・表を自動生成する。
-    # recovery は軽い事後分析なので、パラメータを変えて後から recovery_analysis.py 単体で
-    # 何度でも回せる(--no-recovery でこの自動実行を抑止)。
-    if not args.no_recovery and args.raw_dir:
-        import glob
-        from recovery_analysis import load_npz, generate_recovery_outputs, infer_out_dir
-        npz_paths = sorted(glob.glob(os.path.join(args.raw_dir, "*.npz")))
-        if npz_paths:
-            rec_dir = infer_out_dir(npz_paths)
-            print(f"回復分析: {len(npz_paths)} npz -> {rec_dir}")
-            recs = [load_npz(p) for p in npz_paths]
-            generate_recovery_outputs(recs, rec_dir, tag=args.tag)
-        else:
-            print("回復分析: raw npz が見つからないためスキップ")
+    metrics_path = os.path.join(args.out_dir, f"{slug}.csv")
+    try:
+        rows = run_sweep_plan(plan, raw_dir=args.raw_dir, workers=args.workers)
+        write_csv(rows, metrics_path)
+        plot_pareto(
+            rows, args.datasets, os.path.join(args.out_dir, f"{slug}.png"),
+            y_key=args.plot_metric,
+        )
+
+        # 掃引で保存した生データ(.npz)から回復図・表を自動生成する。
+        # recovery は軽い事後分析なので、パラメータを変えて後から recovery_analysis.py 単体で
+        # 何度でも回せる(--no-recovery でこの自動実行を抑止)。
+        if not args.no_recovery and args.raw_dir:
+            import glob
+            from recovery_analysis import load_npz, generate_recovery_outputs, infer_out_dir
+            npz_paths = sorted(glob.glob(os.path.join(args.raw_dir, "*.npz")))
+            if npz_paths:
+                rec_dir = infer_out_dir(npz_paths)
+                print(f"回復分析: {len(npz_paths)} npz -> {rec_dir}")
+                recs = [load_npz(p) for p in npz_paths]
+                generate_recovery_outputs(recs, rec_dir, tag=args.tag)
+            else:
+                print("回復分析: raw npz が見つからないためスキップ")
+    except BaseException as error:
+        if manifest_session is not None:
+            manifest_session.fail(error)
+        raise
+    else:
+        if manifest_session is not None:
+            manifest_session.complete(metrics_path, args.raw_dir)
     print("Done.")
 
 

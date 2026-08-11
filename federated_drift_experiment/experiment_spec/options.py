@@ -362,6 +362,21 @@ OPTIONS = (
         ("non-negative integer",), "新規FedDriftモデルをマージ対象から外す時刻数",
         (FED_DRIFT,), (FED_DRIFT,), cli_name="feddrift-isolation",
     ),
+    OptionSpec(
+        "experiment_manifest", "実験manifest", "execution",
+        ("off", "on"), "実験計画・実装由来・完了状態を出力先へ保存する",
+        (FED_SDA, FED_DRIFT, WITHOUT_SERVER, OBLIVIOUS),
+        (FED_SDA, FED_DRIFT, WITHOUT_SERVER, OBLIVIOUS),
+        cli_name="manifest",
+    ),
+    OptionSpec(
+        "duplicate_policy", "既存実験重複ポリシー", "execution",
+        ("ignore", "warn", "error"),
+        "同一設定・同一コード・同一goldenの完了runを開始前に扱う方法",
+        (FED_SDA, FED_DRIFT, WITHOUT_SERVER, OBLIVIOUS),
+        (FED_SDA, FED_DRIFT, WITHOUT_SERVER, OBLIVIOUS),
+        cli_name="duplicate-policy",
+    ),
 )
 
 CHOICE_CONSTRAINTS = (
@@ -726,8 +741,8 @@ def render_option_document():
         "",
         "この文書は`experiment_spec/options.py`から自動生成する。直接編集せず、",
         "`python -m tools.generate_option_docs`で更新する。",
-        "対象はアルゴリズムの挙動を変えるオプションであり、出力先・seed・再描画などの",
-        "実験運用オプションは含めない。数値パラメータのコード・CLI・論文記号の対応は",
+        "対象はアルゴリズムの挙動と再現性管理を変えるオプションであり、出力先・seed・再描画などの",
+        "単純な入出力指定は含めない。数値パラメータのコード・CLI・論文記号の対応は",
         "`experiment_spec/parameters.py`を正本とする。",
         "",
         "## 読み方",

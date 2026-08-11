@@ -2,8 +2,8 @@
 
 この文書は`experiment_spec/options.py`から自動生成する。直接編集せず、
 `python -m tools.generate_option_docs`で更新する。
-対象はアルゴリズムの挙動を変えるオプションであり、出力先・seed・再描画などの
-実験運用オプションは含めない。数値パラメータのコード・CLI・論文記号の対応は
+対象はアルゴリズムの挙動と再現性管理を変えるオプションであり、出力先・seed・再描画などの
+単純な入出力指定は含めない。数値パラメータのコード・CLI・論文記号の対応は
 `experiment_spec/parameters.py`を正本とする。
 
 ## 読み方
@@ -67,6 +67,10 @@ flowchart LR
     aggregation_interval["<b>集約間隔 A</b><br/>positive integer"]
     feddrift_detection_batch_size["<b>FedDrift検出バッチ B_detect</b><br/>positive integer"]
   end
+  subgraph group_execution[execution]
+    experiment_manifest["<b>実験manifest</b><br/>off | on"]
+    duplicate_policy["<b>既存実験重複ポリシー</b><br/>ignore | warn | error"]
+  end
   model_architecture -->|"共有表現構造のとき"| shared_backbone_training
   model_architecture -->|"共有表現構造のとき"| shared_backbone_routing_recalibration
   routing -->|"Restarting SoftRoutingのとき"| shared_backbone_routing_recalibration
@@ -125,6 +129,8 @@ flowchart LR
 | `aggregation_interval` | cli: `--aggregation-intervals` | 実装済み | 対象外 | 実装済み | 実装済み | FedSDAとObliviousの通信ラウンド間隔 |
 | `feddrift_detection_batch_size` | cli: `--feddrift-detection-batch-sizes` | 対象外 | 実装済み | 対象外 | 対象外 | FedDriftの処理・検出・通信を兼ねるバッチサイズ |
 | `feddrift_isolation_timesteps` | cli: `--feddrift-isolation` | 対象外 | 実装済み | 対象外 | 対象外 | 新規FedDriftモデルをマージ対象から外す時刻数 |
+| `experiment_manifest` | cli: `--manifest` | 実装済み | 実装済み | 実装済み | 実装済み | 実験計画・実装由来・完了状態を出力先へ保存する |
+| `duplicate_policy` | cli: `--duplicate-policy` | 実装済み | 実装済み | 実装済み | 実装済み | 同一設定・同一コード・同一goldenの完了runを開始前に扱う方法 |
 
 ## 重要な依存関係
 
