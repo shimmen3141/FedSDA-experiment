@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 7
+METRIC_SCHEMA_VERSION = 8
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -139,6 +139,7 @@ METRICS = (
     *_make(
         (
             "compute_inference_examples_total", "compute_training_examples_total",
+            "compute_gradient_validation_examples_total",
             "compute_model_examples_total", "compute_optimizer_steps_total",
             "compute_drift_detector_updates_total", "compute_drift_detector_hypotheses_total",
             "compute_backbone_examples_total", "compute_head_examples_total",
@@ -189,6 +190,14 @@ METRICS = (
             "backbone_gradient_update_cosine_mean",
             "backbone_gradient_update_norm_ratio_mean",
             "backbone_gradient_update_delta_ratio_mean",
+            "backbone_gradient_validation_selection_count",
+            "backbone_gradient_validation_pcgrad_selection_count",
+            "backbone_gradient_validation_pcgrad_selection_rate",
+            "backbone_gradient_validation_mean_selection_count",
+            "backbone_gradient_validation_fallback_count",
+            "backbone_gradient_validation_mean_alignment_mean",
+            "backbone_gradient_validation_pcgrad_alignment_mean",
+            "backbone_gradient_validation_selected_margin_mean",
         ),
         "shared_gradient_conflict", DIAGNOSTIC, FEDSDA_METHODS, None,
     ),

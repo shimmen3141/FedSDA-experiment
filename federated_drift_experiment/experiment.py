@@ -366,6 +366,7 @@ _COMPUTE_COUNTER_KEYS = (
     "cross_evaluation_forward_calls", "cross_evaluation_examples",
     "initialization_forward_calls", "initialization_examples",
     "routing_recalibration_forward_calls", "routing_recalibration_examples",
+    "gradient_validation_forward_calls", "gradient_validation_examples",
     "training_forward_calls", "training_examples", "optimizer_steps",
     "backbone_optimizer_steps", "head_optimizer_steps",
     "backbone_examples", "head_examples",
@@ -426,7 +427,9 @@ def _add_telemetry_results(results, clients, telemetry):
         totals[f"{phase}_examples"] for phase in inference_phases
     )
     results["compute_model_examples_total"] = (
-        results["compute_inference_examples_total"] + totals["training_examples"]
+        results["compute_inference_examples_total"]
+        + totals["training_examples"]
+        + totals["gradient_validation_examples"]
     )
     results["compute_backbone_examples_total"] = totals["backbone_examples"]
     results["compute_head_examples_total"] = totals["head_examples"]
@@ -572,6 +575,7 @@ def _add_model_diagnostic_results(results, clients, server):
     applied_pair_count = int(gradient["applied_pair_count"])
     applied_conflict_count = int(gradient["applied_conflict_count"])
     update_comparison_count = int(gradient["update_comparison_count"])
+    validation_selection_count = int(gradient["validation_selection_count"])
     results.update({
         "backbone_gradient_pair_count": pair_count,
         "backbone_gradient_conflict_count": conflict_count,
@@ -611,6 +615,38 @@ def _add_model_diagnostic_results(results, clients, server):
         "backbone_gradient_update_delta_ratio_mean": (
             gradient["update_delta_ratio_sum"] / update_comparison_count
             if update_comparison_count else 0.0
+        ),
+        "backbone_gradient_validation_selection_count": (
+            validation_selection_count
+        ),
+        "backbone_gradient_validation_pcgrad_selection_count": int(
+            gradient["validation_pcgrad_selection_count"]
+        ),
+        "backbone_gradient_validation_pcgrad_selection_rate": (
+            gradient["validation_pcgrad_selection_count"]
+            / validation_selection_count
+            if validation_selection_count else 0.0
+        ),
+        "backbone_gradient_validation_mean_selection_count": int(
+            gradient["validation_mean_selection_count"]
+        ),
+        "backbone_gradient_validation_fallback_count": int(
+            gradient["validation_fallback_count"]
+        ),
+        "backbone_gradient_validation_mean_alignment_mean": (
+            gradient["validation_mean_alignment_sum"]
+            / validation_selection_count
+            if validation_selection_count else 0.0
+        ),
+        "backbone_gradient_validation_pcgrad_alignment_mean": (
+            gradient["validation_pcgrad_alignment_sum"]
+            / validation_selection_count
+            if validation_selection_count else 0.0
+        ),
+        "backbone_gradient_validation_selected_margin_mean": (
+            gradient["validation_selected_margin_sum"]
+            / validation_selection_count
+            if validation_selection_count else 0.0
         ),
     })
 
@@ -894,6 +930,10 @@ def _save_raw_run(
         "applied_cosine_sum", "applied_negative_cosine_sum",
         "update_comparison_count", "update_cosine_sum",
         "update_norm_ratio_sum", "update_delta_ratio_sum",
+        "validation_selection_count", "validation_pcgrad_selection_count",
+        "validation_mean_selection_count", "validation_fallback_count",
+        "validation_mean_alignment_sum", "validation_pcgrad_alignment_sum",
+        "validation_selected_margin_sum",
     ):
         dtype = np.float64 if "sum" in key else np.int64
         telemetry_arrays[f"backbone_gradient_{key}s"] = np.asarray(

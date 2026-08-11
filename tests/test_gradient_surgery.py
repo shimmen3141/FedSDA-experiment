@@ -3,6 +3,7 @@ import torch
 from federated_drift_experiment.gradient_surgery import (
     compare_gradient_updates,
     project_conflicting_gradients,
+    select_gradient_by_validation,
     summarize_gradient_conflicts,
 )
 
@@ -48,3 +49,29 @@ def test_projected_gradients_and_applied_update_can_be_compared():
 
 def test_zero_reference_update_has_no_comparison():
     assert compare_gradient_updates(torch.zeros(2), torch.ones(2)) is None
+
+
+def test_validation_selects_better_aligned_candidate():
+    selection = select_gradient_by_validation(
+        torch.tensor([1.0, 1.0]),
+        torch.tensor([1.0, 0.0]),
+        torch.tensor([1.0, 0.0]),
+    )
+
+    assert selection is not None
+    assert selection.strategy == "pcgrad"
+    assert selection.pcgrad_alignment > selection.mean_alignment
+
+
+def test_validation_tie_prefers_mean_and_zero_is_not_comparable():
+    tie = select_gradient_by_validation(
+        torch.tensor([1.0, 0.0]),
+        torch.tensor([2.0, 0.0]),
+        torch.tensor([1.0, 0.0]),
+    )
+
+    assert tie is not None
+    assert tie.strategy == "mean"
+    assert select_gradient_by_validation(
+        torch.zeros(2), torch.ones(2), torch.ones(2)
+    ) is None

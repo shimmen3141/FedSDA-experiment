@@ -1,5 +1,6 @@
 """共有バックボーンと概念別ヘッドを使うFedSDAクライアント。"""
 
+from dataclasses import dataclass
 import random
 import time
 
@@ -11,12 +12,24 @@ from ..gradient_surgery import (
     compare_gradient_updates,
     flatten_parameter_gradients,
     project_conflicting_gradients,
+    select_gradient_by_validation,
     summarize_gradient_conflicts,
 )
 from .fedsda import (
     ClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
 )
+
+
+@dataclass(frozen=True)
+class _JointTrainingBatch:
+    """共同更新用の学習標本と、重複しない直近検証標本。"""
+
+    model_id: int
+    x: torch.Tensor
+    y: torch.Tensor
+    validation_x: torch.Tensor | None = None
+    validation_y: torch.Tensor | None = None
 
 
 class _SharedRepresentationFedSDAClientMixin:
@@ -44,6 +57,13 @@ class _SharedRepresentationFedSDAClientMixin:
             "update_cosine_sum": 0.0,
             "update_norm_ratio_sum": 0.0,
             "update_delta_ratio_sum": 0.0,
+            "validation_selection_count": 0,
+            "validation_pcgrad_selection_count": 0,
+            "validation_mean_selection_count": 0,
+            "validation_fallback_count": 0,
+            "validation_mean_alignment_sum": 0.0,
+            "validation_pcgrad_alignment_sum": 0.0,
+            "validation_selected_margin_sum": 0.0,
         }
         self._share_model_backbones()
 
@@ -192,35 +212,178 @@ class _SharedRepresentationFedSDAClientMixin:
         super()._update_tournament_shadows(session, x, y)
         self._record_independent_shared_model_steps(steps_before)
 
-    def _sample_training_batches(self):
-        """一回の共同更新へ参加できるヘッドとミニバッチを抽出する。"""
+    def _sample_training_batches(self, include_validation=False):
+        """共同更新用バッチと、必要なら重複しない直近検証バッチを作る。
+
+        検証側は概念ストアの末尾から取得し、学習側の乱数列を変えない。学習と
+        同数の検証標本を確保できないヘッドが一つでもあれば、呼出側でmeanへ
+        フォールバックする。
+        """
         batches = []
         for model_id, data_list in self.train_data_store.items():
             if model_id not in self.models or len(data_list) < self.batch_size:
                 continue
-            batch = random.sample(data_list, self.batch_size)
-            batches.append((
-                model_id,
-                torch.cat([sample[0] for sample in batch]),
-                torch.cat([sample[1] for sample in batch]),
+            training_samples = random.sample(data_list, self.batch_size)
+            validation_samples = None
+            if include_validation and len(data_list) >= 2 * self.batch_size:
+                training_ids = {id(sample) for sample in training_samples}
+                held_out = [
+                    sample for sample in reversed(data_list)
+                    if id(sample) not in training_ids
+                ][:self.batch_size]
+                if len(held_out) == self.batch_size:
+                    validation_samples = held_out
+            batches.append(_JointTrainingBatch(
+                model_id=model_id,
+                x=torch.cat([sample[0] for sample in training_samples]),
+                y=torch.cat([sample[1] for sample in training_samples]),
+                validation_x=(
+                    torch.cat([sample[0] for sample in validation_samples])
+                    if validation_samples is not None else None
+                ),
+                validation_y=(
+                    torch.cat([sample[1] for sample in validation_samples])
+                    if validation_samples is not None else None
+                ),
             ))
         return batches
+
+    @staticmethod
+    def _combine_gradients(vectors, example_counts):
+        total_examples = sum(example_counts)
+        return sum(
+            vector * (count / total_examples)
+            for vector, count in zip(vectors, example_counts)
+        )
+
+    def _validation_gradient(self, batches, backbone, backbone_parameters):
+        """各概念の重複しない直近バッチから共有部の検証勾配を求める。"""
+        if any(batch.validation_x is None for batch in batches):
+            return None
+
+        ordered = sorted(batches, key=lambda batch: batch.model_id)
+        all_x = torch.cat([batch.validation_x for batch in ordered])
+        features = backbone(all_x)
+        weighted_losses = []
+        total_examples = 0
+        offset = 0
+        for batch in ordered:
+            count = len(batch.validation_x)
+            model_features = features[offset:offset + count]
+            loss = self.models[batch.model_id].loss_from_features(
+                model_features, batch.validation_y
+            )
+            weighted_losses.append(loss * count)
+            total_examples += count
+            offset += count
+        validation_loss = sum(weighted_losses) / total_examples
+        gradient = flatten_parameter_gradients(
+            torch.autograd.grad(
+                validation_loss,
+                backbone_parameters,
+                allow_unused=True,
+            ),
+            backbone_parameters,
+        )
+        self._record_model_compute(
+            "gradient_validation",
+            total_examples,
+            calls=len(ordered),
+            backbone_examples=total_examples,
+            head_examples=total_examples,
+        )
+        return gradient
+
+    def _select_applied_gradients(
+        self,
+        strategy,
+        gradient_vectors,
+        example_counts,
+        batches,
+        backbone,
+        backbone_parameters,
+    ):
+        """設定方式に従い、optimizerへ渡す概念別・統合勾配を返す。"""
+        mean_combined = self._combine_gradients(
+            gradient_vectors, example_counts
+        )
+        if strategy == "mean":
+            return gradient_vectors, mean_combined
+
+        projected_vectors = project_conflicting_gradients(gradient_vectors)
+        pcgrad_combined = self._combine_gradients(
+            projected_vectors, example_counts
+        )
+        if strategy == "pcgrad":
+            return projected_vectors, pcgrad_combined
+
+        validation_gradient = self._validation_gradient(
+            batches, backbone, backbone_parameters
+        )
+        if validation_gradient is None:
+            self.backbone_gradient_diagnostics[
+                "validation_fallback_count"
+            ] += 1
+            return gradient_vectors, mean_combined
+
+        selection = select_gradient_by_validation(
+            mean_combined, pcgrad_combined, validation_gradient
+        )
+        if selection is None:
+            self.backbone_gradient_diagnostics[
+                "validation_fallback_count"
+            ] += 1
+            return gradient_vectors, mean_combined
+
+        diagnostics = self.backbone_gradient_diagnostics
+        diagnostics["validation_selection_count"] += 1
+        diagnostics[f"validation_{selection.strategy}_selection_count"] += 1
+        diagnostics["validation_mean_alignment_sum"] += (
+            selection.mean_alignment
+        )
+        diagnostics["validation_pcgrad_alignment_sum"] += (
+            selection.pcgrad_alignment
+        )
+        diagnostics["validation_selected_margin_sum"] += abs(
+            selection.pcgrad_alignment - selection.mean_alignment
+        )
+        return (
+            (projected_vectors, pcgrad_combined)
+            if selection.strategy == "pcgrad"
+            else (gradient_vectors, mean_combined)
+        )
 
     def _train_heads_together(self, count_multiplier, update_backbone):
         """全参加ヘッドの損失を平均し、共有部の更新を最大1回にまとめる。"""
         start_time = time.perf_counter()
         updates_needed = self.updates_per_sample * count_multiplier
         for _ in range(updates_needed):
-            batches = self._sample_training_batches()
+            gradient_strategy = config.SHARED_BACKBONE_GRADIENT_STRATEGY
+            if (
+                update_backbone
+                and gradient_strategy not in {
+                    "mean", "pcgrad", "heldout_selected",
+                }
+            ):
+                raise ValueError(
+                    "未知の共有バックボーン勾配統合方式です: "
+                    f"{gradient_strategy!r}"
+                )
+            batches = self._sample_training_batches(
+                include_validation=(
+                    update_backbone
+                    and gradient_strategy == "heldout_selected"
+                )
+            )
             if not batches:
                 continue
 
             backbone = self._shared_backbone()
             backbone.optimizer.zero_grad()
-            for model_id, _, _ in batches:
-                self.models[model_id].head_optimizer.zero_grad()
+            for batch in batches:
+                self.models[batch.model_id].head_optimizer.zero_grad()
 
-            all_x = torch.cat([bx for _, bx, _ in batches])
+            all_x = torch.cat([batch.x for batch in batches])
             if update_backbone:
                 all_features = backbone(all_x)
             else:
@@ -233,10 +396,12 @@ class _SharedRepresentationFedSDAClientMixin:
             example_counts = []
             offset = 0
             total_examples = 0
-            for model_id, bx, by in batches:
-                batch_examples = len(bx)
+            for batch in batches:
+                batch_examples = len(batch.x)
                 features = all_features[offset:offset + batch_examples]
-                loss = self.models[model_id].loss_from_features(features, by)
+                loss = self.models[batch.model_id].loss_from_features(
+                    features, batch.y
+                )
                 losses.append(loss)
                 weighted_losses.append(loss * batch_examples)
                 example_counts.append(batch_examples)
@@ -248,20 +413,11 @@ class _SharedRepresentationFedSDAClientMixin:
             gradient_vectors = []
             gradient_example_counts = []
             applied_combined_gradient = None
-            gradient_strategy = config.SHARED_BACKBONE_GRADIENT_STRATEGY
-            if (
-                update_backbone
-                and gradient_strategy not in {"mean", "pcgrad"}
-            ):
-                raise ValueError(
-                    "未知の共有バックボーン勾配統合方式です: "
-                    f"{gradient_strategy!r}"
-                )
             if update_backbone and len(losses) > 1:
                 gradient_records = sorted(
                     (
-                        (model_id, loss, count)
-                        for (model_id, _, _), loss, count in zip(
+                        (batch.model_id, loss, count)
+                        for batch, loss, count in zip(
                             batches, losses, example_counts
                         )
                     ),
@@ -295,10 +451,15 @@ class _SharedRepresentationFedSDAClientMixin:
                 self.backbone_gradient_diagnostics["negative_cosine_sum"] += (
                     summary.negative_cosine_sum
                 )
-                applied_vectors = (
-                    project_conflicting_gradients(gradient_vectors)
-                    if gradient_strategy == "pcgrad"
-                    else gradient_vectors
+                applied_vectors, applied_combined_gradient = (
+                    self._select_applied_gradients(
+                        gradient_strategy,
+                        gradient_vectors,
+                        gradient_example_counts,
+                        batches,
+                        backbone,
+                        backbone_parameters,
+                    )
                 )
                 applied_summary = summarize_gradient_conflicts(applied_vectors)
                 self.backbone_gradient_diagnostics["applied_pair_count"] += (
@@ -314,17 +475,8 @@ class _SharedRepresentationFedSDAClientMixin:
                     "applied_negative_cosine_sum"
                 ] += applied_summary.negative_cosine_sum
 
-                reference_combined_gradient = sum(
-                    vector * (count / total_examples)
-                    for vector, count in zip(
-                        gradient_vectors, gradient_example_counts
-                    )
-                )
-                applied_combined_gradient = sum(
-                    vector * (count / total_examples)
-                    for vector, count in zip(
-                        applied_vectors, gradient_example_counts
-                    )
+                reference_combined_gradient = self._combine_gradients(
+                    gradient_vectors, gradient_example_counts
                 )
                 comparison = compare_gradient_updates(
                     reference_combined_gradient,
@@ -345,17 +497,17 @@ class _SharedRepresentationFedSDAClientMixin:
                     ] += comparison.delta_ratio
             joint_loss.backward()
             if update_backbone:
-                if gradient_strategy == "pcgrad":
+                if gradient_strategy in {"pcgrad", "heldout_selected"}:
                     if applied_combined_gradient is not None:
                         assign_flat_gradient(
                             backbone_parameters, applied_combined_gradient
                         )
                 backbone.optimizer.step()
                 self.compute_counters["backbone_optimizer_steps"] += 1
-            for model_id, bx, _ in batches:
-                self.models[model_id].head_optimizer.step()
-                self.model_training_examples[model_id] += len(bx)
-                self.model_optimizer_steps[model_id] += 1
+            for batch in batches:
+                self.models[batch.model_id].head_optimizer.step()
+                self.model_training_examples[batch.model_id] += len(batch.x)
+                self.model_optimizer_steps[batch.model_id] += 1
 
             head_steps = len(batches)
             self.compute_counters["head_optimizer_steps"] += head_steps
