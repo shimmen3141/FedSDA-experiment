@@ -372,7 +372,7 @@ OPTIONS = (
     OptionSpec(
         "duplicate_policy", "既存実験重複ポリシー", "execution",
         ("ignore", "warn", "error"),
-        "同一設定・同一コード・同一goldenの完了runを開始前に扱う方法",
+        "一部でも同一設定・同一コード・同一goldenの完了runがある場合の開始前処理",
         (FED_SDA, FED_DRIFT, WITHOUT_SERVER, OBLIVIOUS),
         (FED_SDA, FED_DRIFT, WITHOUT_SERVER, OBLIVIOUS),
         cli_name="duplicate-policy",

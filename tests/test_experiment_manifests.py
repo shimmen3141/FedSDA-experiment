@@ -14,13 +14,14 @@ from federated_drift_experiment.experiment_spec.manifests import (
     experiment_configuration,
     find_overlaps,
     fingerprint,
+    format_overlap_summary,
+    preview_overlaps,
     write_json_atomic,
 )
 from tools.baselines.build_fedsda_study import build_study_manifest
 from tools.experiments.manifests import (
     backfill_manifest,
     backfill_tree,
-    build_audit_report,
     discover_execution_roots,
 )
 
@@ -118,6 +119,28 @@ def test_overlap_distinguishes_exact_and_different_provenance(tmp_path):
 
     assert overlaps["exact"][0]["overlapping_runs"] == 1
     assert overlaps["different_provenance"][0]["overlapping_runs"] == 1
+    summary = format_overlap_summary(overlaps)
+    assert "exact\\manifest.json" in summary or "exact/manifest.json" in summary
+    assert "1 runs" in summary
+
+
+def test_preview_overlaps_does_not_create_manifest(tmp_path):
+    repo = tmp_path / "repo"
+    package = repo / "federated_drift_experiment"
+    package.mkdir(parents=True)
+    (package / "a.py").write_text("x = 1\n")
+    (repo / "run_pareto_sweep.py").write_text("pass\n")
+    (repo / "experiment_runtime.py").write_text("pass\n")
+    (repo / "tests").mkdir()
+    (repo / "tests" / "regression_golden.json").write_text("{}\n")
+
+    overlaps = preview_overlaps(
+        plan=_Plan([_experiment()]), total_data=5000,
+        results_root=tmp_path / "results", repo_root=repo,
+    )
+
+    assert overlaps == {"exact": [], "different_provenance": []}
+    assert not list(tmp_path.rglob("manifest.json"))
 
 
 def test_manifest_session_records_lifecycle_and_outputs(tmp_path):
@@ -151,7 +174,7 @@ def test_manifest_session_records_lifecycle_and_outputs(tmp_path):
     assert saved["outputs"]["metrics_csv_sha256"]
 
 
-def test_backfill_and_audit_existing_csv(tmp_path):
+def test_backfill_existing_csv(tmp_path):
     result = tmp_path / "results_20260811_test"
     result.mkdir()
     path = result / "pareto_circle2_seed0_n5000_test.csv"
@@ -174,11 +197,8 @@ def test_backfill_and_audit_existing_csv(tmp_path):
         writer.writerow(row)
 
     manifest_path, manifest = backfill_manifest(result)
-    report = build_audit_report(tmp_path)
-
     assert manifest_path.is_file()
     assert manifest["provenance_status"] == "unknown_backfill"
-    assert "manifest数: 1" in report
 
 
 def test_recursive_backfill_separates_variants_and_ignores_analysis_csv(tmp_path):
@@ -213,6 +233,36 @@ def test_recursive_backfill_separates_variants_and_ignores_analysis_csv(tmp_path
     assert [status for _, status, _ in outcomes] == ["created", "created"]
     assert (tmp_path / "first" / "manifest.json").is_file()
     assert (tmp_path / "second" / "manifest.json").is_file()
+
+
+def test_backfill_infers_missing_schedule_and_total_data_from_raw(tmp_path):
+    result = tmp_path / "legacy"
+    pareto = result / "pareto"
+    raw = result / "raw"
+    pareto.mkdir(parents=True)
+    raw.mkdir()
+    row = {
+        "parameter_schema_version": "1", "mode": _experiment().mode,
+        "dataset": "circle2", "seed": "0",
+        "sweep_parameter": "aggregation_interval", "sweep_value": "50",
+        "aggregation_interval": "50", "fedsda_distance_threshold": "0.1",
+    }
+    path = pareto / "short.csv"
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=list(row))
+        writer.writeheader()
+        writer.writerow(row)
+    import numpy as np
+    np.savez_compressed(
+        raw / "run.npz", total_data=np.asarray(5000),
+        concept_schedule=np.asarray("random"),
+    )
+
+    _, manifest = backfill_manifest(result)
+
+    configuration = manifest["runs"][0]["configuration"]
+    assert configuration["total_data"] == 5000
+    assert configuration["concept_schedule"] == "random"
 
 
 def test_study_manifest_is_generated_from_utf8_definition(tmp_path):

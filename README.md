@@ -34,7 +34,7 @@ python tests/test_regression.py --update   # 意図的に挙動を変えた/初�
 同文書の表とMermaid依存図は`experiment_spec/options.py`から自動生成される。
 一回のrun設定と掃引軸・固定値の分離は
 [docs/experiment-configuration.md](docs/experiment-configuration.md)を参照。
-実験開始時のmanifest保存、コード・goldenを含む重複判定、既存結果の監査方法も同文書にまとめている。
+実験開始時のmanifest保存、コード・goldenを含む事前重複判定、NPZからの成果物復元方法も同文書にまとめている。
 長時間実験の前に同じコマンドへ`--print-plan`を付けると、実行対象と固定値を確認して終了する。
 
 ```powershell

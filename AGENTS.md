@@ -25,3 +25,17 @@
   同じ出力指定を`run_pareto_sweep.py`へ重複して渡さない。
 - ラッパーを使わないコマンドには`--workers`を明示し、並列tmux間で`--out-dir`と`--raw-dir`を
   共有しない。比較対象は同じ実験規模・seed・データセット・固定値で記述する。
+
+## 実験成果物と重複確認
+
+- 長い条件を成果物ファイル名へ埋め込まない。`run_pareto_sweep.py`が短い内容ハッシュ名を生成し、
+  完全な条件はCSV・NPZ・`manifest.json`へ保存する。
+- 実験コマンドは先に`--print-plan`でrun構成と重複先manifestを確認する。通常実行では既定の`--duplicate-policy error`を維持し、
+  一部でも同一コード・golden・run設定の既存結果があれば、表示されたmanifestを確認して計画を直す。
+  意図的な再実験だけ`warn`、照合不要と判断できる場合だけ`ignore`を使う。
+- 既存CSVからmanifestを補完するときは
+  `python -m tools.experiments.manifests backfill <results-root> --recursive`を使う。
+- CSV・Pareto図を失いNPZが残る場合は、先に
+  `python -m tools.experiments.artifacts <result-root> --tag <short-tag>`で復元する。
+  `.reconstruction.json`が`quality=partial`の旧結果はPareto確認には使えるが、baselineへ採用しない。
+- CSVが残る場合の再描画には`run_pareto_sweep.py --plot-csvs ...`を使い、実験を再実行しない。

@@ -18,7 +18,6 @@ FedDrift の各曲線の左上(高精度・低通信)を取れば「パレート
 import argparse
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import csv
-import hashlib
 import multiprocessing
 import os
 import sys
@@ -58,10 +57,15 @@ from federated_drift_experiment.experiment_spec.options import (
     validate_sweep_dependencies,
 )
 from federated_drift_experiment.experiment_spec.sweep import create_sweep_plan
+from federated_drift_experiment.experiment_spec.artifacts import (
+    bounded_artifact_stem,
+    raw_run_filename,
+)
 from federated_drift_experiment.experiment_spec.manifests import (
     ExperimentManifestSession,
     format_overlap_summary,
     overlap_run_count,
+    preview_overlaps,
 )
 
 # この実行を一意に識別するタイムスタンプ。--out-dir / --raw-dir を明示しない場合、
@@ -204,13 +208,19 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         )
     raw_label = display_series
     if raw_dir is not None:
-        sv = "na" if sweep_value in (None, "", "None") else f"{sweep_value:g}"
-        setting_hash = hashlib.sha256(
-            display_series.encode("utf-8")
-        ).hexdigest()[:10]
-        fname = (
-            f"{_slug(mode)}_{dataset}_seed{seed}_sv{sv}_{setting_hash}.npz"
-        )
+        fname = raw_run_filename({
+            "mode": mode,
+            "dataset": dataset,
+            "seed": seed,
+            "series": display_series,
+            "sweep_parameter": sweep_parameter,
+            "sweep_value": sweep_value,
+            "concept_schedule": concept_schedule,
+            "feddrift_detection_batch_size": config.FEDDRIFT_DETECTION_BATCH_SIZE,
+            "aggregation_interval": config.AGGREGATION_INTERVAL,
+            "distance_threshold": distance_threshold,
+            "adwin_delta": config.ADWIN_DELTA,
+        }, dataset=dataset, seed=seed)
         raw_path = os.path.join(raw_dir, fname)
         if sweep_value not in (None, "", "None"):
             raw_label = f"{display_series} [{sweep_value:g}]"
@@ -474,7 +484,9 @@ def _experiment_slug(datasets, seeds, total_data, tag=None, concept_schedule="ra
         parts.append(concept_schedule)
     if tag:
         parts.append(tag)
-    return "_".join(parts)
+    full = "_".join(parts)
+    hint = f"pareto_{_slug(tag)}" if tag else f"pareto_{ds}_{sd}"
+    return bounded_artifact_stem(full, hint=hint)
 
 
 def write_csv(rows, path):
@@ -644,7 +656,11 @@ def combine_and_plot(patterns, out_dir, tag=None, plot_metric="stable_accuracy",
     seeds = sorted(set(r["seed"] for r in rows))
     ds_slug = "-".join(datasets)
     sd = f"seed{seeds[0]}" if len(seeds) == 1 else "seeds" + "-".join(str(s) for s in seeds)
-    name = f"pareto_combined_{ds_slug}_{sd}" + (f"_{tag}" if tag else "")
+    full_name = f"pareto_combined_{ds_slug}_{sd}" + (f"_{tag}" if tag else "")
+    name = bounded_artifact_stem(
+        full_name,
+        hint=f"pareto_combined_{_slug(tag)}" if tag else "pareto_combined",
+    )
 
     os.makedirs(out_dir, exist_ok=True)
     print(f"Combining {len(paths)} CSV(s), datasets={datasets}, seeds={seeds} "
@@ -991,7 +1007,7 @@ def build_parser():
     )
     output.add_argument(
         "--duplicate-policy", choices=("ignore", "warn", "error"),
-        default="warn",
+        default="error",
         help="同一設定・同一コード・同一goldenの完了runを開始前に扱う方法",
     )
     output.add_argument(
@@ -1189,6 +1205,13 @@ def main(argv=None):
     n_runs = plan.run_count
     if args.print_plan:
         print(plan.describe())
+        if args.manifest and args.duplicate_policy != "ignore":
+            overlaps = preview_overlaps(
+                plan=plan,
+                total_data=config.TOTAL_DATA_POINTS,
+                results_root=args.existing_results_root,
+            )
+            print(format_overlap_summary(overlaps))
         return
 
     os.makedirs(args.out_dir, exist_ok=True)

@@ -65,3 +65,11 @@ Restarting SoftRouting、集約後FIFO再較正の寄与を分離した比較で
 
 FedDrift は方式が一つであるため、`results/baselines/feddrift/<dataset>/` の
 データセット優先構成を維持する。
+
+## 論文でのablationの使い分け
+
+本文の主要ablationでは、最終候補を基準に有力な要素を一つずつ無効化し、各要素の寄与を示す。
+たとえば、Residual Adapter、Restarting SoftRouting、FIFO再較正の有無を同一条件で比較する。
+一方、`joint / sequential / frozen`や`distance / confidence / confidence_margin`のような選択肢間比較は、
+採用理由を示す設計選択・感度分析として補足または付録に置く。代替選択肢自体が研究上の主張でない限り、
+これらを主要ablationの代わりにはしない。

@@ -9,25 +9,39 @@ manifestには解決済みrun設定、CLI引数、コード・実行環境・回
 正常終了時にCSVハッシュ・raw件数・完了時刻を追記する。例外や中断を捕捉できた場合は`failed`、
 プロセスが強制終了した場合は`running`のまま残るため、未完了結果も区別できる。
 
-開始前には`results/`以下の完了manifestをrun単位で照合する。既定の`warn`は実験を継続し、
-`--duplicate-policy error`は同一設定・同一実装・同一数値環境・同一goldenのrunが一つでもあれば
-開始しない。コードまたはgoldenが異なる場合は「設定一致・由来相違」として表示するだけで、
-実験済みとは判定しない。照合自体が不要な場合だけ`--duplicate-policy ignore`を使う。
+開始前には`results/`以下の完了manifestをrun単位で照合する。計画全体ではなく、一つでも
+同一設定・同一実装・同一数値環境・同一goldenのrunがあれば、該当manifestの場所と件数を表示する。
+既定の`error`は最初のrunを開始する前に計画全体を停止する。意図的な再実験では`warn`、照合自体が
+不要な場合だけ`ignore`を指定する。コードまたはgoldenが異なる場合は「設定一致・由来相違」として
+表示するだけで、既定では実験済みと判定しない。
 
 過去のCSVにはコード由来が保存されていないため、次で事後manifestを作成できる。
 
 ```bash
 python -m tools.experiments.manifests backfill results/results_YYYYMMDD_HHMMSS
 python -m tools.experiments.manifests backfill results --recursive
+# schedule記録導入前の結果で、実験条件からrandomと確認できる場合だけ明示する
+python -m tools.experiments.manifests backfill results --recursive --concept-schedule random
 ```
 
 `--recursive`は各`pareto/`の親を独立した実験variantとして検出し、回復分析などのCSVを除外して
-一括補完する。このmanifestは`provenance_status=unknown_backfill`となり、将来の実験と設定が一致しても警告だけで
-自動停止の根拠にはしない。結果全体の一覧と重複群は次でMarkdown化できる。
+一括補完する。このmanifestは`provenance_status=unknown_backfill`となり、将来の実験と設定が一致しても
+警告だけで自動停止の根拠にはしない。人間向けの巨大な一覧は生成せず、実験開始前の照合が必要箇所だけを
+機械的に表示する。
+
+CSVを失ったがNPZが残る結果は次で復元する。
 
 ```bash
-python -m tools.experiments.manifests audit --results-root results --output results/experiment-manifest-audit.md
+python -m tools.experiments.artifacts results/results_YYYYMMDD_HHMMSS --tag recovered
 ```
+
+新しいNPZには全CSV指標を埋め込むため完全復元となる。旧NPZでは、accuracy・stable_accuracyを履歴から、
+通信モデル数・最終モデル数を進捗ログから復元し、それ以外の復元不能な値は`NaN`とする。この場合は
+`.reconstruction.json`の`quality=partial`を記録し、論文用baselineの根拠にはしない。復元後に
+`backfill --recursive`を実行すれば、旧結果も設定単位の事前照合対象になる。
+
+成果物のstemは72文字を上限とし、超過分を内容由来のSHA-256短縮値へ置き換える。NPZ名も
+`run_<dataset>_s<seed>_<hash>.npz`とし、完全な条件はNPZ・CSV・manifest内部に保持する。
 
 ## ExperimentConfiguration
 
@@ -134,7 +148,8 @@ CLIの未指定・無効化・既定値は`SweepPlan`を構築する前に解決
 「親オプションがオフなので無視」といったCLI固有状態を扱わない。
 
 実験を開始せずに解決結果を確認するには、通常のコマンドへ`--print-plan`を追加する。対象mode、
-各掃引軸、固定値、総run数が表示され、出力ディレクトリは作成されない。
+各掃引軸、固定値、総run数に加え、既存manifestと一部でも重複するrun数と該当manifestが表示される。
+出力ディレクトリやmanifestは作成されない。
 
 ```bash
 python run_pareto_sweep.py --no-feddrift --no-baselines --no-adwin-sweep --aggregation-intervals 50 100 --print-plan

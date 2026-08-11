@@ -130,7 +130,7 @@ flowchart LR
 | `feddrift_detection_batch_size` | cli: `--feddrift-detection-batch-sizes` | 対象外 | 実装済み | 対象外 | 対象外 | FedDriftの処理・検出・通信を兼ねるバッチサイズ |
 | `feddrift_isolation_timesteps` | cli: `--feddrift-isolation` | 対象外 | 実装済み | 対象外 | 対象外 | 新規FedDriftモデルをマージ対象から外す時刻数 |
 | `experiment_manifest` | cli: `--manifest` | 実装済み | 実装済み | 実装済み | 実装済み | 実験計画・実装由来・完了状態を出力先へ保存する |
-| `duplicate_policy` | cli: `--duplicate-policy` | 実装済み | 実装済み | 実装済み | 実装済み | 同一設定・同一コード・同一goldenの完了runを開始前に扱う方法 |
+| `duplicate_policy` | cli: `--duplicate-policy` | 実装済み | 実装済み | 実装済み | 実装済み | 一部でも同一設定・同一コード・同一goldenの完了runがある場合の開始前処理 |
 
 ## 重要な依存関係
 

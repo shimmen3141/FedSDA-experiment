@@ -75,3 +75,6 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
             "model_training_examples_total"
         ]
         assert raw["model_pair_n"].shape == (0,)
+        stored_metrics = raw["result_metrics_json"].item()
+        assert '"accuracy"' in stored_metrics
+        assert raw["fifo_size"].item() == config.FIFO_BUFFER_SIZE

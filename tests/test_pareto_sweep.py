@@ -40,12 +40,27 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.shared_backbone_training == "sequential"
     assert defaults.shared_backbone_routing_recalibration == "none"
     assert defaults.shared_adapter_rank == config.SHARED_ADAPTER_RANK
+    assert defaults.duplicate_policy == "error"
     selected = parser.parse_args([
         "--datasets", "sea2", "mnist2", "mnist4",
         "--concept-schedule", "feddrift_fixed",
     ])
     assert selected.datasets == ["sea2", "mnist2", "mnist4"]
     assert selected.concept_schedule == "feddrift_fixed"
+
+
+def test_long_experiment_slug_is_shortened_with_stable_hash():
+    first = sweep._experiment_slug(
+        ["sea2", "sea4", "circle2", "sine2", "mnist2", "mnist4"],
+        list(range(10)), 5000, tag="very-long-experiment-name-" * 8,
+    )
+    second = sweep._experiment_slug(
+        ["sea2", "sea4", "circle2", "sine2", "mnist2", "mnist4"],
+        list(range(10)), 5000, tag="very-long-experiment-name-" * 7 + "other",
+    )
+
+    assert len(first) <= 72
+    assert first != second
 
 
 def test_parallel_workers_are_explicit_and_positive():

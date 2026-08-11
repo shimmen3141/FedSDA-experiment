@@ -126,6 +126,8 @@ def experiment_configuration(experiment, total_data):
 def _optional_number(value, number_type=float):
     if value in (None, "", "None", "nan"):
         return None
+    if number_type is int:
+        return int(float(value))
     return number_type(value)
 
 
@@ -292,6 +294,19 @@ def infer_execution_root(out_dir, raw_dir=None):
     return common
 
 
+def preview_overlaps(
+    *, plan, total_data, results_root="results", repo_root=None,
+):
+    """実験を開始せず、計画内の各runと既存manifestの重複を調べる。"""
+    repo_root = Path(repo_root or Path(__file__).resolve().parents[2]).resolve()
+    provenance = build_provenance(repo_root)
+    candidate = {
+        "kind": MANIFEST_KIND,
+        "runs": build_run_records(plan, total_data, provenance),
+    }
+    return find_overlaps(candidate, results_root)
+
+
 class ExperimentManifestSession:
     """実験開始・成功・失敗の状態遷移を一つのmanifestへ保存する。"""
 
@@ -361,7 +376,17 @@ class ExperimentManifestSession:
 def format_overlap_summary(overlaps):
     exact = overlap_run_count(overlaps, "exact")
     stale = overlap_run_count(overlaps, "different_provenance")
-    return (
+    lines = [(
         f"既存実験照合: 完全一致={exact} runs, "
         f"設定一致・由来相違={stale} runs"
-    )
+    )]
+    for label, kind in (
+        ("完全一致", "exact"),
+        ("設定一致・由来相違", "different_provenance"),
+    ):
+        for item in overlaps.get(kind, []):
+            lines.append(
+                f"  - {label}: {item['overlapping_runs']} runs: "
+                f"{item['manifest']}"
+            )
+    return "\n".join(lines)

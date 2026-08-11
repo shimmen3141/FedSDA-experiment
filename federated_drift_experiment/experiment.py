@@ -12,6 +12,7 @@
 MODE_SPECS にエントリを足す。処理の流れが既存2種と異なる場合は、
 タイムステップ実行関数(_run_*_timestep)も追加する。
 """
+import json
 import os
 import random
 import time
@@ -573,6 +574,7 @@ def _save_raw_run(
     distance_threshold,
     sweep_parameter=None,
     sweep_value=None,
+    result_metrics=None,
 ):
     """per-sample の生データを 1 つの .npz にまとめて保存する(gitignore 前提の軽量形式)。
 
@@ -1040,6 +1042,23 @@ def _save_raw_run(
             config.SHARED_ADAPTER_RANK if "_ResidualAdapter_" in mode else -1,
             dtype=np.int64,
         ),
+        detection_episodes=np.asarray(
+            config.FEDSDA_DETECTION_EPISODES_ENABLED, dtype=np.bool_,
+        ),
+        new_model_creation_policy=np.asarray(
+            config.NEW_MODEL_CREATION_POLICY, dtype=np.str_,
+        ),
+        fifo_size=np.asarray(config.FIFO_BUFFER_SIZE, dtype=np.int64),
+        new_model_validation_fraction=np.asarray(
+            config.NEW_MODEL_VALIDATION_FRACTION, dtype=np.float64,
+        ),
+        new_model_forward_validation_samples=np.asarray(
+            config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES, dtype=np.int64,
+        ),
+        result_metrics_json=np.asarray(
+            json.dumps(result_metrics or {}, ensure_ascii=False, default=float),
+            dtype=np.str_,
+        ),
         total_data=int(config.TOTAL_DATA_POINTS),
         **telemetry_arrays,
     )
@@ -1192,7 +1211,7 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
         _save_raw_run(raw_path, clients, server, true_drift_events, mode,
                       raw_label if raw_label is not None else mode,
                       random_seed, telemetry, distance_threshold,
-                      raw_sweep_parameter, raw_sweep_value)
+                      raw_sweep_parameter, raw_sweep_value, results)
 
     if verbose:
         print("\n=== Experiment Metrics ===")
