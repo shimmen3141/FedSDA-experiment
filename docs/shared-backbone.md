@@ -143,6 +143,15 @@ CSV・NPZには`shared_backbone_training`を保存し、既定以外ではPareto
 - `backbone_gradient_conflict_count` / `backbone_gradient_conflict_rate`: cosine類似度が負だった数と割合。
 - `backbone_gradient_cosine_mean`: 全勾配対の平均cosine類似度。
 - `backbone_gradient_negative_cosine_mean`: 競合した勾配対だけの平均cosine類似度。
+- `backbone_gradient_applied_conflict_rate` / `backbone_gradient_applied_cosine_mean`:
+  選択した統合方式を適用した後の概念勾配対に残る競合率と平均cosine類似度。`mean`では適用前と一致し、
+  `pcgrad`では射影後を表す。
+- `backbone_gradient_update_cosine_mean`: 通常の重み付きmean更新と実際に適用した更新の方向一致度。
+- `backbone_gradient_update_norm_ratio_mean`: mean更新に対する実適用更新のノルム比。
+- `backbone_gradient_update_delta_ratio_mean`: mean更新からの差分ノルムをmean更新ノルムで割った相対変形量。
+
+適用前の指標は方式間で同じ診断対象を比較するために残し、適用後の指標はPCGradが競合をどこまで除去し、
+更新をどれだけ変形したかを調べるために併記する。
 
 これにより、PCGradの精度差だけでなく、Circle2の負の転移と勾配競合率が対応するかを検証できる。
 PCGradはローカルoptimizerへ渡す共有勾配だけを変更し、通信内容・サーバ集約・概念別head更新・

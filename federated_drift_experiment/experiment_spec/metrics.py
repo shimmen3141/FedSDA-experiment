@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 6
+METRIC_SCHEMA_VERSION = 7
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -180,6 +180,15 @@ METRICS = (
             "backbone_gradient_conflict_rate",
             "backbone_gradient_cosine_mean",
             "backbone_gradient_negative_cosine_mean",
+            "backbone_gradient_applied_pair_count",
+            "backbone_gradient_applied_conflict_count",
+            "backbone_gradient_applied_conflict_rate",
+            "backbone_gradient_applied_cosine_mean",
+            "backbone_gradient_applied_negative_cosine_mean",
+            "backbone_gradient_update_comparison_count",
+            "backbone_gradient_update_cosine_mean",
+            "backbone_gradient_update_norm_ratio_mean",
+            "backbone_gradient_update_delta_ratio_mean",
         ),
         "shared_gradient_conflict", DIAGNOSTIC, FEDSDA_METHODS, None,
     ),

@@ -50,6 +50,8 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
     assert results["model_pair_evaluation_count"] == 0
     assert results["backbone_gradient_pair_count"] == 0
     assert results["backbone_gradient_conflict_rate"] == 0.0
+    assert results["backbone_gradient_applied_pair_count"] == 0
+    assert results["backbone_gradient_update_comparison_count"] == 0
 
     with np.load(raw_path) as raw:
         assert raw["round_global_model_count"].shape == (5,)
@@ -78,6 +80,7 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
         ]
         assert raw["model_pair_n"].shape == (0,)
         assert raw["backbone_gradient_pair_counts"].tolist() == [0, 0]
+        assert raw["backbone_gradient_applied_pair_counts"].tolist() == [0, 0]
         assert raw["shared_backbone_gradient_strategy"].item() == ""
         stored_metrics = raw["result_metrics_json"].item()
         assert '"accuracy"' in stored_metrics

@@ -18,6 +18,15 @@ class GradientConflictSummary:
     negative_cosine_sum: float
 
 
+@dataclass(frozen=True)
+class GradientUpdateComparison:
+    """基準更新に対して実際に適用する更新がどれだけ変形したかを表す。"""
+
+    cosine: float
+    norm_ratio: float
+    delta_ratio: float
+
+
 def flatten_parameter_gradients(gradients, parameters):
     """parameter順を保ち、未使用勾配をゼロとして一つのベクトルへ連結する。"""
     values = []
@@ -73,6 +82,36 @@ def project_conflicting_gradients(vectors):
                 current = current - inner.div(denominator) * other
         projected.append(current)
     return projected
+
+
+def compare_gradient_updates(reference, applied):
+    """二つの更新方向を方向・大きさ・差分の三つの尺度で比較する。
+
+    基準更新がゼロの場合は比率を定義できないため ``None`` を返す。適用更新が
+    ゼロの場合、方向の一致度は0として扱う。
+    """
+    if reference.shape != applied.shape:
+        raise ValueError("比較する勾配更新の形状が一致していません")
+    reference_norm = torch.linalg.vector_norm(reference)
+    if reference_norm.item() == 0.0:
+        return None
+    applied_norm = torch.linalg.vector_norm(applied)
+    cosine = 0.0
+    if applied_norm.item() != 0.0:
+        cosine = float(
+            torch.dot(reference, applied).div(
+                reference_norm * applied_norm
+            ).item()
+        )
+    return GradientUpdateComparison(
+        cosine=cosine,
+        norm_ratio=float(applied_norm.div(reference_norm).item()),
+        delta_ratio=float(
+            torch.linalg.vector_norm(applied - reference)
+            .div(reference_norm)
+            .item()
+        ),
+    )
 
 
 def assign_flat_gradient(parameters, gradient):

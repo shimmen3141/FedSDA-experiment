@@ -8,6 +8,7 @@ import torch
 from .. import config
 from ..gradient_surgery import (
     assign_flat_gradient,
+    compare_gradient_updates,
     flatten_parameter_gradients,
     project_conflicting_gradients,
     summarize_gradient_conflicts,
@@ -35,6 +36,14 @@ class _SharedRepresentationFedSDAClientMixin:
             "conflict_count": 0,
             "cosine_sum": 0.0,
             "negative_cosine_sum": 0.0,
+            "applied_pair_count": 0,
+            "applied_conflict_count": 0,
+            "applied_cosine_sum": 0.0,
+            "applied_negative_cosine_sum": 0.0,
+            "update_comparison_count": 0,
+            "update_cosine_sum": 0.0,
+            "update_norm_ratio_sum": 0.0,
+            "update_delta_ratio_sum": 0.0,
         }
         self._share_model_backbones()
 
@@ -238,6 +247,16 @@ class _SharedRepresentationFedSDAClientMixin:
             backbone_parameters = tuple(backbone.parameters())
             gradient_vectors = []
             gradient_example_counts = []
+            applied_combined_gradient = None
+            gradient_strategy = config.SHARED_BACKBONE_GRADIENT_STRATEGY
+            if (
+                update_backbone
+                and gradient_strategy not in {"mean", "pcgrad"}
+            ):
+                raise ValueError(
+                    "未知の共有バックボーン勾配統合方式です: "
+                    f"{gradient_strategy!r}"
+                )
             if update_backbone and len(losses) > 1:
                 gradient_records = sorted(
                     (
@@ -276,24 +295,61 @@ class _SharedRepresentationFedSDAClientMixin:
                 self.backbone_gradient_diagnostics["negative_cosine_sum"] += (
                     summary.negative_cosine_sum
                 )
+                applied_vectors = (
+                    project_conflicting_gradients(gradient_vectors)
+                    if gradient_strategy == "pcgrad"
+                    else gradient_vectors
+                )
+                applied_summary = summarize_gradient_conflicts(applied_vectors)
+                self.backbone_gradient_diagnostics["applied_pair_count"] += (
+                    applied_summary.pair_count
+                )
+                self.backbone_gradient_diagnostics[
+                    "applied_conflict_count"
+                ] += applied_summary.conflict_count
+                self.backbone_gradient_diagnostics["applied_cosine_sum"] += (
+                    applied_summary.cosine_sum
+                )
+                self.backbone_gradient_diagnostics[
+                    "applied_negative_cosine_sum"
+                ] += applied_summary.negative_cosine_sum
+
+                reference_combined_gradient = sum(
+                    vector * (count / total_examples)
+                    for vector, count in zip(
+                        gradient_vectors, gradient_example_counts
+                    )
+                )
+                applied_combined_gradient = sum(
+                    vector * (count / total_examples)
+                    for vector, count in zip(
+                        applied_vectors, gradient_example_counts
+                    )
+                )
+                comparison = compare_gradient_updates(
+                    reference_combined_gradient,
+                    applied_combined_gradient,
+                )
+                if comparison is not None:
+                    self.backbone_gradient_diagnostics[
+                        "update_comparison_count"
+                    ] += 1
+                    self.backbone_gradient_diagnostics["update_cosine_sum"] += (
+                        comparison.cosine
+                    )
+                    self.backbone_gradient_diagnostics[
+                        "update_norm_ratio_sum"
+                    ] += comparison.norm_ratio
+                    self.backbone_gradient_diagnostics[
+                        "update_delta_ratio_sum"
+                    ] += comparison.delta_ratio
             joint_loss.backward()
             if update_backbone:
-                gradient_strategy = config.SHARED_BACKBONE_GRADIENT_STRATEGY
                 if gradient_strategy == "pcgrad":
-                    if gradient_vectors:
-                        projected = project_conflicting_gradients(gradient_vectors)
-                        combined = sum(
-                            vector * (count / total_examples)
-                            for vector, count in zip(
-                                projected, gradient_example_counts
-                            )
+                    if applied_combined_gradient is not None:
+                        assign_flat_gradient(
+                            backbone_parameters, applied_combined_gradient
                         )
-                        assign_flat_gradient(backbone_parameters, combined)
-                elif gradient_strategy != "mean":
-                    raise ValueError(
-                        "未知の共有バックボーン勾配統合方式です: "
-                        f"{gradient_strategy!r}"
-                    )
                 backbone.optimizer.step()
                 self.compute_counters["backbone_optimizer_steps"] += 1
             for model_id, bx, _ in batches:

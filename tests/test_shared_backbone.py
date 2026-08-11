@@ -157,6 +157,19 @@ def test_joint_training_updates_backbone_once_and_both_heads(monkeypatch):
     assert client.compute_counters["head_optimizer_steps"] == 2
     assert client.compute_counters["optimizer_steps"] == 2
     assert client.backbone_gradient_diagnostics["pair_count"] == 1
+    assert client.backbone_gradient_diagnostics["applied_pair_count"] == 1
+    assert client.backbone_gradient_diagnostics["update_comparison_count"] == 1
+    assert (
+        client.backbone_gradient_diagnostics["applied_conflict_count"]
+        == client.backbone_gradient_diagnostics["conflict_count"]
+    )
+    assert abs(
+        client.backbone_gradient_diagnostics["update_cosine_sum"] - 1.0
+    ) < 1e-6
+    assert abs(
+        client.backbone_gradient_diagnostics["update_norm_ratio_sum"] - 1.0
+    ) < 1e-6
+    assert client.backbone_gradient_diagnostics["update_delta_ratio_sum"] == 0.0
     assert any(
         not torch.equal(value, backbone_before[name])
         for name, value in client._shared_backbone().state_dict().items()
@@ -178,6 +191,12 @@ def test_pcgrad_joint_training_records_diagnostics_and_updates(monkeypatch):
 
     assert client.compute_counters["backbone_optimizer_steps"] == 1
     assert client.backbone_gradient_diagnostics["pair_count"] == 1
+    assert client.backbone_gradient_diagnostics["applied_pair_count"] == 1
+    assert client.backbone_gradient_diagnostics["update_comparison_count"] == 1
+    assert (
+        client.backbone_gradient_diagnostics["applied_conflict_count"]
+        <= client.backbone_gradient_diagnostics["conflict_count"]
+    )
 
 
 def test_frozen_training_keeps_backbone_and_updates_both_heads(monkeypatch):

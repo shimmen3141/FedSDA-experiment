@@ -233,6 +233,8 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 | `model_pair_correctness_disagreement_rate` / `model_pair_oracle_gain_rate` | FedSDAクロス評価上のモデル対予測相補性 / oracle選択による改善上限 |
 | `routing_oracle_accuracy` / `routing_mixture_accuracy` / `routing_oracle_recovery_rate` | SoftRoutingで正解可能だった上限・実混合精度・その回収率 |
 | `backbone_gradient_conflict_rate` / `backbone_gradient_cosine_mean` | joint共有学習における概念間の負勾配率 / 平均勾配cosine類似度 |
+| `backbone_gradient_applied_conflict_rate` / `backbone_gradient_applied_cosine_mean` | 勾配統合方式を適用した後の概念間の負勾配率 / 平均cosine類似度 |
+| `backbone_gradient_update_cosine_mean` / `backbone_gradient_update_norm_ratio_mean` / `backbone_gradient_update_delta_ratio_mean` | mean更新に対する実適用更新の方向一致度 / ノルム比 / 相対変形量 |
 | `client_compute_seconds_sum` / `client_compute_seconds_max` | クライアント処理時間の総和 / クライアント別最大値(実行環境依存) |
 
 定常精度の回復除外窓 W は [federated_drift_experiment/config.py](federated_drift_experiment/config.py) の `STABLE_WINDOW`(既定200)で設定。最も遅い回復のプラトーを越える大きめ固定値で、`MIN_STABLE_PERIOD` 未満(次ドリフトを跨がない)。適応の**速さ**は回復曲線 acc(Δ)([recovery_analysis.py](recovery_analysis.py))で別途評価する。

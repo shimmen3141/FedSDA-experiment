@@ -569,6 +569,9 @@ def _add_model_diagnostic_results(results, clients, server):
             gradient[key] += value
     pair_count = int(gradient["pair_count"])
     conflict_count = int(gradient["conflict_count"])
+    applied_pair_count = int(gradient["applied_pair_count"])
+    applied_conflict_count = int(gradient["applied_conflict_count"])
+    update_comparison_count = int(gradient["update_comparison_count"])
     results.update({
         "backbone_gradient_pair_count": pair_count,
         "backbone_gradient_conflict_count": conflict_count,
@@ -581,6 +584,33 @@ def _add_model_diagnostic_results(results, clients, server):
         "backbone_gradient_negative_cosine_mean": (
             gradient["negative_cosine_sum"] / conflict_count
             if conflict_count else 0.0
+        ),
+        "backbone_gradient_applied_pair_count": applied_pair_count,
+        "backbone_gradient_applied_conflict_count": applied_conflict_count,
+        "backbone_gradient_applied_conflict_rate": (
+            applied_conflict_count / applied_pair_count
+            if applied_pair_count else 0.0
+        ),
+        "backbone_gradient_applied_cosine_mean": (
+            gradient["applied_cosine_sum"] / applied_pair_count
+            if applied_pair_count else 0.0
+        ),
+        "backbone_gradient_applied_negative_cosine_mean": (
+            gradient["applied_negative_cosine_sum"] / applied_conflict_count
+            if applied_conflict_count else 0.0
+        ),
+        "backbone_gradient_update_comparison_count": update_comparison_count,
+        "backbone_gradient_update_cosine_mean": (
+            gradient["update_cosine_sum"] / update_comparison_count
+            if update_comparison_count else 0.0
+        ),
+        "backbone_gradient_update_norm_ratio_mean": (
+            gradient["update_norm_ratio_sum"] / update_comparison_count
+            if update_comparison_count else 0.0
+        ),
+        "backbone_gradient_update_delta_ratio_mean": (
+            gradient["update_delta_ratio_sum"] / update_comparison_count
+            if update_comparison_count else 0.0
         ),
     })
 
@@ -860,6 +890,10 @@ def _save_raw_run(
     })
     for key in (
         "pair_count", "conflict_count", "cosine_sum", "negative_cosine_sum",
+        "applied_pair_count", "applied_conflict_count",
+        "applied_cosine_sum", "applied_negative_cosine_sum",
+        "update_comparison_count", "update_cosine_sum",
+        "update_norm_ratio_sum", "update_delta_ratio_sum",
     ):
         dtype = np.float64 if "sum" in key else np.int64
         telemetry_arrays[f"backbone_gradient_{key}s"] = np.asarray(
