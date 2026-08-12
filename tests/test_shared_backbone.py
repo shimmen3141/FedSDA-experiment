@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from federated_drift_experiment import config, run_random_drift_experiment
@@ -379,7 +380,9 @@ def test_persistent_leader_replay_is_available_to_shared_client(monkeypatch):
     assert client.expert_router.aggregation_recalibration_count == 1
 
 
-def test_shared_backbone_experiment_reports_component_metrics(monkeypatch):
+def test_shared_backbone_experiment_reports_component_metrics(
+    monkeypatch, tmp_path,
+):
     monkeypatch.setattr(config, "DATASET", "circle2")
     monkeypatch.setattr(config, "N_CLIENTS", 2)
     monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 100)
@@ -387,11 +390,13 @@ def test_shared_backbone_experiment_reports_component_metrics(monkeypatch):
     monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
     monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 50)
 
+    raw_path = tmp_path / "shared-routing.npz"
     results = run_random_drift_experiment(
         mode="FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
         random_seed=0,
         verbose=False,
         show_plot=False,
+        raw_path=str(raw_path),
     )
 
     assert results["comm_parameter_values_total"] > 0
@@ -401,6 +406,16 @@ def test_shared_backbone_experiment_reports_component_metrics(monkeypatch):
     assert results["compute_backbone_optimizer_steps_total"] > 0
     assert results["compute_head_optimizer_steps_total"] > 0
     assert results["final_parameter_values"] > 0
+    assert results["routing_class_macro_oracle_accuracy"] > 0
+    assert results["routing_class_macro_mixture_accuracy"] > 0
+    assert results["routing_class_oracle_gap_std"] >= 0
+    with np.load(raw_path) as raw:
+        assert raw["routing_class_client_ids"].shape == (
+            len(raw["routing_class_ids"]),
+        )
+        assert raw["routing_class_sample_counts"].sum() == results[
+            "routing_sample_count"
+        ]
 
 
 def test_residual_adapter_experiment_reports_component_metrics(monkeypatch):

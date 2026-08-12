@@ -500,6 +500,40 @@ def _add_model_diagnostic_results(results, clients, server):
             routing[key] += int(value)
     routing_samples = routing["sample_count"]
     oracle_correct = routing["oracle_correct_count"]
+    routing_by_class = defaultdict(lambda: defaultdict(int))
+    for client in clients:
+        for class_id, diagnostics in getattr(
+            client, "routing_class_diagnostics", {}
+        ).items():
+            for key, value in diagnostics.items():
+                routing_by_class[int(class_id)][key] += int(value)
+
+    class_oracle_accuracies = []
+    class_mixture_accuracies = []
+    class_leader_accuracies = []
+    class_oracle_recovery_rates = []
+    class_oracle_gaps = []
+    for diagnostics in routing_by_class.values():
+        sample_count = diagnostics["sample_count"]
+        class_oracle_correct = diagnostics["oracle_correct_count"]
+        if not sample_count:
+            continue
+        oracle_accuracy = class_oracle_correct / sample_count
+        mixture_accuracy = diagnostics["mixture_correct_count"] / sample_count
+        class_oracle_accuracies.append(oracle_accuracy)
+        class_mixture_accuracies.append(mixture_accuracy)
+        class_leader_accuracies.append(
+            diagnostics["leader_correct_count"] / sample_count
+        )
+        class_oracle_gaps.append(oracle_accuracy - mixture_accuracy)
+        if class_oracle_correct:
+            class_oracle_recovery_rates.append(
+                diagnostics["mixture_correct_count"] / class_oracle_correct
+            )
+
+    def class_mean(values):
+        return float(np.mean(values)) if values else 0.0
+
     results.update({
         "routing_sample_count": routing_samples,
         "routing_oracle_accuracy": (
@@ -522,6 +556,26 @@ def _add_model_diagnostic_results(results, clients, server):
             if oracle_correct else 0.0
         ),
         "routing_missed_oracle_count": routing["missed_oracle_count"],
+        "routing_class_macro_oracle_accuracy": class_mean(
+            class_oracle_accuracies
+        ),
+        "routing_class_macro_mixture_accuracy": class_mean(
+            class_mixture_accuracies
+        ),
+        "routing_class_macro_leader_accuracy": class_mean(
+            class_leader_accuracies
+        ),
+        "routing_class_oracle_gap_mean": class_mean(class_oracle_gaps),
+        "routing_class_oracle_gap_std": (
+            float(np.std(class_oracle_gaps)) if class_oracle_gaps else 0.0
+        ),
+        "routing_class_oracle_recovery_rate_mean": class_mean(
+            class_oracle_recovery_rates
+        ),
+        "routing_class_oracle_recovery_rate_min": (
+            min(class_oracle_recovery_rates)
+            if class_oracle_recovery_rates else 0.0
+        ),
         "routing_aggregation_restart_count": sum(
             getattr(client.expert_router, "aggregation_restart_count", 0)
             for client in clients
@@ -856,6 +910,31 @@ def _save_raw_run(
             [client.history_routing_leader_correct for client in clients],
             dtype=np.bool_,
         )
+        routing_class_client_ids = []
+        routing_class_ids = []
+        routing_class_values = defaultdict(list)
+        for client in clients:
+            for class_id, diagnostics in sorted(
+                client.routing_class_diagnostics.items()
+            ):
+                routing_class_client_ids.append(client.client_id)
+                routing_class_ids.append(class_id)
+                for key in (
+                    "sample_count", "oracle_correct_count",
+                    "mixture_correct_count", "leader_correct_count",
+                    "missed_oracle_count",
+                ):
+                    routing_class_values[key].append(diagnostics[key])
+        telemetry_arrays["routing_class_client_ids"] = np.asarray(
+            routing_class_client_ids, dtype=np.int32
+        )
+        telemetry_arrays["routing_class_ids"] = np.asarray(
+            routing_class_ids, dtype=np.int32
+        )
+        for key, values in routing_class_values.items():
+            telemetry_arrays[f"routing_class_{key}s"] = np.asarray(
+                values, dtype=np.int64
+            )
 
     model_client_ids = []
     model_ids = []

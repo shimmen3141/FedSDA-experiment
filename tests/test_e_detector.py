@@ -191,6 +191,13 @@ def test_restarting_soft_routing_records_oracle_recovery_diagnostics():
         "missed_oracle_count": 1,
     }
     assert client.history_routing_oracle_correct == [1]
+    assert dict(client.routing_class_diagnostics[1]) == {
+        "sample_count": 1,
+        "oracle_correct_count": 1,
+        "mixture_correct_count": 0,
+        "leader_correct_count": 0,
+        "missed_oracle_count": 1,
+    }
 
 
 def test_soft_routing_reuses_prediction_forward_for_expert_loss():

@@ -1276,6 +1276,11 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             "leader_correct_count": 0,
             "missed_oracle_count": 0,
         }
+        # 入力文脈を使うルータへ進む前に、既存ルータの未回収余地が
+        # 正解クラスへ偏っているかを追加forwardなしで記録する。
+        self.routing_class_diagnostics = defaultdict(
+            lambda: defaultdict(int)
+        )
 
     def _prediction_probabilities(self, proposal_probabilities):
         """AdaHedgeの提案重みを実際の予測重みへ変換する。"""
@@ -1356,6 +1361,15 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.routing_diagnostics["mixture_correct_count"] += int(accuracy)
         self.routing_diagnostics["leader_correct_count"] += int(leader_correct)
         self.routing_diagnostics["missed_oracle_count"] += int(
+            oracle_correct and not accuracy
+        )
+        class_id = int(y.view(-1)[0].item())
+        class_diagnostics = self.routing_class_diagnostics[class_id]
+        class_diagnostics["sample_count"] += 1
+        class_diagnostics["oracle_correct_count"] += int(oracle_correct)
+        class_diagnostics["mixture_correct_count"] += int(accuracy)
+        class_diagnostics["leader_correct_count"] += int(leader_correct)
+        class_diagnostics["missed_oracle_count"] += int(
             oracle_correct and not accuracy
         )
         self.history_routing_oracle_correct.append(int(oracle_correct))
