@@ -408,6 +408,8 @@ def test_shared_backbone_experiment_reports_component_metrics(
     assert results["final_parameter_values"] > 0
     assert results["routing_class_macro_oracle_accuracy"] > 0
     assert results["routing_class_macro_mixture_accuracy"] > 0
+    assert results["routing_confidence_leader_accuracy"] > 0
+    assert results["routing_class_macro_confidence_leader_accuracy"] > 0
     assert results["routing_class_oracle_gap_std"] >= 0
     with np.load(raw_path) as raw:
         assert raw["routing_class_client_ids"].shape == (
@@ -416,6 +418,7 @@ def test_shared_backbone_experiment_reports_component_metrics(
         assert raw["routing_class_sample_counts"].sum() == results[
             "routing_sample_count"
         ]
+        assert "routing_class_confidence_leader_correct_counts" in raw
 
 
 def test_residual_adapter_experiment_reports_component_metrics(monkeypatch):

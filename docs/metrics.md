@@ -90,8 +90,14 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
 - `routing_leader_accuracy`: 最大重みモデル単体が正解した割合。
 - `routing_oracle_gain_rate`: oracle accuracyと実混合accuracyの差。
 - `routing_oracle_recovery_rate`: oracleが正解可能だった標本のうち実混合も正解した割合。
+- `routing_confidence_leader_accuracy`: 各標本で予測確信度が最大の保持モデルを選んだ場合の
+  影評価accuracy。正解ラベルはモデル選択に使わない。
+- `routing_confidence_leader_oracle_recovery_rate`: oracleが正解可能だった標本のうち、
+  最大確信度モデルでも正解できた割合。
+- `routing_confidence_leader_missed_oracle_count`: 最大確信度モデルが取り逃したoracle正解数。
 - `routing_missed_oracle_count`: 正解モデルが存在したのに実混合が誤答した件数。
 - `routing_class_macro_*`: 正解クラスごとに求めたoracle・mixture・leader精度のマクロ平均。
+  `routing_class_macro_confidence_leader_accuracy`は最大確信度モデルのクラス別精度を表す。
 - `routing_class_oracle_gap_mean` / `routing_class_oracle_gap_std`: クラス別の
   `oracle accuracy - mixture accuracy`の平均と標準偏差。標準偏差が大きければ、未回収余地が
   特定クラスへ偏っており、クラス文脈ルーティングを検討する根拠になる。

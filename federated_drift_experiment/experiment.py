@@ -511,6 +511,7 @@ def _add_model_diagnostic_results(results, clients, server):
     class_oracle_accuracies = []
     class_mixture_accuracies = []
     class_leader_accuracies = []
+    class_confidence_leader_accuracies = []
     class_oracle_recovery_rates = []
     class_oracle_gaps = []
     for diagnostics in routing_by_class.values():
@@ -524,6 +525,9 @@ def _add_model_diagnostic_results(results, clients, server):
         class_mixture_accuracies.append(mixture_accuracy)
         class_leader_accuracies.append(
             diagnostics["leader_correct_count"] / sample_count
+        )
+        class_confidence_leader_accuracies.append(
+            diagnostics["confidence_leader_correct_count"] / sample_count
         )
         class_oracle_gaps.append(oracle_accuracy - mixture_accuracy)
         if class_oracle_correct:
@@ -547,6 +551,10 @@ def _add_model_diagnostic_results(results, clients, server):
             routing["leader_correct_count"] / routing_samples
             if routing_samples else 0.0
         ),
+        "routing_confidence_leader_accuracy": (
+            routing["confidence_leader_correct_count"] / routing_samples
+            if routing_samples else 0.0
+        ),
         "routing_oracle_gain_rate": (
             (oracle_correct - routing["mixture_correct_count"]) / routing_samples
             if routing_samples else 0.0
@@ -556,6 +564,13 @@ def _add_model_diagnostic_results(results, clients, server):
             if oracle_correct else 0.0
         ),
         "routing_missed_oracle_count": routing["missed_oracle_count"],
+        "routing_confidence_leader_oracle_recovery_rate": (
+            routing["confidence_leader_correct_count"] / oracle_correct
+            if oracle_correct else 0.0
+        ),
+        "routing_confidence_leader_missed_oracle_count": routing[
+            "confidence_leader_missed_oracle_count"
+        ],
         "routing_class_macro_oracle_accuracy": class_mean(
             class_oracle_accuracies
         ),
@@ -564,6 +579,9 @@ def _add_model_diagnostic_results(results, clients, server):
         ),
         "routing_class_macro_leader_accuracy": class_mean(
             class_leader_accuracies
+        ),
+        "routing_class_macro_confidence_leader_accuracy": class_mean(
+            class_confidence_leader_accuracies
         ),
         "routing_class_oracle_gap_mean": class_mean(class_oracle_gaps),
         "routing_class_oracle_gap_std": (
@@ -922,7 +940,8 @@ def _save_raw_run(
                 for key in (
                     "sample_count", "oracle_correct_count",
                     "mixture_correct_count", "leader_correct_count",
-                    "missed_oracle_count",
+                    "confidence_leader_correct_count", "missed_oracle_count",
+                    "confidence_leader_missed_oracle_count",
                 ):
                     routing_class_values[key].append(diagnostics[key])
         telemetry_arrays["routing_class_client_ids"] = np.asarray(

@@ -174,10 +174,11 @@ def test_restarting_soft_routing_records_oracle_recovery_diagnostics():
         verbose=False,
     )
     # 等重み混合は0.5となって誤答するが、モデル1単体なら正答する。
-    client.models[0].forward = lambda x: torch.full((len(x), 1), 0.1)
+    client.models[0].forward = lambda x: torch.full((len(x), 1), 0.2)
     client.models[1].forward = lambda x: torch.full((len(x), 1), 0.9)
-    client.models[0].per_sample_error = lambda x, y: torch.full((len(x),), 0.9)
+    client.models[0].per_sample_error = lambda x, y: torch.full((len(x),), 0.8)
     client.models[1].per_sample_error = lambda x, y: torch.full((len(x),), 0.1)
+    client._prediction_probabilities = lambda _: {0: 0.75, 1: 0.25}
 
     client._record_prediction(
         torch.zeros((1, config.dataset_spec().input_dim)), torch.ones((1, 1)), 0
@@ -188,7 +189,9 @@ def test_restarting_soft_routing_records_oracle_recovery_diagnostics():
         "oracle_correct_count": 1,
         "mixture_correct_count": 0,
         "leader_correct_count": 0,
+        "confidence_leader_correct_count": 1,
         "missed_oracle_count": 1,
+        "confidence_leader_missed_oracle_count": 0,
     }
     assert client.history_routing_oracle_correct == [1]
     assert dict(client.routing_class_diagnostics[1]) == {
@@ -196,7 +199,9 @@ def test_restarting_soft_routing_records_oracle_recovery_diagnostics():
         "oracle_correct_count": 1,
         "mixture_correct_count": 0,
         "leader_correct_count": 0,
+        "confidence_leader_correct_count": 1,
         "missed_oracle_count": 1,
+        "confidence_leader_missed_oracle_count": 0,
     }
 
 

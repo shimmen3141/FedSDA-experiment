@@ -1274,7 +1274,9 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             "oracle_correct_count": 0,
             "mixture_correct_count": 0,
             "leader_correct_count": 0,
+            "confidence_leader_correct_count": 0,
             "missed_oracle_count": 0,
+            "confidence_leader_missed_oracle_count": 0,
         }
         # 入力文脈を使うルータへ進む前に、既存ルータの未回収余地が
         # 正解クラスへ偏っているかを追加forwardなしで記録する。
@@ -1301,6 +1303,7 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         probabilities = self._prediction_probabilities(proposal_probabilities)
         model_losses = {}
         model_correctness = {}
+        model_confidences = {}
         weighted_scores = None
 
         with torch.no_grad():
@@ -1321,9 +1324,15 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                         1, labels.unsqueeze(1)
                     ).squeeze(1)
                     model_prediction = torch.argmax(scores, dim=1, keepdim=True)
+                    model_confidences[model_id] = float(
+                        scores.max(dim=1).values.mean().item()
+                    )
                 else:
                     losses = torch.abs(scores.view(-1) - y.view(-1).float())
                     model_prediction = (scores > 0.5).float()
+                    model_confidences[model_id] = float(
+                        torch.abs(scores.view(-1) - 0.5).mean().item()
+                    )
                 # 予測に用いた出力から損失も計算し、同一モデルの二重forwardを避ける。
                 model_losses[model_id] = float(losses.mean().item())
                 model_correctness[model_id] = bool(
@@ -1356,12 +1365,32 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         # 混合自体が全単体モデルより良い場合もあるため、oracle候補には実混合も含める。
         oracle_correct = bool(accuracy) or any(model_correctness.values())
         leader_correct = model_correctness[routed_model_id]
+        max_confidence = max(model_confidences.values())
+        confidence_leaders = [
+            model_id for model_id, confidence in model_confidences.items()
+            if confidence == max_confidence
+        ]
+        confidence_model_id = max(
+            confidence_leaders,
+            key=lambda model_id: (
+                probabilities[model_id],
+                model_id == self.current_model_id,
+                -model_id,
+            ),
+        )
+        confidence_leader_correct = model_correctness[confidence_model_id]
         self.routing_diagnostics["sample_count"] += 1
         self.routing_diagnostics["oracle_correct_count"] += int(oracle_correct)
         self.routing_diagnostics["mixture_correct_count"] += int(accuracy)
         self.routing_diagnostics["leader_correct_count"] += int(leader_correct)
+        self.routing_diagnostics["confidence_leader_correct_count"] += int(
+            confidence_leader_correct
+        )
         self.routing_diagnostics["missed_oracle_count"] += int(
             oracle_correct and not accuracy
+        )
+        self.routing_diagnostics["confidence_leader_missed_oracle_count"] += int(
+            oracle_correct and not confidence_leader_correct
         )
         class_id = int(y.view(-1)[0].item())
         class_diagnostics = self.routing_class_diagnostics[class_id]
@@ -1369,8 +1398,14 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         class_diagnostics["oracle_correct_count"] += int(oracle_correct)
         class_diagnostics["mixture_correct_count"] += int(accuracy)
         class_diagnostics["leader_correct_count"] += int(leader_correct)
+        class_diagnostics["confidence_leader_correct_count"] += int(
+            confidence_leader_correct
+        )
         class_diagnostics["missed_oracle_count"] += int(
             oracle_correct and not accuracy
+        )
+        class_diagnostics["confidence_leader_missed_oracle_count"] += int(
+            oracle_correct and not confidence_leader_correct
         )
         self.history_routing_oracle_correct.append(int(oracle_correct))
         self.history_routing_leader_correct.append(int(leader_correct))
