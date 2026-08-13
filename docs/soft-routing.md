@@ -68,5 +68,21 @@ SoftRoutingの予測結果はモデル学習、ドリフト検出、モデル作
 - `context leader`は独立方式ではなくmetaの構成要素なので、CLI modeを増やさない。
 - Shadow診断は新方式の導入前後で同一系列上の反実仮想比較を行えるため維持する。
 
+## 実験上の位置づけ
+
+5 seed・5000 stepの`bounded_score`診断では、Meta mixtureはGlobal mixtureに対してSine2で
+約0.37ポイント、MNIST2で約0.11ポイント、MNIST4で約0.38ポイントaccuracyを改善した。
+SEA2・SEA4ではほぼ同等で、Circle2では約0.07ポイント下回った。したがって、Metaは全データで
+Globalを支配する方式ではないが、複雑な多クラス問題とSine2で比較的大きな利得を示す有力候補である。
+
+2 seed・2000 stepの予備実験では、`zero_one`は`bounded_score`に対してCircle2とMNIST4をわずかに
+改善し、Sine2はほぼ同等だった。ただしCircle2でGlobalを完全には上回っていないため、損失方式の
+採否には5 seed・5000 stepの確認が必要である。
+
+論文上は、Global mixtureを単純な基準とし、Meta mixtureを「Global mixtureと予測クラス別leaderを
+2-expert AdaHedgeで統合する拡張」として分けて説明する。Metaは既存のモデル出力だけを再利用し、
+追加forward・通信・数値閾値を必要としないため、三層すべてを個別手法として並べる必要はない。
+Context mixtureはMetaの比較ablation、Context leaderは内部候補として扱う。
+
 共有バックボーンやResidual Adapterとの関係は[shared-backbone.md](shared-backbone.md)、保存指標は
 [metrics.md](metrics.md)、CLI依存関係は自動生成される[options.md](options.md)を参照する。
