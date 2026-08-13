@@ -99,6 +99,11 @@ class _SharedRepresentationFedSDAClientMixin:
         elif strategy != "none":
             raise ValueError(f"未知のルーティング再較正方式です: {strategy!r}")
 
+        # 予測クラス別の証拠は集約後の表現に対して再評価できないため破棄する。
+        # 大域ルータは従来どおりFIFO等で再較正し、次の文脈を決める役割を保つ。
+        for router in getattr(self, "context_expert_routers", {}).values():
+            router.restart_after_aggregation()
+
     def _fifo_routing_loss_sequence(self):
         """集約後の全保持モデルをFIFO上で再評価し、時系列損失を返す。"""
         samples = tuple(self.buffer)

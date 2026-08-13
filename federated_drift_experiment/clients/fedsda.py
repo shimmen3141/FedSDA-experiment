@@ -1264,6 +1264,7 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.expert_router = AdaHedgeRouter()
+        self.context_expert_routers = defaultdict(AdaHedgeRouter)
         self.history_routing_effective_experts = []
         self.history_routing_max_weight = []
         self.history_routing_gate_open = []
@@ -1300,11 +1301,10 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
     def _record_prediction(self, x, y, concept_id):
         model_ids = tuple(sorted(self.models))
         proposal_probabilities = self.expert_router.probabilities(model_ids)
-        probabilities = self._prediction_probabilities(proposal_probabilities)
         model_losses = {}
         model_correctness = {}
         model_confidences = {}
-        weighted_scores = None
+        prediction_scores = {}
 
         with torch.no_grad():
             scores_by_model = self._routing_scores(x, model_ids)
@@ -1313,11 +1313,7 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                 scores = scores_by_model[model_id]
                 if model.num_classes > 2:
                     scores = torch.softmax(scores, dim=1)
-                weighted = scores * probabilities[model_id]
-                weighted_scores = (
-                    weighted if weighted_scores is None
-                    else weighted_scores + weighted
-                )
+                prediction_scores[model_id] = scores
                 if model.num_classes > 2:
                     labels = y.view(-1).long()
                     losses = 1.0 - scores.gather(
@@ -1339,6 +1335,29 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                     model_prediction.view(-1)[0].item()
                     == y.view(-1)[0].item()
                 )
+
+        context_router = None
+        routing_proposal = proposal_probabilities
+        if config.SOFT_ROUTING_CONTEXT == "predicted_class":
+            provisional_scores = sum(
+                prediction_scores[model_id] * proposal_probabilities[model_id]
+                for model_id in model_ids
+            )
+            if self.models[model_ids[0]].num_classes == 2:
+                context_id = int(provisional_scores.view(-1)[0].item() > 0.5)
+            else:
+                context_id = int(torch.argmax(provisional_scores, dim=1).item())
+            context_router = self.context_expert_routers[context_id]
+            routing_proposal = context_router.probabilities(model_ids)
+        elif config.SOFT_ROUTING_CONTEXT != "global":
+            raise ValueError(
+                f"未知のSoftRouting文脈です: {config.SOFT_ROUTING_CONTEXT!r}"
+            )
+        probabilities = self._prediction_probabilities(routing_proposal)
+        weighted_scores = sum(
+            prediction_scores[model_id] * probabilities[model_id]
+            for model_id in model_ids
+        )
         if self.models[model_ids[0]].num_classes == 2:
             prediction = (weighted_scores > 0.5).float()
         else:
@@ -1420,6 +1439,8 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         # prequential順序を守り、予測後に正解ラベルで重みを更新する。
         # 保護方式でもAdaHedge自体は提案分布で更新し、反実仮想の学習を続ける。
         self.expert_router.update(model_losses, proposal_probabilities)
+        if context_router is not None:
+            context_router.update(model_losses, routing_proposal)
 
 
 class RestartingSoftRoutingClassConditionalESRFedSDAClient(
@@ -1429,6 +1450,8 @@ class RestartingSoftRoutingClassConditionalESRFedSDAClient(
 
     def _on_local_model_change(self, old_model_id, new_model_id):
         self.expert_router.restart_for_concept()
+        for router in self.context_expert_routers.values():
+            router.restart_for_concept()
 
 
 class ProtectedSoftRoutingClassConditionalESRFedSDAClient(

@@ -91,6 +91,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "shared_backbone_training",
             "shared_backbone_gradient_strategy",
             "shared_backbone_routing_recalibration",
+            "soft_routing_context",
             "shared_adapter_rank",
             FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
             ] + METRIC_KEYS
@@ -189,6 +190,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             f"{display_series} [routing-recalibration="
             f"{config.SHARED_BACKBONE_ROUTING_RECALIBRATION}]"
         )
+    if "SoftRouting" in mode and config.SOFT_ROUTING_CONTEXT != "global":
+        display_series = (
+            f"{display_series} [routing-context={config.SOFT_ROUTING_CONTEXT}]"
+        )
     if "_ResidualAdapter_" in mode:
         display_series = (
             f"{display_series} [adapter-rank={config.SHARED_ADAPTER_RANK}]"
@@ -270,6 +275,9 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         "shared_backbone_routing_recalibration": (
             config.SHARED_BACKBONE_ROUTING_RECALIBRATION
             if is_shared_representation_mode(mode) else None
+        ),
+        "soft_routing_context": (
+            config.SOFT_ROUTING_CONTEXT if "SoftRouting" in mode else None
         ),
         "shared_adapter_rank": (
             config.SHARED_ADAPTER_RANK
@@ -977,6 +985,12 @@ def build_parser():
         default=config.SHARED_ADAPTER_RANK,
         help="概念別低ランク残差adapterの最大rank",
     )
+    fedsda.add_argument(
+        "--soft-routing-context",
+        choices=config.SOFT_ROUTING_CONTEXT_CHOICES,
+        default=config.SOFT_ROUTING_CONTEXT,
+        help="SoftRoutingの損失証拠を共有する文脈 (global / predicted_class)",
+    )
     fedsda.add_argument("--fedsda-distance-threshold", dest="fixed_gamma",
                         type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
@@ -1159,6 +1173,7 @@ def main(argv=None):
         "shared_backbone_routing_recalibration": (
             args.shared_backbone_routing_recalibration
         ),
+        "soft_routing_context": args.soft_routing_context,
         "shared_adapter_rank": args.shared_adapter_rank,
         "experiment_manifest": "on" if args.manifest else "off",
         "duplicate_policy": args.duplicate_policy,
@@ -1205,6 +1220,7 @@ def main(argv=None):
             args.shared_backbone_routing_recalibration
         ),
         shared_adapter_rank=args.shared_adapter_rank,
+        soft_routing_context=args.soft_routing_context,
     )
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.FEDDRIFT_DISTANCE_THRESHOLD

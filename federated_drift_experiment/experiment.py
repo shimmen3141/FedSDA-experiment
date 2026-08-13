@@ -1210,6 +1210,10 @@ def _save_raw_run(
             if is_shared_representation_mode(mode) else "",
             dtype=np.str_,
         ),
+        soft_routing_context=np.asarray(
+            config.SOFT_ROUTING_CONTEXT if "SoftRouting" in mode else "",
+            dtype=np.str_,
+        ),
         shared_adapter_rank=np.asarray(
             config.SHARED_ADAPTER_RANK if "_ResidualAdapter_" in mode else -1,
             dtype=np.int64,

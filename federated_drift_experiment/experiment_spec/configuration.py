@@ -21,6 +21,7 @@ class AlgorithmOptions:
     shared_backbone_routing_recalibration: str
     shared_adapter_rank: int = 8
     shared_backbone_gradient_strategy: str = "mean"
+    soft_routing_context: str = "global"
 
     @classmethod
     def from_current_config(cls):
@@ -42,6 +43,7 @@ class AlgorithmOptions:
             shared_backbone_gradient_strategy=(
                 config.SHARED_BACKBONE_GRADIENT_STRATEGY
             ),
+            soft_routing_context=config.SOFT_ROUTING_CONTEXT,
         )
 
     def config_overrides(self):
@@ -64,6 +66,7 @@ class AlgorithmOptions:
             "SHARED_BACKBONE_GRADIENT_STRATEGY": (
                 self.shared_backbone_gradient_strategy
             ),
+            "SOFT_ROUTING_CONTEXT": self.soft_routing_context,
         }
 
 

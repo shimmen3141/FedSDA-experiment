@@ -238,6 +238,36 @@ def test_soft_routing_reuses_prediction_forward_for_expert_loss():
     assert forward_calls == {0: 1, 1: 1}
 
 
+def test_predicted_class_context_keeps_separate_online_evidence(monkeypatch):
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "predicted_class")
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP()},
+        initial_stats={
+            0: {"n": 100, "mean": 0.2, "M2": 1.0},
+            1: {"n": 100, "mean": 0.2, "M2": 1.0},
+        },
+        verbose=False,
+    )
+    client.models[0].forward = lambda x: torch.full((len(x), 1), 0.2)
+    client.models[1].forward = lambda x: torch.full((len(x), 1), 0.9)
+
+    client._record_prediction(
+        torch.zeros((1, config.dataset_spec().input_dim)), torch.ones((1, 1)), 0
+    )
+
+    assert set(client.context_expert_routers) == {1}
+    assert client.context_expert_routers[1].cumulative_losses == {
+        0: pytest.approx(0.8),
+        1: pytest.approx(0.1),
+    }
+    client._on_local_model_change(0, 1)
+    assert client.context_expert_routers[1].cumulative_losses == {}
+
+
 def test_protected_soft_routing_keeps_incumbent_until_proposal_is_better():
     spec = MODE_SPECS["FedSDA_NoCached_ClassESR_ProtectedSoftRouting"]
     client = spec.client_cls(

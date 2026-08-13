@@ -29,6 +29,7 @@ flowchart LR
   end
   subgraph group_prediction[prediction]
     routing["<b>予測ルーティング</b><br/>hard | restarting_soft | protected_soft"]
+    soft_routing_context["<b>SoftRouting文脈</b><br/>global | predicted_class"]
     shared_backbone_routing_recalibration["<b>共有表現更新後のルーティング再較正</b><br/>none | aggregation_restart | fifo_replay | leader_change_replay | persistent_leader_change_replay"]
   end
   subgraph group_model[model]
@@ -72,6 +73,7 @@ flowchart LR
     experiment_manifest["<b>実験manifest</b><br/>off | on"]
     duplicate_policy["<b>既存実験重複ポリシー</b><br/>ignore | warn | error"]
   end
+  routing -->|"Restarting SoftRoutingのとき"| soft_routing_context
   model_architecture -->|"共有表現構造のとき"| shared_backbone_training
   shared_backbone_training -->|"共有表現をjoint学習するとき"| shared_backbone_gradient_strategy
   model_architecture -->|"共有表現構造のとき"| shared_backbone_routing_recalibration
@@ -107,6 +109,7 @@ flowchart LR
 | `server_flow` | mode | 実装済み | 対象外 | 対象外 | 対象外 | FedAvg前後のモデルキャッシュ利用と通信順序 |
 | `detector` | mode | 実装済み | 対象外 | 実装済み | 対象外 | FedSDAクライアントが損失系列へ適用する検出器 |
 | `routing` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 保持モデルから予測を選択または混合する方式 |
+| `soft_routing_context` | cli: `--soft-routing-context` | 実装済み | 対象外 | 対象外 | 対象外 | 全入力で損失証拠を共有するか、事前予測クラスごとに分けるかを選ぶ |
 | `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか |
 | `shared_backbone_training` | cli: `--shared-backbone-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか |
 | `shared_backbone_gradient_strategy` | cli: `--shared-backbone-gradient-strategy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 共同学習時の概念別バックボーン勾配を平均または競合射影で統合する方式 |

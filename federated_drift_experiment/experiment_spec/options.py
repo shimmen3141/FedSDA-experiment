@@ -147,6 +147,18 @@ OPTIONS = (
         configuration_surface="mode",
     ),
     OptionSpec(
+        "soft_routing_context", "SoftRouting文脈", "prediction",
+        ("global", "predicted_class"),
+        "全入力で損失証拠を共有するか、事前予測クラスごとに分けるかを選ぶ",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("soft_routing",),
+        active_when=(ActivationRule(
+            "routing", ("restarting_soft",),
+            "Restarting SoftRoutingのとき",
+        ),),
+        cli_name="soft-routing-context",
+    ),
+    OptionSpec(
         "model_architecture", "モデル構造", "model",
         ("independent", "shared_backbone", "residual_adapter"),
         "概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか",

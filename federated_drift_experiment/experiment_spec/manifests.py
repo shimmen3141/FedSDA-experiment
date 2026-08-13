@@ -109,6 +109,8 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("shared_backbone_training", None)
         algorithm.pop("shared_backbone_gradient_strategy", None)
         algorithm.pop("shared_backbone_routing_recalibration", None)
+    if "SoftRouting" not in experiment.mode:
+        algorithm.pop("soft_routing_context", None)
     elif (
         algorithm.get("shared_backbone_training") != "joint"
         or algorithm.get("shared_backbone_gradient_strategy") == "mean"
@@ -174,6 +176,10 @@ def configuration_from_result_row(row, total_data):
             row.get("new_model_forward_validation_samples"), int,
         ),
     }
+    if "SoftRouting" in mode:
+        algorithm["soft_routing_context"] = (
+            row.get("soft_routing_context") or "global"
+        )
     if "SharedBackbone" in mode or "ResidualAdapter" in mode:
         algorithm.update({
             "shared_backbone_training": row.get("shared_backbone_training"),
