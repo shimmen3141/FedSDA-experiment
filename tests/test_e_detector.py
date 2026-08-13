@@ -378,6 +378,41 @@ def test_meta_predicted_class_uses_meta_scores_as_actual_prediction(
     ] == 0
 
 
+def test_meta_router_can_update_with_zero_one_loss(monkeypatch):
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "predicted_class")
+    monkeypatch.setattr(config, "SOFT_ROUTING_META_LOSS", "zero_one")
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP()},
+        initial_stats={
+            0: {"n": 100, "mean": 0.2, "M2": 1.0},
+            1: {"n": 100, "mean": 0.2, "M2": 1.0},
+        },
+        verbose=False,
+    )
+    client.models[0].forward = lambda x: torch.full((len(x), 1), 0.4)
+    client.models[1].forward = lambda x: torch.full((len(x), 1), 0.9)
+    client.expert_router.cumulative_losses = {0: 0.0, 1: 2.0}
+    client.expert_router.mixability_gap = 1.0
+    context_router = client.context_expert_routers[0]
+    context_router.cumulative_losses = {0: 2.0, 1: 0.0}
+    context_router.mixability_gap = 1.0
+
+    client._record_prediction(
+        torch.zeros((1, config.dataset_spec().input_dim)),
+        torch.ones((1, 1)),
+        0,
+    )
+
+    assert client.shadow_meta_routers[0].cumulative_losses == {
+        "global_mixture": pytest.approx(1.0),
+        "context_leader": pytest.approx(0.0),
+    }
+
+
 def test_protected_soft_routing_keeps_incumbent_until_proposal_is_better():
     spec = MODE_SPECS["FedSDA_NoCached_ClassESR_ProtectedSoftRouting"]
     client = spec.client_cls(

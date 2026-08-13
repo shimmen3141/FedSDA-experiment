@@ -111,6 +111,9 @@ SOFT_ROUTING_CONTEXT = "global"
 SOFT_ROUTING_CONTEXT_CHOICES = (
     "global", "predicted_class", "meta_predicted_class",
 )
+# Meta-routerを連続予測損失または最終accuracyと一致する0/1損失で更新する。
+SOFT_ROUTING_META_LOSS = "bounded_score"
+SOFT_ROUTING_META_LOSS_CHOICES = ("bounded_score", "zero_one")
 # 概念別低ランク残差adapterのrank。特徴次元より大きい場合は特徴次元へ丸める。
 SHARED_ADAPTER_RANK = 8
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)

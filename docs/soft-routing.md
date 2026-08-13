@@ -39,6 +39,16 @@ flowchart LR
 `meta_predicted_class`は、モデル別の実効重みに展開すると、global重みとcontext leaderへの一点重みを
 上位AdaHedgeの比率で加えた混合になる。追加のモデルforward、通信、数値ハイパーパラメータはない。
 
+Meta-routerの更新損失は`--soft-routing-meta-loss`で選ぶ。
+
+- `bounded_score`（既定値）は、正解クラスへ割り当てた確率に基づく`[0, 1]`有界損失を使う。
+  予測確率の較正も評価できる一方、最終0/1 accuracyと候補の優劣が逆転する場合がある。
+- `zero_one`は、候補の最終予測が正解なら0、不正解なら1として更新する。Meta-routerの目的を
+  accuracyへ直接合わせるが、予測確率の確信度情報は使わない。
+
+どちらも新しい数値閾値を導入せず、同じAdaHedge更新を使う。比較後は一方へ整理する前提の
+実験的選択肢である。
+
 ## Shadow診断と実運用の関係
 
 `predicted_class`では実予測をContext mixtureのまま維持し、同じ標本についてMeta mixtureをshadowで
@@ -51,7 +61,8 @@ SoftRoutingの予測結果はモデル学習、ドリフト検出、モデル作
 ## 比較上の扱い
 
 - `global`は単純で安定した基準方式であり、当面の既定値として残す。
-- `meta_predicted_class`はSine2・MNIST2・MNIST4でglobalを上回った次期候補である。
+- `meta_predicted_class`はSine2・MNIST2・MNIST4でglobalを上回った一方、Circle2では5 seedすべてで
+  わずかに下回った。現時点では一律の既定値ではなく、更新損失との整合性を検証する候補である。
 - `predicted_class`は現時点の実験ではglobalまたはmetaにほぼ支配されている。素朴な文脈別再混合の
   ablationとしては意味があるが、主要方式へ昇格しない場合は将来の整理候補である。
 - `context leader`は独立方式ではなくmetaの構成要素なので、CLI modeを増やさない。

@@ -92,6 +92,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "shared_backbone_gradient_strategy",
             "shared_backbone_routing_recalibration",
             "soft_routing_context",
+            "soft_routing_meta_loss",
             "shared_adapter_rank",
             FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
             ] + METRIC_KEYS
@@ -194,6 +195,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         display_series = (
             f"{display_series} [routing-context={config.SOFT_ROUTING_CONTEXT}]"
         )
+        if config.SOFT_ROUTING_META_LOSS != "bounded_score":
+            display_series = (
+                f"{display_series} [meta-loss={config.SOFT_ROUTING_META_LOSS}]"
+            )
     if "_ResidualAdapter_" in mode:
         display_series = (
             f"{display_series} [adapter-rank={config.SHARED_ADAPTER_RANK}]"
@@ -278,6 +283,11 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         ),
         "soft_routing_context": (
             config.SOFT_ROUTING_CONTEXT if "SoftRouting" in mode else None
+        ),
+        "soft_routing_meta_loss": (
+            config.SOFT_ROUTING_META_LOSS
+            if "SoftRouting" in mode
+            and config.SOFT_ROUTING_CONTEXT != "global" else None
         ),
         "shared_adapter_rank": (
             config.SHARED_ADAPTER_RANK
@@ -574,6 +584,7 @@ def _load_csv(path):
             row.setdefault("clustering_decision", "distance")
             row.setdefault("shared_backbone_training", "sequential")
             row.setdefault("shared_backbone_gradient_strategy", "")
+            row.setdefault("soft_routing_meta_loss", "bounded_score")
             row.setdefault("shared_adapter_rank", "")
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
@@ -989,7 +1000,16 @@ def build_parser():
         "--soft-routing-context",
         choices=config.SOFT_ROUTING_CONTEXT_CHOICES,
         default=config.SOFT_ROUTING_CONTEXT,
-        help="SoftRoutingの損失証拠を共有する文脈 (global / predicted_class)",
+        help=(
+            "SoftRoutingの予測方式 "
+            "(global / predicted_class / meta_predicted_class)"
+        ),
+    )
+    fedsda.add_argument(
+        "--soft-routing-meta-loss",
+        choices=config.SOFT_ROUTING_META_LOSS_CHOICES,
+        default=config.SOFT_ROUTING_META_LOSS,
+        help="Meta-routerの更新損失 (bounded_score / zero_one)",
     )
     fedsda.add_argument("--fedsda-distance-threshold", dest="fixed_gamma",
                         type=float, default=None,
@@ -1174,6 +1194,7 @@ def main(argv=None):
             args.shared_backbone_routing_recalibration
         ),
         "soft_routing_context": args.soft_routing_context,
+        "soft_routing_meta_loss": args.soft_routing_meta_loss,
         "shared_adapter_rank": args.shared_adapter_rank,
         "experiment_manifest": "on" if args.manifest else "off",
         "duplicate_policy": args.duplicate_policy,
@@ -1221,6 +1242,7 @@ def main(argv=None):
         ),
         shared_adapter_rank=args.shared_adapter_rank,
         soft_routing_context=args.soft_routing_context,
+        soft_routing_meta_loss=args.soft_routing_meta_loss,
     )
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.FEDDRIFT_DISTANCE_THRESHOLD

@@ -41,6 +41,12 @@ def test_schema_choices_follow_runtime_configuration():
     assert option("shared_backbone_training").choices == (
         config.SHARED_BACKBONE_TRAINING_CHOICES
     )
+    assert option("soft_routing_context").choices == (
+        config.SOFT_ROUTING_CONTEXT_CHOICES
+    )
+    assert option("soft_routing_meta_loss").choices == (
+        config.SOFT_ROUTING_META_LOSS_CHOICES
+    )
     known_modes = set(FEDSDA_MODES) | set(BASELINE_MODES) | {"FedDrift"}
     assert all(
         set(item.implemented_modes) <= known_modes
@@ -114,6 +120,29 @@ def test_soft_routing_constraints_are_explicit():
         "server_flow": "NoCached",
         "detector": "ClassESR",
     }) == ()
+
+
+def test_meta_loss_dependency_is_validated_from_explicit_options():
+    explicit = explicit_option_ids([
+        "--soft-routing-meta-loss", "zero_one",
+    ])
+    mode = "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    assert validate_explicit_options(
+        (mode,),
+        {"soft_routing_context": "global",
+         "soft_routing_meta_loss": "zero_one"},
+        explicit,
+    ) == (
+        "--soft-routing-meta-loss: " + mode + ": "
+        "soft_routing_meta_loss is active only when "
+        "文脈別Meta-routerを計算するとき",
+    )
+    assert validate_explicit_options(
+        (mode,),
+        {"soft_routing_context": "meta_predicted_class",
+         "soft_routing_meta_loss": "zero_one"},
+        explicit,
+    ) == ()
 
 
 def test_shared_backbone_training_requires_shared_architecture():

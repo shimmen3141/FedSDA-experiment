@@ -1490,12 +1490,26 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             context_correct = self._routing_correct(
                 context_scores, y, num_classes
             )
-            meta_losses = {
-                "global_mixture": self._routing_score_loss(
-                    global_scores, y, num_classes
-                ),
-                "context_leader": model_losses[context_leader_model_id],
-            }
+            if config.SOFT_ROUTING_META_LOSS == "bounded_score":
+                meta_losses = {
+                    "global_mixture": self._routing_score_loss(
+                        global_scores, y, num_classes
+                    ),
+                    "context_leader": model_losses[context_leader_model_id],
+                }
+            elif config.SOFT_ROUTING_META_LOSS == "zero_one":
+                # Metaの目的を最終accuracyへ揃え、較正差による選択の逆転を避ける。
+                meta_losses = {
+                    "global_mixture": float(not global_correct),
+                    "context_leader": float(
+                        not model_correctness[context_leader_model_id]
+                    ),
+                }
+            else:
+                raise ValueError(
+                    "未知のMeta-router更新損失です: "
+                    f"{config.SOFT_ROUTING_META_LOSS!r}"
+                )
             context_leader_weight = meta_probabilities["context_leader"]
             self.routing_meta_diagnostics["sample_count"] += 1
             self.routing_meta_diagnostics["correct_count"] += int(meta_correct)

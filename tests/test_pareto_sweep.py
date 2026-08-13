@@ -40,6 +40,8 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.shared_backbone_training == "sequential"
     assert defaults.shared_backbone_gradient_strategy == "mean"
     assert defaults.shared_backbone_routing_recalibration == "none"
+    assert defaults.soft_routing_context == "global"
+    assert defaults.soft_routing_meta_loss == "bounded_score"
     assert defaults.shared_adapter_rank == config.SHARED_ADAPTER_RANK
     assert defaults.duplicate_policy == "error"
     selected = parser.parse_args([

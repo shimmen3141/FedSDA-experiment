@@ -111,11 +111,15 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("shared_backbone_routing_recalibration", None)
     if "SoftRouting" not in experiment.mode:
         algorithm.pop("soft_routing_context", None)
-    elif (
-        algorithm.get("shared_backbone_training") != "joint"
-        or algorithm.get("shared_backbone_gradient_strategy") == "mean"
-    ):
-        algorithm.pop("shared_backbone_gradient_strategy", None)
+        algorithm.pop("soft_routing_meta_loss", None)
+    else:
+        if algorithm.get("soft_routing_context") == "global":
+            algorithm.pop("soft_routing_meta_loss", None)
+        if (
+            algorithm.get("shared_backbone_training") != "joint"
+            or algorithm.get("shared_backbone_gradient_strategy") == "mean"
+        ):
+            algorithm.pop("shared_backbone_gradient_strategy", None)
     if "ResidualAdapter" not in experiment.mode:
         algorithm.pop("shared_adapter_rank", None)
     return {
@@ -180,6 +184,10 @@ def configuration_from_result_row(row, total_data):
         algorithm["soft_routing_context"] = (
             row.get("soft_routing_context") or "global"
         )
+        if algorithm["soft_routing_context"] != "global":
+            algorithm["soft_routing_meta_loss"] = (
+                row.get("soft_routing_meta_loss") or "bounded_score"
+            )
     if "SharedBackbone" in mode or "ResidualAdapter" in mode:
         algorithm.update({
             "shared_backbone_training": row.get("shared_backbone_training"),

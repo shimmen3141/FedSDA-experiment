@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 2
+OPTION_SCHEMA_VERSION = 3
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -157,6 +157,19 @@ OPTIONS = (
             "Restarting SoftRoutingのとき",
         ),),
         cli_name="soft-routing-context",
+    ),
+    OptionSpec(
+        "soft_routing_meta_loss", "Meta-router更新損失", "prediction",
+        ("bounded_score", "zero_one"),
+        "Meta候補を確率出力の有界損失または最終予測の0/1損失で比較する",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("soft_routing",),
+        active_when=(ActivationRule(
+            "soft_routing_context",
+            ("predicted_class", "meta_predicted_class"),
+            "文脈別Meta-routerを計算するとき",
+        ),),
+        cli_name="soft-routing-meta-loss",
     ),
     OptionSpec(
         "model_architecture", "モデル構造", "model",
@@ -686,12 +699,7 @@ def validate_explicit_options(modes, selections, explicit_ids):
             method_id = method_for_mode(mode)
             option_issues = validate_selection(
                 method_id,
-                {key: value for key, value in mode_selections.items()
-                 if key == option_id or key in {
-                     "new_model_creation_policy", "new_model_training",
-                     "clustering_decision", "detector", "server_flow", "routing",
-                     "model_architecture", "shared_backbone_training",
-                 }},
+                mode_selections,
             )
             relevant = tuple(
                 issue for issue in option_issues
