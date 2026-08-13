@@ -389,6 +389,7 @@ def test_shared_backbone_experiment_reports_component_metrics(
     monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 30)
     monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
     monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 50)
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "predicted_class")
 
     raw_path = tmp_path / "shared-routing.npz"
     results = run_random_drift_experiment(
@@ -411,6 +412,11 @@ def test_shared_backbone_experiment_reports_component_metrics(
     assert results["routing_confidence_leader_accuracy"] > 0
     assert results["routing_class_macro_confidence_leader_accuracy"] > 0
     assert results["routing_class_oracle_gap_std"] >= 0
+    assert results["routing_meta_accuracy"] > 0
+    assert results["routing_meta_global_accuracy"] >= 0
+    assert results["routing_meta_context_leader_accuracy"] >= 0
+    assert results["routing_meta_best_candidate_gain_rate"] <= 1
+    assert results["routing_meta_context_leader_weight_mean"] >= 0
     with np.load(raw_path) as raw:
         assert raw["routing_class_client_ids"].shape == (
             len(raw["routing_class_ids"]),
@@ -419,6 +425,10 @@ def test_shared_backbone_experiment_reports_component_metrics(
             "routing_sample_count"
         ]
         assert "routing_class_confidence_leader_correct_counts" in raw
+        assert raw["history_routing_meta_correct"].shape == (2, 100)
+        assert raw[
+            "routing_class_meta_sample_counts"
+        ].sum() == results["routing_sample_count"]
 
 
 def test_residual_adapter_experiment_reports_component_metrics(monkeypatch):

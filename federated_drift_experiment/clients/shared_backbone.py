@@ -103,6 +103,8 @@ class _SharedRepresentationFedSDAClientMixin:
         # 大域ルータは従来どおりFIFO等で再較正し、次の文脈を決める役割を保つ。
         for router in getattr(self, "context_expert_routers", {}).values():
             router.restart_after_aggregation()
+        for router in getattr(self, "shadow_meta_routers", {}).values():
+            router.restart_after_aggregation()
 
     def _fifo_routing_loss_sequence(self):
         """集約後の全保持モデルをFIFO上で再評価し、時系列損失を返す。"""

@@ -1265,11 +1265,14 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         super().__init__(*args, **kwargs)
         self.expert_router = AdaHedgeRouter()
         self.context_expert_routers = defaultdict(AdaHedgeRouter)
+        self.shadow_meta_routers = defaultdict(AdaHedgeRouter)
         self.history_routing_effective_experts = []
         self.history_routing_max_weight = []
         self.history_routing_gate_open = []
         self.history_routing_oracle_correct = []
         self.history_routing_leader_correct = []
+        self.history_routing_meta_correct = []
+        self.history_routing_meta_context_leader_weight = []
         self.routing_diagnostics = {
             "sample_count": 0,
             "oracle_correct_count": 0,
@@ -1278,6 +1281,16 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             "confidence_leader_correct_count": 0,
             "missed_oracle_count": 0,
             "confidence_leader_missed_oracle_count": 0,
+        }
+        # 実予測を変えず、global mixtureと文脈別leaderの選択可能性を診断する。
+        self.routing_meta_diagnostics = {
+            "sample_count": 0,
+            "correct_count": 0,
+            "actual_correct_count": 0,
+            "global_correct_count": 0,
+            "context_leader_correct_count": 0,
+            "context_leader_weight_sum": 0.0,
+            "context_leader_preferred_count": 0,
         }
         # 入力文脈を使うルータへ進む前に、既存ルータの未回収余地が
         # 正解クラスへ偏っているかを追加forwardなしで記録する。
@@ -1337,6 +1350,7 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                 )
 
         context_router = None
+        context_leader_model_id = None
         routing_proposal = proposal_probabilities
         if config.SOFT_ROUTING_CONTEXT == "predicted_class":
             provisional_scores = sum(
@@ -1349,6 +1363,17 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                 context_id = int(torch.argmax(provisional_scores, dim=1).item())
             context_router = self.context_expert_routers[context_id]
             routing_proposal = context_router.probabilities(model_ids)
+            context_maximum = max(routing_proposal.values())
+            context_leaders = [
+                model_id
+                for model_id, weight in routing_proposal.items()
+                if weight == context_maximum
+            ]
+            context_leader_model_id = (
+                self.current_model_id
+                if self.current_model_id in context_leaders
+                else min(context_leaders)
+            )
         elif config.SOFT_ROUTING_CONTEXT != "global":
             raise ValueError(
                 f"未知のSoftRouting文脈です: {config.SOFT_ROUTING_CONTEXT!r}"
@@ -1384,6 +1409,75 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         # 混合自体が全単体モデルより良い場合もあるため、oracle候補には実混合も含める。
         oracle_correct = bool(accuracy) or any(model_correctness.values())
         leader_correct = model_correctness[routed_model_id]
+
+        meta_correct = None
+        if context_router is not None:
+            meta_router = self.shadow_meta_routers[context_id]
+            meta_expert_ids = ("global_mixture", "context_leader")
+            meta_probabilities = meta_router.probabilities(meta_expert_ids)
+            meta_scores = (
+                provisional_scores * meta_probabilities["global_mixture"]
+                + prediction_scores[context_leader_model_id]
+                * meta_probabilities["context_leader"]
+            )
+            if self.models[model_ids[0]].num_classes == 2:
+                meta_prediction = (meta_scores > 0.5).float()
+                meta_losses = {
+                    "global_mixture": float(
+                        torch.abs(
+                            provisional_scores.view(-1) - y.view(-1).float()
+                        ).mean().item()
+                    ),
+                    "context_leader": model_losses[context_leader_model_id],
+                }
+            else:
+                meta_prediction = torch.argmax(
+                    meta_scores, dim=1, keepdim=True
+                ).float()
+                labels = y.view(-1).long()
+                meta_losses = {
+                    "global_mixture": float(
+                        (1.0 - provisional_scores.gather(
+                            1, labels.unsqueeze(1)
+                        ).squeeze(1)).mean().item()
+                    ),
+                    "context_leader": model_losses[context_leader_model_id],
+                }
+            meta_correct = bool(
+                meta_prediction.view(-1)[0].item()
+                == y.view(-1)[0].item()
+            )
+            if self.models[model_ids[0]].num_classes == 2:
+                global_prediction = (provisional_scores > 0.5).float()
+            else:
+                global_prediction = torch.argmax(
+                    provisional_scores, dim=1, keepdim=True
+                ).float()
+            global_correct = bool(
+                global_prediction.view(-1)[0].item()
+                == y.view(-1)[0].item()
+            )
+            context_leader_weight = meta_probabilities["context_leader"]
+            self.routing_meta_diagnostics["sample_count"] += 1
+            self.routing_meta_diagnostics["correct_count"] += int(meta_correct)
+            self.routing_meta_diagnostics["actual_correct_count"] += int(accuracy)
+            self.routing_meta_diagnostics["global_correct_count"] += int(
+                global_correct
+            )
+            self.routing_meta_diagnostics[
+                "context_leader_correct_count"
+            ] += int(model_correctness[context_leader_model_id])
+            self.routing_meta_diagnostics[
+                "context_leader_weight_sum"
+            ] += context_leader_weight
+            self.routing_meta_diagnostics[
+                "context_leader_preferred_count"
+            ] += int(context_leader_weight > 0.5)
+            self.history_routing_meta_correct.append(int(meta_correct))
+            self.history_routing_meta_context_leader_weight.append(
+                context_leader_weight
+            )
+            meta_router.update(meta_losses, meta_probabilities)
         max_confidence = max(model_confidences.values())
         confidence_leaders = [
             model_id for model_id, confidence in model_confidences.items()
@@ -1426,6 +1520,9 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         class_diagnostics["confidence_leader_missed_oracle_count"] += int(
             oracle_correct and not confidence_leader_correct
         )
+        if meta_correct is not None:
+            class_diagnostics["meta_sample_count"] += 1
+            class_diagnostics["meta_correct_count"] += int(meta_correct)
         self.history_routing_oracle_correct.append(int(oracle_correct))
         self.history_routing_leader_correct.append(int(leader_correct))
         self.history_accuracy.append(accuracy)
@@ -1451,6 +1548,8 @@ class RestartingSoftRoutingClassConditionalESRFedSDAClient(
     def _on_local_model_change(self, old_model_id, new_model_id):
         self.expert_router.restart_for_concept()
         for router in self.context_expert_routers.values():
+            router.restart_for_concept()
+        for router in self.shadow_meta_routers.values():
             router.restart_for_concept()
 
 

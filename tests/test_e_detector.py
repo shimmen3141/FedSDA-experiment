@@ -268,6 +268,70 @@ def test_predicted_class_context_keeps_separate_online_evidence(monkeypatch):
     assert client.context_expert_routers[1].cumulative_losses == {}
 
 
+def test_predicted_class_records_shadow_meta_router_without_extra_forward(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "predicted_class")
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP()},
+        initial_stats={
+            0: {"n": 100, "mean": 0.2, "M2": 1.0},
+            1: {"n": 100, "mean": 0.2, "M2": 1.0},
+        },
+        verbose=False,
+    )
+    forward_calls = {0: 0, 1: 0}
+
+    for model_id, score in ((0, 0.4), (1, 0.9)):
+        def forward(x, model_id=model_id, score=score):
+            forward_calls[model_id] += 1
+            return torch.full((len(x), 1), score)
+
+        client.models[model_id].forward = forward
+
+    # 大域ルータはmodel 0、予測クラス0の文脈ルータはmodel 1を選ぶ状態にする。
+    client.expert_router.cumulative_losses = {0: 0.0, 1: 2.0}
+    client.expert_router.mixability_gap = 1.0
+    context_router = client.context_expert_routers[0]
+    context_router.cumulative_losses = {0: 2.0, 1: 0.0}
+    context_router.mixability_gap = 1.0
+
+    client._record_prediction(
+        torch.zeros((1, config.dataset_spec().input_dim)),
+        torch.ones((1, 1)),
+        0,
+    )
+
+    assert forward_calls == {0: 1, 1: 1}
+    assert client.routing_meta_diagnostics == {
+        "sample_count": 1,
+        "correct_count": 1,
+        "actual_correct_count": 1,
+        "global_correct_count": 0,
+        "context_leader_correct_count": 1,
+        "context_leader_weight_sum": pytest.approx(0.5),
+        "context_leader_preferred_count": 0,
+    }
+    assert client.history_routing_meta_correct == [1]
+    assert client.history_routing_meta_context_leader_weight == [
+        pytest.approx(0.5)
+    ]
+    assert client.shadow_meta_routers[0].cumulative_losses == {
+        "global_mixture": pytest.approx(0.5),
+        "context_leader": pytest.approx(0.1),
+    }
+    assert dict(client.routing_class_diagnostics[1])[
+        "meta_correct_count"
+    ] == 1
+
+    client._on_local_model_change(0, 1)
+    assert client.shadow_meta_routers[0].cumulative_losses == {}
+
+
 def test_protected_soft_routing_keeps_incumbent_until_proposal_is_better():
     spec = MODE_SPECS["FedSDA_NoCached_ClassESR_ProtectedSoftRouting"]
     client = spec.client_cls(

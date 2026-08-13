@@ -508,12 +508,20 @@ def _add_model_diagnostic_results(results, clients, server):
             for key, value in diagnostics.items():
                 routing_by_class[int(class_id)][key] += int(value)
 
+    routing_meta = defaultdict(float)
+    for client in clients:
+        for key, value in getattr(
+            client, "routing_meta_diagnostics", {}
+        ).items():
+            routing_meta[key] += float(value)
+
     class_oracle_accuracies = []
     class_mixture_accuracies = []
     class_leader_accuracies = []
     class_confidence_leader_accuracies = []
     class_oracle_recovery_rates = []
     class_oracle_gaps = []
+    class_meta_accuracies = []
     for diagnostics in routing_by_class.values():
         sample_count = diagnostics["sample_count"]
         class_oracle_correct = diagnostics["oracle_correct_count"]
@@ -533,6 +541,11 @@ def _add_model_diagnostic_results(results, clients, server):
         if class_oracle_correct:
             class_oracle_recovery_rates.append(
                 diagnostics["mixture_correct_count"] / class_oracle_correct
+            )
+        if diagnostics["meta_sample_count"]:
+            class_meta_accuracies.append(
+                diagnostics["meta_correct_count"]
+                / diagnostics["meta_sample_count"]
             )
 
     def class_mean(values):
@@ -593,6 +606,50 @@ def _add_model_diagnostic_results(results, clients, server):
         "routing_class_oracle_recovery_rate_min": (
             min(class_oracle_recovery_rates)
             if class_oracle_recovery_rates else 0.0
+        ),
+        "routing_meta_accuracy": (
+            routing_meta["correct_count"] / routing_meta["sample_count"]
+            if routing_meta["sample_count"] else 0.0
+        ),
+        "routing_meta_gain_rate": (
+            (
+                routing_meta["correct_count"]
+                - routing_meta["actual_correct_count"]
+            ) / routing_meta["sample_count"]
+            if routing_meta["sample_count"] else 0.0
+        ),
+        "routing_meta_global_accuracy": (
+            routing_meta["global_correct_count"]
+            / routing_meta["sample_count"]
+            if routing_meta["sample_count"] else 0.0
+        ),
+        "routing_meta_context_leader_accuracy": (
+            routing_meta["context_leader_correct_count"]
+            / routing_meta["sample_count"]
+            if routing_meta["sample_count"] else 0.0
+        ),
+        "routing_meta_best_candidate_gain_rate": (
+            (
+                routing_meta["correct_count"]
+                - max(
+                    routing_meta["global_correct_count"],
+                    routing_meta["context_leader_correct_count"],
+                )
+            ) / routing_meta["sample_count"]
+            if routing_meta["sample_count"] else 0.0
+        ),
+        "routing_meta_context_leader_weight_mean": (
+            routing_meta["context_leader_weight_sum"]
+            / routing_meta["sample_count"]
+            if routing_meta["sample_count"] else 0.0
+        ),
+        "routing_meta_context_leader_preferred_rate": (
+            routing_meta["context_leader_preferred_count"]
+            / routing_meta["sample_count"]
+            if routing_meta["sample_count"] else 0.0
+        ),
+        "routing_class_macro_meta_accuracy": class_mean(
+            class_meta_accuracies
         ),
         "routing_aggregation_restart_count": sum(
             getattr(client.expert_router, "aggregation_restart_count", 0)
@@ -928,6 +985,19 @@ def _save_raw_run(
             [client.history_routing_leader_correct for client in clients],
             dtype=np.bool_,
         )
+        telemetry_arrays["history_routing_meta_correct"] = np.asarray(
+            [client.history_routing_meta_correct for client in clients],
+            dtype=np.bool_,
+        )
+        telemetry_arrays[
+            "history_routing_meta_context_leader_weight"
+        ] = np.asarray(
+            [
+                client.history_routing_meta_context_leader_weight
+                for client in clients
+            ],
+            dtype=np.float64,
+        )
         routing_class_client_ids = []
         routing_class_ids = []
         routing_class_values = defaultdict(list)
@@ -942,6 +1012,7 @@ def _save_raw_run(
                     "mixture_correct_count", "leader_correct_count",
                     "confidence_leader_correct_count", "missed_oracle_count",
                     "confidence_leader_missed_oracle_count",
+                    "meta_sample_count", "meta_correct_count",
                 ):
                     routing_class_values[key].append(diagnostics[key])
         telemetry_arrays["routing_class_client_ids"] = np.asarray(
