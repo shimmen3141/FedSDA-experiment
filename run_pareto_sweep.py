@@ -195,7 +195,7 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         display_series = (
             f"{display_series} [routing-context={config.SOFT_ROUTING_CONTEXT}]"
         )
-        if config.SOFT_ROUTING_META_LOSS != "bounded_score":
+        if config.SOFT_ROUTING_META_LOSS != "zero_one":
             display_series = (
                 f"{display_series} [meta-loss={config.SOFT_ROUTING_META_LOSS}]"
             )
@@ -584,6 +584,7 @@ def _load_csv(path):
             row.setdefault("clustering_decision", "distance")
             row.setdefault("shared_backbone_training", "sequential")
             row.setdefault("shared_backbone_gradient_strategy", "")
+            # 列追加前のCSVを再描画するときは当時の挙動を復元する。
             row.setdefault("soft_routing_meta_loss", "bounded_score")
             row.setdefault("shared_adapter_rank", "")
             row.setdefault("detection_episodes", "False")

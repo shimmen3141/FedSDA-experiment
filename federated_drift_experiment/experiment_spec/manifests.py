@@ -186,6 +186,7 @@ def configuration_from_result_row(row, total_data):
         )
         if algorithm["soft_routing_context"] != "global":
             algorithm["soft_routing_meta_loss"] = (
+                # 列追加前のMeta実験はbounded_scoreで実行されている。
                 row.get("soft_routing_meta_loss") or "bounded_score"
             )
     if "SharedBackbone" in mode or "ResidualAdapter" in mode:

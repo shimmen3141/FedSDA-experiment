@@ -22,7 +22,7 @@ class AlgorithmOptions:
     shared_adapter_rank: int = 8
     shared_backbone_gradient_strategy: str = "mean"
     soft_routing_context: str = "global"
-    soft_routing_meta_loss: str = "bounded_score"
+    soft_routing_meta_loss: str = "zero_one"
 
     @classmethod
     def from_current_config(cls):

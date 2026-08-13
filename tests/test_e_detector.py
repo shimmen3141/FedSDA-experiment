@@ -272,6 +272,7 @@ def test_predicted_class_records_shadow_meta_router_without_extra_forward(
     monkeypatch,
 ):
     monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "predicted_class")
+    monkeypatch.setattr(config, "SOFT_ROUTING_META_LOSS", "bounded_score")
     spec = MODE_SPECS[
         "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
     ]
