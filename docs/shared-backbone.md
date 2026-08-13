@@ -165,28 +165,34 @@ SoftRoutingは変更しない。一方、概念ごとの共有勾配を得るた
 
 ## SoftRoutingの文脈
 
+予測レイヤー全体と`global` / `predicted_class` / `meta_predicted_class`の関係は
+[soft-routing.md](soft-routing.md)を参照する。この節では共有表現更新との相互作用に焦点を当てる。
+
 `--soft-routing-context`は、AdaHedgeが蓄積するモデル別損失の共有範囲を指定する。
 
 - `global`は全入力で一つの損失履歴を共有する従来方式である。
 - `predicted_class`は、まず従来の大域ルータで事前予測クラスを求め、その予測クラス専用の
   AdaHedgeで最終混合重みを決める。正解ラベルは重み決定後の更新にだけ使うため、予測時の
   ラベル漏洩はない。
+- `meta_predicted_class`は、global mixtureと予測クラス別AdaHedgeのleaderを、さらに文脈別の
+  上位AdaHedgeで混合して実予測に用いる。
 
-`predicted_class`は新しい数値ハイパーパラメータを持たない。共有表現がサーバ集約で変化した場合、
+文脈方式は新しい数値ハイパーパラメータを持たない。共有表現がサーバ集約で変化した場合、
 大域ルータは指定された再較正方式に従い、予測クラス別ルータは古い表現に依存する証拠を破棄して
 次ラウンド内で学び直す。これは正解クラス別oracle診断をそのまま使う方式ではなく、実運用時に
 観測可能な事前予測だけで文脈を構成する方式である。
 
 ### Shadow meta-router診断
 
-`predicted_class`では、実予測とは独立した診断用の上位AdaHedgeを予測文脈ごとに持つ。
+`predicted_class`では実予測とは独立した診断として、`meta_predicted_class`では実予測器として、
+上位AdaHedgeを予測文脈ごとに持つ。
 上位ルータの専門家は、全入力で証拠を共有する`global mixture`と、文脈別AdaHedgeが選んだ
 `contextual leader`の2つである。各標本では既に計算済みの出力を混合し、正解取得後に両候補の
-有界損失で更新する。したがって追加のモデルforwardや通信は発生せず、実際の予測系列も変えない。
+有界損失で更新する。したがって追加のモデルforwardや通信は発生しない。
 
 この診断は、global mixtureを基本としながら特定文脈だけcontextual leaderへ切り替える二段階方式に
-改善余地があるかを測る。`routing_meta_accuracy`が既存方式より安定して高い場合に限り、実予測への
-昇格を次段階で検討する。
+改善余地があるかを測る。診断結果を受け、同じ計算を実予測へ用いる
+`meta_predicted_class`も選択可能である。
 
 ## 集約後のルーティング再較正
 

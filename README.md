@@ -4,6 +4,8 @@ FedSDA (Statistical Drift-aware Assignment for Federated Learning) の比較実�
 アルゴリズムの詳細は [docs/fedsda-algorithm.md](docs/fedsda-algorithm.md)、論文本体は [main_jp.tex](main_jp.tex) を参照。
 データ特性から予想される検出難度は [docs/dataset-characteristics.md](docs/dataset-characteristics.md)、
 未実装案と検証済み非採用案は [docs/research-backlog.md](docs/research-backlog.md) に整理している。
+SoftRoutingの予測レイヤーと各候補の関係は
+[docs/soft-routing.md](docs/soft-routing.md)を参照。
 
 ## セットアップ
 

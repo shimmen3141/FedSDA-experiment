@@ -414,6 +414,7 @@ def test_shared_backbone_experiment_reports_component_metrics(
     assert results["routing_class_oracle_gap_std"] >= 0
     assert results["routing_meta_accuracy"] > 0
     assert results["routing_meta_global_accuracy"] >= 0
+    assert results["routing_meta_context_mixture_accuracy"] >= 0
     assert results["routing_meta_context_leader_accuracy"] >= 0
     assert results["routing_meta_best_candidate_gain_rate"] <= 1
     assert results["routing_meta_context_leader_weight_mean"] >= 0
@@ -426,9 +427,45 @@ def test_shared_backbone_experiment_reports_component_metrics(
         ]
         assert "routing_class_confidence_leader_correct_counts" in raw
         assert raw["history_routing_meta_correct"].shape == (2, 100)
+        assert raw["history_routing_meta_global_correct"].shape == (2, 100)
         assert raw[
             "routing_class_meta_sample_counts"
         ].sum() == results["routing_sample_count"]
+
+
+def test_meta_context_actual_accuracy_matches_shadow_prediction(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    monkeypatch.setattr(config, "N_CLIENTS", 2)
+    monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 100)
+    monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 30)
+    monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
+    monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 50)
+
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "predicted_class")
+    shadow = run_random_drift_experiment(
+        mode="FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+        random_seed=0,
+        verbose=False,
+        show_plot=False,
+    )
+    monkeypatch.setattr(
+        config, "SOFT_ROUTING_CONTEXT", "meta_predicted_class"
+    )
+    actual = run_random_drift_experiment(
+        mode="FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+        random_seed=0,
+        verbose=False,
+        show_plot=False,
+    )
+
+    assert actual["accuracy"] == shadow["routing_meta_accuracy"]
+    assert actual["routing_meta_accuracy"] == actual["accuracy"]
+    assert actual["comm_models_total"] == shadow["comm_models_total"]
+    assert actual["compute_model_examples_total"] == shadow[
+        "compute_model_examples_total"
+    ]
 
 
 def test_residual_adapter_experiment_reports_component_metrics(monkeypatch):

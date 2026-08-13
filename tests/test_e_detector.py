@@ -312,11 +312,15 @@ def test_predicted_class_records_shadow_meta_router_without_extra_forward(
         "correct_count": 1,
         "actual_correct_count": 1,
         "global_correct_count": 0,
+        "context_mixture_correct_count": 1,
         "context_leader_correct_count": 1,
         "context_leader_weight_sum": pytest.approx(0.5),
         "context_leader_preferred_count": 0,
     }
     assert client.history_routing_meta_correct == [1]
+    assert client.history_routing_meta_global_correct == [0]
+    assert client.history_routing_meta_context_mixture_correct == [1]
+    assert client.history_routing_meta_context_leader_correct == [1]
     assert client.history_routing_meta_context_leader_weight == [
         pytest.approx(0.5)
     ]
@@ -330,6 +334,48 @@ def test_predicted_class_records_shadow_meta_router_without_extra_forward(
 
     client._on_local_model_change(0, 1)
     assert client.shadow_meta_routers[0].cumulative_losses == {}
+
+
+def test_meta_predicted_class_uses_meta_scores_as_actual_prediction(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        config, "SOFT_ROUTING_CONTEXT", "meta_predicted_class"
+    )
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP(), 2: SimpleMLP()},
+        initial_stats={
+            model_id: {"n": 100, "mean": 0.2, "M2": 1.0}
+            for model_id in range(3)
+        },
+        verbose=False,
+    )
+    for model_id, score in ((0, 0.1), (1, 0.2), (2, 0.9)):
+        client.models[model_id].forward = (
+            lambda x, score=score: torch.full((len(x), 1), score)
+        )
+
+    # 大域候補と文脈leaderは正解するが、文脈mixtureだけは0.45となり誤答する。
+    client.expert_router.cumulative_losses = {0: 2.0, 1: 2.0, 2: 0.0}
+    context_router = client.context_expert_routers[1]
+    context_router.probabilities = lambda _: {0: 0.3, 1: 0.3, 2: 0.4}
+
+    client._record_prediction(
+        torch.zeros((1, config.dataset_spec().input_dim)),
+        torch.ones((1, 1)),
+        0,
+    )
+
+    assert client.history_accuracy == [1.0]
+    assert client.routing_meta_diagnostics["correct_count"] == 1
+    assert client.routing_meta_diagnostics["actual_correct_count"] == 1
+    assert client.routing_meta_diagnostics[
+        "context_mixture_correct_count"
+    ] == 0
 
 
 def test_protected_soft_routing_keeps_incumbent_until_proposal_is_better():

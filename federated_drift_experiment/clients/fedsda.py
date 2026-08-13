@@ -24,6 +24,11 @@ from ..provisional_model import (
 from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
 
 
+_CONTEXTUAL_ROUTING_MODES = frozenset({
+    "predicted_class", "meta_predicted_class",
+})
+
+
 class FedSDAClient(BaseClient, ABC):
     """検出器に依存しないFedSDAの逐次処理・ドリフト解決基底クラス。"""
 
@@ -1272,6 +1277,9 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.history_routing_oracle_correct = []
         self.history_routing_leader_correct = []
         self.history_routing_meta_correct = []
+        self.history_routing_meta_global_correct = []
+        self.history_routing_meta_context_mixture_correct = []
+        self.history_routing_meta_context_leader_correct = []
         self.history_routing_meta_context_leader_weight = []
         self.routing_diagnostics = {
             "sample_count": 0,
@@ -1288,6 +1296,7 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             "correct_count": 0,
             "actual_correct_count": 0,
             "global_correct_count": 0,
+            "context_mixture_correct_count": 0,
             "context_leader_correct_count": 0,
             "context_leader_weight_sum": 0.0,
             "context_leader_preferred_count": 0,
@@ -1310,6 +1319,56 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             "prediction", len(x) * len(model_ids), calls=len(model_ids)
         )
         return scores
+
+    @staticmethod
+    def _weighted_routing_scores(prediction_scores, probabilities):
+        """モデル別出力を指定された確率で混合する。"""
+        return sum(
+            prediction_scores[model_id] * probabilities[model_id]
+            for model_id in probabilities
+        )
+
+    def _routing_leader(self, probabilities):
+        """最大重みモデルを、同率時は現行モデル優先で選ぶ。"""
+        maximum = max(probabilities.values())
+        leaders = [
+            model_id
+            for model_id, weight in probabilities.items()
+            if weight == maximum
+        ]
+        leader = (
+            self.current_model_id
+            if self.current_model_id in leaders
+            else min(leaders)
+        )
+        return leader, maximum
+
+    @staticmethod
+    def _routing_prediction(scores, num_classes):
+        """確率出力をクラス予測へ変換する。"""
+        if num_classes == 2:
+            return (scores > 0.5).float()
+        return torch.argmax(scores, dim=1, keepdim=True).float()
+
+    @staticmethod
+    def _routing_score_loss(scores, y, num_classes):
+        """AdaHedge更新用の[0, 1]有界損失を返す。"""
+        if num_classes == 2:
+            return float(
+                torch.abs(scores.view(-1) - y.view(-1).float()).mean().item()
+            )
+        labels = y.view(-1).long()
+        return float(
+            (1.0 - scores.gather(1, labels.unsqueeze(1)).squeeze(1))
+            .mean().item()
+        )
+
+    @classmethod
+    def _routing_correct(cls, scores, y, num_classes):
+        prediction = cls._routing_prediction(scores, num_classes)
+        return bool(
+            prediction.view(-1)[0].item() == y.view(-1)[0].item()
+        )
 
     def _record_prediction(self, x, y, concept_id):
         model_ids = tuple(sorted(self.models))
@@ -1349,114 +1408,94 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                     == y.view(-1)[0].item()
                 )
 
+        num_classes = self.models[model_ids[0]].num_classes
+        global_scores = self._weighted_routing_scores(
+            prediction_scores, proposal_probabilities
+        )
         context_router = None
+        context_probabilities = None
+        context_scores = None
         context_leader_model_id = None
-        routing_proposal = proposal_probabilities
-        if config.SOFT_ROUTING_CONTEXT == "predicted_class":
-            provisional_scores = sum(
-                prediction_scores[model_id] * proposal_probabilities[model_id]
-                for model_id in model_ids
+        meta_router = None
+        meta_probabilities = None
+        meta_scores = None
+
+        if config.SOFT_ROUTING_CONTEXT in _CONTEXTUAL_ROUTING_MODES:
+            context_id = int(
+                self._routing_prediction(global_scores, num_classes)
+                .view(-1)[0].item()
             )
-            if self.models[model_ids[0]].num_classes == 2:
-                context_id = int(provisional_scores.view(-1)[0].item() > 0.5)
-            else:
-                context_id = int(torch.argmax(provisional_scores, dim=1).item())
             context_router = self.context_expert_routers[context_id]
-            routing_proposal = context_router.probabilities(model_ids)
-            context_maximum = max(routing_proposal.values())
-            context_leaders = [
-                model_id
-                for model_id, weight in routing_proposal.items()
-                if weight == context_maximum
-            ]
-            context_leader_model_id = (
-                self.current_model_id
-                if self.current_model_id in context_leaders
-                else min(context_leaders)
+            context_proposal = context_router.probabilities(model_ids)
+            context_probabilities = self._prediction_probabilities(
+                context_proposal
+            )
+            context_scores = self._weighted_routing_scores(
+                prediction_scores, context_probabilities
+            )
+            context_leader_model_id, _ = self._routing_leader(
+                context_probabilities
+            )
+
+            meta_router = self.shadow_meta_routers[context_id]
+            meta_expert_ids = ("global_mixture", "context_leader")
+            meta_probabilities = meta_router.probabilities(meta_expert_ids)
+            meta_scores = (
+                global_scores * meta_probabilities["global_mixture"]
+                + prediction_scores[context_leader_model_id]
+                * meta_probabilities["context_leader"]
             )
         elif config.SOFT_ROUTING_CONTEXT != "global":
             raise ValueError(
                 f"未知のSoftRouting文脈です: {config.SOFT_ROUTING_CONTEXT!r}"
             )
-        probabilities = self._prediction_probabilities(routing_proposal)
-        weighted_scores = sum(
-            prediction_scores[model_id] * probabilities[model_id]
-            for model_id in model_ids
-        )
-        if self.models[model_ids[0]].num_classes == 2:
-            prediction = (weighted_scores > 0.5).float()
-        else:
-            prediction = torch.argmax(
-                weighted_scores, dim=1, keepdim=True
-            ).float()
-        accuracy = (
-            1.0
-            if prediction.view(-1)[0].item() == y.view(-1)[0].item()
-            else 0.0
-        )
 
-        # 単一IDが必要な既存診断には、最大重みの専門家を記録する。
-        maximum = max(probabilities.values())
-        leaders = [
-            model_id for model_id, weight in probabilities.items()
-            if weight == maximum
-        ]
-        routed_model_id = (
-            self.current_model_id
-            if self.current_model_id in leaders
-            else min(leaders)
+        if config.SOFT_ROUTING_CONTEXT == "global":
+            probabilities = self._prediction_probabilities(
+                proposal_probabilities
+            )
+            weighted_scores = self._weighted_routing_scores(
+                prediction_scores, probabilities
+            )
+        elif config.SOFT_ROUTING_CONTEXT == "predicted_class":
+            probabilities = context_probabilities
+            weighted_scores = context_scores
+        else:
+            # Metaの2候補混合をモデル別の実効重みに展開し、既存診断と整合させる。
+            probabilities = {
+                model_id: (
+                    meta_probabilities["global_mixture"]
+                    * proposal_probabilities[model_id]
+                    + meta_probabilities["context_leader"]
+                    * int(model_id == context_leader_model_id)
+                )
+                for model_id in model_ids
+            }
+            weighted_scores = meta_scores
+
+        accuracy = float(
+            self._routing_correct(weighted_scores, y, num_classes)
         )
+        routed_model_id, maximum = self._routing_leader(probabilities)
         # 混合自体が全単体モデルより良い場合もあるため、oracle候補には実混合も含める。
         oracle_correct = bool(accuracy) or any(model_correctness.values())
         leader_correct = model_correctness[routed_model_id]
 
         meta_correct = None
-        if context_router is not None:
-            meta_router = self.shadow_meta_routers[context_id]
-            meta_expert_ids = ("global_mixture", "context_leader")
-            meta_probabilities = meta_router.probabilities(meta_expert_ids)
-            meta_scores = (
-                provisional_scores * meta_probabilities["global_mixture"]
-                + prediction_scores[context_leader_model_id]
-                * meta_probabilities["context_leader"]
+        global_correct = None
+        context_correct = None
+        if meta_router is not None:
+            meta_correct = self._routing_correct(meta_scores, y, num_classes)
+            global_correct = self._routing_correct(global_scores, y, num_classes)
+            context_correct = self._routing_correct(
+                context_scores, y, num_classes
             )
-            if self.models[model_ids[0]].num_classes == 2:
-                meta_prediction = (meta_scores > 0.5).float()
-                meta_losses = {
-                    "global_mixture": float(
-                        torch.abs(
-                            provisional_scores.view(-1) - y.view(-1).float()
-                        ).mean().item()
-                    ),
-                    "context_leader": model_losses[context_leader_model_id],
-                }
-            else:
-                meta_prediction = torch.argmax(
-                    meta_scores, dim=1, keepdim=True
-                ).float()
-                labels = y.view(-1).long()
-                meta_losses = {
-                    "global_mixture": float(
-                        (1.0 - provisional_scores.gather(
-                            1, labels.unsqueeze(1)
-                        ).squeeze(1)).mean().item()
-                    ),
-                    "context_leader": model_losses[context_leader_model_id],
-                }
-            meta_correct = bool(
-                meta_prediction.view(-1)[0].item()
-                == y.view(-1)[0].item()
-            )
-            if self.models[model_ids[0]].num_classes == 2:
-                global_prediction = (provisional_scores > 0.5).float()
-            else:
-                global_prediction = torch.argmax(
-                    provisional_scores, dim=1, keepdim=True
-                ).float()
-            global_correct = bool(
-                global_prediction.view(-1)[0].item()
-                == y.view(-1)[0].item()
-            )
+            meta_losses = {
+                "global_mixture": self._routing_score_loss(
+                    global_scores, y, num_classes
+                ),
+                "context_leader": model_losses[context_leader_model_id],
+            }
             context_leader_weight = meta_probabilities["context_leader"]
             self.routing_meta_diagnostics["sample_count"] += 1
             self.routing_meta_diagnostics["correct_count"] += int(meta_correct)
@@ -1464,6 +1503,9 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             self.routing_meta_diagnostics["global_correct_count"] += int(
                 global_correct
             )
+            self.routing_meta_diagnostics[
+                "context_mixture_correct_count"
+            ] += int(context_correct)
             self.routing_meta_diagnostics[
                 "context_leader_correct_count"
             ] += int(model_correctness[context_leader_model_id])
@@ -1474,6 +1516,13 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                 "context_leader_preferred_count"
             ] += int(context_leader_weight > 0.5)
             self.history_routing_meta_correct.append(int(meta_correct))
+            self.history_routing_meta_global_correct.append(int(global_correct))
+            self.history_routing_meta_context_mixture_correct.append(
+                int(context_correct)
+            )
+            self.history_routing_meta_context_leader_correct.append(
+                int(model_correctness[context_leader_model_id])
+            )
             self.history_routing_meta_context_leader_weight.append(
                 context_leader_weight
             )
@@ -1523,6 +1572,15 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         if meta_correct is not None:
             class_diagnostics["meta_sample_count"] += 1
             class_diagnostics["meta_correct_count"] += int(meta_correct)
+            class_diagnostics["meta_global_correct_count"] += int(
+                global_correct
+            )
+            class_diagnostics["meta_context_mixture_correct_count"] += int(
+                context_correct
+            )
+            class_diagnostics["meta_context_leader_correct_count"] += int(
+                model_correctness[context_leader_model_id]
+            )
         self.history_routing_oracle_correct.append(int(oracle_correct))
         self.history_routing_leader_correct.append(int(leader_correct))
         self.history_accuracy.append(accuracy)
@@ -1537,7 +1595,7 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         # 保護方式でもAdaHedge自体は提案分布で更新し、反実仮想の学習を続ける。
         self.expert_router.update(model_losses, proposal_probabilities)
         if context_router is not None:
-            context_router.update(model_losses, routing_proposal)
+            context_router.update(model_losses, context_proposal)
 
 
 class RestartingSoftRoutingClassConditionalESRFedSDAClient(

@@ -108,7 +108,9 @@ SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (
 )
 # SoftRoutingの証拠を全入力で共有するか、予測クラスごとに分けるかを選ぶ。
 SOFT_ROUTING_CONTEXT = "global"
-SOFT_ROUTING_CONTEXT_CHOICES = ("global", "predicted_class")
+SOFT_ROUTING_CONTEXT_CHOICES = (
+    "global", "predicted_class", "meta_predicted_class",
+)
 # 概念別低ランク残差adapterのrank。特徴次元より大きい場合は特徴次元へ丸める。
 SHARED_ADAPTER_RANK = 8
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)

@@ -98,17 +98,20 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
 - `routing_missed_oracle_count`: 正解モデルが存在したのに実混合が誤答した件数。
 - `routing_class_macro_*`: 正解クラスごとに求めたoracle・mixture・leader精度のマクロ平均。
   `routing_class_macro_confidence_leader_accuracy`は最大確信度モデルのクラス別精度を表す。
-- `routing_meta_accuracy`: `predicted_class`文脈で、global mixtureとcontextual leaderを
-  文脈別AdaHedgeで再混合したshadow meta-routerの精度。実際の予測には反映しない。
-- `routing_meta_gain_rate`: shadow meta-router精度と実際のcontextual mixture精度との差。
-  正なら上位ルータを実予測へ昇格する余地がある。
+- `routing_meta_accuracy`: 文脈方式で、global mixtureとcontextual leaderを文脈別AdaHedgeで
+  再混合したmeta-routerの精度。`predicted_class`ではshadow、`meta_predicted_class`では実予測である。
+- `routing_meta_gain_rate`: meta-router精度と実予測精度との差。shadow診断では昇格余地を表し、
+  `meta_predicted_class`では定義上0になる。
 - `routing_meta_global_accuracy` / `routing_meta_context_leader_accuracy`: 同一標本上で測る
   2候補それぞれの精度。
+- `routing_meta_context_mixture_accuracy`: 同一標本上で測る予測クラス別mixtureの精度。
 - `routing_meta_best_candidate_gain_rate`: shadow meta-router精度と、実験全体で良かった方の
   単一候補精度との差。正なら文脈別オンライン選択自体に利益がある。
 - `routing_meta_context_leader_weight_mean`: contextual leaderへ与えた平均重み。
 - `routing_meta_context_leader_preferred_rate`: contextual leaderの重みが0.5を超えた標本割合。
 - `routing_class_macro_meta_accuracy`: shadow meta-router精度の正解クラス別マクロ平均。
+- `routing_class_macro_meta_global_accuracy` / `routing_class_macro_meta_context_mixture_accuracy` /
+  `routing_class_macro_meta_context_leader_accuracy`: 各候補の正解クラス別マクロ平均。
 
 shadow meta-routerは既存のモデル出力だけを再利用するため、モデルforward、通信、モデル管理を
 増やさない。ラベルは予測後のAdaHedge更新にだけ使う。時系列はNPZの

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 1
+OPTION_SCHEMA_VERSION = 2
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -148,8 +148,8 @@ OPTIONS = (
     ),
     OptionSpec(
         "soft_routing_context", "SoftRouting文脈", "prediction",
-        ("global", "predicted_class"),
-        "全入力で損失証拠を共有するか、事前予測クラスごとに分けるかを選ぶ",
+        ("global", "predicted_class", "meta_predicted_class"),
+        "大域混合、予測クラス別混合、または大域混合と文脈別leaderのmeta混合を選ぶ",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("soft_routing",),
         active_when=(ActivationRule(
