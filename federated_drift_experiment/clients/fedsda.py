@@ -9,7 +9,7 @@ import torch
 from .. import config
 from ..drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
-from ..expert_routing import AdaHedgeRouter
+from ..expert_routing import AdaHedgeRouter, FeatureConditionedRouter
 from ..provisional_model import (
     ForwardValidationSession,
     ProvisionalModelDecision,
@@ -1269,6 +1269,7 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.expert_router = AdaHedgeRouter()
+        self.feature_router = FeatureConditionedRouter()
         self.context_expert_routers = defaultdict(AdaHedgeRouter)
         self.shadow_meta_routers = defaultdict(AdaHedgeRouter)
         self.history_routing_effective_experts = []
@@ -1281,6 +1282,8 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.history_routing_meta_context_mixture_correct = []
         self.history_routing_meta_context_leader_correct = []
         self.history_routing_meta_context_leader_weight = []
+        self.history_routing_feature_gate_correct = []
+        self.history_routing_feature_gate_global_correct = []
         self.routing_diagnostics = {
             "sample_count": 0,
             "oracle_correct_count": 0,
@@ -1301,6 +1304,11 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             "context_leader_weight_sum": 0.0,
             "context_leader_preferred_count": 0,
         }
+        self.routing_feature_diagnostics = {
+            "sample_count": 0,
+            "correct_count": 0,
+            "global_correct_count": 0,
+        }
         # 入力文脈を使うルータへ進む前に、既存ルータの未回収余地が
         # 正解クラスへ偏っているかを追加forwardなしで記録する。
         self.routing_class_diagnostics = defaultdict(
@@ -1314,6 +1322,7 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
 
     def _routing_scores(self, x, model_ids):
         """各独立モデルを評価し、SoftRouting用の出力を返す。"""
+        self._latest_routing_features = None
         scores = {model_id: self.models[model_id].forward(x) for model_id in model_ids}
         self._record_model_compute(
             "prediction", len(x) * len(model_ids), calls=len(model_ids)
@@ -1433,6 +1442,8 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         meta_router = None
         meta_probabilities = None
         meta_scores = None
+        feature_probabilities = None
+        feature_context = None
 
         if config.SOFT_ROUTING_CONTEXT in _CONTEXTUAL_ROUTING_MODES:
             context_id = int(
@@ -1464,6 +1475,17 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                 * meta_probabilities[expert_id]
                 for expert_id in meta_expert_ids
             )
+        elif config.SOFT_ROUTING_CONTEXT == "feature_gate":
+            features = getattr(self, "_latest_routing_features", None)
+            if features is None:
+                raise TypeError(
+                    "feature_gateには共有特徴を持つモデル構造が必要です"
+                )
+            feature_probabilities, feature_context = (
+                self.feature_router.probabilities(
+                    model_ids, features, proposal_probabilities
+                )
+            )
         elif config.SOFT_ROUTING_CONTEXT != "global":
             raise ValueError(
                 f"未知のSoftRouting文脈です: {config.SOFT_ROUTING_CONTEXT!r}"
@@ -1479,6 +1501,11 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         elif config.SOFT_ROUTING_CONTEXT == "predicted_class":
             probabilities = context_probabilities
             weighted_scores = context_scores
+        elif config.SOFT_ROUTING_CONTEXT == "feature_gate":
+            probabilities = feature_probabilities
+            weighted_scores = self._weighted_routing_scores(
+                prediction_scores, feature_probabilities
+            )
         else:
             # Metaの2候補混合をモデル別の実効重みに展開し、既存診断と整合させる。
             probabilities = {
@@ -1497,6 +1524,24 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         accuracy = float(
             self._routing_correct(weighted_scores, y, num_classes)
         )
+        if feature_probabilities is not None:
+            feature_correct = bool(accuracy)
+            feature_global_correct = self._routing_correct(
+                global_scores, y, num_classes
+            )
+            self.routing_feature_diagnostics["sample_count"] += 1
+            self.routing_feature_diagnostics["correct_count"] += int(
+                feature_correct
+            )
+            self.routing_feature_diagnostics["global_correct_count"] += int(
+                feature_global_correct
+            )
+            self.history_routing_feature_gate_correct.append(
+                int(feature_correct)
+            )
+            self.history_routing_feature_gate_global_correct.append(
+                int(feature_global_correct)
+            )
         routed_model_id, maximum = self._routing_leader(probabilities)
         # 混合自体が全単体モデルより良い場合もあるため、oracle候補には実混合も含める。
         oracle_correct = bool(accuracy) or any(model_correctness.values())
@@ -1637,6 +1682,10 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         # prequential順序を守り、予測後に正解ラベルで重みを更新する。
         # 保護方式でもAdaHedge自体は提案分布で更新し、反実仮想の学習を続ける。
         self.expert_router.update(model_losses, proposal_probabilities)
+        if feature_probabilities is not None:
+            self.feature_router.update(
+                model_losses, feature_probabilities, feature_context
+            )
         if context_router is not None:
             context_router.update(model_losses, context_proposal)
 
@@ -1648,6 +1697,7 @@ class RestartingSoftRoutingClassConditionalESRFedSDAClient(
 
     def _on_local_model_change(self, old_model_id, new_model_id):
         self.expert_router.restart_for_concept()
+        self.feature_router.restart_for_concept()
         for router in self.context_expert_routers.values():
             router.restart_for_concept()
         for router in self.shadow_meta_routers.values():

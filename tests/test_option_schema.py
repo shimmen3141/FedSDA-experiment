@@ -125,6 +125,32 @@ def test_soft_routing_constraints_are_explicit():
     }) == ()
 
 
+def test_feature_gate_requires_shared_representation_mode():
+    explicit = explicit_option_ids([
+        "--soft-routing-context", "feature_gate",
+    ])
+    assert validate_explicit_options(
+        ("FedSDA_NoCached_ClassESR_RestartingSoftRouting",),
+        {
+            "soft_routing_context": "feature_gate",
+            "model_architecture": "independent",
+        },
+        explicit,
+    ) == (
+        "--soft-routing-context: "
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting: "
+        "soft_routing_context=feature_gate: 共有特徴を持つモデル構造が必要",
+    )
+    assert validate_explicit_options(
+        ("FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",),
+        {
+            "soft_routing_context": "feature_gate",
+            "model_architecture": "residual_adapter",
+        },
+        explicit,
+    ) == ()
+
+
 def test_meta_loss_dependency_is_validated_from_explicit_options():
     explicit = explicit_option_ids([
         "--soft-routing-meta-loss", "zero_one",

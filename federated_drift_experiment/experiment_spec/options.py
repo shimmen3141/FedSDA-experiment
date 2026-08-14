@@ -148,8 +148,8 @@ OPTIONS = (
     ),
     OptionSpec(
         "soft_routing_context", "SoftRouting文脈", "prediction",
-        ("global", "predicted_class", "meta_predicted_class"),
-        "大域混合、予測クラス別混合、または大域混合と文脈別leaderのmeta混合を選ぶ",
+        ("global", "predicted_class", "meta_predicted_class", "feature_gate"),
+        "大域混合、予測クラス別混合、meta混合、または共有特徴依存gateを選ぶ",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("soft_routing",),
         active_when=(ActivationRule(
@@ -507,6 +507,18 @@ CHOICE_CONSTRAINTS = (
             ActivationRule("detector", ("ClassESR",), "ClassESRが必要"),
         ),
         note="現在は専用modeでのみ実装",
+    ),
+    ChoiceConstraint(
+        "soft_routing_context", ("feature_gate",),
+        (
+            "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+        ),
+        requires_selections=(ActivationRule(
+            "model_architecture", ("shared_backbone", "residual_adapter"),
+            "共有特徴を持つモデル構造が必要",
+        ),),
+        note="特徴gateは共有バックボーン出力を入力に使う",
     ),
 )
 

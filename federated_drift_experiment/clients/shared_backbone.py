@@ -105,6 +105,9 @@ class _SharedRepresentationFedSDAClientMixin:
             router.restart_after_aggregation()
         for router in getattr(self, "shadow_meta_routers", {}).values():
             router.restart_after_aggregation()
+        feature_router = getattr(self, "feature_router", None)
+        if feature_router is not None:
+            feature_router.restart_after_aggregation()
 
     def _fifo_routing_loss_sequence(self):
         """集約後の全保持モデルをFIFO上で再評価し、時系列損失を返す。"""
@@ -153,6 +156,7 @@ class _SharedRepresentationFedSDAClientMixin:
         """特徴抽出を1回だけ行い、全概念別ヘッドを評価する。"""
         first = self.models[model_ids[0]]
         features = first.extract_features(x)
+        self._latest_routing_features = features.detach()
         scores = {
             model_id: self.models[model_id].forward_from_features(features)
             for model_id in model_ids

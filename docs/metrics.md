@@ -109,6 +109,10 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
   単一候補精度との差。正なら文脈別オンライン選択自体に利益がある。
 - `routing_meta_context_leader_weight_mean`: contextual leaderへ与えた平均重み。
 - `routing_meta_context_leader_preferred_rate`: contextual leaderの重みが0.5を超えた標本割合。
+- `routing_feature_gate_accuracy` / `routing_feature_gate_global_accuracy`: 共有特徴依存gateと、同じ標本上の
+  Global AdaHedge事前分布による予測精度。
+- `routing_feature_gate_gain_rate`: 特徴依存gateのGlobal routingに対するaccuracy差。
+- `routing_feature_gate_restart_count`: 共有表現の集約更新後に特徴gateを再始動した回数。
 - `routing_class_macro_meta_accuracy`: shadow meta-router精度の正解クラス別マクロ平均。
 - `routing_class_macro_meta_global_accuracy` / `routing_class_macro_meta_context_mixture_accuracy` /
   `routing_class_macro_meta_context_leader_accuracy`: 各候補の正解クラス別マクロ平均。
