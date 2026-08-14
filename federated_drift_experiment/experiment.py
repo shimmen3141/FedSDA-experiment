@@ -515,6 +515,13 @@ def _add_model_diagnostic_results(results, clients, server):
         ).items():
             routing_meta[key] += float(value)
 
+    routing_switching = defaultdict(float)
+    for client in clients:
+        for key, value in getattr(
+            client, "routing_switching_diagnostics", {}
+        ).items():
+            routing_switching[key] += float(value)
+
     class_oracle_accuracies = []
     class_mixture_accuracies = []
     class_leader_accuracies = []
@@ -679,6 +686,51 @@ def _add_model_diagnostic_results(results, clients, server):
         ),
         "routing_class_macro_meta_context_leader_accuracy": class_mean(
             class_meta_context_leader_accuracies
+        ),
+        "routing_switching_accuracy": (
+            routing_switching["correct_count"]
+            / routing_switching["sample_count"]
+            if routing_switching["sample_count"] else 0.0
+        ),
+        "routing_switching_gain_rate": (
+            (
+                routing_switching["correct_count"]
+                - routing_switching["actual_correct_count"]
+            ) / routing_switching["sample_count"]
+            if routing_switching["sample_count"] else 0.0
+        ),
+        "routing_switching_global_gain_rate": (
+            (
+                routing_switching["correct_count"]
+                - routing_switching["global_correct_count"]
+            ) / routing_switching["sample_count"]
+            if routing_switching["sample_count"] else 0.0
+        ),
+        "routing_switching_effective_experts_mean": (
+            routing_switching["effective_experts_sum"]
+            / routing_switching["sample_count"]
+            if routing_switching["sample_count"] else 0.0
+        ),
+        "routing_switching_leader_switch_count": sum(
+            getattr(
+                client.switching_expert_router, "leader_switch_count", 0
+            )
+            for client in clients
+            if hasattr(client, "switching_expert_router")
+        ),
+        "routing_switching_pool_reset_count": sum(
+            getattr(client.switching_expert_router, "pool_reset_count", 0)
+            for client in clients
+            if hasattr(client, "switching_expert_router")
+        ),
+        "routing_switching_recalibration_sample_count": sum(
+            getattr(
+                client.switching_expert_router,
+                "aggregation_recalibration_sample_count",
+                0,
+            )
+            for client in clients
+            if hasattr(client, "switching_expert_router")
         ),
         "routing_aggregation_restart_count": sum(
             getattr(client.expert_router, "aggregation_restart_count", 0)
@@ -1045,6 +1097,28 @@ def _save_raw_run(
         ] = np.asarray(
             [
                 client.history_routing_meta_context_leader_weight
+                for client in clients
+            ],
+            dtype=np.float64,
+        )
+        telemetry_arrays["history_routing_switching_correct"] = np.asarray(
+            [client.history_routing_switching_correct for client in clients],
+            dtype=np.bool_,
+        )
+        telemetry_arrays[
+            "history_routing_switching_leader_id"
+        ] = np.asarray(
+            [
+                client.history_routing_switching_leader_id
+                for client in clients
+            ],
+            dtype=np.int32,
+        )
+        telemetry_arrays[
+            "history_routing_switching_effective_experts"
+        ] = np.asarray(
+            [
+                client.history_routing_switching_effective_experts
                 for client in clients
             ],
             dtype=np.float64,

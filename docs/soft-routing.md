@@ -62,6 +62,18 @@ Meta-routerの更新損失は`--soft-routing-meta-loss`で選ぶ。
 SoftRoutingの予測結果はモデル学習、ドリフト検出、モデル作成判断へ戻さない。そのため、同じseedと
 設定なら、`predicted_class`で記録したshadow meta精度と`meta_predicted_class`の実accuracyは一致する。
 
+## Switching-expert shadow診断
+
+通常のAdaHedgeは全履歴の累積損失を使うため、長く優勢だったモデルから新しい優勢モデルへの移行が
+遅れる場合がある。switching-expert診断は、モデル別損失にFixed-Share型の更新を適用し、最良モデルが
+時間とともに切り替わる状況を追跡する。二次損失から学習率を自動調整し、一様分布へ戻す時間尺度には
+既存の`N_FIFO`を使うため、新しい利用者設定は追加しない。
+
+現段階では実予測を変更せず、すべてのRestarting SoftRouting modeでshadowとして計算する。既に得た
+全保持モデルの出力を再利用するため、追加forwardと通信は発生しない。共有表現の`fifo_replay`後は、
+集約後モデルで再計算したFIFO損失から状態も再構築する。複数データ・seedでGlobal mixtureまたは
+2候補Metaを安定して上回った場合にだけ、実routing選択肢への昇格を検討する。
+
 ## 比較上の扱い
 
 - `global`は単純で安定した基準方式であり、当面の既定値として残す。

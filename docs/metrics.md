@@ -109,6 +109,13 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
   単一候補精度との差。正なら文脈別オンライン選択自体に利益がある。
 - `routing_meta_context_leader_weight_mean`: contextual leaderへ与えた平均重み。
 - `routing_meta_context_leader_preferred_rate`: contextual leaderの重みが0.5を超えた標本割合。
+- `routing_switching_accuracy`: 現行予測を変えずに計算する、Fixed-Share型switching-expertのshadow精度。
+- `routing_switching_gain_rate` / `routing_switching_global_gain_rate`: switching-expert精度と、実予測または
+  Global mixture精度との差。
+- `routing_switching_effective_experts_mean`: switching-expert重みの逆Simpson指数の平均。
+- `routing_switching_leader_switch_count`: 最大重みexpertが切り替わった回数。
+- `routing_switching_pool_reset_count`: 保持モデル集合の変化でswitching-expert状態を初期化した回数。
+- `routing_switching_recalibration_sample_count`: 共有表現集約後の再較正に使ったFIFOサンプル総数。
 - `routing_class_macro_meta_accuracy`: shadow meta-router精度の正解クラス別マクロ平均。
 - `routing_class_macro_meta_global_accuracy` / `routing_class_macro_meta_context_mixture_accuracy` /
   `routing_class_macro_meta_context_leader_accuracy`: 各候補の正解クラス別マクロ平均。

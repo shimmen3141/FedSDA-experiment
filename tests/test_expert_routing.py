@@ -1,7 +1,10 @@
 import math
 
 import pytest
-from federated_drift_experiment.expert_routing import AdaHedgeRouter
+from federated_drift_experiment.expert_routing import (
+    AdaHedgeRouter,
+    SwitchingExpertRouter,
+)
 
 
 def test_adahedge_starts_uniform_and_concentrates_on_better_expert():
@@ -196,3 +199,29 @@ def test_adahedge_persistent_replay_requires_two_nonempty_halves():
 
     assert replayed is False
     assert router.aggregation_recalibration_skip_count == 1
+
+
+def test_switching_router_tracks_a_changed_best_expert():
+    router = SwitchingExpertRouter(share_horizon=30)
+
+    for _ in range(40):
+        probabilities = router.probabilities([0, 1])
+        router.update({0: 0.0, 1: 1.0}, probabilities)
+    assert router.probabilities([0, 1])[0] > 0.9
+
+    for _ in range(40):
+        probabilities = router.probabilities([0, 1])
+        router.update({0: 1.0, 1: 0.0}, probabilities)
+    assert router.probabilities([0, 1])[1] > 0.9
+    assert router.leader_switch_count >= 1
+
+
+def test_switching_router_replays_fifo_after_aggregation():
+    router = SwitchingExpertRouter(share_horizon=30)
+    losses = ({0: 1.0, 1: 0.0},) * 20
+
+    router.replay_after_aggregation(losses)
+
+    assert router.probabilities([0, 1])[1] > 0.9
+    assert router.aggregation_recalibration_count == 1
+    assert router.aggregation_recalibration_sample_count == 20

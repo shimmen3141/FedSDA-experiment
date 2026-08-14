@@ -238,3 +238,120 @@ class AdaHedgeRouter:
         """重みの集中度を逆Simpson指数で返す（1以上、専門家数以下）。"""
         squared_sum = sum(weight * weight for weight in probabilities.values())
         return 1.0 / squared_sum
+
+
+class SwitchingExpertRouter:
+    """時間とともに変わる最良expertを追跡するFixed-Shareルータ。
+
+    全expertの有界損失を使う二次損失適応型Hedgeに、各時刻で一様分布への
+    fixed-shareを加える。shareの時間尺度には既存のFIFO長を使うため、独立した
+    数値ハイパーパラメータは増やさない。現段階ではshadow診断専用である。
+    """
+
+    def __init__(self, share_horizon):
+        if int(share_horizon) < 2:
+            raise ValueError("share_horizon must be at least 2")
+        self.share_horizon = int(share_horizon)
+        self.weights = {}
+        self.cumulative_variance = 0.0
+        self.pool_reset_count = 0
+        self.leader_switch_count = 0
+        self.aggregation_recalibration_count = 0
+        self.aggregation_recalibration_sample_count = 0
+
+    def _clear_evidence(self):
+        self.weights = {}
+        self.cumulative_variance = 0.0
+
+    def _synchronize(self, expert_ids):
+        expert_ids = tuple(sorted(expert_ids))
+        if not expert_ids:
+            raise ValueError("SwitchingExpertRouter requires at least one expert")
+        if set(expert_ids) != set(self.weights):
+            if self.weights:
+                self.pool_reset_count += 1
+            probability = 1.0 / len(expert_ids)
+            self.weights = {
+                expert_id: probability for expert_id in expert_ids
+            }
+            self.cumulative_variance = 0.0
+        return expert_ids
+
+    def probabilities(self, expert_ids):
+        """正解判明前のfixed-share分布を返す。"""
+        expert_ids = self._synchronize(expert_ids)
+        return {expert_id: self.weights[expert_id] for expert_id in expert_ids}
+
+    @staticmethod
+    def _leader(probabilities):
+        maximum = max(probabilities.values())
+        return min(
+            expert_id for expert_id, probability in probabilities.items()
+            if probability == maximum
+        )
+
+    def update(self, losses, probabilities):
+        """全expertの損失で事後重みを更新し、切替確率を共有する。"""
+        expert_ids = self._synchronize(losses)
+        if set(probabilities) != set(expert_ids):
+            raise ValueError("losses and probabilities must use the same experts")
+        bounded_losses = {
+            expert_id: min(1.0, max(0.0, float(losses[expert_id])))
+            for expert_id in expert_ids
+        }
+        if len(expert_ids) == 1:
+            return
+
+        previous_leader = self._leader(probabilities)
+        expected_loss = sum(
+            probabilities[expert_id] * bounded_losses[expert_id]
+            for expert_id in expert_ids
+        )
+        variance = sum(
+            probabilities[expert_id]
+            * (bounded_losses[expert_id] - expected_loss) ** 2
+            for expert_id in expert_ids
+        )
+        self.cumulative_variance += variance
+        learning_rate = min(
+            1.0,
+            math.sqrt(
+                2.0 * math.log(len(expert_ids))
+                / max(self.cumulative_variance, 1e-12)
+            ),
+        )
+        unnormalized = {
+            expert_id: probabilities[expert_id]
+            * math.exp(-learning_rate * bounded_losses[expert_id])
+            for expert_id in expert_ids
+        }
+        total = sum(unnormalized.values())
+        posterior = {
+            expert_id: unnormalized[expert_id] / total
+            for expert_id in expert_ids
+        }
+        share = 1.0 / self.share_horizon
+        uniform = 1.0 / len(expert_ids)
+        self.weights = {
+            expert_id: (1.0 - share) * posterior[expert_id] + share * uniform
+            for expert_id in expert_ids
+        }
+        if self._leader(self.weights) != previous_leader:
+            self.leader_switch_count += 1
+
+    def restart_after_aggregation(self):
+        """共有表現更新で過去のexpert比較が無効になる場合に初期化する。"""
+        self._clear_evidence()
+        self.aggregation_recalibration_count += 1
+
+    def replay_after_aggregation(self, loss_sequence):
+        """集約後モデルのFIFO損失から時系列状態を再構築する。"""
+        loss_sequence = tuple(loss_sequence)
+        if not loss_sequence:
+            return
+        self._clear_evidence()
+        self.aggregation_recalibration_count += 1
+        self.aggregation_recalibration_sample_count += len(loss_sequence)
+        for losses in loss_sequence:
+            probabilities = self.probabilities(losses)
+            self.update(losses, probabilities)

@@ -9,7 +9,7 @@ import torch
 from .. import config
 from ..drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
-from ..expert_routing import AdaHedgeRouter
+from ..expert_routing import AdaHedgeRouter, SwitchingExpertRouter
 from ..provisional_model import (
     ForwardValidationSession,
     ProvisionalModelDecision,
@@ -1269,6 +1269,9 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.expert_router = AdaHedgeRouter()
+        self.switching_expert_router = SwitchingExpertRouter(
+            config.FIFO_BUFFER_SIZE
+        )
         self.context_expert_routers = defaultdict(AdaHedgeRouter)
         self.shadow_meta_routers = defaultdict(AdaHedgeRouter)
         self.history_routing_effective_experts = []
@@ -1281,6 +1284,9 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.history_routing_meta_context_mixture_correct = []
         self.history_routing_meta_context_leader_correct = []
         self.history_routing_meta_context_leader_weight = []
+        self.history_routing_switching_correct = []
+        self.history_routing_switching_leader_id = []
+        self.history_routing_switching_effective_experts = []
         self.routing_diagnostics = {
             "sample_count": 0,
             "oracle_correct_count": 0,
@@ -1300,6 +1306,13 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             "context_leader_correct_count": 0,
             "context_leader_weight_sum": 0.0,
             "context_leader_preferred_count": 0,
+        }
+        self.routing_switching_diagnostics = {
+            "sample_count": 0,
+            "correct_count": 0,
+            "actual_correct_count": 0,
+            "global_correct_count": 0,
+            "effective_experts_sum": 0.0,
         }
         # 入力文脈を使うルータへ進む前に、既存ルータの未回収余地が
         # 正解クラスへ偏っているかを追加forwardなしで記録する。
@@ -1413,6 +1426,12 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         global_scores = self._weighted_routing_scores(
             prediction_scores, proposal_probabilities
         )
+        switching_probabilities = self.switching_expert_router.probabilities(
+            model_ids
+        )
+        switching_scores = self._weighted_routing_scores(
+            prediction_scores, switching_probabilities
+        )
         context_router = None
         context_probabilities = None
         context_scores = None
@@ -1476,6 +1495,36 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
 
         accuracy = float(
             self._routing_correct(weighted_scores, y, num_classes)
+        )
+        switching_correct = self._routing_correct(
+            switching_scores, y, num_classes
+        )
+        switching_global_correct = self._routing_correct(
+            global_scores, y, num_classes
+        )
+        switching_leader_id, _ = self._routing_leader(
+            switching_probabilities
+        )
+        switching_effective_experts = self.expert_router.effective_expert_count(
+            switching_probabilities
+        )
+        self.routing_switching_diagnostics["sample_count"] += 1
+        self.routing_switching_diagnostics["correct_count"] += int(
+            switching_correct
+        )
+        self.routing_switching_diagnostics["actual_correct_count"] += int(
+            accuracy
+        )
+        self.routing_switching_diagnostics["global_correct_count"] += int(
+            switching_global_correct
+        )
+        self.routing_switching_diagnostics[
+            "effective_experts_sum"
+        ] += switching_effective_experts
+        self.history_routing_switching_correct.append(int(switching_correct))
+        self.history_routing_switching_leader_id.append(switching_leader_id)
+        self.history_routing_switching_effective_experts.append(
+            switching_effective_experts
         )
         routed_model_id, maximum = self._routing_leader(probabilities)
         # 混合自体が全単体モデルより良い場合もあるため、oracle候補には実混合も含める。
@@ -1609,6 +1658,9 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         # prequential順序を守り、予測後に正解ラベルで重みを更新する。
         # 保護方式でもAdaHedge自体は提案分布で更新し、反実仮想の学習を続ける。
         self.expert_router.update(model_losses, proposal_probabilities)
+        self.switching_expert_router.update(
+            model_losses, switching_probabilities
+        )
         if context_router is not None:
             context_router.update(model_losses, context_proposal)
 

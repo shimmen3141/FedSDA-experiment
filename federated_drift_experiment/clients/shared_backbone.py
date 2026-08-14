@@ -80,20 +80,24 @@ class _SharedRepresentationFedSDAClientMixin:
         if not hasattr(self, "expert_router"):
             return
         strategy = config.SHARED_BACKBONE_ROUTING_RECALIBRATION
+        loss_sequence = ()
+        if strategy in {
+            "fifo_replay", "leader_change_replay",
+            "persistent_leader_change_replay",
+        }:
+            loss_sequence = self._fifo_routing_loss_sequence()
         if strategy == "aggregation_restart":
             self.expert_router.restart_after_aggregation()
         elif strategy == "fifo_replay":
-            self.expert_router.replay_after_aggregation(
-                self._fifo_routing_loss_sequence()
-            )
+            self.expert_router.replay_after_aggregation(loss_sequence)
         elif strategy == "leader_change_replay":
             self.expert_router.replay_after_aggregation_if_leader_changed(
-                self._fifo_routing_loss_sequence(),
+                loss_sequence,
                 preferred_id=self.current_model_id,
             )
         elif strategy == "persistent_leader_change_replay":
             self.expert_router.replay_after_aggregation_if_leader_persists(
-                self._fifo_routing_loss_sequence(),
+                loss_sequence,
                 preferred_id=self.current_model_id,
             )
         elif strategy != "none":
@@ -105,6 +109,12 @@ class _SharedRepresentationFedSDAClientMixin:
             router.restart_after_aggregation()
         for router in getattr(self, "shadow_meta_routers", {}).values():
             router.restart_after_aggregation()
+        switching_router = getattr(self, "switching_expert_router", None)
+        if switching_router is not None:
+            if strategy == "fifo_replay":
+                switching_router.replay_after_aggregation(loss_sequence)
+            elif strategy != "none":
+                switching_router.restart_after_aggregation()
 
     def _fifo_routing_loss_sequence(self):
         """集約後の全保持モデルをFIFO上で再評価し、時系列損失を返す。"""

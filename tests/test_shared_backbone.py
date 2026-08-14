@@ -418,6 +418,10 @@ def test_shared_backbone_experiment_reports_component_metrics(
     assert results["routing_meta_context_leader_accuracy"] >= 0
     assert results["routing_meta_best_candidate_gain_rate"] <= 1
     assert results["routing_meta_context_leader_weight_mean"] >= 0
+    assert results["routing_switching_accuracy"] > 0
+    assert -1 <= results["routing_switching_gain_rate"] <= 1
+    assert -1 <= results["routing_switching_global_gain_rate"] <= 1
+    assert results["routing_switching_effective_experts_mean"] >= 1
     with np.load(raw_path) as raw:
         assert raw["routing_class_client_ids"].shape == (
             len(raw["routing_class_ids"]),
@@ -428,6 +432,11 @@ def test_shared_backbone_experiment_reports_component_metrics(
         assert "routing_class_confidence_leader_correct_counts" in raw
         assert raw["history_routing_meta_correct"].shape == (2, 100)
         assert raw["history_routing_meta_global_correct"].shape == (2, 100)
+        assert raw["history_routing_switching_correct"].shape == (2, 100)
+        assert raw["history_routing_switching_leader_id"].shape == (2, 100)
+        assert raw[
+            "history_routing_switching_effective_experts"
+        ].shape == (2, 100)
         assert raw[
             "routing_class_meta_sample_counts"
         ].sum() == results["routing_sample_count"]
