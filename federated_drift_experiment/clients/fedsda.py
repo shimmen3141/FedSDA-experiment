@@ -1353,20 +1353,6 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         return leader, maximum
 
     @staticmethod
-    def _meta_expert_ids():
-        """設定されたMeta-router候補を、意味の明確なIDで返す。"""
-        if config.SOFT_ROUTING_META_CANDIDATES == "global_leader":
-            return ("global_mixture", "context_leader")
-        if config.SOFT_ROUTING_META_CANDIDATES == "global_context_leader":
-            return (
-                "global_mixture", "context_mixture", "context_leader",
-            )
-        raise ValueError(
-            "未知のMeta-router候補集合です: "
-            f"{config.SOFT_ROUTING_META_CANDIDATES!r}"
-        )
-
-    @staticmethod
     def _routing_prediction(scores, num_classes):
         """確率出力をクラス予測へ変換する。"""
         if num_classes == 2:
@@ -1463,17 +1449,12 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             )
 
             meta_router = self.shadow_meta_routers[context_id]
-            meta_expert_ids = self._meta_expert_ids()
+            meta_expert_ids = ("global_mixture", "context_leader")
             meta_probabilities = meta_router.probabilities(meta_expert_ids)
-            meta_candidate_scores = {
-                "global_mixture": global_scores,
-                "context_mixture": context_scores,
-                "context_leader": prediction_scores[context_leader_model_id],
-            }
-            meta_scores = sum(
-                meta_candidate_scores[expert_id]
-                * meta_probabilities[expert_id]
-                for expert_id in meta_expert_ids
+            meta_scores = (
+                global_scores * meta_probabilities["global_mixture"]
+                + prediction_scores[context_leader_model_id]
+                * meta_probabilities["context_leader"]
             )
         elif config.SOFT_ROUTING_CONTEXT == "feature_gate":
             features = getattr(self, "_latest_routing_features", None)
@@ -1512,8 +1493,6 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                 model_id: (
                     meta_probabilities["global_mixture"]
                     * proposal_probabilities[model_id]
-                    + meta_probabilities.get("context_mixture", 0.0)
-                    * context_probabilities[model_id]
                     + meta_probabilities["context_leader"]
                     * int(model_id == context_leader_model_id)
                 )
@@ -1561,16 +1540,12 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                     "global_mixture": self._routing_score_loss(
                         global_scores, y, num_classes
                     ),
-                    "context_mixture": self._routing_score_loss(
-                        context_scores, y, num_classes
-                    ),
                     "context_leader": model_losses[context_leader_model_id],
                 }
             elif config.SOFT_ROUTING_META_LOSS == "zero_one":
                 # Metaの目的を最終accuracyへ揃え、較正差による選択の逆転を避ける。
                 meta_losses = {
                     "global_mixture": float(not global_correct),
-                    "context_mixture": float(not context_correct),
                     "context_leader": float(
                         not model_correctness[context_leader_model_id]
                     ),
@@ -1580,10 +1555,6 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                     "未知のMeta-router更新損失です: "
                     f"{config.SOFT_ROUTING_META_LOSS!r}"
                 )
-            meta_losses = {
-                expert_id: meta_losses[expert_id]
-                for expert_id in meta_probabilities
-            }
             context_leader_weight = meta_probabilities["context_leader"]
             self.routing_meta_diagnostics["sample_count"] += 1
             self.routing_meta_diagnostics["correct_count"] += int(meta_correct)

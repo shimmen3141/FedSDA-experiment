@@ -114,12 +114,6 @@ SOFT_ROUTING_CONTEXT_CHOICES = (
 # Meta-routerを連続予測損失または最終accuracyと一致する0/1損失で更新する。
 SOFT_ROUTING_META_LOSS = "zero_one"
 SOFT_ROUTING_META_LOSS_CHOICES = ("bounded_score", "zero_one")
-# Meta-routerが比較する候補集合。既存方式はglobal mixtureとcontext leaderの2候補、
-# 拡張方式はcontext mixtureも加えた3候補を閾値なしでオンライン混合する。
-SOFT_ROUTING_META_CANDIDATES = "global_leader"
-SOFT_ROUTING_META_CANDIDATE_CHOICES = (
-    "global_leader", "global_context_leader",
-)
 # 概念別低ランク残差adapterのrank。特徴次元より大きい場合は特徴次元へ丸める。
 SHARED_ADAPTER_RANK = 8
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)

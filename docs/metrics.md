@@ -113,6 +113,7 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
   Global AdaHedge事前分布による予測精度。
 - `routing_feature_gate_gain_rate`: 特徴依存gateのGlobal routingに対するaccuracy差。
 - `routing_feature_gate_restart_count`: 共有表現の集約更新後に特徴gateを再始動した回数。
+- `routing_feature_gate_replay_sample_count`: 集約後の特徴gate再較正に使ったFIFOサンプル総数。
 - `routing_class_macro_meta_accuracy`: shadow meta-router精度の正解クラス別マクロ平均。
 - `routing_class_macro_meta_global_accuracy` / `routing_class_macro_meta_context_mixture_accuracy` /
   `routing_class_macro_meta_context_leader_accuracy`: 各候補の正解クラス別マクロ平均。

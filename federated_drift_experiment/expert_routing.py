@@ -256,6 +256,7 @@ class FeatureConditionedRouter:
         self.pool_reset_count = 0
         self.concept_restart_count = 0
         self.aggregation_restart_count = 0
+        self.aggregation_recalibration_sample_count = 0
 
     def _clear_evidence(self):
         self.weights = {}
@@ -268,6 +269,25 @@ class FeatureConditionedRouter:
     def restart_after_aggregation(self):
         self._clear_evidence()
         self.aggregation_restart_count += 1
+
+    def replay_after_aggregation(self, loss_sequence, feature_sequence):
+        """集約後の共有特徴と損失でgateを時系列順に再較正する。"""
+        loss_sequence = tuple(loss_sequence)
+        feature_sequence = tuple(feature_sequence)
+        if len(loss_sequence) != len(feature_sequence):
+            raise ValueError("loss and feature replay sequences must align")
+
+        self._clear_evidence()
+        self.aggregation_restart_count += 1
+        self.aggregation_recalibration_sample_count += len(loss_sequence)
+        prior_router = AdaHedgeRouter()
+        for losses, features in zip(loss_sequence, feature_sequence):
+            prior = prior_router.probabilities(losses)
+            probabilities, context = self.probabilities(
+                losses, features, prior
+            )
+            self.update(losses, probabilities, context)
+            prior_router.update(losses, prior)
 
     @staticmethod
     def _context(features):

@@ -23,7 +23,6 @@ class AlgorithmOptions:
     shared_backbone_gradient_strategy: str = "mean"
     soft_routing_context: str = "global"
     soft_routing_meta_loss: str = "zero_one"
-    soft_routing_meta_candidates: str = "global_leader"
 
     @classmethod
     def from_current_config(cls):
@@ -47,7 +46,6 @@ class AlgorithmOptions:
             ),
             soft_routing_context=config.SOFT_ROUTING_CONTEXT,
             soft_routing_meta_loss=config.SOFT_ROUTING_META_LOSS,
-            soft_routing_meta_candidates=config.SOFT_ROUTING_META_CANDIDATES,
         )
 
     def config_overrides(self):
@@ -72,7 +70,6 @@ class AlgorithmOptions:
             ),
             "SOFT_ROUTING_CONTEXT": self.soft_routing_context,
             "SOFT_ROUTING_META_LOSS": self.soft_routing_meta_loss,
-            "SOFT_ROUTING_META_CANDIDATES": self.soft_routing_meta_candidates,
         }
 
 

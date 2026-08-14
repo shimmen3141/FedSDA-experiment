@@ -11,7 +11,7 @@ flowchart LR
     models["保持モデルの予測<br/>p_1 ... p_M"]
     global["Layer 1: global AdaHedge<br/>global mixture"]
     context["Layer 2: 予測クラス別AdaHedge<br/>context mixture / context leader"]
-    meta["Layer 3: 文脈別meta AdaHedge<br/>global + context mixture + leader"]
+    meta["Layer 3: 文脈別meta AdaHedge<br/>global mixture + context leader"]
     feature["共有特徴依存gate<br/>global prior + online linear correction"]
     output["実予測"]
 
@@ -40,16 +40,10 @@ flowchart LR
 | Meta mixture | 3 | `--soft-routing-context meta_predicted_class` | Shadow metaと同じ候補混合を実予測に採用する |
 | Feature gate | 特徴依存 | `--soft-routing-context feature_gate` | 共有特徴から入力ごとのモデル重みを計算する |
 
-`meta_predicted_class`は、モデル別の実効重みに展開すると、global重み、context重み、context leaderへの
-一点重みを上位AdaHedgeの比率で加えた混合になる。追加のモデルforward、通信、数値ハイパーパラメータはない。
+`meta_predicted_class`は、モデル別の実効重みに展開すると、global重みとcontext leaderへの一点重みを
+上位AdaHedgeの比率で加えた混合になる。追加のモデルforward、通信、数値ハイパーパラメータはない。
 
-候補集合は`--soft-routing-meta-candidates`で選ぶ。
-
-- `global_leader`（既定値）はGlobal mixtureとContext leaderの2候補を混合する既存方式である。
-- `global_context_leader`はContext mixtureも含む3候補を混合する。Globalの安定性、Context mixtureの
-  滑らかさ、Context leaderの概念特化を同じAdaHedgeで比較し、固定閾値による切替を行わない。
-
-いずれも候補間の重みは累積損失とmixability gapからAdaHedgeが自動計算する。学習率や切替閾値を
+候補間の重みは累積損失とmixability gapからAdaHedgeが自動計算する。学習率や切替閾値を
 利用者が設定する必要はない。診断指標で使う重み`0.5`は「どちらをより重くしたか」の集計境界であり、
 予測方式を切り替える条件ではない。
 
@@ -61,9 +55,11 @@ Global AdaHedgeの重みを事前分布として使い、特徴に依存する�
 期待損失を下げるオンライン勾配更新を行う。予測時のラベル漏洩はない。
 
 特徴は単位ノルム化し、更新幅は累積勾配ノルムの逆平方根から自動計算する。このため、routing用の
-学習率・温度・切替閾値は追加しない。モデル集合、確定概念、または共有表現が変化した場合は、古い
-特徴空間の証拠を持ち越さずgateを再始動する。共有特徴を必要とするため、現行実装はShared Backboneと
-Residual AdapterのRestarting SoftRouting modeに限定する。
+学習率・温度・切替閾値は追加しない。モデル集合または確定概念が変化した場合はgateを再始動する。
+共有表現の集約更新後は、`fifo_replay`なら集約後モデルで再計算したFIFOの共有特徴・モデル損失を使い、
+gateとGlobal事前分布を時系列順に再構築する。それ以外の再較正方式では古い特徴空間の証拠を破棄する。
+共有特徴を必要とするため、現行実装はShared BackboneとResidual AdapterのRestarting SoftRouting modeに
+限定する。
 
 追加のモデルforwardや通信は発生しないが、特徴次元×モデル数の小さなローカルgate状態と、各サンプルの
 softmax・オンライン更新計算が増える。これはモデル選択を予測クラスだけに限定しない、Meta routingとは

@@ -709,6 +709,15 @@ def _add_model_diagnostic_results(results, clients, server):
             for client in clients
             if hasattr(client, "feature_router")
         ),
+        "routing_feature_gate_replay_sample_count": sum(
+            getattr(
+                client.feature_router,
+                "aggregation_recalibration_sample_count",
+                0,
+            )
+            for client in clients
+            if hasattr(client, "feature_router")
+        ),
         "routing_aggregation_restart_count": sum(
             getattr(client.expert_router, "aggregation_restart_count", 0)
             for client in clients
@@ -1383,14 +1392,6 @@ def _save_raw_run(
         ),
         soft_routing_meta_loss=np.asarray(
             config.SOFT_ROUTING_META_LOSS
-            if "SoftRouting" in mode
-            and config.SOFT_ROUTING_CONTEXT in {
-                "predicted_class", "meta_predicted_class",
-            } else "",
-            dtype=np.str_,
-        ),
-        soft_routing_meta_candidates=np.asarray(
-            config.SOFT_ROUTING_META_CANDIDATES
             if "SoftRouting" in mode
             and config.SOFT_ROUTING_CONTEXT in {
                 "predicted_class", "meta_predicted_class",

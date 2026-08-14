@@ -235,3 +235,28 @@ def test_feature_router_restarts_when_shared_representation_changes():
     )
     assert reset == pytest.approx({0: 0.5, 1: 0.5})
     assert router.aggregation_restart_count == 1
+
+
+def test_feature_router_replays_fifo_after_shared_representation_changes():
+    router = FeatureConditionedRouter()
+    losses = (
+        {0: 0.0, 1: 1.0},
+        {0: 1.0, 1: 0.0},
+    ) * 10
+    features = (
+        torch.tensor([[1.0]]),
+        torch.tensor([[-1.0]]),
+    ) * 10
+
+    router.replay_after_aggregation(losses, features)
+
+    positive, _ = router.probabilities(
+        [0, 1], torch.tensor([[1.0]]), {0: 0.5, 1: 0.5}
+    )
+    negative, _ = router.probabilities(
+        [0, 1], torch.tensor([[-1.0]]), {0: 0.5, 1: 0.5}
+    )
+    assert positive[0] > positive[1]
+    assert negative[1] > negative[0]
+    assert router.aggregation_restart_count == 1
+    assert router.aggregation_recalibration_sample_count == 20

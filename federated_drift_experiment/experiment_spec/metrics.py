@@ -225,6 +225,7 @@ METRICS = (
             "routing_feature_gate_global_accuracy",
             "routing_feature_gate_gain_rate",
             "routing_feature_gate_restart_count",
+            "routing_feature_gate_replay_sample_count",
             "routing_aggregation_recalibration_count",
             "routing_aggregation_recalibration_sample_count",
             "routing_aggregation_recalibration_check_count",
