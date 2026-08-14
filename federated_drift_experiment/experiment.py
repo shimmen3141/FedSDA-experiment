@@ -515,13 +515,6 @@ def _add_model_diagnostic_results(results, clients, server):
         ).items():
             routing_meta[key] += float(value)
 
-    routing_feature = defaultdict(float)
-    for client in clients:
-        for key, value in getattr(
-            client, "routing_feature_diagnostics", {}
-        ).items():
-            routing_feature[key] += float(value)
-
     class_oracle_accuracies = []
     class_mixture_accuracies = []
     class_leader_accuracies = []
@@ -686,37 +679,6 @@ def _add_model_diagnostic_results(results, clients, server):
         ),
         "routing_class_macro_meta_context_leader_accuracy": class_mean(
             class_meta_context_leader_accuracies
-        ),
-        "routing_feature_gate_accuracy": (
-            routing_feature["correct_count"]
-            / routing_feature["sample_count"]
-            if routing_feature["sample_count"] else 0.0
-        ),
-        "routing_feature_gate_global_accuracy": (
-            routing_feature["global_correct_count"]
-            / routing_feature["sample_count"]
-            if routing_feature["sample_count"] else 0.0
-        ),
-        "routing_feature_gate_gain_rate": (
-            (
-                routing_feature["correct_count"]
-                - routing_feature["global_correct_count"]
-            ) / routing_feature["sample_count"]
-            if routing_feature["sample_count"] else 0.0
-        ),
-        "routing_feature_gate_restart_count": sum(
-            getattr(client.feature_router, "aggregation_restart_count", 0)
-            for client in clients
-            if hasattr(client, "feature_router")
-        ),
-        "routing_feature_gate_replay_sample_count": sum(
-            getattr(
-                client.feature_router,
-                "aggregation_recalibration_sample_count",
-                0,
-            )
-            for client in clients
-            if hasattr(client, "feature_router")
         ),
         "routing_aggregation_restart_count": sum(
             getattr(client.expert_router, "aggregation_restart_count", 0)
@@ -1086,19 +1048,6 @@ def _save_raw_run(
                 for client in clients
             ],
             dtype=np.float64,
-        )
-        telemetry_arrays["history_routing_feature_gate_correct"] = np.asarray(
-            [client.history_routing_feature_gate_correct for client in clients],
-            dtype=np.bool_,
-        )
-        telemetry_arrays[
-            "history_routing_feature_gate_global_correct"
-        ] = np.asarray(
-            [
-                client.history_routing_feature_gate_global_correct
-                for client in clients
-            ],
-            dtype=np.bool_,
         )
         routing_class_client_ids = []
         routing_class_ids = []

@@ -80,25 +80,20 @@ class _SharedRepresentationFedSDAClientMixin:
         if not hasattr(self, "expert_router"):
             return
         strategy = config.SHARED_BACKBONE_ROUTING_RECALIBRATION
-        loss_sequence = ()
-        feature_sequence = ()
-        if strategy in {
-            "fifo_replay", "leader_change_replay",
-            "persistent_leader_change_replay",
-        }:
-            loss_sequence, feature_sequence = self._fifo_routing_evidence()
         if strategy == "aggregation_restart":
             self.expert_router.restart_after_aggregation()
         elif strategy == "fifo_replay":
-            self.expert_router.replay_after_aggregation(loss_sequence)
+            self.expert_router.replay_after_aggregation(
+                self._fifo_routing_loss_sequence()
+            )
         elif strategy == "leader_change_replay":
             self.expert_router.replay_after_aggregation_if_leader_changed(
-                loss_sequence,
+                self._fifo_routing_loss_sequence(),
                 preferred_id=self.current_model_id,
             )
         elif strategy == "persistent_leader_change_replay":
             self.expert_router.replay_after_aggregation_if_leader_persists(
-                loss_sequence,
+                self._fifo_routing_loss_sequence(),
                 preferred_id=self.current_model_id,
             )
         elif strategy != "none":
@@ -110,29 +105,13 @@ class _SharedRepresentationFedSDAClientMixin:
             router.restart_after_aggregation()
         for router in getattr(self, "shadow_meta_routers", {}).values():
             router.restart_after_aggregation()
-        feature_router = getattr(self, "feature_router", None)
-        if (
-            feature_router is not None
-            and config.SOFT_ROUTING_CONTEXT == "feature_gate"
-        ):
-            if strategy == "fifo_replay":
-                feature_router.replay_after_aggregation(
-                    loss_sequence, feature_sequence
-                )
-            else:
-                feature_router.restart_after_aggregation()
 
     def _fifo_routing_loss_sequence(self):
         """集約後の全保持モデルをFIFO上で再評価し、時系列損失を返す。"""
-        loss_sequence, _ = self._fifo_routing_evidence()
-        return loss_sequence
-
-    def _fifo_routing_evidence(self):
-        """FIFO上のモデル別損失と集約後共有特徴を時系列順に返す。"""
         samples = tuple(self.buffer)
         model_ids = tuple(sorted(self.models))
         if not samples or len(model_ids) <= 1:
-            return (), ()
+            return ()
 
         x = torch.cat([sample_x for sample_x, _ in samples])
         y = torch.cat([sample_y for _, sample_y in samples])
@@ -162,24 +141,18 @@ class _SharedRepresentationFedSDAClientMixin:
             backbone_examples=sample_count,
             head_examples=sample_count * len(model_ids),
         )
-        loss_sequence = tuple(
+        return tuple(
             {
                 model_id: float(losses_by_model[model_id][index].item())
                 for model_id in model_ids
             }
             for index in range(sample_count)
         )
-        feature_sequence = tuple(
-            features[index:index + 1].detach().clone()
-            for index in range(sample_count)
-        )
-        return loss_sequence, feature_sequence
 
     def _routing_scores(self, x, model_ids):
         """特徴抽出を1回だけ行い、全概念別ヘッドを評価する。"""
         first = self.models[model_ids[0]]
         features = first.extract_features(x)
-        self._latest_routing_features = features.detach()
         scores = {
             model_id: self.models[model_id].forward_from_features(features)
             for model_id in model_ids

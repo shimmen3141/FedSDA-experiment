@@ -109,7 +109,7 @@ SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (
 # SoftRoutingの証拠を全入力で共有するか、予測クラスごとに分けるかを選ぶ。
 SOFT_ROUTING_CONTEXT = "global"
 SOFT_ROUTING_CONTEXT_CHOICES = (
-    "global", "predicted_class", "meta_predicted_class", "feature_gate",
+    "global", "predicted_class", "meta_predicted_class",
 )
 # Meta-routerを連続予測損失または最終accuracyと一致する0/1損失で更新する。
 SOFT_ROUTING_META_LOSS = "zero_one"

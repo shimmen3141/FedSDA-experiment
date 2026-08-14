@@ -1,12 +1,7 @@
 import math
 
 import pytest
-import torch
-
-from federated_drift_experiment.expert_routing import (
-    AdaHedgeRouter,
-    FeatureConditionedRouter,
-)
+from federated_drift_experiment.expert_routing import AdaHedgeRouter
 
 
 def test_adahedge_starts_uniform_and_concentrates_on_better_expert():
@@ -201,62 +196,3 @@ def test_adahedge_persistent_replay_requires_two_nonempty_halves():
 
     assert replayed is False
     assert router.aggregation_recalibration_skip_count == 1
-
-
-def test_feature_router_learns_opposite_experts_for_opposite_features():
-    router = FeatureConditionedRouter()
-    prior = {0: 0.5, 1: 0.5}
-    positive = torch.tensor([[1.0]])
-    negative = torch.tensor([[-1.0]])
-
-    for _ in range(30):
-        probabilities, context = router.probabilities([0, 1], positive, prior)
-        router.update({0: 0.0, 1: 1.0}, probabilities, context)
-        probabilities, context = router.probabilities([0, 1], negative, prior)
-        router.update({0: 1.0, 1: 0.0}, probabilities, context)
-
-    positive_probabilities, _ = router.probabilities([0, 1], positive, prior)
-    negative_probabilities, _ = router.probabilities([0, 1], negative, prior)
-    assert positive_probabilities[0] > positive_probabilities[1]
-    assert negative_probabilities[1] > negative_probabilities[0]
-
-
-def test_feature_router_restarts_when_shared_representation_changes():
-    router = FeatureConditionedRouter()
-    probabilities, context = router.probabilities(
-        [0, 1], torch.tensor([[1.0, 0.0]]), {0: 0.5, 1: 0.5}
-    )
-    router.update({0: 0.0, 1: 1.0}, probabilities, context)
-
-    router.restart_after_aggregation()
-
-    reset, _ = router.probabilities(
-        [0, 1], torch.tensor([[1.0, 0.0]]), {0: 0.5, 1: 0.5}
-    )
-    assert reset == pytest.approx({0: 0.5, 1: 0.5})
-    assert router.aggregation_restart_count == 1
-
-
-def test_feature_router_replays_fifo_after_shared_representation_changes():
-    router = FeatureConditionedRouter()
-    losses = (
-        {0: 0.0, 1: 1.0},
-        {0: 1.0, 1: 0.0},
-    ) * 10
-    features = (
-        torch.tensor([[1.0]]),
-        torch.tensor([[-1.0]]),
-    ) * 10
-
-    router.replay_after_aggregation(losses, features)
-
-    positive, _ = router.probabilities(
-        [0, 1], torch.tensor([[1.0]]), {0: 0.5, 1: 0.5}
-    )
-    negative, _ = router.probabilities(
-        [0, 1], torch.tensor([[-1.0]]), {0: 0.5, 1: 0.5}
-    )
-    assert positive[0] > positive[1]
-    assert negative[1] > negative[0]
-    assert router.aggregation_restart_count == 1
-    assert router.aggregation_recalibration_sample_count == 20

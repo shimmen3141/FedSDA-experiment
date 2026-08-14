@@ -468,37 +468,6 @@ def test_meta_context_actual_accuracy_matches_shadow_prediction(
     ]
 
 
-def test_feature_gate_uses_shared_features_and_reports_diagnostics(
-    monkeypatch, tmp_path,
-):
-    monkeypatch.setattr(config, "DATASET", "circle2")
-    monkeypatch.setattr(config, "N_CLIENTS", 2)
-    monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 100)
-    monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 30)
-    monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
-    monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 50)
-    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "feature_gate")
-
-    raw_path = tmp_path / "feature-gate.npz"
-    results = run_random_drift_experiment(
-        mode="FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
-        random_seed=0,
-        verbose=False,
-        show_plot=False,
-        raw_path=str(raw_path),
-    )
-
-    assert results["routing_feature_gate_accuracy"] == results["accuracy"]
-    assert results["routing_feature_gate_global_accuracy"] > 0
-    assert -1 <= results["routing_feature_gate_gain_rate"] <= 1
-    assert results["routing_feature_gate_restart_count"] >= 0
-    with np.load(raw_path) as raw:
-        assert raw["history_routing_feature_gate_correct"].shape == (2, 100)
-        assert raw[
-            "history_routing_feature_gate_global_correct"
-        ].shape == (2, 100)
-
-
 def test_residual_adapter_experiment_reports_component_metrics(monkeypatch):
     monkeypatch.setattr(config, "DATASET", "circle2")
     monkeypatch.setattr(config, "N_CLIENTS", 2)

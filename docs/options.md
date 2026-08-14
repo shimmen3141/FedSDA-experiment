@@ -29,7 +29,7 @@ flowchart LR
   end
   subgraph group_prediction[prediction]
     routing["<b>予測ルーティング</b><br/>hard | restarting_soft | protected_soft"]
-    soft_routing_context["<b>SoftRouting文脈</b><br/>global | predicted_class | meta_predicted_class | feature_gate"]
+    soft_routing_context["<b>SoftRouting文脈</b><br/>global | predicted_class | meta_predicted_class"]
     soft_routing_meta_loss["<b>Meta-router更新損失</b><br/>bounded_score | zero_one"]
     shared_backbone_routing_recalibration["<b>共有表現更新後のルーティング再較正</b><br/>none | aggregation_restart | fifo_replay | leader_change_replay | persistent_leader_change_replay"]
   end
@@ -95,7 +95,6 @@ flowchart LR
   server_flow -.->|"residual_adapter: NoCachedが必要"| model_architecture
   server_flow -.->|"protected_soft: NoCachedが必要"| routing
   detector -.->|"protected_soft: ClassESRが必要"| routing
-  model_architecture -.->|"feature_gate: 共有特徴を持つモデル構造が必要"| soft_routing_context
   method --> server_flow
   method --> detector
   method --> routing
@@ -112,7 +111,7 @@ flowchart LR
 | `server_flow` | mode | 実装済み | 対象外 | 対象外 | 対象外 | FedAvg前後のモデルキャッシュ利用と通信順序 |
 | `detector` | mode | 実装済み | 対象外 | 実装済み | 対象外 | FedSDAクライアントが損失系列へ適用する検出器 |
 | `routing` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 保持モデルから予測を選択または混合する方式 |
-| `soft_routing_context` | cli: `--soft-routing-context` | 実装済み | 対象外 | 対象外 | 対象外 | 大域混合、予測クラス別混合、meta混合、または共有特徴依存gateを選ぶ |
+| `soft_routing_context` | cli: `--soft-routing-context` | 実装済み | 対象外 | 対象外 | 対象外 | 大域混合、予測クラス別混合、またはmeta混合を選ぶ |
 | `soft_routing_meta_loss` | cli: `--soft-routing-meta-loss` | 実装済み | 対象外 | 対象外 | 対象外 | Meta候補を確率出力の有界損失または最終予測の0/1損失で比較する |
 | `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか |
 | `shared_backbone_training` | cli: `--shared-backbone-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか |
@@ -165,7 +164,6 @@ flowchart LR
 | `model_architecture` = `shared_backbone` | `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>Restarting SoftRoutingが必要 | 共有バックボーンは専用modeで実装 |
 | `model_architecture` = `residual_adapter` | `FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | NoCachedが必要 | 低ランク残差adapterはhard routingとRestarting SoftRoutingで実装 |
 | `routing` = `protected_soft` | `FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | NoCachedが必要<br/>ClassESRが必要 | 現在は専用modeでのみ実装 |
-| `soft_routing_context` = `feature_gate` | `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | 共有特徴を持つモデル構造が必要 | 特徴gateは共有バックボーン出力を入力に使う |
 
 ## 掃引オプションの依存構造
 
