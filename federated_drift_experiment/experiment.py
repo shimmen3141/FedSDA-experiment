@@ -1345,6 +1345,12 @@ def _save_raw_run(
             and config.SOFT_ROUTING_CONTEXT != "global" else "",
             dtype=np.str_,
         ),
+        soft_routing_meta_candidates=np.asarray(
+            config.SOFT_ROUTING_META_CANDIDATES
+            if "SoftRouting" in mode
+            and config.SOFT_ROUTING_CONTEXT != "global" else "",
+            dtype=np.str_,
+        ),
         shared_adapter_rank=np.asarray(
             config.SHARED_ADAPTER_RANK if "_ResidualAdapter_" in mode else -1,
             dtype=np.int64,

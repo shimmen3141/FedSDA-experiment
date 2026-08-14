@@ -93,6 +93,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "shared_backbone_routing_recalibration",
             "soft_routing_context",
             "soft_routing_meta_loss",
+            "soft_routing_meta_candidates",
             "shared_adapter_rank",
             FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
             ] + METRIC_KEYS
@@ -286,6 +287,11 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         ),
         "soft_routing_meta_loss": (
             config.SOFT_ROUTING_META_LOSS
+            if "SoftRouting" in mode
+            and config.SOFT_ROUTING_CONTEXT != "global" else None
+        ),
+        "soft_routing_meta_candidates": (
+            config.SOFT_ROUTING_META_CANDIDATES
             if "SoftRouting" in mode
             and config.SOFT_ROUTING_CONTEXT != "global" else None
         ),
@@ -586,6 +592,7 @@ def _load_csv(path):
             row.setdefault("shared_backbone_gradient_strategy", "")
             # 列追加前のCSVを再描画するときは当時の挙動を復元する。
             row.setdefault("soft_routing_meta_loss", "bounded_score")
+            row.setdefault("soft_routing_meta_candidates", "global_leader")
             row.setdefault("shared_adapter_rank", "")
             row.setdefault("detection_episodes", "False")
             row.setdefault("new_model_creation_policy", "immediate")
@@ -1012,6 +1019,15 @@ def build_parser():
         default=config.SOFT_ROUTING_META_LOSS,
         help="Meta-routerの更新損失 (bounded_score / zero_one)",
     )
+    fedsda.add_argument(
+        "--soft-routing-meta-candidates",
+        choices=config.SOFT_ROUTING_META_CANDIDATE_CHOICES,
+        default=config.SOFT_ROUTING_META_CANDIDATES,
+        help=(
+            "Meta-routerの候補集合 "
+            "(global_leader / global_context_leader)"
+        ),
+    )
     fedsda.add_argument("--fedsda-distance-threshold", dest="fixed_gamma",
                         type=float, default=None,
                         help="FedSDAの固定γ_dist。FedSDA掃引がすべて空なら未使用")
@@ -1196,6 +1212,7 @@ def main(argv=None):
         ),
         "soft_routing_context": args.soft_routing_context,
         "soft_routing_meta_loss": args.soft_routing_meta_loss,
+        "soft_routing_meta_candidates": args.soft_routing_meta_candidates,
         "shared_adapter_rank": args.shared_adapter_rank,
         "experiment_manifest": "on" if args.manifest else "off",
         "duplicate_policy": args.duplicate_policy,
@@ -1244,6 +1261,7 @@ def main(argv=None):
         shared_adapter_rank=args.shared_adapter_rank,
         soft_routing_context=args.soft_routing_context,
         soft_routing_meta_loss=args.soft_routing_meta_loss,
+        soft_routing_meta_candidates=args.soft_routing_meta_candidates,
     )
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.FEDDRIFT_DISTANCE_THRESHOLD

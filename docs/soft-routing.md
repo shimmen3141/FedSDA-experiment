@@ -11,7 +11,7 @@ flowchart LR
     models["保持モデルの予測<br/>p_1 ... p_M"]
     global["Layer 1: global AdaHedge<br/>global mixture"]
     context["Layer 2: 予測クラス別AdaHedge<br/>context mixture / context leader"]
-    meta["Layer 3: 文脈別meta AdaHedge<br/>global mixture + context leader"]
+    meta["Layer 3: 文脈別meta AdaHedge<br/>global + context mixture + leader"]
     output["実予測"]
 
     models --> global
@@ -34,10 +34,20 @@ flowchart LR
 | Context mixture | 2 | `--soft-routing-context predicted_class` | globalの事前予測クラスごとに別の累積損失を持ち、全モデルを再混合する |
 | Context leader | 2 | 単独選択不可 | Context mixtureで最大重みのモデル。meta-routerの候補兼診断値 |
 | Shadow meta | 3 | `predicted_class`時は診断のみ | Global mixtureとContext leaderを文脈別AdaHedgeで再混合する |
-| Meta mixture | 3 | `--soft-routing-context meta_predicted_class` | Shadow metaと同じ計算を実予測に採用する |
+| Meta mixture | 3 | `--soft-routing-context meta_predicted_class` | Shadow metaと同じ候補混合を実予測に採用する |
 
-`meta_predicted_class`は、モデル別の実効重みに展開すると、global重みとcontext leaderへの一点重みを
-上位AdaHedgeの比率で加えた混合になる。追加のモデルforward、通信、数値ハイパーパラメータはない。
+`meta_predicted_class`は、モデル別の実効重みに展開すると、global重み、context重み、context leaderへの
+一点重みを上位AdaHedgeの比率で加えた混合になる。追加のモデルforward、通信、数値ハイパーパラメータはない。
+
+候補集合は`--soft-routing-meta-candidates`で選ぶ。
+
+- `global_leader`（既定値）はGlobal mixtureとContext leaderの2候補を混合する既存方式である。
+- `global_context_leader`はContext mixtureも含む3候補を混合する。Globalの安定性、Context mixtureの
+  滑らかさ、Context leaderの概念特化を同じAdaHedgeで比較し、固定閾値による切替を行わない。
+
+いずれも候補間の重みは累積損失とmixability gapからAdaHedgeが自動計算する。学習率や切替閾値を
+利用者が設定する必要はない。診断指標で使う重み`0.5`は「どちらをより重くしたか」の集計境界であり、
+予測方式を切り替える条件ではない。
 
 Meta-routerの更新損失は`--soft-routing-meta-loss`で選ぶ。
 

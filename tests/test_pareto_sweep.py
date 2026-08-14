@@ -42,6 +42,7 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.shared_backbone_routing_recalibration == "none"
     assert defaults.soft_routing_context == "global"
     assert defaults.soft_routing_meta_loss == "zero_one"
+    assert defaults.soft_routing_meta_candidates == "global_leader"
     assert defaults.shared_adapter_rank == config.SHARED_ADAPTER_RANK
     assert defaults.duplicate_policy == "error"
     selected = parser.parse_args([

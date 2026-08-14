@@ -172,6 +172,19 @@ OPTIONS = (
         cli_name="soft-routing-meta-loss",
     ),
     OptionSpec(
+        "soft_routing_meta_candidates", "Meta-router候補集合", "prediction",
+        ("global_leader", "global_context_leader"),
+        "Global mixtureとContext leaderの2候補、またはContext mixtureも含む3候補を比較する",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("soft_routing",),
+        active_when=(ActivationRule(
+            "soft_routing_context",
+            ("predicted_class", "meta_predicted_class"),
+            "文脈別Meta-routerを計算するとき",
+        ),),
+        cli_name="soft-routing-meta-candidates",
+    ),
+    OptionSpec(
         "model_architecture", "モデル構造", "model",
         ("independent", "shared_backbone", "residual_adapter"),
         "概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか",

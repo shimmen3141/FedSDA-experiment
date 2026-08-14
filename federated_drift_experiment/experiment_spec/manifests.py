@@ -112,9 +112,11 @@ def experiment_configuration(experiment, total_data):
     if "SoftRouting" not in experiment.mode:
         algorithm.pop("soft_routing_context", None)
         algorithm.pop("soft_routing_meta_loss", None)
+        algorithm.pop("soft_routing_meta_candidates", None)
     else:
         if algorithm.get("soft_routing_context") == "global":
             algorithm.pop("soft_routing_meta_loss", None)
+            algorithm.pop("soft_routing_meta_candidates", None)
         if (
             algorithm.get("shared_backbone_training") != "joint"
             or algorithm.get("shared_backbone_gradient_strategy") == "mean"
@@ -188,6 +190,10 @@ def configuration_from_result_row(row, total_data):
             algorithm["soft_routing_meta_loss"] = (
                 # 列追加前のMeta実験はbounded_scoreで実行されている。
                 row.get("soft_routing_meta_loss") or "bounded_score"
+            )
+            algorithm["soft_routing_meta_candidates"] = (
+                # 列追加前のMeta実験は2候補で実行されている。
+                row.get("soft_routing_meta_candidates") or "global_leader"
             )
     if "SharedBackbone" in mode or "ResidualAdapter" in mode:
         algorithm.update({

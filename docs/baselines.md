@@ -37,6 +37,11 @@ adapterのrandom schedule・全6データセット・5シード・集約間隔`5
 `routing/restarting_soft_routing_class_esr/`には、独立モデル構造へRestarting SoftRoutingを適用した
 random schedule・全6データセット・5シード・集約間隔`50/100/200/500`の比較結果を保存する。
 
+`routing/meta_soft_routing_zero_one/`には、Residual Adapter rank 8、joint学習、FIFO再較正を固定し、
+予測クラス文脈のMeta routingを0/1損失で更新した結果を保存する。random schedule・全6データセット・
+5シード・集約間隔`50/100/200/500`を収録し、`architectures/residual_adapter_rank8/`のGlobal routingと
+同一条件で比較できるようにする。
+
 ## 単一軸baselineと多因子ablation
 
 `detectors/`や`architectures/`などは、一つの主な比較軸を持つ方式の索引として使う。複数オプションの
