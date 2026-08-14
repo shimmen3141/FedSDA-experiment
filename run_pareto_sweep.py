@@ -288,7 +288,7 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             config.SOFT_ROUTING_META_LOSS
             if "SoftRouting" in mode
             and config.SOFT_ROUTING_CONTEXT in {
-                "predicted_class", "meta_predicted_class",
+                "predicted_class", "meta_predicted_class", "meta_switching",
             } else None
         ),
         "shared_adapter_rank": (
@@ -1005,7 +1005,7 @@ def build_parser():
         default=config.SOFT_ROUTING_CONTEXT,
         help=(
             "SoftRoutingの予測方式 "
-            "(global / predicted_class / meta_predicted_class)"
+            "(global / predicted_class / meta_predicted_class / meta_switching)"
         ),
     )
     fedsda.add_argument(

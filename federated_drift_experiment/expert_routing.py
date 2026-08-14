@@ -290,6 +290,19 @@ class SwitchingExpertRouter:
             if probability == maximum
         )
 
+    @staticmethod
+    def leader(probabilities, preferred_id=None):
+        """最大重みexpertを返し、同率なら指定候補を優先する。"""
+        maximum = max(probabilities.values())
+        leaders = [
+            expert_id
+            for expert_id, probability in probabilities.items()
+            if probability == maximum
+        ]
+        if preferred_id in leaders:
+            return preferred_id
+        return min(leaders)
+
     def update(self, losses, probabilities):
         """全expertの損失で事後重みを更新し、切替確率を共有する。"""
         expert_ids = self._synchronize(losses)

@@ -114,7 +114,7 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("soft_routing_meta_loss", None)
     else:
         if algorithm.get("soft_routing_context") not in {
-            "predicted_class", "meta_predicted_class",
+            "predicted_class", "meta_predicted_class", "meta_switching",
         }:
             algorithm.pop("soft_routing_meta_loss", None)
         if (
@@ -187,7 +187,7 @@ def configuration_from_result_row(row, total_data):
             row.get("soft_routing_context") or "global"
         )
         if algorithm["soft_routing_context"] in {
-            "predicted_class", "meta_predicted_class",
+            "predicted_class", "meta_predicted_class", "meta_switching",
         }:
             algorithm["soft_routing_meta_loss"] = (
                 # 列追加前のMeta実験はbounded_scoreで実行されている。

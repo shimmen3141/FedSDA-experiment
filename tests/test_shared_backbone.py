@@ -438,6 +438,14 @@ def test_shared_backbone_experiment_reports_component_metrics(
     assert 0 <= results["routing_switching_recovery_accuracy"] <= 1
     assert -1 <= results["routing_switching_recovery_gain_rate"] <= 1
     assert results["routing_switching_effective_experts_mean"] >= 1
+    assert results["routing_meta_switching_accuracy"] > 0
+    assert -1 <= results["routing_meta_switching_meta_gain_rate"] <= 1
+    assert -1 <= results[
+        "routing_meta_switching_switching_gain_rate"
+    ] <= 1
+    assert 0 <= results[
+        "routing_meta_switching_selected_switching_rate"
+    ] <= 1
     with np.load(raw_path) as raw:
         assert raw["routing_class_client_ids"].shape == (
             len(raw["routing_class_ids"]),
@@ -452,6 +460,12 @@ def test_shared_backbone_experiment_reports_component_metrics(
         assert raw["history_routing_switching_leader_id"].shape == (2, 100)
         assert raw[
             "history_routing_switching_effective_experts"
+        ].shape == (2, 100)
+        assert raw[
+            "history_routing_meta_switching_correct"
+        ].shape == (2, 100)
+        assert raw[
+            "history_routing_meta_switching_selected_switching"
         ].shape == (2, 100)
         assert raw[
             "routing_class_meta_sample_counts"
@@ -487,6 +501,41 @@ def test_meta_context_actual_accuracy_matches_shadow_prediction(
 
     assert actual["accuracy"] == shadow["routing_meta_accuracy"]
     assert actual["routing_meta_accuracy"] == actual["accuracy"]
+    assert actual["comm_models_total"] == shadow["comm_models_total"]
+    assert actual["compute_model_examples_total"] == shadow[
+        "compute_model_examples_total"
+    ]
+
+
+def test_meta_switching_actual_accuracy_matches_shadow_prediction(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    monkeypatch.setattr(config, "N_CLIENTS", 2)
+    monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 100)
+    monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 30)
+    monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
+    monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 50)
+
+    monkeypatch.setattr(
+        config, "SOFT_ROUTING_CONTEXT", "meta_predicted_class"
+    )
+    shadow = run_random_drift_experiment(
+        mode="FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+        random_seed=0,
+        verbose=False,
+        show_plot=False,
+    )
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "meta_switching")
+    actual = run_random_drift_experiment(
+        mode="FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+        random_seed=0,
+        verbose=False,
+        show_plot=False,
+    )
+
+    assert actual["accuracy"] == shadow["routing_meta_switching_accuracy"]
+    assert actual["routing_meta_switching_accuracy"] == actual["accuracy"]
     assert actual["comm_models_total"] == shadow["comm_models_total"]
     assert actual["compute_model_examples_total"] == shadow[
         "compute_model_examples_total"

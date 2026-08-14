@@ -12,15 +12,21 @@ flowchart LR
     global["Layer 1: global AdaHedge<br/>global mixture"]
     context["Layer 2: 予測クラス別AdaHedge<br/>context mixture / context leader"]
     meta["Layer 3: 文脈別meta AdaHedge<br/>global mixture + context leader"]
+    switching["モデル追従Fixed-Share<br/>switching mixture"]
+    top["Layer 4: 上位Fixed-Share<br/>Meta / switchingを選択"]
     output["実予測"]
 
     models --> global
     global -->|事前予測クラス| context
     global --> meta
     context -->|context leader| meta
+    models --> switching
+    meta --> top
+    switching --> top
     global -->|global| output
     context -->|predicted_class| output
     meta -->|meta_predicted_class| output
+    top -->|meta_switching| output
 ```
 
 正解ラベルは各AdaHedgeの重みを決めた後の更新にだけ使う。予測クラスもglobal mixtureから求めるため、
@@ -35,6 +41,7 @@ flowchart LR
 | Context leader | 2 | 単独選択不可 | Context mixtureで最大重みのモデル。meta-routerの候補兼診断値 |
 | Shadow meta | 3 | `predicted_class`時は診断のみ | Global mixtureとContext leaderを文脈別AdaHedgeで再混合する |
 | Meta mixture | 3 | `--soft-routing-context meta_predicted_class` | Shadow metaと同じ候補混合を実予測に採用する |
+| Meta-switching selector | 4 | `--soft-routing-context meta_switching` | Meta mixtureとswitching mixtureのうち、上位Fixed-Shareが選んだ一方を採用する |
 
 `meta_predicted_class`は、モデル別の実効重みに展開すると、global重みとcontext leaderへの一点重みを
 上位AdaHedgeの比率で加えた混合になる。追加のモデルforward、通信、数値ハイパーパラメータはない。
@@ -69,16 +76,22 @@ SoftRoutingの予測結果はモデル学習、ドリフト検出、モデル作
 時間とともに切り替わる状況を追跡する。二次損失から学習率を自動調整し、一様分布へ戻す時間尺度には
 既存の`N_FIFO`を使うため、新しい利用者設定は追加しない。
 
-現段階では実予測を変更せず、すべてのRestarting SoftRouting modeでshadowとして計算する。既に得た
-全保持モデルの出力を再利用するため、追加forwardと通信は発生しない。共有表現の`fifo_replay`後は、
-集約後モデルで再計算したFIFO損失から状態も再構築する。複数データ・seedでGlobal mixtureまたは
-2候補Metaを安定して上回った場合にだけ、実routing選択肢への昇格を検討する。
+モデル直接のswitching mixtureは、すべてのRestarting SoftRouting modeでshadowとして計算する。
+共有表現の`fifo_replay`後は、集約後モデルで再計算したFIFO損失から状態も再構築する。
+
+`meta_switching`は、現行Meta mixtureとswitching mixtureをさらに2候補のFixed-Shareで追跡し、予測前に
+最大重み候補を選ぶ。候補の同率時は、定常時に安定していた現行Metaを優先する。正解取得後に両候補の
+0/1損失で上位重みを更新するため、ラベル漏洩はない。一様分布へ戻す時間尺度には既存の`N_FIFO`を
+再利用し、固定閾値や新しい数値ハイパーパラメータを追加しない。すべて既に得たモデル出力を使うため、
+追加forwardと通信も発生しない。
 
 ## 比較上の扱い
 
 - `global`は単純で安定した基準方式であり、当面の既定値として残す。
 - `meta_predicted_class`はSine2・MNIST2・MNIST4でglobalを上回った一方、Circle2では5 seedすべてで
   わずかに下回った。現時点では一律の既定値ではなく、更新損失との整合性を検証する候補である。
+- `meta_switching`は、switching mixtureの回復速度とMeta mixtureの定常安定性を閾値なしで選択する
+  実験的候補である。主要方式への昇格は実予測としての複数seed検証後に判断する。
 - `predicted_class`は現時点の実験ではglobalまたはmetaにほぼ支配されている。素朴な文脈別再混合の
   ablationとしては意味があるが、主要方式へ昇格しない場合は将来の整理候補である。
 - `context leader`は独立方式ではなくmetaの構成要素なので、CLI modeを増やさない。
@@ -90,6 +103,12 @@ SoftRoutingの予測結果はモデル学習、ドリフト検出、モデル作
 約0.37ポイント、MNIST2で約0.11ポイント、MNIST4で約0.38ポイントaccuracyを改善した。
 SEA2・SEA4ではほぼ同等で、Circle2では約0.07ポイント下回った。したがって、Metaは全データで
 Globalを支配する方式ではないが、複雑な多クラス問題とSine2で比較的大きな利得を示す有力候補である。
+
+6データセット・5 seed・4集約間隔のshadow診断では、モデル直接のswitching mixtureはSine2の全20条件、
+MNIST2・MNIST4の各17条件で現行Metaを上回った。改善は真のドリフト後200標本の回復区間へ集中し、
+定常区間ではCircle2・MNIST系を悪化させる条件もあった。一方、同じ系列上でMetaとswitching mixtureを
+上位Fixed-Shareにより選ぶ再生診断では、Circle2・Sine2・MNIST2・MNIST4の全80条件で現行Metaを
+上回った。この結果を根拠に、直接switching mixtureではなく`meta_switching`を実予測候補として追加した。
 
 5 seed・5000 stepでは、`zero_one`は`bounded_score`に対してCircle2を約0.03ポイント、MNIST2を
 約0.06ポイント、MNIST4を約0.10ポイント改善し、各データの全seedで上回った。SEA2・SEA4・Sine2は

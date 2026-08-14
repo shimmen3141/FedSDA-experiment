@@ -148,8 +148,11 @@ OPTIONS = (
     ),
     OptionSpec(
         "soft_routing_context", "SoftRouting文脈", "prediction",
-        ("global", "predicted_class", "meta_predicted_class"),
-        "大域混合、予測クラス別混合、またはmeta混合を選ぶ",
+        (
+            "global", "predicted_class", "meta_predicted_class",
+            "meta_switching",
+        ),
+        "大域・予測クラス別・meta混合、またはmetaとswitching-expertの上位選択を選ぶ",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("soft_routing",),
         active_when=(ActivationRule(
@@ -166,7 +169,7 @@ OPTIONS = (
         requires_capabilities=("soft_routing",),
         active_when=(ActivationRule(
             "soft_routing_context",
-            ("predicted_class", "meta_predicted_class"),
+            ("predicted_class", "meta_predicted_class", "meta_switching"),
             "文脈別Meta-routerを計算するとき",
         ),),
         cli_name="soft-routing-meta-loss",

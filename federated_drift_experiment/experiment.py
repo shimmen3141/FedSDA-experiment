@@ -551,6 +551,13 @@ def _add_model_diagnostic_results(
         ).items():
             routing_switching[key] += float(value)
 
+    routing_meta_switching = defaultdict(float)
+    for client in clients:
+        for key, value in getattr(
+            client, "routing_meta_switching_diagnostics", {}
+        ).items():
+            routing_meta_switching[key] += float(value)
+
     switching_window = {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
     actual_window = {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
     switching_histories = [
@@ -793,6 +800,37 @@ def _add_model_diagnostic_results(
             )
             for client in clients
             if hasattr(client, "switching_expert_router")
+        ),
+        "routing_meta_switching_accuracy": (
+            routing_meta_switching["correct_count"]
+            / routing_meta_switching["sample_count"]
+            if routing_meta_switching["sample_count"] else 0.0
+        ),
+        "routing_meta_switching_meta_gain_rate": (
+            (
+                routing_meta_switching["correct_count"]
+                - routing_meta_switching["meta_correct_count"]
+            ) / routing_meta_switching["sample_count"]
+            if routing_meta_switching["sample_count"] else 0.0
+        ),
+        "routing_meta_switching_switching_gain_rate": (
+            (
+                routing_meta_switching["correct_count"]
+                - routing_meta_switching["switching_correct_count"]
+            ) / routing_meta_switching["sample_count"]
+            if routing_meta_switching["sample_count"] else 0.0
+        ),
+        "routing_meta_switching_selected_switching_rate": (
+            routing_meta_switching["selected_switching_count"]
+            / routing_meta_switching["sample_count"]
+            if routing_meta_switching["sample_count"] else 0.0
+        ),
+        "routing_meta_switching_leader_switch_count": sum(
+            getattr(
+                client.meta_switching_router, "leader_switch_count", 0
+            )
+            for client in clients
+            if hasattr(client, "meta_switching_router")
         ),
         "routing_aggregation_restart_count": sum(
             getattr(client.expert_router, "aggregation_restart_count", 0)
@@ -1185,6 +1223,24 @@ def _save_raw_run(
             ],
             dtype=np.float64,
         )
+        telemetry_arrays[
+            "history_routing_meta_switching_correct"
+        ] = np.asarray(
+            [
+                client.history_routing_meta_switching_correct
+                for client in clients
+            ],
+            dtype=np.bool_,
+        )
+        telemetry_arrays[
+            "history_routing_meta_switching_selected_switching"
+        ] = np.asarray(
+            [
+                client.history_routing_meta_switching_selected_switching
+                for client in clients
+            ],
+            dtype=np.bool_,
+        )
         routing_class_client_ids = []
         routing_class_ids = []
         routing_class_values = defaultdict(list)
@@ -1479,7 +1535,7 @@ def _save_raw_run(
             config.SOFT_ROUTING_META_LOSS
             if "SoftRouting" in mode
             and config.SOFT_ROUTING_CONTEXT in {
-                "predicted_class", "meta_predicted_class",
+                "predicted_class", "meta_predicted_class", "meta_switching",
             } else "",
             dtype=np.str_,
         ),

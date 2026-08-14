@@ -165,7 +165,7 @@ SoftRoutingは変更しない。一方、概念ごとの共有勾配を得るた
 
 ## SoftRoutingの文脈
 
-予測レイヤー全体と`global` / `predicted_class` / `meta_predicted_class`の関係は
+予測レイヤー全体と`global` / `predicted_class` / `meta_predicted_class` / `meta_switching`の関係は
 [soft-routing.md](soft-routing.md)を参照する。この節では共有表現更新との相互作用に焦点を当てる。
 
 `--soft-routing-context`は、AdaHedgeが蓄積するモデル別損失の共有範囲を指定する。
@@ -176,6 +176,8 @@ SoftRoutingは変更しない。一方、概念ごとの共有勾配を得るた
   ラベル漏洩はない。
 - `meta_predicted_class`は、global mixtureと予測クラス別AdaHedgeのleaderを、さらに文脈別の
   上位AdaHedgeで混合して実予測に用いる。
+- `meta_switching`は、そのMeta mixtureとモデル追従型Fixed-Share mixtureを、さらに上位の
+  Fixed-Shareで選択する。共有表現やadapterの構造は変更しない。
 
 文脈方式は新しい数値ハイパーパラメータを持たない。共有表現がサーバ集約で変化した場合、
 大域ルータは指定された再較正方式に従い、予測クラス別ルータは古い表現に依存する証拠を破棄して

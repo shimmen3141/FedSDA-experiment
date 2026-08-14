@@ -25,7 +25,7 @@ from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
 
 
 _CONTEXTUAL_ROUTING_MODES = frozenset({
-    "predicted_class", "meta_predicted_class",
+    "predicted_class", "meta_predicted_class", "meta_switching",
 })
 
 
@@ -1272,6 +1272,10 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.switching_expert_router = SwitchingExpertRouter(
             config.FIFO_BUFFER_SIZE
         )
+        # 現行Meta mixtureとモデル追従型mixtureを固定閾値なしで選ぶ上位ルータ。
+        self.meta_switching_router = SwitchingExpertRouter(
+            config.FIFO_BUFFER_SIZE
+        )
         self.context_expert_routers = defaultdict(AdaHedgeRouter)
         self.shadow_meta_routers = defaultdict(AdaHedgeRouter)
         self.history_routing_effective_experts = []
@@ -1287,6 +1291,8 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.history_routing_switching_correct = []
         self.history_routing_switching_leader_id = []
         self.history_routing_switching_effective_experts = []
+        self.history_routing_meta_switching_correct = []
+        self.history_routing_meta_switching_selected_switching = []
         self.routing_diagnostics = {
             "sample_count": 0,
             "oracle_correct_count": 0,
@@ -1313,6 +1319,14 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             "actual_correct_count": 0,
             "global_correct_count": 0,
             "effective_experts_sum": 0.0,
+        }
+        self.routing_meta_switching_diagnostics = {
+            "sample_count": 0,
+            "correct_count": 0,
+            "actual_correct_count": 0,
+            "meta_correct_count": 0,
+            "switching_correct_count": 0,
+            "selected_switching_count": 0,
         }
         # 入力文脈を使うルータへ進む前に、既存ルータの未回収余地が
         # 正解クラスへ偏っているかを追加forwardなしで記録する。
@@ -1439,6 +1453,10 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         meta_router = None
         meta_probabilities = None
         meta_scores = None
+        meta_model_probabilities = None
+        meta_switching_probabilities = None
+        meta_switching_selected = None
+        meta_switching_scores = None
 
         if config.SOFT_ROUTING_CONTEXT in _CONTEXTUAL_ROUTING_MODES:
             context_id = int(
@@ -1465,6 +1483,28 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                 + prediction_scores[context_leader_model_id]
                 * meta_probabilities["context_leader"]
             )
+            meta_model_probabilities = {
+                model_id: (
+                    meta_probabilities["global_mixture"]
+                    * proposal_probabilities[model_id]
+                    + meta_probabilities["context_leader"]
+                    * int(model_id == context_leader_model_id)
+                )
+                for model_id in model_ids
+            }
+            meta_switching_probabilities = (
+                self.meta_switching_router.probabilities(
+                    ("meta", "switching")
+                )
+            )
+            meta_switching_selected = self.meta_switching_router.leader(
+                meta_switching_probabilities, preferred_id="meta",
+            )
+            meta_switching_scores = (
+                meta_scores
+                if meta_switching_selected == "meta"
+                else switching_scores
+            )
         elif config.SOFT_ROUTING_CONTEXT != "global":
             raise ValueError(
                 f"未知のSoftRouting文脈です: {config.SOFT_ROUTING_CONTEXT!r}"
@@ -1480,18 +1520,16 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         elif config.SOFT_ROUTING_CONTEXT == "predicted_class":
             probabilities = context_probabilities
             weighted_scores = context_scores
-        else:
-            # Metaの2候補混合をモデル別の実効重みに展開し、既存診断と整合させる。
-            probabilities = {
-                model_id: (
-                    meta_probabilities["global_mixture"]
-                    * proposal_probabilities[model_id]
-                    + meta_probabilities["context_leader"]
-                    * int(model_id == context_leader_model_id)
-                )
-                for model_id in model_ids
-            }
+        elif config.SOFT_ROUTING_CONTEXT == "meta_predicted_class":
+            probabilities = meta_model_probabilities
             weighted_scores = meta_scores
+        else:
+            probabilities = (
+                meta_model_probabilities
+                if meta_switching_selected == "meta"
+                else switching_probabilities
+            )
+            weighted_scores = meta_switching_scores
 
         accuracy = float(
             self._routing_correct(weighted_scores, y, num_classes)
@@ -1591,6 +1629,34 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                 context_leader_weight
             )
             meta_router.update(meta_losses, meta_probabilities)
+
+            meta_switching_correct = self._routing_correct(
+                meta_switching_scores, y, num_classes
+            )
+            top_diagnostics = self.routing_meta_switching_diagnostics
+            top_diagnostics["sample_count"] += 1
+            top_diagnostics["correct_count"] += int(meta_switching_correct)
+            top_diagnostics["actual_correct_count"] += int(accuracy)
+            top_diagnostics["meta_correct_count"] += int(meta_correct)
+            top_diagnostics["switching_correct_count"] += int(
+                switching_correct
+            )
+            top_diagnostics["selected_switching_count"] += int(
+                meta_switching_selected == "switching"
+            )
+            self.history_routing_meta_switching_correct.append(
+                int(meta_switching_correct)
+            )
+            self.history_routing_meta_switching_selected_switching.append(
+                int(meta_switching_selected == "switching")
+            )
+            self.meta_switching_router.update(
+                {
+                    "meta": float(not meta_correct),
+                    "switching": float(not switching_correct),
+                },
+                meta_switching_probabilities,
+            )
         max_confidence = max(model_confidences.values())
         confidence_leaders = [
             model_id for model_id, confidence in model_confidences.items()

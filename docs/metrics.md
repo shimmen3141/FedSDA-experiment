@@ -120,6 +120,11 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
 - `routing_switching_leader_switch_count`: 最大重みexpertが切り替わった回数。
 - `routing_switching_pool_reset_count`: 保持モデル集合の変化でswitching-expert状態を初期化した回数。
 - `routing_switching_recalibration_sample_count`: 共有表現集約後の再較正に使ったFIFOサンプル総数。
+- `routing_meta_switching_accuracy`: 現行Meta mixtureとswitching mixtureを上位Fixed-Shareで選んだ精度。
+- `routing_meta_switching_meta_gain_rate` / `routing_meta_switching_switching_gain_rate`: 上位選択精度と
+  各候補単独精度との差。
+- `routing_meta_switching_selected_switching_rate`: 上位選択がswitching mixtureを採用した標本割合。
+- `routing_meta_switching_leader_switch_count`: 上位選択候補が切り替わった回数。
 - `routing_class_macro_meta_accuracy`: shadow meta-router精度の正解クラス別マクロ平均。
 - `routing_class_macro_meta_global_accuracy` / `routing_class_macro_meta_context_mixture_accuracy` /
   `routing_class_macro_meta_context_leader_accuracy`: 各候補の正解クラス別マクロ平均。

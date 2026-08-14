@@ -216,6 +216,14 @@ def test_switching_router_tracks_a_changed_best_expert():
     assert router.leader_switch_count >= 1
 
 
+def test_switching_router_leader_prefers_requested_expert_on_tie():
+    probabilities = {"meta": 0.5, "switching": 0.5}
+
+    assert SwitchingExpertRouter.leader(
+        probabilities, preferred_id="meta"
+    ) == "meta"
+
+
 def test_switching_router_replays_fifo_after_aggregation():
     router = SwitchingExpertRouter(share_horizon=30)
     losses = ({0: 1.0, 1: 0.0},) * 20
