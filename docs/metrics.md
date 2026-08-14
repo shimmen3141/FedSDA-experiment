@@ -112,6 +112,10 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
 - `routing_switching_accuracy`: 現行予測を変えずに計算する、Fixed-Share型switching-expertのshadow精度。
 - `routing_switching_gain_rate` / `routing_switching_global_gain_rate`: switching-expert精度と、実予測または
   Global mixture精度との差。
+- `routing_switching_stable_accuracy` / `routing_switching_recovery_accuracy`: 真のドリフト直後の回復窓を
+  除いた区間と、回復窓内に分けたswitching-expertのshadow精度。
+- `routing_switching_stable_gain_rate` / `routing_switching_recovery_gain_rate`: 上記2区間における
+  switching-expertと実予測の精度差。切替追従の利益と定常時の損失を分離する。
 - `routing_switching_effective_experts_mean`: switching-expert重みの逆Simpson指数の平均。
 - `routing_switching_leader_switch_count`: 最大重みexpertが切り替わった回数。
 - `routing_switching_pool_reset_count`: 保持モデル集合の変化でswitching-expert状態を初期化した回数。

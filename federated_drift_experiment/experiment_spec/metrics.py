@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 11
+METRIC_SCHEMA_VERSION = 12
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -224,6 +224,10 @@ METRICS = (
             "routing_switching_accuracy",
             "routing_switching_gain_rate",
             "routing_switching_global_gain_rate",
+            "routing_switching_stable_accuracy",
+            "routing_switching_stable_gain_rate",
+            "routing_switching_recovery_accuracy",
+            "routing_switching_recovery_gain_rate",
             "routing_switching_effective_experts_mean",
             "routing_switching_leader_switch_count",
             "routing_switching_pool_reset_count",

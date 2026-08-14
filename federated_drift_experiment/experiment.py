@@ -459,7 +459,36 @@ def _add_telemetry_results(results, clients, telemetry):
         results["e_detector_alpha"] = float(config.E_DETECTOR_ALPHA)
 
 
-def _add_model_diagnostic_results(results, clients, server):
+def _routing_window_accuracies(histories, true_drift_events, window):
+    """真のドリフト後の回復区間と、それ以外の定常区間の精度を返す。"""
+    stable_correct = 0
+    stable_count = 0
+    recovery_correct = 0
+    recovery_count = 0
+    for client_id, history in enumerate(histories):
+        recovery_mask = np.zeros(len(history), dtype=bool)
+        for position in true_drift_events[client_id]:
+            start = max(0, int(position))
+            stop = min(len(history), start + int(window))
+            recovery_mask[start:stop] = True
+        correct = np.asarray(history, dtype=np.int64)
+        recovery_correct += int(correct[recovery_mask].sum())
+        recovery_count += int(recovery_mask.sum())
+        stable_correct += int(correct[~recovery_mask].sum())
+        stable_count += int((~recovery_mask).sum())
+    return {
+        "stable_accuracy": (
+            stable_correct / stable_count if stable_count else 0.0
+        ),
+        "recovery_accuracy": (
+            recovery_correct / recovery_count if recovery_count else 0.0
+        ),
+    }
+
+
+def _add_model_diagnostic_results(
+    results, clients, server, true_drift_events,
+):
     """モデル別学習量の断片化と、モデル対の予測相補性を集約する。"""
     assigned_by_model = defaultdict(int)
     training_by_model = defaultdict(int)
@@ -521,6 +550,25 @@ def _add_model_diagnostic_results(results, clients, server):
             client, "routing_switching_diagnostics", {}
         ).items():
             routing_switching[key] += float(value)
+
+    switching_window = {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
+    actual_window = {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
+    switching_histories = [
+        getattr(client, "history_routing_switching_correct", None)
+        for client in clients
+    ]
+    if (
+        routing_switching["sample_count"]
+        and all(history is not None for history in switching_histories)
+    ):
+        switching_window = _routing_window_accuracies(
+            switching_histories, true_drift_events, config.STABLE_WINDOW,
+        )
+        actual_window = _routing_window_accuracies(
+            [client.history_accuracy for client in clients],
+            true_drift_events,
+            config.STABLE_WINDOW,
+        )
 
     class_oracle_accuracies = []
     class_mixture_accuracies = []
@@ -705,6 +753,20 @@ def _add_model_diagnostic_results(results, clients, server):
                 - routing_switching["global_correct_count"]
             ) / routing_switching["sample_count"]
             if routing_switching["sample_count"] else 0.0
+        ),
+        "routing_switching_stable_accuracy": switching_window[
+            "stable_accuracy"
+        ],
+        "routing_switching_stable_gain_rate": (
+            switching_window["stable_accuracy"]
+            - actual_window["stable_accuracy"]
+        ),
+        "routing_switching_recovery_accuracy": switching_window[
+            "recovery_accuracy"
+        ],
+        "routing_switching_recovery_gain_rate": (
+            switching_window["recovery_accuracy"]
+            - actual_window["recovery_accuracy"]
         ),
         "routing_switching_effective_experts_mean": (
             routing_switching["effective_experts_sum"]
@@ -1555,7 +1617,9 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     results["runtime_seconds"] = runtime_seconds
     results["concept_schedule"] = config.CONCEPT_SCHEDULE
     _add_telemetry_results(results, clients, telemetry)
-    _add_model_diagnostic_results(results, clients, server)
+    _add_model_diagnostic_results(
+        results, clients, server, true_drift_events,
+    )
 
     # --- 通信量(モデル転送数。up=クライアント→サーバ, down=サーバ→クライアント)---
     results["comm_models_up"] = server.comm_models_up

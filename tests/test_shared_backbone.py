@@ -7,13 +7,25 @@ from federated_drift_experiment.clients import (
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
 )
-from federated_drift_experiment.experiment import MODE_SPECS
+from federated_drift_experiment.experiment import (
+    MODE_SPECS,
+    _routing_window_accuracies,
+)
 from federated_drift_experiment.models import (
     ResidualAdapterMLP,
     SharedBackboneMLP,
     parameter_payload_size,
 )
 from federated_drift_experiment.servers import SharedBackboneFedSDANoCachedServer
+
+
+def test_routing_window_accuracies_separates_recovery_and_stable_samples():
+    result = _routing_window_accuracies(
+        [[1, 0, 1, 1, 0]], [[1]], window=2,
+    )
+
+    assert result["recovery_accuracy"] == 0.5
+    assert result["stable_accuracy"] == 2 / 3
 
 
 def _two_head_client():
@@ -421,6 +433,10 @@ def test_shared_backbone_experiment_reports_component_metrics(
     assert results["routing_switching_accuracy"] > 0
     assert -1 <= results["routing_switching_gain_rate"] <= 1
     assert -1 <= results["routing_switching_global_gain_rate"] <= 1
+    assert 0 <= results["routing_switching_stable_accuracy"] <= 1
+    assert -1 <= results["routing_switching_stable_gain_rate"] <= 1
+    assert 0 <= results["routing_switching_recovery_accuracy"] <= 1
+    assert -1 <= results["routing_switching_recovery_gain_rate"] <= 1
     assert results["routing_switching_effective_experts_mean"] >= 1
     with np.load(raw_path) as raw:
         assert raw["routing_class_client_ids"].shape == (
