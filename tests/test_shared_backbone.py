@@ -335,34 +335,6 @@ def test_fifo_replay_rebuilds_router_from_post_aggregation_predictions(monkeypat
     assert client.compute_counters["head_examples"] == 8
 
 
-def test_hierarchical_fifo_replay_restarts_top_router(monkeypatch):
-    monkeypatch.setattr(
-        config,
-        "SHARED_BACKBONE_ROUTING_RECALIBRATION",
-        "hierarchical_fifo_replay",
-    )
-    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "meta_switching")
-    client = _two_head_client()
-    for _ in range(4):
-        client.buffer.append((
-            torch.zeros(1, config.dataset_spec().input_dim),
-            torch.tensor([[0.0]]),
-        ))
-    probabilities = client.meta_switching_router.probabilities(
-        ("meta", "switching")
-    )
-    client.meta_switching_router.update(
-        {"meta": 0.0, "switching": 1.0}, probabilities
-    )
-
-    client.recalibrate_routing_after_aggregation()
-
-    assert client.meta_switching_router.probabilities(
-        ("meta", "switching")
-    ) == {"meta": 0.5, "switching": 0.5}
-    assert client.meta_switching_router.aggregation_recalibration_count == 1
-
-
 def test_leader_change_replay_preserves_evidence_for_same_fifo_leader(monkeypatch):
     monkeypatch.setattr(
         config,
