@@ -349,7 +349,7 @@ def _mode_param_summary(mode, distance_threshold):
     if mode == 'FedDrift':
         return (f"detect_delta={distance_threshold}, detect_batch={config.FEDDRIFT_DETECTION_BATCH_SIZE}, "
                 f"rounds={config.FEDDRIFT_ROUNDS}, "
-                f"linkage={getattr(config, 'CLUSTER_LINKAGE', 'connected')}, "
+                f"linkage={config.FEDDRIFT_CLUSTER_LINKAGE}, "
                 f"isolation_W={getattr(config, 'FEDDRIFT_ISOLATION_TIMESTEPS', 0)}")
     if mode == 'Oblivious':
         return "single model, no adaptation"
@@ -1554,6 +1554,11 @@ def _save_raw_run(
         ),
         clustering_decision=np.asarray(
             config.FEDSDA_CLUSTERING_DECISION if is_fedsda else "", dtype=np.str_
+        ),
+        cluster_linkage=np.asarray(
+            config.FEDSDA_CLUSTER_LINKAGE if is_fedsda
+            else config.FEDDRIFT_CLUSTER_LINKAGE if is_feddrift else "",
+            dtype=np.str_,
         ),
         shared_backbone_training=np.asarray(
             config.SHARED_BACKBONE_TRAINING

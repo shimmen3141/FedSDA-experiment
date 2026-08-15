@@ -188,9 +188,11 @@ FEDSDA_DISTANCE_THRESHOLD = 0.1     # FedSDA のモデル適合・マージ判�
 FEDDRIFT_DISTANCE_THRESHOLD = 0.1   # FedDrift のドリフト検出・マージ判定距離閾値
 CROSS_EVAL_MAX_CLIENTS = 3  # クロス評価で1モデルあたりに使うクライアント数上限
 CLUSTER_MIN_EVAL_N = 5      # マージ判定に必要な評価サンプルの最小数
-# FedDriftなど、方式を明示して使うサーバの共通クラスタリング戦略。
-# 'complete'=論文の max-linkage、'connected'=従来の閾値グラフ連結成分。
-CLUSTER_LINKAGE = 'complete'
+# FedSDAは従来実装との結果互換性を保つためconnectedを既定とする。
+# FedDriftは元論文のmax-linkageに対応するcompleteを用いる。
+FEDSDA_CLUSTER_LINKAGE = 'connected'
+FEDSDA_CLUSTER_LINKAGES = ('complete', 'connected')
+FEDDRIFT_CLUSTER_LINKAGE = 'complete'
 # FedSDAのクラスタリング実行方針。
 # 'on_new_model'=新規モデルの初回配布後のみ、'every_round'=各集約ラウンドで実行。
 FEDSDA_CLUSTERING_POLICY = 'on_new_model'

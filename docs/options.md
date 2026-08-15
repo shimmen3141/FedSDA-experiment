@@ -135,7 +135,7 @@ flowchart LR
 | `clustering_policy` | cli: `--clustering-policy` | 実装済み | 対象外 | 対象外 | 対象外 | FedSDAサーバがモデル統合判定を実行するタイミング |
 | `clustering_decision` | cli: `--clustering-decision` | 実装済み | 理論上のみ | 対象外 | 対象外 | モデル対を統合する判定規則 |
 | `clustering_confidence` | config | 実装済み | 理論上のみ | 対象外 | 対象外 | confidence系統合判定の信頼水準 |
-| `cluster_linkage` | cli: `--cluster-linkage` | 実装済み | 実装済み | 対象外 | 対象外 | モデル対判定からクラスタを構成する方法 |
+| `cluster_linkage` | cli: `--cluster-linkage` | 実装済み | 対象外 | 対象外 | 対象外 | モデル対判定からクラスタを構成する方法 |
 | `fedsda_distance_threshold` | cli: `--fedsda-distance-threshold` | 実装済み | 対象外 | 対象外 | 対象外 | モデル適合・再利用および距離ベース統合の閾値 |
 | `feddrift_distance_threshold` | cli: `--feddrift-distance-thresholds` | 対象外 | 実装済み | 対象外 | 対象外 | FedDriftのドリフト判定とモデル統合で共有する閾値 |
 | `aggregation_interval` | cli: `--aggregation-intervals` | 実装済み | 対象外 | 実装済み | 実装済み | FedSDAとObliviousの通信ラウンド間隔 |

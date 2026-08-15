@@ -20,6 +20,7 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         if kwargs.get("distance_threshold") is None:
             kwargs["distance_threshold"] = config.FEDSDA_DISTANCE_THRESHOLD
         kwargs.setdefault("clustering_decision", config.FEDSDA_CLUSTERING_DECISION)
+        kwargs.setdefault("linkage", config.FEDSDA_CLUSTER_LINKAGE)
         kwargs.setdefault(
             "clustering_confidence", config.FEDSDA_CLUSTERING_CONFIDENCE
         )

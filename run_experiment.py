@@ -59,8 +59,8 @@ def main(argv=None):
     parser.add_argument("--feddrift-batch", type=int, default=config.FEDDRIFT_DETECTION_BATCH_SIZE,
                         help=f"FedDrift の検出バッチサイズ (default: {config.FEDDRIFT_DETECTION_BATCH_SIZE})")
     parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
-                        default=config.CLUSTER_LINKAGE,
-                        help=f"共通クラスタリング戦略 (default: {config.CLUSTER_LINKAGE})")
+                        default=None,
+                        help="階層クラスタリングの上書き (省略時は手法別既定値)")
     parser.add_argument(
         "--clustering-policy",
         choices=config.FEDSDA_CLUSTERING_POLICIES,
@@ -140,7 +140,9 @@ def main(argv=None):
     config.NEW_MODEL_EPOCHS = args.new_model_epochs
     config.NEW_MODEL_INITIALIZATION = args.new_model_initialization
     config.FEDDRIFT_DETECTION_BATCH_SIZE = args.feddrift_batch
-    config.CLUSTER_LINKAGE = args.cluster_linkage
+    if args.cluster_linkage is not None:
+        config.FEDSDA_CLUSTER_LINKAGE = args.cluster_linkage
+        config.FEDDRIFT_CLUSTER_LINKAGE = args.cluster_linkage
     config.FEDSDA_CLUSTERING_POLICY = args.clustering_policy
     config.FEDSDA_DETECTION_EPISODES_ENABLED = args.detection_episodes
     config.NEW_MODEL_CREATION_POLICY = args.new_model_creation_policy

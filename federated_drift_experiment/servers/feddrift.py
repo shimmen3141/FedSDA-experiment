@@ -16,7 +16,7 @@ class FedDriftServer(CrossEvaluationClusteringServer):
         kwargs["clustering_decision"] = "distance"
         super().__init__(
             *args,
-            linkage=linkage or config.CLUSTER_LINKAGE,
+            linkage=linkage or config.FEDDRIFT_CLUSTER_LINKAGE,
             **kwargs,
         )
         self.isolation_timesteps = (

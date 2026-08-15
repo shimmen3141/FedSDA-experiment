@@ -33,8 +33,8 @@ def main():
                         default=config.CONCEPT_SCHEDULE,
                         help=f"概念切替方式 (default: {config.CONCEPT_SCHEDULE})")
     parser.add_argument("--cluster-linkage", choices=("complete", "connected"),
-                        default=config.CLUSTER_LINKAGE,
-                        help=f"共通クラスタリング戦略 (default: {config.CLUSTER_LINKAGE})")
+                        default=None,
+                        help="階層クラスタリングの上書き (省略時は手法別既定値)")
     parser.add_argument("--feddrift-isolation", type=int,
                         default=config.FEDDRIFT_ISOLATION_TIMESTEPS,
                         help="FedDriftの新規モデル隔離時刻数 W (default: 1)")
@@ -47,7 +47,9 @@ def main():
 
     config.DATASET = normalize_dataset_name(args.dataset)
     config.CONCEPT_SCHEDULE = args.concept_schedule
-    config.CLUSTER_LINKAGE = args.cluster_linkage
+    if args.cluster_linkage is not None:
+        config.FEDSDA_CLUSTER_LINKAGE = args.cluster_linkage
+        config.FEDDRIFT_CLUSTER_LINKAGE = args.cluster_linkage
     config.FEDDRIFT_ISOLATION_TIMESTEPS = args.feddrift_isolation
 
     summary = run_comparative_trials(

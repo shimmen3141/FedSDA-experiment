@@ -105,9 +105,9 @@ FedSDA 側の対応変数（`AGGREGATION_INTERVAL` 等）や手法間の使い�
 
 - モード`FedDrift`は監査結果を反映した論文準拠フローである。新規モデルを
   `FEDDRIFT_ISOLATION_TIMESTEPS` 時刻だけ隔離し、FedAvgは正確に `FEDDRIFT_ROUNDS` 回だけ実行する。
-- クラスタリングは共通設定 `CLUSTER_LINKAGE` で `complete`（論文のmax-linkage、既定）または
-  `connected`（従来方式）を選べる。原手法との比較値には `complete` を使い、`connected` は
-  クラスタリング方式のアブレーションとして報告する。
+- FedDriftのクラスタリングは `FEDDRIFT_CLUSTER_LINKAGE=complete` とし、論文のmax-linkageに準拠する。
+- FedSDAは従来結果との互換性から `FEDSDA_CLUSTER_LINKAGE=connected` を既定とする。
+  `--cluster-linkage complete` により、max-linkageとの比較を明示的に実行できる。
 - クロス評価は配布済みモデルのクライアントキャッシュを再利用する。モデルパラメータ通信は
   `comm_models_*`、評価依頼・統計返送などは`comm_messages_*`へ分離して数える。
 - 旧v1実装は論文準拠でない余分な通信を含むため、実行モードから削除した。

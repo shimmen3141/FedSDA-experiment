@@ -391,7 +391,7 @@ sequenceDiagram
 3. **新規モデルを同一時刻のマージ対象から外す。** 新規モデルはローカルで初期化・学習し、最初の
    FedAvg アップロードで回収する。通常ブロードキャスト後も所定の隔離期間までは距離評価しない。
 4. **クラスタリング戦略を共通部品として選択可能にする。** 既定の `complete` は論文どおりの
-   complete/max-linkage。比較実験では `CLUSTER_LINKAGE=connected` により従来の閾値グラフ
+   complete/max-linkage。FedSDAの比較実験では `--cluster-linkage connected` により従来の閾値グラフ
    連結成分(single-linkage cut相当)も選べる。
 5. **マージモデルを累積データ量で加重平均する。** 代表モデルをそのまま残して非代表モデルを破棄せず、
    マージ対象モデルの学習データ量に比例した平均をサーバ内で計算する。

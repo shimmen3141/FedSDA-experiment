@@ -38,6 +38,7 @@ def test_schema_choices_follow_runtime_configuration():
     assert option("new_model_creation_policy").choices == config.NEW_MODEL_CREATION_POLICIES
     assert option("clustering_policy").choices == config.FEDSDA_CLUSTERING_POLICIES
     assert option("clustering_decision").choices == config.FEDSDA_CLUSTERING_DECISIONS
+    assert option("cluster_linkage").choices == config.FEDSDA_CLUSTER_LINKAGES
     assert option("shared_backbone_training").choices == (
         config.SHARED_BACKBONE_TRAINING_CHOICES
     )

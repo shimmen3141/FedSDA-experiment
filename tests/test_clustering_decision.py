@@ -106,6 +106,20 @@ def test_feddrift_always_uses_paper_distance_decision(monkeypatch):
     assert server.clustering_decision == "distance"
 
 
+def test_servers_use_method_specific_default_linkages(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_CLUSTER_LINKAGE", "connected")
+    monkeypatch.setattr(config, "FEDDRIFT_CLUSTER_LINKAGE", "complete")
+
+    assert FedSDANoCachedServer(verbose=False).linkage == "connected"
+    assert FedDriftServer(verbose=False).linkage == "complete"
+
+
+def test_fedsda_linkage_can_be_overridden_explicitly():
+    server = FedSDANoCachedServer(linkage="complete", verbose=False)
+
+    assert server.linkage == "complete"
+
+
 def test_fedsda_collects_pair_prediction_complementarity():
     class DiagnosticClient:
         def get_held_model_ids(self):

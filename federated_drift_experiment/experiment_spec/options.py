@@ -380,7 +380,7 @@ OPTIONS = (
     OptionSpec(
         "cluster_linkage", "階層クラスタリングlinkage", "clustering",
         ("complete", "connected"), "モデル対判定からクラスタを構成する方法",
-        (FED_SDA, FED_DRIFT), (FED_SDA, FED_DRIFT),
+        (FED_SDA,), (FED_SDA,),
         requires_capabilities=("server_clustering",), cli_name="cluster-linkage",
     ),
     OptionSpec(

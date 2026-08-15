@@ -105,6 +105,16 @@ def experiment_configuration(experiment, total_data):
         for assignment in experiment.parameters
     }
     algorithm = asdict(experiment.algorithm)
+    if algorithm.get("cluster_linkage") is None:
+        if experiment.mode == "FedDrift":
+            algorithm["cluster_linkage"] = "complete"
+        elif (
+            experiment.mode.startswith("FedSDA_")
+            and experiment.mode != "FedSDA_without_server"
+        ):
+            algorithm["cluster_linkage"] = "connected"
+        else:
+            algorithm.pop("cluster_linkage", None)
     if "SharedBackbone" not in experiment.mode and "ResidualAdapter" not in experiment.mode:
         algorithm.pop("shared_backbone_training", None)
         algorithm.pop("shared_backbone_gradient_strategy", None)
@@ -175,6 +185,10 @@ def configuration_from_result_row(row, total_data):
     algorithm = {
         "clustering_policy": row.get("clustering_policy"),
         "clustering_decision": row.get("clustering_decision"),
+        "cluster_linkage": (
+            row.get("cluster_linkage")
+            or ("complete" if mode == "FedDrift" else "connected")
+        ),
         "detection_episodes": _optional_bool(row.get("detection_episodes")),
         "new_model_creation_policy": row.get("new_model_creation_policy"),
         "fifo_size": _optional_number(row.get("fifo_size"), int),

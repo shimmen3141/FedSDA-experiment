@@ -24,6 +24,7 @@ class AlgorithmOptions:
     soft_routing_context: str = "global"
     soft_routing_top_combination: str = "leader"
     soft_routing_meta_loss: str = "zero_one"
+    cluster_linkage: str | None = None
 
     @classmethod
     def from_current_config(cls):
@@ -50,11 +51,12 @@ class AlgorithmOptions:
                 config.SOFT_ROUTING_TOP_COMBINATION
             ),
             soft_routing_meta_loss=config.SOFT_ROUTING_META_LOSS,
+            cluster_linkage=None,
         )
 
     def config_overrides(self):
         """既存実行層へ渡す設定名と値を返す。"""
-        return {
+        overrides = {
             "FEDSDA_CLUSTERING_POLICY": self.clustering_policy,
             "FEDSDA_CLUSTERING_DECISION": self.clustering_decision,
             "FEDSDA_DETECTION_EPISODES_ENABLED": self.detection_episodes,
@@ -78,6 +80,10 @@ class AlgorithmOptions:
             ),
             "SOFT_ROUTING_META_LOSS": self.soft_routing_meta_loss,
         }
+        if self.cluster_linkage is not None:
+            overrides["FEDSDA_CLUSTER_LINKAGE"] = self.cluster_linkage
+            overrides["FEDDRIFT_CLUSTER_LINKAGE"] = self.cluster_linkage
+        return overrides
 
 
 @dataclass(frozen=True)
