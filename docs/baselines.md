@@ -42,6 +42,11 @@ random schedule・全6データセット・5シード・集約間隔`50/100/200/
 5シード・集約間隔`50/100/200/500`を収録し、`architectures/residual_adapter_rank8/`のGlobal routingと
 同一条件で比較できるようにする。
 
+`routing/meta_switching/`には、同じMeta routingとGlobal switching expertをサンプル単位で比較し、
+累積0/1損失の小さい側を採用するMeta switchingの結果を保存する。random schedule・全6データセット・
+5シード・集約間隔`50/100/200/500`を収録し、`routing/meta_soft_routing_zero_one/`と同一条件で
+routing選択だけの寄与を比較できるようにする。
+
 ## 単一軸baselineと多因子ablation
 
 `detectors/`や`architectures/`などは、一つの主な比較軸を持つ方式の索引として使う。複数オプションの
