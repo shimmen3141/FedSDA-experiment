@@ -1068,6 +1068,9 @@ def _save_raw_run(
 
     registrations = server.model_lineage.registrations
     clustering_observations = server.model_lineage.clustering_observations
+    clustering_pair_observations = (
+        server.model_lineage.clustering_pair_observations
+    )
     final_model_ids = set(server.global_models)
     model_selection_counts = {
         registration.model_id: int(np.count_nonzero(
@@ -1327,6 +1330,23 @@ def _save_raw_run(
         telemetry_arrays[f"model_pair_{key}"] = np.asarray(
             [record[key] for record in pair_records], dtype=np.int64
         )
+    cross_evaluation_records = getattr(
+        server, "cross_evaluation_diagnostics", ()
+    )
+    for key in (
+        "round_index", "client_id", "candidate_model_id", "target_model_id",
+        "n", "candidate_only_correct", "target_only_correct",
+        "both_correct", "both_wrong",
+    ):
+        telemetry_arrays[f"cross_evaluation_{key}"] = np.asarray(
+            [record[key] for record in cross_evaluation_records],
+            dtype=np.int64,
+        )
+    for key in ("sum", "sum_sq"):
+        telemetry_arrays[f"cross_evaluation_{key}"] = np.asarray(
+            [record[key] for record in cross_evaluation_records],
+            dtype=np.float64,
+        )
 
     is_fedsda = mode.startswith("FedSDA")
     is_feddrift = mode == "FedDrift"
@@ -1475,6 +1495,30 @@ def _save_raw_run(
         ),
         clustering_absorbed=np.asarray(
             [observation.absorbed for observation in clustering_observations],
+            dtype=np.bool_,
+        ),
+        clustering_pair_rounds=np.asarray(
+            [observation.round_index for observation in clustering_pair_observations],
+            dtype=np.int32,
+        ),
+        clustering_pair_left_model_ids=np.asarray(
+            [observation.left_model_id for observation in clustering_pair_observations],
+            dtype=np.int32,
+        ),
+        clustering_pair_right_model_ids=np.asarray(
+            [observation.right_model_id for observation in clustering_pair_observations],
+            dtype=np.int32,
+        ),
+        clustering_pair_distances=np.asarray(
+            [observation.distance for observation in clustering_pair_observations],
+            dtype=np.float64,
+        ),
+        clustering_pair_decision_scores=np.asarray(
+            [observation.decision_score for observation in clustering_pair_observations],
+            dtype=np.float64,
+        ),
+        clustering_pair_same_cluster=np.asarray(
+            [observation.same_cluster for observation in clustering_pair_observations],
             dtype=np.bool_,
         ),
         dataset=str(config.DATASET),

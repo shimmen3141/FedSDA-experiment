@@ -20,6 +20,7 @@ def test_model_lineage_records_origin_and_clustering_outcome():
         model_ids=[0, 1, 2],
         pair_distances={(0, 1): 0.08, (0, 2): 0.20, (1, 2): 0.12},
         clusters=[[0, 1], [2]],
+        pair_decision_scores={(0, 1): 0.7, (0, 2): 1.8, (1, 2): 1.2},
     )
 
     assert [(item.model_id, item.round_index, item.client_id)
@@ -49,6 +50,16 @@ def test_model_lineage_records_origin_and_clustering_outcome():
     assert by_model[2].participated_in_merge is False
     assert by_model[2].absorbed is False
     assert math.isnan(by_model[2].cluster_max_distance)
+
+    by_pair = {
+        (item.left_model_id, item.right_model_id): item
+        for item in recorder.clustering_pair_observations
+    }
+    assert by_pair[(0, 1)].round_index == 4
+    assert by_pair[(0, 1)].distance == 0.08
+    assert by_pair[(0, 1)].decision_score == 0.7
+    assert by_pair[(0, 1)].same_cluster is True
+    assert by_pair[(0, 2)].same_cluster is False
 
 
 def test_model_lineage_marks_missing_distances_explicitly():

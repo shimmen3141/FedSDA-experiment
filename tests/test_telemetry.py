@@ -79,6 +79,8 @@ def test_experiment_records_compute_and_model_telemetry(monkeypatch, tmp_path):
             "model_training_examples_total"
         ]
         assert raw["model_pair_n"].shape == (0,)
+        assert raw["cross_evaluation_n"].shape == (0,)
+        assert raw["clustering_pair_rounds"].shape == (0,)
         assert raw["backbone_gradient_pair_counts"].tolist() == [0, 0]
         assert raw["backbone_gradient_applied_pair_counts"].tolist() == [0, 0]
         assert raw["shared_backbone_gradient_strategy"].item() == ""

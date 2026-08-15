@@ -44,3 +44,6 @@
   `python -m tools.experiments.artifacts <result-root> --tag <short-tag>`で復元する。
   `.reconstruction.json`が`quality=partial`の旧結果はPareto確認には使えるが、baselineへ採用しない。
 - CSVが残る場合の再描画には`run_pareto_sweep.py --plot-csvs ...`を使い、実験を再実行しない。
+- クラスタリングで統合されたモデル対と残されたモデル対の予測相補性を比較するときは、
+  `python -m tools.experiments.clustering_functional_diagnostics <result-root> --output <csv>`を使う。
+  この診断には`cross_evaluation_*`と`clustering_pair_*`を含む新しいrawが必要である。

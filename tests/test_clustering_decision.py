@@ -135,3 +135,9 @@ def test_fedsda_collects_pair_prediction_complementarity():
     assert summary["model_pair_correctness_disagreement_rate"] == 0.3
     assert summary["model_pair_oracle_gain_rate"] == 0.1
     assert summary["model_pair_both_correct_rate"] == 0.6
+    assert len(server.cross_evaluation_diagnostics) == 4
+    cross = server.cross_evaluation_diagnostics[1]
+    assert cross["round_index"] == -1
+    assert cross["candidate_model_id"] == 0
+    assert cross["target_model_id"] == 1
+    assert cross["candidate_only_correct"] == 2

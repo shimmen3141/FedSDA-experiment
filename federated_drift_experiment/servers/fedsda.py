@@ -73,7 +73,7 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         if M <= 1:
             return {}
 
-        stats_matrix = self._cross_evaluate(active_ids)
+        stats_matrix = self._cross_evaluate(active_ids, round_index=t)
         clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
         self.record_clustering_diagnostics(t, active_ids, clusters)
         if len(clusters) >= M:
@@ -218,6 +218,7 @@ class FedSDACachedServer(FedSDANoCachedServer):
             model_ids,
             send_model_params=False,
             use_client_cache=True,
+            round_index=t,
         )
         clusters = self.perform_hierarchical_clustering(model_ids, stats_matrix)
         self.record_clustering_diagnostics(t, model_ids, clusters)

@@ -41,10 +41,17 @@ class CrossEvaluationClusteringServer(BaseServer):
         self.collect_pair_diagnostics = collect_pair_diagnostics
         self.pair_prediction_diagnostics = []
         self._last_pair_prediction_diagnostics = []
+        self.cross_evaluation_diagnostics = []
         self._last_pair_distances = {}
         self._last_pair_decision_scores = {}
 
-    def _cross_evaluate(self, model_ids, send_model_params=True, use_client_cache=False):
+    def _cross_evaluate(
+        self,
+        model_ids,
+        send_model_params=True,
+        use_client_cache=False,
+        round_index=-1,
+    ):
         """モデル対をクライアントで評価し、集約統計を返す。
 
         use_client_cache=True は、事前に全対象モデルが配布済みであるプロトコル専用。
@@ -77,6 +84,7 @@ class CrossEvaluationClusteringServer(BaseServer):
 
                 total_n, total_S, total_SS = 0, 0.0, 0.0
                 for c in target_clients:
+                    diagnostic = None
                     if self.collect_pair_diagnostics and id_i != id_j:
                         if use_client_cache:
                             stats, diagnostic = c.evaluate_cached_model_diagnostics(
@@ -99,6 +107,32 @@ class CrossEvaluationClusteringServer(BaseServer):
                         n, S, SS = c.evaluate_cached_model(id_i, target_model_id=id_j)
                     else:
                         n, S, SS = c.evaluate_model(params_i, target_model_id=id_j)
+                    if self.collect_pair_diagnostics:
+                        self.cross_evaluation_diagnostics.append({
+                            "round_index": int(round_index),
+                            "client_id": int(getattr(c, "client_id", -1)),
+                            "candidate_model_id": int(id_i),
+                            "target_model_id": int(id_j),
+                            "n": int(n),
+                            "sum": float(S),
+                            "sum_sq": float(SS),
+                            "candidate_only_correct": int(
+                                diagnostic["candidate_only_correct"]
+                                if diagnostic is not None else -1
+                            ),
+                            "target_only_correct": int(
+                                diagnostic["target_only_correct"]
+                                if diagnostic is not None else -1
+                            ),
+                            "both_correct": int(
+                                diagnostic["both_correct"]
+                                if diagnostic is not None else -1
+                            ),
+                            "both_wrong": int(
+                                diagnostic["both_wrong"]
+                                if diagnostic is not None else -1
+                            ),
+                        })
                     total_n += n; total_S += S; total_SS += SS
 
                 stats_matrix[id_i][id_j] = (total_n, total_S, total_SS)
@@ -212,4 +246,5 @@ class CrossEvaluationClusteringServer(BaseServer):
             model_ids,
             self._last_pair_distances,
             clusters,
+            self._last_pair_decision_scores,
         )

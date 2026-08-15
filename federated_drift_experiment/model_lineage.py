@@ -30,12 +30,25 @@ class ClusteringObservation:
     absorbed: bool
 
 
+@dataclass(frozen=True)
+class ClusteringPairObservation:
+    """1回のクラスタリングにおけるモデル対の判定結果。"""
+
+    round_index: int
+    left_model_id: int
+    right_model_id: int
+    distance: float
+    decision_score: float
+    same_cluster: bool
+
+
 class ModelLineageRecorder:
     """アルゴリズムへ影響を与えず、モデルの生成・統合履歴だけを保持する。"""
 
     def __init__(self):
         self._registrations = {}
         self.clustering_observations = []
+        self.clustering_pair_observations = []
 
     @property
     def registrations(self):
@@ -60,7 +73,14 @@ class ModelLineageRecorder:
             ),
         )
 
-    def record_clustering(self, round_index, model_ids, pair_distances, clusters):
+    def record_clustering(
+        self,
+        round_index,
+        model_ids,
+        pair_distances,
+        clusters,
+        pair_decision_scores=None,
+    ):
         """距離とクラスタ割当をモデル単位の観測へ正規化して記録する。"""
         normalized_distances = {
             tuple(sorted((int(left), int(right)))): float(distance)
@@ -71,6 +91,25 @@ class ModelLineageRecorder:
             for cluster in clusters
             for model_id in cluster
         }
+        normalized_scores = {
+            tuple(sorted((int(left), int(right)))): float(score)
+            for (left, right), score in (pair_decision_scores or {}).items()
+        }
+
+        for (left, right), distance in sorted(normalized_distances.items()):
+            self.clustering_pair_observations.append(
+                ClusteringPairObservation(
+                    round_index=int(round_index),
+                    left_model_id=left,
+                    right_model_id=right,
+                    distance=distance,
+                    decision_score=normalized_scores.get((left, right), distance),
+                    same_cluster=(
+                        cluster_by_model.get(left, [left])
+                        == cluster_by_model.get(right, [right])
+                    ),
+                )
+            )
 
         for model_id in model_ids:
             model_id = int(model_id)

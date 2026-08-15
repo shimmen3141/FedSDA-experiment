@@ -64,7 +64,11 @@ class FedDriftServer(CrossEvaluationClusteringServer):
         if len(mature_ids) <= 1:
             return
 
-        stats_matrix = self._cross_evaluate(mature_ids, send_model_params=False)
+        stats_matrix = self._cross_evaluate(
+            mature_ids,
+            send_model_params=False,
+            round_index=t,
+        )
         mature_clusters = self.perform_hierarchical_clustering(mature_ids, stats_matrix)
         self.record_clustering_diagnostics(t, mature_ids, mature_clusters)
         if len(mature_clusters) == len(mature_ids):

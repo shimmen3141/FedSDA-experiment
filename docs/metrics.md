@@ -83,6 +83,16 @@ CVが大きい、または最小値が小さい場合は、一部モデルへ十
 - `model_pair_oracle_gain_rate`: 良い方の単一モデルに対し、標本ごとにoracle選択した場合の改善上限。
 - `model_pair_both_correct_rate`: 両モデルが正解した割合。
 
+新しいrawでは、集約値に加えて次をラウンド単位で保存する。
+
+- `cross_evaluation_*`: クライアント・候補モデル・対象モデルごとの損失十分統計と正誤表。
+- `clustering_pair_*`: モデル対の距離、判定スコア、最終的に同じクラスタへ入ったか。
+
+これにより、固定閾値を変更せずに、実際に統合されたモデル対と残されたモデル対の機能的相補性を
+事後比較できる。集計には
+`python -m tools.experiments.clustering_functional_diagnostics <result-root> --output <csv>`を使う。
+旧rawはラウンドとモデル対の対応を保持していないため、この集計の対象外である。
+
 SoftRoutingでは、予測時にすでに計算している全保持モデルの出力から次を記録する。
 
 - `routing_oracle_accuracy`: 実混合または少なくとも一つの保持モデルが正解した割合。
