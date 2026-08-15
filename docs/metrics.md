@@ -125,6 +125,8 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
   各候補単独精度との差。
 - `routing_meta_switching_selected_switching_rate`: 上位選択がswitching mixtureを採用した標本割合。
 - `routing_meta_switching_leader_switch_count`: 上位選択候補が切り替わった回数。
+- `routing_meta_switching_aggregation_recalibration_count`: 共有表現の集約後に最上位Meta-switchingの
+  比較証拠を再始動した回数。
 - `routing_class_macro_meta_accuracy`: shadow meta-router精度の正解クラス別マクロ平均。
 - `routing_class_macro_meta_global_accuracy` / `routing_class_macro_meta_context_mixture_accuracy` /
   `routing_class_macro_meta_context_leader_accuracy`: 各候補の正解クラス別マクロ平均。

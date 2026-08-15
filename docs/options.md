@@ -32,7 +32,7 @@ flowchart LR
     soft_routing_context["<b>SoftRouting文脈</b><br/>global | predicted_class | meta_predicted_class | meta_switching"]
     soft_routing_top_combination["<b>Meta-switching上位統合</b><br/>leader | mixture"]
     soft_routing_meta_loss["<b>Meta-router更新損失</b><br/>bounded_score | zero_one"]
-    shared_backbone_routing_recalibration["<b>共有表現更新後のルーティング再較正</b><br/>none | aggregation_restart | fifo_replay | leader_change_replay | persistent_leader_change_replay"]
+    shared_backbone_routing_recalibration["<b>共有表現更新後のルーティング再較正</b><br/>none | aggregation_restart | fifo_replay | hierarchical_fifo_replay | leader_change_replay | persistent_leader_change_replay"]
   end
   subgraph group_model[model]
     model_architecture["<b>モデル構造</b><br/>independent | shared_backbone | residual_adapter"]
@@ -90,6 +90,7 @@ flowchart LR
   detector -->|"ESR系のとき"| e_detector_alpha
   detector -->|"HDDM系のとき"| hddm_drift_confidence
   clustering_decision -->|"confidence系判定のとき"| clustering_confidence
+  soft_routing_context -.->|"hierarchical_fifo_replay: Meta-switchingが必要"| shared_backbone_routing_recalibration
   server_flow -.->|"restarting_soft: NoCachedが必要"| routing
   detector -.->|"restarting_soft: ClassESRが必要"| routing
   server_flow -.->|"shared_backbone: NoCachedが必要"| model_architecture
@@ -156,6 +157,7 @@ flowchart LR
 
 | オプション値 | 実装済みmode | 追加前提 | 備考 |
 |---|---|---|---|
+| `shared_backbone_routing_recalibration` = `hierarchical_fifo_replay` | `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | Meta-switchingが必要 | 上位Meta-switchingを含む階層全体の再較正 |
 | `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
 | `detector` = `ClassADWIN` | `FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_Cached_ClassADWIN` | なし |  |
 | `detector` = `ESR` | `FedSDA_NoCached_ESR`<br/>`FedSDA_Cached_ESR` | なし |  |

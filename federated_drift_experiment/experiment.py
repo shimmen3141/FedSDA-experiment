@@ -832,6 +832,15 @@ def _add_model_diagnostic_results(
             for client in clients
             if hasattr(client, "meta_switching_router")
         ),
+        "routing_meta_switching_aggregation_recalibration_count": sum(
+            getattr(
+                client.meta_switching_router,
+                "aggregation_recalibration_count",
+                0,
+            )
+            for client in clients
+            if hasattr(client, "meta_switching_router")
+        ),
         "routing_aggregation_restart_count": sum(
             getattr(client.expert_router, "aggregation_restart_count", 0)
             for client in clients

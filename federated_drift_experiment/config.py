@@ -103,7 +103,8 @@ SHARED_BACKBONE_GRADIENT_STRATEGY_CHOICES = ("mean", "pcgrad")
 # 共有表現がサーバ集約で変化した後に、SoftRoutingの古い累積損失を扱う方法。
 SHARED_BACKBONE_ROUTING_RECALIBRATION = "none"
 SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (
-    "none", "aggregation_restart", "fifo_replay", "leader_change_replay",
+    "none", "aggregation_restart", "fifo_replay",
+    "hierarchical_fifo_replay", "leader_change_replay",
     "persistent_leader_change_replay",
 )
 # SoftRoutingの証拠を全入力で共有するか、予測クラスごとに分けるかを選ぶ。

@@ -998,6 +998,7 @@ def build_parser():
         help=(
             "サーバ集約後のSoftRouting再較正方式 "
             "(none / aggregation_restart / fifo_replay / "
+            "hierarchical_fifo_replay / "
             "leader_change_replay / persistent_leader_change_replay)"
         ),
     )

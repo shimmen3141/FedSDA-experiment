@@ -175,6 +175,38 @@ def test_top_combination_requires_meta_switching():
     ) == ()
 
 
+def test_hierarchical_recalibration_requires_meta_switching():
+    mode = "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting"
+    explicit = explicit_option_ids([
+        "--shared-backbone-routing-recalibration",
+        "hierarchical_fifo_replay",
+    ])
+    assert validate_explicit_options(
+        (mode,),
+        {
+            "shared_backbone_routing_recalibration": (
+                "hierarchical_fifo_replay"
+            ),
+            "soft_routing_context": "global",
+        },
+        explicit,
+    ) == (
+        "--shared-backbone-routing-recalibration: " + mode + ": "
+        "shared_backbone_routing_recalibration=hierarchical_fifo_replay: "
+        "Meta-switchingが必要",
+    )
+    assert validate_explicit_options(
+        (mode,),
+        {
+            "shared_backbone_routing_recalibration": (
+                "hierarchical_fifo_replay"
+            ),
+            "soft_routing_context": "meta_switching",
+        },
+        explicit,
+    ) == ()
+
+
 def test_shared_backbone_training_requires_shared_architecture():
     assert validate_selection("FedSDA", {
         "model_architecture": "independent",

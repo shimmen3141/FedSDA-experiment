@@ -225,6 +225,7 @@ OPTIONS = (
         "prediction",
         (
             "none", "aggregation_restart", "fifo_replay",
+            "hierarchical_fifo_replay",
             "leader_change_replay", "persistent_leader_change_replay",
         ),
         "サーバ集約で共有表現が変化した後にSoftRoutingの累積証拠を扱う方式",
@@ -432,6 +433,19 @@ OPTIONS = (
 )
 
 CHOICE_CONSTRAINTS = (
+    ChoiceConstraint(
+        "shared_backbone_routing_recalibration",
+        ("hierarchical_fifo_replay",),
+        (
+            "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+        ),
+        requires_selections=(ActivationRule(
+            "soft_routing_context", ("meta_switching",),
+            "Meta-switchingが必要",
+        ),),
+        note="上位Meta-switchingを含む階層全体の再較正",
+    ),
     ChoiceConstraint(
         "detector", ("ADWIN",),
         ("FedSDA_NoCached_ADWIN", "FedSDA_Cached_ADWIN", "FedSDA_without_server"),
