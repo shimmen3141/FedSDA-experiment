@@ -1531,6 +1531,12 @@ def _save_raw_run(
             config.SOFT_ROUTING_CONTEXT if "SoftRouting" in mode else "",
             dtype=np.str_,
         ),
+        soft_routing_top_combination=np.asarray(
+            config.SOFT_ROUTING_TOP_COMBINATION
+            if "SoftRouting" in mode
+            and config.SOFT_ROUTING_CONTEXT == "meta_switching" else "",
+            dtype=np.str_,
+        ),
         soft_routing_meta_loss=np.asarray(
             config.SOFT_ROUTING_META_LOSS
             if "SoftRouting" in mode

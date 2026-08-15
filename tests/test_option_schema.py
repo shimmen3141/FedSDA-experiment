@@ -44,6 +44,9 @@ def test_schema_choices_follow_runtime_configuration():
     assert option("soft_routing_context").choices == (
         config.SOFT_ROUTING_CONTEXT_CHOICES
     )
+    assert option("soft_routing_top_combination").choices == (
+        config.SOFT_ROUTING_TOP_COMBINATION_CHOICES
+    )
     assert option("soft_routing_meta_loss").choices == (
         config.SOFT_ROUTING_META_LOSS_CHOICES
     )
@@ -141,6 +144,33 @@ def test_meta_loss_dependency_is_validated_from_explicit_options():
         (mode,),
         {"soft_routing_context": "meta_predicted_class",
          "soft_routing_meta_loss": "zero_one"},
+        explicit,
+    ) == ()
+
+
+def test_top_combination_requires_meta_switching():
+    explicit = explicit_option_ids([
+        "--soft-routing-top-combination", "mixture",
+    ])
+    mode = "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    assert validate_explicit_options(
+        (mode,),
+        {
+            "soft_routing_context": "global",
+            "soft_routing_top_combination": "mixture",
+        },
+        explicit,
+    ) == (
+        "--soft-routing-top-combination: " + mode + ": "
+        "soft_routing_top_combination is active only when "
+        "Meta-switchingを実予測へ使うとき",
+    )
+    assert validate_explicit_options(
+        (mode,),
+        {
+            "soft_routing_context": "meta_switching",
+            "soft_routing_top_combination": "mixture",
+        },
         explicit,
     ) == ()
 

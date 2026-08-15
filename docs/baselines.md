@@ -46,6 +46,9 @@ random schedule・全6データセット・5シード・集約間隔`50/100/200/
 累積0/1損失の小さい側を採用するMeta switchingの結果を保存する。random schedule・全6データセット・
 5シード・集約間隔`50/100/200/500`を収録し、`routing/meta_soft_routing_zero_one/`と同一条件で
 routing選択だけの寄与を比較できるようにする。
+同じMeta-switching構成をFedDrift固定スケジュールで評価した結果は、
+`schedules/feddrift_fixed/meta_switching/<dataset>/`へ保存する。これにより、random scheduleでの
+routing比較とは分けて、FedDrift固定baselineおよび同じResidual Adapter構成と直接比較できる。
 
 ## 単一軸baselineと多因子ablation
 

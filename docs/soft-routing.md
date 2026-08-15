@@ -92,6 +92,16 @@ SoftRoutingの予測結果はモデル学習、ドリフト検出、モデル作
   わずかに下回った。現時点では一律の既定値ではなく、更新損失との整合性を検証する候補である。
 - `meta_switching`は、switching mixtureの回復速度とMeta mixtureの定常安定性を閾値なしで選択する
   実験的候補である。主要方式への昇格は実予測としての複数seed検証後に判断する。
+
+上位Fixed-Shareの利用方法は、`--soft-routing-top-combination`で次の二方式を選べる。
+
+- `leader`（既定）: 重み最大のMeta mixtureまたはswitching mixtureだけを実予測へ使う。
+- `mixture`: 両候補の予測を上位Fixed-Share重みでさらに混合する。
+
+`mixture`は標準的なexpert aggregationの重み付き予測に近く、`leader`は離散的な選択によって
+急な切替を表現しやすい。両方式は下位候補、上位重み更新、通信、学習処理を共有するため、比較では
+最上位の出力規則だけを切り分けられる。現段階では上位更新に同じ0/1候補損失を使うので、
+`mixture`を選んだだけで混合予測自体の凸損失に対する理論保証が直ちに得られるわけではない。
 - `predicted_class`は現時点の実験ではglobalまたはmetaにほぼ支配されている。素朴な文脈別再混合の
   ablationとしては意味があるが、主要方式へ昇格しない場合は将来の整理候補である。
 - `context leader`は独立方式ではなくmetaの構成要素なので、CLI modeを増やさない。

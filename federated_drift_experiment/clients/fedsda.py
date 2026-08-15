@@ -1500,11 +1500,23 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             meta_switching_selected = self.meta_switching_router.leader(
                 meta_switching_probabilities, preferred_id="meta",
             )
-            meta_switching_scores = (
-                meta_scores
-                if meta_switching_selected == "meta"
-                else switching_scores
-            )
+            if config.SOFT_ROUTING_TOP_COMBINATION == "leader":
+                meta_switching_scores = (
+                    meta_scores
+                    if meta_switching_selected == "meta"
+                    else switching_scores
+                )
+            elif config.SOFT_ROUTING_TOP_COMBINATION == "mixture":
+                meta_switching_scores = (
+                    meta_scores * meta_switching_probabilities["meta"]
+                    + switching_scores
+                    * meta_switching_probabilities["switching"]
+                )
+            else:
+                raise ValueError(
+                    "未知のMeta-switching上位統合方式です: "
+                    f"{config.SOFT_ROUTING_TOP_COMBINATION!r}"
+                )
         elif config.SOFT_ROUTING_CONTEXT != "global":
             raise ValueError(
                 f"未知のSoftRouting文脈です: {config.SOFT_ROUTING_CONTEXT!r}"
@@ -1524,11 +1536,22 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             probabilities = meta_model_probabilities
             weighted_scores = meta_scores
         else:
-            probabilities = (
-                meta_model_probabilities
-                if meta_switching_selected == "meta"
-                else switching_probabilities
-            )
+            if config.SOFT_ROUTING_TOP_COMBINATION == "leader":
+                probabilities = (
+                    meta_model_probabilities
+                    if meta_switching_selected == "meta"
+                    else switching_probabilities
+                )
+            else:
+                probabilities = {
+                    model_id: (
+                        meta_switching_probabilities["meta"]
+                        * meta_model_probabilities[model_id]
+                        + meta_switching_probabilities["switching"]
+                        * switching_probabilities[model_id]
+                    )
+                    for model_id in model_ids
+                }
             weighted_scores = meta_switching_scores
 
         accuracy = float(

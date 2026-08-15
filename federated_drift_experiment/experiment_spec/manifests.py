@@ -111,8 +111,11 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("shared_backbone_routing_recalibration", None)
     if "SoftRouting" not in experiment.mode:
         algorithm.pop("soft_routing_context", None)
+        algorithm.pop("soft_routing_top_combination", None)
         algorithm.pop("soft_routing_meta_loss", None)
     else:
+        if algorithm.get("soft_routing_context") != "meta_switching":
+            algorithm.pop("soft_routing_top_combination", None)
         if algorithm.get("soft_routing_context") not in {
             "predicted_class", "meta_predicted_class", "meta_switching",
         }:
@@ -186,6 +189,10 @@ def configuration_from_result_row(row, total_data):
         algorithm["soft_routing_context"] = (
             row.get("soft_routing_context") or "global"
         )
+        if algorithm["soft_routing_context"] == "meta_switching":
+            algorithm["soft_routing_top_combination"] = (
+                row.get("soft_routing_top_combination") or "leader"
+            )
         if algorithm["soft_routing_context"] in {
             "predicted_class", "meta_predicted_class", "meta_switching",
         }:

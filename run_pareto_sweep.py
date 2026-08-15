@@ -92,6 +92,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "shared_backbone_gradient_strategy",
             "shared_backbone_routing_recalibration",
             "soft_routing_context",
+            "soft_routing_top_combination",
             "soft_routing_meta_loss",
             "shared_adapter_rank",
             FEDSDA_DISTANCE_THRESHOLD, FEDDRIFT_DISTANCE_THRESHOLD, ADWIN_DELTA,
@@ -283,6 +284,11 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         ),
         "soft_routing_context": (
             config.SOFT_ROUTING_CONTEXT if "SoftRouting" in mode else None
+        ),
+        "soft_routing_top_combination": (
+            config.SOFT_ROUTING_TOP_COMBINATION
+            if "SoftRouting" in mode
+            and config.SOFT_ROUTING_CONTEXT == "meta_switching" else None
         ),
         "soft_routing_meta_loss": (
             config.SOFT_ROUTING_META_LOSS
@@ -587,6 +593,7 @@ def _load_csv(path):
             row.setdefault("shared_backbone_training", "sequential")
             row.setdefault("shared_backbone_gradient_strategy", "")
             # 列追加前のCSVを再描画するときは当時の挙動を復元する。
+            row.setdefault("soft_routing_top_combination", "leader")
             row.setdefault("soft_routing_meta_loss", "bounded_score")
             row.setdefault("shared_adapter_rank", "")
             row.setdefault("detection_episodes", "False")
@@ -1009,6 +1016,12 @@ def build_parser():
         ),
     )
     fedsda.add_argument(
+        "--soft-routing-top-combination",
+        choices=config.SOFT_ROUTING_TOP_COMBINATION_CHOICES,
+        default=config.SOFT_ROUTING_TOP_COMBINATION,
+        help="Meta-switchingの上位統合方式 (leader / mixture)",
+    )
+    fedsda.add_argument(
         "--soft-routing-meta-loss",
         choices=config.SOFT_ROUTING_META_LOSS_CHOICES,
         default=config.SOFT_ROUTING_META_LOSS,
@@ -1197,6 +1210,9 @@ def main(argv=None):
             args.shared_backbone_routing_recalibration
         ),
         "soft_routing_context": args.soft_routing_context,
+        "soft_routing_top_combination": (
+            args.soft_routing_top_combination
+        ),
         "soft_routing_meta_loss": args.soft_routing_meta_loss,
         "shared_adapter_rank": args.shared_adapter_rank,
         "experiment_manifest": "on" if args.manifest else "off",
@@ -1245,6 +1261,9 @@ def main(argv=None):
         ),
         shared_adapter_rank=args.shared_adapter_rank,
         soft_routing_context=args.soft_routing_context,
+        soft_routing_top_combination=(
+            args.soft_routing_top_combination
+        ),
         soft_routing_meta_loss=args.soft_routing_meta_loss,
     )
 

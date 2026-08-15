@@ -111,6 +111,9 @@ SOFT_ROUTING_CONTEXT = "global"
 SOFT_ROUTING_CONTEXT_CHOICES = (
     "global", "predicted_class", "meta_predicted_class", "meta_switching",
 )
+# 上位Meta-switchingの重み最大候補だけを使うか、重み付き混合を使うかを選ぶ。
+SOFT_ROUTING_TOP_COMBINATION = "leader"
+SOFT_ROUTING_TOP_COMBINATION_CHOICES = ("leader", "mixture")
 # Meta-routerを連続予測損失または最終accuracyと一致する0/1損失で更新する。
 SOFT_ROUTING_META_LOSS = "zero_one"
 SOFT_ROUTING_META_LOSS_CHOICES = ("bounded_score", "zero_one")

@@ -381,6 +381,7 @@ def test_meta_predicted_class_uses_meta_scores_as_actual_prediction(
 
 def test_meta_switching_uses_the_selected_top_level_candidate(monkeypatch):
     monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "meta_switching")
+    monkeypatch.setattr(config, "SOFT_ROUTING_TOP_COMBINATION", "leader")
     spec = MODE_SPECS[
         "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
     ]
@@ -417,6 +418,46 @@ def test_meta_switching_uses_the_selected_top_level_candidate(monkeypatch):
     ] == 1
     assert client.routing_meta_switching_diagnostics["correct_count"] == 0
     assert client.history_accuracy == [0.0]
+
+
+def test_meta_switching_can_mix_top_level_candidates(monkeypatch):
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "meta_switching")
+    monkeypatch.setattr(config, "SOFT_ROUTING_TOP_COMBINATION", "mixture")
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP(), 2: SimpleMLP()},
+        initial_stats={
+            model_id: {"n": 100, "mean": 0.2, "M2": 1.0}
+            for model_id in range(3)
+        },
+        verbose=False,
+    )
+    for model_id, score in ((0, 0.1), (1, 0.2), (2, 0.9)):
+        client.models[model_id].forward = (
+            lambda x, score=score: torch.full((len(x), 1), score)
+        )
+
+    client.expert_router.cumulative_losses = {0: 2.0, 1: 2.0, 2: 0.0}
+    context_router = client.context_expert_routers[1]
+    context_router.probabilities = lambda _: {0: 0.3, 1: 0.3, 2: 0.4}
+    client.switching_expert_router.weights = {0: 0.9, 1: 0.05, 2: 0.05}
+    # switching側が僅かにleaderでも、Meta側の強い予測を捨てずに混合する。
+    client.meta_switching_router.weights = {"meta": 0.49, "switching": 0.51}
+
+    client._record_prediction(
+        torch.zeros((1, config.dataset_spec().input_dim)),
+        torch.ones((1, 1)),
+        0,
+    )
+
+    assert client.routing_meta_switching_diagnostics[
+        "selected_switching_count"
+    ] == 1
+    assert client.routing_meta_switching_diagnostics["correct_count"] == 1
+    assert client.history_accuracy == [1.0]
 
 
 def test_meta_router_can_update_with_zero_one_loss(monkeypatch):

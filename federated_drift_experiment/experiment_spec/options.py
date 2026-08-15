@@ -162,6 +162,18 @@ OPTIONS = (
         cli_name="soft-routing-context",
     ),
     OptionSpec(
+        "soft_routing_top_combination", "Meta-switching上位統合", "prediction",
+        ("leader", "mixture"),
+        "上位Fixed-Shareの最大重み候補を使うか、候補予測を重み付き混合する",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("soft_routing",),
+        active_when=(ActivationRule(
+            "soft_routing_context", ("meta_switching",),
+            "Meta-switchingを実予測へ使うとき",
+        ),),
+        cli_name="soft-routing-top-combination",
+    ),
+    OptionSpec(
         "soft_routing_meta_loss", "Meta-router更新損失", "prediction",
         ("bounded_score", "zero_one"),
         "Meta候補を確率出力の有界損失または最終予測の0/1損失で比較する",
