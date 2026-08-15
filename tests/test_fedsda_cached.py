@@ -57,10 +57,33 @@ def test_every_round_policy_clusters_without_new_models(monkeypatch):
     server.run_round(t=1)
 
     assert len(calls) == 2
-    assert all(call[1] == {
-        "send_model_params": False,
-        "use_client_cache": True,
-    } for call in calls)
+    assert [call[1] for call in calls] == [
+        {
+            "send_model_params": False,
+            "use_client_cache": True,
+            "round_index": 0,
+        },
+        {
+            "send_model_params": False,
+            "use_client_cache": True,
+            "round_index": 1,
+        },
+    ]
+
+
+def test_disabled_policy_skips_cached_clustering(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_CLUSTERING_POLICY", "disabled")
+    _, server = _make_client_and_server()
+    calls = []
+    monkeypatch.setattr(
+        server,
+        "_cross_evaluate",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or {},
+    )
+
+    server.run_round(t=0)
+
+    assert calls == []
 
 
 def test_cached_server_rejects_unknown_clustering_policy(monkeypatch):
@@ -103,6 +126,38 @@ def test_no_cached_every_round_policy_enables_clustering_without_new_models(monk
     )
 
     assert server.clustering_enabled is True
+
+
+def test_no_cached_disabled_policy_skips_clustering_with_new_model(monkeypatch):
+    monkeypatch.setattr(config, "FEDSDA_CLUSTERING_POLICY", "disabled")
+
+    class Client:
+        def process_one_step(self, *args):
+            pass
+
+        def flush_pending_updates(self):
+            pass
+
+        def has_pending_model(self):
+            return True
+
+        def promote_pending_to_ready(self):
+            pass
+
+    class Server:
+        def record_client_state_summaries(self):
+            pass
+
+        def run_round(self, t, clustering_enabled):
+            self.clustering_enabled = clustering_enabled
+
+    server = Server()
+    sample = (torch.zeros((1, config.input_dim())), torch.zeros((1, 1)))
+    _run_per_sample_timestep(
+        [Client()], server, [[sample]], [[0]], t=0, use_server=True, verbose=False,
+    )
+
+    assert server.clustering_enabled is False
 
 
 def test_evaluation_cache_is_not_changed_by_local_training():
@@ -160,6 +215,7 @@ def test_new_model_is_clustered_only_after_first_broadcast(monkeypatch):
     assert cross_evaluation_calls[0][1] == {
         "send_model_params": False,
         "use_client_cache": True,
+        "round_index": 1,
     }
     # クロス評価ではモデルを再送せず、通常ブロードキャスト分だけ増える。
     assert server.comm_models_down - models_down_before == len(server.global_models)

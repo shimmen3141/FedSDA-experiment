@@ -194,9 +194,10 @@ FEDSDA_CLUSTER_LINKAGE = 'connected'
 FEDSDA_CLUSTER_LINKAGES = ('complete', 'connected')
 FEDDRIFT_CLUSTER_LINKAGE = 'complete'
 # FedSDAのクラスタリング実行方針。
-# 'on_new_model'=新規モデルの初回配布後のみ、'every_round'=各集約ラウンドで実行。
+# 'disabled'=実行しない、'on_new_model'=新規モデルの初回配布後のみ、
+# 'every_round'=各集約ラウンドで実行。
 FEDSDA_CLUSTERING_POLICY = 'on_new_model'
-FEDSDA_CLUSTERING_POLICIES = ('on_new_model', 'every_round')
+FEDSDA_CLUSTERING_POLICIES = ('disabled', 'on_new_model', 'every_round')
 FEDSDA_CLUSTERING_DECISION = 'distance'
 FEDSDA_CLUSTERING_DECISIONS = ('distance', 'confidence', 'confidence_margin')
 FEDSDA_CLUSTERING_CONFIDENCE = 0.95

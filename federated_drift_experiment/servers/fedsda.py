@@ -228,6 +228,8 @@ class FedSDACachedServer(FedSDANoCachedServer):
 
     def _clustering_is_due(self):
         """現在の集約ラウンドでクラスタリングを実行するかを返す。"""
+        if self.clustering_policy == 'disabled':
+            return False
         if self.clustering_policy == 'every_round':
             return True
         return bool(self.models_pending_clustering)

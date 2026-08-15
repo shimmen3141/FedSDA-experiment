@@ -99,7 +99,11 @@ def _run_per_sample_timestep(clients, server, data, concepts, t, use_server, ver
         # 新規モデルがあるときだけクラスタリングを行う
         has_new = any(c.has_pending_model() for c in clients)
         clustering_enabled = (
-            config.FEDSDA_CLUSTERING_POLICY == 'every_round' or has_new
+            config.FEDSDA_CLUSTERING_POLICY != 'disabled'
+            and (
+                config.FEDSDA_CLUSTERING_POLICY == 'every_round'
+                or has_new
+            )
         )
         server.run_round(t, clustering_enabled=clustering_enabled)
         # aggregation 後に pending -> ready を行い、次ラウンドで回収されるようにする

@@ -58,7 +58,7 @@ flowchart LR
     hddm_drift_confidence["<b>HDDMのconfidence</b><br/>0 < confidence < 1"]
   end
   subgraph group_clustering[clustering]
-    clustering_policy["<b>クラスタリング頻度</b><br/>on_new_model | every_round"]
+    clustering_policy["<b>クラスタリング頻度</b><br/>disabled | on_new_model | every_round"]
     clustering_decision["<b>クラスタリング判定</b><br/>distance | confidence | confidence_margin"]
     cluster_linkage["<b>階層クラスタリングlinkage</b><br/>complete | connected"]
   end

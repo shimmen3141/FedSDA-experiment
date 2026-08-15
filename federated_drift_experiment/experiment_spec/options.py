@@ -355,7 +355,7 @@ OPTIONS = (
     ),
     OptionSpec(
         "clustering_policy", "クラスタリング頻度", "clustering",
-        ("on_new_model", "every_round"),
+        ("disabled", "on_new_model", "every_round"),
         "FedSDAサーバがモデル統合判定を実行するタイミング",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("server_clustering",), cli_name="clustering-policy",
