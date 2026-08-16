@@ -84,6 +84,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "seed", "series", "sweep_parameter", "sweep_value",
             FEDDRIFT_DETECTION_BATCH_SIZE, AGGREGATION_INTERVAL,
             "clustering_policy", "clustering_decision", "cluster_linkage",
+            "clustering_consolidation",
             "detection_episodes",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
@@ -192,6 +193,14 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             f"{display_series} [routing-recalibration="
             f"{config.SHARED_BACKBONE_ROUTING_RECALIBRATION}]"
         )
+    if (
+        "FedSDA" in mode
+        and config.FEDSDA_CLUSTERING_CONSOLIDATION != "merge"
+    ):
+        display_series = (
+            f"{display_series} [cluster-consolidation="
+            f"{config.FEDSDA_CLUSTERING_CONSOLIDATION}]"
+        )
     if "SoftRouting" in mode and config.SOFT_ROUTING_CONTEXT != "global":
         display_series = (
             f"{display_series} [routing-context={config.SOFT_ROUTING_CONTEXT}]"
@@ -246,6 +255,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
                 else config.FEDDRIFT_CLUSTER_LINKAGE if mode in FEDDRIFT_MODES
                 else None
             ),
+            "clustering_consolidation": (
+                config.FEDSDA_CLUSTERING_CONSOLIDATION
+                if mode in FEDSDA_MODES else None
+            ),
         }, dataset=dataset, seed=seed)
         raw_path = os.path.join(raw_dir, fname)
         if sweep_value not in (None, "", "None"):
@@ -268,6 +281,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         ),
         "clustering_policy": config.FEDSDA_CLUSTERING_POLICY,
         "clustering_decision": config.FEDSDA_CLUSTERING_DECISION,
+        "clustering_consolidation": (
+            config.FEDSDA_CLUSTERING_CONSOLIDATION
+            if mode in FEDSDA_MODES else None
+        ),
         "cluster_linkage": (
             config.FEDSDA_CLUSTER_LINKAGE if mode in FEDSDA_MODES
             else config.FEDDRIFT_CLUSTER_LINKAGE if mode in FEDDRIFT_MODES
@@ -600,6 +617,7 @@ def _load_csv(path):
             row[ADWIN_DELTA] = row.get(ADWIN_DELTA, "")
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("clustering_decision", "distance")
+            row.setdefault("clustering_consolidation", "merge")
             row.setdefault(
                 "cluster_linkage",
                 "complete" if row["mode"] in FEDDRIFT_MODES else "connected",
@@ -1021,6 +1039,15 @@ def build_parser():
         help="概念別低ランク残差adapterの最大rank",
     )
     fedsda.add_argument(
+        "--clustering-consolidation",
+        choices=config.FEDSDA_CLUSTERING_CONSOLIDATIONS,
+        default=config.FEDSDA_CLUSTERING_CONSOLIDATION,
+        help=(
+            "クラスタ決定後の処理 "
+            "(merge=ID統合 / parameter_share=IDを保ってパラメータ共有)"
+        ),
+    )
+    fedsda.add_argument(
         "--cluster-linkage",
         choices=config.FEDSDA_CLUSTER_LINKAGES,
         default=None,
@@ -1222,7 +1249,9 @@ def main(argv=None):
     )
     selections = {
         "new_model_creation_policy": args.new_model_creation_policy,
+        "clustering_policy": args.clustering_policy,
         "clustering_decision": args.clustering_decision,
+        "clustering_consolidation": args.clustering_consolidation,
         "cluster_linkage": args.cluster_linkage,
         "shared_backbone_training": args.shared_backbone_training,
         "shared_backbone_gradient_strategy": (
@@ -1267,6 +1296,7 @@ def main(argv=None):
     algorithm = AlgorithmOptions(
         clustering_policy=args.clustering_policy,
         clustering_decision=args.clustering_decision,
+        clustering_consolidation=args.clustering_consolidation,
         cluster_linkage=args.cluster_linkage,
         detection_episodes=args.detection_episodes,
         new_model_creation_policy=args.new_model_creation_policy,

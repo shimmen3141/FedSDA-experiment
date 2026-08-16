@@ -34,6 +34,7 @@ def _raw(path, *, exact=False):
         feddrift_distance_threshold=np.asarray(np.nan),
         adwin_delta=np.asarray(np.nan), clustering_policy=np.asarray("on_new_model"),
         clustering_decision=np.asarray("distance"),
+        clustering_consolidation=np.asarray("merge"),
         shared_backbone_training=np.asarray(""),
         shared_backbone_routing_recalibration=np.asarray(""),
         shared_adapter_rank=np.asarray(-1), total_data=np.asarray(4),

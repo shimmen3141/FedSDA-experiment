@@ -25,6 +25,7 @@ class AlgorithmOptions:
     soft_routing_top_combination: str = "leader"
     soft_routing_meta_loss: str = "zero_one"
     cluster_linkage: str | None = None
+    clustering_consolidation: str = "merge"
 
     @classmethod
     def from_current_config(cls):
@@ -52,6 +53,9 @@ class AlgorithmOptions:
             ),
             soft_routing_meta_loss=config.SOFT_ROUTING_META_LOSS,
             cluster_linkage=None,
+            clustering_consolidation=(
+                config.FEDSDA_CLUSTERING_CONSOLIDATION
+            ),
         )
 
     def config_overrides(self):
@@ -59,6 +63,9 @@ class AlgorithmOptions:
         overrides = {
             "FEDSDA_CLUSTERING_POLICY": self.clustering_policy,
             "FEDSDA_CLUSTERING_DECISION": self.clustering_decision,
+            "FEDSDA_CLUSTERING_CONSOLIDATION": (
+                self.clustering_consolidation
+            ),
             "FEDSDA_DETECTION_EPISODES_ENABLED": self.detection_episodes,
             "NEW_MODEL_CREATION_POLICY": self.new_model_creation_policy,
             "FIFO_BUFFER_SIZE": self.fifo_size,

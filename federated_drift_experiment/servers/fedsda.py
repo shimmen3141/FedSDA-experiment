@@ -1,5 +1,6 @@
 """FedSDA固有のサーバ実装。"""
 
+import copy
 from collections import defaultdict
 
 from .. import config
@@ -26,6 +27,16 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         )
         kwargs.setdefault("collect_pair_diagnostics", True)
         super().__init__(*args, **kwargs)
+        self.clustering_consolidation = config.FEDSDA_CLUSTERING_CONSOLIDATION
+        if (
+            self.clustering_consolidation
+            not in config.FEDSDA_CLUSTERING_CONSOLIDATIONS
+        ):
+            choices = ", ".join(config.FEDSDA_CLUSTERING_CONSOLIDATIONS)
+            raise ValueError(
+                "未対応のクラスタリング後処理: "
+                f"{self.clustering_consolidation!r}。選択肢: {choices}"
+            )
 
     def run_round(self, t, clustering_enabled=True):
         """新規登録 → FedAvg → (任意でクラスタリング) → 配布を実行する。
@@ -43,7 +54,9 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
 
         id_mapping = {}
         if clustering_enabled:
-            id_mapping = self._cluster_and_merge(t, active_ids, agg_weights)
+            id_mapping = self._cluster_and_consolidate(
+                t, active_ids, agg_weights
+            )
 
         # 配布は1回のみ。マージの ID 付け替えも同時に適用する
         self.broadcast_models(id_mapping)
@@ -65,10 +78,12 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         if n_new > 0 and self.verbose:
             print(f"Server [t={t}]: Registered {n_new} new models (params sent once in FedAvg).")
 
-    def _cluster_and_merge(self, t, active_ids, agg_weights):
-        """FedAvg 済みモデルでクロス評価・クラスタリングし、マージは加重平均で統合する。
+    def _cluster_and_consolidate(self, t, active_ids, agg_weights):
+        """FedAvg済みモデルをクラスタリングし、設定された後処理を適用する。
 
-        再配布は行わず、id_mappingをrun_round末尾のbroadcast_modelsへ渡す。
+        ``merge`` はIDを統合し、``parameter_share`` は各IDを保ったまま
+        クラスタ内の加重平均パラメータを共有する。再配布はrun_round末尾に
+        一度だけ行う。
         """
         M = len(active_ids)
         if M <= 1:
@@ -80,8 +95,26 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         if len(clusters) >= M:
             return {}
 
+        if self.clustering_consolidation == "parameter_share":
+            self._share_cluster_parameters(clusters, agg_weights)
+            if self.verbose:
+                print(
+                    f"\nServer [t={t}]: PARAMETER SHARING EXECUTED "
+                    "(IDs preserved)"
+                )
+                print(f"  - IDs: {active_ids}")
+                print(f"  - Clusters: {clusters}\n")
+            return {}
+
+        return self._merge_clusters(active_ids, clusters, agg_weights, t)
+
+    def _merge_clusters(self, active_ids, clusters, agg_weights, t):
+        """クラスタ内モデルを加重平均し、代表IDへ破壊的に統合する。"""
         if self.verbose:
-            print(f"\nServer [t={t}]: MERGE EXECUTED (NoCached: weighted average)")
+            print(
+                f"\nServer [t={t}]: MERGE EXECUTED "
+                "(NoCached: weighted average)"
+            )
             print(f"  - Before: {active_ids}")
             print(f"  - Clusters: {clusters}")
 
@@ -105,6 +138,21 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         if self.verbose:
             print(f"  - After IDs: {sorted(list(self.global_models.keys()))}\n")
         return id_mapping
+
+    def _share_cluster_parameters(self, clusters, agg_weights):
+        """モデルID・統計・データストアを保ち、クラスタ内パラメータだけ共有する。
+
+        同一クラスタの各IDへ別々のtensor辞書を配置し、次ラウンド以降の
+        ローカル学習で概念ごとに再び特殊化できるようにする。
+        """
+        for cluster in clusters:
+            if len(cluster) <= 1:
+                continue
+            shared_params = self._weighted_average_params(
+                cluster, agg_weights
+            )
+            for model_id in cluster:
+                self.global_models[model_id] = copy.deepcopy(shared_params)
 
     def _weighted_average_params(self, cluster, agg_weights):
         """クラスタメンバーの FedAvg 済みパラメータをデータ量で加重平均する。
@@ -147,6 +195,10 @@ class FedSDACachedServer(FedSDANoCachedServer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.clustering_consolidation != "merge":
+            raise ValueError(
+                "parameter_shareは現在FedSDA NoCachedでのみ実装されています"
+            )
         self.clustering_policy = config.FEDSDA_CLUSTERING_POLICY
         if self.clustering_policy not in config.FEDSDA_CLUSTERING_POLICIES:
             choices = ", ".join(config.FEDSDA_CLUSTERING_POLICIES)

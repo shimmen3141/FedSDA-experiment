@@ -105,6 +105,9 @@ def experiment_configuration(experiment, total_data):
         for assignment in experiment.parameters
     }
     algorithm = asdict(experiment.algorithm)
+    # 既定の破壊的マージは旧実験と同じ意味なので、fingerprintを変えない。
+    if algorithm.get("clustering_consolidation") == "merge":
+        algorithm.pop("clustering_consolidation", None)
     if algorithm.get("cluster_linkage") is None:
         if experiment.mode == "FedDrift":
             algorithm["cluster_linkage"] = "complete"
@@ -119,6 +122,8 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("shared_backbone_training", None)
         algorithm.pop("shared_backbone_gradient_strategy", None)
         algorithm.pop("shared_backbone_routing_recalibration", None)
+    if not experiment.mode.startswith("FedSDA_"):
+        algorithm.pop("clustering_consolidation", None)
     if "SoftRouting" not in experiment.mode:
         algorithm.pop("soft_routing_context", None)
         algorithm.pop("soft_routing_top_combination", None)
@@ -199,6 +204,9 @@ def configuration_from_result_row(row, total_data):
             row.get("new_model_forward_validation_samples"), int,
         ),
     }
+    clustering_consolidation = row.get("clustering_consolidation") or "merge"
+    if clustering_consolidation != "merge":
+        algorithm["clustering_consolidation"] = clustering_consolidation
     if "SoftRouting" in mode:
         algorithm["soft_routing_context"] = (
             row.get("soft_routing_context") or "global"

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 3
+OPTION_SCHEMA_VERSION = 4
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -361,6 +361,18 @@ OPTIONS = (
         requires_capabilities=("server_clustering",), cli_name="clustering-policy",
     ),
     OptionSpec(
+        "clustering_consolidation", "クラスタリング後処理", "clustering",
+        ("merge", "parameter_share"),
+        "クラスタ決定後にIDを統合するか、IDを保ってパラメータだけ共有するか",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("server_clustering",),
+        active_when=(ActivationRule(
+            "clustering_policy", ("on_new_model", "every_round"),
+            "クラスタリングを実行するとき",
+        ),),
+        cli_name="clustering-consolidation",
+    ),
+    OptionSpec(
         "clustering_decision", "クラスタリング判定", "clustering",
         ("distance", "confidence", "confidence_margin"),
         "モデル対を統合する判定規則",
@@ -432,6 +444,27 @@ OPTIONS = (
 )
 
 CHOICE_CONSTRAINTS = (
+    ChoiceConstraint(
+        "clustering_consolidation", ("parameter_share",),
+        (
+            "FedSDA_NoCached_ADWIN",
+            "FedSDA_NoCached_ClassADWIN",
+            "FedSDA_NoCached_ESR",
+            "FedSDA_NoCached_ClassESR",
+            "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassESR",
+            "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ClassESR_ProtectedSoftRouting",
+            "FedSDA_NoCached_HDDMA",
+            "FedSDA_NoCached_ClassHDDMA",
+            "FedSDA_NoCached_HDDMW",
+        ),
+        requires_selections=(
+            ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
+        ),
+        note="非破壊的パラメータ共有は現在NoCachedフローでのみ実装",
+    ),
     ChoiceConstraint(
         "detector", ("ADWIN",),
         ("FedSDA_NoCached_ADWIN", "FedSDA_Cached_ADWIN", "FedSDA_without_server"),

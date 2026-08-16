@@ -140,6 +140,9 @@ def _metadata_row(arrays):
         ),
         "clustering_policy": str(_scalar(arrays, "clustering_policy", "")),
         "clustering_decision": str(_scalar(arrays, "clustering_decision", "")),
+        "clustering_consolidation": str(
+            _scalar(arrays, "clustering_consolidation", "merge")
+        ),
         "detection_episodes": bool(_scalar(arrays, "detection_episodes", False)),
         "new_model_creation_policy": str(_scalar(
             arrays, "new_model_creation_policy",

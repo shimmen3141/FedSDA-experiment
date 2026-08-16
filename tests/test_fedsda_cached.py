@@ -11,7 +11,10 @@ from federated_drift_experiment import config
 from federated_drift_experiment.clients import ADWINFedSDAClient
 from federated_drift_experiment.experiment import _run_per_sample_timestep
 from federated_drift_experiment.models import SimpleMLP
-from federated_drift_experiment.servers import FedSDACachedServer
+from federated_drift_experiment.servers import (
+    FedSDACachedServer,
+    FedSDANoCachedServer,
+)
 
 
 def _make_client_and_server():
@@ -94,6 +97,62 @@ def test_cached_server_rejects_unknown_clustering_policy(monkeypatch):
         assert "unknown" in str(error)
     else:
         raise AssertionError("Unknown clustering policy must be rejected")
+
+
+def test_no_cached_parameter_sharing_preserves_ids_and_statistics(monkeypatch):
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "parameter_share"
+    )
+    server = FedSDANoCachedServer(distance_threshold=0.1, verbose=False)
+    first = SimpleMLP()
+    second = SimpleMLP()
+    first_params = {
+        name: torch.zeros_like(value)
+        for name, value in first.get_params().items()
+    }
+    second_params = {
+        name: torch.full_like(value, 4.0)
+        for name, value in second.get_params().items()
+    }
+    server.register_model_params(0, first_params)
+    server.register_model_params(1, second_params)
+    server.register_model_stats(0, {'n': 2, 'mean': 0.1, 'M2': 0.0})
+    server.register_model_stats(1, {'n': 6, 'mean': 0.3, 'M2': 0.0})
+    monkeypatch.setattr(server, "_cross_evaluate", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        server,
+        "perform_hierarchical_clustering",
+        lambda model_ids, stats_matrix: [[0, 1]],
+    )
+    monkeypatch.setattr(
+        server, "record_clustering_diagnostics", lambda *args, **kwargs: None
+    )
+
+    mapping = server._cluster_and_consolidate(
+        t=0, active_ids=[0, 1], agg_weights={0: 2, 1: 6}
+    )
+
+    assert mapping == {}
+    assert sorted(server.global_models) == [0, 1]
+    assert server.global_stats[0]['mean'] == 0.1
+    assert server.global_stats[1]['mean'] == 0.3
+    for name in first_params:
+        expected = torch.full_like(first_params[name], 3.0)
+        assert torch.equal(server.global_models[0][name], expected)
+        assert torch.equal(server.global_models[1][name], expected)
+        assert server.global_models[0][name] is not server.global_models[1][name]
+
+
+def test_cached_server_rejects_parameter_sharing(monkeypatch):
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "parameter_share"
+    )
+    try:
+        FedSDACachedServer(distance_threshold=0.1, verbose=False)
+    except ValueError as error:
+        assert "NoCached" in str(error)
+    else:
+        raise AssertionError("Cached must reject parameter sharing")
 
 
 def test_no_cached_every_round_policy_enables_clustering_without_new_models(monkeypatch):

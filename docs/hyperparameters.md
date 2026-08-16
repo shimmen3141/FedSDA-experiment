@@ -202,12 +202,13 @@ EWMAを使い、ドリフト境界超過時だけモデル切替処理へ進む�
 > クロス評価するため、評価用のモデル再送を行わない。
 > 詳細は [sequence-diagrams.md](sequence-diagrams.md)。
 
-### Cached方式のクラスタリング頻度
+### FedSDAのクラスタリング頻度
 
 `FEDSDA_CLUSTERING_POLICY` は、モデルをクロス評価してクラスタリングする頻度を指定する。
 
 | 値 | 動作 |
 |---|---|
+| `disabled` | クロス評価・クラスタリング・モデル統合を行わない |
 | `on_new_model`（既定） | 新規モデルが初めて全クライアントへ配布された次の集約ラウンドだけ実行する |
 | `every_round` | モデルが2個以上あれば各集約ラウンドで実行する |
 
@@ -241,6 +242,22 @@ CLIでは`--clustering-decision`で切り替え、CSV/NPZには`clustering_decis
 この判定は「モデルが同等である」と証明する同等性検定ではなく、評価標本から差を識別できなかった
 モデルを統合する探索的規則である。小標本では統合が過剰になり得るため、
 `CLUSTER_MIN_EVAL_N`未満のモデル対は従来どおり統合判定から除外する。
+
+### FedSDAのクラスタリング後処理
+
+`FEDSDA_CLUSTERING_CONSOLIDATION`は、クラスタが決まった後にモデルをどのように
+集約するかを指定する。CLIでは`--clustering-consolidation`、CSV/NPZでは
+`clustering_consolidation`として記録する。
+
+| 値 | 動作 |
+|---|---|
+| `merge`（既定） | クラスタ内モデルを加重平均し、代表IDへ統合する。統計・データストアも代表IDへ付け替える |
+| `parameter_share` | 加重平均パラメータを各メンバーIDへ複製する。ID・統計・データストア・routing証拠は統合しない |
+
+`parameter_share`は、複数概念の学習量を共有しながら、その後のローカル学習で各IDが再び
+特殊化できる非破壊的な比較方式である。新しい数値閾値は増やさず、クラスタの決め方は
+`clustering_decision`と`cluster_linkage`をそのまま用いる。現時点ではNoCachedフローだけに
+実装している。IDを残すため、`merge`より最終モデル数・通常配布量が増える可能性がある。
 
 raw NPZのファイル名はWindowsのパス長制限を避けるため、モード・データセット・seed・掃引値と
 設定ラベルの短いSHA-256ハッシュで構成する。完全な設定ラベルと個別設定はNPZ内部およびCSVに保存する。

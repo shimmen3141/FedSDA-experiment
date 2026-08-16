@@ -38,6 +38,9 @@ def test_schema_choices_follow_runtime_configuration():
     assert option("new_model_creation_policy").choices == config.NEW_MODEL_CREATION_POLICIES
     assert option("clustering_policy").choices == config.FEDSDA_CLUSTERING_POLICIES
     assert option("clustering_decision").choices == config.FEDSDA_CLUSTERING_DECISIONS
+    assert option("clustering_consolidation").choices == (
+        config.FEDSDA_CLUSTERING_CONSOLIDATIONS
+    )
     assert option("cluster_linkage").choices == config.FEDSDA_CLUSTER_LINKAGES
     assert option("shared_backbone_training").choices == (
         config.SHARED_BACKBONE_TRAINING_CHOICES
@@ -124,6 +127,21 @@ def test_soft_routing_constraints_are_explicit():
         "server_flow": "NoCached",
         "detector": "ClassESR",
     }) == ()
+
+
+def test_parameter_sharing_is_limited_to_no_cached_modes():
+    assert validate_selection("FedSDA", {
+        "clustering_policy": "on_new_model",
+        "clustering_consolidation": "parameter_share",
+        "server_flow": "NoCached",
+    }) == ()
+    assert validate_selection("FedSDA", {
+        "clustering_policy": "on_new_model",
+        "clustering_consolidation": "parameter_share",
+        "server_flow": "Cached",
+    }) == (
+        "clustering_consolidation=parameter_share: NoCachedが必要",
+    )
 
 
 def test_meta_loss_dependency_is_validated_from_explicit_options():

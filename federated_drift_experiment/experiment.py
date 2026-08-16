@@ -1559,6 +1559,10 @@ def _save_raw_run(
         clustering_decision=np.asarray(
             config.FEDSDA_CLUSTERING_DECISION if is_fedsda else "", dtype=np.str_
         ),
+        clustering_consolidation=np.asarray(
+            config.FEDSDA_CLUSTERING_CONSOLIDATION if is_fedsda else "",
+            dtype=np.str_,
+        ),
         cluster_linkage=np.asarray(
             config.FEDSDA_CLUSTER_LINKAGE if is_fedsda
             else config.FEDDRIFT_CLUSTER_LINKAGE if is_feddrift else "",
