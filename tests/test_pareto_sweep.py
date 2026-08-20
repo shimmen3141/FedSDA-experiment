@@ -39,6 +39,7 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.concept_schedule == "random"
     assert defaults.shared_backbone_training == "sequential"
     assert defaults.shared_backbone_gradient_strategy == "mean"
+    assert defaults.expert_training_assignment == "assigned"
     assert defaults.shared_backbone_routing_recalibration == "none"
     assert defaults.soft_routing_context == "global"
     assert defaults.soft_routing_top_combination == "leader"

@@ -122,13 +122,18 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("shared_backbone_training", None)
         algorithm.pop("shared_backbone_gradient_strategy", None)
         algorithm.pop("shared_backbone_routing_recalibration", None)
+        algorithm.pop("expert_training_assignment", None)
     if not experiment.mode.startswith("FedSDA_"):
         algorithm.pop("clustering_consolidation", None)
     if "SoftRouting" not in experiment.mode:
+        algorithm.pop("expert_training_assignment", None)
         algorithm.pop("soft_routing_context", None)
         algorithm.pop("soft_routing_top_combination", None)
         algorithm.pop("soft_routing_meta_loss", None)
     else:
+        if algorithm.get("expert_training_assignment") == "assigned":
+            # 既存runと同一の既定動作はmanifest identityを変えない。
+            algorithm.pop("expert_training_assignment", None)
         if algorithm.get("soft_routing_context") != "meta_switching":
             algorithm.pop("soft_routing_top_combination", None)
         if algorithm.get("soft_routing_context") not in {
@@ -235,6 +240,9 @@ def configuration_from_result_row(row, total_data):
             and gradient_strategy not in (None, "", "mean")
         ):
             algorithm["shared_backbone_gradient_strategy"] = gradient_strategy
+        assignment = row.get("expert_training_assignment")
+        if "SoftRouting" in mode and assignment not in (None, "", "assigned"):
+            algorithm["expert_training_assignment"] = assignment
     if "ResidualAdapter" in mode:
         algorithm["shared_adapter_rank"] = _optional_number(
             row.get("shared_adapter_rank"), int,

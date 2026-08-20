@@ -2,6 +2,7 @@
 
 import random
 import time
+from collections import defaultdict, deque
 
 import torch
 
@@ -45,7 +46,27 @@ class _SharedRepresentationFedSDAClientMixin:
             "update_norm_ratio_sum": 0.0,
             "update_delta_ratio_sum": 0.0,
         }
+        self._responsibility_replay = deque(maxlen=config.FIFO_BUFFER_SIZE)
         self._share_model_backbones()
+
+    def _record_prediction(self, x, y, concept_id):
+        """予測後のモデル責任度を、ラベル漏洩なしの短期学習履歴へ残す。"""
+        super()._record_prediction(x, y, concept_id)
+        if config.EXPERT_TRAINING_ASSIGNMENT != "routing_responsibility":
+            return
+        probabilities = getattr(self, "_latest_routing_probabilities", None)
+        if not probabilities:
+            return
+        self._responsibility_replay.append((
+            x.detach().clone(),
+            y.detach().clone(),
+            dict(probabilities),
+        ))
+
+    def _on_local_model_change(self, old_model_id, new_model_id):
+        """routing再始動と同時に、旧概念の責任度履歴を破棄する。"""
+        super()._on_local_model_change(old_model_id, new_model_id)
+        self._responsibility_replay.clear()
 
     def _shared_backbone(self):
         if self.current_model_id in self.models:
@@ -115,6 +136,8 @@ class _SharedRepresentationFedSDAClientMixin:
                 switching_router.replay_after_aggregation(loss_sequence)
             elif strategy != "none":
                 switching_router.restart_after_aggregation()
+        # 集約前のモデル関数で決めた責任度は、更新後expertの学習割当には使わない。
+        self._responsibility_replay.clear()
 
     def _fifo_routing_loss_sequence(self):
         """集約後の全保持モデルをFIFO上で再評価し、時系列損失を返す。"""
@@ -211,6 +234,13 @@ class _SharedRepresentationFedSDAClientMixin:
 
     def _sample_training_batches(self):
         """一回の共同更新へ参加できるヘッドとミニバッチを抽出する。"""
+        if config.EXPERT_TRAINING_ASSIGNMENT == "routing_responsibility":
+            return self._sample_responsibility_training_batches()
+        if config.EXPERT_TRAINING_ASSIGNMENT != "assigned":
+            raise ValueError(
+                "未知の概念別expert学習割当です: "
+                f"{config.EXPERT_TRAINING_ASSIGNMENT!r}"
+            )
         batches = []
         for model_id, data_list in self.train_data_store.items():
             if model_id not in self.models or len(data_list) < self.batch_size:
@@ -222,6 +252,48 @@ class _SharedRepresentationFedSDAClientMixin:
                 torch.cat([sample[1] for sample in batch]),
             ))
         return batches
+
+    def _sample_responsibility_training_batches(self):
+        """通常更新予算を、予測時の責任度に従ってexpertへ再配分する。
+
+        hard割当方式で更新可能だったモデル数×ミニバッチサイズを総標本予算とし、
+        直近の責任度履歴から標本を一様抽出した後、その標本を学習するexpertを
+        責任度で確率的に選ぶ。したがって、モデル数に比例する従来の総学習標本数を
+        増やさず、softな重み付き損失のMonte Carlo推定として実装できる。
+        """
+        active_store_count = sum(
+            1 for model_id, data_list in self.train_data_store.items()
+            if model_id in self.models and len(data_list) >= self.batch_size
+        )
+        if active_store_count == 0 or not self._responsibility_replay:
+            return []
+
+        replay = tuple(self._responsibility_replay)
+        sample_budget = active_store_count * self.batch_size
+        sampled = random.choices(replay, k=sample_budget)
+        grouped = defaultdict(list)
+        current_ids = tuple(sorted(self.models))
+        for x, y, recorded_probabilities in sampled:
+            model_ids = [
+                model_id for model_id in current_ids
+                if recorded_probabilities.get(model_id, 0.0) > 0.0
+            ]
+            if model_ids:
+                weights = [recorded_probabilities[model_id] for model_id in model_ids]
+                selected_id = random.choices(model_ids, weights=weights, k=1)[0]
+            else:
+                # サーバmapping等で記録時のIDが消えた場合も、標本を捨てず現行へ戻す。
+                selected_id = self.current_model_id
+            grouped[selected_id].append((x, y))
+
+        return [
+            (
+                model_id,
+                torch.cat([sample[0] for sample in samples]),
+                torch.cat([sample[1] for sample in samples]),
+            )
+            for model_id, samples in sorted(grouped.items())
+        ]
 
     def _train_heads_together(self, count_multiplier, update_backbone):
         """全参加ヘッドの損失を平均し、共有部の更新を最大1回にまとめる。"""

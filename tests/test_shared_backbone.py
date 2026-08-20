@@ -151,6 +151,7 @@ def test_shared_soft_routing_extracts_features_once_for_two_heads():
 
 def test_joint_training_updates_backbone_once_and_both_heads(monkeypatch):
     monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "joint")
+    monkeypatch.setattr(config, "EXPERT_TRAINING_ASSIGNMENT", "assigned")
     monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
     client = _two_head_client()
     _populate_training_store(client)
@@ -470,6 +471,58 @@ def test_shared_backbone_experiment_reports_component_metrics(
         assert raw[
             "routing_class_meta_sample_counts"
         ].sum() == results["routing_sample_count"]
+
+
+def test_routing_responsibility_reassigns_existing_training_budget(monkeypatch):
+    monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "joint")
+    monkeypatch.setattr(
+        config, "EXPERT_TRAINING_ASSIGNMENT", "routing_responsibility"
+    )
+    monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
+    client = _two_head_client()
+    _populate_training_store(client)
+    input_dim = config.dataset_spec().input_dim
+    for index in range(4):
+        client._responsibility_replay.append((
+            torch.full((1, input_dim), index / 10),
+            torch.tensor([[float(index % 2)]]),
+            {0: 1.0, 1: 0.0},
+        ))
+    second_head_before = {
+        name: value.clone()
+        for name, value in client.models[1].head.state_dict().items()
+    }
+
+    client.train_all_held_models()
+
+    # hard割当なら2モデル×32件を各モデルへ分けるが、責任度1.0のexpertへ
+    # 同じ64件の総予算をすべて再配分する。
+    assert client.model_training_examples[0] == 2 * client.batch_size
+    assert client.model_training_examples[1] == 0
+    assert client.compute_counters["training_examples"] == 2 * client.batch_size
+    assert client.compute_counters["backbone_optimizer_steps"] == 1
+    assert client.compute_counters["head_optimizer_steps"] == 1
+    assert all(
+        torch.equal(value, second_head_before[name])
+        for name, value in client.models[1].head.state_dict().items()
+    )
+
+
+def test_routing_responsibility_records_prequential_probabilities(monkeypatch):
+    monkeypatch.setattr(
+        config, "EXPERT_TRAINING_ASSIGNMENT", "routing_responsibility"
+    )
+    client = _two_head_client()
+    x = torch.randn(1, config.dataset_spec().input_dim)
+    y = torch.tensor([[1.0]])
+
+    client._record_prediction(x, y, concept_id=0)
+
+    stored_x, stored_y, probabilities = client._responsibility_replay[-1]
+    assert torch.equal(stored_x, x)
+    assert torch.equal(stored_y, y)
+    assert set(probabilities) == {0, 1}
+    assert abs(sum(probabilities.values()) - 1.0) < 1e-12
 
 
 def test_meta_context_actual_accuracy_matches_shadow_prediction(

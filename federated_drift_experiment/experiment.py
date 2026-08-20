@@ -1573,6 +1573,12 @@ def _save_raw_run(
             if is_shared_representation_mode(mode) else "",
             dtype=np.str_,
         ),
+        expert_training_assignment=np.asarray(
+            config.EXPERT_TRAINING_ASSIGNMENT
+            if is_shared_representation_mode(mode) and "SoftRouting" in mode
+            else "",
+            dtype=np.str_,
+        ),
         shared_backbone_gradient_strategy=np.asarray(
             config.SHARED_BACKBONE_GRADIENT_STRATEGY
             if is_shared_representation_mode(mode)

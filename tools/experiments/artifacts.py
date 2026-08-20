@@ -165,6 +165,9 @@ def _metadata_row(arrays):
         "shared_backbone_training": str(_scalar(
             arrays, "shared_backbone_training", "",
         )),
+        "expert_training_assignment": str(_scalar(
+            arrays, "expert_training_assignment", "assigned",
+        )),
         "shared_backbone_gradient_strategy": str(_scalar(
             arrays, "shared_backbone_gradient_strategy", "",
         )),
