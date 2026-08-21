@@ -6,6 +6,7 @@ from federated_drift_experiment.provisional_model import (
     disjoint_validation_rejection_reason,
     has_consistent_validation_advantage,
     has_disjoint_validation_advantage,
+    sequential_tournament_winner,
     select_forward_fitting_reference,
     temporal_holdout,
     validation_rejection_reason,
@@ -34,6 +35,58 @@ def test_forward_validation_session_waits_for_target_count():
     session.append_losses(0.1, {0: 0.6})
     assert session.ready
     assert session.validation_count == 3
+
+
+def test_sequential_session_has_no_fixed_sample_target():
+    session = ForwardValidationSession(
+        proposal_position=10,
+        estimated_change_point=8,
+        episode_id=None,
+        old_model_id=0,
+        detector="e-SR",
+        candidate=object(),
+        training_x=torch.zeros((3, 1)),
+        training_y=torch.zeros((3, 1)),
+        held_data=[],
+        reference_models={0: object()},
+        target_count=None,
+    )
+
+    for _ in range(100):
+        session.append_losses(0.0, {0: 1.0})
+
+    assert not session.ready
+    assert session.validation_count == 100
+
+
+def test_sequential_tournament_certifies_candidate_against_all_references():
+    winner = sequential_tournament_winner(
+        candidate_losses=[0.0] * 20,
+        reference_losses={0: [1.0] * 20, 1: [0.8] * 20},
+        alpha=0.05,
+    )
+
+    assert winner == "candidate"
+
+
+def test_sequential_tournament_can_select_existing_reference():
+    winner = sequential_tournament_winner(
+        candidate_losses=[0.9] * 20,
+        reference_losses={0: [0.8] * 20, 1: [0.0] * 20},
+        alpha=0.05,
+    )
+
+    assert winner == 1
+
+
+def test_sequential_tournament_waits_when_no_candidate_dominates():
+    winner = sequential_tournament_winner(
+        candidate_losses=[0.5] * 200,
+        reference_losses={0: [0.5] * 200},
+        alpha=0.05,
+    )
+
+    assert winner is None
 
 
 def test_temporal_holdout_reserves_latest_samples_for_validation():

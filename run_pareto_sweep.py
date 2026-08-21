@@ -89,6 +89,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
             "new_model_forward_validation_samples",
+            "sequential_tournament_alpha",
             "shared_backbone_training",
             "shared_backbone_gradient_strategy",
             "shared_backbone_routing_recalibration",
@@ -236,6 +237,14 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             f"{display_series} "
             f"[forward={config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES}]"
         )
+    if (
+        "FedSDA" in mode
+        and config.NEW_MODEL_CREATION_POLICY == "sequential_tournament"
+    ):
+        display_series = (
+            f"{display_series} "
+            f"[tournament-alpha={config.SEQUENTIAL_TOURNAMENT_ALPHA:g}]"
+        )
     raw_label = display_series
     if raw_dir is not None:
         fname = raw_run_filename({
@@ -296,6 +305,11 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         "new_model_validation_fraction": config.NEW_MODEL_VALIDATION_FRACTION,
         "new_model_forward_validation_samples":
             config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES,
+        "sequential_tournament_alpha": (
+            config.SEQUENTIAL_TOURNAMENT_ALPHA
+            if config.NEW_MODEL_CREATION_POLICY == "sequential_tournament"
+            else None
+        ),
         "shared_backbone_training": (
             config.SHARED_BACKBONE_TRAINING
             if is_shared_representation_mode(mode) else None
@@ -624,6 +638,7 @@ def _load_csv(path):
             )
             row.setdefault("shared_backbone_training", "sequential")
             row.setdefault("shared_backbone_gradient_strategy", "")
+            row.setdefault("sequential_tournament_alpha", "")
             # 列追加前のCSVを再描画するときは当時の挙動を復元する。
             row.setdefault("soft_routing_top_combination", "leader")
             row.setdefault("soft_routing_meta_loss", "bounded_score")
@@ -1009,6 +1024,11 @@ def build_parser():
         help="警報後の前向き検証に使うサンプル数",
     )
     fedsda.add_argument(
+        "--sequential-tournament-alpha", type=float,
+        default=config.SEQUENTIAL_TOURNAMENT_ALPHA,
+        help="逐次モデル・トーナメント全体の誤選択確率",
+    )
+    fedsda.add_argument(
         "--shared-backbone-training",
         choices=config.SHARED_BACKBONE_TRAINING_CHOICES,
         default=config.SHARED_BACKBONE_TRAINING,
@@ -1210,6 +1230,8 @@ def main(argv=None):
         parser.error("--new-model-validation-fraction must be between 0 and 1")
     if args.new_model_forward_validation_samples < 2:
         parser.error("--new-model-forward-validation-samples must be at least 2")
+    if not 0.0 < args.sequential_tournament_alpha < 1.0:
+        parser.error("--sequential-tournament-alpha must be in (0, 1)")
     if args.shared_adapter_rank < 1:
         parser.error("--shared-adapter-rank must be at least 1")
     if args.workers < 1:
@@ -1249,6 +1271,7 @@ def main(argv=None):
     )
     selections = {
         "new_model_creation_policy": args.new_model_creation_policy,
+        "sequential_tournament_alpha": args.sequential_tournament_alpha,
         "clustering_policy": args.clustering_policy,
         "clustering_decision": args.clustering_decision,
         "clustering_consolidation": args.clustering_consolidation,
@@ -1305,6 +1328,7 @@ def main(argv=None):
         new_model_forward_validation_samples=(
             args.new_model_forward_validation_samples
         ),
+        sequential_tournament_alpha=args.sequential_tournament_alpha,
         shared_backbone_training=args.shared_backbone_training,
         shared_backbone_gradient_strategy=(
             args.shared_backbone_gradient_strategy

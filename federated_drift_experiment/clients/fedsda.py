@@ -17,8 +17,10 @@ from ..provisional_model import (
     forward_creation_policy,
     has_consistent_validation_advantage,
     has_disjoint_validation_advantage,
+    sequential_tournament_winner,
     select_forward_fitting_reference,
     temporal_holdout,
+    tournament_candidate_id,
     validation_rejection_reason,
 )
 from .base import BaseClient, USE_CURRENT_MODEL_PARAMS
@@ -95,10 +97,22 @@ class FedSDAClient(BaseClient, ABC):
 
     def _update_tournament_shadows(self, session, x, y):
         """評価済みのforwardサンプルで全shadowを同じ回数だけ更新する。"""
-        models = [session.candidate, *session.reference_models.values()]
         training_start = time.perf_counter()
-        for model in models:
+        policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
+        track_shadow_training = bool(
+            policy is not None and policy.sequential_tournament
+        )
+        session.candidate.update(x, y)
+        if track_shadow_training:
+            session.candidate_training_examples += len(x)
+            session.candidate_optimizer_steps += 1
+        self._record_model_compute("training", len(x))
+        self.compute_counters["optimizer_steps"] += 1
+        for model_id, model in session.reference_models.items():
             model.update(x, y)
+            if track_shadow_training:
+                session.reference_training_examples[model_id] += len(x)
+                session.reference_optimizer_steps[model_id] += 1
             self._record_model_compute("training", len(x))
             self.compute_counters["optimizer_steps"] += 1
         self.phase_seconds["training"] += time.perf_counter() - training_start
@@ -148,7 +162,10 @@ class FedSDAClient(BaseClient, ABC):
             training_y=by,
             held_data=list(drift_data),
             reference_models=reference_models,
-            target_count=self.forward_validation_samples,
+            target_count=(
+                None if policy is not None and policy.sequential_tournament
+                else self.forward_validation_samples
+            ),
             candidate_training_examples=candidate_training_examples,
             candidate_optimizer_steps=candidate_optimizer_steps,
             reference_historical_means=reference_historical_means,
@@ -172,16 +189,33 @@ class FedSDAClient(BaseClient, ABC):
                 )
         session.append_losses(candidate_loss, reference_losses)
         policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
-        if policy is not None and policy.train_reference_shadows:
+        if policy is not None and (
+            policy.train_reference_shadows or policy.update_all_shadows
+        ):
             self._update_tournament_shadows(session, x, y)
+        if policy is not None and policy.sequential_tournament:
+            winner = sequential_tournament_winner(
+                session.candidate_losses,
+                session.reference_losses,
+                config.SEQUENTIAL_TOURNAMENT_ALPHA,
+            )
+            if winner is None:
+                return 0
+            return self._finalize_forward_validation(
+                sample_idx, tournament_winner=winner
+            )
         if not session.ready:
             return 0
         return self._finalize_forward_validation(sample_idx)
 
-    def _finalize_forward_validation(self, sample_idx):
+    def _finalize_forward_validation(
+        self, sample_idx, tournament_winner=None
+    ):
         """規定数の警報後サンプルから候補を正式採用または棄却する。"""
         session = self._forward_validation
-        if session is None or not session.ready:
+        if session is None or (
+            tournament_winner is None and not session.ready
+        ):
             return 0
         candidate_losses = torch.tensor(session.candidate_losses)
         policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
@@ -214,7 +248,16 @@ class FedSDAClient(BaseClient, ABC):
             session.reference_losses[reference_model_id]
         )
         tournament_reference_won = False
-        if policy.train_reference_shadows:
+        if policy.sequential_tournament:
+            accepted = tournament_winner == tournament_candidate_id()
+            tournament_reference_won = not accepted
+            if tournament_reference_won:
+                reference_model_id = tournament_winner
+                reference_losses = torch.tensor(
+                    session.reference_losses[reference_model_id]
+                )
+            reason = "candidate_won" if accepted else "reference_won"
+        elif policy.train_reference_shadows:
             accepted = (
                 float(candidate_losses.mean().item())
                 < float(reference_losses.mean().item())
@@ -273,7 +316,10 @@ class FedSDAClient(BaseClient, ABC):
                 reference_losses[recent_start:].mean().item()
             ),
             resolution_position=sample_idx,
-            validation_source="forward",
+            validation_source=(
+                "sequential_tournament"
+                if policy.sequential_tournament else "forward"
+            ),
             reference_historical_mean=session.reference_historical_means.get(
                 reference_model_id, math.nan
             ),
@@ -306,6 +352,13 @@ class FedSDAClient(BaseClient, ABC):
             winning_shadow = session.reference_models[reference_model_id]
             self.models[reference_model_id].set_params(winning_shadow.get_params())
             self.models[reference_model_id].reset_optimizer()
+            if policy.sequential_tournament:
+                self.model_training_examples[reference_model_id] += (
+                    session.reference_training_examples[reference_model_id]
+                )
+                self.model_optimizer_steps[reference_model_id] += (
+                    session.reference_optimizer_steps[reference_model_id]
+                )
             self._set_local_current_model(reference_model_id)
             self._absorb_into_store(self.current_model_id, session.held_data)
             if self.current_model_id != old_model_id:
@@ -348,6 +401,12 @@ class FedSDAClient(BaseClient, ABC):
         session = self._forward_validation
         if session is None:
             return
+        policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
+        incomplete_reason = (
+            "insufficient_sequential_evidence"
+            if policy is not None and policy.sequential_tournament
+            else "insufficient_forward_data"
+        )
         resolution_position = max(
             session.proposal_position, self.processed_samples - 1
         )
@@ -355,7 +414,7 @@ class FedSDAClient(BaseClient, ABC):
             position=session.proposal_position,
             detector=session.detector,
             accepted=False,
-            reason="insufficient_forward_data",
+            reason=incomplete_reason,
             interval_count=len(session.training_x),
             training_count=len(session.training_x),
             validation_count=session.validation_count,
@@ -365,7 +424,11 @@ class FedSDAClient(BaseClient, ABC):
             candidate_recent_loss=math.nan,
             reference_recent_loss=math.nan,
             resolution_position=resolution_position,
-            validation_source="forward",
+            validation_source=(
+                "sequential_tournament"
+                if policy is not None and policy.sequential_tournament
+                else "forward"
+            ),
         ))
         self._absorb_into_store(self.current_model_id, session.held_data)
         self._record_adaptation_event(
@@ -764,6 +827,9 @@ class FedSDAClient(BaseClient, ABC):
         # 既存モデルの適合判定には、検出器が保持していたFIFOだけを使う。
         bx = torch.cat([data[0] for data in buffer_drift_data])
         by = torch.cat([data[1] for data in buffer_drift_data])
+        creation_policy = forward_creation_policy(
+            config.NEW_MODEL_CREATION_POLICY
+        )
         evaluated_candidates = []
         valid_candidates = []
         for model_id, model in self.models.items():
@@ -785,7 +851,10 @@ class FedSDAClient(BaseClient, ABC):
                 print(f"  Check M{model_id}: Diff={difference:.3f} vs "
                       f"Thr={self.distance_threshold:.3f} "
                       f"(Loss={loss:.3f}, Base={historical_mean:.3f})")
-            if difference <= self.distance_threshold:
+            if (
+                creation_policy is None
+                or not creation_policy.sequential_tournament
+            ) and difference <= self.distance_threshold:
                 valid_candidates.append((model_id, loss))
 
         if valid_candidates:
@@ -833,7 +902,7 @@ class FedSDAClient(BaseClient, ABC):
                     initialization_params,
                     sample_idx,
                 )
-            elif forward_creation_policy(config.NEW_MODEL_CREATION_POLICY) is not None:
+            elif creation_policy is not None:
                 self._begin_forward_validation(
                     initial_bx,
                     initial_by,
@@ -851,7 +920,7 @@ class FedSDAClient(BaseClient, ABC):
                 )
 
             drift_data = buffer_drift_data
-            if forward_creation_policy(config.NEW_MODEL_CREATION_POLICY) is not None:
+            if creation_policy is not None:
                 drift_type = 0
                 action = "create_pending"
             elif temporary_id is None:

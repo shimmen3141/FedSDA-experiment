@@ -86,11 +86,14 @@ NEW_MODEL_CREATION_POLICIES = (
     "forward_requalified_current_first",
     "forward_persistent",
     "shadow_tournament",
+    "sequential_tournament",
 )
 NEW_MODEL_EARLY_STOPPING_PATIENCE = 3
 NEW_MODEL_EARLY_STOPPING_MIN_DELTA = 1e-4
 NEW_MODEL_VALIDATION_FRACTION = 0.2
 NEW_MODEL_FORWARD_VALIDATION_SAMPLES = 10
+# 逐次モデル・トーナメント全体の誤選択確率。方向付き全モデル対へ配分する。
+SEQUENTIAL_TOURNAMENT_ALPHA = 0.05
 FEDSDA_DETECTION_EPISODES_ENABLED = False  # 近接検出をN_FIFO幅の1エピソードへ統合する
 # 共有バックボーンの通常ローカル学習方式。
 # sequential=概念別ヘッドを従来どおり順次更新、joint=全ヘッドの損失で共有部を1回更新、

@@ -1619,6 +1619,9 @@ def _save_raw_run(
         new_model_forward_validation_samples=np.asarray(
             config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES, dtype=np.int64,
         ),
+        sequential_tournament_alpha=np.asarray(
+            config.SEQUENTIAL_TOURNAMENT_ALPHA, dtype=np.float64,
+        ),
         result_metrics_json=np.asarray(
             json.dumps(result_metrics or {}, ensure_ascii=False, default=float),
             dtype=np.str_,

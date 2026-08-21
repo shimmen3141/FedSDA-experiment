@@ -10,6 +10,9 @@ if _REPO_ROOT not in sys.path:
 from federated_drift_experiment import config
 from federated_drift_experiment.clients import ADWINFedSDAClient
 from federated_drift_experiment.models import SimpleMLP
+from federated_drift_experiment.provisional_model import (
+    sequential_tournament_winner,
+)
 
 
 def _make_client():
@@ -294,6 +297,137 @@ def test_shadow_tournament_adopts_winning_reference_without_new_id(monkeypatch):
     assert client.current_model_id == 0
     assert set(client.models) == {0}
     assert client.provisional_model_decisions[0].reason == "reference_won"
+    adopted_params = client.models[0].get_params()
+    assert all(
+        torch.equal(adopted_params[name], winning_params[name])
+        for name in winning_params
+    )
+
+
+def test_sequential_tournament_uses_evidence_instead_of_fixed_forward_count(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(
+        config, "NEW_MODEL_CREATION_POLICY", "sequential_tournament"
+    )
+    monkeypatch.setattr(config, "SEQUENTIAL_TOURNAMENT_ALPHA", 0.05)
+    client = _make_client()
+    bx = torch.randn((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    held_data = [
+        (bx[index:index + 1], by[index:index + 1])
+        for index in range(len(bx))
+    ]
+    client._begin_forward_validation(
+        bx,
+        by,
+        held_data,
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+    )
+    session = client._forward_validation
+    assert session.target_count is None
+    for _ in range(20):
+        session.append_losses(0.0, {0: 1.0})
+    winner = sequential_tournament_winner(
+        session.candidate_losses,
+        session.reference_losses,
+        config.SEQUENTIAL_TOURNAMENT_ALPHA,
+    )
+
+    drift_type = client._finalize_forward_validation(
+        sample_idx=120,
+        tournament_winner=winner,
+    )
+
+    assert drift_type == 2
+    assert client.current_model_id < 0
+    assert client.provisional_model_decisions[0].reason == "candidate_won"
+    assert (
+        client.provisional_model_decisions[0].validation_source
+        == "sequential_tournament"
+    )
+    assert client.provisional_model_decisions[0].validation_count == 20
+
+
+def test_sequential_tournament_bypasses_initial_distance_threshold(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(
+        config, "NEW_MODEL_CREATION_POLICY", "sequential_tournament"
+    )
+    client = _make_client()
+    client.distance_threshold = 1.0
+    client.model_stats[0] = {"n": 10, "mean": 0.5, "M2": 0.0}
+    sample_count = config.MIN_DRIFT_DATA
+    samples = [
+        (
+            torch.zeros((1, config.input_dim())),
+            torch.zeros((1, 1)),
+        )
+        for _ in range(sample_count)
+    ]
+    client.buffer.extend(samples)
+    monkeypatch.setattr(
+        client, "_estimated_new_concept_span", lambda _sample_idx: sample_count
+    )
+
+    drift_type = client._resolve_drift(
+        sample_idx=100,
+        estimated_start=100 - sample_count + 1,
+        episode_id=None,
+    )
+
+    assert drift_type == 0
+    assert client._forward_validation is not None
+    assert client.adaptation_events[-1].action == "create_pending"
+
+
+def test_sequential_tournament_adopts_existing_winner(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(
+        config, "NEW_MODEL_CREATION_POLICY", "sequential_tournament"
+    )
+    client = _make_client()
+    bx = torch.zeros((4, config.input_dim()))
+    by = torch.zeros((4, 1))
+    held_data = [
+        (bx[index:index + 1], by[index:index + 1])
+        for index in range(len(bx))
+    ]
+    client._begin_forward_validation(
+        bx,
+        by,
+        held_data,
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=97,
+        episode_id=None,
+    )
+    session = client._forward_validation
+    winning_params = {
+        name: torch.full_like(value, 0.25)
+        for name, value in session.reference_models[0].get_params().items()
+    }
+    session.reference_models[0].set_params(winning_params)
+    session.reference_training_examples[0] = 20
+    session.reference_optimizer_steps[0] = 20
+    for _ in range(20):
+        session.append_losses(1.0, {0: 0.0})
+
+    drift_type = client._finalize_forward_validation(
+        sample_idx=120,
+        tournament_winner=0,
+    )
+
+    assert drift_type == 0
+    assert client.current_model_id == 0
+    assert set(client.models) == {0}
+    assert client.provisional_model_decisions[0].reason == "reference_won"
+    assert client.model_training_examples[0] == 20
+    assert client.model_optimizer_steps[0] == 20
     adopted_params = client.models[0].get_params()
     assert all(
         torch.equal(adopted_params[name], winning_params[name])

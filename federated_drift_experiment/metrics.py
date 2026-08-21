@@ -331,6 +331,20 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
             decision.reason == "insufficient_forward_data"
             for decision in rejected_proposals
         ),
+        "provisional_reject_insufficient_sequential_evidence_count": sum(
+            decision.reason == "insufficient_sequential_evidence"
+            for decision in rejected_proposals
+        ),
+        "provisional_sequential_candidate_win_count": sum(
+            decision.validation_source == "sequential_tournament"
+            and decision.reason == "candidate_won"
+            for decision in provisional_decisions
+        ),
+        "provisional_sequential_reference_win_count": sum(
+            decision.validation_source == "sequential_tournament"
+            and decision.reason == "reference_won"
+            for decision in provisional_decisions
+        ),
         "provisional_reject_full_interval_count": sum(
             decision.reason == "full_interval" for decision in rejected_proposals
         ),
