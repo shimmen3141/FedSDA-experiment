@@ -19,7 +19,6 @@ class AlgorithmOptions:
     new_model_forward_validation_samples: int
     shared_backbone_training: str
     shared_backbone_routing_recalibration: str
-    sequential_tournament_alpha: float = 0.05
     shared_adapter_rank: int = 8
     shared_backbone_gradient_strategy: str = "mean"
     soft_routing_context: str = "global"
@@ -40,7 +39,6 @@ class AlgorithmOptions:
             new_model_forward_validation_samples=(
                 config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES
             ),
-            sequential_tournament_alpha=config.SEQUENTIAL_TOURNAMENT_ALPHA,
             shared_backbone_training=config.SHARED_BACKBONE_TRAINING,
             shared_backbone_routing_recalibration=(
                 config.SHARED_BACKBONE_ROUTING_RECALIBRATION
@@ -75,7 +73,6 @@ class AlgorithmOptions:
             "NEW_MODEL_FORWARD_VALIDATION_SAMPLES": (
                 self.new_model_forward_validation_samples
             ),
-            "SEQUENTIAL_TOURNAMENT_ALPHA": self.sequential_tournament_alpha,
             "SHARED_BACKBONE_TRAINING": self.shared_backbone_training,
             "SHARED_BACKBONE_ROUTING_RECALIBRATION": (
                 self.shared_backbone_routing_recalibration

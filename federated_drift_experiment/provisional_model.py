@@ -1,5 +1,4 @@
-"""新規モデル候補の時系列holdout・逐次比較と受入判定。"""
-import math
+"""新規モデル候補の時系列holdout分割と受入判定。"""
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -14,8 +13,6 @@ class ForwardCreationPolicy:
     prefer_current_reference: bool
     require_disjoint_persistence: bool
     train_reference_shadows: bool = False
-    update_all_shadows: bool = False
-    sequential_tournament: bool = False
 
 
 FORWARD_CREATION_POLICIES = {
@@ -27,11 +24,6 @@ FORWARD_CREATION_POLICIES = {
     "forward_persistent": ForwardCreationPolicy(True, True, True),
     "shadow_tournament": ForwardCreationPolicy(
         False, False, False, train_reference_shadows=True
-    ),
-    "sequential_tournament": ForwardCreationPolicy(
-        False, False, False,
-        update_all_shadows=True,
-        sequential_tournament=True,
     ),
 }
 
@@ -106,37 +98,24 @@ class ForwardValidationSession:
     training_y: torch.Tensor
     held_data: list
     reference_models: dict
-    target_count: Optional[int]
+    target_count: int
     candidate_training_examples: int = 0
     candidate_optimizer_steps: int = 0
-    reference_training_examples: dict[int, int] = field(default_factory=dict)
-    reference_optimizer_steps: dict[int, int] = field(default_factory=dict)
     reference_historical_means: dict[int, float] = field(default_factory=dict)
     candidate_losses: list[float] = field(default_factory=list)
     reference_losses: dict[int, list[float]] = field(default_factory=dict)
 
     def __post_init__(self):
-        if self.target_count is not None and self.target_count < 2:
+        if self.target_count < 2:
             raise ValueError("forward validation requires at least 2 samples")
         if not self.reference_losses:
             self.reference_losses = {
                 model_id: [] for model_id in self.reference_models
             }
-        if not self.reference_training_examples:
-            self.reference_training_examples = {
-                model_id: 0 for model_id in self.reference_models
-            }
-        if not self.reference_optimizer_steps:
-            self.reference_optimizer_steps = {
-                model_id: 0 for model_id in self.reference_models
-            }
 
     @property
     def ready(self):
-        return (
-            self.target_count is not None
-            and len(self.candidate_losses) >= self.target_count
-        )
+        return len(self.candidate_losses) >= self.target_count
 
     @property
     def validation_count(self):
@@ -148,78 +127,6 @@ class ForwardValidationSession:
             self.reference_losses[model_id].append(
                 float(reference_losses[model_id])
             )
-
-
-_TOURNAMENT_CANDIDATE = "candidate"
-_TOURNAMENT_BETTING_FRACTIONS = (0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95)
-
-
-def _log_mixture_e_value(differences):
-    """平均差が0以下という帰無仮説に対するbounded betting e値を返す。"""
-    log_wealths = []
-    for betting_fraction in _TOURNAMENT_BETTING_FRACTIONS:
-        log_wealth = 0.0
-        for difference in differences:
-            bounded = max(-1.0, min(1.0, float(difference)))
-            log_wealth += math.log1p(betting_fraction * bounded)
-        log_wealths.append(log_wealth)
-    maximum = max(log_wealths)
-    return maximum + math.log(sum(
-        math.exp(value - maximum) for value in log_wealths
-    )) - math.log(len(log_wealths))
-
-
-def sequential_tournament_winner(
-    candidate_losses,
-    reference_losses,
-    alpha,
-):
-    """全対戦相手への逐次e値が誤選択予算を超えた唯一の勝者を返す。
-
-    各損失は[0, 1]、二候補のpaired loss差は[-1, 1]とする。方向付きの
-    全ペアへalphaをBonferroni配分するため、任意時点で誤った優越判定を
-    一つ以上行う確率をalpha以下に制御する。
-    """
-    if not 0.0 < alpha < 1.0:
-        raise ValueError("sequential tournament alpha must be in (0, 1)")
-    if not candidate_losses or not reference_losses:
-        return None
-    sample_count = len(candidate_losses)
-    if any(len(losses) != sample_count for losses in reference_losses.values()):
-        raise ValueError("all tournament candidates require paired losses")
-
-    losses_by_candidate = {
-        _TOURNAMENT_CANDIDATE: candidate_losses,
-        **reference_losses,
-    }
-    candidate_ids = tuple(losses_by_candidate)
-    ordered_comparison_count = len(candidate_ids) * (len(candidate_ids) - 1)
-    log_threshold = math.log(ordered_comparison_count / alpha)
-    certified = []
-    for candidate_id in candidate_ids:
-        candidate_series = losses_by_candidate[candidate_id]
-        if all(
-            _log_mixture_e_value([
-                opponent_loss - candidate_loss
-                for candidate_loss, opponent_loss in zip(
-                    candidate_series, losses_by_candidate[opponent_id]
-                )
-            ]) >= log_threshold
-            for opponent_id in candidate_ids
-            if opponent_id != candidate_id
-        ):
-            certified.append(candidate_id)
-    if not certified:
-        return None
-    return min(
-        certified,
-        key=lambda candidate_id: sum(losses_by_candidate[candidate_id]),
-    )
-
-
-def tournament_candidate_id():
-    """逐次比較で新規候補を表す衝突しない識別子を返す。"""
-    return _TOURNAMENT_CANDIDATE
 
 
 def temporal_holdout(bx, by, validation_fraction):

@@ -162,9 +162,6 @@ def _metadata_row(arrays):
             re.search(r"\[forward=(\d+)\]", label).group(1)
             if re.search(r"\[forward=(\d+)\]", label) else 10,
         )),
-        "sequential_tournament_alpha": float(_scalar(
-            arrays, "sequential_tournament_alpha", 0.05,
-        )),
         "shared_backbone_training": str(_scalar(
             arrays, "shared_backbone_training", "",
         )),

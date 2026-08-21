@@ -41,7 +41,7 @@ flowchart LR
     shared_adapter_rank["<b>概念別残差adapter rank R_adapter</b><br/>positive integer"]
   end
   subgraph group_adaptation[adaptation]
-    new_model_creation_policy["<b>新規モデル作成方針</b><br/>immediate | validated | forward_validated | forward_requalified | forward_requalified_current_first | forward_persistent | shadow_tournament | sequential_tournament"]
+    new_model_creation_policy["<b>新規モデル作成方針</b><br/>immediate | validated | forward_validated | forward_requalified | forward_requalified_current_first | forward_persistent | shadow_tournament"]
     new_model_training["<b>新規モデル初期学習</b><br/>none | fixed | early_stopping"]
     new_model_initialization["<b>新規モデル初期値</b><br/>current | best_candidate | average"]
   end
@@ -49,7 +49,6 @@ flowchart LR
     new_model_epochs["<b>新規モデル学習上限 E_init</b><br/>non-negative integer"]
     new_model_validation_fraction["<b>履歴内検証割合</b><br/>0 < fraction < 1"]
     new_model_forward_validation_samples["<b>前向き検証数 N_forward</b><br/>integer >= 2"]
-    sequential_tournament_alpha["<b>逐次トーナメント誤選択予算</b><br/>0 < alpha < 1"]
     feddrift_isolation_timesteps["<b>FedDrift隔離時刻数 W</b><br/>non-negative integer"]
   end
   subgraph group_detection_parameter[detection_parameter]
@@ -88,7 +87,6 @@ flowchart LR
   new_model_training -->|"初期学習を行うとき"| new_model_epochs
   new_model_creation_policy -->|"validatedのとき"| new_model_validation_fraction
   new_model_creation_policy -->|"forward系のとき"| new_model_forward_validation_samples
-  new_model_creation_policy -->|"逐次モデル・トーナメントのとき"| sequential_tournament_alpha
   detector -->|"ADWIN系のとき"| adwin_delta
   detector -->|"ESR系のとき"| e_detector_alpha
   detector -->|"HDDM系のとき"| hddm_drift_confidence
@@ -132,7 +130,6 @@ flowchart LR
 | `new_model_initialization` | cli: `--new-model-initialization` | 実装済み | 理論上のみ | 対象外 | 対象外 | 新規モデル候補を初期化する既存パラメータの選択方法 |
 | `new_model_validation_fraction` | cli: `--new-model-validation-fraction` | 実装済み | 理論上のみ | 対象外 | 対象外 | validated方式でFIFO末尾から検証用に確保する割合 |
 | `new_model_forward_validation_samples` | cli: `--new-model-forward-validation-samples` | 実装済み | 理論上のみ | 対象外 | 対象外 | forward系方式で警報後に収集する将来サンプル数 |
-| `sequential_tournament_alpha` | cli: `--sequential-tournament-alpha` | 実装済み | 対象外 | 対象外 | 対象外 | 全候補の方向付きpaired比較へ配分するtime-uniformな誤選択確率 |
 | `fifo_size` | cli: `--fifo-size` | 実装済み | 対象外 | 実装済み | 対象外 | FedSDAの検出・ドリフト解決に保持する直近データ数 |
 | `detection_episodes` | cli: `--detection-episodes` | 実装済み | 理論上のみ | 対象外 | 対象外 | 近接した警報をN_FIFO幅の一つの適応エピソードへ統合する |
 | `adwin_delta` | cli: `--adwin-deltas` | 実装済み | 対象外 | 実装済み | 対象外 | ADWIN系検出器の信頼度パラメータ |

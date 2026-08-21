@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 5
+OPTION_SCHEMA_VERSION = 4
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -259,7 +259,6 @@ OPTIONS = (
             "immediate", "validated", "forward_validated",
             "forward_requalified", "forward_requalified_current_first",
             "forward_persistent", "shadow_tournament",
-            "sequential_tournament",
         ),
         "警報後に新規モデルを即時作成するか、検証してから採用するか",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
@@ -312,18 +311,6 @@ OPTIONS = (
             "new_model_creation_policy", _FORWARD_POLICIES, "forward系のとき",
         ),),
         cli_name="new-model-forward-validation-samples",
-    ),
-    OptionSpec(
-        "sequential_tournament_alpha", "逐次トーナメント誤選択予算",
-        "adaptation_parameter", ("0 < alpha < 1",),
-        "全候補の方向付きpaired比較へ配分するtime-uniformな誤選択確率",
-        (FED_SDA,), (FED_SDA,),
-        requires_capabilities=("provisional_model", "future_sample_validation"),
-        active_when=(ActivationRule(
-            "new_model_creation_policy", ("sequential_tournament",),
-            "逐次モデル・トーナメントのとき",
-        ),),
-        cli_name="sequential-tournament-alpha",
     ),
     OptionSpec(
         "fifo_size", "FIFO長 N_FIFO", "detection_parameter",

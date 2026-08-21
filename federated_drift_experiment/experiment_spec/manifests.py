@@ -142,8 +142,6 @@ def experiment_configuration(experiment, total_data):
             algorithm.pop("shared_backbone_gradient_strategy", None)
     if "ResidualAdapter" not in experiment.mode:
         algorithm.pop("shared_adapter_rank", None)
-    if algorithm.get("new_model_creation_policy") != "sequential_tournament":
-        algorithm.pop("sequential_tournament_alpha", None)
     return {
         "mode": experiment.mode,
         "dataset": experiment.dataset,
@@ -206,10 +204,6 @@ def configuration_from_result_row(row, total_data):
             row.get("new_model_forward_validation_samples"), int,
         ),
     }
-    if algorithm["new_model_creation_policy"] == "sequential_tournament":
-        algorithm["sequential_tournament_alpha"] = _optional_number(
-            row.get("sequential_tournament_alpha"), float,
-        ) or 0.05
     clustering_consolidation = row.get("clustering_consolidation") or "merge"
     if clustering_consolidation != "merge":
         algorithm["clustering_consolidation"] = clustering_consolidation

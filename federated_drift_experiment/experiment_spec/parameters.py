@@ -96,13 +96,6 @@ PARAMETERS = (
         methods=("FedSDA",),
     ),
     ParameterSpec(
-        id="sequential_tournament_alpha",
-        code_name="SEQUENTIAL_TOURNAMENT_ALPHA",
-        paper_symbol="α_tournament",
-        cli_name="sequential-tournament-alpha",
-        methods=("FedSDA",),
-    ),
-    ParameterSpec(
         id="shared_adapter_rank",
         code_name="SHARED_ADAPTER_RANK",
         paper_symbol="R_adapter",

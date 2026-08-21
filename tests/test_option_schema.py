@@ -256,19 +256,6 @@ def test_unknown_option_is_rejected():
         option("unknown")
 
 
-def test_sequential_tournament_activates_alpha_but_not_fixed_forward_count():
-    selection = {
-        "new_model_creation_policy": "sequential_tournament",
-        "sequential_tournament_alpha": 0.05,
-        "new_model_forward_validation_samples": 10,
-    }
-
-    assert inactive_reasons("sequential_tournament_alpha", selection) == ()
-    assert inactive_reasons(
-        "new_model_forward_validation_samples", selection
-    ) == ("forward系のとき",)
-
-
 def test_generated_option_document_is_current():
     path = Path(__file__).resolve().parents[1] / "docs" / "options.md"
     assert path.read_text(encoding="utf-8") == render_option_document()
