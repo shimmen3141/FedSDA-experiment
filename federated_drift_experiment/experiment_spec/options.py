@@ -220,21 +220,6 @@ OPTIONS = (
         cli_name="shared-backbone-gradient-strategy",
     ),
     OptionSpec(
-        "expert_training_assignment", "概念別expert学習割当", "model",
-        ("assigned", "routing_responsibility"),
-        "通常更新の標本をhard割当ストアから取るか、予測時のSoftRouting責任度で再配分するか",
-        (FED_SDA,), (FED_SDA, FED_DRIFT),
-        requires_capabilities=("shared_representation", "soft_routing"),
-        active_when=(ActivationRule(
-            "shared_backbone_training", ("joint", "frozen"),
-            "共有表現を共同学習するとき",
-        ), ActivationRule(
-            "routing", ("restarting_soft",),
-            "Restarting SoftRoutingのとき",
-        )),
-        cli_name="expert-training-assignment",
-    ),
-    OptionSpec(
         "shared_backbone_routing_recalibration",
         "共有表現更新後のルーティング再較正",
         "prediction",
@@ -459,14 +444,6 @@ OPTIONS = (
 )
 
 CHOICE_CONSTRAINTS = (
-    ChoiceConstraint(
-        "expert_training_assignment", ("routing_responsibility",),
-        (
-            "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
-            "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
-        ),
-        note="責任度学習は共有表現を持つRestarting SoftRouting modeで実装",
-    ),
     ChoiceConstraint(
         "clustering_consolidation", ("parameter_share",),
         (

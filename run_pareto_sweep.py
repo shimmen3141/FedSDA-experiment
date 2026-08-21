@@ -91,7 +91,6 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "new_model_forward_validation_samples",
             "shared_backbone_training",
             "shared_backbone_gradient_strategy",
-            "expert_training_assignment",
             "shared_backbone_routing_recalibration",
             "soft_routing_context",
             "soft_routing_top_combination",
@@ -185,14 +184,6 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         display_series = (
             f"{display_series} "
             f"[gradient={config.SHARED_BACKBONE_GRADIENT_STRATEGY}]"
-        )
-    if (
-        is_shared_representation_mode(mode)
-        and config.EXPERT_TRAINING_ASSIGNMENT != "assigned"
-    ):
-        display_series = (
-            f"{display_series} [expert-training="
-            f"{config.EXPERT_TRAINING_ASSIGNMENT}]"
         )
     if (
         is_shared_representation_mode(mode)
@@ -308,11 +299,6 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         "shared_backbone_training": (
             config.SHARED_BACKBONE_TRAINING
             if is_shared_representation_mode(mode) else None
-        ),
-        "expert_training_assignment": (
-            config.EXPERT_TRAINING_ASSIGNMENT
-            if is_shared_representation_mode(mode)
-            and "SoftRouting" in mode else None
         ),
         "shared_backbone_gradient_strategy": (
             config.SHARED_BACKBONE_GRADIENT_STRATEGY
@@ -638,7 +624,6 @@ def _load_csv(path):
             )
             row.setdefault("shared_backbone_training", "sequential")
             row.setdefault("shared_backbone_gradient_strategy", "")
-            row.setdefault("expert_training_assignment", "assigned")
             # 列追加前のCSVを再描画するときは当時の挙動を復元する。
             row.setdefault("soft_routing_top_combination", "leader")
             row.setdefault("soft_routing_meta_loss", "bounded_score")
@@ -1039,15 +1024,6 @@ def build_parser():
         help="joint共有学習の勾配統合方式 (mean / pcgrad)",
     )
     fedsda.add_argument(
-        "--expert-training-assignment",
-        choices=config.EXPERT_TRAINING_ASSIGNMENT_CHOICES,
-        default=config.EXPERT_TRAINING_ASSIGNMENT,
-        help=(
-            "概念別expertの通常学習データ割当 "
-            "(assigned / routing_responsibility)"
-        ),
-    )
-    fedsda.add_argument(
         "--shared-backbone-routing-recalibration",
         choices=config.SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES,
         default=config.SHARED_BACKBONE_ROUTING_RECALIBRATION,
@@ -1281,7 +1257,6 @@ def main(argv=None):
         "shared_backbone_gradient_strategy": (
             args.shared_backbone_gradient_strategy
         ),
-        "expert_training_assignment": args.expert_training_assignment,
         "shared_backbone_routing_recalibration": (
             args.shared_backbone_routing_recalibration
         ),
@@ -1334,7 +1309,6 @@ def main(argv=None):
         shared_backbone_gradient_strategy=(
             args.shared_backbone_gradient_strategy
         ),
-        expert_training_assignment=args.expert_training_assignment,
         shared_backbone_routing_recalibration=(
             args.shared_backbone_routing_recalibration
         ),

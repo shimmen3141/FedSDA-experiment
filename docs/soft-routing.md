@@ -66,11 +66,8 @@ Meta-routerの更新損失は`--soft-routing-meta-loss`で選ぶ。
 計算する。`meta_predicted_class`ではそのMeta mixtureを実予測へ昇格する。どちらも同じ順序で、
 予測後にglobal、context、metaの各AdaHedgeを更新する。
 
-既定の`--expert-training-assignment assigned`では、SoftRoutingの予測結果をモデル学習、ドリフト検出、
-モデル作成判断へ戻さない。そのため、同じseedと設定なら、`predicted_class`で記録したshadow meta精度と
-`meta_predicted_class`の実accuracyは一致する。共有表現modeで実験的な
-`routing_responsibility`を選んだ場合だけ、予測時のモデル別重みを次回以降の概念別expert学習割当へ
-利用する。検出器・モデル作成・通信・サーバクラスタリングには戻さない。
+SoftRoutingの予測結果はモデル学習、ドリフト検出、モデル作成判断へ戻さない。そのため、同じseedと
+設定なら、`predicted_class`で記録したshadow meta精度と`meta_predicted_class`の実accuracyは一致する。
 
 ## Switching-expert shadow診断
 

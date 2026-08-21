@@ -19,7 +19,6 @@ class AlgorithmOptions:
     new_model_forward_validation_samples: int
     shared_backbone_training: str
     shared_backbone_routing_recalibration: str
-    expert_training_assignment: str = "assigned"
     shared_adapter_rank: int = 8
     shared_backbone_gradient_strategy: str = "mean"
     soft_routing_context: str = "global"
@@ -44,7 +43,6 @@ class AlgorithmOptions:
             shared_backbone_routing_recalibration=(
                 config.SHARED_BACKBONE_ROUTING_RECALIBRATION
             ),
-            expert_training_assignment=config.EXPERT_TRAINING_ASSIGNMENT,
             shared_adapter_rank=config.SHARED_ADAPTER_RANK,
             shared_backbone_gradient_strategy=(
                 config.SHARED_BACKBONE_GRADIENT_STRATEGY
@@ -79,7 +77,6 @@ class AlgorithmOptions:
             "SHARED_BACKBONE_ROUTING_RECALIBRATION": (
                 self.shared_backbone_routing_recalibration
             ),
-            "EXPERT_TRAINING_ASSIGNMENT": self.expert_training_assignment,
             "SHARED_ADAPTER_RANK": self.shared_adapter_rank,
             "SHARED_BACKBONE_GRADIENT_STRATEGY": (
                 self.shared_backbone_gradient_strategy

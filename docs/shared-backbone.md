@@ -9,7 +9,6 @@
 |---|---|---|---|
 | モデル構造 | `independent` / `shared_backbone` / `residual_adapter` | パラメータの共有・概念固有範囲 | 複数モデルを持つ手法に適用 |
 | 共有表現のローカル学習 | `sequential` / `joint` / `frozen` | 共有部と概念固有部の更新則 | 共有表現を持つモデル構造だけで有効 |
-| 概念別expertの学習割当 | `assigned` / `routing_responsibility` | 通常更新の標本をどのadapter/headへ配るか | `joint`または`frozen`＋Restarting SoftRoutingで有効 |
 | joint勾配統合 | `mean` / `pcgrad` | 概念別損失から得た共有部勾配の統合 | `joint`学習だけで有効 |
 | 予測ルーティング | `hard` / `restarting_soft` / `protected_soft` | 正解観測前の予測の選択・混合 | モデル構造には原理上依存しない |
 | 集約後のルーティング再較正 | `none` / `fifo_replay`等 | SoftRoutingの累積損失 | 共有表現とSoftRoutingの両方が必要 |
@@ -30,7 +29,6 @@
 └─ residual_adapter
    │
    └─ 共有表現の学習: sequential / joint / frozen
-      └─ joint / frozen時の標本割当: assigned / routing_responsibility
 
 予測ルーティング（モデル構造から原理上独立）
 ├─ hard
@@ -129,26 +127,6 @@ adapter・headの専門化も崩れ、共有部には相反する勾配が入る
 
 `joint`と`frozen`は学習則を変えるため高速化オプションではなく、独立した実験条件として扱う。
 CSV・NPZには`shared_backbone_training`を保存し、既定以外ではPareto凡例にも方式を表示する。
-
-### SoftRouting責任度によるexpert学習割当
-
-`--expert-training-assignment`は、`joint`または`frozen`学習で概念別adapter/headへ通常更新標本を
-配る方法を選ぶ。`assigned`（既定）は、FedSDAがhardに割り当てたモデル別データストアから各expertへ
-同数のミニバッチを渡す。既存実験はすべてこの方式であり、既定値では結果を変更しない。
-
-`routing_responsibility`は、各サンプルを予測した時点のSoftRouting実効重みを、長さ`N_FIFO`の
-短期履歴へ正解ラベルとともに保存する。予測重みは正解を観測する前に決まるため、割当にラベル漏洩は
-ない。通常更新では、`assigned`方式で更新可能だったexpert数×ミニバッチサイズを総標本予算とし、
-短期履歴から標本を抽出した後、その標本を担当するexpertを記録済み責任度で確率的に選ぶ。
-これはsoftな重み付き損失のMonte Carlo推定であり、全expertを全標本で更新する方式と異なり、
-モデル数に比例する既存の総学習標本予算を増やさない。
-ローカル概念切替とサーバ集約ではモデル関数やルータの意味が変わるため、それ以前の責任度履歴を
-破棄し、新しい予測から再び蓄積する。
-
-この方式はサーバのモデルIDを統合せず、共有バックボーンも従来どおり共同更新する。したがって、
-クラスタリングの`parameter_share`と違い、概念固有adapter/headを平均で上書きしない。狙いは、hard割当で
-学習量が少なくなるexpertへ、実予測上の責任に応じて学習機会を移すことである。一方、誤ったroutingが
-学習割当を自己強化する可能性があるため、現時点では既定ではなく実験的な選択肢として扱う。
 
 ### 概念間の勾配競合とPCGrad型更新
 

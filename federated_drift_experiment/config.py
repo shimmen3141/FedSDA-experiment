@@ -100,12 +100,6 @@ SHARED_BACKBONE_TRAINING_CHOICES = ("sequential", "joint", "frozen")
 # joint学習で概念別勾配をそのまま平均するか、競合勾配だけ射影するかを選ぶ。
 SHARED_BACKBONE_GRADIENT_STRATEGY = "mean"
 SHARED_BACKBONE_GRADIENT_STRATEGY_CHOICES = ("mean", "pcgrad")
-# 概念別expertの通常学習データを、hard割当ストアから取るか、予測時の
-# SoftRouting責任度に従って直近サンプルを確率的に再配分するかを選ぶ。
-EXPERT_TRAINING_ASSIGNMENT = "assigned"
-EXPERT_TRAINING_ASSIGNMENT_CHOICES = (
-    "assigned", "routing_responsibility",
-)
 # 共有表現がサーバ集約で変化した後に、SoftRoutingの古い累積損失を扱う方法。
 SHARED_BACKBONE_ROUTING_RECALIBRATION = "none"
 SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (

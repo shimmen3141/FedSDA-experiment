@@ -45,9 +45,6 @@ def test_schema_choices_follow_runtime_configuration():
     assert option("shared_backbone_training").choices == (
         config.SHARED_BACKBONE_TRAINING_CHOICES
     )
-    assert option("expert_training_assignment").choices == (
-        config.EXPERT_TRAINING_ASSIGNMENT_CHOICES
-    )
     assert option("soft_routing_context").choices == (
         config.SOFT_ROUTING_CONTEXT_CHOICES
     )
@@ -252,28 +249,6 @@ def test_pcgrad_requires_joint_shared_training():
         "routing": "restarting_soft",
         "detector": "ClassESR",
     }) == ()
-
-
-def test_routing_responsibility_requires_shared_soft_joint_training():
-    assert validate_selection("FedSDA", {
-        "model_architecture": "residual_adapter",
-        "shared_backbone_training": "joint",
-        "expert_training_assignment": "routing_responsibility",
-        "server_flow": "NoCached",
-        "routing": "restarting_soft",
-        "detector": "ClassESR",
-    }) == ()
-    assert validate_selection("FedSDA", {
-        "model_architecture": "residual_adapter",
-        "shared_backbone_training": "sequential",
-        "expert_training_assignment": "routing_responsibility",
-        "server_flow": "NoCached",
-        "routing": "restarting_soft",
-        "detector": "ClassESR",
-    }) == (
-        "expert_training_assignment is active only when "
-        "共有表現を共同学習するとき",
-    )
 
 
 def test_unknown_option_is_rejected():

@@ -38,7 +38,6 @@ flowchart LR
     model_architecture["<b>モデル構造</b><br/>independent | shared_backbone | residual_adapter"]
     shared_backbone_training["<b>共有表現学習</b><br/>sequential | joint | frozen"]
     shared_backbone_gradient_strategy["<b>共有勾配統合</b><br/>mean | pcgrad"]
-    expert_training_assignment["<b>概念別expert学習割当</b><br/>assigned | routing_responsibility"]
     shared_adapter_rank["<b>概念別残差adapter rank R_adapter</b><br/>positive integer"]
   end
   subgraph group_adaptation[adaptation]
@@ -82,8 +81,6 @@ flowchart LR
   soft_routing_context -->|"文脈別Meta-routerを計算するとき"| soft_routing_meta_loss
   model_architecture -->|"共有表現構造のとき"| shared_backbone_training
   shared_backbone_training -->|"共有表現をjoint学習するとき"| shared_backbone_gradient_strategy
-  shared_backbone_training -->|"共有表現を共同学習するとき"| expert_training_assignment
-  routing -->|"Restarting SoftRoutingのとき"| expert_training_assignment
   model_architecture -->|"共有表現構造のとき"| shared_backbone_routing_recalibration
   routing -->|"Restarting SoftRoutingのとき"| shared_backbone_routing_recalibration
   model_architecture -->|"低ランク残差adapter構造のとき"| shared_adapter_rank
@@ -125,7 +122,6 @@ flowchart LR
 | `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか |
 | `shared_backbone_training` | cli: `--shared-backbone-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか |
 | `shared_backbone_gradient_strategy` | cli: `--shared-backbone-gradient-strategy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 共同学習時の概念別バックボーン勾配を平均または競合射影で統合する方式 |
-| `expert_training_assignment` | cli: `--expert-training-assignment` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常更新の標本をhard割当ストアから取るか、予測時のSoftRouting責任度で再配分するか |
 | `shared_backbone_routing_recalibration` | cli: `--shared-backbone-routing-recalibration` | 実装済み | 理論上のみ | 対象外 | 対象外 | サーバ集約で共有表現が変化した後にSoftRoutingの累積証拠を扱う方式 |
 | `shared_adapter_rank` | cli: `--shared-adapter-rank` | 実装済み | 理論上のみ | 対象外 | 対象外 | 低ランク残差adapterの最大rank。特徴次元を上限とする |
 | `new_model_creation_policy` | cli: `--new-model-creation-policy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 警報後に新規モデルを即時作成するか、検証してから採用するか |
@@ -164,7 +160,6 @@ flowchart LR
 
 | オプション値 | 実装済みmode | 追加前提 | 備考 |
 |---|---|---|---|
-| `expert_training_assignment` = `routing_responsibility` | `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | なし | 責任度学習は共有表現を持つRestarting SoftRouting modeで実装 |
 | `clustering_consolidation` = `parameter_share` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_NoCached_ESR`<br/>`FedSDA_NoCached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting`<br/>`FedSDA_NoCached_HDDMA`<br/>`FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_NoCached_HDDMW` | NoCachedが必要 | 非破壊的パラメータ共有は現在NoCachedフローでのみ実装 |
 | `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
 | `detector` = `ClassADWIN` | `FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_Cached_ClassADWIN` | なし |  |

@@ -1333,9 +1333,6 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
         self.routing_class_diagnostics = defaultdict(
             lambda: defaultdict(int)
         )
-        # 共有表現クライアントが、実予測に使ったモデル責任度を通常学習へ
-        # 再利用できるようにする。既定の独立学習では参照されない。
-        self._latest_routing_probabilities = None
 
     def _prediction_probabilities(self, proposal_probabilities):
         """AdaHedgeの提案重みを実際の予測重みへ変換する。"""
@@ -1556,8 +1553,6 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
                     for model_id in model_ids
                 }
             weighted_scores = meta_switching_scores
-
-        self._latest_routing_probabilities = dict(probabilities)
 
         accuracy = float(
             self._routing_correct(weighted_scores, y, num_classes)
