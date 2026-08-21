@@ -435,6 +435,48 @@ def test_sequential_tournament_adopts_existing_winner(monkeypatch):
     )
 
 
+def test_sequential_tournament_is_restarted_by_new_detection(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
+    monkeypatch.setattr(
+        config, "NEW_MODEL_CREATION_POLICY", "sequential_tournament"
+    )
+    client = _make_client()
+    sample_count = config.MIN_DRIFT_DATA
+    bx = torch.zeros((sample_count, config.input_dim()))
+    by = torch.zeros((sample_count, 1))
+    held_data = [
+        (bx[index:index + 1], by[index:index + 1])
+        for index in range(sample_count)
+    ]
+    client._begin_forward_validation(
+        bx,
+        by,
+        held_data,
+        client.models[0].get_params(),
+        sample_idx=100,
+        estimated_start=100 - sample_count + 1,
+        episode_id=None,
+    )
+    client.buffer.extend(held_data)
+    monkeypatch.setattr(
+        client, "_estimated_new_concept_span", lambda _sample_idx: sample_count
+    )
+
+    drift_type = client._resolve_drift(
+        sample_idx=200,
+        estimated_start=200 - sample_count + 1,
+        episode_id=None,
+    )
+
+    assert drift_type == 0
+    assert client.provisional_model_decisions[0].reason == (
+        "superseded_by_new_detection"
+    )
+    assert client.provisional_model_decisions[0].resolution_position == 200
+    assert client._forward_validation is not None
+    assert client._forward_validation.proposal_position == 200
+
+
 def test_forward_requalification_reuses_fitting_existing_model(monkeypatch):
     monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
     monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 3)

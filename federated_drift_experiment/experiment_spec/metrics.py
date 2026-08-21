@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 14
+METRIC_SCHEMA_VERSION = 15
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -121,6 +121,7 @@ METRICS = (
             "provisional_unmatched_recent_margin_mean", "provisional_reject_insufficient_data_count",
             "provisional_reject_insufficient_forward_data_count",
             "provisional_reject_insufficient_sequential_evidence_count",
+            "provisional_reject_superseded_by_detection_count",
             "provisional_sequential_candidate_win_count",
             "provisional_sequential_reference_win_count",
             "provisional_reject_full_interval_count", "provisional_reject_recent_interval_count",

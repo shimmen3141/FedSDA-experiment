@@ -396,25 +396,17 @@ class FedSDAClient(BaseClient, ABC):
         self._forward_validation = None
         return drift_type
 
-    def finalize_incomplete_forward_validation(self):
-        """実験終端で未完了の前向き検証を棄却し、保留データを回収する。"""
+    def _reject_pending_forward_validation(self, reason, resolution_position):
+        """未完了の前向き検証を指定理由で棄却し、保留データを回収する。"""
         session = self._forward_validation
         if session is None:
             return
         policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
-        incomplete_reason = (
-            "insufficient_sequential_evidence"
-            if policy is not None and policy.sequential_tournament
-            else "insufficient_forward_data"
-        )
-        resolution_position = max(
-            session.proposal_position, self.processed_samples - 1
-        )
         self.provisional_model_decisions.append(ProvisionalModelDecision(
             position=session.proposal_position,
             detector=session.detector,
             accepted=False,
-            reason=incomplete_reason,
+            reason=reason,
             interval_count=len(session.training_x),
             training_count=len(session.training_x),
             validation_count=session.validation_count,
@@ -441,6 +433,22 @@ class FedSDAClient(BaseClient, ABC):
             episode_id=session.episode_id,
         )
         self._forward_validation = None
+
+    def finalize_incomplete_forward_validation(self):
+        """実験終端で未完了の前向き検証を棄却し、保留データを回収する。"""
+        session = self._forward_validation
+        if session is None:
+            return
+        policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
+        reason = (
+            "insufficient_sequential_evidence"
+            if policy is not None and policy.sequential_tournament
+            else "insufficient_forward_data"
+        )
+        resolution_position = max(
+            session.proposal_position, self.processed_samples - 1
+        )
+        self._reject_pending_forward_validation(reason, resolution_position)
 
     def _spawn_new_model(
         self,
@@ -775,19 +783,27 @@ class FedSDAClient(BaseClient, ABC):
         old_model_id = self.current_model_id
         buffer_list = list(self.buffer)
         if self._forward_validation is not None:
-            self._absorb_into_store(self.current_model_id, buffer_list)
-            self._record_adaptation_event(
-                position=sample_idx,
-                detector=self._detector_label(),
-                action="forward_validation_pending",
-                old_model_id=old_model_id,
-                new_model_id=self.current_model_id,
-                estimated_change_point=estimated_start,
-                episode_id=episode_id,
-            )
-            self._reset_drift_detectors()
-            self.buffer.clear()
-            return 0
+            policy = forward_creation_policy(config.NEW_MODEL_CREATION_POLICY)
+            if policy is not None and policy.sequential_tournament:
+                # 新しい警報後まで旧候補を比較すると、異なる概念の損失を一つの
+                # 逐次検定へ混ぜる。未決着候補は棄却し、今回の警報を通常処理する。
+                self._reject_pending_forward_validation(
+                    "superseded_by_new_detection", sample_idx
+                )
+            else:
+                self._absorb_into_store(self.current_model_id, buffer_list)
+                self._record_adaptation_event(
+                    position=sample_idx,
+                    detector=self._detector_label(),
+                    action="forward_validation_pending",
+                    old_model_id=old_model_id,
+                    new_model_id=self.current_model_id,
+                    estimated_change_point=estimated_start,
+                    episode_id=episode_id,
+                )
+                self._reset_drift_detectors()
+                self.buffer.clear()
+                return 0
         estimated_span = self._estimated_new_concept_span(sample_idx)
         n_new_concept = min(
             len(buffer_list), estimated_span

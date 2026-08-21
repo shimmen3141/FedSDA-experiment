@@ -335,6 +335,10 @@ def compute_metrics(clients, true_drift_events, delay_tolerance=None, stable_win
             decision.reason == "insufficient_sequential_evidence"
             for decision in rejected_proposals
         ),
+        "provisional_reject_superseded_by_detection_count": sum(
+            decision.reason == "superseded_by_new_detection"
+            for decision in rejected_proposals
+        ),
         "provisional_sequential_candidate_win_count": sum(
             decision.validation_source == "sequential_tournament"
             and decision.reason == "candidate_won"
