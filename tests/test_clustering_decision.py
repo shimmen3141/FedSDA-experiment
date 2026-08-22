@@ -62,11 +62,12 @@ def test_noninferiority_merge_rejects_cluster_harmful_to_one_member(monkeypatch)
         1: {"weight": torch.tensor([1.0])},
     }
 
-    clusters = server._validate_noninferiority_clusters(
-        50, [[0, 1]], {0: 10, 1: 10}
+    clusters, consolidation_params = server._validate_noninferiority_clusters(
+        50, [[0, 1]], _two_model_stats([0.1] * 10, [0.3] * 10)
     )
 
     assert clusters == [[0], [1]]
+    assert consolidation_params == {}
     assert server.noninferiority_summary() == {
         "clustering_noninferiority_candidate_count": 1,
         "clustering_noninferiority_accepted_count": 0,
@@ -100,12 +101,25 @@ def test_noninferiority_merge_accepts_cluster_safe_for_every_member(monkeypatch)
         1: {"weight": torch.tensor([1.0])},
     }
 
-    assert server._validate_noninferiority_clusters(
-        50, [[0, 1]], {0: 10, 1: 10}
-    ) == [[0, 1]]
+    clusters, consolidation_params = server._validate_noninferiority_clusters(
+        50, [[0, 1]], _two_model_stats([0.1] * 10, [0.1] * 10)
+    )
+    assert clusters == [[0, 1]]
+    assert torch.equal(consolidation_params[0]["weight"], torch.tensor([0.0]))
     assert server.noninferiority_summary()[
         "clustering_noninferiority_acceptance_rate"
     ] == 1.0
+
+
+def test_noninferiority_representative_minimizes_worst_mean_loss_increase():
+    stats = {
+        0: {0: _stats([0.1] * 10), 1: _stats([0.3] * 10)},
+        1: {0: _stats([0.12] * 10), 1: _stats([0.1] * 10)},
+    }
+
+    assert FedSDANoCachedServer._select_minimax_representative(
+        [0, 1], stats
+    ) == 1
 
 
 def test_confidence_decision_merges_uncertain_pair_ignored_by_distance(monkeypatch):

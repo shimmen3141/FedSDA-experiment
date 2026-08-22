@@ -1553,6 +1553,10 @@ def _save_raw_run(
             [item["target_model_id"] for item in clustering_noninferiority],
             dtype=np.int32,
         ),
+        clustering_noninferiority_candidate_model_ids=np.asarray(
+            [item["candidate_model_id"] for item in clustering_noninferiority],
+            dtype=np.int32,
+        ),
         clustering_noninferiority_sample_counts=np.asarray(
             [item["n"] for item in clustering_noninferiority], dtype=np.int32
         ),

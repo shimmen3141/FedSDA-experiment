@@ -99,9 +99,10 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
 
         stats_matrix = self._cross_evaluate(active_ids, round_index=t)
         clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
+        consolidation_params = {}
         if self.clustering_consolidation == "noninferiority_merge":
-            clusters = self._validate_noninferiority_clusters(
-                t, clusters, agg_weights
+            clusters, consolidation_params = self._validate_noninferiority_clusters(
+                t, clusters, stats_matrix
             )
         self.record_clustering_diagnostics(t, active_ids, clusters)
         if len(clusters) >= M:
@@ -118,24 +119,32 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
                 print(f"  - Clusters: {clusters}\n")
             return {}
 
-        return self._merge_clusters(active_ids, clusters, agg_weights, t)
+        return self._merge_clusters(
+            active_ids, clusters, agg_weights, t,
+            consolidation_params=consolidation_params,
+        )
 
-    def _validate_noninferiority_clusters(self, t, clusters, agg_weights):
+    def _validate_noninferiority_clusters(self, t, clusters, stats_matrix):
         """各元モデルに対する予測性能を保つ統合候補だけを残す。
 
-        初段のクラスタリングは候補生成に限定する。仮統合モデルと各元モデルを、
+        初段のクラスタリングは候補生成に限定する。minimax代表モデルと各元モデルを、
         その元モデルを保有するクライアントの同一標本で比較し、損失差の片側上限が
         許容幅以下であることを全メンバーについて要求する。
         """
         validated = []
+        consolidation_params = {}
         for cluster in clusters:
             if len(cluster) <= 1:
                 validated.append(cluster)
                 continue
-            candidate = self._weighted_average_params(cluster, agg_weights)
+            candidate_model_id = self._select_minimax_representative(
+                cluster, stats_matrix
+            )
+            candidate = self.global_models[candidate_model_id]
             cluster_records = [
                 self._evaluate_noninferiority(
-                    t, cluster, target_model_id, candidate
+                    t, cluster, target_model_id, candidate,
+                    candidate_model_id=candidate_model_id,
                 )
                 for target_model_id in cluster
             ]
@@ -145,12 +154,41 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
                 self.clustering_noninferiority_diagnostics.append(record)
             if accepted:
                 validated.append(cluster)
+                consolidation_params[min(cluster)] = copy.deepcopy(candidate)
             else:
                 validated.extend([[model_id] for model_id in cluster])
-        return sorted(validated, key=lambda cluster: min(cluster))
+        return (
+            sorted(validated, key=lambda cluster: min(cluster)),
+            consolidation_params,
+        )
+
+    @staticmethod
+    def _select_minimax_representative(cluster, stats_matrix):
+        """全元概念に対する最大平均損失増加が最小の既存モデルを選ぶ。"""
+        scored = []
+        for candidate_model_id in cluster:
+            worst_increase = float("inf")
+            increases = []
+            for target_model_id in cluster:
+                candidate_stats = stats_matrix[candidate_model_id][
+                    target_model_id
+                ]
+                reference_stats = stats_matrix[target_model_id][target_model_id]
+                if candidate_stats[0] <= 0 or reference_stats[0] <= 0:
+                    increases = []
+                    break
+                increases.append(
+                    candidate_stats[1] / candidate_stats[0]
+                    - reference_stats[1] / reference_stats[0]
+                )
+            if increases:
+                worst_increase = max(increases)
+            scored.append((worst_increase, candidate_model_id))
+        return min(scored)[1]
 
     def _evaluate_noninferiority(
-        self, t, cluster, target_model_id, candidate_params
+        self, t, cluster, target_model_id, candidate_params,
+        candidate_model_id,
     ):
         target_clients = [
             client for client in self.clients
@@ -188,6 +226,7 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         return {
             "round_index": int(t),
             "representative_model_id": int(min(cluster)),
+            "candidate_model_id": int(candidate_model_id),
             "target_model_id": int(target_model_id),
             "cluster_size": int(len(cluster)),
             "n": int(total_n),
@@ -229,8 +268,11 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
             ),
         }
 
-    def _merge_clusters(self, active_ids, clusters, agg_weights, t):
-        """クラスタ内モデルを加重平均し、代表IDへ破壊的に統合する。"""
+    def _merge_clusters(
+        self, active_ids, clusters, agg_weights, t,
+        consolidation_params=None,
+    ):
+        """クラスタを指定パラメータまたは加重平均で代表IDへ統合する。"""
         if self.verbose:
             print(
                 f"\nServer [t={t}]: MERGE EXECUTED "
@@ -240,12 +282,16 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
             print(f"  - Clusters: {clusters}")
 
         id_mapping = {}
+        consolidation_params = consolidation_params or {}
         for cluster in clusters:
             rep_id = min(cluster)
             for old_id in cluster:
                 id_mapping[old_id] = rep_id
             if len(cluster) > 1:
-                self.global_models[rep_id] = self._weighted_average_params(cluster, agg_weights)
+                params = consolidation_params.get(rep_id)
+                if params is None:
+                    params = self._weighted_average_params(cluster, agg_weights)
+                self.global_models[rep_id] = copy.deepcopy(params)
                 self._merge_stats(rep_id, cluster)
 
         # 非代表IDのグローバル状態を削除(クライアント側の付け替えは broadcast で行う)
