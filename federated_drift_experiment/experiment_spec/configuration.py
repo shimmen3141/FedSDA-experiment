@@ -26,6 +26,7 @@ class AlgorithmOptions:
     soft_routing_meta_loss: str = "zero_one"
     cluster_linkage: str | None = None
     clustering_consolidation: str = "merge"
+    merge_noninferiority_margin: float = 0.0
 
     @classmethod
     def from_current_config(cls):
@@ -56,6 +57,9 @@ class AlgorithmOptions:
             clustering_consolidation=(
                 config.FEDSDA_CLUSTERING_CONSOLIDATION
             ),
+            merge_noninferiority_margin=(
+                config.FEDSDA_MERGE_NONINFERIORITY_MARGIN
+            ),
         )
 
     def config_overrides(self):
@@ -65,6 +69,9 @@ class AlgorithmOptions:
             "FEDSDA_CLUSTERING_DECISION": self.clustering_decision,
             "FEDSDA_CLUSTERING_CONSOLIDATION": (
                 self.clustering_consolidation
+            ),
+            "FEDSDA_MERGE_NONINFERIORITY_MARGIN": (
+                self.merge_noninferiority_margin
             ),
             "FEDSDA_DETECTION_EPISODES_ENABLED": self.detection_episodes,
             "NEW_MODEL_CREATION_POLICY": self.new_model_creation_policy,

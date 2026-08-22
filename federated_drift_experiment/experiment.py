@@ -527,6 +527,19 @@ def _add_model_diagnostic_results(
     }
     results.update({**defaults, **summary})
 
+    noninferiority = getattr(
+        server, "noninferiority_summary", lambda: {}
+    )()
+    noninferiority_defaults = {
+        "clustering_noninferiority_candidate_count": 0,
+        "clustering_noninferiority_accepted_count": 0,
+        "clustering_noninferiority_rejected_count": 0,
+        "clustering_noninferiority_comparison_count": 0,
+        "clustering_noninferiority_sample_count": 0,
+        "clustering_noninferiority_acceptance_rate": 0.0,
+    }
+    results.update({**noninferiority_defaults, **noninferiority})
+
     routing = defaultdict(int)
     for client in clients:
         for key, value in getattr(client, "routing_diagnostics", {}).items():
@@ -1075,6 +1088,9 @@ def _save_raw_run(
     clustering_pair_observations = (
         server.model_lineage.clustering_pair_observations
     )
+    clustering_noninferiority = getattr(
+        server, "clustering_noninferiority_diagnostics", []
+    )
     final_model_ids = set(server.global_models)
     model_selection_counts = {
         registration.model_id: int(np.count_nonzero(
@@ -1525,6 +1541,37 @@ def _save_raw_run(
             [observation.same_cluster for observation in clustering_pair_observations],
             dtype=np.bool_,
         ),
+        clustering_noninferiority_rounds=np.asarray(
+            [item["round_index"] for item in clustering_noninferiority],
+            dtype=np.int32,
+        ),
+        clustering_noninferiority_representative_model_ids=np.asarray(
+            [item["representative_model_id"] for item in clustering_noninferiority],
+            dtype=np.int32,
+        ),
+        clustering_noninferiority_target_model_ids=np.asarray(
+            [item["target_model_id"] for item in clustering_noninferiority],
+            dtype=np.int32,
+        ),
+        clustering_noninferiority_sample_counts=np.asarray(
+            [item["n"] for item in clustering_noninferiority], dtype=np.int32
+        ),
+        clustering_noninferiority_mean_differences=np.asarray(
+            [item["mean_difference"] for item in clustering_noninferiority],
+            dtype=np.float64,
+        ),
+        clustering_noninferiority_upper_bounds=np.asarray(
+            [item["upper_bound"] for item in clustering_noninferiority],
+            dtype=np.float64,
+        ),
+        clustering_noninferiority_margins=np.asarray(
+            [item["margin"] for item in clustering_noninferiority],
+            dtype=np.float64,
+        ),
+        clustering_noninferiority_accepted=np.asarray(
+            [item["cluster_accepted"] for item in clustering_noninferiority],
+            dtype=np.bool_,
+        ),
         dataset=str(config.DATASET),
         concept_schedule=str(config.CONCEPT_SCHEDULE),
         mode=str(mode),
@@ -1562,6 +1609,11 @@ def _save_raw_run(
         clustering_consolidation=np.asarray(
             config.FEDSDA_CLUSTERING_CONSOLIDATION if is_fedsda else "",
             dtype=np.str_,
+        ),
+        merge_noninferiority_margin=np.asarray(
+            config.FEDSDA_MERGE_NONINFERIORITY_MARGIN
+            if is_fedsda else np.nan,
+            dtype=np.float64,
         ),
         cluster_linkage=np.asarray(
             config.FEDSDA_CLUSTER_LINKAGE if is_fedsda

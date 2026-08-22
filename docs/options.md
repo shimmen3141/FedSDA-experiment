@@ -59,11 +59,12 @@ flowchart LR
   end
   subgraph group_clustering[clustering]
     clustering_policy["<b>クラスタリング頻度</b><br/>disabled | on_new_model | every_round"]
-    clustering_consolidation["<b>クラスタリング後処理</b><br/>merge | parameter_share"]
+    clustering_consolidation["<b>クラスタリング後処理</b><br/>merge | parameter_share | noninferiority_merge"]
     clustering_decision["<b>クラスタリング判定</b><br/>distance | confidence | confidence_margin"]
     cluster_linkage["<b>階層クラスタリングlinkage</b><br/>complete | connected"]
   end
   subgraph group_clustering_parameter[clustering_parameter]
+    merge_noninferiority_margin["<b>統合モデルの非劣性幅</b><br/>non-negative number"]
     clustering_confidence["<b>クラスタリング信頼水準</b><br/>0 < confidence < 1"]
     fedsda_distance_threshold["<b>FedSDA距離閾値 γ</b><br/>non-negative number"]
     feddrift_distance_threshold["<b>FedDrift距離閾値 δ_FedDrift</b><br/>non-negative number"]
@@ -91,8 +92,8 @@ flowchart LR
   detector -->|"ESR系のとき"| e_detector_alpha
   detector -->|"HDDM系のとき"| hddm_drift_confidence
   clustering_policy -->|"クラスタリングを実行するとき"| clustering_consolidation
-  clustering_decision -->|"confidence系判定のとき"| clustering_confidence
-  server_flow -.->|"parameter_share: NoCachedが必要"| clustering_consolidation
+  clustering_consolidation -->|"非劣性制約付きマージのとき"| merge_noninferiority_margin
+  server_flow -.->|"parameter_share, noninferiority_merge: NoCachedが必要"| clustering_consolidation
   server_flow -.->|"restarting_soft: NoCachedが必要"| routing
   detector -.->|"restarting_soft: ClassESRが必要"| routing
   server_flow -.->|"shared_backbone: NoCachedが必要"| model_architecture
@@ -136,9 +137,10 @@ flowchart LR
 | `e_detector_alpha` | config | 実装済み | 対象外 | 対象外 | 対象外 | ESR系検出器の誤警報制御値 |
 | `hddm_drift_confidence` | config | 実装済み | 対象外 | 対象外 | 対象外 | HDDM系検出器のドリフト判定信頼度 |
 | `clustering_policy` | cli: `--clustering-policy` | 実装済み | 対象外 | 対象外 | 対象外 | FedSDAサーバがモデル統合判定を実行するタイミング |
-| `clustering_consolidation` | cli: `--clustering-consolidation` | 実装済み | 対象外 | 対象外 | 対象外 | クラスタ決定後にIDを統合するか、IDを保ってパラメータだけ共有するか |
+| `clustering_consolidation` | cli: `--clustering-consolidation` | 実装済み | 対象外 | 対象外 | 対象外 | クラスタ決定後にIDを統合するか、パラメータ共有または非劣性検証を行うか |
+| `merge_noninferiority_margin` | cli: `--merge-noninferiority-margin` | 実装済み | 対象外 | 対象外 | 対象外 | 仮統合モデルの対応あり損失差について許容する片側上限 |
 | `clustering_decision` | cli: `--clustering-decision` | 実装済み | 理論上のみ | 対象外 | 対象外 | モデル対を統合する判定規則 |
-| `clustering_confidence` | config | 実装済み | 理論上のみ | 対象外 | 対象外 | confidence系統合判定の信頼水準 |
+| `clustering_confidence` | config | 実装済み | 理論上のみ | 対象外 | 対象外 | confidence系統合判定と非劣性制約付きマージの信頼水準 |
 | `cluster_linkage` | cli: `--cluster-linkage` | 実装済み | 対象外 | 対象外 | 対象外 | モデル対判定からクラスタを構成する方法 |
 | `fedsda_distance_threshold` | cli: `--fedsda-distance-threshold` | 実装済み | 対象外 | 対象外 | 対象外 | モデル適合・再利用および距離ベース統合の閾値 |
 | `feddrift_distance_threshold` | cli: `--feddrift-distance-thresholds` | 対象外 | 実装済み | 対象外 | 対象外 | FedDriftのドリフト判定とモデル統合で共有する閾値 |
@@ -160,7 +162,7 @@ flowchart LR
 
 | オプション値 | 実装済みmode | 追加前提 | 備考 |
 |---|---|---|---|
-| `clustering_consolidation` = `parameter_share` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_NoCached_ESR`<br/>`FedSDA_NoCached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting`<br/>`FedSDA_NoCached_HDDMA`<br/>`FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_NoCached_HDDMW` | NoCachedが必要 | 非破壊的パラメータ共有は現在NoCachedフローでのみ実装 |
+| `clustering_consolidation` = `parameter_share`, `noninferiority_merge` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_NoCached_ESR`<br/>`FedSDA_NoCached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting`<br/>`FedSDA_NoCached_HDDMA`<br/>`FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_NoCached_HDDMW` | NoCachedが必要 | 追加のクラスタリング後処理は現在NoCachedフローでのみ実装 |
 | `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
 | `detector` = `ClassADWIN` | `FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_Cached_ClassADWIN` | なし |  |
 | `detector` = `ESR` | `FedSDA_NoCached_ESR`<br/>`FedSDA_Cached_ESR` | なし |  |

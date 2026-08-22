@@ -2,6 +2,7 @@
 
 import math
 from collections import deque
+from statistics import NormalDist
 
 
 SUPPORTED_LINKAGES = frozenset({"connected", "complete"})
@@ -48,6 +49,23 @@ def standardized_mean_increase(target_stats, reference_stats, margin=0.0):
     if math.isclose(standard_error, 0.0, abs_tol=1e-12):
         return math.inf if increase > 0.0 else 0.0
     return increase / standard_error
+
+
+def paired_mean_upper_bound(difference_stats, confidence=0.95):
+    """対応のある損失差の平均に対する片側正規近似上限を返す。
+
+    ``difference_stats`` は ``candidate_loss - reference_loss`` の
+    ``(n, sum, sum_sq)`` である。正の値ほど候補モデルが悪い。
+    """
+    if not 0.5 < confidence < 1.0:
+        raise ValueError("confidenceは0.5より大きく1未満にしてください")
+    n, total, total_sq = difference_stats
+    if n < 2:
+        raise ValueError("非劣性上限の計算には2件以上の対応標本が必要です")
+    mean = total / n
+    variance = max((total_sq - total * total / n) / (n - 1), 0.0)
+    standard_error = math.sqrt(variance / n)
+    return mean + NormalDist().inv_cdf(confidence) * standard_error
 
 
 def cluster_models(model_ids, pair_distances, threshold, linkage):

@@ -85,6 +85,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             FEDDRIFT_DETECTION_BATCH_SIZE, AGGREGATION_INTERVAL,
             "clustering_policy", "clustering_decision", "cluster_linkage",
             "clustering_consolidation",
+            "merge_noninferiority_margin",
             "detection_episodes",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
@@ -259,6 +260,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
                 config.FEDSDA_CLUSTERING_CONSOLIDATION
                 if mode in FEDSDA_MODES else None
             ),
+            "merge_noninferiority_margin": (
+                config.FEDSDA_MERGE_NONINFERIORITY_MARGIN
+                if mode in FEDSDA_MODES else None
+            ),
         }, dataset=dataset, seed=seed)
         raw_path = os.path.join(raw_dir, fname)
         if sweep_value not in (None, "", "None"):
@@ -283,6 +288,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         "clustering_decision": config.FEDSDA_CLUSTERING_DECISION,
         "clustering_consolidation": (
             config.FEDSDA_CLUSTERING_CONSOLIDATION
+            if mode in FEDSDA_MODES else None
+        ),
+        "merge_noninferiority_margin": (
+            config.FEDSDA_MERGE_NONINFERIORITY_MARGIN
             if mode in FEDSDA_MODES else None
         ),
         "cluster_linkage": (
@@ -618,6 +627,7 @@ def _load_csv(path):
             row.setdefault("clustering_policy", "on_new_model")
             row.setdefault("clustering_decision", "distance")
             row.setdefault("clustering_consolidation", "merge")
+            row.setdefault("merge_noninferiority_margin", 0.0)
             row.setdefault(
                 "cluster_linkage",
                 "complete" if row["mode"] in FEDDRIFT_MODES else "connected",
@@ -1048,6 +1058,11 @@ def build_parser():
         ),
     )
     fedsda.add_argument(
+        "--merge-noninferiority-margin", type=float,
+        default=config.FEDSDA_MERGE_NONINFERIORITY_MARGIN,
+        help="仮統合モデルに許容する損失増加の非劣性幅",
+    )
+    fedsda.add_argument(
         "--cluster-linkage",
         choices=config.FEDSDA_CLUSTER_LINKAGES,
         default=None,
@@ -1252,6 +1267,7 @@ def main(argv=None):
         "clustering_policy": args.clustering_policy,
         "clustering_decision": args.clustering_decision,
         "clustering_consolidation": args.clustering_consolidation,
+        "merge_noninferiority_margin": args.merge_noninferiority_margin,
         "cluster_linkage": args.cluster_linkage,
         "shared_backbone_training": args.shared_backbone_training,
         "shared_backbone_gradient_strategy": (
@@ -1297,6 +1313,7 @@ def main(argv=None):
         clustering_policy=args.clustering_policy,
         clustering_decision=args.clustering_decision,
         clustering_consolidation=args.clustering_consolidation,
+        merge_noninferiority_margin=args.merge_noninferiority_margin,
         cluster_linkage=args.cluster_linkage,
         detection_episodes=args.detection_episodes,
         new_model_creation_policy=args.new_model_creation_policy,

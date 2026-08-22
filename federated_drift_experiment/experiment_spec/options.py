@@ -362,8 +362,8 @@ OPTIONS = (
     ),
     OptionSpec(
         "clustering_consolidation", "クラスタリング後処理", "clustering",
-        ("merge", "parameter_share"),
-        "クラスタ決定後にIDを統合するか、IDを保ってパラメータだけ共有するか",
+        ("merge", "parameter_share", "noninferiority_merge"),
+        "クラスタ決定後にIDを統合するか、パラメータ共有または非劣性検証を行うか",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("server_clustering",),
         active_when=(ActivationRule(
@@ -371,6 +371,18 @@ OPTIONS = (
             "クラスタリングを実行するとき",
         ),),
         cli_name="clustering-consolidation",
+    ),
+    OptionSpec(
+        "merge_noninferiority_margin", "統合モデルの非劣性幅", "clustering_parameter",
+        ("non-negative number",),
+        "仮統合モデルの対応あり損失差について許容する片側上限",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("server_clustering",),
+        active_when=(ActivationRule(
+            "clustering_consolidation", ("noninferiority_merge",),
+            "非劣性制約付きマージのとき",
+        ),),
+        cli_name="merge-noninferiority-margin",
     ),
     OptionSpec(
         "clustering_decision", "クラスタリング判定", "clustering",
@@ -381,12 +393,9 @@ OPTIONS = (
     ),
     OptionSpec(
         "clustering_confidence", "クラスタリング信頼水準", "clustering_parameter",
-        ("0 < confidence < 1",), "confidence系統合判定の信頼水準",
+        ("0 < confidence < 1",),
+        "confidence系統合判定と非劣性制約付きマージの信頼水準",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
-        active_when=(ActivationRule(
-            "clustering_decision", ("confidence", "confidence_margin"),
-            "confidence系判定のとき",
-        ),),
         configuration_surface="config",
     ),
     OptionSpec(
@@ -445,7 +454,7 @@ OPTIONS = (
 
 CHOICE_CONSTRAINTS = (
     ChoiceConstraint(
-        "clustering_consolidation", ("parameter_share",),
+        "clustering_consolidation", ("parameter_share", "noninferiority_merge"),
         (
             "FedSDA_NoCached_ADWIN",
             "FedSDA_NoCached_ClassADWIN",
@@ -463,7 +472,7 @@ CHOICE_CONSTRAINTS = (
         requires_selections=(
             ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
         ),
-        note="非破壊的パラメータ共有は現在NoCachedフローでのみ実装",
+        note="追加のクラスタリング後処理は現在NoCachedフローでのみ実装",
     ),
     ChoiceConstraint(
         "detector", ("ADWIN",),

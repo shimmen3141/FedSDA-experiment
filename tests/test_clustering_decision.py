@@ -1,5 +1,12 @@
 from federated_drift_experiment import config
-from federated_drift_experiment.clustering import standardized_mean_increase
+import math
+
+import torch
+
+from federated_drift_experiment.clustering import (
+    paired_mean_upper_bound,
+    standardized_mean_increase,
+)
 from federated_drift_experiment.servers import (
     FedDriftServer,
     FedSDANoCachedServer,
@@ -23,6 +30,82 @@ def test_standardized_mean_increase_detects_clear_loss_increase():
 
     assert standardized_mean_increase(shifted, reference) > 1.645
     assert standardized_mean_increase(reference, shifted) < 0.0
+
+
+def test_paired_mean_upper_bound_uses_loss_difference_variance():
+    assert math.isclose(
+        paired_mean_upper_bound(_stats([0.01] * 10), 0.95), 0.01
+    )
+    assert paired_mean_upper_bound(_stats([-0.02] * 10), 0.95) < 0.0
+
+
+def test_noninferiority_merge_rejects_cluster_harmful_to_one_member(monkeypatch):
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "noninferiority_merge"
+    )
+    monkeypatch.setattr(config, "FEDSDA_MERGE_NONINFERIORITY_MARGIN", 0.0)
+
+    class PairedClient:
+        def get_held_model_ids(self):
+            return {0, 1}
+
+        def evaluate_model_loss_difference(
+            self, candidate_params, reference_params, target_model_id
+        ):
+            differences = [0.0] * 10 if target_model_id == 0 else [0.2] * 10
+            return _stats(differences)
+
+    server = FedSDANoCachedServer(verbose=False)
+    server.clients = [PairedClient()]
+    server.global_models = {
+        0: {"weight": torch.tensor([0.0])},
+        1: {"weight": torch.tensor([1.0])},
+    }
+
+    clusters = server._validate_noninferiority_clusters(
+        50, [[0, 1]], {0: 10, 1: 10}
+    )
+
+    assert clusters == [[0], [1]]
+    assert server.noninferiority_summary() == {
+        "clustering_noninferiority_candidate_count": 1,
+        "clustering_noninferiority_accepted_count": 0,
+        "clustering_noninferiority_rejected_count": 1,
+        "clustering_noninferiority_comparison_count": 2,
+        "clustering_noninferiority_sample_count": 20,
+        "clustering_noninferiority_acceptance_rate": 0.0,
+    }
+    assert server.comm_models_down == 2
+
+
+def test_noninferiority_merge_accepts_cluster_safe_for_every_member(monkeypatch):
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "noninferiority_merge"
+    )
+    monkeypatch.setattr(config, "FEDSDA_MERGE_NONINFERIORITY_MARGIN", 0.01)
+
+    class PairedClient:
+        def get_held_model_ids(self):
+            return {0, 1}
+
+        def evaluate_model_loss_difference(
+            self, candidate_params, reference_params, target_model_id
+        ):
+            return _stats([0.005] * 10)
+
+    server = FedSDANoCachedServer(verbose=False)
+    server.clients = [PairedClient()]
+    server.global_models = {
+        0: {"weight": torch.tensor([0.0])},
+        1: {"weight": torch.tensor([1.0])},
+    }
+
+    assert server._validate_noninferiority_clusters(
+        50, [[0, 1]], {0: 10, 1: 10}
+    ) == [[0, 1]]
+    assert server.noninferiority_summary()[
+        "clustering_noninferiority_acceptance_rate"
+    ] == 1.0
 
 
 def test_confidence_decision_merges_uncertain_pair_ignored_by_distance(monkeypatch):

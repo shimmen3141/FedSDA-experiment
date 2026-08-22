@@ -47,6 +47,13 @@ PARAMETERS = (
         methods=("FedSDA",),
     ),
     ParameterSpec(
+        id="merge_noninferiority_margin",
+        code_name="FEDSDA_MERGE_NONINFERIORITY_MARGIN",
+        paper_symbol="ε_merge",
+        cli_name="merge-noninferiority-margin",
+        methods=("FedSDA",),
+    ),
+    ParameterSpec(
         id="feddrift_distance_threshold",
         code_name="FEDDRIFT_DISTANCE_THRESHOLD",
         paper_symbol="δ_FedDrift",

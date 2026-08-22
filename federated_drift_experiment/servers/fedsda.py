@@ -1,9 +1,11 @@
 """FedSDA固有のサーバ実装。"""
 
 import copy
+import random
 from collections import defaultdict
 
 from .. import config
+from ..clustering import paired_mean_upper_bound
 from .clustering import CrossEvaluationClusteringServer
 
 
@@ -28,6 +30,12 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         kwargs.setdefault("collect_pair_diagnostics", True)
         super().__init__(*args, **kwargs)
         self.clustering_consolidation = config.FEDSDA_CLUSTERING_CONSOLIDATION
+        self.merge_noninferiority_margin = (
+            config.FEDSDA_MERGE_NONINFERIORITY_MARGIN
+        )
+        if self.merge_noninferiority_margin < 0.0:
+            raise ValueError("非劣性許容幅は0以上にしてください")
+        self.clustering_noninferiority_diagnostics = []
         if (
             self.clustering_consolidation
             not in config.FEDSDA_CLUSTERING_CONSOLIDATIONS
@@ -91,6 +99,10 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
 
         stats_matrix = self._cross_evaluate(active_ids, round_index=t)
         clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
+        if self.clustering_consolidation == "noninferiority_merge":
+            clusters = self._validate_noninferiority_clusters(
+                t, clusters, agg_weights
+            )
         self.record_clustering_diagnostics(t, active_ids, clusters)
         if len(clusters) >= M:
             return {}
@@ -107,6 +119,115 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
             return {}
 
         return self._merge_clusters(active_ids, clusters, agg_weights, t)
+
+    def _validate_noninferiority_clusters(self, t, clusters, agg_weights):
+        """各元モデルに対する予測性能を保つ統合候補だけを残す。
+
+        初段のクラスタリングは候補生成に限定する。仮統合モデルと各元モデルを、
+        その元モデルを保有するクライアントの同一標本で比較し、損失差の片側上限が
+        許容幅以下であることを全メンバーについて要求する。
+        """
+        validated = []
+        for cluster in clusters:
+            if len(cluster) <= 1:
+                validated.append(cluster)
+                continue
+            candidate = self._weighted_average_params(cluster, agg_weights)
+            cluster_records = [
+                self._evaluate_noninferiority(
+                    t, cluster, target_model_id, candidate
+                )
+                for target_model_id in cluster
+            ]
+            accepted = all(record["accepted"] for record in cluster_records)
+            for record in cluster_records:
+                record["cluster_accepted"] = accepted
+                self.clustering_noninferiority_diagnostics.append(record)
+            if accepted:
+                validated.append(cluster)
+            else:
+                validated.extend([[model_id] for model_id in cluster])
+        return sorted(validated, key=lambda cluster: min(cluster))
+
+    def _evaluate_noninferiority(
+        self, t, cluster, target_model_id, candidate_params
+    ):
+        target_clients = [
+            client for client in self.clients
+            if target_model_id in client.get_held_model_ids()
+        ]
+        if len(target_clients) > config.CROSS_EVAL_MAX_CLIENTS:
+            target_clients = random.sample(
+                target_clients, config.CROSS_EVAL_MAX_CLIENTS
+            )
+
+        # 直前のクロス評価で参照モデルは送信済みなので、ここでは仮統合モデルだけを送る。
+        self.comm_messages_down += len(target_clients)
+        self.comm_messages_up += len(target_clients)
+        self.record_model_transfer(
+            "down", candidate_params, count=len(target_clients)
+        )
+        total_n, total_sum, total_sum_sq = 0, 0.0, 0.0
+        reference_params = self.global_models[target_model_id]
+        for client in target_clients:
+            n, difference_sum, difference_sum_sq = (
+                client.evaluate_model_loss_difference(
+                    candidate_params, reference_params, target_model_id
+                )
+            )
+            total_n += n
+            total_sum += difference_sum
+            total_sum_sq += difference_sum_sq
+
+        upper_bound = float("inf")
+        if total_n >= max(config.CLUSTER_MIN_EVAL_N, 2):
+            upper_bound = paired_mean_upper_bound(
+                (total_n, total_sum, total_sum_sq),
+                confidence=self.clustering_confidence,
+            )
+        return {
+            "round_index": int(t),
+            "representative_model_id": int(min(cluster)),
+            "target_model_id": int(target_model_id),
+            "cluster_size": int(len(cluster)),
+            "n": int(total_n),
+            "mean_difference": (
+                float(total_sum / total_n) if total_n else float("nan")
+            ),
+            "upper_bound": float(upper_bound),
+            "margin": float(self.merge_noninferiority_margin),
+            "accepted": bool(
+                upper_bound <= self.merge_noninferiority_margin
+            ),
+        }
+
+    def noninferiority_summary(self):
+        """非劣性マージの候補数・採択率・評価標本数を返す。"""
+        records = self.clustering_noninferiority_diagnostics
+        representatives = {
+            (record["round_index"], record["representative_model_id"])
+            for record in records
+        }
+        accepted_representatives = {
+            (record["round_index"], record["representative_model_id"])
+            for record in records if record["cluster_accepted"]
+        }
+        candidate_count = len(representatives)
+        accepted_count = len(accepted_representatives)
+        return {
+            "clustering_noninferiority_candidate_count": candidate_count,
+            "clustering_noninferiority_accepted_count": accepted_count,
+            "clustering_noninferiority_rejected_count": (
+                candidate_count - accepted_count
+            ),
+            "clustering_noninferiority_comparison_count": len(records),
+            "clustering_noninferiority_sample_count": sum(
+                record["n"] for record in records
+            ),
+            "clustering_noninferiority_acceptance_rate": (
+                accepted_count / candidate_count if candidate_count else 0.0
+            ),
+        }
 
     def _merge_clusters(self, active_ids, clusters, agg_weights, t):
         """クラスタ内モデルを加重平均し、代表IDへ破壊的に統合する。"""
@@ -197,7 +318,7 @@ class FedSDACachedServer(FedSDANoCachedServer):
         super().__init__(*args, **kwargs)
         if self.clustering_consolidation != "merge":
             raise ValueError(
-                "parameter_shareは現在FedSDA NoCachedでのみ実装されています"
+                "非標準のクラスタリング後処理はFedSDA NoCachedでのみ実装されています"
             )
         self.clustering_policy = config.FEDSDA_CLUSTERING_POLICY
         if self.clustering_policy not in config.FEDSDA_CLUSTERING_POLICIES:

@@ -474,6 +474,38 @@ class BaseClient:
         self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
         return len(errors), float(errors.sum()), float((errors ** 2).sum())
 
+    def evaluate_model_loss_difference(
+        self, candidate_params, reference_params, target_model_id
+    ):
+        """同じ標本上で候補モデルと参照モデルの損失差を評価する。
+
+        返値は ``候補損失 - 参照損失`` の ``(n, sum, sum_sq)`` であり、
+        サーバ側の非劣性判定に用いる。
+        """
+        start_time = time.perf_counter()
+        eval_data = self._cross_evaluation_data(target_model_id)
+        if len(eval_data) < config.CLUSTER_MIN_EVAL_N:
+            self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
+            return 0, 0.0, 0.0
+
+        X = torch.cat([item[0] for item in eval_data])
+        y = torch.cat([item[1] for item in eval_data])
+        candidate = self._new_model()
+        candidate.set_params(candidate_params)
+        reference = self._new_model()
+        reference.set_params(reference_params)
+        with torch.no_grad():
+            self._record_model_compute("cross_evaluation", len(X) * 2, calls=2)
+            candidate_errors = candidate.per_sample_error(X, y).numpy().flatten()
+            reference_errors = reference.per_sample_error(X, y).numpy().flatten()
+            differences = candidate_errors - reference_errors
+        self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
+        return (
+            len(differences),
+            float(differences.sum()),
+            float((differences ** 2).sum()),
+        )
+
     def _cross_evaluation_data(self, target_model_id):
         """通常評価と相補性評価で共通の対象標本を選ぶ。"""
         if (

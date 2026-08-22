@@ -108,6 +108,8 @@ def experiment_configuration(experiment, total_data):
     # 既定の破壊的マージは旧実験と同じ意味なので、fingerprintを変えない。
     if algorithm.get("clustering_consolidation") == "merge":
         algorithm.pop("clustering_consolidation", None)
+    if algorithm.get("clustering_consolidation") != "noninferiority_merge":
+        algorithm.pop("merge_noninferiority_margin", None)
     if algorithm.get("cluster_linkage") is None:
         if experiment.mode == "FedDrift":
             algorithm["cluster_linkage"] = "complete"
@@ -124,6 +126,7 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("shared_backbone_routing_recalibration", None)
     if not experiment.mode.startswith("FedSDA_"):
         algorithm.pop("clustering_consolidation", None)
+        algorithm.pop("merge_noninferiority_margin", None)
     if "SoftRouting" not in experiment.mode:
         algorithm.pop("soft_routing_context", None)
         algorithm.pop("soft_routing_top_combination", None)
@@ -207,6 +210,10 @@ def configuration_from_result_row(row, total_data):
     clustering_consolidation = row.get("clustering_consolidation") or "merge"
     if clustering_consolidation != "merge":
         algorithm["clustering_consolidation"] = clustering_consolidation
+    if clustering_consolidation == "noninferiority_merge":
+        algorithm["merge_noninferiority_margin"] = _optional_number(
+            row.get("merge_noninferiority_margin"), float
+        ) or 0.0
     if "SoftRouting" in mode:
         algorithm["soft_routing_context"] = (
             row.get("soft_routing_context") or "global"

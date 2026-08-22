@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 13
+METRIC_SCHEMA_VERSION = 14
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -175,6 +175,17 @@ METRICS = (
     ),
     *_make(
         (
+            "clustering_noninferiority_candidate_count",
+            "clustering_noninferiority_accepted_count",
+            "clustering_noninferiority_rejected_count",
+            "clustering_noninferiority_comparison_count",
+            "clustering_noninferiority_sample_count",
+            "clustering_noninferiority_acceptance_rate",
+        ),
+        "clustering_noninferiority", DIAGNOSTIC, FEDSDA_METHODS, None,
+    ),
+    *_make(
+        (
             "backbone_gradient_pair_count",
             "backbone_gradient_conflict_count",
             "backbone_gradient_conflict_rate",
@@ -269,6 +280,7 @@ METRIC_PROFILES = {
     "model_diagnostics": tuple(metric.id for metric in METRICS if metric.group in {
         "model_learning", "model_complementarity",
         "soft_routing", "shared_gradient_conflict",
+        "clustering_noninferiority",
     }),
     "all": SCALAR_METRIC_IDS,
 }

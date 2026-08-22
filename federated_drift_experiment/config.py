@@ -203,4 +203,8 @@ FEDSDA_CLUSTERING_DECISIONS = ('distance', 'confidence', 'confidence_margin')
 FEDSDA_CLUSTERING_CONFIDENCE = 0.95
 # クラスタ決定後にIDまで統合するか、IDを保ったままパラメータだけ共有するか。
 FEDSDA_CLUSTERING_CONSOLIDATION = 'merge'
-FEDSDA_CLUSTERING_CONSOLIDATIONS = ('merge', 'parameter_share')
+FEDSDA_CLUSTERING_CONSOLIDATIONS = (
+    'merge', 'parameter_share', 'noninferiority_merge'
+)
+# 仮統合モデルの損失増加について許容する非劣性幅。
+FEDSDA_MERGE_NONINFERIORITY_MARGIN = 0.0
