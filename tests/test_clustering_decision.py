@@ -122,6 +122,53 @@ def test_noninferiority_representative_minimizes_worst_mean_loss_increase():
     ) == 1
 
 
+def test_noninferiority_merge_partitions_rejected_large_cluster(monkeypatch):
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "noninferiority_merge"
+    )
+    monkeypatch.setattr(config, "FEDSDA_MERGE_NONINFERIORITY_MARGIN", 0.01)
+
+    class PairedClient:
+        def get_held_model_ids(self):
+            return {0, 1, 2}
+
+        def evaluate_model_loss_difference(
+            self, candidate_params, reference_params, target_model_id
+        ):
+            candidate_id = int(candidate_params["weight"].item())
+            difference = (
+                0.005
+                if candidate_id == 0 and target_model_id in {0, 1}
+                else 0.2
+            )
+            return _stats([difference] * 10)
+
+    server = FedSDANoCachedServer(verbose=False)
+    server.clients = [PairedClient()]
+    server.global_models = {
+        model_id: {"weight": torch.tensor([float(model_id)])}
+        for model_id in range(3)
+    }
+    stats = {
+        0: {0: _stats([0.1] * 10), 1: _stats([0.11] * 10),
+            2: _stats([0.4] * 10)},
+        1: {0: _stats([0.2] * 10), 1: _stats([0.1] * 10),
+            2: _stats([0.4] * 10)},
+        2: {0: _stats([0.4] * 10), 1: _stats([0.4] * 10),
+            2: _stats([0.1] * 10)},
+    }
+
+    clusters, consolidation_params = server._validate_noninferiority_clusters(
+        50, [[0, 1, 2]], stats
+    )
+
+    assert clusters == [[0, 1], [2]]
+    assert torch.equal(consolidation_params[0]["weight"], torch.tensor([0.0]))
+    summary = server.noninferiority_summary()
+    assert summary["clustering_noninferiority_candidate_count"] == 1
+    assert summary["clustering_noninferiority_accepted_count"] == 1
+
+
 def test_confidence_decision_merges_uncertain_pair_ignored_by_distance(monkeypatch):
     monkeypatch.setattr(config, "FEDSDA_CLUSTERING_DECISION", "confidence")
     # 平均差はγを超えるが分散が大きく、差を十分に識別できない例。

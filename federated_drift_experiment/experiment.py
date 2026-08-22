@@ -1576,6 +1576,13 @@ def _save_raw_run(
             [item["cluster_accepted"] for item in clustering_noninferiority],
             dtype=np.bool_,
         ),
+        clustering_noninferiority_target_in_accepted_cluster=np.asarray(
+            [
+                item["target_in_accepted_cluster"]
+                for item in clustering_noninferiority
+            ],
+            dtype=np.bool_,
+        ),
         dataset=str(config.DATASET),
         concept_schedule=str(config.CONCEPT_SCHEDULE),
         mode=str(mode),

@@ -137,26 +137,44 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
             if len(cluster) <= 1:
                 validated.append(cluster)
                 continue
-            candidate_model_id = self._select_minimax_representative(
-                cluster, stats_matrix
-            )
-            candidate = self.global_models[candidate_model_id]
-            cluster_records = [
-                self._evaluate_noninferiority(
-                    t, cluster, target_model_id, candidate,
-                    candidate_model_id=candidate_model_id,
+            remaining = sorted(cluster)
+            while len(remaining) > 1:
+                candidate_model_id = self._select_minimax_representative(
+                    remaining, stats_matrix
                 )
-                for target_model_id in cluster
-            ]
-            accepted = all(record["accepted"] for record in cluster_records)
-            for record in cluster_records:
-                record["cluster_accepted"] = accepted
-                self.clustering_noninferiority_diagnostics.append(record)
-            if accepted:
-                validated.append(cluster)
-                consolidation_params[min(cluster)] = copy.deepcopy(candidate)
-            else:
-                validated.extend([[model_id] for model_id in cluster])
+                candidate = self.global_models[candidate_model_id]
+                records = [
+                    self._evaluate_noninferiority(
+                        t, remaining, target_model_id, candidate,
+                        candidate_model_id=candidate_model_id,
+                    )
+                    for target_model_id in remaining
+                ]
+                accepted_members = sorted(
+                    record["target_model_id"]
+                    for record in records if record["accepted"]
+                )
+                if candidate_model_id not in accepted_members:
+                    accepted_members = [candidate_model_id]
+                merged = len(accepted_members) > 1
+                for record in records:
+                    record["cluster_accepted"] = merged
+                    record["target_in_accepted_cluster"] = (
+                        record["target_model_id"] in accepted_members
+                    )
+                    self.clustering_noninferiority_diagnostics.append(record)
+
+                validated.append(accepted_members)
+                if merged:
+                    consolidation_params[min(accepted_members)] = (
+                        copy.deepcopy(candidate)
+                    )
+                accepted_set = set(accepted_members)
+                remaining = [
+                    model_id for model_id in remaining
+                    if model_id not in accepted_set
+                ]
+            validated.extend([[model_id] for model_id in remaining])
         return (
             sorted(validated, key=lambda cluster: min(cluster)),
             consolidation_params,
@@ -244,11 +262,11 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         """非劣性マージの候補数・採択率・評価標本数を返す。"""
         records = self.clustering_noninferiority_diagnostics
         representatives = {
-            (record["round_index"], record["representative_model_id"])
+            (record["round_index"], record["candidate_model_id"])
             for record in records
         }
         accepted_representatives = {
-            (record["round_index"], record["representative_model_id"])
+            (record["round_index"], record["candidate_model_id"])
             for record in records if record["cluster_accepted"]
         }
         candidate_count = len(representatives)
