@@ -283,10 +283,7 @@ def test_shared_server_counts_backbone_once_per_client_transfer():
     )
 
 
-def test_shared_cross_evaluation_deduplicates_backbone_and_heads(monkeypatch):
-    monkeypatch.setattr(
-        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "noninferiority_merge"
-    )
+def test_shared_cross_evaluation_deduplicates_backbone_and_heads():
     first_client = _two_head_client()
     second_client = _two_head_client()
     server = SharedBackboneFedSDANoCachedServer(verbose=False)

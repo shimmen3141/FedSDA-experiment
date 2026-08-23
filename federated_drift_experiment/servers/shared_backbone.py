@@ -29,8 +29,6 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
 
     def _begin_cross_evaluation_model_transfers(self):
         """共有部と概念別ヘッドの同一クライアントへの重複送信を避ける。"""
-        if self.clustering_consolidation != "noninferiority_merge":
-            return super()._begin_cross_evaluation_model_transfers()
         self._cross_evaluation_backbone_recipients = set()
         self._cross_evaluation_head_recipients = set()
 
@@ -38,10 +36,6 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
         self, model_id, params, target_clients
     ):
         """共有バックボーン1回と各概念ヘッド1回として通信量を数える。"""
-        if self.clustering_consolidation != "noninferiority_merge":
-            return super()._record_cross_evaluation_model_transfer(
-                model_id, params, target_clients
-            )
         backbone, head = SharedBackboneMLP.split_params(params)
         for client in target_clients:
             client_key = id(client)
