@@ -27,6 +27,34 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
             for client in self.clients:
                 client.recalibrate_routing_after_aggregation()
 
+    def _begin_cross_evaluation_model_transfers(self):
+        """共有部と概念別ヘッドの同一クライアントへの重複送信を避ける。"""
+        if self.clustering_consolidation != "noninferiority_merge":
+            return super()._begin_cross_evaluation_model_transfers()
+        self._cross_evaluation_backbone_recipients = set()
+        self._cross_evaluation_head_recipients = set()
+
+    def _record_cross_evaluation_model_transfer(
+        self, model_id, params, target_clients
+    ):
+        """共有バックボーン1回と各概念ヘッド1回として通信量を数える。"""
+        if self.clustering_consolidation != "noninferiority_merge":
+            return super()._record_cross_evaluation_model_transfer(
+                model_id, params, target_clients
+            )
+        backbone, head = SharedBackboneMLP.split_params(params)
+        for client in target_clients:
+            client_key = id(client)
+            if client_key not in self._cross_evaluation_backbone_recipients:
+                self.record_parameter_transfer("down", backbone)
+                self._cross_evaluation_backbone_recipients.add(client_key)
+            head_key = (int(model_id), client_key)
+            if head_key in self._cross_evaluation_head_recipients:
+                continue
+            self.comm_models_down += 1
+            self.record_parameter_transfer("down", head)
+            self._cross_evaluation_head_recipients.add(head_key)
+
     def update_global_models(self, active_ids):
         """共有バックボーン1個と各概念ヘッドを別々の重みでFedAvgする。"""
         agg_weights = {model_id: 0 for model_id in active_ids}

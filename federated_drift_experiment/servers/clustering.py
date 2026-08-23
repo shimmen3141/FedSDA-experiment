@@ -61,6 +61,7 @@ class CrossEvaluationClusteringServer(BaseServer):
         """
         self._last_pair_prediction_diagnostics = []
         self._last_paired_loss_difference_stats = {}
+        self._begin_cross_evaluation_model_transfers()
         holders = defaultdict(list)
         for c in self.clients:
             held_ids = c.get_held_model_ids()
@@ -81,8 +82,8 @@ class CrossEvaluationClusteringServer(BaseServer):
                 self.comm_messages_up += len(target_clients)
                 if send_model_params:
                     # キャッシュを使わない評価ではモデルを各対象クライアントへ送る。
-                    self.record_model_transfer(
-                        "down", params_i, count=len(target_clients)
+                    self._record_cross_evaluation_model_transfer(
+                        id_i, params_i, target_clients
                     )
 
                 total_n, total_S, total_SS = 0, 0.0, 0.0
@@ -177,6 +178,18 @@ class CrossEvaluationClusteringServer(BaseServer):
                             difference_sum_sq,
                         )
         return stats_matrix
+
+    def _begin_cross_evaluation_model_transfers(self):
+        """1回のクロス評価におけるモデル転送記録を初期化する。"""
+
+    def _record_cross_evaluation_model_transfer(
+        self, model_id, params, target_clients
+    ):
+        """候補モデルを対象クライアントへ送った通信量を記録する。"""
+        del model_id
+        self.record_model_transfer(
+            "down", params, count=len(target_clients)
+        )
 
     def pair_diagnostic_summary(self):
         """全クロス評価で観測したモデル対の正誤相補性を集約する。"""

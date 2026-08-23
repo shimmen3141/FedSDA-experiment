@@ -283,6 +283,38 @@ def test_shared_server_counts_backbone_once_per_client_transfer():
     )
 
 
+def test_shared_cross_evaluation_deduplicates_backbone_and_heads(monkeypatch):
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "noninferiority_merge"
+    )
+    first_client = _two_head_client()
+    second_client = _two_head_client()
+    server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    first_params = first_client.models[0].get_params()
+    second_params = first_client.models[1].get_params()
+    backbone, first_head = SharedBackboneMLP.split_params(first_params)
+    _, second_head = SharedBackboneMLP.split_params(second_params)
+    backbone_values, _ = parameter_payload_size(backbone)
+    first_head_values, _ = parameter_payload_size(first_head)
+    second_head_values, _ = parameter_payload_size(second_head)
+
+    server._begin_cross_evaluation_model_transfers()
+    server._record_cross_evaluation_model_transfer(
+        0, first_params, [first_client, second_client]
+    )
+    server._record_cross_evaluation_model_transfer(
+        0, first_params, [first_client]
+    )
+    server._record_cross_evaluation_model_transfer(
+        1, second_params, [first_client]
+    )
+
+    assert server.comm_models_down == 3
+    assert server.comm_parameter_values_down == (
+        2 * backbone_values + 2 * first_head_values + second_head_values
+    )
+
+
 def test_aggregation_restart_recalibrates_router_after_round(monkeypatch):
     monkeypatch.setattr(
         config,
