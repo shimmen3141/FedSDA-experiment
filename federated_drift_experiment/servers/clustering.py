@@ -1,7 +1,7 @@
 """クロス評価と階層クラスタリングを提供する共通サーバ。"""
 
 import random
-from collections import defaultdict
+from collections import Counter, defaultdict
 from statistics import NormalDist
 
 from .. import config
@@ -236,6 +236,11 @@ class CrossEvaluationClusteringServer(BaseServer):
 
         pair_distances = {}
         pair_decision_scores = {}
+        oracle_labels = (
+            self._oracle_concept_labels(model_ids)
+            if self.clustering_decision == "oracle_concept"
+            else {}
+        )
         M = len(model_ids)
 
         for i in range(M):
@@ -248,7 +253,28 @@ class CrossEvaluationClusteringServer(BaseServer):
                 stats_ji = stats_matrix[id_j].get(id_i, (0, 0, 0))
 
                 min_n = config.CLUSTER_MIN_EVAL_N
-                if stats_ii[0] < min_n or stats_ij[0] < min_n or stats_jj[0] < min_n or stats_ji[0] < min_n:
+                has_empirical_distance = not (
+                    stats_ii[0] < min_n
+                    or stats_ij[0] < min_n
+                    or stats_jj[0] < min_n
+                    or stats_ji[0] < min_n
+                )
+                if self.clustering_decision == "oracle_concept":
+                    left_label = oracle_labels.get(id_i)
+                    right_label = oracle_labels.get(id_j)
+                    if left_label is None or right_label is None:
+                        continue
+                    score = 0.0 if left_label == right_label else 1.0
+                    pair_decision_scores[(id_i, id_j)] = score
+                    if has_empirical_distance:
+                        diff_i_to_j = mean_loss(stats_ij) - mean_loss(stats_ii)
+                        diff_j_to_i = mean_loss(stats_ji) - mean_loss(stats_jj)
+                        pair_distances[(id_i, id_j)] = max(
+                            diff_i_to_j, diff_j_to_i
+                        )
+                    continue
+
+                if not has_empirical_distance:
                     continue
 
                 diff_i_to_j = mean_loss(stats_ij) - mean_loss(stats_ii)
@@ -286,10 +312,35 @@ class CrossEvaluationClusteringServer(BaseServer):
             self.linkage,
         )
 
+    def _oracle_concept_labels(self, model_ids):
+        """真の概念別割当数から各モデルの一意な多数概念を求める。
+
+        実験の上限対照だけに用いる。実運用で得られない真の概念IDを参照するため、
+        通常のクラスタリング判定として解釈してはならない。同数首位または未観測の
+        モデルにはラベルを与えず、安全側に統合しない。
+        """
+        labels = {}
+        for model_id in model_ids:
+            counts = Counter()
+            for client in self.clients:
+                counts.update(client.get_model_concept_counts(model_id))
+            if not counts:
+                continue
+            maximum = max(counts.values())
+            winners = [
+                concept_id for concept_id, count in counts.items()
+                if count == maximum
+            ]
+            if len(winners) == 1:
+                labels[model_id] = winners[0]
+        return labels
+
     def _clustering_cutoff(self):
         """選択中の判定尺度に対応するクラスタ分割閾値を返す。"""
         if self.clustering_decision in {"confidence", "confidence_margin"}:
             return NormalDist().inv_cdf(self.clustering_confidence)
+        if self.clustering_decision == "oracle_concept":
+            return 0.5
         return self.distance_threshold
 
     def record_clustering_diagnostics(self, t, model_ids, clusters):

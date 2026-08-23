@@ -55,6 +55,16 @@ def test_new_model_training_none_keeps_copied_parameters(monkeypatch):
     assert client.compute_counters["optimizer_steps"] == 0
 
 
+def test_model_concept_counts_follow_assigned_training_data():
+    client = _make_client()
+    x = torch.zeros((1, config.input_dim()))
+    y = torch.zeros((1, 1))
+
+    client._absorb_into_store(0, [(x, y, 3), (x, y, 3), (x, y, 1)])
+
+    assert client.get_model_concept_counts(0) == {3: 2, 1: 1}
+
+
 def test_new_model_can_copy_selected_existing_model(monkeypatch):
     monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "none")
     client = _make_client()

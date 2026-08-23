@@ -271,6 +271,46 @@ def test_confidence_margin_keeps_difference_clearly_above_margin(monkeypatch):
     assert server.perform_hierarchical_clustering([0, 1], stats) == [[0], [1]]
 
 
+def test_oracle_concept_merges_only_models_with_same_majority_concept():
+    class ConceptClient:
+        concept_counts = {
+            0: {2: 12, 1: 1},
+            1: {2: 8},
+            2: {3: 10},
+        }
+
+        def get_model_concept_counts(self, model_id):
+            return self.concept_counts.get(model_id, {})
+
+    server = FedSDANoCachedServer(
+        clustering_decision="oracle_concept",
+        linkage="complete",
+        verbose=False,
+    )
+    server.clients = [ConceptClient()]
+
+    assert server.perform_hierarchical_clustering(
+        [0, 1, 2], stats_matrix={0: {}, 1: {}, 2: {}}
+    ) == [[0, 1], [2]]
+
+
+def test_oracle_concept_does_not_merge_tied_or_unobserved_model():
+    class ConceptClient:
+        def get_model_concept_counts(self, model_id):
+            return {0: {1: 5, 2: 5}, 1: {1: 10}}.get(model_id, {})
+
+    server = FedSDANoCachedServer(
+        clustering_decision="oracle_concept",
+        linkage="connected",
+        verbose=False,
+    )
+    server.clients = [ConceptClient()]
+
+    assert server.perform_hierarchical_clustering(
+        [0, 1, 2], stats_matrix={0: {}, 1: {}, 2: {}}
+    ) == [[0], [1], [2]]
+
+
 def test_feddrift_always_uses_paper_distance_decision(monkeypatch):
     monkeypatch.setattr(config, "FEDSDA_CLUSTERING_DECISION", "confidence")
 

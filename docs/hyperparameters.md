@@ -170,7 +170,7 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 | `CLUSTER_MIN_EVAL_N` | マージ判定に必要な評価サンプルの最小数 | サーバ | 5 |
 | `FEDSDA_CLUSTER_LINKAGE` | FedSDAのクラスタ構成方法。`connected`=閾値グラフの連結成分(single-linkage cut相当)、`complete`=max-linkage | FedSDA | `connected` |
 | `FEDDRIFT_CLUSTER_LINKAGE` | FedDrift論文に準拠するmax-linkage | FedDrift | `complete` |
-| `FEDSDA_CLUSTERING_DECISION` | FedSDAの統合判定。`distance`=固定損失距離、`confidence`=ゼロとの差、`confidence_margin`=γを超える差の識別可能性 | FedSDA | `distance` |
+| `FEDSDA_CLUSTERING_DECISION` | FedSDAの統合判定。`distance`=固定損失距離、`confidence`=ゼロとの差、`confidence_margin`=γを超える差の識別可能性、`oracle_concept`=真の概念IDを使う診断用上限対照 | FedSDA | `distance` |
 | `FEDSDA_CLUSTERING_CONFIDENCE` | `confidence`判定の片側信頼水準 | FedSDA | `0.95` |
 
 > サーバは生データを集めず、配布モデルを現地評価させて**集約統計量 (n, Σℓ, Σℓ²) のみ**を
@@ -228,6 +228,7 @@ CLIでは`--clustering-decision`で切り替え、CSV/NPZには`clustering_decis
 | `distance`（既定） | 従来どおり、双方向の平均損失増加の最大値が`FEDSDA_DISTANCE_THRESHOLD`（γ）以下なら統合候補とする |
 | `confidence` | 各方向の平均損失増加をWelch型の標準誤差で標準化し、片側95%水準で正の増加を識別できない場合に統合候補とする |
 | `confidence_margin` | 平均損失増加がγを有意に超えるかを同じ方法で判定し、γ以下の小さな差や不確実な差では統合を許可する |
+| `oracle_concept` | 各モデルへ割り当てられた標本の真の概念IDの一意な多数概念が同じときだけ統合する。真値を参照する診断専用の上限対照であり、実運用・提案手法には使わない |
 
 `confidence`は既存の集約統計量 `(n, Σℓ, Σℓ²)`だけを使うため、モデル通信回数・評価依頼回数を
 増やさない。この設定ではγをサーバの統合判定には使わないが、クライアントが既存モデルへの適合を

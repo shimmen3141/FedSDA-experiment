@@ -124,8 +124,8 @@ class _SharedRepresentationFedSDAClientMixin:
         if not samples or len(model_ids) <= 1:
             return ()
 
-        x = torch.cat([sample_x for sample_x, _ in samples])
-        y = torch.cat([sample_y for _, sample_y in samples])
+        x = torch.cat([sample[0] for sample in samples])
+        y = torch.cat([sample[1] for sample in samples])
         losses_by_model = {}
         with torch.no_grad():
             features = self.models[model_ids[0]].extract_features(x)

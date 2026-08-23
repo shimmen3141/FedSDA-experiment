@@ -386,7 +386,7 @@ OPTIONS = (
     ),
     OptionSpec(
         "clustering_decision", "クラスタリング判定", "clustering",
-        ("distance", "confidence", "confidence_margin"),
+        ("distance", "confidence", "confidence_margin", "oracle_concept"),
         "モデル対を統合する判定規則",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("server_clustering",), cli_name="clustering-decision",

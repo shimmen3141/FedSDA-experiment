@@ -7,7 +7,7 @@ from statistics import NormalDist
 
 SUPPORTED_LINKAGES = frozenset({"connected", "complete"})
 SUPPORTED_CLUSTERING_DECISIONS = frozenset(
-    {"distance", "confidence", "confidence_margin"}
+    {"distance", "confidence", "confidence_margin", "oracle_concept"}
 )
 
 

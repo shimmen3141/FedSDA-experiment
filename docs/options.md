@@ -60,7 +60,7 @@ flowchart LR
   subgraph group_clustering[clustering]
     clustering_policy["<b>クラスタリング頻度</b><br/>disabled | on_new_model | every_round"]
     clustering_consolidation["<b>クラスタリング後処理</b><br/>merge | parameter_share | noninferiority_merge"]
-    clustering_decision["<b>クラスタリング判定</b><br/>distance | confidence | confidence_margin"]
+    clustering_decision["<b>クラスタリング判定</b><br/>distance | confidence | confidence_margin | oracle_concept"]
     cluster_linkage["<b>階層クラスタリングlinkage</b><br/>complete | connected"]
   end
   subgraph group_clustering_parameter[clustering_parameter]

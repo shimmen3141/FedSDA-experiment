@@ -989,7 +989,7 @@ def build_parser():
         default=config.FEDSDA_CLUSTERING_DECISION,
         help=(
             "FedSDAのモデル統合判定 "
-            "(distance / confidence / confidence_margin)"
+            "(distance / confidence / confidence_margin / oracle_concept)"
         ),
     )
     fedsda.add_argument(

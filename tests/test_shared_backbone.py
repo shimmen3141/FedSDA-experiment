@@ -363,6 +363,7 @@ def test_fifo_replay_rebuilds_router_from_post_aggregation_predictions(monkeypat
         client.buffer.append((
             torch.zeros(1, config.dataset_spec().input_dim),
             torch.tensor([[0.0]]),
+            0,
         ))
     probabilities = client.expert_router.probabilities([0, 1])
     client.expert_router.update({0: 0.0, 1: 1.0}, probabilities)

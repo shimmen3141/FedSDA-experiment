@@ -7,7 +7,7 @@ import copy
 import math
 import random
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 import torch
 
@@ -61,6 +61,9 @@ class BaseClient:
         # モデル間で学習量が断片化しているかを診断するための累積値。
         self.model_training_examples = defaultdict(int)
         self.model_optimizer_steps = defaultdict(int)
+        # 実験診断専用。各モデルへ実際に割り当てた標本の真の概念IDを集計し、
+        # oracleクラスタリングの上限対照に用いる。通常の予測・学習判断には使わない。
+        self.model_concept_counts = defaultdict(Counter)
 
         # per-sample index and detection positions
         self.processed_samples = 0                 # number of processed samples for this client
@@ -161,11 +164,22 @@ class BaseClient:
         model = self.models[model_id]
         for d in data_list:
             self.train_data_store[model_id].append(d)
+            if len(d) >= 3:
+                self._record_model_concept(model_id, d[2])
             with torch.no_grad():
                 self._record_model_compute("statistics", len(d[0]))
                 l_val = model.get_absolute_error(d[0], d[1])
             class_id = int(d[1].view(-1)[0].item())
             self._update_model_stats(model_id, l_val, class_id=class_id)
+
+    def _record_model_concept(self, model_id, concept_id):
+        """モデルへ割り当てた標本の真の概念IDを診断用に記録する。"""
+        if concept_id is not None:
+            self.model_concept_counts[model_id][int(concept_id)] += 1
+
+    def get_model_concept_counts(self, model_id):
+        """oracle診断用にモデルの概念別割当数のコピーを返す。"""
+        return dict(self.model_concept_counts.get(model_id, {}))
 
     # ------------------------------------------------------------
     # 予測ログ・学習
@@ -441,6 +455,10 @@ class BaseClient:
             self.model_optimizer_steps[new_global_id] += (
                 self.model_optimizer_steps.pop(temp_id)
             )
+        if temp_id in self.model_concept_counts:
+            self.model_concept_counts[new_global_id].update(
+                self.model_concept_counts.pop(temp_id)
+            )
 
         self.current_model_id = new_global_id
         self.pending_model_params = None
@@ -661,12 +679,16 @@ class BaseClient:
 
         new_training_examples = defaultdict(int)
         new_optimizer_steps = defaultdict(int)
+        new_concept_counts = defaultdict(Counter)
         for old_id, value in self.model_training_examples.items():
             new_training_examples[id_mapping.get(old_id, old_id)] += value
         for old_id, value in self.model_optimizer_steps.items():
             new_optimizer_steps[id_mapping.get(old_id, old_id)] += value
+        for old_id, counts in self.model_concept_counts.items():
+            new_concept_counts[id_mapping.get(old_id, old_id)].update(counts)
         self.model_training_examples = new_training_examples
         self.model_optimizer_steps = new_optimizer_steps
+        self.model_concept_counts = new_concept_counts
 
         # 3. グローバル配布モデルで上書き（ただし既に現地にテンポラリがある場合は残す処理を行う）
         temp_models = {mid: m for mid, m in list(self.models.items()) if mid < 0}

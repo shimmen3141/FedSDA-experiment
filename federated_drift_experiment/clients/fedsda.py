@@ -457,7 +457,8 @@ class FedSDAClient(BaseClient, ABC):
         self._record_model_compute("detection", len(x))
         error = self.models[self.current_model_id].get_absolute_error(x, y)
         drift_detected = self._update_drift_detectors(error, y, idx)
-        self.buffer.append((x, y))
+        # 真の概念IDはoracle診断にのみ使い、検出・学習ロジックには渡さない。
+        self.buffer.append((x, y, concept_id))
 
         # 統計的検知、または検出器固有の補助チェックが発火したら解決処理へ
         if drift_detected or self._forced_drift_check(idx):
@@ -487,14 +488,18 @@ class FedSDAClient(BaseClient, ABC):
         else:
             # 平時: バッファ長 N_FIFO を超えた分だけ古いデータをストアへ確定し、学習する
             while len(self.buffer) > self.fifo_size:
-                old_x, old_y = self.buffer.popleft()
+                old_data = self.buffer.popleft()
+                old_x, old_y = old_data[:2]
                 self._record_model_compute("statistics", len(old_x))
                 loss_val = self.models[self.current_model_id].get_absolute_error(old_x, old_y)
                 class_id = int(old_y.view(-1)[0].item())
                 self._update_model_stats(
                     self.current_model_id, loss_val, class_id=class_id
                 )
-                self.train_data_store[self.current_model_id].append((old_x, old_y))
+                self.train_data_store[self.current_model_id].append(old_data)
+                self._record_model_concept(
+                    self.current_model_id, old_data[2]
+                )
             self.train_step()
 
         self.history_drift_type.append(drift_type)
