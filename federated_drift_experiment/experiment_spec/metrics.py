@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 14
+METRIC_SCHEMA_VERSION = 15
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -186,6 +186,22 @@ METRICS = (
     ),
     *_make(
         (
+            "clustering_oracle_pair_count",
+            "clustering_oracle_same_pair_count",
+            "clustering_oracle_merge_tp",
+            "clustering_oracle_merge_fp",
+            "clustering_oracle_merge_fn",
+            "clustering_oracle_merge_tn",
+            "clustering_oracle_merge_precision",
+            "clustering_oracle_merge_recall",
+            "clustering_oracle_merge_f1",
+            "clustering_oracle_loss_distance_auc",
+            "clustering_oracle_parameter_distance_auc",
+        ),
+        "clustering_oracle_diagnostic", DIAGNOSTIC, FEDSDA_METHODS, None,
+    ),
+    *_make(
+        (
             "backbone_gradient_pair_count",
             "backbone_gradient_conflict_count",
             "backbone_gradient_conflict_rate",
@@ -281,6 +297,7 @@ METRIC_PROFILES = {
         "model_learning", "model_complementarity",
         "soft_routing", "shared_gradient_conflict",
         "clustering_noninferiority",
+        "clustering_oracle_diagnostic",
     }),
     "all": SCALAR_METRIC_IDS,
 }

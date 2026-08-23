@@ -45,6 +45,7 @@
 | `server_mapping` | サーバ割当変更 | `server_mapping_change_count` |
 | `model_learning` | モデル別の割当データ・学習サンプル・optimizer stepの分布 | `model_assigned_samples_*`, `model_training_examples_*`, `model_optimizer_steps_*` |
 | `model_complementarity` | 同一標本上のモデル対正誤表とoracle選択余地 | `model_pair_*` |
+| `clustering_oracle_diagnostic` | 真の概念一致に対するクラスタ判定と距離の診断 | `clustering_oracle_*` |
 | `soft_routing` | SoftRoutingが全モデル中の正解可能性を回収できた割合 | `routing_*` |
 
 コードから用途別に選ぶ場合は`metrics_in_profile("core")`、`"detection"`、
@@ -87,6 +88,16 @@ CVが大きい、または最小値が小さい場合は、一部モデルへ十
 
 - `cross_evaluation_*`: クライアント・候補モデル・対象モデルごとの損失十分統計と正誤表。
 - `clustering_pair_*`: モデル対の距離、判定スコア、最終的に同じクラスタへ入ったか。
+
+新しいrawでは、クラスタ判定へ真値を入力せず、事後診断専用として次も保存する。
+
+- `clustering_pair_oracle_same_concept`: 両モデルへ割り当てられた標本の一意な多数概念が同じか。`-1`は未観測または同数首位で判定不能。
+- `clustering_pair_personalized_parameter_distances`: 共有backboneを除いたadapter・head間の相対L2距離。通常モデルでは全パラメータを使う。
+- `clustering_oracle_merge_*`: 実際の同一クラスタ判定を真の概念一致と照合したTP・FP・FN・TN、precision・recall・F1。
+- `clustering_oracle_loss_distance_auc`: クロス評価損失距離の小ささが同一概念を識別するROC-AUC。
+- `clustering_oracle_parameter_distance_auc`: 個別パラメータ距離の小ささが同一概念を識別するROC-AUC。
+
+真の概念IDは診断値の算出だけに使い、通常のクラスタリング、学習、routingには渡さない。個別パラメータ距離はサーバへ既にアップロード済みのモデルから計算するため、追加通信や追加forwardを発生させない。
 
 これにより、固定閾値を変更せずに、実際に統合されたモデル対と残されたモデル対の機能的相補性を
 事後比較できる。集計には

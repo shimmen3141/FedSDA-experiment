@@ -40,6 +40,8 @@ class ClusteringPairObservation:
     distance: float
     decision_score: float
     same_cluster: bool
+    oracle_same_concept: bool | None
+    personalized_parameter_distance: float
 
 
 class ModelLineageRecorder:
@@ -80,6 +82,8 @@ class ModelLineageRecorder:
         pair_distances,
         clusters,
         pair_decision_scores=None,
+        pair_oracle_same_concept=None,
+        pair_personalized_parameter_distances=None,
     ):
         """距離とクラスタ割当をモデル単位の観測へ正規化して記録する。"""
         normalized_distances = {
@@ -95,6 +99,18 @@ class ModelLineageRecorder:
             tuple(sorted((int(left), int(right)))): float(score)
             for (left, right), score in (pair_decision_scores or {}).items()
         }
+        normalized_oracle_labels = {
+            tuple(sorted((int(left), int(right)))): bool(same_concept)
+            for (left, right), same_concept in (
+                pair_oracle_same_concept or {}
+            ).items()
+        }
+        normalized_parameter_distances = {
+            tuple(sorted((int(left), int(right)))): float(distance)
+            for (left, right), distance in (
+                pair_personalized_parameter_distances or {}
+            ).items()
+        }
 
         for (left, right), distance in sorted(normalized_distances.items()):
             self.clustering_pair_observations.append(
@@ -107,6 +123,12 @@ class ModelLineageRecorder:
                     same_cluster=(
                         cluster_by_model.get(left, [left])
                         == cluster_by_model.get(right, [right])
+                    ),
+                    oracle_same_concept=normalized_oracle_labels.get(
+                        (left, right)
+                    ),
+                    personalized_parameter_distance=(
+                        normalized_parameter_distances.get((left, right), nan)
                     ),
                 )
             )

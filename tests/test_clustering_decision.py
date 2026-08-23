@@ -311,6 +311,56 @@ def test_oracle_concept_does_not_merge_tied_or_unobserved_model():
     ) == [[0], [1], [2]]
 
 
+def test_oracle_clustering_diagnostics_measure_decisions_and_parameter_auc():
+    class ConceptClient:
+        concept_counts = {
+            0: {1: 10},
+            1: {1: 10},
+            2: {2: 10},
+        }
+
+        def get_model_concept_counts(self, model_id):
+            return self.concept_counts.get(model_id, {})
+
+    def model_params(personalized_value):
+        return {
+            "backbone.weight": torch.tensor([100.0]),
+            "adapter.weight": torch.tensor([personalized_value]),
+        }
+
+    diagonal = _stats([0.1] * 10)
+    close = _stats([0.12] * 10)
+    far = _stats([0.4] * 10)
+    stats = {
+        0: {0: diagonal, 1: close, 2: far},
+        1: {0: close, 1: diagonal, 2: far},
+        2: {0: far, 1: far, 2: diagonal},
+    }
+    server = FedSDANoCachedServer(
+        clustering_decision="oracle_concept",
+        linkage="complete",
+        verbose=False,
+    )
+    server.clients = [ConceptClient()]
+    server.global_models = {
+        0: model_params(1.0),
+        1: model_params(1.1),
+        2: model_params(-1.0),
+    }
+
+    clusters = server.perform_hierarchical_clustering([0, 1, 2], stats)
+    server.record_clustering_diagnostics(10, [0, 1, 2], clusters)
+    summary = server.clustering_oracle_diagnostic_summary()
+
+    assert clusters == [[0, 1], [2]]
+    assert summary["clustering_oracle_pair_count"] == 3
+    assert summary["clustering_oracle_merge_tp"] == 1
+    assert summary["clustering_oracle_merge_tn"] == 2
+    assert summary["clustering_oracle_merge_f1"] == 1.0
+    assert summary["clustering_oracle_loss_distance_auc"] == 1.0
+    assert summary["clustering_oracle_parameter_distance_auc"] == 1.0
+
+
 def test_feddrift_always_uses_paper_distance_decision(monkeypatch):
     monkeypatch.setattr(config, "FEDSDA_CLUSTERING_DECISION", "confidence")
 

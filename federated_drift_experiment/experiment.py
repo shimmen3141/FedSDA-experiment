@@ -547,6 +547,24 @@ def _add_model_diagnostic_results(
     }
     results.update({**noninferiority_defaults, **noninferiority})
 
+    oracle_clustering = getattr(
+        server, "clustering_oracle_diagnostic_summary", lambda: {}
+    )()
+    oracle_clustering_defaults = {
+        "clustering_oracle_pair_count": 0,
+        "clustering_oracle_same_pair_count": 0,
+        "clustering_oracle_merge_tp": 0,
+        "clustering_oracle_merge_fp": 0,
+        "clustering_oracle_merge_fn": 0,
+        "clustering_oracle_merge_tn": 0,
+        "clustering_oracle_merge_precision": 0.0,
+        "clustering_oracle_merge_recall": 0.0,
+        "clustering_oracle_merge_f1": 0.0,
+        "clustering_oracle_loss_distance_auc": float("nan"),
+        "clustering_oracle_parameter_distance_auc": float("nan"),
+    }
+    results.update({**oracle_clustering_defaults, **oracle_clustering})
+
     routing = defaultdict(int)
     for client in clients:
         for key, value in getattr(client, "routing_diagnostics", {}).items():
@@ -1547,6 +1565,21 @@ def _save_raw_run(
         clustering_pair_same_cluster=np.asarray(
             [observation.same_cluster for observation in clustering_pair_observations],
             dtype=np.bool_,
+        ),
+        clustering_pair_oracle_same_concept=np.asarray(
+            [
+                -1 if observation.oracle_same_concept is None
+                else int(observation.oracle_same_concept)
+                for observation in clustering_pair_observations
+            ],
+            dtype=np.int8,
+        ),
+        clustering_pair_personalized_parameter_distances=np.asarray(
+            [
+                observation.personalized_parameter_distance
+                for observation in clustering_pair_observations
+            ],
+            dtype=np.float64,
         ),
         clustering_noninferiority_rounds=np.asarray(
             [item["round_index"] for item in clustering_noninferiority],

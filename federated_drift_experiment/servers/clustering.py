@@ -1,5 +1,6 @@
 """クロス評価と階層クラスタリングを提供する共通サーバ。"""
 
+import math
 import random
 from collections import Counter, defaultdict
 from statistics import NormalDist
@@ -44,6 +45,8 @@ class CrossEvaluationClusteringServer(BaseServer):
         self.cross_evaluation_diagnostics = []
         self._last_pair_distances = {}
         self._last_pair_decision_scores = {}
+        self._last_pair_oracle_same_concept = {}
+        self._last_pair_personalized_parameter_distances = {}
         self._last_paired_loss_difference_stats = {}
 
     def _cross_evaluate(
@@ -236,16 +239,25 @@ class CrossEvaluationClusteringServer(BaseServer):
 
         pair_distances = {}
         pair_decision_scores = {}
-        oracle_labels = (
-            self._oracle_concept_labels(model_ids)
-            if self.clustering_decision == "oracle_concept"
-            else {}
-        )
+        pair_oracle_same_concept = {}
+        pair_personalized_parameter_distances = {}
+        # 真の概念IDは診断にだけ使う。通常方式のクラスタ判定には渡さない。
+        oracle_labels = self._oracle_concept_labels(model_ids)
         M = len(model_ids)
 
         for i in range(M):
             for j in range(i + 1, M):
                 id_i, id_j = model_ids[i], model_ids[j]
+                pair = (id_i, id_j)
+                left_label = oracle_labels.get(id_i)
+                right_label = oracle_labels.get(id_j)
+                if left_label is not None and right_label is not None:
+                    pair_oracle_same_concept[pair] = (
+                        left_label == right_label
+                    )
+                pair_personalized_parameter_distances[pair] = (
+                    self._personalized_parameter_distance(id_i, id_j)
+                )
 
                 stats_ii = stats_matrix[id_i].get(id_i, (0, 0, 0))
                 stats_ij = stats_matrix[id_i].get(id_j, (0, 0, 0))
@@ -260,8 +272,6 @@ class CrossEvaluationClusteringServer(BaseServer):
                     or stats_ji[0] < min_n
                 )
                 if self.clustering_decision == "oracle_concept":
-                    left_label = oracle_labels.get(id_i)
-                    right_label = oracle_labels.get(id_j)
                     if left_label is None or right_label is None:
                         continue
                     score = 0.0 if left_label == right_label else 1.0
@@ -305,12 +315,113 @@ class CrossEvaluationClusteringServer(BaseServer):
 
         self._last_pair_distances = pair_distances
         self._last_pair_decision_scores = pair_decision_scores
+        self._last_pair_oracle_same_concept = pair_oracle_same_concept
+        self._last_pair_personalized_parameter_distances = (
+            pair_personalized_parameter_distances
+        )
         return cluster_models(
             model_ids,
             pair_decision_scores,
             cutoff,
             self.linkage,
         )
+
+    def _personalized_parameter_distance(self, left_model_id, right_model_id):
+        """共有backboneを除くパラメータ間の相対L2距離を返す。
+
+        サーバへ既にアップロード済みのモデルだけを使う診断値なので、追加通信は
+        発生しない。通常モデルでは全パラメータ、共有backboneモデルではadapterと
+        headを対象にする。
+        """
+        left = self.global_models.get(left_model_id, {})
+        right = self.global_models.get(right_model_id, {})
+        if set(left) != set(right):
+            return float("nan")
+        keys = [key for key in left if not key.startswith("backbone.")]
+        if not keys:
+            keys = list(left)
+
+        difference_sq = 0.0
+        scale_sq = 0.0
+        for key in keys:
+            left_value = left[key]
+            right_value = right[key]
+            if left_value.shape != right_value.shape:
+                return float("nan")
+            difference = left_value.detach().double() - right_value.detach().double()
+            difference_sq += float((difference * difference).sum().item())
+            scale_sq += float(
+                (left_value.detach().double() ** 2).sum().item()
+                + (right_value.detach().double() ** 2).sum().item()
+            )
+        if scale_sq == 0.0:
+            return 0.0 if difference_sq == 0.0 else float("inf")
+        return math.sqrt(difference_sq / (0.5 * scale_sq))
+
+    @staticmethod
+    def _lower_score_auc(observations, value_getter):
+        """小さい値を同一概念の証拠とみなしたROC-AUCを返す。"""
+        positives = []
+        negatives = []
+        for observation in observations:
+            if observation.oracle_same_concept is None:
+                continue
+            value = float(value_getter(observation))
+            if not math.isfinite(value):
+                continue
+            target = positives if observation.oracle_same_concept else negatives
+            target.append(value)
+        if not positives or not negatives:
+            return float("nan")
+        favorable = 0.0
+        for positive in positives:
+            for negative in negatives:
+                favorable += float(positive < negative)
+                favorable += 0.5 * float(positive == negative)
+        return favorable / (len(positives) * len(negatives))
+
+    def clustering_oracle_diagnostic_summary(self):
+        """真の概念一致に対するクラスタ判定と距離の診断値を返す。"""
+        observations = [
+            item for item in self.model_lineage.clustering_pair_observations
+            if item.oracle_same_concept is not None
+        ]
+        tp = sum(
+            item.same_cluster and item.oracle_same_concept
+            for item in observations
+        )
+        fp = sum(
+            item.same_cluster and not item.oracle_same_concept
+            for item in observations
+        )
+        fn = sum(
+            not item.same_cluster and item.oracle_same_concept
+            for item in observations
+        )
+        tn = len(observations) - tp - fp - fn
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        return {
+            "clustering_oracle_pair_count": len(observations),
+            "clustering_oracle_same_pair_count": tp + fn,
+            "clustering_oracle_merge_tp": tp,
+            "clustering_oracle_merge_fp": fp,
+            "clustering_oracle_merge_fn": fn,
+            "clustering_oracle_merge_tn": tn,
+            "clustering_oracle_merge_precision": precision,
+            "clustering_oracle_merge_recall": recall,
+            "clustering_oracle_merge_f1": (
+                2.0 * precision * recall / (precision + recall)
+                if precision + recall else 0.0
+            ),
+            "clustering_oracle_loss_distance_auc": self._lower_score_auc(
+                observations, lambda item: item.distance
+            ),
+            "clustering_oracle_parameter_distance_auc": self._lower_score_auc(
+                observations,
+                lambda item: item.personalized_parameter_distance,
+            ),
+        }
 
     def _oracle_concept_labels(self, model_ids):
         """真の概念別割当数から各モデルの一意な多数概念を求める。
@@ -351,4 +462,6 @@ class CrossEvaluationClusteringServer(BaseServer):
             self._last_pair_distances,
             clusters,
             self._last_pair_decision_scores,
+            self._last_pair_oracle_same_concept,
+            self._last_pair_personalized_parameter_distances,
         )
