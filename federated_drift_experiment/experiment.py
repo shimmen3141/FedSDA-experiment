@@ -34,6 +34,7 @@ from .clients import (
     FedSDAClient,
     HDDMFedSDAClient,
     ObliviousClient,
+    ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient,
     ResidualAdapterClassConditionalESRFedSDAClient,
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
     ProtectedSoftRoutingClassConditionalESRFedSDAClient,
@@ -197,6 +198,12 @@ MODE_SPECS = {
     ),
     'FedSDA_NoCached_ResidualAdapter_ClassESR': ModeSpec(
         ResidualAdapterClassConditionalESRFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=SharedBackboneFedSDANoCachedServer,
+        model_cls=ResidualAdapterMLP,
+    ),
+    'FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting': ModeSpec(
+        ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient,
         _run_per_sample_timestep,
         server_cls=SharedBackboneFedSDANoCachedServer,
         model_cls=ResidualAdapterMLP,

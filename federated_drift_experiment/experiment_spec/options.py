@@ -462,6 +462,7 @@ CHOICE_CONSTRAINTS = (
             "FedSDA_NoCached_ClassESR",
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassESR",
             "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ClassESR_ProtectedSoftRouting",
@@ -481,7 +482,11 @@ CHOICE_CONSTRAINTS = (
     ),
     ChoiceConstraint(
         "detector", ("ClassADWIN",),
-        ("FedSDA_NoCached_ClassADWIN", "FedSDA_Cached_ClassADWIN"),
+        (
+            "FedSDA_NoCached_ClassADWIN",
+            "FedSDA_Cached_ClassADWIN",
+            "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting",
+        ),
     ),
     ChoiceConstraint(
         "detector", ("ESR",),
@@ -515,13 +520,17 @@ CHOICE_CONSTRAINTS = (
         (
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
         ),
         requires_selections=(
             ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
-            ActivationRule("detector", ("ClassESR",), "ClassESRが必要"),
+            ActivationRule(
+                "detector", ("ClassADWIN", "ClassESR"),
+                "ClassADWINまたはClassESRが必要",
+            ),
         ),
-        note="現在は専用modeでのみ実装",
+        note="ClassADWINとClassESRの専用modeで実装",
     ),
     ChoiceConstraint(
         "model_architecture", ("shared_backbone",),
@@ -535,6 +544,7 @@ CHOICE_CONSTRAINTS = (
     ChoiceConstraint(
         "model_architecture", ("residual_adapter",),
         (
+            "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassESR",
             "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
         ),

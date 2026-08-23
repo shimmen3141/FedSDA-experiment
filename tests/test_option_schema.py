@@ -17,6 +17,7 @@ from federated_drift_experiment.experiment_spec.options import (
     inactive_reasons,
     option,
     render_option_document,
+    selections_for_mode,
     validate_explicit_options,
     validate_selection,
     validate_sweep_dependencies,
@@ -121,7 +122,9 @@ def test_soft_routing_constraints_are_explicit():
         "routing": "restarting_soft",
         "server_flow": "NoCached",
         "detector": "ADWIN",
-    }) == ("routing=restarting_soft: ClassESRが必要",)
+    }) == (
+        "routing=restarting_soft: ClassADWINまたはClassESRが必要",
+    )
     assert validate_selection("FedSDA", {
         "routing": "restarting_soft",
         "server_flow": "NoCached",
@@ -222,6 +225,16 @@ def test_shared_backbone_training_requires_shared_architecture():
         "routing": "restarting_soft",
         "detector": "ClassESR",
     }) == ()
+
+
+def test_residual_adapter_class_adwin_supports_restarting_soft_routing():
+    mode = "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting"
+    selections = selections_for_mode(mode)
+
+    assert selections["detector"] == "ClassADWIN"
+    assert selections["routing"] == "restarting_soft"
+    assert selections["model_architecture"] == "residual_adapter"
+    assert validate_selection("FedSDA", selections) == ()
 
 
 def test_routing_recalibration_requires_soft_routing():

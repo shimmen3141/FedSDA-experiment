@@ -1257,13 +1257,11 @@ class ClassConditionalESRFedSDAClient(ESRFedSDAClient):
         return "overall + class-conditional e-SR mixture"
 
 
-class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
-    ClassConditionalESRFedSDAClient
-):
-    """保持モデルの予測をAdaHedgeで統合するClassESRクライアント。
+class _AdaHedgeRoutingFedSDAClientMixin:
+    """検出器から独立して保持モデルの予測をAdaHedgeで統合するmixin。
 
-    検出・モデル操作・学習・通信は既存ClassESRと同一に保ち、prequential
-    予測だけをソフト化する。これによりハード切替回避の寄与を独立に測る。
+    検出・モデル操作・学習・通信は後続の検出器クラスに委ね、prequential
+    予測だけをソフト化する。これにより検出器とroutingを独立に組み合わせる。
     """
 
     def __init__(self, *args, **kwargs):
@@ -1754,10 +1752,10 @@ class _AdaHedgeRoutingClassConditionalESRFedSDAClient(
             context_router.update(model_losses, context_proposal)
 
 
-class RestartingSoftRoutingClassConditionalESRFedSDAClient(
-    _AdaHedgeRoutingClassConditionalESRFedSDAClient
+class _RestartingSoftRoutingFedSDAClientMixin(
+    _AdaHedgeRoutingFedSDAClientMixin
 ):
-    """確定した概念切替ごとにAdaHedgeを再始動するSoftRouting。"""
+    """確定した概念切替ごとにAdaHedgeを再始動するmixin。"""
 
     def _on_local_model_change(self, old_model_id, new_model_id):
         self.expert_router.restart_for_concept()
@@ -1765,6 +1763,20 @@ class RestartingSoftRoutingClassConditionalESRFedSDAClient(
             router.restart_for_concept()
         for router in self.shadow_meta_routers.values():
             router.restart_for_concept()
+
+
+class RestartingSoftRoutingClassConditionalESRFedSDAClient(
+    _RestartingSoftRoutingFedSDAClientMixin,
+    ClassConditionalESRFedSDAClient,
+):
+    """ClassESRとRestarting SoftRoutingを組み合わせるクライアント。"""
+
+
+class RestartingSoftRoutingClassConditionalADWINFedSDAClient(
+    _RestartingSoftRoutingFedSDAClientMixin,
+    ClassConditionalADWINFedSDAClient,
+):
+    """ClassADWINとRestarting SoftRoutingを組み合わせるクライアント。"""
 
 
 class ProtectedSoftRoutingClassConditionalESRFedSDAClient(

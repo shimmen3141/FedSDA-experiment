@@ -15,12 +15,13 @@ from ..gradient_surgery import (
 )
 from .fedsda import (
     ClassConditionalESRFedSDAClient,
+    RestartingSoftRoutingClassConditionalADWINFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
 )
 
 
 class _SharedRepresentationFedSDAClientMixin:
-    """ClassESRクライアントへ共有表現の管理と共同学習を追加するmixin。
+    """FedSDAクライアントへ共有表現の管理と共同学習を追加するmixin。
 
     正式採用済みモデルは一つの特徴抽出部を共有し、概念別ヘッドだけを独立して
     保持する。仮モデルと比較用shadowは独立したバックボーンで学習し、棄却時に
@@ -412,3 +413,10 @@ class ResidualAdapterRestartingSoftRoutingFedSDAClient(
     SharedBackboneRestartingSoftRoutingFedSDAClient
 ):
     """ゼロ初期化の概念別低ランク残差adapterを使うClassESRクライアント。"""
+
+
+class ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient(
+    _SharedRepresentationFedSDAClientMixin,
+    RestartingSoftRoutingClassConditionalADWINFedSDAClient,
+):
+    """低ランク残差adapter、ClassADWIN、Restarting SoftRoutingを使う。"""

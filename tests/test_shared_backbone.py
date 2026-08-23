@@ -3,6 +3,7 @@ import torch
 
 from federated_drift_experiment import config, run_random_drift_experiment
 from federated_drift_experiment.clients import (
+    ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient,
     ResidualAdapterClassConditionalESRFedSDAClient,
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
@@ -68,6 +69,19 @@ def test_residual_adapter_mode_has_dedicated_client_and_model():
     ]
 
     assert spec.client_cls is ResidualAdapterRestartingSoftRoutingFedSDAClient
+    assert spec.server_cls is SharedBackboneFedSDANoCachedServer
+    assert spec.model_cls is ResidualAdapterMLP
+
+
+def test_residual_adapter_class_adwin_mode_reuses_routing_architecture():
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting"
+    ]
+
+    assert (
+        spec.client_cls
+        is ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient
+    )
     assert spec.server_cls is SharedBackboneFedSDANoCachedServer
     assert spec.model_cls is ResidualAdapterMLP
 
