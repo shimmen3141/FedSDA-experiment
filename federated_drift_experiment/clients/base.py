@@ -524,7 +524,9 @@ class BaseClient:
             return random.sample(data, config.EVAL_MAX_SAMPLES)
         return data
 
-    def evaluate_model_diagnostics(self, params, target_model_id):
+    def evaluate_model_diagnostics(
+        self, params, target_model_id, reference_params=None
+    ):
         """通常の損失統計に加え、候補と対象モデルの標本別正誤表を返す。"""
         start_time = time.perf_counter()
         eval_data = self._cross_evaluation_data(target_model_id)
@@ -536,8 +538,15 @@ class BaseClient:
         y = torch.cat([d[1] for d in eval_data])
         candidate = self._new_model()
         candidate.set_params(params)
+        reference = None
+        if reference_params is not None:
+            reference = self._new_model()
+            reference.set_params(reference_params)
         with torch.no_grad():
-            self._record_model_compute("cross_evaluation", len(X) * 2, calls=2)
+            model_calls = 3 if reference is not None else 2
+            self._record_model_compute(
+                "cross_evaluation", len(X) * model_calls, calls=model_calls
+            )
             errors, candidate_predictions = candidate.per_sample_error_and_prediction(X, y)
             errors = errors.numpy().flatten()
             candidate_correct = candidate_predictions.view(-1) == y.view(-1)
@@ -546,6 +555,16 @@ class BaseClient:
         target_only = int((~candidate_correct & target_correct).sum().item())
         both_correct = int((candidate_correct & target_correct).sum().item())
         both_wrong = len(X) - candidate_only - target_only - both_correct
+        difference_stats = {}
+        if reference is not None:
+            with torch.no_grad():
+                reference_errors = reference.per_sample_error(X, y).numpy().flatten()
+            differences = errors - reference_errors
+            difference_stats = {
+                "loss_difference_n": len(differences),
+                "loss_difference_sum": float(differences.sum()),
+                "loss_difference_sum_sq": float((differences ** 2).sum()),
+            }
         self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
         return (
             (len(errors), float(errors.sum()), float((errors ** 2).sum())),
@@ -555,6 +574,7 @@ class BaseClient:
                 "target_only_correct": target_only,
                 "both_correct": both_correct,
                 "both_wrong": both_wrong,
+                **difference_stats,
             },
         )
 

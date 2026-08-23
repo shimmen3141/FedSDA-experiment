@@ -97,7 +97,13 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         if M <= 1:
             return {}
 
-        stats_matrix = self._cross_evaluate(active_ids, round_index=t)
+        stats_matrix = self._cross_evaluate(
+            active_ids,
+            round_index=t,
+            collect_paired_loss_differences=(
+                self.clustering_consolidation == "noninferiority_merge"
+            ),
+        )
         clusters = self.perform_hierarchical_clustering(active_ids, stats_matrix)
         consolidation_params = {}
         if self.clustering_consolidation == "noninferiority_merge":
@@ -217,23 +223,29 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
                 target_clients, config.CROSS_EVAL_MAX_CLIENTS
             )
 
-        # 直前のクロス評価で参照モデルは送信済みなので、ここでは仮統合モデルだけを送る。
-        self.comm_messages_down += len(target_clients)
-        self.comm_messages_up += len(target_clients)
-        self.record_model_transfer(
-            "down", candidate_params, count=len(target_clients)
+        cached_stats = self._last_paired_loss_difference_stats.get(
+            (candidate_model_id, target_model_id)
         )
-        total_n, total_sum, total_sum_sq = 0, 0.0, 0.0
-        reference_params = self.global_models[target_model_id]
-        for client in target_clients:
-            n, difference_sum, difference_sum_sq = (
-                client.evaluate_model_loss_difference(
-                    candidate_params, reference_params, target_model_id
-                )
+        if cached_stats is not None:
+            total_n, total_sum, total_sum_sq = cached_stats
+        else:
+            # 十分統計を収集できなかった対象だけ、従来の個別評価へ戻す。
+            self.comm_messages_down += len(target_clients)
+            self.comm_messages_up += len(target_clients)
+            self.record_model_transfer(
+                "down", candidate_params, count=len(target_clients)
             )
-            total_n += n
-            total_sum += difference_sum
-            total_sum_sq += difference_sum_sq
+            total_n, total_sum, total_sum_sq = 0, 0.0, 0.0
+            reference_params = self.global_models[target_model_id]
+            for client in target_clients:
+                n, difference_sum, difference_sum_sq = (
+                    client.evaluate_model_loss_difference(
+                        candidate_params, reference_params, target_model_id
+                    )
+                )
+                total_n += n
+                total_sum += difference_sum
+                total_sum_sq += difference_sum_sq
 
         upper_bound = float("inf")
         if total_n >= max(config.CLUSTER_MIN_EVAL_N, 2):

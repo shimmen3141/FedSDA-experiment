@@ -111,6 +111,39 @@ def test_noninferiority_merge_accepts_cluster_safe_for_every_member(monkeypatch)
     ] == 1.0
 
 
+def test_noninferiority_merge_reuses_cross_evaluation_statistics(monkeypatch):
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "noninferiority_merge"
+    )
+    monkeypatch.setattr(config, "FEDSDA_MERGE_NONINFERIORITY_MARGIN", 0.01)
+
+    class CachedClient:
+        def get_held_model_ids(self):
+            return {0, 1}
+
+        def evaluate_model_loss_difference(self, *args, **kwargs):
+            raise AssertionError("クロス評価済みのモデルを再送してはならない")
+
+    server = FedSDANoCachedServer(verbose=False)
+    server.clients = [CachedClient()]
+    server.global_models = {
+        0: {"weight": torch.tensor([0.0])},
+        1: {"weight": torch.tensor([1.0])},
+    }
+    server._last_paired_loss_difference_stats = {
+        (0, 0): _stats([0.0] * 10),
+        (0, 1): _stats([0.005] * 10),
+    }
+
+    clusters, _ = server._validate_noninferiority_clusters(
+        50, [[0, 1]], _two_model_stats([0.1] * 10, [0.1] * 10)
+    )
+
+    assert clusters == [[0, 1]]
+    assert server.comm_models_down == 0
+    assert server.comm_messages_down == 0
+
+
 def test_noninferiority_representative_minimizes_worst_mean_loss_increase():
     stats = {
         0: {0: _stats([0.1] * 10), 1: _stats([0.3] * 10)},

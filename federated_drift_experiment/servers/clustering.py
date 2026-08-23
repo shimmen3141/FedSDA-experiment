@@ -44,6 +44,7 @@ class CrossEvaluationClusteringServer(BaseServer):
         self.cross_evaluation_diagnostics = []
         self._last_pair_distances = {}
         self._last_pair_decision_scores = {}
+        self._last_paired_loss_difference_stats = {}
 
     def _cross_evaluate(
         self,
@@ -51,6 +52,7 @@ class CrossEvaluationClusteringServer(BaseServer):
         send_model_params=True,
         use_client_cache=False,
         round_index=-1,
+        collect_paired_loss_differences=False,
     ):
         """モデル対をクライアントで評価し、集約統計を返す。
 
@@ -58,6 +60,7 @@ class CrossEvaluationClusteringServer(BaseServer):
         この場合はモデル本体を再送せず、クライアントの不変キャッシュを評価する。
         """
         self._last_pair_prediction_diagnostics = []
+        self._last_paired_loss_difference_stats = {}
         holders = defaultdict(list)
         for c in self.clients:
             held_ids = c.get_held_model_ids()
@@ -83,12 +86,25 @@ class CrossEvaluationClusteringServer(BaseServer):
                     )
 
                 total_n, total_S, total_SS = 0, 0.0, 0.0
+                difference_n = 0
+                difference_sum = 0.0
+                difference_sum_sq = 0.0
                 for c in target_clients:
                     diagnostic = None
-                    if self.collect_pair_diagnostics and id_i != id_j:
+                    if (
+                        (self.collect_pair_diagnostics
+                         or collect_paired_loss_differences)
+                        and id_i != id_j
+                    ):
                         if use_client_cache:
                             stats, diagnostic = c.evaluate_cached_model_diagnostics(
                                 id_i, target_model_id=id_j
+                            )
+                        elif collect_paired_loss_differences:
+                            stats, diagnostic = c.evaluate_model_diagnostics(
+                                params_i,
+                                target_model_id=id_j,
+                                reference_params=self.global_models[id_j],
                             )
                         else:
                             stats, diagnostic = c.evaluate_model_diagnostics(
@@ -103,6 +119,19 @@ class CrossEvaluationClusteringServer(BaseServer):
                             }
                             self.pair_prediction_diagnostics.append(record)
                             self._last_pair_prediction_diagnostics.append(record)
+                        if (
+                            collect_paired_loss_differences
+                            and diagnostic is not None
+                        ):
+                            difference_n += diagnostic.get(
+                                "loss_difference_n", 0
+                            )
+                            difference_sum += diagnostic.get(
+                                "loss_difference_sum", 0.0
+                            )
+                            difference_sum_sq += diagnostic.get(
+                                "loss_difference_sum_sq", 0.0
+                            )
                     elif use_client_cache:
                         n, S, SS = c.evaluate_cached_model(id_i, target_model_id=id_j)
                     else:
@@ -136,6 +165,17 @@ class CrossEvaluationClusteringServer(BaseServer):
                     total_n += n; total_S += S; total_SS += SS
 
                 stats_matrix[id_i][id_j] = (total_n, total_S, total_SS)
+                if collect_paired_loss_differences:
+                    if id_i == id_j:
+                        self._last_paired_loss_difference_stats[(id_i, id_j)] = (
+                            total_n, 0.0, 0.0
+                        )
+                    elif difference_n > 0:
+                        self._last_paired_loss_difference_stats[(id_i, id_j)] = (
+                            difference_n,
+                            difference_sum,
+                            difference_sum_sq,
+                        )
         return stats_matrix
 
     def pair_diagnostic_summary(self):
