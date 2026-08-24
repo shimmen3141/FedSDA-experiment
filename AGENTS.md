@@ -35,7 +35,10 @@
 
 - 長い条件を成果物ファイル名へ埋め込まない。`run_pareto_sweep.py`が短い内容ハッシュ名を生成し、
   完全な条件はCSV・NPZ・`manifest.json`へ保存する。
-- 実験コマンドは先に`--print-plan`でrun構成と重複先manifestを確認する。通常実行では既定の`--duplicate-policy error`を維持し、
+- エージェントは長時間実験のコマンドを作る前に、内部確認として`--print-plan`でrun構成と
+  重複先manifestを確認する。`--print-plan`は人間向けの実行手順・提示コマンドには含めない。
+  計画確認は読み取り専用で、結果・raw・ログ用ディレクトリを作成してはならない。
+  通常実行では既定の`--duplicate-policy error`を維持し、
   一部でも同一コード・golden・run設定の既存結果があれば、表示されたmanifestを確認して計画を直す。
   意図的な再実験だけ`warn`、照合不要と判断できる場合だけ`ignore`を使う。
 - 既存CSVからmanifestを補完するときは

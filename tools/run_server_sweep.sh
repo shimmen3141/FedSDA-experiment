@@ -39,6 +39,7 @@ python_bin=${FDE_PYTHON:-"$venv_dir/bin/python"}
 time_bin=${FDE_TIME_BIN:-/usr/bin/time}
 no_recovery=${FDE_NO_RECOVERY:-1}
 tag=${FDE_TAG:-$variant}
+print_plan=0
 if [[ -n ${FDE_RUN_DIR:-} ]]; then
     run_dir=$FDE_RUN_DIR
     variant_dir="$run_dir/$variant"
@@ -61,6 +62,9 @@ for argument in "$@"; do
             echo "$argument is managed by run_server_sweep.sh" >&2
             exit 2
             ;;
+        --print-plan)
+            print_plan=1
+            ;;
     esac
 done
 
@@ -70,14 +74,13 @@ fi
 pareto_dir="$variant_dir/pareto"
 raw_dir="$variant_dir/raw"
 log_dir="$run_dir/logs"
-mkdir -p "$pareto_dir" "$raw_dir" "$log_dir"
 
 if [[ ${FDE_DRY_RUN:-0} != 1 ]]; then
     if [[ ! -x $python_bin ]]; then
         echo "Python executable was not found: $python_bin" >&2
         exit 2
     fi
-    if [[ ! -x $time_bin ]]; then
+    if [[ $print_plan != 1 && ! -x $time_bin ]]; then
         echo "GNU time executable was not found: $time_bin" >&2
         exit 2
     fi
@@ -107,5 +110,12 @@ if [[ ${FDE_DRY_RUN:-0} == 1 ]]; then
 fi
 
 export PYTHONNOUSERSITE=${PYTHONNOUSERSITE:-1}
+if [[ $print_plan == 1 ]]; then
+    # 計画確認は読み取り専用とし、結果・ログ用ディレクトリを作らない。
+    "${command[@]}"
+    exit 0
+fi
+
+mkdir -p "$pareto_dir" "$raw_dir" "$log_dir"
 "$time_bin" -v -o "$log_dir/$variant.time.txt" \
     "${command[@]}" 2>&1 | tee "$log_dir/$variant.log"
