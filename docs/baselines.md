@@ -46,6 +46,11 @@ random schedule・全6データセット・5シード・集約間隔`50/100/200/
 累積0/1損失の小さい側を採用するMeta switchingの結果を保存する。random schedule・全6データセット・
 5シード・集約間隔`50/100/200/500`を収録し、`routing/meta_soft_routing_zero_one/`と同一条件で
 routing選択だけの寄与を比較できるようにする。
+
+`detectors/class_adwin_residual_adapter/`には、`routing/meta_switching/`とResidual Adapter、
+forward persistent、FIFO再較正、Meta-switching等を一致させ、検出器だけをClassADWIN
+（`delta_ADWIN=0.05`）へ置き換えた結果を保存する。旧`detectors/class_adwin/`は独立モデル構造時代の
+比較結果であり、現行構成におけるClassESRとの検出器ablationには前者を使用する。
 上位Fixed-Shareの予測を重み付き混合した比較結果は、
 `routing/meta_switching_mixture/<dataset>/`へablationとして保存する。候補生成・上位重み・学習・通信は
 `routing/meta_switching/`と同一であり、最上位出力の`leader / mixture`だけを比較する。
