@@ -253,16 +253,12 @@ CLIでは`--clustering-decision`で切り替え、CSV/NPZには`clustering_decis
 | 値 | 動作 |
 |---|---|
 | `merge`（既定） | クラスタ内モデルを加重平均し、代表IDへ統合する。統計・データストアも代表IDへ付け替える |
-| `representative_merge` | minimaxクロス評価で選んだ既存モデルのパラメータを残し、通常の`merge`と同じID統合を行う |
 | `parameter_share` | 加重平均パラメータを各メンバーIDへ複製する。ID・統計・データストア・routing証拠は統合しない |
 
 `parameter_share`は、複数概念の学習量を共有しながら、その後のローカル学習で各IDが再び
 特殊化できる非破壊的な比較方式である。新しい数値閾値は増やさず、クラスタの決め方は
 `clustering_decision`と`cluster_linkage`をそのまま用いる。現時点ではNoCachedフローだけに
 実装している。IDを残すため、`merge`より最終モデル数・通常配布量が増える可能性がある。
-
-`representative_merge`はクラスタ判定・ID統合数・データストア統合を`merge`と揃えたまま、
-パラメータ平均だけを行わない比較方式である。新しい数値パラメータと追加通信は持たない。
 
 raw NPZのファイル名はWindowsのパス長制限を避けるため、モード・データセット・seed・掃引値と
 設定ラベルの短いSHA-256ハッシュで構成する。完全な設定ラベルと個別設定はNPZ内部およびCSVに保存する。

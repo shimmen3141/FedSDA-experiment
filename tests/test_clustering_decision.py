@@ -155,35 +155,6 @@ def test_noninferiority_representative_minimizes_worst_mean_loss_increase():
     ) == 1
 
 
-def test_representative_merge_keeps_minimax_existing_parameters(monkeypatch):
-    monkeypatch.setattr(
-        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "representative_merge"
-    )
-    server = FedSDANoCachedServer(verbose=False)
-    server.global_models = {
-        0: {"weight": torch.tensor([0.0])},
-        1: {"weight": torch.tensor([1.0])},
-    }
-    stats = {
-        0: {0: _stats([0.1] * 10), 1: _stats([0.3] * 10)},
-        1: {0: _stats([0.12] * 10), 1: _stats([0.1] * 10)},
-    }
-    server._cross_evaluate = lambda *args, **kwargs: stats
-    server.perform_hierarchical_clustering = (
-        lambda model_ids, stats_matrix: [[0, 1]]
-    )
-    server.record_clustering_diagnostics = lambda *args, **kwargs: None
-
-    mapping = server._cluster_and_consolidate(
-        50, [0, 1], {0: 10, 1: 10}
-    )
-
-    assert mapping == {0: 0, 1: 0}
-    assert set(server.global_models) == {0}
-    # 加重平均の0.5ではなく、minimax代表であるモデル1をそのまま残す。
-    assert torch.equal(server.global_models[0]["weight"], torch.tensor([1.0]))
-
-
 def test_noninferiority_merge_partitions_rejected_large_cluster(monkeypatch):
     monkeypatch.setattr(
         config, "FEDSDA_CLUSTERING_CONSOLIDATION", "noninferiority_merge"

@@ -89,10 +89,9 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
     def _cluster_and_consolidate(self, t, active_ids, agg_weights):
         """FedAvg済みモデルをクラスタリングし、設定された後処理を適用する。
 
-        ``merge`` は加重平均してIDを統合する。``representative_merge`` は
-        全メンバーへの最悪平均損失増加が最小の既存モデルを残してIDを統合する。
-        ``parameter_share`` は各IDを保ったままクラスタ内の加重平均パラメータを
-        共有する。再配布はrun_round末尾に一度だけ行う。
+        ``merge`` はIDを統合し、``parameter_share`` は各IDを保ったまま
+        クラスタ内の加重平均パラメータを共有する。再配布はrun_round末尾に
+        一度だけ行う。
         """
         M = len(active_ids)
         if M <= 1:
@@ -110,10 +109,6 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         if self.clustering_consolidation == "noninferiority_merge":
             clusters, consolidation_params = self._validate_noninferiority_clusters(
                 t, clusters, stats_matrix
-            )
-        elif self.clustering_consolidation == "representative_merge":
-            consolidation_params = self._select_representative_parameters(
-                clusters, stats_matrix
             )
         self.record_clustering_diagnostics(t, active_ids, clusters)
         if len(clusters) >= M:
@@ -134,25 +129,6 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
             active_ids, clusters, agg_weights, t,
             consolidation_params=consolidation_params,
         )
-
-    def _select_representative_parameters(self, clusters, stats_matrix):
-        """各クラスタで最悪平均損失増加が最小の既存パラメータを選ぶ。
-
-        クラスタ判定やID統合数は通常の``merge``と変えず、加重平均による
-        表現の破壊だけを切り分ける。単一要素クラスタには上書きが不要なので
-        返さない。
-        """
-        selected = {}
-        for cluster in clusters:
-            if len(cluster) <= 1:
-                continue
-            source_model_id = self._select_minimax_representative(
-                cluster, stats_matrix
-            )
-            selected[min(cluster)] = copy.deepcopy(
-                self.global_models[source_model_id]
-            )
-        return selected
 
     def _validate_noninferiority_clusters(self, t, clusters, stats_matrix):
         """各元モデルに対する予測性能を保つ統合候補だけを残す。
