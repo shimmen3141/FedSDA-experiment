@@ -413,6 +413,7 @@ FedSDAのクラスタリング時機は `FEDSDA_CLUSTERING_POLICY` で切り替�
 クロス評価・階層クラスタリングを行う。`every_round` でも前ラウンド末に配布されたモデルキャッシュを使うため、
 評価用モデル本体の再送は増えない。増えるのは評価計算と軽量な評価依頼・評価統計返送である。
 NoCachedでは、クラスタ決定後の処理を`FEDSDA_CLUSTERING_CONSOLIDATION`で切り替えられる。
-既定の`merge`は代表IDへ統合する。実験用の`parameter_share`はクラスタ内の加重平均パラメータを
+既定の`merge`は加重平均して代表IDへ統合する。`representative_merge`はクロス評価上の
+minimax既存モデルを残して同じID統合を行う。実験用の`parameter_share`はクラスタ内の加重平均パラメータを
 全メンバーIDへ配布するが、ID・データストア・routing証拠は残すため、通信フロー自体は同じでも
 通常配布するモデル数は減らない。

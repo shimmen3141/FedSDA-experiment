@@ -161,6 +161,20 @@ def test_noninferiority_merge_is_limited_to_no_cached_modes():
     assert "noninferiority_merge" in issues[0]
 
 
+def test_representative_merge_is_limited_to_no_cached_modes():
+    selections = {
+        "clustering_policy": "on_new_model",
+        "clustering_consolidation": "representative_merge",
+        "server_flow": "NoCached",
+    }
+    assert validate_selection("FedSDA", selections) == ()
+
+    selections["server_flow"] = "Cached"
+    issues = validate_selection("FedSDA", selections)
+    assert len(issues) == 1
+    assert "representative_merge" in issues[0]
+
+
 def test_meta_loss_dependency_is_validated_from_explicit_options():
     explicit = explicit_option_ids([
         "--soft-routing-meta-loss", "zero_one",

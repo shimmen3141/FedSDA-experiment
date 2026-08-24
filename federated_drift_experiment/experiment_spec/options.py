@@ -362,8 +362,11 @@ OPTIONS = (
     ),
     OptionSpec(
         "clustering_consolidation", "クラスタリング後処理", "clustering",
-        ("merge", "parameter_share", "noninferiority_merge"),
-        "クラスタ決定後にIDを統合するか、パラメータ共有または非劣性検証を行うか",
+        (
+            "merge", "representative_merge", "parameter_share",
+            "noninferiority_merge",
+        ),
+        "クラスタ決定後に加重平均・既存代表・パラメータ共有・非劣性検証のいずれを行うか",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("server_clustering",),
         active_when=(ActivationRule(
@@ -454,7 +457,8 @@ OPTIONS = (
 
 CHOICE_CONSTRAINTS = (
     ChoiceConstraint(
-        "clustering_consolidation", ("parameter_share", "noninferiority_merge"),
+        "clustering_consolidation",
+        ("representative_merge", "parameter_share", "noninferiority_merge"),
         (
             "FedSDA_NoCached_ADWIN",
             "FedSDA_NoCached_ClassADWIN",
