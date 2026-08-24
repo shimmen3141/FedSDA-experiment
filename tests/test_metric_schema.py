@@ -36,6 +36,13 @@ def test_metric_queries_and_profiles_reference_registered_metrics():
         assert ids
         assert tuple(item.id for item in metrics_in_profile(profile_name)) == ids
         assert set(ids) <= set(SCALAR_METRIC_IDS)
+    assert {
+        "routing_loo_evaluation_count",
+        "routing_loo_bounded_delta_mean",
+        "routing_loo_active_unassigned_nonpositive_rate",
+    } <= {
+        item.id for item in metrics_in_group("routing_contribution")
+    }
 
 
 def test_unknown_metric_and_profile_are_rejected():

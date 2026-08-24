@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 import torch
 
 from .. import config
+from ..diagnostics import RoutingLeaveOneOutDiagnostics
 from ..drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
 from ..expert_routing import AdaHedgeRouter, SwitchingExpertRouter
@@ -1336,6 +1337,9 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         self.routing_class_diagnostics = defaultdict(
             lambda: defaultdict(int)
         )
+        self.routing_leave_one_out_diagnostics = (
+            RoutingLeaveOneOutDiagnostics()
+        )
 
     def _prediction_probabilities(self, proposal_probabilities):
         """AdaHedgeの提案重みを実際の予測重みへ変換する。"""
@@ -1559,6 +1563,16 @@ class _AdaHedgeRoutingFedSDAClientMixin:
 
         accuracy = float(
             self._routing_correct(weighted_scores, y, num_classes)
+        )
+        self.routing_leave_one_out_diagnostics.observe(
+            prediction_scores=prediction_scores,
+            effective_probabilities=probabilities,
+            fallback_probabilities=proposal_probabilities,
+            target=y,
+            num_classes=num_classes,
+            current_model_id=self.current_model_id,
+            sample_index=max(0, self.processed_samples - 1),
+            aggregation_interval=config.AGGREGATION_INTERVAL,
         )
         switching_correct = self._routing_correct(
             switching_scores, y, num_classes

@@ -497,6 +497,102 @@ def _routing_window_accuracies(histories, true_drift_events, window):
     }
 
 
+def _routing_leave_one_out_records(clients):
+    """クライアント内のrouting寄与十分統計を保存可能な行へ展開する。"""
+    records = []
+    for client in clients:
+        diagnostics = getattr(
+            client, "routing_leave_one_out_diagnostics", None
+        )
+        if diagnostics is None:
+            continue
+        active_ids = set(client.models)
+        for pool_epoch, block_index, model_id, aggregate in (
+            diagnostics.iter_records()
+        ):
+            records.append({
+                "client_id": int(client.client_id),
+                "pool_epoch": int(pool_epoch),
+                "block_index": int(block_index),
+                "model_id": int(model_id),
+                **aggregate.as_dict(),
+                "is_active_final": bool(
+                    pool_epoch == diagnostics.pool_epoch
+                    and model_id in active_ids
+                ),
+                "is_assigned_final": bool(
+                    pool_epoch == diagnostics.pool_epoch
+                    and model_id == client.current_model_id
+                ),
+            })
+    return records
+
+
+def _routing_leave_one_out_summary(clients):
+    """leave-one-out寄与と、最終active集合の圧縮候補数を集約する。"""
+    records = _routing_leave_one_out_records(clients)
+    evaluation_count = sum(record["sample_count"] for record in records)
+    positive_count = sum(record["positive_count"] for record in records)
+    fallback_count = sum(record["fallback_count"] for record in records)
+
+    active_ids = {
+        model_id
+        for client in clients
+        for model_id in client.models
+        if model_id >= 0
+    }
+    assigned_ids = {
+        client.current_model_id
+        for client in clients
+        if client.current_model_id >= 0
+    }
+    final_stats = defaultdict(lambda: {"n": 0, "delta": 0.0})
+    for record in records:
+        if not record["is_active_final"] or record["model_id"] < 0:
+            continue
+        stats = final_stats[record["model_id"]]
+        stats["n"] += record["sample_count"]
+        stats["delta"] += record["bounded_delta_sum"]
+
+    unassigned_ids = active_ids - assigned_ids
+    evaluable_unassigned_ids = {
+        model_id for model_id in unassigned_ids
+        if final_stats[model_id]["n"] > 0
+    }
+    nonpositive_ids = {
+        model_id for model_id in evaluable_unassigned_ids
+        if final_stats[model_id]["delta"] <= 0.0
+    }
+
+    return {
+        "routing_loo_evaluation_count": evaluation_count,
+        "routing_loo_bounded_delta_mean": (
+            sum(record["bounded_delta_sum"] for record in records)
+            / evaluation_count if evaluation_count else 0.0
+        ),
+        "routing_loo_zero_one_delta_mean": (
+            sum(record["zero_one_delta_sum"] for record in records)
+            / evaluation_count if evaluation_count else 0.0
+        ),
+        "routing_loo_positive_rate": (
+            positive_count / evaluation_count if evaluation_count else 0.0
+        ),
+        "routing_loo_fallback_count": fallback_count,
+        "routing_loo_active_model_count": len(active_ids),
+        "routing_loo_active_unassigned_model_count": len(unassigned_ids),
+        "routing_loo_active_unassigned_evaluable_model_count": len(
+            evaluable_unassigned_ids
+        ),
+        "routing_loo_active_unassigned_nonpositive_model_count": len(
+            nonpositive_ids
+        ),
+        "routing_loo_active_unassigned_nonpositive_rate": (
+            len(nonpositive_ids) / len(evaluable_unassigned_ids)
+            if evaluable_unassigned_ids else 0.0
+        ),
+    }
+
+
 def _add_model_diagnostic_results(
     results, clients, server, true_drift_events,
 ):
@@ -912,6 +1008,7 @@ def _add_model_diagnostic_results(
             if hasattr(client, "expert_router")
         ),
     })
+    results.update(_routing_leave_one_out_summary(clients))
 
     gradient = defaultdict(float)
     for client in clients:
@@ -1319,6 +1416,40 @@ def _save_raw_run(
             telemetry_arrays[f"routing_class_{key}s"] = np.asarray(
                 values, dtype=np.int64
             )
+
+    routing_loo_records = _routing_leave_one_out_records(clients)
+    routing_loo_integer_fields = {
+        "client_ids": ("client_id", np.int32),
+        "pool_epochs": ("pool_epoch", np.int32),
+        "block_indices": ("block_index", np.int32),
+        "model_ids": ("model_id", np.int32),
+        "sample_counts": ("sample_count", np.int64),
+        "positive_counts": ("positive_count", np.int64),
+        "negative_counts": ("negative_count", np.int64),
+        "hard_assignment_counts": ("hard_assignment_count", np.int64),
+        "fallback_counts": ("fallback_count", np.int64),
+    }
+    routing_loo_float_fields = (
+        "probability_sum",
+        "bounded_delta_sum",
+        "bounded_delta_squared_sum",
+        "zero_one_delta_sum",
+    )
+    for output_name, (field_name, dtype) in routing_loo_integer_fields.items():
+        telemetry_arrays[f"routing_loo_{output_name}"] = np.asarray(
+            [record[field_name] for record in routing_loo_records],
+            dtype=dtype,
+        )
+    for field_name in routing_loo_float_fields:
+        telemetry_arrays[f"routing_loo_{field_name}s"] = np.asarray(
+            [record[field_name] for record in routing_loo_records],
+            dtype=np.float64,
+        )
+    for field_name in ("is_active_final", "is_assigned_final"):
+        telemetry_arrays[f"routing_loo_{field_name}"] = np.asarray(
+            [record[field_name] for record in routing_loo_records],
+            dtype=np.bool_,
+        )
 
     model_client_ids = []
     model_ids = []

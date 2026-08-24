@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 15
+METRIC_SCHEMA_VERSION = 16
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -271,6 +271,32 @@ METRICS = (
         ),
         "soft_routing", DIAGNOSTIC, FEDSDA_METHODS, None,
     ),
+    *_make(
+        (
+            "routing_loo_evaluation_count",
+            "routing_loo_bounded_delta_mean",
+            "routing_loo_zero_one_delta_mean",
+            "routing_loo_positive_rate",
+            "routing_loo_fallback_count",
+            "routing_loo_active_model_count",
+            "routing_loo_active_unassigned_model_count",
+            "routing_loo_active_unassigned_evaluable_model_count",
+            "routing_loo_active_unassigned_nonpositive_model_count",
+            "routing_loo_active_unassigned_nonpositive_rate",
+        ),
+        "routing_contribution", DIAGNOSTIC, FEDSDA_METHODS, None,
+        {
+            "routing_loo_bounded_delta_mean": (
+                "モデル除外で増える有界損失の平均（正なら寄与あり）"
+            ),
+            "routing_loo_zero_one_delta_mean": (
+                "モデル除外で増える0/1損失の平均（正なら寄与あり）"
+            ),
+            "routing_loo_active_unassigned_nonpositive_rate": (
+                "最終activeかつ未割当で、除外寄与が非正の評価可能モデル割合"
+            ),
+        },
+    ),
 )
 
 METRICS_BY_ID = {metric.id: metric for metric in METRICS}
@@ -295,7 +321,7 @@ METRIC_PROFILES = {
     }),
     "model_diagnostics": tuple(metric.id for metric in METRICS if metric.group in {
         "model_learning", "model_complementarity",
-        "soft_routing", "shared_gradient_conflict",
+        "soft_routing", "routing_contribution", "shared_gradient_conflict",
         "clustering_noninferiority",
         "clustering_oracle_diagnostic",
     }),

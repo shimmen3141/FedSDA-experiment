@@ -69,6 +69,19 @@ Meta-routerの更新損失は`--soft-routing-meta-loss`で選ぶ。
 SoftRoutingの予測結果はモデル学習、ドリフト検出、モデル作成判断へ戻さない。そのため、同じseedと
 設定なら、`predicted_class`で記録したshadow meta精度と`meta_predicted_class`の実accuracyは一致する。
 
+## モデル別leave-one-out寄与診断
+
+モデルrepositoryを距離ではなく実際の予測寄与から整理できるかを調べるため、実予測の混合から保持モデルを
+一つずつ除く反実仮想診断を行う。モデル`m`を除いた残りの実効routing重みを再正規化し、
+`loss(without m) - loss(actual)`をモデル`m`の寄与とする。正の値は除外で予測が悪化したこと、0以下は
+除外しても改善または不変だったことを表す。
+
+この処理は同じ標本ですでに得た全モデルの出力を再結合するだけで、追加forward、通信、学習を行わない。
+クライアント・保持モデル集合epoch・通信区間・モデルごとの十分統計をrawへ保存し、最終active集合では
+未割当かつ寄与が非正のモデル数もCSVへ要約する。モデル集合の変更でepochを分けるため、クラスタリング後に
+同じIDが代表として残っても、変更前後のモデル実体を混同しない。現段階では診断専用であり、この値による
+archive・削除は行わない。保存項目の定義は[metrics.md](metrics.md)を参照する。
+
 ## Switching-expert shadow診断
 
 通常のAdaHedgeは全履歴の累積損失を使うため、長く優勢だったモデルから新しい優勢モデルへの移行が

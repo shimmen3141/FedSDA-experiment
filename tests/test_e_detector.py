@@ -238,6 +238,50 @@ def test_soft_routing_reuses_prediction_forward_for_expert_loss():
     assert forward_calls == {0: 1, 1: 1}
 
 
+def test_soft_routing_records_leave_one_out_contribution_without_forward():
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP()},
+        initial_stats={
+            0: {"n": 100, "mean": 0.2, "M2": 1.0},
+            1: {"n": 100, "mean": 0.2, "M2": 1.0},
+        },
+        verbose=False,
+    )
+    forward_calls = {0: 0, 1: 0}
+    for model_id, score in ((0, 0.1), (1, 0.9)):
+        def forward(x, model_id=model_id, score=score):
+            forward_calls[model_id] += 1
+            return torch.full((len(x), 1), score)
+
+        client.models[model_id].forward = forward
+
+    client._record_prediction(
+        torch.zeros((1, config.dataset_spec().input_dim)),
+        torch.ones((1, 1)),
+        concept_id=0,
+    )
+
+    records = {
+        model_id: aggregate
+        for _, _, model_id, aggregate in (
+            client.routing_leave_one_out_diagnostics.iter_records()
+        )
+    }
+    assert forward_calls == {0: 1, 1: 1}
+    assert records[0].bounded_delta_sum == pytest.approx(-0.4)
+    assert records[1].bounded_delta_sum == pytest.approx(0.4)
+    assert records[0].zero_one_delta_sum == -1.0
+    assert records[1].zero_one_delta_sum == 0.0
+    assert records[0].hard_assignment_count == 1
+    assert records[1].hard_assignment_count == 0
+    assert records[0].fallback_count == 0
+    assert client.routing_leave_one_out_diagnostics.pool_epoch == 0
+
+
 def test_predicted_class_context_keeps_separate_online_evidence(monkeypatch):
     monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "predicted_class")
     spec = MODE_SPECS[

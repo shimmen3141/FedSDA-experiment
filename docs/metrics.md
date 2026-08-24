@@ -47,6 +47,7 @@
 | `model_complementarity` | 同一標本上のモデル対正誤表とoracle選択余地 | `model_pair_*` |
 | `clustering_oracle_diagnostic` | 真の概念一致に対するクラスタ判定と距離の診断 | `clustering_oracle_*` |
 | `soft_routing` | SoftRoutingが全モデル中の正解可能性を回収できた割合 | `routing_*` |
+| `routing_contribution` | 各保持モデルを除外したときの反実仮想損失差 | `routing_loo_*` |
 
 コードから用途別に選ぶ場合は`metrics_in_profile("core")`、`"detection"`、
 `"adaptation"`、`"resource"`、`"all"`を使用できる。profileはCSV列を削るものではなく、
@@ -162,6 +163,23 @@ shadow meta-routerは既存のモデル出力だけを再利用するため、�
 NPZには`history_routing_oracle_correct`と`history_routing_leader_correct`に加え、クライアント・
 正解クラス別の件数を`routing_class_*`へ保存する。
 これらの指標は追加のモデルforwardや通信を発生させない。
+
+SoftRoutingのleave-one-out診断は、実際に使用した混合からモデル`m`を一つ除き、残った実効重みを
+正規化した反実仮想予測を作る。`loss(without m) - loss(actual)`を寄与と定義するため、正ならモデルを
+残す利益、0以下ならその標本では除いても悪化しなかったことを表す。CSVには次を保存する。
+
+- `routing_loo_bounded_delta_mean`: `[0, 1]`有界予測損失に対する平均寄与。
+- `routing_loo_zero_one_delta_mean`: 0/1誤分類損失に対する平均寄与。
+- `routing_loo_positive_rate`: モデル除外で有界損失が増えたモデル・標本対の割合。
+- `routing_loo_active_unassigned_*`: 最終active集合のうち、どのクライアントにも最終割当されていない
+  モデルと、その中で平均寄与が非正だったモデルの数・割合。
+
+保持モデル集合が変わると同じモデルIDでも実体が変わり得るため、NPZは`routing_loo_pool_epochs`、
+`routing_loo_block_indices`、`routing_loo_model_ids`をキーとして十分統計を保存する。通信区間ごとの
+`sample_counts`、`probability_sums`、損失差の和・二乗和、正負件数、hard割当件数から、後でarchive候補の
+連続性や分散を再集計できる。実効重みが一点に集中して除外後の正規化が不能な場合だけ、同じ標本で
+計算済みのglobal提案重みへ戻し、件数を`routing_loo_fallback_count`へ記録する。この診断も追加forward、
+学習、通信を発生させず、現時点ではactive/archive判断を変更しない。
 
 これらは診断専用であり、現時点ではクラスタリング判定を変更しない。精度改善を主張する指標ではなく、
 モデルを残す利益と学習量断片化の原因を切り分けるために使用する。

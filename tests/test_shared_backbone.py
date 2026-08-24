@@ -490,6 +490,14 @@ def test_shared_backbone_experiment_reports_component_metrics(
     assert 0 <= results[
         "routing_meta_switching_selected_switching_rate"
     ] <= 1
+    assert results["routing_loo_evaluation_count"] >= 0
+    assert -1 <= results["routing_loo_bounded_delta_mean"] <= 1
+    assert -1 <= results["routing_loo_zero_one_delta_mean"] <= 1
+    assert 0 <= results["routing_loo_positive_rate"] <= 1
+    assert (
+        results["routing_loo_active_unassigned_nonpositive_model_count"]
+        <= results["routing_loo_active_unassigned_evaluable_model_count"]
+    )
     with np.load(raw_path) as raw:
         assert raw["routing_class_client_ids"].shape == (
             len(raw["routing_class_ids"]),
@@ -514,6 +522,17 @@ def test_shared_backbone_experiment_reports_component_metrics(
         assert raw[
             "routing_class_meta_sample_counts"
         ].sum() == results["routing_sample_count"]
+        assert raw["routing_loo_sample_counts"].sum() == results[
+            "routing_loo_evaluation_count"
+        ]
+        assert len(raw["routing_loo_client_ids"]) == len(
+            raw["routing_loo_model_ids"]
+        )
+        assert len(raw["routing_loo_pool_epochs"]) == len(
+            raw["routing_loo_block_indices"]
+        )
+        assert "routing_loo_is_active_final" in raw
+        assert "routing_loo_is_assigned_final" in raw
 
 
 def test_meta_context_actual_accuracy_matches_shadow_prediction(
