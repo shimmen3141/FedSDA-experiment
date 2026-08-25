@@ -45,7 +45,8 @@ random schedule・全6データセット・5シード・集約間隔`50/100/200/
 `routing/meta_switching/`には、同じMeta routingとGlobal switching expertをサンプル単位で比較し、
 累積0/1損失の小さい側を採用するMeta switchingの結果を保存する。random schedule・全6データセット・
 5シード・集約間隔`50/100/200/500`を収録し、`routing/meta_soft_routing_zero_one/`と同一条件で
-routing選択だけの寄与を比較できるようにする。
+routing選択だけの寄与を比較できるようにする。現在の成果物はrouting LOO診断を含むmetric schema 16で
+再取得し、共有バックボーンのクロス評価転送重複排除後の通信量を正本とする。
 
 `detectors/class_adwin_residual_adapter/`には、`routing/meta_switching/`とResidual Adapter、
 forward persistent、FIFO再較正、Meta-switching等を一致させ、検出器だけをClassADWIN
