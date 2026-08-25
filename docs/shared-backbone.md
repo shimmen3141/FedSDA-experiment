@@ -77,6 +77,30 @@ adapterの制約を避けられる。rankは`SHARED_ADAPTER_RANK`（CLIでは`--
 指定し、実際のrankは特徴次元を上限とする。共有バックボーンはクライアントごとに一度、残差adapterとheadは
 モデルIDごとに通信・FedAvgする。
 
+### 共有分類器＋概念別残差
+
+`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting`
+は、クラスタリング無効時に見られた「expertの多様性は有用だが、概念別分類器の
+学習標本が細分化する」という問題を対象とする。共有バックボーンに加えて基本分類器
+(H_0)も全概念で共有し、概念(c)には低ランクadapter (A_c)と残差分類器
+(\Delta H_c)だけを持たせる。
+
+\[
+z=B(x),\qquad
+s_c=H_0(z)+\Delta H_c(A_c(z))
+\]
+
+残差分類器はweight・biasともゼロ初期化するため、新規expertの初期予測は共有分類器と
+一致する。通常学習では(B,H_0)を全expertの標本で共同更新し、(A_c,\Delta H_c)は
+対応する概念データだけで更新する。サーバ通信でも(B,H_0)をクライアントごとに1回、
+概念別残差をモデルIDごとにFedAvgする。
+
+この構造はモデルIDの統合や削除を行わず、追加の距離閾値も持たない。したがって、
+通常マージ・クラスタリング無効のどちらとも組み合わせられる。第一段階の検証では、
+クラスタ固有の共有中心を導入せず、全repositoryに共通する分類器を一つだけ使う。
+これにより新しいクラスタ対応規則や縮約係数を増やさず、学習量共有そのものの寄与を
+切り分ける。
+
 ## 目的
 
 `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`は、既存の

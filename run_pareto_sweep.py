@@ -811,6 +811,7 @@ def _series_style(series):
         "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting": "darkviolet",
         "FedSDA_NoCached_ResidualAdapter_ClassESR": "hotpink",
         "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting": "deeppink",
+        "FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting": "darkmagenta",
         "FedSDA_NoCached_ClassESR_ProtectedSoftRouting": "mediumblue",
         "FedSDA_Cached_ADWIN": "tab:orange",
         "FedSDA_Cached_ClassADWIN": "tab:pink",

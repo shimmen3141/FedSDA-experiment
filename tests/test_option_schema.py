@@ -237,6 +237,21 @@ def test_residual_adapter_class_adwin_supports_restarting_soft_routing():
     assert validate_selection("FedSDA", selections) == ()
 
 
+def test_shared_classifier_residual_mode_is_described_by_schema():
+    mode = (
+        "FedSDA_NoCached_ResidualAdapter_SharedClassifier_"
+        "ClassESR_RestartingSoftRouting"
+    )
+    selections = selections_for_mode(mode)
+
+    assert selections["model_architecture"] == (
+        "shared_classifier_residual_adapter"
+    )
+    assert selections["detector"] == "ClassESR"
+    assert selections["routing"] == "restarting_soft"
+    assert validate_selection("FedSDA", selections) == ()
+
+
 def test_routing_recalibration_requires_soft_routing():
     assert validate_selection("FedSDA", {
         "model_architecture": "residual_adapter",

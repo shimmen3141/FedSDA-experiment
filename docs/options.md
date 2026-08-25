@@ -39,7 +39,7 @@ flowchart LR
     routing_archive_shadow_policy["<b>ローカルarchive shadow方針</b><br/>previous_block | forward_probe | periodic_forward_probe"]
   end
   subgraph group_model[model]
-    model_architecture["<b>モデル構造</b><br/>independent | shared_backbone | residual_adapter"]
+    model_architecture["<b>モデル構造</b><br/>independent | shared_backbone | residual_adapter | shared_classifier_residual_adapter"]
     shared_backbone_training["<b>共有表現学習</b><br/>sequential | joint | frozen"]
     shared_backbone_gradient_strategy["<b>共有勾配統合</b><br/>mean | pcgrad"]
     shared_adapter_rank["<b>概念別残差adapter rank R_adapter</b><br/>positive integer"]
@@ -105,6 +105,9 @@ flowchart LR
   server_flow -.->|"shared_backbone: NoCachedが必要"| model_architecture
   routing -.->|"shared_backbone: Restarting SoftRoutingが必要"| model_architecture
   server_flow -.->|"residual_adapter: NoCachedが必要"| model_architecture
+  server_flow -.->|"shared_classifier_residual_adapter: NoCachedが必要"| model_architecture
+  routing -.->|"shared_classifier_residual_adapter: Restarting SoftRoutingが必要"| model_architecture
+  detector -.->|"shared_classifier_residual_adapter: ClassESRが必要"| model_architecture
   server_flow -.->|"protected_soft: NoCachedが必要"| routing
   detector -.->|"protected_soft: ClassESRが必要"| routing
   method --> server_flow
@@ -128,7 +131,7 @@ flowchart LR
 | `soft_routing_meta_loss` | cli: `--soft-routing-meta-loss` | 実装済み | 対象外 | 対象外 | 対象外 | Meta候補を確率出力の有界損失または最終予測の0/1損失で比較する |
 | `routing_archive_shadow_diagnostics` | cli: `--routing-archive-shadow-diagnostics` | 実装済み | 対象外 | 対象外 | 対象外 | 因果的なLOO寄与でクライアント別保持集合を絞る反実仮想診断 |
 | `routing_archive_shadow_policy` | cli: `--routing-archive-shadow-policy` | 実装済み | 対象外 | 対象外 | 対象外 | 直前区間、区間先頭、または周期的probeからクライアント別保持集合を決める |
-| `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか |
+| `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 独立モデル、共有表現、または共有分類器＋概念別残差を選ぶ |
 | `shared_backbone_training` | cli: `--shared-backbone-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか |
 | `shared_backbone_gradient_strategy` | cli: `--shared-backbone-gradient-strategy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 共同学習時の概念別バックボーン勾配を平均または競合射影で統合する方式 |
 | `shared_backbone_routing_recalibration` | cli: `--shared-backbone-routing-recalibration` | 実装済み | 理論上のみ | 対象外 | 対象外 | サーバ集約で共有表現が変化した後にSoftRoutingの累積証拠を扱う方式 |
@@ -170,17 +173,18 @@ flowchart LR
 
 | オプション値 | 実装済みmode | 追加前提 | 備考 |
 |---|---|---|---|
-| `clustering_consolidation` = `parameter_share`, `noninferiority_merge` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_NoCached_ESR`<br/>`FedSDA_NoCached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting`<br/>`FedSDA_NoCached_HDDMA`<br/>`FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_NoCached_HDDMW` | NoCachedが必要 | 追加のクラスタリング後処理は現在NoCachedフローでのみ実装 |
+| `clustering_consolidation` = `parameter_share`, `noninferiority_merge` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_NoCached_ESR`<br/>`FedSDA_NoCached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting`<br/>`FedSDA_NoCached_HDDMA`<br/>`FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_NoCached_HDDMW` | NoCachedが必要 | 追加のクラスタリング後処理は現在NoCachedフローでのみ実装 |
 | `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
 | `detector` = `ClassADWIN` | `FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_Cached_ClassADWIN`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting` | なし |  |
 | `detector` = `ESR` | `FedSDA_NoCached_ESR`<br/>`FedSDA_Cached_ESR` | なし |  |
-| `detector` = `ClassESR` | `FedSDA_NoCached_ClassESR`<br/>`FedSDA_Cached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | なし |  |
+| `detector` = `ClassESR` | `FedSDA_NoCached_ClassESR`<br/>`FedSDA_Cached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | なし |  |
 | `detector` = `HDDMA` | `FedSDA_NoCached_HDDMA`<br/>`FedSDA_Cached_HDDMA` | なし |  |
 | `detector` = `ClassHDDMA` | `FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_Cached_ClassHDDMA` | なし |  |
 | `detector` = `HDDMW` | `FedSDA_NoCached_HDDMW`<br/>`FedSDA_Cached_HDDMW` | なし |  |
-| `routing` = `restarting_soft` | `FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>ClassADWINまたはClassESRが必要 | ClassADWINとClassESRの専用modeで実装 |
+| `routing` = `restarting_soft` | `FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>ClassADWINまたはClassESRが必要 | ClassADWINとClassESRの専用modeで実装 |
 | `model_architecture` = `shared_backbone` | `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>Restarting SoftRoutingが必要 | 共有バックボーンは専用modeで実装 |
 | `model_architecture` = `residual_adapter` | `FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | NoCachedが必要 | 低ランク残差adapterはhard routingとRestarting SoftRoutingで実装 |
+| `model_architecture` = `shared_classifier_residual_adapter` | `FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>Restarting SoftRoutingが必要<br/>ClassESRが必要 | 共有分類器と概念別Residual Adapterは専用modeで実装 |
 | `routing` = `protected_soft` | `FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | NoCachedが必要<br/>ClassESRが必要 | 現在は専用modeでのみ実装 |
 
 ## 掃引オプションの依存構造

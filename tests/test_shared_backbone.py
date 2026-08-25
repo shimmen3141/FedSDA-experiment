@@ -15,6 +15,7 @@ from federated_drift_experiment.experiment import (
 from federated_drift_experiment.models import (
     ResidualAdapterMLP,
     SharedBackboneMLP,
+    SharedClassifierResidualAdapterMLP,
     parameter_payload_size,
 )
 from federated_drift_experiment.servers import SharedBackboneFedSDANoCachedServer
@@ -71,6 +72,17 @@ def test_residual_adapter_mode_has_dedicated_client_and_model():
     assert spec.client_cls is ResidualAdapterRestartingSoftRoutingFedSDAClient
     assert spec.server_cls is SharedBackboneFedSDANoCachedServer
     assert spec.model_cls is ResidualAdapterMLP
+
+
+def test_shared_classifier_residual_mode_reuses_fedsda_flow():
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ResidualAdapter_SharedClassifier_"
+        "ClassESR_RestartingSoftRouting"
+    ]
+
+    assert spec.client_cls is ResidualAdapterRestartingSoftRoutingFedSDAClient
+    assert spec.server_cls is SharedBackboneFedSDANoCachedServer
+    assert spec.model_cls is SharedClassifierResidualAdapterMLP
 
 
 def test_residual_adapter_class_adwin_mode_reuses_routing_architecture():
@@ -138,6 +150,40 @@ def test_residual_adapter_is_personalized_and_trainable(monkeypatch):
 
     assert torch.count_nonzero(model.adapter.up.weight) > 0
     assert any(name.startswith("adapter.") for name in personalized)
+
+
+def test_shared_classifier_is_pooled_while_expert_residuals_stay_separate(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    first = SharedClassifierResidualAdapterMLP()
+    second = SharedClassifierResidualAdapterMLP(backbone=first.backbone)
+    x = torch.randn(16, config.dataset_spec().input_dim)
+    y = torch.randint(0, 2, (16, 1)).float()
+    before_shared = {
+        name: value.clone()
+        for name, value in first.backbone.shared_classifier.state_dict().items()
+    }
+    before_second_residual = {
+        name: value.clone() for name, value in second.head.state_dict().items()
+    }
+
+    assert torch.equal(first(x), second(x))
+    first.update(x, y)
+    shared, personalized = first.split_params(first.get_params())
+
+    assert first.backbone is second.backbone
+    assert any(
+        not torch.equal(value, before_shared[name])
+        for name, value in first.backbone.shared_classifier.state_dict().items()
+    )
+    assert all(
+        torch.equal(value, before_second_residual[name])
+        for name, value in second.head.state_dict().items()
+    )
+    assert any(name.startswith("backbone.shared_classifier.") for name in shared)
+    assert any(name.startswith("adapter.") for name in personalized)
+    assert any(name.startswith("head.") for name in personalized)
 
 
 def test_shared_models_update_one_backbone_but_keep_separate_heads():

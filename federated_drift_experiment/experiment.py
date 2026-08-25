@@ -51,6 +51,7 @@ from .data import (
 from .metrics import compute_metrics, match_events
 from .models import (
     ResidualAdapterMLP,
+    SharedClassifierResidualAdapterMLP,
     SharedBackboneMLP,
     SimpleMLP,
     model_collection_parameter_footprint,
@@ -213,6 +214,12 @@ MODE_SPECS = {
         _run_per_sample_timestep,
         server_cls=SharedBackboneFedSDANoCachedServer,
         model_cls=ResidualAdapterMLP,
+    ),
+    'FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting': ModeSpec(
+        ResidualAdapterRestartingSoftRoutingFedSDAClient,
+        _run_per_sample_timestep,
+        server_cls=SharedBackboneFedSDANoCachedServer,
+        model_cls=SharedClassifierResidualAdapterMLP,
     ),
     'FedSDA_NoCached_ClassESR_ProtectedSoftRouting': ModeSpec(
         ProtectedSoftRoutingClassConditionalESRFedSDAClient,

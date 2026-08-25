@@ -330,6 +330,75 @@ class ResidualAdapterMLP(SharedBackboneMLP):
         return self.output_activation(self.head(adapted))
 
 
+class SharedClassifierResidualAdapterMLP(ResidualAdapterMLP):
+    """共有分類器を中心とし、概念別adapter・headで残差を学習するMLP。
+
+    共有バックボーンだけでなく基本分類器も全概念で共同学習する。一方、概念別の
+    低ランクadapterと残差headは独立に保ち、モデルrepositoryの予測相補性を残す。
+    """
+
+    def __init__(self, input_dim=None, dataset=None, backbone=None):
+        nn.Module.__init__(self)
+        self.dataset = normalize_dataset_name(
+            dataset if dataset is not None else config.DATASET
+        )
+        spec = config.dataset_spec(self.dataset)
+        if input_dim is None:
+            input_dim = spec.input_dim
+        self.num_classes = spec.num_classes
+        output_dim = 1 if self.num_classes == 2 else self.num_classes
+
+        if backbone is None:
+            backbone = SharedFeatureBackbone(input_dim, spec.hidden_dims)
+            # 共有分類器をbackbone配下へ置くことで、通信・FedAvgでも共有部として扱う。
+            backbone.shared_classifier = nn.Linear(
+                backbone.output_dim, output_dim
+            )
+        elif not hasattr(backbone, "shared_classifier"):
+            raise TypeError(
+                "共有分類器付きモデルにはshared_classifierを持つbackboneが必要です"
+            )
+        self.backbone = backbone
+        self.adapter = ResidualConceptAdapter(
+            self.backbone.output_dim, config.SHARED_ADAPTER_RANK
+        )
+        self.head = nn.Linear(self.backbone.output_dim, output_dim)
+        # 初期予測を共有分類器だけにし、概念固有残差を必要な場合だけ学習する。
+        nn.init.zeros_(self.head.weight)
+        nn.init.zeros_(self.head.bias)
+        self.output_activation = (
+            nn.Sigmoid() if self.num_classes == 2 else nn.Identity()
+        )
+        self.loss_fn = (
+            nn.BCELoss() if self.num_classes == 2 else nn.CrossEntropyLoss()
+        )
+
+        default_lr = (
+            spec.learning_rate
+            if spec.learning_rate is not None else config.BASE_LR
+        )
+        if not hasattr(self.backbone, "optimizer"):
+            self.backbone.optimizer = self._build_component_optimizer(
+                self.backbone.parameters(), default_lr
+            )
+        self.head_optimizer = self._build_component_optimizer(
+            self.personalized_parameters(), default_lr
+        )
+
+    def forward_from_features(self, features):
+        base_scores = self.backbone.shared_classifier(features)
+        adapted = self.adapter(features)
+        residual_scores = self.head(adapted)
+        return self.output_activation(base_scores + residual_scores)
+
+    def attach_backbone(self, backbone):
+        if not hasattr(backbone, "shared_classifier"):
+            raise TypeError(
+                "共有分類器付きモデルにはshared_classifierを持つbackboneが必要です"
+            )
+        super().attach_backbone(backbone)
+
+
 def parameter_payload_size(params):
     """state dictに含まれるパラメータ値数と実バイト数を返す。"""
     tensors = [value for value in params.values() if torch.is_tensor(value)]
