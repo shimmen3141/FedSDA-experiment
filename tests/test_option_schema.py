@@ -161,6 +161,34 @@ def test_noninferiority_merge_is_limited_to_no_cached_modes():
     assert "noninferiority_merge" in issues[0]
 
 
+def test_distillation_merge_requires_residual_global_soft_routing():
+    explicit = explicit_option_ids([
+        "--clustering-consolidation", "distillation_merge",
+    ])
+    mode = "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting"
+    assert validate_explicit_options(
+        (mode,),
+        {
+            "clustering_policy": "on_new_model",
+            "clustering_consolidation": "distillation_merge",
+            "soft_routing_context": "global",
+        },
+        explicit,
+    ) == ()
+
+    issues = validate_explicit_options(
+        (mode,),
+        {
+            "clustering_policy": "on_new_model",
+            "clustering_consolidation": "distillation_merge",
+            "soft_routing_context": "meta_switching",
+        },
+        explicit,
+    )
+    assert len(issues) == 1
+    assert "global AdaHedge" in issues[0]
+
+
 def test_meta_loss_dependency_is_validated_from_explicit_options():
     explicit = explicit_option_ids([
         "--soft-routing-meta-loss", "zero_one",

@@ -8,6 +8,8 @@ FedSDAでは、階層クラスタリングが統合候補を作り、その後�
 - `merge`: 候補クラスタ内のモデルを加重平均し、代表IDへ統合する。
 - `parameter_share`: IDを維持したまま、候補クラスタ内で加重平均パラメータを共有する。
 - `noninferiority_merge`: 仮統合モデルを検証し、予測性能を保つ候補だけを代表IDへ統合する。
+- `distillation_merge`: SoftRouting混合を概念別adapter/headへ蒸留し、集約後studentが
+  非劣な候補だけを代表IDへ統合する。
 
 ## 非劣性制約付きマージ
 
@@ -61,3 +63,31 @@ singletonになるまで繰り返すため、大きなconnected clusterを「全
 
 主な診断指標は候補数、採択数、棄却数、比較数、評価標本数、採択率である。
 raw NPZには各候補の損失差平均・片側上限・採否も保存する。
+
+## 検証付き連合蒸留
+
+`distillation_merge`は、距離等によるクラスタリングを統合候補の生成に限定し、
+パラメータ平均の代わりに候補モデル群の機能を一つのstudentへ圧縮する。
+現在は共有バックボーン＋Residual Adapter＋global SoftRoutingのNoCached構成で実装する。
+
+各候補クラスタ (C) について、クライアントの現在のAdaHedge重みをクラスタ内で
+再正規化し、候補モデルの予測混合をteacherとする。各元概念から最大50件を抽出して
+学習用と最終検証用へ等分し、minimax代表モデルを初期値とするstudentの
+adapter/headだけをteacher確率へ学習する。共有バックボーンは固定する。ローカルstudentは
+学習標本数でFedAvgし、実際に採用する集約後studentを検証用標本へ再配布する。
+
+各元概念 (m\in C) について、teacher混合に対するstudentの有界損失差を
+
+\[
+d_i=\ell(f_{student}(x_i),y_i)-\ell(f_{teacher,C}(x_i),y_i)
+\]
+
+とする。対応あり平均損失差の片側上限が、全元概念で
+`FEDSDA_MERGE_NONINFERIORITY_MARGIN`以下の場合だけクラスタをstudentへ統合する。
+一つでも満たさない場合は元モデルをすべて維持する。温度、hard-label混合率、
+蒸留専用epoch数は追加せず、新規モデル初期学習のepoch数を再利用する。
+
+追加通信はteacherの共有部・個別部の下り、ローカルstudent個別部の上り、集約後student
+個別部の検証用下りである。採択後は以後の各配布で
+`(クラスタサイズ−1)×クライアント数`個の個別部を削減できる。実装は候補ごとの
+追加パラメータ量、1ラウンド当たり削減量、損益分岐ラウンド数を記録する。

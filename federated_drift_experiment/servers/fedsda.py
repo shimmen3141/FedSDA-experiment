@@ -36,6 +36,7 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         if self.merge_noninferiority_margin < 0.0:
             raise ValueError("非劣性許容幅は0以上にしてください")
         self.clustering_noninferiority_diagnostics = []
+        self.clustering_distillation_diagnostics = []
         if (
             self.clustering_consolidation
             not in config.FEDSDA_CLUSTERING_CONSOLIDATIONS
@@ -110,6 +111,10 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
             clusters, consolidation_params = self._validate_noninferiority_clusters(
                 t, clusters, stats_matrix
             )
+        elif self.clustering_consolidation == "distillation_merge":
+            clusters, consolidation_params = self._distill_and_validate_clusters(
+                t, clusters, stats_matrix
+            )
         self.record_clustering_diagnostics(t, active_ids, clusters)
         if len(clusters) >= M:
             return {}
@@ -128,6 +133,12 @@ class FedSDANoCachedServer(CrossEvaluationClusteringServer):
         return self._merge_clusters(
             active_ids, clusters, agg_weights, t,
             consolidation_params=consolidation_params,
+        )
+
+    def _distill_and_validate_clusters(self, t, clusters, stats_matrix):
+        """共有表現サーバだけが実装する蒸留後処理のフック。"""
+        raise ValueError(
+            "distillation_mergeは共有バックボーン＋概念別adapter構成でのみ利用できます"
         )
 
     def _validate_noninferiority_clusters(self, t, clusters, stats_matrix):

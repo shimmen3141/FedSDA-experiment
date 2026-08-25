@@ -1077,7 +1077,8 @@ def build_parser():
         default=config.FEDSDA_CLUSTERING_CONSOLIDATION,
         help=(
             "クラスタ決定後の処理 "
-            "(merge=ID統合 / parameter_share=IDを保ってパラメータ共有)"
+            "(merge / parameter_share / noninferiority_merge / "
+            "distillation_merge)"
         ),
     )
     fedsda.add_argument(

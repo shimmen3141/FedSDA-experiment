@@ -734,6 +734,21 @@ def _add_model_diagnostic_results(
     }
     results.update({**noninferiority_defaults, **noninferiority})
 
+    distillation = getattr(server, "distillation_summary", lambda: {})()
+    distillation_defaults = {
+        "clustering_distillation_candidate_count": 0,
+        "clustering_distillation_accepted_count": 0,
+        "clustering_distillation_rejected_count": 0,
+        "clustering_distillation_acceptance_rate": 0.0,
+        "clustering_distillation_local_update_count": 0,
+        "clustering_distillation_training_sample_count": 0,
+        "clustering_distillation_validation_sample_count": 0,
+        "clustering_distillation_extra_parameter_values": 0,
+        "clustering_distillation_extra_bytes": 0,
+        "clustering_distillation_break_even_rounds_mean": 0.0,
+    }
+    results.update({**distillation_defaults, **distillation})
+
     oracle_clustering = getattr(
         server, "clustering_oracle_diagnostic_summary", lambda: {}
     )()
@@ -1304,6 +1319,9 @@ def _save_raw_run(
     clustering_noninferiority = getattr(
         server, "clustering_noninferiority_diagnostics", []
     )
+    clustering_distillation = getattr(
+        server, "clustering_distillation_diagnostics", []
+    )
     final_model_ids = set(server.global_models)
     model_selection_counts = {
         registration.model_id: int(np.count_nonzero(
@@ -1861,6 +1879,57 @@ def _save_raw_run(
                 for item in clustering_noninferiority
             ],
             dtype=np.bool_,
+        ),
+        clustering_distillation_rounds=np.asarray(
+            [item["round_index"] for item in clustering_distillation],
+            dtype=np.int32,
+        ),
+        clustering_distillation_clusters=np.asarray(
+            [
+                ",".join(str(model_id) for model_id in item["cluster"])
+                for item in clustering_distillation
+            ],
+            dtype=np.str_,
+        ),
+        clustering_distillation_candidate_model_ids=np.asarray(
+            [item["candidate_model_id"] for item in clustering_distillation],
+            dtype=np.int32,
+        ),
+        clustering_distillation_cluster_sizes=np.asarray(
+            [item["cluster_size"] for item in clustering_distillation],
+            dtype=np.int32,
+        ),
+        clustering_distillation_local_update_counts=np.asarray(
+            [item["local_update_count"] for item in clustering_distillation],
+            dtype=np.int32,
+        ),
+        clustering_distillation_training_sample_counts=np.asarray(
+            [item["training_sample_count"] for item in clustering_distillation],
+            dtype=np.int32,
+        ),
+        clustering_distillation_validation_sample_counts=np.asarray(
+            [item["validation_sample_count"] for item in clustering_distillation],
+            dtype=np.int32,
+        ),
+        clustering_distillation_max_upper_bounds=np.asarray(
+            [item["max_upper_bound"] for item in clustering_distillation],
+            dtype=np.float64,
+        ),
+        clustering_distillation_accepted=np.asarray(
+            [item["accepted"] for item in clustering_distillation],
+            dtype=np.bool_,
+        ),
+        clustering_distillation_extra_parameter_values=np.asarray(
+            [item["extra_parameter_values"] for item in clustering_distillation],
+            dtype=np.int64,
+        ),
+        clustering_distillation_extra_bytes=np.asarray(
+            [item["extra_bytes"] for item in clustering_distillation],
+            dtype=np.int64,
+        ),
+        clustering_distillation_break_even_rounds=np.asarray(
+            [item["break_even_rounds"] for item in clustering_distillation],
+            dtype=np.float64,
         ),
         dataset=str(config.DATASET),
         concept_schedule=str(config.CONCEPT_SCHEDULE),

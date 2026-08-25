@@ -82,6 +82,21 @@ def test_residual_adapter_class_adwin_mode_reuses_routing_architecture():
         spec.client_cls
         is ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient
     )
+
+
+def _two_residual_adapter_client():
+    first = ResidualAdapterMLP()
+    second = ResidualAdapterMLP(backbone=first.backbone)
+    second.set_params(first.get_params())
+    return ResidualAdapterRestartingSoftRoutingFedSDAClient(
+        client_id=0,
+        initial_models={0: first, 1: second},
+        initial_stats={
+            0: {'n': 10, 'mean': 0.1, 'M2': 0.0},
+            1: {'n': 10, 'mean': 0.1, 'M2': 0.0},
+        },
+        verbose=False,
+    )
     assert spec.server_cls is SharedBackboneFedSDANoCachedServer
     assert spec.model_cls is ResidualAdapterMLP
 
@@ -324,6 +339,56 @@ def test_shared_cross_evaluation_deduplicates_backbone_and_heads():
     assert server.comm_parameter_values_down == (
         2 * backbone_values + 2 * first_head_values + second_head_values
     )
+
+
+def test_distillation_merge_validates_aggregated_personalized_student(monkeypatch):
+    monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 1)
+    monkeypatch.setattr(config, "CLUSTER_MIN_EVAL_N", 2)
+    monkeypatch.setattr(config, "FEDSDA_MERGE_NONINFERIORITY_MARGIN", 1e-2)
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "distillation_merge"
+    )
+    client = _two_residual_adapter_client()
+    input_dim = config.dataset_spec().input_dim
+    for model_id in (0, 1):
+        for index in range(12):
+            client.train_data_store[model_id].append((
+                torch.full((1, input_dim), float(index) / 10),
+                torch.tensor([[float(index % 2)]]),
+            ))
+    server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    server.register_client(client)
+    for model_id, model in client.models.items():
+        server.register_model_params(model_id, model.get_params())
+    stats_matrix = {
+        candidate: {
+            target: (10, 1.0, 0.1) for target in (0, 1)
+        }
+        for candidate in (0, 1)
+    }
+
+    clusters, params = server._distill_and_validate_clusters(
+        1, [[0, 1]], stats_matrix
+    )
+
+    assert clusters == [[0, 1]]
+    assert 0 in params
+    original_backbone, _ = SharedBackboneMLP.split_params(
+        server.global_models[0]
+    )
+    distilled_backbone, _ = SharedBackboneMLP.split_params(params[0])
+    assert all(
+        torch.equal(value, distilled_backbone[name])
+        for name, value in original_backbone.items()
+    )
+    assert server.clustering_distillation_diagnostics[0]["accepted"]
+    summary = server.distillation_summary()
+    assert summary["clustering_distillation_candidate_count"] == 1
+    assert summary["clustering_distillation_accepted_count"] == 1
+    assert summary["clustering_distillation_training_sample_count"] == 12
+    assert summary["clustering_distillation_validation_sample_count"] == 12
+    assert summary["clustering_distillation_extra_parameter_values"] > 0
+    assert summary["clustering_distillation_break_even_rounds_mean"] > 0
 
 
 def test_aggregation_restart_recalibrates_router_after_round(monkeypatch):
