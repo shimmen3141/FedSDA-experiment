@@ -189,6 +189,7 @@ METRICS = (
             "clustering_distillation_candidate_count",
             "clustering_distillation_accepted_count",
             "clustering_distillation_rejected_count",
+            "clustering_distillation_precheck_rejected_count",
             "clustering_distillation_acceptance_rate",
             "clustering_distillation_local_update_count",
             "clustering_distillation_training_sample_count",

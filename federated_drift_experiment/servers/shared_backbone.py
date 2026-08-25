@@ -1,8 +1,8 @@
 """共有バックボーンと概念別ヘッドを集約するFedSDAサーバ。"""
 
 import copy
+import itertools
 import math
-import random
 
 from .. import config
 from ..clustering import paired_mean_upper_bound
@@ -83,6 +83,43 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
             )
         return _divide_params(accumulator, total)
 
+    def _select_distillation_participants(self, cluster):
+        """全概念の検証標本を最もよく被覆するクライアント集合を選ぶ。"""
+        candidates = []
+        for client in self.clients:
+            counts = client.distillation_split_sample_counts(cluster)
+            if sum(training for training, _ in counts.values()) < 2:
+                continue
+            candidates.append((client, counts))
+
+        max_clients = min(config.CROSS_EVAL_MAX_CLIENTS, len(candidates))
+        minimum = max(config.CLUSTER_MIN_EVAL_N, 2)
+        best = None
+        for size in range(1, max_clients + 1):
+            for selected in itertools.combinations(candidates, size):
+                validation_counts = {
+                    model_id: sum(
+                        counts[model_id][1] for _, counts in selected
+                    )
+                    for model_id in cluster
+                }
+                supported = sum(
+                    count >= minimum for count in validation_counts.values()
+                )
+                score = (
+                    supported == len(cluster),
+                    supported,
+                    min(validation_counts.values(), default=0),
+                    sum(validation_counts.values()),
+                    -size,
+                )
+                if best is None or score > best[0]:
+                    best = (score, selected, validation_counts)
+
+        if best is None:
+            return [], {model_id: 0 for model_id in cluster}
+        return [client for client, _ in best[1]], best[2]
+
     def _distill_and_validate_clusters(self, t, clusters, stats_matrix):
         """teacher混合をadapter/headへ蒸留し、集約後studentだけを非劣性採択する。"""
         validated_clusters = []
@@ -100,19 +137,31 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
                 model_id: copy.deepcopy(self.global_models[model_id])
                 for model_id in cluster
             }
-            participants = [
-                client for client in self.clients
-                if client.distillation_sample_count(cluster) >= 4
-            ]
-            if len(participants) > config.CROSS_EVAL_MAX_CLIENTS:
-                participants = random.sample(
-                    participants, config.CROSS_EVAL_MAX_CLIENTS
-                )
+            participants, validation_counts = (
+                self._select_distillation_participants(cluster)
+            )
             job_id = (int(t), int(min(cluster)), tuple(cluster))
             before_values = (
                 self.comm_parameter_values_up + self.comm_parameter_values_down
             )
             before_bytes = self.comm_bytes_up + self.comm_bytes_down
+
+            minimum = max(config.CLUSTER_MIN_EVAL_N, 2)
+            if any(
+                validation_counts[model_id] < minimum
+                for model_id in cluster
+            ):
+                validated_clusters.extend([[model_id] for model_id in cluster])
+                self._record_distillation_result(
+                    t=t, cluster=cluster, candidate_id=candidate_id,
+                    updates=[], target_stats={}, accepted=False,
+                    before_values=before_values, before_bytes=before_bytes,
+                    precheck_rejected=True,
+                    precheck_min_validation_sample_count=min(
+                        validation_counts.values(), default=0
+                    ),
+                )
+                continue
 
             self.comm_messages_down += len(participants)
             self._record_distillation_teacher_transfer(
@@ -141,6 +190,10 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
                     t=t, cluster=cluster, candidate_id=candidate_id,
                     updates=updates, target_stats={}, accepted=False,
                     before_values=before_values, before_bytes=before_bytes,
+                    precheck_rejected=False,
+                    precheck_min_validation_sample_count=min(
+                        validation_counts.values(), default=0
+                    ),
                 )
                 continue
 
@@ -197,6 +250,10 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
                 updates=updates, target_stats=target_records,
                 accepted=accepted, before_values=before_values,
                 before_bytes=before_bytes,
+                precheck_rejected=False,
+                precheck_min_validation_sample_count=min(
+                    validation_counts.values(), default=0
+                ),
             )
 
         return (
@@ -206,7 +263,8 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
 
     def _record_distillation_result(
         self, *, t, cluster, candidate_id, updates, target_stats, accepted,
-        before_values, before_bytes,
+        before_values, before_bytes, precheck_rejected,
+        precheck_min_validation_sample_count,
     ):
         """採否と追加通信の損益分岐を一候補一レコードで保存する。"""
         extra_values = (
@@ -241,6 +299,10 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
                 default=math.inf,
             )),
             "accepted": bool(accepted),
+            "precheck_rejected": bool(precheck_rejected),
+            "precheck_min_validation_sample_count": int(
+                precheck_min_validation_sample_count
+            ),
             "extra_parameter_values": int(extra_values),
             "extra_bytes": int(extra_bytes),
             "values_saved_per_round": int(values_saved_per_round),
@@ -263,6 +325,9 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
             "clustering_distillation_candidate_count": len(records),
             "clustering_distillation_accepted_count": len(accepted),
             "clustering_distillation_rejected_count": len(records) - len(accepted),
+            "clustering_distillation_precheck_rejected_count": sum(
+                record["precheck_rejected"] for record in records
+            ),
             "clustering_distillation_acceptance_rate": (
                 len(accepted) / len(records) if records else 0.0
             ),

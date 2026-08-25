@@ -391,6 +391,69 @@ def test_distillation_merge_validates_aggregated_personalized_student(monkeypatc
     assert summary["clustering_distillation_break_even_rounds_mean"] > 0
 
 
+def test_distillation_merge_precheck_rejects_uncovered_concept(monkeypatch):
+    monkeypatch.setattr(config, "CLUSTER_MIN_EVAL_N", 2)
+    monkeypatch.setattr(
+        config, "FEDSDA_CLUSTERING_CONSOLIDATION", "distillation_merge"
+    )
+    client = _two_residual_adapter_client()
+    input_dim = config.dataset_spec().input_dim
+    for index in range(12):
+        client.train_data_store[0].append((
+            torch.full((1, input_dim), float(index) / 10),
+            torch.tensor([[float(index % 2)]]),
+        ))
+    server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    server.register_client(client)
+    for model_id, model in client.models.items():
+        server.register_model_params(model_id, model.get_params())
+    stats_matrix = {
+        candidate: {target: (10, 1.0, 0.1) for target in (0, 1)}
+        for candidate in (0, 1)
+    }
+
+    before_values = (
+        server.comm_parameter_values_up + server.comm_parameter_values_down
+    )
+    clusters, params = server._distill_and_validate_clusters(
+        1, [[0, 1]], stats_matrix
+    )
+
+    assert clusters == [[0], [1]]
+    assert params == {}
+    assert (
+        server.comm_parameter_values_up + server.comm_parameter_values_down
+    ) == before_values
+    record = server.clustering_distillation_diagnostics[0]
+    assert record["precheck_rejected"]
+    assert record["precheck_min_validation_sample_count"] == 0
+    assert server.distillation_summary()[
+        "clustering_distillation_precheck_rejected_count"
+    ] == 1
+
+
+def test_distillation_participants_cover_concepts_across_clients(monkeypatch):
+    monkeypatch.setattr(config, "CLUSTER_MIN_EVAL_N", 2)
+    clients = [_two_residual_adapter_client() for _ in range(2)]
+    input_dim = config.dataset_spec().input_dim
+    for model_id, client in enumerate(clients):
+        for index in range(12):
+            client.train_data_store[model_id].append((
+                torch.full((1, input_dim), float(index) / 10),
+                torch.tensor([[float(index % 2)]]),
+            ))
+    server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    for client in clients:
+        server.register_client(client)
+
+    selected, validation_counts = (
+        server._select_distillation_participants([0, 1])
+    )
+
+    assert set(selected) == set(clients)
+    assert validation_counts == {0: 6, 1: 6}
+
+
 def test_aggregation_restart_recalibrates_router_after_round(monkeypatch):
     monkeypatch.setattr(
         config,

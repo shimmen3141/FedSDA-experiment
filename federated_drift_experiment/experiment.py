@@ -739,6 +739,7 @@ def _add_model_diagnostic_results(
         "clustering_distillation_candidate_count": 0,
         "clustering_distillation_accepted_count": 0,
         "clustering_distillation_rejected_count": 0,
+        "clustering_distillation_precheck_rejected_count": 0,
         "clustering_distillation_acceptance_rate": 0.0,
         "clustering_distillation_local_update_count": 0,
         "clustering_distillation_training_sample_count": 0,
@@ -1918,6 +1919,17 @@ def _save_raw_run(
         clustering_distillation_accepted=np.asarray(
             [item["accepted"] for item in clustering_distillation],
             dtype=np.bool_,
+        ),
+        clustering_distillation_precheck_rejected=np.asarray(
+            [item["precheck_rejected"] for item in clustering_distillation],
+            dtype=np.bool_,
+        ),
+        clustering_distillation_precheck_min_validation_sample_counts=np.asarray(
+            [
+                item["precheck_min_validation_sample_count"]
+                for item in clustering_distillation
+            ],
+            dtype=np.int32,
         ),
         clustering_distillation_extra_parameter_values=np.asarray(
             [item["extra_parameter_values"] for item in clustering_distillation],

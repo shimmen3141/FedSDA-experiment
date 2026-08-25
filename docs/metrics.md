@@ -203,6 +203,8 @@ adapter/headへ蒸留したときの候補数、採択率、ローカル更新�
 `extra_parameter_values`と`extra_bytes`はteacher転送、student upload、集約後student検証の
 追加通信を数える。`break_even_rounds_mean`は採択候補について、追加パラメータ通信量を
 以後の概念別adapter/head配布削減量で回収するまでの推定ラウンド数である。
+`precheck_rejected_count`は、クラスタ内の全概念を検証できる標本被覆が得られず、
+モデル送信やローカル蒸留の前に棄却した候補数である。
 raw NPZには候補クラスタ、集約後studentの最大非劣性上限、採否、候補別追加通信量を保存する。
 
 これらは診断専用であり、現時点ではクラスタリング判定を変更しない。精度改善を主張する指標ではなく、

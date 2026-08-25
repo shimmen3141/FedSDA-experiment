@@ -185,12 +185,21 @@ class _SharedRepresentationFedSDAClientMixin:
         )
         return scores
 
-    def distillation_sample_count(self, model_ids):
-        """候補クラスタについてローカル蒸留へ利用可能な標本数を返す。"""
-        return sum(
-            min(len(self.train_data_store.get(model_id, ())), config.EVAL_MAX_SAMPLES)
-            for model_id in model_ids
-        )
+    def distillation_split_sample_counts(self, model_ids):
+        """蒸留前に学習・検証へ割り当て可能な標本数を概念別に返す。"""
+        counts = {}
+        for model_id in sorted(model_ids):
+            sample_count = min(
+                len(self.train_data_store.get(model_id, ())),
+                config.EVAL_MAX_SAMPLES,
+            )
+            midpoint = sample_count // 2
+            validation_count = sample_count - midpoint
+            if midpoint < 2 or validation_count < 2:
+                counts[model_id] = (0, 0)
+            else:
+                counts[model_id] = (midpoint, validation_count)
+        return counts
 
     def _distillation_teacher_probabilities(self, model_ids):
         """現在のglobal AdaHedge重みを候補クラスタ内で再正規化する。"""
