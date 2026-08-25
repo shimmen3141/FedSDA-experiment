@@ -388,8 +388,8 @@ OPTIONS = (
     ),
     OptionSpec(
         "clustering_consolidation", "クラスタリング後処理", "clustering",
-        ("merge", "parameter_share", "noninferiority_merge", "distillation_merge"),
-        "クラスタ決定後にID統合、パラメータ共有、非劣性検証または蒸留を行う",
+        ("merge", "parameter_share", "noninferiority_merge"),
+        "クラスタ決定後にID統合、パラメータ共有または非劣性検証を行う",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("server_clustering",),
         active_when=(ActivationRule(
@@ -406,8 +406,8 @@ OPTIONS = (
         requires_capabilities=("server_clustering",),
         active_when=(ActivationRule(
             "clustering_consolidation",
-            ("noninferiority_merge", "distillation_merge"),
-            "非劣性制約付きマージまたは検証付き蒸留のとき",
+            ("noninferiority_merge",),
+            "非劣性制約付きマージのとき",
         ),),
         cli_name="merge-noninferiority-margin",
     ),
@@ -502,36 +502,6 @@ CHOICE_CONSTRAINTS = (
             ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
         ),
         note="追加のクラスタリング後処理は現在NoCachedフローでのみ実装",
-    ),
-    ChoiceConstraint(
-        "clustering_consolidation",
-        ("distillation_merge",),
-        (
-            "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
-        ),
-        requires_selections=(
-            ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
-            ActivationRule(
-                "model_architecture", ("residual_adapter",),
-                "Residual Adapter構成が必要",
-            ),
-            ActivationRule(
-                "routing", ("restarting_soft",),
-                "Restarting SoftRoutingが必要",
-            ),
-            ActivationRule(
-                "detector", ("ClassESR",),
-                "現在の実装ではClassESRが必要",
-            ),
-            ActivationRule(
-                "soft_routing_context", ("global",),
-                "teacher重みはglobal AdaHedgeから取得する",
-            ),
-        ),
-        note=(
-            "検証付き蒸留は共有バックボーン＋Residual Adapter＋global "
-            "SoftRoutingで実装"
-        ),
     ),
     ChoiceConstraint(
         "detector", ("ADWIN",),

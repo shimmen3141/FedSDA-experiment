@@ -63,7 +63,7 @@ flowchart LR
   end
   subgraph group_clustering[clustering]
     clustering_policy["<b>クラスタリング頻度</b><br/>disabled | on_new_model | every_round"]
-    clustering_consolidation["<b>クラスタリング後処理</b><br/>merge | parameter_share | noninferiority_merge | distillation_merge"]
+    clustering_consolidation["<b>クラスタリング後処理</b><br/>merge | parameter_share | noninferiority_merge"]
     clustering_decision["<b>クラスタリング判定</b><br/>distance | confidence | confidence_margin | oracle_concept"]
     cluster_linkage["<b>階層クラスタリングlinkage</b><br/>complete | connected"]
   end
@@ -98,13 +98,8 @@ flowchart LR
   detector -->|"ESR系のとき"| e_detector_alpha
   detector -->|"HDDM系のとき"| hddm_drift_confidence
   clustering_policy -->|"クラスタリングを実行するとき"| clustering_consolidation
-  clustering_consolidation -->|"非劣性制約付きマージまたは検証付き蒸留のとき"| merge_noninferiority_margin
+  clustering_consolidation -->|"非劣性制約付きマージのとき"| merge_noninferiority_margin
   server_flow -.->|"parameter_share, noninferiority_merge: NoCachedが必要"| clustering_consolidation
-  server_flow -.->|"distillation_merge: NoCachedが必要"| clustering_consolidation
-  model_architecture -.->|"distillation_merge: Residual Adapter構成が必要"| clustering_consolidation
-  routing -.->|"distillation_merge: Restarting SoftRoutingが必要"| clustering_consolidation
-  detector -.->|"distillation_merge: 現在の実装ではClassESRが必要"| clustering_consolidation
-  soft_routing_context -.->|"distillation_merge: teacher重みはglobal AdaHedgeから取得する"| clustering_consolidation
   server_flow -.->|"restarting_soft: NoCachedが必要"| routing
   detector -.->|"restarting_soft: ClassADWINまたはClassESRが必要"| routing
   server_flow -.->|"shared_backbone: NoCachedが必要"| model_architecture
@@ -150,7 +145,7 @@ flowchart LR
 | `e_detector_alpha` | config | 実装済み | 対象外 | 対象外 | 対象外 | ESR系検出器の誤警報制御値 |
 | `hddm_drift_confidence` | config | 実装済み | 対象外 | 対象外 | 対象外 | HDDM系検出器のドリフト判定信頼度 |
 | `clustering_policy` | cli: `--clustering-policy` | 実装済み | 対象外 | 対象外 | 対象外 | FedSDAサーバがモデル統合判定を実行するタイミング |
-| `clustering_consolidation` | cli: `--clustering-consolidation` | 実装済み | 対象外 | 対象外 | 対象外 | クラスタ決定後にID統合、パラメータ共有、非劣性検証または蒸留を行う |
+| `clustering_consolidation` | cli: `--clustering-consolidation` | 実装済み | 対象外 | 対象外 | 対象外 | クラスタ決定後にID統合、パラメータ共有または非劣性検証を行う |
 | `merge_noninferiority_margin` | cli: `--merge-noninferiority-margin` | 実装済み | 対象外 | 対象外 | 対象外 | 仮統合モデルの対応あり損失差について許容する片側上限 |
 | `clustering_decision` | cli: `--clustering-decision` | 実装済み | 理論上のみ | 対象外 | 対象外 | モデル対を統合する判定規則 |
 | `clustering_confidence` | config | 実装済み | 理論上のみ | 対象外 | 対象外 | confidence系統合判定と非劣性制約付きマージの信頼水準 |
@@ -176,7 +171,6 @@ flowchart LR
 | オプション値 | 実装済みmode | 追加前提 | 備考 |
 |---|---|---|---|
 | `clustering_consolidation` = `parameter_share`, `noninferiority_merge` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_NoCached_ESR`<br/>`FedSDA_NoCached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting`<br/>`FedSDA_NoCached_HDDMA`<br/>`FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_NoCached_HDDMW` | NoCachedが必要 | 追加のクラスタリング後処理は現在NoCachedフローでのみ実装 |
-| `clustering_consolidation` = `distillation_merge` | `FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>Residual Adapter構成が必要<br/>Restarting SoftRoutingが必要<br/>現在の実装ではClassESRが必要<br/>teacher重みはglobal AdaHedgeから取得する | 検証付き蒸留は共有バックボーン＋Residual Adapter＋global SoftRoutingで実装 |
 | `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
 | `detector` = `ClassADWIN` | `FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_Cached_ClassADWIN`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting` | なし |  |
 | `detector` = `ESR` | `FedSDA_NoCached_ESR`<br/>`FedSDA_Cached_ESR` | なし |  |

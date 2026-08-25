@@ -186,22 +186,6 @@ METRICS = (
     ),
     *_make(
         (
-            "clustering_distillation_candidate_count",
-            "clustering_distillation_accepted_count",
-            "clustering_distillation_rejected_count",
-            "clustering_distillation_precheck_rejected_count",
-            "clustering_distillation_acceptance_rate",
-            "clustering_distillation_local_update_count",
-            "clustering_distillation_training_sample_count",
-            "clustering_distillation_validation_sample_count",
-            "clustering_distillation_extra_parameter_values",
-            "clustering_distillation_extra_bytes",
-            "clustering_distillation_break_even_rounds_mean",
-        ),
-        "clustering_distillation", DIAGNOSTIC, FEDSDA_METHODS, None,
-    ),
-    *_make(
-        (
             "clustering_oracle_pair_count",
             "clustering_oracle_same_pair_count",
             "clustering_oracle_merge_tp",
@@ -361,7 +345,7 @@ METRIC_PROFILES = {
     "model_diagnostics": tuple(metric.id for metric in METRICS if metric.group in {
         "model_learning", "model_complementarity",
         "soft_routing", "routing_contribution", "shared_gradient_conflict",
-        "clustering_noninferiority", "clustering_distillation",
+        "clustering_noninferiority",
         "clustering_oracle_diagnostic",
     }),
     "all": SCALAR_METRIC_IDS,

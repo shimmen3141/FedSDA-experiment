@@ -109,7 +109,7 @@ def experiment_configuration(experiment, total_data):
     if algorithm.get("clustering_consolidation") == "merge":
         algorithm.pop("clustering_consolidation", None)
     if algorithm.get("clustering_consolidation") not in {
-        "noninferiority_merge", "distillation_merge",
+        "noninferiority_merge",
     }:
         algorithm.pop("merge_noninferiority_margin", None)
     if algorithm.get("cluster_linkage") is None:
@@ -221,7 +221,7 @@ def configuration_from_result_row(row, total_data):
     if clustering_consolidation != "merge":
         algorithm["clustering_consolidation"] = clustering_consolidation
     if clustering_consolidation in {
-        "noninferiority_merge", "distillation_merge",
+        "noninferiority_merge",
     }:
         algorithm["merge_noninferiority_margin"] = _optional_number(
             row.get("merge_noninferiority_margin"), float

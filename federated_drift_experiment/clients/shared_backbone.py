@@ -1,11 +1,9 @@
 """共有バックボーンと概念別ヘッドを使うFedSDAクライアント。"""
 
-import copy
 import random
 import time
 
 import torch
-import torch.nn.functional as F
 
 from .. import config
 from ..gradient_surgery import (
@@ -19,10 +17,6 @@ from .fedsda import (
     ClassConditionalESRFedSDAClient,
     RestartingSoftRoutingClassConditionalADWINFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
-)
-from ..model_distillation import (
-    DistillationDifferenceStats,
-    DistillationUpdate,
 )
 
 
@@ -52,8 +46,6 @@ class _SharedRepresentationFedSDAClientMixin:
             "update_norm_ratio_sum": 0.0,
             "update_delta_ratio_sum": 0.0,
         }
-        # 蒸留の学習用標本と集約後検証用標本を混ぜないため、候補ごとに保持する。
-        self._distillation_validation_cache = {}
         self._share_model_backbones()
 
     def _shared_backbone(self):
@@ -184,224 +176,6 @@ class _SharedRepresentationFedSDAClientMixin:
             head_examples=len(x) * len(model_ids),
         )
         return scores
-
-    def distillation_split_sample_counts(self, model_ids):
-        """蒸留前に学習・検証へ割り当て可能な標本数を概念別に返す。"""
-        counts = {}
-        for model_id in sorted(model_ids):
-            sample_count = min(
-                len(self.train_data_store.get(model_id, ())),
-                config.EVAL_MAX_SAMPLES,
-            )
-            midpoint = sample_count // 2
-            validation_count = sample_count - midpoint
-            if midpoint < 2 or validation_count < 2:
-                counts[model_id] = (0, 0)
-            else:
-                counts[model_id] = (midpoint, validation_count)
-        return counts
-
-    def _distillation_teacher_probabilities(self, model_ids):
-        """現在のglobal AdaHedge重みを候補クラスタ内で再正規化する。"""
-        model_ids = tuple(sorted(model_ids))
-        if not hasattr(self, "expert_router"):
-            weight = 1.0 / len(model_ids)
-            return {model_id: weight for model_id in model_ids}
-
-        held_ids = tuple(sorted(self.models))
-        if not set(model_ids).issubset(held_ids):
-            weight = 1.0 / len(model_ids)
-            return {model_id: weight for model_id in model_ids}
-
-        # 診断・蒸留がオンラインルータの状態を変更しないよう、複製上で同期する。
-        router = copy.deepcopy(self.expert_router)
-        all_probabilities = router.probabilities(held_ids)
-        total = sum(all_probabilities[model_id] for model_id in model_ids)
-        if total <= 0.0:
-            weight = 1.0 / len(model_ids)
-            return {model_id: weight for model_id in model_ids}
-        return {
-            model_id: all_probabilities[model_id] / total
-            for model_id in model_ids
-        }
-
-    def _split_distillation_data(self, model_ids):
-        """各概念の標本を等分し、student学習と最終検証を分離する。"""
-        training = []
-        validation = {}
-        for model_id in sorted(model_ids):
-            data = list(self.train_data_store.get(model_id, ()))
-            if len(data) < 4:
-                continue
-            if len(data) > config.EVAL_MAX_SAMPLES:
-                data = random.sample(data, config.EVAL_MAX_SAMPLES)
-            else:
-                random.shuffle(data)
-            midpoint = len(data) // 2
-            if midpoint < 2 or len(data) - midpoint < 2:
-                continue
-            training.extend(data[:midpoint])
-            validation[model_id] = data[midpoint:]
-        return training, validation
-
-    def _distillation_models(self, params_by_model):
-        models = {}
-        for model_id, params in params_by_model.items():
-            model = self._new_model()
-            model.set_params(params)
-            models[model_id] = model
-        return models
-
-    @staticmethod
-    def _teacher_mixture_from_features(
-        teacher_models, probabilities, features, num_classes,
-    ):
-        scores = []
-        for model_id, model in teacher_models.items():
-            prediction = model.forward_from_features(features)
-            if num_classes > 2:
-                prediction = torch.softmax(prediction, dim=1)
-            scores.append(prediction * probabilities[model_id])
-        return sum(scores)
-
-    @staticmethod
-    def _distillation_loss(student_scores, teacher_scores, num_classes):
-        if num_classes == 2:
-            return F.binary_cross_entropy(student_scores, teacher_scores)
-        return -(
-            teacher_scores * F.log_softmax(student_scores, dim=1)
-        ).sum(dim=1).mean()
-
-    @staticmethod
-    def _bounded_prediction_loss(scores, labels, num_classes):
-        if num_classes == 2:
-            return torch.abs(scores.view(-1) - labels.view(-1).float())
-        probabilities = torch.softmax(scores, dim=1)
-        class_ids = labels.view(-1).long()
-        return 1.0 - probabilities.gather(
-            1, class_ids.unsqueeze(1)
-        ).squeeze(1)
-
-    @staticmethod
-    def _bounded_teacher_loss(probabilities, labels, num_classes):
-        if num_classes == 2:
-            return torch.abs(
-                probabilities.view(-1) - labels.view(-1).float()
-            )
-        class_ids = labels.view(-1).long()
-        return 1.0 - probabilities.gather(
-            1, class_ids.unsqueeze(1)
-        ).squeeze(1)
-
-    def prepare_distillation_update(
-        self, job_id, teacher_params_by_model, representative_model_id,
-    ):
-        """候補モデル混合をteacherとして概念別adapter/headをローカル学習する。"""
-        model_ids = tuple(sorted(teacher_params_by_model))
-        training_data, validation_data = self._split_distillation_data(model_ids)
-        if len(training_data) < 2 or not validation_data:
-            return None
-
-        teacher_models = self._distillation_models(teacher_params_by_model)
-        probabilities = self._distillation_teacher_probabilities(model_ids)
-        student = self._new_model()
-        student.set_params(teacher_params_by_model[representative_model_id])
-        student.reset_optimizer()
-
-        training_x = torch.cat([item[0] for item in training_data])
-        with torch.no_grad():
-            features = student.extract_features(training_x)
-            teacher_scores = self._teacher_mixture_from_features(
-                teacher_models, probabilities, features, student.num_classes,
-            ).detach()
-        self._record_model_compute(
-            "training", len(training_x) * len(model_ids), calls=len(model_ids),
-            backbone_examples=len(training_x),
-            head_examples=len(training_x) * len(model_ids),
-        )
-
-        dataset = torch.utils.data.TensorDataset(training_x, teacher_scores)
-        loader = torch.utils.data.DataLoader(
-            dataset,
-            batch_size=min(config.CLIENT_BATCH_SIZE, len(dataset)),
-            shuffle=True,
-        )
-        start_time = time.perf_counter()
-        for _ in range(self.new_model_initial_epochs()):
-            for batch_x, batch_teacher in loader:
-                with torch.no_grad():
-                    batch_features = student.extract_features(batch_x)
-                student.head_optimizer.zero_grad()
-                student_scores = student.forward_from_features(batch_features)
-                loss = self._distillation_loss(
-                    student_scores, batch_teacher, student.num_classes
-                )
-                loss.backward()
-                student.head_optimizer.step()
-                self._record_model_compute(
-                    "training", len(batch_x),
-                    backbone_examples=len(batch_x), head_examples=len(batch_x),
-                )
-                self.compute_counters["optimizer_steps"] += 1
-                self.compute_counters["head_optimizer_steps"] += 1
-        self.phase_seconds["training"] += time.perf_counter() - start_time
-
-        _, personalized = student.split_params(student.get_params())
-        self._distillation_validation_cache[job_id] = (
-            validation_data, probabilities
-        )
-        return DistillationUpdate(
-            personalized_params=personalized,
-            sample_count=len(training_x),
-        )
-
-    def evaluate_distilled_student(
-        self, job_id, teacher_params_by_model, student_params,
-    ):
-        """集約後studentと元teacher混合を未使用のローカル標本で比較する。"""
-        cached = self._distillation_validation_cache.pop(job_id, None)
-        if cached is None:
-            return DistillationDifferenceStats(by_target_model={})
-        validation_data, probabilities = cached
-        teacher_models = self._distillation_models(teacher_params_by_model)
-        student = self._new_model()
-        student.set_params(student_params)
-        num_classes = student.num_classes
-        by_target = {}
-        start_time = time.perf_counter()
-        for target_model_id, samples in validation_data.items():
-            x = torch.cat([item[0] for item in samples])
-            y = torch.cat([item[1] for item in samples])
-            with torch.no_grad():
-                features = student.extract_features(x)
-                teacher_scores = self._teacher_mixture_from_features(
-                    teacher_models, probabilities, features, num_classes,
-                )
-                student_scores = student.forward_from_features(features)
-                teacher_losses = self._bounded_teacher_loss(
-                    teacher_scores, y, num_classes
-                )
-                student_losses = self._bounded_prediction_loss(
-                    student_scores, y, num_classes
-                )
-                differences = student_losses - teacher_losses
-            self._record_model_compute(
-                "cross_evaluation", len(x) * (len(teacher_models) + 1),
-                calls=len(teacher_models) + 1,
-                backbone_examples=len(x),
-                head_examples=len(x) * (len(teacher_models) + 1),
-            )
-            by_target[target_model_id] = (
-                len(differences),
-                float(differences.sum().item()),
-                float((differences ** 2).sum().item()),
-            )
-        self.phase_seconds["cross_evaluation"] += time.perf_counter() - start_time
-        return DistillationDifferenceStats(by_target_model=by_target)
-
-    def discard_distillation_job(self, job_id):
-        """通信・学習に失敗した候補のローカル検証状態を破棄する。"""
-        self._distillation_validation_cache.pop(job_id, None)
 
     def train_all_held_models(self, count_multiplier=1):
         """設定された共有表現の更新方式で、データを持つ全ヘッドを学習する。"""
