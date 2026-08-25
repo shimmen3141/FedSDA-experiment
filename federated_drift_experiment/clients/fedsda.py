@@ -1573,6 +1573,9 @@ class _AdaHedgeRoutingFedSDAClientMixin:
             current_model_id=self.current_model_id,
             sample_index=max(0, self.processed_samples - 1),
             aggregation_interval=config.AGGREGATION_INTERVAL,
+            archive_shadow_enabled=(
+                config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS
+            ),
         )
         switching_correct = self._routing_correct(
             switching_scores, y, num_classes

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 16
+METRIC_SCHEMA_VERSION = 17
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -279,10 +279,21 @@ METRICS = (
             "routing_loo_positive_rate",
             "routing_loo_fallback_count",
             "routing_loo_active_model_count",
+            "routing_loo_active_evaluable_model_count",
+            "routing_loo_active_joint_nonpositive_model_count",
+            "routing_loo_active_joint_nonpositive_rate",
             "routing_loo_active_unassigned_model_count",
             "routing_loo_active_unassigned_evaluable_model_count",
             "routing_loo_active_unassigned_nonpositive_model_count",
             "routing_loo_active_unassigned_nonpositive_rate",
+            "routing_loo_active_unassigned_joint_nonpositive_model_count",
+            "routing_loo_active_unassigned_joint_nonpositive_rate",
+            "routing_archive_shadow_sample_count",
+            "routing_archive_shadow_accuracy",
+            "routing_archive_shadow_accuracy_delta",
+            "routing_archive_shadow_bounded_delta_mean",
+            "routing_archive_shadow_retained_global_model_rate",
+            "routing_archive_shadow_reconfiguration_count",
         ),
         "routing_contribution", DIAGNOSTIC, FEDSDA_METHODS, None,
         {
@@ -293,7 +304,19 @@ METRICS = (
                 "モデル除外で増える0/1損失の平均（正なら寄与あり）"
             ),
             "routing_loo_active_unassigned_nonpositive_rate": (
-                "最終activeかつ未割当で、除外寄与が非正の評価可能モデル割合"
+                "最終activeかつ未割当で、有界損失の除外寄与が非正の評価可能モデル割合"
+            ),
+            "routing_loo_active_joint_nonpositive_rate": (
+                "有界損失と0/1損失の除外寄与がともに非正の最終activeモデル割合"
+            ),
+            "routing_loo_active_unassigned_joint_nonpositive_rate": (
+                "二損失の除外寄与がともに非正の最終active・未割当モデル割合"
+            ),
+            "routing_archive_shadow_accuracy_delta": (
+                "前通信区間の二損失寄与でローカル保持集合を絞ったshadow精度差"
+            ),
+            "routing_archive_shadow_retained_global_model_rate": (
+                "前通信区間ベースのshadowがローカルに保持するグローバルモデル割合"
             ),
         },
     ),

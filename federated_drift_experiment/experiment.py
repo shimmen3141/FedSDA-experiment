@@ -499,6 +499,17 @@ def _routing_window_accuracies(histories, true_drift_events, window):
 
 def _routing_leave_one_out_records(clients):
     """クライアント内のrouting寄与十分統計を保存可能な行へ展開する。"""
+    active_ids = {
+        model_id
+        for client in clients
+        for model_id in client.models
+        if model_id >= 0
+    }
+    assigned_ids = {
+        client.current_model_id
+        for client in clients
+        if client.current_model_id >= 0
+    }
     records = []
     for client in clients:
         diagnostics = getattr(
@@ -506,7 +517,6 @@ def _routing_leave_one_out_records(clients):
         )
         if diagnostics is None:
             continue
-        active_ids = set(client.models)
         for pool_epoch, block_index, model_id, aggregate in (
             diagnostics.iter_records()
         ):
@@ -522,7 +532,7 @@ def _routing_leave_one_out_records(clients):
                 ),
                 "is_assigned_final": bool(
                     pool_epoch == diagnostics.pool_epoch
-                    and model_id == client.current_model_id
+                    and model_id in assigned_ids
                 ),
             })
     return records
@@ -546,23 +556,64 @@ def _routing_leave_one_out_summary(clients):
         for client in clients
         if client.current_model_id >= 0
     }
-    final_stats = defaultdict(lambda: {"n": 0, "delta": 0.0})
+    final_stats = defaultdict(
+        lambda: {"n": 0, "bounded_delta": 0.0, "zero_one_delta": 0.0}
+    )
     for record in records:
         if not record["is_active_final"] or record["model_id"] < 0:
             continue
         stats = final_stats[record["model_id"]]
         stats["n"] += record["sample_count"]
-        stats["delta"] += record["bounded_delta_sum"]
+        stats["bounded_delta"] += record["bounded_delta_sum"]
+        stats["zero_one_delta"] += record["zero_one_delta_sum"]
 
     unassigned_ids = active_ids - assigned_ids
+    evaluable_active_ids = {
+        model_id for model_id in active_ids
+        if final_stats[model_id]["n"] > 0
+    }
     evaluable_unassigned_ids = {
         model_id for model_id in unassigned_ids
         if final_stats[model_id]["n"] > 0
     }
     nonpositive_ids = {
         model_id for model_id in evaluable_unassigned_ids
-        if final_stats[model_id]["delta"] <= 0.0
+        if final_stats[model_id]["bounded_delta"] <= 0.0
     }
+    joint_nonpositive_active_ids = {
+        model_id for model_id in evaluable_active_ids
+        if final_stats[model_id]["bounded_delta"] <= 0.0
+        and final_stats[model_id]["zero_one_delta"] <= 0.0
+    }
+    joint_nonpositive_unassigned_ids = (
+        joint_nonpositive_active_ids & evaluable_unassigned_ids
+    )
+
+    archive_shadow = [
+        client.routing_leave_one_out_diagnostics.archive_shadow
+        for client in clients
+        if hasattr(client, "routing_leave_one_out_diagnostics")
+    ]
+    archive_shadow_sample_count = sum(
+        aggregate.sample_count for aggregate in archive_shadow
+    )
+    archive_shadow_global_model_count = sum(
+        aggregate.global_model_count_sum for aggregate in archive_shadow
+    )
+    archive_shadow_actual_correct = sum(
+        aggregate.actual_correct_count for aggregate in archive_shadow
+    )
+    archive_shadow_correct = sum(
+        aggregate.shadow_correct_count for aggregate in archive_shadow
+    )
+    archive_shadow_accuracy = (
+        archive_shadow_correct / archive_shadow_sample_count
+        if archive_shadow_sample_count else 0.0
+    )
+    archive_shadow_actual_accuracy = (
+        archive_shadow_actual_correct / archive_shadow_sample_count
+        if archive_shadow_sample_count else 0.0
+    )
 
     return {
         "routing_loo_evaluation_count": evaluation_count,
@@ -579,6 +630,16 @@ def _routing_leave_one_out_summary(clients):
         ),
         "routing_loo_fallback_count": fallback_count,
         "routing_loo_active_model_count": len(active_ids),
+        "routing_loo_active_evaluable_model_count": len(
+            evaluable_active_ids
+        ),
+        "routing_loo_active_joint_nonpositive_model_count": len(
+            joint_nonpositive_active_ids
+        ),
+        "routing_loo_active_joint_nonpositive_rate": (
+            len(joint_nonpositive_active_ids) / len(evaluable_active_ids)
+            if evaluable_active_ids else 0.0
+        ),
         "routing_loo_active_unassigned_model_count": len(unassigned_ids),
         "routing_loo_active_unassigned_evaluable_model_count": len(
             evaluable_unassigned_ids
@@ -589,6 +650,36 @@ def _routing_leave_one_out_summary(clients):
         "routing_loo_active_unassigned_nonpositive_rate": (
             len(nonpositive_ids) / len(evaluable_unassigned_ids)
             if evaluable_unassigned_ids else 0.0
+        ),
+        "routing_loo_active_unassigned_joint_nonpositive_model_count": len(
+            joint_nonpositive_unassigned_ids
+        ),
+        "routing_loo_active_unassigned_joint_nonpositive_rate": (
+            len(joint_nonpositive_unassigned_ids)
+            / len(evaluable_unassigned_ids)
+            if evaluable_unassigned_ids else 0.0
+        ),
+        "routing_archive_shadow_sample_count": archive_shadow_sample_count,
+        "routing_archive_shadow_accuracy": archive_shadow_accuracy,
+        "routing_archive_shadow_accuracy_delta": (
+            archive_shadow_accuracy - archive_shadow_actual_accuracy
+        ),
+        "routing_archive_shadow_bounded_delta_mean": (
+            sum(
+                aggregate.bounded_delta_sum
+                for aggregate in archive_shadow
+            ) / archive_shadow_sample_count
+            if archive_shadow_sample_count else 0.0
+        ),
+        "routing_archive_shadow_retained_global_model_rate": (
+            sum(
+                aggregate.retained_global_model_count_sum
+                for aggregate in archive_shadow
+            ) / archive_shadow_global_model_count
+            if archive_shadow_global_model_count else 1.0
+        ),
+        "routing_archive_shadow_reconfiguration_count": sum(
+            aggregate.reconfiguration_count for aggregate in archive_shadow
         ),
     }
 
@@ -1450,6 +1541,23 @@ def _save_raw_run(
             [record[field_name] for record in routing_loo_records],
             dtype=np.bool_,
         )
+    telemetry_arrays["routing_loo_final_active_model_ids"] = np.asarray(
+        sorted({
+            model_id
+            for client in clients
+            for model_id in client.models
+            if model_id >= 0
+        }),
+        dtype=np.int32,
+    )
+    telemetry_arrays["routing_loo_final_assigned_model_ids"] = np.asarray(
+        sorted({
+            client.current_model_id
+            for client in clients
+            if client.current_model_id >= 0
+        }),
+        dtype=np.int32,
+    )
 
     model_client_ids = []
     model_ids = []

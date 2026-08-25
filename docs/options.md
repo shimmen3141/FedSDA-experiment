@@ -34,6 +34,9 @@ flowchart LR
     soft_routing_meta_loss["<b>Meta-router更新損失</b><br/>bounded_score | zero_one"]
     shared_backbone_routing_recalibration["<b>共有表現更新後のルーティング再較正</b><br/>none | aggregation_restart | fifo_replay | leader_change_replay | persistent_leader_change_replay"]
   end
+  subgraph group_diagnostic[diagnostic]
+    routing_archive_shadow_diagnostics["<b>ローカルarchive shadow診断</b><br/>off | on"]
+  end
   subgraph group_model[model]
     model_architecture["<b>モデル構造</b><br/>independent | shared_backbone | residual_adapter"]
     shared_backbone_training["<b>共有表現学習</b><br/>sequential | joint | frozen"]
@@ -80,6 +83,7 @@ flowchart LR
   routing -->|"Restarting SoftRoutingのとき"| soft_routing_context
   soft_routing_context -->|"Meta-switchingを実予測へ使うとき"| soft_routing_top_combination
   soft_routing_context -->|"文脈別Meta-routerを計算するとき"| soft_routing_meta_loss
+  routing -->|"Restarting SoftRoutingのとき"| routing_archive_shadow_diagnostics
   model_architecture -->|"共有表現構造のとき"| shared_backbone_training
   shared_backbone_training -->|"共有表現をjoint学習するとき"| shared_backbone_gradient_strategy
   model_architecture -->|"共有表現構造のとき"| shared_backbone_routing_recalibration
@@ -120,6 +124,7 @@ flowchart LR
 | `soft_routing_context` | cli: `--soft-routing-context` | 実装済み | 対象外 | 対象外 | 対象外 | 大域・予測クラス別・meta混合、またはmetaとswitching-expertの上位選択を選ぶ |
 | `soft_routing_top_combination` | cli: `--soft-routing-top-combination` | 実装済み | 対象外 | 対象外 | 対象外 | 上位Fixed-Shareの最大重み候補を使うか、候補予測を重み付き混合する |
 | `soft_routing_meta_loss` | cli: `--soft-routing-meta-loss` | 実装済み | 対象外 | 対象外 | 対象外 | Meta候補を確率出力の有界損失または最終予測の0/1損失で比較する |
+| `routing_archive_shadow_diagnostics` | cli: `--routing-archive-shadow-diagnostics` | 実装済み | 対象外 | 対象外 | 対象外 | 前通信区間のLOO寄与でクライアント別保持集合を絞る反実仮想診断 |
 | `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか |
 | `shared_backbone_training` | cli: `--shared-backbone-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか |
 | `shared_backbone_gradient_strategy` | cli: `--shared-backbone-gradient-strategy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 共同学習時の概念別バックボーン勾配を平均または競合射影で統合する方式 |

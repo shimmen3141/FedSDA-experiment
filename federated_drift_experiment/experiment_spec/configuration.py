@@ -27,6 +27,7 @@ class AlgorithmOptions:
     cluster_linkage: str | None = None
     clustering_consolidation: str = "merge"
     merge_noninferiority_margin: float = 0.0
+    routing_archive_shadow_diagnostics: bool = False
 
     @classmethod
     def from_current_config(cls):
@@ -59,6 +60,9 @@ class AlgorithmOptions:
             ),
             merge_noninferiority_margin=(
                 config.FEDSDA_MERGE_NONINFERIORITY_MARGIN
+            ),
+            routing_archive_shadow_diagnostics=(
+                config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS
             ),
         )
 
@@ -93,6 +97,9 @@ class AlgorithmOptions:
                 self.soft_routing_top_combination
             ),
             "SOFT_ROUTING_META_LOSS": self.soft_routing_meta_loss,
+            "ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS": (
+                self.routing_archive_shadow_diagnostics
+            ),
         }
         if self.cluster_linkage is not None:
             overrides["FEDSDA_CLUSTER_LINKAGE"] = self.cluster_linkage

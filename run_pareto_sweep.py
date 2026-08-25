@@ -87,6 +87,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "clustering_consolidation",
             "merge_noninferiority_margin",
             "detection_episodes",
+            "routing_archive_shadow_diagnostics",
             "new_model_creation_policy",
             "fifo_size", "new_model_validation_fraction",
             "new_model_forward_validation_samples",
@@ -300,6 +301,9 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             else None
         ),
         "detection_episodes": config.FEDSDA_DETECTION_EPISODES_ENABLED,
+        "routing_archive_shadow_diagnostics": (
+            config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS
+        ),
         "new_model_creation_policy": config.NEW_MODEL_CREATION_POLICY,
         "fifo_size": config.FIFO_BUFFER_SIZE,
         "new_model_validation_fraction": config.NEW_MODEL_VALIDATION_FRACTION,
@@ -639,6 +643,7 @@ def _load_csv(path):
             row.setdefault("soft_routing_meta_loss", "bounded_score")
             row.setdefault("shared_adapter_rank", "")
             row.setdefault("detection_episodes", "False")
+            row.setdefault("routing_archive_shadow_diagnostics", "False")
             row.setdefault("new_model_creation_policy", "immediate")
             row.setdefault("fifo_size", str(config.FIFO_BUFFER_SIZE))
             row.setdefault(
@@ -999,6 +1004,12 @@ def build_parser():
         help="近接した検出をN_FIFO幅の一つの適応エピソードへ統合する",
     )
     fedsda.add_argument(
+        "--routing-archive-shadow-diagnostics",
+        action=argparse.BooleanOptionalAction,
+        default=config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS,
+        help="前通信区間のLOO寄与によるローカルarchiveを反実仮想評価する",
+    )
+    fedsda.add_argument(
         "--new-model-creation-policy",
         choices=config.NEW_MODEL_CREATION_POLICIES,
         default=config.NEW_MODEL_CREATION_POLICY,
@@ -1284,6 +1295,9 @@ def main(argv=None):
         "shared_adapter_rank": args.shared_adapter_rank,
         "experiment_manifest": "on" if args.manifest else "off",
         "duplicate_policy": args.duplicate_policy,
+        "routing_archive_shadow_diagnostics": (
+            "on" if args.routing_archive_shadow_diagnostics else "off"
+        ),
     }
     issues = validate_explicit_options(selected_modes, selections, explicit_ids)
     issues += validate_sweep_dependencies(raw_argv, {
@@ -1335,6 +1349,9 @@ def main(argv=None):
             args.soft_routing_top_combination
         ),
         soft_routing_meta_loss=args.soft_routing_meta_loss,
+        routing_archive_shadow_diagnostics=(
+            args.routing_archive_shadow_diagnostics
+        ),
     )
 
     fixed_delta = args.fixed_delta if args.fixed_delta is not None else config.FEDDRIFT_DISTANCE_THRESHOLD

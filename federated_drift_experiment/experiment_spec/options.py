@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 4
+OPTION_SCHEMA_VERSION = 5
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -185,6 +185,19 @@ OPTIONS = (
             "文脈別Meta-routerを計算するとき",
         ),),
         cli_name="soft-routing-meta-loss",
+    ),
+    OptionSpec(
+        "routing_archive_shadow_diagnostics",
+        "ローカルarchive shadow診断", "diagnostic",
+        ("off", "on"),
+        "前通信区間のLOO寄与でクライアント別保持集合を絞る反実仮想診断",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("soft_routing",),
+        active_when=(ActivationRule(
+            "routing", ("restarting_soft",),
+            "Restarting SoftRoutingのとき",
+        ),),
+        cli_name="routing-archive-shadow-diagnostics",
     ),
     OptionSpec(
         "model_architecture", "モデル構造", "model",

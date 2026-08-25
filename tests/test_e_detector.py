@@ -17,6 +17,7 @@ from federated_drift_experiment.clients import (
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
 )
 from federated_drift_experiment.drift_detectors import BoundedMeanEDetector
+from federated_drift_experiment.diagnostics import RoutingLeaveOneOutDiagnostics
 from federated_drift_experiment.experiment import MODE_SPECS
 from federated_drift_experiment.models import SimpleMLP
 from federated_drift_experiment.servers import FedSDACachedServer, FedSDANoCachedServer
@@ -280,6 +281,42 @@ def test_soft_routing_records_leave_one_out_contribution_without_forward():
     assert records[1].hard_assignment_count == 0
     assert records[0].fallback_count == 0
     assert client.routing_leave_one_out_diagnostics.pool_epoch == 0
+    assert (
+        client.routing_leave_one_out_diagnostics.archive_shadow.sample_count
+        == 0
+    )
+
+
+def test_routing_archive_shadow_uses_previous_block_joint_contribution():
+    diagnostics = RoutingLeaveOneOutDiagnostics()
+    predictions = {
+        0: torch.tensor([[0.1]]),
+        1: torch.tensor([[0.9]]),
+    }
+    probabilities = {0: 0.5, 1: 0.5}
+    target = torch.ones((1, 1))
+
+    for sample_index in range(3):
+        diagnostics.observe(
+            prediction_scores=predictions,
+            effective_probabilities=probabilities,
+            fallback_probabilities=probabilities,
+            target=target,
+            num_classes=2,
+            current_model_id=1,
+            sample_index=sample_index,
+            aggregation_interval=2,
+            archive_shadow_enabled=True,
+        )
+
+    shadow = diagnostics.archive_shadow
+    assert shadow.sample_count == 3
+    assert shadow.actual_correct_count == 0
+    assert shadow.shadow_correct_count == 1
+    assert shadow.bounded_delta_sum == pytest.approx(-0.4)
+    assert shadow.global_model_count_sum == 6
+    assert shadow.retained_global_model_count_sum == 5
+    assert shadow.reconfiguration_count == 1
 
 
 def test_predicted_class_context_keeps_separate_online_evidence(monkeypatch):

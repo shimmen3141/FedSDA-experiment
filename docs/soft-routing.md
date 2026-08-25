@@ -127,6 +127,19 @@ MNIST4のstable accuracyだけは平均0.051ポイント改善した。soft混�
 - `context leader`は独立方式ではなくmetaの構成要素なので、CLI modeを増やさない。
 - Shadow診断は新方式の導入前後で同一系列上の反実仮想比較を行えるため維持する。
 
+## ローカルactive/archiveのshadow診断
+
+SoftRoutingでは同じグローバルモデルでもクライアントごとの寄与が異なる。そのため、モデルを全体で
+平均・削除する前に、クライアントごとに配布・予測対象だけを絞る可逆なrepository管理を検討する。
+`--routing-archive-shadow-diagnostics`で有効にする`routing_archive_shadow_*`は実配布を変えず、
+直前の通信区間でleave-one-out有界損失と0/1損失の
+双方が非正だったモデルを、次区間の反実仮想予測から外す。現行hard割当モデル、ローカル仮モデル、
+寄与記録のないモデルは必ず残し、モデル集合が変われば全保持へ戻す。
+
+この方式はデータセット名による分岐や追加閾値を持たず、前区間だけで次区間を決める。shadow accuracyを
+維持しながら保持率を下げられる場合に限り、次段階でサーバrepositoryは維持したままクライアント別配布を
+減らす方式へ進む。悪化する場合は、全体マージへ流用せず診断だけで終了する。
+
 ## 実験上の位置づけ
 
 5 seed・5000 stepの`bounded_score`診断では、Meta mixtureはGlobal mixtureに対してSine2で
