@@ -154,6 +154,14 @@ leave-one-out有界損失と0/1損失の双方が非正だったモデルを反�
 継続したと考えられる。`periodic_forward_probe`はこの結果を受けた最終診断候補であり、archive判断も
 通信間隔から切り離す。これでもaccuracyを維持できなければ、LOO active/archiveは実方式へ昇格させない。
 
+`periodic_forward_probe`では平均保持率を約72.9%としつつ、accuracy差を全体平均-0.056ポイントまで
+縮小した。集約間隔別の差も-0.047～-0.063ポイントに収まり、通信間隔から切り離す目的は達成した。
+一方、Circle2は両seedで平均+0.049ポイント、Sine2は-0.125ポイント、MNIST4は-0.091ポイントとなり、
+効果の符号がデータに依存した。実archiveでは除外中のexpertに対するrouter証拠も更新できず、全モデルを
+評価し続けるshadowより乖離が大きくなり得る。このため実active/archiveには昇格させず、LOOはモデル寄与を
+診断する基盤として維持する。repository圧縮を再検討する場合は、寄与が時間変化しても全混合予測を保存する
+蒸留など、不可逆な除外とは異なる方式を独立に評価する。
+
 ## 実験上の位置づけ
 
 5 seed・5000 stepの`bounded_score`診断では、Meta mixtureはGlobal mixtureに対してSine2で
