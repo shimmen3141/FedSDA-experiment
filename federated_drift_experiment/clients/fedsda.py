@@ -1576,6 +1576,10 @@ class _AdaHedgeRoutingFedSDAClientMixin:
             archive_shadow_enabled=(
                 config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS
             ),
+            archive_shadow_policy=config.ROUTING_ARCHIVE_SHADOW_POLICY,
+            forward_probe_samples=(
+                config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES
+            ),
         )
         switching_correct = self._routing_correct(
             switching_scores, y, num_classes

@@ -145,6 +145,7 @@ def experiment_configuration(experiment, total_data):
             algorithm.pop("shared_backbone_gradient_strategy", None)
     if not algorithm.get("routing_archive_shadow_diagnostics"):
         algorithm.pop("routing_archive_shadow_diagnostics", None)
+        algorithm.pop("routing_archive_shadow_policy", None)
     if "ResidualAdapter" not in experiment.mode:
         algorithm.pop("shared_adapter_rank", None)
     return {
@@ -211,6 +212,9 @@ def configuration_from_result_row(row, total_data):
     }
     if _optional_bool(row.get("routing_archive_shadow_diagnostics")):
         algorithm["routing_archive_shadow_diagnostics"] = True
+        algorithm["routing_archive_shadow_policy"] = (
+            row.get("routing_archive_shadow_policy") or "previous_block"
+        )
     clustering_consolidation = row.get("clustering_consolidation") or "merge"
     if clustering_consolidation != "merge":
         algorithm["clustering_consolidation"] = clustering_consolidation

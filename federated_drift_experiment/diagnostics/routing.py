@@ -96,8 +96,40 @@ class RoutingLeaveOneOutDiagnostics:
             return True
         return False
 
-    def _update_archive_shadow(self, model_ids, block_index, current_model_id):
-        """直前区間で二つの損失を悪化させなかったモデルだけをshadowで外す。"""
+    def _set_archive_shadow_retained_ids(self, retained_ids):
+        """shadow保持集合を更新し、実際に変化した回数だけを数える。"""
+        retained_ids = set(retained_ids)
+        if retained_ids != self._archive_shadow_retained_ids:
+            self.archive_shadow.reconfiguration_count += 1
+        self._archive_shadow_retained_ids = retained_ids
+
+    def _retained_ids_from_block(
+        self, model_ids, block_index, current_model_id, minimum_samples=1,
+    ):
+        """指定区間で二種類のLOO寄与がともに非正のモデルを除く。"""
+        retained_ids = set()
+        for model_id in model_ids:
+            aggregate = self.records.get(
+                (self.pool_epoch, block_index, model_id)
+            )
+            should_retain = (
+                model_id < 0
+                or model_id == current_model_id
+                or aggregate is None
+                or aggregate.sample_count < minimum_samples
+                or aggregate.bounded_delta_sum > 0.0
+                or aggregate.zero_one_delta_sum > 0.0
+            )
+            if should_retain:
+                retained_ids.add(model_id)
+        if not retained_ids:
+            retained_ids.add(current_model_id)
+        return retained_ids
+
+    def _update_archive_shadow_previous_block(
+        self, model_ids, block_index, current_model_id,
+    ):
+        """直前の通信区間のLOO寄与から現在区間の保持集合を決める。"""
         if self._archive_shadow_block_index is None:
             self._archive_shadow_block_index = block_index
             self._archive_shadow_retained_ids = set(model_ids)
@@ -106,26 +138,32 @@ class RoutingLeaveOneOutDiagnostics:
             return
 
         previous_block = self._archive_shadow_block_index
-        retained_ids = set()
-        for model_id in model_ids:
-            aggregate = self.records.get(
-                (self.pool_epoch, previous_block, model_id)
-            )
-            should_retain = (
-                model_id < 0
-                or model_id == current_model_id
-                or aggregate is None
-                or aggregate.bounded_delta_sum > 0.0
-                or aggregate.zero_one_delta_sum > 0.0
-            )
-            if should_retain:
-                retained_ids.add(model_id)
-        if not retained_ids:
-            retained_ids.add(current_model_id)
-        if retained_ids != self._archive_shadow_retained_ids:
-            self.archive_shadow.reconfiguration_count += 1
-        self._archive_shadow_retained_ids = retained_ids
+        retained_ids = self._retained_ids_from_block(
+            model_ids, previous_block, current_model_id
+        )
+        self._set_archive_shadow_retained_ids(retained_ids)
         self._archive_shadow_block_index = block_index
+
+    def _update_archive_shadow_forward_probe(
+        self, model_ids, block_index, block_position, current_model_id,
+        forward_probe_samples,
+    ):
+        """区間先頭の因果的なprobe結果から、同一区間の残りを絞る。"""
+        if self._archive_shadow_block_index != block_index:
+            self._archive_shadow_block_index = block_index
+            self._set_archive_shadow_retained_ids(model_ids)
+            return
+
+        probe_samples = max(1, int(forward_probe_samples))
+        if block_position != probe_samples:
+            return
+        retained_ids = self._retained_ids_from_block(
+            model_ids,
+            block_index,
+            current_model_id,
+            minimum_samples=probe_samples,
+        )
+        self._set_archive_shadow_retained_ids(retained_ids)
 
     def _scores_from_subset(
         self, retained_ids, prediction_scores, effective_probabilities,
@@ -163,12 +201,27 @@ class RoutingLeaveOneOutDiagnostics:
         self, *, model_ids, block_index, prediction_scores,
         effective_probabilities, fallback_probabilities,
         actual_bounded_loss, actual_correct, target, num_classes,
-        current_model_id,
+        current_model_id, archive_shadow_policy, block_position,
+        forward_probe_samples,
     ):
-        """前区間のLOO寄与で絞ったローカル保持集合を反実仮想評価する。"""
-        self._update_archive_shadow(
-            model_ids, block_index, current_model_id
-        )
+        """選択した因果的方針でローカル保持集合を反実仮想評価する。"""
+        if archive_shadow_policy == "previous_block":
+            self._update_archive_shadow_previous_block(
+                model_ids, block_index, current_model_id
+            )
+        elif archive_shadow_policy == "forward_probe":
+            self._update_archive_shadow_forward_probe(
+                model_ids,
+                block_index,
+                block_position,
+                current_model_id,
+                forward_probe_samples,
+            )
+        else:
+            raise ValueError(
+                f"Unknown routing archive shadow policy: "
+                f"{archive_shadow_policy}"
+            )
         retained_ids = set(self._archive_shadow_retained_ids)
         retained_ids.add(current_model_id)
         retained_ids.intersection_update(model_ids)
@@ -244,6 +297,7 @@ class RoutingLeaveOneOutDiagnostics:
         self, *, prediction_scores, effective_probabilities,
         fallback_probabilities, target, num_classes, current_model_id,
         sample_index, aggregation_interval, archive_shadow_enabled=False,
+        archive_shadow_policy="previous_block", forward_probe_samples=1,
     ):
         """一標本について各モデルのleave-one-out寄与を記録する。"""
         model_ids = tuple(sorted(prediction_scores))
@@ -258,7 +312,8 @@ class RoutingLeaveOneOutDiagnostics:
             not self._correct(actual_scores, target, num_classes)
         )
         actual_correct = not bool(actual_zero_one_loss)
-        block_index = sample_index // max(1, aggregation_interval)
+        block_size = max(1, aggregation_interval)
+        block_index = sample_index // block_size
         if archive_shadow_enabled:
             self._observe_archive_shadow(
                 model_ids=model_ids,
@@ -271,6 +326,11 @@ class RoutingLeaveOneOutDiagnostics:
                 target=target,
                 num_classes=num_classes,
                 current_model_id=current_model_id,
+                archive_shadow_policy=archive_shadow_policy,
+                block_position=sample_index % block_size,
+                forward_probe_samples=min(
+                    max(1, forward_probe_samples), block_size
+                ),
             )
         if len(model_ids) < 2:
             return

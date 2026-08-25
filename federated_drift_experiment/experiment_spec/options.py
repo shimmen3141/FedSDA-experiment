@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 5
+OPTION_SCHEMA_VERSION = 6
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -190,7 +190,7 @@ OPTIONS = (
         "routing_archive_shadow_diagnostics",
         "ローカルarchive shadow診断", "diagnostic",
         ("off", "on"),
-        "前通信区間のLOO寄与でクライアント別保持集合を絞る反実仮想診断",
+        "因果的なLOO寄与でクライアント別保持集合を絞る反実仮想診断",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("soft_routing",),
         active_when=(ActivationRule(
@@ -198,6 +198,19 @@ OPTIONS = (
             "Restarting SoftRoutingのとき",
         ),),
         cli_name="routing-archive-shadow-diagnostics",
+    ),
+    OptionSpec(
+        "routing_archive_shadow_policy",
+        "ローカルarchive shadow方針", "diagnostic",
+        ("previous_block", "forward_probe"),
+        "直前区間または現在区間先頭N_forward件からクライアント別保持集合を決める",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("soft_routing",),
+        active_when=(ActivationRule(
+            "routing_archive_shadow_diagnostics", ("on",),
+            "ローカルarchive shadow診断が有効なとき",
+        ),),
+        cli_name="routing-archive-shadow-policy",
     ),
     OptionSpec(
         "model_architecture", "モデル構造", "model",

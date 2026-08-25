@@ -28,6 +28,7 @@ class AlgorithmOptions:
     clustering_consolidation: str = "merge"
     merge_noninferiority_margin: float = 0.0
     routing_archive_shadow_diagnostics: bool = False
+    routing_archive_shadow_policy: str = "previous_block"
 
     @classmethod
     def from_current_config(cls):
@@ -64,6 +65,9 @@ class AlgorithmOptions:
             routing_archive_shadow_diagnostics=(
                 config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS
             ),
+            routing_archive_shadow_policy=(
+                config.ROUTING_ARCHIVE_SHADOW_POLICY
+            ),
         )
 
     def config_overrides(self):
@@ -99,6 +103,9 @@ class AlgorithmOptions:
             "SOFT_ROUTING_META_LOSS": self.soft_routing_meta_loss,
             "ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS": (
                 self.routing_archive_shadow_diagnostics
+            ),
+            "ROUTING_ARCHIVE_SHADOW_POLICY": (
+                self.routing_archive_shadow_policy
             ),
         }
         if self.cluster_linkage is not None:

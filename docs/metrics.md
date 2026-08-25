@@ -175,9 +175,10 @@ SoftRoutingのleave-one-out診断は、実際に使用した混合からモデ�
   モデルと、その中で平均寄与が非正だったモデルの数・割合。
 - `routing_loo_active_*_joint_nonpositive_*`: 有界損失と0/1損失の寄与がともに非正のモデル数・割合。
   有界損失だけを改善してもaccuracyを下げる場合を、archive候補から区別するために使う。
-- `routing_archive_shadow_*`: 直前の通信区間で二つの損失寄与がともに非正だったグローバルモデルを、
-  次区間ではそのクライアントの予測集合から外した反実仮想結果。現行hard割当モデルとローカル仮モデルは
-  常に残し、accuracy差・有界損失差・保持モデル割合を記録する。
+- `routing_archive_shadow_*`: 選択した因果的な方針で二つの損失寄与がともに非正だったグローバルモデルを、
+  そのクライアントの予測集合から外した反実仮想結果。`previous_block`は直前区間を使い、`forward_probe`は
+  現在区間先頭`N_forward`件を全モデルで評価してから同一区間の残りを絞る。現行hard割当モデルと
+  ローカル仮モデルは常に残し、accuracy差・有界損失差・保持モデル割合を記録する。
 
 保持モデル集合が変わると同じモデルIDでも実体が変わり得るため、NPZは`routing_loo_pool_epochs`、
 `routing_loo_block_indices`、`routing_loo_model_ids`をキーとして十分統計を保存する。通信区間ごとの
@@ -187,10 +188,11 @@ SoftRoutingのleave-one-out診断は、実際に使用した混合からモデ�
 学習、通信を発生させず、現時点ではactive/archive判断を変更しない。NPZには最終グローバル状態を
 誤読しないよう、`routing_loo_final_active_model_ids`と`routing_loo_final_assigned_model_ids`も保存する。
 
-shadow archiveは`--routing-archive-shadow-diagnostics`で明示的に有効化する。前区間だけから次区間の
-保持集合を決めるため、同一区間の正解を見てから自身の予測集合を
-変更する先読みは行わない。モデル集合が変わった場合は全モデル保持へ戻す。この段階では実配布・学習・
-通信量を変えず、クライアント別の可逆なactive/archiveへ進む価値があるかだけを評価する。
+shadow archiveは`--routing-archive-shadow-diagnostics`で明示的に有効化し、方針を
+`--routing-archive-shadow-policy`で選ぶ。`previous_block`は前区間だけから次区間を決める。
+`forward_probe`は現在区間の先頭標本を予測して正解を受け取った後に、未来の標本へだけ保持判断を適用する。
+どちらも評価対象標本の正解による先読みは行わない。モデル集合が変わった場合は全モデル保持へ戻す。
+この段階では実配布・学習・通信量を変えず、クライアント別の可逆なactive/archiveへ進む価値だけを評価する。
 
 これらは診断専用であり、現時点ではクラスタリング判定を変更しない。精度改善を主張する指標ではなく、
 モデルを残す利益と学習量断片化の原因を切り分けるために使用する。

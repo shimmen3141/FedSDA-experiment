@@ -44,6 +44,7 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.soft_routing_top_combination == "leader"
     assert defaults.soft_routing_meta_loss == "zero_one"
     assert not defaults.routing_archive_shadow_diagnostics
+    assert defaults.routing_archive_shadow_policy == "previous_block"
     assert defaults.shared_adapter_rank == config.SHARED_ADAPTER_RANK
     assert defaults.duplicate_policy == "error"
     selected = parser.parse_args([
@@ -55,6 +56,9 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert parser.parse_args([
         "--routing-archive-shadow-diagnostics"
     ]).routing_archive_shadow_diagnostics
+    assert parser.parse_args([
+        "--routing-archive-shadow-policy", "forward_probe",
+    ]).routing_archive_shadow_policy == "forward_probe"
 
 
 def test_long_experiment_slug_is_shortened_with_stable_hash():

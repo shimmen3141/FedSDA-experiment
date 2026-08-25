@@ -119,6 +119,11 @@ SOFT_ROUTING_META_LOSS = "zero_one"
 SOFT_ROUTING_META_LOSS_CHOICES = ("bounded_score", "zero_one")
 # 前通信区間のLOO寄与でクライアント別active集合を絞る反実仮想診断。
 ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS = False
+# previous_blockは直前区間、forward_probeは現在区間先頭N_forward件を使う。
+ROUTING_ARCHIVE_SHADOW_POLICY = "previous_block"
+ROUTING_ARCHIVE_SHADOW_POLICY_CHOICES = (
+    "previous_block", "forward_probe",
+)
 # 概念別低ランク残差adapterのrank。特徴次元より大きい場合は特徴次元へ丸める。
 SHARED_ADAPTER_RANK = 8
 CLIENT_BATCH_SIZE = 32      # ローカル更新のミニバッチサイズ (論文 B)
