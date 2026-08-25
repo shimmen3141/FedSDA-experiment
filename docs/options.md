@@ -36,7 +36,7 @@ flowchart LR
   end
   subgraph group_diagnostic[diagnostic]
     routing_archive_shadow_diagnostics["<b>ローカルarchive shadow診断</b><br/>off | on"]
-    routing_archive_shadow_policy["<b>ローカルarchive shadow方針</b><br/>previous_block | forward_probe"]
+    routing_archive_shadow_policy["<b>ローカルarchive shadow方針</b><br/>previous_block | forward_probe | periodic_forward_probe"]
   end
   subgraph group_model[model]
     model_architecture["<b>モデル構造</b><br/>independent | shared_backbone | residual_adapter"]
@@ -127,7 +127,7 @@ flowchart LR
 | `soft_routing_top_combination` | cli: `--soft-routing-top-combination` | 実装済み | 対象外 | 対象外 | 対象外 | 上位Fixed-Shareの最大重み候補を使うか、候補予測を重み付き混合する |
 | `soft_routing_meta_loss` | cli: `--soft-routing-meta-loss` | 実装済み | 対象外 | 対象外 | 対象外 | Meta候補を確率出力の有界損失または最終予測の0/1損失で比較する |
 | `routing_archive_shadow_diagnostics` | cli: `--routing-archive-shadow-diagnostics` | 実装済み | 対象外 | 対象外 | 対象外 | 因果的なLOO寄与でクライアント別保持集合を絞る反実仮想診断 |
-| `routing_archive_shadow_policy` | cli: `--routing-archive-shadow-policy` | 実装済み | 対象外 | 対象外 | 対象外 | 直前区間または現在区間先頭N_forward件からクライアント別保持集合を決める |
+| `routing_archive_shadow_policy` | cli: `--routing-archive-shadow-policy` | 実装済み | 対象外 | 対象外 | 対象外 | 直前区間、区間先頭、または周期的probeからクライアント別保持集合を決める |
 | `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 概念モデルを独立保持するか、特徴抽出部を共有して概念別ヘッドを持つか |
 | `shared_backbone_training` | cli: `--shared-backbone-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか |
 | `shared_backbone_gradient_strategy` | cli: `--shared-backbone-gradient-strategy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 共同学習時の概念別バックボーン勾配を平均または競合射影で統合する方式 |

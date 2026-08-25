@@ -1019,7 +1019,7 @@ def build_parser():
         "--routing-archive-shadow-policy",
         choices=config.ROUTING_ARCHIVE_SHADOW_POLICY_CHOICES,
         default=config.ROUTING_ARCHIVE_SHADOW_POLICY,
-        help="shadow保持集合を直前区間または現在区間先頭N_forward件から決める",
+        help="shadow保持集合を直前区間・区間先頭・周期的probeから決める",
     )
     fedsda.add_argument(
         "--new-model-creation-policy",

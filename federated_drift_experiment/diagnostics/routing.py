@@ -53,6 +53,10 @@ class RoutingLeaveOneOutDiagnostics:
         self.archive_shadow = RoutingArchiveShadowAggregate()
         self._archive_shadow_block_index = None
         self._archive_shadow_retained_ids = set()
+        self._archive_probe_cycle_index = None
+        self._archive_probe_records = defaultdict(
+            RoutingContributionAggregate
+        )
 
     @staticmethod
     def _score_loss(scores, target, num_classes):
@@ -93,6 +97,8 @@ class RoutingLeaveOneOutDiagnostics:
             self.pool_signature = signature
             self._archive_shadow_block_index = None
             self._archive_shadow_retained_ids = set(signature)
+            self._archive_probe_cycle_index = None
+            self._archive_probe_records.clear()
             return True
         return False
 
@@ -103,15 +109,14 @@ class RoutingLeaveOneOutDiagnostics:
             self.archive_shadow.reconfiguration_count += 1
         self._archive_shadow_retained_ids = retained_ids
 
-    def _retained_ids_from_block(
-        self, model_ids, block_index, current_model_id, minimum_samples=1,
+    def _retained_ids_from_aggregates(
+        self, model_ids, current_model_id, aggregate_getter,
+        minimum_samples=1,
     ):
-        """指定区間で二種類のLOO寄与がともに非正のモデルを除く。"""
+        """指定した十分統計で二種類のLOO寄与がともに非正のモデルを除く。"""
         retained_ids = set()
         for model_id in model_ids:
-            aggregate = self.records.get(
-                (self.pool_epoch, block_index, model_id)
-            )
+            aggregate = aggregate_getter(model_id)
             should_retain = (
                 model_id < 0
                 or model_id == current_model_id
@@ -125,6 +130,19 @@ class RoutingLeaveOneOutDiagnostics:
         if not retained_ids:
             retained_ids.add(current_model_id)
         return retained_ids
+
+    def _retained_ids_from_block(
+        self, model_ids, block_index, current_model_id, minimum_samples=1,
+    ):
+        """指定区間のLOO十分統計から保持集合を返す。"""
+        return self._retained_ids_from_aggregates(
+            model_ids,
+            current_model_id,
+            lambda model_id: self.records.get(
+                (self.pool_epoch, block_index, model_id)
+            ),
+            minimum_samples,
+        )
 
     def _update_archive_shadow_previous_block(
         self, model_ids, block_index, current_model_id,
@@ -161,6 +179,31 @@ class RoutingLeaveOneOutDiagnostics:
             model_ids,
             block_index,
             current_model_id,
+            minimum_samples=probe_samples,
+        )
+        self._set_archive_shadow_retained_ids(retained_ids)
+
+    def _update_archive_shadow_periodic_forward_probe(
+        self, model_ids, sample_index, current_model_id,
+        forward_probe_samples,
+    ):
+        """N_forward件のprobeと適用を交互に繰り返して証拠の陳腐化を防ぐ。"""
+        probe_samples = max(1, int(forward_probe_samples))
+        cycle_size = 2 * probe_samples
+        cycle_index = sample_index // cycle_size
+        cycle_position = sample_index % cycle_size
+        if self._archive_probe_cycle_index != cycle_index:
+            self._archive_probe_cycle_index = cycle_index
+            self._archive_probe_records.clear()
+            self._set_archive_shadow_retained_ids(model_ids)
+            return
+        if cycle_position != probe_samples:
+            return
+
+        retained_ids = self._retained_ids_from_aggregates(
+            model_ids,
+            current_model_id,
+            self._archive_probe_records.get,
             minimum_samples=probe_samples,
         )
         self._set_archive_shadow_retained_ids(retained_ids)
@@ -202,7 +245,7 @@ class RoutingLeaveOneOutDiagnostics:
         effective_probabilities, fallback_probabilities,
         actual_bounded_loss, actual_correct, target, num_classes,
         current_model_id, archive_shadow_policy, block_position,
-        forward_probe_samples,
+        forward_probe_samples, sample_index,
     ):
         """選択した因果的方針でローカル保持集合を反実仮想評価する。"""
         if archive_shadow_policy == "previous_block":
@@ -214,6 +257,13 @@ class RoutingLeaveOneOutDiagnostics:
                 model_ids,
                 block_index,
                 block_position,
+                current_model_id,
+                forward_probe_samples,
+            )
+        elif archive_shadow_policy == "periodic_forward_probe":
+            self._update_archive_shadow_periodic_forward_probe(
+                model_ids,
+                sample_index,
                 current_model_id,
                 forward_probe_samples,
             )
@@ -328,9 +378,8 @@ class RoutingLeaveOneOutDiagnostics:
                 current_model_id=current_model_id,
                 archive_shadow_policy=archive_shadow_policy,
                 block_position=sample_index % block_size,
-                forward_probe_samples=min(
-                    max(1, forward_probe_samples), block_size
-                ),
+                forward_probe_samples=max(1, forward_probe_samples),
+                sample_index=sample_index,
             )
         if len(model_ids) < 2:
             return
@@ -367,6 +416,16 @@ class RoutingLeaveOneOutDiagnostics:
                 model_id == current_model_id
             )
             aggregate.fallback_count += int(fallback_used)
+            if (
+                archive_shadow_enabled
+                and archive_shadow_policy == "periodic_forward_probe"
+            ):
+                probe_samples = max(1, int(forward_probe_samples))
+                if sample_index % (2 * probe_samples) < probe_samples:
+                    probe = self._archive_probe_records[model_id]
+                    probe.sample_count += 1
+                    probe.bounded_delta_sum += bounded_delta
+                    probe.zero_one_delta_sum += zero_one_delta
 
     def iter_records(self):
         """保存順が実行環境に依存しない形で十分統計を返す。"""

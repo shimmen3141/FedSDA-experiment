@@ -354,6 +354,40 @@ def test_routing_archive_shadow_uses_current_block_forward_probe():
     assert shadow.reconfiguration_count == 2
 
 
+def test_routing_archive_shadow_periodically_reprobes_models():
+    diagnostics = RoutingLeaveOneOutDiagnostics()
+    predictions = {
+        0: torch.tensor([[0.1]]),
+        1: torch.tensor([[0.9]]),
+    }
+    probabilities = {0: 0.5, 1: 0.5}
+    target = torch.ones((1, 1))
+
+    for sample_index in range(5):
+        diagnostics.observe(
+            prediction_scores=predictions,
+            effective_probabilities=probabilities,
+            fallback_probabilities=probabilities,
+            target=target,
+            num_classes=2,
+            current_model_id=1,
+            sample_index=sample_index,
+            aggregation_interval=100,
+            archive_shadow_enabled=True,
+            archive_shadow_policy="periodic_forward_probe",
+            forward_probe_samples=2,
+        )
+
+    shadow = diagnostics.archive_shadow
+    assert shadow.sample_count == 5
+    assert shadow.actual_correct_count == 0
+    assert shadow.shadow_correct_count == 2
+    assert shadow.bounded_delta_sum == pytest.approx(-0.8)
+    assert shadow.global_model_count_sum == 10
+    assert shadow.retained_global_model_count_sum == 8
+    assert shadow.reconfiguration_count == 2
+
+
 def test_predicted_class_context_keeps_separate_online_evidence(monkeypatch):
     monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "predicted_class")
     spec = MODE_SPECS[

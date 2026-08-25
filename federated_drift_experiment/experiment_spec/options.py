@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 6
+OPTION_SCHEMA_VERSION = 7
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -202,8 +202,8 @@ OPTIONS = (
     OptionSpec(
         "routing_archive_shadow_policy",
         "ローカルarchive shadow方針", "diagnostic",
-        ("previous_block", "forward_probe"),
-        "直前区間または現在区間先頭N_forward件からクライアント別保持集合を決める",
+        ("previous_block", "forward_probe", "periodic_forward_probe"),
+        "直前区間、区間先頭、または周期的probeからクライアント別保持集合を決める",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("soft_routing",),
         active_when=(ActivationRule(

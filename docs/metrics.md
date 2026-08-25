@@ -177,7 +177,8 @@ SoftRoutingのleave-one-out診断は、実際に使用した混合からモデ�
   有界損失だけを改善してもaccuracyを下げる場合を、archive候補から区別するために使う。
 - `routing_archive_shadow_*`: 選択した因果的な方針で二つの損失寄与がともに非正だったグローバルモデルを、
   そのクライアントの予測集合から外した反実仮想結果。`previous_block`は直前区間を使い、`forward_probe`は
-  現在区間先頭`N_forward`件を全モデルで評価してから同一区間の残りを絞る。現行hard割当モデルと
+  現在区間先頭`N_forward`件を全モデルで評価してから同一区間の残りを絞る。
+  `periodic_forward_probe`は`N_forward`件のprobeと適用を交互に繰り返す。現行hard割当モデルと
   ローカル仮モデルは常に残し、accuracy差・有界損失差・保持モデル割合を記録する。
 
 保持モデル集合が変わると同じモデルIDでも実体が変わり得るため、NPZは`routing_loo_pool_epochs`、
@@ -191,7 +192,8 @@ SoftRoutingのleave-one-out診断は、実際に使用した混合からモデ�
 shadow archiveは`--routing-archive-shadow-diagnostics`で明示的に有効化し、方針を
 `--routing-archive-shadow-policy`で選ぶ。`previous_block`は前区間だけから次区間を決める。
 `forward_probe`は現在区間の先頭標本を予測して正解を受け取った後に、未来の標本へだけ保持判断を適用する。
-どちらも評価対象標本の正解による先読みは行わない。モデル集合が変わった場合は全モデル保持へ戻す。
+`periodic_forward_probe`も同じ因果的な順序でprobeと適用を周期的に繰り返す。いずれも評価対象標本の
+正解による先読みは行わない。モデル集合が変わった場合は全モデル保持へ戻す。
 この段階では実配布・学習・通信量を変えず、クライアント別の可逆なactive/archiveへ進む価値だけを評価する。
 
 これらは診断専用であり、現時点ではクラスタリング判定を変更しない。精度改善を主張する指標ではなく、

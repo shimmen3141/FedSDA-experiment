@@ -59,6 +59,9 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert parser.parse_args([
         "--routing-archive-shadow-policy", "forward_probe",
     ]).routing_archive_shadow_policy == "forward_probe"
+    assert parser.parse_args([
+        "--routing-archive-shadow-policy", "periodic_forward_probe",
+    ]).routing_archive_shadow_policy == "periodic_forward_probe"
 
 
 def test_long_experiment_slug_is_shortened_with_stable_hash():

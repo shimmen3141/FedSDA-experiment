@@ -122,7 +122,7 @@ ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS = False
 # previous_blockは直前区間、forward_probeは現在区間先頭N_forward件を使う。
 ROUTING_ARCHIVE_SHADOW_POLICY = "previous_block"
 ROUTING_ARCHIVE_SHADOW_POLICY_CHOICES = (
-    "previous_block", "forward_probe",
+    "previous_block", "forward_probe", "periodic_forward_probe",
 )
 # 概念別低ランク残差adapterのrank。特徴次元より大きい場合は特徴次元へ丸める。
 SHARED_ADAPTER_RANK = 8
