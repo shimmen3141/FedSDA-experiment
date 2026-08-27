@@ -1388,27 +1388,6 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         return {model_id: uniform for model_id in active_model_ids}
 
     @staticmethod
-    def _sleeping_routing_update(
-        router, repository_model_ids, active_losses,
-        active_probabilities, sleeping_loss,
-    ):
-        """休止expertへ実予測損失を代入し、証拠を陳腐化させず更新する。
-
-        休止中のexpertは予測へ寄与しないため確率を0とし、その期間の損失を
-        learner自身の損失とする。次のprobeで復帰したとき、未観測期間だけ
-        不当に有利・不利にならないsleeping-expert更新である。
-        """
-        losses = {
-            model_id: active_losses.get(model_id, sleeping_loss)
-            for model_id in repository_model_ids
-        }
-        probabilities = {
-            model_id: active_probabilities.get(model_id, 0.0)
-            for model_id in repository_model_ids
-        }
-        router.update(losses, probabilities)
-
-    @staticmethod
     def _weighted_routing_scores(prediction_scores, probabilities):
         """モデル別出力を指定された確率で混合する。"""
         return sum(
@@ -1463,11 +1442,13 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         sample_index = max(0, self.processed_samples - 1)
         if self.routing_active_set is None:
             model_ids = repository_model_ids
+            update_routing_evidence = True
         else:
-            model_ids, _ = self.routing_active_set.select(
-                repository_model_ids,
-                self.current_model_id,
-                sample_index,
+            (
+                model_ids,
+                update_routing_evidence,
+            ) = self.routing_active_set.select(
+                repository_model_ids, self.current_model_id, sample_index,
             )
         proposal_repository_probabilities = self.expert_router.probabilities(
             repository_model_ids
@@ -1756,7 +1737,8 @@ class _AdaHedgeRoutingFedSDAClientMixin:
             self.history_routing_meta_context_leader_weight.append(
                 context_leader_weight
             )
-            meta_router.update(meta_losses, meta_probabilities)
+            if update_routing_evidence:
+                meta_router.update(meta_losses, meta_probabilities)
 
             meta_switching_correct = self._routing_correct(
                 meta_switching_scores, y, num_classes
@@ -1778,13 +1760,14 @@ class _AdaHedgeRoutingFedSDAClientMixin:
             self.history_routing_meta_switching_selected_switching.append(
                 int(meta_switching_selected == "switching")
             )
-            self.meta_switching_router.update(
-                {
-                    "meta": float(not meta_correct),
-                    "switching": float(not switching_correct),
-                },
-                meta_switching_probabilities,
-            )
+            if update_routing_evidence:
+                self.meta_switching_router.update(
+                    {
+                        "meta": float(not meta_correct),
+                        "switching": float(not switching_correct),
+                    },
+                    meta_switching_probabilities,
+                )
         max_confidence = max(model_confidences.values())
         confidence_leaders = [
             model_id for model_id, confidence in model_confidences.items()
@@ -1851,36 +1834,16 @@ class _AdaHedgeRoutingFedSDAClientMixin:
 
         # prequential順序を守り、予測後に正解ラベルで重みを更新する。
         # 保護方式でもAdaHedge自体は提案分布で更新し、反実仮想の学習を続ける。
-        if self.routing_active_set is None:
+        # active-set方式では、全expertの真の損失を観測できるprobe中だけ更新する。
+        # 適用区間で未観測expertへ推定損失を代入すると、次のprobeでも累積証拠が
+        # 歪んだまま残るため、全ルータの証拠を同じfull-information標本に揃える。
+        if update_routing_evidence:
             self.expert_router.update(model_losses, proposal_probabilities)
             self.switching_expert_router.update(
                 model_losses, switching_probabilities
             )
             if context_router is not None:
                 context_router.update(model_losses, context_proposal)
-        else:
-            self._sleeping_routing_update(
-                self.expert_router,
-                repository_model_ids,
-                model_losses,
-                proposal_probabilities,
-                self._routing_score_loss(global_scores, y, num_classes),
-            )
-            self._sleeping_routing_update(
-                self.switching_expert_router,
-                repository_model_ids,
-                model_losses,
-                switching_probabilities,
-                self._routing_score_loss(switching_scores, y, num_classes),
-            )
-            if context_router is not None:
-                self._sleeping_routing_update(
-                    context_router,
-                    repository_model_ids,
-                    model_losses,
-                    context_proposal,
-                    self._routing_score_loss(context_scores, y, num_classes),
-                )
 
 
 class _RestartingSoftRoutingFedSDAClientMixin(
@@ -1894,6 +1857,11 @@ class _RestartingSoftRoutingFedSDAClientMixin(
             router.restart_for_concept()
         for router in self.shadow_meta_routers.values():
             router.restart_for_concept()
+        if self.routing_active_set is not None:
+            self.routing_active_set.restart_for_concept(
+                self.models,
+                self.processed_samples,
+            )
 
 
 class RestartingSoftRoutingClassConditionalESRFedSDAClient(

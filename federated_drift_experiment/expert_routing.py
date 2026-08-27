@@ -15,6 +15,7 @@ class PeriodicForwardProbeActiveSet:
     def __init__(self, probe_samples):
         self.probe_samples = max(1, int(probe_samples))
         self.pool_signature = ()
+        self.cycle_origin = 0
         self.cycle_index = None
         self.retained_ids = set()
         self._records = defaultdict(
@@ -42,15 +43,24 @@ class PeriodicForwardProbeActiveSet:
             self.reconfiguration_count += 1
         self.retained_ids = retained_ids
 
-    def _reset_for_pool(self, model_ids):
+    def _restart(self, model_ids, sample_index):
         signature = tuple(sorted(model_ids))
-        if signature == self.pool_signature:
-            return False
         self.pool_signature = signature
+        self.cycle_origin = int(sample_index)
         self.cycle_index = None
         self._records.clear()
         self._set_retained_ids(signature)
+
+    def _reset_for_pool(self, model_ids, sample_index):
+        signature = tuple(sorted(model_ids))
+        if signature == self.pool_signature:
+            return False
+        self._restart(signature, sample_index)
         return True
+
+    def restart_for_concept(self, model_ids, sample_index):
+        """確定した概念切替後に全expertで新しいprobeを開始する。"""
+        self._restart(model_ids, sample_index)
 
     def _choose_retained_ids(self, model_ids, current_model_id):
         retained_ids = set()
@@ -73,9 +83,10 @@ class PeriodicForwardProbeActiveSet:
     def select(self, model_ids, current_model_id, sample_index):
         """予測前にactive集合を返し、保持率の十分統計を更新する。"""
         model_ids = tuple(sorted(model_ids))
-        pool_changed = self._reset_for_pool(model_ids)
-        cycle_index = sample_index // self.cycle_size
-        cycle_position = sample_index % self.cycle_size
+        pool_changed = self._reset_for_pool(model_ids, sample_index)
+        relative_index = max(0, int(sample_index) - self.cycle_origin)
+        cycle_index = relative_index // self.cycle_size
+        cycle_position = relative_index % self.cycle_size
         if self.cycle_index != cycle_index:
             self.cycle_index = cycle_index
             self._records.clear()
@@ -106,7 +117,8 @@ class PeriodicForwardProbeActiveSet:
 
     def observe(self, contributions, sample_index):
         """probe区間で得たモデル別LOO寄与だけを次の適用判定へ蓄積する。"""
-        if sample_index % self.cycle_size >= self.probe_samples:
+        relative_index = max(0, int(sample_index) - self.cycle_origin)
+        if relative_index % self.cycle_size >= self.probe_samples:
             return
         for model_id, values in contributions.items():
             record = self._records[model_id]

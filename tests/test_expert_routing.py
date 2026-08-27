@@ -45,6 +45,18 @@ def test_periodic_forward_probe_active_set_keeps_new_current_model():
     assert not is_probe
 
 
+def test_periodic_forward_probe_active_set_restarts_probe_for_concept_change():
+    active_set = PeriodicForwardProbeActiveSet(probe_samples=2)
+    active_set.select([0, 1], 0, 0)
+    active_set.select([0, 1], 0, 1)
+    assert active_set.select([0, 1], 0, 2)[1] is False
+
+    active_set.restart_for_concept([0, 1], sample_index=3)
+
+    assert active_set.select([0, 1], 1, 3) == ((0, 1), True)
+    assert active_set.select([0, 1], 1, 4) == ((0, 1), True)
+
+
 def test_adahedge_starts_uniform_and_concentrates_on_better_expert():
     router = AdaHedgeRouter()
 

@@ -130,6 +130,8 @@ def test_periodic_routing_active_set_skips_inactive_model_forward(monkeypatch):
     client.processed_samples = 2
     client._record_prediction(x, y, concept_id=0)
     after_probe = client.compute_counters["prediction_forward_calls"]
+    evidence_after_probe = dict(client.expert_router.cumulative_losses)
+    switching_after_probe = dict(client.switching_expert_router.weights)
 
     client.processed_samples = 3
     client._record_prediction(x, y, concept_id=0)
@@ -139,6 +141,18 @@ def test_periodic_routing_active_set_skips_inactive_model_forward(monkeypatch):
     assert after_apply - after_probe == 1
     assert client.routing_active_set.probe_sample_count == 2
     assert client.routing_active_set.apply_retained_global_model_count_sum == 1
+    assert client.expert_router.cumulative_losses == evidence_after_probe
+    assert client.switching_expert_router.weights == switching_after_probe
+
+    client._set_local_current_model(1)
+    client.processed_samples = 4
+    before_restart_probe = client.compute_counters["prediction_forward_calls"]
+    client._record_prediction(x, y, concept_id=1)
+
+    assert (
+        client.compute_counters["prediction_forward_calls"]
+        - before_restart_probe
+    ) == 2
 
 
 def test_residual_adapter_hard_routing_mode_has_dedicated_client_and_model():
