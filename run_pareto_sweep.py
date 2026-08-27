@@ -87,6 +87,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "clustering_consolidation",
             "merge_noninferiority_margin",
             "detection_episodes",
+            "routing_active_set_policy",
             "routing_archive_shadow_diagnostics",
             "routing_archive_shadow_policy",
             "new_model_creation_policy",
@@ -302,6 +303,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             else None
         ),
         "detection_episodes": config.FEDSDA_DETECTION_EPISODES_ENABLED,
+        "routing_active_set_policy": (
+            config.ROUTING_ACTIVE_SET_POLICY
+            if "SoftRouting" in mode else None
+        ),
         "routing_archive_shadow_diagnostics": (
             config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS
         ),
@@ -648,6 +653,7 @@ def _load_csv(path):
             row.setdefault("soft_routing_meta_loss", "bounded_score")
             row.setdefault("shared_adapter_rank", "")
             row.setdefault("detection_episodes", "False")
+            row.setdefault("routing_active_set_policy", "all")
             row.setdefault("routing_archive_shadow_diagnostics", "False")
             row.setdefault("routing_archive_shadow_policy", "")
             row.setdefault("new_model_creation_policy", "immediate")
@@ -1011,6 +1017,12 @@ def build_parser():
         help="近接した検出をN_FIFO幅の一つの適応エピソードへ統合する",
     )
     fedsda.add_argument(
+        "--routing-active-set-policy",
+        choices=config.ROUTING_ACTIVE_SET_POLICY_CHOICES,
+        default=config.ROUTING_ACTIVE_SET_POLICY,
+        help="実際にforwardするexpert集合を全保持または周期的LOO probeで選ぶ",
+    )
+    fedsda.add_argument(
         "--routing-archive-shadow-diagnostics",
         action=argparse.BooleanOptionalAction,
         default=config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS,
@@ -1305,6 +1317,7 @@ def main(argv=None):
             args.soft_routing_top_combination
         ),
         "soft_routing_meta_loss": args.soft_routing_meta_loss,
+        "routing_active_set_policy": args.routing_active_set_policy,
         "shared_adapter_rank": args.shared_adapter_rank,
         "experiment_manifest": "on" if args.manifest else "off",
         "duplicate_policy": args.duplicate_policy,
@@ -1363,6 +1376,7 @@ def main(argv=None):
             args.soft_routing_top_combination
         ),
         soft_routing_meta_loss=args.soft_routing_meta_loss,
+        routing_active_set_policy=args.routing_active_set_policy,
         routing_archive_shadow_diagnostics=(
             args.routing_archive_shadow_diagnostics
         ),

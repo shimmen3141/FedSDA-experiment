@@ -162,6 +162,24 @@ leave-one-out有界損失と0/1損失の双方が非正だったモデルを反�
 診断する基盤として維持する。repository圧縮を再検討する場合は、寄与が時間変化しても全混合予測を保存する
 蒸留など、不可逆な除外とは異なる方式を独立に評価する。
 
+### 周期probeによる実予測active集合
+
+クラスタリングを無効化した20,000 stepの長期診断（Circle2・MNIST2・MNIST4、各2 seed、`A=500`）では、
+`periodic_forward_probe`のshadow予測は実予測に対して平均-0.0015ポイントで、差は事実上なかった。
+全期間のグローバルモデル保持率は平均67.8%であり、全モデルを評価するprobe区間を除いた適用区間では
+約30～40%だけを残した。この条件では、モデル数は前半で4～11個へ増えた後にほぼ横ばいとなる一方、
+SoftRoutingの実効expert数は約2～5に留まった。したがって、全モデルを常時forwardする必要は小さい。
+
+この結果を受け、`--routing-active-set-policy periodic_forward_probe`を実験的な実方式として実装する。
+`N_forward`件では全repositoryを評価し、その区間のleave-one-out寄与が有界損失・0/1損失のどちらでも
+正でないexpertを、続く`N_forward`件だけ休止する。現行モデルとローカル仮モデルは常に残し、次のprobeで
+全expertを再活性化するため、除外は可逆である。休止expertのルータ損失には実混合の損失を代入し、
+未観測期間だけで累積証拠が有利・不利にならないsleeping-expert更新を行う。
+
+この段階で削減するのは**クライアントの予測forwardだけ**である。サーバrepository、クライアントへの配布、
+学習対象は変えないため、モデル通信量はまだ減らない。まず実経路でaccuracyとforward計算量の因果効果を
+確認し、成立した場合に限って、休止中モデルの配布省略と周期probe時の再取得を別段階で評価する。
+
 ## 実験上の位置づけ
 
 5 seed・5000 stepの`bounded_score`診断では、Meta mixtureはGlobal mixtureに対してSine2で

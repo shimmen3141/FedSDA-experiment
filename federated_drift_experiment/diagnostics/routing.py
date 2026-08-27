@@ -348,10 +348,20 @@ class RoutingLeaveOneOutDiagnostics:
         fallback_probabilities, target, num_classes, current_model_id,
         sample_index, aggregation_interval, archive_shadow_enabled=False,
         archive_shadow_policy="previous_block", forward_probe_samples=1,
+        repository_model_ids=None,
     ):
-        """一標本について各モデルのleave-one-out寄与を記録する。"""
+        """一標本について各モデルのleave-one-out寄与を記録して返す。
+
+        ``repository_model_ids`` はクライアントが保持する全expert集合である。
+        active-set方式で一部だけをforwardする場合も、repository自体の変更と
+        誤認して診断epochをリセットしないために分離して受け取る。
+        """
         model_ids = tuple(sorted(prediction_scores))
-        self._update_pool_epoch(model_ids)
+        repository_model_ids = tuple(sorted(
+            repository_model_ids if repository_model_ids is not None
+            else model_ids
+        ))
+        self._update_pool_epoch(repository_model_ids)
         actual_scores = self._weighted_scores(
             prediction_scores, effective_probabilities
         )
@@ -382,8 +392,9 @@ class RoutingLeaveOneOutDiagnostics:
                 sample_index=sample_index,
             )
         if len(model_ids) < 2:
-            return
+            return {}
 
+        contributions = {}
         for model_id in model_ids:
             scores_without, fallback_used = self._scores_without(
                 model_id,
@@ -400,6 +411,10 @@ class RoutingLeaveOneOutDiagnostics:
                 float(not self._correct(scores_without, target, num_classes))
                 - actual_zero_one_loss
             )
+            contributions[model_id] = {
+                "bounded_delta": bounded_delta,
+                "zero_one_delta": zero_one_delta,
+            }
             aggregate = self.records[
                 (self.pool_epoch, block_index, model_id)
             ]
@@ -426,6 +441,7 @@ class RoutingLeaveOneOutDiagnostics:
                     probe.sample_count += 1
                     probe.bounded_delta_sum += bounded_delta
                     probe.zero_one_delta_sum += zero_one_delta
+        return contributions
 
     def iter_records(self):
         """保存順が実行環境に依存しない形で十分統計を返す。"""

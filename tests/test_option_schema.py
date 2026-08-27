@@ -32,6 +32,9 @@ def test_option_schema_references_known_capabilities_and_options():
     for item in OPTIONS:
         assert set(item.requires_capabilities) <= set(CAPABILITIES_BY_ID)
         assert all(rule.option_id in option_ids for rule in item.active_when)
+        assert all(
+            rule.option_id in option_ids for rule in item.active_when_any
+        )
     assert all(item.option_id in option_ids for item in CHOICE_CONSTRAINTS)
 
 
@@ -72,7 +75,10 @@ def test_forward_parameter_activation_is_machine_readable():
     assert inactive_reasons(
         "new_model_forward_validation_samples",
         {"new_model_creation_policy": "immediate"},
-    ) == ("forward系のとき",)
+    ) == (
+        "新規モデル作成がforward系のとき または "
+        "routing active集合が周期probe方式のとき",
+    )
     assert inactive_reasons(
         "new_model_forward_validation_samples",
         {"new_model_creation_policy": "forward_persistent"},
@@ -209,6 +215,26 @@ def test_top_combination_requires_meta_switching():
         },
         explicit,
     ) == ()
+
+
+def test_forward_sample_count_is_active_for_periodic_routing_probe():
+    selections = {
+        "new_model_creation_policy": "immediate",
+        "routing_active_set_policy": "periodic_forward_probe",
+        "new_model_forward_validation_samples": 10,
+    }
+
+    assert inactive_reasons(
+        "new_model_forward_validation_samples", selections
+    ) == ()
+
+    selections["routing_active_set_policy"] = "all"
+    assert inactive_reasons(
+        "new_model_forward_validation_samples", selections
+    ) == (
+        "新規モデル作成がforward系のとき または "
+        "routing active集合が周期probe方式のとき",
+    )
 
 
 def test_shared_backbone_training_requires_shared_architecture():

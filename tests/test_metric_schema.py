@@ -43,6 +43,8 @@ def test_metric_queries_and_profiles_reference_registered_metrics():
         "routing_loo_active_joint_nonpositive_rate",
         "routing_archive_shadow_accuracy_delta",
         "routing_archive_shadow_retained_global_model_rate",
+        "routing_active_set_retained_global_model_rate",
+        "routing_active_set_apply_retained_global_model_rate",
     } <= {
         item.id for item in metrics_in_group("routing_contribution")
     }

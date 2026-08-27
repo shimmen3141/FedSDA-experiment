@@ -1,6 +1,118 @@
 """保持モデルを専門家として扱う、予測用のオンライン重み付け。"""
 
 import math
+from collections import defaultdict
+
+
+class PeriodicForwardProbeActiveSet:
+    """LOO寄与から予測時のactive expert集合を周期的に選ぶ。
+
+    最初の ``probe_samples`` 件では全expertを評価し、続く同数の標本では
+    有界損失と0/1損失のどちらにも正の限界寄与がないexpertを休止する。
+    現行モデルと一時モデルは必ず残し、次周期のprobeで全expertを可逆に戻す。
+    """
+
+    def __init__(self, probe_samples):
+        self.probe_samples = max(1, int(probe_samples))
+        self.pool_signature = ()
+        self.cycle_index = None
+        self.retained_ids = set()
+        self._records = defaultdict(
+            lambda: {
+                "sample_count": 0,
+                "bounded_delta_sum": 0.0,
+                "zero_one_delta_sum": 0.0,
+            }
+        )
+        self.sample_count = 0
+        self.probe_sample_count = 0
+        self.global_model_count_sum = 0
+        self.retained_global_model_count_sum = 0
+        self.apply_global_model_count_sum = 0
+        self.apply_retained_global_model_count_sum = 0
+        self.reconfiguration_count = 0
+
+    @property
+    def cycle_size(self):
+        return 2 * self.probe_samples
+
+    def _set_retained_ids(self, retained_ids):
+        retained_ids = set(retained_ids)
+        if retained_ids != self.retained_ids:
+            self.reconfiguration_count += 1
+        self.retained_ids = retained_ids
+
+    def _reset_for_pool(self, model_ids):
+        signature = tuple(sorted(model_ids))
+        if signature == self.pool_signature:
+            return False
+        self.pool_signature = signature
+        self.cycle_index = None
+        self._records.clear()
+        self._set_retained_ids(signature)
+        return True
+
+    def _choose_retained_ids(self, model_ids, current_model_id):
+        retained_ids = set()
+        for model_id in model_ids:
+            record = self._records.get(model_id)
+            should_retain = (
+                model_id < 0
+                or model_id == current_model_id
+                or record is None
+                or record["sample_count"] < self.probe_samples
+                or record["bounded_delta_sum"] > 0.0
+                or record["zero_one_delta_sum"] > 0.0
+            )
+            if should_retain:
+                retained_ids.add(model_id)
+        if not retained_ids:
+            retained_ids.add(current_model_id)
+        return retained_ids
+
+    def select(self, model_ids, current_model_id, sample_index):
+        """予測前にactive集合を返し、保持率の十分統計を更新する。"""
+        model_ids = tuple(sorted(model_ids))
+        pool_changed = self._reset_for_pool(model_ids)
+        cycle_index = sample_index // self.cycle_size
+        cycle_position = sample_index % self.cycle_size
+        if self.cycle_index != cycle_index:
+            self.cycle_index = cycle_index
+            self._records.clear()
+            self._set_retained_ids(model_ids)
+        elif not pool_changed and cycle_position == self.probe_samples:
+            self._set_retained_ids(
+                self._choose_retained_ids(model_ids, current_model_id)
+            )
+
+        # 割当先が周期途中で変わっても学習中モデルは必ず予測候補に残す。
+        if current_model_id not in self.retained_ids:
+            self._set_retained_ids(self.retained_ids | {current_model_id})
+        selected = tuple(
+            model_id for model_id in model_ids
+            if model_id in self.retained_ids
+        )
+        is_probe = cycle_position < self.probe_samples
+        global_count = sum(model_id >= 0 for model_id in model_ids)
+        retained_global_count = sum(model_id >= 0 for model_id in selected)
+        self.sample_count += 1
+        self.probe_sample_count += int(is_probe)
+        self.global_model_count_sum += global_count
+        self.retained_global_model_count_sum += retained_global_count
+        if not is_probe:
+            self.apply_global_model_count_sum += global_count
+            self.apply_retained_global_model_count_sum += retained_global_count
+        return selected, is_probe
+
+    def observe(self, contributions, sample_index):
+        """probe区間で得たモデル別LOO寄与だけを次の適用判定へ蓄積する。"""
+        if sample_index % self.cycle_size >= self.probe_samples:
+            return
+        for model_id, values in contributions.items():
+            record = self._records[model_id]
+            record["sample_count"] += 1
+            record["bounded_delta_sum"] += values["bounded_delta"]
+            record["zero_one_delta_sum"] += values["zero_one_delta"]
 
 
 

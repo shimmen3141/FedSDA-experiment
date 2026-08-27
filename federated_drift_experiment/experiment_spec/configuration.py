@@ -27,6 +27,7 @@ class AlgorithmOptions:
     cluster_linkage: str | None = None
     clustering_consolidation: str = "merge"
     merge_noninferiority_margin: float = 0.0
+    routing_active_set_policy: str = "all"
     routing_archive_shadow_diagnostics: bool = False
     routing_archive_shadow_policy: str = "previous_block"
 
@@ -62,6 +63,7 @@ class AlgorithmOptions:
             merge_noninferiority_margin=(
                 config.FEDSDA_MERGE_NONINFERIORITY_MARGIN
             ),
+            routing_active_set_policy=config.ROUTING_ACTIVE_SET_POLICY,
             routing_archive_shadow_diagnostics=(
                 config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS
             ),
@@ -101,6 +103,7 @@ class AlgorithmOptions:
                 self.soft_routing_top_combination
             ),
             "SOFT_ROUTING_META_LOSS": self.soft_routing_meta_loss,
+            "ROUTING_ACTIVE_SET_POLICY": self.routing_active_set_policy,
             "ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS": (
                 self.routing_archive_shadow_diagnostics
             ),

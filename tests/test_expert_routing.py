@@ -3,8 +3,46 @@ import math
 import pytest
 from federated_drift_experiment.expert_routing import (
     AdaHedgeRouter,
+    PeriodicForwardProbeActiveSet,
     SwitchingExpertRouter,
 )
+
+
+def test_periodic_forward_probe_active_set_reactivates_every_cycle():
+    active_set = PeriodicForwardProbeActiveSet(probe_samples=2)
+
+    assert active_set.select([0, 1, 2], 0, 0) == ((0, 1, 2), True)
+    active_set.observe({
+        0: {"bounded_delta": 0.1, "zero_one_delta": 0.0},
+        1: {"bounded_delta": -0.1, "zero_one_delta": 0.0},
+        2: {"bounded_delta": 0.0, "zero_one_delta": 0.0},
+    }, 0)
+    assert active_set.select([0, 1, 2], 0, 1) == ((0, 1, 2), True)
+    active_set.observe({
+        0: {"bounded_delta": 0.1, "zero_one_delta": 0.0},
+        1: {"bounded_delta": -0.1, "zero_one_delta": 0.0},
+        2: {"bounded_delta": 0.0, "zero_one_delta": 0.0},
+    }, 1)
+
+    assert active_set.select([0, 1, 2], 0, 2) == ((0,), False)
+    assert active_set.select([0, 1, 2], 0, 3) == ((0,), False)
+    assert active_set.select([0, 1, 2], 0, 4) == ((0, 1, 2), True)
+    assert active_set.apply_retained_global_model_count_sum == 2
+    assert active_set.apply_global_model_count_sum == 6
+
+
+def test_periodic_forward_probe_active_set_keeps_new_current_model():
+    active_set = PeriodicForwardProbeActiveSet(probe_samples=1)
+    active_set.select([0, 1], 0, 0)
+    active_set.observe({
+        0: {"bounded_delta": 0.0, "zero_one_delta": 0.0},
+        1: {"bounded_delta": 0.0, "zero_one_delta": 0.0},
+    }, 0)
+
+    selected, is_probe = active_set.select([0, 1], 1, 1)
+
+    assert selected == (1,)
+    assert not is_probe
 
 
 def test_adahedge_starts_uniform_and_concentrates_on_better_expert():

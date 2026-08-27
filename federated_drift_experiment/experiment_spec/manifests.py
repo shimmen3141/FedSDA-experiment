@@ -133,6 +133,7 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("soft_routing_context", None)
         algorithm.pop("soft_routing_top_combination", None)
         algorithm.pop("soft_routing_meta_loss", None)
+        algorithm.pop("routing_active_set_policy", None)
     else:
         if algorithm.get("soft_routing_context") != "meta_switching":
             algorithm.pop("soft_routing_top_combination", None)
@@ -145,6 +146,8 @@ def experiment_configuration(experiment, total_data):
             or algorithm.get("shared_backbone_gradient_strategy") == "mean"
         ):
             algorithm.pop("shared_backbone_gradient_strategy", None)
+        if algorithm.get("routing_active_set_policy") == "all":
+            algorithm.pop("routing_active_set_policy", None)
     if not algorithm.get("routing_archive_shadow_diagnostics"):
         algorithm.pop("routing_archive_shadow_diagnostics", None)
         algorithm.pop("routing_archive_shadow_policy", None)
@@ -217,6 +220,9 @@ def configuration_from_result_row(row, total_data):
         algorithm["routing_archive_shadow_policy"] = (
             row.get("routing_archive_shadow_policy") or "previous_block"
         )
+    routing_active_set_policy = row.get("routing_active_set_policy") or "all"
+    if "SoftRouting" in mode and routing_active_set_policy != "all":
+        algorithm["routing_active_set_policy"] = routing_active_set_policy
     clustering_consolidation = row.get("clustering_consolidation") or "merge"
     if clustering_consolidation != "merge":
         algorithm["clustering_consolidation"] = clustering_consolidation

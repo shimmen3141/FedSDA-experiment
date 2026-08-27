@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 9
+OPTION_SCHEMA_VERSION = 10
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -44,6 +44,7 @@ class OptionSpec:
     theoretically_applicable_to: tuple[str, ...]
     requires_capabilities: tuple[str, ...] = ()
     active_when: tuple[ActivationRule, ...] = ()
+    active_when_any: tuple[ActivationRule, ...] = ()
     cli_name: str | None = None
     configuration_surface: str = "cli"
 
@@ -187,6 +188,18 @@ OPTIONS = (
         cli_name="soft-routing-meta-loss",
     ),
     OptionSpec(
+        "routing_active_set_policy", "予測active集合方針", "prediction",
+        ("all", "periodic_forward_probe"),
+        "全expertを常用するか、N_forward件ごとのprobeでLOO寄与のあるexpertだけを実予測する",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("soft_routing",),
+        active_when=(ActivationRule(
+            "routing", ("restarting_soft",),
+            "Restarting SoftRoutingのとき",
+        ),),
+        cli_name="routing-active-set-policy",
+    ),
+    OptionSpec(
         "routing_archive_shadow_diagnostics",
         "ローカルarchive shadow診断", "diagnostic",
         ("off", "on"),
@@ -196,6 +209,9 @@ OPTIONS = (
         active_when=(ActivationRule(
             "routing", ("restarting_soft",),
             "Restarting SoftRoutingのとき",
+        ), ActivationRule(
+            "routing_active_set_policy", ("all",),
+            "実active集合を変更しないとき",
         ),),
         cli_name="routing-archive-shadow-diagnostics",
     ),
@@ -340,12 +356,19 @@ OPTIONS = (
     OptionSpec(
         "new_model_forward_validation_samples", "前向き検証数 N_forward",
         "adaptation_parameter", ("integer >= 2",),
-        "forward系方式で警報後に収集する将来サンプル数",
+        "forward系方式の将来サンプル数、または周期的routing probe長",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("provisional_model", "future_sample_validation"),
-        active_when=(ActivationRule(
-            "new_model_creation_policy", _FORWARD_POLICIES, "forward系のとき",
-        ),),
+        active_when_any=(
+            ActivationRule(
+                "new_model_creation_policy", _FORWARD_POLICIES,
+                "新規モデル作成がforward系のとき",
+            ),
+            ActivationRule(
+                "routing_active_set_policy", ("periodic_forward_probe",),
+                "routing active集合が周期probe方式のとき",
+            ),
+        ),
         cli_name="new-model-forward-validation-samples",
     ),
     OptionSpec(
@@ -691,6 +714,11 @@ def inactive_reasons(option_id, selections):
     for rule in option(option_id).active_when:
         if selections.get(rule.option_id) not in rule.values:
             reasons.append(rule.label)
+    any_rules = option(option_id).active_when_any
+    if any_rules and not any(
+        selections.get(rule.option_id) in rule.values for rule in any_rules
+    ):
+        reasons.append(" または ".join(rule.label for rule in any_rules))
     return tuple(reasons)
 
 
@@ -863,6 +891,10 @@ def render_mermaid():
             lines.append(
                 f'  {rule.option_id} -->|"{rule.label}"| {item.id}'
             )
+        for rule in item.active_when_any:
+            lines.append(
+                f'  {rule.option_id} -.->|"いずれか: {rule.label}"| {item.id}'
+            )
     for constraint in CHOICE_CONSTRAINTS:
         values = ", ".join(constraint.values)
         for rule in constraint.requires_selections:
@@ -939,7 +971,7 @@ def render_option_document():
         "## 重要な依存関係",
         "",
         "- `new_model_validation_fraction`は`new_model_creation_policy=validated`でのみ有効。",
-        "- `new_model_forward_validation_samples`はforward系またはshadow tournamentでのみ有効。",
+        "- `new_model_forward_validation_samples`はforward系、shadow tournament、または周期的routing probeで有効。",
         "- forward検証は検出器には依存しないが、現在はFedSDAの仮モデル処理にのみ実装済み。",
         "- SoftRoutingは原理上は検出器から独立しているが、現在の実装はNoCached ClassESRのmodeに限定。",
         "- `server_flow`、`detector`、`routing`は現在独立CLIではなくmode名で組み合わされる。",

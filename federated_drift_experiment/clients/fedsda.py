@@ -10,7 +10,11 @@ from .. import config
 from ..diagnostics import RoutingLeaveOneOutDiagnostics
 from ..drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
-from ..expert_routing import AdaHedgeRouter, SwitchingExpertRouter
+from ..expert_routing import (
+    AdaHedgeRouter,
+    PeriodicForwardProbeActiveSet,
+    SwitchingExpertRouter,
+)
 from ..provisional_model import (
     ForwardValidationSession,
     ProvisionalModelDecision,
@@ -1340,6 +1344,21 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         self.routing_leave_one_out_diagnostics = (
             RoutingLeaveOneOutDiagnostics()
         )
+        if config.ROUTING_ACTIVE_SET_POLICY == "periodic_forward_probe":
+            if config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS:
+                raise ValueError(
+                    "routing active集合とarchive shadow診断は同時に有効化できません"
+                )
+            self.routing_active_set = PeriodicForwardProbeActiveSet(
+                config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES
+            )
+        elif config.ROUTING_ACTIVE_SET_POLICY == "all":
+            self.routing_active_set = None
+        else:
+            raise ValueError(
+                "未知のrouting active-set方針です: "
+                f"{config.ROUTING_ACTIVE_SET_POLICY!r}"
+            )
 
     def _prediction_probabilities(self, proposal_probabilities):
         """AdaHedgeの提案重みを実際の予測重みへ変換する。"""
@@ -1354,6 +1373,40 @@ class _AdaHedgeRoutingFedSDAClientMixin:
             "prediction", len(x) * len(model_ids), calls=len(model_ids)
         )
         return scores
+
+    @staticmethod
+    def _restrict_routing_probabilities(probabilities, active_model_ids):
+        """全repository上の重みをactive集合へ制限して再正規化する。"""
+        active_model_ids = tuple(active_model_ids)
+        total = sum(probabilities[model_id] for model_id in active_model_ids)
+        if total > 0.0:
+            return {
+                model_id: probabilities[model_id] / total
+                for model_id in active_model_ids
+            }
+        uniform = 1.0 / len(active_model_ids)
+        return {model_id: uniform for model_id in active_model_ids}
+
+    @staticmethod
+    def _sleeping_routing_update(
+        router, repository_model_ids, active_losses,
+        active_probabilities, sleeping_loss,
+    ):
+        """休止expertへ実予測損失を代入し、証拠を陳腐化させず更新する。
+
+        休止中のexpertは予測へ寄与しないため確率を0とし、その期間の損失を
+        learner自身の損失とする。次のprobeで復帰したとき、未観測期間だけ
+        不当に有利・不利にならないsleeping-expert更新である。
+        """
+        losses = {
+            model_id: active_losses.get(model_id, sleeping_loss)
+            for model_id in repository_model_ids
+        }
+        probabilities = {
+            model_id: active_probabilities.get(model_id, 0.0)
+            for model_id in repository_model_ids
+        }
+        router.update(losses, probabilities)
 
     @staticmethod
     def _weighted_routing_scores(prediction_scores, probabilities):
@@ -1406,8 +1459,22 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         )
 
     def _record_prediction(self, x, y, concept_id):
-        model_ids = tuple(sorted(self.models))
-        proposal_probabilities = self.expert_router.probabilities(model_ids)
+        repository_model_ids = tuple(sorted(self.models))
+        sample_index = max(0, self.processed_samples - 1)
+        if self.routing_active_set is None:
+            model_ids = repository_model_ids
+        else:
+            model_ids, _ = self.routing_active_set.select(
+                repository_model_ids,
+                self.current_model_id,
+                sample_index,
+            )
+        proposal_repository_probabilities = self.expert_router.probabilities(
+            repository_model_ids
+        )
+        proposal_probabilities = self._restrict_routing_probabilities(
+            proposal_repository_probabilities, model_ids
+        )
         model_losses = {}
         model_correctness = {}
         model_confidences = {}
@@ -1447,8 +1514,11 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         global_scores = self._weighted_routing_scores(
             prediction_scores, proposal_probabilities
         )
-        switching_probabilities = self.switching_expert_router.probabilities(
-            model_ids
+        switching_repository_probabilities = (
+            self.switching_expert_router.probabilities(repository_model_ids)
+        )
+        switching_probabilities = self._restrict_routing_probabilities(
+            switching_repository_probabilities, model_ids
         )
         switching_scores = self._weighted_routing_scores(
             prediction_scores, switching_probabilities
@@ -1471,7 +1541,12 @@ class _AdaHedgeRoutingFedSDAClientMixin:
                 .view(-1)[0].item()
             )
             context_router = self.context_expert_routers[context_id]
-            context_proposal = context_router.probabilities(model_ids)
+            context_repository_proposal = context_router.probabilities(
+                repository_model_ids
+            )
+            context_proposal = self._restrict_routing_probabilities(
+                context_repository_proposal, model_ids
+            )
             context_probabilities = self._prediction_probabilities(
                 context_proposal
             )
@@ -1564,14 +1639,14 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         accuracy = float(
             self._routing_correct(weighted_scores, y, num_classes)
         )
-        self.routing_leave_one_out_diagnostics.observe(
+        routing_contributions = self.routing_leave_one_out_diagnostics.observe(
             prediction_scores=prediction_scores,
             effective_probabilities=probabilities,
             fallback_probabilities=proposal_probabilities,
             target=y,
             num_classes=num_classes,
             current_model_id=self.current_model_id,
-            sample_index=max(0, self.processed_samples - 1),
+            sample_index=sample_index,
             aggregation_interval=config.AGGREGATION_INTERVAL,
             archive_shadow_enabled=(
                 config.ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS
@@ -1580,7 +1655,13 @@ class _AdaHedgeRoutingFedSDAClientMixin:
             forward_probe_samples=(
                 config.NEW_MODEL_FORWARD_VALIDATION_SAMPLES
             ),
+            repository_model_ids=repository_model_ids,
         )
+        if self.routing_active_set is not None:
+            self.routing_active_set.observe(
+                routing_contributions,
+                sample_index,
+            )
         switching_correct = self._routing_correct(
             switching_scores, y, num_classes
         )
@@ -1770,12 +1851,36 @@ class _AdaHedgeRoutingFedSDAClientMixin:
 
         # prequential順序を守り、予測後に正解ラベルで重みを更新する。
         # 保護方式でもAdaHedge自体は提案分布で更新し、反実仮想の学習を続ける。
-        self.expert_router.update(model_losses, proposal_probabilities)
-        self.switching_expert_router.update(
-            model_losses, switching_probabilities
-        )
-        if context_router is not None:
-            context_router.update(model_losses, context_proposal)
+        if self.routing_active_set is None:
+            self.expert_router.update(model_losses, proposal_probabilities)
+            self.switching_expert_router.update(
+                model_losses, switching_probabilities
+            )
+            if context_router is not None:
+                context_router.update(model_losses, context_proposal)
+        else:
+            self._sleeping_routing_update(
+                self.expert_router,
+                repository_model_ids,
+                model_losses,
+                proposal_probabilities,
+                self._routing_score_loss(global_scores, y, num_classes),
+            )
+            self._sleeping_routing_update(
+                self.switching_expert_router,
+                repository_model_ids,
+                model_losses,
+                switching_probabilities,
+                self._routing_score_loss(switching_scores, y, num_classes),
+            )
+            if context_router is not None:
+                self._sleeping_routing_update(
+                    context_router,
+                    repository_model_ids,
+                    model_losses,
+                    context_proposal,
+                    self._routing_score_loss(context_scores, y, num_classes),
+                )
 
 
 class _RestartingSoftRoutingFedSDAClientMixin(

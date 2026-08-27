@@ -621,6 +621,19 @@ def _routing_leave_one_out_summary(clients):
         archive_shadow_actual_correct / archive_shadow_sample_count
         if archive_shadow_sample_count else 0.0
     )
+    active_sets = [
+        client.routing_active_set for client in clients
+        if getattr(client, "routing_active_set", None) is not None
+    ]
+    active_set_sample_count = sum(
+        controller.sample_count for controller in active_sets
+    )
+    active_set_global_model_count = sum(
+        controller.global_model_count_sum for controller in active_sets
+    )
+    active_set_apply_global_model_count = sum(
+        controller.apply_global_model_count_sum for controller in active_sets
+    )
 
     return {
         "routing_loo_evaluation_count": evaluation_count,
@@ -687,6 +700,27 @@ def _routing_leave_one_out_summary(clients):
         ),
         "routing_archive_shadow_reconfiguration_count": sum(
             aggregate.reconfiguration_count for aggregate in archive_shadow
+        ),
+        "routing_active_set_sample_count": active_set_sample_count,
+        "routing_active_set_probe_sample_count": sum(
+            controller.probe_sample_count for controller in active_sets
+        ),
+        "routing_active_set_retained_global_model_rate": (
+            sum(
+                controller.retained_global_model_count_sum
+                for controller in active_sets
+            ) / active_set_global_model_count
+            if active_set_global_model_count else 1.0
+        ),
+        "routing_active_set_apply_retained_global_model_rate": (
+            sum(
+                controller.apply_retained_global_model_count_sum
+                for controller in active_sets
+            ) / active_set_apply_global_model_count
+            if active_set_apply_global_model_count else 1.0
+        ),
+        "routing_active_set_reconfiguration_count": sum(
+            controller.reconfiguration_count for controller in active_sets
         ),
     }
 
@@ -1949,6 +1983,11 @@ def _save_raw_run(
             and config.SOFT_ROUTING_CONTEXT in {
                 "predicted_class", "meta_predicted_class", "meta_switching",
             } else "",
+            dtype=np.str_,
+        ),
+        routing_active_set_policy=np.asarray(
+            config.ROUTING_ACTIVE_SET_POLICY
+            if "SoftRouting" in mode else "",
             dtype=np.str_,
         ),
         shared_adapter_rank=np.asarray(

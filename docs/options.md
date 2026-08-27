@@ -32,6 +32,7 @@ flowchart LR
     soft_routing_context["<b>SoftRouting文脈</b><br/>global | predicted_class | meta_predicted_class | meta_switching"]
     soft_routing_top_combination["<b>Meta-switching上位統合</b><br/>leader | mixture"]
     soft_routing_meta_loss["<b>Meta-router更新損失</b><br/>bounded_score | zero_one"]
+    routing_active_set_policy["<b>予測active集合方針</b><br/>all | periodic_forward_probe"]
     shared_backbone_routing_recalibration["<b>共有表現更新後のルーティング再較正</b><br/>none | aggregation_restart | fifo_replay | leader_change_replay | persistent_leader_change_replay"]
   end
   subgraph group_diagnostic[diagnostic]
@@ -84,7 +85,9 @@ flowchart LR
   routing -->|"Restarting SoftRoutingのとき"| soft_routing_context
   soft_routing_context -->|"Meta-switchingを実予測へ使うとき"| soft_routing_top_combination
   soft_routing_context -->|"文脈別Meta-routerを計算するとき"| soft_routing_meta_loss
+  routing -->|"Restarting SoftRoutingのとき"| routing_active_set_policy
   routing -->|"Restarting SoftRoutingのとき"| routing_archive_shadow_diagnostics
+  routing_active_set_policy -->|"実active集合を変更しないとき"| routing_archive_shadow_diagnostics
   routing_archive_shadow_diagnostics -->|"ローカルarchive shadow診断が有効なとき"| routing_archive_shadow_policy
   model_architecture -->|"共有表現構造のとき"| shared_backbone_training
   shared_backbone_training -->|"共有表現をjoint学習するとき"| shared_backbone_gradient_strategy
@@ -93,7 +96,8 @@ flowchart LR
   model_architecture -->|"低ランク残差adapter構造のとき"| shared_adapter_rank
   new_model_training -->|"初期学習を行うとき"| new_model_epochs
   new_model_creation_policy -->|"validatedのとき"| new_model_validation_fraction
-  new_model_creation_policy -->|"forward系のとき"| new_model_forward_validation_samples
+  new_model_creation_policy -.->|"いずれか: 新規モデル作成がforward系のとき"| new_model_forward_validation_samples
+  routing_active_set_policy -.->|"いずれか: routing active集合が周期probe方式のとき"| new_model_forward_validation_samples
   detector -->|"ADWIN系のとき"| adwin_delta
   detector -->|"ESR系のとき"| e_detector_alpha
   detector -->|"HDDM系のとき"| hddm_drift_confidence
@@ -129,6 +133,7 @@ flowchart LR
 | `soft_routing_context` | cli: `--soft-routing-context` | 実装済み | 対象外 | 対象外 | 対象外 | 大域・予測クラス別・meta混合、またはmetaとswitching-expertの上位選択を選ぶ |
 | `soft_routing_top_combination` | cli: `--soft-routing-top-combination` | 実装済み | 対象外 | 対象外 | 対象外 | 上位Fixed-Shareの最大重み候補を使うか、候補予測を重み付き混合する |
 | `soft_routing_meta_loss` | cli: `--soft-routing-meta-loss` | 実装済み | 対象外 | 対象外 | 対象外 | Meta候補を確率出力の有界損失または最終予測の0/1損失で比較する |
+| `routing_active_set_policy` | cli: `--routing-active-set-policy` | 実装済み | 対象外 | 対象外 | 対象外 | 全expertを常用するか、N_forward件ごとのprobeでLOO寄与のあるexpertだけを実予測する |
 | `routing_archive_shadow_diagnostics` | cli: `--routing-archive-shadow-diagnostics` | 実装済み | 対象外 | 対象外 | 対象外 | 因果的なLOO寄与でクライアント別保持集合を絞る反実仮想診断 |
 | `routing_archive_shadow_policy` | cli: `--routing-archive-shadow-policy` | 実装済み | 対象外 | 対象外 | 対象外 | 直前区間、区間先頭、または周期的probeからクライアント別保持集合を決める |
 | `model_architecture` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 独立モデル、共有表現、または共有分類器＋概念別残差を選ぶ |
@@ -141,7 +146,7 @@ flowchart LR
 | `new_model_epochs` | cli: `--new-model-epochs` | 実装済み | 理論上のみ | 対象外 | 対象外 | fixedのエポック数またはearly_stoppingの最大エポック数 |
 | `new_model_initialization` | cli: `--new-model-initialization` | 実装済み | 理論上のみ | 対象外 | 対象外 | 新規モデル候補を初期化する既存パラメータの選択方法 |
 | `new_model_validation_fraction` | cli: `--new-model-validation-fraction` | 実装済み | 理論上のみ | 対象外 | 対象外 | validated方式でFIFO末尾から検証用に確保する割合 |
-| `new_model_forward_validation_samples` | cli: `--new-model-forward-validation-samples` | 実装済み | 理論上のみ | 対象外 | 対象外 | forward系方式で警報後に収集する将来サンプル数 |
+| `new_model_forward_validation_samples` | cli: `--new-model-forward-validation-samples` | 実装済み | 理論上のみ | 対象外 | 対象外 | forward系方式の将来サンプル数、または周期的routing probe長 |
 | `fifo_size` | cli: `--fifo-size` | 実装済み | 対象外 | 実装済み | 対象外 | FedSDAの検出・ドリフト解決に保持する直近データ数 |
 | `detection_episodes` | cli: `--detection-episodes` | 実装済み | 理論上のみ | 対象外 | 対象外 | 近接した警報をN_FIFO幅の一つの適応エピソードへ統合する |
 | `adwin_delta` | cli: `--adwin-deltas` | 実装済み | 対象外 | 実装済み | 対象外 | ADWIN系検出器の信頼度パラメータ |
@@ -164,7 +169,7 @@ flowchart LR
 ## 重要な依存関係
 
 - `new_model_validation_fraction`は`new_model_creation_policy=validated`でのみ有効。
-- `new_model_forward_validation_samples`はforward系またはshadow tournamentでのみ有効。
+- `new_model_forward_validation_samples`はforward系、shadow tournament、または周期的routing probeで有効。
 - forward検証は検出器には依存しないが、現在はFedSDAの仮モデル処理にのみ実装済み。
 - SoftRoutingは原理上は検出器から独立しているが、現在の実装はNoCached ClassESRのmodeに限定。
 - `server_flow`、`detector`、`routing`は現在独立CLIではなくmode名で組み合わされる。

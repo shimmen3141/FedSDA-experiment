@@ -94,6 +94,8 @@ def test_residual_adapter_class_adwin_mode_reuses_routing_architecture():
         spec.client_cls
         is ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient
     )
+    assert spec.server_cls is SharedBackboneFedSDANoCachedServer
+    assert spec.model_cls is ResidualAdapterMLP
 
 
 def _two_residual_adapter_client():
@@ -109,8 +111,34 @@ def _two_residual_adapter_client():
         },
         verbose=False,
     )
-    assert spec.server_cls is SharedBackboneFedSDANoCachedServer
-    assert spec.model_cls is ResidualAdapterMLP
+
+
+def test_periodic_routing_active_set_skips_inactive_model_forward(monkeypatch):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    monkeypatch.setattr(
+        config, "ROUTING_ACTIVE_SET_POLICY", "periodic_forward_probe"
+    )
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 2)
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "global")
+    client = _two_residual_adapter_client()
+    x = torch.zeros(1, config.dataset_spec().input_dim)
+    y = torch.zeros(1, 1)
+
+    client.processed_samples = 1
+    before = client.compute_counters["prediction_forward_calls"]
+    client._record_prediction(x, y, concept_id=0)
+    client.processed_samples = 2
+    client._record_prediction(x, y, concept_id=0)
+    after_probe = client.compute_counters["prediction_forward_calls"]
+
+    client.processed_samples = 3
+    client._record_prediction(x, y, concept_id=0)
+    after_apply = client.compute_counters["prediction_forward_calls"]
+
+    assert after_probe - before == 4
+    assert after_apply - after_probe == 1
+    assert client.routing_active_set.probe_sample_count == 2
+    assert client.routing_active_set.apply_retained_global_model_count_sum == 1
 
 
 def test_residual_adapter_hard_routing_mode_has_dedicated_client_and_model():
@@ -567,6 +595,10 @@ def test_shared_backbone_experiment_reports_component_metrics(
         "routing_archive_shadow_retained_global_model_rate"
     ] <= 1
     assert -1 <= results["routing_archive_shadow_accuracy_delta"] <= 1
+    assert 0 <= results["routing_active_set_retained_global_model_rate"] <= 1
+    assert 0 <= results[
+        "routing_active_set_apply_retained_global_model_rate"
+    ] <= 1
     with np.load(raw_path) as raw:
         assert raw["routing_class_client_ids"].shape == (
             len(raw["routing_class_ids"]),

@@ -294,6 +294,11 @@ METRICS = (
             "routing_archive_shadow_bounded_delta_mean",
             "routing_archive_shadow_retained_global_model_rate",
             "routing_archive_shadow_reconfiguration_count",
+            "routing_active_set_sample_count",
+            "routing_active_set_probe_sample_count",
+            "routing_active_set_retained_global_model_rate",
+            "routing_active_set_apply_retained_global_model_rate",
+            "routing_active_set_reconfiguration_count",
         ),
         "routing_contribution", DIAGNOSTIC, FEDSDA_METHODS, None,
         {
@@ -317,6 +322,12 @@ METRICS = (
             ),
             "routing_archive_shadow_retained_global_model_rate": (
                 "前通信区間ベースのshadowがローカルに保持するグローバルモデル割合"
+            ),
+            "routing_active_set_retained_global_model_rate": (
+                "実予測でforwardしたグローバルモデル割合（probe区間を含む）"
+            ),
+            "routing_active_set_apply_retained_global_model_rate": (
+                "probe後の適用区間でforwardしたグローバルモデル割合"
             ),
         },
     ),

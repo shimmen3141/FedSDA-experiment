@@ -117,6 +117,11 @@ SOFT_ROUTING_TOP_COMBINATION_CHOICES = ("leader", "mixture")
 # Meta-routerを連続予測損失または最終accuracyと一致する0/1損失で更新する。
 SOFT_ROUTING_META_LOSS = "zero_one"
 SOFT_ROUTING_META_LOSS_CHOICES = ("bounded_score", "zero_one")
+# SoftRoutingで実際にforwardするクライアント別expert集合を制御する。
+# periodic_forward_probeはN_forward件の全expert評価と、同じ長さの適用区間を
+# 交互に繰り返し、probe中のleave-one-out寄与が非正なexpertを適用区間で休止する。
+ROUTING_ACTIVE_SET_POLICY = "all"
+ROUTING_ACTIVE_SET_POLICY_CHOICES = ("all", "periodic_forward_probe")
 # 前通信区間のLOO寄与でクライアント別active集合を絞る反実仮想診断。
 ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS = False
 # previous_blockは直前区間、forward_probeは現在区間先頭N_forward件を使う。
