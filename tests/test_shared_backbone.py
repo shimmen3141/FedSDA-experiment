@@ -155,6 +155,38 @@ def test_periodic_routing_active_set_skips_inactive_model_forward(monkeypatch):
     ) == 2
 
 
+def test_periodic_routing_active_set_reprobes_after_all_active_models_fail(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    monkeypatch.setattr(
+        config, "ROUTING_ACTIVE_SET_POLICY", "periodic_forward_probe"
+    )
+    monkeypatch.setattr(config, "NEW_MODEL_FORWARD_VALIDATION_SAMPLES", 2)
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "global")
+    client = _two_residual_adapter_client()
+    x = torch.zeros(1, config.dataset_spec().input_dim)
+    with torch.no_grad():
+        prediction = (client.models[0].forward(x) > 0.5).float()
+    y = 1.0 - prediction
+
+    client.processed_samples = 1
+    client._record_prediction(x, y, concept_id=0)
+    client.processed_samples = 2
+    client._record_prediction(x, y, concept_id=0)
+    client.processed_samples = 3
+    before_failure = client.compute_counters["prediction_forward_calls"]
+    client._record_prediction(x, y, concept_id=0)
+    after_failure = client.compute_counters["prediction_forward_calls"]
+    client.processed_samples = 4
+    client._record_prediction(x, y, concept_id=0)
+    after_reprobe = client.compute_counters["prediction_forward_calls"]
+
+    assert after_failure - before_failure == 1
+    assert after_reprobe - after_failure == 2
+    assert client.routing_active_set.failure_probe_count == 1
+
+
 def test_residual_adapter_hard_routing_mode_has_dedicated_client_and_model():
     spec = MODE_SPECS["FedSDA_NoCached_ResidualAdapter_ClassESR"]
 
@@ -613,6 +645,7 @@ def test_shared_backbone_experiment_reports_component_metrics(
     assert 0 <= results[
         "routing_active_set_apply_retained_global_model_rate"
     ] <= 1
+    assert results["routing_active_set_failure_probe_count"] >= 0
     with np.load(raw_path) as raw:
         assert raw["routing_class_client_ids"].shape == (
             len(raw["routing_class_ids"]),

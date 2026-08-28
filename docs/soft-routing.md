@@ -185,6 +185,18 @@ SoftRoutingの実効expert数は約2～5に留まった。したがって、全�
 これにより全expertの比較を同じfull-information標本へ揃える。また、確定したモデル切替またはrepository変更時は
 周期境界を待たず、全expertによる新しいprobeを開始する。新しい数値閾値は追加しない。
 
+5000 step・2 seed・`A=500`の対応比較では、この修正版もCircle2・MNIST2・MNIST4の6条件すべてで
+accuracyが低下し、平均差は-0.229ポイントだった。一方、stable accuracyの平均差は-0.065ポイントに留まり、
+推論例数は約18～22%、実行時間はMNIST2で約29%、MNIST4で約37%減った。学習量、検出、モデル数、通信量は
+対照と一致しており、accuracy差は真のドリフト後10～30標本で平均-4.41ポイントに集中した。したがって、
+full-information化で未観測損失の代入問題は除けたが、周期probeの間に真の概念が変わると、古いactive集合を
+次の周期まで使うという因果的な遅れが残る。
+
+この遅れに対し、適用区間で実混合が誤り、かつ評価したactive expertが全て誤った場合だけ、次標本から
+全expert probeを再開する。active集合内に正解expertがいる場合はrouting重みの問題なので再開せず、
+数値閾値も追加しない。発火回数は`routing_active_set_failure_probe_count`へ記録する。この誤り駆動probeで
+精度低下とforward削減のParetoが改善しない場合、実active集合は既定候補から外し、LOOを診断用途に限定する。
+
 この段階で削減するのは**クライアントの予測forwardだけ**である。サーバrepository、クライアントへの配布、
 学習対象は変えないため、モデル通信量はまだ減らない。まず実経路でaccuracyとforward計算量の因果効果を
 確認し、成立した場合に限って、休止中モデルの配布省略と周期probe時の再取得を別段階で評価する。

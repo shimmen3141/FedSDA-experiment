@@ -722,6 +722,9 @@ def _routing_leave_one_out_summary(clients):
         "routing_active_set_reconfiguration_count": sum(
             controller.reconfiguration_count for controller in active_sets
         ),
+        "routing_active_set_failure_probe_count": sum(
+            controller.failure_probe_count for controller in active_sets
+        ),
     }
 
 

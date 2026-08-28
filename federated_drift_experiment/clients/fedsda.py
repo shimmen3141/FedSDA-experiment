@@ -1678,6 +1678,20 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         oracle_correct = bool(accuracy) or any(model_correctness.values())
         leader_correct = model_correctness[routed_model_id]
 
+        # 適用区間でactive expertが全て誤った場合は、除外集合に正解expertが
+        # いる可能性を次標本から確認する。混合だけが誤った場合はrouting重みの
+        # 問題なので発火させず、新しい閾値を増やさない。
+        if (
+            self.routing_active_set is not None
+            and not update_routing_evidence
+            and not accuracy
+            and not any(model_correctness.values())
+        ):
+            self.routing_active_set.restart_after_active_failure(
+                repository_model_ids,
+                sample_index + 1,
+            )
+
         meta_correct = None
         global_correct = None
         context_correct = None

@@ -45,6 +45,7 @@ def test_metric_queries_and_profiles_reference_registered_metrics():
         "routing_archive_shadow_retained_global_model_rate",
         "routing_active_set_retained_global_model_rate",
         "routing_active_set_apply_retained_global_model_rate",
+        "routing_active_set_failure_probe_count",
     } <= {
         item.id for item in metrics_in_group("routing_contribution")
     }

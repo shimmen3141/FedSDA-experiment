@@ -32,6 +32,7 @@ class PeriodicForwardProbeActiveSet:
         self.apply_global_model_count_sum = 0
         self.apply_retained_global_model_count_sum = 0
         self.reconfiguration_count = 0
+        self.failure_probe_count = 0
 
     @property
     def cycle_size(self):
@@ -61,6 +62,15 @@ class PeriodicForwardProbeActiveSet:
     def restart_for_concept(self, model_ids, sample_index):
         """確定した概念切替後に全expertで新しいprobeを開始する。"""
         self._restart(model_ids, sample_index)
+
+    def restart_after_active_failure(self, model_ids, sample_index):
+        """休止expertがいる状態でactive集合が全て誤ったらprobeへ戻す。"""
+        model_ids = tuple(sorted(model_ids))
+        if set(model_ids) <= self.retained_ids:
+            return False
+        self.failure_probe_count += 1
+        self._restart(model_ids, sample_index)
+        return True
 
     def _choose_retained_ids(self, model_ids, current_model_id):
         retained_ids = set()

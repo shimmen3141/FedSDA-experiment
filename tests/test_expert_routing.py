@@ -57,6 +57,28 @@ def test_periodic_forward_probe_active_set_restarts_probe_for_concept_change():
     assert active_set.select([0, 1], 1, 4) == ((0, 1), True)
 
 
+def test_periodic_forward_probe_restarts_after_active_failure():
+    active_set = PeriodicForwardProbeActiveSet(probe_samples=2)
+    active_set.select([0, 1], 0, 0)
+    active_set.observe({
+        0: {"bounded_delta": 0.1, "zero_one_delta": 0.0},
+        1: {"bounded_delta": -0.1, "zero_one_delta": 0.0},
+    }, 0)
+    active_set.select([0, 1], 0, 1)
+    active_set.observe({
+        0: {"bounded_delta": 0.1, "zero_one_delta": 0.0},
+        1: {"bounded_delta": -0.1, "zero_one_delta": 0.0},
+    }, 1)
+    assert active_set.select([0, 1], 0, 2) == ((0,), False)
+
+    assert active_set.restart_after_active_failure([0, 1], 3) is True
+    assert active_set.select([0, 1], 0, 3) == ((0, 1), True)
+    assert active_set.failure_probe_count == 1
+
+    assert active_set.restart_after_active_failure([0, 1], 4) is False
+    assert active_set.failure_probe_count == 1
+
+
 def test_adahedge_starts_uniform_and_concentrates_on_better_expert():
     router = AdaHedgeRouter()
 

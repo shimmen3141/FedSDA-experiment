@@ -299,6 +299,7 @@ METRICS = (
             "routing_active_set_retained_global_model_rate",
             "routing_active_set_apply_retained_global_model_rate",
             "routing_active_set_reconfiguration_count",
+            "routing_active_set_failure_probe_count",
         ),
         "routing_contribution", DIAGNOSTIC, FEDSDA_METHODS, None,
         {
@@ -328,6 +329,9 @@ METRICS = (
             ),
             "routing_active_set_apply_retained_global_model_rate": (
                 "probe後の適用区間でforwardしたグローバルモデル割合"
+            ),
+            "routing_active_set_failure_probe_count": (
+                "適用区間で全active expertが誤り、全expert probeへ戻した回数"
             ),
         },
     ),
