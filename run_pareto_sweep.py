@@ -96,6 +96,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "shared_backbone_training",
             "shared_backbone_gradient_strategy",
             "shared_backbone_routing_recalibration",
+            "shared_model_distribution",
             "soft_routing_context",
             "soft_routing_top_combination",
             "soft_routing_meta_loss",
@@ -196,6 +197,14 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         display_series = (
             f"{display_series} [routing-recalibration="
             f"{config.SHARED_BACKBONE_ROUTING_RECALIBRATION}]"
+        )
+    if (
+        is_shared_representation_mode(mode)
+        and config.SHARED_MODEL_DISTRIBUTION != "full"
+    ):
+        display_series = (
+            f"{display_series} [distribution="
+            f"{config.SHARED_MODEL_DISTRIBUTION}]"
         )
     if (
         "FedSDA" in mode
@@ -330,6 +339,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         ),
         "shared_backbone_routing_recalibration": (
             config.SHARED_BACKBONE_ROUTING_RECALIBRATION
+            if is_shared_representation_mode(mode) else None
+        ),
+        "shared_model_distribution": (
+            config.SHARED_MODEL_DISTRIBUTION
             if is_shared_representation_mode(mode) else None
         ),
         "soft_routing_context": (
@@ -648,6 +661,7 @@ def _load_csv(path):
             )
             row.setdefault("shared_backbone_training", "sequential")
             row.setdefault("shared_backbone_gradient_strategy", "")
+            row.setdefault("shared_model_distribution", "full")
             # 列追加前のCSVを再描画するときは当時の挙動を復元する。
             row.setdefault("soft_routing_top_combination", "leader")
             row.setdefault("soft_routing_meta_loss", "bounded_score")
@@ -1080,6 +1094,15 @@ def build_parser():
         ),
     )
     fedsda.add_argument(
+        "--shared-model-distribution",
+        choices=config.SHARED_MODEL_DISTRIBUTION_CHOICES,
+        default=config.SHARED_MODEL_DISTRIBUTION,
+        help=(
+            "共有表現モデルの配布方式 "
+            "(full / versioned_cache)"
+        ),
+    )
+    fedsda.add_argument(
         "--shared-adapter-rank", type=int,
         default=config.SHARED_ADAPTER_RANK,
         help="概念別低ランク残差adapterの最大rank",
@@ -1312,6 +1335,7 @@ def main(argv=None):
         "shared_backbone_routing_recalibration": (
             args.shared_backbone_routing_recalibration
         ),
+        "shared_model_distribution": args.shared_model_distribution,
         "soft_routing_context": args.soft_routing_context,
         "soft_routing_top_combination": (
             args.soft_routing_top_combination
@@ -1370,6 +1394,7 @@ def main(argv=None):
         shared_backbone_routing_recalibration=(
             args.shared_backbone_routing_recalibration
         ),
+        shared_model_distribution=args.shared_model_distribution,
         shared_adapter_rank=args.shared_adapter_rank,
         soft_routing_context=args.soft_routing_context,
         soft_routing_top_combination=(

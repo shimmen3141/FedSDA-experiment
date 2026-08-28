@@ -40,6 +40,7 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.shared_backbone_training == "sequential"
     assert defaults.shared_backbone_gradient_strategy == "mean"
     assert defaults.shared_backbone_routing_recalibration == "none"
+    assert defaults.shared_model_distribution == "full"
     assert defaults.soft_routing_context == "global"
     assert defaults.soft_routing_top_combination == "leader"
     assert defaults.soft_routing_meta_loss == "zero_one"
@@ -66,6 +67,9 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert parser.parse_args([
         "--routing-active-set-policy", "periodic_forward_probe",
     ]).routing_active_set_policy == "periodic_forward_probe"
+    assert parser.parse_args([
+        "--shared-model-distribution", "versioned_cache",
+    ]).shared_model_distribution == "versioned_cache"
 
 
 def test_long_experiment_slug_is_shortened_with_stable_hash():

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 10
+OPTION_SCHEMA_VERSION = 11
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -291,6 +291,24 @@ OPTIONS = (
             "Restarting SoftRoutingのとき",
         )),
         cli_name="shared-backbone-routing-recalibration",
+    ),
+    OptionSpec(
+        "shared_model_distribution",
+        "共有表現モデル配布",
+        "communication",
+        ("full", "versioned_cache"),
+        "全共有部・概念別部を毎回送るか、前回配布版から変更された構成要素だけを送るか",
+        (FED_SDA,), (FED_SDA, FED_DRIFT),
+        requires_capabilities=("shared_representation",),
+        active_when=(ActivationRule(
+            "model_architecture",
+            (
+                "shared_backbone", "residual_adapter",
+                "shared_classifier_residual_adapter",
+            ),
+            "共有表現構造のとき",
+        ),),
+        cli_name="shared-model-distribution",
     ),
     OptionSpec(
         "shared_adapter_rank", "概念別残差adapter rank R_adapter", "model",

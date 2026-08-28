@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 17
+METRIC_SCHEMA_VERSION = 18
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -72,6 +72,33 @@ METRICS = (
             "comm_bytes_total",
         ),
         "communication_volume", PRIMARY, ALL_METHODS, False,
+    ),
+    *_make(
+        (
+            "versioned_cache_parameter_values_saved",
+            "versioned_cache_bytes_saved",
+            "versioned_cache_down_reduction_rate",
+            "versioned_cache_backbone_hit_rate",
+            "versioned_cache_personalized_hit_rate",
+        ),
+        "communication_cache", DIAGNOSTIC, FEDSDA_METHODS, None,
+        {
+            "versioned_cache_parameter_values_saved": (
+                "完全配布と比べてversioned cacheが省略した下りパラメータ値数"
+            ),
+            "versioned_cache_bytes_saved": (
+                "完全配布と比べてversioned cacheが省略した下りバイト数"
+            ),
+            "versioned_cache_down_reduction_rate": (
+                "完全配布を基準とした下りパラメータ値数の削減率"
+            ),
+            "versioned_cache_backbone_hit_rate": (
+                "共有部の配布候補のうち前回版を再利用できた割合"
+            ),
+            "versioned_cache_personalized_hit_rate": (
+                "概念別部の配布候補のうち前回版を再利用できた割合"
+            ),
+        },
     ),
     *_make(
         ("final_model_count",), "model_population", PRIMARY, ALL_METHODS, False,
@@ -355,7 +382,7 @@ METRIC_PROFILES = {
     }),
     "resource": tuple(metric.id for metric in METRICS if metric.group in {
         "communication", "communication_volume", "runtime", "compute",
-        "model_population",
+        "communication_cache", "model_population",
     }),
     "model_diagnostics": tuple(metric.id for metric in METRICS if metric.group in {
         "model_learning", "model_complementarity",

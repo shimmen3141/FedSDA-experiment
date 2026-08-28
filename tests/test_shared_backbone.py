@@ -432,6 +432,79 @@ def test_shared_server_counts_backbone_once_per_client_transfer():
     )
 
 
+def test_versioned_cache_sends_only_changed_personalized_component(monkeypatch):
+    monkeypatch.setattr(
+        config, "SHARED_MODEL_DISTRIBUTION", "versioned_cache"
+    )
+    client = _two_head_client()
+    server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    server.register_model_params(0, client.models[0].get_params())
+    server.register_model_params(1, client.models[1].get_params())
+    server.register_client(client)
+
+    backbone, changed_head = SharedBackboneMLP.split_params(
+        server.global_models[1]
+    )
+    changed_head = {
+        name: value.clone() for name, value in changed_head.items()
+    }
+    first_name = next(iter(changed_head))
+    changed_head[first_name].add_(1.0)
+    server.global_models[1] = SharedBackboneMLP.combine_params(
+        backbone, changed_head
+    )
+    head_values, _ = parameter_payload_size(changed_head)
+
+    server.broadcast_models()
+
+    assert server.comm_models_down == 1
+    assert server.comm_parameter_values_down == head_values
+    assert server.comm_messages_down == 1
+    assert server.versioned_cache_backbone_hits == 1
+    assert server.versioned_cache_personalized_hits == 1
+    assert all(
+        torch.equal(value, client.models[1].get_params()[name])
+        for name, value in server.global_models[1].items()
+    )
+
+    transferred_before = server.comm_parameter_values_down
+    server.broadcast_models()
+    assert server.comm_parameter_values_down == transferred_before
+    assert server.comm_models_down == 1
+    assert server.comm_messages_down == 2
+
+
+def test_versioned_cache_and_full_distribution_apply_identical_state(monkeypatch):
+    full_client = _two_head_client()
+    cached_client = _two_head_client()
+    full_server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    cached_server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    for server, client in (
+        (full_server, full_client), (cached_server, cached_client),
+    ):
+        server.register_model_params(0, full_client.models[0].get_params())
+        server.register_model_params(1, full_client.models[1].get_params())
+        server.register_client(client)
+        for params in server.global_models.values():
+            for value in params.values():
+                value.add_(0.25)
+
+    monkeypatch.setattr(config, "SHARED_MODEL_DISTRIBUTION", "full")
+    full_server.broadcast_models()
+    monkeypatch.setattr(
+        config, "SHARED_MODEL_DISTRIBUTION", "versioned_cache"
+    )
+    cached_server.broadcast_models()
+
+    for model_id in full_server.global_models:
+        full_params = full_client.models[model_id].get_params()
+        cached_params = cached_client.models[model_id].get_params()
+        assert all(
+            torch.equal(value, cached_params[name])
+            for name, value in full_params.items()
+        )
+
+
 def test_shared_cross_evaluation_deduplicates_backbone_and_heads():
     first_client = _two_head_client()
     second_client = _two_head_client()
