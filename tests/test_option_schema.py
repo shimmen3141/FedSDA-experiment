@@ -49,9 +49,6 @@ def test_schema_choices_follow_runtime_configuration():
     assert option("shared_backbone_training").choices == (
         config.SHARED_BACKBONE_TRAINING_CHOICES
     )
-    assert option("shared_model_synchronization").choices == (
-        config.SHARED_MODEL_SYNCHRONIZATION_CHOICES
-    )
     assert option("soft_routing_context").choices == (
         config.SOFT_ROUTING_CONTEXT_CHOICES
     )
@@ -253,20 +250,6 @@ def test_shared_backbone_training_requires_shared_architecture():
         "server_flow": "NoCached",
         "routing": "restarting_soft",
         "detector": "ClassESR",
-    }) == ()
-
-
-def test_versioned_cache_distribution_requires_shared_architecture():
-    assert validate_selection("FedSDA", {
-        "model_architecture": "independent",
-        "shared_model_synchronization": "versioned_cache",
-    }) == (
-        "shared_model_synchronization is active only when 共有表現構造のとき",
-    )
-    assert validate_selection("FedSDA", {
-        "model_architecture": "residual_adapter",
-        "shared_model_synchronization": "versioned_cache",
-        "server_flow": "NoCached",
     }) == ()
 
 

@@ -1970,11 +1970,6 @@ def _save_raw_run(
             if is_shared_representation_mode(mode) else "",
             dtype=np.str_,
         ),
-        shared_model_synchronization=np.asarray(
-            config.SHARED_MODEL_SYNCHRONIZATION
-            if is_shared_representation_mode(mode) else "",
-            dtype=np.str_,
-        ),
         soft_routing_context=np.asarray(
             config.SOFT_ROUTING_CONTEXT if "SoftRouting" in mode else "",
             dtype=np.str_,
@@ -2151,64 +2146,6 @@ def run_random_drift_experiment(mode='FedDrift', distance_threshold=None,
     results["comm_bytes_up"] = server.comm_bytes_up
     results["comm_bytes_down"] = server.comm_bytes_down
     results["comm_bytes_total"] = server.comm_bytes_up + server.comm_bytes_down
-    cache_full_down = getattr(
-        server, "versioned_cache_full_parameter_values_down", 0
-    )
-    cache_backbone_opportunities = getattr(
-        server, "versioned_cache_download_backbone_opportunities", 0
-    )
-    cache_personalized_opportunities = getattr(
-        server, "versioned_cache_download_personalized_opportunities", 0
-    )
-    results["versioned_cache_parameter_values_saved_down"] = getattr(
-        server, "versioned_cache_parameter_values_saved_down", 0
-    )
-    results["versioned_cache_bytes_saved_down"] = getattr(
-        server, "versioned_cache_bytes_saved_down", 0
-    )
-    results["versioned_cache_down_reduction_rate"] = (
-        results["versioned_cache_parameter_values_saved_down"] / cache_full_down
-        if cache_full_down > 0 else 0.0
-    )
-    results["versioned_cache_download_backbone_hit_rate"] = (
-        getattr(server, "versioned_cache_download_backbone_hits", 0)
-        / cache_backbone_opportunities
-        if cache_backbone_opportunities > 0 else 0.0
-    )
-    results["versioned_cache_download_personalized_hit_rate"] = (
-        getattr(server, "versioned_cache_download_personalized_hits", 0)
-        / cache_personalized_opportunities
-        if cache_personalized_opportunities > 0 else 0.0
-    )
-    cache_full_up = getattr(
-        server, "versioned_cache_full_parameter_values_up", 0
-    )
-    cache_upload_backbone_opportunities = getattr(
-        server, "versioned_cache_upload_backbone_opportunities", 0
-    )
-    cache_upload_personalized_opportunities = getattr(
-        server, "versioned_cache_upload_personalized_opportunities", 0
-    )
-    results["versioned_cache_parameter_values_saved_up"] = getattr(
-        server, "versioned_cache_parameter_values_saved_up", 0
-    )
-    results["versioned_cache_bytes_saved_up"] = getattr(
-        server, "versioned_cache_bytes_saved_up", 0
-    )
-    results["versioned_cache_up_reduction_rate"] = (
-        results["versioned_cache_parameter_values_saved_up"] / cache_full_up
-        if cache_full_up > 0 else 0.0
-    )
-    results["versioned_cache_upload_backbone_hit_rate"] = (
-        getattr(server, "versioned_cache_upload_backbone_hits", 0)
-        / cache_upload_backbone_opportunities
-        if cache_upload_backbone_opportunities > 0 else 0.0
-    )
-    results["versioned_cache_upload_personalized_hit_rate"] = (
-        getattr(server, "versioned_cache_upload_personalized_hits", 0)
-        / cache_upload_personalized_opportunities
-        if cache_upload_personalized_opportunities > 0 else 0.0
-    )
     if spec.use_server:
         footprint_values, footprint_bytes = server.final_parameter_footprint()
     else:

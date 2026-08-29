@@ -19,7 +19,6 @@ class AlgorithmOptions:
     new_model_forward_validation_samples: int
     shared_backbone_training: str
     shared_backbone_routing_recalibration: str
-    shared_model_synchronization: str = "full"
     shared_adapter_rank: int = 8
     shared_backbone_gradient_strategy: str = "mean"
     soft_routing_context: str = "global"
@@ -47,9 +46,6 @@ class AlgorithmOptions:
             shared_backbone_training=config.SHARED_BACKBONE_TRAINING,
             shared_backbone_routing_recalibration=(
                 config.SHARED_BACKBONE_ROUTING_RECALIBRATION
-            ),
-            shared_model_synchronization=(
-                config.SHARED_MODEL_SYNCHRONIZATION
             ),
             shared_adapter_rank=config.SHARED_ADAPTER_RANK,
             shared_backbone_gradient_strategy=(
@@ -97,9 +93,6 @@ class AlgorithmOptions:
             "SHARED_BACKBONE_TRAINING": self.shared_backbone_training,
             "SHARED_BACKBONE_ROUTING_RECALIBRATION": (
                 self.shared_backbone_routing_recalibration
-            ),
-            "SHARED_MODEL_SYNCHRONIZATION": (
-                self.shared_model_synchronization
             ),
             "SHARED_ADAPTER_RANK": self.shared_adapter_rank,
             "SHARED_BACKBONE_GRADIENT_STRATEGY": (

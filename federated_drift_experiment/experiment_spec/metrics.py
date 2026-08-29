@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 19
+METRIC_SCHEMA_VERSION = 20
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -72,53 +72,6 @@ METRICS = (
             "comm_bytes_total",
         ),
         "communication_volume", PRIMARY, ALL_METHODS, False,
-    ),
-    *_make(
-        (
-            "versioned_cache_parameter_values_saved_down",
-            "versioned_cache_bytes_saved_down",
-            "versioned_cache_down_reduction_rate",
-            "versioned_cache_download_backbone_hit_rate",
-            "versioned_cache_download_personalized_hit_rate",
-            "versioned_cache_parameter_values_saved_up",
-            "versioned_cache_bytes_saved_up",
-            "versioned_cache_up_reduction_rate",
-            "versioned_cache_upload_backbone_hit_rate",
-            "versioned_cache_upload_personalized_hit_rate",
-        ),
-        "communication_cache", DIAGNOSTIC, FEDSDA_METHODS, None,
-        {
-            "versioned_cache_parameter_values_saved_down": (
-                "完全配布と比べてversioned cacheが省略した下りパラメータ値数"
-            ),
-            "versioned_cache_bytes_saved_down": (
-                "完全配布と比べてversioned cacheが省略した下りバイト数"
-            ),
-            "versioned_cache_down_reduction_rate": (
-                "完全配布を基準とした下りパラメータ値数の削減率"
-            ),
-            "versioned_cache_download_backbone_hit_rate": (
-                "共有部の配布候補のうち前回版を再利用できた割合"
-            ),
-            "versioned_cache_download_personalized_hit_rate": (
-                "概念別部の配布候補のうち前回版を再利用できた割合"
-            ),
-            "versioned_cache_parameter_values_saved_up": (
-                "完全回収と比べてversioned cacheが省略した上りパラメータ値数"
-            ),
-            "versioned_cache_bytes_saved_up": (
-                "完全回収と比べてversioned cacheが省略した上りバイト数"
-            ),
-            "versioned_cache_up_reduction_rate": (
-                "完全回収を基準とした上りパラメータ値数の削減率"
-            ),
-            "versioned_cache_upload_backbone_hit_rate": (
-                "共有部の回収候補のうちサーバ既知版を再利用できた割合"
-            ),
-            "versioned_cache_upload_personalized_hit_rate": (
-                "概念別部の回収候補のうちサーバ既知版を再利用できた割合"
-            ),
-        },
     ),
     *_make(
         ("final_model_count",), "model_population", PRIMARY, ALL_METHODS, False,
@@ -402,7 +355,7 @@ METRIC_PROFILES = {
     }),
     "resource": tuple(metric.id for metric in METRICS if metric.group in {
         "communication", "communication_volume", "runtime", "compute",
-        "communication_cache", "model_population",
+        "model_population",
     }),
     "model_diagnostics": tuple(metric.id for metric in METRICS if metric.group in {
         "model_learning", "model_complementarity",

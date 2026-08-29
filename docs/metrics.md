@@ -36,7 +36,6 @@
 | `predictive_performance` | 予測性能 | `accuracy`, `stable_accuracy` |
 | `detection` | 真のドリフトとの照合 | `precision`, `recall`, `f1`, `avg_delay`, `total_detect` |
 | `communication` / `communication_volume` | モデル転送回数、軽量メッセージ、実パラメータ量 | `comm_models_*`, `comm_messages_*`, `comm_parameter_values_*`, `comm_bytes_*` |
-| `communication_cache` | 双方の既知版の再利用による同期省略量と構成要素別hit率 | `versioned_cache_*` |
 | `model_population` | モデル数の終値・時系列要約 | `final_model_count`, `mean_model_count`, `max_model_count`, `model_count_auc` |
 | `runtime` / `compute` | 時間とモデル計算回数 | `runtime_seconds`, `client_compute_seconds_*`, `compute_*` |
 | `change_point` | 推定変化点の誤差 | `change_point_mae`, `change_point_bias`, `change_point_estimate_count` |
