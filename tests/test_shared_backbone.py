@@ -30,6 +30,33 @@ def test_routing_window_accuracies_separates_recovery_and_stable_samples():
     assert result["stable_accuracy"] == 2 / 3
 
 
+def test_routing_metrics_separate_oracle_and_leader_by_window(monkeypatch):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    monkeypatch.setattr(config, "N_CLIENTS", 2)
+    monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 100)
+    monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 30)
+    monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
+    monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 50)
+    monkeypatch.setattr(config, "STABLE_WINDOW", 10)
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "meta_switching")
+
+    results = run_random_drift_experiment(
+        mode="FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+        random_seed=0,
+        verbose=False,
+        show_plot=False,
+    )
+
+    assert 0 <= results["routing_oracle_stable_accuracy"] <= 1
+    assert 0 <= results["routing_oracle_recovery_accuracy"] <= 1
+    assert 0 <= results["routing_leader_stable_accuracy"] <= 1
+    assert 0 <= results["routing_leader_recovery_accuracy"] <= 1
+    assert results["routing_stable_oracle_gap"] >= 0
+    assert results["routing_recovery_oracle_gap"] >= 0
+    assert 0 <= results["routing_meta_global_stable_accuracy"] <= 1
+    assert 0 <= results["routing_meta_stable_accuracy"] <= 1
+
+
 def _two_head_client():
     first = SharedBackboneMLP()
     second = SharedBackboneMLP(backbone=first.backbone)

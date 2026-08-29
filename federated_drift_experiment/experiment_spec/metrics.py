@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-METRIC_SCHEMA_VERSION = 20
+METRIC_SCHEMA_VERSION = 21
 
 PRIMARY = "primary"
 SECONDARY = "secondary"
@@ -225,6 +225,12 @@ METRICS = (
             "routing_mixture_accuracy", "routing_leader_accuracy",
             "routing_confidence_leader_accuracy",
             "routing_oracle_gain_rate", "routing_oracle_recovery_rate",
+            "routing_oracle_stable_accuracy",
+            "routing_oracle_recovery_accuracy",
+            "routing_leader_stable_accuracy",
+            "routing_leader_recovery_accuracy",
+            "routing_stable_oracle_gap",
+            "routing_recovery_oracle_gap",
             "routing_missed_oracle_count", "routing_aggregation_restart_count",
             "routing_confidence_leader_oracle_recovery_rate",
             "routing_confidence_leader_missed_oracle_count",
@@ -239,6 +245,10 @@ METRICS = (
             "routing_meta_accuracy",
             "routing_meta_gain_rate",
             "routing_meta_global_accuracy",
+            "routing_meta_global_stable_accuracy",
+            "routing_meta_global_recovery_accuracy",
+            "routing_meta_stable_accuracy",
+            "routing_meta_recovery_accuracy",
             "routing_meta_context_mixture_accuracy",
             "routing_meta_context_leader_accuracy",
             "routing_meta_best_candidate_gain_rate",

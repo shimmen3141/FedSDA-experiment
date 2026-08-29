@@ -504,6 +504,23 @@ def _routing_window_accuracies(histories, true_drift_events, window):
     }
 
 
+def _optional_routing_window(clients, history_attribute, true_drift_events):
+    """全クライアントで利用可能なrouting系列だけを区間別に集計する。"""
+    histories = [
+        getattr(client, history_attribute, None) for client in clients
+    ]
+    if not histories or any(history is None for history in histories):
+        return {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
+    if any(
+        len(history) != len(client.history_accuracy)
+        for client, history in zip(clients, histories)
+    ):
+        return {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
+    return _routing_window_accuracies(
+        histories, true_drift_events, config.STABLE_WINDOW,
+    )
+
+
 def _routing_leave_one_out_records(clients):
     """クライアント内のrouting寄与十分統計を保存可能な行へ展開する。"""
     active_ids = {
@@ -831,23 +848,33 @@ def _add_model_diagnostic_results(
         ).items():
             routing_meta_switching[key] += float(value)
 
-    switching_window = {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
-    actual_window = {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
-    switching_histories = [
-        getattr(client, "history_routing_switching_correct", None)
-        for client in clients
-    ]
-    if (
-        routing_switching["sample_count"]
-        and all(history is not None for history in switching_histories)
-    ):
-        switching_window = _routing_window_accuracies(
-            switching_histories, true_drift_events, config.STABLE_WINDOW,
-        )
+    zero_window = {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
+    actual_window = zero_window
+    oracle_window = zero_window
+    leader_window = zero_window
+    meta_global_window = zero_window
+    meta_window = zero_window
+    switching_window = zero_window
+    if routing_samples:
         actual_window = _routing_window_accuracies(
             [client.history_accuracy for client in clients],
             true_drift_events,
             config.STABLE_WINDOW,
+        )
+        oracle_window = _optional_routing_window(
+            clients, "history_routing_oracle_correct", true_drift_events,
+        )
+        leader_window = _optional_routing_window(
+            clients, "history_routing_leader_correct", true_drift_events,
+        )
+        meta_global_window = _optional_routing_window(
+            clients, "history_routing_meta_global_correct", true_drift_events,
+        )
+        meta_window = _optional_routing_window(
+            clients, "history_routing_meta_correct", true_drift_events,
+        )
+        switching_window = _optional_routing_window(
+            clients, "history_routing_switching_correct", true_drift_events,
         )
 
     class_oracle_accuracies = []
@@ -926,6 +953,22 @@ def _add_model_diagnostic_results(
             routing["mixture_correct_count"] / oracle_correct
             if oracle_correct else 0.0
         ),
+        "routing_oracle_stable_accuracy": oracle_window["stable_accuracy"],
+        "routing_oracle_recovery_accuracy": oracle_window[
+            "recovery_accuracy"
+        ],
+        "routing_leader_stable_accuracy": leader_window["stable_accuracy"],
+        "routing_leader_recovery_accuracy": leader_window[
+            "recovery_accuracy"
+        ],
+        "routing_stable_oracle_gap": (
+            oracle_window["stable_accuracy"]
+            - actual_window["stable_accuracy"]
+        ),
+        "routing_recovery_oracle_gap": (
+            oracle_window["recovery_accuracy"]
+            - actual_window["recovery_accuracy"]
+        ),
         "routing_missed_oracle_count": routing["missed_oracle_count"],
         "routing_confidence_leader_oracle_recovery_rate": (
             routing["confidence_leader_correct_count"] / oracle_correct
@@ -973,6 +1016,16 @@ def _add_model_diagnostic_results(
             / routing_meta["sample_count"]
             if routing_meta["sample_count"] else 0.0
         ),
+        "routing_meta_global_stable_accuracy": meta_global_window[
+            "stable_accuracy"
+        ],
+        "routing_meta_global_recovery_accuracy": meta_global_window[
+            "recovery_accuracy"
+        ],
+        "routing_meta_stable_accuracy": meta_window["stable_accuracy"],
+        "routing_meta_recovery_accuracy": meta_window[
+            "recovery_accuracy"
+        ],
         "routing_meta_context_leader_accuracy": (
             routing_meta["context_leader_correct_count"]
             / routing_meta["sample_count"]

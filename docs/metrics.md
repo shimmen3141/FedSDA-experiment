@@ -112,6 +112,12 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
 - `routing_leader_accuracy`: 最大重みモデル単体が正解した割合。
 - `routing_oracle_gain_rate`: oracle accuracyと実混合accuracyの差。
 - `routing_oracle_recovery_rate`: oracleが正解可能だった標本のうち実混合も正解した割合。
+- `routing_oracle_stable_accuracy` / `routing_oracle_recovery_accuracy`: repository内のいずれかの
+  モデルが正解できた割合を、定常区間と回復区間に分けた上限値。
+- `routing_leader_stable_accuracy` / `routing_leader_recovery_accuracy`: 最大重みモデル単体の精度を、
+  定常区間と回復区間に分けた値。
+- `routing_stable_oracle_gap` / `routing_recovery_oracle_gap`: 各区間におけるoracle精度と実予測精度の差。
+  定常区間でも差が大きければ、モデル容量ではなくroutingに改善余地が残る。
 - `routing_confidence_leader_accuracy`: 各標本で予測確信度が最大の保持モデルを選んだ場合の
   影評価accuracy。正解ラベルはモデル選択に使わない。
 - `routing_confidence_leader_oracle_recovery_rate`: oracleが正解可能だった標本のうち、
@@ -126,6 +132,10 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
   `meta_predicted_class`では定義上0になる。
 - `routing_meta_global_accuracy` / `routing_meta_context_leader_accuracy`: 同一標本上で測る
   2候補それぞれの精度。
+- `routing_meta_global_stable_accuracy` / `routing_meta_global_recovery_accuracy`: Global mixtureを
+  定常区間と回復区間に分けた精度。
+- `routing_meta_stable_accuracy` / `routing_meta_recovery_accuracy`: 上位switchingを適用する前の
+  Meta mixtureを定常区間と回復区間に分けた精度。
 - `routing_meta_context_mixture_accuracy`: 同一標本上で測る予測クラス別mixtureの精度。
 - `routing_meta_best_candidate_gain_rate`: shadow meta-router精度と、実験全体で良かった方の
   単一候補精度との差。正なら文脈別オンライン選択自体に利益がある。

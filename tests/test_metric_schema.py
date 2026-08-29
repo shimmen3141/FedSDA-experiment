@@ -49,6 +49,13 @@ def test_metric_queries_and_profiles_reference_registered_metrics():
     } <= {
         item.id for item in metrics_in_group("routing_contribution")
     }
+    assert {
+        "routing_oracle_stable_accuracy",
+        "routing_stable_oracle_gap",
+        "routing_meta_global_stable_accuracy",
+    } <= {
+        item.id for item in metrics_in_group("soft_routing")
+    }
 
 
 def test_unknown_metric_and_profile_are_rejected():
