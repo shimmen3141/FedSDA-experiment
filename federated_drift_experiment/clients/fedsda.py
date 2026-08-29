@@ -1286,11 +1286,15 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         )
         self.context_expert_routers = defaultdict(AdaHedgeRouter)
         self.shadow_meta_routers = defaultdict(AdaHedgeRouter)
+        # 真の概念IDを診断時だけ与え、概念状態を完全に識別できた場合の
+        # 因果的なルーティング上限を測る。実予測や学習割当には使用しない。
+        self.oracle_concept_expert_routers = defaultdict(AdaHedgeRouter)
         self.history_routing_effective_experts = []
         self.history_routing_max_weight = []
         self.history_routing_gate_open = []
         self.history_routing_oracle_correct = []
         self.history_routing_leader_correct = []
+        self.history_routing_oracle_concept_correct = []
         self.history_routing_meta_correct = []
         self.history_routing_meta_global_correct = []
         self.history_routing_meta_context_mixture_correct = []
@@ -1309,6 +1313,10 @@ class _AdaHedgeRoutingFedSDAClientMixin:
             "confidence_leader_correct_count": 0,
             "missed_oracle_count": 0,
             "confidence_leader_missed_oracle_count": 0,
+        }
+        self.routing_oracle_concept_diagnostics = {
+            "sample_count": 0,
+            "correct_count": 0,
         }
         # 実予測を変えず、global mixtureと文脈別leaderの選択可能性を診断する。
         self.routing_meta_diagnostics = {
@@ -1504,6 +1512,18 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         switching_scores = self._weighted_routing_scores(
             prediction_scores, switching_probabilities
         )
+        oracle_concept_router = self.oracle_concept_expert_routers[
+            int(concept_id)
+        ]
+        oracle_concept_repository_probabilities = (
+            oracle_concept_router.probabilities(repository_model_ids)
+        )
+        oracle_concept_probabilities = self._restrict_routing_probabilities(
+            oracle_concept_repository_probabilities, model_ids
+        )
+        oracle_concept_scores = self._weighted_routing_scores(
+            prediction_scores, oracle_concept_probabilities
+        )
         context_router = None
         context_probabilities = None
         context_scores = None
@@ -1645,6 +1665,16 @@ class _AdaHedgeRoutingFedSDAClientMixin:
             )
         switching_correct = self._routing_correct(
             switching_scores, y, num_classes
+        )
+        oracle_concept_correct = self._routing_correct(
+            oracle_concept_scores, y, num_classes
+        )
+        self.routing_oracle_concept_diagnostics["sample_count"] += 1
+        self.routing_oracle_concept_diagnostics["correct_count"] += int(
+            oracle_concept_correct
+        )
+        self.history_routing_oracle_concept_correct.append(
+            int(oracle_concept_correct)
         )
         switching_global_correct = self._routing_correct(
             global_scores, y, num_classes
@@ -1853,6 +1883,9 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         # 歪んだまま残るため、全ルータの証拠を同じfull-information標本に揃える。
         if update_routing_evidence:
             self.expert_router.update(model_losses, proposal_probabilities)
+            oracle_concept_router.update(
+                model_losses, oracle_concept_repository_probabilities
+            )
             self.switching_expert_router.update(
                 model_losses, switching_probabilities
             )

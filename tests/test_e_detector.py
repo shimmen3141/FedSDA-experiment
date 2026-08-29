@@ -195,6 +195,11 @@ def test_restarting_soft_routing_records_oracle_recovery_diagnostics():
         "confidence_leader_missed_oracle_count": 0,
     }
     assert client.history_routing_oracle_correct == [1]
+    assert client.history_routing_oracle_concept_correct == [1]
+    assert client.routing_oracle_concept_diagnostics == {
+        "sample_count": 1,
+        "correct_count": 1,
+    }
     assert dict(client.routing_class_diagnostics[1]) == {
         "sample_count": 1,
         "oracle_correct_count": 1,
@@ -204,6 +209,33 @@ def test_restarting_soft_routing_records_oracle_recovery_diagnostics():
         "missed_oracle_count": 1,
         "confidence_leader_missed_oracle_count": 0,
     }
+
+
+def test_oracle_concept_router_reuses_separate_causal_evidence():
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP()},
+        initial_stats={
+            0: {"n": 100, "mean": 0.2, "M2": 1.0},
+            1: {"n": 100, "mean": 0.2, "M2": 1.0},
+        },
+        verbose=False,
+    )
+    client.models[0].forward = lambda x: torch.full((len(x), 1), 0.1)
+    client.models[1].forward = lambda x: torch.full((len(x), 1), 0.9)
+    x = torch.zeros((1, config.dataset_spec().input_dim))
+
+    client._record_prediction(x, torch.zeros((1, 1)), concept_id=0)
+    client._record_prediction(x, torch.ones((1, 1)), concept_id=1)
+    client._record_prediction(x, torch.zeros((1, 1)), concept_id=0)
+    client._record_prediction(x, torch.ones((1, 1)), concept_id=1)
+
+    # 各概念の初回だけは等重みで、再訪時は過去の同一概念だけを再利用する。
+    assert client.history_routing_oracle_concept_correct == [1, 0, 1, 1]
+    assert set(client.oracle_concept_expert_routers) == {0, 1}
 
 
 def test_soft_routing_reuses_prediction_forward_for_expert_loss():

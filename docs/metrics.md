@@ -114,6 +114,13 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
 - `routing_oracle_recovery_rate`: oracleが正解可能だった標本のうち実混合も正解した割合。
 - `routing_oracle_stable_accuracy` / `routing_oracle_recovery_accuracy`: repository内のいずれかの
   モデルが正解できた割合を、定常区間と回復区間に分けた上限値。
+- `routing_oracle_concept_accuracy`: 真のコンセプトIDごとに独立したAdaHedgeを診断専用で動かし、
+  過去に観測した損失だけからモデルを重み付けした精度。正解ラベルを見て標本ごとに選ぶoracleより
+  実現可能性に近いが、真のコンセプトIDを与えるため実手法の精度ではない。
+- `routing_oracle_concept_stable_accuracy` / `routing_oracle_concept_recovery_accuracy`: 上記の
+  concept-oracle routerを定常区間と回復区間に分けた精度。
+- `routing_oracle_concept_stable_gain_rate` / `routing_oracle_concept_recovery_gain_rate`: 各区間での
+  concept-oracle routerと実予測の精度差。正なら潜在コンセプト推定をroutingへ利用する余地がある。
 - `routing_leader_stable_accuracy` / `routing_leader_recovery_accuracy`: 最大重みモデル単体の精度を、
   定常区間と回復区間に分けた値。
 - `routing_stable_oracle_gap` / `routing_recovery_oracle_gap`: 各区間におけるoracle精度と実予測精度の差。

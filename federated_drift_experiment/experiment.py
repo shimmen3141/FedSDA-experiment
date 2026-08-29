@@ -841,6 +841,13 @@ def _add_model_diagnostic_results(
         ).items():
             routing_switching[key] += float(value)
 
+    routing_oracle_concept = defaultdict(float)
+    for client in clients:
+        for key, value in getattr(
+            client, "routing_oracle_concept_diagnostics", {}
+        ).items():
+            routing_oracle_concept[key] += float(value)
+
     routing_meta_switching = defaultdict(float)
     for client in clients:
         for key, value in getattr(
@@ -851,6 +858,7 @@ def _add_model_diagnostic_results(
     zero_window = {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
     actual_window = zero_window
     oracle_window = zero_window
+    oracle_concept_window = zero_window
     leader_window = zero_window
     meta_global_window = zero_window
     meta_window = zero_window
@@ -863,6 +871,11 @@ def _add_model_diagnostic_results(
         )
         oracle_window = _optional_routing_window(
             clients, "history_routing_oracle_correct", true_drift_events,
+        )
+        oracle_concept_window = _optional_routing_window(
+            clients,
+            "history_routing_oracle_concept_correct",
+            true_drift_events,
         )
         leader_window = _optional_routing_window(
             clients, "history_routing_leader_correct", true_drift_events,
@@ -957,6 +970,25 @@ def _add_model_diagnostic_results(
         "routing_oracle_recovery_accuracy": oracle_window[
             "recovery_accuracy"
         ],
+        "routing_oracle_concept_accuracy": (
+            routing_oracle_concept["correct_count"]
+            / routing_oracle_concept["sample_count"]
+            if routing_oracle_concept["sample_count"] else 0.0
+        ),
+        "routing_oracle_concept_stable_accuracy": oracle_concept_window[
+            "stable_accuracy"
+        ],
+        "routing_oracle_concept_recovery_accuracy": oracle_concept_window[
+            "recovery_accuracy"
+        ],
+        "routing_oracle_concept_stable_gain_rate": (
+            oracle_concept_window["stable_accuracy"]
+            - actual_window["stable_accuracy"]
+        ),
+        "routing_oracle_concept_recovery_gain_rate": (
+            oracle_concept_window["recovery_accuracy"]
+            - actual_window["recovery_accuracy"]
+        ),
         "routing_leader_stable_accuracy": leader_window["stable_accuracy"],
         "routing_leader_recovery_accuracy": leader_window[
             "recovery_accuracy"
@@ -1497,6 +1529,15 @@ def _save_raw_run(
         )
         telemetry_arrays["history_routing_leader_correct"] = np.asarray(
             [client.history_routing_leader_correct for client in clients],
+            dtype=np.bool_,
+        )
+        telemetry_arrays[
+            "history_routing_oracle_concept_correct"
+        ] = np.asarray(
+            [
+                client.history_routing_oracle_concept_correct
+                for client in clients
+            ],
             dtype=np.bool_,
         )
         telemetry_arrays["history_routing_meta_correct"] = np.asarray(

@@ -49,6 +49,9 @@ def test_routing_metrics_separate_oracle_and_leader_by_window(monkeypatch):
 
     assert 0 <= results["routing_oracle_stable_accuracy"] <= 1
     assert 0 <= results["routing_oracle_recovery_accuracy"] <= 1
+    assert 0 <= results["routing_oracle_concept_accuracy"] <= 1
+    assert 0 <= results["routing_oracle_concept_stable_accuracy"] <= 1
+    assert 0 <= results["routing_oracle_concept_recovery_accuracy"] <= 1
     assert 0 <= results["routing_leader_stable_accuracy"] <= 1
     assert 0 <= results["routing_leader_recovery_accuracy"] <= 1
     assert results["routing_stable_oracle_gap"] >= 0

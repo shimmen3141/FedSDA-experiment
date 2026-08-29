@@ -110,6 +110,11 @@ class _SharedRepresentationFedSDAClientMixin:
             router.restart_after_aggregation()
         for router in getattr(self, "shadow_meta_routers", {}).values():
             router.restart_after_aggregation()
+        # 真の概念別shadowも、共有表現の更新前に得た比較証拠を破棄する。
+        for router in getattr(
+            self, "oracle_concept_expert_routers", {}
+        ).values():
+            router.restart_after_aggregation()
         switching_router = getattr(self, "switching_expert_router", None)
         if switching_router is not None:
             if strategy == "fifo_replay":
