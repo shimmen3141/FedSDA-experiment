@@ -126,10 +126,10 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("shared_backbone_training", None)
         algorithm.pop("shared_backbone_gradient_strategy", None)
         algorithm.pop("shared_backbone_routing_recalibration", None)
-        algorithm.pop("shared_model_distribution", None)
-    elif algorithm.get("shared_model_distribution") == "full":
+        algorithm.pop("shared_model_synchronization", None)
+    elif algorithm.get("shared_model_synchronization") == "full":
         # 完全配布は従来実験と同じ意味なので、既存manifestの同一性を維持する。
-        algorithm.pop("shared_model_distribution", None)
+        algorithm.pop("shared_model_synchronization", None)
     if not experiment.mode.startswith("FedSDA_"):
         algorithm.pop("clustering_consolidation", None)
         algorithm.pop("merge_noninferiority_margin", None)
@@ -264,9 +264,9 @@ def configuration_from_result_row(row, total_data):
             and gradient_strategy not in (None, "", "mean")
         ):
             algorithm["shared_backbone_gradient_strategy"] = gradient_strategy
-        distribution = row.get("shared_model_distribution")
-        if distribution not in (None, "", "full"):
-            algorithm["shared_model_distribution"] = distribution
+        synchronization = row.get("shared_model_synchronization")
+        if synchronization not in (None, "", "full"):
+            algorithm["shared_model_synchronization"] = synchronization
     if "ResidualAdapter" in mode:
         algorithm["shared_adapter_rank"] = _optional_number(
             row.get("shared_adapter_rank"), int,

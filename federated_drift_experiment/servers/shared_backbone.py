@@ -40,13 +40,23 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
         # クライアントが最後に受信したサーバ版を、ローカル学習中のモデルとは分けて保持する。
         # シミュレータ内では完全モデルを適用するが、通信量はこの版との差分payloadだけを数える。
         self._distributed_model_versions = {}
-        self.versioned_cache_parameter_values_saved = 0
-        self.versioned_cache_bytes_saved = 0
+        # サーバが各クライアントについて既に把握している最新版も保持する。
+        # 配布直後の状態は既知なので、未更新の構成要素を次回の上りで再送しない。
+        self._uploaded_model_versions = {}
+        self.versioned_cache_parameter_values_saved_down = 0
+        self.versioned_cache_bytes_saved_down = 0
         self.versioned_cache_full_parameter_values_down = 0
-        self.versioned_cache_backbone_opportunities = 0
-        self.versioned_cache_backbone_hits = 0
-        self.versioned_cache_personalized_opportunities = 0
-        self.versioned_cache_personalized_hits = 0
+        self.versioned_cache_download_backbone_opportunities = 0
+        self.versioned_cache_download_backbone_hits = 0
+        self.versioned_cache_download_personalized_opportunities = 0
+        self.versioned_cache_download_personalized_hits = 0
+        self.versioned_cache_parameter_values_saved_up = 0
+        self.versioned_cache_bytes_saved_up = 0
+        self.versioned_cache_full_parameter_values_up = 0
+        self.versioned_cache_upload_backbone_opportunities = 0
+        self.versioned_cache_upload_backbone_hits = 0
+        self.versioned_cache_upload_personalized_opportunities = 0
+        self.versioned_cache_upload_personalized_hits = 0
 
     def register_client(self, client):
         """初期モデルは実験開始前に配布済みの版としてキャッシュへ登録する。"""
@@ -54,6 +64,11 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
         self._distributed_model_versions[id(client)] = copy.deepcopy(
             self.global_models
         )
+        self._uploaded_model_versions[id(client)] = {
+            model_id: copy.deepcopy(model.get_params())
+            for model_id, model in client.models.items()
+            if model_id >= 0
+        }
 
     def run_round(self, t, clustering_enabled=True):
         """集約・配布後、必要なら更新前のルーティング証拠を破棄する。"""
@@ -84,6 +99,30 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
             self.record_parameter_transfer("down", head)
             self._cross_evaluation_head_recipients.add(head_key)
 
+    def _record_versioned_upload(self, params, cached_params, component):
+        """既知版との差分だけを上りpayloadとして記録する。"""
+        values, byte_count = parameter_payload_size(params)
+        self.versioned_cache_full_parameter_values_up += values
+        if component == "backbone":
+            self.versioned_cache_upload_backbone_opportunities += 1
+        elif component == "personalized":
+            self.versioned_cache_upload_personalized_opportunities += 1
+        else:
+            raise ValueError(f"未知の共有表現構成要素です: {component!r}")
+
+        changed = not _params_equal(params, cached_params)
+        if changed:
+            self.record_parameter_transfer("up", params)
+            return True
+
+        if component == "backbone":
+            self.versioned_cache_upload_backbone_hits += 1
+        else:
+            self.versioned_cache_upload_personalized_hits += 1
+        self.versioned_cache_parameter_values_saved_up += values
+        self.versioned_cache_bytes_saved_up += byte_count
+        return False
+
     def update_global_models(self, active_ids):
         """共有バックボーン1個と各概念ヘッドを別々の重みでFedAvgする。"""
         agg_weights = {model_id: 0 for model_id in active_ids}
@@ -104,24 +143,51 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
             if not assigned:
                 continue
 
-            # 従来の論理モデル転送回数は比較用に維持する。
-            self.comm_models_up += len(assigned)
             representative = client.models[assigned[0][0]]
             backbone_params, _ = SharedBackboneMLP.split_params(
                 representative.get_params()
             )
             client_weight = sum(sample_count for _, sample_count in assigned)
-            self.record_parameter_transfer("up", backbone_params)
+            cached_models = self._uploaded_model_versions.get(id(client), {})
+            cached_backbone = None
+            if cached_models:
+                cached_backbone, _ = SharedBackboneMLP.split_params(
+                    next(iter(cached_models.values()))
+                )
+            use_versioned_cache = (
+                config.SHARED_MODEL_SYNCHRONIZATION == "versioned_cache"
+            )
+            backbone_changed = True
+            if use_versioned_cache:
+                backbone_changed = self._record_versioned_upload(
+                    backbone_params, cached_backbone, "backbone"
+                )
+            else:
+                self.record_parameter_transfer("up", backbone_params)
             backbone_sum = _add_weighted(
                 backbone_sum, backbone_params, client_weight
             )
             backbone_weight += client_weight
 
+            changed_heads = 0
             for model_id, sample_count in assigned:
                 _, head_params = SharedBackboneMLP.split_params(
                     client.models[model_id].get_params()
                 )
-                self.record_parameter_transfer("up", head_params)
+                head_changed = True
+                if use_versioned_cache:
+                    cached_head = None
+                    if model_id in cached_models:
+                        _, cached_head = SharedBackboneMLP.split_params(
+                            cached_models[model_id]
+                        )
+                    head_changed = self._record_versioned_upload(
+                        head_params, cached_head, "personalized"
+                    )
+                else:
+                    self.record_parameter_transfer("up", head_params)
+                if head_changed:
+                    changed_heads += 1
                 head_sums[model_id] = _add_weighted(
                     head_sums[model_id], head_params, sample_count
                 )
@@ -130,6 +196,15 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
                 if stats is not None:
                     stat_weighted_sums[model_id] += stats['mean'] * stats['n']
                     stat_counts[model_id] += stats['n']
+
+            # 共有部が変わった場合は全論理モデルが更新対象となる。共有部を
+            # 再利用できた場合は、実際に送った概念別部だけを転送回数に数える。
+            if use_versioned_cache:
+                self.comm_models_up += (
+                    len(assigned) if backbone_changed else changed_heads
+                )
+            else:
+                self.comm_models_up += len(assigned)
 
         if backbone_weight > 0:
             global_backbone = _divide_params(backbone_sum, backbone_weight)
@@ -164,13 +239,13 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
 
     def broadcast_models(self, id_mapping=None):
         """選択した配布方式で共有部と概念別部を同期する。"""
-        if config.SHARED_MODEL_DISTRIBUTION == "versioned_cache":
+        if config.SHARED_MODEL_SYNCHRONIZATION == "versioned_cache":
             self._broadcast_versioned_models(id_mapping=id_mapping)
             return
-        if config.SHARED_MODEL_DISTRIBUTION != "full":
+        if config.SHARED_MODEL_SYNCHRONIZATION != "full":
             raise ValueError(
-                "未知の共有表現モデル配布方式です: "
-                f"{config.SHARED_MODEL_DISTRIBUTION!r}"
+                "未知の共有表現モデル同期方式です: "
+                f"{config.SHARED_MODEL_SYNCHRONIZATION!r}"
             )
         self._broadcast_full_models(id_mapping=id_mapping)
 
@@ -234,22 +309,22 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
                     client.models[local_global_ids[0]].get_params()
                 )
 
-            self.versioned_cache_backbone_opportunities += 1
+            self.versioned_cache_download_backbone_opportunities += 1
             self.versioned_cache_full_parameter_values_down += backbone_values
             backbone_unchanged = (
                 _params_equal(current_backbone, cached_backbone)
                 or _params_equal(current_backbone, local_backbone)
             )
             if backbone_unchanged:
-                self.versioned_cache_backbone_hits += 1
-                self.versioned_cache_parameter_values_saved += backbone_values
-                self.versioned_cache_bytes_saved += backbone_bytes
+                self.versioned_cache_download_backbone_hits += 1
+                self.versioned_cache_parameter_values_saved_down += backbone_values
+                self.versioned_cache_bytes_saved_down += backbone_bytes
             else:
                 self.record_parameter_transfer("down", current_backbone)
 
             changed_model_ids = set()
             for model_id, current_head in current_heads.items():
-                self.versioned_cache_personalized_opportunities += 1
+                self.versioned_cache_download_personalized_opportunities += 1
                 head_values, head_bytes = parameter_payload_size(current_head)
                 self.versioned_cache_full_parameter_values_down += head_values
                 cached_head = None
@@ -266,9 +341,9 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
                     _params_equal(current_head, cached_head)
                     or _params_equal(current_head, local_head)
                 ):
-                    self.versioned_cache_personalized_hits += 1
-                    self.versioned_cache_parameter_values_saved += head_values
-                    self.versioned_cache_bytes_saved += head_bytes
+                    self.versioned_cache_download_personalized_hits += 1
+                    self.versioned_cache_parameter_values_saved_down += head_values
+                    self.versioned_cache_bytes_saved_down += head_bytes
                 else:
                     self.record_parameter_transfer("down", current_head)
                     changed_model_ids.add(model_id)
@@ -279,9 +354,18 @@ class SharedBackboneFedSDANoCachedServer(FedSDANoCachedServer):
                 self.comm_models_down += len(changed_model_ids)
             else:
                 self.comm_models_down += len(self.global_models)
-            # 版番号・有効モデルID・削除IDは1クライアント1通の軽量manifestとする。
-            self.comm_messages_down += 1
+            # 一部を省略する場合だけ版番号と有効モデルIDをmanifestで伝える。
+            # 全構成要素を送る場合は通常配布と同じため、余分なmessageを増やさない。
+            if (
+                backbone_unchanged
+                or len(changed_model_ids) < len(self.global_models)
+                or id_mapping
+            ):
+                self.comm_messages_down += 1
             self._distributed_model_versions[id(client)] = copy.deepcopy(
+                self.global_models
+            )
+            self._uploaded_model_versions[id(client)] = copy.deepcopy(
                 self.global_models
             )
             client.apply_server_mapping(

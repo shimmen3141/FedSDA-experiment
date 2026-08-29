@@ -106,10 +106,10 @@ SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (
     "none", "aggregation_restart", "fifo_replay", "leader_change_replay",
     "persistent_leader_change_replay",
 )
-# 共有表現モデルの定期配布方式。versioned_cacheは、最後に配布した版と比較して
-# 変更された共有部・概念別部だけを再送する。
-SHARED_MODEL_DISTRIBUTION = "full"
-SHARED_MODEL_DISTRIBUTION_CHOICES = ("full", "versioned_cache")
+# 共有表現モデルの同期方式。versioned_cacheは、サーバとクライアントが把握済みの版を
+# 比較し、上り・下りとも変更された共有部・概念別部だけを送る。
+SHARED_MODEL_SYNCHRONIZATION = "full"
+SHARED_MODEL_SYNCHRONIZATION_CHOICES = ("full", "versioned_cache")
 # SoftRoutingの証拠を全入力で共有するか、予測クラスごとに分けるかを選ぶ。
 SOFT_ROUTING_CONTEXT = "global"
 SOFT_ROUTING_CONTEXT_CHOICES = (

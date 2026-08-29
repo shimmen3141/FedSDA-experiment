@@ -434,7 +434,7 @@ def test_shared_server_counts_backbone_once_per_client_transfer():
 
 def test_versioned_cache_sends_only_changed_personalized_component(monkeypatch):
     monkeypatch.setattr(
-        config, "SHARED_MODEL_DISTRIBUTION", "versioned_cache"
+        config, "SHARED_MODEL_SYNCHRONIZATION", "versioned_cache"
     )
     client = _two_head_client()
     server = SharedBackboneFedSDANoCachedServer(verbose=False)
@@ -460,8 +460,8 @@ def test_versioned_cache_sends_only_changed_personalized_component(monkeypatch):
     assert server.comm_models_down == 1
     assert server.comm_parameter_values_down == head_values
     assert server.comm_messages_down == 1
-    assert server.versioned_cache_backbone_hits == 1
-    assert server.versioned_cache_personalized_hits == 1
+    assert server.versioned_cache_download_backbone_hits == 1
+    assert server.versioned_cache_download_personalized_hits == 1
     assert all(
         torch.equal(value, client.models[1].get_params()[name])
         for name, value in server.global_models[1].items()
@@ -472,6 +472,88 @@ def test_versioned_cache_sends_only_changed_personalized_component(monkeypatch):
     assert server.comm_parameter_values_down == transferred_before
     assert server.comm_models_down == 1
     assert server.comm_messages_down == 2
+
+
+def test_versioned_cache_uploads_only_changed_personalized_component(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        config, "SHARED_MODEL_SYNCHRONIZATION", "versioned_cache"
+    )
+    client = _two_head_client()
+    server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    server.register_model_params(0, client.models[0].get_params())
+    server.register_model_params(1, client.models[1].get_params())
+    server.register_client(client)
+    _populate_training_store(client)
+
+    _, unchanged_head = SharedBackboneMLP.split_params(
+        client.models[0].get_params()
+    )
+    backbone, changed_head = SharedBackboneMLP.split_params(
+        client.models[1].get_params()
+    )
+    changed_head = {
+        name: value.clone() for name, value in changed_head.items()
+    }
+    first_name = next(iter(changed_head))
+    changed_head[first_name].add_(1.0)
+    client.models[1].set_params(SharedBackboneMLP.combine_params(
+        backbone, changed_head
+    ))
+    head_values, _ = parameter_payload_size(changed_head)
+
+    server.update_global_models([0, 1])
+
+    assert server.comm_models_up == 1
+    assert server.comm_parameter_values_up == head_values
+    assert server.versioned_cache_upload_backbone_hits == 1
+    assert server.versioned_cache_upload_personalized_hits == 1
+    backbone_values, _ = parameter_payload_size(backbone)
+    unchanged_head_values, _ = parameter_payload_size(unchanged_head)
+    assert server.versioned_cache_parameter_values_saved_up == (
+        backbone_values + unchanged_head_values
+    )
+
+
+def test_versioned_cache_and_full_upload_aggregate_identically(monkeypatch):
+    full_client = _two_head_client()
+    cached_client = _two_head_client()
+    for model_id in full_client.models:
+        cached_client.models[model_id].set_params(
+            full_client.models[model_id].get_params()
+        )
+    _populate_training_store(full_client)
+    _populate_training_store(cached_client)
+    full_server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    cached_server = SharedBackboneFedSDANoCachedServer(verbose=False)
+    for server, client in (
+        (full_server, full_client), (cached_server, cached_client),
+    ):
+        server.register_model_params(0, client.models[0].get_params())
+        server.register_model_params(1, client.models[1].get_params())
+        server.register_client(client)
+        backbone, head = SharedBackboneMLP.split_params(
+            client.models[1].get_params()
+        )
+        head = {name: value.clone() for name, value in head.items()}
+        head[next(iter(head))].add_(1.0)
+        client.models[1].set_params(
+            SharedBackboneMLP.combine_params(backbone, head)
+        )
+
+    monkeypatch.setattr(config, "SHARED_MODEL_SYNCHRONIZATION", "full")
+    full_server.update_global_models([0, 1])
+    monkeypatch.setattr(
+        config, "SHARED_MODEL_SYNCHRONIZATION", "versioned_cache"
+    )
+    cached_server.update_global_models([0, 1])
+
+    for model_id in full_server.global_models:
+        assert all(
+            torch.equal(value, cached_server.global_models[model_id][name])
+            for name, value in full_server.global_models[model_id].items()
+        )
 
 
 def test_versioned_cache_and_full_distribution_apply_identical_state(monkeypatch):
@@ -489,10 +571,10 @@ def test_versioned_cache_and_full_distribution_apply_identical_state(monkeypatch
             for value in params.values():
                 value.add_(0.25)
 
-    monkeypatch.setattr(config, "SHARED_MODEL_DISTRIBUTION", "full")
+    monkeypatch.setattr(config, "SHARED_MODEL_SYNCHRONIZATION", "full")
     full_server.broadcast_models()
     monkeypatch.setattr(
-        config, "SHARED_MODEL_DISTRIBUTION", "versioned_cache"
+        config, "SHARED_MODEL_SYNCHRONIZATION", "versioned_cache"
     )
     cached_server.broadcast_models()
 

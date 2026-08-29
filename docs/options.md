@@ -46,7 +46,7 @@ flowchart LR
     shared_adapter_rank["<b>概念別残差adapter rank R_adapter</b><br/>positive integer"]
   end
   subgraph group_communication[communication]
-    shared_model_distribution["<b>共有表現モデル配布</b><br/>full | versioned_cache"]
+    shared_model_synchronization["<b>共有表現モデル同期</b><br/>full | versioned_cache"]
   end
   subgraph group_adaptation[adaptation]
     new_model_creation_policy["<b>新規モデル作成方針</b><br/>immediate | validated | forward_validated | forward_requalified | forward_requalified_current_first | forward_persistent | shadow_tournament"]
@@ -96,7 +96,7 @@ flowchart LR
   shared_backbone_training -->|"共有表現をjoint学習するとき"| shared_backbone_gradient_strategy
   model_architecture -->|"共有表現構造のとき"| shared_backbone_routing_recalibration
   routing -->|"Restarting SoftRoutingのとき"| shared_backbone_routing_recalibration
-  model_architecture -->|"共有表現構造のとき"| shared_model_distribution
+  model_architecture -->|"共有表現構造のとき"| shared_model_synchronization
   model_architecture -->|"低ランク残差adapter構造のとき"| shared_adapter_rank
   new_model_training -->|"初期学習を行うとき"| new_model_epochs
   new_model_creation_policy -->|"validatedのとき"| new_model_validation_fraction
@@ -144,7 +144,7 @@ flowchart LR
 | `shared_backbone_training` | cli: `--shared-backbone-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 通常ローカル更新で共有部を逐次更新・共同更新・固定のどれにするか |
 | `shared_backbone_gradient_strategy` | cli: `--shared-backbone-gradient-strategy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 共同学習時の概念別バックボーン勾配を平均または競合射影で統合する方式 |
 | `shared_backbone_routing_recalibration` | cli: `--shared-backbone-routing-recalibration` | 実装済み | 理論上のみ | 対象外 | 対象外 | サーバ集約で共有表現が変化した後にSoftRoutingの累積証拠を扱う方式 |
-| `shared_model_distribution` | cli: `--shared-model-distribution` | 実装済み | 理論上のみ | 対象外 | 対象外 | 全共有部・概念別部を毎回送るか、前回配布版から変更された構成要素だけを送るか |
+| `shared_model_synchronization` | cli: `--shared-model-synchronization` | 実装済み | 理論上のみ | 対象外 | 対象外 | 全構成要素を毎回同期するか、双方の既知版から変更された構成要素だけを送るか |
 | `shared_adapter_rank` | cli: `--shared-adapter-rank` | 実装済み | 理論上のみ | 対象外 | 対象外 | 低ランク残差adapterの最大rank。特徴次元を上限とする |
 | `new_model_creation_policy` | cli: `--new-model-creation-policy` | 実装済み | 理論上のみ | 対象外 | 対象外 | 警報後に新規モデルを即時作成するか、検証してから採用するか |
 | `new_model_training` | cli: `--new-model-training` | 実装済み | 理論上のみ | 対象外 | 対象外 | 新規モデル候補の初期学習方法 |

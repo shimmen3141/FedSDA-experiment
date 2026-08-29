@@ -284,21 +284,33 @@ NoCachedサーバは各クライアントから次を集約する。
 2. 概念別ヘッドをモデルIDごとにアップロードし、そのモデルのデータ数でFedAvgする。
 3. 配布時も共有バックボーンはクライアントごとに1回、ヘッドはモデルIDごとに送る。
 
-`--shared-model-distribution versioned_cache`では、各クライアントが最後に受信したサーバ版を
-ローカル学習中の作業モデルとは別にキャッシュする。次の同期では共有バックボーンと各概念別部を
-個別に比較し、版が変わった構成要素だけを送る。集約結果がクライアントのローカル更新結果と
+`--shared-model-synchronization versioned_cache`では、各クライアントが最後に受信したサーバ版と、
+サーバが最後に把握したクライアント版をそれぞれキャッシュする。次の同期では共有バックボーンと
+各概念別部を個別に比較し、版が変わった構成要素だけを上り・下りで送る。集約結果がクライアントのローカル更新結果と
 厳密に一致する場合も、同じ内容を送り返さずそのローカル版を採用する。モデルID一覧、削除ID、構成要素の版番号は
-クライアントごとに1通の軽量manifestとして扱う。省略した構成要素は受信済み版から復元するため、
+差分送信が必要な場合だけクライアントごとに1通の軽量manifestとして扱う。省略した構成要素は既知版から復元するため、
 完全配布と予測・学習結果は同一であり、active集合の削減のように利用可能なexpertも変えない。
 
 この方式が対象とするのは定期的な集約後配布である。クロス評価用の一時的な候補配布は、評価依頼の
 生存期間と正式repositoryの版管理を混同しないため、従来どおり同一評価フェーズ内だけで重複排除する。
-完全配布との差は`comm_parameter_values_down`と`comm_bytes_down`で比較し、削減理由は次で診断する。
+完全同期との差は`comm_parameter_values_*`と`comm_bytes_*`で比較し、削減理由は次で診断する。
 
-- `versioned_cache_parameter_values_saved` / `versioned_cache_bytes_saved`: 省略できたpayload量。
+- `versioned_cache_parameter_values_saved_down` / `versioned_cache_bytes_saved_down`: 下りで省略できたpayload量。
 - `versioned_cache_down_reduction_rate`: 完全配布を基準にした下りパラメータ値数の削減率。
-- `versioned_cache_backbone_hit_rate`: 共有部を再利用できた割合。
-- `versioned_cache_personalized_hit_rate`: 概念別部を再利用できた割合。
+- `versioned_cache_download_backbone_hit_rate`: 下りで共有部を再利用できた割合。
+- `versioned_cache_download_personalized_hit_rate`: 下りで概念別部を再利用できた割合。
+- `versioned_cache_parameter_values_saved_up` / `versioned_cache_bytes_saved_up`: 上りで省略できたpayload量。
+- `versioned_cache_up_reduction_rate`: 完全回収を基準にした上りパラメータ値数の削減率。
+- `versioned_cache_upload_backbone_hit_rate`: 上りで共有部を再利用できた割合。
+- `versioned_cache_upload_personalized_hit_rate`: 上りで概念別部を再利用できた割合。
+
+2026年8月29日の下りキャッシュ予備実験（Circle2・MNIST2・MNIST4、2 seed、
+集約間隔50・500）では、12 runすべてで共有部・概念別部の下りhit率が0だった。
+集約のたびに全構成要素が変化する現行のFedAvgでは、下りだけの版管理は通信を削減しない。
+一方、上りではローカル更新されなかった概念別部をサーバ既知版から再利用できるため、
+双方向同期へ拡張した。600サンプルの同一seed比較では予測結果を一致させたまま、上りの
+パラメータ値数を6.85%削減した。これは予備値であり、`full`を既定のまま維持し、複数条件で
+削減率を確認してから有力構成へ昇格する。
 
 クロス評価では同ラウンドの集約済み候補を評価する既存NoCachedプロトコルを維持するため、
 候補の完全なバックボーン＋ヘッドを評価先へ送る。将来、評価先で同じ集約済みバックボーンを

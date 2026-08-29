@@ -293,11 +293,11 @@ OPTIONS = (
         cli_name="shared-backbone-routing-recalibration",
     ),
     OptionSpec(
-        "shared_model_distribution",
-        "共有表現モデル配布",
+        "shared_model_synchronization",
+        "共有表現モデル同期",
         "communication",
         ("full", "versioned_cache"),
-        "全共有部・概念別部を毎回送るか、前回配布版から変更された構成要素だけを送るか",
+        "全構成要素を毎回同期するか、双方の既知版から変更された構成要素だけを送るか",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("shared_representation",),
         active_when=(ActivationRule(
@@ -308,7 +308,7 @@ OPTIONS = (
             ),
             "共有表現構造のとき",
         ),),
-        cli_name="shared-model-distribution",
+        cli_name="shared-model-synchronization",
     ),
     OptionSpec(
         "shared_adapter_rank", "概念別残差adapter rank R_adapter", "model",
