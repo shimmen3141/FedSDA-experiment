@@ -121,6 +121,15 @@ SoftRoutingでは、予測時にすでに計算している全保持モデルの
   concept-oracle routerを定常区間と回復区間に分けた精度。
 - `routing_oracle_concept_stable_gain_rate` / `routing_oracle_concept_recovery_gain_rate`: 各区間での
   concept-oracle routerと実予測の精度差。正なら潜在コンセプト推定をroutingへ利用する余地がある。
+- `routing_prototype_accuracy`: 各expertが過去に最小損失だった共有特徴領域のprototypeを使い、
+  現在入力に最も近いexpertを正解観測前に選んだshadow精度。prototypeがない場合は実mixtureへ
+  フォールバックし、実際の予測・学習・通信は変更しない。
+- `routing_prototype_stable_accuracy` / `routing_prototype_recovery_accuracy`: 上記prototype routingを
+  定常区間と回復区間に分けた精度。
+- `routing_prototype_stable_gain_rate` / `routing_prototype_recovery_gain_rate`: 各区間でのprototype
+  routingと実予測の精度差。正なら真の概念IDより細かい入力局所性をroutingへ使う余地がある。
+- `routing_prototype_selection_rate`: prototypeが存在して局所expertを選べた標本割合。残りは
+  実mixtureへフォールバックする。
 - `routing_leader_stable_accuracy` / `routing_leader_recovery_accuracy`: 最大重みモデル単体の精度を、
   定常区間と回復区間に分けた値。
 - `routing_stable_oracle_gap` / `routing_recovery_oracle_gap`: 各区間におけるoracle精度と実予測精度の差。

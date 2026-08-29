@@ -115,6 +115,11 @@ class _SharedRepresentationFedSDAClientMixin:
             self, "oracle_concept_expert_routers", {}
         ).values():
             router.restart_after_aggregation()
+        prototype_diagnostics = getattr(
+            self, "prototype_routing_diagnostics", None
+        )
+        if prototype_diagnostics is not None and not loss_sequence:
+            prototype_diagnostics.restart_after_aggregation()
         switching_router = getattr(self, "switching_expert_router", None)
         if switching_router is not None:
             if strategy == "fifo_replay":
@@ -132,6 +137,7 @@ class _SharedRepresentationFedSDAClientMixin:
         x = torch.cat([sample[0] for sample in samples])
         y = torch.cat([sample[1] for sample in samples])
         losses_by_model = {}
+        predicted_classes_by_model = {}
         with torch.no_grad():
             features = self.models[model_ids[0]].extract_features(x)
             for model_id in model_ids:
@@ -143,11 +149,38 @@ class _SharedRepresentationFedSDAClientMixin:
                     losses = 1.0 - probabilities.gather(
                         1, labels.unsqueeze(1)
                     ).squeeze(1)
+                    predicted_classes = torch.argmax(
+                        probabilities, dim=1
+                    )
                 else:
                     losses = torch.abs(
                         scores.view(-1) - y.view(-1).float()
                     )
+                    predicted_classes = (scores.view(-1) > 0.5).long()
                 losses_by_model[model_id] = losses
+                predicted_classes_by_model[model_id] = predicted_classes
+
+        prototype_diagnostics = getattr(
+            self, "prototype_routing_diagnostics", None
+        )
+        if prototype_diagnostics is not None:
+            prototype_diagnostics.restart_after_aggregation()
+            for index in range(len(samples)):
+                prototype_diagnostics.fit(
+                    features[index:index + 1],
+                    {
+                        model_id: int(
+                            predicted_classes_by_model[model_id][index].item()
+                        )
+                        for model_id in model_ids
+                    },
+                    {
+                        model_id: float(
+                            losses_by_model[model_id][index].item()
+                        )
+                        for model_id in model_ids
+                    },
+                )
 
         sample_count = len(samples)
         self._record_model_compute(
@@ -169,6 +202,7 @@ class _SharedRepresentationFedSDAClientMixin:
         """特徴抽出を1回だけ行い、全概念別ヘッドを評価する。"""
         first = self.models[model_ids[0]]
         features = first.extract_features(x)
+        self._latest_routing_features = features.detach()
         scores = {
             model_id: self.models[model_id].forward_from_features(features)
             for model_id in model_ids

@@ -4,6 +4,107 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass
 
 import torch
+import torch.nn.functional as F
+
+
+class PrototypeRoutingDiagnostics:
+    """過去に各expertが得意だった共有特徴領域から因果的に選択する診断。
+
+    各モデルについて、予測クラスごとに「そのモデルの有界損失が最小だった標本」の
+    正規化共有特徴の重心を保持する。現在標本では正解を参照せず、モデル自身の予測
+    クラスに対応する重心とのcosine類似度が最大のモデルを選ぶ。正解観測後にだけ
+    重心を更新するため、prequential順序を壊さない。
+
+    これは実予測を変更しないshadow診断であり、prototypeがまだない場合は実際の
+    mixture予測へフォールバックする。固定距離閾値や温度は導入しない。
+    """
+
+    def __init__(self):
+        self.prototype_sums = {}
+        self.prototype_counts = defaultdict(int)
+        self.sample_count = 0
+        self.correct_count = 0
+        self.selected_count = 0
+        self.fallback_count = 0
+
+    @staticmethod
+    def _normalized_feature(features):
+        feature = features.detach().reshape(features.shape[0], -1)[0]
+        return F.normalize(feature, dim=0)
+
+    @staticmethod
+    def _correct(scores, target, num_classes):
+        if num_classes == 2:
+            prediction = (scores > 0.5).float()
+        else:
+            prediction = torch.argmax(scores, dim=1, keepdim=True).float()
+        return bool(
+            prediction.view(-1)[0].item()
+            == target.view(-1)[0].item()
+        )
+
+    def synchronize(self, model_ids):
+        """削除済みモデルのprototypeを破棄し、ID再利用による混同を防ぐ。"""
+        model_ids = set(model_ids)
+        stale_keys = [
+            key for key in self.prototype_sums if key[0] not in model_ids
+        ]
+        for key in stale_keys:
+            del self.prototype_sums[key]
+            del self.prototype_counts[key]
+
+    def restart_after_aggregation(self):
+        """共有表現の座標系が変化したため、古いprototypeを破棄する。"""
+        self.prototype_sums.clear()
+        self.prototype_counts.clear()
+
+    def fit(self, features, predicted_classes, model_losses):
+        """正解観測後のモデル損失から、最良モデルのprototypeだけを更新する。"""
+        if not model_losses:
+            return
+        minimum = min(model_losses.values())
+        winner = min(
+            model_id for model_id, loss in model_losses.items()
+            if loss == minimum
+        )
+        key = (winner, int(predicted_classes[winner]))
+        feature = self._normalized_feature(features)
+        if key not in self.prototype_sums:
+            self.prototype_sums[key] = feature.clone()
+        else:
+            self.prototype_sums[key] += feature
+        self.prototype_counts[key] += 1
+
+    def observe(
+        self, *, features, predicted_classes, prediction_scores,
+        model_losses, fallback_scores, target, num_classes,
+    ):
+        """現在標本を過去prototypeだけで予測した後、正解を使って更新する。"""
+        model_ids = tuple(sorted(prediction_scores))
+        self.synchronize(model_ids)
+        feature = self._normalized_feature(features)
+        candidates = []
+        for model_id in model_ids:
+            key = (model_id, int(predicted_classes[model_id]))
+            if key not in self.prototype_sums:
+                continue
+            prototype = F.normalize(self.prototype_sums[key], dim=0)
+            similarity = float(torch.dot(feature, prototype).item())
+            candidates.append((similarity, -model_id, model_id))
+
+        if candidates:
+            selected_model_id = max(candidates)[2]
+            scores = prediction_scores[selected_model_id]
+            self.selected_count += 1
+        else:
+            scores = fallback_scores
+            self.fallback_count += 1
+
+        correct = self._correct(scores, target, num_classes)
+        self.sample_count += 1
+        self.correct_count += int(correct)
+        self.fit(features, predicted_classes, model_losses)
+        return correct
 
 
 @dataclass

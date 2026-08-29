@@ -52,6 +52,10 @@ def test_routing_metrics_separate_oracle_and_leader_by_window(monkeypatch):
     assert 0 <= results["routing_oracle_concept_accuracy"] <= 1
     assert 0 <= results["routing_oracle_concept_stable_accuracy"] <= 1
     assert 0 <= results["routing_oracle_concept_recovery_accuracy"] <= 1
+    assert 0 <= results["routing_prototype_accuracy"] <= 1
+    assert 0 <= results["routing_prototype_stable_accuracy"] <= 1
+    assert 0 <= results["routing_prototype_recovery_accuracy"] <= 1
+    assert 0 <= results["routing_prototype_selection_rate"] <= 1
     assert 0 <= results["routing_leader_stable_accuracy"] <= 1
     assert 0 <= results["routing_leader_recovery_accuracy"] <= 1
     assert results["routing_stable_oracle_gap"] >= 0
@@ -82,6 +86,33 @@ def _populate_training_store(client):
                 torch.full((1, input_dim), float(index + model_id) / 10),
                 torch.tensor([[float((index + model_id) % 2)]]),
             ))
+
+
+def test_fifo_recalibration_rebuilds_prototypes_in_current_feature_space(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        config, "SHARED_BACKBONE_ROUTING_RECALIBRATION", "fifo_replay"
+    )
+    client = _two_head_client()
+    input_dim = config.dataset_spec().input_dim
+    for index in range(3):
+        client.buffer.append((
+            torch.full((1, input_dim), float(index) / 10),
+            torch.tensor([[float(index % 2)]]),
+            0,
+        ))
+
+    client.prototype_routing_diagnostics.fit(
+        torch.ones((1, client.models[0].backbone.output_dim)),
+        {0: 0, 1: 1},
+        {0: 0.1, 1: 0.9},
+    )
+    client.recalibrate_routing_after_aggregation()
+
+    assert sum(
+        client.prototype_routing_diagnostics.prototype_counts.values()
+    ) == len(client.buffer)
 
 
 def test_shared_backbone_mode_has_dedicated_client_server_and_model():
