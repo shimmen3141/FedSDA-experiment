@@ -2,13 +2,40 @@
 
 import math
 from collections import deque
+from dataclasses import dataclass
 from statistics import NormalDist
 
 
 SUPPORTED_LINKAGES = frozenset({"connected", "complete"})
 SUPPORTED_CLUSTERING_DECISIONS = frozenset(
-    {"distance", "confidence", "confidence_margin", "oracle_concept"}
+    {
+        "distance", "confidence", "confidence_margin", "functional",
+        "oracle_concept",
+    }
 )
+
+
+@dataclass
+class FunctionalPairStats:
+    """同一標本上で観測したモデル対の固有正解数を集約する。"""
+
+    sample_count: int = 0
+    left_only_correct: int = 0
+    right_only_correct: int = 0
+
+    def add(self, sample_count, left_only_correct, right_only_correct):
+        self.sample_count += int(sample_count)
+        self.left_only_correct += int(left_only_correct)
+        self.right_only_correct += int(right_only_correct)
+
+    def complementarity_distance(self):
+        """片方だけが正解する割合の大きい側を機能的距離として返す。"""
+        if self.sample_count <= 0:
+            raise ValueError("機能的距離の計算には1件以上の評価が必要です")
+        return max(
+            self.left_only_correct,
+            self.right_only_correct,
+        ) / self.sample_count
 
 
 def mean_loss(stats):

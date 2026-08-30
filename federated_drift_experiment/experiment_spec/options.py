@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 10
+OPTION_SCHEMA_VERSION = 11
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -446,7 +446,10 @@ OPTIONS = (
     ),
     OptionSpec(
         "clustering_decision", "クラスタリング判定", "clustering",
-        ("distance", "confidence", "confidence_margin", "oracle_concept"),
+        (
+            "distance", "confidence", "confidence_margin", "functional",
+            "oracle_concept",
+        ),
         "モデル対を統合する判定規則",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         requires_capabilities=("server_clustering",), cli_name="clustering-decision",

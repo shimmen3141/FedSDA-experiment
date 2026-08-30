@@ -7,6 +7,7 @@ from statistics import NormalDist
 
 from .. import config
 from ..clustering import (
+    FunctionalPairStats,
     SUPPORTED_CLUSTERING_DECISIONS,
     cluster_models,
     mean_loss,
@@ -42,6 +43,7 @@ class CrossEvaluationClusteringServer(BaseServer):
         self.collect_pair_diagnostics = collect_pair_diagnostics
         self.pair_prediction_diagnostics = []
         self._last_pair_prediction_diagnostics = []
+        self._last_pair_functional_stats = {}
         self.cross_evaluation_diagnostics = []
         self._last_pair_distances = {}
         self._last_pair_decision_scores = {}
@@ -63,6 +65,7 @@ class CrossEvaluationClusteringServer(BaseServer):
         この場合はモデル本体を再送せず、クライアントの不変キャッシュを評価する。
         """
         self._last_pair_prediction_diagnostics = []
+        self._last_pair_functional_stats = {}
         self._last_paired_loss_difference_stats = {}
         self._begin_cross_evaluation_model_transfers()
         holders = defaultdict(list)
@@ -97,7 +100,8 @@ class CrossEvaluationClusteringServer(BaseServer):
                     diagnostic = None
                     if (
                         (self.collect_pair_diagnostics
-                         or collect_paired_loss_differences)
+                         or collect_paired_loss_differences
+                         or self.clustering_decision == "functional")
                         and id_i != id_j
                     ):
                         if use_client_cache:
@@ -116,6 +120,9 @@ class CrossEvaluationClusteringServer(BaseServer):
                             )
                         n, S, SS = stats
                         if diagnostic is not None:
+                            self._record_functional_pair_stats(
+                                id_i, id_j, diagnostic
+                            )
                             record = {
                                 "candidate_model_id": id_i,
                                 "target_model_id": id_j,
@@ -181,6 +188,22 @@ class CrossEvaluationClusteringServer(BaseServer):
                             difference_sum_sq,
                         )
         return stats_matrix
+
+    def _record_functional_pair_stats(
+        self, candidate_model_id, target_model_id, diagnostic
+    ):
+        """向きを揃えてモデル対の固有正解数を直前評価へ加算する。"""
+        left, right = sorted((candidate_model_id, target_model_id))
+        if candidate_model_id == left:
+            left_only = diagnostic["candidate_only_correct"]
+            right_only = diagnostic["target_only_correct"]
+        else:
+            left_only = diagnostic["target_only_correct"]
+            right_only = diagnostic["candidate_only_correct"]
+        stats = self._last_pair_functional_stats.setdefault(
+            (left, right), FunctionalPairStats()
+        )
+        stats.add(diagnostic["n"], left_only, right_only)
 
     def _begin_cross_evaluation_model_transfers(self):
         """1回のクロス評価におけるモデル転送記録を初期化する。"""
@@ -292,7 +315,14 @@ class CrossEvaluationClusteringServer(BaseServer):
                 dist = max(diff_i_to_j, diff_j_to_i)
                 pair_distances[(id_i, id_j)] = dist
 
-                if self.clustering_decision in {"confidence", "confidence_margin"}:
+                if self.clustering_decision == "functional":
+                    functional_stats = self._last_pair_functional_stats.get(
+                        (id_i, id_j)
+                    )
+                    if functional_stats is None:
+                        continue
+                    score = functional_stats.complementarity_distance()
+                elif self.clustering_decision in {"confidence", "confidence_margin"}:
                     margin = (
                         self.distance_threshold
                         if self.clustering_decision == "confidence_margin"

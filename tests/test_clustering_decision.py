@@ -4,6 +4,7 @@ import math
 import torch
 
 from federated_drift_experiment.clustering import (
+    FunctionalPairStats,
     paired_mean_upper_bound,
     standardized_mean_increase,
 )
@@ -37,6 +38,13 @@ def test_paired_mean_upper_bound_uses_loss_difference_variance():
         paired_mean_upper_bound(_stats([0.01] * 10), 0.95), 0.01
     )
     assert paired_mean_upper_bound(_stats([-0.02] * 10), 0.95) < 0.0
+
+
+def test_functional_pair_distance_uses_larger_unique_correct_rate():
+    stats = FunctionalPairStats()
+    stats.add(20, left_only_correct=2, right_only_correct=5)
+
+    assert stats.complementarity_distance() == 0.25
 
 
 def test_noninferiority_merge_rejects_cluster_harmful_to_one_member(monkeypatch):
@@ -269,6 +277,50 @@ def test_confidence_margin_keeps_difference_clearly_above_margin(monkeypatch):
     )
 
     assert server.perform_hierarchical_clustering([0, 1], stats) == [[0], [1]]
+
+
+def test_functional_decision_merges_only_functionally_redundant_pair():
+    class FunctionalClient:
+        def __init__(self, unique_correct):
+            self.unique_correct = unique_correct
+
+        def get_held_model_ids(self):
+            return [0, 1]
+
+        def get_model_concept_counts(self, model_id):
+            return {}
+
+        def evaluate_model(self, params, target_model_id):
+            return _stats([0.1] * 10)
+
+        def evaluate_model_diagnostics(self, params, target_model_id):
+            unique = self.unique_correct
+            return _stats([0.1] * 10), {
+                "n": 10,
+                "candidate_only_correct": unique,
+                "target_only_correct": unique,
+                "both_correct": 10 - 2 * unique,
+                "both_wrong": 0,
+            }
+
+    def clusters(unique_correct):
+        server = FedSDANoCachedServer(
+            distance_threshold=0.1,
+            clustering_decision="functional",
+            linkage="complete",
+            verbose=False,
+        )
+        server.global_models = {
+            0: {"weight": torch.tensor([0.0])},
+            1: {"weight": torch.tensor([1.0])},
+        }
+        server.clients = [FunctionalClient(unique_correct)]
+        stats = server._cross_evaluate([0, 1], send_model_params=False)
+        result = server.perform_hierarchical_clustering([0, 1], stats)
+        return result, server._last_pair_decision_scores[(0, 1)]
+
+    assert clusters(unique_correct=1) == ([[0, 1]], 0.1)
+    assert clusters(unique_correct=2) == ([[0], [1]], 0.2)
 
 
 def test_oracle_concept_merges_only_models_with_same_majority_concept():
