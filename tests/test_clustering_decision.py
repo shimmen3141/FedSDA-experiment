@@ -47,14 +47,27 @@ def test_functional_pair_distance_uses_larger_unique_correct_rate():
     assert stats.complementarity_distance() == 0.25
 
 
-def test_class_functional_distance_uses_largest_supported_class_rate():
+def test_class_functional_confidence_ignores_unsupported_class_and_small_noise():
     stats = FunctionalPairStats()
     stats.add(40, left_only_correct=3, right_only_correct=2)
     stats.add_class(0, 20, left_only_correct=1, right_only_correct=0)
     stats.add_class(1, 20, left_only_correct=2, right_only_correct=2)
     stats.add_class(2, 2, left_only_correct=2, right_only_correct=0)
 
-    assert stats.class_conditional_distance(min_sample_count=5) == 0.1
+    assert stats.class_conditional_confidence_distance(
+        min_sample_count=5, confidence=0.95
+    ) < 0.1
+
+
+def test_class_functional_confidence_detects_supported_class_difference():
+    stats = FunctionalPairStats()
+    stats.add(40, left_only_correct=8, right_only_correct=0)
+    stats.add_class(0, 20, left_only_correct=0, right_only_correct=0)
+    stats.add_class(1, 20, left_only_correct=8, right_only_correct=0)
+
+    assert stats.class_conditional_confidence_distance(
+        min_sample_count=5, confidence=0.95
+    ) > 0.1
 
 
 def test_noninferiority_merge_rejects_cluster_harmful_to_one_member(monkeypatch):
@@ -333,7 +346,7 @@ def test_functional_decision_merges_only_functionally_redundant_pair():
     assert clusters(unique_correct=2) == ([[0], [1]], 0.2)
 
 
-def test_class_functional_decision_preserves_localized_class_difference():
+def test_class_functional_confidence_preserves_supported_local_difference():
     class ClassFunctionalClient:
         def get_held_model_ids(self):
             return [0, 1]
@@ -350,9 +363,9 @@ def test_class_functional_decision_preserves_localized_class_difference():
             assert include_class_correctness
             return _stats([0.1] * 20), {
                 "n": 20,
-                "candidate_only_correct": 2,
-                "target_only_correct": 2,
-                "both_correct": 16,
+                "candidate_only_correct": 4,
+                "target_only_correct": 4,
+                "both_correct": 12,
                 "both_wrong": 0,
                 "class_correctness": {
                     0: {
@@ -364,9 +377,9 @@ def test_class_functional_decision_preserves_localized_class_difference():
                     },
                     1: {
                         "n": 10,
-                        "candidate_only_correct": 2,
-                        "target_only_correct": 2,
-                        "both_correct": 6,
+                        "candidate_only_correct": 4,
+                        "target_only_correct": 4,
+                        "both_correct": 2,
                         "both_wrong": 0,
                     },
                 },
@@ -374,7 +387,7 @@ def test_class_functional_decision_preserves_localized_class_difference():
 
     server = FedSDANoCachedServer(
         distance_threshold=0.1,
-        clustering_decision="class_functional",
+        clustering_decision="class_functional_confidence",
         linkage="complete",
         verbose=False,
     )
@@ -386,7 +399,7 @@ def test_class_functional_decision_preserves_localized_class_difference():
     stats = server._cross_evaluate([0, 1], send_model_params=False)
 
     assert server.perform_hierarchical_clustering([0, 1], stats) == [[0], [1]]
-    assert server._last_pair_decision_scores[(0, 1)] == 0.2
+    assert server._last_pair_decision_scores[(0, 1)] > 0.1
     assert len(server.cross_evaluation_class_diagnostics) == 4
 
 

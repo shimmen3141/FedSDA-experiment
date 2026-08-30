@@ -448,7 +448,7 @@ OPTIONS = (
         "clustering_decision", "クラスタリング判定", "clustering",
         (
             "distance", "confidence", "confidence_margin", "functional",
-            "class_functional", "oracle_concept",
+            "class_functional_confidence", "oracle_concept",
         ),
         "モデル対を統合する判定規則",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
@@ -457,7 +457,7 @@ OPTIONS = (
     OptionSpec(
         "clustering_confidence", "クラスタリング信頼水準", "clustering_parameter",
         ("0 < confidence < 1",),
-        "confidence系統合判定と非劣性制約付きマージの信頼水準",
+        "confidence系・クラス条件付き機能判定と非劣性制約付きマージの信頼水準",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
         configuration_surface="config",
     ),

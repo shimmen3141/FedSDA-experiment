@@ -100,13 +100,13 @@ class CrossEvaluationClusteringServer(BaseServer):
                 for c in target_clients:
                     diagnostic = None
                     diagnostic_kwargs = {}
-                    if self.clustering_decision == "class_functional":
+                    if self.clustering_decision == "class_functional_confidence":
                         diagnostic_kwargs["include_class_correctness"] = True
                     if (
                         (self.collect_pair_diagnostics
                          or collect_paired_loss_differences
                          or self.clustering_decision in {
-                             "functional", "class_functional"
+                             "functional", "class_functional_confidence"
                          })
                         and id_i != id_j
                     ):
@@ -371,16 +371,19 @@ class CrossEvaluationClusteringServer(BaseServer):
                 pair_distances[(id_i, id_j)] = dist
 
                 if self.clustering_decision in {
-                    "functional", "class_functional"
+                    "functional", "class_functional_confidence"
                 }:
                     functional_stats = self._last_pair_functional_stats.get(
                         (id_i, id_j)
                     )
                     if functional_stats is None:
                         continue
-                    if self.clustering_decision == "class_functional":
-                        score = functional_stats.class_conditional_distance(
-                            config.CLUSTER_MIN_EVAL_N
+                    if self.clustering_decision == "class_functional_confidence":
+                        score = (
+                            functional_stats.class_conditional_confidence_distance(
+                                config.CLUSTER_MIN_EVAL_N,
+                                self.clustering_confidence,
+                            )
                         )
                     else:
                         score = functional_stats.complementarity_distance()

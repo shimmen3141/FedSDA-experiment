@@ -213,7 +213,7 @@ FEDSDA_CLUSTERING_POLICIES = ('disabled', 'on_new_model', 'every_round')
 FEDSDA_CLUSTERING_DECISION = 'distance'
 FEDSDA_CLUSTERING_DECISIONS = (
     'distance', 'confidence', 'confidence_margin', 'functional',
-    'class_functional', 'oracle_concept'
+    'class_functional_confidence', 'oracle_concept'
 )
 FEDSDA_CLUSTERING_CONFIDENCE = 0.95
 # クラスタ決定後にIDまで統合するか、IDを保ったままパラメータだけ共有するか。

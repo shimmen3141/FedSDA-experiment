@@ -65,7 +65,7 @@ flowchart LR
   subgraph group_clustering[clustering]
     clustering_policy["<b>クラスタリング頻度</b><br/>disabled | on_new_model | every_round"]
     clustering_consolidation["<b>クラスタリング後処理</b><br/>merge | parameter_share | noninferiority_merge"]
-    clustering_decision["<b>クラスタリング判定</b><br/>distance | confidence | confidence_margin | functional | class_functional | oracle_concept"]
+    clustering_decision["<b>クラスタリング判定</b><br/>distance | confidence | confidence_margin | functional | class_functional_confidence | oracle_concept"]
     cluster_linkage["<b>階層クラスタリングlinkage</b><br/>complete | connected"]
   end
   subgraph group_clustering_parameter[clustering_parameter]
@@ -156,7 +156,7 @@ flowchart LR
 | `clustering_consolidation` | cli: `--clustering-consolidation` | 実装済み | 対象外 | 対象外 | 対象外 | クラスタ決定後にID統合、パラメータ共有または非劣性検証を行う |
 | `merge_noninferiority_margin` | cli: `--merge-noninferiority-margin` | 実装済み | 対象外 | 対象外 | 対象外 | 仮統合モデルの対応あり損失差について許容する片側上限 |
 | `clustering_decision` | cli: `--clustering-decision` | 実装済み | 理論上のみ | 対象外 | 対象外 | モデル対を統合する判定規則 |
-| `clustering_confidence` | config | 実装済み | 理論上のみ | 対象外 | 対象外 | confidence系統合判定と非劣性制約付きマージの信頼水準 |
+| `clustering_confidence` | config | 実装済み | 理論上のみ | 対象外 | 対象外 | confidence系・クラス条件付き機能判定と非劣性制約付きマージの信頼水準 |
 | `cluster_linkage` | cli: `--cluster-linkage` | 実装済み | 対象外 | 対象外 | 対象外 | モデル対判定からクラスタを構成する方法 |
 | `fedsda_distance_threshold` | cli: `--fedsda-distance-threshold` | 実装済み | 対象外 | 対象外 | 対象外 | モデル適合・再利用および距離ベース統合の閾値 |
 | `feddrift_distance_threshold` | cli: `--feddrift-distance-thresholds` | 対象外 | 実装済み | 対象外 | 対象外 | FedDriftのドリフト判定とモデル統合で共有する閾値 |

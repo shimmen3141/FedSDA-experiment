@@ -10,7 +10,7 @@ SUPPORTED_LINKAGES = frozenset({"connected", "complete"})
 SUPPORTED_CLUSTERING_DECISIONS = frozenset(
     {
         "distance", "confidence", "confidence_margin", "functional",
-        "class_functional", "oracle_concept",
+        "class_functional_confidence", "oracle_concept",
     }
 )
 
@@ -47,16 +47,54 @@ class FunctionalPairStats:
             self.right_only_correct,
         ) / self.sample_count
 
-    def class_conditional_distance(self, min_sample_count):
-        """十分な標本がある正解クラス別距離の最大値を返す。"""
-        distances = [
-            stats.complementarity_distance()
-            for stats in self.class_stats.values()
+    def class_conditional_confidence_distance(
+        self, min_sample_count, confidence
+    ):
+        """クラス別固有正解率の同時信頼下限の最大値を返す。
+
+        小標本クラスの1件の不一致だけで統合を拒否しないよう、左右方向と
+        利用可能な全クラスにBonferroni補正したWilson下限を用いる。
+        """
+        supported = [
+            stats for stats in self.class_stats.values()
             if stats.sample_count >= min_sample_count
         ]
-        if not distances:
-            return self.complementarity_distance()
-        return max(distances)
+        if not supported:
+            supported = [self]
+        simultaneous_confidence = 1.0 - (
+            (1.0 - confidence) / (2 * len(supported))
+        )
+        return max(
+            binomial_proportion_lower_bound(
+                successes,
+                stats.sample_count,
+                simultaneous_confidence,
+            )
+            for stats in supported
+            for successes in (
+                stats.left_only_correct,
+                stats.right_only_correct,
+            )
+        )
+
+
+def binomial_proportion_lower_bound(successes, sample_count, confidence):
+    """二項比率の片側Wilson信頼下限を返す。"""
+    if sample_count <= 0:
+        raise ValueError("二項比率の計算には1件以上の標本が必要です")
+    if not 0.5 < confidence < 1.0:
+        raise ValueError("confidenceは0.5より大きく1未満にしてください")
+    if not 0 <= successes <= sample_count:
+        raise ValueError("successesは0以上sample_count以下にしてください")
+    proportion = successes / sample_count
+    z_value = NormalDist().inv_cdf(confidence)
+    denominator = 1.0 + z_value * z_value / sample_count
+    center = proportion + z_value * z_value / (2.0 * sample_count)
+    radius = z_value * math.sqrt(
+        proportion * (1.0 - proportion) / sample_count
+        + z_value * z_value / (4.0 * sample_count * sample_count)
+    )
+    return max((center - radius) / denominator, 0.0)
 
 
 def mean_loss(stats):

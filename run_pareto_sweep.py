@@ -1008,7 +1008,7 @@ def build_parser():
         help=(
             "FedSDAのモデル統合判定 "
             "(distance / confidence / confidence_margin / functional / "
-            "class_functional / oracle_concept)"
+            "class_functional_confidence / oracle_concept)"
         ),
     )
     fedsda.add_argument(
