@@ -1103,8 +1103,9 @@ def build_parser():
         "--cluster-linkage",
         choices=config.FEDSDA_CLUSTER_LINKAGES,
         default=None,
-        help=("階層クラスタリングの明示的な上書き。省略時は"
-              "FedSDA=connected、FedDrift=complete"),
+        help=("階層クラスタリングの明示的な上書き。averageは"
+              "connectedとcompleteの中間。省略時はFedSDA=connected、"
+              "FedDrift=complete"),
     )
     fedsda.add_argument(
         "--soft-routing-context",

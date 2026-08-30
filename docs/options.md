@@ -66,7 +66,7 @@ flowchart LR
     clustering_policy["<b>クラスタリング頻度</b><br/>disabled | on_new_model | every_round"]
     clustering_consolidation["<b>クラスタリング後処理</b><br/>merge | parameter_share | noninferiority_merge"]
     clustering_decision["<b>クラスタリング判定</b><br/>distance | confidence | confidence_margin | functional | class_functional_confidence | oracle_concept"]
-    cluster_linkage["<b>階層クラスタリングlinkage</b><br/>complete | connected"]
+    cluster_linkage["<b>階層クラスタリングlinkage</b><br/>complete | average | connected"]
   end
   subgraph group_clustering_parameter[clustering_parameter]
     merge_noninferiority_margin["<b>統合モデルの非劣性幅</b><br/>non-negative number"]

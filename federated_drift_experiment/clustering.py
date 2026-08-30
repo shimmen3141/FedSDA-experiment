@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from statistics import NormalDist
 
 
-SUPPORTED_LINKAGES = frozenset({"connected", "complete"})
+SUPPORTED_LINKAGES = frozenset({"connected", "average", "complete"})
 SUPPORTED_CLUSTERING_DECISIONS = frozenset(
     {
         "distance", "confidence", "confidence_margin", "functional",
@@ -158,8 +158,8 @@ def cluster_models(model_ids, pair_distances, threshold, linkage):
     """``threshold`` で切った決定的なクラスタを返す。
 
     ``connected`` は従来実装を維持し、閾値以下の辺から連結成分を作る
-    （single-linkageを閾値で切ることと同等）。``complete`` はFedDriftの
-    max-linkage規則を実装する。
+    （single-linkageを閾値で切ることと同等）。``average`` はクラスタ間の
+    全モデル対スコアの平均、``complete`` は最大値で逐次統合する。
     """
     if linkage not in SUPPORTED_LINKAGES:
         choices = ", ".join(sorted(SUPPORTED_LINKAGES))
@@ -168,7 +168,9 @@ def cluster_models(model_ids, pair_distances, threshold, linkage):
     ids = sorted(model_ids)
     if linkage == "connected":
         return _connected_components(ids, pair_distances, threshold)
-    return _complete_linkage(ids, pair_distances, threshold)
+    return _agglomerative_linkage(
+        ids, pair_distances, threshold, linkage
+    )
 
 
 def _connected_components(model_ids, pair_distances, threshold):
@@ -199,7 +201,10 @@ def _connected_components(model_ids, pair_distances, threshold):
     return clusters
 
 
-def _complete_linkage(model_ids, pair_distances, threshold):
+def _agglomerative_linkage(
+    model_ids, pair_distances, threshold, linkage
+):
+    """平均または最大クラスタ間スコアで決定的に逐次統合する。"""
     clusters = [(mid,) for mid in model_ids]
 
     while True:
@@ -213,7 +218,10 @@ def _complete_linkage(model_ids, pair_distances, threshold):
                 ]
                 if any(distance is None for distance in distances):
                     continue
-                cluster_distance = max(distances)
+                if linkage == "average":
+                    cluster_distance = sum(distances) / len(distances)
+                else:
+                    cluster_distance = max(distances)
                 candidate = (cluster_distance, left, right, left_pos, right_pos)
                 if best is None or candidate < best:
                     best = candidate

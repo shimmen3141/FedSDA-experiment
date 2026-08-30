@@ -5,6 +5,7 @@ import torch
 
 from federated_drift_experiment.clustering import (
     FunctionalPairStats,
+    cluster_models,
     paired_mean_upper_bound,
     standardized_mean_increase,
 )
@@ -45,6 +46,27 @@ def test_functional_pair_distance_uses_larger_unique_correct_rate():
     stats.add(20, left_only_correct=2, right_only_correct=5)
 
     assert stats.complementarity_distance() == 0.25
+
+
+def test_average_linkage_lies_between_connected_and_complete():
+    distances = {
+        (0, 1): 0.005,
+        (0, 2): 0.01,
+        (1, 2): 0.15,
+        (2, 3): 0.09,
+        (0, 3): 0.3,
+        (1, 3): 0.3,
+    }
+
+    assert cluster_models([0, 1, 2, 3], distances, 0.1, "connected") == [
+        [0, 1, 2, 3]
+    ]
+    assert cluster_models([0, 1, 2, 3], distances, 0.1, "average") == [
+        [0, 1, 2], [3]
+    ]
+    assert cluster_models([0, 1, 2, 3], distances, 0.1, "complete") == [
+        [0, 1], [2, 3]
+    ]
 
 
 def test_class_functional_confidence_ignores_unsupported_class_and_small_noise():

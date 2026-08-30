@@ -203,7 +203,7 @@ CLUSTER_MIN_EVAL_N = 5      # マージ判定に必要な評価サンプルの�
 # FedSDAは従来実装との結果互換性を保つためconnectedを既定とする。
 # FedDriftは元論文のmax-linkageに対応するcompleteを用いる。
 FEDSDA_CLUSTER_LINKAGE = 'connected'
-FEDSDA_CLUSTER_LINKAGES = ('complete', 'connected')
+FEDSDA_CLUSTER_LINKAGES = ('complete', 'average', 'connected')
 FEDDRIFT_CLUSTER_LINKAGE = 'complete'
 # FedSDAのクラスタリング実行方針。
 # 'disabled'=実行しない、'on_new_model'=新規モデルの初回配布後のみ、

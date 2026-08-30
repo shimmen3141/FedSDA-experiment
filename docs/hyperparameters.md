@@ -168,7 +168,7 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 |---|---|---|---|
 | `CROSS_EVAL_MAX_CLIENTS` | クロス評価で 1 モデルあたりに使うクライアント数上限 | サーバ | 3 |
 | `CLUSTER_MIN_EVAL_N` | マージ判定に必要な評価サンプルの最小数 | サーバ | 5 |
-| `FEDSDA_CLUSTER_LINKAGE` | FedSDAのクラスタ構成方法。`connected`=閾値グラフの連結成分(single-linkage cut相当)、`complete`=max-linkage | FedSDA | `connected` |
+| `FEDSDA_CLUSTER_LINKAGE` | FedSDAのクラスタ構成方法。`connected`=閾値グラフの連結成分(single-linkage cut相当)、`average`=クラスタ間の全モデル対スコアの平均、`complete`=最大スコア | FedSDA | `connected` |
 | `FEDDRIFT_CLUSTER_LINKAGE` | FedDrift論文に準拠するmax-linkage | FedDrift | `complete` |
 | `FEDSDA_CLUSTERING_DECISION` | FedSDAの統合判定。`distance`=固定損失距離、`confidence`=ゼロとの差、`confidence_margin`=γを超える差の識別可能性、`oracle_concept`=真の概念IDを使う診断用上限対照 | FedSDA | `distance` |
 | `FEDSDA_CLUSTERING_CONFIDENCE` | `confidence`判定の片側信頼水準 | FedSDA | `0.95` |
