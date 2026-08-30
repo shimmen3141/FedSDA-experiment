@@ -52,7 +52,6 @@ def test_metric_queries_and_profiles_reference_registered_metrics():
     assert {
         "routing_oracle_stable_accuracy",
         "routing_oracle_concept_stable_accuracy",
-        "routing_prototype_stable_accuracy",
         "routing_stable_oracle_gap",
         "routing_meta_global_stable_accuracy",
     } <= {

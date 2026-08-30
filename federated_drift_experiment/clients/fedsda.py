@@ -7,10 +7,7 @@ from collections import defaultdict, deque
 import torch
 
 from .. import config
-from ..diagnostics import (
-    PrototypeRoutingDiagnostics,
-    RoutingLeaveOneOutDiagnostics,
-)
+from ..diagnostics import RoutingLeaveOneOutDiagnostics
 from ..drift_detectors import BoundedMeanEDetector, FullScanADWIN, HDDMA, HDDMW
 from ..detection_episode import DetectionEpisodeController
 from ..expert_routing import (
@@ -1292,16 +1289,12 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         # 真の概念IDを診断時だけ与え、概念状態を完全に識別できた場合の
         # 因果的なルーティング上限を測る。実予測や学習割当には使用しない。
         self.oracle_concept_expert_routers = defaultdict(AdaHedgeRouter)
-        # 共有特徴上の局所的な得意領域でexpertを選べるかを、実予測へ
-        # 影響させずに測る。独立モデルmodeでは特徴が共有されないため無効になる。
-        self.prototype_routing_diagnostics = PrototypeRoutingDiagnostics()
         self.history_routing_effective_experts = []
         self.history_routing_max_weight = []
         self.history_routing_gate_open = []
         self.history_routing_oracle_correct = []
         self.history_routing_leader_correct = []
         self.history_routing_oracle_concept_correct = []
-        self.history_routing_prototype_correct = []
         self.history_routing_meta_correct = []
         self.history_routing_meta_global_correct = []
         self.history_routing_meta_context_mixture_correct = []
@@ -1382,7 +1375,6 @@ class _AdaHedgeRoutingFedSDAClientMixin:
 
     def _routing_scores(self, x, model_ids):
         """各独立モデルを評価し、SoftRouting用の出力を返す。"""
-        self._latest_routing_features = None
         scores = {model_id: self.models[model_id].forward(x) for model_id in model_ids}
         self._record_model_compute(
             "prediction", len(x) * len(model_ids), calls=len(model_ids)
@@ -1475,7 +1467,6 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         model_correctness = {}
         model_confidences = {}
         prediction_scores = {}
-        model_predicted_classes = {}
 
         with torch.no_grad():
             scores_by_model = self._routing_scores(x, model_ids)
@@ -1506,28 +1497,11 @@ class _AdaHedgeRoutingFedSDAClientMixin:
                     model_prediction.view(-1)[0].item()
                     == y.view(-1)[0].item()
                 )
-                model_predicted_classes[model_id] = int(
-                    model_prediction.view(-1)[0].item()
-                )
 
         num_classes = self.models[model_ids[0]].num_classes
         global_scores = self._weighted_routing_scores(
             prediction_scores, proposal_probabilities
         )
-        prototype_correct = None
-        if self._latest_routing_features is not None:
-            prototype_correct = self.prototype_routing_diagnostics.observe(
-                features=self._latest_routing_features,
-                predicted_classes=model_predicted_classes,
-                prediction_scores=prediction_scores,
-                model_losses=model_losses,
-                fallback_scores=global_scores,
-                target=y,
-                num_classes=num_classes,
-            )
-            self.history_routing_prototype_correct.append(
-                int(prototype_correct)
-            )
         switching_repository_probabilities = (
             self.switching_expert_router.probabilities(repository_model_ids)
         )

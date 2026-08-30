@@ -848,19 +848,6 @@ def _add_model_diagnostic_results(
         ).items():
             routing_oracle_concept[key] += float(value)
 
-    routing_prototype = defaultdict(float)
-    for client in clients:
-        diagnostics = getattr(
-            client, "prototype_routing_diagnostics", None
-        )
-        if diagnostics is None:
-            continue
-        for key in (
-            "sample_count", "correct_count", "selected_count",
-            "fallback_count",
-        ):
-            routing_prototype[key] += float(getattr(diagnostics, key))
-
     routing_meta_switching = defaultdict(float)
     for client in clients:
         for key, value in getattr(
@@ -872,7 +859,6 @@ def _add_model_diagnostic_results(
     actual_window = zero_window
     oracle_window = zero_window
     oracle_concept_window = zero_window
-    prototype_window = zero_window
     leader_window = zero_window
     meta_global_window = zero_window
     meta_window = zero_window
@@ -889,11 +875,6 @@ def _add_model_diagnostic_results(
         oracle_concept_window = _optional_routing_window(
             clients,
             "history_routing_oracle_concept_correct",
-            true_drift_events,
-        )
-        prototype_window = _optional_routing_window(
-            clients,
-            "history_routing_prototype_correct",
             true_drift_events,
         )
         leader_window = _optional_routing_window(
@@ -1007,30 +988,6 @@ def _add_model_diagnostic_results(
         "routing_oracle_concept_recovery_gain_rate": (
             oracle_concept_window["recovery_accuracy"]
             - actual_window["recovery_accuracy"]
-        ),
-        "routing_prototype_accuracy": (
-            routing_prototype["correct_count"]
-            / routing_prototype["sample_count"]
-            if routing_prototype["sample_count"] else 0.0
-        ),
-        "routing_prototype_stable_accuracy": prototype_window[
-            "stable_accuracy"
-        ],
-        "routing_prototype_recovery_accuracy": prototype_window[
-            "recovery_accuracy"
-        ],
-        "routing_prototype_stable_gain_rate": (
-            prototype_window["stable_accuracy"]
-            - actual_window["stable_accuracy"]
-        ),
-        "routing_prototype_recovery_gain_rate": (
-            prototype_window["recovery_accuracy"]
-            - actual_window["recovery_accuracy"]
-        ),
-        "routing_prototype_selection_rate": (
-            routing_prototype["selected_count"]
-            / routing_prototype["sample_count"]
-            if routing_prototype["sample_count"] else 0.0
         ),
         "routing_leader_stable_accuracy": leader_window["stable_accuracy"],
         "routing_leader_recovery_accuracy": leader_window[
@@ -1579,15 +1536,6 @@ def _save_raw_run(
         ] = np.asarray(
             [
                 client.history_routing_oracle_concept_correct
-                for client in clients
-            ],
-            dtype=np.bool_,
-        )
-        telemetry_arrays[
-            "history_routing_prototype_correct"
-        ] = np.asarray(
-            [
-                client.history_routing_prototype_correct
                 for client in clients
             ],
             dtype=np.bool_,
