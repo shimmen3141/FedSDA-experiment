@@ -1769,6 +1769,18 @@ def _save_raw_run(
             [record[key] for record in cross_evaluation_records],
             dtype=np.float64,
         )
+    cross_evaluation_class_records = getattr(
+        server, "cross_evaluation_class_diagnostics", ()
+    )
+    for key in (
+        "round_index", "client_id", "candidate_model_id", "target_model_id",
+        "class_id", "n", "candidate_only_correct", "target_only_correct",
+        "both_correct", "both_wrong",
+    ):
+        telemetry_arrays[f"cross_evaluation_class_{key}"] = np.asarray(
+            [record[key] for record in cross_evaluation_class_records],
+            dtype=np.int64,
+        )
 
     is_fedsda = mode.startswith("FedSDA")
     is_feddrift = mode == "FedDrift"

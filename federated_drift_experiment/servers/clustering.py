@@ -45,6 +45,7 @@ class CrossEvaluationClusteringServer(BaseServer):
         self._last_pair_prediction_diagnostics = []
         self._last_pair_functional_stats = {}
         self.cross_evaluation_diagnostics = []
+        self.cross_evaluation_class_diagnostics = []
         self._last_pair_distances = {}
         self._last_pair_decision_scores = {}
         self._last_pair_oracle_same_concept = {}
@@ -98,25 +99,35 @@ class CrossEvaluationClusteringServer(BaseServer):
                 difference_sum_sq = 0.0
                 for c in target_clients:
                     diagnostic = None
+                    diagnostic_kwargs = {}
+                    if self.clustering_decision == "class_functional":
+                        diagnostic_kwargs["include_class_correctness"] = True
                     if (
                         (self.collect_pair_diagnostics
                          or collect_paired_loss_differences
-                         or self.clustering_decision == "functional")
+                         or self.clustering_decision in {
+                             "functional", "class_functional"
+                         })
                         and id_i != id_j
                     ):
                         if use_client_cache:
                             stats, diagnostic = c.evaluate_cached_model_diagnostics(
-                                id_i, target_model_id=id_j
+                                id_i,
+                                target_model_id=id_j,
+                                **diagnostic_kwargs,
                             )
                         elif collect_paired_loss_differences:
                             stats, diagnostic = c.evaluate_model_diagnostics(
                                 params_i,
                                 target_model_id=id_j,
                                 reference_params=self.global_models[id_j],
+                                **diagnostic_kwargs,
                             )
                         else:
                             stats, diagnostic = c.evaluate_model_diagnostics(
-                                params_i, target_model_id=id_j
+                                params_i,
+                                target_model_id=id_j,
+                                **diagnostic_kwargs,
                             )
                         n, S, SS = stats
                         if diagnostic is not None:
@@ -173,6 +184,27 @@ class CrossEvaluationClusteringServer(BaseServer):
                                 if diagnostic is not None else -1
                             ),
                         })
+                        if diagnostic is not None:
+                            for class_id, class_diagnostic in diagnostic.get(
+                                "class_correctness", {}
+                            ).items():
+                                self.cross_evaluation_class_diagnostics.append({
+                                    "round_index": int(round_index),
+                                    "client_id": int(
+                                        getattr(c, "client_id", -1)
+                                    ),
+                                    "candidate_model_id": int(id_i),
+                                    "target_model_id": int(id_j),
+                                    "class_id": int(class_id),
+                                    **{
+                                        key: int(class_diagnostic[key])
+                                        for key in (
+                                            "n", "candidate_only_correct",
+                                            "target_only_correct",
+                                            "both_correct", "both_wrong",
+                                        )
+                                    },
+                                })
                     total_n += n; total_S += S; total_SS += SS
 
                 stats_matrix[id_i][id_j] = (total_n, total_S, total_SS)
@@ -204,6 +236,29 @@ class CrossEvaluationClusteringServer(BaseServer):
             (left, right), FunctionalPairStats()
         )
         stats.add(diagnostic["n"], left_only, right_only)
+        for class_id, class_diagnostic in diagnostic.get(
+            "class_correctness", {}
+        ).items():
+            if candidate_model_id == left:
+                class_left_only = class_diagnostic[
+                    "candidate_only_correct"
+                ]
+                class_right_only = class_diagnostic[
+                    "target_only_correct"
+                ]
+            else:
+                class_left_only = class_diagnostic[
+                    "target_only_correct"
+                ]
+                class_right_only = class_diagnostic[
+                    "candidate_only_correct"
+                ]
+            stats.add_class(
+                class_id,
+                class_diagnostic["n"],
+                class_left_only,
+                class_right_only,
+            )
 
     def _begin_cross_evaluation_model_transfers(self):
         """1回のクロス評価におけるモデル転送記録を初期化する。"""
@@ -315,13 +370,20 @@ class CrossEvaluationClusteringServer(BaseServer):
                 dist = max(diff_i_to_j, diff_j_to_i)
                 pair_distances[(id_i, id_j)] = dist
 
-                if self.clustering_decision == "functional":
+                if self.clustering_decision in {
+                    "functional", "class_functional"
+                }:
                     functional_stats = self._last_pair_functional_stats.get(
                         (id_i, id_j)
                     )
                     if functional_stats is None:
                         continue
-                    score = functional_stats.complementarity_distance()
+                    if self.clustering_decision == "class_functional":
+                        score = functional_stats.class_conditional_distance(
+                            config.CLUSTER_MIN_EVAL_N
+                        )
+                    else:
+                        score = functional_stats.complementarity_distance()
                 elif self.clustering_decision in {"confidence", "confidence_margin"}:
                     margin = (
                         self.distance_threshold

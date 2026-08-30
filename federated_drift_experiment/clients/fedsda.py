@@ -417,7 +417,9 @@ class FedSDAClient(BaseClient, ABC):
             raise ValueError(f"モデル{model_id}はまだクライアントへ配布されていません") from None
         return self.evaluate_model(params, target_model_id)
 
-    def evaluate_cached_model_diagnostics(self, model_id, target_model_id):
+    def evaluate_cached_model_diagnostics(
+        self, model_id, target_model_id, include_class_correctness=False
+    ):
         """配布済みキャッシュを使ってモデル対の正誤相補性も評価する。"""
         try:
             params = self.cached_global_model_params[model_id]
@@ -425,7 +427,11 @@ class FedSDAClient(BaseClient, ABC):
             raise ValueError(
                 f"モデル{model_id}はまだクライアントへ配布されていません"
             ) from None
-        return self.evaluate_model_diagnostics(params, target_model_id)
+        return self.evaluate_model_diagnostics(
+            params,
+            target_model_id,
+            include_class_correctness=include_class_correctness,
+        )
 
     def apply_cached_merge(self, clusters, cluster_weights, global_stats=None):
         """ローカル学習モデルを統合するが、評価用キャッシュは次の配布まで維持する。"""

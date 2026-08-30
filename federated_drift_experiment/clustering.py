@@ -2,7 +2,7 @@
 
 import math
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from statistics import NormalDist
 
 
@@ -10,7 +10,7 @@ SUPPORTED_LINKAGES = frozenset({"connected", "complete"})
 SUPPORTED_CLUSTERING_DECISIONS = frozenset(
     {
         "distance", "confidence", "confidence_margin", "functional",
-        "oracle_concept",
+        "class_functional", "oracle_concept",
     }
 )
 
@@ -22,11 +22,21 @@ class FunctionalPairStats:
     sample_count: int = 0
     left_only_correct: int = 0
     right_only_correct: int = 0
+    class_stats: dict = field(default_factory=dict)
 
     def add(self, sample_count, left_only_correct, right_only_correct):
         self.sample_count += int(sample_count)
         self.left_only_correct += int(left_only_correct)
         self.right_only_correct += int(right_only_correct)
+
+    def add_class(
+        self, class_id, sample_count, left_only_correct, right_only_correct
+    ):
+        """正解クラス別の固有正解数を加算する。"""
+        stats = self.class_stats.setdefault(
+            int(class_id), FunctionalPairStats()
+        )
+        stats.add(sample_count, left_only_correct, right_only_correct)
 
     def complementarity_distance(self):
         """片方だけが正解する割合の大きい側を機能的距離として返す。"""
@@ -36,6 +46,17 @@ class FunctionalPairStats:
             self.left_only_correct,
             self.right_only_correct,
         ) / self.sample_count
+
+    def class_conditional_distance(self, min_sample_count):
+        """十分な標本がある正解クラス別距離の最大値を返す。"""
+        distances = [
+            stats.complementarity_distance()
+            for stats in self.class_stats.values()
+            if stats.sample_count >= min_sample_count
+        ]
+        if not distances:
+            return self.complementarity_distance()
+        return max(distances)
 
 
 def mean_loss(stats):

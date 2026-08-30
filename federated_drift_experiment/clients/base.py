@@ -543,7 +543,11 @@ class BaseClient:
         return data
 
     def evaluate_model_diagnostics(
-        self, params, target_model_id, reference_params=None
+        self,
+        params,
+        target_model_id,
+        reference_params=None,
+        include_class_correctness=False,
     ):
         """通常の損失統計に加え、候補と対象モデルの標本別正誤表を返す。"""
         start_time = time.perf_counter()
@@ -573,6 +577,33 @@ class BaseClient:
         target_only = int((~candidate_correct & target_correct).sum().item())
         both_correct = int((candidate_correct & target_correct).sum().item())
         both_wrong = len(X) - candidate_only - target_only - both_correct
+        class_correctness = {}
+        if include_class_correctness:
+            labels = y.view(-1).long()
+            for class_id in torch.unique(labels).tolist():
+                mask = labels == int(class_id)
+                class_candidate_correct = candidate_correct.view(-1)[mask]
+                class_target_correct = target_correct.view(-1)[mask]
+                class_candidate_only = int(
+                    (class_candidate_correct & ~class_target_correct).sum().item()
+                )
+                class_target_only = int(
+                    (~class_candidate_correct & class_target_correct).sum().item()
+                )
+                class_both_correct = int(
+                    (class_candidate_correct & class_target_correct).sum().item()
+                )
+                class_n = int(mask.sum().item())
+                class_correctness[int(class_id)] = {
+                    "n": class_n,
+                    "candidate_only_correct": class_candidate_only,
+                    "target_only_correct": class_target_only,
+                    "both_correct": class_both_correct,
+                    "both_wrong": (
+                        class_n - class_candidate_only - class_target_only
+                        - class_both_correct
+                    ),
+                }
         difference_stats = {}
         if reference is not None:
             with torch.no_grad():
@@ -592,6 +623,7 @@ class BaseClient:
                 "target_only_correct": target_only,
                 "both_correct": both_correct,
                 "both_wrong": both_wrong,
+                "class_correctness": class_correctness,
                 **difference_stats,
             },
         )

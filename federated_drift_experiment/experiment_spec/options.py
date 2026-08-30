@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 11
+OPTION_SCHEMA_VERSION = 12
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -448,7 +448,7 @@ OPTIONS = (
         "clustering_decision", "クラスタリング判定", "clustering",
         (
             "distance", "confidence", "confidence_margin", "functional",
-            "oracle_concept",
+            "class_functional", "oracle_concept",
         ),
         "モデル対を統合する判定規則",
         (FED_SDA,), (FED_SDA, FED_DRIFT),
