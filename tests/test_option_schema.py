@@ -128,14 +128,19 @@ def test_soft_routing_constraints_are_explicit():
         "routing": "restarting_soft",
         "server_flow": "NoCached",
         "detector": "ADWIN",
-    }) == (
-        "routing=restarting_soft: ClassADWINまたはClassESRが必要",
-    )
+    }) == ()
     assert validate_selection("FedSDA", {
         "routing": "restarting_soft",
         "server_flow": "NoCached",
         "detector": "ClassESR",
     }) == ()
+    assert validate_selection("FedSDA", {
+        "routing": "restarting_soft",
+        "server_flow": "NoCached",
+        "detector": "HDDMA",
+    }) == (
+        "routing=restarting_soft: ADWIN系またはESR系検出器が必要",
+    )
 
 
 def test_parameter_sharing_is_limited_to_no_cached_modes():

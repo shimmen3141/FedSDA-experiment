@@ -527,7 +527,9 @@ CHOICE_CONSTRAINTS = (
             "FedSDA_NoCached_ClassESR",
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassESR",
             "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting",
@@ -543,7 +545,11 @@ CHOICE_CONSTRAINTS = (
     ),
     ChoiceConstraint(
         "detector", ("ADWIN",),
-        ("FedSDA_NoCached_ADWIN", "FedSDA_Cached_ADWIN", "FedSDA_without_server"),
+        (
+            "FedSDA_NoCached_ADWIN", "FedSDA_Cached_ADWIN",
+            "FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting",
+            "FedSDA_without_server",
+        ),
         note="without_serverで選べる検出器は現在ADWINのみ",
     ),
     ChoiceConstraint(
@@ -556,7 +562,10 @@ CHOICE_CONSTRAINTS = (
     ),
     ChoiceConstraint(
         "detector", ("ESR",),
-        ("FedSDA_NoCached_ESR", "FedSDA_Cached_ESR"),
+        (
+            "FedSDA_NoCached_ESR", "FedSDA_Cached_ESR",
+            "FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting",
+        ),
     ),
     ChoiceConstraint(
         "detector", ("ClassESR",),
@@ -587,18 +596,20 @@ CHOICE_CONSTRAINTS = (
         (
             "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting",
         ),
         requires_selections=(
             ActivationRule("server_flow", ("NoCached",), "NoCachedが必要"),
             ActivationRule(
-                "detector", ("ClassADWIN", "ClassESR"),
-                "ClassADWINまたはClassESRが必要",
+                "detector", ("ADWIN", "ClassADWIN", "ESR", "ClassESR"),
+                "ADWIN系またはESR系検出器が必要",
             ),
         ),
-        note="ClassADWINとClassESRの専用modeで実装",
+        note="ADWIN系とESR系の専用modeで実装",
     ),
     ChoiceConstraint(
         "model_architecture", ("shared_backbone",),
@@ -612,7 +623,9 @@ CHOICE_CONSTRAINTS = (
     ChoiceConstraint(
         "model_architecture", ("residual_adapter",),
         (
+            "FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting",
             "FedSDA_NoCached_ResidualAdapter_ClassESR",
             "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
         ),

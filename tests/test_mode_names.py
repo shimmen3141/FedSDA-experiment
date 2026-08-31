@@ -38,3 +38,9 @@ def test_detector_family_is_parsed_for_overall_and_class_modes():
     assert is_adwin_mode(
         "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting"
     )
+    assert fedsda_detector_name(
+        "FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting"
+    ) == "ADWIN"
+    assert fedsda_detector_name(
+        "FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting"
+    ) == "ESR"

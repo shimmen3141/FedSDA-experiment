@@ -105,7 +105,7 @@ flowchart LR
   clustering_consolidation -->|"非劣性制約付きマージのとき"| merge_noninferiority_margin
   server_flow -.->|"parameter_share, noninferiority_merge: NoCachedが必要"| clustering_consolidation
   server_flow -.->|"restarting_soft: NoCachedが必要"| routing
-  detector -.->|"restarting_soft: ClassADWINまたはClassESRが必要"| routing
+  detector -.->|"restarting_soft: ADWIN系またはESR系検出器が必要"| routing
   server_flow -.->|"shared_backbone: NoCachedが必要"| model_architecture
   routing -.->|"shared_backbone: Restarting SoftRoutingが必要"| model_architecture
   server_flow -.->|"residual_adapter: NoCachedが必要"| model_architecture
@@ -178,17 +178,17 @@ flowchart LR
 
 | オプション値 | 実装済みmode | 追加前提 | 備考 |
 |---|---|---|---|
-| `clustering_consolidation` = `parameter_share`, `noninferiority_merge` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_NoCached_ESR`<br/>`FedSDA_NoCached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting`<br/>`FedSDA_NoCached_HDDMA`<br/>`FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_NoCached_HDDMW` | NoCachedが必要 | 追加のクラスタリング後処理は現在NoCachedフローでのみ実装 |
-| `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
+| `clustering_consolidation` = `parameter_share`, `noninferiority_merge` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_NoCached_ESR`<br/>`FedSDA_NoCached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting`<br/>`FedSDA_NoCached_HDDMA`<br/>`FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_NoCached_HDDMW` | NoCachedが必要 | 追加のクラスタリング後処理は現在NoCachedフローでのみ実装 |
+| `detector` = `ADWIN` | `FedSDA_NoCached_ADWIN`<br/>`FedSDA_Cached_ADWIN`<br/>`FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting`<br/>`FedSDA_without_server` | なし | without_serverで選べる検出器は現在ADWINのみ |
 | `detector` = `ClassADWIN` | `FedSDA_NoCached_ClassADWIN`<br/>`FedSDA_Cached_ClassADWIN`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting` | なし |  |
-| `detector` = `ESR` | `FedSDA_NoCached_ESR`<br/>`FedSDA_Cached_ESR` | なし |  |
+| `detector` = `ESR` | `FedSDA_NoCached_ESR`<br/>`FedSDA_Cached_ESR`<br/>`FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting` | なし |  |
 | `detector` = `ClassESR` | `FedSDA_NoCached_ClassESR`<br/>`FedSDA_Cached_ClassESR`<br/>`FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | なし |  |
 | `detector` = `HDDMA` | `FedSDA_NoCached_HDDMA`<br/>`FedSDA_Cached_HDDMA` | なし |  |
 | `detector` = `ClassHDDMA` | `FedSDA_NoCached_ClassHDDMA`<br/>`FedSDA_Cached_ClassHDDMA` | なし |  |
 | `detector` = `HDDMW` | `FedSDA_NoCached_HDDMW`<br/>`FedSDA_Cached_HDDMW` | なし |  |
-| `routing` = `restarting_soft` | `FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>ClassADWINまたはClassESRが必要 | ClassADWINとClassESRの専用modeで実装 |
+| `routing` = `restarting_soft` | `FedSDA_NoCached_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>ADWIN系またはESR系検出器が必要 | ADWIN系とESR系の専用modeで実装 |
 | `model_architecture` = `shared_backbone` | `FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>Restarting SoftRoutingが必要 | 共有バックボーンは専用modeで実装 |
-| `model_architecture` = `residual_adapter` | `FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | NoCachedが必要 | 低ランク残差adapterはhard routingとRestarting SoftRoutingで実装 |
+| `model_architecture` = `residual_adapter` | `FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR`<br/>`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting` | NoCachedが必要 | 低ランク残差adapterはhard routingとRestarting SoftRoutingで実装 |
 | `model_architecture` = `shared_classifier_residual_adapter` | `FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting` | NoCachedが必要<br/>Restarting SoftRoutingが必要<br/>ClassESRが必要 | 共有分類器と概念別Residual Adapterは専用modeで実装 |
 | `routing` = `protected_soft` | `FedSDA_NoCached_ClassESR_ProtectedSoftRouting` | NoCachedが必要<br/>ClassESRが必要 | 現在は専用modeでのみ実装 |
 

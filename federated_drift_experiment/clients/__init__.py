@@ -18,14 +18,18 @@ from .fedsda import (
     FedSDAClient,
     HDDMFedSDAClient,
     ProtectedSoftRoutingClassConditionalESRFedSDAClient,
+    RestartingSoftRoutingADWINFedSDAClient,
     RestartingSoftRoutingClassConditionalADWINFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
+    RestartingSoftRoutingESRFedSDAClient,
 )
 from .feddrift import FedDriftClient
 from .oblivious import ObliviousClient
 from .shared_backbone import (
+    ResidualAdapterADWINRestartingSoftRoutingFedSDAClient,
     ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient,
     ResidualAdapterClassConditionalESRFedSDAClient,
+    ResidualAdapterESRRestartingSoftRoutingFedSDAClient,
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
     SharedBackboneClassConditionalESRFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
@@ -38,12 +42,16 @@ __all__ = [
     "ClassConditionalHDDMAFedSDAClient",
     "HDDMFedSDAClient",
     "ProtectedSoftRoutingClassConditionalESRFedSDAClient",
+    "RestartingSoftRoutingADWINFedSDAClient",
     "RestartingSoftRoutingClassConditionalADWINFedSDAClient",
     "RestartingSoftRoutingClassConditionalESRFedSDAClient",
+    "RestartingSoftRoutingESRFedSDAClient",
     "SharedBackboneClassConditionalESRFedSDAClient",
     "SharedBackboneRestartingSoftRoutingFedSDAClient",
+    "ResidualAdapterADWINRestartingSoftRoutingFedSDAClient",
     "ResidualAdapterClassConditionalESRFedSDAClient",
     "ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient",
+    "ResidualAdapterESRRestartingSoftRoutingFedSDAClient",
     "ResidualAdapterRestartingSoftRoutingFedSDAClient",
     "FedDriftClient", "ObliviousClient",
 ]

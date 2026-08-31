@@ -3,8 +3,10 @@ import torch
 
 from federated_drift_experiment import config, run_random_drift_experiment
 from federated_drift_experiment.clients import (
+    ResidualAdapterADWINRestartingSoftRoutingFedSDAClient,
     ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient,
     ResidualAdapterClassConditionalESRFedSDAClient,
+    ResidualAdapterESRRestartingSoftRoutingFedSDAClient,
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
     SharedBackboneRestartingSoftRoutingFedSDAClient,
 )
@@ -126,6 +128,37 @@ def test_residual_adapter_class_adwin_mode_reuses_routing_architecture():
     )
     assert spec.server_cls is SharedBackboneFedSDANoCachedServer
     assert spec.model_cls is ResidualAdapterMLP
+
+
+def test_residual_adapter_overall_detector_modes_reuse_routing_architecture():
+    adwin = MODE_SPECS[
+        "FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting"
+    ]
+    esr = MODE_SPECS[
+        "FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting"
+    ]
+
+    assert adwin.client_cls is ResidualAdapterADWINRestartingSoftRoutingFedSDAClient
+    assert esr.client_cls is ResidualAdapterESRRestartingSoftRoutingFedSDAClient
+    for spec in (adwin, esr):
+        assert spec.server_cls is SharedBackboneFedSDANoCachedServer
+        assert spec.model_cls is ResidualAdapterMLP
+
+
+def test_residual_adapter_overall_detector_clients_initialize_routing():
+    for client_cls in (
+        ResidualAdapterADWINRestartingSoftRoutingFedSDAClient,
+        ResidualAdapterESRRestartingSoftRoutingFedSDAClient,
+    ):
+        client = client_cls(
+            client_id=0,
+            initial_models={0: ResidualAdapterMLP()},
+            initial_stats={0: {"n": 10, "mean": 0.1, "M2": 0.0}},
+            verbose=False,
+        )
+
+        assert client.current_model_id == 0
+        assert client.expert_router.probabilities((0,)) == {0: 1.0}
 
 
 def _two_residual_adapter_client():

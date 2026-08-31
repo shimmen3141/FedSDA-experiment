@@ -15,8 +15,10 @@ from ..gradient_surgery import (
 )
 from .fedsda import (
     ClassConditionalESRFedSDAClient,
+    RestartingSoftRoutingADWINFedSDAClient,
     RestartingSoftRoutingClassConditionalADWINFedSDAClient,
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
+    RestartingSoftRoutingESRFedSDAClient,
 )
 
 
@@ -418,6 +420,20 @@ class ResidualAdapterRestartingSoftRoutingFedSDAClient(
     SharedBackboneRestartingSoftRoutingFedSDAClient
 ):
     """ゼロ初期化の概念別低ランク残差adapterを使うClassESRクライアント。"""
+
+
+class ResidualAdapterESRRestartingSoftRoutingFedSDAClient(
+    _SharedRepresentationFedSDAClientMixin,
+    RestartingSoftRoutingESRFedSDAClient,
+):
+    """Residual Adapter、全体損失e-SR、SoftRoutingを組み合わせる。"""
+
+
+class ResidualAdapterADWINRestartingSoftRoutingFedSDAClient(
+    _SharedRepresentationFedSDAClientMixin,
+    RestartingSoftRoutingADWINFedSDAClient,
+):
+    """Residual Adapter、全体損失ADWIN、SoftRoutingを組み合わせる。"""
 
 
 class ResidualAdapterClassADWINRestartingSoftRoutingFedSDAClient(

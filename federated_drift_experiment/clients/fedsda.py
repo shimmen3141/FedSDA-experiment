@@ -1923,11 +1923,25 @@ class RestartingSoftRoutingClassConditionalESRFedSDAClient(
     """ClassESRとRestarting SoftRoutingを組み合わせるクライアント。"""
 
 
+class RestartingSoftRoutingESRFedSDAClient(
+    _RestartingSoftRoutingFedSDAClientMixin,
+    ESRFedSDAClient,
+):
+    """全体損失e-SRとRestarting SoftRoutingを組み合わせるクライアント。"""
+
+
 class RestartingSoftRoutingClassConditionalADWINFedSDAClient(
     _RestartingSoftRoutingFedSDAClientMixin,
     ClassConditionalADWINFedSDAClient,
 ):
     """ClassADWINとRestarting SoftRoutingを組み合わせるクライアント。"""
+
+
+class RestartingSoftRoutingADWINFedSDAClient(
+    _RestartingSoftRoutingFedSDAClientMixin,
+    ADWINFedSDAClient,
+):
+    """全体損失ADWINとRestarting SoftRoutingを組み合わせるクライアント。"""
 
 
 class ProtectedSoftRoutingClassConditionalESRFedSDAClient(
