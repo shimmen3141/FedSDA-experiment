@@ -14,6 +14,7 @@ Variants:
   shared-backbone     概念別Residual Adapterを外し、完全共有表現にする
   hard-routing        SoftRoutingを外し、単一モデルを選択する
   global-routing      Meta-switchingを外し、全体損失だけでSoftRoutingする
+  switching-routing   モデル追従Fixed-Shareを直接SoftRoutingに使う
   meta-routing        上位switchingを外し、クラス文脈Meta-routerだけを使う
   no-recalibration    集約後FIFO再較正を外す
   immediate-creation  forward検証を外し、警報時に即座に新規モデルを作る
@@ -31,6 +32,7 @@ variants=(
     shared-backbone
     hard-routing
     global-routing
+    switching-routing
     meta-routing
     no-recalibration
     immediate-creation
@@ -149,6 +151,16 @@ run_variant() {
                 --fedsda-modes FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting \
                 --shared-backbone-routing-recalibration fifo_replay \
                 --soft-routing-context global \
+                --routing-active-set-policy all \
+                --no-routing-archive-shadow-diagnostics
+            ;;
+        switching-routing)
+            bash "$repo_root/tools/run_server_sweep.sh" "$variant" \
+                "${base_args[@]}" "${final_clustering[@]}" "${final_creation[@]}" \
+                "${residual_model[@]}" \
+                --fedsda-modes FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting \
+                --shared-backbone-routing-recalibration fifo_replay \
+                --soft-routing-context switching \
                 --routing-active-set-policy all \
                 --no-routing-archive-shadow-diagnostics
             ;;

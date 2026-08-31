@@ -1113,7 +1113,8 @@ def build_parser():
         default=config.SOFT_ROUTING_CONTEXT,
         help=(
             "SoftRoutingの予測方式 "
-            "(global / predicted_class / meta_predicted_class / meta_switching)"
+            "(global / switching / predicted_class / "
+            "meta_predicted_class / meta_switching)"
         ),
     )
     fedsda.add_argument(

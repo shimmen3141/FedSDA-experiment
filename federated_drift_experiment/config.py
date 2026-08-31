@@ -106,10 +106,11 @@ SHARED_BACKBONE_ROUTING_RECALIBRATION_CHOICES = (
     "none", "aggregation_restart", "fifo_replay", "leader_change_replay",
     "persistent_leader_change_replay",
 )
-# SoftRoutingの証拠を全入力で共有するか、予測クラスごとに分けるかを選ぶ。
+# 実予測へ使うSoftRoutingの統合方式を選ぶ。
 SOFT_ROUTING_CONTEXT = "global"
 SOFT_ROUTING_CONTEXT_CHOICES = (
-    "global", "predicted_class", "meta_predicted_class", "meta_switching",
+    "global", "switching", "predicted_class", "meta_predicted_class",
+    "meta_switching",
 )
 # 上位Meta-switchingの重み最大候補だけを使うか、重み付き混合を使うかを選ぶ。
 SOFT_ROUTING_TOP_COMBINATION = "leader"

@@ -379,7 +379,7 @@ class SwitchingExpertRouter:
 
     全expertの有界損失を使う二次損失適応型Hedgeに、各時刻で一様分布への
     fixed-shareを加える。shareの時間尺度には既存のFIFO長を使うため、独立した
-    数値ハイパーパラメータは増やさない。現段階ではshadow診断専用である。
+    数値ハイパーパラメータは増やさない。実予測とshadow診断の両方で利用する。
     """
 
     def __init__(self, share_horizon):

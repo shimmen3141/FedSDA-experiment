@@ -150,10 +150,10 @@ OPTIONS = (
     OptionSpec(
         "soft_routing_context", "SoftRouting文脈", "prediction",
         (
-            "global", "predicted_class", "meta_predicted_class",
-            "meta_switching",
+            "global", "switching", "predicted_class",
+            "meta_predicted_class", "meta_switching",
         ),
-        "大域・予測クラス別・meta混合、またはmetaとswitching-expertの上位選択を選ぶ",
+        "大域・モデル追従・予測クラス別・meta混合、またはmetaとモデル追従の上位選択を選ぶ",
         (FED_SDA,), (FED_SDA,),
         requires_capabilities=("soft_routing",),
         active_when=(ActivationRule(

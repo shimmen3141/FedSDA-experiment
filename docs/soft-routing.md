@@ -24,6 +24,7 @@ flowchart LR
     meta --> top
     switching --> top
     global -->|global| output
+    switching -->|switching| output
     context -->|predicted_class| output
     meta -->|meta_predicted_class| output
     top -->|meta_switching| output
@@ -37,11 +38,16 @@ flowchart LR
 | 名称 | レイヤー | CLIで実予測に使用 | 内容 |
 |---|---:|---|---|
 | Global mixture | 1 | `--soft-routing-context global` | 全入力で共有したモデル別累積損失から全モデルを混合する |
+| Switching mixture | 1 | `--soft-routing-context switching` | Fixed-Shareで過去の優勢モデルから新しい優勢モデルへの切替を追跡し、全モデルを混合する |
 | Context mixture | 2 | `--soft-routing-context predicted_class` | globalの事前予測クラスごとに別の累積損失を持ち、全モデルを再混合する |
 | Context leader | 2 | 単独選択不可 | Context mixtureで最大重みのモデル。meta-routerの候補兼診断値 |
 | Shadow meta | 3 | `predicted_class`時は診断のみ | Global mixtureとContext leaderを文脈別AdaHedgeで再混合する |
 | Meta mixture | 3 | `--soft-routing-context meta_predicted_class` | Shadow metaと同じ候補混合を実予測に採用する |
 | Meta-switching selector | 4 | `--soft-routing-context meta_switching` | Meta mixtureとswitching mixtureのうち、上位Fixed-Shareが選んだ一方を採用する |
+
+これらはCLI上では相互排他的な実予測方式の選択肢だが、アルゴリズム上の深さは同じではない。
+Global mixtureとSwitching mixtureはモデル出力を直接混合する同層の方式であり、Meta mixtureは
+Globalと予測クラス別leaderをさらに統合し、Meta-switchingはMetaとSwitchingの上位で選択する。
 
 `meta_predicted_class`は、モデル別の実効重みに展開すると、global重みとcontext leaderへの一点重みを
 上位AdaHedgeの比率で加えた混合になる。追加のモデルforward、通信、数値ハイパーパラメータはない。
@@ -89,7 +95,8 @@ archive・削除は行わない。保存項目の定義は[metrics.md](metrics.m
 時間とともに切り替わる状況を追跡する。二次損失から学習率を自動調整し、一様分布へ戻す時間尺度には
 既存の`N_FIFO`を使うため、新しい利用者設定は追加しない。
 
-モデル直接のswitching mixtureは、すべてのRestarting SoftRouting modeでshadowとして計算する。
+モデル直接のswitching mixtureは、すべてのRestarting SoftRouting modeで計算する。
+`--soft-routing-context switching`では実予測に使用し、それ以外ではshadow診断として記録する。
 共有表現の`fifo_replay`後は、集約後モデルで再計算したFIFO損失から状態も再構築する。
 
 `meta_switching`は、現行Meta mixtureとswitching mixtureをさらに2候補のFixed-Shareで追跡し、予測前に
@@ -103,8 +110,11 @@ archive・削除は行わない。保存項目の定義は[metrics.md](metrics.m
 - `global`は単純で安定した基準方式であり、当面の既定値として残す。
 - `meta_predicted_class`はSine2・MNIST2・MNIST4でglobalを上回った一方、Circle2では5 seedすべてで
   わずかに下回った。現時点では一律の既定値ではなく、更新損失との整合性を検証する候補である。
-- `meta_switching`は、switching mixtureの回復速度とMeta mixtureの定常安定性を閾値なしで選択する
-  実験的候補である。主要方式への昇格は実予測としての複数seed検証後に判断する。
+- `switching`は、モデル追従Fixed-Shareを実予測へ直接使う単純な候補である。全モデル出力を同じ順序で
+  計算済みなので、従来のshadow accuracyは実予測へ昇格した場合のaccuracyと一致する。
+- `meta_switching`は、switching mixtureの回復速度とMeta mixtureの定常安定性を閾値なしで選択する。
+  6データセット・5 seed・4集約間隔の実予測で検証済みだが、直接`switching`との差は小さいため、
+  精度だけでなく説明コストも含めて主要方式を選ぶ。
 
 上位Fixed-Shareの利用方法は、`--soft-routing-top-combination`で次の二方式を選べる。
 
@@ -226,6 +236,13 @@ MNIST2・MNIST4の各17条件で現行Metaを上回った。改善は真のド�
 定常区間ではCircle2・MNIST系を悪化させる条件もあった。一方、同じ系列上でMetaとswitching mixtureを
 上位Fixed-Shareにより選ぶ再生診断では、Circle2・Sine2・MNIST2・MNIST4の全80条件で現行Metaを
 上回った。この結果を根拠に、直接switching mixtureではなく`meta_switching`を実予測候補として追加した。
+
+現行の最終構成で実予測方式だけを揃えて再集計すると、Global、Meta、Switching、Meta-switchingの平均
+accuracyはそれぞれ`0.90931`、`0.91076`、`0.91290`、`0.91339`だった。SwitchingはGlobalから
+約0.359ポイント改善し、Meta-switchingのGlobalに対する改善約0.408ポイントの約88%を、上位階層なしで
+得ている。stable accuracyは順に`0.91906`、`0.91961`、`0.91903`、`0.91968`であり、Switchingは
+回復を含む全体accuracyには強い一方、定常区間ではMeta系に僅かに劣る。この差を主要方式の説明コストと
+比較するため、`switching`を正式なCLI選択肢として扱う。
 
 5 seed・5000 stepでは、`zero_one`は`bounded_score`に対してCircle2を約0.03ポイント、MNIST2を
 約0.06ポイント、MNIST4を約0.10ポイント改善し、各データの全seedで上回った。SEA2・SEA4・Sine2は

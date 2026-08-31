@@ -1605,7 +1605,7 @@ class _AdaHedgeRoutingFedSDAClientMixin:
                     "未知のMeta-switching上位統合方式です: "
                     f"{config.SOFT_ROUTING_TOP_COMBINATION!r}"
                 )
-        elif config.SOFT_ROUTING_CONTEXT != "global":
+        elif config.SOFT_ROUTING_CONTEXT not in {"global", "switching"}:
             raise ValueError(
                 f"未知のSoftRouting文脈です: {config.SOFT_ROUTING_CONTEXT!r}"
             )
@@ -1617,6 +1617,9 @@ class _AdaHedgeRoutingFedSDAClientMixin:
             weighted_scores = self._weighted_routing_scores(
                 prediction_scores, probabilities
             )
+        elif config.SOFT_ROUTING_CONTEXT == "switching":
+            probabilities = switching_probabilities
+            weighted_scores = switching_scores
         elif config.SOFT_ROUTING_CONTEXT == "predicted_class":
             probabilities = context_probabilities
             weighted_scores = context_scores

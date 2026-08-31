@@ -44,6 +44,7 @@ adapter rank、共有表現の学習方法、平均勾配とPCGrad、Meta-switch
 | `shared-backbone` | Residual Adapterを外す | 概念別補正部分 |
 | `hard-routing` | SoftRoutingを外す | 予測時混合 |
 | `global-routing` | クラス文脈と上位切替を外す | 文脈依存routing全体 |
+| `switching-routing` | 上位Metaを外し、モデル追従Fixed-Shareを直接使う | 直接Switching routing |
 | `meta-routing` | 上位switchingだけを外す | 上位switching |
 | `no-recalibration` | FIFO replayを外す | 集約後再較正 |
 | `immediate-creation` | forward検証を外す | 検証付き新規モデル作成 |

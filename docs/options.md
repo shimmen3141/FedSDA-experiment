@@ -29,7 +29,7 @@ flowchart LR
   end
   subgraph group_prediction[prediction]
     routing["<b>予測ルーティング</b><br/>hard | restarting_soft | protected_soft"]
-    soft_routing_context["<b>SoftRouting文脈</b><br/>global | predicted_class | meta_predicted_class | meta_switching"]
+    soft_routing_context["<b>SoftRouting文脈</b><br/>global | switching | predicted_class | meta_predicted_class | meta_switching"]
     soft_routing_top_combination["<b>Meta-switching上位統合</b><br/>leader | mixture"]
     soft_routing_meta_loss["<b>Meta-router更新損失</b><br/>bounded_score | zero_one"]
     routing_active_set_policy["<b>予測active集合方針</b><br/>all | periodic_forward_probe"]
@@ -130,7 +130,7 @@ flowchart LR
 | `server_flow` | mode | 実装済み | 対象外 | 対象外 | 対象外 | FedAvg前後のモデルキャッシュ利用と通信順序 |
 | `detector` | mode | 実装済み | 対象外 | 実装済み | 対象外 | FedSDAクライアントが損失系列へ適用する検出器 |
 | `routing` | mode | 実装済み | 理論上のみ | 対象外 | 対象外 | 保持モデルから予測を選択または混合する方式 |
-| `soft_routing_context` | cli: `--soft-routing-context` | 実装済み | 対象外 | 対象外 | 対象外 | 大域・予測クラス別・meta混合、またはmetaとswitching-expertの上位選択を選ぶ |
+| `soft_routing_context` | cli: `--soft-routing-context` | 実装済み | 対象外 | 対象外 | 対象外 | 大域・モデル追従・予測クラス別・meta混合、またはmetaとモデル追従の上位選択を選ぶ |
 | `soft_routing_top_combination` | cli: `--soft-routing-top-combination` | 実装済み | 対象外 | 対象外 | 対象外 | 上位Fixed-Shareの最大重み候補を使うか、候補予測を重み付き混合する |
 | `soft_routing_meta_loss` | cli: `--soft-routing-meta-loss` | 実装済み | 対象外 | 対象外 | 対象外 | Meta候補を確率出力の有界損失または最終予測の0/1損失で比較する |
 | `routing_active_set_policy` | cli: `--routing-active-set-policy` | 実装済み | 対象外 | 対象外 | 対象外 | 全expertを常用するか、N_forward件ごとのprobeでLOO寄与のあるexpertだけを実予測する |

@@ -561,6 +561,44 @@ def test_meta_predicted_class_uses_meta_scores_as_actual_prediction(
     ] == 0
 
 
+def test_switching_context_uses_switching_scores_as_actual_prediction(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "switching")
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP(), 2: SimpleMLP()},
+        initial_stats={
+            model_id: {"n": 100, "mean": 0.2, "M2": 1.0}
+            for model_id in range(3)
+        },
+        verbose=False,
+    )
+    for model_id, score in ((0, 0.1), (1, 0.2), (2, 0.9)):
+        client.models[model_id].forward = (
+            lambda x, score=score: torch.full((len(x), 1), score)
+        )
+
+    # Global mixtureは誤答し、モデル追従mixtureだけが正答する状態を作る。
+    client.expert_router.cumulative_losses = {0: 0.0, 1: 2.0, 2: 2.0}
+    client.expert_router.mixability_gap = 1.0
+    client.switching_expert_router.weights = {0: 0.05, 1: 0.05, 2: 0.9}
+
+    client._record_prediction(
+        torch.zeros((1, config.dataset_spec().input_dim)),
+        torch.ones((1, 1)),
+        0,
+    )
+
+    assert client.routing_switching_diagnostics["correct_count"] == 1
+    assert client.routing_switching_diagnostics["actual_correct_count"] == 1
+    assert client.history_accuracy == [1.0]
+    assert client.routing_meta_diagnostics["sample_count"] == 0
+
+
 def test_meta_switching_uses_the_selected_top_level_candidate(monkeypatch):
     monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "meta_switching")
     monkeypatch.setattr(config, "SOFT_ROUTING_TOP_COMBINATION", "leader")

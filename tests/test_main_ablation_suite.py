@@ -15,6 +15,7 @@ EXPECTED_VARIANTS = {
     "shared-backbone",
     "hard-routing",
     "global-routing",
+    "switching-routing",
     "meta-routing",
     "no-recalibration",
     "immediate-creation",
