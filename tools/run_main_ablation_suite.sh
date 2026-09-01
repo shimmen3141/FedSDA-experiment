@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 論文の主要構成から一要素ずつ外した、未実施のablationだけを実行する。
+# 論文の主要構成と、一要素除去ablation・方式置換比較を再現する。
 # 個別実行: bash tools/run_main_ablation_suite.sh independent
 # 一括実行: bash tools/run_main_ablation_suite.sh all
 
@@ -10,16 +10,19 @@ usage() {
 Usage: bash tools/run_main_ablation_suite.sh [--list] <variant|all> [variant ...]
 
 Variants:
+  reference           提案構成そのもの（Switching SoftRouting）
   independent         共有表現を外し、独立モデルにする
   shared-backbone     概念別Residual Adapterを外し、完全共有表現にする
-  hard-routing        SoftRoutingを外し、単一モデルを選択する
-  global-routing      Meta-switchingを外し、全体損失だけでSoftRoutingする
-  switching-routing   モデル追従Fixed-Shareを直接SoftRoutingに使う
-  meta-routing        上位switchingを外し、クラス文脈Meta-routerだけを使う
+  hard-routing        Switching SoftRoutingを外し、単一モデルを選択する
+  global-routing      Switchingを全体損失AdaHedgeへ置き換える
+  meta-routing        Switchingをクラス文脈Meta-routerへ置き換える
+  meta-switching-routing
+                      Switchingを階層Meta-switchingへ置き換える
   no-recalibration    集約後FIFO再較正を外す
   immediate-creation  forward検証を外し、警報時に即座に新規モデルを作る
   distance-average    class-functional判定を距離判定へ置き換える
   overall-esr         クラス別損失系列を外し、全体損失e-SRだけを使う
+  class-adwin         ClassESRをClassADWINへ置き換える
   overall-adwin       クラス別損失系列を外し、全体損失ADWINだけを使う
 
 FDE_RUN_DIRを省略すると、全variantを同じ日時付き結果ルートへ保存します。
@@ -28,16 +31,18 @@ EOF
 }
 
 variants=(
+    reference
     independent
     shared-backbone
     hard-routing
     global-routing
-    switching-routing
     meta-routing
+    meta-switching-routing
     no-recalibration
     immediate-creation
     distance-average
     overall-esr
+    class-adwin
     overall-adwin
 )
 
@@ -93,9 +98,7 @@ residual_model=(
 )
 final_soft_routing=(
     --shared-backbone-routing-recalibration fifo_replay
-    --soft-routing-context meta_switching
-    --soft-routing-top-combination leader
-    --soft-routing-meta-loss zero_one
+    --soft-routing-context switching
     --routing-active-set-policy all
     --no-routing-archive-shadow-diagnostics
 )
@@ -122,13 +125,17 @@ run_variant() {
     fi
 
     case "$variant" in
+        reference)
+            bash "$repo_root/tools/run_server_sweep.sh" "$variant" \
+                "${base_args[@]}" "${final_clustering[@]}" "${final_creation[@]}" \
+                "${residual_model[@]}" "${final_soft_routing[@]}" \
+                --fedsda-modes FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting
+            ;;
         independent)
             bash "$repo_root/tools/run_server_sweep.sh" "$variant" \
                 "${base_args[@]}" "${final_clustering[@]}" "${final_creation[@]}" \
                 --fedsda-modes FedSDA_NoCached_ClassESR_RestartingSoftRouting \
-                --soft-routing-context meta_switching \
-                --soft-routing-top-combination leader \
-                --soft-routing-meta-loss zero_one \
+                --soft-routing-context switching \
                 --routing-active-set-policy all \
                 --no-routing-archive-shadow-diagnostics
             ;;
@@ -154,16 +161,6 @@ run_variant() {
                 --routing-active-set-policy all \
                 --no-routing-archive-shadow-diagnostics
             ;;
-        switching-routing)
-            bash "$repo_root/tools/run_server_sweep.sh" "$variant" \
-                "${base_args[@]}" "${final_clustering[@]}" "${final_creation[@]}" \
-                "${residual_model[@]}" \
-                --fedsda-modes FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting \
-                --shared-backbone-routing-recalibration fifo_replay \
-                --soft-routing-context switching \
-                --routing-active-set-policy all \
-                --no-routing-archive-shadow-diagnostics
-            ;;
         meta-routing)
             bash "$repo_root/tools/run_server_sweep.sh" "$variant" \
                 "${base_args[@]}" "${final_clustering[@]}" "${final_creation[@]}" \
@@ -175,15 +172,25 @@ run_variant() {
                 --routing-active-set-policy all \
                 --no-routing-archive-shadow-diagnostics
             ;;
+        meta-switching-routing)
+            bash "$repo_root/tools/run_server_sweep.sh" "$variant" \
+                "${base_args[@]}" "${final_clustering[@]}" "${final_creation[@]}" \
+                "${residual_model[@]}" \
+                --fedsda-modes FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting \
+                --shared-backbone-routing-recalibration fifo_replay \
+                --soft-routing-context meta_switching \
+                --soft-routing-top-combination leader \
+                --soft-routing-meta-loss zero_one \
+                --routing-active-set-policy all \
+                --no-routing-archive-shadow-diagnostics
+            ;;
         no-recalibration)
             bash "$repo_root/tools/run_server_sweep.sh" "$variant" \
                 "${base_args[@]}" "${final_clustering[@]}" "${final_creation[@]}" \
                 "${residual_model[@]}" \
                 --fedsda-modes FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting \
                 --shared-backbone-routing-recalibration none \
-                --soft-routing-context meta_switching \
-                --soft-routing-top-combination leader \
-                --soft-routing-meta-loss zero_one \
+                --soft-routing-context switching \
                 --routing-active-set-policy all \
                 --no-routing-archive-shadow-diagnostics
             ;;
@@ -207,6 +214,13 @@ run_variant() {
                 "${base_args[@]}" "${final_clustering[@]}" "${final_creation[@]}" \
                 "${residual_model[@]}" "${final_soft_routing[@]}" \
                 --fedsda-modes FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting
+            ;;
+        class-adwin)
+            bash "$repo_root/tools/run_server_sweep.sh" "$variant" \
+                "${base_args[@]}" "${final_clustering[@]}" "${final_creation[@]}" \
+                "${residual_model[@]}" "${final_soft_routing[@]}" \
+                --fedsda-modes FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting \
+                --fixed-adwin-delta 0.05
             ;;
         overall-adwin)
             bash "$repo_root/tools/run_server_sweep.sh" "$variant" \

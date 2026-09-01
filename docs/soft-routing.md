@@ -107,14 +107,15 @@ archive・削除は行わない。保存項目の定義は[metrics.md](metrics.m
 
 ## 比較上の扱い
 
-- `global`は単純で安定した基準方式であり、当面の既定値として残す。
+- `global`は単純で安定した比較基準として残す。
 - `meta_predicted_class`はSine2・MNIST2・MNIST4でglobalを上回った一方、Circle2では5 seedすべてで
   わずかに下回った。現時点では一律の既定値ではなく、更新損失との整合性を検証する候補である。
-- `switching`は、モデル追従Fixed-Shareを実予測へ直接使う単純な候補である。全モデル出力を同じ順序で
-  計算済みなので、従来のshadow accuracyは実予測へ昇格した場合のaccuracyと一致する。
+- `switching`は、モデル追従Fixed-Shareを実予測へ直接使う。全モデル出力を同じ順序で計算済みなので、
+  従来のshadow accuracyは実予測へ昇格した場合のaccuracyと一致する。精度と説明コストの釣り合いから、
+  論文の主要構成ではこの方式を用いる。
 - `meta_switching`は、switching mixtureの回復速度とMeta mixtureの定常安定性を閾値なしで選択する。
   6データセット・5 seed・4集約間隔の実予測で検証済みだが、直接`switching`との差は小さいため、
-  精度だけでなく説明コストも含めて主要方式を選ぶ。
+  主要構成ではなく、階層化による追加利得を示す拡張比較として扱う。
 
 上位Fixed-Shareの利用方法は、`--soft-routing-top-combination`で次の二方式を選べる。
 
@@ -242,7 +243,8 @@ accuracyはそれぞれ`0.90931`、`0.91076`、`0.91290`、`0.91339`だった。
 約0.359ポイント改善し、Meta-switchingのGlobalに対する改善約0.408ポイントの約88%を、上位階層なしで
 得ている。stable accuracyは順に`0.91906`、`0.91961`、`0.91903`、`0.91968`であり、Switchingは
 回復を含む全体accuracyには強い一方、定常区間ではMeta系に僅かに劣る。この差を主要方式の説明コストと
-比較するため、`switching`を正式なCLI選択肢として扱う。
+比較すると、上位階層の追加accuracyは約0.049ポイントに留まる。そのため、論文の主要構成は
+`switching`とし、`meta_switching`は説明コストに対する追加利得を検証する拡張比較へ回す。
 
 5 seed・5000 stepでは、`zero_one`は`bounded_score`に対してCircle2を約0.03ポイント、MNIST2を
 約0.06ポイント、MNIST4を約0.10ポイント改善し、各データの全seedで上回った。SEA2・SEA4・Sine2は
