@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-OPTION_SCHEMA_VERSION = 12
+OPTION_SCHEMA_VERSION = 13
 
 FED_SDA = "FedSDA"
 FED_DRIFT = "FedDrift"
@@ -161,6 +161,18 @@ OPTIONS = (
             "Restarting SoftRoutingのとき",
         ),),
         cli_name="soft-routing-context",
+    ),
+    OptionSpec(
+        "soft_routing_activation_policy", "SoftRouting有効化期間", "prediction",
+        ("always", "drift_recovery"),
+        "常時混合するか、警報から解決後N_FIFO件までの回復期だけ混合する",
+        (FED_SDA,), (FED_SDA,),
+        requires_capabilities=("soft_routing",),
+        active_when=(ActivationRule(
+            "routing", ("restarting_soft",),
+            "Restarting SoftRoutingのとき",
+        ),),
+        cli_name="soft-routing-activation-policy",
     ),
     OptionSpec(
         "soft_routing_top_combination", "Meta-switching上位統合", "prediction",
@@ -610,6 +622,29 @@ CHOICE_CONSTRAINTS = (
             ),
         ),
         note="ADWIN系とESR系の専用modeで実装",
+    ),
+    ChoiceConstraint(
+        "soft_routing_activation_policy", ("drift_recovery",),
+        (
+            "FedSDA_NoCached_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+            "FedSDA_NoCached_ResidualAdapter_SharedClassifier_ClassESR_RestartingSoftRouting",
+        ),
+        requires_selections=(
+            ActivationRule(
+                "soft_routing_context", ("switching",),
+                "Switching routingが必要",
+            ),
+            ActivationRule(
+                "routing_active_set_policy", ("all",),
+                "全repositoryモデルを比較できるactive集合が必要",
+            ),
+        ),
+        note="回復期終了判定にはSwitching routingのleaderを用いる",
     ),
     ChoiceConstraint(
         "model_architecture", ("shared_backbone",),

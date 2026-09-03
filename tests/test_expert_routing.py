@@ -4,8 +4,37 @@ import pytest
 from federated_drift_experiment.expert_routing import (
     AdaHedgeRouter,
     PeriodicForwardProbeActiveSet,
+    SoftRoutingActivationController,
     SwitchingExpertRouter,
 )
+
+
+def test_soft_routing_activation_controller_keeps_exact_recovery_horizon():
+    controller = SoftRoutingActivationController("drift_recovery")
+
+    assert not controller.active
+    assert controller.activate()
+    controller.resolve(sample_idx=10, recovery_samples=3)
+    assert not controller.exit_due(11)
+    assert not controller.exit_due(13)
+    assert controller.exit_due(14)
+
+    controller.defer_exit()
+    assert controller.active
+    controller.deactivate()
+    assert not controller.active
+    assert controller.activation_count == 1
+    assert controller.deactivation_count == 1
+    assert controller.exit_deferred_sample_count == 1
+
+
+@pytest.mark.parametrize("router", [AdaHedgeRouter(), SwitchingExpertRouter(10)])
+def test_neutral_replay_does_not_count_as_aggregation_recalibration(router):
+    router.replay(({0: 0.1, 1: 0.9}, {0: 0.2, 1: 0.8}))
+
+    assert router.aggregation_recalibration_count == 0
+    assert router.aggregation_recalibration_sample_count == 0
+    assert set(router.probabilities((0, 1))) == {0, 1}
 
 
 def test_periodic_forward_probe_active_set_reactivates_every_cycle():

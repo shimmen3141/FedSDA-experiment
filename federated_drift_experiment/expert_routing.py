@@ -172,17 +172,24 @@ class AdaHedgeRouter:
         self.aggregation_restart_count += 1
         self.aggregation_recalibration_count += 1
 
+    def replay(self, loss_sequence):
+        """損失系列からルーティング証拠を再構築する。"""
+        loss_sequence = tuple(loss_sequence)
+        if not loss_sequence:
+            return
+        self._clear_evidence()
+        for losses in loss_sequence:
+            probabilities = self.probabilities(losses)
+            self.update(losses, probabilities)
+
     def replay_after_aggregation(self, loss_sequence):
         """集約後モデルの損失系列で、ルーティング証拠を再構築する。"""
         loss_sequence = tuple(loss_sequence)
         if not loss_sequence:
             return
-        self._clear_evidence()
         self.aggregation_recalibration_count += 1
         self.aggregation_recalibration_sample_count += len(loss_sequence)
-        for losses in loss_sequence:
-            probabilities = self.probabilities(losses)
-            self.update(losses, probabilities)
+        self.replay(loss_sequence)
 
     @staticmethod
     def _leader(losses, preferred_id=None):
@@ -491,14 +498,81 @@ class SwitchingExpertRouter:
         self._clear_evidence()
         self.aggregation_recalibration_count += 1
 
+    def replay(self, loss_sequence):
+        """損失系列から時系列状態を再構築する。"""
+        loss_sequence = tuple(loss_sequence)
+        if not loss_sequence:
+            return
+        self._clear_evidence()
+        for losses in loss_sequence:
+            probabilities = self.probabilities(losses)
+            self.update(losses, probabilities)
+
     def replay_after_aggregation(self, loss_sequence):
         """集約後モデルのFIFO損失から時系列状態を再構築する。"""
         loss_sequence = tuple(loss_sequence)
         if not loss_sequence:
             return
-        self._clear_evidence()
         self.aggregation_recalibration_count += 1
         self.aggregation_recalibration_sample_count += len(loss_sequence)
-        for losses in loss_sequence:
-            probabilities = self.probabilities(losses)
-            self.update(losses, probabilities)
+        self.replay(loss_sequence)
+
+
+class SoftRoutingActivationController:
+    """Soft Routingを常時またはドリフト回復期だけ有効化する。"""
+
+    def __init__(self, policy):
+        if policy not in {"always", "drift_recovery"}:
+            raise ValueError(f"未知のSoft Routing有効化方針です: {policy!r}")
+        self.policy = policy
+        self.active = policy == "always"
+        self.resolved_at = None
+        self.exit_after = None
+        self.soft_sample_count = 0
+        self.hard_sample_count = 0
+        self.activation_count = 0
+        self.deactivation_count = 0
+        self.exit_deferred_sample_count = 0
+        self.replay_sample_count = 0
+
+    def activate(self):
+        """警報時に有効化し、新しい有効期間かどうかを返す。"""
+        newly_activated = not self.active
+        self.active = True
+        self.resolved_at = None
+        self.exit_after = None
+        if newly_activated:
+            self.activation_count += 1
+        return newly_activated
+
+    def resolve(self, sample_idx, recovery_samples):
+        """解決後も指定された将来サンプル数だけSoft Routingを維持する。"""
+        if self.policy == "always":
+            return
+        self.active = True
+        self.resolved_at = int(sample_idx)
+        self.exit_after = int(sample_idx) + int(recovery_samples)
+
+    def exit_due(self, sample_idx):
+        return (
+            self.policy == "drift_recovery"
+            and self.active
+            and self.exit_after is not None
+            and int(sample_idx) > self.exit_after
+        )
+
+    def defer_exit(self):
+        self.exit_deferred_sample_count += 1
+
+    def deactivate(self):
+        if self.policy == "drift_recovery" and self.active:
+            self.active = False
+            self.resolved_at = None
+            self.exit_after = None
+            self.deactivation_count += 1
+
+    def record_prediction(self, soft):
+        if soft:
+            self.soft_sample_count += 1
+        else:
+            self.hard_sample_count += 1

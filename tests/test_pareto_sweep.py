@@ -41,6 +41,7 @@ def test_large_or_deprecated_settings_are_opt_in_for_default_sweep():
     assert defaults.shared_backbone_gradient_strategy == "mean"
     assert defaults.shared_backbone_routing_recalibration == "none"
     assert defaults.soft_routing_context == "global"
+    assert defaults.soft_routing_activation_policy == "always"
     assert defaults.soft_routing_top_combination == "leader"
     assert defaults.soft_routing_meta_loss == "zero_one"
     assert defaults.routing_active_set_policy == "all"

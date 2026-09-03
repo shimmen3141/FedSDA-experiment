@@ -33,6 +33,25 @@ flowchart LR
 正解ラベルは各AdaHedgeの重みを決めた後の更新にだけ使う。予測クラスもglobal mixtureから求めるため、
 予測時のラベル漏洩はない。
 
+## 有効化期間
+
+`--soft-routing-activation-policy`は、SoftRoutingを使う期間を予測方式とは独立に指定する。
+
+- `always`（既定値）: 従来どおり全期間で保持モデルの予測を混合する。既存実験の挙動は変わらない。
+- `drift_recovery`: 定常時は現行割当モデルだけで予測し、統計的検出器が警報を出した後だけ
+  Switching mixtureを有効にする。モデル再利用または新規モデル作成の判断が確定した後も、
+  将来の`N_FIFO`標本までは混合を継続する。その後、現行割当モデルがSwitching routerのleaderなら
+  単一モデル予測へ戻り、別モデルがleaderなら終了を延期する。
+
+`drift_recovery`で混合を再開するときは、直近FIFOに保存された各標本を全保持モデルで再評価し、
+その損失系列からSwitching routerの証拠を再構築する。これにより定常時に全モデルを評価し続けなくても、
+警報時点の直近性能を重みに反映できる。検出警報の標本自体は予測後に初めて警報だと分かるため、
+混合が始まるのは次の到着標本からである。
+
+この方式は回復期の終了判定にSwitching routerを使うため、現状では
+`--soft-routing-context switching --routing-active-set-policy all`との組合せに限定する。
+既定の`always`にはこの制約はなく、他のSoftRouting文脈を従来どおり利用できる。
+
 ## 各候補の意味
 
 | 名称 | レイヤー | CLIで実予測に使用 | 内容 |

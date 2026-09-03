@@ -97,6 +97,7 @@ ROW_KEYS = ["parameter_schema_version", "mode", "dataset", "concept_schedule",
             "shared_backbone_gradient_strategy",
             "shared_backbone_routing_recalibration",
             "soft_routing_context",
+            "soft_routing_activation_policy",
             "soft_routing_top_combination",
             "soft_routing_meta_loss",
             "shared_adapter_rank",
@@ -213,6 +214,14 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
             display_series = (
                 f"{display_series} [meta-loss={config.SOFT_ROUTING_META_LOSS}]"
             )
+    if (
+        "SoftRouting" in mode
+        and config.SOFT_ROUTING_ACTIVATION_POLICY != "always"
+    ):
+        display_series = (
+            f"{display_series} [routing-activation="
+            f"{config.SOFT_ROUTING_ACTIVATION_POLICY}]"
+        )
     if "_ResidualAdapter_" in mode:
         display_series = (
             f"{display_series} [adapter-rank={config.SHARED_ADAPTER_RANK}]"
@@ -334,6 +343,10 @@ def _run_resolved(mode, dataset, seed, series, sweep_value, sweep_parameter=None
         ),
         "soft_routing_context": (
             config.SOFT_ROUTING_CONTEXT if "SoftRouting" in mode else None
+        ),
+        "soft_routing_activation_policy": (
+            config.SOFT_ROUTING_ACTIVATION_POLICY
+            if "SoftRouting" in mode else None
         ),
         "soft_routing_top_combination": (
             config.SOFT_ROUTING_TOP_COMBINATION
@@ -651,6 +664,7 @@ def _load_csv(path):
             # 列追加前のCSVを再描画するときは当時の挙動を復元する。
             row.setdefault("soft_routing_top_combination", "leader")
             row.setdefault("soft_routing_meta_loss", "bounded_score")
+            row.setdefault("soft_routing_activation_policy", "always")
             row.setdefault("shared_adapter_rank", "")
             row.setdefault("detection_episodes", "False")
             row.setdefault("routing_active_set_policy", "all")
@@ -1118,6 +1132,12 @@ def build_parser():
         ),
     )
     fedsda.add_argument(
+        "--soft-routing-activation-policy",
+        choices=config.SOFT_ROUTING_ACTIVATION_POLICY_CHOICES,
+        default=config.SOFT_ROUTING_ACTIVATION_POLICY,
+        help="SoftRoutingを常時またはドリフト回復期だけ有効にする",
+    )
+    fedsda.add_argument(
         "--soft-routing-top-combination",
         choices=config.SOFT_ROUTING_TOP_COMBINATION_CHOICES,
         default=config.SOFT_ROUTING_TOP_COMBINATION,
@@ -1316,6 +1336,9 @@ def main(argv=None):
             args.shared_backbone_routing_recalibration
         ),
         "soft_routing_context": args.soft_routing_context,
+        "soft_routing_activation_policy": (
+            args.soft_routing_activation_policy
+        ),
         "soft_routing_top_combination": (
             args.soft_routing_top_combination
         ),
@@ -1375,6 +1398,9 @@ def main(argv=None):
         ),
         shared_adapter_rank=args.shared_adapter_rank,
         soft_routing_context=args.soft_routing_context,
+        soft_routing_activation_policy=(
+            args.soft_routing_activation_policy
+        ),
         soft_routing_top_combination=(
             args.soft_routing_top_combination
         ),

@@ -221,6 +221,13 @@ METRICS = (
     ),
     *_make(
         (
+            "routing_soft_prediction_sample_count",
+            "routing_hard_prediction_sample_count",
+            "routing_soft_prediction_rate",
+            "routing_activation_count",
+            "routing_deactivation_count",
+            "routing_activation_exit_deferred_sample_count",
+            "routing_activation_replay_sample_count",
             "routing_sample_count", "routing_oracle_accuracy",
             "routing_mixture_accuracy", "routing_leader_accuracy",
             "routing_confidence_leader_accuracy",

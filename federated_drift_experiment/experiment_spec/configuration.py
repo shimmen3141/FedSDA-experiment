@@ -22,6 +22,7 @@ class AlgorithmOptions:
     shared_adapter_rank: int = 8
     shared_backbone_gradient_strategy: str = "mean"
     soft_routing_context: str = "global"
+    soft_routing_activation_policy: str = "always"
     soft_routing_top_combination: str = "leader"
     soft_routing_meta_loss: str = "zero_one"
     cluster_linkage: str | None = None
@@ -52,6 +53,9 @@ class AlgorithmOptions:
                 config.SHARED_BACKBONE_GRADIENT_STRATEGY
             ),
             soft_routing_context=config.SOFT_ROUTING_CONTEXT,
+            soft_routing_activation_policy=(
+                config.SOFT_ROUTING_ACTIVATION_POLICY
+            ),
             soft_routing_top_combination=(
                 config.SOFT_ROUTING_TOP_COMBINATION
             ),
@@ -99,6 +103,9 @@ class AlgorithmOptions:
                 self.shared_backbone_gradient_strategy
             ),
             "SOFT_ROUTING_CONTEXT": self.soft_routing_context,
+            "SOFT_ROUTING_ACTIVATION_POLICY": (
+                self.soft_routing_activation_policy
+            ),
             "SOFT_ROUTING_TOP_COMBINATION": (
                 self.soft_routing_top_combination
             ),

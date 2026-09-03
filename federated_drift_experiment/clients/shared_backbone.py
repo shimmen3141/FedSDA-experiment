@@ -124,9 +124,9 @@ class _SharedRepresentationFedSDAClientMixin:
             elif strategy != "none":
                 switching_router.restart_after_aggregation()
 
-    def _fifo_routing_loss_sequence(self):
+    def _fifo_routing_loss_sequence(self, samples=None):
         """集約後の全保持モデルをFIFO上で再評価し、時系列損失を返す。"""
-        samples = tuple(self.buffer)
+        samples = tuple(self.buffer if samples is None else samples)
         model_ids = tuple(sorted(self.models))
         if not samples or len(model_ids) <= 1:
             return ()

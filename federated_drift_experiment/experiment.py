@@ -491,23 +491,36 @@ def _add_telemetry_results(results, clients, telemetry):
         results["e_detector_alpha"] = float(config.E_DETECTOR_ALPHA)
 
 
-def _routing_window_accuracies(histories, true_drift_events, window):
+def _routing_window_accuracies(
+    histories, true_drift_events, window, observation_masks=None,
+):
     """真のドリフト後の回復区間と、それ以外の定常区間の精度を返す。"""
     stable_correct = 0
     stable_count = 0
     recovery_correct = 0
     recovery_count = 0
-    for client_id, history in enumerate(histories):
+    if observation_masks is None:
+        observation_masks = [None] * len(histories)
+    for client_id, (history, observation_mask) in enumerate(
+        zip(histories, observation_masks)
+    ):
         recovery_mask = np.zeros(len(history), dtype=bool)
         for position in true_drift_events[client_id]:
             start = max(0, int(position))
             stop = min(len(history), start + int(window))
             recovery_mask[start:stop] = True
         correct = np.asarray(history, dtype=np.int64)
-        recovery_correct += int(correct[recovery_mask].sum())
-        recovery_count += int(recovery_mask.sum())
-        stable_correct += int(correct[~recovery_mask].sum())
-        stable_count += int((~recovery_mask).sum())
+        observed = (
+            np.ones(len(history), dtype=bool)
+            if observation_mask is None
+            else np.asarray(observation_mask, dtype=bool)
+        )
+        recovery_observed = recovery_mask & observed
+        stable_observed = (~recovery_mask) & observed
+        recovery_correct += int(correct[recovery_observed].sum())
+        recovery_count += int(recovery_observed.sum())
+        stable_correct += int(correct[stable_observed].sum())
+        stable_count += int(stable_observed.sum())
     return {
         "stable_accuracy": (
             stable_correct / stable_count if stable_count else 0.0
@@ -530,8 +543,18 @@ def _optional_routing_window(clients, history_attribute, true_drift_events):
         for client, history in zip(clients, histories)
     ):
         return {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
+    observation_masks = [
+        getattr(client, "history_routing_soft_active", None)
+        for client in clients
+    ]
+    if any(mask is not None and len(mask) != len(history)
+           for mask, history in zip(observation_masks, histories)):
+        return {"stable_accuracy": 0.0, "recovery_accuracy": 0.0}
     return _routing_window_accuracies(
-        histories, true_drift_events, config.STABLE_WINDOW,
+        histories,
+        true_drift_events,
+        config.STABLE_WINDOW,
+        observation_masks=observation_masks,
     )
 
 
@@ -833,6 +856,23 @@ def _add_model_diagnostic_results(
             routing[key] += int(value)
     routing_samples = routing["sample_count"]
     oracle_correct = routing["oracle_correct_count"]
+    routing_activation = defaultdict(int)
+    for client in clients:
+        controller = getattr(client, "soft_routing_activation", None)
+        if controller is None:
+            continue
+        routing_activation["soft_sample_count"] += controller.soft_sample_count
+        routing_activation["hard_sample_count"] += controller.hard_sample_count
+        routing_activation["activation_count"] += controller.activation_count
+        routing_activation["deactivation_count"] += controller.deactivation_count
+        routing_activation["exit_deferred_sample_count"] += (
+            controller.exit_deferred_sample_count
+        )
+        routing_activation["replay_sample_count"] += controller.replay_sample_count
+    activation_predictions = (
+        routing_activation["soft_sample_count"]
+        + routing_activation["hard_sample_count"]
+    )
     routing_by_class = defaultdict(lambda: defaultdict(int))
     for client in clients:
         for class_id, diagnostics in getattr(
@@ -956,6 +996,26 @@ def _add_model_diagnostic_results(
         return float(np.mean(values)) if values else 0.0
 
     results.update({
+        "routing_soft_prediction_sample_count": routing_activation[
+            "soft_sample_count"
+        ],
+        "routing_hard_prediction_sample_count": routing_activation[
+            "hard_sample_count"
+        ],
+        "routing_soft_prediction_rate": (
+            routing_activation["soft_sample_count"] / activation_predictions
+            if activation_predictions else 0.0
+        ),
+        "routing_activation_count": routing_activation["activation_count"],
+        "routing_deactivation_count": routing_activation[
+            "deactivation_count"
+        ],
+        "routing_activation_exit_deferred_sample_count": routing_activation[
+            "exit_deferred_sample_count"
+        ],
+        "routing_activation_replay_sample_count": routing_activation[
+            "replay_sample_count"
+        ],
         "routing_sample_count": routing_samples,
         "routing_oracle_accuracy": (
             oracle_correct / routing_samples if routing_samples else 0.0
@@ -1537,6 +1597,10 @@ def _save_raw_run(
             [client.history_routing_gate_open for client in clients],
             dtype=np.bool_,
         )
+        telemetry_arrays["history_routing_soft_active"] = np.asarray(
+            [client.history_routing_soft_active for client in clients],
+            dtype=np.bool_,
+        )
         telemetry_arrays["history_routing_oracle_correct"] = np.asarray(
             [client.history_routing_oracle_correct for client in clients],
             dtype=np.bool_,
@@ -2092,6 +2156,11 @@ def _save_raw_run(
         ),
         soft_routing_context=np.asarray(
             config.SOFT_ROUTING_CONTEXT if "SoftRouting" in mode else "",
+            dtype=np.str_,
+        ),
+        soft_routing_activation_policy=np.asarray(
+            config.SOFT_ROUTING_ACTIVATION_POLICY
+            if "SoftRouting" in mode else "",
             dtype=np.str_,
         ),
         soft_routing_top_combination=np.asarray(

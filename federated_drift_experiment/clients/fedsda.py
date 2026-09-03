@@ -13,6 +13,7 @@ from ..detection_episode import DetectionEpisodeController
 from ..expert_routing import (
     AdaHedgeRouter,
     PeriodicForwardProbeActiveSet,
+    SoftRoutingActivationController,
     SwitchingExpertRouter,
 )
 from ..provisional_model import (
@@ -73,6 +74,12 @@ class FedSDAClient(BaseClient, ABC):
 
     def _on_local_model_change(self, old_model_id, new_model_id):
         """クライアント内で確定したモデル切替後の拡張フック。"""
+
+    def _on_drift_alarm(self, sample_idx):
+        """統計的なドリフト警報を観測した直後の拡張フック。"""
+
+    def _on_drift_resolution(self, sample_idx):
+        """警報に対するモデル操作方針が確定した直後の拡張フック。"""
 
     def _set_local_current_model(self, model_id):
         """ローカルな再利用・新規作成による現行モデル変更を一元化する。"""
@@ -346,6 +353,7 @@ class FedSDAClient(BaseClient, ABC):
             episode_id=session.episode_id,
         )
         self._forward_validation = None
+        self._on_drift_resolution(sample_idx)
         return drift_type
 
     def finalize_incomplete_forward_validation(self):
@@ -476,6 +484,7 @@ class FedSDAClient(BaseClient, ABC):
             # τ>1 で保留中の更新をドリフト解決前に消化する(τ=1 では no-op)
             self.flush_pending_updates()
             self.detected_event_positions.append(idx)
+            self._on_drift_alarm(idx)
             estimated_start = self._estimated_drift_start(idx)
             self.estimated_drift_start_positions.append(estimated_start)
             self.detector_candidate_start_positions.append(
@@ -496,6 +505,8 @@ class FedSDAClient(BaseClient, ABC):
                     estimated_start=estimated_start,
                     episode_id=episode_id,
                 )
+            if self._forward_validation is None:
+                self._on_drift_resolution(idx)
         else:
             # 平時: バッファ長 N_FIFO を超えた分だけ古いデータをストアへ確定し、学習する
             while len(self.buffer) > self.fifo_size:
@@ -1311,6 +1322,21 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         self.history_routing_switching_effective_experts = []
         self.history_routing_meta_switching_correct = []
         self.history_routing_meta_switching_selected_switching = []
+        self.history_routing_soft_active = []
+        self.soft_routing_activation = SoftRoutingActivationController(
+            config.SOFT_ROUTING_ACTIVATION_POLICY
+        )
+        self._soft_routing_activation_replay_samples = ()
+        self._soft_routing_activation_replay_model_ids = ()
+        if config.SOFT_ROUTING_ACTIVATION_POLICY == "drift_recovery":
+            if config.SOFT_ROUTING_CONTEXT != "switching":
+                raise ValueError(
+                    "drift_recoveryにはsoft_routing_context=switchingが必要です"
+                )
+            if config.ROUTING_ACTIVE_SET_POLICY != "all":
+                raise ValueError(
+                    "drift_recoveryにはrouting_active_set_policy=allが必要です"
+                )
         self.routing_diagnostics = {
             "sample_count": 0,
             "oracle_correct_count": 0,
@@ -1387,6 +1413,117 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         )
         return scores
 
+    def _fifo_routing_loss_sequence(self, samples=None):
+        """現在のrepositoryをFIFO上で再評価し、ルータ再開用損失を返す。"""
+        samples = tuple(self.buffer if samples is None else samples)
+        model_ids = tuple(sorted(self.models))
+        if not samples or len(model_ids) <= 1:
+            return ()
+        x = torch.cat([sample[0] for sample in samples])
+        y = torch.cat([sample[1] for sample in samples])
+        losses_by_model = {}
+        with torch.no_grad():
+            for model_id in model_ids:
+                losses_by_model[model_id] = self.models[
+                    model_id
+                ].per_sample_error(x, y)
+        sample_count = len(samples)
+        self._record_model_compute(
+            "routing_recalibration",
+            sample_count * len(model_ids),
+            calls=len(model_ids),
+        )
+        return tuple(
+            {
+                model_id: float(losses_by_model[model_id][index].item())
+                for model_id in model_ids
+            }
+            for index in range(sample_count)
+        )
+
+    def _on_drift_alarm(self, sample_idx):
+        super()._on_drift_alarm(sample_idx)
+        if self.soft_routing_activation.policy == "always":
+            return
+        self.soft_routing_activation.activate()
+        alarm_samples = tuple(self.buffer)
+        if self._forward_validation is None:
+            self._soft_routing_activation_replay_samples = alarm_samples
+        loss_sequence = self._fifo_routing_loss_sequence(alarm_samples)
+        self.expert_router.replay(loss_sequence)
+        self.switching_expert_router.replay(loss_sequence)
+        self.soft_routing_activation.replay_sample_count += len(loss_sequence)
+        self._soft_routing_activation_replay_model_ids = tuple(
+            sorted(self.models)
+        )
+
+    def _on_drift_resolution(self, sample_idx):
+        super()._on_drift_resolution(sample_idx)
+        current_model_ids = tuple(sorted(self.models))
+        if (
+            self.soft_routing_activation.policy == "drift_recovery"
+            and self._soft_routing_activation_replay_samples
+            and current_model_ids
+            != self._soft_routing_activation_replay_model_ids
+        ):
+            loss_sequence = self._fifo_routing_loss_sequence(
+                self._soft_routing_activation_replay_samples
+            )
+            self.expert_router.replay(loss_sequence)
+            self.switching_expert_router.replay(loss_sequence)
+            self.soft_routing_activation.replay_sample_count += len(
+                loss_sequence
+            )
+        self._soft_routing_activation_replay_samples = ()
+        self._soft_routing_activation_replay_model_ids = ()
+        self.soft_routing_activation.resolve(sample_idx, self.fifo_size)
+
+    def _use_soft_routing(self, sample_idx):
+        controller = self.soft_routing_activation
+        if not controller.active:
+            return False
+        if not controller.exit_due(sample_idx):
+            return True
+        probabilities = self.switching_expert_router.probabilities(
+            tuple(sorted(self.models))
+        )
+        leader = self.switching_expert_router.leader(
+            probabilities, preferred_id=self.current_model_id
+        )
+        if leader != self.current_model_id:
+            controller.defer_exit()
+            return True
+        controller.deactivate()
+        return False
+
+    def _record_hard_prediction(self, x, y, concept_id):
+        """回復期外では現行モデルだけを評価し、時系列長を維持する。"""
+        current_model = self.models[self.current_model_id]
+        is_shared = bool(
+            getattr(current_model, "is_shared_backbone_model", False)
+        )
+        self._record_model_compute(
+            "prediction",
+            len(x),
+            backbone_examples=len(x) if is_shared else 0,
+            head_examples=len(x) if is_shared else 0,
+        )
+        prediction = current_model.predict(x)
+        correct = float(
+            prediction.view(-1)[0].item() == y.view(-1)[0].item()
+        )
+        self.history_accuracy.append(correct)
+        self.history_concept.append(concept_id)
+        self.history_model_id.append(self.current_model_id)
+        self.history_routing_oracle_correct.append(int(correct))
+        self.history_routing_leader_correct.append(int(correct))
+        self.history_routing_oracle_concept_correct.append(int(correct))
+        self.history_routing_switching_correct.append(int(correct))
+        self.history_routing_switching_leader_id.append(self.current_model_id)
+        self.history_routing_switching_effective_experts.append(1.0)
+        self.history_routing_effective_experts.append(1.0)
+        self.history_routing_max_weight.append(1.0)
+
     @staticmethod
     def _restrict_routing_probabilities(probabilities, active_model_ids):
         """全repository上の重みをactive集合へ制限して再正規化する。"""
@@ -1451,8 +1588,14 @@ class _AdaHedgeRoutingFedSDAClientMixin:
         )
 
     def _record_prediction(self, x, y, concept_id):
-        repository_model_ids = tuple(sorted(self.models))
         sample_index = max(0, self.processed_samples - 1)
+        use_soft_routing = self._use_soft_routing(sample_index)
+        self.soft_routing_activation.record_prediction(use_soft_routing)
+        self.history_routing_soft_active.append(use_soft_routing)
+        if not use_soft_routing:
+            self._record_hard_prediction(x, y, concept_id)
+            return
+        repository_model_ids = tuple(sorted(self.models))
         if self.routing_active_set is None:
             model_ids = repository_model_ids
             update_routing_evidence = True

@@ -131,10 +131,13 @@ def experiment_configuration(experiment, total_data):
         algorithm.pop("merge_noninferiority_margin", None)
     if "SoftRouting" not in experiment.mode:
         algorithm.pop("soft_routing_context", None)
+        algorithm.pop("soft_routing_activation_policy", None)
         algorithm.pop("soft_routing_top_combination", None)
         algorithm.pop("soft_routing_meta_loss", None)
         algorithm.pop("routing_active_set_policy", None)
     else:
+        if algorithm.get("soft_routing_activation_policy") == "always":
+            algorithm.pop("soft_routing_activation_policy", None)
         if algorithm.get("soft_routing_context") != "meta_switching":
             algorithm.pop("soft_routing_top_combination", None)
         if algorithm.get("soft_routing_context") not in {
@@ -236,6 +239,11 @@ def configuration_from_result_row(row, total_data):
         algorithm["soft_routing_context"] = (
             row.get("soft_routing_context") or "global"
         )
+        activation_policy = (
+            row.get("soft_routing_activation_policy") or "always"
+        )
+        if activation_policy != "always":
+            algorithm["soft_routing_activation_policy"] = activation_policy
         if algorithm["soft_routing_context"] == "meta_switching":
             algorithm["soft_routing_top_combination"] = (
                 row.get("soft_routing_top_combination") or "leader"

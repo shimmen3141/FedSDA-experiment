@@ -32,6 +32,18 @@ def test_routing_window_accuracies_separates_recovery_and_stable_samples():
     assert result["stable_accuracy"] == 2 / 3
 
 
+def test_routing_window_accuracies_can_limit_to_soft_active_samples():
+    result = _routing_window_accuracies(
+        [[1, 0, 1, 0]],
+        [[1]],
+        window=2,
+        observation_masks=[[False, True, True, False]],
+    )
+
+    assert result["recovery_accuracy"] == 0.5
+    assert result["stable_accuracy"] == 0.0
+
+
 def test_routing_metrics_separate_oracle_and_leader_by_window(monkeypatch):
     monkeypatch.setattr(config, "DATASET", "circle2")
     monkeypatch.setattr(config, "N_CLIENTS", 2)
@@ -724,6 +736,9 @@ def test_shared_backbone_experiment_reports_component_metrics(
         assert raw[
             "history_routing_switching_effective_experts"
         ].shape == (2, 100)
+        assert raw["history_routing_soft_active"].shape == (2, 100)
+        assert raw["history_routing_soft_active"].all()
+        assert raw["soft_routing_activation_policy"].item() == "always"
         assert raw[
             "history_routing_meta_switching_correct"
         ].shape == (2, 100)
@@ -757,6 +772,41 @@ def test_shared_backbone_experiment_reports_component_metrics(
         assert assigned_record_ids <= set(
             raw["routing_loo_final_assigned_model_ids"]
         )
+
+
+def test_drift_recovery_activation_is_saved_without_changing_history_shape(
+    monkeypatch, tmp_path,
+):
+    monkeypatch.setattr(config, "DATASET", "circle2")
+    monkeypatch.setattr(config, "N_CLIENTS", 2)
+    monkeypatch.setattr(config, "TOTAL_DATA_POINTS", 60)
+    monkeypatch.setattr(config, "PRETRAIN_SAMPLES", 20)
+    monkeypatch.setattr(config, "PRETRAIN_EPOCHS", 1)
+    monkeypatch.setattr(config, "AGGREGATION_INTERVAL", 30)
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "switching")
+    monkeypatch.setattr(
+        config, "SOFT_ROUTING_ACTIVATION_POLICY", "drift_recovery"
+    )
+    monkeypatch.setattr(config, "ROUTING_ACTIVE_SET_POLICY", "all")
+    raw_path = tmp_path / "drift-recovery-routing.npz"
+
+    results = run_random_drift_experiment(
+        mode="FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting",
+        random_seed=0,
+        verbose=False,
+        show_plot=False,
+        raw_path=str(raw_path),
+    )
+
+    assert (
+        results["routing_soft_prediction_sample_count"]
+        + results["routing_hard_prediction_sample_count"]
+        == 120
+    )
+    assert 0.0 <= results["routing_soft_prediction_rate"] <= 1.0
+    with np.load(raw_path) as raw:
+        assert raw["soft_routing_activation_policy"].item() == "drift_recovery"
+        assert raw["history_routing_soft_active"].shape == (2, 60)
 
 
 def test_meta_context_actual_accuracy_matches_shadow_prediction(

@@ -52,6 +52,9 @@ def test_schema_choices_follow_runtime_configuration():
     assert option("soft_routing_context").choices == (
         config.SOFT_ROUTING_CONTEXT_CHOICES
     )
+    assert option("soft_routing_activation_policy").choices == (
+        config.SOFT_ROUTING_ACTIVATION_POLICY_CHOICES
+    )
     assert option("soft_routing_top_combination").choices == (
         config.SOFT_ROUTING_TOP_COMBINATION_CHOICES
     )
@@ -140,6 +143,29 @@ def test_soft_routing_constraints_are_explicit():
         "detector": "HDDMA",
     }) == (
         "routing=restarting_soft: ADWIN系またはESR系検出器が必要",
+    )
+
+
+def test_drift_recovery_soft_routing_requires_switching_and_all_models():
+    selections = {
+        "server_flow": "NoCached",
+        "detector": "ClassESR",
+        "routing": "restarting_soft",
+        "soft_routing_activation_policy": "drift_recovery",
+        "soft_routing_context": "global",
+        "routing_active_set_policy": "all",
+    }
+    issues = validate_selection("FedSDA", selections)
+    assert issues == (
+        "soft_routing_activation_policy=drift_recovery: Switching routingが必要",
+    )
+
+    selections["soft_routing_context"] = "switching"
+    assert validate_selection("FedSDA", selections) == ()
+    selections["routing_active_set_policy"] = "periodic_forward_probe"
+    assert validate_selection("FedSDA", selections) == (
+        "soft_routing_activation_policy=drift_recovery: "
+        "全repositoryモデルを比較できるactive集合が必要",
     )
 
 

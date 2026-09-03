@@ -112,6 +112,9 @@ SOFT_ROUTING_CONTEXT_CHOICES = (
     "global", "switching", "predicted_class", "meta_predicted_class",
     "meta_switching",
 )
+# always=従来どおり常時混合、drift_recovery=警報から回復確認までだけ混合する。
+SOFT_ROUTING_ACTIVATION_POLICY = "always"
+SOFT_ROUTING_ACTIVATION_POLICY_CHOICES = ("always", "drift_recovery")
 # 上位Meta-switchingの重み最大候補だけを使うか、重み付き混合を使うかを選ぶ。
 SOFT_ROUTING_TOP_COMBINATION = "leader"
 SOFT_ROUTING_TOP_COMBINATION_CHOICES = ("leader", "mixture")

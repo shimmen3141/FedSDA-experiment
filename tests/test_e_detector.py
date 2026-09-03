@@ -599,6 +599,53 @@ def test_switching_context_uses_switching_scores_as_actual_prediction(
     assert client.routing_meta_diagnostics["sample_count"] == 0
 
 
+def test_drift_recovery_soft_routing_is_hard_before_alarm_and_after_recovery(
+    monkeypatch,
+):
+    monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "switching")
+    monkeypatch.setattr(
+        config, "SOFT_ROUTING_ACTIVATION_POLICY", "drift_recovery"
+    )
+    monkeypatch.setattr(config, "ROUTING_ACTIVE_SET_POLICY", "all")
+    monkeypatch.setattr(config, "FIFO_BUFFER_SIZE", 2)
+    spec = MODE_SPECS[
+        "FedSDA_NoCached_ClassESR_RestartingSoftRouting"
+    ]
+    client = spec.client_cls(
+        client_id=0,
+        initial_models={0: SimpleMLP(), 1: SimpleMLP()},
+        initial_stats={
+            model_id: {"n": 100, "mean": 0.2, "M2": 1.0}
+            for model_id in range(2)
+        },
+        verbose=False,
+    )
+    x = torch.zeros((1, config.dataset_spec().input_dim))
+    y = torch.zeros((1, 1))
+
+    client.processed_samples = 1
+    client._record_prediction(x, y, 0)
+    assert client.history_routing_soft_active == [False]
+    assert client.routing_diagnostics["sample_count"] == 0
+
+    client.buffer.extend(((x, y, 0), (x, y, 0)))
+    client._on_drift_alarm(1)
+    assert client.soft_routing_activation.replay_sample_count == 2
+    client._on_drift_resolution(1)
+
+    for sample_index in (2, 3):
+        client.processed_samples = sample_index + 1
+        client._record_prediction(x, y, 0)
+    assert client.history_routing_soft_active == [False, True, True]
+    assert client.routing_diagnostics["sample_count"] == 2
+
+    client.switching_expert_router.weights = {0: 0.9, 1: 0.1}
+    client.processed_samples = 5
+    client._record_prediction(x, y, 0)
+    assert client.history_routing_soft_active[-1] is False
+    assert client.soft_routing_activation.deactivation_count == 1
+
+
 def test_meta_switching_uses_the_selected_top_level_candidate(monkeypatch):
     monkeypatch.setattr(config, "SOFT_ROUTING_CONTEXT", "meta_switching")
     monkeypatch.setattr(config, "SOFT_ROUTING_TOP_COMBINATION", "leader")

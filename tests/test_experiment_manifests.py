@@ -103,6 +103,25 @@ def test_default_mean_gradient_strategy_keeps_legacy_configuration_identity():
     ] == "pcgrad"
 
 
+def test_nondefault_soft_routing_activation_changes_configuration_identity():
+    default_configuration = experiment_configuration(_experiment(), 5000)
+    event_driven = replace(
+        _experiment(),
+        algorithm=replace(
+            _experiment().algorithm,
+            soft_routing_activation_policy="drift_recovery",
+            soft_routing_context="switching",
+        ),
+    )
+
+    assert "soft_routing_activation_policy" not in default_configuration[
+        "algorithm"
+    ]
+    assert experiment_configuration(event_driven, 5000)["algorithm"][
+        "soft_routing_activation_policy"
+    ] == "drift_recovery"
+
+
 def test_provenance_changes_when_regression_golden_changes(tmp_path):
     (tmp_path / "federated_drift_experiment").mkdir()
     (tmp_path / "federated_drift_experiment" / "a.py").write_text("x = 1\n")
