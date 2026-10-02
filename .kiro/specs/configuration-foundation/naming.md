@@ -257,3 +257,23 @@ gpt-6-lunaのレビューで配置名と分離を妥当と確認し、次の依�
 | `UnsupportedSettingsForValidation` | 未対応の型注釈を検査するテスト専用dataclass |
 
 gpt-6-lunaは名前と役割が一致し、変更必須の指摘なしと判断した。主担当も維持を採用し、ユーザー委任に従い承認した。
+
+## 6. import境界の検証で使う内部名
+
+task 3.3の`test_new_package_imports_only_allowed_dependencies`で用いる。公開API・設定値は変更しない。
+
+| 名前 | 型・役割 |
+|---|---|
+| `package_source_directory` | Path。検査する新パッケージのsrcルート |
+| `source_file_path` | Path。検査するPythonファイル |
+| `source_module_path` | str。パッケージルートからの相対ファイルパス（POSIX表記） |
+| `parsed_source_module` | ast.Module。構文解析したソース |
+| `import_statement` | ast.Importまたはast.ImportFrom。検査するimport文 |
+| `importing_package_name` | str。当該ファイルの所属先の完全修飾package名。__init__.pyは自身のpackage、それ以外は親package |
+| `imported_module_alias` | ast.alias。ast.Importの一つの宣言alias |
+| `imported_module_names` | tuple[str, ...]。一つのimport文が参照する、解決済みの完全修飾module名の一覧 |
+| `imported_module_name` | str。上記一覧から検査する一つのmodule名 |
+
+gpt-6-lunaの指摘を採用し、相対ImportFromはlevelとmoduleを用いて所属packageから解決する。
+Importは各alias.nameを別々に検査する。相対importの禁止を新しい設計制約として追加しない。
+追加名の再レビューはPASS。主担当も有用性を確認し、ユーザー委任に従って承認した（revision 12）。

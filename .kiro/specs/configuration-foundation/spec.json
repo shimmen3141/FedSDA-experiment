@@ -1,7 +1,7 @@
 {
   "feature_name": "configuration-foundation",
   "created_at": "2026-10-02T09:52:11.770138+00:00",
-  "updated_at": "2026-10-02T20:43:38.534681+00:00",
+  "updated_at": "2026-10-02T20:46:33.329367+00:00",
   "language": "ja",
   "phase": "implementation-in-progress",
   "approvals": {
@@ -51,9 +51,9 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 11,
-      "approved_revision": 11,
-      "approved_sha256_lf": "ac201acfe6e0f29aeacbc969d70bf63d4932780970d4ecf660c5a31b83c4674f",
+      "revision": 12,
+      "approved_revision": 12,
+      "approved_sha256_lf": "af5899464528a8a99d20f85996f24465241368280a2fefc1b6288ba34bc5bf9b",
       "approved_identifiers": [
         {
           "name": "federated_learning_experiments",
@@ -119,6 +119,14 @@
           "sha256_lf": "ac201acfe6e0f29aeacbc969d70bf63d4932780970d4ecf660c5a31b83c4674f",
           "source": "user_delegated_gpt_6_luna_review",
           "review_record": "luna-naming-review.md"
+        },
+        {
+          "revision": 12,
+          "approved_on": "2026-10-03",
+          "sha256_lf": "af5899464528a8a99d20f85996f24465241368280a2fefc1b6288ba34bc5bf9b",
+          "source": "user_delegated_gpt_6_luna_review",
+          "review_record": "luna-naming-review.md",
+          "scope": "import_boundary_test_internal_names_only"
         }
       ],
       "approved_on": "2026-10-03",
