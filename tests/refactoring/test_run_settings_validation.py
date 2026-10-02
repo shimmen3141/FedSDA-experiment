@@ -1,12 +1,16 @@
 """新しい実験設定の検証契約を確認する。"""
 
-from dataclasses import FrozenInstanceError, MISSING, dataclass, field, fields
+from dataclasses import FrozenInstanceError, MISSING, dataclass, field, fields, replace
+from types import MappingProxyType
 from typing import get_type_hints
 
 import pytest
 
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
+)
+from federated_learning_experiments.configuration.run_settings_validation import (
+    validate_experiment_run_settings,
 )
 
 from federated_learning_experiments.core.configuration_errors import (
@@ -36,6 +40,169 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.predic
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     TrainingDataAssignmentSettings,
 )
+
+
+@pytest.fixture
+def valid_run_settings_mapping():
+    """初回の有効な機能設定を揃え、実験ごとに独立した辞書を返す。"""
+    return {
+        "method_name": "fedsda",
+        "experiment_run_conditions": ExperimentRunConditions(
+            dataset_name="sine2", random_seed=0, client_count=1,
+            per_client_sample_count=10,
+            server_aggregation_interval_per_client_samples=5,
+        ),
+        "model_architecture_settings": ModelArchitectureSettings(
+            model_architecture_name="shared_backbone_residual_adapter",
+            residual_adapter_requested_rank=2,
+        ),
+        "loss_change_detection_settings": LossChangeDetectionSettings(
+            drift_detector_name="e_sr",
+            loss_monitoring_scope="overall_and_true_class_losses",
+            e_sr_false_alarm_control_alpha=0.05,
+        ),
+        "prediction_combination_settings": PredictionCombinationSettings(
+            prediction_combination_strategy="fixed_share_weighted_prediction",
+            prediction_mixture_activation_policy="always",
+            prediction_weight_recalibration_after_aggregation_policy=(
+                "recompute_buffer_losses_and_replay_weight_updates"
+            ),
+            prediction_state_reset_on_training_assignment_change_policy=(
+                "restart_adahedge_preserve_fixed_share_prediction_state"
+            ),
+            fixed_share_weight_redistribution_time_scale_samples=2,
+        ),
+        "local_training_settings": LocalTrainingSettings(
+            local_model_parameter_update_strategy=(
+                "joint_backbone_adapter_and_head_training"
+            ),
+            shared_backbone_gradient_combination_strategy=(
+                "sample_weighted_mean_per_concept_gradients"
+            ),
+        ),
+        "training_data_assignment_settings": TrainingDataAssignmentSettings(
+            pending_assignment_buffer_capacity_samples=2,
+        ),
+        "candidate_model_training_and_acceptance_settings": (
+            CandidateModelTrainingAndAcceptanceSettings(
+                candidate_model_acceptance_policy=(
+                    "current_model_first_reuse_then_two_segment_candidate_validation"
+                ),
+                candidate_post_alarm_validation_sample_count=3,
+            )
+        ),
+        "model_consolidation_settings": ModelConsolidationSettings(
+            model_clustering_trigger_policy="on_new_model_registration",
+            model_pair_comparison_strategy=(
+                "classwise_unique_correctness_lower_confidence_bound"
+            ),
+            model_clustering_linkage="average_linkage",
+            model_consolidation_policy="weighted_parameter_average_and_merge_ids",
+        ),
+    }
+
+
+@pytest.mark.parametrize("specified_parameter_value", [2, 3, 100])
+def test_run_settings_validation_accepts_valid_component_mapping(
+    valid_run_settings_mapping, specified_parameter_value,
+):
+    valid_run_settings_mapping["prediction_combination_settings"] = replace(
+        valid_run_settings_mapping["prediction_combination_settings"],
+        fixed_share_weight_redistribution_time_scale_samples=specified_parameter_value,
+    )
+    valid_run_settings_mapping["training_data_assignment_settings"] = (
+        TrainingDataAssignmentSettings(
+            pending_assignment_buffer_capacity_samples=specified_parameter_value,
+        )
+    )
+    unvalidated_run_settings = MappingProxyType(valid_run_settings_mapping.copy())
+    assert validate_experiment_run_settings(unvalidated_run_settings) is None
+    assert dict(unvalidated_run_settings) == valid_run_settings_mapping
+    assert all(unvalidated_run_settings[configuration_parameter_name] is component_settings
+               for configuration_parameter_name, component_settings
+               in valid_run_settings_mapping.items())
+
+
+@pytest.mark.parametrize("configuration_parameter_name", [
+    "method_name", "experiment_run_conditions", "model_architecture_settings",
+    "loss_change_detection_settings", "prediction_combination_settings",
+    "local_training_settings", "training_data_assignment_settings",
+    "candidate_model_training_and_acceptance_settings", "model_consolidation_settings",
+    "mode", "routing_settings", "unknown",
+])
+@pytest.mark.parametrize("specified_parameter_value", [
+    MISSING, None, {}, [], True, 1, "fedsda", " fedsda", "unknown",
+    "fedsda_residual_adapter_switching",
+])
+def test_run_settings_validation_rejects_invalid_component_mapping(
+    valid_run_settings_mapping, configuration_parameter_name, specified_parameter_value,
+):
+    if configuration_parameter_name == "method_name" and specified_parameter_value == "fedsda":
+        specified_parameter_value = "FedSDA"
+    if configuration_parameter_name not in valid_run_settings_mapping and specified_parameter_value is MISSING:
+        specified_parameter_value = None
+    unvalidated_run_settings = valid_run_settings_mapping.copy()
+    if specified_parameter_value is MISSING:
+        del unvalidated_run_settings[configuration_parameter_name]
+    else:
+        unvalidated_run_settings[configuration_parameter_name] = specified_parameter_value
+    with pytest.raises(RunSettingsValidationError) as validation_error:
+        validate_experiment_run_settings(MappingProxyType(unvalidated_run_settings))
+    assert validation_error.value.configuration_parameter_name == configuration_parameter_name
+    assert validation_error.value.specified_parameter_value is (
+        None if specified_parameter_value is MISSING else specified_parameter_value
+    )
+    assert validation_error.value.validation_failure_reason
+    assert valid_run_settings_mapping["method_name"] == "fedsda"
+
+
+@pytest.mark.parametrize("specified_parameter_value", [1, 3, 100])
+def test_fixed_share_time_scale_must_match_assignment_buffer_capacity(
+    valid_run_settings_mapping, specified_parameter_value,
+):
+    unvalidated_run_settings = valid_run_settings_mapping.copy()
+    unvalidated_run_settings["training_data_assignment_settings"] = (
+        TrainingDataAssignmentSettings(
+            pending_assignment_buffer_capacity_samples=specified_parameter_value,
+        )
+    )
+    with pytest.raises(RunSettingsValidationError) as validation_error:
+        validate_experiment_run_settings(unvalidated_run_settings)
+    assert validation_error.value.configuration_parameter_name == (
+        "fixed_share_weight_redistribution_time_scale_samples"
+    )
+    assert validation_error.value.specified_parameter_value == 2
+    assert "pending_assignment_buffer_capacity_samples" in (
+        validation_error.value.validation_failure_reason
+    )
+    assert str(specified_parameter_value) in validation_error.value.validation_failure_reason
+    assert unvalidated_run_settings["training_data_assignment_settings"].pending_assignment_buffer_capacity_samples == specified_parameter_value
+
+
+@pytest.mark.parametrize("configuration_parameter_name", [
+    "method_name", "experiment_run_conditions", "model_architecture_settings",
+    "loss_change_detection_settings", "prediction_combination_settings",
+    "local_training_settings", "training_data_assignment_settings",
+    "candidate_model_training_and_acceptance_settings", "model_consolidation_settings",
+    "aaa_unknown",
+])
+@pytest.mark.parametrize("specified_parameter_value", [False, True])
+def test_validation_reports_failures_in_declaration_order(
+    valid_run_settings_mapping, configuration_parameter_name, specified_parameter_value,
+):
+    unvalidated_run_settings = valid_run_settings_mapping.copy()
+    if configuration_parameter_name == "aaa_unknown":
+        unvalidated_run_settings.update({"zzz_unknown": 1, "aaa_unknown": 2})
+    else:
+        for component_settings_name in tuple(unvalidated_run_settings)[
+            tuple(unvalidated_run_settings).index(configuration_parameter_name):
+        ]:
+            unvalidated_run_settings[component_settings_name] = None
+    if specified_parameter_value:
+        unvalidated_run_settings = dict(reversed(tuple(unvalidated_run_settings.items())))
+    with pytest.raises(RunSettingsValidationError) as validation_error:
+        validate_experiment_run_settings(unvalidated_run_settings)
+    assert validation_error.value.configuration_parameter_name == configuration_parameter_name
 
 
 @pytest.mark.parametrize(
