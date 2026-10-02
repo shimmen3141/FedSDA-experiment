@@ -147,3 +147,8 @@ basetempはpytestが再作成する専用の一時領域。実験成果物の保
 
 - 独立レビュー: APPROVED。対象テスト 446 passed / exit 0。
 - 完了検証: VERIFIED。初回範囲のみ。spec全体と実験実行経路の完成を意味しない。
+
+## 2.6 ローカル学習方式を検証する
+
+- 独立レビュー: APPROVED。対象テスト 622 passed / exit 0。
+- 完了検証: VERIFIED。初回範囲のみ。spec全体と実験実行経路の完成を意味しない。

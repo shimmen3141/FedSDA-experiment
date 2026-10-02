@@ -18,6 +18,9 @@ from federated_learning_experiments.core.settings_field_validation import (
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
     LossChangeDetectionSettings,
 )
@@ -219,10 +222,20 @@ def test_aggregation_interval_can_exceed_stream_length():
         (TrainingDataAssignmentSettings, dict(
             pending_assignment_buffer_capacity_samples=1,
         )),
+        (LocalTrainingSettings, dict(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )),
     ],
 )
 def test_settings_instances_are_immutable(settings_type, valid_settings_values):
     settings_instance = settings_type(**valid_settings_values)
+    for configuration_parameter_name in valid_settings_values:
+        with pytest.raises(TypeError, match=configuration_parameter_name):
+            settings_type(**{name: value for name, value in valid_settings_values.items()
+                             if name != configuration_parameter_name})
+    with pytest.raises(TypeError, match="unknown"):
+        settings_type(**valid_settings_values, unknown="unknown")
     for settings_field in fields(settings_instance):
         assert getattr(settings_instance, settings_field.name) is valid_settings_values[settings_field.name]
         with pytest.raises(FrozenInstanceError):
@@ -231,7 +244,7 @@ def test_settings_instances_are_immutable(settings_type, valid_settings_values):
             delattr(settings_instance, settings_field.name)
 
 
-@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, LossChangeDetectionSettings, PredictionCombinationSettings, TrainingDataAssignmentSettings])
+@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, LossChangeDetectionSettings, PredictionCombinationSettings, TrainingDataAssignmentSettings, LocalTrainingSettings])
 def test_field_annotations_and_metadata_declare_parameter_constraints(settings_type):
     assert get_type_hints(settings_type) == (
         {
@@ -251,6 +264,9 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             "fixed_share_weight_redistribution_time_scale_samples": int,
         } if settings_type is PredictionCombinationSettings else {
             "pending_assignment_buffer_capacity_samples": int,
+        } if settings_type is TrainingDataAssignmentSettings else {
+            "local_model_parameter_update_strategy": str,
+            "shared_backbone_gradient_combination_strategy": str,
         }
     )
     for settings_field in fields(settings_type):
@@ -272,6 +288,10 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "prediction_mixture_activation_policy"
                 else ("recompute_buffer_losses_and_replay_weight_updates",)
                 if settings_field.name == "prediction_weight_recalibration_after_aggregation_policy"
+                else ("joint_backbone_adapter_and_head_training",)
+                if settings_field.name == "local_model_parameter_update_strategy"
+                else ("sample_weighted_mean_per_concept_gradients",)
+                if settings_field.name == "shared_backbone_gradient_combination_strategy"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
         elif settings_field.name == "e_sr_false_alarm_control_alpha":
@@ -307,6 +327,9 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             settings_type("e_sr", "overall_and_true_class_losses", 0.05)
         elif settings_type is TrainingDataAssignmentSettings:
             settings_type(1)
+        elif settings_type is LocalTrainingSettings:
+            settings_type("joint_backbone_adapter_and_head_training",
+                          "sample_weighted_mean_per_concept_gradients")
         else:
             settings_type("fixed_share_weighted_prediction", "always", "recompute_buffer_losses_and_replay_weight_updates",
                           "restart_adahedge_preserve_fixed_share_prediction_state", 2)
@@ -348,6 +371,13 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
             "prediction_weight_recalibration_after_aggregation_policy",
             "prediction_state_reset_on_training_assignment_change_policy",
         )],
+        *[(LocalTrainingSettings, dict(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        ), configuration_parameter_name) for configuration_parameter_name in (
+            "local_model_parameter_update_strategy",
+            "shared_backbone_gradient_combination_strategy",
+        )],
     ],
 )
 @pytest.mark.parametrize(
@@ -364,7 +394,11 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
      "FIFO_LOSS_REPLAY", " fifo_loss_replay",
      "RESTART_ADAHEDGE_PRESERVE_SWITCHING", " restart_adahedge_preserve_switching",
      "switching_fixed_share_mixture", "fifo_loss_replay",
-     "restart_adahedge_preserve_switching", True, 1, None, []],
+     "restart_adahedge_preserve_switching", "joint", "mean", "pcgrad",
+     "joint_shared_backbone_updates", "sample_weighted_mean",
+     "JOINT_BACKBONE_ADAPTER_AND_HEAD_TRAINING", " joint_backbone_adapter_and_head_training",
+     "SAMPLE_WEIGHTED_MEAN_PER_CONCEPT_GRADIENTS", " sample_weighted_mean_per_concept_gradients",
+     True, False, 1, None, []],
 )
 def test_component_options_reject_unknown_names(
     settings_type, valid_settings_values, configuration_parameter_name,
