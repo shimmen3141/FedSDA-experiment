@@ -1,6 +1,10 @@
 """新しい実験設定の検証契約を確認する。"""
 
+import ast
+import sys
 from dataclasses import FrozenInstanceError, MISSING, dataclass, field, fields, replace
+from importlib.util import resolve_name
+from pathlib import Path
 from types import MappingProxyType
 from typing import get_type_hints
 
@@ -857,3 +861,53 @@ def test_settings_field_validation_rejects_unsupported_annotations(settings_fiel
     settings_instance = UnsupportedSettingsForValidation(random_seed=0)
     with pytest.raises(TypeError, match="random_seed.*宣言型.*未対応"):
         validate_settings_field_values(settings_instance)
+
+
+def test_new_package_imports_only_allowed_dependencies():
+    """旧実装・数値ライブラリへの依存と、設定層の逆向きimportを検出する。"""
+    package_source_directory = (
+        Path(__file__).resolve().parents[2] / "src" / "federated_learning_experiments"
+    )
+    assert package_source_directory.is_dir()
+    for source_file_path in sorted(package_source_directory.rglob("*.py")):
+        source_module_path = source_file_path.relative_to(package_source_directory).as_posix()
+        importing_package_name = "federated_learning_experiments"
+        if source_file_path.parent != package_source_directory:
+            importing_package_name += "." + (
+                source_file_path.parent.relative_to(package_source_directory).as_posix().replace("/", ".")
+            )
+        parsed_source_module = ast.parse(source_file_path.read_text(encoding="utf-8"))
+        for import_statement in ast.walk(parsed_source_module):
+            if isinstance(import_statement, ast.Import):
+                imported_module_names = tuple(
+                    imported_module_alias.name for imported_module_alias in import_statement.names
+                )
+            elif isinstance(import_statement, ast.ImportFrom):
+                imported_module_names = (
+                    resolve_name(
+                        "." * import_statement.level + (import_statement.module or ""),
+                        importing_package_name,
+                    ),
+                )
+            else:
+                continue
+            for imported_module_name in imported_module_names:
+                if imported_module_name.split(".")[0] in sys.stdlib_module_names:
+                    continue
+                assert imported_module_name.startswith("federated_learning_experiments."), (
+                    source_module_path, imported_module_name
+                )
+                if source_module_path.startswith(("core/", "learning/", "methods/")) or (
+                    source_module_path == "configuration/experiment_run_conditions.py"
+                ):
+                    assert imported_module_name.startswith("federated_learning_experiments.core."), (
+                        source_module_path, imported_module_name
+                    )
+                if source_module_path == "configuration/run_settings_validation.py":
+                    assert imported_module_name.startswith((
+                        "federated_learning_experiments.core.",
+                        "federated_learning_experiments.learning.",
+                        "federated_learning_experiments.methods.",
+                    )) or imported_module_name == (
+                        "federated_learning_experiments.configuration.experiment_run_conditions"
+                    ), (source_module_path, imported_module_name)

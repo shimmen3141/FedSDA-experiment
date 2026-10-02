@@ -1,6 +1,6 @@
 # 設定基盤の正式命名契約
 
-- revision: 11（2026-10-03、Luna最終レビューPASS、有用な指摘の反映により承認済み）
+- revision: 12（2026-10-03、正式契約のrevision 11を維持し、Lunaレビュー済みの境界検証用内部名を追加）
 - 正本: この文書。旧名・候補は[naming-reconsideration.md](naming-reconsideration.md)、過去の契約は[history/](history/naming-revision-10.md)。
 - 名前変更でアルゴリズム・値域・実行順序は変更しない。旧名alias・互換importは作らない。
 - パッケージ: `federated_learning_experiments`。初回は設定部分だけを実装する。

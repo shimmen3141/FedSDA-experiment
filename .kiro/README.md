@@ -5,18 +5,17 @@
 - ブランチ: `refactor/architecture`
 - 基準commit: `748c3aa`
 - worktree: 元のcheckout直下の`.worktrees/refactoring/`
-- 現在: ユーザーの再開指示により、承認済み命名revision 11へ既存設定を移行するtask 9.1を先行し、その後task 2.6〜3.3を進める。
+- 現在の承認・進捗・次のtask: 対象specの`spec.json`を参照する。入口文書へ進捗を重複記載しない。
 - 正本と再開手順: [対象specの入口](specs/configuration-foundation/README.md)。候補・履歴を現在の実装契約と混同しない。
 
 ## 読む順序
 
 1. [リファクタリング方針](../docs/research/refactoring-policy.md)
 2. [全体の進行](steering/roadmap.md)
-3. [最初の要求仕様](specs/configuration-foundation/requirements.md)
-4. [関数・変数等の命名と役割](specs/configuration-foundation/naming.md)
-5. [設定基盤の設計](specs/configuration-foundation/design.md)
-6. [gpt-6-lunaのレビューと対応](specs/configuration-foundation/luna-review.md)
-7. [初回13タスクと後続計画](specs/configuration-foundation/tasks.md)
+3. [対象specの正本一覧と再開手順](specs/configuration-foundation/README.md)
+
+specでは承認・進捗、要件、設計、命名、taskを順に確認する。
+レビューと候補表は根拠・履歴として必要な箇所だけ参照する。
 
 ## 運用
 
@@ -25,15 +24,9 @@ cc-sdd 3.1.0をCodex Skills・日本語で導入した。版・npm integrity・�
 このworktreeをIDE/Codexのプロジェクトルートとして開いて使う。
 元のcheckoutを開いたセッションでは、新worktreeのskillが自動検出されるとは扱わない。
 
-現在は`kiro-steering`、`kiro-spec-init`、`kiro-spec-requirements`の手順で初期文書を作成した。
-要求と命名revision 2は人間が承認済み。命名承認は`spec.json`の`approvals.naming.approval_history`へ記録した。
-設計・独立レビューで追加した名前はrevision 4として人間が承認済み。
-初回taskの実装開始と、既存dataset名を維持したrevision 5も人間が承認済み。
-具体化した内部関数・テスト名はrevision 6の第9節へ分離し、gpt-6-lunaレビューと主担当の反映を完了した。
-revision 7〜9の配置・テスト名も同じ手順で承認済み。採否の理由は`specs/configuration-foundation/luna-naming-review.md`に記録した。
-
-人間が設計と追加命名を確認したため、初回taskを作成して独立確認を完了した。
-承認済みの名前でパッケージ境界・検証環境を作成し、task 1.1から実装に着手した。
+要求・設計・taskの人間承認を確認してから実装する。
+命名の正本は対象specの`naming.md`、承認revisionと履歴は`spec.json`。
+命名の採否の理由は`luna-naming-review.md`に記録する。
 追加する関数・変数も命名表へ追記し、そのrevisionをgpt-6-lunaレビューと主担当の有用指摘の反映で承認してから実装する。
 実装時は担当taskを指定して一単位ずつ進める。
 自動承認フラグで命名レビューを省略しない。

@@ -172,3 +172,56 @@ basetempはpytestが再作成する専用の一時領域。実験成果物の保
 
 - 独立レビュー: APPROVED。対象テスト 1258 passed / exit 0。
 - 完了検証: VERIFIED。初回範囲のみ。spec全体と実験実行経路の完成を意味しない。
+
+## 3.3 初回の境界と旧回帰基準の確認
+
+### Review Verdict
+
+- VERDICT: APPROVED。
+- 対象: task 3.3。主担当によるkiro-reviewのinlineレビュー。サブエージェント呼出上限のため独立レビューとは記載しない。
+- Tests: 新設定1259 passed / exit 0。既存9ファイル113件と合わせて1372 passed / exit 0、160.87秒。失敗・error・skipは0。
+- Static checks: git diff --check成功。placeholderとhardcoded secretの検索は該当なし。
+- Boundary audit: 新設定は標準ライブラリ・機能固有の設定型・coreへだけ依存。機能型とcoreから集約層への参照なし。validatorは集約型をimportしない。
+- RED phase: N/A。統合検証taskであり、既存srcを故意に壊してREDを作らない。
+- Findings/Remediation: 阻害事項なし。
+
+### 初回範囲のValidation Report
+
+- DECISION: GO（task 1.1〜3.3と追加9.1の初回14単位のみ）。本spec全体のGOではない。
+- Runtime smoke: PASS。新APIのimportと、有効な機能mappingからの実際の部分集約型の直接構築を対象テストで確認した。実験CLIは本範囲に含めない。
+- Cross-task contracts: 各機能型がcoreの値検証を呼び、外側のmapping検証と集約型の直接構築が同じ組合せ検証を通す。容量と時間尺度の同値、不変性、型・必須入力を確認。
+- Coverage: 3.1、3.2、3.4、3.5、4.5は初回条件で検証。1.1〜1.3、2.1〜2.3、3.3、4.1〜4.4、5.1〜5.3と、追加条件への拡張は未完了としてtasks.mdに保持。
+- Design: 初回File Structure Planと実装が一致。旧名alias、旧config、NumPy/PyTorch依存、実行状態の所有なし。境界違反なし。
+- Blocked tasks: 初回にはなし。後続計画4〜8は未承認の計画であり、実行taskとして扱わない。
+- Verification: VERIFIED。数値回帰の成功は旧経路の保全を示す。新手法実行の同値性は、実験経路の移植後に別途検証する。
+
+### 固定環境と再実行コマンド
+
+Windows CPU / Python 3.13.15 / NumPy 2.4.6 / torch 2.12.1+cpu / pytest 9.1.1。
+元checkoutのvenvとMNISTを共有し、コピー・golden更新は行っていない。
+
+worktreeルートのPowerShellから実行する。
+
+```powershell
+$env:OMP_NUM_THREADS='1'
+$env:MKL_NUM_THREADS='1'
+$env:MPLCONFIGDIR=(Resolve-Path ../../venv/matplotlib-cache).Path
+$env:FDE_MNIST_DATA_DIR=(Resolve-Path ../../data/mnist).Path
+../../venv/Scripts/python.exe -m pytest -p no:cacheprovider `
+  --basetemp=../../venv/refactoring-baseline-check/foundation-completion-tmp `
+  tests/test_option_schema.py tests/test_parameter_schema.py tests/test_metric_schema.py `
+  tests/test_shared_backbone.py tests/test_provisional_model.py tests/test_clustering_decision.py `
+  tests/test_fedsda_configuration.py tests/test_regression.py tests/test_proposed_regression.py `
+  tests/refactoring/test_run_settings_validation.py -q
+```
+
+観測時は共有venv内のJUnit XMLにも保存し、1372件・failure/error/skip=0を照合した。
+旧packageとgoldenの基準commit `748c3aa`からの差分はない。
+LF正規化SHA-256は環境記録と一致した。
+
+| golden | SHA-256 |
+|---|---|
+| regression_golden.json | 861d5463b8b9afd0ee9c6143c1ca3ec43a1ff40bfd229fe1f8012dd7b4925466 |
+| proposed_regression_golden.json | d29b4eb393560d890f6ce9695206c6401cf331ec5e484c19970f34bd259bbe08 |
+
+次は小規模実行の別specで全参照条件と所属を棚卸しし、追加契約を確認する。
