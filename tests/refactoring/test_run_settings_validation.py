@@ -21,6 +21,9 @@ from federated_learning_experiments.learning.models.model_architecture_settings 
 from federated_learning_experiments.methods.fedsda.detection.drift_monitoring_settings import (
     DriftMonitoringSettings,
 )
+from federated_learning_experiments.methods.fedsda.routing.prediction_routing_settings import (
+    PredictionRoutingSettings,
+)
 
 
 @pytest.mark.parametrize(
@@ -107,7 +110,13 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
     ] + [(ModelArchitectureSettings, dict(
         model_architecture_name="shared_backbone_residual_adapter",
         residual_adapter_requested_rank=1,
-    ), "residual_adapter_requested_rank")],
+    ), "residual_adapter_requested_rank"), (PredictionRoutingSettings, dict(
+        prediction_routing_strategy="switching_fixed_share_mixture",
+        prediction_mixture_activation_policy="always",
+        post_aggregation_routing_recalibration_policy="fifo_loss_replay",
+        routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
+        switching_share_horizon_samples=2,
+    ), "switching_share_horizon_samples")],
 )
 @pytest.mark.parametrize("specified_parameter_value", [True, False, "1", 1.0, None, [], -1])
 def test_integer_settings_reject_invalid_types_and_ranges(
@@ -121,7 +130,9 @@ def test_integer_settings_reject_invalid_types_and_ranges(
     assert validation_error.value.configuration_parameter_name == configuration_parameter_name
     assert validation_error.value.specified_parameter_value is specified_parameter_value
     assert "整数" in validation_error.value.validation_failure_reason
-    assert ("0以上" if configuration_parameter_name == "random_seed" else "1以上") in (
+    assert ("0以上" if configuration_parameter_name == "random_seed"
+            else "2以上" if configuration_parameter_name == "switching_share_horizon_samples"
+            else "1以上") in (
         validation_error.value.validation_failure_reason
     )
 
@@ -140,18 +151,28 @@ def test_integer_settings_reject_invalid_types_and_ranges(
     ] + [(ModelArchitectureSettings, dict(
         model_architecture_name="shared_backbone_residual_adapter",
         residual_adapter_requested_rank=1,
-    ), "residual_adapter_requested_rank")],
+    ), "residual_adapter_requested_rank"), (PredictionRoutingSettings, dict(
+        prediction_routing_strategy="switching_fixed_share_mixture",
+        prediction_mixture_activation_policy="always",
+        post_aggregation_routing_recalibration_policy="fifo_loss_replay",
+        routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
+        switching_share_horizon_samples=2,
+    ), "switching_share_horizon_samples")],
 )
-@pytest.mark.parametrize("specified_parameter_value", [0, 1, 10**400])
-def test_integer_settings_accept_boundary_values(
+@pytest.mark.parametrize("specified_parameter_value", [0, 1, 2, 10**400])
+def test_integer_settings_validate_boundary_values(
     settings_type, valid_settings_values, configuration_parameter_name,
     specified_parameter_value,
 ):
     valid_settings_values = dict(valid_settings_values)
     valid_settings_values[configuration_parameter_name] = specified_parameter_value
-    if configuration_parameter_name != "random_seed" and specified_parameter_value == 0:
-        with pytest.raises(RunSettingsValidationError):
+    if (configuration_parameter_name != "random_seed" and specified_parameter_value == 0
+            or configuration_parameter_name == "switching_share_horizon_samples"
+            and specified_parameter_value == 1):
+        with pytest.raises(RunSettingsValidationError) as validation_error:
             settings_type(**valid_settings_values)
+        assert validation_error.value.configuration_parameter_name == configuration_parameter_name
+        assert validation_error.value.specified_parameter_value is specified_parameter_value
     else:
         settings_instance = settings_type(**valid_settings_values)
         assert getattr(settings_instance, configuration_parameter_name) == specified_parameter_value
@@ -181,6 +202,13 @@ def test_aggregation_interval_can_exceed_stream_length():
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=specified_parameter_value,
         )) for specified_parameter_value in (0.05, 5e-324, 0.9999999999999999)],
+        (PredictionRoutingSettings, dict(
+            prediction_routing_strategy="switching_fixed_share_mixture",
+            prediction_mixture_activation_policy="always",
+            post_aggregation_routing_recalibration_policy="fifo_loss_replay",
+            routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
+            switching_share_horizon_samples=2,
+        )),
     ],
 )
 def test_settings_instances_are_immutable(settings_type, valid_settings_values):
@@ -193,7 +221,7 @@ def test_settings_instances_are_immutable(settings_type, valid_settings_values):
             delattr(settings_instance, settings_field.name)
 
 
-@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, DriftMonitoringSettings])
+@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, DriftMonitoringSettings, PredictionRoutingSettings])
 def test_field_annotations_and_metadata_declare_parameter_constraints(settings_type):
     assert get_type_hints(settings_type) == (
         {
@@ -205,6 +233,12 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         } if settings_type is ModelArchitectureSettings else {
             "drift_detector_name": str, "loss_monitoring_scope": str,
             "e_sr_false_alarm_control_alpha": float,
+        } if settings_type is DriftMonitoringSettings else {
+            "prediction_routing_strategy": str,
+            "prediction_mixture_activation_policy": str,
+            "post_aggregation_routing_recalibration_policy": str,
+            "routing_reset_on_assignment_change_policy": str,
+            "switching_share_horizon_samples": int,
         }
     )
     for settings_field in fields(settings_type):
@@ -219,6 +253,14 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "model_architecture_name"
                 else ("e_sr",) if settings_field.name == "drift_detector_name"
                 else ("overall_and_true_class_losses",)
+                if settings_field.name == "loss_monitoring_scope"
+                else ("switching_fixed_share_mixture",)
+                if settings_field.name == "prediction_routing_strategy"
+                else ("always",)
+                if settings_field.name == "prediction_mixture_activation_policy"
+                else ("fifo_loss_replay",)
+                if settings_field.name == "post_aggregation_routing_recalibration_policy"
+                else ("restart_adahedge_preserve_switching",)
             )
         elif settings_field.name == "e_sr_false_alarm_control_alpha":
             assert settings_field.metadata["parameter_unit"] == "dimensionless"
@@ -228,7 +270,9 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             assert settings_field.metadata["maximum_value_is_inclusive"] is False
         else:
             assert settings_field.metadata["minimum_allowed_value"] == (
-                0 if settings_field.name == "random_seed" else 1
+                0 if settings_field.name == "random_seed"
+                else 2 if settings_field.name == "switching_share_horizon_samples"
+                else 1
             )
             assert settings_field.metadata["minimum_value_is_inclusive"] is True
             assert "maximum_allowed_value" not in settings_field.metadata
@@ -236,6 +280,8 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             assert settings_field.metadata["parameter_unit"]
             if settings_field.name == "residual_adapter_requested_rank":
                 assert settings_field.metadata["parameter_unit"] == "rank"
+            if settings_field.name == "switching_share_horizon_samples":
+                assert settings_field.metadata["parameter_unit"] == "sample/client"
     with pytest.raises(TypeError):
         settings_type()
     with pytest.raises(TypeError):
@@ -243,8 +289,11 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             settings_type("sine2", 0, 1, 1, 1)
         elif settings_type is ModelArchitectureSettings:
             settings_type("shared_backbone_residual_adapter", 1)
-        else:
+        elif settings_type is DriftMonitoringSettings:
             settings_type("e_sr", "overall_and_true_class_losses", 0.05)
+        else:
+            settings_type("switching_fixed_share_mixture", "always", "fifo_loss_replay",
+                          "restart_adahedge_preserve_switching", 2)
 
 
 @pytest.mark.parametrize("specified_parameter_value", [1, 2, 1000, 10**400])
@@ -272,6 +321,17 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
         ), configuration_parameter_name) for configuration_parameter_name in (
             "drift_detector_name", "loss_monitoring_scope",
         )],
+        *[(PredictionRoutingSettings, dict(
+            prediction_routing_strategy="switching_fixed_share_mixture",
+            prediction_mixture_activation_policy="always",
+            post_aggregation_routing_recalibration_policy="fifo_loss_replay",
+            routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
+            switching_share_horizon_samples=2,
+        ), configuration_parameter_name) for configuration_parameter_name in (
+            "prediction_routing_strategy", "prediction_mixture_activation_policy",
+            "post_aggregation_routing_recalibration_policy",
+            "routing_reset_on_assignment_change_policy",
+        )],
     ],
 )
 @pytest.mark.parametrize(
@@ -279,7 +339,12 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
     ["unknown", "residual_adapter", "shared_backbone", "SHARED_BACKBONE_RESIDUAL_ADAPTER",
      " shared_backbone_residual_adapter", "ClassESR", "class_esr", "ESR", "esr",
      "E_SR", " e_sr", "overall", "class", "overall_and_class_losses",
-     "OVERALL_AND_TRUE_CLASS_LOSSES", " overall_and_true_class_losses", True, 1, None, []],
+     "OVERALL_AND_TRUE_CLASS_LOSSES", " overall_and_true_class_losses",
+     "switching", "SWITCHING_FIXED_SHARE_MIXTURE", " switching_fixed_share_mixture",
+     "ALWAYS", " always", "FIFO_LOSS_REPLAY", " fifo_loss_replay",
+     "reset_all_routing_state", "reset_adahedge", "reset_all", "off",
+     "RESTART_ADAHEDGE_PRESERVE_SWITCHING", " restart_adahedge_preserve_switching",
+     True, 1, None, []],
 )
 def test_component_options_reject_unknown_names(
     settings_type, valid_settings_values, configuration_parameter_name,

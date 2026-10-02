@@ -1,7 +1,7 @@
 {
   "feature_name": "configuration-foundation",
   "created_at": "2026-10-02T09:52:11.770138+00:00",
-  "updated_at": "2026-10-02T16:35:30.519813+00:00",
+  "updated_at": "2026-10-02T16:40:35.707386+00:00",
   "language": "ja",
   "phase": "implementation-in-progress",
   "approvals": {
@@ -39,9 +39,9 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 8,
-      "approved_revision": 8,
-      "approved_sha256_lf": "118ff261e70a9a60034a7301afef9429156aa44a5ea450ebb616c6e753839896",
+      "revision": 9,
+      "approved_revision": 9,
+      "approved_sha256_lf": "18dc7f27cc33904e373f0f45541ca8304900557b1e624ba51928ac772663fdc7",
       "approved_identifiers": [
         {
           "name": "federated_learning_experiments",
@@ -93,6 +93,13 @@
           "sha256_lf": "118ff261e70a9a60034a7301afef9429156aa44a5ea450ebb616c6e753839896",
           "source": "user_delegated_gpt_6_luna_review",
           "review_record": "luna-naming-review.md"
+        },
+        {
+          "revision": 9,
+          "approved_on": "2026-10-03",
+          "sha256_lf": "18dc7f27cc33904e373f0f45541ca8304900557b1e624ba51928ac772663fdc7",
+          "source": "user_delegated_gpt_6_luna_review",
+          "review_record": "luna-naming-review.md"
         }
       ],
       "approved_on": "2026-10-03",
@@ -113,9 +120,10 @@
       "1.2",
       "2.1",
       "2.2",
-      "2.3"
+      "2.3",
+      "2.4"
     ],
-    "next_task": "2.4",
+    "next_task": "2.5",
     "task_1_1_review": "APPROVED",
     "task_1_1_verification": "VERIFIED",
     "baseline_test_result": {
@@ -141,6 +149,17 @@
         "red_phase_evidence": {
           "command": "../../venv/Scripts/python.exe -m pytest tests/refactoring/test_run_settings_validation.py -q -p no:cacheprovider",
           "output": "ModuleNotFoundError: federated_learning_experiments.methods",
+          "exit_code": 1,
+          "source": "implementer_observed_before_implementation"
+        }
+      },
+      "2.4": {
+        "review": "APPROVED",
+        "verification": "VERIFIED",
+        "targeted_tests_passed": 370,
+        "red_phase_evidence": {
+          "command": "../../venv/Scripts/python.exe -m pytest tests/refactoring/test_run_settings_validation.py -q -p no:cacheprovider",
+          "output": "ModuleNotFoundError: federated_learning_experiments.methods.fedsda.routing",
           "exit_code": 1,
           "source": "implementer_observed_before_implementation"
         }

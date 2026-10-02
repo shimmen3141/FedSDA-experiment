@@ -1,6 +1,6 @@
 # 命名・役割レビュー: 設定・選択肢管理の基盤
 
-- revision: 8
+- revision: 9
 - パッケージ名: **`federated_learning_experiments`は2026-10-02に人間が承認済み。**
 - revision 2の名前・役割: **2026-10-02に人間が承認済み。承認hashはspec.jsonの履歴へ保存。**
 - revision 4: **2026-10-03に設計時の追加案とレビューによる修正を人間が承認済み。実装は未開始。**
@@ -8,6 +8,7 @@
 - revision 6: **2026-10-03にgpt-6-lunaのレビューを受け、有用な指摘を反映して承認済み。ユーザーの明示的な委任に従う。**
 - revision 7: **実験条件型の配置分離をgpt-6-lunaがレビューし、依存方向の注記を反映して承認済み。**
 - revision 8: **共通値検証の直接テスト3件とテスト専用型をgpt-6-lunaがレビューし、変更不要と判断して承認済み。**
+- revision 9: **整数の境界テスト名を受理・拒否の双方に合わせて改善し、gpt-6-lunaレビュー後に承認済み。**
 - 方針の正本: [リファクタリング方針](../../../docs/research/refactoring-policy.md)
 - 初回は最終構成に必要な設定と検証を扱う。下表の「後続」は、その機能の移植時に必要性を判断する候補である。
 
@@ -302,7 +303,7 @@ gpt-6-lunaのレビューと主担当による有用な指摘の反映を完了�
 | `test_existing_dataset_identifiers_are_accepted` | 初回3件の既存正式名を受理する |
 | `test_unknown_dataset_identifiers_are_rejected` | 未対応名・撤回した改名案・大小文字の違いを拒否する |
 | `test_integer_settings_reject_invalid_types_and_ranges` | bool・文字列・実数・範囲外の整数を拒否する |
-| `test_integer_settings_accept_boundary_values` | seed=0や正整数の下限など、許容する境界を受理する |
+| `test_integer_settings_validate_boundary_values` | seed=0などの有効な境界を受理し、正整数の0や下限2の項目の1を拒否する |
 | `test_aggregation_interval_can_exceed_stream_length` | 集約間隔がstream長を超える条件を受理する |
 | `test_requested_adapter_rank_is_preserved` | 要求rankを設定段階で丸めない |
 | `test_monitoring_alpha_rejects_nonfinite_and_out_of_range_values` | alphaの有限性と開区間を検証する |

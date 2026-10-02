@@ -24,3 +24,8 @@ gpt-6-lunaは`configuration/experiment_run_conditions.py`への分離を妥当�
 直接テスト3件とテスト専用dataclass名をgpt-6-lunaへ提示した。
 名前と役割が一致し、変更必須の指摘なし。`invalid_numeric_values`への限定案は、bool・型違いも扱うため推奨されなかった。
 主担当は全5名を維持し、命名表第11節へ記録して承認した。
+
+## revision 9: 整数の境界テスト名
+
+整数テストは許容境界の受理と下限未満の拒否の双方を扱うため、`accept_boundary_values`を`validate_boundary_values`へ変更する案を提示した。
+gpt-6-lunaは実態に合う変更と判断し、主担当が採用した。公開API・値域は変更しない。
