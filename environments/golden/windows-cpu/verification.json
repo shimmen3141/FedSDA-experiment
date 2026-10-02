@@ -1,0 +1,36 @@
+{
+  "verified_at_utc": "2026-10-02T09:07:05.201656+00:00",
+  "source_commit": "56c16a0cb3f67db7a5b8ae86f48865c315a266b6",
+  "package_index": "https://pypi.org/simple",
+  "package_freeze_match": true,
+  "numerical_build_match": true,
+  "golden_sha256_lf": {
+    "regression_golden.json": "861d5463b8b9afd0ee9c6143c1ca3ec43a1ff40bfd229fe1f8012dd7b4925466",
+    "proposed_regression_golden.json": "d29b4eb393560d890f6ce9695206c6401cf331ec5e484c19970f34bd259bbe08"
+  },
+  "test_files": [
+    "test_option_schema.py",
+    "test_parameter_schema.py",
+    "test_metric_schema.py",
+    "test_shared_backbone.py",
+    "test_provisional_model.py",
+    "test_clustering_decision.py",
+    "test_fedsda_configuration.py",
+    "test_regression.py",
+    "test_proposed_regression.py"
+  ],
+  "test_counts": {
+    "tests": 113,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "elapsed_seconds": 142.806,
+  "status": "PASS",
+  "reconstruction": {
+    "fresh_venv": true,
+    "include_system_site_packages": false,
+    "package_source": "official_PyPI",
+    "original_venv_modified": false
+  }
+}

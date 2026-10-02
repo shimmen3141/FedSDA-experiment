@@ -38,6 +38,10 @@ class_functional_confidence、on_new_model、mergeを使用する。
 
 ## 実行環境
 
+再構築用の版固定・環境詳細・スクリプトは
+[Windows CPU goldenの再現環境](../../environments/golden/windows-cpu/README.md)に保存する。
+新規venvからの再現確認には、同資料の`recreate.ps1`・`verify.py`を使う。
+
 2026-10-02に確認した基準はWindows / CPU / float32、Python 3.13.15、
 NumPy 2.4.6、torch 2.12.1+cpu、pytest 9.1.1である。
 既存goldenの生成メタデータにはPython 3.14.6と記録されているが、現在のWindowsでも11ケースが一致する。
