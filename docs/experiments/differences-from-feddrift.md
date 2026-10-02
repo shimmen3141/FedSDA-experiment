@@ -1,5 +1,11 @@
 # FedDrift 元論文との相違点
 
+> 文書の役割: 比較対象の再現条件の説明
+>
+> 対象と採用状況: 本実装とFedDrift元論文のデータ・学習・評価条件の相違を扱う。FedSDA最終構成の仕様とは分けて読む。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 本実装の **FedDrift ベースライン**と、FedDrift 元論文（Jothimurugesan et al., 2023）および公開実装 `microsoft/FedDrift` との相違点を一元的にまとめる。照合元は `FedDrift_paper/`（論文 tex、特に `appendix-expt-setup.tex`）と `FedDrift/`（clone した参照コード）。
 
 > このファイルは **論文/参照の FedDrift ↔ 本実装の FedDrift** の対応に絞る。提案手法 FedSDA の

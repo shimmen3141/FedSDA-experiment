@@ -1,5 +1,11 @@
 # FedSDAのモデル統合
 
+> 文書の役割: 個別機能の実装資料
+>
+> 対象と採用状況: クラスタリング後のmerge・parameter_share・非劣性mergeを扱う。最終提案は通常mergeを採用する。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 FedSDAでは、階層クラスタリングが統合候補を作り、その後の
 `clustering_consolidation`がモデルrepositoryへ適用する操作を決める。
 

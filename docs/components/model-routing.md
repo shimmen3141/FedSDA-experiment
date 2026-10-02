@@ -1,6 +1,16 @@
 # FedSDAのモデルルーティング
 
+> 文書の役割: 個別機能の実装資料
+>
+> 対象と採用状況: hard、再始動AdaHedge、現行モデル保護などの方式を比較する。最終提案の予測方式はSwitchingで、階層の説明はsoft-routing.mdを参照する。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 ## ハードルーティング
+
+以下は予測方式の選択肢と過去の設計経緯である。最終提案のSwitchingは
+[soft-routing.md](soft-routing.md)で説明するFixed-Share混合を使う。
+`current_model_id`による検出・データ帰属と、予測の混合重みを区別する。
 
 既存のFedSDAは、各クライアントが1個の`current_model_id`を選び、そのモデルだけで
 予測する。ドリフト検知後は既存モデルの再利用または新規モデル作成によって、このIDを

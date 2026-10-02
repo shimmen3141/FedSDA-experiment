@@ -1,5 +1,11 @@
 # FedSDA研究バックログ
 
+> 文書の役割: 研究上の検討記録
+>
+> 対象と採用状況: 非採用案、代替設計、今後の候補を対象とする。候補の記載は最終提案への採用を意味しない。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 本書は、会話ログや一時的な改善メモから、未実装でも再検討価値のある案と、検証後に見送った案を
 整理したものである。現行仕様の正本ではない。実装済みオプションと依存関係は
 [options.md](../reference/options.md)、検出器は[drift-detection.md](../components/drift-detection.md)、新規モデル作成は

@@ -1,5 +1,11 @@
 # FedSDA: Statistical Drift-aware Assignment for Federated Learning — 実装用仕様書
 
+> 文書の役割: 旧構成の全体仕様
+>
+> 対象と採用状況: ADWIN中心の初期構成を対象とした設計記録。最終提案の仕様としては参照しない。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 論文「統計的検出によるローカルなコンセプトドリフトに対応可能な連合学習法」(main_jp.tex) を実験プログラム実装用に再構成したもの。
 
 - **ベース手法**: FedDrift (Jothimurugesan et al., 2023) — 複数グローバルモデル + ドリフト検知 + 階層的クラスタリング

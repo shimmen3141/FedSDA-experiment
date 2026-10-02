@@ -1,5 +1,11 @@
 # ハイパーパラメータ・変数リファレンス
 
+> 文書の役割: 横断的な設定リファレンス
+>
+> 対象と採用状況: コードの初期値・変数の意味・適用範囲を扱う。最終提案の採用値とは区別する。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 本実装([federated_drift_experiment/config.py](../../federated_drift_experiment/config.py))の全ハイパーパラメータを、**意味・使用手法・既定値**の観点で一覧化する。実行時はコードから `from federated_drift_experiment import config; config.X = ...`で上書きできる(各モジュールは呼び出し時に `config.X` を参照する)。
 
 論文(FedDrift 元論文)との対応・相違は [differences-from-feddrift.md](../experiments/differences-from-feddrift.md)、

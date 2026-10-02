@@ -1,5 +1,11 @@
 # FedSDAの新規モデル作成方針
 
+> 文書の役割: 個別機能の実装資料
+>
+> 対象と採用状況: 複数の候補検証・作成方針を扱う。最終提案はforward_persistentを採用する。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 FedSDAでは、ドリフト警報後に既存モデルが距離閾値を満たさなかった場合の処理を
 `NEW_MODEL_CREATION_POLICY` で選択する。検出器、Cached/NoCached、初期化方法、
 early stoppingとは独立した設定である。

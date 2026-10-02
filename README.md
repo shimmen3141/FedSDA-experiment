@@ -2,7 +2,9 @@
 
 FedSDA (Statistical Drift-aware Assignment for Federated Learning) の比較実験。
 文書の一覧と用途は [docs/README.md](docs/README.md) を参照。
-アルゴリズムの詳細は [docs/overview/fedsda-algorithm.md](docs/overview/fedsda-algorithm.md)、論文本体は [main_jp.tex](main_jp.tex) を参照。
+最終提案の採用構成・処理順は [docs/overview/proposed-method.md](docs/overview/proposed-method.md) を参照。
+旧ADWIN構成の仕様は [docs/overview/fedsda-algorithm.md](docs/overview/fedsda-algorithm.md) に保持する。
+論文草稿 [main_jp.tex](main_jp.tex) の手法説明は最終構成に合わせる編集が必要である。
 データ特性から予想される検出難度は [docs/experiments/dataset-characteristics.md](docs/experiments/dataset-characteristics.md)、
 未実装案と検証済み非採用案は [docs/research/research-backlog.md](docs/research/research-backlog.md) に整理している。
 SoftRoutingの予測レイヤーと各候補の関係は

@@ -1,5 +1,11 @@
 # 共有バックボーン＋概念別ヘッド
 
+> 文書の役割: 個別機能の実装資料
+>
+> 対象と採用状況: 共有モデル構造・学習・再較正の選択肢を扱う。最終提案はrank 8 Residual Adapter、joint・mean、FIFO replayを採用する。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 ## 実験要素の位置づけ
 
 共有表現の実験は、次の独立した関心を組み合わせて構成する。ただし、概念上の独立性と
@@ -18,9 +24,12 @@
 `FedSDA_NoCached_ClassESR_RestartingSoftRouting`も実装されている。`fifo_replay`はSoftRouting一般ではなく、
 サーバ集約によって共有表現が同時に変化する場合だけ必要になる再較正である。
 
-現行コードでは共有表現modeを`NoCached + ClassESR + Restarting SoftRouting`として実装しているため、
-共有モデルでhard routingや他検出器を選ぶ組合せは未実装である。これはモデル構造上の必然ではなく、
-検証済みの実装範囲を限定するための制約である。コード上の正確な依存関係は`docs/reference/options.md`を参照する。
+実装範囲はモデル構造ごとに異なる。完全共有バックボーンにはClassESR＋SoftRoutingのmodeがあり、
+Residual AdapterにはClassESRのhard routing対照と、ESR・ClassADWIN・ADWIN＋SoftRoutingのmodeもある。
+すべての共有構造で任意の検出器・routingを組み合わせられるわけではない。
+正確な能力と依存関係は[自動生成リファレンス](../reference/options.md)を参照する。
+
+本書の「既定」はコードの初期値を指す。最終提案では学習を`joint`、再較正を`fifo_replay`へ明示指定する。
 
 ```text
 モデル構造

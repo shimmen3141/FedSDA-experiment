@@ -1,5 +1,11 @@
 # Shadow tournament
 
+> 文書の役割: 実験的な個別機能の説明
+>
+> 対象と採用状況: 実装済みの代替作成方針を対象とする。最終提案では採用しない。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 `NEW_MODEL_CREATION_POLICY=shadow_tournament` は、ドリフト警報後の新規モデル候補と
 既存モデルを同じ学習予算で比較する FedSDA の実験的な新規モデル作成方針である。
 

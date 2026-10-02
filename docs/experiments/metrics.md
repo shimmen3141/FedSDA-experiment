@@ -1,5 +1,11 @@
 # 実験指標の構成
 
+> 文書の役割: 評価・診断指標の参照
+>
+> 対象と採用状況: 全方式の主要指標と診断指標を扱う。採用構成や新規性の定義は行わない。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 実験指標の正規ID、分類、適用範囲、CSV列順は
 [`experiment_spec/metrics.py`](../../federated_drift_experiment/experiment_spec/metrics.py)を正本とする。
 指標を追加するときは、実験スクリプトへ列名を直接追加せず、このスキーマへ登録する。

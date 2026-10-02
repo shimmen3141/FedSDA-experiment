@@ -1,5 +1,23 @@
 # 固定ベースラインの構成
 
+> 文書の役割: 成果物の保存・参照方法
+>
+> 対象と採用状況: 過去の構成を含むbaseline索引を説明する。旧referenceと最終Switchingの基準を区別する。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
+## 最終提案との対応（2026-10-02確認）
+
+論文の最終提案はSwitching SoftRouting構成であり、正本は
+`results/results_20260831_232910_routing-selection/switching-routing/`である。
+主要8 ablationは`results/results_20260901_113537_main-ablation-suite/`に全条件が揃っている。
+採用するCSV・raw・条件の対応は[成果監査と論文用索引](experiment-results-audit.md)を参照する。
+
+本書の`results/baselines/fedsda/`は過去の設計比較を含む整理済み索引である。
+ルートmanifestの`current_reference`と`reference/`は旧独立モデル・距離統合構成であり、
+最終Switchingの基準とは異なる。FedDriftの固定結果は引き続き使用できる。byte指標は
+既定MLP・float32を仮定した派生表を作成済みだが、実行時の前提が未確認のためbaselineには採用していない。
+
 固定比較結果は `results/baselines/` に保存する。FedSDA は実験オプションを優先した構成に統一し、
 各方式の下でデータセットを分ける。
 
@@ -24,7 +42,7 @@ results/baselines/fedsda/
 および元実験のパスを記録する。したがって、方式名だけで変更対象を判別し、正確な固定値・
 掃引値は同じ階層の manifest で確認する。
 
-`reference/` は現在の比較基準であり、ClassESR、random schedule、forward persistent、
+`reference/` はこのbaseline索引を作成した時点の比較基準であり、ClassESR、random schedule、forward persistent、
 `N_FIFO=30`、`N_forward=10`、距離クラスタリングを基本構成とする。完全な値と掃引範囲は
 ルートの `manifest.json` を正本とする。
 
@@ -51,7 +69,8 @@ routing選択だけの寄与を比較できるようにする。現在の成果�
 `detectors/class_adwin_residual_adapter/`には、`routing/meta_switching/`とResidual Adapter、
 forward persistent、FIFO再較正、Meta-switching等を一致させ、検出器だけをClassADWIN
 （`delta_ADWIN=0.05`）へ置き換えた結果を保存する。旧`detectors/class_adwin/`は独立モデル構造時代の
-比較結果であり、現行構成におけるClassESRとの検出器ablationには前者を使用する。
+比較結果である。旧Meta-switching構成のClassESRとの検出器比較には前者を使用する。
+最終Switching構成の検出器比較には、主要スイートの`class-adwin`と`overall-adwin`を使用する。
 上位Fixed-Shareの予測を重み付き混合した比較結果は、
 `routing/meta_switching_mixture/<dataset>/`へablationとして保存する。候補生成・上位重み・学習・通信は
 `routing/meta_switching/`と同一であり、最上位出力の`leader / mixture`だけを比較する。
@@ -81,8 +100,9 @@ python -m tools.baselines.build_fedsda_study \
 
 `studies/residual_adapter_routing_ablation/`は、Residual Adapter rank 8について、hard routing、
 Restarting SoftRouting、集約後FIFO再較正の寄与を分離した比較である。全variantはrandom schedule、
-5シード、集約間隔`50/200`を共通条件とする。再較正なしSoftRoutingだけSEA2・SEA4が未実験であり、
-この欠測はstudy manifestとvariant manifestの両方に明記する。
+5シード、集約間隔`50/200`を共通条件とする。2026-10-02の成果物照合では、
+再較正なしSoftRoutingもSEA2・SEA4を含む全6データセットが揃っている。
+旧記述の「SEA2・SEA4未実験」は現在の成果物に該当しない。
 
 ディレクトリ名は検索用の短い安定IDに留め、完全な条件を名前へ埋め込まない。条件の正本はmanifest、
 数値結果の正本は各データセットの`metrics.csv`、シード別時系列の正本は`.npz`とする。これにより、
@@ -94,7 +114,8 @@ FedDrift は方式が一つであるため、`results/baselines/feddrift/<datase
 ## 論文でのablationの使い分け
 
 本文の主要ablationでは、最終候補を基準に有力な要素を一つずつ無効化し、各要素の寄与を示す。
-たとえば、Residual Adapter、Restarting SoftRouting、FIFO再較正の有無を同一条件で比較する。
+最終提案では、Residual Adapter、Switching SoftRouting、FIFO再較正などの寄与を、
+上記のSwitching基準と主要スイートの対応する結果で確認する。
 一方、`joint / sequential / frozen`や`distance / confidence / confidence_margin`のような選択肢間比較は、
 採用理由を示す設計選択・感度分析として補足または付録に置く。代替選択肢自体が研究上の主張でない限り、
 これらを主要ablationの代わりにはしない。

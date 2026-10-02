@@ -1,5 +1,11 @@
 # SoftRoutingの予測レイヤー
 
+> 文書の役割: 個別機能と設計選択の説明
+>
+> 対象と採用状況: Global・Switching・Meta等の関係を扱う。最終提案はSwitchingの常時混合を採用し、Meta-switchingは補足比較とする。
+>
+> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+
 ## 位置づけ
 
 SoftRoutingは、ドリフト検出、モデル作成、クラスタリングとは独立した**予測時のモデル統合層**である。
@@ -244,7 +250,14 @@ accuracyには至らなかった。
 学習対象は変えないため、モデル通信量はまだ減らない。まず実経路でaccuracyとforward計算量の因果効果を
 確認し、成立した場合に限って、休止中モデルの配布省略と周期probe時の再取得を別段階で評価する。
 
-## 実験上の位置づけ
+## 最終提案と過去のrouting比較
+
+最終提案は`switching`を使用する。以下の数値は設計選択に至る複数段階の結果であり、
+同じ構成・評価方法の一つの実験としてまとめない。最終構成の定義は
+[正本文書](../overview/proposed-method.md#5-switchingを採用する理由)、比較対象の索引は
+[ablation計画](../experiments/ablation-plan.md)を参照する。
+
+### 過去のMeta候補とshadow診断
 
 5 seed・5000 stepの`bounded_score`診断では、Meta mixtureはGlobal mixtureに対してSine2で
 約0.37ポイント、MNIST2で約0.11ポイント、MNIST4で約0.38ポイントaccuracyを改善した。
@@ -257,13 +270,20 @@ MNIST2・MNIST4の各17条件で現行Metaを上回った。改善は真のド�
 上位Fixed-Shareにより選ぶ再生診断では、Circle2・Sine2・MNIST2・MNIST4の全80条件で現行Metaを
 上回った。この結果を根拠に、直接switching mixtureではなく`meta_switching`を実予測候補として追加した。
 
-現行の最終構成で実予測方式だけを揃えて再集計すると、Global、Meta、Switching、Meta-switchingの平均
+### 最終候補の実予測方式の比較
+
+最終候補の主要設定を揃えた既存結果で実予測方式を比較すると、Global、Meta、Switching、Meta-switchingの平均
 accuracyはそれぞれ`0.90931`、`0.91076`、`0.91290`、`0.91339`だった。SwitchingはGlobalから
 約0.359ポイント改善し、Meta-switchingのGlobalに対する改善約0.408ポイントの約88%を、上位階層なしで
 得ている。stable accuracyは順に`0.91906`、`0.91961`、`0.91903`、`0.91968`であり、Switchingは
 回復を含む全体accuracyには強い一方、定常区間ではMeta系に僅かに劣る。この差を主要方式の説明コストと
 比較すると、上位階層の追加accuracyは約0.049ポイントに留まる。そのため、論文の主要構成は
 `switching`とし、`meta_switching`は説明コストに対する追加利得を検証する拡張比較へ回す。
+
+global/meta/meta-switchingはSwitchingと異なる実装ハッシュの結果を含む。
+同一実装版の比較とは記載せず、実験資料でコード来歴の差を付記する。
+
+### Meta内部の損失とGlobal基準の設計比較
 
 5 seed・5000 stepでは、`zero_one`は`bounded_score`に対してCircle2を約0.03ポイント、MNIST2を
 約0.06ポイント、MNIST4を約0.10ポイント改善し、各データの全seedで上回った。SEA2・SEA4・Sine2は
@@ -275,8 +295,9 @@ MNIST4を約0.48ポイント改善し、全seedで上回った。SEA2・SEA4は�
 劣後を約0.07ポイントから約0.04ポイントへ縮めたものの、全seedでGlobalをわずかに下回った。
 このため、Metaを全データ共通の既定ルーティングにはせず、有力な拡張としてGlobalと併記する。
 
-論文上は、Global mixtureを単純な基準とし、Meta mixtureを「Global mixtureと予測クラス別leaderを
-2-expert AdaHedgeで統合する拡張」として分けて説明する。Metaは既存のモデル出力だけを再利用し、
+Meta内部の設計比較では、Global mixtureを基準とし、Meta mixtureを「Global mixtureと予測クラス別leaderを
+2-expert AdaHedgeで統合する拡張」として説明する。最終提案の比較基準はSwitchingである。
+Metaは既存のモデル出力だけを再利用し、
 追加forward・通信・数値閾値を必要としないため、三層すべてを個別手法として並べる必要はない。
 Context mixtureはMetaの比較ablation、Context leaderは内部候補として扱う。
 

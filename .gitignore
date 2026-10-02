@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+.venv
 venv/
 
 # 実験成果物。結果は results/results_<実行時刻>/ の規約で作られ results/ 以下を一括無視。
