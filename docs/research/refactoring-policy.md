@@ -15,7 +15,8 @@
 - 上位の実験実行が具体的な方式を組み立て、計算・判断部は実験実行や保存処理へ依存しない。
 - データ型、入出力、更新する状態、処理の順序を、小さな境界ごとに定義する。
 - インターフェースは実際に差し替える箇所に設ける。各関数のために抽象クラスを増やさない。
-- 名前は役割・判断基準・時間的な意味を表す。長い名前や小さいファイルを目標にしない。
+- 名前は役割・判断基準・時間的な意味を表す。短さより、意味の明確さ・他の概念との区別・実態との一致を優先する。
+  必要なら4語・5語以上を使う。単語数を増やすことや小さいファイルを目標にしない。
 
 同じGit履歴の専用ブランチを、別ディレクトリのworktreeへcheckoutして進める。
 旧実装は`748c3aa`で固定した参照として保持し、新worktreeでは新しい構成・API・設定形式を段階的に実装する。
@@ -43,10 +44,11 @@ worktreeは別のcheckoutを用意する機能で、旧コードが自動で消�
 ## 3. レイヤーと配置の案
 
 以下は新実装の配置案で、各ディレクトリは対応する責務を実装した時点で作る。
-パッケージ名も設計時に決める。配置例の既存名は仮置きで、維持を必須にしない。
+ルートパッケージ名は2026-10-02にユーザーが承認した`federated_learning_experiments`とする。
+扱う対象と用途を表し、個々の手法名やpreset名から区別する。以下の下位配置は設計候補である。
 
 ```text
-federated_drift_experiment/
+src/federated_learning_experiments/
   core/                 # ID・状態・イベント・機能境界の小さな型
   learning/
     models/             # モデル構造、共有部、概念固有部
@@ -63,7 +65,8 @@ federated_drift_experiment/
     feddrift/           # FedDrift固有の進行・隔離・同期
     oblivious/          # 無適応baseline
   data/                 # 既存の生成・読込み・概念スケジュール
-  experiment_spec/      # 構成、制約、掃引、指標・保存契約の宣言
+  configuration/        # 実験設定の解決・検証、方式定義、preset。機能固有の型は各機能へ
+  experiment_spec/      # 掃引、指標・保存契約の宣言
   runtime/              # 具体方式の組立、stream進行、実験・掃引の実行
   evaluation/           # 指標計算、診断、履歴からの集計
   artifacts/            # 新schemaのCSV/NPZ/manifestの読書き・復元
@@ -83,7 +86,8 @@ shared backboneやResidual Adapterはモデル・学習方式であり、独立�
 - `visualization`は結果を読み、手法内部の可変状態を参照しない。
 - CLIと`tools/`は構成と実行・保存の窓口を呼び、アルゴリズムを実装しない。
 
-`experiment_spec`の宣言と`artifacts`の読書きを区別し、schemaがファイルI/Oへ依存しないようにする。
+`configuration`・`experiment_spec`の宣言と`artifacts`の読書きを区別し、schemaがファイルI/Oへ依存しないようにする。
+手法の計算部には必要な機能固有の設定を渡し、汎用の選択肢一覧・preset解決へ依存させない。
 実際の循環参照は移行対象ごとに確認し、この案を調整する。
 
 ### 採用するアーキテクチャ原則
@@ -125,8 +129,8 @@ shared backboneやResidual Adapterはモデル・学習方式であり、独立�
 | 現在の名前 | 問題・意味 | 候補・対応 |
 |---|---|---|
 | 長いmode名 | 各軸が混在し、名前だけでは最終構成が決まらない | preset `fedsda_switching`＋明示的な構成。新APIは新名に統一 |
-| `RestartingSoftRouting` | 割当変更時resetと予測方式の選択が混在 | `routing_strategy`と`assignment_change_reset_policy`へ分ける |
-| `SOFT_ROUTING_CONTEXT` | `switching`や`meta_switching`は単なる文脈ではなく予測方式 | 内部設定を`routing_strategy`へ。クラス別文脈は別概念として定義 |
+| `RestartingSoftRouting` | 割当変更時resetと予測方式の選択が混在 | `prediction_routing_strategy`と`routing_reset_on_assignment_change_policy`へ分ける |
+| `SOFT_ROUTING_CONTEXT` | `switching`や`meta_switching`は単なる文脈ではなく予測方式 | 内部設定を`prediction_routing_strategy`へ。クラス別文脈は別概念として定義 |
 | `current_model_id` | 現行予測モデルと誤読されるが、最終混合予測のleaderとは別 | データ・損失監視の文脈では`assigned_model_id` |
 | `ProtectedSoftRouting` | 何を保護するか不明 | `CumulativeLossGatedPredictor`等。累積損失による混合採用条件を表す |
 | `forward_persistent` | 既存モデル再適合・現行優先・前半/後半の検証が名前から見えない | 内部は既存`ForwardCreationPolicy`の規則を活用。表示は「再適合比較付き二分区間前向き検証」 |
@@ -199,6 +203,11 @@ Meta-switching、Cached、PCGrad等は必要性を個別に判断する。旧実
 
 ## 7. 移行の順序と完了条件
 
+実装順序と依存方向は別に判断する。最初に機能境界・状態所有者・必要な設定を整理し、
+最終構成に必要な設定と検証から、小規模な一実験の実行経路へ接続する。
+選択肢カタログ、preset、保存表現等の汎用基盤を全て完成させてから移植する順序にはしない。
+比較手法・ablationの移植に合わせて汎用部分を整え、実際に必要な差し替えを確認する。
+
 | 段階 | 変更の単位 | 完了の証拠 |
 |---|---|---|
 | 1 | 新worktreeの構成、用語、移植範囲、機能境界、新schemaを確定 | 状態所有者と新API、維持する挙動、移植する選択肢が説明できる |
@@ -249,7 +258,17 @@ Codex対応のSkills、要求・設計・taskの管理、タスクごとの実�
 - taskの進捗は採用した仕組みに一本化し、別の仕様管理方式と二重管理しない。
 
 2026-10-02に専用worktreeへcc-sdd 3.1.0（Codex Skills、日本語）を導入した。
-最初のspecは`configuration-foundation`。要求と命名案を人間がレビューする段階である。
+最初のspecは`configuration-foundation`。要求と命名revision 2はユーザー承認済み。
+設計と追加命名revision 4はgpt-6-lunaのレビューを反映し、2026-10-03に人間が承認した。最新状態は対象specの`spec.json`で確認する。
 実装単位ごとに名前・役割・入出力・状態・単位を`naming.md`へ列挙し、
-人間が理解しやすさを判断して承認した後に実装する。承認はrevision付きで保存する。
+2026-10-03以降はgpt-6-lunaがレビューし、主担当が有用な指摘を反映した時点で命名承認とする。
+これはユーザーの明示的な委任による。全指摘の採用は必須ではなく、採否と理由を保存する。
+命名の追加・変更だけを理由に人間の承認を再要求しない。承認はrevision付きで保存する。
 新実装のコードは命名承認前に作成しない。
+
+## 9. セッション再開と合意の保持
+
+- `AGENTS.md`から本方針、`.kiro/steering/roadmap.md`、対象specの`spec.json`・`review.md`・`naming.md`を読む。
+- 本文書を全体方針の正本とし、steeringは要点と参照先を持つ。仕様と承認状態は対象specへ記録する。
+- 人間の指示で方針が変わった場合は正本と関係するsteering・specを更新し、古い会話だけを判断根拠にしない。
+- パッケージ名等の個別承認を、命名一覧全体・要求・設計・taskの承認へ広げない。

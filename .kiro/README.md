@@ -5,7 +5,7 @@
 - ブランチ: `refactor/architecture`
 - 基準commit: `748c3aa`
 - worktree: 元のcheckout直下の`.worktrees/refactoring/`
-- 現在: 要求・命名の人間レビュー待ち。新src実装は未作成。
+- 現在: 要求・設計・初回task・命名revision 5は承認済み。パッケージ境界の実装に着手。revision 6の補助関数・テスト名のみ確認待ち。
 
 ## 読む順序
 
@@ -13,6 +13,9 @@
 2. [全体の進行](steering/roadmap.md)
 3. [最初の要求仕様](specs/configuration-foundation/requirements.md)
 4. [関数・変数等の命名と役割](specs/configuration-foundation/naming.md)
+5. [設定基盤の設計](specs/configuration-foundation/design.md)
+6. [gpt-6-lunaのレビューと対応](specs/configuration-foundation/luna-review.md)
+7. [初回13タスクと後続計画](specs/configuration-foundation/tasks.md)
 
 ## 運用
 
@@ -22,9 +25,13 @@ cc-sdd 3.1.0をCodex Skills・日本語で導入した。版・npm integrity・�
 元のcheckoutを開いたセッションでは、新worktreeのskillが自動検出されるとは扱わない。
 
 現在は`kiro-steering`、`kiro-spec-init`、`kiro-spec-requirements`の手順で初期文書を作成した。
-`spec.json`の要求・命名・設計・task承認は全てfalse、実装準備完了もfalseである。
+要求と命名revision 2は人間が承認済み。命名承認は`spec.json`の`approvals.naming.approval_history`へ記録した。
+設計・独立レビューで追加した名前はrevision 4として人間が承認済み。
+初回taskの実装開始と、既存dataset名を維持したrevision 5も人間が承認済み。
+具体化した内部関数・テスト名はrevision 6の第9節へ分離し、その追加分だけ確認する。
 
-人間が要求と命名を確認した後に、設計とtaskを作成してレビューする。
+人間が設計と追加命名を確認したため、初回taskを作成して独立確認を完了した。
+承認済みの名前でパッケージ境界・検証環境を作成し、task 1.1から実装に着手した。
 設計で追加した関数・変数も命名表へ追記し、そのrevisionを承認してから実装する。
 実装時は担当taskを指定して一単位ずつ進める。
 自動承認フラグで命名レビューを省略しない。
@@ -32,10 +39,10 @@ cc-sdd 3.1.0をCodex Skills・日本語で導入した。版・npm integrity・�
 ## 基準環境・成果物
 
 worktree作成ではvenv・results・MNIST cache・保留資料は複製されない。
-現時点の調査用Pythonは元checkoutの`venv/Scripts/python.exe`を使っている。
-新実装の検証環境は保存済み環境定義から用意し、テスト開始時に明示する。
+検証用Pythonは元checkoutの`venv/Scripts/python.exe`を共有し、保存済みのPython・数値ライブラリのビルド・依存全体・golden hashと一致することを照合した。
+worktreeからは`../../venv/Scripts/python.exe`、MNISTは`FDE_MNIST_DATA_DIR`で元checkoutの`data/mnist/`を明示参照する。
 未配置のデータ・結果を黙って新規生成せず、元資料の保存先を確認する。
 保留3資料のコミット判断は元checkoutの`AGENTS.md`に従う。
 
-今回の初期化で確認するのは、導入ファイル・JSON・参照リンク・未承認gateの整合性である。
-新実装の回帰テストや自律実装を実行した、という意味ではない。
+検証コマンドと観測結果は対象specの`review.md`へ記録する。
+旧経路のgolden検証は参照実装の保全を確認するもので、新しいアルゴリズムの同値性を意味しない。

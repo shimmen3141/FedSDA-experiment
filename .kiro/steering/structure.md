@@ -3,7 +3,8 @@
 ## 現状と目標
 
 worktreeには参照元と同じ既存パッケージがcheckoutされている。
-新パッケージは命名レビュー後にsrc配置で作成する案。既存名の維持は要件にしない。
+新パッケージはsrc配置とし、承認済みの名前は`federated_learning_experiments`。
+その他の名前は命名レビュー後に実装する。既存名の維持は要件にしない。
 旧コードは段階的に移植し、完成した新ブランチの実行経路から除く。
 
 ## 設計原則
@@ -18,6 +19,7 @@ worktreeには参照元と同じ既存パッケージがcheckoutされている�
 model、expert、assignment、leader、candidateの違いを説明する。
 `sample_index`、`round_index`、`*_sample_count`、`*_byte_count`で単位を明示する。
 名前だけで意味が分かるかを、実装前に人間が判断する。
+短さより、意味の明確さ・他の概念との区別・実態との一致を優先し、必要なら4語・5語以上を使う。
 
 新しい設定・選択肢の正式名は一つとし、旧名aliasを設けない。
 詳細は`docs/research/refactoring-policy.md`と各specの`naming.md`を参照する。

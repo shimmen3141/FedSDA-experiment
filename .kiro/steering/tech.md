@@ -2,7 +2,7 @@
 
 ## 現状
 
-既存実装はPython・NumPy・PyTorch。新src実装はまだない。
+既存実装はPython・NumPy・PyTorch。新srcのパッケージ境界とpytestのimport構成を作成済み。
 Windows CPUの固定環境を別venvから再構築し、113テスト成功を確認済み。
 版とビルド情報は`environments/golden/windows-cpu/`を参照する。
 

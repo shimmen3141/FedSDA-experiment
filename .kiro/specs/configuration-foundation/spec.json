@@ -1,29 +1,109 @@
 {
   "feature_name": "configuration-foundation",
   "created_at": "2026-10-02T09:52:11.770138+00:00",
-  "updated_at": "2026-10-02T09:52:11.770138+00:00",
+  "updated_at": "2026-10-02T16:09:57.614453+00:00",
   "language": "ja",
-  "phase": "requirements-generated",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": false
+      "approved": true,
+      "approved_on": "2026-10-02",
+      "approval_source": "user_explicit_approval"
     },
     "design": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true,
+      "approved_on": "2026-10-03",
+      "approval_source": "user_explicit_approval",
+      "approved_sha256_lf": "228c55063b051eb9b59255f82ae84310108288d627bfff1143cde0fbaf530e89",
+      "approval_history": [
+        {
+          "sha256_lf": "9613f0eaa25ea1cee84ead16c1792c488010f96fbd8359d3c4910b2657a1597a",
+          "source": "user_explicit_approval",
+          "scope": "original_design"
+        }
+      ],
+      "implementation_clarification": "shared_field_validation_in_core_reviewed_with_naming_revision_6"
     },
     "tasks": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true,
+      "plan_revision": 1,
+      "scope": "initial_tasks_1_to_3",
+      "executable_task_count": 13,
+      "approved_on": "2026-10-03",
+      "approval_source": "user_explicit_approval",
+      "approved_sha256_lf": "ff56fa71cdf5b45ff9e1acc7e0443ffb23da6ca627def8e81b4e36946829c10e"
     },
     "naming": {
       "generated": true,
-      "approved": false,
-      "revision": 1,
-      "approved_revision": null,
-      "approved_sha256_lf": null
+      "approved": true,
+      "revision": 6,
+      "approved_revision": 6,
+      "approved_sha256_lf": "d762ee224d48dd1aaa44b6b107db6d31b57d23abd8a4afcebc8318f871bbc2bd",
+      "approved_identifiers": [
+        {
+          "name": "federated_learning_experiments",
+          "role": "root_python_package",
+          "approved_on": "2026-10-02",
+          "source": "user_explicit_approval",
+          "scope": "package_name_only"
+        }
+      ],
+      "approval_history": [
+        {
+          "revision": 2,
+          "approved_on": "2026-10-02",
+          "sha256_lf": "462af0945f0b1c23570742407688d699faa75b8a44ed78beb52b4f9a3863238e",
+          "source": "user_explicit_approval",
+          "scope": "revision_2_names_and_roles"
+        },
+        {
+          "revision": 4,
+          "approved_on": "2026-10-03",
+          "sha256_lf": "c2f06283d25e4ad7acb85d1954e044a85dc3955420449dffb1bdd7a3c539ddbb",
+          "source": "user_explicit_approval",
+          "scope": "revision_4_names_and_roles"
+        },
+        {
+          "revision": 5,
+          "approved_on": "2026-10-03",
+          "sha256_lf": "92938e33edc01c98e58b4ca2f8653786fdd8a4483033d9e168c0cba7ffc2e69b",
+          "source": "user_explicit_approval",
+          "scope": "preserved_dataset_identifiers_and_previous_names"
+        },
+        {
+          "revision": 6,
+          "approved_on": "2026-10-03",
+          "sha256_lf": "d762ee224d48dd1aaa44b6b107db6d31b57d23abd8a4afcebc8318f871bbc2bd",
+          "source": "user_delegated_gpt_6_luna_review",
+          "review_record": "luna-naming-review.md"
+        }
+      ],
+      "approved_on": "2026-10-03",
+      "approval_source": "user_delegated_gpt_6_luna_review"
     }
   },
-  "ready_for_implementation": false
+  "ready_for_implementation": true,
+  "approval_record_note": "Approved document hashes include status-only edits recording human approval; naming approval history preserves the originally reviewed hash.",
+  "task_graph_sanity_review": {
+    "mode": "independent",
+    "verdict": "PASS",
+    "review_attempts": 2,
+    "scope": "initial_tasks_1_to_3_and_non_executable_followup_plan"
+  },
+  "implementation_progress": {
+    "completed_tasks": [
+      "1.1"
+    ],
+    "next_task": "1.2",
+    "task_1_1_review": "APPROVED",
+    "task_1_1_verification": "VERIFIED",
+    "baseline_test_result": {
+      "passed": 113,
+      "exit_code": 0
+    },
+    "golden_modified": false
+  }
 }
