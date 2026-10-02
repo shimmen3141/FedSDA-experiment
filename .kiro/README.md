@@ -17,6 +17,9 @@
 specでは承認・進捗、要件、設計、命名、taskを順に確認する。
 レビューと候補表は根拠・履歴として必要な箇所だけ参照する。
 
+次段階の仕様は[単一runの実行順序・SINEデータ供給](specs/single-run-execution/README.md)。
+設定基盤の初回完了と、次specの要件承認・実装完了を区別する。
+
 ## 運用
 
 cc-sdd 3.1.0をCodex Skills・日本語で導入した。版・npm integrity・導入コマンドは

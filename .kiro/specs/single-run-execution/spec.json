@@ -1,0 +1,39 @@
+{
+  "feature_name": "single-run-execution",
+  "created_at": "2026-10-02T21:13:35.494269+00:00",
+  "updated_at": "2026-10-02T21:13:35.494269+00:00",
+  "language": "ja",
+  "phase": "requirements-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": false
+    },
+    "design": {
+      "generated": false,
+      "approved": false
+    },
+    "tasks": {
+      "generated": false,
+      "approved": false
+    },
+    "naming": {
+      "generated": false,
+      "approved": false,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null
+    }
+  },
+  "ready_for_implementation": false,
+  "upstream_specs": [
+    "configuration-foundation"
+  ],
+  "current_scope": "sine_data_supply_and_execution_order_only",
+  "requirements_review": {
+    "result": "PASS",
+    "review_mode": "primary_agent",
+    "record": "review.md",
+    "acceptance_criteria_count": 22
+  }
+}

@@ -1,7 +1,7 @@
 {
   "feature_name": "configuration-foundation",
   "created_at": "2026-10-02T09:52:11.770138+00:00",
-  "updated_at": "2026-10-02T20:55:39.727694+00:00",
+  "updated_at": "2026-10-02T21:15:26.041133+00:00",
   "language": "ja",
   "phase": "implementation-in-progress",
   "approvals": {
@@ -295,7 +295,7 @@
     },
     "resumed_on": "2026-10-03",
     "initial_scope_completed": true,
-    "next_stage": "define_small_run_spec_contract",
+    "next_stage": "continue_in_single_run_execution_spec",
     "initial_scope_validation": {
       "decision": "GO",
       "scope": "initial_tasks_1_to_3_and_rename_task_9_1_only",
@@ -311,13 +311,14 @@
       "legacy_source_unchanged": true,
       "full_spec_complete": false,
       "review_record": "review.md"
-    }
+    },
+    "next_spec": "single-run-execution"
   },
   "naming_reconsideration": {
     "status": "initial_scope_adopted_in_revision_11",
     "proposal_record": "naming-reconsideration.md",
     "implemented_naming_revision": 12,
-    "next_action": "define_small_run_spec_contract",
+    "next_action": "continue_in_single_run_execution_spec",
     "candidate_reviewer": "gpt-6-luna",
     "review_response_record": "naming-reconsideration.md#7"
   }
