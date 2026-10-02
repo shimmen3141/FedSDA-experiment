@@ -18,3 +18,9 @@
 gpt-6-lunaは`configuration/experiment_run_conditions.py`への分離を妥当と判断した。
 実験条件型はcoreの値検証だけを呼び、外側へ依存しない点を明記する指摘を採用した。
 型・項目・契約は維持し、配置表と命名表を更新してrevision 7を承認した。
+
+## revision 8: 共通値検証の直接テスト
+
+直接テスト3件とテスト専用dataclass名をgpt-6-lunaへ提示した。
+名前と役割が一致し、変更必須の指摘なし。`invalid_numeric_values`への限定案は、bool・型違いも扱うため推奨されなかった。
+主担当は全5名を維持し、命名表第11節へ記録して承認した。

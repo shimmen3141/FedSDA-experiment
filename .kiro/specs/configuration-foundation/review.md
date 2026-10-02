@@ -96,3 +96,9 @@ basetempはpytestが再作成する専用の一時領域。実験成果物の保
 - 独立レビュー: APPROVED。基礎例外の3属性・日本語理由・許容条件を確認した。
 - TDD: RED ModuleNotFoundError (exit 1) / GREEN 3 passed (exit 0)。
 - 完了検証: VERIFIED。旧経路の統合goldenはtask 3.3で確認する。
+
+## task 2.1: dataset・実験規模・seed・集約間隔を検証する
+
+- 独立レビュー: APPROVED。実差分・命名・境界・契約を確認。
+- 対象機能テスト: 88 passed / exit 0。
+- 完了検証: VERIFIED。承認済みの初回範囲に限定し、spec全体の完了を意味しない。

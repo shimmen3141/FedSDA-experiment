@@ -1,12 +1,13 @@
 # 命名・役割レビュー: 設定・選択肢管理の基盤
 
-- revision: 7
+- revision: 8
 - パッケージ名: **`federated_learning_experiments`は2026-10-02に人間が承認済み。**
 - revision 2の名前・役割: **2026-10-02に人間が承認済み。承認hashはspec.jsonの履歴へ保存。**
 - revision 4: **2026-10-03に設計時の追加案とレビューによる修正を人間が承認済み。実装は未開始。**
 - revision 5: **2026-10-03に既存データセット名を維持する修正方針と初回taskの実装開始を人間が承認済み。**
 - revision 6: **2026-10-03にgpt-6-lunaのレビューを受け、有用な指摘を反映して承認済み。ユーザーの明示的な委任に従う。**
 - revision 7: **実験条件型の配置分離をgpt-6-lunaがレビューし、依存方向の注記を反映して承認済み。**
+- revision 8: **共通値検証の直接テスト3件とテスト専用型をgpt-6-lunaがレビューし、変更不要と判断して承認済み。**
 - 方針の正本: [リファクタリング方針](../../../docs/research/refactoring-policy.md)
 - 初回は最終構成に必要な設定と検証を扱う。下表の「後続」は、その機能の移植時に必要性を判断する候補である。
 
@@ -335,3 +336,15 @@ gpt-6-lunaのレビューと主担当による有用な指摘の反映を完了�
 gpt-6-lunaのレビューで配置名と分離を妥当と確認し、次の依存注記を反映して承認した。
 `ExperimentRunConditions.__post_init__`はcoreの共通フィールド検証だけを呼び、外側の集約型・組合せ検証へ依存しない。
 `run_settings.py`を実験条件型の再export窓口にはしない。
+
+## 11. 共通値検証の直接テスト（revision 8で承認済み）
+
+| 名前 | 役割 |
+|---|---|
+| `test_settings_field_validation_accepts_supported_numeric_values` | 整数・実数項目の許容入力、有限性と開閉境界の受理を検証する |
+| `test_settings_field_validation_rejects_invalid_values` | bool・型違い・非有限値・値域違反を拒否する |
+| `test_settings_field_validation_rejects_unsupported_annotations` | 未対応の型注釈を黙って検証対象外にしないことを確認する |
+| `NumericSettingsForValidation` | 数値宣言だけを持つテスト専用dataclass。実験用の正式型ではない |
+| `UnsupportedSettingsForValidation` | 未対応の型注釈を検査するテスト専用dataclass |
+
+gpt-6-lunaは名前と役割が一致し、変更必須の指摘なしと判断した。主担当も維持を採用し、ユーザー委任に従い承認した。
