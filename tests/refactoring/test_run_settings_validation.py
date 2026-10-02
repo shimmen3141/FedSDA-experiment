@@ -24,6 +24,9 @@ from federated_learning_experiments.methods.fedsda.detection.drift_monitoring_se
 from federated_learning_experiments.methods.fedsda.routing.prediction_routing_settings import (
     PredictionRoutingSettings,
 )
+from federated_learning_experiments.methods.fedsda.assignment.data_assignment_settings import (
+    DataAssignmentSettings,
+)
 
 
 @pytest.mark.parametrize(
@@ -116,7 +119,9 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
         post_aggregation_routing_recalibration_policy="fifo_loss_replay",
         routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
         switching_share_horizon_samples=2,
-    ), "switching_share_horizon_samples")],
+    ), "switching_share_horizon_samples"), (DataAssignmentSettings, dict(
+        pending_assignment_buffer_capacity_samples=1,
+    ), "pending_assignment_buffer_capacity_samples")],
 )
 @pytest.mark.parametrize("specified_parameter_value", [True, False, "1", 1.0, None, [], -1])
 def test_integer_settings_reject_invalid_types_and_ranges(
@@ -157,7 +162,9 @@ def test_integer_settings_reject_invalid_types_and_ranges(
         post_aggregation_routing_recalibration_policy="fifo_loss_replay",
         routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
         switching_share_horizon_samples=2,
-    ), "switching_share_horizon_samples")],
+    ), "switching_share_horizon_samples"), (DataAssignmentSettings, dict(
+        pending_assignment_buffer_capacity_samples=1,
+    ), "pending_assignment_buffer_capacity_samples")],
 )
 @pytest.mark.parametrize("specified_parameter_value", [0, 1, 2, 10**400])
 def test_integer_settings_validate_boundary_values(
@@ -209,6 +216,9 @@ def test_aggregation_interval_can_exceed_stream_length():
             routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
             switching_share_horizon_samples=2,
         )),
+        (DataAssignmentSettings, dict(
+            pending_assignment_buffer_capacity_samples=1,
+        )),
     ],
 )
 def test_settings_instances_are_immutable(settings_type, valid_settings_values):
@@ -221,7 +231,7 @@ def test_settings_instances_are_immutable(settings_type, valid_settings_values):
             delattr(settings_instance, settings_field.name)
 
 
-@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, DriftMonitoringSettings, PredictionRoutingSettings])
+@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, DriftMonitoringSettings, PredictionRoutingSettings, DataAssignmentSettings])
 def test_field_annotations_and_metadata_declare_parameter_constraints(settings_type):
     assert get_type_hints(settings_type) == (
         {
@@ -239,6 +249,8 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             "post_aggregation_routing_recalibration_policy": str,
             "routing_reset_on_assignment_change_policy": str,
             "switching_share_horizon_samples": int,
+        } if settings_type is PredictionRoutingSettings else {
+            "pending_assignment_buffer_capacity_samples": int,
         }
     )
     for settings_field in fields(settings_type):
@@ -280,7 +292,9 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             assert settings_field.metadata["parameter_unit"]
             if settings_field.name == "residual_adapter_requested_rank":
                 assert settings_field.metadata["parameter_unit"] == "rank"
-            if settings_field.name == "switching_share_horizon_samples":
+            if settings_field.name in (
+                "switching_share_horizon_samples", "pending_assignment_buffer_capacity_samples",
+            ):
                 assert settings_field.metadata["parameter_unit"] == "sample/client"
     with pytest.raises(TypeError):
         settings_type()
@@ -291,6 +305,8 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             settings_type("shared_backbone_residual_adapter", 1)
         elif settings_type is DriftMonitoringSettings:
             settings_type("e_sr", "overall_and_true_class_losses", 0.05)
+        elif settings_type is DataAssignmentSettings:
+            settings_type(1)
         else:
             settings_type("switching_fixed_share_mixture", "always", "fifo_loss_replay",
                           "restart_adahedge_preserve_switching", 2)

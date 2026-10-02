@@ -5,7 +5,7 @@
 - ブランチ: `refactor/architecture`
 - 基準commit: `748c3aa`
 - worktree: 元のcheckout直下の`.worktrees/refactoring/`
-- 現在: 要求・設計・初回task・命名revision 6は承認済み。パッケージ境界を用意し、設定型の実装に着手。
+- 現在: 要求・設計・初回task・命名revision 9は承認済み。task 2.5まで実装し、ユーザー指示により一時停止。再開はtask 2.6から。
 
 ## 読む順序
 
@@ -29,6 +29,7 @@ cc-sdd 3.1.0をCodex Skills・日本語で導入した。版・npm integrity・�
 設計・独立レビューで追加した名前はrevision 4として人間が承認済み。
 初回taskの実装開始と、既存dataset名を維持したrevision 5も人間が承認済み。
 具体化した内部関数・テスト名はrevision 6の第9節へ分離し、gpt-6-lunaレビューと主担当の反映を完了した。
+revision 7〜9の配置・テスト名も同じ手順で承認済み。採否の理由は`specs/configuration-foundation/luna-naming-review.md`に記録した。
 
 人間が設計と追加命名を確認したため、初回taskを作成して独立確認を完了した。
 承認済みの名前でパッケージ境界・検証環境を作成し、task 1.1から実装に着手した。

@@ -18,7 +18,7 @@ worktreeには参照元と同じ既存パッケージがcheckoutされている�
 ファイル・関数・変数はsnake_case、型はPascalCase。
 model、expert、assignment、leader、candidateの違いを説明する。
 `sample_index`、`round_index`、`*_sample_count`、`*_byte_count`で単位を明示する。
-名前だけで意味が分かるかを、実装前に人間が判断する。
+名前だけで意味が分かるかを、実装前にgpt-6-lunaがレビューし、主担当が有用な指摘を反映する。これは2026-10-03にユーザーが委任した命名承認手順である。
 短さより、意味の明確さ・他の概念との区別・実態との一致を優先し、必要なら4語・5語以上を使う。
 
 新しい設定・選択肢の正式名は一つとし、旧名aliasを設けない。

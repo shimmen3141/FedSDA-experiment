@@ -17,10 +17,10 @@
 - 設計: 同じユーザー返答で承認済み。レビューの自己判定を人間承認として扱ったものではない。
 - task: 初回の実行計画13タスクは2026-10-03の「実装に進んでかまいません」で人間承認済み。後続4〜8は具体化前の計画。
 - 命名revision 5: 同日の「データセット名についてはその方針で修正してください」で既存名維持を承認済み。
-- 命名revision 6: 第9節へ実装補助関数・内部変数・テスト名を具体化。追加分だけ人間承認待ち。
+- 命名revision 6〜9: ユーザーが委任したgpt-6-lunaレビューと主担当の有用指摘の反映により承認済み。採否は`luna-naming-review.md`へ記録した。
 - 新実装開始: 承認済みの境界を扱うtask 1.1から着手した。
 
-人間の明示的な返答に基づいて承認欄を更新する。未承認の追加名へ承認を拡張しない。
+要求・設計・taskは人間の明示的な返答に基づいて承認欄を更新する。追加命名はユーザーが委任したレビュー手順に従い、その結果を承認履歴へ記録する。
 
 ## 2026-10-02の改善記録
 
@@ -120,3 +120,19 @@ basetempはpytestが再作成する専用の一時領域。実験成果物の保
 - 独立レビュー: APPROVED。実差分・命名・境界・契約を確認。
 - 対象機能テスト: 370 passed / exit 0。
 - 完了検証: VERIFIED。承認済みの初回範囲に限定し、spec全体の完了を意味しない。
+
+## task 2.5: 帰属保留FIFOの容量を検証する
+
+- 独立レビュー: APPROVED。実差分・命名・境界・契約を確認。
+- 対象機能テスト: 383 passed / exit 0。
+- 完了検証: VERIFIED。承認済みの初回範囲に限定し、spec全体の完了を意味しない。
+
+## 2026-10-03の停止時点
+
+- ユーザーの「切りが良いところでいったん止めてください」に従い、task 2.5まで完了して一時停止した。task 2.6は未着手。再開指示を受けてから進める。
+- 独立レビュー: task 2.5はAPPROVED。REDは実装者が実装前に観測したassignmentモジュール欠落、GREENはレビュー担当も383 passedを確認した。
+- 停止前の回帰確認: 既存schema・対象機能・旧golden・最終Residual Adapter＋Switching goldenと新設定の合計496件が成功（旧113件＋新383件、exit 0、161.10秒）。
+- 実行: 保存済みWindows CPU環境の共有venvを使用し、OMP/MKL各1スレッド、既存MNISTとMatplotlib cacheを明示参照した。
+- コマンド: `../../venv/Scripts/python.exe -m pytest -p no:cacheprovider --basetemp=../../venv/refactoring-baseline-check/pause-checkpoint-tmp tests/test_option_schema.py tests/test_parameter_schema.py tests/test_metric_schema.py tests/test_shared_backbone.py tests/test_provisional_model.py tests/test_clustering_decision.py tests/test_fedsda_configuration.py tests/test_regression.py tests/test_proposed_regression.py tests/refactoring/test_run_settings_validation.py -q`
+- 2つのgolden JSONのLF正規化SHA-256は保存済み環境記録と一致。goldenは変更していない。
+- 新設定はまだ実験実行経路へ接続していない。後続のtask 3.3およびspec全体は未完了。
