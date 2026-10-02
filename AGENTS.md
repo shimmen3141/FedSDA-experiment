@@ -13,6 +13,8 @@
 - 指標を追加するときは`experiment_spec/metrics.py`へ用途・適用範囲・保存先を登録する。
 - `docs/reference/options.md`は直接編集せず、`python -m tools.generate_option_docs`で再生成する。
 - 変更後はスキーマの整合性テスト、対象機能テスト、`tests/test_regression.py`を実行し、既存手法の値を変えていないことを確認する。
+- 最終Residual Adapter＋Switching構成の変更・リファクタリングでは、`tests/test_proposed_regression.py`も実行する。
+  基準環境と手順は`docs/experiments/refactoring-baseline.md`に従い、環境差だけを理由にgoldenを更新しない。
 
 ## 文書とコミット保留
 

@@ -37,6 +37,7 @@
 - [主要ablationの計画と実行状況](experiments/ablation-plan.md)
 - [既存成果の監査と論文用索引](experiments/experiment-results-audit.md): 日付付き確認記録。コミット保留のローカル資料。
 - [固定baselineの構成](experiments/baselines.md)
+- [リファクタリング前の回帰基準](experiments/refactoring-baseline.md): 旧11ケースと最終構成3ケース、基準環境、検証手順。
 - [実験設定・掃引計画・manifest](experiments/experiment-configuration.md)
 - [データ特性](experiments/dataset-characteristics.md)
 - [評価指標](experiments/metrics.md)
