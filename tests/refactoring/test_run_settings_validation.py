@@ -15,6 +15,9 @@ from federated_learning_experiments.core.configuration_errors import (
 from federated_learning_experiments.core.settings_field_validation import (
     validate_settings_field_values,
 )
+from federated_learning_experiments.learning.models.model_architecture_settings import (
+    ModelArchitectureSettings,
+)
 
 
 @pytest.mark.parametrize(
@@ -88,21 +91,30 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
 
 
 @pytest.mark.parametrize(
-    "configuration_parameter_name",
-    ["random_seed", "client_count", "per_client_sample_count",
-     "server_aggregation_interval_per_client_samples"],
+    "settings_type,valid_settings_values,configuration_parameter_name",
+    [
+        (ExperimentRunConditions, dict(
+            dataset_name="sine2", random_seed=0, client_count=1,
+            per_client_sample_count=1, server_aggregation_interval_per_client_samples=1,
+        ), configuration_parameter_name)
+        for configuration_parameter_name in (
+            "random_seed", "client_count", "per_client_sample_count",
+            "server_aggregation_interval_per_client_samples",
+        )
+    ] + [(ModelArchitectureSettings, dict(
+        model_architecture_name="shared_backbone_residual_adapter",
+        residual_adapter_requested_rank=1,
+    ), "residual_adapter_requested_rank")],
 )
 @pytest.mark.parametrize("specified_parameter_value", [True, False, "1", 1.0, None, [], -1])
 def test_integer_settings_reject_invalid_types_and_ranges(
-    configuration_parameter_name, specified_parameter_value,
+    settings_type, valid_settings_values, configuration_parameter_name,
+    specified_parameter_value,
 ):
-    valid_settings_values = dict(
-        dataset_name="sine2", random_seed=0, client_count=1,
-        per_client_sample_count=1, server_aggregation_interval_per_client_samples=1,
-    )
+    valid_settings_values = dict(valid_settings_values)
     valid_settings_values[configuration_parameter_name] = specified_parameter_value
     with pytest.raises(RunSettingsValidationError) as validation_error:
-        ExperimentRunConditions(**valid_settings_values)
+        settings_type(**valid_settings_values)
     assert validation_error.value.configuration_parameter_name == configuration_parameter_name
     assert validation_error.value.specified_parameter_value is specified_parameter_value
     assert "整数" in validation_error.value.validation_failure_reason
@@ -112,24 +124,33 @@ def test_integer_settings_reject_invalid_types_and_ranges(
 
 
 @pytest.mark.parametrize(
-    "configuration_parameter_name",
-    ["random_seed", "client_count", "per_client_sample_count",
-     "server_aggregation_interval_per_client_samples"],
+    "settings_type,valid_settings_values,configuration_parameter_name",
+    [
+        (ExperimentRunConditions, dict(
+            dataset_name="sine2", random_seed=0, client_count=1,
+            per_client_sample_count=1, server_aggregation_interval_per_client_samples=1,
+        ), configuration_parameter_name)
+        for configuration_parameter_name in (
+            "random_seed", "client_count", "per_client_sample_count",
+            "server_aggregation_interval_per_client_samples",
+        )
+    ] + [(ModelArchitectureSettings, dict(
+        model_architecture_name="shared_backbone_residual_adapter",
+        residual_adapter_requested_rank=1,
+    ), "residual_adapter_requested_rank")],
 )
 @pytest.mark.parametrize("specified_parameter_value", [0, 1, 10**400])
 def test_integer_settings_accept_boundary_values(
-    configuration_parameter_name, specified_parameter_value,
+    settings_type, valid_settings_values, configuration_parameter_name,
+    specified_parameter_value,
 ):
-    valid_settings_values = dict(
-        dataset_name="sine2", random_seed=0, client_count=1,
-        per_client_sample_count=1, server_aggregation_interval_per_client_samples=1,
-    )
+    valid_settings_values = dict(valid_settings_values)
     valid_settings_values[configuration_parameter_name] = specified_parameter_value
     if configuration_parameter_name != "random_seed" and specified_parameter_value == 0:
         with pytest.raises(RunSettingsValidationError):
-            ExperimentRunConditions(**valid_settings_values)
+            settings_type(**valid_settings_values)
     else:
-        settings_instance = ExperimentRunConditions(**valid_settings_values)
+        settings_instance = settings_type(**valid_settings_values)
         assert getattr(settings_instance, configuration_parameter_name) == specified_parameter_value
 
 
@@ -141,11 +162,21 @@ def test_aggregation_interval_can_exceed_stream_length():
     assert settings_instance.server_aggregation_interval_per_client_samples == 100
 
 
-def test_settings_instances_are_immutable():
-    settings_instance = ExperimentRunConditions(
-        dataset_name="mnist2", random_seed=0, client_count=1,
-        per_client_sample_count=1, server_aggregation_interval_per_client_samples=1,
-    )
+@pytest.mark.parametrize(
+    "settings_type,valid_settings_values",
+    [
+        (ExperimentRunConditions, dict(
+            dataset_name="mnist2", random_seed=0, client_count=1,
+            per_client_sample_count=1, server_aggregation_interval_per_client_samples=1,
+        )),
+        (ModelArchitectureSettings, dict(
+            model_architecture_name="shared_backbone_residual_adapter",
+            residual_adapter_requested_rank=1,
+        )),
+    ],
+)
+def test_settings_instances_are_immutable(settings_type, valid_settings_values):
+    settings_instance = settings_type(**valid_settings_values)
     for settings_field in fields(settings_instance):
         with pytest.raises(FrozenInstanceError):
             setattr(settings_instance, settings_field.name, None)
@@ -153,19 +184,26 @@ def test_settings_instances_are_immutable():
             delattr(settings_instance, settings_field.name)
 
 
-def test_field_annotations_and_metadata_declare_parameter_constraints():
-    assert get_type_hints(ExperimentRunConditions) == {
-        "dataset_name": str, "random_seed": int, "client_count": int,
-        "per_client_sample_count": int,
-        "server_aggregation_interval_per_client_samples": int,
-    }
-    for settings_field in fields(ExperimentRunConditions):
+@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings])
+def test_field_annotations_and_metadata_declare_parameter_constraints(settings_type):
+    assert get_type_hints(settings_type) == (
+        {
+            "dataset_name": str, "random_seed": int, "client_count": int,
+            "per_client_sample_count": int,
+            "server_aggregation_interval_per_client_samples": int,
+        } if settings_type is ExperimentRunConditions else {
+            "model_architecture_name": str, "residual_adapter_requested_rank": int,
+        }
+    )
+    for settings_field in fields(settings_type):
         assert settings_field.kw_only
         assert settings_field.default is MISSING
         assert settings_field.default_factory is MISSING
-        if settings_field.name == "dataset_name":
+        if get_type_hints(settings_type)[settings_field.name] is str:
             assert settings_field.metadata["allowed_parameter_values"] == (
-                "sine2", "sea2", "mnist2",
+                ("sine2", "sea2", "mnist2")
+                if settings_field.name == "dataset_name"
+                else ("shared_backbone_residual_adapter",)
             )
         else:
             assert settings_field.metadata["minimum_allowed_value"] == (
@@ -175,10 +213,44 @@ def test_field_annotations_and_metadata_declare_parameter_constraints():
             assert "maximum_allowed_value" not in settings_field.metadata
             assert isinstance(settings_field.metadata["parameter_unit"], str)
             assert settings_field.metadata["parameter_unit"]
+            if settings_field.name == "residual_adapter_requested_rank":
+                assert settings_field.metadata["parameter_unit"] == "rank"
     with pytest.raises(TypeError):
-        ExperimentRunConditions()
+        settings_type()
     with pytest.raises(TypeError):
-        ExperimentRunConditions("sine2", 0, 1, 1, 1)
+        if settings_type is ExperimentRunConditions:
+            settings_type("sine2", 0, 1, 1, 1)
+        else:
+            settings_type("shared_backbone_residual_adapter", 1)
+
+
+@pytest.mark.parametrize("specified_parameter_value", [1, 2, 1000, 10**400])
+def test_requested_adapter_rank_is_preserved(specified_parameter_value):
+    """構造の正式名を受理し、要求rankを丸めず保持する。"""
+    settings_instance = ModelArchitectureSettings(
+        model_architecture_name="shared_backbone_residual_adapter",
+        residual_adapter_requested_rank=specified_parameter_value,
+    )
+    assert settings_instance.model_architecture_name == "shared_backbone_residual_adapter"
+    assert settings_instance.residual_adapter_requested_rank is specified_parameter_value
+
+
+@pytest.mark.parametrize(
+    "specified_parameter_value",
+    ["unknown", "residual_adapter", "shared_backbone", "SHARED_BACKBONE_RESIDUAL_ADAPTER",
+     " shared_backbone_residual_adapter", True, 1, None, []],
+)
+def test_component_options_reject_unknown_names(specified_parameter_value):
+    """旧名・大小文字差・型違いを正式なモデル構造として受理しない。"""
+    with pytest.raises(RunSettingsValidationError) as validation_error:
+        ModelArchitectureSettings(
+            model_architecture_name=specified_parameter_value,
+            residual_adapter_requested_rank=1,
+        )
+    assert validation_error.value.configuration_parameter_name == "model_architecture_name"
+    assert validation_error.value.specified_parameter_value is specified_parameter_value
+    assert "文字列" in validation_error.value.validation_failure_reason
+    assert "shared_backbone_residual_adapter" in validation_error.value.validation_failure_reason
 
 
 @pytest.mark.parametrize("settings_field_type", [int, float])

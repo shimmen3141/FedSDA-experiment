@@ -1,7 +1,7 @@
 {
   "feature_name": "configuration-foundation",
   "created_at": "2026-10-02T09:52:11.770138+00:00",
-  "updated_at": "2026-10-02T16:23:51.107783+00:00",
+  "updated_at": "2026-10-02T16:29:58.482459+00:00",
   "language": "ja",
   "phase": "implementation-in-progress",
   "approvals": {
@@ -111,9 +111,10 @@
     "completed_tasks": [
       "1.1",
       "1.2",
-      "2.1"
+      "2.1",
+      "2.2"
     ],
-    "next_task": "2.2",
+    "next_task": "2.3",
     "task_1_1_review": "APPROVED",
     "task_1_1_verification": "VERIFIED",
     "baseline_test_result": {
@@ -126,6 +127,11 @@
         "review": "APPROVED",
         "verification": "VERIFIED",
         "targeted_tests_passed": 88
+      },
+      "2.2": {
+        "review": "APPROVED",
+        "verification": "VERIFIED",
+        "targeted_tests_passed": 113
       }
     }
   }
