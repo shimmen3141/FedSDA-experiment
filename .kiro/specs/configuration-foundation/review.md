@@ -157,3 +157,8 @@ basetempはpytestが再作成する専用の一時領域。実験成果物の保
 
 - 独立レビュー: APPROVED。対象テスト 741 passed / exit 0。
 - 完了検証: VERIFIED。初回範囲のみ。spec全体と実験実行経路の完成を意味しない。
+
+## 2.8 モデル統合の固定方針を検証する
+
+- 独立レビュー: APPROVED。対象テスト 1083 passed / exit 0。
+- 完了検証: VERIFIED。初回範囲のみ。spec全体と実験実行経路の完成を意味しない。

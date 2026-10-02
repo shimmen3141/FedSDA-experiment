@@ -24,6 +24,9 @@ from federated_learning_experiments.learning.training.local_training_settings im
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
     CandidateModelTrainingAndAcceptanceSettings,
 )
+from federated_learning_experiments.methods.fedsda.consolidation.model_consolidation_settings import (
+    ModelConsolidationSettings,
+)
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
     LossChangeDetectionSettings,
 )
@@ -243,6 +246,12 @@ def test_aggregation_interval_can_exceed_stream_length():
             candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
             candidate_post_alarm_validation_sample_count=2,
         )),
+        (ModelConsolidationSettings, dict(
+            model_clustering_trigger_policy="on_new_model_registration",
+            model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
+            model_clustering_linkage="average_linkage",
+            model_consolidation_policy="weighted_parameter_average_and_merge_ids",
+        )),
     ],
 )
 def test_settings_instances_are_immutable(settings_type, valid_settings_values):
@@ -261,7 +270,7 @@ def test_settings_instances_are_immutable(settings_type, valid_settings_values):
             delattr(settings_instance, settings_field.name)
 
 
-@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, LossChangeDetectionSettings, PredictionCombinationSettings, TrainingDataAssignmentSettings, LocalTrainingSettings, CandidateModelTrainingAndAcceptanceSettings])
+@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, LossChangeDetectionSettings, PredictionCombinationSettings, TrainingDataAssignmentSettings, LocalTrainingSettings, CandidateModelTrainingAndAcceptanceSettings, ModelConsolidationSettings])
 def test_field_annotations_and_metadata_declare_parameter_constraints(settings_type):
     assert get_type_hints(settings_type) == (
         {
@@ -287,6 +296,11 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         } if settings_type is LocalTrainingSettings else {
             "candidate_model_acceptance_policy": str,
             "candidate_post_alarm_validation_sample_count": int,
+        } if settings_type is CandidateModelTrainingAndAcceptanceSettings else {
+            "model_clustering_trigger_policy": str,
+            "model_pair_comparison_strategy": str,
+            "model_clustering_linkage": str,
+            "model_consolidation_policy": str,
         }
     )
     for settings_field in fields(settings_type):
@@ -314,6 +328,14 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "shared_backbone_gradient_combination_strategy"
                 else ("current_model_first_reuse_then_two_segment_candidate_validation",)
                 if settings_field.name == "candidate_model_acceptance_policy"
+                else ("on_new_model_registration",)
+                if settings_field.name == "model_clustering_trigger_policy"
+                else ("classwise_unique_correctness_lower_confidence_bound",)
+                if settings_field.name == "model_pair_comparison_strategy"
+                else ("average_linkage",)
+                if settings_field.name == "model_clustering_linkage"
+                else ("weighted_parameter_average_and_merge_ids",)
+                if settings_field.name == "model_consolidation_policy"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
         elif settings_field.name == "e_sr_false_alarm_control_alpha":
@@ -357,6 +379,10 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                           "sample_weighted_mean_per_concept_gradients")
         elif settings_type is CandidateModelTrainingAndAcceptanceSettings:
             settings_type("current_model_first_reuse_then_two_segment_candidate_validation", 2)
+        elif settings_type is ModelConsolidationSettings:
+            settings_type("on_new_model_registration",
+                          "classwise_unique_correctness_lower_confidence_bound",
+                          "average_linkage", "weighted_parameter_average_and_merge_ids")
         else:
             settings_type("fixed_share_weighted_prediction", "always", "recompute_buffer_losses_and_replay_weight_updates",
                           "restart_adahedge_preserve_fixed_share_prediction_state", 2)
@@ -391,6 +417,15 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
             candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
             candidate_post_alarm_validation_sample_count=2,
         ), "candidate_model_acceptance_policy"),
+        *[(ModelConsolidationSettings, dict(
+            model_clustering_trigger_policy="on_new_model_registration",
+            model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
+            model_clustering_linkage="average_linkage",
+            model_consolidation_policy="weighted_parameter_average_and_merge_ids",
+        ), configuration_parameter_name) for configuration_parameter_name in (
+            "model_clustering_trigger_policy", "model_pair_comparison_strategy",
+            "model_clustering_linkage", "model_consolidation_policy",
+        )],
         *[(PredictionCombinationSettings, dict(
             prediction_combination_strategy="fixed_share_weighted_prediction",
             prediction_mixture_activation_policy="always",
@@ -432,6 +467,10 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
      "CURRENT_MODEL_FIRST_REUSE_THEN_TWO_SEGMENT_CANDIDATE_VALIDATION",
      " current_model_first_reuse_then_two_segment_candidate_validation",
      "refit_compare_two_window", "candidate_refit_compare_two_window", "two_segment_candidate_validation",
+     "ON_NEW_MODEL_REGISTRATION", " on_new_model_registration",
+     "CLASSWISE_UNIQUE_CORRECTNESS_LOWER_CONFIDENCE_BOUND", " classwise_unique_correctness_lower_confidence_bound",
+     "AVERAGE_LINKAGE", " average_linkage",
+     "WEIGHTED_PARAMETER_AVERAGE_AND_MERGE_IDS", " weighted_parameter_average_and_merge_ids",
      True, False, 1, None, []],
 )
 def test_component_options_reject_unknown_names(
