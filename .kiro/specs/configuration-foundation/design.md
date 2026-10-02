@@ -4,7 +4,8 @@
 
 研究者が実験条件を理解し、明示指定の誤りを実行前に発見できる設定基盤を設ける。
 機能別の不変設定と、外側の設定解決・検証を分ける。既存の計算処理は変更しない。
-要求と命名revision 2は承認済み。本設計とレビューを反映した追加命名revision 4は2026-10-03に人間が承認した。
+要求と設計の責務は承認済み。2026-10-03のユーザー再開指示に基づき名称・配置をnaming revision 11へ更新する。
+正式名はnaming.mdだけを正本とし、候補や過去レビューから実装名を選ばない。
 
 ### Goals
 
@@ -91,7 +92,7 @@ flowchart TD
 
 ## File Structure Plan
 
-基底パスは`src/federated_learning_experiments/`。以下は新規作成予定であり、まだコードは作成しない。
+基底パスは`src/federated_learning_experiments/`。以下は現在の配置契約である。実装済み範囲はtasks.mdで確認する。
 
 | コンポーネント | ファイル | 担当と段階 |
 |---|---|---|
@@ -99,10 +100,10 @@ flowchart TD
 | 単独の実験条件 | `configuration/experiment_run_conditions.py` | `ExperimentRunConditions`。自身のフィールド値検証だけを呼び、集約型・組合せ検証へ依存しない |
 | モデル構造設定 | `learning/models/model_architecture_settings.py` | `ModelArchitectureSettings`。初回 |
 | 学習設定 | `learning/training/local_training_settings.py` | `LocalTrainingSettings`。初回 |
-| 監視設定 | `methods/fedsda/detection/drift_monitoring_settings.py` | `DriftMonitoringSettings`。初回 |
-| 予測設定 | `methods/fedsda/routing/prediction_routing_settings.py` | `PredictionRoutingSettings`。初回 |
-| 帰属保留設定 | `methods/fedsda/assignment/data_assignment_settings.py` | `DataAssignmentSettings`。初回。FIFO容量の所属先を追加 |
-| 候補設定 | `methods/fedsda/model_creation/candidate_model_creation_settings.py` | `CandidateModelCreationSettings`。初回 |
+| 監視設定 | `methods/fedsda/loss_change_detection/loss_change_detection_settings.py` | `LossChangeDetectionSettings`。初回 |
+| 予測設定 | `methods/fedsda/prediction_combination/prediction_combination_settings.py` | `PredictionCombinationSettings`。初回 |
+| 帰属保留設定 | `methods/fedsda/training_data_assignment/training_data_assignment_settings.py` | `TrainingDataAssignmentSettings`。初回。FIFO容量の所属先を追加 |
+| 候補設定 | `methods/fedsda/candidate_model_selection/candidate_model_training_and_acceptance_settings.py` | `CandidateModelTrainingAndAcceptanceSettings`。初回 |
 | 統合設定 | `methods/fedsda/consolidation/model_consolidation_settings.py` | `ModelConsolidationSettings`。初回 |
 | 値・組合せ検証 | `configuration/run_settings_validation.py` | 初回は最終構成の設定。後続で全登録方式に対応 |
 | 方式・項目定義 | `configuration/component_option_definitions.py` | 定義集合と一覧取得。後続 |
@@ -190,12 +191,12 @@ src配置を使うimport環境の用意は初回taskに含める。旧スクリ�
 
 数値文字列を自動変換しない。実数項目は整数入力も許容するが整数項目に実数を許容しない。
 要求rankを設定段階で丸めない。実効rankはモデル構築後の記録が担当する。
-`switching_share_horizon_samples`は予測設定に持ち、帰属保留容量とは意味を分ける。
+`fixed_share_weight_redistribution_time_scale_samples`は予測設定に持ち、帰属保留容量とは意味を分ける。
 旧実装では同じFIFO値を両方に使うため、今回の移植では独立した実験軸にしない。
 初回の直接構築では同値を明示して渡す。後続の解決処理ではFIFO容量から導出し、異なる明示値は拒否する。
 具体実装の生成時は、routingへ時間尺度、assignmentへ容量をそれぞれ渡す。
 
-割当先変更時の正式方針は`restart_adahedge_preserve_switching`とする。
+割当先変更時の正式方針は`restart_adahedge_preserve_fixed_share_prediction_state`とする。
 AdaHedge・クラス文脈・shadow routerと有効なactive-set制御をrestartする一方、SwitchingとMeta-switchingの状態はこのイベントでは保持する。
 oracle概念別AdaHedgeは診断専用であり、このイベントでは保持する。全AdaHedge個体をresetする意味ではない。
 集約後FIFO replayやexpert集合変更による状態更新は別イベントであり、この方針の保持と混同しない。
@@ -256,7 +257,7 @@ oracle概念別AdaHedgeは診断専用であり、このイベントでは保持
 - 保存: 有効条件の往復、未知version・未知項目、元mappingと保存結果の変更が型へ波及しないことを検査する（4.2, 4.3, 4.4, 4.5）。
 - 部分型を実行・保存へ渡せないこと、構造の型名だけで完全設定として扱わないことを検証する。
 - 統合: 最終presetを正本の固定値と照合する。小規模実行の移植後は旧goldenの数値・イベント列を比較する（2.2）。
-- コード変更後は既存スキーマ整合性と旧・最終goldenを既定環境で実行する。今回の設計作成ではテスト実装・実験実行は行わない。
+- コード変更後は既存スキーマ整合性と旧・最終goldenを既定環境で実行する。
 
 ## Migration Strategy
 
@@ -271,6 +272,7 @@ oracle概念別AdaHedgeは診断専用であり、このイベントでは保持
 
 ## 命名・役割レビュー
 
-revision 2の承認履歴を維持し、追加案とレビューによる修正をrevision 4へ記録した。
-本設計と追加命名の承認を受け、`kiro-spec-tasks`で具体タスクを生成する。
-設計・taskの承認は本書の生成やエージェントの自己確認によって代替しない。
+現在の正式命名はnaming.md、承認と次の実行単位はspec.json・tasks.mdを正本とする。
+過去の名前はhistory/、候補と採否はnaming-reconsideration.md・luna-naming-review.mdを参照する。
+ユーザーが委任した命名承認手順でLunaレビューと有用指摘の反映を行う。
+2026-10-03のユーザー指示により命名反映・文書整備後の実装を再開する。

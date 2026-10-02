@@ -5,7 +5,8 @@
 - ブランチ: `refactor/architecture`
 - 基準commit: `748c3aa`
 - worktree: 元のcheckout直下の`.worktrees/refactoring/`
-- 現在: task 2.5まで実装し、ユーザー指示により一時停止。実装済み命名は承認済みrevision 9。revision 10は命名再検討資料へのリンクを追加した候補段階（Lunaレビューと指摘反映済み、正式契約は未確定）。再開前に改名単位を確定し、その後task 2.6へ進む。
+- 現在: ユーザーの再開指示により、承認済み命名revision 11へ既存設定を移行するtask 9.1を先行し、その後task 2.6〜3.3を進める。
+- 正本と再開手順: [対象specの入口](specs/configuration-foundation/README.md)。候補・履歴を現在の実装契約と混同しない。
 
 ## 読む順序
 

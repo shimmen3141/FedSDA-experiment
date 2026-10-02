@@ -2,7 +2,7 @@
 
 - 本worktreeは`refactor/architecture`ブランチ。旧実装の固定基準は`748c3aa`。
 - 方針の正本は[リファクタリング方針](docs/research/refactoring-policy.md)、進捗・変更仕様は`.kiro/specs/`で管理する。
-- セッション開始・再開時と実装単位の開始前に、方針の正本、`.kiro/steering/roadmap.md`、対象specの
+- セッション開始・再開時と実装単位の開始前に、対象specの`README.md`で正本一覧を確認し、方針の正本、`.kiro/steering/roadmap.md`、対象specの
   `spec.json`・`review.md`・`naming.md`を読み、現在の合意と未承認事項を確認する。
 - 名前は短さより、意味の明確さ・他の概念と混同しないこと・実態との一致を優先する。
   必要なら4語・5語以上を用いる。承認済みのルートパッケージ名は`federated_learning_experiments`。
