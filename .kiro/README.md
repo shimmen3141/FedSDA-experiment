@@ -5,7 +5,7 @@
 - ブランチ: `refactor/architecture`
 - 基準commit: `748c3aa`
 - worktree: 元のcheckout直下の`.worktrees/refactoring/`
-- 現在: 要求・設計・初回task・命名revision 5は承認済み。パッケージ境界の実装に着手。revision 6の補助関数・テスト名のみ確認待ち。
+- 現在: 要求・設計・初回task・命名revision 6は承認済み。パッケージ境界を用意し、設定型の実装に着手。
 
 ## 読む順序
 
@@ -28,11 +28,11 @@ cc-sdd 3.1.0をCodex Skills・日本語で導入した。版・npm integrity・�
 要求と命名revision 2は人間が承認済み。命名承認は`spec.json`の`approvals.naming.approval_history`へ記録した。
 設計・独立レビューで追加した名前はrevision 4として人間が承認済み。
 初回taskの実装開始と、既存dataset名を維持したrevision 5も人間が承認済み。
-具体化した内部関数・テスト名はrevision 6の第9節へ分離し、その追加分だけ確認する。
+具体化した内部関数・テスト名はrevision 6の第9節へ分離し、gpt-6-lunaレビューと主担当の反映を完了した。
 
 人間が設計と追加命名を確認したため、初回taskを作成して独立確認を完了した。
 承認済みの名前でパッケージ境界・検証環境を作成し、task 1.1から実装に着手した。
-設計で追加した関数・変数も命名表へ追記し、そのrevisionを承認してから実装する。
+追加する関数・変数も命名表へ追記し、そのrevisionをgpt-6-lunaレビューと主担当の有用指摘の反映で承認してから実装する。
 実装時は担当taskを指定して一単位ずつ進める。
 自動承認フラグで命名レビューを省略しない。
 

@@ -1,11 +1,12 @@
 # 命名・役割レビュー: 設定・選択肢管理の基盤
 
-- revision: 6
+- revision: 7
 - パッケージ名: **`federated_learning_experiments`は2026-10-02に人間が承認済み。**
 - revision 2の名前・役割: **2026-10-02に人間が承認済み。承認hashはspec.jsonの履歴へ保存。**
 - revision 4: **2026-10-03に設計時の追加案とレビューによる修正を人間が承認済み。実装は未開始。**
 - revision 5: **2026-10-03に既存データセット名を維持する修正方針と初回taskの実装開始を人間が承認済み。**
 - revision 6: **2026-10-03にgpt-6-lunaのレビューを受け、有用な指摘を反映して承認済み。ユーザーの明示的な委任に従う。**
+- revision 7: **実験条件型の配置分離をgpt-6-lunaがレビューし、依存方向の注記を反映して承認済み。**
 - 方針の正本: [リファクタリング方針](../../../docs/research/refactoring-policy.md)
 - 初回は最終構成に必要な設定と検証を扱う。下表の「後続」は、その機能の移植時に必要性を判断する候補である。
 
@@ -321,3 +322,16 @@ gpt-6-lunaのレビューと主担当による有用な指摘の反映を完了�
 `expected_failure_reason`（期待する不正理由）、`validation_error`（捕捉した例外）、
 `unvalidated_run_settings`（検証前mapping）、`validated_settings_subset`（構築した部分型）、
 `settings_instance`（単独機能設定）を用いる。
+
+## 10. 実験条件型の分離（revision 7で承認済み）
+
+| 配置 | 名前・役割 |
+|---|---|
+| `configuration/experiment_run_conditions.py` | 承認済み`ExperimentRunConditions`の所属先。dataset・seed・規模・集約間隔の固定条件だけを持つ |
+| `configuration/run_settings.py` | 承認済み`ValidatedExperimentRunSettingsSubset`の所属先。実験条件型と機能型を束ね、外側の組合せ検証を呼ぶ |
+
+実験条件型と集約型を同じモジュールへ置くと、検証モジュールが実験条件型を読む際に集約型までimportし、循環参照になる。
+実験条件型を分け、検証モジュールは同型と機能型だけをimportする。公開型・項目・検証契約は変更しない。
+gpt-6-lunaのレビューで配置名と分離を妥当と確認し、次の依存注記を反映して承認した。
+`ExperimentRunConditions.__post_init__`はcoreの共通フィールド検証だけを呼び、外側の集約型・組合せ検証へ依存しない。
+`run_settings.py`を実験条件型の再export窓口にはしない。

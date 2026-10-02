@@ -95,7 +95,8 @@ flowchart TD
 
 | コンポーネント | ファイル | 担当と段階 |
 |---|---|---|
-| 実験設定の集約 | `configuration/run_settings.py` | 初回は`ValidatedExperimentRunSettingsSubset`と`ExperimentRunConditions`。全run条件が揃った後に`ResolvedExperimentRunSettings`を追加 |
+| 実験設定の集約 | `configuration/run_settings.py` | 初回は`ValidatedExperimentRunSettingsSubset`。全run条件が揃った後に`ResolvedExperimentRunSettings`を追加 |
+| 単独の実験条件 | `configuration/experiment_run_conditions.py` | `ExperimentRunConditions`。自身のフィールド値検証だけを呼び、集約型・組合せ検証へ依存しない |
 | モデル構造設定 | `learning/models/model_architecture_settings.py` | `ModelArchitectureSettings`。初回 |
 | 学習設定 | `learning/training/local_training_settings.py` | `LocalTrainingSettings`。初回 |
 | 監視設定 | `methods/fedsda/detection/drift_monitoring_settings.py` | `DriftMonitoringSettings`。初回 |

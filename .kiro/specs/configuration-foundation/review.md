@@ -90,3 +90,9 @@ $env:FDE_MNIST_DATA_DIR=(Resolve-Path ../../data/mnist).Path
 ```
 
 basetempはpytestが再作成する専用の一時領域。実験成果物の保存先を指定しない。
+
+## task 1.2
+
+- 独立レビュー: APPROVED。基礎例外の3属性・日本語理由・許容条件を確認した。
+- TDD: RED ModuleNotFoundError (exit 1) / GREEN 3 passed (exit 0)。
+- 完了検証: VERIFIED。旧経路の統合goldenはtask 3.3で確認する。
