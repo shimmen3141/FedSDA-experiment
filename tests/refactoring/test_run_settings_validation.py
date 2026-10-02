@@ -21,6 +21,9 @@ from federated_learning_experiments.learning.models.model_architecture_settings 
 from federated_learning_experiments.learning.training.local_training_settings import (
     LocalTrainingSettings,
 )
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
+    CandidateModelTrainingAndAcceptanceSettings,
+)
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
     LossChangeDetectionSettings,
 )
@@ -124,7 +127,10 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
         fixed_share_weight_redistribution_time_scale_samples=2,
     ), "fixed_share_weight_redistribution_time_scale_samples"), (TrainingDataAssignmentSettings, dict(
         pending_assignment_buffer_capacity_samples=1,
-    ), "pending_assignment_buffer_capacity_samples")],
+    ), "pending_assignment_buffer_capacity_samples"), (CandidateModelTrainingAndAcceptanceSettings, dict(
+        candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
+        candidate_post_alarm_validation_sample_count=2,
+    ), "candidate_post_alarm_validation_sample_count")],
 )
 @pytest.mark.parametrize("specified_parameter_value", [True, False, "1", 1.0, None, [], -1])
 def test_integer_settings_reject_invalid_types_and_ranges(
@@ -139,7 +145,9 @@ def test_integer_settings_reject_invalid_types_and_ranges(
     assert validation_error.value.specified_parameter_value is specified_parameter_value
     assert "整数" in validation_error.value.validation_failure_reason
     assert ("0以上" if configuration_parameter_name == "random_seed"
-            else "2以上" if configuration_parameter_name == "fixed_share_weight_redistribution_time_scale_samples"
+            else "2以上" if configuration_parameter_name in (
+                "fixed_share_weight_redistribution_time_scale_samples", "candidate_post_alarm_validation_sample_count",
+            )
             else "1以上") in (
         validation_error.value.validation_failure_reason
     )
@@ -167,7 +175,10 @@ def test_integer_settings_reject_invalid_types_and_ranges(
         fixed_share_weight_redistribution_time_scale_samples=2,
     ), "fixed_share_weight_redistribution_time_scale_samples"), (TrainingDataAssignmentSettings, dict(
         pending_assignment_buffer_capacity_samples=1,
-    ), "pending_assignment_buffer_capacity_samples")],
+    ), "pending_assignment_buffer_capacity_samples"), (CandidateModelTrainingAndAcceptanceSettings, dict(
+        candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
+        candidate_post_alarm_validation_sample_count=2,
+    ), "candidate_post_alarm_validation_sample_count")],
 )
 @pytest.mark.parametrize("specified_parameter_value", [0, 1, 2, 10**400])
 def test_integer_settings_validate_boundary_values(
@@ -177,7 +188,9 @@ def test_integer_settings_validate_boundary_values(
     valid_settings_values = dict(valid_settings_values)
     valid_settings_values[configuration_parameter_name] = specified_parameter_value
     if (configuration_parameter_name != "random_seed" and specified_parameter_value == 0
-            or configuration_parameter_name == "fixed_share_weight_redistribution_time_scale_samples"
+            or configuration_parameter_name in (
+                "fixed_share_weight_redistribution_time_scale_samples", "candidate_post_alarm_validation_sample_count",
+            )
             and specified_parameter_value == 1):
         with pytest.raises(RunSettingsValidationError) as validation_error:
             settings_type(**valid_settings_values)
@@ -185,7 +198,7 @@ def test_integer_settings_validate_boundary_values(
         assert validation_error.value.specified_parameter_value is specified_parameter_value
     else:
         settings_instance = settings_type(**valid_settings_values)
-        assert getattr(settings_instance, configuration_parameter_name) == specified_parameter_value
+        assert getattr(settings_instance, configuration_parameter_name) is specified_parameter_value
 
 
 def test_aggregation_interval_can_exceed_stream_length():
@@ -226,6 +239,10 @@ def test_aggregation_interval_can_exceed_stream_length():
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
         )),
+        (CandidateModelTrainingAndAcceptanceSettings, dict(
+            candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
+            candidate_post_alarm_validation_sample_count=2,
+        )),
     ],
 )
 def test_settings_instances_are_immutable(settings_type, valid_settings_values):
@@ -244,7 +261,7 @@ def test_settings_instances_are_immutable(settings_type, valid_settings_values):
             delattr(settings_instance, settings_field.name)
 
 
-@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, LossChangeDetectionSettings, PredictionCombinationSettings, TrainingDataAssignmentSettings, LocalTrainingSettings])
+@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, LossChangeDetectionSettings, PredictionCombinationSettings, TrainingDataAssignmentSettings, LocalTrainingSettings, CandidateModelTrainingAndAcceptanceSettings])
 def test_field_annotations_and_metadata_declare_parameter_constraints(settings_type):
     assert get_type_hints(settings_type) == (
         {
@@ -267,6 +284,9 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         } if settings_type is TrainingDataAssignmentSettings else {
             "local_model_parameter_update_strategy": str,
             "shared_backbone_gradient_combination_strategy": str,
+        } if settings_type is LocalTrainingSettings else {
+            "candidate_model_acceptance_policy": str,
+            "candidate_post_alarm_validation_sample_count": int,
         }
     )
     for settings_field in fields(settings_type):
@@ -292,6 +312,8 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "local_model_parameter_update_strategy"
                 else ("sample_weighted_mean_per_concept_gradients",)
                 if settings_field.name == "shared_backbone_gradient_combination_strategy"
+                else ("current_model_first_reuse_then_two_segment_candidate_validation",)
+                if settings_field.name == "candidate_model_acceptance_policy"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
         elif settings_field.name == "e_sr_false_alarm_control_alpha":
@@ -303,7 +325,9 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         else:
             assert settings_field.metadata["minimum_allowed_value"] == (
                 0 if settings_field.name == "random_seed"
-                else 2 if settings_field.name == "fixed_share_weight_redistribution_time_scale_samples"
+                else 2 if settings_field.name in (
+                    "fixed_share_weight_redistribution_time_scale_samples", "candidate_post_alarm_validation_sample_count",
+                )
                 else 1
             )
             assert settings_field.metadata["minimum_value_is_inclusive"] is True
@@ -314,6 +338,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 assert settings_field.metadata["parameter_unit"] == "rank"
             if settings_field.name in (
                 "fixed_share_weight_redistribution_time_scale_samples", "pending_assignment_buffer_capacity_samples",
+                "candidate_post_alarm_validation_sample_count",
             ):
                 assert settings_field.metadata["parameter_unit"] == "sample/client"
     with pytest.raises(TypeError):
@@ -330,6 +355,8 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         elif settings_type is LocalTrainingSettings:
             settings_type("joint_backbone_adapter_and_head_training",
                           "sample_weighted_mean_per_concept_gradients")
+        elif settings_type is CandidateModelTrainingAndAcceptanceSettings:
+            settings_type("current_model_first_reuse_then_two_segment_candidate_validation", 2)
         else:
             settings_type("fixed_share_weighted_prediction", "always", "recompute_buffer_losses_and_replay_weight_updates",
                           "restart_adahedge_preserve_fixed_share_prediction_state", 2)
@@ -360,6 +387,10 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
         ), configuration_parameter_name) for configuration_parameter_name in (
             "drift_detector_name", "loss_monitoring_scope",
         )],
+        (CandidateModelTrainingAndAcceptanceSettings, dict(
+            candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
+            candidate_post_alarm_validation_sample_count=2,
+        ), "candidate_model_acceptance_policy"),
         *[(PredictionCombinationSettings, dict(
             prediction_combination_strategy="fixed_share_weighted_prediction",
             prediction_mixture_activation_policy="always",
@@ -398,6 +429,9 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
      "joint_shared_backbone_updates", "sample_weighted_mean",
      "JOINT_BACKBONE_ADAPTER_AND_HEAD_TRAINING", " joint_backbone_adapter_and_head_training",
      "SAMPLE_WEIGHTED_MEAN_PER_CONCEPT_GRADIENTS", " sample_weighted_mean_per_concept_gradients",
+     "CURRENT_MODEL_FIRST_REUSE_THEN_TWO_SEGMENT_CANDIDATE_VALIDATION",
+     " current_model_first_reuse_then_two_segment_candidate_validation",
+     "refit_compare_two_window", "candidate_refit_compare_two_window", "two_segment_candidate_validation",
      True, False, 1, None, []],
 )
 def test_component_options_reject_unknown_names(
@@ -414,6 +448,19 @@ def test_component_options_reject_unknown_names(
     assert validation_error.value.specified_parameter_value is specified_parameter_value
     assert "文字列" in validation_error.value.validation_failure_reason
     assert expected_failure_reason in validation_error.value.validation_failure_reason
+
+
+@pytest.mark.parametrize("specified_parameter_value", [3, 5, 101, 10**400 + 1])
+def test_candidate_post_alarm_validation_accepts_odd_sample_counts(specified_parameter_value):
+    """将来検証件数は2以上の奇数を受理し、丸めず保持する。"""
+    settings_instance = CandidateModelTrainingAndAcceptanceSettings(
+        candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
+        candidate_post_alarm_validation_sample_count=specified_parameter_value,
+    )
+    assert settings_instance.candidate_model_acceptance_policy == (
+        "current_model_first_reuse_then_two_segment_candidate_validation"
+    )
+    assert settings_instance.candidate_post_alarm_validation_sample_count is specified_parameter_value
 
 
 @pytest.mark.parametrize(
