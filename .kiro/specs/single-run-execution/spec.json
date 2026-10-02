@@ -1,28 +1,35 @@
 {
   "feature_name": "single-run-execution",
   "created_at": "2026-10-02T21:13:35.494269+00:00",
-  "updated_at": "2026-10-02T21:13:35.494269+00:00",
+  "updated_at": "2026-10-02T21:34:53.088090+00:00",
   "language": "ja",
-  "phase": "requirements-generated",
+  "phase": "design-generated",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": false
+      "approved": true,
+      "approved_on": "2026-10-03",
+      "approval_source": "user_explicit_approval",
+      "approved_sha256_lf": "f4f8f729419d93f19a06c9413c15b524ee2ef98925a4774b44dd010c07b12dbd"
     },
     "design": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": false,
+      "generated_sha256_lf": "1e22a6e12c9e646a834314d23f641e92051f4bccaef7f3652473b4ca123641dc"
     },
     "tasks": {
       "generated": false,
       "approved": false
     },
     "naming": {
-      "generated": false,
+      "generated": true,
       "approved": false,
-      "revision": null,
+      "revision": 1,
       "approved_revision": null,
-      "approved_sha256_lf": null
+      "approved_sha256_lf": null,
+      "generated_sha256_lf": "27a045c5e886e313d75ef68549050c425118a85c18fc43a7cf47d4fe257fe85b",
+      "review_status": "pending_agent_thread_limit",
+      "reviewer": "gpt-6-luna"
     }
   },
   "ready_for_implementation": false,
@@ -35,5 +42,34 @@
     "review_mode": "primary_agent",
     "record": "review.md",
     "acceptance_criteria_count": 22
+  },
+  "design_review": {
+    "result": "PASS",
+    "review_mode": "primary_agent",
+    "requirement_ids_mapped": [
+      "1.1",
+      "1.2",
+      "1.3",
+      "1.4",
+      "2.1",
+      "2.2",
+      "2.3",
+      "2.4",
+      "3.1",
+      "3.2",
+      "3.3",
+      "4.1",
+      "4.2",
+      "4.3",
+      "4.4",
+      "5.1",
+      "5.2",
+      "5.3",
+      "5.4",
+      "6.1",
+      "6.2",
+      "6.3"
+    ],
+    "record": "review.md"
   }
 }

@@ -31,3 +31,21 @@
 requirements.mdを人間が承認した後、設計と役割・入出力・状態の命名表を具体化する。
 命名だけの追加承認はLunaレビューと主担当の採否で行う。
 設計・taskの通常の承認を経てから実装する。
+
+## 2026-10-03: 要件承認と設計
+
+- 要件: ユーザーの「承認します。次に進んでください。」により承認。spec.jsonに承認元と内容hashを記録した。
+- 設計: light discovery、synthesis、design-review-gateを主担当が適用した。
+- Gate: PASS。22件の要件IDを対応表に収録し、具体ファイル・入出力・状態所有・失敗動作・検証条件を確認した。
+- 草案の修正: run乱数型をruntimeからexecutionへ移し、Protocolからruntimeへの逆依存を除いた。
+- API probe: 固定環境でCPU torchの例外出口の乱数復元=true、RandomState.uniformとRandom.shuffleの利用可能性=true。新実装の検証結果ではない。
+- 新しいproductionコード・テストは作成していない。命名承認と設計・task承認が必要なため。
+
+### 命名レビューの実行状態
+
+- 対象: naming.md revision 1。
+- 依頼先: gpt-6-luna。spawn_agentの結果は`agent thread limit reached`。
+- レビュー結果は得られていない。PASS・承認済み・指摘反映済みとは扱わない。
+- 命名表と自己確認は用意済みだが、ユーザーが委任したLunaレビューの代替にはしない。
+- 再開時は同revisionをLunaへ渡し、有用な指摘をdesign.mdとnaming.mdへ同期してから命名承認を記録する。
+- 要件承認は維持する。設計は人間承認待ち、taskは未生成。実装可能状態はfalseのまま。
