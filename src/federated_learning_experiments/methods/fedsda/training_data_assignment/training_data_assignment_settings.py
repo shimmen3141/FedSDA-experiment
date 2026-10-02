@@ -8,7 +8,7 @@ from federated_learning_experiments.core.settings_field_validation import (
 
 
 @dataclass(frozen=True, kw_only=True)
-class DataAssignmentSettings:
+class TrainingDataAssignmentSettings:
     """バッファ内容や割当先を持たず、構築時に設定容量を検証する。"""
 
     pending_assignment_buffer_capacity_samples: int = field(

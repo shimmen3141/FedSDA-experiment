@@ -8,7 +8,7 @@ from federated_learning_experiments.core.settings_field_validation import (
 
 
 @dataclass(frozen=True, kw_only=True)
-class DriftMonitoringSettings:
+class LossChangeDetectionSettings:
     """検出器の実行状態を持たず、構築時に正式名とalphaの値域を検証する。"""
 
     drift_detector_name: str = field(

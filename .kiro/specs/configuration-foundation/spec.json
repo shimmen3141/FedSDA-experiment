@@ -1,7 +1,7 @@
 {
   "feature_name": "configuration-foundation",
   "created_at": "2026-10-02T09:52:11.770138+00:00",
-  "updated_at": "2026-10-02T20:15:44.237297+00:00",
+  "updated_at": "2026-10-02T20:21:21.996730+00:00",
   "language": "ja",
   "phase": "implementation-in-progress",
   "approvals": {
@@ -39,7 +39,7 @@
       "executable_task_count": 14,
       "approved_on": "2026-10-03",
       "approval_source": "user_explicit_resume_and_rename_instruction",
-      "approved_sha256_lf": "197534c65201265bdc75a114a52bb333f55af094986343c106746dbccc9aaa79",
+      "approved_sha256_lf": "96dc297548bcdefd8eb5937b91866dc646ba3ff55aca88c1756ca2385d634144",
       "approval_history": [
         {
           "sha256_lf": "ff56fa71cdf5b45ff9e1acc7e0443ffb23da6ca627def8e81b4e36946829c10e",
@@ -53,7 +53,7 @@
       "approved": true,
       "revision": 11,
       "approved_revision": 11,
-      "approved_sha256_lf": "f68d542a9729965f9a3948310dd97b9240f9ca37f7269109b23aab4e47507e91",
+      "approved_sha256_lf": "ac201acfe6e0f29aeacbc969d70bf63d4932780970d4ecf660c5a31b83c4674f",
       "approved_identifiers": [
         {
           "name": "federated_learning_experiments",
@@ -116,13 +116,14 @@
         {
           "revision": 11,
           "approved_on": "2026-10-03",
-          "sha256_lf": "f68d542a9729965f9a3948310dd97b9240f9ca37f7269109b23aab4e47507e91",
+          "sha256_lf": "ac201acfe6e0f29aeacbc969d70bf63d4932780970d4ecf660c5a31b83c4674f",
           "source": "user_delegated_gpt_6_luna_review",
           "review_record": "luna-naming-review.md"
         }
       ],
       "approved_on": "2026-10-03",
-      "approval_source": "user_delegated_gpt_6_luna_review"
+      "approval_source": "user_delegated_gpt_6_luna_review",
+      "editorial_clarification": "headings_and_status_wording_only_no_identifier_change"
     }
   },
   "ready_for_implementation": true,
@@ -141,9 +142,10 @@
       "2.2",
       "2.3",
       "2.4",
-      "2.5"
+      "2.5",
+      "9.1"
     ],
-    "next_task": "9.1",
+    "next_task": "2.6",
     "task_1_1_review": "APPROVED",
     "task_1_1_verification": "VERIFIED",
     "baseline_test_result": {
@@ -191,6 +193,16 @@
         "red_phase_evidence": {
           "command": "../../venv/Scripts/python.exe -m pytest tests/refactoring/test_run_settings_validation.py -q -p no:cacheprovider",
           "output": "ModuleNotFoundError: federated_learning_experiments.methods.fedsda.assignment",
+          "exit_code": 1,
+          "source": "implementer_observed_before_implementation"
+        }
+      },
+      "9.1": {
+        "review": "APPROVED",
+        "verification": "VERIFIED",
+        "targeted_tests_passed": 446,
+        "red_phase_evidence": {
+          "output": "ModuleNotFoundError: federated_learning_experiments.methods.fedsda.loss_change_detection",
           "exit_code": 1,
           "source": "implementer_observed_before_implementation"
         }

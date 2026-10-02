@@ -18,14 +18,14 @@ from federated_learning_experiments.core.settings_field_validation import (
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
-from federated_learning_experiments.methods.fedsda.detection.drift_monitoring_settings import (
-    DriftMonitoringSettings,
+from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    LossChangeDetectionSettings,
 )
-from federated_learning_experiments.methods.fedsda.routing.prediction_routing_settings import (
-    PredictionRoutingSettings,
+from federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings import (
+    PredictionCombinationSettings,
 )
-from federated_learning_experiments.methods.fedsda.assignment.data_assignment_settings import (
-    DataAssignmentSettings,
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    TrainingDataAssignmentSettings,
 )
 
 
@@ -113,13 +113,13 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
     ] + [(ModelArchitectureSettings, dict(
         model_architecture_name="shared_backbone_residual_adapter",
         residual_adapter_requested_rank=1,
-    ), "residual_adapter_requested_rank"), (PredictionRoutingSettings, dict(
-        prediction_routing_strategy="switching_fixed_share_mixture",
+    ), "residual_adapter_requested_rank"), (PredictionCombinationSettings, dict(
+        prediction_combination_strategy="fixed_share_weighted_prediction",
         prediction_mixture_activation_policy="always",
-        post_aggregation_routing_recalibration_policy="fifo_loss_replay",
-        routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
-        switching_share_horizon_samples=2,
-    ), "switching_share_horizon_samples"), (DataAssignmentSettings, dict(
+        prediction_weight_recalibration_after_aggregation_policy="recompute_buffer_losses_and_replay_weight_updates",
+        prediction_state_reset_on_training_assignment_change_policy="restart_adahedge_preserve_fixed_share_prediction_state",
+        fixed_share_weight_redistribution_time_scale_samples=2,
+    ), "fixed_share_weight_redistribution_time_scale_samples"), (TrainingDataAssignmentSettings, dict(
         pending_assignment_buffer_capacity_samples=1,
     ), "pending_assignment_buffer_capacity_samples")],
 )
@@ -136,7 +136,7 @@ def test_integer_settings_reject_invalid_types_and_ranges(
     assert validation_error.value.specified_parameter_value is specified_parameter_value
     assert "整数" in validation_error.value.validation_failure_reason
     assert ("0以上" if configuration_parameter_name == "random_seed"
-            else "2以上" if configuration_parameter_name == "switching_share_horizon_samples"
+            else "2以上" if configuration_parameter_name == "fixed_share_weight_redistribution_time_scale_samples"
             else "1以上") in (
         validation_error.value.validation_failure_reason
     )
@@ -156,13 +156,13 @@ def test_integer_settings_reject_invalid_types_and_ranges(
     ] + [(ModelArchitectureSettings, dict(
         model_architecture_name="shared_backbone_residual_adapter",
         residual_adapter_requested_rank=1,
-    ), "residual_adapter_requested_rank"), (PredictionRoutingSettings, dict(
-        prediction_routing_strategy="switching_fixed_share_mixture",
+    ), "residual_adapter_requested_rank"), (PredictionCombinationSettings, dict(
+        prediction_combination_strategy="fixed_share_weighted_prediction",
         prediction_mixture_activation_policy="always",
-        post_aggregation_routing_recalibration_policy="fifo_loss_replay",
-        routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
-        switching_share_horizon_samples=2,
-    ), "switching_share_horizon_samples"), (DataAssignmentSettings, dict(
+        prediction_weight_recalibration_after_aggregation_policy="recompute_buffer_losses_and_replay_weight_updates",
+        prediction_state_reset_on_training_assignment_change_policy="restart_adahedge_preserve_fixed_share_prediction_state",
+        fixed_share_weight_redistribution_time_scale_samples=2,
+    ), "fixed_share_weight_redistribution_time_scale_samples"), (TrainingDataAssignmentSettings, dict(
         pending_assignment_buffer_capacity_samples=1,
     ), "pending_assignment_buffer_capacity_samples")],
 )
@@ -174,7 +174,7 @@ def test_integer_settings_validate_boundary_values(
     valid_settings_values = dict(valid_settings_values)
     valid_settings_values[configuration_parameter_name] = specified_parameter_value
     if (configuration_parameter_name != "random_seed" and specified_parameter_value == 0
-            or configuration_parameter_name == "switching_share_horizon_samples"
+            or configuration_parameter_name == "fixed_share_weight_redistribution_time_scale_samples"
             and specified_parameter_value == 1):
         with pytest.raises(RunSettingsValidationError) as validation_error:
             settings_type(**valid_settings_values)
@@ -204,19 +204,19 @@ def test_aggregation_interval_can_exceed_stream_length():
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=1,
         )),
-        *[(DriftMonitoringSettings, dict(
+        *[(LossChangeDetectionSettings, dict(
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=specified_parameter_value,
         )) for specified_parameter_value in (0.05, 5e-324, 0.9999999999999999)],
-        (PredictionRoutingSettings, dict(
-            prediction_routing_strategy="switching_fixed_share_mixture",
+        (PredictionCombinationSettings, dict(
+            prediction_combination_strategy="fixed_share_weighted_prediction",
             prediction_mixture_activation_policy="always",
-            post_aggregation_routing_recalibration_policy="fifo_loss_replay",
-            routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
-            switching_share_horizon_samples=2,
+            prediction_weight_recalibration_after_aggregation_policy="recompute_buffer_losses_and_replay_weight_updates",
+            prediction_state_reset_on_training_assignment_change_policy="restart_adahedge_preserve_fixed_share_prediction_state",
+            fixed_share_weight_redistribution_time_scale_samples=2,
         )),
-        (DataAssignmentSettings, dict(
+        (TrainingDataAssignmentSettings, dict(
             pending_assignment_buffer_capacity_samples=1,
         )),
     ],
@@ -231,7 +231,7 @@ def test_settings_instances_are_immutable(settings_type, valid_settings_values):
             delattr(settings_instance, settings_field.name)
 
 
-@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, DriftMonitoringSettings, PredictionRoutingSettings, DataAssignmentSettings])
+@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, LossChangeDetectionSettings, PredictionCombinationSettings, TrainingDataAssignmentSettings])
 def test_field_annotations_and_metadata_declare_parameter_constraints(settings_type):
     assert get_type_hints(settings_type) == (
         {
@@ -243,13 +243,13 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         } if settings_type is ModelArchitectureSettings else {
             "drift_detector_name": str, "loss_monitoring_scope": str,
             "e_sr_false_alarm_control_alpha": float,
-        } if settings_type is DriftMonitoringSettings else {
-            "prediction_routing_strategy": str,
+        } if settings_type is LossChangeDetectionSettings else {
+            "prediction_combination_strategy": str,
             "prediction_mixture_activation_policy": str,
-            "post_aggregation_routing_recalibration_policy": str,
-            "routing_reset_on_assignment_change_policy": str,
-            "switching_share_horizon_samples": int,
-        } if settings_type is PredictionRoutingSettings else {
+            "prediction_weight_recalibration_after_aggregation_policy": str,
+            "prediction_state_reset_on_training_assignment_change_policy": str,
+            "fixed_share_weight_redistribution_time_scale_samples": int,
+        } if settings_type is PredictionCombinationSettings else {
             "pending_assignment_buffer_capacity_samples": int,
         }
     )
@@ -266,13 +266,13 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 else ("e_sr",) if settings_field.name == "drift_detector_name"
                 else ("overall_and_true_class_losses",)
                 if settings_field.name == "loss_monitoring_scope"
-                else ("switching_fixed_share_mixture",)
-                if settings_field.name == "prediction_routing_strategy"
+                else ("fixed_share_weighted_prediction",)
+                if settings_field.name == "prediction_combination_strategy"
                 else ("always",)
                 if settings_field.name == "prediction_mixture_activation_policy"
-                else ("fifo_loss_replay",)
-                if settings_field.name == "post_aggregation_routing_recalibration_policy"
-                else ("restart_adahedge_preserve_switching",)
+                else ("recompute_buffer_losses_and_replay_weight_updates",)
+                if settings_field.name == "prediction_weight_recalibration_after_aggregation_policy"
+                else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
         elif settings_field.name == "e_sr_false_alarm_control_alpha":
             assert settings_field.metadata["parameter_unit"] == "dimensionless"
@@ -283,7 +283,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         else:
             assert settings_field.metadata["minimum_allowed_value"] == (
                 0 if settings_field.name == "random_seed"
-                else 2 if settings_field.name == "switching_share_horizon_samples"
+                else 2 if settings_field.name == "fixed_share_weight_redistribution_time_scale_samples"
                 else 1
             )
             assert settings_field.metadata["minimum_value_is_inclusive"] is True
@@ -293,7 +293,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             if settings_field.name == "residual_adapter_requested_rank":
                 assert settings_field.metadata["parameter_unit"] == "rank"
             if settings_field.name in (
-                "switching_share_horizon_samples", "pending_assignment_buffer_capacity_samples",
+                "fixed_share_weight_redistribution_time_scale_samples", "pending_assignment_buffer_capacity_samples",
             ):
                 assert settings_field.metadata["parameter_unit"] == "sample/client"
     with pytest.raises(TypeError):
@@ -303,13 +303,13 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             settings_type("sine2", 0, 1, 1, 1)
         elif settings_type is ModelArchitectureSettings:
             settings_type("shared_backbone_residual_adapter", 1)
-        elif settings_type is DriftMonitoringSettings:
+        elif settings_type is LossChangeDetectionSettings:
             settings_type("e_sr", "overall_and_true_class_losses", 0.05)
-        elif settings_type is DataAssignmentSettings:
+        elif settings_type is TrainingDataAssignmentSettings:
             settings_type(1)
         else:
-            settings_type("switching_fixed_share_mixture", "always", "fifo_loss_replay",
-                          "restart_adahedge_preserve_switching", 2)
+            settings_type("fixed_share_weighted_prediction", "always", "recompute_buffer_losses_and_replay_weight_updates",
+                          "restart_adahedge_preserve_fixed_share_prediction_state", 2)
 
 
 @pytest.mark.parametrize("specified_parameter_value", [1, 2, 1000, 10**400])
@@ -330,23 +330,23 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=1,
         ), "model_architecture_name"),
-        *[(DriftMonitoringSettings, dict(
+        *[(LossChangeDetectionSettings, dict(
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=0.05,
         ), configuration_parameter_name) for configuration_parameter_name in (
             "drift_detector_name", "loss_monitoring_scope",
         )],
-        *[(PredictionRoutingSettings, dict(
-            prediction_routing_strategy="switching_fixed_share_mixture",
+        *[(PredictionCombinationSettings, dict(
+            prediction_combination_strategy="fixed_share_weighted_prediction",
             prediction_mixture_activation_policy="always",
-            post_aggregation_routing_recalibration_policy="fifo_loss_replay",
-            routing_reset_on_assignment_change_policy="restart_adahedge_preserve_switching",
-            switching_share_horizon_samples=2,
+            prediction_weight_recalibration_after_aggregation_policy="recompute_buffer_losses_and_replay_weight_updates",
+            prediction_state_reset_on_training_assignment_change_policy="restart_adahedge_preserve_fixed_share_prediction_state",
+            fixed_share_weight_redistribution_time_scale_samples=2,
         ), configuration_parameter_name) for configuration_parameter_name in (
-            "prediction_routing_strategy", "prediction_mixture_activation_policy",
-            "post_aggregation_routing_recalibration_policy",
-            "routing_reset_on_assignment_change_policy",
+            "prediction_combination_strategy", "prediction_mixture_activation_policy",
+            "prediction_weight_recalibration_after_aggregation_policy",
+            "prediction_state_reset_on_training_assignment_change_policy",
         )],
     ],
 )
@@ -356,11 +356,15 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
      " shared_backbone_residual_adapter", "ClassESR", "class_esr", "ESR", "esr",
      "E_SR", " e_sr", "overall", "class", "overall_and_class_losses",
      "OVERALL_AND_TRUE_CLASS_LOSSES", " overall_and_true_class_losses",
-     "switching", "SWITCHING_FIXED_SHARE_MIXTURE", " switching_fixed_share_mixture",
-     "ALWAYS", " always", "FIFO_LOSS_REPLAY", " fifo_loss_replay",
+     "switching", "FIXED_SHARE_WEIGHTED_PREDICTION", " fixed_share_weighted_prediction",
+     "ALWAYS", " always", "RECOMPUTE_BUFFER_LOSSES_AND_REPLAY_WEIGHT_UPDATES", " recompute_buffer_losses_and_replay_weight_updates",
      "reset_all_routing_state", "reset_adahedge", "reset_all", "off",
+     "RESTART_ADAHEDGE_PRESERVE_FIXED_SHARE_PREDICTION_STATE", " restart_adahedge_preserve_fixed_share_prediction_state",
+     "SWITCHING_FIXED_SHARE_MIXTURE", " switching_fixed_share_mixture",
+     "FIFO_LOSS_REPLAY", " fifo_loss_replay",
      "RESTART_ADAHEDGE_PRESERVE_SWITCHING", " restart_adahedge_preserve_switching",
-     True, 1, None, []],
+     "switching_fixed_share_mixture", "fifo_loss_replay",
+     "restart_adahedge_preserve_switching", True, 1, None, []],
 )
 def test_component_options_reject_unknown_names(
     settings_type, valid_settings_values, configuration_parameter_name,
@@ -386,7 +390,7 @@ def test_component_options_reject_unknown_names(
 def test_monitoring_alpha_rejects_nonfinite_and_out_of_range_values(specified_parameter_value):
     """誤警報制御値はboolを除く有限実数の開区間だけを受理する。"""
     with pytest.raises(RunSettingsValidationError) as validation_error:
-        DriftMonitoringSettings(
+        LossChangeDetectionSettings(
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=specified_parameter_value,

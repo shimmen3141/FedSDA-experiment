@@ -142,3 +142,8 @@ basetempはpytestが再作成する専用の一時領域。実験成果物の保
 - コマンド: `../../venv/Scripts/python.exe -m pytest -p no:cacheprovider --basetemp=../../venv/refactoring-baseline-check/pause-checkpoint-tmp tests/test_option_schema.py tests/test_parameter_schema.py tests/test_metric_schema.py tests/test_shared_backbone.py tests/test_provisional_model.py tests/test_clustering_decision.py tests/test_fedsda_configuration.py tests/test_regression.py tests/test_proposed_regression.py tests/refactoring/test_run_settings_validation.py -q`
 - 2つのgolden JSONのLF正規化SHA-256は保存済み環境記録と一致。goldenは変更していない。
 - 新設定はまだ実験実行経路へ接続していない。後続のtask 3.3およびspec全体は未完了。
+
+## 9.1 完了済み設定型と検証テストを正式命名へ移行する
+
+- 独立レビュー: APPROVED。対象テスト 446 passed / exit 0。
+- 完了検証: VERIFIED。初回範囲のみ。spec全体と実験実行経路の完成を意味しない。

@@ -35,7 +35,7 @@
   Bonferroni補正Wilson下限の最大。標本数条件を満たすクラスがゼロなら全体集計へfallbackする。
 - 単位・必須入力・不変性・値域は従来契約を維持する。学習のmeanはサンプル数で加重する意味を正式値へ含める。
 
-## 7. 設計時の追加案（revision 11で承認済み）
+## 1. 型・配置・正式フィールド
 
 初回の内部集約型は`ValidatedExperimentRunSettingsSubset`とする。
 各値と組合せを検証した実験設定の一部を表し、完全な実行・保存用の`ResolvedExperimentRunSettings`と区別する。
@@ -56,7 +56,7 @@
 | `methods/fedsda/consolidation/model_consolidation_settings.py` | 承認済み`ModelConsolidationSettings`の所属先 |
 | `core/configuration_errors.py` | 承認済み例外型の所属先。機能固有の設定型や外側の検証処理をimportしない |
 
-テストの配置候補は`tests/refactoring/test_run_settings_validation.py`、後続は
+初回テストは`tests/refactoring/test_run_settings_validation.py`、後続は
 `test_component_option_definitions.py`、`test_run_settings_resolution.py`、`test_run_settings_serialization.py`。
 テスト関数・fixture名と内部変数は担当task開始前に追記する。
 
@@ -88,7 +88,7 @@
 | `ModelArchitectureSettings` | `model_architecture_name` | 正式名。モデル構造の選択 |
 | `LossChangeDetectionSettings` | `drift_detector_name` | 正式名。個々の検出器の計算方式 |
 | 同上 | `loss_monitoring_scope` | 正式名。全体・正解クラス別等の監視対象。検出器の種類とは別 |
-| `LocalTrainingSettings` | `local_model_parameter_update_strategy` | 正式名。共有部の更新方法 |
+| `LocalTrainingSettings` | `local_model_parameter_update_strategy` | 正式名。共有部・Adapter・headのローカル更新方式 |
 | 同上 | `shared_backbone_gradient_combination_strategy` | 正式名。概念別勾配の統合方法 |
 | `CandidateModelTrainingAndAcceptanceSettings` | `candidate_model_acceptance_policy` | 正式名。候補と比較用モデルの学習・検証・採否方針 |
 | `ModelConsolidationSettings` | `model_clustering_trigger_policy` | 正式名。クラスタリングを開始する条件 |
@@ -137,7 +137,7 @@
 これらの値の承認はアルゴリズム変更の承認ではない。移植時には旧構成と判断・順序を照合する。
 γ、候補のoptimizer、事前学習・データ生成・評価ストア等の詳細は初回に含めず、実行層の移植前に追加レビューする。
 
-### 値域・単位の宣言（追加案）
+### 値域・単位の宣言
 
 初回から各dataclassフィールドのmetadataに下記を宣言し、自身の検証と後続の項目カタログが同じ宣言を使う。
 数値種別は型注釈、既定値はフィールド既定値を正本とする。必須入力は既定値なしとして説明する。
@@ -152,7 +152,7 @@
 
 機能型は後続のcatalogへ依存しない。公開の説明取得APIはcatalog段階で提供する。
 
-## 8. データセットの正式値（revision 11で承認済み）
+## 2. データセットの正式値
 
 `dataset_name`で受理する初回の正式値を、最終goldenの3ケースに対応させる。
 FedDriftのベンチマーク名との対応を優先し、既存識別子を新APIでも正式名として維持する。
@@ -172,17 +172,16 @@ FedDriftのベンチマーク名との対応を優先し、既存識別子を新
 正式名の維持は旧aliasの追加ではない。原論文: https://www.microsoft.com/en-us/research/uploads/prod/2023/02/FedDrift_Camera_Ready-63feb83f92b63.pdf
 
 
-## 9. 初回実装の内部関数・テスト名（revision 6で承認済み）
+## 3. 初回実装の内部関数・テスト名
 
-revision 5までの公開型・フィールド・正式値は承認済み。以下は実装準備で具体化した追加分。
-gpt-6-lunaのレビューと主担当による有用な指摘の反映を完了した。詳細は[luna-naming-review.md](luna-naming-review.md)に記録する。
+以下は公開契約を実装・検証する内部名。レビューと採否の履歴は[luna-naming-review.md](luna-naming-review.md)に記録する。
 
 ### 値域検証の共通処理
 
 各機能型の`__post_init__`から、標準dataclassの型注釈・metadataだけを読む共通検証を呼ぶ。
 これによりbool拒否・有限性・境界の扱いを機能別に重複実装しない。
 共通処理は機能型・集約型・方式カタログ・旧configをimportしない。組合せ検証も担当しない。
-機能固有型の許可依存には、既存の基礎例外に加えてこの基礎層の値検証を追加する設計案である。
+機能固有型は基礎例外とこの基礎層の値検証へ依存できる。
 
 | 種類 | 名前・呼出し | 役割・入出力・状態 |
 |---|---|---|
@@ -234,7 +233,7 @@ gpt-6-lunaのレビューと主担当による有用な指摘の反映を完了�
 `unvalidated_run_settings`（検証前mapping）、`validated_settings_subset`（構築した部分型）、
 `settings_instance`（単独機能設定）を用いる。
 
-## 10. 実験条件型の分離（revision 7で承認済み）
+## 4. 実験条件型の分離
 
 | 配置 | 名前・役割 |
 |---|---|
@@ -247,7 +246,7 @@ gpt-6-lunaのレビューで配置名と分離を妥当と確認し、次の依�
 `ExperimentRunConditions.__post_init__`はcoreの共通フィールド検証だけを呼び、外側の集約型・組合せ検証へ依存しない。
 `run_settings.py`を実験条件型の再export窓口にはしない。
 
-## 11. 共通値検証の直接テスト（revision 8で承認済み）
+## 5. 共通値検証の直接テスト
 
 | 名前 | 役割 |
 |---|---|
