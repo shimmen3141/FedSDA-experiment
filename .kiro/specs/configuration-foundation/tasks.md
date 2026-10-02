@@ -175,6 +175,7 @@ kiro-spec-tasksの計画確認と独立したタスクグラフ確認を実施�
 
 ## Implementation Notes
 
+- 2026-10-03の命名再検討: task 1.1〜2.5の完了履歴は維持する。追加の改名task案と未着手taskの参照更新は[naming-reconsideration.md](naming-reconsideration.md)の手順で準備する。命名・追加taskの確定前に改名実装やtask 2.6を開始しない。
 - task 1.1: `pytest.ini`の`pythonpath = src`で新パッケージを検証する。Windowsの共有venv・MNISTを明示参照し、複製しない。
 - sandbox内のpytest一時領域でWinError 5が発生した。専用`--basetemp`と`-p no:cacheprovider`を用い、必要な権限で再実行した結果、既存9ファイル113テストが成功。goldenは変更なし。
 - task 1.2以降: 公開型・フィールド・正式値と初回taskは承認済み。補助関数・内部変数・テスト名も第9節のrevision 6でgpt-6-lunaレビューと主担当の反映を完了し、ユーザーの委任に従い承認済み。

@@ -1,7 +1,7 @@
 {
   "feature_name": "configuration-foundation",
   "created_at": "2026-10-02T09:52:11.770138+00:00",
-  "updated_at": "2026-10-02T16:48:31.759930+00:00",
+  "updated_at": "2026-10-02T19:53:23.605429+00:00",
   "language": "ja",
   "phase": "implementation-in-progress",
   "approvals": {
@@ -38,8 +38,8 @@
     },
     "naming": {
       "generated": true,
-      "approved": true,
-      "revision": 9,
+      "approved": false,
+      "revision": 10,
       "approved_revision": 9,
       "approved_sha256_lf": "18dc7f27cc33904e373f0f45541ca8304900557b1e624ba51928ac772663fdc7",
       "approved_identifiers": [
@@ -103,10 +103,11 @@
         }
       ],
       "approved_on": "2026-10-03",
-      "approval_source": "user_delegated_gpt_6_luna_review"
+      "approval_source": "user_delegated_gpt_6_luna_review",
+      "pending_review_record": "naming-reconsideration.md"
     }
   },
-  "ready_for_implementation": true,
+  "ready_for_implementation": false,
   "approval_record_note": "Approved document hashes include status-only edits recording human approval; naming approval history preserves the originally reviewed hash.",
   "task_graph_sanity_review": {
     "mode": "independent",
@@ -188,5 +189,14 @@
       "golden_hashes_match": true,
       "review_record": "review.md"
     }
+  },
+  "naming_reconsideration": {
+    "status": "candidate_review_completed_final_contracts_pending",
+    "proposal_record": "naming-reconsideration.md",
+    "implemented_naming_revision": 9,
+    "implementation_is_paused": true,
+    "next_action": "finalize_scoped_rename_contracts_and_tasks_before_task_2_6",
+    "candidate_reviewer": "gpt-6-luna",
+    "review_response_record": "naming-reconsideration.md#7"
   }
 }
