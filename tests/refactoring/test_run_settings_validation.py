@@ -9,6 +9,9 @@ import pytest
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
+from federated_learning_experiments.configuration.run_settings import (
+    ValidatedExperimentRunSettingsSubset,
+)
 from federated_learning_experiments.configuration.run_settings_validation import (
     validate_experiment_run_settings,
 )
@@ -100,6 +103,100 @@ def valid_run_settings_mapping():
             model_consolidation_policy="weighted_parameter_average_and_merge_ids",
         ),
     }
+
+
+@pytest.mark.parametrize(
+    "configuration_parameter_name,specified_parameter_value",
+    [
+        *[(None, specified_parameter_value) for specified_parameter_value in (2, 3, 100)],
+        *[(configuration_parameter_name, specified_parameter_value)
+          for configuration_parameter_name in (
+              "method_name", "experiment_run_conditions", "model_architecture_settings",
+              "loss_change_detection_settings", "prediction_combination_settings",
+              "local_training_settings", "training_data_assignment_settings",
+              "candidate_model_training_and_acceptance_settings", "model_consolidation_settings",
+          ) for specified_parameter_value in (None, False)],
+        *[("method_name", specified_parameter_value) for specified_parameter_value in (
+            "unknown", "FedSDA", " fedsda", "fedsda_residual_adapter_switching",
+        )],
+        *[("training_data_assignment_settings", TrainingDataAssignmentSettings(
+            pending_assignment_buffer_capacity_samples=specified_parameter_value,
+        )) for specified_parameter_value in (1, 3, 100)],
+    ],
+)
+def test_direct_subset_construction_uses_the_same_validation(
+    valid_run_settings_mapping, configuration_parameter_name, specified_parameter_value,
+):
+    """直接構築でも同じ方式・機能型・組合せを受理または拒否する。"""
+    unvalidated_run_settings = valid_run_settings_mapping.copy()
+    if configuration_parameter_name is None:
+        unvalidated_run_settings["prediction_combination_settings"] = replace(
+            unvalidated_run_settings["prediction_combination_settings"],
+            fixed_share_weight_redistribution_time_scale_samples=specified_parameter_value,
+        )
+        unvalidated_run_settings["training_data_assignment_settings"] = (
+            TrainingDataAssignmentSettings(
+                pending_assignment_buffer_capacity_samples=specified_parameter_value,
+            )
+        )
+        assert validate_experiment_run_settings(unvalidated_run_settings) is None
+        validated_settings_subset = ValidatedExperimentRunSettingsSubset(
+            **unvalidated_run_settings,
+        )
+        assert tuple(settings_field.name for settings_field in fields(validated_settings_subset)) == (
+            tuple(valid_run_settings_mapping)
+        )
+        assert get_type_hints(ValidatedExperimentRunSettingsSubset) == {
+            component_settings_name: type(component_settings)
+            for component_settings_name, component_settings in unvalidated_run_settings.items()
+        }
+        for settings_field in fields(validated_settings_subset):
+            assert settings_field.kw_only
+            assert settings_field.default is MISSING
+            assert settings_field.default_factory is MISSING
+            assert getattr(validated_settings_subset, settings_field.name) is (
+                unvalidated_run_settings[settings_field.name]
+            )
+            valid_settings_values = unvalidated_run_settings.copy()
+            del valid_settings_values[settings_field.name]
+            with pytest.raises(TypeError, match=settings_field.name):
+                ValidatedExperimentRunSettingsSubset(**valid_settings_values)
+        with pytest.raises(TypeError):
+            ValidatedExperimentRunSettingsSubset(*unvalidated_run_settings.values())
+        return
+
+    unvalidated_run_settings[configuration_parameter_name] = specified_parameter_value
+    with pytest.raises(RunSettingsValidationError) as validation_error:
+        validate_experiment_run_settings(unvalidated_run_settings)
+    expected_failure_reason = validation_error.value.validation_failure_reason
+    if isinstance(specified_parameter_value, TrainingDataAssignmentSettings):
+        configuration_parameter_name = "fixed_share_weight_redistribution_time_scale_samples"
+        specified_parameter_value = 2
+    with pytest.raises(RunSettingsValidationError) as validation_error:
+        ValidatedExperimentRunSettingsSubset(**unvalidated_run_settings)
+    assert validation_error.value.configuration_parameter_name == configuration_parameter_name
+    assert validation_error.value.specified_parameter_value is specified_parameter_value
+    assert validation_error.value.validation_failure_reason == expected_failure_reason
+
+
+def test_subset_does_not_share_mutable_input_mapping(valid_run_settings_mapping):
+    """入力辞書の差替えや削除は、構築済みの不変条件へ波及しない。"""
+    unvalidated_run_settings = valid_run_settings_mapping.copy()
+    validated_settings_subset = ValidatedExperimentRunSettingsSubset(
+        **unvalidated_run_settings,
+    )
+    assert unvalidated_run_settings == valid_run_settings_mapping
+    for configuration_parameter_name, component_settings in valid_run_settings_mapping.items():
+        assert unvalidated_run_settings[configuration_parameter_name] is component_settings
+        unvalidated_run_settings[configuration_parameter_name] = None
+        assert getattr(validated_settings_subset, configuration_parameter_name) is component_settings
+        with pytest.raises(FrozenInstanceError):
+            setattr(validated_settings_subset, configuration_parameter_name, None)
+        with pytest.raises(FrozenInstanceError):
+            delattr(validated_settings_subset, configuration_parameter_name)
+    unvalidated_run_settings.clear()
+    for configuration_parameter_name, component_settings in valid_run_settings_mapping.items():
+        assert getattr(validated_settings_subset, configuration_parameter_name) is component_settings
 
 
 @pytest.mark.parametrize("specified_parameter_value", [2, 3, 100])
