@@ -1,0 +1,16 @@
+{
+  "checked_at_utc": "2026-10-02T09:56:18.365858+00:00",
+  "branch": "refactor/architecture",
+  "cc_sdd_version": "3.1.0",
+  "installed_skills": 17,
+  "json_and_toml_parse": "PASS",
+  "requirement_sections": 5,
+  "ears_acceptance_criteria": 19,
+  "approval_gates_all_false": true,
+  "new_src_implementation_present": false,
+  "golden_files_unchanged": true,
+  "new_document_links": "PASS",
+  "held_files_not_copied": 3,
+  "implementation_tests_run": false,
+  "scope": "worktree and cc-sdd initialization, requirements and naming review preparation"
+}

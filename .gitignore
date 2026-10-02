@@ -22,3 +22,6 @@ results_*/
 .DS_Store
 .vscode/
 .idea/
+
+# cc-sdd導入時の退避ファイル（規約はAGENTS.mdへ保持済み）
+.cc-sdd-install-backup/

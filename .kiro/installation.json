@@ -1,0 +1,19 @@
+{
+  "tool": "cc-sdd",
+  "version": "3.1.0",
+  "registry": "https://registry.npmjs.org/",
+  "dist_integrity": "sha512-4G9zOhWui/ajyQmqp+yJzTcuLr+TK32hNqG6uey5J5oTc4HDxPuxWvV6YLViXthesE/wGV60IfTaF6yxL45igQ==",
+  "agent": "codex-skills",
+  "language": "ja",
+  "target_os": "windows",
+  "node_version": "24.21.0",
+  "npm_version": "11.19.0",
+  "installed_at_utc": "2026-10-02T09:52:11.770846+00:00",
+  "command": "npx --yes cc-sdd@3.1.0 --codex-skills --lang ja --os windows --overwrite force --backup=.cc-sdd-install-backup",
+  "project_customizations": [
+    "human naming approval gate",
+    "naming template and spec approval fields",
+    "preserved project rules scoped for old/new code"
+  ],
+  "reference_commit": "748c3aa"
+}

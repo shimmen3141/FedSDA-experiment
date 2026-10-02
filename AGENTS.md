@@ -1,4 +1,24 @@
-# エージェント向け開発規約
+# リファクタリングworktreeの規約
+
+- 本worktreeは`refactor/architecture`ブランチ。旧実装の固定基準は`748c3aa`。
+- 方針の正本は`docs/research/refactoring-policy.md`、進捗・変更仕様は`.kiro/specs/`で管理する。
+- cc-sdd作業では`.kiro/steering/product.md`・`tech.md`・`structure.md`と対象specを読み、
+  `.kiro/settings/rules/naming-review.md`に従う。利用するskillの`SKILL.md`も読んでから進める。
+- 新実装は後方互換alias・旧形式読込み・旧import窓口を持たない。
+- 新実装の設定・選択肢は機能別の型と宣言から管理し、実体生成をruntimeへ分離する。
+  以下の旧実装向けファイル名・登録先の規約は、移植前の既存コードを変更する場合にだけ適用する。
+- 各実装単位の開始前に、`naming.md`へファイル・型・関数・引数・状態変数の案と役割を列挙する。
+  入出力、単位、状態更新、似た名前との違いを説明し、人間の明示的な命名承認を待つ。
+- 命名承認は`spec.json`の`approvals.naming.approved`と`approved_revision`へ記録する。
+  承認したrevision以外の実装は開始しない。名前・役割を変えた場合は承認を取り直す。
+- cc-sddの`-y`・`--auto`、以前の「開始して」という依頼、時間経過を命名承認として扱わない。
+- 要求→設計→taskの通常の承認も維持する。今回の要求・命名一覧はレビュー待ちである。
+- 新しいsrc実装、移植、リネーム、実装を先取りしたテスト追加は、命名承認前には行わない。
+  worktree作成、ツール導入、調査・仕様・命名案の作成は今回承認済み。
+- 移植対象の数値・判断・時系列をgoldenと照合する。新APIとの対応付けはテスト側で明示する。
+- 基準worktreeには3つのコミット保留資料とresultsがある。本worktreeへ自動コピー・stageしない。
+
+## 既存実装向けの開発規約
 
 - コメントとプロジェクト固有文書は日本語で書く。
 - 手法を追加するときは、`mode_names.py`と`experiment.py`の`MODE_SPECS`だけでなく、
