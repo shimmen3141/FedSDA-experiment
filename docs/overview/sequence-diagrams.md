@@ -321,7 +321,7 @@ sequenceDiagram
 ```
 
 **FedDrift の要点**: ドリフト検知は **検出バッチ単位の最小損失の増分**（`FEDDRIFT_DETECTION_BATCH_SIZE`件ごと）。通信もこのバッチ完了時のみ。新規モデルは即時 ready のため**同一バッチの集約で回収**される(FedSDA の次ラウンド回収と異なる)。クラスタリング(クロス評価)は**新規モデルの有無に依らず、モデルが2つ以上あれば毎バッチ実行**される(通信面では FedSDA より重い)。`FEDDRIFT_DETECTION_BATCH_SIZE`（検出粒度↔通信）と
-`FEDDRIFT_ROUNDS`（バッチあたり収束度↔通信）が 2 つの通信軸。各変数の詳細は[hyperparameters.md](hyperparameters.md) を参照。
+`FEDDRIFT_ROUNDS`（バッチあたり収束度↔通信）が 2 つの通信軸。各変数の詳細は[hyperparameters.md](../reference/hyperparameters.md) を参照。
 
 ---
 

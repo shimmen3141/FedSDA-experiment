@@ -11,8 +11,18 @@
 - 一つのrunで変わる値は`ExperimentConfiguration`へ含め、実行中だけ`activated()`で有効化する。
   実行スクリプトから`config`を手動で保存・復元する処理を追加しない。
 - 指標を追加するときは`experiment_spec/metrics.py`へ用途・適用範囲・保存先を登録する。
-- `docs/options.md`は直接編集せず、`python -m tools.generate_option_docs`で再生成する。
+- `docs/reference/options.md`は直接編集せず、`python -m tools.generate_option_docs`で再生成する。
 - 変更後はスキーマの整合性テスト、対象機能テスト、`tests/test_regression.py`を実行し、既存手法の値を変えていないことを確認する。
+
+## 文書とコミット保留
+
+- 文書の入口は`docs/README.md`。全体説明は`overview/`、個別機能は`components/`、
+  実験資料は`experiments/`、設定参照は`reference/`、研究検討資料は`research/`へ置く。
+- 2026-10-02のユーザー指示により、以下の3ファイルはgit管理外のままコミット判断を保留している。
+  移動したことを理由に自動でstage・commitしない。後続のユーザー指示で扱いを決める。
+  - `docs/experiments/experiment-results-audit.md`
+  - `docs/overview/fedsda-processing-flow.html`
+  - `docs/research/FedSDA Meta-switchingの先行研究・差分・新規性に関する調査報告.pdf`
 
 ## 実験実行環境とコマンド
 

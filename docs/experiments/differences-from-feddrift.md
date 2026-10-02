@@ -3,8 +3,8 @@
 本実装の **FedDrift ベースライン**と、FedDrift 元論文（Jothimurugesan et al., 2023）および公開実装 `microsoft/FedDrift` との相違点を一元的にまとめる。照合元は `FedDrift_paper/`（論文 tex、特に `appendix-expt-setup.tex`）と `FedDrift/`（clone した参照コード）。
 
 > このファイルは **論文/参照の FedDrift ↔ 本実装の FedDrift** の対応に絞る。提案手法 FedSDA の
-> 詳細は [fedsda-algorithm.md](fedsda-algorithm.md)、全変数の意味・手法間の使い分けは
-> [hyperparameters.md](hyperparameters.md) を参照。FedSDA は「なぜ FedDrift をこう
+> 詳細は [fedsda-algorithm.md](../overview/fedsda-algorithm.md)、全変数の意味・手法間の使い分けは
+> [hyperparameters.md](../reference/hyperparameters.md) を参照。FedSDA は「なぜ FedDrift をこう
 > 実装したか」を説明する範囲でのみ登場する。
 
 区分:
@@ -78,7 +78,7 @@ FedDrift 由来の合成データとMNISTの生成規則は論文・参照コー
 - **1 ラウンドの学習量（論文 K）＝ `FEDDRIFT_DETECTION_BATCH_SIZE × UPDATES_PER_SAMPLE`**。バッチの各データ点に対し FedSDA と同じ `UPDATES_PER_SAMPLE` 回の更新を行うのと同予算。これにより**総ローカル更新数は `FEDDRIFT_DETECTION_BATCH_SIZE` に依らず `TOTAL_DATA_POINTS × UPDATES_PER_SAMPLE`（R=1 なら FedSDA と一致）**となり、検出バッチを掃引しても学習量が変わらない（通信だけを変数にできる）。
 - **R ＝ `FEDDRIFT_ROUNDS`**。論文はバッチを R=100 ラウンド収束まで反復学習する。本実装は**既定 R=1**で、これは比較対象の FedSDA が**オンライン単一パス**（各データ点 1 回）で、その学習・通信予算と揃えるため。`FEDDRIFT_ROUNDS=100` にすれば論文忠実な FedDrift（バッチ収束学習）を再現できるが、総更新数・総通信量が R 倍になり FedSDA との予算一致は崩れる。R は `FEDDRIFT_DETECTION_BATCH_SIZE`（検出粒度↔通信）と**直交する第2の通信軸**（バッチあたり収束度↔通信）。
 
-FedSDA 側の対応変数（`AGGREGATION_INTERVAL` 等）や手法間の使い分けは [hyperparameters.md](hyperparameters.md) を参照。
+FedSDA 側の対応変数（`AGGREGATION_INTERVAL` 等）や手法間の使い分けは [hyperparameters.md](../reference/hyperparameters.md) を参照。
 
 ---
 
@@ -98,7 +98,7 @@ FedSDA 側の対応変数（`AGGREGATION_INTERVAL` 等）や手法間の使い�
 
 ## 5. 実装上の設計判断
 
-- **サーバ側モデル間距離の評価**: FedDrift 公開実装は aggregator が全クライアントの生データ（`all_data`）を中央に集めて距離を計算する**シミュレーション近道**を取る。本実装はこれに倣わず、評価対象モデルをデータ保持クライアントへ配布して現地評価させ、**集約統計量 (n, Σℓ, Σℓ²) のみ**を返す federated な形にしている（サブサンプリング `CROSS_EVAL_MAX_CLIENTS` / `EVAL_MAX_SAMPLES` による近似）。詳細と根拠は [fedsda-algorithm.md](fedsda-algorithm.md) §3 を参照。
+- **サーバ側モデル間距離の評価**: FedDrift 公開実装は aggregator が全クライアントの生データ（`all_data`）を中央に集めて距離を計算する**シミュレーション近道**を取る。本実装はこれに倣わず、評価対象モデルをデータ保持クライアントへ配布して現地評価させ、**集約統計量 (n, Σℓ, Σℓ²) のみ**を返す federated な形にしている（サブサンプリング `CROSS_EVAL_MAX_CLIENTS` / `EVAL_MAX_SAMPLES` による近似）。詳細と根拠は [fedsda-algorithm.md](../overview/fedsda-algorithm.md) §3 を参照。
 - **FedDrift は再実装**であり、参照コードをそのまま呼んでいるわけではない。sea4 も CSV を読まず生成器で論文定義を再現している。
 
 ## 現行FedDriftの位置付け

@@ -6,7 +6,7 @@ from federated_drift_experiment.experiment_spec.options import render_option_doc
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "docs" / "options.md"
+OUTPUT = ROOT / "docs" / "reference" / "options.md"
 
 
 def main():

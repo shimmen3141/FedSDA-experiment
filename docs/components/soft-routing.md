@@ -105,7 +105,7 @@ SoftRoutingの予測結果はモデル学習、ドリフト検出、モデル作
 クライアント・保持モデル集合epoch・通信区間・モデルごとの十分統計をrawへ保存し、最終active集合では
 未割当かつ寄与が非正のモデル数もCSVへ要約する。モデル集合の変更でepochを分けるため、クラスタリング後に
 同じIDが代表として残っても、変更前後のモデル実体を混同しない。現段階では診断専用であり、この値による
-archive・削除は行わない。保存項目の定義は[metrics.md](metrics.md)を参照する。
+archive・削除は行わない。保存項目の定義は[metrics.md](../experiments/metrics.md)を参照する。
 
 ## Switching-expert shadow診断
 
@@ -281,4 +281,4 @@ MNIST4を約0.48ポイント改善し、全seedで上回った。SEA2・SEA4は�
 Context mixtureはMetaの比較ablation、Context leaderは内部候補として扱う。
 
 共有バックボーンやResidual Adapterとの関係は[shared-backbone.md](shared-backbone.md)、保存指標は
-[metrics.md](metrics.md)、CLI依存関係は自動生成される[options.md](options.md)を参照する。
+[metrics.md](../experiments/metrics.md)、CLI依存関係は自動生成される[options.md](../reference/options.md)を参照する。

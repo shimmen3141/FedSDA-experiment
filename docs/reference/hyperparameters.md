@@ -1,13 +1,13 @@
 # ハイパーパラメータ・変数リファレンス
 
-本実装([federated_drift_experiment/config.py](../federated_drift_experiment/config.py))の全ハイパーパラメータを、**意味・使用手法・既定値**の観点で一覧化する。実行時はコードから `from federated_drift_experiment import config; config.X = ...`で上書きできる(各モジュールは呼び出し時に `config.X` を参照する)。
+本実装([federated_drift_experiment/config.py](../../federated_drift_experiment/config.py))の全ハイパーパラメータを、**意味・使用手法・既定値**の観点で一覧化する。実行時はコードから `from federated_drift_experiment import config; config.X = ...`で上書きできる(各モジュールは呼び出し時に `config.X` を参照する)。
 
-論文(FedDrift 元論文)との対応・相違は [differences-from-feddrift.md](differences-from-feddrift.md)、
-アルゴリズム詳細は [fedsda-algorithm.md](fedsda-algorithm.md)、ADWINとe-detectorの理論・比較条件は
-[drift-detection.md](drift-detection.md) を参照。
+論文(FedDrift 元論文)との対応・相違は [differences-from-feddrift.md](../experiments/differences-from-feddrift.md)、
+アルゴリズム詳細は [fedsda-algorithm.md](../overview/fedsda-algorithm.md)、ADWINとe-detectorの理論・比較条件は
+[drift-detection.md](../components/drift-detection.md) を参照。
 
 コード定数・CSV/NPZ列・CLI・論文記号の正本は
-[`experiment_spec/parameters.py`](../federated_drift_experiment/experiment_spec/parameters.py)である。
+[`experiment_spec/parameters.py`](../../federated_drift_experiment/experiment_spec/parameters.py)である。
 
 | 正規ID（CSV/NPZ） | コード定数 | 論文・凡例 | CLI |
 |---|---|---|---|
@@ -112,7 +112,7 @@ MNISTは論文に合わせて隠れ層幅 `2d=1568` の1層MLPと学習率 `1e-3
 | `NEW_MODEL_EARLY_STOPPING_PATIENCE` | 検証損失が改善しない状態を許容するエポック数 | FedSDA early stopping | 3 |
 | `NEW_MODEL_EARLY_STOPPING_MIN_DELTA` | 検証損失の最小改善量 | FedSDA early stopping | 1e-4 |
 | `NEW_MODEL_VALIDATION_FRACTION` | 検知区間から検証用に確保する割合 | FedSDA early stopping | 0.2 |
-| `NEW_MODEL_CREATION_POLICY` | 新規モデルの作成方針。`forward_persistent` は独立した前半・後半の両方で候補の優位を要求する。詳細は [new-model-creation.md](new-model-creation.md) を参照 | FedSDA | `immediate` |
+| `NEW_MODEL_CREATION_POLICY` | 新規モデルの作成方針。`forward_persistent` は独立した前半・後半の両方で候補の優位を要求する。詳細は [new-model-creation.md](../components/new-model-creation.md) を参照 | FedSDA | `immediate` |
 | `NEW_MODEL_FORWARD_VALIDATION_SAMPLES` | 各forward方式で採否確定までに観測する警報後サンプル数 N_forward | FedSDA | 10 |
 | `CLIENT_BATCH_SIZE` | ローカル更新のミニバッチサイズ B | 共通 | 32 |
 | `UPDATES_PER_SAMPLE` | 1 データ点あたりの勾配更新回数 L(学習強度)。両手法共通=公平比較の予算なので分けない | 共通 | 1 |
@@ -200,7 +200,7 @@ EWMAを使い、ドリフト境界超過時だけモデル切替処理へ進む�
 
 > 通信削減版は**Cachedモード**(`FedSDACachedServer`)で選択し、前回配布モデルのキャッシュで
 > クロス評価するため、評価用のモデル再送を行わない。
-> 詳細は [sequence-diagrams.md](sequence-diagrams.md)。
+> 詳細は [sequence-diagrams.md](../overview/sequence-diagrams.md)。
 
 ### FedSDAのクラスタリング頻度
 
@@ -371,4 +371,4 @@ raw NPZには各提案について位置、検出器、採否、理由、学習�
 最近傍モデルIDは `-1` とする。これにより、候補が「他クライアントのモデルから遠いため
 生存した」のか、「評価サンプル不足でマージ判定できなかった」のかをrawから切り分けられる。
 
-適応の**速さ**(回復曲線 acc(Δ)・`T90` 等)は [recovery_analysis.py](../recovery_analysis.py) で別途評価する。
+適応の**速さ**(回復曲線 acc(Δ)・`T90` 等)は [recovery_analysis.py](../../recovery_analysis.py) で別途評価する。

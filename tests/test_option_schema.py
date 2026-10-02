@@ -356,5 +356,5 @@ def test_unknown_option_is_rejected():
 
 
 def test_generated_option_document_is_current():
-    path = Path(__file__).resolve().parents[1] / "docs" / "options.md"
+    path = Path(__file__).resolve().parents[1] / "docs" / "reference" / "options.md"
     assert path.read_text(encoding="utf-8") == render_option_document()

@@ -1,11 +1,12 @@
 # FedSDA 実験コード
 
 FedSDA (Statistical Drift-aware Assignment for Federated Learning) の比較実験。
-アルゴリズムの詳細は [docs/fedsda-algorithm.md](docs/fedsda-algorithm.md)、論文本体は [main_jp.tex](main_jp.tex) を参照。
-データ特性から予想される検出難度は [docs/dataset-characteristics.md](docs/dataset-characteristics.md)、
-未実装案と検証済み非採用案は [docs/research-backlog.md](docs/research-backlog.md) に整理している。
+文書の一覧と用途は [docs/README.md](docs/README.md) を参照。
+アルゴリズムの詳細は [docs/overview/fedsda-algorithm.md](docs/overview/fedsda-algorithm.md)、論文本体は [main_jp.tex](main_jp.tex) を参照。
+データ特性から予想される検出難度は [docs/experiments/dataset-characteristics.md](docs/experiments/dataset-characteristics.md)、
+未実装案と検証済み非採用案は [docs/research/research-backlog.md](docs/research/research-backlog.md) に整理している。
 SoftRoutingの予測レイヤーと各候補の関係は
-[docs/soft-routing.md](docs/soft-routing.md)を参照。
+[docs/components/soft-routing.md](docs/components/soft-routing.md)を参照。
 
 ## セットアップ
 
@@ -32,10 +33,10 @@ python tests/test_regression.py --update   # 意図的に挙動を変えた/初�
 ## 実行方法
 
 手法・検出器・新規モデル作成・クラスタリングなどのオプションについて、実装済み範囲、
-理論上の適用可能性、従属パラメータは[docs/options.md](docs/options.md)を参照。
+理論上の適用可能性、従属パラメータは[docs/reference/options.md](docs/reference/options.md)を参照。
 同文書の表とMermaid依存図は`experiment_spec/options.py`から自動生成される。
 一回のrun設定と掃引軸・固定値の分離は
-[docs/experiment-configuration.md](docs/experiment-configuration.md)を参照。
+[docs/experiments/experiment-configuration.md](docs/experiments/experiment-configuration.md)を参照。
 実験開始時のmanifest保存、コード・goldenを含む事前重複判定、NPZからの成果物復元方法も同文書にまとめている。
 長時間実験の前に同じコマンドへ`--print-plan`を付けると、実行対象と固定値を確認して終了する。
 
@@ -166,7 +167,7 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 診断専用の`oracle_concept`は真の概念IDを参照し、クラスタ判定を理想化した場合の
 上限対照を測ります。実運用可能な手法や提案手法の構成には含めません。
 後者も既存のクロス評価統計だけを使うため、追加のモデル通信は発生しません。詳細は
-[ハイパーパラメータ・変数リファレンス](docs/hyperparameters.md#fedsdaのクラスタリング判定)を参照してください。
+[ハイパーパラメータ・変数リファレンス](docs/reference/hyperparameters.md#fedsdaのクラスタリング判定)を参照してください。
 
 `--detection-episodes` を指定すると、最初の検出から `N_FIFO` サンプル以内の追加検出を
 同一エピソードへ統合し、モデル再利用・新規作成を最大1回に制限します。既定では無効です。
@@ -179,12 +180,12 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 `--new-model-creation-policy forward_requalified` です。この設定は検出エピソードの有無とは
 独立です。現行モデルが適合している限り切り替えない方式は
 `--new-model-creation-policy forward_requalified_current_first` です。各方式のデータ分割と判定順序は
-[docs/new-model-creation.md](docs/new-model-creation.md) を参照してください。
+[docs/components/new-model-creation.md](docs/components/new-model-creation.md) を参照してください。
 
 独立した前半・後半の両方で候補モデルの優位が持続することを要求する方式は
 `--new-model-creation-policy forward_persistent` です。ドリフト検出直後の既存モデル再利用では、
 適合モデルのうち損失最小のモデルを常に選びます。詳細は
-[docs/model-reuse.md](docs/model-reuse.md) を参照してください。
+[docs/components/model-reuse.md](docs/components/model-reuse.md) を参照してください。
 
 ### データセット(`--dataset`)
 
@@ -205,7 +206,7 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 `sea4` の閾値・ノイズ率は [federated_drift_experiment/config.py](federated_drift_experiment/config.py) の `SEA_THRESHOLDS`(FedDrift論文 appendix の A,B,C,D = `{0:9, 1:8, 2:7, 3:9.5}`)/ `SEA_LABEL_NOISE`(0.10)で定義。約10%の内在ラベルノイズがあるため精度の上限は約0.90。
 
 > **FedDrift 元論文との相違点**（データセット定義・ドリフトスケジュール・学習パラメータ・
-> 評価指標の細かな差異）は [docs/differences-from-feddrift.md](docs/differences-from-feddrift.md) に
+> 評価指標の細かな差異）は [docs/experiments/differences-from-feddrift.md](docs/experiments/differences-from-feddrift.md) に
 > 一元的にまとめている。要点: sine2/circle2/sea4 の**生成規則は論文・参照コードに忠実**、
 > 全データセットで`--concept-schedule random`（既定）と`feddrift_fixed`を選択できる。
 > `random`は従来どおりper-sampleの確率的ドリフト、`feddrift_fixed`は2概念で
@@ -215,7 +216,7 @@ FedSDAでは `--clustering-policy on_new_model`（新規モデル発生時のみ
 ### 評価指標(結果 dict のキー)
 
 以下は主要指標の抜粋である。全指標の分類（主要・補助・診断）、適用できる手法、CSVとNPZの
-役割は[docs/metrics.md](docs/metrics.md)にまとめている。正規IDの正本は
+役割は[docs/experiments/metrics.md](docs/experiments/metrics.md)にまとめている。正規IDの正本は
 [`federated_drift_experiment/experiment_spec/metrics.py`](federated_drift_experiment/experiment_spec/metrics.py)である。
 
 | キー | 意味 |
@@ -289,7 +290,7 @@ python -m tools.baselines.build_feddrift \
 [`tools/baselines/README.md`](tools/baselines/README.md)を参照。
 
 FedSDAを含む固定ベースラインのディレクトリ構成と、固定値・掃引値の確認方法は
-[`docs/baselines.md`](docs/baselines.md)を参照。
+[`docs/experiments/baselines.md`](docs/experiments/baselines.md)を参照。
 
 ## コード構成
 
@@ -331,7 +332,7 @@ FedSDAを含む固定ベースラインのディレクトリ構成と、固定�
 全ハイパーパラメータは [federated_drift_experiment/config.py](federated_drift_experiment/config.py) に一元管理されている
 (論文の記号 K, R, τ, L, E_init, δ_adwin, N_FIFO, γ_dist との対応もコメントに記載)。
 **各変数の意味・使用手法(FedSDA / FedDrift / 共通)・仕様は
-[docs/hyperparameters.md](docs/hyperparameters.md) に一覧化している。**
+[docs/reference/hyperparameters.md](docs/reference/hyperparameters.md) に一覧化している。**
 
 既定値の概要:
 

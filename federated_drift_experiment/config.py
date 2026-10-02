@@ -4,8 +4,8 @@
 `from federated_drift_experiment import config; config.TOTAL_DATA_POINTS = 300` のように
 モジュール属性を書き換えればよい(各モジュールは呼び出し時に参照する)。
 
-各変数の意味・使用手法・設計上の役割は docs/hyperparameters.md に一覧化している。
-括弧内は論文 (main_jp.tex / docs/fedsda-algorithm.md) の記号との対応。
+各変数の意味・使用手法・設計上の役割は docs/reference/hyperparameters.md に一覧化している。
+括弧内は論文 (main_jp.tex / docs/overview/fedsda-algorithm.md) の記号との対応。
 """
 from .data.specs import DATASET_SPECS, get_dataset_spec
 from .data.names import normalize_dataset_name
@@ -27,7 +27,7 @@ DATASET = 'blobs'          # 利用可能な正規名は data/specs.py を参照
 CONCEPT_SCHEDULE = 'random'  # 'random' / 'feddrift_fixed'（データ分布と独立）
 CONCEPT_SCHEDULES = ('random', 'feddrift_fixed')
 
-# 各データセット(SEA-4/CIRCLE-2/SINE-2)の生成規則は data.py と docs/differences-from-feddrift.md §1 を参照。
+# 各データセット(SEA-4/CIRCLE-2/SINE-2)の生成規則は data.py と docs/experiments/differences-from-feddrift.md §1 を参照。
 SEA_THRESHOLDS = {0: 9.0, 1: 8.0, 2: 7.0, 3: 9.5}   # 各概念の閾値 θ(論文 appendix 準拠。concept4=9.5 で4概念を区別)
 SEA_LABEL_NOISE = 0.10     # 各概念に内在するラベルノイズ率(SEA標準10%)
 CIRCLE_PARAMS = {0: (0.2, 0.5, 0.15), 1: (0.6, 0.5, 0.25)}   # CIRCLE-2 各概念の円 (cx, cy, r)
@@ -190,7 +190,7 @@ MIN_DRIFT_DATA = 5          # ドリフト解決に必要な新概念データ�
 # ==========================================
 # FedDrift ベースライン
 # ==========================================
-# 検出バッチサイズ=FedDrift の1ラウンドで処理するサンプル数(検出粒度・集約間隔・学習量を兼ねる)。詳細は docs/hyperparameters.md §7
+# 検出バッチサイズ=FedDrift の1ラウンドで処理するサンプル数(検出粒度・集約間隔・学習量を兼ねる)。詳細は docs/reference/hyperparameters.md §7
 FEDDRIFT_DETECTION_BATCH_SIZE = 50
 # 1検出バッチあたりの通信ラウンド数(論文 R)。既定1=FedSDAと予算一致。R>1で論文忠実だが更新・通信が R倍
 FEDDRIFT_ROUNDS = 1

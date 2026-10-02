@@ -20,7 +20,7 @@
 
 現行コードでは共有表現modeを`NoCached + ClassESR + Restarting SoftRouting`として実装しているため、
 共有モデルでhard routingや他検出器を選ぶ組合せは未実装である。これはモデル構造上の必然ではなく、
-検証済みの実装範囲を限定するための制約である。コード上の正確な依存関係は`docs/options.md`を参照する。
+検証済みの実装範囲を限定するための制約である。コード上の正確な依存関係は`docs/reference/options.md`を参照する。
 
 ```text
 モデル構造

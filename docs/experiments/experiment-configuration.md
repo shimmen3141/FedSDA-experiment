@@ -45,7 +45,7 @@ python -m tools.experiments.artifacts results/results_YYYYMMDD_HHMMSS --tag reco
 
 ## ExperimentConfiguration
 
-[`experiment_spec/configuration.py`](../federated_drift_experiment/experiment_spec/configuration.py)の
+[`experiment_spec/configuration.py`](../../federated_drift_experiment/experiment_spec/configuration.py)の
 `ExperimentConfiguration`は、mode・dataset・seed・アルゴリズム選択肢・解決済みパラメータを持つ。
 一つのインスタンスは一つのrunに対応し、掃引の空指定や無効化状態は持たない。
 
@@ -114,7 +114,7 @@ ExperimentConfiguration（1 runの完全な設定）
 
 ## SweepPlan
 
-[`experiment_spec/sweep.py`](../federated_drift_experiment/experiment_spec/sweep.py)の`SweepPlan`は、データセット、seed、modeと
+[`experiment_spec/sweep.py`](../../federated_drift_experiment/experiment_spec/sweep.py)の`SweepPlan`は、データセット、seed、modeと
 複数の`SweepAxis`を保持し、`ExperimentConfiguration`列を生成する。
 
 ```text

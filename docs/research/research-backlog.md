@@ -2,8 +2,8 @@
 
 本書は、会話ログや一時的な改善メモから、未実装でも再検討価値のある案と、検証後に見送った案を
 整理したものである。現行仕様の正本ではない。実装済みオプションと依存関係は
-[options.md](options.md)、検出器は[drift-detection.md](drift-detection.md)、新規モデル作成は
-[new-model-creation.md](new-model-creation.md)を参照する。
+[options.md](../reference/options.md)、検出器は[drift-detection.md](../components/drift-detection.md)、新規モデル作成は
+[new-model-creation.md](../components/new-model-creation.md)を参照する。
 
 ## 状態の意味
 
