@@ -18,6 +18,9 @@ from federated_learning_experiments.core.settings_field_validation import (
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
+from federated_learning_experiments.methods.fedsda.detection.drift_monitoring_settings import (
+    DriftMonitoringSettings,
+)
 
 
 @pytest.mark.parametrize(
@@ -173,18 +176,24 @@ def test_aggregation_interval_can_exceed_stream_length():
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=1,
         )),
+        *[(DriftMonitoringSettings, dict(
+            drift_detector_name="e_sr",
+            loss_monitoring_scope="overall_and_true_class_losses",
+            e_sr_false_alarm_control_alpha=specified_parameter_value,
+        )) for specified_parameter_value in (0.05, 5e-324, 0.9999999999999999)],
     ],
 )
 def test_settings_instances_are_immutable(settings_type, valid_settings_values):
     settings_instance = settings_type(**valid_settings_values)
     for settings_field in fields(settings_instance):
+        assert getattr(settings_instance, settings_field.name) is valid_settings_values[settings_field.name]
         with pytest.raises(FrozenInstanceError):
             setattr(settings_instance, settings_field.name, None)
         with pytest.raises(FrozenInstanceError):
             delattr(settings_instance, settings_field.name)
 
 
-@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings])
+@pytest.mark.parametrize("settings_type", [ExperimentRunConditions, ModelArchitectureSettings, DriftMonitoringSettings])
 def test_field_annotations_and_metadata_declare_parameter_constraints(settings_type):
     assert get_type_hints(settings_type) == (
         {
@@ -193,6 +202,9 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             "server_aggregation_interval_per_client_samples": int,
         } if settings_type is ExperimentRunConditions else {
             "model_architecture_name": str, "residual_adapter_requested_rank": int,
+        } if settings_type is ModelArchitectureSettings else {
+            "drift_detector_name": str, "loss_monitoring_scope": str,
+            "e_sr_false_alarm_control_alpha": float,
         }
     )
     for settings_field in fields(settings_type):
@@ -204,7 +216,16 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 ("sine2", "sea2", "mnist2")
                 if settings_field.name == "dataset_name"
                 else ("shared_backbone_residual_adapter",)
+                if settings_field.name == "model_architecture_name"
+                else ("e_sr",) if settings_field.name == "drift_detector_name"
+                else ("overall_and_true_class_losses",)
             )
+        elif settings_field.name == "e_sr_false_alarm_control_alpha":
+            assert settings_field.metadata["parameter_unit"] == "dimensionless"
+            assert settings_field.metadata["minimum_allowed_value"] == 0
+            assert settings_field.metadata["minimum_value_is_inclusive"] is False
+            assert settings_field.metadata["maximum_allowed_value"] == 1
+            assert settings_field.metadata["maximum_value_is_inclusive"] is False
         else:
             assert settings_field.metadata["minimum_allowed_value"] == (
                 0 if settings_field.name == "random_seed" else 1
@@ -220,8 +241,10 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
     with pytest.raises(TypeError):
         if settings_type is ExperimentRunConditions:
             settings_type("sine2", 0, 1, 1, 1)
-        else:
+        elif settings_type is ModelArchitectureSettings:
             settings_type("shared_backbone_residual_adapter", 1)
+        else:
+            settings_type("e_sr", "overall_and_true_class_losses", 0.05)
 
 
 @pytest.mark.parametrize("specified_parameter_value", [1, 2, 1000, 10**400])
@@ -236,21 +259,62 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
 
 
 @pytest.mark.parametrize(
+    "settings_type,valid_settings_values,configuration_parameter_name",
+    [
+        (ModelArchitectureSettings, dict(
+            model_architecture_name="shared_backbone_residual_adapter",
+            residual_adapter_requested_rank=1,
+        ), "model_architecture_name"),
+        *[(DriftMonitoringSettings, dict(
+            drift_detector_name="e_sr",
+            loss_monitoring_scope="overall_and_true_class_losses",
+            e_sr_false_alarm_control_alpha=0.05,
+        ), configuration_parameter_name) for configuration_parameter_name in (
+            "drift_detector_name", "loss_monitoring_scope",
+        )],
+    ],
+)
+@pytest.mark.parametrize(
     "specified_parameter_value",
     ["unknown", "residual_adapter", "shared_backbone", "SHARED_BACKBONE_RESIDUAL_ADAPTER",
-     " shared_backbone_residual_adapter", True, 1, None, []],
+     " shared_backbone_residual_adapter", "ClassESR", "class_esr", "ESR", "esr",
+     "E_SR", " e_sr", "overall", "class", "overall_and_class_losses",
+     "OVERALL_AND_TRUE_CLASS_LOSSES", " overall_and_true_class_losses", True, 1, None, []],
 )
-def test_component_options_reject_unknown_names(specified_parameter_value):
-    """旧名・大小文字差・型違いを正式なモデル構造として受理しない。"""
+def test_component_options_reject_unknown_names(
+    settings_type, valid_settings_values, configuration_parameter_name,
+    specified_parameter_value,
+):
+    """旧名・大小文字差・型違いを正式な機能の選択肢として受理しない。"""
+    expected_failure_reason = valid_settings_values[configuration_parameter_name]
+    valid_settings_values = dict(valid_settings_values)
+    valid_settings_values[configuration_parameter_name] = specified_parameter_value
     with pytest.raises(RunSettingsValidationError) as validation_error:
-        ModelArchitectureSettings(
-            model_architecture_name=specified_parameter_value,
-            residual_adapter_requested_rank=1,
-        )
-    assert validation_error.value.configuration_parameter_name == "model_architecture_name"
+        settings_type(**valid_settings_values)
+    assert validation_error.value.configuration_parameter_name == configuration_parameter_name
     assert validation_error.value.specified_parameter_value is specified_parameter_value
     assert "文字列" in validation_error.value.validation_failure_reason
-    assert "shared_backbone_residual_adapter" in validation_error.value.validation_failure_reason
+    assert expected_failure_reason in validation_error.value.validation_failure_reason
+
+
+@pytest.mark.parametrize(
+    "specified_parameter_value",
+    [float("nan"), float("inf"), float("-inf"), True, False, "0.05", None,
+     [], 0, 1, -0.05, 1.05, 10**400],
+)
+def test_monitoring_alpha_rejects_nonfinite_and_out_of_range_values(specified_parameter_value):
+    """誤警報制御値はboolを除く有限実数の開区間だけを受理する。"""
+    with pytest.raises(RunSettingsValidationError) as validation_error:
+        DriftMonitoringSettings(
+            drift_detector_name="e_sr",
+            loss_monitoring_scope="overall_and_true_class_losses",
+            e_sr_false_alarm_control_alpha=specified_parameter_value,
+        )
+    assert validation_error.value.configuration_parameter_name == "e_sr_false_alarm_control_alpha"
+    assert validation_error.value.specified_parameter_value is specified_parameter_value
+    assert "有限の実数" in validation_error.value.validation_failure_reason
+    assert "0より大きい" in validation_error.value.validation_failure_reason
+    assert "1未満" in validation_error.value.validation_failure_reason
 
 
 @pytest.mark.parametrize("settings_field_type", [int, float])
