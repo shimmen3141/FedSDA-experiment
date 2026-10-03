@@ -12,6 +12,8 @@ import torch
 
 from federated_drift_experiment import config
 from federated_drift_experiment.clients.fedsda import FedSDAClient
+from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import LossChangeDetectionSettings
+from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import OverallAndTrueClassLossMonitor
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import TrainingDataAssignmentSettings
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer
 
@@ -208,4 +210,88 @@ def test_pending_assignment_legacy_alarm_branches_preserve_consumption_after_dra
     buffer.append_observed_sample_index(sample_index=73)
     assert buffer.get_change_interval_partition(estimated_change_span_sample_count=10**30).change_interval_sample_indices == (73,)
 
+def test_pending_assignment_copies_instances_and_random_states_are_independent():
+    """返却copyへの変更・別実体操作・共有乱数の副作用を検査する。"""
+    global_python_random_state = random.getstate()
+    global_numpy_random_state = np.random.get_state()
+    global_torch_random_state = torch.get_rng_state().clone()
+    buffer = make_assignment_buffer(1)
+    reference_buffer = make_assignment_buffer(1)
+    buffer.append_observed_sample_index(sample_index=71)
+    state_snapshot = buffer.get_state_snapshot()
+    result = buffer.get_change_interval_partition(estimated_change_span_sample_count=1)
+    with pytest.raises(FrozenInstanceError):
+        state_snapshot.last_observed_sample_index = 0
+    with pytest.raises(FrozenInstanceError):
+        state_snapshot.pending_sample_indices = ()
+    with pytest.raises(FrozenInstanceError):
+        result.change_interval_start_sample_index = 0
+    for field_name in ("earlier_sample_indices", "change_interval_sample_indices"):
+        with pytest.raises(FrozenInstanceError):
+            setattr(result, field_name, ())
+    buffer.append_observed_sample_index(sample_index=72)
+    assert buffer.release_sample_indices_exceeding_capacity() == (71,)
+    assert buffer.drain_pending_sample_indices() == (72,)
+    reference_buffer.append_observed_sample_index(sample_index=0)
+    assert state_snapshot.pending_sample_indices == (71,)
+    assert result.change_interval_sample_indices == (71,)
+    assert reference_buffer.get_state_snapshot().pending_sample_indices == (0,)
+    assert buffer.get_state_snapshot().pending_sample_indices == ()
+    assert random.getstate() == global_python_random_state
+    assert np.random.get_state()[0] == global_numpy_random_state[0]
+    np.testing.assert_array_equal(np.random.get_state()[1], global_numpy_random_state[1])
+    assert np.random.get_state()[2:] == global_numpy_random_state[2:]
+    assert torch.equal(torch.get_rng_state(), global_torch_random_state)
 
+
+@pytest.mark.parametrize("capacity", [1, 3, 30])
+def test_pending_assignment_monitoring_span_connects_to_buffer_partition(capacity):
+    """monitor public結果を入力し、FIFO前の候補を明示的に切り詰める。"""
+    loss_change_detection_settings = LossChangeDetectionSettings(
+        e_sr_false_alarm_control_alpha=.01,
+        drift_detector_name="e_sr",
+        loss_monitoring_scope="overall_and_true_class_losses",
+    )
+    monitor = OverallAndTrueClassLossMonitor(
+        loss_change_detection_settings=loss_change_detection_settings,
+        class_count=2, initial_baseline_loss_mean=.2,
+        maximum_retained_candidate_count=80, betting_fractions=(.2, .5, .8),
+    )
+    buffer = make_assignment_buffer(capacity)
+    for observation_index in range(101):
+        observation = monitor.observe_loss_after_label_observation(
+            observed_loss=(.1 if observation_index < 30 else .9),
+            observed_class_id=observation_index % 2, sample_index=observation_index,
+            current_model_baseline_loss_mean=.2,
+        )
+        buffer.append_observed_sample_index(sample_index=observation_index)
+        result = buffer.get_change_interval_partition(
+            estimated_change_span_sample_count=observation.estimated_change_span_sample_count,
+        )
+        state_snapshot = buffer.get_state_snapshot()
+        assert result.change_interval_start_sample_index == max(
+            state_snapshot.pending_sample_indices[0],
+            observation.detector_candidate_start_sample_index,
+        )
+        assert result.change_interval_sample_indices[-1] == observation.sample_index
+        assert buffer.get_state_snapshot() == state_snapshot
+        buffer.release_sample_indices_exceeding_capacity()
+    assert observation.detector_candidate_start_sample_index < result.change_interval_start_sample_index
+    # 最終結果は容量解放前の参照で、警報操作をbufferが自動選択しない。
+    assert buffer.get_state_snapshot().last_observed_sample_index == 100
+
+
+def test_pending_assignment_public_functions_require_explicit_keyword_arguments():
+    for operation, field_name in (
+        (PendingTrainingAssignmentBuffer, "training_data_assignment_settings"),
+        (PendingTrainingAssignmentBuffer.append_observed_sample_index, "sample_index"),
+        (PendingTrainingAssignmentBuffer.get_change_interval_partition, "estimated_change_span_sample_count"),
+    ):
+        assert inspect.signature(operation).parameters[field_name].kind is inspect.Parameter.KEYWORD_ONLY
+    buffer = make_assignment_buffer()
+    with pytest.raises(TypeError):
+        buffer.append_observed_sample_index(0)
+    with pytest.raises(TypeError):
+        buffer.get_change_interval_partition(1)
+    with pytest.raises(TypeError):
+        PendingTrainingAssignmentBuffer(TrainingDataAssignmentSettings(pending_assignment_buffer_capacity_samples=3))

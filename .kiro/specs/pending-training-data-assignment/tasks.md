@@ -16,7 +16,7 @@
   - _Depends: 1_
   - _Boundary: 同FIFO部品・対象テスト・共有LEGACY-002記録_
 
-- [ ] 3. 監視結果との位置接続・依存境界・全回帰を統合検証する
+- [x] 3. 監視結果との位置接続・依存境界・全回帰を統合検証する
   - public監視結果の正spanを明示入力し、FIFO開始位置の切詰めを確認する。結果copy/frozen・実体間独立・共有乱数不変・keyword契約を検証する。
   - ASTをstdlibと同機能の設定だけのexact依存へ更新し、禁止注入が失敗することを確認する。全tests・旧11/最終3golden・旧importなし独立smokeを実行する。
   - 完了はLuna最終GOと主担当のfresh検証、14/14条件の証拠、部分完成範囲・後続責務・発見記録・roadmapを残す。新FedSDA全体run完成とは扱わない。

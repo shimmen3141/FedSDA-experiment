@@ -1,5 +1,9 @@
 # レビューと承認
 
+## task 3: APPROVED / TASK VERIFIED
+
+AST更新前REDは2 failed / 159 passed、exact許可の追加後161 passed。Luna独立対象実行も161 passed / exit 0、Review Verdict APPROVED task 3、指摘なし。主担当fresh対象再検証は161 passed / exit 0。全回帰2580 passed / 3 skipped /119.22s、独立smoke exit 0、旧production/golden差分なし。14条件と設計の接続・partial範囲をintegration-validation.mdに確認しTASK VERIFIED。EOF空行と共有記録への相対リンクを検査で修正し、diff check/ローカルリンク検査を通過した。最終feature GOは別に記録する。
+
 ## task 2: APPROVED / TASK VERIFIED
 
 REDは未存在methodによる34 failed / 28 passed。実装後GREEN62 passed、Luna独立再検証62 passed / exit 0でReview Verdict APPROVED task 2、指摘なし。主担当fresh再実行も62 passed / exit 0。空/正span/切詰めglobal位置、3警報分岐、非破壊保持、drain後の順序拒否を旧メソッドへ直接比較した。LEGACY-002再現だけの実行は10 passed / 52 deselected、記録へコマンドと未確認の影響を接続した。

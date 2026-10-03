@@ -55,6 +55,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:
         return True
+    if source_module_path == "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py":
+        # 保留位置FIFOは同機能の容量条件だけを参照する。
+        return (
+            imported_module_name == "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings"
+            or imported_module_name.startswith("federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.")
+        )
     if source_module_path == "methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py":
         # 単系列の数値検出器だけにNumPyを許可する。
         return imported_module_name == "numpy" or imported_module_name.startswith("numpy.")
@@ -208,6 +214,13 @@ def test_single_run_layers_import_only_allowed_dependencies():
     "source_module_path,source_text,expected_imported_module_name",
     [
         ("learning/prediction/class_probability_calculations.py", "import numpy", "numpy"),
+        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "import numpy", "numpy"),
+        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "import torch", "torch"),
+        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "import config", "config"),
+        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from federated_drift_experiment import clients", "federated_drift_experiment"),
+        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from ..loss_change_detection import overall_and_true_class_loss_monitoring", "federated_learning_experiments.methods.fedsda.loss_change_detection"),
+        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from . import another_assignment_buffer", "federated_learning_experiments.methods.fedsda.training_data_assignment"),
         ("learning/prediction/class_probability_calculations.py", "import config", "config"),
         ("learning/prediction/class_probability_calculations.py", "from federated_drift_experiment import expert_routing", "federated_drift_experiment"),
         ("learning/prediction/class_probability_calculations.py", "from ... import runtime", "federated_learning_experiments.runtime"),
@@ -298,6 +311,8 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
     "source_module_path,source_text",
     [
         ("learning/prediction/class_probability_calculations.py", "import torch"),
+        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from .training_data_assignment_settings import TrainingDataAssignmentSettings"),
+        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from collections import deque"),
         ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "import torch"),
         ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings"),
         ("learning/prediction/class_probability_calculations.py", "from torch import Tensor"),

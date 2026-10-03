@@ -13,9 +13,9 @@
 
 ## 発見記録の正本
 
-- [丸め境界の判定・理由不一致](../../../../docs/research/implementation-findings/legacy-001-candidate-decision-reason-rounding.md)
-- [短い警報後の割当済み標本の残留](../../../../docs/research/implementation-findings/legacy-002-retained-assigned-samples-after-short-alarm.md)
-- [終端FIFO末尾の未帰属](../../../../docs/research/implementation-findings/legacy-003-unassigned-fifo-tail-at-run-end.md)
+- [丸め境界の判定・理由不一致](../../../docs/research/implementation-findings/legacy-001-candidate-decision-reason-rounding.md)
+- [短い警報後の割当済み標本の残留](../../../docs/research/implementation-findings/legacy-002-retained-assigned-samples-after-short-alarm.md)
+- [終端FIFO末尾の未帰属](../../../docs/research/implementation-findings/legacy-003-unassigned-fifo-tail-at-run-end.md)
 
 上記リンクはworktree内の共有記録を指す。今回の旧数値保持移植は不具合修正と分離する。
 
