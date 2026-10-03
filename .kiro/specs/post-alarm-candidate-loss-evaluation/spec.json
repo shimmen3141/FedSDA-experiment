@@ -1,9 +1,9 @@
 {
   "feature_name": "post-alarm-candidate-loss-evaluation",
   "created_at": "2026-10-03T18:09:07.182043+00:00",
-  "updated_at": "2026-10-03T18:41:23.191501+00:00",
+  "updated_at": "2026-10-03T18:43:33.035995+00:00",
   "language": "ja",
-  "phase": "implementation-in-progress",
+  "phase": "implementation-complete",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -51,7 +51,7 @@
       "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages"
     }
   },
-  "ready_for_implementation": true,
+  "ready_for_implementation": false,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "upstream_specs": [
     "configuration-foundation"
@@ -69,5 +69,23 @@
     "completed_task_count": 3,
     "next_task": null,
     "total_executable_tasks": 3
+  },
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go",
+    "requirements_covered": 15,
+    "test_pass_count": 2504,
+    "test_skip_count": 3,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "stateless_post_alarm_candidate_loss_evaluation_only"
   }
 }

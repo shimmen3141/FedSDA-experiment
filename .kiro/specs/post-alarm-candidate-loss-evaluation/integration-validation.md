@@ -3,7 +3,7 @@
 ## 対象と判定
 
 対象は外部収集済みloss列による既存参照の適合選択、現行優先、全参照の比較対象選択、二分区間の候補採否と診断値。結果はimmutableで可変stateを蓄積しない。
-モデルforward・学習・履歴平均推定・収集session・FIFO・採否後の登録/割当・新FedSDA全体runは後続範囲。最終判定と承認状態の正本はspec.json。
+モデルforward・学習・履歴平均推定・収集session・FIFO・採否後の登録/割当・新FedSDA全体runは後続範囲。最終判定はGO、承認状態の正本はspec.json。Lunaが全15条件・設計・接続・blockedなしを確認し、独立smokeも再実行してGO。主担当も最新全回帰・smoke・承認hashと完成境界を確認しFEATURE_GO VERIFIED。
 
 ## 要件の証拠
 
