@@ -222,3 +222,57 @@ class FixedSharePredictionWeightController:
             prediction_weights_by_model_id=self._weights_by_model_id,
         ) != previous_leader_model_id:
             self._prediction_weight_leader_switch_count += 1
+
+    def _clear_prediction_weight_evidence(self) -> None:
+        """重みと累積分散だけを消去し、診断計数を保持する。"""
+        self._weights_by_model_id = {}
+        self._cumulative_observed_loss_variance = 0.0
+
+    @staticmethod
+    def _validated_observed_loss_sequence(
+        *, observed_loss_sequence: Iterable[Mapping[int, float]],
+    ) -> tuple[dict[int, float], ...]:
+        """後段や列挙の失敗より前に状態を変更しないため、全行をコピーする。"""
+        return tuple(
+            FixedSharePredictionWeightController._validated_observed_losses(
+                observed_losses_by_model_id=observed_losses_by_model_id,
+            )
+            for observed_losses_by_model_id in observed_loss_sequence
+        )
+
+    def reset_weights_after_aggregation(self) -> None:
+        """集約後の明示的resetを、証拠が空でも一回として計数する。"""
+        self._clear_prediction_weight_evidence()
+        self._aggregation_recalibration_count += 1
+
+    def replay_observed_losses(
+        self, *, observed_loss_sequence: Iterable[Mapping[int, float]],
+    ) -> None:
+        """全行を検証後に証拠を消去し、損失の列順で再構成する。"""
+        validated_observed_loss_sequence = self._validated_observed_loss_sequence(
+            observed_loss_sequence=observed_loss_sequence,
+        )
+        if not validated_observed_loss_sequence:
+            return
+        self._clear_prediction_weight_evidence()
+        for observed_losses_by_model_id in validated_observed_loss_sequence:
+            prediction_weights_by_model_id = self.get_prediction_weights_before_label_observation(
+                model_ids=observed_losses_by_model_id,
+            )
+            self.update_weights_after_loss_observation(
+                observed_losses_by_model_id=observed_losses_by_model_id,
+                prediction_weights_by_model_id=prediction_weights_by_model_id,
+            )
+
+    def replay_observed_losses_after_aggregation(
+        self, *, observed_loss_sequence: Iterable[Mapping[int, float]],
+    ) -> None:
+        """非空の集約後損失列だけを再較正・再生標本数へ加算する。"""
+        validated_observed_loss_sequence = self._validated_observed_loss_sequence(
+            observed_loss_sequence=observed_loss_sequence,
+        )
+        if not validated_observed_loss_sequence:
+            return
+        self._aggregation_recalibration_count += 1
+        self._aggregation_recalibration_sample_count += len(validated_observed_loss_sequence)
+        self.replay_observed_losses(observed_loss_sequence=validated_observed_loss_sequence)

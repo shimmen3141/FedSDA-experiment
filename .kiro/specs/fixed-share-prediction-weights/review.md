@@ -35,3 +35,10 @@
 - Luna: 実diffと旧updateの演算順を直接照合、共有TMP/TEMP/MPLCONFIGDIRを使った対象・設定テスト1316 passed / 3.22s / exit 0、指摘なしAPPROVED。
 - 主担当: 同じ最終対象コマンドを再実行、1316 passed / 3.08s / exit 0。時間尺度2/30/10000の各操作後に全状態完全一致、不正入力時の非ゼロ計数保持を確認してVERIFIED。
 - RED時のmatplotlib一時ディレクトリ終了処理のsandbox権限エラーは、既存共有TMP/MPLCONFIGDIR指定で解消。goldenや依存は変更していない。
+
+## Task 3: APPROVED / VERIFIED
+
+- 主担当が既承認task 3をmanual TDDで実装。RED: 未実装replay/resetで17 failed / 1316 passed / exit 1。GREEN: 1333 passed。keywordと列挙例外の補強後1335 passed / 3.54s。
+- Lunaが実diff、旧再生・reset、全行検証と計数を直接レビュー。対象・設定テスト1335 passed / 3.20s / exit 0、指摘なしAPPROVED。
+- 主担当が同じ最終対象コマンドを再実行し、1335 passed / exit 0を確認してVERIFIED。
+- 全列先行検証・途中集合差・空列・集約回数/標本数・明示reset・不正後段/列挙途中例外を確認。依存境界と全回帰はtask 4。

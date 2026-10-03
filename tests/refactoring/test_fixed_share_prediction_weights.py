@@ -217,6 +217,10 @@ def test_fixed_share_prediction_weight_calls_require_keyword_arguments(valid_run
         controller.update_weights_after_loss_observation(observed_losses_by_model_id={0: 0})
     with pytest.raises(TypeError):
         controller.select_maximum_weight_model_id({0: 1})
+    with pytest.raises(TypeError):
+        controller.replay_observed_losses(({0: 0.2},))
+    with pytest.raises(TypeError):
+        controller.replay_observed_losses_after_aggregation(({0: 0.2},))
 
 
 def test_fixed_share_model_pool_changes_preserve_order_and_reset_only_when_needed(valid_run_settings_mapping):
@@ -281,6 +285,116 @@ def test_fixed_share_returned_weights_and_diagnostics_do_not_expose_owned_state(
             setattr(controller, record_field_name, None)
         with pytest.raises(AttributeError):
             delattr(controller, record_field_name)
+    assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
+
+
+@pytest.mark.parametrize("replay_after_aggregation", [False, True])
+def test_fixed_share_replay_matches_reference_for_ordered_and_changing_model_pools(
+    valid_run_settings_mapping, replay_after_aggregation,
+):
+    """順序を保つ再生と途中の集合差を、非ゼロの既存証拠から照合する。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    reference_router = SwitchingExpertRouter(2)
+    observed_loss_sequence = ({2: 0.9, -1: 0.1}, {2: 0.2, -1: 0.8},
+                              {4: -1.0, -1: 3.0}, {-1: 0.3}, {4: 0.2, -1: 0.4})
+    for observed_losses_by_model_id in observed_loss_sequence[:2]:
+        returned_prediction_weights = controller.get_prediction_weights_before_label_observation(
+            model_ids=observed_losses_by_model_id,
+        )
+        controller.update_weights_after_loss_observation(
+            observed_losses_by_model_id=observed_losses_by_model_id,
+            prediction_weights_by_model_id=returned_prediction_weights,
+        )
+        reference_router.update(observed_losses_by_model_id, reference_router.probabilities(observed_losses_by_model_id))
+    if replay_after_aggregation:
+        controller.replay_observed_losses_after_aggregation(observed_loss_sequence=iter(observed_loss_sequence))
+        reference_router.replay_after_aggregation(observed_loss_sequence)
+    else:
+        controller.replay_observed_losses(observed_loss_sequence=iter(observed_loss_sequence))
+        reference_router.replay(observed_loss_sequence)
+    assert_fixed_share_state_matches_reference(controller=controller, reference_router=reference_router)
+    assert observed_loss_sequence == ({2: 0.9, -1: 0.1}, {2: 0.2, -1: 0.8},
+                                      {4: -1.0, -1: 3.0}, {-1: 0.3}, {4: 0.2, -1: 0.4})
+
+
+def test_fixed_share_aggregation_reset_and_replay_counters_match_reference(valid_run_settings_mapping):
+    """集約reset、通常再生、集約再生の計数と証拠を区別する。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    reference_router = SwitchingExpertRouter(2)
+    observed_loss_sequence = ({-1: 0, 1: 1}, {-1: 1, 1: 0})
+    for observation_index in range(2):
+        controller.reset_weights_after_aggregation()
+        reference_router.restart_after_aggregation()
+        assert_fixed_share_state_matches_reference(controller=controller, reference_router=reference_router)
+    controller.replay_observed_losses(observed_loss_sequence=observed_loss_sequence)
+    reference_router.replay(observed_loss_sequence)
+    assert_fixed_share_state_matches_reference(controller=controller, reference_router=reference_router)
+    controller.replay_observed_losses_after_aggregation(observed_loss_sequence=observed_loss_sequence)
+    reference_router.replay_after_aggregation(observed_loss_sequence)
+    assert_fixed_share_state_matches_reference(controller=controller, reference_router=reference_router)
+    assert controller.aggregation_recalibration_count == 3
+    assert controller.aggregation_recalibration_sample_count == 2
+    controller.reset_weights_after_aggregation()
+    reference_router.restart_after_aggregation()
+    assert_fixed_share_state_matches_reference(controller=controller, reference_router=reference_router)
+    assert controller.prediction_weight_leader_switch_count > 0
+
+
+@pytest.mark.parametrize("replay_after_aggregation", [False, True])
+def test_fixed_share_empty_replay_preserves_evidence_and_all_counters(
+    valid_run_settings_mapping, replay_after_aggregation,
+):
+    """初期状態と非ゼロ証拠のどちらも空列の受領で変化しない。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    for observation_index in range(2):
+        controller_state_before_call = capture_fixed_share_controller_state(controller=controller)
+        if replay_after_aggregation:
+            controller.replay_observed_losses_after_aggregation(observed_loss_sequence=iter(()))
+        else:
+            controller.replay_observed_losses(observed_loss_sequence=iter(()))
+        assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
+        controller.replay_observed_losses_after_aggregation(
+            observed_loss_sequence=({0: 1, -1: 0}, {0: 0, -1: 1}, {0: 0, 2: 1}),
+        )
+
+
+@pytest.mark.parametrize("replay_after_aggregation", [False, True])
+@pytest.mark.parametrize("invalid_observed_loss_sequence", [
+    ({0: 0.2, 1: 0.8}, {}),
+    ({0: 0.2, 1: 0.8}, {0: float("nan"), 1: 0.5}),
+    ({0: 0.2, 1: 0.8}, {True: 0.2}),
+    ({0: 0.2, 1: 0.8}, {0: 10**400}),
+    ({0: 0.2, 1: 0.8}, []),
+    None,
+    "raise_while_iterating",
+])
+def test_fixed_share_invalid_later_replay_rows_leave_all_state_unchanged(
+    valid_run_settings_mapping, replay_after_aggregation, invalid_observed_loss_sequence,
+):
+    """後段の不正行でも先行行を適用せず、全証拠・計数を保持する。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    controller.replay_observed_losses_after_aggregation(
+        observed_loss_sequence=({-1: 0, 9: 1}, {-1: 1, 9: 0}, {9: 0}),
+    )
+    controller_state_before_call = capture_fixed_share_controller_state(controller=controller)
+    if invalid_observed_loss_sequence == "raise_while_iterating":
+        invalid_observed_loss_sequence = map(
+            lambda observed_losses_by_model_id: observed_losses_by_model_id[0],
+            ({0: {0: 0.2, 1: 0.8}}, {}),
+        )
+    with pytest.raises((TypeError, ValueError, KeyError)):
+        if replay_after_aggregation:
+            controller.replay_observed_losses_after_aggregation(observed_loss_sequence=invalid_observed_loss_sequence)
+        else:
+            controller.replay_observed_losses(observed_loss_sequence=invalid_observed_loss_sequence)
     assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
 
 
