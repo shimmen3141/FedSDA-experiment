@@ -171,3 +171,12 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 複合型はexecution内で検査し、既存coreへ複合検証を追加していない。部分設定型、対象外dataset/方式、seed上限超過を拒否し、端数・区間長超過を許容した。
 - 別gpt-6-luna実装レビュー: APPROVED、指摘なし、fresh1662成功/9.87秒。既存threadを再利用した。
 - task 4.2完了はVERIFIED。旧実装・goldenは変更していない。
+
+### task 4.3追加命名・実装・検証と4.2補修
+
+- 命名revision 10を既存Luna threadがPASS、指摘なし。主担当が承認した。実装は既存 `/root/implement_single_run_3_1` threadで行った。
+- RED: run_participant_contracts未実装でcollection error。Protocol・不変記録・位置例外を実装した。
+- 主担当の追加確認で、方式名との等値比較だけだと同値のNumPy配列を受理し可変参照が残る点を発見した。既承認テスト名の不正値ケースへ配列を追加し、1失敗/7成功を確認後、厳密なstr型検査で修正した。
+- GREEN: 全refactoring 1725成功/12.39秒。主担当freshはexit 0、1725成功/13.62秒。
+- 別Luna実装レビューはAPPROVED、fresh1725成功/10.51秒、追加指摘なし。4.2補修も有用な修正として確認された。
+- task 4.3完了はVERIFIED。成功記録のexact tuple・要素型で可変参照を拒否し、参加者の実行契約検査はruntimeへ残した。旧実装・goldenは不変。

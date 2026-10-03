@@ -1,8 +1,38 @@
 # 単一run specの命名
 
-- revision: 9。task 4.2の実行条件テスト名を追加。承認状態はspec.jsonを確認する。
+- revision: 10。task 4.3の接続・記録契約名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 現段階では新src・実装を先取りするテストを作らない。
+
+## task 4.3: 接続・記録契約の追加名
+
+公開型・操作・フィールドは下の既承認表を使う。参加者の件数・ID・必要操作検査はruntimeが所有する。
+RunParticipantsは不変の容器でclient tupleと処理部参照を保持する。成功結果は参加者参照を保持しない。
+イベント位置はNoneを既定とし、結果の全フィールドは必須。正式stage値と位置はイベント・例外で同じ検査を使う。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| RUN_EXECUTION_STAGE_NAMES | tuple[str, ...]。下表の13正式stage値。recordsで宣言しerrorsから共有 |
+| validate_run_execution_stage_and_positions | keyword-only stage_name/client_id/sample_index/round_index → None。正式stageとNoneまたは非負int位置を検証。状態変更なし |
+| position_parameter_name, position_parameter_value | strとintまたはNone。位置の検証対象項目・値 |
+| sample_count_parameter_name, sample_count_parameter_value | strとint。結果件数を非負intとして検証する局所値 |
+| observed_client_stream, evaluation_concept_trace, execution_event | 結果tupleの要素検証で使用する各記録 |
+| test_run_participant_protocols_expose_only_declared_observation_operations | Protocolの公開member・keyword-only・真の概念入力なしを確認 |
+| test_run_participants_preserve_operation_references_and_reject_mutable_client_collections | 参照保持・容器不変性・list拒否を確認 |
+| test_run_execution_events_preserve_stage_and_optional_positions | 13stageと任意位置の保持を確認 |
+| test_run_execution_records_are_frozen_and_keyword_only | イベント・成功結果の変更/削除/位置引数拒否を確認 |
+| test_stream_protocol_results_preserve_observations_truth_counts_and_event_order | 観測・真値・件数・順序を保持し参加者・乱数・研究指標fieldがないことを確認 |
+| test_stream_protocol_results_reject_mutable_or_invalid_records | list・不正要素・件数の拒否を確認 |
+| test_run_execution_errors_preserve_stage_positions_reason_and_cause | 実raise-fromの元causeと日本語位置表示を確認 |
+| test_run_execution_records_reject_unknown_stages_and_invalid_positions | 不明stage・負値・bool・非整数位置の拒否を確認 |
+| protocol_type, protocol_member_names, expected_protocol_member_names | Protocol型・宣言member集合・期待集合 |
+| operation_name, operation_parameters | 検査するmethod名とinspectの引数情報 |
+| participants, operation_reference | RunParticipantsとテスト専用の処理部参照 |
+| run_result, run_execution_error, original_exception | 成功記録・位置付き例外・元例外 |
+| valid_run_result_field_values | fixture。各テストへ正常値dictを独立供給 |
+| stage_names | テスト側の13stage期待値tuple。production定数を期待値に流用しない |
+
+記録の既承認局所名は同じ役割で再利用する。真の概念列は処理部Protocolへ渡さない。
 
 ## 引き継ぐ正式名と利用範囲
 

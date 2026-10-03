@@ -46,7 +46,10 @@ def validate_stream_protocol_execution_settings(*, execution_settings: object) -
         )
     validate_settings_field_values(execution_settings.experiment_run_conditions)
     validate_settings_field_values(execution_settings.concept_schedule_settings)
-    if execution_settings.execution_strategy != "sample_index_then_client_order_with_interval_synchronization":
+    if (
+        type(execution_settings.execution_strategy) is not str
+        or execution_settings.execution_strategy != "sample_index_then_client_order_with_interval_synchronization"
+    ):
         raise RunSettingsValidationError(
             configuration_parameter_name="execution_strategy",
             specified_parameter_value=execution_settings.execution_strategy,
