@@ -153,3 +153,13 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 別agentのgpt-6-luna `/root/luna_single_run_3_1_review` の実装レビュー: APPROVED、指摘なし、fresh1643成功/6.79秒。threadは再利用であり新規コンテキストではない。
 - 主担当fresh検証: workspace内TMP/TEMP/MPLCONFIGDIR・sandbox外、canonical refactoringテストexit 0、1643成功/6.98秒。task 3.2完了はVERIFIED。
 - データ供給の範囲までを完成した。学習・判断処理や最終FedSDAの新経路golden一致は未実装のまま。
+
+### task 4.1追加命名・実装・検証
+
+- 新規threadが作れないため、kiro-implのmanual実行として主担当がtask 4.1を実装した。別Luna threadによるレビューは維持した。
+- gpt-6-luna `/root/luna_single_run_3_1_review` の命名revision 8レビュー: PASS、指摘なし。主担当が承認した。
+- RED: run_random_sources未作成でcollection error 1件/1.88秒。テスト追加後にproductionを作成した。
+- Installed torchのmanual_seedは全デバイス対象であることを確認し、CPU default_generatorへ直接seed設定する実装を選んだ。fork_rngのdeviceリストは空にし、CPU状態だけを復元する。
+- 主担当GREEN/fresh証拠: workspace内TEMP・MPLCONFIGDIRでcanonical refactoringテスト、exit 0、1647成功/6.21秒。
+- 別gpt-6-luna実装レビュー: APPROVED、指摘なし、fresh1647成功/6.06秒。独立乱数実体、旧値列、global保持、CPU状態の正常/例外復元、他device seed API非呼出、thread/dtype保持を確認した。
+- task 4.1完了はVERIFIED。乱数容器は可変な実行状態として保持し、設定や結果型へ昇格させない。

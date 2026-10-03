@@ -1,6 +1,6 @@
 # 単一run specの命名
 
-- revision: 7。task 3.2のSINE生成名を追加。承認状態はspec.jsonを確認する。
+- revision: 8。task 4.1の乱数境界テスト名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 現段階では新src・実装を先取りするテストを作らない。
 
@@ -248,3 +248,25 @@ productionの型・フィールドは既存表を使い、補助関数は追加�
 | sample_count | int。単一標本生成を繰り返すテスト内の回数 |
 
 既承認の標本・概念・client位置名を同じ意味で使う。NumPyの慣用aliasはnp。テストでのみtorchとSimpleNamespaceを使い、旧moduleのnp参照を局所的に差し替えて復元する。
+
+## task 4.1: run専用乱数とCPU状態の復元
+
+productionは既存表のRunRandomSources・create_run_random_sources・isolated_cpu_torch_random_stateを使う。追加補助関数・production局所名は導入しない。
+torch.manual_seedは全デバイスを対象とするため、CPUのdefault_generatorへ直接seedを設定し、CPUだけのcontextで全出口を復元する。
+tests/refactoring/test_single_run_execution.pyへ以下を追加する。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| test_run_random_sources_are_independent_and_reproduce_legacy_sequences | 各runの新規実体、旧乱数方式の値列と呼出元のglobal保持を確認 |
+| test_cpu_torch_random_scope_restores_state_on_success_and_failure | 同じCPU seedの値列と、成功・例外出口の状態復元を確認 |
+| test_cpu_torch_random_scope_does_not_seed_other_devices_or_change_runtime_defaults | 全device seed APIを呼ばず、thread数・dtypeを変更しないことを確認 |
+| run_random_sources, repeated_run_random_sources | RunRandomSources。独立して作成する同条件の実行乱数 |
+| expected_python_random_generator, expected_numpy_random_generator | RandomとRandomState。旧方式の期待値列を作る独立実体 |
+| original_cpu_torch_random_state | torch.Tensor。context前のCPU状態、復元照合用 |
+| expected_cpu_random_generator | torch.Generator。CPU値列の独立した参照 |
+| observed_cpu_random_values | torch.Tensor。context内で消費した実際のCPU値列 |
+| fail_inside_scope | bool。正常出口/例外出口を選ぶテスト引数 |
+| non_cpu_seed_calls | list[int]。全device/他device seed APIへの呼出を記録するspy |
+| original_torch_thread_count, original_torch_default_dtype | intとtorch.dtype。呼出前の実行既定値 |
+
+global Python/NumPy状態とmonkeypatchは既承認名を再利用する。乱数容器は可変な実行状態であり、固定条件や成功結果として保存しない。
