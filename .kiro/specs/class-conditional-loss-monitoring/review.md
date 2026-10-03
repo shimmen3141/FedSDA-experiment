@@ -15,3 +15,7 @@ Lunaが20条件・旧oracleに照らし、単一数値/混合位置の状態所�
 
 constructor test引数字書など4局所名を追加しLuna PASS、revision 2を承認後に実装。単一kernel TDD REDは未存在moduleのcollection error（exit 1）。GREENは1319 passed、Luna独立再検証1319 passed / 3.77s、Review Verdict APPROVED task 1、指摘なし。主担当も同コマンド再実行exit 0を確認しTASK VERIFIED。上限1/7/1000、baseline0/0.2/0.6/1、bet5個/単一/重複の各130観測で全候補capital・番号・結果を丸めず照合。AST例外はtask 3で追加する。
 
+## 命名revision 3とtask 2
+
+混合側の不正入力test名を分割し、Luna PASS、revision 3承認後にproductionを実装。TDD REDは未存在mixed moduleのcollection error（exit 1）。GREENは1347 passed、Luna独立検証1347 passed / 5.99s、Review Verdict APPROVED task 2、指摘なし。主担当の再実行もexit 0でTASK VERIFIED。3 class数×3保持上限の各420観測を旧client実メソッドと完全一致させた。class遅延baseline・未観測class・保持位置・reset・同率優先・不正入力全状態不変を確認。同率testは同一成分寄与を双方へtest注入して優先順だけを検証し、通常数値同値は別の実系列で確認した。
+

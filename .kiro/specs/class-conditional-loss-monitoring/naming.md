@@ -1,6 +1,6 @@
 # 命名正本
 
-revision: 2。承認hashとrevisionはspec.json。旧名はtest oracleのみ。ESRは既存e-SRのアルゴリズム名を保持する。
+revision: 3。承認hashとrevisionはspec.json。旧名はtest oracleのみ。ESRは既存e-SRのアルゴリズム名を保持する。
 
 ## ファイル・型・API
 
@@ -65,6 +65,7 @@ test_loss_change_monitoring.py。test名はtest_loss_monitoring_接頭辞に以�
 - candidate_ties_and_retention_match_reference
 - reset_and_baseline_limits_match_reference
 - invalid_inputs_preserve_complete_state
+- invalid_inputs_preserve_complete_state_for_mixture（単一と引数形が異なる混合側の不正入力を分ける）
 - overall_and_class_series_match_reference
 - first_class_observation_freezes_current_baseline
 - component_ties_preserve_reference_priority

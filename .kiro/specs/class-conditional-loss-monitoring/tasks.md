@@ -9,7 +9,7 @@
   - _Boundary: 単一e-SR数値状態_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 4.1, 4.2, 4.4, 5.1_
 
-- [ ] 2. 全体・正解クラス系列の混合とglobal位置対応を移植する
+- [x] 2. 全体・正解クラス系列の混合とglobal位置対応を移植する
   - 既存alpha/監視対象と明示baselineを使い、class初出時のbaseline固定・成分更新・固定配分の旧順混合・警報・候補位置を実装する。
   - 全入力を更新前に検査し、reset・frozen snapshot・観測delta計数を公開する。
   - 遅延baseline・class局所変化・非連続class位置・保持上限・未観測class・成分同率・resetを旧ClassESR実メソッドに完全一致させるテストが通る。
