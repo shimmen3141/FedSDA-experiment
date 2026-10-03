@@ -1,6 +1,6 @@
 # 命名正本
 
-revision: 1。承認hashとrevisionはspec.json。旧名はtest oracleのみ。ESRは既存e-SRのアルゴリズム名を保持する。
+revision: 2。承認hashとrevisionはspec.json。旧名はtest oracleのみ。ESRは既存e-SRのアルゴリズム名を保持する。
 
 ## ファイル・型・API
 
@@ -54,6 +54,8 @@ revision: 1。承認hashとrevisionはspec.json。旧名はtest oracleのみ。E
 | other_class_id / other_class_detector / candidate_position_offset | 他class / その単体 / 保持最古からの候補offset |
 
 内部1始まり候補番号とglobalのsample_indexを区別する。baselineは推定処理ではなく指定値、candidateは変化点候補で新モデル候補とは別。snapshotは診断用copyでreset/状態更新APIではない。
+
+実装taskの追加局所名: detector_constructor_arguments / monitor_constructor_arguments（不正入力テストで一項目を差し替えるconstructor keyword辞書）、class_id（class状態copyを反復するID）、observation（immutable今回結果）、global_random_states_before_call（3種類の乱数状態をまとめるtest値）。既存valid_run_settings_mappingとdataclasses.replaceをfixtureで使用する。
 
 ## 検証名
 

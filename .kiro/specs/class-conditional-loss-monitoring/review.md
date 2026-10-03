@@ -11,3 +11,7 @@ Lunaが20条件・旧oracleに照らし、単一数値/混合位置の状態所�
 
 保存前draftをLunaが独立確認してPASS。全20条件・順次依存・既存環境・観測可能な受入証拠・task 3の明示統合境界を確認。修正指摘なし。単一kernelのpure数値検査の同spec内再利用もレビューで確認し、設計へ明記した。主担当もcoverage/実行可能性gate PASS、ユーザー委任によりtasksを承認する。
 
+## 命名revision 2とtask 1
+
+constructor test引数字書など4局所名を追加しLuna PASS、revision 2を承認後に実装。単一kernel TDD REDは未存在moduleのcollection error（exit 1）。GREENは1319 passed、Luna独立再検証1319 passed / 3.77s、Review Verdict APPROVED task 1、指摘なし。主担当も同コマンド再実行exit 0を確認しTASK VERIFIED。上限1/7/1000、baseline0/0.2/0.6/1、bet5個/単一/重複の各130観測で全候補capital・番号・結果を丸めず照合。AST例外はtask 3で追加する。
+

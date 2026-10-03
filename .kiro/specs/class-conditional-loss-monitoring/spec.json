@@ -1,9 +1,9 @@
 {
   "feature_name": "class-conditional-loss-monitoring",
   "created_at": "2026-10-03T17:16:51.799874+00:00",
-  "updated_at": "2026-10-03T17:16:51.799874+00:00",
+  "updated_at": "2026-10-03T17:37:11.115826+00:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -35,15 +35,16 @@
       "review_record": "review.md",
       "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
       "task_graph_sanity": "PASS",
-      "review_mode": "independent_reused_thread"
+      "review_mode": "independent_reused_thread",
+      "current_sha256_lf": "ef77f4e7acc717cda3ae3c69fd42a1a3a94588179b0095766708158307559a4d"
     },
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "approved_revision": 1,
-      "approved_sha256_lf": "49e2549db7925d57f9eb5683e98fa6893cff37913058a8be8a99cd33623409b0",
-      "generated_sha256_lf": "49e2549db7925d57f9eb5683e98fa6893cff37913058a8be8a99cd33623409b0",
+      "revision": 2,
+      "approved_revision": 2,
+      "approved_sha256_lf": "93a2f68348ea8e693a553fee603cbd4f4f2906fc58a0df1c61c333a447408a6c",
+      "generated_sha256_lf": "93a2f68348ea8e693a553fee603cbd4f4f2906fc58a0df1c61c333a447408a6c",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
@@ -58,5 +59,13 @@
   "adjacent_specs": [
     "weighted-class-probability-prediction",
     "single-run-execution"
-  ]
+  ],
+  "implementation_progress": {
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "next_task": "2",
+    "total_executable_tasks": 3
+  }
 }
