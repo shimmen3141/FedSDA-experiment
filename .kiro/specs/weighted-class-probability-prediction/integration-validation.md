@@ -3,7 +3,7 @@
 ## 対象と判定
 
 対象はCPU float32のモデル別出力確率化、重み正規化、混合、クラス判定、観測後モデル別平均損失。モデルforward・学習・ClassESR・候補・FIFO・server同期・新FedSDA全体runは後続範囲。
-現在はtask 3とfeature統合の最終レビュー中。最終承認はspec.jsonを参照する。
+最終判定はGO。Lunaが全3 tasksの接続・全20条件・設計境界・全tests・独立smokeを確認し、主担当も最新の実行証拠と承認hash・blockedなしを確認した。最終承認はspec.jsonを参照する。
 
 ## 要件の証拠
 

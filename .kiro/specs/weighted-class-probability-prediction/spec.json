@@ -1,9 +1,9 @@
 {
   "feature_name": "weighted-class-probability-prediction",
   "created_at": "2026-10-03T14:03:15.204104+00:00",
-  "updated_at": "2026-10-03T17:06:53.206105+00:00",
+  "updated_at": "2026-10-03T17:08:58.577244+00:00",
   "language": "ja",
-  "phase": "implementation-in-progress",
+  "phase": "implementation-complete",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -51,7 +51,7 @@
       "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages"
     }
   },
-  "ready_for_implementation": true,
+  "ready_for_implementation": false,
   "upstream_specs": [
     "fixed-share-prediction-weights"
   ],
@@ -68,5 +68,23 @@
     "completed_task_count": 3,
     "next_task": null,
     "total_executable_tasks": 3
+  },
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go",
+    "requirements_covered": 20,
+    "test_pass_count": 2281,
+    "test_skip_count": 3,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "stateless_class_probability_prediction_calculations_only"
   }
 }
