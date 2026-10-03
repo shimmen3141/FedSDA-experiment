@@ -180,3 +180,11 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - GREEN: 全refactoring 1725成功/12.39秒。主担当freshはexit 0、1725成功/13.62秒。
 - 別Luna実装レビューはAPPROVED、fresh1725成功/10.51秒、追加指摘なし。4.2補修も有用な修正として確認された。
 - task 4.3完了はVERIFIED。成功記録のexact tuple・要素型で可変参照を拒否し、参加者の実行契約検査はruntimeへ残した。旧実装・goldenは不変。
+
+### task 5.1追加命名・実装・検証
+
+- 命名revision 11を既存Luna threadがPASS、指摘なし。主担当が承認した。設計段階の「現段階では実装しない」という古いheaderも未承認名の実装禁止へ正確化した。
+- 実装agentが共有の観測処理部と21検証ケースをテスト側へ追加した。REDはloop未実装でcollection error。
+- GREENは全refactoring1746成功/6.93秒。主担当freshはexit 0、1746成功/5.85秒。別Luna実装レビューはAPPROVED、fresh1746成功/6.04秒、指摘なし。
+- 4500標本/30同期の独立期待呼出列、端数・T<A、全client ready照会、非bool拒否、8stage故障停止prefix・位置・causeを確認した。成功eventは操作と戻り値検査が成功した後だけ追加する。
+- task 5.1完了はVERIFIED。loopはruntime検証済みの参加者・観測列を進める。具象の学習・統合は追加していない。

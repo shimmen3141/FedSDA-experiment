@@ -1,8 +1,50 @@
 # 単一run specの命名
 
-- revision: 10。task 4.3の接続・記録契約名を追加。承認状態はspec.jsonを確認する。
+- revision: 11。task 5.1の進行制御と共有観測テスト名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
-- 現段階では新src・実装を先取りするテストを作らない。
+- 未承認の追加名では、実装・実装を先取りするテストを作らない。
+
+## task 5.1: 区間進行と共有観測テスト
+
+公開run_stream_protocol_intervalsと引数・stage値は既承認表を使用する。runtimeで検証した参加者・生成済み観測列を進める。
+全clientのready照会を完了してから一覧へanyを適用する。終端eventは候補検証でclient IDのみ、通信確定で位置Noneとする。
+completed_round_countは件数であり、0始まりのround位置へ流用しない。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| invoke_run_operation_and_record_success | keyword-only run_operation/operation_arguments/execution_events/stage_name/任意位置 → object。呼出→ready段階のbool検証→成功event追加。失敗時は位置付き例外をraise-fromしeventを追加しない |
+| run_operation, operation_arguments, operation_result | Callable・keyword引数dict・戻り値。操作呼出に使用する一時値 |
+| caught_exception | Exception。位置付き例外の元cause |
+| client_operation | 当該clientの操作参照。参加者集合と区別 |
+| stream_sample_count | int、sample/client。生成済み列の長さ |
+| interval_start_sample_index, interval_end_sample_index | int、sample/client。同期区間の半開範囲 |
+| registration_readiness_values | list[bool]。全clientの照会を終えてからanyで事実を集約する一時一覧 |
+| RunOperationObserver | テスト専用。操作試行・標本・ready事実・故障注入を所有。研究手法ではない |
+| ObservingRunClient, ObservingRunServer | テスト専用。承認済みProtocolの各操作をobserverへ記録する |
+| operation_calls | list[RunExecutionEvent]。テストの試行順。故障呼出も記録し成功eventと区別 |
+| processed_observed_samples | list[tuple[int, int, ObservedSample]]。client・標本位置と受け取った観測標本 |
+| synchronization_readiness_values | list[bool]。同期時にserverへ渡されたready事実 |
+| registration_readiness_by_client | dict[int, object]。正常boolまたは不正戻り値の注入条件 |
+| failure_at_event, injected_exception | 故障対象eventと元例外。Noneなら故障を注入しない |
+| current_round_index | intまたはNone。同期前記録で設定し、引数なしready照会のテスト記録に使う |
+| finalized_communication_round_counts | list[int]。通信終端のcompleted_round_countを保存 |
+| observer | RunOperationObserver。テスト処理部が共有する観測用状態 |
+| record_operation_call | keyword-only stage_name/任意位置 → None。試行を記録し対象eventなら例外注入 |
+| build_observing_run_participants | keyword-only client_count/observer → RunParticipants。新規テスト処理部の組立 |
+| build_interval_test_observed_streams | keyword-only client_count/per_client_sample_count → 観測列tuple。位置を識別できる不変標本を供給 |
+| test_interval_execution_matches_sample_client_and_synchronization_order | 3×1500/50の4500標本・30同期と全呼出列を確認 |
+| test_interval_execution_processes_only_complete_intervals_and_preserves_terminal_order | 端数・T<Aで処理範囲・終端順・追加処理なしを確認 |
+| test_interval_execution_checks_every_client_and_preserves_readiness_at_sync_time | 最初のreadyがTrueでも全client照会し時点事実を渡すことを確認 |
+| test_interval_execution_rejects_non_boolean_registration_readiness | 非bool戻り値の位置付き失敗と後続なしを確認 |
+| test_interval_execution_reports_failure_positions_and_stops_without_finalization | 各client/server/終端stageのcause・停止prefixを確認 |
+| test_operation_invocation_records_only_successful_events | helperの呼出成功後だけeventが残ることを確認 |
+| test_interval_execution_requires_keyword_arguments | 公開操作のkeyword-onlyを確認 |
+| expected_operation_calls, expected_execution_events | 独立した期待呼出listと成功event tuple |
+| expected_failure_event, failure_call_index | 期待する失敗eventと試行順の故障位置 |
+| invalid_readiness_value, expected_registration_available | 不正戻り値と期待する同期時bool |
+| operation_call | テスト呼出列の当該event |
+
+観測処理部は5.2・6.1でも再利用する。productionへ具象のダミー処理部を追加しない。
 
 ## task 4.3: 接続・記録契約の追加名
 

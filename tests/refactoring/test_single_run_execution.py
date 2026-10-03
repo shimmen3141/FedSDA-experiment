@@ -26,6 +26,9 @@ from federated_learning_experiments.execution.run_execution_records import (
     RunExecutionEvent, StreamProtocolRunResult,
 )
 from federated_learning_experiments.execution.run_execution_errors import RunExecutionError
+from federated_learning_experiments.execution.stream_protocol_execution_loop import (
+    invoke_run_operation_and_record_success, run_stream_protocol_intervals,
+)
 from federated_learning_experiments.execution.stream_protocol_execution_settings import (
     StreamProtocolExecutionSettings,
     validate_stream_protocol_execution_settings,
@@ -35,6 +38,295 @@ from federated_learning_experiments.execution.run_random_sources import create_r
 from federated_learning_experiments.learning.models.torch_random_state_scope import (
     isolated_cpu_torch_random_state,
 )
+
+
+class RunOperationObserver:
+    """操作試行と故障を記録する共有状態。研究手法の計算を行わない。"""
+
+    def __init__(self):
+        self.operation_calls: list[RunExecutionEvent] = []
+        self.processed_observed_samples: list[tuple[int, int, ObservedSample]] = []
+        self.synchronization_readiness_values: list[bool] = []
+        self.registration_readiness_by_client: dict[int, object] = {}
+        self.failure_at_event: RunExecutionEvent | None = None
+        self.injected_exception: Exception | None = None
+        self.current_round_index: int | None = None
+        self.finalized_communication_round_counts: list[int] = []
+
+    def record_operation_call(self, *, stage_name, client_id=None, sample_index=None, round_index=None):
+        execution_event = RunExecutionEvent(
+            stage_name=stage_name, client_id=client_id, sample_index=sample_index, round_index=round_index,
+        )
+        self.operation_calls.append(execution_event)
+        if execution_event == self.failure_at_event and self.injected_exception is not None:
+            raise self.injected_exception
+
+
+class ObservingRunClient:
+    """client操作を共有observerへ記録するテスト専用接続先。"""
+
+    def __init__(self, *, client_id, observer):
+        self.client_id = client_id
+        self.observer = observer
+
+    def process_observed_sample(self, *, observed_sample, sample_index):
+        self.observer.record_operation_call(
+            stage_name="sample_processing", client_id=self.client_id,
+            sample_index=sample_index, round_index=self.observer.current_round_index,
+        )
+        self.observer.processed_observed_samples.append((self.client_id, sample_index, observed_sample))
+
+    def flush_pending_local_updates(self, *, round_index):
+        self.observer.record_operation_call(
+            stage_name="pending_update_flush", client_id=self.client_id, round_index=round_index,
+        )
+
+    def has_model_ready_for_server_registration(self):
+        self.observer.record_operation_call(
+            stage_name="registration_readiness_check", client_id=self.client_id,
+            round_index=self.observer.current_round_index,
+        )
+        return self.observer.registration_readiness_by_client.get(self.client_id, False)
+
+    def advance_new_model_upload_wait_after_synchronization(self, *, round_index):
+        self.observer.record_operation_call(
+            stage_name="upload_wait_advance", client_id=self.client_id, round_index=round_index,
+        )
+        # 次の標本処理を観測するときの区間位置だけを進める。
+        self.observer.current_round_index = round_index + 1
+
+    def finalize_incomplete_candidate_validation(self):
+        self.observer.record_operation_call(
+            stage_name="incomplete_candidate_validation_finalization", client_id=self.client_id,
+        )
+
+
+class ObservingRunServer:
+    """同期時のboolと通信終端の完了区間数を観測する接続先。"""
+
+    def __init__(self, *, observer):
+        self.observer = observer
+
+    def record_client_states_before_synchronization(self, *, round_index):
+        self.observer.current_round_index = round_index
+        self.observer.record_operation_call(stage_name="pre_sync_recording", round_index=round_index)
+
+    def synchronize_models(self, *, round_index, new_model_registration_available):
+        self.observer.record_operation_call(stage_name="server_synchronization", round_index=round_index)
+        self.observer.synchronization_readiness_values.append(new_model_registration_available)
+
+    def finalize_started_communications(self, *, completed_round_count):
+        self.observer.record_operation_call(stage_name="started_communication_finalization")
+        self.observer.finalized_communication_round_counts.append(completed_round_count)
+
+
+def build_observing_run_participants(*, client_count, observer):
+    """runごとの新しい観測用参加者を作る。"""
+    observer.current_round_index = 0
+    return RunParticipants(
+        client_operations=tuple(ObservingRunClient(client_id=client_id, observer=observer)
+                                for client_id in range(client_count)),
+        server_operations=ObservingRunServer(observer=observer),
+    )
+
+
+def build_interval_test_observed_streams(*, client_count, per_client_sample_count):
+    """client・位置を特徴から識別できる不変の観測列を作る。"""
+    return tuple(ClientObservedStream(
+        client_id=client_id,
+        observed_samples=tuple(ObservedSample(
+            feature_values=(float(client_id), float(sample_index)), class_label=sample_index % 2,
+        ) for sample_index in range(per_client_sample_count)),
+    ) for client_id in range(client_count))
+
+
+def test_interval_execution_matches_sample_client_and_synchronization_order():
+    """3×1500・区間50で4500標本と30同期の全呼出順を照合する。"""
+    observer = RunOperationObserver()
+    participants = build_observing_run_participants(client_count=3, observer=observer)
+    observed_client_streams = build_interval_test_observed_streams(client_count=3, per_client_sample_count=1500)
+    execution_events = run_stream_protocol_intervals(
+        participants=participants, observed_client_streams=observed_client_streams,
+        server_aggregation_interval_per_client_samples=50,
+    )
+    expected_operation_calls = []
+    for round_index in range(30):
+        expected_operation_calls.extend(RunExecutionEvent(
+            stage_name="sample_processing", client_id=client_id, sample_index=sample_index,
+            round_index=round_index,
+        ) for sample_index in range(round_index * 50, (round_index + 1) * 50) for client_id in range(3))
+        expected_operation_calls.extend(RunExecutionEvent(
+            stage_name="pending_update_flush", client_id=client_id, round_index=round_index,
+        ) for client_id in range(3))
+        expected_operation_calls.append(RunExecutionEvent(stage_name="pre_sync_recording", round_index=round_index))
+        expected_operation_calls.extend(RunExecutionEvent(
+            stage_name="registration_readiness_check", client_id=client_id, round_index=round_index,
+        ) for client_id in range(3))
+        expected_operation_calls.append(RunExecutionEvent(stage_name="server_synchronization", round_index=round_index))
+        expected_operation_calls.extend(RunExecutionEvent(
+            stage_name="upload_wait_advance", client_id=client_id, round_index=round_index,
+        ) for client_id in range(3))
+    expected_operation_calls.extend(RunExecutionEvent(
+        stage_name="incomplete_candidate_validation_finalization", client_id=client_id,
+    ) for client_id in range(3))
+    expected_operation_calls.append(RunExecutionEvent(stage_name="started_communication_finalization"))
+    assert execution_events == tuple(expected_operation_calls)
+    assert observer.operation_calls == expected_operation_calls
+    assert len(observer.processed_observed_samples) == 4500
+    assert len(observer.synchronization_readiness_values) == 30
+    assert observer.finalized_communication_round_counts == [30]
+    for client_id, sample_index, observed_sample in observer.processed_observed_samples:
+        assert observed_sample is observed_client_streams[client_id].observed_samples[sample_index]
+
+
+@pytest.mark.parametrize("per_client_sample_count,server_aggregation_interval_per_client_samples", [(16, 7), (3, 7)])
+def test_interval_execution_processes_only_complete_intervals_and_preserves_terminal_order(
+    per_client_sample_count, server_aggregation_interval_per_client_samples,
+):
+    """末尾を処理せず、全client候補終端から通信終端へ進む。"""
+    observer = RunOperationObserver()
+    participants = build_observing_run_participants(client_count=3, observer=observer)
+    observed_client_streams = build_interval_test_observed_streams(
+        client_count=3, per_client_sample_count=per_client_sample_count,
+    )
+    execution_events = run_stream_protocol_intervals(
+        participants=participants, observed_client_streams=observed_client_streams,
+        server_aggregation_interval_per_client_samples=server_aggregation_interval_per_client_samples,
+    )
+    completed_round_count = per_client_sample_count // server_aggregation_interval_per_client_samples
+    processed_sample_count_per_client = completed_round_count * server_aggregation_interval_per_client_samples
+    assert [(client_id, sample_index) for client_id, sample_index, observed_sample
+            in observer.processed_observed_samples] == [
+        (client_id, sample_index) for sample_index in range(processed_sample_count_per_client) for client_id in range(3)
+    ]
+    expected_execution_events = tuple(RunExecutionEvent(
+        stage_name="incomplete_candidate_validation_finalization", client_id=client_id,
+    ) for client_id in range(3)) + (RunExecutionEvent(stage_name="started_communication_finalization"),)
+    assert execution_events[-4:] == expected_execution_events
+    assert observer.operation_calls[-4:] == list(expected_execution_events)
+    assert len(observer.synchronization_readiness_values) == completed_round_count
+    assert observer.finalized_communication_round_counts == [completed_round_count]
+    if completed_round_count == 0:
+        assert execution_events == expected_execution_events
+
+
+@pytest.mark.parametrize("registration_readiness_by_client,expected_registration_available", [
+    ({0: True, 1: False, 2: False}, True),
+    ({0: False, 1: False, 2: True}, True),
+    ({0: False, 1: False, 2: False}, False),
+])
+def test_interval_execution_checks_every_client_and_preserves_readiness_at_sync_time(
+    registration_readiness_by_client, expected_registration_available,
+):
+    """Trueを得た後も全clientを照会して同期にbool事実を渡す。"""
+    observer = RunOperationObserver()
+    observer.registration_readiness_by_client = registration_readiness_by_client
+    execution_events = run_stream_protocol_intervals(
+        participants=build_observing_run_participants(client_count=3, observer=observer),
+        observed_client_streams=build_interval_test_observed_streams(client_count=3, per_client_sample_count=4),
+        server_aggregation_interval_per_client_samples=2,
+    )
+    assert [(operation_call.round_index, operation_call.client_id) for operation_call in execution_events
+            if operation_call.stage_name == "registration_readiness_check"] == [
+        (round_index, client_id) for round_index in range(2) for client_id in range(3)
+    ]
+    assert observer.synchronization_readiness_values == [expected_registration_available] * 2
+    assert all(type(operation_result) is bool for operation_result in observer.synchronization_readiness_values)
+
+
+@pytest.mark.parametrize("invalid_readiness_value", [0, 1, None, "True", np.bool_(True)])
+def test_interval_execution_rejects_non_boolean_registration_readiness(invalid_readiness_value):
+    """非boolをready段階の失敗として報告し、同期や終端を呼ばない。"""
+    observer = RunOperationObserver()
+    observer.registration_readiness_by_client[1] = invalid_readiness_value
+    with pytest.raises(RunExecutionError) as exception_info:
+        run_stream_protocol_intervals(
+            participants=build_observing_run_participants(client_count=3, observer=observer),
+            observed_client_streams=build_interval_test_observed_streams(client_count=3, per_client_sample_count=4),
+            server_aggregation_interval_per_client_samples=2,
+        )
+    assert exception_info.value.stage_name == "registration_readiness_check"
+    assert exception_info.value.client_id == 1
+    assert exception_info.value.round_index == 0
+    assert exception_info.value.sample_index is None
+    assert isinstance(exception_info.value.__cause__, TypeError)
+    assert observer.operation_calls[-1] == RunExecutionEvent(
+        stage_name="registration_readiness_check", client_id=1, round_index=0,
+    )
+    assert not observer.synchronization_readiness_values
+    assert not observer.finalized_communication_round_counts
+
+
+@pytest.mark.parametrize("expected_failure_event", [
+    RunExecutionEvent(stage_name="sample_processing", client_id=1, sample_index=2, round_index=1),
+    RunExecutionEvent(stage_name="pending_update_flush", client_id=1, round_index=1),
+    RunExecutionEvent(stage_name="pre_sync_recording", round_index=1),
+    RunExecutionEvent(stage_name="registration_readiness_check", client_id=1, round_index=1),
+    RunExecutionEvent(stage_name="server_synchronization", round_index=1),
+    RunExecutionEvent(stage_name="upload_wait_advance", client_id=1, round_index=1),
+    RunExecutionEvent(stage_name="incomplete_candidate_validation_finalization", client_id=1),
+    RunExecutionEvent(stage_name="started_communication_finalization"),
+])
+def test_interval_execution_reports_failure_positions_and_stops_without_finalization(expected_failure_event):
+    """故障した試行までのprefixだけを呼び、位置・元causeを保持する。"""
+    observer = RunOperationObserver()
+    observed_client_streams = build_interval_test_observed_streams(client_count=3, per_client_sample_count=4)
+    expected_execution_events = run_stream_protocol_intervals(
+        participants=build_observing_run_participants(client_count=3, observer=observer),
+        observed_client_streams=observed_client_streams, server_aggregation_interval_per_client_samples=2,
+    )
+    failure_call_index = expected_execution_events.index(expected_failure_event)
+    observer = RunOperationObserver()
+    original_exception = ValueError("接続先へ注入した故障")
+    observer.failure_at_event = expected_failure_event
+    observer.injected_exception = original_exception
+    with pytest.raises(RunExecutionError) as exception_info:
+        run_stream_protocol_intervals(
+            participants=build_observing_run_participants(client_count=3, observer=observer),
+            observed_client_streams=observed_client_streams, server_aggregation_interval_per_client_samples=2,
+        )
+    assert exception_info.value.__cause__ is original_exception
+    assert exception_info.value.stage_name == expected_failure_event.stage_name
+    assert exception_info.value.client_id == expected_failure_event.client_id
+    assert exception_info.value.sample_index == expected_failure_event.sample_index
+    assert exception_info.value.round_index == expected_failure_event.round_index
+    assert observer.operation_calls == list(expected_execution_events[:failure_call_index + 1])
+    assert observer.finalized_communication_round_counts == []
+
+
+def test_operation_invocation_records_only_successful_events():
+    """操作とstrict bool検証が成功した後だけイベントを追加する。"""
+    observer = RunOperationObserver()
+    execution_events = []
+    run_operation = lambda: observer.record_operation_call(stage_name="initial_preparation")
+    assert invoke_run_operation_and_record_success(
+        run_operation=run_operation, operation_arguments={}, execution_events=execution_events,
+        stage_name="initial_preparation",
+    ) is None
+    assert execution_events == observer.operation_calls
+    observer.failure_at_event = RunExecutionEvent(stage_name="initial_preparation")
+    observer.injected_exception = ValueError("故障")
+    with pytest.raises(RunExecutionError):
+        invoke_run_operation_and_record_success(
+            run_operation=run_operation, operation_arguments={}, execution_events=execution_events,
+            stage_name="initial_preparation",
+        )
+    assert len(execution_events) == 1
+    with pytest.raises(RunExecutionError):
+        invoke_run_operation_and_record_success(
+            run_operation=lambda: 1, operation_arguments={}, execution_events=execution_events,
+            stage_name="registration_readiness_check", client_id=1, round_index=0,
+        )
+    assert len(execution_events) == 1
+
+
+def test_interval_execution_requires_keyword_arguments():
+    """公開進行関数の参加者・観測列・同期区間をkeywordで渡す。"""
+    with pytest.raises(TypeError):
+        run_stream_protocol_intervals(
+            build_observing_run_participants(client_count=1, observer=RunOperationObserver()),
+            build_interval_test_observed_streams(client_count=1, per_client_sample_count=1), 1,
+        )
 
 
 @pytest.fixture
