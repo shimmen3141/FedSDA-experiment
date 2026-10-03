@@ -1,8 +1,11 @@
 """警報後の有界lossから既存参照の適合性と候補採否を評価する。"""
 
 import math
+from dataclasses import dataclass
 
 import torch
+
+from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings
 
 
 def _validate_nonnegative_finite_number(*, specified_value: float, parameter_name: str) -> float:
@@ -128,4 +131,108 @@ def select_available_reference_within_historical_loss_tolerance(
         available_reference_model_ids=available_reference_model_ids,
         current_training_model_id=current_training_model_id,
         maximum_reference_mean_loss_increase=maximum_reference_mean_loss_increase,
+    )
+
+
+@dataclass(frozen=True, kw_only=True)
+class PostAlarmCandidateLossEvaluation:
+    """モデル操作を伴わない候補採否と比較対象の診断値。"""
+
+    comparison_reference_model_id: int
+    reusable_reference_model_id: int | None
+    candidate_accepted: bool
+    decision_reason: str
+    validation_sample_count: int
+    candidate_full_interval_mean_loss: float
+    reference_full_interval_mean_loss: float
+    candidate_second_segment_mean_loss: float
+    reference_second_segment_mean_loss: float
+    reference_historical_mean_loss: float | None
+
+
+def evaluate_candidate_using_post_alarm_losses(
+    *,
+    candidate_model_training_and_acceptance_settings: CandidateModelTrainingAndAcceptanceSettings,
+    candidate_losses: tuple[float, ...],
+    reference_losses_by_model_id: dict[int, tuple[float, ...]],
+    reference_historical_mean_losses_by_model_id: dict[int, float],
+    available_reference_model_ids: tuple[int, ...],
+    current_training_model_id: int,
+    maximum_reference_mean_loss_increase: float,
+    minimum_candidate_mean_loss_improvement: float,
+) -> PostAlarmCandidateLossEvaluation:
+    """現行優先の既存適合判定後に二分区間の候補採否を返す。"""
+    if type(candidate_model_training_and_acceptance_settings) is not CandidateModelTrainingAndAcceptanceSettings:
+        raise TypeError("candidate_model_training_and_acceptance_settings must be CandidateModelTrainingAndAcceptanceSettings")
+    candidate_model_training_and_acceptance_settings.__post_init__()
+    _validate_loss_sequence(losses=candidate_losses, parameter_name="candidate_losses")
+    if len(candidate_losses) < candidate_model_training_and_acceptance_settings.candidate_post_alarm_validation_sample_count:
+        raise ValueError("candidate_losses must satisfy candidate_post_alarm_validation_sample_count")
+    _validate_reference_loss_inputs(
+        reference_losses_by_model_id=reference_losses_by_model_id,
+        reference_historical_mean_losses_by_model_id=reference_historical_mean_losses_by_model_id,
+        available_reference_model_ids=available_reference_model_ids,
+        current_training_model_id=current_training_model_id,
+        maximum_reference_mean_loss_increase=maximum_reference_mean_loss_increase,
+    )
+    if any(len(losses) != len(candidate_losses) for losses in reference_losses_by_model_id.values()):
+        raise ValueError("candidate_losses and reference_losses_by_model_id must have equal observation counts")
+    minimum_candidate_mean_loss_improvement = _validate_nonnegative_finite_number(
+        specified_value=minimum_candidate_mean_loss_improvement,
+        parameter_name="minimum_candidate_mean_loss_improvement",
+    )
+    # 初期比較対象はfloat32へ丸める前のPython sumで選び、入力順tieを保つ。
+    comparison_reference_model_id = min(reference_losses_by_model_id, key=lambda model_id: sum(reference_losses_by_model_id[model_id]))
+    reusable_reference_model_id = _select_validated_reusable_reference(
+        reference_losses_by_model_id=reference_losses_by_model_id,
+        reference_historical_mean_losses_by_model_id=reference_historical_mean_losses_by_model_id,
+        available_reference_model_ids=available_reference_model_ids,
+        current_training_model_id=current_training_model_id,
+        maximum_reference_mean_loss_increase=maximum_reference_mean_loss_increase,
+    )
+    if reusable_reference_model_id is not None:
+        comparison_reference_model_id = reusable_reference_model_id
+    candidate_loss_tensor = torch.tensor(candidate_losses, dtype=torch.float32, device="cpu")
+    reference_loss_tensor = torch.tensor(reference_losses_by_model_id[comparison_reference_model_id], dtype=torch.float32, device="cpu")
+    segment_split_index = len(candidate_losses) // 2
+    if reusable_reference_model_id is not None:
+        candidate_accepted = False
+        decision_reason = (
+            "current_reference_within_historical_loss_tolerance"
+            if reusable_reference_model_id == current_training_model_id
+            else "alternative_reference_within_historical_loss_tolerance"
+        )
+    else:
+        candidate_accepted = all(
+            float(candidate_segment.mean().item()) < float(reference_segment.mean().item()) - minimum_candidate_mean_loss_improvement
+            for candidate_segment, reference_segment in (
+                (candidate_loss_tensor[:segment_split_index], reference_loss_tensor[:segment_split_index]),
+                (candidate_loss_tensor[segment_split_index:], reference_loss_tensor[segment_split_index:]),
+            )
+        )
+        # 旧理由のfloat32差を保持する。採否のPythonfloat比較と統一しない。
+        first_segment_margin = float(reference_loss_tensor[:segment_split_index].mean() - candidate_loss_tensor[:segment_split_index].mean())
+        second_segment_margin = float(reference_loss_tensor[segment_split_index:].mean() - candidate_loss_tensor[segment_split_index:].mean())
+        first_segment_failed = first_segment_margin <= minimum_candidate_mean_loss_improvement
+        second_segment_failed = second_segment_margin <= minimum_candidate_mean_loss_improvement
+        if first_segment_failed and second_segment_failed:
+            decision_reason = "both_segment_margins_failed"
+        elif first_segment_failed:
+            decision_reason = "first_segment_margin_failed"
+        elif second_segment_failed:
+            decision_reason = "second_segment_margin_failed"
+        else:
+            decision_reason = "both_segment_margins_passed"
+    reference_historical_mean_loss = reference_historical_mean_losses_by_model_id.get(comparison_reference_model_id)
+    return PostAlarmCandidateLossEvaluation(
+        comparison_reference_model_id=comparison_reference_model_id,
+        reusable_reference_model_id=reusable_reference_model_id,
+        candidate_accepted=candidate_accepted,
+        decision_reason=decision_reason,
+        validation_sample_count=len(candidate_losses),
+        candidate_full_interval_mean_loss=float(candidate_loss_tensor.mean().item()),
+        reference_full_interval_mean_loss=float(reference_loss_tensor.mean().item()),
+        candidate_second_segment_mean_loss=float(candidate_loss_tensor[segment_split_index:].mean().item()),
+        reference_second_segment_mean_loss=float(reference_loss_tensor[segment_split_index:].mean().item()),
+        reference_historical_mean_loss=float(reference_historical_mean_loss) if reference_historical_mean_loss is not None else None,
     )
