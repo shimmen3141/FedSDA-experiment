@@ -1,0 +1,66 @@
+{
+  "feature_name": "post-alarm-candidate-loss-collection",
+  "language": "ja",
+  "created_at": "2026-10-03T19:35:56.824762+00:00",
+  "updated_at": "2026-10-03T19:42:37.059479+00:00",
+  "phase": "tasks-approved",
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "6139f36b405fb0b8ce97476cdb76b510bdf95d8cb9e10314fd28b27277ca5ecf",
+      "approved_sha256_lf": "6139f36b405fb0b8ce97476cdb76b510bdf95d8cb9e10314fd28b27277ca5ecf",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md",
+      "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "8809c57c0f31d6d863e703336638fa0d77ec06413205aa89ed203ff4c3e6c935",
+      "approved_sha256_lf": "8809c57c0f31d6d863e703336638fa0d77ec06413205aa89ed203ff4c3e6c935",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md",
+      "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "169bd1bce74d3ae98ce33711bf289278cafbf810c48a500de222e1004971090b",
+      "approved_sha256_lf": "169bd1bce74d3ae98ce33711bf289278cafbf810c48a500de222e1004971090b",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md",
+      "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+      "revision": 1,
+      "approved_revision": 1
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "b73c53d6f821fba6fbf13b5ab1f90d09a8cf1878dca05e25a02773d1785b35b9",
+      "approved_sha256_lf": "b73c53d6f821fba6fbf13b5ab1f90d09a8cf1878dca05e25a02773d1785b35b9",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md",
+      "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages"
+    }
+  },
+  "upstream_specs": [
+    "configuration-foundation"
+  ],
+  "adjacent_specs": [
+    "post-alarm-candidate-loss-evaluation",
+    "pending-training-data-assignment"
+  ],
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "reviewer": "gpt-6-luna",
+    "record": "review.md"
+  }
+}

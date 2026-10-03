@@ -7,6 +7,7 @@
 | LEGACY-001 | 候補採否と区間margin理由の丸め不整合 | 再現済み・未修正、移植では維持 | [記録](legacy-001-candidate-decision-reason-rounding.md) |
 | LEGACY-002 | 警報区間が短いと割当済み旧区間もFIFOに残る | 再現済み・未修正 | [記録](legacy-002-retained-assigned-samples-after-short-alarm.md) |
 | LEGACY-003 | 実験終端でFedSDA FIFO末尾を確定しない | 改善案・未採用、コード上の保持を確認 | [記録](legacy-003-unassigned-fifo-tail-at-run-end.md) |
+| LEGACY-004 | 不正な参照損失入力で旧収集sessionが部分更新 | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-004-partial-loss-collection-on-invalid-input.md) |
 
 ## 記録・更新の規約
 
