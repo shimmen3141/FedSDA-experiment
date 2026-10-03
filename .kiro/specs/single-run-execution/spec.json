@@ -1,7 +1,7 @@
 {
   "feature_name": "single-run-execution",
   "created_at": "2026-10-02T21:13:35.494269+00:00",
-  "updated_at": "2026-10-03T06:25:16.602580+00:00",
+  "updated_at": "2026-10-03T06:34:35.553457+00:00",
   "language": "ja",
   "phase": "implementation",
   "approvals": {
@@ -27,18 +27,18 @@
       "approved_sha256_lf": "259c3b9ecd2a3d47cc82f343765a0fe5e365bfc61faf9af12e871cf7d97f7695",
       "approved_on": "2026-10-03",
       "approval_source": "user_explicit_approval",
-      "current_sha256_lf": "b7c0df9422ef355fffb1ab5602b216d33784696ab38e71000ae8b52039ac9734"
+      "current_sha256_lf": "1bc08b14547ed54879c3668d8b38c089212407cc079587bd36f5834721c96b71"
     },
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 6,
-      "approved_revision": 6,
-      "approved_sha256_lf": "627a41333479bbf4b4c7a62b234679d8e613dd020181b086fea0c578a02d5a33",
-      "generated_sha256_lf": "627a41333479bbf4b4c7a62b234679d8e613dd020181b086fea0c578a02d5a33",
+      "revision": 7,
+      "approved_revision": 7,
+      "approved_sha256_lf": "d77bf1e5d862ae40c3f241d3102e2aa372a93ec66ed19677815e157f0d13c466",
+      "generated_sha256_lf": "d77bf1e5d862ae40c3f241d3102e2aa372a93ec66ed19677815e157f0d13c466",
       "review_status": "completed",
       "reviewer": "gpt-6-luna",
-      "reviewer_thread": "/root/luna_single_run_naming_review",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_result": "PASS",
       "review_record": "review.md",
       "approved_on": "2026-10-03",
@@ -128,10 +128,11 @@
       "1",
       "2.1",
       "2.2",
-      "3.1"
+      "3.1",
+      "3.2"
     ],
-    "completed_task_count": 4,
-    "next_task": "3.2",
+    "completed_task_count": 5,
+    "next_task": "4.1",
     "total_executable_tasks": 12
   }
 }

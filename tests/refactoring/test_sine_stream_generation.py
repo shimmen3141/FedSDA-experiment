@@ -2,8 +2,11 @@
 
 from dataclasses import FrozenInstanceError
 import random
+from types import SimpleNamespace
 
+import numpy as np
 import pytest
+import torch
 
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
@@ -21,6 +24,10 @@ from federated_learning_experiments.data.observed_streams import (
     ClientConceptTrace,
     ClientObservedStream,
     ObservedSample,
+)
+from federated_learning_experiments.data.sine.sine_sample_generation import (
+    SineSampleGenerator,
+    build_sine_client_observed_streams,
 )
 
 
@@ -408,3 +415,157 @@ def test_random_client_concept_trace_generation_requires_keyword_arguments():
         generate_random_client_concept_traces(
             experiment_run_conditions, settings_instance, random.Random(0),
         )
+
+
+def assert_numpy_random_states_equal(actual_numpy_random_state, expected_numpy_random_state):
+    """生成器の種類・キー配列・位置・正規分布キャッシュを全て比較する。"""
+    assert actual_numpy_random_state[0] == expected_numpy_random_state[0]
+    np.testing.assert_array_equal(actual_numpy_random_state[1], expected_numpy_random_state[1])
+    assert actual_numpy_random_state[2:] == expected_numpy_random_state[2:]
+
+
+class BoundaryFeatureRandomState(np.random.RandomState):
+    """float32へ丸めると境界判定が変わるfloat64特徴を供給する。"""
+
+    def uniform(self, lower_bound, upper_bound, *, size):
+        assert (lower_bound, upper_bound, size) == (0.0, 1.0, 2)
+        return np.array([0.5, np.nextafter(np.sin(0.5), np.inf)], dtype=np.float64)
+
+
+@pytest.mark.parametrize("random_seed", [0, 17])
+@pytest.mark.parametrize("concept_id", [0, 1])
+def test_sine_samples_match_reference_and_random_state(monkeypatch, random_seed, concept_id):
+    """旧float64ラベルとtorchのfloat32特徴、および生成後乱数を照合する。"""
+    from federated_drift_experiment.data import synthetic as reference_synthetic_module
+
+    numpy_random_generator = np.random.RandomState(random_seed)
+    reference_numpy_random_generator = np.random.RandomState(random_seed)
+    monkeypatch.setattr(reference_synthetic_module, "np", SimpleNamespace(
+        random=reference_numpy_random_generator, sin=np.sin,
+    ))
+    global_numpy_random_state = np.random.get_state()
+    sample_generator = SineSampleGenerator(numpy_random_generator=numpy_random_generator)
+    sample_count = 1500
+    reference_feature_values, reference_class_labels = reference_synthetic_module.generate_sine2(
+        concept_id, sample_count,
+    )
+    for sample_index in range(sample_count):
+        observed_sample = sample_generator.generate_sample(concept_id=concept_id)
+        reference_float32_feature_values = torch.FloatTensor(
+            reference_feature_values[sample_index],
+        ).tolist()
+        assert observed_sample.feature_values == tuple(reference_float32_feature_values)
+        assert observed_sample.class_label == int(reference_class_labels[sample_index])
+        assert all(type(feature_value) is float for feature_value in observed_sample.feature_values)
+        assert type(observed_sample.class_label) is int
+        assert not hasattr(observed_sample, "concept_id")
+    assert_numpy_random_states_equal(
+        numpy_random_generator.get_state(), reference_numpy_random_generator.get_state(),
+    )
+    assert_numpy_random_states_equal(np.random.get_state(), global_numpy_random_state)
+
+
+@pytest.mark.parametrize("invalid_concept_id", [
+    -1, 2, True, False, 0.0, 1.0, "0", None, [],
+])
+def test_sine_samples_reject_invalid_concepts_without_consuming_randomness(invalid_concept_id):
+    """二値の厳密な整数以外は生成前に拒否する。"""
+    numpy_random_generator = np.random.RandomState(0)
+    initial_numpy_random_state = numpy_random_generator.get_state()
+    sample_generator = SineSampleGenerator(numpy_random_generator=numpy_random_generator)
+    with pytest.raises((TypeError, ValueError), match="concept_id"):
+        sample_generator.generate_sample(concept_id=invalid_concept_id)
+    assert_numpy_random_states_equal(numpy_random_generator.get_state(), initial_numpy_random_state)
+
+
+@pytest.mark.parametrize("concept_id,expected_class_label", [(0, 0), (1, 1)])
+def test_sine_labels_are_decided_before_float32_rounding(concept_id, expected_class_label):
+    """丸めで境界を跨ぐ特徴でも、float64によるラベル判定を維持する。"""
+    float64_feature_values = np.array(
+        [0.5, np.nextafter(np.sin(0.5), np.inf)], dtype=np.float64,
+    )
+    float32_feature_values = float64_feature_values.astype(np.float32)
+    assert not (float64_feature_values[1] <= np.sin(float64_feature_values[0]))
+    assert float32_feature_values[1] <= np.sin(float32_feature_values[0])
+    sample_generator = SineSampleGenerator(numpy_random_generator=BoundaryFeatureRandomState(0))
+    observed_sample = sample_generator.generate_sample(concept_id=concept_id)
+    assert observed_sample.class_label == expected_class_label
+    assert observed_sample.feature_values == tuple(
+        torch.FloatTensor(float64_feature_values).tolist()
+    )
+
+
+@pytest.mark.parametrize("random_seed", [0, 17])
+def test_sine_client_observed_streams_preserve_client_order_positions_and_counts(
+    monkeypatch, random_seed,
+):
+    """全概念列の生成後、client順に旧基準と同じ観測列を生成する。"""
+    from federated_drift_experiment.data import synthetic as reference_synthetic_module
+
+    evaluation_concept_traces = generate_random_client_concept_traces(
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name="sine2", random_seed=random_seed, client_count=3,
+            per_client_sample_count=1500, server_aggregation_interval_per_client_samples=50,
+        ),
+        concept_schedule_settings=RandomConceptScheduleSettings(
+            concept_schedule_strategy="random_changes_after_minimum_index_gap",
+            minimum_sample_index_gap_before_change_trial=100,
+            per_eligible_sample_concept_change_probability=0.015,
+        ),
+        python_random_generator=random.Random(random_seed),
+    )
+    numpy_random_generator = np.random.RandomState(random_seed)
+    reference_numpy_random_generator = np.random.RandomState(random_seed)
+    monkeypatch.setattr(reference_synthetic_module, "np", SimpleNamespace(
+        random=reference_numpy_random_generator, sin=np.sin,
+    ))
+    sample_generator = SineSampleGenerator(numpy_random_generator=numpy_random_generator)
+    observed_client_streams = build_sine_client_observed_streams(
+        evaluation_concept_traces=evaluation_concept_traces, sample_generator=sample_generator,
+    )
+    assert isinstance(observed_client_streams, tuple)
+    assert len(observed_client_streams) == len(evaluation_concept_traces) == 3
+    for client_id, client_concept_trace in enumerate(evaluation_concept_traces):
+        reference_observed_samples = []
+        for concept_id in client_concept_trace.concept_ids_by_sample_index:
+            reference_feature_values, reference_class_labels = reference_synthetic_module.generate_sine2(
+                concept_id, 1,
+            )
+            reference_observed_samples.append(ObservedSample(
+                feature_values=tuple(torch.FloatTensor(reference_feature_values[0]).tolist()),
+                class_label=int(reference_class_labels[0]),
+            ))
+        client_observed_stream = observed_client_streams[client_id]
+        assert client_observed_stream.client_id == client_concept_trace.client_id == client_id
+        assert client_observed_stream.observed_samples == tuple(reference_observed_samples)
+        assert len(client_observed_stream.observed_samples) == 1500
+    assert_numpy_random_states_equal(
+        numpy_random_generator.get_state(), reference_numpy_random_generator.get_state(),
+    )
+
+
+def test_sine_client_observed_streams_accept_empty_traces():
+    """空のclient集合と空標本列を保持し、乱数を消費しない。"""
+    numpy_random_generator = np.random.RandomState(0)
+    initial_numpy_random_state = numpy_random_generator.get_state()
+    sample_generator = SineSampleGenerator(numpy_random_generator=numpy_random_generator)
+    assert build_sine_client_observed_streams(
+        evaluation_concept_traces=(), sample_generator=sample_generator,
+    ) == ()
+    assert build_sine_client_observed_streams(
+        evaluation_concept_traces=(ClientConceptTrace(client_id=7, concept_ids_by_sample_index=()),),
+        sample_generator=sample_generator,
+    ) == (ClientObservedStream(client_id=7, observed_samples=()),)
+    assert_numpy_random_states_equal(numpy_random_generator.get_state(), initial_numpy_random_state)
+
+
+def test_sine_sample_generation_requires_keyword_arguments():
+    """借りる乱数・概念・観測列構築入力をkeywordで明示する。"""
+    numpy_random_generator = np.random.RandomState(0)
+    with pytest.raises(TypeError):
+        SineSampleGenerator(numpy_random_generator)
+    sample_generator = SineSampleGenerator(numpy_random_generator=numpy_random_generator)
+    with pytest.raises(TypeError):
+        sample_generator.generate_sample(0)
+    with pytest.raises(TypeError):
+        build_sine_client_observed_streams((), sample_generator)

@@ -1,6 +1,6 @@
 # 単一run specの命名
 
-- revision: 6。task 3.1の概念列生成名を追加。承認状態はspec.jsonを確認する。
+- revision: 7。task 3.2のSINE生成名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 現段階では新src・実装を先取りするテストを作らない。
 
@@ -216,3 +216,35 @@ productionの型・フィールドは既存表を使い、補助関数は追加�
 | monkeypatch | pytest fixture。テスト中だけ旧moduleの乱数源を差し替えて復元 |
 
 実験条件・設定・seed・client数・標本数には既承認名を使う。テスト引数の位置差と確率もminimum_sample_index_gap_before_change_trial、per_eligible_sample_concept_change_probabilityとし、gap/probabilityという別名は導入しない。
+
+## task 3.2: SINE標本の生成と精度
+
+公開型・関数・引数は既存表を使用する。SineSampleGenerator.__init__はnumpy_random_generatorを借用して同名フィールドに保持し、global乱数を参照しない。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| float64_feature_values | ndarray。uniformから得た2特徴。ラベル判定前のfloat64値 |
+| float32_feature_values | ndarray。ラベル判定後にfloat32へ丸めた2特徴 |
+| below_sine_boundary | bool/np.bool_。第2特徴がsin(第1特徴)以下か |
+| observed_client_streams | list[ClientObservedStream]。client順の結果を蓄積してtupleで返す |
+| test_sine_samples_match_reference_and_random_state | 旧SINEとtorch float32特徴・ラベル・生成後乱数状態を照合 |
+| test_sine_samples_reject_invalid_concepts_without_consuming_randomness | 不正概念IDを乱数未消費で拒否することを確認 |
+| test_sine_labels_are_decided_before_float32_rounding | 丸めによって境界判定が反転する特徴で、ラベルを先に判定することを確認 |
+| test_sine_client_observed_streams_preserve_client_order_positions_and_counts | 全概念列後のclient順標本供給とID・位置・件数を旧基準と比較 |
+| test_sine_client_observed_streams_accept_empty_traces | 空入力/空概念列で追加乱数を消費しないことを確認 |
+| test_sine_sample_generation_requires_keyword_arguments | 生成器構築・単一生成・全列構築のkeyword-onlyを確認 |
+| assert_numpy_random_states_equal | actual_numpy_random_state, expected_numpy_random_state → None。NumPy状態の方式・key配列・位置・cacheを完全比較するテスト補助 |
+| BoundaryFeatureRandomState | テスト専用のRandomState派生型。丸めでSINE境界が反転する固定float64特徴を返す |
+| uniform | lower_bound, upper_bound, size → ndarray。上記fixtureの固定特徴供給。乱数を消費しない |
+| lower_bound, upper_bound, size | float、float、int。既存RandomState.uniformと対応するfixture引数 |
+| reference_synthetic_module | 旧SINE生成器のmodule、テスト参照専用 |
+| reference_numpy_random_generator | RandomState。旧基準へ一時接続する独立乱数 |
+| reference_feature_values, reference_class_labels | 旧helperが返した特徴list・ラベルlist |
+| initial_numpy_random_state, global_numpy_random_state | NumPy状態tuple。照合の開始状態と呼出元の保持状態 |
+| actual_numpy_random_state, expected_numpy_random_state | NumPy状態tuple。テスト補助へ渡す実際/期待状態 |
+| invalid_concept_id, expected_class_label | objectとint。不正な概念入力と境界fixtureの期待ラベル |
+| reference_float32_feature_values | list[float]。旧torch FloatTensorによる丸め後の特徴 |
+| reference_observed_samples | list。旧標本の照合用蓄積 |
+| sample_count | int。単一標本生成を繰り返すテスト内の回数 |
+
+既承認の標本・概念・client位置名を同じ意味で使う。NumPyの慣用aliasはnp。テストでのみtorchとSimpleNamespaceを使い、旧moduleのnp参照を局所的に差し替えて復元する。

@@ -137,3 +137,19 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 独立gpt-6-luna (`/root/luna_single_run_3_1_review`): APPROVED、指摘なし。fresh検証1624成功/5.15秒、上記の実件数も確認した。
 - 主担当fresh検証: workspace内TEMP・MPLCONFIGDIR、`../../venv/Scripts/python.exe -m pytest tests/refactoring -q -p no:cacheprovider`、exit 0、1624成功/5.59秒、cleanup警告なし。task 3.1完了はVERIFIED。
 - 候補が一つでもchoiceを呼ぶこと、確率0でも試行可能位置で乱数を消費することを維持した。旧実装・goldenは不変。
+
+### thread上限とtask 3.2追加命名: revision 7
+
+- 新規task 3.2 agentの起動時にagent thread limit reached。list_agentsで親と完了済み3threadを確認したが、利用可能な操作にclose/shutdownがない。threadを解放したとは扱わない。
+- 新しいthreadを必要とするdispatchを既存threadの再利用へ切り替えた。実装は `/root/implement_single_run_3_1`、レビューは別threadのgpt-6-luna `/root/luna_single_run_3_1_review`。新規/独立した初期コンテキストを生成したとは報告しない。
+- gpt-6-lunaのrevision 7命名レビュー: PASS。精度別の特徴名・境界判定・旧標本/乱数比較・境界fixture名に指摘なし。
+- 主担当がrevision 7を承認した。実装とレビューの担当は引き続き別agentとし、各taskの正本と実diffを読み直す。
+
+### task 3.2実装・検証
+
+- 既存実装agentが19ケースとSINE生成を追加した。REDは新モジュール未存在によるcollection error、GREENは1643成功/6.48秒。
+- 旧syntheticへの接続はテスト側だけ。独立RandomStateを一時接続し、旧torch FloatTensor特徴・ラベル・全乱数状態が一致した。
+- 丸めでSINE境界判定が反転する特徴を使い、float64判定をfloat32変換より先に行うことを検証した。不正概念の乱数未消費、空入力とkeyword-onlyも確認した。
+- 別agentのgpt-6-luna `/root/luna_single_run_3_1_review` の実装レビュー: APPROVED、指摘なし、fresh1643成功/6.79秒。threadは再利用であり新規コンテキストではない。
+- 主担当fresh検証: workspace内TMP/TEMP/MPLCONFIGDIR・sandbox外、canonical refactoringテストexit 0、1643成功/6.98秒。task 3.2完了はVERIFIED。
+- データ供給の範囲までを完成した。学習・判断処理や最終FedSDAの新経路golden一致は未実装のまま。
