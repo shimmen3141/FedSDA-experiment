@@ -1,9 +1,9 @@
 {
   "feature_name": "weighted-class-probability-prediction",
   "created_at": "2026-10-03T14:03:15.204104+00:00",
-  "updated_at": "2026-10-03T14:26:57.106557+00:00",
+  "updated_at": "2026-10-03T14:32:06.658329+00:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -35,7 +35,8 @@
       "review_record": "review.md",
       "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
       "task_graph_sanity": "PASS",
-      "review_mode": "independent_reused_thread"
+      "review_mode": "independent_reused_thread",
+      "current_sha256_lf": "b1510185e38d3d1e2cd1892e003a3c59eb7bf77b185721df0a9383d631ea3be7"
     },
     "naming": {
       "generated": true,
@@ -57,5 +58,13 @@
   "adjacent_specs": [
     "single-run-execution"
   ],
-  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages"
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "implementation_progress": {
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "next_task": "2",
+    "total_executable_tasks": 3
+  }
 }
