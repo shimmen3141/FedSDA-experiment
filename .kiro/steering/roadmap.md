@@ -9,7 +9,7 @@
 ## specの候補と依存順
 
 1. `configuration-foundation`: 初回は最終構成に必要な型付き設定と検証。選択肢、preset、保存表現は必要になる段階で追加する。
-2. `single-run-execution`: SINEデータ供給と単一runの実行順序。旧SINE条件を棚卸しし、要件・設計・命名を承認済み。実装計画は作成・独立レビュー済み。現在の承認状態は同specのspec.jsonを参照する。
+2. `single-run-execution`: SINEデータ供給と単一runの実行順序。12実行タスクを完了し、2026-10-03の統合検証はGO。承認・検証証拠は同specのspec.jsonとreview.mdを参照する。
 3. 最終FedSDAの予測・割当・監視・候補検証: 1・2へ接続する。
 4. モデル・学習・サーバ同期・統合: 3の境界に沿って移植する。
 5. 評価・新成果物・golden比較と必要なbaseline・ablation: 各移植単位から段階的に接続する。
@@ -24,13 +24,14 @@
 - worktreeとcc-sdd導入: 完了。
 - アーキテクチャ規約・命名レビュー手順: 作成済み。
 - 要求・設計・初回task: 人間承認済み。初回13タスクに既存成果の改名task 9.1を追加した。
-- 現在の承認revision・実装進捗・次のtask: `../specs/configuration-foundation/spec.json`が正本。
+- 設定基盤の初回承認範囲と後続未完了範囲: `../specs/configuration-foundation/spec.json`が正本。
 - 初回範囲: 基礎例外、各機能の固定条件、値・組合せ検証、不変な部分集約型。実験実行や完全な設定型は含めない。
 - 正本一覧は対象specのREADME。命名再検討表は候補・履歴であり、実装する正式名はnaming.mdのみ。
-- 次段階の入口: `../specs/single-run-execution/README.md`。旧SINE条件の調査結果と、承認済みの要件・設計・命名・実装計画を保存した。実装進捗は同specのtasks.mdとspec.jsonを確認する。
+- 単一run基盤: `../specs/single-run-execution/README.md`。12実行タスクを完了。旧SINEとの準備後データ・乱数・処理順の照合と既存goldenを含む全テストを確認した。新しい学習・判断処理の研究指標は未移植。
+- 次の移植単位は最終FedSDAの予測・割当・監視・候補検証。機能ごとの責務・状態所有・接続契約を仕様化し、Lunaレビューで承認してから実装する。
 
-初回の実行可能task終了後は、小規模実行の別specでSINE goldenの全参照条件と所属を棚卸しする。
-追加契約の確認後に、必要な不足設定と実行経路の移植へ進む。
+SINE goldenの参照条件と所属はsingle-run-executionのreference-inventory.mdへ棚卸し済み。
+今後は必要な追加契約を確認し、型付き設定と単一run基盤へ手法の処理部を接続する。
 `configuration-foundation`の後続計画4〜8は未承認・未完了のまま保持する。
 
 ## 承認と検証

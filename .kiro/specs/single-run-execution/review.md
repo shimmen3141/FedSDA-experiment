@@ -205,3 +205,35 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 主担当freshはexit 0、1804成功/4.80秒。別Luna実装レビューはAPPROVED、fresh1804成功/4.88秒、指摘なし。
 - 100標本・10shuffle後のseed0/17×確率0/0.015/1・3×1500の全観測/概念と二時点の乱数状態が旧helperと一致した。A→B→A、12stage故障の位置/cause/停止/呼出元乱数保持、3stage復旧後の再現、observer変更からの結果隔離を確認した。
 - task 6.1完了はVERIFIED。production変更はなく、初期学習や新経路の最終研究指標の同値性は検証範囲に含めない。
+
+### task 6.2: 全回帰ゲート
+
+- 検証対象コード: b80df76。固定Windows CPU環境、Python 3.13.15・NumPy 2.4.6・torch 2.12.1+cpu・pytest 9.1.1。
+- OMP_NUM_THREADS/MKL_NUM_THREADS=1、TMP/TEMP=基準workspaceのvenv/refactoring-tests、MPLCONFIGDIR=venv/matplotlib-cache、FDE_MNIST_DATA_DIR=基準workspaceのdata/mnist。
+- 実行: `../../venv/Scripts/python.exe -m pytest tests -q -p no:cacheprovider --basetemp=../../venv/refactoring-tests/single-run-complete-final-20261003b`。未使用のbasetempで開始し、exit 0、2089成功・3skip/113.30秒。
+- skipはWindowsでPOSIX bashを使えない既存のserver sweep wrapper 2件とmain ablation wrapper 1件。新specのテストにskipはなく、既存schema・対象機能・旧11ケース/最終3ケースのgoldenも成功した。
+- 公開APIのsmoke: 実execute_stream_protocol_runへテスト用観測factoryを接続し、2client×5標本・区間長2で生成5/処理4/末尾1/client、同期2、event32を確認、exit 0。学習を実装したという扱いにはしない。
+- LF正規化SHA-256: regression_golden.json=`861d5463b8b9afd0ee9c6143c1ca3ec43a1ff40bfd229fe1f8012dd7b4925466`、proposed_regression_golden.json=`d29b4eb393560d890f6ce9695206c6401cf331ec5e484c19970f34bd259bbe08`。両ファイルは748c3aaと同一。旧productionのgit diffも空。
+- diff --check成功。新scopeのTODO/TBD/FIXME/HACK/XXXと秘密情報パターンの検索は該当なし。
+- 別Lunaレビュー: APPROVED、指摘なし。上記の主担当fresh機械証拠と実コードを確認し、22受け入れ条件・層依存・全新moduleのAST検査・ファイル配置・範囲を照合した。task 6.2完了はVERIFIED。
+
+### Feature Validation Report
+
+- DECISION: GO。主担当がkiro-validate-impl / kiro-verify-completionに従い、Lunaの6.2承認後に全12タスク完了と上記fresh証拠を確認した。
+- MECHANICAL_RESULTS: full tests PASS（2089成功・環境による3skip、exit 0）、smoke PASS、TODO/secret検索CLEAN、既存golden/source保持PASS。
+- INTEGRATION: 設定/factory事前検証→CPU context→準備→参加者検査→全系列→全標本→完全区間→終端→不変結果。共有可変状態はrun専用乱数と処理部に限定し、真値を進行へ渡さない。
+- COVERAGE: 22/22。下表を統合検証とLunaレビューで確認した。
+
+| 要求 | 実装と検証の対応 |
+|---|---|
+| 1.1–1.4 | 実行条件・factory事前検査、部分型拒否、生成/準備未呼出テスト |
+| 2.1–2.4 | 不変の観測/真値型、SINE精度・系列照合、client/位置/件数、loopへの真値非入力 |
+| 3.1–3.3 | run専用Random/RandomState・CPU復元、100標本/10shuffle後の旧照合、A→B→A・故障復旧 |
+| 4.1–4.4 | Protocol委譲、4500標本/30同期の独立期待列、全client照会・同期時bool、旧計算不変更 |
+| 5.1–5.4 | 完全区間・端数・T<Aの件数、全候補確定→通信確定、終端追加処理なし |
+| 6.1–6.3 | 不変件数/events、12stage失敗位置/cause/停止、observer変更から隔離、研究指標非追加 |
+
+- DESIGN: File Structure Plan一致、逆依存・旧production importなし。設定/データ/進行/モデル側CPU境界/runtimeの責務を維持した。
+- OWNERSHIP: LOCAL。UPSTREAM_SPEC: configuration-foundation（今回の統合で未解決の依存問題なし）。BLOCKED_TASKS: なし。
+- 最終FedSDAの学習・判断処理・新経路golden比較は後続spec。configuration-foundationの後続未完了計画と研究成果物・コミット保留3資料の状態は継承する。
+- 完了記録自体のLuna確認もPASS。機械証拠、22条件対応、Lunaのtask承認と主担当のGO判定の区別、未移植範囲の記述が一致していることを確認した。追加指摘なし。
