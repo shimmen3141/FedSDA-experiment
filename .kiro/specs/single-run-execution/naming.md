@@ -1,6 +1,6 @@
 # 単一run specの命名
 
-- revision: 2。revision 1へのLuna指摘を反映した命名表。承認状態はspec.jsonを確認する。
+- revision: 3。task 1の依存検査名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 現段階では新src・実装を先取りするテストを作らない。
 
@@ -114,3 +114,37 @@
 | upload_wait_advance | 指定clientの同期後の待ち期間進行 |
 | incomplete_candidate_validation_finalization | 指定clientの候補検証終端 |
 | started_communication_finalization | 通信の終端確定 |
+
+## task 1: package境界と依存検査
+
+productionへの追加はdata、data/concept_schedules、data/sine、execution、runtimeの各__init__.pyのみ。日本語の境界説明を持ち、再exportしない。
+新テストファイルはtests/refactoring/test_single_run_dependency_boundaries.py。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| test_configuration_foundation_imports_only_allowed_dependencies | 既存の全package検査を設定基盤対象へ限定したテスト名。標準ライブラリ制約は保持 |
+| test_single_run_package_boundaries_have_no_exports | package境界の存在と再exportがないことを確認 |
+| test_single_run_layers_import_only_allowed_dependencies | 新srcをAST走査し、各層の許可依存を確認 |
+| test_single_run_dependency_checker_rejects_forbidden_imports | 禁止import fixtureを実際の検査関数へ渡して拒否を確認 |
+| test_single_run_dependency_checker_accepts_allowed_imports | NumPy例外・専用torch・相対importの許可を確認 |
+| collect_dependency_boundary_violations | source_module_path, source_text → tuple[tuple[str, str], ...]。禁止依存と日本語の理由を返す。状態変更なし |
+| resolve_imported_module_names | import_statement, importing_package_name → tuple[str, ...]。相対importを絶対名へ解決 |
+| dependency_is_allowed | source_module_path, imported_module_name → bool。設計の層別許可条件を確認 |
+| is_configuration_foundation_module | source_module_path → bool。core・configuration・機能別設定を判別 |
+
+既存局所名source_module_path、source_file_path、package_source_directory、importing_package_name、parsed_source_module、import_statement、imported_module_names、imported_module_name、imported_module_aliasは同じAST/パスの意味で使う。
+
+| 新しい局所名・テスト引数 | 意味・型 |
+|---|---|
+| source_text | str。読込ソースまたはfixtureのPython文字列 |
+| dependency_boundary_violations | tuple[tuple[str, str], ...]。禁止モジュールと理由 |
+| dependency_boundary_violation_reason | str。違反理由の日本語説明 |
+| allowed_internal_module_prefixes | tuple[str, ...]。その層の許可内部モジュールprefix |
+| source_module_layer | str。相対パスの第1成分 |
+| package_boundary_paths, package_boundary_path | tuple[str, ...]とstr。必要なpackage境界とその1件 |
+| relative_import_prefix | str。相対importのlevelに対応するドット列 |
+| imported_base_module_name | str。from節の絶対モジュール名 |
+| expected_imported_module_name | str。違反として確認するモジュール名 |
+| configuration_foundation_module | bool。設定基盤の対象か |
+
+全てテスト内の一時状態で、productionの実行状態を更新しない。

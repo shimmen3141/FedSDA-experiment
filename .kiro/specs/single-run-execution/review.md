@@ -79,3 +79,20 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 同じ指示で、今後の承認はgpt-6-lunaレビューと主担当の有用指摘反映によって行うよう委任された。要求・設計・task・命名・実装のレビューと採否を維持し、各段階で人間承認を再要求しない。
 - AGENTS.md、方針の正本、steering、命名規則を更新した。過去の承認履歴は当時の記録として保持する。
 - 追加命名の確認後にtask 1から実装する。未完了・未移植の成果を完成扱いにしない。
+
+### task 1追加命名: revision 3
+
+- gpt-6-luna (`/root/luna_single_run_naming_review`) のreview: PASS。依存検査と局所名に改名の指摘なし。
+- 設計上の補足指摘を採用: 概念列生成の公開引数型ExperimentRunConditionsのimport許可をAllowed Dependenciesへ明記した。既定の公開契約に必要な依存の明文化で、処理・scope変更はない。
+- 主担当がrevision 3と設計補足を委任された手順で承認した。実装はtask 1の境界に限る。
+
+### task 1実装・検証
+
+- 実装担当: `/root/implement_single_run_1`。新規package境界5件、設定基盤の対象限定、新しい層の依存検査49ケースを追加した。
+- RED: 境界欠如・checker未定義で47失敗。Protocolの公開引数型の許可fixtureも、追加前に1失敗・48成功を確認した。
+- 設計補足: 接続Protocolの公開引数型ExperimentRunConditions参照をそのモジュールだけで許可する。通常の区間進行・記録からの同依存は禁止する。
+- 独立gpt-6-luna実装レビュー (`/root/luna_single_run_1_review`): APPROVED、blocking指摘なし。対象テスト1308成功、境界・秘密値・placeholder・REDの証拠を確認した。
+- 主担当のfresh再検証: `../../venv/Scripts/python.exe -m pytest tests/refactoring -q -p no:cacheprovider`、exit 0、1308成功/1.83秒。task 1の完了はVERIFIED。
+- 既存schema・対象機能・旧/最終golden: 初回は110成功、tempfile権限で2エラー・1失敗。workspace内TEMPでも同じ問題をprobeで再現した。Windows Python 3.13のmode 700ディレクトリをsandboxトークンから書けないため、同じ3テストをsandbox外・workspace内TEMPで再実行し、3成功/36.26秒。数値不一致ではない。
+- 既存113件は初回110件と再実行3件で全件成功。goldenのLF hashは旧861d5463b8b9afd0ee9c6143c1ca3ec43a1ff40bfd229fe1f8012dd7b4925466、最終d29b4eb393560d890f6ce9695206c6401cf331ec5e484c19970f34bd259bbe08で不変。
+- 一時ファイルが必要な検証は、workspaceのvenv/refactoring-testsに一意な保存先を指定してsandbox外で実行する。既存の同名ディレクトリを削除・再使用しない。

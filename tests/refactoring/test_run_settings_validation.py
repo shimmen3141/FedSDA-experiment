@@ -863,14 +863,22 @@ def test_settings_field_validation_rejects_unsupported_annotations(settings_fiel
         validate_settings_field_values(settings_instance)
 
 
-def test_new_package_imports_only_allowed_dependencies():
-    """旧実装・数値ライブラリへの依存と、設定層の逆向きimportを検出する。"""
+def test_configuration_foundation_imports_only_allowed_dependencies():
+    """設定基盤の旧依存・数値依存と、設定層の逆向きimportを検出する。"""
     package_source_directory = (
         Path(__file__).resolve().parents[2] / "src" / "federated_learning_experiments"
     )
     assert package_source_directory.is_dir()
     for source_file_path in sorted(package_source_directory.rglob("*.py")):
         source_module_path = source_file_path.relative_to(package_source_directory).as_posix()
+        if not (
+            source_module_path.startswith(("core/", "configuration/"))
+            or (
+                source_module_path.startswith(("learning/", "methods/"))
+                and source_module_path.endswith("_settings.py")
+            )
+        ):
+            continue
         importing_package_name = "federated_learning_experiments"
         if source_file_path.parent != package_source_directory:
             importing_package_name += "." + (

@@ -23,9 +23,9 @@ SINE標本の供給と標本位置・同期区間の進行を実装し、学習�
 ### Allowed Dependencies
 
 - 設定型: 標準ライブラリ、既存coreの例外・値検証、ExperimentRunConditionsのみ。
-- データ供給: 標準ライブラリ・NumPy・自分の設定とデータ型。torch・runtime・旧configを参照しない。
+- データ供給: 標準ライブラリ・NumPy・自分の設定とデータ型。概念系列生成の公開引数型として既存configuration.experiment_run_conditionsのExperimentRunConditionsも参照する。torch・runtime・旧configを参照しない。
 - 進行制御: 標準ライブラリ・データ供給・接続Protocol。具体FedSDA・CLI・保存層へ依存しない。
-- 実行層の乱数源モジュールだけはNumPyのRandomStateを参照する。接続Protocolは同じ実行層のこの型を参照し、runtimeをimportしない。
+- 実行層の乱数源モジュールだけはNumPyのRandomStateを参照する。接続Protocolは同じ実行層のこの型と、公開引数型ExperimentRunConditionsを参照し、runtimeをimportしない。
 - runtime: 上記とCPU用torch乱数境界を組み立てる。torchを直接参照するのはlearning/modelsの専用モジュールだけ。
 - 接続する処理部はProtocolを実装し、自身の設定と状態を所有する。真の概念列は実処理の入力に渡さない。
 
