@@ -5,12 +5,12 @@
 1. `spec.json`: フェーズ・承認・実装可能状態。
 2. `requirements.md`: 承認済みの受け入れ条件の正本。
 3. `design.md`: 責務・依存方向・入出力の設計案。承認状態を確認する。
-4. `naming.md`: 名前・役割の正本。revision 2はLuna指摘を反映した命名表。承認状態はspec.jsonを確認する。
+4. `naming.md`: 名前・役割の正本。現在のrevisionと承認状態はspec.jsonを確認する。
 5. `tasks.md`: 実装順序・依存・各単位の検証条件。承認状態と進捗を確認してから実行する。
 
 `reference-inventory.md`は旧SINE条件・処理順・不足条件の根拠。旧名は参照元の説明に限る。
 
-要件・設計・tasksと命名revision 2は承認済み。実装はtasks.mdの未完了単位から順に進める。
+要件・設計・tasksは承認済み。命名は実装単位ごとの追加レビューを記録する。実装はtasks.mdの未完了単位から順に進める。
 各実装単位の補助名・テスト名は、開始前にLunaレビューを通してnaming.mdへ追加する。
 今後の要求・設計・task・命名・実装は、Lunaレビューと主担当の有用な指摘反映を承認として進める。現在の承認状態はspec.jsonを参照する。
 上位方針は`../../../docs/research/refactoring-policy.md`と`../../steering/`。

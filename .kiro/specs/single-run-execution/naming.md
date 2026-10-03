@@ -1,6 +1,6 @@
 # 単一run specの命名
 
-- revision: 3。task 1の依存検査名を追加。承認状態はspec.jsonを確認する。
+- revision: 4。task 2.1の設定検証テスト名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 現段階では新src・実装を先取りするテストを作らない。
 
@@ -148,3 +148,23 @@ productionへの追加はdata、data/concept_schedules、data/sine、execution�
 | configuration_foundation_module | bool。設定基盤の対象か |
 
 全てテスト内の一時状態で、productionの実行状態を更新しない。
+
+## task 2.1: 概念系列の設定検証
+
+production名・フィールドは既存表のRandomConceptScheduleSettingsを用いる。__post_init__は既存metadata検証を呼び、追加のproduction補助名は作らない。
+tests/refactoring/test_sine_stream_generation.pyへ以下を追加する。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| test_random_concept_schedule_settings_accept_valid_values | 方式・位置差・確率の正常値と境界値を受理することを確認 |
+| test_random_concept_schedule_settings_reject_invalid_values | 不正値で項目・元の値・理由が報告されることを確認 |
+| test_random_concept_schedule_settings_require_all_fields | 必須項目不足の拒否を確認 |
+| test_random_concept_schedule_settings_are_frozen_and_keyword_only | 不変性と位置引数の拒否を確認 |
+| valid_concept_schedule_values | dict[str, object]。テスト用の正常設定値。各テストへ独立したコピーを渡すfixture |
+| settings_instance | RandomConceptScheduleSettings。テストで構築した不変条件 |
+| configuration_parameter_name, specified_parameter_value | strとobject。不正にしたフィールドと元の指定値。既存例外と同じ意味 |
+| expected_validation_failure_reason | str。確認する例外理由の表記 |
+| exception_info | pytestの捕捉例外記録 |
+| missing_parameter_name | str。必須項目不足を確認するため除く項目 |
+
+パラメータ化には承認済みのフィールド名をそのまま使用する。テストの設定dictだけを変更し、production・global設定は変更しない。

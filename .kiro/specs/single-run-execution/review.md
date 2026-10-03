@@ -96,3 +96,16 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 既存schema・対象機能・旧/最終golden: 初回は110成功、tempfile権限で2エラー・1失敗。workspace内TEMPでも同じ問題をprobeで再現した。Windows Python 3.13のmode 700ディレクトリをsandboxトークンから書けないため、同じ3テストをsandbox外・workspace内TEMPで再実行し、3成功/36.26秒。数値不一致ではない。
 - 既存113件は初回110件と再実行3件で全件成功。goldenのLF hashは旧861d5463b8b9afd0ee9c6143c1ca3ec43a1ff40bfd229fe1f8012dd7b4925466、最終d29b4eb393560d890f6ce9695206c6401cf331ec5e484c19970f34bd259bbe08で不変。
 - 一時ファイルが必要な検証は、workspaceのvenv/refactoring-testsに一意な保存先を指定してsandbox外で実行する。既存の同名ディレクトリを削除・再使用しない。
+
+### task 2.1追加命名: revision 4
+
+- gpt-6-luna (`/root/luna_single_run_naming_review`): PASS。正常値・異常値・必須不足・不変性を区別するテスト名とfixture/例外関連名に指摘なし。
+- 主担当がrevision 4を承認した。productionは既承認の系列設定型とmetadata検証を用いる。
+
+### task 2.1実装・検証
+
+- 実装担当: `/root/implement_single_run_2_1`。系列設定の不変型と63設定検証ケースを追加した。
+- RED: production追加前に対象モジュール不存在でcollection error。GREEN: refactoring 1371成功/2.00秒。
+- 独立gpt-6-luna (`/root/luna_single_run_2_1_review`): APPROVED、指摘なし。必須・keyword-only・metadata・境界・REDを確認した。
+- 主担当fresh検証: `../../venv/Scripts/python.exe -m pytest tests/refactoring -q -p no:cacheprovider`、exit 0、1371成功/2.37秒。task 2.1完了はVERIFIED。
+- 既存core・旧実装・goldenは変更していない。系列生成は後続task 3.1。
