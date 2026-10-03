@@ -1,5 +1,12 @@
 # レビューと承認
 
+## 最終統合: GO / FEATURE_GO VERIFIED
+
+共有追跡方針の追記もLuna PASS。refactoring-policy第10節と共有READMEの正本・再現/改善案の区別・修正証拠保持・挙動変更の別承認が一致し、AGENTS.mdは変更なしを確認した。
+
+Lunaは3 tasksの接続、14/14条件、設計・依存境界、immutable結果、blockedなしを独立確認しValidation Report DECISION GO。対象161件と記録された独立smokeを新processで再実行し、具体的指摘なし。全回帰は2580 passed / 3 skipped /119.22s、旧11/最終3golden・許容誤差・旧production差分なし。
+主担当も承認hash/revision 1、3/3完了、全条件・境界・partial範囲、対象fresh検証とGO後smoke exit 0を照合してFEATURE_GO VERIFIED。ユーザー委任によりspec完了。モデル帰属・payload・学習・警報後client進行と新FedSDA全体runは後続。共通の不具合/改善候補は記録規約に従って継続追跡する。
+
 ## task 3: APPROVED / TASK VERIFIED
 
 AST更新前REDは2 failed / 159 passed、exact許可の追加後161 passed。Luna独立対象実行も161 passed / exit 0、Review Verdict APPROVED task 3、指摘なし。主担当fresh対象再検証は161 passed / exit 0。全回帰2580 passed / 3 skipped /119.22s、独立smoke exit 0、旧production/golden差分なし。14条件と設計の接続・partial範囲をintegration-validation.mdに確認しTASK VERIFIED。EOF空行と共有記録への相対リンクを検査で修正し、diff check/ローカルリンク検査を通過した。最終feature GOは別に記録する。

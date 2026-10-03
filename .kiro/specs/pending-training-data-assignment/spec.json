@@ -1,9 +1,9 @@
 {
   "feature_name": "pending-training-data-assignment",
   "created_at": "2026-10-03T19:05:23.677682+00:00",
-  "updated_at": "2026-10-03T19:27:22.822639+00:00",
+  "updated_at": "2026-10-03T19:29:13.751116+00:00",
   "language": "ja",
-  "phase": "integration-review",
+  "phase": "implementation-complete",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -74,5 +74,23 @@
     "completed_task_count": 3,
     "next_task": null,
     "total_executable_tasks": 3
+  },
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go",
+    "requirements_covered": 14,
+    "test_pass_count": 2580,
+    "test_skip_count": 3,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "pending_training_sample_indices_fifo_only"
   }
 }
