@@ -93,6 +93,11 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             allowed_internal_module_prefixes += (
                 "federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings.",
             )
+    elif source_module_path == "methods/fedsda/prediction_combination/fixed_share_prediction_weights.py":
+        # 数値状態部品は同機能の固定条件だけを参照する。
+        allowed_internal_module_prefixes = (
+            "federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings.",
+        )
     elif source_module_layer == "data":
         allowed_internal_module_prefixes = (
             "federated_learning_experiments.data.",
@@ -222,6 +227,14 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ("learning/models/model_architecture_settings.py", "import torch", "torch"),
         ("methods/fedsda/consolidation/model_consolidation_settings.py", "import numpy", "numpy"),
         ("data/observed_streams.py", "if False:\n    import torch", "torch"),
+        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "import torch", "torch"),
+        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "import numpy", "numpy"),
+        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "from federated_drift_experiment import expert_routing",
+         "federated_drift_experiment"),
+        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "from federated_learning_experiments.runtime import single_run_execution",
+         "federated_learning_experiments.runtime.single_run_execution"),
+        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "from federated_learning_experiments.methods.fedsda.consolidation import model_consolidation_settings",
+         "federated_learning_experiments.methods.fedsda.consolidation"),
     ],
 )
 def test_single_run_dependency_checker_rejects_forbidden_imports(
@@ -259,6 +272,8 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
         ("runtime/single_run_execution.py", "from ..learning.models.torch_random_state_scope import isolated_cpu_torch_random_state"),
         ("runtime/single_run_execution.py", "from ..learning.models import torch_random_state_scope"),
         ("runtime/single_run_execution.py", "from ..execution import run_random_sources"),
+        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "import math"),
+        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "from .prediction_combination_settings import PredictionCombinationSettings"),
     ],
 )
 def test_single_run_dependency_checker_accepts_allowed_imports(source_module_path, source_text):

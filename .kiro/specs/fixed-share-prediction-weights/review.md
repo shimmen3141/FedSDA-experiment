@@ -42,3 +42,17 @@
 - Lunaが実diff、旧再生・reset、全行検証と計数を直接レビュー。対象・設定テスト1335 passed / 3.20s / exit 0、指摘なしAPPROVED。
 - 主担当が同じ最終対象コマンドを再実行し、1335 passed / exit 0を確認してVERIFIED。
 - 全列先行検証・途中集合差・空列・集約回数/標本数・明示reset・不正後段/列挙途中例外を確認。依存境界と全回帰はtask 4。
+
+## Task 4: APPROVED / VERIFIED
+
+- 主担当manual TDDで許可/禁止import例を追加。RED: 設定依存未許可の2 failed / 54 passed。exact pathの許可追加後、全refactoring1887 passed / 5.22s / exit 0。
+- Lunaが実diffと依存境界をレビューし、自身の全refactoring実行1887 passed / 6.41s / exit 0。指摘なしAPPROVED。
+- 主担当の全tests: 2172 passed / 3 skipped / 118.35s / exit 0。schema、旧11golden、最終3goldenを含む。skipは既存Windows/POSIXの3件。
+- 公開APIの独立プロセスsmokeはexit 0。旧productionとgoldenの748c3aa差分なし、placeholder/秘密値一致なし。詳細コマンド・範囲はintegration-validation.md。
+- 部品境界内の4タスクをVERIFIED。新全体FedSDA runの完成とは扱わない。記録整合の最終Luna確認とfeature GOはこの後の別ゲート。
+
+## 最終統合判定: GO / VERIFIED
+
+- GPT-6 Lunaが完成記録・roadmap・全4チェック・承認内容hashとcurrent task hashを確認し、Feature Integration Verdict **GO**。全22要件・状態遷移・依存・部分移植範囲に具体指摘なし、blockedなし。
+- 主担当も同じ最終コードの全tests・smoke・旧差分なしとhash一致を確認し、kiro-validate-implとkiro-verify-completionのfeature gateをGO / VERIFIEDとした。
+- `spec.json`はimplementation-completeへ更新。完成範囲はFixed-Share予測重み部品だけ。次はモデル出力混合の責務・入力契約を別specで定義する。

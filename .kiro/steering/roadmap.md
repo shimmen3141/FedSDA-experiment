@@ -28,7 +28,8 @@
 - 初回範囲: 基礎例外、各機能の固定条件、値・組合せ検証、不変な部分集約型。実験実行や完全な設定型は含めない。
 - 正本一覧は対象specのREADME。命名再検討表は候補・履歴であり、実装する正式名はnaming.mdのみ。
 - 単一run基盤: `../specs/single-run-execution/README.md`。12実行タスクを完了。旧SINEとの準備後データ・乱数・処理順の照合と既存goldenを含む全テストを確認した。新しい学習・判断処理の研究指標は未移植。
-- 次の移植単位は`../specs/fixed-share-prediction-weights/README.md`。予測重みの要件はLunaレビュー後に承認済み。設計・命名・task・実装の現在地は同spec.jsonが正本。モデル学習と全体runはこの部品の完了範囲に含めない。
+- 予測重みの移植は`../specs/fixed-share-prediction-weights/README.md`。4実装タスクはLuna承認・検証済み、最終統合判定はGO。全testsは2172 passed / 3 skipped、旧production・golden差分なし。承認・feature GOの正本は同spec.json。モデル混合・学習と全体runはこの部品の完了範囲に含めない。
+- この部品の後はモデル出力の混合予測、ClassESR監視、候補の将来損失判定、FIFO帰属・client調整を順に仕様化する。未作成specの命名・実装を先取りしない。
 
 SINE goldenの参照条件と所属はsingle-run-executionのreference-inventory.mdへ棚卸し済み。
 今後は必要な追加契約を確認し、型付き設定と単一run基盤へ手法の処理部を接続する。

@@ -23,7 +23,7 @@
   - _Boundary: FixedSharePredictionWeightController_
   - _Requirements: 1.2, 1.3, 5.1, 5.2, 5.3, 5.4, 5.5, 6.1_
 
-- [ ] 4. 依存境界へ統合し、既存回帰と完成範囲を検証する
+- [x] 4. 依存境界へ統合し、既存回帰と完成範囲を検証する
   - 設定への依存だけを新controllerに許し、上位・旧実装・torch/NumPy・他機能を禁止例で確認する。
   - 新src全走査、全refactoringテスト、既存schema、tests/test_regression.py、tests/test_proposed_regression.pyを含む全testsを実行する。
   - 旧src・goldenに差分がなく、全検証結果と未接続の全体runを区別したGO証拠が残る。roadmapの完成範囲も部品移植として更新する。

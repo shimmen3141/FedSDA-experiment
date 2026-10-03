@@ -1,9 +1,9 @@
 {
   "feature_name": "fixed-share-prediction-weights",
   "created_at": "2026-10-03T12:45:20.859945+00:00",
-  "updated_at": "2026-10-03T13:22:55.296378+00:00",
+  "updated_at": "2026-10-03T13:30:11.248583+00:00",
   "language": "ja",
-  "phase": "implementation-in-progress",
+  "phase": "implementation-complete",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -34,7 +34,7 @@
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
       "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
-      "current_sha256_lf": "d6f8b262c85449eeced474b94b2dd31e872108bf1cf35911e6e5eee1c649955c"
+      "current_sha256_lf": "c0f3decb09917236b578196d9f879706c51cae86b2dadfb1febf497423a66ff2"
     },
     "naming": {
       "generated": true,
@@ -49,7 +49,7 @@
       "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages"
     }
   },
-  "ready_for_implementation": true,
+  "ready_for_implementation": false,
   "upstream_specs": [
     "configuration-foundation"
   ],
@@ -61,14 +61,34 @@
     "completed_tasks": [
       "1",
       "2",
-      "3"
+      "3",
+      "4"
     ],
-    "next_task": "4",
+    "completed_task_count": 4,
+    "next_task": null,
     "total_executable_tasks": 4
   },
   "task_graph_review": {
     "result": "PASS",
     "review_mode": "separate_reused_luna_thread",
     "record": "review.md"
+  },
+  "integration_validation": {
+    "decision": "GO",
+    "record": "integration-validation.md",
+    "test_pass_count": 2172,
+    "test_skip_count": 3,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "golden_unchanged": true,
+    "legacy_production_unchanged": true,
+    "current_scope": "fixed_share_prediction_weight_component_only",
+    "status": "VERIFIED",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "review_record": "review.md",
+    "requirements_covered": 22,
+    "decision_author": "primary_agent_after_luna_feature_integration_go",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages"
   }
 }
