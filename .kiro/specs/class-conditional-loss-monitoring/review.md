@@ -1,5 +1,10 @@
 # レビューと承認
 
+## 最終統合: GO / FEATURE_GO VERIFIED
+
+Lunaが完成した3 tasksの接続と設計境界、全20/20条件、全tests2390 passed / 3 skipped / 123.81sの証拠を確認した。独立smokeを再実行し単一/混合監視・copy/reset・閾値等号・旧package/torchの未importをexit 0で確認。Validation Report DECISION GO、設計ずれ・coverage欠落・blocked task・具体的な指摘はない。
+主担当も承認済み要求/設計/命名hash、命名revision 3、3/3 tasks、最新全回帰と独立smoke、旧production/golden差分なしを確認し、FEATURE_GO VERIFIED。ユーザー委任によりspecを完了とする。完成範囲はClassESR監視部品だけで、新全体run・baseline推定・FIFO・候補・client進行は後続specの責務。
+
 ## task 3: APPROVED / TASK VERIFIED
 
 AST許可更新前のREDは4 failed / 1529 passed。更新後1533 passed、全refactoring 2105 passed。テスト追記時に既存invalid reset assertionを別testへ誤配置した点は主担当が修正してからREDを確認し、production不具合とは扱っていない。

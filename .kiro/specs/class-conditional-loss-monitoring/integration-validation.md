@@ -4,7 +4,7 @@
 
 対象は単一有界損失のe-SR状態と全体・正解クラス系列の固定重み混合、global候補位置、reset、観測結果と診断copy。
 モデルforward・学習・モデル統計からのbaseline推定・FIFO帰属・候補の将来損失判定・警報後操作・server同期・新FedSDA全体runは後続範囲。
-最終feature判定はspec.jsonが正本。task 1・2・3のLunaレビューはAPPROVEDで、具体的な未解決指摘はない。
+最終feature判定はGO、承認の正本はspec.json。task 1・2・3のLunaレビューはAPPROVEDで、具体的な未解決指摘はない。Lunaが20/20条件・全体接続・設計境界・blockedなしを確認し、独立smokeも再実行してGO。主担当も最新の全回帰・smoke・承認hashと完成範囲を確認し、FEATURE_GO VERIFIEDとした。
 
 ## 要件の証拠
 

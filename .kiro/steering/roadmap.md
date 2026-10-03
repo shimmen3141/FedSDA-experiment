@@ -30,7 +30,8 @@
 - 単一run基盤: `../specs/single-run-execution/README.md`。12実行タスクを完了。旧SINEとの準備後データ・乱数・処理順の照合と既存goldenを含む全テストを確認した。新しい学習・判断処理の研究指標は未移植。
 - 予測重みの移植は`../specs/fixed-share-prediction-weights/README.md`。4実装タスクはLuna承認・検証済み、最終統合判定はGO。全testsは2172 passed / 3 skipped、旧production・golden差分なし。承認・feature GOの正本は同spec.json。モデル混合・学習と全体runはこの部品の完了範囲に含めない。
 - 分類予測の数値部品は`../specs/weighted-class-probability-prediction/README.md`。3 tasks完了、全20条件をLunaが確認し最終統合GO。2026-10-04の全testsは2281 passed / 3 skipped、旧golden11ケース・最終golden3ケースを更新せず通過。二値/多クラスの確率化・混合・予測・平均有界損失と、重み状態へのテスト接続が完了範囲。新FedSDA全体run、モデルforward・学習は未移植。
-- 次はClassESR監視、候補の将来損失判定、FIFO帰属・client調整を順に仕様化する。未作成specの命名・実装を先取りしない。
+- 全体・正解クラス別損失監視は`../specs/class-conditional-loss-monitoring/README.md`。3 tasks完了、全20条件をLunaが確認し最終統合GO。2026-10-04の全testsは2390 passed / 3 skipped、旧golden11ケース・最終golden3ケースを更新せず通過。単一e-SR・ClassESR混合・global候補位置・reset・明示損失接続が完成範囲。モデル統計からのbaseline推定、警報後操作、新全体runは後続範囲。
+- 次は候補の将来損失判定、FIFO帰属・client調整を順に仕様化する。未作成specの命名・実装を先取りしない。
 
 SINE goldenの参照条件と所属はsingle-run-executionのreference-inventory.mdへ棚卸し済み。
 今後は必要な追加契約を確認し、型付き設定と単一run基盤へ手法の処理部を接続する。
