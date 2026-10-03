@@ -122,3 +122,18 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 独立gpt-6-luna (`/root/luna_single_run_2_2_review`): APPROVED、指摘なし。観測値/真値分離、必須・型・位置・不変性・層境界を確認した。
 - 主担当fresh検証: `../../venv/Scripts/python.exe -m pytest tests/refactoring -q -p no:cacheprovider`、exit 0、1429成功/1.93秒。task 2.2完了はVERIFIED。
 - 正確な組込みtuple・float・intと標本型を検査し、入れ子の可変要素や可変状態を持つ派生型も保持しない。既存実装・goldenに変更なし。
+
+### task 3.1追加命名: revision 6
+
+- gpt-6-luna (`/root/luna_single_run_naming_review`): PASS。状態更新と試行可能位置、旧helperとの系列・生成後乱数比較を明示する名前に指摘なし。
+- 主担当がrevision 6を承認した。位置差と確率のテスト引数も正式条件名へ統一する。
+
+### task 3.1実装・検証
+
+- 実装担当: `/root/implement_single_run_3_1`。標本位置の厳密な試行条件とclient順の概念列生成を移植した。
+- RED: 生成モジュール未作成でcollection error。GREEN: 1624成功/5.28秒。初回にmatplotlibの一時ディレクトリcleanup権限警告があり、workspace内TEMP・MPLCONFIGDIRを指定してsandbox外で再確認した。
+- 新規ケース数は実際のparametrize積と総件数差で192照合+3個別=195件。実装担当の当初報告384/387件は誤りであり、その数は証拠として採用しない。
+- 旧helperをテスト側で独立したRandomへ一時接続し、全系列と生成後getstateを直接比較した。seed0・3client・1500標本・位置差100・確率0.015も一致する。
+- 独立gpt-6-luna (`/root/luna_single_run_3_1_review`): APPROVED、指摘なし。fresh検証1624成功/5.15秒、上記の実件数も確認した。
+- 主担当fresh検証: workspace内TEMP・MPLCONFIGDIR、`../../venv/Scripts/python.exe -m pytest tests/refactoring -q -p no:cacheprovider`、exit 0、1624成功/5.59秒、cleanup警告なし。task 3.1完了はVERIFIED。
+- 候補が一つでもchoiceを呼ぶこと、確率0でも試行可能位置で乱数を消費することを維持した。旧実装・goldenは不変。

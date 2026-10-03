@@ -1,6 +1,6 @@
 # 単一run specの命名
 
-- revision: 5。task 2.2の不変データ検証名を追加。承認状態はspec.jsonを確認する。
+- revision: 6。task 3.1の概念列生成名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 現段階では新src・実装を先取りするテストを作らない。
 
@@ -189,3 +189,30 @@ productionの型・フィールドは既存表を使い、補助関数は追加�
 | record_field_name, invalid_field_value, expected_exception_type | str、object、例外type。対象項目・不正入力・期待例外 |
 
 例外捕捉は承認済みexception_infoを使う。設定値ではない不正な記録はTypeError/ValueErrorで報告し、既存coreを変更しない。
+
+## task 3.1: 概念列と乱数消費
+
+公開関数・引数は既存表を使用する。production補助関数は追加しない。
+
+| 名前 | 役割・入出力・更新 |
+|---|---|
+| evaluation_concept_traces | list[ClientConceptTrace]。全clientの結果を蓄積してtupleで返す |
+| concept_ids_by_sample_index | list[int]。当該clientの位置順の概念を蓄積してtupleにする |
+| current_concept_id | int。現在概念0/1、各clientで0に初期化 |
+| last_concept_change_sample_index | int。直近の実変化位置、初期値0。変化時だけ更新 |
+| alternative_concept_ids | list[int]。現在概念以外の候補。一つでもchoiceで選び乱数消費を維持 |
+| client_id, sample_index, concept_id | int。承認済みのclient ID・位置・候補概念IDと同じ意味 |
+| test_random_client_concept_traces_match_reference_and_random_state | 旧helperと全系列・順序・件数・生成後乱数状態を照合 |
+| test_random_client_concept_traces_use_strict_minimum_index_gap | gap100で101に初回変化、202に次回変化となることを確認 |
+| test_random_client_concept_traces_consume_eligible_trials_with_zero_probability | 確率0でも対象位置ごとに試行乱数を消費しglobal乱数は不変と確認 |
+| test_random_client_concept_trace_generation_requires_keyword_arguments | 公開keyword-only契約を確認 |
+| reference_schedules_module | 旧data.schedulesのmodule。テスト側の参照専用 |
+| reference_python_random_generator | Random。旧moduleへ一時注入する独立乱数源 |
+| reference_concept_schedules | list[list[int]]。旧helperの結果 |
+| initial_python_random_state, global_python_random_state | Python乱数の状態tuple。照合の開始状態・呼出元の保持状態 |
+| expected_python_random_generator | Random。確率0での試行消費数の照合用 |
+| eligible_sample_trial_count | int。変更試行可能な標本数 |
+| preparation_random_draw_count, random_draw_index | int。系列前に消費する試行数と、消費ループの一時index |
+| monkeypatch | pytest fixture。テスト中だけ旧moduleの乱数源を差し替えて復元 |
+
+実験条件・設定・seed・client数・標本数には既承認名を使う。テスト引数の位置差と確率もminimum_sample_index_gap_before_change_trial、per_eligible_sample_concept_change_probabilityとし、gap/probabilityという別名は導入しない。

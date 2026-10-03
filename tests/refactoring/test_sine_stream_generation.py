@@ -1,9 +1,16 @@
 """SINEデータ供給の固定条件と不変記録を確認する。"""
 
 from dataclasses import FrozenInstanceError
+import random
 
 import pytest
 
+from federated_learning_experiments.configuration.experiment_run_conditions import (
+    ExperimentRunConditions,
+)
+from federated_learning_experiments.data.concept_schedules.random_concept_schedule_generation import (
+    generate_random_client_concept_traces,
+)
 from federated_learning_experiments.core.configuration_errors import (
     RunSettingsValidationError,
 )
@@ -282,3 +289,122 @@ def test_observed_data_records_require_all_fields(record_type, record_field_valu
     del record_field_values[record_field_name]
     with pytest.raises(TypeError, match=record_field_name):
         record_type(**record_field_values)
+
+
+@pytest.mark.parametrize("random_seed", [0, 17])
+@pytest.mark.parametrize("client_count", [1, 3])
+@pytest.mark.parametrize("per_client_sample_count", [1, 101, 305, 1500])
+@pytest.mark.parametrize("minimum_sample_index_gap_before_change_trial", [0, 100])
+@pytest.mark.parametrize("per_eligible_sample_concept_change_probability", [0.0, 0.015, 1.0])
+@pytest.mark.parametrize("preparation_random_draw_count", [0, 11])
+def test_random_client_concept_traces_match_reference_and_random_state(
+    monkeypatch, random_seed, client_count, per_client_sample_count,
+    minimum_sample_index_gap_before_change_trial,
+    per_eligible_sample_concept_change_probability, preparation_random_draw_count,
+):
+    """旧系列と生成後の乱数を照合し、各clientの件数・順序を維持する。"""
+    from federated_drift_experiment.data import schedules as reference_schedules_module
+
+    experiment_run_conditions = ExperimentRunConditions(
+        dataset_name="sine2", random_seed=random_seed, client_count=client_count,
+        per_client_sample_count=per_client_sample_count,
+        server_aggregation_interval_per_client_samples=50,
+    )
+    settings_instance = RandomConceptScheduleSettings(
+        concept_schedule_strategy="random_changes_after_minimum_index_gap",
+        minimum_sample_index_gap_before_change_trial=minimum_sample_index_gap_before_change_trial,
+        per_eligible_sample_concept_change_probability=per_eligible_sample_concept_change_probability,
+    )
+    python_random_generator = random.Random(random_seed)
+    for random_draw_index in range(preparation_random_draw_count):
+        python_random_generator.random()
+    initial_python_random_state = python_random_generator.getstate()
+    reference_python_random_generator = random.Random()
+    reference_python_random_generator.setstate(initial_python_random_state)
+    monkeypatch.setattr(reference_schedules_module, "random", reference_python_random_generator)
+    global_python_random_state = random.getstate()
+    reference_concept_schedules = reference_schedules_module.make_random_schedules(
+        client_count, per_client_sample_count, 2,
+        minimum_sample_index_gap_before_change_trial,
+        per_eligible_sample_concept_change_probability,
+    )
+    evaluation_concept_traces = generate_random_client_concept_traces(
+        experiment_run_conditions=experiment_run_conditions,
+        concept_schedule_settings=settings_instance,
+        python_random_generator=python_random_generator,
+    )
+    assert isinstance(evaluation_concept_traces, tuple)
+    assert len(evaluation_concept_traces) == client_count
+    for client_id, client_concept_trace in enumerate(evaluation_concept_traces):
+        assert isinstance(client_concept_trace, ClientConceptTrace)
+        assert client_concept_trace.client_id == client_id
+        assert client_concept_trace.concept_ids_by_sample_index == tuple(
+            reference_concept_schedules[client_id]
+        )
+        assert len(client_concept_trace.concept_ids_by_sample_index) == per_client_sample_count
+        assert client_concept_trace.concept_ids_by_sample_index[0] == 0
+    assert python_random_generator.getstate() == reference_python_random_generator.getstate()
+    assert random.getstate() == global_python_random_state
+
+
+def test_random_client_concept_traces_use_strict_minimum_index_gap():
+    """位置差100では101で初めて変化し、次の変化は202になる。"""
+    evaluation_concept_traces = generate_random_client_concept_traces(
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name="sine2", random_seed=0, client_count=3,
+            per_client_sample_count=204, server_aggregation_interval_per_client_samples=50,
+        ),
+        concept_schedule_settings=RandomConceptScheduleSettings(
+            concept_schedule_strategy="random_changes_after_minimum_index_gap",
+            minimum_sample_index_gap_before_change_trial=100,
+            per_eligible_sample_concept_change_probability=1.0,
+        ),
+        python_random_generator=random.Random(0),
+    )
+    for client_concept_trace in evaluation_concept_traces:
+        assert client_concept_trace.concept_ids_by_sample_index == (0,) * 101 + (1,) * 101 + (0,) * 2
+
+
+def test_random_client_concept_traces_consume_eligible_trials_with_zero_probability():
+    """確率0でも試行乱数を消費し、借りた乱数以外は変更しない。"""
+    python_random_generator = random.Random(0)
+    expected_python_random_generator = random.Random(0)
+    global_python_random_state = random.getstate()
+    evaluation_concept_traces = generate_random_client_concept_traces(
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name="sine2", random_seed=0, client_count=3,
+            per_client_sample_count=1500, server_aggregation_interval_per_client_samples=50,
+        ),
+        concept_schedule_settings=RandomConceptScheduleSettings(
+            concept_schedule_strategy="random_changes_after_minimum_index_gap",
+            minimum_sample_index_gap_before_change_trial=100,
+            per_eligible_sample_concept_change_probability=0.0,
+        ),
+        python_random_generator=python_random_generator,
+    )
+    eligible_sample_trial_count = 3 * (1500 - 101)
+    for random_draw_index in range(eligible_sample_trial_count):
+        expected_python_random_generator.random()
+    assert all(
+        client_concept_trace.concept_ids_by_sample_index == (0,) * 1500
+        for client_concept_trace in evaluation_concept_traces
+    )
+    assert python_random_generator.getstate() == expected_python_random_generator.getstate()
+    assert random.getstate() == global_python_random_state
+
+
+def test_random_client_concept_trace_generation_requires_keyword_arguments():
+    """公開関数は設定と借りる乱数をkeywordで明示する。"""
+    experiment_run_conditions = ExperimentRunConditions(
+        dataset_name="sine2", random_seed=0, client_count=1,
+        per_client_sample_count=1, server_aggregation_interval_per_client_samples=50,
+    )
+    settings_instance = RandomConceptScheduleSettings(
+        concept_schedule_strategy="random_changes_after_minimum_index_gap",
+        minimum_sample_index_gap_before_change_trial=100,
+        per_eligible_sample_concept_change_probability=0.015,
+    )
+    with pytest.raises(TypeError):
+        generate_random_client_concept_traces(
+            experiment_run_conditions, settings_instance, random.Random(0),
+        )
