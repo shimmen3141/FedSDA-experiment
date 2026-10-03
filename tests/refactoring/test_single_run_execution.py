@@ -13,6 +13,7 @@ import pytest
 import torch
 
 from test_run_settings_validation import valid_run_settings_mapping
+from test_sine_stream_generation import assert_numpy_random_states_equal
 from federated_learning_experiments.configuration.experiment_run_conditions import ExperimentRunConditions
 from federated_learning_experiments.configuration.run_settings import ValidatedExperimentRunSettingsSubset
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
@@ -163,6 +164,335 @@ class ObservingRunParticipantFactory:
         )
         self.prepared_participant_history.append(participants)
         return participants
+
+
+class InitialPreparationObservingParticipantFactory(ObservingRunParticipantFactory):
+    """100標本と10shuffleの準備消費だけを再現し、学習を実装しない。"""
+
+    def prepare_run(self, *, experiment_run_conditions, run_random_sources, sample_generator):
+        participants = super().prepare_run(
+            experiment_run_conditions=experiment_run_conditions,
+            run_random_sources=run_random_sources, sample_generator=sample_generator,
+        )
+        self.preparation_observed_samples = [
+            sample_generator.generate_sample(concept_id=0) for preparation_sample_index in range(100)
+        ]
+        for preparation_shuffle_index in range(10):
+            run_random_sources.python_random_generator.shuffle(self.preparation_observed_samples)
+        self.prepared_python_random_state = run_random_sources.python_random_generator.getstate()
+        self.prepared_numpy_random_state = run_random_sources.numpy_random_generator.get_state()
+        return participants
+
+
+def build_reference_post_preparation_streams(*, execution_settings, monkeypatch):
+    """独立乱数を旧helperへ注入して準備後データと二時点の状態を返す。"""
+    from federated_drift_experiment.data import schedules as reference_schedules_module
+    from federated_drift_experiment.data import synthetic as reference_synthetic_module
+
+    experiment_run_conditions = execution_settings.experiment_run_conditions
+    concept_schedule_settings = execution_settings.concept_schedule_settings
+    reference_python_random_generator = random.Random(experiment_run_conditions.random_seed)
+    reference_numpy_random_generator = np.random.RandomState(experiment_run_conditions.random_seed)
+    monkeypatch.setattr(reference_schedules_module, "random", reference_python_random_generator)
+    monkeypatch.setattr(reference_synthetic_module, "np", SimpleNamespace(
+        random=reference_numpy_random_generator, sin=np.sin,
+    ))
+    reference_feature_values, reference_class_labels = reference_synthetic_module.generate_sine2(0, 100)
+    reference_preparation_samples = list(zip(reference_feature_values, reference_class_labels, strict=True))
+    for preparation_shuffle_index in range(10):
+        reference_python_random_generator.shuffle(reference_preparation_samples)
+    reference_prepared_python_random_state = reference_python_random_generator.getstate()
+    reference_prepared_numpy_random_state = reference_numpy_random_generator.get_state()
+    reference_concept_schedules = reference_schedules_module.make_random_schedules(
+        experiment_run_conditions.client_count, experiment_run_conditions.per_client_sample_count, 2,
+        concept_schedule_settings.minimum_sample_index_gap_before_change_trial,
+        concept_schedule_settings.per_eligible_sample_concept_change_probability,
+    )
+    evaluation_concept_traces = tuple(ClientConceptTrace(
+        client_id=client_id, concept_ids_by_sample_index=tuple(concept_ids_by_sample_index),
+    ) for client_id, concept_ids_by_sample_index in enumerate(reference_concept_schedules))
+    observed_client_streams = []
+    for client_concept_trace in evaluation_concept_traces:
+        reference_observed_samples = []
+        for concept_id in client_concept_trace.concept_ids_by_sample_index:
+            reference_feature_values, reference_class_labels = reference_synthetic_module.generate_sine2(concept_id, 1)
+            reference_observed_samples.append(ObservedSample(
+                feature_values=tuple(torch.FloatTensor(reference_feature_values[0]).tolist()),
+                class_label=int(reference_class_labels[0]),
+            ))
+        observed_client_streams.append(ClientObservedStream(
+            client_id=client_concept_trace.client_id, observed_samples=tuple(reference_observed_samples),
+        ))
+    reference_generated_python_random_state = reference_python_random_generator.getstate()
+    reference_generated_numpy_random_state = reference_numpy_random_generator.get_state()
+    return (
+        evaluation_concept_traces, tuple(observed_client_streams),
+        reference_prepared_python_random_state, reference_prepared_numpy_random_state,
+        reference_generated_python_random_state, reference_generated_numpy_random_state,
+    )
+
+
+@pytest.mark.parametrize("random_seed", [0, 17])
+@pytest.mark.parametrize("per_eligible_sample_concept_change_probability", [0.0, 0.015, 1.0])
+def test_single_run_post_preparation_streams_match_reference(
+    monkeypatch, valid_stream_protocol_execution_settings, random_seed,
+    per_eligible_sample_concept_change_probability,
+):
+    """100標本・10shuffle後の全データと準備直後・供給後乱数を旧基準へ照合する。"""
+    execution_settings = replace(
+        valid_stream_protocol_execution_settings,
+        experiment_run_conditions=replace(
+            valid_stream_protocol_execution_settings.experiment_run_conditions, random_seed=random_seed,
+        ),
+        concept_schedule_settings=replace(
+            valid_stream_protocol_execution_settings.concept_schedule_settings,
+            per_eligible_sample_concept_change_probability=per_eligible_sample_concept_change_probability,
+        ),
+    )
+    global_python_random_state = random.getstate()
+    global_numpy_random_state = np.random.get_state()
+    original_cpu_torch_random_state = torch.get_rng_state().clone()
+    participant_factory = InitialPreparationObservingParticipantFactory(observer=RunOperationObserver())
+    run_result = runtime_module.execute_stream_protocol_run(
+        execution_settings=execution_settings, participant_factory=participant_factory,
+    )
+    (
+        evaluation_concept_traces, observed_client_streams,
+        reference_prepared_python_random_state, reference_prepared_numpy_random_state,
+        reference_generated_python_random_state, reference_generated_numpy_random_state,
+    ) = build_reference_post_preparation_streams(execution_settings=execution_settings, monkeypatch=monkeypatch)
+    generated_python_random_state = participant_factory.borrowed_run_random_sources.python_random_generator.getstate()
+    generated_numpy_random_state = participant_factory.borrowed_run_random_sources.numpy_random_generator.get_state()
+    assert len(participant_factory.preparation_observed_samples) == 100
+    assert run_result.evaluation_concept_traces == evaluation_concept_traces
+    assert run_result.observed_client_streams == observed_client_streams
+    assert participant_factory.prepared_python_random_state == reference_prepared_python_random_state
+    assert_numpy_random_states_equal(participant_factory.prepared_numpy_random_state, reference_prepared_numpy_random_state)
+    assert generated_python_random_state == reference_generated_python_random_state
+    assert_numpy_random_states_equal(generated_numpy_random_state, reference_generated_numpy_random_state)
+    assert random.getstate() == global_python_random_state
+    assert_numpy_random_states_equal(np.random.get_state(), global_numpy_random_state)
+    assert torch.equal(torch.get_rng_state(), original_cpu_torch_random_state)
+
+
+def test_single_run_repeated_conditions_are_independent_across_intervening_runs(
+    valid_stream_protocol_execution_settings,
+):
+    """同factoryでA→B→Aを実行し、同値結果と新しい参加者・乱数を確認する。"""
+    global_python_random_state = random.getstate()
+    global_numpy_random_state = np.random.get_state()
+    original_cpu_torch_random_state = torch.get_rng_state().clone()
+    observer = RunOperationObserver()
+    participant_factory = InitialPreparationObservingParticipantFactory(observer=observer)
+    first_run_result = runtime_module.execute_stream_protocol_run(
+        execution_settings=valid_stream_protocol_execution_settings, participant_factory=participant_factory,
+    )
+    first_participants = participant_factory.prepared_participant_history[-1]
+    first_run_random_sources = participant_factory.borrowed_run_random_sources
+    intervening_execution_settings = replace(
+        valid_stream_protocol_execution_settings,
+        experiment_run_conditions=replace(
+            valid_stream_protocol_execution_settings.experiment_run_conditions,
+            random_seed=17, client_count=2, per_client_sample_count=17,
+            server_aggregation_interval_per_client_samples=7,
+        ),
+        concept_schedule_settings=replace(
+            valid_stream_protocol_execution_settings.concept_schedule_settings,
+            minimum_sample_index_gap_before_change_trial=0,
+            per_eligible_sample_concept_change_probability=1.0,
+        ),
+    )
+    intervening_run_result = runtime_module.execute_stream_protocol_run(
+        execution_settings=intervening_execution_settings, participant_factory=participant_factory,
+    )
+    intervening_participants = participant_factory.prepared_participant_history[-1]
+    intervening_run_random_sources = participant_factory.borrowed_run_random_sources
+    repeated_run_result = runtime_module.execute_stream_protocol_run(
+        execution_settings=valid_stream_protocol_execution_settings, participant_factory=participant_factory,
+    )
+    repeated_participants = participant_factory.prepared_participant_history[-1]
+    repeated_run_random_sources = participant_factory.borrowed_run_random_sources
+    assert first_run_result == repeated_run_result
+    assert first_run_result != intervening_run_result
+    assert len(participant_factory.prepared_participant_history) == 3
+    assert first_participants is not intervening_participants
+    assert first_participants is not repeated_participants
+    assert intervening_participants is not repeated_participants
+    assert first_participants.server_operations is not repeated_participants.server_operations
+    assert first_participants.server_operations is not intervening_participants.server_operations
+    assert intervening_participants.server_operations is not repeated_participants.server_operations
+    for client_id in range(2):
+        assert first_participants.client_operations[client_id] is not intervening_participants.client_operations[client_id]
+        assert first_participants.client_operations[client_id] is not repeated_participants.client_operations[client_id]
+        assert intervening_participants.client_operations[client_id] is not repeated_participants.client_operations[client_id]
+    assert first_participants.client_operations[2] is not repeated_participants.client_operations[2]
+    for record_field_name in ("python_random_generator", "numpy_random_generator"):
+        assert getattr(first_run_random_sources, record_field_name) is not getattr(intervening_run_random_sources, record_field_name)
+        assert getattr(first_run_random_sources, record_field_name) is not getattr(repeated_run_random_sources, record_field_name)
+        assert getattr(intervening_run_random_sources, record_field_name) is not getattr(repeated_run_random_sources, record_field_name)
+    assert random.getstate() == global_python_random_state
+    assert_numpy_random_states_equal(np.random.get_state(), global_numpy_random_state)
+    assert torch.equal(torch.get_rng_state(), original_cpu_torch_random_state)
+
+
+@pytest.mark.parametrize(
+    "injected_failure_stage_name,expected_failure_client_id,expected_failure_sample_index,expected_failure_round_index",
+    [
+        ("initial_preparation", None, None, None),
+        ("participant_validation", None, None, None),
+        ("concept_trace_generation", None, None, None),
+        ("observed_stream_generation", None, None, None),
+        ("sample_processing", 1, 2, 1),
+        ("pending_update_flush", 1, None, 1),
+        ("pre_sync_recording", None, None, 1),
+        ("registration_readiness_check", 1, None, 1),
+        ("server_synchronization", None, None, 1),
+        ("upload_wait_advance", 1, None, 1),
+        ("incomplete_candidate_validation_finalization", 1, None, None),
+        ("started_communication_finalization", None, None, None),
+    ],
+)
+def test_single_run_failure_preserves_cause_position_and_caller_random_states(
+    monkeypatch, valid_stream_protocol_execution_settings, injected_failure_stage_name,
+    expected_failure_client_id, expected_failure_sample_index, expected_failure_round_index,
+):
+    """各故障stageで位置・元cause・全global乱数復元と停止prefixを確認する。"""
+    execution_settings = replace(
+        valid_stream_protocol_execution_settings,
+        experiment_run_conditions=replace(
+            valid_stream_protocol_execution_settings.experiment_run_conditions,
+            per_client_sample_count=4, server_aggregation_interval_per_client_samples=2,
+        ),
+    )
+    observer = RunOperationObserver()
+    runtime_module.execute_stream_protocol_run(
+        execution_settings=execution_settings,
+        participant_factory=InitialPreparationObservingParticipantFactory(observer=observer),
+    )
+    expected_operation_calls = list(observer.operation_calls)
+    observer = RunOperationObserver()
+    original_exception = ValueError("統合テストの故障")
+    expected_failure_event = RunExecutionEvent(
+        stage_name=injected_failure_stage_name, client_id=expected_failure_client_id,
+        sample_index=expected_failure_sample_index, round_index=expected_failure_round_index,
+    )
+    observer.failure_at_event = expected_failure_event
+    observer.injected_exception = original_exception
+    runtime_operation_spies = {"order": Mock()}
+    for operation_name in (
+        "validate_prepared_run_participants", "generate_random_client_concept_traces",
+        "build_sine_client_observed_streams", "run_stream_protocol_intervals",
+    ):
+        run_operation = getattr(runtime_module, operation_name)
+        runtime_operation_spies[operation_name] = Mock(side_effect=original_exception) if operation_name == {
+            "participant_validation": "validate_prepared_run_participants",
+            "concept_trace_generation": "generate_random_client_concept_traces",
+            "observed_stream_generation": "build_sine_client_observed_streams",
+        }.get(injected_failure_stage_name) else Mock(wraps=run_operation)
+        runtime_operation_spies["order"].attach_mock(runtime_operation_spies[operation_name], operation_name)
+        monkeypatch.setattr(runtime_module, operation_name, runtime_operation_spies[operation_name])
+    global_python_random_state = random.getstate()
+    global_numpy_random_state = np.random.get_state()
+    original_cpu_torch_random_state = torch.get_rng_state().clone()
+    participant_factory = InitialPreparationObservingParticipantFactory(observer=observer)
+    with pytest.raises(RunExecutionError) as exception_info:
+        runtime_module.execute_stream_protocol_run(execution_settings=execution_settings, participant_factory=participant_factory)
+    assert exception_info.value.__cause__ is original_exception
+    assert exception_info.value.stage_name == injected_failure_stage_name
+    assert exception_info.value.client_id == expected_failure_client_id
+    assert exception_info.value.sample_index == expected_failure_sample_index
+    assert exception_info.value.round_index == expected_failure_round_index
+    assert random.getstate() == global_python_random_state
+    assert_numpy_random_states_equal(np.random.get_state(), global_numpy_random_state)
+    assert torch.equal(torch.get_rng_state(), original_cpu_torch_random_state)
+    runtime_call_order = [operation_call[0] for operation_call in runtime_operation_spies["order"].mock_calls]
+    if injected_failure_stage_name == "initial_preparation":
+        assert runtime_call_order == []
+    elif injected_failure_stage_name in ("participant_validation", "concept_trace_generation", "observed_stream_generation"):
+        assert runtime_call_order == [
+            "validate_prepared_run_participants", "generate_random_client_concept_traces", "build_sine_client_observed_streams",
+        ][: ["participant_validation", "concept_trace_generation", "observed_stream_generation"].index(injected_failure_stage_name) + 1]
+    else:
+        assert runtime_call_order == [
+            "validate_prepared_run_participants", "generate_random_client_concept_traces",
+            "build_sine_client_observed_streams", "run_stream_protocol_intervals",
+        ]
+    if injected_failure_stage_name in ("participant_validation", "concept_trace_generation", "observed_stream_generation"):
+        assert observer.operation_calls == [RunExecutionEvent(stage_name="initial_preparation")]
+    else:
+        failure_call_index = expected_operation_calls.index(expected_failure_event)
+        assert observer.operation_calls == expected_operation_calls[:failure_call_index + 1]
+    assert observer.finalized_communication_round_counts == []
+
+
+@pytest.mark.parametrize("injected_failure_stage_name", [
+    "initial_preparation", "sample_processing", "started_communication_finalization",
+])
+def test_single_run_after_failure_uses_fresh_participants_and_reproduces_success(
+    valid_stream_protocol_execution_settings, injected_failure_stage_name,
+):
+    """故障解除後に同factoryを再利用しても参加者と成功結果を新規に得る。"""
+    execution_settings = replace(
+        valid_stream_protocol_execution_settings,
+        experiment_run_conditions=replace(
+            valid_stream_protocol_execution_settings.experiment_run_conditions,
+            per_client_sample_count=4, server_aggregation_interval_per_client_samples=2,
+        ),
+    )
+    first_run_result = runtime_module.execute_stream_protocol_run(
+        execution_settings=execution_settings,
+        participant_factory=InitialPreparationObservingParticipantFactory(observer=RunOperationObserver()),
+    )
+    observer = RunOperationObserver()
+    observer.failure_at_event = RunExecutionEvent(
+        stage_name=injected_failure_stage_name,
+        client_id=1 if injected_failure_stage_name == "sample_processing" else None,
+        sample_index=2 if injected_failure_stage_name == "sample_processing" else None,
+        round_index=1 if injected_failure_stage_name == "sample_processing" else None,
+    )
+    observer.injected_exception = ValueError("再実行前の故障")
+    participant_factory = InitialPreparationObservingParticipantFactory(observer=observer)
+    with pytest.raises(RunExecutionError):
+        runtime_module.execute_stream_protocol_run(execution_settings=execution_settings, participant_factory=participant_factory)
+    first_participants = participant_factory.prepared_participant_history[-1] if participant_factory.prepared_participant_history else None
+    observer.failure_at_event = observer.injected_exception = None
+    repeated_run_result = runtime_module.execute_stream_protocol_run(
+        execution_settings=execution_settings, participant_factory=participant_factory,
+    )
+    repeated_participants = participant_factory.prepared_participant_history[-1]
+    assert first_run_result == repeated_run_result
+    assert len(participant_factory.prepared_participant_history) == (1 if first_participants is None else 2)
+    if first_participants is not None:
+        assert repeated_participants is not first_participants
+        assert repeated_participants.server_operations is not first_participants.server_operations
+        for client_id in range(3):
+            assert repeated_participants.client_operations[client_id] is not first_participants.client_operations[client_id]
+
+
+def test_single_run_result_cannot_be_changed_through_observer_state(valid_stream_protocol_execution_settings):
+    """処理部・factoryの可変記録を変更しても成功結果は影響を受けない。"""
+    observer = RunOperationObserver()
+    participant_factory = InitialPreparationObservingParticipantFactory(observer=observer)
+    run_result = runtime_module.execute_stream_protocol_run(
+        execution_settings=valid_stream_protocol_execution_settings, participant_factory=participant_factory,
+    )
+    observed_client_streams = run_result.observed_client_streams
+    evaluation_concept_traces = run_result.evaluation_concept_traces
+    expected_execution_events = run_result.execution_events
+    observer.operation_calls.clear()
+    observer.processed_observed_samples.clear()
+    observer.synchronization_readiness_values.clear()
+    participant_factory.preparation_observed_samples.clear()
+    participant_factory.prepared_participant_history[0].client_operations[0].client_id = 99
+    participant_factory.prepared_participant_history.clear()
+    participant_factory.borrowed_run_random_sources.python_random_generator.random()
+    participant_factory.borrowed_run_random_sources.numpy_random_generator.uniform(size=2)
+    assert run_result.observed_client_streams is observed_client_streams
+    assert run_result.evaluation_concept_traces is evaluation_concept_traces
+    assert run_result.execution_events is expected_execution_events
+    assert run_result.observed_client_streams[0].client_id == 0
+    assert len(run_result.observed_client_streams[0].observed_samples) == 1500
+    assert len(run_result.execution_events) > 4500
 
 
 @pytest.mark.parametrize("invalid_participant_case", [

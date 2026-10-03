@@ -197,3 +197,11 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 主担当freshはexit 0、1781成功/4.59秒。別Luna実装レビューはAPPROVED、fresh1781成功/4.34秒、指摘なし。
 - 生成前の設定/factory検査、準備1回と同じ借用乱数・生成器、参加者18違反、全系列→全標本→loop→結果、各stage/causeを確認した。結果constructor内のtorch乱数消費後の例外でも元例外を保持しCPU状態を復元した。
 - task 5.2完了はVERIFIED。初期準備後の旧基準照合とrun間独立性の統合検証は6.1で行う。旧実装・goldenに変更なし。
+
+### task 6.1追加命名・統合検証
+
+- 命名revision 13を既存Luna threadがPASS、指摘なし。主担当が承認した。参照helperは準備直後と供給後の状態をmain testで明示的に照合できる6tupleとした。
+- 実装agentがテスト専用の初期準備factoryと23ケースを追加した。REDはfactory未作成で6失敗。GREENは全refactoring1804成功/4.89秒。
+- 主担当freshはexit 0、1804成功/4.80秒。別Luna実装レビューはAPPROVED、fresh1804成功/4.88秒、指摘なし。
+- 100標本・10shuffle後のseed0/17×確率0/0.015/1・3×1500の全観測/概念と二時点の乱数状態が旧helperと一致した。A→B→A、12stage故障の位置/cause/停止/呼出元乱数保持、3stage復旧後の再現、observer変更からの結果隔離を確認した。
+- task 6.1完了はVERIFIED。production変更はなく、初期学習や新経路の最終研究指標の同値性は検証範囲に含めない。

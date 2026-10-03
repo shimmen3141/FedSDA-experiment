@@ -1,8 +1,40 @@
 # 単一run specの命名
 
-- revision: 12。task 5.2のruntime検証と観測factory名を追加。承認状態はspec.jsonを確認する。
+- revision: 13。task 6.1の初期準備後照合とrun独立性のテスト名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 未承認の追加名では、実装・実装を先取りするテストを作らない。
+
+## task 6.1: 初期準備後の照合とrun独立性
+
+production変更は予定しない。既承認の観測処理部・base factoryを再利用し、乱数消費と状態をテストだけで観測する。
+真値・観測値・乱数の旧参照接続はテスト内に限定し、成功結果へ借用参照・状態snapshotを追加しない。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| InitialPreparationObservingParticipantFactory | テスト専用のObservingRunParticipantFactory派生型。superで新規参加者を作った後、同じ借用生成器で概念0の100標本を生成し、同listを借用Python乱数で10回shuffleする。学習は行わない |
+| preparation_observed_samples | list[ObservedSample]。初期準備用の100標本。streamの指定Tと区別 |
+| preparation_sample_index, preparation_shuffle_index | int。初期準備100標本・10shuffleの各0始まり位置 |
+| prepared_python_random_state, prepared_numpy_random_state | 準備消費直後のPython/NumPy状態snapshot。テストfactoryに保持 |
+| generated_python_random_state, generated_numpy_random_state | 全供給後の借用乱数状態。テスト局所値 |
+| build_reference_post_preparation_streams | keyword-only execution_settings/monkeypatch → 下記6tuple。独立Random/RandomStateを旧helperへ一時注入し100標本/10shuffle→全系列→全標本を旧順序で再現 |
+| reference_preparation_samples | list。旧初期準備の100標本に対応するshuffle用集合 |
+| reference_prepared_python_random_state, reference_prepared_numpy_random_state | 参照側の準備直後snapshot |
+| reference_generated_python_random_state, reference_generated_numpy_random_state | 参照側の全供給後snapshot |
+| first_run_result, intervening_run_result, repeated_run_result | A→B→Aの不変結果 |
+| intervening_execution_settings | dataclasses.replaceで構築した異なるseed・規模のB条件 |
+| first_participants, intervening_participants, repeated_participants | 各runの新規参加者。identity確認用 |
+| first_run_random_sources, intervening_run_random_sources, repeated_run_random_sources | 各runの借用乱数実体。identity確認用 |
+| injected_failure_stage_name | str。正式stage値による故障注入位置 |
+| expected_failure_client_id, expected_failure_sample_index, expected_failure_round_index | intまたはNone。期待する0始まりの失敗位置 |
+| test_single_run_post_preparation_streams_match_reference | seed0/17・確率0/0.015/1の3×1500で準備直後/供給後乱数と全概念・特徴・ラベルを旧基準へ照合 |
+| test_single_run_repeated_conditions_are_independent_across_intervening_runs | A→B→Aの同値、新規参加者/乱数、呼出元のglobal状態保持を確認 |
+| test_single_run_failure_preserves_cause_position_and_caller_random_states | 準備・参加者・供給・client/server・両終端の故障位置/cause、状態復元と後続なしを確認 |
+| test_single_run_after_failure_uses_fresh_participants_and_reproduces_success | 故障解除後の同factory再実行で新規参加者と正常結果再現を確認 |
+| test_single_run_result_cannot_be_changed_through_observer_state | 可変observer状態を後から変更しても成功結果が変わらないことを確認 |
+
+参照helperの6tupleは、評価用概念列・観測列・準備直後Python状態・準備直後NumPy状態・全供給後Python状態・全供給後NumPy状態の順。
+既承認の旧参照module・独立乱数源・特徴/ラベル・assert_numpy_random_states_equal・位置/イベント名を再利用する。
+正常/故障テストでも初期学習や最終FedSDA研究指標の一致とは扱わない。
 
 ## task 5.2: 単一runの組立と接続先検証
 
