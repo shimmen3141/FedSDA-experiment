@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from typing import get_protocol_members
 from contextlib import nullcontext
 from dataclasses import FrozenInstanceError, replace
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -38,6 +39,7 @@ from federated_learning_experiments.execution.run_random_sources import create_r
 from federated_learning_experiments.learning.models.torch_random_state_scope import (
     isolated_cpu_torch_random_state,
 )
+from federated_learning_experiments.runtime import single_run_execution as runtime_module
 
 
 class RunOperationObserver:
@@ -138,6 +140,302 @@ def build_interval_test_observed_streams(*, client_count, per_client_sample_coun
             feature_values=(float(client_id), float(sample_index)), class_label=sample_index % 2,
         ) for sample_index in range(per_client_sample_count)),
     ) for client_id in range(client_count))
+
+
+class ObservingRunParticipantFactory:
+    """初期準備の試行と新規参加者だけを観測するテスト専用factory。"""
+
+    def __init__(self, *, observer):
+        self.observer = observer
+        self.prepared_participant_history: list[RunParticipants] = []
+        self.borrowed_run_random_sources = None
+        self.borrowed_sample_generator = None
+
+    def validate_configuration(self):
+        """この観測用factoryには追加の固定条件がない。"""
+
+    def prepare_run(self, *, experiment_run_conditions, run_random_sources, sample_generator):
+        self.observer.record_operation_call(stage_name="initial_preparation")
+        self.borrowed_run_random_sources = run_random_sources
+        self.borrowed_sample_generator = sample_generator
+        participants = build_observing_run_participants(
+            client_count=experiment_run_conditions.client_count, observer=self.observer,
+        )
+        self.prepared_participant_history.append(participants)
+        return participants
+
+
+@pytest.mark.parametrize("invalid_participant_case", [
+    "invalid_settings", "partial_settings", "missing_validate", "missing_prepare",
+    "noncallable_validate", "noncallable_prepare", "factory_values", "factory_unexpected",
+])
+def test_single_run_validation_precedes_random_generation_and_preparation(
+    monkeypatch, valid_stream_protocol_execution_settings, valid_run_settings_mapping,
+    invalid_participant_case,
+):
+    """事前拒否では生成を始めず、factory自身の項目と値も保持する。"""
+    participant_factory = ObservingRunParticipantFactory(observer=RunOperationObserver())
+    execution_settings = valid_stream_protocol_execution_settings
+    invalid_participant_factory = participant_factory
+    factory_validation_failure = RunSettingsValidationError(
+        configuration_parameter_name="factory_required_condition", specified_parameter_value=None,
+        validation_failure_reason="接続先の固定条件が不足しています。",
+    ) if invalid_participant_case == "factory_values" else ValueError("接続先の事前検査失敗")
+    if invalid_participant_case == "invalid_settings":
+        execution_settings = None
+    elif invalid_participant_case == "partial_settings":
+        execution_settings = ValidatedExperimentRunSettingsSubset(**valid_run_settings_mapping)
+    elif invalid_participant_case.startswith("missing_"):
+        invalid_participant_factory = SimpleNamespace(**{
+            operation_name: Mock() for operation_name in ("validate_configuration", "prepare_run")
+            if operation_name != ("validate_configuration" if invalid_participant_case == "missing_validate" else "prepare_run")
+        })
+    elif invalid_participant_case.startswith("noncallable_"):
+        setattr(participant_factory, "validate_configuration" if invalid_participant_case.endswith("validate")
+                else "prepare_run", None)
+    else:
+        monkeypatch.setattr(participant_factory, "validate_configuration", Mock(side_effect=factory_validation_failure))
+    runtime_operation_spies = {
+        operation_name: Mock(side_effect=AssertionError("事前検査中に生成してはいけません"))
+        for operation_name in (
+            "create_run_random_sources", "SineSampleGenerator", "isolated_cpu_torch_random_state",
+            "generate_random_client_concept_traces", "build_sine_client_observed_streams",
+            "run_stream_protocol_intervals",
+        )
+    }
+    for operation_name, run_operation in runtime_operation_spies.items():
+        monkeypatch.setattr(runtime_module, operation_name, run_operation)
+    if invalid_participant_case == "factory_unexpected":
+        with pytest.raises(RunExecutionError) as exception_info:
+            runtime_module.execute_stream_protocol_run(
+                execution_settings=execution_settings, participant_factory=invalid_participant_factory,
+            )
+        assert exception_info.value.stage_name == "configuration_validation"
+        assert exception_info.value.__cause__ is factory_validation_failure
+    else:
+        with pytest.raises(RunSettingsValidationError) as exception_info:
+            runtime_module.execute_stream_protocol_run(
+                execution_settings=execution_settings, participant_factory=invalid_participant_factory,
+            )
+        if invalid_participant_case == "factory_values":
+            assert exception_info.value is factory_validation_failure
+        else:
+            assert exception_info.value.configuration_parameter_name == (
+                "execution_settings" if invalid_participant_case.endswith("settings") else "participant_factory"
+            )
+            assert exception_info.value.specified_parameter_value is (
+                execution_settings if invalid_participant_case.endswith("settings") else invalid_participant_factory
+            )
+    for run_operation in runtime_operation_spies.values():
+        run_operation.assert_not_called()
+    assert participant_factory.prepared_participant_history == []
+    assert participant_factory.observer.operation_calls == []
+
+
+def test_single_run_runtime_prepares_once_and_orders_supply_before_execution(
+    monkeypatch, valid_stream_protocol_execution_settings,
+):
+    """同じ借用実体で準備を一度だけ行い、真値を進行へ渡さない。"""
+    participant_factory = ObservingRunParticipantFactory(observer=RunOperationObserver())
+    runtime_operation_spies = {"order": Mock()}
+    for operation_name in (
+        "validate_stream_protocol_execution_settings", "validate_run_participant_factory_contract",
+        "create_run_random_sources", "SineSampleGenerator", "validate_prepared_run_participants",
+        "generate_random_client_concept_traces", "build_sine_client_observed_streams",
+        "run_stream_protocol_intervals", "StreamProtocolRunResult",
+    ):
+        runtime_operation_spies[operation_name] = Mock(wraps=getattr(runtime_module, operation_name))
+        runtime_operation_spies["order"].attach_mock(runtime_operation_spies[operation_name], operation_name)
+        monkeypatch.setattr(runtime_module, operation_name, runtime_operation_spies[operation_name])
+    for operation_name in ("validate_configuration", "prepare_run"):
+        runtime_operation_spies[operation_name] = Mock(wraps=getattr(participant_factory, operation_name))
+        runtime_operation_spies["order"].attach_mock(runtime_operation_spies[operation_name], operation_name)
+        monkeypatch.setattr(participant_factory, operation_name, runtime_operation_spies[operation_name])
+    run_result = runtime_module.execute_stream_protocol_run(
+        execution_settings=valid_stream_protocol_execution_settings, participant_factory=participant_factory,
+    )
+    runtime_call_order = [operation_call[0] for operation_call in runtime_operation_spies["order"].mock_calls]
+    assert runtime_call_order == [
+        "validate_stream_protocol_execution_settings", "validate_run_participant_factory_contract",
+        "validate_configuration", "create_run_random_sources", "SineSampleGenerator", "prepare_run",
+        "validate_prepared_run_participants", "generate_random_client_concept_traces",
+        "build_sine_client_observed_streams", "run_stream_protocol_intervals", "StreamProtocolRunResult",
+    ]
+    runtime_operation_spies["prepare_run"].assert_called_once_with(
+        experiment_run_conditions=valid_stream_protocol_execution_settings.experiment_run_conditions,
+        run_random_sources=participant_factory.borrowed_run_random_sources,
+        sample_generator=participant_factory.borrowed_sample_generator,
+    )
+    assert participant_factory.borrowed_sample_generator.numpy_random_generator is (
+        participant_factory.borrowed_run_random_sources.numpy_random_generator
+    )
+    assert runtime_operation_spies["generate_random_client_concept_traces"].call_args.kwargs[
+        "python_random_generator"
+    ] is participant_factory.borrowed_run_random_sources.python_random_generator
+    runtime_operation_spies["build_sine_client_observed_streams"].assert_called_once_with(
+        evaluation_concept_traces=run_result.evaluation_concept_traces,
+        sample_generator=participant_factory.borrowed_sample_generator,
+    )
+    runtime_operation_spies["run_stream_protocol_intervals"].assert_called_once_with(
+        participants=participant_factory.prepared_participant_history[0],
+        observed_client_streams=run_result.observed_client_streams,
+        server_aggregation_interval_per_client_samples=50,
+    )
+
+
+@pytest.mark.parametrize("invalid_participant_case", [
+    "wrong_type", "mutable_clients", "too_few", "too_many", "negative_id", "boolean_id",
+    "float_id", "duplicate_id", "unsorted_ids", "missing_id",
+    "process_observed_sample", "flush_pending_local_updates", "has_model_ready_for_server_registration",
+    "advance_new_model_upload_wait_after_synchronization", "finalize_incomplete_candidate_validation",
+    "record_client_states_before_synchronization", "synchronize_models", "finalize_started_communications",
+])
+def test_single_run_runtime_rejects_invalid_prepared_participants_before_supply(
+    monkeypatch, valid_stream_protocol_execution_settings, invalid_participant_case,
+):
+    """件数・ID・操作の不正をデータ供給前に実行契約違反として報告する。"""
+    participant_factory = ObservingRunParticipantFactory(observer=RunOperationObserver())
+    invalid_prepared_participants = build_observing_run_participants(client_count=3, observer=participant_factory.observer)
+    if invalid_participant_case == "wrong_type":
+        invalid_prepared_participants = SimpleNamespace(client_operations=(), server_operations=None)
+    elif invalid_participant_case == "mutable_clients":
+        object.__setattr__(invalid_prepared_participants, "client_operations", list(invalid_prepared_participants.client_operations))
+    elif invalid_participant_case == "too_few":
+        invalid_prepared_participants = replace(invalid_prepared_participants, client_operations=invalid_prepared_participants.client_operations[:2])
+    elif invalid_participant_case == "too_many":
+        invalid_prepared_participants = replace(invalid_prepared_participants, client_operations=invalid_prepared_participants.client_operations * 2)
+    elif invalid_participant_case in ("negative_id", "boolean_id", "float_id", "duplicate_id"):
+        invalid_prepared_participants.client_operations[1].client_id = {
+            "negative_id": -1, "boolean_id": True, "float_id": 1.0, "duplicate_id": 0,
+        }[invalid_participant_case]
+    elif invalid_participant_case == "unsorted_ids":
+        invalid_prepared_participants = replace(invalid_prepared_participants, client_operations=tuple(reversed(invalid_prepared_participants.client_operations)))
+    elif invalid_participant_case == "missing_id":
+        del invalid_prepared_participants.client_operations[1].client_id
+    elif hasattr(invalid_prepared_participants.client_operations[1], invalid_participant_case):
+        setattr(invalid_prepared_participants.client_operations[1], invalid_participant_case, None)
+    else:
+        setattr(invalid_prepared_participants.server_operations, invalid_participant_case, None)
+    monkeypatch.setattr(participant_factory, "prepare_run", Mock(return_value=invalid_prepared_participants))
+    runtime_operation_spies = {
+        operation_name: Mock(side_effect=AssertionError("参加者検査中に供給してはいけません"))
+        for operation_name in ("generate_random_client_concept_traces", "build_sine_client_observed_streams", "run_stream_protocol_intervals")
+    }
+    for operation_name, run_operation in runtime_operation_spies.items():
+        monkeypatch.setattr(runtime_module, operation_name, run_operation)
+    with pytest.raises(RunExecutionError) as exception_info:
+        runtime_module.execute_stream_protocol_run(
+            execution_settings=valid_stream_protocol_execution_settings, participant_factory=participant_factory,
+        )
+    assert exception_info.value.stage_name == "participant_validation"
+    assert isinstance(exception_info.value.__cause__, (TypeError, ValueError))
+    for run_operation in runtime_operation_spies.values():
+        run_operation.assert_not_called()
+    assert participant_factory.observer.operation_calls == []
+
+
+@pytest.mark.parametrize("per_client_sample_count,server_aggregation_interval_per_client_samples", [(1500, 50), (16, 7), (3, 7)])
+def test_single_run_runtime_returns_immutable_observations_truth_counts_and_events(
+    valid_stream_protocol_execution_settings, per_client_sample_count, server_aggregation_interval_per_client_samples,
+):
+    """生成・処理・末尾件数と不変データを基準・端数・区間長超過で確認する。"""
+    observer = RunOperationObserver()
+    execution_settings = replace(valid_stream_protocol_execution_settings, experiment_run_conditions=replace(
+        valid_stream_protocol_execution_settings.experiment_run_conditions,
+        per_client_sample_count=per_client_sample_count,
+        server_aggregation_interval_per_client_samples=server_aggregation_interval_per_client_samples,
+    ))
+    original_cpu_torch_random_state = torch.get_rng_state().clone()
+    run_result = runtime_module.execute_stream_protocol_run(
+        execution_settings=execution_settings, participant_factory=ObservingRunParticipantFactory(observer=observer),
+    )
+    assert torch.equal(torch.get_rng_state(), original_cpu_torch_random_state)
+    assert run_result.generated_sample_count_per_client == per_client_sample_count
+    assert run_result.synchronization_interval_count == per_client_sample_count // server_aggregation_interval_per_client_samples
+    assert run_result.processed_sample_count_per_client == run_result.synchronization_interval_count * server_aggregation_interval_per_client_samples
+    assert run_result.unprocessed_tail_sample_count_per_client == per_client_sample_count % server_aggregation_interval_per_client_samples
+    assert len(observer.processed_observed_samples) == 3 * run_result.processed_sample_count_per_client
+    for client_id, client_observed_stream in enumerate(run_result.observed_client_streams):
+        assert client_observed_stream.client_id == client_id
+        assert len(client_observed_stream.observed_samples) == per_client_sample_count
+        assert len(run_result.evaluation_concept_traces[client_id].concept_ids_by_sample_index) == per_client_sample_count
+        assert not hasattr(client_observed_stream.observed_samples[0], "concept_id")
+    assert run_result.execution_events[:5] == tuple(RunExecutionEvent(stage_name=stage_name) for stage_name in (
+        "configuration_validation", "initial_preparation", "participant_validation",
+        "concept_trace_generation", "observed_stream_generation",
+    ))
+    assert run_result.execution_events[5:] == tuple(observer.operation_calls[1:])
+    assert set(run_result.__dataclass_fields__) == {
+        "observed_client_streams", "evaluation_concept_traces", "generated_sample_count_per_client",
+        "processed_sample_count_per_client", "unprocessed_tail_sample_count_per_client",
+        "synchronization_interval_count", "execution_events",
+    }
+    with pytest.raises(FrozenInstanceError):
+        run_result.processed_sample_count_per_client = 0
+
+
+@pytest.mark.parametrize("stage_name,operation_name", [
+    ("initial_preparation", "prepare_run"),
+    ("concept_trace_generation", "generate_random_client_concept_traces"),
+    ("observed_stream_generation", "build_sine_client_observed_streams"),
+])
+def test_single_run_runtime_reports_preparation_and_supply_failure_stages(
+    monkeypatch, valid_stream_protocol_execution_settings, stage_name, operation_name,
+):
+    """準備・系列・標本の元例外を保持し、失敗後の供給・進行を呼ばない。"""
+    participant_factory = ObservingRunParticipantFactory(observer=RunOperationObserver())
+    original_exception = ValueError("準備または供給の失敗")
+    runtime_operation_spies = {"order": Mock()}
+    for record_field_name in ("prepare_run", "generate_random_client_concept_traces", "build_sine_client_observed_streams", "run_stream_protocol_intervals"):
+        run_operation = getattr(participant_factory if record_field_name == "prepare_run" else runtime_module, record_field_name)
+        runtime_operation_spies[record_field_name] = Mock(side_effect=original_exception) if record_field_name == operation_name else Mock(wraps=run_operation)
+        runtime_operation_spies["order"].attach_mock(runtime_operation_spies[record_field_name], record_field_name)
+        monkeypatch.setattr(participant_factory if record_field_name == "prepare_run" else runtime_module,
+                            record_field_name, runtime_operation_spies[record_field_name])
+    original_cpu_torch_random_state = torch.get_rng_state().clone()
+    with pytest.raises(RunExecutionError) as exception_info:
+        runtime_module.execute_stream_protocol_run(
+            execution_settings=valid_stream_protocol_execution_settings, participant_factory=participant_factory,
+        )
+    assert exception_info.value.stage_name == stage_name
+    assert exception_info.value.__cause__ is original_exception
+    assert torch.equal(torch.get_rng_state(), original_cpu_torch_random_state)
+    runtime_call_order = [operation_call[0] for operation_call in runtime_operation_spies["order"].mock_calls]
+    assert runtime_call_order == ["prepare_run", "generate_random_client_concept_traces", "build_sine_client_observed_streams"][:
+        ["prepare_run", "generate_random_client_concept_traces", "build_sine_client_observed_streams"].index(operation_name) + 1
+    ]
+    runtime_operation_spies["run_stream_protocol_intervals"].assert_not_called()
+
+
+def test_single_run_runtime_restores_cpu_random_state_when_result_construction_fails(
+    monkeypatch, valid_stream_protocol_execution_settings,
+):
+    """成功処理後の結果構築例外にもCPU乱数境界のfinallyを適用する。"""
+    observer = RunOperationObserver()
+    original_exception = ValueError("結果構築の予期しない失敗")
+    def run_operation(**record_field_values):
+        # 初期準備と観測処理はtorchを消費しないので、結果構築もrunのseed境界内と確認する。
+        assert torch.equal(torch.get_rng_state(), torch.Generator(device="cpu").manual_seed(0).get_state())
+        torch.rand(1)
+        raise original_exception
+
+    monkeypatch.setattr(runtime_module, "StreamProtocolRunResult", Mock(side_effect=run_operation))
+    original_cpu_torch_random_state = torch.get_rng_state().clone()
+    with pytest.raises(ValueError) as exception_info:
+        runtime_module.execute_stream_protocol_run(
+            execution_settings=valid_stream_protocol_execution_settings,
+            participant_factory=ObservingRunParticipantFactory(observer=observer),
+        )
+    assert exception_info.value is original_exception
+    assert torch.equal(torch.get_rng_state(), original_cpu_torch_random_state)
+    assert observer.finalized_communication_round_counts == [30]
+
+
+def test_single_run_runtime_requires_keyword_arguments(valid_stream_protocol_execution_settings):
+    with pytest.raises(TypeError):
+        runtime_module.execute_stream_protocol_run(
+            valid_stream_protocol_execution_settings, ObservingRunParticipantFactory(observer=RunOperationObserver()),
+        )
 
 
 def test_interval_execution_matches_sample_client_and_synchronization_order():

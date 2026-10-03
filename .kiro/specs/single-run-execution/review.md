@@ -188,3 +188,12 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - GREENは全refactoring1746成功/6.93秒。主担当freshはexit 0、1746成功/5.85秒。別Luna実装レビューはAPPROVED、fresh1746成功/6.04秒、指摘なし。
 - 4500標本/30同期の独立期待呼出列、端数・T<A、全client ready照会、非bool拒否、8stage故障停止prefix・位置・causeを確認した。成功eventは操作と戻り値検査が成功した後だけ追加する。
 - task 5.1完了はVERIFIED。loopはruntime検証済みの参加者・観測列を進める。具象の学習・統合は追加していない。
+
+### task 5.2追加命名・実装・検証
+
+- 命名revision 12を既存Luna threadがPASS、指摘なし。主担当が承認した。
+- 実装agentが利用上限で停止し、再開指示後に同thread `/root/implement_single_run_1` で再開した。停止中に未実装taskを完了扱いにしていない。
+- RED: runtime未実装のImportErrorでcollection error 1件。35追加ケースとruntimeを実装し、GREENは全refactoring1781成功/4.38秒。
+- 主担当freshはexit 0、1781成功/4.59秒。別Luna実装レビューはAPPROVED、fresh1781成功/4.34秒、指摘なし。
+- 生成前の設定/factory検査、準備1回と同じ借用乱数・生成器、参加者18違反、全系列→全標本→loop→結果、各stage/causeを確認した。結果constructor内のtorch乱数消費後の例外でも元例外を保持しCPU状態を復元した。
+- task 5.2完了はVERIFIED。初期準備後の旧基準照合とrun間独立性の統合検証は6.1で行う。旧実装・goldenに変更なし。

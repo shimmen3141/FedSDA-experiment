@@ -1,8 +1,39 @@
 # 単一run specの命名
 
-- revision: 11。task 5.1の進行制御と共有観測テスト名を追加。承認状態はspec.jsonを確認する。
+- revision: 12。task 5.2のruntime検証と観測factory名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 未承認の追加名では、実装・実装を先取りするテストを作らない。
+
+## task 5.2: 単一runの組立と接続先検証
+
+execute_stream_protocol_runと公開引数・stage値は既承認名を使用する。必要な設定とfactory操作を生成前に確認し、準備後の参加者検証だけをparticipant_validationで包む。
+結果構築の予期しない例外にもCPU contextの復元を適用するが、新しいstage値は追加しない。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| validate_run_participant_factory_contract | keyword-only participant_factory → None。validate_configuration/prepare_runのcallableを生成前に検査。不正なら既存RunSettingsValidationErrorのparticipant_factory項目で報告 |
+| validate_prepared_run_participants | keyword-only participants/client_count → None。型・件数・厳密int ID0..C-1昇順・必要操作を検査。操作を呼ばず、違反をTypeError/ValueErrorで返す。runtimeが位置付き実行例外へ包む |
+| required_client_operation_names, required_server_operation_names | tuple[str, ...]。Protocolに宣言済みの必須操作名 |
+| client_operations_instance, expected_client_id | 当該clientの操作実体と期待する0始まりclient ID |
+| ObservingRunParticipantFactory | テスト専用factory。keyword-only observerを受け、初期準備の試行を記録し、毎回新規の観測client/serverを作る。このtaskでは標本・乱数を消費しない |
+| prepared_participant_history | list[RunParticipants]。テストfactoryが作った参加者のidentity照合用履歴。成功結果には渡さない |
+| borrowed_run_random_sources, borrowed_sample_generator | 当該runの乱数源と標本生成器のテスト用借用参照またはNone。factoryは所有者ではなく、次runで置換。結果へ保存しない |
+| runtime_module | runtime.single_run_executionのmodule。テストのpatch先 |
+| runtime_call_order | list[str]。検証→準備→系列→標本→loop→結果のテスト用成功順 |
+| runtime_operation_spies | dict[str, Mock]。対象操作の未呼出・keyword引数・順序を確認する監視参照 |
+| invalid_participant_factory, invalid_prepared_participants | 契約に違反するテスト入力object |
+| invalid_participant_case | str。件数・ID・欠如操作などのテストシナリオ名 |
+| factory_validation_failure | Exception。factory事前検証へ注入する元例外 |
+| test_single_run_validation_precedes_random_generation_and_preparation | 不正設定・部分型・factory契約/事前条件違反が生成・準備を呼ばないことを確認 |
+| test_single_run_runtime_prepares_once_and_orders_supply_before_execution | 同じ乱数/生成器で準備1回→全系列→全標本→loopとなりtruthをloopへ渡さないことを確認 |
+| test_single_run_runtime_rejects_invalid_prepared_participants_before_supply | 件数・ID・操作・集合の違反をparticipant_validationで報告し供給前に停止することを確認 |
+| test_single_run_runtime_returns_immutable_observations_truth_counts_and_events | 基準・端数・T<Aの件数・観測/評価分離・不変結果を確認 |
+| test_single_run_runtime_reports_preparation_and_supply_failure_stages | prepare/系列/標本の失敗stage・causeと後続なしを確認 |
+| test_single_run_runtime_restores_cpu_random_state_when_result_construction_fails | 結果constructorに例外注入しCPU状態復元を確認 |
+| test_single_run_runtime_requires_keyword_arguments | 公開runtimeの位置引数拒否を確認 |
+
+既承認observerと操作名・位置・例外名を再利用する。Mockを具体的なpatch対象へ使用し、汎用の未呼出helperは追加しない。
+初期準備100標本/10shuffleの消費と旧基準照合は後続6.1のテスト専用派生factoryが担当する。
 
 ## task 5.1: 区間進行と共有観測テスト
 
