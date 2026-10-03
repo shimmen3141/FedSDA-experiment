@@ -55,6 +55,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:
         return True
+    if source_module_path == "methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py":
+        # 単系列の数値検出器だけにNumPyを許可する。
+        return imported_module_name == "numpy" or imported_module_name.startswith("numpy.")
     if source_module_path in (
         "learning/models/torch_random_state_scope.py",
         "learning/prediction/class_probability_calculations.py",
@@ -101,6 +104,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         # 数値状態部品は同機能の固定条件だけを参照する。
         allowed_internal_module_prefixes = (
             "federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings.",
+        )
+    elif source_module_path == "methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py":
+        # 混合監視は同機能の検出器と固定条件だけを参照する。
+        allowed_internal_module_prefixes = (
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.bounded_loss_e_sr_detection.",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.",
         )
     elif source_module_layer == "data":
         allowed_internal_module_prefixes = (
@@ -196,6 +205,14 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ("learning/prediction/class_probability_calculations.py", "from ... import runtime", "federated_learning_experiments.runtime"),
         ("learning/prediction/class_probability_calculations.py", "from ...methods.fedsda.prediction_combination.fixed_share_prediction_weights import FixedSharePredictionWeightController", "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights"),
         ("learning/prediction/another_prediction.py", "import torch", "torch"),
+        ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "import torch", "torch"),
+        ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
+        ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "from .loss_change_detection_settings import LossChangeDetectionSettings", "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings"),
+        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "import numpy", "numpy"),
+        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "import torch", "torch"),
+        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "from ..prediction_combination import fixed_share_prediction_weights", "federated_learning_experiments.methods.fedsda.prediction_combination"),
+        ("methods/fedsda/loss_change_detection/another_detector.py", "import numpy", "numpy"),
         ("data/sine/sine_sample_generation.py", "import torch", "torch"),
         ("data/observed_streams.py", "import config", "config"),
         ("data/observed_streams.py", "from clients import fedsda", "clients"),
@@ -268,6 +285,9 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
         ("learning/prediction/class_probability_calculations.py", "import torch"),
         ("learning/prediction/class_probability_calculations.py", "from torch import Tensor"),
         ("learning/prediction/class_probability_calculations.py", "from collections.abc import Mapping"),
+        ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "import numpy"),
+        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "from .bounded_loss_e_sr_detection import BoundedLossESRDetector"),
+        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "from .loss_change_detection_settings import LossChangeDetectionSettings"),
         ("data/observed_streams.py", "from dataclasses import dataclass"),
         ("data/sine/sine_sample_generation.py", "import numpy as np"),
         ("data/sine/sine_sample_generation.py", "from ..observed_streams import ObservedSample"),

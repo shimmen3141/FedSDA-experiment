@@ -1,6 +1,8 @@
 """有界損失監視の単一数値状態と全体/class混合を旧基準へ照合する。"""
 
+import inspect
 import math
+import random
 from collections import defaultdict, deque
 from dataclasses import FrozenInstanceError, replace
 
@@ -19,6 +21,11 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.bounded
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
 )
+from federated_learning_experiments.learning.prediction.class_probability_calculations import (
+    convert_model_outputs_to_prediction_probabilities,
+    compute_model_mean_bounded_losses_after_label_observation,
+)
+from federated_drift_experiment.clients.fedsda import _AdaHedgeRoutingFedSDAClientMixin
 
 
 def assert_single_series_matches_reference(*, detector, reference_detector):
@@ -261,6 +268,80 @@ def test_loss_monitoring_invalid_inputs_preserve_complete_state_for_mixture(vali
         monitor.observe_loss_after_label_observation(**(dict(observed_loss=0.2, observed_class_id=1, sample_index=1, current_model_baseline_loss_mean=0.7) | {invalid_parameter_name: invalid_parameter_value}))
     assert str(exception_info.value)
     assert monitor.get_state_snapshot() == state_before_call
+
     with pytest.raises(ValueError):
         monitor.reset(baseline_loss_mean=float('nan'))
     assert monitor.get_state_snapshot() == state_before_call
+
+
+def test_loss_monitoring_snapshots_and_instances_are_independent(valid_run_settings_mapping):
+    """取得済みcapital/位置・immutable結果・他実体へ更新を波及させない。"""
+    monitor_constructor_arguments = dict(loss_change_detection_settings=valid_run_settings_mapping['loss_change_detection_settings'], class_count=2, initial_baseline_loss_mean=0.2, maximum_retained_candidate_count=3, betting_fractions=(0.1,))
+    monitor = OverallAndTrueClassLossMonitor(**monitor_constructor_arguments)
+    reference_monitor = OverallAndTrueClassLossMonitor(**monitor_constructor_arguments)
+    reference_state = reference_monitor.get_state_snapshot()
+    monitor.observe_loss_after_label_observation(observed_loss=0.8, observed_class_id=1, sample_index=0, current_model_baseline_loss_mean=0.2)
+    state_snapshot = monitor.get_state_snapshot()
+    with pytest.raises(FrozenInstanceError):
+        state_snapshot.last_sample_index = 9
+    with pytest.raises(FrozenInstanceError):
+        monitor.last_observation.drift_detected = True
+    with pytest.raises(TypeError):
+        state_snapshot.class_sample_indices_by_class_id[0][1][0] = 9
+    monitor.observe_loss_after_label_observation(observed_loss=0.2, observed_class_id=1, sample_index=1, current_model_baseline_loss_mean=0.2)
+    assert state_snapshot.last_sample_index == 0
+    assert state_snapshot.overall_esr_state.last_observation.observed_loss_count == 1
+    assert state_snapshot.class_sample_indices_by_class_id == ((1, (0,)),)
+    assert reference_monitor.get_state_snapshot() == reference_state
+    monitor.reset(baseline_loss_mean=0.6)
+    assert state_snapshot.overall_esr_state.baseline_loss_mean == 0.2
+    assert reference_monitor.get_state_snapshot() == reference_state
+
+
+@pytest.mark.parametrize('class_count', [2, 10])
+def test_loss_monitoring_current_model_observed_loss_connects_without_prediction_state(valid_run_settings_mapping, monkeypatch, class_count):
+    """指定現行モデルの観測後損失のみを渡して旧ClassESRへ照合する。"""
+    monitor = OverallAndTrueClassLossMonitor(loss_change_detection_settings=valid_run_settings_mapping['loss_change_detection_settings'], class_count=class_count, initial_baseline_loss_mean=0.6, maximum_retained_candidate_count=7, betting_fractions=(0.05, 0.1, 0.2, 0.4, 0.8))
+    reference_monitor = make_reference_class_monitor(monkeypatch=monkeypatch, class_count=class_count, baseline_loss_mean=0.6, maximum_retained_candidate_count=7, false_alarm_control_alpha=0.05)
+    for observation_index in range(20):
+        model_outputs_by_model_id = {
+            7: torch.tensor([[0.8]]) if class_count == 2 else torch.arange(class_count, dtype=torch.float32).reshape(1, class_count),
+            -3: torch.tensor([[0.2]]) if class_count == 2 else -torch.arange(class_count, dtype=torch.float32).reshape(1, class_count),
+        }
+        prediction_probabilities_by_model_id = convert_model_outputs_to_prediction_probabilities(model_outputs_by_model_id=model_outputs_by_model_id, class_count=class_count)
+        observed_class_id = observation_index % class_count
+        observed_class_labels = torch.tensor([observed_class_id])
+        observed_losses_by_model_id = compute_model_mean_bounded_losses_after_label_observation(prediction_probabilities_by_model_id=prediction_probabilities_by_model_id, observed_class_labels=observed_class_labels, class_count=class_count)
+        current_training_model_id = 7 if observation_index < 10 else -3
+        observed_loss = _AdaHedgeRoutingFedSDAClientMixin._routing_score_loss(prediction_probabilities_by_model_id[current_training_model_id], observed_class_labels, class_count)
+        assert observed_losses_by_model_id[current_training_model_id] == observed_loss
+        observation = monitor.observe_loss_after_label_observation(observed_loss=observed_losses_by_model_id[current_training_model_id], observed_class_id=observed_class_id, sample_index=observation_index, current_model_baseline_loss_mean=0.6)
+        reference_detected = reference_monitor._update_drift_detectors(observed_loss, observed_class_labels, observation_index)
+        assert observation.drift_detected == reference_detected
+        assert observation.log_e_value == reference_monitor.history_detector_log_e[-1]
+        assert_class_monitor_matches_reference(monitor=monitor, reference_monitor=reference_monitor)
+
+
+def test_loss_monitoring_public_calls_preserve_random_states(valid_run_settings_mapping):
+    """constructor・更新・copy・resetで共有乱数を消費しない。"""
+    global_python_random_state = random.getstate()
+    global_numpy_random_state = np.random.get_state()
+    global_torch_random_state = torch.random.get_rng_state().clone()
+    monitor = OverallAndTrueClassLossMonitor(loss_change_detection_settings=valid_run_settings_mapping['loss_change_detection_settings'], class_count=2, initial_baseline_loss_mean=0.2, maximum_retained_candidate_count=7, betting_fractions=(0.1, 0.4))
+    for sample_index in range(3):
+        monitor.observe_loss_after_label_observation(observed_loss=0.8, observed_class_id=sample_index % 2, sample_index=sample_index, current_model_baseline_loss_mean=0.2)
+        monitor.get_state_snapshot()
+    monitor.reset(baseline_loss_mean=0.6)
+    assert random.getstate() == global_python_random_state
+    assert np.random.get_state()[0] == global_numpy_random_state[0]
+    assert np.array_equal(np.random.get_state()[1], global_numpy_random_state[1])
+    assert np.random.get_state()[2:] == global_numpy_random_state[2:]
+    assert torch.equal(torch.random.get_rng_state(), global_torch_random_state)
+
+
+@pytest.mark.parametrize('operation', [BoundedLossESRDetector, BoundedLossESRDetector.observe_loss, BoundedLossESRDetector.reset, OverallAndTrueClassLossMonitor, OverallAndTrueClassLossMonitor.observe_loss_after_label_observation, OverallAndTrueClassLossMonitor.reset])
+def test_loss_monitoring_public_functions_require_explicit_keyword_arguments(operation):
+    """位置・class・baselineをkeywordで明示し、Tensor/モデルを受け取らない。"""
+    assert '*, ' in str(inspect.signature(operation))
+    with pytest.raises(TypeError):
+        operation(object(), object())

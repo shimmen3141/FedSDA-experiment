@@ -1,5 +1,11 @@
 # レビューと承認
 
+## task 3: APPROVED / TASK VERIFIED
+
+AST許可更新前のREDは4 failed / 1529 passed。更新後1533 passed、全refactoring 2105 passed。テスト追記時に既存invalid reset assertionを別testへ誤配置した点は主担当が修正してからREDを確認し、production不具合とは扱っていない。
+Lunaの独立レビューはReview Verdict APPROVED task 3、対象1533 passed / 5.19s、全refactoring2105 passed / 9.12s、指摘なし。正式名revision 3・依存例外のexact指定・public損失接続・snapshot/別実体/RNG/keyword契約を確認した。
+主担当もレビュー後に対象1533 passed / 5.32sを再実行し、全tests2390 passed / 3 skipped / 123.81s、独立smoke exit 0、旧production/golden差分なしを確認した。全20条件と境界の対応はintegration-validation.mdに記録。未解決の阻害事項なし、ユーザー委任によりtask 3を承認する。feature統合判定は別に行う。
+
 ## 要件: PASS
 
 Lunaの既存レビューthreadを再利用し5群20条件を独立確認。EARS・遅延class baseline・global位置・不正クラスのatomic拒否・正常時旧基準・alphaの唯一所有者を確認しPASS。具体指摘なし。主担当もcoverageと契約の接続を確認し、ユーザー委任に基づき承認する。旧不正入力の部分更新は引き継がないことを明示した。設計・実装は承認済み段階だけで進める。
