@@ -52,6 +52,7 @@
 
 - [リファクタリング方針案](research/refactoring-policy.md): 責務・レイヤー・命名、新APIへの移行、選択肢の追加・削除とcc-sddの評価。
 - [研究バックログ](research/research-backlog.md): 設計候補・非採用案・今後の課題。
+- [実装の不具合・改善事項](research/implementation-findings/README.md): 再現条件・影響・移植時の扱い・将来修正を追跡する入口。
 - [Meta-switchingの先行研究・差分・新規性に関する調査報告](<research/FedSDA Meta-switchingの先行研究・差分・新規性に関する調査報告.pdf>): Meta-switchingを対象とした検討資料。コミット保留のローカル資料。
 
 コミット保留の3資料と`results/`はgit cloneだけでは取得できない。コミット対象は後続のユーザー指示で決める。
