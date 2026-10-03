@@ -32,3 +32,11 @@ GPT-6 Lunaの既存レビューthreadを再利用し、保存前のdraftを独�
 
 主担当がkiro-implの選択task 1としてTDDを実行。実装前REDはlearning.prediction未存在のcollection error（exit 1）。GREENは対象と設定検証1293 passed、exit 0。Lunaの独立Review VerdictはAPPROVED、task 1、境界・placeholder・secretはCLEAN。指摘なし。主担当も同コマンドを再実行し1293 passed、exit 0を確認、TASK VERIFIED。AST例外と全回帰は承認済みtask 3で接続する。
 
+# 命名revision 2
+
+同じ検証責務を別の引数形で分ける3つのtest名を正本へ追記。task 2のRED test draftを先に追加したがproductionは未適用の時点でLunaへ確認した。判定PASS、改善必須の指摘なし。主担当が承認し、公開・内部関数名はrevision 1を維持する。
+
+# task 2実装
+
+TDD REDは混合関数未実装のImportError（exit 1）。GREENは対象＋設定1350 passed、exit 0。Lunaの独立Review VerdictはAPPROVED、task 2（1350 passed / 4.63s）、指摘なし。主担当の再実行も1350 passed、exit 0でTASK VERIFIED。二値閾値・多クラス同率・モデル別float32平均損失を旧staticへ完全一致させた。混合値が1を超える丸めを保持し、重みの再正規化が閾値を変えるケースも検証した。レビュー途中に呼出上限で中断したため、ユーザーの再開指示後に同じLuna threadで再実行した。
+

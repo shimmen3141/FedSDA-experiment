@@ -1,6 +1,6 @@
 # 命名正本
 
-revision: 1。承認状態とLF SHA256はspec.json。旧routing/score_loss等はoracleだけ。永続状態・互換aliasなし。
+revision: 2。承認状態とLF SHA256はspec.json。旧routing/score_loss等はoracleだけ。永続状態・互換aliasなし。
 
 ## ファイルとpublic関数
 
@@ -49,6 +49,12 @@ revision: 1。承認状態とLF SHA256はspec.json。旧routing/score_loss等は
 - fixed_share_prediction_and_observation_match_reference
 - functions_require_explicit_keyword_arguments
 - numeric_calls_preserve_caller_random_states
+
+同じ検証責務を引数形が異なるケース群に分ける追加名（public実装名は変更しない）:
+
+- `test_class_probability_class_predictions_preserve_threshold_and_tie_rules_after_mixture_rounding`: 混合加算で確率域を微小に超えるケースのクラス判定。
+- `test_class_probability_invalid_inputs_are_rejected_without_mutation_for_labels`: 観測ラベルの型・値・件数の拒否。
+- `test_class_probability_invalid_inputs_are_rejected_without_mutation_for_prediction`: 混合前確率・モデルID対応・判定スコアの拒否。
 
 局所: 上記入力名、`reference_prediction_mixin`（旧static）、`reference_router`、`controller`、`prediction_combination_settings`、`reference_prediction_weights`、`reference_prediction_probabilities`、`reference_predicted_class_labels`、`reference_observed_losses`、`reference_prediction_scores`、`input_tensors_before_call`、`controller_state_before_call`、`invalid_input_name`、`invalid_input_value`、`prediction_operation`（検証対象関数）、`operation_name`、`expected_exception_type`、`observation_index`（0始まり）、`global_python_random_state`、`global_numpy_random_state`、`global_torch_random_state`、`exception_info`、`caught_exception`。reference接頭辞は旧oracleの値だけに使う。
 

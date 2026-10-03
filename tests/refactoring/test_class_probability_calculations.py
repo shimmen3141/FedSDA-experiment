@@ -7,6 +7,9 @@ from federated_drift_experiment.clients.fedsda import _AdaHedgeRoutingFedSDAClie
 from federated_learning_experiments.learning.prediction.class_probability_calculations import (
     convert_model_outputs_to_prediction_probabilities,
     normalize_model_prediction_weights,
+    combine_model_prediction_probabilities,
+    predict_class_labels_from_prediction_scores,
+    compute_model_mean_bounded_losses_after_label_observation,
 )
 
 
@@ -51,6 +54,175 @@ def test_class_probability_model_outputs_become_probabilities_before_combination
         assert prediction_tensor.data_ptr() != model_outputs_by_model_id[model_id].data_ptr()
         assert not prediction_tensor.requires_grad and prediction_tensor.grad_fn is None
         assert torch.equal(model_outputs_by_model_id[model_id], input_tensors_before_call[model_id])
+    assert torch.is_grad_enabled()
+
+
+@pytest.mark.parametrize("class_count", [2, 3, 4])
+@pytest.mark.parametrize("prediction_weights_by_model_id", [
+    {7: 0.2, -3: 0.8}, {7: 0, -3: 1}, {-3: 1},
+    {-3: 0.5000000298023224 + 1e-13, 7: 0.4999999701976776 + 4e-13},
+])
+def test_class_probability_combination_matches_reference_in_sorted_model_order(
+    class_count, prediction_weights_by_model_id,
+):
+    """ゼロ・単一モデル・未補正snapshotを昇順に混合する。"""
+    reference_prediction_mixin = _AdaHedgeRoutingFedSDAClientMixin
+    prediction_probabilities_by_model_id = {
+        model_id: torch.tensor([[1.0], [0.0]]) if class_count == 2 else
+        torch.softmax(torch.arange(2 * class_count, dtype=torch.float32).reshape(2, class_count) * model_id, dim=1)
+        for model_id in reversed(sorted(prediction_weights_by_model_id))
+    }
+    if class_count == 2 and 7 in prediction_probabilities_by_model_id:
+        prediction_probabilities_by_model_id[7] = torch.tensor([[0.0], [1.0]])
+    reference_prediction_scores = reference_prediction_mixin._weighted_routing_scores(
+        prediction_probabilities_by_model_id, dict(sorted(prediction_weights_by_model_id.items())),
+    )
+    combined_prediction_probabilities = combine_model_prediction_probabilities(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        prediction_weights_by_model_id=prediction_weights_by_model_id, class_count=class_count,
+    )
+    assert torch.equal(combined_prediction_probabilities, reference_prediction_scores)
+    for prediction_tensor in prediction_probabilities_by_model_id.values():
+        assert combined_prediction_probabilities.data_ptr() != prediction_tensor.data_ptr()
+
+
+@pytest.mark.parametrize("class_count,prediction_scores", [
+    (2, torch.tensor([[0.0], [0.49999997], [0.5], [0.50000006], [1.0]])),
+    (3, torch.tensor([[0.5, 0.5, 0.0], [0.0, 0.5, 0.5], [0.2, 0.2, 0.6]])),
+    (4, torch.tensor([[0.25, 0.25, 0.25, 0.25]])),
+])
+def test_class_probability_class_predictions_preserve_threshold_and_tie_rules(class_count, prediction_scores):
+    """境界隣接と同率を旧閾値・argmaxへ完全一致させる。"""
+    predicted_class_labels = predict_class_labels_from_prediction_scores(prediction_scores=prediction_scores, class_count=class_count)
+    assert torch.equal(predicted_class_labels, _AdaHedgeRoutingFedSDAClientMixin._routing_prediction(prediction_scores, class_count))
+    assert predicted_class_labels.shape == (prediction_scores.shape[0], 1)
+    assert predicted_class_labels.dtype == torch.float32
+
+
+@pytest.mark.parametrize("class_count", [2, 3])
+def test_class_probability_class_predictions_preserve_threshold_and_tie_rules_after_mixture_rounding(class_count):
+    """モデル側で許容した値と混合丸めを、判定で再拒否・補正しない。"""
+    prediction_probabilities_by_model_id = {
+        model_id: torch.tensor([[1.0]]) if class_count == 2 else
+        torch.tensor([[1.0, 9.536743e-7, 0.0]])
+        for model_id in range(10)
+    }
+    normalized_prediction_weights_by_model_id = normalize_model_prediction_weights(
+        prediction_weights_by_model_id={model_id: 0.1 for model_id in range(10)},
+    )
+    combined_prediction_probabilities = combine_model_prediction_probabilities(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        prediction_weights_by_model_id=normalized_prediction_weights_by_model_id,
+        class_count=class_count,
+    )
+    assert combined_prediction_probabilities[0, 0].item() > 1.0
+    assert torch.equal(predict_class_labels_from_prediction_scores(
+        prediction_scores=combined_prediction_probabilities, class_count=class_count,
+    ), _AdaHedgeRoutingFedSDAClientMixin._routing_prediction(combined_prediction_probabilities, class_count))
+
+
+@pytest.mark.parametrize("class_count", [2, 3, 4])
+@pytest.mark.parametrize("observed_class_labels", [
+    torch.tensor([0, 1, 0]), torch.tensor([[0], [1], [0]], dtype=torch.int32),
+    torch.tensor([0.0, 1.0, 0.0]),
+])
+def test_class_probability_observed_model_losses_match_reference(class_count, observed_class_labels):
+    """複数標本をfloat32平均し、モデルごとの損失を旧staticへ照合する。"""
+    prediction_probabilities_by_model_id = {
+        7: torch.tensor([[0.1], [0.7], [0.3]]) if class_count == 2 else
+        torch.softmax(torch.arange(3 * class_count, dtype=torch.float32).reshape(3, class_count), dim=1),
+        -3: torch.tensor([[0.9], [0.3], [0.7]]) if class_count == 2 else
+        torch.softmax(-torch.arange(3 * class_count, dtype=torch.float32).reshape(3, class_count), dim=1),
+    }
+    observed_losses_by_model_id = compute_model_mean_bounded_losses_after_label_observation(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        observed_class_labels=observed_class_labels, class_count=class_count,
+    )
+    assert tuple(observed_losses_by_model_id) == (-3, 7)
+    assert observed_losses_by_model_id == {
+        model_id: _AdaHedgeRoutingFedSDAClientMixin._routing_score_loss(prediction_tensor, observed_class_labels, class_count)
+        for model_id, prediction_tensor in prediction_probabilities_by_model_id.items()
+    }
+
+
+@pytest.mark.parametrize("observed_class_labels", [
+    [0], torch.tensor([True]), torch.tensor([0.0], dtype=torch.float64),
+    torch.tensor([0], dtype=torch.int16), torch.tensor([0], device='meta'),
+    torch.tensor([0, 1]), torch.tensor([[0, 1]]), torch.tensor(0),
+    torch.tensor([-1]), torch.tensor([2]), torch.tensor([0.5]),
+    torch.tensor([float('nan')]), torch.tensor([float('inf')]),
+    torch.tensor([[0.0]]).to_sparse(),
+])
+def test_class_probability_invalid_inputs_are_rejected_without_mutation_for_labels(observed_class_labels):
+    """不正な観測ラベルで予測時の確率を変更しない。"""
+    prediction_probabilities_by_model_id = {0: torch.tensor([[0.5]], requires_grad=True)}
+    input_tensors_before_call = prediction_probabilities_by_model_id[0].detach().clone()
+    with pytest.raises((TypeError, ValueError)) as exception_info:
+        compute_model_mean_bounded_losses_after_label_observation(
+            prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+            observed_class_labels=observed_class_labels, class_count=2,
+        )
+    assert str(exception_info.value)
+    assert torch.equal(prediction_probabilities_by_model_id[0], input_tensors_before_call)
+    assert torch.is_grad_enabled()
+
+
+@pytest.mark.parametrize("invalid_input_name,invalid_input_value,class_count", [
+    ('probabilities', {}, 2), ('probabilities', {True: torch.tensor([[0.5]])}, 2),
+    ('probabilities', {0: torch.tensor([[1.1]])}, 2),
+    ('probabilities', {0: torch.tensor([[0.1, 0.2, 0.3]])}, 3),
+    ('probabilities', {0: torch.tensor([[float('nan')]])}, 2),
+    ('probabilities', {0: torch.tensor([[0.5]], dtype=torch.float64)}, 2),
+    ('weights', {1: 1}, 2), ('weights', {0: 0}, 2), ('weights', {}, 2),
+    ('weights', {0: float('nan')}, 2),
+    ('scores', torch.tensor([[float('nan')]]), 2),
+    ('scores', torch.tensor([[0.5]], dtype=torch.float64), 2),
+    ('scores', torch.empty((0, 1)), 2), ('scores', torch.tensor([0.5]), 2),
+    ('scores', torch.tensor([[0.2, 0.8]]), 2),
+])
+def test_class_probability_invalid_inputs_are_rejected_without_mutation_for_prediction(
+    invalid_input_name, invalid_input_value, class_count,
+):
+    """混合前の確率・重み対応とクラス判定の入力形を検査する。"""
+    with pytest.raises((TypeError, ValueError)) as exception_info:
+        if invalid_input_name == 'scores':
+            predict_class_labels_from_prediction_scores(prediction_scores=invalid_input_value, class_count=class_count)
+        else:
+            combine_model_prediction_probabilities(
+                prediction_probabilities_by_model_id=invalid_input_value if invalid_input_name == 'probabilities' else {0: torch.tensor([[0.5]])},
+                prediction_weights_by_model_id=invalid_input_value if invalid_input_name == 'weights' else {0: 1},
+                class_count=class_count,
+            )
+    assert str(exception_info.value)
+    assert torch.is_grad_enabled()
+
+
+@pytest.mark.parametrize("class_count", [2, 3])
+def test_class_probability_outputs_are_independent_and_have_no_gradient_history(class_count):
+    """勾配と入力値を保存し、返却を変更しても入力に波及させない。"""
+    model_outputs_by_model_id = {0: torch.tensor([[0.5]]) if class_count == 2 else torch.tensor([[0.1, 0.2, 0.3]])}
+    model_outputs_by_model_id[0].requires_grad_()
+    model_outputs_by_model_id[0].grad = torch.ones_like(model_outputs_by_model_id[0])
+    input_tensors_before_call = model_outputs_by_model_id[0].detach().clone()
+    prediction_probabilities_by_model_id = convert_model_outputs_to_prediction_probabilities(model_outputs_by_model_id=model_outputs_by_model_id, class_count=class_count)
+    observed_class_labels = torch.tensor([0.0], requires_grad=True)
+    observed_class_labels.grad = torch.ones_like(observed_class_labels)
+    with torch.no_grad():
+        combined_prediction_probabilities = combine_model_prediction_probabilities(prediction_probabilities_by_model_id=prediction_probabilities_by_model_id, prediction_weights_by_model_id={0: 1}, class_count=class_count)
+        predicted_class_labels = predict_class_labels_from_prediction_scores(prediction_scores=combined_prediction_probabilities, class_count=class_count)
+        observed_losses_by_model_id = compute_model_mean_bounded_losses_after_label_observation(prediction_probabilities_by_model_id=prediction_probabilities_by_model_id, observed_class_labels=observed_class_labels, class_count=class_count)
+        assert not torch.is_grad_enabled()
+    for prediction_tensor in (prediction_probabilities_by_model_id[0], combined_prediction_probabilities, predicted_class_labels):
+        assert not prediction_tensor.requires_grad and prediction_tensor.grad_fn is None
+        assert prediction_tensor.data_ptr() != model_outputs_by_model_id[0].data_ptr()
+    assert torch.equal(model_outputs_by_model_id[0], input_tensors_before_call)
+    assert torch.equal(model_outputs_by_model_id[0].grad, torch.ones_like(model_outputs_by_model_id[0]))
+    assert torch.equal(observed_class_labels.grad, torch.ones_like(observed_class_labels))
+    assert type(observed_losses_by_model_id[0]) is float
+    combined_prediction_probabilities.zero_()
+    assert prediction_probabilities_by_model_id[0].sum().item() > 0
+    prediction_probabilities_by_model_id[0].zero_()
+    assert torch.equal(model_outputs_by_model_id[0], input_tensors_before_call)
     assert torch.is_grad_enabled()
 
 

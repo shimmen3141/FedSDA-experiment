@@ -99,4 +99,94 @@ def normalize_model_prediction_weights(
         prediction_weights_by_model_id=prediction_weights_by_model_id,
     )
     total_prediction_weight = sum(prediction_weights_by_model_id.values())
-    return {model_id: prediction_weight / total_prediction_weight for model_id, prediction_weight in prediction_weights_by_model_id.items()}
+    return {
+        model_id: prediction_weight / total_prediction_weight
+        for model_id, prediction_weight in prediction_weights_by_model_id.items()
+    }
+
+
+def _validate_observed_class_labels(
+    *, observed_class_labels: torch.Tensor, batch_sample_count: int, class_count: int,
+) -> None:
+    if not isinstance(observed_class_labels, torch.Tensor):
+        raise TypeError("observed_class_labelsはTensorにしてください。")
+    if observed_class_labels.device.type != 'cpu' or observed_class_labels.dtype not in (
+        torch.int32, torch.int64, torch.float32,
+    ) or observed_class_labels.layout != torch.strided:
+        raise ValueError("ラベルはCPUのdense int32/int64/float32にしてください。")
+    if tuple(observed_class_labels.shape) not in ((batch_sample_count,), (batch_sample_count, 1)):
+        raise ValueError("ラベルは同じ標本数Nの[N]または[N,1]にしてください。")
+    if not torch.isfinite(observed_class_labels).all().item():
+        raise ValueError("ラベルは有限値にしてください。")
+    if not (
+        (observed_class_labels >= 0) & (observed_class_labels < class_count)
+        & (observed_class_labels == observed_class_labels.floor())
+    ).all().item():
+        raise ValueError("ラベルは0～K-1の整数クラス値にしてください。")
+
+
+@torch.no_grad()
+def combine_model_prediction_probabilities(
+    *, prediction_probabilities_by_model_id: Mapping[int, torch.Tensor],
+    prediction_weights_by_model_id: Mapping[int, float], class_count: int,
+) -> torch.Tensor:
+    """正規化済み重みをそのまま使い、ID昇順に積を逐次加算する。"""
+    model_ids = _validated_model_prediction_tensor_ids(
+        model_tensors_by_model_id=prediction_probabilities_by_model_id,
+        class_count=class_count, require_probabilities=True,
+    )
+    prediction_weights_by_model_id = _validated_model_prediction_weights(
+        prediction_weights_by_model_id=prediction_weights_by_model_id,
+    )
+    if set(model_ids) != set(prediction_weights_by_model_id):
+        raise ValueError("モデル別確率と予測重みのID集合を一致させてください。")
+    return sum(
+        prediction_probabilities_by_model_id[model_id] * prediction_weights_by_model_id[model_id]
+        for model_id in model_ids
+    )
+
+
+@torch.no_grad()
+def predict_class_labels_from_prediction_scores(
+    *, prediction_scores: torch.Tensor, class_count: int,
+) -> torch.Tensor:
+    """混合丸めを補正せず、二値の厳密閾値または最小番号argmaxを返す。"""
+    _validate_class_count(class_count=class_count)
+    _validate_prediction_tensor(
+        prediction_tensor=prediction_scores, class_count=class_count,
+        require_probabilities=False,
+    )
+    if class_count == 2:
+        return (prediction_scores > 0.5).float()
+    return torch.argmax(prediction_scores, dim=1, keepdim=True).float()
+
+
+@torch.no_grad()
+def compute_model_mean_bounded_losses_after_label_observation(
+    *, prediction_probabilities_by_model_id: Mapping[int, torch.Tensor],
+    observed_class_labels: torch.Tensor, class_count: int,
+) -> dict[int, float]:
+    """予測時と同じモデル別確率と観測ラベルから旧順序の平均損失を得る。"""
+    model_ids = _validated_model_prediction_tensor_ids(
+        model_tensors_by_model_id=prediction_probabilities_by_model_id,
+        class_count=class_count, require_probabilities=True,
+    )
+    _validate_observed_class_labels(
+        observed_class_labels=observed_class_labels,
+        batch_sample_count=prediction_probabilities_by_model_id[model_ids[0]].shape[0],
+        class_count=class_count,
+    )
+    if class_count == 2:
+        return {
+            model_id: float(torch.abs(
+                prediction_probabilities_by_model_id[model_id].view(-1)
+                - observed_class_labels.view(-1).float()
+            ).mean().item())
+            for model_id in model_ids
+        }
+    return {
+        model_id: float((1.0 - prediction_probabilities_by_model_id[model_id].gather(
+            1, observed_class_labels.view(-1).long().unsqueeze(1),
+        ).squeeze(1)).mean().item())
+        for model_id in model_ids
+    }
