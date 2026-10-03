@@ -1,7 +1,7 @@
 """明示した固定条件と独立したモデル別予測重みの状態を管理する。"""
 
 import math
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
 from federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings import (
     PredictionCombinationSettings,
@@ -93,3 +93,132 @@ class FixedSharePredictionWeightController:
         validated_model_ids = self._validated_model_ids(model_ids=model_ids)
         self._synchronize_model_pool(validated_model_ids=validated_model_ids)
         return self.weights_by_model_id
+
+    @staticmethod
+    def _validated_observed_losses(
+        *, observed_losses_by_model_id: Mapping[int, float],
+    ) -> dict[int, float]:
+        """状態変更前に有限損失を検証し、昇順の独立辞書へ変換する。"""
+        if not isinstance(observed_losses_by_model_id, Mapping):
+            raise TypeError("observed_losses_by_model_idにはMappingを指定してください。")
+        validated_model_ids = FixedSharePredictionWeightController._validated_model_ids(
+            model_ids=observed_losses_by_model_id,
+        )
+        observed_losses_by_model_id = dict(observed_losses_by_model_id)
+        for model_id in validated_model_ids:
+            observed_loss = observed_losses_by_model_id[model_id]
+            if type(observed_loss) not in (int, float):
+                raise TypeError("observed_losses_by_model_idの損失はbuiltin int/floatにしてください。boolは受理しません。")
+            try:
+                observed_loss = float(observed_loss)
+            except OverflowError as caught_exception:
+                raise ValueError("observed_losses_by_model_idの損失は有限floatへ変換できる値にしてください。") from caught_exception
+            if not math.isfinite(observed_loss):
+                raise ValueError("observed_losses_by_model_idの損失は有限値にしてください。")
+            observed_losses_by_model_id[model_id] = observed_loss
+        return {model_id: observed_losses_by_model_id[model_id] for model_id in validated_model_ids}
+
+    @staticmethod
+    def _validated_prediction_weights(
+        *, prediction_weights_by_model_id: Mapping[int, float],
+    ) -> dict[int, float]:
+        """確率の型・値域・総和を検証し、再正規化せずコピーを返す。"""
+        if not isinstance(prediction_weights_by_model_id, Mapping):
+            raise TypeError("prediction_weights_by_model_idにはMappingを指定してください。")
+        validated_model_ids = FixedSharePredictionWeightController._validated_model_ids(
+            model_ids=prediction_weights_by_model_id,
+        )
+        prediction_weights_by_model_id = dict(prediction_weights_by_model_id)
+        for model_id in validated_model_ids:
+            prediction_weight = prediction_weights_by_model_id[model_id]
+            if type(prediction_weight) not in (int, float):
+                raise TypeError("prediction_weights_by_model_idの確率はbuiltin int/floatにしてください。boolは受理しません。")
+            try:
+                prediction_weight = float(prediction_weight)
+            except OverflowError as caught_exception:
+                raise ValueError("prediction_weights_by_model_idの確率は有限floatへ変換できる値にしてください。") from caught_exception
+            if not math.isfinite(prediction_weight) or not 0.0 <= prediction_weight <= 1.0:
+                raise ValueError("prediction_weights_by_model_idの確率は有限な0以上1以下の値にしてください。")
+            prediction_weights_by_model_id[model_id] = prediction_weight
+        total_prediction_weight = math.fsum(prediction_weights_by_model_id.values())
+        if abs(total_prediction_weight - 1.0) > 1e-12:
+            raise ValueError("prediction_weights_by_model_idの確率総和は1との差を1e-12以内にしてください。")
+        return {model_id: prediction_weights_by_model_id[model_id] for model_id in validated_model_ids}
+
+    @staticmethod
+    def select_maximum_weight_model_id(
+        *, prediction_weights_by_model_id: Mapping[int, float], preferred_model_id: int | None = None,
+    ) -> int:
+        """同率候補なら優先ID、それ以外なら最小IDを状態変更なしで返す。"""
+        if preferred_model_id is not None and type(preferred_model_id) is not int:
+            raise TypeError("preferred_model_idにはbuiltin intまたはNoneを指定してください。boolは受理しません。")
+        prediction_weights_by_model_id = FixedSharePredictionWeightController._validated_prediction_weights(
+            prediction_weights_by_model_id=prediction_weights_by_model_id,
+        )
+        maximum_prediction_weight = max(prediction_weights_by_model_id.values())
+        maximum_weight_model_ids = [
+            model_id for model_id, prediction_weight in prediction_weights_by_model_id.items()
+            if prediction_weight == maximum_prediction_weight
+        ]
+        if preferred_model_id in maximum_weight_model_ids:
+            return preferred_model_id
+        return min(maximum_weight_model_ids)
+
+    def update_weights_after_loss_observation(
+        self, *, observed_losses_by_model_id: Mapping[int, float],
+        prediction_weights_by_model_id: Mapping[int, float],
+    ) -> None:
+        """全入力検証後、旧基準の昇順・演算順を保持して観測後重みを更新する。"""
+        observed_losses_by_model_id = self._validated_observed_losses(
+            observed_losses_by_model_id=observed_losses_by_model_id,
+        )
+        prediction_weights_by_model_id = self._validated_prediction_weights(
+            prediction_weights_by_model_id=prediction_weights_by_model_id,
+        )
+        if set(observed_losses_by_model_id) != set(prediction_weights_by_model_id):
+            raise ValueError("observed_losses_by_model_idとprediction_weights_by_model_idは同じID集合にしてください。")
+        validated_model_ids = tuple(observed_losses_by_model_id)
+        self._synchronize_model_pool(validated_model_ids=validated_model_ids)
+        bounded_losses_by_model_id = {
+            model_id: min(1.0, max(0.0, observed_losses_by_model_id[model_id]))
+            for model_id in validated_model_ids
+        }
+        if len(validated_model_ids) == 1:
+            return
+        previous_leader_model_id = self.select_maximum_weight_model_id(
+            prediction_weights_by_model_id=prediction_weights_by_model_id,
+        )
+        expected_observed_loss = sum(
+            prediction_weights_by_model_id[model_id] * bounded_losses_by_model_id[model_id]
+            for model_id in validated_model_ids
+        )
+        observed_loss_variance = sum(
+            prediction_weights_by_model_id[model_id]
+            * (bounded_losses_by_model_id[model_id] - expected_observed_loss) ** 2
+            for model_id in validated_model_ids
+        )
+        self._cumulative_observed_loss_variance += observed_loss_variance
+        learning_rate = min(1.0, math.sqrt(
+            2.0 * math.log(len(validated_model_ids)) / max(self._cumulative_observed_loss_variance, 1e-12),
+        ))
+        unnormalized_weights_by_model_id = {
+            model_id: prediction_weights_by_model_id[model_id]
+            * math.exp(-learning_rate * bounded_losses_by_model_id[model_id])
+            for model_id in validated_model_ids
+        }
+        total_unnormalized_weight = sum(unnormalized_weights_by_model_id.values())
+        posterior_weights_by_model_id = {
+            model_id: unnormalized_weights_by_model_id[model_id] / total_unnormalized_weight
+            for model_id in validated_model_ids
+        }
+        share_probability = 1.0 / self._prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
+        uniform_model_weight = 1.0 / len(validated_model_ids)
+        self._weights_by_model_id = {
+            model_id: (1.0 - share_probability) * posterior_weights_by_model_id[model_id]
+            + share_probability * uniform_model_weight
+            for model_id in validated_model_ids
+        }
+        if self.select_maximum_weight_model_id(
+            prediction_weights_by_model_id=self._weights_by_model_id,
+        ) != previous_leader_model_id:
+            self._prediction_weight_leader_switch_count += 1

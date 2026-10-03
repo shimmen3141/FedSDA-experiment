@@ -28,3 +28,10 @@
 - Lunaが実ファイルと要件・設計をレビューし、同じ対象コマンドで1288 passed / 1.44s / exit 0。指摘なし、APPROVED。
 - 主担当が最終ファイルを読み、`../../venv/Scripts/python.exe -m pytest tests/refactoring/test_fixed_share_prediction_weights.py tests/refactoring/test_run_settings_validation.py -q -p no:cacheprovider`を再実行: 1288 passed / 1.25s / exit 0。
 - 命名revision 1、所有状態、負ID・空/重複/列挙例外・copy・読取property・条件再検証を確認してVERIFIED。更新・再生はtask 2～3、全src依存統合はtask 4のまま。
+
+## Task 2: APPROVED / VERIFIED
+
+- TDD RED: 未実装update/selectのAttributeErrorで29 failed / 1287 passed。GREEN: 1316 passed / 3.21s。
+- Luna: 実diffと旧updateの演算順を直接照合、共有TMP/TEMP/MPLCONFIGDIRを使った対象・設定テスト1316 passed / 3.22s / exit 0、指摘なしAPPROVED。
+- 主担当: 同じ最終対象コマンドを再実行、1316 passed / 3.08s / exit 0。時間尺度2/30/10000の各操作後に全状態完全一致、不正入力時の非ゼロ計数保持を確認してVERIFIED。
+- RED時のmatplotlib一時ディレクトリ終了処理のsandbox権限エラーは、既存共有TMP/MPLCONFIGDIR指定で解消。goldenや依存は変更していない。

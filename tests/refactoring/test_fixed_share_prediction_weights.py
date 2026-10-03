@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from federated_drift_experiment.expert_routing import SwitchingExpertRouter
 from test_run_settings_validation import valid_run_settings_mapping
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
@@ -23,6 +24,144 @@ def capture_fixed_share_controller_state(*, controller):
         "aggregation_recalibration_count": controller.aggregation_recalibration_count,
         "aggregation_recalibration_sample_count": controller.aggregation_recalibration_sample_count,
     }
+
+
+def assert_fixed_share_state_matches_reference(*, controller, reference_router):
+    """旧基準の重み・分散・全計数を丸めず照合する。"""
+    assert capture_fixed_share_controller_state(controller=controller) == {
+        "weights_by_model_id": reference_router.weights,
+        "cumulative_observed_loss_variance": reference_router.cumulative_variance,
+        "model_pool_reset_count": reference_router.pool_reset_count,
+        "prediction_weight_leader_switch_count": reference_router.leader_switch_count,
+        "aggregation_recalibration_count": reference_router.aggregation_recalibration_count,
+        "aggregation_recalibration_sample_count": reference_router.aggregation_recalibration_sample_count,
+    }
+
+
+@pytest.mark.parametrize("fixed_share_weight_redistribution_time_scale_samples", [2, 30, 10000])
+def test_fixed_share_prediction_weights_match_reference_before_and_after_each_observation(
+    valid_run_settings_mapping, fixed_share_weight_redistribution_time_scale_samples,
+):
+    """損失制限・交代・同率・集合差・単一モデルを各標本の前後で照合する。"""
+    controller = FixedSharePredictionWeightController(prediction_combination_settings=replace(
+        valid_run_settings_mapping["prediction_combination_settings"],
+        fixed_share_weight_redistribution_time_scale_samples=fixed_share_weight_redistribution_time_scale_samples,
+    ))
+    reference_router = SwitchingExpertRouter(fixed_share_weight_redistribution_time_scale_samples)
+    for observed_losses_by_model_id in (
+        {2: 0.5, -3: 0.5, 0: 0.5},
+        *({2: 1, -3: 0, 0: 0.3} for observation_index in range(8)),
+        *({0: 0, -3: 1, 2: 0.4} for observation_index in range(8)),
+        {2: 1e308, 0: -1e308, -3: 0.2},
+        {5: 0, -3: 1}, {-3: 1e308}, {-3: -1e308}, {0: 0, -3: 0},
+    ):
+        returned_prediction_weights = controller.get_prediction_weights_before_label_observation(
+            model_ids=observed_losses_by_model_id,
+        )
+        reference_prediction_weights = reference_router.probabilities(observed_losses_by_model_id)
+        assert returned_prediction_weights == reference_prediction_weights
+        assert_fixed_share_state_matches_reference(controller=controller, reference_router=reference_router)
+        controller.update_weights_after_loss_observation(
+            observed_losses_by_model_id=observed_losses_by_model_id,
+            prediction_weights_by_model_id=returned_prediction_weights,
+        )
+        reference_router.update(observed_losses_by_model_id, reference_prediction_weights)
+        assert_fixed_share_state_matches_reference(controller=controller, reference_router=reference_router)
+
+
+@pytest.mark.parametrize("prediction_weights_by_model_id", [
+    {0: 0.0, -1: 1.0}, {0: 0.8, -1: 0.2}, {0: 0.5, -1: 0.5 + 5e-13},
+])
+def test_fixed_share_updates_use_the_supplied_pre_observation_weight_snapshot(
+    valid_run_settings_mapping, prediction_weights_by_model_id,
+):
+    """外部のゼロ確率と許容誤差内の確率も再正規化せず旧順序で使う。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    reference_router = SwitchingExpertRouter(2)
+    controller.get_prediction_weights_before_label_observation(model_ids=(0, -1))
+    reference_router.probabilities((0, -1))
+    reference_prediction_weights = dict(prediction_weights_by_model_id)
+    observed_losses_by_model_id = {0: 1.0, -1: 0.0}
+    controller.update_weights_after_loss_observation(
+        observed_losses_by_model_id=observed_losses_by_model_id,
+        prediction_weights_by_model_id=prediction_weights_by_model_id,
+    )
+    reference_router.update(observed_losses_by_model_id, prediction_weights_by_model_id)
+    assert_fixed_share_state_matches_reference(controller=controller, reference_router=reference_router)
+    assert observed_losses_by_model_id == {0: 1.0, -1: 0.0}
+    assert prediction_weights_by_model_id == reference_prediction_weights
+    controller_state_before_call = capture_fixed_share_controller_state(controller=controller)
+    assert controller.get_prediction_weights_before_label_observation(model_ids=(-1, 0)) == controller.weights_by_model_id
+    assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
+
+
+@pytest.mark.parametrize("invalid_observed_losses,invalid_prediction_weights", [
+    ({2: float("nan"), 3: 0}, {2: 0.5, 3: 0.5}),
+    ({2: float("inf"), 3: 0}, {2: 0.5, 3: 0.5}),
+    ({2: 10**400, 3: 0}, {2: 0.5, 3: 0.5}),
+    ({2: True, 3: 0}, {2: 0.5, 3: 0.5}),
+    ({2: "0", 3: 0}, {2: 0.5, 3: 0.5}),
+    ({2: 0, 3: 1}, {2: float("nan"), 3: 0.5}),
+    ({2: 0, 3: 1}, {2: -float("inf"), 3: 0.5}),
+    ({2: 0, 3: 1}, {2: 10**400, 3: 0}),
+    ({2: 0, 3: 1}, {2: True, 3: 0}),
+    ({2: 0, 3: 1}, {2: -0.1, 3: 1.1}),
+    ({2: 0, 3: 1}, {2: 0, 3: 0}),
+    ({2: 0, 3: 1}, {2: 0.5, 3: 0.5 + 2e-12}),
+    ({2: 0, 3: 1}, {2: 0.5, 4: 0.5}),
+    ({True: 0, 3: 1}, {1: 0.5, 3: 0.5}),
+    ({2: 0, 3: 1}, {2.0: 0.5, 3: 0.5}),
+    ({}, {}), ([], {2: 1}), ({2: 0}, []),
+])
+def test_fixed_share_invalid_observation_inputs_leave_all_state_unchanged(
+    valid_run_settings_mapping, invalid_observed_losses, invalid_prediction_weights,
+):
+    """新しい集合の不正入力を、累積証拠と全計数を保持して拒否する。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    controller.get_prediction_weights_before_label_observation(model_ids=(9,))
+    controller.update_weights_after_loss_observation(
+        observed_losses_by_model_id={0: 0, -1: 1}, prediction_weights_by_model_id={0: 0.5, -1: 0.5},
+    )
+    assert controller.model_pool_reset_count == 1
+    assert controller.prediction_weight_leader_switch_count == 1
+    assert controller.cumulative_observed_loss_variance > 0
+    controller_state_before_call = capture_fixed_share_controller_state(controller=controller)
+    with pytest.raises((TypeError, ValueError)):
+        controller.update_weights_after_loss_observation(
+            observed_losses_by_model_id=invalid_observed_losses,
+            prediction_weights_by_model_id=invalid_prediction_weights,
+        )
+    assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
+
+
+@pytest.mark.parametrize("preferred_model_id,expected_model_id", [(None, -3), (2, 2), (0, -3), (99, -3)])
+def test_fixed_share_leader_selection_resolves_ties_without_changing_state(
+    valid_run_settings_mapping, preferred_model_id, expected_model_id,
+):
+    """公開の同率優先と最小ID選択は、状態を変更しない。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    controller.get_prediction_weights_before_label_observation(model_ids=(0,))
+    controller_state_before_call = capture_fixed_share_controller_state(controller=controller)
+    prediction_weights_by_model_id = {2: 0.4, 0: 0.2, -3: 0.4}
+    assert FixedSharePredictionWeightController.select_maximum_weight_model_id(
+        prediction_weights_by_model_id=prediction_weights_by_model_id, preferred_model_id=preferred_model_id,
+    ) == expected_model_id
+    assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
+    for preferred_model_id in (True, 2.0, "2"):
+        with pytest.raises(TypeError):
+            controller.select_maximum_weight_model_id(
+                prediction_weights_by_model_id=prediction_weights_by_model_id, preferred_model_id=preferred_model_id,
+            )
+    for invalid_prediction_weights in ({}, {True: 1}, {0: float("nan")}, {0: 10**400}, {0: 0}, {0: 1.1}, {0: True}):
+        with pytest.raises((TypeError, ValueError)):
+            controller.select_maximum_weight_model_id(prediction_weights_by_model_id=invalid_prediction_weights)
+    assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
 
 
 @pytest.mark.parametrize("configuration_parameter_name,specified_parameter_value", [
@@ -72,6 +211,12 @@ def test_fixed_share_prediction_weight_calls_require_keyword_arguments(valid_run
     controller = FixedSharePredictionWeightController(prediction_combination_settings=prediction_combination_settings)
     with pytest.raises(TypeError):
         controller.get_prediction_weights_before_label_observation((0, 1))
+    with pytest.raises(TypeError):
+        controller.update_weights_after_loss_observation({0: 0}, {0: 1})
+    with pytest.raises(TypeError):
+        controller.update_weights_after_loss_observation(observed_losses_by_model_id={0: 0})
+    with pytest.raises(TypeError):
+        controller.select_maximum_weight_model_id({0: 1})
 
 
 def test_fixed_share_model_pool_changes_preserve_order_and_reset_only_when_needed(valid_run_settings_mapping):
