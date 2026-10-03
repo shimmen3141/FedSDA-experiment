@@ -9,6 +9,10 @@
 推定変化区間より前のold_dataは_store_evaluation_dataと_absorb_into_storeへ渡される。その後drift_dataがMIN_DRIFT_DATA未満ならinsufficient_dataを記録し検出器をresetしてreturnし、buffer.clearを実行しない。
 研究調査agentが旧unboundメソッドを直接実行し、FIFO=(0,1,2,3,4,5)、span=2、最低件数5で、old=(0,1,2,3)が割当callbackへ渡り、FIFOは全6件保持されることを確認した。
 
+主担当も[pending-training-data-assignmentの再現テスト](../../../tests/refactoring/test_pending_training_assignment_buffer.py)で旧`federated_drift_experiment.clients.fedsda.FedSDAClient._resolve_drift`を直接実行した。span=1/2/8、最低件数10で、短い警報区間と割当済み前区間の全件保持を確認した。候補将来検証中・episode重複の全件消費も同じtoken列で比較する。
+
+worktreeで`../../venv/Scripts/python.exe -m pytest tests/refactoring/test_pending_training_assignment_buffer.py -k legacy_alarm_branches_preserve_consumption -q -p no:cacheprovider`を実行すれば再現できる。test内のMIN_DRIFT_DATAはmonkeypatchで復元され、旧コード・結果・goldenを変更しない。task 2の全対象は62 passed / exit 0。
+
 ## 影響と未確認事項
 
 割当済みold区間が後の平時解放/警報で再び割当される可能性がある。対象分岐への到達と残留は確認済み。過去実験での件数・学習/指標への影響は未確認。

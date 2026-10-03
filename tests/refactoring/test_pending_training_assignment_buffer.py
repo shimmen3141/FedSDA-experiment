@@ -109,3 +109,103 @@ def test_pending_assignment_append_and_release_match_legacy_processing_for_large
     assert buffer.release_sample_indices_exceeding_capacity() == (sample_index, sample_index + 1)
     assert buffer.get_state_snapshot().pending_sample_indices == (sample_index + 2,)
 
+def make_legacy_alarm_client(legacy_sample_indices, legacy_span, pending_validation=False):
+    """整数tokenだけで旧警報の区間帰属とFIFO保持を捕捉する。"""
+    legacy_events = {"assigned": [], "evaluated": [], "actions": [], "resets": []}
+    legacy_client = SimpleNamespace(
+        buffer=deque(legacy_sample_indices), current_model_id=0,
+        _forward_validation=object() if pending_validation else None,
+        _estimated_new_concept_span=lambda sample_index: legacy_span,
+        _absorb_into_store=lambda model_id, x: legacy_events["assigned"].extend(x),
+        _store_evaluation_data=lambda model_id, x: legacy_events["evaluated"].extend(x),
+        _record_adaptation_event=lambda **x: legacy_events["actions"].append(x["action"]),
+        _reset_drift_detectors=lambda: legacy_events["resets"].append(True),
+        _detector_label=lambda: "test",
+    )
+    return legacy_client, legacy_events
+
+
+@pytest.mark.parametrize("sample_count", [0, 1, 6, 30])
+@pytest.mark.parametrize("legacy_span", [1, 2, 6, 80])
+def test_pending_assignment_partition_matches_legacy_positions(sample_count, legacy_span):
+    """FIFO内の切詰め開始と検出器本来の開始を区別する。"""
+    buffer = make_assignment_buffer(30)
+    for sample_index in range(101 - sample_count, 101):
+        buffer.append_observed_sample_index(sample_index=sample_index)
+    state_before_call = buffer.get_state_snapshot()
+    result = buffer.get_change_interval_partition(estimated_change_span_sample_count=legacy_span)
+    legacy_sample_indices = state_before_call.pending_sample_indices
+    assert result.earlier_sample_indices + result.change_interval_sample_indices == legacy_sample_indices
+    assert len(result.change_interval_sample_indices) == min(sample_count, legacy_span)
+    assert result.change_interval_start_sample_index == (result.change_interval_sample_indices[0] if sample_count else None)
+    assert buffer.get_state_snapshot() == state_before_call
+    if sample_count:
+        legacy_client, legacy_events = make_legacy_alarm_client(legacy_sample_indices, legacy_span)
+        assert result.change_interval_start_sample_index == FedSDAClient._estimated_drift_start(legacy_client, 100)
+        assert FedSDAClient._detector_candidate_start(legacy_client, 100) == max(0, 101 - legacy_span)
+        assert result.change_interval_start_sample_index >= FedSDAClient._detector_candidate_start(legacy_client, 100)
+        assert buffer.get_change_interval_partition(estimated_change_span_sample_count=legacy_span) == result
+
+
+@pytest.mark.parametrize("operation", ["pending", "duplicate", "insufficient"])
+@pytest.mark.parametrize("legacy_span", [1, 2, 8])
+def test_pending_assignment_legacy_alarm_branches_preserve_consumption(monkeypatch, operation, legacy_span):
+    """短い警報時の割当済みprefix残留を、今回も勝手に修正しない。"""
+    monkeypatch.setattr(config, "MIN_DRIFT_DATA", 10)
+    buffer = make_assignment_buffer(5)
+    for sample_index in range(6):
+        buffer.append_observed_sample_index(sample_index=sample_index)
+    state_before_call = buffer.get_state_snapshot()
+    legacy_client, legacy_events = make_legacy_alarm_client(
+        state_before_call.pending_sample_indices, legacy_span, operation == "pending",
+    )
+    if operation == "duplicate":
+        result = FedSDAClient._resolve_episode_duplicate(legacy_client, sample_idx=5, estimated_start=4, episode_id=1)
+    else:
+        result = FedSDAClient._resolve_drift(legacy_client, sample_idx=5, estimated_start=4, episode_id=1)
+    assert result == 0
+    assert legacy_events["resets"] == [True]
+    if operation == "insufficient":
+        result = buffer.get_change_interval_partition(estimated_change_span_sample_count=legacy_span)
+        assert tuple(legacy_events["assigned"]) == result.earlier_sample_indices
+        assert tuple(legacy_events["evaluated"]) == result.earlier_sample_indices
+        assert legacy_events["actions"] == ["insufficient_data"]
+        assert buffer.get_state_snapshot() == state_before_call
+    else:
+        result = buffer.drain_pending_sample_indices()
+        assert tuple(legacy_events["assigned"]) == result == state_before_call.pending_sample_indices
+        assert legacy_events["evaluated"] == []
+        assert legacy_events["actions"] == [("forward_validation_pending" if operation == "pending" else "episode_suppressed")]
+    assert buffer.get_state_snapshot().pending_sample_indices == tuple(legacy_client.buffer)
+    assert buffer.get_state_snapshot().last_observed_sample_index == 5
+
+
+@pytest.mark.parametrize("invalid_value", [True, False, 1.0, "1", None, np.int64(1), 0, -1])
+def test_pending_assignment_invalid_inputs_preserve_state_for_span(invalid_value):
+    buffer = make_assignment_buffer()
+    buffer.append_observed_sample_index(sample_index=0)
+    state_before_call = buffer.get_state_snapshot()
+    with pytest.raises((TypeError, ValueError), match="estimated_change_span_sample_count"):
+        buffer.get_change_interval_partition(estimated_change_span_sample_count=invalid_value)
+    assert buffer.get_state_snapshot() == state_before_call
+
+
+def test_pending_assignment_legacy_alarm_branches_preserve_consumption_after_drain():
+    """消費後のindex reset・再観測を拒否し、全体の連続位置を維持する。"""
+    buffer = make_assignment_buffer()
+    assert buffer.drain_pending_sample_indices() == ()
+    buffer.append_observed_sample_index(sample_index=71)
+    buffer.append_observed_sample_index(sample_index=72)
+    assert buffer.drain_pending_sample_indices() == (71, 72)
+    assert buffer.drain_pending_sample_indices() == ()
+    state_before_call = buffer.get_state_snapshot()
+    assert state_before_call.pending_sample_indices == ()
+    assert state_before_call.last_observed_sample_index == 72
+    for invalid_value in (0, 71, 72, 74):
+        with pytest.raises(ValueError, match="sample_index"):
+            buffer.append_observed_sample_index(sample_index=invalid_value)
+        assert buffer.get_state_snapshot() == state_before_call
+    buffer.append_observed_sample_index(sample_index=73)
+    assert buffer.get_change_interval_partition(estimated_change_span_sample_count=10**30).change_interval_sample_indices == (73,)
+
+

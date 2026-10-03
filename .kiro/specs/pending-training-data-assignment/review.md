@@ -1,5 +1,9 @@
 # レビューと承認
 
+## task 2: APPROVED / TASK VERIFIED
+
+REDは未存在methodによる34 failed / 28 passed。実装後GREEN62 passed、Luna独立再検証62 passed / exit 0でReview Verdict APPROVED task 2、指摘なし。主担当fresh再実行も62 passed / exit 0。空/正span/切詰めglobal位置、3警報分岐、非破壊保持、drain後の順序拒否を旧メソッドへ直接比較した。LEGACY-002再現だけの実行は10 passed / 52 deselected、記録へコマンドと未確認の影響を接続した。
+
 ## task 1: APPROVED / TASK VERIFIED
 
 REDは未存在moduleのcollection error。GREENは28 passed、Luna独立実行も28 passed / exit 0でReview Verdict APPROVED task 1、指摘なし。主担当のfresh再実行も28 passed / exit 0を確認した。旧process_one_stepの容量1/3/30・開始0/71の解放順、C+1の一時保持、位置/改変設定の拒否、不変snapshotを確認。誤った設定検証testパス指定はno tests ranであり成功とは扱わず、存在する対象testへ訂正した。partition/drainとASTゲートは後続。

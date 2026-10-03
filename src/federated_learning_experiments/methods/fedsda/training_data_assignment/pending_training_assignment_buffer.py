@@ -14,6 +14,15 @@ class PendingTrainingAssignmentState:
     last_observed_sample_index: int | None
 
 
+@dataclass(frozen=True, kw_only=True)
+class BufferedChangeIntervalPartition:
+    """FIFO内の前区間・推定変化区間と切詰め後の開始位置。"""
+
+    earlier_sample_indices: tuple[int, ...]
+    change_interval_sample_indices: tuple[int, ...]
+    change_interval_start_sample_index: int | None
+
+
 def _validate_nonnegative_sample_index(*, sample_index: int) -> None:
     """位置を暗黙変換せず、builtin intの非負値だけ受理する。"""
     if type(sample_index) is not int:
@@ -54,4 +63,26 @@ class PendingTrainingAssignmentBuffer:
             pending_sample_indices=tuple(self._pending_sample_indices),
             last_observed_sample_index=self._last_observed_sample_index,
         )
+
+    def get_change_interval_partition(self, *, estimated_change_span_sample_count: int) -> BufferedChangeIntervalPartition:
+        """分割を参照するだけで、短い警報時の保留内容も消費しない。"""
+        if type(estimated_change_span_sample_count) is not int:
+            raise TypeError("estimated_change_span_sample_count must be a builtin int, excluding bool")
+        if estimated_change_span_sample_count < 1:
+            raise ValueError("estimated_change_span_sample_count must be positive")
+        pending_sample_indices = tuple(self._pending_sample_indices)
+        change_interval_sample_count = min(len(pending_sample_indices), estimated_change_span_sample_count)
+        partition_split_index = len(pending_sample_indices) - change_interval_sample_count
+        change_interval_sample_indices = pending_sample_indices[partition_split_index:]
+        return BufferedChangeIntervalPartition(
+            earlier_sample_indices=pending_sample_indices[:partition_split_index],
+            change_interval_sample_indices=change_interval_sample_indices,
+            change_interval_start_sample_index=(change_interval_sample_indices[0] if change_interval_sample_indices else None),
+        )
+
+    def drain_pending_sample_indices(self) -> tuple[int, ...]:
+        """全件消費を明示し、最後の観測位置は次回の連続性のため維持する。"""
+        pending_sample_indices = tuple(self._pending_sample_indices)
+        self._pending_sample_indices.clear()
+        return pending_sample_indices
 

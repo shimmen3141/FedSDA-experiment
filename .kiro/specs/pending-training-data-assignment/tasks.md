@@ -8,7 +8,7 @@
   - _Depends: 承認済み要件・設計・命名、既存Python/pytest環境とTrainingDataAssignmentSettings_
   - _Boundary: pending_training_assignment_buffer.py、同所有の対象テスト_
 
-- [ ] 2. 警報区間の非破壊分割・明示全件消費を実装する
+- [x] 2. 警報区間の非破壊分割・明示全件消費を実装する
   - 正spanをFIFO長で切り詰め、前区間・末尾区間とFIFO内開始位置を返す。空・過大spanも参照で状態を変えない。drain後も全体の標本順を継続する。
   - 旧開始位置、候補将来検証中・episode重複の全件消費、短い警報後の保持を直接照合する。LEGACY-002へ実行できる再現テストを接続する。
   - 完了は旧oracle照合・型/0span拒否・消費後連続性テスト成功、Luna APPROVEDと主担当再検証。
