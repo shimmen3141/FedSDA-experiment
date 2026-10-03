@@ -1,6 +1,6 @@
 # 単一run specの命名
 
-- revision: 8。task 4.1の乱数境界テスト名を追加。承認状態はspec.jsonを確認する。
+- revision: 9。task 4.2の実行条件テスト名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 現段階では新src・実装を先取りするテストを作らない。
 
@@ -270,3 +270,20 @@ tests/refactoring/test_single_run_execution.pyへ以下を追加する。
 | original_torch_thread_count, original_torch_default_dtype | intとtorch.dtype。呼出前の実行既定値 |
 
 global Python/NumPy状態とmonkeypatchは既承認名を再利用する。乱数容器は可変な実行状態であり、固定条件や成功結果として保存しない。
+
+## task 4.2: 狭い実行条件の検証
+
+productionは既存表のStreamProtocolExecutionSettingsとvalidate_stream_protocol_execution_settingsを使用し、補助関数・局所名を追加しない。
+複合型の検査をこのモジュールで行い、既存の単純値検証は入れ子の固定条件へ適用する。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| valid_stream_protocol_execution_settings | pytest fixture。SINE基準規模と概念系列条件の正常な不変集約 |
+| test_stream_protocol_execution_settings_accept_seed_and_interval_boundaries | NumPyのseed上下限と、端数・区間長超過を受理することを確認 |
+| test_stream_protocol_execution_settings_reject_invalid_components_and_choices | 入れ子の型・方式・dataset・seed範囲を拒否し、元の項目と値を確認 |
+| test_stream_protocol_execution_validation_rejects_partial_settings | 設定基盤の部分集約を完全な実行条件として受理しないことを確認 |
+| test_stream_protocol_execution_settings_are_required_frozen_and_keyword_only | 必須項目・変更/削除・位置引数の拒否を確認 |
+| valid_run_settings_mapping | 設定基盤テストの既存fixture。部分集約の正常値を再利用する |
+| partial_run_settings | ValidatedExperimentRunSettingsSubset。拒否を確認する既存部分集約の実体 |
+
+execution_settings、experiment_run_conditions、concept_schedule_settings、configuration_parameter_name、specified_parameter_value、exception_info、missing_parameter_nameは既承認の役割で再利用する。テストの変更にはdataclasses.replaceを使い、固定条件の実体を書き換えない。

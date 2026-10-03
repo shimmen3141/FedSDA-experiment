@@ -163,3 +163,11 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 主担当GREEN/fresh証拠: workspace内TEMP・MPLCONFIGDIRでcanonical refactoringテスト、exit 0、1647成功/6.21秒。
 - 別gpt-6-luna実装レビュー: APPROVED、指摘なし、fresh1647成功/6.06秒。独立乱数実体、旧値列、global保持、CPU状態の正常/例外復元、他device seed API非呼出、thread/dtype保持を確認した。
 - task 4.1完了はVERIFIED。乱数容器は可変な実行状態として保持し、設定や結果型へ昇格させない。
+
+### task 4.2追加命名・実装・検証
+
+- 既存gpt-6-luna threadによる命名revision 9レビューはPASS、指摘なし。主担当が承認し、manual実装した。
+- RED: 新モジュール未存在でcollection error 1件/1.76秒。GREEN: canonical refactoringテストexit 0、1662成功/7.98秒。
+- 複合型はexecution内で検査し、既存coreへ複合検証を追加していない。部分設定型、対象外dataset/方式、seed上限超過を拒否し、端数・区間長超過を許容した。
+- 別gpt-6-luna実装レビュー: APPROVED、指摘なし、fresh1662成功/9.87秒。既存threadを再利用した。
+- task 4.2完了はVERIFIED。旧実装・goldenは変更していない。
