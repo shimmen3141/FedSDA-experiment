@@ -5,13 +5,13 @@
 1. `spec.json`: フェーズ・承認・実装可能状態。
 2. `requirements.md`: 承認済みの受け入れ条件の正本。
 3. `design.md`: 責務・依存方向・入出力の設計案。承認状態を確認する。
-4. `naming.md`: 名前・役割の正本。revision 1はLunaレビュー前の案であり、実装に使わない。
+4. `naming.md`: 名前・役割の正本。revision 2はLuna指摘を反映した命名表。承認状態はspec.jsonを確認する。
 
 `reference-inventory.md`は旧SINE条件・処理順・不足条件の根拠。旧名は参照元の説明に限る。
 
-要件は承認済み。`design.md`は責務・依存・入出力の設計案、`naming.md`はrevision 1の未承認命名案。
-Luna呼出上限により命名レビューは未実施。設計と命名を承認済みと扱わない。
-設計・命名確認後に`tasks.md`を作成する。存在しない文書を承認済みとして扱わない。
+要件は承認済み。`design.md`は責務・依存・入出力の設計案であり、人間の承認待ち。
+命名はLunaレビューと主担当の指摘反映によって承認する。現在の状態はspec.jsonを参照する。
+設計承認後に`tasks.md`を作成する。task承認を経て実装する。存在しない文書を承認済みとして扱わない。
 上位方針は`../../../docs/research/refactoring-policy.md`と`../../steering/`。
 既存設定の契約は`../configuration-foundation/README.md`を参照し、ここへ複製しない。
 

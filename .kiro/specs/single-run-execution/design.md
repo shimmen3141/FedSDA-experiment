@@ -114,7 +114,7 @@ seedは既存設定型の非負整数に加え、RandomStateが受理する0〜2
 |---|---|
 | RunParticipantFactory | validate_configuration()で自身の必須条件を副作用なく検査。prepare_run(experiment_run_conditions, run_random_sources, sample_generator)で初期準備と新しい参加者を作る |
 | RunClientOperations | client_id、process_observed_sample(observed_sample, sample_index)、flush_pending_local_updates(round_index)、has_model_ready_for_server_registration()、advance_new_model_upload_wait_after_synchronization(round_index)、finalize_incomplete_candidate_validation() |
-| RunServerOperations | record_client_states_before_synchronization(round_index)、synchronize_models(round_index, new_model_registration_available)、finalize_started_protocols(completed_round_count) |
+| RunServerOperations | record_client_states_before_synchronization(round_index)、synchronize_models(round_index, new_model_registration_available)、finalize_started_communications(completed_round_count) |
 
 RunParticipantsはclient_operationsのtupleとserver_operationsを束ねる。IDは0〜C-1の昇順・重複なし、件数C。
 factoryと接続先はrunごとに新しい状態を作り、成功・失敗後の参加者を次runに再利用しない。
@@ -128,7 +128,7 @@ execute_stream_protocol_run(execution_settings, participant_factory) -> StreamPr
 公開引数はkeyword-onlyとする。ValidatedExperimentRunSettingsSubsetを入力として受理しない。
 
 1. 設定とfactory契約を検査し、factory.validate_configurationを呼ぶ。ここでは生成・初期準備を開始しない。
-2. create_run_random_sources(random_seed)でPython RandomとNumPy RandomStateを作り、isolated_torch_random_stateへ入る。
+2. create_run_random_sources(random_seed)でPython RandomとNumPy RandomStateを作り、isolated_cpu_torch_random_stateへ入る。
 3. SINE生成器を作り、factory.prepare_runを1回呼ぶ。初期準備で消費したPython・NumPy乱数をそのまま継続する。
 4. 参加者の件数・ID・必要な操作を検査し、全概念系列→全標本streamを生成する。
 5. run_stream_protocol_intervalsへ参加者・観測stream・区間長を渡す。評価用概念列は渡さない。

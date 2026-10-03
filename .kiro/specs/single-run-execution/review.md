@@ -49,3 +49,15 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 命名表と自己確認は用意済みだが、ユーザーが委任したLunaレビューの代替にはしない。
 - 再開時は同revisionをLunaへ渡し、有用な指摘をdesign.mdとnaming.mdへ同期してから命名承認を記録する。
 - 要件承認は維持する。設計は人間承認待ち、taskは未生成。実装可能状態はfalseのまま。
+
+## 2026-10-03: Luna命名レビュー再開・revision 2承認
+
+- 起動前のlist_agentsには実行中の親agentだけがあり、完了済み・不要なthreadはなかった。cleanup対象はなく、新規起動に成功した。
+- レビュー担当: `/root/luna_single_run_naming_review`、指定モデル `gpt-6-luna`。独立したコンテキストでrevision 1を読み、ファイル変更なしで指摘を返した。
+- 指摘1を採用: `isolated_torch_random_state` → `isolated_cpu_torch_random_state`。CPU専用の状態保存・復元という適用範囲を名前で明示する。
+- 指摘2を採用: `protocol_finalization` → `started_communication_finalization`、`finalize_started_protocols` → `finalize_started_communications`。PythonのProtocol型との混同を避け、開始済み通信の確定という対象を明示する。
+- 軽微な指摘3も採用: `candidate_finalization` → `incomplete_candidate_validation_finalization`。候補全般ではなく未完了の検証を終端する操作と一致させる。
+- naming.mdをrevision 2へ更新し、design.mdの対応名を同期した。要求・処理順・責務の変更はない。
+- 同じLuna agentによるrevision 2の再確認結果: PASS。命名内容への残る指摘なし。承認メタデータと記録の同期を求める指摘も反映した。
+- 2026-10-03のユーザーによる委任に基づき、主担当がrevision 2を命名承認した。内容hash・モデル・reviewer thread・承認元はspec.jsonへ記録する。
+- 要件承認は維持する。設計は人間承認待ち、taskは未生成。命名承認を設計・taskの承認として扱わず、実装可能状態はfalseのまま。

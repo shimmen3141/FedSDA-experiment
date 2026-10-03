@@ -1,6 +1,6 @@
 # 単一run specの命名
 
-- revision: 1。設計に対応する命名案。Lunaレビュー前のため未承認。
+- revision: 2。revision 1へのLuna指摘を反映した命名表。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 現段階では新src・実装を先取りするテストを作らない。
 
@@ -80,7 +80,7 @@
 | SineSampleGenerator.generate_sample | concept_id → ObservedSample | 概念ID0/1から1標本。NumPy乱数を消費 |
 | build_sine_client_observed_streams | evaluation_concept_traces, sample_generator → tuple[ClientObservedStream, ...] | 全系列の後、client順に標本生成 |
 | create_run_random_sources | random_seed → RunRandomSources | 新しい乱数源を作る。呼出元のglobal乱数を変更しない |
-| isolated_torch_random_state | random_seed → ContextManager[None] | CPU torch乱数を保存・seed設定・全出口で復元 |
+| isolated_cpu_torch_random_state | random_seed → ContextManager[None] | CPU torch乱数を保存・seed設定・全出口で復元 |
 | execute_stream_protocol_run | execution_settings, participant_factory → StreamProtocolRunResult | 組立。完全なFedSDA実験の入口ではない |
 | run_stream_protocol_intervals | participants, observed_client_streams, server_aggregation_interval_per_client_samples → tuple[RunExecutionEvent, ...] | 区間・終端を進める。真の概念列を受け取らない |
 | RunParticipantFactory.validate_configuration | 引数なし → None | factory自身の条件を副作用なく確認 |
@@ -92,7 +92,7 @@
 | RunClientOperations.finalize_incomplete_candidate_validation | 引数なし → None | 未完了の候補検証を終端確定 |
 | RunServerOperations.record_client_states_before_synchronization | round_index → None | 同期前の状態記録 |
 | RunServerOperations.synchronize_models | round_index, new_model_registration_available → None | boolの時点情報を受けて同期。統合判断・計算はserverが所有 |
-| RunServerOperations.finalize_started_protocols | completed_round_count → None | 開始済み通信の確定。通常同期の追加ではない |
+| RunServerOperations.finalize_started_communications | completed_round_count → None | 開始済み通信の確定。通常同期の追加ではない |
 
 型コンストラクタの引数はフィールドと同名。上表の引数名と同じ意味の一時値は同名を使う。
 実装の補助名・テスト名は担当task開始前に追加レビューする。Python慣用のself・__post_init__は維持する。
@@ -112,5 +112,5 @@
 | registration_readiness_check | 指定clientの送信可能モデル照会 |
 | server_synchronization | 指定区間の同期 |
 | upload_wait_advance | 指定clientの同期後の待ち期間進行 |
-| candidate_finalization | 指定clientの候補検証終端 |
-| protocol_finalization | 通信の終端確定 |
+| incomplete_candidate_validation_finalization | 指定clientの候補検証終端 |
+| started_communication_finalization | 通信の終端確定 |
