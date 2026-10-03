@@ -10,9 +10,9 @@
 
 `reference-inventory.md`は旧SINE条件・処理順・不足条件の根拠。旧名は参照元の説明に限る。
 
-要件・設計と命名revision 2は承認済み。`tasks.md`は独立レビューを通過した実装計画案であり、人間の承認待ち。
+要件・設計・tasksと命名revision 2は承認済み。実装はtasks.mdの未完了単位から順に進める。
 各実装単位の補助名・テスト名は、開始前にLunaレビューを通してnaming.mdへ追加する。
-task承認を経て実装する。現在の承認状態はspec.jsonを参照する。
+今後の要求・設計・task・命名・実装は、Lunaレビューと主担当の有用な指摘反映を承認として進める。現在の承認状態はspec.jsonを参照する。
 上位方針は`../../../docs/research/refactoring-policy.md`と`../../steering/`。
 既存設定の契約は`../configuration-foundation/README.md`を参照し、ここへ複製しない。
 
