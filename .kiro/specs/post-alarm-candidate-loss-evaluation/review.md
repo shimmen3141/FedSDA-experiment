@@ -1,5 +1,9 @@
 # レビューと承認
 
+## task 1: APPROVED / TASK VERIFIED
+
+TDD REDは未存在moduleによるcollection error、GREENは設定検証を含む1299 passed。Luna独立再検証exit 0 / 1299 passed、Review Verdict APPROVED task 1、指摘なし。主担当も同コマンドを再実行exit 0を確認。現行優先・代替・同率・履歴欠落・消えた参照・負ID・閾値等号を旧pure関数と直接照合し、不正入力28条件の拒否と入力不変を確認した。整数lossは旧sessionのfloat化に合わせテストoracle側だけで対応する。exact AST例外はtask 3で完成する。
+
 ## task graph: PASS
 
 保存前draftをLunaが独立確認しPASS。全15条件・順次依存・責務境界・旧oracle/public損失接続/全golden/smokeの証拠を確認。指摘なし。主担当もcoverageと既存環境での実行可能性を確認、ユーザー委任によってtasksを承認する。完了threadを再利用した独立レビューであり、新規threadの起動とは扱わない。
