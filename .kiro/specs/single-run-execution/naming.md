@@ -1,6 +1,6 @@
 # 単一run specの命名
 
-- revision: 4。task 2.1の設定検証テスト名を追加。承認状態はspec.jsonを確認する。
+- revision: 5。task 2.2の不変データ検証名を追加。承認状態はspec.jsonを確認する。
 - 新しい名前の承認はgpt-6-lunaレビューと主担当の有用な指摘反映による。ユーザーへ命名だけの承認を再要求しない。
 - 現段階では新src・実装を先取りするテストを作らない。
 
@@ -168,3 +168,24 @@ tests/refactoring/test_sine_stream_generation.pyへ以下を追加する。
 | missing_parameter_name | str。必須項目不足を確認するため除く項目 |
 
 パラメータ化には承認済みのフィールド名をそのまま使用する。テストの設定dictだけを変更し、production・global設定は変更しない。
+
+## task 2.2: 不変の観測値と評価情報
+
+productionの型・フィールドは既存表を使い、補助関数は追加しない。各__post_init__でtuple・要素型・ラベル/概念/IDを検証して可変参照を拒否する。float32丸めはtask 3.2の生成側の責務。
+テストはtests/refactoring/test_sine_stream_generation.pyに追加する。
+
+| 名前 | 役割・入出力・状態 |
+|---|---|
+| test_observed_sample_preserves_features_and_binary_label | 2特徴・0/1ラベルを保持し真の概念フィールドを持たないことを確認 |
+| test_client_data_records_preserve_ids_positions_and_counts | 観測列・概念列のclient ID・順序・件数・位置の対応を確認 |
+| test_observed_data_records_are_frozen_and_keyword_only | 3型の変更・削除・位置引数の拒否を確認 |
+| test_observed_data_records_reject_mutable_collections | リストや可変の要素を保持しないことを確認 |
+| test_observed_sample_rejects_invalid_values | 特徴長・float型と、boolを除くint 0/1ラベルを確認 |
+| test_client_data_records_reject_invalid_ids_and_items | 非負intのIDと標本・概念の要素を確認 |
+| test_observed_data_records_require_all_fields | 3型の必須項目を確認 |
+| observed_sample, observed_samples, client_observed_stream, client_concept_trace | 対応する型の実体、標本tuple。テスト内で構築しglobal状態へ残さない |
+| feature_value, concept_id | floatとint。特徴・概念の検証ループの一時値 |
+| record_type, record_field_values, record_instance | type、dict[str, object]、不変の記録。パラメータ化の型・入力・結果 |
+| record_field_name, invalid_field_value, expected_exception_type | str、object、例外type。対象項目・不正入力・期待例外 |
+
+例外捕捉は承認済みexception_infoを使う。設定値ではない不正な記録はTypeError/ValueErrorで報告し、既存coreを変更しない。

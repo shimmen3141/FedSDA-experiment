@@ -109,3 +109,16 @@ requirements.mdを人間が承認した後、設計と役割・入出力・状�
 - 独立gpt-6-luna (`/root/luna_single_run_2_1_review`): APPROVED、指摘なし。必須・keyword-only・metadata・境界・REDを確認した。
 - 主担当fresh検証: `../../venv/Scripts/python.exe -m pytest tests/refactoring -q -p no:cacheprovider`、exit 0、1371成功/2.37秒。task 2.1完了はVERIFIED。
 - 既存core・旧実装・goldenは変更していない。系列生成は後続task 3.1。
+
+### task 2.2追加命名: revision 5
+
+- gpt-6-luna (`/root/luna_single_run_naming_review`): PASS。7テスト名と検証局所名に指摘なし。丸めは生成側、可変参照の拒否は記録側という境界も確認した。
+- 主担当がrevision 5を承認した。空tupleの件数整合は上位へ委譲し、レコード型へ追加の生成規模条件を持ち込まない。
+
+### task 2.2実装・検証
+
+- 実装担当: `/root/implement_single_run_2_2`。3不変記録と58検証ケースを追加した。
+- RED: observed_streams未作成でcollection error 1件。GREEN: refactoring 1429成功/1.66秒。
+- 独立gpt-6-luna (`/root/luna_single_run_2_2_review`): APPROVED、指摘なし。観測値/真値分離、必須・型・位置・不変性・層境界を確認した。
+- 主担当fresh検証: `../../venv/Scripts/python.exe -m pytest tests/refactoring -q -p no:cacheprovider`、exit 0、1429成功/1.93秒。task 2.2完了はVERIFIED。
+- 正確な組込みtuple・float・intと標本型を検査し、入れ子の可変要素や可変状態を持つ派生型も保持しない。既存実装・goldenに変更なし。

@@ -1,4 +1,4 @@
-"""SINEデータ供給の固定条件を確認する。"""
+"""SINEデータ供給の固定条件と不変記録を確認する。"""
 
 from dataclasses import FrozenInstanceError
 
@@ -9,6 +9,11 @@ from federated_learning_experiments.core.configuration_errors import (
 )
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
     RandomConceptScheduleSettings,
+)
+from federated_learning_experiments.data.observed_streams import (
+    ClientConceptTrace,
+    ClientObservedStream,
+    ObservedSample,
 )
 
 
@@ -111,3 +116,169 @@ def test_random_concept_schedule_settings_are_frozen_and_keyword_only(
             delattr(settings_instance, configuration_parameter_name)
     with pytest.raises(TypeError):
         RandomConceptScheduleSettings(*valid_concept_schedule_values.values())
+
+
+@pytest.mark.parametrize("class_label", [0, 1])
+def test_observed_sample_preserves_features_and_binary_label(class_label):
+    """観測標本は指定した特徴とクラスだけを持ち、評価用真値を持たない。"""
+    feature_values = (0.125, 0.75)
+    observed_sample = ObservedSample(feature_values=feature_values, class_label=class_label)
+    assert observed_sample.feature_values is feature_values
+    assert observed_sample.class_label == class_label
+    assert set(observed_sample.__dataclass_fields__) == {"feature_values", "class_label"}
+    assert not hasattr(observed_sample, "concept_id")
+    assert not hasattr(observed_sample, "concept_ids_by_sample_index")
+
+
+@pytest.mark.parametrize("client_id", [0, 2, 10**400])
+def test_client_data_records_preserve_ids_positions_and_counts(client_id):
+    """位置の異なる標本と評価用概念を同じclientに対応付け、順序を保持する。"""
+    observed_samples = (
+        ObservedSample(feature_values=(0.125, 0.75), class_label=1),
+        ObservedSample(feature_values=(0.5, 0.25), class_label=0),
+        ObservedSample(feature_values=(0.875, 0.625), class_label=1),
+    )
+    concept_ids_by_sample_index = (0, 1, 1)
+    client_observed_stream = ClientObservedStream(
+        client_id=client_id, observed_samples=observed_samples,
+    )
+    client_concept_trace = ClientConceptTrace(
+        client_id=client_id, concept_ids_by_sample_index=concept_ids_by_sample_index,
+    )
+    assert client_observed_stream.client_id == client_concept_trace.client_id == client_id
+    assert client_observed_stream.observed_samples is observed_samples
+    assert client_concept_trace.concept_ids_by_sample_index is concept_ids_by_sample_index
+    assert len(client_observed_stream.observed_samples) == len(
+        client_concept_trace.concept_ids_by_sample_index
+    ) == 3
+    assert client_observed_stream.observed_samples[1].feature_values == (0.5, 0.25)
+    assert client_observed_stream.observed_samples[1].class_label == 0
+    assert client_concept_trace.concept_ids_by_sample_index[1] == 1
+    assert ClientObservedStream(client_id=client_id, observed_samples=()).observed_samples == ()
+    assert ClientConceptTrace(
+        client_id=client_id, concept_ids_by_sample_index=(),
+    ).concept_ids_by_sample_index == ()
+
+
+@pytest.mark.parametrize("record_type,record_field_values", [
+    (ObservedSample, {"feature_values": (0.125, 0.75), "class_label": 1}),
+    (ClientObservedStream, {"client_id": 0, "observed_samples": (
+        ObservedSample(feature_values=(0.125, 0.75), class_label=1),
+    )}),
+    (ClientConceptTrace, {"client_id": 0, "concept_ids_by_sample_index": (0, 1)}),
+])
+def test_observed_data_records_are_frozen_and_keyword_only(record_type, record_field_values):
+    """全フィールドの変更・削除と、tuple内の要素変更を拒否する。"""
+    record_instance = record_type(**record_field_values)
+    for record_field_name in record_field_values:
+        with pytest.raises(FrozenInstanceError):
+            setattr(record_instance, record_field_name, None)
+        with pytest.raises(FrozenInstanceError):
+            delattr(record_instance, record_field_name)
+    with pytest.raises(TypeError):
+        record_type(*record_field_values.values())
+    if record_type is ObservedSample:
+        with pytest.raises(TypeError):
+            record_instance.feature_values[0] = 0.0
+    elif record_type is ClientObservedStream:
+        with pytest.raises(TypeError):
+            record_instance.observed_samples[0] = None
+        with pytest.raises(FrozenInstanceError):
+            record_instance.observed_samples[0].class_label = 0
+        with pytest.raises(TypeError):
+            record_instance.observed_samples[0].feature_values[0] = 0.0
+    else:
+        with pytest.raises(TypeError):
+            record_instance.concept_ids_by_sample_index[0] = 1
+
+
+@pytest.mark.parametrize("record_type,record_field_values,record_field_name", [
+    (ObservedSample, {"feature_values": [0.125, 0.75], "class_label": 1}, "feature_values"),
+    (ObservedSample, {"feature_values": ([], 0.75), "class_label": 1}, "feature_values"),
+    (ClientObservedStream, {"client_id": 0, "observed_samples": []}, "observed_samples"),
+    (ClientObservedStream, {"client_id": 0, "observed_samples": ([],)}, "observed_samples"),
+    (ClientConceptTrace, {"client_id": 0, "concept_ids_by_sample_index": [0, 1]},
+     "concept_ids_by_sample_index"),
+    (ClientConceptTrace, {"client_id": 0, "concept_ids_by_sample_index": ([],)},
+     "concept_ids_by_sample_index"),
+])
+def test_observed_data_records_reject_mutable_collections(
+    record_type, record_field_values, record_field_name,
+):
+    """可変コレクションを保持せず、コピーによる暗黙の受理もしない。"""
+    with pytest.raises(TypeError, match=record_field_name):
+        record_type(**record_field_values)
+
+
+@pytest.mark.parametrize("record_field_name,invalid_field_value,expected_exception_type", [
+    ("feature_values", (), ValueError),
+    ("feature_values", (0.5,), ValueError),
+    ("feature_values", (0.5, 0.5, 0.5), ValueError),
+    ("feature_values", None, TypeError),
+    ("feature_values", (1, 0.5), TypeError),
+    ("feature_values", (True, 0.5), TypeError),
+    ("feature_values", (0.5, "0.5"), TypeError),
+    ("class_label", -1, ValueError),
+    ("class_label", 2, ValueError),
+    ("class_label", True, TypeError),
+    ("class_label", False, TypeError),
+    ("class_label", 0.0, TypeError),
+    ("class_label", "1", TypeError),
+    ("class_label", None, TypeError),
+])
+def test_observed_sample_rejects_invalid_values(
+    record_field_name, invalid_field_value, expected_exception_type,
+):
+    """2特徴のfloat tupleと厳密な整数の二値クラスだけを受理する。"""
+    record_field_values = {"feature_values": (0.125, 0.75), "class_label": 1}
+    record_field_values[record_field_name] = invalid_field_value
+    with pytest.raises(expected_exception_type, match=record_field_name):
+        ObservedSample(**record_field_values)
+
+
+@pytest.mark.parametrize("record_type,record_field_values,record_field_name,invalid_field_value,expected_exception_type", [
+    *[(record_type, record_field_values, "client_id", invalid_field_value, expected_exception_type)
+      for record_type, record_field_values in (
+          (ClientObservedStream, {"client_id": 0, "observed_samples": ()}),
+          (ClientConceptTrace, {"client_id": 0, "concept_ids_by_sample_index": ()}),
+      )
+      for invalid_field_value, expected_exception_type in (
+          (-1, ValueError), (True, TypeError), (False, TypeError),
+          (0.0, TypeError), ("0", TypeError), (None, TypeError),
+      )],
+    *[(ClientObservedStream, {"client_id": 0, "observed_samples": ()},
+       "observed_samples", invalid_field_value, TypeError)
+      for invalid_field_value in (None, (None,), (1,), ((0.5, 0.5),))],
+    *[(ClientConceptTrace, {"client_id": 0, "concept_ids_by_sample_index": ()},
+       "concept_ids_by_sample_index", invalid_field_value, expected_exception_type)
+      for invalid_field_value, expected_exception_type in (
+          (None, TypeError), ((-1,), ValueError), ((2,), ValueError),
+          ((True,), TypeError), ((False,), TypeError), ((0.0,), TypeError),
+          (("0",), TypeError), ((None,), TypeError),
+      )],
+])
+def test_client_data_records_reject_invalid_ids_and_items(
+    record_type, record_field_values, record_field_name, invalid_field_value,
+    expected_exception_type,
+):
+    """非負整数ID、観測標本、厳密な整数の二値概念だけを受理する。"""
+    record_field_values = {**record_field_values, record_field_name: invalid_field_value}
+    with pytest.raises(expected_exception_type, match=record_field_name):
+        record_type(**record_field_values)
+
+
+@pytest.mark.parametrize("record_type,record_field_values,record_field_name", [
+    (record_type, record_field_values, record_field_name)
+    for record_type, record_field_values in (
+        (ObservedSample, {"feature_values": (0.125, 0.75), "class_label": 1}),
+        (ClientObservedStream, {"client_id": 0, "observed_samples": ()}),
+        (ClientConceptTrace, {"client_id": 0, "concept_ids_by_sample_index": ()}),
+    )
+    for record_field_name in record_field_values
+])
+def test_observed_data_records_require_all_fields(record_type, record_field_values, record_field_name):
+    """各記録のどちらのフィールドにも既定値を設けない。"""
+    record_field_values = dict(record_field_values)
+    del record_field_values[record_field_name]
+    with pytest.raises(TypeError, match=record_field_name):
+        record_type(**record_field_values)
