@@ -1,0 +1,156 @@
+"""Fixed-Share予測重みの明示条件・集合・状態所有を確認する。"""
+
+import random
+from dataclasses import replace
+from types import SimpleNamespace
+
+import pytest
+
+from test_run_settings_validation import valid_run_settings_mapping
+from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
+    FixedSharePredictionWeightController,
+)
+
+
+def capture_fixed_share_controller_state(*, controller):
+    """所有する重み・分散・全計数を独立した診断値で観測する。"""
+    return {
+        "weights_by_model_id": controller.weights_by_model_id,
+        "cumulative_observed_loss_variance": controller.cumulative_observed_loss_variance,
+        "model_pool_reset_count": controller.model_pool_reset_count,
+        "prediction_weight_leader_switch_count": controller.prediction_weight_leader_switch_count,
+        "aggregation_recalibration_count": controller.aggregation_recalibration_count,
+        "aggregation_recalibration_sample_count": controller.aggregation_recalibration_sample_count,
+    }
+
+
+@pytest.mark.parametrize("configuration_parameter_name,specified_parameter_value", [
+    ("prediction_combination_settings", None),
+    ("prediction_combination_settings", {}),
+    ("prediction_combination_settings", SimpleNamespace(fixed_share_weight_redistribution_time_scale_samples=30)),
+    ("prediction_combination_strategy", "unknown"),
+    ("prediction_mixture_activation_policy", "drift_recovery"),
+    ("prediction_weight_recalibration_after_aggregation_policy", "none"),
+    ("prediction_state_reset_on_training_assignment_change_policy", "clear"),
+    ("fixed_share_weight_redistribution_time_scale_samples", 1),
+    ("fixed_share_weight_redistribution_time_scale_samples", True),
+    ("fixed_share_weight_redistribution_time_scale_samples", 2.0),
+    ("fixed_share_weight_redistribution_time_scale_samples", "30"),
+    ("fixed_share_weight_redistribution_time_scale_samples", 10**400),
+])
+def test_fixed_share_controller_requires_explicit_valid_settings(
+    valid_run_settings_mapping, configuration_parameter_name, specified_parameter_value,
+):
+    """渡された設定の全項目を再検証し、数値変換できない時間尺度も拒否する。"""
+    prediction_combination_settings = replace(valid_run_settings_mapping["prediction_combination_settings"])
+    if configuration_parameter_name == "prediction_combination_settings":
+        prediction_combination_settings = specified_parameter_value
+        with pytest.raises(TypeError, match="prediction_combination_settings"):
+            FixedSharePredictionWeightController(prediction_combination_settings=prediction_combination_settings)
+    else:
+        # 実行境界の再検証を確認するため、構築後の不正値をテスト側で注入する。
+        object.__setattr__(prediction_combination_settings, configuration_parameter_name, specified_parameter_value)
+        if specified_parameter_value == 10**400:
+            with pytest.raises(ValueError, match="fixed_share_weight_redistribution_time_scale_samples"):
+                FixedSharePredictionWeightController(prediction_combination_settings=prediction_combination_settings)
+        else:
+            with pytest.raises(RunSettingsValidationError) as exception_info:
+                FixedSharePredictionWeightController(prediction_combination_settings=prediction_combination_settings)
+            assert exception_info.value.configuration_parameter_name == configuration_parameter_name
+            assert exception_info.value.specified_parameter_value is specified_parameter_value
+        assert getattr(prediction_combination_settings, configuration_parameter_name) is specified_parameter_value
+
+
+def test_fixed_share_prediction_weight_calls_require_keyword_arguments(valid_run_settings_mapping):
+    """設定を省略せず、構築と予測前取得はkeyword-onlyで使う。"""
+    prediction_combination_settings = valid_run_settings_mapping["prediction_combination_settings"]
+    with pytest.raises(TypeError):
+        FixedSharePredictionWeightController()
+    with pytest.raises(TypeError):
+        FixedSharePredictionWeightController(prediction_combination_settings)
+    controller = FixedSharePredictionWeightController(prediction_combination_settings=prediction_combination_settings)
+    with pytest.raises(TypeError):
+        controller.get_prediction_weights_before_label_observation((0, 1))
+
+
+def test_fixed_share_model_pool_changes_preserve_order_and_reset_only_when_needed(valid_run_settings_mapping):
+    """負の一時IDを含む集合を昇順で一様化し、初回と同集合をreset数に含めない。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    assert capture_fixed_share_controller_state(controller=controller) == {
+        "weights_by_model_id": {}, "cumulative_observed_loss_variance": 0.0,
+        "model_pool_reset_count": 0, "prediction_weight_leader_switch_count": 0,
+        "aggregation_recalibration_count": 0, "aggregation_recalibration_sample_count": 0,
+    }
+    model_ids = [2, -3, 0]
+    returned_prediction_weights = controller.get_prediction_weights_before_label_observation(model_ids=model_ids)
+    assert tuple(returned_prediction_weights) == (-3, 0, 2)
+    assert returned_prediction_weights == {-3: 1.0 / 3, 0: 1.0 / 3, 2: 1.0 / 3}
+    assert model_ids == [2, -3, 0]
+    assert controller.model_pool_reset_count == 0
+    controller_state_before_call = capture_fixed_share_controller_state(controller=controller)
+    assert controller.get_prediction_weights_before_label_observation(model_ids=(0, 2, -3)) == returned_prediction_weights
+    assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
+    assert controller.get_prediction_weights_before_label_observation(model_ids=(5, -3)) == {-3: 0.5, 5: 0.5}
+    assert controller.model_pool_reset_count == 1
+    assert controller.cumulative_observed_loss_variance == 0.0
+    assert controller.get_prediction_weights_before_label_observation(model_ids=(-3,)) == {-3: 1.0}
+    assert controller.model_pool_reset_count == 2
+    assert controller.get_prediction_weights_before_label_observation(model_ids=iter((-3,))) == {-3: 1.0}
+    assert controller.model_pool_reset_count == 2
+
+
+@pytest.mark.parametrize("invalid_model_ids", [
+    (), [], (0, 0), (-1, 0, -1), (True, 1), (False,), (0.0, 1), ("0",),
+    (None,), ([],), None, 2, map(lambda model_id: 1 // model_id, (1, 0)),
+])
+def test_fixed_share_invalid_model_ids_leave_all_state_unchanged(valid_run_settings_mapping, invalid_model_ids):
+    """初期化済み集合の不正な再指定でも、重み・分散・全計数を保持する。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    controller.get_prediction_weights_before_label_observation(model_ids=(0,))
+    controller.get_prediction_weights_before_label_observation(model_ids=(-1, 0))
+    controller_state_before_call = capture_fixed_share_controller_state(controller=controller)
+    with pytest.raises((TypeError, ValueError, ZeroDivisionError)):
+        controller.get_prediction_weights_before_label_observation(model_ids=invalid_model_ids)
+    assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
+
+
+def test_fixed_share_returned_weights_and_diagnostics_do_not_expose_owned_state(valid_run_settings_mapping):
+    """取得値と診断dictへの変更・読取property代入で所有状態を変更できない。"""
+    controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=valid_run_settings_mapping["prediction_combination_settings"],
+    )
+    returned_prediction_weights = controller.get_prediction_weights_before_label_observation(model_ids=(-1, 0))
+    controller_state_before_call = capture_fixed_share_controller_state(controller=controller)
+    returned_prediction_weights[-1] = 0.0
+    returned_prediction_weights[8] = 1.0
+    returned_prediction_weights = controller.weights_by_model_id
+    returned_prediction_weights.clear()
+    assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
+    for record_field_name in controller_state_before_call:
+        with pytest.raises(AttributeError):
+            setattr(controller, record_field_name, None)
+        with pytest.raises(AttributeError):
+            delattr(controller, record_field_name)
+    assert capture_fixed_share_controller_state(controller=controller) == controller_state_before_call
+
+
+def test_fixed_share_controller_instances_and_caller_random_state_are_independent(valid_run_settings_mapping):
+    """同じ不変設定を渡した別実体と呼出元乱数へ状態を持ち出さない。"""
+    global_python_random_state = random.getstate()
+    prediction_combination_settings = valid_run_settings_mapping["prediction_combination_settings"]
+    controller = FixedSharePredictionWeightController(prediction_combination_settings=prediction_combination_settings)
+    repeated_controller = FixedSharePredictionWeightController(prediction_combination_settings=prediction_combination_settings)
+    controller.get_prediction_weights_before_label_observation(model_ids=(-1, 0))
+    controller.get_prediction_weights_before_label_observation(model_ids=(0, 1))
+    assert repeated_controller.weights_by_model_id == {}
+    assert repeated_controller.model_pool_reset_count == 0
+    assert repeated_controller.get_prediction_weights_before_label_observation(model_ids=(0,)) == {0: 1.0}
+    assert controller.weights_by_model_id == {0: 0.5, 1: 0.5}
+    assert controller.model_pool_reset_count == 1
+    assert random.getstate() == global_python_random_state
+    assert prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples == 2

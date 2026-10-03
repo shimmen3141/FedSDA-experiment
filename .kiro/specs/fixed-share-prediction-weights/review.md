@@ -21,3 +21,10 @@
 - 同じGPT-6 Lunaが未保存draftと要件・設計・task規則を直接レビューした。共有controllerなので順次実行、task 4で依存検査へ明示統合する順序を確認してPASS。
 - 採用: task 4にroadmap完成範囲の更新と既存・最終構成の回帰テスト名を明記。task 1～3の段階検証とtask 4の全src検証を明記した。
 - 主担当の網羅確認: 全22条件、4実行タスク、既存Python/pytest再利用、隠れた環境前提なし。実装前の命名revision 1・設計hash一致を確認する。
+
+## Task 1: APPROVED / VERIFIED
+
+- TDD: 実装前に対象テストがModuleNotFoundError・collection error 1件、exit 1。実装後、新29ケースと既存設定1259ケースが通った。
+- Lunaが実ファイルと要件・設計をレビューし、同じ対象コマンドで1288 passed / 1.44s / exit 0。指摘なし、APPROVED。
+- 主担当が最終ファイルを読み、`../../venv/Scripts/python.exe -m pytest tests/refactoring/test_fixed_share_prediction_weights.py tests/refactoring/test_run_settings_validation.py -q -p no:cacheprovider`を再実行: 1288 passed / 1.25s / exit 0。
+- 命名revision 1、所有状態、負ID・空/重複/列挙例外・copy・読取property・条件再検証を確認してVERIFIED。更新・再生はtask 2～3、全src依存統合はtask 4のまま。
