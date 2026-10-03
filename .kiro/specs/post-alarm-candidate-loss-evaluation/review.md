@@ -1,5 +1,11 @@
 # レビューと承認
 
+## task 3: APPROVED / TASK VERIFIED
+
+命名revision 2のdevice保存名と、revision 3の一時deviceスコープによる復元の役割をLunaが順にPASS。各承認を反映してからテストを実装・修正した。
+AST更新前REDは3 failed / 1546 passed、更新後1549 passed。public損失接続・frozen結果・入力/RNG/defaultdtype/device独立・keyword契約を確認。初回全回帰は2504 passed / 3 skipped / 287.20sだが、device setter復元が余分なcontextを残す点を主担当が調査・修正した。一時torch.device scopeへ変えて全回帰を新basetempで再実行し、2504 passed / 3 skipped / 129.94s、exit 0。
+Lunaは修正後diffと対象を再検証してReview Verdict APPROVED task 3、指摘なし。主担当の最終対象再検証も1549 passed / 3.73s、独立smoke exit 0、旧production/golden差分なし。全15条件・partial範囲をintegration-validation.mdへ記録しTASK VERIFIED。feature統合判定は別に行う。
+
 ## task 2: APPROVED / TASK VERIFIED
 
 REDは未存在統合評価関数のimport error、GREEN1355 passed。Luna独立再検証exit 0 / 1355 passed、Review Verdict APPROVED task 2、指摘なし。主担当の再実行もexit 0で確認。36系列の旧finalize decision captureと、等号/両方向の丸め差4ケース、候補不正16ケースを検証。入力順sum・現行優先・消えた初期参照・奇数split・全診断値が一致した。実装追記時のhelper return誤配置による既存7件失敗は修正後に全対象成功を確認。アルゴリズム変更は行っていない。

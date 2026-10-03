@@ -1,6 +1,6 @@
 # 命名と役割
 
-revision: 1
+revision: 3
 
 ## 方針
 
@@ -55,3 +55,7 @@ reference_selection_matches_legacy / invalid_reference_inputs_are_rejected_witho
 helper: make_acceptance_settings、capture_legacy_candidate_decision、assert_evaluation_matches_legacy_decision。
 test専用LegacyDecisionCaptured（append後中断例外）、LegacyDecisionCapture（decision属性とappend）、legacy_client、legacy_session、legacy_decision、legacy_reference_model_id、legacy_reason_names、reference_selection_arguments、captured_decision、sample_index、sample_count、monkeypatch、legacy_default_dtype、global_python_random_state、global_numpy_random_state、global_torch_random_state、evaluation_before_call、inputs_before_call、model_outputs_by_model_id、prediction_probabilities_by_model_id、observed_losses_by_model_id、observed_class_labels、operation、class_count、observation_index、candidate_loss、reference_loss、threshold。
 既存のAST checker名とpublic予測損失名を再利用する。
+
+## revision 3: 統合検証の追加局所名
+
+legacy_default_device: 検証開始時のtorch共有default deviceを保存し、一時deviceスコープ終了後に元と一致することを確認するtest値。legacy_default_dtypeと対にしてfloat64/meta設定中の新評価の独立性と共有値不変を確認する。deviceはtorch.deviceのcontextmanagerで元stackへ復元し、dtypeはfinallyで復元する。productionの条件・状態ではない。

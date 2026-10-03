@@ -1,8 +1,12 @@
 """警報後の候補loss評価を旧最終判定と直接照合する。"""
 
 from copy import deepcopy
+from dataclasses import FrozenInstanceError
+import inspect
+import random
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 import torch
 
@@ -10,6 +14,10 @@ from federated_drift_experiment import config
 from federated_drift_experiment.clients.fedsda import FedSDAClient
 from federated_drift_experiment.provisional_model import ForwardValidationSession, select_forward_fitting_reference
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings
+from federated_learning_experiments.learning.prediction.class_probability_calculations import (
+    convert_model_outputs_to_prediction_probabilities,
+    compute_model_mean_bounded_losses_after_label_observation,
+)
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
     select_available_reference_within_historical_loss_tolerance,
     evaluate_candidate_using_post_alarm_losses,
@@ -207,6 +215,84 @@ def test_post_alarm_candidate_evaluation_matches_legacy_finalization(monkeypatch
     result = evaluate_candidate_using_post_alarm_losses(**evaluation_arguments)
     assert_evaluation_matches_legacy_decision(result=result, evaluation_arguments=evaluation_arguments, monkeypatch=monkeypatch)
     assert evaluation_arguments == inputs_before_call
+
+
+@pytest.mark.parametrize("class_count", [2, 3, 10])
+@pytest.mark.parametrize("sample_count", [3, 10])
+def test_post_alarm_candidate_public_loss_connection_matches_legacy(monkeypatch, class_count, sample_count):
+    """public観測後有界lossだけを入力し、モデル/収集sessionを所有させない。"""
+    candidate_losses = ()
+    reference_losses_by_model_id = {9: (), -3: ()}
+    for observation_index in range(sample_count):
+        model_outputs_by_model_id = {
+            -7: torch.tensor([[.8]]) if class_count == 2 else torch.arange(class_count, dtype=torch.float32, device="cpu").reshape(1, class_count),
+            9: torch.tensor([[.2]]) if class_count == 2 else -torch.arange(class_count, dtype=torch.float32, device="cpu").reshape(1, class_count),
+            -3: torch.tensor([[.5]]) if class_count == 2 else torch.zeros((1, class_count), dtype=torch.float32, device="cpu"),
+        }
+        prediction_probabilities_by_model_id = convert_model_outputs_to_prediction_probabilities(model_outputs_by_model_id=model_outputs_by_model_id, class_count=class_count)
+        observed_class_labels = torch.tensor([observation_index % class_count])
+        observed_losses_by_model_id = compute_model_mean_bounded_losses_after_label_observation(prediction_probabilities_by_model_id=prediction_probabilities_by_model_id, observed_class_labels=observed_class_labels, class_count=class_count)
+        candidate_losses += (observed_losses_by_model_id[-7],)
+        for model_id in reference_losses_by_model_id:
+            reference_losses_by_model_id[model_id] += (observed_losses_by_model_id[model_id],)
+    evaluation_arguments = dict(
+        candidate_model_training_and_acceptance_settings=make_acceptance_settings(sample_count=sample_count),
+        candidate_losses=candidate_losses, reference_losses_by_model_id=reference_losses_by_model_id,
+        reference_historical_mean_losses_by_model_id={}, available_reference_model_ids=(9, -3),
+        current_training_model_id=9, maximum_reference_mean_loss_increase=.1,
+        minimum_candidate_mean_loss_improvement=.01,
+    )
+    result = evaluate_candidate_using_post_alarm_losses(**evaluation_arguments)
+    assert_evaluation_matches_legacy_decision(result=result, evaluation_arguments=evaluation_arguments, monkeypatch=monkeypatch)
+
+
+def test_post_alarm_candidate_results_inputs_and_random_states_are_independent():
+    """共有dtype/device/乱数と結果copyを変更せず、反復時も同じ診断を返す。"""
+    evaluation_arguments = dict(
+        candidate_model_training_and_acceptance_settings=make_acceptance_settings(sample_count=2),
+        candidate_losses=(.2, .2), reference_losses_by_model_id={9: (.8, .8)},
+        reference_historical_mean_losses_by_model_id={}, available_reference_model_ids=(9,),
+        current_training_model_id=9, maximum_reference_mean_loss_increase=.1,
+        minimum_candidate_mean_loss_improvement=.01,
+    )
+    inputs_before_call = deepcopy(evaluation_arguments)
+    evaluation_before_call = evaluate_candidate_using_post_alarm_losses(**evaluation_arguments)
+    with pytest.raises(FrozenInstanceError):
+        evaluation_before_call.candidate_accepted = False
+    global_python_random_state = random.getstate()
+    global_numpy_random_state = np.random.get_state()
+    global_torch_random_state = torch.random.get_rng_state().clone()
+    legacy_default_dtype = torch.get_default_dtype()
+    legacy_default_device = torch.get_default_device()
+    try:
+        torch.set_default_dtype(torch.float64)
+        with torch.device("meta"):
+            assert evaluate_candidate_using_post_alarm_losses(**evaluation_arguments) == evaluation_before_call
+            assert select_available_reference_within_historical_loss_tolerance(
+                reference_losses_by_model_id={9: (.2, .2)}, reference_historical_mean_losses_by_model_id={9: .2},
+                available_reference_model_ids=(9,), current_training_model_id=9, maximum_reference_mean_loss_increase=.1,
+            ) == 9
+            assert torch.get_default_dtype() == torch.float64
+            assert str(torch.get_default_device()) == "meta"
+    finally:
+        torch.set_default_dtype(legacy_default_dtype)
+    assert evaluate_candidate_using_post_alarm_losses(**evaluation_arguments) == evaluation_before_call
+    assert evaluation_arguments == inputs_before_call
+    assert random.getstate() == global_python_random_state
+    assert np.random.get_state()[0] == global_numpy_random_state[0]
+    assert np.array_equal(np.random.get_state()[1], global_numpy_random_state[1])
+    assert np.random.get_state()[2:] == global_numpy_random_state[2:]
+    assert torch.equal(torch.random.get_rng_state(), global_torch_random_state)
+    assert torch.get_default_dtype() == legacy_default_dtype
+    assert torch.get_default_device() == legacy_default_device
+
+
+@pytest.mark.parametrize("operation", [select_available_reference_within_historical_loss_tolerance, evaluate_candidate_using_post_alarm_losses])
+def test_post_alarm_candidate_public_functions_require_explicit_keyword_arguments(operation):
+    """類似loss列・ID・閾値の取り違えを避ける明示keyword契約。"""
+    assert "*, " in str(inspect.signature(operation))
+    with pytest.raises(TypeError):
+        operation(object(), object())
 
 
 @pytest.mark.parametrize("candidate_loss,reference_loss,threshold", [

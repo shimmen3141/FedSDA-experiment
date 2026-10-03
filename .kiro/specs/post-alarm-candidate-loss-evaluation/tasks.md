@@ -17,7 +17,7 @@
   - _Depends: 1_
   - _Requirements: 1.1, 1.2, 1.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 5.1_
 
-- [ ] 3. public観測後損失へ接続し依存境界と全回帰を検証する
+- [x] 3. public観測後損失へ接続し依存境界と全回帰を検証する
   - モデル出力からpublic有界損失を取得し観測順の列として評価へ渡す。モデル呼出や収集sessionは実装に持ち込まない。
   - 入力/共有乱数/defaultdtype/device不変、反復評価独立、frozen結果とkeyword契約を検証する。
   - exact評価moduleにtorchと同機能設定だけを許可し、全src ASTと上位/隣接/旧/別module注入拒否を確認する。

@@ -25,6 +25,11 @@ cc-sddのlight discovery・synthesisと既存命名規約を適用。一般化�
 
 ## Risks and Mitigations
 
+### 検証時の共有deviceスコープ
+
+初回全testsは2504 passed / 3 skipped / 287.20sと成功したが、通常より遅い。インストール済みtorch.set_default_device実装を読むと、metaから元cpuへsetterで戻してもDeviceContextを新たに常駐させることを確認した。値の一致だけでは元のdispatch contextを復元した証拠にならない。
+検証側を一時torch.device('meta')スコープへ変更し、exitで元stackを復元する。新productionのCPUfloat32指定は変更不要。修正後は新しいbasetempで全回帰を再実行する。
+
 ### 修正候補: 採否と区間margin理由の潜在的不整合
 
 2026-10-04のユーザー確認を受けて記録。旧実装は採否boolと理由で演算精度/順序が異なり、閾値付近で相反する結果を返す。実モデル操作は採否boolに従うが、理由を用いた集計・表示で誤解を招く可能性がある。過去実験での発生有無は未確認。

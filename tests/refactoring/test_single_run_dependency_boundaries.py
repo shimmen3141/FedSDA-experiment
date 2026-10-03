@@ -58,6 +58,14 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py":
         # 単系列の数値検出器だけにNumPyを許可する。
         return imported_module_name == "numpy" or imported_module_name.startswith("numpy.")
+    if source_module_path == "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py":
+        # 候補loss評価だけにtorchと同機能の固定条件を許可する。
+        return (
+            imported_module_name == "torch"
+            or imported_module_name.startswith("torch.")
+            or imported_module_name == "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings"
+            or imported_module_name.startswith("federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.")
+        )
     if source_module_path in (
         "learning/models/torch_random_state_scope.py",
         "learning/prediction/class_probability_calculations.py",
@@ -205,6 +213,13 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ("learning/prediction/class_probability_calculations.py", "from ... import runtime", "federated_learning_experiments.runtime"),
         ("learning/prediction/class_probability_calculations.py", "from ...methods.fedsda.prediction_combination.fixed_share_prediction_weights import FixedSharePredictionWeightController", "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights"),
         ("learning/prediction/another_prediction.py", "import torch", "torch"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "import numpy", "numpy"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "import config", "config"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from federated_drift_experiment import provisional_model", "federated_drift_experiment"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from ..loss_change_detection import overall_and_true_class_loss_monitoring", "federated_learning_experiments.methods.fedsda.loss_change_detection"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from ....learning.prediction import class_probability_calculations", "federated_learning_experiments.learning.prediction"),
+        ("methods/fedsda/candidate_model_selection/another_candidate.py", "import torch", "torch"),
         ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "import torch", "torch"),
         ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
         ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "from .loss_change_detection_settings import LossChangeDetectionSettings", "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings"),
@@ -283,6 +298,8 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
     "source_module_path,source_text",
     [
         ("learning/prediction/class_probability_calculations.py", "import torch"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "import torch"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings"),
         ("learning/prediction/class_probability_calculations.py", "from torch import Tensor"),
         ("learning/prediction/class_probability_calculations.py", "from collections.abc import Mapping"),
         ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "import numpy"),
