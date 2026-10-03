@@ -55,7 +55,11 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:
         return True
-    if source_module_path == "learning/models/torch_random_state_scope.py":
+    if source_module_path in (
+        "learning/models/torch_random_state_scope.py",
+        "learning/prediction/class_probability_calculations.py",
+    ):
+        # torchを必要とする責務のexact moduleだけを例外にする。
         return imported_module_name == "torch" or imported_module_name.startswith("torch.")
     if imported_module_name == "numpy" or imported_module_name.startswith("numpy."):
         return (
@@ -157,6 +161,7 @@ def test_single_run_package_boundaries_have_no_exports():
     )
     package_boundary_paths = (
         "data", "data/concept_schedules", "data/sine", "execution", "runtime",
+        "learning/prediction",
     )
     for package_boundary_path in package_boundary_paths:
         source_file_path = package_source_directory / package_boundary_path / "__init__.py"
@@ -185,6 +190,12 @@ def test_single_run_layers_import_only_allowed_dependencies():
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_imported_module_name",
     [
+        ("learning/prediction/class_probability_calculations.py", "import numpy", "numpy"),
+        ("learning/prediction/class_probability_calculations.py", "import config", "config"),
+        ("learning/prediction/class_probability_calculations.py", "from federated_drift_experiment import expert_routing", "federated_drift_experiment"),
+        ("learning/prediction/class_probability_calculations.py", "from ... import runtime", "federated_learning_experiments.runtime"),
+        ("learning/prediction/class_probability_calculations.py", "from ...methods.fedsda.prediction_combination.fixed_share_prediction_weights import FixedSharePredictionWeightController", "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights"),
+        ("learning/prediction/another_prediction.py", "import torch", "torch"),
         ("data/sine/sine_sample_generation.py", "import torch", "torch"),
         ("data/observed_streams.py", "import config", "config"),
         ("data/observed_streams.py", "from clients import fedsda", "clients"),
@@ -254,6 +265,9 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
 @pytest.mark.parametrize(
     "source_module_path,source_text",
     [
+        ("learning/prediction/class_probability_calculations.py", "import torch"),
+        ("learning/prediction/class_probability_calculations.py", "from torch import Tensor"),
+        ("learning/prediction/class_probability_calculations.py", "from collections.abc import Mapping"),
         ("data/observed_streams.py", "from dataclasses import dataclass"),
         ("data/sine/sine_sample_generation.py", "import numpy as np"),
         ("data/sine/sine_sample_generation.py", "from ..observed_streams import ObservedSample"),

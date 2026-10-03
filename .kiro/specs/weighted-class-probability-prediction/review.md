@@ -40,3 +40,7 @@ GPT-6 Lunaの既存レビューthreadを再利用し、保存前のdraftを独�
 
 TDD REDは混合関数未実装のImportError（exit 1）。GREENは対象＋設定1350 passed、exit 0。Lunaの独立Review VerdictはAPPROVED、task 2（1350 passed / 4.63s）、指摘なし。主担当の再実行も1350 passed、exit 0でTASK VERIFIED。二値閾値・多クラス同率・モデル別float32平均損失を旧staticへ完全一致させた。混合値が1を超える丸めを保持し、重みの再正規化が閾値を変えるケースも検証した。レビュー途中に呼出上限で中断したため、ユーザーの再開指示後に同じLuna threadで再実行した。
 
+# task 3実装
+
+統合TDD REDはtorch依存例外未登録による3 failed / 1497 passed、exit 1。exact module例外だけ追加後1500 passed、exit 0。全refactoringは1996 passed、全testsは2281 passed / 3 skipped / 116.75s、exit 0。Lunaは独立1996件再検証・実diff・全結果を確認しReview Verdict APPROVED、task 3、指摘なし。主担当もレビュー後に1500件と別プロセスsmokeを再実行しexit 0、TASK VERIFIED。旧production・golden差分は空。3 tasksを完了し、feature統合判定は別途記録する。
+

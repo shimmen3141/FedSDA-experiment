@@ -18,7 +18,7 @@
   - _Depends: 1_
   - _Requirements: 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2_
 
-- [ ] 3. 重み状態へ接続して依存境界・既存回帰を検証する
+- [x] 3. 重み状態へ接続して依存境界・既存回帰を検証する
   - public APIだけで予測前取得→正規化→混合→ラベル観測→同snapshotで重み更新をつなぎ、各標本後に旧経路と照合する。
   - exact数値moduleのtorch依存だけを許し、上位・旧module・NumPy・method/controller依存を注入テストで拒否する。
   - 新src全走査、全refactoring、schema・tests/test_regression.py・tests/test_proposed_regression.pyを含む全testsと独立プロセスsmokeが通る。
