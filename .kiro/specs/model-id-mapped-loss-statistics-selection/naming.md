@@ -1,5 +1,5 @@
 # 命名: モデルID対応後の損失統計選択
-revision: 1
+revision: 2
 
 短さより役割の明確さを優先する。statistical mergeではなくwhole recordのselection。model_id_mappingはID対応表で、予測のモデル重みや標本帰属を表さない。
 
@@ -26,6 +26,14 @@ revision: 1
 | copied_loss_statistics | publicconstructorで再検査/コピーした単一record |
 | selected_loss_statistics | 結果に既にある単一record、未存在はNone |
 | validation_error | constructor失敗例外。項目名を添えて再送出、入力非変更 |
+| copied_model_loss_statistics_snapshot | 共通copy helper内の検査済みpair列。単一copied_loss_statisticsや用途別validated_local/serverとは区別する |
 
 既存型ModelAndClassLossStatisticsとfield名overall_loss_moments/class_loss_moments_by_class_id/observed_loss_countを維持する。
 観測単位のmoments更新/件数計算はこの関数で行わない。test-onlyの旧形式変換・stub名は実装APIではない。
+
+## test-onlyの共通helper
+build_model_and_class_loss_statistics_test_seed: 正常な既存型seedを作る。
+convert_loss_statistics_snapshot_to_legacy_model_stats: snapshot全fieldを旧dictへ明示変換。
+select_legacy_loss_statistics_after_model_id_mapping: 最小stubで実旧apply_server_mappingを直接呼ぶ。
+assert_loss_statistics_snapshot_matches_legacy_model_stats: model/class順と全fieldの完全一致を確認。
+test_model_id_mapped_statistics_match_legacy_selection: 上記を使う正常oracle比較。

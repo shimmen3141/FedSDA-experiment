@@ -1,7 +1,7 @@
 # 実装タスク
 保存前の独立task graphレビュー後に承認する。既存venv/pytestで順次実行。
 
-- [ ] 1. ID対応後のローカル選択とサーバ補完を実装する
+- [x] 1. ID対応後のローカル選択とサーバ補完を実装する
   - TDDでモデル実体なしの旧apply_server_mappingを直接呼び、通常/欠落/identity/負ID/chain/cycle/unused/collision最大n/tie反転とserver補完を照合する。
   - 正localをより大件数のserverより優先し、欠落/zero localへzero serverも補完する。空local/空対応、server省略/None/空を受理する。
   - 完了時、全体/class全値・クラス順・モデル順が旧正常入力と完全一致し、whole record選択だけを行うpure関数を返す。
