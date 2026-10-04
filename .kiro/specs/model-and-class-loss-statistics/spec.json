@@ -1,7 +1,7 @@
 {
   "feature_name": "model-and-class-loss-statistics",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -26,13 +26,13 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "generated_sha256_lf": "7afdda5c21c73748f2c3c7f2cdfdd3a4b4b8443ba706c6c497d21e7aaf41f522",
-      "approved_sha256_lf": "7afdda5c21c73748f2c3c7f2cdfdd3a4b4b8443ba706c6c497d21e7aaf41f522",
+      "generated_sha256_lf": "bcf1661cf8db288a1df4ee521ec95bd22464eefea46162bfb1be70701113e245",
+      "approved_sha256_lf": "bcf1661cf8db288a1df4ee521ec95bd22464eefea46162bfb1be70701113e245",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "revision": 1,
-      "approved_revision": 1
+      "revision": 2,
+      "approved_revision": 2
     },
     "tasks": {
       "generated": true,
@@ -41,7 +41,8 @@
       "approved_sha256_lf": "537bd09d8da686d21aca74aaa70affbb653cbece03829f696b1a84beba6cb830",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "current_sha256_lf": "590dfe319f15734dd365cfa7d3e4fc9eebb7155e672820e31253893aff0dbf9c"
     }
   },
   "upstream_specs": [
@@ -52,6 +53,20 @@
     "class-conditional-loss-monitoring",
     "post-alarm-candidate-loss-evaluation"
   ],
-  "updated_at": "2026-10-04T04:27:29.662236+00:00",
-  "created_at": "2026-10-04T04:22:58.904261+00:00"
+  "updated_at": "2026-10-04T06:01:54.886412+00:00",
+  "created_at": "2026-10-04T04:22:58.904261+00:00",
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "reviewer": "gpt-6-luna",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "next_task": "2",
+    "total_executable_tasks": 3
+  }
 }

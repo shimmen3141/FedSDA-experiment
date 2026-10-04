@@ -1,5 +1,5 @@
 # 命名と役割
-revision: 1
+revision: 2
 
 | 名前 | 役割・単位・更新 |
 |---|---|
@@ -15,6 +15,7 @@ revision: 1
 | _validate_identifier / identifier / parameter_name / minimum_value | ID型/下限検査、項目名と任意最小値 |
 | _copy_loss_moments / loss_moments / _copy_model_and_class_loss_statistics | exact入力型と全fieldをpublic constructorで検査して独立コピー |
 | copied_overall_loss_moments / copied_class_loss_moments / class_loss_moments / seen_class_ids | 全体コピー / class pairコピー列 / 一class集計 / 重複検査集合 |
+| class_loss_moments_pair | 入力tupleの未検査の一要素。shape検査後にclass_id/class_loss_momentsへ展開し、検証済みpair列と区別 |
 | validated_model_loss_statistics_by_model_id | 全初期要素検査後の内部map候補 |
 | updated_overall_loss_moments / updated_class_loss_moments_by_class_id / updated_class_loss_moments | commit前の全体/全class候補dict/指定class候補 |
 | store / other_store / result / state_before_call / snapshot / loss_sequence / seed | test所有者・独立所有者・結果・更新前・参照・帰属列・明示初期値 |
