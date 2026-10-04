@@ -19,3 +19,6 @@ Lunaは保存前draftで9条件網羅、1→2→3の依存・境界と観測可�
 
 ## task 1: APPROVED / VERIFIED
 REDは未実装moduleのModuleNotFoundError/exit1。Lunaは24件の旧正常登録oracle照合、singleton/class順/欠落/丸め/非連続とpure数値境界を確認しAPPROVED。指摘なし。主担当も実コードとfresh対象24件/exit0を確認して完了とした。
+
+## task 2: APPROVED / VERIFIED
+test-onlyのためRED非該当。Lunaは33異常ケースの入力非変更、LEGACY007対照、immutable独立・grad/RNG/default維持、store/update/baseline明示接続を確認しAPPROVED。指摘なし。主担当も対象60件のfresh再実行/exit0を確認して完了とした。

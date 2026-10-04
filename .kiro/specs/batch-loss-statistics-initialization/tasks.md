@@ -8,7 +8,7 @@
   - _Boundary: batch initial statistics_
   - _Requirements: 1.1, 1.2, 1.3, 3.1_
 
-- [ ] 2. 拒否・独立性と統計管理への接続を検証する
+- [x] 2. 拒否・独立性と統計管理への接続を検証する
   - 不正type/dtype/device/layout/shape/空/件数差/数値/labelを拒否し、入力を変えないことを確認する。
   - frozen結果と入力/別結果の独立性、gradmode・共有RNG/default型/device、keywordを検証する。
   - 完了時、seed→store保存→帰属追加を旧更新へ照合し、全体基準値選択へ明示接続できる。LEGACY007の空NaN登録と新非空拒否も同入力で対照する。
