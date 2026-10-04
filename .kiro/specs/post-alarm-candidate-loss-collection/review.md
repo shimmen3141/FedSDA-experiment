@@ -1,5 +1,13 @@
 # レビューと承認
 
+## 最終統合 修正後: GO / FEATURE_GO VERIFIED
+
+Lunaがroadmapの完成境界と残責務を再確認しValidation Report DECISION GO。15/15条件、3 tasks接続、設計/厳密依存、blockedなし、独立smoke新processの成功を確認した。主担当も承認hash/revision 1・task進捗・文書リンク、修正後全回帰2664 passed /3 skipped /157.32s、fresh対象178 passed、GO後smoke exit 0を照合してFEATURE_GO VERIFIED。旧production/golden/許容誤差は更新なし。委任承認により本spec完了、model/payload/候補開始終了/client全体/学習は後続。
+
+## 最終統合 初回: NO-GO / 文書修正
+
+Lunaは全回帰・fresh対象・独立smoke・15条件・設計/依存を確認したが、task 3のroadmap更新が未反映としてNO-GO。主担当は有用と判断し、収集部品の実装/検証範囲・結果、LEGACY-004、後続の候補開始/終了・モデル帰属/統計/学習を進行表へ追記した。最終判定の正本をspec.json/review.mdへ明示し、GO前にGOとは記載しない。コード変更なし、既存の実行証拠を保持して統合再レビューする。
+
 ## task 3 修正後: APPROVED / TASK VERIFIED
 
 Lunaはexact許可と2つの禁止注入を再確認してReview Verdict APPROVED task 3、独立対象178 passed /exit 0、指摘なし。主担当fresh対象も178 passed /2.34s、独立smoke exit 0。修正後全回帰は2664 passed /3 skipped /157.32s、exit 0。初回全回帰2662 passed /3 skipped /203.59sからgoldenを更新せず、境界ゲートの改善だけを加えて再実行した。条件15/15・設計/依存/部分完成・共有発見記録を確認してTASK VERIFIED。最終feature GOは別判定。

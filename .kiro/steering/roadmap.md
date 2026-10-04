@@ -34,7 +34,9 @@
 - 候補の将来損失評価は`../specs/post-alarm-candidate-loss-evaluation/README.md`。3 tasks完了、15条件をLunaが確認し最終統合GO。2026-10-04の全testsは2504 passed / 3 skipped、旧11/最終3goldenを更新せず通過。外部収集済みlossによる現行優先の既存適合選択・二分区間候補採否・診断値が完成範囲。収集session・model操作は未移植。旧採否/理由の丸め不整合はresearch.mdへ別修正候補として記録した。
 - 保留標本位置FIFOは`../specs/pending-training-data-assignment/README.md`。3 tasks完了、14条件をLunaが確認し最終統合GO。2026-10-04の全testsは2580 passed / 3 skipped、旧11/最終3golden更新なし。位置の明示追加・超過解放・非破壊分割・全消費とpublic監視span接続だけが完成範囲。モデル帰属・payload・学習・警報後進行・終端方針は未移植。
 - 旧実装の不具合・改善候補の正本は`../../docs/research/implementation-findings/README.md`。候補理由の丸め差、短い警報後の割当済み標本残留、終端FIFO末尾の未帰属を別記録で追跡する。今回の移植で修正しない。
-- 次は候補検証の収集・進行と警報後のモデル帰属/client調整を責務ごとに仕様化する。未作成specの命名・実装を先取りしない。
+- 警報後の候補/参照損失収集は`../specs/post-alarm-candidate-loss-collection/README.md`。3 tasksを実装し15条件の証拠を確認。2026-10-04の全testsは2664 passed /3 skipped、旧11/最終3golden更新なし。提案次位置からの固定参照loss系列、原子的拒否、規定件数到達とimmutable copy・既存採否への明示test接続が範囲。設定モジュールと宣言型だけへ依存許可を限定した。承認と最終統合判定の正本は同spec.json/review.md。
+- 旧sessionが不足参照入力で部分更新する事実はLEGACY-004へ追跡記録を追加。正常clientへの影響は未確認で旧productionは変更しない。
+- 次は候補開始・終了の進行、警報後のモデル帰属/client調整と、その前提となるモデル統計・学習を依存順に仕様化する。未作成specの命名・実装を先取りしない。
 
 SINE goldenの参照条件と所属はsingle-run-executionのreference-inventory.mdへ棚卸し済み。
 今後は必要な追加契約を確認し、型付き設定と単一run基盤へ手法の処理部を接続する。
