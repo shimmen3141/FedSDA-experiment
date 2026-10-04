@@ -20,3 +20,7 @@ test-onlyのためRED非該当。Lunaは入力・後段class overflowの原子�
 
 ## task 3: APPROVED / VERIFIED
 REDは依存未許可で4 failed /140 passed。Lunaはexact module/2symbol境界、12条件と範囲・台帳、旧production/golden/比較test不変、独立起動と全回帰証拠を確認しAPPROVED。対象185件を独立再実行し指摘なし。主担当も対象185件とstdlib smokeを再実行してexit0を確認。全testsは2885 passed /3 skipped /132.42s /exit0。詳細はintegration-validation.md。
+
+## 最終統合: GO / VERIFIED
+Lunaは12/12条件、設計配置・依存境界、明示接続・共有状態、全回帰とfresh対象185件/独立起動、blockedなしを確認しGO。未解決指摘なし。主担当も現状態のfresh smokeと承認hash・全タスク完了、旧production/golden不変を照合して完了とした。
+完成範囲はモデル/class統計の管理部品。seed算出、統計merge/ID変更、model学習・警報後進行・新全体runは含めない。LEGACY-006旧productionの未修正状態は維持する。
