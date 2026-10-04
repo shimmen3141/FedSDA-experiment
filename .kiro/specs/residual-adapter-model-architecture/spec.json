@@ -1,0 +1,68 @@
+{
+  "feature_name": "residual-adapter-model-architecture",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "35c3fb2e5fed711319a636a48e7d8c1ac0432643a30ef4ee703b4e628f925164",
+      "approved_sha256_lf": "35c3fb2e5fed711319a636a48e7d8c1ac0432643a30ef4ee703b4e628f925164",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "8d9519d22bac2f0dc527cf9862a5305b4cd7e77940ea69801b9048d6085d2999",
+      "approved_sha256_lf": "8d9519d22bac2f0dc527cf9862a5305b4cd7e77940ea69801b9048d6085d2999",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "5a1b5cac9a70c41f32aa8188409a988e627a35815ef2b0f274f2d8fc8d8d30cf",
+      "revision": 1,
+      "approved_sha256_lf": "5a1b5cac9a70c41f32aa8188409a988e627a35815ef2b0f274f2d8fc8d8d30cf",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "approved_revision": 1
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "dc344f40582e4ae0db81179541253f1dba725d393824581fa8709e4273b5da6f",
+      "approved_sha256_lf": "dc344f40582e4ae0db81179541253f1dba725d393824581fa8709e4273b5da6f",
+      "current_sha256_lf": "dc344f40582e4ae0db81179541253f1dba725d393824581fa8709e4273b5da6f",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    }
+  },
+  "upstream_specs": [
+    "configuration-foundation"
+  ],
+  "adjacent_specs": [
+    "candidate-parameter-initialization",
+    "weighted-class-probability-prediction"
+  ],
+  "created_at": "2026-10-04T12:37:44.007699+00:00",
+  "updated_at": "2026-10-04T12:48:07.770431+00:00",
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "total_executable_tasks": 3,
+    "next_task": "1"
+  }
+}
