@@ -1,0 +1,67 @@
+{
+  "feature_name": "server-loss-mean-aggregation",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "ce854a9fa4853b979b87c717994a192eb70960d868615acc498ff1394f56396f",
+      "approved_sha256_lf": "ce854a9fa4853b979b87c717994a192eb70960d868615acc498ff1394f56396f",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "73cc43e7d5cf39928a7ce0e289107092cda6bc59b7663767fa6b393074386a34",
+      "approved_sha256_lf": "73cc43e7d5cf39928a7ce0e289107092cda6bc59b7663767fa6b393074386a34",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "c50c5b752eb6390dd20701bc3940ed45e0e0c6a7a7a018ad9444bd7c5b8f95d3",
+      "revision": 1,
+      "approved_sha256_lf": "c50c5b752eb6390dd20701bc3940ed45e0e0c6a7a7a018ad9444bd7c5b8f95d3",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "approved_revision": 1
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "e0f0692cf4ed90c8754c152b60ee9fa96eee5f1d8a40875ac45c30a16132840e",
+      "approved_sha256_lf": "e0f0692cf4ed90c8754c152b60ee9fa96eee5f1d8a40875ac45c30a16132840e",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    }
+  },
+  "upstream_specs": [
+    "bounded-loss-moments"
+  ],
+  "adjacent_specs": [
+    "model-and-class-loss-statistics",
+    "model-id-mapped-loss-statistics-selection",
+    "loss-baseline-selection"
+  ],
+  "created_at": "2026-10-04T08:02:06.213Z",
+  "updated_at": "2026-10-04T08:02:06.222Z",
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "next_task": "1",
+    "total_executable_tasks": 3
+  }
+}

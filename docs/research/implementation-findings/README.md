@@ -11,6 +11,7 @@
 | LEGACY-005 | クラス統計の保持について旧説明と実装が不一致 | 再現済み・未修正、説明の不整合 | [記録](legacy-005-class-statistics-documentation-mismatch.md) |
 | LEGACY-006 | 不正class入力で旧モデル全体統計が部分更新 | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-006-partial-model-statistics-on-invalid-class.md) |
 | LEGACY-007 | 空batchでNaN初期統計を登録する | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-007-empty-batch-nan-initial-statistics.md) |
+| LEGACY-008 | 極大件数でサーバ損失平均の範囲超過/除算失敗 | 再現済み・未修正、通常実験への影響未確認 | [記録](legacy-008-extreme-count-server-loss-aggregation.md) |
 
 ## 記録・更新の規約
 
