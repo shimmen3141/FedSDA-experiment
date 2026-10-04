@@ -17,3 +17,6 @@ Lunaはn5追加込み89 passed/exit0、test-onlyのpublic監視/参照選択接�
 
 ## task 3: APPROVED / VERIFIED
 全回帰前のLuna暫定PENDINGは承認に用いず、全結果・証拠保存後の再レビューでAPPROVEDを確認。対象218 passed・全tests2829 passed/3 skipped/exit0、AST exact許可/禁止、smoke・旧差分なしを確認。指摘なし。主担当も最新対象218 passed/exit0とfresh smoke・同じsourceの全回帰を確認した。feature GOは別ゲート。
+
+## feature統合: GO / VERIFIED
+LunaはDECISION: GO。全2829 passed/3 skipped/exit0、fresh対象218 passed・独立smoke、9/9条件、cross-task接続・共有状態・設計配置/依存・blockedなしを確認。指摘なし。主担当もfreshsmoke、全承認LFhash/revision・全3tasks・旧production/golden/比較test差分なしを確認し委任承認。完成は用途別基準値の選択とtest接続であり、新FedSDA全体runではない。
