@@ -1,0 +1,67 @@
+{
+  "feature_name": "parameter-optimizer-construction",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "17ca210cfb0e6248c5dd15d2e6f1d3157b7ce58343ebb4d97f41e7d23129b28c",
+      "approved_sha256_lf": "17ca210cfb0e6248c5dd15d2e6f1d3157b7ce58343ebb4d97f41e7d23129b28c",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "7ec0309503f3b8e9bf4a544bbf5e1142b19f1abc0d333921072a41b2ac1c3e17",
+      "approved_sha256_lf": "7ec0309503f3b8e9bf4a544bbf5e1142b19f1abc0d333921072a41b2ac1c3e17",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "2a8001517c1b8baa8c6d725a2ed57fac4b26c902b0bb4b03be7c4c64e3e79e89",
+      "revision": 1,
+      "approved_sha256_lf": "2a8001517c1b8baa8c6d725a2ed57fac4b26c902b0bb4b03be7c4c64e3e79e89",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "approved_revision": 1
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "6e0f899eabcb98ba7c713ce7c98d5264ee7aaee802ab079fc555004f2c4c4500",
+      "approved_sha256_lf": "6e0f899eabcb98ba7c713ce7c98d5264ee7aaee802ab079fc555004f2c4c4500",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "current_sha256_lf": "6e0f899eabcb98ba7c713ce7c98d5264ee7aaee802ab079fc555004f2c4c4500"
+    }
+  },
+  "upstream_specs": [
+    "configuration-foundation"
+  ],
+  "adjacent_specs": [
+    "residual-adapter-model-architecture"
+  ],
+  "created_at": "2026-10-04T19:20:47.324936+00:00",
+  "updated_at": "2026-10-04T19:26:22.380469+00:00",
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "total_executable_tasks": 3,
+    "next_task": "1"
+  }
+}
