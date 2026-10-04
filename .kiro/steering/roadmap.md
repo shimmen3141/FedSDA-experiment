@@ -39,7 +39,9 @@
 - 有界損失の不変集計は`../specs/bounded-loss-moments/README.md`。一系列の件数・保存平均・偏差平方和、旧演算順の追加、n2以上の平均/標本分散と上位への明示test接続を実装。2026-10-04の全testsは2728 passed /3 skipped、旧11/最終3golden更新なし。依存境界・stdlib独立起動を確認、最終統合判定と承認の正本は同spec.json/review.md。モデル/class所属、batch seed、用途別baseline方針、学習・登録・統計merge、新全体runは後続。
 - クラス統計の旧説明不整合と、不正class入力で旧全体統計が部分更新する事実をLEGACY-005/006へ記録。正常client/過去成果への影響は未確認。旧productionの修正と今回の数値移植を分ける。
 - 用途別損失基準値は`../specs/loss-baseline-selection/README.md`。監視n1/clip、警報区間再利用n2/平均0除外、警報後履歴n2/平均0保持を、単一集計から選ぶpure方針として実装。上位への明示test接続、入力検査コピー・共有状態とexact上流型依存を検証。2026-10-04の全testsは2829 passed /3 skipped、旧11/最終3golden更新なし。全回帰と最終判定の正本は同spec.json/review.md。モデル/class統計map・seed/merge・snapshot時機・候補進行・新全体runは後続。
-- 次は候補開始・終了の進行、警報後のモデル帰属/client調整と、その前提となるモデル統計・学習を依存順に仕様化する。未作成specの命名・実装を先取りしない。
+- モデル全体・クラス別損失統計は`../specs/model-and-class-loss-statistics/README.md`。明示seed/一括置換、独立snapshot、帰属損失の原子的更新を実装し、旧各更新への直接照合と監視/履歴参照への明示test接続を確認。2026-10-04の全testsは2885 passed /3 skipped、旧11/最終3golden更新なし。承認と最終判定の正本は同spec.json/review.md。モデル実体・class上限、batch seed算出、merge/ID変更/削除時機・学習・新全体runは後続。
+- LEGACY-006には旧不正class入力による部分更新と新storeの原子的拒否の同入力テストを追記。旧production自体は未修正で、正常clientや過去成果への影響は未確認。
+- 次は候補開始・終了の進行、警報後のモデル帰属/client調整と、その前提となるモデル学習・統計seed生成/mergeを依存順に仕様化する。未作成specの命名・実装を先取りしない。
 
 SINE goldenの参照条件と所属はsingle-run-executionのreference-inventory.mdへ棚卸し済み。
 今後は必要な追加契約を確認し、型付き設定と単一run基盤へ手法の処理部を接続する。

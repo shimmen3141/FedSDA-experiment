@@ -32,3 +32,10 @@ worktreeの既存venvで実行し、上記assertとexit 0を確認した。
 ## 将来の修正と検証
 
 担当はモデル/クラス損失統計の所有・更新。class_idと損失の検証を更新前に完了し、関連する全系列を原子的に更新する契約を別途設計する。正常の全体/class oracle、例外後状態、旧11/最終3goldenで検証する。修正spec/commitは未定。
+
+## 新統計管理部品での対応
+
+2026-10-04、[model-and-class-loss-statistics](../../../.kiro/specs/model-and-class-loss-statistics/README.md)で、新storeは入力classを更新前に検査し、全体と指定classの更新候補を検査してから一回保存する設計を採用。
+[テスト](../../../tests/refactoring/test_model_and_class_loss_statistics.py)の`test_model_class_statistics_rejects_invalid_input_atomically`で同じ不正class入力の旧部分更新と新store非変更を対照した。後段class count overflowでも全体を保存しないことを確認。
+正常系列の全体/class値は旧直接oracleへ一致。全testsは2885 passed /3 skipped、旧11/最終3golden更新なし。詳細は同specのintegration-validation.md。
+これは新部品の堅牢性契約であり、旧productionを修正した記録ではない。旧修正spec/commitと正常client・過去成果への影響調査は引き続き未定。

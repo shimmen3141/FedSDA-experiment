@@ -17,3 +17,6 @@ REDは未実装moduleのModuleNotFoundError、exit1。Lunaは旧Welford照合、
 
 ## task 2: APPROVED / VERIFIED
 test-onlyのためRED非該当。Lunaは入力・後段class overflowの原子的拒否、seed/参照/別store独立、共有状態と明示全体基準接続を確認しAPPROVED。指摘なし。主担当も対象41件の再実行exit0を確認。旧不正classの部分更新を同入力で対照し、旧productionは変更しない。
+
+## task 3: APPROVED / VERIFIED
+REDは依存未許可で4 failed /140 passed。Lunaはexact module/2symbol境界、12条件と範囲・台帳、旧production/golden/比較test不変、独立起動と全回帰証拠を確認しAPPROVED。対象185件を独立再実行し指摘なし。主担当も対象185件とstdlib smokeを再実行してexit0を確認。全testsは2885 passed /3 skipped /132.42s /exit0。詳細はintegration-validation.md。
