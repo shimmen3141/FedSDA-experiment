@@ -1,8 +1,8 @@
 {
   "feature_name": "batch-loss-statistics-initialization",
   "language": "ja",
-  "phase": "awaiting-validation",
-  "ready_for_implementation": true,
+  "phase": "completed",
+  "ready_for_implementation": false,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
     "requirements": {
@@ -53,7 +53,7 @@
     "loss-baseline-selection"
   ],
   "created_at": "2026-10-04T06:18:49.102Z",
-  "updated_at": "2026-10-04T06:45:42.201864+00:00",
+  "updated_at": "2026-10-04T06:47:33.184751+00:00",
   "task_graph_review": {
     "verdict": "PASS",
     "mode": "independent_reused_thread",
@@ -69,5 +69,23 @@
     "completed_task_count": 3,
     "next_task": null,
     "total_executable_tasks": 3
+  },
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go",
+    "requirements_covered": 9,
+    "test_pass_count": 2965,
+    "test_skip_count": 3,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "batch_model_and_class_loss_statistics_initialization_only"
   }
 }

@@ -28,3 +28,7 @@ Lunaがtorch.*の広い許可ではprivate torch._Cも通ることを実際に�
 
 ## task 3 再レビュー: APPROVED / VERIFIED
 Lunaはexacttorch/Tensor依存とprivate拒否case、224件の独立再実行、2965 passed /3 skipped /124.63sの最終全回帰・scope/台帳/smokeを確認しAPPROVED。未解決指摘なし。主担当もfresh対象224件とCPU独立smoke/exit0を確認して完了とした。旧production/golden/比較testsは748c3aaから差分なし。
+
+## 最終統合: GO / VERIFIED
+Lunaは9/9条件、全回帰後のcode不変・freshCPU独立smoke、初期統計→store/update/baseline、共有状態とexact依存、設計配置/blockedなしを確認しGO。主担当も現状態のfresh smokeと承認hash・全3タスク完了を照合して完了とした。
+完成範囲は外部batch損失からのモデル全体/class初期統計。事前学習seed、損失生成・modelprepare/forward/学習/登録/送信/merge・新全体runは後続。LEGACY007の旧登録処理自体の修正や、正常client/過去成果への影響確認は含めない。
