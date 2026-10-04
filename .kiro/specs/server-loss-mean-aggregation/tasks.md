@@ -8,7 +8,7 @@
   - _Boundary: server loss mean aggregation_
   - _Requirements: 1.1, 1.2, 1.3, 3.1_
 
-- [ ] 2. 拒否・独立性とサーバ補完への接続を検証する
+- [x] 2. 拒否・独立性とサーバ補完への接続を検証する
   - exact型/後段forgedfield/算出overflow・範囲外を検査し、入力非変更/frozen/別結果独立/RNG/grad/default/keywordを確認する。
   - LEGACY008の2極大入力を旧/新で直接対照し、旧未修正/通常影響未確認を記録する。
   - 完了時、Noneでは既存whole serverrecord保持、正nではclassを空にしたwhole置換、ID補完→store次更新→baselineへ明示接続できる。

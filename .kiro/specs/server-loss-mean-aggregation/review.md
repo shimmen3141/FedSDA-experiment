@@ -18,3 +18,7 @@ test-only oracleの引数・新旧結果名・正常比較test名をrevision2に
 REDは未実装moduleのModuleNotFoundError/collection1error/3.29s/exit1。GREEN20 passed/1.88s/exit0。
 Luna kiro-reviewはAPPROVED、独立20 passed/1.95s、placeholder/秘密/境界に診断なし。
 主担当はfresh20 passed/2.01s/exit0とsourceを確認しVERIFIED、task1を完了した。高度異常/独立/接続とAST/全体は後続範囲。
+
+## 実装task2
+test-only追加26、RED非該当。主担当46 passed/2.11s/exit0、Luna46 passed/1.97s/exit0でkiro-review APPROVED、placeholder/秘密/境界に指摘なし。
+主担当fresh46 passed/exit0とdiffcheckを確認しVERIFIED、task2を完了した。LEGACY008の2極大入力は実旧BaseServerと新関数を直接対照し、旧未修正・通常影響未確認を維持する。
