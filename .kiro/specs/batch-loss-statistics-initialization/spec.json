@@ -1,7 +1,7 @@
 {
   "feature_name": "batch-loss-statistics-initialization",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -41,7 +41,8 @@
       "approved_sha256_lf": "8049379fee2bd95f25db349d4328c00643a63712805260fc309785c0d82092b5",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "current_sha256_lf": "f2f6543c2447da490be07adebb9a69cdbaf138264a5a08affac4ce2d69f5e53b"
     }
   },
   "upstream_specs": [
@@ -52,11 +53,19 @@
     "loss-baseline-selection"
   ],
   "created_at": "2026-10-04T06:18:49.102Z",
-  "updated_at": "2026-10-04T06:27:47.175051+00:00",
+  "updated_at": "2026-10-04T06:33:06.186761+00:00",
   "task_graph_review": {
     "verdict": "PASS",
     "mode": "independent_reused_thread",
     "reviewer": "gpt-6-luna",
     "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "next_task": "2",
+    "total_executable_tasks": 3
   }
 }

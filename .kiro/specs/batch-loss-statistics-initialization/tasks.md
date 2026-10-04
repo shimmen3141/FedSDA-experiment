@@ -1,7 +1,7 @@
 # 実装タスク
 保存前の独立task graphレビュー後に承認する。既存venv/pytest基盤で順次実行。
 
-- [ ] 1. batch損失から全体・クラス別初期統計を作る
+- [x] 1. batch損失から全体・クラス別初期統計を作る
   - CPU float32の外部loss/labels/class_count入力を検査し、旧torch reduction順と全体/classのsingleton値・昇順classを保つ。
   - TDDで旧registerを学習しないstubから直接呼び、二値/多クラス・singleton/複数件・欠落・非連続・丸め境界の全fieldを照合する。
   - 完了時、初期集計を返すpure関数が旧正常seedへ完全一致し、学習・モデル登録・store更新を持たない。

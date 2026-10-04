@@ -16,3 +16,6 @@ Lunaは旧演算順・singleton非対称・class順と欠落、reduce前入力�
 
 ## task graph: PASS / independent reused thread
 Lunaは保存前draftで9条件網羅、1→2→3の依存・境界と観測可能な完了条件を確認しPASS。明示Depends省略の軽微な提案は不採用。新セッションでも前提が判別できるよう明示依存を保持する。主担当も対応表と実行可能性を確認し委任承認した。
+
+## task 1: APPROVED / VERIFIED
+REDは未実装moduleのModuleNotFoundError/exit1。Lunaは24件の旧正常登録oracle照合、singleton/class順/欠落/丸め/非連続とpure数値境界を確認しAPPROVED。指摘なし。主担当も実コードとfresh対象24件/exit0を確認して完了とした。
