@@ -2,7 +2,7 @@
 共通source/testを扱うため全taskは順次、(P)なし。CPU shared venvと既存設定基盤は実装済み。
 検証環境はdocs/experiments/refactoring-baseline.md。各task後に独立Luna reviewと主担当fresh検証を行う。
 
-- [ ] 1. 最終モデル構造と旧直接照合を実装する
+- [x] 1. 最終モデル構造と旧直接照合を実装する
   - 対象testを先に作りmissing-module REDを実測後、三つのnn.Moduleと構築前検査、forward/共有特徴経路を実装してGREENにする。
   - 全state・CPU RNG消費順・binary/multiclass・rank制限・空幅・共有注入を実旧oracleへ照合する。optimizer builderだけtest-only no-opとする。
   - 完了は対象pytest成功、指定3productionとtest境界内、Luna reviewと主担当fresh検証で観測する。

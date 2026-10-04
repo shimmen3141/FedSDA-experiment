@@ -1,5 +1,5 @@
 # 命名: Residual Adapterモデル構造
-revision: 1
+revision: 2
 
 ## 1. ファイル・型
 基点: src/federated_learning_experiments/learning/models/。
@@ -62,3 +62,20 @@ tests/refactoring/test_residual_adapter_model_architecture.py。
 - test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomness: 事前拒否。
 - test_residual_adapter_model_preserves_default_tensor_environment: 既定型/device/grad/RNG保持。
 Task2のtest名は開始前に追加レビューする。fixtureのseed/旧参照/比較対象など局所名は意味が同じ既存test慣例を再利用する。
+
+## 6. Task2 test-only命名追加（revision2）
+production名・役割は変更しない。
+| test名 | 観測する契約 |
+|---|---|
+| test_residual_adapter_model_gradients_match_legacy | zero/nonzero展開で入力・全Parameter.gradを実旧へ照合 |
+| test_residual_adapter_model_accepts_empty_batches | 三部品の0行shape、旧との一致 |
+| test_residual_adapter_classifier_reuses_extracted_shared_features | 抽出済み経路は再抽出せず通常forwardと同じ |
+| test_residual_adapter_classifier_connects_to_probability_calculations | 実forwardから既存確率/観測後meanlossへ接続 |
+| test_residual_adapter_classifier_loads_selected_initial_parameters | 既存snapshot選択から独立model標準load_state_dictへ接続 |
+既承認拒否/共有/環境testは条件別suffixを付けて再利用可。
+parameter_snapshot_before_call、input_features_before_call、shared_features_before_callは値不変比較用detach clone。
+legacy_input_featuresは旧勾配用の同値独立入力。parameter_gradients_by_name/legacy_parameter_gradients_by_nameは名前別.grad。
+use_nonzero_expansion_weightsはtest-only boolで非zero展開case（production設定ではない）。
+source_classifiers_by_model_idはsnapshot供給側NN、initialized_classifierは標準load先の独立NN。
+constructor_arguments/invalid_value/case/original/actual/expected/classifier/repeated_classifier/legacy_classifier/feature_extractor/adapterは既存testと同じ役割で使用可。
+その他は既存API引数名、model_id/parameter_name、共有環境global_*を同役割で使う。新helper/classは不要。

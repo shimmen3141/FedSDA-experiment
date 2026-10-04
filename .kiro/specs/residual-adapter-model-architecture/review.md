@@ -22,3 +22,17 @@ PASS: 12条件と三つのnn.Moduleの対応、CPU32・共有構造検査・旧�
 ## Taskgraph Luna保存前レビュー
 PASS: 三段階の順序と12条件・三module・共有/環境・確率/snapshot接続・golden保持が整合する。
 数値IDを個別列挙する指摘はdraftで既に満たしており、そのまま保存する。主担当はPASSを採用してtasksを承認する。独立既存thread再利用。
+
+## 命名revision2 Lunaレビュー
+Task2のtest-only5prefixと局所名はPASS。production名・役割不変。
+boolのnonzero_expansionをuse_nonzero_expansion_weightsにすると切替意図が明確との任意指摘を採用した。主担当は反映済みrevision2を承認する。
+
+## Task1 初回reviewと修正
+実装者READY_FOR_REVIEW、missing-module RED1error/2.05s/exit1→GREEN11 passed/1.62s/exit0。主担当fresh11 passed/1.88s/exit0。
+Luna REJECTED: 共有Linearのregistered weightを削除して同形CPU32 Tensorを割り当てると、named_parametersから欠落していても構造検査を通ることを再現した。
+主担当は有用な指摘を採用。weight/biasがnamed_parameters(recurse=False)へ同一参照で登録されていることを検査し、malformed拒否とRNG/共有不変の先行RED→GREENを追加する。旧実装の発見ではなく今回の新検査の補完である。
+
+## Task1 再reviewと完了
+実修正RED2 failed/11 passed/1.61s/exit1→GREEN13 passed/1.59s/exit0。新名/importは追加していない。
+Luna APPROVED、対象13 passed/exit0、placeholder/secret/境界問題なし、未登録weight/bias拒否と共有/CPU RNG不変を確認。指摘なし。
+主担当fresh13 passed/1.61s/exit0、source実読/旧基準無差分/diffcheckによりTask1の構造・旧照合をVERIFIED。高度検証とAST/fullは未完了のままTask1を完了する。

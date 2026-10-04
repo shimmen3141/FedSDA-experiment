@@ -1,7 +1,7 @@
 {
   "feature_name": "residual-adapter-model-architecture",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation-in-progress",
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -26,20 +26,20 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "generated_sha256_lf": "5a1b5cac9a70c41f32aa8188409a988e627a35815ef2b0f274f2d8fc8d8d30cf",
-      "revision": 1,
-      "approved_sha256_lf": "5a1b5cac9a70c41f32aa8188409a988e627a35815ef2b0f274f2d8fc8d8d30cf",
+      "generated_sha256_lf": "2222c0dce5127937b801e32ca266c01a8206101283fa6fafe3e6d424c17d92d0",
+      "revision": 2,
+      "approved_sha256_lf": "2222c0dce5127937b801e32ca266c01a8206101283fa6fafe3e6d424c17d92d0",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "approved_revision": 1
+      "approved_revision": 2
     },
     "tasks": {
       "generated": true,
       "approved": true,
       "generated_sha256_lf": "dc344f40582e4ae0db81179541253f1dba725d393824581fa8709e4273b5da6f",
       "approved_sha256_lf": "dc344f40582e4ae0db81179541253f1dba725d393824581fa8709e4273b5da6f",
-      "current_sha256_lf": "dc344f40582e4ae0db81179541253f1dba725d393824581fa8709e4273b5da6f",
+      "current_sha256_lf": "b85ef7ec9b0fadf18cebafdf901afd9b05b7250b79e2d1b9c19435ce2018ffb7",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
       "reviewer_thread": "/root/luna_single_run_3_1_review"
@@ -53,16 +53,18 @@
     "weighted-class-probability-prediction"
   ],
   "created_at": "2026-10-04T12:37:44.007699+00:00",
-  "updated_at": "2026-10-04T12:48:07.770431+00:00",
+  "updated_at": "2026-10-04T12:59:18.143573+00:00",
   "task_graph_review": {
     "verdict": "PASS",
     "mode": "independent_reused_thread",
     "record": "review.md"
   },
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
     "total_executable_tasks": 3,
-    "next_task": "1"
+    "next_task": "2"
   }
 }
