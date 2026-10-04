@@ -1,0 +1,65 @@
+{
+  "feature_name": "model-id-mapped-loss-statistics-selection",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "d3a754e60827300674659278cb3a35acee646058b73b9547dbd7d3ae346eea93",
+      "approved_sha256_lf": "d3a754e60827300674659278cb3a35acee646058b73b9547dbd7d3ae346eea93",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "7c8da4c049951e6e8f1fcfd133a8acf67796bd63fb51d2549c610ac959ff6693",
+      "approved_sha256_lf": "7c8da4c049951e6e8f1fcfd133a8acf67796bd63fb51d2549c610ac959ff6693",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "cf60c16f9f1195887e162023cc99f9c156bf1adca4aaf99fbc7fdfd3b5664f2c",
+      "revision": 1,
+      "approved_sha256_lf": "cf60c16f9f1195887e162023cc99f9c156bf1adca4aaf99fbc7fdfd3b5664f2c",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md",
+      "approved_revision": 1
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "f10dd671d10bb3e2d666e0631c77807c413b63516cfbb97515c4f115c9337447",
+      "approved_sha256_lf": "f10dd671d10bb3e2d666e0631c77807c413b63516cfbb97515c4f115c9337447",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    }
+  },
+  "upstream_specs": [
+    "model-and-class-loss-statistics"
+  ],
+  "adjacent_specs": [
+    "loss-baseline-selection"
+  ],
+  "created_at": "2026-10-04T07:11:24.930Z",
+  "updated_at": "2026-10-04T07:11:24.931Z",
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "next_task": "1",
+    "total_executable_tasks": 3
+  }
+}
