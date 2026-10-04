@@ -16,7 +16,7 @@
   - _Boundary: test integration_
   - _Requirements: 2.1, 2.2, 2.3, 3.2_
 
-- [ ] 3. 依存境界と全回帰・独立起動を統合検証する
+- [x] 3. 依存境界と全回帰・独立起動を統合検証する
   - exact moments module/型だけをASTで許可し、同module別関数/private/子module/別module/上位/旧/torch/NumPyを禁止注入する。
   - 完了時、全tests旧11/最終3golden不変、stdlib -S freshsmoke、全9条件/roadmap/LEGACY008状態、Luna最終GOの証拠が揃う。
   - _Depends: 1, 2_

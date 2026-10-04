@@ -41,7 +41,7 @@
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "current_sha256_lf": "856f05fbfaa0573f79f2570289da9eb6f12c298a1670f7ada553f470e8c56d4c"
+      "current_sha256_lf": "f51d7b0af09e07567c28f6a2997559affd16ba9b42399f7c6c4324ee04a7449c"
     }
   },
   "upstream_specs": [
@@ -62,10 +62,11 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
-    "completed_task_count": 2,
-    "next_task": "3",
+    "completed_task_count": 3,
+    "next_task": null,
     "total_executable_tasks": 3
   }
 }

@@ -45,6 +45,7 @@
 - 旧空batch登録でNaN初期統計を保持する事実をLEGACY-007に再現・同入力対照とともに追跡。正常client/過去成果への影響は未確認、旧productionは未修正。
 - モデルID対応後の損失統計選択は`../specs/model-id-mapped-loss-statistics-selection/README.md`。一回ID対応/max全体件数・先着同数/欠落・zeroだけのserver補完、モデル/class順と旧18ケースの全field照合、独立コピーとstore/update/baselineへの明示test接続を検証。2026-10-04の全testsは3041 passed /3 skipped、旧11/最終3golden更新なし。モデル・学習データ・予測重み・現在の帰属IDの対応、登録/通信/server集計・新全体runは含めない。今回新たな旧正常不具合は未観測、既存LEGACY001–007は修正状態を変えない。承認/最終判定の正本は同spec.json/review.md。
 - 次は候補開始・終了の進行、警報後のモデル帰属/client調整と、その前提となるモデル学習・統計mergeを依存順に仕様化する。未作成specの命名・実装を先取りしない。
+- サーバ向け損失平均集約は`../specs/server-loss-mean-aggregation/README.md`。参加選別済みのclient順に統計件数で平均を加重し、M2zero/空・zero時Noneを両旧サーバ20ケースへ照合。上位whole server保持/置換→ID補完→store更新/baselineを明示test接続。2026-10-04の全testsは3103 passed /3 skipped、旧11/最終3golden更新なし。参加判定・モデルパラメータ集約/通信/状態保存・新全体runは後続。極大件数の範囲超過/除算失敗はLEGACY008へ再現と新拒否を記録、通常影響未確認/旧production未修正。承認・最終判定の正本は同spec.json/review.md。
 
 SINE goldenの参照条件と所属はsingle-run-executionのreference-inventory.mdへ棚卸し済み。
 今後は必要な追加契約を確認し、型付き設定と単一run基盤へ手法の処理部を接続する。
