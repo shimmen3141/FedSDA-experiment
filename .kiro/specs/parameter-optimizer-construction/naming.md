@@ -1,5 +1,5 @@
 # 命名: パラメータoptimizer生成
-revision: 1
+revision: 2
 
 ## ファイル・型
 learning/training/parameter_optimizer_settings.pyは方式別条件、parameter_optimizer_construction.pyは標準optimizer生成。
@@ -35,3 +35,10 @@ test_parameter_optimizer_construction.py:
 - test_parameter_optimizer_settings_are_immutable_and_explicit: frozen/keyword/defaultなし/SGD非Adamfield。
 - test_parameter_optimizer_state_is_independent: 別生成のstate独立。
 旧builderのtest-only呼出はhelperを新設せずtest内で行う。state比较は既存test慣例の局所名/再帰比較を必要なら承認後使用する。
+
+## Task2接続testの局所名（revision2）
+parameter_nameはstate_dict内のParameterキー、model_module_nameはnn.Module階層名、model_moduleはModule実体。
+model_module_attributes_by_nameはモジュールごとの属性名を保存したdict。
+shared_feature_parametersは共有抽出部のParameter tuple、concept_specific_parametersはadapter→分類層のParameter tuple。
+input_parametersは今optimizerへ渡す一つのtuple。Moduleをparameterと呼ばず、tupleの集合と単一tupleを同名でshadowしない。
+production名/役割/契約は不変。

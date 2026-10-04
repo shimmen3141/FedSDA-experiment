@@ -10,7 +10,7 @@
   - _Boundary: Optimizer configuration/construction（指定2sourceと対象test）_
   - _Depends: なし（field validator実装済み）_
 
-- [ ] 2. 拒否・独立性・環境とモデル接続を検証する
+- [x] 2. 拒否・独立性・環境とモデル接続を検証する
   - 対象testだけでforged/未知型・後段不正/空/重複/dtype/device/layout/boolを生成前拒否し、値/grad/設定とRNG不変を確認する。
   - grad=None/requires_gradFalse/noncontiguous/scalar/0要素shape、frozen/defaultなし、別optimizer state独立、ambientfloat64/meta/grad/PythonNP保持を検証する。
   - 新NNから共有extractor/adapter→classifier列をtest-only選択して二optimizer生成、集合非重複/モデルにoptimizer追加なしを確認する。

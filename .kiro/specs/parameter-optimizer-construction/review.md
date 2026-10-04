@@ -23,3 +23,14 @@ PASS: 9条件と前提/3taskの順序、実装とtest-only step接続、attach/r
 Adam standard/AMSGrad、decay有無、lr0、SGDを実旧builderへdefaults/groups/初期state/参照順・grad不変と3外部同gradstep後全値/stateで厳密照合。
 Luna APPROVED、7 passed/exit0、placeholder/secret/境界問題なし、指摘なし。
 主担当fresh7 passed/2.85s/exit0、source実読とdiffcheckでVERIFIED。高度拒否/環境/モデル接続とAST/fullは後続のままTask1を完了する。
+
+## Task2検証中の契約照合
+実装者の初回testは36 passed/1 failed。10**1000のbuiltin int学習率を生成前拒否すると期待したが、constructorへ到達した。
+主担当は拒否期待を撤回した。要求は有限builtin int/floatであり、全整数は有限、既存core validatorも巨大整数をfloatへ変換しないことを明示する。float変換可能性/上限は現契約にない。
+sourceは変更せず、極大intについて実旧builder同様のconstructor-only受理を照合する。生成後stepの数値範囲は本生成specで新たに規定しない。
+
+## Task2レビュー・局所命名revision2
+実装者READY_FOR_REVIEW、37 passed/3.28s/exit0。Luna APPROVED、37 passed/exit0、placeholder/secretなし、test-only境界と拒否/環境/独立/新NN接続に問題なし。
+主担当fresh37 passed/4.30s/exit0、production不変更を確認。
+主担当は接続testでModuleをparameterと呼び、input_parametersを集合と単列でshadowする局所名を改善。Lunaは追加名revision2にPASS。承認後にそのtestの局所名だけを改めた。契約/productionは不変。
+局所名修正後の主担当fresh37 passed/3.04s/exit0と実diffで意味不変を確認してVERIFIED。Task2を完了する。AST/fullは未完了。
