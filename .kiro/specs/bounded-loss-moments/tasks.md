@@ -17,7 +17,7 @@
   - _Boundary: test integration_
   - _Requirements: 4.1, 4.2_
 
-- [ ] 3. 依存境界と全体回帰を統合検証する
+- [x] 3. 依存境界と全体回帰を統合検証する
   - stdlib許可・禁止依存注入、全tests・旧11/最終3golden不変、stdlibだけのsmokeを確認する。
   - 全12条件の証拠・部分完成範囲・roadmapを最終GO前に記録し、旧改善候補は共通台帳へ追跡する。
   - 完了時、全テストとLuna最終統合GOが得られ、旧productionとgoldenに差分がない。
