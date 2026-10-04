@@ -15,7 +15,7 @@
   - _Boundary: test integration_
   - _Requirements: 3.1, 3.2_
 
-- [ ] 3. 依存境界・全回帰と独立起動を統合検証する
+- [x] 3. 依存境界・全回帰と独立起動を統合検証する
   - exact moments module/宣言型のみAST許可し、private/別symbol/旧/数値lib/上位への依存を禁止注入する。
   - 完了時、全tests旧11/最終3golden不変・stdlib smoke・9条件/roadmap証拠が揃い、最終Luna GOを確認する。
   - _Depends: 1, 2_

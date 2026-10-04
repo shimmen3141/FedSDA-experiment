@@ -38,6 +38,7 @@
 - 旧sessionが不足参照入力で部分更新する事実はLEGACY-004へ追跡記録を追加。正常clientへの影響は未確認で旧productionは変更しない。
 - 有界損失の不変集計は`../specs/bounded-loss-moments/README.md`。一系列の件数・保存平均・偏差平方和、旧演算順の追加、n2以上の平均/標本分散と上位への明示test接続を実装。2026-10-04の全testsは2728 passed /3 skipped、旧11/最終3golden更新なし。依存境界・stdlib独立起動を確認、最終統合判定と承認の正本は同spec.json/review.md。モデル/class所属、batch seed、用途別baseline方針、学習・登録・統計merge、新全体runは後続。
 - クラス統計の旧説明不整合と、不正class入力で旧全体統計が部分更新する事実をLEGACY-005/006へ記録。正常client/過去成果への影響は未確認。旧productionの修正と今回の数値移植を分ける。
+- 用途別損失基準値は`../specs/loss-baseline-selection/README.md`。監視n1/clip、警報区間再利用n2/平均0除外、警報後履歴n2/平均0保持を、単一集計から選ぶpure方針として実装。上位への明示test接続、入力検査コピー・共有状態とexact上流型依存を検証。2026-10-04の全testsは2829 passed /3 skipped、旧11/最終3golden更新なし。全回帰と最終判定の正本は同spec.json/review.md。モデル/class統計map・seed/merge・snapshot時機・候補進行・新全体runは後続。
 - 次は候補開始・終了の進行、警報後のモデル帰属/client調整と、その前提となるモデル統計・学習を依存順に仕様化する。未作成specの命名・実装を先取りしない。
 
 SINE goldenの参照条件と所属はsingle-run-executionのreference-inventory.mdへ棚卸し済み。

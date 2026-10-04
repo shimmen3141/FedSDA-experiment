@@ -55,6 +55,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:
         return True
+    if source_module_path == "methods/fedsda/loss_statistics/loss_baseline_selection.py":
+        # 基準値方針は公開集計型だけを参照し、他の数値処理へ依存しない。
+        return imported_module_name in (
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.BoundedLossMoments",
+        )
     if source_module_path == "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py":
         # 収集状態は同機能設定だけを参照し、数値評価へ依存しない。
         return imported_module_name in (
@@ -266,6 +272,16 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ("learning/loss_statistics/bounded_loss_moments.py", "from ...methods.fedsda.candidate_model_selection import post_alarm_candidate_loss_evaluation", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
         ("learning/loss_statistics/bounded_loss_moments.py", "from ..prediction import class_probability_calculations", "federated_learning_experiments.learning.prediction"),
         ("learning/loss_statistics/bounded_loss_moments.py", "from . import another_loss_statistics", "federated_learning_experiments.learning.loss_statistics"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "import numpy", "numpy"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "import torch", "torch"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "import config", "config"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from ..loss_change_detection import overall_and_true_class_loss_monitoring", "federated_learning_experiments.methods.fedsda.loss_change_detection"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from ..candidate_model_selection import post_alarm_candidate_loss_evaluation", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import _validate_loss_moment_fields", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moment_fields"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import estimate_loss_mean_and_sample_variance", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.estimate_loss_mean_and_sample_variance"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.another_module", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.another_module"),
         ("data/sine/sine_sample_generation.py", "import torch", "torch"),
         ("data/observed_streams.py", "import config", "config"),
         ("data/observed_streams.py", "from clients import fedsda", "clients"),
@@ -337,6 +353,8 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
     [
         ("learning/loss_statistics/bounded_loss_moments.py", "from dataclasses import dataclass"),
         ("learning/loss_statistics/bounded_loss_moments.py", "import math"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments"),
+        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from ....learning.loss_statistics.bounded_loss_moments import BoundedLossMoments"),
         ("learning/prediction/class_probability_calculations.py", "import torch"),
         ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings"),
         ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from dataclasses import dataclass"),
