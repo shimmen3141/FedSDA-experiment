@@ -11,3 +11,8 @@
 store snapshotを直接受け、同形式を返すpure関数を採用。dict入力ではなくtupleにしてID重複を検査可能にする。
 全recordを公開constructorでコピー/検査するためprivate helper依存を避けられる。新snapshot型/merge枠組み/既存store全置換APIは不要。
 cc-sdd requirements/design prewrite gateと命名規約、fable-methodの旧oracle実測・受入証拠先決めを適用。
+
+## 文書書込みの検証漏れと改善
+最終Lunaレビューでreview.mdのPython標準入力経由の日本語追記がliteral ?に変わっていた。初回の直接patch部分は正常で、契約文書・実装・テストには該当がなかった。
+レビュー回答と実測出力から直接UTF-8 patchで復元した。以降の日本語文書更新は直接patchを使い、保存後にUTF-8で読み返し、連続?や置換文字の混入も確認する。
+これは開発手順の改善点であり、旧研究実装のLEGACY台帳へ不具合として混ぜない。
