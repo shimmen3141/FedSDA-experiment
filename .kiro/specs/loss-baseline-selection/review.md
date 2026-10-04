@@ -11,3 +11,6 @@ tasks.md保存前のdraftをLunaが独立確認。9条件の網羅、1→2→3�
 
 ## task 1: APPROVED / VERIFIED
 REDは未実装packageによるModuleNotFoundError/exit1。Lunaは旧3用途直接oracle48件とpure境界を確認しAPPROVED、指摘なし。主担当はn>=2が2件限定にならない確認としてn5を各用途へ追加、最新69 passed/exit0。source変更なし、入力コピー/旧演算と数値を確認した。
+
+## task 2: APPROVED / VERIFIED
+Lunaはn5追加込み89 passed/exit0、test-onlyのpublic監視/参照選択接続、拒否時入力非変更、共有RNG/default型/deviceとkeywordを確認しAPPROVED。指摘なし。主担当の最新対象も89 passed/exit0、production変更なし。RED非該当。

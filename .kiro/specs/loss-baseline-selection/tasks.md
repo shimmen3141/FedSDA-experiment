@@ -8,7 +8,7 @@
   - _Boundary: baseline selection_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.2_
 
-- [ ] 2. 上位接続と拒否・共有状態を検証する
+- [x] 2. 上位接続と拒否・共有状態を検証する
   - monitor/参照選択へ明示入力し、不正型/改変field拒否・入力不変・共有RNG/既定型/device/keywordを確認する。
   - 完了時、既存APIで判断が一致し副作用がない。productionの上位policyは追加しない。
   - _Depends: 1_
