@@ -43,6 +43,7 @@
 - LEGACY-006には旧不正class入力による部分更新と新storeの原子的拒否の同入力テストを追記。旧production自体は未修正で、正常clientや過去成果への影響は未確認。
 - batch損失からのモデル初期統計は`../specs/batch-loss-statistics-initialization/README.md`。外部計算済みloss/labelsから旧torch reduction順の全体/class集計を生成し、singleton非対称・class昇順/欠落と旧24ケースを照合、store/update/baselineへの明示test接続を確認。2026-10-04の全testsは2965 passed /3 skipped、旧11/最終3golden更新なし。承認/最終判定の正本は同spec.json/review.md。事前学習の逐次Welfordseed、model prepare/forward/学習/登録/送信、merge・新全体runは後続。
 - 旧空batch登録でNaN初期統計を保持する事実をLEGACY-007に再現・同入力対照とともに追跡。正常client/過去成果への影響は未確認、旧productionは未修正。
+- モデルID対応後の損失統計選択は`../specs/model-id-mapped-loss-statistics-selection/README.md`。一回ID対応/max全体件数・先着同数/欠落・zeroだけのserver補完、モデル/class順と旧18ケースの全field照合、独立コピーとstore/update/baselineへの明示test接続を検証。2026-10-04の全testsは3041 passed /3 skipped、旧11/最終3golden更新なし。モデル・学習データ・予測重み・現在の帰属IDの対応、登録/通信/server集計・新全体runは含めない。今回新たな旧正常不具合は未観測、既存LEGACY001–007は修正状態を変えない。承認/最終判定の正本は同spec.json/review.md。
 - 次は候補開始・終了の進行、警報後のモデル帰属/client調整と、その前提となるモデル学習・統計mergeを依存順に仕様化する。未作成specの命名・実装を先取りしない。
 
 SINE goldenの参照条件と所属はsingle-run-executionのreference-inventory.mdへ棚卸し済み。

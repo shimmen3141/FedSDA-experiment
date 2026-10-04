@@ -55,6 +55,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:
         return True
+    if source_module_path == "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py":
+        # ID対応後の選択は公開統計型だけを参照する。
+        return imported_module_name in (
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
+        )
     if source_module_path == "learning/loss_statistics/batch_loss_statistics_initialization.py":
         # batch初期化だけにtorchと既存の集計値型を許可する。
         return (
@@ -243,6 +249,18 @@ def test_single_run_layers_import_only_allowed_dependencies():
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_imported_module_name",
     [
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import torch", "torch"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import numpy", "numpy"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import config", "config"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from ...runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from ...methods.fedsda.loss_statistics import loss_baseline_selection", "federated_learning_experiments.methods.fedsda.loss_statistics"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .model_and_class_loss_statistics import ModelAndClassLossStatisticsStore", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .model_and_class_loss_statistics import _copy_loss_moments", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics._copy_loss_moments"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .bounded_loss_moments import BoundedLossMoments", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from . import another_loss_statistics", "federated_learning_experiments.learning.loss_statistics"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .model_and_class_loss_statistics import arbitrary_public_name", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.arbitrary_public_name"),
         ("learning/prediction/class_probability_calculations.py", "import numpy", "numpy"),
         ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import numpy", "numpy"),
         ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal"),
@@ -393,6 +411,10 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
 @pytest.mark.parametrize(
     "source_module_path,source_text",
     [
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatistics"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .model_and_class_loss_statistics import ModelAndClassLossStatistics"),
+        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from collections import defaultdict"),
         ("learning/loss_statistics/bounded_loss_moments.py", "from dataclasses import dataclass"),
         ("learning/loss_statistics/batch_loss_statistics_initialization.py", "import torch"),
         ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from torch import Tensor"),
