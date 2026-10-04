@@ -18,3 +18,4 @@ Adam既定betas=(0.9,0.999)、eps=1e-8、SGD momentum/weight_decay=0。最終gol
 ## 空共有部の観測
 旧ResidualAdapterMLPへ空幅SharedFeatureBackboneを渡すとoptimizer got an empty parameter listで生成失敗することを調査者が再現した。通常goldenは非空幅。
 新モデル構造は空幅identityを受理する。今回builderは空Parameterを拒否するが、後続学習は共有部が空ならoptimizerを生成しない扱いを検討する。旧productionは未変更、過去成果への影響未確認。実証記録は後続の本spec証拠で台帳へ接続する。
+主担当もMPLCONFIGDIR設定済みの新processで同じ例外を再現（exit0）。正本は[LEGACY-010](../../../docs/research/implementation-findings/legacy-010-empty-shared-feature-optimizer.md)。

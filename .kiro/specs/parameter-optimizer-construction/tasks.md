@@ -2,7 +2,7 @@
 共有source/testを使うため全taskは順次、(P)なし。設定field基盤/新NN/共有venvは実装済み。
 環境はdocs/experiments/refactoring-baseline.md。taskごと独立Luna review→主担当fresh検証→commit。
 
-- [ ] 1. 方式別設定と標準optimizer生成を実装する
+- [x] 1. 方式別設定と標準optimizer生成を実装する
   - missing-module対象testを先に書いて実REDを確認し、指定2productionを実装してGREENにする。
   - Adam standard/AMSGrad・decay有無・lr0とSGDを実旧builderへ照合。全groups/参照順/初期stateと外部固定grad複数stepの全値/stateが一致することを確認する。
   - 完了は指定source/testのみ、対象pytest成功、Luna APPROVEDと主担当fresh検証。
