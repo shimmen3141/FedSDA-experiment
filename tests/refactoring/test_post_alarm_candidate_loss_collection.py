@@ -18,6 +18,7 @@ from federated_drift_experiment.provisional_model import (
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollection
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses
 
 
 def make_loss_collection(target_count=3, proposal_sample_index=100, reference_model_ids=(9, -2, 3)):
@@ -164,3 +165,158 @@ def test_candidate_loss_collection_invalid_observation_is_atomic_for_legacy_part
             sample_index=101, candidate_loss=.2, reference_losses_by_model_id={2:.4},
         )
     assert collection.get_state_snapshot() == state_before_call
+
+def make_legacy_observation_client(target_count=3):
+    """旧clientはliveモデルでなく開始時snapshotを観測する。"""
+    legacy_events = []
+    legacy_session = make_legacy_loss_session(target_count)
+    legacy_session.candidate = SimpleNamespace(
+        per_sample_error=lambda x, y: legacy_events.append(("candidate", int(x.item()))) or torch.tensor([.2]),
+    )
+    legacy_session.reference_models = {
+        model_id: SimpleNamespace(per_sample_error=lambda x, y, model_id=model_id:
+            legacy_events.append((model_id, int(x.item()))) or torch.tensor([{9:.5, -2:.6, 3:.7}[model_id]]))
+        for model_id in (9, -2, 3)
+    }
+    legacy_client = SimpleNamespace(
+        _forward_validation=legacy_session, models={},
+        _record_model_compute=lambda *x: None,
+    )
+    legacy_client._finalize_forward_validation = lambda sample_index: (
+        legacy_events.append(("finalize", sample_index, legacy_session.validation_count))
+        or setattr(legacy_client, "_forward_validation", None) or 2
+    )
+    return legacy_client, legacy_session, legacy_events
+
+
+@pytest.mark.parametrize("target_count", [2, 3, 5])
+def test_candidate_loss_collection_readiness_matches_legacy_client(monkeypatch, target_count):
+    """同じ到達回にfinalizeし、消えたlive参照も固定順で観測される。"""
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "forward_persistent")
+    collection = make_loss_collection(target_count)
+    legacy_client, legacy_session, legacy_events = make_legacy_observation_client(target_count)
+    for observation_index in range(1, target_count + 1):
+        sample_index = 100 + observation_index
+        result = FedSDAClient._observe_forward_validation(
+            legacy_client, torch.tensor([[float(sample_index)]]), torch.tensor([[0.0]]), sample_index,
+        )
+        collection.observe_losses_after_label_observation(
+            sample_index=sample_index, candidate_loss=legacy_session.candidate_losses[-1],
+            reference_losses_by_model_id={model_id: reference_losses[-1] for model_id, reference_losses in legacy_session.reference_losses.items()},
+        )
+        assert result == (2 if collection.ready_for_acceptance_evaluation else 0)
+        state_snapshot = collection.get_state_snapshot()
+        assert state_snapshot.candidate_losses == tuple(legacy_session.candidate_losses)
+        assert state_snapshot.reference_losses_by_model_id == tuple((model_id, tuple(reference_losses)) for model_id, reference_losses in legacy_session.reference_losses.items())
+        assert legacy_events[(observation_index - 1) * 4:observation_index * 4] == [
+            ("candidate", sample_index), (9, sample_index), (-2, sample_index), (3, sample_index),
+        ]
+    assert legacy_events[-1] == ("finalize", 100 + target_count, target_count)
+    state_before_call = deepcopy(legacy_events)
+    assert FedSDAClient._observe_forward_validation(legacy_client, torch.tensor([[999.0]]), torch.tensor([[0.0]]), 999) == 0
+    assert legacy_events == state_before_call
+
+
+def test_candidate_loss_collection_snapshots_and_instances_are_independent():
+    collection = make_loss_collection()
+    reference_collection = make_loss_collection()
+    reference_losses_by_model_id = {9:.5, -2:.6, 3:.7}
+    collection.observe_losses_after_label_observation(
+        sample_index=101, candidate_loss=.2, reference_losses_by_model_id=reference_losses_by_model_id,
+    )
+    state_snapshot = collection.get_state_snapshot()
+    reference_losses_by_model_id.clear()
+    assert state_snapshot.reference_losses_by_model_id == ((9,(.5,)),(-2,(.6,)),(3,(.7,)))
+    for field_name in state_snapshot.__dataclass_fields__:
+        with pytest.raises(FrozenInstanceError):
+            setattr(state_snapshot, field_name, None)
+    collection.observe_losses_after_label_observation(
+        sample_index=102, candidate_loss=.3, reference_losses_by_model_id={9:.4, -2:.5, 3:.6},
+    )
+    assert state_snapshot.validation_sample_count == 1
+    assert state_snapshot.candidate_losses == (.2,)
+    assert reference_collection.validation_sample_count == 0
+    assert reference_collection.get_state_snapshot().reference_losses_by_model_id == ((9,()),(-2,()),(3,()))
+    assert collection.get_state_snapshot().validation_sample_count == 2
+
+
+def test_candidate_loss_collection_preserves_global_numeric_state():
+    global_python_random_state = random.getstate()
+    global_numpy_random_state = np.random.get_state()
+    global_torch_random_state = torch.get_rng_state().clone()
+    global_default_dtype = torch.get_default_dtype()
+    global_default_device = torch.get_default_device()
+    try:
+        torch.set_default_dtype(torch.float64)
+        with torch.device("meta"):
+            collection = make_loss_collection(2)
+            collection.observe_losses_after_label_observation(sample_index=101, candidate_loss=.123456789123, reference_losses_by_model_id={9:.5,-2:.6,3:.7})
+            collection.observe_losses_after_label_observation(sample_index=102, candidate_loss=.2, reference_losses_by_model_id={9:.5,-2:.6,3:.7})
+            assert collection.get_state_snapshot().candidate_losses[0] == .123456789123
+            assert torch.get_default_dtype() == torch.float64
+            assert torch.empty(0).device.type == "meta"
+    finally:
+        torch.set_default_dtype(global_default_dtype)
+    assert torch.get_default_dtype() == global_default_dtype
+    assert torch.get_default_device() == global_default_device
+    assert random.getstate() == global_python_random_state
+    assert np.random.get_state()[0] == global_numpy_random_state[0]
+    np.testing.assert_array_equal(np.random.get_state()[1], global_numpy_random_state[1])
+    assert np.random.get_state()[2:] == global_numpy_random_state[2:]
+    assert torch.equal(torch.get_rng_state(), global_torch_random_state)
+
+
+@pytest.mark.parametrize("candidate_loss", [.1, .8])
+@pytest.mark.parametrize("reference_historical_mean_losses_by_model_id", [{}, {9:.5}, {-2:.6}])
+@pytest.mark.parametrize("available_reference_model_ids", [(9,-2,3), ()])
+def test_candidate_loss_collection_connects_to_acceptance_evaluation(candidate_loss, reference_historical_mean_losses_by_model_id, available_reference_model_ids):
+    """snapshot系列を明示入力し、旧適合選択と二分区間判定へ比較する。"""
+    collection = make_loss_collection(3)
+    legacy_session = make_legacy_loss_session(3)
+    for sample_index in (101,102,103):
+        reference_losses_by_model_id = {3:.7,-2:.6,9:.5}
+        collection.observe_losses_after_label_observation(sample_index=sample_index, candidate_loss=candidate_loss, reference_losses_by_model_id=reference_losses_by_model_id)
+        legacy_session.append_losses(candidate_loss, reference_losses_by_model_id)
+    state_snapshot = collection.get_state_snapshot()
+    result = evaluate_candidate_using_post_alarm_losses(
+        candidate_model_training_and_acceptance_settings=CandidateModelTrainingAndAcceptanceSettings(
+            candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
+            candidate_post_alarm_validation_sample_count=3,
+        ),
+        candidate_losses=state_snapshot.candidate_losses,
+        reference_losses_by_model_id=dict(state_snapshot.reference_losses_by_model_id),
+        reference_historical_mean_losses_by_model_id=reference_historical_mean_losses_by_model_id,
+        available_reference_model_ids=available_reference_model_ids,
+        current_training_model_id=9, maximum_reference_mean_loss_increase=.1,
+        minimum_candidate_mean_loss_improvement=.0001,
+    )
+    model_id = select_forward_fitting_reference(
+        {model_id: reference_losses for model_id, reference_losses in legacy_session.reference_losses.items() if model_id in available_reference_model_ids},
+        reference_historical_mean_losses_by_model_id, .1, preferred_model_id=9,
+    )
+    assert result.reusable_reference_model_id == model_id
+    if model_id is None:
+        model_id = min(legacy_session.reference_losses, key=lambda model_id: sum(legacy_session.reference_losses[model_id]))
+        assert result.candidate_accepted == has_disjoint_validation_advantage(
+            torch.tensor(legacy_session.candidate_losses, dtype=torch.float32),
+            torch.tensor(legacy_session.reference_losses[model_id], dtype=torch.float32), .0001,
+        )
+    else:
+        assert not result.candidate_accepted
+    assert result.comparison_reference_model_id == model_id
+    assert result.validation_sample_count == 3
+    assert collection.get_state_snapshot() == state_snapshot
+
+
+def test_candidate_loss_collection_public_arguments_are_keyword_only():
+    for operation, field_name in (
+        (PostAlarmCandidateLossCollection, "candidate_model_training_and_acceptance_settings"),
+        (PostAlarmCandidateLossCollection, "proposal_sample_index"),
+        (PostAlarmCandidateLossCollection, "reference_model_ids"),
+        (PostAlarmCandidateLossCollection.observe_losses_after_label_observation, "sample_index"),
+        (PostAlarmCandidateLossCollection.observe_losses_after_label_observation, "candidate_loss"),
+        (PostAlarmCandidateLossCollection.observe_losses_after_label_observation, "reference_losses_by_model_id"),
+    ):
+        assert inspect.signature(operation).parameters[field_name].kind is inspect.Parameter.KEYWORD_ONLY
+    with pytest.raises(TypeError):
+        make_loss_collection().observe_losses_after_label_observation(101, .2, {9:.5,-2:.6,3:.7})

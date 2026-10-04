@@ -9,7 +9,7 @@
   - _Depends: 承認済み要件/設計/命名、既存Python/pytest環境・CandidateModelTrainingAndAcceptanceSettings_
   - _Boundary: post_alarm_candidate_loss_collection.pyと同所有test、LEGACY-004記録_
 
-- [ ] 2. 旧client到達時機と既存採否部品への接続を検証する
+- [x] 2. 旧client到達時機と既存採否部品への接続を検証する
   - 旧unbound observeで固定snapshot参照がliveモデル消失後も観測され、同じtarget到達回でfinalizeすることを比較する。
   - 変更不能snapshot・別実体・input dict変更・共有RNG/default dtype/device・keywordを確認する。途中/完了状態を消去せず返す。
   - 収集snapshotを既存採否APIへ明示変換して、旧参照選択/採否と比較する。完了は対象成功→Luna APPROVED→主担当fresh再検証。

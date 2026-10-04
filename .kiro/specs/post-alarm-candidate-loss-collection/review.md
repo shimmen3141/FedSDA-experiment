@@ -1,5 +1,9 @@
 # レビューと承認
 
+## task 2: APPROVED / TASK VERIFIED
+
+test-onlyの接続・時系列検証でproduction変更なし、REDは非該当。対象72 passed、Luna独立再実行72 passed / exit 0でReview Verdict APPROVED task 2、指摘なし。主担当fresh再検証も72 passed / exit 0。旧clientのtarget到達同回finalize・開始時固定参照/live消失・次回no-op、immutable copy/別実体/input変更/RNG/defaultdtype/device/keyword、既存採否と旧数値関数の明示照合を確認した。
+
 ## task 1: APPROVED / TASK VERIFIED
 
 REDは未存在moduleのcollection error。実装後54 passed、Luna独立再実行54 passed / exit 0でReview Verdict APPROVED task 1、指摘なし。主担当fresh再実行も54 passed / exit 0。target2/3/5・開始0/100/大整数と固定参照順、全入力拒否/状態不変、完了後非自動消去、旧部分更新の再現を確認。LEGACY-004へtestとコマンドを追記。入力拒否は正常clientとの数値一致と区別した新境界。
