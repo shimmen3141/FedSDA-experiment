@@ -1,5 +1,5 @@
 # 命名: サーバ向け損失平均集約
-revision: 1
+revision: 2
 
 serverは用途を表す。aggregateは件数・平均の集約を意味し、分散/クラスをpoolingするmergeではない。
 
@@ -26,3 +26,9 @@ serverは用途を表す。aggregateは件数・平均の集約を意味し、�
 
 既存BoundedLossMoments/observed_loss_count/mean_loss/sum_squared_loss_deviationsを維持する。
 testのclient/modelID/gate/旧record/local snapshot等は旧oracle・上流specの既存名で明示して、production引数へ取り込まない。
+
+## task1開始前のtest-only追加
+run_legacy_server_loss_statistics_aggregation(*,clients,operation,global_stats=None,model_id=0)は旧client stub列と旧unbound update関数を受け、既存server統計を含むstubへ実行してglobal_statsを返す。
+clients/client/participating_clientsは旧client列・単一client・選別済みclient、operationは両旧update関数、global_stats/model_idは旧統計辞書/対象ID。
+legacy_server/legacy_statisticsは旧stub/旧結果、aggregated_loss_momentsは新純関数のmomentsまたはNone。
+test_server_loss_mean_aggregation_matches_legacy_serversは両旧サーバと全fieldを比較する正常テスト。

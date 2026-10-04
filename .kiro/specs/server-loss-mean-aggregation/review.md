@@ -10,3 +10,11 @@ Lunaは設計・命名revision1をPASS。全入力先行検査、旧件数加重
 ## task graph
 主担当保存前gate:9条件/依存1→2→3/明示境界・接続/観測できる完了条件/既存環境を確認。
 保存前の独立LunaレビューPASS。exact上流moduleとBoundedLossMoments公開型だけを許可する注意を採用し、design/task3の明記どおり実装する。草案修正は不要、保存して承認。
+
+## task1開始前の追加命名
+test-only oracleの引数・新旧結果名・正常比較test名をrevision2に追記して一時承認解除。Lunaは役割区別をPASS、主担当は採用しrev2/hashを承認。production名や責務は不変。
+
+## 実装task1
+REDは未実装moduleのModuleNotFoundError/collection1error/3.29s/exit1。GREEN20 passed/1.88s/exit0。
+Luna kiro-reviewはAPPROVED、独立20 passed/1.95s、placeholder/秘密/境界に診断なし。
+主担当はfresh20 passed/2.01s/exit0とsourceを確認しVERIFIED、task1を完了した。高度異常/独立/接続とAST/全体は後続範囲。

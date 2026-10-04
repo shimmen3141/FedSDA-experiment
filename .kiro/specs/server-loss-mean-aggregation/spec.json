@@ -1,7 +1,7 @@
 {
   "feature_name": "server-loss-mean-aggregation",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation-in-progress",
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -25,13 +25,13 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "generated_sha256_lf": "c50c5b752eb6390dd20701bc3940ed45e0e0c6a7a7a018ad9444bd7c5b8f95d3",
-      "revision": 1,
-      "approved_sha256_lf": "c50c5b752eb6390dd20701bc3940ed45e0e0c6a7a7a018ad9444bd7c5b8f95d3",
+      "generated_sha256_lf": "d787705ccf4bd97138b0f9b126e8554a51ec402f22b04af6c533a7046911335d",
+      "revision": 2,
+      "approved_sha256_lf": "d787705ccf4bd97138b0f9b126e8554a51ec402f22b04af6c533a7046911335d",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "approved_revision": 1
+      "approved_revision": 2
     },
     "tasks": {
       "generated": true,
@@ -40,7 +40,8 @@
       "approved_sha256_lf": "e0f0692cf4ed90c8754c152b60ee9fa96eee5f1d8a40875ac45c30a16132840e",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "reviewer_thread": "/root/luna_single_run_3_1_review"
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "current_sha256_lf": "86ce6284e96e7df8ca0750e8065aab3044ed20346b53dd6d2bb629d5977b2550"
     }
   },
   "upstream_specs": [
@@ -59,9 +60,11 @@
     "record": "review.md"
   },
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
-    "next_task": "1",
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "next_task": "2",
     "total_executable_tasks": 3
   }
 }
