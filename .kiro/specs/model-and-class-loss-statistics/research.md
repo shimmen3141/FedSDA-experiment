@@ -1,0 +1,7 @@
+# 調査と境界判断
+旧BaseClient.__init__はinitial_statsをdeepcopy、_update_model_statsは未登録model/classも空から更新する。model IDには負のローカルIDがある。class_idなしは全体だけに追加し、件数合計やM2の全体/class整合は保証されない。初期seed生成と新規登録のbatch計算はこのstoreの外。
+初期モデルは上位が空seedを明示する。setで既存IDの全体/classを一括置換する旧登録の値保存を表現する。
+apply_server_mappingは同IDへ集約した統計で最大nを選ぶ一方、サーバ集約は件数加重平均/M2=0。これらを本specの更新へ混ぜず後続で設計する。統計単独削除の明確な旧操作はないため先取りしない。
+モデル実体に依存しない共通BaseClientの統計所有なのでlearning/loss_statisticsの中立部品とする。手法固有のbaselineは既存methods部品へ明示入力する。
+[LEGACY-006](../../../docs/research/implementation-findings/legacy-006-partial-model-statistics-on-invalid-class.md)の不正class時の旧部分更新は既存記録のまま。新契約では原子的拒否、旧正常系列は維持する。旧productionの修正ではなく、正常client/過去成果への影響は未確認。
+主担当の保存前要件ゲートで12条件・ID/seed/拒否/参照独立/順序/接続/後続範囲と直接oracleを確認した。cc-sddとfable-methodを参照。

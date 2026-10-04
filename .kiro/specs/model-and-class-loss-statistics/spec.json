@@ -1,0 +1,57 @@
+{
+  "feature_name": "model-and-class-loss-statistics",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "9d41f8e974166ae0c8a46deb93c6af1ddf9e3ca2114aab829e4aa5b81bf09c44",
+      "approved_sha256_lf": "9d41f8e974166ae0c8a46deb93c6af1ddf9e3ca2114aab829e4aa5b81bf09c44",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "f0294c7aac9c8bb7802ffed5ce9318b496f69920ad3eb51116ee3fa77417ed1b",
+      "approved_sha256_lf": "f0294c7aac9c8bb7802ffed5ce9318b496f69920ad3eb51116ee3fa77417ed1b",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "7afdda5c21c73748f2c3c7f2cdfdd3a4b4b8443ba706c6c497d21e7aaf41f522",
+      "approved_sha256_lf": "7afdda5c21c73748f2c3c7f2cdfdd3a4b4b8443ba706c6c497d21e7aaf41f522",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md",
+      "revision": 1,
+      "approved_revision": 1
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "537bd09d8da686d21aca74aaa70affbb653cbece03829f696b1a84beba6cb830",
+      "approved_sha256_lf": "537bd09d8da686d21aca74aaa70affbb653cbece03829f696b1a84beba6cb830",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    }
+  },
+  "upstream_specs": [
+    "bounded-loss-moments"
+  ],
+  "adjacent_specs": [
+    "loss-baseline-selection",
+    "class-conditional-loss-monitoring",
+    "post-alarm-candidate-loss-evaluation"
+  ],
+  "updated_at": "2026-10-04T04:27:29.662236+00:00",
+  "created_at": "2026-10-04T04:22:58.904261+00:00"
+}
