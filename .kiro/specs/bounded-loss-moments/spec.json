@@ -2,9 +2,9 @@
   "feature_name": "bounded-loss-moments",
   "language": "ja",
   "created_at": "2026-10-04T01:30:34.925129+00:00",
-  "updated_at": "2026-10-04T01:52:23.026039+00:00",
-  "phase": "implementation-awaiting-validation",
-  "ready_for_implementation": true,
+  "updated_at": "2026-10-04T01:54:38.626700+00:00",
+  "phase": "implementation-complete",
+  "ready_for_implementation": false,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
     "requirements": {
@@ -70,5 +70,23 @@
     "completed_task_count": 3,
     "next_task": null,
     "total_executable_tasks": 3
+  },
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go",
+    "requirements_covered": 12,
+    "test_pass_count": 2728,
+    "test_skip_count": 3,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "single_bounded_loss_series_moments_only"
   }
 }
