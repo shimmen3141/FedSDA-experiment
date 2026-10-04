@@ -10,7 +10,7 @@
   - _Boundary: CandidateParameterInitialization（指定2productionとtestのみ）_
   - _Depends: なし（既存設定検証基盤は実装済み）_
 
-- [ ] 2. 拒否・独立性と警報後評価からの接続を検証する
+- [x] 2. 拒否・独立性と警報後評価からの接続を検証する
   - 対象testだけを追加し、後段異常/forged設定/未知ID/重複/構造不整合/非有限とコピー双方向/grad/RNG/default dtype/device保持を検証する。
   - 既存候補評価の平均lossを明示tupleへ対応付けて初期化元を選び、適合失敗した評価元も候補初期値として使えることを確認する。採用・生成・学習をproductionへ追加しない。
   - 完了は対象pytest成功とLuna review、rootfresh検証。テストだけの追加にfake REDは要求しない。

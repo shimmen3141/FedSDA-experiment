@@ -2,7 +2,7 @@
 
 ## Summary
 旧clients/fedsda.py:574–605の初期化用snapshot選択を独立移植する。最終goldenの方式はbest_candidate。
-今回は調査で新しい旧不具合を観測していない。既存LEGACY-001〜008の状態は変更しない。
+Task2で極大float32値の旧単純平均がinfになることを実測し、[LEGACY-009](../../../docs/research/implementation-findings/legacy-009-extreme-parameter-mean-overflow.md)へ記録した。通常実験への影響は未確認、旧productionは未修正。既存LEGACY-001〜008の状態は変更しない。
 
 ## Research Log
 旧currentは現在の学習先、best_candidateは評価済み列のlossだけでminを取り同率先着、空ならcurrent。averageは全models.values()順のstack→meanで、整数・真偽値は先頭clone、空はNone。

@@ -38,3 +38,16 @@ GPT-6 Luna（独立・既存thread再利用）はPASS。3taskが一責務と明�
 実旧helperと三方式/先着同率/空/fallback/評価外/丸め/15dtype/Shared風key/逆key順/スカラー/空形状/noncontiguousを照合し、基本storage独立性も検証。
 LunaはAPPROVED、対象18 passed/3.19s/exit0、placeholder/secretなし、指定3files境界内、生成/評価/学習の先取りなし。指摘なし。
 主担当fresh検証18 passed/3.14s/exit0とsource直接読みでVERIFIED。高度拒否・grad/環境・候補評価接続とAST/fullは後続のままTask1を完了する。
+
+## 命名revision2
+Task2のtest-only検証名と同意味の既存名を追加。production名・役割は不変。
+LunaはPASS、拒否/keyword/環境/評価mean接続/非有限平均の分離とkeyword入力dict/別返却の意味が明確との判断。主担当は指摘なしのPASSを採用し最新hash/revision2を承認する。
+保存時に生じた末尾空行だけを削除してhashを再計算した。命名・役割・revisionは変えていない。
+
+## Task2
+実装者READY_FOR_REVIEW。test-only追加40件、RED非該当。58 passed/1 warning/4.02s/exit0。
+後段未選択入力/forged設定/ID・loss・構造・有限性を拒否、aliasの解消と双方向copy、leaf/nonleaf grad detach、meta contextでCPU/dtype/RNG/grad/default保持、keyword/frozen/default無しを確認。
+公開評価のreference平均だけを明示対応し、再利用不適合な最小lossモデルの初期値を選び旧helperへ照合。
+有限float32max2件から旧inf/新ValueError/入力不変を同条件実測し、主担当がLEGACY009へ記録。旧未修正・通常/過去影響未確認と区別する。
+Luna APPROVED、58 passed/3.91s、production変更なし、指摘なし。qint8 fixture deepcopyのTypedStorage非推奨警告1件はlibrary/test由来と確認。
+主担当fresh58 passed/1 warning/4.09s/exit0とdiffcheck成功、src差分なしでVERIFIED。Task3 AST/fullは未完了のままTask2を完了する。

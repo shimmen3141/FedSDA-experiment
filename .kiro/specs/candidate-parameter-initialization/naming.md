@@ -1,5 +1,5 @@
 # 命名: 候補パラメータ初期化
-revision: 1
+revision: 2
 
 | 名前 | 役割・型・単位・似た名前との違い |
 |---|---|
@@ -50,3 +50,22 @@ revision: 1
 永続可変状態は持たない。標準test fixture/局所assert変数は状態所有者ではない。
 新しいprivate helperや局所名が必要なら実装前に追加表をレビューする。
 
+## revision 2: Task2の検証名
+正式production名・責務はrevision1を維持する。追加はtest-onlyの名前と、同役割で使う既存承認名だけ。
+
+| 名前 | 役割・状態 |
+|---|---|
+| test_candidate_parameter_initialization.py | 本specの旧oracle・拒否・独立性・環境・明示接続のtest |
+| test_candidate_parameter_initialization_rejects_invalid_inputs_without_mutation | 後段snapshot/評価/ID/forged設定を拒否し入力不変を確認 |
+| test_candidate_parameter_initialization_requires_explicit_keyword_settings | default無し/frozen設定とpublic keyword必須 |
+| test_candidate_parameter_initialization_preserves_gradients_and_shared_state | grad detach/RNG/default dtype/device/gradflagを保持 |
+| test_candidate_parameter_initialization_connects_post_alarm_evaluated_losses | 公開評価のmeanだけを初期化入力へ明示接続 |
+| test_candidate_parameter_initialization_rejects_nonfinite_average_results | 有限入力から旧inf/新拒否を直接照合 |
+| initialization_arguments | public selectのkeyword入力dict。正常・拒否testで共有せず構築 |
+| repeated_actual | 同入力の別呼出結果、actualとのstorage独立性を確認 |
+| evaluation_results_by_model_id | ID順の公開候補評価結果dict。meanのみ渡し、結果objectをproductionへ渡さない |
+| global_python_random_state / global_numpy_random_state / global_torch_random_state | 呼出前に保存した共有RNG値 |
+| global_default_dtype / global_default_device / global_grad_enabled | 呼出前のtorch共有設定、context/finallyで復元 |
+| candidate_model_training_and_acceptance_settings / reference_losses_by_model_id / reference_historical_mean_losses_by_model_id / available_reference_model_ids / candidate_losses / result | 既存候補評価specの公開名と同意味のtest入力・結果 |
+
+testは上記prefix内で条件別に分けられる。新production helperや状態所有者は追加しない。
