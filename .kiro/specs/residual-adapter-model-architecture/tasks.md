@@ -19,7 +19,7 @@
   - _Boundary: Test-only integration（対象testのみ）_
   - _Depends: 1_
 
-- [ ] 3. 依存境界と全回帰・完了証拠を揃える
+- [x] 3. 依存境界と全回帰・完了証拠を揃える
   - AST exact3moduleの禁止/許可注入testを先に追加してRED後、指定symbolのallowlistを更新してGREENにする。
   - fresh CPUモデルforward smoke（旧importなし）、対象test＋AST、全tests旧11/最終3goldenを実行する。旧production/golden/旧比較test差分なしを照合する。
   - integration-validation.mdとroadmapへ12条件・実配置・検証結果・学習や新全体runの未移植範囲を記録する。再現した旧問題だけfindings台帳へ記録する。

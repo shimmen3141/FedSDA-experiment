@@ -53,6 +53,29 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path in (
+        "learning/models/shared_feature_extractor.py",
+        "learning/models/nonlinear_residual_adapter.py",
+        "learning/models/residual_adapter_classifier.py",
+    ):
+        # モデル構造は一般stdlib許可より先にexact module/public symbolで制限する。
+        return imported_module_name in (
+            "__future__", "__future__.annotations",
+            "torch", "torch.Tensor", "torch.float32", "torch.device", "torch.strided",
+            "torch.nn", "torch.nn.Module", "torch.nn.Sequential", "torch.nn.Linear",
+            "torch.nn.ReLU", "torch.nn.Sigmoid", "torch.nn.Identity",
+            "torch.nn.init", "torch.nn.init.zeros_",
+        ) or (
+            source_module_path == "learning/models/residual_adapter_classifier.py"
+            and imported_module_name in (
+                "federated_learning_experiments.learning.models.model_architecture_settings",
+                "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
+                "federated_learning_experiments.learning.models.shared_feature_extractor",
+                "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
+                "federated_learning_experiments.learning.models.nonlinear_residual_adapter",
+                "federated_learning_experiments.learning.models.nonlinear_residual_adapter.NonlinearResidualAdapter",
+            )
+        )
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:
         return True
     if source_module_path == "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py":
@@ -268,6 +291,28 @@ def test_single_run_layers_import_only_allowed_dependencies():
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_imported_module_name",
     [
+        *[(source_module_path, source_text, expected_imported_module_name)
+          for source_module_path in (
+              "learning/models/shared_feature_extractor.py",
+              "learning/models/nonlinear_residual_adapter.py",
+              "learning/models/residual_adapter_classifier.py",
+          )
+          for source_text, expected_imported_module_name in (
+              ("import numpy", "numpy"),
+              ("import random", "random"),
+              ("import torch.optim", "torch.optim"),
+              ("import torch._C", "torch._C"),
+              ("from torch.nn import Dropout", "torch.nn.Dropout"),
+              ("from torch.nn.init import kaiming_uniform_", "torch.nn.init.kaiming_uniform_"),
+              ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
+          )],
+        ("learning/models/shared_feature_extractor.py", "from .residual_adapter_classifier import ResidualAdapterClassifier", "federated_learning_experiments.learning.models.residual_adapter_classifier"),
+        ("learning/models/nonlinear_residual_adapter.py", "from .shared_feature_extractor import SharedFeatureExtractor", "federated_learning_experiments.learning.models.shared_feature_extractor"),
+        ("learning/models/residual_adapter_classifier.py", "from .shared_feature_extractor import _validate_feature_tensor", "federated_learning_experiments.learning.models.shared_feature_extractor._validate_feature_tensor"),
+        ("learning/models/residual_adapter_classifier.py", "from .model_architecture_settings import validate_settings_field_values", "federated_learning_experiments.learning.models.model_architecture_settings.validate_settings_field_values"),
+        ("learning/models/residual_adapter_classifier.py", "import federated_learning_experiments.learning.models.shared_feature_extractor.child", "federated_learning_experiments.learning.models.shared_feature_extractor.child"),
+        ("learning/models/residual_adapter_classifier.py", "import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+        ("learning/models/residual_adapter_classifier.py", "from ...methods.fedsda.candidate_model_selection import candidate_parameter_initialization", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
         ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import numpy", "numpy"),
         ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import torch._C", "torch._C"),
         ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from torch import nn", "torch.nn"),
@@ -456,6 +501,25 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
 @pytest.mark.parametrize(
     "source_module_path,source_text",
     [
+        *[(source_module_path, source_text)
+          for source_module_path in (
+              "learning/models/shared_feature_extractor.py",
+              "learning/models/nonlinear_residual_adapter.py",
+              "learning/models/residual_adapter_classifier.py",
+          )
+          for source_text in (
+              "import torch",
+              "from torch import Tensor, float32, device, strided",
+              "from torch.nn import Module, Sequential, Linear, ReLU, Sigmoid, Identity",
+              "from torch.nn.init import zeros_",
+              "from __future__ import annotations",
+          )],
+        ("learning/models/residual_adapter_classifier.py", "from .model_architecture_settings import ModelArchitectureSettings"),
+        ("learning/models/residual_adapter_classifier.py", "from .shared_feature_extractor import SharedFeatureExtractor"),
+        ("learning/models/residual_adapter_classifier.py", "from .nonlinear_residual_adapter import NonlinearResidualAdapter"),
+        ("learning/models/residual_adapter_classifier.py", "from federated_learning_experiments.learning.models.model_architecture_settings import ModelArchitectureSettings"),
+        ("learning/models/residual_adapter_classifier.py", "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor"),
+        ("learning/models/residual_adapter_classifier.py", "from federated_learning_experiments.learning.models.nonlinear_residual_adapter import NonlinearResidualAdapter"),
         ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import math"),
         ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import torch"),
         ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from torch import Tensor"),

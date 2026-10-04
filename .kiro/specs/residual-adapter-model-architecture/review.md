@@ -42,3 +42,14 @@ Luna APPROVED、対象13 passed/exit0、placeholder/secret/境界問題なし、
 zero/nonzero展開の入力/全Parameter.grad旧照合、拒否RNG/input/shared不変、empty batch/reuse/storage、ambient float64/meta/grad/PythonNP保持、旧bounded meanlossとsnapshot選択→標準load接続を確認した。
 Luna APPROVED、53 passed/exit0、placeholder/secretなし、test-only境界/勾配/拒否/相互接続問題なし。指摘なし。
 主担当fresh53 passed/2.31s/exit0、実diff/source無変更/diffcheckでVERIFIED。AST/fullはTask3のままTask2を完了する。旧新差異・追加の旧不具合は観測していない。
+
+## Task3実測証拠
+AST担当READY_FOR_REVIEW（AST部分のみ）。禁止28/許可21先行RED22 failed/297 passed/2.68s/exit1→exactguard後319 passed/2.08s/exit0。主担当fresh319 passed/2.27s/exit0。
+主担当fresh CPU smokeはRESIDUAL_ADAPTER_MODEL_ARCHITECTURE_SMOKE_PASS/exit0、旧package importなし。
+主担当全testsは3284 passed/3 skipped/1 warning/115.87s/exit0。旧11/最終3goldenを含む。skipは既存Windows非対応wrapper、warningは既存qint8 fixture deepcopyのTypedStorage非推奨。
+全suite開始後production/testは変更していない。旧production/golden/旧比較testは748c3aaと差分なし。承認hash/UTF-8/diffcheckも成功。
+12条件/実配置/依存と未移植範囲をintegration-validationへ記録した。新たな旧不具合は観測していない。続いてLuna task3review/最終feature gateを行う。
+
+## Task3 reviewと完了
+Luna APPROVED、対象/AST319 passed、全3284 passed/3 skipped/1 warning/exit0、placeholder/secretなし、exact依存とfresh smoke/RED証拠を確認。指摘なし。
+主担当はPASSを採用し、自ら取得した全回帰/smoke/319件のfresh出力、その後source/test不変更、旧基準差分なし、12条件とUTF-8/diffcheckによりVERIFIED。Task3を完了する。
