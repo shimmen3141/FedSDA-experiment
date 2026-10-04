@@ -51,3 +51,14 @@ LunaはPASS、拒否/keyword/環境/評価mean接続/非有限平均の分離と
 有限float32max2件から旧inf/新ValueError/入力不変を同条件実測し、主担当がLEGACY009へ記録。旧未修正・通常/過去影響未確認と区別する。
 Luna APPROVED、58 passed/3.91s、production変更なし、指摘なし。qint8 fixture deepcopyのTypedStorage非推奨警告1件はlibrary/test由来と確認。
 主担当fresh58 passed/1 warning/4.09s/exit0とdiffcheck成功、src差分なしでVERIFIED。Task3 AST/fullは未完了のままTask2を完了する。
+
+## Task3の実測証拠
+AST禁止14/許可7を先行追加しRED8 failed/209 passed/0.55s/exit1。exact2module境界へ更新後、対象58+AST217=275 passed/1 warning/4.55s/exit0。
+fresh CPU smokeはCANDIDATE_PARAMETER_INITIALIZATION_SMOKE_PASS/exit0、旧package importなし。
+全testsは3182 passed/3 skipped/1 warning/226.33s/exit0。旧11/最終3goldenを含み、旧production/golden/比較testは748c3aaと差分なし。
+全suite開始後production/testコードは変更なし。design/tasks/LEGACY009文書末尾の空行だけを除去しhashを更新した。契約・名前・役割を変えていない。
+9条件と実測の対応、配置と未移植範囲はintegration-validation.mdに記録。Luna taskreview/最終gateは続いて行う。
+
+## Task3レビューと完了
+Luna APPROVED。対象/AST275 passed/exit0、全3182 passed/3 skipped/exit0、placeholder/secretなし、exact依存と指定境界内、RED証拠を確認。指摘なし、最終feature GOは別gateとした。
+主担当は指摘なしの承認を採用。自ら取得した全回帰・smoke・275件の出力と、その後source/testコード変更なし、diffcheck/旧基準差分なしを照合してVERIFIED。Task3を完了する。

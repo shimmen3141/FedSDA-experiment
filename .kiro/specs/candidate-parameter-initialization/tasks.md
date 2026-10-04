@@ -18,7 +18,7 @@
   - _Boundary: Test-only integration（対象testのみ）_
   - _Depends: 1_
 
-- [ ] 3. 依存境界・全回帰と統合証拠を完成する
+- [x] 3. 依存境界・全回帰と統合証拠を完成する
   - exact2module依存の禁止/許可注入testを先に追加しRED確認後にallowlistを更新する。
   - CPU fresh smoke、対象testとAST、全tests旧11/最終3goldenを実行し、旧production/golden差分なしを確認する。
   - integration-validation.mdとroadmapへ9条件/配置/未移植範囲/旧発見の有無を記録する。実証済み発見だけ既存台帳へ記録する。
@@ -30,4 +30,3 @@
 ## Implementation Notes
 日本語ファイルはapply_patchで編集する。PowerShell→Python stdinの日本語文字列は破損する場合がある。
 環境testでtorch.set_default_deviceは使わずtorch.device contextを使う。
-

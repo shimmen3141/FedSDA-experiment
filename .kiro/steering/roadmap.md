@@ -56,3 +56,4 @@ SINE goldenの参照条件と所属はsingle-run-executionのreference-inventory
 2026-10-03の追加指示により、今後は要求・設計・task・命名・実装について、gpt-6-lunaレビューと主担当の有用指摘の反映を承認として進める。レビューと採否・承認対象を記録し、毎段階で人間承認を再要求しない。
 命名を変えた場合は承認を解除し、変更箇所をレビューする。
 移植対象のgoldenと機能テストを各単位の検証へ接続する。
+- 候補パラメータ初期化は`../specs/candidate-parameter-initialization/README.md`。現在の学習先/評価済み最小loss/全保有等平均から独立snapshotを返す部品を実装し、全15dtype・順序・copyを旧helperへ直接照合した。test-onlyの公開候補評価mean接続とexact依存/CPU fresh smoke、全tests3182 passed/3 skippedを検証済み。Luna最終統合gateは対象specに記録する。LEGACY009へ極大float32平均の非有限化を記録、旧productionは未修正・通常影響未確認。モデル生成/適用/optimizer/学習/候補session進行/新全体runは後続範囲。

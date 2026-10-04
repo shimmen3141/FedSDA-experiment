@@ -55,6 +55,19 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:
         return True
+    if source_module_path == "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py":
+        # 初期snapshot作成だけにtorchと同機能の公開設定型を許可する。
+        return imported_module_name in (
+            "torch", "torch.Tensor",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
+        )
+    if source_module_path == "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py":
+        # 設定宣言は既存の公開field検査関数だけを参照する。
+        return imported_module_name in (
+            "federated_learning_experiments.core.settings_field_validation",
+            "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
+        )
     if source_module_path == "learning/loss_statistics/server_loss_mean_aggregation.py":
         # サーバ用途の平均集約は公開集計値型だけに依存する。
         return imported_module_name in (
@@ -255,6 +268,20 @@ def test_single_run_layers_import_only_allowed_dependencies():
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_imported_module_name",
     [
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import numpy", "numpy"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import torch._C", "torch._C"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from torch import nn", "torch.nn"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from .candidate_parameter_initialization_settings import _private", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings._private"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from .candidate_parameter_initialization_settings import validate_settings_field_values", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.validate_settings_field_values"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.child", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.child"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from .post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses", "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import federated_drift_experiment.config", "federated_drift_experiment.config"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "import torch", "torch"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "import numpy", "numpy"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from federated_learning_experiments.core.settings_field_validation import fields", "federated_learning_experiments.core.settings_field_validation.fields"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from federated_learning_experiments.core.settings_field_validation import _private", "federated_learning_experiments.core.settings_field_validation._private"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from federated_learning_experiments.core import configuration_errors", "federated_learning_experiments.core.configuration_errors"),
         ("learning/loss_statistics/server_loss_mean_aggregation.py", "import torch", "torch"),
         ("learning/loss_statistics/server_loss_mean_aggregation.py", "import numpy", "numpy"),
         ("learning/loss_statistics/server_loss_mean_aggregation.py", "import config", "config"),
@@ -429,6 +456,13 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
 @pytest.mark.parametrize(
     "source_module_path,source_text",
     [
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import math"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import torch"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from torch import Tensor"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from .candidate_parameter_initialization_settings import CandidateParameterInitializationSettings"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import CandidateParameterInitializationSettings"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from dataclasses import dataclass, field"),
+        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from federated_learning_experiments.core.settings_field_validation import validate_settings_field_values"),
         ("learning/loss_statistics/server_loss_mean_aggregation.py", "from dataclasses import dataclass"),
         ("learning/loss_statistics/server_loss_mean_aggregation.py", "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments"),
         ("learning/loss_statistics/server_loss_mean_aggregation.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments"),

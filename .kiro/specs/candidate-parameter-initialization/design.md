@@ -76,4 +76,3 @@ snapshot metadata/load_state_dictの責務は今回持たない。parameter名�
 Task1 TDDで三方式・同率/空/評価外・完全shared風keys/dtypesをunbound旧oracleへ照合。モデルconstructor無しget_params stubだけ。
 Task2拒否/後段異常/コピー/gradient/環境、既存警報後候補評価出力のmeanを明示渡して結果を検証。
 Task3 AST禁止注入のRED→exact2module境界、fresh CPU smoke、全tests、配置/9条件/旧golden無変更、Luna最終GO。
-
