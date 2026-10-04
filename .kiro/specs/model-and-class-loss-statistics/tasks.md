@@ -8,7 +8,7 @@
   - _Boundary: model/class statistics_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 4.1_
 
-- [ ] 2. 拒否の原子性・独立性と上位接続を検証する
+- [x] 2. 拒否の原子性・独立性と上位接続を検証する
   - ID/損失/seed/forged値と後段class overflowの拒否で全状態不変を確認する。
   - 入力map/seed/参照・別storeの独立、frozen/RNG/default型/device/keywordと、全体→baseline→monitor/参照の明示test接続を確認する。
   - 完了時、LEGACY006の旧部分更新と新拒否の差が記録され、正常系列を変えず副作用がない。

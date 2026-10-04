@@ -14,3 +14,6 @@ Lunaは追加した`class_loss_moments_pair`が未検査の入力一要素を表
 
 ## task 1: APPROVED / VERIFIED
 REDは未実装moduleのModuleNotFoundError、exit1。Lunaは旧Welford照合、seed保持・一括置換・順序・独立snapshot、原子的commitと責務境界を確認しAPPROVED。指摘なし。主担当も実コードを確認し、再実行8 passed /1.62s /exit0を確認して完了とした。
+
+## task 2: APPROVED / VERIFIED
+test-onlyのためRED非該当。Lunaは入力・後段class overflowの原子的拒否、seed/参照/別store独立、共有状態と明示全体基準接続を確認しAPPROVED。指摘なし。主担当も対象41件の再実行exit0を確認。旧不正classの部分更新を同入力で対照し、旧productionは変更しない。
