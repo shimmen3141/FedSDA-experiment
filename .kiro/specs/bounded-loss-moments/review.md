@@ -15,3 +15,6 @@ LunaはLEGACY-005/006を旧ソースと照合しPASS。説明不整合と不正�
 ## task 1: APPROVED / VERIFIED
 REDは未実装moduleのModuleNotFoundError、exit 1。実装後44 passed、Luna独立レビューAPPROVED・指摘なし。主担当も旧演算順/不変値/拒否境界を読んで、最新target44 passed/exit 0と独立smokeを確認した。結果型の手動構築検証は設計外のため実装中に削除した。上位接続/AST/全回帰は後続task。
 
+## task 2: APPROVED / VERIFIED
+test-only上位接続のためRED非該当。Lunaは旧全体/class更新、保存平均の監視利用・n2候補履歴、共有状態とkeyword契約を確認しAPPROVED。指摘なし。主担当の最新targetも53 passed/exit0、productionの上位依存追加なしを確認。
+

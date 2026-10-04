@@ -1,6 +1,7 @@
 """有界損失の不変集計値を旧逐次計算へ直接照合する。"""
 
 from dataclasses import FrozenInstanceError
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -140,3 +141,125 @@ def test_loss_moments_distinguish_unsupported_from_zero():
     with pytest.raises(ValueError, match="observed_loss_count"):
         accumulate_bounded_loss_observation(loss_moments=loss_moments, observed_loss=0.5)
     assert vars(loss_moments) == state_before_call
+
+
+@pytest.mark.parametrize("loss_sequence", [
+    ((7, 0, .1), (7, 1, .9), (7, 0, .3), (-2, 1, 0.), (-2, 1, 1.)),
+    ((7, 0, 0.), (7, 0, 0.), (7, 1, 1.), (-2, 0, .5)),
+])
+def test_loss_moments_match_legacy_class_updates(loss_sequence):
+    """帰属順で全体と正解classの独立系列を旧辞書へ照合する。"""
+    legacy_client = SimpleNamespace(model_stats={}, _update_running_stats=BaseClient._update_running_stats)
+    overall_loss_moments = {}
+    class_loss_moments = {}
+    for model_id, class_id, observed_loss in loss_sequence:
+        BaseClient._update_model_stats(legacy_client, model_id, observed_loss, class_id)
+        overall_loss_moments[model_id] = accumulate_bounded_loss_observation(
+            loss_moments=overall_loss_moments.get(model_id, BoundedLossMoments(
+                observed_loss_count=0, mean_loss=0, sum_squared_loss_deviations=0)),
+            observed_loss=observed_loss)
+        class_loss_moments[model_id, class_id] = accumulate_bounded_loss_observation(
+            loss_moments=class_loss_moments.get((model_id, class_id), BoundedLossMoments(
+                observed_loss_count=0, mean_loss=0, sum_squared_loss_deviations=0)),
+            observed_loss=observed_loss)
+        for model_id, result in overall_loss_moments.items():
+            legacy_stats = legacy_client.model_stats[model_id]
+            assert (result.observed_loss_count, result.mean_loss, result.sum_squared_loss_deviations) == (
+                legacy_stats["n"], legacy_stats["mean"], legacy_stats["M2"])
+        for (model_id, class_id), result in class_loss_moments.items():
+            legacy_class_stats = legacy_client.model_stats[model_id]["class_stats"][class_id]
+            assert (result.observed_loss_count, result.mean_loss, result.sum_squared_loss_deviations) == (
+                legacy_class_stats["n"], legacy_class_stats["mean"], legacy_class_stats["M2"])
+
+
+@pytest.mark.parametrize("loss_sequence", [(), (.2,), (.2, .4), (0., 0.), (1., 1.)])
+def test_loss_moments_connect_to_monitor_and_reference_evaluation(loss_sequence):
+    """1件の保存平均は監視に使え、候補履歴には2件以上だけを渡す。"""
+    from federated_drift_experiment.clients.fedsda import ESRFedSDAClient
+    from federated_drift_experiment.provisional_model import select_forward_fitting_reference
+    from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import LossChangeDetectionSettings
+    from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import OverallAndTrueClassLossMonitor
+    from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import select_available_reference_within_historical_loss_tolerance
+
+    legacy_stats = dict(n=0, mean=0., M2=0.)
+    overall_loss_moments = BoundedLossMoments(observed_loss_count=0, mean_loss=0, sum_squared_loss_deviations=0)
+    for observed_loss in loss_sequence:
+        BaseClient._update_running_stats(legacy_stats, observed_loss)
+        overall_loss_moments = accumulate_bounded_loss_observation(
+            loss_moments=overall_loss_moments, observed_loss=observed_loss)
+    legacy_client = SimpleNamespace(model_stats={7: legacy_stats}, current_model_id=7)
+    # clipと件数条件は接続側の旧方針。数値部品には持ち込まない。
+    result = .01 if overall_loss_moments.observed_loss_count < 1 else min(
+        1. - 1e-6, max(.01, overall_loss_moments.mean_loss))
+    assert result == ESRFedSDAClient._e_detector_baseline(legacy_client)
+    monitor = OverallAndTrueClassLossMonitor(
+        loss_change_detection_settings=LossChangeDetectionSettings(
+            drift_detector_name="e_sr", loss_monitoring_scope="overall_and_true_class_losses",
+            e_sr_false_alarm_control_alpha=.01),
+        class_count=2, initial_baseline_loss_mean=result,
+        maximum_retained_candidate_count=5, betting_fractions=(.1, .4))
+    class_loss_moments = BoundedLossMoments(
+        observed_loss_count=2, mean_loss=.9, sum_squared_loss_deviations=0.)
+    observation = monitor.observe_loss_after_label_observation(
+        observed_loss=.5, observed_class_id=0, sample_index=0,
+        current_model_baseline_loss_mean=result)
+    assert observation.component_update_count == 2
+    assert monitor.get_state_snapshot().overall_esr_state.baseline_loss_mean == result
+    assert monitor.get_state_snapshot().class_esr_states_by_class_id[0][1].baseline_loss_mean == result
+    assert class_loss_moments.mean_loss == .9  # 独立クラス統計の平均へ置換しない。
+    estimate = estimate_loss_mean_and_sample_variance(loss_moments=overall_loss_moments)
+    reference_historical_mean_losses_by_model_id = {} if estimate is None else {7: estimate.mean_loss}
+    assert reference_historical_mean_losses_by_model_id == (
+        {7: legacy_stats["mean"]} if legacy_stats["n"] >= 2 else {})
+    reference_losses_by_model_id = {7: (.1, .2)}
+    available_reference_model_ids = (7,)
+    current_training_model_id = 7
+    assert select_available_reference_within_historical_loss_tolerance(
+        reference_losses_by_model_id=reference_losses_by_model_id,
+        reference_historical_mean_losses_by_model_id=reference_historical_mean_losses_by_model_id,
+        available_reference_model_ids=available_reference_model_ids,
+        current_training_model_id=current_training_model_id,
+        maximum_reference_mean_loss_increase=.2) == select_forward_fitting_reference(
+            reference_losses_by_model_id, reference_historical_mean_losses_by_model_id, .2, preferred_model_id=7)
+
+
+def test_loss_moments_preserve_shared_numeric_state():
+    """純粋集計は共有RNG・既定型・deviceに影響しない。"""
+    import random
+    import numpy as np
+    import torch
+
+    global_python_random_state = random.getstate()
+    global_numpy_random_state = np.random.get_state()
+    global_torch_random_state = torch.get_rng_state().clone()
+    global_default_dtype = torch.get_default_dtype()
+    global_default_device = torch.get_default_device()
+    try:
+        torch.set_default_dtype(torch.float64)
+        with torch.device("meta"):
+            overall_loss_moments = BoundedLossMoments(
+                observed_loss_count=1, mean_loss=.25, sum_squared_loss_deviations=.1)
+            result = accumulate_bounded_loss_observation(loss_moments=overall_loss_moments, observed_loss=.75)
+            assert estimate_loss_mean_and_sample_variance(loss_moments=result).sample_variance == .225
+            assert torch.get_default_device() == torch.device("meta")
+            assert torch.get_default_dtype() == torch.float64
+    finally:
+        torch.set_default_dtype(global_default_dtype)
+    assert random.getstate() == global_python_random_state
+    assert np.random.get_state()[0] == global_numpy_random_state[0]
+    assert np.array_equal(np.random.get_state()[1], global_numpy_random_state[1])
+    assert np.random.get_state()[2:] == global_numpy_random_state[2:]
+    assert torch.equal(torch.get_rng_state(), global_torch_random_state)
+    assert torch.get_default_dtype() == global_default_dtype
+    assert torch.get_default_device() == global_default_device
+
+
+def test_loss_moments_use_keyword_arguments():
+    """意味を取り違えないkeyword-only呼出を固定する。"""
+    overall_loss_moments = BoundedLossMoments(observed_loss_count=2, mean_loss=0, sum_squared_loss_deviations=0)
+    with pytest.raises(TypeError):
+        BoundedLossMoments(2, 0, 0)
+    with pytest.raises(TypeError):
+        accumulate_bounded_loss_observation(overall_loss_moments, .2)
+    with pytest.raises(TypeError):
+        estimate_loss_mean_and_sample_variance(overall_loss_moments)

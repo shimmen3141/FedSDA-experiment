@@ -2,7 +2,7 @@
   "feature_name": "bounded-loss-moments",
   "language": "ja",
   "created_at": "2026-10-04T01:30:34.925129+00:00",
-  "updated_at": "2026-10-04T01:45:27.308429+00:00",
+  "updated_at": "2026-10-04T01:47:37.228318+00:00",
   "phase": "implementation-in-progress",
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
@@ -48,7 +48,7 @@
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
       "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
-      "current_sha256_lf": "9fbc060a12ab36bb02fd29a2afe210be5677a4ae9a94e2b5a9bc872c626dd61b"
+      "current_sha256_lf": "1fff04ac9eb68cb3766e70570151fa7f5212693314550f3812389b728be15f42"
     }
   },
   "adjacent_specs": [
@@ -63,10 +63,11 @@
   },
   "implementation_progress": {
     "completed_tasks": [
-      "1"
+      "1",
+      "2"
     ],
-    "completed_task_count": 1,
-    "next_task": "2",
+    "completed_task_count": 2,
+    "next_task": "3",
     "total_executable_tasks": 3
   }
 }

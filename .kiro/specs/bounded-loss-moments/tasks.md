@@ -9,7 +9,7 @@
   - _Boundary: learning loss statistics_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 4.1_
 
-- [ ] 2. 用途別の上位接続と共有数値状態を検証する
+- [x] 2. 用途別の上位接続と共有数値状態を検証する
   - 旧全体/class更新、保存平均から監視、2件以上の平均から候補履歴への明示入力をtestで確認する。
   - RNG・既定dtype/device・keyword契約を確認し、productionへ上位policyは追加しない。
   - 完了時、独立系列と上位接続が一致し共有状態が変わらない。
