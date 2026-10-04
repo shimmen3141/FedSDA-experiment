@@ -1,5 +1,9 @@
 # レビューと承認
 
+## task 1: APPROVED / TASK VERIFIED
+
+REDは未存在moduleのcollection error。実装後54 passed、Luna独立再実行54 passed / exit 0でReview Verdict APPROVED task 1、指摘なし。主担当fresh再実行も54 passed / exit 0。target2/3/5・開始0/100/大整数と固定参照順、全入力拒否/状態不変、完了後非自動消去、旧部分更新の再現を確認。LEGACY-004へtestとコマンドを追記。入力拒否は正常clientとの数値一致と区別した新境界。
+
 ## task graph: PASS
 
 保存前draftをLunaが独立確認。初回は3.3の明示割当不足と指摘したが、draftは既に3.3を含んでいた。主担当は到達後の非自動処理を観測できる完了条件の追加を有用と判断して採用。再レビューPASS。全15条件、依存順、単一責務と既存環境・採否APIの実行可能性を確認し委任承認。完了thread再利用の独立レビュー。

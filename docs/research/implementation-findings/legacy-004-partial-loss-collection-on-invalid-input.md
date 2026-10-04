@@ -9,6 +9,8 @@
 固定参照順=(2,1)、target_count=2の空sessionへappend_losses(.2,{2:.4})を直接渡すとKeyError(1)。例外後もcandidate_losses=[.2]、reference_losses={2:[.4],1:[]}が残る。調査agentと主担当が旧メソッドを直接実行して確認した。
 旧APIは余剰IDを無視し、規定件数到達後の直接追加も許す。通常clientは全固定参照を毎回供給してtarget到達直後にfinalizeするため、これらの不正/過剰呼出が通常実験で起こるとは断定しない。
 
+再現は[収集部品のテスト](../../../tests/refactoring/test_post_alarm_candidate_loss_collection.py)のtest_candidate_loss_collection_invalid_observation_is_atomic_for_legacy_partial_update。worktreeで`../../venv/Scripts/python.exe -m pytest tests/refactoring/test_post_alarm_candidate_loss_collection.py -k legacy_partial_update -q -p no:cacheprovider`を実行する。旧メソッドの部分更新と新APIの全状態不変を同じ不足参照で比較する。
+
 ## 影響・今回の扱い
 
 直接APIで例外を捕捉して続行した場合、系列長の不一致・不正な検証件数となる可能性がある。過去成果への影響は未確認。今回の新収集部品は全値を更新前に検査して拒否時状態を維持し、規定件数後を拒否する。これは新契約の入力境界であり旧production修正ではない。
