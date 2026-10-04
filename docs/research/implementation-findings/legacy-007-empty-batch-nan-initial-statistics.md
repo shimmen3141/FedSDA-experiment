@@ -32,3 +32,9 @@ assert -1 in client.models
 
 ## 将来の修正と検証
 担当はモデル登録時の入力検査と初期統計作成。prepare/モデル保持/送信より前に空batchなどを拒否し、例外後に外部状態が残らない契約を検討する。正常seed直接oracle、拒否後モデル/統計/pending状態、旧11/最終3goldenを検証する。旧修正spec/commitは未定。
+
+## 新初期統計部品での対応
+2026-10-04、[batch-loss-statistics-initialization](../../../.kiro/specs/batch-loss-statistics-initialization/README.md)で新数値関数の非空・件数一致・有限入力契約を実装。
+[テスト](../../../tests/refactoring/test_batch_loss_statistics_initialization.py)の`test_batch_initial_statistics_rejects_invalid_input_without_mutation`で旧空NaN登録と新非空拒否を同入力で対照し、正常24ケースは旧全fieldへ完全一致。
+全testsは2965 passed /3 skipped、旧11/最終3golden更新なし。詳細は同specのintegration-validation.md。
+新関数はモデル登録を所有しないため、旧登録処理の原子的修正を完了したとは扱わない。旧修正と正常経路・過去成果への影響調査は未定のまま保持する。

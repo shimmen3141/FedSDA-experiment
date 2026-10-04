@@ -16,7 +16,7 @@
   - _Boundary: test integration_
   - _Requirements: 2.1, 2.2, 2.3, 3.2_
 
-- [ ] 3. 依存境界・全回帰と独立起動を統合検証する
+- [x] 3. 依存境界・全回帰と独立起動を統合検証する
   - exact数値module/型とtorchだけをASTで許可し、store/別symbol/private/別module/methods/runtime/旧/NumPyを禁止注入する。
   - 完了時、全tests旧11/最終3golden不変、CPUtorch fresh smoke、9条件/roadmap/LEGACY007扱いとLuna最終GOの証拠が揃う。
   - _Depends: 1, 2_

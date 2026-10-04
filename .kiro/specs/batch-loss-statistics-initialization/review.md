@@ -22,3 +22,9 @@ REDは未実装moduleのModuleNotFoundError/exit1。Lunaは24件の旧正常登�
 
 ## task 2: APPROVED / VERIFIED
 test-onlyのためRED非該当。Lunaは33異常ケースの入力非変更、LEGACY007対照、immutable独立・grad/RNG/default維持、store/update/baseline明示接続を確認しAPPROVED。指摘なし。主担当も対象60件のfresh再実行/exit0を確認して完了とした。
+
+## task 3 レビュー1: REJECTED / 採用・修正
+Lunaがtorch.*の広い許可ではprivate torch._Cも通ることを実際に検証。public依存境界の検査として有用と判断し、直接importはtorch本体と公開Tensor型に限定し、torch._C禁止注入を追加。集計productionは変更しない。対象とASTは修正後224件/exit0で再検証。再レビューと最終全回帰へ進む。
+
+## task 3 再レビュー: APPROVED / VERIFIED
+Lunaはexacttorch/Tensor依存とprivate拒否case、224件の独立再実行、2965 passed /3 skipped /124.63sの最終全回帰・scope/台帳/smokeを確認しAPPROVED。未解決指摘なし。主担当もfresh対象224件とCPU独立smoke/exit0を確認して完了とした。旧production/golden/比較testsは748c3aaから差分なし。
