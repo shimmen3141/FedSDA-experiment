@@ -32,3 +32,9 @@ PASS: dtype/順序/全検査/copy/CPU dense/一責務とexact依存が整合し�
 主担当gate: 9条件の割当、1→2→3のDepends、共有ファイルのため(P)なし、既存venv/validator前提、実測可能な完了状態を確認してPASS。
 GPT-6 Luna（独立・既存thread再利用）はPASS。3taskが一責務と明示test-only/統合境界に沿い、隠れた前提・漏れ・過大taskなし。
 主担当は指摘なしのPASSを採用してtasks.mdを保存し、内容hashを承認する。
+
+## Task1
+実装者READY_FOR_REVIEW。REDは設定module未実装のcollection 1error/3.56s/exit1、GREEN18 passed/3.20s/exit0。
+実旧helperと三方式/先着同率/空/fallback/評価外/丸め/15dtype/Shared風key/逆key順/スカラー/空形状/noncontiguousを照合し、基本storage独立性も検証。
+LunaはAPPROVED、対象18 passed/3.19s/exit0、placeholder/secretなし、指定3files境界内、生成/評価/学習の先取りなし。指摘なし。
+主担当fresh検証18 passed/3.14s/exit0とsource直接読みでVERIFIED。高度拒否・grad/環境・候補評価接続とAST/fullは後続のままTask1を完了する。

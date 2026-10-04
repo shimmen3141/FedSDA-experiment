@@ -1,7 +1,7 @@
 {
   "feature_name": "candidate-parameter-initialization",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -41,7 +41,8 @@
       "approved_sha256_lf": "3aecaca63f1adf2199e507f41e9551f66d489396ee8b0b30e0fe537890f66ff8",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "reviewer_thread": "/root/luna_single_run_3_1_review"
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "current_sha256_lf": "df82b10355116818219b7cf58b50816a3c75e2f0616fab7eca92dee1dc1a2e8f"
     }
   },
   "created_at": "2026-10-04T11:39:15.904278+00:00",
@@ -51,16 +52,18 @@
   "adjacent_specs": [
     "post-alarm-candidate-loss-evaluation"
   ],
-  "updated_at": "2026-10-04T11:52:14.416294+00:00",
+  "updated_at": "2026-10-04T12:01:33.542872+00:00",
   "task_graph_review": {
     "verdict": "PASS",
     "mode": "independent_reused_thread",
     "record": "review.md"
   },
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
     "total_executable_tasks": 3,
-    "next_task": "1"
+    "next_task": "2"
   }
 }

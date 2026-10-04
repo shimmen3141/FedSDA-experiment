@@ -2,7 +2,7 @@
 全タスクは順次。共通production/testファイルを扱うため(P)なし。
 共有venv/pytest/pythonpathとCPU torchは準備済み。実行環境はdocs/experiments/refactoring-baseline.md。
 
-- [ ] 1. 初期化設定と独立snapshot作成を実装する
+- [x] 1. 初期化設定と独立snapshot作成を実装する
   - 対象testを先に書きmissing-module REDを確認し、三方式/同率/空/順序/型を実旧unbound helperへ直接照合してGREENにする。
   - 全入力検査とdetach cloneを実装し、snapshotを返す一責務に限定する。Shared風完全stateはtest入力で表現する。
   - 完了は指定2productionファイルと対象testの実pytest成功、Luna task reviewと主担当fresh検証で観測する。
