@@ -53,6 +53,25 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/parameter_optimizer_settings.py":
+        # optimizer設定は一般stdlib/core許可より前に公開field検査へ限定する。
+        return imported_module_name in (
+            "__future__", "__future__.annotations",
+            "dataclasses", "dataclasses.dataclass", "dataclasses.field",
+            "federated_learning_experiments.core.settings_field_validation",
+            "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
+        )
+    if source_module_path == "learning/training/parameter_optimizer_construction.py":
+        # 生成部は指定Parameter/optimizerと専用公開設定型だけを参照する。
+        return imported_module_name in (
+            "__future__", "__future__.annotations",
+            "torch", "torch.float32", "torch.strided",
+            "torch.nn", "torch.nn.Parameter",
+            "torch.optim", "torch.optim.Optimizer", "torch.optim.Adam", "torch.optim.SGD",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+        )
     if source_module_path in (
         "learning/models/shared_feature_extractor.py",
         "learning/models/nonlinear_residual_adapter.py",
@@ -293,6 +312,36 @@ def test_single_run_layers_import_only_allowed_dependencies():
     [
         *[(source_module_path, source_text, expected_imported_module_name)
           for source_module_path in (
+              "learning/training/parameter_optimizer_settings.py",
+              "learning/training/parameter_optimizer_construction.py",
+          )
+          for source_text, expected_imported_module_name in (
+              ("import math", "math"),
+              ("import random", "random"),
+              ("import numpy", "numpy"),
+              ("import torch._C", "torch._C"),
+              ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
+              ("from ..models import residual_adapter_classifier", "federated_learning_experiments.learning.models.residual_adapter_classifier"),
+              ("import federated_learning_experiments.data.sine.sine_sample_generation", "federated_learning_experiments.data.sine.sine_sample_generation"),
+              ("import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+              ("import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization"),
+          )],
+        ("learning/training/parameter_optimizer_settings.py", "import torch", "torch"),
+        ("learning/training/parameter_optimizer_settings.py", "import torch.optim", "torch.optim"),
+        ("learning/training/parameter_optimizer_settings.py", "from dataclasses import asdict", "dataclasses.asdict"),
+        ("learning/training/parameter_optimizer_settings.py", "from ...core.settings_field_validation import _private", "federated_learning_experiments.core.settings_field_validation._private"),
+        ("learning/training/parameter_optimizer_settings.py", "from ...core.settings_field_validation import fields", "federated_learning_experiments.core.settings_field_validation.fields"),
+        ("learning/training/parameter_optimizer_settings.py", "import federated_learning_experiments.core.settings_field_validation.child", "federated_learning_experiments.core.settings_field_validation.child"),
+        ("learning/training/parameter_optimizer_settings.py", "from ...core.configuration_errors import RunSettingsValidationError", "federated_learning_experiments.core.configuration_errors"),
+        ("learning/training/parameter_optimizer_construction.py", "from torch.optim import RMSprop", "torch.optim.RMSprop"),
+        ("learning/training/parameter_optimizer_construction.py", "import torch.optim.lr_scheduler", "torch.optim.lr_scheduler"),
+        ("learning/training/parameter_optimizer_construction.py", "import torch.optim.optimizer", "torch.optim.optimizer"),
+        ("learning/training/parameter_optimizer_construction.py", "from torch.nn import Module", "torch.nn.Module"),
+        ("learning/training/parameter_optimizer_construction.py", "from .parameter_optimizer_settings import _private", "federated_learning_experiments.learning.training.parameter_optimizer_settings._private"),
+        ("learning/training/parameter_optimizer_construction.py", "from .parameter_optimizer_settings import validate_settings_field_values", "federated_learning_experiments.learning.training.parameter_optimizer_settings.validate_settings_field_values"),
+        ("learning/training/parameter_optimizer_construction.py", "import federated_learning_experiments.learning.training.parameter_optimizer_settings.child", "federated_learning_experiments.learning.training.parameter_optimizer_settings.child"),
+        *[(source_module_path, source_text, expected_imported_module_name)
+          for source_module_path in (
               "learning/models/shared_feature_extractor.py",
               "learning/models/nonlinear_residual_adapter.py",
               "learning/models/residual_adapter_classifier.py",
@@ -501,6 +550,17 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
 @pytest.mark.parametrize(
     "source_module_path,source_text",
     [
+        ("learning/training/parameter_optimizer_settings.py", "from dataclasses import dataclass, field"),
+        ("learning/training/parameter_optimizer_settings.py", "from ...core.settings_field_validation import validate_settings_field_values"),
+        ("learning/training/parameter_optimizer_settings.py", "from federated_learning_experiments.core.settings_field_validation import validate_settings_field_values"),
+        ("learning/training/parameter_optimizer_settings.py", "from __future__ import annotations"),
+        ("learning/training/parameter_optimizer_construction.py", "import torch"),
+        ("learning/training/parameter_optimizer_construction.py", "from torch import float32, strided"),
+        ("learning/training/parameter_optimizer_construction.py", "from torch.nn import Parameter"),
+        ("learning/training/parameter_optimizer_construction.py", "from torch.optim import Optimizer, Adam, SGD"),
+        ("learning/training/parameter_optimizer_construction.py", "from .parameter_optimizer_settings import AdamParameterOptimizerSettings, SgdParameterOptimizerSettings"),
+        ("learning/training/parameter_optimizer_construction.py", "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings, SgdParameterOptimizerSettings"),
+        ("learning/training/parameter_optimizer_construction.py", "from __future__ import annotations"),
         *[(source_module_path, source_text)
           for source_module_path in (
               "learning/models/shared_feature_extractor.py",

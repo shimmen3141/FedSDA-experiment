@@ -34,3 +34,14 @@ sourceは変更せず、極大intについて実旧builder同様のconstructor-o
 主担当fresh37 passed/4.30s/exit0、production不変更を確認。
 主担当は接続testでModuleをparameterと呼び、input_parametersを集合と単列でshadowする局所名を改善。Lunaは追加名revision2にPASS。承認後にそのtestの局所名だけを改めた。契約/productionは不変。
 局所名修正後の主担当fresh37 passed/3.04s/exit0と実diffで意味不変を確認してVERIFIED。Task2を完了する。AST/fullは未完了。
+
+## Task3実測証拠
+AST担当READY_FOR_REVIEW（依存部分のみ）。32禁止/11許可先行RED16 failed/330 passed/3.55s/exit1→exactguard後346 passed/3.41s/exit0、主担当fresh346 passed/3.39s/exit0。
+主担当fresh CPU smokeはPARAMETER_OPTIMIZER_CONSTRUCTION_SMOKE_PASS/exit0、旧importなし。
+主担当全testsは3364 passed/3 skipped/1 warning/176.97s/exit0。旧11/最終3golden含む。skip既存Windowswrapper、warning既存qint8fixture TypedStorage。
+全suite開始後production/testは不変更。旧production/golden/旧比較testは748c3aa無差分、承認hash/9条件/UTF-8/diffcheck確認済み。
+配置/未移植境界/9条件をintegration-validationへ記録。LEGACY010の旧空共有optimizer失敗は主担当も再現済み、旧未修正/通常過去影響未確認。Luna task3とfeature統合gateを続ける。
+
+## Task3レビューと完了
+Luna APPROVED、対象/AST346 passed/exit0、全3364 passed/3 skipped/1 warning/exit0、placeholder/secretなし、旧無差分・exact依存・REDとsmoke証拠を確認。指摘なし。
+主担当はAPPROVEDを採用し、fresh全suite/346件/smoke、その後source/test不変更、旧基準無差分/hash/9条件/UTF-8/diffcheckでVERIFIED。Task3を完了する。

@@ -19,7 +19,7 @@
   - _Boundary: Test-only integration（対象testのみ）_
   - _Depends: 1_
 
-- [ ] 3. 依存境界・全回帰と完成証拠を揃える
+- [x] 3. 依存境界・全回帰と完成証拠を揃える
   - exact2module/symbol禁止/許可注入testを先行追加して実RED→allowlist更新GREENを確認する。
   - fresh CPU生成/外部step smoke（旧importなし）、対象＋AST、全tests旧11/最終3golden、旧748c3aa無差分を確認する。
   - integration-validationとroadmapへ9条件/配置/未移植境界を記録。実証した空共有optimizer問題は既存findings台帳に記録する。
