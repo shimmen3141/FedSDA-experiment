@@ -1,5 +1,13 @@
 # レビューと承認
 
+## task 3 修正後: APPROVED / TASK VERIFIED
+
+Lunaはexact許可と2つの禁止注入を再確認してReview Verdict APPROVED task 3、独立対象178 passed /exit 0、指摘なし。主担当fresh対象も178 passed /2.34s、独立smoke exit 0。修正後全回帰は2664 passed /3 skipped /157.32s、exit 0。初回全回帰2662 passed /3 skipped /203.59sからgoldenを更新せず、境界ゲートの改善だけを加えて再実行した。条件15/15・設計/依存/部分完成・共有発見記録を確認してTASK VERIFIED。最終feature GOは別判定。
+
+## task 3 初回: REJECTED / 修正
+
+対象176件は成功したが、Lunaが設定モジュールのprefix許可によって仮のnested moduleまで許可されることを実確認してREJECTED。主担当は有用と判断し、設定モジュールと宣言されたCandidateModelTrainingAndAcceptanceSettingsだけのexact許可へ修正。nested moduleと未宣言型の禁止注入を追加し、対象178 passed / exit 0。旧production・goldenは変更なし。修正後の独立レビューと全回帰を再実行する。
+
 ## task 2: APPROVED / TASK VERIFIED
 
 test-onlyの接続・時系列検証でproduction変更なし、REDは非該当。対象72 passed、Luna独立再実行72 passed / exit 0でReview Verdict APPROVED task 2、指摘なし。主担当fresh再検証も72 passed / exit 0。旧clientのtarget到達同回finalize・開始時固定参照/live消失・次回no-op、immutable copy/別実体/input変更/RNG/defaultdtype/device/keyword、既存採否と旧数値関数の明示照合を確認した。

@@ -17,7 +17,7 @@
   - _Depends: 1、既存post-alarm-candidate-loss-evaluation public API_
   - _Boundary: 明示test統合。対象testのみ、production採否/モデル依存を増やさない_
 
-- [ ] 3. 依存境界と全golden・独立起動を統合検証する
+- [x] 3. 依存境界と全golden・独立起動を統合検証する
   - exact部品だけ同機能設定を許可し、torch/NumPy/旧/globalconfig/採否/FIFO/runtime/別収集の禁止注入を実行する。
   - 全tests・旧11/最終3goldenと旧import/torch/NumPyなしsmokeを実行し、15/15条件・cross-task・design境界・blockedなしを記録する。
   - 完了はLuna APPROVEDと主担当fresh検証、最終feature GO。roadmapと部分完成/後続責務を更新し、新FedSDA全体runの完成と混同しない。

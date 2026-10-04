@@ -2,9 +2,9 @@
   "feature_name": "post-alarm-candidate-loss-collection",
   "language": "ja",
   "created_at": "2026-10-03T19:35:56.824762+00:00",
-  "updated_at": "2026-10-03T19:42:37.059479+00:00",
-  "phase": "tasks-approved",
-  "ready_for_implementation": true,
+  "updated_at": "2026-10-04T00:56:00.304495+00:00",
+  "phase": "integration-review",
+  "ready_for_implementation": false,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
     "requirements": {
@@ -47,7 +47,8 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages"
+      "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+      "current_sha256_lf": "23ad60a66925d9977025fd6e3328163d48a3b8e6043bd5a3521d9b76c922ec31"
     }
   },
   "upstream_specs": [
@@ -62,5 +63,15 @@
     "mode": "independent_reused_thread",
     "reviewer": "gpt-6-luna",
     "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [
+      "1",
+      "2",
+      "3"
+    ],
+    "completed_task_count": 3,
+    "next_task": null,
+    "total_executable_tasks": 3
   }
 }

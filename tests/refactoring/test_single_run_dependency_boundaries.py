@@ -55,6 +55,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:
         return True
+    if source_module_path == "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py":
+        # 収集状態は同機能設定だけを参照し、数値評価へ依存しない。
+        return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
+        )
     if source_module_path == "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py":
         # 保留位置FIFOは同機能の容量条件だけを参照する。
         return (
@@ -214,6 +220,16 @@ def test_single_run_layers_import_only_allowed_dependencies():
     "source_module_path,source_text,expected_imported_module_name",
     [
         ("learning/prediction/class_probability_calculations.py", "import numpy", "numpy"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import numpy", "numpy"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from .candidate_model_training_and_acceptance_settings import UnsupportedSettings", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.UnsupportedSettings"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import torch", "torch"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import config", "config"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from federated_drift_experiment import provisional_model", "federated_drift_experiment"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from . import post_alarm_candidate_loss_evaluation", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from ..training_data_assignment import pending_training_assignment_buffer", "federated_learning_experiments.methods.fedsda.training_data_assignment"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from . import another_loss_collection", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
         ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "import numpy", "numpy"),
         ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "import torch", "torch"),
         ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "import config", "config"),
@@ -311,6 +327,8 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
     "source_module_path,source_text",
     [
         ("learning/prediction/class_probability_calculations.py", "import torch"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings"),
+        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from dataclasses import dataclass"),
         ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from .training_data_assignment_settings import TrainingDataAssignmentSettings"),
         ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from collections import deque"),
         ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "import torch"),
