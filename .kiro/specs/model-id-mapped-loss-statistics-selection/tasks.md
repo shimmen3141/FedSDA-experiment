@@ -8,7 +8,7 @@
   - _Boundary: mapped statistics selection_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3_
 
-- [ ] 2. 拒否・独立性と統計管理への接続を検証する
+- [x] 2. 拒否・独立性と統計管理への接続を検証する
   - 型/ID/重複/後段不正/壊された統計と入れ子を拒否し、入力非変更とfrozen結果/別結果独立/共有環境を確認する。
   - 完了時、store snapshot→選択→新store構築で旧sourceIDが残らず、次帰属更新を旧更新へ照合し、用途別baselineへ明示接続できる。
   - _Depends: 1_

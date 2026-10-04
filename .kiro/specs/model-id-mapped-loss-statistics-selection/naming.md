@@ -1,5 +1,5 @@
 # 命名: モデルID対応後の損失統計選択
-revision: 2
+revision: 3
 
 短さより役割の明確さを優先する。statistical mergeではなくwhole recordのselection。model_id_mappingはID対応表で、予測のモデル重みや標本帰属を表さない。
 
@@ -37,3 +37,4 @@ convert_loss_statistics_snapshot_to_legacy_model_stats: snapshot全fieldを旧di
 select_legacy_loss_statistics_after_model_id_mapping: 最小stubで実旧apply_server_mappingを直接呼ぶ。
 assert_loss_statistics_snapshot_matches_legacy_model_stats: model/class順と全fieldの完全一致を確認。
 test_model_id_mapped_statistics_match_legacy_selection: 上記を使う正常oracle比較。
+build_valid_selection_inputs_for_rejection_tests: 後から一項目を壊す異常テストのため、独立した正常local/serverと対応表を作る。異常値自体は生成しない。
