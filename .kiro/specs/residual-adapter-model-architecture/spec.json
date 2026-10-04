@@ -1,8 +1,8 @@
 {
   "feature_name": "residual-adapter-model-architecture",
   "language": "ja",
-  "phase": "implementation-in-progress",
-  "ready_for_implementation": true,
+  "phase": "completed",
+  "ready_for_implementation": false,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
     "requirements": {
@@ -53,7 +53,7 @@
     "weighted-class-probability-prediction"
   ],
   "created_at": "2026-10-04T12:37:44.007699+00:00",
-  "updated_at": "2026-10-04T13:15:58.648804+00:00",
+  "updated_at": "2026-10-04T13:18:02.607173+00:00",
   "task_graph_review": {
     "verdict": "PASS",
     "mode": "independent_reused_thread",
@@ -68,5 +68,24 @@
     "completed_task_count": 3,
     "total_executable_tasks": 3,
     "next_task": null
+  },
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go",
+    "requirements_covered": 12,
+    "test_pass_count": 3284,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "cpu_float32_residual_adapter_model_construction_and_forward_only"
   }
 }

@@ -21,7 +21,7 @@
 
 ## 現在の状態
 
-- 最終モデル構造の移植は`../specs/residual-adapter-model-architecture/README.md`。共有特徴抽出/非線形残差/classifierのCPU32生成・forward、実旧state/RNG/gradient、test-only確率/snapshot接続を実装。対象＋AST319件、全tests3284 passed/3 skipped、CPU fresh smokeを検証した。Task1/2はLuna APPROVED、Task3/最終統合gate待ち。学習・optimizer・共有付替え・候補進行・新全体runは後続。
+- 最終モデル構造の移植は`../specs/residual-adapter-model-architecture/README.md`。全3tasksを完了しLuna最終統合GO。共有特徴抽出/非線形残差/classifierのCPU32生成・forward、実旧state/RNG/gradient、test-only確率/snapshot接続を実装。対象＋AST319件、全tests3284 passed/3 skipped、CPU fresh smokeを検証した。承認hash・12条件・実測・採否は対象specに記録。追加の旧不具合は観測していない。学習・optimizer・共有付替え・候補進行・新全体runは後続。
 
 - worktreeとcc-sdd導入: 完了。
 - アーキテクチャ規約・命名レビュー手順: 作成済み。
