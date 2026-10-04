@@ -1,0 +1,56 @@
+{
+  "feature_name": "loss-baseline-selection",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "a6502ba7c881adf6497f2760db3d645621950cced0486747c046a8ed91e2a595",
+      "approved_sha256_lf": "a6502ba7c881adf6497f2760db3d645621950cced0486747c046a8ed91e2a595",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "188240e4556f5daa2004241a936a7ed640ac363f867af0fa3b564427476bfbf0",
+      "approved_sha256_lf": "188240e4556f5daa2004241a936a7ed640ac363f867af0fa3b564427476bfbf0",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "ac222f74f47583df707b4b088e05a1981f89a2ca14c6db5f53a68b29e2dae38f",
+      "approved_sha256_lf": "ac222f74f47583df707b4b088e05a1981f89a2ca14c6db5f53a68b29e2dae38f",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md",
+      "revision": 1,
+      "approved_revision": 1
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "307e5565f9510dcd7d64ec5c410b98e981807bba868b805e15fd5d337b82d4f5",
+      "approved_sha256_lf": "307e5565f9510dcd7d64ec5c410b98e981807bba868b805e15fd5d337b82d4f5",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    }
+  },
+  "upstream_specs": [
+    "bounded-loss-moments"
+  ],
+  "adjacent_specs": [
+    "class-conditional-loss-monitoring",
+    "post-alarm-candidate-loss-evaluation"
+  ],
+  "updated_at": "2026-10-04T03:59:44.490448+00:00",
+  "created_at": "2026-10-04T03:55:42.925941+00:00"
+}

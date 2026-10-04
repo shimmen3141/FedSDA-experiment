@@ -1,0 +1,5 @@
+# 根拠と境界判断
+
+旧ESRFedSDAClient._e_detector_baselineはn0/欠落で.01、n1以上で保存平均をclip。FedSDAClientの警報時再利用はBaseClient._get_model_stats（n2以上）で得たmeanが0なら除外する。_begin_forward_validationはn2以上の保存meanを0も含めて履歴へsnapshotする。
+同じ有効平均判定へ統合するとゼロ平均と不足件数の判断が変わるため用途別に分ける。クラス監視へ全体平均を渡す選択/IDmap/seed生成/snapshot時機は後続。
+主担当は保存前要件ゲートで9条件・入力/異常・隣接範囲・観測できる直接oracleを確認した。既存数値部品への拡張で外部API追加なし。cc-sddとfable-methodを参照する。
