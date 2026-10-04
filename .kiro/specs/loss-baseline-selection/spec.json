@@ -1,7 +1,7 @@
 {
   "feature_name": "loss-baseline-selection",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -41,7 +41,8 @@
       "approved_sha256_lf": "307e5565f9510dcd7d64ec5c410b98e981807bba868b805e15fd5d337b82d4f5",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "current_sha256_lf": "8de2ed0b42c7cff97e3c83d0bd4e281c99f9e9416fbb9f28821cb4fdbb491258"
     }
   },
   "upstream_specs": [
@@ -51,6 +52,20 @@
     "class-conditional-loss-monitoring",
     "post-alarm-candidate-loss-evaluation"
   ],
-  "updated_at": "2026-10-04T03:59:44.490448+00:00",
-  "created_at": "2026-10-04T03:55:42.925941+00:00"
+  "updated_at": "2026-10-04T04:05:32.306308+00:00",
+  "created_at": "2026-10-04T03:55:42.925941+00:00",
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "reviewer": "gpt-6-luna",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "next_task": "2",
+    "total_executable_tasks": 3
+  }
 }
