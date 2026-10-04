@@ -10,7 +10,7 @@
   - _Boundary: NN architecture（指定3production・対象test）_
   - _Depends: なし（設定基盤は完了済み）_
 
-- [ ] 2. 拒否・勾配・共有と既存部品への接続を検証する
+- [x] 2. 拒否・勾配・共有と既存部品への接続を検証する
   - test名追加が必要なら命名revisionをLunaレビューしてから対象testだけを追加する。
   - forged設定/型・値域/共有実構造/forward契約を拒否し、構築前RNG/入力/shared不変、empty batch、storage共有/独立、ambient dtype/device/grad保持を検証する。
   - zero展開と非zero展開で実旧への入力・全Parameter勾配比較、新forward→既存確率/mean loss、既存snapshot選択→独立新モデル標準load_state_dictをtest-only接続する。
