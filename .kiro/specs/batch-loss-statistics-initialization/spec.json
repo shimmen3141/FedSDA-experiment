@@ -1,0 +1,62 @@
+{
+  "feature_name": "batch-loss-statistics-initialization",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "ed193537cebe096eeb1c7bdd0b8e9cdbb3e968b022097dfb0f93513677f97daa",
+      "approved_sha256_lf": "ed193537cebe096eeb1c7bdd0b8e9cdbb3e968b022097dfb0f93513677f97daa",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "9ed22a1f70c5410894f8b0d16cafc3738b5cc05b0afe9f4ab5f7975095fb4188",
+      "approved_sha256_lf": "9ed22a1f70c5410894f8b0d16cafc3738b5cc05b0afe9f4ab5f7975095fb4188",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "1d4c4ee78db495261704bc5d738145e00991c1fe78ba5afffc8a2e3e34b83962",
+      "approved_sha256_lf": "1d4c4ee78db495261704bc5d738145e00991c1fe78ba5afffc8a2e3e34b83962",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md",
+      "revision": 1,
+      "approved_revision": 1
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "8049379fee2bd95f25db349d4328c00643a63712805260fc309785c0d82092b5",
+      "approved_sha256_lf": "8049379fee2bd95f25db349d4328c00643a63712805260fc309785c0d82092b5",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    }
+  },
+  "upstream_specs": [
+    "bounded-loss-moments",
+    "model-and-class-loss-statistics"
+  ],
+  "adjacent_specs": [
+    "loss-baseline-selection"
+  ],
+  "created_at": "2026-10-04T06:18:49.102Z",
+  "updated_at": "2026-10-04T06:27:47.175051+00:00",
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "reviewer": "gpt-6-luna",
+    "record": "review.md"
+  }
+}
