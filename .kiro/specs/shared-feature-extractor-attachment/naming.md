@@ -1,4 +1,4 @@
-# 命名案 revision 2
+# 命名案 revision 3
 
 |種類|名前|役割/入出力/状態更新/違い|
 |---|---|---|
@@ -15,3 +15,5 @@
 test関数はtest_<観測する契約>で命名する。pytest fixtureと既存helperの明確な局所名を再利用する。
 
 revision2追加局所名: `parameters`（検査するParameter列）、`parameter_snapshot`（参照/値/gradの保存tuple）、`expected_prediction`（明示新抽出経路の出力）、`shared_feature_extractor_snapshot`（接続先状態の保存）。metaには数値実体がないため参照/shape/dtype/deviceだけ確認する。
+
+revision3: `previous_concept_optimizer_snapshots`は再接続前の概念別optimizer参照とstate辞書コピーの組。Task 2でgradと混同しないようLunaの提案を採用する。`previous_gradients`はparameterのgrad参照と値snapshotにのみ使う。

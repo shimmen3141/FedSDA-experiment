@@ -8,7 +8,7 @@
   - _Boundary: 分類器接続操作/対象test_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1_
 
-- [ ] 2. 接続先optimizerを選択して実旧学習へ照合する
+- [x] 2. 接続先optimizerを選択して実旧学習へ照合する
   - test-onlyで新接続→接続先parameterの共有owner選択→個別reset→新batch作成を実旧attachへ比較する。
   - class2/4×optimizer3×共有optimizer既存/欠落の12条件、既存共有state保持と3回共同学習の全loss/NN値/grad/state一致を確認する。
   - 新旧extractorのparameter列と共有managerの対応を確認し、旧managerは変更・流用せず、接続先のparameter列を持つmanagerを使って更新する。
