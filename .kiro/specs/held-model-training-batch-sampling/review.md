@@ -10,3 +10,9 @@ GPT-6 Luna判定PASS。12条件の選別/順序/スキップ/ペイロード未�
 主担当gateは12要件/依存/観測可能な完了条件を確認。Luna第一回NEEDS_FIXES: sampler契約と独立検証可能な上位接続を別taskにする指摘を採用。
 四つの順次taskへ分割し、第二回独立sanity PASS。方式は実Lunaのindependent_reused_thread。
 design Testing Strategyのtask番号も3=上位接続/4=ASTへ同期し、同Luna再PASS。API/責務変更なし。主担当採用して最新版hashを承認した。
+
+## Task 1
+
+worker実REDはmissingmoduleの1 collection error/exit1/1.70s。GREEN7 passed/1.81s/exit0。
+同GPT-6 Lunaのkiro-review判定APPROVED。独立対象7 passed/exit0、全候補preflight・skip範囲・一回draw・実旧順序/全Tensor/終端RNG・依存境界を確認、修正指摘なし。
+主担当fresh対象も7 passed/1.56s/exit0。5/100件、B1/B=N、同参照別位置、未保有/不足/空の6条件×3callとdraw順を確認した。レビュー時source/testは実測時と同一で、Task1範囲をVERIFIEDと判断し採用。Task2–4は未完了。

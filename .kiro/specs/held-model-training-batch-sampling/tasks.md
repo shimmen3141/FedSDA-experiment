@@ -2,7 +2,7 @@
 source/testを共有するため順次、(P)なし。既存Random/FIFO/NN/optimizer/共同更新は利用可能。
 taskごとLuna独立レビュー→主担当current-state検証→指定commit。環境はdocs/experiments/refactoring-baseline.md。
 
-- [ ] 1. 参加選別と復元なし抽出を実装する
+- [x] 1. 参加選別と復元なし抽出を実装する
   - missingmodule対象testを先行し実RED→指定二productionを実装してGREENにする。
   - 実旧抽出へ小/大population、非昇順/負ID、未保有/不足/空混在、B1/B=N、同参照別位置、複数call全出力と終端RNGを完全照合する。
   - 参加者だけ一回drawを観測し、入力順/抽出順/skip時RNG不変を確認する。
