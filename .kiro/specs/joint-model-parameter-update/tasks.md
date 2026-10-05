@@ -10,7 +10,7 @@ taskごと独立Luna review→主担当fresh検証→commit。環境はdocs/expe
   - _Requirements: 1.1, 1.3, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 5.1_
   - _Boundary: Joint update（指定二productionと対象test）_
 
-- [ ] 2. 更新前拒否・空列・空共有と借用状態を検証する
+- [x] 2. 更新前拒否・空列・空共有と借用状態を検証する
   - 対象testで型/forged/shape/finite/labels/後段不正/optimizer参照逆順・重複/grad無効を拒否し、zero前の値/grad/state不変を確認する。
   - 共有Parameterが存在するのに共有optimizer=Noneの入力を更新有効/無効の両方でzero前拒否し、既存値/grad/state不変を確認する。空共有へoptimizerを渡す逆ケースも拒否する。
   - 空列no-op、softtarget、非contiguous、空共有での個別学習、共有凍結での既存state保持、借用参照/RNG/ambientdtype・device・gradcontextを検証する。

@@ -10,15 +10,15 @@ from federated_learning_experiments.learning.models.shared_feature_extractor imp
 from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier
 
 
-def _validate_training_tensor(*, input_features: Tensor, tensor_name: str, expected_shape: tuple[int, int]) -> None:
-    if not isinstance(input_features, Tensor):
+def _validate_training_tensor(*, training_tensor: Tensor, tensor_name: str, expected_shape: tuple[int, int]) -> None:
+    if not isinstance(training_tensor, Tensor):
         raise ValueError(f"{tensor_name}はTensorが必要です。")
-    if (input_features.device.type != "cpu" or input_features.dtype != float32
-            or input_features.layout != strided or input_features.is_nested):
+    if (training_tensor.device.type != "cpu" or training_tensor.dtype != float32
+            or training_tensor.layout != strided or training_tensor.is_nested):
         raise ValueError(f"{tensor_name}はCPU float32 strided/notnestedが必要です。")
-    if expected_shape[0] < 1 or input_features.dim() != 2 or tuple(input_features.shape) != expected_shape:
+    if expected_shape[0] < 1 or training_tensor.dim() != 2 or tuple(training_tensor.shape) != expected_shape:
         raise ValueError(f"{tensor_name}は正の標本数と指定のshape {expected_shape}が必要です。")
-    if not isfinite(input_features).all().item():
+    if not isfinite(training_tensor).all().item():
         raise ValueError(f"{tensor_name}は有限値が必要です。")
 
 
@@ -104,9 +104,9 @@ def _validate_joint_update_inputs(
         sample_count = (training_batch.input_features.shape[0]
             if isinstance(training_batch.input_features, Tensor) and not training_batch.input_features.is_nested
                 and training_batch.input_features.dim() == 2 else 0)
-        _validate_training_tensor(input_features=training_batch.input_features, tensor_name=f"{tensor_name}.input_features",
+        _validate_training_tensor(training_tensor=training_batch.input_features, tensor_name=f"{tensor_name}.input_features",
             expected_shape=(sample_count, shared_feature_extractor.input_feature_count))
-        _validate_training_tensor(input_features=training_batch.observed_class_labels,
+        _validate_training_tensor(training_tensor=training_batch.observed_class_labels,
             tensor_name=f"{tensor_name}.observed_class_labels", expected_shape=(sample_count, 1))
         observed_class_labels = training_batch.observed_class_labels
         if classifier.class_count == 2:

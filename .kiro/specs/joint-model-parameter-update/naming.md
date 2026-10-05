@@ -1,5 +1,5 @@
 # 命名: 一回の共同モデルパラメータ更新
-revision 2。正式API名に旧aliasなし。型/参照は借用、更新は関数にだけ集約する。
+revision 4。正式API名に旧aliasなし。型/参照は借用、更新は関数にだけ集約する。
 
 | 名前 | 役割・型・単位・状態 |
 |---|---|
@@ -45,5 +45,19 @@ revision 2。正式API名に旧aliasなし。型/参照は借用、更新は関�
 | model_module_name / model_module | named_modulesの名前/NNmodule。Parameterではない |
 | test_joint_model_parameter_update_matches_legacy | test-only。条件別の実旧共同更新・複数step全state/gradの比較 |
 | test_joint_model_parameter_update_observes_operation_order | test-only。zero/forward/backward/stepの呼出順と回数の観測 |
+| test_joint_model_parameter_update_rejects_invalid_inputs_before_mutation | 不正条件を更新前拒否し、全値/grad/state不変を検証 |
+| test_joint_model_parameter_update_empty_participation_preserves_state | 空列Noneで既存grad/stateを触らないことを検証 |
+| test_joint_model_parameter_update_without_shared_parameters | 空幅identityと共有optimizerなしの個別更新を独立検証 |
+| test_joint_model_parameter_update_preserves_environment_and_borrowed_inputs | 入力参照/値・RNG・ambient contextを検証 |
+| test_joint_model_parameter_update_accepts_soft_binary_labels_and_noncontiguous_batches | 二値soft targetと非連続メモリを実旧比較 |
+| test_joint_model_parameter_update_accepts_ordered_multiple_optimizer_groups | param_groups平坦列の一致を受理して更新を検証 |
+| test_joint_model_parameter_update_preserves_frozen_shared_optimizer_state | warm stateを持つ共有optimizerのstep省略とgradclearを検証 |
+| test_participating_model_training_batch_is_frozen_and_explicit | frozen/kw_only/defaultなしの記録契約 |
+| capture_joint_update_state | test-only。全Parameter値/gradとoptimizerstateの独立snapshot |
+| input_contract_case / invalid_inputs / snapshot_after_update | test-only。不正条件分類/入力辞書/実行後snapshot |
+| global_torch_random_state / global_numpy_random_state / global_python_random_state | test-only。外側RNG復元/照合用状態 |
+| original_default_dtype / parameter_groups / shared_parameters_before_update | test-only。ambientdtype/group列/凍結前共有値 |
+| training_tensor | _validate_training_tensorの検査対象Tensor。入力特徴・ラベルどちらにも使うためinput_featuresと区別 |
+| training_batch_field | test-only。dataclasses.fieldsで得る記録のField。NN Parameterと混同しない |
 
 小さい一時変数はこの役割群の明確な名前を用いる。公開名/新状態/責務を追加する場合は命名revisionを再レビューする。
