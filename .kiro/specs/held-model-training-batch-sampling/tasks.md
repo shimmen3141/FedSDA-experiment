@@ -10,7 +10,7 @@ taskごとLuna独立レビュー→主担当current-state検証→指定commit�
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1_
   - _Boundary: Training batch sampling（指定二productionと対象test）_
 
-- [ ] 2. 拒否と借用状態の契約を検証する
+- [x] 2. 拒否と借用状態の契約を検証する
   - 後段/未抽出位置の不正Tensor/type/shape/finite/layout/device/dims、外側ID重複/bool/count/generatorをdraw前拒否し、Random.sample未呼出/借用RNGと全入力不変を確認する。
   - 未保有の不正payload、不足列の不正sample内容はskipし、保有列の不正コレクション型は拒否する検査範囲を確認する。
   - 三recordのfrozen/kwonly/defaultなし、非contiguous/requiresgrad/既存grad/出力独立storage/外側PythonNP/Torch RNG/dtype/device/gradcontextを検証する。

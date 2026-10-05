@@ -1,10 +1,13 @@
 """実旧samplerへ参加順・抽出Tensor・終端乱数状態を直接照合する。"""
 
 import random
+import warnings
+from dataclasses import FrozenInstanceError, MISSING, fields
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+import numpy as np
 import torch
 
 from federated_drift_experiment.clients.shared_backbone import _SharedRepresentationFedSDAClientMixin
@@ -102,3 +105,247 @@ def test_training_batch_sampling_observes_draw_order(monkeypatch):
         assert sample_call.args[0] is model_training_samples.training_samples
         assert sample_call.args[1] == 2
     assert tuple(sampled_batch.model_id for sampled_batch in sampled_batches) == (8, -7)
+
+
+def capture_training_sample_inputs(*, ordered_model_training_samples):
+    """借用参照・Tensor値・gradを保存し、nested/metaを安全に扱う。"""
+    reference_ids = [id(ordered_model_training_samples)]
+    tensor_metadata = []
+    tensor_values = []
+    tensor_gradients = []
+    for model_training_samples in ordered_model_training_samples:
+        reference_ids.extend((id(model_training_samples), id(model_training_samples.training_samples)))
+        for training_sample in model_training_samples.training_samples:
+            reference_ids.append(id(training_sample))
+            if type(training_sample) is not ObservedTrainingSample:
+                continue
+            for training_tensor in (training_sample.input_features, training_sample.observed_class_labels):
+                reference_ids.append(id(training_tensor))
+                if not isinstance(training_tensor, torch.Tensor):
+                    tensor_metadata.append((type(training_tensor).__name__, repr(training_tensor)))
+                    continue
+                tensor_metadata.append((str(training_tensor.device), str(training_tensor.dtype), str(training_tensor.layout),
+                    training_tensor.requires_grad, None if training_tensor.is_nested else tuple(training_tensor.shape)))
+                if training_tensor.is_nested:
+                    tensor_values.extend(parameter.detach().clone() for parameter in training_tensor.unbind())
+                elif training_tensor.device.type != "meta":
+                    tensor_values.append(training_tensor.detach().to_dense().clone())
+                reference_ids.append(id(training_tensor.grad) if training_tensor.grad is not None else 0)
+                tensor_gradients.append(None if training_tensor.grad is None else training_tensor.grad.detach().clone())
+    return tuple(reference_ids), tuple(tensor_metadata), tuple(tensor_values), tuple(tensor_gradients)
+
+
+@pytest.mark.parametrize("input_contract_case", [
+    "held_type", "held_bool", "collections_list", "collection_type", "model_id_bool", "model_id_float", "duplicate_id",
+    "count_bool", "count_zero", "count_negative", "count_float", "generator_none", "generator_system",
+    "samples_list", "sample_type", "feature_type", "feature_dtype", "label_dtype", "feature_meta",
+    "feature_sparse", "feature_nested", "label_nested", "feature_rank", "feature_zero_rows", "feature_two_rows",
+    "feature_zero_width", "label_shape", "label_rank", "feature_nan", "label_inf", "feature_width_mismatch",
+])
+def test_training_batch_sampling_rejects_before_random_draw(input_contract_case, monkeypatch):
+    held_model_ids, ordered_model_training_samples, python_random_generator, legacy_client = build_sampling_oracle_inputs()
+    invalid_inputs = dict(held_model_ids=held_model_ids, ordered_model_training_samples=ordered_model_training_samples,
+        batch_sample_count=2, python_random_generator=python_random_generator)
+    model_training_samples = ordered_model_training_samples[2]
+    training_sample = model_training_samples.training_samples[-1]
+    # 99番位置はこの乱数状態からの次回抽出に入らないが、事前検査の対象である。
+    expected_random_generator = random.Random()
+    expected_random_generator.setstate(python_random_generator.getstate())
+    expected_random_generator.sample(range(5), 2)
+    assert 99 not in expected_random_generator.sample(range(100), 2)
+    for model_training_samples in ordered_model_training_samples:
+        for training_sample in model_training_samples.training_samples:
+            training_sample.input_features.grad = torch.full_like(training_sample.input_features, 0.25)
+            training_sample.observed_class_labels.grad = torch.full_like(training_sample.observed_class_labels, -0.25)
+    model_training_samples = ordered_model_training_samples[2]
+    training_sample = model_training_samples.training_samples[-1]
+    expected_error_field = r"ordered_model_training_samples\[2\]"
+    if input_contract_case == "held_type":
+        invalid_inputs["held_model_ids"] = set(held_model_ids)
+        expected_error_field = "held_model_ids"
+    elif input_contract_case == "held_bool":
+        invalid_inputs["held_model_ids"] = frozenset((True,))
+        expected_error_field = "held_model_ids"
+    elif input_contract_case == "collections_list":
+        invalid_inputs["ordered_model_training_samples"] = list(ordered_model_training_samples)
+        expected_error_field = "ordered_model_training_samples"
+    elif input_contract_case == "collection_type":
+        invalid_inputs["ordered_model_training_samples"] = ordered_model_training_samples[:2] + (None,)
+    elif input_contract_case in ("model_id_bool", "model_id_float", "duplicate_id"):
+        invalid_inputs["ordered_model_training_samples"] = ordered_model_training_samples[:2] + (
+            ModelTrainingSampleCollection(model_id={"model_id_bool": True, "model_id_float": 0.5, "duplicate_id": 8}[input_contract_case],
+                training_samples=model_training_samples.training_samples),)
+    elif input_contract_case.startswith("count_"):
+        invalid_inputs["batch_sample_count"] = {"count_bool": True, "count_zero": 0, "count_negative": -1, "count_float": 2.0}[input_contract_case]
+        expected_error_field = "batch_sample_count"
+    elif input_contract_case.startswith("generator_"):
+        invalid_inputs["python_random_generator"] = None if input_contract_case == "generator_none" else random.SystemRandom()
+        expected_error_field = "python_random_generator"
+    elif input_contract_case == "samples_list":
+        invalid_inputs["ordered_model_training_samples"] = ordered_model_training_samples[:2] + (
+            ModelTrainingSampleCollection(model_id=-7, training_samples=list(model_training_samples.training_samples)),)
+    elif input_contract_case == "sample_type":
+        object.__setattr__(model_training_samples, "training_samples", model_training_samples.training_samples[:-1] + (None,))
+    else:
+        input_features = training_sample.input_features
+        observed_class_labels = training_sample.observed_class_labels
+        if input_contract_case == "feature_type":
+            input_features = [[1.0, 2.0]]
+        elif input_contract_case == "feature_dtype":
+            input_features = input_features.double()
+        elif input_contract_case == "label_dtype":
+            observed_class_labels = observed_class_labels.long()
+        elif input_contract_case == "feature_meta":
+            input_features = input_features.to("meta")
+        elif input_contract_case == "feature_sparse":
+            input_features = input_features.to_sparse()
+        elif input_contract_case in ("feature_nested", "label_nested"):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                training_tensor = torch.nested.nested_tensor([torch.ones(2), torch.ones(3)])
+            if input_contract_case == "feature_nested":
+                input_features = training_tensor
+            else:
+                observed_class_labels = training_tensor
+        elif input_contract_case == "feature_rank":
+            input_features = input_features.squeeze(0)
+        elif input_contract_case == "feature_zero_rows":
+            input_features = input_features[:0]
+        elif input_contract_case == "feature_two_rows":
+            input_features = input_features.repeat(2, 1)
+        elif input_contract_case == "feature_zero_width":
+            input_features = input_features[:, :0]
+        elif input_contract_case == "label_shape":
+            observed_class_labels = torch.ones(1, 2)
+        elif input_contract_case == "label_rank":
+            observed_class_labels = observed_class_labels.view(-1)
+        elif input_contract_case == "feature_nan":
+            input_features = torch.full_like(input_features, float("nan"))
+        elif input_contract_case == "label_inf":
+            observed_class_labels = torch.full_like(observed_class_labels, float("inf"))
+        else:
+            input_features = torch.ones(1, 3)
+        object.__setattr__(training_sample, "input_features", input_features)
+        object.__setattr__(training_sample, "observed_class_labels", observed_class_labels)
+    input_snapshot_before_sampling = capture_training_sample_inputs(ordered_model_training_samples=ordered_model_training_samples)
+    expected_random_state = python_random_generator.getstate()
+    global_python_random_state = random.getstate()
+    monkeypatch.setattr(python_random_generator, "sample", Mock(wraps=python_random_generator.sample))
+    with pytest.raises(ValueError, match=expected_error_field):
+        sample_training_batches_for_held_models(**invalid_inputs)
+    python_random_generator.sample.assert_not_called()
+    assert python_random_generator.getstate() == expected_random_state
+    assert random.getstate() == global_python_random_state
+    input_snapshot_after_sampling = capture_training_sample_inputs(ordered_model_training_samples=ordered_model_training_samples)
+    assert input_snapshot_after_sampling[:2] == input_snapshot_before_sampling[:2]
+    torch.testing.assert_close(input_snapshot_after_sampling[2:], input_snapshot_before_sampling[2:], rtol=0, atol=0, equal_nan=True)
+
+
+def test_training_batch_sampling_skips_ineligible_payloads(monkeypatch):
+    held_model_ids, ordered_model_training_samples, python_random_generator, legacy_client = build_sampling_oracle_inputs()
+    # 未保有recordにはpayload field自体がなくても、読むことなく省略できる。
+    object.__delattr__(ordered_model_training_samples[1], "training_samples")
+    object.__setattr__(ordered_model_training_samples[-1], "training_samples", (object(),))
+    monkeypatch.setattr(python_random_generator, "sample", Mock(wraps=python_random_generator.sample))
+    sampled_batches = sample_training_batches_for_held_models(held_model_ids=held_model_ids,
+        ordered_model_training_samples=ordered_model_training_samples, batch_sample_count=2, python_random_generator=python_random_generator)
+    assert tuple(sampled_batch.model_id for sampled_batch in sampled_batches) == (8, -7)
+    assert python_random_generator.sample.call_count == 2
+    assert "training_samples" not in vars(ordered_model_training_samples[1])
+    expected_random_state = python_random_generator.getstate()
+    python_random_generator.sample.reset_mock()
+    object.__setattr__(ordered_model_training_samples[-1], "training_samples", [object()])
+    with pytest.raises(ValueError, match=r"ordered_model_training_samples\[4\].training_samples"):
+        sample_training_batches_for_held_models(held_model_ids=held_model_ids,
+            ordered_model_training_samples=ordered_model_training_samples, batch_sample_count=2, python_random_generator=python_random_generator)
+    python_random_generator.sample.assert_not_called()
+    assert python_random_generator.getstate() == expected_random_state
+
+
+@pytest.mark.parametrize("batch_sample_count", [1, 2])
+@pytest.mark.parametrize("require_grad", [True, False])
+def test_training_batch_sampling_preserves_borrowed_inputs_and_environment(batch_sample_count, require_grad):
+    ordered_model_training_samples = tuple(ModelTrainingSampleCollection(model_id=model_id,
+        training_samples=tuple(ObservedTrainingSample(
+            input_features=torch.nn.Parameter(torch.arange(input_feature_count * 2, dtype=torch.float32, device="cpu")
+                .reshape(1, -1)[:, ::2]),
+            observed_class_labels=torch.nn.Parameter(torch.tensor([[0.25 if training_sample_index == 0 else 100.25]],
+                dtype=torch.float32, device="cpu"))) for training_sample_index in range(2)))
+        for model_id, input_feature_count in ((8, 4), (-7, 3)))
+    for model_training_samples in ordered_model_training_samples:
+        for training_sample in model_training_samples.training_samples:
+            assert not training_sample.input_features.is_contiguous()
+            training_sample.input_features.grad = torch.full_like(training_sample.input_features, 0.37)
+            training_sample.observed_class_labels.grad = torch.full_like(training_sample.observed_class_labels, -0.37)
+    input_snapshot_before_sampling = capture_training_sample_inputs(ordered_model_training_samples=ordered_model_training_samples)
+    python_random_generator = random.Random(137)
+    global_python_random_state = random.getstate()
+    global_numpy_random_state = np.random.get_state()
+    global_torch_random_state = torch.get_rng_state()
+    original_default_dtype = torch.get_default_dtype()
+    original_default_device = torch.get_default_device()
+    original_grad_mode = torch.is_grad_enabled()
+    try:
+        torch.set_default_dtype(torch.float64)
+        with torch.device("meta"), torch.set_grad_enabled(require_grad):
+            sampled_batches = sample_training_batches_for_held_models(held_model_ids=frozenset((8, -7)),
+                ordered_model_training_samples=ordered_model_training_samples, batch_sample_count=batch_sample_count,
+                python_random_generator=python_random_generator)
+            assert torch.get_default_dtype() == torch.float64
+            assert torch.get_default_device() == torch.device("meta")
+            assert torch.is_grad_enabled() is require_grad
+            for sampled_batch, model_training_samples in zip(sampled_batches, ordered_model_training_samples):
+                assert sampled_batch.model_id == model_training_samples.model_id
+                assert sampled_batch.input_features.shape == (batch_sample_count, model_training_samples.training_samples[0].input_features.shape[1])
+                for tensor_name in ("input_features", "observed_class_labels"):
+                    training_tensor = getattr(sampled_batch, tensor_name)
+                    assert training_tensor.dtype == torch.float32
+                    assert training_tensor.device.type == "cpu"
+                    assert training_tensor.requires_grad is require_grad
+                    for training_sample in model_training_samples.training_samples:
+                        assert training_tensor.data_ptr() != getattr(training_sample, tensor_name).data_ptr()
+                if require_grad:
+                    assert sampled_batch.input_features.grad_fn is not None
+                    assert sampled_batch.observed_class_labels.grad_fn is not None
+            assert torch.equal(torch.get_rng_state(), global_torch_random_state)
+        # 出力を更新しても、元のParameterと既存gradへ逆流しない。
+        with torch.no_grad():
+            sampled_batches[0].input_features.add_(10)
+            sampled_batches[0].observed_class_labels.add_(10)
+    finally:
+        torch.set_default_dtype(original_default_dtype)
+    input_snapshot_after_sampling = capture_training_sample_inputs(ordered_model_training_samples=ordered_model_training_samples)
+    assert input_snapshot_after_sampling[:2] == input_snapshot_before_sampling[:2]
+    torch.testing.assert_close(input_snapshot_after_sampling[2:], input_snapshot_before_sampling[2:], rtol=0, atol=0)
+    assert torch.get_default_dtype() == original_default_dtype
+    assert torch.get_default_device() == original_default_device
+    assert torch.is_grad_enabled() == original_grad_mode
+    assert random.getstate() == global_python_random_state
+    actual_numpy_random_state = np.random.get_state()
+    assert actual_numpy_random_state[0] == global_numpy_random_state[0]
+    assert np.array_equal(actual_numpy_random_state[1], global_numpy_random_state[1])
+    assert actual_numpy_random_state[2:] == global_numpy_random_state[2:]
+
+
+def test_training_sample_records_are_frozen_and_explicit():
+    input_features = torch.ones(1, 2)
+    observed_class_labels = torch.ones(1, 1)
+    training_sample = ObservedTrainingSample(input_features=input_features, observed_class_labels=observed_class_labels)
+    for sampling_record in (training_sample, ModelTrainingSampleCollection(model_id=-7, training_samples=(training_sample,)),
+        SampledModelTrainingBatch(model_id=-7, input_features=training_sample.input_features,
+            observed_class_labels=training_sample.observed_class_labels)):
+        for sampling_record_field in fields(sampling_record):
+            assert sampling_record_field.kw_only
+            assert sampling_record_field.default is MISSING
+            assert sampling_record_field.default_factory is MISSING
+        with pytest.raises(FrozenInstanceError):
+            setattr(sampling_record, fields(sampling_record)[0].name, None)
+        with pytest.raises(TypeError):
+            type(sampling_record)()
+        with pytest.raises(TypeError):
+            type(sampling_record)(*vars(sampling_record).values())
+    assert training_sample.input_features is input_features
+    assert training_sample.observed_class_labels is observed_class_labels
+    # constructorは参照を束ねるだけで、解釈/検査はsamplerが担当する。
+    model_training_samples = ModelTrainingSampleCollection(model_id=-7, training_samples=(training_sample,))
+    assert model_training_samples.training_samples[0] is training_sample

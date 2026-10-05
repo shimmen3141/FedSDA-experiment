@@ -16,3 +16,9 @@ design Testing Strategyのtask番号も3=上位接続/4=ASTへ同期し、同Lun
 worker実REDはmissingmoduleの1 collection error/exit1/1.70s。GREEN7 passed/1.81s/exit0。
 同GPT-6 Lunaのkiro-review判定APPROVED。独立対象7 passed/exit0、全候補preflight・skip範囲・一回draw・実旧順序/全Tensor/終端RNG・依存境界を確認、修正指摘なし。
 主担当fresh対象も7 passed/1.56s/exit0。5/100件、B1/B=N、同参照別位置、未保有/不足/空の6条件×3callとdraw順を確認した。レビュー時source/testは実測時と同一で、Task1範囲をVERIFIEDと判断し採用。Task2–4は未完了。
+
+## Task 2
+
+workerのtest-only追加は対象44 passed/2.76s/exit0。production欠落は観測せず、fakeREDやsource修正はない。
+同GPT-6 Lunaのkiro-review判定APPROVED。独立44 passed/exit0、31拒否条件の未抽出末尾・drawゼロ/RNG/入力grad保持、skip検査範囲、frozen/kwonly/defaultなし、非contiguous/Parameter/環境/独立storageを確認。修正指摘なし、主担当採用。
+worker自己レビューでrecordの自明な自己比較を、渡した特徴/ラベル参照との比較へ修正してから正式報告した。Lunaは修正後の実ファイルを確認した。主担当も正式報告後の最新testを再実行し44 passed/exit0を確認し、Task2範囲をVERIFIEDと判断した。Task3/4は未完了。
