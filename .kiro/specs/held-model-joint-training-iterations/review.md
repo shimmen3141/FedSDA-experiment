@@ -22,3 +22,7 @@ Luna revision2 PASSを採用。sample_parameters_beforeはNN parameterとも読�
 
 ## Task 1
 Luna独立実装レビューAPPROVED、指摘なし。missingmodule collection errorのRED後、新2moduleで72条件GREEN（主担当5.78秒、独立4.83秒）。実旧の複数反復・逆順binding・全抽出/loss/parameter/grad/optimizer/RNGのexact比較を確認。Ruff check/format成功、Pyright 0 errors。Task2の拒否/空/環境保持とTask3の境界/全回帰は未完了。
+
+## Task 2
+Luna初回REJECTEDの有用な指摘を採用。testのset_default_device復元は内部DeviceContextを残すため、with torch.deviceの一時scopeへ変更した。scope後device値も確認し、再レビューAPPROVED（独立94 passed/5.33秒、主担当94 passed/4.89秒）。production変更なしのtest-only。回数/ID事前拒否、0未参照、未参加payload、NaNのpredraw拒否、借用/frozen、外側RNG/dtype/device/gradmodeと標本保持、空共有、後続拒否時の先行更新/消費RNG保持を確認。
+ambient metaの検証は上流specと同じSGDを使用。Torch自身の未初期化Adam step scalar生成はambient deviceに依存するため、metaの初回Adamまで環境非依存とは主張しない。CPUでのAdam/AMSGradの複数回状態一致はTask1/空共有testで確認済み。
