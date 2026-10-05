@@ -1,0 +1,62 @@
+{
+  "feature_name": "model-training-sample-storage",
+  "created_at": "2026-10-05T15:47:55.396134+00:00",
+  "language": "ja",
+  "phase": "implementing",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_sha256_lf": "e6e6281cee11859ccecae3da568843e3483c1090f7e7b490407cd8486dc4f537",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_sha256_lf": "89a29dffd251fc977e1f2cd0588d39f1966e336091bb2dafe87f9b41884a01a2",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_sha256_lf": "b83fbf1978dd0cffb32f2e2f86802f1b7026fa199e641a222d23fa64bfbebb20",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "approved_revision": 1
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_sha256_lf": "d96b0d239be4f432a077f9890a7bb7a71847347fdad855312c2afb0d0b1bbfa3",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "current_sha256_lf": "de94c74140c2be502c285919ac7d6a80182d1d78f36987814755f249bf7fb98b"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "upstream_specs": [
+    "held-model-training-batch-sampling",
+    "local-training-request-scheduling"
+  ],
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "total_executable_tasks": 3,
+    "next_task": "2"
+  }
+}
