@@ -52,6 +52,15 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/model_training_sample_store.py":
+        # 構造保持は同階層の公開recordのみを参照し、演算や抽出を呼ばない。
+        return imported_module_name in (
+            "__future__",
+            "__future__.annotations",
+            "federated_learning_experiments.learning.training.model_training_sample_records",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ModelTrainingSampleCollection",
+        )
     if source_module_path == "learning/training/local_training_schedule_settings.py":
         # 機能別の設定宣言と公開値検査だけを許可する。
         return imported_module_name in (
@@ -2036,6 +2045,46 @@ def test_joint_training_iteration_dependency_contract(
 ):
     dependency_boundary_violations = collect_dependency_boundary_violations(
         source_module_path=source_module_path, source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("import math", False),
+        ("import random", False),
+        ("import dataclasses", False),
+        ("import torch", False),
+        ("import numpy", False),
+        ("import federated_drift_experiment", False),
+        (
+            "from .held_model_training_batch_sampling import sample_training_batches_for_held_models",
+            False,
+        ),
+        ("from .local_training_schedule_settings import LocalTrainingScheduleSettings", False),
+        ("from .model_training_sample_records import Tensor", False),
+        ("from .model_training_sample_records import SampledModelTrainingBatch", False),
+        ("from .model_training_sample_records import _private", False),
+        ("from .model_training_sample_records.child import ObservedTrainingSample", False),
+        ("from federated_learning_experiments.runtime import run_experiment", False),
+        (
+            "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor",
+            False,
+        ),
+        ("from __future__ import annotations", True),
+        ("from .model_training_sample_records import ObservedTrainingSample", True),
+        ("from .model_training_sample_records import ModelTrainingSampleCollection", True),
+        (
+            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample",
+            True,
+        ),
+    ],
+)
+def test_model_training_sample_store_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="learning/training/model_training_sample_store.py",
+        source_text=source_text,
     )
     assert (not dependency_boundary_violations) == expected_acceptance
 

@@ -17,7 +17,7 @@
   - _Depends: 1_
   - _Requirements: 1.4, 1.5, 2.1, 2.2, 3.1, 3.2_
 
-- [ ] 3. 依存境界・全回帰・完成証拠を揃える
+- [x] 3. 依存境界・全回帰・完成証拠を揃える
   - exact禁止/許可import注入を先行し実RED後にAST guardを追加する。
   - fresh新package CPU smoke、対象/全回帰（旧11/最終3golden）、Ruff/format/Pyright/pip、旧固定差分/源内容hashを確認する。
   - 全10要件と実測/限界/旧所見を記録し、task状態/roadmap同期後にLuna最終feature GOを確認する。
