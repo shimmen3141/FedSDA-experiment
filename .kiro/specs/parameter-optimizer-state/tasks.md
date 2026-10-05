@@ -17,7 +17,7 @@
   - _Depends: 1_
   - _Requirements: 1.2, 2.1, 2.2, 2.4, 3.1, 3.2_
 
-- [ ] 3. 依存境界と全回帰・統合証拠を確認する
+- [x] 3. 依存境界と全回帰・統合証拠を確認する
   - exact禁止/許可import注入の先行RED後、AST guardを追加する。
   - fresh新CPU生成/reset/更新smoke、全pytest（旧11/最終3golden）、Ruff/format/Pyright/pip、旧固定差分/源hashを確認する。
   - 全9要件の実測・旧所見・限界を保存し、全task/roadmap同期後にLuna最終feature GOを確認する。
