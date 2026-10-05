@@ -132,6 +132,22 @@ class SharedFeatureExtractor(Module):
                     )
             previous_feature_count = hidden_layer_width
 
+    def copy_parameter_values_from(
+        self, *, source_feature_extractor: "SharedFeatureExtractor"
+    ) -> None:
+        """双方の構造を検証し、参照と勾配を保ったまま共有parameter値を反映する。"""
+        if type(source_feature_extractor) is not SharedFeatureExtractor:
+            raise ValueError("source_feature_extractorはexact SharedFeatureExtractorが必要です。")
+        self.validate_structure(
+            input_feature_count=self.input_feature_count,
+            hidden_layer_widths=self.hidden_layer_widths,
+        )
+        source_feature_extractor.validate_structure(
+            input_feature_count=self.input_feature_count,
+            hidden_layer_widths=self.hidden_layer_widths,
+        )
+        self.load_state_dict(source_feature_extractor.state_dict())
+
     def forward(self, input_features: torch.Tensor) -> torch.Tensor:
         _validate_feature_tensor(
             input_features=input_features, expected_feature_count=self.input_feature_count

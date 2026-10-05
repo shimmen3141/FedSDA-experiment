@@ -1,0 +1,8 @@
+# 調査根拠
+
+- 固定旧基準748c3aaのclients/shared_backbone.py:70の_prepare_model_for_registrationは、_shared_backboneで選ばれた既存backboneへ候補state_dictをloadし、候補attach_backbone後に候補を返す。
+- base.py:286の_register_trained_new_modelはこの準備後にID辞書・統計・pendingを更新する。今回は準備だけを扱う。
+- 旧attach_backboneは既存共有optimizerを維持し、候補head optimizerだけを再生成する。値load前の共有optimizer学習stateも保持される。
+- 新SharedFeatureExtractor.validate_structure、ResidualAdapterClassifier.attach_shared_feature_extractor、ParameterOptimizerState.reset_parameter_optimizerを再利用できる。上位設定・旧packageには依存しない。
+- 旧共有元選択は現在ID、なければ先着。今回は上位が反映先を渡すので、前specの最小非負IDによる再接続と混同しない。
+- この調査では旧正常経路の新しい不具合は観測していない。

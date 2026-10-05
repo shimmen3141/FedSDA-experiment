@@ -1,0 +1,5 @@
+# 背景と境界候補
+
+ユーザーが委任した段階的移植の次の責務。保有モデル再接続の後、旧SharedBackboneFedSDAClient._prepare_model_for_registrationにある採用済み候補の共有学習反映を移植する。
+候補が採用済みであることと反映先は呼出側が決める。反映先の既存Parameter参照を保ったまま候補の値を反映し、候補を反映先へ接続して候補の個別optimizerのみresetする。
+モデル登録、ID、統計生成、候補採否、共有元選択、全体runは別の責務。旧API互換は追加しない。
