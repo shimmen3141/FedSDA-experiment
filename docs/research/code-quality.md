@@ -129,3 +129,18 @@ CIの初回pushはjob全体での`runner.temp`参照により開始前に失敗�
 旧回帰ではaccuracy等、最終構成ではSINE2の候補棄却数（2対3）などに差が観測された。
 旧実装・goldenに差分がなくローカルでは一致するため環境差を疑うが、CPU・数値ライブラリなどの
 具体原因は未特定。ホストに合わせてgoldenや許容値を更新せず、必須検査と数値診断を分離した。
+
+分離後の[最終ホスト実行](https://github.com/shimmen3141/FedSDA-experiment/actions/runs/37315532861)
+（コードcommit `a2a8a4f`）はCI全体がsuccess。
+必須JUnitは3592 cases・failure 0・error 0・skip 3（3589 passed）、
+数値診断JUnitは2 cases・failure 2・error 0だった。
+診断失敗のwarning・job summary表示と環境artifact保存も成功した。
+GPT-6 Lunaも保存artifactを読み取り、この件数・コードcommit・環境を照合した。
+
+ホストはWindows Server 2025・AMD EPYC 9V74、ローカル基準はWindows 11・Ryzen 7 8845HS。
+Python 3.13.15・NumPy 2.4.6・Torch 2.12.1+cpuとTorchのgit versionは一致した。
+環境の相違は確認できたが、数値差の具体原因を特定したものではない。
+取得したJUnit・環境JSON・freezeはCIの`python-test-results` artifactに保存され、
+このPCにも元checkoutの`venv/refactoring-tests/quality-ci-artifact/`へ保存した。
+
+この最終結果の追記は文書のみ。コードとCI設定は検証したcommitから変更していない。
