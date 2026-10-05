@@ -18,8 +18,10 @@ class RunExecutionError(RuntimeError):
         round_index: int | None = None,
     ) -> None:
         validate_run_execution_stage_and_positions(
-            stage_name=stage_name, client_id=client_id,
-            sample_index=sample_index, round_index=round_index,
+            stage_name=stage_name,
+            client_id=client_id,
+            sample_index=sample_index,
+            round_index=round_index,
         )
         if type(failure_reason) is not str:
             raise TypeError("failure_reasonには失敗理由の文字列を指定してください。")

@@ -47,7 +47,9 @@ class ValidatedExperimentRunSettingsSubset:
 
     def __post_init__(self) -> None:
         """直接構築を含めて、正式な全フィールドの組合せを検証する。"""
-        validate_experiment_run_settings({
-            settings_field.name: getattr(self, settings_field.name)
-            for settings_field in fields(self)
-        })
+        validate_experiment_run_settings(
+            {
+                settings_field.name: getattr(self, settings_field.name)
+                for settings_field in fields(self)
+            }
+        )

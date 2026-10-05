@@ -28,7 +28,8 @@ def validate_settings_field_values(settings_instance: object) -> None:
             validation_failure_reason = "文字列を指定してください。"
             if allowed_parameter_values is not None:
                 validation_failure_reason = (
-                    "文字列で" + "・".join(allowed_parameter_values)
+                    "文字列で"
+                    + "・".join(allowed_parameter_values)
                     + "のいずれかを指定してください。"
                 )
             if isinstance(specified_parameter_value, str) and (
@@ -40,40 +41,46 @@ def validate_settings_field_values(settings_instance: object) -> None:
             minimum_allowed_value = settings_field_metadata.get("minimum_allowed_value")
             maximum_allowed_value = settings_field_metadata.get("maximum_allowed_value")
             validation_failure_reason = (
-                "整数" if settings_field_type is int
-                else "有限の実数（整数も可）"
+                "整数" if settings_field_type is int else "有限の実数（整数も可）"
             )
             if minimum_allowed_value is not None:
-                validation_failure_reason += (
-                    f"、{minimum_allowed_value}"
-                    + ("以上" if settings_field_metadata["minimum_value_is_inclusive"]
-                       else "より大きい値")
+                validation_failure_reason += f"、{minimum_allowed_value}" + (
+                    "以上"
+                    if settings_field_metadata["minimum_value_is_inclusive"]
+                    else "より大きい値"
                 )
             if maximum_allowed_value is not None:
-                validation_failure_reason += (
-                    f"、{maximum_allowed_value}"
-                    + ("以下" if settings_field_metadata["maximum_value_is_inclusive"]
-                       else "未満")
+                validation_failure_reason += f"、{maximum_allowed_value}" + (
+                    "以下" if settings_field_metadata["maximum_value_is_inclusive"] else "未満"
                 )
             validation_failure_reason += "を指定してください。bool・数値文字列は受理しません。"
             if (
                 not isinstance(specified_parameter_value, bool)
                 and isinstance(
                     specified_parameter_value,
-                    int if settings_field_type is int
-                    else (int, float),
+                    int if settings_field_type is int else (int, float),
                 )
                 # 整数は有限なので、巨大整数をfloatに変換しない。
-                and (not isinstance(specified_parameter_value, float)
-                     or isfinite(specified_parameter_value))
-                and (minimum_allowed_value is None
-                     or (specified_parameter_value >= minimum_allowed_value
-                         if settings_field_metadata["minimum_value_is_inclusive"]
-                         else specified_parameter_value > minimum_allowed_value))
-                and (maximum_allowed_value is None
-                     or (specified_parameter_value <= maximum_allowed_value
-                         if settings_field_metadata["maximum_value_is_inclusive"]
-                         else specified_parameter_value < maximum_allowed_value))
+                and (
+                    not isinstance(specified_parameter_value, float)
+                    or isfinite(specified_parameter_value)
+                )
+                and (
+                    minimum_allowed_value is None
+                    or (
+                        specified_parameter_value >= minimum_allowed_value
+                        if settings_field_metadata["minimum_value_is_inclusive"]
+                        else specified_parameter_value > minimum_allowed_value
+                    )
+                )
+                and (
+                    maximum_allowed_value is None
+                    or (
+                        specified_parameter_value <= maximum_allowed_value
+                        if settings_field_metadata["maximum_value_is_inclusive"]
+                        else specified_parameter_value < maximum_allowed_value
+                    )
+                )
             ):
                 continue
         raise RunSettingsValidationError(

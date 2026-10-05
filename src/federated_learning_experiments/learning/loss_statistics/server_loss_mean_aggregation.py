@@ -6,7 +6,8 @@ from federated_learning_experiments.learning.loss_statistics.bounded_loss_moment
 
 
 def _copy_validated_participating_client_loss_moments(
-    *, participating_client_loss_moments: tuple[BoundedLossMoments, ...],
+    *,
+    participating_client_loss_moments: tuple[BoundedLossMoments, ...],
 ) -> tuple[BoundedLossMoments, ...]:
     if type(participating_client_loss_moments) is not tuple:
         raise TypeError("participating_client_loss_momentsはexact tupleが必要です。")
@@ -14,7 +15,8 @@ def _copy_validated_participating_client_loss_moments(
     for loss_moments in participating_client_loss_moments:
         if type(loss_moments) is not BoundedLossMoments:
             raise TypeError(
-                "participating_client_loss_momentsの要素はexact BoundedLossMomentsが必要です。")
+                "participating_client_loss_momentsの要素はexact BoundedLossMomentsが必要です。"
+            )
         try:
             copied_loss_moments = BoundedLossMoments(
                 observed_loss_count=loss_moments.observed_loss_count,
@@ -23,18 +25,20 @@ def _copy_validated_participating_client_loss_moments(
             )
         except (TypeError, ValueError) as validation_error:
             raise type(validation_error)(
-                f"participating_client_loss_momentsの要素: {validation_error}") from validation_error
+                f"participating_client_loss_momentsの要素: {validation_error}"
+            ) from validation_error
         copied_participating_client_loss_moments.append(copied_loss_moments)
     return tuple(copied_participating_client_loss_moments)
 
 
 def aggregate_participating_client_loss_means(
-    *, participating_client_loss_moments: tuple[BoundedLossMoments, ...],
+    *,
+    participating_client_loss_moments: tuple[BoundedLossMoments, ...],
 ) -> BoundedLossMoments | None:
     """件数で加重し、更新不要ならNone、更新時はM2を0にして返す。"""
-    validated_participating_client_loss_moments = (
-        _copy_validated_participating_client_loss_moments(
-            participating_client_loss_moments=participating_client_loss_moments))
+    validated_participating_client_loss_moments = _copy_validated_participating_client_loss_moments(
+        participating_client_loss_moments=participating_client_loss_moments
+    )
     total_observed_loss_count = 0
     weighted_mean_sum = 0.0
     try:
@@ -46,7 +50,8 @@ def aggregate_participating_client_loss_means(
         aggregated_mean_loss = weighted_mean_sum / total_observed_loss_count
     except OverflowError as aggregation_error:
         raise ValueError(
-            "participating_client_loss_momentsの集約結果は有限floatで表現できません。") from aggregation_error
+            "participating_client_loss_momentsの集約結果は有限floatで表現できません。"
+        ) from aggregation_error
     try:
         return BoundedLossMoments(
             observed_loss_count=total_observed_loss_count,
@@ -55,4 +60,5 @@ def aggregate_participating_client_loss_means(
         )
     except (TypeError, ValueError) as aggregation_error:
         raise type(aggregation_error)(
-            f"participating_client_loss_momentsの集約結果: {aggregation_error}") from aggregation_error
+            f"participating_client_loss_momentsの集約結果: {aggregation_error}"
+        ) from aggregation_error

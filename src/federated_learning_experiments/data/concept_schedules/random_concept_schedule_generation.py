@@ -31,15 +31,16 @@ def generate_random_client_concept_traces(
                 < concept_schedule_settings.per_eligible_sample_concept_change_probability
             ):
                 alternative_concept_ids = [
-                    concept_id for concept_id in range(2)
-                    if concept_id != current_concept_id
+                    concept_id for concept_id in range(2) if concept_id != current_concept_id
                 ]
                 # 候補が一つでもchoiceの乱数消費を省略しない。
                 current_concept_id = python_random_generator.choice(alternative_concept_ids)
                 last_concept_change_sample_index = sample_index
             concept_ids_by_sample_index.append(current_concept_id)
-        evaluation_concept_traces.append(ClientConceptTrace(
-            client_id=client_id,
-            concept_ids_by_sample_index=tuple(concept_ids_by_sample_index),
-        ))
+        evaluation_concept_traces.append(
+            ClientConceptTrace(
+                client_id=client_id,
+                concept_ids_by_sample_index=tuple(concept_ids_by_sample_index),
+            )
+        )
     return tuple(evaluation_concept_traces)

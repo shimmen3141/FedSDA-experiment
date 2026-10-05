@@ -18,9 +18,7 @@ class ModelConsolidationSettings:
     )
     model_pair_comparison_strategy: str = field(
         metadata={
-            "allowed_parameter_values": (
-                "classwise_unique_correctness_lower_confidence_bound",
-            ),
+            "allowed_parameter_values": ("classwise_unique_correctness_lower_confidence_bound",),
         },
     )
     model_clustering_linkage: str = field(

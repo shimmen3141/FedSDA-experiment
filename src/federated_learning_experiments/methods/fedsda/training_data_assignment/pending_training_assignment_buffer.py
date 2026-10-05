@@ -3,7 +3,9 @@
 from collections import deque
 from dataclasses import dataclass
 
-from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import TrainingDataAssignmentSettings
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    TrainingDataAssignmentSettings,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -34,9 +36,13 @@ def _validate_nonnegative_sample_index(*, sample_index: int) -> None:
 class PendingTrainingAssignmentBuffer:
     """観測順を所有し、容量調整や消費は呼出側が明示する。"""
 
-    def __init__(self, *, training_data_assignment_settings: TrainingDataAssignmentSettings) -> None:
+    def __init__(
+        self, *, training_data_assignment_settings: TrainingDataAssignmentSettings
+    ) -> None:
         if type(training_data_assignment_settings) is not TrainingDataAssignmentSettings:
-            raise TypeError("training_data_assignment_settings must be TrainingDataAssignmentSettings")
+            raise TypeError(
+                "training_data_assignment_settings must be TrainingDataAssignmentSettings"
+            )
         training_data_assignment_settings.__post_init__()
         self._training_data_assignment_settings = training_data_assignment_settings
         self._pending_sample_indices: deque[int] = deque()
@@ -45,7 +51,10 @@ class PendingTrainingAssignmentBuffer:
     def append_observed_sample_index(self, *, sample_index: int) -> None:
         """追加時に容量で切り捨てず、警報時の容量＋1件を保持する。"""
         _validate_nonnegative_sample_index(sample_index=sample_index)
-        if self._last_observed_sample_index is not None and sample_index != self._last_observed_sample_index + 1:
+        if (
+            self._last_observed_sample_index is not None
+            and sample_index != self._last_observed_sample_index + 1
+        ):
             raise ValueError("sample_index must follow last_observed_sample_index by one")
         self._pending_sample_indices.append(sample_index)
         self._last_observed_sample_index = sample_index
@@ -53,7 +62,10 @@ class PendingTrainingAssignmentBuffer:
     def release_sample_indices_exceeding_capacity(self) -> tuple[int, ...]:
         """容量を超える最古の位置だけを順に解放する。"""
         released_sample_indices: list[int] = []
-        while len(self._pending_sample_indices) > self._training_data_assignment_settings.pending_assignment_buffer_capacity_samples:
+        while (
+            len(self._pending_sample_indices)
+            > self._training_data_assignment_settings.pending_assignment_buffer_capacity_samples
+        ):
             released_sample_indices.append(self._pending_sample_indices.popleft())
         return tuple(released_sample_indices)
 
@@ -64,20 +76,28 @@ class PendingTrainingAssignmentBuffer:
             last_observed_sample_index=self._last_observed_sample_index,
         )
 
-    def get_change_interval_partition(self, *, estimated_change_span_sample_count: int) -> BufferedChangeIntervalPartition:
+    def get_change_interval_partition(
+        self, *, estimated_change_span_sample_count: int
+    ) -> BufferedChangeIntervalPartition:
         """分割を参照するだけで、短い警報時の保留内容も消費しない。"""
         if type(estimated_change_span_sample_count) is not int:
-            raise TypeError("estimated_change_span_sample_count must be a builtin int, excluding bool")
+            raise TypeError(
+                "estimated_change_span_sample_count must be a builtin int, excluding bool"
+            )
         if estimated_change_span_sample_count < 1:
             raise ValueError("estimated_change_span_sample_count must be positive")
         pending_sample_indices = tuple(self._pending_sample_indices)
-        change_interval_sample_count = min(len(pending_sample_indices), estimated_change_span_sample_count)
+        change_interval_sample_count = min(
+            len(pending_sample_indices), estimated_change_span_sample_count
+        )
         partition_split_index = len(pending_sample_indices) - change_interval_sample_count
         change_interval_sample_indices = pending_sample_indices[partition_split_index:]
         return BufferedChangeIntervalPartition(
             earlier_sample_indices=pending_sample_indices[:partition_split_index],
             change_interval_sample_indices=change_interval_sample_indices,
-            change_interval_start_sample_index=(change_interval_sample_indices[0] if change_interval_sample_indices else None),
+            change_interval_start_sample_index=(
+                change_interval_sample_indices[0] if change_interval_sample_indices else None
+            ),
         )
 
     def drain_pending_sample_indices(self) -> tuple[int, ...]:
@@ -85,4 +105,3 @@ class PendingTrainingAssignmentBuffer:
         pending_sample_indices = tuple(self._pending_sample_indices)
         self._pending_sample_indices.clear()
         return pending_sample_indices
-

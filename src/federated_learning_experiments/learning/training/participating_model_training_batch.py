@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from torch import Tensor
 from torch.optim import Optimizer
 
-from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier
+from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+    ResidualAdapterClassifier,
+)
 
 
 @dataclass(frozen=True, kw_only=True)

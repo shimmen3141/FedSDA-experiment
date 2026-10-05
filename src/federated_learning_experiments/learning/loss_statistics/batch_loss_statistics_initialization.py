@@ -11,8 +11,10 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 
 
 def _validate_batch_loss_statistics_inputs(
-    *, per_sample_bounded_losses: torch.Tensor,
-    observed_class_labels: torch.Tensor, class_count: int,
+    *,
+    per_sample_bounded_losses: torch.Tensor,
+    observed_class_labels: torch.Tensor,
+    class_count: int,
 ) -> None:
     if type(class_count) is not int:
         raise TypeError("class_countはbool以外のbuiltin intが必要です。")
@@ -50,25 +52,32 @@ def _validate_batch_loss_statistics_inputs(
         raise ValueError("observed_class_labelsは有限値が必要です。")
     if (observed_class_labels != torch.trunc(observed_class_labels)).any().item():
         raise ValueError("observed_class_labelsは整数値が必要です。")
-    if (observed_class_labels < 0).any().item() or observed_class_labels.max().item() >= class_count:
+    if (
+        observed_class_labels < 0
+    ).any().item() or observed_class_labels.max().item() >= class_count:
         raise ValueError("observed_class_labelsは0以上class_count未満が必要です。")
 
 
 @torch.no_grad()
 def initialize_model_and_class_loss_statistics_from_batch(
-    *, per_sample_bounded_losses: torch.Tensor,
-    observed_class_labels: torch.Tensor, class_count: int,
+    *,
+    per_sample_bounded_losses: torch.Tensor,
+    observed_class_labels: torch.Tensor,
+    class_count: int,
 ) -> ModelAndClassLossStatistics:
     """全検査後、全体と存在classのbatch統計を不変値として返す。"""
     _validate_batch_loss_statistics_inputs(
         per_sample_bounded_losses=per_sample_bounded_losses,
-        observed_class_labels=observed_class_labels, class_count=class_count,
+        observed_class_labels=observed_class_labels,
+        class_count=class_count,
     )
     batch_sample_count = len(per_sample_bounded_losses)
     overall_mean_loss = float(torch.mean(per_sample_bounded_losses).item())
     overall_sample_variance = (
         float(torch.var(per_sample_bounded_losses, correction=1).item())
-        if batch_sample_count > 1 else 0.1)
+        if batch_sample_count > 1
+        else 0.1
+    )
     flat_class_labels = observed_class_labels.reshape(-1)
     class_loss_moments_by_class_id = []
     for class_id in range(class_count):
@@ -79,12 +88,20 @@ def initialize_model_and_class_loss_statistics_from_batch(
         class_mean_loss = float(torch.mean(class_bounded_losses).item())
         class_sample_variance = (
             float(torch.var(class_bounded_losses, correction=1).item())
-            if class_sample_count > 1 else 0.0)
-        class_loss_moments_by_class_id.append((class_id, BoundedLossMoments(
-            observed_loss_count=class_sample_count,
-            mean_loss=class_mean_loss,
-            sum_squared_loss_deviations=class_sample_variance * max(0, class_sample_count - 1),
-        )))
+            if class_sample_count > 1
+            else 0.0
+        )
+        class_loss_moments_by_class_id.append(
+            (
+                class_id,
+                BoundedLossMoments(
+                    observed_loss_count=class_sample_count,
+                    mean_loss=class_mean_loss,
+                    sum_squared_loss_deviations=class_sample_variance
+                    * max(0, class_sample_count - 1),
+                ),
+            )
+        )
     return ModelAndClassLossStatistics(
         overall_loss_moments=BoundedLossMoments(
             observed_loss_count=batch_sample_count,

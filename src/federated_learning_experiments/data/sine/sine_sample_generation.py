@@ -43,8 +43,10 @@ def build_sine_client_observed_streams(
             sample_generator.generate_sample(concept_id=concept_id)
             for concept_id in client_concept_trace.concept_ids_by_sample_index
         )
-        observed_client_streams.append(ClientObservedStream(
-            client_id=client_concept_trace.client_id,
-            observed_samples=observed_samples,
-        ))
+        observed_client_streams.append(
+            ClientObservedStream(
+                client_id=client_concept_trace.client_id,
+                observed_samples=observed_samples,
+            )
+        )
     return tuple(observed_client_streams)

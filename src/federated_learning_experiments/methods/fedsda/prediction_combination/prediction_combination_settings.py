@@ -18,10 +18,14 @@ class PredictionCombinationSettings:
         metadata={"allowed_parameter_values": ("always",)},
     )
     prediction_weight_recalibration_after_aggregation_policy: str = field(
-        metadata={"allowed_parameter_values": ("recompute_buffer_losses_and_replay_weight_updates",)},
+        metadata={
+            "allowed_parameter_values": ("recompute_buffer_losses_and_replay_weight_updates",)
+        },
     )
     prediction_state_reset_on_training_assignment_change_policy: str = field(
-        metadata={"allowed_parameter_values": ("restart_adahedge_preserve_fixed_share_prediction_state",)},
+        metadata={
+            "allowed_parameter_values": ("restart_adahedge_preserve_fixed_share_prediction_state",)
+        },
     )
     fixed_share_weight_redistribution_time_scale_samples: int = field(
         metadata={

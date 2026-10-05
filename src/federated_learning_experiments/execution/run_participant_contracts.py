@@ -3,7 +3,9 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from federated_learning_experiments.configuration.experiment_run_conditions import ExperimentRunConditions
+from federated_learning_experiments.configuration.experiment_run_conditions import (
+    ExperimentRunConditions,
+)
 from federated_learning_experiments.data.observed_streams import ObservedSample
 from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
 from federated_learning_experiments.execution.run_random_sources import RunRandomSources
@@ -14,7 +16,9 @@ class RunClientOperations(Protocol):
 
     client_id: int
 
-    def process_observed_sample(self, *, observed_sample: ObservedSample, sample_index: int) -> None: ...
+    def process_observed_sample(
+        self, *, observed_sample: ObservedSample, sample_index: int
+    ) -> None: ...
 
     def flush_pending_local_updates(self, *, round_index: int) -> None: ...
 
@@ -30,7 +34,9 @@ class RunServerOperations(Protocol):
 
     def record_client_states_before_synchronization(self, *, round_index: int) -> None: ...
 
-    def synchronize_models(self, *, round_index: int, new_model_registration_available: bool) -> None: ...
+    def synchronize_models(
+        self, *, round_index: int, new_model_registration_available: bool
+    ) -> None: ...
 
     def finalize_started_communications(self, *, completed_round_count: int) -> None: ...
 

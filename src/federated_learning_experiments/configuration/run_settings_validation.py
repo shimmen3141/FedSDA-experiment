@@ -63,10 +63,10 @@ def validate_experiment_run_settings(
         (
             component_settings_name
             for component_settings_name in unvalidated_run_settings
-            if component_settings_name not in (
+            if component_settings_name
+            not in (
                 component_settings_name
-                for component_settings_name, component_settings_type
-                in initial_component_settings_types
+                for component_settings_name, component_settings_type in initial_component_settings_types
             )
         ),
         key=repr,
@@ -109,7 +109,9 @@ def validate_experiment_run_settings(
 
     component_settings = unvalidated_run_settings["prediction_combination_settings"]
     if component_settings.fixed_share_weight_redistribution_time_scale_samples != (
-        unvalidated_run_settings["training_data_assignment_settings"].pending_assignment_buffer_capacity_samples
+        unvalidated_run_settings[
+            "training_data_assignment_settings"
+        ].pending_assignment_buffer_capacity_samples
     ):
         raise RunSettingsValidationError(
             configuration_parameter_name="fixed_share_weight_redistribution_time_scale_samples",

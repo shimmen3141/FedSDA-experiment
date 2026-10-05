@@ -19,14 +19,13 @@ def is_configuration_foundation_module(*, source_module_path):
 def resolve_imported_module_names(*, import_statement, importing_package_name):
     """fromの別名も展開し、package経由の禁止モジュールを見逃さない。"""
     if isinstance(import_statement, ast.Import):
-        return tuple(
-            imported_module_alias.name for imported_module_alias in import_statement.names
-        )
+        return tuple(imported_module_alias.name for imported_module_alias in import_statement.names)
     if not isinstance(import_statement, ast.ImportFrom):
         return ()
     relative_import_prefix = "." * import_statement.level
     imported_base_module_name = resolve_name(
-        relative_import_prefix + (import_statement.module or ""), importing_package_name,
+        relative_import_prefix + (import_statement.module or ""),
+        importing_package_name,
     )
     # package名自体は依存先の層を特定しないため、選択された属性まで確認する。
     if imported_base_module_name in (
@@ -56,15 +55,26 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "learning/training/model_training_sample_records.py":
         # 標本記録はdataclass宣言と借用Tensor型だけを参照する。
         return imported_module_name in (
-            "__future__", "__future__.annotations",
-            "dataclasses", "dataclasses.dataclass", "torch", "torch.Tensor",
+            "__future__",
+            "__future__.annotations",
+            "dataclasses",
+            "dataclasses.dataclass",
+            "torch",
+            "torch.Tensor",
         )
     if source_module_path == "learning/training/held_model_training_batch_sampling.py":
         # 抽出は借用Randomと明示Tensor演算・同feature公開記録だけに限定する。
         return imported_module_name in (
-            "__future__", "__future__.annotations",
-            "random", "random.Random",
-            "torch", "torch.Tensor", "torch.cat", "torch.isfinite", "torch.float32", "torch.strided",
+            "__future__",
+            "__future__.annotations",
+            "random",
+            "random.Random",
+            "torch",
+            "torch.Tensor",
+            "torch.cat",
+            "torch.isfinite",
+            "torch.float32",
+            "torch.strided",
             "federated_learning_experiments.learning.training.model_training_sample_records",
             "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
             "federated_learning_experiments.learning.training.model_training_sample_records.ModelTrainingSampleCollection",
@@ -73,20 +83,38 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "learning/training/participating_model_training_batch.py":
         # 借用記録は宣言に必要な公開型だけを参照する。
         return imported_module_name in (
-            "__future__", "__future__.annotations",
-            "dataclasses", "dataclasses.dataclass",
-            "torch", "torch.Tensor", "torch.optim", "torch.optim.Optimizer",
+            "__future__",
+            "__future__.annotations",
+            "dataclasses",
+            "dataclasses.dataclass",
+            "torch",
+            "torch.Tensor",
+            "torch.optim",
+            "torch.optim.Optimizer",
             "federated_learning_experiments.learning.models.residual_adapter_classifier",
             "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
         )
     if source_module_path == "learning/training/joint_model_parameter_update.py":
         # 共同更新は明示演算と兄弟記録/設定・モデル公開型へ限定する。
         return imported_module_name in (
-            "__future__", "__future__.annotations",
-            "torch", "torch.Tensor", "torch.cat", "torch.isfinite", "torch.no_grad",
-            "torch.is_grad_enabled", "torch.float32", "torch.strided",
-            "torch.nn", "torch.nn.Parameter", "torch.nn.BCELoss", "torch.nn.CrossEntropyLoss",
-            "torch.optim", "torch.optim.Optimizer", "torch.optim.Adam", "torch.optim.SGD",
+            "__future__",
+            "__future__.annotations",
+            "torch",
+            "torch.Tensor",
+            "torch.cat",
+            "torch.isfinite",
+            "torch.no_grad",
+            "torch.is_grad_enabled",
+            "torch.float32",
+            "torch.strided",
+            "torch.nn",
+            "torch.nn.Parameter",
+            "torch.nn.BCELoss",
+            "torch.nn.CrossEntropyLoss",
+            "torch.optim",
+            "torch.optim.Optimizer",
+            "torch.optim.Adam",
+            "torch.optim.SGD",
             "federated_learning_experiments.learning.training.local_training_settings",
             "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
             "federated_learning_experiments.learning.training.participating_model_training_batch",
@@ -99,18 +127,28 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "learning/training/parameter_optimizer_settings.py":
         # optimizer設定は一般stdlib/core許可より前に公開field検査へ限定する。
         return imported_module_name in (
-            "__future__", "__future__.annotations",
-            "dataclasses", "dataclasses.dataclass", "dataclasses.field",
+            "__future__",
+            "__future__.annotations",
+            "dataclasses",
+            "dataclasses.dataclass",
+            "dataclasses.field",
             "federated_learning_experiments.core.settings_field_validation",
             "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
         )
     if source_module_path == "learning/training/parameter_optimizer_construction.py":
         # 生成部は指定Parameter/optimizerと専用公開設定型だけを参照する。
         return imported_module_name in (
-            "__future__", "__future__.annotations",
-            "torch", "torch.float32", "torch.strided",
-            "torch.nn", "torch.nn.Parameter",
-            "torch.optim", "torch.optim.Optimizer", "torch.optim.Adam", "torch.optim.SGD",
+            "__future__",
+            "__future__.annotations",
+            "torch",
+            "torch.float32",
+            "torch.strided",
+            "torch.nn",
+            "torch.nn.Parameter",
+            "torch.optim",
+            "torch.optim.Optimizer",
+            "torch.optim.Adam",
+            "torch.optim.SGD",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
@@ -122,14 +160,26 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     ):
         # モデル構造は一般stdlib許可より先にexact module/public symbolで制限する。
         return imported_module_name in (
-            "__future__", "__future__.annotations",
-            "torch", "torch.Tensor", "torch.float32", "torch.device", "torch.strided",
-            "torch.nn", "torch.nn.Module", "torch.nn.Sequential", "torch.nn.Linear",
-            "torch.nn.ReLU", "torch.nn.Sigmoid", "torch.nn.Identity",
-            "torch.nn.init", "torch.nn.init.zeros_",
+            "__future__",
+            "__future__.annotations",
+            "torch",
+            "torch.Tensor",
+            "torch.float32",
+            "torch.device",
+            "torch.strided",
+            "torch.nn",
+            "torch.nn.Module",
+            "torch.nn.Sequential",
+            "torch.nn.Linear",
+            "torch.nn.ReLU",
+            "torch.nn.Sigmoid",
+            "torch.nn.Identity",
+            "torch.nn.init",
+            "torch.nn.init.zeros_",
         ) or (
             source_module_path == "learning/models/residual_adapter_classifier.py"
-            and imported_module_name in (
+            and imported_module_name
+            in (
                 "federated_learning_experiments.learning.models.model_architecture_settings",
                 "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
                 "federated_learning_experiments.learning.models.shared_feature_extractor",
@@ -140,14 +190,21 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:
         return True
-    if source_module_path == "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py":
+    if (
+        source_module_path
+        == "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py"
+    ):
         # 初期snapshot作成だけにtorchと同機能の公開設定型を許可する。
         return imported_module_name in (
-            "torch", "torch.Tensor",
+            "torch",
+            "torch.Tensor",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
         )
-    if source_module_path == "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py":
+    if (
+        source_module_path
+        == "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py"
+    ):
         # 設定宣言は既存の公開field検査関数だけを参照する。
         return imported_module_name in (
             "federated_learning_experiments.core.settings_field_validation",
@@ -159,7 +216,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments",
             "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.BoundedLossMoments",
         )
-    if source_module_path == "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py":
+    if (
+        source_module_path
+        == "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py"
+    ):
         # ID対応後の選択は公開統計型だけを参照する。
         return imported_module_name in (
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
@@ -167,14 +227,11 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "learning/loss_statistics/batch_loss_statistics_initialization.py":
         # batch初期化だけにtorchと既存の集計値型を許可する。
-        return (
-            imported_module_name in ("torch", "torch.Tensor")
-            or imported_module_name in (
-                "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments",
-                "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.BoundedLossMoments",
-                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
-                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
-            )
+        return imported_module_name in ("torch", "torch.Tensor") or imported_module_name in (
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.BoundedLossMoments",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
         )
     if source_module_path == "learning/loss_statistics/model_and_class_loss_statistics.py":
         # 統計所有は公開集計型と一件追加だけに依存する。
@@ -189,28 +246,43 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments",
             "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.BoundedLossMoments",
         )
-    if source_module_path == "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py":
+    if (
+        source_module_path
+        == "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py"
+    ):
         # 収集状態は同機能設定だけを参照し、数値評価へ依存しない。
         return imported_module_name in (
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
         )
-    if source_module_path == "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py":
+    if (
+        source_module_path
+        == "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py"
+    ):
         # 保留位置FIFOは同機能の容量条件だけを参照する。
         return (
-            imported_module_name == "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings"
-            or imported_module_name.startswith("federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.")
+            imported_module_name
+            == "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings"
+            or imported_module_name.startswith(
+                "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings."
+            )
         )
     if source_module_path == "methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py":
         # 単系列の数値検出器だけにNumPyを許可する。
         return imported_module_name == "numpy" or imported_module_name.startswith("numpy.")
-    if source_module_path == "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py":
+    if (
+        source_module_path
+        == "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py"
+    ):
         # 候補loss評価だけにtorchと同機能の固定条件を許可する。
         return (
             imported_module_name == "torch"
             or imported_module_name.startswith("torch.")
-            or imported_module_name == "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings"
-            or imported_module_name.startswith("federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.")
+            or imported_module_name
+            == "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings"
+            or imported_module_name.startswith(
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings."
+            )
         )
     if source_module_path in (
         "learning/models/torch_random_state_scope.py",
@@ -254,12 +326,18 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             allowed_internal_module_prefixes += (
                 "federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings.",
             )
-    elif source_module_path == "methods/fedsda/prediction_combination/fixed_share_prediction_weights.py":
+    elif (
+        source_module_path
+        == "methods/fedsda/prediction_combination/fixed_share_prediction_weights.py"
+    ):
         # 数値状態部品は同機能の固定条件だけを参照する。
         allowed_internal_module_prefixes = (
             "federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings.",
         )
-    elif source_module_path == "methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py":
+    elif (
+        source_module_path
+        == "methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py"
+    ):
         # 混合監視は同機能の検出器と固定条件だけを参照する。
         allowed_internal_module_prefixes = (
             "federated_learning_experiments.methods.fedsda.loss_change_detection.bounded_loss_e_sr_detection.",
@@ -305,15 +383,20 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
     dependency_boundary_violations = ()
     for import_statement in ast.walk(parsed_source_module):
         imported_module_names = resolve_imported_module_names(
-            import_statement=import_statement, importing_package_name=importing_package_name,
+            import_statement=import_statement,
+            importing_package_name=importing_package_name,
         )
         for imported_module_name in imported_module_names:
             if not dependency_is_allowed(
-                source_module_path=source_module_path, imported_module_name=imported_module_name,
+                source_module_path=source_module_path,
+                imported_module_name=imported_module_name,
             ):
-                dependency_boundary_violations += ((
-                    imported_module_name, "この層では許可されない依存先です",
-                ),)
+                dependency_boundary_violations += (
+                    (
+                        imported_module_name,
+                        "この層では許可されない依存先です",
+                    ),
+                )
     return dependency_boundary_violations
 
 
@@ -323,7 +406,11 @@ def test_single_run_package_boundaries_have_no_exports():
         Path(__file__).resolve().parents[2] / "src" / "federated_learning_experiments"
     )
     package_boundary_paths = (
-        "data", "data/concept_schedules", "data/sine", "execution", "runtime",
+        "data",
+        "data/concept_schedules",
+        "data/sine",
+        "execution",
+        "runtime",
         "learning/prediction",
     )
     for package_boundary_path in package_boundary_paths:
@@ -346,308 +433,1002 @@ def test_single_run_layers_import_only_allowed_dependencies():
             source_text=source_file_path.read_text(encoding="utf-8"),
         )
         assert not dependency_boundary_violations, (
-            source_module_path, dependency_boundary_violations,
+            source_module_path,
+            dependency_boundary_violations,
         )
 
 
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_imported_module_name",
     [
-        *[(source_module_path, source_text, expected_imported_module_name)
-          for source_module_path in (
-              "learning/training/model_training_sample_records.py",
-              "learning/training/held_model_training_batch_sampling.py",
-          )
-          for source_text, expected_imported_module_name in (
-              ("import math", "math"),
-              ("import numpy", "numpy"),
-              ("import torch._C", "torch._C"),
-              ("import torch.optim", "torch.optim"),
-              ("from torch.nn import Module", "torch.nn"),
-              ("import federated_drift_experiment.clients.base", "federated_drift_experiment.clients.base"),
-              ("from ..models.residual_adapter_classifier import ResidualAdapterClassifier", "federated_learning_experiments.learning.models.residual_adapter_classifier"),
-              ("import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-              ("import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer", "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer"),
-              ("from .joint_model_parameter_update import perform_joint_model_parameter_update", "federated_learning_experiments.learning.training.joint_model_parameter_update"),
-          )],
-        ("learning/training/model_training_sample_records.py", "from dataclasses import field", "dataclasses.field"),
-        ("learning/training/model_training_sample_records.py", "from torch import cat", "torch.cat"),
-        ("learning/training/model_training_sample_records.py", "from random import Random", "random"),
-        ("learning/training/model_training_sample_records.py", "from .held_model_training_batch_sampling import sample_training_batches_for_held_models", "federated_learning_experiments.learning.training.held_model_training_batch_sampling"),
-        ("learning/training/held_model_training_batch_sampling.py", "from random import sample", "random.sample"),
-        ("learning/training/held_model_training_batch_sampling.py", "from random import seed", "random.seed"),
-        ("learning/training/held_model_training_batch_sampling.py", "from random import getstate", "random.getstate"),
-        ("learning/training/held_model_training_batch_sampling.py", "from random import setstate", "random.setstate"),
-        ("learning/training/held_model_training_batch_sampling.py", "from random import SystemRandom", "random.SystemRandom"),
-        ("learning/training/held_model_training_batch_sampling.py", "from random import _inst", "random._inst"),
-        ("learning/training/held_model_training_batch_sampling.py", "import random.child", "random.child"),
-        ("learning/training/held_model_training_batch_sampling.py", "from .model_training_sample_records import Tensor", "federated_learning_experiments.learning.training.model_training_sample_records.Tensor"),
-        ("learning/training/held_model_training_batch_sampling.py", "from .model_training_sample_records import _private", "federated_learning_experiments.learning.training.model_training_sample_records._private"),
-        ("learning/training/held_model_training_batch_sampling.py", "import federated_learning_experiments.learning.training.model_training_sample_records.child", "federated_learning_experiments.learning.training.model_training_sample_records.child"),
-        *[(source_module_path, source_text, expected_imported_module_name)
-          for source_module_path in (
-              "learning/training/participating_model_training_batch.py",
-              "learning/training/joint_model_parameter_update.py",
-          )
-          for source_text, expected_imported_module_name in (
-              ("import math", "math"),
-              ("import random", "random"),
-              ("import numpy", "numpy"),
-              ("import torch._C", "torch._C"),
-              ("import torch.optim.lr_scheduler", "torch.optim.lr_scheduler"),
-              ("from torch.optim import RMSprop", "torch.optim.RMSprop"),
-              ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
-              ("import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-              ("import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization"),
-              ("from .parameter_optimizer_construction import create_parameter_optimizer", "federated_learning_experiments.learning.training.parameter_optimizer_construction"),
-              ("import federated_learning_experiments.learning.training", "federated_learning_experiments.learning.training"),
-          )],
-        ("learning/training/participating_model_training_batch.py", "from dataclasses import field", "dataclasses.field"),
-        ("learning/training/participating_model_training_batch.py", "from torch import cat", "torch.cat"),
-        ("learning/training/participating_model_training_batch.py", "from torch.optim import Adam", "torch.optim.Adam"),
-        ("learning/training/participating_model_training_batch.py", "from torch.nn import Parameter", "torch.nn.Parameter"),
-        ("learning/training/participating_model_training_batch.py", "from .local_training_settings import LocalTrainingSettings", "federated_learning_experiments.learning.training.local_training_settings"),
-        ("learning/training/participating_model_training_batch.py", "from ..models.shared_feature_extractor import SharedFeatureExtractor", "federated_learning_experiments.learning.models.shared_feature_extractor"),
-        ("learning/training/participating_model_training_batch.py", "from ..models.residual_adapter_classifier import _validate_classifier_inputs", "federated_learning_experiments.learning.models.residual_adapter_classifier._validate_classifier_inputs"),
-        ("learning/training/joint_model_parameter_update.py", "from .participating_model_training_batch import Tensor", "federated_learning_experiments.learning.training.participating_model_training_batch.Tensor"),
-        ("learning/training/joint_model_parameter_update.py", "from .local_training_settings import validate_settings_field_values", "federated_learning_experiments.learning.training.local_training_settings.validate_settings_field_values"),
-        ("learning/training/joint_model_parameter_update.py", "from ..models.shared_feature_extractor import _validate_feature_tensor", "federated_learning_experiments.learning.models.shared_feature_extractor._validate_feature_tensor"),
-        ("learning/training/joint_model_parameter_update.py", "import federated_learning_experiments.learning.training.participating_model_training_batch.child", "federated_learning_experiments.learning.training.participating_model_training_batch.child"),
-        ("learning/training/joint_model_parameter_update.py", "import federated_learning_experiments.learning.models.residual_adapter_classifier.child", "federated_learning_experiments.learning.models.residual_adapter_classifier.child"),
-        *[(source_module_path, source_text, expected_imported_module_name)
-          for source_module_path in (
-              "learning/training/parameter_optimizer_settings.py",
-              "learning/training/parameter_optimizer_construction.py",
-          )
-          for source_text, expected_imported_module_name in (
-              ("import math", "math"),
-              ("import random", "random"),
-              ("import numpy", "numpy"),
-              ("import torch._C", "torch._C"),
-              ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
-              ("from ..models import residual_adapter_classifier", "federated_learning_experiments.learning.models.residual_adapter_classifier"),
-              ("import federated_learning_experiments.data.sine.sine_sample_generation", "federated_learning_experiments.data.sine.sine_sample_generation"),
-              ("import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-              ("import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization"),
-          )],
+        *[
+            (source_module_path, source_text, expected_imported_module_name)
+            for source_module_path in (
+                "learning/training/model_training_sample_records.py",
+                "learning/training/held_model_training_batch_sampling.py",
+            )
+            for source_text, expected_imported_module_name in (
+                ("import math", "math"),
+                ("import numpy", "numpy"),
+                ("import torch._C", "torch._C"),
+                ("import torch.optim", "torch.optim"),
+                ("from torch.nn import Module", "torch.nn"),
+                (
+                    "import federated_drift_experiment.clients.base",
+                    "federated_drift_experiment.clients.base",
+                ),
+                (
+                    "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+                    "federated_learning_experiments.learning.models.residual_adapter_classifier",
+                ),
+                (
+                    "import federated_learning_experiments.runtime.single_run_execution",
+                    "federated_learning_experiments.runtime.single_run_execution",
+                ),
+                (
+                    "import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer",
+                    "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer",
+                ),
+                (
+                    "from .joint_model_parameter_update import perform_joint_model_parameter_update",
+                    "federated_learning_experiments.learning.training.joint_model_parameter_update",
+                ),
+            )
+        ],
+        (
+            "learning/training/model_training_sample_records.py",
+            "from dataclasses import field",
+            "dataclasses.field",
+        ),
+        (
+            "learning/training/model_training_sample_records.py",
+            "from torch import cat",
+            "torch.cat",
+        ),
+        (
+            "learning/training/model_training_sample_records.py",
+            "from random import Random",
+            "random",
+        ),
+        (
+            "learning/training/model_training_sample_records.py",
+            "from .held_model_training_batch_sampling import sample_training_batches_for_held_models",
+            "federated_learning_experiments.learning.training.held_model_training_batch_sampling",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from random import sample",
+            "random.sample",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from random import seed",
+            "random.seed",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from random import getstate",
+            "random.getstate",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from random import setstate",
+            "random.setstate",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from random import SystemRandom",
+            "random.SystemRandom",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from random import _inst",
+            "random._inst",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "import random.child",
+            "random.child",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from .model_training_sample_records import Tensor",
+            "federated_learning_experiments.learning.training.model_training_sample_records.Tensor",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from .model_training_sample_records import _private",
+            "federated_learning_experiments.learning.training.model_training_sample_records._private",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_records.child",
+            "federated_learning_experiments.learning.training.model_training_sample_records.child",
+        ),
+        *[
+            (source_module_path, source_text, expected_imported_module_name)
+            for source_module_path in (
+                "learning/training/participating_model_training_batch.py",
+                "learning/training/joint_model_parameter_update.py",
+            )
+            for source_text, expected_imported_module_name in (
+                ("import math", "math"),
+                ("import random", "random"),
+                ("import numpy", "numpy"),
+                ("import torch._C", "torch._C"),
+                ("import torch.optim.lr_scheduler", "torch.optim.lr_scheduler"),
+                ("from torch.optim import RMSprop", "torch.optim.RMSprop"),
+                ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
+                (
+                    "import federated_learning_experiments.runtime.single_run_execution",
+                    "federated_learning_experiments.runtime.single_run_execution",
+                ),
+                (
+                    "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization",
+                    "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization",
+                ),
+                (
+                    "from .parameter_optimizer_construction import create_parameter_optimizer",
+                    "federated_learning_experiments.learning.training.parameter_optimizer_construction",
+                ),
+                (
+                    "import federated_learning_experiments.learning.training",
+                    "federated_learning_experiments.learning.training",
+                ),
+            )
+        ],
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from dataclasses import field",
+            "dataclasses.field",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from torch import cat",
+            "torch.cat",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from torch.optim import Adam",
+            "torch.optim.Adam",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from torch.nn import Parameter",
+            "torch.nn.Parameter",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from .local_training_settings import LocalTrainingSettings",
+            "federated_learning_experiments.learning.training.local_training_settings",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from ..models.shared_feature_extractor import SharedFeatureExtractor",
+            "federated_learning_experiments.learning.models.shared_feature_extractor",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from ..models.residual_adapter_classifier import _validate_classifier_inputs",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier._validate_classifier_inputs",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from .participating_model_training_batch import Tensor",
+            "federated_learning_experiments.learning.training.participating_model_training_batch.Tensor",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from .local_training_settings import validate_settings_field_values",
+            "federated_learning_experiments.learning.training.local_training_settings.validate_settings_field_values",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from ..models.shared_feature_extractor import _validate_feature_tensor",
+            "federated_learning_experiments.learning.models.shared_feature_extractor._validate_feature_tensor",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "import federated_learning_experiments.learning.training.participating_model_training_batch.child",
+            "federated_learning_experiments.learning.training.participating_model_training_batch.child",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "import federated_learning_experiments.learning.models.residual_adapter_classifier.child",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.child",
+        ),
+        *[
+            (source_module_path, source_text, expected_imported_module_name)
+            for source_module_path in (
+                "learning/training/parameter_optimizer_settings.py",
+                "learning/training/parameter_optimizer_construction.py",
+            )
+            for source_text, expected_imported_module_name in (
+                ("import math", "math"),
+                ("import random", "random"),
+                ("import numpy", "numpy"),
+                ("import torch._C", "torch._C"),
+                ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
+                (
+                    "from ..models import residual_adapter_classifier",
+                    "federated_learning_experiments.learning.models.residual_adapter_classifier",
+                ),
+                (
+                    "import federated_learning_experiments.data.sine.sine_sample_generation",
+                    "federated_learning_experiments.data.sine.sine_sample_generation",
+                ),
+                (
+                    "import federated_learning_experiments.runtime.single_run_execution",
+                    "federated_learning_experiments.runtime.single_run_execution",
+                ),
+                (
+                    "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization",
+                    "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization",
+                ),
+            )
+        ],
         ("learning/training/parameter_optimizer_settings.py", "import torch", "torch"),
         ("learning/training/parameter_optimizer_settings.py", "import torch.optim", "torch.optim"),
-        ("learning/training/parameter_optimizer_settings.py", "from dataclasses import asdict", "dataclasses.asdict"),
-        ("learning/training/parameter_optimizer_settings.py", "from ...core.settings_field_validation import _private", "federated_learning_experiments.core.settings_field_validation._private"),
-        ("learning/training/parameter_optimizer_settings.py", "from ...core.settings_field_validation import fields", "federated_learning_experiments.core.settings_field_validation.fields"),
-        ("learning/training/parameter_optimizer_settings.py", "import federated_learning_experiments.core.settings_field_validation.child", "federated_learning_experiments.core.settings_field_validation.child"),
-        ("learning/training/parameter_optimizer_settings.py", "from ...core.configuration_errors import RunSettingsValidationError", "federated_learning_experiments.core.configuration_errors"),
-        ("learning/training/parameter_optimizer_construction.py", "from torch.optim import RMSprop", "torch.optim.RMSprop"),
-        ("learning/training/parameter_optimizer_construction.py", "import torch.optim.lr_scheduler", "torch.optim.lr_scheduler"),
-        ("learning/training/parameter_optimizer_construction.py", "import torch.optim.optimizer", "torch.optim.optimizer"),
-        ("learning/training/parameter_optimizer_construction.py", "from torch.nn import Module", "torch.nn.Module"),
-        ("learning/training/parameter_optimizer_construction.py", "from .parameter_optimizer_settings import _private", "federated_learning_experiments.learning.training.parameter_optimizer_settings._private"),
-        ("learning/training/parameter_optimizer_construction.py", "from .parameter_optimizer_settings import validate_settings_field_values", "federated_learning_experiments.learning.training.parameter_optimizer_settings.validate_settings_field_values"),
-        ("learning/training/parameter_optimizer_construction.py", "import federated_learning_experiments.learning.training.parameter_optimizer_settings.child", "federated_learning_experiments.learning.training.parameter_optimizer_settings.child"),
-        *[(source_module_path, source_text, expected_imported_module_name)
-          for source_module_path in (
-              "learning/models/shared_feature_extractor.py",
-              "learning/models/nonlinear_residual_adapter.py",
-              "learning/models/residual_adapter_classifier.py",
-          )
-          for source_text, expected_imported_module_name in (
-              ("import numpy", "numpy"),
-              ("import random", "random"),
-              ("import torch.optim", "torch.optim"),
-              ("import torch._C", "torch._C"),
-              ("from torch.nn import Dropout", "torch.nn.Dropout"),
-              ("from torch.nn.init import kaiming_uniform_", "torch.nn.init.kaiming_uniform_"),
-              ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
-          )],
-        ("learning/models/shared_feature_extractor.py", "from .residual_adapter_classifier import ResidualAdapterClassifier", "federated_learning_experiments.learning.models.residual_adapter_classifier"),
-        ("learning/models/nonlinear_residual_adapter.py", "from .shared_feature_extractor import SharedFeatureExtractor", "federated_learning_experiments.learning.models.shared_feature_extractor"),
-        ("learning/models/residual_adapter_classifier.py", "from .shared_feature_extractor import _validate_feature_tensor", "federated_learning_experiments.learning.models.shared_feature_extractor._validate_feature_tensor"),
-        ("learning/models/residual_adapter_classifier.py", "from .model_architecture_settings import validate_settings_field_values", "federated_learning_experiments.learning.models.model_architecture_settings.validate_settings_field_values"),
-        ("learning/models/residual_adapter_classifier.py", "import federated_learning_experiments.learning.models.shared_feature_extractor.child", "federated_learning_experiments.learning.models.shared_feature_extractor.child"),
-        ("learning/models/residual_adapter_classifier.py", "import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("learning/models/residual_adapter_classifier.py", "from ...methods.fedsda.candidate_model_selection import candidate_parameter_initialization", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import numpy", "numpy"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import torch._C", "torch._C"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from torch import nn", "torch.nn"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from .candidate_parameter_initialization_settings import _private", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings._private"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from .candidate_parameter_initialization_settings import validate_settings_field_values", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.validate_settings_field_values"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.child", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.child"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from .post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses", "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import federated_drift_experiment.config", "federated_drift_experiment.config"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "import torch", "torch"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "import numpy", "numpy"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from federated_learning_experiments.core.settings_field_validation import fields", "federated_learning_experiments.core.settings_field_validation.fields"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from federated_learning_experiments.core.settings_field_validation import _private", "federated_learning_experiments.core.settings_field_validation._private"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from federated_learning_experiments.core import configuration_errors", "federated_learning_experiments.core.configuration_errors"),
+        (
+            "learning/training/parameter_optimizer_settings.py",
+            "from dataclasses import asdict",
+            "dataclasses.asdict",
+        ),
+        (
+            "learning/training/parameter_optimizer_settings.py",
+            "from ...core.settings_field_validation import _private",
+            "federated_learning_experiments.core.settings_field_validation._private",
+        ),
+        (
+            "learning/training/parameter_optimizer_settings.py",
+            "from ...core.settings_field_validation import fields",
+            "federated_learning_experiments.core.settings_field_validation.fields",
+        ),
+        (
+            "learning/training/parameter_optimizer_settings.py",
+            "import federated_learning_experiments.core.settings_field_validation.child",
+            "federated_learning_experiments.core.settings_field_validation.child",
+        ),
+        (
+            "learning/training/parameter_optimizer_settings.py",
+            "from ...core.configuration_errors import RunSettingsValidationError",
+            "federated_learning_experiments.core.configuration_errors",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "from torch.optim import RMSprop",
+            "torch.optim.RMSprop",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "import torch.optim.lr_scheduler",
+            "torch.optim.lr_scheduler",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "import torch.optim.optimizer",
+            "torch.optim.optimizer",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "from torch.nn import Module",
+            "torch.nn.Module",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "from .parameter_optimizer_settings import _private",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings._private",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "from .parameter_optimizer_settings import validate_settings_field_values",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.validate_settings_field_values",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "import federated_learning_experiments.learning.training.parameter_optimizer_settings.child",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.child",
+        ),
+        *[
+            (source_module_path, source_text, expected_imported_module_name)
+            for source_module_path in (
+                "learning/models/shared_feature_extractor.py",
+                "learning/models/nonlinear_residual_adapter.py",
+                "learning/models/residual_adapter_classifier.py",
+            )
+            for source_text, expected_imported_module_name in (
+                ("import numpy", "numpy"),
+                ("import random", "random"),
+                ("import torch.optim", "torch.optim"),
+                ("import torch._C", "torch._C"),
+                ("from torch.nn import Dropout", "torch.nn.Dropout"),
+                ("from torch.nn.init import kaiming_uniform_", "torch.nn.init.kaiming_uniform_"),
+                ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
+            )
+        ],
+        (
+            "learning/models/shared_feature_extractor.py",
+            "from .residual_adapter_classifier import ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier",
+        ),
+        (
+            "learning/models/nonlinear_residual_adapter.py",
+            "from .shared_feature_extractor import SharedFeatureExtractor",
+            "federated_learning_experiments.learning.models.shared_feature_extractor",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "from .shared_feature_extractor import _validate_feature_tensor",
+            "federated_learning_experiments.learning.models.shared_feature_extractor._validate_feature_tensor",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "from .model_architecture_settings import validate_settings_field_values",
+            "federated_learning_experiments.learning.models.model_architecture_settings.validate_settings_field_values",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "import federated_learning_experiments.learning.models.shared_feature_extractor.child",
+            "federated_learning_experiments.learning.models.shared_feature_extractor.child",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "import federated_learning_experiments.runtime.single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "from ...methods.fedsda.candidate_model_selection import candidate_parameter_initialization",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "import numpy",
+            "numpy",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "import torch._C",
+            "torch._C",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "from torch import nn",
+            "torch.nn",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "from .candidate_parameter_initialization_settings import _private",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings._private",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "from .candidate_parameter_initialization_settings import validate_settings_field_values",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.validate_settings_field_values",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.child",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.child",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "from .post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "import federated_drift_experiment.config",
+            "federated_drift_experiment.config",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "import federated_learning_experiments.runtime.single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py",
+            "import torch",
+            "torch",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py",
+            "import numpy",
+            "numpy",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py",
+            "from federated_learning_experiments.core.settings_field_validation import fields",
+            "federated_learning_experiments.core.settings_field_validation.fields",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py",
+            "from federated_learning_experiments.core.settings_field_validation import _private",
+            "federated_learning_experiments.core.settings_field_validation._private",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py",
+            "from federated_learning_experiments.core import configuration_errors",
+            "federated_learning_experiments.core.configuration_errors",
+        ),
         ("learning/loss_statistics/server_loss_mean_aggregation.py", "import torch", "torch"),
         ("learning/loss_statistics/server_loss_mean_aggregation.py", "import numpy", "numpy"),
         ("learning/loss_statistics/server_loss_mean_aggregation.py", "import config", "config"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from ...runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from ...methods.fedsda.loss_statistics import loss_baseline_selection", "federated_learning_experiments.methods.fedsda.loss_statistics"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from .bounded_loss_moments import accumulate_bounded_loss_observation", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.accumulate_bounded_loss_observation"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from .bounded_loss_moments import estimate_loss_mean_and_sample_variance", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.estimate_loss_mean_and_sample_variance"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from .bounded_loss_moments import _validate_loss_moment_fields", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moment_fields"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.internal", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.internal"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from .model_and_class_loss_statistics import ModelAndClassLossStatisticsStore", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from . import another_loss_statistics", "federated_learning_experiments.learning.loss_statistics"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import torch", "torch"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import numpy", "numpy"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import config", "config"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from ...runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from ...methods.fedsda.loss_statistics import loss_baseline_selection", "federated_learning_experiments.methods.fedsda.loss_statistics"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .model_and_class_loss_statistics import ModelAndClassLossStatisticsStore", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .model_and_class_loss_statistics import _copy_loss_moments", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics._copy_loss_moments"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .bounded_loss_moments import BoundedLossMoments", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from . import another_loss_statistics", "federated_learning_experiments.learning.loss_statistics"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .model_and_class_loss_statistics import arbitrary_public_name", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.arbitrary_public_name"),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from federated_drift_experiment import config",
+            "federated_drift_experiment",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from ...runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from ...methods.fedsda.loss_statistics import loss_baseline_selection",
+            "federated_learning_experiments.methods.fedsda.loss_statistics",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from .bounded_loss_moments import accumulate_bounded_loss_observation",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.accumulate_bounded_loss_observation",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from .bounded_loss_moments import estimate_loss_mean_and_sample_variance",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.estimate_loss_mean_and_sample_variance",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from .bounded_loss_moments import _validate_loss_moment_fields",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moment_fields",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.internal",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.internal",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from .model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from . import another_loss_statistics",
+            "federated_learning_experiments.learning.loss_statistics",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "import torch",
+            "torch",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "import numpy",
+            "numpy",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "import config",
+            "config",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from federated_drift_experiment import config",
+            "federated_drift_experiment",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from ...runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from ...methods.fedsda.loss_statistics import loss_baseline_selection",
+            "federated_learning_experiments.methods.fedsda.loss_statistics",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from .model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from .model_and_class_loss_statistics import _copy_loss_moments",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics._copy_loss_moments",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from .bounded_loss_moments import BoundedLossMoments",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from . import another_loss_statistics",
+            "federated_learning_experiments.learning.loss_statistics",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from .model_and_class_loss_statistics import arbitrary_public_name",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.arbitrary_public_name",
+        ),
         ("learning/prediction/class_probability_calculations.py", "import numpy", "numpy"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import numpy", "numpy"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from .candidate_model_training_and_acceptance_settings import UnsupportedSettings", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.UnsupportedSettings"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import torch", "torch"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "import config", "config"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from federated_drift_experiment import provisional_model", "federated_drift_experiment"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from . import post_alarm_candidate_loss_evaluation", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from ..training_data_assignment import pending_training_assignment_buffer", "federated_learning_experiments.methods.fedsda.training_data_assignment"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from . import another_loss_collection", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
-        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "import numpy", "numpy"),
-        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "import torch", "torch"),
-        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "import config", "config"),
-        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from federated_drift_experiment import clients", "federated_drift_experiment"),
-        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from ..loss_change_detection import overall_and_true_class_loss_monitoring", "federated_learning_experiments.methods.fedsda.loss_change_detection"),
-        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from . import another_assignment_buffer", "federated_learning_experiments.methods.fedsda.training_data_assignment"),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "import numpy",
+            "numpy",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "from .candidate_model_training_and_acceptance_settings import UnsupportedSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.UnsupportedSettings",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "import torch",
+            "torch",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "import config",
+            "config",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "from federated_drift_experiment import provisional_model",
+            "federated_drift_experiment",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "from ....runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "from . import post_alarm_candidate_loss_evaluation",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "from ..training_data_assignment import pending_training_assignment_buffer",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "from . import another_loss_collection",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection",
+        ),
+        (
+            "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
+            "import numpy",
+            "numpy",
+        ),
+        (
+            "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
+            "import torch",
+            "torch",
+        ),
+        (
+            "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
+            "import config",
+            "config",
+        ),
+        (
+            "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
+            "from federated_drift_experiment import clients",
+            "federated_drift_experiment",
+        ),
+        (
+            "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
+            "from ....runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
+            "from ..loss_change_detection import overall_and_true_class_loss_monitoring",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection",
+        ),
+        (
+            "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
+            "from . import another_assignment_buffer",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment",
+        ),
         ("learning/prediction/class_probability_calculations.py", "import config", "config"),
-        ("learning/prediction/class_probability_calculations.py", "from federated_drift_experiment import expert_routing", "federated_drift_experiment"),
-        ("learning/prediction/class_probability_calculations.py", "from ... import runtime", "federated_learning_experiments.runtime"),
-        ("learning/prediction/class_probability_calculations.py", "from ...methods.fedsda.prediction_combination.fixed_share_prediction_weights import FixedSharePredictionWeightController", "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights"),
+        (
+            "learning/prediction/class_probability_calculations.py",
+            "from federated_drift_experiment import expert_routing",
+            "federated_drift_experiment",
+        ),
+        (
+            "learning/prediction/class_probability_calculations.py",
+            "from ... import runtime",
+            "federated_learning_experiments.runtime",
+        ),
+        (
+            "learning/prediction/class_probability_calculations.py",
+            "from ...methods.fedsda.prediction_combination.fixed_share_prediction_weights import FixedSharePredictionWeightController",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights",
+        ),
         ("learning/prediction/another_prediction.py", "import torch", "torch"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "import numpy", "numpy"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "import config", "config"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from federated_drift_experiment import provisional_model", "federated_drift_experiment"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from ..loss_change_detection import overall_and_true_class_loss_monitoring", "federated_learning_experiments.methods.fedsda.loss_change_detection"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from ....learning.prediction import class_probability_calculations", "federated_learning_experiments.learning.prediction"),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
+            "import numpy",
+            "numpy",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
+            "import config",
+            "config",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
+            "from federated_drift_experiment import provisional_model",
+            "federated_drift_experiment",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
+            "from ....runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
+            "from ..loss_change_detection import overall_and_true_class_loss_monitoring",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
+            "from ....learning.prediction import class_probability_calculations",
+            "federated_learning_experiments.learning.prediction",
+        ),
         ("methods/fedsda/candidate_model_selection/another_candidate.py", "import torch", "torch"),
-        ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "import torch", "torch"),
-        ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
-        ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "from .loss_change_detection_settings import LossChangeDetectionSettings", "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings"),
-        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "import numpy", "numpy"),
-        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "import torch", "torch"),
-        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "from ..prediction_combination import fixed_share_prediction_weights", "federated_learning_experiments.methods.fedsda.prediction_combination"),
+        (
+            "methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py",
+            "import torch",
+            "torch",
+        ),
+        (
+            "methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py",
+            "from federated_drift_experiment import config",
+            "federated_drift_experiment",
+        ),
+        (
+            "methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py",
+            "from .loss_change_detection_settings import LossChangeDetectionSettings",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings",
+        ),
+        (
+            "methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py",
+            "import numpy",
+            "numpy",
+        ),
+        (
+            "methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py",
+            "import torch",
+            "torch",
+        ),
+        (
+            "methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py",
+            "from ....runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py",
+            "from ..prediction_combination import fixed_share_prediction_weights",
+            "federated_learning_experiments.methods.fedsda.prediction_combination",
+        ),
         ("methods/fedsda/loss_change_detection/another_detector.py", "import numpy", "numpy"),
         ("learning/loss_statistics/bounded_loss_moments.py", "import numpy", "numpy"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "import numpy", "numpy"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "import torch._C", "torch._C"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "import config", "config"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from ...runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from ...methods.fedsda.loss_statistics import loss_baseline_selection", "federated_learning_experiments.methods.fedsda.loss_statistics"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from .bounded_loss_moments import accumulate_bounded_loss_observation", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.accumulate_bounded_loss_observation"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from .bounded_loss_moments import _validate_loss_moment_fields", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moment_fields"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from .bounded_loss_moments import estimate_loss_mean_and_sample_variance", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.estimate_loss_mean_and_sample_variance"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from .model_and_class_loss_statistics import ModelAndClassLossStatisticsStore", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from .model_and_class_loss_statistics import _copy_loss_moments", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics._copy_loss_moments"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal", "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from . import another_loss_statistics", "federated_learning_experiments.learning.loss_statistics"),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "import numpy",
+            "numpy",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "import torch._C",
+            "torch._C",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "import config",
+            "config",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from federated_drift_experiment import config",
+            "federated_drift_experiment",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from ...runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from ...methods.fedsda.loss_statistics import loss_baseline_selection",
+            "federated_learning_experiments.methods.fedsda.loss_statistics",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from .bounded_loss_moments import accumulate_bounded_loss_observation",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.accumulate_bounded_loss_observation",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from .bounded_loss_moments import _validate_loss_moment_fields",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moment_fields",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from .bounded_loss_moments import estimate_loss_mean_and_sample_variance",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.estimate_loss_mean_and_sample_variance",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from .model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from .model_and_class_loss_statistics import _copy_loss_moments",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics._copy_loss_moments",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.internal",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from . import another_loss_statistics",
+            "federated_learning_experiments.learning.loss_statistics",
+        ),
         ("learning/loss_statistics/model_and_class_loss_statistics.py", "import numpy", "numpy"),
         ("learning/loss_statistics/model_and_class_loss_statistics.py", "import torch", "torch"),
         ("learning/loss_statistics/model_and_class_loss_statistics.py", "import config", "config"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from ...runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from ...methods.fedsda.loss_statistics import loss_baseline_selection", "federated_learning_experiments.methods.fedsda.loss_statistics"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from ...methods.fedsda.loss_change_detection import overall_and_true_class_loss_monitoring", "federated_learning_experiments.methods.fedsda.loss_change_detection"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from .bounded_loss_moments import _validate_loss_moment_fields", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moment_fields"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from .bounded_loss_moments import estimate_loss_mean_and_sample_variance", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.estimate_loss_mean_and_sample_variance"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.internal", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.internal"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from . import another_loss_statistics", "federated_learning_experiments.learning.loss_statistics"),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from federated_drift_experiment import config",
+            "federated_drift_experiment",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from ...runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from ...methods.fedsda.loss_statistics import loss_baseline_selection",
+            "federated_learning_experiments.methods.fedsda.loss_statistics",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from ...methods.fedsda.loss_change_detection import overall_and_true_class_loss_monitoring",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from .bounded_loss_moments import _validate_loss_moment_fields",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moment_fields",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from .bounded_loss_moments import estimate_loss_mean_and_sample_variance",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.estimate_loss_mean_and_sample_variance",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.internal",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.internal",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from . import another_loss_statistics",
+            "federated_learning_experiments.learning.loss_statistics",
+        ),
         ("learning/loss_statistics/bounded_loss_moments.py", "import torch", "torch"),
         ("learning/loss_statistics/bounded_loss_moments.py", "import config", "config"),
-        ("learning/loss_statistics/bounded_loss_moments.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
-        ("learning/loss_statistics/bounded_loss_moments.py", "from ...runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("learning/loss_statistics/bounded_loss_moments.py", "from ...methods.fedsda.loss_change_detection import overall_and_true_class_loss_monitoring", "federated_learning_experiments.methods.fedsda.loss_change_detection"),
-        ("learning/loss_statistics/bounded_loss_moments.py", "from ...methods.fedsda.candidate_model_selection import post_alarm_candidate_loss_evaluation", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
-        ("learning/loss_statistics/bounded_loss_moments.py", "from ..prediction import class_probability_calculations", "federated_learning_experiments.learning.prediction"),
-        ("learning/loss_statistics/bounded_loss_moments.py", "from . import another_loss_statistics", "federated_learning_experiments.learning.loss_statistics"),
+        (
+            "learning/loss_statistics/bounded_loss_moments.py",
+            "from federated_drift_experiment import config",
+            "federated_drift_experiment",
+        ),
+        (
+            "learning/loss_statistics/bounded_loss_moments.py",
+            "from ...runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "learning/loss_statistics/bounded_loss_moments.py",
+            "from ...methods.fedsda.loss_change_detection import overall_and_true_class_loss_monitoring",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection",
+        ),
+        (
+            "learning/loss_statistics/bounded_loss_moments.py",
+            "from ...methods.fedsda.candidate_model_selection import post_alarm_candidate_loss_evaluation",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection",
+        ),
+        (
+            "learning/loss_statistics/bounded_loss_moments.py",
+            "from ..prediction import class_probability_calculations",
+            "federated_learning_experiments.learning.prediction",
+        ),
+        (
+            "learning/loss_statistics/bounded_loss_moments.py",
+            "from . import another_loss_statistics",
+            "federated_learning_experiments.learning.loss_statistics",
+        ),
         ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "import numpy", "numpy"),
         ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "import torch", "torch"),
         ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "import config", "config"),
-        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from federated_drift_experiment import config", "federated_drift_experiment"),
-        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from ....runtime import single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
-        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from ..loss_change_detection import overall_and_true_class_loss_monitoring", "federated_learning_experiments.methods.fedsda.loss_change_detection"),
-        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from ..candidate_model_selection import post_alarm_candidate_loss_evaluation", "federated_learning_experiments.methods.fedsda.candidate_model_selection"),
-        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import _validate_loss_moment_fields", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moment_fields"),
-        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import estimate_loss_mean_and_sample_variance", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.estimate_loss_mean_and_sample_variance"),
-        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.another_module", "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.another_module"),
+        (
+            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
+            "from federated_drift_experiment import config",
+            "federated_drift_experiment",
+        ),
+        (
+            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
+            "from ....runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
+            "from ..loss_change_detection import overall_and_true_class_loss_monitoring",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection",
+        ),
+        (
+            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
+            "from ..candidate_model_selection import post_alarm_candidate_loss_evaluation",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection",
+        ),
+        (
+            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
+            "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import _validate_loss_moment_fields",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moment_fields",
+        ),
+        (
+            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
+            "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import estimate_loss_mean_and_sample_variance",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.estimate_loss_mean_and_sample_variance",
+        ),
+        (
+            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
+            "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.another_module",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.another_module",
+        ),
         ("data/sine/sine_sample_generation.py", "import torch", "torch"),
         ("data/observed_streams.py", "import config", "config"),
         ("data/observed_streams.py", "from clients import fedsda", "clients"),
-        ("data/observed_streams.py", "from federated_learning_experiments import runtime",
-         "federated_learning_experiments.runtime"),
-        ("data/sine/sine_sample_generation.py", "from ... import runtime",
-         "federated_learning_experiments.runtime"),
-        ("data/sine/sine_sample_generation.py", "from ...runtime import single_run_execution",
-         "federated_learning_experiments.runtime.single_run_execution"),
-        ("data/observed_streams.py", "from federated_learning_experiments.learning.models import torch_random_state_scope",
-         "federated_learning_experiments.learning.models.torch_random_state_scope"),
-        ("data/observed_streams.py", "from federated_learning_experiments.configuration import run_settings",
-         "federated_learning_experiments.configuration.run_settings"),
+        (
+            "data/observed_streams.py",
+            "from federated_learning_experiments import runtime",
+            "federated_learning_experiments.runtime",
+        ),
+        (
+            "data/sine/sine_sample_generation.py",
+            "from ... import runtime",
+            "federated_learning_experiments.runtime",
+        ),
+        (
+            "data/sine/sine_sample_generation.py",
+            "from ...runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "data/observed_streams.py",
+            "from federated_learning_experiments.learning.models import torch_random_state_scope",
+            "federated_learning_experiments.learning.models.torch_random_state_scope",
+        ),
+        (
+            "data/observed_streams.py",
+            "from federated_learning_experiments.configuration import run_settings",
+            "federated_learning_experiments.configuration.run_settings",
+        ),
         ("data/concept_schedules/random_concept_schedule_settings.py", "import numpy", "numpy"),
-        ("data/concept_schedules/random_concept_schedule_settings.py", "from .. import observed_streams",
-         "federated_learning_experiments.data.observed_streams"),
+        (
+            "data/concept_schedules/random_concept_schedule_settings.py",
+            "from .. import observed_streams",
+            "federated_learning_experiments.data.observed_streams",
+        ),
         ("execution/stream_protocol_execution_settings.py", "import numpy", "numpy"),
-        ("execution/stream_protocol_execution_settings.py", "from federated_learning_experiments.data.sine import sine_sample_generation",
-         "federated_learning_experiments.data.sine.sine_sample_generation"),
+        (
+            "execution/stream_protocol_execution_settings.py",
+            "from federated_learning_experiments.data.sine import sine_sample_generation",
+            "federated_learning_experiments.data.sine.sine_sample_generation",
+        ),
         ("execution/run_random_sources.py", "import torch", "torch"),
         ("execution/run_participant_contracts.py", "import numpy", "numpy"),
-        ("execution/stream_protocol_execution_loop.py", "from ..runtime import single_run_execution",
-         "federated_learning_experiments.runtime.single_run_execution"),
-        ("execution/stream_protocol_execution_loop.py", "from federated_learning_experiments import methods",
-         "federated_learning_experiments.methods"),
-        ("execution/run_execution_records.py", "from .. import learning",
-         "federated_learning_experiments.learning"),
-        ("execution/stream_protocol_execution_loop.py", "from ..configuration.experiment_run_conditions import ExperimentRunConditions",
-         "federated_learning_experiments.configuration.experiment_run_conditions"),
+        (
+            "execution/stream_protocol_execution_loop.py",
+            "from ..runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "execution/stream_protocol_execution_loop.py",
+            "from federated_learning_experiments import methods",
+            "federated_learning_experiments.methods",
+        ),
+        (
+            "execution/run_execution_records.py",
+            "from .. import learning",
+            "federated_learning_experiments.learning",
+        ),
+        (
+            "execution/stream_protocol_execution_loop.py",
+            "from ..configuration.experiment_run_conditions import ExperimentRunConditions",
+            "federated_learning_experiments.configuration.experiment_run_conditions",
+        ),
         ("runtime/single_run_execution.py", "import torch", "torch"),
         ("runtime/single_run_execution.py", "import numpy", "numpy"),
-        ("runtime/single_run_execution.py", "from ..learning.models import model_architecture_settings",
-         "federated_learning_experiments.learning.models.model_architecture_settings"),
+        (
+            "runtime/single_run_execution.py",
+            "from ..learning.models import model_architecture_settings",
+            "federated_learning_experiments.learning.models.model_architecture_settings",
+        ),
         ("learning/models/torch_random_state_scope.py", "import numpy", "numpy"),
-        ("learning/models/torch_random_state_scope.py", "from ... import runtime",
-         "federated_learning_experiments.runtime"),
+        (
+            "learning/models/torch_random_state_scope.py",
+            "from ... import runtime",
+            "federated_learning_experiments.runtime",
+        ),
         ("learning/models/another_model.py", "import torch", "torch"),
         ("core/configuration_errors.py", "import numpy", "numpy"),
         ("configuration/experiment_run_conditions.py", "import numpy", "numpy"),
         ("learning/models/model_architecture_settings.py", "import torch", "torch"),
         ("methods/fedsda/consolidation/model_consolidation_settings.py", "import numpy", "numpy"),
         ("data/observed_streams.py", "if False:\n    import torch", "torch"),
-        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "import torch", "torch"),
-        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "import numpy", "numpy"),
-        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "from federated_drift_experiment import expert_routing",
-         "federated_drift_experiment"),
-        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "from federated_learning_experiments.runtime import single_run_execution",
-         "federated_learning_experiments.runtime.single_run_execution"),
-        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "from federated_learning_experiments.methods.fedsda.consolidation import model_consolidation_settings",
-         "federated_learning_experiments.methods.fedsda.consolidation"),
+        (
+            "methods/fedsda/prediction_combination/fixed_share_prediction_weights.py",
+            "import torch",
+            "torch",
+        ),
+        (
+            "methods/fedsda/prediction_combination/fixed_share_prediction_weights.py",
+            "import numpy",
+            "numpy",
+        ),
+        (
+            "methods/fedsda/prediction_combination/fixed_share_prediction_weights.py",
+            "from federated_drift_experiment import expert_routing",
+            "federated_drift_experiment",
+        ),
+        (
+            "methods/fedsda/prediction_combination/fixed_share_prediction_weights.py",
+            "from federated_learning_experiments.runtime import single_run_execution",
+            "federated_learning_experiments.runtime.single_run_execution",
+        ),
+        (
+            "methods/fedsda/prediction_combination/fixed_share_prediction_weights.py",
+            "from federated_learning_experiments.methods.fedsda.consolidation import model_consolidation_settings",
+            "federated_learning_experiments.methods.fedsda.consolidation",
+        ),
     ],
 )
 def test_single_run_dependency_checker_rejects_forbidden_imports(
-    source_module_path, source_text, expected_imported_module_name,
+    source_module_path,
+    source_text,
+    expected_imported_module_name,
 ):
     """productionを変更せず、実際の検査に禁止依存を注入する。"""
     dependency_boundary_violations = collect_dependency_boundary_violations(
-        source_module_path=source_module_path, source_text=source_text,
+        source_module_path=source_module_path,
+        source_text=source_text,
     )
     assert any(
         imported_module_name == expected_imported_module_name
-        for imported_module_name, dependency_boundary_violation_reason
-        in dependency_boundary_violations
+        for imported_module_name, dependency_boundary_violation_reason in dependency_boundary_violations
     ), dependency_boundary_violations
 
 
@@ -656,126 +1437,375 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
     [
         ("learning/training/model_training_sample_records.py", "from dataclasses import dataclass"),
         ("learning/training/model_training_sample_records.py", "from torch import Tensor"),
-        ("learning/training/model_training_sample_records.py", "from __future__ import annotations"),
+        (
+            "learning/training/model_training_sample_records.py",
+            "from __future__ import annotations",
+        ),
         ("learning/training/held_model_training_batch_sampling.py", "from random import Random"),
-        ("learning/training/held_model_training_batch_sampling.py", "from torch import Tensor, cat, isfinite, float32, strided"),
-        ("learning/training/held_model_training_batch_sampling.py", "from .model_training_sample_records import ObservedTrainingSample, ModelTrainingSampleCollection, SampledModelTrainingBatch"),
-        ("learning/training/held_model_training_batch_sampling.py", "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample, ModelTrainingSampleCollection, SampledModelTrainingBatch"),
-        ("learning/training/held_model_training_batch_sampling.py", "from __future__ import annotations"),
-        ("learning/training/participating_model_training_batch.py", "from dataclasses import dataclass"),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from torch import Tensor, cat, isfinite, float32, strided",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from .model_training_sample_records import ObservedTrainingSample, ModelTrainingSampleCollection, SampledModelTrainingBatch",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample, ModelTrainingSampleCollection, SampledModelTrainingBatch",
+        ),
+        (
+            "learning/training/held_model_training_batch_sampling.py",
+            "from __future__ import annotations",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from dataclasses import dataclass",
+        ),
         ("learning/training/participating_model_training_batch.py", "from torch import Tensor"),
-        ("learning/training/participating_model_training_batch.py", "from torch.optim import Optimizer"),
-        ("learning/training/participating_model_training_batch.py", "from ..models.residual_adapter_classifier import ResidualAdapterClassifier"),
-        ("learning/training/participating_model_training_batch.py", "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier"),
-        ("learning/training/participating_model_training_batch.py", "from __future__ import annotations"),
-        ("learning/training/joint_model_parameter_update.py", "from torch import Tensor, cat, isfinite, no_grad, is_grad_enabled, float32, strided"),
-        ("learning/training/joint_model_parameter_update.py", "from torch.nn import Parameter, BCELoss, CrossEntropyLoss"),
-        ("learning/training/joint_model_parameter_update.py", "from torch.optim import Optimizer, Adam, SGD"),
-        ("learning/training/joint_model_parameter_update.py", "from .local_training_settings import LocalTrainingSettings"),
-        ("learning/training/joint_model_parameter_update.py", "from .participating_model_training_batch import ParticipatingModelTrainingBatch"),
-        ("learning/training/joint_model_parameter_update.py", "from ..models.shared_feature_extractor import SharedFeatureExtractor"),
-        ("learning/training/joint_model_parameter_update.py", "from ..models.residual_adapter_classifier import ResidualAdapterClassifier"),
-        ("learning/training/joint_model_parameter_update.py", "from federated_learning_experiments.learning.training.local_training_settings import LocalTrainingSettings"),
-        ("learning/training/joint_model_parameter_update.py", "from federated_learning_experiments.learning.training.participating_model_training_batch import ParticipatingModelTrainingBatch"),
-        ("learning/training/joint_model_parameter_update.py", "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor"),
-        ("learning/training/joint_model_parameter_update.py", "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier"),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from torch.optim import Optimizer",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+        ),
+        (
+            "learning/training/participating_model_training_batch.py",
+            "from __future__ import annotations",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from torch import Tensor, cat, isfinite, no_grad, is_grad_enabled, float32, strided",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from torch.nn import Parameter, BCELoss, CrossEntropyLoss",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from torch.optim import Optimizer, Adam, SGD",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from .local_training_settings import LocalTrainingSettings",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from .participating_model_training_batch import ParticipatingModelTrainingBatch",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from ..models.shared_feature_extractor import SharedFeatureExtractor",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from federated_learning_experiments.learning.training.local_training_settings import LocalTrainingSettings",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from federated_learning_experiments.learning.training.participating_model_training_batch import ParticipatingModelTrainingBatch",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor",
+        ),
+        (
+            "learning/training/joint_model_parameter_update.py",
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+        ),
         ("learning/training/joint_model_parameter_update.py", "from __future__ import annotations"),
-        ("learning/training/parameter_optimizer_settings.py", "from dataclasses import dataclass, field"),
-        ("learning/training/parameter_optimizer_settings.py", "from ...core.settings_field_validation import validate_settings_field_values"),
-        ("learning/training/parameter_optimizer_settings.py", "from federated_learning_experiments.core.settings_field_validation import validate_settings_field_values"),
+        (
+            "learning/training/parameter_optimizer_settings.py",
+            "from dataclasses import dataclass, field",
+        ),
+        (
+            "learning/training/parameter_optimizer_settings.py",
+            "from ...core.settings_field_validation import validate_settings_field_values",
+        ),
+        (
+            "learning/training/parameter_optimizer_settings.py",
+            "from federated_learning_experiments.core.settings_field_validation import validate_settings_field_values",
+        ),
         ("learning/training/parameter_optimizer_settings.py", "from __future__ import annotations"),
         ("learning/training/parameter_optimizer_construction.py", "import torch"),
-        ("learning/training/parameter_optimizer_construction.py", "from torch import float32, strided"),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "from torch import float32, strided",
+        ),
         ("learning/training/parameter_optimizer_construction.py", "from torch.nn import Parameter"),
-        ("learning/training/parameter_optimizer_construction.py", "from torch.optim import Optimizer, Adam, SGD"),
-        ("learning/training/parameter_optimizer_construction.py", "from .parameter_optimizer_settings import AdamParameterOptimizerSettings, SgdParameterOptimizerSettings"),
-        ("learning/training/parameter_optimizer_construction.py", "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings, SgdParameterOptimizerSettings"),
-        ("learning/training/parameter_optimizer_construction.py", "from __future__ import annotations"),
-        *[(source_module_path, source_text)
-          for source_module_path in (
-              "learning/models/shared_feature_extractor.py",
-              "learning/models/nonlinear_residual_adapter.py",
-              "learning/models/residual_adapter_classifier.py",
-          )
-          for source_text in (
-              "import torch",
-              "from torch import Tensor, float32, device, strided",
-              "from torch.nn import Module, Sequential, Linear, ReLU, Sigmoid, Identity",
-              "from torch.nn.init import zeros_",
-              "from __future__ import annotations",
-          )],
-        ("learning/models/residual_adapter_classifier.py", "from .model_architecture_settings import ModelArchitectureSettings"),
-        ("learning/models/residual_adapter_classifier.py", "from .shared_feature_extractor import SharedFeatureExtractor"),
-        ("learning/models/residual_adapter_classifier.py", "from .nonlinear_residual_adapter import NonlinearResidualAdapter"),
-        ("learning/models/residual_adapter_classifier.py", "from federated_learning_experiments.learning.models.model_architecture_settings import ModelArchitectureSettings"),
-        ("learning/models/residual_adapter_classifier.py", "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor"),
-        ("learning/models/residual_adapter_classifier.py", "from federated_learning_experiments.learning.models.nonlinear_residual_adapter import NonlinearResidualAdapter"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import math"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "import torch"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from torch import Tensor"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from .candidate_parameter_initialization_settings import CandidateParameterInitializationSettings"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py", "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import CandidateParameterInitializationSettings"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from dataclasses import dataclass, field"),
-        ("methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py", "from federated_learning_experiments.core.settings_field_validation import validate_settings_field_values"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from dataclasses import dataclass"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments"),
-        ("learning/loss_statistics/server_loss_mean_aggregation.py", "from .bounded_loss_moments import BoundedLossMoments"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatistics"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from .model_and_class_loss_statistics import ModelAndClassLossStatistics"),
-        ("learning/loss_statistics/model_id_mapped_loss_statistics_selection.py", "from collections import defaultdict"),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "from torch.optim import Optimizer, Adam, SGD",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "from .parameter_optimizer_settings import AdamParameterOptimizerSettings, SgdParameterOptimizerSettings",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings, SgdParameterOptimizerSettings",
+        ),
+        (
+            "learning/training/parameter_optimizer_construction.py",
+            "from __future__ import annotations",
+        ),
+        *[
+            (source_module_path, source_text)
+            for source_module_path in (
+                "learning/models/shared_feature_extractor.py",
+                "learning/models/nonlinear_residual_adapter.py",
+                "learning/models/residual_adapter_classifier.py",
+            )
+            for source_text in (
+                "import torch",
+                "from torch import Tensor, float32, device, strided",
+                "from torch.nn import Module, Sequential, Linear, ReLU, Sigmoid, Identity",
+                "from torch.nn.init import zeros_",
+                "from __future__ import annotations",
+            )
+        ],
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "from .model_architecture_settings import ModelArchitectureSettings",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "from .shared_feature_extractor import SharedFeatureExtractor",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "from .nonlinear_residual_adapter import NonlinearResidualAdapter",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "from federated_learning_experiments.learning.models.model_architecture_settings import ModelArchitectureSettings",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor",
+        ),
+        (
+            "learning/models/residual_adapter_classifier.py",
+            "from federated_learning_experiments.learning.models.nonlinear_residual_adapter import NonlinearResidualAdapter",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "import math",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "import torch",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "from torch import Tensor",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "from .candidate_parameter_initialization_settings import CandidateParameterInitializationSettings",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import CandidateParameterInitializationSettings",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py",
+            "from dataclasses import dataclass, field",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization_settings.py",
+            "from federated_learning_experiments.core.settings_field_validation import validate_settings_field_values",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from dataclasses import dataclass",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments",
+        ),
+        (
+            "learning/loss_statistics/server_loss_mean_aggregation.py",
+            "from .bounded_loss_moments import BoundedLossMoments",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatistics",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from .model_and_class_loss_statistics import ModelAndClassLossStatistics",
+        ),
+        (
+            "learning/loss_statistics/model_id_mapped_loss_statistics_selection.py",
+            "from collections import defaultdict",
+        ),
         ("learning/loss_statistics/bounded_loss_moments.py", "from dataclasses import dataclass"),
         ("learning/loss_statistics/batch_loss_statistics_initialization.py", "import torch"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from torch import Tensor"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from dataclasses import dataclass"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatistics"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from .bounded_loss_moments import BoundedLossMoments"),
-        ("learning/loss_statistics/batch_loss_statistics_initialization.py", "from .model_and_class_loss_statistics import ModelAndClassLossStatistics"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from dataclasses import dataclass"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments, accumulate_bounded_loss_observation"),
-        ("learning/loss_statistics/model_and_class_loss_statistics.py", "from .bounded_loss_moments import BoundedLossMoments, accumulate_bounded_loss_observation"),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from torch import Tensor",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from dataclasses import dataclass",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatistics",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from .bounded_loss_moments import BoundedLossMoments",
+        ),
+        (
+            "learning/loss_statistics/batch_loss_statistics_initialization.py",
+            "from .model_and_class_loss_statistics import ModelAndClassLossStatistics",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from dataclasses import dataclass",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "import federated_learning_experiments.learning.loss_statistics.bounded_loss_moments",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments, accumulate_bounded_loss_observation",
+        ),
+        (
+            "learning/loss_statistics/model_and_class_loss_statistics.py",
+            "from .bounded_loss_moments import BoundedLossMoments, accumulate_bounded_loss_observation",
+        ),
         ("learning/loss_statistics/bounded_loss_moments.py", "import math"),
-        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments"),
-        ("methods/fedsda/loss_statistics/loss_baseline_selection.py", "from ....learning.loss_statistics.bounded_loss_moments import BoundedLossMoments"),
+        (
+            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
+            "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments",
+        ),
+        (
+            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
+            "from ....learning.loss_statistics.bounded_loss_moments import BoundedLossMoments",
+        ),
         ("learning/prediction/class_probability_calculations.py", "import torch"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py", "from dataclasses import dataclass"),
-        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from .training_data_assignment_settings import TrainingDataAssignmentSettings"),
-        ("methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py", "from collections import deque"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "import torch"),
-        ("methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py", "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings"),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
+            "from dataclasses import dataclass",
+        ),
+        (
+            "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
+            "from .training_data_assignment_settings import TrainingDataAssignmentSettings",
+        ),
+        (
+            "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
+            "from collections import deque",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
+            "import torch",
+        ),
+        (
+            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
+            "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
+        ),
         ("learning/prediction/class_probability_calculations.py", "from torch import Tensor"),
-        ("learning/prediction/class_probability_calculations.py", "from collections.abc import Mapping"),
+        (
+            "learning/prediction/class_probability_calculations.py",
+            "from collections.abc import Mapping",
+        ),
         ("methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py", "import numpy"),
-        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "from .bounded_loss_e_sr_detection import BoundedLossESRDetector"),
-        ("methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py", "from .loss_change_detection_settings import LossChangeDetectionSettings"),
+        (
+            "methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py",
+            "from .bounded_loss_e_sr_detection import BoundedLossESRDetector",
+        ),
+        (
+            "methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py",
+            "from .loss_change_detection_settings import LossChangeDetectionSettings",
+        ),
         ("data/observed_streams.py", "from dataclasses import dataclass"),
         ("data/sine/sine_sample_generation.py", "import numpy as np"),
         ("data/sine/sine_sample_generation.py", "from ..observed_streams import ObservedSample"),
         ("data/sine/sine_sample_generation.py", "from .. import observed_streams"),
-        ("data/concept_schedules/random_concept_schedule_generation.py", "from ...configuration.experiment_run_conditions import ExperimentRunConditions"),
-        ("data/concept_schedules/random_concept_schedule_settings.py", "from ...core.settings_field_validation import validate_settings_field_values"),
-        ("execution/stream_protocol_execution_settings.py", "from ..data.concept_schedules.random_concept_schedule_settings import RandomConceptScheduleSettings"),
-        ("execution/stream_protocol_execution_settings.py", "from ..configuration.experiment_run_conditions import ExperimentRunConditions"),
+        (
+            "data/concept_schedules/random_concept_schedule_generation.py",
+            "from ...configuration.experiment_run_conditions import ExperimentRunConditions",
+        ),
+        (
+            "data/concept_schedules/random_concept_schedule_settings.py",
+            "from ...core.settings_field_validation import validate_settings_field_values",
+        ),
+        (
+            "execution/stream_protocol_execution_settings.py",
+            "from ..data.concept_schedules.random_concept_schedule_settings import RandomConceptScheduleSettings",
+        ),
+        (
+            "execution/stream_protocol_execution_settings.py",
+            "from ..configuration.experiment_run_conditions import ExperimentRunConditions",
+        ),
         ("execution/run_random_sources.py", "from numpy.random import RandomState"),
-        ("execution/run_participant_contracts.py", "from .run_random_sources import RunRandomSources"),
-        ("execution/run_participant_contracts.py", "from ..configuration.experiment_run_conditions import ExperimentRunConditions"),
+        (
+            "execution/run_participant_contracts.py",
+            "from .run_random_sources import RunRandomSources",
+        ),
+        (
+            "execution/run_participant_contracts.py",
+            "from ..configuration.experiment_run_conditions import ExperimentRunConditions",
+        ),
         ("execution/stream_protocol_execution_loop.py", "from . import run_participant_contracts"),
-        ("execution/stream_protocol_execution_loop.py", "from ..data.observed_streams import ClientObservedStream"),
+        (
+            "execution/stream_protocol_execution_loop.py",
+            "from ..data.observed_streams import ClientObservedStream",
+        ),
         ("learning/models/torch_random_state_scope.py", "import torch"),
         ("learning/models/torch_random_state_scope.py", "from torch import random"),
-        ("runtime/single_run_execution.py", "from ..learning.models.torch_random_state_scope import isolated_cpu_torch_random_state"),
-        ("runtime/single_run_execution.py", "from ..learning.models import torch_random_state_scope"),
+        (
+            "runtime/single_run_execution.py",
+            "from ..learning.models.torch_random_state_scope import isolated_cpu_torch_random_state",
+        ),
+        (
+            "runtime/single_run_execution.py",
+            "from ..learning.models import torch_random_state_scope",
+        ),
         ("runtime/single_run_execution.py", "from ..execution import run_random_sources"),
         ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "import math"),
-        ("methods/fedsda/prediction_combination/fixed_share_prediction_weights.py", "from .prediction_combination_settings import PredictionCombinationSettings"),
+        (
+            "methods/fedsda/prediction_combination/fixed_share_prediction_weights.py",
+            "from .prediction_combination_settings import PredictionCombinationSettings",
+        ),
     ],
 )
 def test_single_run_dependency_checker_accepts_allowed_imports(source_module_path, source_text):
     """許可された型依存・NumPy例外・専用torch境界を拒否しない。"""
-    assert collect_dependency_boundary_violations(
-        source_module_path=source_module_path, source_text=source_text,
-    ) == ()
+    assert (
+        collect_dependency_boundary_violations(
+            source_module_path=source_module_path,
+            source_text=source_text,
+        )
+        == ()
+    )

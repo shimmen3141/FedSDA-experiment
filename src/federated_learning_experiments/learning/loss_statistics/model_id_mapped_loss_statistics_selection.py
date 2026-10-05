@@ -6,7 +6,8 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 
 
 def _copy_validated_model_loss_statistics(
-    *, loss_statistics_snapshot: tuple[tuple[int, ModelAndClassLossStatistics], ...],
+    *,
+    loss_statistics_snapshot: tuple[tuple[int, ModelAndClassLossStatistics], ...],
     parameter_name: str,
 ) -> tuple[tuple[int, ModelAndClassLossStatistics], ...]:
     if type(loss_statistics_snapshot) is not tuple:
@@ -25,14 +26,18 @@ def _copy_validated_model_loss_statistics(
             raise ValueError(f"{parameter_name}のmodel_idは重複できません。")
         seen_model_ids.add(model_id)
         if type(loss_statistics) is not ModelAndClassLossStatistics:
-            raise TypeError(f"{parameter_name}のloss_statisticsはModelAndClassLossStatisticsのexact型が必要です。")
+            raise TypeError(
+                f"{parameter_name}のloss_statisticsはModelAndClassLossStatisticsのexact型が必要です。"
+            )
         try:
             copied_loss_statistics = ModelAndClassLossStatistics(
                 overall_loss_moments=loss_statistics.overall_loss_moments,
                 class_loss_moments_by_class_id=loss_statistics.class_loss_moments_by_class_id,
             )
         except (TypeError, ValueError) as validation_error:
-            raise type(validation_error)(f"{parameter_name}: {validation_error}") from validation_error
+            raise type(validation_error)(
+                f"{parameter_name}: {validation_error}"
+            ) from validation_error
         copied_model_loss_statistics_snapshot.append((model_id, copied_loss_statistics))
     return tuple(copied_model_loss_statistics_snapshot)
 
@@ -48,7 +53,8 @@ def _validate_model_id_mapping(*, model_id_mapping: dict[int, int]) -> None:
 
 
 def select_loss_statistics_after_model_id_mapping(
-    *, local_model_loss_statistics: tuple[tuple[int, ModelAndClassLossStatistics], ...],
+    *,
+    local_model_loss_statistics: tuple[tuple[int, ModelAndClassLossStatistics], ...],
     model_id_mapping: dict[int, int],
     server_model_loss_statistics: tuple[tuple[int, ModelAndClassLossStatistics], ...] | None = None,
 ) -> tuple[tuple[int, ModelAndClassLossStatistics], ...]:
@@ -58,7 +64,9 @@ def select_loss_statistics_after_model_id_mapping(
         parameter_name="local_model_loss_statistics",
     )
     validated_server_model_loss_statistics = _copy_validated_model_loss_statistics(
-        loss_statistics_snapshot=() if server_model_loss_statistics is None else server_model_loss_statistics,
+        loss_statistics_snapshot=()
+        if server_model_loss_statistics is None
+        else server_model_loss_statistics,
         parameter_name="server_model_loss_statistics",
     )
     _validate_model_id_mapping(model_id_mapping=model_id_mapping)
@@ -74,6 +82,9 @@ def select_loss_statistics_after_model_id_mapping(
             selected_loss_statistics_by_model_id[mapped_model_id] = loss_statistics
     for model_id, loss_statistics in validated_server_model_loss_statistics:
         selected_loss_statistics = selected_loss_statistics_by_model_id.get(model_id)
-        if selected_loss_statistics is None or selected_loss_statistics.overall_loss_moments.observed_loss_count == 0:
+        if (
+            selected_loss_statistics is None
+            or selected_loss_statistics.overall_loss_moments.observed_loss_count == 0
+        ):
             selected_loss_statistics_by_model_id[model_id] = loss_statistics
     return tuple(selected_loss_statistics_by_model_id.items())

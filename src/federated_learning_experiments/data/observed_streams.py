@@ -64,4 +64,6 @@ class ClientConceptTrace:
                     "boolは受理しません。"
                 )
             if concept_id not in (0, 1):
-                raise ValueError("concept_ids_by_sample_indexの各要素には0または1を指定してください。")
+                raise ValueError(
+                    "concept_ids_by_sample_indexの各要素には0または1を指定してください。"
+                )

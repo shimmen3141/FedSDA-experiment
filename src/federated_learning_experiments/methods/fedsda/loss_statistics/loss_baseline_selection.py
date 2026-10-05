@@ -6,7 +6,8 @@ from federated_learning_experiments.learning.loss_statistics.bounded_loss_moment
 
 
 def _validate_optional_loss_moments(
-    *, loss_moments: BoundedLossMoments | None,
+    *,
+    loss_moments: BoundedLossMoments | None,
 ) -> BoundedLossMoments | None:
     if loss_moments is None:
         return None
@@ -20,7 +21,8 @@ def _validate_optional_loss_moments(
 
 
 def select_loss_monitoring_baseline_mean_loss(
-    *, loss_moments: BoundedLossMoments | None,
+    *,
+    loss_moments: BoundedLossMoments | None,
 ) -> float:
     """不足時は0.01、1件以上は保存平均を監視用の範囲に制限する。"""
     validated_loss_moments = _validate_optional_loss_moments(loss_moments=loss_moments)
@@ -30,7 +32,8 @@ def select_loss_monitoring_baseline_mean_loss(
 
 
 def select_alarm_interval_reuse_baseline_mean_loss(
-    *, loss_moments: BoundedLossMoments | None,
+    *,
+    loss_moments: BoundedLossMoments | None,
 ) -> float | None:
     """警報区間の再利用比較では2件以上の非零平均だけを使用する。"""
     validated_loss_moments = _validate_optional_loss_moments(loss_moments=loss_moments)
@@ -44,7 +47,8 @@ def select_alarm_interval_reuse_baseline_mean_loss(
 
 
 def select_post_alarm_reference_historical_mean_loss(
-    *, loss_moments: BoundedLossMoments | None,
+    *,
+    loss_moments: BoundedLossMoments | None,
 ) -> float | None:
     """警報後の参照比較には2件以上の保存平均を零も含めて使用する。"""
     validated_loss_moments = _validate_optional_loss_moments(loss_moments=loss_moments)
