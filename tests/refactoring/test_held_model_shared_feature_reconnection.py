@@ -8,6 +8,11 @@ from unittest.mock import Mock
 
 import pytest
 import torch
+from test_joint_model_parameter_update import (
+    assert_joint_update_states_equal,
+    build_joint_update_oracle_pair,
+    run_legacy_joint_update,
+)
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
     build_attachment_classifier,
@@ -19,16 +24,29 @@ from federated_drift_experiment.clients.shared_backbone import (
     _SharedRepresentationFedSDAClientMixin,
 )
 from federated_drift_experiment.data.specs import DatasetSpec
-from federated_drift_experiment.models import ResidualAdapterMLP
+from federated_drift_experiment.models import ResidualAdapterMLP, SharedFeatureBackbone
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
     ResidualAdapterClassifier,
+)
+from federated_learning_experiments.learning.models.shared_feature_extractor import (
+    SharedFeatureExtractor,
 )
 from federated_learning_experiments.learning.training.held_model_shared_feature_reconnection import (
     HeldModelOptimizerBinding,
     reconnect_held_models_to_shared_feature_extractor,
 )
+from federated_learning_experiments.learning.training.held_model_training_binding import (
+    HeldModelTrainingBinding,
+)
+from federated_learning_experiments.learning.training.joint_model_parameter_update import (
+    perform_joint_model_parameter_update,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
+    SgdParameterOptimizerSettings,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
     ParameterOptimizerState,
@@ -474,6 +492,195 @@ def test_reconnection_calls_follow_input_order_and_skip_source(monkeypatch):
             (-9, "attach"),
             (-9, "reset"),
         ]
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize("initially_shared", [False, True])
+def test_reconnection_result_bindings_match_legacy_joint_training(
+    class_count, optimizer_variant, initially_shared, monkeypatch
+):
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(829)
+        training_batches, previous_optimizer, legacy_client = build_joint_update_oracle_pair(
+            class_count=class_count,
+            batch_sample_counts=(2, 5),
+            optimizer_variant=optimizer_variant,
+            monkeypatch=monkeypatch,
+        )
+        if not initially_shared:
+            legacy_client.models[-7].attach_backbone(
+                SharedFeatureBackbone(input_dim=2, hidden_dims=(5, 4))
+            )
+            shared_feature_extractor = SharedFeatureExtractor(
+                input_feature_count=2, hidden_layer_widths=(5, 4)
+            )
+            shared_feature_extractor.hidden_layers.load_state_dict(
+                legacy_client.models[-7].backbone.net.state_dict()
+            )
+            training_batches[1].classifier.attach_shared_feature_extractor(
+                shared_feature_extractor=shared_feature_extractor
+            )
+        optimizer_settings = (
+            SgdParameterOptimizerSettings(learning_rate=0.01)
+            if optimizer_variant == "sgd"
+            else AdamParameterOptimizerSettings(
+                learning_rate=0.01, weight_decay=0.001, adam_variant=optimizer_variant
+            )
+        )
+        shared_optimizer_state = ParameterOptimizerState(
+            parameters=tuple(training_batches[0].classifier.feature_extractor.parameters()),
+            optimizer_settings=optimizer_settings,
+        )
+        previous_bindings = (
+            HeldModelOptimizerBinding(
+                model_id=4,
+                classifier=training_batches[0].classifier,
+                shared_parameter_optimizer_state=shared_optimizer_state,
+                concept_specific_parameter_optimizer_state=ParameterOptimizerState(
+                    parameters=tuple(training_batches[0].classifier.residual_adapter.parameters())
+                    + tuple(training_batches[0].classifier.classification_layer.parameters()),
+                    optimizer_settings=optimizer_settings,
+                ),
+            ),
+            HeldModelOptimizerBinding(
+                model_id=-7,
+                classifier=training_batches[1].classifier,
+                shared_parameter_optimizer_state=shared_optimizer_state
+                if initially_shared
+                else ParameterOptimizerState(
+                    parameters=tuple(training_batches[1].classifier.feature_extractor.parameters()),
+                    optimizer_settings=optimizer_settings,
+                ),
+                concept_specific_parameter_optimizer_state=ParameterOptimizerState(
+                    parameters=tuple(training_batches[1].classifier.residual_adapter.parameters())
+                    + tuple(training_batches[1].classifier.classification_layer.parameters()),
+                    optimizer_settings=optimizer_settings,
+                ),
+            ),
+        )
+        for binding in previous_bindings:
+            legacy_model = legacy_client.models[binding.model_id]
+            for parameter in tuple(binding.classifier.parameters()) + tuple(
+                legacy_model.parameters()
+            ):
+                parameter.grad = torch.ones_like(parameter)
+            binding.shared_parameter_optimizer_state.parameter_optimizer.step()
+            binding.concept_specific_parameter_optimizer_state.parameter_optimizer.step()
+            legacy_model.backbone.optimizer.step()
+            legacy_model.head_optimizer.step()
+        training_batches = tuple(
+            replace(
+                training_batch,
+                concept_specific_parameter_optimizer=binding.concept_specific_parameter_optimizer_state.parameter_optimizer,
+            )
+            for training_batch, binding in zip(training_batches, previous_bindings, strict=True)
+        )
+        parameter_snapshots = tuple(
+            snapshot_parameter_values_and_gradients(
+                binding.classifier.feature_extractor.parameters()
+            )
+            for binding in previous_bindings
+        )
+        optimizer_snapshots = tuple(
+            (
+                binding.shared_parameter_optimizer_state.parameter_optimizer,
+                deepcopy(binding.shared_parameter_optimizer_state.parameter_optimizer.state_dict()),
+            )
+            for binding in previous_bindings
+        )
+        previous_concept_optimizer_snapshots = tuple(
+            (
+                binding.concept_specific_parameter_optimizer_state.parameter_optimizer,
+                deepcopy(
+                    binding.concept_specific_parameter_optimizer_state.parameter_optimizer.state_dict()
+                ),
+            )
+            for binding in previous_bindings
+        )
+        _SharedRepresentationFedSDAClientMixin._share_model_backbones(legacy_client)
+        result_bindings = reconnect_held_models_to_shared_feature_extractor(
+            held_model_optimizer_bindings=tuple(reversed(previous_bindings))
+        )
+        assert tuple(binding.model_id for binding in result_bindings) == (-7, 4)
+        bindings_by_model_id = {binding.model_id: binding for binding in result_bindings}
+        assert bindings_by_model_id[4] is previous_bindings[0]
+        for binding_index, binding in enumerate(previous_bindings):
+            for previous_optimizer, previous_state_dict in (
+                optimizer_snapshots[binding_index],
+                previous_concept_optimizer_snapshots[binding_index],
+            ):
+                torch.testing.assert_close(
+                    previous_optimizer.state_dict(), previous_state_dict, rtol=0, atol=0
+                )
+            assert (
+                bindings_by_model_id[binding.model_id].shared_parameter_optimizer_state
+                is shared_optimizer_state
+            )
+        participating_training_batches = []
+        for model_id, training_batch in zip((4, -7), training_batches, strict=True):
+            binding = HeldModelTrainingBinding(
+                model_id=model_id,
+                classifier=bindings_by_model_id[model_id].classifier,
+                concept_specific_parameter_optimizer=bindings_by_model_id[
+                    model_id
+                ].concept_specific_parameter_optimizer_state.parameter_optimizer,
+            )
+            participating_training_batches.append(
+                replace(
+                    training_batch,
+                    concept_specific_parameter_optimizer=binding.concept_specific_parameter_optimizer,
+                )
+            )
+        participating_training_batches = tuple(participating_training_batches)
+        assert_joint_update_states_equal(
+            participating_training_batches=participating_training_batches,
+            shared_parameter_optimizer=shared_optimizer_state.parameter_optimizer,
+            legacy_client=legacy_client,
+        )
+        local_training_settings = LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )
+        for update_shared_features in (True, False, True):
+            legacy_loss = run_legacy_joint_update(
+                legacy_client=legacy_client, update_shared_features=update_shared_features
+            )
+            new_loss = perform_joint_model_parameter_update(
+                local_training_settings=local_training_settings,
+                shared_feature_extractor=bindings_by_model_id[4].classifier.feature_extractor,
+                shared_parameter_optimizer=shared_optimizer_state.parameter_optimizer,
+                participating_training_batches=participating_training_batches,
+                update_shared_features=update_shared_features,
+            )
+            assert new_loss == legacy_loss
+            assert_joint_update_states_equal(
+                participating_training_batches=participating_training_batches,
+                shared_parameter_optimizer=shared_optimizer_state.parameter_optimizer,
+                legacy_client=legacy_client,
+            )
+            assert (
+                training_batches[1].concept_specific_parameter_optimizer
+                is previous_concept_optimizer_snapshots[1][0]
+            )
+            torch.testing.assert_close(
+                previous_concept_optimizer_snapshots[1][0].state_dict(),
+                previous_concept_optimizer_snapshots[1][1],
+                rtol=0,
+                atol=0,
+            )
+            if not initially_shared:
+                assert (
+                    bindings_by_model_id[-7].shared_parameter_optimizer_state
+                    is not previous_bindings[1].shared_parameter_optimizer_state
+                )
+                assert_parameter_values_and_gradients_unchanged(parameter_snapshots[1])
+                torch.testing.assert_close(
+                    optimizer_snapshots[1][0].state_dict(),
+                    optimizer_snapshots[1][1],
+                    rtol=0,
+                    atol=0,
+                )
 
 
 def test_optimizer_binding_is_frozen_but_borrows_live_objects():

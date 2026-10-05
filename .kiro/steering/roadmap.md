@@ -21,7 +21,7 @@
 
 ## 現在の状態
 
-- 保有モデル全体の共有再接続は`../specs/held-model-shared-feature-reconnection/README.md`。要求・設計・命名revision2・3tasksはLuna承認済み、Task 1完了（37 tests・Luna APPROVED）、Task 2実旧学習照合へ。共有元選択/source保持/non-source接続と個別reset/現在owner結果を外側責務として移植する。
+- 保有モデル全体の共有再接続は`../specs/held-model-shared-feature-reconnection/README.md`。要求・設計・命名revision2・3tasksはLuna承認済み、Task 1/2完了（49 tests・Luna APPROVED）、Task 3統合検証へ。共有元選択/source保持/non-source接続と個別reset/現在owner結果を外側責務として移植する。
 
 - 共有特徴抽出部への再接続は`../specs/shared-feature-extractor-attachment/README.md`。全3tasks完了・命名revision3・Luna最終feature GO、対象33/AST込み540、全4033 passed/3 skipped/1既存warning。品質/fresh新CPU/旧固定差分/全7条件traceを確認。参照交換/接続検証と上位のoptimizer操作を分離する。実旧12条件×3stepの全loss/NN値/grad/optimizer state一致、旧owner非流用/不変を確認。共有元選択・同期parameterロード・候補登録・モデル一覧の所有・新client/全体runは後続。新たな旧正常系不具合は観測していない。
 

@@ -8,7 +8,7 @@
   - _Boundary: 保有モデル全体の共有再接続と対象test_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3_
 
-- [ ] 2. 現在の対応記録から実旧共同学習へ照合する
+- [x] 2. 現在の対応記録から実旧共同学習へ照合する
   - test-onlyで返却列から新学習binding/参加batchを作成する。
   - class2/4×optimizer3×初期共有有無2の12実NN条件で、個別/shared state蓄積後の実旧再接続と3回共同学習の全loss/NN値/grad/state一致を確認する。
   - source ownerの維持、non-source旧共有owner非流用/不変、旧借用optimizer/state保持と現在parameter対応を明示確認する。
