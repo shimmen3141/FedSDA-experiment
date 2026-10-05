@@ -14,3 +14,6 @@ Luna独立sanity PASSを採用。全11条件・前提・逐次依存・Task2の�
 
 ## Task 1
 Luna独立APPROVED、指摘なし。missingmodule collection error/3.53秒の実RED後、37 passed/2.75秒のGREEN。旧BaseClientの9条件要求列・予算/消化順、契約拒否/失敗/0/frozen/巨大intを確認。Ruff check/format成功、Pyright 0 errors/0 warnings。NN接続とAST/全回帰はTask2–3へ残す。
+
+## Task 2
+Luna独立APPROVED、Task2指摘なし。対象70 passed/6.37秒、独立70 passed。32条件で実旧要求/flush→実旧共同更新と新schedule→反復→成功確認を比較し、各境界の全NN/grad/optimizer/RNG/loss/予算が一致。参加者なしの空lossも正常成功で消化するtestを確認。test-onlyの明示接続で上位clientの移植とは扱わない。Task3のEOF空行指摘はRuff formatで解消して最終diff-checkを行う。

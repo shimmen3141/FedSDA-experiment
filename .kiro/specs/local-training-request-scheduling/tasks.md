@@ -8,7 +8,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 3.1_
   - _Boundary: 要求counter/固定設定とその実旧対照test_
 
-- [ ] 2. 算出予算を実共同学習へ明示接続して同値性を確認する
+- [x] 2. 算出予算を実共同学習へ明示接続して同値性を確認する
   - test-onlyで新schedule→前回の反復executor→成功ackを接続し、旧train_step/flush→実旧共同更新と比較する。
   - 32条件（class2/4、Adam/SGD、interval1/3、L0/2、共有更新/凍結）の混合要求列で、各境界の全NN/grad/optimizer/RNGと予算を確認する。
   - 不参加の正常skipでも保留を消化し、0成功lossを更新失敗と扱わないことを検証する。
