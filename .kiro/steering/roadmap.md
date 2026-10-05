@@ -21,6 +21,8 @@
 
 ## 現在の状態
 
+- 共有特徴抽出部への再接続は`../specs/shared-feature-extractor-attachment/README.md`。要求・設計・命名revision2・3tasksをLuna承認済み、Task 1完了（21 tests・Luna APPROVED）、Task 2実旧照合へ。参照交換/接続検証と上位のoptimizer操作を分離する。
+
 - optimizer状態の所有と明示リセットは`../specs/parameter-optimizer-state/README.md`。全3tasks完了、命名revision3/Luna最終feature GO。固定parameter列/設定を借用し現在optimizerと成功後交換を所有、値/gradと旧借用binding保持。実旧reset12条件・NN24条件×3stepを照合、対象47/AST込み554、全4000 passed/3 skipped/1既存warning、品質/fresh新CPU smoke/旧固定差分確認。全9要件/hash/採否は対象specが正本。モデル所有/共有接続/正式登録/reset時機/新client/全体runは後続。新たな旧正常系不具合は観測していない。
 
 - モデル別学習標本の保持は`../specs/model-training-sample-storage/README.md`。全3tasks完了、命名revision1/Luna最終feature GO。追加順/空列/重複/借用payload/snapshot構造分離/サーバID一回対応を独立移植。実旧保存16条件・抽出48条件×3反復を照合、対象94/AST込み581、全3933 passed/3 skipped/1既存warning、品質/fresh新CPU smoke/旧固定差分確認。全10要件/hash/採否は対象specが正本。正式登録pop/上書き、モデル/optimizer所有・同期、統計/評価store、新client/全体runは後続。新たな旧正常系不具合は観測していない。

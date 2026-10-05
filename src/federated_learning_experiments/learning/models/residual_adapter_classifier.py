@@ -97,6 +97,18 @@ class ResidualAdapterClassifier(Module):
         )
         self.output_activation = Sigmoid() if class_count == 2 else Identity()
 
+    def attach_shared_feature_extractor(
+        self, *, shared_feature_extractor: SharedFeatureExtractor
+    ) -> None:
+        """適合する共有部への参照だけを交換し、概念固有部を保持する。"""
+        if type(shared_feature_extractor) is not SharedFeatureExtractor:
+            raise ValueError("shared_feature_extractorはexact SharedFeatureExtractorが必要です。")
+        shared_feature_extractor.validate_structure(
+            input_feature_count=self.feature_extractor.input_feature_count,
+            hidden_layer_widths=self.feature_extractor.hidden_layer_widths,
+        )
+        self.feature_extractor = shared_feature_extractor
+
     def extract_shared_features(self, input_features: torch.Tensor) -> torch.Tensor:
         return self.feature_extractor(input_features)
 

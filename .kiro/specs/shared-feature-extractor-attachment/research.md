@@ -1,0 +1,8 @@
+# 調査
+
+固定旧748c3aaのmodels.py:258 attach_backboneはbackbone参照を付け替え、共有optimizerがあれば保持し、個別optimizerを毎回生成する。
+新モデルはfeature_extractorと概念固有部を分離済みで、前回specでoptimizerの所有/resetも分離した。
+今回は参照付け替えと接続先の検証だけを分類器に追加する。旧attach_backboneとの全挙動一致は、新接続＋外側の個別optimizer resetという明示接続で検証する。
+SharedFeatureExtractor.validate_structureは寸法/構成/CPU float32を検証できる。既存公開検証を再利用し、検証完了後に接続を交換する。
+正常構築済みモデルの元構成は通常契約で不変。外側のprivate改変やNN層交換は対象外。
+fable-methodと既存cc-sdd手順/命名レビュー規則を適用。新たな旧正常系不具合は未確認。

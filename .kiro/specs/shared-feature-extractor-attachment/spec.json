@@ -1,0 +1,64 @@
+{
+  "feature_name": "shared-feature-extractor-attachment",
+  "created_at": "2026-10-05T18:17:16.763066+00:00",
+  "language": "ja",
+  "phase": "implementation-in-progress",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_sha256_lf": "8eab0e26b1db5ca0889b27ae201751455982b46afec59853750d4ce5fe853de1",
+      "generated_sha256_lf": "8eab0e26b1db5ca0889b27ae201751455982b46afec59853750d4ce5fe853de1",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_sha256_lf": "42a5e44427533c43c92c15ccc7701e5220d2eaa3293135c52d76c62ce8ac87ff",
+      "generated_sha256_lf": "42a5e44427533c43c92c15ccc7701e5220d2eaa3293135c52d76c62ce8ac87ff",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "approved_revision": 2,
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "approved_sha256_lf": "fc526c55350ca206cf065565f7342967cec2fad20b3ae283c3b58c0615986b9f"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "caaea3c3a1448a6b143f8d3126aaa9a213d4a94af67a8b67808fb3baa6bce580",
+      "approved_sha256_lf": "caaea3c3a1448a6b143f8d3126aaa9a213d4a94af67a8b67808fb3baa6bce580",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "current_sha256_lf": "460c0b23d8e623d1be7f1ded8e9f4845b4eafead8e833e5328f70214532951b0"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "upstream_specs": [
+    "parameter-optimizer-state"
+  ],
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "total_executable_tasks": 3,
+    "next_task": "2"
+  }
+}

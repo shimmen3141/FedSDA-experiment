@@ -1,0 +1,21 @@
+# 独立レビューと採否
+
+実GPT-6 Lunaの既存thread /root/luna_single_run_3_1_reviewを再利用（independent_reused_thread）。一覧確認済み、close APIなし。承認はユーザー委任。
+
+## 要求 revision 1
+VERDICT: REJECTED。固定parameter列を持つ旧共有optimizer管理器の流用に読める点を指摘。採用し2.2を接続先parameterに対応する共有管理器の用意/選択と上位のreset/記録作成へ修正。
+
+## 要求 revision 2
+VERDICT: APPROVED。接続先parameterへ対応する共有owner選択と上位reset/新記録責務を確認。
+
+## 設計・命名 revision 1
+VERDICT: APPROVED。全7条件、既存検査再利用/成功後交換/上位の接続先owner選択と命名/配置を確認。指摘なし。
+
+## 命名 revision 2 / タスクグラフ
+命名revision 2: APPROVED。snapshotと期待予測の局所名を承認。
+タスクグラフ初回: REJECTED。旧共有管理器を流用しないことをTask 2の明示的な検証条件にする指摘を採用。接続先parameter列への対応と旧管理器不変の検証を追加し、再レビュー中。
+
+修正後draft: graph PASS / VERDICT: APPROVED。生成後tasks.mdもVERDICT: APPROVED。全7条件・依存順・責務境界を確認。gradは参照と値を保存する補足も承認。
+
+## Task 1
+VERDICT: APPROVED。未実装methodで21 failed / 3.09秒 / exit 1（AttributeError）。実装後21 passed / 1.59秒 / exit 0、Lunaも21 passedを独立実行。Ruff/format/diffと境界・TBD・秘密検査を確認、指摘なし。適合検証成功後だけ参照を交換し、値/gradとRNGを保持する。
