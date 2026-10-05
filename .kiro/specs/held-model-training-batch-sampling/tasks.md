@@ -18,7 +18,7 @@ taskごとLuna独立レビュー→主担当current-state検証→指定commit�
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
   - _Boundary: Sampler contract tests（対象test、必要な局所修正だけ同production）_
 
-- [ ] 3. FIFOから共同更新までの上位接続を検証する
+- [x] 3. FIFOから共同更新までの上位接続を検証する
   - FIFO解放位置→上位観測解決/model別列→sampler→ID対応NN/optimizer→共同更新をtest-onlyで明示接続する。
   - 実旧抽出＋実旧共同学習へ複数step全値/grad/optimizerstate/終端RNGを完全照合する。学習本体はmockに置換しない。
   - 完了は対象pytest成功、Luna APPROVED、主担当fresh/current-state検証。sourceへFIFO/モデル依存を追加しない。

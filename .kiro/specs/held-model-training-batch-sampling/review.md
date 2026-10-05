@@ -22,3 +22,9 @@ worker実REDはmissingmoduleの1 collection error/exit1/1.70s。GREEN7 passed/1.
 workerのtest-only追加は対象44 passed/2.76s/exit0。production欠落は観測せず、fakeREDやsource修正はない。
 同GPT-6 Lunaのkiro-review判定APPROVED。独立44 passed/exit0、31拒否条件の未抽出末尾・drawゼロ/RNG/入力grad保持、skip検査範囲、frozen/kwonly/defaultなし、非contiguous/Parameter/環境/独立storageを確認。修正指摘なし、主担当採用。
 worker自己レビューでrecordの自明な自己比較を、渡した特徴/ラベル参照との比較へ修正してから正式報告した。Lunaは修正後の実ファイルを確認した。主担当も正式報告後の最新testを再実行し44 passed/exit0を確認し、Task2範囲をVERIFIEDと判断した。Task3/4は未完了。
+
+## Task 3
+
+worker対象56 passed/3.73s/exit0。test-onlyの上位接続でFIFOのrelease/drain位置を観測辞書へ解決し、ID順population→抽出→分類器/optimizer対応→共同更新を明示した。
+二値/4クラス×Adam standard/AMSGrad/SGD×共有更新有効/凍結の12条件×3stepで、実旧samplerと実旧共同更新へ抽出全Tensor/損失/全Parameter/grad/optimizerstate/終端RNGを完全照合。旧joint内部からの実抽出はstepごと一回で、loss hookを含む観測は追加drawをしない。
+同GPT-6 Lunaのkiro-review判定APPROVED。独立対象56 passed/exit0、実数値経路の非mock/境界/複数stepの状態とRNG照合を確認、修正指摘なし。主担当fresh対象も56 passed/3.68s/exit0で、Task3範囲をVERIFIEDと判断し採用。Task4は未完了。

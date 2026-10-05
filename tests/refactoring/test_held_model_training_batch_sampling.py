@@ -15,6 +15,12 @@ from federated_learning_experiments.learning.training.model_training_sample_reco
     ObservedTrainingSample, ModelTrainingSampleCollection, SampledModelTrainingBatch,
 )
 from federated_learning_experiments.learning.training.held_model_training_batch_sampling import sample_training_batches_for_held_models
+from federated_learning_experiments.learning.training.local_training_settings import LocalTrainingSettings
+from federated_learning_experiments.learning.training.participating_model_training_batch import ParticipatingModelTrainingBatch
+from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import TrainingDataAssignmentSettings
+from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer
+from test_joint_model_parameter_update import build_joint_update_oracle_pair, assert_joint_update_states_equal
 
 
 def build_sampling_oracle_inputs(*, batch_sample_count=2, input_contract_case="mixed"):
@@ -349,3 +355,103 @@ def test_training_sample_records_are_frozen_and_explicit():
     # constructorは参照を束ねるだけで、解釈/検査はsamplerが担当する。
     model_training_samples = ModelTrainingSampleCollection(model_id=-7, training_samples=(training_sample,))
     assert model_training_samples.training_samples[0] is training_sample
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize("update_shared_features", [True, False])
+def test_training_batch_sampling_connects_fifo_and_joint_update(class_count, optimizer_variant, update_shared_features, monkeypatch):
+    global_python_random_state = random.getstate()
+    global_torch_random_state = torch.get_rng_state()
+    loss_hooks = []
+    try:
+        torch.manual_seed(137)
+        participating_training_batches, shared_parameter_optimizer, legacy_client = build_joint_update_oracle_pair(
+            class_count=class_count, batch_sample_counts=(2, 5), optimizer_variant=optimizer_variant, monkeypatch=monkeypatch)
+        classifiers_by_model_id = {model_id: training_batch.classifier
+            for model_id, training_batch in zip((4, -7), participating_training_batches)}
+        optimizers_by_model_id = {model_id: training_batch.concept_specific_parameter_optimizer
+            for model_id, training_batch in zip((4, -7), participating_training_batches)}
+        observed_samples_by_index = {sample_index: ObservedTrainingSample(
+            input_features=torch.tensor([[sample_index / 7, (sample_index % 3) / 5]], dtype=torch.float32, device="cpu"),
+            observed_class_labels=torch.tensor([[float(sample_index % class_count)]], dtype=torch.float32, device="cpu"))
+            for sample_index in range(12)}
+        pending_assignment_buffer = PendingTrainingAssignmentBuffer(training_data_assignment_settings=TrainingDataAssignmentSettings(
+            pending_assignment_buffer_capacity_samples=3))
+        training_samples_by_model_id = {4: [], -7: []}
+        released_sample_indices = []
+        for sample_index in observed_samples_by_index:
+            pending_assignment_buffer.append_observed_sample_index(sample_index=sample_index)
+            for released_sample_index in pending_assignment_buffer.release_sample_indices_exceeding_capacity():
+                released_sample_indices.append(released_sample_index)
+                model_id = 4 if released_sample_index % 2 == 0 else -7
+                training_samples_by_model_id[model_id].append(observed_samples_by_index[released_sample_index])
+        assert tuple(released_sample_indices) == tuple(range(9))
+        assert pending_assignment_buffer.get_state_snapshot().pending_sample_indices == (9, 10, 11)
+        for released_sample_index in pending_assignment_buffer.drain_pending_sample_indices():
+            released_sample_indices.append(released_sample_index)
+            model_id = 4 if released_sample_index % 2 == 0 else -7
+            training_samples_by_model_id[model_id].append(observed_samples_by_index[released_sample_index])
+        assert tuple(released_sample_indices) == tuple(observed_samples_by_index)
+        assert pending_assignment_buffer.get_state_snapshot().pending_sample_indices == ()
+        ordered_model_training_samples = tuple(ModelTrainingSampleCollection(model_id=model_id, training_samples=tuple(training_samples))
+            for model_id, training_samples in training_samples_by_model_id.items())
+        assert tuple(model_training_samples.model_id for model_training_samples in ordered_model_training_samples) == (4, -7)
+        assert all(training_sample is observed_samples_by_index[sample_index]
+            for model_training_samples in ordered_model_training_samples
+            for training_sample, sample_index in zip(model_training_samples.training_samples,
+                range(0 if model_training_samples.model_id == 4 else 1, 12, 2)))
+        legacy_client.train_data_store = {model_training_samples.model_id:
+            [(training_sample.input_features, training_sample.observed_class_labels, 0)
+             for training_sample in model_training_samples.training_samples]
+            for model_training_samples in ordered_model_training_samples}
+        legacy_client.batch_size = 3
+        legacy_batches = []
+        # 旧jointの内側から実旧samplerを一回だけ呼び、その戻り値を観測する。
+        legacy_client._sample_training_batches = Mock(side_effect=lambda:
+            (legacy_batches.extend(_SharedRepresentationFedSDAClientMixin._sample_training_batches(legacy_client)), legacy_batches)[1])
+        weighted_model_losses = []
+        loss_hooks = [model_module.loss_fn.register_forward_hook(
+            lambda model_module, training_inputs, model_loss:
+                weighted_model_losses.append(model_loss.detach().clone() * len(training_inputs[1])))
+            for model_module in legacy_client.models.values()]
+        python_random_generator = random.Random(731)
+        local_training_settings = LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients")
+        for _ in range(3):
+            legacy_batches.clear()
+            weighted_model_losses.clear()
+            legacy_client._sample_training_batches.reset_mock()
+            random.setstate(python_random_generator.getstate())
+            _SharedRepresentationFedSDAClientMixin._train_heads_together(
+                legacy_client, count_multiplier=1, update_backbone=update_shared_features)
+            expected_random_state = random.getstate()
+            legacy_client._sample_training_batches.assert_called_once_with()
+            assert len(weighted_model_losses) == len(legacy_batches) == 2
+            expected_joint_loss = float((sum(weighted_model_losses) / sum(len(input_features)
+                for _, input_features, _ in legacy_batches)).item())
+            sampled_batches = sample_training_batches_for_held_models(held_model_ids=frozenset(classifiers_by_model_id),
+                ordered_model_training_samples=ordered_model_training_samples, batch_sample_count=3,
+                python_random_generator=python_random_generator)
+            assert_sampled_batches_equal(sampled_batches=sampled_batches, legacy_batches=legacy_batches)
+            assert python_random_generator.getstate() == expected_random_state
+            assert random.getstate() == expected_random_state
+            participating_training_batches = tuple(ParticipatingModelTrainingBatch(
+                classifier=classifiers_by_model_id[sampled_batch.model_id],
+                concept_specific_parameter_optimizer=optimizers_by_model_id[sampled_batch.model_id],
+                input_features=sampled_batch.input_features, observed_class_labels=sampled_batch.observed_class_labels)
+                for sampled_batch in sampled_batches)
+            actual_joint_loss = perform_joint_model_parameter_update(local_training_settings=local_training_settings,
+                shared_feature_extractor=classifiers_by_model_id[4].feature_extractor,
+                shared_parameter_optimizer=shared_parameter_optimizer, participating_training_batches=participating_training_batches,
+                update_shared_features=update_shared_features)
+            assert actual_joint_loss == expected_joint_loss
+            assert python_random_generator.getstate() == expected_random_state
+            assert_joint_update_states_equal(participating_training_batches=participating_training_batches,
+                shared_parameter_optimizer=shared_parameter_optimizer, legacy_client=legacy_client)
+    finally:
+        for loss_hook in loss_hooks:
+            loss_hook.remove()
+        random.setstate(global_python_random_state)
+        torch.set_rng_state(global_torch_random_state)
