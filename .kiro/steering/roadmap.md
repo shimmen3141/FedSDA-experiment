@@ -21,6 +21,8 @@
 
 ## 現在の状態
 
+- ローカル学習要求の保留と実行回数は`../specs/local-training-request-scheduling/README.md`。全3tasks完了・命名revision1/Luna最終統合GO。要求counter/間隔/試行予算/正常終了の明示確認を独立移植。実旧9条件の要求列と32条件の実NN反復接続でcounter/予算/順序/loss/parameter/grad/optimizer/RNGを照合。対象70/AST込み539、全3821 passed/3 skipped/1既存warning、stdlib/new CPU4-step smokeを主担当・Lunaが確認。旧source/golden変更なし、全11要件/hash/採否は対象specが正本。完全run設定/CLI、要求・警報/ラウンドflush位置、標本/optimizer所有、通信/診断・新client/全体runは後続。新たな旧正常不具合は観測していない。
+
 - 保有モデルの共同学習反復は`../specs/held-model-joint-training-iterations/README.md`。全3tasks完了・命名revision2/Luna最終統合GO。借用モデルID対応と毎回新抽出→共同更新を接続し、実旧72条件で全batch/loss/parameter/grad/optimizer/RNGをexact照合。対象94/AST込み533、全3721 passed/3 skipped/1既存warning、主担当・Lunaのfresh CPU4回Adam更新/旧非import成功。0/skip/拒否・後続失敗時の先行更新保持も確認。全12要件・hash・採否の正本は対象spec。optimizer/標本所有・回数算出/pending/interval・候補/同期/診断counter・PCGrad・新全体runは後続。新たな旧正常不具合は観測していない。
 
 - 保有モデルの学習バッチ抽出は`../specs/held-model-training-batch-sampling/README.md`。全4tasks完了・Luna最終統合GO。順序付きモデル別観測列から保有/件数で参加選別し、借用Randomで復元なし抽出とcatを実装。対象56/AST込み459、全3591 passed/3 skipped/1既存warning、主担当/LunaのfreshCPU抽出→共同更新smoke成功。FIFO位置解決/IDからNN・optimizer対応はtest-onlyで実旧12条件×3stepへ完全照合した。全12要件・hash・採否・実測は対象specへ記録。標本ストア所有/追加/帰属/ID統合・反復・optimizer所有/reset・新全体runは後続。新たな旧正常不具合は観測していない。

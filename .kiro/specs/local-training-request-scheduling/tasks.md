@@ -17,7 +17,7 @@
   - _Boundary: 上位外側のtest-only明示接続、既存部品production変更なし_
   - _Depends: 1_
 
-- [ ] 3. 依存境界と全回帰・統合証拠を揃える
+- [x] 3. 依存境界と全回帰・統合証拠を揃える
   - 二moduleのexact禁止/許可import注入を先行し実RED→AST guard GREENを確認する。
   - stdlib fresh schedule smokeと新CPU反復接続/旧非import、対象/全pytest（ローカル旧11/最終3golden）・Ruff/format/Pyright/pip・旧固定差分/源内容hashを確認する。
   - 全11条件の実測・旧所見・限界/残る境界を保存し、Luna TaskAPPROVED/featureGOで完成を確認する。

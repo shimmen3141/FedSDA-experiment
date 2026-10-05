@@ -52,6 +52,25 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/local_training_schedule_settings.py":
+        # 機能別の設定宣言と公開値検査だけを許可する。
+        return imported_module_name in (
+            "__future__",
+            "__future__.annotations",
+            "dataclasses",
+            "dataclasses.dataclass",
+            "dataclasses.field",
+            "federated_learning_experiments.core.settings_field_validation",
+            "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
+        )
+    if source_module_path == "learning/training/local_training_request_schedule.py":
+        # 要求counterは自分の設定だけを参照し、学習実体や上位をimportしない。
+        return imported_module_name in (
+            "__future__",
+            "__future__.annotations",
+            "federated_learning_experiments.learning.training.local_training_schedule_settings",
+            "federated_learning_experiments.learning.training.local_training_schedule_settings.LocalTrainingScheduleSettings",
+        )
     if source_module_path == "learning/training/held_model_training_binding.py":
         # 借用参照と公開部品の接続だけに限定し、演算・上位層・private依存を拒否する。
         return imported_module_name in (
@@ -2013,6 +2032,138 @@ def test_single_run_dependency_checker_accepts_allowed_imports(source_module_pat
     ],
 )
 def test_joint_training_iteration_dependency_contract(
+    source_module_path, source_text, expected_acceptance
+):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path=source_module_path, source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_module_path,source_text,expected_acceptance",
+    [
+        ("learning/training/local_training_schedule_settings.py", "import math", False),
+        ("learning/training/local_training_schedule_settings.py", "import random", False),
+        ("learning/training/local_training_schedule_settings.py", "import torch", False),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from dataclasses import asdict",
+            False,
+        ),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from ...core.settings_field_validation import fields",
+            False,
+        ),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from ...configuration.run_settings import ValidatedExperimentRunSettingsSubset",
+            False,
+        ),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from .held_model_joint_training_iterations import perform_held_model_joint_training_iterations",
+            False,
+        ),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from .local_training_schedule_settings import field",
+            False,
+        ),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "import federated_drift_experiment.config",
+            False,
+        ),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from .local_training_request_schedule import _private",
+            False,
+        ),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+            False,
+        ),
+        ("learning/training/local_training_schedule_settings.py", "import numpy", False),
+        ("learning/training/local_training_request_schedule.py", "import math", False),
+        ("learning/training/local_training_request_schedule.py", "import random", False),
+        ("learning/training/local_training_request_schedule.py", "import torch", False),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from dataclasses import asdict",
+            False,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from ...core.settings_field_validation import fields",
+            False,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from ...configuration.run_settings import ValidatedExperimentRunSettingsSubset",
+            False,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from .held_model_joint_training_iterations import perform_held_model_joint_training_iterations",
+            False,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from .local_training_schedule_settings import field",
+            False,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "import federated_drift_experiment.config",
+            False,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from .local_training_request_schedule import _private",
+            False,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+            False,
+        ),
+        ("learning/training/local_training_request_schedule.py", "import numpy", False),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from dataclasses import dataclass, field",
+            True,
+        ),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from ...core.settings_field_validation import validate_settings_field_values",
+            True,
+        ),
+        (
+            "learning/training/local_training_schedule_settings.py",
+            "from __future__ import annotations",
+            True,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from .local_training_schedule_settings import LocalTrainingScheduleSettings",
+            True,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from federated_learning_experiments.learning.training.local_training_schedule_settings import LocalTrainingScheduleSettings",
+            True,
+        ),
+        (
+            "learning/training/local_training_request_schedule.py",
+            "from __future__ import annotations",
+            True,
+        ),
+    ],
+)
+def test_local_training_schedule_dependency_contract(
     source_module_path, source_text, expected_acceptance
 ):
     dependency_boundary_violations = collect_dependency_boundary_violations(

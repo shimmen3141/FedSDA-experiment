@@ -1,9 +1,9 @@
 {
   "feature_name": "local-training-request-scheduling",
   "created_at": "2026-10-05T15:08:11.670531+00:00",
-  "updated_at": "2026-10-05T15:08:11.670531+00:00",
+  "updated_at": "2026-10-05T15:37:59.365341+00:00",
   "language": "ja",
-  "phase": "implementation-in-progress",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -30,7 +30,8 @@
       "approved_sha256_lf": "52652990d86c69e571b2ba5320f71f947fc48c91346b9694b617e9b855d60ad3",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "reviewer_thread": "/root/luna_single_run_3_1_review"
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "current_sha256_lf": "4371434cc22155d3dc6d3f5fbdbf029db2aa0ec55fe16b163f92d6821e78fddb"
     },
     "naming": {
       "generated": true,
@@ -57,10 +58,31 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
-    "completed_task_count": 2,
+    "completed_task_count": 3,
     "total_executable_tasks": 3,
-    "next_task": "3"
+    "next_task": null
+  },
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go",
+    "requirements_covered": 11,
+    "test_pass_count": 3821,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "local_training_request_scheduling_only",
+    "verification_source_sha256": "ed52a4c35cbbf42e93d316a8fc1328c8015c5d1302ea100c960a1513833fa23a"
   }
 }
