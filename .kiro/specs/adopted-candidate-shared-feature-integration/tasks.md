@@ -8,7 +8,7 @@
   - _Boundary: モデル値反映と外側採用候補準備の明示統合_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3_
 
-- [ ] 2. 実旧候補準備から共同学習へ照合する
+- [x] 2. 実旧候補準備から共同学習へ照合する
   - test-onlyでclass2/4×optimizer3×初期共有2の12条件、先行step→実旧prepare→3共同stepを接続する。
   - 全loss/NN/grad/state一致、active共有optimizer学習state保持と旧借用個別optimizer保持を確認する。候補旧共有ownerがactiveと同一ならそのまま継続利用し、別ownerなら非再利用・不変を確認する。
   - 完了は対照GREEN・数値production無変更・Luna Task APPROVEDで判断する。

@@ -1,24 +1,41 @@
 """採用候補の共有値反映・接続・個別resetを検証する。"""
 
 from copy import deepcopy
+from dataclasses import replace
 from unittest.mock import Mock
 
 import pytest
 import torch
+from test_joint_model_parameter_update import (
+    assert_joint_update_states_equal,
+    build_joint_update_oracle_pair,
+    run_legacy_joint_update,
+)
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
     build_attachment_classifier,
     snapshot_parameter_values_and_gradients,
 )
 
+from federated_drift_experiment.clients.shared_backbone import (
+    _SharedRepresentationFedSDAClientMixin,
+)
+from federated_drift_experiment.models import SharedFeatureBackbone
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
 )
 from federated_learning_experiments.learning.training.adopted_candidate_shared_feature_integration import (
     integrate_adopted_candidate_shared_features,
 )
+from federated_learning_experiments.learning.training.joint_model_parameter_update import (
+    perform_joint_model_parameter_update,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
+    SgdParameterOptimizerSettings,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
     ParameterOptimizerState,
@@ -232,3 +249,139 @@ def test_direct_value_copy_validates_both_sides_before_load(invalid_side, monkey
             active.copy_parameter_values_from(source_feature_extractor=source)
         load.assert_not_called()
         assert_parameter_values_and_gradients_unchanged(snapshots)
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize("initially_shared", [False, True])
+def test_old_candidate_preparation_and_three_joint_updates_match(
+    class_count, optimizer_variant, initially_shared, monkeypatch
+):
+    with torch.random.fork_rng(devices=[]):
+        training_batches, _, legacy_client = build_joint_update_oracle_pair(
+            class_count=class_count,
+            batch_sample_counts=(3, 5),
+            optimizer_variant=optimizer_variant,
+            monkeypatch=monkeypatch,
+        )
+        active = training_batches[0].classifier.feature_extractor
+        candidate = training_batches[1].classifier
+        if not initially_shared:
+            legacy_client.models[-7].attach_backbone(
+                SharedFeatureBackbone(input_dim=2, hidden_dims=(5, 4))
+            )
+            source = SharedFeatureExtractor(input_feature_count=2, hidden_layer_widths=(5, 4))
+            source.hidden_layers.load_state_dict(legacy_client.models[-7].backbone.net.state_dict())
+            candidate.attach_shared_feature_extractor(shared_feature_extractor=source)
+        source = candidate.feature_extractor
+        optimizer_settings = (
+            SgdParameterOptimizerSettings(learning_rate=0.01)
+            if optimizer_variant == "sgd"
+            else AdamParameterOptimizerSettings(
+                learning_rate=0.01, weight_decay=0.001, adam_variant=optimizer_variant
+            )
+        )
+        active_owner = ParameterOptimizerState(
+            parameters=tuple(active.parameters()), optimizer_settings=optimizer_settings
+        )
+        candidate_shared_owner = (
+            active_owner
+            if initially_shared
+            else ParameterOptimizerState(
+                parameters=tuple(source.parameters()), optimizer_settings=optimizer_settings
+            )
+        )
+        concept_owners = tuple(
+            ParameterOptimizerState(
+                parameters=tuple(batch.classifier.residual_adapter.parameters())
+                + tuple(batch.classifier.classification_layer.parameters()),
+                optimizer_settings=optimizer_settings,
+            )
+            for batch in training_batches
+        )
+        for batch, shared_owner, concept_owner, model_id in zip(
+            training_batches, (active_owner, candidate_shared_owner), concept_owners, (4, -7)
+        ):
+            legacy_model = legacy_client.models[model_id]
+            for parameter in tuple(batch.classifier.parameters()) + tuple(
+                legacy_model.parameters()
+            ):
+                parameter.grad = torch.ones_like(parameter)
+            shared_owner.parameter_optimizer.step()
+            concept_owner.parameter_optimizer.step()
+            legacy_model.backbone.optimizer.step()
+            legacy_model.head_optimizer.step()
+        source_snapshot = snapshot_parameter_values_and_gradients(source.parameters())
+        active_optimizer = active_owner.parameter_optimizer
+        active_state = deepcopy(active_optimizer.state_dict())
+        candidate_shared_optimizer = candidate_shared_owner.parameter_optimizer
+        candidate_shared_state = deepcopy(candidate_shared_optimizer.state_dict())
+        previous_concept_optimizer = concept_owners[1].parameter_optimizer
+        previous_concept_state = deepcopy(previous_concept_optimizer.state_dict())
+        active_parameter_refs = tuple(active.parameters())
+        active_grad_refs = tuple(parameter.grad for parameter in active.parameters())
+        rng_state = torch.get_rng_state().clone()
+        prepared_legacy_candidate = (
+            _SharedRepresentationFedSDAClientMixin._prepare_model_for_registration(
+                legacy_client, legacy_client.models[-7]
+            )
+        )
+        assert prepared_legacy_candidate is legacy_client.models[-7]
+        integrate_adopted_candidate_shared_features(
+            adopted_candidate_classifier=candidate,
+            candidate_concept_specific_parameter_optimizer_state=concept_owners[1],
+            active_shared_feature_extractor=active,
+        )
+        assert candidate.feature_extractor is active
+        assert active_owner.parameter_optimizer is active_optimizer
+        assert all(a is b for a, b in zip(active.parameters(), active_parameter_refs))
+        assert all(p.grad is g for p, g in zip(active.parameters(), active_grad_refs))
+        torch.testing.assert_close(active_optimizer.state_dict(), active_state, rtol=0, atol=0)
+        torch.testing.assert_close(
+            previous_concept_optimizer.state_dict(), previous_concept_state, rtol=0, atol=0
+        )
+        assert torch.equal(torch.get_rng_state(), rng_state)
+        training_batches = tuple(
+            replace(batch, concept_specific_parameter_optimizer=owner.parameter_optimizer)
+            for batch, owner in zip(training_batches, concept_owners)
+        )
+        assert_joint_update_states_equal(
+            participating_training_batches=training_batches,
+            shared_parameter_optimizer=active_optimizer,
+            legacy_client=legacy_client,
+        )
+        settings = LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )
+        for update_shared_features in (True, False, True):
+            expected_loss = run_legacy_joint_update(
+                legacy_client=legacy_client, update_shared_features=update_shared_features
+            )
+            actual_loss = perform_joint_model_parameter_update(
+                local_training_settings=settings,
+                shared_feature_extractor=active,
+                shared_parameter_optimizer=active_owner.parameter_optimizer,
+                participating_training_batches=training_batches,
+                update_shared_features=update_shared_features,
+            )
+            assert actual_loss == expected_loss
+            assert_joint_update_states_equal(
+                participating_training_batches=training_batches,
+                shared_parameter_optimizer=active_owner.parameter_optimizer,
+                legacy_client=legacy_client,
+            )
+            assert active_owner.parameter_optimizer is active_optimizer
+            assert concept_owners[1].parameter_optimizer is not previous_concept_optimizer
+            torch.testing.assert_close(
+                previous_concept_optimizer.state_dict(), previous_concept_state, rtol=0, atol=0
+            )
+            if initially_shared:
+                assert candidate_shared_owner is active_owner
+            else:
+                assert candidate_shared_optimizer is not active_owner.parameter_optimizer
+                assert candidate_shared_owner.parameter_optimizer is candidate_shared_optimizer
+                assert_parameter_values_and_gradients_unchanged(source_snapshot)
+                torch.testing.assert_close(
+                    candidate_shared_optimizer.state_dict(), candidate_shared_state, rtol=0, atol=0
+                )

@@ -62,10 +62,11 @@
   },
   "implementation_progress": {
     "completed_tasks": [
-      "1"
+      "1",
+      "2"
     ],
-    "completed_task_count": 1,
+    "completed_task_count": 2,
     "total_executable_tasks": 3,
-    "next_task": "2"
+    "next_task": "3"
   }
 }
