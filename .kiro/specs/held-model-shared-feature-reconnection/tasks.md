@@ -17,7 +17,7 @@
   - _Depends: 1_
   - _Requirements: 1.4, 2.1, 2.2, 2.3, 2.4, 3.3_
 
-- [ ] 3. 依存境界と全回帰を検証する
+- [x] 3. 依存境界と全回帰を検証する
   - 新module exact依存の許可/禁止ケースを先行RED後にguardへ登録し、上位/旧package/学習計算へ依存しないことを確認する。
   - fresh新CPU全保有再接続→共同学習smoke、全pytest旧11/最終3golden、Ruff/format/Pyright/pip、旧固定差分とsourcehashを記録する。
   - 全11要件trace・全task/roadmap同期・Luna Task APPROVEDと別feature GO/現在hash一致で完成を確認する。

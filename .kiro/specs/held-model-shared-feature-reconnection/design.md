@@ -26,9 +26,10 @@ reconnect_held_models_to_shared_feature_extractor(*, held_model_optimizer_bindin
 
 ```mermaid
 flowchart LR
-  Inputs[順序付き借用記録] --> Validate[全対応と接続先を検査]
+  Inputs[順序付き借用記録] --> Validate[型とowner対応を検査]
   Validate --> Select[共有元を選択]
-  Select --> Reconnect[入力順にsource以外へ接続とreset]
+  Select --> Fit[共有元との接続適合を検査]
+  Fit --> Reconnect[入力順にsource以外へ接続とreset]
   Reconnect --> Current[現在ownerの結果記録]
   Current --> Training[上位が学習記録を作成]
 ```
