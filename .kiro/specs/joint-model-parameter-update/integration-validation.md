@@ -1,6 +1,7 @@
 # 統合検証: 一回の共同モデルパラメータ更新
 
 ## 判定範囲
+最終判定GO。全3taskを完了し、GPT-6 Lunaの独立統合レビューを主担当が採用した。全17要件・設計・task間契約の不足やblockerはない。
 Task1/2/3の承認・現在地の正本はspec.json/review.md。本証拠は一回共同更新部品に限定する。
 参加抽出/反復、optimizer生成・共有所有/reset/復元、候補進行、計算/診断counter、通信、PCGrad、新全体runは含めない。
 
@@ -20,6 +21,7 @@ fresh smokeはPYTHONPATH=srcの別processで実行した。
 - 主担当fresh対象＋AST: 438 passed/exit0/4.44s。
 - 全tests: 3493 passed/3 skipped/1 warning/exit0/125.24s。旧11/最終3goldenを含み値/許容差は更新していない。3skipは既存Windows非対応wrapper、1warningは既存qint8fixture deepcopyのTypedStorage非推奨。
 - fresh CPU: JOINT_MODEL_PARAMETER_UPDATE_SMOKE_PASS/exit0。通常/共有凍結/空共有/空列、optimizerstate更新/RNG維持、legacypackageがsys.modulesに存在しないことを確認。
+- Lunaも独立fresh processで更新成功と旧package非importを確認した。
 - git diff 748c3aa -- federated_drift_experiment tests/regression_golden.json tests/proposed_regression_golden.json tests/test_regression.py tests/test_proposed_regression.pyは空。旧production未変更。
 - 全approval hashはLF正規化、UTF8の置換文字や文字化けなし、File Structure Plan二production/二testと一致。
 

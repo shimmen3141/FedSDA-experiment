@@ -21,9 +21,9 @@
 
 ## 現在の状態
 
-- 一回共同更新は`../specs/joint-model-parameter-update/README.md`。確定済み参加batch列から共有forward一回・標本数加重BCE/CE・backward一回・共有step→個別step入力順を移植。対象77/AST込み438、全3493 passed/3 skipped/1既存warning、freshCPU smoke成功。Task1/2はLuna承認・完了、Task3/最終統合判定はレビュー中。空共有はoptimizer=Noneで個別学習を独立検証し、旧LEGACY010は未修正/通常過去影響未確認。参加抽出/反復・optimizer所有/reset・候補進行・通信/診断counter・PCGrad・新全体runは後続。正本は対象spec.json/review.md。
+- 一回共同更新は`../specs/joint-model-parameter-update/README.md`。全3tasks完了・Luna最終統合GO。確定済み参加batch列から共有forward一回・標本数加重BCE/CE・backward一回・共有step→個別step入力順を移植。対象77/AST込み438、全3493 passed/3 skipped/1既存warning、主担当/LunaのfreshCPU smoke成功。空共有はoptimizer=Noneで個別学習を独立検証し、旧LEGACY010は未修正/通常過去影響未確認。参加抽出/反復・optimizer所有/reset・候補進行・通信/診断counter・PCGrad・新全体runは後続。全17要件・hash・採否・実測の正本は対象spec.json/review.md。
 
-- optimizer設定/生成は`../specs/parameter-optimizer-construction/README.md`。全3tasks完了・Luna最終統合GO。Adam standard/AMSGradとlrのみSGDを別型にし、明示Parameter列へ標準optimizerを生成。実旧groups/state/3step全値を照合、新NN共有/個別tuple接続、346件・全3364 passed/3 skipped・fresh CPU smokeを検証。9条件・hash・採否/実測の正本は対象spec。LEGACY010へ空共有optimizer生成失敗を記録、旧未修正/通常過去影響未確認。共有optimizer所有/省略判断/reset・共同/単一学習・候補進行・新全体runは後続。
+- optimizer設定/生成は`../specs/parameter-optimizer-construction/README.md`。全3tasks完了・Luna最終統合GO。Adam standard/AMSGradとlrのみSGDを別型にし、明示Parameter列へ標準optimizerを生成。実旧groups/state/3step全値を照合、新NN共有/個別tuple接続、346件・全3364 passed/3 skipped・fresh CPU smokeを検証。9条件・hash・採否/実測の正本は対象spec。LEGACY010へ空共有optimizer生成失敗を記録、旧未修正/通常過去影響未確認。単回共同更新は上記specで完了。共有optimizer所有/reset・学習反復・候補進行・新全体runは後続。
 
 - 最終モデル構造の移植は`../specs/residual-adapter-model-architecture/README.md`。全3tasksを完了しLuna最終統合GO。共有特徴抽出/非線形残差/classifierのCPU32生成・forward、実旧state/RNG/gradient、test-only確率/snapshot接続を実装。対象＋AST319件、全tests3284 passed/3 skipped、CPU fresh smokeを検証した。承認hash・12条件・実測・採否は対象specに記録。追加の旧不具合は観測していない。学習・optimizer・共有付替え・候補進行・新全体runは後続。
 
