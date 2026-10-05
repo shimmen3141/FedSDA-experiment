@@ -52,6 +52,42 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/held_model_training_binding.py":
+        # 借用参照と公開部品の接続だけに限定し、演算・上位層・private依存を拒否する。
+        return imported_module_name in (
+            "__future__",
+            "__future__.annotations",
+            "dataclasses",
+            "dataclasses.dataclass",
+            "torch.optim",
+            "torch.optim.Optimizer",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+        )
+    if source_module_path == "learning/training/held_model_joint_training_iterations.py":
+        # 借用参照と公開部品の接続だけに限定し、演算・上位層・private依存を拒否する。
+        return imported_module_name in (
+            "__future__",
+            "__future__.annotations",
+            "random",
+            "random.Random",
+            "torch.optim",
+            "torch.optim.Optimizer",
+            "federated_learning_experiments.learning.models.shared_feature_extractor",
+            "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
+            "federated_learning_experiments.learning.training.held_model_training_binding",
+            "federated_learning_experiments.learning.training.held_model_training_binding.HeldModelTrainingBinding",
+            "federated_learning_experiments.learning.training.model_training_sample_records",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ModelTrainingSampleCollection",
+            "federated_learning_experiments.learning.training.participating_model_training_batch",
+            "federated_learning_experiments.learning.training.participating_model_training_batch.ParticipatingModelTrainingBatch",
+            "federated_learning_experiments.learning.training.local_training_settings",
+            "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
+            "federated_learning_experiments.learning.training.held_model_training_batch_sampling",
+            "federated_learning_experiments.learning.training.held_model_training_batch_sampling.sample_training_batches_for_held_models",
+            "federated_learning_experiments.learning.training.joint_model_parameter_update",
+            "federated_learning_experiments.learning.training.joint_model_parameter_update.perform_joint_model_parameter_update",
+        )
     if source_module_path == "learning/training/model_training_sample_records.py":
         # 標本記録はdataclass宣言と借用Tensor型だけを参照する。
         return imported_module_name in (
@@ -1809,3 +1845,177 @@ def test_single_run_dependency_checker_accepts_allowed_imports(source_module_pat
         )
         == ()
     )
+
+
+@pytest.mark.parametrize(
+    "source_module_path,source_text,expected_acceptance",
+    [
+        ("learning/training/held_model_training_binding.py", "import math", False),
+        ("learning/training/held_model_training_binding.py", "from random import random", False),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from random import SystemRandom",
+            False,
+        ),
+        ("learning/training/held_model_training_binding.py", "from torch import cat", False),
+        ("learning/training/held_model_training_binding.py", "from torch.optim import Adam", False),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from .joint_model_parameter_update import _validate_training_tensor",
+            False,
+        ),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from .held_model_training_batch_sampling import Tensor",
+            False,
+        ),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from ..models.shared_feature_extractor import Module",
+            False,
+        ),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from ...runtime import single_run_execution",
+            False,
+        ),
+        (
+            "learning/training/held_model_training_binding.py",
+            "import federated_drift_experiment.clients.base",
+            False,
+        ),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from ...methods.fedsda.training_data_assignment import pending_training_assignment_buffer",
+            False,
+        ),
+        ("learning/training/held_model_joint_training_iterations.py", "import math", False),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from random import random",
+            False,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from random import SystemRandom",
+            False,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from torch import cat",
+            False,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from torch.optim import Adam",
+            False,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from .joint_model_parameter_update import _validate_training_tensor",
+            False,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from .held_model_training_batch_sampling import Tensor",
+            False,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from ..models.shared_feature_extractor import Module",
+            False,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from ...runtime import single_run_execution",
+            False,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "import federated_drift_experiment.clients.base",
+            False,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from ...methods.fedsda.training_data_assignment import pending_training_assignment_buffer",
+            False,
+        ),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from dataclasses import dataclass",
+            True,
+        ),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from torch.optim import Optimizer",
+            True,
+        ),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+            True,
+        ),
+        (
+            "learning/training/held_model_training_binding.py",
+            "from __future__ import annotations",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from random import Random",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from torch.optim import Optimizer",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from ..models.shared_feature_extractor import SharedFeatureExtractor",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from .held_model_training_binding import HeldModelTrainingBinding",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from .model_training_sample_records import ModelTrainingSampleCollection",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from .participating_model_training_batch import ParticipatingModelTrainingBatch",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from .local_training_settings import LocalTrainingSettings",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from .held_model_training_batch_sampling import sample_training_batches_for_held_models",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from .joint_model_parameter_update import perform_joint_model_parameter_update",
+            True,
+        ),
+        (
+            "learning/training/held_model_joint_training_iterations.py",
+            "from __future__ import annotations",
+            True,
+        ),
+    ],
+)
+def test_joint_training_iteration_dependency_contract(
+    source_module_path, source_text, expected_acceptance
+):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path=source_module_path, source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance

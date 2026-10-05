@@ -26,3 +26,7 @@ Luna独立実装レビューAPPROVED、指摘なし。missingmodule collection e
 ## Task 2
 Luna初回REJECTEDの有用な指摘を採用。testのset_default_device復元は内部DeviceContextを残すため、with torch.deviceの一時scopeへ変更した。scope後device値も確認し、再レビューAPPROVED（独立94 passed/5.33秒、主担当94 passed/4.89秒）。production変更なしのtest-only。回数/ID事前拒否、0未参照、未参加payload、NaNのpredraw拒否、借用/frozen、外側RNG/dtype/device/gradmodeと標本保持、空共有、後続拒否時の先行更新/消費RNG保持を確認。
 ambient metaの検証は上流specと同じSGDを使用。Torch自身の未初期化Adam step scalar生成はambient deviceに依存するため、metaの初回Adamまで環境非依存とは主張しない。CPUでのAdam/AMSGradの複数回状態一致はTask1/空共有testで確認済み。
+
+## Task 3 / 最終統合
+Luna Task3 APPROVEDとfeature GOを採用。指摘なし。独立対象+AST533 passed/7.97秒、主担当全3721 passed/3 skipped/1既存warning/178.13秒。主担当・Luna fresh CPU実4回Adam更新と旧非import成功。全12条件・借用所有・反復/ID順・拒否/skip・state継続・非rollback・exact依存境界・旧固定差分・Ruff/型/依存検査を確認した。
+Task1–3を完成とし、責務外の回数算出/pending/interval、標本/optimizer所有、候補進行・同期・新全体runは後続へ残す。検証結果・源内容hash・限界はintegration-validation.mdに記録した。

@@ -16,7 +16,7 @@
   - _Boundary: 反復executorの契約検証_
   - _Depends: 1_
 
-- [ ] 3. 依存境界と全回帰・統合証拠を揃える
+- [x] 3. 依存境界と全回帰・統合証拠を揃える
   - 新2moduleのexact禁止/許可import testを先に追加し、実RED→AST guard GREENを確認する。
   - fresh CPU反復smoke（旧非import）、対象/全pytest・基準ローカル旧11最終3golden、Ruff/型/依存検査・旧固定差分/内容hashを確認する。
   - 全12条件の実測/採否と完成・後続境界を記録し、Luna taskAPPROVED/featureGOをもって完了を確認する。
