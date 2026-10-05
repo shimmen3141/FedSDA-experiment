@@ -1,0 +1,65 @@
+{
+  "feature_name": "local-training-request-scheduling",
+  "created_at": "2026-10-05T15:08:11.670531+00:00",
+  "updated_at": "2026-10-05T15:08:11.670531+00:00",
+  "language": "ja",
+  "phase": "implementation-in-progress",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "eb70f2acac518a607384390a4b381e21889f51eebdf7b72edcfc7dfa1f03b51f",
+      "approved_sha256_lf": "eb70f2acac518a607384390a4b381e21889f51eebdf7b72edcfc7dfa1f03b51f",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "609e59f0361e6a4b51d0d6cadb4dbbe566d4b64f30d621471e20e5a2c17fc7ad",
+      "approved_sha256_lf": "609e59f0361e6a4b51d0d6cadb4dbbe566d4b64f30d621471e20e5a2c17fc7ad",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "52652990d86c69e571b2ba5320f71f947fc48c91346b9694b617e9b855d60ad3",
+      "approved_sha256_lf": "52652990d86c69e571b2ba5320f71f947fc48c91346b9694b617e9b855d60ad3",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "approved_sha256_lf": "d0354c45d3e6de7232bf4cf535711b26713947baa39ee8677bc3ab4693ed947b",
+      "generated_sha256_lf": "d0354c45d3e6de7232bf4cf535711b26713947baa39ee8677bc3ab4693ed947b",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "upstream_specs": [
+    "held-model-joint-training-iterations"
+  ],
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "total_executable_tasks": 3,
+    "next_task": "2"
+  }
+}
