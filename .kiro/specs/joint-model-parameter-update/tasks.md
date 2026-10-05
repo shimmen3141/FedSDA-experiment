@@ -2,7 +2,7 @@
 同一source/testを用いるため順次、(P)なし。モデル/設定/optimizer生成は実装済み。
 taskごと独立Luna review→主担当fresh検証→commit。環境はdocs/experiments/refactoring-baseline.md。
 
-- [ ] 1. 確定済み参加バッチから一回共同更新を実装する
+- [x] 1. 確定済み参加バッチから一回共同更新を実装する
   - 対象testを先行しmissing-module実RED→指定production二つのGREENを確認する。
   - 実旧共同経路を固定batchで呼び、単一/複数・不均等標本数・二値/多クラス・Adam標準/AMSGrad/SGD・共有有効/凍結の複数step全値/grad/stateを照合する。
   - 共有forward一回、zero/step順、標本数加重loss返却を観測する。診断や抽出を新実装へ持ち込まない。

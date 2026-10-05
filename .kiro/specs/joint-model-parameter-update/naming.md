@@ -1,5 +1,5 @@
 # 命名: 一回の共同モデルパラメータ更新
-revision 1。正式API名に旧aliasなし。型/参照は借用、更新は関数にだけ集約する。
+revision 2。正式API名に旧aliasなし。型/参照は借用、更新は関数にだけ集約する。
 
 | 名前 | 役割・型・単位・状態 |
 |---|---|
@@ -43,5 +43,7 @@ revision 1。正式API名に旧aliasなし。型/参照は借用、更新は関�
 | assert_nested_state_equal | state_dictのTensor値/primitive/list/dictを比較 |
 | parameter_name / parameter_value / old_parameter_name | test-onlystate名対応とtensor。moduleとは区別 |
 | model_module_name / model_module | named_modulesの名前/NNmodule。Parameterではない |
+| test_joint_model_parameter_update_matches_legacy | test-only。条件別の実旧共同更新・複数step全state/gradの比較 |
+| test_joint_model_parameter_update_observes_operation_order | test-only。zero/forward/backward/stepの呼出順と回数の観測 |
 
 小さい一時変数はこの役割群の明確な名前を用いる。公開名/新状態/責務を追加する場合は命名revisionを再レビューする。
