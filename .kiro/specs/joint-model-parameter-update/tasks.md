@@ -18,7 +18,7 @@ taskごと独立Luna review→主担当fresh検証→commit。環境はdocs/expe
   - _Requirements: 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 3.4, 4.1, 4.2, 4.3, 5.2_
   - _Boundary: Test-only contract integration（対象test、必要な局所修正は同production）_
 
-- [ ] 3. 依存境界・全回帰・完成証拠を揃える
+- [x] 3. 依存境界・全回帰・完成証拠を揃える
   - exact二module/public symbolの禁止/許可testを先行し実RED→guard更新GREENを確認する。
   - 旧importなしfreshCPU共同更新、対象＋AST、全tests旧11/最終3golden、旧748c3aa無差分を確認する。
   - integration-validation/roadmapへ全要件・配置・未移植境界を記録する。既存LEGACY-010の正常拡張と旧未修正を区別し、通常旧不具合を未実証で増やさない。

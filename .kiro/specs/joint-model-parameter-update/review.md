@@ -40,3 +40,10 @@ worker対象77 passed/exit0。初回76 passed/1 failedは不正groupのstate_dic
 同GPT-6 Lunaのkiro-review判定APPROVED。独立対象77 passed、拒否不変性/空列/空共有/凍結/soft target/複数group/環境/境界を確認、修正指摘なし。
 主担当fresh対象も77 passed/exit0。41事前拒否条件はzero/step未呼出とwarm state/sentinelgrad/値保持を確認。空共有は独立loss/stepと全値/grad/state一致、既存LEGACY-010の旧生成失敗とは区別した。
 4.3のrollback非保証は保証範囲の明示で、部分変更を必須にする要件ではない。snapshot rollbackを実装していないこととdesignを確認し、特定の部分変更を要求する追加testは不要と判断した。
+
+## Task 3
+
+AST担当READY_FOR_REVIEW: 34禁止/18許可を追加し、実RED21 failed/417 passed/exit1からGREEN438 passed/exit0。担当範囲はASTのみ、smoke/full/証拠は主担当が実行した。
+主担当fresh対象＋AST438 passed/4.44s/exit0、全3493 passed/3 skipped/1既存warning/125.24s/exit0、freshCPU smoke exit0。旧748c3aaとのproduction/golden/回帰test差分は空。全17要件表/UTF8/approvalhash/配置も確認。
+同GPT-6 Lunaのkiro-review判定APPROVED。独立対象438 passed、fullは同source/test状態の主担当実測を照合、AST/diff/TODO/secret/境界はPASS。指摘なし。
+主担当はレビュー後もsource/testが実測時hashと同じことを確認し、current-stateの完成証拠をVERIFIEDと判断した。最終feature統合GOはまだ待ち。

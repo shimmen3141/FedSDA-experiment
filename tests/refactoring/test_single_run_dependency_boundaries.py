@@ -53,6 +53,32 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/participating_model_training_batch.py":
+        # 借用記録は宣言に必要な公開型だけを参照する。
+        return imported_module_name in (
+            "__future__", "__future__.annotations",
+            "dataclasses", "dataclasses.dataclass",
+            "torch", "torch.Tensor", "torch.optim", "torch.optim.Optimizer",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+        )
+    if source_module_path == "learning/training/joint_model_parameter_update.py":
+        # 共同更新は明示演算と兄弟記録/設定・モデル公開型へ限定する。
+        return imported_module_name in (
+            "__future__", "__future__.annotations",
+            "torch", "torch.Tensor", "torch.cat", "torch.isfinite", "torch.no_grad",
+            "torch.is_grad_enabled", "torch.float32", "torch.strided",
+            "torch.nn", "torch.nn.Parameter", "torch.nn.BCELoss", "torch.nn.CrossEntropyLoss",
+            "torch.optim", "torch.optim.Optimizer", "torch.optim.Adam", "torch.optim.SGD",
+            "federated_learning_experiments.learning.training.local_training_settings",
+            "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
+            "federated_learning_experiments.learning.training.participating_model_training_batch",
+            "federated_learning_experiments.learning.training.participating_model_training_batch.ParticipatingModelTrainingBatch",
+            "federated_learning_experiments.learning.models.shared_feature_extractor",
+            "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+        )
     if source_module_path == "learning/training/parameter_optimizer_settings.py":
         # optimizer設定は一般stdlib/core許可より前に公開field検査へ限定する。
         return imported_module_name in (
@@ -312,6 +338,36 @@ def test_single_run_layers_import_only_allowed_dependencies():
     [
         *[(source_module_path, source_text, expected_imported_module_name)
           for source_module_path in (
+              "learning/training/participating_model_training_batch.py",
+              "learning/training/joint_model_parameter_update.py",
+          )
+          for source_text, expected_imported_module_name in (
+              ("import math", "math"),
+              ("import random", "random"),
+              ("import numpy", "numpy"),
+              ("import torch._C", "torch._C"),
+              ("import torch.optim.lr_scheduler", "torch.optim.lr_scheduler"),
+              ("from torch.optim import RMSprop", "torch.optim.RMSprop"),
+              ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
+              ("import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+              ("import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization", "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization"),
+              ("from .parameter_optimizer_construction import create_parameter_optimizer", "federated_learning_experiments.learning.training.parameter_optimizer_construction"),
+              ("import federated_learning_experiments.learning.training", "federated_learning_experiments.learning.training"),
+          )],
+        ("learning/training/participating_model_training_batch.py", "from dataclasses import field", "dataclasses.field"),
+        ("learning/training/participating_model_training_batch.py", "from torch import cat", "torch.cat"),
+        ("learning/training/participating_model_training_batch.py", "from torch.optim import Adam", "torch.optim.Adam"),
+        ("learning/training/participating_model_training_batch.py", "from torch.nn import Parameter", "torch.nn.Parameter"),
+        ("learning/training/participating_model_training_batch.py", "from .local_training_settings import LocalTrainingSettings", "federated_learning_experiments.learning.training.local_training_settings"),
+        ("learning/training/participating_model_training_batch.py", "from ..models.shared_feature_extractor import SharedFeatureExtractor", "federated_learning_experiments.learning.models.shared_feature_extractor"),
+        ("learning/training/participating_model_training_batch.py", "from ..models.residual_adapter_classifier import _validate_classifier_inputs", "federated_learning_experiments.learning.models.residual_adapter_classifier._validate_classifier_inputs"),
+        ("learning/training/joint_model_parameter_update.py", "from .participating_model_training_batch import Tensor", "federated_learning_experiments.learning.training.participating_model_training_batch.Tensor"),
+        ("learning/training/joint_model_parameter_update.py", "from .local_training_settings import validate_settings_field_values", "federated_learning_experiments.learning.training.local_training_settings.validate_settings_field_values"),
+        ("learning/training/joint_model_parameter_update.py", "from ..models.shared_feature_extractor import _validate_feature_tensor", "federated_learning_experiments.learning.models.shared_feature_extractor._validate_feature_tensor"),
+        ("learning/training/joint_model_parameter_update.py", "import federated_learning_experiments.learning.training.participating_model_training_batch.child", "federated_learning_experiments.learning.training.participating_model_training_batch.child"),
+        ("learning/training/joint_model_parameter_update.py", "import federated_learning_experiments.learning.models.residual_adapter_classifier.child", "federated_learning_experiments.learning.models.residual_adapter_classifier.child"),
+        *[(source_module_path, source_text, expected_imported_module_name)
+          for source_module_path in (
               "learning/training/parameter_optimizer_settings.py",
               "learning/training/parameter_optimizer_construction.py",
           )
@@ -550,6 +606,24 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
 @pytest.mark.parametrize(
     "source_module_path,source_text",
     [
+        ("learning/training/participating_model_training_batch.py", "from dataclasses import dataclass"),
+        ("learning/training/participating_model_training_batch.py", "from torch import Tensor"),
+        ("learning/training/participating_model_training_batch.py", "from torch.optim import Optimizer"),
+        ("learning/training/participating_model_training_batch.py", "from ..models.residual_adapter_classifier import ResidualAdapterClassifier"),
+        ("learning/training/participating_model_training_batch.py", "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier"),
+        ("learning/training/participating_model_training_batch.py", "from __future__ import annotations"),
+        ("learning/training/joint_model_parameter_update.py", "from torch import Tensor, cat, isfinite, no_grad, is_grad_enabled, float32, strided"),
+        ("learning/training/joint_model_parameter_update.py", "from torch.nn import Parameter, BCELoss, CrossEntropyLoss"),
+        ("learning/training/joint_model_parameter_update.py", "from torch.optim import Optimizer, Adam, SGD"),
+        ("learning/training/joint_model_parameter_update.py", "from .local_training_settings import LocalTrainingSettings"),
+        ("learning/training/joint_model_parameter_update.py", "from .participating_model_training_batch import ParticipatingModelTrainingBatch"),
+        ("learning/training/joint_model_parameter_update.py", "from ..models.shared_feature_extractor import SharedFeatureExtractor"),
+        ("learning/training/joint_model_parameter_update.py", "from ..models.residual_adapter_classifier import ResidualAdapterClassifier"),
+        ("learning/training/joint_model_parameter_update.py", "from federated_learning_experiments.learning.training.local_training_settings import LocalTrainingSettings"),
+        ("learning/training/joint_model_parameter_update.py", "from federated_learning_experiments.learning.training.participating_model_training_batch import ParticipatingModelTrainingBatch"),
+        ("learning/training/joint_model_parameter_update.py", "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor"),
+        ("learning/training/joint_model_parameter_update.py", "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier"),
+        ("learning/training/joint_model_parameter_update.py", "from __future__ import annotations"),
         ("learning/training/parameter_optimizer_settings.py", "from dataclasses import dataclass, field"),
         ("learning/training/parameter_optimizer_settings.py", "from ...core.settings_field_validation import validate_settings_field_values"),
         ("learning/training/parameter_optimizer_settings.py", "from federated_learning_experiments.core.settings_field_validation import validate_settings_field_values"),
