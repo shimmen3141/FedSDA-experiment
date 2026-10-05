@@ -42,7 +42,7 @@
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "current_sha256_lf": "bfd57f12e323abb9e8de8e2b1dab2e8c33230dfb4f919f1dc7edd11cfa466715"
+      "current_sha256_lf": "04af47b9c681ba2a4a622c7d756f809d5d0c2c60330f06f4a39b7aaef259de6e"
     }
   },
   "upstream_specs": [
@@ -53,7 +53,7 @@
     "pending-training-data-assignment"
   ],
   "created_at": "2026-10-05T06:53:03.283846+00:00",
-  "updated_at": "2026-10-05T07:30:35.083316+00:00",
+  "updated_at": "2026-10-05T07:39:28.949125+00:00",
   "task_graph_review": {
     "verdict": "PASS",
     "mode": "independent_reused_thread",
@@ -63,10 +63,11 @@
     "completed_tasks": [
       "1",
       "2",
-      "3"
+      "3",
+      "4"
     ],
-    "completed_task_count": 3,
+    "completed_task_count": 4,
     "total_executable_tasks": 4,
-    "next_task": "4"
+    "next_task": null
   }
 }

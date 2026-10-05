@@ -25,7 +25,7 @@ taskごとLuna独立レビュー→主担当current-state検証→指定commit�
   - _Requirements: 3.1, 3.2_
   - _Boundary: Test-only cross-boundary integration（対象testのみ）_
 
-- [ ] 4. 依存境界と全回帰・完成証拠を揃える
+- [x] 4. 依存境界と全回帰・完成証拠を揃える
   - exact二module/publicsymbols禁止/許可注入testを先行し実RED→guardGREENを確認する。
   - freshCPU抽出→共同更新smoke/nolegacyimport、対象＋AST、全tests旧11/最終3golden、baseline748c3aa無差分を確認する。
   - integration-validation/roadmapへ12要件/配置/未移植境界/採否/実測を記録し、Luna taskAPPROVED/最終featureGOとmetadata整合を完了条件にする。

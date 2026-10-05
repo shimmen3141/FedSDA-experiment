@@ -28,3 +28,10 @@ worker自己レビューでrecordの自明な自己比較を、渡した特徴/�
 worker対象56 passed/3.73s/exit0。test-onlyの上位接続でFIFOのrelease/drain位置を観測辞書へ解決し、ID順population→抽出→分類器/optimizer対応→共同更新を明示した。
 二値/4クラス×Adam standard/AMSGrad/SGD×共有更新有効/凍結の12条件×3stepで、実旧samplerと実旧共同更新へ抽出全Tensor/損失/全Parameter/grad/optimizerstate/終端RNGを完全照合。旧joint内部からの実抽出はstepごと一回で、loss hookを含む観測は追加drawをしない。
 同GPT-6 Lunaのkiro-review判定APPROVED。独立対象56 passed/exit0、実数値経路の非mock/境界/複数stepの状態とRNG照合を確認、修正指摘なし。主担当fresh対象も56 passed/3.68s/exit0で、Task3範囲をVERIFIEDと判断し採用。Task4は未完了。
+
+## Task 4
+
+AST担当READY_FOR_REVIEW: 34禁止/8許可を先行追加し、実RED16 failed/443 passed/4.55s/exit1からexact二module/publicsymbolsのguardでGREEN459 passed/4.12s/exit0。担当はASTのみ、smoke/full/証拠は主担当が実行した。
+主担当fresh対象＋AST459 passed/4.50s/exit0、全3591 passed/3 skipped/1既存warning/115.24s/exit0、freshCPU抽出→共同更新smoke exit0。旧748c3aaとのproduction/golden/旧回帰test差分は空。全12要件表、UTF8、承認hash、配置を確認した。
+同GPT-6 Lunaのkiro-review判定APPROVED。独立対象459 passed/exit0、fullは同source/test状態の主担当実測を確認し、証拠/AST/境界/残留markerを確認。修正指摘なし。
+主担当は実測時のtracked Python/両golden内容hashと現在状態が一致することを確認し、Task4範囲をVERIFIEDと判断して採用。全4task完了、最終feature統合レビューは別途待ち。

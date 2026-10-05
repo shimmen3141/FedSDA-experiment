@@ -53,6 +53,23 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/model_training_sample_records.py":
+        # 標本記録はdataclass宣言と借用Tensor型だけを参照する。
+        return imported_module_name in (
+            "__future__", "__future__.annotations",
+            "dataclasses", "dataclasses.dataclass", "torch", "torch.Tensor",
+        )
+    if source_module_path == "learning/training/held_model_training_batch_sampling.py":
+        # 抽出は借用Randomと明示Tensor演算・同feature公開記録だけに限定する。
+        return imported_module_name in (
+            "__future__", "__future__.annotations",
+            "random", "random.Random",
+            "torch", "torch.Tensor", "torch.cat", "torch.isfinite", "torch.float32", "torch.strided",
+            "federated_learning_experiments.learning.training.model_training_sample_records",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ModelTrainingSampleCollection",
+            "federated_learning_experiments.learning.training.model_training_sample_records.SampledModelTrainingBatch",
+        )
     if source_module_path == "learning/training/participating_model_training_batch.py":
         # 借用記録は宣言に必要な公開型だけを参照する。
         return imported_module_name in (
@@ -338,6 +355,37 @@ def test_single_run_layers_import_only_allowed_dependencies():
     [
         *[(source_module_path, source_text, expected_imported_module_name)
           for source_module_path in (
+              "learning/training/model_training_sample_records.py",
+              "learning/training/held_model_training_batch_sampling.py",
+          )
+          for source_text, expected_imported_module_name in (
+              ("import math", "math"),
+              ("import numpy", "numpy"),
+              ("import torch._C", "torch._C"),
+              ("import torch.optim", "torch.optim"),
+              ("from torch.nn import Module", "torch.nn"),
+              ("import federated_drift_experiment.clients.base", "federated_drift_experiment.clients.base"),
+              ("from ..models.residual_adapter_classifier import ResidualAdapterClassifier", "federated_learning_experiments.learning.models.residual_adapter_classifier"),
+              ("import federated_learning_experiments.runtime.single_run_execution", "federated_learning_experiments.runtime.single_run_execution"),
+              ("import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer", "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer"),
+              ("from .joint_model_parameter_update import perform_joint_model_parameter_update", "federated_learning_experiments.learning.training.joint_model_parameter_update"),
+          )],
+        ("learning/training/model_training_sample_records.py", "from dataclasses import field", "dataclasses.field"),
+        ("learning/training/model_training_sample_records.py", "from torch import cat", "torch.cat"),
+        ("learning/training/model_training_sample_records.py", "from random import Random", "random"),
+        ("learning/training/model_training_sample_records.py", "from .held_model_training_batch_sampling import sample_training_batches_for_held_models", "federated_learning_experiments.learning.training.held_model_training_batch_sampling"),
+        ("learning/training/held_model_training_batch_sampling.py", "from random import sample", "random.sample"),
+        ("learning/training/held_model_training_batch_sampling.py", "from random import seed", "random.seed"),
+        ("learning/training/held_model_training_batch_sampling.py", "from random import getstate", "random.getstate"),
+        ("learning/training/held_model_training_batch_sampling.py", "from random import setstate", "random.setstate"),
+        ("learning/training/held_model_training_batch_sampling.py", "from random import SystemRandom", "random.SystemRandom"),
+        ("learning/training/held_model_training_batch_sampling.py", "from random import _inst", "random._inst"),
+        ("learning/training/held_model_training_batch_sampling.py", "import random.child", "random.child"),
+        ("learning/training/held_model_training_batch_sampling.py", "from .model_training_sample_records import Tensor", "federated_learning_experiments.learning.training.model_training_sample_records.Tensor"),
+        ("learning/training/held_model_training_batch_sampling.py", "from .model_training_sample_records import _private", "federated_learning_experiments.learning.training.model_training_sample_records._private"),
+        ("learning/training/held_model_training_batch_sampling.py", "import federated_learning_experiments.learning.training.model_training_sample_records.child", "federated_learning_experiments.learning.training.model_training_sample_records.child"),
+        *[(source_module_path, source_text, expected_imported_module_name)
+          for source_module_path in (
               "learning/training/participating_model_training_batch.py",
               "learning/training/joint_model_parameter_update.py",
           )
@@ -606,6 +654,14 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
 @pytest.mark.parametrize(
     "source_module_path,source_text",
     [
+        ("learning/training/model_training_sample_records.py", "from dataclasses import dataclass"),
+        ("learning/training/model_training_sample_records.py", "from torch import Tensor"),
+        ("learning/training/model_training_sample_records.py", "from __future__ import annotations"),
+        ("learning/training/held_model_training_batch_sampling.py", "from random import Random"),
+        ("learning/training/held_model_training_batch_sampling.py", "from torch import Tensor, cat, isfinite, float32, strided"),
+        ("learning/training/held_model_training_batch_sampling.py", "from .model_training_sample_records import ObservedTrainingSample, ModelTrainingSampleCollection, SampledModelTrainingBatch"),
+        ("learning/training/held_model_training_batch_sampling.py", "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample, ModelTrainingSampleCollection, SampledModelTrainingBatch"),
+        ("learning/training/held_model_training_batch_sampling.py", "from __future__ import annotations"),
         ("learning/training/participating_model_training_batch.py", "from dataclasses import dataclass"),
         ("learning/training/participating_model_training_batch.py", "from torch import Tensor"),
         ("learning/training/participating_model_training_batch.py", "from torch.optim import Optimizer"),
