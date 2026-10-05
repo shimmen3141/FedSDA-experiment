@@ -18,7 +18,7 @@
   - _Depends: 1_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2_
 
-- [ ] 3. 全回帰と統合証拠を揃える
+- [x] 3. 全回帰と統合証拠を揃える
   - 新importなしの既存モデル依存guard、fresh新CPU接続/共同学習smoke、全pytest旧11/最終3goldenを確認する。
   - Ruff/format/Pyright/pip・旧固定差分/源hash・全7条件の実測を記録する。
   - 全taskとroadmapを同期し、Task APPROVEDとfeature GO/現在hash一致で完成を確認する。
