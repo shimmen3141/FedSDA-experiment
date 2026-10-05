@@ -68,7 +68,8 @@ python -m pre_commit run --all-files
 
 Gitのhookはworktree間で共有される。`--allow-missing-config`により設定のない元checkoutでの
 コミットも可能にする。hookはRuffの固定版を専用環境へ導入し、検査だけを行う。
-型検査と全テストはCIで実行する。
+型検査と基準PCの数値golden以外の全テストはCIの必須検査とする。
+数値goldenも別の診断ステップで実行し、ログ・環境・JUnitを保存する。
 
 ## エディタとCI
 
@@ -76,10 +77,16 @@ VS Codeの推奨拡張とPythonのformatterを共有する。Python interpreter�
 旧実装まで保存時に整形しないよう、保存時の一括修正は共有設定で有効にしない。
 新実装のPythonファイルはGit属性とEditorConfigでLFに揃える。
 
-CIはWindows・Python 3.13.15・固定依存で、依存整合性、Lint、整形、型、全pytestを検査する。
+CIはWindows・Python 3.13.15・固定依存で、依存整合性、Lint、整形、型、pytestを検査する。
 torchはgolden基準と同じPyPI配布版を使用する。MNISTは既存ローダーで初回取得し、
 goldenテストでハッシュも確認する。CPU・OSの差で数値がずれた場合もgoldenを自動更新しない。
 Linuxの研究実験環境の再現性は、このWindows開発用CIとは別に確認する。
+
+必須テストから除くのは`tests/test_regression.py`と`tests/test_proposed_regression.py`の2ファイルだけ。
+これらはホストでは`continue-on-error`付きの診断ステップとして実行する。
+診断失敗時はwarningとjob summaryへ明示し、別JUnitと`capture.py`の環境記録をartifactへ残す。
+**CI全体の成功は数値goldenの一致を意味しない。** 実装変更の受け入れ・PR前には、
+基準ローカル環境で両goldenを含む全pytestの成功を別の必須ゲートとして確認する。
 
 ## 導入時のレビューと検証
 
@@ -116,3 +123,9 @@ Pyrightもsandbox内で子Pythonの依存解決が阻まれたため、権限を
 CIの初回pushはjob全体での`runner.temp`参照により開始前に失敗したため、
 許可されるpytestステップのenvへ移動した。検証漏れの一次記録は
 [development finding](../../development-findings/2026-10-05-github-actions-context-validation.md)を参照。
+
+修正後の[ホスト実行](https://github.com/shimmen3141/FedSDA-experiment/actions/runs/37314082684)では、
+静的検査はすべて成功。pytestは3589 passed・3 skippedで、失敗は上記2 goldenテストのみだった。
+旧回帰ではaccuracy等、最終構成ではSINE2の候補棄却数（2対3）などに差が観測された。
+旧実装・goldenに差分がなくローカルでは一致するため環境差を疑うが、CPU・数値ライブラリなどの
+具体原因は未特定。ホストに合わせてgoldenや許容値を更新せず、必須検査と数値診断を分離した。
