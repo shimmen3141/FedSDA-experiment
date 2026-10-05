@@ -1,0 +1,16 @@
+# 調査と主担当synthesis
+
+## 旧根拠と実測
+旧shared_backbone.py:220の_sample_training_batchesはストアitems順に保有/標本数を確認し、random.sampleを一回、特徴/ラベルを抽出順にcatする。storeはbase.py:41のdefaultdict(list)。fedsda.pyの処理入口で特徴[1,D]/ラベル[1,1]にし、FIFOからモデル別listへ同じtuple参照を移す。concept_idは抽出に使わない。
+調査agentが最小SimpleNamespace(models,train_data_store,batch_size)で実旧methodを呼んだ。5/100件、skip混在、非昇順/負IDで借用Random.sampleとglobal randomが全値/抽出順/終端state一致。list/tuple populationも一致した。
+同参照が異なる位置に再登場することを禁止しない。復元なしは位置についての性質である。
+
+## Boundary Candidatesからの決定
+一回共同更新の前提である参加選別と抽出を一責務にする。optimizer所有/resetはsamplerの前提ではない。
+入力は新しい特徴/ラベル観測記録・モデル別順序付き標本列、出力はID付き連結batch記録とする。旧tuple形式/概念metadataの互換読込みを持たない。
+既存PendingTrainingAssignmentBufferは位置だけを所有する。上位がrelease/drain位置を観測へ解決しモデル別列に反映してから本部品へ渡す。これと既存ParticipatingModelTrainingBatchへのID対応付けはtest-onlyで接続を検証する。
+全参加予定列の全標本を抽出前に検査する。未保有列は内容を読まず、保有不足列はコレクション構造のみ検査する。ラベルのクラス上限やモデル入力幅はclassifierを知る共同更新で検査し、本部品は有限性と一標本shape/列内次元だけを担当する。
+通常経路の新たな旧不具合は観測していない。
+
+## Requirements保存前gate
+主担当PASS。全12要件のnumeric/EARS、選別順/重複位置/skip/RNG/後段不正/入力保持/実旧/test-only接続の範囲を確認。具体API型とshapeはdesignへ分離した。新依存なし、標準Random.sample/catを採用する。
