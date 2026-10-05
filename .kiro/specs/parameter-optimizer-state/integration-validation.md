@@ -14,6 +14,9 @@ spec.jsonが承認/進捗、naming revision3が正式名、review.mdが採否の
 - 対象Ruff/format成功、Pyright0 errors/0 warnings、diff-check成功。固定748c3aaとの旧production/golden/旧回帰test差分なし。
 
 ## 旧所見と限界
+- Task2: 47 passed/5.23秒/exit0。class2/4×Adam standard/AMSGrad/SGD×reset4種の24条件で各3step、共有更新/凍結を混在させる。全loss/NN値/grad/optimizer stateが実旧共同更新とexact一致。
+- 個別だけのresetは実旧attach_backbone、全体resetは実旧reset_optimizer、共有だけは実旧component builderで共有optimizerだけ再生成する部分へ照合。reset時機の移植とは区別する。
+- 別owner/旧optimizerと旧HeldModelTrainingBinding/参加batchの参照が自動交換されないことを確認。reset後の学習は現在参照で新recordを作成するtest-only接続。既存数値production変更なし。
 今回新たな旧正常系不具合を確認していない。既存LEGACY-010/空共有optimizerの拒否は変更しない。
 reset後の旧bindingは旧optimizerのまま。上位が現在参照を取得し新bindingを作る。
 parameter/settingsは借用。frozen/private回避や並行resetは通常契約外。

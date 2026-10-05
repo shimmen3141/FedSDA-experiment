@@ -26,3 +26,6 @@ VERDICT: APPROVED。追加3局所名の役割区別、全task網羅/逐次依存
 
 ## Task1
 VERDICT: APPROVED。Luna独立23 passed、Ruff/format/diff-checkと旧reset/失敗保持/借用境界を確認、指摘なし。
+
+## Task2
+VERDICT: APPROVED。Luna独立47 passed、Ruff/format/diff-check成功。24条件実旧/新NN更新と個別state/旧binding保持を確認。指摘なし。

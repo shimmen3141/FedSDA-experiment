@@ -21,7 +21,7 @@
 
 ## 現在の状態
 
-- optimizer状態の所有と明示リセットは`../specs/parameter-optimizer-state/README.md`。要求/設計/命名/タスクとTask1はLuna承認済み、23対象test成功。Task2の実NN接続へ進む。モデル所有/共有接続/reset時機/全体runは対象外。
+- optimizer状態の所有と明示リセットは`../specs/parameter-optimizer-state/README.md`。要求/設計/命名/タスクとTask1/2はLuna承認済み、47対象test成功。Task3の依存境界/全回帰へ進む。モデル所有/共有接続/reset時機/全体runは対象外。
 
 - モデル別学習標本の保持は`../specs/model-training-sample-storage/README.md`。全3tasks完了、命名revision1/Luna最終feature GO。追加順/空列/重複/借用payload/snapshot構造分離/サーバID一回対応を独立移植。実旧保存16条件・抽出48条件×3反復を照合、対象94/AST込み581、全3933 passed/3 skipped/1既存warning、品質/fresh新CPU smoke/旧固定差分確認。全10要件/hash/採否は対象specが正本。正式登録pop/上書き、モデル/optimizer所有・同期、統計/評価store、新client/全体runは後続。新たな旧正常系不具合は観測していない。
 
