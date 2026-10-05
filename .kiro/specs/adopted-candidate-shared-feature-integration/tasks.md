@@ -16,7 +16,7 @@
   - _Depends: 1_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3_
 
-- [ ] 3. 依存境界と全回帰を検証する
+- [x] 3. 依存境界と全回帰を検証する
   - 新moduleのAST禁止/許可ケースを先行RED→exact guard GREENにする。
   - fresh新CPUで値反映・候補接続・共同step、全pytest旧11/最終3golden、Ruff/format/Pyright/pip、旧固定差分/sourcehashを記録する。
   - 全9要件trace、検証記録、Luna Task APPROVEDで本taskを完了する。全task/spec/roadmap同期後のfeature GOは、全checkbox完了後の別ゲートとする。

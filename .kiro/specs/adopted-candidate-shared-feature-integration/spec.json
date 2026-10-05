@@ -1,9 +1,9 @@
 {
   "feature_name": "adopted-candidate-shared-feature-integration",
   "language": "ja",
-  "phase": "implementation-in-progress",
+  "phase": "completed",
   "created_at": "2026-10-05T19:48:11.328108+00:00",
-  "updated_at": "2026-10-05T19:51:05.245802+00:00",
+  "updated_at": "2026-10-05T20:08:23.160090+00:00",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "upstream_specs": [
     "shared-feature-extractor-attachment",
@@ -51,7 +51,8 @@
       "approved_sha256_lf": "4cb0400846f17cd47756b1560fd53c4d1e34f90177d69faa428236a1fbd6f2ca",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "reviewer_thread": "/root/luna_single_run_3_1_review"
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "current_sha256_lf": "44e329c3d7d03dda59a1e6e9ac882d06d2bf001f2bb5bfd80d654acd5b020514"
     }
   },
   "ready_for_implementation": true,
@@ -63,10 +64,31 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
-    "completed_task_count": 2,
+    "completed_task_count": 3,
     "total_executable_tasks": 3,
-    "next_task": "3"
+    "next_task": null
+  },
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "requirements_covered": 9,
+    "test_pass_count": 4167,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "adopted_candidate_shared_feature_integration_only",
+    "verification_source_sha256": "80459180777488ad3ef122e41210ebc84aa64f43be12dfbcf9bf0c950f1235dc",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go"
   }
 }

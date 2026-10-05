@@ -34,6 +34,57 @@ import pytest
         ("from federated_learning_experiments.runtime import run", False),
         ("import federated_drift_experiment", False),
         ("from . import parameter_optimizer_state", False),
+        ("from dataclasses import dataclass", False),
+        ("from torch import float32, strided", True),
+        ("from torch.nn import Parameter", True),
+        ("from torch.optim import Adam, SGD", True),
+        ("from .parameter_optimizer_state import ParameterOptimizerState", True),
+        (
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor",
+            True,
+        ),
+    ],
+)
+def test_adopted_candidate_shared_feature_integration_dependency_contract(
+    source_text, expected_acceptance
+):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="learning/training/adopted_candidate_shared_feature_integration.py",
+        source_text=source_text,
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("import math", False),
+        ("import random", False),
+        ("import numpy", False),
+        ("from dataclasses import asdict", False),
+        ("from torch import Tensor", False),
+        ("from torch import rand", False),
+        ("from torch.nn import Linear", False),
+        ("from torch.optim import AdamW", False),
+        ("from .joint_model_parameter_update import perform_joint_model_parameter_update", False),
+        ("from .held_model_training_binding import HeldModelTrainingBinding", False),
+        ("from .parameter_optimizer_construction import create_parameter_optimizer", False),
+        ("from .parameter_optimizer_state import _private", False),
+        (
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import _validate_classifier_inputs",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.models.shared_feature_extractor import _private",
+            False,
+        ),
+        ("from federated_learning_experiments.runtime import run", False),
+        ("import federated_drift_experiment", False),
+        ("from . import parameter_optimizer_state", False),
         ("from dataclasses import dataclass", True),
         ("from torch import float32, strided", True),
         ("from torch.nn import Parameter", True),
@@ -103,6 +154,24 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/adopted_candidate_shared_feature_integration.py":
+        # 外側接続はモデルとownerの公開型/属性だけを使い、学習計算へ依存しない。
+        return imported_module_name in (
+            "torch",
+            "torch.float32",
+            "torch.strided",
+            "torch.nn",
+            "torch.nn.Parameter",
+            "torch.optim",
+            "torch.optim.Adam",
+            "torch.optim.SGD",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.shared_feature_extractor",
+            "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+        )
     if source_module_path == "learning/training/held_model_shared_feature_reconnection.py":
         # 外側接続はモデルとownerの公開型/属性だけを使い、学習計算へ依存しない。
         return imported_module_name in (
