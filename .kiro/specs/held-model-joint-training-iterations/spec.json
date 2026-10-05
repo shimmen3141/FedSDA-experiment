@@ -1,0 +1,64 @@
+{
+  "feature_name": "held-model-joint-training-iterations",
+  "created_at": "2026-10-05T13:54:36.186070+00:00",
+  "updated_at": "2026-10-05T14:07:05.444996+00:00",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "7535dbdf4b491dd13320a373588c90ef4f961594be5981518a99a66eb8330e05",
+      "approved_sha256_lf": "7535dbdf4b491dd13320a373588c90ef4f961594be5981518a99a66eb8330e05",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "b0e349fd1255e44c87af7b6062a3de0d59d889dfb809c2ac27cb92b410e2a670",
+      "approved_sha256_lf": "b0e349fd1255e44c87af7b6062a3de0d59d889dfb809c2ac27cb92b410e2a670",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "420d2ae459c1912a45584dbd5439c75cc53e68980877d207fafa19dc847ecc72",
+      "approved_sha256_lf": "420d2ae459c1912a45584dbd5439c75cc53e68980877d207fafa19dc847ecc72",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "approved_sha256_lf": "054243892d0bb395e9df193ff2adab4b45763c49adffcbb45883d8ebb9163507",
+      "generated_sha256_lf": "054243892d0bb395e9df193ff2adab4b45763c49adffcbb45883d8ebb9163507",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "/root/luna_single_run_3_1_review"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "upstream_specs": [
+    "held-model-training-batch-sampling",
+    "joint-model-parameter-update"
+  ],
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "total_executable_tasks": 3,
+    "next_task": "1"
+  }
+}
