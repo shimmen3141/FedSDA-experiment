@@ -1,0 +1,15 @@
+# 調査記録
+
+## 根拠
+- 固定旧748c3aaのmodels.py:246 SharedBackboneMLP.reset_optimizerはbackbone.optimizerとhead_optimizerを新規生成する。NN値やgradをclearしない。
+- 同:258 attach_backboneは既存shared.optimizerを保持しhead_optimizerだけ再生成する。共有再接続・parameter置換とoptimizerリセットを一つのAPIに混ぜない。
+- 既存parameter_optimizer_construction.create_parameter_optimizerは設定とCPU float32 exact Parameter tupleを検証してAdam/SGDを生成する。生成処理は再実装しない。
+- held_model_training_bindingと反復executorはoptimizerを借用する。今後の所有者から現在参照を取得してbindingを作り直す必要がある。古いbindingはreset後も旧optimizerを参照するので自動更新を主張しない。
+- 空共有parameter列の旧生成失敗は既存LEGACY-010。今回もfactoryの空tuple拒否を維持し、上位では共有parameterがない場合に管理器を作らない。
+
+## 境界と方針
+optimizer状態だけを所有する具体型一つで十分。汎用基底型/registryやモデル生成の管理は導入しない。
+設定は既存frozen型を固定参照として借用、parameter tupleも借用。外側のfrozen回避/private改変は通常契約外。
+resetは既存生成部品が成功してから現在参照を交換する。失敗時に旧stateを保持する。
+fable-method、cc-sddの要求/命名/設計/タスクと独立Lunaレビューに従う。
+新しい旧正常系不具合は現時点で未確認。
