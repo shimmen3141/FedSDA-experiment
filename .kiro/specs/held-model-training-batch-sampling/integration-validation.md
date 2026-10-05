@@ -1,7 +1,7 @@
 # 統合検証: 保有モデルの学習バッチ抽出
 
 ## 判定範囲
-Task1–3の抽出/契約/上位接続とTask4の依存境界・全回帰を検証した。最終feature判定はLuna統合レビュー待ち。
+最終判定GO。全4taskを完了し、GPT-6 Lunaの独立統合レビューを主担当が採用した。抽出/契約/上位接続/依存境界・全回帰の12要件に不足やblockerはない。
 現在地・承認hashの正本はspec.json/review.md。抽出器は標本ストアや乱数生成器を所有しない。
 標本追加/帰属/ID統合、optimizer所有/reset、学習反復/counter/候補進行/通信、新全体runは本specの完成範囲に含めない。
 
@@ -20,7 +20,8 @@ fresh smokeはPYTHONPATH=srcの別processで抽出→分類器/optimizer対応�
 - ASTは34禁止/8許可の追加を先行。実RED16 failed/443 passed/4.55s/exit1から、exact二module/publicsymbolsのguardを一般stdlib許可の前へ配置してGREEN459 passed/4.12s/exit0。主担当fresh対象＋ASTも459 passed/4.50s/exit0。
 - 全tests: 3591 passed/3 skipped/1 warning/115.24s/exit0。旧11/最終3goldenを含む。3skipは既存Windows非対応wrapper、1warningは既存qint8fixture deepcopyのTypedStorage非推奨。
 - fresh CPU: HELD_MODEL_TRAINING_BATCH_SAMPLING_SMOKE_PASS/exit0。通常/共有凍結/空共有の抽出→共同更新、optimizerstate更新/共有凍結値保持、抽出と学習のTorch RNG保持、旧packageがsys.modulesに存在しないことを確認。
-- 全回帰実測時のtracked Pythonと両goldenの内容hashは392dbd7441b9ab4ff2edd119fd67d4bf87d530e05ba76d6bdf61ba23d0e20538。文書更新とレビュー後も同状態との一致を確認する。
+- 全回帰実測時のtracked Pythonと両goldenの内容hashは392dbd7441b9ab4ff2edd119fd67d4bf87d530e05ba76d6bdf61ba23d0e20538。文書更新とLunaレビュー後も同状態との一致を確認した。
+- Luna最終統合判定GO。独立fresh processの抽出→共同更新smokeも成功し、旧package非importを確認した。全12/12要件・配置・hash・タスク間契約・未完了taskなしを確認し、修正指摘はない。
 - git diff 748c3aa -- federated_drift_experiment tests/regression_golden.json tests/proposed_regression_golden.json tests/test_regression.py tests/test_proposed_regression.pyは空。旧productionとgolden/許容差は未変更。
 - 全承認hashはLF正規化で一致、UTF8/配置を確認した。新二productionと対象/AST testはdesignのFile Structure Planに一致する。
 

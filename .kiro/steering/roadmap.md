@@ -21,7 +21,7 @@
 
 ## 現在の状態
 
-- 保有モデルの学習バッチ抽出は`../specs/held-model-training-batch-sampling/README.md`。Task1–3はLuna承認・実装済み、Task4と最終統合判定はレビュー待ち。順序付きモデル別観測列から保有/件数で参加選別し、借用Randomで復元なし抽出とcatを実装。対象56/AST込み459、全3591 passed/3 skipped/1既存warning、freshCPU抽出→共同更新smoke成功。FIFO位置解決/IDからNN・optimizer対応はtest-onlyで実旧12条件×3stepへ完全照合した。全12要件・hash・採否・実測は対象specへ記録。標本ストア所有/追加/帰属/ID統合・反復・optimizer所有/reset・新全体runは後続。新たな旧正常不具合は観測していない。
+- 保有モデルの学習バッチ抽出は`../specs/held-model-training-batch-sampling/README.md`。全4tasks完了・Luna最終統合GO。順序付きモデル別観測列から保有/件数で参加選別し、借用Randomで復元なし抽出とcatを実装。対象56/AST込み459、全3591 passed/3 skipped/1既存warning、主担当/LunaのfreshCPU抽出→共同更新smoke成功。FIFO位置解決/IDからNN・optimizer対応はtest-onlyで実旧12条件×3stepへ完全照合した。全12要件・hash・採否・実測は対象specへ記録。標本ストア所有/追加/帰属/ID統合・反復・optimizer所有/reset・新全体runは後続。新たな旧正常不具合は観測していない。
 
 - 一回共同更新は`../specs/joint-model-parameter-update/README.md`。全3tasks完了・Luna最終統合GO。確定済み参加batch列から共有forward一回・標本数加重BCE/CE・backward一回・共有step→個別step入力順を移植。対象77/AST込み438、全3493 passed/3 skipped/1既存warning、主担当/LunaのfreshCPU smoke成功。空共有はoptimizer=Noneで個別学習を独立検証し、旧LEGACY010は未修正/通常過去影響未確認。参加抽出は上記specで独立移植した。反復・optimizer所有/reset・候補進行・通信/診断counter・PCGrad・新全体runは後続。全17要件・hash・採否・実測の正本は対象spec.json/review.md。
 
