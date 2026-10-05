@@ -20,7 +20,6 @@ jobs:
       OMP_NUM_THREADS: '1'
       MKL_NUM_THREADS: '1'
       MPLBACKEND: Agg
-      MPLCONFIGDIR: ${{ runner.temp }}/matplotlib
       FDE_MNIST_DATA_DIR: ${{ github.workspace }}/data/mnist
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -49,6 +48,8 @@ jobs:
           exit $LASTEXITCODE
       # MNISTは既存ローダーが初回取得し、goldenテストがハッシュを検査する。
       - name: Run all tests including golden regressions
+        env:
+          MPLCONFIGDIR: ${{ runner.temp }}/matplotlib
         run: python -m pytest tests -q --junitxml=test-results.xml
       - name: Save test report
         if: always()

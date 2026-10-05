@@ -112,3 +112,7 @@ Pyrightもsandbox内で子Pythonの依存解決が阻まれたため、権限を
 これらの失敗を成功として数えず、最終成功実行の結果を記録している。
 ローカルJUnit・型検査JSON・hook専用cacheは元checkoutの`venv/refactoring-tests/`と
 `venv/pre-commit-cache/`に保存し、コミットに含めない。
+
+CIの初回pushはjob全体での`runner.temp`参照により開始前に失敗したため、
+許可されるpytestステップのenvへ移動した。検証漏れの一次記録は
+[development finding](../../development-findings/2026-10-05-github-actions-context-validation.md)を参照。
