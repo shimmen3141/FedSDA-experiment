@@ -1,0 +1,18 @@
+# 検査のみ行う。修正は開発者が明示的に実行する。
+minimum_pre_commit_version: '4.6.2'
+files: ^(src/federated_learning_experiments/|tests/refactoring/).*\.py$
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: Ruff lint
+        entry: ruff check --force-exclude
+        language: python
+        additional_dependencies: ['ruff==0.16.10']
+        types: [python]
+      - id: ruff-format-check
+        name: Ruff format check
+        entry: ruff format --check --force-exclude --output-format concise
+        language: python
+        additional_dependencies: ['ruff==0.16.10']
+        types: [python]

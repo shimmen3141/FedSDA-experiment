@@ -383,9 +383,8 @@ def test_model_class_statistics_rejects_invalid_input_atomically(field_name, inv
 
 def test_model_class_statistics_connects_to_baseline_and_monitor():
     """全体とclassの平均が異なっても全体を明示して監視・参照に接続する。"""
-    from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
-        select_loss_monitoring_baseline_mean_loss,
-        select_post_alarm_reference_historical_mean_loss,
+    from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
+        select_available_reference_within_historical_loss_tolerance,
     )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
         LossChangeDetectionSettings,
@@ -393,8 +392,9 @@ def test_model_class_statistics_connects_to_baseline_and_monitor():
     from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
         OverallAndTrueClassLossMonitor,
     )
-    from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
-        select_available_reference_within_historical_loss_tolerance,
+    from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
+        select_loss_monitoring_baseline_mean_loss,
+        select_post_alarm_reference_historical_mean_loss,
     )
 
     store = ModelAndClassLossStatisticsStore()
@@ -448,6 +448,7 @@ def test_model_class_statistics_connects_to_baseline_and_monitor():
 def test_model_class_statistics_preserves_shared_state():
     """統計保存・更新・参照で共有乱数・既定dtype/deviceを変更しない。"""
     import random
+
     import numpy as np
     import torch
 

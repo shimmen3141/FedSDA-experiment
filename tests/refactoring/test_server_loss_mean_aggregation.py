@@ -300,6 +300,7 @@ def test_server_loss_mean_aggregation_returns_independent_frozen_values():
 
 def test_server_loss_mean_aggregation_preserves_shared_environment_and_keyword_contract():
     import random
+
     import numpy as np
     import torch
 
@@ -332,6 +333,7 @@ def test_server_loss_mean_aggregation_preserves_shared_environment_and_keyword_c
 )
 def test_server_loss_mean_aggregation_extreme_counts_reproduce_legacy008(counts, legacy_exception):
     from types import SimpleNamespace
+
     from federated_drift_experiment.servers.base import BaseServer
 
     moments = tuple(
@@ -373,6 +375,7 @@ def test_server_loss_mean_aggregation_connects_whole_server_update_and_id_supple
     participating_counts,
 ):
     from types import SimpleNamespace
+
     from federated_drift_experiment.clients.base import BaseClient
     from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
         ModelAndClassLossStatistics,
@@ -382,8 +385,8 @@ def test_server_loss_mean_aggregation_connects_whole_server_update_and_id_supple
         select_loss_statistics_after_model_id_mapping,
     )
     from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
-        select_loss_monitoring_baseline_mean_loss,
         select_alarm_interval_reuse_baseline_mean_loss,
+        select_loss_monitoring_baseline_mean_loss,
         select_post_alarm_reference_historical_mean_loss,
     )
 

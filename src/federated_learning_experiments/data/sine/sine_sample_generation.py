@@ -26,7 +26,7 @@ class SineSampleGenerator:
         class_label = int(below_sine_boundary) if concept_id == 0 else int(not below_sine_boundary)
         float32_feature_values = float64_feature_values.astype(np.float32)
         return ObservedSample(
-            feature_values=tuple(float(feature_value) for feature_value in float32_feature_values),
+            feature_values=(float(float32_feature_values[0]), float(float32_feature_values[1])),
             class_label=class_label,
         )
 

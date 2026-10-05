@@ -5,9 +5,9 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
+from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 from federated_drift_experiment.expert_routing import SwitchingExpertRouter
-from test_run_settings_validation import valid_run_settings_mapping
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
     FixedSharePredictionWeightController,
@@ -53,8 +53,8 @@ def test_fixed_share_prediction_weights_match_reference_before_and_after_each_ob
     reference_router = SwitchingExpertRouter(fixed_share_weight_redistribution_time_scale_samples)
     for observed_losses_by_model_id in (
         {2: 0.5, -3: 0.5, 0: 0.5},
-        *({2: 1, -3: 0, 0: 0.3} for observation_index in range(8)),
-        *({0: 0, -3: 1, 2: 0.4} for observation_index in range(8)),
+        *({2: 1, -3: 0, 0: 0.3} for _observation_index in range(8)),
+        *({0: 0, -3: 1, 2: 0.4} for _observation_index in range(8)),
         {2: 1e308, 0: -1e308, -3: 0.2},
         {5: 0, -3: 1},
         {-3: 1e308},
@@ -485,7 +485,7 @@ def test_fixed_share_aggregation_reset_and_replay_counters_match_reference(
     )
     reference_router = SwitchingExpertRouter(2)
     observed_loss_sequence = ({-1: 0, 1: 1}, {-1: 1, 1: 0})
-    for observation_index in range(2):
+    for _observation_index in range(2):
         controller.reset_weights_after_aggregation()
         reference_router.restart_after_aggregation()
         assert_fixed_share_state_matches_reference(
@@ -524,7 +524,7 @@ def test_fixed_share_empty_replay_preserves_evidence_and_all_counters(
             "prediction_combination_settings"
         ],
     )
-    for observation_index in range(2):
+    for _observation_index in range(2):
         controller_state_before_call = capture_fixed_share_controller_state(controller=controller)
         if replay_after_aggregation:
             controller.replay_observed_losses_after_aggregation(observed_loss_sequence=iter(()))

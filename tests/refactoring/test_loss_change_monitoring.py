@@ -9,11 +9,18 @@ from dataclasses import FrozenInstanceError, replace
 import numpy as np
 import pytest
 import torch
+from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
-from federated_drift_experiment.drift_detectors.e_detector import BoundedMeanEDetector
 from federated_drift_experiment import config
-from federated_drift_experiment.clients.fedsda import ClassConditionalESRFedSDAClient
-from test_run_settings_validation import valid_run_settings_mapping
+from federated_drift_experiment.clients.fedsda import (
+    ClassConditionalESRFedSDAClient,
+    _AdaHedgeRoutingFedSDAClientMixin,
+)
+from federated_drift_experiment.drift_detectors.e_detector import BoundedMeanEDetector
+from federated_learning_experiments.learning.prediction.class_probability_calculations import (
+    compute_model_mean_bounded_losses_after_label_observation,
+    convert_model_outputs_to_prediction_probabilities,
+)
 from federated_learning_experiments.methods.fedsda.loss_change_detection.bounded_loss_e_sr_detection import (
     BoundedLossESRDetector,
     BoundedLossESRObservation,
@@ -21,11 +28,6 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.bounded
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
 )
-from federated_learning_experiments.learning.prediction.class_probability_calculations import (
-    convert_model_outputs_to_prediction_probabilities,
-    compute_model_mean_bounded_losses_after_label_observation,
-)
-from federated_drift_experiment.clients.fedsda import _AdaHedgeRoutingFedSDAClientMixin
 
 
 def assert_single_series_matches_reference(*, detector, reference_detector):
@@ -231,7 +233,7 @@ def assert_class_monitor_matches_reference(*, monitor, reference_monitor):
         (class_id, tuple(class_sample_indices))
         for class_id, class_sample_indices in reference_monitor.class_e_positions.items()
     )
-    for class_id, state_snapshot in (
+    for class_id, detector_state_snapshot in (
         (None, state_snapshot.overall_esr_state),
         *state_snapshot.class_esr_states_by_class_id,
     ):
@@ -240,11 +242,11 @@ def assert_class_monitor_matches_reference(*, monitor, reference_monitor):
             if class_id is None
             else reference_monitor.class_e_detectors[class_id]
         )
-        assert state_snapshot.baseline_loss_mean == reference_detector.baseline
-        assert state_snapshot.candidate_log_capitals == tuple(
+        assert detector_state_snapshot.baseline_loss_mean == reference_detector.baseline
+        assert detector_state_snapshot.candidate_log_capitals == tuple(
             tuple(log_values) for log_values in reference_detector._log_capitals.tolist()
         )
-        assert state_snapshot.candidate_start_observation_numbers == tuple(
+        assert detector_state_snapshot.candidate_start_observation_numbers == tuple(
             reference_detector._candidate_starts.tolist()
         )
         reference_observation = BoundedLossESRObservation(
@@ -256,7 +258,7 @@ def assert_class_monitor_matches_reference(*, monitor, reference_monitor):
             estimated_change_span_sample_count=reference_detector.width,
             evaluated_candidate_bet_count=reference_detector.active_hypothesis_count,
         )
-        assert state_snapshot.last_observation == reference_observation
+        assert detector_state_snapshot.last_observation == reference_observation
 
 
 @pytest.mark.parametrize("class_count", [2, 3, 10])

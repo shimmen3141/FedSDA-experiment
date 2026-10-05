@@ -1,17 +1,18 @@
 """明示参加batch列の標本数加重共同更新を一回だけ実行する。"""
 
-from torch import Tensor, cat, isfinite, no_grad, is_grad_enabled, float32, strided
-from torch.nn import Parameter, BCELoss, CrossEntropyLoss
-from torch.optim import Optimizer, Adam, SGD
+from torch import Tensor, cat, float32, is_grad_enabled, isfinite, no_grad, strided
+from torch.nn import BCELoss, CrossEntropyLoss, Parameter
+from torch.optim import SGD, Adam, Optimizer
 
-from .local_training_settings import LocalTrainingSettings
-from .participating_model_training_batch import ParticipatingModelTrainingBatch
-from federated_learning_experiments.learning.models.shared_feature_extractor import (
-    SharedFeatureExtractor,
-)
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
     ResidualAdapterClassifier,
 )
+from federated_learning_experiments.learning.models.shared_feature_extractor import (
+    SharedFeatureExtractor,
+)
+
+from .local_training_settings import LocalTrainingSettings
+from .participating_model_training_batch import ParticipatingModelTrainingBatch
 
 
 def _validate_training_tensor(
@@ -89,7 +90,7 @@ def _validate_joint_update_inputs(
     if type(local_training_settings) is not LocalTrainingSettings:
         raise ValueError("local_training_settingsはexact LocalTrainingSettingsが必要です。")
     try:
-        validated_local_training_settings = LocalTrainingSettings(
+        LocalTrainingSettings(
             local_model_parameter_update_strategy=local_training_settings.local_model_parameter_update_strategy,
             shared_backbone_gradient_combination_strategy=local_training_settings.shared_backbone_gradient_combination_strategy,
         )
@@ -122,7 +123,8 @@ def _validate_joint_update_inputs(
     )
     if shared_parameters:
         _validate_parameter_optimizer(
-            parameter_optimizer=shared_parameter_optimizer,
+            # 上で非空共有部のoptimizer存在・型を検査済み。
+            parameter_optimizer=shared_parameter_optimizer,  # pyright: ignore[reportArgumentType]
             expected_parameters=shared_parameters,
             tensor_name="shared_parameter_optimizer",
         )
@@ -238,7 +240,7 @@ def perform_joint_model_parameter_update(
     else:
         with no_grad():
             combined_shared_features = shared_feature_extractor(combined_input_features)
-    weighted_model_losses = []
+    weighted_model_losses: list[Tensor] = []
     feature_offset = 0
     total_sample_count = 0
     for training_batch in participating_training_batches:
@@ -255,7 +257,8 @@ def perform_joint_model_parameter_update(
         weighted_model_losses.append(model_loss * sample_count)
         feature_offset += sample_count
         total_sample_count += sample_count
-    joint_loss = sum(weighted_model_losses) / total_sample_count
+    # 非空の参加列なのでsumの空列時int分岐はない。旧演算順を保持する。
+    joint_loss: Tensor = sum(weighted_model_losses) / total_sample_count  # pyright: ignore[reportAssignmentType]
     joint_loss.backward()
     if update_shared_features and shared_parameter_optimizer is not None:
         shared_parameter_optimizer.step()

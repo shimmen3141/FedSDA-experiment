@@ -50,6 +50,7 @@
 
 ## 研究上の検討資料 — research
 
+- [新実装の品質検査](research/code-quality.md): Ruff・Pyright・commit hook・CIの設定と実行手順。
 - [リファクタリング方針案](research/refactoring-policy.md): 責務・レイヤー・命名、新APIへの移行、選択肢の追加・削除とcc-sddの評価。
 - [研究バックログ](research/research-backlog.md): 設計候補・非採用案・今後の課題。
 - [実装の不具合・改善事項](research/implementation-findings/README.md): 再現条件・影響・移植時の扱い・将来修正を追跡する入口。

@@ -1,9 +1,9 @@
 """警報後の損失収集を旧sessionと直接照合する。"""
 
-from copy import deepcopy
-from dataclasses import FrozenInstanceError
 import inspect
 import random
+from copy import deepcopy
+from dataclasses import FrozenInstanceError
 from types import SimpleNamespace
 
 import numpy as np
@@ -14,8 +14,8 @@ from federated_drift_experiment import config
 from federated_drift_experiment.clients.fedsda import FedSDAClient
 from federated_drift_experiment.provisional_model import (
     ForwardValidationSession,
-    select_forward_fitting_reference,
     has_disjoint_validation_advantage,
+    select_forward_fitting_reference,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
     CandidateModelTrainingAndAcceptanceSettings,

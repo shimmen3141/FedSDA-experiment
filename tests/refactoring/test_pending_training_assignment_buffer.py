@@ -1,9 +1,9 @@
 """保留位置FIFOを旧clientの処理順・帰属順へ直接照合する。"""
 
-from collections import defaultdict, deque
-from dataclasses import FrozenInstanceError
 import inspect
 import random
+from collections import defaultdict, deque
+from dataclasses import FrozenInstanceError
 from types import SimpleNamespace
 
 import numpy as np
@@ -18,11 +18,11 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_ch
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
 )
-from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
-    TrainingDataAssignmentSettings,
-)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
+)
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    TrainingDataAssignmentSettings,
 )
 
 

@@ -2,7 +2,7 @@
 
 import ast
 import sys
-from dataclasses import FrozenInstanceError, MISSING, dataclass, field, fields, replace
+from dataclasses import MISSING, FrozenInstanceError, dataclass, field, fields, replace
 from importlib.util import resolve_name
 from pathlib import Path
 from types import MappingProxyType
@@ -19,7 +19,6 @@ from federated_learning_experiments.configuration.run_settings import (
 from federated_learning_experiments.configuration.run_settings_validation import (
     validate_experiment_run_settings,
 )
-
 from federated_learning_experiments.core.configuration_errors import (
     RunSettingsValidationError,
 )

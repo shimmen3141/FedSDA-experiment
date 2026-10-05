@@ -20,9 +20,10 @@ def _validate_batch_loss_statistics_inputs(
         raise TypeError("class_countはbool以外のbuiltin intが必要です。")
     if class_count < 2:
         raise ValueError("class_countは2以上が必要です。")
-    if not isinstance(per_sample_bounded_losses, torch.Tensor):
+    # 型注釈とは独立に、外部から渡される値の契約を検査する。
+    if not isinstance(per_sample_bounded_losses, torch.Tensor):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError("per_sample_bounded_lossesはtorch.Tensorが必要です。")
-    if not isinstance(observed_class_labels, torch.Tensor):
+    if not isinstance(observed_class_labels, torch.Tensor):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError("observed_class_labelsはtorch.Tensorが必要です。")
     if per_sample_bounded_losses.device.type != "cpu":
         raise ValueError("per_sample_bounded_lossesはCPU上のTensorが必要です。")
@@ -79,7 +80,7 @@ def initialize_model_and_class_loss_statistics_from_batch(
         else 0.1
     )
     flat_class_labels = observed_class_labels.reshape(-1)
-    class_loss_moments_by_class_id = []
+    class_loss_moments_by_class_id: list[tuple[int, BoundedLossMoments]] = []
     for class_id in range(class_count):
         class_bounded_losses = per_sample_bounded_losses[flat_class_labels == class_id]
         class_sample_count = len(class_bounded_losses)

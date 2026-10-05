@@ -1,0 +1,30 @@
+# 新実装とその検証に適用する共有設定。旧参照実装は対象に含めない。
+[tool.ruff]
+required-version = "==0.16.10"
+target-version = "py313"
+line-length = 100
+include = ["src/**/*.py", "tests/refactoring/**/*.py"]
+force-exclude = true
+extend-exclude = ["federated_drift_experiment", "tools", "tests/test_*.py", "experiment_runtime.py", "run_experiment.py", "run_comparative_trials.py", "run_pareto_sweep.py", "recovery_analysis.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+# zipの長さ検査は既存の入力契約・照合で行う。導入時に反復の意味を変更しない。
+ignore = ["B905"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.pyright]
+include = ["src/federated_learning_experiments"]
+extraPaths = ["src"]
+pythonVersion = "3.13"
+typeCheckingMode = "standard"
+# 設定・宣言、損失統計、学習データ割当から厳格化する。
+strict = [
+    "src/federated_learning_experiments/core",
+    "src/federated_learning_experiments/configuration",
+    "src/federated_learning_experiments/learning/loss_statistics",
+    "src/federated_learning_experiments/methods/fedsda/loss_statistics",
+    "src/federated_learning_experiments/methods/fedsda/training_data_assignment",
+]

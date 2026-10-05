@@ -41,8 +41,8 @@ class ModelAndClassLossStatistics:
         copied_overall_loss_moments = _copy_loss_moments(loss_moments=self.overall_loss_moments)
         if type(self.class_loss_moments_by_class_id) is not tuple:
             raise TypeError("class_loss_moments_by_class_idはexact tupleが必要です。")
-        copied_class_loss_moments = []
-        seen_class_ids = set()
+        copied_class_loss_moments: list[tuple[int, BoundedLossMoments]] = []
+        seen_class_ids: set[int] = set()
         for class_loss_moments_pair in self.class_loss_moments_by_class_id:
             if type(class_loss_moments_pair) is not tuple:
                 raise TypeError("class_loss_moments_by_class_idの各要素はexact tupleが必要です。")
@@ -80,7 +80,7 @@ class ModelAndClassLossStatisticsStore:
         *,
         initial_loss_statistics_by_model_id: dict[int, ModelAndClassLossStatistics] | None = None,
     ) -> None:
-        validated_model_loss_statistics_by_model_id = {}
+        validated_model_loss_statistics_by_model_id: dict[int, ModelAndClassLossStatistics] = {}
         if initial_loss_statistics_by_model_id is not None:
             if type(initial_loss_statistics_by_model_id) is not dict:
                 raise TypeError(

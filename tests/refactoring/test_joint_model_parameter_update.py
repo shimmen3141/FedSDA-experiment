@@ -1,44 +1,44 @@
 """固定参加batchから実旧共同更新へ値・勾配・操作順を照合する。"""
 
-from collections import defaultdict
-from copy import deepcopy
-from dataclasses import FrozenInstanceError, MISSING, fields
 import random
 import warnings
+from collections import defaultdict
+from copy import deepcopy
+from dataclasses import MISSING, FrozenInstanceError, fields
 from types import SimpleNamespace
 from unittest.mock import DEFAULT, Mock
 
-import pytest
 import numpy as np
+import pytest
 import torch
 
 from federated_drift_experiment import config
-from federated_drift_experiment.data.specs import DatasetSpec
-from federated_drift_experiment.models import ResidualAdapterMLP
 from federated_drift_experiment.clients.shared_backbone import (
     _SharedRepresentationFedSDAClientMixin,
 )
+from federated_drift_experiment.data.specs import DatasetSpec
+from federated_drift_experiment.models import ResidualAdapterMLP
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
     ResidualAdapterClassifier,
 )
+from federated_learning_experiments.learning.training.joint_model_parameter_update import (
+    perform_joint_model_parameter_update,
+)
 from federated_learning_experiments.learning.training.local_training_settings import (
     LocalTrainingSettings,
+)
+from federated_learning_experiments.learning.training.parameter_optimizer_construction import (
+    create_parameter_optimizer,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
     SgdParameterOptimizerSettings,
 )
-from federated_learning_experiments.learning.training.parameter_optimizer_construction import (
-    create_parameter_optimizer,
-)
 from federated_learning_experiments.learning.training.participating_model_training_batch import (
     ParticipatingModelTrainingBatch,
-)
-from federated_learning_experiments.learning.training.joint_model_parameter_update import (
-    perform_joint_model_parameter_update,
 )
 
 
@@ -60,7 +60,7 @@ def build_joint_update_oracle_pair(
     monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
     legacy_models = []
     new_classifiers = []
-    for training_batch_index in range(len(batch_sample_counts)):
+    for _training_batch_index in range(len(batch_sample_counts)):
         legacy_models.append(
             ResidualAdapterMLP(
                 input_dim=2,
@@ -496,7 +496,6 @@ def test_joint_model_parameter_update_rejects_invalid_inputs_before_mutation(
     for training_batch in participating_training_batches:
         for parameter in training_batch.classifier.parameters():
             parameter.grad = torch.full_like(parameter, 0.37)
-    operation_events = []
     parameter_optimizers = (shared_parameter_optimizer,) + tuple(
         training_batch.concept_specific_parameter_optimizer
         for training_batch in participating_training_batches

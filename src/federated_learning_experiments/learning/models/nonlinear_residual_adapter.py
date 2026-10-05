@@ -1,7 +1,7 @@
 """初期状態が恒等写像となる非線形残差adapter。"""
 
 import torch
-from torch.nn import Module, Linear, ReLU
+from torch.nn import Linear, Module, ReLU
 from torch.nn.init import zeros_
 
 

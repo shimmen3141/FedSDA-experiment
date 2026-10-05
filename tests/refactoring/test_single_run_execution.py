@@ -1,19 +1,19 @@
 """単一runの実行条件・乱数・呼出順を検証する。"""
 
-import random
 import inspect
-from types import SimpleNamespace
-from typing import get_protocol_members
+import random
 from contextlib import nullcontext
 from dataclasses import FrozenInstanceError, replace
+from types import SimpleNamespace
+from typing import get_protocol_members
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
 import torch
-
-from test_run_settings_validation import valid_run_settings_mapping
+from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 from test_sine_stream_generation import assert_numpy_random_states_equal
+
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
@@ -25,21 +25,22 @@ from federated_learning_experiments.data.concept_schedules.random_concept_schedu
     RandomConceptScheduleSettings,
 )
 from federated_learning_experiments.data.observed_streams import (
-    ObservedSample,
-    ClientObservedStream,
     ClientConceptTrace,
+    ClientObservedStream,
+    ObservedSample,
 )
-from federated_learning_experiments.execution.run_participant_contracts import (
-    RunParticipantFactory,
-    RunClientOperations,
-    RunServerOperations,
-    RunParticipants,
-)
+from federated_learning_experiments.execution.run_execution_errors import RunExecutionError
 from federated_learning_experiments.execution.run_execution_records import (
     RunExecutionEvent,
     StreamProtocolRunResult,
 )
-from federated_learning_experiments.execution.run_execution_errors import RunExecutionError
+from federated_learning_experiments.execution.run_participant_contracts import (
+    RunClientOperations,
+    RunParticipantFactory,
+    RunParticipants,
+    RunServerOperations,
+)
+from federated_learning_experiments.execution.run_random_sources import create_run_random_sources
 from federated_learning_experiments.execution.stream_protocol_execution_loop import (
     invoke_run_operation_and_record_success,
     run_stream_protocol_intervals,
@@ -48,8 +49,6 @@ from federated_learning_experiments.execution.stream_protocol_execution_settings
     StreamProtocolExecutionSettings,
     validate_stream_protocol_execution_settings,
 )
-
-from federated_learning_experiments.execution.run_random_sources import create_run_random_sources
 from federated_learning_experiments.learning.models.torch_random_state_scope import (
     isolated_cpu_torch_random_state,
 )
@@ -221,7 +220,7 @@ class InitialPreparationObservingParticipantFactory(ObservingRunParticipantFacto
             sample_generator.generate_sample(concept_id=0)
             for preparation_sample_index in range(100)
         ]
-        for preparation_shuffle_index in range(10):
+        for _preparation_shuffle_index in range(10):
             run_random_sources.python_random_generator.shuffle(self.preparation_observed_samples)
         self.prepared_python_random_state = run_random_sources.python_random_generator.getstate()
         self.prepared_numpy_random_state = run_random_sources.numpy_random_generator.get_state()
@@ -252,7 +251,7 @@ def build_reference_post_preparation_streams(*, execution_settings, monkeypatch)
     reference_preparation_samples = list(
         zip(reference_feature_values, reference_class_labels, strict=True)
     )
-    for preparation_shuffle_index in range(10):
+    for _preparation_shuffle_index in range(10):
         reference_python_random_generator.shuffle(reference_preparation_samples)
     reference_prepared_python_random_state = reference_python_random_generator.getstate()
     reference_prepared_numpy_random_state = reference_numpy_random_generator.get_state()
@@ -1371,7 +1370,10 @@ def test_operation_invocation_records_only_successful_events():
     """操作とstrict bool検証が成功した後だけイベントを追加する。"""
     observer = RunOperationObserver()
     execution_events = []
-    run_operation = lambda: observer.record_operation_call(stage_name="initial_preparation")
+
+    def run_operation():
+        return observer.record_operation_call(stage_name="initial_preparation")
+
     assert (
         invoke_run_operation_and_record_success(
             run_operation=run_operation,

@@ -1,7 +1,7 @@
 """外部batch損失の初期集計を旧登録時の数値処理へ直接照合する。"""
 
-from types import SimpleNamespace
 import warnings
+from types import SimpleNamespace
 
 import pytest
 import torch
@@ -184,8 +184,9 @@ def test_batch_initial_statistics_rejects_invalid_input_without_mutation(field_n
 
 
 def test_batch_initial_statistics_preserves_independence_and_shared_state():
-    from dataclasses import FrozenInstanceError
     import random
+    from dataclasses import FrozenInstanceError
+
     import numpy as np
 
     per_sample_bounded_losses = torch.tensor(

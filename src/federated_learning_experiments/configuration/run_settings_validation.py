@@ -1,6 +1,7 @@
 """初回の機能設定と機能間条件を、入力を変更せずに検証する。"""
 
 from collections.abc import Mapping
+from typing import cast
 
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
@@ -30,7 +31,6 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.trai
     TrainingDataAssignmentSettings,
 )
 
-
 initial_component_settings_types = (
     ("method_name", str),
     ("experiment_run_conditions", ExperimentRunConditions),
@@ -51,7 +51,8 @@ def validate_experiment_run_settings(
     unvalidated_run_settings: Mapping[str, object],
 ) -> None:
     """正式キー・機能型・最終FedSDAの組合せ条件を宣言順に検査する。"""
-    if not isinstance(unvalidated_run_settings, Mapping):
+    # Pythonの型注釈は実行時に強制されないため、契約外入力も明示拒否する。
+    if not isinstance(unvalidated_run_settings, Mapping):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise RunSettingsValidationError(
             configuration_parameter_name="unvalidated_run_settings",
             specified_parameter_value=unvalidated_run_settings,
@@ -66,7 +67,7 @@ def validate_experiment_run_settings(
             if component_settings_name
             not in (
                 component_settings_name
-                for component_settings_name, component_settings_type in initial_component_settings_types
+                for component_settings_name, _component_settings_type in initial_component_settings_types
             )
         ),
         key=repr,
@@ -77,7 +78,7 @@ def validate_experiment_run_settings(
             specified_parameter_value=unvalidated_run_settings[unknown_settings_names[0]],
             validation_failure_reason=(
                 "未定義の設定項目です。正式な設定キーだけを指定してください。"
-                f"許容する設定キー: {tuple(component_settings_name for component_settings_name, component_settings_type in initial_component_settings_types)!r}。"
+                f"許容する設定キー: {tuple(component_settings_name for component_settings_name, _component_settings_type in initial_component_settings_types)!r}。"
             ),
         )
 
@@ -107,11 +108,15 @@ def validate_experiment_run_settings(
                 validation_failure_reason="初回の対応手法は正式名'fedsda'だけです。",
             )
 
-    component_settings = unvalidated_run_settings["prediction_combination_settings"]
+    # 上の全項目検査で型を確定済み。castは値や受理条件を変更しない。
+    component_settings = cast(
+        PredictionCombinationSettings, unvalidated_run_settings["prediction_combination_settings"]
+    )
     if component_settings.fixed_share_weight_redistribution_time_scale_samples != (
-        unvalidated_run_settings[
-            "training_data_assignment_settings"
-        ].pending_assignment_buffer_capacity_samples
+        cast(
+            TrainingDataAssignmentSettings,
+            unvalidated_run_settings["training_data_assignment_settings"],
+        ).pending_assignment_buffer_capacity_samples
     ):
         raise RunSettingsValidationError(
             configuration_parameter_name="fixed_share_weight_redistribution_time_scale_samples",
@@ -121,6 +126,6 @@ def validate_experiment_run_settings(
             validation_failure_reason=(
                 "最終FedSDA構成ではFixed-Shareの時間尺度を帰属保留FIFO容量と同値にしてください。"
                 "pending_assignment_buffer_capacity_samples="
-                f"{unvalidated_run_settings['training_data_assignment_settings'].pending_assignment_buffer_capacity_samples!r}。"
+                f"{cast(TrainingDataAssignmentSettings, unvalidated_run_settings['training_data_assignment_settings']).pending_assignment_buffer_capacity_samples!r}。"
             ),
         )

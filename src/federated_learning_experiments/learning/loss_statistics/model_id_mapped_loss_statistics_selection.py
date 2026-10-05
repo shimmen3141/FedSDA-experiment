@@ -12,8 +12,8 @@ def _copy_validated_model_loss_statistics(
 ) -> tuple[tuple[int, ModelAndClassLossStatistics], ...]:
     if type(loss_statistics_snapshot) is not tuple:
         raise TypeError(f"{parameter_name}はexact tupleが必要です。")
-    copied_model_loss_statistics_snapshot = []
-    seen_model_ids = set()
+    copied_model_loss_statistics_snapshot: list[tuple[int, ModelAndClassLossStatistics]] = []
+    seen_model_ids: set[int] = set()
     for model_loss_statistics_pair in loss_statistics_snapshot:
         if type(model_loss_statistics_pair) is not tuple:
             raise TypeError(f"{parameter_name}の各要素はexact tupleが必要です。")
@@ -70,7 +70,7 @@ def select_loss_statistics_after_model_id_mapping(
         parameter_name="server_model_loss_statistics",
     )
     _validate_model_id_mapping(model_id_mapping=model_id_mapping)
-    selected_loss_statistics_by_model_id = {}
+    selected_loss_statistics_by_model_id: dict[int, ModelAndClassLossStatistics] = {}
     for original_model_id, loss_statistics in validated_local_model_loss_statistics:
         mapped_model_id = model_id_mapping.get(original_model_id, original_model_id)
         selected_loss_statistics = selected_loss_statistics_by_model_id.get(mapped_model_id)

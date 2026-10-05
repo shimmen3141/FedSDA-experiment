@@ -1,8 +1,14 @@
 """固定条件・初期準備・SINE供給・区間進行を単一runへ組み立てる。"""
 
+from typing import cast
+
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_generation import (
     generate_random_client_concept_traces,
+)
+from federated_learning_experiments.data.observed_streams import (
+    ClientConceptTrace,
+    ClientObservedStream,
 )
 from federated_learning_experiments.data.sine.sine_sample_generation import (
     SineSampleGenerator,
@@ -109,15 +115,19 @@ def execute_stream_protocol_run(
             numpy_random_generator=run_random_sources.numpy_random_generator
         )
         execution_events = [RunExecutionEvent(stage_name="configuration_validation")]
-        participants = invoke_run_operation_and_record_success(
-            run_operation=participant_factory.prepare_run,
-            operation_arguments={
-                "experiment_run_conditions": experiment_run_conditions,
-                "run_random_sources": run_random_sources,
-                "sample_generator": sample_generator,
-            },
-            execution_events=execution_events,
-            stage_name="initial_preparation",
+        # 操作wrapperのobject戻り値を、操作の宣言型へ対応付ける。値は変更しない。
+        participants = cast(
+            RunParticipants,
+            invoke_run_operation_and_record_success(
+                run_operation=participant_factory.prepare_run,
+                operation_arguments={
+                    "experiment_run_conditions": experiment_run_conditions,
+                    "run_random_sources": run_random_sources,
+                    "sample_generator": sample_generator,
+                },
+                execution_events=execution_events,
+                stage_name="initial_preparation",
+            ),
         )
         invoke_run_operation_and_record_success(
             run_operation=validate_prepared_run_participants,
@@ -128,24 +138,30 @@ def execute_stream_protocol_run(
             execution_events=execution_events,
             stage_name="participant_validation",
         )
-        evaluation_concept_traces = invoke_run_operation_and_record_success(
-            run_operation=generate_random_client_concept_traces,
-            operation_arguments={
-                "experiment_run_conditions": experiment_run_conditions,
-                "concept_schedule_settings": execution_settings.concept_schedule_settings,
-                "python_random_generator": run_random_sources.python_random_generator,
-            },
-            execution_events=execution_events,
-            stage_name="concept_trace_generation",
+        evaluation_concept_traces = cast(
+            tuple[ClientConceptTrace, ...],
+            invoke_run_operation_and_record_success(
+                run_operation=generate_random_client_concept_traces,
+                operation_arguments={
+                    "experiment_run_conditions": experiment_run_conditions,
+                    "concept_schedule_settings": execution_settings.concept_schedule_settings,
+                    "python_random_generator": run_random_sources.python_random_generator,
+                },
+                execution_events=execution_events,
+                stage_name="concept_trace_generation",
+            ),
         )
-        observed_client_streams = invoke_run_operation_and_record_success(
-            run_operation=build_sine_client_observed_streams,
-            operation_arguments={
-                "evaluation_concept_traces": evaluation_concept_traces,
-                "sample_generator": sample_generator,
-            },
-            execution_events=execution_events,
-            stage_name="observed_stream_generation",
+        observed_client_streams = cast(
+            tuple[ClientObservedStream, ...],
+            invoke_run_operation_and_record_success(
+                run_operation=build_sine_client_observed_streams,
+                operation_arguments={
+                    "evaluation_concept_traces": evaluation_concept_traces,
+                    "sample_generator": sample_generator,
+                },
+                execution_events=execution_events,
+                stage_name="observed_stream_generation",
+            ),
         )
         execution_events.extend(
             run_stream_protocol_intervals(

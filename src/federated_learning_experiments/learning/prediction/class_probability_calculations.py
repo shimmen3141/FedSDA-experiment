@@ -182,7 +182,8 @@ def combine_model_prediction_probabilities(
     )
     if set(model_ids) != set(prediction_weights_by_model_id):
         raise ValueError("モデル別確率と予測重みのID集合を一致させてください。")
-    return sum(
+    # 上の入力検査でmodel_idsは非空。sumの空列時int分岐はなく、旧加算順を維持する。
+    return sum(  # pyright: ignore[reportReturnType]
         prediction_probabilities_by_model_id[model_id] * prediction_weights_by_model_id[model_id]
         for model_id in model_ids
     )

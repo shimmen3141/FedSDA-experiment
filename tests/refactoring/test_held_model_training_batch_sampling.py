@@ -2,43 +2,43 @@
 
 import random
 import warnings
-from dataclasses import FrozenInstanceError, MISSING, fields
+from dataclasses import MISSING, FrozenInstanceError, fields
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-import pytest
 import numpy as np
+import pytest
 import torch
+from test_joint_model_parameter_update import (
+    assert_joint_update_states_equal,
+    build_joint_update_oracle_pair,
+)
 
 from federated_drift_experiment.clients.shared_backbone import (
     _SharedRepresentationFedSDAClientMixin,
 )
-from federated_learning_experiments.learning.training.model_training_sample_records import (
-    ObservedTrainingSample,
-    ModelTrainingSampleCollection,
-    SampledModelTrainingBatch,
-)
 from federated_learning_experiments.learning.training.held_model_training_batch_sampling import (
     sample_training_batches_for_held_models,
-)
-from federated_learning_experiments.learning.training.local_training_settings import (
-    LocalTrainingSettings,
-)
-from federated_learning_experiments.learning.training.participating_model_training_batch import (
-    ParticipatingModelTrainingBatch,
 )
 from federated_learning_experiments.learning.training.joint_model_parameter_update import (
     perform_joint_model_parameter_update,
 )
-from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
-    TrainingDataAssignmentSettings,
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
+from federated_learning_experiments.learning.training.model_training_sample_records import (
+    ModelTrainingSampleCollection,
+    ObservedTrainingSample,
+    SampledModelTrainingBatch,
+)
+from federated_learning_experiments.learning.training.participating_model_training_batch import (
+    ParticipatingModelTrainingBatch,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
 )
-from test_joint_model_parameter_update import (
-    build_joint_update_oracle_pair,
-    assert_joint_update_states_equal,
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    TrainingDataAssignmentSettings,
 )
 
 

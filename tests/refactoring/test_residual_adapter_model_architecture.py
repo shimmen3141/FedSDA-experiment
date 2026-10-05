@@ -8,24 +8,24 @@ import pytest
 import torch
 
 from federated_drift_experiment import config
+from federated_drift_experiment.clients.fedsda import _AdaHedgeRoutingFedSDAClientMixin
 from federated_drift_experiment.data.specs import DatasetSpec
 from federated_drift_experiment.models import ResidualAdapterMLP, SharedFeatureBackbone
-from federated_drift_experiment.clients.fedsda import _AdaHedgeRoutingFedSDAClientMixin
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.shared_feature_extractor import (
-    SharedFeatureExtractor,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.models.nonlinear_residual_adapter import (
     NonlinearResidualAdapter,
 )
+from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+    ResidualAdapterClassifier,
+)
+from federated_learning_experiments.learning.models.shared_feature_extractor import (
+    SharedFeatureExtractor,
+)
 from federated_learning_experiments.learning.prediction.class_probability_calculations import (
-    convert_model_outputs_to_prediction_probabilities,
     compute_model_mean_bounded_losses_after_label_observation,
+    convert_model_outputs_to_prediction_probabilities,
     predict_class_labels_from_prediction_scores,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import (

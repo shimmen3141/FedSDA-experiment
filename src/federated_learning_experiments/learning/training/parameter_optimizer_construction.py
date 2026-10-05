@@ -2,7 +2,7 @@
 
 from torch import float32, strided
 from torch.nn import Parameter
-from torch.optim import Optimizer, Adam, SGD
+from torch.optim import SGD, Adam, Optimizer
 
 from .parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,

@@ -1,0 +1,15 @@
+root = true
+
+[{src/**/*.py,tests/refactoring/**/*.py}]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+
+[{pyproject.toml,.pre-commit-config.yaml,.github/workflows/*.yml,.vscode/*.json}]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true

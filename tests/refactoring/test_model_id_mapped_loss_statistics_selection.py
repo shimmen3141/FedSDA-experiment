@@ -554,6 +554,7 @@ def test_mapping_selection_rejects_invalid_shapes_and_types(input_name, invalid_
 def test_mapping_selection_validates_unused_and_late_statistics(input_name, invalid_kind):
     """負ける候補や補完不要serverも全検査し、入力の値を変えない。"""
     from copy import deepcopy
+
     from federated_learning_experiments.learning.loss_statistics.model_id_mapped_loss_statistics_selection import (
         select_loss_statistics_after_model_id_mapping,
     )
@@ -589,6 +590,7 @@ def test_mapping_selection_validates_unused_and_late_statistics(input_name, inva
 
 def test_mapping_selection_validates_unused_mapping_entries():
     from copy import deepcopy
+
     from federated_learning_experiments.learning.loss_statistics.model_id_mapped_loss_statistics_selection import (
         select_loss_statistics_after_model_id_mapping,
     )
@@ -628,6 +630,7 @@ def test_mapping_selection_rejects_snapshot_and_mapping_subclasses():
 
 def test_mapping_selection_returns_deeply_independent_frozen_results():
     from dataclasses import FrozenInstanceError
+
     from federated_learning_experiments.learning.loss_statistics.model_id_mapped_loss_statistics_selection import (
         select_loss_statistics_after_model_id_mapping,
     )
@@ -661,8 +664,10 @@ def test_mapping_selection_returns_deeply_independent_frozen_results():
 
 def test_mapping_selection_preserves_shared_environment_and_keyword_contract():
     import random
+
     import numpy as np
     import torch
+
     from federated_learning_experiments.learning.loss_statistics.model_id_mapped_loss_statistics_selection import (
         select_loss_statistics_after_model_id_mapping,
     )
@@ -693,6 +698,7 @@ def test_mapping_selection_preserves_shared_environment_and_keyword_contract():
 
 def test_mapping_selection_connects_store_updates_and_baseline_selection():
     from types import SimpleNamespace
+
     from federated_drift_experiment.clients.base import BaseClient
     from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
         ModelAndClassLossStatisticsStore,
@@ -701,8 +707,8 @@ def test_mapping_selection_connects_store_updates_and_baseline_selection():
         select_loss_statistics_after_model_id_mapping,
     )
     from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
-        select_loss_monitoring_baseline_mean_loss,
         select_alarm_interval_reuse_baseline_mean_loss,
+        select_loss_monitoring_baseline_mean_loss,
         select_post_alarm_reference_historical_mean_loss,
     )
 

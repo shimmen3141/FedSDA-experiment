@@ -7,7 +7,6 @@ from federated_learning_experiments.data.observed_streams import (
     ClientObservedStream,
 )
 
-
 RUN_EXECUTION_STAGE_NAMES = (
     "configuration_validation",
     "initial_preparation",

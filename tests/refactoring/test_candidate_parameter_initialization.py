@@ -1,9 +1,9 @@
 """モデルを生成せず、三方式の初期値を旧helperと直接照合する。"""
 
 import copy
-from dataclasses import FrozenInstanceError, MISSING, fields
 import inspect
 import random
+from dataclasses import MISSING, FrozenInstanceError, fields
 from types import SimpleNamespace
 
 import numpy as np
@@ -12,14 +12,14 @@ import torch
 
 from federated_drift_experiment import config
 from federated_drift_experiment.clients.fedsda import FedSDAClient
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
-    CandidateParameterInitializationSettings,
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
+    CandidateModelTrainingAndAcceptanceSettings,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import (
     select_candidate_initial_parameter_snapshot,
 )
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
-    CandidateModelTrainingAndAcceptanceSettings,
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
+    CandidateParameterInitializationSettings,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
     evaluate_candidate_using_post_alarm_losses,

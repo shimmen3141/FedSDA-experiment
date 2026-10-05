@@ -1,7 +1,7 @@
 """明示寸法のLinear/ReLU列から共有特徴を抽出する。"""
 
 import torch
-from torch.nn import Module, Sequential, Linear, ReLU
+from torch.nn import Linear, Module, ReLU, Sequential
 
 
 def _validate_feature_tensor(*, input_features: torch.Tensor, expected_feature_count: int) -> None:

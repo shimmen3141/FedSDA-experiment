@@ -73,6 +73,7 @@ def _validate_initialization_inputs(
         raise TypeError("available_parameter_snapshots_by_model_idはexact dictが必要です。")
     validated_parameter_snapshots_by_model_id = {}
     first_parameter_snapshot = None
+    parameter_names: tuple[str, ...] = ()
     for model_id, parameter_snapshot in available_parameter_snapshots_by_model_id.items():
         _validate_model_id(
             model_id=model_id, input_name="available_parameter_snapshots_by_model_id"

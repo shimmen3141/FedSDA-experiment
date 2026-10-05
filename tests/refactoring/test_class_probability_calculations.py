@@ -7,23 +7,23 @@ from dataclasses import replace
 import numpy as np
 import pytest
 import torch
-
-from federated_drift_experiment.clients.fedsda import _AdaHedgeRoutingFedSDAClientMixin
-from federated_drift_experiment.expert_routing import SwitchingExpertRouter
-from test_run_settings_validation import valid_run_settings_mapping
 from test_fixed_share_prediction_weights import (
     assert_fixed_share_state_matches_reference,
     capture_fixed_share_controller_state,
 )
-from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
-    FixedSharePredictionWeightController,
-)
+from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
+
+from federated_drift_experiment.clients.fedsda import _AdaHedgeRoutingFedSDAClientMixin
+from federated_drift_experiment.expert_routing import SwitchingExpertRouter
 from federated_learning_experiments.learning.prediction.class_probability_calculations import (
+    combine_model_prediction_probabilities,
+    compute_model_mean_bounded_losses_after_label_observation,
     convert_model_outputs_to_prediction_probabilities,
     normalize_model_prediction_weights,
-    combine_model_prediction_probabilities,
     predict_class_labels_from_prediction_scores,
-    compute_model_mean_bounded_losses_after_label_observation,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
+    FixedSharePredictionWeightController,
 )
 
 

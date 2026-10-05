@@ -20,7 +20,10 @@ results_*/
 
 # OS / エディタ
 .DS_Store
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.ruff_cache/
 .idea/
 
 # cc-sdd導入時の退避ファイル（規約はAGENTS.mdへ保持済み）

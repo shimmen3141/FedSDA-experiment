@@ -2,11 +2,11 @@
 
 from random import Random
 
-from torch import Tensor, cat, isfinite, float32, strided
+from torch import Tensor, cat, float32, isfinite, strided
 
 from .model_training_sample_records import (
-    ObservedTrainingSample,
     ModelTrainingSampleCollection,
+    ObservedTrainingSample,
     SampledModelTrainingBatch,
 )
 

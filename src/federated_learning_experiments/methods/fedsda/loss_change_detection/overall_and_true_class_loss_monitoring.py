@@ -3,6 +3,7 @@
 import math
 from collections import deque
 from dataclasses import dataclass
+from typing import cast
 
 from .bounded_loss_e_sr_detection import (
     BoundedLossESRDetector,
@@ -170,15 +171,16 @@ class OverallAndTrueClassLossMonitor:
             sample_index - overall_observation.estimated_change_span_sample_count + 1
         )
         if drift_detected:
-            best_component = max(component_logs, key=component_logs.get)
+            best_component = max(component_logs, key=component_logs.__getitem__)
             if best_component != "overall":
                 class_observation = self._class_detectors_by_class_id[
                     best_component
                 ].last_observation
                 class_sample_indices = self._class_sample_indices_by_class_id[best_component]
                 candidate_position_offset = (
-                    class_observation.candidate_start_observation_number
-                    - class_observation.oldest_retained_candidate_observation_number
+                    # 有限capitalで警報に寄与する成分は候補位置を保持している。
+                    cast(int, class_observation.candidate_start_observation_number)
+                    - cast(int, class_observation.oldest_retained_candidate_observation_number)
                 )
                 detector_candidate_start_sample_index = class_sample_indices[
                     max(0, min(candidate_position_offset, len(class_sample_indices) - 1))

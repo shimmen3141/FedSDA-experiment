@@ -15,6 +15,9 @@ Windows CPUの固定環境を別venvから再構築し、113テスト成功を�
 
 ## 検証
 
+新実装のLint・整形はRuff、型検査はPyright。設定の正本は`pyproject.toml`。
+導入方針・範囲・実行手順は`docs/research/code-quality.md`を参照する。
+
 最終3ケースと移植対象baselineについて、旧goldenの数値・イベント列を比較する。
 旧APIの受理で対応せず、テスト内で新しい記録と対応付ける。
 乱数消費、反復順、optimizer更新、共有参照、ID採番を維持する。

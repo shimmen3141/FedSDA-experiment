@@ -232,14 +232,14 @@ def test_loss_baseline_rejects_invalid_input(field_name, invalid_value):
 
 def test_loss_baseline_connects_to_monitor_and_reference():
     """監視のn1平均と履歴のn2平均0を異なるpublic用途へ渡す。"""
+    from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
+        select_available_reference_within_historical_loss_tolerance,
+    )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
         LossChangeDetectionSettings,
     )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
         OverallAndTrueClassLossMonitor,
-    )
-    from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
-        select_available_reference_within_historical_loss_tolerance,
     )
 
     loss_moments = BoundedLossMoments(
@@ -291,6 +291,7 @@ def test_loss_baseline_connects_to_monitor_and_reference():
 def test_loss_baseline_preserves_shared_state():
     """既定dtype/deviceと共有乱数、正常入力の表現を変更しない。"""
     import random
+
     import numpy as np
     import torch
 

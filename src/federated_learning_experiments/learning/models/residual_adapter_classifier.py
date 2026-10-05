@@ -1,11 +1,11 @@
 """共有特徴抽出部・概念別残差・分類層を構築する。"""
 
 import torch
-from torch.nn import Module, Linear, Sigmoid, Identity
+from torch.nn import Identity, Linear, Module, Sigmoid
 
 from .model_architecture_settings import ModelArchitectureSettings
-from .shared_feature_extractor import SharedFeatureExtractor
 from .nonlinear_residual_adapter import NonlinearResidualAdapter
+from .shared_feature_extractor import SharedFeatureExtractor
 
 
 def _validate_shared_feature_extractor(

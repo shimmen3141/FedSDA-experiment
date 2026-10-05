@@ -230,14 +230,14 @@ def test_loss_moments_connect_to_monitor_and_reference_evaluation(loss_sequence)
     """1件の保存平均は監視に使え、候補履歴には2件以上だけを渡す。"""
     from federated_drift_experiment.clients.fedsda import ESRFedSDAClient
     from federated_drift_experiment.provisional_model import select_forward_fitting_reference
+    from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
+        select_available_reference_within_historical_loss_tolerance,
+    )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
         LossChangeDetectionSettings,
     )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
         OverallAndTrueClassLossMonitor,
-    )
-    from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
-        select_available_reference_within_historical_loss_tolerance,
     )
 
     legacy_stats = dict(n=0, mean=0.0, M2=0.0)
@@ -310,6 +310,7 @@ def test_loss_moments_connect_to_monitor_and_reference_evaluation(loss_sequence)
 def test_loss_moments_preserve_shared_numeric_state():
     """純粋集計は共有RNG・既定型・deviceに影響しない。"""
     import random
+
     import numpy as np
     import torch
 

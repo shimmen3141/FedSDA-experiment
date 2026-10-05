@@ -1,7 +1,7 @@
 """一系列の有界損失を旧Welfordの演算順で不変集計する。"""
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 
 def _validate_finite_nonnegative_number(

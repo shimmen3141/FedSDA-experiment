@@ -1,7 +1,7 @@
 """SINEデータ供給の固定条件と不変記録を確認する。"""
 
-from dataclasses import FrozenInstanceError
 import random
+from dataclasses import FrozenInstanceError
 from types import SimpleNamespace
 
 import numpy as np
@@ -11,11 +11,11 @@ import torch
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
-from federated_learning_experiments.data.concept_schedules.random_concept_schedule_generation import (
-    generate_random_client_concept_traces,
-)
 from federated_learning_experiments.core.configuration_errors import (
     RunSettingsValidationError,
+)
+from federated_learning_experiments.data.concept_schedules.random_concept_schedule_generation import (
+    generate_random_client_concept_traces,
 )
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
     RandomConceptScheduleSettings,
@@ -454,7 +454,7 @@ def test_random_client_concept_traces_match_reference_and_random_state(
         per_eligible_sample_concept_change_probability=per_eligible_sample_concept_change_probability,
     )
     python_random_generator = random.Random(random_seed)
-    for random_draw_index in range(preparation_random_draw_count):
+    for _random_draw_index in range(preparation_random_draw_count):
         python_random_generator.random()
     initial_python_random_state = python_random_generator.getstate()
     reference_python_random_generator = random.Random()
@@ -531,7 +531,7 @@ def test_random_client_concept_traces_consume_eligible_trials_with_zero_probabil
         python_random_generator=python_random_generator,
     )
     eligible_sample_trial_count = 3 * (1500 - 101)
-    for random_draw_index in range(eligible_sample_trial_count):
+    for _random_draw_index in range(eligible_sample_trial_count):
         expected_python_random_generator.random()
     assert all(
         client_concept_trace.concept_ids_by_sample_index == (0,) * 1500

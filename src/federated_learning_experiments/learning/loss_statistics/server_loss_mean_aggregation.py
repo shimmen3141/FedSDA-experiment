@@ -11,7 +11,7 @@ def _copy_validated_participating_client_loss_moments(
 ) -> tuple[BoundedLossMoments, ...]:
     if type(participating_client_loss_moments) is not tuple:
         raise TypeError("participating_client_loss_momentsはexact tupleが必要です。")
-    copied_participating_client_loss_moments = []
+    copied_participating_client_loss_moments: list[BoundedLossMoments] = []
     for loss_moments in participating_client_loss_moments:
         if type(loss_moments) is not BoundedLossMoments:
             raise TypeError(

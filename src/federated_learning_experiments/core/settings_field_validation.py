@@ -11,7 +11,8 @@ from federated_learning_experiments.core.configuration_errors import (
 
 def validate_settings_field_values(settings_instance: object) -> None:
     """設定を変更せず、最初の不正値の項目・元の値・許容条件を報告する。"""
-    for settings_field in fields(settings_instance):
+    # fields自身がdataclassかを実行時検査する。汎用入口のobject型を保持する。
+    for settings_field in fields(settings_instance):  # pyright: ignore[reportArgumentType]
         configuration_parameter_name = settings_field.name
         settings_field_type = get_type_hints(type(settings_instance))[configuration_parameter_name]
         specified_parameter_value = getattr(settings_instance, configuration_parameter_name)
