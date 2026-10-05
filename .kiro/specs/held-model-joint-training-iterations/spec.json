@@ -3,7 +3,7 @@
   "created_at": "2026-10-05T13:54:36.186070+00:00",
   "updated_at": "2026-10-05T14:07:05.444996+00:00",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -35,10 +35,10 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "approved_revision": 1,
-      "approved_sha256_lf": "054243892d0bb395e9df193ff2adab4b45763c49adffcbb45883d8ebb9163507",
-      "generated_sha256_lf": "054243892d0bb395e9df193ff2adab4b45763c49adffcbb45883d8ebb9163507",
+      "revision": 2,
+      "approved_revision": 2,
+      "approved_sha256_lf": "6b7adc4ccefbf3ddf8babba5e331b1673b073023eb3f8d976cf88e83b061de7f",
+      "generated_sha256_lf": "6b7adc4ccefbf3ddf8babba5e331b1673b073023eb3f8d976cf88e83b061de7f",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
       "reviewer_thread": "/root/luna_single_run_3_1_review"
@@ -56,9 +56,11 @@
     "record": "review.md"
   },
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
     "total_executable_tasks": 3,
-    "next_task": "1"
+    "next_task": "2"
   }
 }

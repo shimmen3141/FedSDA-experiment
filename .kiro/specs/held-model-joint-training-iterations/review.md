@@ -16,3 +16,9 @@ Lunaはnaming revision1をPASS、designをNEEDS_FIXESとした。exact builtin i
 同Lunaによる独立sanity判定PASSを採用。全12条件の割当、3責務/順序依存、既存上流完成、task2のtest-onlyと非parallelを確認した。
 Task1の組合せが広めでも小さいCPU実旧oracleで一責務を検証できるとの評価を採用。新環境や隠れたsetupは不要。
 fresh thread枠は利用できないため、既存の実GPT-6 Luna threadを別レビュー依頼で再利用した（independent_reused_thread）。
+
+## Task 1–2命名補完
+Luna revision2 PASSを採用。sample_parameters_beforeはNN parameterとも読めるという有用な提案を採用し、既存sample_values_beforeへ統一した。その他の追加test-local名は明瞭との確認あり。最新revision2/hashを承認して実装へ進む。
+
+## Task 1
+Luna独立実装レビューAPPROVED、指摘なし。missingmodule collection errorのRED後、新2moduleで72条件GREEN（主担当5.78秒、独立4.83秒）。実旧の複数反復・逆順binding・全抽出/loss/parameter/grad/optimizer/RNGのexact比較を確認。Ruff check/format成功、Pyright 0 errors。Task2の拒否/空/環境保持とTask3の境界/全回帰は未完了。

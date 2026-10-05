@@ -1,6 +1,6 @@
 # 実装タスク
 
-- [ ] 1. 指定回数の抽出と共同更新を接続し、実旧反復と照合する
+- [x] 1. 指定回数の抽出と共同更新を接続し、実旧反復と照合する
   - 明示保有ID対応と反復を実装し、missingmoduleの実RED→GREENを確認する。
   - 二値/多クラス、3optimizer、共有更新/凍結、0/1/4回、batch1/3・逆順対応表で実旧反復へ全loss/parameter/grad/optimizer/終端RNGを照合する。
   - 完了は実旧sampling/forward/loss/backward/optimizerを用いる対照テストの成功で確認する。

@@ -1,4 +1,4 @@
-# 命名 revision 1
+# 命名 revision 2
 
 正式実装名の正本。要求承認後に作成し、Lunaレビュー前は未承認。
 借用入力の実体を生成・所有しない。単位は標本数と共同更新の反復回数を区別する。
@@ -62,3 +62,16 @@ total_batch_sample_count / participating_model_count: 一回の損失加重分�
 original_sampling_function / original_update_function: spy内で本物の既存公開関数を呼ぶ参照。
 loss_hooks / loss_hook: 旧loss_fnの一時観測hook列/一登録。finallyでremoveする。
 keyword_arguments: テスト用公開入口の引数dict。productionに汎用設定を導入しない。
+
+## Task 1–2の実装前補完
+revision2は以下のtest-local名だけを追加し、公開production名・役割は変えない。
+training_iteration_module: spyで実sampler/共同更新を観測する新module参照。
+sample_legacy_training_batches: 旧samplerを一回呼び、独立cat出力をcloneして履歴へ保存して返すtest-local helper。
+sampling_request: 実sampler呼出しのkeyword引数。入力を作り替えるhookではない。
+iteration_index / loss_offset: 旧損失履歴の回位置と参加件数に基づくslice開始位置。
+legacy_training_batches: 実旧samplerの一回の(ID,特徴,ラベル)列。
+model_id / input_features / observed_class_labels: 既存記録のfieldと同じ意味でtupleを展開する値。
+binding / sampled_training_batch / record_field: 既存命名表の単一記録/出力/fieldをそのまま使う。
+classifiers_by_model_id / optimizers_by_model_id: testで既存NN/optimizerをIDへ対応付けるdict。productionの所有者ではない。
+sample_values_before / expected_optimizer_state / invalid_sample: 既存名に統一した変更前標本/失敗後期待optimizer/拒否すべき標本。
+initial_parameters / previous_grad_mode / previous_default_dtype: fresh/ambient保持検証の開始値。
