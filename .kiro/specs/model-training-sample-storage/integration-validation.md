@@ -12,6 +12,9 @@ spec.jsonが承認/進捗、naming revision1が正式名、review.mdが独立判
 - Task1対象Ruff成功、Pyright0 errors/0 warnings、git diff --check成功。固定748c3aaとの旧production/両golden/旧回帰test差分なし。
 
 ## 旧所見と限界
+- Task2: 94 passed/2.20秒/exit0。48条件（4対応表×batch1/3/7×seed2×保有集合2）で各3反復の実旧samplerと新snapshot→samplerを照合。全batch Tensor/モデル順/終端Random一致、保持器stateとglobal Random不変。
+- 無効Tensorは保持時に参照だけ保存し、未保有/不足時skip、参加時にsamplerがRNG消費前に拒否する。接続test以外のproduction変更なし。
+- Task2追加後のRuff unused loop指摘は不要なループ名を除去して解消。全Ruff/diff-check成功。
 新たな旧正常系の不具合は今回確認していない。正式登録の上書きは別責務として後続確認する。
 payloadの完全不変性/deepcopyや、MemoryError・非同期更新のrollbackを保証しない。
 旧全体goldenの確認と新旧部品対照を区別する。新全体run golden移植の完了とは主張しない。

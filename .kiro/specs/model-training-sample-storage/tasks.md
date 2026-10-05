@@ -8,7 +8,7 @@
   - _Boundary: 保持器と実旧対照test_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3_
 
-- [ ] 2. 保持snapshotから実学習batch抽出へ接続する
+- [x] 2. 保持snapshotから実学習batch抽出へ接続する
   - test-onlyで実旧に独立に保持した標本と新snapshotから抽出し、全モデル順・batch Tensor・終端Randomを比較する。
   - ID対応の有無/衝突/循環、空列、未保有、不足標本、複数batch件数/seed/反復を組み合わせる。
   - Tensor異常は保持時に触らず参加samplerで拒否することを確認する。

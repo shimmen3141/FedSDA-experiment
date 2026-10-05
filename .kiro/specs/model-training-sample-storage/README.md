@@ -4,4 +4,4 @@
 research.mdは根拠、review.mdは独立レビューと採否、integration-validation.mdは完成時の証拠。
 全体方針は../../../docs/research/refactoring-policy.md、現在地は../../steering/roadmap.md。
 
-要求/設計/命名/タスク承認済み。Task1はLuna独立APPROVEDで完了、Task2へ進む。
+要求/設計/命名/タスク承認済み。Task1/2はLuna独立APPROVEDで完了、Task3へ進む。

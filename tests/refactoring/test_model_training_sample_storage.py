@@ -1,13 +1,21 @@
 """学習標本保持を実旧追加・サーバ対応へ直接照合する。"""
 
+import random
 from collections import defaultdict
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 import torch
+from test_held_model_training_batch_sampling import (
+    assert_sampled_batches_equal,
+    run_legacy_training_batch_sampling,
+)
 
 from federated_drift_experiment.clients.base import BaseClient
+from federated_learning_experiments.learning.training.held_model_training_batch_sampling import (
+    sample_training_batches_for_held_models,
+)
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ModelTrainingSampleCollection,
     ObservedTrainingSample,
@@ -290,3 +298,76 @@ def test_model_ids_have_no_range_limit_and_mapping_preserves_duplicate_reference
         training_sample is training_samples[0]
         for training_sample in previous_snapshot[0].training_samples
     )
+
+
+@pytest.mark.parametrize("model_id_mapping", [{}, {8: 4, -7: 4}, {8: -7, -7: 2}, {8: -7, -7: 8}])
+@pytest.mark.parametrize("batch_sample_count", [1, 3, 7])
+@pytest.mark.parametrize("seed", [0, 173])
+@pytest.mark.parametrize("held_model_ids", [frozenset((8, -7, 4, 2)), frozenset((4, 2, 99))])
+def test_storage_snapshot_sampling_matches_actual_legacy(
+    model_id_mapping, batch_sample_count, seed, held_model_ids
+):
+    global_python_random_state = random.getstate()
+    sample_store, legacy_client, training_samples = build_training_sample_storage_oracle()
+    sample_store.remap_model_training_sample_collections(model_id_mapping=model_id_mapping)
+    remap_legacy_training_samples(legacy_client=legacy_client, model_id_mapping=model_id_mapping)
+    assert random.getstate() == global_python_random_state
+    assert_training_sample_storage_matches_legacy(
+        sample_store=sample_store, legacy_client=legacy_client
+    )
+    legacy_client.models = dict.fromkeys(held_model_ids)
+    legacy_client.batch_size = batch_sample_count
+    python_random_generator = random.Random(seed)
+    for _ in range(3):
+        previous_reference_ids = snapshot_training_sample_reference_ids(sample_store)
+        legacy_batches, legacy_random_state = run_legacy_training_batch_sampling(
+            legacy_client=legacy_client, python_random_generator=python_random_generator
+        )
+        sampled_batches = sample_training_batches_for_held_models(
+            held_model_ids=held_model_ids,
+            ordered_model_training_samples=sample_store.snapshot_ordered_model_training_samples(),
+            batch_sample_count=batch_sample_count,
+            python_random_generator=python_random_generator,
+        )
+        assert_sampled_batches_equal(sampled_batches=sampled_batches, legacy_batches=legacy_batches)
+        assert python_random_generator.getstate() == legacy_random_state
+        assert random.getstate() == global_python_random_state
+        assert snapshot_training_sample_reference_ids(sample_store) == previous_reference_ids
+
+
+def test_invalid_tensor_payload_is_deferred_to_participating_sampler():
+    sample_store = ModelTrainingSampleStore()
+    training_sample = ObservedTrainingSample(input_features=None, observed_class_labels=None)
+    sample_store.append_model_training_samples(model_id=8, training_samples=(training_sample,))
+    assert (
+        sample_store.snapshot_ordered_model_training_samples()[0].training_samples[0]
+        is training_sample
+    )
+    python_random_generator = random.Random(81)
+    legacy_random_state = python_random_generator.getstate()
+    assert (
+        sample_training_batches_for_held_models(
+            held_model_ids=frozenset(),
+            ordered_model_training_samples=sample_store.snapshot_ordered_model_training_samples(),
+            batch_sample_count=1,
+            python_random_generator=python_random_generator,
+        )
+        == ()
+    )
+    assert (
+        sample_training_batches_for_held_models(
+            held_model_ids=frozenset((8,)),
+            ordered_model_training_samples=sample_store.snapshot_ordered_model_training_samples(),
+            batch_sample_count=2,
+            python_random_generator=python_random_generator,
+        )
+        == ()
+    )
+    with pytest.raises(ValueError, match="Tensor"):
+        sample_training_batches_for_held_models(
+            held_model_ids=frozenset((8,)),
+            ordered_model_training_samples=sample_store.snapshot_ordered_model_training_samples(),
+            batch_sample_count=1,
+            python_random_generator=python_random_generator,
+        )
+    assert python_random_generator.getstate() == legacy_random_state
