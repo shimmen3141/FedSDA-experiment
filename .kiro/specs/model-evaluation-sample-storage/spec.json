@@ -47,7 +47,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "current_sha256_lf": "f848a426c1bb81d0bdd884dd8c1870d6bcb90a110cacba23a71bc6c98962aacb"
+      "current_sha256_lf": "a4c00e732b1d50e6f47c7678440b4cd5189dde996e033f6be97a04c50b9ea091"
     }
   },
   "ready_for_implementation": true,
@@ -57,10 +57,12 @@
     "classifier-per-sample-bounded-loss-evaluation"
   ],
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
     "total_executable_tasks": 3,
-    "next_task": "1"
+    "next_task": "2"
   },
   "task_graph_review": {
     "verdict": "PASS",

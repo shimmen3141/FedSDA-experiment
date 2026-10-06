@@ -2,7 +2,7 @@
 
 要求/設計/命名とtask graphの承認後、依存順に実行する。
 
-- [ ] 1. 評価標本recordと保持ownerをTDDで実装する
+- [x] 1. 評価標本recordと保持ownerをTDDで実装する
   - 実旧追加/confirm/mappingを直接照合するtestをREDにし、固定条件と全入力拒否・snapshot/借用/payload非検査を確認する。
   - 2宣言と一storeを実装してGREEN。モデル・学習・評価forwardをownerへ持ち込まない。
   - 対象/品質/型/独立Luna実diffレビューと主担当gateで完了。

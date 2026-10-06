@@ -11,3 +11,7 @@
 再確認で実Lunaは前回の命名指摘を訂正し、命名revision1をAPPROVED。taskのRequirements行を範囲表記からカンマ区切りIDへ展開する指摘は採用し、修正後のgraph/tasks再確認を依頼した。
 
 修正後の実Luna graph PASS、Tasks APPROVED。全11条件の割当と依存順/完了証拠を確認。以降の実装は承認済みrevision1に従う。
+
+## Task1
+
+実Luna APPROVED。独立290passed、Ruff/format/scan成功、REDと境界の整合確認。Pyrightの独立再実行は未実施だが、主担当の基準0 errors/0 warningsと実diffを確認。指摘なし、採用。主担当も290passed/型/実diffの証拠を照合して完了。
