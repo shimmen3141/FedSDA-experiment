@@ -1,6 +1,6 @@
 # 実装task
 
-- [ ] 1. 単一帰属ID ownerをTDDで実装する
+- [x] 1. 単一帰属ID ownerをTDDで実装する
   - ローカル切替・一段対応表・同値/欠落・signed ID・読取り専用・全入力拒否を実旧methodと直接期待値へ照合。取得済みrecordが後続ID変更で変わらないことも検証。RED→GREEN、Lunaレビューと主担当gate。
   - Requirements: 1.1,1.2,2.1,2.2,3.1,3.3
 - [ ] 2. 依存境界と登録確認の上位接続を検証する

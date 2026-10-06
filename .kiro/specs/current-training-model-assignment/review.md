@@ -9,3 +9,5 @@
 要求revision3: 実Luna APPROVED。task graph: NEEDS_FIXES。取得済みrecordの後続更新不変をTask1で明示し、feature最終GOをTask3から独立したgateへ分離する指摘を採用した。
 
 task graph revision2: 実Luna APPROVED、7要件すべてのtraceと依存順を確認。主担当も採否反映と正本を照合し実装開始。要求revision3・設計/命名revision1・tasks revision2のLF hashをspec.jsonへ記録。
+
+Task1: 実Luna APPROVED、対象72passed/2.09秒、Ruff/format/scan成功、指摘なし。主担当は自身の対象72/型検査とdiffを照合して完了。
