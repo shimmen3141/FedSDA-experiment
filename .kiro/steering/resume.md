@@ -5,14 +5,14 @@
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
-- 直近完了: [採用候補の共有学習反映](../specs/adopted-candidate-shared-feature-integration/README.md)。全3tasks完了、Luna最終GO。
-- 直近の検証済み実装commit: `83cddc5`。全4167 passed/3 skipped/1既存warning、旧11/最終3golden成功。実測は同specのintegration-validation.md。
-- 進行中: [保有モデルの学習状態管理](../specs/held-model-training-state-registry/README.md)。全3task承認・完了、最終feature GO確認待ち。再開は同specのspec.json/tasks.mdから行う。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
+- 直近完了: [保有モデルの学習状態管理](../specs/held-model-training-state-registry/README.md)。全3tasks完了、Luna最終GO。
+- 直近の検証済み実装commit: `7eb04d5`。全4229 passed/3 skipped/1既存warning、旧11/最終3golden成功。実測は同specのintegration-validation.md。
+- 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
 
-1. 採用候補の正式なローカル登録: モデル・optimizer・学習標本・初期損失統計・pending送信状態の所有と更新順を整理する。旧`clients/base.py::_register_trained_new_model`が入口。先に不足するモデル一覧の所有契約や候補学習の依存を確認し、一つのspecへ詰め込まない。
+1. 採用候補の正式なローカル登録: モデル一覧は上記registryで完了。旧`clients/base.py::_register_trained_new_model`を入口に、モデルの標本別損失評価→初期統計、parameter送信snapshot、標本/送信状態の不足依存と更新順を確認する。次は準備済みモデルの損失評価境界から検討し、一つのspecへ詰め込まない。
 2. 候補の生成・初期学習・前向き検証sessionの開始/終了を、既存の初期化・学習・採否部品へ接続する。
 3. 警報後の帰属変更とclient進行、サーバ同期・ID対応へ順次接続する。
 

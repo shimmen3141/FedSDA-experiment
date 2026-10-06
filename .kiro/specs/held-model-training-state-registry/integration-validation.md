@@ -5,6 +5,7 @@ ID指定の保有NNと個別optimizer管理器の一覧、登録/置換/取得/�
 一覧構造はregistry、現在個別optimizerは既存owner、共有optimizerと学習実行は外側に置く。
 候補採否/初期学習/標本/登録統計/parameter送信snapshot/ID対応/正式登録全体/新client・新全体runは含まない。
 承認と進捗はspec.json/tasks.md、要求revision3、設計/命名revision1、採否はreview.md。
+全3tasks完了後、Lunaのfeature DECISION: GOを主担当が採用した。11/11要件・境界・タスク間接続・実測にblockerなし。対象は本保有一覧の管理に限る。
 
 ## 実測
 - Task1: 新module未存在のimport RED、1 collection error/3.32秒/exit1。GREEN20 passed/2.74秒/exit0、Ruff/format成功。Luna独立20 passedとTask APPROVED。
@@ -22,7 +23,7 @@ ID指定の保有NNと個別optimizer管理器の一覧、登録/置換/取得/�
 - 全回帰4222 passed/3 skipped/1既存warning/143.51秒/exit0。旧11/最終3goldenを含み値・許容差未変更。skipは既存Windows非対応wrapper、warningは既存qint8 fixtureのTypedStorage非推奨。独立Task3/featureレビューは次のゲート。
 - guard修正後の最終全回帰4229 passed/3 skipped/1既存warning/361.15秒/exit0。修正前のsourcehashはa278ed7da2de717810982abb05ee34adff41d1f407ed13347a402fcf86720737。最終証拠はheld-state-final-b.xml。
 - 最終件数はstdoutとJUnitの4232 tests/0 errors/0 failures/3 skippedで一致する。361.15秒はpytestのstdout表示、JUnit suite.timeは149.081秒で、時間表示差の原因は調査していない。Lunaは全suiteを再実行せずXMLを変更していない。時間を性能指標として使わない。
-- Luna独立target617/fresh smoke/品質を確認し、module importの抜けの解消と命名文面の再承認を確認。Task3最終VERDICT: APPROVED。全checkbox完了後のfeature GOは別ゲート。
+- Luna独立target617/fresh smoke/品質を確認し、module importの抜けの解消と命名文面の再承認を確認。Task3最終VERDICT: APPROVED。全checkbox完了後の別ゲートでもfeature DECISION: GO。
 - 今回の範囲で旧正常経路の新しい不具合は観測していない。既存LEGACY-001〜010は判断/修正状態を変更しない。
 
 ## 環境と再実行

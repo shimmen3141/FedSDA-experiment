@@ -23,7 +23,7 @@
 
 ## 現在の状態
 
-- 進行中: `../specs/held-model-training-state-registry/README.md`。要求revision3・設計/命名revision1・全3taskはLuna APPROVED、最終feature GO確認待ち。対象＋AST617/全4229 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧差分確認。ID別NN/個別optimizer管理器と現在binding取得が範囲。統計/標本/送信状態/ID対応/新client・全体runは後続。
+- 保有モデルの学習状態管理は`../specs/held-model-training-state-registry/README.md`。要求revision3・設計/命名revision1・全3taskはLuna APPROVED完了、最終feature GO。ID別NN/個別optimizer管理器を初出順で保持し、同ID置換と現在binding取得を移植した。実旧登録順と12条件3stepの全数値/状態/Random一致、対象＋AST617/全4229 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧差分/全11要件確認。依存guardのmodule import受理を修正し既存guardの見直し候補をdevelopment-findingsへ記録。新たな旧正常経路の不具合は観測していない。統計/標本/送信snapshot/ID対応/正式登録全体/新client・全体runは後続。
 
 - 採用候補の共有学習反映は`../specs/adopted-candidate-shared-feature-integration/README.md`。要求/設計/命名revision1・全3tasks APPROVED完了、Luna最終feature GO。値反映→候補接続→個別resetを分離し、既存共有parameter/grad参照と共有optimizer stateを維持する。実旧12NN条件×3stepの全loss/値/grad/state一致、対象37/AST込み592、全4167 passed/3 skipped/1既存warning、品質/fresh新CPU/固定旧差分/全9要件trace確認。候補採否・登録/ID/統計・新client/全体runは後続。新たな旧正常系不具合は観測していない。
 
