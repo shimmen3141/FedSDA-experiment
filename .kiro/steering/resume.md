@@ -5,15 +5,14 @@
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
-- 作業中: [分類器parameter snapshot](../specs/classifier-parameter-snapshot/README.md)。要求/設計revision1・命名revision3・全3taskはLuna承認/完了。全4399passed/3skipped、対象＋AST666passed、fresh CPU/品質/旧golden成功。別feature統合レビュー待ち。再開は同specのspec.json/tasks.md/review.mdから行う。
-- 直近完了: [準備済み分類器の標本別有界損失](../specs/classifier-per-sample-bounded-loss-evaluation/README.md)。要求revision2・設計revision2・命名revision1・全3taskはLuna承認済み、feature最終GO。
-- 直近の検証済み実装commit: `f533bc9`。全4345 passed/3 skipped/1既存warning、旧11/最終3golden成功。実測は同specのintegration-validation.md。
-- 新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
+- 直近完了: [分類器parameter snapshot](../specs/classifier-parameter-snapshot/README.md)。要求/設計revision1・命名revision3・全3taskはLuna承認/完了、feature最終GO。
+- 直近の検証済み実装commit: `0d75fff`。全4399 passed/3 skipped/1既存warning、対象＋AST666passed、fresh新CPU/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。
+- 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
 
-1. 採用候補の正式なローカル登録: モデル一覧・準備済みモデルの損失評価・batch初期統計は完了。旧`clients/base.py::_register_trained_new_model`を入口に、parameter送信snapshot、標本/統計保存/送信保留状態の不足依存と更新順を確認する。既存候補初期化は外部snapshotを受け取る部品で、NNからの送信用snapshot生成とは別境界。次はその生成/保持契約を確認し、一つのspecへ詰め込まない。
+1. 送信保留の保持と準備完了判定: モデル一覧・損失評価・batch初期統計・NNからの独立parameter snapshot生成は完了。旧`clients/base.py`の`pending_model_params/pending_model_stats/pending_model_ready`と`has_pending_model/get_pending_model_info/promote_pending_to_ready`を入口に、snapshot/統計参照の所有とready遷移を確認する。登録確認・ID対応・正式登録全体の不足依存も調べ、一つのspecへ詰め込まない。
 2. 候補の生成・初期学習・前向き検証sessionの開始/終了を、既存の初期化・学習・採否部品へ接続する。
 3. 警報後の帰属変更とclient進行、サーバ同期・ID対応へ順次接続する。
 

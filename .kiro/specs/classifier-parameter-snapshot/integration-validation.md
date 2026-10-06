@@ -2,6 +2,7 @@
 
 ## Scope
 一分類器の全parameter現在値の独立コピー。候補選択/平均/復元はtest-only接続で、登録/送信保留/新client/新全体runは未移植。要求/設計rev1、命名rev3、tasksが正本。
+全3task承認/check後の別feature統合レビューで実Luna DECISION: GO。全8要件と境界・接続・共有状態・ファイル計画・全実測を確認しblockerなし。主担当completion gateも本scopeでVERIFIED。
 
 ## Task1
 - 未実装module先行RED: ModuleNotFoundError、1 collection error/2.09秒/exit1。

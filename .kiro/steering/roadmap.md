@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- 分類器parameter snapshotは`../specs/classifier-parameter-snapshot/README.md`。要求/設計revision1・命名revision3・全3tasksをLuna承認/完了、別feature統合GO。検証後のnative順全値detached独立copyを実装。実旧class2/4/10のget_paramsと12条件3学習後のsnapshot→既存initializer→native復元/予測/optimizer保持をexact照合。対象＋AST666/全4399 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧golden/全8要件を確認。新たな旧正常不具合は観測していない。送信保留状態・統計/標本登録・ID対応・新client/全体runは後続。
+
 - 準備済み分類器の標本別有界損失は`../specs/classifier-per-sample-bounded-loss-evaluation/README.md`。要求revision2・設計revision2・命名revision1と全3tasksをLuna承認・完了、feature最終GO。一forwardの標本別有界損失と事前/出力検証を移植し、実旧24条件の損失と12条件3学習後の初期統計全fieldをexact照合。対象＋AST701/全4345 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧差分/全11要件を確認。新testのdevice context漏れはscoped contextへ修正しdevelopment findingへ記録。新たな旧正常経路の不具合は観測していない。状態・登録・学習・採否・送信・新client/全体runの所有を含まない。
 
 - 保有モデルの学習状態管理は`../specs/held-model-training-state-registry/README.md`。要求revision3・設計/命名revision1・全3taskはLuna APPROVED完了、最終feature GO。ID別NN/個別optimizer管理器を初出順で保持し、同ID置換と現在binding取得を移植した。実旧登録順と12条件3stepの全数値/状態/Random一致、対象＋AST617/全4229 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧差分/全11要件確認。依存guardのmodule import受理を修正し既存guardの見直し候補をdevelopment-findingsへ記録。新たな旧正常経路の不具合は観測していない。統計/標本/送信snapshot/ID対応/正式登録全体/新client・全体runは後続。
