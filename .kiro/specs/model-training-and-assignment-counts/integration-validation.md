@@ -36,3 +36,7 @@
 新client・新全体runのgolden一致を示す検証ではない。現在帰属ID・正式登録全体は後続。LEGACY011は不正同ID通知の再現のみで、正常経路・過去成果への影響は未確認。
 
 実Luna Task3 APPROVED。独立対象＋AST再実行931passed/6.41秒、fresh/stdlib smoke成功、実測・hash・範囲を確認。主担当完了gateは931passed/5.67秒、両smoke/diff成功。指摘なし。
+
+## feature最終判定
+
+全task完了後の別実Lunaレビュー: GO。全9条件/契約/所有/上位接続/依存方向/設計/ファイル計画を確認。指摘なし、主担当判定VERIFIED。旧実装・golden・許容差は変更していない。LEGACY011は実旧再現と新拒否を追跡し、旧修正状態と通常経路への未確認事項を維持する。

@@ -1,7 +1,7 @@
 {
   "feature_name": "model-training-and-assignment-counts",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "completed",
   "created_at": "2026-10-06T15:54:49.585524+00:00",
   "approvals": {
     "requirements": {
@@ -71,5 +71,26 @@
     "record": "review.md"
   },
   "verification_source_sha256": "5a590a3629267daa24fb631c228f2ac4ad03dfa5eefaa4f197586894cd307833",
-  "verification_source_path_count": 223
+  "verification_source_path_count": 223,
+  "updated_at": "2026-10-06T16:15:42.824066+00:00",
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "requirements_covered": 9,
+    "test_pass_count": 5305,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "model_training_and_assignment_counts_only",
+    "verification_source_sha256": "5a590a3629267daa24fb631c228f2ac4ad03dfa5eefaa4f197586894cd307833",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go"
+  }
 }
