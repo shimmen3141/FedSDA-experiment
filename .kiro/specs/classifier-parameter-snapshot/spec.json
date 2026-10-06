@@ -1,0 +1,68 @@
+{
+  "feature_name": "classifier-parameter-snapshot",
+  "created_at": "2026-10-06T06:45:32.554956+00:00",
+  "updated_at": "2026-10-06T06:49:26.286004+00:00",
+  "language": "ja",
+  "phase": "implementing",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "d1ce81edd972339a861b9f704eb1a9c15d183c1515866236c2e2015760a4ade5",
+      "approved_revision": 1,
+      "approved_sha256_lf": "d1ce81edd972339a861b9f704eb1a9c15d183c1515866236c2e2015760a4ade5",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "84d9e5309c3a6d2f33c392666836fb66f4c97bb58d79caa6877966b70aa4d3f7",
+      "approved_revision": 1,
+      "approved_sha256_lf": "84d9e5309c3a6d2f33c392666836fb66f4c97bb58d79caa6877966b70aa4d3f7",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "generated_sha256_lf": "6677e22cb6dde59e4fc306f61963f6a0e223c86407a669e8629383e46eabbbbb",
+      "approved_sha256_lf": "6677e22cb6dde59e4fc306f61963f6a0e223c86407a669e8629383e46eabbbbb",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "approved_revision": 2,
+      "approved_sha256_lf": "4e97d4fa9706f19345f95516ee504ed1a7634a753af09c28052b50ea587b5ec2",
+      "generated_sha256_lf": "4e97d4fa9706f19345f95516ee504ed1a7634a753af09c28052b50ea587b5ec2",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "upstream_specs": [
+    "residual-adapter-model-architecture",
+    "candidate-parameter-initialization"
+  ],
+  "task_graph_review": {
+    "verdict": "PASS",
+    "mode": "independent_reused_thread",
+    "record": "review.md"
+  },
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "total_executable_tasks": 3,
+    "next_task": "1"
+  }
+}
