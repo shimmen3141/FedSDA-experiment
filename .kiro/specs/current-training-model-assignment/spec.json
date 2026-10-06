@@ -1,0 +1,63 @@
+{
+  "feature_name": "current-training-model-assignment",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "created_at": "2026-10-07",
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "generated_sha256_lf": "c7bfb3fe2094e9834e2a58a6322c4117119d36ae2d64d643b73821a0017c77e7",
+      "approved_revision": 3,
+      "approved_sha256_lf": "c7bfb3fe2094e9834e2a58a6322c4117119d36ae2d64d643b73821a0017c77e7",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "a7c434eb30d5bcfedc368c087e61b8eda45b975dbae20a1f5aa335a5de8bbae9",
+      "approved_revision": 1,
+      "approved_sha256_lf": "a7c434eb30d5bcfedc368c087e61b8eda45b975dbae20a1f5aa335a5de8bbae9",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "68261ecbfec0a031dc013ede6fe6452913e97dfb8dcba75a1dd37e6884562d1c",
+      "approved_revision": 1,
+      "approved_sha256_lf": "68261ecbfec0a031dc013ede6fe6452913e97dfb8dcba75a1dd37e6884562d1c",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "generated_sha256_lf": "f3bbe1d8dfae9dd0ceff75b6fddf56763d10daf655ba1509d29b65b690f65a78",
+      "approved_revision": 2,
+      "approved_sha256_lf": "f3bbe1d8dfae9dd0ceff75b6fddf56763d10daf655ba1509d29b65b690f65a78",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "upstream_specs": [
+    "model-training-and-assignment-counts",
+    "pending-model-upload"
+  ],
+  "implementation_progress": {
+    "completed_tasks": [],
+    "next_task": "1",
+    "total_executable_tasks": 3
+  }
+}
