@@ -1,8 +1,19 @@
 """登録確認の学習標本付替えと借用参照を旧処理へ照合する。"""
 
+import random
+from copy import deepcopy
+from dataclasses import replace
+
 import numpy as np
 import pytest
 import torch
+from test_held_model_joint_training_iterations import (
+    build_training_iteration_oracle_pair,
+    run_legacy_training_iterations,
+)
+from test_held_model_training_batch_sampling import assert_sampled_batches_equal
+from test_joint_model_parameter_update import assert_joint_update_states_equal
+from test_loss_statistics_model_id_reassignment import build_legacy_registration_client
 from test_model_training_sample_storage import (
     append_legacy_training_samples,
     assert_training_sample_storage_matches_legacy,
@@ -11,6 +22,18 @@ from test_model_training_sample_storage import (
 )
 
 from federated_drift_experiment.clients.base import BaseClient
+from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
+    ModelAndClassLossStatisticsStore,
+)
+from federated_learning_experiments.learning.training.held_model_joint_training_iterations import (
+    perform_held_model_joint_training_iterations,
+)
+from federated_learning_experiments.learning.training.held_model_training_batch_sampling import (
+    sample_training_batches_for_held_models,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
 )
@@ -186,3 +209,117 @@ def test_training_samples_id_reassignment_does_not_inspect_payloads(payload_case
     assert training_sample_collection.training_samples[0] is training_sample
     assert training_sample.input_features is input_features
     assert training_sample.observed_class_labels is observed_class_labels
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize("update_shared_features", [True, False])
+def test_reassigned_training_samples_continue_sampling_and_joint_updates(
+    class_count, optimizer_variant, update_shared_features, monkeypatch
+):
+    with torch.random.fork_rng(devices=[]):
+        (
+            training_batches,
+            shared_optimizer,
+            legacy_client,
+            ordered_training_samples,
+            training_bindings,
+        ) = build_training_iteration_oracle_pair(
+            class_count=class_count, optimizer_variant=optimizer_variant, monkeypatch=monkeypatch
+        )
+        sample_store = ModelTrainingSampleStore()
+        for training_sample_collection in ordered_training_samples:
+            sample_store.append_model_training_samples(
+                model_id=training_sample_collection.model_id,
+                training_samples=training_sample_collection.training_samples,
+            )
+        legacy_registration_client = build_legacy_registration_client(
+            loss_statistics_store=ModelAndClassLossStatisticsStore()
+        )
+        legacy_registration_client.models = legacy_client.models
+        legacy_registration_client.train_data_store = legacy_client.train_data_store
+        legacy_registration_client.model_training_examples = legacy_client.model_training_examples
+        legacy_registration_client.model_optimizer_steps = legacy_client.model_optimizer_steps
+        legacy_client.batch_size = 3
+        python_random_generator = random.Random(731)
+        previous_random_states = (random.getstate(), np.random.get_state(), torch.get_rng_state())
+        previous_numeric_environment = (
+            torch.get_default_dtype(),
+            torch.get_default_device(),
+            torch.is_grad_enabled(),
+        )
+        for step_index in range(3):
+            if step_index == 1:
+                previous_snapshot = sample_store.snapshot_ordered_model_training_samples()
+                sample_store.reassign_model_training_samples_id(
+                    original_model_id=-7, reassigned_model_id=12
+                )
+                legacy_registration_client.confirm_model_registration(12)
+                # 上位がbinding IDを明示対応する。旧binding自体は変更しない。
+                training_bindings = tuple(
+                    replace(
+                        training_binding,
+                        model_id=12
+                        if training_binding.model_id == -7
+                        else training_binding.model_id,
+                    )
+                    for training_binding in training_bindings
+                )
+                assert tuple(collection.model_id for collection in previous_snapshot) == (4, -7)
+            assert_training_sample_storage_matches_legacy(
+                sample_store=sample_store, legacy_client=legacy_client
+            )
+            expected_losses, expected_random_state, sampled_batch_history = (
+                run_legacy_training_iterations(
+                    legacy_client=legacy_client,
+                    iteration_count=1,
+                    update_shared_features=update_shared_features,
+                    initial_random_state=python_random_generator.getstate(),
+                )
+            )
+            # previewは独立Randomを使い、実更新へ渡すRandomは消費しない。
+            sampled_batches = sample_training_batches_for_held_models(
+                held_model_ids=frozenset(binding.model_id for binding in training_bindings),
+                ordered_model_training_samples=sample_store.snapshot_ordered_model_training_samples(),
+                batch_sample_count=3,
+                python_random_generator=deepcopy(python_random_generator),
+            )
+            assert len(sampled_batch_history) == 1
+            assert_sampled_batches_equal(
+                sampled_batches=sampled_batches, legacy_batches=sampled_batch_history[0]
+            )
+            actual_losses = perform_held_model_joint_training_iterations(
+                requested_joint_update_iteration_count=1,
+                held_model_training_bindings=training_bindings,
+                ordered_model_training_samples=sample_store.snapshot_ordered_model_training_samples(),
+                batch_sample_count=3,
+                python_random_generator=python_random_generator,
+                local_training_settings=LocalTrainingSettings(
+                    local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+                    shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+                ),
+                shared_feature_extractor=training_batches[0].classifier.feature_extractor,
+                shared_parameter_optimizer=shared_optimizer,
+                update_shared_features=update_shared_features,
+            )
+            assert actual_losses == expected_losses
+            assert python_random_generator.getstate() == expected_random_state
+            assert_joint_update_states_equal(
+                participating_training_batches=training_batches,
+                shared_parameter_optimizer=shared_optimizer,
+                legacy_client=legacy_client,
+            )
+        assert tuple(
+            collection.model_id
+            for collection in sample_store.snapshot_ordered_model_training_samples()
+        ) == (4, 12)
+        assert random.getstate() == previous_random_states[0]
+        assert np.random.get_state()[0] == previous_random_states[1][0]
+        assert np.array_equal(np.random.get_state()[1], previous_random_states[1][1])
+        assert np.random.get_state()[2:] == previous_random_states[1][2:]
+        assert torch.equal(torch.get_rng_state(), previous_random_states[2])
+        assert previous_numeric_environment == (
+            torch.get_default_dtype(),
+            torch.get_default_device(),
+            torch.is_grad_enabled(),
+        )

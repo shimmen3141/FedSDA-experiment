@@ -6,7 +6,7 @@
   - 実旧confirm順序/列上書き/空/欠落/同ID/借用、signed期待値、両ID拒否、過去snapshot/後続追加、payload非検査のtestを先にREDにする。
   - 既存storeへ一APIのみ追加してGREEN。対象/既存storage・samplerテスト/品質・独立Luna実diffレビューで完了。
   - Requirements: 1.1,1.2,1.3,1.4,2.1,2.2,2.3
-- [ ] 2. 抽出・共同更新へtest-only接続する
+- [x] 2. 抽出・共同更新へtest-only接続する
   - 12条件各3抽出/共同更新。最初の更新後に旧confirmと新標本store付替え、上位がbinding IDを更新。
   - batch/全loss/parameter/grad/両optimizer/Random終端と3共有RNG/defaultsをexact照合。production追加なし、RED N/A。
   - 対象/品質・独立Lunaレビューで完了。
