@@ -15,3 +15,5 @@
 命名revision3・Task1: 実Luna APPROVED、指摘なし。実装が要求r1/設計r2と一致、testが実旧BaseClientの実__init__/実_alloc_temp_idを呼んで対照し式の複製を正解にしていないこと（[-102,-103]は補助確認）、exact guard、stdlib単独起動を確認。Lunaはworkspace-write sandboxで対象＋AST 861 passed、Ruff check/format成功を独立実行。主担当はレビュー前後のgit status一致を確認。
 
 Task2: 実Luna APPROVED、指摘なし（codex session 01a1128c-d8db-7c83-8d1d-40f597902cf2）。独立に対象3群981 passed、Ruff check/format成功、JUnit 5734 tests/0 failures/0 errors/3 skippedとgolden回帰2 testcaseの成功、旧実装/golden/tools差分空、src/tests差分空、承認hashを照合。全pytestの独立再現は基準どおり行っていない。同じsessionがfeature GOも述べたが、task承認と別のレビューで判定する規約のため参考扱いとし、最終GOは別sessionで取得する。
+
+別feature最終レビュー: 実Luna GO、指摘なし（codex session 01a1128d-f0ac-7493-b5af-19e6179e7653）。6/6要求、状態所有/依存/旧対応（実旧実行が正解で式の複製は補助）/範囲/golden・旧実装不変/記録の区別を確認。残る制約: 新しい全体runでの旧実装との一致は本featureでは検証していない。全pytestは主担当実測＋JUnit（基準どおり独立再現なし）。主担当は全suite/品質/承認hash/231パスsource hash/固定旧差分空を照合してcompletedへ更新。

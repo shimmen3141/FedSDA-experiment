@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- 一時モデルIDの採番は`../specs/temporary-model-id-allocation/README.md`。主担当Claude Code。要求revision1・設計revision2・命名revision3・tasks revision2・全2tasks承認/完了、別実Luna feature GO。次に採番する負IDを一つ所有するownerを学習層へ追加し、初期値-100−client_idと単調減少の採番を移植。実旧BaseClientの実初期化/実採番と16条件で採番列を照合、拒否8、import全拒否のexact guardと注入契約24、stdlib単独起動、採番IDでの連続登録2条件。対象＋AST861/全5731passed・3skipped・1既存warning（主担当実測＋JUnit）、品質/固定旧golden/6要件成功。旧サーバの回収経路では異なるclientの同値一時IDは衝突しないことを確認（診断・成果物側は調査範囲外）。次は候補採用時の接続。入口はresume.md。
+
 - 採用候補の初期ローカル登録は`../specs/adopted-candidate-initial-local-registration/README.md`。主担当Claude Code。要求revision2・設計revision2・命名revision3・tasks revision3・全3tasks承認/完了、別実Luna feature GO（全pytestは主担当実測＋JUnit照合、基準はagent-handoff.md）。外側runtimeの状態なし関数で、現在ID優先/一覧先頭の反映先選択、損失・初期統計・snapshotの事前生成、共有反映→学習状態一覧→統計→送信保留の順次更新を組み立てた。全検証と数値生成を状態変更より前に置き、拒否時は共有部・接続・optimizerを含む全状態が不変。実旧対照48＋統計標本8＋optimizer3条件、拒否47条件、class2/4×3optimizer×共有更新有無の12条件で登録前学習→登録→学習→正式ID確認→学習の全数値/optimizer/RNGを実旧へ照合。対象＋AST928/全5678passed・3skipped・1既存warning、fresh新CPU/品質/固定旧golden/13要件成功。新たな旧正常不具合は観測していない。次は候補session終了時の採用接続（採番・計数・標本追加・現在ID切替えと通知）。通信・新client/全体runは後続、入口はresume.md。
 
 - 保有モデルの正式登録確認は`../specs/held-model-registration-confirmation/README.md`。要求/設計revision1・命名revision2・全3tasks承認/完了、別実Luna feature GO。外側runtimeの状態なし関数で7ownerのID上書き/計数加算/current変更/pending解除を組み立てた。実旧保有32・非負3条件、全入力拒否/欠落model事前拒否/順序/保持を確認。class2/4×3optimizer×共有更新有無の12条件3共同更新で確認後の全数値/optimizer/count/RNGを実旧へ照合。対象＋AST864/全5518passed・3skipped・1既存warning、fresh新CPU/品質/固定旧golden/9要件成功。新たな旧正常不具合は観測していない。次は採用済みモデルの初期ローカル登録。欠落model復元・通信・新client/全体runは後続、入口はresume.md。
