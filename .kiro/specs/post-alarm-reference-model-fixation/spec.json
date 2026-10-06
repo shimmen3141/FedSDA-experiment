@@ -1,7 +1,7 @@
 {
   "feature_name": "post-alarm-reference-model-fixation",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "completed",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "primary_agent": "claude-opus-5-5 (Claude Code)",
@@ -74,5 +74,30 @@
   },
   "updated_at": "2026-10-07",
   "verification_source_sha256": "086a886ed484a41844fcd14ddacea8f29a73205efdaef1d92453edd98f944f4c",
-  "verification_source_path_count": 241
+  "verification_source_path_count": 241,
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "codex session 01a11314-7d58-7330-aac2-8cff3be988d2（NO-GO: 01a11311-39c2-7c63-8eed-54eabb93c07a 基準の誤読、01a11312-f2fe-7b11-96c4-0165b09af47f 元checkoutの取り違え）",
+    "reviewer_identity_basis": "launch_model_flag_and_codex_log_only_model_cannot_self_confirm",
+    "reviewed_head": "3154a2d",
+    "requirements_covered": 8,
+    "test_pass_count": 6355,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "independent_full_pytest_reproduced": false,
+    "full_pytest_basis": "primary_agent_measurement_and_junit_per_user_decision_2026-10-07",
+    "red_before_implementation": true,
+    "current_scope": "post_alarm_reference_model_fixation_only",
+    "verification_source_sha256": "086a886ed484a41844fcd14ddacea8f29a73205efdaef1d92453edd98f944f4c",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go"
+  }
 }
