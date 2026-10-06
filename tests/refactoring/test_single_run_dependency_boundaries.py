@@ -370,6 +370,19 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "runtime/candidate_classifier_construction.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "torch.Tensor",
+            "torch.float32",
+            "torch.isfinite",
+            "torch.strided",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+        )
     if source_module_path == "learning/training/temporary_model_id_allocation.py":
         return imported_module_name == "__future__.annotations"
     if source_module_path == "runtime/post_alarm_reference_model_fixation.py":
@@ -978,6 +991,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "runtime/candidate_classifier_construction.py",
             "learning/training/held_model_training_state_registry.py",
             "learning/prediction/classifier_bounded_loss_evaluation.py",
             "learning/models/classifier_parameter_snapshot.py",
@@ -1009,6 +1023,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             if (
                 source_module_path
                 in (
+                    "runtime/candidate_classifier_construction.py",
                     "learning/training/held_model_training_state_registry.py",
                     "learning/prediction/classifier_bounded_loss_evaluation.py",
                     "learning/models/classifier_parameter_snapshot.py",
@@ -2204,6 +2219,67 @@ def test_post_alarm_reference_model_fixation_exact_dependency_contract(
     assert (
         not collect_dependency_boundary_violations(
             source_module_path="runtime/post_alarm_reference_model_fixation.py",
+            source_text=source_text,
+        )
+    ) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("import torch", False),
+        ("import random", False),
+        ("import math", False),
+        ("import dataclasses", False),
+        ("import numpy", False),
+        ("from torch import rand", False),
+        ("from torch import *", False),
+        ("from torch.nn import Module", False),
+        ("from __future__ import annotations", False),
+        ("import federated_drift_experiment", False),
+        ("from .post_alarm_reference_model_fixation import fix_reference_models_at_alarm", False),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.parameter_optimizer_state import _private",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.learning.training.parameter_optimizer_state",
+            False,
+        ),
+        ("from dataclasses import dataclass", True),
+        ("from torch import Tensor, float32, isfinite, strided", True),
+        (
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings, SgdParameterOptimizerSettings",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.parameter_optimizer_state import ParameterOptimizerState",
+            True,
+        ),
+        (
+            "from ..learning.training.parameter_optimizer_state import ParameterOptimizerState as Manager",
+            True,
+        ),
+    ],
+)
+def test_candidate_classifier_construction_exact_dependency_contract(
+    source_text, expected_acceptance
+):
+    assert (
+        not collect_dependency_boundary_violations(
+            source_module_path="runtime/candidate_classifier_construction.py",
             source_text=source_text,
         )
     ) == expected_acceptance
