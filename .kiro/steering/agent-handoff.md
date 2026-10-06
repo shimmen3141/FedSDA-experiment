@@ -99,6 +99,101 @@ codex execのWindows sandboxでは、pytestの一時ディレクトリ走査と�
 未完了・レビュー待ちを優先し、共有規約とLuna優先・利用不能時Sonnet代替の独立レビュー条件を維持して続けてください。
 ```
 
+## 2026-10-07に確立した運用
+
+Claude Code担当の7spec（resume.mdの現在地を参照）で使った進め方。次の主担当も、変更する理由がなければ同じ形で続ける。
+
+### specの進め方
+
+- 1つのspecは、旧の1メソッドまたはその一部に対応する小さな単位にする。文書はREADME・requirements・design・naming・tasks・research・review・integration-validation・spec.json。
+- 要求・設計・命名・tasksは、1回の依頼でまとめてレビューに出してよい。判定は段階ごとに別々に受け、spec.jsonへ段階ごとのrevision・LF hash・レビューsessionを記録する。指摘で改訂した段階だけ再レビューする。
+- 実装taskは、(1)組立と依存境界、(2)上流・下流の部品との接続と学習の継続、(3)固定環境の全回帰、の順。feature最終GOは、task承認とは別のレビューsessionで受ける。
+- 失敗時に部分的な変更を残さないため、検証と数値の生成を状態変更より前に置く設計を採ってきた。旧と処理順が変わる場合は、成功時の観測値（値・順序・乱数の消費）が変わらないことを実旧との対照testで示し、research.mdへ理由を書く。
+- 旧の契約外入力での挙動（部分更新など）を見つけたら、実旧で再現してからimplementation-findingsへ記録する。正常経路の非対称（LEGACY-014）はユーザーへ確認する。
+
+### 実装前のREDと検出力の確認
+
+- testを書いたら、実装ファイルを作る前にpytestを実行し、REDを記録する。実装を先に書いてしまうと、レビューで承認ゲート違反として差し戻される（assigned-training-sample-absorptionのreview.md）。
+- GREENの後、実装を一時的にstubと数種の誤実装へ差し替えてtestが失敗することを確かめ、元へ戻して実装のLF hashが変わっていないことを確認する。検出されない誤実装があれば、testの条件が足りない。
+- 差し替えscriptの例: `../../venv/refactoring-tests/post_alarm_reference_model_fixation_red_evidence.py`（Git管理外）。実装ファイルを書き換えるので、レビュー担当には実行させず内容を読ませる。
+
+### 実旧を使うoracle
+
+- 式や手順をtestへ複製して正解にしない。実旧clientのクラスを`__new__`で作り、対象メソッドが読む属性だけを与えて、実旧メソッドを実行する。
+- test helperは上流のtestから再利用する（`tests/refactoring/`内で互いにimportする）。主な連鎖:
+  - `test_adopted_candidate_initial_local_registration.py`の`build_initial_registration_oracle`: 同じ初期値の新owner群・候補と、実旧`SharedBackboneClassConditionalESRFedSDAClient`・旧候補。`assert_held_model_states_match_legacy`・`convert_legacy_parameter_name`もここ。
+  - `test_adopted_candidate_local_adoption.py`の`build_local_adoption_oracle`: 上に採番・標本・計数ownerと実旧`ForwardValidationSession`を加える。`snapshot_adoption_state`/`assert_adoption_state_unchanged`（拒否時不変）もここ。
+  - `test_post_alarm_candidate_validation_resolution.py`の`assert_resolution_matches_legacy`、`test_post_alarm_candidate_validation_sample_observation.py`の`observe_and_resolve_in_both_implementations`、`test_post_alarm_reference_model_fixation.py`の`begin_forward_validation_in_legacy_client`（実旧のsession開始。現在は候補の学習だけ無効化）。
+- 実旧で実行できると確認済みのメソッド: `_register_trained_new_model`、`_absorb_into_store`、`_finalize_forward_validation`（4分岐）、`_observe_forward_validation`、`_snapshot_reference_models`、`_begin_forward_validation`（候補の学習を無効化した場合）、`_train_heads_together`、`confirm_model_registration`。新しいメソッドを使うときは、REDより前に実行できることを確かめてresearch.mdへ書く。
+- 学習の継続は、class2/4×Adam標準/AMSGrad/SGD×共有部更新有無の12条件で、実旧の共同学習と全値・grad・optimizer state・乱数を照合する形を続けている。
+
+### 乱数の消費
+
+- モデルの生成は初期化でCPUのtorch乱数を消費する。新`ResidualAdapterClassifier`の生成は実旧と同じ順・量で消費する。実旧の参照複製と候補の生成も乱数を消費するので、生成の順序と個数を旧と一致させる（post-alarm-reference-model-fixation）。
+- testで乱数の不変を確かめるときは、モデルを生成した後の状態を基準にする。同じ乱数状態から実旧と新を順に実行し、処理後の状態が一致することと、実際に消費されたことの両方を確かめる。
+
+### 検証コマンド
+
+worktreeルートで実行する。下はGit Bash用。PowerShellの環境変数は続けて示す。
+
+実行する時点: (1)testを書いた直後、実装ファイルを作る前に対象testだけを実行してREDを記録する（import失敗でよい）。(2)実装後に対象testを実行する。依存境界testは、新module用の注入契約testを追加した時点で一度REDを確認し、exact guardを追加してから対象testと一緒に実行する。(3)全taskの実装をcommitした後に全pytestと品質検査を実行し、そのcommitを検証対象として記録する。仕様化の段階（要求〜tasks）ではtestを実行しない。
+
+```bash
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+export TMP="$(cd ../../venv/refactoring-tests && pwd -W)"; export TEMP="$TMP"
+export MPLCONFIGDIR="$(cd ../../venv/matplotlib-cache && pwd -W)"
+export FDE_MNIST_DATA_DIR="$(cd ../../data/mnist && pwd -W)"
+PY=../../venv/Scripts/python.exe
+
+$PY -m pytest tests/refactoring/test_<対象>.py tests/refactoring/test_single_run_dependency_boundaries.py -q -p no:cacheprovider
+$PY -m pytest tests -q -p no:cacheprovider --junitxml="$TMP/<feature名>-full.xml"   # 約2分
+$PY -m ruff check src tests/refactoring; $PY -m ruff format --check src tests/refactoring
+$PY -m pyright --pythonpath ../../venv/Scripts/python.exe; $PY -m pip check
+git status --short   # 検証対象のcommit時点で未コミット差分がないこと
+git diff --stat 748c3aa HEAD -- federated_drift_experiment tests/regression_golden.json tests/proposed_regression_golden.json tests/test_regression.py tests/test_proposed_regression.py tools   # commit済みの差分。空であること
+git diff --stat 748c3aa -- federated_drift_experiment tests/regression_golden.json tests/proposed_regression_golden.json tests/test_regression.py tests/test_proposed_regression.py tools   # 作業中の未コミット差分も含む。空であること
+```
+
+```powershell
+$env:OMP_NUM_THREADS='1'; $env:MKL_NUM_THREADS='1'
+$env:TMP=(Resolve-Path ../../venv/refactoring-tests).Path; $env:TEMP=$env:TMP
+$env:MPLCONFIGDIR=(Resolve-Path ../../venv/matplotlib-cache).Path
+$env:FDE_MNIST_DATA_DIR=(Resolve-Path ../../data/mnist).Path
+../../venv/Scripts/python.exe -m pytest tests -q -p no:cacheprovider --junitxml="$env:TMP/<feature名>-full.xml"
+```
+
+PowerShellの例は環境変数の設定と全pytestだけを示している。対象test・Ruff・Pyright・pip check・git diffは、Git Bash用の各行の`$PY`を`../../venv/Scripts/python.exe`へ読み替えればPowerShellでもそのまま実行できる。
+
+承認hash（各mdのLF sha256）とsource hash（tracked Python＋2golden）は次で計算する。`lf_sha256`は作業ツリーのファイルを読む（レビューへ出す直前と承認の記録時に計算する）。`source_sha256`は指定したcommitに含まれるファイルだけを読み、未コミットの変更は含まない。全回帰を実行したcommit（検証対象commit）に対して計算し、spec.jsonへ記録する。この手順は前specまでの記録値を再現する。確認用の期待値: `source_sha256("03f24e6")`は`(227, "e87d426ec169c676a7b6ce57b7aa468d8d434992d08bdb5dcf6ffb12a8370621")`、`source_sha256("dbaf5cc")`は`(241, "086a886ed484a41844fcd14ddacea8f29a73205efdaef1d92453edd98f944f4c")`。
+
+```python
+import hashlib, pathlib, subprocess
+def lf_sha256(path):  # spec.jsonのgenerated/approved/current_sha256_lf
+    return hashlib.sha256(pathlib.Path(path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+def source_sha256(rev="HEAD"):  # spec.jsonのverification_source_sha256とpath数
+    names = subprocess.run(["git", "ls-tree", "-r", "-z", "--name-only", rev], capture_output=True, check=True).stdout.decode("utf-8").split("\0")
+    names = sorted(n for n in names if n.endswith(".py") or n in ("tests/regression_golden.json", "tests/proposed_regression_golden.json"))
+    digest = hashlib.sha256()
+    for name in names:
+        content = subprocess.run(["git", "show", rev + ":" + name], capture_output=True, check=True).stdout
+        digest.update(name.encode("utf-8") + b"\0" + content.replace(b"\r\n", b"\n") + b"\0")
+    return len(names), digest.hexdigest()
+```
+
+全pytestの件数は、前specの件数に今回追加したtest数（対象test＋依存境界の注入契約）を足した数と一致することを確かめてきた（直近は6355）。
+
+### Git管理外の資材
+
+- `../../venv/refactoring-tests/`（元checkoutのvenv配下、このPCだけ）: 各specのfresh CPU smoke（`*_cpu_smoke.py`、旧importなし）、実装差し替えscript（`*_red_evidence.py`）、全pytestのJUnit（`*-full.xml`）。別PCでは存在しないので、必要なら対象specのintegration-validation.mdの記述から作り直す。
+- Claude Codeのセッション内だけにあった補助script（hash記録、レビュー起動）はリポジトリにない。上の検証コマンドとhash計算で同じことができる。
+
+### レビュー依頼の注意
+
+- Claude Codeからは、別プロセスの`codex exec -m gpt-6-luna --sandbox read-only`（testを実行させるときは`workspace-write`）へ依頼文を標準入力で渡し、最終回答を保存した。Codexが主担当のときは、Codex側の独立レビュー手段を使う。どちらでも、依頼文・session・対象hash・結果・採否を対象specへ記録する。
+- 依頼文には次を書く。(1)worktreeの絶対パスと期待するブランチ・HEAD（元checkoutで実行して対象を取り違えた例がある）。(2)対象ファイルとLF hash、主担当の実測、手順上の逸脱があればその事実。(3)全pytestの判定基準の原文（基準を逆に読んで未再現をBlockerにした例がある）。(4)「自分のモデル名を確認できないことを判定理由にしない」こと（それを理由に保留・NO-GOにした例がある）。(5)出力形式（1行目に判定、番号付き指摘、独立実行した検証）。
+- レビュー担当にtestを実行させた後は、`git status --short`が依頼前と同じであることを確かめる。レビュー担当が作った一時ディレクトリが残ることがある。
+- 指摘は全て採用する必要はない。前提が事実と違う指摘は、根拠を示して不採用とし、review.mdへ理由を書く（例: 記載済みの要求番号を「ない」とした指摘、基準の誤読、元checkoutの取り違え）。NO-GOの理由が実装・testにないときも、GOへ書き換えず、事実を示して再判定を依頼する。
+
 ## cc-sdd導入の来歴と再生成
 
 2026-10-07、既存Codex Skills版と同じcc-sdd 3.1.0のClaude Skills版を導入した。

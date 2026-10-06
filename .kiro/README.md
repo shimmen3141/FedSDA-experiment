@@ -8,6 +8,8 @@
 - 現在の承認・進捗・次のtask: 対象specの`spec.json`を参照する。入口文書へ進捗を重複記載しない。
 - 正本と再開手順: [対象specの入口](specs/configuration-foundation/README.md)。候補・履歴を現在の実装契約と混同しない。
 
+現在地と次の作業は[再開案内](steering/resume.md)、担当交代の手順と検証コマンドは[共通引継ぎ手順](steering/agent-handoff.md)が入口。以下は導入初期（設定基盤・単一run基盤）の案内で、来歴として残す。
+
 ## 読む順序
 
 1. [リファクタリング方針](../docs/research/refactoring-policy.md)

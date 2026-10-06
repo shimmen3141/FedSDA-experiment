@@ -1,28 +1,67 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-07。これは短い案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-07（Claude Code担当分の完了時）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
 Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い、GPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューで承認する。
 
 ## 現在地
 
-- 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
-- 直近完了: [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md)（要求r1/設計r1/命名r2/tasks r1・全3task承認/完了、別feature最終GO）。その前は[警報後の候補検証標本の観測](../specs/post-alarm-candidate-validation-sample-observation/README.md)、[警報後の候補検証の確定](../specs/post-alarm-candidate-validation-resolution/README.md)、[帰属確定標本の吸収](../specs/assigned-training-sample-absorption/README.md)、[採用候補のローカル採用](../specs/adopted-candidate-local-adoption/README.md)、[一時モデルIDの採番](../specs/temporary-model-id-allocation/README.md)、[採用候補の初期ローカル登録](../specs/adopted-candidate-initial-local-registration/README.md)。7件とも主担当Claude Code、レビューはcodex exec -m gpt-6-lunaで起動したレビュー担当。
-- 直近の検証済み実装commit: `dbaf5cc`。全6355 passed/3 skipped/1既存warning（主担当実測、JUnit照合）、対象＋AST1059、fresh新CPU/品質/旧11・最終3golden成功。runtimeの関数が、保有モデルごとに同じ値の独立した参照分類器を一覧の順に生成し（torch乱数の消費は実旧の参照複製と同じ）、全体統計が2件以上のモデルの履歴平均損失とあわせて返す。実旧_snapshot_reference_modelsと乱数状態・全値を照合し、実旧のsession開始（候補の学習だけ無効化）→観測→確定まで通した状態一致を確認した。
-- レビュー運用の注意（追加）: (3)レビュー担当がworktreeではなく元checkout（main、HEAD 748c3aa、src/なし）でgitを実行し、対象を取り違えてNO-GOにしたことがある。依頼文にworktreeの絶対パスと期待するブランチ・HEADを書き、最初に確認させる。codexの実行ログ（`in C:\...`の実行ディレクトリ）で実際の実行場所を確かめられる。(4)レビュー担当が「全pytestの独立再現の基準」を逆に読み、未再現をBlockerにしたことがある。基準の原文を依頼文へ引用する。
-- レビュー運用の注意: (1)同specのTask1では、REDを実行する前に実装ファイルを書く手順逸脱があった。実装をstub/誤実装8種へ差し替えてtestの検出力を確かめる代替証拠でLuna承認を得た（integration-validation.md）。testを書いたら実装より前にREDを実行すること。差し替えscriptの形は`../../venv/refactoring-tests/assigned_training_sample_absorption_red_evidence.py`。(2)codex exec -m gpt-6-lunaで起動したレビュー担当は、自分のモデル名を内部から確認できないと回答し、それを理由に判定を保留/NO-GOにすることがある。主担当は起動時のmodel指定と実行ログを根拠に記録している。モデル自身による確認はできていない（ユーザーへ報告済みの未解消事項）。
-- 全pytestの独立再現の基準は[共通引継ぎ手順](agent-handoff.md)の同名節（2026-10-07ユーザー決定）。Luna側sandboxでは全pytestを再現できないため、主担当実測＋JUnit照合で判定する。
-- 旧実装の記録: LEGACY-015（標本吸収の途中失敗で先行標本の更新と不正標本が残る）も記録済み。直近3specで見つけたLEGACY-012（登録途中失敗の部分更新と採番消費）・013（使用済み一時IDへの再登録の黙った置換）・014（採用時の保留標本が割当概念計数と損失統計へ反映されない。意図した仕様か未確認、oracle診断への影響未確認）をimplementation-findingsへ記録済み。旧挙動は移植で維持している。
-- 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
-- `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
+- 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
+- 作業状態: 実装途中のtask・レビュー待ち・未コミット差分はない。全commitは`origin/refactor/architecture`へpush済み。次のspecへそのまま着手できる。ユーザーの判断・確認を待っている事項は下の「ユーザー確認待ち・未解消の事項」にあり、どれも次のspecの着手を妨げない。
+- 直近の検証済み実装commit: `dbaf5cc`。全pytest 6355 passed/3 skipped/1既存warning（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。
+- 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
+  1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。
+  2. [警報後の候補検証標本の観測](../specs/post-alarm-candidate-validation-sample-observation/README.md): 標本1件の候補・参照の損失評価と損失収集への追加。
+  3. [警報後の候補検証の確定](../specs/post-alarm-candidate-validation-resolution/README.md): 評価結果から採用/再利用/維持/棄却を選んで適用。
+  4. [帰属確定標本の吸収](../specs/assigned-training-sample-absorption/README.md): 標本追加・割当概念計数・損失評価・統計更新。
+  5. [採用候補のローカル採用](../specs/adopted-candidate-local-adoption/README.md): 採番→登録→計数→標本追加→現在の学習帰属ID切替え。
+  6. [一時モデルIDの採番](../specs/temporary-model-id-allocation/README.md)。
+  7. [採用候補の初期ローカル登録](../specs/adopted-candidate-initial-local-registration/README.md): 共有反映・初期統計・snapshot・一覧/統計/送信保留への登録。
+- これで、警報後の「参照の固定→標本の観測→損失収集→採否評価→確定（採用/再利用/維持/棄却）→正式ID確認」までの部品が、実旧の対応するメソッドとの対照つきで揃った。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
+- `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧名alias/互換読込みを追加しない。
+- この期間に確立した進め方（実装前のRED、実装差し替えによる検出力の確認、実旧メソッドを使うoracle、検証コマンド、レビュー依頼の注意）は[共通引継ぎ手順](agent-handoff.md)の「2026-10-07に確立した運用」を参照する。
+
+## ユーザー確認待ち・未解消の事項
+
+- LEGACY-014: 旧の採用分岐は、新モデルへ移す保留標本を割当概念計数と損失統計へ反映しない（他の分岐と非対称）。意図した仕様かをユーザーへ確認依頼済みで、回答はまだない。新実装は旧挙動を維持しtestで固定している。変更する場合は別specにする。記録は[implementation-findings](../../docs/research/implementation-findings/README.md)。
+- レビュー担当の同定: `codex exec -m gpt-6-luna`で起動したレビュー担当は、自分のモデル名を内部から確認できないと回答する。記録は起動時のmodel指定と実行ログのmodel行に依拠している。実際のルーティングの確認はユーザーへ依頼済み。
+- 全pytestの独立再現: 2026-10-07のユーザー決定により、主担当の実測とJUnit照合で判定する（[共通引継ぎ手順](agent-handoff.md)の同名節）。レビュー担当のsandboxで再現できるようになった場合は、再現した事実を記録してよい。
+- 移植しないと決めたもの: 参照も学習させる方針（旧`shadow_tournament`）。最終構成（`forward_persistent`）で通らず、goldenにも値がない。2026-10-07のユーザー判断で当面不要。
+- 旧実装の記録（この期間の追加）: LEGACY-012（登録途中失敗の部分更新と採番消費）、013（使用済み一時IDへの再登録の黙った置換）、014（上記）、015（標本吸収の途中失敗で先行標本の更新と不正標本が残る）。012/013/015は契約外入力だけで、新実装は状態変更前に拒否する。
 
 ## 次の候補（未仕様化・未承認）
 
-1. 候補の生成と警報区間での学習: 参照分類器の固定と履歴平均は完了。次は旧_begin_forward_validationの残りで、(a)候補分類器と個別optimizer管理器・候補用の共有部optimizer管理器の生成（モデル生成はtorch乱数を消費する。実旧は候補の生成→学習→参照の生成の順）、初期parameterの適用（既存select_candidate_initial_parameter_snapshotが返すsnapshotをload）、optimizer reset、(b)警報区間での候補の学習（旧_train_new_model: 旧new_model_initial_epochs、batch分割、乱数によるshuffleの有無、early stoppingとbest parameterの復元。clients/base.py 330-400行付近）と学習量（延べ標本数・更新回数）の記録、(c)損失収集の開始（PostAlarmCandidateLossCollectionの生成）とsession開始の組立（候補→参照の固定→収集開始の順で乱数消費を実旧と一致させる）。旧_train_new_modelが使う設定（NEW_MODEL_EPOCHS等）の新設定型の有無を先に確認する。実旧のsession開始は、test_post_alarm_reference_model_fixation.pyのbegin_forward_validation_in_legacy_client（現在は候補の学習だけ無効化）を土台に、学習を有効にして対照できる。
-1b. 候補検証sessionの進行と記録: 上位が到達の戻り値を見て既存の評価関数と確定を呼ぶ進行、判定record（旧ProvisionalModelDecision）・切替位置・検出エピソード・適応イベントの記録、学習帰属変更の通知（最終構成では予測重み再始動）、実験終端で未完了のsessionを棄却して保留標本を現行モデルへ吸収する処理（旧finalize_incomplete_forward_validation）。結果種別と変更記録から旧のaction/drift_type/切替位置の条件は導ける（対応表は確定specのdesign.md）。参照も学習させる方針（旧shadow_tournament）は最終構成で通らず、goldenにも値がない（最終3goldenはforward_persistent、旧11goldenは既定のimmediate）。2026-10-07のユーザー判断で当面不要とし、移植しない。必要になったら専用分岐（勝った参照の値反映とoptimizer reset、検証中の全shadow更新）を別specにする。FIFOから1件ずつ確定する経路（旧fedsda.py 512-524行、統計→標本→概念の順のinline実装）は別に仕様化する。確認APIはモデル保有を前提にし、欠落時snapshotからの再構築は呼出し側server/clientへ残す（旧分岐未移植）。計算量診断の記録は未移植。現在ID同値設定はno-op、新計数同ID移管は拒否（LEGACY011、通常経路への影響未確認）。評価fallback/EVAL_MAX_SAMPLESはサーバ評価接続時、実送信は通信specで扱う。
-2. 上の1と1bの後、警報の検出から候補検証sessionの開始までの接続（推定変化点からの区間切出し、保留標本の確保、初期parameterの選択）。
-3. 警報後の帰属変更とclient進行、サーバ同期・ID対応へ順次接続する。
+### 1. 候補の生成と警報区間での学習（次に着手）
+
+旧`FedSDAClient._begin_forward_validation`（`federated_drift_experiment/clients/fedsda.py`）のうち、参照の固定と履歴平均は完了した。残りを仕様化する。1つのspecに収まらなければ、(a)(b)(c)を分ける。
+
+- (a) 候補の生成: 旧は`_new_model()`（`federated_drift_experiment/clients/base.py`の`BaseClient._new_model`。`self.model_cls()`で独立したモデルを作る）→`set_params(初期parameter)`→`reset_optimizer()`（どちらも`federated_drift_experiment/models.py`のモデル側）。新は`ResidualAdapterClassifier`の生成（torch乱数を消費）、初期parameterの読込み、候補の概念固有parameter用と候補自身の共有部用の`ParameterOptimizerState`の生成になる見込み。初期parameterの選択は完了済み（`src/federated_learning_experiments/methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py`の`select_candidate_initial_parameter_snapshot`、設定は同ディレクトリの`candidate_parameter_initialization_settings.py`）。
+- (b) 警報区間での候補の学習: 旧`BaseClient._train_new_model`と、そこから呼ばれる`_train_new_model_early_stopping`・`_train_new_model_fixed`・`_update_new_model_epochs`・`new_model_initial_epochs`（`federated_drift_experiment/clients/base.py`。`_train_new_model`で検索する）。最終3goldenの設定は`tests/proposed_regression_golden.json`の`definition`にあり、`NEW_MODEL_TRAINING="early_stopping"`、`NEW_MODEL_EPOCHS=30`、`NEW_MODEL_VALIDATION_FRACTION=0.2`、`NEW_MODEL_EARLY_STOPPING_PATIENCE=3`、`NEW_MODEL_EARLY_STOPPING_MIN_DELTA=1e-4`、`NEW_MODEL_LR=0.01`、`CLIENT_BATCH_SIZE=32`。early stoppingは`torch.randperm`で学習/検証へ分け、`DataLoader(shuffle=True)`でbatchを作るので、torch乱数を消費する。最良parameterを保持して最後に復元する。学習量（延べ標本数と更新回数）は旧`compute_counters`の差分から得てsessionへ記録し、採用時に`candidate_trained_sample_count`/`candidate_parameter_update_step_count`として渡す。
+- 新側の設定の現状: 候補の学習のepoch数・検証割合・patience・学習率を持つ設定型はまだない（worktreeルートで`git grep -n -i -E "epoch|early_stop|patience" -- src`を実行して0件。2026-10-07、commit `5537b65`時点）。`candidate_model_training_and_acceptance_settings.py`は採否方針と検証標本件数だけを持つ。必要な項目は、方針どおり機能別の設定型へ追加し、命名レビューを通す（`.kiro/specs/configuration-foundation/`のnaming.mdと後続計画を先に確認する）。旧`NEW_MODEL_TRAINING`の`fixed`/`none`を移植するかは、最終構成で使わないことを確認してから決める。
+- 新側で使える学習部品: `src/federated_learning_experiments/learning/training/`の`joint_model_parameter_update.py`（1回の共同更新。単一batchなら旧`ResidualAdapterMLP.update`と全値一致することを登録・採用のtestで確認済み）、`parameter_optimizer_state.py`、`parameter_optimizer_settings.py`、`local_training_settings.py`。
+- (c) session開始の組立: 候補の生成→学習→参照の固定（`runtime/post_alarm_reference_model_fixation.py`）→損失収集の開始（`PostAlarmCandidateLossCollection`の生成）。乱数の消費順を実旧（候補の生成→学習→参照の生成）と一致させる。
+- oracle: `tests/refactoring/test_post_alarm_reference_model_fixation.py`の`begin_forward_validation_in_legacy_client`が実旧のsession開始を実行している。現在は`_train_new_model`を無効化しているので、学習を有効にして候補の値・学習量・処理後の乱数状態を対照する。
+
+### 2. 候補検証sessionの進行と記録
+
+- 上位が観測の戻り値（規定件数への到達）を見て、既存の評価関数と確定を順に呼ぶ進行。
+- 判定record（旧`ProvisionalModelDecision`）、切替位置、検出エピソード、適応イベントの記録。結果種別と変更記録から旧のaction・戻り値・切替位置の条件は導ける（対応表は`.kiro/specs/post-alarm-candidate-validation-resolution/design.md`）。
+- 学習帰属変更の通知（最終構成では予測重みの再始動。旧`_on_local_model_change`）。
+- 実験終端で未完了のsessionを棄却し、保留標本を現行モデルへ吸収する処理（旧`finalize_incomplete_forward_validation`）。
+
+### 3. その先
+
+- 警報の検出から候補検証sessionの開始までの接続（推定変化点からの区間切出し、保留標本の確保、初期parameterの選択）。
+- FIFOから1件ずつ帰属を確定する経路（旧`fedsda.py`の標本処理内。統計→標本→概念の順のinline実装で、吸収の部品とは更新順が違う）。
+- 警報後の帰属変更とclient進行、サーバ同期・ID対応。
+
+### 未移植として残している細目
+
+- 正式ID確認は、モデルを保有している前提。欠落時に送信保留のsnapshotから再構築する旧分岐は未移植で、呼出し側のserver/clientで扱う。
+- 計算量診断（旧`_record_model_compute`と`compute_counters`）は未移植。
+- 現在IDへ同じIDを設定するとno-op、学習計数の同ID移管は拒否（LEGACY-011）。
+- 評価fallbackと`EVAL_MAX_SAMPLES`はサーバ評価の接続時、実送信は通信のspecで扱う。
 
 この順序は候補。再開時にコードと完了specを照合し、未移植の依存があれば先に仕様化する。既存の完了タスクを無条件に再実装しない。
 
