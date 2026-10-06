@@ -11,6 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 - 直近完了: [採用候補のローカル採用](../specs/adopted-candidate-local-adoption/README.md)（要求r2/設計r2/命名r2/tasks r2・全3task承認/完了、別feature最終GO）。その前は[一時モデルIDの採番](../specs/temporary-model-id-allocation/README.md)と[採用候補の初期ローカル登録](../specs/adopted-candidate-initial-local-registration/README.md)。3件とも主担当Claude Code、レビューはcodex exec経由のGPT-6 Luna。
 - 直近の検証済み実装commit: `af5c5b8`。全5876 passed/3 skipped/1既存warning（主担当実測、JUnit照合）、対象＋AST977、fresh新CPU/品質/旧11・最終3golden成功。runtimeの状態なし関数で、次の一時IDの読取り→登録→採番確定→候補学習量の計数→保留標本の追加→現在の学習帰属ID切替えを組み立て、変更recordを返す。実旧_finalize_forward_validationの採用分岐（forward_persistent）を実行して全状態を対照し、12条件で採用後学習と正式ID確認まで照合した。
 - 全pytestの独立再現の基準は[共通引継ぎ手順](agent-handoff.md)の同名節（2026-10-07ユーザー決定）。Luna側sandboxでは全pytestを再現できないため、主担当実測＋JUnit照合で判定する。
+- 旧実装の記録: 直近3specで見つけたLEGACY-012（登録途中失敗の部分更新と採番消費）・013（使用済み一時IDへの再登録の黙った置換）・014（採用時の保留標本が割当概念計数と損失統計へ反映されない。意図した仕様か未確認、oracle診断への影響未確認）をimplementation-findingsへ記録済み。旧挙動は移植で維持している。
 - 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 

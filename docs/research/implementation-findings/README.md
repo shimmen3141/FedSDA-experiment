@@ -15,6 +15,9 @@
 | LEGACY-009 | 極大parameter値の単純平均が非有限になる | 再現済み・未修正、通常実験への影響未確認 | [記録](legacy-009-extreme-parameter-mean-overflow.md) |
 | LEGACY-010 | 空の共有特徴抽出部でoptimizer生成が失敗 | 再現済み・未修正、通常実験への影響未確認 | [記録](legacy-010-empty-shared-feature-optimizer.md) |
 | LEGACY-011 | 同一負IDの登録確認で件数倍増・概念件数消失 | 再現済み・未修正、不正通知での再現/通常影響未確認 | [記録](legacy-011-same-id-registration-count-corruption.md) |
+| LEGACY-012 | 新規モデル登録の途中失敗で共有部の上書きと採番消費が残る | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-012-partial-registration-on-invalid-statistics-input.md) |
+| LEGACY-013 | 使用済みの一時IDへの再登録が既存モデルを黙って置換する | 再現済み・未修正、正常経路での発生は未確認 | [記録](legacy-013-temporary-id-reregistration-overwrite.md) |
+| LEGACY-014 | 採用時の保留標本が割当概念計数と損失統計へ反映されない | 再現済み・未修正、意図した仕様か未確認、oracle診断への影響未確認 | [記録](legacy-014-adopted-model-pending-samples-not-counted.md) |
 
 ## 記録・更新の規約
 

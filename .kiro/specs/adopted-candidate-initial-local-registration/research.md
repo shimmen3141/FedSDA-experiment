@@ -9,3 +9,4 @@
 - 旧は空batchでNaN統計を登録し得る（LEGACY007）。新は既存の損失評価/初期統計APIの事前検証で拒否する。
 - 旧は同じ一時IDの再登録を黙って上書きする。一時IDは採番ごとに一意なので、新は保有済みIDを事前拒否する。通常経路への影響はない想定だが、旧全経路での確認は未実施。
 - 要求レビュー（Luna）の指摘により、一時IDの使用確認を学習状態一覧・統計store・送信保留の対応IDへ広げ、失敗時に部分変更を残さない契約にした。旧は接続後に損失を評価する。共有反映は候補共有部の値を反映先へそのまま複写するため、反映前の候補（自身の共有部）と反映後の候補（反映先）は同じparameter値・同じ構造でforwardする。新モデルにdropout/batch正規化等のmode・乱数依存層はない。設計では損失評価・統計・snapshotを反映前に生成して全検証を状態変更より前に置き、値の一致は実旧との完全一致testで確認する。旧の時系列で観測できる値・状態は変えない。
+- 旧実装の記録: 登録途中の失敗で共有部の上書きが残る挙動は[LEGACY-012](../../../docs/research/implementation-findings/legacy-012-partial-registration-on-invalid-statistics-input.md)、使用済み一時IDへの再登録が黙って置換する挙動は[LEGACY-013](../../../docs/research/implementation-findings/legacy-013-temporary-id-reregistration-overwrite.md)へ、実旧での再現とともに記録した（2026-10-07、spec完了後に追記）。本specの移植では、正常時の値を維持し、契約外入力を状態変更前に拒否する。

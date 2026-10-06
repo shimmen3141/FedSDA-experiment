@@ -23,7 +23,7 @@
 
 ## 現在の状態
 
-- 採用候補のローカル採用は`../specs/adopted-candidate-local-adoption/README.md`。主担当Claude Code。要求revision2・設計revision2・命名revision2・tasks revision2・全3tasks承認/完了、別実Luna feature GO。外側runtimeの状態なし関数で、採番owner・初期ローカル登録・学習計数・学習標本store・現在の学習帰属IDを組み立てた。登録の検証が通るまで採番を確定せず、拒否時は採番次値を含む全状態が不変。保留標本は追加だけで統計・割当概念計数を変えない（旧採用分岐と同じ）。実旧_finalize_forward_validationの採用分岐と48＋2条件で全状態を照合、拒否40条件、class2/4×3optimizer×共有更新有無の12条件で採用前学習→採用→学習→正式ID確認→学習を実旧へ照合。対象＋AST977/全5876passed・3skipped・1既存warning（主担当実測＋JUnit）、fresh新CPU/品質/固定旧golden/11要件成功。新たな旧正常不具合は観測していない。次は確定処理の残り（棄却・再利用・維持分岐と記録/通知）と候補sessionの開始。入口はresume.md。
+- 採用候補のローカル採用は`../specs/adopted-candidate-local-adoption/README.md`。主担当Claude Code。要求revision2・設計revision2・命名revision2・tasks revision2・全3tasks承認/完了、別実Luna feature GO。外側runtimeの状態なし関数で、採番owner・初期ローカル登録・学習計数・学習標本store・現在の学習帰属IDを組み立てた。登録の検証が通るまで採番を確定せず、拒否時は採番次値を含む全状態が不変。保留標本は追加だけで統計・割当概念計数を変えない（旧採用分岐と同じ）。実旧_finalize_forward_validationの採用分岐と48＋2条件で全状態を照合、拒否40条件、class2/4×3optimizer×共有更新有無の12条件で採用前学習→採用→学習→正式ID確認→学習を実旧へ照合。対象＋AST977/全5876passed・3skipped・1既存warning（主担当実測＋JUnit）、fresh新CPU/品質/固定旧golden/11要件成功。正常経路の不具合は観測していないが、契約外入力での部分更新（LEGACY-012/013）と、採用時の保留標本が割当概念計数・統計へ反映されない非対称（LEGACY-014、意図未確認）を記録した。次は確定処理の残り（棄却・再利用・維持分岐と記録/通知）と候補sessionの開始。入口はresume.md。
 
 - 一時モデルIDの採番は`../specs/temporary-model-id-allocation/README.md`。主担当Claude Code。要求revision1・設計revision2・命名revision3・tasks revision2・全2tasks承認/完了、別実Luna feature GO。次に採番する負IDを一つ所有するownerを学習層へ追加し、初期値-100−client_idと単調減少の採番を移植。実旧BaseClientの実初期化/実採番と16条件で採番列を照合、拒否8、import全拒否のexact guardと注入契約24、stdlib単独起動、採番IDでの連続登録2条件。対象＋AST861/全5731passed・3skipped・1既存warning（主担当実測＋JUnit）、品質/固定旧golden/6要件成功。旧サーバの回収経路では異なるclientの同値一時IDは衝突しないことを確認（診断・成果物側は調査範囲外）。次は候補採用時の接続。入口はresume.md。
 
