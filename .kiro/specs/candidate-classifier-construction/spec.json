@@ -1,0 +1,63 @@
+{
+  "feature_name": "candidate-classifier-construction",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "created_at": "2026-10-07",
+  "updated_at": "2026-10-07",
+  "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "849f3e6c380eee2b235c9b92681582880d26c8b0500189ed7e96caafcc68bebc",
+      "approved_sha256_lf": "849f3e6c380eee2b235c9b92681582880d26c8b0500189ed7e96caafcc68bebc",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "851b48bf1c145e555cd898c3d9e93404c934e6071b3862d1da4f4dd7e7b8b975",
+      "approved_revision": 1,
+      "approved_sha256_lf": "851b48bf1c145e555cd898c3d9e93404c934e6071b3862d1da4f4dd7e7b8b975",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "b7cb1d4a85fc54c0b85ab87c73365f75747fc58386477010e38b0db7c77bc9d4",
+      "approved_revision": 1,
+      "approved_sha256_lf": "b7cb1d4a85fc54c0b85ab87c73365f75747fc58386477010e38b0db7c77bc9d4",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "fdd7fb568d1b563207b458d909b7819cc3f50833ea26f4acd528c5b162cdbb36",
+      "approved_sha256_lf": "fdd7fb568d1b563207b458d909b7819cc3f50833ea26f4acd528c5b162cdbb36",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "upstream_specs": [
+    "residual-adapter-model-architecture",
+    "classifier-parameter-snapshot",
+    "parameter-optimizer-state",
+    "candidate-parameter-initialization",
+    "joint-model-parameter-update"
+  ],
+  "implementation_progress": {
+    "completed_tasks": [],
+    "total_executable_tasks": 3,
+    "next_task": "1"
+  }
+}

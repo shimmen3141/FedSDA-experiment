@@ -1,0 +1,18 @@
+# 調査記録
+
+## 既存経路と分割理由
+
+- 旧clients/fedsda.py::_begin_forward_validationは_new_model→set_params→reset_optimizer→_train_new_model→参照生成→session作成の順。
+- 旧clients/base.py::_new_modelはmodel_cls()だけ。旧ResidualAdapterMLP.reset_optimizerは共有部→概念固有部の順に新規optimizerを生成し、生成時と明示reset時に呼ばれる。optimizer生成は乱数を消費しない。
+- 新ResidualAdapterClassifierはCPU float32の構造と旧同等の乱数消費を持つ。ParameterOptimizerStateとAdam/SGD固定設定、単回共同更新は完了している。
+- 候補初期値の選択はcandidate-parameter-initialization、参照固定はpost-alarm-reference-model-fixationで完了。警報区間の反復学習とsession進行は独立した責務なので本specへ混ぜない。
+- 構造の参照分類器を借用し、キー・shapeを乱数を消費しない既存snapshotから検査する。新しい構造推定器や空の検査用モデルを作らない。
+- 利用手順: cc-sdd requirements/design/tasksの規約、共通方針とagent-handoff。承認前のsrc/test作成は行わない。
+
+## Oracle
+
+BaseClient._new_modelを実旧clientで実行し、set_paramsとreset_optimizerを実行する。旧parameter名の対応は既存test helperを使う。各実装を同じCPU torch乱数状態から実行して終端状態を照合する。モデル生成前後の乱数消費も検査する。
+
+学習接続は既存共同更新の単一候補batchを使用し、実旧ResidualAdapterMLP.updateとの値・勾配・optimizer stateを照合する。初期生成に加えて更新できることを確認し、複数epoch/early stoppingへ範囲を拡大しない。
+
+2026-10-07: 既存登録oracleで実旧client/model_clsを準備し、BaseClient._new_model→set_params→reset_optimizerを実行、共有・個別optimizerのstateが空であることを確認した（exit0）。実装test作成前のoracle可用性確認であり、新実装の検証ではない。
