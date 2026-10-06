@@ -22,3 +22,6 @@ Luna APPROVED。previous_parameter_gradientsで不正parameterの既存grad参�
 ## Task1
 実GPT-6 Luna: APPROVED。独立16passed、Ruff/format/Pyright0、placeholder/secret CLEAN、境界WITHIN。検証後の一state_dict、native順detached独立copyとモデル/呼出元状態保持を確認。指摘なし、採用。主担当も16passed/3.62秒・Pyright0を確認。
 
+## Task2 / naming revision3
+実Luna: Task2と追加命名APPROVED。独立28passed、Ruff/format、placeholder/secret CLEAN、test-only境界WITHIN。末尾空行と承認済みlocal rename反映の提案を採用し、空行除去・ID→snapshot対応とTorch単独RNGの名前を修正した。production変更なし。
+

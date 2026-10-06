@@ -1,6 +1,6 @@
 # 命名: 分類器parameter snapshot
 
-revision: 2
+revision: 3
 
 ## production
 |名前|役割・型/入出力・単位・状態|
@@ -36,5 +36,9 @@ revision: 2
 |expected_parameter_values / parameter_values / parameter_name / prefix_pairs / native_prefix / legacy_prefix|期待値/比較値/名前/明示prefix対応。変換はtest-only|
 |model_id / input_features / selected_parameter_snapshot / first_classifier / second_classifier|test/smoke内のID/入力/選択出力/取得元/復元先|
 |source_module_path / imported_module_name / source_text|既存AST guard引数を再利用|
+|available_parameter_snapshots_by_model_id|test-onlyのdict[int,dict[str,Tensor]]。一分類器のparameter_snapshotと区別し、既存initializerの引数名に合わせる|
+|previous_torch_random_state|test-onlyのsnapshot前Torch RNG状態。3種類をまとめたprevious_random_statesとは区別|
+|training_batch|既存training_batchesの一要素。モデル/個別optimizerと観測batchへの借用参照|
+|test_classifier_parameter_snapshot_dependency_contract|今回moduleのexact symbol許可/拒否とbare import拒否を注入確認|
 
 他の永続状態・設定・公開型は追加しない。testのpytest/既存helper引数は既存役割を維持する。

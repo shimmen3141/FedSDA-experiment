@@ -1,11 +1,17 @@
 """分類器snapshotの独立性と固定旧モデルとの対応を確認する。"""
 
 import random
+from copy import deepcopy
 
 import numpy as np
 import pytest
 import torch
-from test_joint_model_parameter_update import build_joint_update_oracle_pair
+from test_joint_model_parameter_update import (
+    assert_joint_update_states_equal,
+    assert_nested_state_equal,
+    build_joint_update_oracle_pair,
+    run_legacy_joint_update,
+)
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
     build_attachment_classifier,
@@ -17,6 +23,18 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
     ResidualAdapterClassifier,
+)
+from federated_learning_experiments.learning.training.joint_model_parameter_update import (
+    perform_joint_model_parameter_update,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import (
+    select_candidate_initial_parameter_snapshot,
+)
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
+    CandidateParameterInitializationSettings,
 )
 
 
@@ -213,4 +231,122 @@ def test_snapshot_rejects_invalid_parameter_values(invalid_parameter_kind):
             rtol=0,
             atol=0,
             equal_nan=True,
+        )
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize("update_shared_features", [False, True])
+def test_training_snapshot_and_candidate_initialization_match_legacy(
+    class_count, optimizer_variant, update_shared_features, monkeypatch
+):
+    with torch.random.fork_rng(devices=[]):
+        training_batches, shared_parameter_optimizer, legacy_client = (
+            build_joint_update_oracle_pair(
+                class_count=class_count,
+                batch_sample_counts=(3, 5),
+                optimizer_variant=optimizer_variant,
+                monkeypatch=monkeypatch,
+            )
+        )
+        local_training_settings = LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )
+        for _ in range(3):
+            assert perform_joint_model_parameter_update(
+                local_training_settings=local_training_settings,
+                shared_feature_extractor=training_batches[0].classifier.feature_extractor,
+                shared_parameter_optimizer=shared_parameter_optimizer,
+                participating_training_batches=training_batches,
+                update_shared_features=update_shared_features,
+            ) == run_legacy_joint_update(
+                legacy_client=legacy_client, update_shared_features=update_shared_features
+            )
+            assert_joint_update_states_equal(
+                participating_training_batches=training_batches,
+                shared_parameter_optimizer=shared_parameter_optimizer,
+                legacy_client=legacy_client,
+            )
+        previous_optimizer_state = (
+            deepcopy(shared_parameter_optimizer.state_dict()),
+            tuple(
+                deepcopy(training_batch.concept_specific_parameter_optimizer.state_dict())
+                for training_batch in training_batches
+            ),
+        )
+        previous_torch_random_state = torch.get_rng_state().clone()
+        available_parameter_snapshots_by_model_id = {}
+        for model_id, training_batch in zip(legacy_client.models, training_batches):
+            classifier = training_batch.classifier
+            previous_parameter_state = snapshot_parameter_values_and_gradients(
+                classifier.parameters()
+            )
+            available_parameter_snapshots_by_model_id[model_id] = snapshot_classifier_parameters(
+                classifier=classifier
+            )
+            legacy_parameter_snapshot = legacy_client.models[model_id].get_params()
+            expected_parameter_values = {
+                legacy_parameter_name.replace("backbone.net.", "feature_extractor.hidden_layers.")
+                .replace("adapter.down.", "residual_adapter.feature_compression.")
+                .replace("adapter.up.", "residual_adapter.feature_expansion.")
+                .replace("head.", "classification_layer."): parameter_values
+                for legacy_parameter_name, parameter_values in legacy_parameter_snapshot.items()
+            }
+            assert_nested_state_equal(
+                available_parameter_snapshots_by_model_id[model_id], expected_parameter_values
+            )
+            assert_parameter_values_and_gradients_unchanged(previous_parameter_state)
+        assert torch.equal(torch.get_rng_state(), previous_torch_random_state)
+        initialization_settings = CandidateParameterInitializationSettings(
+            candidate_parameter_initialization_source="assigned_training_model"
+        )
+        for model_id, training_batch in zip(legacy_client.models, training_batches):
+            initialized_parameter_snapshot = select_candidate_initial_parameter_snapshot(
+                settings=initialization_settings,
+                available_parameter_snapshots_by_model_id=available_parameter_snapshots_by_model_id,
+                current_training_model_id=model_id,
+                evaluated_mean_losses_by_model_id=(),
+            )
+            assert initialized_parameter_snapshot is not None
+            assert_nested_state_equal(
+                initialized_parameter_snapshot, available_parameter_snapshots_by_model_id[model_id]
+            )
+            restored_classifier = build_attachment_classifier(class_count=class_count)
+            restored_classifier.load_state_dict(initialized_parameter_snapshot)
+            assert_nested_state_equal(
+                dict(restored_classifier.state_dict()),
+                available_parameter_snapshots_by_model_id[model_id],
+            )
+            with torch.no_grad():
+                assert torch.equal(
+                    restored_classifier(training_batch.input_features),
+                    training_batch.classifier(training_batch.input_features),
+                )
+            for parameter_name, parameter_values in initialized_parameter_snapshot.items():
+                assert (
+                    parameter_values.data_ptr()
+                    != available_parameter_snapshots_by_model_id[model_id][
+                        parameter_name
+                    ].data_ptr()
+                )
+                parameter_values.add_(1)
+            assert_nested_state_equal(
+                dict(restored_classifier.state_dict()),
+                available_parameter_snapshots_by_model_id[model_id],
+            )
+        assert_nested_state_equal(
+            shared_parameter_optimizer.state_dict(), previous_optimizer_state[0]
+        )
+        for training_batch, expected_parameter_values in zip(
+            training_batches, previous_optimizer_state[1]
+        ):
+            assert_nested_state_equal(
+                training_batch.concept_specific_parameter_optimizer.state_dict(),
+                expected_parameter_values,
+            )
+        assert_joint_update_states_equal(
+            participating_training_batches=training_batches,
+            shared_parameter_optimizer=shared_parameter_optimizer,
+            legacy_client=legacy_client,
         )

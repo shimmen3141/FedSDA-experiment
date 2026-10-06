@@ -13,3 +13,8 @@
 ## 再実行環境
 2026-10-06、既存Windows CPU基準、共有../../venv。OMP_NUM_THREADS=MKL_NUM_THREADS=1、MPLCONFIGDIR=../../venv/matplotlib-cache、TMP/TEMP=../../venv/refactoring-tests、FDE_MNIST_DATA_DIR=../../data/mnist。
 版と基準はdocs/experiments/refactoring-baseline.md / environments/golden/windows-cpu。goldenは固定旧実装を実行し、新全体run完成を意味しない。
+## Task2
+- test-only接続なのでproduction RED N/A。初回は復元先state_dictのOrderedDictとsnapshotのplain dictをexact型比較するtestの誤りにより12 failed/16 passed。比較時だけdictへ明示変換し、productionは変更しない。
+- class2/4×Adam標準/AMSGrad/SGD×共有更新/凍結の12条件、各3共同更新の全loss/parameter/grad/optimizer stateを実旧照合する。
+- 両保有モデルのsnapshot→既存assigned initializer→新native load_state_dictを接続。全値/順序/予測一致、snapshot/選択結果/復元先の独立性、既存optimizer stateとgradient保持を確認。
+- 28 passed/3.13秒/exit0、Ruff/format成功、実Luna独立28passed/Task2 APPROVED。有用なlocal renameと末尾空行除去を採用。
