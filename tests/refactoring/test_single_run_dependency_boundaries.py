@@ -11,6 +11,61 @@ import pytest
 @pytest.mark.parametrize(
     "source_text,expected_acceptance",
     [
+        ("import torch", False),
+        ("import torch.nn", False),
+        ("import math", False),
+        ("from random import Random", False),
+        ("import numpy", False),
+        ("from torch import nn", False),
+        ("from torch import rand", False),
+        ("from torch import clamp", False),
+        ("from torch import mean", False),
+        ("from torch.nn import BCELoss", False),
+        ("from torch.optim import Adam", False),
+        (
+            "from .class_probability_calculations import compute_model_mean_bounded_losses_after_label_observation",
+            False,
+        ),
+        ("from ..models.residual_adapter_classifier import _validate_classifier_inputs", False),
+        ("from ..models import residual_adapter_classifier", False),
+        (
+            "import federated_learning_experiments.learning.models.residual_adapter_classifier",
+            False,
+        ),
+        (
+            "from ..loss_statistics.batch_loss_statistics_initialization import initialize_model_and_class_loss_statistics_from_batch",
+            False,
+        ),
+        (
+            "from ..training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
+            False,
+        ),
+        ("from federated_learning_experiments.runtime import run", False),
+        ("from federated_learning_experiments.configuration import config", False),
+        ("import federated_drift_experiment", False),
+        ("import pathlib", False),
+        ("from torch import *", False),
+        ("from torch import Tensor", True),
+        ("from torch import abs, float32, isfinite", True),
+        ("from torch import no_grad, softmax, strided, trunc", True),
+        ("from ..models.residual_adapter_classifier import ResidualAdapterClassifier", True),
+        (
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier as Classifier",
+            True,
+        ),
+    ],
+)
+def test_classifier_bounded_loss_evaluation_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="learning/prediction/classifier_bounded_loss_evaluation.py",
+        source_text=source_text,
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
         ("import math", False),
         ("from random import Random", False),
         ("import numpy", False),
@@ -213,6 +268,18 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/prediction/classifier_bounded_loss_evaluation.py":
+        return imported_module_name in (
+            "torch.Tensor",
+            "torch.abs",
+            "torch.float32",
+            "torch.isfinite",
+            "torch.no_grad",
+            "torch.softmax",
+            "torch.strided",
+            "torch.trunc",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+        )
     if source_module_path == "learning/training/held_model_training_state_registry.py":
         # 一覧構造と公開状態参照だけを許可し、上位処理の呼出しを防ぐ。
         return imported_module_name in (
@@ -677,10 +744,10 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             import_statement=import_statement,
             importing_package_name=importing_package_name,
         )
-        if (
-            source_module_path == "learning/training/held_model_training_state_registry.py"
-            and isinstance(import_statement, ast.ImportFrom)
-        ):
+        if source_module_path in (
+            "learning/training/held_model_training_state_registry.py",
+            "learning/prediction/classifier_bounded_loss_evaluation.py",
+        ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
                 resolve_name(
@@ -693,7 +760,11 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             )
         for imported_module_name in imported_module_names:
             if (
-                source_module_path == "learning/training/held_model_training_state_registry.py"
+                source_module_path
+                in (
+                    "learning/training/held_model_training_state_registry.py",
+                    "learning/prediction/classifier_bounded_loss_evaluation.py",
+                )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(
                 source_module_path=source_module_path,
