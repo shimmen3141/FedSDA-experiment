@@ -1,7 +1,7 @@
 {
   "feature_name": "adopted-candidate-initial-local-registration",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "feature-review-pending",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "primary_agent": "claude-opus-5-5 (Claude Code)",
@@ -77,5 +77,23 @@
   },
   "updated_at": "2026-10-07",
   "verification_source_sha256": "463e40ad2e6d917bd20727104799aba585ff7b47a30b7cfe8f9209f068dcc6cb",
-  "verification_source_path_count": 229
+  "verification_source_path_count": 229,
+  "integration_validation": {
+    "decision": "PENDING",
+    "status": "FEATURE_REVIEW_NO_GO_PENDING_INDEPENDENT_FULL_PYTEST",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "codex session 01a1127a-f711-7192-87df-3310f99c18e2",
+    "requirements_covered": 13,
+    "test_pass_count": 5678,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "independent_full_pytest_reproduced": false,
+    "verification_source_sha256": "463e40ad2e6d917bd20727104799aba585ff7b47a30b7cfe8f9209f068dcc6cb"
+  }
 }

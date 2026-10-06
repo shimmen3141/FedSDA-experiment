@@ -25,3 +25,13 @@ Task3（1回目）: 実Luna CHANGES_REQUESTED。Lunaの独立全pytestがsandbox
 Task3（2回目）: 実Luna CHANGES_REQUESTED。worktree内の一時ディレクトリでもsandbox制限で同じ結果となり、独立再現は未達。失敗・errorは全て書込み拒否の環境起因で、コード起因の失敗は確認されないとのLuna判断→再実行結果を記録へ追記（採用）。sandboxを外した実行はユーザー承認がないため行わない。
 
 Task3（3回目）: 実Luna APPROVED、指摘なし。前specと同じ基準（主担当実測＋JUnit照合、対象testの独立実行、旧差分空）で承認。JUnit内のgolden回帰2 testcaseに失敗/error/skipがないことをLunaが照合。残る制約: codex sandboxの書込み拒否により、独立レビュー側では全pytestの成功を再現できておらず、主担当の実測とJUnitを根拠にしている。
+
+別feature最終レビュー: 実Luna NO-GO（codex session 01a1127a-f711-7192-87df-3310f99c18e2、実行ログのmodel行はgpt-6-luna。回答末尾の自己申告は「GPT-6（GPT-6 Lunaレビューではありません）」で、ログのmodel指定と食い違う。食い違いの原因は未確認）。要求13項目は全て充足、状態所有/依存方向/旧対応/範囲の境界/golden・旧実装の不変/記録の区別に指摘なし。唯一の指摘（重要度高）: 独立レビュー側で全pytestの成功を再現できておらず、統合検証を追認できない→採用。GOへ更新しない。
+
+## レビュー待ち（feature最終GO）
+
+- 段階: 別feature最終GO。全3taskは承認・完了済み。対象commitは09c399b（production/testはdd9f57dから変更なし）、source hash 229パス 463e40ad…、承認hashはspec.json。
+- 未達の条件: 独立レビュー担当による全pytest（5678 passed/3 skipped、旧11・最終3goldenを含む）の再現。主担当実測とJUnit、対象＋AST928/smoke/品質/旧差分空のLuna独立確認は済み。
+- 原因: codex execのWindows sandbox（read-only/workspace-write）では、pytestのtmp_path走査（os.scandir）と一時ファイル書込みがWinError 5で拒否される。worktree内の一時ディレクトリでも同じ。コード起因の失敗は観測されていない。
+- 解消手段の候補（ユーザー判断が必要）: (1)sandboxなしでLunaに全pytestだけを実行させる、(2)前specまでと同じ基準（主担当実測＋JUnit照合）で最終GOとすることをユーザーが明示する、(3)ユーザー自身またはCodex側セッションのLunaが全pytestを実行して結果を記録する。主担当はsandbox解除を自己判断で行わない。
+- GO後の作業: spec.jsonをcompletedへ更新しintegration_validationを記録、resume/roadmapの現在地を更新。次specは候補sessionの開始/終了（計数・標本追加・現在ID切替えと通知を含む）。

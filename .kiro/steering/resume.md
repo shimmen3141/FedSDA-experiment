@@ -10,11 +10,13 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
 - 直近完了: [保有モデルの正式登録確認](../specs/held-model-registration-confirmation/README.md)。要求/設計revision1・命名revision2・tasks revision1・全3taskをLuna承認/完了、別feature最終GO。
 - 直近の検証済み実装commit: `03f24e6`。全5518 passed/3 skipped/1既存warning、対象＋AST864passed、fresh新CPU/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。runtimeに7ownerの確認組立を接続し、現在bindingによる後続学習の全数値/optimizer保持を実旧へ対照。
+- レビュー待ち: [採用候補の初期ローカル登録](../specs/adopted-candidate-initial-local-registration/README.md)。主担当Claude Code、要求r2/設計r2/命名r3/tasks r3と全3taskをLuna承認、実装commit dd9f57d・記録09c399b。全5678 passed/3 skipped/1既存warning、対象＋AST928、fresh新CPU/品質/旧11・最終3golden成功（主担当実測）。別feature最終レビューはNO-GO: Luna側sandboxで全pytestを独立再現できないことだけが理由。解消手段はユーザー判断待ちで、同specのreview.md「レビュー待ち」を参照。completedではない。
 - 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
 
+0. 上のレビュー待ちの解消（最優先）。GO後、下の1のうち登録本体は同specで実装済みとなり、残りは候補session側の計数/標本追加/現在ID切替え・通知。
 1. 採用済みモデルの初期ローカル登録: 各ownerと、保有済み一時modelの正式ID確認組立は完了。次は旧`clients/base.py::_register_trained_new_model`・各methodの呼出箇所から、共有部反映/再接続・学習状態登録・初期損失統計・独立snapshot・送信保留/待機の組立を仕様化する。計数/標本追加/現在ID切替えの呼出順と、候補採用・初期登録・確認の境界を明示する。確認APIはモデル保有を前提にし、欠落時snapshotからの再構築は呼出し側server/clientへ残す（旧分岐未移植）。現在ID同値設定はno-op、新計数同ID移管は拒否（LEGACY011、通常経路への影響未確認）。評価fallback/EVAL_MAX_SAMPLESはサーバ評価接続時、実送信は通信specで扱う。
 2. 候補の生成・初期学習・前向き検証sessionの開始/終了を、既存の初期化・学習・採否部品へ接続する。
 3. 警報後の帰属変更とclient進行、サーバ同期・ID対応へ順次接続する。
