@@ -2,6 +2,7 @@
 
 ## Scope
 一保留枠/借用snapshot/対応ID/正の待機回数と境界通知/解除。統計取得は上位のtest-only接続。登録確認・ID対応・実送信・新client/全体runは後続。要求/設計rev1・命名rev2が正本。
+全3task承認/check後の別feature統合レビューで実Luna DECISION: GO。11/11要件・設計/ファイル計画・境界/依存・接続/共有状態・全実測にblockerなし。主担当completion gateも本scopeでVERIFIED。
 
 ## Task1
 - 先行REDは未存在packageのModuleNotFoundError、1 collection error/2.73秒/exit1。

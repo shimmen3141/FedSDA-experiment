@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- 新規モデルの送信保留は`../specs/pending-model-upload/README.md`。要求/設計revision1・命名revision2・全3tasksをLuna承認/完了、別feature統合GO。一保留枠/生成済みsnapshot借用/対応ID/正のラウンド待機/非消費取得/明示解除を移植。実旧9状態列と6実NN/統計更新接続で、登録時モデル値固定と現在統計全field/readinessをexact照合。対象＋AST731/全4492 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧golden/全11要件を確認。旧解除後の無効counterは空の有効残数0として明示対応し、送信時期は維持。新たな旧正常不具合は観測していない。統計/モデル所有・正式登録/ID対応・実送信・client進行/全体runは後続。
+
 - 分類器parameter snapshotは`../specs/classifier-parameter-snapshot/README.md`。要求/設計revision1・命名revision3・全3tasksをLuna承認/完了、別feature統合GO。検証後のnative順全値detached独立copyを実装。実旧class2/4/10のget_paramsと12条件3学習後のsnapshot→既存initializer→native復元/予測/optimizer保持をexact照合。対象＋AST666/全4399 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧golden/全8要件を確認。新たな旧正常不具合は観測していない。送信保留状態・統計/標本登録・ID対応・新client/全体runは後続。
 
 - 準備済み分類器の標本別有界損失は`../specs/classifier-per-sample-bounded-loss-evaluation/README.md`。要求revision2・設計revision2・命名revision1と全3tasksをLuna承認・完了、feature最終GO。一forwardの標本別有界損失と事前/出力検証を移植し、実旧24条件の損失と12条件3学習後の初期統計全fieldをexact照合。対象＋AST701/全4345 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧差分/全11要件を確認。新testのdevice context漏れはscoped contextへ修正しdevelopment findingへ記録。新たな旧正常経路の不具合は観測していない。状態・登録・学習・採否・送信・新client/全体runの所有を含まない。

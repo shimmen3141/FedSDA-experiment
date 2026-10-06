@@ -28,3 +28,8 @@ Luna NEEDS_FIXES。旧解除後の私有counter残留と新clearの0の対応を
 実Luna APPROVED。独立731passed/4.10秒、全回帰実JUnit4492passed/3skipped/0failures/0errors、fresh CPU旧非import、静的検査/placeholder/secret CLEAN、AST実diffとREDを確認。全pytestは主担当実測を使用し再実行なし。指摘なし、採用。
 承認後の主担当gateも731passed/5.59秒、fresh CPU成功・diff-check成功。全3task check後に別feature GOへ進める。
 
+## feature統合gate
+全3task check/承認後、別の実Luna最終レビューでDECISION: GO。
+全4492passed/3skipped/0failures/0errorsとsource hash、独立fresh CPU（旧非import）、11/11要件coverage、cross-task契約・snapshot固定/統計現在値/待機状態・設計/ファイル計画・依存方向/境界、TODO/secret CLEANを確認。blocker/指摘なし、採用。
+主担当も本送信保留部品をFEATURE_GO/VERIFIEDと判定。モデル/統計所有・正式登録/ID対応・実送信・client進行/全体runは後続。
+
