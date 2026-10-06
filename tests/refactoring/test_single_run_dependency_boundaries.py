@@ -370,6 +370,19 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "evaluation/model_evaluation_sample_records.py":
+        return imported_module_name in (
+            "__future__.annotations",
+            "dataclasses.dataclass",
+            "torch.Tensor",
+        )
+    if source_module_path == "evaluation/model_evaluation_sample_store.py":
+        return imported_module_name in (
+            "__future__.annotations",
+            "random.Random",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_records.ObservedEvaluationSample",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_records.ModelEvaluationSampleCollection",
+        )
     if source_module_path == "methods/fedsda/model_registration/pending_model_upload.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -868,6 +881,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "learning/prediction/classifier_bounded_loss_evaluation.py",
             "learning/models/classifier_parameter_snapshot.py",
             "methods/fedsda/model_registration/pending_model_upload.py",
+            "evaluation/model_evaluation_sample_records.py",
+            "evaluation/model_evaluation_sample_store.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -887,6 +902,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "learning/prediction/classifier_bounded_loss_evaluation.py",
                     "learning/models/classifier_parameter_snapshot.py",
                     "methods/fedsda/model_registration/pending_model_upload.py",
+                    "evaluation/model_evaluation_sample_records.py",
+                    "evaluation/model_evaluation_sample_store.py",
                 )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(
@@ -914,6 +931,7 @@ def test_single_run_package_boundaries_have_no_exports():
         "execution",
         "runtime",
         "learning/prediction",
+        "evaluation",
     )
     for package_boundary_path in package_boundary_paths:
         source_file_path = package_source_directory / package_boundary_path / "__init__.py"
@@ -2562,6 +2580,65 @@ def test_model_training_sample_store_dependency_contract(source_text, expected_a
     dependency_boundary_violations = collect_dependency_boundary_violations(
         source_module_path="learning/training/model_training_sample_store.py",
         source_text=source_text,
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_module_path,source_text,expected_acceptance",
+    [
+        *[
+            (source_module_path, source_text, False)
+            for source_module_path in (
+                "evaluation/model_evaluation_sample_records.py",
+                "evaluation/model_evaluation_sample_store.py",
+            )
+            for source_text in (
+                "import math",
+                "import random",
+                "from random import sample",
+                "from random import SystemRandom",
+                "import torch",
+                "from torch import clone",
+                "import numpy",
+                "import federated_drift_experiment",
+                "from dataclasses import asdict",
+                "from torch import *",
+                "from .model_evaluation_sample_records import _private",
+                "from .model_evaluation_sample_records import Tensor",
+                "from .model_evaluation_sample_records.child import ObservedEvaluationSample",
+                "import federated_learning_experiments.evaluation.model_evaluation_sample_records",
+                "from federated_learning_experiments.evaluation import model_evaluation_sample_records",
+                "from federated_learning_experiments.runtime import run_experiment",
+                "from ..learning.training.model_training_sample_store import ModelTrainingSampleStore",
+                "from ..learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            )
+        ],
+        (
+            "evaluation/model_evaluation_sample_records.py",
+            "from dataclasses import dataclass",
+            True,
+        ),
+        ("evaluation/model_evaluation_sample_records.py", "from torch import Tensor", True),
+        ("evaluation/model_evaluation_sample_records.py", "from random import Random", False),
+        ("evaluation/model_evaluation_sample_store.py", "from dataclasses import dataclass", False),
+        ("evaluation/model_evaluation_sample_store.py", "from random import Random", True),
+        ("evaluation/model_evaluation_sample_store.py", "from __future__ import annotations", True),
+        (
+            "evaluation/model_evaluation_sample_store.py",
+            "from .model_evaluation_sample_records import ObservedEvaluationSample",
+            True,
+        ),
+        (
+            "evaluation/model_evaluation_sample_store.py",
+            "from .model_evaluation_sample_records import ModelEvaluationSampleCollection",
+            True,
+        ),
+    ],
+)
+def test_model_evaluation_sample_dependencies(source_module_path, source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path=source_module_path, source_text=source_text
     )
     assert (not dependency_boundary_violations) == expected_acceptance
 

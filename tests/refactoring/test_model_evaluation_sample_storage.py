@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 import torch
+from test_classifier_bounded_loss_evaluation import build_bounded_loss_oracle_pair
 
 from federated_drift_experiment import config
 from federated_drift_experiment.clients.base import BaseClient
@@ -17,6 +18,9 @@ from federated_learning_experiments.evaluation.model_evaluation_sample_records i
 )
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
+)
+from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
+    evaluate_classifier_per_sample_bounded_losses,
 )
 
 
@@ -58,6 +62,9 @@ def build_evaluation_storage_oracle(*, capacity=7, append_sample_count=20):
         pending_model_params=None,
         pending_model_stats=None,
         pending_model_ready=True,
+        mapping_change_positions=[],
+        processed_samples=0,
+        _record_adaptation_event=Mock(),
     )
     evaluation_samples = tuple(
         ObservedEvaluationSample(
@@ -454,3 +461,127 @@ def test_evaluation_storage_checks_random_on_empty_noop_paths(
                 model_id_mapping={}, python_random_generator=None
             )
     assert sample_store.snapshot_ordered_model_evaluation_samples() == previous_snapshot
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+def test_evaluation_storage_connects_reassignment_and_multiple_overflows_to_losses(
+    class_count, monkeypatch
+):
+    with torch.random.fork_rng(devices=[]):
+        classifier, legacy_classifier, sampled_records = build_bounded_loss_oracle_pair(
+            class_count=class_count, sample_count=6, monkeypatch=monkeypatch
+        )
+        evaluation_samples = tuple(
+            ObservedEvaluationSample(
+                input_features=sampled_records.input_features[sample_count : sample_count + 1],
+                observed_class_labels=sampled_records.observed_class_labels[
+                    sample_count : sample_count + 1
+                ],
+            )
+            for sample_count in range(6)
+        )
+        sample_store, legacy_client, _ = build_evaluation_storage_oracle(
+            capacity=4, append_sample_count=4
+        )
+        monkeypatch.setattr(config, "EVAL_STORE_SAMPLE_SIZE", 4)
+        python_random_generator = random.Random(731)
+        previous_random_states = (random.getstate(), np.random.get_state(), torch.get_rng_state())
+        previous_numeric_environment = (
+            torch.get_default_dtype(),
+            torch.get_default_device(),
+            torch.is_grad_enabled(),
+        )
+        for model_id in (4, 8, 2, 6):
+            expected_random_state = run_legacy_evaluation_operation(
+                legacy_client=legacy_client,
+                operation_name="append",
+                operation_arguments={
+                    "model_id": model_id,
+                    "data_list": [
+                        (evaluation_sample.input_features, evaluation_sample.observed_class_labels)
+                        for evaluation_sample in evaluation_samples
+                    ],
+                },
+                initial_random_state=python_random_generator.getstate(),
+            )
+            sample_store.sample_and_append_model_evaluation_samples(
+                model_id=model_id,
+                evaluation_samples=evaluation_samples,
+                python_random_generator=python_random_generator,
+            )
+            assert python_random_generator.getstate() == expected_random_state
+        previous_snapshot = sample_store.snapshot_ordered_model_evaluation_samples()
+        # 上位で旧仮ID状態を対応し、正式確認のpop上書き経路を使う。
+        expected_random_state = run_legacy_evaluation_operation(
+            legacy_client=legacy_client,
+            operation_name="remap",
+            operation_arguments={"model_id_mapping": {4: -7}},
+            initial_random_state=python_random_generator.getstate(),
+        )
+        sample_store.remap_model_evaluation_sample_collections(
+            model_id_mapping={4: -7}, python_random_generator=python_random_generator
+        )
+        assert python_random_generator.getstate() == expected_random_state
+        expected_random_state = run_legacy_evaluation_operation(
+            legacy_client=legacy_client,
+            operation_name="reassign",
+            operation_arguments={"original_model_id": -7, "reassigned_model_id": 12},
+            initial_random_state=python_random_generator.getstate(),
+        )
+        sample_store.reassign_model_evaluation_samples_id(
+            original_model_id=-7, reassigned_model_id=12
+        )
+        assert python_random_generator.getstate() == expected_random_state
+        expected_random_state = run_legacy_evaluation_operation(
+            legacy_client=legacy_client,
+            operation_name="remap",
+            operation_arguments={"model_id_mapping": {8: 9, 2: 15, 6: 15, 12: 9}},
+            initial_random_state=python_random_generator.getstate(),
+        )
+        sample_store.remap_model_evaluation_sample_collections(
+            model_id_mapping={8: 9, 2: 15, 6: 15, 12: 9},
+            python_random_generator=python_random_generator,
+        )
+        assert python_random_generator.getstate() == expected_random_state
+        assert_evaluation_storage_matches_legacy(
+            sample_store=sample_store, legacy_client=legacy_client
+        )
+        assert tuple(collection.model_id for collection in previous_snapshot) == (4, 8, 2, 6)
+        assert tuple(
+            collection.model_id
+            for collection in sample_store.snapshot_ordered_model_evaluation_samples()
+        ) == (9, 15)
+        for collection in sample_store.snapshot_ordered_model_evaluation_samples():
+            assert len(collection.evaluation_samples) == 4
+            input_features = torch.cat(
+                [
+                    evaluation_sample.input_features
+                    for evaluation_sample in collection.evaluation_samples
+                ]
+            )
+            observed_class_labels = torch.cat(
+                [
+                    evaluation_sample.observed_class_labels
+                    for evaluation_sample in collection.evaluation_samples
+                ]
+            )
+            with torch.no_grad():
+                expected_losses = legacy_classifier.per_sample_error(
+                    input_features, observed_class_labels
+                )
+            actual_losses = evaluate_classifier_per_sample_bounded_losses(
+                classifier=classifier,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+            )
+            assert torch.equal(actual_losses, expected_losses)
+        assert random.getstate() == previous_random_states[0]
+        assert np.random.get_state()[0] == previous_random_states[1][0]
+        assert np.array_equal(np.random.get_state()[1], previous_random_states[1][1])
+        assert np.random.get_state()[2:] == previous_random_states[1][2:]
+        assert torch.equal(torch.get_rng_state(), previous_random_states[2])
+        assert previous_numeric_environment == (
+            torch.get_default_dtype(),
+            torch.get_default_device(),
+            torch.is_grad_enabled(),
+        )
