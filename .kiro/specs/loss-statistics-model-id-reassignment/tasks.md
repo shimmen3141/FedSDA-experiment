@@ -12,7 +12,7 @@
   - 付替えだけでは保留record・残回数・登録時snapshotを変更しないこと、現在統計全field・parameter/grad/RNG/既定環境の保持を確認。production追加なし、RED N/A。
   - 対象pytest/独立Lunaレビューをgateとする。
   - Requirements: 2.3,2.4
-- [ ] 3. 既存境界と固定goldenを統合検証する
+- [x] 3. 既存境界と固定goldenを統合検証する
   - 依存追加がないことを既存ASTで確認（guard変更・RED N/A）。fresh新CPU snapshot/store/pending/付替え/clear接続・旧非importを確認。
   - 全pytest旧11/最終3golden、Ruff/format/Pyright/pip/diff、固定旧・golden差分空、source hash/JUnitを実測記録。
   - 独立Luna taskレビュー後に主担当gateでtask3をcheckする。

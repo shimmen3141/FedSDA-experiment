@@ -24,3 +24,8 @@ Luna NEEDS_FIXES: 旧pop代入/順序/欠落/事前検査とoracleの妥当性�
 ## Task2
 
 実Luna APPROVED。独立67passed/3.23秒、Ruff/format/diff成功。test-only境界、4条件のsnapshot/現在統計/保留/残回数/parameter/grad/乱数/既定環境を確認。指摘なし、採用。
+
+## Task3
+
+実Luna APPROVED。JUnit4562 tests/0 failures/0 errors/3 skipped、独立731passed/6.62秒、fresh旧非import、品質・固定旧差分空、source hash一致、変更なしの既存guard RED N/Aを確認。指摘なし、採用。
+承認後の主担当gateで対象＋AST/fresh/diffを再実行し、全3taskをcheckする。feature最終GOは別判定。

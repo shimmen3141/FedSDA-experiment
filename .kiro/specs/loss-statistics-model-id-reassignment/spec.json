@@ -1,9 +1,9 @@
 {
   "feature_name": "loss-statistics-model-id-reassignment",
   "created_at": "2026-10-06T09:41:51.605685+00:00",
-  "updated_at": "2026-10-06T09:43:26.262094+00:00",
+  "updated_at": "2026-10-06T09:54:05.037426+00:00",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "implementation-complete",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -48,7 +48,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "current_sha256_lf": "d8fd3027344d2ddede07aaf905c445a3fb3aaae49c9c6f79ad6aedf007e9f41f"
+      "current_sha256_lf": "38c2f82d34bb786a0243e08c4d33e167967560a8603c0eab2ccc0e1250b96550"
     }
   },
   "ready_for_implementation": true,
@@ -61,15 +61,18 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
-    "completed_task_count": 2,
+    "completed_task_count": 3,
     "total_executable_tasks": 3,
-    "next_task": "3"
+    "next_task": null
   },
   "task_graph_review": {
     "verdict": "PASS",
     "mode": "independent_reused_thread",
     "record": "review.md"
-  }
+  },
+  "verification_source_sha256": "cfd392fe76a2a8958845adf556e4322d45f151e7360fedbdfcbff9ac574ce660",
+  "verification_source_path_count": 215
 }
