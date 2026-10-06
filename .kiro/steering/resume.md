@@ -5,18 +5,20 @@
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
-- 直近完了: [現在の学習帰属モデルID](../specs/current-training-model-assignment/README.md)。要求revision3・設計revision1・命名revision2・tasks revision2・全3taskをLuna承認/完了、別feature最終GO。
-- 直近の検証済み実装commit: `a4959fb`。全5398 passed/3 skipped/1既存warning、対象＋AST819passed、stdlib単独/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。品質検査のroot探索で観測した問題と回避はdevelopment findingとcode-quality.mdへ記録。
+- 直近完了: [保有モデルの正式登録確認](../specs/held-model-registration-confirmation/README.md)。要求/設計revision1・命名revision2・tasks revision1・全3taskをLuna承認/完了、別feature最終GO。
+- 直近の検証済み実装commit: `03f24e6`。全5518 passed/3 skipped/1既存warning、対象＋AST864passed、fresh新CPU/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。runtimeに7ownerの確認組立を接続し、現在bindingによる後続学習の全数値/optimizer保持を実旧へ対照。
 - 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
 
-1. 正式ローカル登録の接続: モデル一覧・損失/初期統計・独立parameter snapshot・送信保留/待機管理、統計store・学習状態registry・学習標本storeの単一ID付替えは完了。評価標本の容量/ID再編、モデル別学習量・個別step・真concept診断件数の加算保持/移管、現在の単一学習帰属ID ownerも完了。次は正式ローカル登録の組立を、旧`clients/base.py::_register_trained_new_model`・`confirm_model_registration`と各methodの呼出箇所から確認し仕様化する。各ownerの呼出順・現在統計の取得時機・通知理由・登録時snapshot/送信保留の関係を明示する。現在IDの同値設定はno-opだが、新計数APIの同ID加算移管は事前拒否する（LEGACY011、通常経路への影響未確認）。評価対象fallback選択/EVAL_MAX_SAMPLESは別の未移植責務でサーバ評価接続時に扱う。全登録と実通信を一specへ詰め込まない。
+1. 採用済みモデルの初期ローカル登録: 各ownerと、保有済み一時modelの正式ID確認組立は完了。次は旧`clients/base.py::_register_trained_new_model`・各methodの呼出箇所から、共有部反映/再接続・学習状態登録・初期損失統計・独立snapshot・送信保留/待機の組立を仕様化する。計数/標本追加/現在ID切替えの呼出順と、候補採用・初期登録・確認の境界を明示する。確認APIはモデル保有を前提にし、欠落時snapshotからの再構築は呼出し側server/clientへ残す（旧分岐未移植）。現在ID同値設定はno-op、新計数同ID移管は拒否（LEGACY011、通常経路への影響未確認）。評価fallback/EVAL_MAX_SAMPLESはサーバ評価接続時、実送信は通信specで扱う。
 2. 候補の生成・初期学習・前向き検証sessionの開始/終了を、既存の初期化・学習・採否部品へ接続する。
 3. 警報後の帰属変更とclient進行、サーバ同期・ID対応へ順次接続する。
 
 この順序は候補。再開時にコードと完了specを照合し、未移植の依存があれば先に仕様化する。既存の完了タスクを無条件に再実装しない。
+
+新構成の機能名はproduct.md/configuration-foundation/naming.mdを参照。Residual Adapterの語は構造として維持し、部品はNonlinearResidualAdapter、構成はshared_backbone_residual_adapter。旧Switchingの新構成名はfixed_share_weighted_prediction。旧称は過去実験との対応説明で併記する。
 
 ## 最初に読む文書と手順
 

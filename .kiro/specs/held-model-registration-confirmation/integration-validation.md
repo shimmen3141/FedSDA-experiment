@@ -43,3 +43,7 @@
 |3.2|実旧confirmと12条件3更新の全数値/状態一致、fresh新CPU|
 
 欠落model復元/初期登録/通信/new client/runは後続。新たな旧正常経路の不具合は観測していない。旧golden成功は新全体runの検証と区別する。
+
+## 別feature最終gate
+
+実GPT-6 Luna GO、9/9要件/所有/依存/設計/ファイル計画/統合を確認。未達/blocked/指摘なし。主担当は全suite/品質/承認hashと227パスsource hash/固定旧差分空を再照合して完了。

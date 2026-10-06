@@ -1,7 +1,7 @@
 {
   "feature_name": "held-model-registration-confirmation",
   "language": "ja",
-  "phase": "implementation-complete",
+  "phase": "completed",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -72,5 +72,26 @@
     "completed_task_count": 3
   },
   "verification_source_sha256": "e87d426ec169c676a7b6ce57b7aa468d8d434992d08bdb5dcf6ffb12a8370621",
-  "verification_source_path_count": 227
+  "verification_source_path_count": 227,
+  "updated_at": "2026-10-07",
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "requirements_covered": 9,
+    "test_pass_count": 5518,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "held_model_registration_confirmation_only",
+    "verification_source_sha256": "e87d426ec169c676a7b6ce57b7aa468d8d434992d08bdb5dcf6ffb12a8370621",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go"
+  }
 }
