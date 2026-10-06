@@ -6,7 +6,7 @@
 - [x] 2. 依存境界と登録後の学習・登録確認を接続する
   - AST注入RED→GREEN（13symbol exact guard）。12条件（class2/4×Adam標準・AMSGrad・SGD×共有部更新有無）の実NNで共同更新→候補の独立学習→登録→登録後の共同更新を実旧と照合し、loss/全値/grad/optimizer state/RNGの一致を確認。既存の登録確認で一時ID→正式IDへ付け替えた後の継続も確認。fresh新CPUで旧importなしの登録→後続学習。独立Luna/主担当gate。
   - Requirements: 1.4,3.1,3.2
-- [ ] 3. 固定環境の全回帰を確認する
+- [x] 3. 固定環境の全回帰を確認する
   - 全pytest/旧11・最終3golden、品質/型/pip/diff、固定旧差分空、承認/source hash・JUnit/実測を記録。独立Luna/主担当gateで完了。
   - Requirements: 3.2
 

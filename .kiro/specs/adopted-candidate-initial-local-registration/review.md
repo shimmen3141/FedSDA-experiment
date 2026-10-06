@@ -19,3 +19,9 @@ Task1: 実Luna APPROVED、指摘なし。実装が設計手順1〜10と検証順
 命名revision3: 実Luna APPROVED、指摘なし。Task2のtest用追加名（保有モデル状態の対照helper、両実装の共同更新closure等）を確認。productionの名前追加なし。
 
 Task2: 実Luna APPROVED、指摘なし。13symbol＋__future__.annotationsだけを許可するexact guardと注入契約、12条件testが実旧の_train_heads_together/ResidualAdapterMLP.update/_register_trained_new_model/BaseClient.confirm_model_registrationを実行して全段階を対照していること、fresh CPU smokeの旧importなしを確認。Lunaはworkspace-write sandboxでPowerShellから独立実行し、対象＋AST 928 passed、smoke PASS、Ruff check/format成功（指定したbash起動はGit BashのWin32 error 5で不可）。主担当はレビュー前後のgit status一致（Lunaによるファイル変更なし）を確認。
+
+Task3（1回目）: 実Luna CHANGES_REQUESTED。Lunaの独立全pytestがsandboxのPermissionErrorで1 failed/5649 passed/3 skipped/28 errorsとなり記録と一致しない→採用。主担当実測とLuna再実行の区別、未確認である旨をintegration-validationへ追記。対象＋AST928/smoke/Ruff/JUnit集計/旧差分空/承認hashはLunaが独立に一致確認。
+
+Task3（2回目）: 実Luna CHANGES_REQUESTED。worktree内の一時ディレクトリでもsandbox制限で同じ結果となり、独立再現は未達。失敗・errorは全て書込み拒否の環境起因で、コード起因の失敗は確認されないとのLuna判断→再実行結果を記録へ追記（採用）。sandboxを外した実行はユーザー承認がないため行わない。
+
+Task3（3回目）: 実Luna APPROVED、指摘なし。前specと同じ基準（主担当実測＋JUnit照合、対象testの独立実行、旧差分空）で承認。JUnit内のgolden回帰2 testcaseに失敗/error/skipがないことをLunaが照合。残る制約: codex sandboxの書込み拒否により、独立レビュー側では全pytestの成功を再現できておらず、主担当の実測とJUnitを根拠にしている。
