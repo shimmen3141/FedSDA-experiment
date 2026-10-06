@@ -21,3 +21,6 @@ Luna NEEDS_FIXES。旧解除後の私有counter残留と新clearの0の対応を
 実Luna APPROVED。独立61passed、Ruff/format/Pyright0、placeholder/secret CLEAN、計画境界WITHIN、RED確認。
 要求2.4の拒否入力そのものも前後比較する提案を採用し、ID/delayの参照・snapshot key順・Tensor shape/dtype/device/layout/grad状態と値（NaNはequal_nan、metaは構造）を明示確認するtestを追加した。production変更なし。
 
+## Task2 / naming revision2
+実Luna: Task2と局所名追加のnaming2 APPROVED。独立67passed/3.16秒・Ruff/format/diff成功、登録時snapshot固定と現在統計/ready/残回数/RNGの上位接続を確認。production変更なし、RED N/A。指摘なし、採用。
+

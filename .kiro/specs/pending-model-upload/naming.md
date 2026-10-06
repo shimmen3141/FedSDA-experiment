@@ -1,6 +1,6 @@
 # 命名: 新規モデルの送信保留
 
-revision: 1
+revision: 2
 
 ## production
 |名前|役割・型/単位・状態と類似名との違い|
@@ -36,6 +36,7 @@ revision: 1
 |build_legacy_pending_upload_client|__new__で実旧具象ClassConditionalESRFedSDAClientの必要な状態だけ用意。constructor省略はtest-only|
 |assert_pending_upload_state_matches_legacy|取得値/送信可否/counterと旧Base/FedSDA公開関数を比較|
 |pending_upload_state / legacy_client / pending_model_upload / previous_pending_model_upload|新所有者/旧oracle/取得record/置換前record|
+|source_legacy_client|既存helperが作る旧NNの所有者。constructor省略で作る送信保留oracleのlegacy_clientと区別するtest-only参照|
 |initial_parameter_snapshot / replacement_parameter_snapshot / previous_parameter_snapshot|生成済み値/置換値/変更検査用独立コピー|
 |model_id / upload_delay_round_count / round_boundary_index / invalid_input_kind / state_variant|ID/設定回数/0始まり通知位置/不正条件/空待機ready条件|
 |invalid_inputs / parameter_name / parameter_values / previous_remaining_round_count|queue用keyword辞書/key/Tensor/拒否前残回数|
