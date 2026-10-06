@@ -24,3 +24,8 @@ task2の実旧samplerのID対応とowner構築に使う局所名を事前補足�
 
 実Luna APPROVED。独立747passed/4.07秒、全4642passed/3skip/exit0、fresh旧非import、品質/Pyright/pip/diff、固定旧/golden/test不変、scan、全8条件traceを確認。指摘なし、採用。
 主担当も承認後に対象＋AST/fresh/diffを再実行して全3taskをcheckする。feature最終GOは別判定。
+
+## feature最終gate
+
+全3task完了後の別実LunaレビューでDECISION: GO。全8条件/8、全4642passed/3skip/exit0・JUnit4645/0failure0error、独立747/旧非importのfresh起動、source hash・固定旧/golden/test不変、契約/NN・owner・蓄積state・旧記録の寿命・他owner境界/依存方向/設計/ファイル計画を確認。blocker/指摘なし、採用。
+主担当も本registryの単一ID付替えをVERIFIEDと判定。標本/counterの付替え、正式登録全体・client/通信/新全体runは後続。

@@ -5,6 +5,7 @@
 既存registryの一モデルID付替えだけ。正式登録全体/標本/counter移動、client/通信/新全体runは後続。
 2026-10-06、共有../../venvのWindows CPU基準。OMP_NUM_THREADS=MKL_NUM_THREADS=1、MPLCONFIGDIR=../../venv/matplotlib-cache、TMP/TEMP=../../venv/refactoring-tests、FDE_MNIST_DATA_DIR=../../data/mnist。
 版と基準はdocs/experiments/refactoring-baseline.md / environments/golden/windows-cpu。
+全3task完了/承認後、別実Luna feature最終GO。全8条件/契約/共有状態/境界/設計/ファイル計画と実測を確認し、主担当もこのscopeをVERIFIEDと判定。
 
 ## Task1
 
