@@ -36,9 +36,11 @@ CodexはAGENTS.mdからroadmap・resumeへ進む。共通方針を入口ファ�
 
 要求→設計・命名→tasks→実装task→統合検証・別feature最終GOの流れを維持する。
 [命名レビュー規約](../settings/rules/naming-review.md)と各specの承認契約に従う。
-2026-10-07のユーザー指示により、Codex担当時はGPT-6 Luna、Claude担当時はSonnetの独立レビューと、
+2026-10-07のユーザー訂正指示により、担当ツールを問わずGPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューと、
 主担当による有用な指摘の反映を承認として扱う。要求・設計・命名・tasks・実装task・別feature最終GOの各ゲートへ適用する。
-モデルを明示してレビュー担当を起動し、実際の担当モデル・対象revision/hash・結果・指摘の採否を記録する。
+利用可能な接続・モデルを確認し、モデルを明示してレビュー担当を起動する。
+実際の担当モデル・代替時のLuna利用不能理由・対象revision/hash・結果・指摘の採否を記録する。
+Claude担当であることだけをSonnet使用の理由にせず、Lunaへの接続がない、呼出上限、実行エラー等の事実を記録する。
 自己レビューやcc-sddの自動承認・inline/offで置き換えない。`kiro-spec-quick --auto`や`-y`も承認を代替しない。
 旧Luna承認記録は変更しない。
 
@@ -57,7 +59,8 @@ CodexはAGENTS.mdからroadmap・resumeへ進む。共通方針を入口ファ�
 
 ```text
 このworktreeのresume.mdと対象specのREADME・spec.json・review.mdを読み、
-review.mdに記録したレビュー待ち対象を、CodexではGPT-6 Luna、ClaudeではSonnetに独立レビューさせてください。
+review.mdに記録したレビュー待ち対象をGPT-6 Lunaに独立レビューさせてください。
+Lunaを利用できない場合はSonnetで代替し、利用不能理由と実際のモデルを記録してください。
 対象revision/hashと実差分を照合し、有用な指摘を反映・再確認してください。
 承認状態と次の作業を正本へ記録してください。
 ```
@@ -83,7 +86,7 @@ review.mdに記録したレビュー待ち対象を、CodexではGPT-6 Luna、Cl
 ```text
 このリファクタリングworktreeのAGENTS.md、.kiro/steering/resume.md、
 .kiro/steering/agent-handoff.mdを読み、Gitと対象specから現在地を確認してください。
-未完了・レビュー待ちを優先し、共有規約と担当ツール別の独立レビュー条件を維持して続けてください。
+未完了・レビュー待ちを優先し、共有規約とLuna優先・利用不能時Sonnet代替の独立レビュー条件を維持して続けてください。
 ```
 
 ## cc-sdd導入の来歴と再生成
@@ -107,3 +110,4 @@ Claude実行時に`/context`で入口とimportの読み込みを確認する。�
 - 既存spec・旧新コード・テスト・Codex skillsは変更なし。コード変更がないため数値回帰は再実行していない。
 - GPT-6 Luna独立レビューで、共通規約の旧一律Luna指定を担当ツール別へ統一する指摘を採用し、再レビューPASS。
   自動承認オプションを代替にしない旨も明記した。Claudeの起動・Sonnet委任の実行確認は未実施。
+  その後のユーザー訂正により、現行方針は上記のLuna優先・利用不能時Sonnet代替へ変更した。この導入時レビューは来歴として保持する。
