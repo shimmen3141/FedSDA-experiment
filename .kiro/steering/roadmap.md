@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- `candidate-classifier-construction`を開始。要求・設計・命名・tasks revision1をLuna承認、候補の独立生成とoptimizer組立を移植中。警報区間のepoch学習・early stopping・session開始は後続。進捗と承認は同specのspec.json/tasks.mdを参照する。
+
 - 警報時点の参照モデルの固定は`../specs/post-alarm-reference-model-fixation/README.md`。主担当Claude Code。要求revision1・設計revision1・命名revision2・tasks revision1・全3tasks承認/完了、別feature最終GO（3回目。1回目は基準の誤読、2回目は元checkoutの取り違えによるNO-GOで、いずれも実装・testへの指摘ではない）。保有モデルごとに同じ値の独立した参照分類器を一覧の順に生成し、全体統計が2件以上のモデルの履歴平均損失（平均0を含む）を返す。値の検証を全モデルぶん先に行い、拒否時はtorch乱数を消費しない。実旧_snapshot_reference_modelsと6条件で処理後のtorch乱数状態・参照IDの順・全値・出力を照合、履歴平均8条件を実旧session開始と照合、拒否10条件、session開始→観測→確定の照合6条件、12条件で学習継続中も参照が固定されたままであることを確認。実装前にREDを実行し、実装差し替え11種の検出も確認。対象＋AST1059/全6355passed・3skipped・1既存warning（主担当実測＋JUnit）、fresh新CPU/品質/固定旧golden/8要件成功。次は候補の生成と警報区間での学習、session開始の組立。入口はresume.md。
 
 - 警報後の候補検証標本の観測は`../specs/post-alarm-candidate-validation-sample-observation/README.md`。主担当Claude Code。要求revision1・設計revision2・命名revision2・tasks revision1・全3tasks承認/完了、別feature最終GO。検証標本1件について候補と警報時点で固定した参照分類器の損失を評価し、既存の損失収集へ1回で追加して規定件数への到達を返す。1標本契約はforwardより前に検査し、到達後の評価・確定は呼ばない。実旧_observe_forward_validationと4条件で損失列を照合、拒否24条件、到達後の評価→確定まで含めた状態一致6条件、12条件の学習継続。実装前にREDを実行し、実装差し替え10種の検出も確認。対象＋AST1028/全6277passed・3skipped・1既存warning（主担当実測＋JUnit）、fresh新CPU/品質/固定旧golden/9要件成功。参照も学習させる方針（旧shadow_tournament）は2026-10-07のユーザー判断で当面不要（goldenにも値なし）。次は候補検証sessionの開始（参照分類器の固定、候補の生成と学習。モデル生成の乱数消費順に注意）。入口はresume.md。

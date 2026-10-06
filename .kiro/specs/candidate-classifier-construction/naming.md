@@ -1,4 +1,4 @@
-# 命名 revision1
+# 命名 revision4
 
 | 名前 | 役割・型・更新/所有 |
 | --- | --- |
@@ -22,5 +22,20 @@
 | construction_arguments / candidate_training_state / legacy_candidate | testのみ、呼出引数/新返却/旧生成結果 |
 | input_features / observed_class_labels / batch_index | test学習接続の特徴/ラベル/逐次batch番号 |
 | parameter_storage_addresses / initial_parameter_snapshot / invalid_case | test独立性・拒否入力の一時変数 |
+| test_candidate_construction_matches_legacy | 正常生成を実旧へ照合するtest |
+| test_candidate_construction_rejects_invalid_inputs | 拒否前の乱数・参照不変test |
+| test_candidate_training_state_record_contract | frozen/kw_only record契約test |
+| test_candidate_classifier_construction_exact_dependency_contract | AST許可/拒否注入test。既存source_module_path/source_text/expected_acceptance変数を再利用 |
+| test_candidate_initialization_and_updates_match_legacy | 選択済み初期値→生成→3batch更新を実旧へ照合する接続test |
+| reference_parameter_values_and_gradients | testの参照/入力parameterの値とgradの不変記録。parameter snapshot（値だけ）と区別 |
+| candidate_parameter_optimizer_manager | 比較するParameterOptimizerState管理器。内部optimizer state dictと区別 |
+| candidate_parameter_optimizer / legacy_parameter_optimizer | 新旧optimizer実体の比較 |
+| expected_rng_state | 実旧生成後のtorch RNG状態 |
+| second_candidate_training_state | 二回目の新規候補生成結果 |
+| legacy_initial_parameter_snapshot | 旧native parameter名の初期値snapshot |
+| initialization_settings / initialization_source | test-onlyの既存初期値選択設定と選択方式名 |
+| selected_initial_parameter_snapshot | 選択関数から取得して候補生成へ渡す初期値 |
+| candidate_mean_training_loss / legacy_mean_training_loss | 新旧それぞれの単回更新が返す平均学習損失 |
+| local_training_settings | test-onlyの既存共同更新固定設定 |
 
 既存部品の正式名は既存specの命名承認を再利用する。意味が異なる新しい名前が必要になった場合はrevisionを増やしてレビューへ戻す。

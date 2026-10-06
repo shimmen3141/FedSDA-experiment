@@ -16,3 +16,5 @@ BaseClient._new_modelを実旧clientで実行し、set_paramsとreset_optimizer�
 学習接続は既存共同更新の単一候補batchを使用し、実旧ResidualAdapterMLP.updateとの値・勾配・optimizer stateを照合する。初期生成に加えて更新できることを確認し、複数epoch/early stoppingへ範囲を拡大しない。
 
 2026-10-07: 既存登録oracleで実旧client/model_clsを準備し、BaseClient._new_model→set_params→reset_optimizerを実行、共有・個別optimizerのstateが空であることを確認した（exit0）。実装test作成前のoracle可用性確認であり、新実装の検証ではない。
+
+Task1で、モデルconstructorが許可する空hidden_layer_widthsでは共有parameterが空となり、必須ParameterOptimizerStateが拒否することを確認した。モデル生成後の拒否ではRNG不変契約を満たさないため、要求/設計revision2で候補生成前の明示拒否を追加する。既知LEGACY-010と同じ上流制約であり、optimizer側や固定旧実装は変更しない。

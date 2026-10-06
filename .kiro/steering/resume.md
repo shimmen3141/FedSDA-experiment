@@ -8,7 +8,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
-- 作業状態: 実装途中のtask・レビュー待ち・未コミット差分はない。全commitは`origin/refactor/architecture`へpush済み。次のspecへそのまま着手できる。ユーザーの判断・確認を待っている事項は下の「ユーザー確認待ち・未解消の事項」にあり、どれも次のspecの着手を妨げない。
+- 作業状態: [候補分類器と学習状態の生成](../specs/candidate-classifier-construction/README.md)をCodexへ引き継いで開始した。要求/設計/命名/tasks revision1をLuna承認済み、Task1実装中。承認と現在taskの正本は同spec。候補の複数epoch学習・early stoppingとsession開始は後続。ユーザー確認待ちは以下に記録し、この生成specへの着手を妨げない。
 - 直近の検証済み実装commit: `dbaf5cc`。全pytest 6355 passed/3 skipped/1既存warning（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。
 - 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
   1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。

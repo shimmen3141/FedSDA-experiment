@@ -1,4 +1,4 @@
-# 候補分類器と学習状態の生成 — 設計 revision1
+# 候補分類器と学習状態の生成 — 設計 revision2
 
 ## Overview
 
@@ -49,7 +49,7 @@ flowchart LR
 
 ### 入力契約と順序
 
-1. 参照分類器はexact型。snapshot_classifier_parametersで参照のCPU float32 strided/有限値を検査し、期待キー・shapeを取得する（乱数不消費）。参照構造は既存分類器の公開構造を使う。
+1. 参照分類器はexact型。snapshot_classifier_parametersで参照のCPU float32 strided/有限値を検査し、期待キー・shapeを取得する（乱数不消費）。参照構造は既存分類器の公開構造を使う。feature_extractor.parameters()が空なら候補生成前にValueErrorで拒否する。モデル層自体は空隠れ層を許可するが、必須の共有optimizerを作れないため本生成の受理範囲外とする。既知LEGACY-010の上流空parameter制約を迂回せず、生成側の事前条件として明示する。
 2. 初期snapshotはexact dict、キーはexact strで期待集合と一致。各値はexact Tensor、CPU float32 strided、非nested、有限値で期待shapeと一致。キーの順は問わない。入力は読込みだけで、候補へaliasしない。
 3. optimizer設定はexact Adam/SGD型で、同型コンストラクタへ全fieldを渡して再検査する。その他はTypeError、設定値不正は既存設定型のValueError。
 4. 参照と同じ構造のResidualAdapterClassifierを外部共有部なしで一つ生成し、初期snapshotをstrict load_state_dictで読込む。

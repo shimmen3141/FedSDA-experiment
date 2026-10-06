@@ -1,7 +1,7 @@
 {
   "feature_name": "candidate-classifier-construction",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementing",
   "created_at": "2026-10-07",
   "updated_at": "2026-10-07",
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
@@ -9,42 +9,43 @@
     "requirements": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "approved_revision": 1,
-      "generated_sha256_lf": "849f3e6c380eee2b235c9b92681582880d26c8b0500189ed7e96caafcc68bebc",
-      "approved_sha256_lf": "849f3e6c380eee2b235c9b92681582880d26c8b0500189ed7e96caafcc68bebc",
+      "revision": 2,
+      "approved_revision": 2,
+      "generated_sha256_lf": "1baeb6224915ded3b2aee3392d019fe971cc2074e407856bf0df405cc8afa181",
+      "approved_sha256_lf": "1baeb6224915ded3b2aee3392d019fe971cc2074e407856bf0df405cc8afa181",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md"
     },
     "design": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "generated_sha256_lf": "851b48bf1c145e555cd898c3d9e93404c934e6071b3862d1da4f4dd7e7b8b975",
-      "approved_revision": 1,
-      "approved_sha256_lf": "851b48bf1c145e555cd898c3d9e93404c934e6071b3862d1da4f4dd7e7b8b975",
+      "revision": 2,
+      "generated_sha256_lf": "f524274f28870a96e6c2605f302cd4a3a7deb3f64c623d50b425a7f31b4d22d5",
+      "approved_revision": 2,
+      "approved_sha256_lf": "f524274f28870a96e6c2605f302cd4a3a7deb3f64c623d50b425a7f31b4d22d5",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md"
     },
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "generated_sha256_lf": "b7cb1d4a85fc54c0b85ab87c73365f75747fc58386477010e38b0db7c77bc9d4",
-      "approved_revision": 1,
-      "approved_sha256_lf": "b7cb1d4a85fc54c0b85ab87c73365f75747fc58386477010e38b0db7c77bc9d4",
+      "revision": 4,
+      "generated_sha256_lf": "2289465db8526fac2caa1a651ea264d94b215b9accc86a404f70e046ce28d6a9",
+      "approved_revision": 4,
+      "approved_sha256_lf": "2289465db8526fac2caa1a651ea264d94b215b9accc86a404f70e046ce28d6a9",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md"
     },
     "tasks": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "approved_revision": 1,
-      "generated_sha256_lf": "fdd7fb568d1b563207b458d909b7819cc3f50833ea26f4acd528c5b162cdbb36",
-      "approved_sha256_lf": "fdd7fb568d1b563207b458d909b7819cc3f50833ea26f4acd528c5b162cdbb36",
+      "revision": 2,
+      "approved_revision": 2,
+      "generated_sha256_lf": "0ec24ad6383009e0dfb817f46e39c53fd3e0dfc4a557e3baeab1b044f7ffc568",
+      "approved_sha256_lf": "0ec24ad6383009e0dfb817f46e39c53fd3e0dfc4a557e3baeab1b044f7ffc568",
       "reviewer": "gpt-6-luna",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "current_sha256_lf": "71d5377484334c0176bad27773fe7dff44369f520836e43ee7ee7e5df247e730"
     }
   },
   "ready_for_implementation": true,
@@ -56,8 +57,10 @@
     "joint-model-parameter-update"
   ],
   "implementation_progress": {
-    "completed_tasks": [],
+    "completed_tasks": [
+      "1"
+    ],
     "total_executable_tasks": 3,
-    "next_task": "1"
+    "next_task": "2"
   }
 }
