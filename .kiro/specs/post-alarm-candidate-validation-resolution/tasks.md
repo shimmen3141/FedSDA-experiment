@@ -6,7 +6,7 @@
 - [x] 2. 確定後の学習を接続する
   - 12条件（class2/4×Adam標準・AMSGrad・SGD×共有部更新有無）×結果種別（採用・再利用）の実NNで、共同更新→実旧確定処理/新の評価と確定→各自の標本storeを使う共同更新を実旧と照合。fresh新CPUで旧importなしの評価→確定（4種別）→学習。独立Luna/主担当gate。
   - Requirements: 3.2
-- [ ] 3. 固定環境の全回帰を確認する
+- [x] 3. 固定環境の全回帰を確認する
   - 新moduleと依存guardの追加が既存testと固定旧実装の値へ影響しないことを同じcommitで示す。全pytest/旧11・最終3golden（主担当実測＋JUnit、基準はsteering/agent-handoff.md）、品質/型/pip/diff、固定旧差分空、承認/source hash・実測を記録。独立Luna/主担当gateで完了。
   - Requirements: 3.2
 
