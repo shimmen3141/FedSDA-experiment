@@ -1,7 +1,7 @@
 {
   "feature_name": "assigned-training-sample-absorption",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "completed",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "primary_agent": "claude-opus-5-5 (Claude Code)",
@@ -74,5 +74,30 @@
   },
   "updated_at": "2026-10-07",
   "verification_source_sha256": "425c326150c8e56344c4daea5f4f7c56e12ebc64b15139df155782afe22e167b",
-  "verification_source_path_count": 235
+  "verification_source_path_count": 235,
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "codex session 01a112cb-edf9-7e20-aa45-379d8455e1d3（NO-GO: 01a112ca-3c2d-7b02-89c6-63a3296003f7）",
+    "reviewer_identity_basis": "launch_model_flag_and_codex_log_only_model_cannot_self_confirm",
+    "requirements_covered": 12,
+    "test_pass_count": 6038,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "independent_full_pytest_reproduced": false,
+    "full_pytest_basis": "primary_agent_measurement_and_junit_per_user_decision_2026-10-07",
+    "red_before_implementation": false,
+    "red_substitute_evidence": "implementation_replacement_8_variants_all_detected",
+    "current_scope": "assigned_training_sample_absorption_only",
+    "verification_source_sha256": "425c326150c8e56344c4daea5f4f7c56e12ebc64b15139df155782afe22e167b",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go"
+  }
 }
