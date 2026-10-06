@@ -6,7 +6,7 @@
 - [x] 2. 確定処理の棄却分岐と吸収後の学習を接続する
   - 実旧_finalize_forward_validationの棄却分岐と新の吸収を照合（標本・計数・統計、現在ID不変）。12条件（class2/4×Adam標準・AMSGrad・SGD×共有部更新有無）の実NNで共同更新→吸収→各自の標本storeを使う共同更新を実旧と照合。fresh新CPUで旧importなしの吸収→学習。独立Luna/主担当gate。
   - Requirements: 3.2
-- [ ] 3. 固定環境の全回帰を確認する
+- [x] 3. 固定環境の全回帰を確認する
   - 新moduleと依存guardの追加が既存testと固定旧実装の値へ影響しないことを同じcommitで示す。全pytest/旧11・最終3golden（主担当実測＋JUnit、基準はsteering/agent-handoff.md）、品質/型/pip/diff、固定旧差分空、承認/source hash・実測を記録。独立Luna/主担当gateで完了。
   - Requirements: 3.2
 

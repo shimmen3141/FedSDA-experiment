@@ -11,3 +11,5 @@ Task1・Task2・命名revision2（1回目、codex session 01a112bd-405e-7971-bd1
 Task1（2回目、codex session 01a112c0-ff05-7a81-a9c3-ec1f59e86762）: 実Luna Task1 APPROVED。「REDを実装前に実行した事実はなく、差し替え結果はTDDの実行順序を遡って証明しないが、testが実装の振る舞いを拘束する証拠として承認ゲートを満たす」との判断。追加条件は要求1.4を実旧と値で照合しており妥当。追加で試す誤実装の提案（全損失評価の完了前に標本を追加、概念と統計の更新順の入替え）→採用し、どちらも検出されることを確認。Lunaは独立に対象＋AST 1036 passed、実装と命名のhashを照合。同じ回答で命名r3は内容に指摘なしとしつつ「この環境でGPT-6 Lunaの独立レビュー証跡を確認できない」ことを理由に保留とした。
 
 命名revision3（codex session 01a112c4-10b6-7310-914c-6cf8a593b391）: 実Luna APPROVED、指摘なし。起動方法（別プロセスのcodex exec -m gpt-6-luna、ログのmodel行）を伝えた上で内容の判定を依頼した。レビュー担当は「自分のモデル名を内部から確認できる表示は見えておらず、起動ログの記録は依頼文の情報として把握しているだけで独立には確認できない」と回答した。レビュー担当の同定は起動時のmodel指定とログに依拠しており、モデル自身による確認はできていない（未解消、ユーザーへ報告）。
+
+Task3: 実Luna APPROVED、指摘なし（codex session 01a112c8-86b7-7333-95bb-025a4fa9c08f）。独立に対象3群1139 passed、fresh CPU smoke、Ruff check/format成功、JUnit 6041 tests/0 failures/0 errors/3 skippedとgolden回帰2 testcaseの成功、旧実装/golden/tools差分空、src/tests差分空、承認hash、要件traceと実在testの対応、Task1の手順逸脱の記載を照合。全pytestの独立再現は基準どおり行っていない。

@@ -32,3 +32,32 @@
 - 12条件（class2/4×Adam標準/AMSGrad/SGD×共有部更新有無）は初回実行でGREEN。共同更新（parameterが変わる）→吸収→吸収標本を含む共同更新2回を、両実装とも各自の標本storeの全標本を固定batchにして実旧と照合。loss、全値/grad、optimizer state、標本列、割当概念計数、統計、乱数が一致。
 - fresh `../../venv/refactoring-tests/assigned_training_sample_absorption_cpu_smoke.py`成功、exit0。class2/4で学習→吸収（parameter不変、標本identity、概念計数、統計件数と平均）→吸収標本を含む学習。旧importなし。
 - 実Luna Task2 APPROVED（1回目）、Task1 APPROVED（2回目）。経緯はreview.md。
+
+## Task3
+
+- 検証対象実装commit: ff649a6。要求revision1・設計revision1・命名revision3のLF hashは承認値と一致。tasksは承認時hash（revision1）を維持し、check後hashを別fieldへ記録。
+- tracked Python＋2goldenの235パスをパス順、パスUTF8＋NUL＋内容CRLF→LF＋NULで連結したSHA256: `425c326150c8e56344c4daea5f4f7c56e12ebc64b15139df155782afe22e167b`（前specの233パスに新module/新testの2件を加えた数）。
+- 全適用対象Ruff成功/format135files、Pyright基準venv明示0 errors/0 warnings、pip check成功。
+- 固定旧基準748c3aaからHEADへの、federated_drift_experiment/・2golden・旧回帰test2本・tools/の差分は空。
+- 全pytest（主担当実測）: 6038passed/3skipped/1既存warning、128.35秒、exit0。前spec完了時5876に今回の162（対象127＋AST契約35）を加えた件数と一致。旧11条件と最終3条件の固定goldenを含む。goldenは更新していない。
+- JUnit: `../../venv/refactoring-tests/assigned-training-sample-absorption-full.xml`。
+- 全pytestの独立再現はsteering/agent-handoff.mdの基準（2026-10-07ユーザー決定）に従い必須としない。Luna側での全pytest再現は試みていない。新全体runを実行したとは扱わない。
+
+## 要件trace
+
+|要求|証拠|
+|---|---|
+|1.1|実旧対照72条件の標本列・順序・Tensor identity|
+|1.2|概念IDあり/None混在/概念要素なしでの割当概念計数の一致、概念計数を省く誤実装の検出|
+|1.3|統計全fieldとクラス初出順の一致、統計未登録モデルの件数0開始、12条件で学習後parameterによる損失の一致|
+|1.4|標本0件の全吸収先で全状態不変、標本列なしモデルで標本列が作られないことの実旧照合|
+|1.5|一覧record/全parameter・grad/全optimizer/学習計数/他モデルの標本と統計/現在ID/乱数の不変|
+|2.1|model_id拒否4、4owner×3型12、全状態不変|
+|2.2|標本列拒否3、概念ID列拒否7、全状態不変|
+|2.3|未保有2（空列を含む）でKeyError、全状態不変|
+|2.4|複数行record・特徴/ラベル不正7（先頭・途中・末尾）で先行標本を含め全状態不変、旧の部分更新との同入力対照|
+|2.5|呼出順test、評価途中のowner呼出し/評価完了前の追加/更新順入替えの誤実装の検出|
+|3.1|状態なしruntime関数、戻り値None、exact6symbol AST guardと注入契約35|
+|3.2|実旧_absorb_into_storeとの全値一致、実旧確定処理の非採用3分岐との一致、12条件の吸収後学習、fresh新CPU smoke|
+
+帰属先の決定と現在ID切替え、判定記録・切替位置・適応イベント・通知、FIFOから1件ずつ確定する経路の組立、計算量診断、候補session、通信/new client/runは後続。旧の契約外入力での部分更新をLEGACY-015へ記録した。正常経路の不具合は観測していない。旧golden成功は新全体runの検証と区別する。
