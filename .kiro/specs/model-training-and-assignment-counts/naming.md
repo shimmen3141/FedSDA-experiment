@@ -1,6 +1,6 @@
 # 命名・役割
 
-revision: 1。承認待ち。正式名の正本。
+revision: 2。追加の学習接続用局所名をレビュー中。正式名の正本。
 
 ## 型とファイル
 
@@ -48,3 +48,9 @@ oracles: `build_model_counts_oracle`（新store/旧最小client構築）、`asse
 `actual_losses / expected_losses / expected_random_state / sampled_batch_history / previous_random_states / previous_numeric_environment`は全数値・RNG・環境の比較基準。
 型拒否用: `ModelIdIntSubclass / ModelIdMappingDictSubclass`。
 テスト名は`test_<観測契約>`、既存公開helper/引数名は元の承認済み役割で再利用する。
+
+## Task2の接続補助名
+
+`training_binding / training_sample_collection`は上位がID対応する既存の借用NN/optimizer記録と標本一覧。元記録を変更せずreplaceで対応する。
+`sampled_batches`は新samplerをRandomのdeepcopyでpreviewしたID付きbatch列。実学習後にこの列の順/件数を計数へ渡し、旧抽出batchとのTensor一致も照合する。binding列の順を計数順と誤認しない。
+新previewのためのRandom copyは実学習に渡すRandomを消費しない。sourceのAPI/役割・Task1の命名は変更しない。
