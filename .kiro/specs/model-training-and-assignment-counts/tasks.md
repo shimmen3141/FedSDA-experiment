@@ -11,7 +11,7 @@
   - 12条件各3共同学習、初回後に移管/上位ID対応、計数/全loss/NN値/grad/optimizer/RNG一致。接続はtest-only。
   - 対象＋AST/品質/独立Luna/主担当gateで完了。
   - Requirements: 3.2,3.3
-- [ ] 3. 固定goldenと全回帰を検証する
+- [x] 3. 固定goldenと全回帰を検証する
   - fresh新CPUの学習→件数→移管を検証。全pytest旧11/最終3golden、Ruff/format/Pyright/pip、固定旧差分空を確認。
   - 承認hash/source hash/JUnit/実測と修正候補の追跡を記録し、独立Luna/主担当gateで完了。
   - Requirements: 3.2,3.3

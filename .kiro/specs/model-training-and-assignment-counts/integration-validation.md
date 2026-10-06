@@ -23,3 +23,16 @@
 - 毎stepの全3計数/key順、抽出Tensor、loss、全parameter/grad/両optimizer、Random終端がexact一致。3共有RNG/torch defaults保持と過去snapshotも確認。
 - `python -S ../../venv/refactoring-tests/model_training_and_assignment_counts_stdlib_smoke.py`成功。保持→加算移管→一回再編/copy分離、torch/numpy/旧非import。
 - 実Luna Task2 APPROVED、独立対象＋AST931passed/8.43秒、静的検査/diff/scan成功、指摘なし。
+
+## Task3
+
+- fresh新CPU: `../../venv/refactoring-tests/model_counts_training_cpu_smoke.py`成功。class2/4で3回実学習→計数→初回後に加算移管→後続学習、両optimizerの蓄積stateと旧非importを確認。
+- Ruff全体成功、format123 files整形済み、Pyright0 errors/0 warnings、pip check成功、git diff --check成功。
+- `git diff 748c3aa -- federated_drift_experiment tests/regression_golden.json tests/proposed_regression_golden.json tests/test_regression.py tests/test_proposed_regression.py`は空。旧実装・goldenを変更していない。
+- 要求/設計/命名のLF正規化hashは承認値と一致。検証済み実装commit `d899fc5`。tracked Python＋2goldenの223パスをパス順、パスUTF8＋NUL＋CRLFをLFへ正規化した内容＋NULで連結したSHA256: `5a590a3629267daa24fb631c228f2ac4ad03dfa5eefaa4f197586894cd307833`。
+- 全pytest: 5305 passed/3 skipped/1既存warning、177.27秒、exit0。3 skipは既存Windows wrapper条件、warningは既存qint8 fixtureのTypedStorage。旧11条件・最終Residual Adapter＋Switching3条件の固定goldenを含む。
+- JUnit: `../../venv/refactoring-tests/model-counts-full.xml`、5308 tests/0 failures/0 errors/3 skipped。Lunaレビュー後にTask3をcheckする。
+
+新client・新全体runのgolden一致を示す検証ではない。現在帰属ID・正式登録全体は後続。LEGACY011は不正同ID通知の再現のみで、正常経路・過去成果への影響は未確認。
+
+実Luna Task3 APPROVED。独立対象＋AST再実行931passed/6.41秒、fresh/stdlib smoke成功、実測・hash・範囲を確認。主担当完了gateは931passed/5.67秒、両smoke/diff成功。指摘なし。
