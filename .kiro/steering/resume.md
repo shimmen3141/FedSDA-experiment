@@ -5,9 +5,10 @@
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
+- 作業中: [新規モデルの送信保留](../specs/pending-model-upload/README.md)。要求/設計/命名revision1・task計画はLuna承認済み。Task1実装61passed、独立レビューへ進む。Task2/3未着手。正本spec.json/tasks.mdから再開する。
 - 直近完了: [分類器parameter snapshot](../specs/classifier-parameter-snapshot/README.md)。要求/設計revision1・命名revision3・全3taskはLuna承認/完了、feature最終GO。
 - 直近の検証済み実装commit: `0d75fff`。全4399 passed/3 skipped/1既存warning、対象＋AST666passed、fresh新CPU/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。
-- 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
+- 新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
