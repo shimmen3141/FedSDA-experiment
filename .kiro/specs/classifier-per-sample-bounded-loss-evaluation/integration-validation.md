@@ -3,6 +3,7 @@
 ## 範囲
 一分類器forwardと標本別有界損失。学習/準備/初期統計のtest-only接続と、登録全体/新client/新全体run完成は区別する。
 正本はspec.json/tasks.md、要求revision2・設計revision2・命名revision1。
+全3task完了後の別統合gateでLuna DECISION: GO。全11要件、境界・依存方向・接続・共有状態・ファイル計画・実測にblockerなし。主担当completion gateも本scopeでFEATURE_GO VERIFIED。
 
 ## Task1
 - 未実装moduleのimport RED: ModuleNotFoundError、1 collection error/2.86秒/exit1。
@@ -28,7 +29,7 @@
 - JUnit classifier-loss-full.xmlは4348 tests/0 failures/0 errors/3 skipped。skipは既存Windows wrapper、warningは既存qint8 fixtureのTypedStorage非推奨。
 - source209 Python/両goldenパスのhashは437a69bc1dae9b9cc3f8e94f804f8d531f5d1bcce8ebf92aa86b01fc19032637。Git追跡Pythonと両golden（新2ファイルを含む）をsortしUTF8相対path+NUL+LF正規化内容+NULでSHA256集計。要求rev2/設計rev2/命名rev1の承認hash一致を確認。
 - 新しい旧正常経路の不具合は今回の範囲で観測していない。development findingは新testのcontext復元問題で、旧研究実装の修正を含まない。
-- Luna独立701件/fresh新CPU/品質・境界、全回帰/JUnit点検後にTask3 VERDICT: APPROVED。全3tasks完了、feature GOは別ゲートで確認する。
+- Luna独立701件/fresh新CPU/品質・境界、全回帰/JUnit点検後にTask3 VERDICT: APPROVED。全3tasks完了後、別feature統合レビューもDECISION: GO。
 
 ## 環境と再実行手順
 2026-10-06、既存Windows CPU基準、共有../../venv（Python3.13.15/Torch2.12.1+cpu/NumPy2.4.6/pytest9.1.1）。基準と版はdocs/experiments/refactoring-baseline.md・environments/golden/windows-cpu。

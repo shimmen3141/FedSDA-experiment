@@ -5,14 +5,14 @@
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
-- 直近完了: [保有モデルの学習状態管理](../specs/held-model-training-state-registry/README.md)。全3tasks完了、Luna最終GO。
-- 直近の検証済み実装commit: `7eb04d5`。全4229 passed/3 skipped/1既存warning、旧11/最終3golden成功。実測は同specのintegration-validation.md。
-- 作成中: [準備済み分類器の標本別有界損失](../specs/classifier-per-sample-bounded-loss-evaluation/README.md)。要求revision2・設計revision2・命名revision1はLuna承認済み。Task graph PASS、実tasks承認後Task1から実装する。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
+- 直近完了: [準備済み分類器の標本別有界損失](../specs/classifier-per-sample-bounded-loss-evaluation/README.md)。要求revision2・設計revision2・命名revision1・全3taskはLuna承認済み、feature最終GO。
+- 直近の検証済み実装commit: `f533bc9`。全4345 passed/3 skipped/1既存warning、旧11/最終3golden成功。実測は同specのintegration-validation.md。
+- 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
 
-1. 採用候補の正式なローカル登録: モデル一覧は上記registryで完了。旧`clients/base.py::_register_trained_new_model`を入口に、モデルの標本別損失評価→初期統計、parameter送信snapshot、標本/送信状態の不足依存と更新順を確認する。次は準備済みモデルの損失評価境界から検討し、一つのspecへ詰め込まない。
+1. 採用候補の正式なローカル登録: モデル一覧・準備済みモデルの損失評価・batch初期統計は完了。旧`clients/base.py::_register_trained_new_model`を入口に、parameter送信snapshot、標本/統計保存/送信保留状態の不足依存と更新順を確認する。既存候補初期化は外部snapshotを受け取る部品で、NNからの送信用snapshot生成とは別境界。次はその生成/保持契約を確認し、一つのspecへ詰め込まない。
 2. 候補の生成・初期学習・前向き検証sessionの開始/終了を、既存の初期化・学習・採否部品へ接続する。
 3. 警報後の帰属変更とclient進行、サーバ同期・ID対応へ順次接続する。
 

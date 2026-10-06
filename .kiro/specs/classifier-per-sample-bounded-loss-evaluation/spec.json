@@ -1,9 +1,9 @@
 {
   "feature_name": "classifier-per-sample-bounded-loss-evaluation",
   "created_at": "2026-10-06T04:12:13.639210+00:00",
-  "updated_at": "2026-10-06T04:38:23.176664+00:00",
+  "updated_at": "2026-10-06T04:40:59.617558+00:00",
   "language": "ja",
-  "phase": "implementation-completed",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -71,5 +71,25 @@
     "next_task": null
   },
   "verification_source_sha256": "437a69bc1dae9b9cc3f8e94f804f8d531f5d1bcce8ebf92aa86b01fc19032637",
-  "verification_source_path_count": 209
+  "verification_source_path_count": 209,
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "requirements_covered": 11,
+    "test_pass_count": 4345,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "classifier_per_sample_bounded_loss_evaluation_only",
+    "verification_source_sha256": "437a69bc1dae9b9cc3f8e94f804f8d531f5d1bcce8ebf92aa86b01fc19032637",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go"
+  }
 }
