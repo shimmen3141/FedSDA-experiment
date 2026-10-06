@@ -14,6 +14,7 @@
 | LEGACY-008 | 極大件数でサーバ損失平均の範囲超過/除算失敗 | 再現済み・未修正、通常実験への影響未確認 | [記録](legacy-008-extreme-count-server-loss-aggregation.md) |
 | LEGACY-009 | 極大parameter値の単純平均が非有限になる | 再現済み・未修正、通常実験への影響未確認 | [記録](legacy-009-extreme-parameter-mean-overflow.md) |
 | LEGACY-010 | 空の共有特徴抽出部でoptimizer生成が失敗 | 再現済み・未修正、通常実験への影響未確認 | [記録](legacy-010-empty-shared-feature-optimizer.md) |
+| LEGACY-011 | 同一負IDの登録確認で件数倍増・概念件数消失 | 再現済み・未修正、不正通知での再現/通常影響未確認 | [記録](legacy-011-same-id-registration-count-corruption.md) |
 
 ## 記録・更新の規約
 
