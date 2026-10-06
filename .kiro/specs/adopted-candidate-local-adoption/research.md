@@ -1,0 +1,11 @@
+# 根拠と判断
+
+- 旧FedSDAClient._finalize_forward_validationの採用分岐: temp_id=_alloc_temp_id()→_register_trained_new_model(temp_id, session.candidate, session.training_x, session.training_y, pending_ready=False)→model_training_examples[temp_id]+=session.candidate_training_examples→model_optimizer_steps[temp_id]+=session.candidate_optimizer_steps→_pending_upload_rounds=model_upload_delay_rounds→train_data_store[temp_id].extend(session.held_data)→_set_local_current_model(temp_id)→local_switch_positions追加→detection_episodes.mark_operation()。分岐の後で_record_adaptation_event、_forward_validation=None、_on_drift_resolution。
+- 登録と待機設定は完了済みのadopted-candidate-initial-local-registration、採番はtemporary-model-id-allocation。本specはこれらを呼び、計数・標本・現在IDの3更新を加える。
+- 保留標本: 採用分岐はtrain_data_storeへのextendだけで、棄却/再利用/維持分岐が使う_absorb_into_storeの統計更新・概念計数・statistics計算量記録を行わない。新も標本追加だけを行い、統計と割当概念計数を変更しない。旧held_dataの要素は(特徴, ラベル[, 真の概念])のtupleで、採用分岐は概念を読まない。新はObservedTrainingSampleの列を受け取る。空のheld_dataでも旧defaultdictは一時IDのkeyを作る。新storeの追加APIも空列でモデルを登録する。
+- 計数: 旧defaultdictへの+=は増分0でもkeyを作る。新record_completed_model_trainingの増分0の扱いは実旧との対照testで確認する。
+- 現在ID: 旧_set_local_current_modelは代入後、変更があれば_on_local_model_change（最終構成では予測重みと関連routerの再始動）を呼ぶ。新CurrentTrainingModelAssignmentは変更recordを返し通知しない。本specは変更recordを呼出し側へ返し、通知は上位へ残す。採用では未使用の一時IDへ切り替えるので必ず実変更になる。
+- 旧は採番を最初に行うので、登録が例外で失敗しても一時IDを一つ消費する。新は次の一時IDを消費せずに読み、登録の全検証と数値生成が通った後で採番を確定する。成功時の採番値・各状態は旧と同じ。失敗時に採番値を消費しない点だけが異なり、正常経路の採番列は変わらない。
+- 独立したownerへの更新順（旧: 計数→待機→標本→現在ID、新: 登録に待機を含む）は観測できる値を変えない。現在IDの切替えを最後に置く点は旧と同じ。
+- 旧の採用分岐をtestで再構成すると手順の複製が正解になる。実旧clientへ必要な属性と実ForwardValidationSessionを与え、実_finalize_forward_validationを採用条件（候補損失が参照損失より十分小さい）で実行して対照する。設計レビュー中に実行可能性を確認した: 上流の登録oracleの実旧clientへ設計に列挙した属性を与え、forward_persistentで実_finalize_forward_validation(57)を実行すると、戻り値2・判定accepted、models=(4,9,-100)、current=-100、学習計数{-100:11}/{-100:3}、train_data_store[-100]に保留3件（要素identity保持）、pending ready=False/待機2、next_temp_id=-101、_on_local_model_changeへ(9,-100)、既存モデル9の統計件数は不変だった。
+- 要求/設計/tasksレビュー（Luna）の採否は review.md。使用済みID確認は、登録が担う3owner（一覧・統計・送信保留）と本関数が担う3owner（計数・標本・現在ID）に分かれ、いずれも最初の状態変更より前に行われる。
