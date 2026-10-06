@@ -1,0 +1,11 @@
+# 根拠と判断
+
+- 旧BaseClient._register_trained_new_model(temp_id,new_model,bx,by,pending_ready): _prepare_model_for_registration→models[temp_id]=model→no_gradでinitialization計算量記録→per_sample_error(bx,by)→全体mean/var（NaN分散は0.1）とclass別統計→model_stats[temp_id]設定→pending_model_params=get_params()、pending_model_stats=同じ統計dict、pending_model_ready=pending_ready。
+- 旧SharedBackbone系の_prepare_model_for_registration: _shared_backbone()（現在IDが保有されていればそのbackbone、なければmodels先頭）へ候補backboneのstate_dictをloadし、候補へattachする。値反映・接続・個別resetは既存adopted-candidate-shared-feature-integrationが移植済み。反映先の選択は未移植で、本specに含める。旧は保有0件でStopIteration。
+- 旧呼出しは3箇所。base._spawn_new_model（即時作成、FedDrift等）、fedsdaの前向き検証採用（最終構成の経路）、fedsdaのholdout検証採用。FedSDAは常にpending_ready=Falseで登録し、直後に_pending_upload_rounds=model_upload_delay_roundsを設定する。新PendingModelUploadState.queue_model_uploadは1以上の待機を一度に設定する。即時ready登録（FedDrift）は本specの範囲外。
+- 前向き検証採用の旧順序: 一時ID採番→登録→候補学習量をmodel_training_examples/optimizer_stepsへ加算→待機設定→train_data_storeへ保留標本extend→_set_local_current_model（変更時_on_local_model_change）→switch位置/episode記録。登録後の計数・標本・現在ID・通知は呼出し元ごとに異なるため、候補sessionの終了を扱う後続specへ残す。互いに独立したownerへの更新で、登録と待機設定の間に計数加算が入る旧順序は観測できない。
+- 旧pending_model_statsは可変統計dictの別名。新は送信保留へ統計を複写せず、対応IDから現在統計を取得する（pending-model-upload specで確定済み）。
+- 旧の"initialization"計算量記録は診断counterで、新の診断ownerは未移植。本specは記録しない。呼出し側は渡した標本数を知っているため、戻り値に含めない。
+- 旧は空batchでNaN統計を登録し得る（LEGACY007）。新は既存の損失評価/初期統計APIの事前検証で拒否する。
+- 旧は同じ一時IDの再登録を黙って上書きする。一時IDは採番ごとに一意なので、新は保有済みIDを事前拒否する。通常経路への影響はない想定だが、旧全経路での確認は未実施。
+- 要求レビュー（Luna）の指摘により、一時IDの使用確認を学習状態一覧・統計store・送信保留の対応IDへ広げ、失敗時に部分変更を残さない契約にした。旧は接続後に損失を評価する。共有反映は候補共有部の値を反映先へそのまま複写するため、反映前の候補（自身の共有部）と反映後の候補（反映先）は同じparameter値・同じ構造でforwardする。新モデルにdropout/batch正規化等のmode・乱数依存層はない。設計では損失評価・統計・snapshotを反映前に生成して全検証を状態変更より前に置き、値の一致は実旧との完全一致testで確認する。旧の時系列で観測できる値・状態は変えない。
