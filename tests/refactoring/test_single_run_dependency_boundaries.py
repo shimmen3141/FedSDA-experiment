@@ -12,6 +12,65 @@ import pytest
     "source_text,expected_acceptance",
     [
         ("import math", False),
+        ("from random import Random", False),
+        ("import numpy", False),
+        ("from dataclasses import asdict", False),
+        ("from torch import rand", False),
+        ("from torch.nn import Linear", False),
+        ("from torch.optim import AdamW", False),
+        ("from .parameter_optimizer_state import _private", False),
+        ("from .parameter_optimizer_construction import create_parameter_optimizer", False),
+        ("from .joint_model_parameter_update import perform_joint_model_parameter_update", False),
+        ("from .model_training_sample_store import ModelTrainingSampleStore", False),
+        ("from .held_model_training_binding import _private", False),
+        ("from federated_learning_experiments.runtime import run", False),
+        ("from federated_learning_experiments.configuration import config", False),
+        ("import federated_drift_experiment", False),
+        ("from . import parameter_optimizer_state", False),
+        ("from dataclasses import dataclass", True),
+        ("from torch import float32, strided", True),
+        ("from torch.nn import Parameter", True),
+        ("from torch.optim import Adam, SGD", True),
+        ("from .parameter_optimizer_state import ParameterOptimizerState", True),
+        ("from .held_model_training_binding import HeldModelTrainingBinding", True),
+        (
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            True,
+        ),
+    ],
+)
+def test_held_model_training_state_registry_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="learning/training/held_model_training_state_registry.py",
+        source_text=source_text,
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        "import torch",
+        "import torch.nn",
+        "import torch.optim as optim",
+        "import dataclasses",
+        "import federated_learning_experiments.learning.training.parameter_optimizer_state as state",
+        "from torch import nn",
+        "from torch import optim",
+    ],
+)
+def test_held_model_training_state_registry_rejects_module_imports(source_text):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="learning/training/held_model_training_state_registry.py",
+        source_text=source_text,
+    )
+    assert dependency_boundary_violations
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("import math", False),
         ("import random", False),
         ("import numpy", False),
         ("from dataclasses import asdict", False),
@@ -154,6 +213,19 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/held_model_training_state_registry.py":
+        # 一覧構造と公開状態参照だけを許可し、上位処理の呼出しを防ぐ。
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "torch.float32",
+            "torch.strided",
+            "torch.nn.Parameter",
+            "torch.optim.Adam",
+            "torch.optim.SGD",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "federated_learning_experiments.learning.training.held_model_training_binding.HeldModelTrainingBinding",
+        )
     if source_module_path == "learning/training/adopted_candidate_shared_feature_integration.py":
         # 外側接続はモデルとownerの公開型/属性だけを使い、学習計算へ依存しない。
         return imported_module_name in (
@@ -605,8 +677,25 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             import_statement=import_statement,
             importing_package_name=importing_package_name,
         )
+        if (
+            source_module_path == "learning/training/held_model_training_state_registry.py"
+            and isinstance(import_statement, ast.ImportFrom)
+        ):
+            # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
+            imported_module_names = tuple(
+                resolve_name(
+                    "." * import_statement.level + (import_statement.module or ""),
+                    importing_package_name,
+                )
+                + "."
+                + imported_module_alias.name
+                for imported_module_alias in import_statement.names
+            )
         for imported_module_name in imported_module_names:
-            if not dependency_is_allowed(
+            if (
+                source_module_path == "learning/training/held_model_training_state_registry.py"
+                and isinstance(import_statement, ast.Import)
+            ) or not dependency_is_allowed(
                 source_module_path=source_module_path,
                 imported_module_name=imported_module_name,
             ):

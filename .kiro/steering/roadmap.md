@@ -23,7 +23,7 @@
 
 ## 現在の状態
 
-- 進行中: `../specs/held-model-training-state-registry/README.md`。正式ローカル登録の前提となる保有一覧を先に仕様化。要求revision3・設計/命名revision1・全3実tasksはLuna APPROVED、task graph PASS。Task1から実装。ID別NN/個別optimizer管理器と現在binding取得が範囲。統計/標本/送信状態/ID対応/新client・全体runは後続。
+- 進行中: `../specs/held-model-training-state-registry/README.md`。要求revision3・設計/命名revision1・全3taskはLuna APPROVED、最終feature GO確認待ち。対象＋AST617/全4229 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧差分確認。ID別NN/個別optimizer管理器と現在binding取得が範囲。統計/標本/送信状態/ID対応/新client・全体runは後続。
 
 - 採用候補の共有学習反映は`../specs/adopted-candidate-shared-feature-integration/README.md`。要求/設計/命名revision1・全3tasks APPROVED完了、Luna最終feature GO。値反映→候補接続→個別resetを分離し、既存共有parameter/grad参照と共有optimizer stateを維持する。実旧12NN条件×3stepの全loss/値/grad/state一致、対象37/AST込み592、全4167 passed/3 skipped/1既存warning、品質/fresh新CPU/固定旧差分/全9要件trace確認。候補採否・登録/ID/統計・新client/全体runは後続。新たな旧正常系不具合は観測していない。
 

@@ -1,9 +1,9 @@
 {
   "feature_name": "held-model-training-state-registry",
   "created_at": "2026-10-06T03:23:27.615947+00:00",
-  "updated_at": "2026-10-06T03:42:29.479387+00:00",
+  "updated_at": "2026-10-06T04:04:03.516346+00:00",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "integration-validation",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -35,18 +35,19 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "current_sha256_lf": "18c11209ec86b48792f12d6604227d40be7ac00165f1d0f349355d5742e47d3d"
+      "current_sha256_lf": "944e8fc4541b3267a5398bac74c8469dc13add3f10d697430013730032999550"
     },
     "naming": {
       "generated": true,
       "approved": true,
       "revision": 1,
       "approved_revision": 1,
-      "approved_sha256_lf": "f78f49e102e2974128eb208cbcca9cae7bb5c921f3bfa3ff86bf654e2f59f158",
-      "generated_sha256_lf": "f78f49e102e2974128eb208cbcca9cae7bb5c921f3bfa3ff86bf654e2f59f158",
+      "approved_sha256_lf": "1855a2930a7f2c96a6e623c65bcf723cd990cc4f89e3d2094ba5b0a47153053b",
+      "generated_sha256_lf": "1855a2930a7f2c96a6e623c65bcf723cd990cc4f89e3d2094ba5b0a47153053b",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_sha256_lf": "f78f49e102e2974128eb208cbcca9cae7bb5c921f3bfa3ff86bf654e2f59f158"
     }
   },
   "ready_for_implementation": true,
@@ -64,10 +65,29 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
-    "completed_task_count": 2,
+    "completed_task_count": 3,
     "total_executable_tasks": 3,
-    "next_task": "3"
+    "next_task": null
+  },
+  "integration_validation": {
+    "decision": "PENDING",
+    "status": "TASKS_VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "requirements_covered": 11,
+    "test_pass_count": 4229,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "held_model_training_state_registry_only",
+    "verification_source_sha256": "b9082c1726b904b40034daa21b2febb984de26418af34faa60be103c528fe463"
   }
 }
