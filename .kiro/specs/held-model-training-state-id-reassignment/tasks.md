@@ -11,7 +11,7 @@
   - loss/全parameter/grad/個別と共有optimizerをexact照合。統計は上位で別途付替え、registry操作単独で統計/pending/snapshotを変えないこと、3乱数/defaults保持を検証。
   - production追加なし、RED N/A。対象pytest/品質/独立Lunaレビューで完了。
   - Requirements: 2.3,2.4
-- [ ] 3. 既存境界と固定goldenを統合検証する
+- [x] 3. 既存境界と固定goldenを統合検証する
   - 既存AST（変更/RED N/A）、fresh新CPU registry/optimizer/統計/pending接続と旧非importを確認。
   - 全pytest旧11/最終3golden、Ruff/format/Pyright/pip、固定旧差分空、承認hash/source hash/JUnitを実測記録。
   - 独立Luna task承認と主担当gateでtask3をcheckする。

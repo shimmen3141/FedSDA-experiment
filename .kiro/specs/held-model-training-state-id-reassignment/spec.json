@@ -1,9 +1,9 @@
 {
   "feature_name": "held-model-training-state-id-reassignment",
   "created_at": "2026-10-06T10:18:59.798050+00:00",
-  "updated_at": "2026-10-06T10:19:59.565928+00:00",
+  "updated_at": "2026-10-06T10:31:47.431902+00:00",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "implementation-complete",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -48,7 +48,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "current_sha256_lf": "62c45f4140b1226fd550bae6d86fd832775b788b04e0a6988eb88790b18fedad"
+      "current_sha256_lf": "06b99d99b58ed7509bef8a18a9ad5170f2bed6dc2a33a649caebdc9149142a2f"
     }
   },
   "ready_for_implementation": true,
@@ -62,15 +62,18 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
-    "completed_task_count": 2,
+    "completed_task_count": 3,
     "total_executable_tasks": 3,
-    "next_task": "3"
+    "next_task": null
   },
   "task_graph_review": {
     "verdict": "PASS",
     "mode": "independent_reused_thread",
     "record": "review.md"
-  }
+  },
+  "verification_source_sha256": "cd2ff4277d326f4de5af825f9dc19e3e179363f64a3c730e6a2f5f4d3e594a2b",
+  "verification_source_path_count": 216
 }
