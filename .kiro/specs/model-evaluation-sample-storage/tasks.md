@@ -12,7 +12,7 @@
   - class2/4で保持→単一付替え→ID再編→cat→損失評価の実旧NN対照、3共有RNG/defaults保持。production接続追加なし。
   - 対象＋AST/品質/独立Luna/主担当gateで完了。
   - Requirements: 3.3,3.4
-- [ ] 3. 全回帰と新CPU独立起動を検証する
+- [x] 3. 全回帰と新CPU独立起動を検証する
   - fresh新CPUで追加/付替え/再編と損失評価、旧非import。全pytest旧11/最終3goldenを固定環境で実行する。
   - Ruff/format/Pyright/pip、固定旧production/golden差分空、hash/JUnit/実測を記録。独立Luna承認と主担当gateで完了。
   - Requirements: 3.3,3.4

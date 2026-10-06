@@ -23,3 +23,16 @@
 - class2/4の実新旧NNに、追加→一回対応→単一付替え→2先への連結/両先超過再抽出→cat→損失評価を接続。全ID順/標本Tensor identity/Random終端/有界損失exact一致。過去snapshot、3共有RNG/torch defaults保持も確認。
 - 旧oracleのmapperにはID変更イベント用fixtureを補い、該当する実旧経路を省略しない。新productionの他owner接続は追加していない。
 - 実Luna Task2 APPROVED。独立対象＋AST1000passed/3.82秒、静的検査/diff/scan成功、指摘なし。
+
+## Task3
+
+- fresh新CPU: `../../venv/refactoring-tests/model_evaluation_sample_storage_smoke.py`成功。class2/4で追加/末尾容量保持→付替え→ID連結/超過抽出→有界損失、過去snapshotとrecord借用、旧パッケージ非importを確認。
+- Ruff全体成功、format121 files整形済み、Pyright0 errors/0 warnings、pip check成功、git diff --check成功。
+- `git diff 748c3aa -- federated_drift_experiment tests/regression_golden.json tests/proposed_regression_golden.json tests/test_regression.py tests/test_proposed_regression.py`は空。旧実装・goldenを変更していない。
+- 要求/設計/命名のLF正規化hashは承認値と一致。検証済み実装commit `e79109f`。tracked Python＋2goldenの221パスをパス順、パスUTF8＋NUL＋CRLFをLFへ正規化した内容＋NULで連結したSHA256: `2a611c2276522ffaf99685ba2b46f23e5ea22106dac6f461feae3e82007bd331`。
+- 全pytest: 5082 passed/3 skipped/1既存warning、126.32秒、exit0。3 skipは既存Windows wrapper条件、warningは既存qint8 fixtureのTypedStorage。旧11条件・最終Residual Adapter＋Switching3条件の固定goldenを含む。
+- JUnit: `../../venv/refactoring-tests/evaluation-storage-full.xml`、5085 tests/0 failures/0 errors/3 skipped。Lunaレビュー後にTask3をcheckする。
+
+新client・新全体runのgolden一致を示す検証ではない。評価対象fallback・モデル別counter・正式登録全体は後続。今回新たな旧正常経路の不具合は観測していない。
+
+実Luna Task3 APPROVED。独立対象＋AST1000passed/3.97秒・fresh新CPU成功、実測/証拠/source hash一致を確認。主担当完了gateは対象＋AST1000passed/3.81秒、fresh新CPU/diff成功。指摘なし。
