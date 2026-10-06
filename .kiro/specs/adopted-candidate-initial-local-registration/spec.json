@@ -1,7 +1,7 @@
 {
   "feature_name": "adopted-candidate-initial-local-registration",
   "language": "ja",
-  "phase": "feature-review-pending",
+  "phase": "completed",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "primary_agent": "claude-opus-5-5 (Claude Code)",
@@ -79,12 +79,12 @@
   "verification_source_sha256": "463e40ad2e6d917bd20727104799aba585ff7b47a30b7cfe8f9209f068dcc6cb",
   "verification_source_path_count": 229,
   "integration_validation": {
-    "decision": "PENDING",
-    "status": "FEATURE_REVIEW_NO_GO_PENDING_INDEPENDENT_FULL_PYTEST",
+    "decision": "GO",
+    "status": "VERIFIED",
     "record": "integration-validation.md",
     "review_record": "review.md",
     "reviewer": "gpt-6-luna",
-    "reviewer_thread": "codex session 01a1127a-f711-7192-87df-3310f99c18e2",
+    "reviewer_thread": "codex session 01a1127e-c718-7321-9a6f-c2dc2ad02238（NO-GO: 01a1127a-f711-7192-87df-3310f99c18e2、01a1127e-15ab-79a1-8796-8b408afc8170）",
     "requirements_covered": 13,
     "test_pass_count": 5678,
     "test_skip_count": 3,
@@ -94,6 +94,10 @@
     "legacy_production_unchanged": true,
     "golden_unchanged": true,
     "independent_full_pytest_reproduced": false,
-    "verification_source_sha256": "463e40ad2e6d917bd20727104799aba585ff7b47a30b7cfe8f9209f068dcc6cb"
+    "verification_source_sha256": "463e40ad2e6d917bd20727104799aba585ff7b47a30b7cfe8f9209f068dcc6cb",
+    "current_scope": "adopted_candidate_initial_local_registration_only",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "full_pytest_basis": "primary_agent_measurement_and_junit_per_user_decision_2026-10-07",
+    "decision_author": "primary_agent_after_luna_feature_integration_go"
   }
 }

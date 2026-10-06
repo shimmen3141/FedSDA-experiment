@@ -65,6 +65,16 @@ Lunaを利用できない場合はSonnetで代替し、利用不能理由と実�
 承認状態と次の作業を正本へ記録してください。
 ```
 
+### 全pytestの独立再現の基準（2026-10-07ユーザー決定）
+
+codex execのWindows sandboxでは、pytestの一時ディレクトリ走査と一時ファイル書込みがWinError 5で拒否され、
+独立レビュー担当が全pytestを再現できない。ユーザーの明示決定により、今後も次の基準でTask3とfeature最終GOを判定する。
+
+- 全pytest（旧11・最終3goldenを含む）は主担当が固定環境で実測し、件数・exit・JUnitの場所・対象commit・source hashを記録する。
+- 独立レビュー担当は、対象test＋依存境界test・fresh CPU smoke・Ruffを独立実行し、JUnit集計とgolden回帰testcaseの成否、固定旧差分が空であること、承認hashを照合する。
+- レビュー担当による全pytestの再現は必須としない。再現していない事実は対象specの記録へ明記し、再現済みと書かない。
+- sandboxを外した実行（danger-full-access等）は、ユーザーの個別の明示承認なしに行わない。
+
 ## 検証・成果物・終了時
 
 - 検証手順は[code-quality.md](../../docs/research/code-quality.md)、

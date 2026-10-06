@@ -28,10 +28,10 @@ Task3（3回目）: 実Luna APPROVED、指摘なし。前specと同じ基準（�
 
 別feature最終レビュー: 実Luna NO-GO（codex session 01a1127a-f711-7192-87df-3310f99c18e2、実行ログのmodel行はgpt-6-luna。回答末尾の自己申告は「GPT-6（GPT-6 Lunaレビューではありません）」で、ログのmodel指定と食い違う。食い違いの原因は未確認）。要求13項目は全て充足、状態所有/依存方向/旧対応/範囲の境界/golden・旧実装の不変/記録の区別に指摘なし。唯一の指摘（重要度高）: 独立レビュー側で全pytestの成功を再現できておらず、統合検証を追認できない→採用。GOへ更新しない。
 
-## レビュー待ち（feature最終GO）
+## feature最終GOまでの経緯
 
-- 段階: 別feature最終GO。全3taskは承認・完了済み。対象commitは09c399b（production/testはdd9f57dから変更なし）、source hash 229パス 463e40ad…、承認hashはspec.json。
-- 未達の条件: 独立レビュー担当による全pytest（5678 passed/3 skipped、旧11・最終3goldenを含む）の再現。主担当実測とJUnit、対象＋AST928/smoke/品質/旧差分空のLuna独立確認は済み。
-- 原因: codex execのWindows sandbox（read-only/workspace-write）では、pytestのtmp_path走査（os.scandir）と一時ファイル書込みがWinError 5で拒否される。worktree内の一時ディレクトリでも同じ。コード起因の失敗は観測されていない。
-- 解消手段の候補（ユーザー判断が必要）: (1)sandboxなしでLunaに全pytestだけを実行させる、(2)前specまでと同じ基準（主担当実測＋JUnit照合）で最終GOとすることをユーザーが明示する、(3)ユーザー自身またはCodex側セッションのLunaが全pytestを実行して結果を記録する。主担当はsandbox解除を自己判断で行わない。
-- GO後の作業: spec.jsonをcompletedへ更新しintegration_validationを記録、resume/roadmapの現在地を更新。次specは候補sessionの開始/終了（計数・標本追加・現在ID切替えと通知を含む）。
+- 2026-10-07、ユーザーが「前specまでと同じ基準（主担当の全pytest実測＋JUnit照合、レビュー担当は対象testの独立実行）で今後も進める」と明示決定。基準はsteering/agent-handoff.mdの「全pytestの独立再現の基準」へ記録した。sandboxを外した実行は行っていない。
+- 再判定1（codex session 01a1127e-15ab-79a1-8796-8b408afc8170）: 実Luna NO-GO。基準の記録はユーザー決定の範囲内で妥当との確認。指摘は(1)記録5678 passed/3 skippedとJUnit 5681 testsの不一致、(2)git差分の出力を確認できない。(1)は不採用: 5681−3=5678で同じ数であり、Luna自身の回答も「集計上は5678成功」と書いていた。(2)は採用: 主担当が差分コマンドの実出力（いずれも空）を提示し、Lunaに再実行を依頼。
+- 再判定2（codex session 01a1127e-c718-7321-9a6f-c2dc2ad02238）: 実Luna GO、指摘なし。件数の一致、748c3aa..HEADの旧実装/golden/旧回帰testとdd9f57d..HEADのsrc/testsの差分が空であることをLunaがgitで独立確認。残る制約: 独立レビュー側で全pytestの成功を再現できていない。
+- レビュー担当の同定: 全てcodex exec -m gpt-6-lunaで起動し、実行ログのmodel行はgpt-6-luna。ただし最終レビュー2回の回答末尾の自己申告は「GPT-6（Lunaではありません）」で、ログのmodel指定と食い違う。他の回では「GPT-6 Luna」「GPT-6 Codex」「GPT-6」と揺れる。自己申告の揺れの原因は未確認で、起動時のmodel指定を根拠に記録している。
+- 主担当は全suite/品質/承認hash/229パスsource hash/固定旧差分空を照合してcompletedへ更新。候補session・計数/標本追加/現在ID切替えと通知・計算量診断・欠落model復元・通信/new client/runは後続。

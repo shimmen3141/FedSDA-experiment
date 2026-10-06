@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- 採用候補の初期ローカル登録は`../specs/adopted-candidate-initial-local-registration/README.md`。主担当Claude Code。要求revision2・設計revision2・命名revision3・tasks revision3・全3tasks承認/完了、別実Luna feature GO（全pytestは主担当実測＋JUnit照合、基準はagent-handoff.md）。外側runtimeの状態なし関数で、現在ID優先/一覧先頭の反映先選択、損失・初期統計・snapshotの事前生成、共有反映→学習状態一覧→統計→送信保留の順次更新を組み立てた。全検証と数値生成を状態変更より前に置き、拒否時は共有部・接続・optimizerを含む全状態が不変。実旧対照48＋統計標本8＋optimizer3条件、拒否47条件、class2/4×3optimizer×共有更新有無の12条件で登録前学習→登録→学習→正式ID確認→学習の全数値/optimizer/RNGを実旧へ照合。対象＋AST928/全5678passed・3skipped・1既存warning、fresh新CPU/品質/固定旧golden/13要件成功。新たな旧正常不具合は観測していない。次は候補session終了時の採用接続（採番・計数・標本追加・現在ID切替えと通知）。通信・新client/全体runは後続、入口はresume.md。
+
 - 保有モデルの正式登録確認は`../specs/held-model-registration-confirmation/README.md`。要求/設計revision1・命名revision2・全3tasks承認/完了、別実Luna feature GO。外側runtimeの状態なし関数で7ownerのID上書き/計数加算/current変更/pending解除を組み立てた。実旧保有32・非負3条件、全入力拒否/欠落model事前拒否/順序/保持を確認。class2/4×3optimizer×共有更新有無の12条件3共同更新で確認後の全数値/optimizer/count/RNGを実旧へ照合。対象＋AST864/全5518passed・3skipped・1既存warning、fresh新CPU/品質/固定旧golden/9要件成功。新たな旧正常不具合は観測していない。次は採用済みモデルの初期ローカル登録。欠落model復元・通信・新client/全体runは後続、入口はresume.md。
 
 - 現在の学習帰属モデルIDは`../specs/current-training-model-assignment/README.md`。要求revision3・設計revision1・命名revision2・tasks revision2・全3tasks承認/完了、別実Luna feature GO。単一ID owner/変更record/全入力事前拒否/一段mapを移植し、理由別通知は上位へ残した。実旧ローカル16・server28条件、登録確認と計数移管3条件を対照。対象＋AST819/全5398 passed・3 skipped・1既存warning、stdlib単独/品質/固定旧golden/全7要件を確認。新たな旧正常不具合は観測していない。root探索のRuff panicと回避をdevelopment finding/品質手順へ記録。次は正式ローカル登録の組立。全登録・新client/全体runは後続、読む入口はresume.md。
