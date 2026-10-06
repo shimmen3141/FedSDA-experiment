@@ -12,3 +12,7 @@
 
 実Luna Task1 APPROVED。独立193passed/1.80秒、静的検査/scan成功、旧順序/signed/原子的検査/独立copy/同ID拒否を確認。Pyright独立再実行は未実施、主担当の0 errors/0 warningsを記録。指摘なし、採用。主担当も対象193passedと型/実diffを照合して完了。
 Task2 preview/binding/標本一覧の追加命名revision2も実Luna APPROVED。previewの独立Randomと計数順の区別を確認。指摘なし、採用。
+
+## Task2
+
+実Luna APPROVED。独立対象＋AST931passed/8.43秒、静的検査/diff/scan成功。12条件×3stepの旧確認/新計数と後続学習、batch/全数値/optimizer/Random、exact依存を確認。production変更なし。指摘なし、採用。主担当も931passed・stdlib smokeと実diffを照合して完了。

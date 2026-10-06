@@ -14,3 +14,12 @@
 - 3辞書のkey順/概念内順と値を旧_attribute_model_training/_record/get_model_concept_counts/confirm/apply_server_mappingへ対照。旧同負ID通知の破損は実旧再現を残し、旧productionは変更しない。
 - 初回Ruffでsnapshot変数をiterableの式とloopで兼用する警告を検出し、比較対象tupleを先に生成して修正。機能テストは初回189件から成功。
 - 実Luna Task1 APPROVED、独立193passed/1.80秒、静的検査/scan成功、指摘なし。追加のTask2命名revision2もAPPROVED。
+
+## Task2
+
+- AST RED: 7 failed/719 passed/0.73秒、exit1。一般stdlib許可が通す依存を新exact guardで拒否する前の失敗。
+- GREEN: 対象＋AST931 passed/4.42秒、exit0、Ruff/format/diff成功。18条件追加、dataclass/annotationsの公開symbolだけ許可し、module import・Counter/Random/数値/学習/他ownerを拒否。
+- class2/4×Adam標準/AMSGrad/SGD×共有更新有無の12条件各3共同更新。初回後に実旧confirmと新加算移管、上位で標本/NN binding IDを対応。新samplerの独立Random preview順/件数を完了学習の計数へ渡す。
+- 毎stepの全3計数/key順、抽出Tensor、loss、全parameter/grad/両optimizer、Random終端がexact一致。3共有RNG/torch defaults保持と過去snapshotも確認。
+- `python -S ../../venv/refactoring-tests/model_training_and_assignment_counts_stdlib_smoke.py`成功。保持→加算移管→一回再編/copy分離、torch/numpy/旧非import。
+- 実Luna Task2 APPROVED、独立対象＋AST931passed/8.43秒、静的検査/diff/scan成功、指摘なし。

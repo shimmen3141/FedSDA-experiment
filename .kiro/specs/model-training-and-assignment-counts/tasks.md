@@ -6,7 +6,7 @@
   - 実旧加算/読み取り/移管/再編の順序・拒否・snapshot独立をRED→GREENで検証。同ID旧破損と新拒否の対照を記録する。
   - ownerとsnapshotだけを実装し、対象/品質/型/実Lunaレビュー/主担当gateで完了。
   - Requirements: 1.1,1.2,1.3,2.1,2.2,2.3,3.1
-- [ ] 2. exact依存と実学習への計数接続を検証する
+- [x] 2. exact依存と実学習への計数接続を検証する
   - AST許可/禁止注入をRED→GREEN。stdlib単独起動でtorch/旧非import。
   - 12条件各3共同学習、初回後に移管/上位ID対応、計数/全loss/NN値/grad/optimizer/RNG一致。接続はtest-only。
   - 対象＋AST/品質/独立Luna/主担当gateで完了。

@@ -370,6 +370,8 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/model_training_and_assignment_counts.py":
+        return imported_module_name in ("__future__.annotations", "dataclasses.dataclass")
     if source_module_path == "evaluation/model_evaluation_sample_records.py":
         return imported_module_name in (
             "__future__.annotations",
@@ -883,6 +885,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "methods/fedsda/model_registration/pending_model_upload.py",
             "evaluation/model_evaluation_sample_records.py",
             "evaluation/model_evaluation_sample_store.py",
+            "learning/training/model_training_and_assignment_counts.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -904,6 +907,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "methods/fedsda/model_registration/pending_model_upload.py",
                     "evaluation/model_evaluation_sample_records.py",
                     "evaluation/model_evaluation_sample_store.py",
+                    "learning/training/model_training_and_assignment_counts.py",
                 )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(
@@ -2639,6 +2643,37 @@ def test_model_training_sample_store_dependency_contract(source_text, expected_a
 def test_model_evaluation_sample_dependencies(source_module_path, source_text, expected_acceptance):
     dependency_boundary_violations = collect_dependency_boundary_violations(
         source_module_path=source_module_path, source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("import math", False),
+        ("import random", False),
+        ("from random import Random", False),
+        ("from collections import Counter", False),
+        ("import dataclasses", False),
+        ("from dataclasses import asdict", False),
+        ("from dataclasses import *", False),
+        ("import numpy", False),
+        ("import torch", False),
+        ("from torch.optim import Optimizer", False),
+        ("import federated_drift_experiment", False),
+        ("from .local_training_request_schedule import LocalTrainingRequestSchedule", False),
+        ("from .local_training_settings import LocalTrainingSettings", False),
+        ("from .model_training_sample_store import ModelTrainingSampleStore", False),
+        ("from federated_learning_experiments.runtime import run", False),
+        ("from dataclasses import dataclass", True),
+        ("from dataclasses import dataclass as Record", True),
+        ("from __future__ import annotations", True),
+    ],
+)
+def test_model_training_and_assignment_counts_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="learning/training/model_training_and_assignment_counts.py",
+        source_text=source_text,
     )
     assert (not dependency_boundary_violations) == expected_acceptance
 
