@@ -5,6 +5,9 @@
 
 ## 読む順序と正本
 
+リファクタリングの再開は[resume](../.kiro/steering/resume.md)、
+Claude・Codexの交代は[共通引継ぎ手順](../.kiro/steering/agent-handoff.md)から確認する。
+
 1. [最終提案構成](overview/proposed-method.md): 採用要素、固定設定、処理順、主張の範囲。
 2. [主要ablation](experiments/ablation-plan.md): 比較目的と既存成果の対応。
 3. components: 調べたい個別機能の実装と代替方式。

@@ -2,6 +2,9 @@
 
 更新: 2026-10-07。これは短い案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
+Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
+Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い、CodexはGPT-6 Luna、ClaudeはSonnetの独立レビューで承認する。
+
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
@@ -26,7 +29,7 @@
 2. [roadmap](roadmap.md)の「現在の状態」、[product](product.md)、[tech](tech.md)、[structure](structure.md)。
 3. 対象specのREADME→spec.json/tasks.md→requirements/design/naming→review/integration-validation。未完了taskがあれば次のspecより先に扱う。
 4. `git status --short`とブランチを確認し、別タスクの差分・未追跡資料を特定する。文書の案内と実際の状態が違う場合はGitとspecの正本を確認する。
-5. cc-sddの要求→設計/命名→tasks→実装→統合検証へ進む。各段階は実GPT-6 Lunaレビューと有用な指摘の反映で承認し、採否と内容hashを記録する。命名承認前に新srcや先取りtestを作らない。
+5. cc-sddの要求→設計/命名→tasks→実装→統合検証へ進む。各段階はCodex担当時はGPT-6 Luna、Claude担当時はSonnetの独立レビューと有用な指摘の反映で承認し、担当モデル・採否・内容hashを記録する。命名承認前に新srcや先取りtestを作らない。
 
 ## 別タスクと記録の扱い
 
