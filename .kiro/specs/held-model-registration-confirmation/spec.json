@@ -1,7 +1,7 @@
 {
   "feature_name": "held-model-registration-confirmation",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementing",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -47,7 +47,8 @@
       "approved_sha256_lf": "9e8333e99743841a9b969ced77d828001f83002e8cde352ff5c67a191b3ca2cf",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "current_sha256_lf": "1b664771eab0004d001f5b5e80f9762c5044f8a51e4fb9f29c924e31b34f3fc7"
     }
   },
   "ready_for_implementation": true,
@@ -61,8 +62,10 @@
     "pending-model-upload"
   ],
   "implementation_progress": {
-    "completed_tasks": [],
+    "completed_tasks": [
+      "1"
+    ],
     "total_executable_tasks": 3,
-    "next_task": "1"
+    "next_task": "2"
   }
 }
