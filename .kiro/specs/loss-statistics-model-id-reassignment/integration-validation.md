@@ -5,6 +5,7 @@
 既存統計storeの単一ID付替えだけ。モデル/標本/counterの付替え、現在帰属ID/保留解除を組み立てる正式登録全体、新client/全体runは後続。
 2026-10-06、共有../../venvのWindows CPU基準。OMP_NUM_THREADS=MKL_NUM_THREADS=1、MPLCONFIGDIR=../../venv/matplotlib-cache、TMP/TEMP=../../venv/refactoring-tests、FDE_MNIST_DATA_DIR=../../data/mnist。
 版と基準はdocs/experiments/refactoring-baseline.md / environments/golden/windows-cpu。
+全3task完了/承認後、別feature最終レビューで実Luna GO。全8要件/設計・所有・接続・境界・ファイル計画と全実測を確認。主担当もこのscopeをVERIFIEDと判定。
 
 ## Task1
 

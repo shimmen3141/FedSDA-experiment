@@ -29,3 +29,9 @@ Luna NEEDS_FIXES: 旧pop代入/順序/欠落/事前検査とoracleの妥当性�
 
 実Luna APPROVED。JUnit4562 tests/0 failures/0 errors/3 skipped、独立731passed/6.62秒、fresh旧非import、品質・固定旧差分空、source hash一致、変更なしの既存guard RED N/Aを確認。指摘なし、採用。
 承認後の主担当gateで対象＋AST/fresh/diffを再実行し、全3taskをcheckする。feature最終GOは別判定。
+
+## feature最終gate
+
+全task完了後、別の実Luna統合レビューでDECISION: GO。
+全8条件/8、JUnit4562 tests/0 failures/0 errors/3 skipped、全4559passed/exit0、fresh新CPU/旧非import、source hashと固定旧/golden差分空、所有・保留不変・変更先統計更新・上位明示解除・境界・設計/ファイル計画を確認。blocker/指摘なし、採用。
+主担当も本統計store単一付替えをVERIFIEDと判定。正式登録全体・モデル/標本/counter付替え・新client/全体runは後続。

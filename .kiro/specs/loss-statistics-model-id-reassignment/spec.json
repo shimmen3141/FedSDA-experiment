@@ -1,9 +1,9 @@
 {
   "feature_name": "loss-statistics-model-id-reassignment",
   "created_at": "2026-10-06T09:41:51.605685+00:00",
-  "updated_at": "2026-10-06T09:54:05.037426+00:00",
+  "updated_at": "2026-10-06T09:56:16.892047+00:00",
   "language": "ja",
-  "phase": "implementation-complete",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -74,5 +74,25 @@
     "record": "review.md"
   },
   "verification_source_sha256": "cfd392fe76a2a8958845adf556e4322d45f151e7360fedbdfcbff9ac574ce660",
-  "verification_source_path_count": 215
+  "verification_source_path_count": 215,
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "requirements_covered": 8,
+    "test_pass_count": 4559,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "loss_statistics_model_id_reassignment_only",
+    "verification_source_sha256": "cfd392fe76a2a8958845adf556e4322d45f151e7360fedbdfcbff9ac574ce660",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go"
+  }
 }
