@@ -1,4 +1,4 @@
-# 命名 revision 1
+# 命名 revision 2
 
 |名前|型・役割・更新する状態・区別|
 |---|---|
@@ -42,3 +42,23 @@
 |test_*|契約を記述するpytest関数|
 
 共同学習接続と不変確認の名前は上流adoption/absorption specと同じ役割で再利用する。追加が必要になったら実装前に本表へ戻してレビューする。
+
+## Task1・Task2で追加した名前（revision 2）
+
+productionの追加名はない。
+
+|名前|役割|
+|---|---|
+|LEGACY_DRIFT_TYPE_BY_RESOLUTION_OUTCOME|新結果種別と旧確定処理の戻り値（2/1/0）の対応表（test側）|
+|LEGACY_RESOLUTION_CASES|旧分岐のtest軸の値の列（create / reuse / maintain / create_rejected）|
+|resolution_module|monkeypatchで採用・吸収の呼出しを観測するための新moduleの別名|
+|finalize_forward_validation_in_legacy_client|実旧_finalize_forward_validationを実行し、旧判定acceptedが新の評価結果と同じであることを確かめて戻り値を返すtest helper。手順を再構成しない|
+|resolution / assignment_change / previous_model_id|新関数が返した結果record/その変更記録/確定前の現在ID|
+|candidate_losses / reference_losses_by_model_id / reference_historical_mean_losses_by_model_id|旧sessionと新評価関数の両方へ与える同じ損失列と履歴平均（既存評価APIの引数名）|
+|shared_optimizer_owners / legacy_candidate_model / registry / candidate / candidate_feature_extractor / candidate_optimizer / previous_held_model_training_states / previous_counts / current_counts|上流testと同じ役割の局所名と、採用以外で候補・一覧・計数が変わらないことの比較用|
+|valid_resolution_arguments / evaluation / evaluation_subclass / field_name|不正値へ差し替える前の引数一式/評価結果/その派生型/複製するfield名|
+|replace_middle_pending_sample|test内closure。保留標本列の中央だけを差し替える|
+|record_then_call / record_then_assign / original_assignment|順序観測wrapperと元の現在ID切替え|
+|run_joint_update_in_both_implementations とその局所名|上流の採用・吸収testと同じ役割|
+|post_alarm_candidate_validation_resolution_cpu_smoke.py / post_alarm_candidate_validation_resolution_red_evidence.py|共有venvのrefactoring-testsへ置く、旧importなしのfresh CPU smoke/実装をstubと誤実装へ一時差し替えてtestの失敗を確かめる検証script。Git管理外|
+|test_post_alarm_candidate_validation_resolution_exact_dependency_contract|依存境界testの注入契約|
