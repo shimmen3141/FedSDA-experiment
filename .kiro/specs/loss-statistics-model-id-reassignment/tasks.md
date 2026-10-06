@@ -2,7 +2,7 @@
 
 要求・設計・命名revision1とLuna graph PASS/task APPROVEDを正本として依存順に実行する。
 
-- [ ] 1. 統計storeの単一ID付替えをTDDで追加する
+- [x] 1. 統計storeの単一ID付替えをTDDで追加する
   - 順序/元欠落/先衝突/同ID/汎用signed/0件・class順、両ID拒否と状態保持、独立取得値・後続観測のテストをREDにする。
   - 既存storeに一APIだけ追加。実旧BaseClient.confirm_model_registrationの統計値/モデル順を照合。負元IDの実旧対照と汎用signed直接期待値を区別する。
   - 対象pytest/品質/独立Luna実diffレビューをgateとする。

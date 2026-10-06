@@ -16,3 +16,7 @@ Luna NEEDS_FIXES: 旧pop代入/順序/欠落/事前検査とoracleの妥当性�
 採用: feature GO・案内更新・pushを全task完了後の独立手順へ移動。task3は証拠/独立taskレビュー/主担当gateで完了する。
 
 再レビュー: 実Luna requirements APPROVED、TASK GRAPH PASS、Tasks APPROVED。8条件/検証/依存順/feature gate分離を確認。採用。承認済み案の見出しと開始条件を実装用へ更新（契約変更なし）。
+
+## Task1
+
+実Luna APPROVED。独立63passed/2.11秒、静的検査とdiff、RED記録、実旧照合/汎用signed/同ID/先行検査/欠落/独立取得と更新を確認。指摘なし、採用。

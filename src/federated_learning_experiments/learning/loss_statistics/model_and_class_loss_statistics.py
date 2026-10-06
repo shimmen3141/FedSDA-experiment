@@ -104,6 +104,19 @@ class ModelAndClassLossStatisticsStore:
         loss_statistics = _copy_model_and_class_loss_statistics(loss_statistics=loss_statistics)
         self._model_loss_statistics_by_model_id[model_id] = loss_statistics
 
+    def reassign_model_loss_statistics_id(
+        self,
+        *,
+        original_model_id: int,
+        reassigned_model_id: int,
+    ) -> None:
+        """一モデルの統計を移し、既存先は位置保持で上書き、同IDは末尾へ置く。"""
+        _validate_identifier(identifier=original_model_id, parameter_name="original_model_id")
+        _validate_identifier(identifier=reassigned_model_id, parameter_name="reassigned_model_id")
+        if original_model_id in self._model_loss_statistics_by_model_id:
+            loss_statistics = self._model_loss_statistics_by_model_id.pop(original_model_id)
+            self._model_loss_statistics_by_model_id[reassigned_model_id] = loss_statistics
+
     def record_assigned_loss(
         self,
         *,
