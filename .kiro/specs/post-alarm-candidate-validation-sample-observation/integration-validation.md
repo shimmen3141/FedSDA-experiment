@@ -35,3 +35,29 @@
 - fresh `../../venv/refactoring-tests/post_alarm_candidate_validation_sample_observation_cpu_smoke.py`成功、exit0。class2/4×履歴平均3通りで学習→収集開始→観測4件（到達はFalse,False,False,True、分類器不変）→評価→確定→学習。結果種別は棄却・維持・再利用を観測。旧importなし。
 - 後続specへの引継ぎ: 実旧の参照複製はモデル生成でtorch乱数を消費する。候補sessionの開始を移植するときは、この乱数消費の位置と量を維持する必要がある。
 - Task1/Task2はレビュー担当がAPPROVED、独立1028 passed/smoke/Ruff成功、指摘なし。
+
+## Task3
+
+- 検証対象実装commit: 41af959。要求revision1・設計revision2・命名revision2のLF hashは承認値と一致。tasksは承認時hash（revision1）を維持し、check後hashを別fieldへ記録。
+- tracked Python＋2goldenの239パスをパス順、パスUTF8＋NUL＋内容CRLF→LF＋NULで連結したSHA256: `514d7384b91a4cf254be728ef9476e88a340c72bb73dd8a36f60365e9aabcee9`（前specの237パスに新module/新testの2件を加えた数）。
+- 全適用対象Ruff成功/format139files、Pyright基準venv明示0 errors/0 warnings、pip check成功。
+- 固定旧基準748c3aaからHEADへの、federated_drift_experiment/・2golden・旧回帰test2本・tools/の差分は空。
+- 全pytest（主担当実測）: 6277passed/3skipped/1既存warning、141.59秒、exit0。前spec完了時6200に今回の77（対象47＋AST契約30）を加えた件数と一致。旧11条件と最終3条件の固定goldenを含む。goldenは更新していない。
+- JUnit: `../../venv/refactoring-tests/post-alarm-candidate-validation-sample-observation-full.xml`。
+- 全pytestの独立再現はsteering/agent-handoff.mdの基準（2026-10-07ユーザー決定）に従い必須としない。レビュー担当側での全pytest再現は試みていない。新全体runを実行したとは扱わない。
+
+## 要件trace
+
+|要求|証拠|
+|---|---|
+|1.1|実旧対照4条件の各観測回の損失列・ID順・標本位置、分類器の取り違え/損失の入替え/収集へ追加しない誤実装の検出|
+|1.2|到達の戻り値（最後の観測回だけTrue）、常に未到達/常に到達の誤実装の検出、到達後に評価・確定を呼ばないこと（依存guardで評価関数と確定を拒否）|
+|1.3|分類器の学習mode・parameter/grad・乱数の不変|
+|2.1|収集の型3と対応の型3の拒否、収集不変、dict派生を受理する誤実装の検出|
+|2.2|複数行/1次元がforwardより前に拒否されること、特徴/ラベル/分類器の不正の拒否、収集不変|
+|2.3|標本位置4、参照IDの集合と型3、到達済み1の拒否、収集不変|
+|2.4|呼出順test、参照の評価より前に収集へ追加する誤実装の検出|
+|3.1|状態なしruntime関数、exact4symbol AST guardと注入契約30|
+|3.2|実旧_observe_forward_validationとの損失列一致、規定件数到達後の評価・確定まで含めた状態一致6条件、12条件の学習継続、fresh新CPU smoke|
+
+候補と参照分類器の生成（候補sessionの開始。実旧の参照複製はtorch乱数を消費する）、到達後の評価・確定の呼出しと判定record・切替位置・適応イベント・通知、終端での未完了sessionの棄却、計算量診断、通信/new client/runは後続。参照も学習させる方針（旧shadow_tournament）は2026-10-07のユーザー判断で当面不要。新たな旧挙動の記録はない。旧golden成功は新全体runの検証と区別する。

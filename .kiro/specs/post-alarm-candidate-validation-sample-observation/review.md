@@ -9,3 +9,7 @@
 再レビュー（設計r2、codex session 01a112ed-e0bc-7f62-9be9-c7ba9df3ae87）: APPROVED、指摘なし。主担当はhashを再計算して照合し実装を開始。
 
 命名revision2・Task1・Task2（codex session 01a112f4-fe93-7bc0-b157-ed8c2aa39962）: 3件ともAPPROVED、指摘なし。新の分類器のforwardで候補と参照を評価し各観測回の損失値・順序・ID順・到達を実旧sessionと対照していること、拒否24条件の収集不変、1標本違反が損失評価の呼出し前に拒否されること、呼出順、4symbolの依存境界、履歴平均3通り×class2/4の確定までの照合、12条件の学習継続、乱数状態の記録位置の修正が比較範囲を狭めないことを確認。レビュー担当はworkspace-write sandboxで対象＋AST 1028 passed、smoke、Ruff check/formatを独立実行。差し替え検証scriptは内容を読んで評価し、その実測結果は独立再実行していない。主担当はレビュー前後のgit status一致を確認。
+
+Task3（codex session 01a112fa-6c89-7860-9245-4d3ae27f59b9）: APPROVED、指摘なし。独立に対象3群1148 passed、fresh CPU smoke、Ruff check/format成功、JUnit 6280 tests/0 failures/0 errors/3 skippedとgolden回帰2 testcaseの成功、旧実装/golden/tools差分空、src/tests差分空、承認hash、要件traceと実在testの対応を照合。全pytestの独立再現は基準どおり行っていない。
+
+別feature最終レビュー: 次項に結果を記録する（対象HEADはこの記録のcommit、production/testは41af959から無変更、source hash 239パス 514d7384…。起動は別プロセスのcodex exec -m gpt-6-luna --sandbox read-only）。
