@@ -1,4 +1,4 @@
-# 命名 revision 1
+# 命名 revision 2
 
 |名前|型・役割・更新・区別|
 |---|---|
@@ -31,3 +31,12 @@
 |test_*|契約を記述するpytest名、状態を持たない|
 
 既存fixture関数とassert helperの名前は元spec承認済みの意味で再利用する。
+
+## Task2追加
+
+|名前|役割|
+|---|---|
+|expected_model_counts_snapshot|現在ID更新前の独立計数snapshot。ID期待値と混同しない|
+|test_training_state_owner_dataclass_only_dependency_contract|計数owner/現在ID ownerに共通のdataclass限定AST契約を検証。新owner追加に伴い既存counts専用test名を改める|
+
+stdlib単独smokeは既存のtraining_assignment、assignment_change、model_id_mappingを使用し、import確認はsys.modulesを観測する。

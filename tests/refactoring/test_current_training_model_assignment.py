@@ -5,7 +5,10 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from test_model_training_and_assignment_counts import build_model_counts_oracle
+from test_model_training_and_assignment_counts import (
+    assert_model_counts_match_legacy,
+    build_model_counts_oracle,
+)
 
 from federated_drift_experiment.clients.base import BaseClient
 from federated_drift_experiment.clients.fedsda import FedSDAClient
@@ -156,3 +159,42 @@ def test_mapping_input_is_neither_saved_nor_modified():
     model_id_mapping[12] = 4
     assert training_assignment.current_training_model_id == 12
     assert assignment_change.current_model_id == 12
+
+
+@pytest.mark.parametrize("receiving_model_id", [0, 4, 12])
+def test_registration_confirmation_connects_independent_id_and_count_owners(receiving_model_id):
+    model_counts_store, legacy_client = build_model_counts_oracle(count_case="mixed")
+    legacy_client.current_model_id = -7
+    legacy_client.pending_model_params = {"snapshot": "independent"}
+    # このtestでは新規モデル再構築を伴わない、保有モデルの登録確認を照合する。
+    legacy_client.models[-7] = object()
+    training_assignment = CurrentTrainingModelAssignment(initial_model_id=-7)
+    expected_model_counts_snapshot = (
+        model_counts_store.snapshot_model_training_and_assignment_counts()
+    )
+    assignment_change = training_assignment.assign_model_for_training(model_id=receiving_model_id)
+    assert (
+        model_counts_store.snapshot_model_training_and_assignment_counts()
+        == expected_model_counts_snapshot
+    )
+    assert legacy_client.pending_model_params == {"snapshot": "independent"}
+    assert legacy_client.current_model_id == -7
+    assert -7 in legacy_client.models
+    model_counts_store.transfer_model_training_and_assignment_counts(
+        original_model_id=assignment_change.previous_model_id,
+        receiving_model_id=assignment_change.current_model_id,
+    )
+    BaseClient.confirm_model_registration(legacy_client, receiving_model_id)
+    assert training_assignment.current_training_model_id == legacy_client.current_model_id
+    assert_model_counts_match_legacy(counts_store=model_counts_store, legacy_client=legacy_client)
+    legacy_client._record_adaptation_event.assert_not_called()
+    assert legacy_client.pending_model_params is None
+    # 後続サーバ再編は両ownerに別々に適用する。返した登録recordは変更しない。
+    model_id_mapping = {receiving_model_id: 99, 99: 100}
+    model_counts_store.remap_model_training_and_assignment_counts(model_id_mapping=model_id_mapping)
+    training_assignment.remap_current_training_model_id(model_id_mapping=model_id_mapping)
+    BaseClient.apply_server_mapping(legacy_client, model_id_mapping, {})
+    assert training_assignment.current_training_model_id == legacy_client.current_model_id == 99
+    assert_model_counts_match_legacy(counts_store=model_counts_store, legacy_client=legacy_client)
+    assert assignment_change.previous_model_id == -7
+    assert assignment_change.current_model_id == receiving_model_id
