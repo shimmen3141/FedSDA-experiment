@@ -1,6 +1,6 @@
 # 実装タスク
 
-- [ ] 1. 準備済み分類器の標本別損失評価を実装する
+- [x] 1. 準備済み分類器の標本別損失評価を実装する
   - 未実装公開APIのimport RED後、全入力の先行検証・一forward・出力検証・binary/multiclass損失を実装する。
   - 一標本/非連続/逆順の実旧損失一致、型/shape/value/parameter/output拒否、値/grad/flags/RNG/default/gradmode保持と独立結果を確認する。
   - 完了は対象単体GREEN・Ruff/format/Pyright・Luna Task APPROVEDで判断する。

@@ -16,3 +16,8 @@ Luna再レビューでDesign: APPROVED、Naming: APPROVED。全11要件・exact�
 ## Task graph
 保存前のメモリ内草案をLunaが独立レビューしTASK GRAPH VERDICT: PASS。全11要件、隠れ前提なし、順序・責務・完了条件を確認。実tasksでもTask2をtest-only統合境界、Task3完了と全task後feature GOを分けた。
 保存後の実tasksもLuna VERDICT: APPROVED。全11条件、依存1→2→3とTask/feature別gateを確認、指摘なし。
+
+## Task1
+主担当が番号1を指定してTDD実装。import RED1 collection error/exit1→77 passed/exit0、品質/型検査成功。範囲は評価productionと単体testのみ。実測はintegration-validation.md。
+Luna独立77 passed/品質・production境界成功だが、testがdefault device setterをcpuへ戻してもcontextを残すと指摘しVERDICT: REJECTED。採用しscoped with torch.deviceへ変更。別fresh processで旧setter0→1/new scoped0→0を主担当が実証した。対象77 passed/3.41秒/exit0・品質成功、再レビュー依頼。観測はdevelopment-findings/2026-10-06-torch-default-device-test-context-leak.mdに記録した。
+Luna再レビューでVERDICT: APPROVED、独立77 passed/exit0・品質・context復元・責務を確認、残指摘なし。主担当のTask1 completion gateは実測と一致しVERIFIED。本評価境界の完了だけを認め、統合と全回帰は後続taskで行う。

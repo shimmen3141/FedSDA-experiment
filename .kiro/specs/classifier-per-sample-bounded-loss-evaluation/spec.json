@@ -1,7 +1,7 @@
 {
   "feature_name": "classifier-per-sample-bounded-loss-evaluation",
   "created_at": "2026-10-06T04:12:13.639210+00:00",
-  "updated_at": "2026-10-06T04:21:14.095487+00:00",
+  "updated_at": "2026-10-06T04:29:36.570486+00:00",
   "language": "ja",
   "phase": "implementation-in-progress",
   "approvals": {
@@ -34,7 +34,8 @@
       "approved_sha256_lf": "5d79e5f9fb0cf7bdb353d488f16619c42b74653c67b2fafff6a1b093f884070b",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "current_sha256_lf": "11ab6690d35f90cd00bdca76a9cfe6b78a6feb5518944f6ac90c0cd815f6c142"
     },
     "naming": {
       "generated": true,
@@ -60,9 +61,11 @@
     "record": "review.md"
   },
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
     "total_executable_tasks": 3,
-    "next_task": "1"
+    "next_task": "2"
   }
 }
