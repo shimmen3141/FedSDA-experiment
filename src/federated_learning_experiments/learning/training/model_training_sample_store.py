@@ -26,6 +26,20 @@ class ModelTrainingSampleStore:
                 )
         self._training_samples_by_model_id.setdefault(model_id, []).extend(training_samples)
 
+    def reassign_model_training_samples_id(
+        self, *, original_model_id: int, reassigned_model_id: int
+    ) -> None:
+        """元の標本列で先を上書きし、payloadと取得済みsnapshotには触れない。"""
+        for parameter_name, model_id in (
+            ("original_model_id", original_model_id),
+            ("reassigned_model_id", reassigned_model_id),
+        ):
+            if type(model_id) is not int:
+                raise TypeError(f"{parameter_name}はbool・派生型以外のbuiltin intが必要です。")
+        if original_model_id in self._training_samples_by_model_id:
+            training_samples = self._training_samples_by_model_id.pop(original_model_id)
+            self._training_samples_by_model_id[reassigned_model_id] = training_samples
+
     def snapshot_ordered_model_training_samples(self) -> tuple[ModelTrainingSampleCollection, ...]:
         """構造を分離したsnapshotを返す。標本recordとTensorは共有する。"""
         return tuple(

@@ -2,7 +2,7 @@
 
 要求/設計/命名revision1・graph PASS/task APPROVEDを正本に依存順に実行する。
 
-- [ ] 1. 学習標本storeの単一ID付替えをTDDで追加する
+- [x] 1. 学習標本storeの単一ID付替えをTDDで追加する
   - 実旧confirm順序/列上書き/空/欠落/同ID/借用、signed期待値、両ID拒否、過去snapshot/後続追加、payload非検査のtestを先にREDにする。
   - 既存storeへ一APIのみ追加してGREEN。対象/既存storage・samplerテスト/品質・独立Luna実diffレビューで完了。
   - Requirements: 1.1,1.2,1.3,1.4,2.1,2.2,2.3
