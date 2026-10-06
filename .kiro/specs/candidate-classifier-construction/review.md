@@ -40,3 +40,7 @@ tasks revision2も再レビューAPPROVED。要求/設計revision2、命名revis
 GPT-6 Luna独立レビューAPPROVED。独立実行で対象30passed、Ruff check/format成功、許可依存と生成前拒否/RNG/optimizer対照を確認。nested tensor生成のprototype warningは拒否test準備由来。
 
 主担当/実装担当の証拠: source作成前REDはModuleNotFoundErrorで1error/exit1。初回29passed後、stub・初期読込み省略・parameter逆順で各6failed/exit1、復元hash一致。空共有部test追加REDは候補生成後のRNG変更で1failed/29deselected、生成前拒否追加後30passed（2.73s）。最終source LF hash50c5e8b311762fa9bfd9e788cfbcde84e622a1474bacdcaff8c2e41e1c6c5dd7。子側Pyrightはsandboxのvenv探索失敗、主担当が同commandを昇格実行して全src0errors/0warnings/exit0を確認した。sourceの未承認名なし、test先取りの経緯は上記の通り記録する。
+
+## Task2
+
+GPT-6 Luna独立レビューAPPROVED。対象36passed、fresh新CPU、Ruff check/format/diff確認成功。二値/4クラス×3optimizerの6条件で、初期snapshot選択→生成→3batch更新の全loss・値・grad・optimizer state・RNGを実旧へ比較するtest-only接続を確認。新productionはTask1から変更なし。REDはtest-only統合検証のためN/A。主担当も対象36passed（3.11s/exit0）、freshCPU旧importなし2/4クラス3updates/exit0を実行した。

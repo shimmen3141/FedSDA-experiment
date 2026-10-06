@@ -8,6 +8,7 @@ from test_adopted_candidate_initial_local_registration import (
     build_initial_registration_oracle,
     convert_legacy_parameter_name,
 )
+from test_joint_model_parameter_update import assert_nested_state_equal
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
     snapshot_parameter_values_and_gradients,
@@ -18,9 +19,24 @@ from federated_drift_experiment.models import ResidualAdapterMLP
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
+from federated_learning_experiments.learning.training.joint_model_parameter_update import (
+    perform_joint_model_parameter_update,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
     SgdParameterOptimizerSettings,
+)
+from federated_learning_experiments.learning.training.participating_model_training_batch import (
+    ParticipatingModelTrainingBatch,
+)
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import (
+    select_candidate_initial_parameter_snapshot,
+)
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
+    CandidateParameterInitializationSettings,
 )
 from federated_learning_experiments.runtime.candidate_classifier_construction import (
     IndependentCandidateTrainingState,
@@ -332,3 +348,90 @@ def test_candidate_training_state_record_contract(monkeypatch):
         candidate_training_state.candidate_classifier = construction_arguments[
             "architecture_reference_classifier"
         ]
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+def test_candidate_initialization_and_updates_match_legacy(
+    class_count, optimizer_variant, monkeypatch
+):
+    construction_arguments, legacy_client, legacy_initial_parameter_snapshot = (
+        build_candidate_construction_oracle(
+            class_count=class_count, optimizer_variant=optimizer_variant, monkeypatch=monkeypatch
+        )
+    )
+    initialization_settings = CandidateParameterInitializationSettings(
+        candidate_parameter_initialization_source="assigned_training_model"
+    )
+    selected_initial_parameter_snapshot = select_candidate_initial_parameter_snapshot(
+        settings=initialization_settings,
+        available_parameter_snapshots_by_model_id={
+            4: construction_arguments["initial_candidate_parameter_snapshot"]
+        },
+        current_training_model_id=4,
+        evaluated_mean_losses_by_model_id=(),
+    )
+    construction_arguments["initial_candidate_parameter_snapshot"] = (
+        selected_initial_parameter_snapshot
+    )
+    initial_rng_state = torch.get_rng_state().clone()
+    legacy_candidate = create_legacy_candidate(
+        legacy_client=legacy_client,
+        legacy_initial_parameter_snapshot=legacy_initial_parameter_snapshot,
+    )
+    expected_rng_state = torch.get_rng_state().clone()
+    torch.set_rng_state(initial_rng_state)
+    candidate_training_state = create_independent_candidate_training_state(**construction_arguments)
+    assert torch.equal(torch.get_rng_state(), expected_rng_state)
+    assert_candidate_matches_legacy(
+        candidate_training_state=candidate_training_state, legacy_candidate=legacy_candidate
+    )
+    reference_parameter_values_and_gradients = snapshot_parameter_values_and_gradients(
+        tuple(construction_arguments["architecture_reference_classifier"].parameters())
+        + tuple(selected_initial_parameter_snapshot.values())
+    )
+    local_training_settings = LocalTrainingSettings(
+        local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+        shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+    )
+    candidate_classifier = candidate_training_state.candidate_classifier
+    for batch_index in range(3):
+        input_features = (torch.arange(10, dtype=torch.float32).reshape(5, 2) - batch_index * 2) / 7
+        observed_class_labels = (
+            ((torch.arange(5) + batch_index) % class_count).float().reshape(-1, 1)
+        )
+        legacy_mean_training_loss = legacy_candidate.update(input_features, observed_class_labels)
+        candidate_mean_training_loss = perform_joint_model_parameter_update(
+            local_training_settings=local_training_settings,
+            shared_feature_extractor=candidate_classifier.feature_extractor,
+            shared_parameter_optimizer=(
+                candidate_training_state.candidate_shared_parameter_optimizer_state.parameter_optimizer
+            ),
+            participating_training_batches=(
+                ParticipatingModelTrainingBatch(
+                    classifier=candidate_classifier,
+                    concept_specific_parameter_optimizer=(
+                        candidate_training_state.candidate_concept_specific_parameter_optimizer_state.parameter_optimizer
+                    ),
+                    input_features=input_features,
+                    observed_class_labels=observed_class_labels,
+                ),
+            ),
+            update_shared_features=True,
+        )
+        assert candidate_mean_training_loss == legacy_mean_training_loss
+        for parameter_values, expected_parameter_values in zip(
+            candidate_classifier.parameters(), legacy_candidate.parameters(), strict=True
+        ):
+            assert torch.equal(parameter_values, expected_parameter_values)
+            assert torch.equal(parameter_values.grad, expected_parameter_values.grad)
+        assert_nested_state_equal(
+            candidate_training_state.candidate_shared_parameter_optimizer_state.parameter_optimizer.state_dict(),
+            legacy_candidate.backbone.optimizer.state_dict(),
+        )
+        assert_nested_state_equal(
+            candidate_training_state.candidate_concept_specific_parameter_optimizer_state.parameter_optimizer.state_dict(),
+            legacy_candidate.head_optimizer.state_dict(),
+        )
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        assert_parameter_values_and_gradients_unchanged(reference_parameter_values_and_gradients)

@@ -7,7 +7,7 @@
   - _Boundary: 候補生成のruntime組立、対象単体test_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 3.1_
 
-- [ ] 2. 選択済み初期値と既存学習更新へ接続する
+- [x] 2. 選択済み初期値と既存学習更新へ接続する
   - test-onlyで初期snapshot選択→生成→単一候補の共同更新を接続する。
   - 二値/4クラス×標準Adam/AMSGrad/SGDの6条件、3batchの全loss/parameter/grad/optimizer state/RNGを実旧updateへ照合する。
   - 旧importなしのfresh新CPU起動を確認し、epoch/session未完成の範囲を記録する。
