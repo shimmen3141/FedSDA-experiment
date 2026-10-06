@@ -80,7 +80,41 @@ SINE2・MNIST2・MNIST4ではこの回復区間の平均精度がFedSDAで高い
 
 終了時モデル数は全6データセットでFedSDAが少ない。モデル標本処理数はCIRCLE2ではFedSDAが多く、他の5データセットでは少ない。
 モデル構造・共有特徴の再利用が異なるため、この処理数はFLOPs・実時間・消費電力の比ではない。終了時モデル数から途中の最大モデル数や総通信量も推定しない。
-通信byteはFedDriftの復元前提が未確認のため正式な性能比較表へ入れていない。モデル転送回数を同じbyte量として代用しない。
+FedDriftの通信byteは復元前提が未確認のため、正式baselineへの採用を保留する。以下では前提を付した参考値として示す。
+
+### 通信量: モデルparameterのpayload
+上表と同じ代表条件、5 seed平均±標本標準偏差。up＋downの合計、単位はMiB（1 MiB = 2²⁰ bytes）。
+
+- FedSDAはCSVの`comm_bytes_total`記録値。共有parameterの重複送信を除いたモデルtensorのpayloadで、ネットワークを実測した総byte量ではない。
+- FedDriftは`comm_models_total × 1モデルのparameter値数 × 4 bytes`の**仮定に基づく復元値**。実行時のモデル構造・dtypeの確認が残っているため、正式baselineへの採用は保留する。
+- 両列とも通信ヘッダ・シリアライズ・制御メッセージ・評価統計等の追加byteを含む実測総通信量として扱わない。
+
+| dataset | FedSDA: CSV記録payload (MiB) | FedDrift: 仮定復元payload (MiB) |
+|---|---:|---:|
+| SEA2 | 6.77 ± 0.03 | 16.98 ± 1.17 |
+| SEA4 | 7.34 ± 0.78 | 16.49 ± 1.51 |
+| CIRCLE2 | 10.83 ± 1.61 | 27.05 ± 3.99 |
+| SINE2 | 9.30 ± 0.65 | 111.47 ± 12.13 |
+| MNIST2 | 5237.85 ± 69.86 | 65610.60 ± 12809.88 |
+| MNIST4 | 5486.23 ± 90.06 | 112433.06 ± 14475.72 |
+
+復元で仮定した1モデルの大きさはSEA2/SEA4が4,868 bytes、CIRCLE2/SINE2が4,740 bytes、MNIST2/MNIST4が4,986,280 bytes。既定MLPの値数とfloat32を前提とする。
+この仮定の下では、代表条件の全6データセットでFedSDAのモデルpayloadが小さい。実行時前提の確認前に「実測総通信量を削減した」とは結論しない。また、A=100とB=50は同一通信予算の条件ではない。
+
+### 通信量: 記録された転送回数
+5 seed平均、いずれもup＋downの合計。モデル転送は`comm_models_total`、メッセージは`comm_messages_total`の実験内カウンタ。
+
+| dataset | モデル転送 FedSDA (回) | FedDrift (回) | メッセージ FedSDA (件) | FedDrift (件) |
+|---|---:|---:|---:|---:|
+| SEA2 | 1003.4 | 3656.6 | 510.4 | 5341.6 |
+| SEA4 | 1246.0 | 3552.2 | 542.8 | 5074.0 |
+| CIRCLE2 | 2830.2 | 5983.4 | 678.8 | 11444.2 |
+| SINE2 | 2115.6 | 24659.8 | 805.2 | 343891.8 |
+| MNIST2 | 2322.6 | 13797.4 | 738.0 | 83914.0 |
+| MNIST4 | 3336.8 | 23643.8 | 946.8 | 282706.8 |
+
+メッセージ数には実装が計上するモデル・統計・制御等の送受信を含むが、ネットワークpacket数や各メッセージのbyte量ではない。
+モデル構造と共有部の転送方式が異なるため、「モデル転送1回」が両手法で同じpayloadを持つとは限らない。この表の転送回数だけを通信byte比へ置き換えない。
 
 ### 出典・確認範囲
 結果は元checkoutのgit管理外`results/`にある。worktreeへ複製していない。以下はリポジトリルートを基準にしたパス表記で、現在の環境では元checkoutのルートから参照する。git cloneだけでは取得できない。
@@ -91,6 +125,9 @@ SINE2・MNIST2・MNIST4ではこの回復区間の平均精度がFedSDAで高い
 | FedDrift | `results/baselines/feddrift/manifest.json`と`results/baselines/feddrift/<dataset>/metrics.csv`。random・B=50・δ=0.1・`sweep_parameter=feddrift_detection_batch_size`、30 run |
 | 回復区間 | `results/_audit_20261002/recovery_summary.csv`の`Switching A=100`/`FedDrift B=50`。12行を`results/_audit_20261002/recovery_curves.csv`の各200点平均へ照合 |
 | 既存集計との確認 | FedSDAの平均を`results/_audit_20261002/main_summary.csv`の`variant=reference`・A=100へ照合 |
+| 通信payload復元 | `results/_audit_20261002/feddrift_payload_provenance.json`の式・モデル値数。baseline CSVから再計算し、`feddrift_payload_unique.csv`の選定30行と`feddrift_payload_summary.csv`の6群の平均・標本標準偏差へ照合 |
+
+通信表についても各条件の5 seedを確認し、up＋down＝total、CSVハッシュ一致を検証した。FedDriftの各方向のpayloadは復元表と一致し、通信表の平均・標本標準偏差も既存復元集計と一致する。元CSV・baseline・復元表は変更していない。
 
 FedSDA元CSVとFedDrift各dataset CSVのSHA256が、それぞれ採用索引・baseline manifestの記録値と一致することを確認した。各条件はseed 0–4の5件で、欠測・重複・非有限値なし。
 過去監査では同dataset/seedのドリフト列一致を確認しているが、入力標本全体のバイト単位一致や全学習設定・実行環境の同一性まで保証しない。
