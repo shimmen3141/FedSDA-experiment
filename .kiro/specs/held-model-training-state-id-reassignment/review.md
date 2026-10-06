@@ -11,3 +11,7 @@ list_agents確認済み。close APIがないため完了済み実GPT-6 Luna `/ro
 task2の実旧samplerのID対応とowner構築に使う局所名を事前補足。API/役割/ファイル計画の変更なし。再レビューへ戻す。
 
 実Luna graph PASS、Tasks APPROVED、Naming revision2 APPROVED。全8条件/依存順/feature GOの分離と補足名を確認。指摘なし、採用。
+
+## Task1
+
+実Luna APPROVED。独立71passed/3.07秒、Ruff/format/diff・scan成功。両ID事前検査/変更前新record作成/旧recordとbinding保持/owner参照/reset後現在binding/欠落を確認。指摘なし、採用。

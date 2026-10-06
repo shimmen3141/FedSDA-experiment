@@ -3,7 +3,7 @@
   "created_at": "2026-10-06T10:18:59.798050+00:00",
   "updated_at": "2026-10-06T10:19:59.565928+00:00",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -47,7 +47,8 @@
       "approved_sha256_lf": "146048ab9968fc11d1a579ce24a33db4d1a7e2572ac24b0fb9843d23cf4b7a1c",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "current_sha256_lf": "6a6aa1cb7226380ee1d2b8d59e999ce8068ec89f4497001c8cc8ec4a66f8849a"
     }
   },
   "ready_for_implementation": true,
@@ -59,10 +60,12 @@
     "pending-model-upload"
   ],
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
     "total_executable_tasks": 3,
-    "next_task": "1"
+    "next_task": "2"
   },
   "task_graph_review": {
     "verdict": "PASS",

@@ -2,7 +2,7 @@
 
 要求/設計revision1・命名revision2・Luna graph PASS/task APPROVEDを正本に、依存順に実行する。
 
-- [ ] 1. registryの単一ID付替えをTDDで追加する
+- [x] 1. registryの単一ID付替えをTDDで追加する
   - 実旧confirmの順序/衝突/欠落/同ID、汎用signed、両ID拒否、古い記録/参照・optimizer蓄積保持/後続resetのtestを先にREDにする。
   - 既存ownerへ一APIと拒否項目名引数のみ追加、GREEN/既存registry対象/品質・独立Luna実diffレビューで完了。
   - Requirements: 1.1,1.2,1.3,1.4,2.1,2.2,2.3

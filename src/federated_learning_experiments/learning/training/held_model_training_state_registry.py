@@ -23,9 +23,9 @@ class HeldModelTrainingState:
     concept_specific_parameter_optimizer_state: ParameterOptimizerState
 
 
-def _validate_model_id(*, model_id: int) -> None:
+def _validate_model_id(*, model_id: int, parameter_name: str = "model_id") -> None:
     if type(model_id) is not int:
-        raise ValueError("model_idはbool・派生型以外のbuiltin intが必要です。")
+        raise ValueError(f"{parameter_name}はbool・派生型以外のbuiltin intが必要です。")
 
 
 def _validate_held_model_training_state_inputs(
@@ -100,6 +100,30 @@ class HeldModelTrainingStateRegistry:
             model_id=model_id,
             classifier=classifier,
             concept_specific_parameter_optimizer_state=concept_specific_parameter_optimizer_state,
+        )
+
+    def reassign_held_model_training_state_id(
+        self,
+        *,
+        original_model_id: int,
+        reassigned_model_id: int,
+    ) -> None:
+        """IDだけを移し、分類器と現在optimizer管理器の借用参照を維持する。"""
+        _validate_model_id(model_id=original_model_id, parameter_name="original_model_id")
+        _validate_model_id(model_id=reassigned_model_id, parameter_name="reassigned_model_id")
+        if original_model_id not in self._held_model_training_states_by_model_id:
+            return
+        held_model_training_state = self._held_model_training_states_by_model_id[original_model_id]
+        reassigned_held_model_training_state = HeldModelTrainingState(
+            model_id=reassigned_model_id,
+            classifier=held_model_training_state.classifier,
+            concept_specific_parameter_optimizer_state=(
+                held_model_training_state.concept_specific_parameter_optimizer_state
+            ),
+        )
+        self._held_model_training_states_by_model_id.pop(original_model_id)
+        self._held_model_training_states_by_model_id[reassigned_model_id] = (
+            reassigned_held_model_training_state
         )
 
     def get_held_model_training_state(self, *, model_id: int) -> HeldModelTrainingState:
