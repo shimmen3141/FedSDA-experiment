@@ -5,7 +5,7 @@
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
-- 作業中: [新規モデルの送信保留](../specs/pending-model-upload/README.md)。要求/設計/命名revision1・task計画はLuna承認済み。Task1実装61passed、独立レビューへ進む。Task2/3未着手。正本spec.json/tasks.mdから再開する。
+- 作業中: [新規モデルの送信保留](../specs/pending-model-upload/README.md)。要求/設計revision1・命名revision2・全3taskをLuna承認/完了。全4492passed/3skipped、対象＋AST731passed、fresh新CPU/品質/固定golden成功。別feature統合GO待ち。正本spec.json/tasks.md/review.mdから再開する。
 - 直近完了: [分類器parameter snapshot](../specs/classifier-parameter-snapshot/README.md)。要求/設計revision1・命名revision3・全3taskはLuna承認/完了、feature最終GO。
 - 直近の検証済み実装commit: `0d75fff`。全4399 passed/3 skipped/1既存warning、対象＋AST666passed、fresh新CPU/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。
 - 新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。

@@ -1,9 +1,9 @@
 {
   "feature_name": "pending-model-upload",
   "created_at": "2026-10-06T07:21:24.248925+00:00",
-  "updated_at": "2026-10-06T07:21:24.248945+00:00",
+  "updated_at": "2026-10-06T07:41:48.536813+00:00",
   "language": "ja",
-  "phase": "implementing",
+  "phase": "implementation-complete",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -35,7 +35,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "current_sha256_lf": "81ca6fb14d8c1b442cfd53d2b228906ee7f805a4adb404ef2d0a3e9ce1b79457"
+      "current_sha256_lf": "5df34988e1a7b3710c9f8165a6a7dbb569bbe82ce07b422f83a0de5fc5af2c23"
     },
     "naming": {
       "generated": true,
@@ -64,10 +64,13 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
-    "completed_task_count": 2,
+    "completed_task_count": 3,
     "total_executable_tasks": 3,
-    "next_task": "3"
-  }
+    "next_task": null
+  },
+  "verification_source_sha256": "f9858aa95133d1e066a29d0fdf1c7110d897511b8a38d7690b8a145b13467a97",
+  "verification_source_path_count": 214
 }

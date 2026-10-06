@@ -12,7 +12,7 @@
   - 登録時snapshot全値、同ID現在統計全field、モデル更新非波及、順序/参照、parameter/grad/乱数保持を確認。production追加なし、RED N/A。
   - 対象pytest/品質/独立Luna承認をgateにする。
   - Requirements: 1.4,3.2
-- [ ] 3. 依存境界と固定goldenを統合検証する
+- [x] 3. 依存境界と固定goldenを統合検証する
   - exact依存の許可/拒否注入をRED→guard GREENにし、fresh新CPU producer/loss/store/pending接続と旧非importを確認。
   - 全pytest旧11/最終3golden、Ruff/format/Pyright/pip、固定旧/golden/test差分空、source hash/JUnitを実測記録。独立Luna task承認と主担当gate後に全check。
   - 別feature統合GOで11要件/境界/接続/共有状態/ファイル計画を確認し、再開案内を更新してcommit/push。
