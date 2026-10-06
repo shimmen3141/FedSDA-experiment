@@ -1,0 +1,69 @@
+{
+  "feature_name": "post-alarm-candidate-validation-resolution",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "created_at": "2026-10-07",
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "primary_agent": "claude-opus-5-5 (Claude Code)",
+  "reviewer_invocation": "codex exec -m gpt-6-luna --sandbox read-only|workspace-write（Claude主担当から独立プロセスで起動）",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "877371eda405b382af73eeb67092ca014a81238d74f6c6c3d0ed562c84751a40",
+      "approved_revision": 1,
+      "approved_sha256_lf": "877371eda405b382af73eeb67092ca014a81238d74f6c6c3d0ed562c84751a40",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "revision1: codex session 01a112d3-177f-7002-a092-62fd46ddcf43"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "generated_sha256_lf": "74ac37987181dd9f03a5a4fa6c0218e84ad191de2a917d88c9ca1b3ee51a8699",
+      "approved_revision": 2,
+      "approved_sha256_lf": "74ac37987181dd9f03a5a4fa6c0218e84ad191de2a917d88c9ca1b3ee51a8699",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "revision2: codex session 01a112d3-e22a-77f2-bd97-cbcfca41e12e"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "2f932465dff619130ee7eaeb280edef18e0979d03178a7dda363a6fc85e356e0",
+      "approved_revision": 1,
+      "approved_sha256_lf": "2f932465dff619130ee7eaeb280edef18e0979d03178a7dda363a6fc85e356e0",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "revision1: codex session 01a112d3-177f-7002-a092-62fd46ddcf43"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "generated_sha256_lf": "b8404c4a2301f7a67de11b4126a0d67a69dee802e206a36f9865cfa91286f672",
+      "approved_revision": 2,
+      "approved_sha256_lf": "b8404c4a2301f7a67de11b4126a0d67a69dee802e206a36f9865cfa91286f672",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "revision2: codex session 01a112d3-e22a-77f2-bd97-cbcfca41e12e"
+    }
+  },
+  "ready_for_implementation": true,
+  "upstream_specs": [
+    "post-alarm-candidate-loss-evaluation",
+    "adopted-candidate-local-adoption",
+    "assigned-training-sample-absorption",
+    "current-training-model-assignment"
+  ],
+  "implementation_progress": {
+    "completed_tasks": [],
+    "total_executable_tasks": 3,
+    "next_task": "1",
+    "completed_task_count": 0
+  },
+  "updated_at": "2026-10-07"
+}
