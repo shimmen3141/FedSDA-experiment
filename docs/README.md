@@ -16,6 +16,7 @@
 
 ## 全体説明・処理の概観 — overview
 
+- [FedSDAとFedDriftの構成比較](overview/fedsda-feddrift-comparison.md): 最終提案構成と本リポジトリの比較実装の違い。
 - [最終提案構成](overview/proposed-method.md): 論文で扱うSwitching構成の正本。
 - [1サンプルのコマ送り図](overview/fedsda-processing-flow.html): 作成中のフロー図。コミット保留のローカル資料。
 - [実装用仕様書](overview/fedsda-algorithm.md): ADWIN中心の初期構成の全体説明。最終Switching構成とは区別する。
@@ -50,6 +51,7 @@
 
 ## 研究上の検討資料 — research
 
+- [リファクタリングの再開案内](../.kiro/steering/resume.md): 現在地、次の候補、読む文書。
 - [新実装の品質検査](research/code-quality.md): Ruff・Pyright・commit hook・CIの設定と実行手順。
 - [リファクタリング方針案](research/refactoring-policy.md): 責務・レイヤー・命名、新APIへの移行、選択肢の追加・削除とcc-sddの評価。
 - [研究バックログ](research/research-backlog.md): 設計候補・非採用案・今後の課題。

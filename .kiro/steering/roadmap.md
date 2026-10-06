@@ -1,5 +1,7 @@
 # リファクタリングの進行
 
+再開時はまず[短い再開案内](resume.md)を読む。承認・進捗の正本は各specのspec.json/tasks.md。
+
 ## 全体方針
 
 旧基準`748c3aa`と同じGit履歴の`refactor/architecture`ブランチで、新APIへ移行する。
