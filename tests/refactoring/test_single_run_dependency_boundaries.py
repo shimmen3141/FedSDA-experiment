@@ -372,6 +372,23 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if source_module_path == "learning/training/temporary_model_id_allocation.py":
         return imported_module_name == "__future__.annotations"
+    if source_module_path == "runtime/adopted_candidate_local_adoption.py":
+        return imported_module_name in (
+            "__future__.annotations",
+            "torch.Tensor",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
+            "federated_learning_experiments.runtime.adopted_candidate_initial_local_registration.register_adopted_candidate_as_temporary_held_model",
+        )
     if source_module_path == "runtime/adopted_candidate_initial_local_registration.py":
         return imported_module_name in (
             "__future__.annotations",
@@ -924,6 +941,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/held_model_registration_confirmation.py",
             "runtime/adopted_candidate_initial_local_registration.py",
             "learning/training/temporary_model_id_allocation.py",
+            "runtime/adopted_candidate_local_adoption.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -950,6 +968,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/held_model_registration_confirmation.py",
                     "runtime/adopted_candidate_initial_local_registration.py",
                     "learning/training/temporary_model_id_allocation.py",
+                    "runtime/adopted_candidate_local_adoption.py",
                 )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(
@@ -1324,6 +1343,187 @@ def test_temporary_model_id_allocation_rejects_every_import_except_annotations(
     assert (
         not collect_dependency_boundary_violations(
             source_module_path="learning/training/temporary_model_id_allocation.py",
+            source_text=source_text,
+        )
+    ) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        (
+            "import torch",
+            False,
+        ),
+        (
+            "from torch import float32",
+            False,
+        ),
+        (
+            "from torch import no_grad",
+            False,
+        ),
+        (
+            "import numpy",
+            False,
+        ),
+        (
+            "import math",
+            False,
+        ),
+        (
+            "import random",
+            False,
+        ),
+        (
+            "from random import Random",
+            False,
+        ),
+        (
+            "from dataclasses import dataclass",
+            False,
+        ),
+        (
+            "import federated_drift_experiment",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.adopted_candidate_shared_feature_integration import integrate_adopted_candidate_shared_features",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.batch_loss_statistics_initialization import initialize_model_and_class_loss_statistics_from_batch",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.model_training_sample_records import ModelTrainingSampleCollection",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingState",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import ModelEvaluationSampleStore",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.held_model_registration_confirmation import confirm_held_model_registration",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.adopted_candidate_initial_local_registration import _validate_registration_inputs",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.adopted_candidate_initial_local_registration import _select_active_shared_feature_extractor",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.runtime.adopted_candidate_initial_local_registration",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime import adopted_candidate_initial_local_registration",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_post_alarm_candidate_losses",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUpload",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training import TemporaryModelIdAllocator",
+            False,
+        ),
+        (
+            "from torch import Tensor",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.parameter_optimizer_state import ParameterOptimizerState",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.temporary_model_id_allocation import TemporaryModelIdAllocator",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUploadState",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.runtime.adopted_candidate_initial_local_registration import register_adopted_candidate_as_temporary_held_model",
+            True,
+        ),
+        (
+            "from .adopted_candidate_initial_local_registration import register_adopted_candidate_as_temporary_held_model as register",
+            True,
+        ),
+        ("from __future__ import annotations", True),
+    ],
+)
+def test_adopted_candidate_local_adoption_exact_dependency_contract(
+    source_text, expected_acceptance
+):
+    assert (
+        not collect_dependency_boundary_violations(
+            source_module_path="runtime/adopted_candidate_local_adoption.py",
             source_text=source_text,
         )
     ) == expected_acceptance

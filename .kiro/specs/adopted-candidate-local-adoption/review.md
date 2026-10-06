@@ -11,3 +11,5 @@
 - (6)(7)拒否境界とrequirements 1.4/3.1のtrace→採用。Task1へ検証点と観測状態、1.4/3.1の確認方法を明記。Task2のtraceを3.2へ整理。
 
 再レビュー（要求r2・設計r2・tasks r2）: 実Luna 3段階ともAPPROVED、指摘なし（codex session 01a11292-f9d9-7e53-8371-3d76968b01f7）。登録関数の契約への依拠と既存2APIの拒否条件の対応を実コードと照合する依頼に対し、成り立たない入力例の指摘はなかった。主担当はhashを再計算して照合し実装を開始。
+
+命名revision2・Task1・Task2: 実Luna 3件ともAPPROVED、指摘なし（codex session 01a11299-4ceb-7ce1-a59c-39a1b11ae740）。Task1とTask2は同じ未コミット差分を一度に依頼し、判定は別々に受けた。production内のassert（現在IDと一時IDの相違を確認済みであることの型絞り込み）は内部不変条件として妥当との確認。Lunaはworkspace-write sandboxで対象＋AST 977 passed、fresh CPU smoke exit0、Ruff check/format成功を独立実行（pytest終了時にmatplotlib一時ディレクトリ削除のPermissionErrorが別途表示されたがtest結果には影響なし）。主担当はレビュー前後のgit status一致を確認。

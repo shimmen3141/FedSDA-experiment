@@ -1,4 +1,4 @@
-# 命名 revision 1
+# 命名 revision 2
 
 |名前|型・役割・更新する状態・区別|
 |---|---|
@@ -36,3 +36,27 @@
 |test_*|契約を記述するpytest関数|
 
 共同学習接続の名前は上流registration/confirmation specと同じ役割で再利用する。追加が必要になったら実装前に本表へ戻してレビューする。
+
+## Task1・Task2で追加した名前（revision 2）
+
+productionの追加名は、検証ループの局所変数count_name / count_value（2つの計数の引数名と値）とtraining_sample（保留標本の一要素）だけ。
+
+|名前|役割|
+|---|---|
+|adoption_module|monkeypatchで登録関数の呼出しを観測するための新moduleの別名|
+|assert_training_samples_match_legacy|新標本storeのモデル順・件数・各標本の特徴/ラベルTensorのidentityを、実旧train_data_storeと対照|
+|assert_adoption_rejected_without_any_change|新関数が指定例外で拒否し、採番次値を含む全状態が不変であることを確認|
+|valid_adoption_arguments|不正値へ差し替える前の引数一式。不変確認で正しいownerを読むために使う|
+|registration_arguments / shared_optimizer_owners|上流の登録testと同じ役割|
+|counts_store / training_sample_store / loss_statistics_store / registry / candidate / candidate_optimizer_owner / active|既存ownerと候補の局所名（上流testと同じ役割）|
+|model_index / sample_index / training_samples|既存モデルへ事前に置く標本の構築|
+|legacy_client.local_model_changes|実旧_on_local_model_changeへ渡された(変更前ID, 変更後ID)を記録するtest用属性|
+|previous_model_id / expected_temporary_model_id / previous_loss_statistics / previous_counts / current_counts / previous_training_samples / current_training_samples / previous_collection / collection|採用前後の観測値|
+|first_assignment_change / second_assignment_change / second_adoption_arguments / second_shared_optimizer_owners / second_legacy_client / second_legacy_candidate_model / second_legacy_session|連続2回の採用testで、2回目の候補とsessionを別oracleから取り出すための名前|
+|used_temporary_model_id|拒否testで事前に使用済みにする、採番ownerの次の一時ID|
+|owner_name_by_case_prefix / invalid_count_by_case_suffix / case_prefix / argument_name / owner_type / owner_subclass|拒否caseの文字列から差し替える引数と不正値を引く対応|
+|original_registration / record_then_register / record_then_update|呼出しを記録してから元の登録関数/owner APIへ委譲する順序観測|
+|run_joint_update_in_both_implementations / legacy_training_batches / training_bindings / model_training_sample_collections / participating_training_batches / expected_joint_loss / actual_joint_loss|上流testと同じ役割。本testでは両実装とも各自の標本storeの全標本を固定batchにする|
+|candidate_features / candidate_labels / local_training_settings / registered_candidate_optimizer / confirmation_change / temporary_model_id / random_states / numpy_state|上流testと同じ役割の局所名と、正式ID確認が返す変更record|
+|adopted_candidate_local_adoption_cpu_smoke.py|共有venvのrefactoring-testsへ置く、旧importなしのfresh CPU smoke。Git管理外|
+|test_adopted_candidate_local_adoption_exact_dependency_contract|依存境界testの注入契約|
