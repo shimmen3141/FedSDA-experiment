@@ -6,7 +6,7 @@
 - [x] 2. 固定から観測・評価・確定までを接続する
   - 実旧のsession開始（候補の学習だけ無効化）→観測→確定までと、新の固定→損失収集の開始→観測→評価→確定を照合（統計の与え方3通り、class2/4）。12条件（class2/4×Adam標準・AMSGrad・SGD×共有部更新有無）で共同更新→固定→保有モデルをさらに共同更新（参照は固定されたまま）→観測と確定を実旧と照合。fresh新CPUで旧importなしの固定→観測→評価→確定。独立レビュー/主担当gate。
   - Requirements: 3.2
-- [ ] 3. 固定環境の全回帰を確認する
+- [x] 3. 固定環境の全回帰を確認する
   - 新moduleと依存guardの追加が既存testと固定旧実装の値へ影響しないことを同じcommitで示す。全pytest/旧11・最終3golden（主担当実測＋JUnit、基準はsteering/agent-handoff.md）、品質/型/pip/diff、固定旧差分空、承認/source hash・実測を記録。独立レビュー/主担当gateで完了。
   - Requirements: 3.2
 

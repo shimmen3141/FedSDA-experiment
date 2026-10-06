@@ -39,3 +39,29 @@
 - 12条件（class2/4×Adam標準/AMSGrad/SGD×共有部更新有無）: 共同更新→固定→保有モデルをさらに2回共同更新→観測と確定（再利用）。保有モデルが学習で変わっても参照は固定時の値のままで、実旧sessionの参照とも一致し続ける。観測・評価・確定で乱数不変。全状態が実旧と一致。
 - fresh `../../venv/refactoring-tests/post_alarm_reference_model_fixation_cpu_smoke.py`成功、exit0。class2/4で学習→固定（乱数消費、独立性、履歴平均は2件以上のモデルだけ）→学習継続中も参照不変→観測→評価→確定（再利用）→学習。旧importなし。
 - Task1/Task2はレビュー担当がAPPROVED、独立1059 passed/smoke/Ruff成功、指摘なし。
+
+## Task3
+
+- 検証対象実装commit: dbaf5cc。要求revision1・設計revision1・命名revision2のLF hashは承認値と一致。tasksは承認時hash（revision1）を維持し、check後hashを別fieldへ記録。
+- tracked Python＋2goldenの241パスをパス順、パスUTF8＋NUL＋内容CRLF→LF＋NULで連結したSHA256: `086a886ed484a41844fcd14ddacea8f29a73205efdaef1d92453edd98f944f4c`（前specの239パスに新module/新testの2件を加えた数）。
+- 全適用対象Ruff成功/format141files、Pyright基準venv明示0 errors/0 warnings、pip check成功。
+- 固定旧基準748c3aaからHEADへの、federated_drift_experiment/・2golden・旧回帰test2本・tools/の差分は空。
+- 全pytest（主担当実測）: 6355passed/3skipped/1既存warning、130.60秒、exit0。前spec完了時6277に今回の78（対象42＋AST契約36）を加えた件数と一致。旧11条件と最終3条件の固定goldenを含む。goldenは更新していない。
+- JUnit: `../../venv/refactoring-tests/post-alarm-reference-model-fixation-full.xml`。
+- 全pytestの独立再現はsteering/agent-handoff.mdの基準（2026-10-07ユーザー決定）に従い必須としない。レビュー担当側での全pytest再現は試みていない。新全体runを実行したとは扱わない。
+
+## 要件trace
+
+|要求|証拠|
+|---|---|
+|1.1|実旧の参照複製との対照6条件（参照IDの順序・全parameter値・出力）、逆順/値を複製しない誤実装の検出|
+|1.2|共有特徴抽出部と全parameterの実体が保有モデル・他の参照と別、保有モデル更新後も参照不変、12条件の学習継続、保有分類器そのものを返す/共有部を共有する誤実装の検出|
+|1.3|履歴平均8条件の実旧session開始との対照、件数1を含める/平均0を落とす/未登録を0で含める誤実装の検出|
+|1.4|保有一覧・parameter/grad・optimizer・統計・Python/NumPy乱数の不変、torch乱数の消費が実旧と同じ（余分に1つ生成する誤実装の検出）|
+|2.1|一覧と統計storeの型拒否6、乱数未消費|
+|2.2|保有0件のLookupError、乱数未消費、保有0件を受理する誤実装の検出|
+|2.3|非有限parameter3（先頭/末尾/共有部）で乱数未消費、値の検証より前に生成する誤実装の検出|
+|3.1|状態なしruntime関数とrecord、exact6symbol AST guardと注入契約36（torch・乱数scope・optimizer・候補初期化・収集・観測・評価・確定を拒否）|
+|3.2|実旧の参照複製・session開始との一致、session開始→観測→確定の照合6条件、12条件、fresh新CPU smoke|
+
+候補の生成と警報区間での学習（学習量の記録を含む）、損失収集の開始を含むsession開始の組立、到達後の進行と記録・通知、終端処理、計算量診断、通信/new client/runは後続。参照も学習させる方針（旧shadow_tournament）は当面不要。新たな旧挙動の記録はない。旧golden成功は新全体runの検証と区別する。
