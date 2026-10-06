@@ -7,3 +7,7 @@
 task graph revision1: 実Luna APPROVED、9要件のtrace/順序とfeature GOの分離を確認、指摘なし。主担当も承認内容とhashを照合し実装開始。
 
 Task1: 実Luna APPROVED、独立84passed、Ruff/format/diff/scan成功、指摘なし。主担当は対象84/型0/0と承認契約を照合し完了。実NN数値対照はTask2で実施する。
+
+命名revision2: 実Luna APPROVED。借用NNのidentityと独立実旧NNの数値を区別するtest-only引数compare_classifier_identityを承認、指摘なし。承認後にhelper/Task2呼出しを変更した。Task1は既定Trueを維持。
+
+Task2: 実Luna APPROVED、独立864passed、fresh新CPU/Ruff/format/diff/scan成功、production変更なし。比較modeは実旧NNだけに限定され数値検証を維持、指摘なし。主担当は864passedと型0/0、全対象lint/127format、fresh起動を確認して完了。

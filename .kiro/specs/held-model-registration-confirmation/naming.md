@@ -1,4 +1,4 @@
-# 命名 revision 1
+# 命名 revision 2
 
 |名前|型・役割・更新する状態・区別|
 |---|---|
@@ -36,3 +36,9 @@
 |test_*|契約を記述するpytest関数、永続状態なし|
 
 共同学習接続のbatch/optimizer/settings/Random状態の名前は上流joint-training/registry-ID/count specと同じ役割で再利用する。追加が必要になったら実装前に本表へ戻してレビューする。
+
+## Task2の対照helper追加
+
+|名前|役割|
+|---|---|
+|compare_classifier_identity|assert_confirmation_matches_legacyのtest-only bool、既定True。旧confirmへ新NNを借用したTask1では同一objectを比較。独立した実旧NNを使うTask2ではFalseと明示し、NNの値/grad/optimizerは既存joint-update oracleで比較する。productionの動作切替えではない|

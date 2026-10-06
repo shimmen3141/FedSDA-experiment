@@ -370,6 +370,18 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "runtime/held_model_registration_confirmation.py":
+        return imported_module_name in (
+            "__future__.annotations",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
+        )
     if source_module_path in (
         "learning/training/model_training_and_assignment_counts.py",
         "learning/training/current_training_model_assignment.py",
@@ -890,6 +902,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/model_evaluation_sample_store.py",
             "learning/training/model_training_and_assignment_counts.py",
             "learning/training/current_training_model_assignment.py",
+            "runtime/held_model_registration_confirmation.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -913,6 +926,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/model_evaluation_sample_store.py",
                     "learning/training/model_training_and_assignment_counts.py",
                     "learning/training/current_training_model_assignment.py",
+                    "runtime/held_model_registration_confirmation.py",
                 )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(
@@ -926,6 +940,91 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     ),
                 )
     return dependency_boundary_violations
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("import torch", False),
+        ("from torch import Tensor", False),
+        ("import numpy", False),
+        ("import math", False),
+        ("import random", False),
+        ("from random import Random", False),
+        ("from dataclasses import dataclass", False),
+        ("import federated_drift_experiment", False),
+        (
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import _validate_model_id",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.learning.training.held_model_training_state_registry",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training import HeldModelTrainingStateRegistry",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUpload",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import ModelEvaluationSampleStore",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment, TrainingModelAssignmentChange",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUploadState",
+            True,
+        ),
+        (
+            "from ..methods.fedsda.model_registration.pending_model_upload import PendingModelUploadState as UploadState",
+            True,
+        ),
+        ("from __future__ import annotations", True),
+    ],
+)
+def test_held_model_registration_confirmation_exact_dependency_contract(
+    source_text, expected_acceptance
+):
+    assert (
+        not collect_dependency_boundary_violations(
+            source_module_path="runtime/held_model_registration_confirmation.py",
+            source_text=source_text,
+        )
+    ) == expected_acceptance
 
 
 def test_single_run_package_boundaries_have_no_exports():
