@@ -1,6 +1,6 @@
 # 実装タスク
 
-- [ ] 1. 保有状態の登録・置換・現在参照取得を実装する
+- [x] 1. 保有状態の登録・置換・現在参照取得を実装する
   - 未実装公開APIのimport RED後、対応の登録前検証、初出順/同ID置換、readonly record/snapshot、現在optimizerのbinding生成を実装する。
   - 負/ゼロ/正/大整数、型/対応/parameter不正の拒否、未登録取得、値/grad/state/RNG不変、reset後の新旧binding参照を確認する。
   - 完了は対象単体GREEN、Ruff/format、Luna Task APPROVEDで判断する。

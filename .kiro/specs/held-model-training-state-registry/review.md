@@ -11,3 +11,7 @@ revision3の再レビューはVERDICT: APPROVED。残指摘なし。
 
 ## Task graph / 実tasks
 メモリ内草案をLunaが独立点検しTASK GRAPH VERDICT: PASS。実tasks保存後の別レビューもVERDICT: APPROVED。3taskで全11条件を網羅し、task完了とfeature GOの循環なし。指摘なし。
+
+## Task1
+新module未実装のimportでModuleNotFoundError、1 collection error/3.32秒/exit1（matplotlibのsandbox終了cleanupには既知のtmp ACL通知、以降MPLCONFIGDIRを指定）。実装後20 passed/2.74秒/exit0、Ruff/format成功。
+Luna独立20 passed/exit0・Ruff/format・境界・placeholder/秘密確認、VERDICT: APPROVED。指摘なし。主担当のcompletion gateは本登録/取得境界の範囲でVERIFIED、Task1完了。
