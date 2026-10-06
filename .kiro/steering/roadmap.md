@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- モデル別評価標本の保持は`../specs/model-evaluation-sample-storage/README.md`。要求/設計/命名revision1・全3tasks承認/完了、別実Luna feature GO。評価recordと一storeを新evaluation層へ追加し、明示Randomによる抽出追加/末尾容量保持、単一IDの先上書き、一回ID連結/超過列だけの再抽出を移植。実旧290保持条件とclass2/4の2先容量超過→損失接続で順序/借用参照/Random/loss一致を確認。対象＋AST1000/全5082 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧golden/全11条件を検証。新たな旧正常不具合は観測していない。次はモデル別加算counter/現在帰属IDの不足を確認する。評価fallback選択・全登録・新client/全体runは後続、読む入口はresume.mdを参照。
+
 - モデル学習標本の単一ID付替えは`../specs/model-training-sample-id-reassignment/README.md`。要求/設計/命名revision1・全3tasks承認/完了、別実Luna feature GO。既存storeへ一APIを追加し、標本列をpop上書きして列順/空/重複/借用参照と取得済みsnapshotを保持する。実旧confirmの順序・上書き/欠落/同ID、両ID拒否とpayload非検査、12条件3更新の抽出/全数値/optimizer/Random一致を確認。対象＋AST768/全4746 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧golden/全8条件を検証。新たな旧正常不具合は観測していない。評価用stored_data/容量・加算counter・現在帰属ID・正式登録全体・client/通信/新全体runは後続。次の候補と読む入口はresume.mdを参照。
 
 - 保有モデル学習状態の単一ID付替えは`../specs/held-model-training-state-id-reassignment/README.md`。要求/設計revision1・命名revision3・全3tasks承認/完了、別実Luna feature GO。既存registryへ一APIを追加し、新wrapperだけIDを変更、NN/parameter/grad/共有参照/個別optimizer管理器と蓄積stateを保持する。実旧pop順/先上書き/欠落/同ID・古いrecord/binding・両ID拒否、12条件3共同更新と統計上位接続で全数値/状態一致を確認。対象＋AST747/全4642 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧golden/全8条件を検証。新たな旧正常不具合は観測していない。標本/counterの付替え・現在帰属ID・正式登録全体・client/通信/新全体runは後続。
