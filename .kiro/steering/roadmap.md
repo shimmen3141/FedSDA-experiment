@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- 警報後の候補検証標本の観測は`../specs/post-alarm-candidate-validation-sample-observation/README.md`。主担当Claude Code。要求revision1・設計revision2・命名revision2・tasks revision1・全3tasks承認/完了、別feature最終GO。検証標本1件について候補と警報時点で固定した参照分類器の損失を評価し、既存の損失収集へ1回で追加して規定件数への到達を返す。1標本契約はforwardより前に検査し、到達後の評価・確定は呼ばない。実旧_observe_forward_validationと4条件で損失列を照合、拒否24条件、到達後の評価→確定まで含めた状態一致6条件、12条件の学習継続。実装前にREDを実行し、実装差し替え10種の検出も確認。対象＋AST1028/全6277passed・3skipped・1既存warning（主担当実測＋JUnit）、fresh新CPU/品質/固定旧golden/9要件成功。参照も学習させる方針（旧shadow_tournament）は2026-10-07のユーザー判断で当面不要（goldenにも値なし）。次は候補検証sessionの開始（参照分類器の固定、候補の生成と学習。モデル生成の乱数消費順に注意）。入口はresume.md。
+
 - 警報後の候補検証の確定は`../specs/post-alarm-candidate-validation-resolution/README.md`。主担当Claude Code。要求revision1・設計revision2・命名revision2・tasks revision2・全3tasks承認/完了、別feature最終GO。評価結果record（採用の可否・再利用可能な参照）から、採用の組立、吸収＋現在の学習帰属ID切替え、吸収だけ、のいずれかを選んで適用し、結果種別4値・帰属先・変更記録を返す。再利用は吸収→切替えの順にして拒否時に現在IDを変えない。実旧_finalize_forward_validationの4分岐と16条件で全状態・旧action・旧戻り値・変更通知引数を照合、拒否75条件、24条件の確定後学習。実装前にREDを実行し、実装差し替え10種の検出も確認。対象＋AST1071/全6200passed・3skipped・1既存warning（主担当実測＋JUnit）、fresh新CPU/品質/固定旧golden/11要件成功。次は候補検証sessionの進行（損失評価→収集→評価→確定）と記録/通知。入口はresume.md。
 
 - 帰属確定標本の吸収は`../specs/assigned-training-sample-absorption/README.md`。主担当Claude Code。要求revision1・設計revision1・命名revision3・tasks revision1・全3tasks承認/完了、別実Luna feature GO（2回目。1回目は最終レビュー記録の未記載とレビュー担当の自己同定不能を理由にNO-GO）。外側runtimeの状態なし関数で、保有モデルへの標本追加・割当概念計数・標本ごとの損失評価・全体/クラス別統計更新を組み立てた。全標本の検証と損失評価を状態変更より前に置き、拒否時は先行標本を含め全状態が不変。実旧_absorb_into_storeと72条件、実旧確定処理の非採用3分岐6条件、拒否35条件、12条件の吸収後学習を照合。Task1はREDを実装より前に実行しない手順逸脱があり、実装差し替え8種の検出で代替した。対象＋AST1036/全6038passed・3skipped・1既存warning（主担当実測＋JUnit）、fresh新CPU/品質/固定旧golden/12要件成功。旧の契約外入力での部分更新をLEGACY-015へ記録。次は確定処理の判断と分岐の組立。入口はresume.md。
