@@ -19,4 +19,27 @@
 
 - 実Luna Task2 APPROVED、独立864passed/fresh新CPU/品質/diff/scan成功、指摘なし。主担当の全対象Ruff成功/127files整形済み、Pyright基準venv明示0 errors/0 warnings、pip/diff成功、固定旧production/golden/回帰test差分空。
 
-Task3とfeature最終GOは未実施。
+## Task3
+
+- 検証対象実装commit: 03f24e6。要求/設計revision1・命名revision2のLF hashは承認値と一致。tasksの承認時hashを維持しcheck後hashを別fieldへ記録。
+- tracked Python＋2goldenの227パスをパス順、パスUTF8＋NUL＋内容CRLF→LF＋NULで連結したSHA256: `e87d426ec169c676a7b6ce57b7aa468d8d434992d08bdb5dcf6ffb12a8370621`。
+- 全適用対象Ruff成功/format127files、Pyright0 errors/0 warnings、pip check/diff成功、固定旧production/2golden/旧回帰test差分空。
+- 全pytest: 5518passed/3skipped/1既存warning、127.32秒、exit0。旧11条件と最終3条件の固定goldenを含む。既存Windows wrapper3skip、qint8 fixtureのTypedStorage warning。
+- JUnit: `../../venv/refactoring-tests/held-registration-confirmation-full.xml`、5521tests/0failures/0errors/3skipped。新全体runを実行したとは扱わない。
+- 実Luna Task3 APPROVED、独立864passed/fresh新CPU/品質/scan成功、JUnit照合/固定旧差分空、指摘なし。主担当も全suite/品質/hashと旧差分を確認。
+
+## 要件trace
+
+|要求|証拠|
+|---|---|
+|1.1|実旧保有分岐32条件、先既存/新先、補助元欠落、各owner順序/上書き/加算|
+|1.2|非負current3条件、保留だけ解除、順序test非負分岐|
+|1.3|API順序test、返りrecordの前後ID、pending明示解除|
+|1.4|取得済みrecord/parameter/grad/optimizer/payload保持、12NN継続、3RNG/defaults|
+|2.1|正式ID9拒否、全owner snapshot不変|
+|2.2|7owner×2current×2拒否型＋7派生型、全state不変|
+|2.3|負元model欠落をKeyError、全state不変|
+|3.1|状態なしruntime関数、exact8symbol AST、外側組立のみ|
+|3.2|実旧confirmと12条件3更新の全数値/状態一致、fresh新CPU|
+
+欠落model復元/初期登録/通信/new client/runは後続。新たな旧正常経路の不具合は観測していない。旧golden成功は新全体runの検証と区別する。

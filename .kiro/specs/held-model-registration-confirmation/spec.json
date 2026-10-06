@@ -1,7 +1,7 @@
 {
   "feature_name": "held-model-registration-confirmation",
   "language": "ja",
-  "phase": "implementing",
+  "phase": "implementation-complete",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -48,7 +48,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "current_sha256_lf": "fc0d47fe6c51e880ffb47094f17e587ef92585f7ca571606981a8bee56c623ff"
+      "current_sha256_lf": "b5e8608ccceef18c45d7fd3e526e10e26c04ec11a70b103faad618c324b5ec2d"
     }
   },
   "ready_for_implementation": true,
@@ -64,9 +64,13 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
     "total_executable_tasks": 3,
-    "next_task": "3"
-  }
+    "next_task": null,
+    "completed_task_count": 3
+  },
+  "verification_source_sha256": "e87d426ec169c676a7b6ce57b7aa468d8d434992d08bdb5dcf6ffb12a8370621",
+  "verification_source_path_count": 227
 }
