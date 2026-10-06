@@ -1,7 +1,7 @@
 {
   "feature_name": "current-training-model-assignment",
   "language": "ja",
-  "phase": "implementing",
+  "phase": "implementation-complete",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "approvals": {
@@ -48,7 +48,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "current_sha256_lf": "36093d5815eb0db16afbf899ec223d2d18eeca3d1c1bd6eb111cea49dd9b677d"
+      "current_sha256_lf": "d0db19979c4c1213d5f2fc3ad81eee418bcc6598519f3a924159dc6dcd857927"
     }
   },
   "ready_for_implementation": true,
@@ -59,9 +59,13 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
-    "next_task": "3",
-    "total_executable_tasks": 3
-  }
+    "next_task": null,
+    "total_executable_tasks": 3,
+    "completed_task_count": 3
+  },
+  "verification_source_sha256": "0489b9b6568ad15cea537ff394a6d576c3c22394448a52bc0bded059faa17ec1",
+  "verification_source_path_count": 225
 }

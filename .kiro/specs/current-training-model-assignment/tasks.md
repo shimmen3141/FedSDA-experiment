@@ -6,7 +6,7 @@
 - [x] 2. 依存境界と登録確認の上位接続を検証する
   - exact AST許可/禁止注入RED→GREEN、stdlib単独fresh。実旧登録確認と新計数移管＋現在ID変更をtest-onlyで接続。理由別通知の区別を検証。Lunaレビューと主担当gate。
   - Requirements: 3.1,3.2,3.3
-- [ ] 3. 固定環境の全回帰とfeature統合を確認する
+- [x] 3. 固定環境の全回帰とfeature統合を確認する
   - 全pytest/旧11・最終3golden、Ruff/format/Pyright/pip/diff、固定旧とgolden差分空、承認hash/source hash/JUnit記録。taskレビューと主担当gateで完了。
   - Requirements: 3.2,3.3
 

@@ -52,6 +52,12 @@ python -m pytest tests -q
 このPCの共有venvは元checkoutの`venv/`にあり、worktreeの直下には存在しない。
 機械固有の絶対パスは共有設定へ書かない。
 
+Windowsのsandboxで作業ルート探索にアクセス拒否やRuffのpanicが出る場合は、
+現行の全適用対象を明示して `python -m ruff check src tests/refactoring` と
+`python -m ruff format --check src tests/refactoring` を別々に実行する。
+各検査の出力とexitを確認する。共有設定の適用対象を増やす場合は、この明示範囲も更新する。
+観測と回避の根拠は[development finding](../../development-findings/2026-10-07-ruff-root-scan-inaccessible-temp-directories.md)を参照する。
+
 修正は明示的に行う。自動修正後のdiffを確認し、影響するテストを実行する。
 
 ```console
