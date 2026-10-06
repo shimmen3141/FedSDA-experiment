@@ -1,9 +1,9 @@
 {
   "feature_name": "model-training-sample-id-reassignment",
   "created_at": "2026-10-06T10:49:41.800123+00:00",
-  "updated_at": "2026-10-06T10:49:41.800123+00:00",
+  "updated_at": "2026-10-06T11:03:52.377946+00:00",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -74,5 +74,25 @@
     "record": "review.md"
   },
   "verification_source_sha256": "19594584f2ec90b73361f6a14e9b13f3e442201c8bea1b903039b13e62ef61cb",
-  "verification_source_path_count": 217
+  "verification_source_path_count": 217,
+  "integration_validation": {
+    "decision": "GO",
+    "status": "VERIFIED",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_single_run_3_1_review",
+    "requirements_covered": 8,
+    "test_pass_count": 4746,
+    "test_skip_count": 3,
+    "test_warning_count": 1,
+    "test_exit_code": 0,
+    "smoke_exit_code": 0,
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "current_scope": "model_training_sample_id_reassignment_only",
+    "verification_source_sha256": "19594584f2ec90b73361f6a14e9b13f3e442201c8bea1b903039b13e62ef61cb",
+    "approval_source": "user_delegated_gpt_6_luna_review_for_all_stages",
+    "decision_author": "primary_agent_after_luna_feature_integration_go"
+  }
 }

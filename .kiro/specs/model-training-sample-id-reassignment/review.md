@@ -20,3 +20,8 @@ list_agents確認済み。close APIがないため完了済み実GPT-6 Luna `/ro
 
 実Luna APPROVED。独立対象＋AST768passed/4.53秒、全4746passed/3skip/exit0・JUnit4749/0failure0error、fresh新CPU/旧非import、品質/型/pip/diff/scan、固定旧/golden/旧回帰test不変を確認。指摘なし、採用。
 主担当も承認後に対象＋AST768passed/4.56秒、fresh新CPU/diff成功を確認し全3taskをcheck。feature最終GOは別判定。
+
+## feature最終gate
+
+全3task完了後の別実LunaレビューでDECISION: GO。全8条件/8、全4746passed/3skip/exit0・JUnit4749/0failure0error、対象＋AST768/fresh新CPU/旧非import、品質/型/pip/diff/scanを確認。標本参照・取得済みsnapshot・後続抽出/学習接続、所有境界・依存方向・設計/ファイル計画は一致。blocker/指摘なし、採用。
+主担当も本storeの単一ID付替えをVERIFIEDと判定。評価標本/容量・counter・正式登録全体・新client/runは後続。

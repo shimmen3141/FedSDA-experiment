@@ -5,14 +5,14 @@
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
-- 直近完了: [保有モデル学習状態のID付替え](../specs/held-model-training-state-id-reassignment/README.md)。要求/設計revision1・命名revision3・全3taskをLuna承認/完了、別feature最終GO。
-- 直近の検証済み実装commit: `65b3e3c`。全4642 passed/3 skipped/1既存warning、対象＋AST747passed、fresh新CPU/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。
+- 直近完了: [モデル学習標本のID付替え](../specs/model-training-sample-id-reassignment/README.md)。要求/設計/命名revision1・全3taskをLuna承認/完了、別feature最終GO。
+- 直近の検証済み実装commit: `7886be9`。全4746 passed/3 skipped/1既存warning、対象＋AST768passed、fresh新CPU/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。
 - 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
 
-1. 正式ローカル登録の接続: モデル一覧・損失/初期統計・独立parameter snapshot・送信保留/待機管理、統計storeと学習状態registryの単一ID付替えは完了。次は標本storeの単一ID付替えを候補とし、旧`confirm_model_registration`のtrain_data_store/stored_dataのpop上書きと新storeの不足を確認する。既存`remap_model_training_sample_collections`は対応表による標本連結であり、登録確認の先上書きと混同しない。その後に加算counter等を確認する。旧`clients/base.py::_register_trained_new_model/confirm_model_registration`を入口に各ownerの意味と呼出順を確認し、正式登録全体・実通信を一つのspecへ詰め込まない。統計の単一付替え（上書き）とサーバID対応後の統計選択（件数最大）を混同しない。統計は保留時に固定せず対応IDのstore現在値を取得する。
+1. 正式ローカル登録の接続: モデル一覧・損失/初期統計・独立parameter snapshot・送信保留/待機管理、統計store・学習状態registry・学習標本storeの単一ID付替えは完了。次は評価用標本`stored_data`の保持・抽出/容量管理と単一ID付替えの不足を確認する。旧`clients/base.py::_store_evaluation_data`・`confirm_model_registration`・`apply_server_mapping`を入口とし、学習標本とは別ownerにする。その後、モデル別の学習標本数・optimizer step数・concept件数の加算移管、現在帰属IDを確認する。既存`remap_model_training_sample_collections`の連結と、登録確認での先上書きを混同しない。各ownerの意味と呼出順を確認し、正式登録全体・実通信を一つのspecへ詰め込まない。統計の単一付替え（上書き）とサーバID対応後の統計選択（件数最大）を混同しない。統計は保留時に固定せず対応IDのstore現在値を取得する。
 2. 候補の生成・初期学習・前向き検証sessionの開始/終了を、既存の初期化・学習・採否部品へ接続する。
 3. 警報後の帰属変更とclient進行、サーバ同期・ID対応へ順次接続する。
 
