@@ -15,3 +15,7 @@ task graph revision2: 実Luna APPROVED、指摘なし。主担当は4承認のha
 設計revision2・命名revision2・tasks revision3: 実Luna APPROVED、指摘なし。型注釈用の既存2型（HeldModelTrainingState/SharedFeatureExtractor）の許可追加、Task1のtest用追加名、tasksの「13symbol」修正を確認。productionの名前追加なし。
 
 Task1: 実Luna APPROVED、指摘なし。実装が設計手順1〜10と検証順に一致し、testが実旧SharedBackboneClassConditionalESRFedSDAClientの登録＋待機設定を実行して対照していること、拒否時不変の観測範囲、要求2.1〜2.6の入力区分を確認。Lunaはread-only sandboxで一時ディレクトリを作成できず、pytestの独立実行は未実施（No usable temporary directory found）。主担当の実測は対象108 passed、Ruff/format成功、Pyright 0/0。依存境界の全走査testは新module用guard未追加で1件失敗しており、Task2のAST REDとして扱う。
+
+命名revision3: 実Luna APPROVED、指摘なし。Task2のtest用追加名（保有モデル状態の対照helper、両実装の共同更新closure等）を確認。productionの名前追加なし。
+
+Task2: 実Luna APPROVED、指摘なし。13symbol＋__future__.annotationsだけを許可するexact guardと注入契約、12条件testが実旧の_train_heads_together/ResidualAdapterMLP.update/_register_trained_new_model/BaseClient.confirm_model_registrationを実行して全段階を対照していること、fresh CPU smokeの旧importなしを確認。Lunaはworkspace-write sandboxでPowerShellから独立実行し、対象＋AST 928 passed、smoke PASS、Ruff check/format成功（指定したbash起動はGit BashのWin32 error 5で不可）。主担当はレビュー前後のgit status一致（Lunaによるファイル変更なし）を確認。

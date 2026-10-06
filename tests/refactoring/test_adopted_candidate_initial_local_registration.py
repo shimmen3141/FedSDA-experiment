@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import torch
 from test_classifier_bounded_loss_evaluation import assert_initial_loss_statistics_match_legacy
-from test_joint_model_parameter_update import assert_nested_state_equal
+from test_joint_model_parameter_update import assert_nested_state_equal, run_legacy_joint_update
 from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
@@ -17,11 +17,15 @@ from test_shared_feature_extractor_attachment import (
 
 import federated_learning_experiments.runtime.adopted_candidate_initial_local_registration as registration_module
 from federated_drift_experiment import config
+from federated_drift_experiment.clients.base import BaseClient
 from federated_drift_experiment.clients.shared_backbone import (
     SharedBackboneClassConditionalESRFedSDAClient,
 )
 from federated_drift_experiment.data.specs import DatasetSpec
 from federated_drift_experiment.models import ResidualAdapterMLP
+from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
+    ModelEvaluationSampleStore,
+)
 from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import (
     BoundedLossMoments,
 )
@@ -44,6 +48,18 @@ from federated_learning_experiments.learning.training.current_training_model_ass
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
 )
+from federated_learning_experiments.learning.training.joint_model_parameter_update import (
+    perform_joint_model_parameter_update,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
+from federated_learning_experiments.learning.training.model_training_and_assignment_counts import (
+    ModelTrainingAndAssignmentCountsStore,
+)
+from federated_learning_experiments.learning.training.model_training_sample_store import (
+    ModelTrainingSampleStore,
+)
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
     SgdParameterOptimizerSettings,
@@ -51,11 +67,17 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
     ParameterOptimizerState,
 )
+from federated_learning_experiments.learning.training.participating_model_training_batch import (
+    ParticipatingModelTrainingBatch,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
 from federated_learning_experiments.runtime.adopted_candidate_initial_local_registration import (
     register_adopted_candidate_as_temporary_held_model,
+)
+from federated_learning_experiments.runtime.held_model_registration_confirmation import (
+    confirm_held_model_registration,
 )
 
 TEMPORARY_MODEL_ID = -7
@@ -283,10 +305,10 @@ def register_candidate_in_legacy_client(*, legacy_client, legacy_candidate_model
     legacy_client._pending_upload_rounds = arguments["upload_delay_round_count"]
 
 
-def assert_initial_registration_matches_legacy(
-    *, registration_arguments, shared_optimizer_owners, legacy_client
+def assert_held_model_states_match_legacy(
+    *, registry, shared_optimizer_owners, legacy_client, input_features
 ):
-    registry = registration_arguments["held_model_training_state_registry"]
+    """保有一覧の順序と、各モデルの全値・grad・optimizer state・共有参照・出力を対照する。"""
     held_model_training_states = registry.snapshot_ordered_held_model_training_states()
     assert tuple(state.model_id for state in held_model_training_states) == tuple(
         legacy_client.models
@@ -295,7 +317,6 @@ def assert_initial_registration_matches_legacy(
         id(tuple(owner.parameter_optimizer.param_groups[0]["params"])[0]): owner
         for owner in shared_optimizer_owners
     }
-    input_features = registration_arguments["initial_statistics_input_features"]
     legacy_models = tuple(legacy_client.models.values())
     for state_index, (state, legacy_model) in enumerate(
         zip(held_model_training_states, legacy_models)
@@ -331,6 +352,19 @@ def assert_initial_registration_matches_legacy(
             ) is (legacy_model.backbone is other_legacy_model.backbone)
         with torch.no_grad():
             assert torch.equal(state.classifier(input_features), legacy_model(input_features))
+
+
+def assert_initial_registration_matches_legacy(
+    *, registration_arguments, shared_optimizer_owners, legacy_client
+):
+    registry = registration_arguments["held_model_training_state_registry"]
+    assert_held_model_states_match_legacy(
+        registry=registry,
+        shared_optimizer_owners=shared_optimizer_owners,
+        legacy_client=legacy_client,
+        input_features=registration_arguments["initial_statistics_input_features"],
+    )
+    held_model_training_states = registry.snapshot_ordered_held_model_training_states()
     loss_statistics_store = registration_arguments["loss_statistics_store"]
     assert_store_statistics_match_legacy(
         loss_statistics_store=loss_statistics_store, legacy_client=legacy_client
@@ -949,3 +983,194 @@ def test_all_values_are_generated_before_explicit_state_update_order(monkeypatch
             "queue_model_upload",
         ]
         assert actual_call_order == expected_call_order
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize("update_shared_features", [True, False])
+def test_registered_candidate_continues_actual_joint_training_and_confirmation(
+    class_count, optimizer_variant, update_shared_features, monkeypatch
+):
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(229)
+        registration_arguments, shared_optimizer_owners, legacy_client, legacy_candidate_model = (
+            build_initial_registration_oracle(
+                class_count=class_count,
+                held_model_ids=(4, 9),
+                current_model_is_held=True,
+                optimizer_variant=optimizer_variant,
+                monkeypatch=monkeypatch,
+            )
+        )
+        monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
+        registry = registration_arguments["held_model_training_state_registry"]
+        candidate = registration_arguments["adopted_candidate_classifier"]
+        candidate_optimizer_owner = registration_arguments[
+            "candidate_concept_specific_parameter_optimizer_state"
+        ]
+        active = registry.get_held_model_training_state(model_id=9).classifier.feature_extractor
+        input_features = registration_arguments["initial_statistics_input_features"]
+        local_training_settings = LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )
+        # 実旧の共同学習が読む属性だけを与える。標本は固定batchを同じ順で渡す。
+        legacy_training_batches = []
+        legacy_client.updates_per_sample = 1
+        legacy_client.backbone_gradient_diagnostics = defaultdict(float)
+        legacy_client.model_training_examples = defaultdict(int)
+        legacy_client.model_optimizer_steps = defaultdict(int)
+        legacy_client.phase_seconds = defaultdict(float)
+        legacy_client._sample_training_batches = lambda: legacy_training_batches
+        training_batch_tensors = []
+        for training_batch_index, sample_count in enumerate((3, 5, 4)):
+            training_batch_tensors.append(
+                (
+                    (
+                        torch.arange(sample_count * 2, dtype=torch.float32).reshape(sample_count, 2)
+                        - training_batch_index * 2
+                    )
+                    / 7,
+                    ((torch.arange(sample_count) + training_batch_index) % class_count)
+                    .float()
+                    .reshape(-1, 1),
+                )
+            )
+
+        def run_joint_update_in_both_implementations():
+            training_bindings = registry.snapshot_ordered_held_model_training_bindings()
+            legacy_training_batches[:] = [
+                (training_binding.model_id, batch_features.clone(), batch_labels.clone())
+                for training_binding, (batch_features, batch_labels) in zip(
+                    training_bindings, training_batch_tensors
+                )
+            ]
+            expected_joint_loss = run_legacy_joint_update(
+                legacy_client=legacy_client, update_shared_features=update_shared_features
+            )
+            actual_joint_loss = perform_joint_model_parameter_update(
+                local_training_settings=local_training_settings,
+                shared_feature_extractor=active,
+                shared_parameter_optimizer=shared_optimizer_owners[0].parameter_optimizer,
+                participating_training_batches=tuple(
+                    ParticipatingModelTrainingBatch(
+                        classifier=training_binding.classifier,
+                        concept_specific_parameter_optimizer=training_binding.concept_specific_parameter_optimizer,
+                        input_features=batch_features,
+                        observed_class_labels=batch_labels,
+                    )
+                    for training_binding, (batch_features, batch_labels) in zip(
+                        training_bindings, training_batch_tensors
+                    )
+                ),
+                update_shared_features=update_shared_features,
+            )
+            assert actual_joint_loss == expected_joint_loss
+            assert_held_model_states_match_legacy(
+                registry=registry,
+                shared_optimizer_owners=shared_optimizer_owners,
+                legacy_client=legacy_client,
+                input_features=input_features,
+            )
+
+        random_states = (torch.get_rng_state().clone(), random.getstate(), np.random.get_state())
+        # 登録前: 保有2モデルの共同更新と、独立した共有部を持つ候補だけの学習。
+        run_joint_update_in_both_implementations()
+        candidate_features, candidate_labels = training_batch_tensors[2]
+        legacy_candidate_model.update(candidate_features.clone(), candidate_labels.clone())
+        perform_joint_model_parameter_update(
+            local_training_settings=local_training_settings,
+            shared_feature_extractor=candidate.feature_extractor,
+            shared_parameter_optimizer=shared_optimizer_owners[-1].parameter_optimizer,
+            participating_training_batches=(
+                ParticipatingModelTrainingBatch(
+                    classifier=candidate,
+                    concept_specific_parameter_optimizer=candidate_optimizer_owner.parameter_optimizer,
+                    input_features=candidate_features,
+                    observed_class_labels=candidate_labels,
+                ),
+            ),
+            update_shared_features=True,
+        )
+        for (parameter_name, parameter), legacy_parameter in zip(
+            candidate.named_parameters(), legacy_candidate_model.parameters()
+        ):
+            assert torch.equal(parameter, legacy_parameter), parameter_name
+
+        register_candidate_in_legacy_client(
+            legacy_client=legacy_client,
+            legacy_candidate_model=legacy_candidate_model,
+            arguments=registration_arguments,
+        )
+        register_adopted_candidate_as_temporary_held_model(**registration_arguments)
+        assert candidate.feature_extractor is active
+        assert not candidate_optimizer_owner.parameter_optimizer.state
+        assert_initial_registration_matches_legacy(
+            registration_arguments=registration_arguments,
+            shared_optimizer_owners=shared_optimizer_owners,
+            legacy_client=legacy_client,
+        )
+        pending_upload_state = registration_arguments["pending_model_upload_state"]
+        loss_statistics_store = registration_arguments["loss_statistics_store"]
+        pending_parameter_snapshot = deepcopy(
+            pending_upload_state.get_pending_model_upload().parameter_snapshot
+        )
+
+        # 登録後: 一時IDの候補を含む3モデルの共同更新。
+        for _ in range(2):
+            run_joint_update_in_both_implementations()
+        if optimizer_variant != "sgd":
+            assert candidate_optimizer_owner.parameter_optimizer.state
+        registered_candidate_optimizer = candidate_optimizer_owner.parameter_optimizer
+        # 学習後も送信保留の値は登録時のまま。統計も学習だけでは変わらない。
+        assert_nested_state_equal(
+            pending_upload_state.get_pending_model_upload().parameter_snapshot,
+            pending_parameter_snapshot,
+        )
+        assert_store_statistics_match_legacy(
+            loss_statistics_store=loss_statistics_store, legacy_client=legacy_client
+        )
+
+        # 現在の学習帰属IDの切替えは後続specの責務。ここでは確認処理へのtest-only接続として行う。
+        current_training_model_assignment = registration_arguments[
+            "current_training_model_assignment"
+        ]
+        current_training_model_assignment.assign_model_for_training(model_id=TEMPORARY_MODEL_ID)
+        legacy_client.current_model_id = TEMPORARY_MODEL_ID
+        legacy_client.train_data_store = {}
+        legacy_client.stored_data = {}
+        legacy_client.model_concept_counts = {}
+        assignment_change = confirm_held_model_registration(
+            registered_global_model_id=12,
+            held_model_training_state_registry=registry,
+            loss_statistics_store=loss_statistics_store,
+            training_sample_store=ModelTrainingSampleStore(),
+            evaluation_sample_store=ModelEvaluationSampleStore(
+                maximum_stored_sample_count_per_model=3, added_batch_sample_count=1
+            ),
+            model_training_and_assignment_counts_store=ModelTrainingAndAssignmentCountsStore(),
+            current_training_model_assignment=current_training_model_assignment,
+            pending_model_upload_state=pending_upload_state,
+        )
+        BaseClient.confirm_model_registration(legacy_client, 12)
+        assert (assignment_change.previous_model_id, assignment_change.current_model_id) == (
+            TEMPORARY_MODEL_ID,
+            12,
+        )
+        assert tuple(legacy_client.models) == (4, 9, 12)
+        assert registry.get_held_model_training_state(model_id=12).classifier is candidate
+        assert candidate_optimizer_owner.parameter_optimizer is registered_candidate_optimizer
+        assert pending_upload_state.get_pending_model_upload() is None
+        assert legacy_client.pending_model_params is None
+        assert_store_statistics_match_legacy(
+            loss_statistics_store=loss_statistics_store, legacy_client=legacy_client
+        )
+
+        # 正式ID確認後: 同じoptimizer stateで学習を継続する。
+        run_joint_update_in_both_implementations()
+        assert torch.equal(torch.get_rng_state(), random_states[0])
+        assert random.getstate() == random_states[1]
+        numpy_state = np.random.get_state()
+        assert numpy_state[0] == random_states[2][0]
+        assert np.array_equal(numpy_state[1], random_states[2][1])
+        assert numpy_state[2:] == random_states[2][2:]

@@ -1,4 +1,4 @@
-# 命名 revision 2
+# 命名 revision 3
 
 |名前|型・役割・更新する状態・区別|
 |---|---|
@@ -72,3 +72,24 @@ productionの追加名はない。型注釈用に既存の型HeldModelTrainingSt
 |expected_active_feature_extractor / active_parameters / active / active_snapshot|期待する反映先とそのparameter参照・値|
 |invalid_case|候補・管理器・特徴・ラベルの拒否入力の種類|
 |record_then_call / record_then_update|呼出しを記録してから元の関数/owner APIへ委譲する順序観測wrapper|
+
+## Task2で追加した名前（revision 3）
+
+productionの追加名はない。
+
+|名前|役割|
+|---|---|
+|assert_held_model_states_match_legacy|保有一覧の順序と各モデルの全値/grad/個別・共有optimizer state/共有参照構造/出力を実旧clientと対照するtest helper。assert_initial_registration_matches_legacyから統計・送信保留以外の部分を分離し、登録確認で保留が消えた後の学習でも使う|
+|run_joint_update_in_both_implementations|test内closure。registryの現在bindingの順で実旧_train_heads_togetherと新共同更新を一回ずつ行い、lossと全状態を対照|
+|legacy_training_batches|実旧共同学習へ渡す(モデルID, 特徴, ラベル)のlist。上流joint-update testと同じ役割|
+|training_batch_tensors|保有2モデルと候補の固定学習batch（特徴, ラベル）の列。一覧順に対応|
+|training_batch_index / sample_count / batch_features / batch_labels|固定batchの位置/標本数/その特徴/ラベル|
+|training_bindings / training_binding|registryから取得した現在の学習binding列/その一要素|
+|expected_joint_loss / actual_joint_loss|実旧/新の共同更新の標本数加重loss|
+|candidate_features / candidate_labels|候補だけの登録前学習に使うbatch|
+|local_training_settings|上流testと同じ共同学習設定|
+|pending_parameter_snapshot|登録直後の送信保留値の複製。後続学習で保留値が変わらないことの比較用|
+|registered_candidate_optimizer|登録後の学習で蓄積した候補の個別optimizer。正式ID確認後も同じobjectであることの比較用|
+|assignment_change|既存登録確認が返す現在ID変更record|
+|numpy_state|NumPy乱数状態の比較用の現在値|
+|adopted_candidate_initial_local_registration_cpu_smoke.py|共有venvのrefactoring-testsへ置く、旧importなしのfresh CPU smoke。Git管理外|
