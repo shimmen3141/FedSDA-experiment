@@ -19,3 +19,6 @@ GPT-6 Luna（/root/luna_single_run_3_1_review）: APPROVED。8要件の順序・
 ## 命名revision2追加
 Luna APPROVED。previous_parameter_gradientsで不正parameterの既存grad参照を表し、optimizer stateと区別する。指摘なし、採用。
 
+## Task1
+実GPT-6 Luna: APPROVED。独立16passed、Ruff/format/Pyright0、placeholder/secret CLEAN、境界WITHIN。検証後の一state_dict、native順detached独立copyとモデル/呼出元状態保持を確認。指摘なし、採用。主担当も16passed/3.62秒・Pyright0を確認。
+

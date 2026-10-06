@@ -8,6 +8,7 @@
 - GREEN: 16 passed/3.37秒/exit0。class2/4/10の実旧get_paramsと全native key順/shape/値/独立storageを照合。
 - 隠れ層空/一層/二層、非連続parameter、相互変更と再取得、共有参照・既存grad・混合training flags保持、forward0、Python/NumPy/Torch乱数、default dtype/device/gradmodeとinference_modeを確認。
 - 型/subclass、NaN/Inf/float64/meta/sparse拒否と不正parameterの値・grad参照/値保持。Ruff成功、対象format成功。
+- 主担当の最終16 passed/3.62秒、Pyright0 errors/0 warnings。独立Luna実行も16passed・品質成功、Task1 APPROVED。
 
 ## 再実行環境
 2026-10-06、既存Windows CPU基準、共有../../venv。OMP_NUM_THREADS=MKL_NUM_THREADS=1、MPLCONFIGDIR=../../venv/matplotlib-cache、TMP/TEMP=../../venv/refactoring-tests、FDE_MNIST_DATA_DIR=../../data/mnist。

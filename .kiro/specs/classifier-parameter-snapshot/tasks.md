@@ -2,7 +2,7 @@
 
 graph独立Luna PASS済み。requirements/design revision1・naming revision2が正本。主担当で順次実行する。
 
-- [ ] 1. 分類器snapshotの契約をTDDで実装する
+- [x] 1. 分類器snapshotの契約をTDDで実装する
   - 型/全parameter環境・有限性、独立storage/native順/全値、複数呼出、状態保持、実旧get_params対照をtest先行RED→production GREENで確認する。
   - 対象pytest、Ruff、Pyright、実diffの独立Luna承認を完了gateにする。
   - Requirements: 1.1,1.2,1.3,2.1,2.2,3.1
