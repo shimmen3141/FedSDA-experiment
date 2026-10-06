@@ -1,7 +1,7 @@
 {
   "feature_name": "candidate-classifier-construction",
   "language": "ja",
-  "phase": "implementing",
+  "phase": "integration-review",
   "created_at": "2026-10-07",
   "updated_at": "2026-10-07",
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
@@ -45,7 +45,7 @@
       "approved_sha256_lf": "0ec24ad6383009e0dfb817f46e39c53fd3e0dfc4a557e3baeab1b044f7ffc568",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "current_sha256_lf": "af164c9ba39a2c6291128c94292303d7cdd9f2a0fae0ce9084c6819cebb9c775"
+      "current_sha256_lf": "4bad030ed908f9ec53d93e908fdb025c9e0103c27e90be0b6c37e471d10ab157"
     }
   },
   "ready_for_implementation": true,
@@ -59,9 +59,29 @@
   "implementation_progress": {
     "completed_tasks": [
       "1",
-      "2"
+      "2",
+      "3"
     ],
     "total_executable_tasks": 3,
-    "next_task": "3"
+    "next_task": null,
+    "completed_task_count": 3
+  },
+  "verification_source_commit": "ceb4336",
+  "verification_source_path_count": 243,
+  "verification_source_sha256": "6c91132b5d5f6913740fba56f0888a65d9da152a6b8800b42f089844afeb9ea6",
+  "integration_validation": {
+    "status": "VERIFIED",
+    "decision": "PENDING_FEATURE_REVIEW",
+    "record": "integration-validation.md",
+    "review_record": "review.md",
+    "reviewer": "gpt-6-luna",
+    "reviewed_head": "ceb4336",
+    "test_pass_count": 6412,
+    "test_skip_count": 3,
+    "test_warning_count": 2,
+    "junit_test_count": 6415,
+    "task_review_decision": "APPROVED",
+    "fresh_new_cpu_smoke": "PASS",
+    "new_complete_run_parity": "NOT_IMPLEMENTED"
   }
 }

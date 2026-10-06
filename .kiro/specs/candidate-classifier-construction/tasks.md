@@ -15,7 +15,7 @@
   - _Depends: 1_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 3.3_
 
-- [ ] 3. 依存境界と基準環境の回帰を検証する
+- [x] 3. 依存境界と基準環境の回帰を検証する
   - AST注入契約のREDを確認してexact import guardを実装しGREENを確認する。
   - 実装commitに対する全pytest/JUnit、Ruff・Pyright・pip・旧固定差分・承認hashを確認する。
   - integration-validationへ実測と未完成範囲を記録する。別feature最終GOはtask承認の後に依頼する。
