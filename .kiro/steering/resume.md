@@ -7,7 +7,7 @@
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
 - 直近完了: [採用候補の共有学習反映](../specs/adopted-candidate-shared-feature-integration/README.md)。全3tasks完了、Luna最終GO。
 - 直近の検証済み実装commit: `83cddc5`。全4167 passed/3 skipped/1既存warning、旧11/最終3golden成功。実測は同specのintegration-validation.md。
-- 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
+- 進行中: [保有モデルの学習状態管理](../specs/held-model-training-state-registry/README.md)。要求/設計/命名/実tasks承認済み、次はTask1。再開は同specのspec.json/tasks.mdから行う。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
