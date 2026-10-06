@@ -1,4 +1,4 @@
-# 命名 revision 1
+# 命名 revision 2
 
 |名前|型・役割・更新する状態・区別|
 |---|---|
@@ -46,3 +46,29 @@
 |test_*|契約を記述するpytest関数、永続状態なし|
 
 共同学習接続のbatch/optimizer/settings/Random状態の名前は上流joint-training/registry/confirmation specと同じ役割で再利用する。追加が必要になったら実装前に本表へ戻してレビューする。
+
+## Task1で追加した名前（revision 2）
+
+productionの追加名はない。型注釈用に既存の型HeldModelTrainingStateとSharedFeatureExtractorをimportする（design revision 2）。
+
+|名前|役割|
+|---|---|
+|TEMPORARY_MODEL_ID|test定数-7。登録する一時ID|
+|OWNER_NAMES|新関数が受け取る4ownerの引数名のtuple。owner別拒否のtest軸|
+|registration_module|monkeypatchで呼出順を観測するための新moduleの別名|
+|convert_legacy_parameter_name|旧state_dictのparameter名を新分類器の名前へ対応させるtest helper。値は変えない|
+|held_models_share_feature_extractor|test軸。Falseでは保有モデルが別々の共有部を持ち、反映先選択（現在ID優先/先頭）を値で観測できる|
+|shared_optimizer_owners|保有モデルと候補の共有部parameter用ParameterOptimizerStateの列。共有optimizerの蓄積state保持を旧backbone.optimizerと対照|
+|legacy_models / classifiers / optimizer_owners|oracle構築中の旧モデル列/新分類器列/個別optimizer管理器列。末尾が候補|
+|model_index / is_candidate / reuse_first_feature_extractor|構築ループの位置/候補かどうか/先頭の共有部を再利用するか|
+|optimizer_settings / shared_optimizer_owner / shared_optimizer / stepped_shared_optimizer_ids|上流testと同じ設定値/共有部の管理器/そのoptimizer/共有optimizerを一度だけstepするためのid集合|
+|arguments|旧登録helperへ渡すregistration_argumentsの別名引数|
+|shared_optimizer_owner_by_extractor_id / first_shared_parameter|共有部の先頭parameterのidから管理器を引く対応/その先頭parameter|
+|registered_parameter_storage_addresses|snapshotが登録モデルのparameterとstorageを共有しないことを確かめるdata_ptr集合|
+|assert_registration_state_unchanged|snapshot_registration_stateの観測値と現在の全状態が同じことを確認|
+|assert_rejected_without_any_change|新関数が指定例外で拒否し、全状態が不変であることを確認|
+|select_valid_owners / valid_owners|registration_argumentsから4ownerを取り出すhelper/不正ownerへ差し替える前の正しいowner一式|
+|previous_snapshot / previous_states / previous_optimizers / previous_candidate_optimizer / concept_parameter_snapshots / random_states|登録前の観測値。保持比較に使う|
+|expected_active_feature_extractor / active_parameters / active / active_snapshot|期待する反映先とそのparameter参照・値|
+|invalid_case|候補・管理器・特徴・ラベルの拒否入力の種類|
+|record_then_call / record_then_update|呼出しを記録してから元の関数/owner APIへ委譲する順序観測wrapper|

@@ -11,3 +11,7 @@
 task graph revision1: 実Luna CHANGES_REQUESTED。Task2の「12NN条件」が不明確→採用、組合せを明記。
 
 task graph revision2: 実Luna APPROVED、指摘なし。主担当は4承認のhashを再計算して照合し実装を開始。
+
+設計revision2・命名revision2・tasks revision3: 実Luna APPROVED、指摘なし。型注釈用の既存2型（HeldModelTrainingState/SharedFeatureExtractor）の許可追加、Task1のtest用追加名、tasksの「13symbol」修正を確認。productionの名前追加なし。
+
+Task1: 実Luna APPROVED、指摘なし。実装が設計手順1〜10と検証順に一致し、testが実旧SharedBackboneClassConditionalESRFedSDAClientの登録＋待機設定を実行して対照していること、拒否時不変の観測範囲、要求2.1〜2.6の入力区分を確認。Lunaはread-only sandboxで一時ディレクトリを作成できず、pytestの独立実行は未実施（No usable temporary directory found）。主担当の実測は対象108 passed、Ruff/format成功、Pyright 0/0。依存境界の全走査testは新module用guard未追加で1件失敗しており、Task2のAST REDとして扱う。

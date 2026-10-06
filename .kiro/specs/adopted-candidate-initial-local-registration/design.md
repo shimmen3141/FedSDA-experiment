@@ -1,4 +1,4 @@
-# 設計 revision 1
+# 設計 revision 2
 
 ## 配置と責務
 
@@ -32,7 +32,7 @@ snapshotの各Tensorは新規cloneで、候補・反映先のparameterとstorage
 
 ## 依存とファイル計画
 
-許可importは次の11symbolのみ（__future__.annotations許可）: torch.Tensor（注釈用）、ResidualAdapterClassifier、ParameterOptimizerState、HeldModelTrainingStateRegistry、ModelAndClassLossStatisticsStore、CurrentTrainingModelAssignment、PendingModelUploadState、integrate_adopted_candidate_shared_features、evaluate_classifier_per_sample_bounded_losses、initialize_model_and_class_loss_statistics_from_batch、snapshot_classifier_parameters。exact AST guardをgeneric runtime許可より前に適用。module丸ごと/再export/private/Tensor以外のtorch/NumPy/乱数/設定/旧実装/候補採否/学習実行/標本store/計数storeは禁止。
+許可importは次の13symbolのみ（__future__.annotations許可）: torch.Tensor（注釈用）、ResidualAdapterClassifier、SharedFeatureExtractor（反映先選択helperの戻り値注釈用）、ParameterOptimizerState、HeldModelTrainingState（一覧snapshotを受けるhelperの引数注釈用）、HeldModelTrainingStateRegistry、ModelAndClassLossStatisticsStore、CurrentTrainingModelAssignment、PendingModelUploadState、integrate_adopted_candidate_shared_features、evaluate_classifier_per_sample_bounded_losses、initialize_model_and_class_loss_statistics_from_batch、snapshot_classifier_parameters。exact AST guardをgeneric runtime許可より前に適用。module丸ごと/再export/private/Tensor以外のtorch/NumPy/乱数/設定/旧実装/候補採否/学習実行/標本store/計数storeは禁止。
 
 |ファイル|役割|
 |---|---|

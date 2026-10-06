@@ -1,7 +1,7 @@
 {
   "feature_name": "adopted-candidate-initial-local-registration",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "primary_agent": "claude-opus-5-5 (Claude Code)",
@@ -21,35 +21,36 @@
     "design": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "generated_sha256_lf": "1402644222417bbf08cc10e771a24900c948aa79a1c1d4d7298491dd197c7c04",
-      "approved_revision": 1,
-      "approved_sha256_lf": "1402644222417bbf08cc10e771a24900c948aa79a1c1d4d7298491dd197c7c04",
+      "revision": 2,
+      "generated_sha256_lf": "e8d4a702769d2e3f8308c518f767a43e8656a9e7da6cee42f716bf86c29e1201",
+      "approved_revision": 2,
+      "approved_sha256_lf": "e8d4a702769d2e3f8308c518f767a43e8656a9e7da6cee42f716bf86c29e1201",
       "reviewer": "gpt-6-luna",
-      "reviewer_thread": "codex session 01a1125a-f5bc-7430-a4e1-a944ab19533d",
+      "reviewer_thread": "codex session 01a1125a-f5bc-7430-a4e1-a944ab19533d／revision2: codex session 01a11263-9cc7-7902-a6e0-4352a82e7993",
       "review_record": "review.md"
     },
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "generated_sha256_lf": "880e0e5e8990811ffcd8cc982c4bd3db131adcdf35351f917dda38e8cc5f4e37",
-      "approved_revision": 1,
-      "approved_sha256_lf": "880e0e5e8990811ffcd8cc982c4bd3db131adcdf35351f917dda38e8cc5f4e37",
+      "revision": 2,
+      "generated_sha256_lf": "dd0fc0ab9dfd3c0f12cf6f637c9ce7b7e7a79fedf34835f6b46d46b750c330c8",
+      "approved_revision": 2,
+      "approved_sha256_lf": "dd0fc0ab9dfd3c0f12cf6f637c9ce7b7e7a79fedf34835f6b46d46b750c330c8",
       "reviewer": "gpt-6-luna",
-      "reviewer_thread": "codex session 01a1125a-f5bc-7430-a4e1-a944ab19533d",
+      "reviewer_thread": "codex session 01a1125a-f5bc-7430-a4e1-a944ab19533d／revision2: codex session 01a11263-9cc7-7902-a6e0-4352a82e7993",
       "review_record": "review.md"
     },
     "tasks": {
       "generated": true,
       "approved": true,
-      "revision": 2,
-      "generated_sha256_lf": "79fe5722eb3d2cf08134412ba9f2829270d395bb9cdfd4106660d43ce9bf2254",
-      "approved_revision": 2,
-      "approved_sha256_lf": "79fe5722eb3d2cf08134412ba9f2829270d395bb9cdfd4106660d43ce9bf2254",
+      "revision": 3,
+      "generated_sha256_lf": "99f443cd1b7db24a1236de34e8fb11aa36c04685b7f1e35407d8f42847a0adf3",
+      "approved_revision": 3,
+      "approved_sha256_lf": "99f443cd1b7db24a1236de34e8fb11aa36c04685b7f1e35407d8f42847a0adf3",
       "reviewer": "gpt-6-luna",
-      "reviewer_thread": "codex session 01a1125c-a934-7961-bae7-8d02238a1064（revision1 CHANGES_REQUESTED: 01a1125c-2b57-7191-89ed-f5194e9fcb0d）",
-      "review_record": "review.md"
+      "reviewer_thread": "codex session 01a1125c-a934-7961-bae7-8d02238a1064（revision1 CHANGES_REQUESTED: 01a1125c-2b57-7191-89ed-f5194e9fcb0d）／revision3: codex session 01a11263-9cc7-7902-a6e0-4352a82e7993",
+      "review_record": "review.md",
+      "current_sha256_lf": "9c5904bc9886212b04a901a3c87c025d83a89b885513d90286595bff38d7041b"
     }
   },
   "ready_for_implementation": true,
@@ -65,10 +66,12 @@
     "held-model-registration-confirmation"
   ],
   "implementation_progress": {
-    "completed_tasks": [],
+    "completed_tasks": [
+      "1"
+    ],
     "total_executable_tasks": 3,
-    "next_task": "1",
-    "completed_task_count": 0
+    "next_task": "2",
+    "completed_task_count": 1
   },
   "updated_at": "2026-10-07"
 }
