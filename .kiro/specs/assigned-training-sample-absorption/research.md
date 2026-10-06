@@ -7,4 +7,4 @@
 - 更新の対応: 学習標本はModelTrainingSampleStore.append_model_training_samples（1件ずつ。空列ではモデルの標本列を作らない旧の挙動に合わせ、呼ばない）、概念はModelTrainingAndAssignmentCountsStore.record_assigned_sample_concept（Noneは記録なし）、損失はevaluate_classifier_per_sample_bounded_losses、統計はModelAndClassLossStatisticsStore.record_assigned_loss（未登録モデルは件数0から開始。旧setdefaultと同じ）。
 - 旧標本は(特徴, ラベル[, 真の概念])のtuple。新ObservedTrainingSampleは概念を持たないので、同じ長さの概念ID列を別引数で受け取る。真の概念は診断専用で、予測・学習判断へ使わない。
 - 旧の"statistics"計算量記録は診断counterで未移植。本specは記録しない。
-- 旧は途中の標本で失敗すると、それまでの標本の更新が残る（部分更新）。本specの実装時に実旧で再現し、implementation-findingsへ記録する。
+- 旧は途中の標本で失敗すると、それまでの標本の更新が残る（部分更新）。実旧で再現し[LEGACY-015](../../../docs/research/implementation-findings/legacy-015-partial-absorption-on-invalid-sample.md)へ記録した。採用分岐だけが吸収を使わない非対称は[LEGACY-014](../../../docs/research/implementation-findings/legacy-014-adopted-model-pending-samples-not-counted.md)。

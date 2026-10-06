@@ -1,4 +1,4 @@
-# 命名 revision 1
+# 命名 revision 3
 
 |名前|型・役割・更新する状態・区別|
 |---|---|
@@ -35,3 +35,37 @@
 |test_*|契約を記述するpytest関数|
 
 共同学習接続・確定処理接続の名前は上流registration/adoption specと同じ役割で再利用する。追加が必要になったら実装前に本表へ戻してレビューする。
+
+## Task1・Task2で追加した名前（revision 2）
+
+productionの追加名はない。
+
+|名前|役割|
+|---|---|
+|OWNER_NAMES|新関数が受け取る4ownerの引数名のtuple。owner別拒否のtest軸|
+|absorption_module|monkeypatchで損失評価の呼出しを観測するための新moduleの別名|
+|adoption_arguments / shared_optimizer_owners|上流の採用oracleが返す引数一式/共有optimizer管理器列。現在ID ownerや初期統計の特徴を読むために使う|
+|assert_models_optimizers_and_random_state_unchanged|一覧record identity・全parameter/grad・全optimizer・torch/random/NumPy乱数が観測時から変わらないことを確認。成功時の不変（1.5）と拒否時不変の両方で使う|
+|valid_absorption_arguments|不正値へ差し替える前の引数一式|
+|replace_training_sample|test内closure。標本列の指定位置だけを、特徴またはラベルを差し替えたrecordへ置き換える|
+|invalid_owner / owner_type / owner_name|owner別拒否の不正値の種類/正しいownerの型/引数名|
+|invalid_input_features|旧の途中失敗を再現する、特徴数が合わない特徴|
+|previous_legacy_sample_count / previous_legacy_statistics_count / previous_legacy_concept_counts|旧の部分更新を観測するための吸収前の件数|
+|original_evaluation / record_then_evaluate / record_then_update|呼出しを記録してから元の損失評価/owner APIへ委譲する順序観測|
+|legacy_resolution_case / legacy_session / legacy_drift_type / expected_model_id|実旧確定処理の非採用分岐（棄却/現行維持/別モデル再利用）の種類、実旧session、戻り値、旧が決めた帰属先|
+|previous_held_model_ids / previous_next_temporary_model_id / parameter_snapshots|非採用分岐で保有一覧・採番次値・parameterが変わらないことの比較用|
+|current_training_model_assignment|既存owner。再利用分岐で旧が決めた帰属先へ現在IDを合わせるtest-only接続に使う|
+|run_joint_update_in_both_implementations / legacy_training_batches / training_bindings / model_training_sample_collections / participating_training_batches / expected_joint_loss / actual_joint_loss / local_training_settings / active / random_states / numpy_state|上流の採用testと同じ役割|
+|current_counts / previous_model_id / previous_training_samples / expected_training_samples / other_model_id / previous_loss_statistics / current_model_id|吸収前後の観測値|
+|assigned_training_sample_absorption_cpu_smoke.py|共有venvのrefactoring-testsへ置く、旧importなしのfresh CPU smoke。Git管理外|
+|test_assigned_training_sample_absorption_exact_dependency_contract|依存境界testの注入契約|
+
+## RED証拠の補強で追加した名前（revision 3）
+
+productionの追加名はない。
+
+|名前|役割|
+|---|---|
+|target_model_caseの値without_training_samples|吸収先のモデルが標本列を持たない条件。空列の吸収が標本列を作らないこと（要求1.4）を実旧と値で照合する|
+|current_training_samples / assigned_training_sample|吸収後の標本列snapshot/吸収した標本の一要素（比較用）|
+|assigned_training_sample_absorption_red_evidence.py|共有venvのrefactoring-testsへ置く、承認対象の実装を一時的にstubと誤実装へ差し替えてtestの失敗を確かめ、元へ戻してhashを照合する検証script。Git管理外|

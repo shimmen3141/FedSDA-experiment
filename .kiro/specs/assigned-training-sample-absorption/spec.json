@@ -1,7 +1,7 @@
 {
   "feature_name": "assigned-training-sample-absorption",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "primary_agent": "claude-opus-5-5 (Claude Code)",
@@ -32,13 +32,13 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "generated_sha256_lf": "df6b7c7c79992e8db2d7e52aa306671c1ba897e173b50154ee7b457482d78f8c",
-      "approved_revision": 1,
-      "approved_sha256_lf": "df6b7c7c79992e8db2d7e52aa306671c1ba897e173b50154ee7b457482d78f8c",
+      "revision": 3,
+      "generated_sha256_lf": "d59caff725e3883bad57c4a1959fcade42c14fb9a4b8eca81a763f2f58e1cc87",
+      "approved_revision": 3,
+      "approved_sha256_lf": "d59caff725e3883bad57c4a1959fcade42c14fb9a4b8eca81a763f2f58e1cc87",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "reviewer_thread": "revision1: codex session 01a112b7-54c3-75b0-872c-456781ad46e9"
+      "reviewer_thread": "revision1: codex session 01a112b7-54c3-75b0-872c-456781ad46e9／revision3: codex session 01a112c4-10b6-7310-914c-6cf8a593b391"
     },
     "tasks": {
       "generated": true,
@@ -49,7 +49,8 @@
       "approved_sha256_lf": "5e6129cc542dfa6c1dad92d0ea395a8b356033567978f3c97032ffce89f95a33",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "reviewer_thread": "revision1: codex session 01a112b7-54c3-75b0-872c-456781ad46e9"
+      "reviewer_thread": "revision1: codex session 01a112b7-54c3-75b0-872c-456781ad46e9",
+      "current_sha256_lf": "2efe393a995f9fb403fba335af332dc642c0998516f29a7445879c68629af3ab"
     }
   },
   "ready_for_implementation": true,
@@ -62,10 +63,13 @@
     "adopted-candidate-local-adoption"
   ],
   "implementation_progress": {
-    "completed_tasks": [],
+    "completed_tasks": [
+      "1",
+      "2"
+    ],
     "total_executable_tasks": 3,
-    "next_task": "1",
-    "completed_task_count": 0
+    "next_task": "3",
+    "completed_task_count": 2
   },
   "updated_at": "2026-10-07"
 }

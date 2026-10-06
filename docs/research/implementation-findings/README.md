@@ -18,6 +18,7 @@
 | LEGACY-012 | 新規モデル登録の途中失敗で共有部の上書きと採番消費が残る | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-012-partial-registration-on-invalid-statistics-input.md) |
 | LEGACY-013 | 使用済みの一時IDへの再登録が既存モデルを黙って置換する | 再現済み・未修正、正常経路での発生は未確認 | [記録](legacy-013-temporary-id-reregistration-overwrite.md) |
 | LEGACY-014 | 採用時の保留標本が割当概念計数と損失統計へ反映されない | 再現済み・未修正、意図した仕様か未確認、oracle診断への影響未確認 | [記録](legacy-014-adopted-model-pending-samples-not-counted.md) |
+| LEGACY-015 | 標本吸収の途中失敗で先行標本の更新と不正標本が残る | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-015-partial-absorption-on-invalid-sample.md) |
 
 ## 記録・更新の規約
 
