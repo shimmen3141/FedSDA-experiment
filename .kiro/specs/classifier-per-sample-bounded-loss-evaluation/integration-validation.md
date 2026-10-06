@@ -13,7 +13,13 @@
 - Ruff成功、対象format成功、Pyright0 errors/0 warnings/exit0。未実装import RED以外に対象testの失敗なし。
 - Lunaの検証context漏れ指摘を採用してscoped deviceへ修正。77 passed/3.41秒/exit0・品質成功。別fresh processで旧setterのstack0→1と新contextの0→0を実証。productionは変更なし。
 
-## 環境とコマンド
+## Task2
+- test-only統合のためRED N/A。class2/4×Adam標準/AMSGrad/SGD×共有更新/凍結の12条件。
+- 各3共同更新で全loss/NN値/gradient/共有・個別optimizer stateを実旧へexact照合した後、実旧prepareと新採用共有反映へ接続する。
+- 準備後の新評価→既存batch初期統計と、実旧register(identity prepare)の全体/クラス別全fieldを、5件とsingletonでexact照合。評価/統計の前後で全parameter/gradient/optimizerの実体とstate/RNG保持。
+- 対象89 passed/3.94秒/exit0、Ruff/format成功。production変更なし。
+
+## 環境と再実行
 2026-10-06、既存Windows CPU基準、共有../../venv（Python3.13.15/Torch2.12.1+cpu/NumPy2.4.6/pytest9.1.1）。基準と版はdocs/experiments/refactoring-baseline.md・environments/golden/windows-cpu。
 OMP_NUM_THREADS=MKL_NUM_THREADS=1、MPLCONFIGDIR=../../venv/matplotlib-cache、TMP/TEMP=../../venv/refactoring-tests、FDE_MNIST_DATA_DIR=../../data/mnist。
 

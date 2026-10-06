@@ -7,7 +7,7 @@
   - _Boundary: 一分類器の標本別評価と対象単体test_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 3.1_
 
-- [ ] 2. 準備後の損失から初期統計への接続を照合する
+- [x] 2. 準備後の損失から初期統計への接続を照合する
   - test-onlyでclass2/4×Adam標準/AMSGrad/SGD×共有更新/凍結の12条件に既存共同更新・実旧準備/新採用共有反映を接続する。
   - 評価結果を既存batch初期統計へ渡し、実旧登録の全統計fieldとexact比較する。一標本fallbackも照合する。
   - 完了は同じモデル値/損失/全統計一致、評価前後のoptimizer state不変、対象GREEN・品質・Luna Task APPROVEDで判断する。

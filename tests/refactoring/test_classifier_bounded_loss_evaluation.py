@@ -3,19 +3,49 @@
 import random
 import warnings
 from copy import deepcopy
+from dataclasses import replace
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 import torch
-from test_joint_model_parameter_update import build_joint_update_oracle_pair
+from test_joint_model_parameter_update import (
+    assert_joint_update_states_equal,
+    assert_nested_state_equal,
+    build_joint_update_oracle_pair,
+    run_legacy_joint_update,
+)
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
     build_attachment_classifier,
     snapshot_parameter_values_and_gradients,
 )
 
+from federated_drift_experiment.clients.base import BaseClient
+from federated_drift_experiment.clients.shared_backbone import (
+    _SharedRepresentationFedSDAClientMixin,
+)
+from federated_learning_experiments.learning.loss_statistics.batch_loss_statistics_initialization import (
+    initialize_model_and_class_loss_statistics_from_batch,
+)
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
+)
+from federated_learning_experiments.learning.training.adopted_candidate_shared_feature_integration import (
+    integrate_adopted_candidate_shared_features,
+)
+from federated_learning_experiments.learning.training.joint_model_parameter_update import (
+    perform_joint_model_parameter_update,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
+from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
+    AdamParameterOptimizerSettings,
+    SgdParameterOptimizerSettings,
+)
+from federated_learning_experiments.learning.training.parameter_optimizer_state import (
+    ParameterOptimizerState,
 )
 
 
@@ -305,3 +335,156 @@ def test_bounded_loss_evaluation_rejects_invalid_outputs_from_finite_parameters(
                 observed_class_labels=torch.zeros((2, 1)),
             )
         assert_parameter_values_and_gradients_unchanged(state_before)
+
+
+def assert_initial_loss_statistics_match_legacy(result, legacy_stats):
+    assert (
+        result.overall_loss_moments.observed_loss_count,
+        result.overall_loss_moments.mean_loss,
+        result.overall_loss_moments.sum_squared_loss_deviations,
+    ) == (legacy_stats["n"], legacy_stats["mean"], legacy_stats["M2"])
+    assert tuple(class_id for class_id, _ in result.class_loss_moments_by_class_id) == tuple(
+        legacy_stats["class_stats"]
+    )
+    for class_id, moments in result.class_loss_moments_by_class_id:
+        expected = legacy_stats["class_stats"][class_id]
+        assert (
+            moments.observed_loss_count,
+            moments.mean_loss,
+            moments.sum_squared_loss_deviations,
+        ) == (expected["n"], expected["mean"], expected["M2"])
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize("update_shared_features", [False, True])
+def test_bounded_loss_evaluation_connects_prepared_model_to_initial_statistics(
+    class_count, optimizer_variant, update_shared_features, monkeypatch
+):
+    with torch.random.fork_rng(devices=[]):
+        training_batches, shared_parameter_optimizer, legacy_client = (
+            build_joint_update_oracle_pair(
+                class_count=class_count,
+                batch_sample_counts=(3, 5),
+                optimizer_variant=optimizer_variant,
+                monkeypatch=monkeypatch,
+            )
+        )
+        candidate = training_batches[1].classifier
+        optimizer_settings = (
+            SgdParameterOptimizerSettings(learning_rate=0.01)
+            if optimizer_variant == "sgd"
+            else AdamParameterOptimizerSettings(
+                learning_rate=0.01, weight_decay=0.001, adam_variant=optimizer_variant
+            )
+        )
+        candidate_owner = ParameterOptimizerState(
+            parameters=tuple(candidate.residual_adapter.parameters())
+            + tuple(candidate.classification_layer.parameters()),
+            optimizer_settings=optimizer_settings,
+        )
+        training_batches = (
+            training_batches[0],
+            replace(
+                training_batches[1],
+                concept_specific_parameter_optimizer=candidate_owner.parameter_optimizer,
+            ),
+        )
+        settings = LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )
+        for _ in range(3):
+            expected_loss = run_legacy_joint_update(
+                legacy_client=legacy_client, update_shared_features=update_shared_features
+            )
+            actual_loss = perform_joint_model_parameter_update(
+                local_training_settings=settings,
+                shared_feature_extractor=candidate.feature_extractor,
+                shared_parameter_optimizer=shared_parameter_optimizer,
+                participating_training_batches=training_batches,
+                update_shared_features=update_shared_features,
+            )
+            assert actual_loss == expected_loss
+            assert_joint_update_states_equal(
+                participating_training_batches=training_batches,
+                shared_parameter_optimizer=shared_parameter_optimizer,
+                legacy_client=legacy_client,
+            )
+        # 旧と新の準備は上位の接続。損失評価部へresetや登録を追加しない。
+        prepared_legacy_candidate = (
+            _SharedRepresentationFedSDAClientMixin._prepare_model_for_registration(
+                legacy_client, legacy_client.models[-7]
+            )
+        )
+        integrate_adopted_candidate_shared_features(
+            adopted_candidate_classifier=candidate,
+            candidate_concept_specific_parameter_optimizer_state=candidate_owner,
+            active_shared_feature_extractor=training_batches[0].classifier.feature_extractor,
+        )
+        training_batches = (
+            training_batches[0],
+            replace(
+                training_batches[1],
+                concept_specific_parameter_optimizer=candidate_owner.parameter_optimizer,
+            ),
+        )
+        assert_joint_update_states_equal(
+            participating_training_batches=training_batches,
+            shared_parameter_optimizer=shared_parameter_optimizer,
+            legacy_client=legacy_client,
+        )
+        shared_state_before = deepcopy(shared_parameter_optimizer.state_dict())
+        concept_state_before = deepcopy(candidate_owner.parameter_optimizer.state_dict())
+        previous_optimizer = candidate_owner.parameter_optimizer
+        model_state_before = snapshot_parameter_values_and_gradients(candidate.parameters())
+        rng_before = torch.get_rng_state().clone()
+        # 一標本の全体fallbackと、複数class/欠落classの全fieldを実旧登録へ対応する。
+        for sample_count in (5, 1):
+            input_features = training_batches[1].input_features[:sample_count]
+            observed_class_labels = training_batches[1].observed_class_labels[:sample_count]
+            losses = evaluate_classifier_per_sample_bounded_losses(
+                classifier=candidate,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+            )
+            with torch.no_grad():
+                expected_losses = prepared_legacy_candidate.per_sample_error(
+                    input_features, observed_class_labels
+                )
+            assert torch.equal(losses, expected_losses)
+            result = initialize_model_and_class_loss_statistics_from_batch(
+                per_sample_bounded_losses=losses,
+                observed_class_labels=observed_class_labels,
+                class_count=class_count,
+            )
+            registration_client = SimpleNamespace(
+                models={},
+                model_stats={},
+                _prepare_model_for_registration=lambda model: model,
+                _record_model_compute=lambda *args: None,
+            )
+            # singletonの旧不偏分散warningだけをoracle内で抑制する。
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                BaseClient._register_trained_new_model(
+                    registration_client,
+                    temp_id=-7,
+                    new_model=prepared_legacy_candidate,
+                    bx=input_features,
+                    by=observed_class_labels,
+                    pending_ready=False,
+                )
+            assert_initial_loss_statistics_match_legacy(result, registration_client.model_stats[-7])
+            assert torch.equal(torch.get_rng_state(), rng_before)
+            assert candidate_owner.parameter_optimizer is previous_optimizer
+            assert_nested_state_equal(shared_parameter_optimizer.state_dict(), shared_state_before)
+            assert_nested_state_equal(
+                candidate_owner.parameter_optimizer.state_dict(), concept_state_before
+            )
+            assert_parameter_values_and_gradients_unchanged(model_state_before)
+            assert_joint_update_states_equal(
+                participating_training_batches=training_batches,
+                shared_parameter_optimizer=shared_parameter_optimizer,
+                legacy_client=legacy_client,
+            )
