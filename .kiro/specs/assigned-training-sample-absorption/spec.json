@@ -1,0 +1,71 @@
+{
+  "feature_name": "assigned-training-sample-absorption",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "created_at": "2026-10-07",
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "primary_agent": "claude-opus-5-5 (Claude Code)",
+  "reviewer_invocation": "codex exec -m gpt-6-luna --sandbox read-only|workspace-write（Claude主担当から独立プロセスで起動）",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "d43c4df880798970106488769bd6c1e814341f44e259a2d6fcf3f06104fa33ad",
+      "approved_revision": 1,
+      "approved_sha256_lf": "d43c4df880798970106488769bd6c1e814341f44e259a2d6fcf3f06104fa33ad",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "revision1: codex session 01a112b7-54c3-75b0-872c-456781ad46e9"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "f168a2decc026a1680a19c91baaca58aec4834fa0a5581e4a61628b3fd4eb0ef",
+      "approved_revision": 1,
+      "approved_sha256_lf": "f168a2decc026a1680a19c91baaca58aec4834fa0a5581e4a61628b3fd4eb0ef",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "revision1: codex session 01a112b7-54c3-75b0-872c-456781ad46e9"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "df6b7c7c79992e8db2d7e52aa306671c1ba897e173b50154ee7b457482d78f8c",
+      "approved_revision": 1,
+      "approved_sha256_lf": "df6b7c7c79992e8db2d7e52aa306671c1ba897e173b50154ee7b457482d78f8c",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "revision1: codex session 01a112b7-54c3-75b0-872c-456781ad46e9"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "5e6129cc542dfa6c1dad92d0ea395a8b356033567978f3c97032ffce89f95a33",
+      "approved_revision": 1,
+      "approved_sha256_lf": "5e6129cc542dfa6c1dad92d0ea395a8b356033567978f3c97032ffce89f95a33",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_thread": "revision1: codex session 01a112b7-54c3-75b0-872c-456781ad46e9"
+    }
+  },
+  "ready_for_implementation": true,
+  "upstream_specs": [
+    "held-model-training-state-registry",
+    "model-training-sample-storage",
+    "model-training-and-assignment-counts",
+    "model-and-class-loss-statistics",
+    "classifier-per-sample-bounded-loss-evaluation",
+    "adopted-candidate-local-adoption"
+  ],
+  "implementation_progress": {
+    "completed_tasks": [],
+    "total_executable_tasks": 3,
+    "next_task": "1",
+    "completed_task_count": 0
+  },
+  "updated_at": "2026-10-07"
+}
