@@ -15,3 +15,7 @@ revision3の再レビューはVERDICT: APPROVED。残指摘なし。
 ## Task1
 新module未実装のimportでModuleNotFoundError、1 collection error/3.32秒/exit1（matplotlibのsandbox終了cleanupには既知のtmp ACL通知、以降MPLCONFIGDIRを指定）。実装後20 passed/2.74秒/exit0、Ruff/format成功。
 Luna独立20 passed/exit0・Ruff/format・境界・placeholder/秘密確認、VERDICT: APPROVED。指摘なし。主担当のcompletion gateは本登録/取得境界の範囲でVERIFIED、Task1完了。
+
+## Task2
+test-onlyのためRED N/A。12条件を追加。初回12 failed/20 passedは既存state照合helperが旧dict順zipするためのテスト側対応誤り。helper引数だけを旧dict順へ対応し、学習順・productionは変更せず解消。
+32 passed/3.24秒/exit0、Ruff/format成功。Luna独立32 passed/exit0・品質/diff/境界確認、VERDICT: APPROVED、指摘なし。全loss/NN値/grad/optimizer state/Randomとreset後の現在binding、古いbindingのstate保持を確認し、Task2のcompletion gateはVERIFIED。

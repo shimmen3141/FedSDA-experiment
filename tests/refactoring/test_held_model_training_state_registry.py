@@ -1,29 +1,47 @@
 """保有一覧の順序と、現在optimizerを取得する境界を検証する。"""
 
 from copy import deepcopy
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
+from random import Random
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 import torch
-from test_joint_model_parameter_update import assert_nested_state_equal
+from test_held_model_joint_training_iterations import (
+    build_training_iteration_oracle_pair,
+    run_legacy_training_iterations,
+)
+from test_joint_model_parameter_update import (
+    assert_joint_update_states_equal,
+    assert_nested_state_equal,
+)
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
     snapshot_parameter_values_and_gradients,
 )
 
+from federated_drift_experiment import config
+from federated_drift_experiment.clients.base import BaseClient
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
     ResidualAdapterClassifier,
 )
+from federated_learning_experiments.learning.training.held_model_joint_training_iterations import (
+    perform_held_model_joint_training_iterations,
+)
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingState,
     HeldModelTrainingStateRegistry,
 )
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
+    SgdParameterOptimizerSettings,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
     ParameterOptimizerState,
@@ -197,6 +215,134 @@ def test_invalid_registration_keeps_registry_and_learning_state(invalid_case):
             optimizer_owner.parameter_optimizer.state_dict(), optimizer_snapshot
         )
         assert torch.equal(torch.get_rng_state(), rng_state)
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize("update_shared_features", [True, False])
+def test_old_registration_order_and_training_with_current_optimizers_match(
+    class_count, optimizer_variant, update_shared_features, monkeypatch
+):
+    with torch.random.fork_rng(devices=[]):
+        monkeypatch.setattr(config, "NEW_MODEL_LR", 0.01)
+        (
+            training_batches,
+            shared_optimizer,
+            legacy_client,
+            ordered_training_samples,
+            _,
+        ) = build_training_iteration_oracle_pair(
+            class_count=class_count, optimizer_variant=optimizer_variant, monkeypatch=monkeypatch
+        )
+        optimizer_settings = (
+            SgdParameterOptimizerSettings(learning_rate=0.01)
+            if optimizer_variant == "sgd"
+            else AdamParameterOptimizerSettings(
+                learning_rate=0.01, weight_decay=0.001, adam_variant=optimizer_variant
+            )
+        )
+        concept_owners = tuple(
+            ParameterOptimizerState(
+                parameters=tuple(training_batch.classifier.residual_adapter.parameters())
+                + tuple(training_batch.classifier.classification_layer.parameters()),
+                optimizer_settings=optimizer_settings,
+            )
+            for training_batch in training_batches
+        )
+        registry = HeldModelTrainingStateRegistry()
+        legacy_models = tuple(legacy_client.models.values())
+        legacy_registration_client = SimpleNamespace(
+            models={},
+            model_stats={},
+            # 共有準備は別specで対照済み。ここでは準備済み実体を渡す。
+            _prepare_model_for_registration=lambda classifier: classifier,
+            _record_model_compute=lambda *args: None,
+        )
+        for model_id, sample_index in ((-7, 0), (4, 0), (-7, 1)):
+            training_batch = training_batches[sample_index]
+            BaseClient._register_trained_new_model(
+                legacy_registration_client,
+                model_id,
+                legacy_models[sample_index],
+                training_batch.input_features,
+                training_batch.observed_class_labels,
+                pending_ready=False,
+            )
+            register_training_state(
+                registry, model_id, training_batch.classifier, concept_owners[sample_index]
+            )
+        legacy_client.models = legacy_registration_client.models
+        assert tuple(legacy_client.models) == (-7, 4)
+        assert tuple(
+            state.model_id for state in registry.snapshot_ordered_held_model_training_states()
+        ) == tuple(legacy_client.models)
+        assert legacy_client.models[-7] is legacy_models[1]
+        assert registry.get_held_model_training_state(model_id=-7).classifier is (
+            training_batches[1].classifier
+        )
+        legacy_client.batch_size = 3
+        python_random_generator = Random(731)
+        previous_binding = None
+        previous_optimizer_state = None
+        for step_index in range(3):
+            if step_index == 1:
+                previous_binding = registry.snapshot_ordered_held_model_training_bindings()[0]
+                previous_optimizer_state = deepcopy(
+                    previous_binding.concept_specific_parameter_optimizer.state_dict()
+                )
+                # 実旧公開接続は共有optimizerを保持して個別optimizerをresetする。
+                legacy_client.models[-7].attach_backbone(legacy_models[0].backbone)
+                concept_owners[1].reset_parameter_optimizer()
+            training_bindings = registry.snapshot_ordered_held_model_training_bindings()
+            model_states_by_id = {binding.model_id: binding for binding in training_bindings}
+            participating_training_batches = tuple(
+                replace(
+                    training_batch,
+                    concept_specific_parameter_optimizer=model_states_by_id[
+                        model_id
+                    ].concept_specific_parameter_optimizer,
+                )
+                for model_id, training_batch in zip((4, -7), training_batches)
+            )
+            expected_losses, expected_random_state, sampled_batch_history = (
+                run_legacy_training_iterations(
+                    legacy_client=legacy_client,
+                    iteration_count=1,
+                    update_shared_features=update_shared_features,
+                    initial_random_state=python_random_generator.getstate(),
+                )
+            )
+            actual_losses = perform_held_model_joint_training_iterations(
+                requested_joint_update_iteration_count=1,
+                held_model_training_bindings=training_bindings,
+                ordered_model_training_samples=ordered_training_samples,
+                batch_sample_count=3,
+                python_random_generator=python_random_generator,
+                local_training_settings=LocalTrainingSettings(
+                    local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+                    shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+                ),
+                shared_feature_extractor=training_batches[0].classifier.feature_extractor,
+                shared_parameter_optimizer=shared_optimizer,
+                update_shared_features=update_shared_features,
+            )
+            assert actual_losses == expected_losses
+            assert python_random_generator.getstate() == expected_random_state
+            assert len(sampled_batch_history) == 1
+            assert_joint_update_states_equal(
+                # 既存照合helperは旧dict順にzipする。学習順は標本store順のまま。
+                participating_training_batches=tuple(reversed(participating_training_batches)),
+                shared_parameter_optimizer=shared_optimizer,
+                legacy_client=legacy_client,
+            )
+            if previous_binding is not None:
+                assert previous_binding.concept_specific_parameter_optimizer is not (
+                    concept_owners[1].parameter_optimizer
+                )
+                assert_nested_state_equal(
+                    previous_binding.concept_specific_parameter_optimizer.state_dict(),
+                    previous_optimizer_state,
+                )
 
 
 def test_reset_changes_new_bindings_and_keeps_prior_references_and_values():

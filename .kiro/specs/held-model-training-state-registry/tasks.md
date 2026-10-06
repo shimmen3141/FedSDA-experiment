@@ -7,7 +7,7 @@
   - _Boundary: 保有状態registryと対象単体test_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3_
 
-- [ ] 2. 実旧登録から共同学習への明示接続を照合する
+- [x] 2. 実旧登録から共同学習への明示接続を照合する
   - test-onlyで実旧登録のmodel dict境界と、新registryの登録/同ID置換順を対照する。旧損失統計やpendingは本registryの完了範囲へ含めない。
   - class2/4×Adam標準/AMSGrad/SGD×共有更新/凍結の12条件で、登録/置換/reset→現在binding→既存抽出/反復を3step接続する。
   - 完了は全loss/NN値/grad/optimizer state/終端Random一致のGREEN、品質、Luna Task APPROVEDで判断する。
