@@ -372,6 +372,14 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if source_module_path == "learning/training/temporary_model_id_allocation.py":
         return imported_module_name == "__future__.annotations"
+    if source_module_path == "runtime/post_alarm_candidate_validation_sample_observation.py":
+        return imported_module_name in (
+            "__future__.annotations",
+            "torch.Tensor",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection.PostAlarmCandidateLossCollection",
+        )
     if source_module_path == "runtime/post_alarm_candidate_validation_resolution.py":
         return imported_module_name in (
             "__future__.annotations",
@@ -974,6 +982,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/adopted_candidate_local_adoption.py",
             "runtime/assigned_training_sample_absorption.py",
             "runtime/post_alarm_candidate_validation_resolution.py",
+            "runtime/post_alarm_candidate_validation_sample_observation.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -1003,6 +1012,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/adopted_candidate_local_adoption.py",
                     "runtime/assigned_training_sample_absorption.py",
                     "runtime/post_alarm_candidate_validation_resolution.py",
+                    "runtime/post_alarm_candidate_validation_sample_observation.py",
                 )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(
@@ -1892,6 +1902,139 @@ def test_post_alarm_candidate_validation_resolution_exact_dependency_contract(
     assert (
         not collect_dependency_boundary_violations(
             source_module_path="runtime/post_alarm_candidate_validation_resolution.py",
+            source_text=source_text,
+        )
+    ) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        (
+            "import torch",
+            False,
+        ),
+        (
+            "from torch import no_grad",
+            False,
+        ),
+        (
+            "from torch import float32",
+            False,
+        ),
+        (
+            "import numpy",
+            False,
+        ),
+        (
+            "import math",
+            False,
+        ),
+        (
+            "import random",
+            False,
+        ),
+        (
+            "from dataclasses import dataclass",
+            False,
+        ),
+        (
+            "import federated_drift_experiment",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollectionState",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import PostAlarmCandidateLossEvaluation",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.adopted_candidate_local_adoption import adopt_candidate_as_current_training_model",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import _validate_classifier_bounded_loss_inputs",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.prediction import classifier_bounded_loss_evaluation",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import *",
+            False,
+        ),
+        (
+            "from torch import Tensor",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollection",
+            True,
+        ),
+        (
+            "from ..learning.models.residual_adapter_classifier import ResidualAdapterClassifier as Classifier",
+            True,
+        ),
+        ("from __future__ import annotations", True),
+    ],
+)
+def test_post_alarm_candidate_validation_sample_observation_exact_dependency_contract(
+    source_text, expected_acceptance
+):
+    assert (
+        not collect_dependency_boundary_violations(
+            source_module_path="runtime/post_alarm_candidate_validation_sample_observation.py",
             source_text=source_text,
         )
     ) == expected_acceptance
