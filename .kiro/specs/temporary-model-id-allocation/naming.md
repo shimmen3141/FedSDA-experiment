@@ -1,4 +1,4 @@
-# 命名 revision 2
+# 命名 revision 3
 
 |名前|型・役割・更新する状態・区別|
 |---|---|
@@ -32,3 +32,14 @@
 |test_*|契約を記述するpytest関数|
 
 登録への接続testは、上流の初期ローカル登録testのbuild_initial_registration_oracle・registration_arguments等を同じ役割で再利用する。追加が必要になったら実装前に本表へ戻してレビューする。
+
+## Task1で追加した名前（revision 3）
+
+productionの追加名は、採番関数内の戻り値を一時保持するローカル変数temporary_model_id（採番済みの値。上の区別表と同じ意味）だけ。
+
+|名前|役割|
+|---|---|
+|first_allocator / second_allocator / first_temporary_model_id|同じclient_idの二つのownerが互いに独立であることを確かめるtestのownerと、最初の採番値|
+|registry / loss_statistics_store / pending_upload_state / classifier|上流の初期ローカル登録testと同じ役割のowner・次の候補分類器|
+|source_directory / completed_process|stdlib単独起動testで別プロセスへ渡すsrcの場所/その実行結果|
+|test_temporary_model_id_allocation_rejects_every_import_except_annotations|依存境界testの注入契約。annotations以外の全importを拒否|

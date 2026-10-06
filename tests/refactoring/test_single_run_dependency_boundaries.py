@@ -370,6 +370,8 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/temporary_model_id_allocation.py":
+        return imported_module_name == "__future__.annotations"
     if source_module_path == "runtime/adopted_candidate_initial_local_registration.py":
         return imported_module_name in (
             "__future__.annotations",
@@ -921,6 +923,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "learning/training/current_training_model_assignment.py",
             "runtime/held_model_registration_confirmation.py",
             "runtime/adopted_candidate_initial_local_registration.py",
+            "learning/training/temporary_model_id_allocation.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -946,6 +949,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "learning/training/current_training_model_assignment.py",
                     "runtime/held_model_registration_confirmation.py",
                     "runtime/adopted_candidate_initial_local_registration.py",
+                    "learning/training/temporary_model_id_allocation.py",
                 )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(
@@ -1214,6 +1218,112 @@ def test_adopted_candidate_initial_local_registration_exact_dependency_contract(
     assert (
         not collect_dependency_boundary_violations(
             source_module_path="runtime/adopted_candidate_initial_local_registration.py",
+            source_text=source_text,
+        )
+    ) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        (
+            "import math",
+            False,
+        ),
+        (
+            "import random",
+            False,
+        ),
+        (
+            "import random as random_module",
+            False,
+        ),
+        (
+            "import dataclasses",
+            False,
+        ),
+        (
+            "from dataclasses import dataclass",
+            False,
+        ),
+        (
+            "from dataclasses import dataclass as Record",
+            False,
+        ),
+        (
+            "from random import Random",
+            False,
+        ),
+        (
+            "import torch",
+            False,
+        ),
+        (
+            "from torch import Tensor",
+            False,
+        ),
+        (
+            "import numpy",
+            False,
+        ),
+        (
+            "import federated_drift_experiment",
+            False,
+        ),
+        (
+            "from __future__ import division",
+            False,
+        ),
+        (
+            "from __future__ import annotations, division",
+            False,
+        ),
+        (
+            "from __future__ import *",
+            False,
+        ),
+        (
+            "from . import current_training_model_assignment",
+            False,
+        ),
+        (
+            "from .current_training_model_assignment import CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "from .held_model_training_state_registry import HeldModelTrainingStateRegistry",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.adopted_candidate_initial_local_registration import register_adopted_candidate_as_temporary_held_model",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import *",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.learning.training.current_training_model_assignment",
+            False,
+        ),
+        ("from __future__ import annotations", True),
+        ("from __future__ import annotations as postponed_annotations", True),
+    ],
+)
+def test_temporary_model_id_allocation_rejects_every_import_except_annotations(
+    source_text, expected_acceptance
+):
+    assert (
+        not collect_dependency_boundary_violations(
+            source_module_path="learning/training/temporary_model_id_allocation.py",
             source_text=source_text,
         )
     ) == expected_acceptance

@@ -11,3 +11,5 @@
 - (6)Task2の全回帰は採番部品の完了条件として過大、統合ゲートへ分ける提案→部分採用。worktree規約と全前specの運用（各featureの最終taskで固定環境の全回帰を記録）を維持し、含める理由をresearch・tasksへ明記した。taskを分離する変更は行わない。登録接続testの必要性と依存方向の説明は採用。
 
 再レビュー（設計r2・命名r2・tasks r2）: 実Luna 3段階ともAPPROVED、指摘なし。4ファイルのhash一致、指摘6の部分採用（全回帰taskをfeatureに残す）は規約と前例に沿い妥当との確認。主担当はhashを再計算して照合し実装を開始。
+
+命名revision3・Task1: 実Luna APPROVED、指摘なし。実装が要求r1/設計r2と一致、testが実旧BaseClientの実__init__/実_alloc_temp_idを呼んで対照し式の複製を正解にしていないこと（[-102,-103]は補助確認）、exact guard、stdlib単独起動を確認。Lunaはworkspace-write sandboxで対象＋AST 861 passed、Ruff check/format成功を独立実行。主担当はレビュー前後のgit status一致を確認。

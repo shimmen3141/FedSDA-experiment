@@ -1,7 +1,7 @@
 {
   "feature_name": "temporary-model-id-allocation",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation",
   "created_at": "2026-10-07",
   "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
   "primary_agent": "claude-opus-5-5 (Claude Code)",
@@ -32,13 +32,13 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 2,
-      "generated_sha256_lf": "31fcc6b5955c0f128597e45555ee746188fd0138cfdad3b9d7b166eef28e52bf",
-      "approved_revision": 2,
-      "approved_sha256_lf": "31fcc6b5955c0f128597e45555ee746188fd0138cfdad3b9d7b166eef28e52bf",
+      "revision": 3,
+      "generated_sha256_lf": "ef6d485e4999a65c3d175292f4d80d73488c0de6cdccef481d567975139b058e",
+      "approved_revision": 3,
+      "approved_sha256_lf": "ef6d485e4999a65c3d175292f4d80d73488c0de6cdccef481d567975139b058e",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "reviewer_thread": "revision2: codex session 01a11284-55d8-7c51-9c3c-0a56da2023df"
+      "reviewer_thread": "revision2: codex session 01a11284-55d8-7c51-9c3c-0a56da2023df／revision3: codex session 01a11286-f2d8-7362-a838-b91873a100f0"
     },
     "tasks": {
       "generated": true,
@@ -49,7 +49,8 @@
       "approved_sha256_lf": "81efadd2c927bbb3087f4b3d8b9f1e4a6f2dccc4aadd0f6d682c3879d5739df9",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "reviewer_thread": "revision2: codex session 01a11284-55d8-7c51-9c3c-0a56da2023df"
+      "reviewer_thread": "revision2: codex session 01a11284-55d8-7c51-9c3c-0a56da2023df",
+      "current_sha256_lf": "927e210c479917443f515021e70a393150ee1f73ab0caf06bab812f2efc282c4"
     }
   },
   "ready_for_implementation": true,
@@ -57,10 +58,12 @@
     "adopted-candidate-initial-local-registration"
   ],
   "implementation_progress": {
-    "completed_tasks": [],
+    "completed_tasks": [
+      "1"
+    ],
     "total_executable_tasks": 2,
-    "next_task": "1",
-    "completed_task_count": 0
+    "next_task": "2",
+    "completed_task_count": 1
   },
   "updated_at": "2026-10-07"
 }
