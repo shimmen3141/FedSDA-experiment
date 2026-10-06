@@ -11,7 +11,7 @@
   - batch/全loss/parameter/grad/両optimizer/Random終端と3共有RNG/defaultsをexact照合。production追加なし、RED N/A。
   - 対象/品質・独立Lunaレビューで完了。
   - Requirements: 2.4
-- [ ] 3. 既存境界と固定goldenを統合検証する
+- [x] 3. 既存境界と固定goldenを統合検証する
   - 既存AST（変更/新RED N/A）・fresh新CPU標本store→sampler→学習接続、旧非importを確認。
   - 全pytest旧11/最終3golden、Ruff/format/Pyright/pip、固定旧差分空、承認hash/source hash/JUnitを記録。
   - 独立Luna task承認と主担当gateでcheck。

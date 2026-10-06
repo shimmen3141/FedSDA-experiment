@@ -15,3 +15,8 @@ list_agents確認済み。close APIがないため完了済み実GPT-6 Luna `/ro
 ## Task2
 
 実Luna APPROVED。独立348passed/6.61秒、Ruff/format/diff/scan成功、production変更なし。12条件各3更新（初回後に付替え）のbatch Tensor、loss、parameter/grad/optimizer、Randomのexact比較を確認。指摘なし、採用。主担当も対象104passedと実diffを確認し完了。
+
+## Task3
+
+実Luna APPROVED。独立対象＋AST768passed/4.53秒、全4746passed/3skip/exit0・JUnit4749/0failure0error、fresh新CPU/旧非import、品質/型/pip/diff/scan、固定旧/golden/旧回帰test不変を確認。指摘なし、採用。
+主担当も承認後に対象＋AST768passed/4.56秒、fresh新CPU/diff成功を確認し全3taskをcheck。feature最終GOは別判定。

@@ -20,3 +20,17 @@
 - class2/4×Adam標準/AMSGrad/SGD×共有更新有無の12条件各3回。初回更新後に実旧confirmと新標本storeのID付替えを実行し、上位でbinding IDを対応する。
 - 毎回の抽出Tensor、loss、全parameter/grad、個別・共有optimizer state、明示Random終端をexact照合。previewはRandomのdeepcopyを使い、実更新の乱数を追加消費しない。3共有RNGとtorch defaultsの不変、過去snapshotの旧IDも確認。
 - 実Luna独立348passed/6.61秒、静的検査/scan成功、Task2 APPROVED。指摘なし。
+
+## Task3
+
+- 対象＋既存AST: 768 passed/4.33秒。既存ownerの依存guardが適用され、guard追加・新REDはN/A。
+- fresh新CPU: `../../venv/refactoring-tests/model_training_sample_id_smoke.py`成功。class2/4で標本store→ID付替え→sampler→3共同更新、旧snapshotとpayload参照保持、明示Random消費と両optimizer state、旧パッケージ非importを確認。
+- 全pytest: 4746 passed/3 skipped/1既存warning、128.07秒、exit0。3 skipは既存Windows wrapper条件、warningは既存qint8 fixtureのTypedStorage。旧11条件・最終Residual Adapter＋Switching3条件の固定goldenを含む。
+- JUnit: `../../venv/refactoring-tests/training-sample-id-full.xml`、4749 tests/0 failures/0 errors/3 skipped。
+- Ruff全体成功、format117 files整形済み、Pyright0 errors/0 warnings、pip check成功、git diff --check成功。
+- `git diff 748c3aa -- federated_drift_experiment tests/regression_golden.json tests/proposed_regression_golden.json tests/test_regression.py tests/test_proposed_regression.py`は空。旧実装・goldenを変更していない。
+- 要求/設計/命名のLF正規化hashは承認値と一致。検証済み実装commit `7886be9`。tracked Python＋2goldenの217パスをパス順、パスUTF8＋NUL＋CRLFをLFへ正規化した内容＋NULで連結したSHA256: `19594584f2ec90b73361f6a14e9b13f3e442201c8bea1b903039b13e62ef61cb`。
+
+新client・新全体runのgolden一致を示す検証ではない。評価用標本store/容量・counter・正式登録全体の接続は後続。今回新たな旧正常経路の不具合は観測していない。
+
+実Luna Task3 APPROVED。独立対象＋AST768passed/4.53秒と証拠一致、指摘なし。主担当完了gateは対象＋AST768passed/4.56秒、fresh新CPU/diff成功。
