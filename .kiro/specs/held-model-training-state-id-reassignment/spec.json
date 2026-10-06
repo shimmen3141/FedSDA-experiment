@@ -30,10 +30,10 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 2,
-      "generated_sha256_lf": "be92bb44ce599ff150df4e4b21ba5f9666a68871e4a834b7fdd749a4a5b30a04",
-      "approved_revision": 2,
-      "approved_sha256_lf": "be92bb44ce599ff150df4e4b21ba5f9666a68871e4a834b7fdd749a4a5b30a04",
+      "revision": 3,
+      "generated_sha256_lf": "b2f8567f7da95ee2937e6159ba10b78255c5911b49eaa0bbf762804433984d14",
+      "approved_revision": 3,
+      "approved_sha256_lf": "b2f8567f7da95ee2937e6159ba10b78255c5911b49eaa0bbf762804433984d14",
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md"
@@ -48,7 +48,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_single_run_3_1_review",
       "review_record": "review.md",
-      "current_sha256_lf": "6a6aa1cb7226380ee1d2b8d59e999ce8068ec89f4497001c8cc8ec4a66f8849a"
+      "current_sha256_lf": "62c45f4140b1226fd550bae6d86fd832775b788b04e0a6988eb88790b18fedad"
     }
   },
   "ready_for_implementation": true,
@@ -61,11 +61,12 @@
   ],
   "implementation_progress": {
     "completed_tasks": [
-      "1"
+      "1",
+      "2"
     ],
-    "completed_task_count": 1,
+    "completed_task_count": 2,
     "total_executable_tasks": 3,
-    "next_task": "2"
+    "next_task": "3"
   },
   "task_graph_review": {
     "verdict": "PASS",

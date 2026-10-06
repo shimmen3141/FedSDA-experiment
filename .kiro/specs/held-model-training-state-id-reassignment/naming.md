@@ -1,6 +1,6 @@
 # 命名: 保有モデル学習状態のID付替え
 
-revision: 2
+revision: 3
 
 |名前|役割・型/単位・副作用・類似名との違い|
 |---|---|
@@ -26,6 +26,7 @@ revision: 2
 |source_present / destination_present / source_state / destination_state|元先有無/付替え前の別実体record|
 |legacy_training_batches / optimizer_settings / concept_parameters|実旧samplerのID付きbatch列（test側でIDだけ対応）/既存個別optimizer設定/adapter→headのparameter列|
 |registered_states_by_model_id / expected_states / input_features / observed_class_labels|比較用元ID別record/期待一覧/既存batchの特徴とラベル|
+|previous_parameter_snapshot|test-onlyで保留モデルの登録時値を独立deepcopyした比較基準。借用initial_parameter_snapshotと区別|
 |DerivedModelId|拒否用int派生型、test-only|
 
 既存helper `build_joint_update_oracle_pair`/`run_legacy_joint_update`/`assert_joint_update_states_equal`/`assert_nested_state_equal`/parameter-grad保存比較を同じ役割で借用。
