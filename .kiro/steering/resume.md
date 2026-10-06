@@ -8,16 +8,16 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
-- 直近完了: [一時モデルIDの採番](../specs/temporary-model-id-allocation/README.md)（要求r1/設計r2/命名r3/tasks r2・全2task承認/完了、別feature最終GO）と、その前の[採用候補の初期ローカル登録](../specs/adopted-candidate-initial-local-registration/README.md)。どちらも主担当Claude Code、レビューはcodex exec経由のGPT-6 Luna。
-- 直近の検証済み実装commit: `785776b`。全5731 passed/3 skipped/1既存warning（主担当実測、JUnit照合）、fresh新CPU/品質/旧11・最終3golden成功。採番ownerは実旧BaseClientの実初期化/実採番と対照し、採番IDでの連続登録までtest-only接続した。
+- 直近完了: [採用候補のローカル採用](../specs/adopted-candidate-local-adoption/README.md)（要求r2/設計r2/命名r2/tasks r2・全3task承認/完了、別feature最終GO）。その前は[一時モデルIDの採番](../specs/temporary-model-id-allocation/README.md)と[採用候補の初期ローカル登録](../specs/adopted-candidate-initial-local-registration/README.md)。3件とも主担当Claude Code、レビューはcodex exec経由のGPT-6 Luna。
+- 直近の検証済み実装commit: `af5c5b8`。全5876 passed/3 skipped/1既存warning（主担当実測、JUnit照合）、対象＋AST977、fresh新CPU/品質/旧11・最終3golden成功。runtimeの状態なし関数で、次の一時IDの読取り→登録→採番確定→候補学習量の計数→保留標本の追加→現在の学習帰属ID切替えを組み立て、変更recordを返す。実旧_finalize_forward_validationの採用分岐（forward_persistent）を実行して全状態を対照し、12条件で採用後学習と正式ID確認まで照合した。
 - 全pytestの独立再現の基準は[共通引継ぎ手順](agent-handoff.md)の同名節（2026-10-07ユーザー決定）。Luna側sandboxでは全pytestを再現できないため、主担当実測＋JUnit照合で判定する。
 - 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
 
-1. 候補採用時の接続: 登録本体と一時IDの採番ownerは完了。次は旧fedsda.pyの前向き検証採用分岐から、採番→登録呼出し→候補学習量の計数加算（record_completed_model_training）→保留標本の学習標本storeへの追加（旧はextendのみで統計更新・概念計数なし）→現在の学習帰属ID切替え（変更recordを返し、旧_on_local_model_change相当の通知は上位）の組立を仕様化する。switch位置/episode記録/adaptation event、棄却・再利用・維持分岐（旧_absorb_into_storeは統計更新と概念計数を伴う）との境界、計算量診断の"initialization"記録（未移植）を明示する。確認APIはモデル保有を前提にし、欠落時snapshotからの再構築は呼出し側server/clientへ残す（旧分岐未移植）。現在ID同値設定はno-op、新計数同ID移管は拒否（LEGACY011、通常経路への影響未確認）。評価fallback/EVAL_MAX_SAMPLESはサーバ評価接続時、実送信は通信specで扱う。
-2. 候補の生成・初期学習・前向き検証sessionの開始/終了を、既存の初期化・学習・採否部品へ接続する。
+1. 前向き検証の確定処理の残り: 採用時のモデル/データ状態更新は完了（変更recordを返す）。次は旧_finalize_forward_validationの他の部分を仕様化する。(a)棄却・再利用・維持分岐の保留標本吸収（旧_absorb_into_store: 標本追加＋標本ごとの損失評価と統計更新＋割当概念計数＋statistics計算量。採用分岐と異なる）、(b)再利用分岐の現在ID切替えとtournament参照の値反映/optimizer reset、(c)判定record・切替位置・検出エピソード・適応イベントの記録と、現在ID変更の通知（最終構成では予測重み再始動）。既存の採否判定（post-alarm-candidate-loss-evaluation）と損失収集（post-alarm-candidate-loss-collection）への接続もここで行う。実旧_finalize_forward_validationは最小属性の実clientで実行できる（adopted-candidate-local-adoptionのresearch.md/testのbuild_local_adoption_oracle）。確認APIはモデル保有を前提にし、欠落時snapshotからの再構築は呼出し側server/clientへ残す（旧分岐未移植）。計算量診断の"initialization"/"statistics"記録は未移植。現在ID同値設定はno-op、新計数同ID移管は拒否（LEGACY011、通常経路への影響未確認）。評価fallback/EVAL_MAX_SAMPLESはサーバ評価接続時、実送信は通信specで扱う。
+2. 候補の生成・初期学習・前向き検証sessionの開始（旧_begin_forward_validation: 候補初期化、区間学習と学習量の記録、参照モデルのsnapshot、履歴平均）を、既存の初期化・学習・採否部品へ接続する。採用時に渡すcandidate_trained_sample_count/candidate_parameter_update_step_countはここで得る。
 3. 警報後の帰属変更とclient進行、サーバ同期・ID対応へ順次接続する。
 
 この順序は候補。再開時にコードと完了specを照合し、未移植の依存があれば先に仕様化する。既存の完了タスクを無条件に再実装しない。
