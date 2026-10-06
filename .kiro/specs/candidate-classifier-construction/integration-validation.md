@@ -38,4 +38,4 @@ runtime単体LF SHA256は`50c5e8b311762fa9bfd9e788cfbcde84e622a1474bacdcaff8c2e4
 
 空共有部は既知LEGACY-010の制約であり、本生成の事前条件として拒否する。今回、新しい旧実装の不具合は観測していない。LEGACY-014等の確認待ちや既存記録は変更しない。
 
-全pytestの独立再現は共通引継ぎ手順のユーザー決定どおり、主担当の実測とJUnit照合で判定する。Task3と別feature最終GOは独立レビュー結果をreview.md/spec.jsonへ記録してから完了扱いにする。
+全pytestの独立再現は共通引継ぎ手順のユーザー決定どおり、主担当の実測とJUnit照合で判定する。Task3はAPPROVED、別セッション`/root/luna_candidate_construction_final`（GPT-6 Luna）のfeature最終判定はGO。対象HEAD e1b9573、対象＋AST1074passedを独立再現。全pytestと品質検査の独立再実行は未実施。指摘なし、review.md/spec.jsonへ記録してcompletedとする。

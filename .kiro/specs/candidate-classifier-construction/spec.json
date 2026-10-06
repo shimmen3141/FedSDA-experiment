@@ -1,7 +1,7 @@
 {
   "feature_name": "candidate-classifier-construction",
   "language": "ja",
-  "phase": "integration-review",
+  "phase": "completed",
   "created_at": "2026-10-07",
   "updated_at": "2026-10-07",
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
@@ -71,17 +71,20 @@
   "verification_source_sha256": "6c91132b5d5f6913740fba56f0888a65d9da152a6b8800b42f089844afeb9ea6",
   "integration_validation": {
     "status": "VERIFIED",
-    "decision": "PENDING_FEATURE_REVIEW",
+    "decision": "GO",
     "record": "integration-validation.md",
     "review_record": "review.md",
     "reviewer": "gpt-6-luna",
-    "reviewed_head": "ceb4336",
+    "reviewed_head": "e1b9573",
     "test_pass_count": 6412,
     "test_skip_count": 3,
     "test_warning_count": 2,
     "junit_test_count": 6415,
     "task_review_decision": "APPROVED",
     "fresh_new_cpu_smoke": "PASS",
-    "new_complete_run_parity": "NOT_IMPLEMENTED"
+    "new_complete_run_parity": "NOT_IMPLEMENTED",
+    "reviewer_thread": "/root/luna_candidate_construction_final",
+    "independent_target_test_pass_count": 1074,
+    "independent_full_suite_rerun": false
   }
 }
