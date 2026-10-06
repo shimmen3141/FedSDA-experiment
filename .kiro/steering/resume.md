@@ -5,14 +5,14 @@
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。
-- 直近完了: [モデル別学習・割当件数](../specs/model-training-and-assignment-counts/README.md)。要求/設計revision1・命名revision2・全3taskをLuna承認/完了、別feature最終GO。
-- 直近の検証済み実装commit: `d899fc5`。全5305 passed/3 skipped/1既存warning、対象＋AST931passed、stdlib単独/fresh新CPU/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。
+- 直近完了: [現在の学習帰属モデルID](../specs/current-training-model-assignment/README.md)。要求revision3・設計revision1・命名revision2・tasks revision2・全3taskをLuna承認/完了、別feature最終GO。
+- 直近の検証済み実装commit: `a4959fb`。全5398 passed/3 skipped/1既存warning、対象＋AST819passed、stdlib単独/品質/旧11・最終3golden成功。実測は同specのintegration-validation.md。品質検査のroot探索で観測した問題と回避はdevelopment findingとcode-quality.mdへ記録。
 - 実装途中のtaskはない。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 - `federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧固定基準は`748c3aa`、旧名alias/互換読込みを追加しない。
 
 ## 次の候補（未仕様化・未承認）
 
-1. 正式ローカル登録の接続: モデル一覧・損失/初期統計・独立parameter snapshot・送信保留/待機管理、統計store・学習状態registry・学習標本storeの単一ID付替えは完了。評価標本の容量/ID再編と、モデル別学習量・個別step・真concept診断件数の加算保持/移管も完了。次は現在帰属IDの管理と正式ローカル登録の組立に残る不足を、旧`clients/base.py::_register_trained_new_model`・`confirm_model_registration`と各methodの呼出箇所から確認し、必要な最小契約を仕様化する。計数は学習回数スケジュールや共有optimizer stepと区別する。単一IDの上書き/計数加算/対応表連結を混同しない。新計数APIは同ID移管を事前拒否する（LEGACY011、通常経路への影響未確認）。評価対象fallback選択/EVAL_MAX_SAMPLESは別の未移植責務でサーバ評価接続時に扱う。全登録と実通信を一specへ詰め込まず、各ownerの呼出順と現在統計の取得時機を確認する。
+1. 正式ローカル登録の接続: モデル一覧・損失/初期統計・独立parameter snapshot・送信保留/待機管理、統計store・学習状態registry・学習標本storeの単一ID付替えは完了。評価標本の容量/ID再編、モデル別学習量・個別step・真concept診断件数の加算保持/移管、現在の単一学習帰属ID ownerも完了。次は正式ローカル登録の組立を、旧`clients/base.py::_register_trained_new_model`・`confirm_model_registration`と各methodの呼出箇所から確認し仕様化する。各ownerの呼出順・現在統計の取得時機・通知理由・登録時snapshot/送信保留の関係を明示する。現在IDの同値設定はno-opだが、新計数APIの同ID加算移管は事前拒否する（LEGACY011、通常経路への影響未確認）。評価対象fallback選択/EVAL_MAX_SAMPLESは別の未移植責務でサーバ評価接続時に扱う。全登録と実通信を一specへ詰め込まない。
 2. 候補の生成・初期学習・前向き検証sessionの開始/終了を、既存の初期化・学習・採否部品へ接続する。
 3. 警報後の帰属変更とclient進行、サーバ同期・ID対応へ順次接続する。
 

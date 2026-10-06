@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- 現在の学習帰属モデルIDは`../specs/current-training-model-assignment/README.md`。要求revision3・設計revision1・命名revision2・tasks revision2・全3tasks承認/完了、別実Luna feature GO。単一ID owner/変更record/全入力事前拒否/一段mapを移植し、理由別通知は上位へ残した。実旧ローカル16・server28条件、登録確認と計数移管3条件を対照。対象＋AST819/全5398 passed・3 skipped・1既存warning、stdlib単独/品質/固定旧golden/全7要件を確認。新たな旧正常不具合は観測していない。root探索のRuff panicと回避をdevelopment finding/品質手順へ記録。次は正式ローカル登録の組立。全登録・新client/全体runは後続、読む入口はresume.md。
+
 - モデル別学習・割当件数は`../specs/model-training-and-assignment-counts/README.md`。要求/設計revision1・命名revision2・全3tasks承認/完了、別実Luna feature GO。3独立計数の加算・copy・異ID加算移管・一回ID対応合計を移植し、真concept診断と個別parameter stepの意味を明示。実旧193単体条件と12NN条件3学習/ID移管後の全計数・batch/数値/optimizer/Randomを照合。対象＋AST931/全5305 passed・3 skipped・1既存warning、stdlib単独/fresh新CPU/品質/固定旧golden/全9条件を検証。旧同一負ID通知の件数倍増・concept消失をLEGACY011へ記録し、新APIは同IDを事前拒否する。通常経路/過去成果への影響は未確認。次は現在帰属IDと正式ローカル登録組立の不足を確認する。全登録・新client/全体runは後続、読む入口はresume.md。
 
 - モデル別評価標本の保持は`../specs/model-evaluation-sample-storage/README.md`。要求/設計/命名revision1・全3tasks承認/完了、別実Luna feature GO。評価recordと一storeを新evaluation層へ追加し、明示Randomによる抽出追加/末尾容量保持、単一IDの先上書き、一回ID連結/超過列だけの再抽出を移植。実旧290保持条件とclass2/4の2先容量超過→損失接続で順序/借用参照/Random/loss一致を確認。対象＋AST1000/全5082 passed・3 skipped・1既存warning、fresh新CPU/品質/固定旧golden/全11条件を検証。新たな旧正常不具合は観測していない。次はモデル別加算counter/現在帰属IDの不足を確認する。評価fallback選択・全登録・新client/全体runは後続、読む入口はresume.mdを参照。

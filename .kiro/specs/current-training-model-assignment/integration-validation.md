@@ -45,3 +45,7 @@
 |3.3|後続更新後record保持、他owner非変更、取得済みsnapshot保持、stdlib単独|
 
 正式登録の組立・候補session/client/server/new runは未実装。新たな旧正常経路の不具合は観測していない。
+
+## 別feature最終gate
+
+実GPT-6 Luna GO。7/7要件・所有/依存/設計/ファイル計画/統合を確認、source hash独立一致、未達/blocked/指摘なし。主担当は全suite/品質/固定旧差分/文書hashを照合し完了とする。旧実装goldenを新全体runの証拠とは扱わない。
