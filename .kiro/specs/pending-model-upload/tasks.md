@@ -2,7 +2,7 @@
 
 要求/設計/命名revision1、graph独立PASSが正本。順次実行。
 
-- [ ] 1. 一保留枠とラウンド待機をTDDで移植する
+- [x] 1. 一保留枠とラウンド待機をTDDで移植する
   - 先に状態/record/拒否/借用保持/実旧列のtestをREDにし、productionと空packageを実装してGREENへ。
   - 実旧具象FedSDAのdelay1/2/4・負/0/正ID、取得/置換/clear/空とreadyのno-opを照合。保留なしの有効旧残回数は0として比較する（research.md）。不正queue/recordは空/待機/ready状態と入力を保持する。
   - 対象pytest、Ruff/format/Pyright、独立Luna実diff承認をgateにする。

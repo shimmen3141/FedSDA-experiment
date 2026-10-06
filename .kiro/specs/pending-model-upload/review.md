@@ -17,3 +17,7 @@ Luna NEEDS_FIXES。旧解除後の私有counter残留と新clearの0の対応を
 ## tasks
 実Luna APPROVED。保存した3taskとgraph/design/naming/11要件、旧counter有効値対応、各gateとfeature GOの分離を確認。重大な指摘なし、採用。
 
+## Task1
+実Luna APPROVED。独立61passed、Ruff/format/Pyright0、placeholder/secret CLEAN、計画境界WITHIN、RED確認。
+要求2.4の拒否入力そのものも前後比較する提案を採用し、ID/delayの参照・snapshot key順・Tensor shape/dtype/device/layout/grad状態と値（NaNはequal_nan、metaは構造）を明示確認するtestを追加した。production変更なし。
+
