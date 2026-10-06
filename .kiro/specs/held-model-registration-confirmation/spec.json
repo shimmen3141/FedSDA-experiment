@@ -1,0 +1,68 @@
+{
+  "feature_name": "held-model-registration-confirmation",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "created_at": "2026-10-07",
+  "approval_policy": "user_delegated_gpt_6_luna_review_for_all_stages",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "a3647ae2be68430cd22e160161bbeda49687633ef8c4cfb0d3037e5e23d307e9",
+      "approved_revision": 1,
+      "approved_sha256_lf": "a3647ae2be68430cd22e160161bbeda49687633ef8c4cfb0d3037e5e23d307e9",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "aed41cad685614196c0440e893a6af8759b005f1c1b0fc5d9ab19f237e46663f",
+      "approved_revision": 1,
+      "approved_sha256_lf": "aed41cad685614196c0440e893a6af8759b005f1c1b0fc5d9ab19f237e46663f",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "76a1118b0105cab6a67536c396403a1f469de8ba1e2f19008df7c664cb107d66",
+      "approved_revision": 1,
+      "approved_sha256_lf": "76a1118b0105cab6a67536c396403a1f469de8ba1e2f19008df7c664cb107d66",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "9e8333e99743841a9b969ced77d828001f83002e8cde352ff5c67a191b3ca2cf",
+      "approved_revision": 1,
+      "approved_sha256_lf": "9e8333e99743841a9b969ced77d828001f83002e8cde352ff5c67a191b3ca2cf",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_single_run_3_1_review",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "upstream_specs": [
+    "current-training-model-assignment",
+    "held-model-training-state-id-reassignment",
+    "loss-statistics-model-id-reassignment",
+    "model-training-sample-id-reassignment",
+    "model-evaluation-sample-storage",
+    "model-training-and-assignment-counts",
+    "pending-model-upload"
+  ],
+  "implementation_progress": {
+    "completed_tasks": [],
+    "total_executable_tasks": 3,
+    "next_task": "1"
+  }
+}

@@ -1,7 +1,10 @@
 # 研究実装の目的
 
 連合学習の概念ドリフトに対するFedSDAとFedDriftを比較する研究実装。
-最終提案はResidual Adapter＋ClassESR＋Switching構成で、既存実験は主に完了している。
+最終提案は共有特徴抽出部＋非線形残差アダプタ、ClassESR、Fixed-Shareによる重み付き予測を組み合わせた構成で、既存実験は主に完了している。
+過去実験の呼称は「Residual Adapter＋ClassESR＋Switching」。新実装の構成名は
+`shared_backbone_residual_adapter` と `fixed_share_weighted_prediction`。
+旧実験との対応を示すときだけ旧称を併記し、新実装のSwitchingという曖昧な機能名は用いない。
 
 ## 主要な能力
 
