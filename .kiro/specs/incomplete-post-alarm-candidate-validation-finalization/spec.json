@@ -41,7 +41,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_session": "01a11713-cb6a-7270-83d1-daca045b9af2",
       "review_record": "review.md",
-      "current_sha256_lf": "8a2ae1139479590047ae6e17cc95ed443f360d23cc3ba494459f321a4b919bc8"
+      "current_sha256_lf": "2c6e6c4ece4cb6b888954280ae33987d5839135fe36de0394bbd7e38f88c701b"
     },
     "naming": {
       "generated": true,
@@ -62,11 +62,12 @@
       "1",
       "2",
       "3",
-      "4"
+      "4",
+      "5"
     ],
-    "completed_task_count": 4,
+    "completed_task_count": 5,
     "total_executable_tasks": 5,
-    "next_task": "5"
+    "next_task": null
   },
   "task_reviews": {
     "1": {
@@ -98,6 +99,28 @@
         2,
         4
       ]
+    },
+    "5": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a1173e-0556-73a0-81c4-cfb067bf5194",
+      "full_passed": 7626,
+      "full_skipped": 3,
+      "junit_testcases": 7629,
+      "independent_full_suite_rerun": false,
+      "independent_pyright_reproduced": false
     }
+  },
+  "integration_validation": {
+    "status": "PENDING_FEATURE_GO",
+    "tested_commit": "237030b1e52aa7188ffbb989ec3bda64421ffa5e",
+    "full_passed": 7626,
+    "full_skipped": 3,
+    "full_warnings": 2,
+    "full_duration_seconds": 166.7,
+    "junit_testcases": 7629,
+    "source_path_count": 254,
+    "source_sha256_lf": "1e9c00d53198427554df9aa808c2274ba78993ec4f38731b7a40bdfa5a635239",
+    "evidence": "integration-validation.md"
   }
 }
