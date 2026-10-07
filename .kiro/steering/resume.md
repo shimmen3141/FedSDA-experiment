@@ -1,12 +1,13 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-07（Codexによる候補検証session開始specの完了時）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-07（候補検証session進行specの実装中）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
 Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い、GPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューで承認する。
 
 ## 現在地
 
+- 進行中: [候補検証sessionの進行](../specs/post-alarm-candidate-validation-progress/README.md)。要求r2・設計r2・命名r3・tasks r1はLuna承認済み。Task1〜4は実装・独立fresh Luna承認まで完了。次はTask5の全回帰と別feature最終GO。対象61条件＋AST1456条件、6変異の検出と元byte復元、fresh CPUの2/4classで非active/未到達/確定/共同更新を確認。現在の完了taskは当該specのspec.json/tasks.mdを確認する。下の全回帰証拠は前specの証拠であり、この進行specの全回帰はまだ実施していない。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の全5tasksはLuna承認・完了。要求r2・設計r2・命名r4・tasks r1を維持し、別fresh GPT-6 Lunaのfeature最終GO、completed。候補生成とエポック学習もcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
 - 直近の検証済み実装commit: `8cbf2ce`。全pytest 7266 passed/3 skipped/2warnings（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。証拠は対象specのintegration-validation.md。
