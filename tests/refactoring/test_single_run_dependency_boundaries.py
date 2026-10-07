@@ -370,6 +370,35 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/candidate_epoch_training_settings.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.field",
+            "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
+        )
+    if source_module_path == "learning/training/candidate_epoch_training.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math.inf",
+            "torch.Tensor",
+            "torch.float32",
+            "torch.is_grad_enabled",
+            "torch.isfinite",
+            "torch.randperm",
+            "torch.strided",
+            "torch.optim.SGD",
+            "torch.optim.Adam",
+            "torch.utils.data.DataLoader",
+            "torch.utils.data.TensorDataset",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
+            "federated_learning_experiments.learning.training.joint_model_parameter_update.perform_joint_model_parameter_update",
+            "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "federated_learning_experiments.learning.training.participating_model_training_batch.ParticipatingModelTrainingBatch",
+        )
     if source_module_path == "runtime/candidate_classifier_construction.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -991,6 +1020,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "learning/training/candidate_epoch_training_settings.py",
+            "learning/training/candidate_epoch_training.py",
             "runtime/candidate_classifier_construction.py",
             "learning/training/held_model_training_state_registry.py",
             "learning/prediction/classifier_bounded_loss_evaluation.py",
@@ -1023,6 +1054,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             if (
                 source_module_path
                 in (
+                    "learning/training/candidate_epoch_training_settings.py",
+                    "learning/training/candidate_epoch_training.py",
                     "runtime/candidate_classifier_construction.py",
                     "learning/training/held_model_training_state_registry.py",
                     "learning/prediction/classifier_bounded_loss_evaluation.py",
@@ -4179,3 +4212,332 @@ def test_local_training_schedule_dependency_contract(
         source_module_path=source_module_path, source_text=source_text
     )
     assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_module_path,source_text,expected_acceptance",
+    [
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from dataclasses import dataclass",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from dataclasses import dataclass as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from dataclasses import field",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from dataclasses import field as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from federated_learning_experiments.core.settings_field_validation import validate_settings_field_values",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from federated_learning_experiments.core.settings_field_validation import validate_settings_field_values as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training_settings.py", "import torch", False),
+        ("learning/training/candidate_epoch_training_settings.py", "import math", False),
+        ("learning/training/candidate_epoch_training_settings.py", "import dataclasses", False),
+        ("learning/training/candidate_epoch_training_settings.py", "import random", False),
+        ("learning/training/candidate_epoch_training_settings.py", "import numpy", False),
+        ("learning/training/candidate_epoch_training_settings.py", "from torch import *", False),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from torch import manual_seed",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from torch import get_rng_state",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from torch import set_rng_state",
+            False,
+        ),
+        ("learning/training/candidate_epoch_training_settings.py", "from torch import rand", False),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from torch.nn import Linear",
+            False,
+        ),
+        ("learning/training/candidate_epoch_training_settings.py", "from math import sqrt", False),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from dataclasses import replace",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from federated_learning_experiments.runtime.candidate_classifier_construction import create_independent_candidate_training_state",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "import federated_drift_experiment",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import _validate_training_batch",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from federated_learning_experiments.learning.training import ParameterOptimizerState",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training_settings.py",
+            "from .candidate_epoch_training_settings import CandidateEpochTrainingSettings",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from dataclasses import dataclass",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from dataclasses import dataclass as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training.py", "from math import inf", True),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from math import inf as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training.py", "from torch import Tensor", True),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch import Tensor as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training.py", "from torch import float32", True),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch import float32 as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch import is_grad_enabled",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch import is_grad_enabled as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training.py", "from torch import isfinite", True),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch import isfinite as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training.py", "from torch import randperm", True),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch import randperm as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training.py", "from torch import strided", True),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch import strided as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training.py", "from torch.optim import SGD", True),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch.optim import SGD as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training.py", "from torch.optim import Adam", True),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch.optim import Adam as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch.utils.data import DataLoader",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch.utils.data import DataLoader as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch.utils.data import TensorDataset",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from torch.utils.data import TensorDataset as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.local_training_settings import LocalTrainingSettings",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.local_training_settings import LocalTrainingSettings as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_state import ParameterOptimizerState",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_state import ParameterOptimizerState as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.participating_model_training_batch import ParticipatingModelTrainingBatch",
+            True,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.participating_model_training_batch import ParticipatingModelTrainingBatch as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/candidate_epoch_training.py", "import torch", False),
+        ("learning/training/candidate_epoch_training.py", "import math", False),
+        ("learning/training/candidate_epoch_training.py", "import dataclasses", False),
+        ("learning/training/candidate_epoch_training.py", "import random", False),
+        ("learning/training/candidate_epoch_training.py", "import numpy", False),
+        ("learning/training/candidate_epoch_training.py", "from torch import *", False),
+        ("learning/training/candidate_epoch_training.py", "from torch import manual_seed", False),
+        ("learning/training/candidate_epoch_training.py", "from torch import get_rng_state", False),
+        ("learning/training/candidate_epoch_training.py", "from torch import set_rng_state", False),
+        ("learning/training/candidate_epoch_training.py", "from torch import rand", False),
+        ("learning/training/candidate_epoch_training.py", "from torch.nn import Linear", False),
+        ("learning/training/candidate_epoch_training.py", "from math import sqrt", False),
+        ("learning/training/candidate_epoch_training.py", "from dataclasses import replace", False),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.runtime.candidate_classifier_construction import create_independent_candidate_training_state",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "import federated_drift_experiment",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import _validate_training_batch",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.learning.training import ParameterOptimizerState",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
+            False,
+        ),
+        (
+            "learning/training/candidate_epoch_training.py",
+            "from .candidate_epoch_training_settings import CandidateEpochTrainingSettings",
+            True,
+        ),
+    ],
+)
+def test_candidate_epoch_training_dependency_contract(
+    source_module_path, source_text, expected_acceptance
+):
+    assert (
+        not collect_dependency_boundary_violations(
+            source_module_path=source_module_path, source_text=source_text
+        )
+    ) == expected_acceptance
