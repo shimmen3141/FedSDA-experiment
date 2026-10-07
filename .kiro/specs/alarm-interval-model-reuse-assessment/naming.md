@@ -1,4 +1,4 @@
-# 命名と役割 revision2
+# 命名と役割 revision3
 
 ## Source
 
@@ -38,3 +38,30 @@ input_features/observed_class_labels/held_model_training_state_registry/loss_sta
 | alarm_interval_reuse_cpu_smoke.py / alarm_interval_reuse_mutation_evidence.py | Git管理外のfresh CPU/実source変異・復元証拠 |
 
 class_count/model_count/invalid_case/field_name/field_value/source_text/expected_acceptance/imported_module_name、旧新比較helpers/RNG snapshot/状態照合/実session開始helpersは上流承認済み同義で再利用する。具体taskの新しいfixture/local名は実装前に追加表をレビューする。
+
+## 追加 revision3（tasks実装で必要になった名前）
+
+revision2の表は変更していない。以下は主担当Claude Codeがtasks 1〜3のtest/実装を具体化して必要になった名前で、コード追加前に登録する。
+
+| 名前 | 種別 | 役割 |
+| --- | --- | --- |
+| _validate_bounded_mean_loss | source private（methods） | 区間平均または履歴基準の1値を、bool以外のbuiltin int/float・有限・0以上1以下で検査する。引数は既存同義のparameter_name/specified_value。状態更新なし |
+| evaluated_model_loss | source/test local | (ID, 区間平均)の1組。既存の初期値選択selector内の同名localと同義で再利用 |
+| TupleSubclass / FloatSubclass | test class | exact tuple/builtin floatだけを受理することを確かめる拒否入力用のsubclass。既存のIntSubclass/DictSubclass（同義再利用）と同じ命名形 |
+| valid_assessment_arguments | test local | 純粋判定の正常なkeyword引数dict。既存valid_*_argumentsと同じ形 |
+| expected_exception | test parameter | 拒否で期待する例外型。既存同義の再利用 |
+| reuse_evaluation_arguments | test local | runtimeの評価関数へ渡すkeyword引数dict（特徴/ラベル/保有状態/統計/閾値） |
+| resolve_alarm_interval_in_legacy_client | test helper | 実旧_resolve_driftを、評価より後の副作用（吸収/イベント記録/検出器reset/帰属切替）だけ差し替えて実行し、評価済み候補列・適合列・選択IDを返す。旧の最終状態の対照には使わない |
+| start_candidate_validation_session | 上記helperのbool引数 | Trueなら実旧の初期値選択と実旧のsession開始まで実行する（task3の接続用）。Falseなら開始を差し替えて評価だけ観測する |
+| legacy_evaluated_candidates / legacy_valid_candidates / legacy_selected_reuse_model_id | test local | 実旧のevaluated_candidates/valid_candidatesと、旧の選択関数が返したID（適合なしはNone）。旧のlocal名に対応 |
+| legacy_initialization_parameters | test local | 実旧_select_initialization_paramsが返した初期parameter |
+| legacy_interval_mean_losses_by_model_id | test local | 実旧モデルのper_sample_errorから直接求めた区間平均。履歴基準と閾値を条件どおりに組むための測定値で、判定の期待値には使わない |
+| HISTORY_AND_FIT_CASES / history_and_fit_case / history_and_fit_roles | test定数/parameter/local | 保有順のモデルごとの役割列（履歴未登録・0件・1件・零平均・履歴と同値で適合・履歴より低く適合・履歴を超えて不適合）と、そのcase名 |
+| threshold_boundary_case | test parameter | 許容損失増加量を実測の差の直前/等値/直後に置く3条件の名 |
+| loss_evaluation_calls | test local | 新runtimeが既存の損失評価を呼んだ記録（patchのwraps）。基準を使えないモデルもforwardされること、保有順を確かめる |
+| mismatched_feature_count_classifier | test local | 特徴数が異なる保有モデル。後続モデルでの形状拒否と状態保持の確認用 |
+| snapshot_reuse_evaluation_state / assert_reuse_evaluation_state_unchanged | test helper | 保有順・owner同一性・全parameter/grad・optimizer state・履歴統計・入力Tensor・3乱数状態の記録と不変の照合 |
+| test_alarm_interval_reuse_evaluation_threshold_boundary_matches_legacy | test | 実NNの差に対する閾値の直前/等値/直後を実旧と対照 |
+| test_alarm_interval_reuse_evaluation_tie_follows_held_order | test | 同じ値の実モデルによる同率で、現行やIDの大小でなく保有順で選ぶことを実旧と対照 |
+
+上流testから同義で再利用するhelper: build_session_start_oracle、begin_candidate_validation_session_in_legacy_client、assert_started_session_matches_legacy、set_overall_loss_statistics_in_both_implementations（引数statistics_by_model_id）、snapshot_parameter_values_and_gradients、assert_parameter_values_and_gradients_unchanged、assert_nested_state_equal、assert_collected_losses_match_legacy。held_model_ids/optimizer_variant/session_start_arguments/started_session/legacy_session/legacy_client/shared_optimizer_ownersも同義。

@@ -27,3 +27,11 @@
 2026-10-08、主担当Claude Codeがtasks revision1を作成した。逐次5task（純粋判定とrecord→runtimeの組立→初期値選択/session開始へのtest-only接続と変異証拠→exact依存境界と新CPU→全回帰と証拠）。要求3.3は要求r2で外したため、開発ゲートのtaskは3.2と2.2へ対応させた。
 
 独立fresh CLI GPT-6 Luna（codex exec -m gpt-6-luna、read-only、session `01a1177e-2b82-7993-8d14-35fac2a37fb2`、実行ログのmodel行はgpt-6-luna）がAPPROVED、指摘なし。依存順（graph sanity）、要求6項目の対応、完了条件、開発ゲート、境界外の混入、承認済み設計/命名との整合を確認対象として依頼した。レビュー担当は実行場所がworktree、ブランチrefactor/architecture、HEAD d8cae61であること、tasksのLF hash=f6fd70135204fbe4b52215e3c660162979d7aeae5ae1aee77189e469b0549ad1の一致を確認した。testは未実施、source/testは未着手。
+
+## 命名r3（追加名）
+
+tasks 1〜3のtest/実装を具体化して必要になった名前（source privateの_validate_bounded_mean_loss、test helper/局所名/追加test名）をnaming.md末尾の「追加 revision3」へ登録した。revision2の表は変更していない。独立fresh CLI GPT-6 Luna（read-only、session `01a11782-4048-75d2-b5ab-6022c2d84dbc`、実行ログのmodel行はgpt-6-luna）がAPPROVED、指摘なし。対象LF hash=89ce47ce1fa086a9a8e6fba90bc707331de11b3370271c32849a158888cf0572。依頼時点で作業中の未コミットtestには未承認名（先頭下線つきのsubclass名等）があり、承認後に登録名へ直してからREDを実行した（未承認名のコードはcommitしていない）。
+
+## Task 1の実施記録
+
+test先行。実装ファイル作成前に対象testを実行し、collection時のImportError（methodsのmoduleが存在しない）でREDを確認した。実装後は対象73 passed。実source変異8種（閾値比較を等値不適合へ、差分の符号、最大選択、同率後着、同率ID最小、零基準の拒否削除、key集合検査の緩和、frozen解除）をすべて検出し、元byteへ復元して73 passedを再確認した（Git管理外 venv/refactoring-tests/alarm_interval_reuse_mutation_evidence.py）。Ruff/対象Pyright成功。
