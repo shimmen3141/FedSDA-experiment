@@ -39,3 +39,9 @@ test-only接続、実装前REDは対象外。実NN2/4class×3optimizerの6条件
 2moduleへexact注入106条件（進行82/判定24）を先行追加、RED52failed/54passed/1350deselected/0.22s/exit1。guard生成の初回は字下げの部分一致を2件として検出し、書込み前に停止（assert）。combinedも53failed/1464passed/6.35s/exit1を確認し、行頭を改行で固定した生成へ直した。exact guardをgeneric判定より前、ImportFrom symbol resolver/Import拒否の両一覧へ登録後、combined1517passed/4.93s/exit0。Ruff check/format/diff成功。既存部分のformatだけの変更はない。
 
 Git管理外validation_progress_cpu_smoke.pyをfresh CPUで実行、2/4classで実新start学習→非active→未到達→到達/確定→共同更新、固定参照不変・legacy/test importなしを確認。exit0。独立fresh CLI GPT-6 Luna session `01a1161c-0f1c-74a0-9aad-db52ebc15593`、起動ログmodel=gpt-6-luna、APPROVED。独立combined1517passed、fresh smoke両class成功、Ruff/diff成功、指摘なし。レビュー側は指定のcacheprovider無効化を付けず既存cache ACL warningが1件出たが、tests/smokeはいずれもexit0。REDは記録の確認であり独立再実行ではない。最終回答/ログはGit管理外progress-task4-review.md/.log。全回帰はTask5。
+
+## Task5
+
+clean検証commit2d513a9で主担当全7433passed/3skipped/2warnings/142.84s/exit0、JUnit7436cases/0fail/0error/3skip、両goldentest成功。全Ruff151files/Pyright0error0warning/pip/diff成功、748c3aa固定旧差分なし、251path総合hashと承認hashを保存した。詳細はintegration-validation.md。
+
+独立fresh CLI GPT-6 Luna session `01a11623-a347-79c3-a625-6324d71d8ff2`、起動ログmodel=gpt-6-luna、APPROVED。JUnit/両goldentest/251path hash/承認正本と正規化tasks hash/固定旧差分を独立確認。全pytest・品質は主担当実測の確認で、独立再実行なし。3skipsの説明をPOSIX bash利用不能によるablation一覧1件/server sweep2件へ具体化するSuggestionを採用。阻害指摘なし。最終回答/ログはGit管理外progress-task5-review.md/.log。別fresh feature GOは次のゲート。

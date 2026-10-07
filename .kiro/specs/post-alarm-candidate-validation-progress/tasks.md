@@ -26,7 +26,7 @@
   - _Boundary: exact依存境界_
   - _Requirements: 2.3, 3.3_
 
-- [ ] 5. 基準環境の全回帰と検証証拠を記録する
+- [x] 5. 基準環境の全回帰と検証証拠を記録する
   - 明示的統合検証task。実装commitで全pytest/JUnit・旧11/最終3golden・Ruff/Pyright/pipを実測する。
   - 固定旧差分、承認/source hash、tested commit、各taskレビューと保証範囲を記録する。
   - _Boundary: 基準環境の全回帰_

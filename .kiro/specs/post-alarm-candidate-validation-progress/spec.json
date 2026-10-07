@@ -53,7 +53,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_thread": "/root/luna_session_task4",
       "review_record": "review.md",
-      "current_sha256_lf": "afabad1ba502c302384e1aeaf51cda8ac4628815b7b678eb539009fb745768e9"
+      "current_sha256_lf": "ddc894071cdd085a2c74d16fe32989e4ac3b4a5a63f1245a703ae9f587eb7cc4"
     }
   },
   "ready_for_implementation": true,
@@ -62,10 +62,31 @@
       "1",
       "2",
       "3",
-      "4"
+      "4",
+      "5"
     ],
-    "completed_task_count": 4,
+    "completed_task_count": 5,
     "total_executable_tasks": 5,
-    "next_task": "5"
+    "next_task": null
+  },
+  "integration_validation": {
+    "status": "VERIFIED",
+    "decision": "PENDING_FEATURE_GO",
+    "tested_commit": "2d513a9c382c5bf55eef81d79bc2c09bec1954d7",
+    "source_sha256_lf": "24ad958aae77f4656770cf44ef281f2cf2c983b1479a2bc98c3856bb83903d44",
+    "source_path_count": 251,
+    "full_pytest_passed": 7433,
+    "full_pytest_skipped": 3,
+    "full_pytest_warnings": 2,
+    "full_pytest_duration_seconds": 142.84,
+    "junit_testcases": 7436,
+    "junit_failures": 0,
+    "junit_errors": 0,
+    "new_complete_run": "NOT_IMPLEMENTED",
+    "evidence": "integration-validation.md",
+    "independent_full_suite_rerun": false,
+    "task_review_verdict": "APPROVED",
+    "task_reviewer": "gpt-6-luna",
+    "task_reviewer_session": "01a11623-a347-79c3-a625-6324d71d8ff2"
   }
 }
