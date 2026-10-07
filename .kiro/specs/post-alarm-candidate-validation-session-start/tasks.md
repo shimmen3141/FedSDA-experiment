@@ -26,7 +26,7 @@
   - _Boundary: exact依存境界_
   - _Requirements: 3.2, 3.3_
 
-- [ ] 5. 基準環境で全回帰と品質を統合検証する
+- [x] 5. 基準環境で全回帰と品質を統合検証する
   - 明示的統合検証task。実装commitで全pytest/JUnit・旧11/最終3golden・Ruff/Pyright/pipを実測する。
   - 固定旧差分・承認/source hashと検証対象commitを照合し、証拠を記録する。
   - _Boundary: 基準環境の全回帰_

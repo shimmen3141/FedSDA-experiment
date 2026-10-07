@@ -49,3 +49,9 @@ test-only、REDはN/A。2/4class×3optimizerの6条件で開始→提案次位�
 exact23symbolを一般許可より前へ追加し、ImportFrom解決・Import拒否の両一覧へ登録。226注入条件（許可80・拒否146）。最初の180条件はguard追加前92failed/88passed/1124deselected/exit1。Import拒否登録を一時除去すると46failed/180passed/1124deselected/exit1、finallyで元test byteへ復元。最終対象＋AST1522passed/1nested warning/7.77s、主担当も1522passed/9.91sを再現した。2/4classで新部品だけの3epoch学習→4観測、readyは4件目のみ、参照全parameter不変、旧importなし。再実行本文と環境は../../venv/refactoring-tests/session-start-task4-smoke.log（UTF-16）に保存。
 
 別fresh実GPT-6 Luna /root/luna_session_task4 APPROVED。独立1522passed/9.18sとfresh smokeを再現し、Ruff/diff/AST/実依存ガードとRED logsを照合、指摘なし。runtime hashはTask1から不変。レビュー途中のtestファイルhashとruntime hashの取り違えは担当が訂正した。親のsmoke本文抽出の初回失敗も抽出コマンドの不備であり、正しいUTF-16読込みで成功。全回帰はTask5。
+
+## Task5
+
+主担当がcommit8cbf2ceで全pytest7266passed/3skipped/2warnings/269.08s/exit0を実測。JUnit7269cases/0failures/0errors/3skipped、旧11・最終3goldenの両testcase成功。Ruff全148files/Pyright全src/pip/diff成功、承認LF hash・固定旧差分・248path source総合hashを確認しintegration-validation.mdへ記録。
+
+別fresh実GPT-6 Luna /root/luna_session_task5 APPROVED。JUnit、承認mdのLF hash、checkbox正規化task hash、runtime hash、748c3aa固定旧差分を独立確認。全pytest・品質検査・248path総合hashは独立再実行せず、主担当実測記録を照合した。最初の報告形式は厳密parserに合わず、同担当が正しいReview Verdict/VERDICT形式へ訂正。指摘なし。全task完了、別fresh feature GOは後続。

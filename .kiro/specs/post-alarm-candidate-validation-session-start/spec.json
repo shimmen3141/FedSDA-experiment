@@ -49,7 +49,7 @@
       "approved_sha256_lf": "f256be4e3e9f87ac21ff5ab99e7d0b95299babe62edd54847655fba0560ddbd9",
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
-      "current_sha256_lf": "3c22a1f1a1d034a3fcc28921574e08bd7a80ed598eb9879bf712793b2da70f97"
+      "current_sha256_lf": "cf110b7171f716e87a5381f1ed3e0601be625ea1bd787755a80c41ed5db67705"
     }
   },
   "ready_for_implementation": true,
@@ -58,10 +58,27 @@
       "1",
       "2",
       "3",
-      "4"
+      "4",
+      "5"
     ],
-    "completed_task_count": 4,
+    "completed_task_count": 5,
     "total_executable_tasks": 5,
-    "next_task": "5"
+    "next_task": null
+  },
+  "integration_validation": {
+    "status": "VERIFIED",
+    "decision": "PENDING_FEATURE_REVIEW",
+    "tested_commit": "8cbf2ce7fc383727989afe643954125d3983a3e4",
+    "source_sha256_lf": "fab7c4ebcf6d8c037d15afa69e69449f6eb08690e801d5f48be7706376845f4d",
+    "source_path_count": 248,
+    "full_pytest_passed": 7266,
+    "full_pytest_skipped": 3,
+    "full_pytest_warnings": 2,
+    "junit_testcases": 7269,
+    "junit_failures": 0,
+    "junit_errors": 0,
+    "new_complete_run": "NOT_IMPLEMENTED",
+    "evidence": "integration-validation.md",
+    "independent_full_suite_rerun": false
   }
 }
