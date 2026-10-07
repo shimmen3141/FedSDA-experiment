@@ -16,9 +16,30 @@ import pytest
             (source_text, expected_acceptance)
             for imported_module_name in (
                 "dataclasses.dataclass",
+                "torch.Tensor",
+                "torch.cat",
+                "torch.float32",
+                "torch.strided",
+                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+                "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+                "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+                "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
+                "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
                 "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+                "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+                "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+                "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+                "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+                "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+                "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
                 "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization.select_candidate_initial_parameter_snapshot",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
+                "federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment.evaluate_held_models_for_alarm_interval_reuse",
+                "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
                 "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.start_post_alarm_candidate_validation_session",
             )
             for source_text, expected_acceptance in (
                 (
@@ -44,9 +65,26 @@ import pytest
         *[
             (source_text, expected_acceptance)
             for imported_module_name in (
+                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+                "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+                "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+                "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
+                "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
                 "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+                "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+                "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+                "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+                "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+                "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+                "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
                 "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization.select_candidate_initial_parameter_snapshot",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
+                "federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment.evaluate_held_models_for_alarm_interval_reuse",
+                "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
                 "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.start_post_alarm_candidate_validation_session",
             )
             for source_text, expected_acceptance in (
                 (
@@ -157,90 +195,6 @@ import pytest
         ),
         (
             "from federated_learning_experiments.runtime import alarm_interval_model_reuse_assessment",
-            False,
-        ),
-        (
-            "from torch import Tensor",
-            False,
-        ),
-        (
-            "from torch import cat",
-            False,
-        ),
-        (
-            "from torch import float32",
-            False,
-        ),
-        (
-            "from torch import strided",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import SgdParameterOptimizerSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import CandidateParameterInitializationSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment import evaluate_held_models_for_alarm_interval_reuse",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import start_post_alarm_candidate_validation_session",
             False,
         ),
     ],
@@ -955,9 +909,30 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "runtime/alarm_change_interval_resolution.py":
         return imported_module_name in (
             "dataclasses.dataclass",
+            "torch.Tensor",
+            "torch.cat",
+            "torch.float32",
+            "torch.strided",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization.select_candidate_initial_parameter_snapshot",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
+            "federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment.evaluate_held_models_for_alarm_interval_reuse",
+            "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
             "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.start_post_alarm_candidate_validation_session",
         )
     if source_module_path == "runtime/alarm_interval_model_reuse_assessment.py":
         return imported_module_name in (

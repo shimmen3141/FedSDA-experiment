@@ -35,3 +35,20 @@ Lunaの利用上限が続いているため、別の独立Agent（model指定son
 - Minor「test局所名の事前登録の扱いが冒頭の一文では弱い」→ naming.mdのTest/Evidence節に登録済みで、不足時はtestを書く前に追加レビュー、と書いた。
 
 tasks r2: 同じ独立Agent（sonnet、`a3af46e032693d1cd`）が再レビューし、APPROVED、指摘なし。r1の3指摘の解消、Task 1がrecordだけのmoduleとして単独でtest・commit可能であること、要求10項目の対応と依存順、Task 2が設計の手順1〜5と対応することを確認した。LF hash=e280b69e4764454826e4e7255535774de4171ea7eff14d1b4dcb74518f613f79。source/testは未着手、testは未実施。
+
+## 命名r4（Task 2/3のtestで使う名前）
+
+Task 2のtestをリポジトリ外で下書きして表にない名前を洗い出し、testをリポジトリへ置く前にnaming.md末尾の「追加 revision4」へ登録した。Lunaの利用上限が続いているため、要求・設計・命名をレビューした独立Agent（sonnet、`ae48502d8c91f73d4`）がレビューし、APPROVED（Blocker/Majorなし）。レビュー時のLF hash=e981236826178f99af872d3e57d30ff4be706dbd27b5b5d8e255ba1aaee4486d。同名同義とした名前とhelperの既存testでの実在、記録用関数の名前、build_fixation_oracle/assert_started_session_matches_legacyを使わない理由（区間を新しく連結するため同一object照合が成り立たない）を確認した。
+
+- Minor「state_snapshotのkeyのうち今回追加の対象にresolution_argumentsとcurrent_training_model_idが漏れている」→ 採用。該当行の文言だけを直した（名前の追加・変更なし）。この文言修正後のLF hash=2f2466c4422ffbb4f274483d1af3a9f24aa7f8b8b7ddb2fbed873a0d666419f2は、レビュー担当が見た内容と該当1行の説明だけが違う。
+- Minor（新規の局所名が新規として書かれていることの確認）→ 対応不要。
+
+## Task 1/2の実施記録
+
+Task 1（commit 1f6fd4a）: test先行。実装ファイル作成前に対象testを実行し、collection時のImportErrorでREDを確認。依存境界は注入契約test追加時に21 failed/1793 passedを確認してからguardと両resolver登録を追加。実装後、依存境界＋対象で1815 passed。Ruff/対象Pyright成功。
+
+Task 2: test先行。testはリポジトリ外で下書きして命名r4を登録・承認後にリポジトリへ置き、公開関数の実装前に実行してcollection時のImportError（resolve_alarm_change_intervalなし）でREDを確認。依存境界は公開関数ぶんの注入契約へ更新して59 failed/1957 passedを確認してからguardを更新。実装後の初回実行で依存境界＋対象2197 passed（対象181）。
+
+- 対象Pyrightが1件指摘した。既存の初期値選択の戻り値型は`dict | None`で、session開始は`dict`を要求する。保有モデルが1件以上あれば初期値選択はNoneを返さないが、型上の分岐を明示し、Noneの場合はLookupErrorで拒否する3行を加えた（到達しない分岐。設計の手順5に挙動の変更はない）。対象Pyrightは0 errors。
+- 実source変異22種のうち初回は21種を検出。未検出は「標本の1行検査の削除」で、拒否testの2行標本が特徴とラベルを同時に2行にしていたため、ラベルの形状検査が先に拒否していた。特徴だけ2行の条件（sample_two_feature_rows_with_one_label）をtestへ追加し、22/22検出。元byteの復元と復元後の全対象passedを確認。productionは無変更。対象は184、依存境界＋対象で2200 passed。
+- 全分岐のtestが初回からGREENだったため、上の変異で検出力を確認した（分岐条件、吸収先、切替の欠落、吸収の欠落、概念ID、標本順、連結順、結果種別、初期値選択へ渡す候補列、保留標本、候補検証開始での吸収、余分な乱数、位置情報、各事前検査、IMPROVE-001相当の現行優先への変更）。

@@ -1,4 +1,4 @@
-# 命名と役割 revision3
+# 命名と役割 revision4
 
 ## Source
 
@@ -74,3 +74,38 @@ maximum_alarm_interval_mean_loss_increase、held_model_training_state_registry�
 | alarm_change_interval_resolution_cpu_smoke.py / alarm_change_interval_resolution_mutation_evidence.py | Git管理外のfresh CPUと実source変異・復元の証拠 |
 
 上流testから同義で再利用するhelper: build_fixation_oracle、set_overall_loss_statistics_in_both_implementations、assert_started_session_matches_legacy、assert_training_samples_match_legacy、assert_model_counts_match_legacy、assert_store_statistics_match_legacy、snapshot_parameter_values_and_gradients、assert_parameter_values_and_gradients_unchanged、assert_nested_state_equal、run_legacy_joint_update、convert_legacy_parameter_name。testを書く過程でこの表にない名前が必要になったら、コードへ書く前に追加表を登録して独立レビューを受ける。
+
+## 追加 revision4（Task 2/3のtestで使う名前。testをリポジトリへ置く前の登録）
+
+revision3までの表は変更していない。主担当がTask 2のtestをリポジトリ外で下書きし、表にない名前を洗い出した。sourceに新しい名前はない。
+
+| 名前 | 種別 | 役割 |
+| --- | --- | --- |
+| build_alarm_change_interval_resolution_oracleの引数alarm_interval_resolution_case | helper引数 | r3では戻り値だけを書いた。条件名を受け取り、保有ID・同率用の値の複製・履歴統計を条件どおりに両実装へ設定する。ほかの引数はclass_count、monkeypatch、optimizer_variant、candidate_parameter_initialization_source |
+| ALARM_INTERVAL_RESOLUTION_CASESの各値のkey: held_model_ids / statistics_by_model_id / expected_resolution_outcome / expected_assigned_model_id | dictのkey | 条件ごとの保有ID、実測の区間平均から履歴統計を作る関数、期待する結果種別と吸収先ID。keyは登録済みの同名と同義 |
+| INVALID_COMMON_INPUT_CASES | test定数 | 共通入力の不正の条件名→（引数名、正常なresolution_argumentsから不正値を作る関数または"subclass"、期待する例外型） |
+| INVALID_START_ONLY_INPUT_CASES | test定数 | 候補検証の開始だけに使う入力の不正の条件名→（引数名、不正値、期待する例外型） |
+| replace_change_interval_sample | test helper | 標本列のsample_index番目だけを、指定のfieldを差し替えた標本へ置き換えた標本列を返す。拒否入力の作成用 |
+| replaced_fields | 上のhelperの可変keyword引数 | 差し替えるfield名→値（input_features、observed_class_labels） |
+| event_fields | record_legacy_adaptation_eventの可変keyword引数 | 実旧がイベント記録へ渡したfield。前specと同名同義 |
+| initial_training_model_id | test local / 照合helperの引数 | 処理前の現在の学習帰属ID。上流sessionのfieldと同名同義 |
+| current_state_snapshot | test local | 不変の照合時に取り直した状態の記録 |
+| state_snapshotのkey: resolution_arguments / held_model_training_states / parameter_snapshot / training_modes / optimizer_state_snapshots / loss_statistics_snapshot / training_sample_snapshot / counts_snapshot / current_training_model_id / random_states | dictのkey | 記録時の引数dictのcopy、保有状態、parameter/grad、学習mode、optimizer state、履歴統計、標本（モデルIDとTensorの同一性）、計数、現行ID、3乱数。held_model_training_states、parameter_snapshot、training_modes、optimizer_state_snapshots、loss_statistics_snapshot、random_statesは前specの同名keyと同義。resolution_arguments、training_sample_snapshot、counts_snapshot、current_training_model_idは今回追加 |
+| torch_random_state / python_random_state / numpy_random_state / numpy_state | test local | 前specと同名同義 |
+| counts_store | test local | 割当概念計数と学習計数の所有者。上流testと同名同義 |
+| legacy_training_samples / legacy_training_sample | test local | 実旧の標本一覧とその1件（特徴, ラベル, 概念）。上流testと同名同義 |
+| concept_counts | test local | 実旧の1モデルぶんの概念ID→件数 |
+| legacy_session | test local | 実旧が開始した警報後検証session。上流と同名同義 |
+| legacy_epoch_training_call | test local | legacy_epoch_training_callsの1件 |
+| candidate_epoch_training_result / collection_state | test local | 開始sessionの学習結果と損失収集の状態。上流testと同名同義 |
+| held_parameter_storage_addresses | test local | 保有モデルのparameter実体のアドレス集合。上流testと同名同義 |
+| collection / expected_training_sample | test local | 標本storeの1モデルぶんの標本集合、区間の標本列の対応する1件 |
+| loss_statistics / previous_loss_statistics | test local | 1モデルの現在の統計と、処理前の統計 |
+| assigned_concept_counts / previous_concept_counts | test local | 吸収先モデルの処理後・処理前の概念ID→件数 |
+| owner / previous_optimizer / previous_optimizer_state | test local | optimizer stateの不変照合用。上流testと同名同義 |
+| operation_calls（Task 2での使い方） | test local | r3の役割に加え、Task 2の拒否testでは区間評価だけを包み、評価より前に拒否されたことを呼出し回数で確かめる |
+| run_joint_update_in_both_implementations | test内の関数（Task 3） | 両実装で、各自の標本storeにある全標本をモデルごとの固定batchにして共同学習を1回行い、損失と全状態を照合する。上流の吸収testの同名関数と同義 |
+| legacy_training_batches / participating_training_batches / training_bindings / model_training_sample_collections / local_training_settings / update_shared_features / expected_joint_loss / actual_joint_loss | test local（Task 3） | 上流の吸収testと同名同義 |
+| validation_samples / sample_offset / legacy_reference_model | test local（Task 3） | 開始後の実観測に使う標本（位置, 特徴, ラベル）と番号、実旧の参照モデル。前specのtestと同名同義 |
+
+上流testから同義で再利用するhelperの追加: build_session_start_oracle（session開始の設定と旧configの差し替えを含む実NN oracle。標本と計数の新ownerは、このoracleが実旧clientへ置いた内容を同じobject・同じ順で写して作る）、assert_candidate_epoch_training_matches_legacy、assert_fixed_references_match_legacy、assert_held_model_states_match_legacy、assert_collected_losses_match_legacy。r3で挙げたbuild_fixation_oracleとassert_started_session_matches_legacyは使わない（後者は区間のTensorが旧と同一objectであることを要求するが、本specは区間を新しく連結するため、同じ内容を個別に照合する）。
