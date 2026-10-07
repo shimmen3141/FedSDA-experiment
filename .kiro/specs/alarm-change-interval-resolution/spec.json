@@ -1,0 +1,72 @@
+{
+  "feature_name": "alarm-change-interval-resolution",
+  "created_at": "2026-10-08",
+  "updated_at": "2026-10-08",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "draft_sha256_lf": "715c3d8722797f77caa2ba609289f0631ce91bf9f1a646d8f9b570a94c7f8bf8",
+      "approved_revision": 3,
+      "generated_sha256_lf": "715c3d8722797f77caa2ba609289f0631ce91bf9f1a646d8f9b570a94c7f8bf8",
+      "approved_sha256_lf": "715c3d8722797f77caa2ba609289f0631ce91bf9f1a646d8f9b570a94c7f8bf8",
+      "reviewer": "claude-sonnet (independent Agent, Luna fallback)",
+      "reviewer_session": "agent ae48502d8c91f73d4",
+      "fallback_reason": "codex_usage_limit_until_0508_2026-10-08",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "draft_sha256_lf": "88244ab34884ec6185af8e82e949c7d49dc60a3dc930a451209e25c4aed799c1",
+      "approved_revision": 3,
+      "generated_sha256_lf": "88244ab34884ec6185af8e82e949c7d49dc60a3dc930a451209e25c4aed799c1",
+      "approved_sha256_lf": "88244ab34884ec6185af8e82e949c7d49dc60a3dc930a451209e25c4aed799c1",
+      "reviewer": "claude-sonnet (independent Agent, Luna fallback)",
+      "reviewer_session": "agent ae48502d8c91f73d4",
+      "fallback_reason": "codex_usage_limit_until_0508_2026-10-08",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "draft_sha256_lf": "98b8b3d767a56fd0c29d11a361582a76c869013058153f02ef18172d5a3af6c1",
+      "approved_revision": 3,
+      "generated_sha256_lf": "98b8b3d767a56fd0c29d11a361582a76c869013058153f02ef18172d5a3af6c1",
+      "approved_sha256_lf": "98b8b3d767a56fd0c29d11a361582a76c869013058153f02ef18172d5a3af6c1",
+      "reviewer": "claude-sonnet (independent Agent, Luna fallback)",
+      "reviewer_session": "agent ae48502d8c91f73d4",
+      "fallback_reason": "codex_usage_limit_until_0508_2026-10-08",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "generated_sha256_lf": "e280b69e4764454826e4e7255535774de4171ea7eff14d1b4dcb74518f613f79",
+      "graph_sanity_mode": "independent",
+      "graph_sanity_verdict": "PASS",
+      "graph_sanity_reviewer": "claude-sonnet (independent Agent, Luna fallback)",
+      "approved_revision": 2,
+      "approved_sha256_lf": "e280b69e4764454826e4e7255535774de4171ea7eff14d1b4dcb74518f613f79",
+      "reviewer": "claude-sonnet (independent Agent, Luna fallback)",
+      "reviewer_session": "agent a3af46e032693d1cd",
+      "fallback_reason": "codex_usage_limit_until_0508_2026-10-08",
+      "review_record": "review.md",
+      "current_sha256_lf": "e280b69e4764454826e4e7255535774de4171ea7eff14d1b4dcb74518f613f79"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "total_executable_tasks": 5,
+    "next_task": "1"
+  }
+}

@@ -14,7 +14,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 - 直近完了: [警報区間の保有モデル再利用評価](../specs/alarm-interval-model-reuse-assessment/README.md)。要求r2・設計r2・命名r4・tasks r1、全5task独立Luna承認、別fresh Luna feature最終GO、completed。methodsの純粋判定`assess_alarm_interval_model_reuse`と不変record`AlarmIntervalModelReuseAssessment`、runtimeの`evaluate_held_models_for_alarm_interval_reuse`。保有順に全モデルを区間評価し、履歴基準（2件以上・非零平均）を使えるモデルだけを評価列へ含め、区間平均−履歴平均が許容増加量以下のモデルを適合とし、平均最小・同率は保有順で選ぶ（現行優先ではない）。実旧_resolve_driftの評価済み候補列・適合列・選択と照合し、適合なしの場合は既存の初期値選択→session開始→観測までtest内で接続して実旧と照合した。その前は[終端の未完了候補検証の確定](../specs/incomplete-post-alarm-candidate-validation-finalization/README.md)。
 - 公開状態（2026-10-08）: GitHub復旧後の通常pushを1回実行し、未送信7commit（`5ddb9e3..db89dc4`）の送信に成功した。今後はユーザー指示に従いtaskごとにpushを1回だけ試す。失敗時は連続再試行や原因探索をせず、次taskのpush成功時に未送信commitも送る。
 - 直近のpush状態: 全commitは`origin/refactor/architecture`へ送信済み（taskごとの通常pushはすべて成功）。
-- 着手中: なし。
+- 着手中: [警報の変化区間の解決](../specs/alarm-change-interval-resolution/README.md)（主担当Claude Code）。要求r3・設計r3・命名r3・tasks r2は承認済み（Lunaの利用上限のため、独立AgentのSonnetが代替レビュー。経緯は同specのreview.md）。進捗の正本は同specのtasks.mdとspec.json。下の「次の候補」1の(b)(c)にあたり、(a)(d)は後続。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の全5tasksはLuna承認・完了。要求r2・設計r2・命名r4・tasks r1を維持し、別fresh GPT-6 Lunaのfeature最終GO、completed。候補生成とエポック学習もcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
 - 直近の検証済み実装commit: `5785533`。全pytest 7924 passed/3 skipped/2 warnings（主担当実測、JUnit 7927件照合）、対象154＋AST1726、fresh新CPU 2/4class、Ruff 157files/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。source hashは257パス。警告2件とskip 3件は前specと同じ既存のもの。証拠は同specのintegration-validation.md。
@@ -32,7 +32,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 
 ## ユーザー確認待ち・未解消の事項
 
-- LEGACY-014: 旧の採用分岐は、新モデルへ移す保留標本を割当概念計数と損失統計へ反映しない（他の分岐と非対称）。意図した仕様かをユーザーへ確認依頼済みで、回答はまだない。新実装は旧挙動を維持しtestで固定している。変更する場合は別specにする。記録は[implementation-findings](../../docs/research/implementation-findings/README.md)。
+- LEGACY-014: 旧の採用分岐は、新モデルへ移す保留標本を割当概念計数と損失統計へ反映しない（他の分岐と非対称）。2026-10-08ユーザー回答: LEGACYは後でまとめて判断するので、現状のまま置く。新実装は旧挙動を維持しtestで固定している。主担当からの再確認は不要。記録は[implementation-findings](../../docs/research/implementation-findings/README.md)。
 - レビュー担当の同定: `codex exec -m gpt-6-luna`で起動したレビュー担当は、自分のモデル名を内部から確認できないと回答する。記録は起動時のmodel指定と実行ログのmodel行に依拠している。実際のルーティングの確認はユーザーへ依頼済み。
 - 全pytestの独立再現: 2026-10-07のユーザー決定により、主担当の実測とJUnit照合で判定する（[共通引継ぎ手順](agent-handoff.md)の同名節）。レビュー担当のsandboxで再現できるようになった場合は、再現した事実を記録してよい。
 - 移植しないと決めたもの: 参照も学習させる方針（旧`shadow_tournament`）。最終構成（`forward_persistent`）で通らず、goldenにも値がない。2026-10-07のユーザー判断で当面不要。
