@@ -28,7 +28,7 @@
   - _Depends: 3_
   - _Requirements: 2.1, 2.2, 2.3, 3.3_
 
-- [ ] 5. 依存境界と基準環境の全回帰を統合検証する
+- [x] 5. 依存境界と基準環境の全回帰を統合検証する
   - 明示的な統合検証task。2moduleのAST注入RED→exact guard→GREEN、許可symbolsと禁止runtime/config/旧/乱数再設定を確認する。
   - 実装commitで全pytest/JUnit/Ruff/Pyright/pip/固定旧差分/承認hashを照合し証拠を記録する。
   - 全task承認後に別Lunaセッションのfeature最終GOを受ける。

@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-07（Codexによる候補生成specの完了時）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-07（Codexによる候補のエポック学習の統合検証時）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
 Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い、GPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューで承認する。
@@ -8,8 +8,8 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
-- 作業状態: [候補のエポック学習](../specs/candidate-epoch-training/README.md)を実装中。要求revision2・設計revision1・命名revision6・tasks revision1をLuna承認。Task1設定とTask2固定反復/事前検査は別Luna承認で完了、Task3公開入口/早期停止へ着手。Task2対象124passed、全src Pyright成功。全回帰はTask5予定。既存[候補生成](../specs/candidate-classifier-construction/README.md)はcompleted、session開始は後続。承認・現在taskは各specのspec.json/tasks.mdが正本。
-- 直近の検証済み実装commit: `ceb4336`。全pytest 6412 passed/3 skipped/2warnings（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。
+- 作業状態: [候補のエポック学習](../specs/candidate-epoch-training/README.md)の全5tasksが別Luna承認済み。要求revision2・設計revision1・命名revision7・tasks revision1。別feature最終GOを確認中。既存[候補生成](../specs/candidate-classifier-construction/README.md)はcompleted、次はsession開始の組立。承認・進捗は各specのspec.json/tasks.mdが正本。
+- 直近の検証済み実装commit: `66ac055`。全pytest 6868 passed/3 skipped/2warnings（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。
 - 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
   1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。
   2. [警報後の候補検証標本の観測](../specs/post-alarm-candidate-validation-sample-observation/README.md): 標本1件の候補・参照の損失評価と損失収集への追加。
@@ -32,13 +32,13 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 警報区間での候補の学習（次に着手）
+### 1. 警報後の候補検証session開始の組立（次に着手）
 
-旧`FedSDAClient._begin_forward_validation`（`federated_drift_experiment/clients/fedsda.py`）のうち、参照の固定・履歴平均と候補の生成は移植した。次は(b)候補の学習を仕様化し、その後(c)session開始の組立へ進む。生成部品の完了状態は同specのspec.jsonで確認する。
+旧`FedSDAClient._begin_forward_validation`（`federated_drift_experiment/clients/fedsda.py`）のうち、参照の固定・履歴平均、候補の生成と学習は移植した。次は(c)session開始の組立へ進む。各部品の完了状態は同specのspec.jsonで確認する。
 
 - (a) 候補の生成は実装済み: `runtime/candidate_classifier_construction.py`の`create_independent_candidate_training_state`が、構造の参照分類器・選択済みsnapshot・optimizer設定から、独立した分類器と共有部/概念固有部の専用optimizer管理器を返す。旧`BaseClient._new_model`→`set_params`→`reset_optimizer`と全値・parameter順・乱数消費を照合済み。初期値の選択には既存`methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py`の`select_candidate_initial_parameter_snapshot`を使う。候補の学習はこの生成部品を再実装せず利用する。
 - (b) 警報区間での候補の学習: 旧`BaseClient._train_new_model`と、そこから呼ばれる`_train_new_model_early_stopping`・`_train_new_model_fixed`・`_update_new_model_epochs`・`new_model_initial_epochs`（`federated_drift_experiment/clients/base.py`。`_train_new_model`で検索する）。最終3goldenの設定は`tests/proposed_regression_golden.json`の`definition`にあり、`NEW_MODEL_TRAINING="early_stopping"`、`NEW_MODEL_EPOCHS=30`、`NEW_MODEL_VALIDATION_FRACTION=0.2`、`NEW_MODEL_EARLY_STOPPING_PATIENCE=3`、`NEW_MODEL_EARLY_STOPPING_MIN_DELTA=1e-4`、`NEW_MODEL_LR=0.01`、`CLIENT_BATCH_SIZE=32`。early stoppingは`torch.randperm`で学習/検証へ分け、`DataLoader(shuffle=True)`でbatchを作るので、torch乱数を消費する。最良parameterを保持して最後に復元する。学習量（延べ標本数と更新回数）は旧`compute_counters`の差分から得てsessionへ記録し、採用時に`candidate_trained_sample_count`/`candidate_parameter_update_step_count`として渡す。
-- 新側の設定の現状: 候補の学習のepoch数・検証割合・patience・学習率を持つ設定型はまだない（worktreeルートで`git grep -n -i -E "epoch|early_stop|patience" -- src`を実行して0件。2026-10-07、commit `5537b65`時点）。`candidate_model_training_and_acceptance_settings.py`は採否方針と検証標本件数だけを持つ。必要な項目は、方針どおり機能別の設定型へ追加し、命名レビューを通す（`.kiro/specs/configuration-foundation/`のnaming.mdと後続計画を先に確認する）。旧`NEW_MODEL_TRAINING`の`fixed`/`none`を移植するかは、最終構成で使わないことを確認してから決める。
+- 新側の学習部品: `learning/training/candidate_epoch_training.py`の`train_candidate_classifier_epochs`と`CandidateEpochTrainingSettings`。固定エポック/検証損失早期停止/学習省略を実装し、正常値・小区間・0epoch・端数batch・RNG・全parameter/grad/optimizer・学習量を実旧へ照合した。最良parameterだけを戻しoptimizer/gradは最後の更新の状態を保持する。設定型は全6field必須。学習率は既存ParameterOptimizerSettingsから候補生成へ渡し、epoch設定には二重定義しない。最終構成30epoch・patience3・minimum decrease1e-4も生成から継続更新の接続testに含む。RunSettingsへの登録はsession組立時に必要項目を解決する。
 - 新側で使える学習部品: `src/federated_learning_experiments/learning/training/`の`joint_model_parameter_update.py`（1回の共同更新。単一batchなら旧`ResidualAdapterMLP.update`と全値一致することを登録・採用のtestで確認済み）、`parameter_optimizer_state.py`、`parameter_optimizer_settings.py`、`local_training_settings.py`。
 - (c) session開始の組立: 候補の生成→学習→参照の固定（`runtime/post_alarm_reference_model_fixation.py`）→損失収集の開始（`PostAlarmCandidateLossCollection`の生成）。乱数の消費順を実旧（候補の生成→学習→参照の生成）と一致させる。
 - oracle: `tests/refactoring/test_post_alarm_reference_model_fixation.py`の`begin_forward_validation_in_legacy_client`が実旧のsession開始を実行している。現在は`_train_new_model`を無効化しているので、学習を有効にして候補の値・学習量・処理後の乱数状態を対照する。
