@@ -1,0 +1,61 @@
+{
+  "feature_name": "post-alarm-candidate-validation-session-start",
+  "language": "ja",
+  "phase": "implementation",
+  "created_at": "2026-10-07",
+  "updated_at": "2026-10-07",
+  "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "generated_sha256_lf": "3a2c920b37c9885b0ae26648c8c1bca850677d70aae8afda1cd8fad42411ea41",
+      "approved_revision": 2,
+      "approved_sha256_lf": "3a2c920b37c9885b0ae26648c8c1bca850677d70aae8afda1cd8fad42411ea41",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "generated_sha256_lf": "67e4e376054d884d36ee89dbea7d41f5e9a6b474ea0ad265e6447fdeac15c21d",
+      "approved_revision": 2,
+      "approved_sha256_lf": "67e4e376054d884d36ee89dbea7d41f5e9a6b474ea0ad265e6447fdeac15c21d",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "f61fef6ff1ac36ee4b96c48aab785646653f949ec94d7d483929379a18d09a06",
+      "approved_revision": 1,
+      "approved_sha256_lf": "f61fef6ff1ac36ee4b96c48aab785646653f949ec94d7d483929379a18d09a06",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "f256be4e3e9f87ac21ff5ab99e7d0b95299babe62edd54847655fba0560ddbd9",
+      "graph_sanity_mode": "independent",
+      "graph_sanity_verdict": "PASS",
+      "graph_sanity_reviewer": "gpt-6-luna",
+      "graph_sanity_thread": "/root/luna_session_graph",
+      "approved_revision": 1,
+      "approved_sha256_lf": "f256be4e3e9f87ac21ff5ab99e7d0b95299babe62edd54847655fba0560ddbd9",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "total_executable_tasks": 5,
+    "next_task": "1"
+  }
+}
