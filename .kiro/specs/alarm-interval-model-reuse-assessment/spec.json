@@ -65,8 +65,8 @@
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "tasks_1_to_3_reviewed_tasks_4_5_measured",
-    "next_step": "independent_review_of_tasks_4_5_then_fresh_feature_final_review",
+    "completed_unit": "all_5_tasks_independently_reviewed",
+    "next_step": "fresh_feature_final_review",
     "implementation_started": true,
     "tests_run": true
   },
@@ -74,12 +74,13 @@
     "completed_tasks": [
       "1",
       "2",
-      "3"
+      "3",
+      "4",
+      "5"
     ],
-    "completed_task_count": 3,
+    "completed_task_count": 5,
     "total_executable_tasks": 5,
-    "next_task": "4",
-    "note": "Task4/5は実施済みで独立レビュー待ち。tasks.mdのcheckboxは実施済みを示す"
+    "next_task": null
   },
   "task_reviews": {
     "1": {
@@ -105,6 +106,28 @@
       "mutation_cases_detected": 17,
       "source_bytes_restored": true,
       "reviewer_ran_tests": false
+    },
+    "4": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a117a7-9736-7931-9cfb-c63c15d87ed8",
+      "reviewer_ran_tests": false,
+      "target_and_ast_passed": 1880,
+      "fresh_cpu_class_counts": [
+        2,
+        4
+      ],
+      "independent_smoke_reproduced": false
+    },
+    "5": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a117a7-9736-7931-9cfb-c63c15d87ed8",
+      "reviewer_ran_tests": false,
+      "full_passed": 7924,
+      "full_skipped": 3,
+      "junit_testcases": 7927,
+      "independent_full_suite_rerun": false
     }
   },
   "verification_source_sha256": "4fca6c7b9cc634f1d6dc60952412c87be7ecaaa2e32022a646b0ecb01268f75f"

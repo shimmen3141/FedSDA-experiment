@@ -60,3 +60,9 @@ test-only。追加時点で実装が存在するため初回からGREEN（18条�
 ## Task 4/5の実施記録
 
 fresh新CPU（旧/test importなし）で2/4classの区間評価→再利用選択、適合なし→初期値選択→session開始→観測を確認。commit 5785533で全pytest 7924 passed/3 skipped/2 warnings（主担当実測、JUnit 7927件照合）、Ruff/Pyright/pip check成功、固定旧差分は空、source hash 257パス。詳細はintegration-validation.md。独立レビューは次に依頼する。
+
+## Task 4/5の独立レビュー
+
+独立fresh CLI GPT-6 Luna（read-only、session `01a117a7-9736-7931-9cfb-c63c15d87ed8`、対象HEAD 4f7d21e、検証対象のsource/test commitは5785533）がTask 4 APPROVED、Task 5 APPROVED、指摘なし。2moduleのguardと設計r2の許可依存・実sourceのimportの一致、両resolver登録と注入契約test、smoke scriptの内容（旧/test importなし）、件数の整合（7626＋154＋144＝7924、JUnit 7927件・failure0・error0・skip3）、承認hashの再計算（tasksはcheckboxを未完了へ戻して照合）、source hashの記載の一致、固定旧差分と5785533以降のsrc/tests差分が空であることを確認した。
+
+レビュー担当が再現していないこと: 全pytestは基準に従い再実行していない。fresh CPU smokeは実行を試みたが、sandboxで一時ディレクトリへ書き込めず失敗した（smokeの成功は主担当の実測だけ）。source hashはレビュー担当が記載の一致を確認したもので、再計算したとは報告されていない。
