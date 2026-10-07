@@ -6,7 +6,7 @@
   - _Boundary: 学習設定moduleと対象設定test_
   - _Requirements: 1.1, 1.2, 1.4, 3.1_
 
-- [ ] 2. 区間の事前検査と固定エポック反復を実装する
+- [x] 2. 区間の事前検査と固定エポック反復を実装する
   - 学習moduleに結果record・事前検査・dataset反復helperをtest先行RED後に実装する。公開方式dispatchは次taskで追加する。
   - class2/4×3optimizerで全区間学習、0epoch、末尾batchを実旧fixedメソッドへ対照し、dataset/parameter/grad/optimizer/RNG/計数を確認する。
   - 設定/区間/owner/binding/gradの拒否時に全状態が不変であることを確認する。

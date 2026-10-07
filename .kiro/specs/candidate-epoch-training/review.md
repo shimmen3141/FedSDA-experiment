@@ -23,3 +23,13 @@ GPT-6 Luna（/root/luna_single_run_3_1_review）の要求revision1判定NEEDS_FI
 source作成前RED: 設定module未存在のModuleNotFoundError、1error/exit1。GREEN: 対象26passed/0.07s、Ruff check成功。実装前に別の未承認test関数名settings_structureを一時作ったが、source作成前に削除して承認済settings_contractへ統合した。未承認のtest先取りの事実をレビュー担当へ提示した。最終src/testの正式名は承認済みのもの。
 
 別の実GPT-6 Lunaセッション`/root/luna_epoch_task1`でAPPROVED。独立実行26passed/exit0、Ruffと境界/RED/値域/必須/不変recordを確認、指摘なし。全pytestはTask5で主担当が実行予定。レビュー時のpytest cache権限warningは対象コード由来ではない。Task2/3追加命名revision4は実装前レビュー待ち。
+
+命名revision4も実GPT-6 Luna（/root/luna_single_run_3_1_review）APPROVED、指摘なし。Task2開始前に承認hashを記録した。
+
+命名revision5でoptimizer group/parameter位置/学習開始RNGの3名を区別し、実GPT-6 Luna APPROVED（同セッション、指摘なし）。承認後に仮の名前使い回しを除去して検証した。公開APIの変更なし。
+
+## Task2
+
+実装module作成前REDはModuleNotFoundError/exit1。固定反復の54条件（class2/4×3optimizer×epoch0/1/3×N/batch=7/3・11/5・4/8）で全parameter/grad/optimizer/RNG/counters/実batch順が実旧に一致。履歴ありpreflight拒否/受理43、record1、設定26を含む対象124passed。主担当も124passed/8.18s/exit0、Ruff対象と全src Pyright0errors/0warningsを確認。nested prototypeは不正tensorを作るtest準備の警告。主担当の対象実行はMPLCONFIGDIR指定漏れにより終了時matplotlib一時dirのACL cleanup例外が出たが、pytestのexit0と件数は正常。全回帰では共通手順どおり明示する。公開入口/earlyはTask3のため未実装。
+
+別の実GPT-6 Lunaセッション`/root/luna_epoch_task2` APPPROVED、独立対象124passed/exit0、Ruff・境界・承認hash確認。指摘なし。全回帰は未実施、レビュー担当はPyrightを独立再実行していない。

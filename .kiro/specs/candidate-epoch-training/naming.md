@@ -1,4 +1,4 @@
-# 命名と役割 — revision4
+# 命名と役割 — revision5
 
 ## 配置と公開契約
 
@@ -63,3 +63,9 @@
 - `legacy_validation_losses` / `recorded_validation_losses`: 実旧/新の既存損失評価をwrapperで観測したscalar列。
 - `validation_loss_decrease_at_boundary`: 実旧の連続評価差から得る閾値ちょうど条件。
 - class_count/optimizer_variant/invalid_case/candidate_training_state/legacy_candidate/legacy_client/initial_rng_state/expected_rng_state/construction_arguments/legacy_initial_parameter_snapshot/parameter_values/expected_parameter_values等の既存生成oracleの名前は同義で再利用する。
+
+## Parameter結合検査の追加名
+
+`optimizer_parameter_group`はoptimizer.param_groupsの一つのdict。optimizer管理器を意味するparameter_optimizer_stateをgroupに使い回さない。`parameter_index`は0始まりのparameter列位置で、標本数sample_countとは異なる。名前の意味を実態と一致させる修正。
+
+`initial_training_rng_state`は候補生成後の旧新学習共通開始RNG。test前のfinally復元用initial_rng_stateと区別する。expected_rng_stateは実旧学習後RNG、recorded_epoch_countsは観測epoch数列だけを保持する。
