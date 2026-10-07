@@ -33,9 +33,162 @@ from federated_learning_experiments.learning.training.candidate_epoch_training_s
 from federated_learning_experiments.learning.training.joint_model_parameter_update import (
     perform_joint_model_parameter_update,
 )
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
+from federated_learning_experiments.learning.training.participating_model_training_batch import (
+    ParticipatingModelTrainingBatch,
+)
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import (
+    select_candidate_initial_parameter_snapshot,
+)
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
+    CandidateParameterInitializationSettings,
+)
 from federated_learning_experiments.runtime.candidate_classifier_construction import (
     create_independent_candidate_training_state,
 )
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize("consecutive_non_improving_epoch_limit", [1, 3])
+@pytest.mark.parametrize("minimum_validation_loss_decrease", [0.0001, 10])
+def test_candidate_generation_epoch_training_and_continued_update_match_legacy(
+    class_count,
+    optimizer_variant,
+    consecutive_non_improving_epoch_limit,
+    minimum_validation_loss_decrease,
+    monkeypatch,
+):
+    initial_rng_state = torch.get_rng_state().clone()
+    try:
+        construction_arguments, legacy_client, legacy_initial_parameter_snapshot = (
+            build_candidate_construction_oracle(
+                class_count=class_count,
+                optimizer_variant=optimizer_variant,
+                monkeypatch=monkeypatch,
+            )
+        )
+        initialization_settings = CandidateParameterInitializationSettings(
+            candidate_parameter_initialization_source="assigned_training_model"
+        )
+        selected_initial_parameter_snapshot = select_candidate_initial_parameter_snapshot(
+            settings=initialization_settings,
+            available_parameter_snapshots_by_model_id={
+                4: construction_arguments["initial_candidate_parameter_snapshot"]
+            },
+            current_training_model_id=4,
+            evaluated_mean_losses_by_model_id=(),
+        )
+        construction_arguments["initial_candidate_parameter_snapshot"] = (
+            selected_initial_parameter_snapshot
+        )
+        reference_parameter_values_and_gradients = snapshot_parameter_values_and_gradients(
+            tuple(construction_arguments["architecture_reference_classifier"].parameters())
+            + tuple(selected_initial_parameter_snapshot.values())
+        )
+        initial_candidate_construction_rng_state = torch.get_rng_state().clone()
+        legacy_candidate = create_legacy_candidate(
+            legacy_client=legacy_client,
+            legacy_initial_parameter_snapshot=legacy_initial_parameter_snapshot,
+        )
+        expected_rng_state = torch.get_rng_state().clone()
+        torch.set_rng_state(initial_candidate_construction_rng_state)
+        candidate_training_state = create_independent_candidate_training_state(
+            **construction_arguments
+        )
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "early_stopping")
+        monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 30)
+        monkeypatch.setattr(config, "CLIENT_BATCH_SIZE", 3)
+        monkeypatch.setattr(config, "NEW_MODEL_VALIDATION_FRACTION", 0.2)
+        monkeypatch.setattr(
+            config, "NEW_MODEL_EARLY_STOPPING_PATIENCE", consecutive_non_improving_epoch_limit
+        )
+        monkeypatch.setattr(
+            config, "NEW_MODEL_EARLY_STOPPING_MIN_DELTA", minimum_validation_loss_decrease
+        )
+        input_features = torch.arange(22, dtype=torch.float32).reshape(11, 2) / 7
+        observed_class_labels = (torch.arange(11) % class_count).float().reshape(11, 1)
+        input_tensor_values = (input_features.clone(), observed_class_labels.clone())
+        initial_training_rng_state = torch.get_rng_state().clone()
+        BaseClient._train_new_model(
+            legacy_client, legacy_candidate, input_features, observed_class_labels
+        )
+        expected_rng_state = torch.get_rng_state().clone()
+        torch.set_rng_state(initial_training_rng_state)
+        epoch_training_result = train_candidate_classifier_epochs(
+            candidate_classifier=candidate_training_state.candidate_classifier,
+            candidate_shared_parameter_optimizer_state=candidate_training_state.candidate_shared_parameter_optimizer_state,
+            candidate_concept_specific_parameter_optimizer_state=candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
+            input_features=input_features,
+            observed_class_labels=observed_class_labels,
+            candidate_epoch_training_settings=CandidateEpochTrainingSettings(
+                candidate_training_strategy="validation_loss_early_stopping",
+                maximum_epoch_count=30,
+                maximum_batch_sample_count=3,
+                validation_sample_fraction=0.2,
+                consecutive_non_improving_epoch_limit=consecutive_non_improving_epoch_limit,
+                minimum_validation_loss_decrease=minimum_validation_loss_decrease,
+            ),
+        )
+        if minimum_validation_loss_decrease == 10:
+            assert (
+                epoch_training_result.completed_epoch_count
+                == consecutive_non_improving_epoch_limit + 1
+            )
+        else:
+            assert 1 <= epoch_training_result.completed_epoch_count <= 30
+        assert (
+            epoch_training_result.candidate_trained_sample_count
+            == legacy_client.compute_counters["training_examples"]
+        )
+        assert (
+            epoch_training_result.candidate_parameter_update_step_count
+            == legacy_client.compute_counters["optimizer_steps"]
+        )
+        assert (
+            epoch_training_result.validation_evaluated_sample_count
+            == legacy_client.compute_counters["initialization_examples"]
+        )
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        assert_candidate_epoch_training_matches_legacy(
+            candidate_training_state=candidate_training_state, legacy_candidate=legacy_candidate
+        )
+        local_training_settings = LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )
+        batch_input_features = torch.ones(4, 2) / 3
+        batch_observed_class_labels = (torch.arange(4) % class_count).float().reshape(4, 1)
+        legacy_mean_training_loss = legacy_candidate.update(
+            batch_input_features, batch_observed_class_labels
+        )
+        candidate_mean_training_loss = perform_joint_model_parameter_update(
+            local_training_settings=local_training_settings,
+            shared_feature_extractor=candidate_training_state.candidate_classifier.feature_extractor,
+            shared_parameter_optimizer=candidate_training_state.candidate_shared_parameter_optimizer_state.parameter_optimizer,
+            participating_training_batches=(
+                ParticipatingModelTrainingBatch(
+                    classifier=candidate_training_state.candidate_classifier,
+                    concept_specific_parameter_optimizer=candidate_training_state.candidate_concept_specific_parameter_optimizer_state.parameter_optimizer,
+                    input_features=batch_input_features,
+                    observed_class_labels=batch_observed_class_labels,
+                ),
+            ),
+            update_shared_features=True,
+        )
+        assert candidate_mean_training_loss == legacy_mean_training_loss
+        assert_candidate_epoch_training_matches_legacy(
+            candidate_training_state=candidate_training_state, legacy_candidate=legacy_candidate
+        )
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        assert_parameter_values_and_gradients_unchanged(reference_parameter_values_and_gradients)
+        assert torch.equal(input_features, input_tensor_values[0])
+        assert torch.equal(observed_class_labels, input_tensor_values[1])
+    finally:
+        torch.set_rng_state(initial_rng_state)
 
 
 @pytest.fixture

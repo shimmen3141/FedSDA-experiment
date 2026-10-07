@@ -21,7 +21,7 @@
   - _Depends: 2_
   - _Requirements: 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1_
 
-- [ ] 4. 候補生成から学習と継続更新へ接続する
+- [x] 4. 候補生成から学習と継続更新へ接続する
   - test-onlyで初期値選択/生成→epoch学習→次batch更新を実旧へ照合し、parameterのみ復元後のoptimizer/gradを含めて確認する。
   - fresh新CPUで生成と学習を実行し、旧importなしとsession未完成の範囲を記録する。
   - _Boundary: 生成からの接続test、fresh CPU検証_

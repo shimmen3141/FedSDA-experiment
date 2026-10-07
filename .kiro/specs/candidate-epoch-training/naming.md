@@ -1,4 +1,4 @@
-# 命名と役割 — revision6
+# 命名と役割 — revision7
 
 ## 配置と公開契約
 
@@ -76,3 +76,5 @@
 - `record_candidate_validation_losses`: 既存新有界損失関数を包んでrecorded_validation_lossesへ記録するwrapper。損失の式は複製しない。
 - `test_candidate_generation_epoch_training_and_continued_update_match_legacy`: 初期値選択→候補生成→epoch学習→次batch更新のtest-only接続を実旧へ照合するTask4test。
 - Task4のinitialization_settings、selected_initial_parameter_snapshot、reference_parameter_values_and_gradients、legacy_mean_training_loss、candidate_mean_training_lossは既存candidate-classifier-construction接続testと同義で再利用する。
+
+`initial_candidate_construction_rng_state`は旧新候補生成に共通の開始RNG。生成後のinitial_training_rng_stateと区別し、生成時/学習時の消費を別に照合する。
