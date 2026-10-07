@@ -1,7 +1,7 @@
 {
   "feature_name": "post-alarm-candidate-validation-session-start",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "completed",
   "created_at": "2026-10-07",
   "updated_at": "2026-10-07",
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
@@ -67,7 +67,7 @@
   },
   "integration_validation": {
     "status": "VERIFIED",
-    "decision": "PENDING_FEATURE_REVIEW",
+    "decision": "GO",
     "tested_commit": "8cbf2ce7fc383727989afe643954125d3983a3e4",
     "source_sha256_lf": "fab7c4ebcf6d8c037d15afa69e69449f6eb08690e801d5f48be7706376845f4d",
     "source_path_count": 248,
@@ -79,6 +79,10 @@
     "junit_errors": 0,
     "new_complete_run": "NOT_IMPLEMENTED",
     "evidence": "integration-validation.md",
-    "independent_full_suite_rerun": false
+    "independent_full_suite_rerun": false,
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_session_feature_final",
+    "reviewed_head": "45adc7ea7fb8e56a333add54184fab4413df6846",
+    "independent_target_and_ast_passed": 1522
   }
 }

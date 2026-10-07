@@ -40,4 +40,6 @@ runtime単体byte/LF SHA256は`ad4af70509aca22d063a239df6bee70c94c87b8a11a8f739b
 
 今回、新しい旧実装の不具合は観測していない。LEGACY-014等の既存確認待ちは変更しない。動的fixture名の事後承認などの手順逸脱と訂正はreview.mdに記録した。
 
-全pytestの独立再現は共通引継ぎ手順のユーザー決定どおり、主担当の実測とJUnit照合で判定する。Task5は別fresh GPT-6 Luna /root/luna_session_task5 APPROVED。JUnit・承認md/task/runtime hash・固定旧差分を独立確認。全pytest・品質・248path総合hashは独立再実行していない。別fresh feature GOは未判定。
+全pytestの独立再現は共通引継ぎ手順のユーザー決定どおり、主担当の実測とJUnit照合で判定する。Task5は別fresh GPT-6 Luna /root/luna_session_task5 APPROVED。JUnit・承認md/task/runtime hash・固定旧差分を独立確認。全pytest・品質・248path総合hashは独立再実行していない。
+
+別fresh GPT-6 Luna /root/luna_session_feature_final の対象HEAD45adc7eの最終判定はGO。対象＋AST1522passed/1warning/exit0、新CPU2/4class smoke成功を独立再現。JUnit実parse、両goldentest成功、承認/runtime hash、検証commit以後src/tests不変、748c3aa固定旧差分空を独立確認。全pytest・品質・248path総合hashは独立再実行していない。阻害指摘なし、review.md/spec.jsonへ記録しcompletedとする。

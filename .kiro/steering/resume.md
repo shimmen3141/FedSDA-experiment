@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-07（Codexによる候補のエポック学習specの完了時）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-07（Codexによる候補検証session開始specの完了時）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
 Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い、GPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューで承認する。
@@ -8,8 +8,8 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
-- 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の要求r2・設計r2・命名r2・tasks r1がLuna承認済み。5tasksのgraph sanity PASS、Task1開始runtimeは別Luna承認で完了（54passed）、Task2拒否時不変を検証中。全回帰はTask5。候補のエポック学習と候補生成はcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
-- 直近の検証済み実装commit: `66ac055`。全pytest 6868 passed/3 skipped/2warnings（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。
+- 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の全5tasksはLuna承認・完了。要求r2・設計r2・命名r4・tasks r1を維持し、別fresh GPT-6 Lunaのfeature最終GO、completed。候補生成とエポック学習もcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
+- 直近の検証済み実装commit: `8cbf2ce`。全pytest 7266 passed/3 skipped/2warnings（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。証拠は対象specのintegration-validation.md。
 - 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
   1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。
   2. [警報後の候補検証標本の観測](../specs/post-alarm-candidate-validation-sample-observation/README.md): 標本1件の候補・参照の損失評価と損失収集への追加。
@@ -32,25 +32,18 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 警報後の候補検証session開始の組立（次に着手）
+### 1. 候補検証sessionの進行と記録（次に着手）
 
-旧`FedSDAClient._begin_forward_validation`（`federated_drift_experiment/clients/fedsda.py`）のうち、参照の固定・履歴平均、候補の生成と学習は移植した。次は(c)session開始の組立へ進む。各部品の完了状態は同specのspec.jsonで確認する。
-
-- (a) 候補の生成は実装済み: `runtime/candidate_classifier_construction.py`の`create_independent_candidate_training_state`が、構造の参照分類器・選択済みsnapshot・optimizer設定から、独立した分類器と共有部/概念固有部の専用optimizer管理器を返す。旧`BaseClient._new_model`→`set_params`→`reset_optimizer`と全値・parameter順・乱数消費を照合済み。初期値の選択には既存`methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py`の`select_candidate_initial_parameter_snapshot`を使う。候補の学習はこの生成部品を再実装せず利用する。
-- (b) 警報区間での候補の学習: 旧`BaseClient._train_new_model`と、そこから呼ばれる`_train_new_model_early_stopping`・`_train_new_model_fixed`・`_update_new_model_epochs`・`new_model_initial_epochs`（`federated_drift_experiment/clients/base.py`。`_train_new_model`で検索する）。最終3goldenの設定は`tests/proposed_regression_golden.json`の`definition`にあり、`NEW_MODEL_TRAINING="early_stopping"`、`NEW_MODEL_EPOCHS=30`、`NEW_MODEL_VALIDATION_FRACTION=0.2`、`NEW_MODEL_EARLY_STOPPING_PATIENCE=3`、`NEW_MODEL_EARLY_STOPPING_MIN_DELTA=1e-4`、`NEW_MODEL_LR=0.01`、`CLIENT_BATCH_SIZE=32`。early stoppingは`torch.randperm`で学習/検証へ分け、`DataLoader(shuffle=True)`でbatchを作るので、torch乱数を消費する。最良parameterを保持して最後に復元する。学習量（延べ標本数と更新回数）は旧`compute_counters`の差分から得てsessionへ記録し、採用時に`candidate_trained_sample_count`/`candidate_parameter_update_step_count`として渡す。
-- 新側の学習部品: `learning/training/candidate_epoch_training.py`の`train_candidate_classifier_epochs`と`CandidateEpochTrainingSettings`。固定エポック/検証損失早期停止/学習省略を実装し、正常値・小区間・0epoch・端数batch・RNG・全parameter/grad/optimizer・学習量を実旧へ照合した。最良parameterだけを戻しoptimizer/gradは最後の更新の状態を保持する。設定型は全6field必須。学習率は既存ParameterOptimizerSettingsから候補生成へ渡し、epoch設定には二重定義しない。最終構成30epoch・patience3・minimum decrease1e-4も生成から継続更新の接続testに含む。RunSettingsへの登録はsession組立時に必要項目を解決する。
-- 新側で使える学習部品: `src/federated_learning_experiments/learning/training/`の`joint_model_parameter_update.py`（1回の共同更新。単一batchなら旧`ResidualAdapterMLP.update`と全値一致することを登録・採用のtestで確認済み）、`parameter_optimizer_state.py`、`parameter_optimizer_settings.py`、`local_training_settings.py`。
-- (c) session開始の組立: 候補の生成→学習→参照の固定（`runtime/post_alarm_reference_model_fixation.py`）→損失収集の開始（`PostAlarmCandidateLossCollection`の生成）。乱数の消費順を実旧（候補の生成→学習→参照の生成）と一致させる。
-- oracle: `tests/refactoring/test_post_alarm_reference_model_fixation.py`の`begin_forward_validation_in_legacy_client`が実旧のsession開始を実行している。現在は`_train_new_model`を無効化しているので、学習を有効にして候補の値・学習量・処理後の乱数状態を対照する。
-
-### 2. 候補検証sessionの進行と記録
+- 開始は実装済み: `runtime/post_alarm_candidate_validation_session_start.py`の`start_post_alarm_candidate_validation_session`。選択済み初期値・区間・保有状態から候補生成→学習→固定参照→空損失収集を実旧の順序/RNGで組み立て、`PostAlarmCandidateValidationSession`を返す。呼出し側がactive sessionを所有する。
+- 開始の旧対照と接続は`tests/refactoring/test_post_alarm_candidate_validation_session_start.py`。正常54・拒否等112・観測接続6＝172条件。2/4class×3optimizer、最終30epoch設定、候補継続更新でも参照不変を照合済み。
+- 候補生成・エポック学習・参照固定・標本観測・採否評価・確定・採用登録/帰属変更は既存public部品を再利用する。RunSettingsへの設定登録はclient組立時の後続作業。新client/全体runは未完成。
 
 - 上位が観測の戻り値（規定件数への到達）を見て、既存の評価関数と確定を順に呼ぶ進行。
 - 判定record（旧`ProvisionalModelDecision`）、切替位置、検出エピソード、適応イベントの記録。結果種別と変更記録から旧のaction・戻り値・切替位置の条件は導ける（対応表は`.kiro/specs/post-alarm-candidate-validation-resolution/design.md`）。
 - 学習帰属変更の通知（最終構成では予測重みの再始動。旧`_on_local_model_change`）。
 - 実験終端で未完了のsessionを棄却し、保留標本を現行モデルへ吸収する処理（旧`finalize_incomplete_forward_validation`）。
 
-### 3. その先
+### 2. その先
 
 - 警報の検出から候補検証sessionの開始までの接続（推定変化点からの区間切出し、保留標本の確保、初期parameterの選択）。
 - FIFOから1件ずつ帰属を確定する経路（旧`fedsda.py`の標本処理内。統計→標本→概念の順のinline実装で、吸収の部品とは更新順が違う）。

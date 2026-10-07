@@ -55,3 +55,9 @@ exact23symbolを一般許可より前へ追加し、ImportFrom解決・Import拒
 主担当がcommit8cbf2ceで全pytest7266passed/3skipped/2warnings/269.08s/exit0を実測。JUnit7269cases/0failures/0errors/3skipped、旧11・最終3goldenの両testcase成功。Ruff全148files/Pyright全src/pip/diff成功、承認LF hash・固定旧差分・248path source総合hashを確認しintegration-validation.mdへ記録。
 
 別fresh実GPT-6 Luna /root/luna_session_task5 APPROVED。JUnit、承認mdのLF hash、checkbox正規化task hash、runtime hash、748c3aa固定旧差分を独立確認。全pytest・品質検査・248path総合hashは独立再実行せず、主担当実測記録を照合した。最初の報告形式は厳密parserに合わず、同担当が正しいReview Verdict/VERDICT形式へ訂正。指摘なし。全task完了、別fresh feature GOは後続。
+
+## Feature最終判定
+
+別fresh実GPT-6 Luna /root/luna_session_feature_final の対象HEAD45adc7eでGO。対象＋AST1522passed/1warning/exit0と新CPU2/4classの開始→4観測を独立再現。要件1.1〜3.3、全5tasks、承認hash、runtime hash、検証commit8cbf2ceからsrc/tests不変を確認。保存JUnitを実parseし7269cases/0failures/0errors/3skips、両goldentest成功、748c3aaの旧対象差分空を独立照合した。
+
+最初の担当報告は旧基準を748c3aadと誤記して照合できなかった。正しい参照を示して再照合を依頼し、同担当が実行して上記GOを確定した。全pytest・248path総合hash・品質検査はこの担当では独立再実行せず、主担当記録に依拠する。阻害指摘なし。新client/全体runやactive session所有の完成はGOの範囲外。completedへ更新する。

@@ -23,9 +23,9 @@
 
 ## 現在の状態
 
-- `post-alarm-candidate-validation-session-start`を実装中。選択済み初期値/区間から生成→学習→参照固定→空損失収集を組み立ててsessionを返す。要求/設計r2・命名r2・tasks r1はLuna承認済み、Task1正常54passedで別Luna承認、拒否/観測接続/AST/fresh/全回帰は後続tasks。active session設定・検出・切出し・採否・登録は後続spec。承認の正本は同specのspec.json。
+- `post-alarm-candidate-validation-session-start`の全5tasksを完了・Luna承認。選択済み初期値/区間から生成→学習→参照固定→空損失収集を実旧の順序/RNGで組み立てる。開始/拒否/継続更新と観測172条件、exact注入226条件、fresh新CPUを検証。commit8cbf2ceで全7266passed/3skipped/2warnings、旧11・最終3golden/品質成功。別fresh GPT-6 Lunaのfeature最終GO、completed。次は候補検証sessionの進行と記録。active session設定・検出・切出し・採否/登録の組立、新client/全体runは後続。承認の正本は同specのspec.json、入口はresume.md。
 
-- `candidate-epoch-training`を完了。要求revision2・設計revision1・命名revision7・tasks revision1、全5task承認、別fresh GPT-6 Lunaのfeature最終GO。固定エポック/検証損失早期停止/省略、0epoch/小区間/端数batch、parameterのみ復元、全状態/RNG/学習量を実旧と照合した。生成→学習→継続更新とexact依存境界も検証。commit66ac055で全6868passed/3skipped/2warnings、旧11・最終3goldenと品質検査成功。次はsession開始の組立。入口はresume.md、承認・進捗は同specのspec.json/tasks.mdが正本。
+- `candidate-epoch-training`を完了。要求revision2・設計revision1・命名revision7・tasks revision1、全5task承認、別fresh GPT-6 Lunaのfeature最終GO。固定エポック/検証損失早期停止/省略、0epoch/小区間/端数batch、parameterのみ復元、全状態/RNG/学習量を実旧と照合した。生成→学習→継続更新とexact依存境界も検証。commit66ac055で全6868passed/3skipped/2warnings、旧11・最終3goldenと品質検査成功。session開始から既存部品を再利用済み。入口はresume.md、承認・進捗は同specのspec.json/tasks.mdが正本。
 
 - `candidate-classifier-construction`を完了。要求/設計revision2・命名revision4・tasks revision2、全3tasks承認、別GPT-6 Lunaセッションでfeature最終GO。独立候補と専用optimizer生成、初期snapshot選択→3batch更新の実旧対照、exact依存境界を検証した。検証commit `ceb4336`で全6412passed/3skipped/2warnings、旧11・最終3goldenと品質検査成功。警報区間のepoch学習・early stopping・session開始、新client/全体runは後続。次は候補学習の仕様化、入口はresume.md。
 
