@@ -33,3 +33,9 @@ test-only接続、実装前REDは対象外。実NN2/4class×3optimizerの6条件
 代表6変異はstub47、件数判定反転27、開始時ID使用1、記録位置誤り25、追加RNG47、二重適用18のtest失敗を検出し、各exit1。元byte復元のSHA256は`52fac2754ad51f4a90e4dfbefe8869ccb95c15f229291171a26b24780b3e4610`。script/JSONはGit管理外validation_progress_mutation_evidence.py/validation-progress-mutation-evidence.json。復元後GREENを実測した。
 
 独立fresh CLI GPT-6 Luna session `01a11616-acfe-75a2-98c1-f68e5957c8f1`、起動ログmodel=gpt-6-luna、APPROVED。独立61passed/3.74s/exit0、Ruff/実diff/正本/変異証拠を確認、指摘なし。変異scriptの再実行はしていない。最終回答/ログはGit管理外progress-task3-review.md/.log。新たな旧不具合は実測していない。AST/fresh/fullは後続task。
+
+## Task4
+
+2moduleへexact注入106条件（進行82/判定24）を先行追加、RED52failed/54passed/1350deselected/0.22s/exit1。guard生成の初回は字下げの部分一致を2件として検出し、書込み前に停止（assert）。combinedも53failed/1464passed/6.35s/exit1を確認し、行頭を改行で固定した生成へ直した。exact guardをgeneric判定より前、ImportFrom symbol resolver/Import拒否の両一覧へ登録後、combined1517passed/4.93s/exit0。Ruff check/format/diff成功。既存部分のformatだけの変更はない。
+
+Git管理外validation_progress_cpu_smoke.pyをfresh CPUで実行、2/4classで実新start学習→非active→未到達→到達/確定→共同更新、固定参照不変・legacy/test importなしを確認。exit0。独立fresh CLI GPT-6 Luna session `01a1161c-0f1c-74a0-9aad-db52ebc15593`、起動ログmodel=gpt-6-luna、APPROVED。独立combined1517passed、fresh smoke両class成功、Ruff/diff成功、指摘なし。レビュー側は指定のcacheprovider無効化を付けず既存cache ACL warningが1件出たが、tests/smokeはいずれもexit0。REDは記録の確認であり独立再実行ではない。最終回答/ログはGit管理外progress-task4-review.md/.log。全回帰はTask5。

@@ -20,7 +20,7 @@
   - _Boundary: 開始と進行と確定の接続_
   - _Requirements: 1.3, 2.1, 2.2, 3.2_
 
-- [ ] 4. 依存境界と新CPUの進行を検証する
+- [x] 4. 依存境界と新CPUの進行を検証する
   - 2moduleのexact AST注入RED→guard/両resolver登録→GREENを記録する。
   - fresh新CPUで旧importなしの非active/未到達/到達と後続学習を確認する。
   - _Boundary: exact依存境界_
