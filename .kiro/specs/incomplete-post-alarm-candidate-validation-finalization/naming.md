@@ -1,4 +1,4 @@
-# 命名と役割 revision1
+# 命名と役割 revision2
 
 短さより役割・単位・時点を明確にする。通常の到達時resolutionと件数不足の終端finalizationを区別する。旧名aliasは作らない。
 
@@ -17,6 +17,7 @@
 | _validate_incomplete_validation_finalization_inputs | exact session/current assignment・処理件数・要求到達を吸収前検査 |
 | incomplete_validation_finalization | 返却した終端完了情報の局所値 |
 | finalization_arguments | 終端APIのkeyword入力dict、通常progress_argumentsとは別 |
+| finalization_module | testで吸収の呼出しを観測する終端runtime moduleの別名。旧解決や通常progress moduleとは区別 |
 
 proposal_sample_index/detector_name/candidate_training_interval_sample_count/validation_sample_countは既存と同義。validation_sample_countは実収集件数、学習件数とは別。decision_record/current_training_model_id/estimated_change_point_sample_index/detection_episode_id、validation_session/pending_assignment_sample_concept_idsと全owner引数・型/functionは既存公開名を同義再利用する。current_training_model_idは終了処理を呼んだ時点のIDで開始時IDではない。
 
@@ -35,3 +36,5 @@ proposal_sample_index/detector_name/candidate_training_interval_sample_count/val
 - incomplete_validation_finalization_cpu_smoke.py / incomplete_validation_finalization_mutation_evidence.py: Git管理外fresh/変異証拠script。
 
 既存test helperのbuild_validation_progress_oracle/build_session_start_oracle/build_fixation_oracle/make_acceptance_settings/begin_candidate_validation_session_in_legacy_client/assert_started_session_matches_legacy、snapshot_adoption_state/assert_adoption_state_unchanged、既存parameter/grad/optimizer/統計/標本/計数/RNG照合、monkeypatch等は同義再利用する。observed_validation_sample_countはtest matrixの収集件数、processed_sample_countは終端までの全処理件数。新名が必要ならコード追加前にrevisionを増やして独立レビューする。
+
+InputSubclassはsession-start命名承認済みの『exact境界へ渡す派生入力型』を同義再利用するtest局所型名。公開APIではない。

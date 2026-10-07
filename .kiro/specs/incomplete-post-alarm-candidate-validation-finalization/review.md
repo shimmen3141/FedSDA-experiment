@@ -34,3 +34,15 @@ CLIログ/出力はroot venv/refactoring-testsの`incomplete-finalization-requir
 - 不足recordと指定testだけを追加。source前REDはModuleNotFoundError/1collectionerror/3.46s/exit2、実装後7passed/4.09s/exit0。主担当の現在byteでの再実行7passed/3.50s/exit0、Ruff/diff成功。
 - 独立fresh CLI GPT-6 LunaはAPPROVED。自分で対象7passed/6.74s/exit0・Ruff成功、5必須frozen/kw_only fields/位置差/実旧記録/NaNと理由のtest内対応/dataclasses限定/全承認hashを確認。阻害指摘なし。実sessionはspec.json、ログはroot venv/refactoring-tests/incomplete-finalization-task1-review.{log,md}。
 - verify-completionのTask claimは現在byteの対象テスト・独立レビュー・境界でVERIFIED。runtime/全suiteはこのtaskの保証外。
+
+## Task2レビュー前の命名補完
+
+実装の照合でtest module別名`finalization_module`がr1表から漏れていることを主担当が発見した。機能API・役割に変更はないが、コード前の記録が不足したため命名r2へ追加し、編集を止めて独立Luna命名レビューへ戻す。既存の派生入力型名InputSubclassはsession-startの承認済み同義再利用であることも明記した。命名の補完を承認されるまでTask2を完了扱いせず、後続実装へ進めない。
+
+命名r2はfresh CLI GPT-6 LunaでAPPROVED。LF SHA256=`7346a523b478f105c5bb714a53b6b823a70500f0c135aa854598afb072a1fa0d`。終端runtimeと通常resolution/旧moduleの区別、InputSubclassの同義再利用を確認。別名追加前の承認があったと読み替えず、独立したTask2レビューを維持する。実sessionはspec.jsonへ記録。
+
+## Task2
+
+missing runtime REDは1collectionerror/2.27s/exit2。GREENは60passed/4.24s/exit0、主担当60passed/5.01s/exit0・Ruff/diff成功。12正常（2/4class×観測0/1/3×保留0/3）、現在ID変更2、37拒否、非active、不変返却とTask1維持。公開実件数の共有、位置clamp、現行ID回収、既存吸収への委譲、候補/参照/optimizer/collection/全owner/RNG保持を確認。
+
+独立fresh CLI GPT-6 LunaはAPPROVED。自分で60passed/4.95s/exit0、Ruff check/format2files成功。実旧判定/event・後半不正の状態保持・37拒否・no-session他入力未読・具体依存/境界・命名補完の正確な来歴を確認、阻害指摘なし。実sessionはspec.json、ログはroot venv/refactoring-tests/incomplete-finalization-task2-review.{log,md}。verify-completionのTask claimはVERIFIED。実NN接続・AST/fresh CPU・全回帰は後続task。
