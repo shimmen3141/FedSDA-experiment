@@ -8,6 +8,252 @@ from pathlib import Path
 import pytest
 
 
+# BEGIN alarm_change_interval_resolution dependency contract
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        *[
+            (source_text, expected_acceptance)
+            for imported_module_name in (
+                "dataclasses.dataclass",
+                "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
+                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+            )
+            for source_text, expected_acceptance in (
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]}",
+                    True,
+                ),
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]} as AcceptedDependency",
+                    True,
+                ),
+                (f"import {imported_module_name.rsplit('.', 1)[0]}", False),
+                (f"import {imported_module_name.rsplit('.', 1)[0]} as AcceptedDependency", False),
+                (f"import {imported_module_name}", False),
+                (f"import {imported_module_name} as AcceptedDependency", False),
+                (f"from {imported_module_name.rsplit('.', 1)[0]} import _private", False),
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0]}.child import {imported_module_name.rsplit('.', 1)[1]}",
+                    False,
+                ),
+                (f"from {imported_module_name.rsplit('.', 1)[0]} import field", False),
+            )
+        ],
+        *[
+            (source_text, expected_acceptance)
+            for imported_module_name in (
+                "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
+                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+            )
+            for source_text, expected_acceptance in (
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0].replace('federated_learning_experiments.runtime.', '.').replace('federated_learning_experiments.', '..')} import {imported_module_name.rsplit('.', 1)[1]}",
+                    True,
+                ),
+                (
+                    f"from {imported_module_name.rsplit('.', 2)[0]} import {imported_module_name.rsplit('.', 2)[1]}",
+                    False,
+                ),
+            )
+        ],
+        (
+            "from math import isfinite",
+            False,
+        ),
+        (
+            "from random import Random",
+            False,
+        ),
+        (
+            "from torch import no_grad",
+            False,
+        ),
+        (
+            "from torch import manual_seed",
+            False,
+        ),
+        (
+            "from torch import stack",
+            False,
+        ),
+        (
+            "from numpy import concatenate",
+            False,
+        ),
+        (
+            "from copy import deepcopy",
+            False,
+        ),
+        (
+            "from __future__ import annotations",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        (
+            "from federated_drift_experiment import config",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import _validate_absorption_inputs",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import _validate_post_alarm_candidate_validation_start_inputs",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import advance_post_alarm_candidate_validation",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import finalize_incomplete_post_alarm_candidate_validation",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.adopted_candidate_local_adoption import adopt_candidate_as_current_training_model",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment import assess_alarm_interval_model_reuse",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_alarm_interval_reuse_baseline_mean_loss",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingState",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training import HeldModelTrainingStateRegistry",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime import alarm_interval_model_reuse_assessment",
+            False,
+        ),
+        (
+            "from torch import Tensor",
+            False,
+        ),
+        (
+            "from torch import cat",
+            False,
+        ),
+        (
+            "from torch import float32",
+            False,
+        ),
+        (
+            "from torch import strided",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import SgdParameterOptimizerSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import CandidateParameterInitializationSettings",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment import evaluate_held_models_for_alarm_interval_reuse",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import start_post_alarm_candidate_validation_session",
+            False,
+        ),
+    ],
+)
+def test_alarm_change_interval_resolution_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="runtime/alarm_change_interval_resolution.py",
+        source_text=source_text,
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+# END alarm_change_interval_resolution dependency contract
 @pytest.mark.parametrize(
     "source_text,expected_acceptance",
     [
@@ -706,6 +952,13 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "runtime/alarm_change_interval_resolution.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
+            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+        )
     if source_module_path == "runtime/alarm_interval_model_reuse_assessment.py":
         return imported_module_name in (
             "math.isfinite",
@@ -1471,6 +1724,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
             "runtime/alarm_interval_model_reuse_assessment.py",
             "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
+            "runtime/alarm_change_interval_resolution.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -1512,6 +1766,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
                     "runtime/alarm_interval_model_reuse_assessment.py",
                     "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
+                    "runtime/alarm_change_interval_resolution.py",
                 )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(
