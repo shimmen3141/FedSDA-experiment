@@ -1,4 +1,4 @@
-# 命名と役割 revision4
+# 命名と役割 revision5
 
 ## Source
 
@@ -109,3 +109,35 @@ revision3までの表は変更していない。主担当がTask 2のtestをリ�
 | validation_samples / sample_offset / legacy_reference_model | test local（Task 3） | 開始後の実観測に使う標本（位置, 特徴, ラベル）と番号、実旧の参照モデル。前specのtestと同名同義 |
 
 上流testから同義で再利用するhelperの追加: build_session_start_oracle（session開始の設定と旧configの差し替えを含む実NN oracle。標本と計数の新ownerは、このoracleが実旧clientへ置いた内容を同じobject・同じ順で写して作る）、assert_candidate_epoch_training_matches_legacy、assert_fixed_references_match_legacy、assert_held_model_states_match_legacy、assert_collected_losses_match_legacy。r3で挙げたbuild_fixation_oracleとassert_started_session_matches_legacyは使わない（後者は区間のTensorが旧と同一objectであることを要求するが、本specは区間を新しく連結するため、同じ内容を個別に照合する）。
+
+## 追加 revision5（Task 1/2のtestの未登録名の事後登録と、Task 3のtestで使う名前の事前登録）
+
+revision4までの表は変更していない。sourceに新しい名前はない。
+
+### 事後登録（Task 1/2のtestに既にある名前。独立レビューが未登録と指摘した）
+
+commit 1f6fd4a・55a3b92のtestに、登録していない局所名が6つあった。Task 2のtestは下書きから名前を洗い出して登録したが、次の名前を見落とした。登録が後になった手順逸脱として記録する。
+
+| 名前 | 種別 | 役割 |
+| --- | --- | --- |
+| session_start_arguments | test local | 上流build_session_start_oracleの戻り値（session開始の引数dict）。oracle内で、開始だけに使う入力と所有者を取り出す。上流と同名同義 |
+| state / previous_state | test local | 保有状態の1件と、記録時の対応する1件。上流・前specのtestと同名同義 |
+| mean_loss | test local | 実測の区間平均の1値。前specと同名同義 |
+| legacy_model | test local | 実旧の保有モデルの1件。前specのtestと同名同義 |
+| expected_started_validation_session | test local | record testで、結果種別ごとにstarted_validation_sessionへ入れて保持を確かめる値（開始以外ではNone） |
+| invalid_case（record testでの使い方） | test local | 登録済みの「拒否入力の条件名」に加え、record testでは正式値以外の結果種別そのものを指す |
+| field_value（record testでの使い方） | test local | 登録済みの「不正値」に加え、record testではtraining_model_assignment_changeへ入れる値を指す |
+
+### 事前登録（Task 3のtest。リポジトリ外の下書きから洗い出した）
+
+| 名前 | 種別 | 役割 |
+| --- | --- | --- |
+| record_operation_callの引数 operation_name / operation | 関数の引数 | 記録する部品名と、包む元の部品（関数またはmethod） |
+| recorded_operation | record_operation_callが返す関数 | 呼出しをoperation_callsへ（部品名, keyword引数）として記録してから、元の部品をそのまま呼んで戻り値を返すwrapper。選択や判定を行わない |
+| operation_arguments / operation_keyword_arguments | recorded_operationの可変引数 | 元の部品へそのまま渡す位置引数とkeyword引数。後者をoperation_callsへ記録する |
+| training_batch | test local | participating_training_batchesの1件。上流の吸収testと同名同義 |
+| random_states（local） | test local | 解決直前の3乱数状態。state_snapshotの同名keyと同義 |
+| test_alarm_change_interval_resolution_observes_samples_after_started_validation_like_legacy | test | 候補検証開始の後、実観測の損失と到達判定が実旧と一致することを確かめる（tasksのTask 3「候補検証開始の後は、実観測の損失が実旧と一致する」）。共同学習の継続testとは別関数にする。独立レビューの提案で、他のtest名と同じ接頭辞にした |
+| losses | test local | 実旧の1参照モデルぶんの損失の列。上流のsession開始testと同名同義（事後登録） |
+
+条件名（pytestのparametrize idになる文字列）は、ALARM_INTERVAL_RESOLUTION_CASES、INVALID_COMMON_INPUT_CASES、INVALID_START_ONLY_INPUT_CASESの各dictのkeyとして定義する。test側のdictが正本で、keyの追加は同じファイル内で完結するので、個別には本表へ列挙しない。旧の再利用計数のkey（alternative_fit、current_fit）は旧実装側の名前で、testの照合にだけ使う。

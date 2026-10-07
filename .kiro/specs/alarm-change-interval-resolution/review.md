@@ -52,3 +52,32 @@ Task 2: test先行。testはリポジトリ外で下書きして命名r4を登�
 - 対象Pyrightが1件指摘した。既存の初期値選択の戻り値型は`dict | None`で、session開始は`dict`を要求する。保有モデルが1件以上あれば初期値選択はNoneを返さないが、型上の分岐を明示し、Noneの場合はLookupErrorで拒否する3行を加えた（到達しない分岐。設計の手順5に挙動の変更はない）。対象Pyrightは0 errors。
 - 実source変異22種のうち初回は21種を検出。未検出は「標本の1行検査の削除」で、拒否testの2行標本が特徴とラベルを同時に2行にしていたため、ラベルの形状検査が先に拒否していた。特徴だけ2行の条件（sample_two_feature_rows_with_one_label）をtestへ追加し、22/22検出。元byteの復元と復元後の全対象passedを確認。productionは無変更。対象は184、依存境界＋対象で2200 passed。
 - 全分岐のtestが初回からGREENだったため、上の変異で検出力を確認した（分岐条件、吸収先、切替の欠落、吸収の欠落、概念ID、標本順、連結順、結果種別、初期値選択へ渡す候補列、保留標本、候補検証開始での吸収、余分な乱数、位置情報、各事前検査、IMPROVE-001相当の現行優先への変更）。
+
+## Task 1/2の独立レビュー
+
+Lunaの利用上限が続いているため、別の独立Agent（model指定sonnet、agent id `ab9af2fcc6571e43e`、対象HEAD 55a3b92、ファイル変更なし）がレビューし、Task 1 APPROVED、Task 2 APPROVED。Blocker/Majorなし、Minor 5件。レビュー担当はpytest・Ruff・Pyrightを実行していない（主担当の実測で判定）。設計の処理1〜6との一致、旧_resolve_driftとの分岐条件・吸収先・候補列・session開始引数の一致、許可依存24件とsourceのimport・guard3か所の一致、test helperが実旧の吸収・帰属切替・初期値選択・session開始・候補学習を差し替えずに実行していること、oracleが新旧へ同じ状態を与えていること、到達しないLookupError分岐の許容を、行番号つきで確認した。Minorの採否:
+
+- M1「先頭標本のndim検査がtestされていない（1次元の標本は2件目だけ差し替えていた）」→ 採用。先頭標本が1次元・0次元の条件を追加した。
+- M2「device/layout/is_nestedの分岐と、ObservedTrainingSampleのsubclassのtestがない」→ 一部採用。sparse layoutの特徴と、ObservedTrainingSampleのsubclass instanceの条件を追加した。CPU以外のdeviceとnested Tensorは、この基準環境で用意していないため未検証のまま（保証範囲へ記載する）。
+- M3「成功時に区間評価がちょうど1回・連結値で呼ばれることと、吸収→切替の順序を直接検証していない」→ tasksでTask 3へ分けた項目。Task 3の呼出し順testで検証する。
+- M4「差が許容増加量ちょうどの場合と、区間が1標本の場合がない」→ 不採用（追加しない）。等値の境界は上流の区間評価のtestが実旧と照合済みで、本specは評価結果の選択IDだけを使う。1標本の区間は、候補の学習（検証分割）を含む上流のsession開始の入力条件に依存し、本specの組立は標本数で分岐しない。未検証として保証範囲へ記載する。
+- M5「開始だけの入力のtestで、proposal_sample_indexを差し替えたときに旧のlocal_switch_positionsを書き換えており、照合が同語反復になる」→ 採用。引数dictを書き換えず、不正値を呼出し時だけ上書きして渡すようにした。旧の状態は書き換えない。
+- 未登録の局所名6つと2つの使い方 → 命名r5へ事後登録した（下記）。
+
+## 命名r5
+
+(A) Task 1/2のtestにあった未登録名の事後登録と、(B) Task 3のtestで使う名前の事前登録。独立Agent（sonnet、`ae48502d8c91f73d4`）がAPPROVED（Blocker/Majorなし）。レビュー時のLF hash=d0695c6f721f155d00c6fc6415268edda2775b5761c38bacdc1f31199b844c8a。レビュー担当は現在のtestファイルをASTで洗い出してnaming.md全文と照合し、識別子としての未登録は`losses`の1件だけと報告した。
+
+- Minor「Task 3の観測testの名前が他のtest名の接頭辞と違う」→ 採用。test_alarm_change_interval_resolution_observes_samples_after_started_validation_like_legacyへ変更した。
+- Minor「lossesと、条件名のdict keyが未登録」→ lossesを登録し、条件名はtest側のdictが正本で個別に列挙しないという規則を1段落で書いた。
+- 上の2点を反映した後のLF hash=1b71690b3cc673a77d6ee0978c86acd2ffd556af400ac82b0c15c7f2bc5f38e1。レビュー担当が見た内容との差は、test名1つの変更・losses行の追加・条件名の規則の段落。
+
+手順逸脱の記録: Task 2のtestは下書きから名前を洗い出して事前登録したが、7つ（session_start_arguments、state、previous_state、mean_loss、legacy_model、expected_started_validation_session、losses）を見落とし、事後登録になった。次からは、下書きをASTで洗い出して命名表と機械的に照合する。
+
+## Task 3の実施記録と停止地点（2026-10-08）
+
+Task 1/2のレビューのMinor（M1・M2の一部・M5）をtestへ反映し、Task 3のtest（呼出し順、解決後の共同学習の継続、候補検証開始後の実観測）を追加した。Task 3はtest-onlyで、追加時点で実装があるため初回からGREEN。対象241 passed（Task 2までの184＋拒否条件4種×3分岐の12＋呼出し順3＋共同学習の継続36＋実観測6）。Ruff成功。productionは無変更（runtimeのLF sha256はd904b786db0d1d60365d707ee62e16d57e2ebd3a2e1d0f31b0f59770ba7da1a7のまま）。
+
+検出力: 実source変異を25種へ増やし（区間評価を2回呼ぶ、切替えを吸収より先に行う、保有モデルのsnapshotを逆順に取る、を追加）、対象test全体で25/25検出、各変異後に元byteへ復元、復元後241 passed。Task 3のtestだけ（呼出し順・共同学習の継続・実観測）を実行した場合は25種のうち17種を検出した（残りは事前検査とrecordに関する変異で、Task 1/2のtestが検出する）。
+
+ユーザー指示により、Task 3のcommit後に停止した。Task 3の独立レビューは未依頼。Task 4（fresh新CPU、guardとsourceのimportの最終照合）、Task 5（全pytestと証拠）、feature最終レビューは未着手。全pytestはこのspecではまだ実行していない（実行したのは対象testと依存境界testだけ）。

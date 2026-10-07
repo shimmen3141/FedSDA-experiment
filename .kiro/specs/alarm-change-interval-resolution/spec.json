@@ -3,7 +3,7 @@
   "created_at": "2026-10-08",
   "updated_at": "2026-10-08",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -34,17 +34,18 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 4,
-      "draft_sha256_lf": "2f2466c4422ffbb4f274483d1af3a9f24aa7f8b8b7ddb2fbed873a0d666419f2",
-      "approved_revision": 4,
-      "generated_sha256_lf": "2f2466c4422ffbb4f274483d1af3a9f24aa7f8b8b7ddb2fbed873a0d666419f2",
-      "approved_sha256_lf": "2f2466c4422ffbb4f274483d1af3a9f24aa7f8b8b7ddb2fbed873a0d666419f2",
+      "revision": 5,
+      "draft_sha256_lf": "1b71690b3cc673a77d6ee0978c86acd2ffd556af400ac82b0c15c7f2bc5f38e1",
+      "approved_revision": 5,
+      "generated_sha256_lf": "1b71690b3cc673a77d6ee0978c86acd2ffd556af400ac82b0c15c7f2bc5f38e1",
+      "approved_sha256_lf": "1b71690b3cc673a77d6ee0978c86acd2ffd556af400ac82b0c15c7f2bc5f38e1",
       "reviewer": "claude-sonnet (independent Agent, Luna fallback)",
       "reviewer_session": "agent ae48502d8c91f73d4",
       "fallback_reason": "codex_usage_limit_until_0508_2026-10-08",
       "review_record": "review.md",
       "previous_approved_revision3_sha256_lf": "98b8b3d767a56fd0c29d11a361582a76c869013058153f02ef18172d5a3af6c1",
-      "reviewed_sha256_lf_before_wording_fix": "e981236826178f99af872d3e57d30ff4be706dbd27b5b5d8e255ba1aaee4486d"
+      "reviewed_sha256_lf_before_wording_fix": "d0695c6f721f155d00c6fc6415268edda2775b5761c38bacdc1f31199b844c8a",
+      "previous_approved_revision4_sha256_lf": "2f2466c4422ffbb4f274483d1af3a9f24aa7f8b8b7ddb2fbed873a0d666419f2"
     },
     "tasks": {
       "generated": true,
@@ -66,9 +67,38 @@
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
+    "completed_tasks": [
+      "1",
+      "2"
+    ],
+    "completed_task_count": 2,
     "total_executable_tasks": 5,
-    "next_task": "1"
+    "next_task": "3",
+    "note": "Task 3はtestを追加してcommit済みだが独立レビュー未依頼。承認後に完了扱いにする"
+  },
+  "task_reviews": {
+    "1": {
+      "verdict": "APPROVED",
+      "reviewer": "claude-sonnet (independent Agent, Luna fallback)",
+      "reviewer_session": "agent ab9af2fcc6571e43e",
+      "reviewed_commit": "55a3b92",
+      "reviewer_ran_tests": false
+    },
+    "2": {
+      "verdict": "APPROVED",
+      "reviewer": "claude-sonnet (independent Agent, Luna fallback)",
+      "reviewer_session": "agent ab9af2fcc6571e43e",
+      "reviewed_commit": "55a3b92",
+      "reviewer_ran_tests": false,
+      "minor_findings_adopted_after_review": true
+    }
+  },
+  "handoff": {
+    "execution_status": "stopped_at_user_request",
+    "completed_unit": "task_3_tests_committed_awaiting_independent_review",
+    "next_step": "independent_review_of_task_3_then_task_4_fresh_cpu_smoke_then_task_5_full_regression_then_fresh_feature_final_review",
+    "implementation_started": true,
+    "tests_run": true,
+    "full_pytest_run_for_this_spec": false
   }
 }
