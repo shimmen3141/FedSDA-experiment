@@ -1,0 +1,16 @@
+# 調査と設計判断
+
+## 発見済みの契約
+
+- 旧clients/fedsda.py::finalize_incomplete_forward_validationはactiveなしでreturn、位置max(proposal_position, processed_samples−1)、件数不足の判定record、現行モデルへの_absorb_into_store、棄却適応event、active解除。切替・episode操作・_on_drift_resolutionは呼ばない。
+- 通常のPostAlarmCandidateLossEvaluationは検証平均と比較参照を必須とする。件数不足0/1件を通常評価へ渡さず、別の不変記録へmetadataと観測件数だけを保持する。不存在の値を偽の評価で埋めない。
+- 既存absorb_assigned_training_samples_into_held_modelは全owner/標本/概念IDと全損失を状態変更前に検査し、標本→割当概念→損失統計へ吸収する。空保留でもownerと現行モデルを検査する。計算/数値式と拒否の保証を再実装しない。
+- PostAlarmCandidateValidationSessionとcollection公開snapshotを再利用。通常進行を変更せず、active/list/通知/episodeの所有は呼出側に残す。返却後に呼出側がsessionを外すため、同sessionを再投入して二重回収しないことは呼出側の責任。
+
+## Discovery / Synthesis
+
+既存部品へのextensionとしてlight discoveryを採用。kiro-spec-init/requirements/design、共通方針・steeringと現コードを参照。新しい外部依存・新ライブラリはない。既存の吸収を採用し、終端の位置と不足情報にだけ新実装を限定する。通常recordをoptional評価へ一般化すると完成済み上流契約を弱めるため、独立した不足recordにする。公開結果を入力APIとして検査する抽象層は作らない。
+
+旧のready sessionは通常経路で確定して解除される。本APIは不足専用なのでreadyを回収しない。これは正常経路を変えず、誤投入を事前拒否する契約。新たな旧不具合はまだ実測していない。実旧終端oracleの実行可能性は実装前に確認する。
+
+要求draftのnumeric ID/EARS・境界・異常系をrequirements review gateで確認して保存した。設計は要求の独立承認後に生成する。

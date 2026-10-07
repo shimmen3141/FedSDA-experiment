@@ -1,0 +1,37 @@
+# 命名と役割 revision1
+
+短さより役割・単位・時点を明確にする。通常の到達時resolutionと件数不足の終端finalizationを区別する。旧名aliasは作らない。
+
+## Source
+
+| 名前 | 役割・型・更新 |
+| --- | --- |
+| incomplete_post_alarm_candidate_validation_decision_record.py | methodsの比較不成立の不変診断 |
+| IncompletePostAlarmCandidateValidationDecisionRecord | 件数不足で棄却したことを型で表す、全必須frozen/kw_only |
+| incomplete_post_alarm_candidate_validation_finalization.py | 件数不足の終端回収runtime |
+| IncompletePostAlarmCandidateValidationFinalization | 吸収成功後の記録・現行ID・metadata、不変返却 |
+| finalize_incomplete_post_alarm_candidate_validation | optional sessionから保留標本を現行IDへ吸収し完了/Noneを返す |
+| finalization_sample_index | max(提案位置, processed_sample_count−1)、0始まり標本位置 |
+| finalization_delay_sample_count | 確定−提案、標本位置差 |
+| processed_sample_count | stream開始から終端までに処理した全件数、最後の位置ではない |
+| _validate_incomplete_validation_finalization_inputs | exact session/current assignment・処理件数・要求到達を吸収前検査 |
+| incomplete_validation_finalization | 返却した終端完了情報の局所値 |
+| finalization_arguments | 終端APIのkeyword入力dict、通常progress_argumentsとは別 |
+
+proposal_sample_index/detector_name/candidate_training_interval_sample_count/validation_sample_countは既存と同義。validation_sample_countは実収集件数、学習件数とは別。decision_record/current_training_model_id/estimated_change_point_sample_index/detection_episode_id、validation_session/pending_assignment_sample_concept_idsと全owner引数・型/functionは既存公開名を同義再利用する。current_training_model_idは終了処理を呼んだ時点のIDで開始時IDではない。
+
+局所collection_state_snapshot、decision_record、training_sample、observed_concept_id、state_owner/owner_name/expected_owner_type、specified_value/parameter_name、sample_index/class_count/pending_sample_count/optimizer_variant/invalid_case/field_name/field_value/initial_rng_state/expected_rng_state/source_textは既存同義。永続する状態変数は新設しない。
+
+## Tests / Evidence
+
+- test_incomplete_post_alarm_candidate_validation_finalization.py: 本specの直接対照/拒否/接続。
+- build_incomplete_validation_finalization_oracle: 上流の既存開始済みoracleを収集0〜未満と終端APIへ結合。
+- assert_incomplete_validation_finalization_matches_legacy: 実旧不足判定/適応event/全状態との照合。
+- test_incomplete_validation_decision_record_matches_legacy / test_incomplete_validation_decision_record_is_immutable: 不変record/導出値/keyword限定。
+- test_incomplete_validation_finalization_matches_legacy / test_incomplete_validation_finalization_without_session_is_noop: 実旧正常/非active。
+- test_incomplete_validation_finalization_rejects_before_absorption / test_incomplete_validation_finalization_result_is_immutable: 状態保持/返却不変。
+- test_incomplete_validation_finalization_uses_current_training_model / test_incomplete_validation_finalization_connects_actual_training: 現在ID変更/実学習接続。
+- test_incomplete_validation_finalization_dependency_contract / test_incomplete_validation_decision_record_dependency_contract: exact依存。
+- incomplete_validation_finalization_cpu_smoke.py / incomplete_validation_finalization_mutation_evidence.py: Git管理外fresh/変異証拠script。
+
+既存test helperのbuild_validation_progress_oracle/build_session_start_oracle/build_fixation_oracle/make_acceptance_settings/begin_candidate_validation_session_in_legacy_client/assert_started_session_matches_legacy、snapshot_adoption_state/assert_adoption_state_unchanged、既存parameter/grad/optimizer/統計/標本/計数/RNG照合、monkeypatch等は同義再利用する。observed_validation_sample_countはtest matrixの収集件数、processed_sample_countは終端までの全処理件数。新名が必要ならコード追加前にrevisionを増やして独立レビューする。

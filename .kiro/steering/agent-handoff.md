@@ -90,6 +90,7 @@ codex execのWindows sandboxでは、pytestの一時ディレクトリ走査と�
   未検証の成功や未レビューの承認を記録しない。spec.jsonの既存構造を守り、別台帳を増やさない。
 - 許可済みのcommit/pushは対象ファイルを明示し、日本語メッセージ・AI coauthorなしで行う。
   commit後にGit状態とpush結果を確認する。保留資料を自動でstageしない。
+- 2026-10-08ユーザー指示: GitHub障害時はtaskごとに通常pushを1回試す。失敗の原因探索・連続再試行はせず、次taskのpush成功時にそのブランチの未送信commitも送る。
 
 ### 次の主担当への開始依頼
 
