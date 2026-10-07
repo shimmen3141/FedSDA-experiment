@@ -1,4 +1,4 @@
-# 命名と役割 revision2
+# 命名と役割 revision4
 
 ## Source/API
 
@@ -50,3 +50,14 @@ class_count/optimizer_variant/candidate_training_strategy/maximum_epoch_count/in
 - test_session_start_preserves_optional_metadata_and_empty_pending_samples: 未推定位置/未採番episode、空保留、負の一時model IDの旧対照。
 - test_session_start_retains_historical_mean_losses: 既存4統計caseの履歴平均/除外条件を旧対照。
 - consecutive_non_improving_epoch_limit/minimum_validation_loss_decrease、held_model_ids/statistics_case/statistics_by_model_id/adoption_arguments/fixation_arguments/shared_optimizer_owners/legacy_client/training_tensorは既存epoch設定・fixation oracle・Tensor検査の同義で再利用する。
+
+## Task2追加名
+
+- field_name / field_value: test内で改変するmetadata/設定の項目名と不正値。汎用の小変数として同じ局所scopeの対象を表す。expected_exceptionは既存testと同義の例外型。
+- session_start_mutation_evidence.py: Git管理外の一時検証script。4変異を子pytestで検出し、source byte/hashを必ず復元する。
+- original_source_bytes / original_source_sha256: 差替え前の実source byteとSHA256。
+- mutation_name / mutated_source_text: 変異種別名と差替えるsource本文。
+- mutation_results / test_process_result: 変異別の結果一覧と実pytest子process結果（exit/output）。
+- restored_source_sha256: 元byteへ戻したsource hash。同一性の証拠。
+
+Task2の動的fixture型名InputSubclass/IntSubclass/TupleSubclass/SampleSubclassは、入力ownerまたは設定/builtin int/保留tuple/ObservedTrainingSampleの派生型を作りexact型拒否を確認するためのtest局所名。公開APIではない。型名を文字列で作る場合もレビュー対象として記録する。

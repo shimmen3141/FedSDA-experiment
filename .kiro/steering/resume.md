@@ -8,7 +8,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
-- 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の要求r2・設計r2・命名r1・tasks r1がLuna承認済み。5tasksのgraph sanity PASS、Task1開始runtimeへ着手。候補のエポック学習と候補生成はcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
+- 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の要求r2・設計r2・命名r2・tasks r1がLuna承認済み。5tasksのgraph sanity PASS、Task1開始runtimeは別Luna承認で完了（54passed）、Task2拒否時不変を検証中。全回帰はTask5。候補のエポック学習と候補生成はcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
 - 直近の検証済み実装commit: `66ac055`。全pytest 6868 passed/3 skipped/2warnings（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。
 - 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
   1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。

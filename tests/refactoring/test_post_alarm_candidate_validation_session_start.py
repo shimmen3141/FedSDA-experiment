@@ -3,6 +3,7 @@
 import random
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import FrozenInstanceError, fields
 from unittest.mock import patch
 
 import numpy as np
@@ -27,6 +28,9 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
 )
 from federated_learning_experiments.learning.training.candidate_epoch_training_settings import (
     CandidateEpochTrainingSettings,
+)
+from federated_learning_experiments.learning.training.model_training_sample_records import (
+    ObservedTrainingSample,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
@@ -445,4 +449,439 @@ def test_session_start_preserves_optional_metadata_and_empty_pending_samples(
             legacy_client=legacy_client,
             legacy_epoch_training_calls=legacy_epoch_training_calls,
             session_start_arguments=session_start_arguments,
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_case,field_value,expected_exception",
+    [
+        ("valid", None, None),
+        ("skip_grad_disabled", None, None),
+        ("epoch_zero_grad_disabled", None, None),
+    ]
+    + [
+        (field_name, field_value, expected_exception)
+        for field_name, field_value, expected_exception in (
+            ("proposal_sample_index", True, TypeError),
+            ("proposal_sample_index", np.int64(40), TypeError),
+            ("proposal_sample_index", type("IntSubclass", (int,), {})(40), TypeError),
+            ("proposal_sample_index", -1, ValueError),
+            ("estimated_change_point_sample_index", False, TypeError),
+            ("estimated_change_point_sample_index", 35.0, TypeError),
+            ("estimated_change_point_sample_index", -1, ValueError),
+            ("estimated_change_point_sample_index", 41, ValueError),
+            ("detection_episode_id", True, TypeError),
+            ("detection_episode_id", 7.0, TypeError),
+            ("detection_episode_id", -1, ValueError),
+            ("detector_name", None, TypeError),
+            ("detector_name", type("StrSubclass", (str,), {})("detector"), TypeError),
+            ("detector_name", " \t\n", ValueError),
+            ("candidate_epoch_training_settings", object(), TypeError),
+            ("candidate_model_training_and_acceptance_settings", object(), TypeError),
+            ("held_model_training_state_registry", object(), TypeError),
+            ("loss_statistics_store", object(), TypeError),
+            ("current_training_model_assignment", object(), TypeError),
+            ("parameter_optimizer_settings", object(), TypeError),
+            ("initial_candidate_parameter_snapshot", [], TypeError),
+            ("architecture_reference_classifier", object(), TypeError),
+            ("epoch:candidate_training_strategy", "invalid", ValueError),
+            ("epoch:maximum_epoch_count", -1, ValueError),
+            ("epoch:maximum_batch_sample_count", 0, ValueError),
+            ("epoch:validation_sample_fraction", 1.0, ValueError),
+            ("epoch:consecutive_non_improving_epoch_limit", 0, ValueError),
+            ("epoch:minimum_validation_loss_decrease", -1.0, ValueError),
+            ("acceptance:candidate_model_acceptance_policy", "invalid", ValueError),
+            ("acceptance:candidate_post_alarm_validation_sample_count", True, TypeError),
+            ("acceptance:candidate_post_alarm_validation_sample_count", 1, ValueError),
+            ("optimizer:learning_rate", float("nan"), ValueError),
+            ("optimizer:weight_decay", -1.0, ValueError),
+            ("optimizer:adam_variant", "invalid", ValueError),
+            ("sgd_learning_rate", -1.0, ValueError),
+            ("empty_registry", None, LookupError),
+            ("missing_assignment", None, LookupError),
+            ("held_dtype", None, ValueError),
+            ("held_nonfinite", None, ValueError),
+            ("held_input_width", None, ValueError),
+            ("held_class_count", None, ValueError),
+            ("reference_empty_features", None, ValueError),
+            ("reference_dtype", None, ValueError),
+            ("reference_nonfinite", None, ValueError),
+            ("snapshot_missing_key", None, ValueError),
+            ("snapshot_shape", None, ValueError),
+            ("snapshot_dtype", None, ValueError),
+            ("snapshot_nonfinite", None, ValueError),
+            ("snapshot_tensor_type", None, TypeError),
+            ("pending_container", None, TypeError),
+            ("pending_record", None, TypeError),
+            ("pending_tuple_subclass", None, TypeError),
+            ("pending_record_subclass", None, TypeError),
+            ("snapshot_dict_subclass", None, TypeError),
+            ("snapshot_key_subclass", None, TypeError),
+            ("pending_sample_count", None, ValueError),
+            ("statistics:observed_loss_count", -1, ValueError),
+            ("statistics:mean_loss", 2.0, ValueError),
+            ("statistics:sum_squared_loss_deviations", -1.0, ValueError),
+            ("grad_disabled", None, ValueError),
+        )
+    ]
+    + [
+        (f"subclass:{field_name}", None, TypeError)
+        for field_name in (
+            "candidate_epoch_training_settings",
+            "candidate_model_training_and_acceptance_settings",
+            "held_model_training_state_registry",
+            "loss_statistics_store",
+            "current_training_model_assignment",
+            "parameter_optimizer_settings",
+            "architecture_reference_classifier",
+        )
+    ]
+    + [
+        (f"{field_name}:{invalid_case}", None, expected_exception)
+        for field_name in (
+            "input_features",
+            "observed_class_labels",
+            "pending_features",
+            "pending_labels",
+        )
+        for invalid_case, expected_exception in (
+            ("type", TypeError),
+            ("dtype", ValueError),
+            ("device", ValueError),
+            ("sparse", ValueError),
+            ("nested", ValueError),
+            ("empty", ValueError),
+            ("ndim", ValueError),
+            ("shape", ValueError),
+            ("nonfinite", ValueError),
+        )
+    ]
+    + [
+        (f"{field_name}:{invalid_case}", None, ValueError)
+        for field_name in ("observed_class_labels", "pending_labels")
+        for invalid_case in ("fractional", "negative", "out_of_range")
+    ],
+)
+def test_session_start_rejects_before_mutation(
+    invalid_case, field_value, expected_exception, monkeypatch
+):
+    """各事前検査を通る前に、乱数消費と借用状態の変更を拒否する。"""
+    with torch.random.fork_rng(devices=[]):
+        session_start_arguments, shared_optimizer_owners, _ = build_session_start_oracle(
+            class_count=4, optimizer_variant="standard", monkeypatch=monkeypatch
+        )
+        registry = session_start_arguments["held_model_training_state_registry"]
+        loss_statistics_store = session_start_arguments["loss_statistics_store"]
+        current_training_model_assignment = session_start_arguments[
+            "current_training_model_assignment"
+        ]
+        architecture_reference_classifier = session_start_arguments[
+            "architecture_reference_classifier"
+        ]
+        held_model_training_states = registry.snapshot_ordered_held_model_training_states()
+        initial_candidate_parameter_snapshot = session_start_arguments[
+            "initial_candidate_parameter_snapshot"
+        ]
+        parameter_name = next(iter(initial_candidate_parameter_snapshot))
+        parameter_values = initial_candidate_parameter_snapshot[parameter_name]
+        if invalid_case in session_start_arguments:
+            session_start_arguments[invalid_case] = field_value
+        elif invalid_case.startswith("subclass:"):
+            field_name = invalid_case.removeprefix("subclass:")
+            field_value = type("InputSubclass", (type(session_start_arguments[field_name]),), {})
+            field_value = object.__new__(field_value)
+            field_value.__dict__.update(session_start_arguments[field_name].__dict__)
+            session_start_arguments[field_name] = field_value
+        elif invalid_case.startswith(("epoch:", "acceptance:", "optimizer:")):
+            object.__setattr__(
+                session_start_arguments[
+                    {
+                        "epoch": "candidate_epoch_training_settings",
+                        "acceptance": "candidate_model_training_and_acceptance_settings",
+                        "optimizer": "parameter_optimizer_settings",
+                    }[invalid_case.split(":")[0]]
+                ],
+                invalid_case.split(":")[1],
+                field_value,
+            )
+        elif invalid_case == "sgd_learning_rate":
+            session_start_arguments["parameter_optimizer_settings"] = SgdParameterOptimizerSettings(
+                learning_rate=0.01
+            )
+            object.__setattr__(
+                session_start_arguments["parameter_optimizer_settings"],
+                "learning_rate",
+                field_value,
+            )
+        elif invalid_case in ("skip_grad_disabled", "epoch_zero_grad_disabled"):
+            object.__setattr__(
+                session_start_arguments["candidate_epoch_training_settings"],
+                "candidate_training_strategy"
+                if invalid_case == "skip_grad_disabled"
+                else "maximum_epoch_count",
+                "skip_training" if invalid_case == "skip_grad_disabled" else 0,
+            )
+        elif invalid_case == "empty_registry":
+            session_start_arguments["held_model_training_state_registry"] = type(registry)()
+        elif invalid_case == "missing_assignment":
+            current_training_model_assignment.assign_model_for_training(model_id=999)
+        elif invalid_case in ("held_dtype", "reference_dtype"):
+            (
+                held_model_training_states[-1].classifier
+                if invalid_case == "held_dtype"
+                else architecture_reference_classifier
+            ).double()
+        elif invalid_case in ("held_nonfinite", "reference_nonfinite"):
+            with torch.no_grad():
+                next(
+                    (
+                        held_model_training_states[-1].classifier
+                        if invalid_case == "held_nonfinite"
+                        else architecture_reference_classifier
+                    ).parameters()
+                ).fill_(float("nan"))
+        elif invalid_case == "held_input_width":
+            held_model_training_states[-1].classifier.feature_extractor.input_feature_count = 3
+        elif invalid_case == "held_class_count":
+            held_model_training_states[-1].classifier.class_count = 2
+        elif invalid_case == "reference_empty_features":
+            architecture_reference_classifier = type(architecture_reference_classifier)(
+                model_architecture_settings=architecture_reference_classifier.model_architecture_settings,
+                input_feature_count=2,
+                hidden_layer_widths=(),
+                class_count=4,
+            )
+            session_start_arguments["architecture_reference_classifier"] = (
+                architecture_reference_classifier
+            )
+            session_start_arguments["initial_candidate_parameter_snapshot"] = (
+                snapshot_classifier_parameters(classifier=architecture_reference_classifier)
+            )
+        elif invalid_case.startswith("snapshot_"):
+            if invalid_case == "snapshot_missing_key":
+                del initial_candidate_parameter_snapshot[parameter_name]
+            elif invalid_case == "snapshot_dict_subclass":
+                session_start_arguments["initial_candidate_parameter_snapshot"] = type(
+                    "DictSubclass", (dict,), {}
+                )(initial_candidate_parameter_snapshot)
+            elif invalid_case == "snapshot_key_subclass":
+                initial_candidate_parameter_snapshot[
+                    type("StrSubclass", (str,), {})(parameter_name)
+                ] = initial_candidate_parameter_snapshot.pop(parameter_name)
+            else:
+                initial_candidate_parameter_snapshot[parameter_name] = {
+                    "snapshot_shape": lambda: parameter_values.flatten()[:1],
+                    "snapshot_dtype": lambda: parameter_values.double(),
+                    "snapshot_nonfinite": lambda: torch.full_like(parameter_values, float("inf")),
+                    "snapshot_tensor_type": lambda: torch.nn.Parameter(parameter_values.clone()),
+                }[invalid_case]()
+        elif invalid_case == "pending_container":
+            session_start_arguments["pending_assignment_training_samples"] = list(
+                session_start_arguments["pending_assignment_training_samples"]
+            )
+        elif invalid_case == "pending_record":
+            session_start_arguments["pending_assignment_training_samples"] = (object(),)
+        elif invalid_case == "pending_tuple_subclass":
+            session_start_arguments["pending_assignment_training_samples"] = type(
+                "TupleSubclass", (tuple,), {}
+            )(session_start_arguments["pending_assignment_training_samples"])
+        elif invalid_case == "pending_record_subclass":
+            training_sample = session_start_arguments["pending_assignment_training_samples"][0]
+            session_start_arguments["pending_assignment_training_samples"] = (
+                type("SampleSubclass", (ObservedTrainingSample,), {})(
+                    input_features=training_sample.input_features,
+                    observed_class_labels=training_sample.observed_class_labels,
+                ),
+            )
+        elif invalid_case == "pending_sample_count":
+            session_start_arguments["pending_assignment_training_samples"] = (
+                ObservedTrainingSample(
+                    input_features=torch.zeros(2, 2), observed_class_labels=torch.zeros(2, 1)
+                ),
+            )
+        elif invalid_case.startswith("statistics:"):
+            # 非公開破損は保証対象外。公開getによる再検査だけを補助的に観測するfixture。
+            object.__setattr__(
+                loss_statistics_store._model_loss_statistics_by_model_id[
+                    held_model_training_states[-1].model_id
+                ].overall_loss_moments,
+                invalid_case.split(":")[1],
+                field_value,
+            )
+        elif ":" in invalid_case:
+            field_name, invalid_case = invalid_case.split(":")
+            if field_name.startswith("pending_"):
+                training_sample = session_start_arguments["pending_assignment_training_samples"][0]
+                training_tensor = (
+                    training_sample.input_features
+                    if field_name == "pending_features"
+                    else training_sample.observed_class_labels
+                )
+            else:
+                training_tensor = session_start_arguments[field_name]
+            training_tensor = {
+                "type": lambda: torch.nn.Parameter(training_tensor.clone()),
+                "dtype": lambda: training_tensor.double(),
+                "device": lambda: training_tensor.to("meta"),
+                "sparse": lambda: training_tensor.to_sparse(),
+                "nested": lambda: torch.nested.nested_tensor([training_tensor]),
+                "empty": lambda: training_tensor[:0],
+                "ndim": lambda: training_tensor.flatten(),
+                "shape": lambda: torch.cat((training_tensor, training_tensor), dim=1),
+                "nonfinite": lambda: torch.full_like(training_tensor, float("nan")),
+                "fractional": lambda: torch.full_like(training_tensor, 0.5),
+                "negative": lambda: torch.full_like(training_tensor, -1),
+                "out_of_range": lambda: torch.full_like(training_tensor, 4),
+            }[invalid_case]()
+            if field_name.startswith("pending_"):
+                session_start_arguments["pending_assignment_training_samples"] = (
+                    ObservedTrainingSample(
+                        input_features=training_tensor
+                        if field_name == "pending_features"
+                        else training_sample.input_features,
+                        observed_class_labels=training_tensor
+                        if field_name == "pending_labels"
+                        else training_sample.observed_class_labels,
+                    ),
+                ) + session_start_arguments["pending_assignment_training_samples"][1:]
+            else:
+                session_start_arguments[field_name] = training_tensor
+        held_parameter_values_and_gradients = snapshot_parameter_values_and_gradients(
+            parameter
+            for state in held_model_training_states
+            for parameter in state.classifier.parameters()
+        )
+        held_optimizer_state_snapshots = tuple(
+            (owner, owner.parameter_optimizer, deepcopy(owner.parameter_optimizer.state_dict()))
+            for owner in tuple(
+                state.concept_specific_parameter_optimizer_state
+                for state in held_model_training_states
+            )
+            + tuple(shared_optimizer_owners)
+        )
+        loss_statistics_snapshot = deepcopy(loss_statistics_store.__dict__)
+        initial_training_model_id = current_training_model_assignment.current_training_model_id
+        session_input_tensor_values = snapshot_parameter_values_and_gradients(
+            (
+                session_start_arguments["input_features"],
+                session_start_arguments["observed_class_labels"],
+            )
+            + tuple(
+                parameter
+                for parameter in initial_candidate_parameter_snapshot.values()
+                if isinstance(parameter, torch.Tensor)
+            )
+            + tuple(
+                training_tensor
+                for training_sample in session_start_arguments[
+                    "pending_assignment_training_samples"
+                ]
+                if type(training_sample) is ObservedTrainingSample
+                for training_tensor in (
+                    training_sample.input_features,
+                    training_sample.observed_class_labels,
+                )
+            )
+            + tuple(architecture_reference_classifier.parameters())
+        )
+        initial_rng_state = torch.get_rng_state().clone()
+        other_random_states = (random.getstate(), np.random.get_state())
+        with torch.set_grad_enabled(not invalid_case.endswith("grad_disabled")):
+            if expected_exception is not None:
+                with pytest.raises(expected_exception):
+                    start_post_alarm_candidate_validation_session(**session_start_arguments)
+                assert torch.equal(torch.get_rng_state(), initial_rng_state)
+            else:
+                started_session = start_post_alarm_candidate_validation_session(
+                    **session_start_arguments
+                )
+                assert type(started_session) is PostAlarmCandidateValidationSession
+                assert tuple(parameter_name.name for parameter_name in fields(started_session)) == (
+                    "proposal_sample_index",
+                    "estimated_change_point_sample_index",
+                    "detection_episode_id",
+                    "detector_name",
+                    "initial_training_model_id",
+                    "candidate_training_state",
+                    "candidate_epoch_training_result",
+                    "training_input_features",
+                    "training_observed_class_labels",
+                    "pending_assignment_training_samples",
+                    "fixed_reference_models",
+                    "post_alarm_candidate_loss_collection",
+                )
+                assert all(parameter_name.kw_only for parameter_name in fields(started_session))
+                for parameter_name in fields(started_session):
+                    with pytest.raises(FrozenInstanceError):
+                        setattr(
+                            started_session,
+                            parameter_name.name,
+                            getattr(started_session, parameter_name.name),
+                        )
+                with pytest.raises(TypeError):
+                    PostAlarmCandidateValidationSession(
+                        *(
+                            getattr(started_session, parameter_name.name)
+                            for parameter_name in fields(started_session)
+                        )
+                    )
+                assert (
+                    started_session.training_input_features
+                    is session_start_arguments["input_features"]
+                )
+                assert (
+                    started_session.training_observed_class_labels
+                    is session_start_arguments["observed_class_labels"]
+                )
+                assert (
+                    started_session.pending_assignment_training_samples
+                    is session_start_arguments["pending_assignment_training_samples"]
+                )
+        assert random.getstate() == other_random_states[0]
+        numpy_state = np.random.get_state()
+        assert numpy_state[0] == other_random_states[1][0]
+        assert np.array_equal(numpy_state[1], other_random_states[1][1])
+        assert numpy_state[2:] == other_random_states[1][2:]
+        assert all(
+            state is previous_state
+            for state, previous_state in zip(
+                registry.snapshot_ordered_held_model_training_states(), held_model_training_states
+            )
+        )
+        for parameter, parameter_values, previous_gradients in (
+            held_parameter_values_and_gradients + session_input_tensor_values
+        ):
+            if not parameter.is_nested:
+                assert parameter.shape == parameter_values.shape
+            assert parameter.dtype == parameter_values.dtype
+            assert parameter.device == parameter_values.device
+            assert parameter.layout == parameter_values.layout
+            if parameter.device.type != "meta":
+                if parameter.is_nested:
+                    torch.testing.assert_close(
+                        parameter.unbind(),
+                        parameter_values.unbind(),
+                        rtol=0,
+                        atol=0,
+                        equal_nan=True,
+                    )
+                else:
+                    torch.testing.assert_close(
+                        parameter.to_dense(),
+                        parameter_values.to_dense(),
+                        rtol=0,
+                        atol=0,
+                        equal_nan=True,
+                    )
+            assert parameter.grad is previous_gradients[0]
+            if previous_gradients[1] is not None:
+                torch.testing.assert_close(
+                    parameter.grad, previous_gradients[1], rtol=0, atol=0, equal_nan=True
+                )
+        for owner, previous_optimizer, previous_optimizer_state in held_optimizer_state_snapshots:
+            assert owner.parameter_optimizer is previous_optimizer
+            assert_nested_state_equal(previous_optimizer.state_dict(), previous_optimizer_state)
+        assert_nested_state_equal(loss_statistics_store.__dict__, loss_statistics_snapshot)
+        assert (
+            current_training_model_assignment.current_training_model_id == initial_training_model_id
         )

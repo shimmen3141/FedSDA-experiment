@@ -8,7 +8,7 @@
   - _Boundary: 開始runtime_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 3.1_
 
-- [ ] 2. 事前拒否と借用状態の不変性を検証する
+- [x] 2. 事前拒否と借用状態の不変性を検証する
   - 各preflight条件の拒否時RNG/保有parameter/grad/optimizer/統計/帰属/借用tensor不変、binding固定を確認する。
   - stub/順序入替/学習省略/参照live借用を差替え検出し、元byte/hashへ復元する。
   - _Boundary: 開始runtime_

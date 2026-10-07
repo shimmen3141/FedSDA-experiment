@@ -23,3 +23,17 @@
 新source作成前RED: ModuleNotFoundError/collection1error/1.92s/exit1。正常36＋最終6batch32＋履歴8＋未採番/空保留/負ID4の対象54passed。実旧_begin_forward_validationの学習を有効にし、全候補parameter/grad/optimizer型defaultsstate・参照値/順序・履歴平均・実epoch引数合算/学習計数・torch/Python/NumPyRNG・borrow/保有/統計/帰属不変を照合した。主担当も54passed/4.34s/exit0を確認。
 
 別fresh実GPT-6 Luna /root/luna_session_task1 APPROVED、独立54passed/4.10s、対象Ruff check/formatと承認hashを確認、指摘なし。REDの独立再実行はしていない。拒否/観測接続/AST/fresh/全回帰は後続。
+
+命名r3のTask2局所名・一時変異script名は実装前に実GPT-6 Luna /root/luna_session_spec APPROVED。finallyで元byteへ復元する注意は採用する。
+
+Task2担当がexact型拒否用の動的fixture型名4つを未承認の文字列で先に作った。source変更はなく、新しいclass宣言がないことを理由に承認を省略した点は手順逸脱として記録する。命名r4へ追記し後続の完了レビュー前に独立確認する。実装前承認済みとは扱わない。
+
+実GPT-6 Luna /root/luna_session_spec の命名r4はAPPROVED、実testの用法とexact→isinstanceの退行検出目的を確認し、改名不要。事後承認という扱いを維持して進める。
+
+## Task2
+
+test追加のみでsource補修なし。初回nested.shape比較の4失敗はtest準備の非対応であり、is_nested分岐で比較して修正した。productionのREDとは扱わない。復元後166passed/1nested warning/6.73s、主担当も166passed/5.92sとsource差分なし・復元hashを照合した。
+
+4変異はstub72failed/order_swap45failed/omit_training30failed/live_reference54failed、全てexit1。Git管理外の証拠は../../venv/refactoring-tests/session_start_mutation_evidence.py、session-start-task2-mutation-evidence.jsonと4logs。各finally/終端で元byteを復元しSHA256 `ad4af70509aca22d063a239df6bee70c94c87b8a11a8f739b7fc100efc3b00fc`一致、source_bytes_restored=true。非公開統計をtest準備で破損させる3条件は保証対象外からpublic getの再検査を観測する補助testと区別した。
+
+別fresh実GPT-6 Luna /root/luna_session_task2 APPROVED。独立166passed/6.05s、diff/契約/JSON/log/hashを確認。変異scriptは独立再実行せず、事後命名承認と保証外fixtureを区別。必須修正なし。観測/AST/fresh/全回帰は未実施。
