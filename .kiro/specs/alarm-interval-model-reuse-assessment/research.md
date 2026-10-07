@@ -11,4 +11,4 @@
 - PendingTrainingAssignmentBufferのpartitionとsession開始は実装済み。位置から汎用Tensor標本を確保する接続は後続。初期値選択/候補学習/固定参照を本specで再実装しない。
 - 実旧全_resolve_driftの状態更新まで含めた接続は後続。今回のoracleは評価・候補選択部分の観測を明示し、旧最終状態の変化を今回の新評価部品の更新とは取り違えない。
 
-警報区間と将来検証の選択方針差は不具合と断定していない。同率の場合だけ現行を優先する改善仮説は[研究バックログALGO-001](../../../docs/research/research-backlog.md)へ記録した（未検証/未採用）。本specでは旧の保有順を維持する。
+警報区間と将来検証の選択方針差は不具合と断定していない。同率の場合だけ現行を優先する改善仮説は[IMPROVE-001（旧ALGO-001）](../../../docs/research/improvement-candidates/improve-001-current-model-priority-on-reuse-ties.md)へ記録した（未検証/未採用）。本specでは旧の保有順を維持する。

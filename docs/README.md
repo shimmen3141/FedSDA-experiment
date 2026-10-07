@@ -58,6 +58,7 @@ Claude・Codexの交代は[共通引継ぎ手順](../.kiro/steering/agent-handof
 - [新実装の品質検査](research/code-quality.md): Ruff・Pyright・commit hook・CIの設定と実行手順。
 - [リファクタリング方針案](research/refactoring-policy.md): 責務・レイヤー・命名、新APIへの移行、選択肢の追加・削除とcc-sddの評価。
 - [研究バックログ](research/research-backlog.md): 設計候補・非採用案・今後の課題。
+- [具体的な改善候補](research/improvement-candidates/README.md): 処理の簡略化、計算・通信の効率化、局所的なアルゴリズム調整を1候補1ファイルで追跡。
 - [実装の不具合・改善事項](research/implementation-findings/README.md): 再現条件・影響・移植時の扱い・将来修正を追跡する入口。
 - [Meta-switchingの先行研究・差分・新規性に関する調査報告](<research/FedSDA Meta-switchingの先行研究・差分・新規性に関する調査報告.pdf>): Meta-switchingを対象とした検討資料。コミット保留のローカル資料。
 

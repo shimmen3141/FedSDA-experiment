@@ -4,7 +4,7 @@
 
 **引継ぎ地点（2026-10-08）:** ユーザー指示で現在単位の切れ目に停止。[警報区間の保有モデル再利用評価](../specs/alarm-interval-model-reuse-assessment/README.md)の要求r2/設計r2/命名r2は独立GPT-6 Luna承認済み。tasksは未作成、source/test未着手・テスト未実施。Claudeの次の一手は同specのREADME→spec.json→review→requirements/design/namingを読み、task案を作成して独立graph sanityとtasks承認を得ること。その後TDDで実装する。Codexの5時間枠残量は取得できず、この区切りで停止した。
 
-性能仮説は[研究バックログ](../../docs/research/research-backlog.md)へ記録する。同率現行優先ALGO-001は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
+具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
 Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い、GPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューで承認する。
