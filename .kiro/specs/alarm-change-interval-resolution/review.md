@@ -93,3 +93,9 @@ Task 3: 独立fresh CLI GPT-6 Luna（read-only、session `01a117fd-efef-78c0-aba
 Task 4: fresh新CPU（旧/test importなし）で2/4class×3分岐を実行し成功。sourceのimport 25件（dataclass、torch 4件、既存部品20件）とguardの一覧をASTで照合して一致、未使用importなし。Task 1/2のレビュー担当は既存部品を19件・合計24件と報告していたが、主担当がASTで数えた値は20件・合計25件で、guardの一覧とも25件で一致する（数え方の差で、一覧の過不足ではない）。
 
 Task 5: commit b890f0eで全pytest 8455 passed/3 skipped/2 warnings（主担当実測、JUnit 8458件照合）、Ruff/Pyright/pip check成功、固定旧差分は空、source hash 259パス。詳細はintegration-validation.md。独立レビューは次に依頼する。
+
+## Task 4/5の独立レビュー
+
+独立fresh CLI GPT-6 Luna（read-only、session `01a11807-49c4-7a31-a89f-1f6199e1b57c`、対象HEAD dfebeaa、検証対象のsource/test commitはb890f0e）がTask 4 APPROVED、Task 5 APPROVED、指摘なし。sourceのimport 25件とguard・注入契約testの許可一覧・設計のAllowed Dependenciesの一致（Task 1/2レビューの24件ではなく25件が正しいと実際に数えて確認）、smoke scriptの内容、件数の整合（7924＋241＋290＝8455、JUnit 8458件・failure0・error0・skip3）、承認hashの再計算、固定旧差分とb890f0e以降のsrc/tests差分が空であること、未検証範囲と手順逸脱の記載を確認した。
+
+レビュー担当が再現していないこと: pytestとfresh CPU smokeは未実行（smokeの成功は主担当の実測だけ）。
