@@ -37,3 +37,9 @@ test追加のみでsource補修なし。初回nested.shape比較の4失敗はtes
 4変異はstub72failed/order_swap45failed/omit_training30failed/live_reference54failed、全てexit1。Git管理外の証拠は../../venv/refactoring-tests/session_start_mutation_evidence.py、session-start-task2-mutation-evidence.jsonと4logs。各finally/終端で元byteを復元しSHA256 `ad4af70509aca22d063a239df6bee70c94c87b8a11a8f739b7fc100efc3b00fc`一致、source_bytes_restored=true。非公開統計をtest準備で破損させる3条件は保証対象外からpublic getの再検査を観測する補助testと区別した。
 
 別fresh実GPT-6 Luna /root/luna_session_task2 APPROVED。独立166passed/6.05s、diff/契約/JSON/log/hashを確認。変異scriptは独立再実行せず、事後命名承認と保証外fixtureを区別。必須修正なし。観測/AST/fresh/全回帰は未実施。
+
+## Task3
+
+test-only、REDはN/A。2/4class×3optimizerの6条件で開始→提案次位置から4件観測、1件目後の候補更新を実旧per_sample_error/append_losses/candidate.updateと照合。候補parameter/grad/optimizerが一致し、固定参照・保有状態・借用入力・統計・帰属は不変。readyは4件目だけtrue。採否は起動しない。担当6passed/166deselected/3.31s、主担当も対象全172passed/1warning/6.34s、source変更なし。
+
+別fresh実GPT-6 Luna /root/luna_session_task3 APPROVED。独立6passed/166deselected/3.24s、Ruff/diff、契約/接続を確認。初回報告の172deselectedは主担当照合により担当が実出力を読み直し誤記と訂正、追加testなし。指摘なし。AST/fresh/全回帰は未実施。
