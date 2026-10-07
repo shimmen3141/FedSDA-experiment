@@ -1,7 +1,7 @@
 {
   "feature_name": "candidate-epoch-training",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "completed",
   "created_at": "2026-10-07",
   "updated_at": "2026-10-07",
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
@@ -73,7 +73,7 @@
   },
   "integration_validation": {
     "status": "VERIFIED",
-    "decision": "PENDING_FEATURE_REVIEW",
+    "decision": "GO",
     "tested_commit": "66ac0558be61cf5916d6ce98430d2a948589a7cc",
     "source_sha256_lf": "34dad8e20b4d3b83e18cc57f0e1c0b0bac86244c7807f79bdf826e4a7524e258",
     "source_path_count": 246,
@@ -84,6 +84,11 @@
     "junit_failures": 0,
     "junit_errors": 0,
     "new_complete_run": "NOT_IMPLEMENTED",
-    "evidence": "integration-validation.md"
+    "evidence": "integration-validation.md",
+    "reviewer": "gpt-6-luna",
+    "reviewer_thread": "/root/luna_epoch_feature_final",
+    "reviewed_head": "b99a625",
+    "independent_target_and_ast_passed": 1494,
+    "independent_full_suite_rerun": false
   }
 }

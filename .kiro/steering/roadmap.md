@@ -23,7 +23,7 @@
 
 ## 現在の状態
 
-- `candidate-epoch-training`を開始。要求revision2・設計revision1をLuna承認、5taskのgraph sanity PASS。設定→固定反復/事前検査→早期停止/方式入口→生成接続→境界/全回帰の順で進める。承認待ちと実装状態は同specのspec.json/tasks.mdが正本。session開始の組立は後続。
+- `candidate-epoch-training`を完了。要求revision2・設計revision1・命名revision7・tasks revision1、全5task承認、別fresh GPT-6 Lunaのfeature最終GO。固定エポック/検証損失早期停止/省略、0epoch/小区間/端数batch、parameterのみ復元、全状態/RNG/学習量を実旧と照合した。生成→学習→継続更新とexact依存境界も検証。commit66ac055で全6868passed/3skipped/2warnings、旧11・最終3goldenと品質検査成功。次はsession開始の組立。入口はresume.md、承認・進捗は同specのspec.json/tasks.mdが正本。
 
 - `candidate-classifier-construction`を完了。要求/設計revision2・命名revision4・tasks revision2、全3tasks承認、別GPT-6 Lunaセッションでfeature最終GO。独立候補と専用optimizer生成、初期snapshot選択→3batch更新の実旧対照、exact依存境界を検証した。検証commit `ceb4336`で全6412passed/3skipped/2warnings、旧11・最終3goldenと品質検査成功。警報区間のepoch学習・early stopping・session開始、新client/全体runは後続。次は候補学習の仕様化、入口はresume.md。
 

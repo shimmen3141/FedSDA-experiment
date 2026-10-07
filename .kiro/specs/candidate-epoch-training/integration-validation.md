@@ -42,4 +42,4 @@ JUnitは`../../venv/refactoring-tests/candidate-epoch-training-full.xml`。旧�
 
 今回、新しい旧実装の不具合は観測していない。最良parameter復元時にoptimizer/gradを戻さない点は保存対象の既存挙動であり、新規不具合とは断定しない。LEGACY-014等の確認待ちと既存記録は変更しない。
 
-全pytestの独立再現は共通引継ぎ手順のユーザー決定どおり、主担当の実測とJUnit照合で判定する。Task5と別セッションのfeature最終GOはレビュー待ち。
+全pytestの独立再現は共通引継ぎ手順のユーザー決定どおり、主担当の実測とJUnit照合で判定する。Task5はAPPROVED、別freshセッション `/root/luna_epoch_feature_final`（実GPT-6 Luna）のfeature最終判定はGO。対象HEAD b99a625、対象＋AST1494passed/exit0を独立再現、JUnitと検証commit以後のコード不変を照合。全pytest・品質検査の独立再実行はしていない。指摘なし。review.md/spec.jsonへ記録しcompletedとする。
