@@ -64,4 +64,6 @@ JUnitはGit管理外`../../venv/refactoring-tests/validation-progress-full.xml`�
 
 新しい旧不具合は実測していない。LEGACY-014（採用時保留標本の概念計数/統計を反映しない）等の確認待ちは維持。全pytestの独立再現は共通引継ぎ手順のユーザー決定に従い、主担当の実測とJUnit照合で判定する。
 
-Task5は独立fresh CLI GPT-6 Luna session `01a11623-a347-79c3-a625-6324d71d8ff2` APPROVED。JUnit・両goldentest・251パス総合hash・承認md/正規化tasks hash・固定旧差分を独立確認。全pytestと品質は主担当実測の確認であり独立再実行ではない。skip理由を具体的に記す非阻害提案を採用した。別fresh feature最終GOは承認後review.md/spec.jsonへ記録する。
+Task5は独立fresh CLI GPT-6 Luna session `01a11623-a347-79c3-a625-6324d71d8ff2` APPROVED。JUnit・両goldentest・251パス総合hash・承認md/正規化tasks hash・固定旧差分を独立確認。全pytestと品質は主担当実測の確認であり独立再実行ではない。skip理由を具体的に記す非阻害提案を採用した。
+
+別fresh CLI GPT-6 Luna session `01a11627-135f-7220-b22a-3dee16ad8914`の対象HEAD10f6074最終判定はGO（2026-10-08確認）。独立対象＋AST1517passed/5.18s/exit0、新CPU両class成功、9/9要求・全5tasks・設計/境界整合・検証commit以後src/tests不変を確認。全pytest・品質・251パス総合hashはこの最終担当による独立再実行/再計算なし。Task5担当の251パス独立照合と主担当の全回帰証拠を維持する。阻害指摘なし、completedとする。

@@ -1,16 +1,16 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-07（候補検証session進行specの実装中）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-08（候補検証session進行spec完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
 Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い、GPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューで承認する。
 
 ## 現在地
 
-- 進行中: [候補検証sessionの進行](../specs/post-alarm-candidate-validation-progress/README.md)。要求r2・設計r2・命名r3・tasks r1はLuna承認済み。Task1〜4は実装・独立fresh Luna承認まで完了。次はTask5の全回帰と別feature最終GO。対象61条件＋AST1456条件、6変異の検出と元byte復元、fresh CPUの2/4classで非active/未到達/確定/共同更新を確認。現在の完了taskは当該specのspec.json/tasks.mdを確認する。下の全回帰証拠は前specの証拠であり、この進行specの全回帰はまだ実施していない。
+- 直近完了: [候補検証sessionの進行](../specs/post-alarm-candidate-validation-progress/README.md)。要求r2・設計r2・命名r3・tasks r1、全5task独立fresh Luna承認、別fresh Luna feature最終GO、completed。対象61条件＋AST1456条件、6変異検出と元byte復元、fresh CPUの2/4classで非active/未到達/確定/共同更新を確認。次は実験終端の未完了session回収を仕様化する。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の全5tasksはLuna承認・完了。要求r2・設計r2・命名r4・tasks r1を維持し、別fresh GPT-6 Lunaのfeature最終GO、completed。候補生成とエポック学習もcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
-- 直近の検証済み実装commit: `8cbf2ce`。全pytest 7266 passed/3 skipped/2warnings（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。証拠は対象specのintegration-validation.md。
+- 直近の検証済み実装commit: `2d513a9`。全pytest 7433 passed/3 skipped/2warnings（主担当実測、JUnit7436件照合）、Ruff151files/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。skipはPOSIX bashのないWindows環境の既存3条件。証拠は進行specのintegration-validation.md。
 - 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
   1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。
   2. [警報後の候補検証標本の観測](../specs/post-alarm-candidate-validation-sample-observation/README.md): 標本1件の候補・参照の損失評価と損失収集への追加。
@@ -33,20 +33,19 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 候補検証sessionの進行と記録（次に着手）
+### 1. 実験終端の未完了session回収（次に着手）
 
 - 開始は実装済み: `runtime/post_alarm_candidate_validation_session_start.py`の`start_post_alarm_candidate_validation_session`。選択済み初期値・区間・保有状態から候補生成→学習→固定参照→空損失収集を実旧の順序/RNGで組み立て、`PostAlarmCandidateValidationSession`を返す。呼出し側がactive sessionを所有する。
 - 開始の旧対照と接続は`tests/refactoring/test_post_alarm_candidate_validation_session_start.py`。正常54・拒否等112・観測接続6＝172条件。2/4class×3optimizer、最終30epoch設定、候補継続更新でも参照不変を照合済み。
 - 候補生成・エポック学習・参照固定・標本観測・採否評価・確定・採用登録/帰属変更は既存public部品を再利用する。RunSettingsへの設定登録はclient組立時の後続作業。新client/全体runは未完成。
 
-- 上位が観測の戻り値（規定件数への到達）を見て、既存の評価関数と確定を順に呼ぶ進行。
-- 判定record（旧`ProvisionalModelDecision`）、切替位置、検出エピソード、適応イベントの記録。結果種別と変更記録から旧のaction・戻り値・切替位置の条件は導ける（対応表は`.kiro/specs/post-alarm-candidate-validation-resolution/design.md`）。
-- 学習帰属変更の通知（最終構成では予測重みの再始動。旧`_on_local_model_change`）。
-- 実験終端で未完了のsessionを棄却し、保留標本を現行モデルへ吸収する処理（旧`finalize_incomplete_forward_validation`）。
+- 通常進行と不変判定record/完了情報は実装済み: `runtime/post_alarm_candidate_validation_progress.py`の`advance_post_alarm_candidate_validation`。未到達は同session、到達時は既存評価→判定情報→既存適用→完了情報。確定時の保有IDと現在帰属を使う。呼出側が返却後に解除・一覧記録・通知する。
+- 次は旧`finalize_incomplete_forward_validation`に対応する、実験終端で件数不足のsessionを棄却して保留標本を現行モデルへ吸収する処理。旧はactiveなしno-op、位置=max(提案位置, processed_samples−1)、理由insufficient_forward_data、比較参照/平均なし、create_rejected適応情報、帰属変更/切替位置/episode操作/検出解決通知なし。通常評価は件数不足を受理しないため、通常進行へ押し込まない。開始済みsessionと既存吸収部品を再利用し、未完了用の記録/返却の設計・命名を承認してから実装する。
 
 ### 2. その先
 
 - 警報の検出から候補検証sessionの開始までの接続（推定変化点からの区間切出し、保留標本の確保、初期parameterの選択）。
+- 完了情報を呼出側へ接続し、session解除・判定/適応event一覧・切替位置・検出episode操作・学習帰属変更の通知（予測重みの再始動）を組み立てる。
 - FIFOから1件ずつ帰属を確定する経路（旧`fedsda.py`の標本処理内。統計→標本→概念の順のinline実装で、吸収の部品とは更新順が違う）。
 - 警報後の帰属変更とclient進行、サーバ同期・ID対応。
 

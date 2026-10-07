@@ -1,9 +1,9 @@
 {
   "feature_name": "post-alarm-candidate-validation-progress",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "completed",
   "created_at": "2026-10-07",
-  "updated_at": "2026-10-07",
+  "updated_at": "2026-10-08",
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
   "approvals": {
     "requirements": {
@@ -71,7 +71,7 @@
   },
   "integration_validation": {
     "status": "VERIFIED",
-    "decision": "PENDING_FEATURE_GO",
+    "decision": "GO",
     "tested_commit": "2d513a9c382c5bf55eef81d79bc2c09bec1954d7",
     "source_sha256_lf": "24ad958aae77f4656770cf44ef281f2cf2c983b1479a2bc98c3856bb83903d44",
     "source_path_count": 251,
@@ -87,6 +87,11 @@
     "independent_full_suite_rerun": false,
     "task_review_verdict": "APPROVED",
     "task_reviewer": "gpt-6-luna",
-    "task_reviewer_session": "01a11623-a347-79c3-a625-6324d71d8ff2"
+    "task_reviewer_session": "01a11623-a347-79c3-a625-6324d71d8ff2",
+    "reviewer": "gpt-6-luna",
+    "reviewer_session": "01a11627-135f-7220-b22a-3dee16ad8914",
+    "reviewed_head": "10f607475e12ae6446b6049397d74e18a561cb72",
+    "independent_target_and_ast_passed": 1517,
+    "independent_feature_source_hash_recomputed": false
   }
 }
