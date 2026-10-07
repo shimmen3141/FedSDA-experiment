@@ -19,3 +19,9 @@
 source追加前REDはModuleNotFoundError/1collectionerror/3.44s/exit1。初回は共有TMP/MPLCONFIGDIRを指定し忘れ、matplotlib終了時に既存Temp ACLの例外が出た。test失敗原因とは別に記録する。環境指定を直してsource追加後13passed/2.00s/exit0、Ruff/diff成功。2/4/5観測件数×4分岐の12条件と不変record1条件、14fields/4導出値の旧対応、履歴なしNone/旧NaN、負の履歴差、frozen/kw_onlyを確認。
 
 新規native reviewer thread上限のため、fresh `codex exec -m gpt-6-luna --sandbox workspace-write --ephemeral`の独立session `01a115ff-ec20-7891-9dbe-dca8d7e25eb2`へ依頼。起動ログmodel=gpt-6-luna。APPROVED、独立13passed/2.30s、対象Ruff/diff/実sourceと承認正本の境界を確認、指摘なし。REDを独立再実行したわけではない。最終回答はGit管理外../../venv/refactoring-tests/progress-task1-review.md。全回帰はTask5。
+
+## Task2
+
+実装前RED: module不在、1collection error、2.87s、pytest exit2。制御lossのfixtureが登録・吸収の計算へ作用した初回失敗を、検証Tensor identityだけに作用するfixtureへ修正。実装の挙動変更は不要だった。最終GREENは52passed/3.55s、主担当の停止後再確認は52passed/3.56s、いずれもexit0。16条件で実旧observe→finalizeと判定・適応情報・全owner/RNGを照合。非active・未到達・観測前拒否・frozen/keyword契約を確認。Ruff/diff成功。設定検査はconstructorを再利用し、ライフサイクルメソッドの直接呼出しを避けた。
+
+独立fresh CLI GPT-6 Luna session `01a1160c-e330-7ae3-b3d2-6bbe33f9a280`、起動ログmodel=gpt-6-luna、APPROVED。独立52passed/3.14s/exit0、対象Ruff/diffと実source/正本/REDログを確認、指摘なし。REDそのものを再実行したわけではない。最終回答/ログはGit管理外../../venv/refactoring-tests/progress-task2-review.md/.log。native fresh thread上限のため実装担当は完了済みimplementerを再利用した。CLI既定モデルgpt-6.1-solはChatGPT認証で未対応だったため、既定CLI実装dispatchはコード変更前に失敗し、native担当へ切り替えた。全回帰・実NN接続・ASTは後続task。
