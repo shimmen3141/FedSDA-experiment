@@ -1,4 +1,4 @@
-# 命名と役割 revision3
+# 命名と役割 revision4
 
 ## Source
 
@@ -65,3 +65,27 @@ revision2の表は変更していない。以下は主担当Claude Codeがtasks 
 | test_alarm_interval_reuse_evaluation_tie_follows_held_order | test | 同じ値の実モデルによる同率で、現行やIDの大小でなく保有順で選ぶことを実旧と対照 |
 
 上流testから同義で再利用するhelper: build_session_start_oracle、begin_candidate_validation_session_in_legacy_client、assert_started_session_matches_legacy、set_overall_loss_statistics_in_both_implementations（引数statistics_by_model_id）、snapshot_parameter_values_and_gradients、assert_parameter_values_and_gradients_unchanged、assert_nested_state_equal、assert_collected_losses_match_legacy。held_model_ids/optimizer_variant/session_start_arguments/started_session/legacy_session/legacy_client/shared_optimizer_ownersも同義。
+
+## 追加 revision4（Task 2/3のtest局所名）
+
+revision2の表とrevision3の追加は変更していない。Task 2のtestを書いた際に、revision3へ登録していない局所名を使った（commit d58c427に含まれる）。登録が後になったことを記録し、Task 3で使う名前とあわせてここへ登録する。sourceに新しい名前はない。
+
+| 名前 | 種別 | 役割 |
+| --- | --- | --- |
+| history_and_fit_role | test local | HISTORY_AND_FIT_CASESの役割列の1要素 |
+| mean_loss_increase | test local | 実測の区間平均−履歴基準（Python floatの差）。閾値の直前/等値/直後を作る基準 |
+| state_snapshot / valid_state_snapshot | test local | snapshot_reuse_evaluation_stateの戻り値。後者は不正入力へ差し替える前の正常なowner群の記録 |
+| distance_thresholds / distance_threshold | test local | 実旧clientのdistance_thresholdへ順に設定する値。旧属性名に対応。先頭の−無限大は評価済み候補列の観測用 |
+| forward_call_count | test local | 実旧のcompute_counters["detection_forward_calls"]の実行前の値。全保有モデルがforwardされたことの確認用 |
+| loss_evaluation_call | test local | loss_evaluation_callsの1件 |
+| record_legacy_initialization_selection / record_legacy_reuse_selection | test helper内の関数 | 実旧の警報処理から呼ばれる記録用wrapper。実旧の警報処理が渡した評価済み候補列/適合列を記録し、実旧の_select_initialization_params/_select_reuse_candidateをその引数で1回だけ呼んで戻り値を記録・返却する。選択そのものは行わない（独立レビューの指摘で、選択関数に見える旧名select_*から改名） |
+| legacy_reuse_selections | test local | 実旧の警報処理の中で実旧の選択関数が返した(ID, 区間平均)の記録。legacy_selected_reuse_model_idはこの記録から取り、警報処理の外で選択関数を呼び直さない |
+| event_fields / session_arguments / data_list | 差し替えlambdaの引数 | 実旧のイベント記録/session開始/吸収の引数を受けて捨てる |
+| training_modes / optimizer_state_snapshots / loss_statistics_snapshot / parameter_snapshot / random_states | state_snapshotのkey | 分類器の学習mode、optimizer state、履歴統計、parameter/grad、3乱数状態の記録 |
+| torch_random_state / python_random_state / numpy_random_state / numpy_state | test local | 記録した3乱数状態と、照合時のnumpy乱数状態 |
+| tensor | test local | 入力特徴/ラベルの1つ（Tensorであるものだけ不変比較へ含める） |
+| lowest_mean_model_id | test local（Task 3） | 実測の区間平均が最小の保有モデルID。そのモデルから履歴基準を外し、初期値選択が基準のないモデルを選ばないことを確かめる |
+| candidate_parameter_initialization_source | test parameter（Task 3） | 既存設定fieldと同名同義。3方式を順に与える |
+| LEGACY_INITIALIZATION_NAMES | test定数（Task 3） | 新の初期化元の名前→旧config.NEW_MODEL_INITIALIZATIONの値の対応 |
+| expected_initialization_model_id | test local（Task 3） | 役割から決まる、初期値の元になるはずのモデルID（最小評価平均の方式と現行fallbackの確認用） |
+| available_parameter_snapshots_by_model_id / initial_candidate_parameter_snapshot / legacy_epoch_training_calls / initial_rng_state / expected_rng_state / validation_samples / sample_offset | test local（Task 3） | 上流の初期値選択・session開始testと同名同義の再利用 |

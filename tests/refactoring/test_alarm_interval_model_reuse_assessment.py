@@ -10,8 +10,15 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 import torch
+from test_adopted_candidate_initial_local_registration import convert_legacy_parameter_name
 from test_joint_model_parameter_update import assert_nested_state_equal
-from test_post_alarm_candidate_validation_session_start import build_session_start_oracle
+from test_post_alarm_candidate_validation_sample_observation import (
+    assert_collected_losses_match_legacy,
+)
+from test_post_alarm_candidate_validation_session_start import (
+    assert_started_session_matches_legacy,
+    build_session_start_oracle,
+)
 from test_post_alarm_reference_model_fixation import (
     set_overall_loss_statistics_in_both_implementations,
 )
@@ -25,6 +32,9 @@ from federated_drift_experiment.clients.fedsda import FedSDAClient
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatisticsStore,
 )
+from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
+    snapshot_classifier_parameters,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
@@ -33,6 +43,9 @@ from federated_learning_experiments.learning.models.residual_adapter_classifier 
 )
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
+)
+from federated_learning_experiments.learning.training.model_training_sample_records import (
+    ObservedTrainingSample,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     SgdParameterOptimizerSettings,
@@ -47,11 +60,23 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.ala
     AlarmIntervalModelReuseAssessment,
     assess_alarm_interval_model_reuse,
 )
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import (
+    select_candidate_initial_parameter_snapshot,
+)
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
+    CandidateParameterInitializationSettings,
+)
 from federated_learning_experiments.runtime import (
     alarm_interval_model_reuse_assessment as reuse_evaluation_module,
 )
 from federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment import (
     evaluate_held_models_for_alarm_interval_reuse,
+)
+from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import (
+    observe_post_alarm_candidate_validation_sample,
+)
+from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import (
+    start_post_alarm_candidate_validation_session,
 )
 
 
@@ -409,27 +434,33 @@ def resolve_alarm_interval_in_legacy_client(
     legacy_initialization_parameters = []
     legacy_evaluated_candidates = []
     legacy_valid_candidates = []
-    legacy_selected_reuse_model_id = None
+    legacy_reuse_selections = []
 
-    def select_initialization_parameters(evaluated_candidates):
+    def record_legacy_initialization_selection(evaluated_candidates):
+        """実旧の警報処理が渡した評価済み候補列と、実旧の初期値選択の戻り値を記録する。"""
         legacy_evaluated_candidates[:] = evaluated_candidates
         legacy_initialization_parameters.append(
             FedSDAClient._select_initialization_params(legacy_client, evaluated_candidates)
         )
         return legacy_initialization_parameters[-1]
 
-    def select_reuse_candidate(valid_candidates):
+    def record_legacy_reuse_selection(valid_candidates):
+        """実旧の警報処理が渡した適合列と、その呼出しで実旧の選択関数が返した結果を記録する。"""
         legacy_valid_candidates[:] = valid_candidates
-        return FedSDAClient._select_reuse_candidate(legacy_client, valid_candidates)
+        legacy_reuse_selections.append(
+            FedSDAClient._select_reuse_candidate(legacy_client, valid_candidates)
+        )
+        return legacy_reuse_selections[-1]
 
-    legacy_client._select_initialization_params = select_initialization_parameters
-    legacy_client._select_reuse_candidate = select_reuse_candidate
+    legacy_client._select_initialization_params = record_legacy_initialization_selection
+    legacy_client._select_reuse_candidate = record_legacy_reuse_selection
     distance_thresholds = [reuse_evaluation_arguments["maximum_alarm_interval_mean_loss_increase"]]
     if not start_candidate_validation_session:
         # 適合があると旧は評価済み候補列を外へ渡さない。どのモデルも適合しない閾値で先に観測する。
         distance_thresholds.insert(0, -math.inf)
     for distance_threshold in distance_thresholds:
         legacy_valid_candidates.clear()
+        legacy_reuse_selections.clear()
         legacy_client.buffer = deque(
             (
                 input_features[sample_index : sample_index + 1],
@@ -445,10 +476,11 @@ def resolve_alarm_interval_in_legacy_client(
         assert legacy_client.compute_counters[
             "detection_forward_calls"
         ] - forward_call_count == len(legacy_client.models)
-    if legacy_valid_candidates:
-        legacy_selected_reuse_model_id = FedSDAClient._select_reuse_candidate(
-            legacy_client, legacy_valid_candidates
-        )[0]
+    # 最後の実行（実際の閾値）で、実旧の警報処理が選択関数を呼んだ回数は適合の有無と一致する。
+    assert len(legacy_reuse_selections) == (1 if legacy_valid_candidates else 0)
+    legacy_selected_reuse_model_id = (
+        legacy_reuse_selections[0][0] if legacy_reuse_selections else None
+    )
     return (
         legacy_evaluated_candidates,
         legacy_valid_candidates,
@@ -917,4 +949,246 @@ def test_alarm_interval_reuse_evaluation_rejects_without_mutation(
         assert (
             valid_state_snapshot["loss_statistics_store"].get_state_snapshot()
             == valid_state_snapshot["loss_statistics_snapshot"]
+        )
+
+
+# 新の初期化元の名前と、旧config.NEW_MODEL_INITIALIZATIONの値の対応。
+LEGACY_INITIALIZATION_NAMES = {
+    "assigned_training_model": "current",
+    "lowest_evaluated_mean_loss_model": "best_candidate",
+    "equal_mean_of_available_models": "average",
+}
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("candidate_parameter_initialization_source", LEGACY_INITIALIZATION_NAMES)
+@pytest.mark.parametrize(
+    "history_and_fit_case",
+    ["none_fit", "no_model_has_usable_history", "lowest_mean_model_lacks_history"],
+)
+def test_alarm_interval_reuse_initialization_and_session_start(
+    class_count, candidate_parameter_initialization_source, history_and_fit_case, monkeypatch
+):
+    """test内だけの接続。評価情報→既存の初期値選択→既存のsession開始→実観測を実旧の警報処理と照合する。"""
+    held_model_ids = (9, -3, 4)
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(835)
+        (
+            reuse_evaluation_arguments,
+            session_start_arguments,
+            shared_optimizer_owners,
+            legacy_client,
+            legacy_interval_mean_losses_by_model_id,
+        ) = build_alarm_interval_reuse_oracle(
+            class_count=class_count, held_model_ids=held_model_ids, monkeypatch=monkeypatch
+        )
+        monkeypatch.setattr(
+            config,
+            "NEW_MODEL_INITIALIZATION",
+            LEGACY_INITIALIZATION_NAMES[candidate_parameter_initialization_source],
+        )
+        reuse_evaluation_arguments["maximum_alarm_interval_mean_loss_increase"] = (
+            min(legacy_interval_mean_losses_by_model_id.values()) / 8
+        )
+        lowest_mean_model_id = min(
+            legacy_interval_mean_losses_by_model_id, key=legacy_interval_mean_losses_by_model_id.get
+        )
+        # どのモデルも適合しない（旧が候補検証を開始する）履歴を与える。
+        set_overall_loss_statistics_in_both_implementations(
+            loss_statistics_store=reuse_evaluation_arguments["loss_statistics_store"],
+            legacy_client=legacy_client,
+            statistics_by_model_id={
+                "none_fit": {
+                    model_id: (3, legacy_interval_mean_losses_by_model_id[model_id] / 4)
+                    for model_id in held_model_ids
+                },
+                "no_model_has_usable_history": {
+                    9: (3, 0.0),
+                    -3: (1, legacy_interval_mean_losses_by_model_id[-3]),
+                    4: None,
+                },
+                "lowest_mean_model_lacks_history": {
+                    model_id: (3, 0.0)
+                    if model_id == lowest_mean_model_id
+                    else (3, legacy_interval_mean_losses_by_model_id[model_id] / 4)
+                    for model_id in held_model_ids
+                },
+            }[history_and_fit_case],
+        )
+        registry = reuse_evaluation_arguments["held_model_training_state_registry"]
+        current_training_model_id = session_start_arguments[
+            "current_training_model_assignment"
+        ].current_training_model_id
+        assert current_training_model_id == legacy_client.current_model_id == 4
+        initial_rng_state = torch.get_rng_state().clone()
+        with patch.object(
+            legacy_client, "_update_new_model_epochs", wraps=legacy_client._update_new_model_epochs
+        ) as legacy_epoch_training_calls:
+            (
+                legacy_evaluated_candidates,
+                legacy_valid_candidates,
+                legacy_selected_reuse_model_id,
+                legacy_initialization_parameters,
+            ) = resolve_alarm_interval_in_legacy_client(
+                legacy_client=legacy_client,
+                reuse_evaluation_arguments=reuse_evaluation_arguments,
+                monkeypatch=monkeypatch,
+                start_candidate_validation_session=True,
+            )
+        legacy_session = legacy_client._forward_validation
+        assert legacy_session is not None
+        assert legacy_valid_candidates == [] and legacy_selected_reuse_model_id is None
+        assert len(legacy_initialization_parameters) == 1
+        expected_rng_state = torch.get_rng_state().clone()
+        torch.set_rng_state(initial_rng_state)
+
+        # 新側は、旧が警報区間として連結したTensorと保留標本を同じobjectで受け取る。
+        reuse_evaluation_arguments["input_features"] = legacy_session.training_x
+        reuse_evaluation_arguments["observed_class_labels"] = legacy_session.training_y
+        assert torch.equal(legacy_session.training_x, session_start_arguments["input_features"])
+        assert torch.equal(
+            legacy_session.training_y, session_start_arguments["observed_class_labels"]
+        )
+        state_snapshot = snapshot_reuse_evaluation_state(
+            reuse_evaluation_arguments=reuse_evaluation_arguments,
+            shared_optimizer_owners=shared_optimizer_owners,
+        )
+        alarm_interval_reuse_assessment = evaluate_held_models_for_alarm_interval_reuse(
+            **reuse_evaluation_arguments
+        )
+        assert_reuse_evaluation_state_unchanged(state_snapshot)
+        assert (
+            list(
+                alarm_interval_reuse_assessment.baseline_supported_interval_mean_losses_by_model_id
+            )
+            == legacy_evaluated_candidates
+        )
+        assert alarm_interval_reuse_assessment.reusable_mean_losses_by_model_id == ()
+        assert alarm_interval_reuse_assessment.selected_reuse_model_id is None
+
+        # 評価済み候補列を、既存の初期値選択のevaluated_mean_losses_by_model_idへ渡す。
+        available_parameter_snapshots_by_model_id = {
+            state.model_id: snapshot_classifier_parameters(classifier=state.classifier)
+            for state in registry.snapshot_ordered_held_model_training_states()
+        }
+        initial_candidate_parameter_snapshot = select_candidate_initial_parameter_snapshot(
+            settings=CandidateParameterInitializationSettings(
+                candidate_parameter_initialization_source=candidate_parameter_initialization_source
+            ),
+            available_parameter_snapshots_by_model_id=available_parameter_snapshots_by_model_id,
+            current_training_model_id=current_training_model_id,
+            evaluated_mean_losses_by_model_id=alarm_interval_reuse_assessment.baseline_supported_interval_mean_losses_by_model_id,
+        )
+        assert_reuse_evaluation_state_unchanged(state_snapshot)
+        assert initial_candidate_parameter_snapshot is not None
+        assert tuple(initial_candidate_parameter_snapshot) == tuple(
+            convert_legacy_parameter_name(parameter_name)
+            for parameter_name in legacy_initialization_parameters[0]
+        )
+        held_parameter_storage_addresses = {
+            parameter.data_ptr()
+            for state in registry.snapshot_ordered_held_model_training_states()
+            for parameter in state.classifier.parameters()
+        }
+        for parameter_value, legacy_parameter_value in zip(
+            initial_candidate_parameter_snapshot.values(),
+            legacy_initialization_parameters[0].values(),
+        ):
+            assert torch.equal(parameter_value, legacy_parameter_value)
+            assert parameter_value.data_ptr() not in held_parameter_storage_addresses
+        if candidate_parameter_initialization_source != "equal_mean_of_available_models":
+            # 役割から決まる初期値の元。基準を使えないモデルは区間平均が最小でも選ばない。
+            expected_initialization_model_id = current_training_model_id
+            if (
+                candidate_parameter_initialization_source == "lowest_evaluated_mean_loss_model"
+                and history_and_fit_case != "no_model_has_usable_history"
+            ):
+                expected_initialization_model_id = min(
+                    (
+                        model_id
+                        for model_id in held_model_ids
+                        if history_and_fit_case == "none_fit" or model_id != lowest_mean_model_id
+                    ),
+                    key=legacy_interval_mean_losses_by_model_id.get,
+                )
+            if history_and_fit_case == "lowest_mean_model_lacks_history":
+                assert (
+                    candidate_parameter_initialization_source == "assigned_training_model"
+                    or expected_initialization_model_id != lowest_mean_model_id
+                )
+            for parameter_name, parameter_value in initial_candidate_parameter_snapshot.items():
+                assert torch.equal(
+                    parameter_value,
+                    available_parameter_snapshots_by_model_id[expected_initialization_model_id][
+                        parameter_name
+                    ],
+                )
+
+        # その初期値で既存のsession開始を実行し、実旧が開始したsessionと照合する。
+        session_start_arguments.update(
+            initial_candidate_parameter_snapshot=initial_candidate_parameter_snapshot,
+            input_features=legacy_session.training_x,
+            observed_class_labels=legacy_session.training_y,
+            pending_assignment_training_samples=tuple(
+                ObservedTrainingSample(
+                    input_features=input_features, observed_class_labels=observed_class_labels
+                )
+                for input_features, observed_class_labels, _ in legacy_session.held_data
+            ),
+        )
+        assert torch.equal(torch.get_rng_state(), initial_rng_state)
+        started_session = start_post_alarm_candidate_validation_session(**session_start_arguments)
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        assert_started_session_matches_legacy(
+            started_session=started_session,
+            legacy_session=legacy_session,
+            legacy_client=legacy_client,
+            legacy_epoch_training_calls=legacy_epoch_training_calls,
+            session_start_arguments=session_start_arguments,
+        )
+
+        # 実観測。旧は損失評価と収集だけを呼び、到達時の採否確定は起動しない。
+        validation_samples = tuple(
+            (
+                started_session.proposal_sample_index + 1 + sample_offset,
+                started_session.training_input_features[sample_offset].reshape(1, -1) * 0.5
+                + 0.1 * sample_offset,
+                started_session.training_observed_class_labels[sample_offset].reshape(1, 1),
+            )
+            for sample_offset in range(legacy_session.target_count)
+        )
+        for sample_offset, (sample_index, input_features, observed_class_labels) in enumerate(
+            validation_samples
+        ):
+            with torch.no_grad():
+                legacy_session.append_losses(
+                    legacy_session.candidate.per_sample_error(input_features, observed_class_labels)
+                    .reshape(-1)[0]
+                    .item(),
+                    {
+                        model_id: legacy_reference_model.per_sample_error(
+                            input_features, observed_class_labels
+                        )
+                        .reshape(-1)[0]
+                        .item()
+                        for model_id, legacy_reference_model in legacy_session.reference_models.items()
+                    },
+                )
+            assert observe_post_alarm_candidate_validation_sample(
+                sample_index=sample_index,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+                candidate_classifier=started_session.candidate_training_state.candidate_classifier,
+                reference_classifiers_by_model_id=started_session.fixed_reference_models.reference_classifiers_by_model_id,
+                post_alarm_candidate_loss_collection=started_session.post_alarm_candidate_loss_collection,
+            ) is (sample_offset == legacy_session.target_count - 1)
+            assert_collected_losses_match_legacy(
+                post_alarm_candidate_loss_collection=started_session.post_alarm_candidate_loss_collection,
+                legacy_session=legacy_session,
+            )
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        assert_parameter_values_and_gradients_unchanged(state_snapshot["parameter_snapshot"])
+        assert (
+            reuse_evaluation_arguments["loss_statistics_store"].get_state_snapshot()
+            == state_snapshot["loss_statistics_snapshot"]
         )
