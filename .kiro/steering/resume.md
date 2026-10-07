@@ -1,8 +1,8 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-08（警報の変化区間の解決spec完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-08（警報時の学習区間準備の要求・設計・初期命名を承認）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
-**引継ぎ地点（2026-10-08）:** 主担当Claude Codeが[警報区間の保有モデル再利用評価](../specs/alarm-interval-model-reuse-assessment/README.md)と[警報の変化区間の解決](../specs/alarm-change-interval-resolution/README.md)を完了した。実装途中のtask・レビュー待ち・未コミット差分はない。次は下の「次の候補」の1。
+**引継ぎ地点（2026-10-08）:** Claude完了の2specを引き継ぎ、Codexが残りの警報処理の境界を分けた。[警報時の学習区間の準備](../specs/alarm-training-interval-preparation/README.md)は要求r2・設計r1・初期命名r1が独立GPT-6 Luna承認済。task/実装は未着手。次は同specの外部test下書き→AST識別子確認→追加命名r2レビュー→tasksレビュー。後始末を含む警報全体制御は別spec候補。残量を取得できない場合は作業単位完了で止める先の指示に沿い、このレビュー単位で停止した。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -14,7 +14,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 - 直近完了: [警報の変化区間の解決](../specs/alarm-change-interval-resolution/README.md)。要求r3・設計r3・命名r5・tasks r2、全5task独立レビュー承認、別fresh Luna feature最終GO、completed。runtimeの`resolve_alarm_change_interval`と不変record`AlarmChangeIntervalResolution`（結果種別は`alarm_interval_held_model_reused`/`alarm_interval_current_model_maintained`/`alarm_interval_candidate_validation_started`）。切出し済みの変化区間の標本（1件ずつ）を連結して既存の区間評価へ渡し、選択IDがあればそのモデルへ吸収して学習帰属を切り替え（同じIDなら維持）、なければ全保有モデルのsnapshot→既存の初期値選択→既存のsession開始を行う。実旧_resolve_driftを吸収・帰属切替・初期値選択・session開始を差し替えずに実行して最終状態を照合した。要求〜Task 2のレビューはCodexの利用上限中のため独立AgentのSonnetが代替し、Task 3以降はLuna。その前は[警報区間の保有モデル再利用評価](../specs/alarm-interval-model-reuse-assessment/README.md)（区間評価と再利用候補の選択。読取り専用）。
 - 公開状態（2026-10-08）: GitHub復旧後の通常pushを1回実行し、未送信7commit（`5ddb9e3..db89dc4`）の送信に成功した。今後はユーザー指示に従いtaskごとにpushを1回だけ試す。失敗時は連続再試行や原因探索をせず、次taskのpush成功時に未送信commitも送る。
 - 直近のpush状態: 全commitは`origin/refactor/architecture`へ送信済み（taskごとの通常pushはすべて成功）。
-- 着手中: なし。
+- 着手中: [alarm-training-interval-preparation](../specs/alarm-training-interval-preparation/README.md)。要求/設計/初期命名まで承認済、実装不可（taskとtest/helper命名を未承認）。区間分割と前区間の評価保存→吸収が範囲。改善候補IMPROVE-004（履歴基準が使えないモデルの区間評価省略）を追加、未検証/未採用。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の全5tasksはLuna承認・完了。要求r2・設計r2・命名r4・tasks r1を維持し、別fresh GPT-6 Lunaのfeature最終GO、completed。候補生成とエポック学習もcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
 - 直近の検証済み実装commit: `b890f0e`。全pytest 8455 passed/3 skipped/2 warnings（主担当実測、JUnit 8458件照合）、対象241＋AST2016、fresh新CPU 2/4class×3分岐、Ruff 159files/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。source hashは259パス。警告2件とskip 3件は前specと同じ既存のもの。証拠は同specのintegration-validation.md。

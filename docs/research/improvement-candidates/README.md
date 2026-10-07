@@ -19,10 +19,11 @@
 | IMPROVE-001（旧ALGO-001） | 警報区間の同率再利用候補で現行モデルを優先 | 未検証・未採用 | [詳細](improve-001-current-model-priority-on-reuse-ties.md) |
 | IMPROVE-002 | 参照モデルの固定で不要なランダム初期化を省く | 未検証・未採用 | [詳細](improve-002-skip-random-initialization-of-fixed-reference-models.md) |
 | IMPROVE-003 | 固定した参照モデルの検証損失を到達時にまとめて評価 | 未検証・未採用 | [詳細](improve-003-batch-fixed-reference-loss-evaluation.md) |
+| IMPROVE-004 | 履歴基準が使えないモデルの警報区間評価を省く | 未検証・未採用 | [詳細](improve-004-skip-alarm-loss-evaluation-without-reuse-baseline.md) |
 
 ## 記録・更新の規約
 
-IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-004。候補の発見時点で記録し、実験済みである必要はない。
+IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-005。候補の発見時点で記録し、実験済みである必要はない。
 
 各ファイルへ以下を記載する。未確認・未定の項目はそのまま明記する。
 

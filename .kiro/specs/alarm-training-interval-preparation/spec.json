@@ -1,0 +1,62 @@
+{
+  "feature_name": "alarm-training-interval-preparation",
+  "created_at": "2026-10-08",
+  "updated_at": "2026-10-08",
+  "language": "ja",
+  "phase": "design-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "approved_revision": 2,
+      "generated_sha256_lf": "43c6198376ae7f2d219c0ec5590d9eb6f3f757c5a4948b1a70a74b730381d5eb",
+      "approved_sha256_lf": "43c6198376ae7f2d219c0ec5590d9eb6f3f757c5a4948b1a70a74b730381d5eb",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "/root/luna_alarm_preparation_requirements",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "82f81dad77eaedcc43d3a5ea76b301014bc4c55af83d3aca4e2551df9766d3f0",
+      "approved_sha256_lf": "82f81dad77eaedcc43d3a5ea76b301014bc4c55af83d3aca4e2551df9766d3f0",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "/root/luna_alarm_preparation_design",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "57eb69a4618ef0f1739a82df3a6e4e716d892a99ce2f4fbcaaf820cb1bdc6087",
+      "approved_sha256_lf": "57eb69a4618ef0f1739a82df3a6e4e716d892a99ce2f4fbcaaf820cb1bdc6087",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "/root/luna_alarm_preparation_design",
+      "review_record": "review.md",
+      "approval_scope": "source_files_and_public_contracts_only_test_and_private_names_require_revision_update"
+    },
+    "tasks": {
+      "generated": false,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false,
+  "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "total_executable_tasks": 0,
+    "next_task": null
+  },
+  "handoff": {
+    "execution_status": "requirements_design_initial_naming_approved",
+    "next_step": "draft_tests_outside_repo_extract_ast_identifiers_review_naming_revision2_then_tasks_graph_review",
+    "implementation_started": false,
+    "tests_run": false,
+    "completed_unit": "requirements_design_initial_naming_review"
+  }
+}

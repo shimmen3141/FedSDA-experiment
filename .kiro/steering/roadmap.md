@@ -4,6 +4,8 @@
 
 ## 全体方針
 
+現在の作業: [alarm-training-interval-preparation](../specs/alarm-training-interval-preparation/README.md)。2026-10-08に要求r2・設計r1・初期命名r1を独立Luna承認。次は外部test下書きのAST命名確認と追加承認、tasksレビューから実装へ。警報全体の後始末は後続へ分離した。詳しい現在地はresume、承認hashは同specのspec.json/reviewを参照する。
+
 旧基準`748c3aa`と同じGit履歴の`refactor/architecture`ブランチで、新APIへ移行する。
 クリーンアーキテクチャの依存方向・差し替え境界・機能別配置を採用する。
 詳細の正本は`docs/research/refactoring-policy.md`。新srcのパッケージ境界と機能ごとの設定型を段階的に実装している。
