@@ -1,4 +1,4 @@
-# 命名と役割 — revision3
+# 命名と役割 — revision4
 
 ## 配置と公開契約
 
@@ -49,3 +49,17 @@
 ## Task1のテスト準備
 
 `valid_settings_arguments`は全6項目の正常constructor引数dict、`invalid_settings_field_name`/`invalid_settings_field_value`は拒否条件の項目/値、`settings_argument_values`は一条件だけ変更した引数dict。既存dataclasses.fields、FrozenInstanceErrorとpytest.raisesで必須field/frozen/kw_onlyを確認する。`configuration_parameter_name`/`specified_parameter_value`は既存設定エラーの同義field。
+
+## Task2/3の追加比較名
+
+- `test_candidate_dataset_epochs_matches_legacy`: Task2helperを実旧固定epochへ照合し、公開入口未追加のREDを分離する。
+- `test_candidate_epoch_training_result_contract`: 結果recordの4field/kw_only/frozen検査。
+- `record_legacy_candidate_dataset_epochs` / `record_candidate_dataset_epochs`: 実旧/新helperを包み、実施epochとdataset標本順を観測する。数値式を複製しない。
+- `training_arguments`: 候補/optimizer/区間/settingsのkeyword引数dict。生成用construction_argumentsと区別。
+- `recorded_training_datasets` / `recorded_epoch_counts`: wrapperが観測するdataset標本Tensor列/実施epoch数列。
+- `candidate_parameter_values_and_gradients` / `input_tensor_values`: 拒否前の既存snapshot helper結果/入力clone列。
+- `shared_optimizer_state_snapshot` / `concept_specific_optimizer_state_snapshot`: 拒否前state_dictの独立copy。Tensorを逐値比較し、owner objectをdeepcopyしない。
+- `expected_training_result`: 実旧counterとwrapperから得る4計数tuple。
+- `legacy_validation_losses` / `recorded_validation_losses`: 実旧/新の既存損失評価をwrapperで観測したscalar列。
+- `validation_loss_decrease_at_boundary`: 実旧の連続評価差から得る閾値ちょうど条件。
+- class_count/optimizer_variant/invalid_case/candidate_training_state/legacy_candidate/legacy_client/initial_rng_state/expected_rng_state/construction_arguments/legacy_initial_parameter_snapshot/parameter_values/expected_parameter_values等の既存生成oracleの名前は同義で再利用する。

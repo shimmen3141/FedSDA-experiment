@@ -1,6 +1,6 @@
 # 実装タスク revision1
 
-- [ ] 1. 候補のエポック学習条件を型で宣言する
+- [x] 1. 候補のエポック学習条件を型で宣言する
   - 全6fieldの必須/値域/frozen/kw_onlyをtest先行RED後に実装し、正常値と不正値を確認する。
   - 学習率を二重定義せず、既存metadata検査を利用する。
   - _Boundary: 学習設定moduleと対象設定test_

@@ -18,6 +18,8 @@ GPT-6 Luna（/root/luna_single_run_3_1_review）の要求revision1判定NEEDS_FI
 
 正式tasks revision1と命名revision3はGPT-6 Luna（/root/luna_single_run_3_1_review）APPROVED。全10条件を5tasksへ対応づけた。実装開始前に4段階の承認hashをspec.jsonへ保存した。
 
-## Task1（レビュー待ち）
+## Task1
 
 source作成前RED: 設定module未存在のModuleNotFoundError、1error/exit1。GREEN: 対象26passed/0.07s、Ruff check成功。実装前に別の未承認test関数名settings_structureを一時作ったが、source作成前に削除して承認済settings_contractへ統合した。未承認のtest先取りの事実をレビュー担当へ提示した。最終src/testの正式名は承認済みのもの。
+
+別の実GPT-6 Lunaセッション`/root/luna_epoch_task1`でAPPROVED。独立実行26passed/exit0、Ruffと境界/RED/値域/必須/不変recordを確認、指摘なし。全pytestはTask5で主担当が実行予定。レビュー時のpytest cache権限warningは対象コード由来ではない。Task2/3追加命名revision4は実装前レビュー待ち。
