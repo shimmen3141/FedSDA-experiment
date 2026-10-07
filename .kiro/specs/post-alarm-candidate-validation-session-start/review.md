@@ -43,3 +43,9 @@ test追加のみでsource補修なし。初回nested.shape比較の4失敗はtes
 test-only、REDはN/A。2/4class×3optimizerの6条件で開始→提案次位置から4件観測、1件目後の候補更新を実旧per_sample_error/append_losses/candidate.updateと照合。候補parameter/grad/optimizerが一致し、固定参照・保有状態・借用入力・統計・帰属は不変。readyは4件目だけtrue。採否は起動しない。担当6passed/166deselected/3.31s、主担当も対象全172passed/1warning/6.34s、source変更なし。
 
 別fresh実GPT-6 Luna /root/luna_session_task3 APPROVED。独立6passed/166deselected/3.24s、Ruff/diff、契約/接続を確認。初回報告の172deselectedは主担当照合により担当が実出力を読み直し誤記と訂正、追加testなし。指摘なし。AST/fresh/全回帰は未実施。
+
+## Task4
+
+exact23symbolを一般許可より前へ追加し、ImportFrom解決・Import拒否の両一覧へ登録。226注入条件（許可80・拒否146）。最初の180条件はguard追加前92failed/88passed/1124deselected/exit1。Import拒否登録を一時除去すると46failed/180passed/1124deselected/exit1、finallyで元test byteへ復元。最終対象＋AST1522passed/1nested warning/7.77s、主担当も1522passed/9.91sを再現した。2/4classで新部品だけの3epoch学習→4観測、readyは4件目のみ、参照全parameter不変、旧importなし。再実行本文と環境は../../venv/refactoring-tests/session-start-task4-smoke.log（UTF-16）に保存。
+
+別fresh実GPT-6 Luna /root/luna_session_task4 APPROVED。独立1522passed/9.18sとfresh smokeを再現し、Ruff/diff/AST/実依存ガードとRED logsを照合、指摘なし。runtime hashはTask1から不変。レビュー途中のtestファイルhashとruntime hashの取り違えは担当が訂正した。親のsmoke本文抽出の初回失敗も抽出コマンドの不備であり、正しいUTF-16読込みで成功。全回帰はTask5。

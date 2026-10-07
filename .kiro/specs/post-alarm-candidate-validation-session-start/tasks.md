@@ -20,7 +20,7 @@
   - _Boundary: 開始runtimeと既存観測の接続_
   - _Requirements: 2.2_
 
-- [ ] 4. 依存境界と新CPUの接続を検証する
+- [x] 4. 依存境界と新CPUの接続を検証する
   - exact AST注入RED→guardとresolver登録→GREEN、許可/禁止symbolsを確認する。
   - fresh新CPUで開始→観測を実行し、旧importなしを確認する。
   - _Boundary: exact依存境界_
