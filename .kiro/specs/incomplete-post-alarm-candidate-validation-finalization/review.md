@@ -46,3 +46,11 @@ CLIログ/出力はroot venv/refactoring-testsの`incomplete-finalization-requir
 missing runtime REDは1collectionerror/2.27s/exit2。GREENは60passed/4.24s/exit0、主担当60passed/5.01s/exit0・Ruff/diff成功。12正常（2/4class×観測0/1/3×保留0/3）、現在ID変更2、37拒否、非active、不変返却とTask1維持。公開実件数の共有、位置clamp、現行ID回収、既存吸収への委譲、候補/参照/optimizer/collection/全owner/RNG保持を確認。
 
 独立fresh CLI GPT-6 LunaはAPPROVED。自分で60passed/4.95s/exit0、Ruff check/format2files成功。実旧判定/event・後半不正の状態保持・37拒否・no-session他入力未読・具体依存/境界・命名補完の正確な来歴を確認、阻害指摘なし。実sessionはspec.json、ログはroot venv/refactoring-tests/incomplete-finalization-task2-review.{log,md}。verify-completionのTask claimはVERIFIED。実NN接続・AST/fresh CPU・全回帰は後続task。
+
+## Task3
+
+test-onlyの実NN7条件を追加。2/4class×standard/AMSGrad/SGDの6条件に実観測0/1/3を割当て、空保留/metadataなし1条件も確認。実開始・観測・両終端回収・2回共同更新を同じownerで数値対照し、制御lossを使用しない。GREEN67passed/4.62s/exit0、Ruff/diff成功。
+
+主担当が編集停止後に6変異を検証: stub/不足判定を無視/開始時ID/位置誤り/余分なRNG/二重吸収を59/1/4/17/57/14failedで検出、各exit1。finallyと終端で元byteを復元し、元/復元SHA256は`86cf36bcb39cc8b7f235d520627fa3f8df0b024adad15142ad6a54a27dce4478`。復元後67passed/4.16s/exit0・Ruff/diff成功。root venv/refactoring-tests/incomplete_validation_finalization_mutation_evidence.py / incomplete-finalization-mutation-evidence.jsonと各変異ログ。source変更は残していない。
+
+独立fresh CLI GPT-6 LunaはAPPROVED。対象67passed/4.28s/exit0、Ruff check/format/diff成功。実helper/実旧methodを読み、候補/参照/全owner/parameter/grad/optimizer/統計/標本/全3RNGと実学習の接続を確認。変異JSON/hashを照合、変異自体は独立再実行なし。阻害指摘なし。実sessionはspec.json、ログはincomplete-finalization-task3-review.{log,md}。verify-completionはVERIFIED。AST/fresh CPU/全回帰は後続。

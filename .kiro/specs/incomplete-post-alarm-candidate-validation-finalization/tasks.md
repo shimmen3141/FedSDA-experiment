@@ -16,7 +16,7 @@
   - _Boundary: 件数不足の終端回収runtime_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 3.1, 3.2_
 
-- [ ] 3. 実学習と未到達観測と終端回収を接続する
+- [x] 3. 実学習と未到達観測と終端回収を接続する
   - 明示的test-only統合task。2/4class×3optimizerで実NN開始→未到達観測→回収→2回共同更新を実旧と照合する。
   - 空保留/metadataなしも確認し、損失・標本・計数・統計・全parameter/grad/optimizer/RNGが一致する。
   - stub/開始時ID/位置/余分なRNG/二重吸収等の代表変異を検出し、元source byteを復元してGREENを再確認する。
