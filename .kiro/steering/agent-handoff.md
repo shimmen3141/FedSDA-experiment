@@ -78,6 +78,9 @@ codex execのWindows sandboxでは、pytestの一時ディレクトリ走査と�
 
 ## 検証・成果物・終了時
 
+- 2026-10-08ユーザー指示: 性能・アルゴリズム改善仮説も[研究バックログ](../../docs/research/research-backlog.md)へ記録する。確認済み事実・未検証仮説・変更案・比較条件/指標/悪化の懸念・採否を分ける。旧挙動を維持する移植へ混ぜない。同率現行優先はALGO-001、未採用/未検証。
+- 2026-10-08ユーザー指示: Codexの5時間枠残量を正確に取得できる場合は切れ目で停止してClaudeへ引き継ぐ。取得できない場合は現在の作業単位の完了で停止する。今回は残量を取得できないため要求/設計/命名のレビュー単位を区切って停止し、tasks/実装には進まない。次の担当はresumeと対象specの承認状態を確認して再開する。
+
 - 検証手順は[code-quality.md](../../docs/research/code-quality.md)、
   [refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)、対象specを参照する。
   このPCの共有Pythonはworktreeから`../../venv/Scripts/python.exe`。別PCでは基準環境を構築して選択する。

@@ -1,0 +1,59 @@
+{
+  "feature_name": "alarm-interval-model-reuse-assessment",
+  "created_at": "2026-10-08",
+  "updated_at": "2026-10-08",
+  "language": "ja",
+  "phase": "design-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "draft_sha256_lf": "f62dc55825c9aa0aaf91ba2584105d555552b30109a1758914b82e668a5d8020",
+      "approved_revision": 2,
+      "generated_sha256_lf": "f62dc55825c9aa0aaf91ba2584105d555552b30109a1758914b82e668a5d8020",
+      "approved_sha256_lf": "f62dc55825c9aa0aaf91ba2584105d555552b30109a1758914b82e668a5d8020",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a11757-5051-73a0-9883-feae0a48d219",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "draft_sha256_lf": "a906373ac6b8884f00470de4306805831425b9e5454421042b047a61f234e1d2",
+      "approved_revision": 2,
+      "approved_sha256_lf": "a906373ac6b8884f00470de4306805831425b9e5454421042b047a61f234e1d2",
+      "generated_sha256_lf": "a906373ac6b8884f00470de4306805831425b9e5454421042b047a61f234e1d2",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a1175e-f273-7362-ab27-4a0e274e08b6",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "draft_sha256_lf": "df6bcc98cc1c53e35c83b4da06c7af8911e57eaf293b22f6bc4b0e8605f35f85",
+      "approved_revision": 2,
+      "approved_sha256_lf": "df6bcc98cc1c53e35c83b4da06c7af8911e57eaf293b22f6bc4b0e8605f35f85",
+      "generated_sha256_lf": "df6bcc98cc1c53e35c83b4da06c7af8911e57eaf293b22f6bc4b0e8605f35f85",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a1175e-f273-7362-ab27-4a0e274e08b6",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": false,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false,
+  "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
+  "handoff": {
+    "execution_status": "stopped_at_user_request",
+    "completed_unit": "requirements_design_naming_reviews",
+    "next_step": "generate_task_plan_and_obtain_independent_graph_and_tasks_reviews",
+    "implementation_started": false,
+    "tests_run": false,
+    "quota_remaining_observable": false
+  }
+}
