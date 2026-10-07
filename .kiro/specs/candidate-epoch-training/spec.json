@@ -1,0 +1,67 @@
+{
+  "feature_name": "candidate-epoch-training",
+  "language": "ja",
+  "phase": "implementation",
+  "created_at": "2026-10-07",
+  "updated_at": "2026-10-07",
+  "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "generated_sha256_lf": "716c30a653099f8985f5f0a9599c3484f007184b71419096d8ab8f739d513c94",
+      "approved_revision": 2,
+      "approved_sha256_lf": "716c30a653099f8985f5f0a9599c3484f007184b71419096d8ab8f739d513c94",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "generated_sha256_lf": "96934efbeda948ac7faa11527fdc2161ee8ce5636772665ad57ff6df2ff4b942",
+      "approved_revision": 3,
+      "approved_sha256_lf": "96934efbeda948ac7faa11527fdc2161ee8ce5636772665ad57ff6df2ff4b942",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "9ce989f58de35ab09bce7ead66fa62f14741de80c0cf09cea93b362c16202ce9",
+      "approved_revision": 1,
+      "approved_sha256_lf": "9ce989f58de35ab09bce7ead66fa62f14741de80c0cf09cea93b362c16202ce9",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "1b3f369acbdd456cbccef013707468f7b1d240ef00c307230da3a5b061cbb882",
+      "graph_sanity_mode": "independent",
+      "graph_sanity_verdict": "PASS",
+      "graph_sanity_reviewer": "gpt-6-luna",
+      "graph_sanity_thread": "/root/luna_epoch_task_graph",
+      "approved_revision": 1,
+      "approved_sha256_lf": "1b3f369acbdd456cbccef013707468f7b1d240ef00c307230da3a5b061cbb882",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "upstream_specs": [
+    "candidate-classifier-construction",
+    "joint-model-parameter-update",
+    "classifier-bounded-loss-evaluation",
+    "parameter-optimizer-state"
+  ],
+  "implementation_progress": {
+    "completed_tasks": [],
+    "total_executable_tasks": 5,
+    "completed_task_count": 0,
+    "next_task": "1"
+  }
+}

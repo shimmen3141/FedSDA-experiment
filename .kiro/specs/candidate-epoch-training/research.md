@@ -1,0 +1,22 @@
+# 調査記録
+
+2026-10-07、Codex。旧固定基準748c3aa、開始HEAD738e8dd。
+
+## 旧実装と候補境界
+
+- `clients/base.py`の_train_new_modelはnone/fixed/early_stoppingをdispatchする。固定学習はTensorDatasetを作り、batch_size=min(CLIENT_BATCH_SIZE,N)、shuffle=TrueのDataLoaderを一度作ってepochs回反復する。
+- early stoppingはvalidation_count=max(1,int(round(N*fraction)))。N-validation_count<1なら固定へfallback。通常はtorch.randperm一回で先頭を検証、残りを学習とし、毎epoch一回_update_new_model_epochsを呼ぶためDataLoaderを毎epoch作り直す。
+- 検証損失は学習objectiveのBCE/CEではなく、per_sample_errorの二値絶対誤差/多クラス正解確率の補数。best_loss=inf、厳密なloss<best_loss-min_deltaでsnapshot更新、非改善patienceで停止。
+- get_paramsは独立したstate_dictコピー。set_paramsはload_state_dictのみで、optimizerとgradは復元しない。最後のoptimizer状態で最良parameterの続きの学習をする旧挙動を維持する。
+- 生成は完了spec candidate-classifier-constructionを再利用。単一参加batchのperform_joint_model_parameter_updateと既存有界損失評価を採用し、epoch進行だけ追加する。learning層からruntime生成recordへ依存させない。
+- cc-sdd要求/設計/tasks skill、EARS、命名レビュー規約、方針の正本とproduct/tech/structure/resumeを参照した。自前shuffleを実装せず旧と同じDataLoaderで乱数消費を維持する。外部APIの新規導入はない。
+
+## 仕様化前の判定
+
+要求草案の範囲/異常系/隣接境界と全10受入条件を確認した。生成・session組立を分離し、旧方式を削除せず学習の入口へ明示設定として移植する。非公開状態改変、OOM、途中の内部故障、並行更新は原子的拒否保証の範囲外とする。
+
+## 追加調査と設計の統合
+
+調査担当は既存oracle helperと実旧メソッドでE=0を実測した。none/fixedはRNG不変、earlyは分割でRNG変化。FedDriftはnew_model_initial_epochsを0へoverrideするため0を保持する。最終3goldenはearlyを明記、旧11goldenは方式指定なしでconfig既定earlyを使う。fixed/noneは既存単体testで使用される。
+
+公開のtensor検査だけのAPIはない。private検査をimportせず、入力の事前条件だけを本機能で検査し、演算自体は既存共同更新/有界損失/snapshotへ委譲する。評価を検査代用にして余分なforwardを増やさない。固定/早期停止のdataset反復を一helperで再利用し、runtimeへの依存を作らない。設計草案の境界、4ファイル計画と10条件のtraceabilityを確認し、隠れた依存がないことを確認した。
