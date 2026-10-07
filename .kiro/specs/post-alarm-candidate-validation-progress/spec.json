@@ -1,0 +1,65 @@
+{
+  "feature_name": "post-alarm-candidate-validation-progress",
+  "language": "ja",
+  "phase": "implementation",
+  "created_at": "2026-10-07",
+  "updated_at": "2026-10-07",
+  "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "generated_sha256_lf": "9c2582e9ae9e9e4106182065f0bea60b6e7ede4ae769e2cafc878d70326a84b7",
+      "approved_revision": 2,
+      "approved_sha256_lf": "9c2582e9ae9e9e4106182065f0bea60b6e7ede4ae769e2cafc878d70326a84b7",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_session_task4",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "generated_sha256_lf": "d14644d30cf2f7d7240ebd1772a13eb8be988553a2edd75589d23793bf3b4b38",
+      "approved_revision": 2,
+      "approved_sha256_lf": "d14644d30cf2f7d7240ebd1772a13eb8be988553a2edd75589d23793bf3b4b38",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_session_task4",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "generated_sha256_lf": "7367d8eacd4803d7d0bcbfbc5d98a9768c1ac0e4fd057a36a07169a4e153bf42",
+      "approved_revision": 3,
+      "approved_sha256_lf": "7367d8eacd4803d7d0bcbfbc5d98a9768c1ac0e4fd057a36a07169a4e153bf42",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_session_task4",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "generated_sha256_lf": "d6c35f73da14d1aef3c96699950b35833f3240a9183b6a3c3a6d22d4d4c43048",
+      "graph_sanity_mode": "independent",
+      "graph_sanity_verdict": "PASS",
+      "graph_sanity_reviewer": "gpt-6-luna",
+      "graph_sanity_thread": "/root/luna_candidate_construction_final",
+      "approved_revision": 1,
+      "approved_sha256_lf": "d6c35f73da14d1aef3c96699950b35833f3240a9183b6a3c3a6d22d4d4c43048",
+      "reviewer": "gpt-6-luna",
+      "reviewer_thread": "/root/luna_session_task4",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "implementation_progress": {
+    "completed_tasks": [],
+    "completed_task_count": 0,
+    "total_executable_tasks": 5,
+    "next_task": "1"
+  }
+}
