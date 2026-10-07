@@ -30,12 +30,12 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 3,
-      "approved_revision": 3,
-      "generated_sha256_lf": "0e23365ca203c4b11ca80abb73d0a35db74d333405a479b96bbc8bfc6be36820",
-      "approved_sha256_lf": "0e23365ca203c4b11ca80abb73d0a35db74d333405a479b96bbc8bfc6be36820",
+      "revision": 4,
+      "approved_revision": 4,
+      "generated_sha256_lf": "78c943a76cf7507ef28f1003583d21a7575560a735c869058dc9793f46ba36f8",
+      "approved_sha256_lf": "78c943a76cf7507ef28f1003583d21a7575560a735c869058dc9793f46ba36f8",
       "reviewer": "gpt-6-luna (independent CLI)",
-      "reviewer_session": "alarm-preparation-naming-review-r3.log",
+      "reviewer_session": "alarm-preparation-naming-review-r4.log",
       "review_record": "review.md",
       "approval_scope": "source_and_test_inventory_including_import_bindings"
     },
@@ -51,25 +51,26 @@
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
       "reviewer_evidence": "venv/refactoring-tests/alarm-preparation-task-review-r4.md",
-      "current_sha256_lf": "4da61b5234a4d8127c2fcdc90ac9f95aeae7ddb6e960c22adaee669e019c2608"
+      "current_sha256_lf": "321840e38b3950fd70f5c290bd91ab0ab91c40ba371541526de4178823893958"
     }
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
   "implementation_progress": {
     "completed_tasks": [
-      "1"
+      "1",
+      "2"
     ],
-    "completed_task_count": 1,
+    "completed_task_count": 2,
     "total_executable_tasks": 7,
-    "next_task": "2"
+    "next_task": "3"
   },
   "handoff": {
-    "execution_status": "task1_complete",
-    "next_step": "task2_red_then_runtime_and_guard",
+    "execution_status": "task2_complete",
+    "next_step": "task3_prepare_resolution_training_integration",
     "implementation_started": true,
     "tests_run": true,
-    "completed_unit": "task1"
+    "completed_unit": "task2"
   },
   "task_reviews": {
     "1": {
@@ -81,6 +82,17 @@
       "reviewed_working_tree": true,
       "primary_target_and_ast_passed": 2067,
       "independent_focused_passed": 51
+    },
+    "2": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna (independent CLI)",
+      "review_record": "review.md",
+      "evidence": "alarm-preparation-task2-repair-review.md",
+      "reviewed_base_commit": "2447bbc",
+      "reviewed_working_tree": true,
+      "primary_target_and_ast_passed": 2318,
+      "independent_initial_focused_passed": 302,
+      "repair_independent_rerun": false
     }
   }
 }

@@ -1,4 +1,4 @@
-# 警報時の学習区間の準備 — 命名案 revision3
+# 警報時の学習区間の準備 — 命名案 revision4
 
 ファイル/公開契約の初期一覧。承認状態はspec.jsonを参照する。test/局所名はtask開始前に外部下書きASTで抽出し、追加承認する。
 
@@ -10,6 +10,19 @@ revision2では外部runtime/test下書きの関数・class・引数・代入先
 | preparation_module | 新runtimeのtest用module別名。記録wrapperで公開保存/吸収をpatchする窓口。判断を再実装しない |
 | test_alarm_training_interval_preparation_dependency_contract | 新3moduleのexact依存許可/拒否を検証するtest |
 | source_module_path, source_text, expected_acceptance, dependency_boundary_violations | 既存AST検証と同じ役割の引数/検査結果。新しい依存判定ownerを設けない |
+
+## revision4の追加と役割補足
+
+| 名前 | 役割・入出力・更新 |
+| --- | --- |
+| absorption_module | test内の既存assigned_training_sample_absorption module別名。公開損失評価の記録wrapperを設置する窓口。旧privateには依存しない |
+| original_bounded_loss_evaluation | patch前の公開損失評価関数を保持するtest局所参照。元の計算を実行し判断・損失をstubしない |
+| recorded_bounded_loss_evaluation | keyword入力のclassifier参照をoperation_callsへ記録して元の損失評価へ渡すtest helper。事前評価と吸収の両方へ同じwrapperを適用する |
+| operation_calls | 操作名だけでなく、損失評価時には操作名とclassifierオブジェクトの組を記録する列。同一オブジェクトと保存/吸収の順序を検査する |
+| observe_post_alarm_candidate_validation_sample | 完了specの同名公開操作。候補開始後に標本1件を観測し、候補/固定参照の損失を既存collectionへ収集する。test-onlyの接続検証で再利用 |
+| assert_collected_losses_match_legacy | 完了specの共有test helper。新collectionと実旧forward validationの標本位置・候補損失・参照損失を照合する。同じ役割でtestから再利用 |
+
+既存のclassifier局所名は現行IDのregistryから得る分類器という同じ意味でtestでも使用する。候補観測に渡すtraining_sampleは準備結果から得た観測済み標本、sample_indexは候補開始位置の次の観測位置を表す。新しい本番の状態や設定は追加しない。
 
 | 名前 | 型・役割・違い |
 | --- | --- |

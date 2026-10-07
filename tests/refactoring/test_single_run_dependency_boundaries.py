@@ -250,6 +250,716 @@ import pytest
             "from federated_learning_experiments.cli import main",
             False,
         ),
+        ("runtime/alarm_training_interval_preparation.py", "from random import Random", True),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from random import Random as AcceptedDependency",
+            True,
+        ),
+        ("runtime/alarm_training_interval_preparation.py", "import random", False),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import random as AcceptedDependency",
+            False,
+        ),
+        ("runtime/alarm_training_interval_preparation.py", "import random.Random", False),
+        ("runtime/alarm_training_interval_preparation.py", "from random import _private", False),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from random.child import Random",
+            False,
+        ),
+        ("runtime/alarm_training_interval_preparation.py", "from random import *", False),
+        ("runtime/alarm_training_interval_preparation.py", "from random import field", False),
+        ("runtime/alarm_training_interval_preparation.py", "from torch import Tensor", True),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from torch import Tensor as AcceptedDependency",
+            True,
+        ),
+        ("runtime/alarm_training_interval_preparation.py", "import torch", False),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import torch as AcceptedDependency",
+            False,
+        ),
+        ("runtime/alarm_training_interval_preparation.py", "import torch.Tensor", False),
+        ("runtime/alarm_training_interval_preparation.py", "from torch import _private", False),
+        ("runtime/alarm_training_interval_preparation.py", "from torch.child import Tensor", False),
+        ("runtime/alarm_training_interval_preparation.py", "from torch import *", False),
+        ("runtime/alarm_training_interval_preparation.py", "from torch import field", False),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import IndexedObservedTrainingSample",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import IndexedObservedTrainingSample as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.indexed_observed_training_sample",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.indexed_observed_training_sample as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample.child import IndexedObservedTrainingSample",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..learning.training.indexed_observed_training_sample import IndexedObservedTrainingSample",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import PreparedAlarmTrainingIntervals",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import PreparedAlarmTrainingIntervals as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals.PreparedAlarmTrainingIntervals",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals.child import PreparedAlarmTrainingIntervals",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import PreparedAlarmTrainingIntervals",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.current_training_model_assignment",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.current_training_model_assignment as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment.child import CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.child import PendingTrainingAssignmentBuffer",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import ModelEvaluationSampleStore",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import ModelEvaluationSampleStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.evaluation.model_evaluation_sample_store",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.evaluation.model_evaluation_sample_store as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store.child import ModelEvaluationSampleStore",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..evaluation.model_evaluation_sample_store import ModelEvaluationSampleStore",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_records import ObservedEvaluationSample",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_records import ObservedEvaluationSample as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.evaluation.model_evaluation_sample_records",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.evaluation.model_evaluation_sample_records as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.evaluation.model_evaluation_sample_records.ObservedEvaluationSample",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_records import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_records.child import ObservedEvaluationSample",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_records import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_records import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..evaluation.model_evaluation_sample_records import ObservedEvaluationSample",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_records",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_records as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records.child import ObservedTrainingSample",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..learning.training.model_training_sample_records import ObservedTrainingSample",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.held_model_training_state_registry",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.held_model_training_state_registry as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry.child import HeldModelTrainingStateRegistry",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_store",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_store as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store.child import ModelTrainingSampleStore",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..learning.training.model_training_sample_store import ModelTrainingSampleStore",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.model_training_and_assignment_counts",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.model_training_and_assignment_counts as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts.child import ModelTrainingAndAssignmentCountsStore",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.child import ModelAndClassLossStatisticsStore",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.child import evaluate_classifier_per_sample_bounded_losses",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from ..learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.runtime.assigned_training_sample_absorption",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.runtime.assigned_training_sample_absorption as AcceptedDependency",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "import federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.runtime.assigned_training_sample_absorption.child import absorb_assigned_training_samples_into_held_model",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import *",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import field",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from .assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
+            True,
+        ),
+        ("runtime/alarm_training_interval_preparation.py", "import os", False),
+        ("runtime/alarm_training_interval_preparation.py", "import numpy", False),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_drift_experiment import config",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments import runtime",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.runtime import alarm_training_interval_preparation",
+            False,
+        ),
+        (
+            "runtime/alarm_training_interval_preparation.py",
+            "from federated_learning_experiments.cli import main",
+            False,
+        ),
     ],
 )
 def test_alarm_training_interval_preparation_dependency_contract(
@@ -1175,6 +1885,32 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
         )
+    if (
+        source_module_path
+        == "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py"
+    ):
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+        )
+    if source_module_path == "runtime/alarm_training_interval_preparation.py":
+        return imported_module_name in (
+            "random.Random",
+            "torch.Tensor",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals.PreparedAlarmTrainingIntervals",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_records.ObservedEvaluationSample",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
+        )
     if source_module_path == "runtime/alarm_change_interval_resolution.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -1970,6 +2706,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
             "learning/training/indexed_observed_training_sample.py",
             "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "runtime/alarm_training_interval_preparation.py",
             "runtime/alarm_change_interval_resolution.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
@@ -2014,6 +2751,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
                     "learning/training/indexed_observed_training_sample.py",
                     "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+                    "runtime/alarm_training_interval_preparation.py",
                     "runtime/alarm_change_interval_resolution.py",
                 )
                 and isinstance(import_statement, ast.Import)

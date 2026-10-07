@@ -52,6 +52,16 @@
 - 独立fresh CLI GPT-6 LunaがAPPROVED、指摘なし。focused対象＋注入51 passedとRuffを独立実行し成功。主担当の2067はログを照合し、全2067の再実行とは表現していない。runtimeは未実装でレビュー範囲外。
 - 証拠: `venv/refactoring-tests/alarm-preparation-task1-*-red.log`、`alarm-preparation-task1-green.log`、`alarm-preparation-task1-review.md/log`（元checkout基準のローカルパス）。
 
+## Task2 — 修正後APPROVED
+
+- RED: core testのruntime未実装によるcollection exit2（3.25秒）、AST注入49 failed/155 passed（3.12秒、exit1）。core REDではmatplotlibの一時dir cleanupもACLで失敗したが、意図した未実装エラーと区別して記録。以後MPLCONFIGDIRを共有cacheへ指定した。
+- runtimeは共通検査→位置列一致→公開分割→全前区間事前評価→評価保存→公開吸収→結果返却を実装。旧/private importなし。入力record・診断ID・ownerの契約を状態更新より先に検査。
+- 初回GREEN2312。拒否例外をTypeError/ValueError/LookupErrorのケース別に強化し、全ownerの拒否条件も追加した最終GREEN: 対象98＋AST2220 = 2318 passed、7.97秒、修正後7.53秒、exit0。初回lintの一行複文はformat後の再checkで解消、最終Ruff check/format成功。
+- 独立fresh CLI Lunaの初回レビューはfocused302 passedを実行し、classifier同一性の直接assert不足だけでREJECTED。実装上の不具合ではないがtaskの確認条件不足という指摘を採用した。
+- 追加helperを外部で下書きし命名r4を独立Luna承認。LF hash `78c943a76cf7507ef28f1003583d21a7575560a735c869058dc9793f46ba36f8`。事前/吸収の公開損失評価を記録し、同じ現行classifierの3回評価→save→absorb→同classifierの3回評価をassertするtestを追加。元の評価・保存・吸収は実行したまま。
+- 別fresh CLI Lunaの修正レビューでAPPROVED、必須指摘なし。修正担当は選んだPythonにpytestがなく再実行できなかったので、修正後testの独立再実測とは扱わない。初回独立302と主担当の修正後2318、実diff/記録wrapperを証拠にした。レビュー文のtarget92は強化前の記録で、最新targetは98。
+- 数値・選択/RNGに関する改善は実装へ混ぜていない。診断未接続のため追加事前評価のforward分は性能評価済みとはしない。
+
 次は外部test下書き→AST識別子の命名表照合→命名r2独立レビュー→task graph/各taskの独立レビュー→REDから実装。実装単位では事前評価の追加forward、後半不正時に評価store/Randomも不変、吸収後統計での区間評価、同一分類器参照を確認する。
 
 src/test/旧実装/goldenは変更していない。今回は文書のみ。要求IDと設計coverage、JSON、LF hash、git diff --check、固定旧source/golden差分が空であることを主担当が確認した。pytest・Ruff・Pyrightや数値再実測は未実施。直前specの8455 passedを今回の検証結果とは扱わない。
