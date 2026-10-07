@@ -54,3 +54,11 @@ test-onlyの実NN7条件を追加。2/4class×standard/AMSGrad/SGDの6条件に�
 主担当が編集停止後に6変異を検証: stub/不足判定を無視/開始時ID/位置誤り/余分なRNG/二重吸収を59/1/4/17/57/14failedで検出、各exit1。finallyと終端で元byteを復元し、元/復元SHA256は`86cf36bcb39cc8b7f235d520627fa3f8df0b024adad15142ad6a54a27dce4478`。復元後67passed/4.16s/exit0・Ruff/diff成功。root venv/refactoring-tests/incomplete_validation_finalization_mutation_evidence.py / incomplete-finalization-mutation-evidence.jsonと各変異ログ。source変更は残していない。
 
 独立fresh CLI GPT-6 LunaはAPPROVED。対象67passed/4.28s/exit0、Ruff check/format/diff成功。実helper/実旧methodを読み、候補/参照/全owner/parameter/grad/optimizer/統計/標本/全3RNGと実学習の接続を確認。変異JSON/hashを照合、変異自体は独立再実行なし。阻害指摘なし。実sessionはspec.json、ログはincomplete-finalization-task3-review.{log,md}。verify-completionはVERIFIED。AST/fresh CPU/全回帰は後続。
+
+## Task4
+
+exact guardとImportFrom/Importの両resolverへ2moduleを登録した。初期106注入の実REDは42failed/1587passed/6.20s/exit1。Import許可leafを直接指定した場合の拒否20条件も加え、最終126注入（runtime109・record17）、AST1582＋対象67＝1649passed/6.30s/exit0。RED/GREENログはroot venv直下のincomplete-task4-ast-{red,green}.log。sourceの許可依存を広げず、変更はAST testの164行だけ。
+
+主担当はfresh新CPUの2/4classで実開始→未到達観測→終端回収→共同更新と非activeを実行した。旧/test importなし、RNGと固定参照不変を確認。script/logはroot venv/refactoring-tests/incomplete_validation_finalization_cpu_smoke.py / incomplete-task4-smoke.log。
+
+独立fresh CLI GPT-6 Luna session `01a11736-dcbe-7a41-8a33-932bdbdd6a16` はAPPROVED。対象＋AST1649passed/13.01s/exit0、fresh CPU両class、Ruff check/format/diffを独立再実行。全承認hashと現在tasks hash・実RED/GREENを確認し、阻害指摘なし。ログは同ディレクトリincomplete-finalization-task4-review.{log,md}。verify-completionのTask claimはVERIFIED。全回帰と別feature GOはまだ未完了。

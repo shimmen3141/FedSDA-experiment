@@ -11,6 +11,150 @@ import pytest
 @pytest.mark.parametrize(
     "source_text,expected_acceptance",
     [
+        *[
+            (source_text, expected_acceptance)
+            for imported_module_name in (
+                "dataclasses.dataclass",
+                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+                "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+                "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+                "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+                "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
+                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+                "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
+            )
+            for source_text, expected_acceptance in (
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]}",
+                    True,
+                ),
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]} as AcceptedDependency",
+                    True,
+                ),
+                (f"import {imported_module_name.rsplit('.', 1)[0]}", False),
+                (f"import {imported_module_name.rsplit('.', 1)[0]} as AcceptedDependency", False),
+                (f"import {imported_module_name}", False),
+                (f"import {imported_module_name} as AcceptedDependency", False),
+                (f"from {imported_module_name.rsplit('.', 1)[0]} import _private", False),
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0]}.child import {imported_module_name.rsplit('.', 1)[1]}",
+                    False,
+                ),
+                (f"from {imported_module_name.rsplit('.', 1)[0]} import field", False),
+            )
+        ],
+        *[
+            (source_text, expected_acceptance)
+            for imported_module_name in (
+                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+                "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+                "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+                "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+                "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
+                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+                "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
+            )
+            for source_text, expected_acceptance in (
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0].replace('federated_learning_experiments.runtime.', '.').replace('federated_learning_experiments.', '..')} import {imported_module_name.rsplit('.', 1)[1]}",
+                    True,
+                ),
+                (
+                    f"from {imported_module_name.rsplit('.', 2)[0]} import {imported_module_name.rsplit('.', 2)[1]}",
+                    False,
+                ),
+            )
+        ],
+        ("from math import isfinite", False),
+        ("from random import Random", False),
+        ("from torch import Tensor", False),
+        ("from __future__ import annotations", False),
+        (
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        ("from federated_drift_experiment import config", False),
+        (
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
+            False,
+        ),
+        (
+            "from .candidate_classifier_construction import create_independent_candidate_training_state",
+            False,
+        ),
+        (
+            "from .post_alarm_candidate_validation_progress import progress_post_alarm_candidate_validation",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.detection_episode import DetectionEpisodeController",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training import HeldModelTrainingStateRegistry",
+            False,
+        ),
+    ],
+)
+def test_incomplete_validation_finalization_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="runtime/incomplete_post_alarm_candidate_validation_finalization.py",
+        source_text=source_text,
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("from dataclasses import dataclass", True),
+        ("from dataclasses import dataclass as AcceptedDependency", True),
+        ("import dataclasses", False),
+        ("import dataclasses as AcceptedDependency", False),
+        ("import dataclasses.dataclass", False),
+        ("import dataclasses.dataclass as AcceptedDependency", False),
+        ("from dataclasses import field", False),
+        ("from dataclasses import _private", False),
+        ("from dataclasses.child import dataclass", False),
+        ("from math import isfinite", False),
+        ("from random import Random", False),
+        ("from torch import Tensor", False),
+        ("from __future__ import annotations", False),
+        ("from federated_drift_experiment import config", False),
+        (
+            "from ....runtime.incomplete_post_alarm_candidate_validation_finalization import IncompletePostAlarmCandidateValidationFinalization",
+            False,
+        ),
+        (
+            "from .post_alarm_candidate_loss_evaluation import PostAlarmCandidateLossEvaluation",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection import dataclass",
+            False,
+        ),
+    ],
+)
+def test_incomplete_validation_decision_record_dependency_contract(
+    source_text, expected_acceptance
+):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
+        source_text=source_text,
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
         ("import torch", False),
         ("import dataclasses", False),
         ("import math", False),
@@ -370,6 +514,22 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "runtime/incomplete_post_alarm_candidate_validation_finalization.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
+            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+            "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
+        )
+    if source_module_path == (
+        "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py"
+    ):
+        return imported_module_name == "dataclasses.dataclass"
     if source_module_path == "runtime/post_alarm_candidate_validation_progress.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -1096,6 +1256,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/post_alarm_candidate_validation_session_start.py",
             "runtime/post_alarm_candidate_validation_progress.py",
             "methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
+            "runtime/incomplete_post_alarm_candidate_validation_finalization.py",
+            "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -1133,6 +1295,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/post_alarm_candidate_validation_session_start.py",
                     "runtime/post_alarm_candidate_validation_progress.py",
                     "methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
+                    "runtime/incomplete_post_alarm_candidate_validation_finalization.py",
+                    "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
                 )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(

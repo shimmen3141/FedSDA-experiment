@@ -41,7 +41,7 @@
       "reviewer": "gpt-6-luna",
       "reviewer_session": "01a11713-cb6a-7270-83d1-daca045b9af2",
       "review_record": "review.md",
-      "current_sha256_lf": "f5a13e1d42ccbed9fda7bded04b119c901c525577e301fae4f5c3854d683e629"
+      "current_sha256_lf": "8a2ae1139479590047ae6e17cc95ed443f360d23cc3ba494459f321a4b919bc8"
     },
     "naming": {
       "generated": true,
@@ -61,11 +61,12 @@
     "completed_tasks": [
       "1",
       "2",
-      "3"
+      "3",
+      "4"
     ],
-    "completed_task_count": 3,
+    "completed_task_count": 4,
     "total_executable_tasks": 5,
-    "next_task": "4"
+    "next_task": "5"
   },
   "task_reviews": {
     "1": {
@@ -87,6 +88,16 @@
       "target_passed": 67,
       "mutation_cases_detected": 6,
       "source_bytes_restored": true
+    },
+    "4": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a11736-dcbe-7a41-8a33-932bdbdd6a16",
+      "target_and_ast_passed": 1649,
+      "fresh_cpu_class_counts": [
+        2,
+        4
+      ]
     }
   }
 }

@@ -23,7 +23,7 @@
   - _Boundary: 開始と観測と終端回収の接続_
   - _Requirements: 1.2, 2.1, 2.2, 3.2_
 
-- [ ] 4. 依存境界と新CPUの終端回収を検証する
+- [x] 4. 依存境界と新CPUの終端回収を検証する
   - 2module exact AST注入のRED→guard/両resolver登録→GREENを記録する。
   - fresh新CPUで旧/test importなしの実開始→未到達観測→回収→後続学習と非activeを確認する。
   - _Boundary: exact依存境界_
