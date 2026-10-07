@@ -30,6 +30,28 @@
 
 ## 再開と未実施
 
+## 2026-10-08の再開・task/追加命名承認
+
+ユーザーが「task作成前に停止する必要はなくspec終了まで進める」と訂正したため、停止の範囲をspec完了へ更新した。共通引継ぎ手順も同じ指示へ修正した。
+
+- task案r1: CLI GPT-6 LunaがNEEDS_FIXES/REJECTED。recordとguardを統合taskと明示、NN接続と変異検出を分割する指摘を採用した。
+- r2の最初の呼出しは、PowerShell→Pythonの日本語置換が失敗してr1が残っていたため、旧対象のREJECTEDであり修正版への承認として使わない。apply_patchで修正後のr2再判定もNEEDS_FIXES（粒度/責務の分割）。
+- r3: exact依存とfresh CPUを分けて7taskとし、runtime約160行・既存oracle再利用と前specの全suite332秒を根拠に粒度を明記。規模による懸念は解消されたが、record2module/両resolverの範囲と結果の受渡しに明確化要求。
+- r4: recordの定義2moduleだけをTask1、runtime登録をTask2へ明記。結果からtraining/concept tupleを既存区間解決へ渡す接続を明記。fresh CLI GPT-6 Luna、session `01a11845-db16-74f3-9704-2390b3157893`がTASK_GRAPH PASS、TASKS APPROVED。要求12項目のcoverage/逐次依存/完了条件/境界を確認。task正本LF hash: `cfba185185392aa1312502992b1fe33fd7ddc75a3570ba058ef39d5641718187`。
+- task計画のゲートでは、初回を含む2回の判定で終了するskillの既定上限を超えて修正した。今回のユーザーのspec終了まで進める指示を優先し、未承認で実装へ進む代わりに独立承認まで文書の明確化を継続した。今後は最初から具体的なscope/handoffと規模の根拠を提示する。
+- 命名r2: 外部runtime/testのASTで関数/class/引数/代入/内包/import別名を抽出。Lunaが既存importの明示inventory不足を指摘しREJECTED。既存型・oracle/helper・標準libraryの定義元と同じ責務をr3へ追記した。
+- 命名r3: fresh CLI GPT-6 Luna、session `01a11849-4b9a-7d62-9e89-03a29b9c50e4`がAPPROVED、必須指摘なし。LF hash: `0e23365ca203c4b11ca80abb73d0a35db74d333405a479b96bbc8bfc6be36820`。主担当もAST識別子の欠落なしを確認。主担当のimport集計は45unique binding（複数箇所で再利用）、レビュー文の112は集計方法を確認していないので独立した件数証拠として用いない。
+- native thread一覧を確認したが新規レビュー起動がthread上限で失敗。close APIが提供されていないため、cleanup済みとは表現せずfresh CLI Lunaをworkspace-write/ephemeralで起動した。モデルの根拠は実起動指定と各ログのmodel行。
+
+承認後にTask1のテストを追加しREDを実行した。後続の実装と実測は以下へ記録する。上の「未実施」は前回の停止時点の記録であり、今回の完了状態はspec.json/tasks/integration-validationを参照する。
+
+## Task1 — APPROVED
+
+- 主担当がrecord testを先に追加し、未実装moduleのcollection error（exit2、2.54秒）を確認。guard注入も先行して22 failed/28 passed、exit1。その後にrecord2moduleとexact guard/両resolverを実装した。
+- GREEN: 対象1＋AST2066 = 2067 passed、4.05秒、exit0。Ruffの対象lint/formatも成功。frozen/keyword専用/全field必須、tuple/Tensor借用、不正入力検査をrecordで行わないことを確認。
+- 独立fresh CLI GPT-6 LunaがAPPROVED、指摘なし。focused対象＋注入51 passedとRuffを独立実行し成功。主担当の2067はログを照合し、全2067の再実行とは表現していない。runtimeは未実装でレビュー範囲外。
+- 証拠: `venv/refactoring-tests/alarm-preparation-task1-*-red.log`、`alarm-preparation-task1-green.log`、`alarm-preparation-task1-review.md/log`（元checkout基準のローカルパス）。
+
 次は外部test下書き→AST識別子の命名表照合→命名r2独立レビュー→task graph/各taskの独立レビュー→REDから実装。実装単位では事前評価の追加forward、後半不正時に評価store/Randomも不変、吸収後統計での区間評価、同一分類器参照を確認する。
 
 src/test/旧実装/goldenは変更していない。今回は文書のみ。要求IDと設計coverage、JSON、LF hash、git diff --check、固定旧source/golden差分が空であることを主担当が確認した。pytest・Ruff・Pyrightや数値再実測は未実施。直前specの8455 passedを今回の検証結果とは扱わない。

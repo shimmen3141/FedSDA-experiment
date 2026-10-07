@@ -8,6 +8,262 @@ from pathlib import Path
 import pytest
 
 
+# BEGIN alarm_training_interval_preparation dependency contract
+@pytest.mark.parametrize(
+    "source_module_path,source_text,expected_acceptance",
+    [
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from dataclasses import dataclass",
+            True,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from dataclasses import dataclass as AcceptedDependency",
+            True,
+        ),
+        ("learning/training/indexed_observed_training_sample.py", "import dataclasses", False),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "import dataclasses as AcceptedDependency",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "import dataclasses.dataclass",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from dataclasses import _private",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from dataclasses.child import dataclass",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from dataclasses import *",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from dataclasses import field",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample",
+            True,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample as AcceptedDependency",
+            True,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_records",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_records as AcceptedDependency",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import _private",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records.child import ObservedTrainingSample",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import *",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_records import field",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from .model_training_sample_records import ObservedTrainingSample",
+            True,
+        ),
+        ("learning/training/indexed_observed_training_sample.py", "import os", False),
+        ("learning/training/indexed_observed_training_sample.py", "import numpy", False),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_drift_experiment import config",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_learning_experiments import runtime",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_learning_experiments.runtime import alarm_training_interval_preparation",
+            False,
+        ),
+        (
+            "learning/training/indexed_observed_training_sample.py",
+            "from federated_learning_experiments.cli import main",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from dataclasses import dataclass",
+            True,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from dataclasses import dataclass as AcceptedDependency",
+            True,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "import dataclasses",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "import dataclasses as AcceptedDependency",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "import dataclasses.dataclass",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from dataclasses import _private",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from dataclasses.child import dataclass",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from dataclasses import *",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from dataclasses import field",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import IndexedObservedTrainingSample",
+            True,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import IndexedObservedTrainingSample as AcceptedDependency",
+            True,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "import federated_learning_experiments.learning.training.indexed_observed_training_sample",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "import federated_learning_experiments.learning.training.indexed_observed_training_sample as AcceptedDependency",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "import federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import _private",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample.child import IndexedObservedTrainingSample",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import *",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import field",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from ....learning.training.indexed_observed_training_sample import IndexedObservedTrainingSample",
+            True,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "import os",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "import numpy",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_drift_experiment import config",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_learning_experiments import runtime",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_learning_experiments.runtime import alarm_training_interval_preparation",
+            False,
+        ),
+        (
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
+            "from federated_learning_experiments.cli import main",
+            False,
+        ),
+    ],
+)
+def test_alarm_training_interval_preparation_dependency_contract(
+    source_module_path, source_text, expected_acceptance
+):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path=source_module_path, source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+# END alarm_training_interval_preparation dependency contract
+
+
 # BEGIN alarm_change_interval_resolution dependency contract
 @pytest.mark.parametrize(
     "source_text,expected_acceptance",
@@ -906,6 +1162,19 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "learning/training/indexed_observed_training_sample.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+        )
+    if (
+        source_module_path
+        == "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py"
+    ):
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+        )
     if source_module_path == "runtime/alarm_change_interval_resolution.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -1699,6 +1968,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
             "runtime/alarm_interval_model_reuse_assessment.py",
             "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
+            "learning/training/indexed_observed_training_sample.py",
+            "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
             "runtime/alarm_change_interval_resolution.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
@@ -1741,6 +2012,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
                     "runtime/alarm_interval_model_reuse_assessment.py",
                     "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
+                    "learning/training/indexed_observed_training_sample.py",
+                    "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
                     "runtime/alarm_change_interval_resolution.py",
                 )
                 and isinstance(import_statement, ast.Import)

@@ -80,7 +80,7 @@ codex execのWindows sandboxでは、pytestの一時ディレクトリ走査と�
 ## 検証・成果物・終了時
 
 - 2026-10-08ユーザー訂正指示: 具体的な処理簡略化・計算/通信等の効率化・局所的な調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究方向は研究バックログ、不具合の疑いはimplementation-findings。事実・仮説・変更案・比較条件/指標/悪化の懸念・採否を分け、旧挙動維持の移植へ混ぜない。同率現行優先はIMPROVE-001（旧ALGO-001）、未採用/未検証。
-- 2026-10-08ユーザー指示: Codexの5時間枠残量を正確に取得できる場合は切れ目で停止してClaudeへ引き継ぐ。取得できない場合は現在の作業単位の完了で停止する。今回は残量を取得できないため要求/設計/命名のレビュー単位を区切って停止し、tasks/実装には進まない。次の担当はresumeと対象specの承認状態を確認して再開する。
+- 2026-10-08ユーザー訂正指示: task作成前に停止する必要はなく、spec終了まで進める。Codexの5時間枠残量を取得できないことだけで要求/設計/命名の途中終了をしない。各独立レビューと実装・検証を完了して、spec完了を区切りにする。やむを得ず中断した場合は正本へ未完了の状態と次の一手を残す。
 
 - 検証手順は[code-quality.md](../../docs/research/code-quality.md)、
   [refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)、対象specを参照する。

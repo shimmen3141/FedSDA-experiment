@@ -3,7 +3,7 @@
   "created_at": "2026-10-08",
   "updated_at": "2026-10-08",
   "language": "ja",
-  "phase": "design-approved",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -30,33 +30,57 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "approved_revision": 1,
-      "generated_sha256_lf": "57eb69a4618ef0f1739a82df3a6e4e716d892a99ce2f4fbcaaf820cb1bdc6087",
-      "approved_sha256_lf": "57eb69a4618ef0f1739a82df3a6e4e716d892a99ce2f4fbcaaf820cb1bdc6087",
-      "reviewer": "gpt-6-luna",
-      "reviewer_session": "/root/luna_alarm_preparation_design",
+      "revision": 3,
+      "approved_revision": 3,
+      "generated_sha256_lf": "0e23365ca203c4b11ca80abb73d0a35db74d333405a479b96bbc8bfc6be36820",
+      "approved_sha256_lf": "0e23365ca203c4b11ca80abb73d0a35db74d333405a479b96bbc8bfc6be36820",
+      "reviewer": "gpt-6-luna (independent CLI)",
+      "reviewer_session": "alarm-preparation-naming-review-r3.log",
       "review_record": "review.md",
-      "approval_scope": "source_files_and_public_contracts_only_test_and_private_names_require_revision_update"
+      "approval_scope": "source_and_test_inventory_including_import_bindings"
     },
     "tasks": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true,
+      "revision": 4,
+      "approved_revision": 4,
+      "approved_sha256_lf": "cfba185185392aa1312502992b1fe33fd7ddc75a3570ba058ef39d5641718187",
+      "generated_sha256_lf": "cfba185185392aa1312502992b1fe33fd7ddc75a3570ba058ef39d5641718187",
+      "graph_sanity_mode": "independent",
+      "graph_sanity_verdict": "PASS",
+      "reviewer": "gpt-6-luna",
+      "review_record": "review.md",
+      "reviewer_evidence": "venv/refactoring-tests/alarm-preparation-task-review-r4.md",
+      "current_sha256_lf": "4da61b5234a4d8127c2fcdc90ac9f95aeae7ddb6e960c22adaee669e019c2608"
     }
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
-    "total_executable_tasks": 0,
-    "next_task": null
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
+    "total_executable_tasks": 7,
+    "next_task": "2"
   },
   "handoff": {
-    "execution_status": "requirements_design_initial_naming_approved",
-    "next_step": "draft_tests_outside_repo_extract_ast_identifiers_review_naming_revision2_then_tasks_graph_review",
-    "implementation_started": false,
-    "tests_run": false,
-    "completed_unit": "requirements_design_initial_naming_review"
+    "execution_status": "task1_complete",
+    "next_step": "task2_red_then_runtime_and_guard",
+    "implementation_started": true,
+    "tests_run": true,
+    "completed_unit": "task1"
+  },
+  "task_reviews": {
+    "1": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna (independent CLI)",
+      "review_record": "review.md",
+      "evidence": "alarm-preparation-task1-review.md",
+      "reviewed_base_commit": "61c3d90",
+      "reviewed_working_tree": true,
+      "primary_target_and_ast_passed": 2067,
+      "independent_focused_passed": 51
+    }
   }
 }
