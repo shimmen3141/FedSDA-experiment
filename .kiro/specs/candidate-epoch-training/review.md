@@ -32,4 +32,14 @@ source作成前RED: 設定module未存在のModuleNotFoundError、1error/exit1�
 
 実装module作成前REDはModuleNotFoundError/exit1。固定反復の54条件（class2/4×3optimizer×epoch0/1/3×N/batch=7/3・11/5・4/8）で全parameter/grad/optimizer/RNG/counters/実batch順が実旧に一致。履歴ありpreflight拒否/受理43、record1、設定26を含む対象124passed。主担当も124passed/8.18s/exit0、Ruff対象と全src Pyright0errors/0warningsを確認。nested prototypeは不正tensorを作るtest準備の警告。主担当の対象実行はMPLCONFIGDIR指定漏れにより終了時matplotlib一時dirのACL cleanup例外が出たが、pytestのexit0と件数は正常。全回帰では共通手順どおり明示する。公開入口/earlyはTask3のため未実装。
 
-別の実GPT-6 Lunaセッション`/root/luna_epoch_task2` APPPROVED、独立対象124passed/exit0、Ruff・境界・承認hash確認。指摘なし。全回帰は未実施、レビュー担当はPyrightを独立再実行していない。
+別の実GPT-6 Lunaセッション`/root/luna_epoch_task2` APPROVED、独立対象124passed/exit0、Ruff・境界・承認hash確認。指摘なし。全回帰は未実施、レビュー担当はPyrightを独立再実行していない。
+
+命名revision6は実GPT-6 Luna（/root/luna_single_run_3_1_review）APPROVED、指摘なし。loss記録wrapper2名とTask4接続test名は承認後に実装する。
+
+## Task3
+
+公開入口の追加前REDはImportError: cannot import name train_candidate_classifier_epochs、exit1。方式別216（2class×3optimizer×3方式×epoch0/1/4×N1/3/5/11）と最良snapshotのみ復元/実旧損失差の厳密閾値6条件、既存124を含む346passed。主担当も346passed/1nested warning/9.37s/exit0、全src Pyright0errors/0warningsを確認した。
+
+差替えscriptはGit管理外`../../venv/refactoring-tests/candidate_epoch_training_red_evidence.py`、証拠はcandidate-epoch-training-red-evidence.json。stub/復元省略/optimizer reset/extra randperm/閾値<=の5条件を全てexit1で検出し、元byteへ復元した。元/復元/主担当が照合したruntime LF hashは`1d67010544b048c123b7151b854974a6fb0ac18c3bfd6c0e2af9b99c73760394`で一致。ここまで継続更新・AST・全回帰は未実施。
+
+別の実GPT-6 Lunaセッション`/root/luna_epoch_task3` APPROVED。独立346passed/exit0、Ruff/実diff/境界/RED/5変異のJSONとhashを確認し指摘なし。差替えscriptは独立実行していない。レビュー担当側のmatplotlib一時dir cleanup例外とpytest exit0を区別する。主担当のMPLCONFIGDIR明示の対象再実行ではcleanup例外なし。全suiteは後続Task5。

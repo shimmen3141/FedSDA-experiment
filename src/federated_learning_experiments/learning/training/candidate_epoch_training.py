@@ -1,8 +1,9 @@
 """候補の区間検査と固定エポック反復。"""
 
 from dataclasses import dataclass
+from math import inf
 
-from torch import Tensor, float32, is_grad_enabled, isfinite, strided
+from torch import Tensor, float32, is_grad_enabled, isfinite, randperm, strided
 from torch.optim import SGD, Adam
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -11,6 +12,9 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
     ResidualAdapterClassifier,
+)
+from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
+    evaluate_classifier_per_sample_bounded_losses,
 )
 
 from .candidate_epoch_training_settings import CandidateEpochTrainingSettings
@@ -167,4 +171,112 @@ def _train_candidate_dataset_epochs(
         candidate_trained_sample_count=candidate_trained_sample_count,
         candidate_parameter_update_step_count=candidate_parameter_update_step_count,
         validation_evaluated_sample_count=0,
+    )
+
+
+def train_candidate_classifier_epochs(
+    *,
+    candidate_classifier: ResidualAdapterClassifier,
+    candidate_shared_parameter_optimizer_state: ParameterOptimizerState,
+    candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
+    input_features: Tensor,
+    observed_class_labels: Tensor,
+    candidate_epoch_training_settings: CandidateEpochTrainingSettings,
+) -> CandidateEpochTrainingResult:
+    """全入力を検査し、候補を指定方式で学習して実施量を返す。"""
+    _validate_candidate_epoch_training_inputs(
+        candidate_classifier=candidate_classifier,
+        candidate_shared_parameter_optimizer_state=candidate_shared_parameter_optimizer_state,
+        candidate_concept_specific_parameter_optimizer_state=candidate_concept_specific_parameter_optimizer_state,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+        candidate_epoch_training_settings=candidate_epoch_training_settings,
+    )
+    if candidate_epoch_training_settings.candidate_training_strategy == "skip_training":
+        return CandidateEpochTrainingResult(
+            completed_epoch_count=0,
+            candidate_trained_sample_count=0,
+            candidate_parameter_update_step_count=0,
+            validation_evaluated_sample_count=0,
+        )
+    sample_count = len(input_features)
+    validation_sample_count = max(
+        1, int(round(sample_count * candidate_epoch_training_settings.validation_sample_fraction))
+    )
+    if (
+        candidate_epoch_training_settings.candidate_training_strategy == "fixed_epoch_training"
+        or sample_count - validation_sample_count < 1
+    ):
+        return _train_candidate_dataset_epochs(
+            candidate_classifier=candidate_classifier,
+            candidate_shared_parameter_optimizer_state=candidate_shared_parameter_optimizer_state,
+            candidate_concept_specific_parameter_optimizer_state=candidate_concept_specific_parameter_optimizer_state,
+            training_dataset=TensorDataset(input_features, observed_class_labels),
+            epoch_count=candidate_epoch_training_settings.maximum_epoch_count,
+            maximum_batch_sample_count=candidate_epoch_training_settings.maximum_batch_sample_count,
+        )
+    shuffled_sample_indices = randperm(sample_count)
+    validation_sample_indices = shuffled_sample_indices[:validation_sample_count]
+    training_sample_indices = shuffled_sample_indices[validation_sample_count:]
+    training_dataset = TensorDataset(
+        input_features[training_sample_indices], observed_class_labels[training_sample_indices]
+    )
+    validation_input_features = input_features[validation_sample_indices]
+    validation_observed_class_labels = observed_class_labels[validation_sample_indices]
+    best_validation_loss = inf
+    best_candidate_parameter_snapshot = snapshot_classifier_parameters(
+        classifier=candidate_classifier
+    )
+    consecutive_non_improving_epoch_count = 0
+    completed_epoch_count = 0
+    candidate_trained_sample_count = 0
+    candidate_parameter_update_step_count = 0
+    validation_evaluated_sample_count = 0
+    for _ in range(candidate_epoch_training_settings.maximum_epoch_count):
+        epoch_training_result = _train_candidate_dataset_epochs(
+            candidate_classifier=candidate_classifier,
+            candidate_shared_parameter_optimizer_state=candidate_shared_parameter_optimizer_state,
+            candidate_concept_specific_parameter_optimizer_state=candidate_concept_specific_parameter_optimizer_state,
+            training_dataset=training_dataset,
+            epoch_count=1,
+            maximum_batch_sample_count=candidate_epoch_training_settings.maximum_batch_sample_count,
+        )
+        completed_epoch_count += epoch_training_result.completed_epoch_count
+        candidate_trained_sample_count += epoch_training_result.candidate_trained_sample_count
+        candidate_parameter_update_step_count += (
+            epoch_training_result.candidate_parameter_update_step_count
+        )
+        validation_loss = float(
+            evaluate_classifier_per_sample_bounded_losses(
+                classifier=candidate_classifier,
+                input_features=validation_input_features,
+                observed_class_labels=validation_observed_class_labels,
+            )
+            .mean()
+            .item()
+        )
+        validation_evaluated_sample_count += validation_sample_count
+        if (
+            validation_loss
+            < best_validation_loss
+            - candidate_epoch_training_settings.minimum_validation_loss_decrease
+        ):
+            best_validation_loss = validation_loss
+            best_candidate_parameter_snapshot = snapshot_classifier_parameters(
+                classifier=candidate_classifier
+            )
+            consecutive_non_improving_epoch_count = 0
+        else:
+            consecutive_non_improving_epoch_count += 1
+            if (
+                consecutive_non_improving_epoch_count
+                >= candidate_epoch_training_settings.consecutive_non_improving_epoch_limit
+            ):
+                break
+    candidate_classifier.load_state_dict(best_candidate_parameter_snapshot, strict=True)
+    return CandidateEpochTrainingResult(
+        completed_epoch_count=completed_epoch_count,
+        candidate_trained_sample_count=candidate_trained_sample_count,
+        candidate_parameter_update_step_count=candidate_parameter_update_step_count,
+        validation_evaluated_sample_count=validation_evaluated_sample_count,
     )

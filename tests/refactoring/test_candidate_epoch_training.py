@@ -18,10 +18,14 @@ from test_shared_feature_extractor_attachment import (
 
 from federated_drift_experiment import config
 from federated_drift_experiment.clients.base import BaseClient
+from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
+    evaluate_classifier_per_sample_bounded_losses,
+)
 from federated_learning_experiments.learning.training.candidate_epoch_training import (
     CandidateEpochTrainingResult,
     _train_candidate_dataset_epochs,
     _validate_candidate_epoch_training_inputs,
+    train_candidate_classifier_epochs,
 )
 from federated_learning_experiments.learning.training.candidate_epoch_training_settings import (
     CandidateEpochTrainingSettings,
@@ -275,6 +279,303 @@ def test_candidate_epoch_training_result_contract():
         epoch_training_result.completed_epoch_count = 2
 
 
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+@pytest.mark.parametrize(
+    "candidate_training_strategy",
+    ["fixed_epoch_training", "validation_loss_early_stopping", "skip_training"],
+)
+@pytest.mark.parametrize("maximum_epoch_count", [0, 1, 4])
+@pytest.mark.parametrize(
+    "sample_count,validation_sample_fraction", [(1, 0.5), (3, 0.5), (5, 0.5), (11, 0.2)]
+)
+def test_candidate_epoch_training_matches_legacy(
+    class_count,
+    optimizer_variant,
+    candidate_training_strategy,
+    maximum_epoch_count,
+    sample_count,
+    validation_sample_fraction,
+    monkeypatch,
+    minimum_validation_loss_decrease=0.0001,
+):
+    initial_rng_state = torch.get_rng_state().clone()
+    try:
+        candidate_training_state, legacy_client, legacy_candidate = (
+            build_candidate_epoch_training_oracle(
+                class_count=class_count,
+                optimizer_variant=optimizer_variant,
+                monkeypatch=monkeypatch,
+            )
+        )
+        input_features = torch.arange(sample_count * 2, dtype=torch.float32).reshape(-1, 2) / 7
+        observed_class_labels = (torch.arange(sample_count) % class_count).float().reshape(-1, 1)
+        candidate_epoch_training_settings = CandidateEpochTrainingSettings(
+            candidate_training_strategy=candidate_training_strategy,
+            maximum_epoch_count=maximum_epoch_count,
+            maximum_batch_sample_count=3,
+            validation_sample_fraction=validation_sample_fraction,
+            consecutive_non_improving_epoch_limit=1,
+            minimum_validation_loss_decrease=minimum_validation_loss_decrease,
+        )
+        monkeypatch.setattr(
+            config,
+            "NEW_MODEL_TRAINING",
+            {
+                "fixed_epoch_training": "fixed",
+                "validation_loss_early_stopping": "early_stopping",
+                "skip_training": "none",
+            }[candidate_training_strategy],
+        )
+        monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", maximum_epoch_count)
+        monkeypatch.setattr(config, "CLIENT_BATCH_SIZE", 3)
+        monkeypatch.setattr(config, "NEW_MODEL_VALIDATION_FRACTION", validation_sample_fraction)
+        monkeypatch.setattr(config, "NEW_MODEL_EARLY_STOPPING_PATIENCE", 1)
+        monkeypatch.setattr(
+            config, "NEW_MODEL_EARLY_STOPPING_MIN_DELTA", minimum_validation_loss_decrease
+        )
+        input_tensor_values = (input_features.clone(), observed_class_labels.clone())
+        candidate_parameter_values_and_gradients = snapshot_parameter_values_and_gradients(
+            tuple(candidate_training_state.candidate_classifier.parameters())
+        )
+        legacy_validation_losses = []
+        recorded_validation_losses = []
+
+        def record_legacy_candidate_validation_losses(input_features, observed_class_labels):
+            losses = type(legacy_candidate).per_sample_error(
+                legacy_candidate, input_features, observed_class_labels
+            )
+            legacy_validation_losses.append(float(losses.mean().item()))
+            return losses
+
+        def record_candidate_validation_losses(
+            *, classifier, input_features, observed_class_labels
+        ):
+            losses = evaluate_classifier_per_sample_bounded_losses(
+                classifier=classifier,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+            )
+            recorded_validation_losses.append(float(losses.mean().item()))
+            return losses
+
+        initial_training_rng_state = torch.get_rng_state().clone()
+        with (
+            patch.object(
+                legacy_client,
+                "_update_new_model_epochs",
+                wraps=legacy_client._update_new_model_epochs,
+            ) as record_legacy_candidate_dataset_epochs,
+            patch.object(
+                legacy_candidate,
+                "per_sample_error",
+                side_effect=record_legacy_candidate_validation_losses,
+            ),
+        ):
+            BaseClient._train_new_model(
+                legacy_client, legacy_candidate, input_features, observed_class_labels
+            )
+        expected_rng_state = torch.get_rng_state().clone()
+        recorded_epoch_counts = [
+            record_legacy_candidate_dataset_epochs.call_args_list[training_batch_index].args[2]
+            for training_batch_index in range(
+                len(record_legacy_candidate_dataset_epochs.call_args_list)
+            )
+        ]
+        recorded_training_datasets = [
+            record_legacy_candidate_dataset_epochs.call_args_list[training_batch_index]
+            .args[1]
+            .tensors
+            for training_batch_index in range(
+                len(record_legacy_candidate_dataset_epochs.call_args_list)
+            )
+        ]
+        expected_training_result = CandidateEpochTrainingResult(
+            completed_epoch_count=sum(recorded_epoch_counts),
+            candidate_trained_sample_count=legacy_client.compute_counters["training_examples"],
+            candidate_parameter_update_step_count=legacy_client.compute_counters["optimizer_steps"],
+            validation_evaluated_sample_count=legacy_client.compute_counters[
+                "initialization_examples"
+            ],
+        )
+        torch.set_rng_state(initial_training_rng_state)
+        with (
+            patch(
+                "federated_learning_experiments.learning.training.candidate_epoch_training._train_candidate_dataset_epochs",
+                wraps=_train_candidate_dataset_epochs,
+            ) as record_candidate_dataset_epochs,
+            patch(
+                "federated_learning_experiments.learning.training.candidate_epoch_training.evaluate_classifier_per_sample_bounded_losses",
+                side_effect=record_candidate_validation_losses,
+            ),
+        ):
+            epoch_training_result = train_candidate_classifier_epochs(
+                candidate_classifier=candidate_training_state.candidate_classifier,
+                candidate_shared_parameter_optimizer_state=candidate_training_state.candidate_shared_parameter_optimizer_state,
+                candidate_concept_specific_parameter_optimizer_state=candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+                candidate_epoch_training_settings=candidate_epoch_training_settings,
+            )
+        assert epoch_training_result == expected_training_result
+        assert recorded_validation_losses == legacy_validation_losses
+        assert [
+            record_candidate_dataset_epochs.call_args_list[training_batch_index].kwargs[
+                "epoch_count"
+            ]
+            for training_batch_index in range(len(record_candidate_dataset_epochs.call_args_list))
+        ] == recorded_epoch_counts
+        for training_batch_index in range(len(record_candidate_dataset_epochs.call_args_list)):
+            training_arguments = record_candidate_dataset_epochs.call_args_list[
+                training_batch_index
+            ].kwargs
+            for training_tensor, parameter_values in zip(
+                training_arguments["training_dataset"].tensors,
+                recorded_training_datasets[training_batch_index],
+                strict=True,
+            ):
+                assert torch.equal(training_tensor, parameter_values)
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        assert_candidate_epoch_training_matches_legacy(
+            candidate_training_state=candidate_training_state, legacy_candidate=legacy_candidate
+        )
+        assert torch.equal(input_features, input_tensor_values[0])
+        assert torch.equal(observed_class_labels, input_tensor_values[1])
+        if candidate_training_strategy == "skip_training" or maximum_epoch_count == 0:
+            assert_parameter_values_and_gradients_unchanged(
+                candidate_parameter_values_and_gradients
+            )
+        if candidate_training_strategy == "skip_training" or (
+            maximum_epoch_count == 0
+            and (candidate_training_strategy == "fixed_epoch_training" or sample_count == 1)
+        ):
+            assert torch.equal(torch.get_rng_state(), initial_training_rng_state)
+        else:
+            assert not torch.equal(torch.get_rng_state(), initial_training_rng_state)
+        if (
+            candidate_training_strategy == "validation_loss_early_stopping"
+            and sample_count > 1
+            and maximum_epoch_count == 4
+            and minimum_validation_loss_decrease == 1e6
+        ):
+            assert epoch_training_result.completed_epoch_count == 2
+    finally:
+        torch.set_rng_state(initial_rng_state)
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
+def test_candidate_epoch_training_restores_only_best_parameters(
+    class_count, optimizer_variant, monkeypatch
+):
+    test_candidate_epoch_training_matches_legacy(
+        class_count,
+        optimizer_variant,
+        "validation_loss_early_stopping",
+        4,
+        11,
+        0.2,
+        monkeypatch,
+        minimum_validation_loss_decrease=1e6,
+    )
+    initial_rng_state = torch.get_rng_state().clone()
+    try:
+        candidate_training_state, legacy_client, legacy_candidate = (
+            build_candidate_epoch_training_oracle(
+                class_count=class_count,
+                optimizer_variant=optimizer_variant,
+                monkeypatch=monkeypatch,
+            )
+        )
+        input_features = torch.ones(9, 2)
+        observed_class_labels = torch.zeros(9, 1)
+        monkeypatch.setattr(config, "NEW_MODEL_TRAINING", "early_stopping")
+        monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 2)
+        monkeypatch.setattr(config, "CLIENT_BATCH_SIZE", 3)
+        monkeypatch.setattr(config, "NEW_MODEL_VALIDATION_FRACTION", 1 / 3)
+        monkeypatch.setattr(config, "NEW_MODEL_EARLY_STOPPING_PATIENCE", 1)
+        monkeypatch.setattr(config, "NEW_MODEL_EARLY_STOPPING_MIN_DELTA", 0)
+        legacy_validation_losses = []
+
+        def record_legacy_candidate_validation_losses(input_features, observed_class_labels):
+            losses = type(legacy_candidate).per_sample_error(
+                legacy_candidate, input_features, observed_class_labels
+            )
+            legacy_validation_losses.append(float(losses.mean().item()))
+            return losses
+
+        with patch.object(
+            legacy_candidate,
+            "per_sample_error",
+            side_effect=record_legacy_candidate_validation_losses,
+        ):
+            BaseClient._train_new_model(
+                legacy_client, legacy_candidate, input_features, observed_class_labels
+            )
+        assert len(legacy_validation_losses) == 2
+        validation_loss_decrease_at_boundary = (
+            legacy_validation_losses[0] - legacy_validation_losses[1]
+        )
+        assert validation_loss_decrease_at_boundary > 0
+        assert (
+            legacy_validation_losses[1]
+            == legacy_validation_losses[0] - validation_loss_decrease_at_boundary
+        )
+        torch.set_rng_state(initial_rng_state)
+        candidate_training_state, legacy_client, legacy_candidate = (
+            build_candidate_epoch_training_oracle(
+                class_count=class_count,
+                optimizer_variant=optimizer_variant,
+                monkeypatch=monkeypatch,
+            )
+        )
+        monkeypatch.setattr(config, "NEW_MODEL_EPOCHS", 4)
+        monkeypatch.setattr(
+            config, "NEW_MODEL_EARLY_STOPPING_MIN_DELTA", validation_loss_decrease_at_boundary
+        )
+        candidate_epoch_training_settings = CandidateEpochTrainingSettings(
+            candidate_training_strategy="validation_loss_early_stopping",
+            maximum_epoch_count=4,
+            maximum_batch_sample_count=3,
+            validation_sample_fraction=1 / 3,
+            consecutive_non_improving_epoch_limit=1,
+            minimum_validation_loss_decrease=validation_loss_decrease_at_boundary,
+        )
+        initial_training_rng_state = torch.get_rng_state().clone()
+        BaseClient._train_new_model(
+            legacy_client, legacy_candidate, input_features, observed_class_labels
+        )
+        expected_rng_state = torch.get_rng_state().clone()
+        torch.set_rng_state(initial_training_rng_state)
+        epoch_training_result = train_candidate_classifier_epochs(
+            candidate_classifier=candidate_training_state.candidate_classifier,
+            candidate_shared_parameter_optimizer_state=candidate_training_state.candidate_shared_parameter_optimizer_state,
+            candidate_concept_specific_parameter_optimizer_state=candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
+            input_features=input_features,
+            observed_class_labels=observed_class_labels,
+            candidate_epoch_training_settings=candidate_epoch_training_settings,
+        )
+        assert epoch_training_result.completed_epoch_count == 2
+        assert (
+            epoch_training_result.candidate_trained_sample_count
+            == legacy_client.compute_counters["training_examples"]
+        )
+        assert (
+            epoch_training_result.candidate_parameter_update_step_count
+            == legacy_client.compute_counters["optimizer_steps"]
+        )
+        assert (
+            epoch_training_result.validation_evaluated_sample_count
+            == legacy_client.compute_counters["initialization_examples"]
+        )
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        assert_candidate_epoch_training_matches_legacy(
+            candidate_training_state=candidate_training_state, legacy_candidate=legacy_candidate
+        )
+    finally:
+        torch.set_rng_state(initial_rng_state)
+
+
 @pytest.mark.parametrize(
     "invalid_case",
     [
@@ -504,7 +805,10 @@ def test_candidate_epoch_training_rejects_before_mutation(
         expected_rng_state = torch.get_rng_state().clone()
         if invalid_case in ("valid", "skip_grad_disabled", "zero_grad_disabled"):
             with torch.set_grad_enabled(invalid_case == "valid"):
-                _validate_candidate_epoch_training_inputs(**training_arguments)
+                if invalid_case == "valid":
+                    _validate_candidate_epoch_training_inputs(**training_arguments)
+                else:
+                    train_candidate_classifier_epochs(**training_arguments)
         else:
             with (
                 torch.set_grad_enabled(invalid_case != "grad_disabled"),
@@ -523,7 +827,7 @@ def test_candidate_epoch_training_rejects_before_mutation(
                     else ValueError
                 ),
             ):
-                _validate_candidate_epoch_training_inputs(**training_arguments)
+                train_candidate_classifier_epochs(**training_arguments)
         assert torch.equal(torch.get_rng_state(), expected_rng_state)
         if invalid_case == "classifier_nonfinite":
             for (

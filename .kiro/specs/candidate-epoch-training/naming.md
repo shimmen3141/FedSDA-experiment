@@ -1,4 +1,4 @@
-# 命名と役割 — revision5
+# 命名と役割 — revision6
 
 ## 配置と公開契約
 
@@ -69,3 +69,10 @@
 `optimizer_parameter_group`はoptimizer.param_groupsの一つのdict。optimizer管理器を意味するparameter_optimizer_stateをgroupに使い回さない。`parameter_index`は0始まりのparameter列位置で、標本数sample_countとは異なる。名前の意味を実態と一致させる修正。
 
 `initial_training_rng_state`は候補生成後の旧新学習共通開始RNG。test前のfinally復元用initial_rng_stateと区別する。expected_rng_stateは実旧学習後RNG、recorded_epoch_countsは観測epoch数列だけを保持する。
+
+## Task3/4の検証接続名
+
+- `record_legacy_candidate_validation_losses`: 実旧per_sample_errorを包んで戻りTensorのmean.itemをlegacy_validation_lossesへ記録するwrapper。
+- `record_candidate_validation_losses`: 既存新有界損失関数を包んでrecorded_validation_lossesへ記録するwrapper。損失の式は複製しない。
+- `test_candidate_generation_epoch_training_and_continued_update_match_legacy`: 初期値選択→候補生成→epoch学習→次batch更新のtest-only接続を実旧へ照合するTask4test。
+- Task4のinitialization_settings、selected_initial_parameter_snapshot、reference_parameter_values_and_gradients、legacy_mean_training_loss、candidate_mean_training_lossは既存candidate-classifier-construction接続testと同義で再利用する。

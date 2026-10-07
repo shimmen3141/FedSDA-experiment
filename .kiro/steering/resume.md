@@ -8,7 +8,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 ## 現在地
 
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
-- 作業状態: [候補のエポック学習](../specs/candidate-epoch-training/README.md)を開始。要求revision2・設計revision1・命名revision3・tasks revision1をLuna承認、5taskのgraph sanity PASS。Task1設定実装のレビュー待ち。既存[候補生成](../specs/candidate-classifier-construction/README.md)はcompleted。session開始は後続。承認・現在taskは各specのspec.json/tasks.mdが正本。
+- 作業状態: [候補のエポック学習](../specs/candidate-epoch-training/README.md)を実装中。要求revision2・設計revision1・命名revision6・tasks revision1をLuna承認。Task1設定とTask2固定反復/事前検査は別Luna承認で完了、Task3公開入口/早期停止へ着手。Task2対象124passed、全src Pyright成功。全回帰はTask5予定。既存[候補生成](../specs/candidate-classifier-construction/README.md)はcompleted、session開始は後続。承認・現在taskは各specのspec.json/tasks.mdが正本。
 - 直近の検証済み実装commit: `ceb4336`。全pytest 6412 passed/3 skipped/2warnings（主担当実測、JUnit照合）、Ruff/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。
 - 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
   1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。

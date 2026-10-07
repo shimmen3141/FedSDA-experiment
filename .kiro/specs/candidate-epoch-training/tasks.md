@@ -14,7 +14,7 @@
   - _Depends: 1_
   - _Requirements: 1.1, 2.1, 2.3, 3.1_
 
-- [ ] 3. 検証損失による停止と方式dispatchを実装する
+- [x] 3. 検証損失による停止と方式dispatchを実装する
   - 公開入口をtest先行RED後に追加し、無作為分割・丸め・非改善停止・parameterのみ復元・小区間fallback・skip・0epochの方式差を実旧へ対照する。
   - class2/4×3optimizerで厳密閾値と最良snapshotのみ復元を確認する。stub/復元省略/optimizerリセット/乱数差の差し替えを検出して復元hashを照合する。
   - _Boundary: epoch学習moduleの公開入口と停止処理、対象方式/復元test_
