@@ -81,3 +81,15 @@ Task 1/2のレビューのMinor（M1・M2の一部・M5）をtestへ反映し、
 検出力: 実source変異を25種へ増やし（区間評価を2回呼ぶ、切替えを吸収より先に行う、保有モデルのsnapshotを逆順に取る、を追加）、対象test全体で25/25検出、各変異後に元byteへ復元、復元後241 passed。Task 3のtestだけ（呼出し順・共同学習の継続・実観測）を実行した場合は25種のうち17種を検出した（残りは事前検査とrecordに関する変異で、Task 1/2のtestが検出する）。
 
 ユーザー指示により、Task 3のcommit後に停止した。Task 3の独立レビューは未依頼。Task 4（fresh新CPU、guardとsourceのimportの最終照合）、Task 5（全pytestと証拠）、feature最終レビューは未着手。全pytestはこのspecではまだ実行していない（実行したのは対象testと依存境界testだけ）。
+
+## 再開とTask 3の独立レビュー
+
+2026-10-08、ユーザー指示で再開。Codexの利用上限が解除され、GPT-6 Lunaが利用可能になったため、以後のレビューはLunaへ戻した。
+
+Task 3: 独立fresh CLI GPT-6 Luna（read-only、session `01a117fd-efef-78c0-aba1-264c18f8c367`、実行ログのmodel行はgpt-6-luna、対象HEAD b890f0e）がAPPROVED、指摘なし。3分岐の呼出し列と引数、記録用wrapperが元の部品をそのまま呼ぶこと、共同学習の比較が解決区間を含むbatchで行われること、実観測の照合、Minor反映の妥当性、test名と局所名の命名表への登録を確認した。レビュー担当はpytestを実行していない。
+
+## Task 4/5の実施記録
+
+Task 4: fresh新CPU（旧/test importなし）で2/4class×3分岐を実行し成功。sourceのimport 25件（dataclass、torch 4件、既存部品20件）とguardの一覧をASTで照合して一致、未使用importなし。Task 1/2のレビュー担当は既存部品を19件・合計24件と報告していたが、主担当がASTで数えた値は20件・合計25件で、guardの一覧とも25件で一致する（数え方の差で、一覧の過不足ではない）。
+
+Task 5: commit b890f0eで全pytest 8455 passed/3 skipped/2 warnings（主担当実測、JUnit 8458件照合）、Ruff/Pyright/pip check成功、固定旧差分は空、source hash 259パス。詳細はintegration-validation.md。独立レビューは次に依頼する。
