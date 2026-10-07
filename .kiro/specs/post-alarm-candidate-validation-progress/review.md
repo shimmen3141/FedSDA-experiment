@@ -13,3 +13,9 @@
 命名r3 APPROVED。別の独立実GPT-6 Luna /root/luna_candidate_construction_finalの5task草案graph sanityはPASS（同じthread上限により完了担当再利用）。判定情報→進行→実接続→AST/fresh→全回帰の責務と順次依存を確認。具体assertは各detailと設計matrixへ明示済み、追加分割は不要と判断。正式tasks r1へ保存し別承認を確認する。
 
 正式tasks r1は実GPT-6 Luna /root/luna_session_task4 APPROVED。要求r2/設計r2/命名r3/tasks r1の承認hashを保存。Task1を主担当のkiro-impl指定taskとして実装する。実装レビューは仕様レビューとは別の独立担当へ依頼する。
+
+## Task1
+
+source追加前REDはModuleNotFoundError/1collectionerror/3.44s/exit1。初回は共有TMP/MPLCONFIGDIRを指定し忘れ、matplotlib終了時に既存Temp ACLの例外が出た。test失敗原因とは別に記録する。環境指定を直してsource追加後13passed/2.00s/exit0、Ruff/diff成功。2/4/5観測件数×4分岐の12条件と不変record1条件、14fields/4導出値の旧対応、履歴なしNone/旧NaN、負の履歴差、frozen/kw_onlyを確認。
+
+新規native reviewer thread上限のため、fresh `codex exec -m gpt-6-luna --sandbox workspace-write --ephemeral`の独立session `01a115ff-ec20-7891-9dbe-dca8d7e25eb2`へ依頼。起動ログmodel=gpt-6-luna。APPROVED、独立13passed/2.30s、対象Ruff/diff/実sourceと承認正本の境界を確認、指摘なし。REDを独立再実行したわけではない。最終回答はGit管理外../../venv/refactoring-tests/progress-task1-review.md。全回帰はTask5。

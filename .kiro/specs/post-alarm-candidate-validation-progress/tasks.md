@@ -2,7 +2,7 @@
 
 逐次順に依存する。全task承認後の別fresh feature GOは実装taskとは別のゲート。
 
-- [ ] 1. 不変の判定記録と再分析値を実装する
+- [x] 1. 不変の判定記録と再分析値を実装する
   - 旧の実判定recordとの数値対応をtest先行RED後に移植し、metadataと既存評価を保持する。
   - 14fields/4導出値の対応、履歴なしNone/旧NaN、frozen/kw_only、入力評価不変を確認する。
   - _Boundary: 不変判定情報_
