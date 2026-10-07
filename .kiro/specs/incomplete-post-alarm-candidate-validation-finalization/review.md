@@ -28,3 +28,9 @@ CLIログ/出力はroot venv/refactoring-testsの`incomplete-finalization-requir
 独立GPT-6 Luna `/root/luna_candidate_construction_final` が保存前の5task draftを直接要求/設計/task規約へ照合しPASS。既存環境と上流が前提を満たす、逐次依存と責務の切れ目/全要求coverageを確認。1.3の実位置計算はTask2へだけmapping、非activeの他入力アクセス禁止をtask詳細へ明示する提案を採用した。隣接Dependsは不要。
 
 正式tasksゲートはfresh CLI GPT-6 LunaでAPPROVED。全要求/5責務/逐次順/明示的統合task/1.3位置/非activeアクセス禁止と、要求・設計・命名の承認hash・tasks生成hashを直接照合した。tasks LF hash `f0f19b7b30cabe9183030f05309a635a925d55171c9afef616770cc54da0b01d`。実sessionはspec.jsonへ記録、ログはroot venv/refactoring-tests/incomplete-finalization-tasks-review.{log,md}。阻害指摘なし。native新規thread/reuseの上限に当たったためCLIを使用し、読取りはUTF8またはASCII escape出力を明示した。
+
+## Task1
+
+- 不足recordと指定testだけを追加。source前REDはModuleNotFoundError/1collectionerror/3.46s/exit2、実装後7passed/4.09s/exit0。主担当の現在byteでの再実行7passed/3.50s/exit0、Ruff/diff成功。
+- 独立fresh CLI GPT-6 LunaはAPPROVED。自分で対象7passed/6.74s/exit0・Ruff成功、5必須frozen/kw_only fields/位置差/実旧記録/NaNと理由のtest内対応/dataclasses限定/全承認hashを確認。阻害指摘なし。実sessionはspec.json、ログはroot venv/refactoring-tests/incomplete-finalization-task1-review.{log,md}。
+- verify-completionのTask claimは現在byteの対象テスト・独立レビュー・境界でVERIFIED。runtime/全suiteはこのtaskの保証外。

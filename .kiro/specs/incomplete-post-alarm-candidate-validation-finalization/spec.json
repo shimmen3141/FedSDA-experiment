@@ -3,7 +3,7 @@
   "created_at": "2026-10-08",
   "updated_at": "2026-10-08",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -40,7 +40,8 @@
       "approved_sha256_lf": "f0f19b7b30cabe9183030f05309a635a925d55171c9afef616770cc54da0b01d",
       "reviewer": "gpt-6-luna",
       "reviewer_session": "01a11713-cb6a-7270-83d1-daca045b9af2",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "current_sha256_lf": "9c4b044866fe299f26028fabfb61323df643327105a77db53bea8af87232ec36"
     },
     "naming": {
       "generated": true,
@@ -57,9 +58,19 @@
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
+    "completed_tasks": [
+      "1"
+    ],
+    "completed_task_count": 1,
     "total_executable_tasks": 5,
-    "next_task": "1"
+    "next_task": "2"
+  },
+  "task_reviews": {
+    "1": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a11718-27a6-7f11-85fe-4f8aa88565f0",
+      "target_passed": 7
+    }
   }
 }
