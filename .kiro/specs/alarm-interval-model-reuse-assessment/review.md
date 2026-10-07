@@ -35,3 +35,28 @@ tasks 1〜3のtest/実装を具体化して必要になった名前（source pri
 ## Task 1の実施記録
 
 test先行。実装ファイル作成前に対象testを実行し、collection時のImportError（methodsのmoduleが存在しない）でREDを確認した。実装後は対象73 passed。実source変異8種（閾値比較を等値不適合へ、差分の符号、最大選択、同率後着、同率ID最小、零基準の拒否削除、key集合検査の緩和、frozen解除）をすべて検出し、元byteへ復元して73 passedを再確認した（Git管理外 venv/refactoring-tests/alarm_interval_reuse_mutation_evidence.py）。Ruff/対象Pyright成功。
+
+## Task 1の独立レビュー
+
+独立fresh CLI GPT-6 Luna（read-only、session `01a11786-b6dc-7701-b78f-acdad0a26df9`、対象HEAD 8e24bef）がAPPROVED、指摘なし。exact型・入力検査と例外区分・差分判定・入力順の部分列・最小値と同率先着・空入力、許可依存、旧_resolve_drift/_select_reuse_candidateとの一致を確認。レビュー担当はpytestを実行していない（シェルでpytestコマンドが見つからない）。
+
+## Task 2の実施記録と独立レビュー
+
+test先行。runtime作成前に対象testを実行し、collection時のImportErrorでREDを確認した。実装後の初回実行で2件失敗した。原因はtest helperがNaN入力のTensorを値の不変比較へ含めていたこと（NaNは自身と等しくない）で、NaNを含むTensorを値比較から外した。productionは無変更。対象136 passed。
+
+依存境界は、2moduleの注入契約testを追加して49 failed（注入48＋実source1）を確認してからexact guardと両resolver登録を追加し、依存境界＋対象で1862 passed。tasks.mdではTask 4にあるこの作業を、全commitで全suiteをgreenに保つためTask 2のcommit（d58c427）へ前倒しした。
+
+1回目（session `01a11793-458b-71d0-85e5-1384ffa7dd18`、対象HEAD d58c427）: Task 2はCHANGES_REQUESTED、命名r4はAPPROVED。
+- Major「test helper内のselect_initialization_parameters/select_reuse_candidateは選択関数に見えるが記録用wrapperで、選択IDを警報処理の外で選択関数を呼び直して得ている」→採用。record_legacy_initialization_selection/record_legacy_reuse_selectionへ改名し、実旧の警報処理の中で実旧の選択関数が返した結果をlegacy_reuse_selectionsへ記録してそこから選択IDを取るようにした。最後の実行で選択関数が呼ばれた回数が適合の有無と一致することもassertする。命名r4の該当行を改訂した。
+- Minor「局所名の事後登録は、実装開始前の命名承認という手順を満たしたことにならない」→事実として受け入れる。Task 2のtest（d58c427）は、命名r3に未登録の局所名（history_and_fit_role、mean_loss_increase、state_snapshot等）を使ったままcommitした。主担当の手順逸脱であり、命名r4へ事後登録した。以後は、testを書く前に必要な局所名を洗い出して登録する。
+- 前倒しのguard登録は、fresh新CPUの確認をTask 4へ残しているため問題としない、との判断。−無限大の閾値で評価済み候補列を観測する方法は、旧が候補を閾値比較より前に追加し損失差が有限なので機能する、との確認。
+
+2回目（session `01a1179a-0821-7f51-b6fb-2f3131fa2d24`、対象HEAD 5785533）: Task 2 APPROVED、Task 3 APPROVED、命名r4（改訂後、LF hash=64761b4b82e3e547f3789003aa0cb76541f2c1ad38a4653cf14f5619efd96633）APPROVED。Blocker/Majorなし。Minor「手順逸脱のreview.mdへの記録が差分にない」→本節で記録した。レビュー担当はpytestを実行していない。
+
+## Task 3の実施記録
+
+test-only。追加時点で実装が存在するため初回からGREEN（18条件）。検出力は実source変異で確認した（全体で17/17、接続test単独では接続に関わる7種。内訳はintegration-validation.md）。レビュー担当は、接続test単独で未検出の10種が接続条件で通らない経路でありTask 1/2が検出するという説明を妥当とした。
+
+## Task 4/5の実施記録
+
+fresh新CPU（旧/test importなし）で2/4classの区間評価→再利用選択、適合なし→初期値選択→session開始→観測を確認。commit 5785533で全pytest 7924 passed/3 skipped/2 warnings（主担当実測、JUnit 7927件照合）、Ruff/Pyright/pip check成功、固定旧差分は空、source hash 257パス。詳細はintegration-validation.md。独立レビューは次に依頼する。

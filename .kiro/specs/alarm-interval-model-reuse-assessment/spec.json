@@ -3,7 +3,7 @@
   "created_at": "2026-10-08",
   "updated_at": "2026-10-08",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-complete-awaiting-feature-review",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -32,16 +32,18 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 3,
-      "draft_sha256_lf": "89ce47ce1fa086a9a8e6fba90bc707331de11b3370271c32849a158888cf0572",
-      "approved_revision": 3,
-      "approved_sha256_lf": "89ce47ce1fa086a9a8e6fba90bc707331de11b3370271c32849a158888cf0572",
-      "generated_sha256_lf": "89ce47ce1fa086a9a8e6fba90bc707331de11b3370271c32849a158888cf0572",
+      "revision": 4,
+      "draft_sha256_lf": "64761b4b82e3e547f3789003aa0cb76541f2c1ad38a4653cf14f5619efd96633",
+      "approved_revision": 4,
+      "approved_sha256_lf": "64761b4b82e3e547f3789003aa0cb76541f2c1ad38a4653cf14f5619efd96633",
+      "generated_sha256_lf": "64761b4b82e3e547f3789003aa0cb76541f2c1ad38a4653cf14f5619efd96633",
       "reviewer": "gpt-6-luna",
-      "reviewer_session": "01a11782-4048-75d2-b5ab-6022c2d84dbc",
+      "reviewer_session": "01a1179a-0821-7f51-b6fb-2f3131fa2d24",
       "review_record": "review.md",
       "previous_approved_revision2_sha256_lf": "df6bcc98cc1c53e35c83b4da06c7af8911e57eaf293b22f6bc4b0e8605f35f85",
-      "previous_reviewer_session_revision2": "01a1175e-f273-7362-ab27-4a0e274e08b6"
+      "previous_reviewer_session_revision2": "01a1175e-f273-7362-ab27-4a0e274e08b6",
+      "previous_approved_revision3_sha256_lf": "89ce47ce1fa086a9a8e6fba90bc707331de11b3370271c32849a158888cf0572",
+      "previous_reviewer_session_revision3": "01a11782-4048-75d2-b5ab-6022c2d84dbc"
     },
     "tasks": {
       "generated": true,
@@ -56,22 +58,54 @@
       "reviewer": "gpt-6-luna",
       "reviewer_session": "01a1177e-2b82-7993-8d14-35fac2a37fb2",
       "review_record": "review.md",
-      "current_sha256_lf": "f6fd70135204fbe4b52215e3c660162979d7aeae5ae1aee77189e469b0549ad1"
+      "current_sha256_lf": "6ceae05cf07e3e8124643fdbc59f902cdd64a56816b704a8c519d8e0798f65fb"
     }
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "tasks_review",
-    "next_step": "implement_task_1_test_first",
+    "completed_unit": "tasks_1_to_3_reviewed_tasks_4_5_measured",
+    "next_step": "independent_review_of_tasks_4_5_then_fresh_feature_final_review",
     "implementation_started": true,
     "tests_run": true
   },
   "implementation_progress": {
-    "completed_tasks": [],
-    "completed_task_count": 0,
+    "completed_tasks": [
+      "1",
+      "2",
+      "3"
+    ],
+    "completed_task_count": 3,
     "total_executable_tasks": 5,
-    "next_task": "1"
-  }
+    "next_task": "4",
+    "note": "Task4/5は実施済みで独立レビュー待ち。tasks.mdのcheckboxは実施済みを示す"
+  },
+  "task_reviews": {
+    "1": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a11786-b6dc-7701-b78f-acdad0a26df9",
+      "target_passed": 73,
+      "reviewer_ran_tests": false
+    },
+    "2": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a1179a-0821-7f51-b6fb-2f3131fa2d24",
+      "previous_changes_requested_session": "01a11793-458b-71d0-85e5-1384ffa7dd18",
+      "target_passed": 136,
+      "reviewer_ran_tests": false
+    },
+    "3": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna",
+      "reviewer_session": "01a1179a-0821-7f51-b6fb-2f3131fa2d24",
+      "target_passed": 154,
+      "mutation_cases_detected": 17,
+      "source_bytes_restored": true,
+      "reviewer_ran_tests": false
+    }
+  },
+  "verification_source_sha256": "4fca6c7b9cc634f1d6dc60952412c87be7ecaaa2e32022a646b0ecb01268f75f"
 }

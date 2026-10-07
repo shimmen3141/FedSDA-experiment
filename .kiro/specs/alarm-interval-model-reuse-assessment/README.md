@@ -1,6 +1,6 @@
 # 警報区間での保有モデル再利用評価
 
-正本はrequirements.md（要求r2）、design.md（境界r2）、naming.md（名前r2）、spec.json（承認）。brief.mdは目的/開発ゲート、research.mdはコード根拠、review.mdは独立レビュー/採否。3段階とtasks.md（r1、全5task）は実Luna承認済み。進捗の正本はtasks.mdとspec.json。integration-validation.mdはまだ作成していない。
+正本はrequirements.md（要求r2）、design.md（境界r2）、naming.md（名前r2）、spec.json（承認）。brief.mdは目的/開発ゲート、research.mdはコード根拠、review.mdは独立レビュー/採否。3段階とtasks.md（r1、全5task）は実Luna承認済み。進捗の正本はtasks.mdとspec.json。検証証拠はintegration-validation.md。
 
 区間切出しとsession開始の間に必要な未移植部品。既存損失評価/警報区間履歴基準を使い、初期値選択用の評価済み候補と再利用候補を返す。区間の取得、帰属変更、標本吸収、候補生成/開始、通知、旧実装修正は含めない。
 
