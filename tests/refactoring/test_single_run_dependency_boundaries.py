@@ -14,6 +14,198 @@ import pytest
         *[
             (source_text, expected_acceptance)
             for imported_module_name in (
+                "math.isfinite",
+                "torch.Tensor",
+                "torch.mean",
+                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+                "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+                "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.assess_alarm_interval_model_reuse",
+                "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_alarm_interval_reuse_baseline_mean_loss",
+            )
+            for source_text, expected_acceptance in (
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]}",
+                    True,
+                ),
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]} as AcceptedDependency",
+                    True,
+                ),
+                (f"import {imported_module_name.rsplit('.', 1)[0]}", False),
+                (f"import {imported_module_name.rsplit('.', 1)[0]} as AcceptedDependency", False),
+                (f"import {imported_module_name}", False),
+                (f"import {imported_module_name} as AcceptedDependency", False),
+                (f"from {imported_module_name.rsplit('.', 1)[0]} import _private", False),
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0]}.child import {imported_module_name.rsplit('.', 1)[1]}",
+                    False,
+                ),
+                (f"from {imported_module_name.rsplit('.', 1)[0]} import field", False),
+            )
+        ],
+        *[
+            (source_text, expected_acceptance)
+            for imported_module_name in (
+                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+                "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+                "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
+                "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.assess_alarm_interval_model_reuse",
+                "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_alarm_interval_reuse_baseline_mean_loss",
+            )
+            for source_text, expected_acceptance in (
+                (
+                    f"from {imported_module_name.rsplit('.', 1)[0].replace('federated_learning_experiments.', '..')} import {imported_module_name.rsplit('.', 1)[1]}",
+                    True,
+                ),
+                (
+                    f"from {imported_module_name.rsplit('.', 2)[0]} import {imported_module_name.rsplit('.', 2)[1]}",
+                    False,
+                ),
+            )
+        ],
+        ("from dataclasses import dataclass", False),
+        ("from math import isnan", False),
+        ("from random import Random", False),
+        ("from torch import no_grad", False),
+        ("from torch import manual_seed", False),
+        ("from numpy import mean", False),
+        ("from __future__ import annotations", False),
+        (
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        ("from federated_drift_experiment import config", False),
+        (
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import _validate_classifier_bounded_loss_inputs",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingState",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_post_alarm_reference_historical_mean_loss",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_loss_monitoring_baseline_mean_loss",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment import _validate_alarm_interval_reuse_assessment_inputs",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
+            False,
+        ),
+        (
+            "from .post_alarm_candidate_validation_session_start import start_post_alarm_candidate_validation_session",
+            False,
+        ),
+        (
+            "from .assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training import HeldModelTrainingStateRegistry",
+            False,
+        ),
+    ],
+)
+def test_alarm_interval_reuse_evaluation_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="runtime/alarm_interval_model_reuse_assessment.py",
+        source_text=source_text,
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("from dataclasses import dataclass", True),
+        ("from dataclasses import dataclass as AcceptedDependency", True),
+        ("from math import isfinite", True),
+        ("from math import isfinite as AcceptedDependency", True),
+        ("import dataclasses", False),
+        ("import dataclasses as AcceptedDependency", False),
+        ("import dataclasses.dataclass", False),
+        ("import math", False),
+        ("import math as AcceptedDependency", False),
+        ("import math.isfinite", False),
+        ("from dataclasses import field", False),
+        ("from dataclasses import _private", False),
+        ("from dataclasses.child import dataclass", False),
+        ("from math import isnan", False),
+        ("from math import inf", False),
+        ("from math.child import isfinite", False),
+        ("from random import Random", False),
+        ("from torch import Tensor", False),
+        ("from torch import mean", False),
+        ("import torch", False),
+        ("import numpy", False),
+        ("from __future__ import annotations", False),
+        ("from federated_drift_experiment import config", False),
+        (
+            "from federated_learning_experiments.configuration.run_settings import RunSettings",
+            False,
+        ),
+        (
+            "from ....runtime.alarm_interval_model_reuse_assessment import evaluate_held_models_for_alarm_interval_reuse",
+            False,
+        ),
+        (
+            "from .post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
+            False,
+        ),
+        (
+            "from .candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
+            False,
+        ),
+        (
+            "from ..loss_statistics.loss_baseline_selection import select_alarm_interval_reuse_baseline_mean_loss",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import BoundedLossMoments",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection import dataclass",
+            False,
+        ),
+    ],
+)
+def test_alarm_interval_reuse_assessment_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
+        source_text=source_text,
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        *[
+            (source_text, expected_acceptance)
+            for imported_module_name in (
                 "dataclasses.dataclass",
                 "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
                 "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
@@ -514,6 +706,25 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "runtime/alarm_interval_model_reuse_assessment.py":
+        return imported_module_name in (
+            "math.isfinite",
+            "torch.Tensor",
+            "torch.mean",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.assess_alarm_interval_model_reuse",
+            "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_alarm_interval_reuse_baseline_mean_loss",
+        )
+    if source_module_path == (
+        "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py"
+    ):
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math.isfinite",
+        )
     if source_module_path == "runtime/incomplete_post_alarm_candidate_validation_finalization.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -1258,6 +1469,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
             "runtime/incomplete_post_alarm_candidate_validation_finalization.py",
             "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
+            "runtime/alarm_interval_model_reuse_assessment.py",
+            "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -1297,6 +1510,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
                     "runtime/incomplete_post_alarm_candidate_validation_finalization.py",
                     "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
+                    "runtime/alarm_interval_model_reuse_assessment.py",
+                    "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
                 )
                 and isinstance(import_statement, ast.Import)
             ) or not dependency_is_allowed(
