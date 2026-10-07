@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- 警報の変化区間の解決は`../specs/alarm-change-interval-resolution/README.md`。主担当Claude Code。要求r3・設計r3・命名r5・tasks r2・全5tasks承認/完了、別fresh GPT-6 Lunaのfeature最終GO。要求・設計・命名・tasks・Task1/2のレビューはCodexの利用上限中のため独立AgentのSonnetが代替（CLAUDE.mdの取り決め）、Task3以降はLuna。runtimeの`resolve_alarm_change_interval`が、切出し済みの変化区間の標本を連結して既存の区間評価へ渡し、選択IDがあれば吸収→学習帰属の切替え（同じIDなら維持）、なければ全保有モデルのsnapshot→既存の初期値選択→既存の候補検証session開始を行い、不変recordで返す。実旧_resolve_driftを吸収・帰属切替・初期値選択・session開始を差し替えずに実行し、再利用・維持6条件×2class×2optimizer、候補検証開始4条件×2class×3初期化方式で最終状態と乱数を照合。拒否は共通44条件×3分岐条件と開始だけの12条件、呼出し順、解決前後の共同学習の継続、開始後の実観測を確認。実装前RED、実source変異25種を検出。対象241＋AST2016/全8455 passed・3 skipped・2既存warnings（主担当実測＋JUnit）、fresh新CPU 3分岐/品質/固定旧golden/10要件成功。手順逸脱: testの局所名7つを命名表へ事後登録。次は区間の切出し・前区間の処理・後始末を含む警報処理の残りの組立。入口はresume.md。
+
 - 警報区間の保有モデル再利用評価は`../specs/alarm-interval-model-reuse-assessment/README.md`。要求r2・設計r2・命名r2まで主担当Codex、tasks r1・命名r3/r4（test局所名の追加）・全5tasksは主担当Claude Code。全5task独立GPT-6 Luna承認/完了、別fresh Lunaのfeature最終GO。methodsの純粋判定と不変record、runtimeの区間評価の組立。保有順に全モデルを区間評価し、履歴基準（2件以上・非零平均）を使えるモデルだけを評価列へ含め、区間平均−履歴平均が許容増加量以下を適合、平均最小・同率は保有順で選ぶ。実旧_resolve_driftの評価済み候補列・適合列・選択と2/4class×8履歴case・閾値境界・同率で照合、拒否は純粋58＋runtime35、3初期化方式×3履歴caseで初期値選択→session開始→観測をtest内で接続して実旧と照合。実装前RED、実source変異17種を検出。対象154＋AST1726/全7924 passed・3 skipped・2既存warnings（主担当実測＋JUnit）、fresh新CPU/品質/固定旧golden/6要件成功。手順逸脱: Task2のtest局所名を命名r4へ事後登録（独立レビューでMinor、内容は承認）。次は警報処理の組立。入口はresume.md。
 
 - `alarm-interval-model-reuse-assessment`を仕様化中（2026-10-08）。要求r2/設計r2/命名r2は独立Luna承認。tasks未作成、source/test未着手。警報からsession開始への接続に先立ち、区間平均/履歴基準の候補除外/同率保有順選択を独立した読取り専用部品にする。ユーザー指示でこのレビュー単位の完了に停止、Claudeはtasks生成から再開する。性能仮説IMPROVE-001（旧ALGO-001）はdocs/research/improvement-candidatesへ分離、今回の旧挙動維持へ混ぜない。

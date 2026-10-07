@@ -99,3 +99,9 @@ Task 5: commit b890f0eで全pytest 8455 passed/3 skipped/2 warnings（主担当�
 独立fresh CLI GPT-6 Luna（read-only、session `01a11807-49c4-7a31-a89f-1f6199e1b57c`、対象HEAD dfebeaa、検証対象のsource/test commitはb890f0e）がTask 4 APPROVED、Task 5 APPROVED、指摘なし。sourceのimport 25件とguard・注入契約testの許可一覧・設計のAllowed Dependenciesの一致（Task 1/2レビューの24件ではなく25件が正しいと実際に数えて確認）、smoke scriptの内容、件数の整合（7924＋241＋290＝8455、JUnit 8458件・failure0・error0・skip3）、承認hashの再計算、固定旧差分とb890f0e以降のsrc/tests差分が空であること、未検証範囲と手順逸脱の記載を確認した。
 
 レビュー担当が再現していないこと: pytestとfresh CPU smokeは未実行（smokeの成功は主担当の実測だけ）。
+
+## feature最終レビュー
+
+これまでのtaskレビューとは別のfresh CLI GPT-6 Luna（read-only、session `01a11809-0630-7423-89a0-3ebd68cdb62a`、実行ログのmodel行はgpt-6-luna、対象HEAD 6aaabf0）がGO、指摘なし。要求10項目の充足、設計の境界と許可依存、旧_resolve_driftの分岐との一致と吸収→切替の順の根拠、固定旧差分とb890f0e以降のsrc/tests差分が空であること、Sonnet代替の記録がCLAUDE.mdの取り決めに沿うこと、進捗記録の整合、手順逸脱と残る制約の記載を確認した。
+
+レビュー担当が再現していないこと: pytest、Ruff、Pyright、pip check、fresh CPU smokeは未実行。全pytestは基準（主担当実測＋JUnit照合）で判定した。主担当は全suite・品質・承認hash・259パスsource hash・固定旧差分を照合してcompletedへ更新した。
