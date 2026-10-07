@@ -15,3 +15,11 @@
 正式レビューで設計r2 APPROVED、tasks r1はDepends明記を求めNEEDS_FIXES。主担当はこの指摘を不採用とした。task-generation規則は逐次順で依存を表しDo not over-annotateとし、前のgraph担当がDepends省略を求めた事実にも反するため。草案を再変更せずこの根拠を示して同担当へ再判定を依頼した。
 
 同担当が規則と実graphを読み直し、隣接specの冗長表記を規範と誤認したと撤回、tasks r1 APPROVED。追加修正なし。要求r2/設計r2/命名r1/tasks r1の承認hashをspec.jsonへ保存してTask1へ進む。
+
+命名r2のTask1追加3名は同実GPT-6 Luna担当APPROVED、指摘なし。source/test作成前に承認hashを保存して担当へ開始を通知した。
+
+## Task1
+
+新source作成前RED: ModuleNotFoundError/collection1error/1.92s/exit1。正常36＋最終6batch32＋履歴8＋未採番/空保留/負ID4の対象54passed。実旧_begin_forward_validationの学習を有効にし、全候補parameter/grad/optimizer型defaultsstate・参照値/順序・履歴平均・実epoch引数合算/学習計数・torch/Python/NumPyRNG・borrow/保有/統計/帰属不変を照合した。主担当も54passed/4.34s/exit0を確認。
+
+別fresh実GPT-6 Luna /root/luna_session_task1 APPROVED、独立54passed/4.10s、対象Ruff check/formatと承認hashを確認、指摘なし。REDの独立再実行はしていない。拒否/観測接続/AST/fresh/全回帰は後続。

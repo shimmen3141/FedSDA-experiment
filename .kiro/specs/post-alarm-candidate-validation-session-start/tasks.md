@@ -2,7 +2,7 @@
 
 逐次順に依存する。全task承認後の別fresh feature GOは実装taskとは別のゲート。
 
-- [ ] 1. 候補検証sessionの開始を組み立てる
+- [x] 1. 候補検証sessionの開始を組み立てる
   - 事前検査と開始recordをtest先行RED後に実装し、生成→学習→参照固定→空収集を各1回の順で呼ぶ。
   - 実旧開始oracleで2class×3optimizer×3方式×epoch0/3の36条件と最終構成6条件、全候補/grad/optimizer/参照順序/履歴平均/計数/RNG/metadataを照合する。
   - _Boundary: 開始runtime_

@@ -1,4 +1,4 @@
-# 命名と役割 revision1
+# 命名と役割 revision2
 
 ## Source/API
 
@@ -43,3 +43,10 @@
 - session_input_tensor_values: 区間と保留tensorのclone列。
 
 class_count/optimizer_variant/candidate_training_strategy/maximum_epoch_count/invalid_case/initial_rng_state/expected_rng_state/source_module_path/source_text/expected_acceptance/monkeypatch等は既存testの同義。追加名が必要なら実装前にここへ追記してLunaへ戻す。
+
+## Task1追加名
+
+- legacy_epoch_training_calls: actual旧_update_new_model_epochsのwrap call記録。実施epoch数を集計し、学習式を複製しない。
+- test_session_start_preserves_optional_metadata_and_empty_pending_samples: 未推定位置/未採番episode、空保留、負の一時model IDの旧対照。
+- test_session_start_retains_historical_mean_losses: 既存4統計caseの履歴平均/除外条件を旧対照。
+- consecutive_non_improving_epoch_limit/minimum_validation_loss_decrease、held_model_ids/statistics_case/statistics_by_model_id/adoption_arguments/fixation_arguments/shared_optimizer_owners/legacy_client/training_tensorは既存epoch設定・fixation oracle・Tensor検査の同義で再利用する。
