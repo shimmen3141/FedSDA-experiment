@@ -23,6 +23,8 @@
 
 ## 現在の状態
 
+- `incomplete-post-alarm-candidate-validation-finalization`を完了（2026-10-08）。要求r4・設計r1・命名r2・tasks r1、全5task独立fresh Luna承認、別fresh Luna feature最終GO。終端の不足判定recordと現行IDへの保留標本回収を既存公開吸収で接続した。対象67/AST1582、実NN7条件/6変異/fresh CPUを確認。検証commit237030bで全7626passed/3skipped/2warnings、旧11/最終3goldenと品質成功。次は警報検出からsession開始への接続を要求から仕様化する。session解除・一覧記録・通知、新client/全体runは後続。現在の入口はresume.md。
+
 - `post-alarm-candidate-validation-progress`を完了（2026-10-08確認）。要求r2・設計r2・命名r3・tasks r1、全5task独立fresh Luna承認、別fresh Luna feature最終GO。通常の観測→評価→判定記録→既存確定を接続し、不変の継続/完了情報を返す。対象61/AST1456条件と6変異/fresh CPUを確認。検証commit2d513a9で全7433passed/3skipped/2warnings、旧11/最終3goldenと品質成功。次は終端件数不足のsession回収。通知owner・新client/全体runは後続。現在の正本は同spec、入口はresume.md。
 
 - `post-alarm-candidate-validation-session-start`の全5tasksを完了・Luna承認。選択済み初期値/区間から生成→学習→参照固定→空損失収集を実旧の順序/RNGで組み立てる。開始/拒否/継続更新と観測172条件、exact注入226条件、fresh新CPUを検証。commit8cbf2ceで全7266passed/3skipped/2warnings、旧11・最終3golden/品質成功。別fresh GPT-6 Lunaのfeature最終GO、completed。次は候補検証sessionの進行と記録。active session設定・検出・切出し・採否/登録の組立、新client/全体runは後続。承認の正本は同specのspec.json、入口はresume.md。

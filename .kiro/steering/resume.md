@@ -1,18 +1,18 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-08（候補検証session進行spec完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-08（終端の未完了候補検証spec完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
 Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い、GPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューで承認する。
 
 ## 現在地
 
-- 直近完了: [候補検証sessionの進行](../specs/post-alarm-candidate-validation-progress/README.md)。要求r2・設計r2・命名r3・tasks r1、全5task独立fresh Luna承認、別fresh Luna feature最終GO、completed。対象61条件＋AST1456条件、6変異検出と元byte復元、fresh CPUの2/4classで非active/未到達/確定/共同更新を確認。次は実験終端の未完了session回収を仕様化する。
+- 直近完了: [終端の未完了候補検証の確定](../specs/incomplete-post-alarm-candidate-validation-finalization/README.md)。要求r4・設計r1・命名r2・tasks r1、全5task独立fresh Luna承認、別fresh Luna feature最終GO、completed。対象67条件＋AST1582条件、実NN7条件/6変異と元byte復元、fresh CPUの2/4classで非active/未到達観測/終端回収/共同更新を確認。
 - 公開状態（2026-10-08）: GitHub復旧後の通常pushを1回実行し、未送信7commit（`5ddb9e3..db89dc4`）の送信に成功した。今後はユーザー指示に従いtaskごとにpushを1回だけ試す。失敗時は連続再試行や原因探索をせず、次taskのpush成功時に未送信commitも送る。
-- 着手中: [終端の未完了候補検証の確定](../specs/incomplete-post-alarm-candidate-validation-finalization/README.md)。要求r4・設計r1・命名r2・tasks r1は独立Luna承認、別graph PASS。Task1〜5は完了、対象67passed/各独立fresh Luna承認、実NN7条件と6変異/元byte復元を確認。全7626passed/3skipped、旧11/最終3golden成功。次は別fresh feature GO。
+- 次の候補: 警報検出から候補検証session開始までの接続（推定変化点からの区間切出し、保留標本確保、初期parameter選択）。未仕様化・未承認。完了情報の呼出側への接続とsession解除・一覧記録・通知も後続。下記候補と公開部品の実態を確認し、次specの要求から始める。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の全5tasksはLuna承認・完了。要求r2・設計r2・命名r4・tasks r1を維持し、別fresh GPT-6 Lunaのfeature最終GO、completed。候補生成とエポック学習もcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
-- 直近の検証済み実装commit: `2d513a9`。全pytest 7433 passed/3 skipped/2warnings（主担当実測、JUnit7436件照合）、Ruff151files/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。skipはPOSIX bashのないWindows環境の既存3条件。証拠は進行specのintegration-validation.md。
+- 直近の検証済み実装commit: `237030b`。全pytest 7626 passed/3 skipped/2warnings（主担当実測、JUnit7629件照合）、Ruff154files/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。skipはPOSIX bashのないWindows環境の既存3条件。Task5の独立Pyright再現は依存import解決で失敗したが、主担当基準環境の再実行は成功、両者を区別して記録。証拠は終端specのintegration-validation.md。
 - 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
   1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。
   2. [警報後の候補検証標本の観測](../specs/post-alarm-candidate-validation-sample-observation/README.md): 標本1件の候補・参照の損失評価と損失収集への追加。
@@ -35,18 +35,18 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 実験終端の未完了session回収（次に着手）
+### 1. 警報検出から候補検証session開始への接続（次に着手）
 
 - 開始は実装済み: `runtime/post_alarm_candidate_validation_session_start.py`の`start_post_alarm_candidate_validation_session`。選択済み初期値・区間・保有状態から候補生成→学習→固定参照→空損失収集を実旧の順序/RNGで組み立て、`PostAlarmCandidateValidationSession`を返す。呼出し側がactive sessionを所有する。
 - 開始の旧対照と接続は`tests/refactoring/test_post_alarm_candidate_validation_session_start.py`。正常54・拒否等112・観測接続6＝172条件。2/4class×3optimizer、最終30epoch設定、候補継続更新でも参照不変を照合済み。
 - 候補生成・エポック学習・参照固定・標本観測・採否評価・確定・採用登録/帰属変更は既存public部品を再利用する。RunSettingsへの設定登録はclient組立時の後続作業。新client/全体runは未完成。
 
 - 通常進行と不変判定record/完了情報は実装済み: `runtime/post_alarm_candidate_validation_progress.py`の`advance_post_alarm_candidate_validation`。未到達は同session、到達時は既存評価→判定情報→既存適用→完了情報。確定時の保有IDと現在帰属を使う。呼出側が返却後に解除・一覧記録・通知する。
-- 次は旧`finalize_incomplete_forward_validation`に対応する、実験終端で件数不足のsessionを棄却して保留標本を現行モデルへ吸収する処理。旧はactiveなしno-op、位置=max(提案位置, processed_samples−1)、理由insufficient_forward_data、比較参照/平均なし、create_rejected適応情報、帰属変更/切替位置/episode操作/検出解決通知なし。通常評価は件数不足を受理しないため、通常進行へ押し込まない。開始済みsessionと既存吸収部品を再利用し、未完了用の記録/返却の設計・命名を承認してから実装する。
+- 終端回収も実装済み: `runtime/incomplete_post_alarm_candidate_validation_finalization.py`の`finalize_incomplete_post_alarm_candidate_validation`。非activeは他入力未読のNone、要求未満を棄却し現行IDへ既存吸収、位置=max(提案位置, processed_sample_count−1)、比較不成立は専用不変recordで表す。呼出側がsessionを解除し一覧へ記録する。要求到達は拒否し、帰属変更/切替位置/episode/通知を行わない。同session再投入の二重吸収防止は後続clientで検証する。
+- 次の調査対象は旧警報処理から開始までの組立。検出情報と推定変化点から学習区間/保留標本を切り出し、候補parameterの初期値を選び、既存の公開開始APIへ渡す責務を定義する。新client全体を一度に実装せず、公開部品を再利用して責務・命名を独立レビュー後に移植する。
 
 ### 2. その先
 
-- 警報の検出から候補検証sessionの開始までの接続（推定変化点からの区間切出し、保留標本の確保、初期parameterの選択）。
 - 完了情報を呼出側へ接続し、session解除・判定/適応event一覧・切替位置・検出episode操作・学習帰属変更の通知（予測重みの再始動）を組み立てる。
 - FIFOから1件ずつ帰属を確定する経路（旧`fedsda.py`の標本処理内。統計→標本→概念の順のinline実装で、吸収の部品とは更新順が違う）。
 - 警報後の帰属変更とclient進行、サーバ同期・ID対応。
