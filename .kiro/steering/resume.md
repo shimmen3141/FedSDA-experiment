@@ -8,6 +8,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 ## 現在地
 
 - 直近完了: [候補検証sessionの進行](../specs/post-alarm-candidate-validation-progress/README.md)。要求r2・設計r2・命名r3・tasks r1、全5task独立fresh Luna承認、別fresh Luna feature最終GO、completed。対象61条件＋AST1456条件、6変異検出と元byte復元、fresh CPUの2/4classで非active/未到達/確定/共同更新を確認。次は実験終端の未完了session回収を仕様化する。
+- 公開状態（2026-10-08）: 完了記録commit`d829b47`までローカル保存済み。通常push2回とコマンド限りのHTTP/1.1 push1回がGitHubのInternal Server Errorで拒否された。`git ls-remote`でリモートは`5ddb9e3`と確認。実装・完了記録は未送信のため、再開時にGitのahead/behindを確認して通常pushを再試行する。force pushや認証設定変更は行っていない。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の全5tasksはLuna承認・完了。要求r2・設計r2・命名r4・tasks r1を維持し、別fresh GPT-6 Lunaのfeature最終GO、completed。候補生成とエポック学習もcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
 - 直近の検証済み実装commit: `2d513a9`。全pytest 7433 passed/3 skipped/2warnings（主担当実測、JUnit7436件照合）、Ruff151files/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。警告は拒否test準備のnested Tensor prototypeと既存TypedStorage deprecated。skipはPOSIX bashのないWindows環境の既存3条件。証拠は進行specのintegration-validation.md。
