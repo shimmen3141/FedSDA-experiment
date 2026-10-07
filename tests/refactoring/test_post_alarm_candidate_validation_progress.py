@@ -2,17 +2,28 @@
 
 import math
 import random
+from collections import defaultdict
 from dataclasses import FrozenInstanceError, replace
 from inspect import Parameter, signature
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
+import test_post_alarm_candidate_validation_session_start as session_start_test_module
 import torch
+from test_adopted_candidate_initial_local_registration import (
+    assert_held_model_states_match_legacy,
+    convert_legacy_parameter_name,
+)
 from test_adopted_candidate_local_adoption import (
     assert_adoption_state_unchanged,
+    assert_training_samples_match_legacy,
     snapshot_adoption_state,
 )
+from test_candidate_epoch_training import assert_candidate_epoch_training_matches_legacy
+from test_joint_model_parameter_update import run_legacy_joint_update
+from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
+from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
 from test_post_alarm_candidate_loss_evaluation import (
     assert_evaluation_matches_legacy_decision,
     capture_legacy_candidate_decision,
@@ -22,11 +33,33 @@ from test_post_alarm_candidate_validation_resolution import (
     assert_resolution_matches_legacy,
     build_resolution_oracle,
 )
+from test_post_alarm_candidate_validation_sample_observation import (
+    assert_collected_losses_match_legacy,
+)
+from test_post_alarm_candidate_validation_session_start import (
+    assert_started_session_matches_legacy,
+    begin_candidate_validation_session_in_legacy_client,
+    build_session_start_oracle,
+)
+from test_post_alarm_reference_model_fixation import (
+    set_overall_loss_statistics_in_both_implementations,
+)
 
 import federated_learning_experiments.runtime.post_alarm_candidate_validation_progress as progress_module
 import federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation as observation_module
+from federated_drift_experiment import config
+from federated_drift_experiment.models import ResidualAdapterMLP
 from federated_learning_experiments.learning.training.candidate_epoch_training import (
     CandidateEpochTrainingResult,
+)
+from federated_learning_experiments.learning.training.joint_model_parameter_update import (
+    perform_joint_model_parameter_update,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
+from federated_learning_experiments.learning.training.participating_model_training_batch import (
+    ParticipatingModelTrainingBatch,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import (
     PostAlarmCandidateLossCollection,
@@ -47,6 +80,7 @@ from federated_learning_experiments.runtime.post_alarm_candidate_validation_prog
 )
 from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import (
     PostAlarmCandidateValidationSession,
+    start_post_alarm_candidate_validation_session,
 )
 from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import (
     FixedPostAlarmReferenceModels,
@@ -219,6 +253,7 @@ def assert_validation_progress_matches_legacy(
     legacy_drift_type,
     previous_model_id,
     monkeypatch,
+    available_reference_model_ids=(4, 9),
 ):
     completion = validation_progress.completed_validation
     assert validation_progress.session_to_continue is None
@@ -269,7 +304,7 @@ def assert_validation_progress_matches_legacy(
             reference_historical_mean_losses_by_model_id=progress_arguments[
                 "validation_session"
             ].fixed_reference_models.reference_historical_mean_losses_by_model_id,
-            available_reference_model_ids=(4, 9),
+            available_reference_model_ids=available_reference_model_ids,
             current_training_model_id=previous_model_id,
             maximum_reference_mean_loss_increase=progress_arguments[
                 "maximum_reference_mean_loss_increase"
@@ -660,3 +695,341 @@ def test_validation_decision_record_is_immutable():
         PostAlarmCandidateValidationDecisionRecord(
             10, 12, "class_esr", 11, post_alarm_candidate_loss_evaluation
         )
+
+
+@pytest.mark.parametrize(
+    "class_count,optimizer_variant,validation_sample_count",
+    [
+        (class_count, optimizer_variant, 4)
+        for class_count in (2, 4)
+        for optimizer_variant in ("standard", "amsgrad", "sgd")
+    ]
+    + [(4, "sgd", 5)],
+)
+def test_validation_progress_connects_actual_training_and_resolution(
+    class_count, optimizer_variant, validation_sample_count, monkeypatch
+):
+    """制御lossなしで、実候補学習・固定参照・通常確定・確定後の実共同更新を対照する。"""
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(853)
+        progress_arguments, resolution_arguments, shared_optimizer_owners, legacy_client, _ = (
+            build_validation_progress_oracle(
+                class_count=class_count,
+                legacy_resolution_case="create",
+                optimizer_variant=optimizer_variant,
+                pending_sample_count=0 if validation_sample_count == 5 else 3,
+                monkeypatch=monkeypatch,
+            )
+        )
+        fixation_arguments = {
+            name: resolution_arguments[name]
+            for name in ("held_model_training_state_registry", "loss_statistics_store")
+        }
+        # builderの引数構成だけを再利用し、モデル・統計・帰属・optimizer ownerは全て同じものを使う。
+        monkeypatch.setattr(
+            session_start_test_module,
+            "build_fixation_oracle",
+            lambda **arguments: (
+                fixation_arguments,
+                resolution_arguments,
+                shared_optimizer_owners,
+                legacy_client,
+            ),
+        )
+        legacy_client.model_cls = lambda: ResidualAdapterMLP(input_dim=2, dataset="sine2")
+        set_overall_loss_statistics_in_both_implementations(
+            loss_statistics_store=resolution_arguments["loss_statistics_store"],
+            legacy_client=legacy_client,
+            statistics_by_model_id={4: (1, 0.0), 9: (1, 0.0)},
+        )
+        session_start_arguments, _, _ = build_session_start_oracle(
+            class_count=class_count,
+            optimizer_variant=optimizer_variant,
+            minimum_validation_loss_decrease=0,
+            monkeypatch=monkeypatch,
+        )
+        session_start_arguments.update(
+            proposal_sample_index=57 - validation_sample_count,
+            candidate_model_training_and_acceptance_settings=make_acceptance_settings(
+                sample_count=validation_sample_count
+            ),
+        )
+        if validation_sample_count == 5:
+            session_start_arguments.update(
+                estimated_change_point_sample_index=None, detection_episode_id=None
+            )
+        legacy_client.forward_validation_samples = validation_sample_count
+        initial_rng_state = (
+            torch.get_rng_state().clone(),
+            random.getstate(),
+            np.random.get_state(),
+        )
+        legacy_session, legacy_epoch_training_calls = (
+            begin_candidate_validation_session_in_legacy_client(
+                session_start_arguments=session_start_arguments, legacy_client=legacy_client
+            )
+        )
+        expected_rng_state = torch.get_rng_state().clone()
+        torch.set_rng_state(initial_rng_state[0])
+        started_session = start_post_alarm_candidate_validation_session(**session_start_arguments)
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        assert_started_session_matches_legacy(
+            started_session=started_session,
+            legacy_session=legacy_session,
+            legacy_client=legacy_client,
+            legacy_epoch_training_calls=legacy_epoch_training_calls,
+            session_start_arguments=session_start_arguments,
+        )
+        assert (
+            started_session.fixed_reference_models.reference_historical_mean_losses_by_model_id
+            == {}
+        )
+        candidate_training_state = started_session.candidate_training_state
+        candidate_epoch_training_result = started_session.candidate_epoch_training_result
+        shared_optimizer_owners[-1] = (
+            candidate_training_state.candidate_shared_parameter_optimizer_state
+        )
+        resolution_arguments.update(
+            adopted_candidate_classifier=candidate_training_state.candidate_classifier,
+            candidate_concept_specific_parameter_optimizer_state=candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
+            initial_statistics_input_features=started_session.training_input_features,
+            initial_statistics_observed_class_labels=started_session.training_observed_class_labels,
+            candidate_trained_sample_count=candidate_epoch_training_result.candidate_trained_sample_count,
+            candidate_parameter_update_step_count=candidate_epoch_training_result.candidate_parameter_update_step_count,
+        )
+        progress_arguments.update(
+            validation_session=started_session,
+            candidate_model_training_and_acceptance_settings=session_start_arguments[
+                "candidate_model_training_and_acceptance_settings"
+            ],
+            minimum_candidate_mean_loss_improvement=0,
+        )
+        previous_model_id = legacy_client.current_model_id
+        previous_snapshot = snapshot_adoption_state(
+            adoption_arguments=resolution_arguments, shared_optimizer_owners=shared_optimizer_owners
+        )
+        for sample_offset in range(validation_sample_count):
+            sample_index = started_session.proposal_sample_index + 1 + sample_offset
+            input_features = started_session.training_input_features[
+                sample_offset : sample_offset + 1
+            ]
+            observed_class_labels = started_session.training_observed_class_labels[
+                sample_offset : sample_offset + 1
+            ]
+            legacy_drift_type = legacy_client._observe_forward_validation(
+                input_features, observed_class_labels, sample_index
+            )
+            progress_arguments.update(
+                sample_index=sample_index,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+            )
+            validation_progress = advance_post_alarm_candidate_validation(**progress_arguments)
+            assert_collected_losses_match_legacy(
+                post_alarm_candidate_loss_collection=started_session.post_alarm_candidate_loss_collection,
+                legacy_session=legacy_session,
+            )
+            if sample_offset < validation_sample_count - 1:
+                assert validation_progress.session_to_continue is started_session
+                assert validation_progress.completed_validation is None
+                assert_adoption_state_unchanged(
+                    previous_snapshot=previous_snapshot, adoption_arguments=resolution_arguments
+                )
+        assert_validation_progress_matches_legacy(
+            validation_progress=validation_progress,
+            progress_arguments=progress_arguments,
+            resolution_arguments=resolution_arguments,
+            shared_optimizer_owners=shared_optimizer_owners,
+            legacy_client=legacy_client,
+            legacy_drift_type=legacy_drift_type,
+            previous_model_id=previous_model_id,
+            monkeypatch=monkeypatch,
+        )
+        # 確定で利用しなかった候補も、実候補optimizer/gradを旧と比較する。
+        if not validation_progress.completed_validation.decision_record.post_alarm_candidate_loss_evaluation.candidate_accepted:
+            assert_candidate_epoch_training_matches_legacy(
+                candidate_training_state=candidate_training_state,
+                legacy_candidate=legacy_session.candidate,
+            )
+        registry = resolution_arguments["held_model_training_state_registry"]
+        training_sample_store = resolution_arguments["training_sample_store"]
+        counts_store = resolution_arguments["model_training_and_assignment_counts_store"]
+        active = registry.get_held_model_training_state(
+            model_id=previous_model_id
+        ).classifier.feature_extractor
+        local_training_settings = LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )
+        monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
+        legacy_client.updates_per_sample = 1
+        legacy_client.backbone_gradient_diagnostics = defaultdict(float)
+        legacy_training_batches = []
+        legacy_client._sample_training_batches = lambda: legacy_training_batches
+        for _ in range(2):
+            training_bindings = registry.snapshot_ordered_held_model_training_bindings()
+            model_training_sample_collections = (
+                training_sample_store.snapshot_ordered_model_training_samples()
+            )
+            assert tuple(binding.model_id for binding in training_bindings) == tuple(
+                collection.model_id for collection in model_training_sample_collections
+            )
+            legacy_training_batches[:] = [
+                (
+                    model_id,
+                    torch.cat([sample[0] for sample in samples]),
+                    torch.cat([sample[1] for sample in samples]),
+                )
+                for model_id, samples in legacy_client.train_data_store.items()
+            ]
+            participating_training_batches = tuple(
+                ParticipatingModelTrainingBatch(
+                    classifier=binding.classifier,
+                    concept_specific_parameter_optimizer=binding.concept_specific_parameter_optimizer,
+                    input_features=torch.cat(
+                        [sample.input_features for sample in collection.training_samples]
+                    ),
+                    observed_class_labels=torch.cat(
+                        [sample.observed_class_labels for sample in collection.training_samples]
+                    ),
+                )
+                for binding, collection in zip(training_bindings, model_training_sample_collections)
+            )
+            expected_joint_loss = run_legacy_joint_update(
+                legacy_client=legacy_client, update_shared_features=True
+            )
+            actual_joint_loss = perform_joint_model_parameter_update(
+                local_training_settings=local_training_settings,
+                shared_feature_extractor=active,
+                shared_parameter_optimizer=shared_optimizer_owners[0].parameter_optimizer,
+                participating_training_batches=participating_training_batches,
+                update_shared_features=True,
+            )
+            assert actual_joint_loss == expected_joint_loss
+            for binding, batch in zip(training_bindings, participating_training_batches):
+                counts_store.record_completed_model_training(
+                    model_id=binding.model_id,
+                    trained_sample_count=len(batch.input_features),
+                    parameter_update_step_count=1,
+                )
+            assert_held_model_states_match_legacy(
+                registry=registry,
+                shared_optimizer_owners=shared_optimizer_owners,
+                legacy_client=legacy_client,
+                input_features=started_session.training_input_features,
+            )
+            assert_model_counts_match_legacy(counts_store=counts_store, legacy_client=legacy_client)
+            assert_training_samples_match_legacy(
+                training_sample_store=training_sample_store, legacy_client=legacy_client
+            )
+            assert_store_statistics_match_legacy(
+                loss_statistics_store=resolution_arguments["loss_statistics_store"],
+                legacy_client=legacy_client,
+            )
+            assert (
+                resolution_arguments["current_training_model_assignment"].current_training_model_id
+                == legacy_client.current_model_id
+            )
+            pending_upload_state = resolution_arguments["pending_model_upload_state"]
+            assert (
+                pending_upload_state.remaining_upload_delay_round_count
+                == legacy_client._pending_upload_rounds
+            )
+            assert (
+                pending_upload_state.has_ready_model_upload() is legacy_client.has_pending_model()
+            )
+            pending_model_upload = pending_upload_state.get_pending_model_upload()
+            if pending_model_upload is None:
+                assert legacy_client.pending_model_params is None
+            else:
+                assert tuple(pending_model_upload.parameter_snapshot) == tuple(
+                    convert_legacy_parameter_name(name)
+                    for name in legacy_client.pending_model_params
+                )
+                for actual, expected in zip(
+                    pending_model_upload.parameter_snapshot.values(),
+                    legacy_client.pending_model_params.values(),
+                ):
+                    assert torch.equal(actual, expected)
+        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        assert random.getstate() == initial_rng_state[1]
+        numpy_state = np.random.get_state()
+        assert numpy_state[0] == initial_rng_state[2][0]
+        assert np.array_equal(numpy_state[1], initial_rng_state[2][1])
+        assert numpy_state[2:] == initial_rng_state[2][2:]
+
+
+@pytest.mark.parametrize("invalid_case", ("current_id_changed", "reference_id_no_longer_held"))
+def test_validation_progress_uses_current_reference_availability(invalid_case, monkeypatch):
+    """制御lossの経路で、開始時でなく確定時のID可用性と現在帰属を照合する。"""
+    with torch.random.fork_rng(devices=[]):
+        progress_arguments, resolution_arguments, shared_optimizer_owners, legacy_client, _ = (
+            build_validation_progress_oracle(
+                class_count=2,
+                legacy_resolution_case="reuse",
+                pending_sample_count=0,
+                monkeypatch=monkeypatch,
+            )
+        )
+        set_scripted_validation_losses(
+            progress_arguments=progress_arguments,
+            legacy_client=legacy_client,
+            monkeypatch=monkeypatch,
+        )
+        registry = progress_arguments["held_model_training_state_registry"]
+        if invalid_case == "current_id_changed":
+            progress_arguments["current_training_model_assignment"].assign_model_for_training(
+                model_id=4
+            )
+            legacy_client.current_model_id = 4
+        else:
+            # 上位のID対応を公開APIで明示する。固定参照/既存loss列のID4は変更しない。
+            registry.reassign_held_model_training_state_id(
+                original_model_id=4, reassigned_model_id=14
+            )
+            legacy_client.models[14] = legacy_client.models.pop(4)
+            # このcaseは現行9を維持し、14への学習・吸収は行わない。
+            # 保有の可用性だけを変更し、統計・計数・標本ownerは両側とも保持する。
+        available_reference_model_ids = tuple(
+            state.model_id for state in registry.snapshot_ordered_held_model_training_states()
+        )
+        previous_model_id = legacy_client.current_model_id
+        initial_rng_state = (
+            torch.get_rng_state().clone(),
+            random.getstate(),
+            np.random.get_state(),
+        )
+        legacy_drift_type = legacy_client._observe_forward_validation(
+            progress_arguments["input_features"], progress_arguments["observed_class_labels"], 57
+        )
+        validation_progress = advance_post_alarm_candidate_validation(**progress_arguments)
+        assert_validation_progress_matches_legacy(
+            validation_progress=validation_progress,
+            progress_arguments=progress_arguments,
+            resolution_arguments=resolution_arguments,
+            shared_optimizer_owners=shared_optimizer_owners,
+            legacy_client=legacy_client,
+            legacy_drift_type=legacy_drift_type,
+            previous_model_id=previous_model_id,
+            monkeypatch=monkeypatch,
+            available_reference_model_ids=available_reference_model_ids,
+        )
+        evaluation = validation_progress.completed_validation.decision_record.post_alarm_candidate_loss_evaluation
+        assert evaluation.comparison_reference_model_id == 4
+        assert evaluation.reusable_reference_model_id == (
+            4 if invalid_case == "current_id_changed" else None
+        )
+        assert (
+            validation_progress.completed_validation.previous_training_model_id == previous_model_id
+        )
+        assert tuple(
+            progress_arguments[
+                "validation_session"
+            ].fixed_reference_models.reference_classifiers_by_model_id
+        ) == (4, 9)
+        assert torch.equal(torch.get_rng_state(), initial_rng_state[0])
+        assert random.getstate() == initial_rng_state[1]
+        numpy_state = np.random.get_state()
+        assert numpy_state[0] == initial_rng_state[2][0]
+        assert np.array_equal(numpy_state[1], initial_rng_state[2][1])
+        assert numpy_state[2:] == initial_rng_state[2][2:]

@@ -25,3 +25,11 @@ source追加前REDはModuleNotFoundError/1collectionerror/3.44s/exit1。初回�
 実装前RED: module不在、1collection error、2.87s、pytest exit2。制御lossのfixtureが登録・吸収の計算へ作用した初回失敗を、検証Tensor identityだけに作用するfixtureへ修正。実装の挙動変更は不要だった。最終GREENは52passed/3.55s、主担当の停止後再確認は52passed/3.56s、いずれもexit0。16条件で実旧observe→finalizeと判定・適応情報・全owner/RNGを照合。非active・未到達・観測前拒否・frozen/keyword契約を確認。Ruff/diff成功。設定検査はconstructorを再利用し、ライフサイクルメソッドの直接呼出しを避けた。
 
 独立fresh CLI GPT-6 Luna session `01a1160c-e330-7ae3-b3d2-6bbe33f9a280`、起動ログmodel=gpt-6-luna、APPROVED。独立52passed/3.14s/exit0、対象Ruff/diffと実source/正本/REDログを確認、指摘なし。REDそのものを再実行したわけではない。最終回答/ログはGit管理外../../venv/refactoring-tests/progress-task2-review.md/.log。native fresh thread上限のため実装担当は完了済みimplementerを再利用した。CLI既定モデルgpt-6.1-solはChatGPT認証で未対応だったため、既定CLI実装dispatchはコード変更前に失敗し、native担当へ切り替えた。全回帰・実NN接続・ASTは後続task。
+
+## Task3
+
+test-only接続、実装前REDは対象外。実NN2/4class×3optimizerの6条件と奇数5件/metadataなし/履歴なし/空保留1条件、制御lossによる現在ID変更/固定参照IDの消失2条件を追加。同じownerで実旧start→observe→finalize→2回共同更新へ照合した。可用性のfixtureは保有一覧だけを変更し、統計・標本・計数は両側同じIDで保持する（serverによる正式ID確認全体を再検証するものではない）。手動popの挿入順によるfixtureの初回不一致をこの境界へ直し、既存順序assertは維持。worker61passed/3.69s、主担当61passed/3.47s、Ruff/diff成功、source変更なし。
+
+代表6変異はstub47、件数判定反転27、開始時ID使用1、記録位置誤り25、追加RNG47、二重適用18のtest失敗を検出し、各exit1。元byte復元のSHA256は`52fac2754ad51f4a90e4dfbefe8869ccb95c15f229291171a26b24780b3e4610`。script/JSONはGit管理外validation_progress_mutation_evidence.py/validation-progress-mutation-evidence.json。復元後GREENを実測した。
+
+独立fresh CLI GPT-6 Luna session `01a11616-acfe-75a2-98c1-f68e5957c8f1`、起動ログmodel=gpt-6-luna、APPROVED。独立61passed/3.74s/exit0、Ruff/実diff/正本/変異証拠を確認、指摘なし。変異scriptの再実行はしていない。最終回答/ログはGit管理外progress-task3-review.md/.log。新たな旧不具合は実測していない。AST/fresh/fullは後続task。
