@@ -37,7 +37,7 @@
   - _Boundary: 区間準備testの検出力_
   - _Requirements: 1.1, 2.1, 2.4, 3.2, 3.3_
 
-- [ ] 5. exact依存境界を検証する
+- [x] 5. exact依存境界を検証する
   - source実importと新3moduleのexact guard/注入許可集合が一致し、wholemodule/private/禁止上位/再export/child/相対逸脱を拒否する。
   - 完了条件: 対象＋AST suiteが成功し、許可集合一致を独立レビュー承認される。
   - _Boundary: exact依存境界_

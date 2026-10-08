@@ -1885,14 +1885,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
         )
-    if (
-        source_module_path
-        == "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py"
-    ):
-        return imported_module_name in (
-            "dataclasses.dataclass",
-            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
-        )
     if source_module_path == "runtime/alarm_training_interval_preparation.py":
         return imported_module_name in (
             "random.Random",

@@ -76,3 +76,9 @@ src/test/旧実装/goldenは変更していない。今回は文書のみ。要�
 - [変異証拠](mutation-evidence.md)の6変異を実sourceで検出。各回finally復元、最終byte SHA一致、復元後152 passed。
 - fresh独立CLI GPT-6 Lunaがscript・実log・report・commitとのbyte一致を確認してAPPROVED（外部`alarm-preparation-task4-review.md`）。指摘なし。変異はsourceに残していない。
 
+# Task 5 完了
+
+- 実importとexact guardの許可集合は2/2/15で一致。到達不能な同一許可分岐の重複1回を削除した。
+- 主担当: 対象＋AST2372 passed / 10.05s。独立CLI GPT-6 Luna: 新注入204と全AST2220 passed、実監査成功、APPROVED。通常pytest cacheの権限warningはテスト成功に影響しない。
+- [統合証拠](integration-validation.md)を作成。全回帰とfeature GOは後続で追記する。
+
