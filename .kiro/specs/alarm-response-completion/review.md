@@ -76,3 +76,10 @@ Blocker・Majorなし。4回目のMajorの解消、すべての検査がreset・
 3. kw_onlyの確認で`asdict`による複製を避ける → 不採用（動作は同じ。承認済みのtestを変更しない）。
 
 Task 1を完了とした。
+
+## Task 2・3 — レビューの経緯
+
+選択: 機械的な証拠の照合と再現が中心なのでGPT-6 Luna（effort high、ログで確認）。対象testとsmokeを実行させるため`--sandbox workspace-write`で起動した。
+
+- 1回目（session `01a11a32-89ea-74f1-be7c-90cf5cab6916`、HEAD `8c936d4`、検証対象`9335d5a`）: Task 2・3ともCHANGES_REQUESTED、Major 1件。「対象testとfresh CPU scriptのNumPy乱数の比較が状態の配列だけで、位置とGaussian cacheを比べていない。『3種の乱数状態が不変』の主張と、乱数消費の変異を省いた理由が裏付けられない」。→ 事実と確認して採用。testとscriptを状態全体の比較へ改め、乱数消費の変異4種を追加した（33/33検出）。testを変更したので、commit `def37e4`で全pytest・品質検査・source hashを取り直した（9254 passed、件数は同じ）。
+- 同じ回の独立実行（レビュー担当）: 対象＋依存境界2599 passed、fresh CPU 10条件PASS、Ruff check/format成功、JUnit 9257 testcase・failure 0・error 0・skip 3と2つのgolden回帰testcaseの成功、固定旧差分が空、承認hash 4件とsource hash（267パス）の一致を再現・照合した。全pytest・Pyright・pip checkは再実行していない。これらは`9335d5a`に対する結果で、`def37e4`については2回目で確認する。

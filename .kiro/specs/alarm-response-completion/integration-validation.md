@@ -2,7 +2,7 @@
 
 ## 対象と判定
 
-検証対象のsource/test commit: `9335d5a`（以降のcommitは証拠・進捗文書だけ）。主担当Claude Code、2026-10-08、Windows CPUの固定venv。判定は末尾の「レビュー」に記録する。
+検証対象のsource/test commit: `def37e4`（以降のcommitは証拠・進捗文書だけ）。主担当Claude Code、2026-10-08、Windows CPUの固定venv。判定は末尾の「レビュー」に記録する。
 
 実装は`runtime/alarm_response_completion.py`の不変record `AlarmResponseCompletion`と`complete_alarm_buffer_response`。完了した警報応答を受け、検査→現行モデルの統計から監視の基準平均を選択→recordの組立→損失監視のreset→保留位置のdrain（変化区間の不足ではdrainしない）を行い、呼出側の記録・通知に必要な情報を返す。
 
@@ -11,8 +11,8 @@
 | Task | 証拠 |
 | --- | --- |
 | 1 完了recordと完了処理 | 実装前RED（moduleなしの収集失敗、guardなしの注入契約27 failed）。設計の改訂ごとに拒否条件のtestを先に追加してRED（5 failed、1 failed）を記録。対象57＋依存境界2542＝2599 passed。Haiku 5.5の独立レビュー5回目で承認（経緯はreview.md） |
-| 2 検出力と独立動作 | 実source変異29種を29/29検出、各回byte復元、復元後57 passed。fresh新CPU 2/4class×5経路の10条件成功。[詳細](mutation-and-cpu-evidence.md) |
-| 3 全回帰・品質 | 全pytest 9254 passed / 3 skipped / 2 warnings、159.04s、exit 0。Ruff・Pyright・pip check成功、固定旧差分は空 |
+| 2 検出力と独立動作 | 実source変異33種を33/33検出、各回byte復元、復元後57 passed。fresh新CPU 2/4class×5経路の10条件成功。[詳細](mutation-and-cpu-evidence.md) |
+| 3 全回帰・品質 | （Task 2・3のレビュー1回目の指摘でtestのNumPy乱数の比較を状態全体へ改めたので、その commit で取り直した値）全pytest 9254 passed / 3 skipped / 2 warnings、155.63s、exit 0。Ruff・Pyright・pip check成功、固定旧差分は空 |
 
 ## 要求対応（10/10）
 
@@ -27,7 +27,7 @@
 | 2.3 | 一覧・計数・episodeを更新せず、通知もsession保持もしない。依存のexact 8 symbolに該当ownerがない。再利用計数は応答結果からの対応表で実旧と照合 |
 | 3.1 | 応答・4 ownerの型、警報位置・推定変化点・episode IDの型と値の13条件で、更新前に拒否し全状態が不変 |
 | 3.2 | 警報位置と最終観測位置の不一致（未観測のFIFOを含む）、準備済み区間と保留位置の不一致（応答後の追加、消費後の再適用）、応答の変更後IDと現在の帰属の不一致、結果種別と変更記録の不対応2方向、exact型でない変更記録、boolのID 2種を、更新前に拒否 |
-| 3.3 | 実旧`_resolve_drift`（イベント記録・検出器reset・FIFO clearを差し替えない）との照合28条件、完了後の同じ損失列に対する監視のe値・警報・推定区間長・全状態の照合、変異29種、exact依存、新CPU 10条件、全9254 passed、旧11・最終3golden |
+| 3.3 | 実旧`_resolve_drift`（イベント記録・検出器reset・FIFO clearを差し替えない）との照合28条件、完了後の同じ損失列に対する監視のe値・警報・推定区間長・全状態の照合、変異33種、exact依存、新CPU 10条件、全9254 passed、旧11・最終3golden |
 
 ## 同一性と品質
 
@@ -37,11 +37,11 @@
 | 設計r5 | f9877d26b6d1c6a71a71f3b41ea53bac1e9ff18cc1334bc752ad389a62e77c99 |
 | 命名r5 | 3c71de90f706a46bcf801ec7ff99cbeb9c49e315d4b35199d092e488356861db |
 | tasks r3（checkboxを未完了へ戻した内容） | a3242e8cb825072ae5c3d0fe4759216c339dbbab979aa7f74f73228ffb82f190 |
-| source全体、`9335d5a`、267パス | c99f35b3bd46e3aeab3518e3d12557454d0fea7e12c3d57f2a49b16cdcf2e481 |
+| source全体、`def37e4`、267パス | b11a144ab4312c63f4dfd84492c5dc81c9ab11f7264caca9de5e32453fd9db2b |
 
-source hashは共通引継ぎ手順の`source_sha256`（tracked Python＋2golden）。同じ手順で前specの`ea61b8a`は265パス・`49e99d80…`となり、前specの記録値を再現した。`ea61b8a`から`9335d5a`までのsrc/testsの差分は、新src 1・新test 1・依存境界testの3ファイルだけ（既存srcの変更なし）。固定旧`748c3aa`から旧実装・tools・2golden・旧回帰testへのdiffは、commit済み・作業ツリーとも空。検証時の`git status --short`は空。
+source hashは共通引継ぎ手順の`source_sha256`（tracked Python＋2golden）。同じ手順で前specの`ea61b8a`は265パス・`49e99d80…`となり、前specの記録値を再現した。`ea61b8a`から`def37e4`までのsrc/testsの差分は、新src 1・新test 1・依存境界testの3ファイルだけ（`9335d5a`から`def37e4`はtest 1ファイルのNumPy乱数の比較だけ）（既存srcの変更なし）。固定旧`748c3aa`から旧実装・tools・2golden・旧回帰testへのdiffは、commit済み・作業ツリーとも空。検証時の`git status --short`は空。
 
-全pytestは**9254 passed / 3 skipped / 2 warnings、159.04s、exit 0**。前spec 9110＋対象57＋注入契約87＝9254。JUnitは9257 testcase、failure 0、error 0、skip 3。`tests.test_regression`（76.9s）と`tests.test_proposed_regression`（20.6s）はどちらも成功。skip 3件（POSIX bashがない環境の`test_main_ablation_suite`1件と`test_server_sweep_wrapper`2件）と警告2件（nested tensor、TypedStorage）は前specと同じ既存のもの。
+全pytestは**9254 passed / 3 skipped / 2 warnings、155.63s、exit 0**。前spec 9110＋対象57＋注入契約87＝9254。JUnitは9257 testcase、failure 0、error 0、skip 3。`tests.test_regression`（78.4s）と`tests.test_proposed_regression`（20.4s）はどちらも成功。skip 3件（POSIX bashがない環境の`test_main_ablation_suite`1件と`test_server_sweep_wrapper`2件）と警告2件（nested tensor、TypedStorage）は前specと同じ既存のもの。
 
 Ruff check成功、format checkは167 files already formatted。Pyrightは固定venv指定で0 errors/0 warnings/0 informations。pip check成功。
 
@@ -56,7 +56,7 @@ $PY -m pyright --pythonpath ../../venv/Scripts/python.exe; $PY -m pip check
 $PY ../../venv/refactoring-tests/alarm-response-completion-fresh-cpu.py
 ```
 
-Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `alarm-response-completion-full.xml`/`.log`、`-task1-red.log`/`-red-r4.log`/`-red-r5.log`、`-fresh-cpu.py`/`.log`、`-mutations.py`、`-mutation-evidence-r5/`、各レビューの出力（`-spec-review-r1`〜`r5`、`-naming-r2-review`、`-task1-review-r1`〜`r4`など）、承認済みの命名r2・r4の全文、下書き。
+Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `alarm-response-completion-full.xml`/`.log`、`-task1-red.log`/`-red-r4.log`/`-red-r5.log`、`-fresh-cpu.py`/`.log`、`-mutations.py`、`-mutation-evidence-r6/`、各レビューの出力（`-spec-review-r1`〜`r5`、`-naming-r2-review`、`-task1-review-r1`〜`r4`など）、承認済みの命名r2・r4の全文、下書き。
 
 ## 未検証・残る制約
 

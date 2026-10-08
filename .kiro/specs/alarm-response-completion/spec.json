@@ -128,25 +128,30 @@
       "evidence": "review.md"
     }
   },
-  "verification_source_sha256": "c99f35b3bd46e3aeab3518e3d12557454d0fea7e12c3d57f2a49b16cdcf2e481",
+  "verification_source_sha256": "b11a144ab4312c63f4dfd84492c5dc81c9ab11f7264caca9de5e32453fd9db2b",
   "integration_validation": {
     "status": "MEASURED_AWAITING_INDEPENDENT_REVIEW",
-    "tested_commit": "9335d5a",
+    "tested_commit": "def37e4",
     "full_passed": 9254,
     "full_skipped": 3,
     "full_warnings": 2,
-    "full_duration_seconds": 159.04,
+    "full_duration_seconds": 155.63,
     "junit_testcases": 9257,
     "source_path_count": 267,
-    "source_sha256_lf": "c99f35b3bd46e3aeab3518e3d12557454d0fea7e12c3d57f2a49b16cdcf2e481",
+    "source_sha256_lf": "b11a144ab4312c63f4dfd84492c5dc81c9ab11f7264caca9de5e32453fd9db2b",
     "evidence": "integration-validation.md",
     "target_and_ast_passed": 2599,
     "fresh_cpu_cases": 10,
-    "mutations_detected": "29/29",
+    "mutations_detected": "33/33",
     "requirements_total": 10,
     "independent_full_suite_rerun": false,
     "full_pytest_basis": "primary_agent_measurement_and_junit_per_user_decision_2026-10-07",
     "legacy_production_unchanged": true,
-    "golden_unchanged": true
+    "golden_unchanged": true,
+    "earlier_measurement": {
+      "tested_commit": "9335d5a",
+      "full_passed": 9254,
+      "source_sha256_lf": "c99f35b3bd46e3aeab3518e3d12557454d0fea7e12c3d57f2a49b16cdcf2e481"
+    }
   }
 }
