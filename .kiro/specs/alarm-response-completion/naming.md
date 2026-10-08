@@ -1,4 +1,4 @@
-# 警報応答の完了処理 — 命名 revision1
+# 警報応答の完了処理 — 命名 revision4
 
 sourceとtestの実装前一覧。リポジトリ外の下書きをASTで走査し（関数・class・引数・代入・内包表記・keyword・属性）、既存のsrc/tests/旧実装に現れない名前を機械的に洗い出して全件を登録した。既存名は定義元と同じ役割で再利用する。全体の承認状態はspec.json。
 
@@ -24,13 +24,14 @@ sourceとtestの実装前一覧。リポジトリ外の下書きをASTで走査�
 
 recordのfield `alarm_buffer_response`、`estimated_change_point_sample_index`、`detection_episode_id`と、引数`current_training_model_assignment`、`loss_statistics_store`、`pending_training_assignment_buffer`は、既存`respond_to_alarm_with_buffered_samples`・`AlarmBufferResponse`と同じ名前・同じ役割で再利用する。局所名`prepared_alarm_training_intervals`、`change_interval_resolution`、`training_model_assignment_change`、`indexed_observation`、`sample_index`、`model_id`、`specified_value`、`parameter_name`も既存の同名と同じ役割。
 
-## 新sourceのimport（exact集合、7 symbol）
+## 新sourceのimport（exact集合、8 symbol）
 
 | symbol | 定義元 |
 | --- | --- |
 | `dataclass` | `dataclasses.dataclass` |
 | `ModelAndClassLossStatisticsStore` | `federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore` |
 | `CurrentTrainingModelAssignment` | `federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment` |
+| `TrainingModelAssignmentChange` | `federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange` |
 | `OverallAndTrueClassLossMonitor` | `federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor` |
 | `select_loss_monitoring_baseline_mean_loss` | `federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss` |
 | `PendingTrainingAssignmentBuffer` | `federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer` |
@@ -112,11 +113,14 @@ recordのfield `alarm_buffer_response`、`estimated_change_point_sample_index`�
 | `torch` | `torch` |
 | `assert_buffer_response_matches_legacy` | `test_alarm_buffer_response.assert_buffer_response_matches_legacy` |
 | `build_buffer_response_oracle` | `test_alarm_buffer_response.build_buffer_response_oracle` |
+| `assert_alarm_change_interval_resolution_state_unchanged` | `test_alarm_change_interval_resolution.assert_alarm_change_interval_resolution_state_unchanged` |
+| `snapshot_alarm_change_interval_resolution_state` | `test_alarm_change_interval_resolution.snapshot_alarm_change_interval_resolution_state` |
 | `assert_class_monitor_matches_reference` | `test_loss_change_monitoring.assert_class_monitor_matches_reference` |
 | `valid_run_settings_mapping` | `test_run_settings_validation.valid_run_settings_mapping` |
 | `config` | `federated_drift_experiment.config` |
 | `AdaptationEvent` | `federated_drift_experiment.adaptation_events.AdaptationEvent` |
 | `BoundedMeanEDetector` | `federated_drift_experiment.drift_detectors.e_detector.BoundedMeanEDetector` |
+| `TrainingModelAssignmentChange` | `federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange` |
 | `IndexedObservedTrainingSample` | `federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample` |
 | `OverallAndTrueClassLossMonitor` | `federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor` |
 | `select_loss_monitoring_baseline_mean_loss` | `federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss` |
@@ -125,3 +129,27 @@ recordのfield `alarm_buffer_response`、`estimated_change_point_sample_index`�
 | `complete_alarm_buffer_response` | `federated_learning_experiments.runtime.alarm_response_completion.complete_alarm_buffer_response` |
 
 testが再利用する既存の局所名（`response_arguments`、`preparation_arguments`、`resolution_arguments`、`shared_optimizer_owners`、`legacy_client`、`legacy_result`、`legacy_drift_type`、`legacy_adaptation_events`、`legacy_epoch_training_calls`、`legacy_python_random_state`、`global_python_random_state`、`numpy_random_state`、`initial_torch_random_state`、`expected_torch_random_state`、`initial_training_model_id`、`alarm_buffer_response`、`started_validation_session`、`legacy_session`、`indexed_observation`、`sample_offset`、`sample_index`、`observed_class_id`、`class_count`、`alarm_interval_resolution_case`、`earlier_sample_count`、`estimated_change_span_sample_count`、`minimum_change_interval_sample_count`、`invalid_case`、`expected_exception`、`false_alarm_control_alpha`、`loss_change_detection_settings`、`first_sample_index`、`current_training_model_id`、`loss_statistics_store`、`pending_training_assignment_buffer`、`python_random_state`、`torch_random_state`、`response_outcome`、`legacy_adaptation_event`）は、既存のsrc・tests/refactoring（主にtest_alarm_buffer_response.py、test_alarm_change_interval_resolution.py、test_loss_change_monitoring.py）の同名と同じ役割。
+
+## revision2の補足（Task 1の独立レビューの反映）
+
+r1の名前と役割は変更しない。testで次の既存名を同じ役割で再利用することを明記する。
+
+| 名前 | 役割 |
+| --- | --- |
+| `snapshot_alarm_change_interval_resolution_state` | `test_alarm_change_interval_resolution.py`の既存helper。保有モデルの値とgrad・optimizer・統計・学習標本・計数・帰属・3乱数の処理前snapshotを作る。本testでは完了処理（成功時と拒否時）の前に使う。 |
+| `assert_alarm_change_interval_resolution_state_unchanged` | 同じmoduleの既存helper。上のsnapshotと現在の状態が同じであることを確かめる。 |
+| `previous_snapshot` | 上のhelperが返す処理前snapshotを受ける局所名。`test_alarm_buffer_response.py`の同名と同じ役割。 |
+| `drain_pending_sample_indices`（test内の局所名） | 差し替え前の実`PendingTrainingAssignmentBuffer.drain_pending_sample_indices`のbound method。既存メソッドと同じ対象を指す。記録用wrapper `record_pending_index_drain`が委譲する先で、`reset_loss_change_monitor`と対になる。r1のAST照合は既存srcに同じ語があるため新規名として検出せず、独立レビューが局所束縛の未記載を指摘した。 |
+
+## revision3の補足（Task 1の再レビューの反映）
+
+r2までの名前と役割は変更しない。設計r3でrecordの組立を更新の前へ移すため、source内でも局所名`response_completion`（完了処理の戻り値になる`AlarmResponseCompletion`。testの同名と同じ役割）を使う。新しい名前は追加しない。拒否条件の追加はdictのkey（条件名）とlambdaだけで行う。
+
+## revision4の補足（設計r4の反映）
+
+r3（未承認のまま改訂）までの名前と役割は変更しない。設計r4に合わせて次を改める。
+
+- 「新sourceのimport」は8 symbolになる。追加は`TrainingModelAssignmentChange`（`learning/training/current_training_model_assignment.py`の既存の帰属変更record。完了処理が応答内の変更記録のexact型を更新前に確かめるために使う。役割は定義元と同じ）。上の表は改訂後の下書きから生成しており、この行を含む。節の見出しの「7 symbol」は「8 symbol」へ改めた。
+- recordのfield `drained_pending_sample_indices`の値は、消費指示のある応答では完了処理の開始時に読んだ保留位置列（その後のdrainが消費する内容と同じ）、不足の応答では空tuple。役割（本処理が消費した保留位置）はr1と同じで、source内の同名の局所変数は使わなくなる。
+- testでは、既存の`TrainingModelAssignmentChange`を拒否条件の入力（boolのIDを持つ変更記録）を作るためにimportする。
+- testへ新しいhelper名を1つ追加する: `replace_assignment_change_in_response`（拒否条件の操作。再利用の応答の帰属変更記録だけを差し替えた応答を作り、完了処理の引数dictへ入れる。引数`completion_arguments`と`training_model_assignment_change`は既存の同名と同じ役割。応答や完了処理を実行しない）。

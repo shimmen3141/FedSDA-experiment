@@ -14,3 +14,38 @@
 - 命名r1は1回目で承認され、以後byteを変更していない（LF hashはspec.json）。
 - 手順上の事実: 命名を事前登録するため、runtimeとtestをリポジトリ外で下書きし、リポジトリ外で実行して実旧oracleの実行可能性を確かめた（research.md）。下書きは元checkoutの`venv/refactoring-tests/alarm-response-completion-draft/`にある。承認の時点でworktreeに新src・新testはない。仕様化の段階でworktreeのtestは実行していない。
 - 外部証拠: 元checkoutの`venv/refactoring-tests/alarm-response-completion-spec-review-r1.md`/`.log`、`alarm-response-completion-spec-review-r2.md`/`.log`。
+
+## Task 1 — 実施記録とレビューの経緯
+
+選択: 可変状態の更新順序と複数部品の接続を含む実装のレビューなので、Claude Haiku 5.5を選んだ。`claude -p <依頼文> --model claude-haiku-5-5 --effort high --output-format json --no-session-persistence --tools Read,Glob,Grep --permission-mode plan`で起動し、JSON応答の`is_error=false`と`modelUsage`の実モデル`claude-haiku-5-5`を確認した。effortのhighは指定値で、JSONは実効値を出力しない。読取り専用のため、レビュー担当はtest・Ruff・gitを実行していない。文書と命名の改訂はGPT-6 Luna（effort high、ログで確認）へ依頼した。代替は行っていない。
+
+### 最初の実装（commit `a70674b`、設計r2）
+
+- 実装前RED: 対象testはmoduleなしで収集失敗（ModuleNotFoundError）、注入契約testはguardなしで27 failed/53 passed。GREEN: 対象51＋依存境界2535＝2586 passed、Ruff・Pyright成功。実source変異25種を25/25検出。
+- Haiku 1回目（session `3c10b991-7ecf-4449-a954-aa23c28d0832`）: CHANGES_REQUESTED。Blocker・Majorなし、Minor 6件。旧5経路との対応、前後IDの導出、検査が更新より前にあること、依存のexact一致、oracleが実旧メソッドを使うことは問題なしと報告。採否:
+  1. test内の局所名`drain_pending_sample_indices`が命名表にない → 採用。既存メソッド名の同義再利用として命名r2へ明記（主担当のAST照合は、既存srcに同じ語があると新規名として検出しない。局所束縛の役割までは照合できていなかった）。
+  2. 拒否testの不変確認に保有モデル・学習標本・計数がない → 採用。既存helper（`snapshot_alarm_change_interval_resolution_state`・`assert_alarm_change_interval_resolution_state_unchanged`）で、拒否時と成功時の両方を確かめる。候補検証sessionの中身は、完了処理がsessionのAPIをimportしないこと（exact依存）と参照一致で確かめる。
+  3. 順序testの期待値が本番関数と同じ → 採用（後述の2回目の指摘で、期待値を応答が記録した切替先モデルの統計から作る形へ改めた）。
+  4. 推定区間長の差し替えが完了後の比較まで残る → 採用。実旧警報処理のfinallyで外す。
+  5. 候補検証中の応答で応答後に標本を追加した場合は検出できない → 採用。research.mdへ呼出側の保証として記録。
+  6. spec.jsonの進捗が古い → 採用。
+- 命名r2: Luna（session `01a119fd-2862-74d0-b14f-ca0508f0623b`）がAPPROVED、指摘なし。承認されたr2の全文は元checkoutの`venv/refactoring-tests/alarm-response-completion-naming-r2.md`。
+
+### 設計の改訂（r3→r4）
+
+- Haiku 2回目（session `f5fdc97b-880f-46df-8060-eed6577984a2`、上の反映後）: CHANGES_REQUESTED。Major 1件、Minor 4件。
+  - Major: 手で組み立てた応答（結果種別が再利用なのに帰属変更の記録がない、またはその逆）は既存の応答とその区間解決のconstructorを通過し、完了処理はreset・drainの後でrecordの検査により例外になる。設計の「検査後に片方だけ更新されない」、要求3.2と一致しない。→ 事実と確認して採用。recordを更新の前に組み立てる設計へ改めた（設計r3、要求r3）。既存の応答関数が返す応答では起こらない経路だが、設計の主張と実装を一致させる。
+  - Minor: 最終観測位置の確認がNoneを許す → 採用（警報位置との一致へ）。順序testの期待値が本体と同じ経路 → 採用（応答の`assigned_model_id`の統計から作る）。位置引数の拒否はkw_onlyの確認であることのコメント → 採用。完了後のsession参照の確認 → 採用。
+- Luna 3回目（session `01a11a02-9756-7f70-8fff-4d35949d976f`、要求r3・設計r3・命名r3）: 要求r3 APPROVED、設計r3 REJECTED、命名r3 REJECTED。
+  - 設計P1: 手で組み立てた変更記録の不正なID（`True == 1`で比較を通過）を更新前に拒否できる保証がない。変更記録のexact型と両IDのbuiltin int検査を定めること。→ 採用。設計r4で、比較より前に変更記録のexact型と両IDの型を検査する。新moduleの依存は8 symbol（`TrainingModelAssignmentChange`を追加）になった。
+  - 命名P2: r2承認の証拠がローカル正本にない。→ 採用。spec.jsonへr2の承認を記録し、r2の全文を保存した（r3からr3の補足節を除いて復元し、LF hashが承認値と一致することを確認）。
+- Luna 4回目（session `01a11a07-e367-7632-a95e-c24e29648754`、設計r4・命名r4・tasks r3）: 3段階ともAPPROVED、指摘なし。下書きsourceで検査の順序、保存済みr2との比較でr2の名前と役割が変わっていないことを確認したと報告。
+- 現在の承認: 要求r3、設計r4、命名r4、tasks r3（hashとsessionはspec.json。過去の承認revisionは`previous_approved_revisions`）。
+
+### 改訂後の実装（設計r4）
+
+- 改訂分のRED（srcは`a70674b`のまま）: 新しい拒否条件5件が失敗（5 failed/51 passed）。8番目のsymbolの注入条件は4 failed/83 passed。記録は元checkoutの`venv/refactoring-tests/alarm-response-completion-task1-red-r4.log`。
+- GREEN: 対象56＋依存境界2542＝2598 passed。Ruff check/format成功（167 files）、Pyright 0 errors。fresh新CPU 2/4class×5経路の10条件成功。
+- 検出力: 実source変異28種（recordの組立を更新の後へ戻す、変更記録の型検査2種の削除を追加）。1回目の実行で「応答と現在の帰属の対応検査の削除」が未検出だった。原因はtestが応答後の帰属を変更前のモデルへ戻しており、recordの検査（再利用なのにIDが同じ）でも同じ例外になるためで、どちらでもないIDへ変えるようtestを直した。修正後は28/28検出、各回元byteへ復元、復元後56 passed。証拠は`venv/refactoring-tests/alarm-response-completion-mutation-evidence-r4/report.json`。
+- worktreeのsrcとtestは、Luna 4回目が読んだ下書きから、上のtestの修正（未検出変異への対応）だけが変わっている。新しい名前は追加していない（AST照合で新規名0件）。
+- 全pytestはこのtaskでは実行していない（Task 3で実行する）。

@@ -1,4 +1,4 @@
-# 警報応答の完了処理 — 設計 revision2
+# 警報応答の完了処理 — 設計 revision4
 
 ## 1. Boundary Commitments
 
@@ -32,7 +32,7 @@
 | alarm_interval_current_model_maintained | maintain | なし | する |
 | alarm_interval_candidate_validation_started | create_pending | なし | する |
 
-旧はイベント記録→reset→clearの順。イベントは不変の値で、resetとclearの影響を受けない。新は検査と値の読取りを先に行い、reset→drainの順に更新し、最後にrecordを組み立てる。resetが使う基準は吸収後の統計で、旧と同じ時点の値である。
+旧はイベント記録→reset→clearの順。イベントは不変の値で、resetとclearの影響を受けない。新も検査と値の読取りの後、recordを組み立ててから（旧のイベント記録と同じ位置）reset→drainの順に更新し、組み立て済みのrecordを返す。resetが使う基準は吸収後の統計で、旧と同じ時点の値である。
 
 ## 4. 契約と処理順
 
@@ -42,12 +42,17 @@
 2. 対応検査（更新前、ValueError）:
    - 保留FIFOの最終観測位置がNoneでなければ`alarm_sample_index`と等しいこと（旧は警報標本をFIFOへ追加してから警報処理を行う）。
    - 応答が準備済み区間を持つなら、前区間と変化区間の観測位置を連結した列が現在の保留位置列と等しいこと（応答は保留位置を変更しないので、完了処理の前は必ず一致する。1件以上を消費した後の再適用や別の応答は不一致になる）。
-   - 応答の区間解決が帰属変更を記録しているなら、その変更後IDが現在の学習帰属IDと等しいこと。このとき変更前IDを`previous_training_model_id`とする。記録がなければ変更前後とも現在のID。
+   - 応答の区間解決が帰属変更を記録しているなら、その記録がexact `TrainingModelAssignmentChange`で、変更前後のIDがどちらもboolを除くbuiltin intであること（違えばTypeError。この型は検査を持たない素のdataclassで、手で組み立てた記録は`True == 1`のような値で以降の比較を通過しうるため、比較より前に型を確かめる）。そのうえで変更後IDが現在の学習帰属IDと等しいこと。このとき変更前IDを`previous_training_model_id`とする。記録がなければ変更前後とも現在のID。
 3. 読取り: 現行モデルの統計（なければNone）の全体集計から`select_loss_monitoring_baseline_mean_loss`で基準平均を得る。
-4. 更新: `loss_change_monitor.reset(baseline_loss_mean=基準平均)`、続いて消費指示がTrueなら`drain_pending_sample_indices()`、Falseなら空tuple。
-5. recordを返す。
+4. recordの組立（更新前）: 消費する位置は、消費指示がTrueなら手順2で読んだ保留位置列、Falseなら空tuple。この値と手順2・3の値で`AlarmResponseCompletion`を作る。constructorの受理集合の検査（下記。結果種別と帰属変更の対応を含む）はここで行われ、不正ならreset・drainの前に例外になる。
+5. 更新: `loss_change_monitor.reset(baseline_loss_mean=基準平均)`、続いて消費指示がTrueなら`drain_pending_sample_indices()`を呼ぶ（戻り値は手順2で読んだ列と同じ内容で、recordへは手順4の値を使う）。
+6. 手順4のrecordを返す。
 
-基準選択の戻り値は常に0.01以上1-1e-6以下で、resetの入力検査を満たす。drainは入力を取らず、契約上の拒否条件を持たない。したがって、検査を通過した後に公開APIの契約上の拒否によって片方だけ更新されることはない。メモリ不足などの実行環境の失敗（drainが保留位置をtupleへ複製する際の失敗を含む）は保証外で、その場合はreset済み・未消費の状態が残りうる。
+準備済み区間の観測位置は保留位置列との一致の検査にだけ使い、recordへは保留FIFOのsnapshotの値（owner自身が検査済みの非負int）を入れるので、手で組み立てた区間の位置の型はrecordへ届かない。
+
+revision2まではrecordを更新の後で組み立てていた。Task 1の独立レビューが、手で組み立てた応答（結果種別が再利用なのに帰属変更の記録がない、またはその逆。既存の`AlarmBufferResponse`と`AlarmChangeIntervalResolution`のconstructorはこの対応を検査しない）ではreset・drainの後にrecordの検査で例外になることを指摘したため、組立を更新の前へ移した。既存の応答関数が返す応答ではこの不整合は起こらない。
+
+基準選択の戻り値は常に0.01以上1-1e-6以下で、resetの入力検査を満たす。drainは入力を取らず、契約上の拒否条件を持たない。recordの検査も更新の前に終わる。したがって、検査を通過した後に公開APIの契約上の拒否によって片方だけ更新されることはない。メモリ不足などの実行環境の失敗（drainが保留位置をtupleへ複製する際の失敗を含む）は保証外で、その場合はreset済み・未消費の状態が残りうる。
 
 ### record
 
@@ -71,7 +76,7 @@ flowchart TD
 
 ## 5. Allowed Dependencies
 
-新runtimeは`dataclasses.dataclass`、`ModelAndClassLossStatisticsStore`、`CurrentTrainingModelAssignment`、`OverallAndTrueClassLossMonitor`、`select_loss_monitoring_baseline_mean_loss`、`PendingTrainingAssignmentBuffer`、`AlarmBufferResponse`の7 symbolだけをimportする。exact集合を命名表とAST guardへ固定し、両resolverへ登録する。旧実装・private・module全体・star・子module・上位packageのimportは拒否する。`__init__`の再exportなし。旧importはoracle test内だけ。
+新runtimeは`dataclasses.dataclass`、`ModelAndClassLossStatisticsStore`、`CurrentTrainingModelAssignment`、`TrainingModelAssignmentChange`、`OverallAndTrueClassLossMonitor`、`select_loss_monitoring_baseline_mean_loss`、`PendingTrainingAssignmentBuffer`、`AlarmBufferResponse`の8 symbolだけをimportする（revision3までは7 symbol。変更記録のexact型検査のために`TrainingModelAssignmentChange`を加えた。`CurrentTrainingModelAssignment`と同じ定義module）。exact集合を命名表とAST guardへ固定し、両resolverへ登録する。旧実装・private・module全体・star・子module・上位packageのimportは拒否する。`__init__`の再exportなし。旧importはoracle test内だけ。
 
 ## 6. Revalidation Triggers
 
@@ -95,7 +100,7 @@ oracleは実旧`_resolve_drift`。既存`build_buffer_response_oracle`の実旧c
 | 1.4 | reset→drainの呼出し順の記録。完了処理の前後でtorch・Python（明示とglobal）・NumPyの乱数が不変。標本・統計・帰属・保有モデルは既存`assert_buffer_response_matches_legacy`で完了処理の後に実旧と照合 |
 | 2.1, 2.2 | 実旧`AdaptationEvent`の全field、`local_switch_positions`、戻り値と、recordのfield・propertyを照合。recordのfrozen/kw_only・受理集合の拒否 |
 | 2.3 | 完了処理が更新するのは監視と保留位置だけであることを、sessionの参照一致と状態照合、依存のexact集合（一覧owner・通知をimportしない）で確認。再利用計数は応答結果からの対応表で実旧と照合 |
-| 3.1, 3.2 | 型・値・対応の全拒否条件で、監視・保留位置・統計・帰属・乱数が不変。消費済みの応答への再適用の拒否 |
+| 3.1, 3.2 | 型・値・対応の全拒否条件（結果種別と帰属変更の記録が対応しない手組みの応答2方向、exact型でない変更記録、IDがboolの変更記録を含む）で、監視・保留位置・保有モデル・optimizer・統計・学習標本・計数・帰属・乱数が不変。消費済みの応答への再適用の拒否 |
 | 3.3 | 上記の実旧対照に加え、完了後に同じ損失列を新旧の監視へ与え、各観測のe値・警報・推定区間長・全状態を照合。代表的なsource変異の検出、exact AST、新実装だけのfresh CPU、旧11・最終3goldenを含む全pytest、Ruff・Pyright |
 
 適応イベント一覧・通知・session保持の新実装と、新全体runの一致は未検証として残す。

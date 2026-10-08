@@ -102,6 +102,34 @@ import pytest
             True,
         ),
         (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange as AcceptedDependency",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment, TrainingModelAssignmentChange",
+            True,
+        ),
+        (
+            "import federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment.child import TrainingModelAssignmentChange",
+            False,
+        ),
+        (
+            "from ..learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import _validate_model_id",
+            False,
+        ),
+        (
             "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import OverallAndTrueClassLossMonitor",
             True,
         ),
@@ -3047,6 +3075,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor",
             "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",

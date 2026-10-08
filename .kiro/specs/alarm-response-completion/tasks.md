@@ -1,10 +1,10 @@
-# 実装タスク revision2
+# 実装タスク revision3
 
 逐次実行。既存ownerだけを使う1つの完了処理と、実旧oracleの再利用による検証。新しい状態ownerは作らない。runtimeの外部下書きは約180行、testは約800行（多くは既存の警報応答oracleと監視照合helperの接続）。各taskを独立レビューし、最後に別freshのfeature最終GOを受ける。
 
 - [ ] 1. 完了recordと完了処理を実旧対照つきで実装する
-  - 実装前に対象testを追加してREDを記録する（moduleなしの収集失敗）。依存境界は注入契約testのREDの後にexact 7 symbolのguardを両resolverへ登録する。
-  - recordの受理集合（消費位置の各要素が0以上であることを含む）、検査→基準選択→reset→drainの順、不足時の保持を実装する。
+  - 実装前に対象testを追加してREDを記録する（moduleなしの収集失敗）。依存境界は注入契約testのREDの後にexact symbol（設計r4で8 symbol）のguardを両resolverへ登録する。
+  - recordの受理集合（消費位置の各要素が0以上であることを含む）、検査→基準選択→recordの組立→reset→drainの順、不足時の保持を実装する。設計r3・r4の改訂（recordを更新の前に組み立てる、変更記録のexact型検査）は、独立レビューの指摘を受けてこのtask内で反映する（拒否条件のtestを先に追加してREDを記録する）。
   - 2/4class×3解決条件×区間長・最小件数4組と候補検証中の2回目の警報で、実旧のイベント・切替位置・再利用計数・戻り値・FIFO・reset後の検出器全状態・完了後の監視の継続を照合する。基準の5条件、全拒否条件の状態不変、再適用の拒否、呼出し順、recordの検査を確認する。
   - 完了: 対象testと依存境界suiteとRuffが成功し、独立レビュー承認。
   - _Boundary: 完了処理の実装と依存境界_

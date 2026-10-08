@@ -7,6 +7,7 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
+    TrainingModelAssignmentChange,
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
@@ -155,6 +156,15 @@ def complete_alarm_buffer_response(
         training_model_assignment_change = (
             change_interval_resolution.training_model_assignment_change
         )
+        if type(training_model_assignment_change) is not TrainingModelAssignmentChange:
+            raise TypeError(
+                "training_model_assignment_change must be exact TrainingModelAssignmentChange"
+            )
+        if (
+            type(training_model_assignment_change.previous_model_id) is not int
+            or type(training_model_assignment_change.current_model_id) is not int
+        ):
+            raise TypeError("assignment change model IDs must be builtin int")
         if training_model_assignment_change.current_model_id != current_training_model_id:
             raise ValueError("response must describe the current training model assignment")
         previous_training_model_id = training_model_assignment_change.previous_model_id
@@ -169,14 +179,8 @@ def complete_alarm_buffer_response(
             else current_model_loss_statistics.overall_loss_moments
         )
     )
-    # ここまで読取りだけ。更新は監視の再開、保留位置の消費の順（旧のreset→clear）。
-    loss_change_monitor.reset(baseline_loss_mean=loss_monitoring_baseline_mean_loss)
-    drained_pending_sample_indices = (
-        pending_training_assignment_buffer.drain_pending_sample_indices()
-        if alarm_buffer_response.pending_assignment_buffer_should_be_cleared
-        else ()
-    )
-    return AlarmResponseCompletion(
+    # 記録を更新より前に組み立て、結果種別と帰属変更の対応を含む受理集合の検査を済ませる。
+    response_completion = AlarmResponseCompletion(
         alarm_buffer_response=alarm_buffer_response,
         alarm_sample_index=alarm_sample_index,
         previous_training_model_id=previous_training_model_id,
@@ -184,5 +188,14 @@ def complete_alarm_buffer_response(
         estimated_change_point_sample_index=estimated_change_point_sample_index,
         detection_episode_id=detection_episode_id,
         loss_monitoring_baseline_mean_loss=loss_monitoring_baseline_mean_loss,
-        drained_pending_sample_indices=drained_pending_sample_indices,
+        drained_pending_sample_indices=(
+            pending_assignment_state.pending_sample_indices
+            if alarm_buffer_response.pending_assignment_buffer_should_be_cleared
+            else ()
+        ),
     )
+    # ここまで読取りだけ。更新は監視の再開、保留位置の消費の順（旧のreset→clear）。
+    loss_change_monitor.reset(baseline_loss_mean=loss_monitoring_baseline_mean_loss)
+    if alarm_buffer_response.pending_assignment_buffer_should_be_cleared:
+        pending_training_assignment_buffer.drain_pending_sample_indices()
+    return response_completion

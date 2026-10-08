@@ -12,12 +12,19 @@ from test_alarm_buffer_response import (
     assert_buffer_response_matches_legacy,
     build_buffer_response_oracle,
 )
+from test_alarm_change_interval_resolution import (
+    assert_alarm_change_interval_resolution_state_unchanged,
+    snapshot_alarm_change_interval_resolution_state,
+)
 from test_loss_change_monitoring import assert_class_monitor_matches_reference
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 from federated_drift_experiment import config
 from federated_drift_experiment.adaptation_events import AdaptationEvent
 from federated_drift_experiment.drift_detectors.e_detector import BoundedMeanEDetector
+from federated_learning_experiments.learning.training.current_training_model_assignment import (
+    TrainingModelAssignmentChange,
+)
 from federated_learning_experiments.learning.training.indexed_observed_training_sample import (
     IndexedObservedTrainingSample,
 )
@@ -219,6 +226,8 @@ def run_legacy_alarm_with_real_completion(*, response_arguments, legacy_client, 
         legacy_python_random_state = random.getstate()
     finally:
         random.setstate(global_python_random_state)
+        # 以後の監視の照合は、classの実メソッドで推定区間長を読む。
+        legacy_client.__dict__.pop("_estimated_new_concept_span", None)
     legacy_adaptation_events = legacy_client.adaptation_events[recorded_event_count:]
     assert len(legacy_adaptation_events) == 1
     assert type(legacy_adaptation_events[0]) is AdaptationEvent
@@ -280,9 +289,10 @@ def assert_response_completion_matches_legacy(
             == pending_sample_indices_before_completion
         )
         assert pending_assignment_state.pending_sample_indices == ()
-    assert pending_assignment_state.last_observed_sample_index in (
-        None,
-        response_completion.alarm_sample_index,
+    # 消費しても最終観測位置は警報位置のまま（次の標本の連続性の検査に使う）。
+    assert (
+        pending_assignment_state.last_observed_sample_index
+        == response_completion.alarm_sample_index
     )
     loss_change_monitor = completion_arguments["loss_change_monitor"]
     assert (
@@ -481,6 +491,10 @@ def test_second_alarm_during_started_validation_completes_like_legacy(
             and legacy_client._forward_validation is legacy_session
         )
         assert second_response_completion.previous_training_model_id == initial_training_model_id
+        assert (
+            second_response_completion.alarm_buffer_response.active_validation_session
+            is started_validation_session
+        )
         assert_response_completion_matches_legacy(
             response_completion=second_response_completion,
             completion_arguments=completion_arguments,
@@ -589,13 +603,11 @@ def test_completion_baseline_follows_current_model_statistics_like_legacy(
 
 
 def assign_other_model_after_response(*, completion_arguments, legacy_client):
+    # 応答が記録した変更前後のどちらでもないIDへ変える（帰属ownerは保有の有無を検査しない）。
+    # 変更前のモデルへ戻す場合はrecordの検査（再利用なのにIDが同じ）でも拒否されるので、
+    # 応答と現在の帰属の対応検査そのものを確かめられない。
     completion_arguments["current_training_model_assignment"].assign_model_for_training(
-        model_id=next(
-            model_id
-            for model_id in legacy_client.models
-            if model_id
-            != completion_arguments["current_training_model_assignment"].current_training_model_id
-        )
+        model_id=max(legacy_client.models) + 1
     )
 
 
@@ -604,6 +616,22 @@ def append_sample_index_after_response(*, completion_arguments, legacy_client):
         sample_index=completion_arguments["alarm_sample_index"] + 1
     )
     completion_arguments["alarm_sample_index"] += 1
+
+
+def replace_assignment_change_in_response(
+    *, completion_arguments, training_model_assignment_change
+):
+    """再利用の応答の帰属変更記録だけを差し替えた応答を、完了処理の引数へ入れる。"""
+    alarm_buffer_response = completion_arguments["alarm_buffer_response"]
+    completion_arguments.update(
+        alarm_buffer_response=replace(
+            alarm_buffer_response,
+            change_interval_resolution=replace(
+                alarm_buffer_response.change_interval_resolution,
+                training_model_assignment_change=training_model_assignment_change,
+            ),
+        )
+    )
 
 
 INVALID_COMPLETION_INPUT_CASES = {
@@ -686,6 +714,57 @@ INVALID_COMPLETION_INPUT_CASES = {
         ValueError,
     ),
     "assignment_changed_after_response": (assign_other_model_after_response, ValueError),
+    # 以下は手で組み立てた応答。既存の応答とその区間解決のconstructorは通過する。
+    "reused_response_without_assignment_change": (
+        lambda completion_arguments, legacy_client: replace_assignment_change_in_response(
+            completion_arguments=completion_arguments, training_model_assignment_change=None
+        ),
+        ValueError,
+    ),
+    "maintained_response_with_assignment_change": (
+        lambda completion_arguments, legacy_client: completion_arguments.update(
+            alarm_buffer_response=replace(
+                completion_arguments["alarm_buffer_response"],
+                response_outcome="alarm_interval_current_model_maintained",
+                change_interval_resolution=replace(
+                    completion_arguments["alarm_buffer_response"].change_interval_resolution,
+                    resolution_outcome="alarm_interval_current_model_maintained",
+                ),
+            )
+        ),
+        ValueError,
+    ),
+    "assignment_change_is_not_exact_record": (
+        lambda completion_arguments, legacy_client: replace_assignment_change_in_response(
+            completion_arguments=completion_arguments,
+            training_model_assignment_change=object(),
+        ),
+        TypeError,
+    ),
+    "assignment_change_has_bool_previous_model_id": (
+        lambda completion_arguments, legacy_client: replace_assignment_change_in_response(
+            completion_arguments=completion_arguments,
+            training_model_assignment_change=TrainingModelAssignmentChange(
+                previous_model_id=True,
+                current_model_id=completion_arguments[
+                    "current_training_model_assignment"
+                ].current_training_model_id,
+            ),
+        ),
+        TypeError,
+    ),
+    "assignment_change_has_bool_current_model_id": (
+        lambda completion_arguments, legacy_client: replace_assignment_change_in_response(
+            completion_arguments=completion_arguments,
+            training_model_assignment_change=TrainingModelAssignmentChange(
+                previous_model_id=completion_arguments[
+                    "alarm_buffer_response"
+                ].change_interval_resolution.training_model_assignment_change.previous_model_id,
+                current_model_id=True,
+            ),
+        ),
+        TypeError,
+    ),
     "pending_indices_changed_after_response": (append_sample_index_after_response, ValueError),
 }
 
@@ -697,15 +776,20 @@ def test_completion_rejects_invalid_inputs_before_updates(
     apply_invalid_input, expected_exception = INVALID_COMPLETION_INPUT_CASES[invalid_case]
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(823)
-        response_arguments, completion_arguments, _, _, _, legacy_client = (
-            build_response_completion_oracle(
-                monkeypatch=monkeypatch,
-                loss_change_detection_settings=valid_run_settings_mapping[
-                    "loss_change_detection_settings"
-                ],
-                alarm_interval_resolution_case="other_model_reused",
-                earlier_sample_count=0,
-            )
+        (
+            response_arguments,
+            completion_arguments,
+            _,
+            resolution_arguments,
+            shared_optimizer_owners,
+            legacy_client,
+        ) = build_response_completion_oracle(
+            monkeypatch=monkeypatch,
+            loss_change_detection_settings=valid_run_settings_mapping[
+                "loss_change_detection_settings"
+            ],
+            alarm_interval_resolution_case="other_model_reused",
+            earlier_sample_count=0,
         )
         completion_arguments["alarm_buffer_response"] = respond_to_alarm_with_buffered_samples(
             **response_arguments
@@ -729,8 +813,14 @@ def test_completion_rejects_invalid_inputs_before_updates(
         torch_random_state = torch.get_rng_state().clone()
         global_python_random_state = random.getstate()
         numpy_random_state = np.random.get_state()
+        previous_snapshot = snapshot_alarm_change_interval_resolution_state(
+            resolution_arguments=resolution_arguments,
+            shared_optimizer_owners=shared_optimizer_owners,
+        )
         with pytest.raises(expected_exception):
             complete_alarm_buffer_response(**completion_arguments)
+        # 保有モデルの値とgrad・optimizer・統計・学習標本・計数・帰属・3乱数。
+        assert_alarm_change_interval_resolution_state_unchanged(previous_snapshot)
         assert (
             valid_completion_arguments["loss_change_monitor"].get_state_snapshot()
             == monitoring_state
@@ -783,7 +873,14 @@ def test_completion_resets_monitor_with_selected_baseline_before_draining(
 ):
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(823)
-        response_arguments, completion_arguments, _, _, _, _ = build_response_completion_oracle(
+        (
+            response_arguments,
+            completion_arguments,
+            _,
+            resolution_arguments,
+            shared_optimizer_owners,
+            _,
+        ) = build_response_completion_oracle(
             monkeypatch=monkeypatch,
             loss_change_detection_settings=valid_run_settings_mapping[
                 "loss_change_detection_settings"
@@ -794,8 +891,14 @@ def test_completion_resets_monitor_with_selected_baseline_before_draining(
         alarm_buffer_response = respond_to_alarm_with_buffered_samples(**response_arguments)
         assert alarm_buffer_response.response_outcome == "alarm_interval_held_model_reused"
         # 基準平均は、切替後の現行モデルが変化区間を吸収した後の統計から選ばれる。
-        expected_baseline_mean_loss = select_current_model_monitoring_baseline(
-            completion_arguments=completion_arguments
+        # ここでは「どの時点のどのモデルの統計を渡すか」を確かめる。基準を選ぶ規則そのものは、
+        # 実旧のreset後の検出器と照合するtest（実旧対照と基準の5条件）が確かめる。
+        expected_baseline_mean_loss = select_loss_monitoring_baseline_mean_loss(
+            loss_moments=completion_arguments["loss_statistics_store"]
+            .get_model_loss_statistics(
+                model_id=alarm_buffer_response.change_interval_resolution.assigned_model_id
+            )
+            .overall_loss_moments
         )
         completion_operation_calls = []
         loss_change_monitor = completion_arguments["loss_change_monitor"]
@@ -815,6 +918,10 @@ def test_completion_resets_monitor_with_selected_baseline_before_draining(
             completion_operation_calls.append(("drain", None))
             return drain_pending_sample_indices()
 
+        previous_snapshot = snapshot_alarm_change_interval_resolution_state(
+            resolution_arguments=resolution_arguments,
+            shared_optimizer_owners=shared_optimizer_owners,
+        )
         with (
             patch.object(loss_change_monitor, "reset", record_monitor_reset),
             patch.object(
@@ -830,6 +937,8 @@ def test_completion_resets_monitor_with_selected_baseline_before_draining(
             ("reset", expected_baseline_mean_loss),
             ("drain", None),
         ]
+        # 成功した完了処理も、保有モデル・optimizer・統計・学習標本・計数・帰属・3乱数を変更しない。
+        assert_alarm_change_interval_resolution_state_unchanged(previous_snapshot)
         assert response_completion.loss_monitoring_baseline_mean_loss == expected_baseline_mean_loss
 
 
@@ -861,6 +970,7 @@ def test_completion_record_is_frozen_and_rejects_inconsistent_fields(
     assert reused_response_completion.detection_episode_operation_required is True
     with pytest.raises(FrozenInstanceError):
         reused_response_completion.alarm_sample_index = 0
+    # kw_only: 位置引数では作れない（値の検査ではなく署名の確認）。
     with pytest.raises(TypeError):
         AlarmResponseCompletion(*asdict(reused_response_completion).values())
     for invalid_fields, expected_exception in (
