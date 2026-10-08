@@ -7,7 +7,7 @@
 @.kiro/steering/agent-handoff.md
 
 ## Codexとのツール差分
-- Luna・Haikuともeffortは`high`を明示指定する。代替時も維持し、具体的な起動方法は共通引継ぎ手順を参照する。
+- effortはHaikuを`high`、Lunaを`medium`に明示指定する。代替で使うときも各モデルのこの指定とし、具体的な起動方法は共通引継ぎ手順を参照する。
 
 - Claude版cc-sddは`.claude/skills/`、Codex版は`.agents/skills/`。両方とも3.1.0。要求・設計・命名・task・レビュー記録と設定は共通の`.kiro/`を使用する。
 - Claudeでは`/kiro-spec-init`、`/kiro-spec-requirements`、`/kiro-spec-design`、`/kiro-spec-tasks`、`/kiro-impl`等を利用する。Codex側の起動方法・ツール名をClaudeへそのまま適用しない。
