@@ -1,8 +1,19 @@
-# 警報時の保留標本への応答 — 命名 revision4
+# 警報時の保留標本への応答 — 命名 revision5
 
 sourceとtestの実装前一覧。既存公開型/関数/引数は定義元と同じ役割で再利用する。全体の承認状態はspec.json。
 
 ## 依存注入検査の補足
+
+## 状態照合の補足（実装前）
+
+| 名前 | 役割 |
+| --- | --- |
+| `np` | testだけで使う標準的なnumpy import alias。グローバルNumPy乱数の不消費を確認する。 |
+| `numpy_random_state` | 通常・active応答直前のNumPy RNG状態。アルゴリズムの状態所有者ではない。 |
+| `session_gradient_snapshot` | active応答直前の候補と固定参照parameterのgradのcloneまたはNone。値だけでなくgradも変わらないことを確認する。 |
+| `session_reference_history_snapshot` | 固定参照のモデルIDごとの履歴平均損失dictのコピー。不変性を確認する。 |
+
+r4の命名は維持し、testの検証を強める4名だけを補足する。
 
 `test_alarm_buffer_response_dependency_contract`はこのmoduleのexact symbol依存と両resolverの許可・拒否を検証する。引数`source_text`と`expected_acceptance`、局所`dependency_boundary_violations`、既存`collect_dependency_boundary_violations`は既存の同名依存契約testと同じ役割で再利用する。record段階は実際の5symbolだけ、runtime段階で実23symbolへ拡張し、未来の依存を先行許可しない。alias名`AcceptedDependency`も既存注入fixtureと同じ役割。r2の全命名は変更せず、この関数名と役割のみを追加する。
 

@@ -30,3 +30,11 @@
 - RED: module未実装の収集失敗、guard実装前の21 failed/35 passed。GREEN: record専用node＋全ASTは2277 passed、9.76s。Ruff成功。
 - 再レビューは別fresh Luna APPROVED。独立テスト再実行は担当側のPython選択問題で未実施、主担当logと実差分を照合した。sourceはrecordのみ、未来の応答関数の成功は主張しない。
 - 証拠: 元checkoutのvenv/refactoring-tests/alarm-buffer-response-task1-review-r2.md、task1-tests.log。担当sessionはspec.json。
+
+## 命名r5・Task 2 — APPROVED
+
+- testのNumPy乱数、候補/参照grad、参照履歴の4名を実装前に命名r5へ追加し、別Lunaが承認した。既存名の役割は維持。
+- REDは未実装の応答module属性への到達で1 failed/63 deselected。初期外部下書きに、旧oracleのダミーsessionと不足台帳/閾値、既存helperの引数誤り、再構成tupleの参照を期待する誤りがあり、test側だけを訂正した。実旧警報処理と委譲先の実処理は差し替えていない。
+- 全5応答の実装、36 NN正常条件・8 active条件・空FIFO・16拒否・順序と元metadata・部分更新境界を確認。後続共同更新を2回、候補開始後の実観測も照合。active候補/参照の値・grad・両optimizer・履歴・pending参照は不変。torch/Python/NumPyも確認。
+- 最終GREEN: 対象64＋AST2455＝2519 passed、9.65s、Ruff成功。exact依存は23symbol、新注入235。別fresh Lunaは実差分/命名/設計/logを照合しAPPROVED、独立全対象再実行は未実施。必須指摘なし。
+- 証拠: task2-tests.log、task2-review.md（元checkoutのvenv/refactoring-tests）。全体run・後始末ownerはまだ未接続。

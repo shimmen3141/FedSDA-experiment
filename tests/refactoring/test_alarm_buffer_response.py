@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import FrozenInstanceError, replace
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 import torch
 from test_adopted_candidate_initial_local_registration import (
@@ -77,6 +78,12 @@ def build_buffer_response_oracle(
         earlier_sample_count=earlier_sample_count,
         estimated_change_span_sample_count=estimated_change_span_sample_count,
     )
+    legacy_client._forward_validation = None
+    legacy_client.verbose = False
+    legacy_client.reuse_selection_counts = defaultdict(int)
+    legacy_client.distance_threshold = resolution_arguments[
+        "maximum_alarm_interval_mean_loss_increase"
+    ]
     response_arguments = dict(resolution_arguments)
     del response_arguments["change_interval_training_samples"]
     del response_arguments["change_interval_sample_concept_ids"]
@@ -208,6 +215,15 @@ def assert_buffer_response_matches_legacy(
             indexed_observation.observed_concept_id
             for indexed_observation in response.prepared_alarm_training_intervals.change_interval_observations
         )
+        if response.active_validation_session is not None:
+            assert (
+                response.active_validation_session.pending_assignment_training_samples
+                == resolution_arguments["change_interval_training_samples"]
+            )
+            # 下位helperは呼出し元から借用したtuple自体の参照一致を検査する。
+            resolution_arguments["change_interval_training_samples"] = (
+                response.active_validation_session.pending_assignment_training_samples
+            )
         assert_alarm_change_interval_resolution_matches_legacy(
             alarm_change_interval_resolution=response.change_interval_resolution,
             resolution_arguments=resolution_arguments,
@@ -346,6 +362,7 @@ def test_buffer_response_matches_real_legacy(
         )
         initial_training_model_id = legacy_client.current_model_id
         initial_torch_random_state = torch.get_rng_state().clone()
+        numpy_random_state = np.random.get_state()
         pending_assignment_snapshot = response_arguments[
             "pending_training_assignment_buffer"
         ].get_state_snapshot()
@@ -355,9 +372,15 @@ def test_buffer_response_matches_real_legacy(
             monkeypatch=monkeypatch,
         )
         expected_torch_random_state = torch.get_rng_state().clone()
+        assert np.random.get_state()[0] == numpy_random_state[0]
+        assert np.array_equal(np.random.get_state()[1], numpy_random_state[1])
+        assert np.random.get_state()[2:] == numpy_random_state[2:]
         torch.set_rng_state(initial_torch_random_state)
         response = response_module.respond_to_alarm_with_buffered_samples(**response_arguments)
         assert torch.equal(torch.get_rng_state(), expected_torch_random_state)
+        assert np.random.get_state()[0] == numpy_random_state[0]
+        assert np.array_equal(np.random.get_state()[1], numpy_random_state[1])
+        assert np.random.get_state()[2:] == numpy_random_state[2:]
         assert (
             response_arguments["pending_training_assignment_buffer"].get_state_snapshot()
             == pending_assignment_snapshot
@@ -467,6 +490,15 @@ def test_active_candidate_alarm_absorbs_all_and_preserves_session(
         session_parameter_snapshot = tuple(
             parameter.detach().clone() for parameter in session_parameters
         )
+        session_gradient_snapshot = tuple(
+            None if parameter.grad is None else parameter.grad.detach().clone()
+            for parameter in session_parameters
+        )
+        session_reference_history_snapshot = dict(
+            active_validation_session.fixed_reference_models.reference_historical_mean_losses_by_model_id
+        )
+        numpy_random_state = np.random.get_state()
+        initial_torch_random_state = torch.get_rng_state().clone()
         session_optimizer_snapshot = deepcopy(
             tuple(
                 optimizer_owner.parameter_optimizer.state_dict()
@@ -517,6 +549,10 @@ def test_active_candidate_alarm_absorbs_all_and_preserves_session(
             "model_evaluation_sample_store"
         ]
         assert response.response_outcome == "alarm_during_candidate_validation"
+        assert torch.equal(torch.get_rng_state(), initial_torch_random_state)
+        assert np.random.get_state()[0] == numpy_random_state[0]
+        assert np.array_equal(np.random.get_state()[1], numpy_random_state[1])
+        assert np.random.get_state()[2:] == numpy_random_state[2:]
         assert response.active_validation_session is active_validation_session
         assert legacy_client._forward_validation is legacy_session
         assert (
@@ -528,6 +564,15 @@ def test_active_candidate_alarm_absorbs_all_and_preserves_session(
         )
         for parameter, previous_parameter in zip(session_parameters, session_parameter_snapshot):
             assert torch.equal(parameter, previous_parameter)
+        for parameter, previous_parameter in zip(session_parameters, session_gradient_snapshot):
+            if previous_parameter is None:
+                assert parameter.grad is None
+            else:
+                assert torch.equal(parameter.grad, previous_parameter)
+        assert (
+            active_validation_session.fixed_reference_models.reference_historical_mean_losses_by_model_id
+            == session_reference_history_snapshot
+        )
         assert_nested_state_equal(
             tuple(
                 optimizer_owner.parameter_optimizer.state_dict()
@@ -577,9 +622,7 @@ def test_empty_buffer_is_insufficient_without_candidate_work(monkeypatch):
     assert response.response_outcome == "alarm_change_interval_too_short"
     assert not response.pending_assignment_buffer_should_be_cleared
     assert response.prepared_alarm_training_intervals.change_interval_observations == ()
-    assert_alarm_change_interval_resolution_state_unchanged(
-        previous_snapshot=previous_snapshot, resolution_arguments=response_arguments
-    )
+    assert_alarm_change_interval_resolution_state_unchanged(previous_snapshot)
 
 
 @pytest.mark.parametrize(
@@ -677,8 +720,7 @@ def test_buffer_response_rejects_owned_inputs_before_updates(invalid_case, monke
     with pytest.raises(expected_exception):
         response_module.respond_to_alarm_with_buffered_samples(**response_arguments)
     assert_alarm_change_interval_resolution_state_unchanged(
-        previous_snapshot=previous_snapshot,
-        resolution_arguments=valid_response_arguments,
+        previous_snapshot,
     )
     assert (
         valid_response_arguments[

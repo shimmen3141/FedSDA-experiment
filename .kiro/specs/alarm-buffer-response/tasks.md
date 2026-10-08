@@ -9,7 +9,7 @@
   - _Boundary: 不変応答とrecord依存境界の統合_
   - _Requirements: 2.1, 2.2_
 
-- [ ] 2. 警報応答の分岐を実旧対照つきで組み立てる
+- [x] 2. 警報応答の分岐を実旧対照つきで組み立てる
   - runtimeの構造検査→active全件吸収、または準備→最小件数→公開解決を実装前REDから実装する。必要なexact importと注入testを同時に拡張する。
   - 実NNの2/4class×3解決条件×span/minimum境界で実旧と比較。active正規/負ID・空/非空、未使用設定、同じsessionのparameter/optimizer/履歴・pending参照不変、構造拒否/部分更新境界を確認。
   - このtaskは明示的な統合task。準備と解決を接続しているため、同じoracleで後続共同更新・候補観測まで照合し、別の本番学習処理は追加しない。
