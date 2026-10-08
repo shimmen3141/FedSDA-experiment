@@ -204,6 +204,8 @@ def test_diagnostic_collection_keeps_distinct_live_owners():
         "current_none",
         "previous_float",
         "current_numpy_int",
+        "previous_int_subclass",
+        "current_int_subclass",
         "equal_bool",
     ],
 )
@@ -245,12 +247,14 @@ def test_diagnostic_notification_rejects_invalid_input_before_restart(invalid_no
                 "previous_bool": False,
                 "previous_none": None,
                 "previous_float": -1.0,
+                "previous_int_subclass": type("RejectedModelId", (int,), {})(-1),
                 "equal_bool": True,
             }.get(invalid_notification_case, -1),
             current_model_id={
                 "current_bool": True,
                 "current_none": None,
                 "current_numpy_int": numpy.int64(2),
+                "current_int_subclass": type("RejectedModelId", (int,), {})(2),
                 "equal_bool": True,
             }.get(invalid_notification_case, 2),
         )
@@ -261,7 +265,10 @@ def test_diagnostic_notification_rejects_invalid_input_before_restart(invalid_no
     assert diagnostic_states_after == diagnostic_states_before
 
 
-@pytest.mark.parametrize("invalid_concept_id", [True, False, None, 2.0, numpy.int64(2), "2"])
+@pytest.mark.parametrize(
+    "invalid_concept_id",
+    [True, False, None, 2.0, numpy.int64(2), "2", type("RejectedConceptId", (int,), {})(2)],
+)
 def test_diagnostic_collection_rejects_invalid_concept_id_without_creation(invalid_concept_id):
     diagnostic_collection = AdaHedgeDiagnosticEvidenceCollection()
     diagnostic_collection.get_true_concept_diagnostic_evidence(true_concept_id=3)

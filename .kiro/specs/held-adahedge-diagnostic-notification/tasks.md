@@ -4,7 +4,7 @@
   - 検査を更新後へ動かす変異をレビュー前に確認。Ruff/Pyrightと独立承認で完了。
   - _Boundary: evaluation collection/runtime notification/testとexact依存guard_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2_
-- [ ] 2. 検出力と新stdlib単独接続を検証
+- [x] 2. 検出力と新stdlib単独接続を検証
   - 通知対象/計数/同一/None/生成/不正型先行拒否の実source変異を一種ずつ測定して元byteへ復元。非等価は全検出、等価は理由を示す。
   - 旧/test importなしのfresh processでglobal/oracle更新→複数変更→再取得・新概念を接続。対象復元GREENと証拠を独立承認。
   - _Depends: 1_
