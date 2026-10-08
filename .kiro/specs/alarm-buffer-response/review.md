@@ -1,0 +1,24 @@
+# 独立レビューと検証記録
+
+## 要求r1 — APPROVED
+
+- native一覧を確認した。子はcompleted、close APIは利用できないためcleanupしたとは扱わず、ephemeral CLI GPT-6 Lunaを独立担当として使う。
+- 初回担当は自分が独立reviewerであることを誤認し、さらにcodexを起動しようとしてsandboxのstate DB書込みに失敗した。`REVIEW NOT RUN`で判定はなく、承認へ使用していない。Luna自体が利用不能だったとは扱わない。
+- 別fresh担当へ「あなた自身が独立reviewer、再委譲しない」と役割を明示し、要求9項目・境界・実旧/公開API・拒否と部分更新の保証範囲をレビュー。VERDICT APPROVED。必須指摘なし。
+- 任意提案を採用: 比較から除くFIFO後始末・記録/resetを設計/test証拠で個別に列挙する。要求本文は変更不要。
+- model同定は起動指定とCLI logのmodel行に基づく。session/hashはspec.json。外部証拠は元checkoutの`venv/refactoring-tests/alarm-buffer-response-requirements-review-retry.md`とlog。
+- source/testは未追加、テスト未実施。承認済み内容と同じbyte/LF内容をrequirements.mdへ生成した。
+# 設計r2 — APPROVED、命名は再レビュー待ち
+
+- 設計r1/初期命名の指摘を受け、表の許容fieldをexact型・None・outcome一致・session参照一致として詳述した。r1にも組合せ表はあったが、検査契約を明確にする提案として採用した。
+- 不要なObservedTrainingSample importを加える提案は不採用。新moduleはそのsymbolを直接参照せず、位置付きrecordのfield型は定義元で解決するため、余分なimportはRuffと矛盾する。再レビューも不追加を支持した。
+- sourceのexact importは23symbol。新定義5値定数と借用3値定数の役割を補足。設計r2は独立Luna APPROVED、内容hashとsessionをspec.jsonへ記録し同内容を生成した。
+- 外部test下書きの機械編集で構文不正となり、命名生成が失敗して旧r1タイトルが残ったままr2レビューを起動した。設計は正しいr2だったが、命名はタイトル不一致でREJECTED。この判定は承認として使用しない。構文と生成を修復し、Ruff/AST成功の実r2命名を再提示する。
+- source/testはworktreeへ未追加。外部下書きのtest実行は未実施。
+
+## 命名r2・tasks r1 — APPROVED / graph PASS
+
+- 構文修復と命名再生成後、別fresh GPT-6 Lunaが実AST・23symbol・9要件・逐次5taskを確認し、命名/tasks APPROVED、graph PASS。
+- 任意の分割提案は、実装中に独立責務が現れれば検討する。現段階では既存NN helperの接続をtask 2、独立CPU検証をtask 4に明示しており、この構成を維持する。
+- 外部証拠は`alarm-buffer-response-naming-tasks-review.md`とlog。sessionと対象hashはspec.json。
+- 依存注入検査の新関数名だけが外部source/test抽出に含まれなかったため、命名r3へ役割を補足した。Lunaが既存helperの誤記を指摘しREJECTED。実名collect_dependency_boundary_violationsへ訂正したr4を再レビューする。source/testの追加はその承認後。

@@ -1,0 +1,59 @@
+{
+  "feature_name": "alarm-buffer-response",
+  "created_at": "2026-10-08",
+  "updated_at": "2026-10-08",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "0d1eadc4547549bb562c723c384f968ddb04a8db43ebb0a6910f7f4160cb65c8",
+      "approved_sha256_lf": "0d1eadc4547549bb562c723c384f968ddb04a8db43ebb0a6910f7f4160cb65c8",
+      "reviewer": "gpt-6-luna (independent CLI)",
+      "reviewer_session": "01a11944-a0eb-7922-84fd-a833621265d0",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 2,
+      "approved_revision": 2,
+      "generated_sha256_lf": "6016db437f1113d44c7b4c4b096313a10198dca4decf7900c3708d74a5bec0bc",
+      "approved_sha256_lf": "6016db437f1113d44c7b4c4b096313a10198dca4decf7900c3708d74a5bec0bc",
+      "reviewer": "gpt-6-luna (independent CLI)",
+      "reviewer_session": "01a11952-bf90-76d2-9763-3c1e49cb95de",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 4,
+      "approved_revision": 4,
+      "generated_sha256_lf": "02a0a8fd5a79f1c493df154a91a98cf4ef7f711e3ee3714bbd34a33605dd6c19",
+      "approved_sha256_lf": "02a0a8fd5a79f1c493df154a91a98cf4ef7f711e3ee3714bbd34a33605dd6c19",
+      "reviewer": "gpt-6-luna (independent CLI)",
+      "reviewer_session": "01a1195a-2ef1-7361-ad32-a4c12566c491",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "964ab0a80f3ad366add18b1e1fd23150989b2fe8bd671e6065ca9c674a2b0903",
+      "approved_sha256_lf": "964ab0a80f3ad366add18b1e1fd23150989b2fe8bd671e6065ca9c674a2b0903",
+      "reviewer": "gpt-6-luna (independent CLI)",
+      "reviewer_session": "01a11954-f561-7ce2-9198-60f85bf99b0a",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
+  "implementation_progress": {
+    "completed": 0,
+    "total": 5
+  }
+}
