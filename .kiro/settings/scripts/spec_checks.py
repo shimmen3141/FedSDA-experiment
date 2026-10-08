@@ -1,12 +1,13 @@
 """specの命名表と承認・同一性を機械的に照合する。worktreeルートで実行する。
 
-    python .kiro/settings/scripts/spec_checks.py names <spec名> <新規・変更した.py>... [--naming <命名表>]
+    python .kiro/settings/scripts/spec_checks.py names <spec名> <新規・変更した.py>... [--naming <命名表>] [--base <commit>]
     python .kiro/settings/scripts/spec_checks.py identity <spec名> [--junit <JUnit XML>] [--rev <commit>]
     python .kiro/settings/scripts/spec_checks.py progress <spec名>
 
 names: 指定ファイルの束縛名（def・class・引数・代入・importの別名）を命名表と照合する。
     testファイル（パスにtestsを含む）は、module直下の名前（helper関数・class・定数・importの別名）だけを照合する。
     test関数の中の局所名・引数・parametrize引数は命名表の対象外（2026-10-09ユーザー決定）。
+    --baseを付けると、既存ファイルについて、そのcommitの時点ですでにあった名前を照合から除く（足した名前だけを見る）。
     命名表の登録名は、表の先頭列の語と、表以外の行の語（表の説明列で触れただけの語は数えない）。
     未登録: 命名表になく、他のsrc/tests/refactoringにも現れない名前（exit 1）。
     役割の再利用: 命名表になく、他では関数・classの名前としてだけ現れる語を変数・引数に使っているもの（exit 1）。
@@ -46,9 +47,11 @@ PROGRESS_DOCUMENT_PATHS = (".kiro/steering/resume.md", ".kiro/steering/roadmap.m
 UNFINISHED_STATE_PATTERN = re.compile("待ち|未実施|ブロック中")
 
 
-def collect_bound_names(source_path, module_level_only=False):
+def collect_bound_names(source_path, module_level_only=False, source_text=None):
     """(関数・class名, 変数・引数・import名) を返す。module_level_onlyならmodule直下の名前だけ。"""
-    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    if source_text is None:
+        source_text = source_path.read_text(encoding="utf-8")
+    tree = ast.parse(source_text, filename=str(source_path))
     definition_names, variable_names = set(), set()
     if module_level_only:
         for statement in tree.body:
@@ -122,10 +125,29 @@ def check_names(arguments):
         definition_names, variable_names = collect_bound_names(
             target_path, module_level_only="tests" in target_path.parts
         )
+        names_at_base = set()
+        if arguments.base:
+            base_content = subprocess.run(
+                [
+                    "git",
+                    "show",
+                    f"{arguments.base}:{target_path.relative_to(pathlib.Path.cwd()).as_posix()}",
+                ],
+                capture_output=True,
+            )
+            # そのcommitにないファイル（新規）は、全ての名前を照合する。
+            if base_content.returncode == 0:
+                names_at_base = set().union(
+                    *collect_bound_names(
+                        target_path,
+                        module_level_only="tests" in target_path.parts,
+                        source_text=base_content.stdout.decode("utf-8"),
+                    )
+                )
         candidates = {
             name
             for name in definition_names | variable_names
-            if name not in registered_words and name != "_"
+            if name not in registered_words and name != "_" and name not in names_at_base
         }
         unregistered = sorted(candidates - other_definition_names - other_variable_names)
         role_reused = sorted(
@@ -306,6 +328,7 @@ def main():
     names_parser.add_argument("spec")
     names_parser.add_argument("files", nargs="+")
     names_parser.add_argument("--naming")
+    names_parser.add_argument("--base")
     identity_parser = subparsers.add_parser("identity")
     identity_parser.add_argument("spec")
     identity_parser.add_argument("--junit")

@@ -95,7 +95,7 @@ codex execのWindows sandboxでは一時ディレクトリの操作が拒否さ�
 - 未検出の変異は、testの穴か等価な変異（例: 読取りだけの代入の後へ検査を移した）のどちらかである。穴ならtestを足す。等価なら理由を証拠文書へ書く。証拠文書には、実行したコマンド、検出数/総数、未検出の変異とその扱いを書き、変異ごとの表は載せない（`report.json`が正本）。
 - 対象は、そのspecで新しく書いた関数と変更した関数だけにする。変更していない関数や過去specの変異を再実行しない。変異scriptは実装ファイルを書き換えるので、レビュー担当には実行させず`report.json`を読ませる。
 - 新実装だけで動くことの確認（fresh process）は、specごとにscriptを書かず、Git管理下の共用script（`tests/refactoring/fresh_process_smoke.py`。旧実装とtest moduleをimportしない）へ、そのspecの接続を通る流れを足して育てる。全pytestから別processで実行するtestを置き、sourceの変更で動かなくなったらすぐ分かるようにする。共用scriptは次のspecで作る（それまでのspecの個別scriptはGit管理外の当時の証拠）。新全体runを接続したら、全体runのtestへ置き換えて廃止する。
-- 依存境界のexact集合は、許可するsymbolの集合をdataとして1箇所に登録し、「実際のsourceのimportの集合と一致する」ことを1件のtestで確かめる（許可が広すぎる場合も失敗する）。symbolごとに5通りの書き方を並べる注入契約testは新しく足さない（import module・private・starの拒否は、symbolによらない共通の仕組みで、既存のtestが確かめている）。そのspecで特に禁じたい依存があれば、拒否の例を数件だけ足す。この形への切替えは次のspecで行う（既存の注入契約testは消さない）。
+- 依存境界は、新しいmoduleの許可集合を、既存と同じ形（`dependency_is_allowed`の中のmoduleごとの名前の組と、exact検査の対象の一覧）で登録するだけにする。symbolごとに5通りの書き方を並べる注入契約testは新しく足さない（import module・private・starの拒否は、symbolによらない共通の仕組みで、既存のtestが確かめている。許可は、実際のsourceがimportして全体の依存testが通ることで確かめられる）。許可が広すぎないこと（許可集合の各名前が実際にimportされていること）は、全moduleを対象にした1件のtestが確かめる。そのspecで特に禁じたい依存があれば、拒否の例を数件だけ足す。既存の登録と注入契約testは移さず、消さない（2026-10-09ユーザー決定。方式の一本化は見送り。[IMPROVE-009](../../docs/research/improvement-candidates/improve-009-unify-dependency-boundary-tests.md)）。
 
 ### 実旧を使うoracle
 
