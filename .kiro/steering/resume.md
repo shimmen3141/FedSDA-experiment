@@ -1,8 +1,8 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-08（警報時の保留標本への応答を完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-08（警報応答の完了処理を完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
-**引継ぎ地点（2026-10-08）:** [alarm-buffer-response](../specs/alarm-buffer-response/README.md)完了。要求r1・設計r2・命名r5・tasks r1、全5taskを独立Luna承認、別fresh Luna feature最終GO。active検証中の全件吸収、または前区間準備→最小件数判定→変化区間解決を組み立てた。FIFOを変更せず、消費判断と同じ/新しいsessionを返す。全9110 passed、旧11/最終3golden・品質成功、9変異検出。Lunaも対象2519と新CPU12条件を独立再現。次は候補1を要求から仕様化する。進行中の編集・レビューはない。
+**引継ぎ地点（2026-10-08）:** 主担当Claude Codeが[alarm-response-completion](../specs/alarm-response-completion/README.md)を完了した。要求r3・設計r5・命名r5・tasks r3、全3taskを独立承認（Task 1はHaiku 5.5、Task 2・3はLuna）、別fresh Luna feature最終GO。完了した警報応答に続けて、損失監視のresetと保留位置のdrain（不足ではdrainしない）を行い、記録用の不変recordを返す。全9254 passed、旧11/最終3golden・品質成功、33変異検出。直前は[alarm-buffer-response](../specs/alarm-buffer-response/README.md)。次は下の「次の候補」1。進行中の編集・レビューはない。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -14,10 +14,10 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - 過去の完了: [警報の変化区間の解決](../specs/alarm-change-interval-resolution/README.md)。要求r3・設計r3・命名r5・tasks r2、全5task独立レビュー承認、別fresh Luna feature最終GO、completed。runtimeの`resolve_alarm_change_interval`と不変record`AlarmChangeIntervalResolution`（結果種別は`alarm_interval_held_model_reused`/`alarm_interval_current_model_maintained`/`alarm_interval_candidate_validation_started`）。切出し済みの変化区間の標本（1件ずつ）を連結して既存の区間評価へ渡し、選択IDがあればそのモデルへ吸収して学習帰属を切り替え（同じIDなら維持）、なければ全保有モデルのsnapshot→既存の初期値選択→既存のsession開始を行う。実旧_resolve_driftを吸収・帰属切替・初期値選択・session開始を差し替えずに実行して最終状態を照合した。要求〜Task 2のレビューはCodexの利用上限中のため独立AgentのSonnetが代替し、Task 3以降はLuna。その前は[警報区間の保有モデル再利用評価](../specs/alarm-interval-model-reuse-assessment/README.md)（区間評価と再利用候補の選択。読取り専用）。
 - 公開状態（2026-10-08）: GitHub復旧後の通常pushを1回実行し、未送信7commit（`5ddb9e3..db89dc4`）の送信に成功した。今後はユーザー指示に従いtaskごとにpushを1回だけ試す。失敗時は連続再試行や原因探索をせず、次taskのpush成功時に未送信commitも送る。
 - 直近のpush状態: 全commitは`origin/refactor/architecture`へ送信済み（taskごとの通常pushはすべて成功）。
-- 最新完了: [alarm-buffer-response](../specs/alarm-buffer-response/README.md)。詳細は同specのintegration-validation.md/spec.json/review.md。直前はalarm-training-interval-preparation。改善候補IMPROVE-004/005は未検証/未採用。このspecで研究アルゴリズムの変更は採用していない。
+- 最新完了: [alarm-response-completion](../specs/alarm-response-completion/README.md)。runtimeの`complete_alarm_buffer_response`と不変record`AlarmResponseCompletion`（元の応答、警報位置、変更前後の学習帰属ID、推定変化点、episode ID、resetに使った基準平均、消費した保留位置。property `training_model_switch_sample_index`・`detection_episode_operation_required`）。詳細は同specのintegration-validation.md/spec.json/review.md。Task 1は独立レビューで4回差し戻され、検査をすべて更新の前に置く設計（recordを先に組み立てる、変更記録のexact型検査、未観測FIFOの拒否）へ改訂した。その前はalarm-buffer-response、alarm-training-interval-preparation。改善候補IMPROVE-004/005/006は未検証/未採用。研究アルゴリズムの変更は採用していない。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の全5tasksはLuna承認・完了。要求r2・設計r2・命名r4・tasks r1を維持し、別fresh GPT-6 Lunaのfeature最終GO、completed。候補生成とエポック学習もcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
-- 直近の検証済みsource/test commit: `ea61b8a`。全pytest 9110 passed/3 skipped/2 warnings、416.70s（主担当実測、JUnit9113件照合）、対象64＋AST2455、9変異検出、fresh新CPU 2/4class×正規/一時ID×不足/維持/activeの12条件を独立Lunaも再現。Ruff165files/Pyright/pip check成功、旧11・最終3golden成功。固定旧748c3aaから旧実装・golden・旧回帰test・toolsへのdiffは空。source hashは265パス、`49e99d8098e2053386c4e6d592853369569f4c2c62ee1b190a7d761c80cf2790`。以後は証拠/進捗文書だけを変更。
+- 直近の検証済みsource/test commit: `def37e4`。全pytest 9254 passed/3 skipped/2 warnings、155.63s（主担当実測、JUnit 9257件照合）、対象57＋AST2542、33変異検出、fresh新CPU 2/4class×5経路の10条件をTask 2・3のLunaも再現。Ruff 167files/Pyright/pip check成功、旧11・最終3golden成功。固定旧748c3aaから旧実装・golden・旧回帰test・toolsへのdiffは空。source hashは267パス、`b11a144ab4312c63f4dfd84492c5dc81c9ab11f7264caca9de5e32453fd9db2b`。以後は証拠/進捗文書だけを変更。
 - 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
   1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。
   2. [警報後の候補検証標本の観測](../specs/post-alarm-candidate-validation-sample-observation/README.md): 標本1件の候補・参照の損失評価と損失収集への追加。
@@ -40,16 +40,18 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 警報応答後の後始末・記録・通知（次に着手）
+### 1. 適応記録・通知・候補検証sessionの保持（次に着手）
 
-旧`FedSDAClient._resolve_drift`の標本処理と応答選択は`runtime/alarm_buffer_response.py::respond_to_alarm_with_buffered_samples`まで完了した。次は返却結果に基づく後始末と呼出側stateの責務を決める。未実装の独立ownerが複数必要ならspecを分割する。要求・設計・命名・tasksはまだ作っていない。
+旧`FedSDAClient._resolve_drift`は、応答（`runtime/alarm_buffer_response.py::respond_to_alarm_with_buffered_samples`）と、その後の検出器reset・FIFO clear（`runtime/alarm_response_completion.py::complete_alarm_buffer_response`）まで部品になった。残りは、完了情報を受けて呼出側の状態を更新する部分。新実装にownerがまだないものが複数あり、候補検証の到達時（`PostAlarmCandidateValidationCompletion`）・未完了回収（`IncompletePostAlarmCandidateValidationFinalization`）・警報応答（`AlarmResponseCompletion`）の3つの完了情報を同じownerが受ける。1つのspecに収まらなければ分ける。要求・設計・命名・tasksはまだ作っていない。
 
-- 完成した応答を一度だけ呼び、前区間の保存/吸収、変化区間の解決、activeの全件吸収を二重適用しない。位置とpayload/概念IDの意味上の対応は供給側が保証する。
-- `AlarmBufferResponse.pending_assignment_buffer_should_be_cleared`は不足だけFalse。FIFO/最終観測位置は応答内で変更済みではない。不足FIFO保持（LEGACY-002）を勝手に修正しない。
-- `active_validation_session`はactive時は同じ参照、候補開始時は新session、その他None。session保持/解除ownerを決める。応答を深いimmutable snapshotとして扱わない。
-- 旧event→reset→FIFO clear順、切替位置/再利用計数、学習帰属変更の通知（予測重みの再始動）、session保持を組み立てる。旧action/戻り値との対応はalarm-buffer-response/design.mdと下位alarm-change-interval-resolution/design.md。新event名・型・関数・局所名は実装前に共通のモデル選択方針に従った独立レビューへ通す。
+- 適応イベントの一覧: 旧`AdaptationEvent`（position、detector、action、old/new model、estimated_change_point、episode_id）と`adaptation_events`。警報応答の結果5値と旧actionの対応はalarm-response-completion/design.md 3節。検出器名は呼出側が持つ。新しいevent名・型・結果値は命名レビューを通す。
+- 切替位置の一覧（旧`local_switch_positions`）と再利用計数（旧`reuse_selection_counts`の`alternative_fit`/`current_fit`）。前者は各完了情報の`training_model_switch_sample_index`、後者は警報応答の結果値から決まる。旧の利用箇所は`federated_drift_experiment/metrics.py`と`experiment.py`。
+- 検出episode（旧`DetectionEpisodeController`、`federated_drift_experiment/detection_episode.py`）: 最終構成の既定は無効（`FEDSDA_DETECTION_EPISODES_ENABLED=False`）。完了情報の`detection_episode_operation_required`が`mark_operation`に対応する。同一episode内の追加検出（旧`_resolve_episode_duplicate`）は未移植。移植の要否は最終構成とgoldenの使用有無を確認して決める。
+- 学習帰属変更の通知（旧`_on_local_model_change`）: 最終構成ではAdaHedge系の`restart_for_concept`を呼ぶ。新`FixedSharePredictionWeightController`に何が必要かは未調査（旧のSwitching側routerが切替時に何をするかを先に確認する）。旧は切替の直後（吸収より前）に通知するが、通知先は標本・統計を読まない（alarm-change-interval-resolution/design.md）。
+- 候補検証sessionの保持と解除: 応答の`active_validation_session`（候補検証中は同じ参照、開始時は新session、その他None）を誰が持ち、到達時・未完了回収で誰が外すか。
+- 呼出側の保証として残っている事項（alarm-response-completion/research.md）: 応答を一度だけ完了させる、応答と完了の間に標本を観測しない。組立側のtestで確かめる。
 - 許容損失増加量と最小変化区間件数の設定登録は組立側に残る。
-- oracle: `tests/refactoring/test_alarm_buffer_response.py`の`build_buffer_response_oracle`と`run_legacy_buffer_response`が前区間/不足/十分/activeを含む実旧警報処理を実行する。event/reset/spanは記録wrapper、吸収・評価・候補学習・切替の実処理は差し替えない。Python Randomのglobal状態を保存復元して明示Randomと照合する。後始末specでは除外していた実FIFO消費/reset/event等をowner単位に照合へ加える。
+- oracle: `tests/refactoring/test_alarm_response_completion.py`の`build_response_completion_oracle`と`run_legacy_alarm_with_real_completion`が、実旧`_resolve_drift`をイベント記録・検出器reset・FIFO clearを差し替えずに実行する（差し替えは推定区間長の供給だけ）。実旧の`adaptation_events`・`local_switch_positions`・`reuse_selection_counts`がそのまま照合に使える。`observe_monitored_losses_in_both_implementations`は新監視と実旧ClassESRへ同じ損失列を与える。
 - 通常進行と終端回収は完了済み。呼出側session解除・一覧記録・通知は未実装。
 
 ### 2. その先
