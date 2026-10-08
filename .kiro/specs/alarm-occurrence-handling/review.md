@@ -23,3 +23,15 @@
 
 1. 任意: 設計4節の「段(1)の引数の検査は段(1)の中（その更新より前）」は、許容損失増加量では成り立たない（検査は再利用評価の中にあり、区間の準備の更新の後に呼ばれる。既存部品の挙動で、本specでは変わらない）。→ 事実と確認して採用。設計r2で記述を訂正した（処理・testは変更なし。alarm-buffer-responseのtest `test_failure_after_preparation_keeps_completed_earlier_updates`が固定している既存の契約）。設計r2は再レビューへ出す。
 2. 任意: 候補検証中の条件で、実旧用の引数dictへ進行中のsessionを入れる更新は効果がない（実旧は自分のsession属性を読む）。また2回目の警報は保留標本なしで、保留標本を持つ候補検証中の警報を扱っていない。→ 不採用。前半は上流の記録oracleと同じ形に合わせた無害な更新で、testの判定を変えない。後半の経路は、上流のalarm-response-completionのtest（2回目の警報の標本0/3件）が応答と完了を実旧と照合しており、本specのfresh CPUでも保留標本2件を持つ候補検証中の警報を本関数で実行している。testを変えるとsource/test commitが変わり、全回帰をやり直すことになるため、判定を変えない変更は行わない。
+
+## 設計r2・Task 2・Task 3（Luna、session `01a11c89-01d4-7661-ab54-f5a7a51d507f`、HEAD `31e61d6`）— DESIGN r2: APPROVED / TASK 2: APPROVED / TASK 3: APPROVED
+
+選択: 証拠の照合と再実行が中心の、分量の多いレビューなのでGPT-6 Luna（`codex exec -m gpt-6-luna`、effort `medium`を明示、実行ログのmodel行とreasoning effort行で確認）。sandboxはworkspace-write。設計r2の再レビュー（4節の1行の記述の訂正）を同じ依頼に含め、判定は別々に受けた。指摘なし。
+
+- 設計r2: 訂正後の記述が、吸収・評価標本の保存の後に区間解決以降の検査が行われるコードと、準備の更新が残る既存の契約に一致し、要求2.3や設計の他の記述と矛盾しないと報告された。
+- レビュー担当が独立に実行したもの: 対象test＋依存境界（3070 passed）、fresh CPU（10条件成功、scriptの内容と証拠文書の一致も確認）、Ruff check/format、`spec_checks.py identity --rev e80b368`（設計の承認hashはレビュー中のためNG、source hashはspec.jsonに記録がないため未照合の表示。他はOK）。JUnitを直接読み、10003 testcase・failure 0・error 0・skip 3と旧回帰2件の成功を確かめたと報告された。
+- 変異scriptは読んで照合（実行していない）: 1種ずつ適用してfinallyで元byteへ戻すこと、構文失敗・収集失敗を検出に数えないこと、report.jsonの41/41と復元前後のhashの一致、証拠表との一致、Task 2が挙げる種類を覆うこと。
+- integration-validation.mdの要求11項目を実装・testと照合し、件数・JUnit・回帰の記録に事実誤りはないと報告された。
+- 独立実行していないもの: 全pytest、変異script、Pyright、pip check。実行後の`git status --short`は空。
+
+全3taskを完了とした。

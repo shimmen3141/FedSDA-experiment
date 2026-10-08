@@ -33,7 +33,7 @@
 | 対象 | LF SHA256 |
 | --- | --- |
 | 要求r1 | 39323d2e7092b6c8727979c6528d1b597a8db3215927964b9797a6ec303df68f |
-| 設計r1 | c40f94ad3968fcb05dd94ed854976eaf17978668c3a788d13e7080290f8175ac |
+| 設計r2（r1から4節の1行の記述を訂正。処理は同じ） | 6f60eeee5b236e7af9224a52fffc98bac00245359a27155d1af326bd0ac324f6 |
 | 命名r1 | 5f9a5d3f11f9bac6f1b75a0e3135a038a1b5005af98f3683b97806e30a40449f |
 | tasks r1（checkboxを未完了へ戻した内容） | 315a84bf40233a7e09332b63e987cdb6749e1f2db4727961d3882f7adf78377e |
 | source全体、`e80b368`、283パス | bfaa9bf5a5bd7e8bf4e71240f191674eacc986ca05fdb69aaf3efab25a6aee79 |
@@ -57,4 +57,4 @@ Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `ala
 
 ## レビュー
 
-（Task 1〜3の独立レビューとfeature最終レビューの結果を記録する。経緯と採否は[review.md](review.md)。）
+Task 1はClaude Haiku 5.5、設計r2とTask 2・3はGPT-6 Lunaが承認（2026-10-09）。経緯と採否は[review.md](review.md)。
