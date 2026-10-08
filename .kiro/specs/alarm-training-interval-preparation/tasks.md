@@ -21,7 +21,7 @@
   - _Boundary: 区間準備runtime_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3_
 
-- [ ] 3. 前区間準備から区間解決・学習までを検証する
+- [x] 3. 前区間準備から区間解決・学習までを検証する
   - 明示的なtest-only統合task。前区間保存→吸収→吸収後履歴統計での変化区間評価の順を記録wrapperで確認し、元の処理を実行する。
   - 2/4class×再利用/維持/候補開始を実旧_resolve_driftと照合し、続く共同更新と候補観測を含む全状態・parameter/grad/optimizer・3乱数を比較する。
   - 新準備が返したchange_interval_observationsからtraining_sampleとobserved_concept_idのtupleを取り出し、既存resolve_alarm_change_intervalのchange_interval_training_samplesとchange_interval_sample_concept_idsへ渡す。呼出し直前の吸収後統計を照合し、結果の区間開始位置とpayload対応も検査する。既存test_alarm_change_interval_resolutionのbuild_alarm_change_interval_resolution_oracleとassert_alarm_change_interval_resolution_matches_legacy、共同更新のrun_legacy_joint_updateを再利用する。新しい本番client接続は追加しない。

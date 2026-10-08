@@ -5,14 +5,25 @@ from collections import Counter, defaultdict, deque
 from dataclasses import FrozenInstanceError, fields, replace
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 import torch
+from test_adopted_candidate_initial_local_registration import assert_held_model_states_match_legacy
+from test_adopted_candidate_local_adoption import assert_training_samples_match_legacy
 from test_alarm_change_interval_resolution import (
+    ALARM_INTERVAL_RESOLUTION_CASES,
+    assert_alarm_change_interval_resolution_matches_legacy,
     assert_alarm_change_interval_resolution_state_unchanged,
     build_alarm_change_interval_resolution_oracle,
     snapshot_alarm_change_interval_resolution_state,
 )
 from test_assigned_training_sample_absorption import assert_absorption_matches_legacy
+from test_joint_model_parameter_update import run_legacy_joint_update
+from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
+from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
+from test_post_alarm_candidate_validation_sample_observation import (
+    assert_collected_losses_match_legacy,
+)
 
 import federated_learning_experiments.runtime.alarm_training_interval_preparation as preparation_module
 from federated_drift_experiment import config
@@ -25,8 +36,17 @@ from federated_learning_experiments.evaluation.model_evaluation_sample_store imp
 from federated_learning_experiments.learning.training.indexed_observed_training_sample import (
     IndexedObservedTrainingSample,
 )
+from federated_learning_experiments.learning.training.joint_model_parameter_update import (
+    perform_joint_model_parameter_update,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
+)
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
+)
+from federated_learning_experiments.learning.training.participating_model_training_batch import (
+    ParticipatingModelTrainingBatch,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
@@ -40,11 +60,15 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.trai
 from federated_learning_experiments.runtime import (
     assigned_training_sample_absorption as absorption_module,
 )
+from federated_learning_experiments.runtime.alarm_change_interval_resolution import (
+    resolve_alarm_change_interval,
+)
 from federated_learning_experiments.runtime.alarm_training_interval_preparation import (
     prepare_alarm_training_intervals,
 )
-
-"""位置付き入力と準備結果の構造不変・借用・keyword専用契約。"""
+from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import (
+    observe_post_alarm_candidate_validation_sample,
+)
 
 
 def test_alarm_preparation_records_are_immutable_and_borrow_payloads():
@@ -94,9 +118,6 @@ def test_alarm_preparation_records_are_immutable_and_borrow_payloads():
         ).sample_index
         is True
     )
-
-
-"""前区間準備の実旧対照、更新順、拒否時全状態を検証する。"""
 
 
 def build_alarm_preparation_oracle(
@@ -282,6 +303,10 @@ def run_legacy_alarm_with_preparation_checkpoint(
             )
         assert preparation_checkpoint_calls == [True]
         assert detector_reset_calls == [True]
+        # 最小件数未満で旧FIFOが残る挙動も境界対照で固定する。
+        assert len(legacy_client.buffer) == (
+            len(observations) if change_sample_count < minimum_change_sample_count else 0
+        )
         return legacy_drift_type, legacy_adaptation_events, legacy_epoch_training_calls
     finally:
         random.setstate(global_python_random_state)
@@ -291,7 +316,7 @@ def run_legacy_alarm_with_preparation_checkpoint(
 @pytest.mark.parametrize(
     "added_batch_sample_count,maximum_stored_sample_count_per_model", [(0, 3), (2, 3), (99, 2)]
 )
-@pytest.mark.parametrize("minimum_change_sample_count", [1, 999])
+@pytest.mark.parametrize("minimum_change_sample_count", [1, 999, "exact", "one_above"])
 @pytest.mark.parametrize("negative_current_model", [False, True])
 @pytest.mark.parametrize("existing_evaluation_samples", [False, True])
 def test_alarm_preparation_matches_real_legacy_before_minimum_count_decision(
@@ -313,6 +338,14 @@ def test_alarm_preparation_matches_real_legacy_before_minimum_count_decision(
                 maximum_stored_sample_count_per_model=maximum_stored_sample_count_per_model,
             )
         )
+        if minimum_change_sample_count == "exact":
+            minimum_change_sample_count = len(
+                resolution_arguments["change_interval_training_samples"]
+            )
+        elif minimum_change_sample_count == "one_above":
+            minimum_change_sample_count = (
+                len(resolution_arguments["change_interval_training_samples"]) + 1
+            )
         if negative_current_model:
             preparation_arguments, resolution_arguments, shared_optimizer_owners, legacy_client = (
                 build_alarm_preparation_oracle(
@@ -702,3 +735,209 @@ def test_alarm_preparation_saves_evaluation_before_real_absorption(monkeypatch):
         operation_calls
         == [("loss", classifier)] * 3 + ["save", "absorb"] + [("loss", classifier)] * 3
     )
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize(
+    "alarm_interval_resolution_case",
+    ["other_model_reused", "current_model_maintained", "no_model_fits"],
+)
+def test_prepared_alarm_interval_continues_resolution_and_joint_training(
+    class_count,
+    alarm_interval_resolution_case,
+    monkeypatch,
+):
+    update_shared_features = True
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(846)
+        preparation_arguments, resolution_arguments, shared_optimizer_owners, legacy_client = (
+            build_alarm_preparation_oracle(
+                class_count=class_count,
+                alarm_interval_resolution_case=alarm_interval_resolution_case,
+                monkeypatch=monkeypatch,
+            )
+        )
+        monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
+        registry = resolution_arguments["held_model_training_state_registry"]
+        training_sample_store = resolution_arguments["training_sample_store"]
+        counts_store = resolution_arguments["model_training_and_assignment_counts_store"]
+        local_training_settings = LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )
+        legacy_training_batches = []
+        legacy_client.updates_per_sample = 1
+        legacy_client.backbone_gradient_diagnostics = defaultdict(float)
+        legacy_client._sample_training_batches = lambda: legacy_training_batches
+        change_interval_input_features = torch.cat(
+            [
+                training_sample.input_features
+                for training_sample in resolution_arguments["change_interval_training_samples"]
+            ]
+        )
+
+        def run_joint_update_in_both_implementations():
+            # 両実装とも、各自の標本storeにある全標本をモデルごとの固定batchにする。
+            training_bindings = registry.snapshot_ordered_held_model_training_bindings()
+            model_training_sample_collections = (
+                training_sample_store.snapshot_ordered_model_training_samples()
+            )
+            legacy_training_batches[:] = [
+                (
+                    model_id,
+                    torch.cat(
+                        [
+                            legacy_training_sample[0]
+                            for legacy_training_sample in legacy_training_samples
+                        ]
+                    ),
+                    torch.cat(
+                        [
+                            legacy_training_sample[1]
+                            for legacy_training_sample in legacy_training_samples
+                        ]
+                    ),
+                )
+                for model_id, legacy_training_samples in legacy_client.train_data_store.items()
+            ]
+            assert tuple(
+                training_binding.model_id for training_binding in training_bindings
+            ) == tuple(collection.model_id for collection in model_training_sample_collections)
+            participating_training_batches = tuple(
+                ParticipatingModelTrainingBatch(
+                    classifier=training_binding.classifier,
+                    concept_specific_parameter_optimizer=training_binding.concept_specific_parameter_optimizer,
+                    input_features=torch.cat(
+                        [
+                            training_sample.input_features
+                            for training_sample in collection.training_samples
+                        ]
+                    ),
+                    observed_class_labels=torch.cat(
+                        [
+                            training_sample.observed_class_labels
+                            for training_sample in collection.training_samples
+                        ]
+                    ),
+                )
+                for training_binding, collection in zip(
+                    training_bindings, model_training_sample_collections
+                )
+            )
+            expected_joint_loss = run_legacy_joint_update(
+                legacy_client=legacy_client, update_shared_features=update_shared_features
+            )
+            actual_joint_loss = perform_joint_model_parameter_update(
+                local_training_settings=local_training_settings,
+                shared_feature_extractor=training_bindings[0].classifier.feature_extractor,
+                shared_parameter_optimizer=shared_optimizer_owners[0].parameter_optimizer,
+                participating_training_batches=participating_training_batches,
+                update_shared_features=update_shared_features,
+            )
+            assert actual_joint_loss == expected_joint_loss
+            for training_binding, training_batch in zip(
+                training_bindings, participating_training_batches
+            ):
+                counts_store.record_completed_model_training(
+                    model_id=training_binding.model_id,
+                    trained_sample_count=len(training_batch.input_features),
+                    parameter_update_step_count=1,
+                )
+            assert_held_model_states_match_legacy(
+                registry=registry,
+                shared_optimizer_owners=shared_optimizer_owners[:-1],
+                legacy_client=legacy_client,
+                input_features=change_interval_input_features,
+            )
+
+        # 学習でparameterが変わった後のモデルで、区間を評価して解決する。
+        run_joint_update_in_both_implementations()
+        initial_training_model_id = legacy_client.current_model_id
+        initial_python_random_state = preparation_arguments["python_random_generator"].getstate()
+        prepared_intervals = prepare_alarm_training_intervals(**preparation_arguments)
+        resolution_arguments["change_interval_training_samples"] = tuple(
+            observation.training_sample
+            for observation in prepared_intervals.change_interval_observations
+        )
+        resolution_arguments["change_interval_sample_concept_ids"] = tuple(
+            observation.observed_concept_id
+            for observation in prepared_intervals.change_interval_observations
+        )
+        preparation_arguments["legacy_initial_python_random_state"] = initial_python_random_state
+        initial_torch_random_state = torch.get_rng_state().clone()
+        (
+            legacy_drift_type,
+            legacy_adaptation_events,
+            legacy_epoch_training_calls,
+        ) = run_legacy_alarm_with_preparation_checkpoint(
+            preparation_arguments=preparation_arguments,
+            legacy_client=legacy_client,
+            resolution_arguments=resolution_arguments,
+            monkeypatch=monkeypatch,
+            minimum_change_sample_count=1,
+        )
+        random_states = (torch.get_rng_state().clone(), random.getstate(), np.random.get_state())
+        torch.set_rng_state(initial_torch_random_state)
+        alarm_change_interval_resolution = resolve_alarm_change_interval(**resolution_arguments)
+        assert (
+            alarm_change_interval_resolution.resolution_outcome
+            == ALARM_INTERVAL_RESOLUTION_CASES[alarm_interval_resolution_case][
+                "expected_resolution_outcome"
+            ]
+        )
+        assert_alarm_change_interval_resolution_matches_legacy(
+            alarm_change_interval_resolution=alarm_change_interval_resolution,
+            resolution_arguments=resolution_arguments,
+            shared_optimizer_owners=shared_optimizer_owners,
+            legacy_client=legacy_client,
+            legacy_drift_type=legacy_drift_type,
+            legacy_adaptation_events=legacy_adaptation_events,
+            legacy_epoch_training_calls=legacy_epoch_training_calls,
+            initial_training_model_id=initial_training_model_id,
+        )
+        # 吸収した区間の標本を含むbatchで学習を継続する。
+        for _ in range(2):
+            run_joint_update_in_both_implementations()
+        assert_training_samples_match_legacy(
+            training_sample_store=training_sample_store, legacy_client=legacy_client
+        )
+        assert_model_counts_match_legacy(counts_store=counts_store, legacy_client=legacy_client)
+        assert_store_statistics_match_legacy(
+            loss_statistics_store=resolution_arguments["loss_statistics_store"],
+            legacy_client=legacy_client,
+        )
+        assert_evaluation_samples_match_legacy(
+            preparation_arguments=preparation_arguments, legacy_client=legacy_client
+        )
+        if alarm_change_interval_resolution.started_validation_session is not None:
+            # 準備→候補開始→共同更新の後、実旧と新の候補へ同じ1標本を観測させる。
+            training_sample = prepared_intervals.change_interval_observations[-1].training_sample
+            assert (
+                legacy_client._observe_forward_validation(
+                    training_sample.input_features,
+                    training_sample.observed_class_labels,
+                    resolution_arguments["proposal_sample_index"] + 1,
+                )
+                == 0
+            )
+            assert (
+                observe_post_alarm_candidate_validation_sample(
+                    sample_index=resolution_arguments["proposal_sample_index"] + 1,
+                    input_features=training_sample.input_features,
+                    observed_class_labels=training_sample.observed_class_labels,
+                    candidate_classifier=alarm_change_interval_resolution.started_validation_session.candidate_training_state.candidate_classifier,
+                    reference_classifiers_by_model_id=alarm_change_interval_resolution.started_validation_session.fixed_reference_models.reference_classifiers_by_model_id,
+                    post_alarm_candidate_loss_collection=alarm_change_interval_resolution.started_validation_session.post_alarm_candidate_loss_collection,
+                )
+                is False
+            )
+            assert_collected_losses_match_legacy(
+                post_alarm_candidate_loss_collection=alarm_change_interval_resolution.started_validation_session.post_alarm_candidate_loss_collection,
+                legacy_session=legacy_client._forward_validation,
+            )
+        assert torch.equal(torch.get_rng_state(), random_states[0])
+        assert random.getstate() == random_states[1]
+        numpy_state = np.random.get_state()
+        assert numpy_state[0] == random_states[2][0]
+        assert np.array_equal(numpy_state[1], random_states[2][1])
+        assert numpy_state[2:] == random_states[2][2:]
