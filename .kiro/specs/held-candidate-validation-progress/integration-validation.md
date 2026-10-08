@@ -11,7 +11,7 @@
 | Task | 証拠 |
 | --- | --- |
 | 1 実装 | 実装前RED、レビュー指摘ごとのRED。Claude Haiku 5.5の独立レビューで承認（経緯はreview.md） |
-| 2 検出力と独立動作 | Windows基準: 変異29/29検出、fresh CPU 10条件成功。WSLでも同じ結果。[詳細](mutation-and-cpu-evidence.md) |
+| 2 検出力と独立動作 | Windows基準: 変異30/30検出（29種は1回目で全件検出、独立レビューの指摘で終端回収の「検査を上流の後へ移す」1種を追加して検出）、fresh CPU 10条件成功。WSLでも先の29種とfresh CPUは同じ結果。[詳細](mutation-and-cpu-evidence.md) |
 | 3 全回帰・品質 | Windows基準: 全pytest 9663 passed / 3 skipped / 2 warnings、exit 0。Ruff・Pyright・pip check成功、固定旧差分は空 |
 
 ## 要求対応（12/12）

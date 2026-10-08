@@ -40,3 +40,11 @@
 ## Windows基準環境での再実行（2026-10-08、commit `733994b`）
 
 Task 1の承認後、Windowsの基準環境でtorchが読み込めるようになったので、同じcommitで対象test・依存境界・変異・fresh CPU・全pytestを実行し直した。結果は[mutation-and-cpu-evidence.md](mutation-and-cpu-evidence.md)の末尾と[integration-validation.md](integration-validation.md)。sourceとtestは変更していない。
+
+### Task 2・3 1回目（Luna、session `01a11bc6-d0c9-7c63-81fe-30c5e7197075`、HEAD `b99ce32`）— TASK 2: CHANGES_REQUESTED / TASK 3: APPROVED
+
+選択: 証拠の照合と再実行が中心の、分量の多いレビューなのでGPT-6 Luna（`codex exec -m gpt-6-luna`、effort `medium`を明示、実行ログのmodel行とreasoning effort行で確認）。sandboxはworkspace-write。レビュー担当が独立に実行したもの: 対象test＋依存境界（2840 passed）、fresh CPU（10条件成功）、Ruff check/format、`spec_checks.py identity`。変異scriptは読んで照合（実行していない）。全pytestは独立実行していない。Task 3は指摘なしで承認（要求12項目の対応表、件数、WSLとWindows基準の区別、未検証事項の記載を照合したと報告された）。
+
+指摘と採否:
+
+1. Task 2、Minor: 「ownerの型検査を上流の呼出しの後へ移す」変異が進行にしかない。終端回収も同じ順序を持ち、testは両方の順序を確かめているが、変異の表に終端回収の分がない。→ 採用。`p_move_owner_validation_after_finalize`を追加し、Windowsの基準環境で全30種を実行して30/30検出（追加分は既存のtest 2件が失敗して検出）。source・testは変更していない。

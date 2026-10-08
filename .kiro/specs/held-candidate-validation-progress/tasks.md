@@ -17,7 +17,7 @@
   - _Boundary: 検出力と独立動作の証拠_
   - _Requirements: 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 4.1_
 
-- [ ] 3. 固定基準の全回帰と証拠を確定する
+- [x] 3. 固定基準の全回帰と証拠を確定する
   - source/testをcommitして、Windowsの基準環境で全pytestとJUnit、旧11・最終3golden、Ruff・Pyright・pip check、`spec_checks.py identity`を実測し、integration-validation.mdへ要求12項目の対応と未検証事項を記録する。基準環境が使えない間はWSLの結果を「WSLで成功」と記録し、このtaskを完了にしない。
   - 完了: 独立担当が照合して承認（全pytestの独立再実行は2026-10-07のユーザー決定により必須としない）。別sessionのfeature最終GOの後、再開案内を更新する。
   - _Depends: 2_

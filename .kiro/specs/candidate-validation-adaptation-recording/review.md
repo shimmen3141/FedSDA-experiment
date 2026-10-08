@@ -92,3 +92,9 @@ golden回帰の不一致について確かめたこと: この2つのtestが実�
 ## Windows基準環境での再実行（2026-10-08、commit `733994b`）
 
 Task 1の承認後、Windowsの基準環境でtorchが読み込めるようになった。次のspec（held-candidate-validation-progress）のsource・testを含むcommit `733994b`で、対象test・依存境界・変異・fresh CPU・全pytestを実行した。本specのsource・test（`af3ffa7`）は`733994b`まで変更していない。結果は[mutation-and-cpu-evidence.md](mutation-and-cpu-evidence.md)の末尾と[integration-validation.md](integration-validation.md)。WSLの結果との違いは、既知の3件（Python 3.14の構文解析の違い1件、golden回帰2件）がWindows基準では成功することだけだった。
+
+### Task 2・3（Luna、session `01a11bc6-d0eb-73d0-82b4-e422dc44727d`、HEAD `b99ce32`）— TASK 2: APPROVED / TASK 3: APPROVED
+
+選択: 証拠の照合と再実行が中心の、分量の多いレビューなのでGPT-6 Luna（`codex exec -m gpt-6-luna`、effort `medium`を明示、実行ログのmodel行とreasoning effort行で確認）。sandboxはworkspace-write。指摘なし。レビュー担当が独立に実行したもの: 対象test＋依存境界（2910 passed）、fresh CPU（10条件成功）、Ruff check/format、`spec_checks.py identity`（承認hash、固定旧差分、source hash、JUnit 9666 testcase、golden回帰2件の成功）。変異scriptは読んで照合（実行していない）。全pytest・Pyright・pip checkは独立実行していない。
+
+レビュー担当は「`git diff --stat 733994b b99ce32 -- src tests`に4ファイルの差分があった」と報告したが、主担当が同じコマンドを実行した結果は空で、同時に実行した別specのレビュー担当（session `01a11bc6-d0c9-7c63-81fe-30c5e7197075`）も空と報告した。報告された4ファイルは`git diff --stat af3ffa7 733994b -- src tests`の結果と同じで、取り違えと判断した。判定には影響しない。

@@ -82,3 +82,11 @@ torchの読込みのブロックが解消した後、Windowsの基準環境（�
 - 変異: **29/29検出**、各回元byteへ復元、復元後は41 passed。変異ごとの結果は上の表（WSL）と同じ全件検出。出力は`venv/refactoring-tests/held-candidate-validation-progress-mutation-evidence-windows/`。
 - fresh CPU: 2/4class×5シナリオの全10条件が成功し、5種類の適応結果がすべて現れた（exit 0）。出力は`venv/refactoring-tests/held-candidate-validation-progress-fresh-cpu.log`。各行の内容（結果・ID・位置）はWSLの出力と同じ。
 - 対象testと依存境界: 対象41＋依存境界2799＝2840 passed（全pytestの一部として実行）。
+
+### 変異の追加（Task 2・3の独立レビューの指摘、2026-10-08）
+
+独立レビューが「ownerの型検査を上流の呼出しの後へ移す変異が進行にしかなく、同じ順序を持つ終端回収にない」と指摘した。`p_move_owner_validation_after_finalize`（終端: ownerの型検査を、上流の回収の呼出しの後・結果の分岐の前へ移す）を追加し、Windowsの基準環境で全30種を実行し直した。source・testは変更していない（既存のtestが検出した）。
+
+- 結果: **30/30検出**、各回元byteへ復元、復元後は41 passed。先の29種の結果は変わらない。
+- 追加した変異: 2 failed, 39 passed。失敗したtestは`test_owner_types_are_rejected_before_upstream_updates`。
+- 出力は`venv/refactoring-tests/held-candidate-validation-progress-mutation-evidence-windows-r2/`。WSLでは追加した変異を実行していない。
