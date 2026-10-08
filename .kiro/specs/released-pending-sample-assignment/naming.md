@@ -1,4 +1,4 @@
-# 警報のない標本での帰属確定 — 命名 revision1
+# 警報のない標本での帰属確定 — 命名 revision2
 
 sourceの名前と、testのmodule直下の名前の実装前一覧（範囲は共通引継ぎ手順）。リポジトリ外の下書きを作業ツリーの複製へ置いて`spec_checks.py names --base HEAD`で照合した。承認状態はspec.json。
 
@@ -30,6 +30,8 @@ sourceの名前と、testのmodule直下の名前の実装前一覧（範囲は�
 | `test_released_samples_are_absorbed_before_pending_positions_are_released` | 吸収が解放より前であることと、吸収へ渡る値。 |
 | `test_released_assignment_rejects_invalid_input_before_any_update` | 全拒否条件で全状態が不変。 |
 | `test_own_checks_reject_before_absorption_is_called` | 本処理自身の検査が、吸収の呼出しより前に拒否すること。 |
+| `test_absorption_is_not_called_when_no_sample_is_released` | 解放がないとき吸収を呼ばないこと。revision2で追加（設計revision2に対応）。 |
+| `test_type_checks_take_priority_over_index_mismatch` | 型の不正と並びの不一致が同時にあるとき、型の検査が先に拒否すること。revision2で追加（Task 1のレビュー指摘）。 |
 | `test_invalid_sample_that_is_not_released_is_not_inspected` | 解放しない保留標本の中身を読まないこと。 |
 | `test_pending_assignment_reports_exceeding_indices_without_releasing` | 既存の保留位置のownerのtest moduleへ足すtest。読取りの操作。 |
 

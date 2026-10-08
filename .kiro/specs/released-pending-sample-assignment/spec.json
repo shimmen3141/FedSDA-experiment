@@ -3,7 +3,7 @@
   "created_at": "2026-10-09",
   "updated_at": "2026-10-09",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -38,15 +38,22 @@
     },
     "naming": {
       "generated": true,
-      "approved": true,
-      "revision": 1,
+      "approved": false,
+      "revision": 2,
       "approved_revision": 1,
-      "generated_sha256_lf": "faf3ecf005fccb77e7df85d88db75287705177eac0221b166d75abccbf6be072",
+      "generated_sha256_lf": "cdd6757fb4054720f96a7c7b5ec208114106a3278a7c47739fcd0bf19bfa3cd2",
       "approved_sha256_lf": "faf3ecf005fccb77e7df85d88db75287705177eac0221b166d75abccbf6be072",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
       "reviewer_session": "01a11d4d-d7b4-7e10-a912-0da032effa49",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "faf3ecf005fccb77e7df85d88db75287705177eac0221b166d75abccbf6be072",
+          "reviewer_session": "01a11d4d-d7b4-7e10-a912-0da032effa49"
+        }
+      ]
     },
     "tasks": {
       "generated": true,
@@ -61,7 +68,7 @@
       "review_record": "review.md"
     }
   },
-  "ready_for_implementation": true,
+  "ready_for_implementation": false,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "implementation_progress": {
     "completed": 0,
@@ -69,10 +76,10 @@
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "requirements_design_naming_tasks_approved",
-    "next_step": "task_1_tests_then_implementation",
-    "implementation_started": false,
-    "tests_run": false,
+    "completed_unit": "task_1_first_review_changes_applied",
+    "next_step": "task_1_rereview_then_naming_r2_and_task_2_3_review",
+    "implementation_started": true,
+    "tests_run": true,
     "full_pytest_run_for_this_spec": false
   }
 }
