@@ -4775,6 +4775,17 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "typing.Literal",
             "typing.get_args",
         )
+    if source_module_path == "runtime/released_pending_sample_assignment.py":
+        return imported_module_name in (
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
+            "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
+        )
     if source_module_path == "runtime/alarm_occurrence_handling.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5697,6 +5708,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/candidate_validation_session_holder.py",
             "runtime/held_candidate_validation_progress.py",
             "runtime/alarm_occurrence_handling.py",
+            "runtime/released_pending_sample_assignment.py",
             "learning/training/candidate_epoch_training_settings.py",
             "learning/training/candidate_epoch_training.py",
             "runtime/candidate_classifier_construction.py",
@@ -5753,6 +5765,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/candidate_validation_session_holder.py",
                     "runtime/held_candidate_validation_progress.py",
                     "runtime/alarm_occurrence_handling.py",
+                    "runtime/released_pending_sample_assignment.py",
                     "learning/training/candidate_epoch_training_settings.py",
                     "learning/training/candidate_epoch_training.py",
                     "runtime/candidate_classifier_construction.py",
@@ -7074,7 +7087,7 @@ def test_module_allowed_dependencies_are_all_imported_by_the_module():
     """許可集合が、実際のsourceのimportより広くなっていないこと（使っていない依存を許可したままにしない）。"""
     allowed_dependency_names_by_module = collect_module_allowed_dependency_names()
     # 読取りが空振りしていないこと（登録の書き方が変わったら、この読取りを直す）。
-    assert len(allowed_dependency_names_by_module) >= 58
+    assert len(allowed_dependency_names_by_module) >= 59
     unused_allowed_dependency_names = {}
     package_source_directory = (
         Path(__file__).resolve().parents[2] / "src" / "federated_learning_experiments"

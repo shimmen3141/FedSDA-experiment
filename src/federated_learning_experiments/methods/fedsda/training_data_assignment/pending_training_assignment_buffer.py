@@ -59,6 +59,15 @@ class PendingTrainingAssignmentBuffer:
         self._pending_sample_indices.append(sample_index)
         self._last_observed_sample_index = sample_index
 
+    def get_sample_indices_exceeding_capacity(self) -> tuple[int, ...]:
+        """容量を超える最古の位置を、解放せずに順に返す。"""
+        exceeding_sample_count = max(
+            0,
+            len(self._pending_sample_indices)
+            - self._training_data_assignment_settings.pending_assignment_buffer_capacity_samples,
+        )
+        return tuple(self._pending_sample_indices)[:exceeding_sample_count]
+
     def release_sample_indices_exceeding_capacity(self) -> tuple[int, ...]:
         """容量を超える最古の位置だけを順に解放する。"""
         released_sample_indices: list[int] = []

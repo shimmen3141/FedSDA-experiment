@@ -6,6 +6,7 @@ importしない。新しい接続を移植したら、その接続を通る流�
 testへ置き換えて廃止する。
 
 現在の流れ: 1つの保持・適応記録・診断証拠・損失監視・保留位置のownerで、
+警報のない標本での帰属確定（容量を超えた最古の保留標本を現在のモデルへ確定）→
 警報（不足／他モデルの再利用／現行の維持／候補検証の開始）→候補検証中の警報、または
 標本の観測と確定（採用／棄却／現行の維持／他モデルの再利用）→次の警報。
 """
@@ -99,6 +100,9 @@ from federated_learning_experiments.runtime.candidate_validation_session_holder 
 )
 from federated_learning_experiments.runtime.held_candidate_validation_progress import (
     advance_held_candidate_validation,
+)
+from federated_learning_experiments.runtime.released_pending_sample_assignment import (
+    assign_released_pending_samples_to_current_training_model,
 )
 
 HELD_MODEL_IDS = (7, -103, 2)
@@ -234,9 +238,11 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             for model_id, classifier in classifiers.items()
         }
 
+    # 位置0は警報より前に確定する標本。警報のときに保留されているのは位置1からSAMPLE_COUNTまで。
+    earliest_observation = make_indexed_observation(sample_index=0, source_position=0)
     first_alarm_observations = tuple(
-        make_indexed_observation(sample_index=sample_index, source_position=sample_index)
-        for sample_index in range(SAMPLE_COUNT)
+        make_indexed_observation(sample_index=source_position + 1, source_position=source_position)
+        for source_position in range(SAMPLE_COUNT)
     )
     interval_mean_losses = evaluate_mean_losses(sample_count=SAMPLE_COUNT)
     reuses_other_after_validation = (
@@ -262,7 +268,8 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             model_id=model_id,
             loss_statistics=ModelAndClassLossStatistics(
                 overall_loss_moments=BoundedLossMoments(
-                    observed_loss_count=3,
+                    # 警報の前に確定する1標本で履歴基準がほとんど動かない件数にする。
+                    observed_loss_count=3000,
                     mean_loss=historical_mean_losses[model_id],
                     sum_squared_loss_deviations=0.0,
                 )
@@ -273,10 +280,6 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             pending_assignment_buffer_capacity_samples=10
         )
     )
-    for indexed_observation in first_alarm_observations:
-        pending_training_assignment_buffer.append_observed_sample_index(
-            sample_index=indexed_observation.sample_index
-        )
     current_training_model_assignment = CurrentTrainingModelAssignment(
         initial_model_id=CURRENT_MODEL_ID
     )
@@ -311,6 +314,32 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         training_sample_store=training_sample_store,
         model_training_and_assignment_counts_store=counts_store,
         current_training_model_assignment=current_training_model_assignment,
+    )
+    # 警報のない標本: 容量＋1件が保留された時点で、最古の1件（位置0）が現在のモデルへ確定する。
+    observations_before_alarm = (earliest_observation, *first_alarm_observations[:-1])
+    for indexed_observation in observations_before_alarm:
+        pending_training_assignment_buffer.append_observed_sample_index(
+            sample_index=indexed_observation.sample_index
+        )
+    released_sample_observations = assign_released_pending_samples_to_current_training_model(
+        pending_training_assignment_buffer=pending_training_assignment_buffer,
+        pending_sample_observations=observations_before_alarm,
+        **training_owners,
+    )
+    assert released_sample_observations == (earliest_observation,)
+    assert pending_training_assignment_buffer.get_state_snapshot().pending_sample_indices == (
+        tuple(
+            indexed_observation.sample_index
+            for indexed_observation in first_alarm_observations[:-1]
+        )
+    )
+    assert [
+        (collection.model_id, len(collection.training_samples))
+        for collection in training_sample_store.snapshot_ordered_model_training_samples()
+    ] == [(CURRENT_MODEL_ID, 1)]
+    # 警報が起きる標本を保留へ足す（警報のときは、容量を超えた分を解放する前に応答する）。
+    pending_training_assignment_buffer.append_observed_sample_index(
+        sample_index=first_alarm_observations[-1].sample_index
     )
     alarm_handling_arguments = dict(
         validation_session_holder=validation_session_holder,
@@ -405,7 +434,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         observed_outcomes.append(response_outcome)
         return response_outcome
 
-    first_alarm_sample_index = SAMPLE_COUNT - 1
+    first_alarm_sample_index = SAMPLE_COUNT
     first_outcome = handle_alarm_and_check_owners(
         alarm_sample_index=first_alarm_sample_index,
         pending_sample_observations=first_alarm_observations,

@@ -147,6 +147,22 @@ def test_pending_assignment_append_and_release_match_legacy_processing_for_large
     assert buffer.get_state_snapshot().pending_sample_indices == (sample_index + 2,)
 
 
+@pytest.mark.parametrize("capacity", [1, 3])
+def test_pending_assignment_reports_exceeding_indices_without_releasing(capacity):
+    """容量を超える位置の読取りは状態を変えず、その後の解放と同じ位置を同じ順で返す。"""
+    buffer = make_assignment_buffer(capacity)
+    assert buffer.get_sample_indices_exceeding_capacity() == ()
+    for observation_index in range(5, 5 + capacity + 3):
+        buffer.append_observed_sample_index(sample_index=observation_index)
+    state_snapshot = buffer.get_state_snapshot()
+    exceeding_sample_indices = buffer.get_sample_indices_exceeding_capacity()
+    assert exceeding_sample_indices == (5, 6, 7)
+    assert buffer.get_sample_indices_exceeding_capacity() == exceeding_sample_indices
+    assert buffer.get_state_snapshot() == state_snapshot
+    assert buffer.release_sample_indices_exceeding_capacity() == exceeding_sample_indices
+    assert buffer.get_sample_indices_exceeding_capacity() == ()
+
+
 def make_legacy_alarm_client(legacy_sample_indices, legacy_span, pending_validation=False):
     """整数tokenだけで旧警報の区間帰属とFIFO保持を捕捉する。"""
     legacy_events = {"assigned": [], "evaluated": [], "actions": [], "resets": []}
