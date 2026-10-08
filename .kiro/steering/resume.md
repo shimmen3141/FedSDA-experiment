@@ -1,8 +1,8 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-08（警報時の学習区間準備の要求・設計・初期命名を承認）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-08（警報時の学習区間準備を完了、別fresh Luna feature最終GO）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
-**引継ぎ地点（2026-10-08）:** Claude完了の2specを引き継ぎ、Codexが残りの警報処理の境界を分けた。[警報時の学習区間の準備](../specs/alarm-training-interval-preparation/README.md)は要求r2・設計r1・初期命名r1が独立GPT-6 Luna承認済。task/実装は未着手。次は同specの外部test下書き→AST識別子確認→追加命名r2レビュー→tasksレビュー。後始末を含む警報全体制御は別spec候補。残量を取得できない場合は作業単位完了で止める先の指示に沿い、このレビュー単位で停止した。
+**引継ぎ地点（2026-10-08）:** Codexが[警報時の学習区間の準備](../specs/alarm-training-interval-preparation/README.md)を完了。要求r2・設計r1・命名r4・tasks r4、全7tasks独立GPT-6 Luna承認、別fresh Luna feature最終GO。区間を分割し、前区間を評価保存→現行モデルへ吸収する公開runtimeが揃った。全8811 passed、固定旧11/最終3golden・fresh新CPU・品質成功。次は警報全体制御の残りを要求から仕様化する（下の候補1）。ユーザーの訂正に従い、途中の承認段階では止めず、このspec完了を区切りにした。進行中の編集・レビューはない。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -14,10 +14,10 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 - 直近完了: [警報の変化区間の解決](../specs/alarm-change-interval-resolution/README.md)。要求r3・設計r3・命名r5・tasks r2、全5task独立レビュー承認、別fresh Luna feature最終GO、completed。runtimeの`resolve_alarm_change_interval`と不変record`AlarmChangeIntervalResolution`（結果種別は`alarm_interval_held_model_reused`/`alarm_interval_current_model_maintained`/`alarm_interval_candidate_validation_started`）。切出し済みの変化区間の標本（1件ずつ）を連結して既存の区間評価へ渡し、選択IDがあればそのモデルへ吸収して学習帰属を切り替え（同じIDなら維持）、なければ全保有モデルのsnapshot→既存の初期値選択→既存のsession開始を行う。実旧_resolve_driftを吸収・帰属切替・初期値選択・session開始を差し替えずに実行して最終状態を照合した。要求〜Task 2のレビューはCodexの利用上限中のため独立AgentのSonnetが代替し、Task 3以降はLuna。その前は[警報区間の保有モデル再利用評価](../specs/alarm-interval-model-reuse-assessment/README.md)（区間評価と再利用候補の選択。読取り専用）。
 - 公開状態（2026-10-08）: GitHub復旧後の通常pushを1回実行し、未送信7commit（`5ddb9e3..db89dc4`）の送信に成功した。今後はユーザー指示に従いtaskごとにpushを1回だけ試す。失敗時は連続再試行や原因探索をせず、次taskのpush成功時に未送信commitも送る。
 - 直近のpush状態: 全commitは`origin/refactor/architecture`へ送信済み（taskごとの通常pushはすべて成功）。
-- 着手中: [alarm-training-interval-preparation](../specs/alarm-training-interval-preparation/README.md)。要求r2・設計r1・命名r4・tasks r4承認済、Task 1〜6は独立GPT-6 Luna承認・完了。Task 7の全回帰を実測中、別feature最終GOはその後。区間分割と前区間の評価保存→吸収が範囲。改善候補IMPROVE-004（履歴基準が使えないモデルの区間評価省略）は未検証/未採用。
+- 最新完了: [alarm-training-interval-preparation](../specs/alarm-training-interval-preparation/README.md)。詳細は同specのintegration-validation.md/spec.json/review.md。改善候補IMPROVE-004（履歴基準が使えないモデルの区間評価省略）とIMPROVE-005（前区間の事前検査と吸収での再評価を共用）は未検証/未採用。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 作業状態: [候補検証session開始](../specs/post-alarm-candidate-validation-session-start/README.md)の全5tasksはLuna承認・完了。要求r2・設計r2・命名r4・tasks r1を維持し、別fresh GPT-6 Lunaのfeature最終GO、completed。候補生成とエポック学習もcompleted。承認・進捗は各specのspec.json/tasks.mdが正本。
-- 直近の検証済み実装commit: `b890f0e`。全pytest 8455 passed/3 skipped/2 warnings（主担当実測、JUnit 8458件照合）、対象241＋AST2016、fresh新CPU 2/4class×3分岐、Ruff 159files/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・tools/への差分は空。source hashは259パス。警告2件とskip 3件は前specと同じ既存のもの。証拠は同specのintegration-validation.md。
+- 直近の検証済みsource/test commit: `d6cc32d`。全pytest 8811 passed/3 skipped/2 warnings、232.47s（主担当実測、JUnit8814件照合）、対象152＋AST2220、6変異検出、fresh新CPU 2/4class×正規/一時IDの4条件を独立Lunaも再現。Ruff163files/Pyright/pip check成功、旧11・最終3golden成功、固定旧基準`748c3aa`から旧実装・golden・旧回帰test・toolsへの差分は空。source hashは263パス、`ca7d146b8adec0f062ff3d3400d8d3d4399fd77f38920e4b9ccd9d90ebd345db`。以後は証拠/進捗文書だけを変更。証拠は最新specのintegration-validation.md。
 - 2026-10-07のClaude Code担当分（7spec、全てfeature最終GO・completed）。新しい順:
   1. [警報時点の参照モデルの固定](../specs/post-alarm-reference-model-fixation/README.md): 保有モデルと同じ値の独立した参照分類器と履歴平均損失。torch乱数の消費を実旧と一致させた。
   2. [警報後の候補検証標本の観測](../specs/post-alarm-candidate-validation-sample-observation/README.md): 標本1件の候補・参照の損失評価と損失収集への追加。
@@ -42,9 +42,9 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 
 ### 1. 警報処理の残りの組立（次に着手）
 
-旧`FedSDAClient._resolve_drift`（`federated_drift_experiment/clients/fedsda.py`）のうち、区間の評価、再利用・維持・候補検証開始の適用（`runtime/alarm_change_interval_resolution.py`の`resolve_alarm_change_interval`）、session開始、進行、終端回収は部品として完了した。残りは、変化区間を切り出して`resolve_alarm_change_interval`へ渡すまでと、その後の後始末。1つのspecに収まらなければ分ける。
+旧`FedSDAClient._resolve_drift`（`federated_drift_experiment/clients/fedsda.py`）のうち、区間準備、区間評価、再利用・維持・候補検証開始の適用（`runtime/alarm_change_interval_resolution.py`の`resolve_alarm_change_interval`）、session開始・進行・終端回収は部品として完了した。次は、これらを呼び、active sessionの警報分岐・最小件数判定・後始末を担う制御の境界を決める。1つのspecに収まらなければ分ける。要求・設計・命名・tasksはまだ作っていない。
 
-- (a) 区間の切出しと前区間の処理: FIFOを推定変化点で前区間と変化区間へ分ける（`PendingTrainingAssignmentBuffer.get_change_interval_partition`は実装済みで、標本の位置を返す。位置から標本Tensorと概念IDを取り出す所有者との接続が必要）。前区間は評価標本の保存（`evaluation/model_evaluation_sample_store.py`。旧は`random.sample`でPython乱数を消費する）と現行IDへの吸収。旧は前区間の吸収の後で変化区間を評価するので、この順を守る（吸収で現行モデルの履歴統計が変わる）。
+- (a) 完成した区間準備を利用: `runtime/alarm_training_interval_preparation.py::prepare_alarm_training_intervals`へFIFO順の`IndexedObservedTrainingSample`列を渡す。位置とTensor/概念IDの意味上の対応は供給側が保証する。返る前区間は保存/吸収済みで、変化区間だけを後続へ渡す。二重適用しない。FIFOはまだ保持されている。吸収後の履歴統計を区間解決に使う。制御側は各標本を再評価/再吸収する処理を複製しない。
 - (b) 変化区間が最小件数（旧`MIN_DRIFT_DATA`）未満なら、前区間の処理だけ行って終わる（旧action insufficient_data）。このとき旧はFIFOをclearしない（LEGACY-002の記録を確認する）。
 - (c) 候補検証中の警報は、FIFO全体を現行IDへ吸収して終わる（旧action forward_validation_pending）。
 - (d) 検出器のreset、FIFOのclear、適応イベントの記録（旧action: reuse/maintain/create_pending/insufficient_data/forward_validation_pending）、切替位置と再利用計数の記録、学習帰属変更の通知（予測重みの再始動）、active sessionの保持。結果種別と旧action・戻り値の対応は同specのdesign.mdにある（再利用=reuse/1、維持=maintain/0、候補検証開始=create_pending/0）。

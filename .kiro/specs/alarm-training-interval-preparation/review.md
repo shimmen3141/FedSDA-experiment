@@ -91,7 +91,15 @@ src/test/旧実装/goldenは変更していない。今回は文書のみ。要�
 
 - 固定基準環境の全pytestは8811 passed / 3 skipped / 2 warnings / 232.47s / exit0。JUnit8814件・failure/error0・skip3を照合した。
 - 旧11/最終3goldenはpytestそれぞれ1entry内で全scenarioを照合し成功。初回の補助scriptはJUnit entry数とgolden scenario数を混同したため修正し、実test/JSONと一致を確認した（テストやgoldenは変更していない）。
-- Ruff全163files・Pyright0件・pip check・固定旧空diff・263パスhashと承認hash一致。命名表の名前列とsource/test ASTの識別子を照合し未登録なし、文書リンクも確認した。
+- Ruff全163files・Pyright0件・pip check・固定旧空diff・263パスhashと承認hash一致。命名表の名前列とsource/test ASTのプロジェクト固有識別子は一致。標準builtin/selfと、設計のexact依存で別途承認済みの標準`dataclass`は照合除外した。初回の抽出ではこの除外を忘れ失敗したため修正した。文書リンクも確認した。
 - fresh独立CLI GPT-6 Lunaが実log/JUnit/test/golden/監査script/hashを確認しAPPROVED。全suite再実行はユーザー決定に従い不要、実施していない。指摘なし。外部証拠は`alarm-preparation-task7-review.md`。
 - 全7tasks完了。別fresh feature最終GOは次のゲートで、ここでは完了判定していない。
+
+# 別fresh feature最終レビュー — GO / VERIFIED
+
+- Task 7とは別の履歴なしCLI GPT-6 Lunaがkiro-validate-implとkiro-verify-completionで判定。起動model指定とlogのmodel行を担当同定の根拠とし、sessionをspec.jsonへ記録した。
+- 全7task、12/12要求、実NN接続、設計境界、全8811成功/JUnit、固定旧golden、263パスhashを独立照合。fresh新CPUも4条件を独立再現（4.60s）。全suite再実行はユーザー決定に従い行っていない。
+- DECISION: GO、STATUS: VERIFIED。指摘・remediation・blocked taskなし。新全体runや警報制御全体の完了は主張しない。
+- レビュー開始前にnative agent一覧を確認し、子はcompletedだった。close APIは利用できず、cleanupしたとは記録しない。thread slotを必要としないephemeral CLIを用いた。
+- 証拠: 元checkoutの`venv/refactoring-tests/alarm-preparation-feature-final-review.md`とlog。src/testは全検証以後変更していない。
 

@@ -2,7 +2,7 @@
 
 ## 対象と境界
 
-区間分割と前区間の評価保存→吸収を、新しい3moduleで組み立てた。全回帰の対象commitは`d6cc32d`（Task 5までのsource/test）。それ以後の変更は証拠・進捗文書のみ。feature最終判定は別fresh独立レビューで行う。
+区間分割と前区間の評価保存→吸収を、新しい3moduleで組み立てた。全回帰の対象commitは`d6cc32d`（Task 5までのsource/test）。それ以後の変更は証拠・進捗文書のみ。別fresh独立GPT-6 Lunaのfeature最終判定は**GO / VERIFIED**。
 
 旧`_resolve_drift`の対応区間を実NNで実行するoracleを使用。推定区間長、検出器reset、適応eventの記録はこのspecの範囲外として差し替えた。保存、吸収、区間解決、共同更新、候補学習・観測の実計算は差し替えていない。
 
@@ -17,6 +17,8 @@
 | 5 依存境界 | 最終対象152＋AST2220＝2372 passed / 10.05s / exit0。独立Lunaが新注入204と全AST2220成功、exact集合一致を再現し承認 |
 | 6 fresh CPU | 旧/test importなしの新process、2/4class×正規ID2/負ID−3の4条件成功 / exit0。独立Lunaも4条件再現し承認 |
 | 7 全回帰 | 8811 passed / 3 skipped / 2 warnings、232.47s、exit0。独立レビューはreview.mdに別記 |
+
+最終reviewerはTask 7と別のephemeral CLI process。全7task・12/12要求・設計・境界・source hash・実log/JUnitを照合し、fresh新CPUも4条件を独立再現（4.60s）してGO。全suiteの独立再実行は行っていない。blocking指摘・未完了taskなし。担当sessionはspec.json、採否はreview.mdへ記録。これは本specのみのGOである。
 
 ## 基準環境での全回帰・品質
 
@@ -94,7 +96,7 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 ## 保証範囲と残る制約
 
 - 警報制御全体のactive session経路、最小件数による中止、FIFO消費/保持、検出器reset、適応event・通知・再利用計数、active session保持、新client/全体runへの接続は後続spec。**新全体runのgolden一致は未検証**。
-- 入力起因の失敗は評価保存前に拒否するため、前区間を損失評価後、実吸収でも再評価する。追加forwardのコストを含み、計算量診断への接続前に判断する。アルゴリズム改善として勝手に省略しない。
+- 入力起因の失敗は評価保存前に拒否するため、前区間を損失評価後、実吸収でも再評価する。追加forwardのコストを含み、計算量診断への接続前に判断する。共用案を[IMPROVE-005](../../../docs/research/improvement-candidates/improve-005-reuse-prevalidated-alarm-interval-losses.md)へ事実・未測定の効果・拒否契約のリスクを分けて記録した。アルゴリズム改善として勝手に省略しない。
 - 明示位置とpayloadの意味上の対応は供給側が保証する。borrowしたTensorの内容は外部から変更できる。並行更新、私的状態の破壊、OOMや検査後の予期しない失敗のrollbackは保証しない。
 - CPU float32の既存分類器が対象。変化区間の分類器依存検査は後続へ残す。複数回適用による二重吸収を防ぐ責務も呼出側にある。
 - 固定旧goldenの成功と、新部品の実旧対照を別々に記録する。旧の不足データ時のFIFO保持などの修正候補は今回変更していない。
