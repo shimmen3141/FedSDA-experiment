@@ -8,3 +8,10 @@
 - 結果（session `01a11b86-d96d-76e0-9379-79558a7186fa`）: 4段階ともAPPROVED、指摘なし。検査の順序、要求との対応、旧実装との対応、tasksの検証ゲートを確認し、下書きに対して、異常入力で誤った保持や記録が残る具体例は見つからなかったと報告された。
 - 手順上の事実: 命名の事前登録のため、sourceとtestをリポジトリ外で下書きし、作業ツリーの一時複製へ置いてWSLで実行した（worktreeは変更していない。対象38件が成功）。`spec_checks.py names`は、下書きを置いた複製で報告なし。承認の時点でworktreeに新src・新testはない。
 - 外部証拠: 元checkoutの`venv/refactoring-tests/held-candidate-validation-progress-spec-review.md`/`.log`。
+
+## Task 1 — 実施記録（WSL）
+
+- 実装前RED: 新testはmoduleなしで収集失敗、注入契約testはguardなしで45 failed/73 passed（`venv/refactoring-tests/held-candidate-validation-progress-task1-red-wsl.log`）。
+- GREEN: 対象38＋依存境界2799のうち2836 passed、1 failed（本specと無関係の既存test。Python 3.14の構文解析の違い）。Windows側のPythonでRuff check/format・Pyright・`spec_checks.py names`が成功。
+- worktreeのsourceとtestは、仕様の承認時にLunaが読んだ下書きから、import順（Ruff）だけが変わっている。
+- 変異28/28検出、fresh新CPU 10条件成功（[証拠](mutation-and-cpu-evidence.md)）。
