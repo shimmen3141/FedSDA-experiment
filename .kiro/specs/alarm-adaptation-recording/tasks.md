@@ -7,7 +7,7 @@
   - _Boundary: evaluationの記録ownerとruntime変換、依存境界_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1_
 
-- [ ] 2. 検出力と新実装単独の接続を確認する
+- [x] 2. 検出力と新実装単独の接続を確認する
   - 実sourceのfield/件数/位置の破壊と検査を更新後へ移す変異を1つずつ実行し、元byteへ戻す。未検出はtestで補う。
   - fresh CPUで旧/test importなしに新上流完了と記録ownerを接続し、2/4class×5結果を確認する。証拠と復元後GREENを独立承認されて完了。
   - _Depends: 1_

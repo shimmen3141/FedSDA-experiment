@@ -3038,6 +3038,7 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
+    """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if source_module_path == "evaluation/adaptation_record_store.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -3052,7 +3053,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
             "federated_learning_experiments.runtime.alarm_response_completion.AlarmResponseCompletion",
         )
-    """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if source_module_path == "learning/training/indexed_observed_training_sample.py":
         return imported_module_name in (
             "dataclasses.dataclass",

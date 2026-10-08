@@ -372,6 +372,7 @@ INVALID_ADAPTATION_RECORD_FIELDS = (
     ("adaptation_outcome", 1, TypeError),
     ("adaptation_outcome", "reuse", ValueError),
     ("adaptation_outcome", "alarm_interval_current_model_maintained", ValueError),
+    # 負のIDは有効。同一IDの再利用結果という不整合を拒否する。
     ("current_training_model_id", -1, ValueError),
 )
 
@@ -414,6 +415,7 @@ def test_record_constructor_and_store_reject_invalid_fields_before_any_update(
         "detector_empty",
         "detector_whitespace",
         "completion_bool_id",
+        "completion_bool_baseline",
         "completion_inconsistent_ids",
         "completion_negative_optional_index",
         "completion_unknown_outcome",
@@ -449,7 +451,13 @@ def test_recording_rejects_invalid_input_before_updating_populated_store(
         expected_exception = (
             TypeError
             if invalid_recording_case
-            in ("completion_type", "store_type", "detector_type", "completion_bool_id")
+            in (
+                "completion_type",
+                "store_type",
+                "detector_type",
+                "completion_bool_id",
+                "completion_bool_baseline",
+            )
             else ValueError
         )
         if invalid_recording_case in ("completion_type", "store_type"):
@@ -483,6 +491,7 @@ def test_recording_rejects_invalid_input_before_updating_populated_store(
         else:
             parameter_name, specified_value = {
                 "completion_bool_id": ("previous_training_model_id", True),
+                "completion_bool_baseline": ("loss_monitoring_baseline_mean_loss", True),
                 "completion_inconsistent_ids": (
                     "previous_training_model_id",
                     alarm_response_completion.current_training_model_id,
