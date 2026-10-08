@@ -100,15 +100,53 @@
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_or_haiku_5_5_by_difficulty_independent_review_effort_high",
   "implementation_progress": {
-    "completed": 0,
+    "completed": 1,
     "total": 3
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "task_1_implementation_committed_design_revised_after_independent_review",
-    "next_step": "apply_design_r4_to_task_1_then_independent_rereview",
+    "completed_unit": "task_1_approved_tasks_2_3_measured",
+    "next_step": "independent_review_of_tasks_2_and_3_then_fresh_feature_final_review",
     "implementation_started": true,
     "tests_run": true,
-    "full_pytest_run_for_this_spec": false
+    "full_pytest_run_for_this_spec": true
+  },
+  "task_reviews": {
+    "1": {
+      "verdict": "APPROVED",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort high requested)",
+      "reviewer_session": "21354972-36d9-4b5b-a539-950fcf1c1b0a",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "reviewed_commit": "9335d5a",
+      "earlier_sessions_changes_requested": [
+        "3c10b991-7ecf-4449-a954-aa23c28d0832",
+        "f5fdc97b-880f-46df-8060-eed6577984a2",
+        "2f214285-3203-475d-b1c3-fff2c5f88147",
+        "3fe66984-98df-49e7-a7b0-1163deb5eb7d"
+      ],
+      "independent_test_execution": false,
+      "evidence": "review.md"
+    }
+  },
+  "verification_source_sha256": "c99f35b3bd46e3aeab3518e3d12557454d0fea7e12c3d57f2a49b16cdcf2e481",
+  "integration_validation": {
+    "status": "MEASURED_AWAITING_INDEPENDENT_REVIEW",
+    "tested_commit": "9335d5a",
+    "full_passed": 9254,
+    "full_skipped": 3,
+    "full_warnings": 2,
+    "full_duration_seconds": 159.04,
+    "junit_testcases": 9257,
+    "source_path_count": 267,
+    "source_sha256_lf": "c99f35b3bd46e3aeab3518e3d12557454d0fea7e12c3d57f2a49b16cdcf2e481",
+    "evidence": "integration-validation.md",
+    "target_and_ast_passed": 2599,
+    "fresh_cpu_cases": 10,
+    "mutations_detected": "29/29",
+    "requirements_total": 10,
+    "independent_full_suite_rerun": false,
+    "full_pytest_basis": "primary_agent_measurement_and_junit_per_user_decision_2026-10-07",
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true
   }
 }

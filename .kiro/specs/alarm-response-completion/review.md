@@ -66,3 +66,13 @@ CHANGES_REQUESTED、Major 1件。上の3回目の指摘1で主担当が選んだ
 → 採用し、3回目の指摘1の判断を改めた。一度も標本を観測していない保留FIFO（最終観測位置がNone）も拒否する。設計r5（4節手順2）、命名r5（testで既存3 symbolをimportする補足。新しい名前なし）。Luna（session `01a11a24-022b-7261-8d69-37c92e1dc580`、effort high）が設計r5・命名r5をAPPROVED、指摘なし。既存の応答関数が返す5種の応答で、正常な呼出しが拒否されないことを実コードで確認したと報告された。承認されたr4の命名全文は元checkoutの`venv/refactoring-tests/alarm-response-completion-naming-r4.md`。
 
 実施: 拒否条件`alarm_without_any_observed_sample`（未観測のFIFOと、区間が空の不足の応答を手で組み立てた入力）をtestへ先に追加し、srcが設計r4のままで1 failed/56 passedのREDを確認してからsrcを改めた。GREEN: 対象57＋依存境界2542＝2599 passed、Ruff・Pyright成功、fresh新CPU 10条件成功。実source変異29種（未観測FIFOの受理へ戻す変異を追加）を29/29検出、各回元byteへ復元、復元後57 passed。証拠は`venv/refactoring-tests/alarm-response-completion-mutation-evidence-r5/report.json`、REDの記録は`alarm-response-completion-task1-red-r5.log`。
+
+### Haiku 5回目（session `21354972-36d9-4b5b-a539-950fcf1c1b0a`、HEAD `9335d5a`）— Task 1 APPROVED
+
+Blocker・Majorなし。4回目のMajorの解消、すべての検査がreset・drainより前にあること、追加した拒否条件が最終観測位置の検査で拒否されること、依存8 symbolの一致を確認したと報告された。読取り専用のためtest・Ruff・Pyrightは実行していない（主担当の実測で判定）。任意のMinor 3件の採否:
+
+1. 拒否testが例外の種類だけを見る（`match=`で拒否理由を固定できる）→ 不採用。各拒否条件が意図した検査で拒否されることは、検査を1つずつ削除する変異（29種）がすべて検出されることで確かめている。メッセージ文字列を契約にしない。
+2. 2回目の警報の「保留0件」は現実の流れではなく境界条件 → 採用。integration-validation.mdでは境界条件として記載する。
+3. kw_onlyの確認で`asdict`による複製を避ける → 不採用（動作は同じ。承認済みのtestを変更しない）。
+
+Task 1を完了とした。
