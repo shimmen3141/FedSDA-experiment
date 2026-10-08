@@ -23,7 +23,7 @@ def record_completed_alarm_response(
     # frozen fieldの手動破壊も、上流の読取り専用検査と記録の検査で更新前に拒否する。
     alarm_response_completion.__post_init__()
     adaptation_record = AdaptationRecord(
-        alarm_sample_index=alarm_response_completion.alarm_sample_index,
+        adaptation_sample_index=alarm_response_completion.alarm_sample_index,
         detector_name=detector_name,
         adaptation_outcome=cast(
             AdaptationOutcome, alarm_response_completion.alarm_buffer_response.response_outcome

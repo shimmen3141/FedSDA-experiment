@@ -8,6 +8,346 @@ from pathlib import Path
 import pytest
 
 
+# BEGIN candidate_validation_adaptation_recording dependency contract
+@pytest.mark.parametrize(
+    "source_module_path,source_text,expected_acceptance",
+    [
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationOutcome",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationOutcome as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.evaluation.adaptation_record_store",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.evaluation.adaptation_record_store.AdaptationOutcome",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecord",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecord as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.evaluation.adaptation_record_store",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.evaluation.adaptation_record_store",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.learning.training.current_training_model_assignment",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import _private",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import *",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import IncompletePostAlarmCandidateValidationDecisionRecord",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import IncompletePostAlarmCandidateValidationDecisionRecord as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import _private",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import *",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import PostAlarmCandidateValidationDecisionRecord",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import PostAlarmCandidateValidationDecisionRecord as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import _private",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import *",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import IncompletePostAlarmCandidateValidationFinalization",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import IncompletePostAlarmCandidateValidationFinalization as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization.IncompletePostAlarmCandidateValidationFinalization",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import _private",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import *",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import PostAlarmCandidateValidationCompletion",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import PostAlarmCandidateValidationCompletion as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_progress",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.PostAlarmCandidateValidationCompletion",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import _private",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import *",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import PostAlarmCandidateValidationResolution",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import PostAlarmCandidateValidationResolution as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution.PostAlarmCandidateValidationResolution",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import _private",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import *",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import advance_post_alarm_candidate_validation",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import finalize_incomplete_post_alarm_candidate_validation",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordSnapshot",
+            False,
+        ),
+        ("runtime/candidate_validation_adaptation_recording.py", "from typing import cast", False),
+        ("runtime/candidate_validation_adaptation_recording.py", "import torch", False),
+        ("runtime/candidate_validation_adaptation_recording.py", "import os", False),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_drift_experiment import config",
+            False,
+        ),
+        (
+            "runtime/candidate_validation_adaptation_recording.py",
+            "from federated_learning_experiments.runtime import alarm_adaptation_recording",
+            False,
+        ),
+        ("evaluation/adaptation_record_store.py", "from typing import get_args", True),
+        ("evaluation/adaptation_record_store.py", "from typing import Literal, get_args", True),
+        ("evaluation/adaptation_record_store.py", "from typing import cast", False),
+        ("evaluation/adaptation_record_store.py", "import typing", False),
+        (
+            "evaluation/adaptation_record_store.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import PostAlarmCandidateValidationCompletion",
+            False,
+        ),
+    ],
+)
+def test_candidate_validation_adaptation_recording_dependency_contract(
+    source_module_path, source_text, expected_acceptance
+):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path=source_module_path, source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+# END candidate_validation_adaptation_recording dependency contract
+
+
 # BEGIN alarm_response_completion dependency contract
 @pytest.mark.parametrize(
     "source_text,expected_acceptance",
@@ -3044,6 +3384,19 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "dataclasses.replace",
             "typing.Literal",
+            "typing.get_args",
+        )
+    if source_module_path == "runtime/candidate_validation_adaptation_recording.py":
+        return imported_module_name in (
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationOutcome",
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
+            "federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization.IncompletePostAlarmCandidateValidationFinalization",
+            "federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.PostAlarmCandidateValidationCompletion",
+            "federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution.PostAlarmCandidateValidationResolution",
         )
     if source_module_path == "runtime/alarm_adaptation_recording.py":
         return imported_module_name in (
@@ -3890,6 +4243,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
         if source_module_path in (
             "evaluation/adaptation_record_store.py",
             "runtime/alarm_adaptation_recording.py",
+            "runtime/candidate_validation_adaptation_recording.py",
             "learning/training/candidate_epoch_training_settings.py",
             "learning/training/candidate_epoch_training.py",
             "runtime/candidate_classifier_construction.py",
@@ -3939,6 +4293,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                 in (
                     "evaluation/adaptation_record_store.py",
                     "runtime/alarm_adaptation_recording.py",
+                    "runtime/candidate_validation_adaptation_recording.py",
                     "learning/training/candidate_epoch_training_settings.py",
                     "learning/training/candidate_epoch_training.py",
                     "runtime/candidate_classifier_construction.py",

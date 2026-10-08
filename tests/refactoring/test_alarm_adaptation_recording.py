@@ -128,7 +128,7 @@ def make_adaptation_record(**record_field_overrides):
     return AdaptationRecord(
         **(
             dict(
-                alarm_sample_index=9,
+                adaptation_sample_index=9,
                 detector_name=" ClassESR ",
                 adaptation_outcome="alarm_interval_held_model_reused",
                 previous_training_model_id=-1,
@@ -256,7 +256,7 @@ def test_completed_alarm_record_matches_all_real_legacy_event_fields(
             assert type(adaptation_record) is AdaptationRecord
             # 全fieldの新旧対応をtest側だけに置き、新APIに旧actionのaliasを設けない。
             assert legacy_result[1][0] == dict(
-                position=adaptation_record.alarm_sample_index,
+                position=adaptation_record.adaptation_sample_index,
                 detector=adaptation_record.detector_name,
                 action=LEGACY_ACTION_BY_RESPONSE_OUTCOME[adaptation_record.adaptation_outcome],
                 old_model_id=adaptation_record.previous_training_model_id,
@@ -290,13 +290,14 @@ def test_completed_alarm_record_matches_all_real_legacy_event_fields(
 
 
 def test_record_store_keeps_input_order_equal_positions_and_old_immutable_snapshot():
-    assert set(get_args(AdaptationOutcome)) == set(ALARM_BUFFER_RESPONSE_OUTCOMES)
+    # 警報応答の5結果は適応結果の先頭5値。候補検証の結果はその後に続く。
+    assert get_args(AdaptationOutcome)[:5] == ALARM_BUFFER_RESPONSE_OUTCOMES
     adaptation_record_store = AdaptationRecordStore()
     empty_snapshot = adaptation_record_store.get_state_snapshot()
     first_adaptation_record = make_adaptation_record()
     adaptation_record_store.append_adaptation_record(adaptation_record=first_adaptation_record)
     first_snapshot = adaptation_record_store.get_state_snapshot()
-    for alarm_sample_index, adaptation_outcome in (
+    for adaptation_sample_index, adaptation_outcome in (
         (9, "alarm_interval_current_model_maintained"),
         (2, "alarm_during_candidate_validation"),
         (5, "alarm_change_interval_too_short"),
@@ -305,7 +306,7 @@ def test_record_store_keeps_input_order_equal_positions_and_old_immutable_snapsh
     ):
         adaptation_record_store.append_adaptation_record(
             adaptation_record=make_adaptation_record(
-                alarm_sample_index=alarm_sample_index,
+                adaptation_sample_index=adaptation_sample_index,
                 adaptation_outcome=adaptation_outcome,
                 previous_training_model_id=-1,
                 current_training_model_id=3
@@ -315,7 +316,7 @@ def test_record_store_keeps_input_order_equal_positions_and_old_immutable_snapsh
         )
     final_snapshot = adaptation_record_store.get_state_snapshot()
     assert tuple(
-        adaptation_record.alarm_sample_index
+        adaptation_record.adaptation_sample_index
         for adaptation_record in final_snapshot.adaptation_records
     ) == (9, 9, 2, 5, 5, 9)
     assert final_snapshot.training_model_switch_sample_indices == (9, 9)
@@ -345,18 +346,18 @@ def test_record_store_keeps_input_order_equal_positions_and_old_immutable_snapsh
     with pytest.raises(TypeError):
         AdaptationRecord(*asdict(first_adaptation_record).values())
     # frozenを手動で破壊した借用入力が、owner内の保存済みcopyへ波及しない。
-    object.__setattr__(first_adaptation_record, "alarm_sample_index", 999)
+    object.__setattr__(first_adaptation_record, "adaptation_sample_index", 999)
     object.__setattr__(first_adaptation_record, "detector_name", "changed")
-    assert first_snapshot.adaptation_records[0].alarm_sample_index == 9
+    assert first_snapshot.adaptation_records[0].adaptation_sample_index == 9
     assert first_snapshot.adaptation_records[0].detector_name == " ClassESR "
     assert final_snapshot.adaptation_records[0] == first_snapshot.adaptation_records[0]
     assert adaptation_record_store.get_state_snapshot() == final_snapshot
 
 
 INVALID_ADAPTATION_RECORD_FIELDS = (
-    ("alarm_sample_index", True, TypeError),
-    ("alarm_sample_index", 1.0, TypeError),
-    ("alarm_sample_index", -1, ValueError),
+    ("adaptation_sample_index", True, TypeError),
+    ("adaptation_sample_index", 1.0, TypeError),
+    ("adaptation_sample_index", -1, ValueError),
     ("detector_name", None, TypeError),
     ("detector_name", "", ValueError),
     ("detector_name", " \t", ValueError),
