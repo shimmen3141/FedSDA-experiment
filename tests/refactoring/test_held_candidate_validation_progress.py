@@ -616,12 +616,20 @@ def test_operations_without_held_session_change_nothing():
     ],
 )
 @pytest.mark.parametrize("invalid_owner_kind", ("other_type", "subclass"))
+@pytest.mark.parametrize("session_is_held", (True, False))
 def test_owner_types_are_rejected_before_upstream_updates(
-    operation, upstream_operation_name, invalid_owner_name, invalid_owner_kind, monkeypatch
+    operation,
+    upstream_operation_name,
+    invalid_owner_name,
+    invalid_owner_kind,
+    session_is_held,
+    monkeypatch,
 ):
     with torch.random.fork_rng(devices=[]):
         validation_session = make_started_validation_session(monkeypatch=monkeypatch)
-    validation_session_holder = make_holder_holding(validation_session=validation_session)
+    # 保持がないときも、ownerの型は同じく拒否する（保持がなければ上流は何もしないが、不正なownerを見逃さない）。
+    held_validation_session = validation_session if session_is_held else None
+    validation_session_holder = make_holder_holding(validation_session=held_validation_session)
     adaptation_record_store = make_record_store_with_alarm_record()
     previous_state_snapshot = adaptation_record_store.get_state_snapshot()
     # 上流の進行・終端回収は多くのownerを更新する。型の拒否はその呼出しより前でなければならない。
@@ -641,7 +649,7 @@ def test_owner_types_are_rejected_before_upstream_updates(
     )
     with pytest.raises(TypeError, match=f"{invalid_owner_name} must be exact"):
         operation(**placeholder_arguments | {invalid_owner_name: invalid_owner})
-    assert validation_session_holder.held_validation_session is validation_session
+    assert validation_session_holder.held_validation_session is held_validation_session
     assert adaptation_record_store.get_state_snapshot() == previous_state_snapshot
 
 
