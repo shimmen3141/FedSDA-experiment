@@ -10,7 +10,7 @@
   - _Depends: 1_
   - _Boundary: 対象testと実測証拠_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2_
-- [ ] 3. Windows固定基準の全回帰と別session最終GO
+- [x] 3. Windows固定基準の全回帰と別session最終GO
   - source/test commitとclean後、短い環境確認、全pytest/JUnit、旧11/最終3golden、品質、names/identityを実測。再開案内を現在の状態へ更新しprogressを検査。
   - 独立証拠レビューと別fresh feature最終GO後に完了/再開案内とprogressを確定。
   - _Depends: 2_

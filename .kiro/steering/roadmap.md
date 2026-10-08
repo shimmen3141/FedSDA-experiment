@@ -4,7 +4,9 @@
 
 ## 全体方針
 
-最新完了: [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)（候補検証sessionを保持するownerと、警報応答の反映・標本ごとの進行・終端回収を適応記録と保持の解除へつなぐ3関数。全3task承認、別sessionのLuna最終GO）。その前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（候補検証の到達時の確定と未完了の終端回収の適応記録）も全3task承認、別sessionのLuna最終GO。2 specの検証はcommit `733994b`、Windows基準で全9663 passed/3 skipped、旧11/最終3golden・品質成功、変異51/51・30/30、新CPU各10条件。その前は[alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)（警報5結果の履歴・切替位置・再利用件数を一つのownerへ保存）。次は診断通知・検出episode・標本ごとのclient進行の境界を決める。新client/全体runは未接続。入口はresume.md。
+最新完了: [adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)（単一AdaHedge診断証拠、全3task承認、別session最終GO、Windows全9727 passed/3 skipped）。現在は[held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)：global/oracle保持・global再始動通知の部品を実装し全3task独立承認、別fresh sessionのfeature最終GOへ。主担当のclean source/test commit `24a5953` 測定は全9811 passed/3 skipped、旧11/最終3golden・品質成功。実clientの通知順序/重複防止と予測/保存診断全体runは未接続。現specのGO後に、最終構成で既定無効のepisodeの移植要否を判断し、client進行を別specへ分ける。入口はresume.md。
+
+その前のheld-candidate-validation-progressとcandidate-validation-adaptation-recordingは全3task承認・別session最終GO。2 specの検証commit `733994b`、Windows全9663 passed/3 skipped、旧11/最終3golden・品質成功。その前はalarm-adaptation-recording。
 
 直前完了はalarm-response-completion（全9254 passed）。以前のalarm-buffer-response（全9110 passed）は区間準備/解決とactive経路の組立で、監視reset/FIFO消費は直前spec、警報応答の記録は最新specで完了した。
 
@@ -29,7 +31,9 @@
 
 ## 現在の状態
 
-- 最新完了: [adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)。通知の受け手に必要な単一AdaHedge診断証拠を先に移植する。要求r2・設計r1・命名r3・tasks r1を独立承認、全3task承認、Windows全9727 passed/3 skipped、別sessionのLuna（medium）最終GO。通知・検出episode・client進行・集約再較正・保存集計は後続。
+- 現在: [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)の全3taskを独立承認、別fresh sessionのfeature最終GOへ（2/3）。保持・通知部品は実装準備済みでfeature完了ではない。
+
+- 最新完了: [adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)。通知の受け手に必要な単一AdaHedge診断証拠を先に移植する。要求r2・設計r1・命名r3・tasks r1を独立承認、全3task承認、Windows全9727 passed/3 skipped、別sessionのLuna（medium）最終GO。global/oracle保持・global通知は現specで実装済み。実client通知の順序/重複防止、検出episode・client進行・集約再較正・保存集計は後続。
 
 - 警報応答の完了処理は`../specs/alarm-response-completion/README.md`。主担当Claude Code。要求r3・設計r5・命名r5・tasks r3・全3tasks承認/完了、別fresh GPT-6 Lunaのfeature最終GO。文書と証拠のレビューはLuna、実装（Task 1）のレビューはClaude Haiku 5.5、どちらもeffort high。runtimeの`complete_alarm_buffer_response`が、完了した警報応答に対して検査→現行モデルの統計から監視の基準平均を選択→不変recordの組立→損失監視のreset→保留位置のdrain（変化区間の不足ではdrainしない）を行う。実旧_resolve_driftをイベント記録・検出器reset・FIFO clearを差し替えずに実行し、2/4class×3解決条件×4組と候補検証中の2回目の警報で、イベントの各値・切替位置・再利用計数・戻り値・FIFO・reset後の検出器全状態・完了後の監視の継続を照合。Task 1は4回差し戻され、検査をすべて更新の前に置く設計へ改訂（recordを先に組み立てる、変更記録のexact型検査、未観測FIFOの拒否）。実装前RED、実source変異33種を検出。対象57＋AST2542/全9254 passed・3 skipped・2既存warnings（主担当実測＋JUnit）、fresh新CPU 10条件/品質/固定旧golden/10要件成功。適応イベント一覧・切替位置・再利用計数・episode・通知・session保持のownerは後続。入口はresume.md。
 

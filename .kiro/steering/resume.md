@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-09（AdaHedge診断証拠の全3task承認、別sessionのfeature最終GO）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-09（保持した診断証拠と帰属変更通知の全3task独立承認、別session最終GOへ）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
 **引継ぎ地点（2026-10-08）:** 主担当Claude Codeが[held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)を完了（全3taskの独立承認と別sessionのLuna最終GO）。その直前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)も完了（全3task承認、別sessionのLuna最終GOは3回目。1・2回目の指摘は進捗記録と再開案内の更新漏れ）。これら2 specの進行中の編集・レビューはない。2 specの検証commitは`733994b`、Windows基準で全9663 passed/3 skipped/2 warnings。引継ぎ時点では未コミット差分なし。引継ぎ後に下記のAdaHedge診断証拠specも完了した。
 
@@ -11,11 +11,11 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **現在地:** [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)の仕様r1を内部Luna mediumで全段階承認しTask1/2を独立承認、Task3へ。globalと真の概念別oracleの保持・global通知を切り出す。最新完了はadahedge-diagnostic-evidence。
+- **現在地:** [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)の仕様r1を内部Luna mediumで全段階承認しTask1/2を独立承認（2/3）。global/oracle保持・global通知の部品を実装しTask3のWindows全回帰証拠を準備、独立レビュー・別fresh session最終GO待ち。最新完了はadahedge-diagnostic-evidence。
 
 - **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。Task 3と最終GOは、Windows基準での全回帰が済むまで完了にしない。
 - **決定（2026-10-08ユーザー）:** Linux用のgolden（旧実装をLinuxで実行した結果）は、新実装の全体runを接続するspecに入る前に作る。既存のWindows用goldenと回帰testは変更せず、別ファイル・別testにする。作る前に、同じ環境で2回実行して結果が一致することを確かめる。それまでの部品specでは、WSLのgolden回帰の不一致（環境差。旧実装は固定旧から無変更）を理由にgoldenを変えない。
-- 次の一手: held-adahedge-diagnostic-notificationのTask3でcleanな検証commitに対するWindows全回帰・品質・独立レビュー・別session最終GOを確認する。
+- 次の一手: held-adahedge-diagnostic-notificationのTask3証拠を独立レビューし、承認後に別fresh sessionのfeature最終GOを確認する。主担当はclean source/test commit `24a5953` で全9811 passed/3 skipped/2既存warnings（199.13s）、JUnit9814件、旧11/最終3golden・品質を測定済み。全pytestの独立再実行なし。詳細は同specのintegration-validation.md。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 最新完了: [adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)。単一のAdaHedgeDiagnosticEvidenceが診断用累積損失・gap・集合変更/概念再始動計数を所有し、重み取得・損失更新・明示再始動を提供。source/test commit d80c62a、Windows全9727 passed/3 skipped/2 warnings（176.44s）、JUnit9730件、旧11・最終3golden成功、Ruff177files/Pyright/pip check成功。実source変異24種は20非等価を検出、4等価は理由を記録。fresh新stdlibの5操作成功。source LF hash278パス cc175e8a0acbe8b2057c931384acdb553f5c5a4f8edc756682b097618e96bf28、固定旧748c3aa差分空。Task 2 Lunaは対象42+依存注入22、Task 3別Lunaは対象+依存2863/fresh/Ruff/pip/identityを再現。最終新session Lunaはidentity/progressを独立照合。全pytestは主担当のみ。Haiku外部CLIは非公開コード送信の承認不足で自動審査拒否、内部Luna mediumへ代替。以後の差分は証拠・進捗文書だけ。
 - その前の完了: [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)。要求r1・設計r3・命名r2・tasks r2。runtimeの`CandidateValidationSessionHolder`（sessionを1つだけ保持）と、`apply_alarm_response_to_validation_session_holder`（候補検証を開始した応答だけが保持させる）、`advance_held_candidate_validation`（標本1件を観測させ、確定したら適応記録→保持の解除）、`finalize_held_incomplete_candidate_validation`（終端回収→記録→解除）。その前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（要求r2・設計r4・命名r2・tasks r2）は、適応結果へ候補検証の5値を追加し、`record_completed_candidate_validation`と`record_incomplete_candidate_validation_finalization`が到達時の確定と未完了の終端回収を`AdaptationRecordStore`へ記録する。recordのfield名は`adaptation_sample_index`へ改めた。
@@ -50,9 +50,9 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 診断通知、検出episode、標本ごとのclient進行（次に着手）
+### 1. 検出episodeの移植要否判断、標本ごとのclient進行（現specのGO後）
 
-警報応答・候補検証の適応記録と、候補検証sessionの保持・解除までは部品が揃った。残りは、学習帰属の変更の通知と保存診断、検出episode、これらの部品を標本ごとの順序で並べるclient進行。単一の診断証拠は完了（要求・設計・命名・全3task承認、別sessionのfeature最終GO）。通知の配布・検出episode・client進行自体の要求・設計・命名・tasksは未作成。一度に混ぜず、境界を決めて分ける。
+警報応答・候補検証の適応記録と、候補検証sessionの保持・解除までは部品が揃った。単一の診断証拠は完了。global/oracle保持・global再始動通知の部品は現specで実装済み、Task3承認とfeature最終GO待ち。残りは実clientの通知時機・重複防止、予測/保存診断全体runの接続、検出episode、標本ごとのclient進行。まず最終構成で既定無効のepisodeを別の任意機能として移植する要否を判断し、その後client進行を別specへ分ける。後続の要求・設計・命名・tasksは未作成。
 
 - 通知と保存診断: 最終Switching予測はFixed-Share側で、旧_on_local_model_changeのAdaHedge restartを直接参照しない。一方、NPZのrouting_concept_restart_counts、global gain、条件付きLOO診断はAdaHedge状態を使うので、通知を全面的に省くことはできない。根拠はalarm-adaptation-recording/research.md。最終3goldenはこれらの診断を比較しないので、その成功だけでは保存診断の同一性を証明しない。IMPROVE-007は診断の選択実行案で未検証/未採用。
 - 検出episodeは最終構成の既定で無効。mark_operationと同一episodeの追加検出は、移植の要否を最終構成から判断する。
@@ -64,7 +64,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### 2. その先
 
-- 完了情報を呼出側へ接続し、session解除・判定/適応event一覧・切替位置・検出episode操作・学習帰属変更の通知（予測重みの再始動）を組み立てる。
+- 完了情報を呼出側へ接続し、session解除・判定/適応event一覧・切替位置・検出episode操作・学習帰属変更の通知：global診断証拠の再始動（最終Fixed-Share予測の通知ではない）を組み立てる。
 - FIFOから1件ずつ帰属を確定する経路（旧`fedsda.py`の標本処理内。統計→標本→概念の順のinline実装で、吸収の部品とは更新順が違う）。
 - 警報後の帰属変更とclient進行、サーバ同期・ID対応。
 
