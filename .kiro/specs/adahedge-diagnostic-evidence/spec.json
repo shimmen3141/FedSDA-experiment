@@ -1,7 +1,7 @@
 {
   "feature_name": "adahedge-diagnostic-evidence",
   "created_at": "2026-10-08",
-  "updated_at": "2026-10-08",
+  "updated_at": "2026-10-09",
   "language": "ja",
   "phase": "implementation",
   "approvals": {
@@ -73,11 +73,11 @@
     "total": 3
   },
   "handoff": {
-    "execution_status": "in_progress_task_3",
-    "next_step": "task_3",
+    "execution_status": "task_3_review_pending",
+    "next_step": "task_3_review",
     "implementation_started": true,
     "tests_run": true,
-    "full_pytest_run_for_this_spec": false
+    "full_pytest_run_for_this_spec": true
   },
   "task_reviews": {
     "1": {
@@ -99,7 +99,32 @@
         "ruff"
       ],
       "independent_full_suite_rerun": false,
-      "evidence": "review.md"
+      "evidence": "review.md",
+      "source_and_test_commit": "d80c62a"
     }
+  },
+  "verification_source_sha256": "cc175e8a0acbe8b2057c931384acdb553f5c5a4f8edc756682b097618e96bf28",
+  "integration_validation": {
+    "status": "WINDOWS_MEASURED_TASK_3_REVIEW_PENDING",
+    "tested_commit": "d80c62a",
+    "full_passed": 9727,
+    "full_skipped": 3,
+    "full_warnings": 2,
+    "full_duration_seconds": 176.44,
+    "junit_testcases": 9730,
+    "junit_sha256": "b0db7cbad0298468bc0e032a0e30a242de122d4b7759b51b0a535fc0fb7e9411",
+    "source_path_count": 278,
+    "source_sha256_lf": "cc175e8a0acbe8b2057c931384acdb553f5c5a4f8edc756682b097618e96bf28",
+    "evidence": "integration-validation.md",
+    "fresh_process_operations": 5,
+    "mutations_measured": 24,
+    "mutations_detected": "20/20 non-equivalent; 4 equivalent survived",
+    "requirements_total": 11,
+    "independent_full_suite_rerun": false,
+    "full_pytest_basis": "primary_agent_measurement_and_junit_per_user_decision_2026-10-07",
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "environment": "Windows baseline Python 3.13.15 torch 2.12.1+cpu",
+    "wsl_used": false
   }
 }
