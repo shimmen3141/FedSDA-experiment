@@ -8,6 +8,725 @@ from pathlib import Path
 import pytest
 
 
+# BEGIN alarm_occurrence_handling dependency contract
+@pytest.mark.parametrize(
+    "source_module_path,source_text,expected_acceptance",
+    [
+        ("runtime/alarm_occurrence_handling.py", "from dataclasses import dataclass", True),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from dataclasses import dataclass as AcceptedDependency",
+            True,
+        ),
+        ("runtime/alarm_occurrence_handling.py", "import dataclasses", False),
+        ("runtime/alarm_occurrence_handling.py", "from dataclasses import _private", False),
+        ("runtime/alarm_occurrence_handling.py", "from dataclasses import *", False),
+        ("runtime/alarm_occurrence_handling.py", "from random import Random", True),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from random import Random as AcceptedDependency",
+            True,
+        ),
+        ("runtime/alarm_occurrence_handling.py", "import random", False),
+        ("runtime/alarm_occurrence_handling.py", "from random import _private", False),
+        ("runtime/alarm_occurrence_handling.py", "from random import *", False),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import AdaHedgeDiagnosticEvidenceCollection",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import AdaHedgeDiagnosticEvidenceCollection as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecord",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecord as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.evaluation.adaptation_record_store",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.evaluation.adaptation_record_store",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import ModelEvaluationSampleStore",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import ModelEvaluationSampleStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.evaluation.model_evaluation_sample_store",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.models.residual_adapter_classifier",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.models.residual_adapter_classifier import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.training.candidate_epoch_training_settings",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.training.current_training_model_assignment",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.training.held_model_training_state_registry",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.held_model_training_state_registry import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import IndexedObservedTrainingSample",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import IndexedObservedTrainingSample as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.training.indexed_observed_training_sample",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.indexed_observed_training_sample import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.training.model_training_and_assignment_counts",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.training.model_training_sample_store",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.model_training_sample_store import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.training.parameter_optimizer_settings",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import SgdParameterOptimizerSettings",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import SgdParameterOptimizerSettings as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.learning.training.parameter_optimizer_settings",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import CandidateParameterInitializationSettings",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import CandidateParameterInitializationSettings as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import OverallAndTrueClassLossMonitor",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import OverallAndTrueClassLossMonitor as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_adaptation_recording import record_completed_alarm_response",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_adaptation_recording import record_completed_alarm_response as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.runtime.alarm_adaptation_recording",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_adaptation_recording import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_adaptation_recording import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_buffer_response import respond_to_alarm_with_buffered_samples",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_buffer_response import respond_to_alarm_with_buffered_samples as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.runtime.alarm_buffer_response",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_buffer_response import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_buffer_response import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_response_completion import AlarmResponseCompletion",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_response_completion import AlarmResponseCompletion as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.runtime.alarm_response_completion",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_response_completion import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_response_completion import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_response_completion import complete_alarm_buffer_response",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_response_completion import complete_alarm_buffer_response as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.runtime.alarm_response_completion",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_response_completion import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_response_completion import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.candidate_validation_session_holder import CandidateValidationSessionHolder",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.candidate_validation_session_holder import CandidateValidationSessionHolder as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.runtime.candidate_validation_session_holder",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.candidate_validation_session_holder import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.candidate_validation_session_holder import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.held_candidate_validation_progress import apply_alarm_response_to_validation_session_holder",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.held_candidate_validation_progress import apply_alarm_response_to_validation_session_holder as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.runtime.held_candidate_validation_progress",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.held_candidate_validation_progress import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.held_candidate_validation_progress import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import notify_diagnostics_of_training_assignment_change",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import notify_diagnostics_of_training_assignment_change as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "import federated_learning_experiments.runtime.training_assignment_diagnostic_notification",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import _private",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import *",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.held_candidate_validation_progress import advance_held_candidate_validation",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.held_candidate_validation_progress import finalize_held_incomplete_candidate_validation",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import advance_post_alarm_candidate_validation",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_buffer_response import AlarmBufferResponse",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import resolve_alarm_change_interval",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence import AdaHedgeDiagnosticEvidence",
+            False,
+        ),
+        ("runtime/alarm_occurrence_handling.py", "from random import random", False),
+        ("runtime/alarm_occurrence_handling.py", "import torch", False),
+        ("runtime/alarm_occurrence_handling.py", "import os", False),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_drift_experiment import config",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_drift_experiment.detection_episode import DetectionEpisodeController",
+            False,
+        ),
+        (
+            "runtime/alarm_occurrence_handling.py",
+            "from federated_learning_experiments.runtime import alarm_buffer_response",
+            False,
+        ),
+    ],
+)
+def test_alarm_occurrence_handling_dependency_contract(
+    source_module_path, source_text, expected_acceptance
+):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path=source_module_path, source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+# END alarm_occurrence_handling dependency contract
+
+
 # BEGIN held_candidate_validation_progress dependency contract
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_acceptance",
@@ -3973,6 +4692,36 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "typing.Literal",
             "typing.get_args",
         )
+    if source_module_path == "runtime/alarm_occurrence_handling.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "random.Random",
+            "federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection.AdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
+            "federated_learning_experiments.runtime.alarm_adaptation_recording.record_completed_alarm_response",
+            "federated_learning_experiments.runtime.alarm_buffer_response.respond_to_alarm_with_buffered_samples",
+            "federated_learning_experiments.runtime.alarm_response_completion.AlarmResponseCompletion",
+            "federated_learning_experiments.runtime.alarm_response_completion.complete_alarm_buffer_response",
+            "federated_learning_experiments.runtime.candidate_validation_session_holder.CandidateValidationSessionHolder",
+            "federated_learning_experiments.runtime.held_candidate_validation_progress.apply_alarm_response_to_validation_session_holder",
+            "federated_learning_experiments.runtime.training_assignment_diagnostic_notification.notify_diagnostics_of_training_assignment_change",
+        )
     if source_module_path == "runtime/candidate_validation_session_holder.py":
         return imported_module_name in (
             "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
@@ -4863,6 +5612,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/candidate_validation_adaptation_recording.py",
             "runtime/candidate_validation_session_holder.py",
             "runtime/held_candidate_validation_progress.py",
+            "runtime/alarm_occurrence_handling.py",
             "learning/training/candidate_epoch_training_settings.py",
             "learning/training/candidate_epoch_training.py",
             "runtime/candidate_classifier_construction.py",
@@ -4918,6 +5668,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/candidate_validation_adaptation_recording.py",
                     "runtime/candidate_validation_session_holder.py",
                     "runtime/held_candidate_validation_progress.py",
+                    "runtime/alarm_occurrence_handling.py",
                     "learning/training/candidate_epoch_training_settings.py",
                     "learning/training/candidate_epoch_training.py",
                     "runtime/candidate_classifier_construction.py",
