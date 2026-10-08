@@ -48,3 +48,7 @@ Task 1の承認後、Windowsの基準環境でtorchが読み込めるように�
 指摘と採否:
 
 1. Task 2、Minor: 「ownerの型検査を上流の呼出しの後へ移す」変異が進行にしかない。終端回収も同じ順序を持ち、testは両方の順序を確かめているが、変異の表に終端回収の分がない。→ 採用。`p_move_owner_validation_after_finalize`を追加し、Windowsの基準環境で全30種を実行して30/30検出（追加分は既存のtest 2件が失敗して検出）。source・testは変更していない。
+
+### Task 2 2回目（Luna、別session `01a11bd0-b149-7110-a7ab-e9599068ec78`、HEAD `c76f6fb`）— TASK 2: APPROVED
+
+指摘なし。追加した変異が終端回収の型検査を上流の呼出しの後・結果の分岐の前へ移すこと、そのlogの失敗が順序の違いの検出であること（構文・収集の失敗ではない）、report.jsonの30件がすべて検出で、元・復元後のhashが現在のsource 2ファイルのbyteのSHA-256と一致すること、証拠文書の追記が事実と一致することを確認したと報告された。変異script・対象test・全pytestは独立実行していない。全3taskを完了とした。

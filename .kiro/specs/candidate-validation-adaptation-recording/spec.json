@@ -3,7 +3,7 @@
   "created_at": "2026-10-08",
   "updated_at": "2026-10-08",
   "language": "ja",
-  "phase": "implementation-in-progress",
+  "phase": "feature-final-review-pending",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -90,13 +90,13 @@
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_high_by_difficulty_independent_review",
   "implementation_progress": {
-    "completed": 1,
+    "completed": 3,
     "total": 3
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
     "completed_unit": "all_3_tasks_approved",
-    "next_step": "fresh_feature_final_review",
+    "next_step": "feature_final_rereview",
     "implementation_started": true,
     "tests_run": true,
     "full_pytest_run_for_this_spec": true
@@ -154,5 +154,15 @@
     "legacy_production_unchanged": true,
     "golden_unchanged": true,
     "wsl_reference": "9663 passed / 3 failed (python 3.14 parse difference 1, cross-environment golden mismatch 2)"
-  }
+  },
+  "feature_final_reviews": [
+    {
+      "verdict": "NO-GO",
+      "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
+      "reviewer_session": "01a11bd0-b136-7d01-a3d4-171fd8d00d1b",
+      "reviewed_commit": "c76f6fb",
+      "finding": "minor_spec_json_progress_and_phase_not_updated_after_task_approvals",
+      "resolution": "implementation_progress_and_phase_updated"
+    }
+  ]
 }
