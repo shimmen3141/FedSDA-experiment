@@ -8,6 +8,279 @@ from pathlib import Path
 import pytest
 
 
+# BEGIN alarm_response_completion dependency contract
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("from dataclasses import dataclass", True),
+        ("from dataclasses import dataclass as AcceptedDependency", True),
+        ("import dataclasses", False),
+        ("import dataclasses as AcceptedDependency", False),
+        ("import dataclasses.dataclass", False),
+        ("from dataclasses import _private", False),
+        ("from dataclasses.child import dataclass", False),
+        ("from dataclasses import *", False),
+        ("from dataclasses import field", False),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore as AcceptedDependency",
+            True,
+        ),
+        (
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.child import ModelAndClassLossStatisticsStore",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import field",
+            False,
+        ),
+        (
+            "from ..learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment as AcceptedDependency",
+            True,
+        ),
+        (
+            "import federated_learning_experiments.learning.training.current_training_model_assignment",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.learning.training.current_training_model_assignment as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment.child import CurrentTrainingModelAssignment",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import field",
+            False,
+        ),
+        (
+            "from ..learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import OverallAndTrueClassLossMonitor",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import OverallAndTrueClassLossMonitor as AcceptedDependency",
+            True,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.child import OverallAndTrueClassLossMonitor",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import field",
+            False,
+        ),
+        (
+            "from ..methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import OverallAndTrueClassLossMonitor",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_loss_monitoring_baseline_mean_loss",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_loss_monitoring_baseline_mean_loss as AcceptedDependency",
+            True,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.child import select_loss_monitoring_baseline_mean_loss",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import field",
+            False,
+        ),
+        (
+            "from ..methods.fedsda.loss_statistics.loss_baseline_selection import select_loss_monitoring_baseline_mean_loss",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer as AcceptedDependency",
+            True,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.child import PendingTrainingAssignmentBuffer",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import field",
+            False,
+        ),
+        (
+            "from ..methods.fedsda.training_data_assignment.pending_training_assignment_buffer import PendingTrainingAssignmentBuffer",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_buffer_response import AlarmBufferResponse",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_buffer_response import AlarmBufferResponse as AcceptedDependency",
+            True,
+        ),
+        ("import federated_learning_experiments.runtime.alarm_buffer_response", False),
+        (
+            "import federated_learning_experiments.runtime.alarm_buffer_response as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.runtime.alarm_buffer_response.AlarmBufferResponse",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_buffer_response import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_buffer_response.child import AlarmBufferResponse",
+            False,
+        ),
+        ("from federated_learning_experiments.runtime.alarm_buffer_response import *", False),
+        ("from federated_learning_experiments.runtime.alarm_buffer_response import field", False),
+        ("from ..runtime.alarm_buffer_response import AlarmBufferResponse", True),
+        (
+            "from federated_learning_experiments.runtime.alarm_buffer_response import respond_to_alarm_with_buffered_samples",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_buffer_response import ALARM_BUFFER_RESPONSE_OUTCOMES",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_alarm_interval_reuse_baseline_mean_loss",
+            False,
+        ),
+        ("import os", False),
+        ("import numpy", False),
+        ("import torch", False),
+        ("from federated_drift_experiment import config", False),
+        ("from federated_learning_experiments import runtime", False),
+        ("from federated_learning_experiments.runtime import alarm_response_completion", False),
+        ("from federated_learning_experiments.cli import main", False),
+        ("from ..configuration.run_settings import RunSettings", False),
+    ],
+)
+def test_alarm_response_completion_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="runtime/alarm_response_completion.py", source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+# END alarm_response_completion dependency contract
+
+
 # BEGIN alarm_buffer_response dependency contract
 @pytest.mark.parametrize(
     "source_text,expected_acceptance",
@@ -2769,6 +3042,16 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
         )
+    if source_module_path == "runtime/alarm_response_completion.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor",
+            "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
+            "federated_learning_experiments.runtime.alarm_buffer_response.AlarmBufferResponse",
+        )
     if source_module_path == "runtime/alarm_buffer_response.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -3592,6 +3875,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
             "runtime/alarm_training_interval_preparation.py",
             "runtime/alarm_buffer_response.py",
+            "runtime/alarm_response_completion.py",
             "runtime/alarm_change_interval_resolution.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
@@ -3638,6 +3922,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
                     "runtime/alarm_training_interval_preparation.py",
                     "runtime/alarm_buffer_response.py",
+                    "runtime/alarm_response_completion.py",
                     "runtime/alarm_change_interval_resolution.py",
                 )
                 and isinstance(import_statement, ast.Import)
