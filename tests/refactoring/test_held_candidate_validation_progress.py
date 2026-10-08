@@ -6,6 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 import torch
+from test_adahedge_diagnostic_evidence import assert_adahedge_matches_legacy
 from test_alarm_adaptation_recording import (
     RECORDING_ORACLE_CASES,
     build_completed_recording_oracle,
@@ -17,6 +18,7 @@ from test_candidate_validation_adaptation_recording import (
     replace_frozen_fields,
     snapshot_random_states,
 )
+from test_held_adahedge_diagnostic_notification import get_diagnostic_collection_snapshot
 from test_incomplete_post_alarm_candidate_validation_finalization import (
     assert_incomplete_validation_finalization_matches_legacy,
     build_incomplete_validation_finalization_oracle,
@@ -29,6 +31,13 @@ from test_post_alarm_candidate_validation_progress import (
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 import federated_learning_experiments.runtime.held_candidate_validation_progress as held_progress_module
+from federated_drift_experiment.clients.fedsda import (
+    RestartingSoftRoutingClassConditionalESRFedSDAClient,
+)
+from federated_drift_experiment.expert_routing import AdaHedgeRouter
+from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
+    AdaHedgeDiagnosticEvidenceCollection,
+)
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecordStore,
 )
@@ -62,6 +71,43 @@ def make_holder_holding(*, validation_session):
     if validation_session is not None:
         validation_session_holder.hold_validation_session(validation_session=validation_session)
     return validation_session_holder
+
+
+# 再始動が観測できるよう、確定の前に新旧の診断証拠へ与える損失。
+DIAGNOSTIC_LOSSES_BEFORE_VALIDATION = {4: 0.1, 9: 0.8}
+
+
+def make_diagnostics_observing_losses(*, legacy_client=None):
+    """損失を1回観測済みの診断証拠を作る。実旧clientを渡すと、実旧の再始動hookと同じ損失の実旧routerも置く。"""
+    diagnostic_evidence_collection = AdaHedgeDiagnosticEvidenceCollection()
+    global_diagnostic_evidence = diagnostic_evidence_collection.global_diagnostic_evidence
+    global_diagnostic_evidence.update_evidence_after_loss_observation(
+        observed_losses_by_model_id=DIAGNOSTIC_LOSSES_BEFORE_VALIDATION,
+        diagnostic_weights_by_model_id=global_diagnostic_evidence.get_diagnostic_weights_before_loss_observation(
+            model_ids=tuple(DIAGNOSTIC_LOSSES_BEFORE_VALIDATION)
+        ),
+    )
+    if legacy_client is None:
+        return diagnostic_evidence_collection
+    # 上流oracleの記録用hookを残したまま、実旧の再始動（確定した切替ごとのAdaHedge再始動）を実行させる。
+    legacy_client.expert_router = AdaHedgeRouter()
+    legacy_client.context_expert_routers = {}
+    legacy_client.shadow_meta_routers = {}
+    legacy_client.routing_active_set = None
+    legacy_client.expert_router.update(
+        DIAGNOSTIC_LOSSES_BEFORE_VALIDATION,
+        legacy_client.expert_router.probabilities(DIAGNOSTIC_LOSSES_BEFORE_VALIDATION),
+    )
+    record_local_model_change = legacy_client._on_local_model_change
+
+    def record_change_then_restart_legacy_routers(previous_model_id, current_model_id):
+        record_local_model_change(previous_model_id, current_model_id)
+        RestartingSoftRoutingClassConditionalESRFedSDAClient._on_local_model_change(
+            legacy_client, previous_model_id, current_model_id
+        )
+
+    legacy_client._on_local_model_change = record_change_then_restart_legacy_routers
+    return diagnostic_evidence_collection
 
 
 def make_record_store_with_alarm_record():
@@ -303,6 +349,28 @@ def test_completed_held_validation_is_recorded_then_released_like_legacy(
         adaptation_record_store = make_record_store_with_alarm_record()
         previous_state_snapshot = adaptation_record_store.get_state_snapshot()
         previous_model_id = legacy_client.current_model_id
+        diagnostic_evidence_collection = make_diagnostics_observing_losses(
+            legacy_client=legacy_client
+        )
+        # 通知の時点で、記録が追加済みで保持が空であること（記録→解除→通知の順）。
+        notification_calls = []
+        notify_diagnostics = held_progress_module.notify_diagnostics_of_training_assignment_change
+
+        def record_notification_call(**notification_arguments):
+            notification_calls.append(
+                (
+                    notification_arguments,
+                    validation_session_holder.held_validation_session,
+                    len(adaptation_record_store.get_state_snapshot().adaptation_records),
+                )
+            )
+            return notify_diagnostics(**notification_arguments)
+
+        monkeypatch.setattr(
+            held_progress_module,
+            "notify_diagnostics_of_training_assignment_change",
+            record_notification_call,
+        )
         # 解除の時点で適応記録が追加済みであること（旧のイベント記録→session解除の順）。
         record_counts_at_release = []
         release_validation_session = validation_session_holder.release_validation_session
@@ -324,6 +392,7 @@ def test_completed_held_validation_is_recorded_then_released_like_legacy(
         held_validation_advance = advance_held_candidate_validation(
             validation_session_holder=validation_session_holder,
             adaptation_record_store=adaptation_record_store,
+            diagnostic_evidence_collection=diagnostic_evidence_collection,
             **{
                 argument_name: argument
                 for argument_name, argument in progress_arguments.items()
@@ -331,6 +400,37 @@ def test_completed_held_validation_is_recorded_then_released_like_legacy(
             },
         )
         assert type(held_validation_advance) is HeldCandidateValidationAdvance
+        # 診断: 通知は1回で、確定の結果の帰属変更そのものを渡す。実旧の再始動hookの後のAdaHedgeと一致し、
+        # 再始動は学習帰属が変わる確定（候補の採用、他モデルの再利用）のときだけ1回。
+        validation_resolution = (
+            held_validation_advance.validation_progress.completed_validation.validation_resolution
+        )
+        assert len(notification_calls) == 1
+        notification_arguments, held_session_at_notification, record_count_at_notification = (
+            notification_calls[0]
+        )
+        assert notification_arguments.keys() == {
+            "assignment_change",
+            "diagnostic_evidence_collection",
+        }
+        assert (
+            notification_arguments["assignment_change"]
+            is validation_resolution.training_model_assignment_change
+        )
+        assert (
+            notification_arguments["diagnostic_evidence_collection"]
+            is diagnostic_evidence_collection
+        )
+        assert held_session_at_notification is None
+        assert record_count_at_notification == len(previous_state_snapshot.adaptation_records) + 1
+        global_diagnostic_evidence = diagnostic_evidence_collection.global_diagnostic_evidence
+        assert_adahedge_matches_legacy(global_diagnostic_evidence, legacy_client.expert_router)
+        assert global_diagnostic_evidence.concept_operation_restart_count == (
+            1 if legacy_resolution_case in ("create", "reuse") else 0
+        )
+        assert (legacy_client.current_model_id != previous_model_id) == (
+            legacy_resolution_case in ("create", "reuse")
+        )
         assert validation_session_holder.held_validation_session is None
         assert legacy_client._forward_validation is None
         assert record_counts_at_release == [len(previous_state_snapshot.adaptation_records) + 1]
@@ -387,6 +487,8 @@ def test_unfinished_held_validation_keeps_session_and_adds_no_record(monkeypatch
         validation_session_holder = make_holder_holding(validation_session=validation_session)
         adaptation_record_store = make_record_store_with_alarm_record()
         previous_state_snapshot = adaptation_record_store.get_state_snapshot()
+        diagnostic_evidence_collection = make_diagnostics_observing_losses()
+        diagnostic_snapshot = get_diagnostic_collection_snapshot(diagnostic_evidence_collection)
         for sample_index in (54, 55, 56):
             assert (
                 legacy_client._observe_forward_validation(
@@ -399,12 +501,18 @@ def test_unfinished_held_validation_keeps_session_and_adds_no_record(monkeypatch
             held_validation_advance = advance_held_candidate_validation(
                 validation_session_holder=validation_session_holder,
                 adaptation_record_store=adaptation_record_store,
+                diagnostic_evidence_collection=diagnostic_evidence_collection,
                 **{
                     argument_name: argument
                     for argument_name, argument in progress_arguments.items()
                     if argument_name != "validation_session"
                 }
                 | dict(sample_index=sample_index),
+            )
+            # 未到達の間は診断へ通知しない。
+            assert (
+                get_diagnostic_collection_snapshot(diagnostic_evidence_collection)
+                == diagnostic_snapshot
             )
             assert held_validation_advance.adaptation_record is None
             assert held_validation_advance.validation_progress.completed_validation is None
@@ -423,11 +531,19 @@ def test_unfinished_held_validation_keeps_session_and_adds_no_record(monkeypatch
 
 
 def make_placeholder_arguments(*, operation, validation_session_holder, adaptation_record_store):
-    """保持と記録のowner以外をobject()にした引数。sessionがなければ他の引数は読まれない。"""
-    return {argument_name: object() for argument_name in signature(operation).parameters} | dict(
+    """保持・記録・診断のowner以外をobject()にした引数。sessionがなければ他の引数は読まれない。"""
+    placeholder_arguments = {
+        argument_name: object() for argument_name in signature(operation).parameters
+    } | dict(
         validation_session_holder=validation_session_holder,
         adaptation_record_store=adaptation_record_store,
     )
+    # 診断のownerを受け取るのは進行だけ（終端回収は学習帰属を変えない）。
+    if "diagnostic_evidence_collection" in placeholder_arguments:
+        placeholder_arguments["diagnostic_evidence_collection"] = (
+            make_diagnostics_observing_losses()
+        )
+    return placeholder_arguments
 
 
 def test_operations_without_held_session_change_nothing():
@@ -435,12 +551,18 @@ def test_operations_without_held_session_change_nothing():
     adaptation_record_store = make_record_store_with_alarm_record()
     previous_state_snapshot = adaptation_record_store.get_state_snapshot()
     random_states = snapshot_random_states()
-    held_validation_advance = advance_held_candidate_validation(
-        **make_placeholder_arguments(
-            operation=advance_held_candidate_validation,
-            validation_session_holder=validation_session_holder,
-            adaptation_record_store=adaptation_record_store,
-        )
+    placeholder_arguments = make_placeholder_arguments(
+        operation=advance_held_candidate_validation,
+        validation_session_holder=validation_session_holder,
+        adaptation_record_store=adaptation_record_store,
+    )
+    diagnostic_snapshot = get_diagnostic_collection_snapshot(
+        placeholder_arguments["diagnostic_evidence_collection"]
+    )
+    held_validation_advance = advance_held_candidate_validation(**placeholder_arguments)
+    assert (
+        get_diagnostic_collection_snapshot(placeholder_arguments["diagnostic_evidence_collection"])
+        == diagnostic_snapshot
     )
     assert held_validation_advance.adaptation_record is None
     assert (
@@ -464,20 +586,38 @@ def test_operations_without_held_session_change_nothing():
 
 
 @pytest.mark.parametrize(
-    "operation,upstream_operation_name",
+    "operation,upstream_operation_name,invalid_owner_name",
     [
-        (advance_held_candidate_validation, "advance_post_alarm_candidate_validation"),
+        (
+            advance_held_candidate_validation,
+            "advance_post_alarm_candidate_validation",
+            "validation_session_holder",
+        ),
+        (
+            advance_held_candidate_validation,
+            "advance_post_alarm_candidate_validation",
+            "adaptation_record_store",
+        ),
+        (
+            advance_held_candidate_validation,
+            "advance_post_alarm_candidate_validation",
+            "diagnostic_evidence_collection",
+        ),
         (
             finalize_held_incomplete_candidate_validation,
             "finalize_incomplete_post_alarm_candidate_validation",
+            "validation_session_holder",
+        ),
+        (
+            finalize_held_incomplete_candidate_validation,
+            "finalize_incomplete_post_alarm_candidate_validation",
+            "adaptation_record_store",
         ),
     ],
 )
-@pytest.mark.parametrize(
-    "invalid_owner_name", ("validation_session_holder", "adaptation_record_store")
-)
+@pytest.mark.parametrize("invalid_owner_kind", ("other_type", "subclass"))
 def test_owner_types_are_rejected_before_upstream_updates(
-    operation, upstream_operation_name, invalid_owner_name, monkeypatch
+    operation, upstream_operation_name, invalid_owner_name, invalid_owner_kind, monkeypatch
 ):
     with torch.random.fork_rng(devices=[]):
         validation_session = make_started_validation_session(monkeypatch=monkeypatch)
@@ -488,15 +628,19 @@ def test_owner_types_are_rejected_before_upstream_updates(
     monkeypatch.setattr(
         held_progress_module, upstream_operation_name, Mock(side_effect=AssertionError)
     )
-    with pytest.raises(TypeError):
-        operation(
-            **make_placeholder_arguments(
-                operation=operation,
-                validation_session_holder=validation_session_holder,
-                adaptation_record_store=adaptation_record_store,
-            )
-            | {invalid_owner_name: object()}
-        )
+    placeholder_arguments = make_placeholder_arguments(
+        operation=operation,
+        validation_session_holder=validation_session_holder,
+        adaptation_record_store=adaptation_record_store,
+    )
+    # 不正にする引数をその操作が受け取ること（受け取らない引数のTypeErrorを拒否と取り違えない）。
+    assert invalid_owner_name in placeholder_arguments
+    owner_subclass = type("OwnerSubclass", (type(placeholder_arguments[invalid_owner_name]),), {})
+    invalid_owner = (
+        object() if invalid_owner_kind == "other_type" else owner_subclass.__new__(owner_subclass)
+    )
+    with pytest.raises(TypeError, match=f"{invalid_owner_name} must be exact"):
+        operation(**placeholder_arguments | {invalid_owner_name: invalid_owner})
     assert validation_session_holder.held_validation_session is validation_session
     assert adaptation_record_store.get_state_snapshot() == previous_state_snapshot
 

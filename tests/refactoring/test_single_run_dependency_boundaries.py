@@ -8,6 +8,89 @@ from pathlib import Path
 import pytest
 
 
+# BEGIN held_candidate_validation_diagnostic_notification dependency contract
+@pytest.mark.parametrize(
+    "source_module_path,source_text,expected_acceptance",
+    [
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import AdaHedgeDiagnosticEvidenceCollection",
+            True,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import AdaHedgeDiagnosticEvidenceCollection as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "import federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection",
+            False,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import _private",
+            False,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import *",
+            False,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import notify_diagnostics_of_training_assignment_change",
+            True,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import notify_diagnostics_of_training_assignment_change as AcceptedDependency",
+            True,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "import federated_learning_experiments.runtime.training_assignment_diagnostic_notification",
+            False,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import _private",
+            False,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import *",
+            False,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence import AdaHedgeDiagnosticEvidence",
+            False,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
+            False,
+        ),
+        (
+            "runtime/held_candidate_validation_progress.py",
+            "from federated_learning_experiments.runtime.alarm_occurrence_handling import handle_alarm_occurrence",
+            False,
+        ),
+    ],
+)
+def test_held_candidate_validation_diagnostic_notification_dependency_contract(
+    source_module_path, source_text, expected_acceptance
+):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path=source_module_path, source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+# END held_candidate_validation_diagnostic_notification dependency contract
+
+
 # BEGIN alarm_occurrence_handling dependency contract
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_acceptance",
@@ -4748,6 +4831,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization.finalize_incomplete_post_alarm_candidate_validation",
             "federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.PostAlarmCandidateValidationProgress",
             "federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.advance_post_alarm_candidate_validation",
+            "federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection.AdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.runtime.training_assignment_diagnostic_notification.notify_diagnostics_of_training_assignment_change",
         )
     if source_module_path == "runtime/candidate_validation_adaptation_recording.py":
         return imported_module_name in (

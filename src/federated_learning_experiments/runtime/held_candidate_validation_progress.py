@@ -1,9 +1,12 @@
-"""保持中の候補検証sessionについて、警報応答の反映・標本ごとの進行・終端回収を、記録と保持の更新へ接続する。"""
+"""保持中の候補検証sessionについて、警報応答の反映・標本ごとの進行・終端回収を、記録・保持・診断通知へ接続する。"""
 
 from dataclasses import dataclass
 
 from torch import Tensor
 
+from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
+    AdaHedgeDiagnosticEvidenceCollection,
+)
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecord,
     AdaptationRecordStore,
@@ -47,6 +50,9 @@ from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_vali
 from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import (
     PostAlarmCandidateValidationProgress,
     advance_post_alarm_candidate_validation,
+)
+from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import (
+    notify_diagnostics_of_training_assignment_change,
 )
 
 
@@ -103,7 +109,9 @@ def apply_alarm_response_to_validation_session_holder(
             raise ValueError("response must refer to the held candidate validation session")
         return
     if held_validation_session is not None:
-        raise ValueError("response without an active validation requires an empty holder")
+        raise ValueError(
+            "only a response during candidate validation is accepted while a session is held"
+        )
     # 上の対応の検査により、ここでsessionを持つ応答は候補検証の開始だけ。
     if alarm_buffer_response.active_validation_session is not None:
         validation_session_holder.hold_validation_session(
@@ -115,6 +123,7 @@ def advance_held_candidate_validation(
     *,
     validation_session_holder: CandidateValidationSessionHolder,
     adaptation_record_store: AdaptationRecordStore,
+    diagnostic_evidence_collection: AdaHedgeDiagnosticEvidenceCollection,
     sample_index: int,
     input_features: Tensor,
     observed_class_labels: Tensor,
@@ -131,12 +140,16 @@ def advance_held_candidate_validation(
     current_training_model_assignment: CurrentTrainingModelAssignment,
     pending_model_upload_state: PendingModelUploadState,
 ) -> HeldCandidateValidationAdvance:
-    """保持中のsessionへ標本1件を観測させ、確定したら適応記録を追加して保持を解除する。"""
-    # 進行は観測・確定で多くのownerを更新する。保持と記録のownerの型は、その前に確かめる。
+    """保持中のsessionへ標本1件を観測させ、確定したら適応記録を追加して保持を解除し、帰属変更を診断へ通知する。"""
+    # 進行は観測・確定で多くのownerを更新する。保持・記録・診断のownerの型は、その前に確かめる。
     _validate_holder_and_record_store(
         validation_session_holder=validation_session_holder,
         adaptation_record_store=adaptation_record_store,
     )
+    if type(diagnostic_evidence_collection) is not AdaHedgeDiagnosticEvidenceCollection:
+        raise TypeError(
+            "diagnostic_evidence_collection must be exact AdaHedgeDiagnosticEvidenceCollection"
+        )
     validation_progress = advance_post_alarm_candidate_validation(
         validation_session=validation_session_holder.held_validation_session,
         sample_index=sample_index,
@@ -165,6 +178,11 @@ def advance_held_candidate_validation(
         adaptation_record_store=adaptation_record_store,
     )
     validation_session_holder.release_validation_session()
+    # 確定で学習帰属が変わったとき（候補の採用、他の保有モデルの再利用）だけ、診断証拠が再始動する。
+    notify_diagnostics_of_training_assignment_change(
+        assignment_change=validation_progress.completed_validation.validation_resolution.training_model_assignment_change,
+        diagnostic_evidence_collection=diagnostic_evidence_collection,
+    )
     return HeldCandidateValidationAdvance(
         validation_progress=validation_progress, adaptation_record=adaptation_record
     )
