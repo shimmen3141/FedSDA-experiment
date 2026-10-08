@@ -1,0 +1,71 @@
+{
+  "feature_name": "alarm-occurrence-handling",
+  "created_at": "2026-10-09",
+  "updated_at": "2026-10-09",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "39323d2e7092b6c8727979c6528d1b597a8db3215927964b9797a6ec303df68f",
+      "approved_sha256_lf": "39323d2e7092b6c8727979c6528d1b597a8db3215927964b9797a6ec303df68f",
+      "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
+      "reviewer_session": "01a11c74-bab3-7d51-8293-c249b5a9cb65",
+      "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "c40f94ad3968fcb05dd94ed854976eaf17978668c3a788d13e7080290f8175ac",
+      "approved_sha256_lf": "c40f94ad3968fcb05dd94ed854976eaf17978668c3a788d13e7080290f8175ac",
+      "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
+      "reviewer_session": "01a11c74-bab3-7d51-8293-c249b5a9cb65",
+      "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "5f9a5d3f11f9bac6f1b75a0e3135a038a1b5005af98f3683b97806e30a40449f",
+      "approved_sha256_lf": "5f9a5d3f11f9bac6f1b75a0e3135a038a1b5005af98f3683b97806e30a40449f",
+      "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
+      "reviewer_session": "01a11c74-bab3-7d51-8293-c249b5a9cb65",
+      "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "315a84bf40233a7e09332b63e987cdb6749e1f2db4727961d3882f7adf78377e",
+      "approved_sha256_lf": "315a84bf40233a7e09332b63e987cdb6749e1f2db4727961d3882f7adf78377e",
+      "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
+      "reviewer_session": "01a11c74-bab3-7d51-8293-c249b5a9cb65",
+      "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_high_by_difficulty_independent_review",
+  "implementation_progress": {
+    "completed": 0,
+    "total": 3
+  },
+  "handoff": {
+    "execution_status": "in_progress_by_claude_code",
+    "completed_unit": "requirements_design_naming_tasks_approved",
+    "next_step": "task_1_tests_red_then_implementation",
+    "implementation_started": false,
+    "tests_run": false,
+    "full_pytest_run_for_this_spec": false
+  }
+}
