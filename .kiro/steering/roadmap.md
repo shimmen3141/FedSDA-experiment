@@ -4,7 +4,7 @@
 
 ## 全体方針
 
-最新完了: [adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)（単一AdaHedge診断証拠、全3task承認、別session最終GO、Windows全9727 passed/3 skipped）。現在は[held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)：global/oracle保持・global再始動通知の部品を実装し全3task独立承認、別fresh sessionのfeature最終GOへ。主担当のclean source/test commit `24a5953` 測定は全9811 passed/3 skipped、旧11/最終3golden・品質成功。実clientの通知順序/重複防止と予測/保存診断全体runは未接続。現specのGO後に、最終構成で既定無効のepisodeの移植要否を判断し、client進行を別specへ分ける。入口はresume.md。
+最新完了: [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)（global/真の概念別oracleの診断保持と、globalだけの帰属変更通知）。仕様r1・全3task独立承認、別fresh sessionのLuna mediumが最終GO。検証commit24a5953、Windows全9811 passed/3 skipped、旧11/最終3golden・品質成功。新clientの通知順序/重複防止、同期・episode・保存診断全体runは後続。次はepisodeの移植要否を判断しclient進行を別specへ分ける。入口はresume.md。
 
 その前のheld-candidate-validation-progressとcandidate-validation-adaptation-recordingは全3task承認・別session最終GO。2 specの検証commit `733994b`、Windows全9663 passed/3 skipped、旧11/最終3golden・品質成功。その前はalarm-adaptation-recording。
 
@@ -31,7 +31,7 @@
 
 ## 現在の状態
 
-- 現在: [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)の全3taskを独立承認、別fresh sessionのfeature最終GOへ（2/3）。保持・通知部品は実装準備済みでfeature完了ではない。
+- 診断証拠の複数保持と通知: [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)の全3task承認・別session最終GO。次の境界判断とclient進行はresume.mdを参照。
 
 - 最新完了: [adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)。通知の受け手に必要な単一AdaHedge診断証拠を先に移植する。要求r2・設計r1・命名r3・tasks r1を独立承認、全3task承認、Windows全9727 passed/3 skipped、別sessionのLuna（medium）最終GO。global/oracle保持・global通知は現specで実装済み。実client通知の順序/重複防止、検出episode・client進行・集約再較正・保存集計は後続。
 
