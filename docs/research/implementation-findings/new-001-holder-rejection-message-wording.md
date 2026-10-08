@@ -1,7 +1,7 @@
 # NEW-001: 候補検証sessionの保持への反映で、拒否の文言が一部の入力に合わない
 
 - 発見日: 2026-10-08（Task 1の独立レビュー、Claude Haiku 5.5の任意の指摘）。対象: 新実装`src/federated_learning_experiments/runtime/held_candidate_validation_progress.py::apply_alarm_response_to_validation_session_holder`。発見spec: held-candidate-validation-progress（検証commit `733994b`）。
-- 種別: 例外の文言の不正確（挙動は正しい）。状態: 未修正。
+- 種別: 例外の文言の不正確（挙動は正しい）。状態: 修正済み（2026-10-09、commit `42fc7b8`、spec held-candidate-validation-diagnostic-notification）。
 
 ## 内容
 
@@ -11,4 +11,6 @@
 
 ## 扱い
 
-文言だけの問題なので、発見時は変更しなかった（sourceを変えると基準環境の検証をやり直すことになるため）。このファイルを次に変更するspecで、「保持中に受けられるのは候補検証中の応答だけ」という意味の文言へ直す。修正commitは未定。
+文言だけの問題なので、発見時は変更しなかった（sourceを変えると基準環境の検証をやり直すことになるため）。このファイルを次に変更するspecで、「保持中に受けられるのは候補検証中の応答だけ」という意味の文言へ直す。
+
+2026-10-09に、文言を`only a response during candidate validation is accepted while a session is held`へ改めた（commit `42fc7b8`）。条件と例外の型は変えていない。既存の拒否のtest（12条件）が例外の型と保持の不変のまま成功することを確かめた。文言を照合するtestは足していない。

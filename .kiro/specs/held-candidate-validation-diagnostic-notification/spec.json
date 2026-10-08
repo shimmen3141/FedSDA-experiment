@@ -78,15 +78,30 @@
   "ready_for_implementation": false,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "implementation_progress": {
-    "completed": 0,
+    "completed": 1,
     "total": 3
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "task_1_first_review_changes_applied",
-    "next_step": "task_1_rereview_and_design_naming_tasks_r2_rereview",
+    "completed_unit": "task_1_approved",
+    "next_step": "design_naming_tasks_r2_rereview_and_task_2_3_review",
     "implementation_started": true,
     "tests_run": true,
-    "full_pytest_run_for_this_spec": false
+    "full_pytest_run_for_this_spec": true
+  },
+  "task_reviews": {
+    "1": {
+      "verdict": "APPROVED",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+      "reviewer_session": "ae0f641c-2f9f-472c-856f-f10607d8258e",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "reviewed_commit": "58f0b13",
+      "source_and_test_commit": "ef1be82",
+      "earlier_sessions_changes_requested": [
+        "f5e0b67f-f6bb-45ef-96a3-c397dabcfffa"
+      ],
+      "independent_test_execution": false,
+      "evidence": "review.md"
+    }
   }
 }
