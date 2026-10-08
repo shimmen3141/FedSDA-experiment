@@ -4,7 +4,7 @@
 
 ## 全体方針
 
-最新: [alarm-occurrence-handling](../specs/alarm-occurrence-handling/README.md)（警報1回ぶんの処理を、応答→完了処理→適応記録→session保持→診断通知の順に既存部品でつなぐ`handle_alarm_occurrence`）。仕様（設計r2）・全3task独立承認、feature最終レビューは別sessionへ依頼する段階。検証commit e80b368、Windows全10000 passed/3 skipped、旧11/最終3golden・品質成功。検出episodeの制御は当面移植しない（最終構成で無効）。
+最新完了: [alarm-occurrence-handling](../specs/alarm-occurrence-handling/README.md)（警報1回ぶんの処理を、応答→完了処理→適応記録→session保持→診断通知の順に既存部品でつなぐ`handle_alarm_occurrence`）。仕様（設計r2）・全3task独立承認、別sessionのLuna mediumが最終GO。検証commit e80b368、Windows全10000 passed/3 skipped、旧11/最終3golden・品質成功。検出episodeの制御は当面移植しない（最終構成で無効）。
 
 その前の完了: [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)（global/真の概念別oracleの診断保持と、globalだけの帰属変更通知）。仕様r1・全3task独立承認、別fresh sessionのLuna mediumが最終GO。検証commit24a5953、Windows全9811 passed/3 skipped、旧11/最終3golden・品質成功。新clientの通知順序/重複防止、同期・episode・保存診断全体runは後続。次はepisodeの移植要否を判断しclient進行を別specへ分ける。入口はresume.md。
 

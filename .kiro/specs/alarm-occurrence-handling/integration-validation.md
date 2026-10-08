@@ -57,4 +57,4 @@ Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `ala
 
 ## レビュー
 
-Task 1はClaude Haiku 5.5、設計r2とTask 2・3はGPT-6 Lunaが承認（2026-10-09）。経緯と採否は[review.md](review.md)。
+Task 1はClaude Haiku 5.5、設計r2とTask 2・3はGPT-6 Lunaが承認し、別sessionのLunaがfeature最終GO（2026-10-09）。経緯と採否は[review.md](review.md)。
