@@ -49,7 +49,7 @@
   - _Boundary: 新独立動作_
   - _Requirements: 1.4, 3.3_
 
-- [ ] 7. 基準環境で全回帰と証拠を検証する
+- [x] 7. 基準環境で全回帰と証拠を検証する
   - 明示的な統合検証task。対象実装commitで全pytest/JUnit、旧11・最終3golden、Ruff/Pyright/pip checkを実測し、固定旧source/golden差分が空であることを確認する。
   - 対象specのintegration-validation.mdへ要求12項目、各承認revision/hash、source hash、tested commit、taskレビュー、未検証範囲と追加forwardの制約を残す。
   - 完了条件: 主担当実測とJUnit照合を独立担当が確認し、task承認される。全pytestの独立再実行は既存合意に従い必須としない。

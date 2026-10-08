@@ -87,3 +87,11 @@ src/test/旧実装/goldenは変更していない。今回は文書のみ。要�
 - fresh新CPUの2/4class×正規/一時IDの4条件で成功。独立CLI GPT-6 Lunaもscriptを別processで実行しexit0を確認、APPROVED。指摘なし。
 - 旧/test importなし、FIFO/状態/明示Random・global Python/torch乱数を確認。証拠は[統合検証](integration-validation.md)と外部`alarm-preparation-task6-review.md`。新client/full runは対象外。
 
+# Task 7 完了
+
+- 固定基準環境の全pytestは8811 passed / 3 skipped / 2 warnings / 232.47s / exit0。JUnit8814件・failure/error0・skip3を照合した。
+- 旧11/最終3goldenはpytestそれぞれ1entry内で全scenarioを照合し成功。初回の補助scriptはJUnit entry数とgolden scenario数を混同したため修正し、実test/JSONと一致を確認した（テストやgoldenは変更していない）。
+- Ruff全163files・Pyright0件・pip check・固定旧空diff・263パスhashと承認hash一致。命名表の名前列とsource/test ASTの識別子を照合し未登録なし、文書リンクも確認した。
+- fresh独立CLI GPT-6 Lunaが実log/JUnit/test/golden/監査script/hashを確認しAPPROVED。全suite再実行はユーザー決定に従い不要、実施していない。指摘なし。外部証拠は`alarm-preparation-task7-review.md`。
+- 全7tasks完了。別fresh feature最終GOは次のゲートで、ここでは完了判定していない。
+

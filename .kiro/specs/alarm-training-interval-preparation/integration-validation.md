@@ -2,7 +2,7 @@
 
 ## 対象と境界
 
-区間分割と前区間の評価保存→吸収を、新しい3moduleで組み立てた。Task 3の実装/test commitは`8942c41`。Task 5で依存guardの同じ許可条件の重複を除去した。全体検証の対象commit/hashとfeature最終判定は、全回帰後に記録する。
+区間分割と前区間の評価保存→吸収を、新しい3moduleで組み立てた。全回帰の対象commitは`d6cc32d`（Task 5までのsource/test）。それ以後の変更は証拠・進捗文書のみ。feature最終判定は別fresh独立レビューで行う。
 
 旧`_resolve_drift`の対応区間を実NNで実行するoracleを使用。推定区間長、検出器reset、適応eventの記録はこのspecの範囲外として差し替えた。保存、吸収、区間解決、共同更新、候補学習・観測の実計算は差し替えていない。
 
@@ -14,8 +14,46 @@
 | 2 runtime | 実装前ImportErrorのRED、依存注入49 failed/155 passed。対象98＋AST2220＝2318 passed。同じ分類器を事前評価・吸収が参照することを追加検証。独立Luna承認 |
 | 3 接続 | 152 passed、主担当13.37s、独立Lunaも152 passed。2/4class×再利用・維持・候補開始、実共同更新と候補観測、最小件数直前・一致 |
 | 4 検出力 | [6変異すべて検出、byte復元後152 passed](mutation-evidence.md)。独立Luna承認 |
-| 5 依存境界 | 最終対象152＋AST2220＝2372 passed / 10.05s / exit0。独立レビューは別記 |
-| 6 fresh CPU | 旧/test importなしの新process、2/4class×正規ID2/負ID−3の4条件成功 / exit0。独立レビューは別記 |
+| 5 依存境界 | 最終対象152＋AST2220＝2372 passed / 10.05s / exit0。独立Lunaが新注入204と全AST2220成功、exact集合一致を再現し承認 |
+| 6 fresh CPU | 旧/test importなしの新process、2/4class×正規ID2/負ID−3の4条件成功 / exit0。独立Lunaも4条件再現し承認 |
+| 7 全回帰 | 8811 passed / 3 skipped / 2 warnings、232.47s、exit0。独立レビューはreview.mdに別記 |
+
+## 基準環境での全回帰・品質
+
+| 検証 | 結果 |
+| --- | --- |
+| 全pytestとJUnit | 8811 passed、JUnit8814 testcase・failure/error0・skip3。前spec8455＋本対象152＋新注入204＝8811 |
+| 旧・最終golden | pytest各1entryで全旧11/最終3scenarioを照合し成功。JUnitの実行時間は旧104.363s/最終27.138s、どちらもfailure/error/skipなし |
+| Ruff check / format | 全src/tests/refactoring成功、163 files already formatted |
+| Pyright | 固定venv指定、0 errors / 0 warnings / 0 informations、exit0 |
+| pip check / git diff --check | 成功 |
+| 固定旧差分 | `748c3aa`から旧実装、tools、2golden、旧回帰testへのdiffは空 |
+
+3 skipは既存WindowsでのPOSIX bash不在による条件。2 warningsは既存のnested Tensor prototypeとTypedStorage deprecated。追加skip/warningはない。
+
+Windows CPUの固定venvと手順は[基準環境](../../../docs/experiments/refactoring-baseline.md)と[共通引継ぎ手順](../../steering/agent-handoff.md)に従った。OMP/MKL各1thread、TMP/TEMP=元checkoutのvenv/refactoring-tests、MPLCONFIGDIR=venv/matplotlib-cache、FDE_MNIST_DATA_DIR=data/mnist。
+
+```powershell
+../../venv/Scripts/python.exe -m pytest -q -p no:cacheprovider --junitxml=../../venv/refactoring-tests/alarm-preparation-full.xml
+../../venv/Scripts/python.exe -m ruff check src tests/refactoring
+../../venv/Scripts/python.exe -m ruff format --check src tests/refactoring
+../../venv/Scripts/python.exe -m pyright --pythonpath ../../venv/Scripts/python.exe
+../../venv/Scripts/python.exe -m pip check
+```
+
+全pytestはユーザー決定（2026-10-07）に従い主担当の実測とJUnit照合で判定する。独立レビュー担当の全suite再実行は必須にしていない。外部証拠は元checkoutの`venv/refactoring-tests/alarm-preparation-full.log`、`alarm-preparation-full.xml`、`alarm-preparation-pyright.log`、`alarm-preparation-verification-summary.json`。別PCでは同じ固定環境・コマンドを使う。
+
+## 同一性
+
+| 対象 | LF SHA256 |
+| --- | --- |
+| 要求r2 | 43c6198376ae7f2d219c0ec5590d9eb6f3f757c5a4948b1a70a74b730381d5eb |
+| 設計r1 | 82f81dad77eaedcc43d3a5ea76b301014bc4c55af83d3aca4e2551df9766d3f0 |
+| 命名r4 | 78c943a76cf7507ef28f1003583d21a7575560a735c869058dc9793f46ba36f8 |
+| tasks r4承認時（checkboxを未完了へ戻して照合） | cfba185185392aa1312502992b1fe33fd7ddc75a3570ba058ef39d5641718187 |
+| source全体（d6cc32d、tracked Python＋2golden、263パス） | ca7d146b8adec0f062ff3d3400d8d3d4399fd77f38920e4b9ccd9d90ebd345db |
+
+source hashは共通手順のパス昇順、UTF8 path＋NUL＋commit内容のLF正規化byte＋NULを連結したSHA256。git cat-file --batchで同じcommit内容を取得し、作業ツリーとのLF内容一致も検査した。承認文書hashは全項目一致。
 
 ### exact依存集合
 
