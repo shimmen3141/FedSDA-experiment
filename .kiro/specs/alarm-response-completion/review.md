@@ -83,3 +83,7 @@ Task 1を完了とした。
 
 - 1回目（session `01a11a32-89ea-74f1-be7c-90cf5cab6916`、HEAD `8c936d4`、検証対象`9335d5a`）: Task 2・3ともCHANGES_REQUESTED、Major 1件。「対象testとfresh CPU scriptのNumPy乱数の比較が状態の配列だけで、位置とGaussian cacheを比べていない。『3種の乱数状態が不変』の主張と、乱数消費の変異を省いた理由が裏付けられない」。→ 事実と確認して採用。testとscriptを状態全体の比較へ改め、乱数消費の変異4種を追加した（33/33検出）。testを変更したので、commit `def37e4`で全pytest・品質検査・source hashを取り直した（9254 passed、件数は同じ）。
 - 同じ回の独立実行（レビュー担当）: 対象＋依存境界2599 passed、fresh CPU 10条件PASS、Ruff check/format成功、JUnit 9257 testcase・failure 0・error 0・skip 3と2つのgolden回帰testcaseの成功、固定旧差分が空、承認hash 4件とsource hash（267パス）の一致を再現・照合した。全pytest・Pyright・pip checkは再実行していない。これらは`9335d5a`に対する結果で、`def37e4`については2回目で確認する。
+- 2回目（別session `01a11a40-c221-7511-a079-c422a3b38e67`、HEAD `bb9bc16`、検証対象`def37e4`）: Task 2・3ともAPPROVED、指摘なし。NumPy乱数の比較が状態全体になったこと、追加した乱数消費の変異4種（Gaussian cacheだけの変異を含む）が妥当で検出されていること、統合証拠の件数（実旧照合28条件、拒否条件12＋9、record拒否17条件）と未検証事項の記載を確認したと報告された。独立実行: 対象＋依存境界2599 passed、fresh CPU 10条件PASS、Ruff check/format成功。照合: JUnit 9257 testcase・failure 0・error 0・skip 3と2つのgolden回帰testcaseの成功、固定旧差分が空、`ea61b8a..def37e4`のsrc/tests差分が3ファイル、承認hash 4件の一致。全pytestの再実行・変異scriptの実行・Pyright・pip checkは行っていない（全pytestは2026-10-07のユーザー決定の基準で判定）。レビュー担当のpytest終了時に一時ディレクトリ削除のPermissionErrorが出たが、exitは0で、`git status --short`は空だった。
+- 2回目の依頼の前に、統合証拠の3.1の拒否条件数の誤記（13→12）を主担当が見つけて訂正した。
+
+Task 2・3を完了とした。外部証拠: 元checkoutの`venv/refactoring-tests/alarm-response-completion-task23-review-r1.md`/`.log`、`-r2.md`/`.log`。

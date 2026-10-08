@@ -13,4 +13,4 @@
 | [research.md](research.md) | 旧処理の事実とoracleの実行可能性 |
 | [review.md](review.md) | 独立レビューと採否 |
 
-状態: 要求r3・設計r5・命名r5・tasks r3は独立承認済み。Task 1はHaiku 5.5承認。Task 2・3は実測済みで独立レビュー待ち。[統合証拠](integration-validation.md)、[検出力と新CPU](mutation-and-cpu-evidence.md)。各状態の正本はspec.jsonとtasks.md。
+状態: 要求r3・設計r5・命名r5・tasks r3は独立承認済み。Task 1はHaiku 5.5承認。Task 2・3はLuna承認。別freshのfeature最終レビュー待ち。[統合証拠](integration-validation.md)、[検出力と新CPU](mutation-and-cpu-evidence.md)。各状態の正本はspec.jsonとtasks.md。

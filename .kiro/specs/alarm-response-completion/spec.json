@@ -100,13 +100,13 @@
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_or_haiku_5_5_by_difficulty_independent_review_effort_high",
   "implementation_progress": {
-    "completed": 1,
+    "completed": 3,
     "total": 3
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "task_1_approved_tasks_2_3_measured",
-    "next_step": "independent_review_of_tasks_2_and_3_then_fresh_feature_final_review",
+    "completed_unit": "all_3_tasks_approved",
+    "next_step": "fresh_feature_final_review",
     "implementation_started": true,
     "tests_run": true,
     "full_pytest_run_for_this_spec": true
@@ -126,11 +126,41 @@
       ],
       "independent_test_execution": false,
       "evidence": "review.md"
+    },
+    "2": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=high)",
+      "reviewer_session": "01a11a40-c221-7511-a079-c422a3b38e67",
+      "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
+      "reviewed_commit": "bb9bc16",
+      "tested_commit": "def37e4",
+      "earlier_sessions_changes_requested": [
+        "01a11a32-89ea-74f1-be7c-90cf5cab6916"
+      ],
+      "independent_target_and_ast_rerun": true,
+      "independent_smoke_reproduced": true,
+      "independent_full_suite_rerun": false,
+      "evidence": "review.md"
+    },
+    "3": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=high)",
+      "reviewer_session": "01a11a40-c221-7511-a079-c422a3b38e67",
+      "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
+      "reviewed_commit": "bb9bc16",
+      "tested_commit": "def37e4",
+      "earlier_sessions_changes_requested": [
+        "01a11a32-89ea-74f1-be7c-90cf5cab6916"
+      ],
+      "independent_target_and_ast_rerun": true,
+      "independent_smoke_reproduced": true,
+      "independent_full_suite_rerun": false,
+      "evidence": "review.md"
     }
   },
   "verification_source_sha256": "b11a144ab4312c63f4dfd84492c5dc81c9ab11f7264caca9de5e32453fd9db2b",
   "integration_validation": {
-    "status": "MEASURED_AWAITING_INDEPENDENT_REVIEW",
+    "status": "MEASURED_TASKS_APPROVED_AWAITING_FEATURE_FINAL_REVIEW",
     "tested_commit": "def37e4",
     "full_passed": 9254,
     "full_skipped": 3,
