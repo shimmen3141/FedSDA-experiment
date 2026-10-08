@@ -1,5 +1,6 @@
 """診断証拠の旧実装一致と拒否時の状態保全を確認する。"""
 
+import math
 import random
 from collections.abc import Mapping
 
@@ -134,7 +135,7 @@ def test_diagnostic_evidence_matches_real_legacy_sequences(
     ],
 )
 def test_diagnostic_evidence_rejects_invalid_model_ids_before_synchronization(
-    invalid_model_ids, exception_type
+    invalid_model_ids, exception_type, monkeypatch
 ):
     diagnostic_evidence = AdaHedgeDiagnosticEvidence()
     diagnostic_evidence.get_diagnostic_weights_before_loss_observation(model_ids=[-1, 0])
@@ -143,6 +144,12 @@ def test_diagnostic_evidence_rejects_invalid_model_ids_before_synchronization(
         diagnostic_evidence.get_diagnostic_weights_before_loss_observation(
             model_ids=invalid_model_ids
         )
+    assert get_adahedge_evidence_snapshot(diagnostic_evidence) == evidence_snapshot
+    # 集合変更の候補を作った後でも、演算例外なら元の四状態を保持する。
+    with monkeypatch.context() as monkeypatch:
+        monkeypatch.setattr(math, "isinf", lambda value: 1 / 0)
+        with pytest.raises(ZeroDivisionError):
+            diagnostic_evidence.get_diagnostic_weights_before_loss_observation(model_ids=[2, 3])
     assert get_adahedge_evidence_snapshot(diagnostic_evidence) == evidence_snapshot
     with pytest.raises(ZeroDivisionError):
         diagnostic_evidence.get_diagnostic_weights_before_loss_observation(
@@ -156,11 +163,14 @@ def test_diagnostic_evidence_rejects_invalid_model_ids_before_synchronization(
     [
         ((None, {2: 1}), TypeError),
         (({2: 0}, None), TypeError),
+        (([(2, 0)], {2: 1}), TypeError),
+        (({2: 0}, [(2, 1)]), TypeError),
         (({}, {}), ValueError),
         (({True: 0}, {2: 1}), TypeError),
         (({2: 0}, {True: 1}), TypeError),
         (({2: 0}, {3: 1}), ValueError),
         (({2: 0, 3: 1}, {2: 0.5, 3: 0.5 + 2e-12}), ValueError),
+        (({2: 0.5, 3: 0.5}, {2: -0.1, 3: 1.1}), ValueError),
         ((FaultingEvidenceMapping(), {2: 0.5, 3: 0.5}), RuntimeError),
         (({2: 0, 3: 1}, FaultingEvidenceMapping()), RuntimeError),
         *[(({2: value}, {2: 1}), TypeError) for value in (True, "1", numpy.float64(1))],
@@ -173,7 +183,7 @@ def test_diagnostic_evidence_rejects_invalid_model_ids_before_synchronization(
     ],
 )
 def test_diagnostic_evidence_rejects_invalid_update_before_synchronization(
-    invalid_update_case, exception_type
+    invalid_update_case, exception_type, monkeypatch
 ):
     diagnostic_evidence = AdaHedgeDiagnosticEvidence()
     diagnostic_evidence.update_evidence_after_loss_observation(
@@ -185,6 +195,15 @@ def test_diagnostic_evidence_rejects_invalid_update_before_synchronization(
             observed_losses_by_model_id=invalid_update_case[0],
             diagnostic_weights_by_model_id=invalid_update_case[1],
         )
+    assert get_adahedge_evidence_snapshot(diagnostic_evidence) == evidence_snapshot
+    # 入力が有効でも、候補の数値演算が失敗した時点ではcommitしない。
+    with monkeypatch.context() as monkeypatch:
+        monkeypatch.setattr(math, "isinf", lambda value: 1 / 0)
+        with pytest.raises(ZeroDivisionError):
+            diagnostic_evidence.update_evidence_after_loss_observation(
+                observed_losses_by_model_id={2: 0, 3: 1},
+                diagnostic_weights_by_model_id={2: 0.5, 3: 0.5},
+            )
     assert get_adahedge_evidence_snapshot(diagnostic_evidence) == evidence_snapshot
 
 

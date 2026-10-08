@@ -29,7 +29,7 @@
 
 ## 現在の状態
 
-- 進行中: [adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)。通知の受け手に必要な単一AdaHedge診断証拠を先に移植する。要求r2・設計r1・命名r1・tasks r1を独立承認、Task 1実装中。通知・検出episode・client進行・集約再較正・保存集計は後続。
+- 進行中: [adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)。通知の受け手に必要な単一AdaHedge診断証拠を先に移植する。要求r2・設計r1・命名r3・tasks r1を独立承認、Task 1・2承認済み、Task 3のWindows全回帰へ進行。通知・検出episode・client進行・集約再較正・保存集計は後続。
 
 - 警報応答の完了処理は`../specs/alarm-response-completion/README.md`。主担当Claude Code。要求r3・設計r5・命名r5・tasks r3・全3tasks承認/完了、別fresh GPT-6 Lunaのfeature最終GO。文書と証拠のレビューはLuna、実装（Task 1）のレビューはClaude Haiku 5.5、どちらもeffort high。runtimeの`complete_alarm_buffer_response`が、完了した警報応答に対して検査→現行モデルの統計から監視の基準平均を選択→不変recordの組立→損失監視のreset→保留位置のdrain（変化区間の不足ではdrainしない）を行う。実旧_resolve_driftをイベント記録・検出器reset・FIFO clearを差し替えずに実行し、2/4class×3解決条件×4組と候補検証中の2回目の警報で、イベントの各値・切替位置・再利用計数・戻り値・FIFO・reset後の検出器全状態・完了後の監視の継続を照合。Task 1は4回差し戻され、検査をすべて更新の前に置く設計へ改訂（recordを先に組み立てる、変更記録のexact型検査、未観測FIFOの拒否）。実装前RED、実source変異33種を検出。対象57＋AST2542/全9254 passed・3 skipped・2既存warnings（主担当実測＋JUnit）、fresh新CPU 10条件/品質/固定旧golden/10要件成功。適応イベント一覧・切替位置・再利用計数・episode・通知・session保持のownerは後続。入口はresume.md。
 

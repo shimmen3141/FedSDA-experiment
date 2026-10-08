@@ -9,7 +9,7 @@
   - _Boundary: 診断証拠owner・behavior tests・exact依存guardの統合_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 4.1_
 
-- [ ] 2. 単一ownerの検出力と独立動作を確認する
+- [x] 2. 単一ownerの検出力と独立動作を確認する
   - GREEN後、型/値/総和/集合検査の削除、検査を同期後へ移す、昇順/式/計数/再始動/copyの破壊を実sourceへ1種ずつ入れ、対応testで失敗を確認して元byteへ戻す。変異ごとの一覧と検出結果を保存し、復元後の対象suiteを成功させる。
   - fresh processで旧実装とtest moduleをimportせず、取得→更新→集合変更→再始動→継続を実行して診断証拠を確認する。
   - 完了: 変異の検出とbyte復元、対象suiteの再成功、fresh processの成功を実測し、対象taskの独立レビューPASS。
