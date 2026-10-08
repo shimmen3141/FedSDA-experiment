@@ -1,8 +1,8 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-08（警報応答の適応記録を完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-08（候補検証sessionの保持と進行を完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
-**引継ぎ地点（2026-10-08）:** 主担当Codexが[alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)を完了。全3taskの独立承認と別fresh Luna feature最終GO。source/test commit 9b72182、全9363 passed/3 skipped/2 warnings、旧11/最終3golden・品質成功、22変異検出。進行中の編集・レビューはない。次は候補検証の到達時/終端の適応記録を要求から仕様化する。
+**引継ぎ地点（2026-10-08）:** 主担当Claude Codeが[held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)を完了（全3taskの独立承認と別sessionのLuna最終GO）。その直前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)は全3task承認済みで、feature最終レビューの3回目待ち（1・2回目の指摘は進捗記録と再開案内の更新漏れだけで、要求9項目は満たすと判定済み）。2 specの検証commitは`733994b`、Windows基準で全9663 passed/3 skipped/2 warnings。未コミット差分はない。次は下の「次の候補」1。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -11,13 +11,15 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **進行中（2026-10-08、主担当Claude Code、WSLで検証）:** [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)（候補検証sessionを保持するownerと、警報応答の反映・標本ごとの進行・終端回収を適応記録と保持の解除へつなぐ3関数）。要求・設計・命名・tasksは承認済み。進捗は同specのtasks.mdとreview.md。直前のspec（下の項目）と同じく、Task 3と最終GOはWindows基準の回帰が済むまで完了にしない。
+- **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。Task 3と最終GOは、Windows基準での全回帰が済むまで完了にしない。
 - **決定（2026-10-08ユーザー）:** Linux用のgolden（旧実装をLinuxで実行した結果）は、新実装の全体runを接続するspecに入る前に作る。既存のWindows用goldenと回帰testは変更せず、別ファイル・別testにする。作る前に、同じ環境で2回実行して結果が一致することを確かめる。それまでの部品specでは、WSLのgolden回帰の不一致（環境差。旧実装は固定旧から無変更）を理由にgoldenを変えない。
-- **Windows基準の検証待ち（2026-10-08、主担当Claude Code）:** [candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（候補検証の到達時の確定と未完了の終端回収を、既存の適応記録ownerへ記録する）。要求r2・設計r4・命名r2・tasks r2承認、Task 1承認（source/test commit `af3ffa7`）。未コミット差分・レビュー待ちはない。Windowsの基準環境はtorchの読込みがスマートアプリコントロールでブロックされており（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`、10月3日・5日にも発生）、Task 1の後半からWSL Ubuntu（Python 3.14.4、リポジトリ直下の`.venv`）で検証した。WSLでは対象111件・変異51/51・fresh CPUが成功、全pytestは9504 passed/3 failed（Python 3.14の構文解析の違い1件と、golden回帰2件の環境差による不一致。旧実装は固定旧から無変更）。**Task 2・3と最終GOは、Windows基準での再実行が済むまで完了にしない。** 再開の手順は同specのreview.md「現在地: Windows基準の検証待ち」。WSLでの実行方法は`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動（Windows側の`venv`は使わない）。この項目より下の「次の一手」「最新完了」は、このspecの着手前の状態。
-- 次の一手: 下の「次の候補」1。候補検証の到達時/終端の適応記録を先に分離する案。session保持と診断通知は境界を決めて別specへ。警報応答の記録を再実装しない。
+- 次の一手: candidate-validation-adaptation-recordingの最終レビュー（別session）を通した後、下の「次の候補」1を要求から仕様化する。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
-- 最新完了: [alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)。要求r1・設計r3・命名r3・tasks r3、全3task/別fresh Luna最終GO。evaluationのAdaptationRecordStoreが履歴・切替位置・再利用/現行適合件数を所有し、runtimeのrecord_completed_alarm_responseが5種類の警報完了を不変AdaptationRecordへ変換する。検査は保存前、入力recordは再検査したcopyを保存する。
-- 直近検証source/test commit 9b72182、全9363 passed/3 skipped/2 warnings（165.21s）、JUnit9366件、対象40＋AST2611、22変異検出、新CPU2/4class×5経路成功。source/golden271パスのLF hash14816d2b68990d224dc6c8ee4cc62e467e17e60974993f10f863f82cf8e06d1d。固定旧748c3aaから旧実装/golden/旧回帰/toolsのdiff空。Haiku Task1は静的、Luna Task2/3は対象/AST/fresh/Ruff再現、最終fresh Lunaは承認/hash/固定旧/JUnitの独立照合。全pytestは主担当のみ。最初のsandbox測定は29権限エラーで、同じテストを必要な権限で再実行して成功した。新全体runのgoldenは未検証。本spec完了までは以後の差分が証拠・進捗文書のみ。その後、検査scriptのhash読取りを一括化した（実験src/testsは変更なし、旧hash定義との一致を専用検証）。共通手順にレビュー/検証の重複を避ける条件を追記した。
+- 最新完了: [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)。要求r1・設計r3・命名r2・tasks r2。runtimeの`CandidateValidationSessionHolder`（sessionを1つだけ保持）と、`apply_alarm_response_to_validation_session_holder`（候補検証を開始した応答だけが保持させる）、`advance_held_candidate_validation`（標本1件を観測させ、確定したら適応記録→保持の解除）、`finalize_held_incomplete_candidate_validation`（終端回収→記録→解除）。その前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（要求r2・設計r4・命名r2・tasks r2）は、適応結果へ候補検証の5値を追加し、`record_completed_candidate_validation`と`record_incomplete_candidate_validation_finalization`が到達時の確定と未完了の終端回収を`AdaptationRecordStore`へ記録する。recordのfield名は`adaptation_sample_index`へ改めた。
+- 上の2 specの検証: commit `733994b`、Windows基準で全9663 passed/3 skipped/2 warnings（327.73s）、JUnit 9666件、旧11・最終3golden成功、Ruff 175 files/Pyright/pip check成功。変異は51/51と30/30、fresh新CPUは各10条件。source hashは276パス、`f2348d1bede38ac4ebd4f1aa59468250821f35f7740a9831cf7926f21e73e69e`。固定旧748c3aaからのdiffは空。Task 2・3のLunaは対象test・依存境界・fresh CPU・Ruffを再現。全pytestは主担当のみ。以後の差分は証拠・進捗文書だけ。
+- 次にheld_candidate_validation_progress.pyを変更するときに直すこと: 保持が空でないときの`ValueError`の文言（`response without an active validation requires an empty holder`）は、sessionを持つ開始の応答にも当たるので不正確（Haikuの任意の指摘。文言だけなので本specでは変更していない）。
+- その前の完了: [alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)（主担当Codex）。要求r1・設計r3・命名r3・tasks r3、全3task/別fresh Luna最終GO。evaluationのAdaptationRecordStoreが履歴・切替位置・再利用/現行適合件数を所有し、runtimeのrecord_completed_alarm_responseが5種類の警報完了を不変AdaptationRecordへ変換する。検査は保存前、入力recordは再検査したcopyを保存する。
+- alarm-adaptation-recordingの検証: source/test commit 9b72182、全9363 passed/3 skipped/2 warnings（165.21s）、JUnit9366件、対象40＋AST2611、22変異検出、新CPU2/4class×5経路成功。source/golden271パスのLF hash14816d2b68990d224dc6c8ee4cc62e467e17e60974993f10f863f82cf8e06d1d。固定旧748c3aaから旧実装/golden/旧回帰/toolsのdiff空。Haiku Task1は静的、Luna Task2/3は対象/AST/fresh/Ruff再現、最終fresh Lunaは承認/hash/固定旧/JUnitの独立照合。全pytestは主担当のみ。最初のsandbox測定は29権限エラーで、同じテストを必要な権限で再実行して成功した。新全体runのgoldenは未検証。本spec完了までは以後の差分が証拠・進捗文書のみ。その後、検査scriptのhash読取りを一括化した（実験src/testsは変更なし、旧hash定義との一致を専用検証）。共通手順にレビュー/検証の重複を避ける条件を追記した。
 - 直前完了: [alarm-response-completion](../specs/alarm-response-completion/README.md)。runtimeの`complete_alarm_buffer_response`と不変record`AlarmResponseCompletion`（元の応答、警報位置、変更前後の学習帰属ID、推定変化点、episode ID、resetに使った基準平均、消費した保留位置。property `training_model_switch_sample_index`・`detection_episode_operation_required`）。詳細は同specのintegration-validation.md/spec.json/review.md。Task 1は独立レビューで4回差し戻され、検査をすべて更新の前に置く設計（recordを先に組み立てる、変更記録のexact型検査、未観測FIFOの拒否）へ改訂した。その前はalarm-buffer-response、alarm-training-interval-preparation。改善候補IMPROVE-004/005/006は未検証/未採用。研究アルゴリズムの変更は採用していない。
 - 直前specの検証済みsource/test commit: `def37e4`。全pytest 9254 passed/3 skipped/2 warnings、155.63s（主担当実測、JUnit 9257件照合）、対象57＋AST2542、33変異検出、fresh新CPU 2/4class×5経路の10条件をTask 2・3のLunaも再現。Ruff 167files/Pyright/pip check成功、旧11・最終3golden成功。固定旧748c3aaから旧実装・golden・旧回帰test・toolsへのdiffは空。source hashは267パス、`b11a144ab4312c63f4dfd84492c5dc81c9ab11f7264caca9de5e32453fd9db2b`。以後は証拠/進捗文書だけを変更。その後に追加した`.kiro/settings/scripts/spec_checks.py`はtrackedなPythonなので、以後のcommitのsource hashは268パスから数える。
 - pushの扱い: taskごとに通常pushを1回だけ試す。失敗時は連続再試行や原因探索をせず、次taskのpush成功時に未送信commitも送る（2026-10-08ユーザー指示）。現在、全commitは`origin/refactor/architecture`へ送信済み。
@@ -45,17 +47,17 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 候補検証の適応記録とsession保持、診断通知（次に着手）
+### 1. 診断通知、検出episode、標本ごとのclient進行（次に着手）
 
-警報完了の記録ownerはalarm-adaptation-recordingで分離した。次は候補検証の到達時（PostAlarmCandidateValidationCompletion）・未完了回収（IncompletePostAlarmCandidateValidationFinalization）の適応記録を同じownerへ接続する境界を要求から決める。現在のAdaptationOutcomeは警報応答5結果だけで、候補の採用等の結果値/切替・計数規則は追加仕様と命名レビューが必要。新しい要求・設計・命名・tasksは未作成。session保持と通知を一度に混ぜず、必要なら別specへ分ける。
+警報応答・候補検証の適応記録と、候補検証sessionの保持・解除までは部品が揃った。残りは、学習帰属の変更の通知と保存診断、検出episode、これらの部品を標本ごとの順序で並べるclient進行。新しい要求・設計・命名・tasksは未作成。一度に混ぜず、境界を決めて分ける。
 
-- 記録のoracleはtests/refactoring/test_alarm_adaptation_recording.pyと直前specの実旧_resolve_drift。候補検証は対応する完了specの実旧oracleを使い、旧AdaptationEventの全field・切替位置・再利用件数を照合する。
-- 予測と通知の確認は完了。最終Switching予測はFixed-Share側で、旧_on_local_model_changeのAdaHedge restartを直接参照しない。一方、NPZのrouting_concept_restart_counts、global gain、条件付きLOO診断はAdaHedge状態を使う。通知を全面的に省くことはできない。根拠はalarm-adaptation-recording/research.md。最終3goldenはこれら診断を比較しないので、その成功だけでは保存診断の同一性を証明しない。IMPROVE-007は診断の選択実行案で未検証/未採用。
-- 候補検証sessionの保持と解除: 応答のactive_validation_session（検証中は同じ参照、開始時は新session、その他None）を誰が持ち、到達時・終端回収で誰が外すか。
-- 検出episodeは最終構成の既定で無効。mark_operationと同一episodeの追加検出は移植の要否を最終構成から判断する。
-- 呼出側で応答を一度だけ完了させ、応答と完了の間に標本を観測しない保証を接続testで確認する。検出器名等は上流更新の前に検査する。
+- 通知と保存診断: 最終Switching予測はFixed-Share側で、旧_on_local_model_changeのAdaHedge restartを直接参照しない。一方、NPZのrouting_concept_restart_counts、global gain、条件付きLOO診断はAdaHedge状態を使うので、通知を全面的に省くことはできない。根拠はalarm-adaptation-recording/research.md。最終3goldenはこれらの診断を比較しないので、その成功だけでは保存診断の同一性を証明しない。IMPROVE-007は診断の選択実行案で未検証/未採用。
+- 検出episodeは最終構成の既定で無効。mark_operationと同一episodeの追加検出は、移植の要否を最終構成から判断する。
+- 標本ごとのclient進行で確認すること: 応答→完了処理→警報応答の記録→保持への反映の並べ方、応答を一度だけ完了させること、応答と完了の間に標本を観測しない保証、標本位置の連続性。検出器名等は上流更新の前に検査する。
+- 既知の限界（held-candidate-validation-progressの設計4節）: 上流の進行は、標本位置が提案位置より後であることを検査しない。提案位置より前の位置で確定すると、上流の更新の後で記録が拒否される。位置の検査をどこへ置くかは、client進行のspecで判断する。
+- 記録のoracle: tests/refactoring/test_alarm_adaptation_recording.py、test_candidate_validation_adaptation_recording.py、test_held_candidate_validation_progress.pyの実旧対照を再利用する。
 - 許容損失増加量と最小変化区間件数の設定登録は組立側に残る。
-- 新client・新全体run、候補完了/終端の記録、session解除、診断通知は未完了。部品の旧対照と全体runのgolden一致を混同しない。
+- 新client・新全体runは未完了。部品の旧対照と全体runのgolden一致を混同しない。全体runを接続するspecの前に、Linux用のgoldenを作る（上の「決定」）。
 
 ### 2. その先
 

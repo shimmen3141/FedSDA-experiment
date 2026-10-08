@@ -1,6 +1,6 @@
 # 独立レビューと検証記録
 
-主担当はClaude Code。レビュー担当の選択は共通引継ぎ手順に従う。実行環境はWSL 2 Ubuntu（Python 3.14.4、torch 2.12.1+cpu）。Windowsの基準環境はtorchの読込みがスマートアプリコントロールでブロックされており、WSLの結果はWindows基準の検証ではない。
+主担当はClaude Code。レビュー担当の選択は共通引継ぎ手順に従う。実行環境はWSL 2 Ubuntu（Python 3.14.4、torch 2.12.1+cpu）。Windowsの基準環境はtorchの読込みがスマートアプリコントロールでブロックされており、WSLの結果はWindows基準の検証ではない。（追記: Task 1の承認後にブロックが解消し、Windowsの基準環境で実行し直した。下の「Windows基準環境での再実行」。）
 
 ## 要求r1・設計r1・命名r1・tasks r1 — APPROVED
 
@@ -52,3 +52,11 @@ Task 1の承認後、Windowsの基準環境でtorchが読み込めるように�
 ### Task 2 2回目（Luna、別session `01a11bd0-b149-7110-a7ab-e9599068ec78`、HEAD `c76f6fb`）— TASK 2: APPROVED
 
 指摘なし。追加した変異が終端回収の型検査を上流の呼出しの後・結果の分岐の前へ移すこと、そのlogの失敗が順序の違いの検出であること（構文・収集の失敗ではない）、report.jsonの30件がすべて検出で、元・復元後のhashが現在のsource 2ファイルのbyteのSHA-256と一致すること、証拠文書の追記が事実と一致することを確認したと報告された。変異script・対象test・全pytestは独立実行していない。全3taskを完了とした。
+
+### feature最終レビュー（Luna、別session `01a11bd3-04f3-7491-9699-636d4b30e572`、HEAD `0bfddc0`）— FEATURE FINAL: GO
+
+選択: 文書・承認・証拠の照合が中心の最終レビューなのでGPT-6 Luna（effort `medium`を明示、実行ログで確認）。これまでのどのレビューとも別のsession、読取り専用。指摘なし。要求12項目はすべて「満たす」。設計r3の境界・契約・許可依存（1 symbolと20 symbol）と実装の一致、既知の限界の記録、承認の流れ、任意の指摘の採否、手順上の逸脱とWSL/Windowsの区別の記録を確認したと報告された。
+
+レビュー担当が独立に実行したもの: `spec_checks.py identity`（成功）、対象2ファイルのRuff check（成功）。対象test＋依存境界testは実行を試みたが、読取り専用のsandboxに書込みできる一時ディレクトリがなく、torchの一時cacheの作成で40件が失敗した（2800件は成功）。レビュー担当はこの失敗を判定に使っていない。同じtestは、Task 2・3のレビュー担当（workspace-write）が2840 passedで再現している。全pytest・fresh CPU・変異・Pyright・pip checkは独立実行していない。Git管理外の証拠ファイル（report.json等）は、このレビューでは直接確認していない（Task 2のレビューで確認済み）。
+
+本specを完了とした。

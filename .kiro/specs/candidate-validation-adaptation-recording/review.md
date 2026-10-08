@@ -83,7 +83,7 @@ Blocker・Majorなし。1回目の指摘1〜3と任意2件の解消、追加し�
 
 golden回帰の不一致について確かめたこと: この2つのtestが実行するのは旧実装`federated_drift_experiment`だけで、旧実装・2つのgolden・2つの回帰testは固定旧`748c3aa`から差分が空（`git diff 748c3aa HEAD`で確認）。したがって本specの変更はこの結果に影響しない。Windowsの基準環境では、障害の前に同じ2testが成功している（commit `3a007bf`の全pytest 9496 passed。旧実装は同一）。torchの版はどちらも2.12.1で、違いはOS（Linux/Windows）、Python（3.14.4/3.13）、数値ライブラリの実装。小さな浮動小数の差が学習と検出の分岐を変えたと考えるのが自然だが、どの演算で最初に差が出るかは調べていない（未確認）。goldenの更新、許容誤差の変更、testのskipは行っていない。docs/experiments/refactoring-baseline.mdのとおり、別OSでの不一致を理由にgoldenを変えない。
 
-結論: WSLでは新実装のtest（tests/refactoring）は既知の1件を除いて成功するが、golden回帰はWSLでは判定できない。旧11・最終3goldenの確認は、Windowsの基準環境でtorchが読み込めるようになってから行う。
+結論: WSLでは新実装のtest（tests/refactoring）は既知の1件を除いて成功するが、golden回帰はWSLでは判定できない。旧11・最終3goldenの確認は、Windowsの基準環境でtorchが読み込めるようになってから行う。（追記: 同じ日にWindowsの基準環境で実施し、旧11・最終3goldenを含む全pytestが成功した。下の「Windows基準環境での再実行」。）
 
 ### Haiku 3回目（session `026f935d-98c2-4a21-a55e-89b95458d815`、HEAD `2a6aff1`）— Task 1 APPROVED
 
@@ -104,3 +104,10 @@ Task 1の承認後、Windowsの基準環境でtorchが読み込めるように�
 選択: 文書・承認・証拠の照合が中心の最終レビューなのでGPT-6 Luna（effort `medium`を明示、実行ログで確認）。これまでのレビューとは別のsession、読取り専用。要求9項目はすべて「満たす」と判定され、仕様・実装の機能的な不一致はないと報告された。`spec_checks.py identity`を独立に実行して成功。pytest・fresh CPU・変異・Ruff・Pyright・pip checkは独立実行していない。
 
 1. Minor: spec.jsonの`implementation_progress.completed`が1、`phase`が`implementation-in-progress`のままで、全3task完了のtasks.md・task_reviewsと矛盾する。→ 事実で、採用。Task 2・3の承認を記録したときの更新漏れ。`completed`を3、`phase`を`feature-final-review-pending`へ改めた。source・test・承認済み文書は変更していない。
+
+### feature最終レビュー 2回目（Luna、別session `01a11bd3-0503-7fc1-9fe6-4764c79e15fb`、HEAD `0bfddc0`）— NO-GO
+
+1回目とは別のsession、読取り専用。1回目の指摘の解消（spec.jsonの進捗）、要求9項目（すべて「満たす」）、設計と実装の一致、承認の記録を確認したと報告された。`spec_checks.py identity`を独立に実行して成功。pytest・fresh CPU・変異・Ruff・Pyright・pip checkは独立実行していない。指摘はどちらも、解消済みの待ち状態が記録に残っていること:
+
+1. Minor: 再開案内（.kiro/steering/resume.md）が本specを「Windows基準の検証待ち」のままにしている。→ 採用。再開案内を現在の状態へ更新した。
+2. Minor: このreview.mdの「WSLでの全pytest」の結論が「Windowsで読み込めるようになってから行う」のままで、後段の実施記録と対応していない。→ 採用。結論へ実施済みの追記を入れた（元の文は当時の記録として残した）。次のspecのreview.md冒頭の実行環境の記述にも同じ追記を入れた。
