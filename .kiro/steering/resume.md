@@ -11,7 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **中断中（2026-10-08、主担当Claude Code）:** [candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)のTask 1の途中。固定venvのtorchのimportがWindowsのアプリケーション制御ポリシーでブロックされ（`DLL load failed while importing _C`）、pytestを実行できなくなった。回避は試みていない。worktreeに未コミット・未検証の差分がある（設計r3・命名r2は未承認、sourceの順序検査は未実行）。内容と次の一手は同specのreview.md「中断地点」。この項目より下の「次の一手」「最新完了」は、このspecの着手前の状態。
+- **進行中（2026-10-08、主担当Claude Code、WSLで検証中）:** [candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)のTask 1。Windowsの基準環境はtorchの読込みがスマートアプリコントロールでブロックされており、検証はWSL Ubuntu（Python 3.14）で進めている。WSLの結果はWindows基準の検証ではなく、Windowsでの最終回帰が済むまで完了ゲートを通過扱いにしない。経過と残る検証は同specのreview.md「WSLでの再開」。この項目より下の「次の一手」「最新完了」は、このspecの着手前の状態。
 - 次の一手: 下の「次の候補」1。候補検証の到達時/終端の適応記録を先に分離する案。session保持と診断通知は境界を決めて別specへ。警報応答の記録を再実装しない。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 最新完了: [alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)。要求r1・設計r3・命名r3・tasks r3、全3task/別fresh Luna最終GO。evaluationのAdaptationRecordStoreが履歴・切替位置・再利用/現行適合件数を所有し、runtimeのrecord_completed_alarm_responseが5種類の警報完了を不変AdaptationRecordへ変換する。検査は保存前、入力recordは再検査したcopyを保存する。

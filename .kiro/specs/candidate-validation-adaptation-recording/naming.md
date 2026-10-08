@@ -1,4 +1,4 @@
-# 候補検証の適応記録 — 命名 revision1
+# 候補検証の適応記録 — 命名 revision2
 
 sourceとtestの実装前一覧。リポジトリ外の下書きを`.kiro/settings/scripts/spec_checks.py names`で命名表と照合した（下書きを適用した作業ツリーの複製で実行。未登録・役割の再利用とも報告なし）。既存名は定義元と同じ役割で再利用する。承認状態はspec.json。
 
@@ -12,6 +12,7 @@ sourceとtestの実装前一覧。リポジトリ外の下書きを`.kiro/settin
 | `ADAPTATION_OUTCOME_BY_VALIDATION_RESOLUTION_OUTCOME` | 確定結果の4値（`POST_ALARM_CANDIDATE_VALIDATION_RESOLUTION_OUTCOMES`）から適応結果への対応表（dict、公開定数）。旧actionとの対応ではない。 |
 | `TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES` | evaluationの公開定数（tuple）。学習帰属IDが変わる適応結果3値。recordのID整合の規則とstoreの切替位置の追加が共用する。既存property `training_model_switch_sample_index`と同じ「学習帰属の切替」の語を使う。 |
 | `adaptation_sample_index` | `AdaptationRecord`のfield。その適応が確定した標本位置（0始まり、単位は標本）。警報応答では警報位置、到達時の確定では確定位置、終端回収では終端位置。旧`AdaptationEvent.position`。既存`alarm_sample_index`（`AlarmResponseCompletion`のfield、警報位置）からの改名で、後者は変更しない。 |
+| `_validate_sample_index_not_before_proposal` | module内の検査helper（revision2で追加）。記録の位置（引数`adaptation_sample_index`）が判定記録の提案位置（引数`proposal_sample_index`、既存fieldと同名・同じ値）より前でないことと、提案位置が非負であることを、型と値で確かめる。2つの記録関数が共用する。 |
 | `validation_completion` | 引数。到達時の完了情報。既存`advance_post_alarm_candidate_validation`内の同名の局所変数と同じ対象。 |
 | `incomplete_validation_finalization` | 引数。終端回収の結果。既存testの同名の変数と同じ対象。 |
 | `resolution_outcome` | 局所名。確定結果の結果種別（既存fieldと同名・同じ値）。 |

@@ -46,3 +46,16 @@ worktreeの未コミット差分（いずれも未検証・未承認）:
 - Git管理外: 変異script（`venv/refactoring-tests/candidate-validation-adaptation-recording-mutations.py`）へ順序検査の変異5種を追加済み（未実行）。順序検査を入れる前のsourceの控えは`venv/refactoring-tests/candidate-validation-adaptation-recording-runtime-before-order-check.py`（REDの記録に使える）。
 
 再開時の次の一手: (1)torchがimportできることを確かめる。(2)順序検査を入れる前のsource（`git stash`は使わず、helperと2箇所の呼出しを一時的に外す）で新しい拒否条件4件がREDになることを記録し、現在のsourceでGREENを確かめる。(3)変異scriptとfresh CPUを実行し、証拠文書を作り直す。(4)`spec_checks.py names`。(5)設計r3・命名r2をLunaへ出す（差分と、要求2.1との対応を入口にする）。(6)commitして全pytestを取り直し、Haikuへ再レビュー（1回目の指摘の解消と順序検査）。その後Task 2・3と最終GO。
+
+### WSLでの再開（2026-10-08、ユーザー経由のCodexの提案による）
+
+障害の原因: Windowsのスマートアプリコントロール（有効）が、署名のない`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`の読込みを拒否している（コード整合性ログのevent 3033/3077）。ファイルの更新日時は10月1日のままで、同じブロックが10月3日・5日にも記録されている。保護設定・venv・goldenは変更していない。
+
+以後の実行はWSL 2 Ubuntu（Python 3.14.4、torch 2.12.1+cpu、NumPy 2.4.6、pytest 9.1.1、リポジトリ直下の`.venv`）で行った。worktreeは同じファイル（`/mnt/c/...`）。環境変数はOMP/MKL各1、`PYTHONDONTWRITEBYTECODE=1`、`MPLCONFIGDIR=/tmp/fedsda-mpl`、`FDE_MNIST_DATA_DIR`はデータの`/mnt/c`側のパス。一時ディレクトリはLinuxの既定。**WSLの結果はWindows基準での検証ではない。** Ruff・Pyright・`spec_checks.py`はtorchを読み込まないので、Windows側のPythonで実行した。
+
+- 位置の順序検査: 検査なしのsourceで拒否条件4件が失敗（RED）、検査ありで成功。
+- 設計r3・命名r2のレビュー（Luna、medium）: 1回目（session `01a11b5f-b03b-7dc3-a507-2cdb820f742d`）は命名APPROVED、設計REJECTED（提案位置-1・記録位置0が通る）。→ 採用し、提案位置の非負検査を追加。非負検査なしのsourceで拒否条件2件が失敗（RED）、検査ありで成功。2回目（別session `01a11b62-7321-7552-bc9d-959cfb93084c`）は設計r3・命名r2ともAPPROVED、指摘なし。正常な上流の出力（終端位置が提案位置と等しい場合を含む）を拒否しないことを上流の実コードで確認したと報告された。
+- WSLでの実測（反映後）: 対象111（新71＋既存40）と依存境界2681のうち2791 passed、1 failed。失敗は本specと無関係の既存test 1件で、Python 3.14の構文解析の違いによる（証拠文書の「依存のexact一致」に記載）。変異51/51検出、復元後111 passed。fresh新CPU 10条件成功。
+- Windows側のPythonでの静的検査: Ruff check/format成功（172 files）、Pyright 0 errors、`spec_checks.py names`報告なし。
+
+Windows基準で残る検証: 対象test・依存境界test・変異・fresh CPU・全pytest（旧11・最終3golden）。torchが読み込めるようになってから実施する。それまで完了ゲート（Task 3と最終GO）は通過扱いにしない。

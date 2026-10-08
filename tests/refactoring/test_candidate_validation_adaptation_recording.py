@@ -412,6 +412,22 @@ INVALID_VALIDATION_COMPLETION_CASES = {
         ),
         ValueError,
     ),
+    # 変更記録がない維持・棄却で、保留標本の帰属先だけが学習帰属と違う。IDは変わらないので、
+    # 記録のID整合の検査では拒否されない。
+    "maintained_model_with_foreign_assigned_model": (
+        "maintain",
+        lambda completion: replace_validation_resolution_fields(
+            completion, assigned_model_id=completion.previous_training_model_id + 100
+        ),
+        ValueError,
+    ),
+    "rejected_candidate_with_foreign_assigned_model": (
+        "create_rejected",
+        lambda completion: replace_validation_resolution_fields(
+            completion, assigned_model_id=completion.previous_training_model_id + 100
+        ),
+        ValueError,
+    ),
     "assignment_change_is_not_exact_record": (
         "create",
         lambda completion: replace_validation_resolution_fields(
@@ -492,6 +508,26 @@ INVALID_VALIDATION_COMPLETION_CASES = {
         lambda completion: replace_decision_record_fields(completion, resolution_sample_index=-1),
         ValueError,
     ),
+    # 確定位置は提案位置（警報位置）以降。判定記録の2つの位置の順序を破る。
+    "resolution_sample_index_precedes_proposal": (
+        "create",
+        lambda completion: replace_decision_record_fields(
+            completion,
+            resolution_sample_index=completion.decision_record.proposal_sample_index - 1,
+        ),
+        ValueError,
+    ),
+    # 提案位置だけが負。確定位置は提案位置以降で非負なので、順序と記録の位置の検査では拒否されない。
+    "proposal_sample_index_is_negative": (
+        "create",
+        lambda completion: replace_decision_record_fields(completion, proposal_sample_index=-1),
+        ValueError,
+    ),
+    "proposal_sample_index_is_bool": (
+        "create",
+        lambda completion: replace_decision_record_fields(completion, proposal_sample_index=True),
+        TypeError,
+    ),
     "detector_name_is_blank": (
         "create",
         lambda completion: replace_decision_record_fields(completion, detector_name="  "),
@@ -567,6 +603,23 @@ INVALID_INCOMPLETE_FINALIZATION_CASES = {
             finalization, finalization_sample_index=-1
         ),
         ValueError,
+    ),
+    "finalization_sample_index_precedes_proposal": (
+        lambda finalization: replace_decision_record_fields(
+            finalization,
+            finalization_sample_index=finalization.decision_record.proposal_sample_index - 1,
+        ),
+        ValueError,
+    ),
+    "proposal_sample_index_is_negative": (
+        lambda finalization: replace_decision_record_fields(finalization, proposal_sample_index=-1),
+        ValueError,
+    ),
+    "proposal_sample_index_is_none": (
+        lambda finalization: replace_decision_record_fields(
+            finalization, proposal_sample_index=None
+        ),
+        TypeError,
     ),
     "detector_name_is_not_str": (
         lambda finalization: replace_decision_record_fields(finalization, detector_name=None),

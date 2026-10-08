@@ -1,4 +1,4 @@
-# 候補検証の適応記録 — 設計 revision2
+# 候補検証の適応記録 — 設計 revision3
 
 ## 1. Boundary Commitments
 
@@ -45,6 +45,7 @@ Out of Boundary: 確定・回収の再実行、session保持/解除、学習帰�
 | 完了情報・storeがexact型 | TypeError | 更新前 | 引数 |
 | 判定記録がexact `PostAlarmCandidateValidationDecisionRecord` | TypeError | 更新前 | 完了情報のfield。上流は検査しない |
 | 確定結果がexact `PostAlarmCandidateValidationResolution` | TypeError | 更新前 | 同上 |
+| 確定位置と提案位置がbuiltin intで、提案位置が0以上、確定位置が提案位置以上 | TypeError / ValueError | 更新前 | 判定記録のfield。上流は検査しない。提案位置の非負を確かめないと、提案位置-1・確定位置0のような入力が順序と記録の位置の検査を通る（設計レビューの指摘で追加） |
 | 結果種別がbuiltin strで、対応表の4値のいずれか | TypeError / ValueError | 更新前 | 確定結果のconstructorは集合への所属だけを見る。手で差し替えた値は通りうる |
 | 変更前IDと保留標本の帰属先IDがbuiltin int | TypeError | 更新前 | 上流は検査しない（`True == 1`で以降の比較を通過しうるので、比較より前に型を見る） |
 | 変更記録がNoneまたはexact `TrainingModelAssignmentChange`で、両IDがbuiltin int | TypeError | 更新前 | 上流は検査しない |
@@ -63,7 +64,9 @@ Out of Boundary: 確定・回収の再実行、session保持/解除、学習帰�
 - 変更記録があれば前後のIDは必ず異なる（上の検査）ので、recordの規則「IDが異なる ⇔ 帰属が変わる結果」により、維持・棄却では変更記録を持つ入力がすべて拒否される。
 - 変更記録がなければ前後のIDは同じなので、同じ規則により、採用・再利用では変更記録を持たない入力がすべて拒否される。
 
-終端回収は、結果とstoreのexact型、判定記録がexact `IncompletePostAlarmCandidateValidationDecisionRecord`であることを確かめ、残り（終端位置、検出器名、学習帰属ID、推定変化点、episode ID）はrecordのconstructorが検査する。変更前後のIDには同じ値（回収時点の学習帰属ID）を入れるので、比較に使う値はない。
+終端回収は、結果とstoreのexact型、判定記録がexact `IncompletePostAlarmCandidateValidationDecisionRecord`であること、終端位置と提案位置の型と順序を確かめ、残り（終端位置の非負、検出器名、学習帰属ID、推定変化点、episode ID）はrecordのconstructorが検査する。変更前後のIDには同じ値（回収時点の学習帰属ID）を入れるので、比較に使う値はない。
+
+位置の順序も検査する。判定記録は提案位置（警報位置）と、確定位置または終端位置の両方を持つ。記録の位置が提案位置より前の入力は、どちらの関数も更新前に拒否する（両方がbuiltin intでなければTypeError、提案位置が負、または記録の位置が提案位置より前ならValueError）。上流の進行は提案位置より後の標本で確定し、終端回収は`max(提案位置, 処理済み件数-1)`を終端位置にするので、正常な完了情報はこの検査を通る。revision2まではこの検査がなく、Task 1の独立レビューと設計レビューが、要求2.1の「位置が不正」との不一致を指摘した。提案位置そのものは記録へ写さない。
 
 確定後の学習帰属IDは完了情報から導く（学習帰属ownerを引数に取らない）。到達時の完了情報は確定直後の値を持ち、記録は確定時点の事実を写すためである。
 
@@ -99,7 +102,7 @@ oracleは実旧。到達時は既存`build_validation_progress_oracle`と`set_sc
 | 1.2, 3.1 | 2/4class×観測0/3件×処理済み件数2種（終端位置が提案位置になる場合を含む）の8条件で同じ照合 |
 | 1.3 | 全10結果について、切替位置・2種類の件数の増分と「IDが異なる ⇔ 帰属が変わる結果」の双方向の拒否。警報時の再利用1件を先に持つstoreへの追加順 |
 | 1.4 | 既存`test_alarm_adaptation_recording.py`の全件（field名だけ置換）。適応結果の先頭5値が警報応答の5結果と一致 |
-| 2.1 | 4節の表の各検査を破る入力（到達時20条件、終端8条件、storeの型）で、警報時の記録と正常な記録を先に持つstoreのsnapshotが不変 |
+| 2.1 | 4節の表の各検査を破る入力（到達時25条件、終端11条件、storeの型）で、警報時の記録と正常な記録を先に持つstoreのsnapshotが不変 |
 | 2.2 | 記録の前後で3種の乱数の状態全体が不変。記録の後に既存の照合helperで完了情報と上流の全状態を実旧と再照合。依存のexact集合にsession・通知・学習帰属ownerがない |
 | 3.2 | 実source変異（検査を更新の後へ移す変異を含む）、exact AST、新実装だけのfresh CPU、旧11・最終3goldenを含む全pytest、Ruff・Pyright |
 

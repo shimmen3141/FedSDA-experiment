@@ -20,26 +20,40 @@
     "design": {
       "generated": true,
       "approved": true,
-      "revision": 2,
-      "approved_revision": 2,
-      "generated_sha256_lf": "9ab48b2276623cae07928b1a913a8494b84d11ac653575d51f15795cee43bbf1",
-      "approved_sha256_lf": "9ab48b2276623cae07928b1a913a8494b84d11ac653575d51f15795cee43bbf1",
+      "revision": 3,
+      "approved_revision": 3,
+      "generated_sha256_lf": "4e05cc57538febedc2dc2786ff7e27e2611ad6a2175b15d1c56abe9884b34cf8",
+      "approved_sha256_lf": "4e05cc57538febedc2dc2786ff7e27e2611ad6a2175b15d1c56abe9884b34cf8",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
-      "reviewer_session": "01a11af5-95d3-7ad2-8893-7a4adcdc3d6c",
+      "reviewer_session": "01a11b62-7321-7552-bc9d-959cfb93084c",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_revisions": [
+        {
+          "revision": 2,
+          "sha256_lf": "9ab48b2276623cae07928b1a913a8494b84d11ac653575d51f15795cee43bbf1",
+          "reviewer_session": "01a11af5-95d3-7ad2-8893-7a4adcdc3d6c"
+        }
+      ]
     },
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "approved_revision": 1,
-      "generated_sha256_lf": "fd9466efcc9adb2b567a5d2b3186d848ab0b481232f037dbef2fc0fb1c9b0a1a",
-      "approved_sha256_lf": "fd9466efcc9adb2b567a5d2b3186d848ab0b481232f037dbef2fc0fb1c9b0a1a",
+      "revision": 2,
+      "approved_revision": 2,
+      "generated_sha256_lf": "d71cf7abe49f062b1b22688d7498bf5ae5843c208f1039324ce04c1b46c3e09b",
+      "approved_sha256_lf": "d71cf7abe49f062b1b22688d7498bf5ae5843c208f1039324ce04c1b46c3e09b",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
-      "reviewer_session": "01a11af3-b45a-7993-af2b-5d8881716780",
+      "reviewer_session": "01a11b62-7321-7552-bc9d-959cfb93084c",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "fd9466efcc9adb2b567a5d2b3186d848ab0b481232f037dbef2fc0fb1c9b0a1a",
+          "reviewer_session": "01a11af3-b45a-7993-af2b-5d8881716780"
+        }
+      ]
     },
     "tasks": {
       "generated": true,
@@ -61,11 +75,11 @@
     "total": 3
   },
   "handoff": {
-    "execution_status": "interrupted_by_environment_failure",
-    "completed_unit": "task_1_committed_3a007bf_first_review_changes_requested",
-    "next_step": "see_review_md_interruption_section",
-    "blocking_issue": "torch_import_blocked_by_windows_application_control_policy_on_2026-10-08",
-    "uncommitted_changes_unverified": true,
+    "execution_status": "in_progress_by_claude_code_on_wsl",
+    "completed_unit": "task_1_review_changes_applied_design_r3_naming_r2_approved",
+    "next_step": "task_1_rereview_then_tasks_2_3_on_wsl_then_windows_baseline_regression_when_torch_loads",
+    "blocking_issue": "windows_baseline_torch_import_blocked_by_smart_app_control",
+    "windows_baseline_verification_pending": true,
     "implementation_started": true,
     "tests_run": true,
     "full_pytest_run_for_this_spec": false

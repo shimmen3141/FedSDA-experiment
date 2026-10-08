@@ -32,6 +32,18 @@ ADAPTATION_OUTCOME_BY_VALIDATION_RESOLUTION_OUTCOME: dict[str, AdaptationOutcome
 }
 
 
+def _validate_sample_index_not_before_proposal(
+    *, adaptation_sample_index: int, proposal_sample_index: int
+) -> None:
+    """提案位置（警報位置）が非負で、記録の位置がそれより前でないことを確かめる。"""
+    if type(adaptation_sample_index) is not int or type(proposal_sample_index) is not int:
+        raise TypeError("sample indices must be builtin int")
+    if proposal_sample_index < 0:
+        raise ValueError("proposal sample index must be nonnegative")
+    if adaptation_sample_index < proposal_sample_index:
+        raise ValueError("adaptation sample index must not precede the proposal sample index")
+
+
 def record_completed_candidate_validation(
     *,
     validation_completion: PostAlarmCandidateValidationCompletion,
@@ -43,11 +55,15 @@ def record_completed_candidate_validation(
         )
     if type(adaptation_record_store) is not AdaptationRecordStore:
         raise TypeError("adaptation_record_store must be exact AdaptationRecordStore")
-    # 上流の完了情報・判定記録・確定結果・変更記録はconstructorでfieldを検査しない。
+    # 上流の完了情報・判定記録・変更記録はconstructorでfieldを検査せず、確定結果は結果種別の所属だけを見る。
     # 記録へ写す値と、写す値を決める比較に使う値を、履歴の更新より前にここで確かめる。
     decision_record = validation_completion.decision_record
     if type(decision_record) is not PostAlarmCandidateValidationDecisionRecord:
         raise TypeError("decision_record must be exact PostAlarmCandidateValidationDecisionRecord")
+    _validate_sample_index_not_before_proposal(
+        adaptation_sample_index=decision_record.resolution_sample_index,
+        proposal_sample_index=decision_record.proposal_sample_index,
+    )
     validation_resolution = validation_completion.validation_resolution
     if type(validation_resolution) is not PostAlarmCandidateValidationResolution:
         raise TypeError(
@@ -120,6 +136,10 @@ def record_incomplete_candidate_validation_finalization(
         raise TypeError(
             "decision_record must be exact IncompletePostAlarmCandidateValidationDecisionRecord"
         )
+    _validate_sample_index_not_before_proposal(
+        adaptation_sample_index=decision_record.finalization_sample_index,
+        proposal_sample_index=decision_record.proposal_sample_index,
+    )
     # 終端回収は学習帰属を変えない。変更前後とも回収時点の学習帰属ID。
     adaptation_record = AdaptationRecord(
         adaptation_sample_index=decision_record.finalization_sample_index,
