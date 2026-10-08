@@ -1,6 +1,6 @@
 # 実装タスク revision3
 
-- [ ] 1. 適応記録ownerと警報完了の記録を実旧対照つきで実装する
+- [x] 1. 適応記録ownerと警報完了の記録を実旧対照つきで実装する
   - 命名承認後にtestを追加してRED、source実装でGREEN。実旧の5結果・2/4classと全field/件数/位置、拒否時不変、snapshot、記録以外の状態不変を照合する。
   - 再利用と異なるIDの双方向対応、入力recordの後続破壊から保存copyの独立、上流5結果との集合一致を確認する。
   - 注入契約のREDを経て両resolverへ実importのexact guardを追加する。対象test・境界suite・Ruff・srcのPyrightと独立レビュー承認で完了。

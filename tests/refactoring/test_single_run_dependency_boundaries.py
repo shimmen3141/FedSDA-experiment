@@ -3038,6 +3038,20 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
+    if source_module_path == "evaluation/adaptation_record_store.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.replace",
+            "typing.Literal",
+        )
+    if source_module_path == "runtime/alarm_adaptation_recording.py":
+        return imported_module_name in (
+            "typing.cast",
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationOutcome",
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
+            "federated_learning_experiments.runtime.alarm_response_completion.AlarmResponseCompletion",
+        )
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
     if source_module_path == "learning/training/indexed_observed_training_sample.py":
         return imported_module_name in (
@@ -3874,6 +3888,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "evaluation/adaptation_record_store.py",
+            "runtime/alarm_adaptation_recording.py",
             "learning/training/candidate_epoch_training_settings.py",
             "learning/training/candidate_epoch_training.py",
             "runtime/candidate_classifier_construction.py",
@@ -3921,6 +3937,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             if (
                 source_module_path
                 in (
+                    "evaluation/adaptation_record_store.py",
+                    "runtime/alarm_adaptation_recording.py",
                     "learning/training/candidate_epoch_training_settings.py",
                     "learning/training/candidate_epoch_training.py",
                     "runtime/candidate_classifier_construction.py",
@@ -5241,6 +5259,97 @@ def test_single_run_layers_import_only_allowed_dependencies():
     "source_module_path,source_text,expected_imported_module_name",
     [
         *[
+            (source_module_path, source_text, imported_module_name)
+            for source_module_path, imported_module_name in (
+                ("evaluation/adaptation_record_store.py", "dataclasses.dataclass"),
+                ("evaluation/adaptation_record_store.py", "dataclasses.replace"),
+                ("evaluation/adaptation_record_store.py", "typing.Literal"),
+                ("runtime/alarm_adaptation_recording.py", "typing.cast"),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationOutcome",
+                ),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
+                ),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
+                ),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.runtime.alarm_response_completion.AlarmResponseCompletion",
+                ),
+            )
+            for source_text in (
+                f"import {imported_module_name}",
+                f"import {imported_module_name} as AcceptedDependency",
+            )
+        ],
+        *[
+            (source_module_path, f"import {imported_module_name}", imported_module_name)
+            for source_module_path in (
+                "evaluation/adaptation_record_store.py",
+                "runtime/alarm_adaptation_recording.py",
+            )
+            for imported_module_name in (
+                "dataclasses",
+                "typing",
+                "torch",
+                "numpy",
+                "random",
+                "os",
+                "federated_drift_experiment",
+            )
+        ],
+        *[
+            (
+                source_module_path,
+                f"from {imported_base_module_name} import {imported_module_alias}",
+                f"{imported_base_module_name}.{imported_module_alias}",
+            )
+            for source_module_path, imported_base_module_name in (
+                ("evaluation/adaptation_record_store.py", "dataclasses"),
+                ("evaluation/adaptation_record_store.py", "typing"),
+                ("runtime/alarm_adaptation_recording.py", "typing"),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.evaluation.adaptation_record_store",
+                ),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.runtime.alarm_response_completion",
+                ),
+            )
+            for imported_module_alias in ("*", "_private", "field")
+        ],
+        (
+            "evaluation/adaptation_record_store.py",
+            "from ..runtime.alarm_response_completion import AlarmResponseCompletion",
+            "federated_learning_experiments.runtime.alarm_response_completion.AlarmResponseCompletion",
+        ),
+        (
+            "runtime/alarm_adaptation_recording.py",
+            "from .alarm_response_completion import complete_alarm_buffer_response",
+            "federated_learning_experiments.runtime.alarm_response_completion.complete_alarm_buffer_response",
+        ),
+        (
+            "runtime/alarm_adaptation_recording.py",
+            "from .alarm_buffer_response import respond_to_alarm_with_buffered_samples",
+            "federated_learning_experiments.runtime.alarm_buffer_response.respond_to_alarm_with_buffered_samples",
+        ),
+        (
+            "runtime/alarm_adaptation_recording.py",
+            "from federated_learning_experiments.evaluation import adaptation_record_store",
+            "federated_learning_experiments.evaluation.adaptation_record_store",
+        ),
+        (
+            "runtime/alarm_adaptation_recording.py",
+            "from federated_learning_experiments.runtime import alarm_response_completion",
+            "federated_learning_experiments.runtime.alarm_response_completion",
+        ),
+        *[
             (source_module_path, source_text, expected_imported_module_name)
             for source_module_path in (
                 "learning/training/model_training_sample_records.py",
@@ -6234,6 +6343,44 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
 @pytest.mark.parametrize(
     "source_module_path,source_text",
     [
+        *[
+            (source_module_path, source_text)
+            for source_module_path, imported_module_name in (
+                ("evaluation/adaptation_record_store.py", "dataclasses.dataclass"),
+                ("evaluation/adaptation_record_store.py", "dataclasses.replace"),
+                ("evaluation/adaptation_record_store.py", "typing.Literal"),
+                ("runtime/alarm_adaptation_recording.py", "typing.cast"),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationOutcome",
+                ),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
+                ),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
+                ),
+                (
+                    "runtime/alarm_adaptation_recording.py",
+                    "federated_learning_experiments.runtime.alarm_response_completion.AlarmResponseCompletion",
+                ),
+            )
+            for source_text in (
+                f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]}",
+                f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]} as AcceptedDependency",
+            )
+        ],
+        ("evaluation/adaptation_record_store.py", "from dataclasses import dataclass, replace"),
+        (
+            "runtime/alarm_adaptation_recording.py",
+            "from ..evaluation.adaptation_record_store import AdaptationOutcome, AdaptationRecord, AdaptationRecordStore",
+        ),
+        (
+            "runtime/alarm_adaptation_recording.py",
+            "from .alarm_response_completion import AlarmResponseCompletion",
+        ),
         ("learning/training/model_training_sample_records.py", "from dataclasses import dataclass"),
         ("learning/training/model_training_sample_records.py", "from torch import Tensor"),
         (
