@@ -3951,6 +3951,15 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "evaluation/adahedge_diagnostic_evidence_collection.py":
+        return imported_module_name in (
+            "federated_learning_experiments.evaluation.adahedge_diagnostic_evidence.AdaHedgeDiagnosticEvidence",
+        )
+    if source_module_path == "runtime/training_assignment_diagnostic_notification.py":
+        return imported_module_name in (
+            "federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection.AdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+        )
     if source_module_path == "evaluation/adahedge_diagnostic_evidence.py":
         return imported_module_name in (
             "math",
@@ -4846,6 +4855,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "evaluation/adahedge_diagnostic_evidence_collection.py",
+            "runtime/training_assignment_diagnostic_notification.py",
             "evaluation/adahedge_diagnostic_evidence.py",
             "evaluation/adaptation_record_store.py",
             "runtime/alarm_adaptation_recording.py",
@@ -4899,6 +4910,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             if (
                 source_module_path
                 in (
+                    "evaluation/adahedge_diagnostic_evidence_collection.py",
+                    "runtime/training_assignment_diagnostic_notification.py",
                     "evaluation/adahedge_diagnostic_evidence.py",
                     "evaluation/adaptation_record_store.py",
                     "runtime/alarm_adaptation_recording.py",
@@ -9645,5 +9658,123 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
         not collect_dependency_boundary_violations(
             source_module_path="evaluation/adahedge_diagnostic_evidence.py",
             source_text=source_text,
+        )
+    ) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_module_path,source_text,expected_acceptance",
+    [
+        (source_module_path, source_text, expected_acceptance)
+        for source_module_path in (
+            "evaluation/adahedge_diagnostic_evidence_collection.py",
+            "runtime/training_assignment_diagnostic_notification.py",
+        )
+        for source_text, expected_acceptance in (
+            (
+                "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence "
+                "import AdaHedgeDiagnosticEvidence",
+                source_module_path == "evaluation/adahedge_diagnostic_evidence_collection.py",
+            ),
+            (
+                "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence "
+                "import AdaHedgeDiagnosticEvidence as AcceptedDependency",
+                source_module_path == "evaluation/adahedge_diagnostic_evidence_collection.py",
+            ),
+            (
+                "from ..evaluation.adahedge_diagnostic_evidence import AdaHedgeDiagnosticEvidence",
+                source_module_path == "evaluation/adahedge_diagnostic_evidence_collection.py",
+            ),
+            (
+                "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection "
+                "import AdaHedgeDiagnosticEvidenceCollection",
+                source_module_path == "runtime/training_assignment_diagnostic_notification.py",
+            ),
+            (
+                "from ..evaluation.adahedge_diagnostic_evidence_collection "
+                "import AdaHedgeDiagnosticEvidenceCollection as AcceptedDependency",
+                source_module_path == "runtime/training_assignment_diagnostic_notification.py",
+            ),
+            (
+                "from federated_learning_experiments.learning.training.current_training_model_assignment "
+                "import TrainingModelAssignmentChange",
+                source_module_path == "runtime/training_assignment_diagnostic_notification.py",
+            ),
+            (
+                "from ..learning.training.current_training_model_assignment "
+                "import TrainingModelAssignmentChange as AcceptedDependency",
+                source_module_path == "runtime/training_assignment_diagnostic_notification.py",
+            ),
+            ("import math", False),
+            ("from math import exp", False),
+            ("from __future__ import annotations", False),
+            ("import torch", False),
+            ("import numpy", False),
+            ("import random", False),
+            ("from collections import defaultdict", False),
+            ("from federated_drift_experiment.expert_routing import AdaHedgeRouter", False),
+            ("from federated_learning_experiments.configuration import RunSettings", False),
+            ("from . import single_run_execution", False),
+            (
+                "import federated_learning_experiments.evaluation.adahedge_diagnostic_evidence",
+                False,
+            ),
+            (
+                "import federated_learning_experiments.evaluation.adahedge_diagnostic_evidence"
+                ".AdaHedgeDiagnosticEvidence",
+                False,
+            ),
+            (
+                "import federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection"
+                ".AdaHedgeDiagnosticEvidenceCollection as AcceptedDependency",
+                False,
+            ),
+            (
+                "import federated_learning_experiments.learning.training.current_training_model_assignment"
+                ".TrainingModelAssignmentChange",
+                False,
+            ),
+            (
+                "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence "
+                "import AdaHedgeDiagnosticEvidence, OtherDependency",
+                False,
+            ),
+            (
+                "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence.child "
+                "import AdaHedgeDiagnosticEvidence",
+                False,
+            ),
+            (
+                "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection "
+                "import AdaHedgeDiagnosticEvidenceCollection, OtherDependency",
+                False,
+            ),
+            (
+                "from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection.child "
+                "import AdaHedgeDiagnosticEvidenceCollection",
+                False,
+            ),
+            (
+                "from federated_learning_experiments.learning.training.current_training_model_assignment "
+                "import TrainingModelAssignmentChange, CurrentTrainingModelAssignment",
+                False,
+            ),
+            (
+                "from federated_learning_experiments.learning.training.current_training_model_assignment.child "
+                "import TrainingModelAssignmentChange",
+                False,
+            ),
+            ("from ..evaluation import adahedge_diagnostic_evidence", False),
+            ("from ..evaluation import adahedge_diagnostic_evidence_collection", False),
+            ("from ..learning.training import current_training_model_assignment", False),
+        )
+    ],
+)
+def test_held_adahedge_diagnostic_exact_dependency_contract(
+    source_module_path, source_text, expected_acceptance
+):
+    assert (
+        not collect_dependency_boundary_violations(
+            source_module_path=source_module_path, source_text=source_text
         )
     ) == expected_acceptance

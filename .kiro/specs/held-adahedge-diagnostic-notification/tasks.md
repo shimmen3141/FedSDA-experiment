@@ -1,5 +1,5 @@
 # 実装タスク revision1
-- [ ] 1. 診断証拠保持と通知を実旧対照・依存guardつきで実装
+- [x] 1. 診断証拠保持と通知を実旧対照・依存guardつきで実装
   - 命名承認後にtestのRED、guard注入RED、sourceでGREEN。実旧取得/update/通知を全fieldで照合し、None/同一/負ID/不正型と状態不変を検証。
   - 検査を更新後へ動かす変異をレビュー前に確認。Ruff/Pyrightと独立承認で完了。
   - _Boundary: evaluation collection/runtime notification/testとexact依存guard_
