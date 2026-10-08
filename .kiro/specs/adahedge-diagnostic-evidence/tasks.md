@@ -17,7 +17,7 @@
   - _Boundary: 診断証拠の検出力と新単独動作の証拠_
   - _Requirements: 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 4.1_
 
-- [ ] 3. Windows固定基準の全回帰と統合証拠を確定する
+- [x] 3. Windows固定基準の全回帰と統合証拠を確定する
   - source/testをcommit後、Windows基準で全pytest/JUnit、旧11・最終3golden、Ruff・Pyright・pip check・spec_checks identityを実測する。要求と測定済み検証結果の対応、対象commit/hash、未検証範囲を統合証拠として保存する。
   - SACで止まったら保護設定・venv・goldenを変更せずWSLで続け、結果を区別する。Windows全回帰が残る間はこのtaskと最終GOを完了にしない。
   - 完了: 独立担当の照合と対象taskレビューPASS、別sessionのfeature最終GO。最終レビュー前は再開案内を現状へ更新してprogressを実行し、GO記録後もprogressを実行する。全pytestの独立再実行は既存ユーザー決定で必須としない。

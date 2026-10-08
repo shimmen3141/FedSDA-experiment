@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-08（AdaHedge診断証拠のTask 1・2を承認、Task 3へ進行）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-09（AdaHedge診断証拠の全3task承認、別sessionのfeature最終レビュー待ち）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
 **引継ぎ地点（2026-10-08）:** 主担当Claude Codeが[held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)を完了（全3taskの独立承認と別sessionのLuna最終GO）。その直前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)も完了（全3task承認、別sessionのLuna最終GOは3回目。1・2回目の指摘は進捗記録と再開案内の更新漏れ）。これら2 specの進行中の編集・レビューはない。2 specの検証commitは`733994b`、Windows基準で全9663 passed/3 skipped/2 warnings。引継ぎ時点では未コミット差分なし。現在は下記のAdaHedge診断証拠specを進行中。
 
@@ -11,11 +11,11 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **進行中:** 主担当Codexが[adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)を進行。要求r2・設計r1・命名r3・tasks r1を独立承認、Task 1・2承認済み、Windows全9727 passed/3 skipped、Task 3独立レビュー待ち。通知の受け手に必要な単一AdaHedge診断証拠を先に切り出し、通知・検出episode・client進行は後続へ分ける。新全体runの前にLinux用goldenを別specで作る決定は維持する。
+- **進行中:** 主担当Codexが[adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)を進行。要求r2・設計r1・命名r3・tasks r1を独立承認、全3task承認、Windows全9727 passed/3 skipped、別sessionのfeature最終レビュー待ち。通知の受け手に必要な単一AdaHedge診断証拠を先に切り出し、通知・検出episode・client進行は後続へ分ける。新全体runの前にLinux用goldenを別specで作る決定は維持する。
 
 - **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。Task 3と最終GOは、Windows基準での全回帰が済むまで完了にしない。
 - **決定（2026-10-08ユーザー）:** Linux用のgolden（旧実装をLinuxで実行した結果）は、新実装の全体runを接続するspecに入る前に作る。既存のWindows用goldenと回帰testは変更せず、別ファイル・別testにする。作る前に、同じ環境で2回実行して結果が一致することを確かめる。それまでの部品specでは、WSLのgolden回帰の不一致（環境差。旧実装は固定旧から無変更）を理由にgoldenを変えない。
-- 次の一手: `adahedge-diagnostic-evidence`のTask 3の統合証拠を独立レビューし、別sessionのfeature最終GOへ進める。
+- 次の一手: `adahedge-diagnostic-evidence`の再開案内とprogressを確認し、別sessionのfeature最終GOを判定する。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 最新完了: [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)。要求r1・設計r3・命名r2・tasks r2。runtimeの`CandidateValidationSessionHolder`（sessionを1つだけ保持）と、`apply_alarm_response_to_validation_session_holder`（候補検証を開始した応答だけが保持させる）、`advance_held_candidate_validation`（標本1件を観測させ、確定したら適応記録→保持の解除）、`finalize_held_incomplete_candidate_validation`（終端回収→記録→解除）。その前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（要求r2・設計r4・命名r2・tasks r2）は、適応結果へ候補検証の5値を追加し、`record_completed_candidate_validation`と`record_incomplete_candidate_validation_finalization`が到達時の確定と未完了の終端回収を`AdaptationRecordStore`へ記録する。recordのfield名は`adaptation_sample_index`へ改めた。
 - 上の2 specの検証: commit `733994b`、Windows基準で全9663 passed/3 skipped/2 warnings（327.73s）、JUnit 9666件、旧11・最終3golden成功、Ruff 175 files/Pyright/pip check成功。変異は51/51と30/30、fresh新CPUは各10条件。source hashは276パス、`f2348d1bede38ac4ebd4f1aa59468250821f35f7740a9831cf7926f21e73e69e`。固定旧748c3aaからのdiffは空。Task 2・3のLunaは対象test・依存境界・fresh CPU・Ruffを再現。全pytestは主担当のみ。以後の差分は証拠・進捗文書だけ。
@@ -51,7 +51,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### 1. 診断通知、検出episode、標本ごとのclient進行（次に着手）
 
-警報応答・候補検証の適応記録と、候補検証sessionの保持・解除までは部品が揃った。残りは、学習帰属の変更の通知と保存診断、検出episode、これらの部品を標本ごとの順序で並べるclient進行。新しい要求・設計・命名・tasksは未作成。一度に混ぜず、境界を決めて分ける。
+警報応答・候補検証の適応記録と、候補検証sessionの保持・解除までは部品が揃った。残りは、学習帰属の変更の通知と保存診断、検出episode、これらの部品を標本ごとの順序で並べるclient進行。単一の診断証拠はadahedge-diagnostic-evidenceで全3task承認（feature最終レビュー待ち）。通知の配布・検出episode・client進行自体の要求・設計・命名・tasksは未作成。一度に混ぜず、境界を決めて分ける。
 
 - 通知と保存診断: 最終Switching予測はFixed-Share側で、旧_on_local_model_changeのAdaHedge restartを直接参照しない。一方、NPZのrouting_concept_restart_counts、global gain、条件付きLOO診断はAdaHedge状態を使うので、通知を全面的に省くことはできない。根拠はalarm-adaptation-recording/research.md。最終3goldenはこれらの診断を比較しないので、その成功だけでは保存診断の同一性を証明しない。IMPROVE-007は診断の選択実行案で未検証/未採用。
 - 検出episodeは最終構成の既定で無効。mark_operationと同一episodeの追加検出は、移植の要否を最終構成から判断する。

@@ -2,9 +2,11 @@
 
 ## 現在の状態
 
-Task 1・2承認済み。Windows基準の全回帰と品質検査が成功。Task 3の独立レビューと別sessionのfeature最終GOは未実施。
+全3task承認済み。Windows基準の全回帰と品質検査が成功。別sessionのfeature最終レビューへ提出可能。feature最終GOは未実施。
 
 Task 2独立Luna（medium）は対象42件と新規のexact依存注入22件の64 passed、fresh process、対象source/testのRuffを再実行した。変異全ログ、元byteとHEAD一致、等価分類を照合しAPPROVED。既存依存suite全体・全pytest・Pyright・goldenは独立再実行していない。
+
+Task 3独立Luna（medium）は対象＋依存境界全体2863 passed、fresh CPU smoke 5操作、対象3ファイルのRuff check/format、pip check、identity/JUnitを独立実行しAPPROVED。要求11項目、承認hash、固定旧差分空、clean、JUnit件数・golden testcaseを照合した。対象pytest終了時にmatplotlib一時ディレクトリcleanupの無視可能なPermissionErrorが出たが、2863件のtestは成功しexit 0。全pytestとPyrightは独立再実行していない。
 
 ## 要求と証拠の対応
 

@@ -48,3 +48,9 @@ test専用`FaultingEvidenceMapping`を追加し、入力列挙途中の例外で
 別の独立Luna（medium明示）`/root/task2_review`。通常の検証証拠レビューとして選択。モデル/effort根拠は起動指定。24変異の全logを照合し、非等価20件の検出と等価4件の分類を妥当と判断。現在sourceのhashと原byte・HEAD一致を照合した。追加testのMapping型、重み範囲、演算例外時の状態保全は要求・設計に沿うと判断。指摘なし。
 
 独立実行: 対象42件＋新規exact依存注入22件の64 passed、fresh process、対象source/testのRuff。全pytest・Pyright・goldenは未実行。主担当側の復元後suite2863 passedはlog照合。Task 3は判定対象外。kiro-verify-completionのTask判定はVERIFIED。
+
+## Task 3 — APPROVED
+
+別の独立Luna（medium明示）`/root/task3_review`、対象HEAD `cd1353c`、source/test `d80c62a`。通常の統合証拠レビューとして選択。11要求の対応、全pytest主担当実測とJUnit、固定旧・承認hash・source hashを照合し指摘なし。モデル/effort根拠は起動指定。
+
+独立実行: 対象＋依存境界2863 passed、fresh CPU 5操作、対象3ファイルのRuff check/format、pip check、identityとJUnit集計。対象test終了時にmatplotlib一時directory cleanupのPermissionErrorが出たがtestは成功・exit 0。全pytest・Pyrightの独立再実行はしていない。ユーザー決定の主担当実測とJUnit照合で全回帰を判定。feature最終GOは対象外。kiro-verify-completionのTask判定はVERIFIED。
