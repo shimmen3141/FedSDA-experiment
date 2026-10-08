@@ -51,7 +51,7 @@
       "reviewer": "gpt-6-luna",
       "review_record": "review.md",
       "reviewer_evidence": "venv/refactoring-tests/alarm-preparation-task-review-r4.md",
-      "current_sha256_lf": "e9bda87379d855bcb2a87ae3f84b5c2ffd5e3286044a43d5ea694eb1e5b3d8ca"
+      "current_sha256_lf": "a2372640740c0be3c5691461ddeb9151d788b60bd998ab3e184bdfc986a00976"
     }
   },
   "ready_for_implementation": true,
@@ -62,18 +62,19 @@
       "2",
       "3",
       "4",
-      "5"
+      "5",
+      "6"
     ],
-    "completed_task_count": 5,
+    "completed_task_count": 6,
     "total_executable_tasks": 7,
-    "next_task": "6"
+    "next_task": "7"
   },
   "handoff": {
-    "execution_status": "task5_complete",
-    "next_step": "task6_fresh_cpu_smoke",
+    "execution_status": "task6_complete",
+    "next_step": "task7_full_regression",
     "implementation_started": true,
     "tests_run": true,
-    "completed_unit": "task5"
+    "completed_unit": "task6"
   },
   "task_reviews": {
     "1": {
@@ -124,6 +125,13 @@
         2,
         15
       ]
+    },
+    "6": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna (independent CLI)",
+      "evidence": "alarm-preparation-task6-review.md",
+      "primary_fresh_cpu_cases": 4,
+      "independent_fresh_cpu_cases": 4
     }
   }
 }

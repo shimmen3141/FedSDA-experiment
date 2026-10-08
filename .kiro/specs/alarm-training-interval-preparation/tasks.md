@@ -43,7 +43,7 @@
   - _Boundary: exact依存境界_
   - _Requirements: 1.4, 3.3_
 
-- [ ] 6. 新CPUで独立動作を検証する
+- [x] 6. 新CPUで独立動作を検証する
   - 旧/test importなしのfresh CPUで、2/4classの位置付き区間準備、評価保存/吸収、不消費・乱数を確認する。
   - 完了条件: fresh CPU smokeが成功し、実スクリプトと結果を独立レビュー承認される。
   - _Boundary: 新独立動作_

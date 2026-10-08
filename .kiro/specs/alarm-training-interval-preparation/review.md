@@ -82,3 +82,8 @@ src/test/旧実装/goldenは変更していない。今回は文書のみ。要�
 - 主担当: 対象＋AST2372 passed / 10.05s。独立CLI GPT-6 Luna: 新注入204と全AST2220 passed、実監査成功、APPROVED。通常pytest cacheの権限warningはテスト成功に影響しない。
 - [統合証拠](integration-validation.md)を作成。全回帰とfeature GOは後続で追記する。
 
+# Task 6 完了
+
+- fresh新CPUの2/4class×正規/一時IDの4条件で成功。独立CLI GPT-6 Lunaもscriptを別processで実行しexit0を確認、APPROVED。指摘なし。
+- 旧/test importなし、FIFO/状態/明示Random・global Python/torch乱数を確認。証拠は[統合検証](integration-validation.md)と外部`alarm-preparation-task6-review.md`。新client/full runは対象外。
+
