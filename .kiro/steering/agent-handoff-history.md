@@ -69,6 +69,8 @@ codex exec -m gpt-6-luna -c 'model_reasoning_effort="medium"' --sandbox read-onl
 
 依頼文は対象・revision/hash・役割・確認事項を含む`$reviewPrompt`に格納する。PowerShellで複数行を渡す場合は単一引用符のhere-string（`@'`と`'@`を独立した行へ置く）を使うと、依頼中の引用符や`$`を展開せず渡せる。
 effortはHaikuを`high`、Lunaを`medium`に明示指定し、代替で使うときも各モデルのこの指定とする。Lunaのログでモデル名と`reasoning effort: medium`を確認する。Haikuは`--effort high`の指定と実モデルを記録し、JSONが実効effortを出力しない場合は指定値と実効値未確認を区別する。指定が拒否された場合は既定値で続行せず、他方へ代替する。経緯: 2026-10-08の追加指示で両方をhighにした後、同日のユーザー決定でLunaだけmediumへ戻した。alarm-response-completion（Luna 9回・Haiku 5回、すべてhigh指定）の記録では、Lunaはmediumだった頃と比べて指摘の質が上がった証拠もノイズが増えた証拠もなく、同じ対象での比較はしていない。Haikuは更新順序の欠陥を見つけており、highを維持する。その後、2026-10-09のユーザー指示でHaikuの既定も`medium`へ改めた（理由の説明は受けていない。mediumでの指摘の質は、以後のspecのreview.mdで確かめる）。上の起動例と本段落の`high`は当時の記録。
+
+2026-10-09、手順の簡素化（ユーザー決定）。直近4 specの記録から、かけた時間に対して効果が小さいと主担当（Claude Code）が挙げた7件を、ユーザーが採用した: (1)変異はspecごとのscriptをやめて汎用の`mutation_check.py`にし、過去specの変異の再実行と文書の変異ごとの表をやめる。(2)命名表の対象からtest関数の中の局所名を外す（命名レビューの指摘は4 specでゼロ。parametrize引数1つの追加で命名の再レビューが発生した）。(3)設計・tasksへ条件数を書かない（条件数の変更だけで再レビューが発生した）。(4)小さいspecではfeature最終の判定をTask 3のレビューと同じ依頼で受けてよい（直近の最終レビューは指摘なしのGOが続き、それ以前のNO-GOは記録の更新漏れで、`spec_checks.py progress`が拾うようになった）。(5)resumeとroadmapへ完了specの件数・hashを写さない。(6)依存の注入契約testをsymbolごとに5通り足すのをやめ、許可集合と実際のimportの一致を1件で確かめる（全10029件のうち約3000件が注入契約testだった）。(7)specごとのfresh CPU scriptをやめてGit管理下の共用scriptにする（引数の追加で過去の2本が動かなくなった）。あわせて、moduleがないだけのREDの記録をやめた。汎用の変異toolを既存の2 moduleで試したところ、手書きの変異では出なかったtestの穴が2件見つかった（[NEW-002](../../docs/research/implementation-findings/new-002-held-validation-test-gaps-found-by-mutation-tool.md)）。
 直近alarm-buffer-responseのLunaレビュー15件はログのreasoning effortが全てmediumで、起動コマンドにはeffortの上書きがなかった。これは過去の記録であり、過去全セッションの設定を一律には断定しない。
 
 今回の規約変更の確認記録（2026-10-08、基点`7cbb4a5`、この記録を追記する前の5文書を対象）：

@@ -29,6 +29,7 @@
 | UNPORTED-001 | 検出episodeの制御を新実装へ移植していない | 当面移植しない（2026-10-09、主担当の判断。最終構成で無効） | [記録](unported-001-detection-episode-control.md) |
 | UNPORTED-002 | 参照モデルも学習させる候補検証方針を移植していない | 当面移植しない（2026-10-07、ユーザー判断） | [記録](unported-002-reference-shadow-tournament.md) |
 | NEW-001 | 候補検証sessionの保持への反映で、拒否の文言が一部の入力に合わない | 修正済み（2026-10-09、`42fc7b8`。文言だけ） | [記録](new-001-holder-rejection-message-wording.md) |
+| NEW-002 | 候補検証sessionの保持と進行のtestに、汎用の変異toolで見つかった穴が2件ある | 未修正（testの検出力。sourceは正しい） | [記録](new-002-held-validation-test-gaps-found-by-mutation-tool.md) |
 
 ## 記録・更新の規約
 

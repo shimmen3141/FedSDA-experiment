@@ -5,6 +5,8 @@
     python .kiro/settings/scripts/spec_checks.py progress <spec名>
 
 names: 指定ファイルの束縛名（def・class・引数・代入・importの別名）を命名表と照合する。
+    testファイル（パスにtestsを含む）は、module直下の名前（helper関数・class・定数・importの別名）だけを照合する。
+    test関数の中の局所名・引数・parametrize引数は命名表の対象外（2026-10-09ユーザー決定）。
     命名表の登録名は、表の先頭列の語と、表以外の行の語（表の説明列で触れただけの語は数えない）。
     未登録: 命名表になく、他のsrc/tests/refactoringにも現れない名前（exit 1）。
     役割の再利用: 命名表になく、他では関数・classの名前としてだけ現れる語を変数・引数に使っているもの（exit 1）。
@@ -44,10 +46,23 @@ PROGRESS_DOCUMENT_PATHS = (".kiro/steering/resume.md", ".kiro/steering/roadmap.m
 UNFINISHED_STATE_PATTERN = re.compile("待ち|未実施|ブロック中")
 
 
-def collect_bound_names(source_path):
-    """(関数・class名, 変数・引数・import名) を返す。"""
+def collect_bound_names(source_path, module_level_only=False):
+    """(関数・class名, 変数・引数・import名) を返す。module_level_onlyならmodule直下の名前だけ。"""
     tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
     definition_names, variable_names = set(), set()
+    if module_level_only:
+        for statement in tree.body:
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                definition_names.add(statement.name)
+            elif isinstance(statement, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                variable_names.update(
+                    node.id
+                    for node in ast.walk(statement)
+                    if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
+                )
+            elif isinstance(statement, (ast.Import, ast.ImportFrom)):
+                variable_names.update(alias.asname for alias in statement.names if alias.asname)
+        return definition_names, variable_names
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             definition_names.add(node.name)
@@ -104,7 +119,9 @@ def check_names(arguments):
             other_variable_names |= variable_names
     failed = False
     for target_path in target_paths:
-        definition_names, variable_names = collect_bound_names(target_path)
+        definition_names, variable_names = collect_bound_names(
+            target_path, module_level_only="tests" in target_path.parts
+        )
         candidates = {
             name
             for name in definition_names | variable_names

@@ -4,17 +4,7 @@
 
 ## 全体方針
 
-最新完了: [held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md)（候補検証の確定で学習帰属が変わったとき、既存の進行の接続から診断通知を行う。拒否の文言NEW-001を修正）。仕様（設計r2・命名r2・tasks r2）・全3task独立承認、別sessionのLuna mediumが最終GO。検証commit ef1be82、Windows全10029 passed/3 skipped、旧11/最終3golden・品質成功。
-
-その前の完了: [alarm-occurrence-handling](../specs/alarm-occurrence-handling/README.md)（警報1回ぶんの処理を、応答→完了処理→適応記録→session保持→診断通知の順に既存部品でつなぐ`handle_alarm_occurrence`）。仕様（設計r2）・全3task独立承認、別sessionのLuna mediumが最終GO。検証commit e80b368、Windows全10000 passed/3 skipped、旧11/最終3golden・品質成功。検出episodeの制御は当面移植しない（最終構成で無効）。
-
-その前の完了: [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)（global/真の概念別oracleの診断保持と、globalだけの帰属変更通知）。仕様r1・全3task独立承認、別fresh sessionのLuna mediumが最終GO。検証commit24a5953、Windows全9811 passed/3 skipped、旧11/最終3golden・品質成功。新clientの通知順序/重複防止、同期・episode・保存診断全体runは後続。次はepisodeの移植要否を判断しclient進行を別specへ分ける。入口はresume.md。
-
-その前のheld-candidate-validation-progressとcandidate-validation-adaptation-recordingは全3task承認・別session最終GO。2 specの検証commit `733994b`、Windows全9663 passed/3 skipped、旧11/最終3golden・品質成功。その前はalarm-adaptation-recording。
-
-直前完了はalarm-response-completion（全9254 passed）。以前のalarm-buffer-response（全9110 passed）は区間準備/解決とactive経路の組立で、監視reset/FIFO消費は直前spec、警報応答の記録は最新specで完了した。
-
-直前の完了: [alarm-training-interval-preparation](../specs/alarm-training-interval-preparation/README.md)。要求r2・設計r1・命名r4・tasks r4、全7tasks独立Luna承認、別fresh Luna feature最終GO。対象152＋AST2220、6変異、全8811 passed/3既存skip/2既存warning、旧11/最終3golden・新CPU・品質成功。次は区間準備と区間解決を呼ぶ警報制御（active session経路、最小件数、reset/FIFO、event/通知）の境界を決め、要求から仕様化する。新client/全体runは未接続。入口はresume、承認hashと証拠は同specのspec.json/review/integration-validation。
+完了specの一覧（新しい順）と現在地は[再開案内](resume.md)、各specの検証結果とレビューの経緯は各specのintegration-validation.mdとreview.md。2026-10-09から、完了specの件数・hash・経緯をこの文書へ写さない（下の「現在の状態」は、それより前に書いた経過の記録）。
 
 旧基準`748c3aa`と同じGit履歴の`refactor/architecture`ブランチで、新APIへ移行する。
 クリーンアーキテクチャの依存方向・差し替え境界・機能別配置を採用する。
