@@ -1,4 +1,4 @@
-# 候補検証の確定に伴う診断通知 — 命名 revision1
+# 候補検証の確定に伴う診断通知 — 命名 revision2
 
 変更するsourceとtestの、追加する名前の実装前一覧。リポジトリ外の下書きを、作業ツリーの複製へ置いて`.kiro/settings/scripts/spec_checks.py names`で照合した。新しいmodule・関数・class・結果recordはsourceに追加しない。承認状態はspec.json。
 
@@ -27,6 +27,7 @@
 | `placeholder_arguments` | 既存`make_placeholder_arguments`の戻り値（保持・記録・診断のowner以外を`object()`にした引数dict）。 |
 | `invalid_owner_kind` | parametrize引数。不正なownerの種類（"other_type"・"subclass"）。 |
 | `invalid_owner` | 拒否されるべきownerの値。 |
+| `session_is_held` | parametrize引数（bool）。ownerの型の拒否を、sessionを保持した状態と保持がない状態の両方で確かめる。revision2で追加。 |
 | `owner_subclass` | 正しいownerのclassの派生class（初期化しないinstanceを作る）。alarm-occurrence-handlingのtestの同名と同じ役割。 |
 | `global_diagnostic_evidence` | 局所名。診断証拠の保持集合の同名のpropertyが返す値。 |
 | `validation_resolution` | 局所名。確定の結果（既存の完了情報の同名のfieldの値）。 |

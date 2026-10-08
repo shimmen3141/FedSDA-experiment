@@ -3,7 +3,7 @@
   "created_at": "2026-10-09",
   "updated_at": "2026-10-09",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -19,42 +19,63 @@
     },
     "design": {
       "generated": true,
-      "approved": true,
-      "revision": 1,
+      "approved": false,
+      "revision": 2,
       "approved_revision": 1,
-      "generated_sha256_lf": "293b54bd723e441ca54dce216746dac1deda2d461f5c6557e5811fb9e2d745fc",
+      "generated_sha256_lf": "7b90f6c40ceffc47a6e0a3a6fc70f094fccf6deeb1e05301550e40e3b67656b9",
       "approved_sha256_lf": "293b54bd723e441ca54dce216746dac1deda2d461f5c6557e5811fb9e2d745fc",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
       "reviewer_session": "01a11ca2-c9b8-7003-89df-5744bc3266fe",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "293b54bd723e441ca54dce216746dac1deda2d461f5c6557e5811fb9e2d745fc",
+          "reviewer_session": "01a11ca2-c9b8-7003-89df-5744bc3266fe"
+        }
+      ]
     },
     "naming": {
       "generated": true,
-      "approved": true,
-      "revision": 1,
+      "approved": false,
+      "revision": 2,
       "approved_revision": 1,
-      "generated_sha256_lf": "48352f0e7635dbc926dce14e4a9f27844820dfedeb06b47c7cf5e524bc28083f",
+      "generated_sha256_lf": "ed7adaedc0124957898f758ce515ecbbb8b83b9e27132e5e20608f7887a44d01",
       "approved_sha256_lf": "48352f0e7635dbc926dce14e4a9f27844820dfedeb06b47c7cf5e524bc28083f",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
       "reviewer_session": "01a11ca2-c9b8-7003-89df-5744bc3266fe",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "48352f0e7635dbc926dce14e4a9f27844820dfedeb06b47c7cf5e524bc28083f",
+          "reviewer_session": "01a11ca2-c9b8-7003-89df-5744bc3266fe"
+        }
+      ]
     },
     "tasks": {
       "generated": true,
-      "approved": true,
-      "revision": 1,
+      "approved": false,
+      "revision": 2,
       "approved_revision": 1,
-      "generated_sha256_lf": "2eaa2e3a818dbfd11d7c433d4e334a0a854de0dabc3b20a030128c86e078b10a",
+      "generated_sha256_lf": "45cefee7594285075fd1332577d8b0c69e798f218b16ce9c69c0118aed90e2e8",
       "approved_sha256_lf": "2eaa2e3a818dbfd11d7c433d4e334a0a854de0dabc3b20a030128c86e078b10a",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
       "reviewer_session": "01a11ca2-c9b8-7003-89df-5744bc3266fe",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "2eaa2e3a818dbfd11d7c433d4e334a0a854de0dabc3b20a030128c86e078b10a",
+          "reviewer_session": "01a11ca2-c9b8-7003-89df-5744bc3266fe"
+        }
+      ]
     }
   },
-  "ready_for_implementation": true,
+  "ready_for_implementation": false,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "implementation_progress": {
     "completed": 0,
@@ -62,10 +83,10 @@
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "requirements_design_naming_tasks_approved",
-    "next_step": "task_1_tests_red_then_implementation",
-    "implementation_started": false,
-    "tests_run": false,
+    "completed_unit": "task_1_first_review_changes_applied",
+    "next_step": "task_1_rereview_and_design_naming_tasks_r2_rereview",
+    "implementation_started": true,
+    "tests_run": true,
     "full_pytest_run_for_this_spec": false
   }
 }
