@@ -12,4 +12,6 @@
 | [review.md](review.md) | 独立レビューと採否 |
 | [integration-validation.md](integration-validation.md) | 検証対象と証拠 |
 
-現在は仕様案。承認の正本はspec.json。後続の候補検証の記録とsession保持、予測診断通知は再開案内に残す。
+Task1/2は独立承認済み。全回帰の証拠はintegration-validation.md、Task3レビューと別fresh feature最終GOは進行中。承認の正本はspec.json。
+
+警報応答5結果の記録・切替位置・再利用件数を一つのownerへ保存する。候補検証の到達時/終端の記録、session保持、予測診断通知、新全体runの接続は後続specで扱う。

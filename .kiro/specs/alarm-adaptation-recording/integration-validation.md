@@ -41,3 +41,26 @@
 - src\federated_learning_experiments\runtime\alarm_adaptation_recording.py: 6458d737005b49d0e18a8ac5b3937bd1f45953e87b6dda13cea65050d50592af
 
 全回帰はTask3で未実施。新client/session接続・予測通知・episode操作・新全体runのgolden一致は本specの範囲外。
+
+## Task3 全回帰の主担当実測
+
+source/test commit 9b72182、実行開始時は差分なし。9363 passed / 3 skipped / 2 warnings、165.21s、exit0。JUnitは9366件、failure/errorなし。旧11・最終3の内部ケースを実行する2つのgolden testcaseとも成功。goldenは更新していない。
+
+証拠は元checkoutのvenv/refactoring-tests/alarm-adaptation-recording-full-canonical.log/.xml。最初のsandbox測定は9334 passed/3 skipped/1 failed/28 errors（163.97s）。debuggerの独立XML確認で29件はすべて一時ファイルのPermissionError、最終golden比較に未到達。full.log/.xmlを失敗の記録として保存し、canonical成功と区別する。コード・設定を変えず、主担当execの必要な権限で同じテストを再実行した。レビュー担当のsandboxを外していない。
+
+固定旧748c3aaから旧実装・旧/最終golden・旧回帰test・toolsのcommit/作業ツリーdiffは空。source/golden271パスのLF hashは14816d2b68990d224dc6c8ee4cc62e467e17e60974993f10f863f82cf8e06d1d。source以後は証拠・進捗文書のみ変更。
+
+canonical品質: Ruff check成功、format170 files成功、Pyright共有venv指定で0 errors/0 warnings/0 informations、pip check No broken requirements found（tool chunk b69587/6f169f）。既存warningはfull log参照。
+
+固定環境: ../../venv/Scripts/python.exe、OMP_NUM_THREADS/MKL_NUM_THREADS=1、TMP/TEMP=元checkout/venv/refactoring-tests、MPLCONFIGDIR=元checkout/venv/matplotlib-cache、FDE_MNIST_DATA_DIR=元checkout/data/mnist、PYTHONIOENCODING=utf-8。全pytestは tests -q -p no:cacheprovider --junitxml=<証拠xml>。
+
+| 要求 | 証拠 |
+| --- | --- |
+| 1.1/1.2/1.3 | 2/4class×5応答の実旧全field・切替位置・計数対照、連続記録 |
+| 2.1 | 不正record/completion、更新前拒否・保存copy、検査削除/順序変更変異 |
+| 2.2 | snapshotの固定と保存入力copyの独立 |
+| 2.3 | 上流所有状態と3種類の乱数不変、RNG消費変異 |
+| 3.1 | 実旧イベントの全field・件数・位置対照、旧aliasなし |
+| 3.2 | commit済みsource/testの全pytestと旧11/最終3golden成功 |
+
+Task3独立レビュー・別fresh feature最終GOはまだ未承認。
