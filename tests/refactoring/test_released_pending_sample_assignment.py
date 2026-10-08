@@ -17,6 +17,9 @@ from test_held_candidate_validation_progress import make_subclass_copy
 
 import federated_learning_experiments.runtime.released_pending_sample_assignment as released_assignment_module
 from federated_drift_experiment.clients.fedsda import FedSDAClient
+from federated_learning_experiments.learning.training.current_training_model_assignment import (
+    CurrentTrainingModelAssignment,
+)
 from federated_learning_experiments.learning.training.indexed_observed_training_sample import (
     IndexedObservedTrainingSample,
 )
@@ -434,6 +437,12 @@ INVALID_RELEASED_ASSIGNMENT_INPUT_CASES = {
         ),
         TypeError,
     ),
+    # 現在の学習帰属のモデルが保有されていない。吸収が、更新と保留の解放より前に拒否する。
+    "released_sample_for_model_that_is_not_held": (
+        "current_training_model_assignment",
+        lambda assignment_arguments: CurrentTrainingModelAssignment(initial_model_id=777),
+        LookupError,
+    ),
     "loss_statistics_store_other_type": (
         "loss_statistics_store",
         lambda assignment_arguments: object(),
@@ -500,6 +509,32 @@ def test_own_checks_reject_before_absorption_is_called(invalid_case, monkeypatch
             **assignment_arguments | {argument_name: make_invalid_argument(assignment_arguments)}
         )
     absorption_call.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "invalid_argument_name", ("current_training_model_assignment", "pending_sample_observations")
+)
+def test_type_checks_take_priority_over_index_mismatch(invalid_argument_name, monkeypatch):
+    """型の不正と並びの不一致が同時にあるとき、型の検査が先に拒否する（設計4節の検査の順）。"""
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(503)
+        assignment_arguments = build_released_assignment_oracle(
+            class_count=2, monkeypatch=monkeypatch, capacity=2, pending_sample_count=5
+        )[0]
+    mismatched_observations = assignment_arguments["pending_sample_observations"][1:]
+    invalid_arguments = {
+        "current_training_model_assignment": dict(
+            current_training_model_assignment=object(),
+            pending_sample_observations=mismatched_observations,
+        ),
+        "pending_sample_observations": dict(
+            pending_sample_observations=list(mismatched_observations)
+        ),
+    }[invalid_argument_name]
+    with pytest.raises(TypeError):
+        assign_released_pending_samples_to_current_training_model(
+            **assignment_arguments | invalid_arguments
+        )
 
 
 def test_absorption_is_not_called_when_no_sample_is_released(monkeypatch):
