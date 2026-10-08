@@ -34,7 +34,14 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.overall
 from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
     select_loss_monitoring_baseline_mean_loss,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
+    PendingTrainingAssignmentBuffer,
+)
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    TrainingDataAssignmentSettings,
+)
 from federated_learning_experiments.runtime.alarm_buffer_response import (
+    AlarmBufferResponse,
     respond_to_alarm_with_buffered_samples,
 )
 from federated_learning_experiments.runtime.alarm_response_completion import (
@@ -686,6 +693,29 @@ INVALID_COMPLETION_INPUT_CASES = {
     "alarm_index_is_not_last_observed": (
         lambda completion_arguments, legacy_client: completion_arguments.update(
             alarm_sample_index=completion_arguments["alarm_sample_index"] + 1
+        ),
+        ValueError,
+    ),
+    # 一度も標本を観測していない保留FIFOには、警報位置と一致する最終観測位置がない。
+    # 区間が空の不足の応答を手で組み立て、準備済み区間の検査では拒否されない入力にする。
+    "alarm_without_any_observed_sample": (
+        lambda completion_arguments, legacy_client: completion_arguments.update(
+            pending_training_assignment_buffer=PendingTrainingAssignmentBuffer(
+                training_data_assignment_settings=TrainingDataAssignmentSettings(
+                    pending_assignment_buffer_capacity_samples=4
+                )
+            ),
+            alarm_buffer_response=AlarmBufferResponse(
+                response_outcome="alarm_change_interval_too_short",
+                prepared_alarm_training_intervals=replace(
+                    completion_arguments["alarm_buffer_response"].prepared_alarm_training_intervals,
+                    earlier_observations=(),
+                    change_interval_observations=(),
+                    change_interval_start_sample_index=None,
+                ),
+                change_interval_resolution=None,
+                active_validation_session=None,
+            ),
         ),
         ValueError,
     ),

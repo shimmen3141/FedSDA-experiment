@@ -27,12 +27,12 @@
     "design": {
       "generated": true,
       "approved": true,
-      "revision": 4,
-      "approved_revision": 4,
-      "generated_sha256_lf": "c757eb2f9c918001df4ad27c9298195a3982d485b9d7dc2ec91198fdb1a3967c",
-      "approved_sha256_lf": "c757eb2f9c918001df4ad27c9298195a3982d485b9d7dc2ec91198fdb1a3967c",
+      "revision": 5,
+      "approved_revision": 5,
+      "generated_sha256_lf": "f9877d26b6d1c6a71a71f3b41ea53bac1e9ff18cc1334bc752ad389a62e77c99",
+      "approved_sha256_lf": "f9877d26b6d1c6a71a71f3b41ea53bac1e9ff18cc1334bc752ad389a62e77c99",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=high)",
-      "reviewer_session": "01a11a07-e367-7632-a95e-c24e29648754",
+      "reviewer_session": "01a11a24-022b-7261-8d69-37c92e1dc580",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
       "review_record": "review.md",
       "previous_approved_revisions": [
@@ -40,18 +40,23 @@
           "revision": 2,
           "sha256_lf": "85f0f93ba283bb3d517f7a748eee6b8314f15dea80b9ad39828121352b40f899",
           "reviewer_session": "01a119ec-e854-7841-a707-d27f2bdd98cf"
+        },
+        {
+          "revision": 4,
+          "sha256_lf": "c757eb2f9c918001df4ad27c9298195a3982d485b9d7dc2ec91198fdb1a3967c",
+          "reviewer_session": "01a11a07-e367-7632-a95e-c24e29648754"
         }
       ]
     },
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 4,
-      "approved_revision": 4,
-      "generated_sha256_lf": "c7cd67b3e1a8ac23daeeaee4e12b8322f73d5fdf5e67e5b6f9e7b1e66852e3f8",
-      "approved_sha256_lf": "c7cd67b3e1a8ac23daeeaee4e12b8322f73d5fdf5e67e5b6f9e7b1e66852e3f8",
+      "revision": 5,
+      "approved_revision": 5,
+      "generated_sha256_lf": "3c71de90f706a46bcf801ec7ff99cbeb9c49e315d4b35199d092e488356861db",
+      "approved_sha256_lf": "3c71de90f706a46bcf801ec7ff99cbeb9c49e315d4b35199d092e488356861db",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=high)",
-      "reviewer_session": "01a11a07-e367-7632-a95e-c24e29648754",
+      "reviewer_session": "01a11a24-022b-7261-8d69-37c92e1dc580",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
       "review_record": "review.md",
       "previous_approved_revisions": [
@@ -64,6 +69,11 @@
           "revision": 2,
           "sha256_lf": "50cfd1fbc7f8937410ea1b752fd167baef6a922d7743ab84cbe08044512db11a",
           "reviewer_session": "01a119fd-2862-74d0-b14f-ca0508f0623b"
+        },
+        {
+          "revision": 4,
+          "sha256_lf": "c7cd67b3e1a8ac23daeeaee4e12b8322f73d5fdf5e67e5b6f9e7b1e66852e3f8",
+          "reviewer_session": "01a11a07-e367-7632-a95e-c24e29648754"
         }
       ]
     },

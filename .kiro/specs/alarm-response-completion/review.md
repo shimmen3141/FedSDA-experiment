@@ -35,7 +35,7 @@
 
 - Haiku 2回目（session `f5fdc97b-880f-46df-8060-eed6577984a2`、上の反映後）: CHANGES_REQUESTED。Major 1件、Minor 4件。
   - Major: 手で組み立てた応答（結果種別が再利用なのに帰属変更の記録がない、またはその逆）は既存の応答とその区間解決のconstructorを通過し、完了処理はreset・drainの後でrecordの検査により例外になる。設計の「検査後に片方だけ更新されない」、要求3.2と一致しない。→ 事実と確認して採用。recordを更新の前に組み立てる設計へ改めた（設計r3、要求r3）。既存の応答関数が返す応答では起こらない経路だが、設計の主張と実装を一致させる。
-  - Minor: 最終観測位置の確認がNoneを許す → 採用（警報位置との一致へ）。順序testの期待値が本体と同じ経路 → 採用（応答の`assigned_model_id`の統計から作る）。位置引数の拒否はkw_onlyの確認であることのコメント → 採用。完了後のsession参照の確認 → 採用。
+  - Minor: testの照合（`assert_response_completion_matches_legacy`）が最終観測位置のNoneを許す → 採用（testの照合を警報位置との厳密な一致へ改めた。sourceの検査は設計どおりで変更していない。下の3回目の指摘1を参照）。順序testの期待値が本体と同じ経路 → 採用（応答の`assigned_model_id`の統計から作る）。位置引数の拒否はkw_onlyの確認であることのコメント → 採用。完了後のsession参照の確認 → 採用。
 - Luna 3回目（session `01a11a02-9756-7f70-8fff-4d35949d976f`、要求r3・設計r3・命名r3）: 要求r3 APPROVED、設計r3 REJECTED、命名r3 REJECTED。
   - 設計P1: 手で組み立てた変更記録の不正なID（`True == 1`で比較を通過）を更新前に拒否できる保証がない。変更記録のexact型と両IDのbuiltin int検査を定めること。→ 採用。設計r4で、比較より前に変更記録のexact型と両IDの型を検査する。新moduleの依存は8 symbol（`TrainingModelAssignmentChange`を追加）になった。
   - 命名P2: r2承認の証拠がローカル正本にない。→ 採用。spec.jsonへr2の承認を記録し、r2の全文を保存した（r3からr3の補足節を除いて復元し、LF hashが承認値と一致することを確認）。
@@ -49,3 +49,20 @@
 - 検出力: 実source変異28種（recordの組立を更新の後へ戻す、変更記録の型検査2種の削除を追加）。1回目の実行で「応答と現在の帰属の対応検査の削除」が未検出だった。原因はtestが応答後の帰属を変更前のモデルへ戻しており、recordの検査（再利用なのにIDが同じ）でも同じ例外になるためで、どちらでもないIDへ変えるようtestを直した。修正後は28/28検出、各回元byteへ復元、復元後56 passed。証拠は`venv/refactoring-tests/alarm-response-completion-mutation-evidence-r4/report.json`。
 - worktreeのsrcとtestは、Luna 4回目が読んだ下書きから、上のtestの修正（未検出変異への対応）だけが変わっている。新しい名前は追加していない（AST照合で新規名0件）。
 - 全pytestはこのtaskでは実行していない（Task 3で実行する）。
+
+### Haiku 3回目（session `2f214285-3203-475d-b1c3-fff2c5f88147`、HEAD `95bb98e`）
+
+CHANGES_REQUESTED。Blocker・Majorなし。すべての検査がreset・drainより前にあること、旧5経路との対応、基準平均の規則、依存8 symbolの一致、oracleが実旧を実行すること、各拒否条件が意図した検査で拒否されること、過去のMajorとMinorの解消を確認したと報告された。指摘はMinor 3件と既知の境界1件。
+
+1. 「sourceの最終観測位置の検査がNoneを許すのに、review.mdは採用（警報位置との一致へ）と記録している」→ 記録の書き方が不正確だったので訂正した（提案B）。2回目のMinorはtestの照合についての指摘で、反映したのもtestだけである。sourceがNoneを受理するのは承認済みの設計r4（4節手順2「最終観測位置がNoneでなければ」）どおりで、変更しない。理由: Noneは保留FIFOが一度も標本を観測していない状態で、比較する位置がない。旧は警報標本をFIFOへ追加してから警報処理へ入るので、接続後の流れではこの状態で完了処理は呼ばれない。この状態で準備済み区間を持つ応答が渡されれば、区間と保留位置の一致検査が働く。Noneの拒否へ厳格化する案（提案A）は、設計・要求の改訂と新しいtest入力が必要になる一方、部分更新や誤った記録を防ぐ効果がないため採らない。未観測のFIFOに対するtestはない（未検証として記録する）。
+2. 「現行IDが1のときの`True == 1`の経路を試していない」→ 不採用（記録のみ）。上流oracleの保有モデルIDに1がなく、1にするには上流oracleの変更が要る。型検査の削除は、現在のtest（boolの変更後ID）がTypeErrorを期待して検出する（変異28/28）。`True == 1`で比較を通過する入力そのものは未検証。
+3. 「boolの変更前IDは、完了処理の型検査が消えてもrecordのconstructorが同じTypeErrorを出すので区別できない」→ 不採用（記録のみ）。どちらも更新前の拒否で、挙動は同じ。完了処理側の型検査の削除は変更後IDの条件で検出される。
+4. 既知の境界（候補検証中の応答の後に標本を追加して位置を進めた場合）→ research.mdの記録を維持する。
+
+### Haiku 4回目（session `3fe66984-98df-49e7-a7b0-1163deb5eb7d`）と設計r5
+
+CHANGES_REQUESTED、Major 1件。上の3回目の指摘1で主担当が選んだ「Noneの受理を維持する」は、要求3.2の文言（警報位置が最終観測位置と一致しないとき拒否）と両立しないと指摘された。記録と実装・設計・testの一致、指摘2・3の不採用理由は妥当と報告された。
+
+→ 採用し、3回目の指摘1の判断を改めた。一度も標本を観測していない保留FIFO（最終観測位置がNone）も拒否する。設計r5（4節手順2）、命名r5（testで既存3 symbolをimportする補足。新しい名前なし）。Luna（session `01a11a24-022b-7261-8d69-37c92e1dc580`、effort high）が設計r5・命名r5をAPPROVED、指摘なし。既存の応答関数が返す5種の応答で、正常な呼出しが拒否されないことを実コードで確認したと報告された。承認されたr4の命名全文は元checkoutの`venv/refactoring-tests/alarm-response-completion-naming-r4.md`。
+
+実施: 拒否条件`alarm_without_any_observed_sample`（未観測のFIFOと、区間が空の不足の応答を手で組み立てた入力）をtestへ先に追加し、srcが設計r4のままで1 failed/56 passedのREDを確認してからsrcを改めた。GREEN: 対象57＋依存境界2542＝2599 passed、Ruff・Pyright成功、fresh新CPU 10条件成功。実source変異29種（未観測FIFOの受理へ戻す変異を追加）を29/29検出、各回元byteへ復元、復元後57 passed。証拠は`venv/refactoring-tests/alarm-response-completion-mutation-evidence-r5/report.json`、REDの記録は`alarm-response-completion-task1-red-r5.log`。

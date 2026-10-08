@@ -1,4 +1,4 @@
-# 警報応答の完了処理 — 設計 revision4
+# 警報応答の完了処理 — 設計 revision5
 
 ## 1. Boundary Commitments
 
@@ -40,7 +40,7 @@
 
 1. 型検査（更新前）: 応答はexact `AlarmBufferResponse`、4つのownerは各exact型。`alarm_sample_index`はboolを除くbuiltin intで0以上。`estimated_change_point_sample_index`と`detection_episode_id`はNoneまたはboolを除くbuiltin intで0以上。型不正はTypeError、値不正はValueError。
 2. 対応検査（更新前、ValueError）:
-   - 保留FIFOの最終観測位置がNoneでなければ`alarm_sample_index`と等しいこと（旧は警報標本をFIFOへ追加してから警報処理を行う）。
+   - 保留FIFOの最終観測位置が`alarm_sample_index`と等しいこと（旧は警報標本をFIFOへ追加してから警報処理を行う）。一度も標本を観測していないFIFO（最終観測位置がNone）も一致しないものとして拒否する。revision4まではNoneを受理していたが、Task 1の独立レビューが要求3.2の文言（一致しないとき拒否）との不一致を指摘したため改めた。
    - 応答が準備済み区間を持つなら、前区間と変化区間の観測位置を連結した列が現在の保留位置列と等しいこと（応答は保留位置を変更しないので、完了処理の前は必ず一致する。1件以上を消費した後の再適用や別の応答は不一致になる）。
    - 応答の区間解決が帰属変更を記録しているなら、その記録がexact `TrainingModelAssignmentChange`で、変更前後のIDがどちらもboolを除くbuiltin intであること（違えばTypeError。この型は検査を持たない素のdataclassで、手で組み立てた記録は`True == 1`のような値で以降の比較を通過しうるため、比較より前に型を確かめる）。そのうえで変更後IDが現在の学習帰属IDと等しいこと。このとき変更前IDを`previous_training_model_id`とする。記録がなければ変更前後とも現在のID。
 3. 読取り: 現行モデルの統計（なければNone）の全体集計から`select_loss_monitoring_baseline_mean_loss`で基準平均を得る。
@@ -100,7 +100,7 @@ oracleは実旧`_resolve_drift`。既存`build_buffer_response_oracle`の実旧c
 | 1.4 | reset→drainの呼出し順の記録。完了処理の前後でtorch・Python（明示とglobal）・NumPyの乱数が不変。標本・統計・帰属・保有モデルは既存`assert_buffer_response_matches_legacy`で完了処理の後に実旧と照合 |
 | 2.1, 2.2 | 実旧`AdaptationEvent`の全field、`local_switch_positions`、戻り値と、recordのfield・propertyを照合。recordのfrozen/kw_only・受理集合の拒否 |
 | 2.3 | 完了処理が更新するのは監視と保留位置だけであることを、sessionの参照一致と状態照合、依存のexact集合（一覧owner・通知をimportしない）で確認。再利用計数は応答結果からの対応表で実旧と照合 |
-| 3.1, 3.2 | 型・値・対応の全拒否条件（結果種別と帰属変更の記録が対応しない手組みの応答2方向、exact型でない変更記録、IDがboolの変更記録を含む）で、監視・保留位置・保有モデル・optimizer・統計・学習標本・計数・帰属・乱数が不変。消費済みの応答への再適用の拒否 |
+| 3.1, 3.2 | 型・値・対応の全拒否条件（結果種別と帰属変更の記録が対応しない手組みの応答2方向、exact型でない変更記録、IDがboolの変更記録、一度も観測していない保留FIFOを含む）で、監視・保留位置・保有モデル・optimizer・統計・学習標本・計数・帰属・乱数が不変。消費済みの応答への再適用の拒否 |
 | 3.3 | 上記の実旧対照に加え、完了後に同じ損失列を新旧の監視へ与え、各観測のe値・警報・推定区間長・全状態を照合。代表的なsource変異の検出、exact AST、新実装だけのfresh CPU、旧11・最終3goldenを含む全pytest、Ruff・Pyright |
 
 適応イベント一覧・通知・session保持の新実装と、新全体runの一致は未検証として残す。

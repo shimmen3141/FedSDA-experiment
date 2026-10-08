@@ -1,4 +1,4 @@
-# 警報応答の完了処理 — 命名 revision4
+# 警報応答の完了処理 — 命名 revision5
 
 sourceとtestの実装前一覧。リポジトリ外の下書きをASTで走査し（関数・class・引数・代入・内包表記・keyword・属性）、既存のsrc/tests/旧実装に現れない名前を機械的に洗い出して全件を登録した。既存名は定義元と同じ役割で再利用する。全体の承認状態はspec.json。
 
@@ -124,6 +124,9 @@ recordのfield `alarm_buffer_response`、`estimated_change_point_sample_index`�
 | `IndexedObservedTrainingSample` | `federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample` |
 | `OverallAndTrueClassLossMonitor` | `federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor` |
 | `select_loss_monitoring_baseline_mean_loss` | `federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss` |
+| `PendingTrainingAssignmentBuffer` | `federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer` |
+| `TrainingDataAssignmentSettings` | `federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.TrainingDataAssignmentSettings` |
+| `AlarmBufferResponse` | `federated_learning_experiments.runtime.alarm_buffer_response.AlarmBufferResponse` |
 | `respond_to_alarm_with_buffered_samples` | `federated_learning_experiments.runtime.alarm_buffer_response.respond_to_alarm_with_buffered_samples` |
 | `AlarmResponseCompletion` | `federated_learning_experiments.runtime.alarm_response_completion.AlarmResponseCompletion` |
 | `complete_alarm_buffer_response` | `federated_learning_experiments.runtime.alarm_response_completion.complete_alarm_buffer_response` |
@@ -153,3 +156,7 @@ r3（未承認のまま改訂）までの名前と役割は変更しない。設
 - recordのfield `drained_pending_sample_indices`の値は、消費指示のある応答では完了処理の開始時に読んだ保留位置列（その後のdrainが消費する内容と同じ）、不足の応答では空tuple。役割（本処理が消費した保留位置）はr1と同じで、source内の同名の局所変数は使わなくなる。
 - testでは、既存の`TrainingModelAssignmentChange`を拒否条件の入力（boolのIDを持つ変更記録）を作るためにimportする。
 - testへ新しいhelper名を1つ追加する: `replace_assignment_change_in_response`（拒否条件の操作。再利用の応答の帰属変更記録だけを差し替えた応答を作り、完了処理の引数dictへ入れる。引数`completion_arguments`と`training_model_assignment_change`は既存の同名と同じ役割。応答や完了処理を実行しない）。
+
+## revision5の補足（設計r5の反映）
+
+r4までの名前と役割は変更しない。設計r5（一度も観測していない保留FIFOの拒否）のtest入力を作るため、testで既存の`PendingTrainingAssignmentBuffer`、`TrainingDataAssignmentSettings`、`AlarmBufferResponse`を定義元と同じ役割でimportする（上の「新testのimport」表は改訂後の下書きから生成しており、この3行を含む）。新しい名前は追加しない。拒否条件の追加はdictのkey（条件名）とlambdaだけで行う。

@@ -132,7 +132,7 @@ def complete_alarm_buffer_response(
         specified_value=detection_episode_id, parameter_name="detection_episode_id"
     )
     pending_assignment_state = pending_training_assignment_buffer.get_state_snapshot()
-    if pending_assignment_state.last_observed_sample_index not in (None, alarm_sample_index):
+    if pending_assignment_state.last_observed_sample_index != alarm_sample_index:
         raise ValueError("alarm_sample_index must be the last observed sample index")
     prepared_alarm_training_intervals = alarm_buffer_response.prepared_alarm_training_intervals
     if prepared_alarm_training_intervals is not None and (
