@@ -3951,6 +3951,12 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "evaluation/adahedge_diagnostic_evidence.py":
+        return imported_module_name in (
+            "math",
+            "collections.abc.Iterable",
+            "collections.abc.Mapping",
+        )
     if source_module_path == "evaluation/adaptation_record_store.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -4840,6 +4846,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "evaluation/adahedge_diagnostic_evidence.py",
             "evaluation/adaptation_record_store.py",
             "runtime/alarm_adaptation_recording.py",
             "runtime/candidate_validation_adaptation_recording.py",
@@ -4892,6 +4899,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             if (
                 source_module_path
                 in (
+                    "evaluation/adahedge_diagnostic_evidence.py",
                     "evaluation/adaptation_record_store.py",
                     "runtime/alarm_adaptation_recording.py",
                     "runtime/candidate_validation_adaptation_recording.py",
@@ -4931,6 +4939,10 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/alarm_change_interval_resolution.py",
                 )
                 and isinstance(import_statement, ast.Import)
+                and not (
+                    source_module_path == "evaluation/adahedge_diagnostic_evidence.py"
+                    and imported_module_name == "math"
+                )
             ) or not dependency_is_allowed(
                 source_module_path=source_module_path,
                 imported_module_name=imported_module_name,
@@ -9596,6 +9608,42 @@ def test_validation_decision_record_dependency_contract(source_text, expected_ac
     assert (
         not collect_dependency_boundary_violations(
             source_module_path="methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
+            source_text=source_text,
+        )
+    ) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    ("source_text", "expected_acceptance"),
+    [
+        ("import math", True),
+        ("import math as AcceptedDependency", True),
+        ("from collections.abc import Iterable, Mapping", True),
+        ("from collections.abc import Iterable as AcceptedDependency", True),
+        ("from collections.abc import Mapping as AcceptedDependency", True),
+        ("from math import exp", False),
+        ("from math import inf", False),
+        ("import math.exp", False),
+        ("import math.child", False),
+        ("import collections.abc", False),
+        ("import collections.abc.Mapping", False),
+        ("from collections.abc import Sequence", False),
+        ("from collections.abc import Mapping, Sequence", False),
+        ("from collections.abc.child import Mapping", False),
+        ("from __future__ import annotations", False),
+        ("import torch", False),
+        ("import numpy", False),
+        ("from federated_drift_experiment.expert_routing import AdaHedgeRouter", False),
+        ("from federated_learning_experiments import runtime", False),
+        ("from federated_learning_experiments.configuration import RunSettings", False),
+        ("from ..runtime import single_run_execution", False),
+        ("from . import adaptation_record_store", False),
+    ],
+)
+def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, expected_acceptance):
+    assert (
+        not collect_dependency_boundary_violations(
+            source_module_path="evaluation/adahedge_diagnostic_evidence.py",
             source_text=source_text,
         )
     ) == expected_acceptance

@@ -1,0 +1,91 @@
+{
+    "feature_name":  "adahedge-diagnostic-evidence",
+    "created_at":  "2026-10-08",
+    "updated_at":  "2026-10-08",
+    "language":  "ja",
+    "phase":  "implementation",
+    "approvals":  {
+                      "requirements":  {
+                                           "generated":  true,
+                                           "approved":  true,
+                                           "revision":  2,
+                                           "generated_sha256_lf":  "1d91a765b75f6f25b013258795433d5945ade737368d90674975f7ec9fd706c0",
+                                           "approved_revision":  2,
+                                           "approved_sha256_lf":  "1d91a765b75f6f25b013258795433d5945ade737368d90674975f7ec9fd706c0",
+                                           "reviewer":  "gpt-6-luna (independent subagent, effort medium)",
+                                           "reviewer_session":  "/root/requirements_r2_review",
+                                           "reviewer_identity_basis":  "explicit_subagent_launch_model_and_effort",
+                                           "review_record":  "review.md"
+                                       },
+                      "design":  {
+                                     "generated":  true,
+                                     "approved":  true,
+                                     "revision":  1,
+                                     "generated_sha256_lf":  "91cd024edd5ba9db70fe41abdcd15d8fba7a3a6642e10b7478a7fbcac43019d3",
+                                     "approved_revision":  1,
+                                     "approved_sha256_lf":  "91cd024edd5ba9db70fe41abdcd15d8fba7a3a6642e10b7478a7fbcac43019d3",
+                                     "reviewer":  "gpt-6-luna (independent subagent, effort medium)",
+                                     "reviewer_session":  "/root/design_naming_review",
+                                     "reviewer_identity_basis":  "explicit_subagent_launch_model_and_effort",
+                                     "review_record":  "review.md"
+                                 },
+                      "tasks":  {
+                                    "generated":  true,
+                                    "approved":  true,
+                                    "revision":  1,
+                                    "approved_revision":  1,
+                                    "generated_sha256_lf":  "237e1825936acc732951198b1087372db1ab76ec36b957ba7fb41bac27a94dd8",
+                                    "approved_sha256_lf":  "237e1825936acc732951198b1087372db1ab76ec36b957ba7fb41bac27a94dd8",
+                                    "reviewer":  "gpt-6-luna (independent subagent, effort medium)",
+                                    "reviewer_session":  "/root/task_graph_review",
+                                    "reviewer_identity_basis":  "explicit_subagent_launch_model_and_effort",
+                                    "review_record":  "review.md"
+                                },
+                      "naming":  {
+                                     "generated":  true,
+                                     "approved":  true,
+                                     "revision":  3,
+                                     "generated_sha256_lf":  "1c448c60922c5cf3499248d3311b52b69b7c122f7d5d17ef81c80bf1df2706ac",
+                                     "approved_revision":  3,
+                                     "approved_sha256_lf":  "1c448c60922c5cf3499248d3311b52b69b7c122f7d5d17ef81c80bf1df2706ac",
+                                     "reviewer":  "gpt-6-luna (independent subagent, effort medium)",
+                                     "reviewer_session":  "/root/task1_review",
+                                     "reviewer_identity_basis":  "explicit_subagent_launch_model_and_effort",
+                                     "review_record":  "review.md",
+                                     "previous_approved_revisions":  [
+                                                                         {
+                                                                             "revision":  1,
+                                                                             "sha256_lf":  "cac3a2d3a9155c64e8f8dc837312b7965e24a64c7da8e2d01e58e43273575d66",
+                                                                             "reviewer_session":  "/root/design_naming_review"
+                                                                         },
+                                                                         {
+                                                                             "revision":  2,
+                                                                             "sha256_lf":  "c15faa50dc0aeab88b9c9d30b460d37694af4dd13c9ca05f534f0245605d4747",
+                                                                             "reviewer_session":  "/root/naming_r2_review"
+                                                                         }
+                                                                     ]
+                                 }
+                  },
+    "ready_for_implementation":  true,
+    "approval_policy":  "user_delegated_luna_medium_or_haiku_5_5_high_by_difficulty_independent_review",
+    "implementation_progress":  {
+                                    "completed":  1,
+                                    "total":  3
+                                },
+    "handoff":  {
+                    "execution_status":  "in_progress",
+                    "next_step":  "task_2",
+                    "implementation_started":  true,
+                    "tests_run":  true,
+                    "full_pytest_run_for_this_spec":  false
+                },
+    "task_reviews":  {
+                         "1":  {
+                                   "verdict":  "APPROVED",
+                                   "reviewer":  "gpt-6-luna (independent subagent, effort medium; Haiku external review blocked by auto-review)",
+                                   "reviewer_session":  "/root/task1_review",
+                                   "independent_test_execution":  false,
+                                   "evidence":  "review.md"
+                               }
+                     }
+}
