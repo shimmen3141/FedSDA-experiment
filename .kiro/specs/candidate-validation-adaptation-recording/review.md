@@ -89,18 +89,6 @@ golden回帰の不一致について確かめたこと: この2つのtestが実�
 
 指摘なし（Blocker・Major・Minorなし）。要求r2の2.1・2.3の(a)(b)(c)がすべて更新前に検査されていること、検査しない2点を実際に読んでいないこと、未検査の「不正」がないこと、受理する組合せが設計4節の表と一致し上流の正常な4結果を拒否しないこと、2回目の指摘の採否の記録が実装・要求・設計と一致することを確認したと報告された。読取り専用のためtestは実行していない。Task 1を完了とした。source・testのcommitは`af3ffa7`。
 
-## 現在地（2026-10-08）: Windows基準の検証待ち
+## Windows基準環境での再実行（2026-10-08、commit `733994b`）
 
-- 完了: 要求r2・設計r4・命名r2・tasks r2の承認、Task 1の承認。
-- Task 2（検出力と新実装単独の動作）: WSLでは変異51/51検出・fresh CPU 10条件成功（[証拠](mutation-and-cpu-evidence.md)）。Windows基準での実行と独立レビューは未実施。
-- Task 3（全回帰）: 未完了。WSLの全pytestはgolden回帰2件が環境差で不一致になり判定に使えない（上の「WSLでの全pytest」）。Windows基準の全pytest・JUnit・source hash・`spec_checks.py identity`が必要。
-- feature最終GO: 未実施。
-
-Windowsでtorchが読み込めるようになったら（`../../venv/Scripts/python.exe -c "import torch"`で確認）、worktreeルートで次を実行する。
-
-1. 対象testと依存境界: `pytest tests/refactoring/test_candidate_validation_adaptation_recording.py tests/refactoring/test_alarm_adaptation_recording.py tests/refactoring/test_single_run_dependency_boundaries.py`（期待: 111＋2681＝2792 passed）。
-2. 変異: `python ../../venv/refactoring-tests/candidate-validation-adaptation-recording-mutations.py <新しい証拠ディレクトリ>`（期待: 51/51）。fresh CPU: `python ../../venv/refactoring-tests/candidate-validation-adaptation-recording-fresh-cpu.py`（期待: 10行のPASSと`ALL 5 OUTCOMES OBSERVED`）。
-3. 全pytest（JUnitつき）、Ruff・Pyright・pip check、`spec_checks.py identity candidate-validation-adaptation-recording --junit <XML>`。件数の期待は、直前specの9363＋新test 71＋注入契約70＝9504 passed / 3 skipped。
-4. 証拠文書（mutation-and-cpu-evidence.mdをWindowsの結果で更新、integration-validation.mdを作成）→ Task 2・3の独立レビュー（Luna）→ 別sessionのfeature最終GO → 再開案内とroadmapの更新。
-
-Windowsの結果がWSLと違った場合は、環境差と決めつけず差分を調べる。
+Task 1の承認後、Windowsの基準環境でtorchが読み込めるようになった。次のspec（held-candidate-validation-progress）のsource・testを含むcommit `733994b`で、対象test・依存境界・変異・fresh CPU・全pytestを実行した。本specのsource・test（`af3ffa7`）は`733994b`まで変更していない。結果は[mutation-and-cpu-evidence.md](mutation-and-cpu-evidence.md)の末尾と[integration-validation.md](integration-validation.md)。WSLの結果との違いは、既知の3件（Python 3.14の構文解析の違い1件、golden回帰2件）がWindows基準では成功することだけだった。

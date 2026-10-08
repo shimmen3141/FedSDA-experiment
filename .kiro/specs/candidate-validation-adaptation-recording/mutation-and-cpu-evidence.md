@@ -98,3 +98,11 @@ ALL 5 OUTCOMES OBSERVED
 ## 依存のexact一致
 
 新moduleのimportは9 symbol、記録ownerは`typing.get_args`を追加した4 symbol（設計5節）。`dependency_is_allowed`の分岐、両resolverのtupleへの登録、注入契約test 70条件。WSLでは対象111＋依存境界2681のうち2791 passed・1 failed。失敗の1件は本specと無関係の既存test（`test_temporary_model_id_allocation_rejects_every_import_except_annotations[from __future__ import *-False]`）で、Python 3.14の`ast.parse`が`from __future__ import *`を構文解析の時点でSyntaxErrorにするため（Python 3.13の基準環境では成功していた）。Windows側のPythonで実行できる静的検査（Ruff check/format、Pyright、`spec_checks.py names`）は成功。
+
+## Windows基準環境での再実行（2026-10-08、commit `733994b`）
+
+torchの読込みのブロックが解消した後、Windowsの基準環境（固定venv、Python 3.13）で同じscriptを実行した。
+
+- 変異: **51/51検出**、各回元byteへ復元、復元後は111 passed。変異ごとの結果は上の表（WSL）と同じ全件検出。出力は`venv/refactoring-tests/candidate-validation-adaptation-recording-mutation-evidence-windows/`。
+- fresh CPU: 2/4class×5シナリオの全10条件が成功し、5種類の適応結果がすべて現れた（exit 0）。出力は`venv/refactoring-tests/candidate-validation-adaptation-recording-fresh-cpu.log`。各行の内容（結果・ID・位置）はWSLの出力と同じ。
+- 対象testと依存境界: 対象111（新71＋既存の警報適応記録40）＋依存境界2799＝2910 passed（全pytestの一部として実行）。
