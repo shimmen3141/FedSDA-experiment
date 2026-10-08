@@ -12,4 +12,4 @@
 | [tasks.md](tasks.md) | 逐次5task、Luna承認済 |
 | [review.md](review.md) | 独立レビューと採否 |
 
-要求r1・設計r2・命名r5・tasks r1、全5task承認・実装/検証済み。[統合証拠](integration-validation.md)。別fresh feature最終GOは確認中。各状態の正本はspec.json/tasks.md。
+要求r1・設計r2・命名r5・tasks r1、全5taskを独立Luna承認、別fresh feature最終GO、本spec完了。[統合証拠](integration-validation.md)、[変異検出](mutation-evidence.md)、[新CPU/依存](cpu-and-dependency-evidence.md)。次は[再開案内](../../steering/resume.md)の警報後の後始末・記録・通知の組立。各状態の正本はspec.json/tasks.md。

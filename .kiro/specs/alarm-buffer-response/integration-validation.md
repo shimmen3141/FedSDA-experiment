@@ -2,7 +2,7 @@
 
 ## 対象と現在の判定
 
-対象source/test commit: `ea61b8a`（本specの実装は`59ded40`、以降は証拠文書）。主担当Codex、2026-10-08、Windows CPUの固定venv。全5taskは独立GPT-6 Luna承認。全回帰は9110 passedで終了。別fresh feature最終GOは確認中で、この時点ではspec未完了。
+対象source/test commit: `ea61b8a`（本specの実装は`59ded40`、以降は証拠文書）。主担当Codex、2026-10-08、Windows CPUの固定venv。全5taskは独立GPT-6 Luna承認。全回帰は9110 passedで終了し、Task 5と別fresh Lunaのfeature最終判定は**GO、9/9要求を検証、本spec完了**。
 
 実装境界は`runtime/alarm_buffer_response.py`の不変`AlarmBufferResponse`と`respond_to_alarm_with_buffered_samples`。検証中なら保留全件を現行へ吸収し、未検証なら前区間準備→最小件数→公開区間解決を組み立てる。結果5種とFIFO消費判断を返す。
 
@@ -17,6 +17,8 @@
 | 5 全回帰・品質 | 全pytest 9110 passed / 3 skipped / 2 warnings、416.70s、exit0。Ruff/Pyright/pip checkと同一性検査成功。別LunaがJUnit/hash/空diffを独立照合して承認 |
 
 レビューsession・採否はspec.json/review.md。Task 4の独立再現にcache権限warningと完了後cleanup errorが報告されたため、テスト成功と区別して記録している。
+
+最終担当はreviewed commit `825a206`、全5task・9/9要求・接続/境界・承認hash・全回帰log/JUnitを照合してGO。全suite/品質/fresh CPUの最終担当による再実行は行っていない。Task 4担当の独立対象/CPU再現、Task 5担当の独立JUnit/source hash再現も証拠に含む。未完了taskとblocking指摘はない。最終レビュー証拠は元checkoutのvenv/refactoring-tests/alarm-buffer-response-feature-final-review.md/log。
 
 ## 要求対応（9/9）
 
