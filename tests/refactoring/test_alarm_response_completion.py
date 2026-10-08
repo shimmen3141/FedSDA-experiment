@@ -377,7 +377,9 @@ def test_response_completion_matches_real_legacy(
         assert torch.equal(torch.get_rng_state(), expected_torch_random_state)
         assert response_arguments["python_random_generator"].getstate() == python_random_state
         assert random.getstate() == global_python_random_state
+        assert np.random.get_state()[0] == numpy_random_state[0]
         assert np.array_equal(np.random.get_state()[1], numpy_random_state[1])
+        assert np.random.get_state()[2:] == numpy_random_state[2:]
         assert response_completion.alarm_buffer_response is alarm_buffer_response
         assert_response_completion_matches_legacy(
             response_completion=response_completion,
@@ -871,7 +873,9 @@ def test_completion_rejects_invalid_inputs_before_updates(
         )
         assert torch.equal(torch.get_rng_state(), torch_random_state)
         assert random.getstate() == global_python_random_state
+        assert np.random.get_state()[0] == numpy_random_state[0]
         assert np.array_equal(np.random.get_state()[1], numpy_random_state[1])
+        assert np.random.get_state()[2:] == numpy_random_state[2:]
 
 
 def test_repeated_completion_of_consumed_response_is_rejected(
