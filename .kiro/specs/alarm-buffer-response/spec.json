@@ -3,7 +3,7 @@
   "created_at": "2026-10-08",
   "updated_at": "2026-10-08",
   "language": "ja",
-  "phase": "implementation",
+  "phase": "integration-validation",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -53,7 +53,7 @@
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_preferred_sonnet_fallback_independent_review",
   "implementation_progress": {
-    "completed": 4,
+    "completed": 5,
     "total": 5
   },
   "task_reviews": {
@@ -84,6 +84,39 @@
       "reviewer_session": "01a1196d-60bc-7331-9d45-3aae01e99d9a",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_line",
       "evidence": "alarm-buffer-response-task4-review.md"
+    },
+    "5": {
+      "verdict": "APPROVED",
+      "reviewer": "gpt-6-luna (independent CLI)",
+      "reviewer_session": "01a11977-5db5-7661-8055-e9fecf1e3fb2",
+      "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_line",
+      "evidence": "alarm-buffer-response-task5-review.md",
+      "tested_commit": "ea61b8a",
+      "full_passed": 9110,
+      "full_skipped": 3,
+      "junit_testcases": 9113,
+      "independent_full_suite_rerun": false
     }
+  },
+  "verification_source_sha256": "49e99d8098e2053386c4e6d592853369569f4c2c62ee1b190a7d761c80cf2790",
+  "integration_validation": {
+    "status": "VERIFIED",
+    "decision": "PENDING_FRESH_FEATURE_REVIEW",
+    "tested_commit": "ea61b8a",
+    "full_passed": 9110,
+    "full_skipped": 3,
+    "full_warnings": 2,
+    "full_duration_seconds": 416.7,
+    "junit_testcases": 9113,
+    "source_path_count": 265,
+    "source_sha256_lf": "49e99d8098e2053386c4e6d592853369569f4c2c62ee1b190a7d761c80cf2790",
+    "evidence": "integration-validation.md",
+    "target_and_ast_passed": 2519,
+    "fresh_cpu_cases": 12,
+    "requirements_total": 9,
+    "independent_full_suite_rerun": false,
+    "full_pytest_basis": "primary_agent_measurement_and_junit_per_user_decision_2026-10-07",
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true
   }
 }

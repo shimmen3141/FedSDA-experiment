@@ -50,3 +50,9 @@
 - 主担当はexact23集合一致、235注入、対象64＋AST2455＝2519 passed（20.67s）、新CPU 12条件/exit0を確認。cpu-and-dependency-evidence.mdに境界・コマンド・証拠を記録した。
 - 別fresh Lunaも対象＋ASTを2519 passed（18.20s）、新CPU全12条件を独立再現してAPPROVED。実測とsource/guard/namingの一致を照合した。必須指摘なし。
 - 独立担当の実行にはpytest cache権限warningと完了後の一時ディレクトリcleanup errorが出たと報告された。成功したテスト結果と区別して記録し、全pytestの独立再実行成功とは扱わない。
+
+## Task 5 — APPROVED
+
+- 主担当全実測は9110 passed/3 skipped/2 warnings、416.70s、exit0。JUnit9113 testcase、failure/error0。旧11/最終3golden成功、全品質成功。tested source/test commitはea61b8a。
+- 別fresh LunaがJUnit件数、golden entry、265パスsource hashと4承認hash、固定旧の空diffを独立再現しAPPROVED。全pytestと品質検査の独立再実行は未実施で、主担当実測とJUnit照合に基づく。必須指摘なし。
+- integration-validation.mdの9要件対応、未接続の新全体run、借用参照、委譲後の部分更新境界も照合済み。Task 5承認はfeature最終GOの代替ではない。次は別fresh Lunaでfeature全体を判定する。

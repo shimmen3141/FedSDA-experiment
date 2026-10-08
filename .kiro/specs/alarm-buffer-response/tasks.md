@@ -31,7 +31,7 @@
   - _Boundary: 応答の依存/独立動作の統合証拠_
   - _Requirements: 3.2_
 
-- [ ] 5. 固定基準の全回帰と証拠を確定する
+- [x] 5. 固定基準の全回帰と証拠を確定する
   - 全pytest/JUnit、旧11・最終3golden、Ruff/Pyright/pip check、固定旧から空diff、承認hash・source hash・tested commitを実測する。
   - integration-validation.mdに9要件の対応、各taskレビュー、未検証の新全体run/後始末、借用/部分更新の制約を残す。
   - 完了: 主担当の全実測とJUnitを独立担当が確認し承認（独立全pytest再実行は既存ユーザー決定に従い必須にしない）。その後別fresh feature GOを行い、再開案内を次の候補へ更新する。
