@@ -49,3 +49,9 @@
 1. Task 3、Minor: integration-validation.mdのtasks r2のhashの説明「checkboxを未完了へ戻した内容」が、現在のtasks.md（Task 1が完了）の状態と合わない。→ 記述の意図は「承認hashは、完了のcheckboxを未完了へ置き換えた内容で計算する」という規約（共通引継ぎ手順の検証コマンドの節）の説明で、現在のファイルの状態を述べたものではない。hashの値は正しい（`spec_checks.py identity`が同じ規約で照合する）。ただし読み手が状態の記述と取り違えたので、説明を「規約どおり置き換えた内容で計算した値で、現在のファイルそのもののhashではない」へ改めた。Task 3は再判定を依頼する。
 
 Task 2を完了とした。
+
+## Task 3 2回目（Luna、別session `01a11cc0-0a6d-7f62-9d5f-1218909468eb`、HEAD `378fcd9`）— TASK 3: APPROVED
+
+指摘なし。改めた説明が承認hashの規約と一致し、記録したhashが現在のtasks.mdをその規約で照合した値と一致すると報告された。独立に実行したもの: `spec_checks.py identity --rev ef1be82`（要求・設計・命名・tasksの承認hash、固定旧差分、source hash、作業ツリー、JUnit集計と回帰testcaseがすべてOK）。全pytest・対象test・fresh CPU・Ruff・Pyright・pip checkは、この回では実行していない（対象test・fresh CPU・Ruffは1回目で再現済み）。
+
+全3taskを完了とした。

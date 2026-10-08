@@ -55,4 +55,4 @@ Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `hel
 
 ## レビュー
 
-（設計・命名・tasksのrevision2とTask 2・3の独立レビュー、feature最終レビューの結果を記録する。経緯と採否は[review.md](review.md)。）
+Task 1はClaude Haiku 5.5（2回目で承認）、設計・命名・tasksのrevision2とTask 2・3はGPT-6 Lunaが承認（Task 3は2回目で承認。2026-10-09）。経緯と採否は[review.md](review.md)。
