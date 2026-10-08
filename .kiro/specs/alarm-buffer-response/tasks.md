@@ -24,7 +24,7 @@
   - _Boundary: 応答の検出力検証_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.2, 2.3, 3.2_
 
-- [ ] 4. 依存境界と新CPUでの接続を検証する
+- [x] 4. 依存境界と新CPUでの接続を検証する
   - 明示的なtest-only統合検証task。実importとexact集合一致、direct/alias/relative許可、wholemodule/private/star/child/upward拒否を照合する。
   - 新実装だけのfresh CPU processで不足・十分（現行維持）・activeの応答を実行し、FIFO保持と消費判断、実吸収、session参照、未使用入力と乱数を確認する。
   - 完了: 対象＋AST成功とfresh CPUの実測を記録、独立reviewerが再現/証拠確認して承認。

@@ -44,3 +44,9 @@
 - 9種の実source変異を全て検出し、各回finallyでbyte復元した。構文/収集失敗は検出成功に数えていない。詳細はmutation-evidence.md。
 - 復元後64 passed、11.17s。変更前後byte hash一致、runtimeのTask 2 commitからのdiffは空。
 - 別fresh Lunaがscript・全logの失敗範囲・report・現在hash/空diffを独立照合してAPPROVED。全pytestの検証ではない。必須指摘なし。
+
+## Task 4 — APPROVED
+
+- 主担当はexact23集合一致、235注入、対象64＋AST2455＝2519 passed（20.67s）、新CPU 12条件/exit0を確認。cpu-and-dependency-evidence.mdに境界・コマンド・証拠を記録した。
+- 別fresh Lunaも対象＋ASTを2519 passed（18.20s）、新CPU全12条件を独立再現してAPPROVED。実測とsource/guard/namingの一致を照合した。必須指摘なし。
+- 独立担当の実行にはpytest cache権限warningと完了後の一時ディレクトリcleanup errorが出たと報告された。成功したテスト結果と区別して記録し、全pytestの独立再実行成功とは扱わない。
