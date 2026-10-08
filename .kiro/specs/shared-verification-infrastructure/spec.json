@@ -3,7 +3,7 @@
   "created_at": "2026-10-09",
   "updated_at": "2026-10-09",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -57,15 +57,54 @@
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "implementation_progress": {
-    "completed": 0,
+    "completed": 2,
     "total": 3
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "requirements_design_naming_tasks_approved",
-    "next_step": "task_1_tests_red_then_implementation",
-    "implementation_started": false,
-    "tests_run": false,
-    "full_pytest_run_for_this_spec": false
+    "completed_unit": "task_1_2_approved",
+    "next_step": "task_3_review_with_feature_final_in_same_request",
+    "implementation_started": true,
+    "tests_run": true,
+    "full_pytest_run_for_this_spec": true
+  },
+  "task_reviews": {
+    "1_2": {
+      "verdict": "TASK 1: APPROVED / TASK 2: APPROVED",
+      "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
+      "reviewer_session": "01a11d1e-4b9a-7ca2-8485-1103b31e220c",
+      "reviewer_identity_basis": "launch_model_flag_and_execution_log_model_line",
+      "reviewed_commit": "97d9c43",
+      "tested_commit": "97d9c43",
+      "independently_run": [
+        "target_tests_3102_passed",
+        "fresh_process_smoke",
+        "ruff"
+      ],
+      "independent_full_suite_rerun": false,
+      "evidence": "review.md"
+    }
+  },
+  "verification_source_sha256": "669709a0437c8882596f87654f306368527700af6c77b1be3729f886aac533c8",
+  "integration_validation": {
+    "status": "TASK_3_AND_FEATURE_FINAL_REVIEW_PENDING",
+    "tested_commit": "97d9c43",
+    "full_passed": 10031,
+    "full_skipped": 3,
+    "full_warnings": 2,
+    "full_duration_seconds": 196.88,
+    "full_exit_code": 0,
+    "junit_testcases": 10034,
+    "junit_failures": 0,
+    "junit_errors": 0,
+    "source_path_count": 286,
+    "source_sha256_lf": "669709a0437c8882596f87654f306368527700af6c77b1be3729f886aac533c8",
+    "evidence": "integration-validation.md",
+    "requirements_total": 9,
+    "independent_full_suite_rerun": false,
+    "full_pytest_basis": "primary_agent_measurement_and_junit_per_user_decision_2026-10-07",
+    "legacy_production_unchanged": true,
+    "golden_unchanged": true,
+    "source_unchanged": true
   }
 }

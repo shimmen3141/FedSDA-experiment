@@ -8,3 +8,13 @@
 - 結果（session `01a11d13-bc64-7433-9707-cb7c20b1d2aa`）: 4段階ともAPPROVED、指摘なし。レビュー担当はtestを実行していない。下書きの適用と事前確認の独立再現も行っていない。
 - 手順上の事実: 変更をリポジトリ外のpatchとして下書きし、`git archive HEAD`で作った作業ツリーの複製へ適用して、Windowsの基準環境のPythonで実行した（worktreeのtestは変更していない。新test・保持と進行のtest・依存境界testが3102 passed、Ruff成功、汎用の変異toolで29/31検出・未検出2種は等価）。`spec_checks.py names`は複製で報告なし。
 - 外部証拠: 元checkoutの`venv/refactoring-tests/shared-verification-infrastructure-spec-review.md`/`.log`。
+
+## Task 1・Task 2（Luna、session `01a11d1e-4b9a-7ca2-8485-1103b31e220c`、test commit `97d9c43`）— TASK 1: APPROVED / TASK 2: APPROVED
+
+実施記録: 変更をworktreeへ適用した後のファイルは、仕様の承認時にLunaが読んだ下書きとbyteが同じ。新test・保持と進行のtest・依存境界testで3102 passed、Ruff成功、`spec_checks.py names --base`報告なし。許可集合の検査は、使っていない許可（`torch.Tensor`）を戻すと失敗することを確かめた（検出力の確認の1件）。「moduleがないだけ」のREDは記録していない（新しい規則）。
+
+選択: testとtest用scriptだけの変更で、証拠の照合と再実行が中心なのでGPT-6 Luna（effort `medium`を明示、実行ログのmodel行とreasoning effort行で確認）。sandboxはworkspace-write。指摘なし。
+
+- レビュー担当が独立に実行したもの: 対象の3 test file（3102 passed）、共用scriptの単独実行（16の流れ、成功）、Ruff check/format。pytestの終了時に、主担当の全pytestと一時directoryが競合した`PermissionError`の警告が出たと報告された（pytest自体は成功）。
+- 検出力の確認scriptは読んで照合（実行していない）: 6件の結果がreportと証拠文書で一致。変異toolの29/31と、未検出2種を等価とした理由（該当の代入が読取りだけ）は実コードに照らして妥当と報告された。
+- 独立実行していないもの: 全pytest、検出力の確認script、変異tool。実行後の`git status --short`は、主担当が置いた未コミットの証拠文書1件だけ。

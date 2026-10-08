@@ -1,7 +1,7 @@
 # NEW-002: 候補検証sessionの保持と進行のtestに、汎用の変異toolで見つかった穴が2件ある
 
 - 発見日: 2026-10-09。対象: `tests/refactoring/test_held_candidate_validation_progress.py`（検証対象のsourceは`src/federated_learning_experiments/runtime/held_candidate_validation_progress.py`、commit `ef1be82`）。発見の経緯: 汎用の変異tool（`.kiro/settings/scripts/mutation_check.py`）を作って既存のmoduleで試したとき。
-- 種別: testの検出力の不足（sourceの挙動は設計どおり）。状態: 未修正。
+- 種別: testの検出力の不足（sourceの挙動は設計どおり）。状態: 修正済み（2026-10-09、commit `97d9c43`、spec shared-verification-infrastructure）。
 
 ## 内容
 
@@ -20,4 +20,6 @@ sourceは正しく、過去の検証結果（実旧との対照、全回帰）�
 
 ## 扱い
 
-`test_held_candidate_validation_progress.py`を次に変更するspecで、(1)反映の拒否条件へ応答と保持の派生型を足し、(2)終端回収のtestへ、解除の時点で記録が追加済みであることの確認を足して、toolで検出を確かめる。修正commitは未定。
+`test_held_candidate_validation_progress.py`を次に変更するspecで、(1)反映の拒否条件へ応答と保持の派生型を足し、(2)終端回収のtestへ、解除の時点で記録が追加済みであることの確認を足して、toolで検出を確かめる。
+
+2026-10-09に修正した（commit `97d9c43`）。変異toolの結果は26/31から29/31になり、残る未検出2種は上の等価な変異。

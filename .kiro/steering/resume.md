@@ -9,8 +9,8 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **現在地:** [held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md)（候補検証の確定に伴う診断通知）まで完了。進行中の編集・未解消レビュー指摘はない。
-- **次の一手:** 下の「次の候補」1（警報のない標本での帰属確定と学習、標本1件の処理全体）を、境界を分けて要求から仕様化する。同期を同じspecへ混ぜない。次のspecで、共通引継ぎ手順の2026-10-09の変更のうち実装が要る2件（Git管理下の共用fresh process script、依存の許可集合のdata化と一致test）を行う。
+- **現在地:** [shared-verification-infrastructure](../specs/shared-verification-infrastructure/README.md)（検証基盤の整理。testだけの変更）はTask 1・2を独立承認。Task 3のレビューと同じ依頼でfeature最終の判定を受ける段階。未解消レビュー指摘はない。その前の[held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md)まで完了。
+- **次の一手:** 下の「次の候補」1（警報のない標本での帰属確定と学習、標本1件の処理全体）を、境界を分けて要求から仕様化する。同期を同じspecへ混ぜない。新しい接続を移植するspecは、その接続を通る流れを共用の`tests/refactoring/fresh_process_smoke.py`へ足す。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。`federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧名alias/互換読込みを追加しない。
 - **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。Task 3と最終GOは、Windows基準での全回帰が済むまで完了にしない。
 - pushの扱い: taskごとに通常pushを1回だけ試す。失敗時は連続再試行や原因探索をせず、次taskのpush成功時に未送信commitも送る（2026-10-08ユーザー指示）。
@@ -20,17 +20,15 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - **Linux用のgolden（2026-10-08ユーザー）:** 旧実装をLinuxで実行した結果のgoldenは、新実装の全体runを接続するspecに入る前に作る。既存のWindows用goldenと回帰testは変更せず、別ファイル・別testにする。作る前に、同じ環境で2回実行して結果が一致することを確かめる。それまでの部品specでは、WSLのgolden回帰の不一致（環境差。旧実装は固定旧から無変更）を理由にgoldenを変えない。
 - **検出episode（2026-10-09、主担当の判断）:** 制御（旧`DetectionEpisodeController`）と同一episodeの追加検出の経路は当面移植しない。最終構成の既定で無効。記録は[UNPORTED-001](../../docs/research/implementation-findings/unported-001-detection-episode-control.md)。ユーザーが必要と判断すれば覆せる。
 - **移植しないと決めたもの（2026-10-07ユーザー）:** 参照も学習させる候補検証方針（旧`shadow_tournament`）。記録は[UNPORTED-002](../../docs/research/implementation-findings/unported-002-reference-shadow-tournament.md)。
+- **依存testの方式の一本化は行わない（2026-10-09ユーザー）:** 既存の登録と注入契約testは移さず、消さない。新しいmoduleにはsymbolごとの注入契約testを足さない。記録は[IMPROVE-009](../../docs/research/improvement-candidates/improve-009-unify-dependency-boundary-tests.md)。
 - **手順の簡素化（2026-10-09ユーザー）:** 変異は汎用の`mutation_check.py`、命名表はsourceとtestのmodule直下の名前まで、設計・tasksへ条件数を書かない、小さいspecでは最終判定をTask 3のレビューと同じ依頼で受けてよい、resumeへ件数・hashを写さない、依存の注入契約testをsymbolごとに足さない、fresh processの確認は共用script。Haikuのeffortの既定は`medium`。正本は[共通引継ぎ手順](agent-handoff.md)。
 - 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)、不具合の疑い・移植しない判断・新実装で見つけた事項は[implementation-findings](../../docs/research/implementation-findings/README.md)へ、気づいた時点で1件1ファイルで記録する（2026-10-09ユーザー指示）。研究アルゴリズムの変更は採用していない。
-
-## 次に該当ファイルを変更するときに直すこと
-
-- `tests/refactoring/test_held_candidate_validation_progress.py`: 汎用の変異toolで見つかったtestの穴2件（[NEW-002](../../docs/research/implementation-findings/new-002-held-validation-test-gaps-found-by-mutation-tool.md)。反映の関数の派生型の拒否、終端回収の記録→解除の順）。`test_owner_types_are_rejected_before_upstream_updates`のコメント「保持がなければ上流は何もしないが」を、mockへ差し替えた条件に合う説明へ改める。
 
 ## 完了specの一覧（新しい順。詳細は各spec）
 
 警報後の「参照の固定→標本の観測→損失収集→採否評価→確定→正式ID確認」、警報時の「区間の準備→再利用評価→切替または候補検証の開始→完了処理→記録」、候補検証sessionの保持、診断証拠と通知までの部品が、実旧の対応するメソッドとの対照つきで揃っている。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 
+- [shared-verification-infrastructure](../specs/shared-verification-infrastructure/README.md)（Task 3のレビューと同じ依頼でfeature最終の判定を受ける段階）: Git管理下の共用fresh process scriptとそれを別processで実行するtest、依存の許可集合が広すぎないことの検査、汎用の変異toolで見つかったtestの穴2件の修正。sourceの変更なし。
 - [held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md): 候補検証の進行（`advance_held_candidate_validation`）が、確定時に帰属変更を診断へ通知する。進行の関数の引数が増えたので、これより前のspecの個別fresh CPU script（Git管理外）は現在のsourceでは動かない。
 - [alarm-occurrence-handling](../specs/alarm-occurrence-handling/README.md): 警報1回ぶんの処理（応答→完了処理→適応記録→session保持→診断通知）を`handle_alarm_occurrence`でつなぐ。
 - [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)（主担当Codex）: globalと真の概念別oracleの診断証拠の保持と、帰属変更通知（globalだけ再始動）。
