@@ -84,3 +84,23 @@ Blocker・Majorなし。1回目の指摘1〜3と任意2件の解消、追加し�
 golden回帰の不一致について確かめたこと: この2つのtestが実行するのは旧実装`federated_drift_experiment`だけで、旧実装・2つのgolden・2つの回帰testは固定旧`748c3aa`から差分が空（`git diff 748c3aa HEAD`で確認）。したがって本specの変更はこの結果に影響しない。Windowsの基準環境では、障害の前に同じ2testが成功している（commit `3a007bf`の全pytest 9496 passed。旧実装は同一）。torchの版はどちらも2.12.1で、違いはOS（Linux/Windows）、Python（3.14.4/3.13）、数値ライブラリの実装。小さな浮動小数の差が学習と検出の分岐を変えたと考えるのが自然だが、どの演算で最初に差が出るかは調べていない（未確認）。goldenの更新、許容誤差の変更、testのskipは行っていない。docs/experiments/refactoring-baseline.mdのとおり、別OSでの不一致を理由にgoldenを変えない。
 
 結論: WSLでは新実装のtest（tests/refactoring）は既知の1件を除いて成功するが、golden回帰はWSLでは判定できない。旧11・最終3goldenの確認は、Windowsの基準環境でtorchが読み込めるようになってから行う。
+
+### Haiku 3回目（session `026f935d-98c2-4a21-a55e-89b95458d815`、HEAD `2a6aff1`）— Task 1 APPROVED
+
+指摘なし（Blocker・Major・Minorなし）。要求r2の2.1・2.3の(a)(b)(c)がすべて更新前に検査されていること、検査しない2点を実際に読んでいないこと、未検査の「不正」がないこと、受理する組合せが設計4節の表と一致し上流の正常な4結果を拒否しないこと、2回目の指摘の採否の記録が実装・要求・設計と一致することを確認したと報告された。読取り専用のためtestは実行していない。Task 1を完了とした。source・testのcommitは`af3ffa7`。
+
+## 現在地（2026-10-08）: Windows基準の検証待ち
+
+- 完了: 要求r2・設計r4・命名r2・tasks r2の承認、Task 1の承認。
+- Task 2（検出力と新実装単独の動作）: WSLでは変異51/51検出・fresh CPU 10条件成功（[証拠](mutation-and-cpu-evidence.md)）。Windows基準での実行と独立レビューは未実施。
+- Task 3（全回帰）: 未完了。WSLの全pytestはgolden回帰2件が環境差で不一致になり判定に使えない（上の「WSLでの全pytest」）。Windows基準の全pytest・JUnit・source hash・`spec_checks.py identity`が必要。
+- feature最終GO: 未実施。
+
+Windowsでtorchが読み込めるようになったら（`../../venv/Scripts/python.exe -c "import torch"`で確認）、worktreeルートで次を実行する。
+
+1. 対象testと依存境界: `pytest tests/refactoring/test_candidate_validation_adaptation_recording.py tests/refactoring/test_alarm_adaptation_recording.py tests/refactoring/test_single_run_dependency_boundaries.py`（期待: 111＋2681＝2792 passed）。
+2. 変異: `python ../../venv/refactoring-tests/candidate-validation-adaptation-recording-mutations.py <新しい証拠ディレクトリ>`（期待: 51/51）。fresh CPU: `python ../../venv/refactoring-tests/candidate-validation-adaptation-recording-fresh-cpu.py`（期待: 10行のPASSと`ALL 5 OUTCOMES OBSERVED`）。
+3. 全pytest（JUnitつき）、Ruff・Pyright・pip check、`spec_checks.py identity candidate-validation-adaptation-recording --junit <XML>`。件数の期待は、直前specの9363＋新test 71＋注入契約70＝9504 passed / 3 skipped。
+4. 証拠文書（mutation-and-cpu-evidence.mdをWindowsの結果で更新、integration-validation.mdを作成）→ Task 2・3の独立レビュー（Luna）→ 別sessionのfeature最終GO → 再開案内とroadmapの更新。
+
+Windowsの結果がWSLと違った場合は、環境差と決めつけず差分を調べる。

@@ -11,7 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **進行中（2026-10-08、主担当Claude Code、WSLで検証中）:** [candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)のTask 1。Windowsの基準環境はtorchの読込みがスマートアプリコントロールでブロックされており、検証はWSL Ubuntu（Python 3.14）で進めている。WSLの結果はWindows基準の検証ではなく、Windowsでの最終回帰が済むまで完了ゲートを通過扱いにしない。経過と残る検証は同specのreview.md「WSLでの再開」。この項目より下の「次の一手」「最新完了」は、このspecの着手前の状態。
+- **Windows基準の検証待ち（2026-10-08、主担当Claude Code）:** [candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（候補検証の到達時の確定と未完了の終端回収を、既存の適応記録ownerへ記録する）。要求r2・設計r4・命名r2・tasks r2承認、Task 1承認（source/test commit `af3ffa7`）。未コミット差分・レビュー待ちはない。Windowsの基準環境はtorchの読込みがスマートアプリコントロールでブロックされており（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`、10月3日・5日にも発生）、Task 1の後半からWSL Ubuntu（Python 3.14.4、リポジトリ直下の`.venv`）で検証した。WSLでは対象111件・変異51/51・fresh CPUが成功、全pytestは9504 passed/3 failed（Python 3.14の構文解析の違い1件と、golden回帰2件の環境差による不一致。旧実装は固定旧から無変更）。**Task 2・3と最終GOは、Windows基準での再実行が済むまで完了にしない。** 再開の手順は同specのreview.md「現在地: Windows基準の検証待ち」。WSLでの実行方法は`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動（Windows側の`venv`は使わない）。この項目より下の「次の一手」「最新完了」は、このspecの着手前の状態。
 - 次の一手: 下の「次の候補」1。候補検証の到達時/終端の適応記録を先に分離する案。session保持と診断通知は境界を決めて別specへ。警報応答の記録を再実装しない。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 最新完了: [alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)。要求r1・設計r3・命名r3・tasks r3、全3task/別fresh Luna最終GO。evaluationのAdaptationRecordStoreが履歴・切替位置・再利用/現行適合件数を所有し、runtimeのrecord_completed_alarm_responseが5種類の警報完了を不変AdaptationRecordへ変換する。検査は保存前、入力recordは再検査したcopyを保存する。

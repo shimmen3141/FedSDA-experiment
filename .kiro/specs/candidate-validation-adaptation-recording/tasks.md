@@ -2,7 +2,7 @@
 
 逐次実行。既存の記録ownerの拡張と、2つの記録関数。新しい状態ownerは作らない。下書きはsource約230行（うち新module約130行）、新test約480行で、実旧対照は完了済みspecのoracleを再利用する。
 
-- [ ] 1. 記録ownerの拡張と候補検証の記録を実旧対照つきで実装する
+- [x] 1. 記録ownerの拡張と候補検証の記録を実旧対照つきで実装する
   - 命名承認後にtest（新testと、既存testのfield名・結果集合の更新）を先に追加してREDを記録し、sourceを実装する。注入契約testのREDの後に、新moduleのexact 9 symbolとevaluationの`typing.get_args`を両resolverへ登録する。
   - 到達時16条件・終端8条件の実旧対照、全10結果の切替位置・件数・ID整合の規則、設計4節の各検査を破る拒否条件（更新前の拒否）、乱数と上流状態の不変を確認する。既存の警報適応記録testが全件成功すること。
   - 完了: 対象test2件・依存境界suite・Ruff・Pyrightが成功し、独立レビュー承認。
