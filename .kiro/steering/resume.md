@@ -1,8 +1,8 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-08（警報応答の適応記録を検証中）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-08（警報応答の適応記録を完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
-**引継ぎ地点（2026-10-08）:** 主担当Codexが[alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)を実装・検証中。Task1/2は独立承認済み。source/test commit 9b72182、全9363 passed/3 skipped、旧11/最終3golden・品質成功、22変異検出。Task3の独立証拠レビューと別fresh feature最終GOは未承認。進捗の正本は対象spec。
+**引継ぎ地点（2026-10-08）:** 主担当Codexが[alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)を完了。全3taskの独立承認と別fresh Luna feature最終GO。source/test commit 9b72182、全9363 passed/3 skipped/2 warnings、旧11/最終3golden・品質成功、22変異検出。進行中の編集・レビューはない。次は候補検証の到達時/終端の適応記録を要求から仕様化する。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -11,8 +11,10 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- 次の一手: [alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)のTask3独立レビューと別fresh feature最終GOを行う。警報応答の5結果を不変recordへ写すowner・runtimeは実装済み。
+- 次の一手: 下の「次の候補」1。候補検証の到達時/終端の適応記録を先に分離する案。session保持と診断通知は境界を決めて別specへ。警報応答の記録を再実装しない。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
+- 最新完了: [alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)。要求r1・設計r3・命名r3・tasks r3、全3task/別fresh Luna最終GO。evaluationのAdaptationRecordStoreが履歴・切替位置・再利用/現行適合件数を所有し、runtimeのrecord_completed_alarm_responseが5種類の警報完了を不変AdaptationRecordへ変換する。検査は保存前、入力recordは再検査したcopyを保存する。
+- 直近検証source/test commit 9b72182、全9363 passed/3 skipped/2 warnings（165.21s）、JUnit9366件、対象40＋AST2611、22変異検出、新CPU2/4class×5経路成功。source/golden271パスのLF hash14816d2b68990d224dc6c8ee4cc62e467e17e60974993f10f863f82cf8e06d1d。固定旧748c3aaから旧実装/golden/旧回帰/toolsのdiff空。Haiku Task1は静的、Luna Task2/3は対象/AST/fresh/Ruff再現、最終fresh Lunaは承認/hash/固定旧/JUnitの独立照合。全pytestは主担当のみ。最初のsandbox測定は29権限エラーで、同じテストを必要な権限で再実行して成功した。新全体runのgoldenは未検証。以後の差分は証拠・進捗文書のみ。
 - 直前完了: [alarm-response-completion](../specs/alarm-response-completion/README.md)。runtimeの`complete_alarm_buffer_response`と不変record`AlarmResponseCompletion`（元の応答、警報位置、変更前後の学習帰属ID、推定変化点、episode ID、resetに使った基準平均、消費した保留位置。property `training_model_switch_sample_index`・`detection_episode_operation_required`）。詳細は同specのintegration-validation.md/spec.json/review.md。Task 1は独立レビューで4回差し戻され、検査をすべて更新の前に置く設計（recordを先に組み立てる、変更記録のexact型検査、未観測FIFOの拒否）へ改訂した。その前はalarm-buffer-response、alarm-training-interval-preparation。改善候補IMPROVE-004/005/006は未検証/未採用。研究アルゴリズムの変更は採用していない。
 - 直前specの検証済みsource/test commit: `def37e4`。全pytest 9254 passed/3 skipped/2 warnings、155.63s（主担当実測、JUnit 9257件照合）、対象57＋AST2542、33変異検出、fresh新CPU 2/4class×5経路の10条件をTask 2・3のLunaも再現。Ruff 167files/Pyright/pip check成功、旧11・最終3golden成功。固定旧748c3aaから旧実装・golden・旧回帰test・toolsへのdiffは空。source hashは267パス、`b11a144ab4312c63f4dfd84492c5dc81c9ab11f7264caca9de5e32453fd9db2b`。以後は証拠/進捗文書だけを変更。その後に追加した`.kiro/settings/scripts/spec_checks.py`はtrackedなPythonなので、以後のcommitのsource hashは268パスから数える。
 - pushの扱い: taskごとに通常pushを1回だけ試す。失敗時は連続再試行や原因探索をせず、次taskのpush成功時に未送信commitも送る（2026-10-08ユーザー指示）。現在、全commitは`origin/refactor/architecture`へ送信済み。
@@ -40,7 +42,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 候補検証の適応記録とsession保持、診断通知（本spec完了後）
+### 1. 候補検証の適応記録とsession保持、診断通知（次に着手）
 
 警報完了の記録ownerはalarm-adaptation-recordingで分離した。次は候補検証の到達時（PostAlarmCandidateValidationCompletion）・未完了回収（IncompletePostAlarmCandidateValidationFinalization）の適応記録を同じownerへ接続する境界を要求から決める。現在のAdaptationOutcomeは警報応答5結果だけで、候補の採用等の結果値/切替・計数規則は追加仕様と命名レビューが必要。新しい要求・設計・命名・tasksは未作成。session保持と通知を一度に混ぜず、必要なら別specへ分ける。
 

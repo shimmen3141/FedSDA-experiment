@@ -14,7 +14,7 @@
   - _Boundary: testと検出力/独立動作の証拠_
   - _Requirements: 2.1, 2.2, 2.3, 3.1_
 
-- [ ] 3. 固定基準の全回帰とfeature最終GOを確定する
+- [x] 3. 固定基準の全回帰とfeature最終GOを確定する
   - source/testをcommitして全pytest/JUnit、旧11/最終3golden、Ruff/Pyright/pip check、承認hash/固定旧diff/source hashを実測し、独立レビューへ照合を依頼する。
   - 別fresh reviewerのfeature最終GO後に進捗と再開案内を更新する。新全体runと通知/sessionは未完了と記録する。
   - _Depends: 2_

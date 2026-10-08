@@ -4,7 +4,9 @@
 
 ## 全体方針
 
-最新完了: [alarm-buffer-response](../specs/alarm-buffer-response/README.md)。要求r1・設計r2・命名r5・tasks r1、全5task承認、別fresh Luna feature最終GO。全9110 passed、9変異、Lunaが対象2519と新CPU12条件を独立再現。区間準備/解決とactive経路を組み立て、FIFO後始末の判断を返す。次は実際のreset・FIFO消費・event/通知・session保持の境界を要求から決める。新client/全体runは未接続。
+最新完了: [alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)。要求r1・設計r3・命名r3・tasks r3、全3task承認、別fresh Luna feature最終GO。全9363 passed/3 skipped、旧11/最終3golden・品質成功、22変異検出、対象＋AST2651/新CPU10条件をTask2/3も独立再現。警報5結果の履歴・切替位置・再利用件数を一つのownerへ保存する。次は候補検証到達時/終端の記録、session保持、診断通知の境界を決める。新client/全体runは未接続。入口はresume.md。
+
+直前完了はalarm-response-completion（全9254 passed）。以前のalarm-buffer-response（全9110 passed）は区間準備/解決とactive経路の組立で、監視reset/FIFO消費は直前spec、警報応答の記録は最新specで完了した。
 
 直前の完了: [alarm-training-interval-preparation](../specs/alarm-training-interval-preparation/README.md)。要求r2・設計r1・命名r4・tasks r4、全7tasks独立Luna承認、別fresh Luna feature最終GO。対象152＋AST2220、6変異、全8811 passed/3既存skip/2既存warning、旧11/最終3golden・新CPU・品質成功。次は区間準備と区間解決を呼ぶ警報制御（active session経路、最小件数、reset/FIFO、event/通知）の境界を決め、要求から仕様化する。新client/全体runは未接続。入口はresume、承認hashと証拠は同specのspec.json/review/integration-validation。
 

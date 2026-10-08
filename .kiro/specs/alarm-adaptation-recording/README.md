@@ -12,6 +12,6 @@
 | [review.md](review.md) | 独立レビューと採否 |
 | [integration-validation.md](integration-validation.md) | 検証対象と証拠 |
 
-Task1/2は独立承認済み。全回帰の証拠はintegration-validation.md、Task3レビューと別fresh feature最終GOは進行中。承認の正本はspec.json。
+全3taskを完了し、別fresh Lunaのfeature最終GOを取得した。全9363 passed/3 skipped、旧11・最終3golden成功、22変異検出。承認の正本はspec.json、証拠はintegration-validation.md。
 
 警報応答5結果の記録・切替位置・再利用件数を一つのownerへ保存する。候補検証の到達時/終端の記録、session保持、予測診断通知、新全体runの接続は後続specで扱う。

@@ -40,7 +40,7 @@
 - src\federated_learning_experiments\evaluation\adaptation_record_store.py: e9589a50d56f1708550f18b06f2547348552b3abd2596b772e1cdc935414cdb4
 - src\federated_learning_experiments\runtime\alarm_adaptation_recording.py: 6458d737005b49d0e18a8ac5b3937bd1f45953e87b6dda13cea65050d50592af
 
-全回帰はTask3で未実施。新client/session接続・予測通知・episode操作・新全体runのgolden一致は本specの範囲外。
+以下のTask3で全回帰を実測した。新client/session接続・予測通知・episode操作・新全体runのgolden一致は本specの範囲外。
 
 ## Task3 全回帰の主担当実測
 
@@ -63,4 +63,12 @@ canonical品質: Ruff check成功、format170 files成功、Pyright共有venv指
 | 3.1 | 実旧イベントの全field・件数・位置対照、旧aliasなし |
 | 3.2 | commit済みsource/testの全pytestと旧11/最終3golden成功 |
 
-Task3独立レビュー・別fresh feature最終GOはまだ未承認。
+Task3検証部分は独立承認、別fresh feature最終GOも取得した。
+
+## 最終判定
+
+GO、全8要求/3task完了。Task2/3のLunaが対象＋AST2651、新CPU10条件、Ruffを独立再現。別fresh最終Luna（session 01a11ace-382f-7611-9a79-78aa6bdb78bf）は全8要求/4承認hash/JUnit/固定旧diff/source hashを独立照合。最終レビュー対象は6d50430、source/testは9b72182と同一。
+
+Task3のgit show271回の同一性照合は制限時間内に完了できなかった。最終担当はalarm-adaptation-recording-readonly-identity.pyを読み、spec_checks.pyと同じ定義でgit archiveをメモリから計算し、271パス/14816d2b68990d224dc6c8ee4cc62e467e17e60974993f10f863f82cf8e06d1dと一致を独立確認した。archiveの抽出・source変更はしない。source/test以後の差分は文書だけ。
+
+新全体run・候補検証到達時/終端の記録・session保持/解除・episode操作・予測診断通知は未完了で、本GOに含めない。
