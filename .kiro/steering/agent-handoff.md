@@ -57,7 +57,7 @@ codex exec -m gpt-6-luna -c 'model_reasoning_effort="medium"' --sandbox read-onl
 
 ### レビューに出す前と依頼文
 
-- 機械的に照合できるものは先に`.kiro/settings/scripts/spec_checks.py`で確かめ、出力を依頼文へ貼る（使い方はscript冒頭）。`names`は束縛名と命名表の照合、`identity`は承認hash・固定旧差分・source hash・作業ツリー・JUnitの照合。名前の役割や検査の順序の正しさは判定しない。
+- 機械的に照合できるものは先に`.kiro/settings/scripts/spec_checks.py`で確かめ、出力を依頼文へ貼る（使い方はscript冒頭）。`names`は束縛名と命名表の照合、`identity`は承認hash・固定旧差分・source hash・作業ツリー・JUnitの照合。`progress`はtasks.mdの完了数とspec.jsonの進捗・phaseの照合と、README・再開案内・roadmapに残る「待ち」「未実施」の表示で、feature最終レビューへ出す前（再開案内を現在の状態へ更新してから）と最終GOの記録後に実行する。名前の役割や検査の順序の正しさは判定しない。
 - 状態を更新する処理には、レビューの前に「検査を更新の後へ移す」変異を必ず入れる。
 - 依頼文に書くこと: (1)worktreeの絶対パス・期待するブランチ・HEAD。(2)対象ファイルとLF hash、主担当の実測、手順上の逸脱。(3)全pytestの判定基準の原文（下記）。(4)「自分のモデル名を確認できないことを判定理由にしない」こと。(5)出力形式（1行目に判定、番号付き指摘、独立に実行したもの・していないもの）。
 - 設計レビューの確認項目: (a)例外を出す検査（戻り値のrecordのconstructorを含む）がすべて最初の状態更新より前にあるか。上流の型が検査しないfieldに手で組み立てた値（boolのID、None、fieldの不対応）が入っても更新前に拒否されるか。(b)要求を1文ずつ設計の条件と照合し、設計側にだけある例外句がないか。

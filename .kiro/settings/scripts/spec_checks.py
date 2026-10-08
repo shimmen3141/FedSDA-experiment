@@ -2,6 +2,7 @@
 
     python .kiro/settings/scripts/spec_checks.py names <spec名> <新規・変更した.py>... [--naming <命名表>]
     python .kiro/settings/scripts/spec_checks.py identity <spec名> [--junit <JUnit XML>] [--rev <commit>]
+    python .kiro/settings/scripts/spec_checks.py progress <spec名>
 
 names: 指定ファイルの束縛名（def・class・引数・代入・importの別名）を命名表と照合する。
     命名表の登録名は、表の先頭列の語と、表以外の行の語（表の説明列で触れただけの語は数えない）。
@@ -9,6 +10,9 @@ names: 指定ファイルの束縛名（def・class・引数・代入・import�
     役割の再利用: 命名表になく、他では関数・classの名前としてだけ現れる語を変数・引数に使っているもの（exit 1）。
     他のファイルでも変数・引数として使われている語は、同じ役割の再利用として報告しない。
 identity: 承認hash、固定旧基準からの差分、source hash、作業ツリー、JUnitを照合する（不一致はexit 1）。
+progress: tasks.mdの完了数とspec.jsonの進捗・phaseを照合する（不一致はexit 1）。あわせて、specのREADMEと
+    再開案内・roadmapのうち、このspecに触れた行に残る「待ち」「未実施」などの語を表示する（人が確かめる。exitには数えない）。
+    feature最終レビューへ出す前と、最終GOを記録した後に実行する。
 
 独立レビューの代わりにはならない。名前の役割が実態と合うか、検査の順序が正しいかは人とレビュー担当が確かめる。
 """
@@ -36,6 +40,8 @@ FIXED_LEGACY_PATHS = (
 GOLDEN_PATHS = ("tests/regression_golden.json", "tests/proposed_regression_golden.json")
 EXISTING_CODE_ROOTS = ("src", "tests/refactoring")
 APPROVAL_STAGES = ("requirements", "design", "naming", "tasks")
+PROGRESS_DOCUMENT_PATHS = (".kiro/steering/resume.md", ".kiro/steering/roadmap.md")
+UNFINISHED_STATE_PATTERN = re.compile("待ち|未実施|ブロック中")
 
 
 def collect_bound_names(source_path):
@@ -230,6 +236,52 @@ def check_identity(arguments):
     return 1 if failed else 0
 
 
+def check_progress(arguments):
+    spec_directory = pathlib.Path(".kiro/specs") / arguments.spec
+    spec = json.loads((spec_directory / "spec.json").read_text(encoding="utf-8"))
+    failed = False
+
+    def report(label, passed, detail=""):
+        nonlocal failed
+        failed = failed or not passed
+        print(f"[{'OK' if passed else 'NG'}] {label}{' — ' + detail if detail else ''}")
+
+    # 番号つきの最上位taskだけを数える（下位の箇条書きはcheckboxを持たない）。
+    task_states = re.findall(
+        r"^- \[([ x])\] \d+\. ", (spec_directory / "tasks.md").read_text(encoding="utf-8"), re.M
+    )
+    completed_count = task_states.count("x")
+    progress = spec.get("implementation_progress", {})
+    report(
+        "spec.jsonのimplementation_progressがtasks.mdと一致",
+        progress == {"completed": completed_count, "total": len(task_states)},
+        f"tasks.md {completed_count}/{len(task_states)}、spec.json {progress}",
+    )
+    if task_states and completed_count == len(task_states):
+        report(
+            "全task完了のspecのphaseが実装中でない",
+            spec.get("phase") != "implementation-in-progress",
+            str(spec.get("phase")),
+        )
+    # 現在の状態を書く場所だけを見る。review.md等の経過の記録は当時の状態を残すので対象にしない。
+    state_lines = [
+        ("README.md", line)
+        for line in (spec_directory / "README.md").read_text(encoding="utf-8").splitlines()
+        if line.startswith("状態:")
+    ]
+    for document_path in PROGRESS_DOCUMENT_PATHS:
+        state_lines += [
+            (document_path, line)
+            for line in pathlib.Path(document_path).read_text(encoding="utf-8").splitlines()
+            if arguments.spec in line
+        ]
+    for document_name, line in state_lines:
+        found_words = sorted(set(UNFINISHED_STATE_PATTERN.findall(line)))
+        if found_words:
+            print(f"[--] 要確認 {document_name}: {found_words} — {line[:120]}")
+    return 1 if failed else 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -241,9 +293,11 @@ def main():
     identity_parser.add_argument("spec")
     identity_parser.add_argument("--junit")
     identity_parser.add_argument("--rev")
+    subparsers.add_parser("progress").add_argument("spec")
     arguments = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
-    return check_names(arguments) if arguments.command == "names" else check_identity(arguments)
+    checks = {"names": check_names, "identity": check_identity, "progress": check_progress}
+    return checks[arguments.command](arguments)
 
 
 if __name__ == "__main__":
