@@ -8,24 +8,31 @@
     "requirements": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "approved_revision": 1,
-      "generated_sha256_lf": "38b6075977d2a10f853237bb4265e840af51f94002cf3fb03295b9f9960f0676",
-      "approved_sha256_lf": "38b6075977d2a10f853237bb4265e840af51f94002cf3fb03295b9f9960f0676",
+      "revision": 2,
+      "approved_revision": 2,
+      "generated_sha256_lf": "94b8ba5f568f598f3d39ae07197448fd501b577bd859b8d3002aec47ecd2fe80",
+      "approved_sha256_lf": "94b8ba5f568f598f3d39ae07197448fd501b577bd859b8d3002aec47ecd2fe80",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
-      "reviewer_session": "01a11af3-b45a-7993-af2b-5d8881716780",
+      "reviewer_session": "01a11b73-99c6-7b42-9bb1-1880dfb2d568",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "38b6075977d2a10f853237bb4265e840af51f94002cf3fb03295b9f9960f0676",
+          "reviewer_session": "01a11af3-b45a-7993-af2b-5d8881716780"
+        }
+      ]
     },
     "design": {
       "generated": true,
       "approved": true,
-      "revision": 3,
-      "approved_revision": 3,
-      "generated_sha256_lf": "4e05cc57538febedc2dc2786ff7e27e2611ad6a2175b15d1c56abe9884b34cf8",
-      "approved_sha256_lf": "4e05cc57538febedc2dc2786ff7e27e2611ad6a2175b15d1c56abe9884b34cf8",
+      "revision": 4,
+      "approved_revision": 4,
+      "generated_sha256_lf": "eb3a09ecb9f5a7166d9d7a7e4a1cf7aa0855e2166b58e72666401e1589862e67",
+      "approved_sha256_lf": "eb3a09ecb9f5a7166d9d7a7e4a1cf7aa0855e2166b58e72666401e1589862e67",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
-      "reviewer_session": "01a11b62-7321-7552-bc9d-959cfb93084c",
+      "reviewer_session": "01a11b73-99c6-7b42-9bb1-1880dfb2d568",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
       "review_record": "review.md",
       "previous_approved_revisions": [
@@ -33,6 +40,11 @@
           "revision": 2,
           "sha256_lf": "9ab48b2276623cae07928b1a913a8494b84d11ac653575d51f15795cee43bbf1",
           "reviewer_session": "01a11af5-95d3-7ad2-8893-7a4adcdc3d6c"
+        },
+        {
+          "revision": 3,
+          "sha256_lf": "4e05cc57538febedc2dc2786ff7e27e2611ad6a2175b15d1c56abe9884b34cf8",
+          "reviewer_session": "01a11b62-7321-7552-bc9d-959cfb93084c"
         }
       ]
     },
@@ -58,14 +70,21 @@
     "tasks": {
       "generated": true,
       "approved": true,
-      "revision": 1,
-      "approved_revision": 1,
-      "generated_sha256_lf": "c6ffa4e91c1a92addb43c54207400c3c1a1f531a6256e3c61404f17858a39059",
-      "approved_sha256_lf": "c6ffa4e91c1a92addb43c54207400c3c1a1f531a6256e3c61404f17858a39059",
+      "revision": 2,
+      "approved_revision": 2,
+      "generated_sha256_lf": "2276e5a386b4acbad06eacd3007e4279f5084de79953fa5824940aa08953ac11",
+      "approved_sha256_lf": "2276e5a386b4acbad06eacd3007e4279f5084de79953fa5824940aa08953ac11",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
-      "reviewer_session": "01a11af3-b45a-7993-af2b-5d8881716780",
+      "reviewer_session": "01a11b73-99c6-7b42-9bb1-1880dfb2d568",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "c6ffa4e91c1a92addb43c54207400c3c1a1f531a6256e3c61404f17858a39059",
+          "reviewer_session": "01a11af3-b45a-7993-af2b-5d8881716780"
+        }
+      ]
     }
   },
   "ready_for_implementation": true,

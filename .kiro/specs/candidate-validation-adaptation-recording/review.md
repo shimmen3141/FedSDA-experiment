@@ -59,3 +59,28 @@ worktreeの未コミット差分（いずれも未検証・未承認）:
 - Windows側のPythonでの静的検査: Ruff check/format成功（172 files）、Pyright 0 errors、`spec_checks.py names`報告なし。
 
 Windows基準で残る検証: 対象test・依存境界test・変異・fresh CPU・全pytest（旧11・最終3golden）。torchが読み込めるようになってから実施する。それまで完了ゲート（Task 3と最終GO）は通過扱いにしない。
+
+### Haiku 2回目（session `4fda1d4d-3253-4cba-8458-049150f9ce4b`、HEAD `af3ffa7`）— CHANGES_REQUESTED
+
+Blocker・Majorなし。1回目の指摘1〜3と任意2件の解消、追加した拒否条件8件がそれぞれ意図した検査で拒否されること、追加した検査がstoreへの追加より前にあり正常な上流の出力を拒否しないことを確認したと報告された。指摘と採否:
+
+1. Minor: 推定変化点が提案位置より後でも受理される（上流のsession開始は`0 <= 推定変化点 <= 提案位置`を検査している）。上限検査を足すか、上流の契約として扱うなら設計に明記すること。→ 検査は足さない。同じ`AdaptationRecord`の推定変化点を、警報応答の記録（承認済みの設計で順序を検査しない）と候補検証の記録とで別の規則にしないため。以前の設計レビューが「要求の文言を設計だけで狭められない」と指摘しているので、要求2.3を追加して「不正」の範囲を定義した（要求r2）。設計r4へ検査しないものと理由を明記した。
+2. 任意: 判定記録の採否評価と確定結果の対応を検査しないことを設計に明記する。→ 採用（要求2.3と設計r4）。
+3. 任意: testの切替位置の`in`判定が、直後の完全一致の検査と重複している。→ 不採用（挙動の検証には影響しない。testを変えると全回帰の取り直しになる）。
+4. 任意: helper名が検査内容（提案位置の型・非負も見る）より狭い。→ 不採用（命名r2で役割を説明済み。Lunaが承認している）。
+
+要求r2・設計r4・tasks r2のレビュー（Luna、medium、session `01a11b73-99c6-7b42-9bb1-1880dfb2d568`）: 3段階ともAPPROVED、指摘なし。検査しない2点を上流の契約とする根拠（session開始の不変条件、警報応答の記録の扱い）が実コードと一致すること、現在の実装が要求2.3の(a)(b)(c)を満たし、除外した2点以外に未検査の「不正」がないことを確認したと報告された。source・testは変更していない。
+
+### WSLでの全pytest（commit `af3ffa7`、tmux内）
+
+9504 passed / 3 failed / 3 warnings、273.63s。JUnitとlogは元checkoutの`venv/refactoring-tests/candidate-validation-adaptation-recording-full-wsl.xml`/`.log`。Windowsではskipになる3件（POSIX bashが要るtest）はWSLでは実行されて成功した。
+
+失敗3件:
+
+- `tests/refactoring/test_single_run_dependency_boundaries.py::test_temporary_model_id_allocation_rejects_every_import_except_annotations[from __future__ import *-False]`: Python 3.14の`ast.parse`が構文解析の時点でSyntaxErrorにする（基準のPython 3.13では成功）。本specと無関係の既存test。
+- `tests/test_regression.py::test_regression`（旧11ケース）: 11ケース中の複数（FedSDAのADWIN/ClassADWIN/ESR/ClassESR系とObliviousのblobs）で、精度が小数第3位前後で異なり、一部は検出遅延・通信量・最終モデル数も異なる。
+- `tests/test_proposed_regression.py::test_proposed_regression`（最終3ケース）: sine2の精度の時系列のhashが異なる（精度0.9204対golden 0.9191）。イベント件数（coverage）は一致。
+
+golden回帰の不一致について確かめたこと: この2つのtestが実行するのは旧実装`federated_drift_experiment`だけで、旧実装・2つのgolden・2つの回帰testは固定旧`748c3aa`から差分が空（`git diff 748c3aa HEAD`で確認）。したがって本specの変更はこの結果に影響しない。Windowsの基準環境では、障害の前に同じ2testが成功している（commit `3a007bf`の全pytest 9496 passed。旧実装は同一）。torchの版はどちらも2.12.1で、違いはOS（Linux/Windows）、Python（3.14.4/3.13）、数値ライブラリの実装。小さな浮動小数の差が学習と検出の分岐を変えたと考えるのが自然だが、どの演算で最初に差が出るかは調べていない（未確認）。goldenの更新、許容誤差の変更、testのskipは行っていない。docs/experiments/refactoring-baseline.mdのとおり、別OSでの不一致を理由にgoldenを変えない。
+
+結論: WSLでは新実装のtest（tests/refactoring）は既知の1件を除いて成功するが、golden回帰はWSLでは判定できない。旧11・最終3goldenの確認は、Windowsの基準環境でtorchが読み込めるようになってから行う。
