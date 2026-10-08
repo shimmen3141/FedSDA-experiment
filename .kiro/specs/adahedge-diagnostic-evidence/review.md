@@ -54,3 +54,11 @@ test専用`FaultingEvidenceMapping`を追加し、入力列挙途中の例外で
 別の独立Luna（medium明示）`/root/task3_review`、対象HEAD `cd1353c`、source/test `d80c62a`。通常の統合証拠レビューとして選択。11要求の対応、全pytest主担当実測とJUnit、固定旧・承認hash・source hashを照合し指摘なし。モデル/effort根拠は起動指定。
 
 独立実行: 対象＋依存境界2863 passed、fresh CPU 5操作、対象3ファイルのRuff check/format、pip check、identityとJUnit集計。対象test終了時にmatplotlib一時directory cleanupのPermissionErrorが出たがtestは成功・exit 0。全pytest・Pyrightの独立再実行はしていない。ユーザー決定の主担当実測とJUnit照合で全回帰を判定。feature最終GOは対象外。kiro-verify-completionのTask判定はVERIFIED。
+
+## Feature最終レビュー — GO
+
+別の新しい独立Luna（medium明示）`/root/feature_final_go`、対象HEAD `fa54fde`、source/test検証commit `d80c62a`。通常の完成証拠レビューとして選択、モデル/effort根拠は明示した起動指定。11要求と仕様・実装の整合、3taskの独立承認、未解消指摘なし、identityとprogressを独立照合しGO。指摘なし。
+
+承認hash、固定旧差分空、278パスsource hash、JUnit9730/9727 passed/3 skipped/0 failure/error、旧11・最終3golden回帰の成功、現在の案内の3/3一致を確認。変異の20非等価検出/4等価生存、fresh 5操作、品質logを照合した。全pytest・対象test・Pyright・Ruffの新たな独立再実行はしていない。Task 3の独立再現と主担当全実測/JUnitを利用し重複を避けた。判定中の変更なし。
+
+kiro-verify-completionのFEATURE_GO判定はVERIFIED。完成範囲は単一診断証拠owner。通知・複数owner・保存診断全体・検出episode/client進行・新全体runへ広げない。最終レビュー前の案内更新後にprogress成功（待ちの表示は最終GO自体）。GO記録後のprogressも成功し、要確認表示なし（`progress-after-go.log`）。
