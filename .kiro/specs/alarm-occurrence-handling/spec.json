@@ -3,7 +3,7 @@
   "created_at": "2026-10-09",
   "updated_at": "2026-10-09",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -19,15 +19,22 @@
     },
     "design": {
       "generated": true,
-      "approved": true,
-      "revision": 1,
+      "approved": false,
+      "revision": 2,
       "approved_revision": 1,
-      "generated_sha256_lf": "c40f94ad3968fcb05dd94ed854976eaf17978668c3a788d13e7080290f8175ac",
+      "generated_sha256_lf": "6f60eeee5b236e7af9224a52fffc98bac00245359a27155d1af326bd0ac324f6",
       "approved_sha256_lf": "c40f94ad3968fcb05dd94ed854976eaf17978668c3a788d13e7080290f8175ac",
       "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
       "reviewer_session": "01a11c74-bab3-7d51-8293-c249b5a9cb65",
       "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "previous_approved_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "c40f94ad3968fcb05dd94ed854976eaf17978668c3a788d13e7080290f8175ac",
+          "reviewer_session": "01a11c74-bab3-7d51-8293-c249b5a9cb65"
+        }
+      ]
     },
     "naming": {
       "generated": true,
@@ -54,18 +61,30 @@
       "review_record": "review.md"
     }
   },
-  "ready_for_implementation": true,
+  "ready_for_implementation": false,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_high_by_difficulty_independent_review",
   "implementation_progress": {
-    "completed": 0,
+    "completed": 1,
     "total": 3
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "requirements_design_naming_tasks_approved",
-    "next_step": "task_1_tests_red_then_implementation",
-    "implementation_started": false,
-    "tests_run": false,
-    "full_pytest_run_for_this_spec": false
+    "completed_unit": "task_1_approved",
+    "next_step": "design_r2_rereview_then_task_2_3_review",
+    "implementation_started": true,
+    "tests_run": true,
+    "full_pytest_run_for_this_spec": true
+  },
+  "task_reviews": {
+    "1": {
+      "verdict": "APPROVED",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort high requested)",
+      "reviewer_session": "8556d650-dd9d-42b6-a8f5-6cbc89908660",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "reviewed_commit": "e80b368",
+      "source_and_test_commit": "e80b368",
+      "independent_test_execution": false,
+      "evidence": "review.md"
+    }
   }
 }
