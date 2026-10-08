@@ -1,0 +1,64 @@
+{
+  "feature_name": "alarm-adaptation-recording",
+  "created_at": "2026-10-08",
+  "updated_at": "2026-10-08",
+  "language": "ja",
+  "phase": "implementation-ready",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 1,
+      "approved_revision": 1,
+      "generated_sha256_lf": "cfbd3274ed8fc106963899865b931ed6cf3d46568deeec853486905f73334434",
+      "approved_sha256_lf": "cfbd3274ed8fc106963899865b931ed6cf3d46568deeec853486905f73334434",
+      "reviewer": "claude-haiku-5-5 (--effort high requested)",
+      "reviewer_session": "272a69a9-e0dd-4e0a-bbd1-8357e041d807",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "approved_revision": 3,
+      "generated_sha256_lf": "b8ca79436019905833403f2aedf780e5a12621c1fed9cbfc32faafb4a9545413",
+      "approved_sha256_lf": "b8ca79436019905833403f2aedf780e5a12621c1fed9cbfc32faafb4a9545413",
+      "reviewer": "gpt-6-luna (model_reasoning_effort=medium)",
+      "reviewer_session": "01a11aa5-4d56-7ee3-ab24-ad97a985be4d",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "approved_revision": 3,
+      "generated_sha256_lf": "867ce9d39f29ae3ea7e5627cc5e582060151e541679386df67bc92077ba77681",
+      "approved_sha256_lf": "867ce9d39f29ae3ea7e5627cc5e582060151e541679386df67bc92077ba77681",
+      "reviewer": "gpt-6-luna (model_reasoning_effort=medium)",
+      "reviewer_session": "01a11aa3-6f8d-74c0-9851-ec5cb2075415",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "approved_revision": 3,
+      "generated_sha256_lf": "f306fcfad38df51a5295565319cf3ef51ca3f788e6e4ef03ce609c498958a122",
+      "approved_sha256_lf": "f306fcfad38df51a5295565319cf3ef51ca3f788e6e4ef03ce609c498958a122",
+      "reviewer": "gpt-6-luna (model_reasoning_effort=medium)",
+      "reviewer_session": "01a11aa3-6f8d-74c0-9851-ec5cb2075415",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_haiku_high_by_difficulty",
+  "implementation_progress": {
+    "completed": 0,
+    "total": 3
+  },
+  "handoff": {
+    "execution_status": "task1_ready",
+    "implementation_started": false,
+    "tests_run": false
+  }
+}

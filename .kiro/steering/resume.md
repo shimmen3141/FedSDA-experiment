@@ -11,7 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- 次の一手: 進行中の編集・レビュー待ち・未コミット差分はない。下の「次の候補」1を要求から仕様化する。最初の調査は、最終構成の予測と保存指標がAdaHedge側の状態を使っているかの確認（同節の「学習帰属変更の通知」）。
+- 次の一手: [alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)の仕様レビューを進める。適応記録ownerと警報完了情報からの記録を先に分離した。旧AdaHedge再始動は最終予測へ直接影響しないが、NPZ再始動回数・global比較・条件付きLOO診断に影響するため、通知の移植を後続へ残す。調査の根拠は同specのresearch.md。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 最新完了: [alarm-response-completion](../specs/alarm-response-completion/README.md)。runtimeの`complete_alarm_buffer_response`と不変record`AlarmResponseCompletion`（元の応答、警報位置、変更前後の学習帰属ID、推定変化点、episode ID、resetに使った基準平均、消費した保留位置。property `training_model_switch_sample_index`・`detection_episode_operation_required`）。詳細は同specのintegration-validation.md/spec.json/review.md。Task 1は独立レビューで4回差し戻され、検査をすべて更新の前に置く設計（recordを先に組み立てる、変更記録のexact型検査、未観測FIFOの拒否）へ改訂した。その前はalarm-buffer-response、alarm-training-interval-preparation。改善候補IMPROVE-004/005/006は未検証/未採用。研究アルゴリズムの変更は採用していない。
 - 直近の検証済みsource/test commit: `def37e4`。全pytest 9254 passed/3 skipped/2 warnings、155.63s（主担当実測、JUnit 9257件照合）、対象57＋AST2542、33変異検出、fresh新CPU 2/4class×5経路の10条件をTask 2・3のLunaも再現。Ruff 167files/Pyright/pip check成功、旧11・最終3golden成功。固定旧748c3aaから旧実装・golden・旧回帰test・toolsへのdiffは空。source hashは267パス、`b11a144ab4312c63f4dfd84492c5dc81c9ab11f7264caca9de5e32453fd9db2b`。以後は証拠/進捗文書だけを変更。その後に追加した`.kiro/settings/scripts/spec_checks.py`はtrackedなPythonなので、以後のcommitのsource hashは268パスから数える。

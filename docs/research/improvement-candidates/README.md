@@ -22,10 +22,11 @@
 | IMPROVE-004 | 履歴基準が使えないモデルの警報区間評価を省く | 未検証・未採用 | [詳細](improve-004-skip-alarm-loss-evaluation-without-reuse-baseline.md) |
 | IMPROVE-005 | 前区間の事前検査と吸収で損失評価を共用 | 未検証・未採用 | [詳細](improve-005-reuse-prevalidated-alarm-interval-losses.md) |
 | IMPROVE-006 | 変化区間が不足した警報の後、検出の証拠を破棄しない | 未検証・未採用 | [詳細](improve-006-keep-detection-evidence-after-too-short-alarm.md) |
+| IMPROVE-007 | 最終予測に不要な比較予測診断を選択実行する | 未検証・未採用 | [詳細](improve-007-optional-counterfactual-prediction-diagnostics.md) |
 
 ## 記録・更新の規約
 
-IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-007。候補の発見時点で記録し、実験済みである必要はない。
+IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-008。候補の発見時点で記録し、実験済みである必要はない。
 
 各ファイルへ以下を記載する。未確認・未定の項目はそのまま明記する。
 
