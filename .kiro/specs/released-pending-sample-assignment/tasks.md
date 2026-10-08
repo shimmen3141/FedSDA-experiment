@@ -9,14 +9,14 @@
   - _Boundary: 確定の関数、保留位置のownerの読取り、依存境界_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1_
 
-- [ ] 2. 検出力を確認する
+- [x] 2. 検出力を確認する
   - 汎用の変異toolを、新しい関数と保留位置のownerの読取りの操作へ実行する。未検出はtestで補うか、等価と判断した理由を証拠文書へ書く。
   - 完了: 証拠を記録し、独立レビュー承認。
   - _Depends: 1_
   - _Boundary: 検出力の証拠_
   - _Requirements: 1.1, 1.4, 2.1, 2.2_
 
-- [ ] 3. 固定基準の全回帰と証拠を確定する
+- [x] 3. 固定基準の全回帰と証拠を確定する
   - commitして、Windowsの基準環境で全pytestとJUnit、旧11・最終3golden、Ruff・Pyright・pip check、`spec_checks.py identity`を実測し、integration-validation.mdへ要求の対応と未検証事項を記録する。
   - 完了: 独立担当が照合して承認。Task 1のレビューにBlocker・Majorが残らなければ、同じ依頼でfeature最終の判定も受ける（`spec_checks.py progress`の後）。再開案内を更新する。
   - _Depends: 2_

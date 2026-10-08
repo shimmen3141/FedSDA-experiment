@@ -55,3 +55,13 @@
 2. Task 3、任意: 本specは2 module（新しいruntimeのmoduleと、保留位置のowner）に触れるので「小さいspec」の例外に当たらず、feature最終の判定は別sessionで受けること。→ そのとおり。別sessionへ依頼する（tasks.mdのTask 3は「Task 1のレビューにBlocker・Majorが残らなければ同じ依頼で」と書いているが、module数の条件を満たさないので適用しない）。
 3. 命名、任意: 追加した2つのtest名が命名の承認より先に実装された事実をreview.mdにも残すこと。→ 採用（この記録）。設計r2で足したtest名と、Task 1の指摘で足したtest名は、実装の後に命名r2として再レビューを受けた。
 4. Task 3、任意: 統合検証の「旧11」「3golden」の説明がない。→ 不採用。これまでの全specで使っている呼び方（旧11ケースの回帰goldenと、最終構成3ケースの回帰golden）で、共通引継ぎ手順の全pytestの基準にも同じ語がある。
+
+## Task 2 2回目と独立実行（Haiku代替、別session `0bbf737a-b50e-493a-924e-8e1e55bf446c`、HEAD `aec8402`）— TASK 2: APPROVED
+
+1回目とは別のsession（`--effort medium`指定、JSONの`modelUsage`で実モデルを確認）。全pytestの判定基準が独立レビュー担当に求める独立実行を行えるよう、検証コマンドだけを許可して起動した（pytest、Ruff、共用script、`spec_checks.py`、`git status`・`git diff`。共通引継ぎ手順の「testを実行させるときは対象と権限を別途限定する」に当たる。それ以外のコマンドとファイルの変更は許可していない）。指摘なし。
+
+- 1回目の指摘は解消と報告された: `report.json`は22件、loopの中の文を消す2件が検出、未検出は等価な1件だけ、復元前後のhashが一致、toolの追加部分は説明どおりの変異を作る、証拠文書の件数が一致。確定の関数の検査・処理で、どの変異でも覆われていないものはないと報告された。
+- レビュー担当が独立に実行したもの: 対象の4 test file（3160 passed）、共用scriptの単独実行（16の流れ、成功）、Ruff check/format、`spec_checks.py identity --rev cbf38b6`（4段階の承認hash、固定旧差分、作業ツリー、source hash、JUnit集計、旧回帰2件がすべてOK）、`git status --short`（実行の前後とも空）。
+- 独立実行していないもの: 変異tool（sourceを書き換えるため`report.json`を読んだ）、全pytest。
+
+全3taskを完了とした。命名r2・Task 2・Task 3は、Lunaが利用上限で使えないため、Claude Haiku 5.5が代替して承認した。
