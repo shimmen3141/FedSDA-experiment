@@ -1,0 +1,5 @@
+# 調査
+旧clients/fedsda.py 1296–1308にglobal、context/meta、真の概念oracleの別AdaHedgeがある。最終構成のcontext/metaは空（1687以降の別方式だけが作成）、active setはNone。2052–2062の通知はglobal/context/metaを再始動しoracle/Fixed-Shareは対象外。85–89の_set_local_current_modelは異なるIDだけhookを呼ぶ。1663–1672/2037にoracle取得/updateがある。
+2026-10-09 Windows基準torch2.12.1+cpuで実旧clientを__new__し、実_set_local_current_modelの同一IDは計数0、変更はglobal1/oracle0を確認（仕様段階でpytestは未実行）。新既存AdaHedgeDiagnosticEvidenceは単一証拠/明示再始動を提供。今回これを保持して通知する。
+保存global gain/restart/条件付きLOO依存は前specの調査どおり。最終goldenは診断全体を比較しない。本specは保存scoresや全体clientを作らない。
+Haiku外部CLIの非公開コード送信は直前sessionのauto-reviewで明示承認不足として拒否されている。新たな送信承認なしに同操作を繰り返さず、内部Luna mediumへ代替する。ユーザーに承認の再要求はしない。旧/golden/LEGACY-014/改善案は変更しない。

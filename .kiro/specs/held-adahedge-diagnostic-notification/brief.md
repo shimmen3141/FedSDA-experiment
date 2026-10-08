@@ -1,0 +1,3 @@
+# 境界
+研究者が最終構成の保存診断を旧と同じ意味で追跡するため、既存の単一AdaHedge証拠をglobal一つと真の概念ID別の複数として保持し、確定した学習帰属変更をglobalだけへ通知する。
+本specは複数保持と通知の受け手。context/meta方式、active-set、同期後の再較正、episode、標本ごとのclient進行、予測scores/保存schema、新全体runは後続。既存単一証拠を再実装せず、IMPROVE-007を採用しない。

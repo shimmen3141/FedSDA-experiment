@@ -1,0 +1,12 @@
+# 設計 revision1
+## 1. 境界と依存
+evaluation/adahedge_diagnostic_evidence_collection.py は既存evaluation AdaHedgeDiagnosticEvidenceだけをimportする。runtime/training_assignment_diagnostic_notification.py は同Collectionとlearning/training/current_training_model_assignment.TrainingModelAssignmentChangeだけをimportする。両方stdlib数値/RNG/torch依存なし。既存単一owner/assignment部品/旧を変更しない。
+## 2. 保持
+AdaHedgeDiagnosticEvidenceCollection.__init__がglobalを一つ生成し、概念別dictを空にする。global_diagnostic_evidenceは所有するlive ownerを返す（copyや交換APIでない）。get_true_concept_diagnostic_evidence(*, true_concept_id:int)はexact builtin int検査を最初に行い、未作成なら新AdaHedgeDiagnosticEvidenceをdictへ登録、同IDは同ownerを返す。created_true_concept_idsはdict挿入順のtuple[int,...]で、呼出後にID追加されても過去tupleは変わらない。3種類のownerはそれぞれ別参照。呼出側が各ownerの既存APIで重み/損失を更新する。新たな数値式や汎用registryを導入しない。
+## 3. 通知
+notify_diagnostics_of_training_assignment_change(*, assignment_change:TrainingModelAssignmentChange|None, diagnostic_evidence_collection:AdaHedgeDiagnosticEvidenceCollection)->None。
+Collection exact型を先に検査、Noneなら終了。変更情報はexact型を検査し、previous_model_id/current_model_idがともにexact builtin intであることを検査する（既存dataclassはID検査しない）。全検査後に異なるIDだけglobal.restart_evidence_after_concept_operation()を一回呼ぶ。同一IDはno-op。oracleは列挙も生成もしない。旧_set_local_current_modelの変更ID分岐に対応。
+通知済みIDや履歴は持たず、同じ変更通知を繰り返せば各回再始動する。一度だけ通知する順序/重複防止は後続client進行責務。MemoryErrorなど資源枯渇のtransactionや手動private状態破壊は契約外。公開変更recordの不正fieldは通知前に拒否。
+## 4. 要求対応と検証
+1.1/1.2/1.3は独立owner/初回生成/作成順tuple、2.1/2.2/2.3は旧通知/同一ID/None/不正型先行拒否、3.1は通知前後snapshotと3乱数、3.2は実旧client._set_local_current_modelと実旧AdaHedge取得/update列・全golden。
+旧oracleは通知対象外、最終構成のcontext/metaは空、active set None。この範囲だけを実旧で再現する。集約ID再較正は含めない。source/testを変えたらその範囲の対象・guard/実旧対応を再測定、最終source/test commitでWindows全回帰を測る。

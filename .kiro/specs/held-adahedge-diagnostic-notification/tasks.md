@@ -1,0 +1,18 @@
+# 実装タスク revision1
+- [ ] 1. 診断証拠保持と通知を実旧対照・依存guardつきで実装
+  - 命名承認後にtestのRED、guard注入RED、sourceでGREEN。実旧取得/update/通知を全fieldで照合し、None/同一/負ID/不正型と状態不変を検証。
+  - 検査を更新後へ動かす変異をレビュー前に確認。Ruff/Pyrightと独立承認で完了。
+  - _Boundary: evaluation collection/runtime notification/testとexact依存guard_
+  - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2_
+- [ ] 2. 検出力と新stdlib単独接続を検証
+  - 通知対象/計数/同一/None/生成/不正型先行拒否の実source変異を一種ずつ測定して元byteへ復元。非等価は全検出、等価は理由を示す。
+  - 旧/test importなしのfresh processでglobal/oracle更新→複数変更→再取得・新概念を接続。対象復元GREENと証拠を独立承認。
+  - _Depends: 1_
+  - _Boundary: 対象testと実測証拠_
+  - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2_
+- [ ] 3. Windows固定基準の全回帰と別session最終GO
+  - source/test commitとclean後、短い環境確認、全pytest/JUnit、旧11/最終3golden、品質、names/identityを実測。再開案内を現在の状態へ更新しprogressを検査。
+  - 独立証拠レビューと別fresh feature最終GO後に完了/再開案内とprogressを確定。
+  - _Depends: 2_
+  - _Boundary: 証拠文書と進捗_
+  - _Requirements: 3.2_

@@ -11,7 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **現在地:** 主担当Codexが[adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)を完了。要求r2・設計r1・命名r3・tasks r1を独立承認、全3task承認、Windows全9727 passed/3 skipped、別sessionのLuna（medium）最終GO。通知の受け手に必要な単一AdaHedge診断証拠を先に切り出し、通知・検出episode・client進行は後続へ分ける。新全体runの前にLinux用goldenを別specで作る決定は維持する。
+- **現在地:** [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)の仕様r1を内部Luna mediumで全段階承認しTask1を開始。globalと真の概念別oracleの保持・global通知を切り出す。最新完了はadahedge-diagnostic-evidence。
 
 - **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。Task 3と最終GOは、Windows基準での全回帰が済むまで完了にしない。
 - **決定（2026-10-08ユーザー）:** Linux用のgolden（旧実装をLinuxで実行した結果）は、新実装の全体runを接続するspecに入る前に作る。既存のWindows用goldenと回帰testは変更せず、別ファイル・別testにする。作る前に、同じ環境で2回実行して結果が一致することを確かめる。それまでの部品specでは、WSLのgolden回帰の不一致（環境差。旧実装は固定旧から無変更）を理由にgoldenを変えない。
