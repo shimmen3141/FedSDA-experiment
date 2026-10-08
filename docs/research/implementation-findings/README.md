@@ -20,6 +20,16 @@
 | LEGACY-014 | 採用時の保留標本が割当概念計数と損失統計へ反映されない | 再現済み・未修正、意図した仕様か未確認、oracle診断への影響未確認 | [記録](legacy-014-adopted-model-pending-samples-not-counted.md) |
 | LEGACY-015 | 標本吸収の途中失敗で先行標本の更新と不正標本が残る | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-015-partial-absorption-on-invalid-sample.md) |
 
+## 移植しないと決めた旧機能・新実装で見つけた事項
+
+旧実装の不具合ではないが、後から追う必要があるものを同じ形式で記録する。`UNPORTED-`は新実装へ移植していない旧機能とその判断、`NEW-`は新実装で見つけた事項。
+
+| ID | 件名 | 対象・状態 | 詳細 |
+|---|---|---|---|
+| UNPORTED-001 | 検出episodeの制御を新実装へ移植していない | 当面移植しない（2026-10-09、主担当の判断。最終構成で無効） | [記録](unported-001-detection-episode-control.md) |
+| UNPORTED-002 | 参照モデルも学習させる候補検証方針を移植していない | 当面移植しない（2026-10-07、ユーザー判断） | [記録](unported-002-reference-shadow-tournament.md) |
+| NEW-001 | 候補検証sessionの保持への反映で、拒否の文言が一部の入力に合わない | 未修正（文言だけ。挙動は正しい） | [記録](new-001-holder-rejection-message-wording.md) |
+
 ## 記録・更新の規約
 
 発見ごとにIDを割り当て、一件一ファイルで以下を残す。

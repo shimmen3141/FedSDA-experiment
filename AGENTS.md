@@ -3,7 +3,7 @@
 - 2026-10-08のユーザー指示により、担当ツールを問わず日常的・分量の多いレビューはGPT-6 Luna、
   やや複雑・難易度の高い実装のレビューはClaude Haiku 5.5を優先する。分量より難易度を優先して選ぶ。
   優先モデルを利用できない場合は他方で独立レビューし、有用な指摘の反映で承認する。
-  effortはHaikuを`high`、Lunaを`medium`に明示指定する（2026-10-08、Lunaはhighで指摘の質が変わる証拠がなくmediumへ戻した）。代替で使うときも各モデルのこの指定とし、CLI既定値に依存しない。
+  effortはHaiku・Lunaとも`medium`に明示指定する（2026-10-08、Lunaはhighで指摘の質が変わる証拠がなくmediumへ戻した。2026-10-09のユーザー指示でHaikuの既定も`high`から`medium`へ改めた）。代替で使うときも各モデルのこの指定とし、CLI既定値に依存しない。
   要求・設計・命名・tasks・実装task・別feature最終GOの各ゲートを維持し、自己レビューで代替しない。
   優先モデルを選んだ理由・実際のモデル/effort・代替時の利用不能理由・対象revision/hash・指摘の採否を共通specへ記録する。
   詳細は[共通引継ぎ手順](.kiro/steering/agent-handoff.md)を参照する。過去の承認記録は書き換えない。
@@ -15,7 +15,7 @@ PowerShellでは依頼を`$reviewPrompt`へ格納し、次のように起動す�
 対象に応じた優先モデルのコマンドを一つだけ実行し、利用不能時だけ他方へ切り替える。
 
 ```powershell
-claude -p $reviewPrompt --model claude-haiku-5-5 --effort high --output-format json --no-session-persistence --tools Read,Glob,Grep --permission-mode plan
+claude -p $reviewPrompt --model claude-haiku-5-5 --effort medium --output-format json --no-session-persistence --tools Read,Glob,Grep --permission-mode plan
 codex exec -m gpt-6-luna -c 'model_reasoning_effort="medium"' --sandbox read-only --ephemeral $reviewPrompt
 ```
 

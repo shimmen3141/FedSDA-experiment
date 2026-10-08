@@ -39,7 +39,7 @@ resumeは要約であり、承認状態を単独で決める根拠にしない�
 | 対象 | 優先モデル | 利用不能時 |
 | --- | --- | --- |
 | 日常的・分量の多いレビュー（命名/文書/要件、機械的証拠の照合など） | GPT-6 Luna（effort `medium`） | Claude Haiku 5.5 |
-| やや複雑・難易度の高い実装レビュー（NN数値/RNG、可変状態、更新順序、複数部品の接続など） | Claude Haiku 5.5（effort `high`） | GPT-6 Luna |
+| やや複雑・難易度の高い実装レビュー（NN数値/RNG、可変状態、更新順序、複数部品の接続など） | Claude Haiku 5.5（effort `medium`） | GPT-6 Luna |
 
 - 分量より難易度を優先し、対象の実際の判断難度から主担当が選ぶ。feature最終担当も同じ。両方利用不能ならレビュー待ちとして対象specのreview.mdへ記録して引き継ぐ。自己承認やSonnetへの自動代替はしない。
 - effortは明示指定し、代替で使うときも各モデルの上の指定とする。指定が拒否されたら既定値で続行せず他方へ代替する。
@@ -51,7 +51,7 @@ resumeは要約であり、承認状態を単独で決める根拠にしない�
 起動例（PowerShell。依頼文は`$reviewPrompt`へ。複数行は単一引用符のhere-string）。読取りレビュー用で、testを実行させるときは対象と権限を別途限定する（Lunaは`--sandbox workspace-write`）。
 
 ```powershell
-claude -p $reviewPrompt --model claude-haiku-5-5 --effort high --output-format json --no-session-persistence --tools Read,Glob,Grep --permission-mode plan
+claude -p $reviewPrompt --model claude-haiku-5-5 --effort medium --output-format json --no-session-persistence --tools Read,Glob,Grep --permission-mode plan
 codex exec -m gpt-6-luna -c 'model_reasoning_effort="medium"' --sandbox read-only --ephemeral $reviewPrompt
 ```
 
