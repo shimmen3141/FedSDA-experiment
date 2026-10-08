@@ -1,7 +1,7 @@
 # 統合検証
 
 ## 現在の状態
-Task1・Task2を独立承認（2/3）。Task3の主担当Windows全回帰証拠を準備し独立レビュー待ち。Task3完了・別fresh sessionのfeature最終GOは未承認。
+全3taskを独立承認。Task3で対象＋guard2905件/fresh/Ruffを独立再現し、主担当のWindows全回帰とJUnitを照合した。別fresh sessionのfeature最終GOへ進む。
 
 ## Task1
 対象REDは新module不在でModuleNotFoundError、依存注入REDは18 failed/42 passed。実装と両resolverへのexact guard登録後、復元GREENは2902 passed/7.63s（対象21、依存guard2881）。新規追加は対象21＋guard60で81件。Ruff check/formatは4ファイル成功、正規Pyrightは0 errors/0 warnings。
