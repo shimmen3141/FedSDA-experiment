@@ -4,7 +4,7 @@
 
 ## 全体方針
 
-最新: [held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md)（候補検証の確定で学習帰属が変わったとき、既存の進行の接続から診断通知を行う。拒否の文言NEW-001を修正）。仕様（設計r2・命名r2・tasks r2）・全3task独立承認、feature最終レビューは別sessionへ依頼する段階。検証commit ef1be82、Windows全10029 passed/3 skipped、旧11/最終3golden・品質成功。
+最新完了: [held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md)（候補検証の確定で学習帰属が変わったとき、既存の進行の接続から診断通知を行う。拒否の文言NEW-001を修正）。仕様（設計r2・命名r2・tasks r2）・全3task独立承認、別sessionのLuna mediumが最終GO。検証commit ef1be82、Windows全10029 passed/3 skipped、旧11/最終3golden・品質成功。
 
 その前の完了: [alarm-occurrence-handling](../specs/alarm-occurrence-handling/README.md)（警報1回ぶんの処理を、応答→完了処理→適応記録→session保持→診断通知の順に既存部品でつなぐ`handle_alarm_occurrence`）。仕様（設計r2）・全3task独立承認、別sessionのLuna mediumが最終GO。検証commit e80b368、Windows全10000 passed/3 skipped、旧11/最終3golden・品質成功。検出episodeの制御は当面移植しない（最終構成で無効）。
 
