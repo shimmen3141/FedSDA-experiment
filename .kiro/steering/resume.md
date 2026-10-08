@@ -1,8 +1,8 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-08（警報時の学習区間準備を完了、別fresh Luna feature最終GO）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
+更新: 2026-10-08（警報時の保留標本への応答を実装中）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
-**引継ぎ地点（2026-10-08）:** Codexが[警報時の学習区間の準備](../specs/alarm-training-interval-preparation/README.md)を完了。要求r2・設計r1・命名r4・tasks r4、全7tasks独立GPT-6 Luna承認、別fresh Luna feature最終GO。区間を分割し、前区間を評価保存→現行モデルへ吸収する公開runtimeが揃った。全8811 passed、固定旧11/最終3golden・fresh新CPU・品質成功。次は警報全体制御の残りを要求から仕様化する（下の候補1）。ユーザーの訂正に従い、途中の承認段階では止めず、このspec完了を区切りにした。進行中の編集・レビューはない。
+**現在の作業（2026-10-08）:** [alarm-buffer-response](../specs/alarm-buffer-response/README.md)。要求r1・設計r2・命名r5・tasks r1を独立Luna承認。Task 1/2承認・実装済み、Task 3の実source変異検査中。公開runtimeはactive検証中の全件吸収、または前区間準備→最小件数判定→変化区間の公開解決を組み立てる。FIFOを変更せず、呼出側の消費判断と同じ/新しいsessionを返す。最終対象64＋AST2455成功。全回帰・fresh CPU・別feature最終GOはまだ未実施。ユーザー指示に従い本spec完了まで進める。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 

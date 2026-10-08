@@ -17,7 +17,7 @@
   - _Boundary: 既存準備/吸収/解決への応答の統合_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2_
 
-- [ ] 3. 実source変異で検出力を確認する
+- [x] 3. 実source変異で検出力を確認する
   - test-only。active無視、前区間省略、最小件数の丸め違い（<を<=）、session置換、変化区間へ全FIFOを渡す、余分な乱数、FIFO消費、消費指示逆転、元metadataの上書きを代表変異とする。
   - 変異は各回finallyで元byteへ復元。syntax/collection失敗を検出成功に数えず、意味を持つassertion失敗と復元後hash/GREENを記録する。
   - 完了: 代表変異検出・byte復元・最終対象成功を独立reviewerが確認して承認。

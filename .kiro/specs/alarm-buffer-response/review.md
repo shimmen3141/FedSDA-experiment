@@ -38,3 +38,9 @@
 - 全5応答の実装、36 NN正常条件・8 active条件・空FIFO・16拒否・順序と元metadata・部分更新境界を確認。後続共同更新を2回、候補開始後の実観測も照合。active候補/参照の値・grad・両optimizer・履歴・pending参照は不変。torch/Python/NumPyも確認。
 - 最終GREEN: 対象64＋AST2455＝2519 passed、9.65s、Ruff成功。exact依存は23symbol、新注入235。別fresh Lunaは実差分/命名/設計/logを照合しAPPROVED、独立全対象再実行は未実施。必須指摘なし。
 - 証拠: task2-tests.log、task2-review.md（元checkoutのvenv/refactoring-tests）。全体run・後始末ownerはまだ未接続。
+
+## Task 3 — APPROVED
+
+- 9種の実source変異を全て検出し、各回finallyでbyte復元した。構文/収集失敗は検出成功に数えていない。詳細はmutation-evidence.md。
+- 復元後64 passed、11.17s。変更前後byte hash一致、runtimeのTask 2 commitからのdiffは空。
+- 別fresh Lunaがscript・全logの失敗範囲・report・現在hash/空diffを独立照合してAPPROVED。全pytestの検証ではない。必須指摘なし。

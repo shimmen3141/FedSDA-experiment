@@ -4,6 +4,8 @@
 
 ## 全体方針
 
+進行中: [alarm-buffer-response](../specs/alarm-buffer-response/README.md)。要求r1・設計r2・命名r5・tasks r1承認。Task 1/2承認済み、実source変異・fresh CPU・全回帰・別feature最終GOを残す。区間準備/解決とactive経路を組み立て、FIFO後始末の判断を返す。実際のreset・FIFO消費・event/通知・session保持は次の境界へ分離する。
+
 最新完了: [alarm-training-interval-preparation](../specs/alarm-training-interval-preparation/README.md)。要求r2・設計r1・命名r4・tasks r4、全7tasks独立Luna承認、別fresh Luna feature最終GO。対象152＋AST2220、6変異、全8811 passed/3既存skip/2既存warning、旧11/最終3golden・新CPU・品質成功。次は区間準備と区間解決を呼ぶ警報制御（active session経路、最小件数、reset/FIFO、event/通知）の境界を決め、要求から仕様化する。新client/全体runは未接続。入口はresume、承認hashと証拠は同specのspec.json/review/integration-validation。
 
 旧基準`748c3aa`と同じGit履歴の`refactor/architecture`ブランチで、新APIへ移行する。
