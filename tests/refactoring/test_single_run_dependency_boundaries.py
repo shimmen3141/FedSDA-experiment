@@ -5499,7 +5499,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         # 初期snapshot作成だけにtorchと同機能の公開設定型を許可する。
         return imported_module_name in (
             "torch",
-            "torch.Tensor",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
         )
@@ -7035,6 +7034,86 @@ def test_candidate_classifier_construction_exact_dependency_contract(
     ) == expected_acceptance
 
 
+def collect_module_allowed_dependency_names():
+    """dependency_is_allowedのうち、moduleごとに`return imported_module_name in (...)`で書いた許可集合を読む。"""
+    dependency_rule_function = next(
+        statement
+        for statement in ast.parse(Path(__file__).read_text(encoding="utf-8")).body
+        if isinstance(statement, ast.FunctionDef) and statement.name == "dependency_is_allowed"
+    )
+    allowed_dependency_names_by_module = {}
+    for rule_branch in ast.walk(dependency_rule_function):
+        if not (
+            isinstance(rule_branch, ast.If)
+            and isinstance(rule_branch.test, ast.Compare)
+            and isinstance(rule_branch.test.left, ast.Name)
+            and rule_branch.test.left.id == "source_module_path"
+            and isinstance(rule_branch.test.ops[0], ast.Eq)
+            and isinstance(rule_branch.test.comparators[0], ast.Constant)
+            and len(rule_branch.body) == 1
+            and isinstance(rule_branch.body[0], ast.Return)
+        ):
+            continue
+        returned_condition = rule_branch.body[0].value
+        if (
+            isinstance(returned_condition, ast.Compare)
+            and isinstance(returned_condition.ops[0], ast.In)
+            and isinstance(returned_condition.comparators[0], ast.Tuple)
+            and all(
+                isinstance(allowed_name, ast.Constant)
+                for allowed_name in returned_condition.comparators[0].elts
+            )
+        ):
+            allowed_dependency_names_by_module[rule_branch.test.comparators[0].value] = {
+                allowed_name.value for allowed_name in returned_condition.comparators[0].elts
+            }
+    return allowed_dependency_names_by_module
+
+
+def test_module_allowed_dependencies_are_all_imported_by_the_module():
+    """許可集合が、実際のsourceのimportより広くなっていないこと（使っていない依存を許可したままにしない）。"""
+    allowed_dependency_names_by_module = collect_module_allowed_dependency_names()
+    # 読取りが空振りしていないこと（登録の書き方が変わったら、この読取りを直す）。
+    assert len(allowed_dependency_names_by_module) >= 58
+    unused_allowed_dependency_names = {}
+    package_source_directory = (
+        Path(__file__).resolve().parents[2] / "src" / "federated_learning_experiments"
+    )
+    for source_module_path, allowed_dependency_names in allowed_dependency_names_by_module.items():
+        importing_package_name = "federated_learning_experiments." + source_module_path.rsplit(
+            "/", 1
+        )[0].replace("/", ".")
+        imported_dependency_names = set()
+        for import_statement in ast.walk(
+            ast.parse((package_source_directory / source_module_path).read_text(encoding="utf-8"))
+        ):
+            imported_dependency_names.update(
+                resolve_imported_module_names(
+                    import_statement=import_statement,
+                    importing_package_name=importing_package_name,
+                )
+            )
+            if isinstance(import_statement, ast.ImportFrom):
+                imported_base_module_name = resolve_name(
+                    "." * import_statement.level + (import_statement.module or ""),
+                    importing_package_name,
+                )
+                imported_dependency_names.add(imported_base_module_name)
+                imported_dependency_names.update(
+                    imported_base_module_name + "." + imported_module_alias.name
+                    for imported_module_alias in import_statement.names
+                )
+        # `from __future__ import annotations`の許可は、依存先ではないので対象外。
+        unused_names = sorted(
+            allowed_name
+            for allowed_name in allowed_dependency_names - imported_dependency_names
+            if allowed_name.split(".")[0] != "__future__"
+        )
+        if unused_names:
+            unused_allowed_dependency_names[source_module_path] = unused_names
+    assert unused_allowed_dependency_names == {}
+
+
 def test_single_run_package_boundaries_have_no_exports():
     """新しい境界は存在し、説明だけを持ち再exportしない。"""
     package_source_directory = (
@@ -8370,10 +8449,6 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
         (
             "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
             "import torch",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
-            "from torch import Tensor",
         ),
         (
             "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",

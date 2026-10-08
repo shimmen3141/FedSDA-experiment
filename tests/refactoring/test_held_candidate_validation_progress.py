@@ -185,6 +185,15 @@ def test_alarm_response_updates_holder_like_legacy_session_attribute(
     )
 
 
+def make_subclass_copy(original):
+    """同じ属性を持つ、派生型の値（exact型の検査が拒否するべき値）。"""
+    subclass = type(type(original).__name__ + "Subclass", (type(original),), {})
+    subclass_copy = object.__new__(subclass)
+    for attribute_name, attribute in vars(original).items():
+        object.__setattr__(subclass_copy, attribute_name, attribute)
+    return subclass_copy
+
+
 # 手で足すsessionの代わりの値。応答と区間解決の同じ場所へ同一の値を入れるために使う。
 INJECTED_SESSION_MARKER = object()
 
@@ -195,6 +204,13 @@ INVALID_ALARM_RESPONSE_HOLDER_CASES = {
         RECORDING_ORACLE_CASES[2],
         "none",
         lambda alarm_buffer_response: object(),
+        TypeError,
+    ),
+    # 応答の派生型（fieldは正しい）。exact型の検査だけが拒否する。
+    "response_is_subclass_record": (
+        RECORDING_ORACLE_CASES[2],
+        "none",
+        lambda alarm_buffer_response: make_subclass_copy(alarm_buffer_response),
         TypeError,
     ),
     # 正式な5値でない結果種別。応答自身の検査の再実行だけが拒否する（通ると何もせず正常終了する）。
@@ -318,10 +334,14 @@ def test_alarm_response_is_rejected_before_changing_holder(
             validation_session_holder=validation_session_holder,
         )
     assert validation_session_holder.held_validation_session is held_validation_session
-    with pytest.raises(TypeError):
-        apply_alarm_response_to_validation_session_holder(
-            alarm_buffer_response=alarm_buffer_response, validation_session_holder=object()
-        )
+    # 保持のownerは、別の型も派生型（同じsessionを保持している）も拒否する。
+    for invalid_holder in (object(), make_subclass_copy(validation_session_holder)):
+        with pytest.raises(TypeError, match="validation_session_holder must be exact"):
+            apply_alarm_response_to_validation_session_holder(
+                alarm_buffer_response=alarm_buffer_response,
+                validation_session_holder=invalid_holder,
+            )
+    assert validation_session_holder.held_validation_session is held_validation_session
 
 
 @pytest.mark.parametrize("class_count", (2, 4))
@@ -627,12 +647,13 @@ def test_owner_types_are_rejected_before_upstream_updates(
 ):
     with torch.random.fork_rng(devices=[]):
         validation_session = make_started_validation_session(monkeypatch=monkeypatch)
-    # 保持がないときも、ownerの型は同じく拒否する（保持がなければ上流は何もしないが、不正なownerを見逃さない）。
+    # 保持がないときも、ownerの型は同じく拒否する（不正なownerを、候補検証が始まるまで見逃さない）。
     held_validation_session = validation_session if session_is_held else None
     validation_session_holder = make_holder_holding(validation_session=held_validation_session)
     adaptation_record_store = make_record_store_with_alarm_record()
     previous_state_snapshot = adaptation_record_store.get_state_snapshot()
     # 上流の進行・終端回収は多くのownerを更新する。型の拒否はその呼出しより前でなければならない。
+    # 上流は「呼ばれたら失敗するmock」に差し替える（保持がなくても、型検査が抜ければ呼ばれて失敗する）。
     monkeypatch.setattr(
         held_progress_module, upstream_operation_name, Mock(side_effect=AssertionError)
     )
@@ -671,6 +692,21 @@ def test_incomplete_held_validation_is_recorded_then_released_like_legacy(
         validation_session_holder = make_holder_holding(validation_session=validation_session)
         adaptation_record_store = make_record_store_with_alarm_record()
         previous_state_snapshot = adaptation_record_store.get_state_snapshot()
+        # 解除の時点で適応記録が追加済みであること（旧のイベント記録→session解除の順）。
+        record_counts_at_release = []
+        release_validation_session = validation_session_holder.release_validation_session
+
+        def record_release_of_validation_session():
+            record_counts_at_release.append(
+                len(adaptation_record_store.get_state_snapshot().adaptation_records)
+            )
+            return release_validation_session()
+
+        monkeypatch.setattr(
+            validation_session_holder,
+            "release_validation_session",
+            record_release_of_validation_session,
+        )
         legacy_client.finalize_incomplete_forward_validation()
         held_incomplete_finalization = finalize_held_incomplete_candidate_validation(
             validation_session_holder=validation_session_holder,
@@ -682,6 +718,7 @@ def test_incomplete_held_validation_is_recorded_then_released_like_legacy(
             },
         )
         assert type(held_incomplete_finalization) is HeldIncompleteCandidateValidationFinalization
+        assert record_counts_at_release == [len(previous_state_snapshot.adaptation_records) + 1]
         assert validation_session_holder.held_validation_session is None
         assert legacy_client._forward_validation is None
         assert_recorded_event_matches_legacy(
