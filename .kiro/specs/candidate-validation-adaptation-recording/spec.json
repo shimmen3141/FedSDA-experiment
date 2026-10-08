@@ -148,7 +148,7 @@
     "evidence": "integration-validation.md",
     "fresh_cpu_cases": 10,
     "mutations_detected": "51/51",
-    "requirements_total": 10,
+    "requirements_total": 9,
     "independent_full_suite_rerun": false,
     "full_pytest_basis": "primary_agent_measurement_and_junit_per_user_decision_2026-10-07",
     "legacy_production_unchanged": true,

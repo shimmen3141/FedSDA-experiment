@@ -14,7 +14,7 @@
 | 2 検出力と独立動作 | Windows基準: 変異51/51検出、fresh CPU 10条件成功。WSLでも同じ結果。[詳細](mutation-and-cpu-evidence.md) |
 | 3 全回帰・品質 | Windows基準: 全pytest 9663 passed / 3 skipped / 2 warnings、exit 0。Ruff・Pyright・pip check成功、固定旧差分は空 |
 
-## 要求対応（10/10）
+## 要求対応（9/9）
 
 | 要求 | 実装と検証 |
 | --- | --- |
@@ -54,6 +54,7 @@ Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `hel
 
 - session保持は次のspec（held-candidate-validation-progress）で扱った。通知と保存診断、検出episode、標本ごとのclient進行、新全体runのgolden一致は未検証。
 - 独立レビュー担当による全pytestの再実行は行っていない（2026-10-07のユーザー決定による基準）。Task 1のレビュー担当（Haiku、読取り専用）はtestを実行していない。
+- 記録の誤り: 承認済みのtasks.md（Task 3）は「要求10項目」と書いているが、要求r2の項目は9（1.1〜1.4、2.1〜2.3、3.1〜3.2）で、数え間違いだった。承認済みの文書なので書き換えず、ここへ記録する。対応表は9項目すべてを扱っている。
 - 手順上の事実: 命名の事前登録のためsourceとtestをリポジトリ外で下書きし、承認前に作業ツリーの複製で実行した。worktreeへはtest→RED→srcの順で追加した。Task 1の実装と改訂後のREDはWSLで確認し、Windows基準ではREDを取り直していない（最終のsourceでの成功と変異の検出だけをWindowsで確認した）。
 
 ## レビュー
