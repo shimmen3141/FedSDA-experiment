@@ -22,3 +22,11 @@
 - 任意の分割提案は、実装中に独立責務が現れれば検討する。現段階では既存NN helperの接続をtask 2、独立CPU検証をtask 4に明示しており、この構成を維持する。
 - 外部証拠は`alarm-buffer-response-naming-tasks-review.md`とlog。sessionと対象hashはspec.json。
 - 依存注入検査の新関数名だけが外部source/test抽出に含まれなかったため、命名r3へ役割を補足した。Lunaが既存helperの誤記を指摘しREJECTED。実名collect_dependency_boundary_violationsへ訂正したr4を再レビューする。source/testの追加はその承認後。
+
+## 命名r4・Task 1 — APPROVED
+
+- 命名r4を別Lunaが承認した。実装開始前に承認revision/hashをspec.jsonへ記録。
+- Task 1の初回レビューは、解決不能な相対import fixtureと保存logの1失敗を正しく指摘しREJECTED。fixtureを解決可能だが許可外の依存へ訂正し、全5有効recordを直接構成する検証も追加した。全局所名は承認済みの役割で再利用。
+- RED: module未実装の収集失敗、guard実装前の21 failed/35 passed。GREEN: record専用node＋全ASTは2277 passed、9.76s。Ruff成功。
+- 再レビューは別fresh Luna APPROVED。独立テスト再実行は担当側のPython選択問題で未実施、主担当logと実差分を照合した。sourceはrecordのみ、未来の応答関数の成功は主張しない。
+- 証拠: 元checkoutのvenv/refactoring-tests/alarm-buffer-response-task1-review-r2.md、task1-tests.log。担当sessionはspec.json。

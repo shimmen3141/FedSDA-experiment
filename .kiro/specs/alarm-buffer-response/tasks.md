@@ -2,7 +2,7 @@
 
 逐次実行。既存公開部品を接続する1つの応答runtimeと、実旧oracleの再利用による検証。役割を跨ぐ後始末ownerは作らない。runtimeの外部下書きは約260行、testは約760行で、多くは既存NN/状態照合helperとparametrizeの接続。対象CPU実測は数十秒、全回帰は直前232秒。各taskを独立レビューし、最後に別fresh feature最終GOを行う。
 
-- [ ] 1. 不変応答recordと初期依存境界を統合する
+- [x] 1. 不変応答recordと初期依存境界を統合する
   - record-onlyのfoundation統合task。正式5値、frozen/kw_only、active/不足/解決のfield組、FIFO消費判断をtestのRED後に実装。
   - 同moduleのrecord定義だけを作り、その時点で使用するexact import集合と注入契約を両resolverへ登録する。未来のruntime importをまだ許可しない。
   - 完了: record対象と依存suiteが成功、独立レビュー承認。命名表は全taskに先行して承認する。

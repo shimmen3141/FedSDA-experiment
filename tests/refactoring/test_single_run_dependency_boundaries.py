@@ -8,6 +8,192 @@ from pathlib import Path
 import pytest
 
 
+# BEGIN alarm_buffer_response dependency contract
+@pytest.mark.parametrize(
+    "source_text,expected_acceptance",
+    [
+        ("from dataclasses import dataclass", True),
+        ("from dataclasses import dataclass as AcceptedDependency", True),
+        ("import dataclasses", False),
+        ("import dataclasses as AcceptedDependency", False),
+        ("import dataclasses.dataclass", False),
+        ("from dataclasses import _private", False),
+        ("from dataclasses.child import dataclass", False),
+        ("from dataclasses import *", False),
+        ("from dataclasses import field", False),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import PreparedAlarmTrainingIntervals",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import PreparedAlarmTrainingIntervals as AcceptedDependency",
+            True,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals.PreparedAlarmTrainingIntervals",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals.child import PreparedAlarmTrainingIntervals",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import field",
+            False,
+        ),
+        (
+            "from ..methods.fedsda.training_data_assignment.prepared_alarm_training_intervals import PreparedAlarmTrainingIntervals",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES as AcceptedDependency",
+            True,
+        ),
+        ("import federated_learning_experiments.runtime.alarm_change_interval_resolution", False),
+        (
+            "import federated_learning_experiments.runtime.alarm_change_interval_resolution as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.runtime.alarm_change_interval_resolution.ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution.child import ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import field",
+            False,
+        ),
+        (
+            "from ..runtime.alarm_change_interval_resolution import ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import AlarmChangeIntervalResolution",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import AlarmChangeIntervalResolution as AcceptedDependency",
+            True,
+        ),
+        ("import federated_learning_experiments.runtime.alarm_change_interval_resolution", False),
+        (
+            "import federated_learning_experiments.runtime.alarm_change_interval_resolution as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.runtime.alarm_change_interval_resolution.AlarmChangeIntervalResolution",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution.child import AlarmChangeIntervalResolution",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.alarm_change_interval_resolution import field",
+            False,
+        ),
+        (
+            "from ..runtime.alarm_change_interval_resolution import AlarmChangeIntervalResolution",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
+            True,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession as AcceptedDependency",
+            True,
+        ),
+        (
+            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start as AcceptedDependency",
+            False,
+        ),
+        (
+            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import _private",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.child import PostAlarmCandidateValidationSession",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import *",
+            False,
+        ),
+        (
+            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import field",
+            False,
+        ),
+        (
+            "from ..runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
+            True,
+        ),
+        ("import os", False),
+        ("import numpy", False),
+        ("from federated_drift_experiment import config", False),
+        ("from federated_learning_experiments import runtime", False),
+        ("from federated_learning_experiments.runtime import alarm_buffer_response", False),
+        ("from federated_learning_experiments.cli import main", False),
+        ("from ..configuration.run_settings import RunSettings", False),
+    ],
+)
+def test_alarm_buffer_response_dependency_contract(source_text, expected_acceptance):
+    dependency_boundary_violations = collect_dependency_boundary_violations(
+        source_module_path="runtime/alarm_buffer_response.py", source_text=source_text
+    )
+    assert (not dependency_boundary_violations) == expected_acceptance
+
+
+# END alarm_buffer_response dependency contract
+
+
 # BEGIN alarm_training_interval_preparation dependency contract
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_acceptance",
@@ -1903,6 +2089,14 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
         )
+    if source_module_path == "runtime/alarm_buffer_response.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.prepared_alarm_training_intervals.PreparedAlarmTrainingIntervals",
+            "federated_learning_experiments.runtime.alarm_change_interval_resolution.ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES",
+            "federated_learning_experiments.runtime.alarm_change_interval_resolution.AlarmChangeIntervalResolution",
+            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
+        )
     if source_module_path == "runtime/alarm_change_interval_resolution.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -2699,6 +2893,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "learning/training/indexed_observed_training_sample.py",
             "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
             "runtime/alarm_training_interval_preparation.py",
+            "runtime/alarm_buffer_response.py",
             "runtime/alarm_change_interval_resolution.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
@@ -2744,6 +2939,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "learning/training/indexed_observed_training_sample.py",
                     "methods/fedsda/training_data_assignment/prepared_alarm_training_intervals.py",
                     "runtime/alarm_training_interval_preparation.py",
+                    "runtime/alarm_buffer_response.py",
                     "runtime/alarm_change_interval_resolution.py",
                 )
                 and isinstance(import_statement, ast.Import)
