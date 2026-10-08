@@ -9,7 +9,7 @@
 | Task | 証拠 |
 | --- | --- |
 | 1 実装 | 新test 47、保留位置のownerのtest 69、依存境界、共用scriptを実行するtestを合わせて3160 passed。独立レビュー1回目の指摘でtestを足し、2回目で承認（経緯はreview.md） |
-| 2 検出力 | 汎用の変異toolで、確定の関数は19/20（未検出1種は等価）、保留位置のownerの読取りの操作は3/3。[詳細](mutation-and-cpu-evidence.md) |
+| 2 検出力 | 汎用の変異toolで、確定の関数は21/22（未検出1種は等価）、保留位置のownerの読取りの操作は3/3。[詳細](mutation-and-cpu-evidence.md) |
 | 3 全回帰・品質 | 全pytest 10080 passed / 3 skipped / 2 warnings、exit 0。Ruff・Pyright・pip check成功、固定旧差分は空 |
 
 ## 要求対応（9/9）
@@ -57,4 +57,4 @@ Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `rel
 
 ## レビュー
 
-Task 1はClaude Haiku 5.5（2回目で承認）、命名r2とTask 2・3は、GPT-6 Lunaが利用上限で使えないためClaude Haiku 5.5が代替して承認（2026-10-09）。経緯と採否は[review.md](review.md)。
+Task 1はClaude Haiku 5.5（2回目で承認）、命名r2とTask 2・3は、GPT-6 Lunaが利用上限で使えないためClaude Haiku 5.5が代替して承認し、別sessionのHaiku 5.5（同じく代替）がfeature最終GO（2026-10-09）。経緯と採否は[review.md](review.md)。

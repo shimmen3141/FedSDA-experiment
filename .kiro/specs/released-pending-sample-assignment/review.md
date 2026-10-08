@@ -65,3 +65,19 @@
 - 独立実行していないもの: 変異tool（sourceを書き換えるため`report.json`を読んだ）、全pytest。
 
 全3taskを完了とした。命名r2・Task 2・Task 3は、Lunaが利用上限で使えないため、Claude Haiku 5.5が代替して承認した。
+
+## feature最終レビュー（Haiku代替、別session `585569da-9763-4b00-8f50-1976f1e5ec6d`、HEAD `882b5b1`）— FEATURE FINAL: GO
+
+選択と代替: 優先はGPT-6 Lunaだが、利用上限（10月14日まで）で使えないため、Claude Haiku 5.5が代替した（`--effort medium`指定、JSONの`modelUsage`で実モデルを確認）。これまでのどのレビューとも別のsession。照合コマンドだけを許可して起動した（`spec_checks.py`、`git status`・`git diff`）。本specは2 moduleに触れるので、Task 3と同じ依頼で最終判定を受ける扱いは適用していない。Blocker・Majorなし。要求9項目は、2.2を「概ね充足」（下の指摘2）、他を「充足」と判定された。
+
+レビュー担当が独立に実行したもの: `spec_checks.py identity --rev cbf38b6`（承認hash、固定旧差分、作業ツリー、source hash、JUnit集計、旧回帰2件がOK）、`progress`（3/3、phase一致）、`git status`（空）、`src`・`tests`と固定旧の差分の確認。pytest・Ruff・Pyright・共用script・変異toolは実行していない（対象test・共用script・RuffはTask 2の2回目のレビュー担当が独立に実行済み）。
+
+指摘と採否:
+
+1. Minor（記録）: 統合検証とspec.jsonの変異の件数が「19/20」のままで、最終の実測（21/22）と合わない。→ 採用。両方を21/22へ直した。
+2. Minor: クラス数2で観測ラベルが負の標本は、損失評価を通り、吸収の更新loopの中の損失統計の記録で`ValueError`になるので、その時点で1件目の標本追加と概念計数が済んでいる（要求2.2と設計4節が成り立たない）、という指摘。→ 不採用（前提が事実と違う）。主担当が、吸収のoracleで3標本の2件目のラベルを−1にして実行して確かめた: 新の吸収は、損失評価の入力検査が`ValueError`（観測ラベルは0以上クラス数未満が必要）で拒否し、標本・割当概念計数・損失統計は何も変わらない。損失評価は全標本について更新より前に行われるので、負のラベルは更新loopへ到達しない。確認に使ったscriptは元checkoutの`venv/refactoring-tests/released-pending-sample-assignment-final-review-probe-negative-label.py`（Git管理外）。同じ入力を実旧`_absorb_into_store`へ渡すと、例外なく3件とも吸収され、クラス別統計にクラス−1の項目ができる（旧の契約外入力での挙動。不正なclass入力での旧の統計の扱いはLEGACY-006に記録がある）。
+3. 任意: 特徴数の違う標本の拒否条件の期待例外が`(RuntimeError, ValueError)`と広い。→ 変更しない。吸収のspecが決める例外で、本specは「拒否され、何も変わらない」ことだけを確かめる。
+4. 任意: tasks.mdのTask 3の書き方が、共通引継ぎ手順の「1 module」の条件より緩い。→ 承認済みの文書は書き換えない。本specは別sessionで最終判定を受けた（この記録）。
+5. 任意（開示済みの逸脱）: 追加したtest名が命名r2の承認より先に実装された。→ 記録済み。
+
+本specを完了とした。
