@@ -38,14 +38,14 @@
     },
     "naming": {
       "generated": true,
-      "approved": false,
+      "approved": true,
       "revision": 2,
-      "approved_revision": 1,
+      "approved_revision": 2,
       "generated_sha256_lf": "cdd6757fb4054720f96a7c7b5ec208114106a3278a7c47739fcd0bf19bfa3cd2",
-      "approved_sha256_lf": "faf3ecf005fccb77e7df85d88db75287705177eac0221b166d75abccbf6be072",
-      "reviewer": "gpt-6-luna (independent CLI, model_reasoning_effort=medium)",
-      "reviewer_session": "01a11d4d-d7b4-7e10-a912-0da032effa49",
-      "reviewer_identity_basis": "launch_model_flag_and_codex_log_model_and_reasoning_effort_lines",
+      "approved_sha256_lf": "cdd6757fb4054720f96a7c7b5ec208114106a3278a7c47739fcd0bf19bfa3cd2",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested; substitute for gpt-6-luna at usage limit)",
+      "reviewer_session": "dce2dbec-dab8-45f8-8135-3811fc31497b",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
       "review_record": "review.md",
       "previous_approved_revisions": [
         {
@@ -68,7 +68,7 @@
       "review_record": "review.md"
     }
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "implementation_progress": {
     "completed": 1,
@@ -76,8 +76,8 @@
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "task_1_approved",
-    "next_step": "naming_r2_rereview_and_task_2_3_review",
+    "completed_unit": "naming_r2_and_task_3_approved_by_substitute",
+    "next_step": "task_2_rejudgment_with_independent_execution",
     "implementation_started": true,
     "tests_run": true,
     "full_pytest_run_for_this_spec": true
@@ -94,6 +94,18 @@
         "0d8bb960-cb90-481d-a019-cb118fa5c38f"
       ],
       "independent_test_execution": false,
+      "evidence": "review.md"
+    },
+    "2_3": {
+      "verdict": "NAMING r2: APPROVED / TASK 2: CHANGES_REQUESTED / TASK 3: APPROVED",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+      "substitute_for": "gpt-6-luna (usage limit until 2026-10-14; attempted session 01a11d66-e928-79b3-82be-21e0c15ddf05)",
+      "reviewer_session": "dce2dbec-dab8-45f8-8135-3811fc31497b",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "reviewed_commit": "331bba0",
+      "tested_commit": "cbf38b6",
+      "independent_test_execution": false,
+      "task_2_change_applied": "mutation_tool_now_deletes_statements_inside_loops_21_of_22",
       "evidence": "review.md"
     }
   },

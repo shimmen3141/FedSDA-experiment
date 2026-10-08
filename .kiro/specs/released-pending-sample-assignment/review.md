@@ -40,3 +40,18 @@
 1回目とは別のsession（`--effort medium`指定、JSONの`modelUsage`で実モデルを確認）。読取り専用で、testとgitを実行していない。1回目の指摘1・2は解消と報告された: 追加したtestの2条件は、型の検査が抜けたり後ろへ移ったりすれば`ValueError`になって失敗する。残る未検出1種の等価の判断は実コードから導ける（代入は検査を通った入力で例外を出さず、移した先は早期returnと吸収より前）。未保有モデルの拒否条件は吸収が`KeyError`（`LookupError`の派生型）で更新より前に拒否し、「本処理自身の検査」のtestの対象から正しく外れている。Blocker・Major・Minorなし。確認していないと報告されたもの: testとgitの実行、変異の`report.json`、設計4節・要求・命名、`build_absorption_oracle`の本体、特徴数の違う標本で損失評価が出す例外の型、固定旧実装とgoldenの差分、全pytest、共用script。
 
 任意の指摘1件と採否: 要素の位置がintの派生型で、かつ並びが不一致の入力での検査の順は確かめていない。→ 不採用。レビュー担当の報告どおり、この組合せを分ける変異はなく（要素の検査のloopを後へ移す変異は、並びの検査より前のままなので作られない）、単一の不正の条件で要素の検査は覆われている。
+
+## 命名r2・Task 2・Task 3 1回目（Haiku代替、session `dce2dbec-dab8-45f8-8135-3811fc31497b`、HEAD `331bba0`）— NAMING r2: APPROVED / TASK 2: CHANGES_REQUESTED / TASK 3: APPROVED
+
+選択と代替: 証拠の照合と再実行が中心なので優先はGPT-6 Luna。Lunaへ依頼したが（session `01a11d66-e928-79b3-82be-21e0c15ddf05`）、利用上限に達していて応答が得られなかった（CLIのエラー: 「You've hit your usage limit ... try again at Oct 14th, 2026 12:54 PM」）。共通引継ぎ手順の代替規則によりClaude Haiku 5.5へ依頼した（`--effort medium`指定、JSONの`is_error=false`と`modelUsage`の`claude-haiku-5-5`で確認）。この回のHaikuは読取り専用で、対象test・共用script・Ruff・`spec_checks.py`を独立に実行していない（全pytestの判定基準が求める独立実行は、下の2回目で行う）。
+
+- 命名r2: 追加した2つのtest名を含め、命名表がtest・sourceの定義と一致すると報告された。
+- Task 3: JUnitの集計（10083 testcase、failure 0、error 0、skip 3）、旧回帰2件のtestcaseの存在とfailureなし、logの件数、件数の内訳、spec.jsonのhashと統合検証の表の一致を照合したと報告された（hashの計算はしていない）。
+- Task 2: 変異の`report.json`（19/20、復元前後のhash一致、復元後47 passed。読取りの操作3/3）と、未検出1種の等価の判断を確認したうえで、下の指摘1。
+
+指摘と採否:
+
+1. Task 2、Minor: 変異toolの「消す」は関数の最上位の文だけが対象で、loopの中の2つの検査（要素の型、位置のint）は「消す」変異が作られていない。証拠文書の「各検査を消す…が含まれる」は範囲を超えている。→ 事実と確認して採用。toolへloopの本体の中の文を消す変異を足し、実行し直した（21/22。足された2種は検出）。証拠文書を訂正した。
+2. Task 3、任意: 本specは2 module（新しいruntimeのmoduleと、保留位置のowner）に触れるので「小さいspec」の例外に当たらず、feature最終の判定は別sessionで受けること。→ そのとおり。別sessionへ依頼する（tasks.mdのTask 3は「Task 1のレビューにBlocker・Majorが残らなければ同じ依頼で」と書いているが、module数の条件を満たさないので適用しない）。
+3. 命名、任意: 追加した2つのtest名が命名の承認より先に実装された事実をreview.mdにも残すこと。→ 採用（この記録）。設計r2で足したtest名と、Task 1の指摘で足したtest名は、実装の後に命名r2として再レビューを受けた。
+4. Task 3、任意: 統合検証の「旧11」「3golden」の説明がない。→ 不採用。これまでの全specで使っている呼び方（旧11ケースの回帰goldenと、最終構成3ケースの回帰golden）で、共通引継ぎ手順の全pytestの基準にも同じ語がある。

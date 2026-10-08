@@ -5,6 +5,7 @@
 
 specごとに変異scriptを書く代わりに使う。対象関数の本体（最上位の文）から次の4種類を作る。
     delete: 名前を束縛しない文（検査のif/for、式文の呼出し、assert）を1つ消す。
+            最上位のfor/whileの本体の中の文（要素ごとの検査など）も、1つずつ消す。
     defer:  例外を出しうる文（raiseを含む文、式文の呼出し）を、後続の最初の代入文の直後へ移す
             （「検査を更新の後へ移す」。代入の右辺が状態を更新する呼出しであることを想定する）。
     swap:   隣り合う「検査でない文」2つの順を入れ替える（後の文が前の文の束縛名を読まない場合だけ）。
@@ -141,6 +142,25 @@ def build_mutations(source_text, function_names):
                             ),
                         )
                     )
+        for loop_statement in statements:
+            if not isinstance(loop_statement, (ast.For, ast.While)):
+                continue
+            for nested_statement in loop_statement.body:
+                if binds_names(nested_statement):
+                    continue
+                begin, end = line_span(nested_statement)
+                replacement = (
+                    []
+                    if len(loop_statement.body) > 1
+                    else [lines[begin][: nested_statement.col_offset] + "pass\n"]
+                )
+                mutations.append(
+                    (
+                        f"delete:{function_name}@L{nested_statement.lineno}",
+                        f"loopの中の文を消す: {lines[begin].strip()}",
+                        "".join(lines[:begin] + replacement + lines[end:]),
+                    )
+                )
         for node in ast.walk(function):
             if (
                 isinstance(node, ast.Compare)
