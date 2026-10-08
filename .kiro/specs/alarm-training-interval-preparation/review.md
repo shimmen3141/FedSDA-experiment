@@ -71,3 +71,8 @@ src/test/旧実装/goldenは変更していない。今回は文書のみ。要�
 - 実NNによる2/4クラス×3解決結果、後続共同更新、候補観測、最小件数の直前・一致を照合した。srcの変更はない。
 - 独立レビュー結果はAPPROVED。ログはworktree外の`venv/refactoring-tests/alarm-preparation-task3-review.md`にあり、レビュー時にspec内を探したFYIは配置の取り違えである。
 
+# Task 4 完了
+
+- [変異証拠](mutation-evidence.md)の6変異を実sourceで検出。各回finally復元、最終byte SHA一致、復元後152 passed。
+- fresh独立CLI GPT-6 Lunaがscript・実log・report・commitとのbyte一致を確認してAPPROVED（外部`alarm-preparation-task4-review.md`）。指摘なし。変異はsourceに残していない。
+
