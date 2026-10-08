@@ -57,4 +57,4 @@ Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `sha
 
 ## レビュー
 
-Task 1・2はGPT-6 Lunaが承認（2026-10-09）。Task 3とfeature最終の判定は、同じ依頼で別sessionへ出す。経緯と採否は[review.md](review.md)。
+Task 1・2はGPT-6 Lunaが承認（2026-10-09）。Task 3とfeature最終の判定は、同じ依頼で別sessionのLunaが承認・GO（同日）。経緯と採否は[review.md](review.md)。

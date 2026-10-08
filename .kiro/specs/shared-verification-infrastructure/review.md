@@ -18,3 +18,11 @@
 - レビュー担当が独立に実行したもの: 対象の3 test file（3102 passed）、共用scriptの単独実行（16の流れ、成功）、Ruff check/format。pytestの終了時に、主担当の全pytestと一時directoryが競合した`PermissionError`の警告が出たと報告された（pytest自体は成功）。
 - 検出力の確認scriptは読んで照合（実行していない）: 6件の結果がreportと証拠文書で一致。変異toolの29/31と、未検出2種を等価とした理由（該当の代入が読取りだけ）は実コードに照らして妥当と報告された。
 - 独立実行していないもの: 全pytest、検出力の確認script、変異tool。実行後の`git status --short`は、主担当が置いた未コミットの証拠文書1件だけ。
+
+## Task 3・feature最終（Luna、別session `01a11d22-843f-7503-afbc-e92a61919256`、HEAD `c1a5f11`）— TASK 3: APPROVED / FEATURE FINAL: GO
+
+選択: 文書・承認・証拠の照合が中心なのでGPT-6 Luna（effort `medium`を明示、実行ログのmodel行とreasoning effort行で確認）。Task 1・2のレビューとは別のsession、読取り専用。共通引継ぎ手順の2026-10-09の変更（小さいspecでは、Task 3のレビューと同じ依頼でfeature最終の判定を受けてよい）を初めて適用した。条件（sourceの変更なし、Task 1のレビューにBlocker・Majorなし）に合うことも、レビュー担当が確認したと報告された。判定は別々に受け、どちらも指摘なし。要求9項目はすべて「適合」。
+
+レビュー担当が独立に実行したもの: `spec_checks.py identity --rev 97d9c43`と`progress`（承認hash、固定旧差分、source hash、作業ツリー、JUnit集計、旧回帰2件、進捗がOK）。対象testの実行は試みたが、読取り専用のsandboxで一時directoryを作れず、pytestの起動前に失敗したと報告された（判定には使っていない。同じtestはTask 1・2のレビュー担当が3102 passedで再現している）。全pytest・共用scriptの単独実行・Ruff・Pyright・pip check・変異toolは、この回では実行していない。Git管理外のJUnit・検出力と変異のreportは、指定の場所にあることを確認し、本文の独立した再解析はしていないと報告された。
+
+本specを完了とした。

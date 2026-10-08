@@ -13,4 +13,4 @@
 | [mutation-and-cpu-evidence.md](mutation-and-cpu-evidence.md) | 検出力の証拠 |
 | [integration-validation.md](integration-validation.md) | 全回帰・要求対応・未検証事項 |
 
-状態: 要求r1・設計r1・命名r1・tasks r1は独立Luna承認済み。Task 1・2はLunaが承認。Task 3のレビューと同じ依頼でfeature最終の判定を受ける段階。各状態の正本はspec.jsonとtasks.md。
+状態: 要求r1・設計r1・命名r1・tasks r1は独立Luna承認済み。Task 1・2はLunaが承認。Task 3とfeature最終の判定は、同じ依頼で別sessionのLunaが承認・GO。completed。各状態の正本はspec.jsonとtasks.md。
