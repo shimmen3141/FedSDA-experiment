@@ -31,7 +31,7 @@
 | 要求r1 | 940af2b81a5eab2d72ff326c61f43d686f80e38471e6ff12f46f25045c239b48 |
 | 設計r2（r1から、8節のownerの型の拒否の条件数と変異の種類を改めた。契約と処理は同じ） | 7b90f6c40ceffc47a6e0a3a6fc70f094fccf6deeb1e05301550e40e3b67656b9 |
 | 命名r2（r1へ`session_is_held`を追加） | ed7adaedc0124957898f758ce515ecbbb8b83b9e27132e5e20608f7887a44d01 |
-| tasks r2（checkboxを未完了へ戻した内容。r1から条件数と変異の種類を改めた） | 45cefee7594285075fd1332577d8b0c69e798f218b16ce9c69c0118aed90e2e8 |
+| tasks r2（r1から条件数と変異の種類を改めた。承認hashの規約どおり、tasks.mdの完了のcheckbox `[x]`を`[ ]`へ置き換えた内容で計算した値で、現在のファイルそのもののhashではない） | 45cefee7594285075fd1332577d8b0c69e798f218b16ce9c69c0118aed90e2e8 |
 | source全体、`ef1be82`、283パス | 99540715ccb940c52f960a286eb0339996035b38c2207c4e7b3e80e9bc43bf4e |
 
 source hashはtracked Pythonと2goldenの、パス昇順・LF内容のhash（`spec_checks.py identity --rev ef1be82`の計算）。直前の完了spec（`e80b368`）からの`src`・`tests`の差分は、本specの3ファイル（進行の接続、そのtest、依存境界test）だけ。固定旧`748c3aa`から旧実装・tools・2golden・旧回帰testへのdiffは、commit済み・作業ツリーとも空。全pytestの実行時、`src`・`tests`に未コミット差分はない。

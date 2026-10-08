@@ -33,3 +33,19 @@
 
 1. 任意: ownerを不正にした条件で、拒否の後の保持と記録の状態の比較は、呼出しへ渡していない元のownerを見ており（不正な値へ差し替えた引数については）必ず成立する。不変の実際の保証は上流のmockと例外の順序である。→ 指摘は事実。不採用（testを変えない）。差し替えていない側のowner（例えば診断を不正にした条件での保持と記録）については比較が意味を持ち、判定を弱めてはいない。挙動も検出力も変わらない書き換えで、testを変えるとsource/test commitが変わり全回帰をやり直すことになる。
 2. 任意: testのコメント「保持がなければ上流は何もしないが」は実上流の説明としては正しいが、mockへ差し替えた条件の説明としては誤解を招く。→ 不採用（同じ理由。コメントだけ）。次にこのtestを変更するときに改める。
+
+## 設計r2・命名r2・tasks r2・Task 2・Task 3 1回目（Luna、session `01a11cbd-660a-7bf2-b060-dc31ffd340b1`、HEAD `83a5738`）— DESIGN r2: APPROVED / NAMING r2: APPROVED / TASKS r2: APPROVED / TASK 2: APPROVED / TASK 3: CHANGES_REQUESTED
+
+選択: 証拠の照合と再実行が中心の、分量の多いレビューなのでGPT-6 Luna（effort `medium`を明示、実行ログのmodel行とreasoning effort行で確認）。sandboxはworkspace-write。仕様のrevision2の再レビューを同じ依頼に含め、判定は別々に受けた。
+
+- 仕様r2: 追加した20条件、`session_is_held`の役割、追加した変異の種類がtest・実装と一致し、要求と矛盾しないと報告された。
+- レビュー担当が独立に実行したもの: 対象test＋依存境界（3100 passed）、fresh CPU（8条件成功）、Ruff check/format、`spec_checks.py identity --rev ef1be82`（要求のhash、固定旧差分、作業ツリー、JUnit、旧回帰2件がOK。設計・命名・tasksの承認hashは判定待ちのためNG）、`src`・`tests`と固定旧の差分の確認（空）。
+- 変異scriptは読んで照合（実行していない）: report.jsonの41/41、復元後57 passed、復元前後のhashの一致。
+- 独立実行していないもの: 全pytest、変異script、Pyright、pip check。実行後の`git status --short`は空。
+- NEW-001の「修正済み」の記述は実装の文言と一致すると報告された。
+
+指摘と採否:
+
+1. Task 3、Minor: integration-validation.mdのtasks r2のhashの説明「checkboxを未完了へ戻した内容」が、現在のtasks.md（Task 1が完了）の状態と合わない。→ 記述の意図は「承認hashは、完了のcheckboxを未完了へ置き換えた内容で計算する」という規約（共通引継ぎ手順の検証コマンドの節）の説明で、現在のファイルの状態を述べたものではない。hashの値は正しい（`spec_checks.py identity`が同じ規約で照合する）。ただし読み手が状態の記述と取り違えたので、説明を「規約どおり置き換えた内容で計算した値で、現在のファイルそのもののhashではない」へ改めた。Task 3は再判定を依頼する。
+
+Task 2を完了とした。
