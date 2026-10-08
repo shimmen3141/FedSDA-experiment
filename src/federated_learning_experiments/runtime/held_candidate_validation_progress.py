@@ -87,8 +87,15 @@ def apply_alarm_response_to_validation_session_holder(
         raise TypeError("alarm_buffer_response must be exact AlarmBufferResponse")
     if type(validation_session_holder) is not CandidateValidationSessionHolder:
         raise TypeError("validation_session_holder must be exact CandidateValidationSessionHolder")
-    # 手で壊した応答も、結果種別とsessionの組を保持の更新より前に再検査する。
+    # 手で壊した応答も、応答自身の検査（結果種別5値、準備・区間解決との組）を保持の更新より前に再実行する。
     alarm_buffer_response.__post_init__()
+    # 応答自身の検査は、区間解決を持つ応答のsessionを「区間解決が開始したsessionと同一」としか見ない。
+    # sessionを持つのは候補検証中と候補検証の開始の応答だけであることを、ここで確かめる。
+    if (alarm_buffer_response.active_validation_session is not None) != (
+        alarm_buffer_response.response_outcome
+        in ("alarm_during_candidate_validation", "alarm_interval_candidate_validation_started")
+    ):
+        raise ValueError("response outcome and active validation session must correspond")
     held_validation_session = validation_session_holder.held_validation_session
     if alarm_buffer_response.response_outcome == "alarm_during_candidate_validation":
         # 候補検証中の警報は保持中のsessionへの応答で、保持を変えない。
@@ -97,6 +104,7 @@ def apply_alarm_response_to_validation_session_holder(
         return
     if held_validation_session is not None:
         raise ValueError("response without an active validation requires an empty holder")
+    # 上の対応の検査により、ここでsessionを持つ応答は候補検証の開始だけ。
     if alarm_buffer_response.active_validation_session is not None:
         validation_session_holder.hold_validation_session(
             validation_session=alarm_buffer_response.active_validation_session

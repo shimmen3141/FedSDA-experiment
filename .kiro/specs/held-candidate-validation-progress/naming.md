@@ -1,4 +1,4 @@
-# 候補検証sessionの保持と進行 — 命名 revision1
+# 候補検証sessionの保持と進行 — 命名 revision2
 
 sourceとtestの実装前一覧。リポジトリ外の下書きを、作業ツリーの複製へ置いて`.kiro/settings/scripts/spec_checks.py names`で照合した（未登録・役割の再利用とも報告なし）。既存名は定義元と同じ役割で再利用する。承認状態はspec.json。
 
@@ -30,6 +30,7 @@ sourceとtestの実装前一覧。リポジトリ外の下書きを、作業ツ�
 | --- | --- |
 | test_held_candidate_validation_progress.py | 新test module。保持と3つの関数を、実旧のsession保持・適応イベントと照合する。 |
 | `INVALID_ALARM_RESPONSE_HOLDER_CASES` | 拒否条件名から（元にする警報応答の条件、応答の前に保持させるsessionの種類、応答を不正にする操作、期待する例外）への対応。条件名はこのdictを正本とする。 |
+| `INJECTED_SESSION_MARKER` | 拒否条件で、応答と区間解決の同じ場所へ足すsessionの代わりの値（`object()`）。revision2で追加。 |
 | `make_started_validation_session` | 実際の候補・参照・損失収集を持つ開始済みsessionを1つ作る（既存oracleから取り出す）。 |
 | `make_holder_holding` | 指定のsessionを保持した（Noneなら空の）holderを作る。 |
 | `make_record_store_with_alarm_record` | 警報時の記録1件を先に持つ適応記録ownerを作る。 |

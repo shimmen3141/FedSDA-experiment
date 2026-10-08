@@ -139,6 +139,9 @@ def test_alarm_response_updates_holder_like_legacy_session_attribute(
     )
 
 
+# 手で足すsessionの代わりの値。応答と区間解決の同じ場所へ同一の値を入れるために使う。
+INJECTED_SESSION_MARKER = object()
+
 # 条件名 → (元にする警報応答の条件, 応答の前に保持させるsession, 応答を不正にする操作, 期待する例外)。
 # 保持させるsession: "none"は空、"response"は応答のsession、"other"は別の開始済みsession。
 INVALID_ALARM_RESPONSE_HOLDER_CASES = {
@@ -147,6 +150,15 @@ INVALID_ALARM_RESPONSE_HOLDER_CASES = {
         "none",
         lambda alarm_buffer_response: object(),
         TypeError,
+    ),
+    # 正式な5値でない結果種別。応答自身の検査の再実行だけが拒否する（通ると何もせず正常終了する）。
+    "response_outcome_is_unknown": (
+        RECORDING_ORACLE_CASES[2],
+        "none",
+        lambda alarm_buffer_response: replace_frozen_fields(
+            alarm_buffer_response, response_outcome="maintain"
+        ),
+        ValueError,
     ),
     "validation_alarm_with_empty_holder": (
         RECORDING_ORACLE_CASES[4],
@@ -199,6 +211,35 @@ INVALID_ALARM_RESPONSE_HOLDER_CASES = {
         "none",
         lambda alarm_buffer_response: replace_frozen_fields(
             alarm_buffer_response, active_validation_session=object()
+        ),
+        ValueError,
+    ),
+    # 応答と区間解決の両方を手で差し替えた入力。応答自身の検査（両者のsessionが同一であること）は通る。
+    # 再利用の応答へsessionを足す。通ると、開始していないsessionを保持する。
+    "reused_response_and_resolution_with_added_session": (
+        RECORDING_ORACLE_CASES[1],
+        "none",
+        lambda alarm_buffer_response: replace_frozen_fields(
+            alarm_buffer_response,
+            active_validation_session=INJECTED_SESSION_MARKER,
+            change_interval_resolution=replace_frozen_fields(
+                alarm_buffer_response.change_interval_resolution,
+                started_validation_session=INJECTED_SESSION_MARKER,
+            ),
+        ),
+        ValueError,
+    ),
+    # 開始の応答からsessionを外す。通ると、何も保持せずに開始を見落とす。
+    "started_response_and_resolution_with_removed_session": (
+        RECORDING_ORACLE_CASES[3],
+        "none",
+        lambda alarm_buffer_response: replace_frozen_fields(
+            alarm_buffer_response,
+            active_validation_session=None,
+            change_interval_resolution=replace_frozen_fields(
+                alarm_buffer_response.change_interval_resolution,
+                started_validation_session=None,
+            ),
         ),
         ValueError,
     ),
