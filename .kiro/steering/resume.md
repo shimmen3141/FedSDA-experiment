@@ -7,7 +7,7 @@
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
-Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い、GPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューで承認する。
+Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う。2026-10-08の新方針は日常的・分量の多いレビューにLuna、やや複雑・難易度の高い実装レビューにHaiku 5.5を優先し、利用不能時は他方へ代替する。両方ともeffortは`high`を明示指定する。起動・判断の正本は共通引継ぎ手順。
 
 ## 現在地
 
@@ -47,7 +47,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 - 完成した応答を一度だけ呼び、前区間の保存/吸収、変化区間の解決、activeの全件吸収を二重適用しない。位置とpayload/概念IDの意味上の対応は供給側が保証する。
 - `AlarmBufferResponse.pending_assignment_buffer_should_be_cleared`は不足だけFalse。FIFO/最終観測位置は応答内で変更済みではない。不足FIFO保持（LEGACY-002）を勝手に修正しない。
 - `active_validation_session`はactive時は同じ参照、候補開始時は新session、その他None。session保持/解除ownerを決める。応答を深いimmutable snapshotとして扱わない。
-- 旧event→reset→FIFO clear順、切替位置/再利用計数、学習帰属変更の通知（予測重みの再始動）、session保持を組み立てる。旧action/戻り値との対応はalarm-buffer-response/design.mdと下位alarm-change-interval-resolution/design.md。新event名・型・関数・局所名は実装前にLunaレビューへ通す。
+- 旧event→reset→FIFO clear順、切替位置/再利用計数、学習帰属変更の通知（予測重みの再始動）、session保持を組み立てる。旧action/戻り値との対応はalarm-buffer-response/design.mdと下位alarm-change-interval-resolution/design.md。新event名・型・関数・局所名は実装前に共通のモデル選択方針に従った独立レビューへ通す。
 - 許容損失増加量と最小変化区間件数の設定登録は組立側に残る。
 - oracle: `tests/refactoring/test_alarm_buffer_response.py`の`build_buffer_response_oracle`と`run_legacy_buffer_response`が前区間/不足/十分/activeを含む実旧警報処理を実行する。event/reset/spanは記録wrapper、吸収・評価・候補学習・切替の実処理は差し替えない。Python Randomのglobal状態を保存復元して明示Randomと照合する。後始末specでは除外していた実FIFO消費/reset/event等をowner単位に照合へ加える。
 - 通常進行と終端回収は完了済み。呼出側session解除・一覧記録・通知は未実装。
@@ -75,7 +75,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使い�
 2. [roadmap](roadmap.md)の「現在の状態」、[product](product.md)、[tech](tech.md)、[structure](structure.md)。
 3. 対象specのREADME→spec.json/tasks.md→requirements/design/naming→review/integration-validation。未完了taskがあれば次のspecより先に扱う。
 4. `git status --short`とブランチを確認し、別タスクの差分・未追跡資料を特定する。文書の案内と実際の状態が違う場合はGitとspecの正本を確認する。
-5. cc-sddの要求→設計/命名→tasks→実装→統合検証へ進む。各段階はGPT-6 Luna（利用不能時はSonnet）の独立レビューと有用な指摘の反映で承認し、担当モデル・代替理由・採否・内容hashを記録する。命名承認前に新srcや先取りtestを作らない。
+5. cc-sddの要求→設計/命名→tasks→実装→統合検証へ進む。各段階は共通のLuna/Haiku 5.5選択方針に従った独立レビューと有用な指摘の反映で承認し、選択理由・モデル/effort・代替理由・採否・内容hashを記録する。命名承認前に新srcや先取りtestを作らない。
 
 ## 別タスクと記録の扱い
 

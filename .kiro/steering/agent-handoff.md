@@ -36,13 +36,40 @@ CodexはAGENTS.mdからroadmap・resumeへ進む。共通方針を入口ファ�
 
 要求→設計・命名→tasks→実装task→統合検証・別feature最終GOの流れを維持する。
 [命名レビュー規約](../settings/rules/naming-review.md)と各specの承認契約に従う。
-2026-10-07のユーザー訂正指示により、担当ツールを問わずGPT-6 Lunaを優先し、利用不能時はSonnetの独立レビューと、
-主担当による有用な指摘の反映を承認として扱う。要求・設計・命名・tasks・実装task・別feature最終GOの各ゲートへ適用する。
+2026-10-08のユーザー指示により、次の選択を担当ツールにかかわらず共通に適用する。独立レビューと主担当による有用な指摘の反映を承認として扱う。要求・設計・命名・tasks・実装task・別feature最終GOの各ゲートは維持する。
+
+| 対象 | 優先モデル | 利用不能時 |
+| --- | --- | --- |
+| 日常的・分量の多いレビュー（通常の命名/文書/要件、機械的証拠の照合など） | GPT-6 Luna | Claude Haiku 5.5 |
+| やや複雑・難易度の高い実装レビュー（NN数値/RNG、可変状態、更新順序、複数部品の接続など） | Claude Haiku 5.5 | GPT-6 Luna |
+
+分量より難易度を優先し、対象の実際の判断難度から主担当が選ぶ。段階名だけで一律に選ばない。独立した別feature最終担当も、その対象の難度で選ぶ。両方利用不能ならレビュー待ちとして引き継ぎ、自己承認やSonnetへの自動代替はしない。
 利用可能な接続・モデルを確認し、モデルを明示してレビュー担当を起動する。
-実際の担当モデル・代替時のLuna利用不能理由・対象revision/hash・結果・指摘の採否を記録する。
-Claude担当であることだけをSonnet使用の理由にせず、Lunaへの接続がない、呼出上限、実行エラー等の事実を記録する。
+優先モデルの選択理由・実際のモデル/effort・代替時の利用不能理由・対象revision/hash・結果・指摘の採否を記録する。接続なし、呼出上限、認証/実行エラー等を事実として残し、担当ツールだけを代替理由にしない。
 自己レビューやcc-sddの自動承認・inline/offで置き換えない。`kiro-spec-quick --auto`や`-y`も承認を代替しない。
-旧Luna承認記録は変更しない。
+過去のLuna/Sonnet等の承認記録は変更しない。
+
+### CodexからClaudeを呼ぶ手順と確認済み事項
+次の例から対象に応じた優先モデルのコマンドを一つだけ実行し、利用不能時だけ他方へ切り替える。
+
+2026-10-08、Claude Code 2.1.293をCodexから非対話実行し、`--model claude-haiku-5-5`のJSON応答はsuccess/is_error=false、modelUsageの実モデルもclaude-haiku-5-5であることを確認した。aliasや自分のモデル名に関する回答だけで同定しない。証拠は元checkoutのvenv/refactoring-tests/haiku-5-5-call-check.json。
+
+```powershell
+claude -p $reviewPrompt --model claude-haiku-5-5 --effort high --output-format json --no-session-persistence --tools Read,Glob,Grep --permission-mode plan
+codex exec -m gpt-6-luna -c 'model_reasoning_effort="high"' --sandbox read-only --ephemeral $reviewPrompt
+```
+
+実装担当の会話を継続/resumeせず、毎回独立したreviewerとして起動し、再委譲しない役割を明記する。上記は読取りレビュー用で、コマンド実行による再現が必要なら対象と権限を別途限定する。permission bypassや認証・ユーザー設定の変更は行わない。出力は必要な証拠だけを保存し、秘密情報を含めない。モデル未確認、is_error=true、単なる呼出し成功は対象レビューの承認に数えない。
+
+依頼文は対象・revision/hash・役割・確認事項を含む`$reviewPrompt`に格納する。PowerShellで複数行を渡す場合は単一引用符のhere-string（`@'`と`'@`を独立した行へ置く）を使うと、依頼中の引用符や`$`を展開せず渡せる。
+2026-10-08の追加指示により、LunaとHaikuは両方ともeffortを`high`に明示指定し、代替時も維持する。Lunaのログでモデル名と`reasoning effort: high`を確認する。Haikuは`--effort high`の指定と実モデルを記録し、JSONが実効effortを出力しない場合は指定値と実効値未確認を区別する。指定が拒否された場合は既定値で続行せず、他方へ同じhigh指定で代替する。
+直近alarm-buffer-responseのLunaレビュー15件はログのreasoning effortが全てmediumで、起動コマンドにはeffortの上書きがなかった。これは過去の記録であり、過去全セッションの設定を一律には断定しない。
+
+今回の規約変更の確認記録（2026-10-08、基点`7cbb4a5`、この記録を追記する前の5文書を対象）：
+- 対象hash（AGENTS.md、CLAUDE.md、naming-review.md、agent-handoff.md、resume.mdの順に相対パスとファイルbytesを連結したSHA-256）：`de4517df0b68f92847ffe5608e8b6bcaab4da2514058b63df3df26a0f943925b`。
+- 通常の文書整合性レビューとしてGPT-6 Lunaを選択し、ログの実モデル`gpt-6-luna`・`reasoning effort: high`を確認。Luna固定の再開案内と、CLI例が両方実行に読める点を修正し、独立再レビューでPASS。代替は行っていない。
+- Haikuは`--model claude-haiku-5-5 --effort high`の呼出しで`is_error=false`、実モデル`claude-haiku-5-5`、応答`HIGH_CALL_OK`を確認。JSONに実効effort値は出ておらず、highは指定値として記録する。この疎通確認自体をレビュー承認には用いていない。
+- 生ログは基準checkoutの`venv/refactoring-tests/review-policy-luna-high.log`、`review-policy-luna-high-r2.log`、`haiku-high-call-check.json`。文書変更のみでコード・goldenのテストは再実行していない。
 
 指定された独立レビュー担当を利用できないセッションでは、対象specの既存review.mdへ次を記録する。
 
@@ -61,8 +88,8 @@ task briefではtest用module別名と動的type名も新規名として照合�
 
 ```text
 このworktreeのresume.mdと対象specのREADME・spec.json・review.mdを読み、
-review.mdに記録したレビュー待ち対象をGPT-6 Lunaに独立レビューさせてください。
-Lunaを利用できない場合はSonnetで代替し、利用不能理由と実際のモデルを記録してください。
+review.mdに記録したレビュー待ち対象を、日常的・大量ならLuna、やや複雑・難易度の高い実装ならHaiku 5.5で独立レビューさせてください。
+優先モデルを利用できない場合は他方で代替し、選択理由・利用不能理由・実際のモデル/effortを記録してください。
 対象revision/hashと実差分を照合し、有用な指摘を反映・再確認してください。
 承認状態と次の作業を正本へ記録してください。
 ```
@@ -102,7 +129,7 @@ codex execのWindows sandboxでは、pytestの一時ディレクトリ走査と�
 ```text
 このリファクタリングworktreeのAGENTS.md、.kiro/steering/resume.md、
 .kiro/steering/agent-handoff.mdを読み、Gitと対象specから現在地を確認してください。
-未完了・レビュー待ちを優先し、共有規約とLuna優先・利用不能時Sonnet代替の独立レビュー条件を維持して続けてください。
+未完了・レビュー待ちを優先し、共有規約と対象の難度に応じたLuna/Haiku 5.5の選択・相互代替による独立レビュー条件を維持して続けてください。
 ```
 
 ## 2026-10-07に確立した運用
@@ -221,4 +248,4 @@ Claude実行時に`/context`で入口とimportの読み込みを確認する。�
 - 既存spec・旧新コード・テスト・Codex skillsは変更なし。コード変更がないため数値回帰は再実行していない。
 - GPT-6 Luna独立レビューで、共通規約の旧一律Luna指定を担当ツール別へ統一する指摘を採用し、再レビューPASS。
   自動承認オプションを代替にしない旨も明記した。Claudeの起動・Sonnet委任の実行確認は未実施。
-  その後のユーザー訂正により、現行方針は上記のLuna優先・利用不能時Sonnet代替へ変更した。この導入時レビューは来歴として保持する。
+  その後の2026-10-07ユーザー訂正でLuna優先・利用不能時Sonnet代替とし、2026-10-08に上記のLuna/Haiku 5.5の選択・相互代替へ変更した。この導入時レビューは来歴として保持する。

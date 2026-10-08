@@ -1,10 +1,28 @@
 # リファクタリングworktreeの規約
 
-- 2026-10-07のユーザー訂正指示により、担当ツールを問わず独立したGPT-6 Lunaレビューを優先し、
-  利用できない場合は独立したSonnetレビューと有用な指摘の反映で承認する。
+- 2026-10-08のユーザー指示により、担当ツールを問わず日常的・分量の多いレビューはGPT-6 Luna、
+  やや複雑・難易度の高い実装のレビューはClaude Haiku 5.5を優先する。分量より難易度を優先して選ぶ。
+  優先モデルを利用できない場合は他方で独立レビューし、有用な指摘の反映で承認する。
+  両モデルともeffortは`high`を明示指定する。代替時も同じ指定とし、CLI既定値に依存しない。
   要求・設計・命名・tasks・実装task・別feature最終GOの各ゲートを維持し、自己レビューで代替しない。
-  実際のレビュー担当モデル・代替時のLuna利用不能理由・対象revision/hash・指摘の採否と理由を共通specへ記録する。
-  詳細は[共通引継ぎ手順](.kiro/steering/agent-handoff.md)を参照する。過去のLuna承認記録は書き換えない。
+  優先モデルを選んだ理由・実際のモデル/effort・代替時の利用不能理由・対象revision/hash・指摘の採否を共通specへ記録する。
+  詳細は[共通引継ぎ手順](.kiro/steering/agent-handoff.md)を参照する。過去の承認記録は書き換えない。
+
+## Codexからのレビュー起動
+
+レビュー依頼は対象・revision/hash・確認事項を含み、独立した読取り専用レビューで再委任しないことを明記する。
+PowerShellでは依頼を`$reviewPrompt`へ格納し、次のように起動する。詳しい検証・記録手順は共通引継ぎ手順を参照する。
+対象に応じた優先モデルのコマンドを一つだけ実行し、利用不能時だけ他方へ切り替える。
+
+```powershell
+claude -p $reviewPrompt --model claude-haiku-5-5 --effort high --output-format json --no-session-persistence --tools Read,Glob,Grep --permission-mode plan
+codex exec -m gpt-6-luna -c 'model_reasoning_effort="high"' --sandbox read-only --ephemeral $reviewPrompt
+```
+
+HaikuはJSONの`modelUsage`で実モデルと`is_error=false`を確認し、Lunaは実行ログのモデル名と`reasoning effort: high`を確認する。
+呼出し成功だけでレビュー承認とせず、対象についての判定・指摘とその採否を残す。
+
+## worktreeの作業方針
 
 - 本worktreeは`refactor/architecture`ブランチ。旧実装の固定基準は`748c3aa`。
 - 方針の正本は[リファクタリング方針](docs/research/refactoring-policy.md)、進捗・変更仕様は`.kiro/specs/`で管理する。
@@ -19,12 +37,12 @@
   以下の旧実装向けファイル名・登録先の規約は、移植前の既存コードを変更する場合にだけ適用する。
 - 各実装単位の開始前に、`naming.md`へファイル・型・関数・引数・状態変数の案と役割を列挙する。
   入出力、単位、状態更新、似た名前との違いを説明する。
-  命名承認はGPT-6 Luna（利用不能時はSonnet）の独立レビューと主担当による有用な指摘の反映で行う。
+  命名承認は上記のモデル選択方針に従う独立レビューと主担当による有用な指摘の反映で行う。
   全指摘の採用は必須ではない。採否と理由を記録し、命名だけの追加承認を人間へ求めず実装を続ける。
 - 命名承認は`spec.json`の`approvals.naming.approved`と`approved_revision`へ記録する。
   承認したrevision以外の実装は開始しない。名前・役割を変えた場合は同じレビュー手順で再確認する。
 - cc-sddの`-y`・`--auto`、以前の「開始して」という依頼、時間経過を命名承認として扱わない。
-- 要求・設計・task・実装の承認も、GPT-6 Luna（利用不能時はSonnet）の独立レビューと主担当による有用な指摘の反映で行う。
+- 要求・設計・task・実装の承認も、上記のモデル選択方針に従う独立レビューと主担当による有用な指摘の反映で行う。
   不要と判断した指摘は採否と理由を残す。人間の承認を毎段階で再要求せず、承認対象・内容hash・レビュー証拠を対象specへ記録する。
   現在の承認状態は対象specの`spec.json`・`review.md`から確認する。
 - 新しいsrc実装、移植、リネーム、実装を先取りしたテスト追加は、命名承認前には行わない。
