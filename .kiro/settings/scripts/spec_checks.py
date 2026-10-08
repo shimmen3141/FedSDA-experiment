@@ -1,0 +1,223 @@
+"""specの命名表と承認・同一性を機械的に照合する。worktreeルートで実行する。
+
+    python .kiro/settings/scripts/spec_checks.py names <spec名> <新規・変更した.py>... [--naming <命名表>]
+    python .kiro/settings/scripts/spec_checks.py identity <spec名> [--junit <JUnit XML>] [--rev <commit>]
+
+names: 指定ファイルの束縛名（def・class・引数・代入・importの別名）を命名表と照合する。
+    命名表の登録名は、表の先頭列の語と、表以外の行の語（表の説明列で触れただけの語は数えない）。
+    未登録: 命名表になく、他のsrc/tests/refactoringにも現れない名前（exit 1）。
+    役割の再利用: 命名表になく、他では関数・classの名前としてだけ現れる語を変数・引数に使っているもの（exit 1）。
+    他のファイルでも変数・引数として使われている語は、同じ役割の再利用として報告しない。
+identity: 承認hash、固定旧基準からの差分、source hash、作業ツリー、JUnitを照合する（不一致はexit 1）。
+
+独立レビューの代わりにはならない。名前の役割が実態と合うか、検査の順序が正しいかは人とレビュー担当が確かめる。
+"""
+
+import argparse
+import ast
+import hashlib
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import xml.etree.ElementTree as ElementTree
+
+FIXED_LEGACY_COMMIT = "748c3aa"
+FIXED_LEGACY_PATHS = (
+    "federated_drift_experiment",
+    "tests/regression_golden.json",
+    "tests/proposed_regression_golden.json",
+    "tests/test_regression.py",
+    "tests/test_proposed_regression.py",
+    "tools",
+)
+GOLDEN_PATHS = ("tests/regression_golden.json", "tests/proposed_regression_golden.json")
+EXISTING_CODE_ROOTS = ("src", "tests/refactoring")
+APPROVAL_STAGES = ("requirements", "design", "naming", "tasks")
+
+
+def collect_bound_names(source_path):
+    """(関数・class名, 変数・引数・import名) を返す。"""
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    definition_names, variable_names = set(), set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            definition_names.add(node.name)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            arguments = node.args
+            for argument in (
+                *arguments.posonlyargs,
+                *arguments.args,
+                *arguments.kwonlyargs,
+                *filter(None, (arguments.vararg, arguments.kwarg)),
+            ):
+                variable_names.add(argument.arg)
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            variable_names.add(node.id)
+        if isinstance(node, ast.ExceptHandler) and node.name:
+            variable_names.add(node.name)
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            # 定義元の名前のままのimportは新しい名前ではない。別名を付けたときだけ束縛名として数える。
+            for alias in node.names:
+                if alias.asname:
+                    variable_names.add(alias.asname)
+    return definition_names, variable_names
+
+
+def collect_registered_names(naming_path):
+    """命名表で名前として登録された語を集める。
+
+    表の行は先頭列の語だけを登録名とする。説明列で既存のメソッド名などに触れただけの語は、
+    その名前を登録したことにならない。表以外の行（箇条書き、再利用する既存名の列挙など）は行内の語を数える。
+    """
+    registered_names = set()
+    for line in naming_path.read_text(encoding="utf-8").splitlines():
+        if line.lstrip().startswith("|") and line.count("|") >= 2:
+            line = line.split("|")[1]
+        # backtickの有無は問わない（過去の命名表はbacktickなしの表・箇条書き・列挙でも書いている）。
+        registered_names.update(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", line))
+    return registered_names
+
+
+def check_names(arguments):
+    spec_directory = pathlib.Path(".kiro/specs") / arguments.spec
+    naming_path = (
+        pathlib.Path(arguments.naming) if arguments.naming else spec_directory / "naming.md"
+    )
+    registered_words = collect_registered_names(naming_path)
+    target_paths = [pathlib.Path(name).resolve() for name in arguments.files]
+    other_definition_names, other_variable_names = set(), set()
+    for root in EXISTING_CODE_ROOTS:
+        for source_path in pathlib.Path(root).rglob("*.py"):
+            if source_path.resolve() in target_paths:
+                continue
+            definition_names, variable_names = collect_bound_names(source_path)
+            other_definition_names |= definition_names
+            other_variable_names |= variable_names
+    failed = False
+    for target_path in target_paths:
+        definition_names, variable_names = collect_bound_names(target_path)
+        candidates = {
+            name
+            for name in definition_names | variable_names
+            if name not in registered_words and name != "_"
+        }
+        unregistered = sorted(candidates - other_definition_names - other_variable_names)
+        role_reused = sorted(
+            (candidates & variable_names & other_definition_names) - other_variable_names
+        )
+        print(f"{target_path.name}: 束縛名 {len(definition_names | variable_names)}")
+        print(f"  未登録（命名表にも既存コードにもない）: {unregistered or 'なし'}")
+        print(
+            f"  役割の再利用（他では関数・class名の語を変数・引数に使用、命名表に記載なし）: {role_reused or 'なし'}"
+        )
+        failed = failed or bool(unregistered or role_reused)
+    return 1 if failed else 0
+
+
+def lf_sha256(content):
+    return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
+
+
+def run_git(*git_arguments):
+    return subprocess.run(["git", *git_arguments], capture_output=True, check=True).stdout
+
+
+def source_sha256(revision):
+    """tracked Pythonと2goldenの、パス昇順・LF内容のhash（共通引継ぎ手順と同じ計算）。"""
+    names = run_git("ls-tree", "-r", "-z", "--name-only", revision).decode("utf-8").split("\0")
+    names = sorted(name for name in names if name.endswith(".py") or name in GOLDEN_PATHS)
+    digest = hashlib.sha256()
+    for name in names:
+        content = run_git("show", f"{revision}:{name}")
+        digest.update(name.encode("utf-8") + b"\0" + content.replace(b"\r\n", b"\n") + b"\0")
+    return len(names), digest.hexdigest()
+
+
+def check_identity(arguments):
+    spec_directory = pathlib.Path(".kiro/specs") / arguments.spec
+    spec = json.loads((spec_directory / "spec.json").read_text(encoding="utf-8"))
+    failed = False
+
+    def report(label, passed, detail=""):
+        nonlocal failed
+        failed = failed or not passed
+        print(f"[{'OK' if passed else 'NG'}] {label}{' — ' + detail if detail else ''}")
+
+    for stage in APPROVAL_STAGES:
+        approval = spec.get("approvals", {}).get(stage, {})
+        approved_hash = approval.get("approved_sha256_lf")
+        content = (spec_directory / f"{stage}.md").read_bytes()
+        if stage == "tasks":
+            # 承認時は全taskが未完了。完了のcheckboxを戻した内容で比べる。
+            content = content.replace(b"- [x] ", b"- [ ] ")
+        if not approval.get("approved") or approved_hash is None:
+            report(f"{stage}の承認hash", False, "spec.jsonに承認の記録がない")
+            continue
+        report(
+            f"{stage} revision{approval.get('approved_revision')}の承認hash",
+            lf_sha256(content) == approved_hash,
+            approved_hash[:12],
+        )
+    for label, revisions in (
+        ("commit済み", (FIXED_LEGACY_COMMIT, "HEAD")),
+        ("作業ツリー", (FIXED_LEGACY_COMMIT,)),
+    ):
+        difference = run_git("diff", "--stat", *revisions, "--", *FIXED_LEGACY_PATHS).decode()
+        report(f"固定旧基準{FIXED_LEGACY_COMMIT}からの差分が空（{label}）", not difference.strip())
+    report("作業ツリーに未コミット差分がない", not run_git("status", "--short").strip())
+    validation = spec.get("integration_validation", {})
+    revision = arguments.rev or validation.get("tested_commit") or "HEAD"
+    path_count, source_hash = source_sha256(revision)
+    recorded_hash = validation.get("source_sha256_lf") or spec.get("verification_source_sha256")
+    if recorded_hash is None:
+        print(
+            f"[--] source hash（{revision}、{path_count}パス）: {source_hash}（spec.jsonに記録なし）"
+        )
+    else:
+        report(
+            f"source hash（{revision}、{path_count}パス）",
+            source_hash == recorded_hash,
+            source_hash[:12],
+        )
+    if arguments.junit:
+        test_cases = list(ElementTree.parse(arguments.junit).getroot().iter("testcase"))
+        counts = {
+            kind: sum(1 for test_case in test_cases if test_case.find(kind) is not None)
+            for kind in ("failure", "error", "skipped")
+        }
+        passed_count = len(test_cases) - sum(counts.values())
+        print(f"     JUnit: testcase {len(test_cases)}、passed {passed_count}、{counts}")
+        report("JUnitにfailure・errorがない", counts["failure"] == counts["error"] == 0)
+        for module_name in ("tests.test_regression", "tests.test_proposed_regression"):
+            golden_cases = [case for case in test_cases if case.get("classname") == module_name]
+            report(
+                f"{module_name}が成功",
+                bool(golden_cases) and all(len(case) == 0 for case in golden_cases),
+                f"{len(golden_cases)}件",
+            )
+        for key, actual in (("full_passed", passed_count), ("full_skipped", counts["skipped"])):
+            if key in validation:
+                report(f"spec.jsonの{key}と一致", validation[key] == actual, str(actual))
+    return 1 if failed else 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    names_parser = subparsers.add_parser("names")
+    names_parser.add_argument("spec")
+    names_parser.add_argument("files", nargs="+")
+    names_parser.add_argument("--naming")
+    identity_parser = subparsers.add_parser("identity")
+    identity_parser.add_argument("spec")
+    identity_parser.add_argument("--junit")
+    identity_parser.add_argument("--rev")
+    arguments = parser.parse_args()
+    sys.stdout.reconfigure(encoding="utf-8")
+    return check_names(arguments) if arguments.command == "names" else check_identity(arguments)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
