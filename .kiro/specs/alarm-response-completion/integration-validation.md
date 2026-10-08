@@ -25,7 +25,7 @@
 | 2.1 | recordの全fieldを実旧`AdaptationEvent`（position・old/new model・estimated_change_point・episode_id）、FIFO、reset後の基準と照合。frozen/kw_onlyと受理集合の拒否17条件。recordは更新の前に組み立て、整合性の検査を更新前に終える |
 | 2.2 | 切替位置と、検出episodeへの操作記録の要否を、実旧`local_switch_positions`と戻り値（1のときだけ操作あり）と照合 |
 | 2.3 | 一覧・計数・episodeを更新せず、通知もsession保持もしない。依存のexact 8 symbolに該当ownerがない。再利用計数は応答結果からの対応表で実旧と照合 |
-| 3.1 | 応答・4 ownerの型、警報位置・推定変化点・episode IDの型と値の13条件で、更新前に拒否し全状態が不変 |
+| 3.1 | 応答・4 ownerの型、警報位置・推定変化点・episode IDの型と値の12条件で、更新前に拒否し全状態が不変（拒否条件は全21条件。残り9条件は3.2） |
 | 3.2 | 警報位置と最終観測位置の不一致（未観測のFIFOを含む）、準備済み区間と保留位置の不一致（応答後の追加、消費後の再適用）、応答の変更後IDと現在の帰属の不一致、結果種別と変更記録の不対応2方向、exact型でない変更記録、boolのID 2種を、更新前に拒否 |
 | 3.3 | 実旧`_resolve_drift`（イベント記録・検出器reset・FIFO clearを差し替えない）との照合28条件、完了後の同じ損失列に対する監視のe値・警報・推定区間長・全状態の照合、変異33種、exact依存、新CPU 10条件、全9254 passed、旧11・最終3golden |
 
