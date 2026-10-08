@@ -11,6 +11,8 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
+- **進行中（2026-10-08、主担当Claude Code、WSLで検証）:** [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)（候補検証sessionを保持するownerと、警報応答の反映・標本ごとの進行・終端回収を適応記録と保持の解除へつなぐ3関数）。要求・設計・命名・tasksは承認済み。進捗は同specのtasks.mdとreview.md。直前のspec（下の項目）と同じく、Task 3と最終GOはWindows基準の回帰が済むまで完了にしない。
+- **決定（2026-10-08ユーザー）:** Linux用のgolden（旧実装をLinuxで実行した結果）は、新実装の全体runを接続するspecに入る前に作る。既存のWindows用goldenと回帰testは変更せず、別ファイル・別testにする。作る前に、同じ環境で2回実行して結果が一致することを確かめる。それまでの部品specでは、WSLのgolden回帰の不一致（環境差。旧実装は固定旧から無変更）を理由にgoldenを変えない。
 - **Windows基準の検証待ち（2026-10-08、主担当Claude Code）:** [candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（候補検証の到達時の確定と未完了の終端回収を、既存の適応記録ownerへ記録する）。要求r2・設計r4・命名r2・tasks r2承認、Task 1承認（source/test commit `af3ffa7`）。未コミット差分・レビュー待ちはない。Windowsの基準環境はtorchの読込みがスマートアプリコントロールでブロックされており（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`、10月3日・5日にも発生）、Task 1の後半からWSL Ubuntu（Python 3.14.4、リポジトリ直下の`.venv`）で検証した。WSLでは対象111件・変異51/51・fresh CPUが成功、全pytestは9504 passed/3 failed（Python 3.14の構文解析の違い1件と、golden回帰2件の環境差による不一致。旧実装は固定旧から無変更）。**Task 2・3と最終GOは、Windows基準での再実行が済むまで完了にしない。** 再開の手順は同specのreview.md「現在地: Windows基準の検証待ち」。WSLでの実行方法は`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動（Windows側の`venv`は使わない）。この項目より下の「次の一手」「最新完了」は、このspecの着手前の状態。
 - 次の一手: 下の「次の候補」1。候補検証の到達時/終端の適応記録を先に分離する案。session保持と診断通知は境界を決めて別specへ。警報応答の記録を再実装しない。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
