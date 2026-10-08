@@ -111,3 +111,13 @@ Task 1の承認後、Windowsの基準環境でtorchが読み込めるように�
 
 1. Minor: 再開案内（.kiro/steering/resume.md）が本specを「Windows基準の検証待ち」のままにしている。→ 採用。再開案内を現在の状態へ更新した。
 2. Minor: このreview.mdの「WSLでの全pytest」の結論が「Windowsで読み込めるようになってから行う」のままで、後段の実施記録と対応していない。→ 採用。結論へ実施済みの追記を入れた（元の文は当時の記録として残した）。次のspecのreview.md冒頭の実行環境の記述にも同じ追記を入れた。
+
+### feature最終レビュー 3回目（Luna、別session `01a11bd6-a321-7b63-81e0-a46aa3d0adfc`、HEAD `eaeb94f`）— FEATURE FINAL: GO
+
+1・2回目とは別のsession、読取り専用。指摘なし。設計r4と実装の境界・依存・結果対応の一致、旧の到達時確定と終端回収との対応、検査がstoreの更新より前にあること、承認の記録、進捗の整合（README・tasks・spec.json・再開案内・roadmap）、手順上の逸脱とWSL/Windowsの区別の記録を確認したと報告された。
+
+レビュー担当の判定表は要求1.1〜2.3の7行で、3.1・3.2の行がなかった。本文では、3.1に当たる旧イベント・切替位置・計数の対応と、3.2に当たる固定旧差分が空であること・JUnitの集計・golden回帰2件の成功を確認したと述べている。1・2回目の最終レビューは9項目すべてを「満たす」と判定している。
+
+独立に実行したもの: `spec_checks.py identity`（成功）。読んで照合したGit管理外の証拠: JUnit、Windowsの変異報告（51/51、復元後111 passed）、fresh CPUのlog。全pytest・対象pytest・Ruff・Pyright・pip check・変異・fresh CPUは独立実行していない（対象test・fresh CPU・RuffはTask 2・3のレビュー担当が再現済み）。
+
+本specを完了とした。

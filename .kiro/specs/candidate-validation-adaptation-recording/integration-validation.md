@@ -59,3 +59,4 @@ Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `hel
 
 ## レビュー
 
+Task 1〜3の独立レビュー承認と、別sessionのfeature最終GO（2026-10-08、3回目）。経緯と採否は[review.md](review.md)。

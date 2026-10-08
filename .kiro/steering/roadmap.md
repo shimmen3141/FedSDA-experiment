@@ -4,7 +4,7 @@
 
 ## 全体方針
 
-最新完了: [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)（候補検証sessionを保持するownerと、警報応答の反映・標本ごとの進行・終端回収を適応記録と保持の解除へつなぐ3関数。全3task承認、別sessionのLuna最終GO）。その前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（候補検証の到達時の確定と未完了の終端回収の適応記録）は全3task承認、feature最終レビューの3回目待ち。2 specの検証はcommit `733994b`、Windows基準で全9663 passed/3 skipped、旧11/最終3golden・品質成功、変異51/51・30/30、新CPU各10条件。その前は[alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)（警報5結果の履歴・切替位置・再利用件数を一つのownerへ保存）。次は診断通知・検出episode・標本ごとのclient進行の境界を決める。新client/全体runは未接続。入口はresume.md。
+最新完了: [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)（候補検証sessionを保持するownerと、警報応答の反映・標本ごとの進行・終端回収を適応記録と保持の解除へつなぐ3関数。全3task承認、別sessionのLuna最終GO）。その前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（候補検証の到達時の確定と未完了の終端回収の適応記録）も全3task承認、別sessionのLuna最終GO。2 specの検証はcommit `733994b`、Windows基準で全9663 passed/3 skipped、旧11/最終3golden・品質成功、変異51/51・30/30、新CPU各10条件。その前は[alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)（警報5結果の履歴・切替位置・再利用件数を一つのownerへ保存）。次は診断通知・検出episode・標本ごとのclient進行の境界を決める。新client/全体runは未接続。入口はresume.md。
 
 直前完了はalarm-response-completion（全9254 passed）。以前のalarm-buffer-response（全9110 passed）は区間準備/解決とactive経路の組立で、監視reset/FIFO消費は直前spec、警報応答の記録は最新specで完了した。
 

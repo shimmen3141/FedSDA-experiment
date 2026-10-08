@@ -2,7 +2,7 @@
 
 更新: 2026-10-08（候補検証sessionの保持と進行を完了）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。
 
-**引継ぎ地点（2026-10-08）:** 主担当Claude Codeが[held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)を完了（全3taskの独立承認と別sessionのLuna最終GO）。その直前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)は全3task承認済みで、feature最終レビューの3回目待ち（1・2回目の指摘は進捗記録と再開案内の更新漏れだけで、要求9項目は満たすと判定済み）。2 specの検証commitは`733994b`、Windows基準で全9663 passed/3 skipped/2 warnings。未コミット差分はない。次は下の「次の候補」1。
+**引継ぎ地点（2026-10-08）:** 主担当Claude Codeが[held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)を完了（全3taskの独立承認と別sessionのLuna最終GO）。その直前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)も完了（全3task承認、別sessionのLuna最終GOは3回目。1・2回目の指摘は進捗記録と再開案内の更新漏れ）。進行中の編集・レビューはない。2 specの検証commitは`733994b`、Windows基準で全9663 passed/3 skipped/2 warnings。未コミット差分はない。次は下の「次の候補」1。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -13,7 +13,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 - **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。Task 3と最終GOは、Windows基準での全回帰が済むまで完了にしない。
 - **決定（2026-10-08ユーザー）:** Linux用のgolden（旧実装をLinuxで実行した結果）は、新実装の全体runを接続するspecに入る前に作る。既存のWindows用goldenと回帰testは変更せず、別ファイル・別testにする。作る前に、同じ環境で2回実行して結果が一致することを確かめる。それまでの部品specでは、WSLのgolden回帰の不一致（環境差。旧実装は固定旧から無変更）を理由にgoldenを変えない。
-- 次の一手: candidate-validation-adaptation-recordingの最終レビュー（別session）を通した後、下の「次の候補」1を要求から仕様化する。
+- 次の一手: 下の「次の候補」1を要求から仕様化する。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。
 - 最新完了: [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md)。要求r1・設計r3・命名r2・tasks r2。runtimeの`CandidateValidationSessionHolder`（sessionを1つだけ保持）と、`apply_alarm_response_to_validation_session_holder`（候補検証を開始した応答だけが保持させる）、`advance_held_candidate_validation`（標本1件を観測させ、確定したら適応記録→保持の解除）、`finalize_held_incomplete_candidate_validation`（終端回収→記録→解除）。その前の[candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md)（要求r2・設計r4・命名r2・tasks r2）は、適応結果へ候補検証の5値を追加し、`record_completed_candidate_validation`と`record_incomplete_candidate_validation_finalization`が到達時の確定と未完了の終端回収を`AdaptationRecordStore`へ記録する。recordのfield名は`adaptation_sample_index`へ改めた。
 - 上の2 specの検証: commit `733994b`、Windows基準で全9663 passed/3 skipped/2 warnings（327.73s）、JUnit 9666件、旧11・最終3golden成功、Ruff 175 files/Pyright/pip check成功。変異は51/51と30/30、fresh新CPUは各10条件。source hashは276パス、`f2348d1bede38ac4ebd4f1aa59468250821f35f7740a9831cf7926f21e73e69e`。固定旧748c3aaからのdiffは空。Task 2・3のLunaは対象test・依存境界・fresh CPU・Ruffを再現。全pytestは主担当のみ。以後の差分は証拠・進捗文書だけ。
