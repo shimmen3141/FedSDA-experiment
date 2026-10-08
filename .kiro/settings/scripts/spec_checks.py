@@ -16,6 +16,7 @@ identity: 承認hash、固定旧基準からの差分、source hash、作業ツ�
 import argparse
 import ast
 import hashlib
+import io
 import json
 import pathlib
 import re
@@ -126,13 +127,39 @@ def run_git(*git_arguments):
 
 def source_sha256(revision):
     """tracked Pythonと2goldenの、パス昇順・LF内容のhash（共通引継ぎ手順と同じ計算）。"""
-    names = run_git("ls-tree", "-r", "-z", "--name-only", revision).decode("utf-8").split("\0")
-    names = sorted(name for name in names if name.endswith(".py") or name in GOLDEN_PATHS)
+    blob_entries = []
+    for tree_entry in run_git("ls-tree", "-r", "-z", revision).split(b"\0"):
+        if not tree_entry:
+            continue
+        metadata, file_path = tree_entry.split(b"\t", 1)
+        file_path = file_path.decode("utf-8")
+        if not (file_path.endswith(".py") or file_path in GOLDEN_PATHS):
+            continue
+        _, object_type, git_object_id = metadata.split()
+        if object_type != b"blob":
+            raise ValueError(f"source hash requires a Git blob: {file_path}")
+        blob_entries.append((file_path, git_object_id))
+    blob_entries.sort()
+    # ファイルごとのGit起動を避ける。archiveのexport-ignore等に左右されないblobを読む。
+    blob_stream = io.BytesIO(
+        subprocess.run(
+            ["git", "cat-file", "--batch"],
+            input=b"".join(git_object_id + b"\n" for _, git_object_id in blob_entries),
+            capture_output=True,
+            check=True,
+        ).stdout
+    )
     digest = hashlib.sha256()
-    for name in names:
-        content = run_git("show", f"{revision}:{name}")
-        digest.update(name.encode("utf-8") + b"\0" + content.replace(b"\r\n", b"\n") + b"\0")
-    return len(names), digest.hexdigest()
+    for file_path, git_object_id in blob_entries:
+        header = blob_stream.readline().split()
+        if len(header) != 3 or header[:2] != [git_object_id, b"blob"]:
+            raise ValueError(f"invalid Git blob header: {file_path}")
+        blob_size = int(header[2])
+        content = blob_stream.read(blob_size)
+        if len(content) != blob_size or blob_stream.read(1) != b"\n":
+            raise ValueError(f"incomplete Git blob: {file_path}")
+        digest.update(file_path.encode("utf-8") + b"\0" + content.replace(b"\r\n", b"\n") + b"\0")
+    return len(blob_entries), digest.hexdigest()
 
 
 def check_identity(arguments):
