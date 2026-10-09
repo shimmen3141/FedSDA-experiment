@@ -21,7 +21,9 @@ from test_alarm_response_completion import (
 from test_candidate_validation_adaptation_recording import (
     LEGACY_ACTION_BY_VALIDATION_ADAPTATION_OUTCOME,
 )
+from test_held_adahedge_diagnostic_notification import get_diagnostic_collection_snapshot
 from test_held_candidate_validation_progress import make_subclass_copy
+from test_joint_model_parameter_update import assert_nested_state_equal
 from test_loss_change_monitoring import assert_class_monitor_matches_reference
 from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
 from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
@@ -537,7 +539,11 @@ def build_default_sample_processing_oracle(
 
 
 def snapshot_sample_processing_state(*, processing_arguments):
-    """標本1件の処理が触れうる全ownerの、比較できる読取り。"""
+    """標本1件の処理が受け取るownerと乱数の、比較できる読取り。
+
+    保持中の候補検証のsessionと送信保留は、同じオブジェクトであることだけを比べる（sessionの中の候補の
+    分類器や損失の記録は読まない）。
+    """
     registry = processing_arguments["held_model_training_state_registry"]
     held_model_training_states = registry.snapshot_ordered_held_model_training_states()
     pending_sample_observation_store = processing_arguments["pending_sample_observation_store"]
@@ -577,6 +583,28 @@ def snapshot_sample_processing_state(*, processing_arguments):
         ].pending_training_request_count,
         python_random_state=processing_arguments["python_random_generator"].getstate(),
         torch_random_state=(torch.get_rng_state().clone(),),
+        diagnostics=get_diagnostic_collection_snapshot(
+            processing_arguments["diagnostic_evidence_collection"]
+        ),
+        next_temporary_model_id=processing_arguments[
+            "temporary_model_id_allocator"
+        ].next_temporary_model_id,
+        pending_model_upload=processing_arguments[
+            "pending_model_upload_state"
+        ].get_pending_model_upload(),
+        evaluation_samples=processing_arguments[
+            "model_evaluation_sample_store"
+        ].snapshot_ordered_model_evaluation_samples(),
+        optimizer_states=tuple(
+            deepcopy(parameter_optimizer.state_dict())
+            for parameter_optimizer in (
+                *(
+                    state.concept_specific_parameter_optimizer_state.parameter_optimizer
+                    for state in held_model_training_states
+                ),
+                processing_arguments["shared_parameter_optimizer"],
+            )
+        ),
     )
 
 
@@ -591,7 +619,14 @@ def assert_sample_processing_state_unchanged(*, state_snapshot, processing_argum
                 torch.equal(current_tensor, previous_tensor)
                 for current_tensor, previous_tensor in zip(current_state, previous_state)
             ), state_name
-        elif state_name == "held_validation_session":
+        elif state_name == "optimizer_states":
+            assert len(current_state) == len(previous_state)
+            for current_optimizer_state, previous_optimizer_state in zip(
+                current_state, previous_state
+            ):
+                assert_nested_state_equal(current_optimizer_state, previous_optimizer_state)
+        elif state_name in ("held_validation_session", "pending_model_upload"):
+            # 保持中のsessionと送信保留は、同じオブジェクトのままであることを確かめる（中身は比べない）。
             assert current_state is previous_state
         else:
             assert current_state == previous_state, state_name
@@ -882,8 +917,8 @@ INVALID_SAMPLE_PROCESSING_INPUT_CASES = {
 }
 
 
-# 本処理自身の検査が拒否する条件の、例外の文言の一部（後の段や別の検査が代わりに拒否していないことを確かめる）。
-OWN_REJECTION_MESSAGES = {
+# 拒否条件ごとの、例外の文言の一部（どの検査が拒否したかを確かめる。別の検査や後の段が代わりに拒否していないこと）。
+REJECTION_MESSAGES = {
     "observation_other_type": "indexed_observation must be exact",
     "observation_subclass": "indexed_observation must be exact",
     "sample_index_bool": "sample_index must be builtin int",
@@ -905,6 +940,9 @@ OWN_REJECTION_MESSAGES = {
     "one_dimensional_input_features": "exactly one sample",
     "one_dimensional_labels": "must have shape",
     "two_labels_for_one_sample": "must have shape",
+    # 次の2つは、本処理の検査を通った後、最初にこの標本を評価する既存の部品が拒否する。
+    "label_out_of_range": "observed_class_labels.*class_count",
+    "feature_count_mismatch": "input_features.*shape",
 }
 
 
@@ -952,7 +990,7 @@ def test_sample_processing_rejects_invalid_input_before_any_update(
         )
         indexed_observation = make_next_observation(processing_arguments=processing_arguments)
         state_snapshot = snapshot_sample_processing_state(processing_arguments=processing_arguments)
-        with pytest.raises(expected_exception, match=OWN_REJECTION_MESSAGES.get(invalid_case)):
+        with pytest.raises(expected_exception, match=REJECTION_MESSAGES[invalid_case]):
             process_observed_sample(
                 **dict(indexed_observation=indexed_observation, **processing_arguments)
                 | make_invalid_arguments(processing_arguments, indexed_observation)
