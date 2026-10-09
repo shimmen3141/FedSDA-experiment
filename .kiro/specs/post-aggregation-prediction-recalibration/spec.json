@@ -1,9 +1,9 @@
 {
   "feature_name": "post-aggregation-prediction-recalibration",
   "created_at": "2026-10-11T01:00:00+09:00",
-  "updated_at": "2026-10-11T01:30:00+09:00",
+  "updated_at": "2026-10-11T04:00:00+09:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -23,15 +23,26 @@
     },
     "naming": {
       "generated": true,
-      "approved": false,
-      "note": "名前は、全taskの後の独立レビューで確認を受ける"
+      "approved": true,
+      "note": "名前は、全taskの後の独立レビューで確認を受けた（下のimplementation_review）"
     }
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "handoff": {
-    "execution_status": "in_progress",
-    "next_step": "tasks.mdの下位taskを1.1から順に実装する（/kiro-impl post-aggregation-prediction-recalibration --review off の手順）",
-    "independent_review": "未実施（全taskの後に1回）"
+    "execution_status": "completed",
+    "next_step": "none（次のspecは再開案内の「次の一手」）"
+  },
+  "implementation_review": {
+    "verdict": "IMPLEMENTATION: APPROVED",
+    "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+    "reviewer_selection": "複数の状態の更新順と、旧のルータとの数値の対応のため、難度からHaiku 5.5を選択（GPT-6 Lunaは利用上限で利用不能の期間）",
+    "reviewer_session": "60214683-cb97-4750-8036-58c60b2e1b7f",
+    "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+    "reviewed_range": "1c2966c..9b96a00",
+    "independent_test_execution": true,
+    "independent_full_pytest_reproduction": false,
+    "findings": "Minor 1件、任意 2件（Minorは要求の文面の修正で採用、任意は1件採用・1件不採用）。採否はtasks.mdのImplementation Notes",
+    "full_pytest": "10991 passed / 3 skipped (9b96a00、主担当の実測とJUnit)"
   }
 }
