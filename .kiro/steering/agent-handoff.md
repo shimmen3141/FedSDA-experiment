@@ -55,6 +55,18 @@ claude -p $reviewPrompt --model claude-haiku-5-5 --effort medium --output-format
 codex exec -m gpt-6-luna -c 'model_reasoning_effort="medium"' --sandbox read-only --ephemeral $reviewPrompt
 ```
 
+testを実行させるレビュー（通常のレビュー）のHaikuの起動例（Git Bash、worktreeルート。依頼文はファイルに書いて読み込む。応答のJSONの`result`が本文、`session_id`と`modelUsage`を記録する）:
+
+```bash
+claude -p "$(cat <依頼文.txt>)" --model claude-haiku-5-5 --effort medium --output-format json --no-session-persistence \
+  --tools Read,Glob,Grep,Bash --allowedTools "Read" "Glob" "Grep" \
+  "Bash(../../venv/Scripts/python.exe -m pytest:*)" "Bash(../../venv/Scripts/python.exe -m ruff:*)" \
+  "Bash(../../venv/Scripts/python.exe tests/refactoring/fresh_process_smoke.py)" \
+  "Bash(../../venv/Scripts/python.exe .kiro/settings/scripts/spec_checks.py:*)" "Bash(git status:*)" "Bash(git diff:*)" > <応答.json>
+```
+
+依頼文には、worktreeの絶対パス、対象（未コミットの差分か、対象commit）、実行してよいコマンドをそのまま書く。応答まで数分かかる（対象testを実行させると10分前後）。
+
 ### レビューに出す前と依頼文
 
 - 機械的に照合できるものは先に`.kiro/settings/scripts/spec_checks.py`で確かめ、出力を依頼文へ貼る（使い方はscript冒頭）。`names`はsourceの公開する名前とnaming.mdの照合、`identity`は固定旧差分・source hash・作業ツリー・JUnitの照合、`progress`はspec.jsonのphaseとtasks.mdのcheckboxの対応の照合。名前の役割や検査の順序の正しさは判定しない。
@@ -119,6 +131,9 @@ $PY .kiro/settings/scripts/spec_checks.py identity <feature名> --junit "$TMP/<f
 
 - 全pytestと品質検査は、独立レビューの指摘を反映した後に実行する。通ったらcommitし、そのcommitと件数をtasks.mdの「Implementation Notes」へ記録する（source・testを変えたら、やり直す）。下位taskごとのcommitは、対象testが通った時点で行ってよい。
 - 長い検証の前に、必要な一時ファイル操作と実行環境を短い確認で確かめる。既知の権限エラーがある条件で全suiteを試し直さない。必要な権限は通常の承認手順で扱い、sandbox解除・認証変更を回避策にしない。
+- 待ち時間を減らす（2026-10-10の実測では、作業時間の大半がtoolの待ちだった）: 重いtest（例: `test_observed_sample_processing.py`は全条件で約95秒）は、開発中は`-k`で条件を絞って回し、全条件と全pytest（約6分）は最後に1回にする。全pytestや長いコマンドは裏で走らせて、その間に文書を書く。
+- Git Bashでの注意: toolのBashは呼出しごとに作業ディレクトリが元checkoutへ戻ることがあるので、毎回worktreeへ`cd`してから実行する。引用符やbacktick、`\n`を含むscriptをheredocで書くと壊れやすいので、ファイルとして書いてから実行する。変異toolや整形は対象ファイルを書き換えるので、worktreeで実行する前に`pwd`を確かめる。
+- 所要時間を報告するときは、会話記録のtimestampで、モデルの時間・toolの待ち・ユーザーの指示待ちを分けて測る（commitの時刻だけで推定しない）。
 - source hashは、tracked Pythonと2goldenを、パス昇順でLF内容として連結したもの（`spec_checks.py identity`が計算する）。2026-10-09までのspecは、文書ごとの承認hashも持つ。
 - 全pytestの件数は、前specの件数に今回追加したtest数を足した数と一致することを確かめる。
 
