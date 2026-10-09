@@ -4805,6 +4805,23 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
         )
+    if source_module_path == "runtime/fedsda_run_client_settings.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.field",
+            "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
+            "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
+            "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
+            "federated_learning_experiments.learning.training.local_training_schedule_settings.LocalTrainingScheduleSettings",
+            "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.LossChangeDetectionSettings",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings.PredictionCombinationSettings",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.TrainingDataAssignmentSettings",
+        )
     if source_module_path == "runtime/observed_sample_prediction.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5812,6 +5829,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/observed_sample_processing.py",
             "evaluation/sample_prediction_record_store.py",
             "runtime/observed_sample_prediction.py",
+            "runtime/fedsda_run_client_settings.py",
             "runtime/held_model_training_request_handling.py",
             "runtime/released_pending_sample_assignment.py",
             "learning/training/candidate_epoch_training_settings.py",
@@ -5875,6 +5893,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/observed_sample_processing.py",
                     "evaluation/sample_prediction_record_store.py",
                     "runtime/observed_sample_prediction.py",
+                    "runtime/fedsda_run_client_settings.py",
                     "runtime/held_model_training_request_handling.py",
                     "runtime/released_pending_sample_assignment.py",
                     "learning/training/candidate_epoch_training_settings.py",
