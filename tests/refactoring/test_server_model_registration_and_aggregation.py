@@ -53,14 +53,21 @@ ROUND_SAMPLE_COUNT = 10
 
 
 def build_server_round_oracle(
-    *, monkeypatch, valid_run_settings_mapping, class_count, client_count=CLIENT_COUNT
+    *,
+    monkeypatch,
+    valid_run_settings_mapping,
+    class_count,
+    client_count=CLIENT_COUNT,
+    **condition_overrides,
 ):
     """実旧の事前学習・サーバ・client複数と、同じ初期モデルから作った新のclient複数・サーバのownerを作る。
 
     戻り値: 辞書（新のclientのtuple、グローバルモデルのowner、通信量のowner、共有する乱数生成器、
     実旧のサーバ、実旧のclientのlist）。呼出し側の乱数は進めない。
     """
-    set_legacy_configuration(monkeypatch, class_count=class_count, update_interval=2)
+    set_legacy_configuration(
+        monkeypatch, class_count=class_count, update_interval=2, **condition_overrides
+    )
     python_random_state = random.getstate()
     numpy_random_state = np.random.get_state()
     try:
@@ -91,7 +98,9 @@ def build_server_round_oracle(
     finally:
         random.setstate(python_random_state)
         np.random.set_state(numpy_random_state)
-    run_client_settings = make_run_client_settings(valid_run_settings_mapping, update_interval=2)
+    run_client_settings = make_run_client_settings(
+        valid_run_settings_mapping, update_interval=2, **condition_overrides
+    )
     (
         initial_classifier,
         initial_concept_specific_parameter_optimizer_state,

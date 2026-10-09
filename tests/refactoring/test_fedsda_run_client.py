@@ -11,11 +11,11 @@ from test_adopted_candidate_initial_local_registration import (
     assert_held_model_states_match_legacy,
     convert_legacy_parameter_name,
 )
+from test_classifier_bounded_loss_evaluation import assert_initial_loss_statistics_match_legacy
 from test_fedsda_run_client_settings import VALID_SCALAR_VALUES
 from test_held_candidate_validation_progress import make_subclass_copy
 from test_joint_model_parameter_update import assert_nested_state_equal
 from test_loss_change_monitoring import assert_class_monitor_matches_reference
-from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
 from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
 from test_observed_sample_prediction import assert_prediction_state_matches_legacy
 from test_observed_sample_processing import (
@@ -115,6 +115,7 @@ def set_legacy_configuration(
     validation_sample_count=VALIDATION_SAMPLE_COUNT,
     base_learning_rate=LEARNING_RATE,
     new_model_learning_rate=LEARNING_RATE,
+    stored_evaluation_sample_limit=STORED_EVALUATION_SAMPLE_LIMIT,
 ):
     """実旧clientが生成時と実行時に読む設定を、最終構成の値と、上の小さい条件へ差し替える。
 
@@ -153,7 +154,7 @@ def set_legacy_configuration(
         LOCAL_UPDATE_INTERVAL=update_interval,
         UPDATES_PER_SAMPLE=1,
         CLIENT_BATCH_SIZE=BATCH_SAMPLE_COUNT,
-        STORED_DATA_LIMIT=STORED_EVALUATION_SAMPLE_LIMIT,
+        STORED_DATA_LIMIT=stored_evaluation_sample_limit,
         EVAL_STORE_SAMPLE_SIZE=ADDED_EVALUATION_SAMPLE_COUNT,
         MIN_DRIFT_DATA=MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT,
         E_DETECTOR_ALPHA=FALSE_ALARM_CONTROL_ALPHA,
@@ -174,6 +175,7 @@ def make_run_client_settings(
     validation_sample_count=VALIDATION_SAMPLE_COUNT,
     base_learning_rate=LEARNING_RATE,
     new_model_learning_rate=LEARNING_RATE,
+    stored_evaluation_sample_limit=STORED_EVALUATION_SAMPLE_LIMIT,
 ):
     """上の条件と同じ値の、新の束。"""
     return FedsdaRunClientSettings(
@@ -222,7 +224,7 @@ def make_run_client_settings(
                 new_model_upload_delay_round_count=UPLOAD_DELAY_ROUND_COUNT,
                 minimum_change_interval_sample_count=MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT,
                 local_training_batch_sample_count=BATCH_SAMPLE_COUNT,
-                maximum_stored_evaluation_sample_count_per_model=STORED_EVALUATION_SAMPLE_LIMIT,
+                maximum_stored_evaluation_sample_count_per_model=stored_evaluation_sample_limit,
                 added_evaluation_batch_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
                 loss_monitor_maximum_retained_candidate_count=MAXIMUM_RETAINED_CANDIDATE_COUNT,
             )
@@ -299,6 +301,7 @@ def build_run_client_oracle(
     client_id=1,
     base_learning_rate=LEARNING_RATE,
     new_model_learning_rate=LEARNING_RATE,
+    stored_evaluation_sample_limit=STORED_EVALUATION_SAMPLE_LIMIT,
 ):
     """実旧の事前学習と実__init__で実旧clientを作り、同じ初期モデル・統計・条件から新clientを組み立てる。
 
@@ -311,6 +314,7 @@ def build_run_client_oracle(
         validation_sample_count=validation_sample_count,
         base_learning_rate=base_learning_rate,
         new_model_learning_rate=new_model_learning_rate,
+        stored_evaluation_sample_limit=stored_evaluation_sample_limit,
     )
     python_random_state = random.getstate()
     numpy_random_state = np.random.get_state()
@@ -338,6 +342,7 @@ def build_run_client_oracle(
         validation_sample_count=validation_sample_count,
         base_learning_rate=base_learning_rate,
         new_model_learning_rate=new_model_learning_rate,
+        stored_evaluation_sample_limit=stored_evaluation_sample_limit,
     )
     (
         initial_classifier,
@@ -432,9 +437,15 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
     assert_model_counts_match_legacy(
         counts_store=owners.model_training_and_assignment_counts_store, legacy_client=legacy_client
     )
-    assert_store_statistics_match_legacy(
-        loss_statistics_store=owners.loss_statistics_store, legacy_client=legacy_client
+    loss_statistics_snapshot = owners.loss_statistics_store.get_state_snapshot()
+    assert tuple(model_id for model_id, _ in loss_statistics_snapshot) == tuple(
+        legacy_client.model_stats
     )
+    for model_id, loss_statistics in loss_statistics_snapshot:
+        # サーバの集約で作られた統計は、クラス別の統計を持たない（配布で受け取ると、そのまま置かれる）。
+        assert_initial_loss_statistics_match_legacy(
+            loss_statistics, {"class_stats": {}} | legacy_client.model_stats[model_id]
+        )
     # 監視、警報の記録。
     assert_class_monitor_matches_reference(
         monitor=owners.loss_change_monitor, reference_monitor=legacy_client

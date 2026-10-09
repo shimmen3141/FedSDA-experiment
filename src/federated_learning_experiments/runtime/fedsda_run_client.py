@@ -4,7 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from random import Random
 
-from torch import float32, tensor
+from torch import Tensor, float32, tensor
 
 from federated_learning_experiments.data.observed_streams import ObservedSample
 from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
@@ -82,6 +82,10 @@ from federated_learning_experiments.runtime.candidate_validation_session_holder 
 )
 from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientSettings,
+)
+from federated_learning_experiments.runtime.global_model_distribution_application import (
+    GlobalModelDistributionApplication,
+    apply_global_model_distribution,
 )
 from federated_learning_experiments.runtime.held_candidate_validation_progress import (
     HeldIncompleteCandidateValidationFinalization,
@@ -255,6 +259,34 @@ class FedsdaRunClient:
         """同期の後で、送信保留のモデルの待ちを1ラウンド進める。"""
         _validate_round_index(round_index=round_index)
         self._owners.pending_model_upload_state.advance_upload_readiness_at_round_boundary()
+
+    def apply_global_model_distribution(
+        self,
+        *,
+        model_id_mapping: dict[int, int],
+        distributed_parameter_snapshots: tuple[tuple[int, dict[str, Tensor]], ...],
+        distributed_loss_statistics: tuple[tuple[int, ModelAndClassLossStatistics], ...],
+    ) -> GlobalModelDistributionApplication:
+        """サーバから配布されたグローバルモデルと損失統計を受け取り、ID対応を自分の状態へ適用する。"""
+        owners = self._owners
+        settings = self._run_client_settings
+        return apply_global_model_distribution(
+            model_id_mapping=model_id_mapping,
+            distributed_parameter_snapshots=distributed_parameter_snapshots,
+            distributed_loss_statistics=distributed_loss_statistics,
+            held_model_training_state_registry=owners.held_model_training_state_registry,
+            shared_parameter_optimizer_state_holder=owners.shared_parameter_optimizer_state_holder,
+            loss_statistics_store=owners.loss_statistics_store,
+            training_sample_store=owners.training_sample_store,
+            model_evaluation_sample_store=owners.model_evaluation_sample_store,
+            model_training_and_assignment_counts_store=owners.model_training_and_assignment_counts_store,
+            current_training_model_assignment=owners.current_training_model_assignment,
+            adaptation_record_store=owners.adaptation_record_store,
+            pending_training_assignment_buffer=owners.pending_training_assignment_buffer,
+            rebuilt_model_parameter_optimizer_settings=settings.rebuilt_model_parameter_optimizer_settings,
+            reconnected_model_parameter_optimizer_settings=settings.parameter_optimizer_settings,
+            python_random_generator=self._python_random_generator,
+        )
 
     def finalize_incomplete_candidate_validation(
         self,
