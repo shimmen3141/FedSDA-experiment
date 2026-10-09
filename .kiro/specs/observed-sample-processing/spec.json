@@ -1,0 +1,155 @@
+{
+  "feature_name": "observed-sample-processing",
+  "created_at": "2026-10-09",
+  "updated_at": "2026-10-09",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "revision": 3,
+      "generated_sha256_lf": "46b8881a072d3f4d1d9a57349056d55f86863671209efc0c0f1bcb08f78c1be2",
+      "previous_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "f6da92b08402a79ebec955f37c5512be8d466b666885485091b9aa4289afa415",
+          "reviewer_session": "76145adb-6a9d-43cc-93d3-ba5a246cd792"
+        },
+        {
+          "revision": 2,
+          "sha256_lf": "5f042954e0584aeb993a6994c069ffd79cf8e47277d2aa8599e0d9c77c95dd2e",
+          "reviewer_session": "61c3aa2b-cfb7-4196-8575-950985df0e5c"
+        }
+      ],
+      "approved_revision": 3,
+      "approved_sha256_lf": "46b8881a072d3f4d1d9a57349056d55f86863671209efc0c0f1bcb08f78c1be2",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested; substitute for gpt-6-luna at usage limit)",
+      "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "review_record": "review.md"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision": 4,
+      "generated_sha256_lf": "a69eacd678a14be3a9f60e281eefbffdfda3e56712a0fb0e2b1166c8dfee7ec4",
+      "previous_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "6584d1eca4e4263d8b75856238034bd7547510af705397ef6054040ddb36481f",
+          "reviewer_session": "76145adb-6a9d-43cc-93d3-ba5a246cd792"
+        },
+        {
+          "revision": 2,
+          "sha256_lf": "99801564434d7c4bd1d11476903963fb9ee11df950a0ebe63e9be2f497e7c5f5",
+          "reviewer_session": "61c3aa2b-cfb7-4196-8575-950985df0e5c"
+        },
+        {
+          "revision": 3,
+          "sha256_lf": "2142adb9ad73bbd875baebe13a42185cda3cc93f97129c33da5e711e9704f920",
+          "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+          "verdict": "APPROVED"
+        }
+      ],
+      "wording_only_revision_after_review": {
+        "last_reviewed_revision": 3,
+        "last_reviewed_sha256_lf": "2142adb9ad73bbd875baebe13a42185cda3cc93f97129c33da5e711e9704f920",
+        "last_review_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+        "note": "文面だけの修正（共通引継ぎ手順）。修正内容はreview.md"
+      },
+      "approved_revision": 4,
+      "approved_sha256_lf": "a69eacd678a14be3a9f60e281eefbffdfda3e56712a0fb0e2b1166c8dfee7ec4",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested; substitute for gpt-6-luna at usage limit)",
+      "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "review_record": "review.md"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": 4,
+      "generated_sha256_lf": "a8c258acfa791af188d40e270ac80795a30d48b432344d26d897f7873c65f89f",
+      "previous_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "8ba7308a38a1fa89fb9f43767819f51bd1c34a04ecc68d7c66d3ab9cc0b65943",
+          "reviewer_session": "76145adb-6a9d-43cc-93d3-ba5a246cd792"
+        },
+        {
+          "revision": 2,
+          "sha256_lf": "56b9d7fefb1e3996416187f9e36eade9780dfadfae6c0dc6586eb592019844e7",
+          "reviewer_session": "61c3aa2b-cfb7-4196-8575-950985df0e5c"
+        },
+        {
+          "revision": 3,
+          "sha256_lf": "66b5f8b4b506b256f1475622a7f22f6d0929f61429aa80abd0f09e6f99025a6b",
+          "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+          "verdict": "APPROVED"
+        }
+      ],
+      "wording_only_revision_after_review": {
+        "last_reviewed_revision": 3,
+        "last_reviewed_sha256_lf": "66b5f8b4b506b256f1475622a7f22f6d0929f61429aa80abd0f09e6f99025a6b",
+        "last_review_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+        "note": "文面だけの修正（共通引継ぎ手順）。修正内容はreview.md"
+      },
+      "approved_revision": 4,
+      "approved_sha256_lf": "a8c258acfa791af188d40e270ac80795a30d48b432344d26d897f7873c65f89f",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested; substitute for gpt-6-luna at usage limit)",
+      "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "review_record": "review.md"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "revision": 4,
+      "generated_sha256_lf": "28d62ddc1974d9573a7b10ffd6d4c1745665fcbf7000f79882ca9e0a252cb54d",
+      "previous_revisions": [
+        {
+          "revision": 1,
+          "sha256_lf": "14c274b96e579d17a8ef2f2cdc86585bd72c9fa9ac31b4a31fa2f5a2c38c7913",
+          "reviewer_session": "76145adb-6a9d-43cc-93d3-ba5a246cd792"
+        },
+        {
+          "revision": 2,
+          "sha256_lf": "96f835a7f3ce40244d5ceb6ff0486177588f3c44ce7d6582262c780a9c7a7e5a",
+          "reviewer_session": "61c3aa2b-cfb7-4196-8575-950985df0e5c"
+        },
+        {
+          "revision": 3,
+          "sha256_lf": "5e3be3d70242d79f0ef841d26b60642ff9b4dff631a3b17b23928cde5008a092",
+          "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+          "verdict": "APPROVED"
+        }
+      ],
+      "wording_only_revision_after_review": {
+        "last_reviewed_revision": 3,
+        "last_reviewed_sha256_lf": "5e3be3d70242d79f0ef841d26b60642ff9b4dff631a3b17b23928cde5008a092",
+        "last_review_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+        "note": "文面だけの修正（共通引継ぎ手順）。修正内容はreview.md"
+      },
+      "approved_revision": 4,
+      "approved_sha256_lf": "28d62ddc1974d9573a7b10ffd6d4c1745665fcbf7000f79882ca9e0a252cb54d",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested; substitute for gpt-6-luna at usage limit)",
+      "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "review_record": "review.md"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
+  "implementation_progress": {
+    "completed": 0,
+    "total": 2
+  },
+  "handoff": {
+    "execution_status": "in_progress_by_claude_code",
+    "completed_unit": "requirements_design_naming_tasks_approved",
+    "next_step": "task_1_1_tests_then_implementation",
+    "implementation_started": false,
+    "tests_run": false,
+    "full_pytest_run_for_this_spec": false
+  }
+}
