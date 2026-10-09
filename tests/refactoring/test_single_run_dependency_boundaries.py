@@ -4805,6 +4805,36 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
         )
+    if source_module_path == "runtime/initial_model_pretraining.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "random.Random",
+            "numpy.random.RandomState",
+            "torch.float32",
+            "torch.tensor",
+            "federated_learning_experiments.data.observed_streams.ObservedSample",
+            "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.training.initial_model_pretraining_settings.InitialModelPretrainingSettings",
+            "federated_learning_experiments.learning.training.joint_model_parameter_update.perform_joint_model_parameter_update",
+            "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "federated_learning_experiments.learning.training.participating_model_training_batch.ParticipatingModelTrainingBatch",
+        )
+    if source_module_path == "learning/training/initial_model_pretraining_settings.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.field",
+            "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
+            "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
+        )
     if source_module_path == "runtime/fedsda_run_client.py":
         return imported_module_name in (
             "copy.deepcopy",
@@ -5870,6 +5900,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/observed_sample_prediction.py",
             "runtime/fedsda_run_client_settings.py",
             "runtime/fedsda_run_client.py",
+            "learning/training/initial_model_pretraining_settings.py",
+            "runtime/initial_model_pretraining.py",
             "runtime/held_model_training_request_handling.py",
             "runtime/released_pending_sample_assignment.py",
             "learning/training/candidate_epoch_training_settings.py",
@@ -5935,6 +5967,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/observed_sample_prediction.py",
                     "runtime/fedsda_run_client_settings.py",
                     "runtime/fedsda_run_client.py",
+                    "learning/training/initial_model_pretraining_settings.py",
+                    "runtime/initial_model_pretraining.py",
                     "runtime/held_model_training_request_handling.py",
                     "runtime/released_pending_sample_assignment.py",
                     "learning/training/candidate_epoch_training_settings.py",
