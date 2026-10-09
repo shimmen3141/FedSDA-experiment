@@ -213,6 +213,8 @@ PRETRAINING_SIZE_CASES = (
     (13, 0, 4),
     (1, 3, 1),
     (17, 1, 3),
+    # 旧の既定の設定（最後のbatchは20件）。
+    (500, 10, 32),
 )
 
 
@@ -273,6 +275,75 @@ def test_pretraining_matches_real_legacy_pretraining(
     assert torch.equal(torch_random_state, legacy_torch_random_state)
     assert random.getstate() == global_python_random_state
     assert_numpy_random_states_equal(np.random.get_state(), global_numpy_random_state)
+
+
+@pytest.mark.parametrize("class_count", (2, 4))
+@pytest.mark.parametrize("optimizer_variant", ("amsgrad", "sgd"))
+def test_pretraining_matches_real_legacy_pretraining_for_every_batch_sample_count(
+    class_count, optimizer_variant, monkeypatch
+):
+    """batchの件数1〜33のすべてで、実旧のモデルの更新と一致する。
+
+    新は、参加するモデルが1つの共同更新（損失×件数÷件数）で更新するので、件数ごとに確かめる。
+    標本数をbatchの件数と同じにして、1 epochに、その件数のbatchを1つだけ作り、3 epoch更新する。
+    """
+    for batch_sample_count in range(1, 34):
+        pretraining_values = dict(
+            pretraining_sample_count=batch_sample_count,
+            pretraining_epoch_count=3,
+            pretraining_batch_sample_count=batch_sample_count,
+        )
+        random_seed = 100 + batch_sample_count
+        legacy_model, legacy_statistics, _, _, _ = run_real_legacy_pretraining(
+            monkeypatch=monkeypatch,
+            class_count=class_count,
+            optimizer_variant=optimizer_variant,
+            random_seed=random_seed,
+            pretraining_values=pretraining_values,
+        )
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(random_seed)
+            pretrained_initial_model = pretrain_initial_model(
+                **make_pretraining_arguments(
+                    class_count=class_count,
+                    optimizer_variant=optimizer_variant,
+                    random_seed=random_seed,
+                    pretraining_values=pretraining_values,
+                )
+            )
+        assert_pretrained_model_matches_legacy(
+            pretrained_initial_model=pretrained_initial_model,
+            legacy_model=legacy_model,
+            legacy_statistics=legacy_statistics,
+        )
+
+
+def test_pretraining_rejects_disabled_gradient_calculation_before_consuming_random_numbers():
+    """勾配の計算が無効のとき、更新を行う設定は、分類器を作る前に拒否する。epoch数0は受け入れる。"""
+    pretraining_arguments = make_pretraining_arguments()
+    python_random_state = pretraining_arguments["python_random_generator"].getstate()
+    numpy_random_state = pretraining_arguments[
+        "sample_generator"
+    ].numpy_random_generator.get_state()
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(7)
+        torch_random_state = torch.get_rng_state().clone()
+        with torch.no_grad(), pytest.raises(ValueError, match="gradient calculation"):
+            pretrain_initial_model(**pretraining_arguments)
+        assert torch.equal(torch.get_rng_state(), torch_random_state)
+        assert pretraining_arguments["python_random_generator"].getstate() == python_random_state
+        assert_numpy_random_states_equal(
+            pretraining_arguments["sample_generator"].numpy_random_generator.get_state(),
+            numpy_random_state,
+        )
+        with torch.no_grad():
+            pretrained_without_training = pretrain_initial_model(
+                **make_pretraining_arguments(
+                    pretraining_values=VALID_PRETRAINING_VALUES | dict(pretraining_epoch_count=0)
+                )
+            )
+        assert type(pretrained_without_training) is PretrainedInitialModel
+        assert type(pretrain_initial_model(**pretraining_arguments)) is PretrainedInitialModel
 
 
 def test_pretraining_result_matches_client_assembly_arguments():
@@ -432,6 +503,8 @@ INVALID_PRETRAINING_ARGUMENT_CASES = {
         TypeError,
     ),
     "hidden_layer_widths_list": (lambda arguments: dict(hidden_layer_widths=[5, 4]), ValueError),
+    # 隠れ層がない（共有部にパラメータがなく、共有部のoptimizerを作れない）。
+    "hidden_layer_widths_empty": (lambda arguments: dict(hidden_layer_widths=()), ValueError),
     "hidden_layer_width_zero": (lambda arguments: dict(hidden_layer_widths=(5, 0)), ValueError),
     "hidden_layer_width_bool": (lambda arguments: dict(hidden_layer_widths=(True,)), ValueError),
     "class_count_bool": (lambda arguments: dict(class_count=True), TypeError),

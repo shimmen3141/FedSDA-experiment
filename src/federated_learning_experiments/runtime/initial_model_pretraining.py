@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from random import Random
 
 from numpy.random import RandomState
-from torch import float32, tensor
+from torch import float32, is_grad_enabled, tensor
 
 from federated_learning_experiments.data.observed_streams import ObservedSample
 from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
@@ -99,10 +99,18 @@ def _validate_initial_model_pretraining_inputs(
     SharedFeatureExtractor.validate_feature_dimensions(
         input_feature_count=_OBSERVED_SAMPLE_FEATURE_COUNT, hidden_layer_widths=hidden_layer_widths
     )
+    # 隠れ層がないと共有部にパラメータがなく、共有部のoptimizerを作れない（分類器の生成の後に拒否される）。
+    if not hidden_layer_widths:
+        raise ValueError("hidden_layer_widths must hold at least one hidden layer")
     if type(class_count) is not int:
         raise TypeError("class_count must be builtin int")
     if class_count < 2:
         raise ValueError("class_count must be at least 2")
+    # 更新は勾配の計算を要る。無効のままだと、分類器と標本の生成の後で、共同更新が拒否する。
+    if initial_model_pretraining_settings.pretraining_epoch_count > 0 and not is_grad_enabled():
+        raise ValueError(
+            "pretraining with one or more epochs requires gradient calculation enabled"
+        )
 
 
 def pretrain_initial_model(

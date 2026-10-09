@@ -116,6 +116,8 @@ def pretrain_initial_model(
 | 事前学習の設定・モデル構造の設定・optimizerの設定がexact型（TypeError）。それぞれの`__post_init__`をもう一度呼ぶ | 引数 |
 | `sample_generator`がexact `SineSampleGenerator`で、持っている乱数がexact `numpy.random.RandomState`。`python_random_generator`がexact `random.Random`（TypeError） | 引数 |
 | 隠れ層の幅とクラス数が、分類器の生成の条件に合う（`SharedFeatureExtractor.validate_feature_dimensions`と、クラス数がbuiltin intで2以上。ValueError／TypeError） | 引数。分類器の生成が拒否する条件を、乱数を使わない検査で先に確かめる |
+| 隠れ層が1層以上（ValueError） | 引数。隠れ層がないと、共有部にパラメータがなく、共有部のoptimizerの生成が、分類器の生成の後で拒否する（旧も、空の共有部ではoptimizerを作れない。LEGACY-010） |
+| epoch数が1以上なら、勾配の計算が有効（ValueError） | 呼出し時の状態。無効だと、共同更新が、分類器と標本の生成の後で拒否する |
 
 処理順（検査の後）:
 
@@ -127,6 +129,7 @@ def pretrain_initial_model(
 
 - 1より後の失敗では、済んだ段（乱数の消費を含む）は残る。検査を通った入力で、後の段が拒否する条件はない（標本生成器は0/1のラベルを返し、クラス数は2以上）。
 - 共同更新の設定は、関数の中で固定する（共有部・アダプタ・分類層の共同学習。候補の学習と同じ）。
+- 共同更新は、損失を「モデルの損失×件数÷総件数」で求める。参加するモデルが1つのとき、旧の更新（損失の平均をそのまま使う）と式の形が違うので、batchの件数1〜33のすべてと、旧の既定の設定（500標本・10 epoch・batch 32。最後のbatchは20件）で、全パラメータとoptimizerの状態が実旧と一致することを、対照testで確かめる。34件以上のbatchは照合していない。
 
 ## Error Handling
 
@@ -144,7 +147,8 @@ def pretrain_initial_model(
 
 ### Integration Tests
 
-- 実旧の事前学習との対照（1.2〜1.4, 2.1）: 旧の設定を差し替え、3つの乱数を同じseedで初期化して、実`_pretrain_initial_model(ResidualAdapterMLP)`と新の関数を実行する。2値・多クラス、標本数・epoch数・batchの件数の組（2の冪でない件数、最後のbatchが端数になる組、batchが標本数より大きい組、epoch数0を含む）、optimizerの種類（Adamの2種、SGD）で、全パラメータ、2つのoptimizerの状態、損失統計、実行後の3つの乱数の状態を照合する。
+- batchの件数ごとの対照（1.3, 2.1）: batchの件数1〜33のそれぞれで、その件数のbatchを1つだけ作る設定にして3 epoch更新し、実旧と全パラメータ・2つのoptimizerの状態・損失統計を照合する（2値・多クラス、AdamとSGD）。
+- 実旧の事前学習との対照（1.2〜1.4, 2.1）: 旧の設定を差し替え、3つの乱数を同じseedで初期化して、実`_pretrain_initial_model(ResidualAdapterMLP)`と新の関数を実行する。2値・多クラス、標本数・epoch数・batchの件数の組（2の冪でない件数、最後のbatchが端数になる組、batchが標本数より大きい組、epoch数0を含む）、旧の既定の設定（500標本・10 epoch・batch 32）、optimizerの種類（Adamの2種、SGD）で、全パラメータ、2つのoptimizerの状態、損失統計、実行後の3つの乱数の状態を照合する。
 - clientの組立てへの接続（2.2）: 事前学習の結果から組み立てたclientを、実旧の事前学習の結果から実`__init__`で作った実旧のclientと、生成直後と、続く標本列・ラウンド境界の処理の後に、既存の照合（`assert_run_client_matches_legacy`）で照合する。
 
 ### fresh process・依存

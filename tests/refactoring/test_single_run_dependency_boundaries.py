@@ -4811,6 +4811,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "random.Random",
             "numpy.random.RandomState",
             "torch.float32",
+            "torch.is_grad_enabled",
             "torch.tensor",
             "federated_learning_experiments.data.observed_streams.ObservedSample",
             "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",

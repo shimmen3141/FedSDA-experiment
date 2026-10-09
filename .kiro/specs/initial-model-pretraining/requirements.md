@@ -55,7 +55,7 @@
 #### Acceptance Criteria
 
 1. If 事前学習の条件（標本数とbatchの件数は1以上の整数、epoch数は0以上の整数）が型または範囲に合わないとき, the 事前学習の設定 shall 生成時に拒否する。
-2. If 事前学習の設定、モデル構造の設定、optimizerの設定、標本生成器、乱数生成器が決まった型でないとき、または隠れ層の幅とクラス数が分類器の生成の条件に合わないとき, the Initial Model Pretraining shall 分類器を作らず、どの乱数も消費せずに拒否する。
+2. If 事前学習の設定、モデル構造の設定、optimizerの設定、標本生成器、乱数生成器が決まった型でないとき、隠れ層の幅（1層以上）とクラス数が分類器と共有部のoptimizerの生成の条件に合わないとき、またはepoch数が1以上なのに勾配の計算が無効であるとき, the Initial Model Pretraining shall 分類器を作らず、どの乱数も消費せずに拒否する。
 3. The Initial Model Pretraining shall 並行した呼出しでの結果を保証しない。
 
 ### Requirement 4: 新実装だけで動くことと依存の向き
