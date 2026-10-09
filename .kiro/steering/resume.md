@@ -21,7 +21,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - **検出episode（2026-10-09、主担当の判断）:** 制御（旧`DetectionEpisodeController`）と同一episodeの追加検出の経路は当面移植しない。最終構成の既定で無効。記録は[UNPORTED-001](../../docs/research/implementation-findings/unported-001-detection-episode-control.md)。ユーザーが必要と判断すれば覆せる。
 - **移植しないと決めたもの（2026-10-07ユーザー）:** 参照も学習させる候補検証方針（旧`shadow_tournament`）。記録は[UNPORTED-002](../../docs/research/implementation-findings/unported-002-reference-shadow-tournament.md)。
 - **依存testの方式の一本化は行わない（2026-10-09ユーザー）:** 既存の登録と注入契約testは移さず、消さない。新しいmoduleにはsymbolごとの注入契約testを足さない。記録は[IMPROVE-009](../../docs/research/improvement-candidates/improve-009-unify-dependency-boundary-tests.md)。
-- **手順（2026-10-09〜10ユーザー。正本は[共通引継ぎ手順](agent-handoff.md)。ここへ内容を写さない）:** 2026-10-10に、時間の実測をもとに軽くした。要点: worktreeでsource・実旧との対照test・spec.md（仕様1枚）を書き、未commitのまま独立レビューを1回受け、指摘を反映して全pytestを通してからcommitする。文書はspec.md・review.md・spec.jsonの3つ（revisionとhashの管理はしない）。「公開する名前」は公開のmodule・class・関数だけ。変異テストは既定では実行しない。specは旧のひとまとまりの流れの大きさにする。fresh processは共用script。
+- **手順（2026-10-09〜10ユーザー。正本は[共通引継ぎ手順](agent-handoff.md)。ここへ内容を写さない）:** 2026-10-10に、時間の実測をもとに軽くし、cc-sdd（kiro）のskillと標準の構成へ戻した。要点: kiroのskillで要求・設計・tasksを作り、下位taskを1つずつ実装し（下位taskごとのレビューはしない）、全taskの後に独立レビューを1回受ける。文書は標準の4つとnaming.md（公開する名前だけ）。review.md・証拠文書・READMEは作らない。変異テストは既定では実行しない。子エージェントは使わない。specは旧のひとまとまりの流れの大きさにする。fresh processは共用script。
 - **学習の途中失敗のときの計数（2026-10-09ユーザー）:** 1回の共同更新の途中で例外が出た場合の学習量の計数は旧と違うが、現在の流れでは読まれないので、そのままにする。記録は[NEW-003](../../docs/research/implementation-findings/new-003-training-count-after-mid-update-failure.md)。
 - 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)、不具合の疑い・移植しない判断・新実装で見つけた事項は[implementation-findings](../../docs/research/implementation-findings/README.md)へ、気づいた時点で1件1ファイルで記録する（2026-10-09ユーザー指示）。研究アルゴリズムの変更は採用していない。
 
@@ -90,9 +90,9 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 1. worktreeの[AGENTS.md](../../AGENTS.md)と[方針の正本](../../docs/research/refactoring-policy.md)。
 2. [roadmap](roadmap.md)の「現在の状態」、[product](product.md)、[tech](tech.md)、[structure](structure.md)。
-3. 対象specのspec.json・spec.md・review.md（2026-10-09までのspecは、README→spec.json/tasks.md→requirements/design/naming→review/integration-validation）。未完了があれば次のspecより先に扱う。
+3. 対象specのspec.json→tasks.md→requirements.md／design.md／naming.md（2026-10-09までのspecは、README→spec.json/tasks.md→requirements/design/naming→review/integration-validation）。未完了があれば次のspecより先に扱う。
 4. `git status --short`とブランチを確認し、別タスクの差分・未追跡資料を特定する。文書の案内と実際の状態が違う場合はGitとspecの正本を確認する。
-5. 調査→worktreeでsource・test・spec.md→独立レビュー1回→指摘の反映→全pytest→commit、の順に進む。レビューと記録の手順は共通引継ぎ手順に従う。
+5. kiroのskillで要求→設計（命名表）→tasks→下位taskごとの実装→独立レビュー1回→指摘の反映→全pytest、の順に進む。手順は共通引継ぎ手順に従う。
 
 ## 別タスクと記録の扱い
 

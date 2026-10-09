@@ -1,13 +1,13 @@
 # リファクタリングworktreeの規約
 
 - 承認は、実装担当と独立したレビュー担当（日常的・分量の多いレビューはGPT-6 Luna、やや複雑・難易度の高い実装のレビューはClaude Haiku 5.5を優先。利用不能時は他方。effortはどちらも`medium`を明示）と、主担当による有用な指摘の反映で行う。自己レビューで代替しない。
-- レビューの回数（コード・test・spec.mdをまとめて1回が基本）、モデルの選択と起動コマンド、記録するもの、検証コマンド、specの進め方の正本は[共通引継ぎ手順](.kiro/steering/agent-handoff.md)。命名の範囲と手順は[命名レビュー規約](.kiro/settings/rules/naming-review.md)。ここへ写さない。過去の承認記録は書き換えない。
+- 進め方とレビューの回数（全taskの後にまとめて1回が基本）、モデルの選択と起動コマンド、記録するもの、検証コマンド、specの進め方の正本は[共通引継ぎ手順](.kiro/steering/agent-handoff.md)。命名の範囲と手順は[命名レビュー規約](.kiro/settings/rules/naming-review.md)。ここへ写さない。過去の承認記録は書き換えない。
 
 ## worktreeの作業方針
 
 - 本worktreeは`refactor/architecture`ブランチ。旧実装の固定基準は`748c3aa`。
 - 方針の正本は[リファクタリング方針](docs/research/refactoring-policy.md)、進捗・変更仕様は`.kiro/specs/`で管理する。
-- セッション開始・再開時は、`.kiro/steering/resume.md`から入り、共通引継ぎ手順の「開始時」に従って、対象specの`spec.json`・`spec.md`・`review.md`で現在の合意と未承認事項を確認する。
+- セッション開始・再開時は、`.kiro/steering/resume.md`から入り、共通引継ぎ手順の「開始時」に従って、対象specの`spec.json`・`tasks.md`で現在の合意と未完了の事項を確認する。
 - 名前は短さより、意味の明確さ・他の概念と混同しないこと・実態との一致を優先する。
   必要なら4語・5語以上を用いる。承認済みのルートパッケージ名は`federated_learning_experiments`。
 - cc-sdd作業では`.kiro/steering/product.md`・`tech.md`・`structure.md`と対象specを読み、
@@ -15,9 +15,9 @@
 - 新実装は後方互換alias・旧形式読込み・旧import窓口を持たない。
 - 新実装の設定・選択肢は機能別の型と宣言から管理し、実体生成をruntimeへ分離する。
   以下の旧実装向けファイル名・登録先の規約は、移植前の既存コードを変更する場合にだけ適用する。
-- 新しいsource・testは、worktreeで書いてよい。独立レビューの承認と全pytestが済むまでcommitしない（2026-10-10ユーザー決定。命名だけを先に承認する段階は置かない）。
+- cc-sdd（kiro）のskillと標準の構成（spec.json、requirements.md、design.md、tasks.md）を基本とし、命名表（naming.md）を足す（2026-10-10ユーザー決定）。要求→設計→tasks→下位taskごとの実装（`--review off`）→最後に独立レビュー1回、の順に進める。子エージェントは使わず、レビューは独立CLIで行う。
   cc-sddの`-y`・`--auto`、以前の「開始して」という依頼、時間経過を承認として扱わない。人間の承認を毎段階で再要求せず、レビューのsession・判定・指摘の採否を対象specへ記録する。
-  現在の状態は対象specの`spec.json`・`spec.md`・`review.md`から確認する。
+  現在の状態は対象specの`spec.json`・`tasks.md`から確認する。
 - 移植対象の数値・判断・時系列をgoldenと照合する。新APIとの対応付けはテスト側で明示する。
 - 基準worktreeには3つのコミット保留資料とresultsがある。本worktreeへ自動コピー・stageしない。
 - コミット・プッシュは2026-10-03にユーザーが許可済み。検証済みで切り戻しやすい責務の単位で行い、対象ファイルを明示してstageする。
