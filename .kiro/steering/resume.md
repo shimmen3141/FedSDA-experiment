@@ -22,9 +22,10 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - **検出episode（2026-10-09、主担当の判断）:** 制御（旧`DetectionEpisodeController`）と同一episodeの追加検出の経路は当面移植しない。最終構成の既定で無効。記録は[UNPORTED-001](../../docs/research/implementation-findings/unported-001-detection-episode-control.md)。ユーザーが必要と判断すれば覆せる。
 - **移植しないと決めたもの（2026-10-07ユーザー）:** 参照も学習させる候補検証方針（旧`shadow_tournament`）。記録は[UNPORTED-002](../../docs/research/implementation-findings/unported-002-reference-shadow-tournament.md)。
 - **依存testの方式の一本化は行わない（2026-10-09ユーザー）:** 既存の登録と注入契約testは移さず、消さない。新しいmoduleにはsymbolごとの注入契約testを足さない。記録は[IMPROVE-009](../../docs/research/improvement-candidates/improve-009-unify-dependency-boundary-tests.md)。
-- **手順の簡素化（2026-10-09ユーザー）:** 変異は汎用の`mutation_check.py`、命名表はsourceとtestのmodule直下の名前まで、設計・tasksへ条件数を書かない、小さいspecでは最終判定をTask 3のレビューと同じ依頼で受けてよい、resumeへ件数・hashを写さない、依存の注入契約testをsymbolごとに足さない、fresh processの確認は共用script。Haikuのeffortの既定は`medium`。正本は[共通引継ぎ手順](agent-handoff.md)。
+- **手順の簡素化（2026-10-09ユーザー）:** 変異は汎用の`mutation_check.py`、命名表はsourceとtestのmodule直下の名前まで、設計・tasksへ条件数を書かない、resumeへ件数・hashを写さない、依存の注入契約testをsymbolごとに足さない、fresh processの確認は共用script。Haikuのeffortの既定は`medium`。正本は[共通引継ぎ手順](agent-handoff.md)。
 - **命名表のための下書き（2026-10-09ユーザー）:** 命名の承認より前に、source・testをリポジトリ外で下書きして作業ツリーの複製で実行してよい（worktreeへは置かない。複製での結果は承認の証拠に使わない。research.mdへ書く）。held-model-training-request-handlingの仕様レビューで逸脱と指摘された進め方を、ユーザーが認めた。正本は[共通引継ぎ手順](agent-handoff.md)とworktreeのAGENTS.md。
 - **文面だけの指摘（2026-10-09ユーザー）:** 処理・契約・要求の意味・testを変えない文面だけの指摘は、修正と記録だけで再レビューを省いてよい。条件と記録の方法は[共通引継ぎ手順](agent-handoff.md)。
+- **手順の見直し（2026-10-09ユーザー、2回目）:** test関数の名前は命名表へ登録しない。specの状態はspec.jsonとtasks.mdだけに書き、READMEの状態の行と統合検証のレビューの節を置かない（`spec_checks.py progress`が検査する）。tasksは実装task（進める順の下位taskへ分ける。検出力の確認を含む）と全回帰と証拠のtaskに分ける。別sessionのfeature最終レビューは行わず、最後のtaskのレビューが完了の判定を兼ねる。正本は[共通引継ぎ手順](agent-handoff.md)。
 - **学習の途中失敗のときの計数（2026-10-09ユーザー）:** 1回の共同更新の途中で例外が出た場合の学習量の計数は旧と違うが、現在の流れでは読まれないので、そのままにする。記録は[NEW-003](../../docs/research/implementation-findings/new-003-training-count-after-mid-update-failure.md)。
 - 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)、不具合の疑い・移植しない判断・新実装で見つけた事項は[implementation-findings](../../docs/research/implementation-findings/README.md)へ、気づいた時点で1件1ファイルで記録する（2026-10-09ユーザー指示）。研究アルゴリズムの変更は採用していない。
 
@@ -94,7 +95,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 2. [roadmap](roadmap.md)の「現在の状態」、[product](product.md)、[tech](tech.md)、[structure](structure.md)。
 3. 対象specのREADME→spec.json/tasks.md→requirements/design/naming→review/integration-validation。未完了taskがあれば次のspecより先に扱う。
 4. `git status --short`とブランチを確認し、別タスクの差分・未追跡資料を特定する。文書の案内と実際の状態が違う場合はGitとspecの正本を確認する。
-5. cc-sddの要求→設計/命名→tasks→実装→統合検証へ進む。各段階は共通のLuna/Haiku 5.5選択方針に従った独立レビューと有用な指摘の反映で承認し、選択理由・モデル/effort・代替理由・採否・内容hashを記録する。命名承認前に新srcや先取りtestを作らない。
+5. cc-sddの要求→設計/命名→tasks→実装→全回帰と証拠へ進む。各段階は共通のLuna/Haiku 5.5選択方針に従った独立レビューと有用な指摘の反映で承認し、選択理由・モデル/effort・代替理由・採否・内容hashを記録する。命名承認前に新srcや先取りtestを作らない。
 
 ## 別タスクと記録の扱い
 
