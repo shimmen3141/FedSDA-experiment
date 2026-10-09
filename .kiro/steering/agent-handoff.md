@@ -29,12 +29,12 @@ resumeは要約であり、承認状態を単独で決める根拠にしない�
 ```text
 このリファクタリングworktreeのAGENTS.md、.kiro/steering/resume.md、
 .kiro/steering/agent-handoff.mdを読み、Gitと対象specから現在地を確認してください。
-未完了・レビュー待ちを優先し、共有規約と対象の難度に応じたLuna/Haiku 5.5の選択・相互代替による独立レビュー条件を維持して続けてください。
+未完了・レビュー待ちを優先し、共有規約と、対象の難度に応じたLuna/Haiku 5.5の選択・相互代替による独立レビュー（仕様と実装の2回）を維持して続けてください。
 ```
 
 ## 承認と独立レビュー
 
-要求→設計・命名→tasks→実装task→全回帰と証拠のtask、の各ゲートを維持する。別sessionのfeature最終レビューは行わない（2026-10-09ユーザー決定。それまでの最終レビューの指摘は、記録の更新漏れと、判定基準の読み違いによるものだった）。最後のtask（全回帰と証拠）のレビューが完了の判定を兼ねる: 実装taskのレビューに関わっていない別sessionが、要求を1項目ずつ実装・testと照合し、`spec_checks.py identity`と`progress`を独立に実行する。承認されたら、specを完了にする。主担当が必要と判断した場合（実装taskのレビューで採否の割れた指摘が残る、複数のspecにまたがる変更など）は、別sessionのレビューを1回足してよい。独立レビューと、主担当による有用な指摘の反映を承認として扱う。自己レビュー、cc-sddの自動承認・inline/off、`kiro-spec-quick --auto`、`-y`で置き換えない。[命名レビュー規約](../settings/rules/naming-review.md)に従う。
+独立レビューは、1つのspecにつき2回を基本にする（2026-10-09ユーザー決定）。(1)仕様のレビュー: 要求・設計・命名・tasksを1回の依頼で出し、判定は段階ごとに受ける。実装の前に受ける。(2)実装のレビュー: 全taskの実装と全回帰を済ませてから1回で受ける。実装していない別sessionが、コード、検出力の証拠、要求1項目ずつと実装・testの照合、`spec_checks.py identity`と`progress`、対象test・共用script・Ruffの独立実行をまとめて行う。承認されたらspecを完了にする。taskごとのレビューと、別sessionのfeature最終レビューは行わない。再レビューを受けるのは、Blocker・Majorの指摘を直したとき（直した内容を別sessionが確認する）と、下の「文面だけの指摘」に当たらない改訂をしたとき。Minorの指摘でtestやコードを直したときは、全回帰をやり直して記録し、再レビューは省いてよい。主担当が必要と判断した場合（採否の割れた指摘が残る、複数のspecにまたがる変更など）は、別sessionのレビューを1回足してよい。独立レビューと、主担当による有用な指摘の反映を承認として扱う。自己レビュー、cc-sddの自動承認・inline/off、`kiro-spec-quick --auto`、`-y`で置き換えない。[命名レビュー規約](../settings/rules/naming-review.md)に従う。
 
 | 対象 | 優先モデル | 利用不能時 |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ resumeは要約であり、承認状態を単独で決める根拠にしない�
 - effortは明示指定し、代替で使うときも各モデルの上の指定とする。指定が拒否されたら既定値で続行せず他方へ代替する。
 - 毎回、実装担当の会話を継続せず独立したreviewerとして起動し、再委譲しない役割を明記する。permission bypassや認証・ユーザー設定の変更は行わない。
 - 記録するもの: 選択理由、実際のモデルとeffort、代替時の利用不能の事実、対象revision/hash、結果、指摘の採否と理由。Lunaはログのmodel行と`reasoning effort`行、HaikuはJSONの`is_error=false`と`modelUsage`の実モデルで確認する（Haikuの実効effortは出力されないので指定値として記録する）。呼出しの成功だけを承認に数えない。
-- 未承認段階のapprovedをtrueにしない。未レビューのtaskを完了扱いしない。レビュー後に対象が変わったらrevision/hashを更新して承認を取り直す。過去の承認記録は書き換えない。
+- 未承認段階のapprovedをtrueにしない。tasks.mdのcheckboxは、主担当の実装と検証が済んだtaskに付ける。specを完了（phase）にするのは実装のレビューの承認後。レビュー後に対象が変わったらrevision/hashを更新して承認を取り直す（文面だけの指摘の扱いは下）。過去の承認記録は書き換えない。
 - 未承認の名前・仕様を先取りして実装しない。命名表へ登録するのは、sourceの名前（module、関数、class、引数、field、局所名）と、testのmodule直下の名前（test module、helper関数、定数、importの別名）。test関数の名前（`test_`で始まるmodule直下の関数。2026-10-09ユーザー決定）、test関数の中の局所名・引数・parametrize引数、条件名になるdictのkeyは登録しない（`spec_checks.py names`も同じ範囲を照合する）。既存名の再利用は元と同じ役割であることを示す。記録用wrapperに、判定を行う関数と読める名前を付けない。 例外（2026-10-09ユーザー決定）: 命名表を作るために、source・testをリポジトリ外で下書きし、作業ツリーの複製（`git archive`）で実行して、名前と実行可能性を確かめてよい。下書きはworktreeへ置かず、worktreeのtestも実行しない。複製での結果は承認の証拠に使わない（判定は、承認の後にworktreeへ適用した実装の実測とレビューによる）。下書きを作った事実はresearch.mdへ書く。
 
 起動例（PowerShell。依頼文は`$reviewPrompt`へ。複数行は単一引用符のhere-string）。読取りレビュー用で、testを実行させるときは対象と権限を別途限定する（Lunaは`--sandbox workspace-write`）。
@@ -57,16 +57,15 @@ codex exec -m gpt-6-luna -c 'model_reasoning_effort="medium"' --sandbox read-onl
 
 ### レビューに出す前と依頼文
 
-- 機械的に照合できるものは先に`.kiro/settings/scripts/spec_checks.py`で確かめ、出力を依頼文へ貼る（使い方はscript冒頭）。`names`は束縛名と命名表の照合、`identity`は承認hash・固定旧差分・source hash・作業ツリー・JUnitの照合。`progress`はtasks.mdの完了数とspec.jsonの進捗・phaseの照合、状態を重ねて書いていないことの検査（下の「状態を書く場所」）、再開案内・roadmapに残る「待ち」「未実施」の表示で、最後のtaskのレビューへ出す前（再開案内を現在の状態へ更新してから）と完了の記録後に実行する。名前の役割や検査の順序の正しさは判定しない。
-- 状態を更新する処理は、レビューの前に`.kiro/settings/scripts/mutation_check.py`を実行する（「検査を更新の後へ移す」変異を含む。下の「REDと検出力」）。
+- 機械的に照合できるものは先に`.kiro/settings/scripts/spec_checks.py`で確かめ、出力を依頼文へ貼る（使い方はscript冒頭）。`names`は束縛名と命名表の照合、`identity`は承認hash・固定旧差分・source hash・作業ツリー・JUnitの照合。`progress`はtasks.mdの完了数とspec.jsonの進捗・phaseの照合、状態を重ねて書いていないことの検査（下の「状態を書く場所」）、再開案内・roadmapに残る「待ち」「未実施」の表示で、実装のレビューへ出す前（再開案内を現在の状態へ更新してから）と完了の記録後に実行する。名前の役割や検査の順序の正しさは判定しない。
 - 依頼文に書くこと: (1)worktreeの絶対パス・期待するブランチ・HEAD。(2)対象ファイルとLF hash、主担当の実測、手順上の逸脱。(3)全pytestの判定基準の原文（下記）。(4)「自分のモデル名を確認できないことを判定理由にしない」こと。(5)出力形式（1行目に判定、番号付き指摘、独立に実行したもの・していないもの）。
 - 設計レビューの確認項目: (a)例外を出す検査（戻り値のrecordのconstructorを含む）がすべて最初の状態更新より前にあるか。上流の型が検査しないfieldに手で組み立てた値（boolのID、None、fieldの不対応）が入っても更新前に拒否されるか。(b)要求を1文ずつ設計の条件と照合し、設計側にだけある例外句がないか。
-- 実装レビューでは(a)(b)を1回目から実コードで確認させる。変異は`report.json`の場所と、未検出の変異とその扱い（testを足した、または等価と判断した理由）を渡し、検出力の指摘は「どの変異でも覆われていない検査」に限らせる。
+- 実装のレビューでは(a)(b)を実コードで確認させる。変異は`report.json`の場所と、未検出の変異とその扱い（testを足した、または等価と判断した理由）を渡し、検出力の指摘は「どの変異でも覆われていない検査」に限らせる。仕様のレビューの後に文面だけの修正をした文書があれば、その旨を書いて読ませる。
 - 重大度: Minorは外から観測できる挙動または検出できる欠陥が変わるもの。書き方の好みは「任意」として分けて出させる。
-- 指摘は全て採用する必要はない。前提が事実と違う指摘は根拠を示して不採用とし、理由をreview.mdへ書く。NO-GOの理由が実装・testにないときも、GOへ書き換えず、事実を示して再判定を依頼する。
+- 指摘は全て採用する必要はない。前提が事実と違う指摘は根拠を示して不採用とし、理由をreview.mdへ書く。却下の理由が実装・testにないときも、承認へ書き換えず、事実を示して再判定を依頼する。
 - レビュー担当にtestを実行させた後は、`git status --short`が依頼前と同じであることを確かめる。
 - レビュー依頼は対象段階・実diff・対応する要求と契約・関連する証拠を入口にする。上流の実装や過去specは判断に必要な箇所だけ追加で読む。役割が異なるレビューへ同じ全資料を毎回読ませない。
-- 同じcommit・承認hash・検証条件の機械照合は一度の出力を再利用できる。対象変更・証拠不足・独立確認が必要な場合は再実行する。最後のtaskのレビュー担当は統合判定に集中し、既に独立再現された検証の重複実行は必要性を判断する。
+- 同じcommit・承認hash・検証条件の機械照合は一度の出力を再利用できる。対象変更・証拠不足・独立確認が必要な場合は再実行する。
 
 ### 全pytestの独立再現の基準（2026-10-07ユーザー決定）
 
@@ -79,12 +78,12 @@ codex execのWindows sandboxでは一時ディレクトリの操作が拒否さ�
 
 ## specの進め方
 
-- 1つのspecは、旧の1メソッドまたはその一部に対応する小さな単位にする。文書はREADME・brief・requirements・design・naming・tasks・research・review・mutation-and-cpu-evidence・integration-validation・spec.json。spec.jsonの既存構造を守り、別台帳を増やさない。
-- 状態を書く場所（2026-10-09ユーザー決定。同じ状態を複数の文書へ書くと、段階が進むたびに書き換え漏れが出る）: specの現在の状態（どのrevisionが承認済みか、どのtaskが済んだか、完了か）は、spec.json（approvals、implementation_progress、phase、task_reviews）とtasks.mdのcheckboxだけに書く。レビューの経緯と採否はreview.mdだけに書く。READMEは文書の案内だけにし、状態の行を置かない。integration-validation.mdは検証の事実（対象commit、件数、hash、要求対応、未検証事項）だけにし、レビューの判定や担当を書かない。再開案内は「現在地」の1行と完了specの一覧（リンクと一言）だけを更新する。`spec_checks.py progress`が、READMEの状態の行とintegration-validation.mdのレビューの節を見つけたら失敗にする（この規則より前からあるspecは対象外）。
+- specの大きさ（2026-10-09ユーザー決定）: 1つのspecは、旧の「ひとまとまりの流れ」（例: 標本1件の処理全体）に対応させ、つなぐ先まで含める。「呼ぶ位置は後続」のような未接続の境界を、specを分けるためだけに残さない。数値やアルゴリズムの一致が繊細な部分（損失・学習・乱数の順序など）は、そこだけ小さいspecへ切り出してよい。大きいspecでは、下位taskごとに実旧との対照testを置き、変異toolを関数ごとに実行する。文書はREADME・brief・requirements・design・naming・tasks・research・review・mutation-and-cpu-evidence・integration-validation・spec.json。spec.jsonの既存構造を守り、別台帳を増やさない。
+- 状態を書く場所（2026-10-09ユーザー決定。同じ状態を複数の文書へ書くと、段階が進むたびに書き換え漏れが出る）: specの現在の状態（どのrevisionが承認済みか、どのtaskが済んだか、完了か）は、spec.json（approvals、implementation_progress、phase、task_reviews）とtasks.mdのcheckboxだけに書く。レビューの経緯と採否はreview.mdだけに書く。READMEは文書の案内だけにし、状態の行を置かない。integration-validation.mdは検証の事実（対象commit、件数、hash、要求対応、未検証事項）だけにし、レビューの判定や担当を書かない。再開案内に書く範囲は冒頭の「作業場所と正本」のとおり（specごとに更新するのは「現在地」「次の一手」と完了specの一覧）。`spec_checks.py progress`が、READMEの状態の行とintegration-validation.mdのレビューの節を見つけたら失敗にする（この規則より前からあるspecは対象外）。
 - 設計とtasksには、testの条件数・変異の種類の一覧・件数を書かない（確かめる観点だけを書く）。数は証拠文書（mutation-and-cpu-evidence.md、integration-validation.md）に書く。testの条件を足しただけで承認済みの文書のrevisionを上げることにならないようにするため。
-- 要求・設計・命名・tasksは1回の依頼でまとめてレビューに出してよい。判定は段階ごとに受け、spec.jsonへ段階ごとのrevision・LF hash・sessionを記録する。改訂した段階だけ再レビューする。
-- 文面だけの指摘は、修正して再レビューを省いてよい（2026-10-09ユーザー決定）。対象は、レビューの指摘が文書の記述の正確さ・明確さだけに関わり、反映しても処理・契約・検査の順・例外・testの方針・要求の意味・source・testが変わらないもの。主担当が修正し、review.mdへ指摘ごとの修正内容を書き、spec.jsonへ修正後のrevisionとhashを、最後にレビューを受けたrevision・sessionと「文面だけの修正」である旨とともに記録する。次のどれかに当たる場合は再レビューを受ける: Blocker・Majorの指摘、処理・契約・要求の意味・testを変える修正、指摘を不採用にする場合、文面だけかどうか迷う場合。省いた事実は次のレビュー（task、feature最終）の依頼文へ書き、そのレビューが修正後の文書を読む。
-- tasksの分け方（2026-10-09ユーザー決定）: 実装taskと、最後の「全回帰と証拠」のtaskに分ける。実装taskは、cc-sddの基準（下位taskは1〜3時間の実行単位で、確かめられる成果物と、観測できる完了条件を持つ）に従って、実装を進める順に下位task（1.1、1.2…）へ分ける。例: test→source→依存の許可集合と共用script→変異toolによる検出力の確認。関数1つ・module 1つ程度で全体が1〜3時間に収まるspecは、実装taskを1つにしてよい（その場合も、進める順を箇条書きで書く）。検出力の確認は実装taskに含め、独立したtaskにしない。レビューは最上位のtaskごとに受ける（下位taskごとには受けない）。task作成前に止まらず、spec完了（最後のtaskの承認）を区切りにする。やむを得ず中断するときは、対象specとresumeへ未完了の状態と次の一手を残す。
+- spec.jsonへ、段階ごとのrevision・LF hash・sessionを記録する。改訂した段階だけ再レビューする。
+- 文面だけの指摘は、修正して再レビューを省いてよい（2026-10-09ユーザー決定）。対象は、レビューの指摘が文書の記述の正確さ・明確さだけに関わり、反映しても処理・契約・検査の順・例外・testの方針・要求の意味・source・testが変わらないもの。主担当が修正し、review.mdへ指摘ごとの修正内容を書き、spec.jsonへ修正後のrevisionとhashを、最後にレビューを受けたrevision・sessionと「文面だけの修正」である旨とともに記録する。次のどれかに当たる場合は再レビューを受ける: Blocker・Majorの指摘、処理・契約・要求の意味・testを変える修正、指摘を不採用にする場合、文面だけかどうか迷う場合。省いた事実は実装のレビューの依頼文へ書き、そのレビューが修正後の文書を読む。
+- tasksの分け方（2026-10-09ユーザー決定）: 実装taskと、最後の「全回帰と証拠」のtaskに分ける。実装taskは、cc-sddの基準（下位taskは1〜3時間の実行単位で、確かめられる成果物と、観測できる完了条件を持つ）に従って、実装を進める順に下位task（1.1、1.2…）へ分ける。流れの段ごとに、test→source→依存の許可集合と共用script→変異toolによる検出力の確認、の順で進める。全体が1〜3時間に収まるspecは、実装taskを1つにしてよい（その場合も、進める順を箇条書きで書く）。task作成前に止まらず、spec完了（実装のレビューの承認）を区切りにする。やむを得ず中断するときは、spec.jsonのhandoffとresumeへ未完了の状態と次の一手を残す。
 - 検査と数値の生成を状態変更より前に置く。旧と処理順が変わる場合は、成功時の観測値（値・順序・乱数の消費）が変わらないことを実旧との対照testで示し、research.mdへ理由を書く。
 - 不正入力・上流状態・乱数の検証範囲は、その部品が受け取る入力と触れ得る状態から決める。関係しない状態の組合せまで網羅しない。上流の契約testを再利用するときは、その証拠が今回の接続・更新順も覆うか確認する。
 - 旧の契約外入力での挙動（部分更新など）は、実旧で再現してからimplementation-findingsへ記録する。正常経路の非対称はユーザーへ確認する。処理の簡略化・効率化・局所的な調整の案は改善候補へ1候補1ファイルで記録し、旧挙動を維持する移植へ混ぜない。
@@ -93,7 +92,7 @@ codex execのWindows sandboxでは一時ディレクトリの操作が拒否さ�
 ### REDと検出力
 
 - testは実装より先に書く。新しいmoduleのtestが「moduleがない」ために収集失敗するだけのREDは記録しない。既存の処理を変えるspecでは、変更後のtestを変更前のsourceで実行して、失敗するtestを記録する。依存境界は、guardを登録する前に失敗することを確かめる。仕様化の段階ではworktreeのtestを実行しない。
-- GREENの後、`.kiro/settings/scripts/mutation_check.py`で検出力を確かめる（使い方はscript冒頭）。specごとに変異scriptを書かない。scriptは、対象関数の文から、検査や呼出しを1つ消す・例外を出しうる文を後続の代入の後へ移す・隣り合う文を入れ替える・exact型検査をisinstanceへ緩める、の変異を機械的に作り、1種ずつ対象testを実行して元byteへ戻す。機械的に作れない変異（引数の差替えなど）は、その接続に固有の危険があるときだけ`--extra`で足す。
+- GREENの後、実装のレビューへ出す前に、`.kiro/settings/scripts/mutation_check.py`で検出力を確かめる（使い方はscript冒頭）。specごとに変異scriptを書かない。scriptは、対象関数の文から、検査や呼出しを1つ消す・例外を出しうる文を後続の代入の後へ移す・隣り合う文を入れ替える・exact型検査をisinstanceへ緩める、の変異を機械的に作り、1種ずつ対象testを実行して元byteへ戻す。機械的に作れない変異（引数の差替えなど）は、その接続に固有の危険があるときだけ`--extra`で足す。
 - 未検出の変異は、testの穴か等価な変異（例: 読取りだけの代入の後へ検査を移した）のどちらかである。穴ならtestを足す。等価なら理由を証拠文書へ書く。証拠文書には、実行したコマンド、検出数/総数、未検出の変異とその扱いを書き、変異ごとの表は載せない（`report.json`が正本）。
 - 対象は、そのspecで新しく書いた関数と変更した関数だけにする。変更していない関数や過去specの変異を再実行しない。変異scriptは実装ファイルを書き換えるので、レビュー担当には実行させず`report.json`を読ませる。
 - 新実装だけで動くことの確認（fresh process）は、specごとにscriptを書かず、Git管理下の共用script（`tests/refactoring/fresh_process_smoke.py`。旧実装とtest moduleをimportしない）へ、そのspecの接続を通る流れを足して育てる。全pytestから別processで実行するtestを置き、sourceの変更で動かなくなったらすぐ分かるようにする。2026-10-09より前のspecの個別scriptはGit管理外の当時の証拠で、現在のsourceでは動かないものがある。新全体runを接続したら、全体runのtestへ置き換えて廃止する。
@@ -132,9 +131,9 @@ $PY .kiro/settings/scripts/spec_checks.py identity <feature名> --junit "$TMP/<f
 ## Git・成果物・終了時
 
 - commit/pushは対象ファイルを明示し、日本語メッセージ・AI coauthorなしで行う。保留中の3資料を自動でstageしない。commit後にGit状態を確認する。
-- pushはtaskごとに通常pushを1回だけ試す。失敗時は原因探索・連続再試行をせず、次taskのpush成功時に未送信commitも送る。
+- pushはcommitの区切りごとに通常pushを1回だけ試す。失敗時は原因探索・連続再試行をせず、次のpush成功時に未送信commitも送る。
 - `../../venv/refactoring-tests/`（元checkoutのvenv配下、このPCだけ、Git管理外）に、各specの変異の`report.json`とlog、全pytestのJUnit、レビューの出力を置く（2026-10-09より前のspecは、個別のfresh CPU smokeと変異scriptもここにある）。別PCでは存在しないので、必要なら対象specのintegration-validation.mdから作り直す。results・保留資料・venvもGitで共有されるとは限らない。
-- 中断・交代の前に、対象specへ「完了済み/進行中/レビュー待ち/検証待ち」と実差分・次の一手を記録し、resumeを更新する。
+- 中断・交代の前に、spec.jsonのhandoffへ未完了の状態（進行中／レビュー待ち／検証待ち）と次の一手を記録し、実差分をcommitするか対象specのresearch.mdへ書いて、resumeを更新する。
 
 ## cc-sdd
 

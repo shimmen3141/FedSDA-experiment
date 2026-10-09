@@ -5,16 +5,15 @@
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
-Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う。2026-10-08の新方針は日常的・分量の多いレビューにLuna、やや複雑・難易度の高い実装レビューにHaiku 5.5を優先し、利用不能時は他方へ代替する。effortはHaiku・Lunaとも`medium`に明示指定する（Haikuは2026-10-09のユーザー指示で`high`から変更）。起動・判断の正本は共通引継ぎ手順。
+Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う。レビュー担当の選択・起動・回数の正本は共通引継ぎ手順。
 
 ## 現在地
 
 - **現在地:** [held-model-training-request-handling](../specs/held-model-training-request-handling/README.md)（学習要求の記録と保有モデルの共同学習）まで完了。進行中の編集・未解消レビュー指摘はない。その前の[released-pending-sample-assignment](../specs/released-pending-sample-assignment/README.md)（警報のない標本での帰属確定）まで完了。その前の[shared-verification-infrastructure](../specs/shared-verification-infrastructure/README.md)（検証基盤の整理）と、[held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md)まで完了。
-- **次の一手:** 下の「次の候補」1（保留標本のowner、標本1件の処理全体）を、境界を分けて要求から仕様化する。同期を同じspecへ混ぜない。新しい接続を移植するspecは、その接続を通る流れを共用の`tests/refactoring/fresh_process_smoke.py`へ足す。
+- **次の一手:** 下の「次の候補」1を、1つのspec「標本1件の処理全体」として要求から仕様化する（保留標本のowner、学習要求の2関数を呼ぶ位置、検出位置の記録、標本ごとの履歴を含める）。サーバ同期は含めない。新しい接続は、共用の`tests/refactoring/fresh_process_smoke.py`へ流れを足す。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。`federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧名alias/互換読込みを追加しない。
-- **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。Task 3と最終GOは、Windows基準での全回帰が済むまで完了にしない。
+- **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。specの完了は、Windows基準での全回帰が済むまで記録しない。
 - **レビュー担当の利用状況（2026-10-09）:** GPT-6 Luna（`codex exec`）は利用上限に達しており、CLIの表示では2026-10-14 12:54まで使えない。それまでは、共通引継ぎ手順の代替規則によりClaude Haiku 5.5（effort `medium`）がLunaの担当分も行う。Haikuに対象test・共用script・Ruff・`spec_checks.py`を独立実行させるときは、`--tools Read,Glob,Grep,Bash`と`--allowedTools`で検証コマンドだけを許可して起動する（例と記録はreleased-pending-sample-assignmentのreview.md。ファイルの変更やその他のコマンドは許可しない）。Lunaが戻ったら通常の分担へ戻す。
-- pushの扱い: taskごとに通常pushを1回だけ試す。失敗時は連続再試行や原因探索をせず、次taskのpush成功時に未送信commitも送る（2026-10-08ユーザー指示）。
 
 ## 決定事項
 
@@ -22,10 +21,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - **検出episode（2026-10-09、主担当の判断）:** 制御（旧`DetectionEpisodeController`）と同一episodeの追加検出の経路は当面移植しない。最終構成の既定で無効。記録は[UNPORTED-001](../../docs/research/implementation-findings/unported-001-detection-episode-control.md)。ユーザーが必要と判断すれば覆せる。
 - **移植しないと決めたもの（2026-10-07ユーザー）:** 参照も学習させる候補検証方針（旧`shadow_tournament`）。記録は[UNPORTED-002](../../docs/research/implementation-findings/unported-002-reference-shadow-tournament.md)。
 - **依存testの方式の一本化は行わない（2026-10-09ユーザー）:** 既存の登録と注入契約testは移さず、消さない。新しいmoduleにはsymbolごとの注入契約testを足さない。記録は[IMPROVE-009](../../docs/research/improvement-candidates/improve-009-unify-dependency-boundary-tests.md)。
-- **手順の簡素化（2026-10-09ユーザー）:** 変異は汎用の`mutation_check.py`、命名表はsourceとtestのmodule直下の名前まで、設計・tasksへ条件数を書かない、resumeへ件数・hashを写さない、依存の注入契約testをsymbolごとに足さない、fresh processの確認は共用script。Haikuのeffortの既定は`medium`。正本は[共通引継ぎ手順](agent-handoff.md)。
-- **命名表のための下書き（2026-10-09ユーザー）:** 命名の承認より前に、source・testをリポジトリ外で下書きして作業ツリーの複製で実行してよい（worktreeへは置かない。複製での結果は承認の証拠に使わない。research.mdへ書く）。held-model-training-request-handlingの仕様レビューで逸脱と指摘された進め方を、ユーザーが認めた。正本は[共通引継ぎ手順](agent-handoff.md)とworktreeのAGENTS.md。
-- **文面だけの指摘（2026-10-09ユーザー）:** 処理・契約・要求の意味・testを変えない文面だけの指摘は、修正と記録だけで再レビューを省いてよい。条件と記録の方法は[共通引継ぎ手順](agent-handoff.md)。
-- **手順の見直し（2026-10-09ユーザー、2回目）:** test関数の名前は命名表へ登録しない。specの状態はspec.jsonとtasks.mdだけに書き、READMEの状態の行と統合検証のレビューの節を置かない（`spec_checks.py progress`が検査する）。tasksは実装task（進める順の下位taskへ分ける。検出力の確認を含む）と全回帰と証拠のtaskに分ける。別sessionのfeature最終レビューは行わず、最後のtaskのレビューが完了の判定を兼ねる。正本は[共通引継ぎ手順](agent-handoff.md)。
+- **手順（2026-10-09ユーザー。正本は[共通引継ぎ手順](agent-handoff.md)。ここへ内容を写さない）:** 同日に3回見直した。要点: レビューは仕様と実装の2回が基本（taskごとのレビューと別sessionの最終レビューは廃止）、specは旧のひとまとまりの流れの大きさにする、tasksは実装task（進める順の下位task）と全回帰と証拠、状態はspec.jsonとtasks.mdだけに書く、文面だけの指摘は再レビュー不要、命名表のためのリポジトリ外の下書きは可、test関数の名前は命名表の対象外、変異は汎用tool、fresh processは共用script。
 - **学習の途中失敗のときの計数（2026-10-09ユーザー）:** 1回の共同更新の途中で例外が出た場合の学習量の計数は旧と違うが、現在の流れでは読まれないので、そのままにする。記録は[NEW-003](../../docs/research/implementation-findings/new-003-training-count-after-mid-update-failure.md)。
 - 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)、不具合の疑い・移植しない判断・新実装で見つけた事項は[implementation-findings](../../docs/research/implementation-findings/README.md)へ、気づいた時点で1件1ファイルで記録する（2026-10-09ユーザー指示）。研究アルゴリズムの変更は採用していない。
 
@@ -61,7 +57,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### 1. 標本1件の処理の残り（未仕様化）
 
-警報が起きた標本での処理は`handle_alarm_occurrence`で1回の呼出しになり、候補検証の進行（`advance_held_candidate_validation`）は確定時に診断へ通知するようになった。標本1件の処理全体（旧`process_one_step`）へ向けて残るのは次のとおり。一度に混ぜず、境界を決めてspecを分ける。
+警報が起きた標本での処理は`handle_alarm_occurrence`で1回の呼出しになり、候補検証の進行（`advance_held_candidate_validation`）は確定時に診断へ通知するようになった。標本1件の処理全体（旧`process_one_step`）へ向けて残るのは次のとおり。1つのspecで扱う（数値の一致が繊細な部分が出てきたら、そこだけ切り出す）。
 
 - 学習要求の記録と共同学習は、`record_training_request_and_train_held_models_when_due`と`train_held_models_for_pending_training_requests`で接続済み（呼ぶ位置は未接続。旧は、標本ごとの学習stepが警報のない分岐の最後、消化が警報の処理の前とラウンド境界）。警報のない標本での帰属確定は`assign_released_pending_samples_to_current_training_model`で接続済み。計算量・所要時間・勾配の診断は未移植。
 - 保留標本そのもの（特徴・ラベル・概念ID）を持つowner: 現在は、警報のときの応答と警報のない標本での確定が、呼出し側から全保留標本を位置つきで受け取る。ownerをどこに置くかと、2箇所の並びの検査の重複（IMPROVE-010）を合わせて決める。
@@ -95,7 +91,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 2. [roadmap](roadmap.md)の「現在の状態」、[product](product.md)、[tech](tech.md)、[structure](structure.md)。
 3. 対象specのREADME→spec.json/tasks.md→requirements/design/naming→review/integration-validation。未完了taskがあれば次のspecより先に扱う。
 4. `git status --short`とブランチを確認し、別タスクの差分・未追跡資料を特定する。文書の案内と実際の状態が違う場合はGitとspecの正本を確認する。
-5. cc-sddの要求→設計/命名→tasks→実装→全回帰と証拠へ進む。各段階は共通のLuna/Haiku 5.5選択方針に従った独立レビューと有用な指摘の反映で承認し、選択理由・モデル/effort・代替理由・採否・内容hashを記録する。命名承認前に新srcや先取りtestを作らない。
+5. cc-sddの要求→設計/命名→tasks→実装→全回帰と証拠へ進む。レビューと記録の手順は共通引継ぎ手順に従う。
 
 ## 別タスクと記録の扱い
 

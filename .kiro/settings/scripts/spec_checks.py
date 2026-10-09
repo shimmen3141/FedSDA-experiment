@@ -18,7 +18,7 @@ progress: tasks.mdの完了数とspec.jsonの進捗・phaseを照合する（不
     （READMEの「状態」の行、integration-validation.mdのレビューの節）があれば失敗にする（状態の正本はspec.jsonと
     tasks.md、レビューの経緯はreview.md。この規則より前からあるspecは対象外）。あわせて、specのREADMEと
     再開案内・roadmapのうち、このspecに触れた行に残る「待ち」「未実施」などの語を表示する（人が確かめる。exitには数えない）。
-    feature最終レビューへ出す前と、最終GOを記録した後に実行する。
+    実装のレビューへ出す前と、完了を記録した後に実行する。
 
 独立レビューの代わりにはならない。名前の役割が実態と合うか、検査の順序が正しいかは人とレビュー担当が確かめる。
 """
