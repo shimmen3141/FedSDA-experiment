@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-10（observed-sample-predictionの完了。主担当はClaude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証commit・件数・hash・レビューの経緯は、各specのintegration-validation.mdとreview.mdを読む（ここへ写さない）。
+更新: 2026-10-10（fedsda-run-client-assemblyの完了。主担当はClaude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証commit・件数・hash・レビューの経緯は、各specのintegration-validation.mdとreview.mdを読む（ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -9,9 +9,9 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **現在地:** [observed-sample-prediction](../specs/observed-sample-prediction/tasks.md)（標本1件の予測）まで完了。進行中の編集・未解消レビュー指摘はない。
-- **手順（2026-10-10から）:** cc-sddのskillと標準の構成、下位taskごとの実装、最後に独立レビュー1回、変異テストは任意。observed-sample-predictionが、この手順で進めた最初のspecなので、文書の形（spec.json、requirements.md、design.md、research.md、naming.md、tasks.mdと末尾の「Implementation Notes」）は、これを参考にしてよい。observed-sample-processingまでのspecの文書（README、review.md、証拠文書、局所名まで載せた命名表、revisionとhash）は、古い手順の形なので、雛形にしない。新しいspecは、cc-sddのskill（`.claude/skills/kiro-spec-*`、`kiro-impl`、`kiro-validate-impl`）と`.kiro/settings/templates/specs/`の雛形から作る。
-- **次の一手:** 下の「次の候補」1のうち、**新clientの組立て**を1つのspecにする（`/kiro-spec-init`から）。ownerと設定をまとめて作り、標本を1件ずつ`process_observed_sample`へ渡す。`process_observed_sample`は、旧`process_one_step`の全体（計算量と所要時間の記録、モデル別の除外寄与の診断を除く）に対応する。出発点: 旧は`federated_drift_experiment/clients/`の最終構成のクラス`ResidualAdapterRestartingSoftRoutingFedSDAClient`の`__init__`の連鎖（`base.py`、`fedsda.py`、`shared_backbone.py`）と、`experiment.py`がclientを作って標本を渡す箇所。新は`runtime/observed_sample_processing.py`の引数の一覧が、組立てで作るものの一覧になる。対照のoracleは、tests/refactoring/test_observed_sample_processing.py（`build_sample_processing_oracle`。実旧の最終構成のclientと、予測を含めて標本ごとに照合する）を再利用する。組立ての次が、run終端・ラウンド境界。モデル別の除外寄与の診断は、小さいspecとして、組立ての前後どちらでも進められる。新しい接続は、共用の`tests/refactoring/fresh_process_smoke.py`へ流れを足す。
+- **現在地:** [fedsda-run-client-assembly](../specs/fedsda-run-client-assembly/tasks.md)（clientの組立て）まで完了。進行中の編集・未解消レビュー指摘はない。
+- **手順（2026-10-10から）:** cc-sddのskillと標準の構成、下位taskごとの実装、最後に独立レビュー1回、変異テストは任意。observed-sample-predictionとfedsda-run-client-assemblyが、この手順で進めたspecなので、文書の形（spec.json、requirements.md、design.md、research.md、naming.md、tasks.mdと末尾の「Implementation Notes」）は、これを参考にしてよい。observed-sample-processingまでのspecの文書（README、review.md、証拠文書、局所名まで載せた命名表、revisionとhash）は、古い手順の形なので、雛形にしない。新しいspecは、cc-sddのskill（`.claude/skills/kiro-spec-*`、`kiro-impl`、`kiro-validate-impl`）と`.kiro/settings/templates/specs/`の雛形から作る。
+- **次の一手:** 下の「次の候補」1のうち、**初期モデルの事前学習**を1つのspecにする（`/kiro-spec-init`から）。旧は`federated_drift_experiment/experiment.py`の`_pretrain_initial_model`（294〜334行。概念0の標本を作り、shuffleしてbatchごとに学習し、損失統計を求める）と、`_setup_server_and_clients`（337〜358行）のclientの生成。新は、事前学習の結果を、`assemble_fedsda_run_client`が受け取る形（分類器、概念固有部と共有部の`ParameterOptimizerState`、`ModelAndClassLossStatistics`）で作る。乱数の消費順（標本の生成、shuffle、モデルの初期化）を旧と合わせる必要があるので、数値の一致が繊細なspecである。新の実行の枠は、`prepare_run`へSINEの標本生成器と乱数源を渡す（`runtime/single_run_execution.py`）。旧の標本の作り方（`generate_data`）と新の生成器の対応、既存の部品（`learning/loss_statistics/batch_loss_statistics_initialization.py`、共同更新）で足りるかを、最初に確かめる。その次が、サーバ同期と`prepare_run`（全clientとサーバの準備）。モデル別の除外寄与の診断は、小さいspecとして、どの時点でも進められる。新しい接続は、共用の`tests/refactoring/fresh_process_smoke.py`へ流れを足す。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。`federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧名alias/互換読込みを追加しない。
 - **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。specの完了は、Windows基準での全回帰が済むまで記録しない。
 - **レビュー担当の利用状況（2026-10-09）:** GPT-6 Luna（`codex exec`）は利用上限に達しており、CLIの表示では2026-10-14 12:54まで使えない。それまでは、共通引継ぎ手順の代替規則によりClaude Haiku 5.5（effort `medium`）がLunaの担当分も行う。起動コマンドは共通引継ぎ手順の「承認と独立レビュー」の起動例。Lunaが戻ったら通常の分担へ戻す。
@@ -29,8 +29,9 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 完了specの一覧（新しい順。詳細は各spec）
 
-標本1件の予測と学習側の処理（`process_observed_sample`）、警報後の「参照の固定→標本の観測→損失収集→採否評価→確定→正式ID確認」、警報時の「区間の準備→再利用評価→切替または候補検証の開始→完了処理→記録」、候補検証sessionの保持、診断証拠と通知までの部品が、実旧の対応するメソッドとの対照つきで揃っている。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
+clientの組立てと実行の枠の5操作（`FedsdaRunClient`）、標本1件の予測と学習側の処理（`process_observed_sample`）、警報後の「参照の固定→標本の観測→損失収集→採否評価→確定→正式ID確認」、警報時の「区間の準備→再利用評価→切替または候補検証の開始→完了処理→記録」、候補検証sessionの保持、診断証拠と通知までの部品が、実旧の対応するメソッドとの対照つきで揃っている。初期モデルの事前学習・サーバ側・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 
+- [fedsda-run-client-assembly](../specs/fedsda-run-client-assembly/tasks.md): 最終構成のFedSDAのclient 1つを、初期モデル（分類器と2つのoptimizerの状態）・初期の損失統計・設定の束から組み立てる`assemble_fedsda_run_client`と、実行の枠の契約の5操作（標本の処理、ラウンド境界での保留中の学習、登録できるモデルの有無、送信待ちの進行、終端での未完了の候補検証の回収）を持つ`FedsdaRunClient`。実`__init__`で作った実旧のclient（サーバなし）と、生成直後から終端まで照合した。既存の実行の枠（参加者の検査と区間の進行）で、サーバを何もしない代役にして動く。
 - [observed-sample-prediction](../specs/observed-sample-prediction/tasks.md): 観測した標本1件の予測`predict_observed_sample_and_update_prediction_weights`（保有する全モデルの確率をFixed-Shareの重みで結合→標本ごとの記録→ラベル観測後のFixed-Shareの重みと診断証拠の更新）と、記録を持つ`SamplePredictionRecordStore`。`process_observed_sample`の最初の段として接続した。警報側の通知は、最終構成では何も変えないので移植していない（UNPORTED-003）。
 - [observed-sample-processing](../specs/observed-sample-processing/README.md): 観測した標本1件に対する学習側の処理（候補検証の進行→損失の監視→保留→警報の処理、または帰属の確定と学習）をつなぐ`process_observed_sample`。保留中の標本そのものを持つ`PendingSampleObservationStore`と、警報の位置と監視の値を記録する`LossChangeAlarmRecordStore`を追加。
 - [held-model-training-request-handling](../specs/held-model-training-request-handling/README.md): 学習要求を記録して間隔に達したら学習する`record_training_request_and_train_held_models_when_due`（旧`train_step`）と、保留中の要求を学習する`train_held_models_for_pending_training_requests`（旧`flush_pending_updates`）。共同更新の完了ごとにモデル別の学習量を計数へ足す。件数管理へ、間隔に達したかを読む操作を追加。呼ぶ位置は未接続。
@@ -59,17 +60,19 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 新clientの組立てと、残る診断（未仕様化）
+### 1. 事前学習・サーバ同期と、残る診断（未仕様化）
 
-標本1件の処理は、予測を含めて、`process_observed_sample`で1回の呼出しになった。残るのは次のとおり。旧のひとまとまりの流れの単位でspecにし、境界を決めて下位taskへ分ける（数値の一致が繊細な部分が出てきたら、そこだけ別のspecへ切り出す）。
+clientは、`assemble_fedsda_run_client`で組み立て、実行の枠の5操作で動かせるようになった。残るのは次のとおり。旧のひとまとまりの流れの単位でspecにし、境界を決めて下位taskへ分ける（数値の一致が繊細な部分が出てきたら、そこだけ別のspecへ切り出す）。
 
 - モデル別の除外寄与の診断: 旧`federated_drift_experiment/diagnostics/routing.py`の`RoutingLeaveOneOutDiagnostics.observe`（予測の直後に、モデルを1つ除いた結合の損失の差を、モデル集合の世代・通信区間・モデルごとに集計する。予測と学習の判断へは戻らない）。入力（モデル別の確率、正規化後のFixed-Shareの重み、globalの診断重み）は`ObservedSamplePrediction`が持つので、`process_observed_sample`の予測の段の直後に呼出しを足せる。通信区間の長さ（集約間隔）が要る。最終3goldenはこの診断を比較しない。IMPROVE-007は診断の選択実行案で未検証/未採用。
 - 予測の集計値: 旧の集計の計数（`routing_diagnostics`ほか）は、`SamplePredictionRecord`の列から導ける（対応はobserved-sample-predictionのresearch.md。testが全項目を実旧と照合している）。実効モデル数の合計は、逐次加算で求める（Python 3.13の組み込みの`sum`は浮動小数を補正つきで足すので、旧の標本ごとの加算と末尾の桁が違う）。集約後のFixed-Shareの重みの再較正（旧`fifo_replay`）は、サーバ同期のspecで扱う。
-- 新clientの組立て: ownerと設定をまとめて作り、標本を1件ずつ`process_observed_sample`へ渡す。予測のownerは、`FixedSharePredictionWeightController`（時間尺度は、旧と同じく保留の容量）と`SamplePredictionRecordStore`。標本の真の概念IDは整数で渡す（なしでも動くが、概念別の診断が行われない）。設定・閾値の検査（許容損失増加量、最小変化区間件数、batchの件数など）と、ownerどうしの整合（監視のクラス数と分類器のクラス数、共有部とそのoptimizer）は、組立てのときに確かめる（標本1件の処理は確かめない）。旧は1次元の入力を2次元へ直して受け取るので、標本を作る側で、特徴が1行の2次元・ラベルが1行1列のtensorにする。
-- run終端とラウンド境界: 未完了の候補検証の回収（`finalize_held_incomplete_candidate_validation`。候補検証へ渡した標本の概念IDは`PendingSampleObservationStore`が持つ）と、保留中の学習要求の学習（`train_held_models_for_pending_training_requests`。旧は`experiment.py`がラウンド境界で呼ぶ）を呼ぶ位置。
+- 初期モデルの事前学習: 上の「次の一手」。
+- サーバ同期と、全clientとサーバの準備（実行の枠の`prepare_run`を持つfactory）: モデルの回収・集約・配布、正式IDの確認（`held-model-registration-confirmation`は部品として移植済み）、クラスタリングと統合、集約後のFixed-Shareの重みの再較正（旧`fifo_replay`）、サーバ評価（評価fallbackと`EVAL_MAX_SAMPLES`）、通信量の記録。旧は、送信保留のモデルのIDを持たず、正式IDの確認のときに現行モデルのIDを一時IDとして使う（採用の後に現行モデルが別のモデルへ戻ると、送信保留のモデルと現行モデルが違う。新の送信保留はモデルIDを持つ）。この食い違いの扱いを、サーバ同期のspecで確かめる。
+- 真の概念IDの配線: 実行の枠の契約は、clientへ真の概念を渡さない（clientの準備の後に真の概念の列を作る）。`FedsdaRunClient.process_observed_sample`は、任意の引数`evaluation_concept_id`で受け取れる。渡さなければ、概念別の診断と、モデル別の割当概念の計数が行われない。実行の枠から渡すかどうか（契約を変えるか）は、全体runのgoldenの比較項目を見て、全体runを接続するspecで決める。
+- 設定の置き場所: clientの設定の束（`runtime/fedsda_run_client_settings.py`）は、機能別の設定型に置き場所のない値（許容する増加量、最小改善量、待ちラウンド数、最小件数、batchの件数、評価標本の件数、検出器の候補数の上限・賭け率・表示名）と、検証済みのrun設定の部分型に入っていない設定型（学習の間隔、候補の初期化、候補の学習、optimizer）をまとめた仮の形である。旧で1つの値を2箇所で使う3組は、同じ値であることを束が確かめる。完全なrun設定（保存表現、preset）を決めるspecで、正式な置き場所を決める。
 - 標本ごとの結果種別の列（旧`history_drift_type`）と保存: 適応記録（位置と結果種別）から導けると見込むが、旧の数値との対応は確かめていない。
-- 計算量と所要時間の記録（旧`_record_model_compute`・`compute_counters`・`phase_seconds`・`processing_times`）は未移植。
-- 記録のoracle: tests/refactoring/test_observed_sample_processing.py（`build_sample_processing_oracle`。最初の警報の後から、実旧`process_one_step`と標本ごとに照合する）を再利用する。
+- 計算量と所要時間の記録（旧`_record_model_compute`・`compute_counters`・`phase_seconds`・`processing_times`）と、共有部の勾配の診断（旧`backbone_gradient_diagnostics`）は未移植。
+- 記録のoracle: tests/refactoring/test_fedsda_run_client.py（`build_run_client_oracle`。実旧の事前学習と実`__init__`で実旧clientを作り、新clientを同じ初期モデルから組み立てる。`assert_run_client_matches_legacy`が全ownerを照合する）と、tests/refactoring/test_observed_sample_processing.py（`build_sample_processing_oracle`）を再利用する。
 - 保留標本の並びの検査が、警報の処理・帰属の確定・標本1件の処理の3箇所にある。標本の型と形の検査も、標本1件の処理と予測の2箇所にある（IMPROVE-010）。
 - 全体runを接続するspecの前に、Linux用のgoldenを作る（上の「決定」）。部品の旧対照と全体runのgolden一致を混同しない。
 

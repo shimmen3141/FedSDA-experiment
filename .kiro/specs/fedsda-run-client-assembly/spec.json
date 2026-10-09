@@ -1,9 +1,9 @@
 {
   "feature_name": "fedsda-run-client-assembly",
   "created_at": "2026-10-10T06:00:00+09:00",
-  "updated_at": "2026-10-10T07:00:00+09:00",
+  "updated_at": "2026-10-10T12:00:00+09:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -23,15 +23,39 @@
     },
     "naming": {
       "generated": true,
-      "approved": false,
-      "note": "名前は、全taskの後の独立レビューで確認を受ける"
+      "approved": true,
+      "note": "名前は、全taskの後の独立レビューで確認を受けた（下のimplementation_reviews）"
     }
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "handoff": {
-    "execution_status": "in_progress",
-    "next_step": "tasks.mdの下位taskを1.1から順に実装する（/kiro-impl fedsda-run-client-assembly --review off の手順）",
-    "independent_review": "未実施（全taskの後に1回）"
-  }
+    "execution_status": "completed",
+    "next_step": "none（次のspecは再開案内の「次の一手」）"
+  },
+  "implementation_reviews": [
+    {
+      "verdict": "IMPLEMENTATION: CHANGES_REQUESTED",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+      "reviewer_selection": "初期状態の写しと複数部品の接続のため、難度からHaiku 5.5を選択（GPT-6 Lunaは利用上限で利用不能の期間）",
+      "reviewer_session": "5b3126b6-3c65-417c-b28a-e83d9b285039",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "reviewed_range": "72aea4d..7ed2364",
+      "independent_test_execution": true,
+      "findings": "Major 1件、Minor 3件、任意 1件。採否はtasks.mdのImplementation Notes",
+      "findings_applied_commit": "053f221"
+    },
+    {
+      "verdict": "IMPLEMENTATION: APPROVED",
+      "scope": "confirmation_of_major_fix",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+      "reviewer_session": "de43fbf2-24c7-4c5a-bf1b-be02fb5024f6",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "reviewed_range": "7ed2364..053f221",
+      "independent_test_execution": true,
+      "independent_full_pytest_reproduction": false,
+      "findings": "指摘なし（任意の注記2件）"
+    }
+  ],
+  "full_pytest": "10720 passed / 3 skipped (053f221、主担当の実測とJUnit)"
 }
