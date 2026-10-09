@@ -4798,6 +4798,62 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
             "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
         )
+    if (
+        source_module_path
+        == "methods/fedsda/training_data_assignment/pending_sample_observation_store.py"
+    ):
+        return imported_module_name in (
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+        )
+    if source_module_path == "evaluation/loss_change_alarm_record_store.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math.inf",
+            "math.isnan",
+        )
+    if source_module_path == "runtime/observed_sample_processing.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "random.Random",
+            "torch.Tensor",
+            "torch.optim.Optimizer",
+            "federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection.AdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
+            "federated_learning_experiments.evaluation.loss_change_alarm_record_store.LossChangeAlarmRecordStore",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            "federated_learning_experiments.learning.training.local_training_request_schedule.LocalTrainingRequestSchedule",
+            "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.LossMonitoringObservation",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor",
+            "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store.PendingSampleObservationStore",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
+            "federated_learning_experiments.runtime.alarm_occurrence_handling.AlarmOccurrenceHandling",
+            "federated_learning_experiments.runtime.alarm_occurrence_handling.handle_alarm_occurrence",
+            "federated_learning_experiments.runtime.candidate_validation_session_holder.CandidateValidationSessionHolder",
+            "federated_learning_experiments.runtime.held_candidate_validation_progress.HeldCandidateValidationAdvance",
+            "federated_learning_experiments.runtime.held_candidate_validation_progress.advance_held_candidate_validation",
+            "federated_learning_experiments.runtime.held_model_training_request_handling.record_training_request_and_train_held_models_when_due",
+            "federated_learning_experiments.runtime.held_model_training_request_handling.train_held_models_for_pending_training_requests",
+            "federated_learning_experiments.runtime.released_pending_sample_assignment.assign_released_pending_samples_to_current_training_model",
+        )
     if source_module_path == "runtime/alarm_occurrence_handling.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5720,6 +5776,9 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/candidate_validation_session_holder.py",
             "runtime/held_candidate_validation_progress.py",
             "runtime/alarm_occurrence_handling.py",
+            "methods/fedsda/training_data_assignment/pending_sample_observation_store.py",
+            "evaluation/loss_change_alarm_record_store.py",
+            "runtime/observed_sample_processing.py",
             "runtime/held_model_training_request_handling.py",
             "runtime/released_pending_sample_assignment.py",
             "learning/training/candidate_epoch_training_settings.py",
@@ -5778,6 +5837,9 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/candidate_validation_session_holder.py",
                     "runtime/held_candidate_validation_progress.py",
                     "runtime/alarm_occurrence_handling.py",
+                    "methods/fedsda/training_data_assignment/pending_sample_observation_store.py",
+                    "evaluation/loss_change_alarm_record_store.py",
+                    "runtime/observed_sample_processing.py",
                     "runtime/held_model_training_request_handling.py",
                     "runtime/released_pending_sample_assignment.py",
                     "learning/training/candidate_epoch_training_settings.py",
@@ -7101,7 +7163,7 @@ def test_module_allowed_dependencies_are_all_imported_by_the_module():
     """許可集合が、実際のsourceのimportより広くなっていないこと（使っていない依存を許可したままにしない）。"""
     allowed_dependency_names_by_module = collect_module_allowed_dependency_names()
     # 読取りが空振りしていないこと（登録の書き方が変わったら、この読取りを直す）。
-    assert len(allowed_dependency_names_by_module) >= 60
+    assert len(allowed_dependency_names_by_module) >= 63
     unused_allowed_dependency_names = {}
     package_source_directory = (
         Path(__file__).resolve().parents[2] / "src" / "federated_learning_experiments"

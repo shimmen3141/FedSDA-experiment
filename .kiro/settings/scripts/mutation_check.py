@@ -190,9 +190,19 @@ def build_mutations(source_text, function_names):
     return mutations
 
 
-def run_tests(test_paths):
+def run_tests(test_paths, stop_at_first_failure=False):
     return subprocess.run(
-        [sys.executable, "-m", "pytest", *test_paths, "-q", "-p", "no:cacheprovider"],
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            *test_paths,
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            # 変異の検出は失敗が1件あれば分かるので、最初の失敗で止める（時間のかかるtestでの実行時間を減らす）。
+            *(("-x",) if stop_at_first_failure else ()),
+        ],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -244,7 +254,7 @@ def main():
             continue
         try:
             source_path.write_bytes(mutated_text.encode("utf-8"))
-            result = run_tests(arguments.tests)
+            result = run_tests(arguments.tests, stop_at_first_failure=True)
         finally:
             source_path.write_bytes(original)
         (evidence / f"{index:02d}.log").write_text(

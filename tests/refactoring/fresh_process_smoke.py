@@ -8,7 +8,8 @@ testへ置き換えて廃止する。
 現在の流れ: 1つの保持・適応記録・診断証拠・損失監視・保留位置のownerで、
 警報のない標本での帰属確定（容量を超えた最古の保留標本を現在のモデルへ確定）と学習要求の記録→
 警報（不足／他モデルの再利用／現行の維持／候補検証の開始）→候補検証中の警報、または
-標本の観測と確定（採用／棄却／現行の維持／他モデルの再利用）→次の警報→保留中の学習要求の学習。
+標本の観測と確定（採用／棄却／現行の維持／他モデルの再利用）→次の警報→保留中の学習要求の学習→
+標本1件の処理（候補検証の進行→監視→保留→警報の処理｜帰属の確定と学習）を続けて呼ぶ。
 """
 
 import sys
@@ -22,6 +23,9 @@ from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_coll
     AdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore
+from federated_learning_experiments.evaluation.loss_change_alarm_record_store import (
+    LossChangeAlarmRecordStore,
+)
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
 )
@@ -95,6 +99,9 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.overall
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
+    PendingSampleObservationStore,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
 )
@@ -114,12 +121,17 @@ from federated_learning_experiments.runtime.held_model_training_request_handling
     record_training_request_and_train_held_models_when_due,
     train_held_models_for_pending_training_requests,
 )
+from federated_learning_experiments.runtime.observed_sample_processing import (
+    process_observed_sample,
+)
 from federated_learning_experiments.runtime.released_pending_sample_assignment import (
     assign_released_pending_samples_to_current_training_model,
 )
 
 HELD_MODEL_IDS = (7, -103, 2)
 SAMPLE_COUNT = 11
+# 各流れの最後に、標本1件の処理を続けて呼ぶ回数。
+PROCESSED_SAMPLE_COUNT = 30
 VALIDATION_SAMPLE_COUNT = 4
 DETECTOR_NAME = "ClassESR"
 CURRENT_MODEL_ID = 2
@@ -610,7 +622,83 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     assert global_diagnostic_evidence.concept_operation_restart_count == sum(
         outcome in MODEL_SWITCHING_OUTCOMES for outcome in observed_outcomes
     )
+    # 標本1件の処理: ここまでの流れの後の状態から、標本を続けて処理する。
+    # 保留標本のownerは、保留位置のownerに残っている位置の標本と、保持中の候補検証へ渡した標本の概念IDから始める。
+    pending_sample_observation_store = PendingSampleObservationStore()
+    pending_assignment_state = pending_training_assignment_buffer.get_state_snapshot()
+    for sample_index in pending_assignment_state.pending_sample_indices:
+        pending_sample_observation_store.append_pending_sample_observation(
+            indexed_observation=make_indexed_observation(
+                sample_index=sample_index, source_position=sample_index % SAMPLE_COUNT
+            )
+        )
+    held_validation_session = validation_session_holder.held_validation_session
+    if held_validation_session is not None:
+        pending_sample_observation_store.hold_validation_assignment_sample_concept_ids(
+            sample_concept_ids=(None,)
+            * len(held_validation_session.pending_assignment_training_samples)
+        )
+    loss_change_alarm_record_store = LossChangeAlarmRecordStore()
+    sample_processing_arguments = {
+        argument_name: argument
+        for argument_name, argument in alarm_handling_arguments.items()
+        if argument_name != "detection_episode_id"
+    } | dict(
+        training_request_arguments,
+        loss_change_alarm_record_store=loss_change_alarm_record_store,
+        pending_sample_observation_store=pending_sample_observation_store,
+        temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=6),
+        pending_model_upload_state=PendingModelUploadState(),
+        maximum_reference_mean_loss_increase=0.0,
+        minimum_candidate_mean_loss_improvement=0.0,
+        upload_delay_round_count=1,
+    )
+    record_count_before_processing = len(state_snapshot.adaptation_records)
+    first_processed_sample_index = pending_assignment_state.last_observed_sample_index + 1
+    processed_alarm_count = 0
+    completed_validation_count = 0
+    for sample_offset in range(PROCESSED_SAMPLE_COUNT):
+        sample_index = first_processed_sample_index + sample_offset
+        sample_processing = process_observed_sample(
+            indexed_observation=make_indexed_observation(
+                sample_index=sample_index, source_position=(sample_offset * 3) % SAMPLE_COUNT
+            ),
+            **sample_processing_arguments,
+        )
+        assert sample_processing.loss_monitoring_observation.sample_index == sample_index
+        alarm_occurred = sample_processing.loss_monitoring_observation.drift_detected
+        assert (sample_processing.alarm_occurrence_handling is not None) == alarm_occurred
+        processed_alarm_count += int(alarm_occurred)
+        completed_validation_count += int(
+            sample_processing.held_validation_advance.adaptation_record is not None
+        )
+        # 標本ごとに: 保留標本と保留位置が同じ並び、概念IDの保持は候補検証の保持と同じ、位置は連続。
+        pending_assignment_state = pending_training_assignment_buffer.get_state_snapshot()
+        assert pending_assignment_state.last_observed_sample_index == sample_index
+        assert pending_assignment_state.pending_sample_indices == tuple(
+            pending_observation.sample_index
+            for pending_observation in pending_sample_observation_store.snapshot_pending_sample_observations()
+        )
+        assert (
+            pending_sample_observation_store.validation_assignment_sample_concept_ids is None
+        ) == (validation_session_holder.held_validation_session is None)
+    alarm_record_snapshot = loss_change_alarm_record_store.get_state_snapshot()
+    assert len(alarm_record_snapshot.monitored_log_e_values) == PROCESSED_SAMPLE_COUNT
+    assert len(alarm_record_snapshot.alarm_sample_indices) == processed_alarm_count
+    processed_outcomes = tuple(
+        record.adaptation_outcome
+        for record in adaptation_record_store.get_state_snapshot().adaptation_records[
+            record_count_before_processing:
+        ]
+    )
+    # 警報1回につき記録が1件、候補検証の確定1回につき記録が1件。
+    assert len(processed_outcomes) == processed_alarm_count + completed_validation_count
+    PROCESSED_ALARM_COUNTS.append(processed_alarm_count)
     return tuple(observed_outcomes)
+
+
+# 流れごとの、標本1件の処理の中で起きた警報の回数（全体で1回以上あることを確かめる）。
+PROCESSED_ALARM_COUNTS = []
 
 
 def main():
@@ -641,6 +729,8 @@ def main():
         "post_alarm_validation_held_model_reused",
     }
     assert required_outcomes <= all_observed_outcomes, required_outcomes - all_observed_outcomes
+    assert len(PROCESSED_ALARM_COUNTS) == len(SMOKE_SCENARIOS) * 2
+    assert sum(PROCESSED_ALARM_COUNTS) > 0, PROCESSED_ALARM_COUNTS
     loaded_forbidden_modules = sorted(
         name
         for name in sys.modules
