@@ -68,3 +68,18 @@ r4の3文書（設計・命名・tasks）は、処理・契約・検査の順・
 7. 任意: 概念IDの対応づけの拒否は、警報の処理の後にある。→ 証拠文書に書いた（設計4節に前提がある）。
 
 反映の後、`d497c50`で全pytestをやり直した（10437 passed / 3 skipped、exit 0）。Minorの指摘でtestを直した場合の扱い（全回帰をやり直して記録し、再レビューは省く）による。変異toolは実行し直していない（拒否のtestを厳しくする変更だけ）。
+
+## 実装のレビュー 確認（別session `9e2392af-6c7a-44ef-8b20-b1aa74ccae1e`、HEAD `f10f759`、source/test `d497c50`）— IMPLEMENTATION: APPROVED
+
+共通引継ぎ手順の「Blocker・Majorの指摘を直したときは、直した内容を別sessionが確認する」による。1回目（session `b4b40659-14a6-45f7-8285-1dc056e6097f`）とは別のsessionで、検証コマンドだけを許可して起動した。
+
+- レビュー担当が独立に実行したもの: `spec_checks.py names`（5ファイルとも未登録・役割の再利用なし）、`identity --rev d497c50`（承認hash 4件、固定旧差分、作業ツリー、source hash、JUnit、旧回帰2件）、`progress`（全項目OK）、拒否・順序のtest（84 passed、1 skipped。skipは、全条件を実行したときだけ確かめるtestで、条件を絞った実行では想定どおり）、Ruff check、`git diff`（1回目の後の変更が指摘への対応だけであること）、`git status --short`（空）。全pytest・Pyright・pip check・変異toolは実行していない。
+- 1回目の指摘1（Major。命名表の登録漏れ）の解消を確認し、この確認をもって命名r6を承認すると報告された。指摘2・3の反映はtestを弱めていないこと、指摘5の不採用の理由が事実と合っていることも確認された。
+
+指摘と採否（どれも記録だけ。処理・testは変えない）:
+
+1. Minor（文面）: spec.jsonの命名の承認が、r3を承認したsessionのまま。→ 採用。命名r6の承認を、この確認のsessionで記録した（r3の承認のsessionは残した）。
+2. Minor（文面）: 再開案内の現在地が「実装のレビューを依頼する段階」のまま。→ 採用。完了へ更新した。
+3. 任意: spec.jsonの`updated_at`。→ 採用。
+
+全pytestの独立再現は行っていない（2026-10-07のユーザー決定による基準。対象test・共用script・Ruffの独立実行は、1回目のレビュー担当が行った）。
