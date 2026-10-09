@@ -26,10 +26,11 @@
 | IMPROVE-008 | 警報応答で、区間解決の引数の検査を区間の準備より前に行う | 未検証・未採用 | [詳細](improve-008-validate-alarm-resolution-inputs-before-preparation.md) |
 | IMPROVE-009 | 依存境界testの方式を一本化し、機械生成の注入契約testを減らす | 見送り（2026-10-09ユーザー決定） | [詳細](improve-009-unify-dependency-boundary-tests.md) |
 | IMPROVE-010 | 保留標本の並びの検査を1箇所にまとめる | 未検証・未採用 | [詳細](improve-010-share-pending-observation-validation.md) |
+| IMPROVE-011 | 共同学習の反復が、参加したモデルを返す（計数の側の参加条件の重複をなくす） | 未検証・未採用 | [詳細](improve-011-report-participating-models-from-joint-training.md) |
 
 ## 記録・更新の規約
 
-IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-011。候補の発見時点で記録し、実験済みである必要はない。
+IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-012。候補の発見時点で記録し、実験済みである必要はない。
 
 各ファイルへ以下を記載する。未確認・未定の項目はそのまま明記する。
 
