@@ -2,8 +2,8 @@
 
 逐次実行（並行しない）。testを先に書く。独立レビューは、全taskの後に1回受ける（共通引継ぎ手順）。
 
-- [ ] 1. 記録と設定
-- [ ] 1.1 診断の記録のownerと、束の標本の上限を足す
+- [x] 1. 記録と設定
+- [x] 1.1 診断の記録のownerと、束の標本の上限を足す
   - 診断の記録（記録の型と検査、追加、写し）と、スカラーの設定のfieldを足す。束を作る箇所（既存のtestと共用script）を直す。新しいmoduleの依存の許可集合を登録する。
   - 完了: 記録のownerの単独のtest（順、検査、不正で不変）、束のtest、依存境界のsuiteが成功する。
   - _Boundary: CrossEvaluationRecordStore、ClientCrossEvaluationRecord、FedsdaRunClientScalarSettings_

@@ -997,6 +997,7 @@ def run_assembled_client_flow(*, class_count):
             local_training_batch_sample_count=4,
             maximum_stored_evaluation_sample_count_per_model=12,
             added_evaluation_batch_sample_count=3,
+            maximum_cross_evaluation_sample_count=8,
             loss_monitor_maximum_retained_candidate_count=50,
             detector_name="overall + class-conditional e-SR mixture",
         ),

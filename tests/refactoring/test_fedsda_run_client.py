@@ -93,6 +93,8 @@ UPLOAD_DELAY_ROUND_COUNT = 2
 BATCH_SAMPLE_COUNT = 4
 STORED_EVALUATION_SAMPLE_LIMIT = 12
 ADDED_EVALUATION_SAMPLE_COUNT = 3
+CROSS_EVALUATION_SAMPLE_LIMIT = 50
+CROSS_EVALUATION_CLIENT_LIMIT = 3
 MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT = 3
 FALSE_ALARM_CONTROL_ALPHA = 0.05
 MAXIMUM_RETAINED_CANDIDATE_COUNT = 50
@@ -117,6 +119,9 @@ def set_legacy_configuration(
     new_model_learning_rate=LEARNING_RATE,
     stored_evaluation_sample_limit=STORED_EVALUATION_SAMPLE_LIMIT,
     routing_recalibration="none",
+    added_evaluation_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
+    cross_evaluation_sample_limit=CROSS_EVALUATION_SAMPLE_LIMIT,
+    cross_evaluation_client_limit=CROSS_EVALUATION_CLIENT_LIMIT,
 ):
     """実旧clientが生成時と実行時に読む設定を、最終構成の値と、上の小さい条件へ差し替える。
 
@@ -158,7 +163,10 @@ def set_legacy_configuration(
         STORED_DATA_LIMIT=stored_evaluation_sample_limit,
         # 集約後の再較正の方式（サーバのrun_roundが読む。最終構成はfifo_replay）。
         SHARED_BACKBONE_ROUTING_RECALIBRATION=routing_recalibration,
-        EVAL_STORE_SAMPLE_SIZE=ADDED_EVALUATION_SAMPLE_COUNT,
+        EVAL_STORE_SAMPLE_SIZE=added_evaluation_sample_count,
+        # サーバのクロス評価: clientが1回の評価に使う標本の上限と、1つのモデルを評価するclientの上限。
+        EVAL_MAX_SAMPLES=cross_evaluation_sample_limit,
+        CROSS_EVAL_MAX_CLIENTS=cross_evaluation_client_limit,
         MIN_DRIFT_DATA=MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT,
         E_DETECTOR_ALPHA=FALSE_ALARM_CONTROL_ALPHA,
         ADWIN_MAX_WINDOW=MAXIMUM_RETAINED_CANDIDATE_COUNT,
@@ -180,6 +188,9 @@ def make_run_client_settings(
     new_model_learning_rate=LEARNING_RATE,
     stored_evaluation_sample_limit=STORED_EVALUATION_SAMPLE_LIMIT,
     routing_recalibration="none",
+    added_evaluation_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
+    cross_evaluation_sample_limit=CROSS_EVALUATION_SAMPLE_LIMIT,
+    cross_evaluation_client_limit=CROSS_EVALUATION_CLIENT_LIMIT,
 ):
     """上の条件と同じ値の、新の束。"""
     return FedsdaRunClientSettings(
@@ -229,7 +240,8 @@ def make_run_client_settings(
                 minimum_change_interval_sample_count=MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT,
                 local_training_batch_sample_count=BATCH_SAMPLE_COUNT,
                 maximum_stored_evaluation_sample_count_per_model=stored_evaluation_sample_limit,
-                added_evaluation_batch_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
+                added_evaluation_batch_sample_count=added_evaluation_sample_count,
+                maximum_cross_evaluation_sample_count=cross_evaluation_sample_limit,
                 loss_monitor_maximum_retained_candidate_count=MAXIMUM_RETAINED_CANDIDATE_COUNT,
             )
         ),
@@ -307,6 +319,9 @@ def build_run_client_oracle(
     new_model_learning_rate=LEARNING_RATE,
     stored_evaluation_sample_limit=STORED_EVALUATION_SAMPLE_LIMIT,
     routing_recalibration="none",
+    added_evaluation_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
+    cross_evaluation_sample_limit=CROSS_EVALUATION_SAMPLE_LIMIT,
+    cross_evaluation_client_limit=CROSS_EVALUATION_CLIENT_LIMIT,
 ):
     """実旧の事前学習と実__init__で実旧clientを作り、同じ初期モデル・統計・条件から新clientを組み立てる。
 
@@ -321,6 +336,9 @@ def build_run_client_oracle(
         new_model_learning_rate=new_model_learning_rate,
         stored_evaluation_sample_limit=stored_evaluation_sample_limit,
         routing_recalibration=routing_recalibration,
+        added_evaluation_sample_count=added_evaluation_sample_count,
+        cross_evaluation_sample_limit=cross_evaluation_sample_limit,
+        cross_evaluation_client_limit=cross_evaluation_client_limit,
     )
     python_random_state = random.getstate()
     numpy_random_state = np.random.get_state()
@@ -349,6 +367,8 @@ def build_run_client_oracle(
         base_learning_rate=base_learning_rate,
         new_model_learning_rate=new_model_learning_rate,
         stored_evaluation_sample_limit=stored_evaluation_sample_limit,
+        added_evaluation_sample_count=added_evaluation_sample_count,
+        cross_evaluation_sample_limit=cross_evaluation_sample_limit,
     )
     (
         initial_classifier,

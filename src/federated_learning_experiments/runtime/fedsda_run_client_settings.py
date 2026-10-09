@@ -47,6 +47,7 @@ _COUNT_FIELD_NAMES = (
     "local_training_batch_sample_count",
     "maximum_stored_evaluation_sample_count_per_model",
     "added_evaluation_batch_sample_count",
+    "maximum_cross_evaluation_sample_count",
     "loss_monitor_maximum_retained_candidate_count",
 )
 _MEAN_LOSS_FIELD_NAMES = (
@@ -83,6 +84,10 @@ class FedsdaRunClientScalarSettings:
     )
     added_evaluation_batch_sample_count: int = field(
         metadata={"parameter_unit": "sample"} | _NONNEGATIVE
+    )
+    # サーバのクロス評価で、clientが1回の評価に使う標本の上限。
+    maximum_cross_evaluation_sample_count: int = field(
+        metadata={"parameter_unit": "sample"} | _POSITIVE_COUNT
     )
     loss_monitor_maximum_retained_candidate_count: int = field(
         metadata={"parameter_unit": "candidate"} | _POSITIVE_COUNT

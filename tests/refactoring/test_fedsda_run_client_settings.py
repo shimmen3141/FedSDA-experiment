@@ -34,6 +34,7 @@ VALID_SCALAR_VALUES = dict(
     local_training_batch_sample_count=4,
     maximum_stored_evaluation_sample_count_per_model=20,
     added_evaluation_batch_sample_count=5,
+    maximum_cross_evaluation_sample_count=50,
     loss_monitor_maximum_retained_candidate_count=1000,
     detector_name="overall + class-conditional e-SR mixture",
 )
