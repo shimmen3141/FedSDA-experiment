@@ -121,6 +121,7 @@ tests/refactoring/
 - **真の概念ID**: 旧は必ず受け取る。新は任意で、なければ概念別の診断と割当概念の計数を行わない。
 - **ラウンドの番号**: 旧の境界の操作は受け取らない。新は契約に合わせて受け取り、型と範囲だけを確かめて、処理には使わない。
 - 計算量・所要時間、標本ごとの結果種別の列、検出episode、Cached用のパラメータの控え、最終構成で使わないルータは、持たない。
+- 最終構成で旧が更新するが、新のclientが持たない診断: 候補検証の判定記録の一覧（旧`provisional_model_decisions`。再開案内の「次の候補」2）、共有部の勾配の診断（旧`backbone_gradient_diagnostics`。held-model-training-request-handlingで範囲外とした）、モデル別の除外寄与の診断（同「次の候補」1）。
 
 ## Requirements Traceability
 
@@ -215,7 +216,7 @@ def assemble_fedsda_run_client(
 | 検査（例外） | 値の出所 |
 | --- | --- |
 | `run_client_settings`がexact `FedsdaRunClientSettings`（TypeError）。その`__post_init__`をもう一度呼ぶ | 引数 |
-| `client_id`がbuiltin intで0以上、`initial_model_id`がbuiltin int（TypeError／ValueError） | 引数 |
+| `client_id`と`initial_model_id`がbuiltin intで0以上（TypeError／ValueError）。負のモデルIDは一時IDの領域で、評価標本の保持など、負のIDを対象外にする部品がある | 引数 |
 | `python_random_generator`がexact `random.Random`（TypeError） | 引数 |
 | `initial_classifier`がexact `ResidualAdapterClassifier`、2つのoptimizerの状態がexact `ParameterOptimizerState`、`initial_loss_statistics`がexact `ModelAndClassLossStatistics`（TypeError） | 引数 |
 | 分類器の入力の特徴数が2（ValueError） | 観測標本の特徴数 |
@@ -228,6 +229,8 @@ def assemble_fedsda_run_client(
 3. `FedsdaRunClient`を返す。
 
 - ownerの生成が拒否するのは、束の検査を通らない値だけである（束の範囲は、ownerの検査と同じ）。分類器のクラス数は、分類器の生成時に2以上と確かめられている。
+- 例外: 分類器のパラメータの置き場所と型（CPUのfloat32の通常のtensor）は、保有モデルの登録が、写しに対して確かめる（上の表の検査より後、ownerの生成の最初）。拒否されるのは写しで、渡された初期モデルは変わらない（要求5.5）。
+- 初期の損失統計のクラスIDが、分類器のクラス数の範囲にあることは確かめない（統計は、基準の選択と、損失統計のownerへの登録に使うだけである）。
 - 乱数生成器は借りる（写さない）。乱数は使わない。
 
 #### FedsdaRunClient

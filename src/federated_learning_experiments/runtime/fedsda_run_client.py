@@ -322,6 +322,9 @@ def _validate_fedsda_run_client_assembly_inputs(
             raise TypeError(f"{identifier_name} must be builtin int")
     if client_id < 0:
         raise ValueError("client_id must be nonnegative")
+    # 負のIDは、clientが採番する一時IDの領域（評価標本の保持など、負のIDを対象外にする部品がある）。
+    if initial_model_id < 0:
+        raise ValueError("initial_model_id must be nonnegative")
     if type(python_random_generator) is not Random:
         raise TypeError("python_random_generator must be exact random.Random")
     if type(initial_classifier) is not ResidualAdapterClassifier:
@@ -368,10 +371,11 @@ def assemble_fedsda_run_client(
     run_client_settings: FedsdaRunClientSettings,
     python_random_generator: Random,
 ) -> FedsdaRunClient:
-    """全部の検査の後、初期モデルを写し、ownerを作って、clientを返す。
+    """引数の検査の後、初期モデルを写し、ownerを作って、clientを返す。
 
     渡された初期モデル（分類器と2つのoptimizerの状態）は変えず、値と蓄積した状態が同じ写しを保有させる。
-    乱数生成器は借りる（写さない）。組立ての間、乱数は使わない。
+    乱数生成器は借りる（写さない）。組立ての間、乱数は使わない。分類器のパラメータの置き場所と型
+    （CPUのfloat32）は、保有モデルの登録が、写しに対して確かめる（拒否のとき、渡されたものは変わらない）。
     """
     _validate_fedsda_run_client_assembly_inputs(
         client_id=client_id,

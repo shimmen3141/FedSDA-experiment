@@ -908,6 +908,13 @@ def make_other_initial_model(assembly_arguments, *, input_feature_count=2):
     )
 
 
+def make_float64_initial_model(assembly_arguments):
+    """パラメータがfloat64の分類器と、それに対応する2つのoptimizerの状態。"""
+    other_initial_model = make_other_initial_model(assembly_arguments)
+    other_initial_model["initial_classifier"].double()
+    return other_initial_model
+
+
 def make_settings_mutated_around_frozen(run_client_settings):
     mutated_settings = replace(run_client_settings)
     object.__setattr__(mutated_settings, "loss_monitor_betting_fractions", ())
@@ -921,6 +928,13 @@ INVALID_ASSEMBLY_ARGUMENT_CASES = {
     "client_id_negative": (lambda arguments: dict(client_id=-1), ValueError),
     "initial_model_id_bool": (lambda arguments: dict(initial_model_id=False), TypeError),
     "initial_model_id_text": (lambda arguments: dict(initial_model_id="0"), TypeError),
+    # 負のIDは一時IDの領域。初期モデルのIDには使えない。
+    "initial_model_id_negative": (lambda arguments: dict(initial_model_id=-1), ValueError),
+    # 分類器のパラメータがfloat64（保有モデルの登録が、写しに対して拒否する）。
+    "classifier_with_float64_parameters": (
+        lambda arguments: make_float64_initial_model(arguments),
+        ValueError,
+    ),
     "random_generator_other_type": (
         lambda arguments: dict(python_random_generator=object()),
         TypeError,
