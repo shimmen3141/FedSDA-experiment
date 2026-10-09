@@ -6,9 +6,9 @@ importしない。新しい接続を移植したら、その接続を通る流�
 testへ置き換えて廃止する。
 
 現在の流れ: 1つの保持・適応記録・診断証拠・損失監視・保留位置のownerで、
-警報のない標本での帰属確定（容量を超えた最古の保留標本を現在のモデルへ確定）→
+警報のない標本での帰属確定（容量を超えた最古の保留標本を現在のモデルへ確定）と学習要求の記録→
 警報（不足／他モデルの再利用／現行の維持／候補検証の開始）→候補検証中の警報、または
-標本の観測と確定（採用／棄却／現行の維持／他モデルの再利用）→次の警報。
+標本の観測と確定（採用／棄却／現行の維持／他モデルの再利用）→次の警報→保留中の学習要求の学習。
 """
 
 import sys
@@ -52,6 +52,15 @@ from federated_learning_experiments.learning.training.held_model_training_state_
 )
 from federated_learning_experiments.learning.training.indexed_observed_training_sample import (
     IndexedObservedTrainingSample,
+)
+from federated_learning_experiments.learning.training.local_training_request_schedule import (
+    LocalTrainingRequestSchedule,
+)
+from federated_learning_experiments.learning.training.local_training_schedule_settings import (
+    LocalTrainingScheduleSettings,
+)
+from federated_learning_experiments.learning.training.local_training_settings import (
+    LocalTrainingSettings,
 )
 from federated_learning_experiments.learning.training.model_training_and_assignment_counts import (
     ModelTrainingAndAssignmentCountsStore,
@@ -100,6 +109,10 @@ from federated_learning_experiments.runtime.candidate_validation_session_holder 
 )
 from federated_learning_experiments.runtime.held_candidate_validation_progress import (
     advance_held_candidate_validation,
+)
+from federated_learning_experiments.runtime.held_model_training_request_handling import (
+    record_training_request_and_train_held_models_when_due,
+    train_held_models_for_pending_training_requests,
 )
 from federated_learning_experiments.runtime.released_pending_sample_assignment import (
     assign_released_pending_samples_to_current_training_model,
@@ -337,6 +350,34 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         (collection.model_id, len(collection.training_samples))
         for collection in training_sample_store.snapshot_ordered_model_training_samples()
     ] == [(CURRENT_MODEL_ID, 1)]
+    # 同じ標本の学習要求: 間隔2の1件目なので保留されるだけで、学習は行われない。
+    local_training_request_schedule = LocalTrainingRequestSchedule(
+        local_training_schedule_settings=LocalTrainingScheduleSettings(
+            training_requests_per_update_interval=2,
+            joint_update_iterations_per_training_request=3,
+        )
+    )
+    training_request_arguments = dict(
+        local_training_request_schedule=local_training_request_schedule,
+        held_model_training_state_registry=registry,
+        training_sample_store=training_sample_store,
+        model_training_and_assignment_counts_store=counts_store,
+        batch_sample_count=1,
+        python_random_generator=Random(431),
+        local_training_settings=LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        ),
+        shared_feature_extractor=classifiers[7].feature_extractor,
+        shared_parameter_optimizer=ParameterOptimizerState(
+            parameters=tuple(classifiers[7].feature_extractor.parameters()),
+            optimizer_settings=parameter_optimizer_settings,
+        ).parameter_optimizer,
+    )
+    assert (
+        record_training_request_and_train_held_models_when_due(**training_request_arguments) == ()
+    )
+    assert local_training_request_schedule.pending_training_request_count == 1
     # 警報が起きる標本を保留へ足す（警報のときは、容量を超えた分を解放する前に応答する）。
     pending_training_assignment_buffer.append_observed_sample_index(
         sample_index=first_alarm_observations[-1].sample_index
@@ -536,6 +577,32 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             assert validation_session_holder.held_validation_session is started_validation_session
         else:
             assert second_outcome in ALARM_OUTCOMES_WITHOUT_ACTIVE_VALIDATION, second_outcome
+    # 保留中の学習要求の学習: 標本を持つ保有モデルだけが、要求1件ぶん（3回）共同学習され、計数へ反映される。
+    held_model_ids_at_training = frozenset(
+        training_state.model_id
+        for training_state in registry.snapshot_ordered_held_model_training_states()
+    )
+    trained_model_ids = tuple(
+        collection.model_id
+        for collection in training_sample_store.snapshot_ordered_model_training_samples()
+        if collection.training_samples and collection.model_id in held_model_ids_at_training
+    )
+    assert trained_model_ids
+    counts_before_training = counts_store.snapshot_model_training_and_assignment_counts()
+    completed_joint_update_losses = train_held_models_for_pending_training_requests(
+        **training_request_arguments
+    )
+    assert len(completed_joint_update_losses) == 3
+    assert local_training_request_schedule.pending_training_request_count == 0
+    counts_after_training = counts_store.snapshot_model_training_and_assignment_counts()
+    for model_id in trained_model_ids:
+        assert counts_after_training.parameter_update_step_counts_by_model_id[model_id] == (
+            counts_before_training.parameter_update_step_counts_by_model_id.get(model_id, 0) + 3
+        )
+        assert counts_after_training.trained_sample_counts_by_model_id[model_id] == (
+            counts_before_training.trained_sample_counts_by_model_id.get(model_id, 0) + 3
+        )
+    assert train_held_models_for_pending_training_requests(**training_request_arguments) == ()
     state_snapshot = adaptation_record_store.get_state_snapshot()
     assert tuple(record.adaptation_outcome for record in state_snapshot.adaptation_records) == (
         tuple(observed_outcomes)

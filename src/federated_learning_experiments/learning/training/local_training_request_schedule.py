@@ -30,6 +30,13 @@ class LocalTrainingRequestSchedule:
             return 0
         return self.calculate_pending_joint_update_iteration_count()
 
+    def has_pending_requests_reaching_update_interval(self) -> bool:
+        """保留件数が実行間隔以上かを、件数を変更せず返す。一要求あたりの回数には依らない。"""
+        return (
+            self._pending_training_request_count
+            >= self._local_training_schedule_settings.training_requests_per_update_interval
+        )
+
     def calculate_pending_joint_update_iteration_count(self) -> int:
         """明示flush用の全保留予算を、件数を変更せず返す。"""
         return (

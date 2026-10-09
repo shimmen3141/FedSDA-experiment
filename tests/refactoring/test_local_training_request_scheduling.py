@@ -113,6 +113,31 @@ def test_training_request_schedule_matches_legacy(interval_count, iteration_budg
         assert schedule.pending_training_request_count == pending_count_before
 
 
+@pytest.mark.parametrize("interval_count", [1, 3])
+@pytest.mark.parametrize("iteration_budget", [0, 2])
+def test_training_request_schedule_reports_whether_update_interval_is_reached(
+    interval_count, iteration_budget
+):
+    """間隔への到達の読取りは状態を変えず、一要求あたりの回数が0でも件数だけで決まる。"""
+    schedule = LocalTrainingRequestSchedule(
+        local_training_schedule_settings=LocalTrainingScheduleSettings(
+            training_requests_per_update_interval=interval_count,
+            joint_update_iterations_per_training_request=iteration_budget,
+        )
+    )
+    assert schedule.has_pending_requests_reaching_update_interval() is False
+    for recorded_request_count in range(1, interval_count + 3):
+        schedule.record_training_request()
+        assert schedule.has_pending_requests_reaching_update_interval() is (
+            recorded_request_count >= interval_count
+        )
+        assert schedule.pending_training_request_count == recorded_request_count
+    schedule.acknowledge_completed_training_requests(
+        completed_training_request_count=interval_count + 2
+    )
+    assert schedule.has_pending_requests_reaching_update_interval() is False
+
+
 @pytest.mark.parametrize(
     "invalid_field",
     ["training_requests_per_update_interval", "joint_update_iterations_per_training_request"],
