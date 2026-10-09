@@ -39,8 +39,8 @@
   - _Boundary: 共用のfresh process script_
   - _Requirements: 6.1_
 
-- [ ] 4. 検証
-- [ ] 4.1 独立レビューの指摘を反映し、全回帰を通す
+- [x] 4. 検証
+- [x] 4.1 独立レビューの指摘を反映し、全回帰を通す
   - 独立レビュー（別session、検証コマンドだけを許可）を1回受け、指摘の採否を下の「Implementation Notes」へ書く。
   - 完了: 全pytest（旧11・最終3goldenを含む）、Ruff、Pyright、`pip check`、照合script（`names`・`identity`・`progress`）が成功し、件数とcommitを「Implementation Notes」へ記録してある。固定旧実装とgoldenの差分が空である。
   - _Depends: 3.2_
@@ -51,3 +51,8 @@
 - 2.1と2.2は、1つの関数と1つの結果の型（記録を含む）なので、まとめて実装し、1つのcommitにした。testは、sourceの下書きの後に書いた（先に書く手順からの逸脱。実旧との対照・拒否・順序のtestは、commitの前にすべて実行して成功している）。
 - 記録から旧の集計を導くとき、実効モデル数の合計は逐次加算で求める（Python 3.13の組み込みの`sum`は、浮動小数を補正つきで足すので、旧の標本ごとの加算と末尾の桁が違う）。保存のspecで集計値を出すときに同じ注意が要る。
 - 設計からの追加: 予測の入力の検査へ、特徴の有限性と、ラベルがCPUのfloat32であることを足した（後の段だけが確かめる条件。design.mdへ反映済み）。
+- 独立レビュー（1回、2026-10-10）: Claude Haiku 5.5（独立CLI、effort `medium`を指定。実効値は出力されない）。複数部品の接続と数値の移植なので、難度からHaikuを選んだ（GPT-6 Lunaは利用上限で使えない期間でもある）。session `355eba63-a36a-490d-bb58-7858e86805c7`、JSONの`is_error=false`、`modelUsage`は`claude-haiku-5-5`だけ。対象は`810fe6e..1b14cc8`。判定は`IMPLEMENTATION: APPROVED`（Blocker・Majorなし、Minor 3件）。レビュー担当は、対象test（3132 passed、標本処理の全条件223 passed）、Ruff、共用script、`spec_checks.py names`を独立に実行した。全pytest・Pyright・`pip check`は実行していない（基準どおり）。testファイルの一部（記録のownerのtest、予測のtestの一部、依存境界testの差分の一部）は読み切れていないと申告している。依頼文と応答は`venv/refactoring-tests/observed-sample-prediction-review-*`（このPCだけ）。
+- 指摘の採否（3件とも採用、`fead321`。Minorなので再レビューは受けていない）: (1)真の概念IDがない標本を標本1件の処理の全体で通すtestがなくなった→新実装だけのtestを足した（候補検証の確定を含む12標本。概念別の証拠が作られず、記録の2項目がNone）。(2)設計の「実効モデル数は通常加算」はコードと違う→「旧と同じ組み込みの`sum`」へ直した。(3)要求4と`process_observed_sample`の説明が、除外寄与の診断を除くことを書いていない→両方へ書き、再開案内の「次の候補」へ足した。
+- 検証（Windows基準環境、`fead321`）: 全pytest 10536 passed / 3 skipped / 2 warnings、exit 0（前spec 10437＋記録のowner 38＋予測 50＋標本処理 11）。JUnitは10539 testcase、failure 0、error 0。`tests.test_regression`・`tests.test_proposed_regression`は成功。標本処理の全結果を通ったことを確かめるtestはskipされていない（skip 3件は以前からのもの）。Ruff（check・format）、Pyright 0 errors、`pip check`成功。固定旧`748c3aa`からの差分は空。source hash（299パス）は`da5d715cd7898df5ee619a3c2d69916d467f58dc3c6740ce0cd8b52e307a8923`。レビュー前の`1b14cc8`でも全pytestを実行した（10535 passed / 3 skipped）。
+- 変異テストは実行していない（既定）。
+- 未検証・残る制約: 真の概念IDがない標本の経路は、実旧と対照できない（実旧が処理できない）。新実装だけのtestで確かめた。予測の対照は、最終構成の1経路だけである。新全体runのgolden一致は、このspecの範囲外で、未確認。WSLでは実行していない。
