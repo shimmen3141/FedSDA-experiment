@@ -48,3 +48,23 @@ r4の3文書（設計・命名・tasks）は、処理・契約・検査の順・
 ## 実装の段階での、文面だけの修正（命名r5）
 
 実装でPyrightの型の指摘を解消するために、複数の部品へ同じ引数を渡すための局所のdict（`training_owners`、`training_request_arguments`）をやめ、引数を呼出しごとに書いた。命名表からこの2つの局所名を外し、既存の名前と同じ役割の局所名`active_validation_session`を足した（公開の名前、処理、契約は変えていない）。共通引継ぎ手順の「文面だけの指摘」と同じ扱いで、実装のレビューがr5の命名表を読む。
+
+## 実装のレビュー 1回目（別session `b4b40659-14a6-45f7-8285-1dc056e6097f`、HEAD `4d6e0d5`、source/test `9a4c79c`）— IMPLEMENTATION: CHANGES_REQUESTED
+
+選択: やや複雑な実装のレビューなので、優先のClaude Haiku 5.5（代替ではない）。検証コマンドだけを許可して起動した（pytest、Ruff、共用script、`spec_checks.py`、`git status`、`git diff`。ファイルの変更やその他のコマンドは許可していない）。
+
+- レビュー担当が独立に実行したもの: 対象の4 test file（3296 passed、skipなし）、共用script（`FRESH PROCESS SMOKE PASSED: 16 flows`、exit 0）、Ruff check・format、`spec_checks.py identity`（承認hash 4件、固定旧差分、作業ツリー、source hash、JUnit 10440 testcase・failure 0・error 0・skip 3、旧回帰2件）、`progress`（全項目OK）、`names`（未登録2件。下の指摘1）、`git diff --stat`の2件（空）、`git status --short`（空）。logの末尾と件数の内訳（10185＋252）も照合した。Pyright・pip check・全pytest・変異toolは実行していない（変異は`report.json`を読んで照合）。
+- 要求の全項目を「OK」または「おおむねOK」と判定した（4.1はsnapshotの範囲が指摘2、4.3はtest名と証拠だけ確認、5.1は予測を止める部分の実装を未確認）。範囲外（予測、episode、結果種別の列）は実装されていないと報告された。
+- 3つの`report.json`の検出数、復元前後のhashの一致、未検出の変異の等価の判断（下の指摘5を除く）を確認したと報告された。
+
+指摘と採否:
+
+1. Major（命名）: testのmodule直下の`OWN_REJECTION_MESSAGES`と`make_monitor_observed_at`が命名表にない（`spec_checks.py names`が未登録と報告する）。→ 事実で、採用。変異toolで見つかったtestの穴へtestを足したとき（commit `9a4c79c`）に、命名表への登録と`names`の再実行を行っていなかった。命名表へ登録した（命名r6。定数は、既存の部品が出す文言も持つようにしたので`REJECTION_MESSAGES`へ改名した）。Majorなので、直した内容を別sessionが確認する（下）。
+2. Minor: 拒否のtestの`snapshot_sample_processing_state`が、処理が触れうるownerを全部は覆っていない（診断証拠、一時IDの採番、送信保留、評価標本、optimizerの状態、sessionの内部）。→ 採用。診断証拠、一時IDの次の値、送信保留、評価標本、保有モデルと共有部のoptimizerの状態を足した。sessionと送信保留は同じオブジェクトであることだけを比べると、testと統合検証に明記した。
+3. Minor: 特徴の数とラベルの範囲の拒否条件で、例外の文言を確かめていない。→ 採用（既存の部品が出す文言の一部を登録した）。
+4. Minor: 変異toolの「代入どうしの入替えを作らない」は、右辺に副作用のある呼出しを持つ代入の組も除外する。→ toolの説明と証拠文書に、確かめられなくなる範囲と、`--extra`で足すことを書いた（除外の条件は変えていない。右辺に呼出しがある代入を対象に戻すと、読取りの呼出しどうしの入替えが大量に作られ、今回の時間の問題へ戻る）。
+5. Minor: ownerの型の検査のloopを後ろへ移す変異を等価とした理由に、「読取りは型未検査のownerのメソッド呼出し」という前提が抜けている。→ 前提が事実と違うので不採用。この変異が検査を移す先は、標本の位置を局所名へ写す代入（標本のfieldの読取り）の直後で、ownerのメソッドを呼ぶ文より前のままである（`processing/report.json`の該当の変異と、sourceの151〜159行）。証拠文書に、移す先を具体的に書いた。
+6. 任意: 監視の値の記録のNaNの拒否は、監視の状態更新より後にある。→ 証拠文書に、到達しない理由を書いた。
+7. 任意: 概念IDの対応づけの拒否は、警報の処理の後にある。→ 証拠文書に書いた（設計4節に前提がある）。
+
+反映の後、`d497c50`で全pytestをやり直した（10437 passed / 3 skipped、exit 0）。Minorの指摘でtestを直した場合の扱い（全回帰をやり直して記録し、再レビューは省く）による。変異toolは実行し直していない（拒否のtestを厳しくする変更だけ）。

@@ -1,4 +1,4 @@
-# 標本1件の処理 — 命名 revision5
+# 標本1件の処理 — 命名 revision6
 
 sourceの名前と、testのmodule直下の名前（test関数の名前を除く）の実装前一覧（範囲は共通引継ぎ手順）。リポジトリ外の下書きを作業ツリーの複製へ置いて`spec_checks.py names`で照合した。承認状態はspec.json。
 
@@ -45,6 +45,7 @@ sourceの名前と、testのmodule直下の名前（test関数の名前を除く
 | `assert_sample_processing_state_matches_legacy` | 全ownerの状態を、実旧clientの対応する属性と照合する。 |
 | `snapshot_sample_processing_state` / `assert_sample_processing_state_unchanged` | 標本1件の処理が触れうる全ownerの読取りと、不変の確認。 |
 | `make_store_with_other_pending_observations` / `make_store_with_inverted_concept_id_holding` | 拒否条件に使う、保留標本だけ／概念IDの保持の有無だけが違う保留標本のowner。 |
+| `REJECTION_MESSAGES` / `make_monitor_observed_at` | 拒否条件名から、例外の文言の一部への対応（どの検査が拒否したかを確かめる）／渡された監視の複製へ、指定の位置で1件観測させたものを作る（監視の位置の連続性の拒否条件に使う）。revision6で追加（変異toolで見つかったtestの穴へtestを足したときの名前。実装のレビューで登録漏れを指摘された）。 |
 | `OWNER_ARGUMENT_NAMES_VALIDATED_FIRST` / `INVALID_SAMPLE_PROCESSING_INPUT_CASES` | 最初に型を確かめる引数名（本処理が受け取るownerすべてと、乱数生成器）／拒否条件名から（差し替える引数を作る操作、期待する例外）への対応。 |
 | `SAMPLE_PROCESSING_STEP_NAMES` / `record_sample_processing_steps` | 標本1件の処理が呼ぶ段の名前／各段の呼出しを、順と、その時点の状態つきで記録する。 |
 | `make_owner_subclass_instance` | exact型の検査が拒否するべき、ownerの派生型の値を作る（乱数生成器は派生型を新しく作り、ほかは既存`make_subclass_copy`を使う）。revision2で追加。 |

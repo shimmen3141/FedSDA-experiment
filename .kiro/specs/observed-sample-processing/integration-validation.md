@@ -4,7 +4,7 @@
 
 ## 対象
 
-検証対象commit: `9a4c79c`（本specのsource・testの最終commit。全pytestを実行したのは、その後に文書だけを足した`3b5efc8`。sourceの最終変更は`c4d513f`）。主担当Claude Code、2026-10-09。実行環境はWindowsの基準環境（固定venv、Python 3.13、torch 2.12.1+cpu、OMP/MKL各1 thread）。
+検証対象commit: `d497c50`（本specのsource・testの最終commit。sourceの最終変更は`c4d513f`。`9a4c79c`と`d497c50`はtestと変異toolだけを変えた）。主担当Claude Code、2026-10-09〜10。実行環境はWindowsの基準環境（固定venv、Python 3.13、torch 2.12.1+cpu、OMP/MKL各1 thread）。
 
 ## taskごとの証拠
 
@@ -28,7 +28,7 @@
 | 1.6 | 結果recordの型と、警報の有無とfieldの対応を対照testで確認 |
 | 2.1〜2.3 | 保留標本のownerの単独のtest（追加と読取り、型と位置の拒否、残す操作と末尾でない位置の拒否、概念IDの保持・上書きの拒否・解除、tupleの派生型の拒否） |
 | 3.1〜3.3 | 警報の記録のownerの単独のtest（値と位置の追加、builtin float以外・NaN・正の無限大の拒否、位置の順と警報の順の拒否、snapshotの独立） |
-| 4.1 | 候補検証を保持している状態と保持していない状態のそれぞれで、標本の型・形・概念ID・位置、位置の連続性（保留位置、監視）、2つのownerの対応の不正を渡し、例外の文言と、全状態が変わらないことを確認。本処理が受け取るowner 16個と乱数生成器の、別の型・派生型で、全状態が変わらないことを確認 |
+| 4.1 | 候補検証を保持している状態と保持していない状態のそれぞれで、標本の型・形・概念ID・位置、位置の連続性（保留位置、監視）、2つのownerの対応の不正を渡し、例外の文言と、状態が変わらないことを確認。本処理が受け取るowner 16個と乱数生成器の、別の型・派生型で、状態が変わらないことを確認。比べる状態: 保有モデルのIDとparameter、optimizerの状態（保有モデルと共有部）、標本、計数、損失統計、現在のモデル、保留位置、保留標本、概念IDの保持、監視、警報の記録、適応記録、診断証拠、一時IDの次の値、評価標本、保留中の学習要求の件数、乱数（Python・torch）。保持中の候補検証のsessionと送信保留は、同じオブジェクトであることだけを比べる（中身は比べていない） |
 | 4.2 | 特徴の数とラベルの範囲の不正で、保持の有無の両方で、全状態が変わらないことを確認 |
 | 4.3 | 帰属の確定を失敗させ、学習要求の記録が呼ばれず、例外がそのまま伝わり、先の段の更新が残ることを確認 |
 | 4.4 | 新しいtestは置いていない（設計8節）。既存の部品のtestによる |
@@ -42,13 +42,15 @@
 | --- | --- |
 | 要求r3 | 46b8881a072d3f4d1d9a57349056d55f86863671209efc0c0f1bcb08f78c1be2 |
 | 設計r4（r3の承認の後、文面だけの修正） | a69eacd678a14be3a9f60e281eefbffdfda3e56712a0fb0e2b1166c8dfee7ec4 |
-| 命名r5（r3の承認の後、文面だけの修正を2回） | 98570d8fb5da7880aaa7a174b0e2df7f63d7bfacbbfa849a41fe78f4b8684638 |
+| 命名r6（r3の承認の後、文面だけの修正を2回。r6は、実装のレビューで指摘された、testの名前2つの登録漏れの修正） | 15e0518bc3ecca17d1f4cab47603ec070c0483e609c9a8a13efaef2cf803a1e7 |
 | tasks r4（r3の承認の後、文面だけの修正。完了のcheckbox `[x]`を`[ ]`へ置き換えた内容で計算した値） | 28d62ddc1974d9573a7b10ffd6d4c1745665fcbf7000f79882ca9e0a252cb54d |
-| source全体、`9a4c79c`、295パス | 21c45e5f7be81717cc134031bc03e6622032cd8ea1ecc31366374d52ba0054e4 |
+| source全体、`d497c50`、295パス | 0501337ca8f4a0ed8262ec82a5a087f37b0fd752c42709432c53224e5220154f |
 
-source hashはtracked Pythonと2goldenの、パス昇順・LF内容のhash（`spec_checks.py identity --rev 9a4c79c`の計算）。前spec（`1a03667`、290パス）から5パス増えた（新しいsource 3つとtest 2つ）。`src`・`tests`の差分は、新しい5ファイルと、依存境界test・共用scriptの2ファイル。固定旧`748c3aa`から旧実装・tools・2golden・旧回帰testへのdiffは、commit済み・作業ツリーとも空。全pytestの実行時、未コミット差分はない。
+source hashはtracked Pythonと2goldenの、パス昇順・LF内容のhash（`spec_checks.py identity --rev d497c50`の計算）。前spec（`1a03667`、290パス）から5パス増えた（新しいsource 3つとtest 2つ）。`src`・`tests`の差分は、新しい5ファイルと、依存境界test・共用scriptの2ファイル。固定旧`748c3aa`から旧実装・tools・2golden・旧回帰testへのdiffは、commit済み・作業ツリーとも空。全pytestの実行時、source・testに未コミット差分はない（文書3つ——命名表、検出力の証拠、この文書——は、実行の時点で未コミットだった）。
 
-全pytestは**10437 passed / 3 skipped / 2 warnings、330.41s、exit 0**。前spec 10185＋標本1件の処理のtest 213＋2つのownerのtest 39＝10437。JUnitは10440 testcase、failure 0、error 0、skip 3。`tests.test_regression`と`tests.test_proposed_regression`はどちらも成功。skip 3件と警告2件は以前のspecと同じ既存のもの（全結果を通ったことを確かめるtestは、skipされていない）。
+全pytestは**10437 passed / 3 skipped / 2 warnings、385.60s、exit 0**（`d497c50`。実装のレビューの指摘でtestを広げた後のやり直し。件数は変わらない）。前spec 10185＋標本1件の処理のtest 213＋2つのownerのtest 39＝10437。JUnitは10440 testcase、failure 0、error 0、skip 3。`tests.test_regression`と`tests.test_proposed_regression`はどちらも成功。skip 3件と警告2件は以前のspecと同じ既存のもの（全結果を通ったことを確かめるtestは、skipされていない）。
+
+実装のレビューの前に`9a4c79c`でも全pytestを実行した（10437 passed / 3 skipped、330.41s。JUnitは上書きしたので残っていない）。判定には`d497c50`の結果を使う。
 
 Ruff check成功、format checkは193 files already formatted。Pyrightは固定venv指定で0 errors/0 warnings/0 informations。pip check成功。
 

@@ -68,8 +68,8 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 5,
-      "generated_sha256_lf": "98570d8fb5da7880aaa7a174b0e2df7f63d7bfacbbfa849a41fe78f4b8684638",
+      "revision": 6,
+      "generated_sha256_lf": "15e0518bc3ecca17d1f4cab47603ec070c0483e609c9a8a13efaef2cf803a1e7",
       "previous_revisions": [
         {
           "revision": 1,
@@ -91,6 +91,11 @@
           "revision": 4,
           "sha256_lf": "a8c258acfa791af188d40e270ac80795a30d48b432344d26d897f7873c65f89f",
           "note": "wording-only revision after review r3"
+        },
+        {
+          "revision": 5,
+          "sha256_lf": "98570d8fb5da7880aaa7a174b0e2df7f63d7bfacbbfa849a41fe78f4b8684638",
+          "note": "wording-only revision"
         }
       ],
       "wording_only_revision_after_review": {
@@ -99,12 +104,20 @@
         "last_review_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
         "note": "文面だけの修正（共通引継ぎ手順）。r4: 3回目のレビューの指摘。r5: 実装で使わなくなった局所名2つを表から外し、既存名の局所名1つを足した。修正内容はreview.md"
       },
-      "approved_revision": 5,
-      "approved_sha256_lf": "98570d8fb5da7880aaa7a174b0e2df7f63d7bfacbbfa849a41fe78f4b8684638",
+      "approved_revision": 6,
+      "approved_sha256_lf": "15e0518bc3ecca17d1f4cab47603ec070c0483e609c9a8a13efaef2cf803a1e7",
       "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested; substitute for gpt-6-luna at usage limit)",
       "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
       "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
-      "review_record": "review.md"
+      "review_record": "review.md",
+      "naming_addition_after_implementation_review": {
+        "added_names": [
+          "REJECTION_MESSAGES",
+          "make_monitor_observed_at"
+        ],
+        "requested_by_session": "b4b40659-14a6-45f7-8285-1dc056e6097f",
+        "confirmation": "pending_separate_session"
+      }
     },
     "tasks": {
       "generated": true,
@@ -151,10 +164,22 @@
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "all_tasks_implemented_and_verified_by_owner",
-    "next_step": "implementation_review_in_separate_session",
+    "completed_unit": "implementation_review_1_changes_applied",
+    "next_step": "confirmation_of_major_fix_in_separate_session",
     "implementation_started": true,
     "tests_run": true,
     "full_pytest_run_for_this_spec": true
+  },
+  "task_reviews": {
+    "implementation_1": {
+      "verdict": "IMPLEMENTATION: CHANGES_REQUESTED",
+      "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+      "reviewer_session": "b4b40659-14a6-45f7-8285-1dc056e6097f",
+      "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+      "reviewed_commit": "4d6e0d5",
+      "source_and_test_commit": "9a4c79c",
+      "independent_test_execution": true,
+      "evidence": "review.md"
+    }
   }
 }
