@@ -299,12 +299,12 @@ def check_identity(arguments):
     for stage in APPROVAL_STAGES:
         approval = spec.get("approvals", {}).get(stage, {})
         approved_hash = approval.get("approved_sha256_lf")
-        if stage == "tasks":
-            # 承認時は全taskが未完了。完了のcheckboxを戻した内容で比べる。
-            content = content.replace(b"- [x] ", b"- [ ] ")
         if hashes_are_optional and approved_hash is None:
             continue
         content = (spec_directory / f"{stage}.md").read_bytes()
+        if stage == "tasks":
+            # 承認時は全taskが未完了。完了のcheckboxを戻した内容で比べる。
+            content = content.replace(b"- [x] ", b"- [ ] ")
         if not approval.get("approved") or approved_hash is None:
             report(f"{stage}の承認hash", False, "spec.jsonに承認の記録がない")
             continue
