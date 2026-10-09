@@ -4805,6 +4805,28 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
         )
+    if source_module_path == "runtime/observed_sample_prediction.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "torch.Tensor",
+            "torch.float32",
+            "torch.isfinite",
+            "torch.no_grad",
+            "torch.strided",
+            "federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection.AdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.evaluation.sample_prediction_record_store.SamplePredictionRecord",
+            "federated_learning_experiments.evaluation.sample_prediction_record_store.SamplePredictionRecordStore",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.combine_model_prediction_probabilities",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.compute_model_mean_bounded_losses_after_label_observation",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.convert_model_outputs_to_prediction_probabilities",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.normalize_model_prediction_weights",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.predict_class_labels_from_prediction_scores",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights.FixedSharePredictionWeightController",
+        )
     if source_module_path == "evaluation/sample_prediction_record_store.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5785,6 +5807,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/loss_change_alarm_record_store.py",
             "runtime/observed_sample_processing.py",
             "evaluation/sample_prediction_record_store.py",
+            "runtime/observed_sample_prediction.py",
             "runtime/held_model_training_request_handling.py",
             "runtime/released_pending_sample_assignment.py",
             "learning/training/candidate_epoch_training_settings.py",
@@ -5847,6 +5870,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/loss_change_alarm_record_store.py",
                     "runtime/observed_sample_processing.py",
                     "evaluation/sample_prediction_record_store.py",
+                    "runtime/observed_sample_prediction.py",
                     "runtime/held_model_training_request_handling.py",
                     "runtime/released_pending_sample_assignment.py",
                     "learning/training/candidate_epoch_training_settings.py",
