@@ -152,6 +152,9 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientScalarSettings,
     FedsdaRunClientSettings,
 )
+from federated_learning_experiments.runtime.global_model_distribution import (
+    distribute_global_models_to_clients,
+)
 from federated_learning_experiments.runtime.held_candidate_validation_progress import (
     advance_held_candidate_validation,
 )
@@ -783,8 +786,8 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
 PROCESSED_ALARM_COUNTS = []
 
 
-class ServerOperationsRegisteringAndAggregating:
-    """実行の枠が求めるサーバの操作の代役。ラウンドごとに、新規モデルの登録と集約だけを行う（配布は未移植）。"""
+class ServerOperationsRegisteringAggregatingAndDistributing:
+    """実行の枠が求めるサーバの操作の代役。ラウンドごとに、新規モデルの登録・集約・配布を行う（統合は未移植）。"""
 
     def __init__(self, *, run_clients, global_model_repository, communication_volume_record_store):
         self.run_clients = run_clients
@@ -792,6 +795,7 @@ class ServerOperationsRegisteringAndAggregating:
         self.communication_volume_record_store = communication_volume_record_store
         self.registered_model_count = 0
         self.aggregations = []
+        self.distributed_model_count = 0
 
     def record_client_states_before_synchronization(self, *, round_index):
         self.communication_volume_record_store.record_messages(
@@ -813,6 +817,65 @@ class ServerOperationsRegisteringAndAggregating:
                 communication_volume_record_store=self.communication_volume_record_store,
             )
         )
+        downloaded_byte_count = (
+            self.communication_volume_record_store.get_state_snapshot().downloaded_byte_count
+        )
+        distribution_applications = distribute_global_models_to_clients(
+            run_clients=self.run_clients,
+            global_model_repository=self.global_model_repository,
+            communication_volume_record_store=self.communication_volume_record_store,
+            model_id_mapping={},
+        )
+        assert (
+            self.communication_volume_record_store.get_state_snapshot().downloaded_byte_count
+            > downloaded_byte_count
+        )
+        # 配布の後、全clientが、全グローバルモデルを同じ値で保有し、client内では1つの共有部につながっている。
+        global_model_ids = self.global_model_repository.global_model_ids
+        self.distributed_model_count += len(global_model_ids) * len(self.run_clients)
+        for run_client, distribution_application in zip(
+            self.run_clients, distribution_applications, strict=True
+        ):
+            assert distribution_application.training_assignment_change is None
+            held_model_training_states = run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+            assert (
+                tuple(
+                    held_state.model_id
+                    for held_state in held_model_training_states
+                    if held_state.model_id >= 0
+                )
+                == global_model_ids
+            )
+            assert distribution_application.held_model_ids == tuple(
+                held_state.model_id for held_state in held_model_training_states
+            )
+            assert (
+                len(
+                    {
+                        id(held_state.classifier.feature_extractor)
+                        for held_state in held_model_training_states
+                    }
+                )
+                == 1
+            )
+            for held_state in held_model_training_states:
+                if held_state.model_id < 0:
+                    continue
+                global_parameters = self.global_model_repository.get_global_model_parameters(
+                    model_id=held_state.model_id
+                )
+                held_parameters = held_state.classifier.state_dict()
+                # 共有部は、つなぎ先（非負のIDが最小のモデル）のもの。概念固有部は、そのモデルのもの。
+                shared_source_parameters = self.global_model_repository.get_global_model_parameters(
+                    model_id=min(global_model_ids)
+                )
+                for parameter_name, held_parameter_values in held_parameters.items():
+                    expected_parameters = (
+                        shared_source_parameters
+                        if parameter_name.startswith("feature_extractor.")
+                        else global_parameters
+                    )
+                    assert torch.equal(held_parameter_values, expected_parameters[parameter_name])
 
     def finalize_started_communications(self, *, completed_round_count):
         assert len(self.aggregations) == completed_round_count
@@ -929,7 +992,7 @@ def run_assembled_client_flow(*, class_count):
         initial_loss_statistics=pretrained_initial_model.loss_statistics,
     )
     communication_volume_record_store = CommunicationVolumeRecordStore()
-    server_operations = ServerOperationsRegisteringAndAggregating(
+    server_operations = ServerOperationsRegisteringAggregatingAndDistributing(
         run_clients=run_clients,
         global_model_repository=global_model_repository,
         communication_volume_record_store=communication_volume_record_store,
@@ -1000,7 +1063,7 @@ def run_assembled_client_flow(*, class_count):
         )
     )
     assert alarm_count > 0, alarm_count
-    # サーバ: 毎ラウンド集約し、グローバルモデル0が、clientの学習を反映して初期の値から変わっている。
+    # サーバ: 毎ラウンド集約して配布し、グローバルモデル0が、clientの学習を反映して初期の値から変わっている。
     assert len(server_operations.aggregations) == round_count
     assert all(
         0 in aggregation.aggregated_global_model_ids
@@ -1019,7 +1082,14 @@ def run_assembled_client_flow(*, class_count):
     assert communication_volume.uploaded_byte_count == 4 * (
         communication_volume.uploaded_parameter_value_count
     )
-    assert communication_volume.downloaded_byte_count == 0
+    # 配布: 下りの通信量が、ラウンドごとの（グローバルモデルの数×clientの数）だけ足されている。
+    assert communication_volume.downloaded_model_count == server_operations.distributed_model_count
+    assert server_operations.distributed_model_count >= round_count * ASSEMBLED_CLIENT_COUNT
+    assert communication_volume.downloaded_message_count == 0
+    assert communication_volume.downloaded_byte_count == 4 * (
+        communication_volume.downloaded_parameter_value_count
+    )
+    assert communication_volume.downloaded_byte_count > 0
     # 登録した数だけ、次の正式IDが進み、来歴が増えている。
     assert (
         global_model_repository.next_global_model_id == 1 + server_operations.registered_model_count

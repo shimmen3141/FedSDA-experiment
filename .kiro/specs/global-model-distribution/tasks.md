@@ -29,8 +29,8 @@
   - _Boundary: distribute_global_models_to_clients_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 4.1, 4.3, 5.1, 5.4, 5.5, 6.2_
 
-- [ ] 3. 新実装だけの確認
-- [ ] 3.1 共用のfresh process scriptで、ラウンドごとに登録・集約・配布を行う
+- [x] 3. 新実装だけの確認
+- [x] 3.1 共用のfresh process scriptで、ラウンドごとに登録・集約・配布を行う
   - 完了: 共用scriptが、旧実装とtestのmoduleを読み込まずに、ラウンドごとに登録・集約・配布を行い、配布の後に、全clientが全グローバルモデルを同じ値で保有し、1つの共有部につながっていることと、下りの通信量が足されたことを確かめて成功する。別processで実行するtest、Ruff、Pyrightが成功する。
   - _Depends: 2.2_
   - _Boundary: 共用のfresh process script_
