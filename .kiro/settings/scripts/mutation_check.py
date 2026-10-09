@@ -9,6 +9,7 @@ specごとに変異scriptを書く代わりに使う。対象関数の本体（�
     defer:  例外を出しうる文（raiseを含む文、式文の呼出し）を、後続の最初の代入文の直後へ移す
             （「検査を更新の後へ移す」。代入の右辺が状態を更新する呼出しであることを想定する）。
     swap:   隣り合う「検査でない文」2つの順を入れ替える（後の文が前の文の束縛名を読まない場合だけ）。
+            2つとも代入文のときは作らない（互いに読まない代入どうしの入替えは、ほぼ常に挙動が変わらない）。
     relax:  `type(x) is not T` を `not isinstance(x, T)` へ緩める。
 1種ずつsourceを書き換えて対象testを実行し、毎回元byteへ戻す。変異後のsourceは実行前にcompileし、
 収集失敗は検出に数えない。結果は<証拠ディレクトリ>/report.jsonと変異ごとのlog。
@@ -17,6 +18,10 @@ specごとに変異scriptを書く代わりに使う。対象関数の本体（�
 どちらであるかは人が判断し、等価なら理由を対象specの証拠文書へ書く。機械的に作れない変異
 （引数の差替え、別のownerへ渡す、条件の向きなど）は、必要なときだけ--extraで足す:
     --extra <名前>::<置換前の文字列>::<置換後の文字列>   （sourceに1回だけ現れる文字列。\\nは改行）
+
+対象testに時間がかかるときは、変異の実行だけに追加のpytest引数を渡して、条件を絞る:
+    --mutant-pytest-args="-k <式>"   （変異の前後の確認は、絞らずに全体を実行する）
+変異の実行は最初の失敗で止める（-x）。未検出の変異だけが、絞った条件を最後まで実行する。
 """
 
 import argparse
@@ -24,6 +29,7 @@ import ast
 import hashlib
 import json
 import pathlib
+import shlex
 import subprocess
 import sys
 
@@ -126,6 +132,10 @@ def build_mutations(source_text, function_names):
                     and not is_check_statement(following)
                     and not isinstance(statement, ast.Return)
                     and not isinstance(following, ast.Return)
+                    and not (
+                        isinstance(statement, (ast.Assign, ast.AnnAssign))
+                        and isinstance(following, (ast.Assign, ast.AnnAssign))
+                    )
                     and not (bound_names(statement) & loaded_names(following))
                 ):
                     following_begin, following_end = line_span(following)
@@ -190,7 +200,7 @@ def build_mutations(source_text, function_names):
     return mutations
 
 
-def run_tests(test_paths, stop_at_first_failure=False):
+def run_tests(test_paths, stop_at_first_failure=False, additional_pytest_arguments=()):
     return subprocess.run(
         [
             sys.executable,
@@ -202,6 +212,7 @@ def run_tests(test_paths, stop_at_first_failure=False):
             "no:cacheprovider",
             # 変異の検出は失敗が1件あれば分かるので、最初の失敗で止める（時間のかかるtestでの実行時間を減らす）。
             *(("-x",) if stop_at_first_failure else ()),
+            *additional_pytest_arguments,
         ],
         capture_output=True,
         text=True,
@@ -222,6 +233,7 @@ def main():
     parser.add_argument("--tests", nargs="+", required=True)
     parser.add_argument("--evidence", required=True)
     parser.add_argument("--extra", action="append", default=[])
+    parser.add_argument("--mutant-pytest-args", default="")
     arguments = parser.parse_args()
     source_path = pathlib.Path(arguments.source)
     evidence = pathlib.Path(arguments.evidence)
@@ -254,7 +266,11 @@ def main():
             continue
         try:
             source_path.write_bytes(mutated_text.encode("utf-8"))
-            result = run_tests(arguments.tests, stop_at_first_failure=True)
+            result = run_tests(
+                arguments.tests,
+                stop_at_first_failure=True,
+                additional_pytest_arguments=shlex.split(arguments.mutant_pytest_args),
+            )
         finally:
             source_path.write_bytes(original)
         (evidence / f"{index:02d}.log").write_text(
@@ -283,6 +299,7 @@ def main():
         "source": arguments.source,
         "functions": arguments.functions.split(","),
         "tests": arguments.tests,
+        "mutant_pytest_args": arguments.mutant_pytest_args,
         "mutations": results,
         "detected": len(executed) - len(undetected),
         "total": len(executed),

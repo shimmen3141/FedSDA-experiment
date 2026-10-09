@@ -2,6 +2,7 @@
 
 import random
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import replace
 
 import pytest
@@ -749,6 +750,72 @@ INVALID_SAMPLE_PROCESSING_INPUT_CASES = {
         ),
         TypeError,
     ),
+    "observed_class_labels_not_tensor": (
+        lambda processing_arguments, indexed_observation: dict(
+            indexed_observation=replace(
+                indexed_observation,
+                training_sample=ObservedTrainingSample(
+                    input_features=indexed_observation.training_sample.input_features,
+                    observed_class_labels=[[0.0]],
+                ),
+            )
+        ),
+        TypeError,
+    ),
+    # torch.nn.ParameterはTensorの派生型。exact torch.Tensorだけを受け入れる。
+    "input_features_tensor_subclass": (
+        lambda processing_arguments, indexed_observation: dict(
+            indexed_observation=replace(
+                indexed_observation,
+                training_sample=ObservedTrainingSample(
+                    input_features=torch.nn.Parameter(
+                        indexed_observation.training_sample.input_features.clone(),
+                        requires_grad=False,
+                    ),
+                    observed_class_labels=indexed_observation.training_sample.observed_class_labels,
+                ),
+            )
+        ),
+        TypeError,
+    ),
+    "observed_class_labels_tensor_subclass": (
+        lambda processing_arguments, indexed_observation: dict(
+            indexed_observation=replace(
+                indexed_observation,
+                training_sample=ObservedTrainingSample(
+                    input_features=indexed_observation.training_sample.input_features,
+                    observed_class_labels=torch.nn.Parameter(
+                        indexed_observation.training_sample.observed_class_labels.clone(),
+                        requires_grad=False,
+                    ),
+                ),
+            )
+        ),
+        TypeError,
+    ),
+    # 1標本ぶんの特徴に、2標本ぶんのラベル。
+    "two_labels_for_one_sample": (
+        lambda processing_arguments, indexed_observation: dict(
+            indexed_observation=replace(
+                indexed_observation,
+                training_sample=ObservedTrainingSample(
+                    input_features=indexed_observation.training_sample.input_features,
+                    observed_class_labels=torch.tensor([[0.0], [1.0]]),
+                ),
+            )
+        ),
+        ValueError,
+    ),
+    # 監視の最後の観測の位置が、この標本の直前でない（保留位置とは連続している）。
+    "monitor_last_observation_is_not_previous_sample": (
+        lambda processing_arguments, indexed_observation: dict(
+            loss_change_monitor=make_monitor_observed_at(
+                processing_arguments["loss_change_monitor"],
+                sample_index=indexed_observation.sample_index + 3,
+            )
+        ),
+        ValueError,
+    ),
     # 2標本をまとめた入力。候補検証を保持していないと、損失の評価は通ってしまう。
     "two_samples_in_one_observation": (
         lambda processing_arguments, indexed_observation: dict(
@@ -815,6 +882,45 @@ INVALID_SAMPLE_PROCESSING_INPUT_CASES = {
 }
 
 
+# 本処理自身の検査が拒否する条件の、例外の文言の一部（後の段や別の検査が代わりに拒否していないことを確かめる）。
+OWN_REJECTION_MESSAGES = {
+    "observation_other_type": "indexed_observation must be exact",
+    "observation_subclass": "indexed_observation must be exact",
+    "sample_index_bool": "sample_index must be builtin int",
+    "sample_index_negative": "sample_index must be nonnegative",
+    "sample_index_repeated": "follow the last observed sample index",
+    "sample_index_skipped": "follow the last observed sample index",
+    "monitor_last_observation_is_not_previous_sample": "follow the last monitored sample index",
+    "pending_observation_store_not_aligned": "must match pending sample indices",
+    "validation_concept_ids_do_not_match_held_session": "exactly while a session is held",
+    "training_sample_other_type": "training_sample must be exact",
+    "training_sample_subclass": "training_sample must be exact",
+    "concept_id_bool": "observed_concept_id must be builtin int or None",
+    "concept_id_text": "observed_concept_id must be builtin int or None",
+    "input_features_not_tensor": "must be exact torch.Tensor",
+    "observed_class_labels_not_tensor": "must be exact torch.Tensor",
+    "input_features_tensor_subclass": "must be exact torch.Tensor",
+    "observed_class_labels_tensor_subclass": "must be exact torch.Tensor",
+    "two_samples_in_one_observation": "exactly one sample",
+    "one_dimensional_input_features": "exactly one sample",
+    "one_dimensional_labels": "must have shape",
+    "two_labels_for_one_sample": "must have shape",
+}
+
+
+def make_monitor_observed_at(loss_change_monitor, *, sample_index):
+    """渡された監視の複製へ、指定の位置で1件観測させたもの（元の監視は変えない）。"""
+    observed_monitor = deepcopy(loss_change_monitor)
+    observed_monitor.reset(baseline_loss_mean=0.5)
+    observed_monitor.observe_loss_after_label_observation(
+        observed_loss=0.5,
+        observed_class_id=0,
+        sample_index=sample_index,
+        current_model_baseline_loss_mean=0.5,
+    )
+    return observed_monitor
+
+
 def make_store_with_inverted_concept_id_holding(pending_sample_observation_store):
     """保留標本は同じで、候補検証へ渡した標本の概念IDの保持の有無だけが逆のowner。"""
     replaced_store = PendingSampleObservationStore()
@@ -846,7 +952,7 @@ def test_sample_processing_rejects_invalid_input_before_any_update(
         )
         indexed_observation = make_next_observation(processing_arguments=processing_arguments)
         state_snapshot = snapshot_sample_processing_state(processing_arguments=processing_arguments)
-        with pytest.raises(expected_exception):
+        with pytest.raises(expected_exception, match=OWN_REJECTION_MESSAGES.get(invalid_case)):
             process_observed_sample(
                 **dict(indexed_observation=indexed_observation, **processing_arguments)
                 | make_invalid_arguments(processing_arguments, indexed_observation)
