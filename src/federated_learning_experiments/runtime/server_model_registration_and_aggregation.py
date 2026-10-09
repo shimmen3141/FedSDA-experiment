@@ -116,7 +116,7 @@ def register_ready_client_models(
     return tuple(registered_client_models)
 
 
-def _split_shared_and_concept_specific_parameters(
+def split_shared_and_concept_specific_parameters(
     *, parameter_snapshot: dict[str, Tensor]
 ) -> tuple[dict[str, Tensor], dict[str, Tensor]]:
     """完全なパラメータを、名前の順を保ったまま、共有部と概念固有部へ分ける。"""
@@ -225,7 +225,7 @@ def aggregate_client_models_into_global_models(
         if not participating_models:
             continue
         uploaded_model_count += len(participating_models)
-        client_shared_parameters, _ = _split_shared_and_concept_specific_parameters(
+        client_shared_parameters, _ = split_shared_and_concept_specific_parameters(
             parameter_snapshot=snapshot_classifier_parameters(
                 classifier=classifiers_by_model_id[participating_models[0][0]]
             )
@@ -239,7 +239,7 @@ def aggregate_client_models_into_global_models(
         )
         shared_sample_count += client_sample_count
         for model_id, sample_count in participating_models:
-            _, client_concept_specific_parameters = _split_shared_and_concept_specific_parameters(
+            _, client_concept_specific_parameters = split_shared_and_concept_specific_parameters(
                 parameter_snapshot=snapshot_classifier_parameters(
                     classifier=classifiers_by_model_id[model_id]
                 )
@@ -267,7 +267,7 @@ def aggregate_client_models_into_global_models(
             weighted_parameter_sum=shared_parameter_sum, total_sample_count=shared_sample_count
         )
     elif existing_global_model_ids:
-        global_shared_parameters, _ = _split_shared_and_concept_specific_parameters(
+        global_shared_parameters, _ = split_shared_and_concept_specific_parameters(
             parameter_snapshot=global_model_repository.get_global_model_parameters(
                 model_id=existing_global_model_ids[0]
             )
@@ -288,7 +288,7 @@ def aggregate_client_models_into_global_models(
                 )
             elif model_id in existing_global_model_ids:
                 _, global_concept_specific_parameters = (
-                    _split_shared_and_concept_specific_parameters(
+                    split_shared_and_concept_specific_parameters(
                         parameter_snapshot=global_model_repository.get_global_model_parameters(
                             model_id=model_id
                         )

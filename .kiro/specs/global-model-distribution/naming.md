@@ -22,6 +22,7 @@ sourceの公開する名前（module、class、公開の関数・メソッド）
 | `SharedParameterOptimizerStateHolder.held_shared_parameter_optimizer_state`（property）、`replace_shared_parameter_optimizer_state` | なし／状態 | 状態／なし | 現在の共有部のoptimizerの状態を読む／置き換える | なし／保持者 |
 | `HeldModelTrainingStateRegistry.replace_held_model_training_states` | 状態のtuple | なし | 保有モデルを、渡された順の状態で全部置き換える | registry |
 | `ModelAndClassLossStatisticsStore.replace_model_loss_statistics` | （ID、統計）のtuple | なし | 損失統計を、渡された順で全部置き換える | 統計 |
+| `split_shared_and_concept_specific_parameters`（`server_model_registration_and_aggregation`。非公開だった関数を公開にした） | 完全なパラメータ | （共有部、概念固有部） | 完全なパラメータを、名前の順を保って、共有部と概念固有部へ分ける。集約と配布の両方が使う | なし |
 | `GlobalModelRepository.snapshot_global_model_loss_statistics` | なし | （ID、統計）のtuple | 統計を持つグローバルモデルの統計を、置いた順で返す | なし |
 
 ## 判断が必要な点

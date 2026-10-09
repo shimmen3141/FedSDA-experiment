@@ -20,13 +20,20 @@ from test_run_settings_validation import valid_run_settings_mapping as valid_run
 from test_server_model_registration_and_aggregation import (
     CLIENT_COUNT,
     ROUND_SAMPLE_COUNT,
+    SERVER_ROUND_CONDITIONS,
     assert_all_states_match_legacy,
+    assert_server_and_client_states_unchanged,
     build_server_round_oracle,
     process_round_samples_in_both,
+    snapshot_server_and_client_states,
 )
 
+import federated_learning_experiments.runtime.fedsda_run_client as run_client_module
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
+)
+from federated_learning_experiments.runtime.global_model_distribution import (
+    distribute_global_models_to_clients,
 )
 from federated_learning_experiments.runtime.global_model_distribution_application import (
     GlobalModelDistributionApplication,
@@ -773,5 +780,327 @@ def test_distribution_application_keeps_states_outside_its_responsibility(
                 shared_parameter_optimizer.param_groups[0]["params"],
                 held_model_training_states[0].classifier.feature_extractor.parameters(),
                 strict=True,
+            )
+        )
+
+
+def distribute_from_server_in_both(server_round_oracle, model_id_mapping=None):
+    """実旧のサーバの配布と、新の配布を、同じ乱数の状態から行う。戻り値: 新の配布の結果。"""
+    legacy_server = server_round_oracle["legacy_server"]
+    distribution_applications, _ = run_in_both(
+        run_client=None,
+        legacy_client=None,
+        python_random_generator=server_round_oracle["python_random_generator"],
+        legacy_operation=lambda: legacy_server.broadcast_models(dict(model_id_mapping or {})),
+        operation=lambda: distribute_global_models_to_clients(
+            run_clients=server_round_oracle["run_clients"],
+            global_model_repository=server_round_oracle["global_model_repository"],
+            communication_volume_record_store=server_round_oracle[
+                "communication_volume_record_store"
+            ],
+            model_id_mapping=dict(model_id_mapping or {}),
+        ),
+    )
+    assert type(distribution_applications) is tuple
+    assert all(
+        type(distribution_application) is GlobalModelDistributionApplication
+        for distribution_application in distribution_applications
+    )
+    return distribution_applications
+
+
+DISTRIBUTION_ROUND_COUNT = 13
+ROUND_OBSERVED_COVERAGE_BY_CONDITION = {}
+# 登録と集約の対照の条件（クラス数, 概念の区間長, 標本列のseed）に、条件の上書きを組み合わせる。
+DISTRIBUTION_ROUND_CONDITIONS = [
+    (*server_round_condition, condition_overrides)
+    for server_round_condition in SERVER_ROUND_CONDITIONS
+    for condition_overrides in ({}, DIFFERENT_LEARNING_RATES)
+] + [(2, 16, 23, {}), (2, 9, 7, SMALL_EVALUATION_SAMPLE_LIMIT)]
+
+
+@pytest.mark.parametrize(
+    "class_count,concept_block_length,stream_seed,condition_overrides",
+    DISTRIBUTION_ROUND_CONDITIONS,
+)
+def test_registration_aggregation_and_distribution_match_real_legacy_server_for_each_round(
+    class_count,
+    concept_block_length,
+    stream_seed,
+    condition_overrides,
+    monkeypatch,
+    valid_run_settings_mapping,
+):
+    client_streams = make_client_streams(
+        round_count=DISTRIBUTION_ROUND_COUNT,
+        concept_block_length=concept_block_length,
+        stream_seed=stream_seed,
+    )
+    server_round_oracle = build_server_round_oracle(
+        monkeypatch=monkeypatch,
+        valid_run_settings_mapping=valid_run_settings_mapping,
+        class_count=class_count,
+        **condition_overrides,
+    )
+    legacy_server = server_round_oracle["legacy_server"]
+    legacy_clients = server_round_oracle["legacy_clients"]
+    global_model_repository = server_round_oracle["global_model_repository"]
+    observed_paths = set()
+    if condition_overrides.get("new_model_learning_rate") is not None:
+        observed_paths.add("different_learning_rates")
+
+    def distribute_and_observe_paths(server_round_oracle):
+        global_model_ids = list(legacy_server.global_models)
+        for legacy_client in legacy_clients:
+            temporary_model_ids = [model_id for model_id in legacy_client.models if model_id < 0]
+            if temporary_model_ids:
+                observed_paths.add("temporary_model_held_at_distribution")
+                if legacy_client.pending_model_params is None:
+                    # 採番だけが行われて、一時IDのまま残ったモデル（LEGACY-016）。
+                    observed_paths.add("unregistered_temporary_model_held_at_distribution")
+            if any(model_id not in legacy_client.models for model_id in global_model_ids):
+                observed_paths.add("previously_unheld_model_received")
+            if legacy_client._forward_validation is not None:
+                observed_paths.add("validation_session_held_at_distribution")
+        global_parameters_before = [
+            global_model_repository.get_global_model_parameters(model_id=model_id)
+            for model_id in global_model_repository.global_model_ids
+        ]
+        repository_state_before = (
+            global_model_repository.global_model_ids,
+            global_model_repository.snapshot_global_model_loss_statistics(),
+            global_model_repository.next_global_model_id,
+            global_model_repository.snapshot_model_registration_records(),
+        )
+        distribution_applications = distribute_from_server_in_both(server_round_oracle)
+        # 配布は、グローバルモデルの状態を変えない。
+        assert repository_state_before == (
+            global_model_repository.global_model_ids,
+            global_model_repository.snapshot_global_model_loss_statistics(),
+            global_model_repository.next_global_model_id,
+            global_model_repository.snapshot_model_registration_records(),
+        )
+        for model_id, parameters_before in zip(
+            global_model_repository.global_model_ids, global_parameters_before, strict=True
+        ):
+            parameters_after = global_model_repository.get_global_model_parameters(
+                model_id=model_id
+            )
+            assert all(
+                torch.equal(parameters_after[parameter_name], parameter_values)
+                for parameter_name, parameter_values in parameters_before.items()
+            )
+        # 配布の後、どのclientも、全グローバルモデルを配布の順で保有し、その後ろに一時IDのモデルが並ぶ。
+        for legacy_client, distribution_application in zip(
+            legacy_clients, distribution_applications, strict=True
+        ):
+            assert distribution_application.training_assignment_change is None
+            assert distribution_application.held_model_ids == tuple(legacy_client.models)
+            assert (
+                list(distribution_application.held_model_ids[: len(global_model_ids)])
+                == global_model_ids
+            )
+            assert all(
+                model_id < 0
+                for model_id in distribution_application.held_model_ids[len(global_model_ids) :]
+            )
+        return distribution_applications
+
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(41)
+        for round_index in range(DISTRIBUTION_ROUND_COUNT):
+            run_synchronization_round_in_both(
+                server_round_oracle=server_round_oracle,
+                client_streams=client_streams,
+                round_index=round_index,
+                distribute_in_both=distribute_and_observe_paths,
+            )
+            for model_id in legacy_server.global_models:
+                training_sample_counts = [
+                    len(legacy_client.train_data_store.get(model_id, ()))
+                    for legacy_client in legacy_clients
+                ]
+                if round_index + 1 < DISTRIBUTION_ROUND_COUNT and (
+                    min(training_sample_counts) == 0 < max(training_sample_counts)
+                ):
+                    # 次のラウンドの集約は、学習データを持つclientと持たないclientが、同じモデルを保有して迎える。
+                    observed_paths.add("aggregation_mixes_models_without_training_data")
+    ROUND_OBSERVED_COVERAGE_BY_CONDITION[
+        (class_count, concept_block_length, stream_seed, tuple(condition_overrides))
+    ] = observed_paths
+
+
+def test_distribution_round_conditions_cover_required_paths():
+    """上の対照が、要求の経路をすべて通っていること（全条件を実行したときだけ確かめる）。"""
+    if len(ROUND_OBSERVED_COVERAGE_BY_CONDITION) < len(DISTRIBUTION_ROUND_CONDITIONS):
+        pytest.skip("対照の全条件を実行したときだけ確かめる")
+    observed_paths = set().union(*ROUND_OBSERVED_COVERAGE_BY_CONDITION.values())
+    assert observed_paths >= {
+        "temporary_model_held_at_distribution",
+        "unregistered_temporary_model_held_at_distribution",
+        "previously_unheld_model_received",
+        "validation_session_held_at_distribution",
+        "aggregation_mixes_models_without_training_data",
+        "different_learning_rates",
+    }, observed_paths
+
+
+def test_server_distribution_with_model_id_mapping_matches_real_legacy_server(
+    monkeypatch, valid_run_settings_mapping
+):
+    """ID対応を与えたサーバの配布（軽量メッセージの計上と、全clientの受取り）を、実旧のサーバの配布と照合する。"""
+    server_round_oracle = build_synchronized_server_round_oracle(
+        monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
+    )
+    communication_volume_record_store = server_round_oracle["communication_volume_record_store"]
+    volume_before = communication_volume_record_store.get_state_snapshot()
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(43)
+        # サーバは、集めたモデル（ID 2）も持ったまま配る（グローバルモデルを外すのは、統合の処理）。
+        distribution_applications = distribute_from_server_in_both(
+            server_round_oracle, model_id_mapping={2: 0}
+        )
+    assert_all_states_match_legacy_after_distribution(server_round_oracle)
+    volume_after = communication_volume_record_store.get_state_snapshot()
+    assert volume_after.downloaded_message_count == (
+        volume_before.downloaded_message_count + CLIENT_COUNT
+    )
+    assert volume_after.downloaded_model_count == volume_before.downloaded_model_count + (
+        2 * CLIENT_COUNT
+    )
+    assert [
+        distribution_application.training_assignment_change is not None
+        for distribution_application in distribution_applications
+    ] == [True, False, True]
+
+
+def get_distribution_arguments(server_round_oracle):
+    return dict(
+        run_clients=server_round_oracle["run_clients"],
+        global_model_repository=server_round_oracle["global_model_repository"],
+        communication_volume_record_store=server_round_oracle["communication_volume_record_store"],
+        model_id_mapping={},
+    )
+
+
+# 条件名 -> 正常な引数から、差し替える引数を作る操作。
+INVALID_DISTRIBUTION_ARGUMENT_CASES = {
+    "clients_list": lambda arguments: dict(run_clients=list(arguments["run_clients"])),
+    "clients_hold_none": lambda arguments: dict(run_clients=(*arguments["run_clients"], None)),
+    "clients_hold_subclass": lambda arguments: dict(
+        run_clients=(*arguments["run_clients"][:2], make_subclass_copy(arguments["run_clients"][2]))
+    ),
+    "clients_duplicate": lambda arguments: dict(
+        run_clients=(*arguments["run_clients"], arguments["run_clients"][0])
+    ),
+    "repository_none": lambda arguments: dict(global_model_repository=None),
+    "repository_subclass": lambda arguments: dict(
+        global_model_repository=make_subclass_copy(arguments["global_model_repository"])
+    ),
+    "volume_store_none": lambda arguments: dict(communication_volume_record_store=None),
+    "volume_store_subclass": lambda arguments: dict(
+        communication_volume_record_store=make_subclass_copy(
+            arguments["communication_volume_record_store"]
+        )
+    ),
+    "mapping_none": lambda arguments: dict(model_id_mapping=None),
+    "mapping_list": lambda arguments: dict(model_id_mapping=[(2, 0)]),
+    "mapping_bool_key": lambda arguments: dict(model_id_mapping={True: 0}),
+    "mapping_float_value": lambda arguments: dict(model_id_mapping={2: 0.0}),
+}
+
+
+def test_distribution_rejects_invalid_arguments_before_any_update(
+    monkeypatch, valid_run_settings_mapping
+):
+    """不正な入力は、通信量も、どのclientも、乱数も変える前に拒否する（1つの状態で、全条件を順に確かめる）。"""
+    server_round_oracle = build_synchronized_server_round_oracle(
+        monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
+    )
+    arguments = get_distribution_arguments(server_round_oracle)
+    state_snapshot = snapshot_server_and_client_states(server_round_oracle)
+    global_python_random_state = random.getstate()
+    for invalid_case_name, make_invalid_arguments in INVALID_DISTRIBUTION_ARGUMENT_CASES.items():
+        with pytest.raises((TypeError, ValueError)):
+            distribute_global_models_to_clients(**arguments | make_invalid_arguments(arguments))
+        assert_server_and_client_states_unchanged(
+            state_snapshot=state_snapshot, server_round_oracle=server_round_oracle
+        )
+        assert random.getstate() == global_python_random_state, invalid_case_name
+
+
+def test_distribution_stops_at_failed_client_without_rollback(
+    monkeypatch, valid_run_settings_mapping
+):
+    """2つめのclientの受取りが失敗したら、3つめへ進まない。通信量と、1つめの受取りは残る。"""
+    server_round_oracle = build_synchronized_server_round_oracle(
+        monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
+    )
+    run_clients = server_round_oracle["run_clients"]
+    python_random_generator = server_round_oracle["python_random_generator"]
+    communication_volume_record_store = server_round_oracle["communication_volume_record_store"]
+    state_snapshot = snapshot_server_and_client_states(server_round_oracle)
+    real_application = run_client_module.apply_global_model_distribution
+    applied_registries = []
+
+    def fail_at_second_application(**application_arguments):
+        applied_registries.append(application_arguments["held_model_training_state_registry"])
+        if len(applied_registries) == 2:
+            raise RuntimeError("injected application failure")
+        return real_application(**application_arguments)
+
+    monkeypatch.setattr(
+        run_client_module, "apply_global_model_distribution", fail_at_second_application
+    )
+    first_classifier_before = (
+        run_clients[0]
+        .owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()[0]
+        .classifier
+    )
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(43)
+        with pytest.raises(RuntimeError, match="injected application failure"):
+            distribute_global_models_to_clients(**get_distribution_arguments(server_round_oracle))
+    assert applied_registries == [
+        run_client.owners.held_model_training_state_registry for run_client in run_clients[:2]
+    ]
+    # 通信量は、clientへ渡す前に足されている。
+    volume_after = communication_volume_record_store.get_state_snapshot()
+    volume_before = state_snapshot["communication_volume"]
+    assert volume_after.downloaded_model_count == volume_before.downloaded_model_count + (
+        2 * CLIENT_COUNT
+    )
+    assert (
+        volume_after.downloaded_parameter_value_count
+        > volume_before.downloaded_parameter_value_count
+    )
+    assert volume_after.downloaded_message_count == volume_before.downloaded_message_count
+    # 1つめのclientは受け取り済み（保有モデルが作り直されている）。2つめと3つめは変わらない。
+    assert (
+        run_clients[0]
+        .owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()[0]
+        .classifier
+        is not first_classifier_before
+    )
+    for run_client, client_state_snapshot in zip(
+        run_clients[1:], state_snapshot["clients"][1:], strict=True
+    ):
+        # 乱数は、1つめの受取りで進んでいるので、乱数以外の状態を比べる。
+        current_snapshot = snapshot_run_client_state(
+            run_client=run_client, python_random_generator=python_random_generator
+        )
+        for state_name in (
+            "held_model_ids",
+            "loss_statistics",
+            "current_training_model_id",
+            "adaptation_records",
+            "evaluation_samples",
+            "counts",
+        ):
+            assert current_snapshot[state_name] == client_state_snapshot[state_name], state_name
+        assert all(
+            torch.equal(current_parameter, previous_parameter)
+            for current_parameter, previous_parameter in zip(
+                current_snapshot["parameters"], client_state_snapshot["parameters"], strict=True
             )
         )

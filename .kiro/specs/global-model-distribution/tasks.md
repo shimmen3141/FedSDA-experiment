@@ -14,7 +14,7 @@
   - _Boundary: FedsdaRunClient、FedsdaRunClientOwners、FedsdaRunClientSettings_
   - _Requirements: 3.3, 3.4_
 
-- [ ] 2. 受取りと配布
+- [x] 2. 受取りと配布
 - [x] 2.1 clientの受取りを、実旧のclientの受取りとの対照つきで実装する
   - 登録と集約の対照のoracleの状態から、実旧のclientの`apply_server_mapping`と新の受取りへ、同じID対応とグローバルモデルを与えて照合する対照testを先に書く。
   - 入力の検査、統計の選択、分類器とoptimizerの状態の生成、適応記録、統計・評価標本・学習データ・計数の付け替え、保有モデルの置換えとつなぎ直し、現在の学習帰属の付け替え、clientの操作を実装する。依存の許可集合を登録する。
@@ -22,7 +22,7 @@
   - _Depends: 1.1, 1.2_
   - _Boundary: apply_global_model_distribution、GlobalModelDistributionApplication、FedsdaRunClient.apply_global_model_distribution_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 4.2, 5.1, 5.2, 5.3, 5.5, 6.2_
-- [ ] 2.2 サーバの配布を実装し、登録→集約→配布のラウンドを実旧と照合する
+- [x] 2.2 サーバの配布を実装し、登録→集約→配布のラウンドを実旧と照合する
   - 下りの通信量の記録と、全clientへの受渡しを実装する。ラウンドの対照（標本処理→保留中の学習→登録→集約→配布→送信待ちの進行）を追加する。依存の許可集合を登録する。
   - 完了: ラウンドの対照が、2値・多クラス、複数の標本列、学習率の2つの設定が違う条件で、ラウンドごとに、配布の後のサーバとclientの全状態と乱数の一致を示し、要求4.3の経路を通ったことを確かめるtestが成功する。配布の拒否と途中の失敗のtest、依存境界のsuiteが成功する。
   - _Depends: 2.1_

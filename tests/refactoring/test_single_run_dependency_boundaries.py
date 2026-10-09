@@ -4865,6 +4865,14 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
             "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
         )
+    if source_module_path == "runtime/global_model_distribution.py":
+        return imported_module_name in (
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
+            "federated_learning_experiments.methods.fedsda.model_registration.global_model_repository.GlobalModelRepository",
+            "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
+            "federated_learning_experiments.runtime.global_model_distribution_application.GlobalModelDistributionApplication",
+            "federated_learning_experiments.runtime.server_model_registration_and_aggregation.split_shared_and_concept_specific_parameters",
+        )
     if source_module_path == "runtime/global_model_distribution_application.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5965,6 +5973,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/fedsda_run_client_settings.py",
             "runtime/fedsda_run_client.py",
             "runtime/global_model_distribution_application.py",
+            "runtime/global_model_distribution.py",
             "learning/training/initial_model_pretraining_settings.py",
             "runtime/initial_model_pretraining.py",
             "evaluation/communication_volume_record_store.py",
@@ -6037,6 +6046,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedsda_run_client_settings.py",
                     "runtime/fedsda_run_client.py",
                     "runtime/global_model_distribution_application.py",
+                    "runtime/global_model_distribution.py",
                     "learning/training/initial_model_pretraining_settings.py",
                     "runtime/initial_model_pretraining.py",
                     "evaluation/communication_volume_record_store.py",
