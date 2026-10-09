@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-09（held-model-training-request-handlingの全task承認。主担当はClaude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証commit・件数・hash・レビューの経緯は、各specのintegration-validation.mdとreview.mdを読む（ここへ写さない）。
+更新: 2026-10-09（held-model-training-request-handlingの完了。主担当はClaude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証commit・件数・hash・レビューの経緯は、各specのintegration-validation.mdとreview.mdを読む（ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -9,8 +9,8 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **現在地:** [held-model-training-request-handling](../specs/held-model-training-request-handling/README.md)（学習要求の記録と保有モデルの共同学習）は全3task承認済みで、feature最終レビューは別sessionへ依頼する段階。その前の[released-pending-sample-assignment](../specs/released-pending-sample-assignment/README.md)（警報のない標本での帰属確定）まで完了。その前の[shared-verification-infrastructure](../specs/shared-verification-infrastructure/README.md)（検証基盤の整理）と、[held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md)まで完了。
-- **次の一手:** 上のspecのfeature最終レビュー。その後は、下の「次の候補」1（保留標本のowner、標本1件の処理全体）を、境界を分けて要求から仕様化する。同期を同じspecへ混ぜない。新しい接続を移植するspecは、その接続を通る流れを共用の`tests/refactoring/fresh_process_smoke.py`へ足す。
+- **現在地:** [held-model-training-request-handling](../specs/held-model-training-request-handling/README.md)（学習要求の記録と保有モデルの共同学習）まで完了。進行中の編集・未解消レビュー指摘はない（ユーザーへ確認する項目が2件ある。下の「ユーザー確認待ち」）。その前の[released-pending-sample-assignment](../specs/released-pending-sample-assignment/README.md)（警報のない標本での帰属確定）まで完了。その前の[shared-verification-infrastructure](../specs/shared-verification-infrastructure/README.md)（検証基盤の整理）と、[held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md)まで完了。
+- **次の一手:** 下の「次の候補」1（保留標本のowner、標本1件の処理全体）を、境界を分けて要求から仕様化する。同期を同じspecへ混ぜない。新しい接続を移植するspecは、その接続を通る流れを共用の`tests/refactoring/fresh_process_smoke.py`へ足す。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。`federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧名alias/互換読込みを追加しない。
 - **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。Task 3と最終GOは、Windows基準での全回帰が済むまで完了にしない。
 - **レビュー担当の利用状況（2026-10-09）:** GPT-6 Luna（`codex exec`）は利用上限に達しており、CLIの表示では2026-10-14 12:54まで使えない。それまでは、共通引継ぎ手順の代替規則によりClaude Haiku 5.5（effort `medium`）がLunaの担当分も行う。Haikuに対象test・共用script・Ruff・`spec_checks.py`を独立実行させるときは、`--tools Read,Glob,Grep,Bash`と`--allowedTools`で検証コマンドだけを許可して起動する（例と記録はreleased-pending-sample-assignmentのreview.md。ファイルの変更やその他のコマンドは許可しない）。Lunaが戻ったら通常の分担へ戻す。

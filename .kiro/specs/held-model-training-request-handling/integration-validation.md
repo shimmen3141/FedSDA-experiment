@@ -63,4 +63,4 @@ Git管理外（元checkoutの`venv/refactoring-tests/`、このPCだけ）: `hel
 
 ## レビュー
 
-仕様（5回）、Task 1・2は、GPT-6 Lunaが利用上限で使えないためLunaの担当分もClaude Haiku 5.5が行った。経緯と採否は[review.md](review.md)。Task 3は別sessionのHaiku 5.5（Lunaの代替）が照合して承認した。feature最終レビューは別sessionへ依頼する段階。
+仕様（5回）、Task 1・2は、GPT-6 Lunaが利用上限で使えないためLunaの担当分もClaude Haiku 5.5が行った。経緯と採否は[review.md](review.md)。Task 3は別sessionのHaiku 5.5（Lunaの代替）が照合して承認した。別sessionのHaiku 5.5（同じく代替）がfeature最終GO（2026-10-09）。Task 3のレビューが要求4.1で留保した点（吸収のoracleの実旧clientの生成部分を読んでいない）は、最終レビューが確認した（実旧clientは上流のoracleが`SharedBackboneClassConditionalESRFedSDAClient.__new__`で作り、実物のメソッドを実行している）。

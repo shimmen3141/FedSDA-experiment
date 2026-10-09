@@ -13,4 +13,4 @@
 | [mutation-and-cpu-evidence.md](mutation-and-cpu-evidence.md) | 検出力の証拠 |
 | [integration-validation.md](integration-validation.md) | 全回帰・要求対応・未検証事項 |
 
-状態: 要求r3・設計r5・命名r2・tasks r2は独立レビュー（Lunaが利用上限のためHaiku 5.5が代替）で承認済み。Task 1・2・3は独立レビュー承認済み（同じく代替）。feature最終レビューは別sessionへ依頼する段階。各状態の正本はspec.jsonとtasks.md。
+状態: 要求r3・設計r5・命名r2・tasks r2は独立レビュー（Lunaが利用上限のためHaiku 5.5が代替）で承認済み。Task 1・2・3は独立レビュー承認済み（同じく代替）。別sessionのHaiku 5.5（同じく代替）によるfeature最終レビューはGO。completed。各状態の正本はspec.jsonとtasks.md。

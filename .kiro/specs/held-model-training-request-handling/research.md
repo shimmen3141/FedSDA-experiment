@@ -24,7 +24,7 @@ def flush_pending_updates(self):
 - 学習が例外で失敗すると、`_pending_updates = 0`へ進まないので保留は残る。失敗までに完了した更新のぶんの計数は残る。
 - 呼出し位置: `train_step`は`fedsda.py::process_one_step`の警報のない分岐の最後（525行）、`flush_pending_updates`は警報の処理の前（485行）と、ラウンド境界（clientの外）。位置の接続は本specの範囲外。
 
-## 新実装の現状
+## 新実装の現状（作業開始時点。基点commit `35e7af0`）
 
 - `LocalTrainingRequestSchedule`: `record_training_request`（件数を足し、間隔に達していれば保留件数×一要求あたりの回数、達していなければ0を返す）、`calculate_pending_joint_update_iteration_count`（保留件数×回数）、`acknowledge_completed_training_requests`（現在の全保留件数と等しい正の件数で0へ戻す）、`pending_training_request_count`。間隔に達したかを直接読む操作はない。件数管理のtestは、外側が設定の間隔と保留件数を比べている。
 - `perform_held_model_joint_training_iterations`: 回数・保有モデルの対応・標本列・batchの件数・乱数生成器・学習の設定・共有部とoptimizer・共有部を更新するかを受け取り、完了した共同更新の損失を返す。どのモデルが参加したかは返さない。回数が0なら入力を読まない。
