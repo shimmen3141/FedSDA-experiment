@@ -10,7 +10,7 @@ testへ置き換えて廃止する。
 警報（不足／他モデルの再利用／現行の維持／候補検証の開始）→候補検証中の警報、または
 標本の観測と確定（採用／棄却／現行の維持／他モデルの再利用）→次の警報→保留中の学習要求の学習→
 標本1件の処理（予測→候補検証の進行→監視→保留→警報の処理｜帰属の確定と学習）を続けて呼ぶ。
-別の流れとして、clientを初期モデルと設定から組み立て、実行の枠（参加者の検査と区間の進行。サーバは
+別の流れとして、初期モデルを事前学習し、その結果と設定からclientを組み立て、実行の枠（参加者の検査と区間の進行。サーバは
 何もしない代役）で、標本列を最後まで進める。
 """
 
@@ -20,11 +20,13 @@ from random import Random
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import torch
+from numpy.random import RandomState
 
 from federated_learning_experiments.data.observed_streams import (
     ClientObservedStream,
     ObservedSample,
 )
+from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
 from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
     AdaHedgeDiagnosticEvidenceCollection,
 )
@@ -69,6 +71,9 @@ from federated_learning_experiments.learning.training.held_model_training_state_
 )
 from federated_learning_experiments.learning.training.indexed_observed_training_sample import (
     IndexedObservedTrainingSample,
+)
+from federated_learning_experiments.learning.training.initial_model_pretraining_settings import (
+    InitialModelPretrainingSettings,
 )
 from federated_learning_experiments.learning.training.local_training_request_schedule import (
     LocalTrainingRequestSchedule,
@@ -145,6 +150,7 @@ from federated_learning_experiments.runtime.held_model_training_request_handling
     record_training_request_and_train_held_models_when_due,
     train_held_models_for_pending_training_requests,
 )
+from federated_learning_experiments.runtime.initial_model_pretraining import pretrain_initial_model
 from federated_learning_experiments.runtime.observed_sample_processing import (
     process_observed_sample,
 )
@@ -783,20 +789,29 @@ ASSEMBLED_CLIENT_INTERVAL_SAMPLE_COUNT = 10
 
 
 def run_assembled_client_flow(*, class_count):
-    """clientを組み立て、実行の枠（参加者の検査と区間の進行）で、標本列を最後まで進める。"""
+    """初期モデルを事前学習し、clientを組み立て、実行の枠（参加者の検査と区間の進行）で、標本列を最後まで進める。"""
     torch.manual_seed(907 + class_count)
     parameter_optimizer_settings = AdamParameterOptimizerSettings(
         learning_rate=0.05, weight_decay=0.0, adam_variant="standard"
     )
-    initial_classifier = ResidualAdapterClassifier(
+    # 初期モデルは、事前学習で作る（runの乱数源と、SINEの標本生成器を使う）。
+    python_random_generator = Random(31 + class_count)
+    pretrained_initial_model = pretrain_initial_model(
+        initial_model_pretraining_settings=InitialModelPretrainingSettings(
+            pretraining_sample_count=40, pretraining_epoch_count=3, pretraining_batch_sample_count=8
+        ),
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
         ),
-        input_feature_count=2,
         hidden_layer_widths=(5,),
         class_count=class_count,
+        parameter_optimizer_settings=parameter_optimizer_settings,
+        sample_generator=SineSampleGenerator(numpy_random_generator=RandomState(31 + class_count)),
+        python_random_generator=python_random_generator,
     )
+    initial_classifier = pretrained_initial_model.classifier
+    assert pretrained_initial_model.loss_statistics.overall_loss_moments.observed_loss_count == 40
     pending_capacity = 6
     run_client_settings = FedsdaRunClientSettings(
         loss_change_detection_settings=LossChangeDetectionSettings(
@@ -855,28 +870,18 @@ def run_assembled_client_flow(*, class_count):
         ),
         loss_monitor_betting_fractions=(0.05, 0.1, 0.2, 0.4, 0.8),
     )
-    python_random_generator = Random(31 + class_count)
-    # 履歴の平均損失を小さくして、学習していない初期モデルの損失で警報が起きるようにする。
     initial_model_arguments = dict(
         initial_model_id=0,
         initial_classifier=initial_classifier,
-        initial_concept_specific_parameter_optimizer_state=ParameterOptimizerState(
-            parameters=tuple(initial_classifier.residual_adapter.parameters())
-            + tuple(initial_classifier.classification_layer.parameters()),
-            optimizer_settings=parameter_optimizer_settings,
-        ),
-        initial_shared_parameter_optimizer_state=ParameterOptimizerState(
-            parameters=tuple(initial_classifier.feature_extractor.parameters()),
-            optimizer_settings=parameter_optimizer_settings,
-        ),
-        initial_loss_statistics=ModelAndClassLossStatistics(
-            overall_loss_moments=BoundedLossMoments(
-                observed_loss_count=20, mean_loss=0.05, sum_squared_loss_deviations=0.1
-            )
-        ),
+        initial_concept_specific_parameter_optimizer_state=pretrained_initial_model.concept_specific_parameter_optimizer_state,
+        initial_shared_parameter_optimizer_state=pretrained_initial_model.shared_parameter_optimizer_state,
+        initial_loss_statistics=pretrained_initial_model.loss_statistics,
         run_client_settings=run_client_settings,
         python_random_generator=python_random_generator,
     )
+    pretrained_parameters = [
+        parameter.detach().clone() for parameter in initial_classifier.parameters()
+    ]
     run_clients = tuple(
         assemble_fedsda_run_client(client_id=client_id, **initial_model_arguments)
         for client_id in range(ASSEMBLED_CLIENT_COUNT)
@@ -939,8 +944,13 @@ def run_assembled_client_flow(*, class_count):
         alarm_count += len(
             owners.loss_change_alarm_record_store.get_state_snapshot().alarm_sample_indices
         )
-    # 渡した初期モデルは、clientが写しを持つので、学習の後も変わらない（勾配も付かない）。
-    assert all(parameter.grad is None for parameter in initial_classifier.parameters())
+    # 渡した初期モデルは、clientが写しを持つので、clientの学習の後も、事前学習の直後の値のまま。
+    assert all(
+        torch.equal(parameter, pretrained_parameter)
+        for parameter, pretrained_parameter in zip(
+            initial_classifier.parameters(), pretrained_parameters, strict=True
+        )
+    )
     assert alarm_count > 0, alarm_count
     return alarm_count
 
