@@ -30,6 +30,7 @@
 | UNPORTED-002 | 参照モデルも学習させる候補検証方針を移植していない | 当面移植しない（2026-10-07、ユーザー判断） | [記録](unported-002-reference-shadow-tournament.md) |
 | NEW-001 | 候補検証sessionの保持への反映で、拒否の文言が一部の入力に合わない | 修正済み（2026-10-09、`42fc7b8`。文言だけ） | [記録](new-001-holder-rejection-message-wording.md) |
 | NEW-002 | 候補検証sessionの保持と進行のtestに、汎用の変異toolで見つかった穴が2件ある | 修正済み（2026-10-09、`97d9c43`） | [記録](new-002-held-validation-test-gaps-found-by-mutation-tool.md) |
+| NEW-003 | 1回の共同更新の途中で失敗したときの学習量の計数が、旧と違う | 許容（2026-10-09、ユーザー決定。現在の流れでは読まれない） | [記録](new-003-training-count-after-mid-update-failure.md) |
 
 ## 記録・更新の規約
 

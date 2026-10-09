@@ -46,7 +46,7 @@ resumeは要約であり、承認状態を単独で決める根拠にしない�
 - 毎回、実装担当の会話を継続せず独立したreviewerとして起動し、再委譲しない役割を明記する。permission bypassや認証・ユーザー設定の変更は行わない。
 - 記録するもの: 選択理由、実際のモデルとeffort、代替時の利用不能の事実、対象revision/hash、結果、指摘の採否と理由。Lunaはログのmodel行と`reasoning effort`行、HaikuはJSONの`is_error=false`と`modelUsage`の実モデルで確認する（Haikuの実効effortは出力されないので指定値として記録する）。呼出しの成功だけを承認に数えない。
 - 未承認段階のapprovedをtrueにしない。未レビューのtaskを完了扱いしない。レビュー後に対象が変わったらrevision/hashを更新して承認を取り直す。過去の承認記録は書き換えない。
-- 未承認の名前・仕様を先取りして実装しない。命名表へ登録するのは、sourceの名前（module、関数、class、引数、field、局所名）と、testのmodule直下の名前（test module、helper関数、定数、test関数、importの別名）。test関数の中の局所名・引数・parametrize引数と、条件名になるdictのkeyは登録しない（`spec_checks.py names`も同じ範囲を照合する）。既存名の再利用は元と同じ役割であることを示す。記録用wrapperに、判定を行う関数と読める名前を付けない。
+- 未承認の名前・仕様を先取りして実装しない。命名表へ登録するのは、sourceの名前（module、関数、class、引数、field、局所名）と、testのmodule直下の名前（test module、helper関数、定数、test関数、importの別名）。test関数の中の局所名・引数・parametrize引数と、条件名になるdictのkeyは登録しない（`spec_checks.py names`も同じ範囲を照合する）。既存名の再利用は元と同じ役割であることを示す。記録用wrapperに、判定を行う関数と読める名前を付けない。 例外（2026-10-09ユーザー決定）: 命名表を作るために、source・testをリポジトリ外で下書きし、作業ツリーの複製（`git archive`）で実行して、名前と実行可能性を確かめてよい。下書きはworktreeへ置かず、worktreeのtestも実行しない。複製での結果は承認の証拠に使わない（判定は、承認の後にworktreeへ適用した実装の実測とレビューによる）。下書きを作った事実はresearch.mdへ書く。
 
 起動例（PowerShell。依頼文は`$reviewPrompt`へ。複数行は単一引用符のhere-string）。読取りレビュー用で、testを実行させるときは対象と権限を別途限定する（Lunaは`--sandbox workspace-write`）。
 
@@ -82,6 +82,7 @@ codex execのWindows sandboxでは一時ディレクトリの操作が拒否さ�
 - 1つのspecは、旧の1メソッドまたはその一部に対応する小さな単位にする。文書はREADME・brief・requirements・design・naming・tasks・research・review・integration-validation・spec.json。spec.jsonの既存構造を守り、別台帳を増やさない。
 - 設計とtasksには、testの条件数・変異の種類の一覧・件数を書かない（確かめる観点だけを書く）。数は証拠文書（mutation-and-cpu-evidence.md、integration-validation.md）に書く。testの条件を足しただけで承認済みの文書のrevisionを上げることにならないようにするため。
 - 要求・設計・命名・tasksは1回の依頼でまとめてレビューに出してよい。判定は段階ごとに受け、spec.jsonへ段階ごとのrevision・LF hash・sessionを記録する。改訂した段階だけ再レビューする。
+- 文面だけの指摘は、修正して再レビューを省いてよい（2026-10-09ユーザー決定）。対象は、レビューの指摘が文書の記述の正確さ・明確さだけに関わり、反映しても処理・契約・検査の順・例外・testの方針・要求の意味・source・testが変わらないもの。主担当が修正し、review.mdへ指摘ごとの修正内容を書き、spec.jsonへ修正後のrevisionとhashを、最後にレビューを受けたrevision・sessionと「文面だけの修正」である旨とともに記録する。次のどれかに当たる場合は再レビューを受ける: Blocker・Majorの指摘、処理・契約・要求の意味・testを変える修正、指摘を不採用にする場合、文面だけかどうか迷う場合。省いた事実は次のレビュー（task、feature最終）の依頼文へ書き、そのレビューが修正後の文書を読む。
 - 実装taskは、(1)組立と依存境界、(2)検出力と新実装単独の動作・上流下流との接続、(3)固定環境の全回帰、の順。task作成前に止まらず、spec完了（feature最終GO）を区切りにする。やむを得ず中断するときは、対象specとresumeへ未完了の状態と次の一手を残す。
 - 検査と数値の生成を状態変更より前に置く。旧と処理順が変わる場合は、成功時の観測値（値・順序・乱数の消費）が変わらないことを実旧との対照testで示し、research.mdへ理由を書く。
 - 不正入力・上流状態・乱数の検証範囲は、その部品が受け取る入力と触れ得る状態から決める。関係しない状態の組合せまで網羅しない。上流の契約testを再利用するときは、その証拠が今回の接続・更新順も覆うか確認する。
