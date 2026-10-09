@@ -4805,6 +4805,31 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
         )
+    if source_module_path == "runtime/server_model_registration_and_aggregation.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "torch.Tensor",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.BoundedLossMoments",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
+            "federated_learning_experiments.learning.loss_statistics.server_loss_mean_aggregation.aggregate_participating_client_loss_means",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
+            "federated_learning_experiments.methods.fedsda.model_registration.global_model_repository.GlobalModelRepository",
+            "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
+            "federated_learning_experiments.runtime.held_model_registration_confirmation.confirm_held_model_registration",
+        )
+    if source_module_path == "methods/fedsda/model_registration/global_model_repository.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "torch.Tensor",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
+        )
+    if source_module_path == "evaluation/communication_volume_record_store.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "torch.Tensor",
+        )
     if source_module_path == "runtime/initial_model_pretraining.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5903,6 +5928,9 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/fedsda_run_client.py",
             "learning/training/initial_model_pretraining_settings.py",
             "runtime/initial_model_pretraining.py",
+            "evaluation/communication_volume_record_store.py",
+            "methods/fedsda/model_registration/global_model_repository.py",
+            "runtime/server_model_registration_and_aggregation.py",
             "runtime/held_model_training_request_handling.py",
             "runtime/released_pending_sample_assignment.py",
             "learning/training/candidate_epoch_training_settings.py",
@@ -5970,6 +5998,9 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedsda_run_client.py",
                     "learning/training/initial_model_pretraining_settings.py",
                     "runtime/initial_model_pretraining.py",
+                    "evaluation/communication_volume_record_store.py",
+                    "methods/fedsda/model_registration/global_model_repository.py",
+                    "runtime/server_model_registration_and_aggregation.py",
                     "runtime/held_model_training_request_handling.py",
                     "runtime/released_pending_sample_assignment.py",
                     "learning/training/candidate_epoch_training_settings.py",
