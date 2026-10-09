@@ -10,6 +10,8 @@ testへ置き換えて廃止する。
 警報（不足／他モデルの再利用／現行の維持／候補検証の開始）→候補検証中の警報、または
 標本の観測と確定（採用／棄却／現行の維持／他モデルの再利用）→次の警報→保留中の学習要求の学習→
 標本1件の処理（予測→候補検証の進行→監視→保留→警報の処理｜帰属の確定と学習）を続けて呼ぶ。
+別の流れとして、clientを初期モデルと設定から組み立て、実行の枠（参加者の検査と区間の進行。サーバは
+何もしない代役）で、標本列を最後まで進める。
 """
 
 import sys
@@ -19,6 +21,10 @@ from random import Random
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import torch
 
+from federated_learning_experiments.data.observed_streams import (
+    ClientObservedStream,
+    ObservedSample,
+)
 from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
     AdaHedgeDiagnosticEvidenceCollection,
 )
@@ -31,6 +37,10 @@ from federated_learning_experiments.evaluation.model_evaluation_sample_store imp
 )
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecordStore,
+)
+from federated_learning_experiments.execution.run_participant_contracts import RunParticipants
+from federated_learning_experiments.execution.stream_protocol_execution_loop import (
+    run_stream_protocol_intervals,
 )
 from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import (
     BoundedLossMoments,
@@ -123,6 +133,11 @@ from federated_learning_experiments.runtime.alarm_occurrence_handling import (
 from federated_learning_experiments.runtime.candidate_validation_session_holder import (
     CandidateValidationSessionHolder,
 )
+from federated_learning_experiments.runtime.fedsda_run_client import assemble_fedsda_run_client
+from federated_learning_experiments.runtime.fedsda_run_client_settings import (
+    FedsdaRunClientScalarSettings,
+    FedsdaRunClientSettings,
+)
 from federated_learning_experiments.runtime.held_candidate_validation_progress import (
     advance_held_candidate_validation,
 )
@@ -135,6 +150,9 @@ from federated_learning_experiments.runtime.observed_sample_processing import (
 )
 from federated_learning_experiments.runtime.released_pending_sample_assignment import (
     assign_released_pending_samples_to_current_training_model,
+)
+from federated_learning_experiments.runtime.single_run_execution import (
+    validate_prepared_run_participants,
 )
 
 HELD_MODEL_IDS = (7, -103, 2)
@@ -746,6 +764,187 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
 PROCESSED_ALARM_COUNTS = []
 
 
+class ServerOperationsDoingNothing:
+    """実行の枠が求めるサーバの操作の、何もしない代役（サーバ側は未移植）。"""
+
+    def record_client_states_before_synchronization(self, *, round_index):
+        pass
+
+    def synchronize_models(self, *, round_index, new_model_registration_available):
+        pass
+
+    def finalize_started_communications(self, *, completed_round_count):
+        pass
+
+
+ASSEMBLED_CLIENT_COUNT = 2
+ASSEMBLED_CLIENT_STREAM_SAMPLE_COUNT = 97
+ASSEMBLED_CLIENT_INTERVAL_SAMPLE_COUNT = 10
+
+
+def run_assembled_client_flow(*, class_count):
+    """clientを組み立て、実行の枠（参加者の検査と区間の進行）で、標本列を最後まで進める。"""
+    torch.manual_seed(907 + class_count)
+    parameter_optimizer_settings = AdamParameterOptimizerSettings(
+        learning_rate=0.05, weight_decay=0.0, adam_variant="standard"
+    )
+    initial_classifier = ResidualAdapterClassifier(
+        model_architecture_settings=ModelArchitectureSettings(
+            model_architecture_name="shared_backbone_residual_adapter",
+            residual_adapter_requested_rank=2,
+        ),
+        input_feature_count=2,
+        hidden_layer_widths=(5,),
+        class_count=class_count,
+    )
+    pending_capacity = 6
+    run_client_settings = FedsdaRunClientSettings(
+        loss_change_detection_settings=LossChangeDetectionSettings(
+            drift_detector_name="e_sr",
+            loss_monitoring_scope="overall_and_true_class_losses",
+            e_sr_false_alarm_control_alpha=0.05,
+        ),
+        prediction_combination_settings=PredictionCombinationSettings(
+            prediction_combination_strategy="fixed_share_weighted_prediction",
+            prediction_mixture_activation_policy="always",
+            prediction_weight_recalibration_after_aggregation_policy=(
+                "recompute_buffer_losses_and_replay_weight_updates"
+            ),
+            prediction_state_reset_on_training_assignment_change_policy=(
+                "restart_adahedge_preserve_fixed_share_prediction_state"
+            ),
+            fixed_share_weight_redistribution_time_scale_samples=pending_capacity,
+        ),
+        local_training_settings=LocalTrainingSettings(
+            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        ),
+        local_training_schedule_settings=LocalTrainingScheduleSettings(
+            training_requests_per_update_interval=2,
+            joint_update_iterations_per_training_request=1,
+        ),
+        training_data_assignment_settings=TrainingDataAssignmentSettings(
+            pending_assignment_buffer_capacity_samples=pending_capacity
+        ),
+        candidate_model_training_and_acceptance_settings=CandidateModelTrainingAndAcceptanceSettings(
+            candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
+            candidate_post_alarm_validation_sample_count=VALIDATION_SAMPLE_COUNT,
+        ),
+        candidate_parameter_initialization_settings=CandidateParameterInitializationSettings(
+            candidate_parameter_initialization_source="lowest_evaluated_mean_loss_model"
+        ),
+        candidate_epoch_training_settings=CandidateEpochTrainingSettings(
+            candidate_training_strategy="validation_loss_early_stopping",
+            maximum_epoch_count=5,
+            maximum_batch_sample_count=4,
+            validation_sample_fraction=0.2,
+            consecutive_non_improving_epoch_limit=3,
+            minimum_validation_loss_decrease=0.0001,
+        ),
+        parameter_optimizer_settings=parameter_optimizer_settings,
+        scalar_settings=FedsdaRunClientScalarSettings(
+            maximum_tolerated_mean_loss_increase=0.1,
+            minimum_candidate_mean_loss_improvement=0.0001,
+            new_model_upload_delay_round_count=2,
+            minimum_change_interval_sample_count=3,
+            local_training_batch_sample_count=4,
+            maximum_stored_evaluation_sample_count_per_model=12,
+            added_evaluation_batch_sample_count=3,
+            loss_monitor_maximum_retained_candidate_count=50,
+            detector_name="overall + class-conditional e-SR mixture",
+        ),
+        loss_monitor_betting_fractions=(0.05, 0.1, 0.2, 0.4, 0.8),
+    )
+    python_random_generator = Random(31 + class_count)
+    # 履歴の平均損失を小さくして、学習していない初期モデルの損失で警報が起きるようにする。
+    initial_model_arguments = dict(
+        initial_model_id=0,
+        initial_classifier=initial_classifier,
+        initial_concept_specific_parameter_optimizer_state=ParameterOptimizerState(
+            parameters=tuple(initial_classifier.residual_adapter.parameters())
+            + tuple(initial_classifier.classification_layer.parameters()),
+            optimizer_settings=parameter_optimizer_settings,
+        ),
+        initial_shared_parameter_optimizer_state=ParameterOptimizerState(
+            parameters=tuple(initial_classifier.feature_extractor.parameters()),
+            optimizer_settings=parameter_optimizer_settings,
+        ),
+        initial_loss_statistics=ModelAndClassLossStatistics(
+            overall_loss_moments=BoundedLossMoments(
+                observed_loss_count=20, mean_loss=0.05, sum_squared_loss_deviations=0.1
+            )
+        ),
+        run_client_settings=run_client_settings,
+        python_random_generator=python_random_generator,
+    )
+    run_clients = tuple(
+        assemble_fedsda_run_client(client_id=client_id, **initial_model_arguments)
+        for client_id in range(ASSEMBLED_CLIENT_COUNT)
+    )
+    participants = RunParticipants(
+        client_operations=run_clients, server_operations=ServerOperationsDoingNothing()
+    )
+    validate_prepared_run_participants(
+        participants=participants, client_count=ASSEMBLED_CLIENT_COUNT
+    )
+    # 標本列: 特徴は決まった規則の値（float32で表せる値）、ラベルは区間ごとに反転する境界で決める。
+    observed_client_streams = tuple(
+        ClientObservedStream(
+            client_id=client_id,
+            observed_samples=tuple(
+                ObservedSample(
+                    feature_values=(
+                        ((sample_index * 5 + client_id) % 16) / 16.0,
+                        ((sample_index * 3) % 8) / 8.0,
+                    ),
+                    class_label=int(
+                        (((sample_index * 5 + client_id) % 16) >= 8)
+                        == ((sample_index // 24) % 2 == 0)
+                    ),
+                )
+                for sample_index in range(ASSEMBLED_CLIENT_STREAM_SAMPLE_COUNT)
+            ),
+        )
+        for client_id in range(ASSEMBLED_CLIENT_COUNT)
+    )
+    execution_events = run_stream_protocol_intervals(
+        participants=participants,
+        observed_client_streams=observed_client_streams,
+        server_aggregation_interval_per_client_samples=ASSEMBLED_CLIENT_INTERVAL_SAMPLE_COUNT,
+    )
+    round_count = ASSEMBLED_CLIENT_STREAM_SAMPLE_COUNT // ASSEMBLED_CLIENT_INTERVAL_SAMPLE_COUNT
+    processed_sample_count = round_count * ASSEMBLED_CLIENT_INTERVAL_SAMPLE_COUNT
+    assert (
+        sum(
+            execution_event.stage_name == "sample_processing"
+            for execution_event in execution_events
+        )
+        == processed_sample_count * ASSEMBLED_CLIENT_COUNT
+    )
+    assert execution_events[-1].stage_name == "started_communication_finalization"
+    alarm_count = 0
+    for run_client in run_clients:
+        owners = run_client.owners
+        prediction_records = (
+            owners.sample_prediction_record_store.snapshot_sample_prediction_records()
+        )
+        assert [record.sample_index for record in prediction_records] == list(
+            range(processed_sample_count)
+        )
+        assert owners.local_training_request_schedule.pending_training_request_count == 0
+        assert owners.validation_session_holder.held_validation_session is None
+        assert (
+            owners.pending_sample_observation_store.validation_assignment_sample_concept_ids is None
+        )
+        alarm_count += len(
+            owners.loss_change_alarm_record_store.get_state_snapshot().alarm_sample_indices
+        )
+    # 渡した初期モデルは、clientが写しを持つので、学習の後も変わらない（勾配も付かない）。
+    assert all(parameter.grad is None for parameter in initial_classifier.parameters())
+    assert alarm_count > 0, alarm_count
+    return alarm_count
+
+
 def main():
     all_observed_outcomes = set()
     for class_count in (2, 4):
@@ -762,6 +961,12 @@ def main():
                 "->",
                 " / ".join(observed_outcomes),
             )
+    assembled_client_alarm_counts = [
+        run_assembled_client_flow(class_count=class_count) for class_count in (2, 4)
+    ]
+    print(
+        "PASS assembled clients in the stream protocol loop: alarms", assembled_client_alarm_counts
+    )
     required_outcomes = {
         "alarm_change_interval_too_short",
         "alarm_interval_held_model_reused",

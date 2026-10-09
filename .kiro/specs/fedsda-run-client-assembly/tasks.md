@@ -23,14 +23,14 @@
   - _Boundary: FedsdaRunClient_
   - _Requirements: 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 5.6, 6.3_
 
-- [ ] 3. 実行の枠への接続
+- [x] 3. 実行の枠への接続
 - [x] 3.1 組み立てたclientを、実行の枠の参加者として動かす
   - 組み立てたclient 2つと、何もしないサーバの代役で参加者を作り、参加者の検査と区間の進行を実行するtestを追加する（sourceの変更が要らないことを確かめる）。
   - 完了: 参加者の検査が通り、区間の進行が最後まで実行され、実行の記録の段の列が契約の順で、各clientの予測の記録の件数が処理した標本数と同じである。
   - _Depends: 2.2_
   - _Boundary: FedsdaRunClient（実行の枠との適合）_
   - _Requirements: 6.1_
-- [ ] 3.2 共用のfresh process scriptへ、clientを組み立てて実行の枠で進める流れを足す
+- [x] 3.2 共用のfresh process scriptへ、clientを組み立てて実行の枠で進める流れを足す
   - 完了: 共用scriptが、旧実装とtestのmoduleを読み込まずに、clientを組み立て、区間の進行で標本列を最後まで進め、予測の記録の件数と、警報が1回以上起きたことを確かめて成功する。別processで実行するtest、Ruff、Pyrightが成功する。
   - _Boundary: 共用のfresh process script_
   - _Requirements: 6.2_
