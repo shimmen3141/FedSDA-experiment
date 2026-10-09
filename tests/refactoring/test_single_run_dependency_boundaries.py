@@ -4848,6 +4848,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
             "federated_learning_experiments.evaluation.loss_change_alarm_record_store.LossChangeAlarmRecordStore",
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
+            "federated_learning_experiments.evaluation.sample_prediction_record_store.SamplePredictionRecordStore",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
@@ -4879,6 +4880,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.held_candidate_validation_progress.advance_held_candidate_validation",
             "federated_learning_experiments.runtime.held_model_training_request_handling.record_training_request_and_train_held_models_when_due",
             "federated_learning_experiments.runtime.held_model_training_request_handling.train_held_models_for_pending_training_requests",
+            "federated_learning_experiments.runtime.observed_sample_prediction.ObservedSamplePrediction",
+            "federated_learning_experiments.runtime.observed_sample_prediction.predict_observed_sample_and_update_prediction_weights",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights.FixedSharePredictionWeightController",
             "federated_learning_experiments.runtime.released_pending_sample_assignment.assign_released_pending_samples_to_current_training_model",
         )
     if source_module_path == "runtime/alarm_occurrence_handling.py":

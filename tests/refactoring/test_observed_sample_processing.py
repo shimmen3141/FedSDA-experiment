@@ -1,4 +1,4 @@
-"""標本1件の処理を、実旧clientの標本処理（process_one_step）と、標本ごとに照合する。"""
+"""標本1件の処理を、実旧の最終構成のclientの標本処理（process_one_step。予測を含む）と、標本ごとに照合する。"""
 
 import random
 from collections import defaultdict
@@ -21,12 +21,17 @@ from test_alarm_response_completion import (
 from test_candidate_validation_adaptation_recording import (
     LEGACY_ACTION_BY_VALIDATION_ADAPTATION_OUTCOME,
 )
+from test_fixed_share_prediction_weights import capture_fixed_share_controller_state
 from test_held_adahedge_diagnostic_notification import get_diagnostic_collection_snapshot
 from test_held_candidate_validation_progress import make_subclass_copy
 from test_joint_model_parameter_update import assert_nested_state_equal
 from test_loss_change_monitoring import assert_class_monitor_matches_reference
 from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
 from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
+from test_observed_sample_prediction import (
+    assert_prediction_state_matches_legacy,
+    enable_real_legacy_final_configuration_prediction,
+)
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 import federated_learning_experiments.runtime.observed_sample_processing as sample_processing_module
@@ -34,6 +39,10 @@ from federated_drift_experiment import config
 from federated_drift_experiment.detection_episode import DetectionEpisodeController
 from federated_learning_experiments.evaluation.loss_change_alarm_record_store import (
     LossChangeAlarmRecordStore,
+)
+from federated_learning_experiments.evaluation.sample_prediction_record_store import (
+    SamplePredictionRecord,
+    SamplePredictionRecordStore,
 )
 from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import (
     BoundedLossMoments,
@@ -61,6 +70,9 @@ from federated_learning_experiments.learning.training.temporary_model_id_allocat
 )
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
+    FixedSharePredictionWeightController,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
@@ -95,7 +107,8 @@ def build_sample_processing_oracle(
     """警報1回ぶんの処理のoracleで最初の警報を両実装に処理させ、その直後から標本処理を続けられる状態を作る。
 
     最初の警報（実旧`_resolve_drift`と新`handle_alarm_occurrence`の一致は上流のtestが確かめている）の後、
-    実旧clientへ標本処理が読む属性と設定を与え、新側へ保留標本・警報の記録・学習要求のownerを足す。
+    実旧clientへ標本処理が読む属性と設定を与え、新側へ保留標本・警報の記録・学習要求・予測のownerを足す。
+    実旧clientは最終構成のクラスにし、実旧の予測をそのまま実行させる。
     """
     (
         handling_arguments,
@@ -143,7 +156,7 @@ def build_sample_processing_oracle(
         retained_sample_indices=pending_training_assignment_buffer.get_state_snapshot().pending_sample_indices
     )
     capacity = pending_training_assignment_buffer._training_data_assignment_settings.pending_assignment_buffer_capacity_samples
-    # 実旧の標本処理が読む属性と設定。予測と計算時間の記録は対象外なので、予測は止め、入れ物だけ与える。
+    # 実旧の標本処理が読む属性と設定。計算時間の記録は対象外なので、入れ物だけ与える。
     monkeypatch.setattr(config, "LOCAL_UPDATE_INTERVAL", UPDATE_INTERVAL)
     # 旧は、候補の学習の早期終了と、候補検証の採否の余裕に、同じ設定値を使う。
     monkeypatch.setattr(
@@ -160,7 +173,12 @@ def build_sample_processing_oracle(
     legacy_client.estimated_drift_start_positions = []
     legacy_client.detector_candidate_start_positions = []
     legacy_client.detection_episodes = DetectionEpisodeController(enabled=False, length=10)
-    legacy_client._record_prediction = lambda *prediction_arguments: None
+    # Fixed-Shareの時間尺度は、旧と同じく、保留の容量にする。
+    enable_real_legacy_final_configuration_prediction(
+        legacy_client=legacy_client,
+        monkeypatch=monkeypatch,
+        fixed_share_time_scale_sample_count=capacity,
+    )
     legacy_client._pending_updates = 0
     legacy_client.updates_per_sample = ITERATIONS_PER_REQUEST
     legacy_client.batch_size = BATCH_SAMPLE_COUNT
@@ -207,6 +225,13 @@ def build_sample_processing_oracle(
         )
     }
     processing_arguments.update(
+        fixed_share_prediction_weight_controller=FixedSharePredictionWeightController(
+            prediction_combination_settings=replace(
+                valid_run_settings_mapping["prediction_combination_settings"],
+                fixed_share_weight_redistribution_time_scale_samples=capacity,
+            )
+        ),
+        sample_prediction_record_store=SamplePredictionRecordStore(),
         loss_change_alarm_record_store=LossChangeAlarmRecordStore(),
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=temporary_model_id_allocator,
@@ -267,7 +292,8 @@ def make_stream_observation(*, sample_index, class_count, stream_name, legacy_cl
             input_features=input_features,
             observed_class_labels=torch.tensor([[float(class_id)]]),
         ),
-        observed_concept_id=None if sample_index % 4 == 1 else sample_index % 3,
+        # 実旧の予測は、真の概念IDがない標本を処理できないので、整数だけを使う。
+        observed_concept_id=sample_index % 3,
     )
 
 
@@ -387,6 +413,15 @@ def assert_sample_processing_state_matches_legacy(
         processing_arguments["diagnostic_evidence_collection"].global_diagnostic_evidence,
         legacy_client.expert_router,
     )
+    # 予測: Fixed-Shareの重み、globalと真の概念別の診断証拠、標本ごとの記録と旧の列・集計の計数。
+    assert_prediction_state_matches_legacy(
+        fixed_share_prediction_weight_controller=processing_arguments[
+            "fixed_share_prediction_weight_controller"
+        ],
+        diagnostic_evidence_collection=processing_arguments["diagnostic_evidence_collection"],
+        sample_prediction_record_store=processing_arguments["sample_prediction_record_store"],
+        legacy_client=legacy_client,
+    )
 
 
 STREAM_NAMES = ("alternating_labels", "short_loss_blocks", "long_loss_blocks", "high_loss_only")
@@ -405,6 +440,8 @@ EXPECTED_TRAJECTORY_CONDITION_COUNT = (
     2 * len(TRAJECTORY_ORACLE_CASES) * len(STREAM_NAMES) * len(HISTORICAL_MEAN_LOSS_PROFILES) * 2
 )
 OBSERVED_OUTCOMES_BY_CONDITION = {}
+# 条件ごとの、Fixed-Shareの重みがモデル集合の変更で初期化された回数と、最大重みのモデルの種類数。
+OBSERVED_PREDICTION_COVERAGE_BY_CONDITION = {}
 
 
 @pytest.mark.parametrize("class_count", (2, 4))
@@ -464,6 +501,12 @@ def test_sample_processing_matches_real_legacy_sample_processing(
                 indexed_observation=indexed_observation, **processing_arguments
             )
             assert type(sample_processing) is ObservedSampleProcessing
+            assert (
+                processing_arguments[
+                    "sample_prediction_record_store"
+                ].snapshot_sample_prediction_records()[-1]
+                is sample_processing.observed_sample_prediction.sample_prediction_record
+            )
             assert torch.equal(torch.get_rng_state(), legacy_torch_random_state)
             assert python_random_generator.getstate() == legacy_random_state
             assert_sample_processing_state_matches_legacy(
@@ -496,15 +539,25 @@ def test_sample_processing_matches_real_legacy_sample_processing(
                 .get_state_snapshot()
                 .adaptation_records[record_count:]
             )
-    OBSERVED_OUTCOMES_BY_CONDITION[
-        (
-            class_count,
-            recording_oracle_case,
-            stream_name,
-            historical_mean_losses,
-            minimum_candidate_mean_loss_improvement,
-        )
-    ] = tuple(observed_outcomes)
+    condition = (
+        class_count,
+        recording_oracle_case,
+        stream_name,
+        historical_mean_losses,
+        minimum_candidate_mean_loss_improvement,
+    )
+    OBSERVED_OUTCOMES_BY_CONDITION[condition] = tuple(observed_outcomes)
+    OBSERVED_PREDICTION_COVERAGE_BY_CONDITION[condition] = (
+        processing_arguments["fixed_share_prediction_weight_controller"].model_pool_reset_count,
+        len(
+            {
+                sample_prediction_record.maximum_weight_model_id
+                for sample_prediction_record in processing_arguments[
+                    "sample_prediction_record_store"
+                ].snapshot_sample_prediction_records()
+            }
+        ),
+    )
 
 
 def test_sample_processing_trajectories_cover_every_adaptation_outcome():
@@ -519,6 +572,15 @@ def test_sample_processing_trajectories_cover_every_adaptation_outcome():
     assert observed_outcomes == set(LEGACY_ACTION_BY_ADAPTATION_OUTCOME) - {
         "post_alarm_validation_incomplete_candidate_rejected"
     }
+    # 予測の対照が、モデル集合の変更（重みの初期化）と、最大重みのモデルの交代を通っていること。
+    assert any(
+        model_pool_reset_count > 0
+        for model_pool_reset_count, _ in OBSERVED_PREDICTION_COVERAGE_BY_CONDITION.values()
+    )
+    assert any(
+        maximum_weight_model_count >= 3
+        for _, maximum_weight_model_count in OBSERVED_PREDICTION_COVERAGE_BY_CONDITION.values()
+    )
 
 
 def build_default_sample_processing_oracle(
@@ -586,6 +648,12 @@ def snapshot_sample_processing_state(*, processing_arguments):
         diagnostics=get_diagnostic_collection_snapshot(
             processing_arguments["diagnostic_evidence_collection"]
         ),
+        fixed_share_prediction_weights=capture_fixed_share_controller_state(
+            controller=processing_arguments["fixed_share_prediction_weight_controller"]
+        ),
+        sample_prediction_records=processing_arguments[
+            "sample_prediction_record_store"
+        ].snapshot_sample_prediction_records(),
         next_temporary_model_id=processing_arguments[
             "temporary_model_id_allocator"
         ].next_temporary_model_id,
@@ -667,6 +735,8 @@ def make_store_with_other_pending_observations(
 
 
 OWNER_ARGUMENT_NAMES_VALIDATED_FIRST = (
+    "fixed_share_prediction_weight_controller",
+    "sample_prediction_record_store",
     "validation_session_holder",
     "adaptation_record_store",
     "diagnostic_evidence_collection",
@@ -888,8 +958,41 @@ INVALID_SAMPLE_PROCESSING_INPUT_CASES = {
         ),
         ValueError,
     ),
-    # 特徴の数とラベルの範囲の不正は、最初にこの標本を評価する処理（保持中の候補検証の観測、
-    # 保持がなければ現在のモデルの損失の評価）が、どの更新より前に拒否する。
+    # 予測の記録の最後の位置が、この標本の直前でない（保留位置と監視とは連続している）。予測の段が拒否する。
+    "prediction_record_is_not_previous_sample": (
+        lambda processing_arguments, indexed_observation: dict(
+            sample_prediction_record_store=make_record_store_recorded_at(
+                sample_index=indexed_observation.sample_index + 3
+            )
+        ),
+        ValueError,
+    ),
+    # 標本の中身の不正は、最初にこの標本を評価する予測の段が、どの更新より前に拒否する。
+    # 特徴の有限性とラベルのdtypeは、後の段（損失の監視、候補検証）だけが確かめる条件で、予測の段が先に確かめる。
+    "input_features_negative_infinity": (
+        lambda processing_arguments, indexed_observation: dict(
+            indexed_observation=replace(
+                indexed_observation,
+                training_sample=ObservedTrainingSample(
+                    input_features=torch.tensor([[float("-inf"), 0.5]]),
+                    observed_class_labels=indexed_observation.training_sample.observed_class_labels,
+                ),
+            )
+        ),
+        ValueError,
+    ),
+    "labels_int64": (
+        lambda processing_arguments, indexed_observation: dict(
+            indexed_observation=replace(
+                indexed_observation,
+                training_sample=ObservedTrainingSample(
+                    input_features=indexed_observation.training_sample.input_features,
+                    observed_class_labels=torch.tensor([[0]]),
+                ),
+            )
+        ),
+        ValueError,
+    ),
     "label_out_of_range": (
         lambda processing_arguments, indexed_observation: dict(
             indexed_observation=replace(
@@ -940,9 +1043,12 @@ REJECTION_MESSAGES = {
     "one_dimensional_input_features": "exactly one sample",
     "one_dimensional_labels": "must have shape",
     "two_labels_for_one_sample": "must have shape",
-    # 次の2つは、本処理の検査を通った後、最初にこの標本を評価する既存の部品が拒否する。
-    "label_out_of_range": "observed_class_labels.*class_count",
-    "feature_count_mismatch": "input_features.*shape",
+    # 次の5つは、本処理の検査を通った後、予測の段（その検査、または最初にこの標本を評価する既存の部品）が拒否する。
+    "prediction_record_is_not_previous_sample": "follow the last recorded sample index",
+    "input_features_negative_infinity": "input_features must be finite",
+    "labels_int64": "observed_class_labels must be a CPU float32",
+    "label_out_of_range": "ラベルは0～K-1の整数クラス値",
+    "feature_count_mismatch": "input_features.*特徴数",
 }
 
 
@@ -957,6 +1063,28 @@ def make_monitor_observed_at(loss_change_monitor, *, sample_index):
         current_model_baseline_loss_mean=0.5,
     )
     return observed_monitor
+
+
+def make_record_store_recorded_at(*, sample_index):
+    """指定の位置の記録を1件だけ持つ、予測の記録のowner。"""
+    recorded_store = SamplePredictionRecordStore()
+    recorded_store.append_sample_prediction_record(
+        sample_prediction_record=SamplePredictionRecord(
+            sample_index=sample_index,
+            observed_concept_id=None,
+            observed_class_id=0,
+            combined_prediction_is_correct=True,
+            maximum_weight_model_id=0,
+            maximum_prediction_weight=1.0,
+            effective_model_count=1.0,
+            any_model_or_combined_prediction_is_correct=True,
+            maximum_weight_model_prediction_is_correct=True,
+            global_diagnostic_prediction_is_correct=True,
+            true_concept_diagnostic_prediction_is_correct=None,
+            highest_confidence_model_prediction_is_correct=True,
+        )
+    )
+    return recorded_store
 
 
 def make_store_with_inverted_concept_id_holding(pending_sample_observation_store):
@@ -1037,6 +1165,7 @@ def make_owner_subclass_instance(owner):
 
 
 SAMPLE_PROCESSING_STEP_NAMES = (
+    "predict_observed_sample_and_update_prediction_weights",
     "advance_held_candidate_validation",
     "evaluate_classifier_per_sample_bounded_losses",
     "train_held_models_for_pending_training_requests",
@@ -1071,6 +1200,9 @@ def record_sample_processing_steps(monkeypatch, *, processing_arguments):
                     last_monitoring_observation=processing_arguments[
                         "loss_change_monitor"
                     ].last_observation,
+                    sample_prediction_records=processing_arguments[
+                        "sample_prediction_record_store"
+                    ].snapshot_sample_prediction_records(),
                 )
             )
             return _original_step(**arguments)
@@ -1105,12 +1237,23 @@ def test_sample_without_alarm_runs_steps_in_legacy_order(monkeypatch, valid_run_
         )
     assert not sample_processing.loss_monitoring_observation.drift_detected
     assert [step_call["step_name"] for step_call in step_calls] == [
+        "predict_observed_sample_and_update_prediction_weights",
         "advance_held_candidate_validation",
         "evaluate_classifier_per_sample_bounded_losses",
         "assign_released_pending_samples_to_current_training_model",
         "record_training_request_and_train_held_models_when_due",
     ]
-    advance_call, evaluation_call, assignment_call, training_call = step_calls
+    prediction_call, advance_call, evaluation_call, assignment_call, training_call = step_calls
+    # 予測は最初の段。その時点では、この標本の予測の記録はまだなく、候補検証の進行の時点では足されている。
+    assert prediction_call["arguments"]["indexed_observation"] is indexed_observation
+    assert prediction_call["pending_sample_indices"] == pending_sample_indices_before
+    prediction_record = sample_processing.observed_sample_prediction.sample_prediction_record
+    assert prediction_record.sample_index == indexed_observation.sample_index
+    assert all(
+        recorded_record is not prediction_record
+        for recorded_record in prediction_call["sample_prediction_records"]
+    )
+    assert advance_call["sample_prediction_records"][-1] is prediction_record
     # 候補検証の観測と損失の評価の時点では、この標本はまだ保留にも監視の記録にも入っていない。
     for step_call in (advance_call, evaluation_call):
         assert step_call["pending_sample_indices"] == pending_sample_indices_before
@@ -1206,12 +1349,13 @@ def test_sample_with_alarm_runs_steps_in_legacy_order(monkeypatch, valid_run_set
     assert monitor.last_observation is None
     assert sample_processing.loss_monitoring_observation.drift_detected
     assert [step_call["step_name"] for step_call in step_calls] == [
+        "predict_observed_sample_and_update_prediction_weights",
         "advance_held_candidate_validation",
         "evaluate_classifier_per_sample_bounded_losses",
         "train_held_models_for_pending_training_requests",
         "handle_alarm_occurrence",
     ]
-    _, _, training_call, alarm_call = step_calls
+    _, _, _, training_call, alarm_call = step_calls
     # 保留中の学習要求の学習は、警報の位置の記録と警報の処理より前。
     assert training_call["alarm_records"].alarm_sample_indices == (
         alarm_records_before.alarm_sample_indices
@@ -1291,6 +1435,7 @@ def test_failed_step_stops_sample_processing_before_later_steps(
         with pytest.raises(RuntimeError, match="injected failure"):
             process_observed_sample(indexed_observation=indexed_observation, **processing_arguments)
     assert [step_call["step_name"] for step_call in step_calls] == [
+        "predict_observed_sample_and_update_prediction_weights",
         "advance_held_candidate_validation",
         "evaluate_classifier_per_sample_bounded_losses",
         "assign_released_pending_samples_to_current_training_model",

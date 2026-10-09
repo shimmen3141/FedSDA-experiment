@@ -1,4 +1,4 @@
-"""観測した標本1件を処理する: 候補検証の進行→損失の監視→保留→（警報の処理｜帰属の確定と学習）。"""
+"""観測した標本1件を処理する: 予測→候補検証の進行→損失の監視→保留→（警報の処理｜帰属の確定と学習）。"""
 
 from dataclasses import dataclass
 from random import Random
@@ -17,6 +17,9 @@ from federated_learning_experiments.evaluation.loss_change_alarm_record_store im
 )
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
+)
+from federated_learning_experiments.evaluation.sample_prediction_record_store import (
+    SamplePredictionRecordStore,
 )
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatisticsStore,
@@ -80,6 +83,9 @@ from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
+    FixedSharePredictionWeightController,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
 )
@@ -101,6 +107,10 @@ from federated_learning_experiments.runtime.held_model_training_request_handling
     record_training_request_and_train_held_models_when_due,
     train_held_models_for_pending_training_requests,
 )
+from federated_learning_experiments.runtime.observed_sample_prediction import (
+    ObservedSamplePrediction,
+    predict_observed_sample_and_update_prediction_weights,
+)
 from federated_learning_experiments.runtime.released_pending_sample_assignment import (
     assign_released_pending_samples_to_current_training_model,
 )
@@ -110,6 +120,7 @@ from federated_learning_experiments.runtime.released_pending_sample_assignment i
 class ObservedSampleProcessing:
     """標本1件の処理の結果。警報の有無で、警報の処理か、帰属の確定と学習のどちらかが入る。"""
 
+    observed_sample_prediction: ObservedSamplePrediction
     held_validation_advance: HeldCandidateValidationAdvance
     loss_monitoring_observation: LossMonitoringObservation
     alarm_occurrence_handling: AlarmOccurrenceHandling | None
@@ -119,6 +130,8 @@ class ObservedSampleProcessing:
 
 # 引数名から、本処理が受け取るownerのexact型への対応（最初の状態更新より前に確かめる）。
 _REQUIRED_OWNER_TYPES_BY_ARGUMENT_NAME = {
+    "fixed_share_prediction_weight_controller": FixedSharePredictionWeightController,
+    "sample_prediction_record_store": SamplePredictionRecordStore,
     "validation_session_holder": CandidateValidationSessionHolder,
     "adaptation_record_store": AdaptationRecordStore,
     "diagnostic_evidence_collection": AdaHedgeDiagnosticEvidenceCollection,
@@ -235,6 +248,8 @@ def _select_validation_assignment_sample_concept_ids(
 def process_observed_sample(
     *,
     indexed_observation: IndexedObservedTrainingSample,
+    fixed_share_prediction_weight_controller: FixedSharePredictionWeightController,
+    sample_prediction_record_store: SamplePredictionRecordStore,
     validation_session_holder: CandidateValidationSessionHolder,
     adaptation_record_store: AdaptationRecordStore,
     diagnostic_evidence_collection: AdaHedgeDiagnosticEvidenceCollection,
@@ -268,10 +283,12 @@ def process_observed_sample(
     shared_feature_extractor: SharedFeatureExtractor,
     shared_parameter_optimizer: Optimizer | None,
 ) -> ObservedSampleProcessing:
-    """標本1件を、旧の標本処理と同じ順で処理する（予測と、予測側の警報の通知は含めない）。"""
+    """標本1件を、旧の標本処理と同じ順で処理する（最初に予測する。計算量と所要時間の記録は含めない）。"""
     _validate_observed_sample_processing_inputs(
         indexed_observation=indexed_observation,
         owners_by_argument_name=dict(
+            fixed_share_prediction_weight_controller=fixed_share_prediction_weight_controller,
+            sample_prediction_record_store=sample_prediction_record_store,
             validation_session_holder=validation_session_holder,
             adaptation_record_store=adaptation_record_store,
             diagnostic_evidence_collection=diagnostic_evidence_collection,
@@ -298,6 +315,15 @@ def process_observed_sample(
     sample_index = indexed_observation.sample_index
     input_features = indexed_observation.training_sample.input_features
     observed_class_labels = indexed_observation.training_sample.observed_class_labels
+    # (0) この標本を予測し、記録して、予測重みと診断証拠を更新する（学習側のどの段よりも前）。
+    observed_sample_prediction = predict_observed_sample_and_update_prediction_weights(
+        indexed_observation=indexed_observation,
+        fixed_share_prediction_weight_controller=fixed_share_prediction_weight_controller,
+        diagnostic_evidence_collection=diagnostic_evidence_collection,
+        sample_prediction_record_store=sample_prediction_record_store,
+        held_model_training_state_registry=held_model_training_state_registry,
+        current_training_model_assignment=current_training_model_assignment,
+    )
     # (1) 保持中の候補検証へ、この標本を観測させる。確定したら学習帰属が変わりうる。
     held_validation_advance = advance_held_candidate_validation(
         validation_session_holder=validation_session_holder,
@@ -462,6 +488,7 @@ def process_observed_sample(
             shared_parameter_optimizer=shared_parameter_optimizer,
         )
     return ObservedSampleProcessing(
+        observed_sample_prediction=observed_sample_prediction,
         held_validation_advance=held_validation_advance,
         loss_monitoring_observation=loss_monitoring_observation,
         alarm_occurrence_handling=alarm_occurrence_handling,

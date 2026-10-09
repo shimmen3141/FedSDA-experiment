@@ -9,7 +9,7 @@ testへ置き換えて廃止する。
 警報のない標本での帰属確定（容量を超えた最古の保留標本を現在のモデルへ確定）と学習要求の記録→
 警報（不足／他モデルの再利用／現行の維持／候補検証の開始）→候補検証中の警報、または
 標本の観測と確定（採用／棄却／現行の維持／他モデルの再利用）→次の警報→保留中の学習要求の学習→
-標本1件の処理（候補検証の進行→監視→保留→警報の処理｜帰属の確定と学習）を続けて呼ぶ。
+標本1件の処理（予測→候補検証の進行→監視→保留→警報の処理｜帰属の確定と学習）を続けて呼ぶ。
 """
 
 import sys
@@ -28,6 +28,9 @@ from federated_learning_experiments.evaluation.loss_change_alarm_record_store im
 )
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
+)
+from federated_learning_experiments.evaluation.sample_prediction_record_store import (
+    SamplePredictionRecordStore,
 )
 from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import (
     BoundedLossMoments,
@@ -98,6 +101,12 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.overall
 )
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
+    FixedSharePredictionWeightController,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings import (
+    PredictionCombinationSettings,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
@@ -639,6 +648,21 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             * len(held_validation_session.pending_assignment_training_samples)
         )
     loss_change_alarm_record_store = LossChangeAlarmRecordStore()
+    # 予測のowner。Fixed-Shareの時間尺度は、保留の容量と同じにする。
+    fixed_share_prediction_weight_controller = FixedSharePredictionWeightController(
+        prediction_combination_settings=PredictionCombinationSettings(
+            prediction_combination_strategy="fixed_share_weighted_prediction",
+            prediction_mixture_activation_policy="always",
+            prediction_weight_recalibration_after_aggregation_policy=(
+                "recompute_buffer_losses_and_replay_weight_updates"
+            ),
+            prediction_state_reset_on_training_assignment_change_policy=(
+                "restart_adahedge_preserve_fixed_share_prediction_state"
+            ),
+            fixed_share_weight_redistribution_time_scale_samples=10,
+        )
+    )
+    sample_prediction_record_store = SamplePredictionRecordStore()
     sample_processing_arguments = {
         argument_name: argument
         for argument_name, argument in alarm_handling_arguments.items()
@@ -646,6 +670,8 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     } | dict(
         training_request_arguments,
         loss_change_alarm_record_store=loss_change_alarm_record_store,
+        fixed_share_prediction_weight_controller=fixed_share_prediction_weight_controller,
+        sample_prediction_record_store=sample_prediction_record_store,
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=6),
         pending_model_upload_state=PendingModelUploadState(),
@@ -666,6 +692,22 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             **sample_processing_arguments,
         )
         assert sample_processing.loss_monitoring_observation.sample_index == sample_index
+        # 予測: 標本ごとに記録が1件増え、保有する全モデル（複数）の重みの総和が1で、最大重みのモデルは保有モデル。
+        sample_prediction = sample_processing.observed_sample_prediction
+        sample_prediction_records = (
+            sample_prediction_record_store.snapshot_sample_prediction_records()
+        )
+        assert len(sample_prediction_records) == sample_offset + 1
+        assert sample_prediction_records[-1] is sample_prediction.sample_prediction_record
+        assert sample_prediction.sample_prediction_record.sample_index == sample_index
+        prediction_weights_by_model_id = sample_prediction.prediction_weights_by_model_id
+        assert len(prediction_weights_by_model_id) >= 2, prediction_weights_by_model_id
+        assert abs(sum(prediction_weights_by_model_id.values()) - 1.0) <= 1e-12
+        assert (
+            sample_prediction.sample_prediction_record.maximum_weight_model_id
+            in prediction_weights_by_model_id
+        )
+        assert sample_prediction.predicted_class_labels.shape == (1, 1)
         alarm_occurred = sample_processing.loss_monitoring_observation.drift_detected
         assert (sample_processing.alarm_occurrence_handling is not None) == alarm_occurred
         processed_alarm_count += int(alarm_occurred)
@@ -694,6 +736,9 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     # 警報1回につき記録が1件、候補検証の確定1回につき記録が1件。
     assert len(processed_outcomes) == processed_alarm_count + completed_validation_count
     PROCESSED_ALARM_COUNTS.append(processed_alarm_count)
+    # 予測重みは、標本の処理の後、均等のままではない（ラベル観測後の更新が行われている）。
+    updated_prediction_weights = fixed_share_prediction_weight_controller.weights_by_model_id
+    assert len(set(updated_prediction_weights.values())) > 1, updated_prediction_weights
     return tuple(observed_outcomes)
 
 

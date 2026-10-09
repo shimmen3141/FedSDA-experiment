@@ -25,15 +25,15 @@
   - _Boundary: predict_observed_sample_and_update_prediction_weights（記録と更新）_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.5, 5.5, 6.2_
 
-- [ ] 3. 標本1件の処理への接続
-- [ ] 3.1 標本1件の処理の最初の段として予測を呼ぶ
+- [x] 3. 標本1件の処理への接続
+- [x] 3.1 標本1件の処理の最初の段として予測を呼ぶ
   - 既存の軌跡の対照のoracleを、最終構成の実旧clientにし、実旧の予測を止めずに実行する形へ更新する（標本列の真の概念IDは整数にする）。順序のtestと拒否のtestへ、予測の段と、足した2つのownerを加える。
   - 標本1件の処理へ、予測重みのownerと記録のownerの引数を足し、入力の検査の後・候補検証の進行の前に予測を呼び、結果へ予測を含める。依存の許可集合へ追加分を登録する。
   - 完了: 軌跡の対照が、全条件で、既存の全項目と予測の項目（記録、Fixed-Shareの重み、診断証拠）の標本ごとの一致と、乱数の一致を示し、全結果を通ったことを確かめるtestがskipされずに成功する。予測が候補検証の進行より前に呼ばれること、予測の段での拒否で全状態が変わらないことのtestと、依存境界のsuiteが成功する。
   - _Depends: 2.2_
   - _Boundary: process_observed_sample、ObservedSampleProcessing_
   - _Requirements: 4.1, 4.2, 4.3, 5.4, 6.2_
-- [ ] 3.2 共用のfresh process scriptへ、予測を含む標本1件の処理を足す
+- [x] 3.2 共用のfresh process scriptへ、予測を含む標本1件の処理を足す
   - 既存の流れへ、予測重みのownerと記録のownerを足す。
   - 完了: 共用scriptが、旧実装とtestのmoduleを読み込まずに、保有モデルが複数ある状態で標本を続けて処理し、標本ごとに記録が1件増えること・予測重みの総和が1であることを確かめて成功する。別processで実行するtest、Ruff、Pyrightが成功する。
   - _Boundary: 共用のfresh process script_
