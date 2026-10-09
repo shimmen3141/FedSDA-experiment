@@ -354,12 +354,17 @@ def apply_global_model_distribution(
         + kept_temporary_model_training_states
     )
 
-    # 段4: 現在の学習帰属が付け替わるなら、適応記録を足す。
+    # 段4: 全保有モデルを、1つの共有部へつなぎ直す。つなぎ直しの部品は、全部の対応を検査してから
+    # つなぐので、ここで拒否されれば、ownerは何も変わらない。
+    reconnect_held_models_to_shared_feature_extractor(
+        held_model_optimizer_bindings=held_model_optimizer_bindings
+    )
+    # 段5: 現在の学習帰属が付け替わるなら、適応記録を足す。
     if server_remap_adaptation_record is not None:
         adaptation_record_store.append_adaptation_record(
             adaptation_record=server_remap_adaptation_record
         )
-    # 段5: 統計→評価標本→学習データ→計数（旧と同じ順。評価標本が上限を超えると、借りた乱数で抜き出す）。
+    # 段6: 統計→評価標本→学習データ→計数（旧と同じ順。評価標本が上限を超えると、借りた乱数で抜き出す）。
     loss_statistics_store.replace_model_loss_statistics(
         loss_statistics_by_model_id=selected_loss_statistics
     )
@@ -370,12 +375,9 @@ def apply_global_model_distribution(
     model_training_and_assignment_counts_store.remap_model_training_and_assignment_counts(
         model_id_mapping=model_id_mapping
     )
-    # 段6: 保有モデルを置き換え、全保有モデルを1つの共有部へつなぎ直す。
+    # 段7: 保有モデルと、共有部のoptimizerの状態を、つなぎ直した後のものへ置き換える。
     held_model_training_state_registry.replace_held_model_training_states(
         held_model_training_states=replacing_held_model_training_states
-    )
-    reconnect_held_models_to_shared_feature_extractor(
-        held_model_optimizer_bindings=held_model_optimizer_bindings
     )
     shared_parameter_optimizer_state_holder.replace_shared_parameter_optimizer_state(
         shared_parameter_optimizer_state=next(
@@ -384,7 +386,7 @@ def apply_global_model_distribution(
             if rebuilt_binding.model_id == shared_feature_source_model_id
         )
     )
-    # 段7: 現在の学習帰属を付け替える。
+    # 段8: 現在の学習帰属を付け替える。
     training_assignment_change = current_training_model_assignment.remap_current_training_model_id(
         model_id_mapping=model_id_mapping
     )
