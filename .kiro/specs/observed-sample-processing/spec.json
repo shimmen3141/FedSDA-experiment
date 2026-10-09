@@ -3,7 +3,7 @@
   "created_at": "2026-10-09",
   "updated_at": "2026-10-09",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "implementation",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -68,8 +68,8 @@
     "naming": {
       "generated": true,
       "approved": true,
-      "revision": 4,
-      "generated_sha256_lf": "a8c258acfa791af188d40e270ac80795a30d48b432344d26d897f7873c65f89f",
+      "revision": 5,
+      "generated_sha256_lf": "98570d8fb5da7880aaa7a174b0e2df7f63d7bfacbbfa849a41fe78f4b8684638",
       "previous_revisions": [
         {
           "revision": 1,
@@ -86,16 +86,21 @@
           "sha256_lf": "66b5f8b4b506b256f1475622a7f22f6d0929f61429aa80abd0f09e6f99025a6b",
           "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
           "verdict": "APPROVED"
+        },
+        {
+          "revision": 4,
+          "sha256_lf": "a8c258acfa791af188d40e270ac80795a30d48b432344d26d897f7873c65f89f",
+          "note": "wording-only revision after review r3"
         }
       ],
       "wording_only_revision_after_review": {
         "last_reviewed_revision": 3,
         "last_reviewed_sha256_lf": "66b5f8b4b506b256f1475622a7f22f6d0929f61429aa80abd0f09e6f99025a6b",
         "last_review_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
-        "note": "文面だけの修正（共通引継ぎ手順）。修正内容はreview.md"
+        "note": "文面だけの修正（共通引継ぎ手順）。r4: 3回目のレビューの指摘。r5: 実装で使わなくなった局所名2つを表から外し、既存名の局所名1つを足した。修正内容はreview.md"
       },
-      "approved_revision": 4,
-      "approved_sha256_lf": "a8c258acfa791af188d40e270ac80795a30d48b432344d26d897f7873c65f89f",
+      "approved_revision": 5,
+      "approved_sha256_lf": "98570d8fb5da7880aaa7a174b0e2df7f63d7bfacbbfa849a41fe78f4b8684638",
       "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested; substitute for gpt-6-luna at usage limit)",
       "reviewer_session": "43438830-1f4e-4286-a3b0-c0ed94a66616",
       "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
@@ -146,10 +151,10 @@
   },
   "handoff": {
     "execution_status": "in_progress_by_claude_code",
-    "completed_unit": "requirements_design_naming_tasks_approved",
-    "next_step": "task_1_1_tests_then_implementation",
-    "implementation_started": false,
-    "tests_run": false,
+    "completed_unit": "task_1_implemented",
+    "next_step": "full_regression_then_implementation_review",
+    "implementation_started": true,
+    "tests_run": true,
     "full_pytest_run_for_this_spec": false
   }
 }

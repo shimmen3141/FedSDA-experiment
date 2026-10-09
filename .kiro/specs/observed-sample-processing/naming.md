@@ -1,4 +1,4 @@
-# 標本1件の処理 — 命名 revision4
+# 標本1件の処理 — 命名 revision5
 
 sourceの名前と、testのmodule直下の名前（test関数の名前を除く）の実装前一覧（範囲は共通引継ぎ手順）。リポジトリ外の下書きを作業ツリーの複製へ置いて`spec_checks.py names`で照合した。承認状態はspec.json。
 
@@ -13,7 +13,6 @@ sourceの名前と、testのmodule直下の名前（test関数の名前を除く
 | `_validate_observed_sample_processing_inputs` | 上の関数の、最初の状態更新より前の検査をまとめた非公開の関数。 |
 | `last_monitoring_observation` | 局所名。監視の最後の観測（位置の連続性の検査に使う）。field名`loss_monitoring_observation`（今回の観測）と区別する。 |
 | `pending_observation` | 局所名。保留標本1件。引数`indexed_observation`（今回の標本）と区別する。 |
-| `training_owners` / `training_request_arguments` | 局所名。複数の部品へ同じ組で渡す引数のdict（学習状態のowner 5つ／学習要求の処理の引数）。 |
 | `observed_loss` / `current_model_loss_statistics` | 局所名。現在のモデルでのこの標本の損失／現在のモデルの履歴統計。 |
 | `_REQUIRED_OWNER_TYPES_BY_ARGUMENT_NAME` / `owners_by_argument_name` | 引数名から、本処理が受け取るownerのexact型への対応（module直下の定数）と、引数名から渡されたownerへの対応（検査の関数の引数）。 |
 | `_select_validation_assignment_sample_concept_ids` / `validation_assignment_training_samples` / `latest_pending_observations` | 開始した候補検証へ渡された標本の概念IDを、警報時の保留標本の末尾から返す非公開の関数と、その引数（sessionのfield `pending_assignment_training_samples`の値。保持する側の名前`validation_assignment_sample_concept_ids`にそろえる）、保留標本の末尾（局所名。既存`retain_latest_pending_sample_observations`の「latest」と同じ意味）。revision2で追加し、revision3で対応づけの方法を末尾の一致へ変えた（仕様レビューの指摘）。 |
@@ -28,7 +27,7 @@ sourceの名前と、testのmodule直下の名前（test関数の名前を除く
 | `append_monitored_log_e_value` / `monitored_log_e_values` | 標本1件の監視の値（混合したe値の対数。既存`LossMonitoringObservation.log_e_value`）を足す操作と、その列（旧`history_detector_log_e`）。 |
 | `append_alarm_record` / `alarm_sample_indices` / `estimated_change_point_sample_indices` / `detector_candidate_start_sample_indices` | 警報1回の位置を足す操作と、3つの列（旧`detected_event_positions`・`estimated_drift_start_positions`・`detector_candidate_start_positions`）。単数形の引数名は、既存の同名（警報の処理の`alarm_sample_index`・`estimated_change_point_sample_index`、監視の観測の`detector_candidate_start_sample_index`）と同じ役割。 |
 
-引数`loss_change_alarm_record_store`・`pending_sample_observation_store`は、上のownerを受け取る。そのほかの引数と、局所名`owner_argument_name`・`owner`・`required_owner_type`・`sample_index`・`pending_assignment_state`・`input_features`・`observed_class_labels`・`current_training_model_id`・`pending_sample_observations`・`estimated_change_span_sample_count`・`estimated_change_point_sample_index`・`alarm_buffer_response`・`training_sample`・`observed_concept_id`・`log_e_value`は、既存の部品の同名と同じ役割。非公開の属性`_pending_sample_observations`・`_validation_assignment_sample_concept_ids`・`_monitored_log_e_values`・`_alarm_sample_indices`・`_estimated_change_point_sample_indices`・`_detector_candidate_start_sample_indices`は、対応する公開の読取りと同じ値を持つ。importする既存symbol（設計5節）も定義元と同じ役割。
+引数`loss_change_alarm_record_store`・`pending_sample_observation_store`は、上のownerを受け取る。そのほかの引数と、局所名`owner_argument_name`・`owner`・`required_owner_type`・`sample_index`・`pending_assignment_state`・`input_features`・`observed_class_labels`・`current_training_model_id`・`pending_sample_observations`・`estimated_change_span_sample_count`・`estimated_change_point_sample_index`・`alarm_buffer_response`・`active_validation_session`・`training_sample`・`observed_concept_id`・`log_e_value`は、既存の部品の同名と同じ役割。非公開の属性`_pending_sample_observations`・`_validation_assignment_sample_concept_ids`・`_monitored_log_e_values`・`_alarm_sample_indices`・`_estimated_change_point_sample_indices`・`_detector_candidate_start_sample_indices`は、対応する公開の読取りと同じ値を持つ。importする既存symbol（設計5節）も定義元と同じ役割。
 
 ## test（module直下の名前。test関数の名前は対象外）
 
