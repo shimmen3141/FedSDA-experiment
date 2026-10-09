@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-09（held-model-training-request-handlingの完了。主担当はClaude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証commit・件数・hash・レビューの経緯は、各specのintegration-validation.mdとreview.mdを読む（ここへ写さない）。
+更新: 2026-10-09（observed-sample-processingの実装と全回帰まで。主担当はClaude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証commit・件数・hash・レビューの経緯は、各specのintegration-validation.mdとreview.mdを読む（ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -9,8 +9,8 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **現在地:** [held-model-training-request-handling](../specs/held-model-training-request-handling/README.md)（学習要求の記録と保有モデルの共同学習）まで完了。進行中の編集・未解消レビュー指摘はない。その前の[released-pending-sample-assignment](../specs/released-pending-sample-assignment/README.md)（警報のない標本での帰属確定）まで完了。その前の[shared-verification-infrastructure](../specs/shared-verification-infrastructure/README.md)（検証基盤の整理）と、[held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md)まで完了。
-- **次の一手:** 下の「次の候補」1を、1つのspec「標本1件の処理全体」として要求から仕様化する（保留標本のowner、学習要求の2関数を呼ぶ位置、検出位置の記録、標本ごとの履歴を含める）。サーバ同期は含めない。新しい接続は、共用の`tests/refactoring/fresh_process_smoke.py`へ流れを足す。
+- **現在地:** [observed-sample-processing](../specs/observed-sample-processing/README.md)（標本1件の処理）は、実装と全回帰が済み、実装のレビューを別sessionへ依頼する段階（状態の正本はspec.json）。その前の[held-model-training-request-handling](../specs/held-model-training-request-handling/README.md)まで完了。
+- **次の一手:** 上のspecの実装のレビュー。その後は、下の「次の候補」（予測の接続、新clientの組立て）を、旧のひとまとまりの流れの単位で仕様化する。新しい接続は、共用の`tests/refactoring/fresh_process_smoke.py`へ流れを足す。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。`federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧名alias/互換読込みを追加しない。
 - **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。specの完了は、Windows基準での全回帰が済むまで記録しない。
 - **レビュー担当の利用状況（2026-10-09）:** GPT-6 Luna（`codex exec`）は利用上限に達しており、CLIの表示では2026-10-14 12:54まで使えない。それまでは、共通引継ぎ手順の代替規則によりClaude Haiku 5.5（effort `medium`）がLunaの担当分も行う。Haikuに対象test・共用script・Ruff・`spec_checks.py`を独立実行させるときは、`--tools Read,Glob,Grep,Bash`と`--allowedTools`で検証コマンドだけを許可して起動する（例と記録はreleased-pending-sample-assignmentのreview.md。ファイルの変更やその他のコマンドは許可しない）。Lunaが戻ったら通常の分担へ戻す。
@@ -29,6 +29,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 警報後の「参照の固定→標本の観測→損失収集→採否評価→確定→正式ID確認」、警報時の「区間の準備→再利用評価→切替または候補検証の開始→完了処理→記録」、候補検証sessionの保持、診断証拠と通知までの部品が、実旧の対応するメソッドとの対照つきで揃っている。新client・新全体runの接続は未完了。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 
+- [observed-sample-processing](../specs/observed-sample-processing/README.md): 観測した標本1件に対する学習側の処理（候補検証の進行→損失の監視→保留→警報の処理、または帰属の確定と学習）をつなぐ`process_observed_sample`。保留中の標本そのものを持つ`PendingSampleObservationStore`と、警報の位置と監視の値を記録する`LossChangeAlarmRecordStore`を追加。予測と予測側の警報の通知は未接続。
 - [held-model-training-request-handling](../specs/held-model-training-request-handling/README.md): 学習要求を記録して間隔に達したら学習する`record_training_request_and_train_held_models_when_due`（旧`train_step`）と、保留中の要求を学習する`train_held_models_for_pending_training_requests`（旧`flush_pending_updates`）。共同更新の完了ごとにモデル別の学習量を計数へ足す。件数管理へ、間隔に達したかを読む操作を追加。呼ぶ位置は未接続。
 - [released-pending-sample-assignment](../specs/released-pending-sample-assignment/README.md): 警報のない標本で、保留の容量を超えた最古の標本を既存の吸収で現在のモデルへ確定し、保留から解放する`assign_released_pending_samples_to_current_training_model`。保留位置のownerへ、容量を超える位置を解放せずに読む操作を追加。
 - [shared-verification-infrastructure](../specs/shared-verification-infrastructure/README.md): Git管理下の共用fresh process scriptとそれを別processで実行するtest、依存の許可集合が広すぎないことの検査、汎用の変異toolで見つかったtestの穴2件の修正。sourceの変更なし。
@@ -55,18 +56,18 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 次の候補（未仕様化・未承認）
 
-### 1. 標本1件の処理の残り（未仕様化）
+### 1. 予測の接続と、新clientの組立て（未仕様化）
 
-警報が起きた標本での処理は`handle_alarm_occurrence`で1回の呼出しになり、候補検証の進行（`advance_held_candidate_validation`）は確定時に診断へ通知するようになった。標本1件の処理全体（旧`process_one_step`）へ向けて残るのは次のとおり。1つのspecで扱い、境界を決めて下位taskへ分ける（一度に混ぜない。数値の一致が繊細な部分が出てきたら、そこだけ別のspecへ切り出す）。
+学習側の標本処理は`process_observed_sample`で1回の呼出しになった。残るのは次のとおり。旧のひとまとまりの流れの単位でspecにし、境界を決めて下位taskへ分ける（数値の一致が繊細な部分が出てきたら、そこだけ別のspecへ切り出す）。
 
-- 学習要求の記録と共同学習は、`record_training_request_and_train_held_models_when_due`と`train_held_models_for_pending_training_requests`で接続済み（呼ぶ位置は未接続。旧は、標本ごとの学習stepが警報のない分岐の最後、消化が警報の処理の前とラウンド境界）。警報のない標本での帰属確定は`assign_released_pending_samples_to_current_training_model`で接続済み。計算量・所要時間・勾配の診断は未移植。
-- 保留標本そのもの（特徴・ラベル・概念ID）を持つowner: 現在は、警報のときの応答と警報のない標本での確定が、呼出し側から全保留標本を位置つきで受け取る。ownerをどこに置くかと、2箇所の並びの検査の重複（IMPROVE-010）を合わせて決める。
-- 標本1件の処理全体: 予測→候補検証の進行→検出→（警報なら`handle_alarm_occurrence`、なければ帰属確定と学習）の並べ方、標本位置の連続性、応答の前後に標本を観測しない保証。検出位置・推定変化点・検出器の候補開始位置の記録、保留中の学習更新の消化（`flush_pending_updates`）、標本ごとの履歴（旧`history_drift_type`）もここで扱う。
-- 予測側の警報hook（旧`_on_drift_alarm`・`_on_drift_resolution`）は予測結合の接続で扱う。最終Switching予測はFixed-Share側で、AdaHedgeの再始動を直接参照しない。NPZの診断（routing_concept_restart_counts、global gain、条件付きLOO）はAdaHedge状態を使う。最終3goldenはこれらの診断を比較しないので、その成功だけでは保存診断の同一性を証明しない。IMPROVE-007は診断の選択実行案で未検証/未採用。
-- 既知の限界（held-candidate-validation-progressの設計4節）: 候補検証の進行は、標本位置が提案位置より後であることを検査しない。`handle_alarm_occurrence`は提案位置を「保留位置の最終観測位置と一致する警報位置」に固定するので、以後の標本位置が保留位置の規則（最終観測位置の次だけを受け入れる）に従う限り問題にならない。その保証は標本1件の処理全体のspecで扱う。
-- 記録のoracle: tests/refactoring/test_alarm_occurrence_handling.py（`build_alarm_occurrence_oracle`。実旧`_resolve_drift`と実旧の再始動hook）、test_held_candidate_validation_progress.pyの実旧対照を再利用する。
-- 許容損失増加量と最小変化区間件数の設定登録は組立側に残る。
-- 新client・新全体runは未完了。部品の旧対照と全体runのgolden一致を混同しない。全体runを接続するspecの前に、Linux用のgoldenを作る（上の「決定」）。
+- 予測の接続: 旧`_record_prediction`（Fixed-Shareの重みでの予測、予測の記録、重みの更新）と、予測側の警報の通知（旧`_on_drift_alarm`・`_on_drift_resolution`）。通知は、`process_observed_sample`の中の、旧と同じ位置（警報の位置の記録の後・警報の処理の前、警報の処理の後で候補検証を保持していないとき）へ呼出しを足す。前者は警報の処理より前の保留標本を読む（observed-sample-processingの設計2節）。最終Switching予測はFixed-Share側で、AdaHedgeの再始動を直接参照しない。NPZの診断（routing_concept_restart_counts、global gain、条件付きLOO）はAdaHedge状態を使う。最終3goldenはこれらの診断を比較しないので、その成功だけでは保存診断の同一性を証明しない。IMPROVE-007は診断の選択実行案で未検証/未採用。
+- 新clientの組立て: ownerと設定をまとめて作り、標本を1件ずつ`process_observed_sample`へ渡す。設定・閾値の検査（許容損失増加量、最小変化区間件数、batchの件数など）と、ownerどうしの整合（監視のクラス数と分類器のクラス数、共有部とそのoptimizer）は、組立てのときに確かめる（標本1件の処理は確かめない）。旧は1次元の入力を2次元へ直して受け取るので、標本を作る側で、特徴が1行の2次元・ラベルが1行1列のtensorにする。
+- run終端とラウンド境界: 未完了の候補検証の回収（`finalize_held_incomplete_candidate_validation`。候補検証へ渡した標本の概念IDは`PendingSampleObservationStore`が持つ）と、保留中の学習要求の学習（`train_held_models_for_pending_training_requests`。旧は`experiment.py`がラウンド境界で呼ぶ）を呼ぶ位置。
+- 標本ごとの結果種別の列（旧`history_drift_type`）と保存: 適応記録（位置と結果種別）から導けると見込むが、旧の数値との対応は確かめていない。
+- 計算量と所要時間の記録（旧`_record_model_compute`・`compute_counters`・`phase_seconds`・`processing_times`）は未移植。
+- 記録のoracle: tests/refactoring/test_observed_sample_processing.py（`build_sample_processing_oracle`。最初の警報の後から、実旧`process_one_step`と標本ごとに照合する）を再利用する。
+- 保留標本の並びの検査が、警報の処理・帰属の確定・標本1件の処理の3箇所にある（IMPROVE-010）。
+- 全体runを接続するspecの前に、Linux用のgoldenを作る（上の「決定」）。部品の旧対照と全体runのgolden一致を混同しない。
 
 ### 2. その先
 

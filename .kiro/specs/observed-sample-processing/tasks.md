@@ -2,7 +2,7 @@
 
 逐次実行。レビューは、全taskの実装と全回帰の後に1回で受ける（共通引継ぎ手順）。
 
-- [ ] 1. 標本1件の処理を、実旧対照つきで実装する
+- [x] 1. 標本1件の処理を、実旧対照つきで実装する
   - 1.1 保留標本のownerと警報の記録のownerを実装する
     - 2つのownerの単独のtestを先に追加し、sourceを実装して、依存の許可集合を登録する。
     - 完了: 2つのownerのtestと依存境界suiteが成功する。変異toolで、ownerのメソッドの検査と更新が検出される（未検出は、testで補うか、等価と判断した理由を証拠文書へ書く）。
@@ -32,7 +32,7 @@
     - _Boundary: fresh_process_smoke.py_
     - _Requirements: 1.4, 1.5_
 
-- [ ] 2. 固定基準の全回帰と証拠を確定する
+- [x] 2. 固定基準の全回帰と証拠を確定する
   - commitして、Windowsの基準環境で全pytestとJUnit、旧11・最終3golden、Ruff・Pyright・pip check、`spec_checks.py identity`と`progress`を実測し、検出力の証拠と、integration-validation.md（要求の対応と未検証事項）を記録する。全pytestの件数が、前specの件数に今回足したtest数を加えた数と一致することと、全結果を通ったことを確かめるtestがskipされずに成功したことを確かめる。
   - 完了: 実装していない別sessionが、コード・検出力の証拠・要求の対応・照合をまとめてレビューして承認する。再開案内を更新する。
   - _Depends: 1_
