@@ -37,8 +37,8 @@
   - _Boundary: 共用のfresh process script_
   - _Requirements: 7.1_
 
-- [ ] 4. 検証
-- [ ] 4.1 独立レビューの指摘を反映し、全回帰を通す
+- [x] 4. 検証
+- [x] 4.1 独立レビューの指摘を反映し、全回帰を通す
   - 独立レビュー（別session、検証コマンドだけを許可）を1回受け、指摘の採否を下の「Implementation Notes」へ書く。
   - 完了: 全pytest（旧11・最終3goldenを含む）、Ruff、Pyright、`pip check`、照合script（`names`・`identity`・`progress`）が成功し、件数とcommitを「Implementation Notes」へ記録してある。固定旧実装とgoldenの差分が空である。
   - _Depends: 3.1_
@@ -46,4 +46,11 @@
 
 ## Implementation Notes
 
-（実装中の発見、レビューの指摘の採否、検証結果、未検証と残る制約を書く）
+- 手順からの逸脱: 1.1・1.2・2.1・2.2は、1つのcommitにした（`22d0ae6`）。sourceの下書きの後にtestを書いた（testを先に書く手順からの逸脱）。
+- 対照の条件: 最初の6条件では、採番だけが行われる経路（LEGACY-016）を通らなかったので、実旧だけで条件を探して、通る条件（概念の区間長9・seed 7、区間長10・seed 50）を入れた。
+- 独立レビュー（1回、2026-10-10）: Claude Haiku 5.5（独立CLI、effort `medium`を指定。実効値は出力されない）。NNのパラメータの平均と、複数のclientの状態の更新順なので、難度からHaikuを選んだ（GPT-6 Lunaは利用上限で使えない期間でもある）。session `567b284b-fb91-4052-b42c-5941d0047de0`、`is_error=false`、`modelUsage`は`claude-haiku-5-5`だけ。対象は`363e07b..4f324ba`。判定は`IMPLEMENTATION: APPROVED`（Blocker・Majorなし、Minor 3件、任意 2件）。対象test（64 passed）、依存境界とfresh process（3044 passed）、Ruff、共用script、`spec_checks.py names`を独立に実行した。testファイルの全行と、依存境界testの差分は読んでいないと申告している。
+- 指摘の採否（5件とも採用。文書だけの修正なので、再レビューは受けていない）: (1)Minor: 非有限のパラメータを、旧は平均し、新は集約で拒否する→設計の「旧と違う点」へ書いた（写しの部品の契約をそのまま使った結果。発散したrunを続行させる必要が出たら、その時点で扱いを決める）。(2)Minor: 状態の報告を、clientの数で数える前提（最終構成のclientは、すべて状態を報告する）→設計へ書いた。(3)Minor: 要求5.2の「学習データを持たないモデルを含む集約」が、経路の網羅のtestに入っていない→要求と設計を、実態に合わせて直した（生成直後の集約を実旧と照合している。参加するclientがいる集約に混ざる状態は、配布がないと起きないので、配布のspecの対照で確かめる）。(4)任意: 初期モデルの来歴の表し方の違い→設計へ書いた。(5)任意: LEGACY-016の「予測には参加し続ける」は実行で確かめていない→記録を、コードの読みによる、と直した。
+- 検証（Windows基準環境、`4f324ba`。レビューの後は、sourceとtestを変えていない）: 全pytest 10894 passed / 3 skipped / 2 warnings、exit 0（前spec 10830＋2つのowner 36＋登録と集約 28）。JUnitは10897 testcase、failure 0、error 0。`tests.test_regression`・`tests.test_proposed_regression`は成功。経路の網羅のtestはskipされていない（skip 3件は以前からのもの）。Ruff（check・format）、Pyright 0 errors、`pip check`成功。固定旧`748c3aa`からの差分は空。レビュー担当は全pytest・Pyright・`pip check`を実行していない（基準どおり）。
+- 変異テストは実行していない（既定）。
+- 未検証・残る制約: 配布がないので、clientのモデルはラウンドをまたいで発散したまま集約される（対照は、その状態で旧と一致することを確かめている）。参加するclientがいる集約に、学習データを持たない非負のIDのモデルが混ざる状態は、通っていない。非有限のパラメータの集約は、旧と挙動が違う（上の(1)）。実行の枠のサーバの操作の実体は、まだない。WSLでは実行していない。
+
