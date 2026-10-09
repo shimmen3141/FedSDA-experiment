@@ -1104,3 +1104,41 @@ def test_distribution_stops_at_failed_client_without_rollback(
                 current_snapshot["parameters"], client_state_snapshot["parameters"], strict=True
             )
         )
+
+
+def test_distribution_keeps_communication_volume_when_first_client_rejects(
+    monkeypatch, valid_run_settings_mapping
+):
+    """clientの受取りの検査で拒否される入力（現在の学習帰属が、配布にないIDへ移る）は、サーバの検査では分からない。
+
+    通信量は、clientへ渡す前に足すので、最初のclientが拒否しても残る。どのclientも変わらない。
+    """
+    server_round_oracle = build_synchronized_server_round_oracle(
+        monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
+    )
+    state_snapshot = snapshot_server_and_client_states(server_round_oracle)
+    with pytest.raises(ValueError, match="current training model after model_id_mapping"):
+        distribute_global_models_to_clients(
+            **get_distribution_arguments(server_round_oracle) | dict(model_id_mapping={2: 99})
+        )
+    volume_before = state_snapshot["communication_volume"]
+    volume_after = server_round_oracle["communication_volume_record_store"].get_state_snapshot()
+    assert volume_after.downloaded_model_count == volume_before.downloaded_model_count + (
+        2 * CLIENT_COUNT
+    )
+    assert volume_after.downloaded_message_count == (
+        volume_before.downloaded_message_count + CLIENT_COUNT
+    )
+    assert (
+        volume_after.downloaded_parameter_value_count
+        > volume_before.downloaded_parameter_value_count
+    )
+    # 通信量のほかは、サーバもclientも乱数も変わらない。
+    server_round_oracle["communication_volume_record_store"] = type(
+        "CommunicationVolumeBeforeDistribution",
+        (),
+        {"get_state_snapshot": lambda self: volume_before},
+    )()
+    assert_server_and_client_states_unchanged(
+        state_snapshot=state_snapshot, server_round_oracle=server_round_oracle
+    )
