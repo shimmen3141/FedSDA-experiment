@@ -2,13 +2,13 @@
 
 逐次実行（並行しない）。testを先に書く。独立レビューは、全taskの後に1回受ける（共通引継ぎ手順）。
 
-- [ ] 1. 既存のownerと束への追加
-- [ ] 1.1 ownerの操作を足す
+- [x] 1. 既存のownerと束への追加
+- [x] 1.1 ownerの操作を足す
   - 保有モデルの全置換え、損失統計の全置換え、グローバルの損失統計の一覧、サーバによる統合の適応記録（結果種別と位置の列）、共有部のoptimizerの状態の保持者を足す。新しいmoduleの依存の許可集合を登録する。
   - 完了: 足した操作の単独のtest（順、検査、不正で不変）と、変更したmoduleの既存のtest、依存境界のsuiteが成功する。
   - _Boundary: HeldModelTrainingStateRegistry、ModelAndClassLossStatisticsStore、GlobalModelRepository、AdaptationRecordStore、SharedParameterOptimizerStateHolder_
   - _Requirements: 2.1, 2.4, 3.1, 3.3, 6.2_
-- [ ] 1.2 clientが、共有部のoptimizerの状態を保持者で持ち、作り直すモデルのoptimizerの設定を束で受け取る
+- [x] 1.2 clientが、共有部のoptimizerの状態を保持者で持ち、作り直すモデルのoptimizerの設定を束で受け取る
   - ownerの記録の共有部のoptimizerの状態を保持者にし、共有部と構造の参照を、現在の学習帰属のモデルから読む。束へ、作り直すモデルのoptimizerの設定を足す（既存の設定と同じ種類であることを確かめる）。束を作る箇所と、共有部のoptimizerの状態を読む箇所の、既存のtestと共用scriptを直す。
   - 完了: clientと束の既存のtest（実旧clientとの対照を含む）、事前学習・登録と集約のtest、共用script、依存境界のsuiteが、変更の後も成功する。束の新しいfieldのtestが成功する。
   - _Boundary: FedsdaRunClient、FedsdaRunClientOwners、FedsdaRunClientSettings_

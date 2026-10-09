@@ -104,6 +104,29 @@ class ModelAndClassLossStatisticsStore:
         loss_statistics = _copy_model_and_class_loss_statistics(loss_statistics=loss_statistics)
         self._model_loss_statistics_by_model_id[model_id] = loss_statistics
 
+    def replace_model_loss_statistics(
+        self,
+        *,
+        loss_statistics_by_model_id: tuple[tuple[int, ModelAndClassLossStatistics], ...],
+    ) -> None:
+        """全部の検査の後、全モデルの統計を、渡された順で全部置き換える。不正なら何も変えない。"""
+        if type(loss_statistics_by_model_id) is not tuple:
+            raise TypeError("loss_statistics_by_model_idはexact tupleが必要です。")
+        replaced_loss_statistics_by_model_id: dict[int, ModelAndClassLossStatistics] = {}
+        for model_loss_statistics_pair in loss_statistics_by_model_id:
+            if type(model_loss_statistics_pair) is not tuple:
+                raise TypeError("loss_statistics_by_model_idの各要素はexact tupleが必要です。")
+            if len(model_loss_statistics_pair) != 2:
+                raise ValueError("loss_statistics_by_model_idの各要素は2要素が必要です。")
+            model_id, loss_statistics = model_loss_statistics_pair
+            _validate_identifier(identifier=model_id, parameter_name="model_id")
+            if model_id in replaced_loss_statistics_by_model_id:
+                raise ValueError("model_idは重複できません。")
+            replaced_loss_statistics_by_model_id[model_id] = _copy_model_and_class_loss_statistics(
+                loss_statistics=loss_statistics
+            )
+        self._model_loss_statistics_by_model_id = replaced_loss_statistics_by_model_id
+
     def reassign_model_loss_statistics_id(
         self,
         *,

@@ -130,13 +130,22 @@ _REQUIRED_SETTINGS_TYPES_BY_FIELD_NAME: dict[str, tuple[type, ...]] = {
         AdamParameterOptimizerSettings,
         SgdParameterOptimizerSettings,
     ),
+    "rebuilt_model_parameter_optimizer_settings": (
+        AdamParameterOptimizerSettings,
+        SgdParameterOptimizerSettings,
+    ),
     "scalar_settings": (FedsdaRunClientScalarSettings,),
 }
 
 
 @dataclass(frozen=True, kw_only=True)
 class FedsdaRunClientSettings:
-    """client 1つの組立てに要る、機能別の設定・置き場所のない値・検出器の賭け率。生成時に全部を確かめる。"""
+    """client 1つの組立てに要る、機能別の設定・置き場所のない値・検出器の賭け率。生成時に全部を確かめる。
+
+    optimizerの設定は2つある。`parameter_optimizer_settings`は、候補の学習と、配布の後のつなぎ直しで
+    作り直す概念固有部に使う。`rebuilt_model_parameter_optimizer_settings`は、配布で作り直すモデルの
+    共有部と概念固有部に使う（初期モデルの事前学習と同じ学習率にする）。
+    """
 
     loss_change_detection_settings: LossChangeDetectionSettings
     prediction_combination_settings: PredictionCombinationSettings
@@ -147,6 +156,9 @@ class FedsdaRunClientSettings:
     candidate_parameter_initialization_settings: CandidateParameterInitializationSettings
     candidate_epoch_training_settings: CandidateEpochTrainingSettings
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings
+    rebuilt_model_parameter_optimizer_settings: (
+        AdamParameterOptimizerSettings | SgdParameterOptimizerSettings
+    )
     scalar_settings: FedsdaRunClientScalarSettings
     loss_monitor_betting_fractions: tuple[float, ...]
 
@@ -178,6 +190,16 @@ class FedsdaRunClientSettings:
                 specified_parameter_value=betting_fractions,
                 validation_failure_reason=(
                     "0より大きく1未満のbuiltin floatの、空でないtupleを指定してください。"
+                ),
+            )
+        if type(self.rebuilt_model_parameter_optimizer_settings) is not type(
+            self.parameter_optimizer_settings
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="rebuilt_model_parameter_optimizer_settings",
+                specified_parameter_value=self.rebuilt_model_parameter_optimizer_settings,
+                validation_failure_reason=(
+                    "parameter_optimizer_settingsと同じ種類（AdamどうしかSGDどうし）の設定を指定してください。"
                 ),
             )
         fixed_share_time_scale = self.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples

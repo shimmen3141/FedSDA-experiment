@@ -147,6 +147,12 @@ class GlobalModelRepository:
         _validate_loss_statistics(loss_statistics=loss_statistics)
         self._loss_statistics_by_model_id[model_id] = loss_statistics
 
+    def snapshot_global_model_loss_statistics(
+        self,
+    ) -> tuple[tuple[int, ModelAndClassLossStatistics], ...]:
+        """損失統計を持つモデルの（ID、統計）を、最初に置いた順で返す。"""
+        return tuple(self._loss_statistics_by_model_id.items())
+
     def get_global_model_loss_statistics(
         self, *, model_id: int
     ) -> ModelAndClassLossStatistics | None:

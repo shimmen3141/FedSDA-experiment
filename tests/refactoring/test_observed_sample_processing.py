@@ -86,7 +86,10 @@ from federated_learning_experiments.runtime.observed_sample_processing import (
 )
 
 LEGACY_ACTION_BY_ADAPTATION_OUTCOME = (
-    LEGACY_ACTION_BY_RESPONSE_OUTCOME | LEGACY_ACTION_BY_VALIDATION_ADAPTATION_OUTCOME
+    LEGACY_ACTION_BY_RESPONSE_OUTCOME
+    | LEGACY_ACTION_BY_VALIDATION_ADAPTATION_OUTCOME
+    # サーバの統合で学習帰属のIDが付け替わったとき（配布の受取り）。
+    | {"server_consolidation_training_model_remapped": "server_merge"}
 )
 UPDATE_INTERVAL = 2
 ITERATIONS_PER_REQUEST = 1
@@ -569,8 +572,10 @@ def test_sample_processing_trajectories_cover_every_adaptation_outcome():
         for condition_outcomes in OBSERVED_OUTCOMES_BY_CONDITION.values()
         for adaptation_outcome in condition_outcomes
     }
+    # 終端の回収と、サーバの統合による付け替えは、標本1件の処理では起きない。
     assert observed_outcomes == set(LEGACY_ACTION_BY_ADAPTATION_OUTCOME) - {
-        "post_alarm_validation_incomplete_candidate_rejected"
+        "post_alarm_validation_incomplete_candidate_rejected",
+        "server_consolidation_training_model_remapped",
     }
     # 予測の対照が、モデル集合の変更（重みの初期化）と、最大重みのモデルの交代を通っていること。
     assert any(

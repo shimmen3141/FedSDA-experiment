@@ -126,6 +126,32 @@ class HeldModelTrainingStateRegistry:
             reassigned_held_model_training_state
         )
 
+    def replace_held_model_training_states(
+        self, *, held_model_training_states: tuple[HeldModelTrainingState, ...]
+    ) -> None:
+        """全部の検査の後、保有モデルを、渡された順の記録で全部置き換える。不正なら何も変えない。"""
+        if type(held_model_training_states) is not tuple:
+            raise TypeError("held_model_training_statesはexact tupleが必要です。")
+        replaced_states_by_model_id: dict[int, HeldModelTrainingState] = {}
+        for held_model_training_state in held_model_training_states:
+            if type(held_model_training_state) is not HeldModelTrainingState:
+                raise TypeError(
+                    "held_model_training_statesの各要素はexact HeldModelTrainingStateが必要です。"
+                )
+            _validate_held_model_training_state_inputs(
+                model_id=held_model_training_state.model_id,
+                classifier=held_model_training_state.classifier,
+                concept_specific_parameter_optimizer_state=(
+                    held_model_training_state.concept_specific_parameter_optimizer_state
+                ),
+            )
+            if held_model_training_state.model_id in replaced_states_by_model_id:
+                raise ValueError("held_model_training_statesのmodel_idは重複できません。")
+            replaced_states_by_model_id[held_model_training_state.model_id] = (
+                held_model_training_state
+            )
+        self._held_model_training_states_by_model_id = replaced_states_by_model_id
+
     def get_held_model_training_state(self, *, model_id: int) -> HeldModelTrainingState:
         """登録済みrecordを借用する。未登録はKeyError、取得時の自動生成はない。"""
         _validate_model_id(model_id=model_id)

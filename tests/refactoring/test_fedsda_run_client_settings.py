@@ -74,6 +74,9 @@ def make_valid_run_client_settings(valid_run_settings_mapping, **replaced_fields
             parameter_optimizer_settings=AdamParameterOptimizerSettings(
                 learning_rate=0.01, weight_decay=0.001, adam_variant="amsgrad"
             ),
+            rebuilt_model_parameter_optimizer_settings=AdamParameterOptimizerSettings(
+                learning_rate=0.02, weight_decay=0.001, adam_variant="amsgrad"
+            ),
             scalar_settings=FedsdaRunClientScalarSettings(**VALID_SCALAR_VALUES),
             loss_monitor_betting_fractions=(0.05, 0.1, 0.2, 0.4, 0.8),
         )
@@ -95,11 +98,28 @@ def test_valid_settings_bundle_is_accepted_and_frozen(valid_run_settings_mapping
         run_client_settings.loss_monitor_betting_fractions = (0.5,)
     with pytest.raises(AttributeError):
         run_client_settings.scalar_settings.detector_name = "other"
-    # SGDの設定も受け入れる。
+    # SGDの設定も受け入れる（2つのoptimizerの設定は、同じ種類にする。学習率は違ってよい）。
     make_valid_run_client_settings(
         valid_run_settings_mapping,
         parameter_optimizer_settings=SgdParameterOptimizerSettings(learning_rate=0.01),
+        rebuilt_model_parameter_optimizer_settings=SgdParameterOptimizerSettings(learning_rate=0.5),
     )
+
+
+def test_settings_bundle_requires_same_kind_of_two_optimizer_settings(valid_run_settings_mapping):
+    for replaced_field_name in (
+        "parameter_optimizer_settings",
+        "rebuilt_model_parameter_optimizer_settings",
+    ):
+        with pytest.raises(RunSettingsValidationError) as raised_error:
+            make_valid_run_client_settings(
+                valid_run_settings_mapping,
+                **{replaced_field_name: SgdParameterOptimizerSettings(learning_rate=0.01)},
+            )
+        assert (
+            raised_error.value.configuration_parameter_name
+            == "rebuilt_model_parameter_optimizer_settings"
+        )
 
 
 @pytest.mark.parametrize(
@@ -179,6 +199,7 @@ SETTINGS_FIELD_NAMES = (
     "candidate_parameter_initialization_settings",
     "candidate_epoch_training_settings",
     "parameter_optimizer_settings",
+    "rebuilt_model_parameter_optimizer_settings",
     "scalar_settings",
 )
 
@@ -189,9 +210,13 @@ def test_settings_bundle_rejects_other_settings_types(
     settings_field_name, invalid_kind, valid_run_settings_mapping
 ):
     valid_settings = make_valid_run_client_settings(valid_run_settings_mapping)
+    # 2つ先のfieldの値を使う（optimizerの設定の2つは同じ型なので、隣では別の型にならない）。
     other_field_name = SETTINGS_FIELD_NAMES[
-        (SETTINGS_FIELD_NAMES.index(settings_field_name) + 1) % len(SETTINGS_FIELD_NAMES)
+        (SETTINGS_FIELD_NAMES.index(settings_field_name) + 2) % len(SETTINGS_FIELD_NAMES)
     ]
+    assert type(getattr(valid_settings, other_field_name)) is not type(
+        getattr(valid_settings, settings_field_name)
+    )
     invalid_value = {
         "none": None,
         "other_settings_type": getattr(valid_settings, other_field_name),

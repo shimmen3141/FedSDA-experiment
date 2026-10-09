@@ -327,6 +327,7 @@ def test_record_store_keeps_input_order_equal_positions_and_old_immutable_snapsh
     assert empty_snapshot == AdaptationRecordSnapshot(
         adaptation_records=(),
         training_model_switch_sample_indices=(),
+        server_remapped_sample_indices=(),
         alternative_model_reuse_count=0,
         current_model_fit_count=0,
     )

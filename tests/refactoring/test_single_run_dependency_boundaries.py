@@ -4805,6 +4805,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
         )
+    if source_module_path == "learning/training/shared_parameter_optimizer_state_holder.py":
+        return imported_module_name in (
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+        )
     if source_module_path == "runtime/server_model_registration_and_aggregation.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -4885,6 +4889,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
             "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
             "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "federated_learning_experiments.learning.training.shared_parameter_optimizer_state_holder.SharedParameterOptimizerStateHolder",
             "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor",
             "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss",
@@ -5931,6 +5936,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/communication_volume_record_store.py",
             "methods/fedsda/model_registration/global_model_repository.py",
             "runtime/server_model_registration_and_aggregation.py",
+            "learning/training/shared_parameter_optimizer_state_holder.py",
             "runtime/held_model_training_request_handling.py",
             "runtime/released_pending_sample_assignment.py",
             "learning/training/candidate_epoch_training_settings.py",
@@ -6001,6 +6007,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/communication_volume_record_store.py",
                     "methods/fedsda/model_registration/global_model_repository.py",
                     "runtime/server_model_registration_and_aggregation.py",
+                    "learning/training/shared_parameter_optimizer_state_holder.py",
                     "runtime/held_model_training_request_handling.py",
                     "runtime/released_pending_sample_assignment.py",
                     "learning/training/candidate_epoch_training_settings.py",

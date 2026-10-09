@@ -20,6 +20,7 @@ from test_post_alarm_candidate_validation_progress import (
 )
 
 from federated_learning_experiments.evaluation.adaptation_record_store import (
+    SERVER_REMAP_ADAPTATION_OUTCOME,
     TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES,
     AdaptationOutcome,
     AdaptationRecord,
@@ -290,9 +291,11 @@ def test_incomplete_validation_record_matches_real_legacy_event(
 
 def test_adaptation_outcomes_cover_alarm_and_validation_results_exactly():
     validation_adaptation_outcomes = tuple(LEGACY_ACTION_BY_VALIDATION_ADAPTATION_OUTCOME)
+    # 警報応答の5結果、候補検証の5結果、サーバの統合による付け替え。
     assert get_args(AdaptationOutcome) == (
         *ALARM_BUFFER_RESPONSE_OUTCOMES,
         *validation_adaptation_outcomes,
+        SERVER_REMAP_ADAPTATION_OUTCOME,
     )
     assert tuple(ADAPTATION_OUTCOME_BY_VALIDATION_RESOLUTION_OUTCOME) == (
         POST_ALARM_CANDIDATE_VALIDATION_RESOLUTION_OUTCOMES
@@ -302,10 +305,10 @@ def test_adaptation_outcomes_cover_alarm_and_validation_results_exactly():
         == validation_adaptation_outcomes[:4]
     )
     assert set(TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES) < set(get_args(AdaptationOutcome))
-    # 旧actionとの対応は、警報応答の5結果と合わせて全結果を覆う。
+    # 旧actionとの対応は、警報応答の5結果と合わせて、サーバの統合による付け替えを除く全結果を覆う。
     assert set(LEGACY_ACTION_BY_RESPONSE_OUTCOME) | set(validation_adaptation_outcomes) == set(
         get_args(AdaptationOutcome)
-    )
+    ) - {SERVER_REMAP_ADAPTATION_OUTCOME}
 
 
 @pytest.mark.parametrize("adaptation_outcome", get_args(AdaptationOutcome))
@@ -315,11 +318,14 @@ def test_store_applies_switch_index_and_count_rules_for_every_outcome(adaptation
         "post_alarm_validation_candidate_adopted",
         "post_alarm_validation_held_model_reused",
     )
+    # サーバの統合による付け替えは、IDが変わるが、警報による切替ではない。
+    server_remaps_training_model = adaptation_outcome == SERVER_REMAP_ADAPTATION_OUTCOME
+    training_model_ids_differ = training_model_switches or server_remaps_training_model
     record_fields = dict(
         adaptation_sample_index=23,
         adaptation_outcome=adaptation_outcome,
         previous_training_model_id=4,
-        current_training_model_id=-2 if training_model_switches else 4,
+        current_training_model_id=-2 if training_model_ids_differ else 4,
     )
     adaptation_record_store = AdaptationRecordStore()
     adaptation_record_store.append_adaptation_record(
@@ -328,6 +334,9 @@ def test_store_applies_switch_index_and_count_rules_for_every_outcome(adaptation
     state_snapshot = adaptation_record_store.get_state_snapshot()
     assert state_snapshot.training_model_switch_sample_indices == (
         (23,) if training_model_switches else ()
+    )
+    assert state_snapshot.server_remapped_sample_indices == (
+        (23,) if server_remaps_training_model else ()
     )
     assert state_snapshot.alternative_model_reuse_count == (
         adaptation_outcome == "alarm_interval_held_model_reused"
@@ -338,7 +347,7 @@ def test_store_applies_switch_index_and_count_rules_for_every_outcome(adaptation
     # 変更前後のIDが異なることと、帰属が変わる結果であることは必要十分。逆の組は作れない。
     with pytest.raises(ValueError):
         make_adaptation_record(
-            **record_fields | dict(current_training_model_id=4 if training_model_switches else -2)
+            **record_fields | dict(current_training_model_id=4 if training_model_ids_differ else -2)
         )
 
 

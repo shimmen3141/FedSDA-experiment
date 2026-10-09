@@ -14,6 +14,7 @@ AdaptationOutcome = Literal[
     "post_alarm_validation_current_model_maintained",
     "post_alarm_validation_candidate_rejected",
     "post_alarm_validation_incomplete_candidate_rejected",
+    "server_consolidation_training_model_remapped",
 ]
 
 # 学習帰属IDが変わる結果。この結果のときだけ変更前後のIDが異なり、切替位置を記録する。
@@ -22,6 +23,9 @@ TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES: tuple[AdaptationOutcome, ...] = (
     "post_alarm_validation_candidate_adopted",
     "post_alarm_validation_held_model_reused",
 )
+# サーバの統合で、学習帰属IDが付け替わった結果。IDは変わるが、警報による切替ではないので、
+# 切替位置ではなく、付け替えの位置として記録する。
+SERVER_REMAP_ADAPTATION_OUTCOME: AdaptationOutcome = "server_consolidation_training_model_remapped"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -64,8 +68,11 @@ class AdaptationRecord:
                 raise ValueError(f"{parameter_name} must be nonnegative")
         if (self.previous_training_model_id != self.current_training_model_id) != (
             self.adaptation_outcome in TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES
+            or self.adaptation_outcome == SERVER_REMAP_ADAPTATION_OUTCOME
         ):
-            raise ValueError("training model IDs must differ exactly for a switching outcome")
+            raise ValueError(
+                "training model IDs must differ exactly for a switching or server remap outcome"
+            )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -74,6 +81,7 @@ class AdaptationRecordSnapshot:
 
     adaptation_records: tuple[AdaptationRecord, ...]
     training_model_switch_sample_indices: tuple[int, ...]
+    server_remapped_sample_indices: tuple[int, ...]
     alternative_model_reuse_count: int
     current_model_fit_count: int
 
@@ -84,6 +92,7 @@ class AdaptationRecordStore:
     def __init__(self) -> None:
         self._adaptation_records: list[AdaptationRecord] = []
         self._training_model_switch_sample_indices: list[int] = []
+        self._server_remapped_sample_indices: list[int] = []
         self._alternative_model_reuse_count = 0
         self._current_model_fit_count = 0
 
@@ -100,6 +109,10 @@ class AdaptationRecordStore:
             self._training_model_switch_sample_indices.append(
                 validated_adaptation_record.adaptation_sample_index
             )
+        if validated_adaptation_record.adaptation_outcome == SERVER_REMAP_ADAPTATION_OUTCOME:
+            self._server_remapped_sample_indices.append(
+                validated_adaptation_record.adaptation_sample_index
+            )
         # 二種類の件数は、警報時の区間評価による再利用・現行適合だけを数える（旧の計数箇所と同じ）。
         if validated_adaptation_record.adaptation_outcome == "alarm_interval_held_model_reused":
             self._alternative_model_reuse_count += 1
@@ -113,6 +126,7 @@ class AdaptationRecordStore:
         return AdaptationRecordSnapshot(
             adaptation_records=tuple(self._adaptation_records),
             training_model_switch_sample_indices=tuple(self._training_model_switch_sample_indices),
+            server_remapped_sample_indices=tuple(self._server_remapped_sample_indices),
             alternative_model_reuse_count=self._alternative_model_reuse_count,
             current_model_fit_count=self._current_model_fit_count,
         )

@@ -53,6 +53,9 @@ from federated_learning_experiments.learning.training.model_training_sample_stor
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
     ParameterOptimizerState,
 )
+from federated_learning_experiments.learning.training.shared_parameter_optimizer_state_holder import (
+    SharedParameterOptimizerStateHolder,
+)
 from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
     TemporaryModelIdAllocator,
 )
@@ -118,7 +121,7 @@ class FedsdaRunClientOwners:
     temporary_model_id_allocator: TemporaryModelIdAllocator
     pending_model_upload_state: PendingModelUploadState
     local_training_request_schedule: LocalTrainingRequestSchedule
-    shared_parameter_optimizer_state: ParameterOptimizerState
+    shared_parameter_optimizer_state_holder: SharedParameterOptimizerStateHolder
 
 
 def _validate_round_index(*, round_index: int) -> None:
@@ -132,6 +135,8 @@ class FedsdaRunClient:
     """最終構成のFedSDAのclient。ownerと設定を持ち、操作を既存の部品へ渡す（判断は持たない）。
 
     生成は`assemble_fedsda_run_client`が行う。`__init__`は、受け取ったものを検査せずに持つ。
+    共有部と、候補の構造の参照は、呼出しのたびに、現在の学習帰属のモデルの分類器から読む
+    （配布で保有モデルを作り直すと、共有部は別のオブジェクトになる）。
     """
 
     def __init__(
@@ -140,14 +145,18 @@ class FedsdaRunClient:
         client_id: int,
         owners: FedsdaRunClientOwners,
         run_client_settings: FedsdaRunClientSettings,
-        architecture_reference_classifier: ResidualAdapterClassifier,
         python_random_generator: Random,
     ) -> None:
         self._client_id = client_id
         self._owners = owners
         self._run_client_settings = run_client_settings
-        self._architecture_reference_classifier = architecture_reference_classifier
         self._python_random_generator = python_random_generator
+
+    def _get_current_training_classifier(self) -> ResidualAdapterClassifier:
+        owners = self._owners
+        return owners.held_model_training_state_registry.get_held_model_training_state(
+            model_id=owners.current_training_model_assignment.current_training_model_id
+        ).classifier
 
     @property
     def client_id(self) -> int:
@@ -174,6 +183,7 @@ class FedsdaRunClient:
         owners = self._owners
         settings = self._run_client_settings
         scalar_settings = settings.scalar_settings
+        current_training_classifier = self._get_current_training_classifier()
         return process_observed_sample(
             indexed_observation=IndexedObservedTrainingSample(
                 sample_index=sample_index,
@@ -210,15 +220,15 @@ class FedsdaRunClient:
             minimum_change_interval_sample_count=scalar_settings.minimum_change_interval_sample_count,
             maximum_alarm_interval_mean_loss_increase=scalar_settings.maximum_tolerated_mean_loss_increase,
             candidate_parameter_initialization_settings=settings.candidate_parameter_initialization_settings,
-            architecture_reference_classifier=self._architecture_reference_classifier,
+            architecture_reference_classifier=current_training_classifier,
             parameter_optimizer_settings=settings.parameter_optimizer_settings,
             candidate_epoch_training_settings=settings.candidate_epoch_training_settings,
             detector_name=scalar_settings.detector_name,
             batch_sample_count=scalar_settings.local_training_batch_sample_count,
             python_random_generator=self._python_random_generator,
             local_training_settings=settings.local_training_settings,
-            shared_feature_extractor=self._architecture_reference_classifier.feature_extractor,
-            shared_parameter_optimizer=owners.shared_parameter_optimizer_state.parameter_optimizer,
+            shared_feature_extractor=current_training_classifier.feature_extractor,
+            shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer,
         )
 
     def flush_pending_local_updates(self, *, round_index: int) -> tuple[float, ...]:
@@ -233,8 +243,8 @@ class FedsdaRunClient:
             batch_sample_count=self._run_client_settings.scalar_settings.local_training_batch_sample_count,
             python_random_generator=self._python_random_generator,
             local_training_settings=self._run_client_settings.local_training_settings,
-            shared_feature_extractor=self._architecture_reference_classifier.feature_extractor,
-            shared_parameter_optimizer=owners.shared_parameter_optimizer_state.parameter_optimizer,
+            shared_feature_extractor=self._get_current_training_classifier().feature_extractor,
+            shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer,
         )
 
     def has_model_ready_for_server_registration(self) -> bool:
@@ -446,12 +456,13 @@ def assemble_fedsda_run_client(
         local_training_request_schedule=LocalTrainingRequestSchedule(
             local_training_schedule_settings=run_client_settings.local_training_schedule_settings
         ),
-        shared_parameter_optimizer_state=shared_parameter_optimizer_state,
+        shared_parameter_optimizer_state_holder=SharedParameterOptimizerStateHolder(
+            shared_parameter_optimizer_state=shared_parameter_optimizer_state
+        ),
     )
     return FedsdaRunClient(
         client_id=client_id,
         owners=owners,
         run_client_settings=run_client_settings,
-        architecture_reference_classifier=held_classifier,
         python_random_generator=python_random_generator,
     )

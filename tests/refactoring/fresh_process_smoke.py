@@ -892,6 +892,7 @@ def run_assembled_client_flow(*, class_count):
             minimum_validation_loss_decrease=0.0001,
         ),
         parameter_optimizer_settings=parameter_optimizer_settings,
+        rebuilt_model_parameter_optimizer_settings=parameter_optimizer_settings,
         scalar_settings=FedsdaRunClientScalarSettings(
             maximum_tolerated_mean_loss_increase=0.1,
             minimum_candidate_mean_loss_improvement=0.0001,

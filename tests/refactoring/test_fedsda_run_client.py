@@ -108,9 +108,18 @@ WEIGHT_DECAY = 0.001
 
 
 def set_legacy_configuration(
-    monkeypatch, *, class_count, update_interval, validation_sample_count=VALIDATION_SAMPLE_COUNT
+    monkeypatch,
+    *,
+    class_count,
+    update_interval,
+    validation_sample_count=VALIDATION_SAMPLE_COUNT,
+    base_learning_rate=LEARNING_RATE,
+    new_model_learning_rate=LEARNING_RATE,
 ):
-    """実旧clientが生成時と実行時に読む設定を、最終構成の値と、上の小さい条件へ差し替える。"""
+    """実旧clientが生成時と実行時に読む設定を、最終構成の値と、上の小さい条件へ差し替える。
+
+    学習率は2つある（事前学習と配布での作り直しに使う`BASE_LR`、候補とつなぎ直しに使う`NEW_MODEL_LR`）。
+    """
     legacy_dataset_spec = DatasetSpec(
         input_dim=2, num_concepts=2, num_classes=class_count, hidden_dims=HIDDEN_LAYER_WIDTHS
     )
@@ -132,8 +141,8 @@ def set_legacy_configuration(
         AMSGRAD=True,
         # 条件。
         SHARED_ADAPTER_RANK=ADAPTER_RANK,
-        BASE_LR=LEARNING_RATE,
-        NEW_MODEL_LR=LEARNING_RATE,
+        BASE_LR=base_learning_rate,
+        NEW_MODEL_LR=new_model_learning_rate,
         WEIGHT_DECAY=WEIGHT_DECAY,
         PRETRAIN_SAMPLES=24,
         PRETRAIN_EPOCHS=2,
@@ -159,7 +168,12 @@ def set_legacy_configuration(
 
 
 def make_run_client_settings(
-    valid_run_settings_mapping, *, update_interval, validation_sample_count=VALIDATION_SAMPLE_COUNT
+    valid_run_settings_mapping,
+    *,
+    update_interval,
+    validation_sample_count=VALIDATION_SAMPLE_COUNT,
+    base_learning_rate=LEARNING_RATE,
+    new_model_learning_rate=LEARNING_RATE,
 ):
     """上の条件と同じ値の、新の束。"""
     return FedsdaRunClientSettings(
@@ -195,7 +209,10 @@ def make_run_client_settings(
             minimum_validation_loss_decrease=MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,
         ),
         parameter_optimizer_settings=AdamParameterOptimizerSettings(
-            learning_rate=LEARNING_RATE, weight_decay=WEIGHT_DECAY, adam_variant="amsgrad"
+            learning_rate=new_model_learning_rate, weight_decay=WEIGHT_DECAY, adam_variant="amsgrad"
+        ),
+        rebuilt_model_parameter_optimizer_settings=AdamParameterOptimizerSettings(
+            learning_rate=base_learning_rate, weight_decay=WEIGHT_DECAY, adam_variant="amsgrad"
         ),
         scalar_settings=FedsdaRunClientScalarSettings(
             **VALID_SCALAR_VALUES
@@ -253,14 +270,14 @@ def build_initial_model_from_legacy(*, legacy_model, class_count, run_client_set
     concept_specific_parameter_optimizer_state = ParameterOptimizerState(
         parameters=tuple(initial_classifier.residual_adapter.parameters())
         + tuple(initial_classifier.classification_layer.parameters()),
-        optimizer_settings=run_client_settings.parameter_optimizer_settings,
+        optimizer_settings=run_client_settings.rebuilt_model_parameter_optimizer_settings,
     )
     concept_specific_parameter_optimizer_state.parameter_optimizer.load_state_dict(
         deepcopy(legacy_model.head_optimizer.state_dict())
     )
     shared_parameter_optimizer_state = ParameterOptimizerState(
         parameters=tuple(initial_classifier.feature_extractor.parameters()),
-        optimizer_settings=run_client_settings.parameter_optimizer_settings,
+        optimizer_settings=run_client_settings.rebuilt_model_parameter_optimizer_settings,
     )
     shared_parameter_optimizer_state.parameter_optimizer.load_state_dict(
         deepcopy(legacy_model.backbone.optimizer.state_dict())
@@ -280,6 +297,8 @@ def build_run_client_oracle(
     update_interval=2,
     validation_sample_count=VALIDATION_SAMPLE_COUNT,
     client_id=1,
+    base_learning_rate=LEARNING_RATE,
+    new_model_learning_rate=LEARNING_RATE,
 ):
     """実旧の事前学習と実__init__で実旧clientを作り、同じ初期モデル・統計・条件から新clientを組み立てる。
 
@@ -290,6 +309,8 @@ def build_run_client_oracle(
         class_count=class_count,
         update_interval=update_interval,
         validation_sample_count=validation_sample_count,
+        base_learning_rate=base_learning_rate,
+        new_model_learning_rate=new_model_learning_rate,
     )
     python_random_state = random.getstate()
     numpy_random_state = np.random.get_state()
@@ -315,6 +336,8 @@ def build_run_client_oracle(
         valid_run_settings_mapping,
         update_interval=update_interval,
         validation_sample_count=validation_sample_count,
+        base_learning_rate=base_learning_rate,
+        new_model_learning_rate=new_model_learning_rate,
     )
     (
         initial_classifier,
@@ -358,7 +381,9 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
     )
     assert_held_model_states_match_legacy(
         registry=owners.held_model_training_state_registry,
-        shared_optimizer_owners=[owners.shared_parameter_optimizer_state],
+        shared_optimizer_owners=[
+            owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state
+        ],
         legacy_client=legacy_client,
         input_features=torch.tensor([[0.25, 0.5], [0.75, 0.125]]),
     )
@@ -702,8 +727,10 @@ def test_run_client_trajectories_cover_required_paths():
         for adaptation_outcome in condition_outcomes
     }
     # 候補検証の確定での他モデルの再利用は、標本1件の処理の対照（上流）が通している。
+    # サーバの統合による付け替えは、サーバなしの対照では起きない。
     assert observed_outcomes >= set(LEGACY_ACTION_BY_ADAPTATION_OUTCOME) - {
-        "post_alarm_validation_held_model_reused"
+        "post_alarm_validation_held_model_reused",
+        "server_consolidation_training_model_remapped",
     }
     assert any(
         upload_wait_advanced
@@ -720,10 +747,10 @@ def collect_processing_arguments(*, run_client, python_random_generator):
     return {
         owner_name: owner
         for owner_name, owner in vars(owners).items()
-        if owner_name != "shared_parameter_optimizer_state"
+        if owner_name != "shared_parameter_optimizer_state_holder"
     } | dict(
         python_random_generator=python_random_generator,
-        shared_parameter_optimizer=owners.shared_parameter_optimizer_state.parameter_optimizer,
+        shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer,
     )
 
 
@@ -822,7 +849,7 @@ def test_assembly_copies_initial_model_and_keeps_clients_independent(
         assert all(
             id(parameter) not in initial_parameter_ids for parameter in held_classifier.parameters()
         )
-        shared_optimizer = owners.shared_parameter_optimizer_state.parameter_optimizer
+        shared_optimizer = owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer
         assert (
             shared_optimizer
             is not assembly_arguments[
