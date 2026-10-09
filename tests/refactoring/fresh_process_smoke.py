@@ -787,7 +787,7 @@ PROCESSED_ALARM_COUNTS = []
 
 
 class ServerOperationsRegisteringAggregatingAndDistributing:
-    """実行の枠が求めるサーバの操作の代役。ラウンドごとに、新規モデルの登録・集約・配布を行う（統合は未移植）。"""
+    """実行の枠が求めるサーバの操作の代役。ラウンドごとに、新規モデルの登録・集約・配布と、全clientの再較正を行う（統合は未移植）。"""
 
     def __init__(self, *, run_clients, global_model_repository, communication_volume_record_store):
         self.run_clients = run_clients
@@ -796,6 +796,7 @@ class ServerOperationsRegisteringAggregatingAndDistributing:
         self.registered_model_count = 0
         self.aggregations = []
         self.distributed_model_count = 0
+        self.replayed_recalibration_sample_count = 0
 
     def record_client_states_before_synchronization(self, *, round_index):
         self.communication_volume_record_store.record_messages(
@@ -876,6 +877,38 @@ class ServerOperationsRegisteringAggregatingAndDistributing:
                         else global_parameters
                     )
                     assert torch.equal(held_parameter_values, expected_parameters[parameter_name])
+        # 配布の後、全clientが、保留中の標本の損失を計算し直して、予測の重みと診断証拠を作り直す。
+        for run_client in self.run_clients:
+            owners = run_client.owners
+            fixed_share_controller = owners.fixed_share_prediction_weight_controller
+            global_diagnostic_evidence = (
+                owners.diagnostic_evidence_collection.global_diagnostic_evidence
+            )
+            recalibration_counts = (
+                fixed_share_controller.aggregation_recalibration_count,
+                fixed_share_controller.aggregation_recalibration_sample_count,
+                global_diagnostic_evidence.aggregation_recalibration_count,
+                global_diagnostic_evidence.aggregation_recalibration_sample_count,
+            )
+            recalibration = run_client.recalibrate_prediction_state_after_aggregation()
+            replayed = int(recalibration.replayed_sample_count > 0)
+            assert (
+                fixed_share_controller.aggregation_recalibration_count,
+                fixed_share_controller.aggregation_recalibration_sample_count,
+                global_diagnostic_evidence.aggregation_recalibration_count,
+                global_diagnostic_evidence.aggregation_recalibration_sample_count,
+            ) == (
+                recalibration_counts[0] + replayed,
+                recalibration_counts[1] + recalibration.replayed_sample_count,
+                recalibration_counts[2] + replayed,
+                recalibration_counts[3] + recalibration.replayed_sample_count,
+            )
+            if replayed:
+                # 再生の後の重みは、列に含めたモデル（保有する全モデル）の上の分布になる。
+                weights_by_model_id = fixed_share_controller.weights_by_model_id
+                assert tuple(sorted(weights_by_model_id)) == recalibration.replayed_model_ids
+                assert abs(sum(weights_by_model_id.values()) - 1.0) < 1e-9
+            self.replayed_recalibration_sample_count += recalibration.replayed_sample_count
 
     def finalize_started_communications(self, *, completed_round_count):
         assert len(self.aggregations) == completed_round_count
@@ -1085,6 +1118,8 @@ def run_assembled_client_flow(*, class_count):
     # 配布: 下りの通信量が、ラウンドごとの（グローバルモデルの数×clientの数）だけ足されている。
     assert communication_volume.downloaded_model_count == server_operations.distributed_model_count
     assert server_operations.distributed_model_count >= round_count * ASSEMBLED_CLIENT_COUNT
+    # 再較正: 空でない損失の列での再生が、1回以上あった。
+    assert server_operations.replayed_recalibration_sample_count > 0
     assert communication_volume.downloaded_message_count == 0
     assert communication_volume.downloaded_byte_count == 4 * (
         communication_volume.downloaded_parameter_value_count

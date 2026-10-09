@@ -18,8 +18,8 @@
   - _Boundary: recalibrate_prediction_state_after_aggregation、PostAggregationPredictionRecalibration、FedsdaRunClient.recalibrate_prediction_state_after_aggregation_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 4.1, 4.2, 5.1, 5.3, 5.4, 6.2_
 
-- [ ] 3. 新実装だけの確認
-- [ ] 3.1 共用のfresh process scriptで、配布の後に全clientの再較正を行う
+- [x] 3. 新実装だけの確認
+- [x] 3.1 共用のfresh process scriptで、配布の後に全clientの再較正を行う
   - 完了: 共用scriptが、旧実装とtestのmoduleを読み込まずに、ラウンドごとに配布の後で全clientの再較正を行い、空でない列での再較正が1回以上あることを確かめて成功する。別processで実行するtest、Ruff、Pyrightが成功する。
   - _Depends: 2.1_
   - _Boundary: 共用のfresh process script_
