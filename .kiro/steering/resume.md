@@ -10,7 +10,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 ## 現在地
 
 - **現在地:** [observed-sample-processing](../specs/observed-sample-processing/README.md)（標本1件の処理）まで完了。進行中の編集・未解消レビュー指摘はない。
-- **次の一手:** 下の「次の候補」1（予測の接続、新clientの組立て）を、旧のひとまとまりの流れの単位で、要求から仕様化する。新しい接続は、共用の`tests/refactoring/fresh_process_smoke.py`へ流れを足す。変異toolは、対象testが重いときは`--mutant-pytest-args`で条件を絞る。
+- **次の一手:** 下の「次の候補」1（予測の接続、新clientの組立て）を、旧のひとまとまりの流れの単位で、要求から仕様化する。新しい接続は、共用の`tests/refactoring/fresh_process_smoke.py`へ流れを足す。
 - 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。`federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧名alias/互換読込みを追加しない。
 - **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。specの完了は、Windows基準での全回帰が済むまで記録しない。
 - **レビュー担当の利用状況（2026-10-09）:** GPT-6 Luna（`codex exec`）は利用上限に達しており、CLIの表示では2026-10-14 12:54まで使えない。それまでは、共通引継ぎ手順の代替規則によりClaude Haiku 5.5（effort `medium`）がLunaの担当分も行う。Haikuに対象test・共用script・Ruff・`spec_checks.py`を独立実行させるときは、`--tools Read,Glob,Grep,Bash`と`--allowedTools`で検証コマンドだけを許可して起動する（例と記録はreleased-pending-sample-assignmentのreview.md。ファイルの変更やその他のコマンドは許可しない）。Lunaが戻ったら通常の分担へ戻す。
@@ -21,7 +21,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - **検出episode（2026-10-09、主担当の判断）:** 制御（旧`DetectionEpisodeController`）と同一episodeの追加検出の経路は当面移植しない。最終構成の既定で無効。記録は[UNPORTED-001](../../docs/research/implementation-findings/unported-001-detection-episode-control.md)。ユーザーが必要と判断すれば覆せる。
 - **移植しないと決めたもの（2026-10-07ユーザー）:** 参照も学習させる候補検証方針（旧`shadow_tournament`）。記録は[UNPORTED-002](../../docs/research/implementation-findings/unported-002-reference-shadow-tournament.md)。
 - **依存testの方式の一本化は行わない（2026-10-09ユーザー）:** 既存の登録と注入契約testは移さず、消さない。新しいmoduleにはsymbolごとの注入契約testを足さない。記録は[IMPROVE-009](../../docs/research/improvement-candidates/improve-009-unify-dependency-boundary-tests.md)。
-- **手順（2026-10-09ユーザー。正本は[共通引継ぎ手順](agent-handoff.md)。ここへ内容を写さない）:** 同日に3回見直した。要点: レビューは仕様と実装の2回が基本（taskごとのレビューと別sessionの最終レビューは廃止）、specは旧のひとまとまりの流れの大きさにする、tasksは実装task（進める順の下位task）と全回帰と証拠、状態はspec.jsonとtasks.mdだけに書く、文面だけの指摘は再レビュー不要、命名表のためのリポジトリ外の下書きは可、test関数の名前は命名表の対象外、変異は汎用tool、fresh processは共用script。
+- **手順（2026-10-09〜10ユーザー。正本は[共通引継ぎ手順](agent-handoff.md)。ここへ内容を写さない）:** 2026-10-10に、時間の実測をもとに軽くした。要点: worktreeでsource・実旧との対照test・spec.md（仕様1枚）を書き、未commitのまま独立レビューを1回受け、指摘を反映して全pytestを通してからcommitする。文書はspec.md・review.md・spec.jsonの3つ（revisionとhashの管理はしない）。「公開する名前」は公開のmodule・class・関数だけ。変異テストは既定では実行しない。specは旧のひとまとまりの流れの大きさにする。fresh processは共用script。
 - **学習の途中失敗のときの計数（2026-10-09ユーザー）:** 1回の共同更新の途中で例外が出た場合の学習量の計数は旧と違うが、現在の流れでは読まれないので、そのままにする。記録は[NEW-003](../../docs/research/implementation-findings/new-003-training-count-after-mid-update-failure.md)。
 - 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)、不具合の疑い・移植しない判断・新実装で見つけた事項は[implementation-findings](../../docs/research/implementation-findings/README.md)へ、気づいた時点で1件1ファイルで記録する（2026-10-09ユーザー指示）。研究アルゴリズムの変更は採用していない。
 
@@ -90,9 +90,9 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 1. worktreeの[AGENTS.md](../../AGENTS.md)と[方針の正本](../../docs/research/refactoring-policy.md)。
 2. [roadmap](roadmap.md)の「現在の状態」、[product](product.md)、[tech](tech.md)、[structure](structure.md)。
-3. 対象specのREADME→spec.json/tasks.md→requirements/design/naming→review/integration-validation。未完了taskがあれば次のspecより先に扱う。
+3. 対象specのspec.json・spec.md・review.md（2026-10-09までのspecは、README→spec.json/tasks.md→requirements/design/naming→review/integration-validation）。未完了があれば次のspecより先に扱う。
 4. `git status --short`とブランチを確認し、別タスクの差分・未追跡資料を特定する。文書の案内と実際の状態が違う場合はGitとspecの正本を確認する。
-5. cc-sddの要求→設計/命名→tasks→実装→全回帰と証拠へ進む。レビューと記録の手順は共通引継ぎ手順に従う。
+5. 調査→worktreeでsource・test・spec.md→独立レビュー1回→指摘の反映→全pytest→commit、の順に進む。レビューと記録の手順は共通引継ぎ手順に従う。
 
 ## 別タスクと記録の扱い
 

@@ -20,6 +20,13 @@ progress: tasks.mdの完了数とspec.jsonの進捗・phaseを照合する（不
     再開案内・roadmapのうち、このspecに触れた行に残る「待ち」「未実施」などの語を表示する（人が確かめる。exitには数えない）。
     実装のレビューへ出す前と、完了を記録した後に実行する。
 
+仕様1枚の形（2026-10-10から。specのディレクトリにspec.mdがある）では、次のように動く。
+    names: 命名表はspec.mdの「公開する名前」。sourceの公開する名前（module直下とclass直下の、下線で始まらない
+        関数・class・メソッド）だけを照合する。引数・局所名・field・testの名前は照合しない。
+    identity: 文書ごとの承認hashは照合しない（文書のrevisionとhashの管理をやめ、commitを記録にした）。
+    progress: spec.jsonのphaseがcompletedであることと、spec.mdの「進める順」のcheckboxがすべて済みであることが
+        対応しているかを確かめる。
+
 独立レビューの代わりにはならない。名前の役割が実態と合うか、検査の順序が正しいかは人とレビュー担当が確かめる。
 """
 
@@ -98,6 +105,23 @@ def collect_bound_names(source_path, module_level_only=False, source_text=None):
     return definition_names, variable_names
 
 
+def collect_public_names(source_path, source_text=None):
+    """module直下とclass直下の、下線で始まらない関数・class・メソッドの名前を返す。"""
+    if source_text is None:
+        source_text = source_path.read_text(encoding="utf-8")
+    definition_types = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+    public_names = set()
+    for statement in ast.parse(source_text, filename=str(source_path)).body:
+        if not isinstance(statement, definition_types):
+            continue
+        public_names.add(statement.name)
+        if isinstance(statement, ast.ClassDef):
+            public_names.update(
+                member.name for member in statement.body if isinstance(member, definition_types)
+            )
+    return {name for name in public_names if not name.startswith("_")}
+
+
 def collect_registered_names(naming_path):
     """命名表で名前として登録された語を集める。
 
@@ -115,8 +139,11 @@ def collect_registered_names(naming_path):
 
 def check_names(arguments):
     spec_directory = pathlib.Path(".kiro/specs") / arguments.spec
+    single_document = (spec_directory / "spec.md").exists()
     naming_path = (
-        pathlib.Path(arguments.naming) if arguments.naming else spec_directory / "naming.md"
+        pathlib.Path(arguments.naming)
+        if arguments.naming
+        else spec_directory / ("spec.md" if single_document else "naming.md")
     )
     registered_words = collect_registered_names(naming_path)
     target_paths = [pathlib.Path(name).resolve() for name in arguments.files]
@@ -130,6 +157,32 @@ def check_names(arguments):
             other_variable_names |= variable_names
     failed = False
     for target_path in target_paths:
+        if single_document:
+            if "tests" in target_path.parts:
+                print(f"{target_path.name}: testの名前は照合しない")
+                continue
+            public_names = collect_public_names(target_path)
+            base_public_names = set()
+            if arguments.base:
+                base_content = subprocess.run(
+                    [
+                        "git",
+                        "show",
+                        f"{arguments.base}:{target_path.relative_to(pathlib.Path.cwd()).as_posix()}",
+                    ],
+                    capture_output=True,
+                )
+                if base_content.returncode == 0:
+                    base_public_names = collect_public_names(
+                        target_path, source_text=base_content.stdout.decode("utf-8")
+                    )
+            unregistered = sorted(
+                public_names - registered_words - base_public_names - other_definition_names
+            )
+            print(f"{target_path.name}: 公開する名前 {len(public_names)}")
+            print(f"  未登録（spec.mdにも既存コードにもない）: {unregistered or 'なし'}")
+            failed = failed or bool(unregistered)
+            continue
         definition_names, variable_names = collect_bound_names(
             target_path, module_level_only="tests" in target_path.parts
         )
@@ -225,7 +278,9 @@ def check_identity(arguments):
         failed = failed or not passed
         print(f"[{'OK' if passed else 'NG'}] {label}{' — ' + detail if detail else ''}")
 
-    for stage in APPROVAL_STAGES:
+    # 仕様1枚の形では、文書ごとの承認hashを持たない。
+    approval_stages = () if (spec_directory / "spec.md").exists() else APPROVAL_STAGES
+    for stage in approval_stages:
         approval = spec.get("approvals", {}).get(stage, {})
         approved_hash = approval.get("approved_sha256_lf")
         content = (spec_directory / f"{stage}.md").read_bytes()
@@ -293,6 +348,23 @@ def check_progress(arguments):
         failed = failed or not passed
         print(f"[{'OK' if passed else 'NG'}] {label}{' — ' + detail if detail else ''}")
 
+    if (spec_directory / "spec.md").exists():
+        # 仕様1枚の形: 「進める順」のcheckboxと、spec.jsonのphaseの対応だけを確かめる。
+        step_states = re.findall(
+            r"^- \[([ x])\] ", (spec_directory / "spec.md").read_text(encoding="utf-8"), re.M
+        )
+        all_steps_done = bool(step_states) and step_states.count("x") == len(step_states)
+        report(
+            "spec.jsonのphaseがcompletedであることと、spec.mdの進める順がすべて済みであることが対応",
+            (spec.get("phase") == "completed") == all_steps_done,
+            f"phase {spec.get('phase')}、進める順 {step_states.count('x')}/{len(step_states)}",
+        )
+        for document_path in PROGRESS_DOCUMENT_PATHS:
+            for line in pathlib.Path(document_path).read_text(encoding="utf-8").splitlines():
+                found_words = sorted(set(UNFINISHED_STATE_PATTERN.findall(line)))
+                if arguments.spec in line and found_words:
+                    print(f"[--] 要確認 {document_path}: {found_words} — {line[:120]}")
+        return 1 if failed else 0
     # 番号つきの最上位taskだけを数える（下位の箇条書きはcheckboxを持たない）。
     task_states = re.findall(
         r"^- \[([ x])\] \d+\. ", (spec_directory / "tasks.md").read_text(encoding="utf-8"), re.M
