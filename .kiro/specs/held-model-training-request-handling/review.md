@@ -54,3 +54,16 @@
 - 規則からの逸脱（上の2回目の指摘1）: 命名の承認より前に、新しいsourceとtestをリポジトリ外で下書きし、`git archive HEAD`で作った作業ツリーの複製で実行した。worktreeのsource・testは、仕様の承認まで変更していない。詳細はresearch.md。
 - 仕様のレビューは5回（設計は5 revision）になった。3回目以降は、処理・契約・testの方針を変えない文面の修正である。
 - 外部証拠（Git管理外、保存は保証されない）: 主担当のsessionの一時領域の`y1_spec_review`〜`y5_req3_design5`の依頼文（`.txt`）と応答（`_out.json`、`_out.txt`）。
+
+## Task 1・Task 2（別session `6c47a73f-9694-4496-8e1c-c5657a5a63df`、HEAD `697e1a9`）— TASK 1: APPROVED / TASK 2: APPROVED
+
+選択: 実装のレビューは優先がClaude Haiku 5.5。Task 2（証拠の照合）は優先がLunaだが、利用上限のためHaikuが代替した（同じ依頼で、判定は別々）。検証コマンドだけを許可して起動した（`--tools Read,Glob,Grep,Bash`と`--allowedTools`で、pytest・Ruff・共用script・`spec_checks.py`・`git status`・`git diff`。ファイルの変更やその他のコマンドは許可していない）。共通引継ぎ手順の「testを実行させるときは対象と権限を別途限定する」に当たる扱い。
+
+- レビュー担当が独立に実行したもの: 対象の4 test file（3219 passed）、共用script（`FRESH PROCESS SMOKE PASSED: 16 flows`。終了コードは確認していないと報告）、Ruff check・format、`spec_checks.py names`（`--base 6e23cfb`、報告なし）、`git diff --stat 1a03667 HEAD -- src tests`（空）、`git status --short`（空）。変異toolと全pytestは実行していない（変異は`report.json`を読んで照合）。
+- Task 1: 要求r3の全項目と設計r5の処理順が実装と一致すること、旧の計数の時点との対応、実旧をoracleにしていること、拒否・失敗のtestが状態の不変を確かめていること、共用scriptが既存の流れを弱めていないことが報告された。
+- Task 2: `handling/report.json`の35件中31件検出・未検出4件（swap）・復元前後のhash一致・復元後101 passed、`schedule/report.json`の3/3検出が報告された。未検出4件の等価の判断は実コードから導けると報告された。toolが作らない変異（保留の消化をloopの中へ移す、など）も既存のtestが検出すると報告された。
+
+指摘と採否（Blocker・Major・Minorなし）:
+
+1. Task 1、任意: 最初の共同更新より前の失敗のtestで、実旧の側の例外を`(RuntimeError, ValueError)`と緩く受けている。→ 変更なし。実旧の側は例外の型を対照の対象にしていない（比べるのは保留件数。新の側は`match`で理由を固定している）。testを変えると検証対象のcommitが変わる。
+2. Task 2、任意: 証拠文書の「隣り合う読取りだけの文」は、早期returnを含む文があるので正確でない。→ 採用（証拠文書の文言を訂正）。
