@@ -4865,6 +4865,16 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
             "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
         )
+    if source_module_path == "runtime/post_aggregation_prediction_recalibration.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "torch.cat",
+            "federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection.AdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights.FixedSharePredictionWeightController",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store.PendingSampleObservationStore",
+        )
     if source_module_path == "runtime/global_model_distribution.py":
         return imported_module_name in (
             "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
@@ -4945,6 +4955,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.held_model_training_request_handling.train_held_models_for_pending_training_requests",
             "federated_learning_experiments.runtime.observed_sample_processing.ObservedSampleProcessing",
             "federated_learning_experiments.runtime.observed_sample_processing.process_observed_sample",
+            "federated_learning_experiments.runtime.post_aggregation_prediction_recalibration.PostAggregationPredictionRecalibration",
+            "federated_learning_experiments.runtime.post_aggregation_prediction_recalibration.recalibrate_prediction_state_after_aggregation",
         )
     if source_module_path == "runtime/fedsda_run_client_settings.py":
         return imported_module_name in (
@@ -5974,6 +5986,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/fedsda_run_client.py",
             "runtime/global_model_distribution_application.py",
             "runtime/global_model_distribution.py",
+            "runtime/post_aggregation_prediction_recalibration.py",
             "learning/training/initial_model_pretraining_settings.py",
             "runtime/initial_model_pretraining.py",
             "evaluation/communication_volume_record_store.py",
@@ -6047,6 +6060,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedsda_run_client.py",
                     "runtime/global_model_distribution_application.py",
                     "runtime/global_model_distribution.py",
+                    "runtime/post_aggregation_prediction_recalibration.py",
                     "learning/training/initial_model_pretraining_settings.py",
                     "runtime/initial_model_pretraining.py",
                     "evaluation/communication_volume_record_store.py",

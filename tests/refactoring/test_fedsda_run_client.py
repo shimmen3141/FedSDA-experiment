@@ -116,6 +116,7 @@ def set_legacy_configuration(
     base_learning_rate=LEARNING_RATE,
     new_model_learning_rate=LEARNING_RATE,
     stored_evaluation_sample_limit=STORED_EVALUATION_SAMPLE_LIMIT,
+    routing_recalibration="none",
 ):
     """実旧clientが生成時と実行時に読む設定を、最終構成の値と、上の小さい条件へ差し替える。
 
@@ -155,6 +156,8 @@ def set_legacy_configuration(
         UPDATES_PER_SAMPLE=1,
         CLIENT_BATCH_SIZE=BATCH_SAMPLE_COUNT,
         STORED_DATA_LIMIT=stored_evaluation_sample_limit,
+        # 集約後の再較正の方式（サーバのrun_roundが読む。最終構成はfifo_replay）。
+        SHARED_BACKBONE_ROUTING_RECALIBRATION=routing_recalibration,
         EVAL_STORE_SAMPLE_SIZE=ADDED_EVALUATION_SAMPLE_COUNT,
         MIN_DRIFT_DATA=MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT,
         E_DETECTOR_ALPHA=FALSE_ALARM_CONTROL_ALPHA,
@@ -176,6 +179,7 @@ def make_run_client_settings(
     base_learning_rate=LEARNING_RATE,
     new_model_learning_rate=LEARNING_RATE,
     stored_evaluation_sample_limit=STORED_EVALUATION_SAMPLE_LIMIT,
+    routing_recalibration="none",
 ):
     """上の条件と同じ値の、新の束。"""
     return FedsdaRunClientSettings(
@@ -302,6 +306,7 @@ def build_run_client_oracle(
     base_learning_rate=LEARNING_RATE,
     new_model_learning_rate=LEARNING_RATE,
     stored_evaluation_sample_limit=STORED_EVALUATION_SAMPLE_LIMIT,
+    routing_recalibration="none",
 ):
     """実旧の事前学習と実__init__で実旧clientを作り、同じ初期モデル・統計・条件から新clientを組み立てる。
 
@@ -315,6 +320,7 @@ def build_run_client_oracle(
         base_learning_rate=base_learning_rate,
         new_model_learning_rate=new_model_learning_rate,
         stored_evaluation_sample_limit=stored_evaluation_sample_limit,
+        routing_recalibration=routing_recalibration,
     )
     python_random_state = random.getstate()
     numpy_random_state = np.random.get_state()

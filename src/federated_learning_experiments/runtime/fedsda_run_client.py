@@ -98,6 +98,10 @@ from federated_learning_experiments.runtime.observed_sample_processing import (
     ObservedSampleProcessing,
     process_observed_sample,
 )
+from federated_learning_experiments.runtime.post_aggregation_prediction_recalibration import (
+    PostAggregationPredictionRecalibration,
+    recalibrate_prediction_state_after_aggregation,
+)
 
 # 観測標本（ObservedSample）が持つ特徴の数。
 _OBSERVED_SAMPLE_FEATURE_COUNT = 2
@@ -286,6 +290,18 @@ class FedsdaRunClient:
             rebuilt_model_parameter_optimizer_settings=settings.rebuilt_model_parameter_optimizer_settings,
             reconnected_model_parameter_optimizer_settings=settings.parameter_optimizer_settings,
             python_random_generator=self._python_random_generator,
+        )
+
+    def recalibrate_prediction_state_after_aggregation(
+        self,
+    ) -> PostAggregationPredictionRecalibration:
+        """配布を受け取った後で、保留中の標本の損失を計算し直して、予測の重みと診断証拠を作り直す。"""
+        owners = self._owners
+        return recalibrate_prediction_state_after_aggregation(
+            held_model_training_state_registry=owners.held_model_training_state_registry,
+            pending_sample_observation_store=owners.pending_sample_observation_store,
+            fixed_share_prediction_weight_controller=owners.fixed_share_prediction_weight_controller,
+            diagnostic_evidence_collection=owners.diagnostic_evidence_collection,
         )
 
     def finalize_incomplete_candidate_validation(
