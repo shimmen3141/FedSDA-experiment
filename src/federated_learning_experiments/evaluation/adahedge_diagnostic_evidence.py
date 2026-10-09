@@ -5,13 +5,16 @@ from collections.abc import Iterable, Mapping
 
 
 class AdaHedgeDiagnosticEvidence:
-    """累積損失・gapと二種の計数を独立した状態として保持する。"""
+    """累積損失・gapと、再始動・再較正の計数を、独立した状態として保持する。"""
 
     def __init__(self) -> None:
         self._cumulative_losses_by_model_id: dict[int, float] = {}
         self._mixability_gap = 0.0
         self._model_pool_reset_count = 0
         self._concept_operation_restart_count = 0
+        self._aggregation_restart_count = 0
+        self._aggregation_recalibration_count = 0
+        self._aggregation_recalibration_sample_count = 0
 
     @property
     def cumulative_losses_by_model_id(self) -> dict[int, float]:
@@ -29,6 +32,21 @@ class AdaHedgeDiagnosticEvidence:
     @property
     def concept_operation_restart_count(self) -> int:
         return self._concept_operation_restart_count
+
+    @property
+    def aggregation_restart_count(self) -> int:
+        """集約後に、証拠を消して始め直した回数。"""
+        return self._aggregation_restart_count
+
+    @property
+    def aggregation_recalibration_count(self) -> int:
+        """集約後の再較正（再始動と、空でない列の再生）の回数。"""
+        return self._aggregation_recalibration_count
+
+    @property
+    def aggregation_recalibration_sample_count(self) -> int:
+        """集約後の再生で使った損失の行の総数。"""
+        return self._aggregation_recalibration_sample_count
 
     @staticmethod
     def _validate_model_ids(*, model_ids: Iterable[int]) -> tuple[int, ...]:
@@ -221,3 +239,36 @@ class AdaHedgeDiagnosticEvidence:
         self._cumulative_losses_by_model_id = {}
         self._mixability_gap = 0.0
         self._concept_operation_restart_count += 1
+
+    def restart_evidence_after_aggregation(self) -> None:
+        """集約の前の比較の証拠を消し、空状態でも、集約後の再始動と再較正を一回ずつ数える。"""
+        self._cumulative_losses_by_model_id = {}
+        self._mixability_gap = 0.0
+        self._aggregation_restart_count += 1
+        self._aggregation_recalibration_count += 1
+
+    def replay_observed_losses_after_aggregation(
+        self, *, observed_loss_sequence: Iterable[Mapping[int, float]]
+    ) -> None:
+        """全行を検証した後、空でない列だけを計数へ足し、証拠を消して、列の順に再構成する。"""
+        validated_observed_loss_sequence = tuple(
+            self._validate_numeric_mapping(
+                mapping=observed_losses_by_model_id,
+                parameter_name="observed_loss_sequenceの行",
+            )
+            for observed_losses_by_model_id in observed_loss_sequence
+        )
+        if not validated_observed_loss_sequence:
+            return
+        self._aggregation_recalibration_count += 1
+        self._aggregation_recalibration_sample_count += len(validated_observed_loss_sequence)
+        self._cumulative_losses_by_model_id = {}
+        self._mixability_gap = 0.0
+        for observed_losses_by_model_id in validated_observed_loss_sequence:
+            diagnostic_weights_by_model_id = self.get_diagnostic_weights_before_loss_observation(
+                model_ids=observed_losses_by_model_id
+            )
+            self.update_evidence_after_loss_observation(
+                observed_losses_by_model_id=observed_losses_by_model_id,
+                diagnostic_weights_by_model_id=diagnostic_weights_by_model_id,
+            )

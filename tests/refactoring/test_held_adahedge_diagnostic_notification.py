@@ -116,7 +116,7 @@ def test_held_diagnostic_evidence_matches_real_legacy_notifications():
         if case is None or case[0] == case[1]:
             assert after == before
         else:
-            assert after[0] == ({}, 0.0, before[0][2], before[0][3] + 1)
+            assert after[0] == ({}, 0.0, before[0][2], before[0][3] + 1, *before[0][4:])
         assert_diagnostic_collection_matches_legacy(diagnostic_collection, legacy_client)
         for concept_id in (None, -4, 7):
             diagnostic_evidence = (
@@ -154,7 +154,11 @@ def test_diagnostic_collection_keeps_distinct_live_owners():
     first_collection = AdaHedgeDiagnosticEvidenceCollection()
     second_collection = AdaHedgeDiagnosticEvidenceCollection()
     assert first_collection.created_true_concept_ids == ()
-    assert get_diagnostic_collection_snapshot(first_collection) == (({}, 0.0, 0, 0), (), ())
+    assert get_diagnostic_collection_snapshot(first_collection) == (
+        ({}, 0.0, 0, 0, 0, 0, 0),
+        (),
+        (),
+    )
     diagnostic_evidence = first_collection.global_diagnostic_evidence
     assert diagnostic_evidence is first_collection.global_diagnostic_evidence
     assert diagnostic_evidence is not second_collection.global_diagnostic_evidence
@@ -181,10 +185,10 @@ def test_diagnostic_collection_keeps_distinct_live_owners():
     assert first_collection.get_true_concept_diagnostic_evidence(
         true_concept_id=-7
     ).cumulative_losses_by_model_id == {-1: 1.0, 2: 0.0}
-    assert get_adahedge_evidence_snapshot(diagnostic_evidence) == ({}, 0.0, 0, 0)
+    assert get_adahedge_evidence_snapshot(diagnostic_evidence) == ({}, 0.0, 0, 0, 0, 0, 0)
     assert get_adahedge_evidence_snapshot(
         first_collection.get_true_concept_diagnostic_evidence(true_concept_id=2)
-    ) == ({}, 0.0, 0, 0)
+    ) == ({}, 0.0, 0, 0, 0, 0, 0)
     assert get_diagnostic_collection_snapshot(second_collection) == before
     diagnostic_evidence.restart_evidence_after_concept_operation()
     assert first_collection.global_diagnostic_evidence.concept_operation_restart_count == 1
