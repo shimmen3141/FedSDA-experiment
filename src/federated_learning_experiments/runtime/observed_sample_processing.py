@@ -283,7 +283,10 @@ def process_observed_sample(
     shared_feature_extractor: SharedFeatureExtractor,
     shared_parameter_optimizer: Optimizer | None,
 ) -> ObservedSampleProcessing:
-    """標本1件を、旧の標本処理と同じ順で処理する（最初に予測する。計算量と所要時間の記録は含めない）。"""
+    """標本1件を、旧の標本処理と同じ順で処理する（最初に予測する）。
+
+    旧の標本処理のうち、計算量と所要時間の記録、モデル別の除外寄与の診断は含めない。
+    """
     _validate_observed_sample_processing_inputs(
         indexed_observation=indexed_observation,
         owners_by_argument_name=dict(

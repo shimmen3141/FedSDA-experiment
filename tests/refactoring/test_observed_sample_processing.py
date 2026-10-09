@@ -1450,6 +1450,58 @@ def test_failed_step_stops_sample_processing_before_later_steps(
     )
 
 
+def test_samples_without_concept_id_are_processed_without_true_concept_diagnostics(
+    monkeypatch, valid_run_settings_mapping
+):
+    """真の概念IDがない標本（実旧の予測は処理できない）を、新実装だけで続けて処理する。
+
+    概念別の診断証拠は作られず、記録の概念の2項目はNoneで、標本は概念IDなしのまま保留へ入る。
+    """
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(823)
+        processing_arguments, _, _ = build_default_sample_processing_oracle(
+            monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
+        )
+        diagnostic_evidence_collection = processing_arguments["diagnostic_evidence_collection"]
+        created_true_concept_ids = diagnostic_evidence_collection.created_true_concept_ids
+        completed_validation_count = 0
+        processed_observations = []
+        for _ in range(12):
+            indexed_observation = replace(
+                make_next_observation(processing_arguments=processing_arguments),
+                observed_concept_id=None,
+            )
+            sample_processing = process_observed_sample(
+                indexed_observation=indexed_observation, **processing_arguments
+            )
+            processed_observations.append(indexed_observation)
+            prediction_record = (
+                sample_processing.observed_sample_prediction.sample_prediction_record
+            )
+            assert prediction_record.observed_concept_id is None
+            assert prediction_record.true_concept_diagnostic_prediction_is_correct is None
+            completed_validation_count += int(
+                sample_processing.held_validation_advance.adaptation_record is not None
+            )
+    assert diagnostic_evidence_collection.created_true_concept_ids == created_true_concept_ids
+    # 候補検証が、この標本列の途中で1回以上確定している（確定の後の段も、概念IDなしで通っている）。
+    assert completed_validation_count >= 1
+    pending_sample_observations = processing_arguments[
+        "pending_sample_observation_store"
+    ].snapshot_pending_sample_observations()
+    assert pending_sample_observations
+    assert all(
+        any(
+            pending_observation is processed_observation
+            for processed_observation in processed_observations
+        )
+        or pending_observation.sample_index < processed_observations[0].sample_index
+        for pending_observation in pending_sample_observations
+    )
+    assert pending_sample_observations[-1] is processed_observations[-1]
+    assert pending_sample_observations[-1].observed_concept_id is None
+
+
 def test_validation_concept_ids_are_selected_from_latest_pending_observations():
     """候補検証へ渡された標本は保留の末尾。同じ標本のオブジェクトが古い側にもあっても、末尾の概念IDを選ぶ。"""
     select_concept_ids = sample_processing_module._select_validation_assignment_sample_concept_ids
