@@ -67,3 +67,15 @@
 
 1. Task 1、任意: 最初の共同更新より前の失敗のtestで、実旧の側の例外を`(RuntimeError, ValueError)`と緩く受けている。→ 変更なし。実旧の側は例外の型を対照の対象にしていない（比べるのは保留件数。新の側は`match`で理由を固定している）。testを変えると検証対象のcommitが変わる。
 2. Task 2、任意: 証拠文書の「隣り合う読取りだけの文」は、早期returnを含む文があるので正確でない。→ 採用（証拠文書の文言を訂正）。
+
+## Task 3（別session `5cd14d15-a1be-45cb-9c9f-308dca8b181f`、HEAD `684c62a`）— TASK 3: APPROVED
+
+選択と代替: 証拠の照合なので優先はLuna。利用上限のためHaiku 5.5が代替した。照合コマンド（`spec_checks.py identity`、`git status`、`git diff --stat`）だけを許可して起動した。
+
+- レビュー担当が独立に実行したもの: `spec_checks.py identity --rev 1a03667`（4段階の承認hash、固定旧差分、作業ツリー、source hash、JUnit 10188 testcase・failure 0・error 0・skip 3、旧回帰2件の成功）、`git status --short`（空）、`git diff --stat`の3件（`1a03667`→HEADのsrc・testsが空、`6e23cfb`→`1a03667`が6ファイル、固定旧→HEADが空）。logの末尾（10185 passed、exit=0）も読んで照合した。
+- 件数の内訳（10080＋101＋4）はJUnitの件数から確かめたと報告された。要求対応13項目は、4.1を「概ね一致」（吸収のoracleの実旧clientの生成部分は読んでいない）としたほかは一致と報告された。
+- 実行していないもの: pytest（全体・対象）、Ruff、Pyright、pip check、共用script、変異tool。全pytestの独立再現は行っていない（2026-10-07のユーザー決定による基準。対象test・共用script・Ruffの独立実行は、Task 1・2のレビュー担当が行った）。
+
+指摘と採否:
+
+1. Minor: 統合検証が「旧との差」を「再開案内に残す」と書いているが、再開案内にまだ記載がない。→ 採用。再開案内の「ユーザー確認待ち・未解消の事項」へ、旧との差と、命名の承認より前の下書きの扱いの2件を記載し、統合検証の文を改めた。

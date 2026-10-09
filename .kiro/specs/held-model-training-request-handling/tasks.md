@@ -16,7 +16,7 @@
   - _Boundary: 検出力の証拠_
   - _Requirements: 1.2, 1.5, 2.1, 2.3, 3.1_
 
-- [ ] 3. 固定基準の全回帰と証拠を確定する
+- [x] 3. 固定基準の全回帰と証拠を確定する
   - commitして、Windowsの基準環境で全pytestとJUnit、旧11・最終3golden、Ruff・Pyright・pip check、`spec_checks.py identity`を実測し、integration-validation.mdへ要求の対応と未検証事項を記録する。全pytestの件数が、前specの件数に今回足したtest数を加えた数と一致することを確かめる。
   - 完了: 独立担当が照合して承認。本specは2 moduleに触れるので、feature最終の判定は別sessionで受ける（`spec_checks.py progress`の後）。再開案内を更新する。
   - _Depends: 2_
