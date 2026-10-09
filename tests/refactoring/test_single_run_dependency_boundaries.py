@@ -4805,6 +4805,11 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
         )
+    if source_module_path == "evaluation/sample_prediction_record_store.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math.isfinite",
+        )
     if source_module_path == "evaluation/loss_change_alarm_record_store.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5779,6 +5784,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "methods/fedsda/training_data_assignment/pending_sample_observation_store.py",
             "evaluation/loss_change_alarm_record_store.py",
             "runtime/observed_sample_processing.py",
+            "evaluation/sample_prediction_record_store.py",
             "runtime/held_model_training_request_handling.py",
             "runtime/released_pending_sample_assignment.py",
             "learning/training/candidate_epoch_training_settings.py",
@@ -5840,6 +5846,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "methods/fedsda/training_data_assignment/pending_sample_observation_store.py",
                     "evaluation/loss_change_alarm_record_store.py",
                     "runtime/observed_sample_processing.py",
+                    "evaluation/sample_prediction_record_store.py",
                     "runtime/held_model_training_request_handling.py",
                     "runtime/released_pending_sample_assignment.py",
                     "learning/training/candidate_epoch_training_settings.py",
