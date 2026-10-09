@@ -57,7 +57,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### 1. 標本1件の処理の残り（未仕様化）
 
-警報が起きた標本での処理は`handle_alarm_occurrence`で1回の呼出しになり、候補検証の進行（`advance_held_candidate_validation`）は確定時に診断へ通知するようになった。標本1件の処理全体（旧`process_one_step`）へ向けて残るのは次のとおり。1つのspecで扱う（数値の一致が繊細な部分が出てきたら、そこだけ切り出す）。
+警報が起きた標本での処理は`handle_alarm_occurrence`で1回の呼出しになり、候補検証の進行（`advance_held_candidate_validation`）は確定時に診断へ通知するようになった。標本1件の処理全体（旧`process_one_step`）へ向けて残るのは次のとおり。1つのspecで扱い、境界を決めて下位taskへ分ける（一度に混ぜない。数値の一致が繊細な部分が出てきたら、そこだけ別のspecへ切り出す）。
 
 - 学習要求の記録と共同学習は、`record_training_request_and_train_held_models_when_due`と`train_held_models_for_pending_training_requests`で接続済み（呼ぶ位置は未接続。旧は、標本ごとの学習stepが警報のない分岐の最後、消化が警報の処理の前とラウンド境界）。警報のない標本での帰属確定は`assign_released_pending_samples_to_current_training_model`で接続済み。計算量・所要時間・勾配の診断は未移植。
 - 保留標本そのもの（特徴・ラベル・概念ID）を持つowner: 現在は、警報のときの応答と警報のない標本での確定が、呼出し側から全保留標本を位置つきで受け取る。ownerをどこに置くかと、2箇所の並びの検査の重複（IMPROVE-010）を合わせて決める。
