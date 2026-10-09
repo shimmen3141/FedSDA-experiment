@@ -300,6 +300,30 @@ def test_settings_bundle_requires_equal_minimum_improvement_and_early_stopping_d
     )
 
 
+def test_settings_bundle_requires_equal_local_and_candidate_batch_sample_counts(
+    valid_run_settings_mapping,
+):
+    valid_settings = make_valid_run_client_settings(valid_run_settings_mapping)
+    with pytest.raises(RunSettingsValidationError) as raised_error:
+        make_valid_run_client_settings(
+            valid_run_settings_mapping,
+            scalar_settings=replace(
+                valid_settings.scalar_settings, local_training_batch_sample_count=5
+            ),
+        )
+    assert raised_error.value.configuration_parameter_name == "local_training_batch_sample_count"
+    assert raised_error.value.specified_parameter_value == 5
+    make_valid_run_client_settings(
+        valid_run_settings_mapping,
+        scalar_settings=replace(
+            valid_settings.scalar_settings, local_training_batch_sample_count=5
+        ),
+        candidate_epoch_training_settings=replace(
+            valid_settings.candidate_epoch_training_settings, maximum_batch_sample_count=5
+        ),
+    )
+
+
 def test_settings_bundle_rejects_component_settings_mutated_around_frozen(
     valid_run_settings_mapping,
 ):

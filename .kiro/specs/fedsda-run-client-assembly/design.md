@@ -186,6 +186,7 @@ class FedsdaRunClientSettings:
   2. 賭け率が、空でないexact tupleで、各要素がbuiltin floatで0より大きく1未満。
   3. `prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples`が、`training_data_assignment_settings.pending_assignment_buffer_capacity_samples`と同じ。
   4. `scalar_settings.minimum_candidate_mean_loss_improvement`が、`candidate_epoch_training_settings.minimum_validation_loss_decrease`と同じ。
+  5. `scalar_settings.local_training_batch_sample_count`が、`candidate_epoch_training_settings.maximum_batch_sample_count`と同じ（旧は、どちらも`CLIENT_BATCH_SIZE`）。
 
 ### runtime: fedsda_run_client
 
@@ -246,7 +247,7 @@ class FedsdaRunClient:
 - 生成は、組立ての関数だけが行う（`__init__`は、ownerの記録・束・client ID・乱数生成器・候補の構造の参照にする分類器を受け取って持つだけで、検査しない）。
 - `process_observed_sample`: `observed_sample`がexact `ObservedSample`（TypeError）であることを確かめ、特徴を`[[f0, f1]]`、ラベルを`[[float(label)]]`のfloat32のtensorにして、`IndexedObservedTrainingSample`を作り、標本1件の処理を呼ぶ。位置と概念IDの型、位置の連続は、標本1件の処理が、どの更新より前に確かめる。共有部のoptimizerは、呼出しのたびに、状態のownerから現在のものを読む。候補の構造の参照には、初期モデルの写しの分類器を渡す。
 - `flush_pending_local_updates`・`advance_new_model_upload_wait_after_synchronization`: `round_index`がbuiltin intで0以上（TypeError／ValueError）を確かめてから、部品を呼ぶ。完了した共同更新の損失を返す（契約は戻り値を使わない）。
-- `finalize_incomplete_candidate_validation`: 候補検証を保持していなければ、Noneを返す。保持していれば、処理した標本数（保留位置のownerの最終観測位置＋1）と、保持している概念IDを渡して回収し、その後で概念IDの保持を外す。
+- `finalize_incomplete_candidate_validation`: 候補検証を保持していなければ、Noneを返す。保持しているのに概念IDを保持していなければ、何も変えずに拒否する（ValueError）。保持していれば、処理した標本数（保留位置のownerの最終観測位置＋1）と、保持している概念IDを渡して回収し、その後で概念IDの保持を外す。
 - どの操作も、部品が途中で失敗したら、例外をそのまま伝える（巻戻しなし）。
 
 ## Error Handling

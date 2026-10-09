@@ -49,7 +49,7 @@
 | `NEW_MODEL_EARLY_STOPPING_MIN_DELTA` | `minimum_candidate_mean_loss_improvement`と、`CandidateEpochTrainingSettings.minimum_validation_loss_decrease`（同じ値） |
 | `FEDSDA_MODEL_UPLOAD_DELAY_ROUNDS` | `upload_delay_round_count` |
 | `MIN_DRIFT_DATA` | `minimum_change_interval_sample_count` |
-| `CLIENT_BATCH_SIZE` | `batch_sample_count` |
+| `CLIENT_BATCH_SIZE` | `batch_sample_count`と、`CandidateEpochTrainingSettings.maximum_batch_sample_count`（同じ値） |
 | `STORED_DATA_LIMIT`、`EVAL_STORE_SAMPLE_SIZE` | `ModelEvaluationSampleStore`の生成の2引数 |
 | `ADWIN_MAX_WINDOW`、検出器の賭け率の既定 | `OverallAndTrueClassLossMonitor`の生成の2引数 |
 | `_detector_label()` | `detector_name` |
@@ -73,7 +73,7 @@
 - **Selected Approach**: 2。数値と文字列の値は、既存の検査の仕組み（fieldのmetadata）で宣言する型にまとめ、機能別の設定と賭け率を合わせて、clientの設定の束にする。
 - **Rationale**: 1は、承認済みの設定型と、それを作っている多数のtestを変える。保存表現とpresetを決める段階（完全なrun設定のspec）で、値の正式な置き場所を決めるほうが、二度手間にならない。検証済みのrun設定の部分型も「完全なrun設定ではない」と明記している。
 - **Trade-offs**: 束は、機能別の配置としては仮の形である。再開案内の「次の候補」へ、置き場所を決める課題として書く。
-- **Follow-up**: 旧で1つの値を2箇所で使う2組は、束では、許容する増加量を1つのfieldにし（2つの引数へ同じ値を渡す）、最小改善量は、束のfieldと候補の学習の設定が同じ値であることを確かめる。
+- **Follow-up**: 旧で1つの値を2箇所で使う3組は、束では、許容する増加量を1つのfieldにし（2つの引数へ同じ値を渡す）、最小改善量とbatchの件数は、束のfieldと候補の学習の設定が同じ値であることを確かめる。
 
 ### Decision: 真の概念IDは、clientの操作の任意の引数にする
 

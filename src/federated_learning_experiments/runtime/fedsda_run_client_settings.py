@@ -204,3 +204,16 @@ class FedsdaRunClientSettings:
                     f"minimum_validation_loss_decrease={minimum_decrease!r}。"
                 ),
             )
+        local_batch_sample_count = self.scalar_settings.local_training_batch_sample_count
+        candidate_batch_sample_count = (
+            self.candidate_epoch_training_settings.maximum_batch_sample_count
+        )
+        if local_batch_sample_count != candidate_batch_sample_count:
+            raise RunSettingsValidationError(
+                configuration_parameter_name="local_training_batch_sample_count",
+                specified_parameter_value=local_batch_sample_count,
+                validation_failure_reason=(
+                    "最終FedSDA構成ではローカル学習のbatchの件数を、候補の学習のbatchの件数の上限と同値にしてください。"
+                    f"maximum_batch_sample_count={candidate_batch_sample_count!r}。"
+                ),
+            )
