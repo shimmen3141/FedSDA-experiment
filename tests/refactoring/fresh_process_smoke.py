@@ -11,7 +11,7 @@ testへ置き換えて廃止する。
 標本の観測と確定（採用／棄却／現行の維持／他モデルの再利用）→次の警報→保留中の学習要求の学習→
 標本1件の処理（予測→候補検証の進行→監視→保留→警報の処理｜帰属の確定と学習）を続けて呼ぶ。
 別の流れとして、初期モデルを事前学習し、その結果と設定からclientを組み立て、実行の枠（参加者の検査と区間の進行。サーバは
-何もしない代役）で、標本列を最後まで進める。
+ラウンドごとに新規モデルの登録と集約だけを行う代役。配布は未移植）で、標本列を最後まで進める。
 """
 
 import sys
@@ -31,6 +31,9 @@ from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_coll
     AdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore
+from federated_learning_experiments.evaluation.communication_volume_record_store import (
+    CommunicationVolumeRecordStore,
+)
 from federated_learning_experiments.evaluation.loss_change_alarm_record_store import (
     LossChangeAlarmRecordStore,
 )
@@ -50,6 +53,9 @@ from federated_learning_experiments.learning.loss_statistics.bounded_loss_moment
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatistics,
     ModelAndClassLossStatisticsStore,
+)
+from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
+    snapshot_classifier_parameters,
 )
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
@@ -114,6 +120,9 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_ch
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.global_model_repository import (
+    GlobalModelRepository,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -156,6 +165,10 @@ from federated_learning_experiments.runtime.observed_sample_processing import (
 )
 from federated_learning_experiments.runtime.released_pending_sample_assignment import (
     assign_released_pending_samples_to_current_training_model,
+)
+from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
+    aggregate_client_models_into_global_models,
+    register_ready_client_models,
 )
 from federated_learning_experiments.runtime.single_run_execution import (
     validate_prepared_run_participants,
@@ -770,17 +783,39 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
 PROCESSED_ALARM_COUNTS = []
 
 
-class ServerOperationsDoingNothing:
-    """実行の枠が求めるサーバの操作の、何もしない代役（サーバ側は未移植）。"""
+class ServerOperationsRegisteringAndAggregating:
+    """実行の枠が求めるサーバの操作の代役。ラウンドごとに、新規モデルの登録と集約だけを行う（配布は未移植）。"""
+
+    def __init__(self, *, run_clients, global_model_repository, communication_volume_record_store):
+        self.run_clients = run_clients
+        self.global_model_repository = global_model_repository
+        self.communication_volume_record_store = communication_volume_record_store
+        self.registered_model_count = 0
+        self.aggregations = []
 
     def record_client_states_before_synchronization(self, *, round_index):
-        pass
+        self.communication_volume_record_store.record_messages(
+            transfer_direction="upload", message_count=len(self.run_clients)
+        )
 
     def synchronize_models(self, *, round_index, new_model_registration_available):
-        pass
+        registered_client_models = register_ready_client_models(
+            run_clients=self.run_clients,
+            global_model_repository=self.global_model_repository,
+            round_index=round_index,
+        )
+        assert bool(registered_client_models) == new_model_registration_available
+        self.registered_model_count += len(registered_client_models)
+        self.aggregations.append(
+            aggregate_client_models_into_global_models(
+                run_clients=self.run_clients,
+                global_model_repository=self.global_model_repository,
+                communication_volume_record_store=self.communication_volume_record_store,
+            )
+        )
 
     def finalize_started_communications(self, *, completed_round_count):
-        pass
+        assert len(self.aggregations) == completed_round_count
 
 
 ASSEMBLED_CLIENT_COUNT = 2
@@ -886,8 +921,20 @@ def run_assembled_client_flow(*, class_count):
         assemble_fedsda_run_client(client_id=client_id, **initial_model_arguments)
         for client_id in range(ASSEMBLED_CLIENT_COUNT)
     )
+    initial_global_parameters = snapshot_classifier_parameters(classifier=initial_classifier)
+    global_model_repository = GlobalModelRepository(
+        initial_model_id=0,
+        initial_parameter_snapshot=initial_global_parameters,
+        initial_loss_statistics=pretrained_initial_model.loss_statistics,
+    )
+    communication_volume_record_store = CommunicationVolumeRecordStore()
+    server_operations = ServerOperationsRegisteringAndAggregating(
+        run_clients=run_clients,
+        global_model_repository=global_model_repository,
+        communication_volume_record_store=communication_volume_record_store,
+    )
     participants = RunParticipants(
-        client_operations=run_clients, server_operations=ServerOperationsDoingNothing()
+        client_operations=run_clients, server_operations=server_operations
     )
     validate_prepared_run_participants(
         participants=participants, client_count=ASSEMBLED_CLIENT_COUNT
@@ -952,6 +999,34 @@ def run_assembled_client_flow(*, class_count):
         )
     )
     assert alarm_count > 0, alarm_count
+    # サーバ: 毎ラウンド集約し、グローバルモデル0が、clientの学習を反映して初期の値から変わっている。
+    assert len(server_operations.aggregations) == round_count
+    assert all(
+        0 in aggregation.aggregated_global_model_ids
+        for aggregation in server_operations.aggregations
+    )
+    assert server_operations.aggregations[-1].aggregated_training_sample_counts_by_model_id[0] > 0
+    aggregated_global_parameters = global_model_repository.get_global_model_parameters(model_id=0)
+    assert list(aggregated_global_parameters) == list(initial_global_parameters)
+    assert any(
+        not torch.equal(aggregated_global_parameters[parameter_name], initial_parameter_values)
+        for parameter_name, initial_parameter_values in initial_global_parameters.items()
+    )
+    communication_volume = communication_volume_record_store.get_state_snapshot()
+    assert communication_volume.uploaded_message_count == round_count * ASSEMBLED_CLIENT_COUNT
+    assert communication_volume.uploaded_model_count > 0
+    assert communication_volume.uploaded_byte_count == 4 * (
+        communication_volume.uploaded_parameter_value_count
+    )
+    assert communication_volume.downloaded_byte_count == 0
+    # 登録した数だけ、次の正式IDが進み、来歴が増えている。
+    assert (
+        global_model_repository.next_global_model_id == 1 + server_operations.registered_model_count
+    )
+    assert (
+        len(global_model_repository.snapshot_model_registration_records())
+        == 1 + server_operations.registered_model_count
+    )
     return alarm_count
 
 
