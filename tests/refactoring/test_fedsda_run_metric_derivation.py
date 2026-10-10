@@ -7,7 +7,6 @@
 import hashlib
 import io
 import json
-import platform
 import random
 import sys
 from contextlib import redirect_stdout
@@ -24,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import test_fedsda_run_client as client_test_module
 import test_fedsda_stream_protocol_run as whole_run_test_module
 import test_proposed_regression as legacy_regression
+from test_environment_proposed_regression import describe_missing_golden, find_golden_path
 from test_fedsda_run_client import (
     LEGACY_ACTION_BY_ADAPTATION_OUTCOME,
     LEGACY_REASON_BY_DECISION_REASON,
@@ -35,7 +35,6 @@ from test_fedsda_stream_protocol_run import (
     make_run_participant_settings,
     run_real_legacy_whole_run,
 )
-from test_linux_proposed_regression import LINUX_GOLDEN_PATH
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 from federated_drift_experiment import config, experiment
@@ -875,24 +874,19 @@ def test_golden_condition_trace_arrays_match_real_legacy_saved_arrays(golden_con
         assert set(trace_arrays["adaptation_actions"].tolist()) == {"maintain"}
 
 
-# 実行環境（OS）ごとの、最終構成のgolden。旧実装の結果自体が、WindowsとLinuxで違うので、別のfileに持つ。
-GOLDEN_PATH_BY_SYSTEM = {
-    "Windows": legacy_regression.GOLDEN_PATH,
-    "Linux": LINUX_GOLDEN_PATH,
-}
+def test_golden_condition_metrics_and_traces_match_environment_golden(golden_condition_runs):
+    """導出した指標と列が、実行環境のgoldenと一致する。
 
-
-def test_golden_condition_metrics_and_traces_match_platform_golden(golden_condition_runs):
-    """導出した指標と列が、実行環境のgolden（WindowsではWindows用、LinuxではLinux用）と一致する。
-
-    goldenは、実行環境に依存する（Linuxでは、旧実装の結果自体が、Windows用のgoldenと違う）。goldenのないOSでは
-    照合しない。同じprocessの中の実旧との照合（上の2つ）は、どの環境でも行う。
+    goldenは、実行環境に依存する（旧実装の結果自体が、OSや、Python・NumPyの版で違う）。実行環境の記録と
+    完全に一致するgolden（固定のWindows用のgoldenか、環境ごとのgolden）を選ぶ。なければ、照合しない。
+    同じprocessの中の実旧との照合（上の2つ）は、どの環境でも行う。
     """
-    if platform.system() not in GOLDEN_PATH_BY_SYSTEM:
-        pytest.skip("goldenは、WindowsとLinuxのものだけがある")
-    golden_path = GOLDEN_PATH_BY_SYSTEM[platform.system()]
+    environment = legacy_regression.environment()
+    golden_path = find_golden_path(environment)
+    if golden_path is None:
+        pytest.skip(describe_missing_golden(environment))
     golden = json.loads(golden_path.read_text(encoding="utf-8"))
-    assert golden["_env"]["system"] == platform.system()
+    assert golden["_env"] == environment
     golden_case = golden["cases"][golden_condition_runs.dataset_name]
     legacy_metric_values = derive_legacy_metric_values(golden_condition_runs.run_metrics)
     assert set(golden_case["metrics"]) == set(legacy_metric_values) | set(

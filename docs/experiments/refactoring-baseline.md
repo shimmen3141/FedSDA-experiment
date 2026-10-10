@@ -83,32 +83,69 @@ $env:MPLCONFIGDIR=(Resolve-Path venv/matplotlib-cache).Path
 更新前後の指標・イベント件数・離散列の差と理由をレビューする。
 旧goldenはこのコマンドで変更されない。
 
-## Linux用の最終構成golden
+## 実行環境ごとの最終構成golden
 
-Linuxでは、旧実装の最終構成の結果自体が、Windows用のgoldenと違う（SINE-2は指標10・離散列15、
-SEA-2は指標1・離散列2が違い、MNIST-2は一致する。イベント件数は、3ケースとも同じ）。
-そのため、Linux用のgoldenを、別ファイル・別testとして持つ（2026-10-08ユーザー決定）。
-Windows用のgoldenと`tests/test_proposed_regression.py`は、変更していない。
+旧実装の最終構成の結果は、実行環境で変わる。確認した範囲（2026-10-10〜11）:
 
-- `tests/refactoring/proposed_regression_golden_linux.json`: Linux用のgolden。形・条件の定義・
-  使用したMNISTファイルは、Windows用と同じ。
-- `tests/refactoring/test_linux_proposed_regression.py`: Linuxでは、旧実装の3ケースをLinux用のgoldenと
-  照合する（基準は、既存の回帰testと同じ。イベント件数と離散列は完全に一致、指標は絶対誤差`1e-9`）。
-  Linux以外では、この照合をskipし、goldenの形の検査だけを行う。
-- 新実装の照合（`tests/refactoring/test_fedsda_run_metric_derivation.py`）は、実行環境のgolden
-  （WindowsではWindows用、LinuxではLinux用）を選ぶ。
+| 環境 | Windows用のgoldenとの違い |
+|---|---|
+| WSL Ubuntu（Python 3.14.4、NumPy 2.4.6、torch 2.12.1+cpu） | SINE-2は指標10・離散列15、SEA-2は指標1・離散列2が違う。MNIST-2は一致 |
+| 研究室サーバ（Linux、Python 3.10.16、NumPy 2.2.6、torch 2.12.1+cpu） | SINE-2が、WSLとも違う（候補の棄却が2件。WSLは3件）。SEA-2とMNIST-2は、WSLと同じ |
 
-2026-10-10に作成した基準は、WSL Ubuntu / x86_64 / CPU / float32、Python 3.14.4、NumPy 2.4.6、
-torch 2.12.1+cpu、1スレッドである。作成の前に、旧実装を別のprocessで2回実行して、結果が
-一致することを確かめた。環境が異なる場合は警告し、比較を実行する（Windows用と同じ扱い）。
+そのため、goldenを、実行環境ごとに持つ（2026-10-08・10-11ユーザー決定）。
+Windows用のgolden（`tests/proposed_regression_golden.json`）と`tests/test_proposed_regression.py`は、変更していない。
 
-Linuxで、リポジトリ（worktree）のルートから実行する。
+### 置き場所と選び方
+
+- `tests/refactoring/proposed_regression_goldens/`: 環境ごとのgolden。1環境1ファイルで、名前は、
+  その環境の記録から決まる（例: `linux-x86_64-python3.14.4-numpy2.4.6-torch2.12.1+cpu.json`）。
+  形・条件の定義・使用したMNISTファイルは、Windows用と同じ。
+- testは、実行環境の記録（OS、機種、Python・NumPy・torchの版、device、dtype、スレッド数）と、
+  goldenの`_env`が**完全に一致する**ものを、自動で選ぶ。Windows用のgoldenも、同じ規則で選ぶ対象に含まれる。
+  設定や引数は要らない。
+- 一致するgoldenがない環境では、goldenとの照合だけをskipする（失敗にしない。skipの理由に、
+  環境の記録と、足し方が出る。`-rs`で表示できる）。新実装と旧実装を、同じprocessの中で比べる照合は、
+  goldenに依らないので、どの環境でも実行される。
+- 版が1つ変わると、goldenは選ばれなくなり、照合がskipになる。開発の環境（Windowsの基準環境とWSL）では、
+  検証のときに、skipの件数を確かめる。
+
+照合するtest:
+
+- `tests/refactoring/test_environment_proposed_regression.py`: 旧実装の3ケースを、実行環境のgoldenと照合する
+  （基準は、既存の回帰testと同じ。イベント件数と離散列は完全に一致、指標は絶対誤差`1e-9`）。
+  Windowsの基準環境では、既存の回帰testが照合するので、skipする。
+- `tests/refactoring/test_fedsda_run_metric_derivation.py`: 新実装の3ケースを、実行環境のgoldenと照合する。
 
 ```bash
 source .venv/bin/activate   # リポジトリ直下のLinux用環境
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
-python -m pytest tests/refactoring/test_linux_proposed_regression.py   tests/refactoring/test_fedsda_run_metric_derivation.py -q
+python -m pytest tests/refactoring/test_environment_proposed_regression.py \
+  tests/refactoring/test_fedsda_run_metric_derivation.py -q -rs
 ```
+
+### goldenを足す・消す・作り直す
+
+足す（goldenのない環境で、1回だけ）:
+
+```bash
+python tests/refactoring/test_environment_proposed_regression.py --update   # ファイルを1つ書く
+python -m pytest tests/refactoring/test_environment_proposed_regression.py -q   # 別のprocessで、再現を確かめる
+git add tests/refactoring/proposed_regression_goldens/
+```
+
+できたファイルをcommitすれば、その環境で、goldenとの照合が行われるようになる。
+消すときは、ファイルを消す（ほかに変える所はない）。
+
+ふだんのspec（挙動を変えない移植・整理）では、goldenを作り直さない。照合が失敗したら、実装の差を調べる。
+作り直すのは、意図したアルゴリズムの変更を承認して、結果が変わるときだけで、そのときは、
+Windows用（`python tests/test_proposed_regression.py --update`）と、環境ごとのgolden
+（各環境で`--update --overwrite`）を、どちらも作り直す。すでにgoldenがある環境では、`--overwrite`を
+付けないと、作成は拒否される。Windowsの基準環境では、常に拒否される（上のWindows用のコマンドを使う）。
+
+WSLからWindows側のworktreeを使うときは、WSLのgitがworktreeを読めないので、Windows側で求めた
+commitを`--source-commit <40桁のhash>`で渡す。
+
+### WSLで失敗するtest
 
 WSLでは、次の3件が失敗する。どれも環境差であり、goldenやtestを変える理由にしない。
 
@@ -120,9 +157,11 @@ WSLでは、次の3件が失敗する。どれも環境差であり、goldenやt
 新旧の全状態の一致を、どの環境でも確かめる。条件ごとの「通る経路」（複数モデルでの終了ほか）の期待は、
 条件を選んだWindowsでだけ確かめる（Linuxでは、浮動小数点の差で、警報やモデルの登録の起き方が変わる）。
 
+### mainのcheckoutしかない計算機（研究室サーバ）
+
 リファクタリングの作業は、ブランチ`refactor/architecture`にある（`main`には、新実装`src/`と、上のtestがない）。
-`main`のcheckoutしかない計算機（研究室サーバ）では、`main`を切り替えずに、別のディレクトリへworktreeを作って実行する。
-実行中の実験と、`main`の作業ツリーには、影響しない。
+`main`を切り替えずに、別のディレクトリへworktreeを作って実行する。実行中の実験と、`main`の作業ツリーには、
+影響しない。
 
 ```bash
 cd <リポジトリのルート>                      # mainのcheckout
@@ -133,27 +172,28 @@ python -c "import pytest; print(pytest.__version__)"   # なければ: pip insta
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export FDE_MNIST_DATA_DIR="$PWD/data/mnist"  # mainのcheckoutのMNIST（なければ、旧の読込みが、ここへ取得する）
 cd ../FedSDA-refactoring
-python -m pytest tests/refactoring/test_linux_proposed_regression.py   tests/refactoring/test_fedsda_run_metric_derivation.py -q
+python -m pytest tests/refactoring/test_environment_proposed_regression.py \
+  tests/refactoring/test_fedsda_run_metric_derivation.py -q -rs
 ```
 
 2回め以降は、`cd ../FedSDA-refactoring && git fetch origin && git checkout --detach origin/refactor/architecture`で更新する。
 不要になったら、`main`のcheckoutで`git worktree remove ../FedSDA-refactoring`。
 
-研究室サーバは、WSL Ubuntuと、CPUやライブラリの版が違う可能性がある。研究室サーバで上のコマンドを
-実行して、`test_linux_proposed_regression.py`が失敗した場合は、goldenを自動で直さない。
-同じprocessの中の実旧との照合（`test_fedsda_run_metric_derivation.py`の、goldenを読まないtest）が
-成功していれば、新実装は、その環境の旧実装と一致している。どの環境を基準にするか
-（研究室サーバで作り直すか、環境ごとに持つか）は、ユーザーが決める。
-
-意図したアルゴリズム変更を承認して、Windows用の最終構成goldenを更新した場合に限り、Linux用も、
-Linuxで作り直す。
+研究室サーバのgoldenを足すとき（1回だけ）は、上の環境のまま、worktreeで次を実行する。
+ブランチへ直接commitして、pushする。
 
 ```bash
-python tests/refactoring/test_linux_proposed_regression.py --update
+git checkout -B refactor/architecture origin/refactor/architecture
+python tests/refactoring/test_environment_proposed_regression.py --update
+python -m pytest tests/refactoring/test_environment_proposed_regression.py \
+  tests/refactoring/test_fedsda_run_metric_derivation.py -q -rs      # skipなしで成功することを確かめる
+git add tests/refactoring/proposed_regression_goldens/
+git commit -m "test: 研究室サーバの環境の最終構成goldenを追加"
+git push origin refactor/architecture
 ```
 
-WSLからWindows側のworktreeを使うときは、WSLのgitがworktreeを読めないので、Windows側で求めた
-commitを`--source-commit <40桁のhash>`で渡す。
+研究室サーバでの照合は、ふだんのspecのたびに行う必要はない（開発中の照合は、Windowsの基準環境とWSLで行う）。
+`git pull`（worktreeの更新）の後に、確かめたいときだけ実行すればよい。
 
 ## リファクタリングの進め方
 
