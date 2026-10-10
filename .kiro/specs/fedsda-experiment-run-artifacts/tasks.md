@@ -25,8 +25,8 @@
   - _Depends: 2.1_
   - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 3. 検証
-- [ ] 3.1 独立レビューの指摘を反映し、全回帰を通す
+- [x] 3. 検証
+- [x] 3.1 独立レビューの指摘を反映し、全回帰を通す
   - 完了: 全pytest、Ruff、Pyright、`pip check`、照合script（`names`・`identity`・`progress`）が成功し、件数とcommitを「Implementation Notes」へ記録してある。固定旧実装とgoldenの差分が空である。WSLでの実行結果を、区別して記録してある。
   - _Depends: 2.2_
 
@@ -53,6 +53,14 @@
 - ラウンドごとのモデル数（グローバル、clientごとの保有）が、goldenの3ケースの、実旧が保存した配列と一致。モデルの登録・統合を通る小さい3条件（登録されたモデルがグローバルモデルに残らない場合を含む）でも、実旧の全体runの、同期の後の値と一致。
 - 保存と読込み: 往復で、要約の辞書と、配列の名前・形・型・値が同じ。上書きの拒否と、途中で失敗したときに何も残さないことを確かめた。
 - 共用script: 完全なrun設定（最終構成の既定値）から、実行・保存・読込みを行う（旧実装とtestのmoduleを読み込まない）。
+
+### 独立レビューと検証
+
+- 独立レビュー（1回、2026-10-11）: Claude Haiku 5.5（独立CLI、effort `medium`を指定）。GPT-6 Lunaは利用上限で使えない期間。session `3786d47b-a1bf-4ef4-b449-1858fef9935d`、対象`3cbaf5f..030cdce`。判定は`IMPLEMENTATION: APPROVED`（Blocker・Major・Minorなし。任意 6件）。レビュー担当は、対象のtest（35 passed・skipなし——goldenの3ケースの、実旧と新の実行を含む——）、変換と依存境界のtest（3065 passed）、Ruff、共用scriptを独立に実行した。適応の粗い区分と旧の`action`の対応を、旧のsource（`clients/fedsda.py`・`clients/base.py`）と照合した（8つとも一致）。全pytest・Pyright・`pip check`・`spec_checks.py`・WSLは実行していない（基準どおり）。レビューの後、作業ツリーは空だった。
+- 指摘の採否（すべて任意）: (1)非有限の値を`null`にするのは、指標の全部（定常の標本がないときの定常精度を含む）で、コメントは計算量のまとめだけと書いている→コメントを直した。(2)旧の`action`には、最終構成では現れない値（`episode_suppressed`、前向きの検証を使わない方針での`create`・`create_rejected`）がある→移行の一覧へ注記した（扱いは、(A2-変換)で決める）。(3)未照合の残りの配列の数の書き方→直した。(4)読込みが、表のファイルの名前の`".."`、形式の版の`True`・`1.0`を通す→採用（拒否する。testを足した）。(5)testの補強: 表の置換の失敗の位置を足した。小さい条件の「登録されたモデルが、グローバルモデルに残らない」ことを、直接確かめるassertを足した（条件ごとに、最初の案の数え方が、実旧と違う・同じ、を期待として持つ）。`history_routing_soft_active`が定数であること、保有モデル数の合計の照合が同じ記録の2つの読み方であることは、そのまま（前者は、最終構成で常に真。後者は、表の内容の確認）。(6)公開の定数2つを、naming.mdへ足した。Blocker・Majorがないので、確認のレビューは行っていない（反映は、読込みの検査の強化、コメント、test、文書。`e3f2233`）。
+- WSLで成功（`030cdce`、WSL Ubuntu）: このspecのtestと、前のspec（完全なrun設定、変換）のtestが、82 passed・skipなし（goldenの3ケースが、WSLのgoldenとも一致）。
+- 検証（Windows基準環境、`e3f2233`。この後は、specの文書とsteeringだけを変えた）: 全pytest（並列、`-n 8 --dist loadfile`）11937 passed / 4 skipped / 3 warnings、exit 0。JUnitはfailure 0、error 0。`tests.test_regression`・`tests.test_proposed_regression`を含む。skipの4件は、POSIX bashがない3件と、旧実装の照合を既存の回帰testに任せる1件。レビューの前の`030cdce`では、11937 passed / 4 skipped。Ruff（check・format）、Pyright 0 errors、`pip check`成功。固定旧`748c3aa`からの差分は空。`spec_checks.py names`は、新規・変更のsourceで「未登録: なし」。
+- 変異テストは実行していない（既定）。
 
 ### 未検証・残る制約
 
