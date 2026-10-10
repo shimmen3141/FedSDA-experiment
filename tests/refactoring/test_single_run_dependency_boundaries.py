@@ -4884,6 +4884,40 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
             "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
         )
+    if source_module_path == "runtime/fedsda_run_participant_factory.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "typing.cast",
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
+            "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",
+            "federated_learning_experiments.execution.run_participant_contracts.RunClientOperations",
+            "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
+            "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
+            "federated_learning_experiments.learning.training.initial_model_pretraining_settings.InitialModelPretrainingSettings",
+            "federated_learning_experiments.methods.fedsda.consolidation.model_clustering_calculations.ModelClusteringCriteria",
+            "federated_learning_experiments.runtime.fedsda_run_client.assemble_fedsda_run_client",
+            "federated_learning_experiments.runtime.fedsda_run_client_settings.FedsdaRunClientSettings",
+            "federated_learning_experiments.runtime.fedsda_run_server.assemble_fedsda_run_server",
+            "federated_learning_experiments.runtime.initial_model_pretraining.pretrain_initial_model",
+        )
+    if source_module_path == "runtime/fedsda_run_server.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "random.Random",
+            "torch.Tensor",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
+            "federated_learning_experiments.evaluation.cross_evaluation_record_store.CrossEvaluationRecordStore",
+            "federated_learning_experiments.evaluation.model_clustering_record_store.ModelClusteringRecordStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
+            "federated_learning_experiments.methods.fedsda.consolidation.model_clustering_calculations.ModelClusteringCriteria",
+            "federated_learning_experiments.methods.fedsda.model_registration.global_model_repository.GlobalModelRepository",
+            "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
+            "federated_learning_experiments.runtime.server_round_synchronization.ServerRoundSynchronization",
+            "federated_learning_experiments.runtime.server_round_synchronization.synchronize_models_in_server_round",
+        )
     if source_module_path == "runtime/server_round_synchronization.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6086,6 +6120,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/model_cross_evaluation.py",
             "runtime/model_clustering_and_consolidation.py",
             "runtime/server_round_synchronization.py",
+            "runtime/fedsda_run_server.py",
+            "runtime/fedsda_run_participant_factory.py",
             "learning/training/initial_model_pretraining_settings.py",
             "runtime/initial_model_pretraining.py",
             "evaluation/communication_volume_record_store.py",
@@ -6167,6 +6203,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/model_cross_evaluation.py",
                     "runtime/model_clustering_and_consolidation.py",
                     "runtime/server_round_synchronization.py",
+                    "runtime/fedsda_run_server.py",
+                    "runtime/fedsda_run_participant_factory.py",
                     "learning/training/initial_model_pretraining_settings.py",
                     "runtime/initial_model_pretraining.py",
                     "evaluation/communication_volume_record_store.py",
