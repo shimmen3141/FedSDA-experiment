@@ -1,9 +1,12 @@
 """置いてあるgzipのIDXファイルから、MNISTの学習用データ（画素と数字のラベル）を読む。取得はしない。"""
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from gzip import BadGzipFile
 from gzip import open as open_gzip_file
 from os import environ
 from pathlib import Path
+from struct import error as StructUnpackError
 from struct import unpack
 
 from numpy import frombuffer, int64, ndarray, uint8
@@ -98,6 +101,16 @@ def _read_digit_labels(label_file_path: Path) -> ndarray:
     return digit_labels
 
 
+def _read_file_or_reject_damaged_file(
+    *, read_file: Callable[[Path], ndarray], file_path: Path
+) -> ndarray:
+    """ファイルを読む。形式の不正（途中で切れたgzip、gzipでない、先頭の数値に足りない）は、ファイル名つきで拒否する。"""
+    try:
+        return read_file(file_path)
+    except (ValueError, EOFError, BadGzipFile, StructUnpackError) as read_error:
+        raise ValueError(f"invalid MNIST file {file_path.name}: {read_error}") from read_error
+
+
 def load_mnist_training_data(*, data_directory: Path) -> MnistTrainingData:
     """ディレクトリの2つのファイルから、学習用データを読む。同じディレクトリは、読み直さない。
 
@@ -119,8 +132,12 @@ def load_mnist_training_data(*, data_directory: Path) -> MnistTrainingData:
             f"Place them there, or set {_DATA_DIRECTORY_ENVIRONMENT_VARIABLE} to the directory "
             "that holds them (this implementation does not download them)."
         )
-    pixel_values = _read_pixel_values(resolved_directory / _IMAGE_FILE_NAME)
-    digit_labels = _read_digit_labels(resolved_directory / _LABEL_FILE_NAME)
+    pixel_values = _read_file_or_reject_damaged_file(
+        read_file=_read_pixel_values, file_path=resolved_directory / _IMAGE_FILE_NAME
+    )
+    digit_labels = _read_file_or_reject_damaged_file(
+        read_file=_read_digit_labels, file_path=resolved_directory / _LABEL_FILE_NAME
+    )
     if len(pixel_values) != len(digit_labels):
         raise ValueError(
             f"MNIST image and label counts differ: {len(pixel_values)} and {len(digit_labels)}"

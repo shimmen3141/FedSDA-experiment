@@ -229,6 +229,28 @@ def test_invalid_file_formats_are_rejected(tmp_path, invalid_file_arguments):
         load_mnist_training_data(data_directory=tmp_path)
 
 
+@pytest.mark.parametrize("damaged_file_name", [IMAGE_FILE_NAME, LABEL_FILE_NAME])
+@pytest.mark.parametrize("damage", ["truncated_gzip", "not_gzip", "header_too_short", "empty"])
+def test_damaged_files_are_rejected_as_invalid_format(tmp_path, damaged_file_name, damage):
+    """途中で切れたgzip、gzipでないファイル、先頭の数値に足りないファイルを、形式の不正として拒否する。"""
+    write_mnist_files(tmp_path, pixel_rows=make_pixel_rows(2), digit_labels=[1, 2])
+    damaged_file_path = tmp_path / damaged_file_name
+    if damage == "truncated_gzip":
+        damaged_file_path.write_bytes(damaged_file_path.read_bytes()[:-12])
+    elif damage == "not_gzip":
+        damaged_file_path.write_bytes(b"not a gzip file" * 4)
+    elif damage == "header_too_short":
+        with gzip.open(damaged_file_path, "wb") as damaged_stream:
+            damaged_stream.write(bytes(3))
+    else:
+        damaged_file_path.write_bytes(b"")
+    with pytest.raises(ValueError, match=damaged_file_name):
+        load_mnist_training_data(data_directory=tmp_path)
+    # 失敗は、保持しない。
+    write_mnist_files(tmp_path, pixel_rows=make_pixel_rows(2), digit_labels=[1, 2])
+    assert load_mnist_training_data(data_directory=tmp_path).digit_labels.tolist() == [1, 2]
+
+
 def test_differing_image_and_label_counts_are_rejected(tmp_path):
     write_mnist_files(tmp_path, pixel_rows=make_pixel_rows(2), digit_labels=[1, 2, 3])
     with pytest.raises(ValueError):

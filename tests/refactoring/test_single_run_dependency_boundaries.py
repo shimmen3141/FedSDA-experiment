@@ -4878,10 +4878,13 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "data/mnist/mnist_training_data.py":
         return imported_module_name in (
+            "collections.abc.Callable",
             "dataclasses.dataclass",
+            "gzip.BadGzipFile",
             "gzip.open",
             "os.environ",
             "pathlib.Path",
+            "struct.error",
             "struct.unpack",
             "numpy.frombuffer",
             "numpy.int64",
