@@ -18,8 +18,8 @@
   - _Boundary: FedsdaRunParticipantSettings、FedsdaRunParticipantFactory_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 5.1, 5.3, 6.2_
 
-- [ ] 3. 新実装だけの確認
-- [ ] 3.1 共用のfresh process scriptで、factoryと実行の枠による全体runを実行する
+- [x] 3. 新実装だけの確認
+- [x] 3.1 共用のfresh process scriptで、factoryと実行の枠による全体runを実行する
   - 完了: 共用scriptが、旧実装とtestのmoduleを読み込まずに、全体runを実行し、区間の進行の件数と、サーバとclientの状態の対応を確かめて成功する。別processで実行するtest、Ruff、Pyrightが成功する。
   - _Depends: 2.1_
   - _Boundary: 共用のfresh process script_

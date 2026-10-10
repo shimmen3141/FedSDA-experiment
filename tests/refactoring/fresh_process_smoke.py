@@ -22,6 +22,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import torch
 from numpy.random import RandomState
 
+from federated_learning_experiments.configuration.experiment_run_conditions import (
+    ExperimentRunConditions,
+)
+from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
+    RandomConceptScheduleSettings,
+)
 from federated_learning_experiments.data.observed_streams import (
     ClientObservedStream,
     ObservedSample,
@@ -52,6 +58,9 @@ from federated_learning_experiments.evaluation.sample_prediction_record_store im
 from federated_learning_experiments.execution.run_participant_contracts import RunParticipants
 from federated_learning_experiments.execution.stream_protocol_execution_loop import (
     run_stream_protocol_intervals,
+)
+from federated_learning_experiments.execution.stream_protocol_execution_settings import (
+    StreamProtocolExecutionSettings,
 )
 from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import (
     BoundedLossMoments,
@@ -161,6 +170,10 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientScalarSettings,
     FedsdaRunClientSettings,
 )
+from federated_learning_experiments.runtime.fedsda_run_participant_factory import (
+    FedsdaRunParticipantFactory,
+    FedsdaRunParticipantSettings,
+)
 from federated_learning_experiments.runtime.held_candidate_validation_progress import (
     advance_held_candidate_validation,
 )
@@ -179,6 +192,7 @@ from federated_learning_experiments.runtime.server_round_synchronization import 
     synchronize_models_in_server_round,
 )
 from federated_learning_experiments.runtime.single_run_execution import (
+    execute_stream_protocol_run,
     validate_prepared_run_participants,
 )
 
@@ -1274,7 +1288,155 @@ def run_assembled_client_flow(*, class_count):
         "global models:",
         global_model_repository.global_model_ids,
     )
-    return alarm_count, len(model_cross_evaluations)
+    return alarm_count, len(model_cross_evaluations), run_client_settings
+
+
+WHOLE_RUN_CLIENT_COUNT = 3
+WHOLE_RUN_SAMPLE_COUNT = 305
+WHOLE_RUN_INTERVAL_SAMPLE_COUNT = 10
+
+
+def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
+    """factoryと実行の枠で、最終構成のFedSDAの全体run（事前学習→SINEの供給→区間の進行→終端）を実行する。
+
+    戻り値: 比較できる結果の要約（同じ条件の2回の実行が、同じ結果になることを、mainが確かめる）。
+    """
+    participant_factory = FedsdaRunParticipantFactory(
+        run_participant_settings=FedsdaRunParticipantSettings(
+            run_client_settings=run_client_settings,
+            initial_model_pretraining_settings=InitialModelPretrainingSettings(
+                pretraining_sample_count=40,
+                pretraining_epoch_count=3,
+                pretraining_batch_sample_count=8,
+            ),
+            model_architecture_settings=ModelArchitectureSettings(
+                model_architecture_name="shared_backbone_residual_adapter",
+                residual_adapter_requested_rank=2,
+            ),
+            hidden_layer_widths=(5,),
+            model_clustering_criteria=ModelClusteringCriteria(
+                maximum_same_cluster_decision_score=0.1,
+                minimum_pair_evaluation_sample_count=5,
+                clustering_confidence_level=0.95,
+            ),
+            maximum_evaluating_client_count_per_model=WHOLE_RUN_CLIENT_COUNT,
+        )
+    )
+    torch_random_state = torch.get_rng_state().clone()
+    run_result = execute_stream_protocol_run(
+        execution_settings=StreamProtocolExecutionSettings(
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="sine2",
+                random_seed=random_seed,
+                client_count=WHOLE_RUN_CLIENT_COUNT,
+                per_client_sample_count=WHOLE_RUN_SAMPLE_COUNT,
+                server_aggregation_interval_per_client_samples=WHOLE_RUN_INTERVAL_SAMPLE_COUNT,
+            ),
+            concept_schedule_settings=RandomConceptScheduleSettings(
+                concept_schedule_strategy="random_changes_after_minimum_index_gap",
+                minimum_sample_index_gap_before_change_trial=30,
+                per_eligible_sample_concept_change_probability=0.05,
+            ),
+            execution_strategy="sample_index_then_client_order_with_interval_synchronization",
+        ),
+        participant_factory=participant_factory,
+    )
+    # 全体runは、呼出し側のtorchの乱数を進めない。
+    assert torch.equal(torch.get_rng_state(), torch_random_state)
+    round_count = WHOLE_RUN_SAMPLE_COUNT // WHOLE_RUN_INTERVAL_SAMPLE_COUNT
+    processed_sample_count = round_count * WHOLE_RUN_INTERVAL_SAMPLE_COUNT
+    assert run_result.synchronization_interval_count == round_count
+    assert run_result.processed_sample_count_per_client == processed_sample_count
+    assert run_result.unprocessed_tail_sample_count_per_client == 5
+    stage_counts = {}
+    for execution_event in run_result.execution_events:
+        stage_counts[execution_event.stage_name] = (
+            stage_counts.get(execution_event.stage_name, 0) + 1
+        )
+    assert stage_counts["sample_processing"] == processed_sample_count * WHOLE_RUN_CLIENT_COUNT
+    assert stage_counts["server_synchronization"] == round_count
+    assert stage_counts["incomplete_candidate_validation_finalization"] == WHOLE_RUN_CLIENT_COUNT
+    assert run_result.execution_events[-1].stage_name == "started_communication_finalization"
+    participants = participant_factory.prepared_run_participants
+    run_server = participants.server_operations
+    server_owners = run_server.owners
+    synchronizations = run_server.snapshot_server_round_synchronizations()
+    assert len(synchronizations) == round_count
+    global_model_ids = server_owners.global_model_repository.global_model_ids
+    communication_volume = server_owners.communication_volume_record_store.get_state_snapshot()
+    cross_evaluation_records = (
+        server_owners.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
+    )
+    # 上りの軽量メッセージは、ラウンドごとの状態の報告と、クロス評価の統計の返信。
+    assert communication_volume.uploaded_message_count == (
+        round_count * WHOLE_RUN_CLIENT_COUNT + len(cross_evaluation_records)
+    )
+    assert communication_volume.uploaded_model_count > 0
+    assert communication_volume.downloaded_model_count >= round_count * WHOLE_RUN_CLIENT_COUNT
+    alarm_count = 0
+    client_summaries = []
+    for run_client in participants.client_operations:
+        owners = run_client.owners
+        prediction_records = (
+            owners.sample_prediction_record_store.snapshot_sample_prediction_records()
+        )
+        assert [record.sample_index for record in prediction_records] == list(
+            range(processed_sample_count)
+        )
+        # 実行の枠は、clientへ真の概念を渡さない。
+        assert all(record.observed_concept_id is None for record in prediction_records)
+        held_model_training_states = (
+            owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+        )
+        # 最後の配布の後、全clientが、全グローバルモデルを保有し、1つの共有部につながっている。
+        assert (
+            tuple(
+                held_state.model_id
+                for held_state in held_model_training_states
+                if held_state.model_id >= 0
+            )
+            == global_model_ids
+        )
+        assert (
+            len(
+                {
+                    id(held_state.classifier.feature_extractor)
+                    for held_state in held_model_training_states
+                }
+            )
+            == 1
+        )
+        assert owners.validation_session_holder.held_validation_session is None
+        alarm_sample_indices = (
+            owners.loss_change_alarm_record_store.get_state_snapshot().alarm_sample_indices
+        )
+        alarm_count += len(alarm_sample_indices)
+        client_summaries.append(
+            (
+                tuple(record.combined_prediction_is_correct for record in prediction_records),
+                alarm_sample_indices,
+                owners.current_training_model_assignment.current_training_model_id,
+                tuple(held_state.model_id for held_state in held_model_training_states),
+            )
+        )
+    return dict(
+        observed_client_streams=run_result.observed_client_streams,
+        evaluation_concept_traces=run_result.evaluation_concept_traces,
+        global_model_ids=global_model_ids,
+        next_global_model_id=server_owners.global_model_repository.next_global_model_id,
+        communication_volume=communication_volume,
+        cross_evaluation_record_count=len(cross_evaluation_records),
+        clustered_round_count=sum(
+            synchronization.model_consolidation is not None for synchronization in synchronizations
+        ),
+        absorbed_model_count=sum(
+            len(synchronization.model_consolidation.absorbed_model_ids)
+            for synchronization in synchronizations
+            if synchronization.model_consolidation is not None
+        ),
+        alarm_count=alarm_count,
+        client_summaries=tuple(client_summaries),
+    )
 
 
 def main():
@@ -1297,10 +1459,10 @@ def main():
         run_assembled_client_flow(class_count=class_count) for class_count in (2, 4)
     ]
     assembled_client_alarm_counts = [
-        alarm_count for alarm_count, _ in assembled_client_flow_results
+        alarm_count for alarm_count, _, _ in assembled_client_flow_results
     ]
     clustered_round_counts = [
-        clustered_round_count for _, clustered_round_count in assembled_client_flow_results
+        clustered_round_count for _, clustered_round_count, _ in assembled_client_flow_results
     ]
     # サーバの同期の中で、クロス評価とクラスタリングが、1回以上行われた。
     assert sum(clustered_round_counts) > 0, clustered_round_counts
@@ -1309,6 +1471,25 @@ def main():
         assembled_client_alarm_counts,
         "clustered rounds",
         clustered_round_counts,
+    )
+    # 全体run: factoryと実行の枠で、同じ条件を2回実行して、同じ結果になることを確かめる。
+    whole_run_client_settings = assembled_client_flow_results[0][2]
+    whole_run_summaries = [
+        run_whole_stream_protocol_run(run_client_settings=whole_run_client_settings, random_seed=7)
+        for _ in range(2)
+    ]
+    assert whole_run_summaries[0] == whole_run_summaries[1]
+    assert whole_run_summaries[0]["alarm_count"] > 0
+    print(
+        "PASS whole stream protocol run through the participant factory:",
+        "alarms",
+        whole_run_summaries[0]["alarm_count"],
+        "global models",
+        whole_run_summaries[0]["global_model_ids"],
+        "clustered rounds",
+        whole_run_summaries[0]["clustered_round_count"],
+        "absorbed",
+        whole_run_summaries[0]["absorbed_model_count"],
     )
     required_outcomes = {
         "alarm_change_interval_too_short",
