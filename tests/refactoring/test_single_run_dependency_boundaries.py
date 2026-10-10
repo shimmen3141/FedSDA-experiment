@@ -4823,6 +4823,14 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.held_model_registration_confirmation.confirm_held_model_registration",
         )
+    if (
+        source_module_path
+        == "methods/fedsda/candidate_model_selection/candidate_validation_decision_record_store.py"
+    ):
+        return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
+        )
     if source_module_path == "methods/fedsda/consolidation/model_clustering_calculations.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6129,6 +6137,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/model_clustering_record_store.py",
             "methods/fedsda/model_registration/global_model_repository.py",
             "methods/fedsda/consolidation/model_clustering_calculations.py",
+            "methods/fedsda/candidate_model_selection/candidate_validation_decision_record_store.py",
             "runtime/server_model_registration_and_aggregation.py",
             "learning/training/shared_parameter_optimizer_state_holder.py",
             "runtime/held_model_training_request_handling.py",
@@ -6212,6 +6221,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/model_clustering_record_store.py",
                     "methods/fedsda/model_registration/global_model_repository.py",
                     "methods/fedsda/consolidation/model_clustering_calculations.py",
+                    "methods/fedsda/candidate_model_selection/candidate_validation_decision_record_store.py",
                     "runtime/server_model_registration_and_aggregation.py",
                     "learning/training/shared_parameter_optimizer_state_holder.py",
                     "runtime/held_model_training_request_handling.py",

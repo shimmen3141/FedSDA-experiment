@@ -3,7 +3,7 @@
 逐次実行（並行しない）。testを先に書く。独立レビューは、全taskの後に1回受ける（共通引継ぎ手順）。
 
 - [ ] 1. 判定記録の保持
-- [ ] 1.1 判定記録を起きた順に保持するownerを作る
+- [x] 1.1 判定記録を起きた順に保持するownerを作る
   - ownerのtest（順、読取りの不変、2つの型、拒否）を先に書く。
   - 完了: ownerのtestと、依存境界のsuiteが成功する。
   - _Boundary: CandidateValidationDecisionRecordStore_
