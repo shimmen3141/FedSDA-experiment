@@ -73,7 +73,7 @@
 | 表 | 足す列 |
 |---|---|
 | `sample_prediction`（client×処理した標本） | `observed_class_id`、`observed_concept_id`（分からなければ−1）、`maximum_prediction_weight`、`effective_model_count`、`any_model_or_combined_prediction_is_correct`、`maximum_weight_model_prediction_is_correct`、`highest_confidence_model_prediction_is_correct`、`global_diagnostic_prediction_is_correct`、`true_concept_diagnostic_prediction_is_correct`（正解1、不正解0、真の概念が分からなければ−1。整数） |
-| `client_weight_update_count`（新。clientごと。実行の終わりの値） | `client_id`、`global_diagnostic_model_pool_reset_count`、`global_diagnostic_concept_operation_restart_count`、`global_diagnostic_aggregation_recalibration_count`、`global_diagnostic_aggregation_recalibration_replayed_sample_count`、`prediction_weight_model_pool_reset_count`、`prediction_weight_leader_switch_count`、`prediction_weight_aggregation_recalibration_count`、`prediction_weight_aggregation_recalibration_replayed_sample_count` |
+| `client_weight_update_counts`（新。clientごと。実行の終わりの値） | `client_id`、`global_diagnostic_model_pool_reset_count`、`global_diagnostic_concept_operation_restart_count`、`global_diagnostic_aggregation_recalibration_count`、`global_diagnostic_aggregation_recalibration_replayed_sample_count`、`prediction_weight_model_pool_reset_count`、`prediction_weight_leader_switch_count`、`prediction_weight_aggregation_recalibration_count`、`prediction_weight_aggregation_recalibration_replayed_sample_count` |
 
 - 列の名前は、記録の型のfieldと、ownerのpropertyの名前から作る。再較正で再生した標本数は、既存の指標（`prediction_weight_recalibration_replayed_sample_count`）の語にそろえて`replayed_sample_count`。
 - 旧の、clientとクラスごとの配列（`routing_class_*`）に当たる表は、作らない（`sample_prediction`の、`observed_class_id`と正否の列から、数えられる）。

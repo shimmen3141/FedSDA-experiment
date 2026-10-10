@@ -14,8 +14,8 @@
 
 | 区分 | 指標 | 配列 |
 |---|---:|---:|
-| 照合済み | 33 | 31 |
-| 記録から導く（未照合） | 124 | 85 |
+| 照合済み（最初から。goldenが比べる項目） | 33 | 31 |
+| 記録から導く（未照合）——2026-10-11に、全部、照合済みになった | 124 | 85 |
 | 用途別の計算の計数 | 16 | 21 |
 | 未移植の診断 | 29 | 29 |
 | 所要時間 | 6 | 3 |
@@ -35,9 +35,9 @@
 
 `history_accuracy`、`drift_client_ids`、`drift_positions`、`history_model_id`、`switch_client_ids`、`switch_positions`、`adaptation_client_ids`、`adaptation_positions`、`adaptation_actions`、`adaptation_old_model_ids`、`adaptation_new_model_ids`、`provisional_client_ids`、`provisional_positions`、`provisional_accepted`、`provisional_reasons`、`provisional_resolution_positions`、`model_registration_ids`、`model_registration_rounds`、`model_registration_final_active`、`clustering_rounds`、`clustering_model_ids`、`clustering_representative_model_ids`、`clustering_participated_in_merge`、`clustering_absorbed`、`clustering_pair_rounds`、`clustering_pair_left_model_ids`、`clustering_pair_right_model_ids`、`clustering_pair_same_cluster`、`history_routing_soft_active`、`history_routing_switching_correct`、`history_routing_switching_leader_id`
 
-## 記録から導く（未照合）
+## 記録から導く（未照合）——全部、照合済みになった
 
-新の記録（予測、警報、適応、候補の判定、登録、クラスタリング、クロス評価、保有モデル数ほか）から導けると見込む。導出と、実旧の値との照合を、(A2)の一連のspecで行う（2026-10-11ユーザー決定: この区分は、全部入れる）。
+区分の名前は、分類したときのもの（ほかの文書が、この名前で指す）。新の記録（予測、警報、適応、候補の判定、登録、クラスタリング、クロス評価、保有モデル数ほか）から導けると見込み、導出と、実旧の値との照合を、(A2)の一連のspecで行った（2026-10-11ユーザー決定: この区分は、全部入れる）。2026-10-11に、全部の項目の照合が済んだ（内訳と、旧→新の対応は、下の「新実装の保存の形式と、対応」と「残り」）。新の記録だけでは導けなかった項目は、ない。
 
 **指標（124）**
 
@@ -144,14 +144,14 @@
 | `history_routing_max_weight` | `sample_prediction.maximum_prediction_weight` |
 | `history_routing_oracle_correct`・`history_routing_leader_correct` | `sample_prediction.any_model_or_combined_prediction_is_correct`・`.maximum_weight_model_prediction_is_correct` |
 | `history_routing_oracle_concept_correct` | `sample_prediction.true_concept_diagnostic_prediction_is_correct`（新は整数: 正解1、不正解0、真の概念が分からなければ−1。旧は真偽） |
-| `routing_pool_reset_counts`・`routing_concept_restart_counts`・`routing_aggregation_recalibration_counts`・`routing_aggregation_recalibration_sample_counts` | `client_weight_update_count.global_diagnostic_model_pool_reset_count`・`.global_diagnostic_concept_operation_restart_count`・`.global_diagnostic_aggregation_recalibration_count`・`.global_diagnostic_aggregation_recalibration_replayed_sample_count` |
+| `routing_pool_reset_counts`・`routing_concept_restart_counts`・`routing_aggregation_recalibration_counts`・`routing_aggregation_recalibration_sample_counts` | `client_weight_update_counts.global_diagnostic_model_pool_reset_count`・`.global_diagnostic_concept_operation_restart_count`・`.global_diagnostic_aggregation_recalibration_count`・`.global_diagnostic_aggregation_recalibration_replayed_sample_count` |
 | `routing_class_client_ids`・`routing_class_ids`・`routing_class_sample_counts`・`routing_class_oracle_correct_counts`・`routing_class_mixture_correct_counts`・`routing_class_leader_correct_counts`・`routing_class_confidence_leader_correct_counts`・`routing_class_missed_oracle_counts`・`routing_class_confidence_leader_missed_oracle_counts` | 表は持たない。`sample_prediction`の、`observed_class_id`と、正否の列（`combined_prediction_is_correct`・`any_model_or_combined_prediction_is_correct`・`maximum_weight_model_prediction_is_correct`・`highest_confidence_model_prediction_is_correct`）から、clientとクラスごとに数える（「missed」は、どれかのモデルか実際の予測が正解で、その予測が不正解の標本の数） |
 | `cross_evaluation_round_index`・`_client_id`・`_candidate_model_id`・`_target_model_id`・`_n`・`_sum`・`_sum_sq` | `client_cross_evaluation.server_round_index`・`.client_id`・`.candidate_model_id`・`.target_model_id`・`.evaluated_sample_count`・`.bounded_loss_sum`・`.squared_bounded_loss_sum` |
 | `cross_evaluation_candidate_only_correct`・`_target_only_correct`・`_both_correct`・`_both_wrong` | `client_cross_evaluation.candidate_only_correct_sample_count`・`.target_only_correct_sample_count`・`.both_correct_sample_count`・`.both_wrong_sample_count`（正誤を比べなかった評価では、新旧とも−1） |
 | `cross_evaluation_class_*`（10） | `client_cross_evaluation_class`の、同じ名前の対応の列と、`.class_id`（クラスごとの標本数は、`.class_evaluated_sample_count`） |
 | `model_pair_candidate_model_id`・`_target_model_id`・`_n`・`_candidate_only_correct`・`_target_only_correct`・`_both_correct`・`_both_wrong` | 表は持たない。`client_cross_evaluation`の、正誤を比べた行（`both_correct_sample_count`が0以上）の、対応する列と同じ |
 | `model_diagnostic_client_ids`・`model_diagnostic_model_ids`・`model_diagnostic_assigned_samples`・`model_diagnostic_training_examples`・`model_diagnostic_optimizer_steps` | `client_held_model.client_id`・`.model_id`・`.stored_training_sample_count`・`.trained_sample_count`・`.parameter_update_step_count`（実行の終わりの値。clientの順、モデルIDの昇順） |
-| （なし） | `sample_prediction.observed_class_id`・`.observed_concept_id`（観測したクラスと、真の概念）、`.highest_confidence_model_prediction_is_correct`・`.global_diagnostic_prediction_is_correct`（旧は、合計だけを持つ）、`client_weight_update_count.prediction_weight_*`（予測重みの側の、clientごとの回数。旧は、合計だけを指標に持つ） |
+| （なし） | `sample_prediction.observed_class_id`・`.observed_concept_id`（観測したクラスと、真の概念）、`.highest_confidence_model_prediction_is_correct`・`.global_diagnostic_prediction_is_correct`（旧は、合計だけを持つ）、`client_weight_update_counts.prediction_weight_*`（予測重みの側の、clientごとの回数。旧は、合計だけを指標に持つ） |
 | （なし） | `sample_prediction.held_model_count_at_prediction`（その標本の予測に使った保有モデルの数）、`server_round.local_processing_*`・`server_round.synchronization_*`（サーバの同期のラウンドごとの、モデルの計算） |
 
 整数は、新では`int64`（旧は、列により`int32`・`int8`・`float64`）。

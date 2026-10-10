@@ -596,7 +596,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
 
     # ---- clientごとの、重みの更新に関わる出来事の回数（実行の終わりの値） ----
     # globalの診断重み（AdaHedge）と、予測重み（Fixed-Share）の別。
-    record_tables["client_weight_update_count.client_id"] = _integer_column(
+    record_tables["client_weight_update_counts.client_id"] = _integer_column(
         [run_client.client_id for run_client in run_clients]
     )
     for column_name, evidence_property_name in (
@@ -614,7 +614,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
             "aggregation_recalibration_sample_count",
         ),
     ):
-        record_tables[f"client_weight_update_count.{column_name}"] = _integer_column(
+        record_tables[f"client_weight_update_counts.{column_name}"] = _integer_column(
             [
                 getattr(
                     run_client.owners.diagnostic_evidence_collection.global_diagnostic_evidence,
@@ -635,7 +635,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
             "aggregation_recalibration_sample_count",
         ),
     ):
-        record_tables[f"client_weight_update_count.{column_name}"] = _integer_column(
+        record_tables[f"client_weight_update_counts.{column_name}"] = _integer_column(
             [
                 getattr(
                     run_client.owners.fixed_share_prediction_weight_controller,

@@ -182,7 +182,7 @@ EXPECTED_TABLE_COLUMNS = {
         both_correct_sample_count="i",
         both_wrong_sample_count="i",
     ),
-    "client_weight_update_count": dict(
+    "client_weight_update_counts": dict(
         client_id="i",
         global_diagnostic_model_pool_reset_count="i",
         global_diagnostic_concept_operation_restart_count="i",
@@ -777,15 +777,15 @@ NEW_COLUMN_BY_LEGACY_PREDICTION_DIAGNOSTIC_ARRAY_NAME = {
     "history_routing_oracle_concept_correct": (
         "sample_prediction.true_concept_diagnostic_prediction_is_correct"
     ),
-    "routing_pool_reset_counts": "client_weight_update_count.global_diagnostic_model_pool_reset_count",
+    "routing_pool_reset_counts": "client_weight_update_counts.global_diagnostic_model_pool_reset_count",
     "routing_concept_restart_counts": (
-        "client_weight_update_count.global_diagnostic_concept_operation_restart_count"
+        "client_weight_update_counts.global_diagnostic_concept_operation_restart_count"
     ),
     "routing_aggregation_recalibration_counts": (
-        "client_weight_update_count.global_diagnostic_aggregation_recalibration_count"
+        "client_weight_update_counts.global_diagnostic_aggregation_recalibration_count"
     ),
     "routing_aggregation_recalibration_sample_counts": (
-        "client_weight_update_count.global_diagnostic_aggregation_recalibration_replayed_sample_count"
+        "client_weight_update_counts.global_diagnostic_aggregation_recalibration_replayed_sample_count"
     ),
 }
 # 条件ごとの、予測の診断の列が通った場合の観測（goldenの3ケースと、小さい条件）。
@@ -881,23 +881,23 @@ def assert_prediction_diagnostic_columns_match_legacy_saved_arrays(
             concept_trace.concept_ids_by_sample_index[: observed_concept_ids.shape[1]]
         )
     # clientごとの表は、clientの順に、1行ずつ。
-    assert record_tables["client_weight_update_count.client_id"].tolist() == list(
+    assert record_tables["client_weight_update_counts.client_id"].tolist() == list(
         range(observed_concept_ids.shape[0])
     )
     # 予測重みの側の回数は、指標（全clientの合計）と合う。
     run_metrics = experiment_run.run_metrics
     diagnostic_metrics = run_metrics.prediction_diagnostic_metrics
     assert (
-        record_tables["client_weight_update_count.prediction_weight_leader_switch_count"].sum()
+        record_tables["client_weight_update_counts.prediction_weight_leader_switch_count"].sum()
         == diagnostic_metrics.prediction_weight_leader_switch_count
     )
     assert (
-        record_tables["client_weight_update_count.prediction_weight_model_pool_reset_count"].sum()
+        record_tables["client_weight_update_counts.prediction_weight_model_pool_reset_count"].sum()
         == diagnostic_metrics.prediction_weight_model_pool_reset_count
     )
     assert (
         record_tables[
-            "client_weight_update_count.prediction_weight_aggregation_recalibration_replayed_sample_count"
+            "client_weight_update_counts.prediction_weight_aggregation_recalibration_replayed_sample_count"
         ].sum()
         == run_metrics.prediction_weight_recalibration_replayed_sample_count
     )
@@ -946,20 +946,20 @@ def assert_prediction_diagnostic_columns_match_legacy_saved_arrays(
                 ).any()
             ),
             global_diagnostic_model_pool_reset=bool(
-                counts["client_weight_update_count.global_diagnostic_model_pool_reset_count"].any()
+                counts["client_weight_update_counts.global_diagnostic_model_pool_reset_count"].any()
             ),
             global_diagnostic_concept_operation_restart=bool(
                 counts[
-                    "client_weight_update_count.global_diagnostic_concept_operation_restart_count"
+                    "client_weight_update_counts.global_diagnostic_concept_operation_restart_count"
                 ].any()
             ),
             global_diagnostic_aggregation_recalibration=bool(
                 counts[
-                    "client_weight_update_count.global_diagnostic_aggregation_recalibration_count"
+                    "client_weight_update_counts.global_diagnostic_aggregation_recalibration_count"
                 ].any()
             ),
             prediction_weight_leader_switch=bool(
-                counts["client_weight_update_count.prediction_weight_leader_switch_count"].any()
+                counts["client_weight_update_counts.prediction_weight_leader_switch_count"].any()
             ),
             multiple_classes_per_client=bool(
                 np.unique(counts["sample_prediction.observed_class_id"]).size > 1
@@ -1148,7 +1148,7 @@ def test_round_model_counts_match_real_legacy_whole_run(
             "aggregation_recalibration_sample_count",
         ),
     ):
-        assert record_tables[f"client_weight_update_count.{column_name}"].tolist() == [
+        assert record_tables[f"client_weight_update_counts.{column_name}"].tolist() == [
             getattr(legacy_client.switching_expert_router, legacy_attribute_name)
             for legacy_client in legacy_run["legacy_clients"]
         ], column_name
