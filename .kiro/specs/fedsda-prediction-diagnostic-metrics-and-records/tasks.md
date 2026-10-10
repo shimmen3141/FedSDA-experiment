@@ -21,11 +21,11 @@
   - _Boundary: fedsda_run_record_tables_
   - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 4. 記録と検証
+- [x] 4. 記録と検証
 - [x] 4.1 移行の一覧を更新する
   - _Requirements: 4.1_
 
-- [ ] 4.2 独立レビューの指摘を反映し、全回帰を通す
+- [x] 4.2 独立レビューの指摘を反映し、全回帰を通す
   - 完了: 全pytest、Ruff、Pyright、`pip check`、照合script（`names`・`identity`・`progress`）が成功し、件数とcommitを「Implementation Notes」へ記録してある。固定旧実装とgoldenの差分が空である。WSLでの実行結果を、区別して記録してある。
   - _Depends: 2.1, 3.1, 4.1_
 
@@ -43,6 +43,16 @@
 - 指標: 旧の40の指標（37項目の対応と、最終構成ではいつも0の3項目）が、goldenの3ケースの実旧の実行結果と、小さい条件（7条件×設定2通り）の実旧の`_add_model_diagnostic_results`の値（回復の窓を、条件の値にして呼ぶ）と、`==`で一致。実際の予測の正解の割合は、既存の指標`prediction_accuracy`とも同じ値。
 - 対応表の取り違えの検査: どの条件でも0のままの指標は、ない。取り違えを検出できない対は、`routing_mixture_accuracy`と`routing_switching_accuracy`だけ（最終構成では同じ値。新は、1つの値で持つ）。
 - 表: 旧の19の配列（標本ごと6、clientごと4、clientとクラスごと9——標本ごとの表から数える——）が、goldenの3ケースと、統合を通る小さい条件（3条件）で、形と値で一致。予測重みの側の、clientごとの4つの回数は、小さい条件で、実旧のclientの値と一致。観測した真の概念の列は、評価用の概念列と一致。照合が通った場合: 実効モデル数が1より大きい標本、正否の列が互いに違う標本、globalの診断重みの、モデルの集まりの変更・概念での再始動・集約後の再較正、予測重みの最大重みのモデルの交代。通っていない場合は、ない。
+
+### 独立レビューと検証
+
+- 独立レビュー（1回、2026-10-11）: Claude Haiku 5.5（独立CLI、effort `medium`を指定）。GPT-6 Lunaは利用上限で使えない期間。session `8ba65963-e54e-45f4-a27d-9bd6167451a1`、対象`161aa4b..c8841bc`。判定は`IMPLEMENTATION: APPROVED`（Blocker・Major・Minorなし。任意 4件）。レビュー担当は、計算のtest（131 passed）、表のtestのうちgoldenと実旧を使わないもの（21 passed・3 skipped——全条件を実行したときだけ確かめるtest——）、依存境界、Ruffを独立に実行し、計算・導出・37項目の対応・表を、旧のsource（`experiment.py`の集計と保存、`clients/fedsda.py`の標本ごとの記録）と、新の記録を作る側（`runtime/observed_sample_prediction.py`）と照合した。実旧との照合のtest、全pytest、Pyright、WSLは実行していない（依頼文で、主担当が実行すると伝えた）。レビュー担当の逸脱: 読取りに、許可していないshellのコマンド（`grep`・`sed`・`cat`・`ls`・`wc`、出力を捨てる`git show`）を使った（ファイルは変えていない。レビューの後、作業ツリーは空だった）。
+- 指摘の採否（すべて任意）: (1)移行の一覧の、件数の表と、区分の見出し・導入文が、「未照合」のままで、末尾の「全部、照合済み」と食い違う→採用（件数の表と見出しへ、照合済みになったことを書いた。区分の名前は、ほかの文書が指すので、残した）。(2)計算の関数が、数の型の`__post_init__`を直接呼ぶ→見送り（手で壊した値を、使う前に検査し直す、既存の書き方と同じ）。(3)testの、理由のない別名（`counts = record_tables`）→採用。(4)名前: 表`client_weight_update_count`は、複数の回数の列を持つので、複数形のほうが合う→採用（`client_weight_update_counts`）。真の概念別の診断の正否の列が、整数であること→命名表へ注記。
+- 指摘の反映の手順の逸脱: 表の名前の変更は、testの期待を先に直すscriptが、別名を消す部分の検査で止まり（testの改名は、書き込まれた後）、続けて、sourceの改名とcommit（`f6e5447`）が実行された。testが、古いsourceに対して失敗することは、確かめていない。別名の除去は、次のcommit（`0fd8d7a`）で入れた。
+- Blocker・Majorがないので、確認のレビューは行っていない（手順どおり）。
+- WSLで成功（`c8841bc`、WSL Ubuntu）: このspecの3つのtestファイルが、216 passed・skipなし（goldenの3ケースと小さい条件の、指標と列が、WSLでの実旧の実行とも一致）。指摘の反映の後は、WSLでは実行していない（変えたのは、表の名前1つと、testの別名と、文書）。
+- 検証（Windows基準環境）: レビューの前の`c8841bc`で、全pytest（並列、`-n 8 --dist loadfile`）12400 passed / 4 skipped / 4 warnings、exit 0。指摘の反映の後の`0fd8d7a`で、12400 passed / 4 skipped / 3 warnings、exit 0。warningは、既知のtorchの警告（nested tensorと、TypedStorage。実行によって、3件か4件）。JUnitはfailure 0、error 0。`tests.test_regression`・`tests.test_proposed_regression`を含む。skipの4件は、POSIX bashがない3件と、旧実装の照合を既存の回帰testに任せる1件。Ruff（check・format）、Pyright 0 errors、`pip check`成功。固定旧`748c3aa`からの差分は空。`spec_checks.py names`は、新規・変更のsourceで「未登録: なし」。共用scriptは`FRESH PROCESS SMOKE PASSED`（130列）。この後は、specの文書とsteeringだけを変えた。
+- 変異テストは実行していない（既定）。
 
 ### 未検証・残る制約
 
