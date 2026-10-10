@@ -4823,6 +4823,13 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.held_model_registration_confirmation.confirm_held_model_registration",
         )
+    if source_module_path == "methods/fedsda/consolidation/model_clustering_calculations.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math.isfinite",
+            "math.sqrt",
+            "statistics.NormalDist",
+        )
     if source_module_path == "methods/fedsda/model_registration/global_model_repository.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6034,6 +6041,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/communication_volume_record_store.py",
             "evaluation/cross_evaluation_record_store.py",
             "methods/fedsda/model_registration/global_model_repository.py",
+            "methods/fedsda/consolidation/model_clustering_calculations.py",
             "runtime/server_model_registration_and_aggregation.py",
             "learning/training/shared_parameter_optimizer_state_holder.py",
             "runtime/held_model_training_request_handling.py",
@@ -6111,6 +6119,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/communication_volume_record_store.py",
                     "evaluation/cross_evaluation_record_store.py",
                     "methods/fedsda/model_registration/global_model_repository.py",
+                    "methods/fedsda/consolidation/model_clustering_calculations.py",
                     "runtime/server_model_registration_and_aggregation.py",
                     "learning/training/shared_parameter_optimizer_state_holder.py",
                     "runtime/held_model_training_request_handling.py",
