@@ -2,15 +2,21 @@
 
 キーは`表の名前.列の名前`。列の名前は、新実装の記録のfieldの名前。事象の表（概念の変更、適応ほか）は、
 行ごとに`client_id`を持つ1次元の列で、client順・起きた順に並ぶ。標本ごとの表は、client×標本の2次元。
-ラウンドごとの表は、ラウンド（×client）。整数は`int64`、真偽は`bool`、文字列はNumPyのUnicode。
+サーバの同期のラウンドごとの表`server_round`は、ラウンド（×client）。整数は`int64`、真偽は`bool`、文字列はNumPyのUnicode。
 読取りだけを行い、参加者の状態と乱数を変えない。
 """
 
 from dataclasses import fields
 from typing import cast
 
-from numpy import asarray, bool_, int64, ndarray, str_
+from numpy import asarray, bool_, float64, int64, ndarray, str_
 
+from federated_learning_experiments.evaluation.change_response_metric_calculations import (
+    match_events_to_concept_changes,
+)
+from federated_learning_experiments.evaluation.run_metric_calculations import (
+    extract_concept_change_sample_indices,
+)
 from federated_learning_experiments.learning.models.model_computation_measurement import (
     ModelComputationCounts,
 )
@@ -20,26 +26,17 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.inc
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import (
     PostAlarmCandidateValidationDecisionRecord,
 )
+from federated_learning_experiments.runtime.fedsda_change_response_metric_derivation import (
+    ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME,
+)
 from federated_learning_experiments.runtime.fedsda_experiment_run import FedsdaExperimentRun
 from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
 from federated_learning_experiments.runtime.fedsda_run_server import FedsdaRunServer
 
-# 適応の結果種別から、粗い区分への対応。旧の結果（粗い区分しか持たない）を変換した表と、同じ列を持てるようにする。
-ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME: dict[str, str] = {
-    "alarm_during_candidate_validation": "defer_during_candidate_validation",
-    "alarm_change_interval_too_short": "skip_too_short_change_interval",
-    "alarm_interval_held_model_reused": "reuse_held_model",
-    "alarm_interval_current_model_maintained": "maintain_current_model",
-    "alarm_interval_candidate_validation_started": "start_candidate_validation",
-    "post_alarm_validation_candidate_adopted": "adopt_candidate_model",
-    "post_alarm_validation_held_model_reused": "reuse_held_model",
-    "post_alarm_validation_current_model_maintained": "maintain_current_model",
-    "post_alarm_validation_candidate_rejected": "reject_candidate_model",
-    "post_alarm_validation_incomplete_candidate_rejected": "reject_candidate_model",
-    "server_consolidation_training_model_remapped": "remap_by_server_consolidation",
-}
 # 初期モデル（登録のラウンドがない）の、登録ラウンドの値。
 INITIAL_MODEL_REGISTERED_ROUND_INDEX = -1
+# 整数の列で、値がないこと（推定した変化点がない、比較した参照モデルがない）を表す値。
+MISSING_INTEGER_VALUE = -1
 
 
 def _integer_column(values: list[int] | list[list[int]]) -> ndarray:
@@ -54,11 +51,16 @@ def _text_column(values: list[str]) -> ndarray:
     return asarray(values, dtype=str_)
 
 
-def _build_round_computation_table(
-    *, table_name: str, round_computation_counts: list[ModelComputationCounts]
+def _float_column(values: list[float] | list[list[float]]) -> ndarray:
+    return asarray(values, dtype=float64)
+
+
+def _build_server_round_computation_columns(
+    *, phase_name: str, round_computation_counts: list[ModelComputationCounts]
 ) -> dict[str, ndarray]:
+    """表`server_round`の、ラウンドの中の1つの段（ローカルの処理か、同期）の、モデルの計算の列。"""
     return {
-        f"{table_name}.{count_field.name}": _integer_column(
+        f"server_round.{phase_name}_{count_field.name}": _integer_column(
             [getattr(counts, count_field.name) for counts in round_computation_counts]
         )
         for count_field in fields(ModelComputationCounts)
@@ -104,11 +106,12 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
             for prediction_records in prediction_records_by_client
         ]
     )
-    record_tables["sample_prediction.held_model_count"] = _integer_column(
+    record_tables["sample_prediction.held_model_count_at_prediction"] = _integer_column(
         held_model_counts_by_client
     )
 
-    # ---- 概念の変更（評価用の概念列の、前の標本と概念が違う位置。処理しなかった末尾の標本を含む） ----
+    # ---- 概念の変更（評価用の概念列で、前の標本と概念が違う標本——新しい概念の最初の標本——の位置。
+    # 処理しなかった末尾の標本を含む） ----
     concept_changes = [
         (client_id, sample_index)
         for client_id, concept_trace in enumerate(run_result.evaluation_concept_traces)
@@ -119,8 +122,37 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     record_tables["concept_change.client_id"] = _integer_column(
         [client_id for client_id, _ in concept_changes]
     )
-    record_tables["concept_change.sample_index"] = _integer_column(
+    record_tables["concept_change.first_new_concept_sample_index"] = _integer_column(
         [sample_index for _, sample_index in concept_changes]
+    )
+
+    # ---- 損失の変化の警報（警報ごとの、位置・検出器が推定した変化点・検出器の候補の開始位置）と、
+    # 標本ごとの、損失の監視の値（log e。client×処理した標本） ----
+    alarm_snapshots = [
+        run_client.owners.loss_change_alarm_record_store.get_state_snapshot()
+        for run_client in run_clients
+    ]
+    record_tables["loss_change_alarm.client_id"] = _integer_column(
+        [
+            client_id
+            for client_id, alarm_snapshot in enumerate(alarm_snapshots)
+            for _ in alarm_snapshot.alarm_sample_indices
+        ]
+    )
+    for alarm_column_name, alarm_snapshot_field_name in (
+        ("alarm_sample_index", "alarm_sample_indices"),
+        ("estimated_change_point_sample_index", "estimated_change_point_sample_indices"),
+        ("detector_candidate_start_sample_index", "detector_candidate_start_sample_indices"),
+    ):
+        record_tables[f"loss_change_alarm.{alarm_column_name}"] = _integer_column(
+            [
+                sample_index
+                for alarm_snapshot in alarm_snapshots
+                for sample_index in getattr(alarm_snapshot, alarm_snapshot_field_name)
+            ]
+        )
+    record_tables["sample_loss_monitoring.monitored_log_e_value"] = _float_column(
+        [list(alarm_snapshot.monitored_log_e_values) for alarm_snapshot in alarm_snapshots]
     )
 
     # ---- 学習帰属の切替と、適応の記録 ----
@@ -163,6 +195,17 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
             for _, adaptation_record in adaptations
         ]
     )
+    record_tables["adaptation.detector_name"] = _text_column(
+        [adaptation_record.detector_name for _, adaptation_record in adaptations]
+    )
+    record_tables["adaptation.estimated_change_point_sample_index"] = _integer_column(
+        [
+            MISSING_INTEGER_VALUE
+            if adaptation_record.estimated_change_point_sample_index is None
+            else adaptation_record.estimated_change_point_sample_index
+            for _, adaptation_record in adaptations
+        ]
+    )
     record_tables["adaptation.previous_training_model_id"] = _integer_column(
         [adaptation_record.previous_training_model_id for _, adaptation_record in adaptations]
     )
@@ -171,47 +214,114 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     )
 
     # ---- 候補検証の判定（確定したものと、終端で回収した未完了のもの） ----
-    decision_client_ids: list[int] = []
-    decision_proposal_sample_indices: list[int] = []
-    decision_is_incomplete: list[bool] = []
-    decision_candidate_accepted: list[bool] = []
-    decision_reasons: list[str] = []
-    decision_resolution_sample_indices: list[int] = []
+    # 未完了の判定は、比較した参照モデルと、平均損失を持たない（参照モデルは−1、損失はNaN）。
+    # 「変更に対応したか」は、clientごとに、提案の位置を記録の順に並べて、変更位置と対応づけた結果。
+    maximum_delay_sample_count = (
+        experiment_run.run_settings.run_metric_settings.maximum_detection_delay_sample_count
+    )
+    decision_columns: dict[str, list[int]] = {
+        column_name: []
+        for column_name in (
+            "client_id",
+            "proposal_sample_index",
+            "resolution_sample_index",
+            "candidate_training_interval_sample_count",
+            "validation_sample_count",
+            "comparison_reference_model_id",
+        )
+    }
+    decision_flag_columns: dict[str, list[bool]] = {
+        column_name: []
+        for column_name in (
+            "is_incomplete_at_run_end",
+            "candidate_accepted",
+            "matched_to_concept_change",
+        )
+    }
+    decision_text_columns: dict[str, list[str]] = {"decision_reason": [], "detector_name": []}
+    decision_loss_column_names = (
+        "candidate_full_interval_mean_loss",
+        "reference_full_interval_mean_loss",
+        "candidate_second_segment_mean_loss",
+        "reference_second_segment_mean_loss",
+        "reference_historical_mean_loss",
+    )
+    decision_loss_columns: dict[str, list[float]] = {
+        column_name: [] for column_name in decision_loss_column_names
+    }
     for client_id, run_client in enumerate(run_clients):
-        for decision_record in run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records():
-            decision_client_ids.append(client_id)
-            decision_proposal_sample_indices.append(decision_record.proposal_sample_index)
+        decision_records = run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
+        matched_decision_positions = set(
+            match_events_to_concept_changes(
+                concept_change_sample_indices=extract_concept_change_sample_indices(
+                    concept_ids_by_sample_index=run_result.evaluation_concept_traces[
+                        client_id
+                    ].concept_ids_by_sample_index
+                ),
+                event_sample_indices=tuple(
+                    decision_record.proposal_sample_index for decision_record in decision_records
+                ),
+                maximum_delay_sample_count=maximum_delay_sample_count,
+            ).matched_event_positions
+        )
+        for decision_position, decision_record in enumerate(decision_records):
+            decision_columns["client_id"].append(client_id)
+            decision_columns["proposal_sample_index"].append(decision_record.proposal_sample_index)
+            decision_columns["candidate_training_interval_sample_count"].append(
+                decision_record.candidate_training_interval_sample_count
+            )
+            decision_text_columns["detector_name"].append(decision_record.detector_name)
+            decision_flag_columns["matched_to_concept_change"].append(
+                decision_position in matched_decision_positions
+            )
             if type(decision_record) is IncompletePostAlarmCandidateValidationDecisionRecord:
                 incomplete_record = cast(
                     IncompletePostAlarmCandidateValidationDecisionRecord, decision_record
                 )
-                decision_is_incomplete.append(True)
-                decision_candidate_accepted.append(False)
-                decision_reasons.append("")
-                decision_resolution_sample_indices.append(
+                decision_flag_columns["is_incomplete_at_run_end"].append(True)
+                decision_flag_columns["candidate_accepted"].append(False)
+                decision_text_columns["decision_reason"].append("")
+                decision_columns["resolution_sample_index"].append(
                     incomplete_record.finalization_sample_index
                 )
+                decision_columns["validation_sample_count"].append(
+                    incomplete_record.validation_sample_count
+                )
+                decision_columns["comparison_reference_model_id"].append(MISSING_INTEGER_VALUE)
+                for column_name in decision_loss_column_names:
+                    decision_loss_columns[column_name].append(float("nan"))
             else:
                 completed_record = cast(PostAlarmCandidateValidationDecisionRecord, decision_record)
                 loss_evaluation = completed_record.post_alarm_candidate_loss_evaluation
-                decision_is_incomplete.append(False)
-                decision_candidate_accepted.append(loss_evaluation.candidate_accepted)
-                decision_reasons.append(loss_evaluation.decision_reason)
-                decision_resolution_sample_indices.append(completed_record.resolution_sample_index)
-    record_tables["candidate_validation_decision.client_id"] = _integer_column(decision_client_ids)
-    record_tables["candidate_validation_decision.proposal_sample_index"] = _integer_column(
-        decision_proposal_sample_indices
-    )
-    record_tables["candidate_validation_decision.is_incomplete_at_run_end"] = _boolean_column(
-        decision_is_incomplete
-    )
-    record_tables["candidate_validation_decision.candidate_accepted"] = _boolean_column(
-        decision_candidate_accepted
-    )
-    record_tables["candidate_validation_decision.decision_reason"] = _text_column(decision_reasons)
-    record_tables["candidate_validation_decision.resolution_sample_index"] = _integer_column(
-        decision_resolution_sample_indices
-    )
+                decision_flag_columns["is_incomplete_at_run_end"].append(False)
+                decision_flag_columns["candidate_accepted"].append(
+                    loss_evaluation.candidate_accepted
+                )
+                decision_text_columns["decision_reason"].append(loss_evaluation.decision_reason)
+                decision_columns["resolution_sample_index"].append(
+                    completed_record.resolution_sample_index
+                )
+                decision_columns["validation_sample_count"].append(
+                    loss_evaluation.validation_sample_count
+                )
+                decision_columns["comparison_reference_model_id"].append(
+                    loss_evaluation.comparison_reference_model_id
+                )
+                for column_name in decision_loss_column_names:
+                    loss_value = getattr(loss_evaluation, column_name)
+                    decision_loss_columns[column_name].append(
+                        float("nan") if loss_value is None else loss_value
+                    )
+    for column_name, integer_values in decision_columns.items():
+        record_tables[f"candidate_validation_decision.{column_name}"] = _integer_column(
+            integer_values
+        )
+    for column_name, flag_values in decision_flag_columns.items():
+        record_tables[f"candidate_validation_decision.{column_name}"] = _boolean_column(flag_values)
+    for column_name, text_values in decision_text_columns.items():
+        record_tables[f"candidate_validation_decision.{column_name}"] = _text_column(text_values)
+    for column_name, loss_values in decision_loss_columns.items():
+        record_tables[f"candidate_validation_decision.{column_name}"] = _float_column(loss_values)
 
     # ---- モデルの登録 ----
     global_model_repository = server_owners.global_model_repository
@@ -270,7 +380,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
         [pair_observation.assigned_to_same_cluster for pair_observation in pair_observations]
     )
 
-    # ---- ラウンドごとのモデル数（同期の配布の後の値） ----
+    # ---- サーバの同期のラウンドごとの、モデル数（同期の最後の、配布の後の値） ----
     # 同期の最後の配布で、各clientが受け取った後の保有モデルのIDから数える。グローバルモデルは、
     # 正式ID（0以上）のモデルで、全clientが同じものを受け取る。clientは、そのほかに、まだ登録していない
     # 一時ID（負）のモデルを持つことがある。
@@ -294,15 +404,17 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
         client_held_model_counts.append(
             [len(held_model_ids) for held_model_ids in held_model_ids_by_client]
         )
-    record_tables["round.global_model_count"] = _integer_column(global_model_counts)
-    record_tables["round.client_held_model_count"] = asarray(
+    record_tables["server_round.global_model_count_after_synchronization"] = _integer_column(
+        global_model_counts
+    )
+    record_tables["server_round.client_held_model_count_after_synchronization"] = asarray(
         client_held_model_counts, dtype=int64
     ).reshape(len(synchronizations), len(run_clients))
 
-    # ---- ラウンドごとのモデルの計算（ローカルの処理と、同期の別） ----
+    # ---- サーバの同期のラウンドごとの、モデルの計算（標本の処理と区間末の学習＝ローカルの処理、と、同期の間の別） ----
     record_tables.update(
-        _build_round_computation_table(
-            table_name="round_local_processing_computation",
+        _build_server_round_computation_columns(
+            phase_name="local_processing",
             round_computation_counts=[
                 round_counts.local_processing_model_computation_counts
                 for round_counts in measured_run.round_model_computation_counts
@@ -310,8 +422,8 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
         )
     )
     record_tables.update(
-        _build_round_computation_table(
-            table_name="round_synchronization_computation",
+        _build_server_round_computation_columns(
+            phase_name="synchronization",
             round_computation_counts=[
                 round_counts.synchronization_model_computation_counts
                 for round_counts in measured_run.round_model_computation_counts

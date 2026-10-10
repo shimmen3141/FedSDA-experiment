@@ -10,6 +10,7 @@ import pytest
 import torch
 from test_fedsda_final_configuration_run_settings import make_golden_condition_run_settings
 from test_fedsda_run_metric_derivation import (
+    GOLDEN_CONDITION_PATHS_BY_DATASET_NAME,
     derive_legacy_metric_values,
     legacy_regression,
 )
@@ -55,19 +56,34 @@ from federated_learning_experiments.runtime.fedsda_run_record_tables import (
 )
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 
-# 表の名前から、列の名前と型の種類（i: int64、b: bool、U: 文字列）への対応。
-COMPUTATION_COLUMNS = {count_field.name: "i" for count_field in fields(ModelComputationCounts)}
+# 表の名前から、列の名前と型の種類（i: int64、b: bool、U: 文字列、f: float64）への対応。
+COMPUTATION_COLUMNS = {
+    f"{phase_name}_{count_field.name}": "i"
+    for phase_name in ("local_processing", "synchronization")
+    for count_field in fields(ModelComputationCounts)
+}
 EXPECTED_TABLE_COLUMNS = {
     "sample_prediction": dict(
-        combined_prediction_is_correct="b", maximum_weight_model_id="i", held_model_count="i"
+        combined_prediction_is_correct="b",
+        maximum_weight_model_id="i",
+        held_model_count_at_prediction="i",
     ),
-    "concept_change": dict(client_id="i", sample_index="i"),
+    "concept_change": dict(client_id="i", first_new_concept_sample_index="i"),
     "training_model_switch": dict(client_id="i", sample_index="i"),
+    "loss_change_alarm": dict(
+        client_id="i",
+        alarm_sample_index="i",
+        estimated_change_point_sample_index="i",
+        detector_candidate_start_sample_index="i",
+    ),
+    "sample_loss_monitoring": dict(monitored_log_e_value="f"),
     "adaptation": dict(
         client_id="i",
         adaptation_sample_index="i",
         adaptation_outcome="U",
         adaptation_action="U",
+        detector_name="U",
+        estimated_change_point_sample_index="i",
         previous_training_model_id="i",
         current_training_model_id="i",
     ),
@@ -78,6 +94,16 @@ EXPECTED_TABLE_COLUMNS = {
         candidate_accepted="b",
         decision_reason="U",
         resolution_sample_index="i",
+        detector_name="U",
+        candidate_training_interval_sample_count="i",
+        validation_sample_count="i",
+        comparison_reference_model_id="i",
+        candidate_full_interval_mean_loss="f",
+        reference_full_interval_mean_loss="f",
+        candidate_second_segment_mean_loss="f",
+        reference_second_segment_mean_loss="f",
+        reference_historical_mean_loss="f",
+        matched_to_concept_change="b",
     ),
     "model_registration": dict(model_id="i", registered_round_index="i", is_final_global_model="b"),
     "model_clustering": dict(
@@ -90,9 +116,11 @@ EXPECTED_TABLE_COLUMNS = {
     "model_pair_clustering": dict(
         round_index="i", lower_model_id="i", higher_model_id="i", assigned_to_same_cluster="b"
     ),
-    "round": dict(global_model_count="i", client_held_model_count="i"),
-    "round_local_processing_computation": COMPUTATION_COLUMNS,
-    "round_synchronization_computation": COMPUTATION_COLUMNS,
+    "server_round": dict(
+        global_model_count_after_synchronization="i",
+        client_held_model_count_after_synchronization="i",
+    )
+    | COMPUTATION_COLUMNS,
 }
 # 新の粗い区分から、旧の`action`への対応（照合のため。旧の結果の変換では、逆向きに使う）。
 LEGACY_ACTION_BY_ADAPTATION_ACTION = {
@@ -124,7 +152,9 @@ def derive_legacy_trace_arrays_from_record_tables(record_tables):
         history_accuracy=correctness.astype(np.int8),
         history_model_id=maximum_weight_model_ids.astype(np.int32),
         drift_client_ids=record_tables["concept_change.client_id"].astype(np.int32),
-        drift_positions=record_tables["concept_change.sample_index"].astype(np.int32),
+        drift_positions=record_tables["concept_change.first_new_concept_sample_index"].astype(
+            np.int32
+        ),
         switch_client_ids=record_tables["training_model_switch.client_id"].astype(np.int32),
         switch_positions=record_tables["training_model_switch.sample_index"].astype(np.int32),
         adaptation_client_ids=record_tables["adaptation.client_id"].astype(np.int32),
@@ -205,7 +235,9 @@ def assert_record_tables_are_well_formed(record_tables, *, client_count, round_c
         for column_name, kind in columns.items():
             column = record_tables[f"{table_name}.{column_name}"]
             assert type(column) is np.ndarray
-            assert column.dtype == {"i": np.int64, "b": np.bool_}.get(kind, column.dtype), (
+            assert column.dtype == {"i": np.int64, "b": np.bool_, "f": np.float64}.get(
+                kind, column.dtype
+            ), (
                 table_name,
                 column_name,
             )
@@ -213,16 +245,22 @@ def assert_record_tables_are_well_formed(record_tables, *, client_count, round_c
             row_counts.add(column.shape[0])
             expected_dimension_count = (
                 2
-                if table_name == "sample_prediction"
-                or (table_name, column_name) == ("round", "client_held_model_count")
+                if table_name in ("sample_prediction", "sample_loss_monitoring")
+                or (table_name, column_name)
+                == ("server_round", "client_held_model_count_after_synchronization")
                 else 1
             )
             assert column.ndim == expected_dimension_count, (table_name, column_name)
         assert len(row_counts) == 1, table_name
-    assert record_tables["sample_prediction.held_model_count"].shape[0] == client_count
-    assert record_tables["round.client_held_model_count"].shape == (round_count, client_count)
+    assert (
+        record_tables["sample_prediction.held_model_count_at_prediction"].shape[0] == client_count
+    )
+    assert record_tables["server_round.client_held_model_count_after_synchronization"].shape == (
+        round_count,
+        client_count,
+    )
     assert record_tables[
-        "round_local_processing_computation.shared_part_training_example_count"
+        "server_round.local_processing_shared_part_training_example_count"
     ].shape == (round_count,)
     assert set(record_tables["adaptation.adaptation_action"].tolist()) <= set(
         ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME.values()
@@ -420,11 +458,11 @@ def test_golden_condition_round_model_counts_match_legacy_saved_arrays(
     record_tables = build_fedsda_run_record_tables(experiment_run=golden_experiment_runs)
     legacy_round_model_counts = golden_condition_runs.legacy_round_model_counts
     assert (
-        record_tables["round.global_model_count"].tolist()
+        record_tables["server_round.global_model_count_after_synchronization"].tolist()
         == legacy_round_model_counts["global_model_count"].tolist()
     )
     assert (
-        record_tables["round.client_held_model_count"].tolist()
+        record_tables["server_round.client_held_model_count_after_synchronization"].tolist()
         == golden_condition_runs.legacy_round_client_counts["held_model_count"].tolist()
     )
     # 旧の「クラスタリング待ちのモデル数」は、最終構成のサーバでは、いつも0（表に入れない）。
@@ -432,18 +470,72 @@ def test_golden_condition_round_model_counts_match_legacy_saved_arrays(
     # ラウンドごとのモデルの計算は、計測つきの全体runの値。
     round_counts = golden_experiment_runs.measured_run.round_model_computation_counts
     for count_field in fields(ModelComputationCounts):
-        assert record_tables[f"round_local_processing_computation.{count_field.name}"].tolist() == [
+        assert record_tables[f"server_round.local_processing_{count_field.name}"].tolist() == [
             getattr(each_round.local_processing_model_computation_counts, count_field.name)
             for each_round in round_counts
         ]
-        assert record_tables[f"round_synchronization_computation.{count_field.name}"].tolist() == [
+        assert record_tables[f"server_round.synchronization_{count_field.name}"].tolist() == [
             getattr(each_round.synchronization_model_computation_counts, count_field.name)
             for each_round in round_counts
         ]
     # 標本ごとの保有モデル数は、clientの記録。
-    assert record_tables["sample_prediction.held_model_count"].sum() == (
+    assert record_tables["sample_prediction.held_model_count_at_prediction"].sum() == (
         golden_experiment_runs.run_metrics.held_model_sample_count
     )
+
+
+# 旧の配列の名前から、このspecで足した、新の表の列への対応（値が同じもの）。
+NEW_COLUMN_BY_LEGACY_CHANGE_RESPONSE_ARRAY_NAME = {
+    "estimated_drift_start_client_ids": "loss_change_alarm.client_id",
+    "estimated_drift_alarm_positions": "loss_change_alarm.alarm_sample_index",
+    "estimated_drift_start_positions": "loss_change_alarm.estimated_change_point_sample_index",
+    "detector_candidate_start_positions": "loss_change_alarm.detector_candidate_start_sample_index",
+    "history_detector_log_e": "sample_loss_monitoring.monitored_log_e_value",
+    "adaptation_detectors": "adaptation.detector_name",
+    "adaptation_estimated_change_points": "adaptation.estimated_change_point_sample_index",
+    "provisional_detectors": "candidate_validation_decision.detector_name",
+    # 最終構成では、候補の学習区間の全部を、学習に使う（旧の2つの配列は同じ値）。
+    "provisional_interval_counts": "candidate_validation_decision.candidate_training_interval_sample_count",
+    "provisional_training_counts": "candidate_validation_decision.candidate_training_interval_sample_count",
+    "provisional_validation_counts": "candidate_validation_decision.validation_sample_count",
+    "provisional_reference_model_ids": "candidate_validation_decision.comparison_reference_model_id",
+    "provisional_candidate_mean_losses": "candidate_validation_decision.candidate_full_interval_mean_loss",
+    "provisional_reference_mean_losses": "candidate_validation_decision.reference_full_interval_mean_loss",
+    "provisional_candidate_recent_losses": "candidate_validation_decision.candidate_second_segment_mean_loss",
+    "provisional_reference_recent_losses": "candidate_validation_decision.reference_second_segment_mean_loss",
+    "provisional_reference_historical_means": "candidate_validation_decision.reference_historical_mean_loss",
+    "provisional_matched_true": "candidate_validation_decision.matched_to_concept_change",
+}
+
+
+def test_golden_condition_change_response_columns_match_legacy_saved_arrays(
+    golden_condition_runs, golden_experiment_runs
+):
+    """goldenの条件で、警報・監視の値・適応・判定の、足した列が、実旧が保存した配列と、値で一致する。"""
+    record_tables = build_fedsda_run_record_tables(experiment_run=golden_experiment_runs)
+    legacy_saved_arrays = golden_condition_runs.legacy_saved_arrays
+    for (
+        legacy_array_name,
+        table_column_name,
+    ) in NEW_COLUMN_BY_LEGACY_CHANGE_RESPONSE_ARRAY_NAME.items():
+        legacy_array = legacy_saved_arrays[legacy_array_name]
+        column = record_tables[table_column_name]
+        assert column.shape == legacy_array.shape, legacy_array_name
+        assert column.dtype.kind == legacy_array.dtype.kind or not column.size, legacy_array_name
+        # 欠損（未完了の判定の損失）は、新旧ともNaN。整数の欠損は、新旧とも−1。
+        assert np.array_equal(column, legacy_array, equal_nan=column.dtype.kind == "f"), (
+            legacy_array_name
+        )
+    # 最終構成の判定は、すべて、警報後の標本での検証。検出episodeは、使わない。
+    assert set(legacy_saved_arrays["provisional_validation_sources"].tolist()) <= {"forward"}
+    assert set(legacy_saved_arrays["adaptation_episode_ids"].tolist()) <= {-1}
+    # 中身のある照合になっている（警報があり、監視の値が変わる）。
+    assert record_tables["loss_change_alarm.alarm_sample_index"].size > 0
+    assert np.unique(record_tables["sample_loss_monitoring.monitored_log_e_value"]).size > 10
+    expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
+    assert (
+        record_tables["candidate_validation_decision.candidate_full_interval_mean_loss"].size > 0
+    ) == expected_paths["candidate_decisions"]
 
 
 # モデルの登録・統合を通る、小さい条件: (seed, client数, 標本数, 集約間隔, 変更までの最小の間隔, 変更の確率, 学習の間隔)。
@@ -501,11 +593,11 @@ def test_round_model_counts_match_real_legacy_whole_run(
     record_tables = build_fedsda_run_record_tables(experiment_run=experiment_run)
     legacy_round_model_counts = legacy_run["legacy_round_model_counts"]
     assert (
-        record_tables["round.global_model_count"].tolist()
+        record_tables["server_round.global_model_count_after_synchronization"].tolist()
         == legacy_round_model_counts["global_model_count"]
     )
     assert (
-        record_tables["round.client_held_model_count"].tolist()
+        record_tables["server_round.client_held_model_count_after_synchronization"].tolist()
         == legacy_round_model_counts["client_held_model_count"]
     )
     # 旧の「クラスタリング待ちのモデル数」は、最終構成のサーバでは、いつも0（表に入れない）。

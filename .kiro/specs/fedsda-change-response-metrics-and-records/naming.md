@@ -9,6 +9,8 @@ sourceの公開する名前（module、class、公開の関数）と、保存す
 | `match_events_to_concept_changes` / `count_unmatched_events_by_timing` / `calculate_change_point_estimation_errors` | 同上 | 上の計算 |
 | `fedsda_change_response_metric_derivation` / `derive_fedsda_change_response_metrics` | `runtime/` | 参加者の記録から、応答の指標を作る |
 | `FedsdaChangeResponseMetrics` / `TrainingModelSwitchTimingMetrics` / `ChangePointEstimationMetrics` / `AdaptationActionMetrics` / `CandidateValidationDecisionMetrics` | 同上 | 応答の指標のまとまりと、その部分 |
+| `ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME` | `runtime/fedsda_change_response_metric_derivation.py` | 適応の結果種別から粗い区分への対応（前のspecで、表のmoduleに置いたものを、指標と表の両方が使うので、ここへ移した） |
+| `MISSING_INTEGER_VALUE` | `runtime/fedsda_run_record_tables.py` | 整数の列で、値がないことを表す値（−1） |
 | `FedsdaRunMetrics.change_response_metrics` | `runtime/fedsda_run_metric_derivation.py` | 上のまとまり |
 
 ## 保存する表の名前

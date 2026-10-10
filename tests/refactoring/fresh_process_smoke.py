@@ -1700,8 +1700,11 @@ def main():
         "dataset_name"
     ] == ("circle2")
     assert record_tables["sample_prediction.combined_prediction_is_correct"].shape == (2, 60)
-    assert record_tables["round.client_held_model_count"].shape == (6, 2)
-    assert record_tables["round.global_model_count"].tolist()[0] >= 1
+    assert record_tables["server_round.client_held_model_count_after_synchronization"].shape == (
+        6,
+        2,
+    )
+    assert record_tables["server_round.global_model_count_after_synchronization"].tolist()[0] >= 1
     print(
         "PASS experiment run from final configuration settings, saved and loaded:",
         len(record_tables),

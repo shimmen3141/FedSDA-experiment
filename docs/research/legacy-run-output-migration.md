@@ -119,7 +119,7 @@
 | `history_accuracy`、`history_routing_switching_correct` | `sample_prediction.combined_prediction_is_correct` |
 | `history_model_id`、`history_routing_switching_leader_id` | `sample_prediction.maximum_weight_model_id` |
 | `history_routing_soft_active` | なし（最終構成では、常に真） |
-| `drift_client_ids`・`drift_positions` | `concept_change.client_id`・`.sample_index` |
+| `drift_client_ids`・`drift_positions` | `concept_change.client_id`・`.first_new_concept_sample_index` |
 | `switch_client_ids`・`switch_positions` | `training_model_switch.client_id`・`.sample_index` |
 | `adaptation_client_ids`・`adaptation_positions`・`adaptation_old_model_ids`・`adaptation_new_model_ids` | `adaptation.client_id`・`.adaptation_sample_index`・`.previous_training_model_id`・`.current_training_model_id` |
 | `adaptation_actions` | `adaptation.adaptation_action`（値の名前が変わる。下の表）。新は、より細かい`adaptation.adaptation_outcome`も持つ（旧の結果からは、作れない） |
@@ -128,8 +128,15 @@
 | `model_registration_ids`・`model_registration_rounds`・`model_registration_final_active` | `model_registration.model_id`・`.registered_round_index`（初期モデルは−1）・`.is_final_global_model` |
 | `clustering_rounds`・`clustering_model_ids`・`clustering_representative_model_ids`・`clustering_participated_in_merge`・`clustering_absorbed` | `model_clustering.round_index`・`.model_id`・`.representative_model_id`・`.merged_with_other_models`・`.absorbed_into_representative` |
 | `clustering_pair_rounds`・`clustering_pair_left_model_ids`・`clustering_pair_right_model_ids`・`clustering_pair_same_cluster` | `model_pair_clustering.round_index`・`.lower_model_id`・`.higher_model_id`・`.assigned_to_same_cluster` |
-| `round_global_model_count`・`round_client_held_model_count` | `round.global_model_count`・`round.client_held_model_count` |
-| （なし） | `sample_prediction.held_model_count`（標本ごとの保有モデル数）、`round_local_processing_computation.*`・`round_synchronization_computation.*`（ラウンドごとの、モデルの計算） |
+| `round_global_model_count`・`round_client_held_model_count` | `server_round.global_model_count_after_synchronization`・`server_round.client_held_model_count_after_synchronization` |
+| `estimated_drift_start_client_ids`・`estimated_drift_alarm_positions`・`estimated_drift_start_positions`・`detector_candidate_start_positions` | `loss_change_alarm.client_id`・`.alarm_sample_index`・`.estimated_change_point_sample_index`・`.detector_candidate_start_sample_index` |
+| `history_detector_log_e` | `sample_loss_monitoring.monitored_log_e_value` |
+| `adaptation_detectors`・`adaptation_estimated_change_points` | `adaptation.detector_name`・`.estimated_change_point_sample_index`（ないときは、新旧とも−1） |
+| `provisional_detectors`・`provisional_validation_counts`・`provisional_reference_model_ids`・`provisional_matched_true` | `candidate_validation_decision.detector_name`・`.validation_sample_count`・`.comparison_reference_model_id`（ないときは、新旧とも−1）・`.matched_to_concept_change` |
+| `provisional_interval_counts`、`provisional_training_counts` | `candidate_validation_decision.candidate_training_interval_sample_count`（最終構成では、旧の2つは同じ値） |
+| `provisional_candidate_mean_losses`・`provisional_reference_mean_losses`・`provisional_candidate_recent_losses`・`provisional_reference_recent_losses`・`provisional_reference_historical_means` | `candidate_validation_decision.candidate_full_interval_mean_loss`・`.reference_full_interval_mean_loss`・`.candidate_second_segment_mean_loss`・`.reference_second_segment_mean_loss`・`.reference_historical_mean_loss`（ないときは、新旧ともNaN） |
+| `provisional_validation_sources` | なし（最終構成では、常に`forward`） |
+| （なし） | `sample_prediction.held_model_count_at_prediction`（その標本の予測に使った保有モデルの数）、`server_round.local_processing_*`・`server_round.synchronization_*`（サーバの同期のラウンドごとの、モデルの計算） |
 
 整数は、新では`int64`（旧は、列により`int32`・`int8`・`float64`）。
 
@@ -159,3 +166,37 @@
 
 照合済みの33指標は、要約の`run_metrics`（`FedsdaRunMetrics`の辞書）にある。対応は、
 `tests/refactoring/test_fedsda_run_metric_derivation.py`の`derive_legacy_metric_values`。
+
+概念の変更への応答の指標（旧の`compute_metrics`が返す指標の残りと、監視の値の最大。
+[fedsda-change-response-metrics-and-records](../../.kiro/specs/fedsda-change-response-metrics-and-records/design.md)）は、
+`run_metrics.change_response_metrics`にある。対応は、同じtestの`derive_legacy_change_response_metric_values`。
+
+| 旧 | 新（`change_response_metrics`の下） |
+|---|---|
+| `avg_delay` | `training_model_switch_timing_metrics.mean_matched_switch_delay_sample_count` |
+| `switch_fp_duplicate`・`switch_fp_early`・`switch_fp_late`・`switch_fp_isolated` | `training_model_switch_timing_metrics.unmatched_switch_counts`の`duplicate_event_count`・`early_event_count`・`late_event_count`・`isolated_event_count` |
+| `alarm_precision`・`alarm_recall`・`alarm_f1`・`alarm_total` | `loss_change_alarm_detection_metrics`の`detection_precision`・`detection_recall`・`detection_f1`・`detection_count` |
+| `change_point_mae`・`change_point_bias`・`change_point_estimate_count` | `change_point_estimation_metrics`の`mean_absolute_error_sample_count`・`mean_signed_error_sample_count`・`matched_alarm_count` |
+| `adaptation_reuse_count`・`adaptation_create_count`・`adaptation_create_rejected_count`・`adaptation_maintain_count`・`server_mapping_change_count` | `adaptation_action_metrics`の`reuse_held_model_count`・`adopt_candidate_model_count`・`reject_candidate_model_count`・`maintain_current_model_count`・`remap_by_server_consolidation_count` |
+| `adaptation_reuse_precision`・`adaptation_create_precision` | `adaptation_action_metrics`の`reuse_held_model_precision`・`adopt_candidate_model_precision` |
+| `model_reuse_current_fit_count`・`model_reuse_alternative_fit_count` | `adaptation_action_metrics`の`current_model_fit_selection_count`・`alternative_model_reuse_selection_count` |
+| `provisional_acceptance_rate`・`provisional_accepted_precision` | `candidate_validation_decision_metrics`の`accepted_decision_rate`・`accepted_decision_precision` |
+| `provisional_matched_true_count`・`provisional_accepted_matched_true_count`・`provisional_rejected_matched_true_count` | 同、`matched_decision_count`・`matched_accepted_decision_count`・`matched_rejected_decision_count` |
+| `provisional_interval_count_mean`、`provisional_training_count_mean` | 同、`mean_candidate_training_interval_sample_count`（最終構成では、旧の2つは同じ値） |
+| `provisional_validation_count_mean`・`provisional_resolution_delay_mean` | 同、`mean_validation_sample_count`・`mean_resolution_delay_sample_count` |
+| `provisional_{accepted,rejected,matched,unmatched}_full_margin_mean` | 同、`{accepted,rejected,matched,unmatched}_mean_full_interval_loss_margin` |
+| `provisional_{accepted,rejected,matched,unmatched}_recent_margin_mean` | 同、`{accepted,rejected,matched,unmatched}_mean_second_segment_loss_margin` |
+| `provisional_reject_insufficient_forward_data_count` | 同、`incomplete_at_run_end_decision_count` |
+| `provisional_reject_first_interval_count`・`provisional_reject_second_interval_count`・`provisional_reject_first_and_second_count` | 同、`first_segment_margin_failed_decision_count`・`second_segment_margin_failed_decision_count`・`both_segment_margins_failed_decision_count` |
+| `provisional_reject_current_refit_count`・`provisional_reject_alternative_refit_count` | 同、`current_reference_within_historical_loss_tolerance_decision_count`・`alternative_reference_within_historical_loss_tolerance_decision_count` |
+| `provisional_reference_excess_mean` | 同、`mean_reference_loss_excess_over_historical_mean` |
+| `e_detector_max_log_e` | `maximum_monitored_log_e_value` |
+| `total_true`・`tp`・`fp`・`fn`・`miss_rate`・`fdr`、`provisional_reject_reference_refit_count` | 持たない（ほかの値から計算できる: 検出の指標の計数と、2つの理由の数の和） |
+
+新は、適応の区分ごとの件数を、8つとも持つ（旧が返すのは、上の5つ）。
+
+### 残り（2026-10-11時点）
+
+「記録から導く（未照合）」のうち、まだ照合していないのは、指標71・配列64: モデル別の診断と登録・クラスタリング
+（`model_*`、`mean_model_count`ほか、`clustering_oracle_*`、クラスタリングの距離の配列）、予測の集計（`routing_*`のうち、
+最終構成で意味のあるもの）、クロス評価の配列（`cross_evaluation_*`、`model_pair_*`）、`runtime_seconds`以外の時系列。

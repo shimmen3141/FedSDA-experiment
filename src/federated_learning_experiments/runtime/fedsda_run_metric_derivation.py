@@ -32,6 +32,10 @@ from federated_learning_experiments.learning.models.model_computation_measuremen
 from federated_learning_experiments.methods.fedsda.model_registration.global_model_repository import (
     GlobalModelRepository,
 )
+from federated_learning_experiments.runtime.fedsda_change_response_metric_derivation import (
+    FedsdaChangeResponseMetrics,
+    derive_fedsda_change_response_metrics,
+)
 from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
 from federated_learning_experiments.runtime.fedsda_run_server import FedsdaRunServer
 from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
@@ -50,6 +54,8 @@ class FedsdaRunMetrics:
     prediction_accuracy: float
     stable_period_prediction_accuracy: float
     training_model_switch_detection_metrics: DetectionMetrics
+    # 概念の変更への応答（切替の時機、警報の検出、変化点の推定、適応の区分、候補の判定）の指標。
+    change_response_metrics: FedsdaChangeResponseMetrics
     final_global_model_count: int
     communication_volume: CommunicationVolumeSnapshot
     final_parameter_value_count: int
@@ -234,6 +240,11 @@ def derive_fedsda_run_metrics(
         training_model_switch_detection_metrics=calculate_detection_metrics(
             concept_change_sample_indices_by_client=concept_change_sample_indices_by_client,
             detection_sample_indices_by_client=training_model_switch_sample_indices_by_client,
+            maximum_delay_sample_count=run_metric_settings.maximum_detection_delay_sample_count,
+        ),
+        change_response_metrics=derive_fedsda_change_response_metrics(
+            run_clients=tuple(run_clients),
+            concept_change_sample_indices_by_client=concept_change_sample_indices_by_client,
             maximum_delay_sample_count=run_metric_settings.maximum_detection_delay_sample_count,
         ),
         final_global_model_count=len(server_owners.global_model_repository.global_model_ids),

@@ -177,6 +177,163 @@ def derive_legacy_metric_values(run_metrics):
     )
 
 
+# 旧の`compute_metrics`が返す指標のうち、新に対応する値がないもの（最終構成では使わない選択肢の指標。値は0）。
+LEGACY_METRIC_NAMES_OF_UNUSED_OPTIONS = (
+    "adaptation_episode_suppressed_count",
+    "provisional_reject_insufficient_data_count",
+    "provisional_reject_full_interval_count",
+    "provisional_reject_recent_interval_count",
+    "provisional_reject_full_and_recent_count",
+)
+
+
+def derive_legacy_change_response_metric_values(run_metrics):
+    """応答の指標を、旧の指標（`compute_metrics`と、監視の値の最大）の名前へ写す（照合のための対応表）。
+
+    旧の指標のうち、ほかの値から計算できるもの（見逃し率、誤検出率、真の変更の数ほか）は、ここで計算する。
+    """
+    detection_metrics = run_metrics.training_model_switch_detection_metrics
+    change_response_metrics = run_metrics.change_response_metrics
+    switch_timing_metrics = change_response_metrics.training_model_switch_timing_metrics
+    unmatched_switch_counts = switch_timing_metrics.unmatched_switch_counts
+    alarm_metrics = change_response_metrics.loss_change_alarm_detection_metrics
+    change_point_metrics = change_response_metrics.change_point_estimation_metrics
+    action_metrics = change_response_metrics.adaptation_action_metrics
+    decision_metrics = change_response_metrics.candidate_validation_decision_metrics
+    false_switch_count = (
+        detection_metrics.detection_count - detection_metrics.matched_detection_count
+    )
+    missed_change_count = (
+        detection_metrics.concept_change_count - detection_metrics.matched_detection_count
+    )
+    return dict(
+        # 検出の指標の計数から計算できる値。
+        total_true=detection_metrics.concept_change_count,
+        tp=detection_metrics.matched_detection_count,
+        fp=false_switch_count,
+        fn=missed_change_count,
+        miss_rate=(
+            missed_change_count / detection_metrics.concept_change_count
+            if detection_metrics.concept_change_count
+            else 0.0
+        ),
+        fdr=(
+            false_switch_count / detection_metrics.detection_count
+            if detection_metrics.detection_count
+            else 0.0
+        ),
+        # 切替の時機。
+        avg_delay=switch_timing_metrics.mean_matched_switch_delay_sample_count,
+        switch_fp_duplicate=unmatched_switch_counts.duplicate_event_count,
+        switch_fp_early=unmatched_switch_counts.early_event_count,
+        switch_fp_late=unmatched_switch_counts.late_event_count,
+        switch_fp_isolated=unmatched_switch_counts.isolated_event_count,
+        # 警報。
+        alarm_precision=alarm_metrics.detection_precision,
+        alarm_recall=alarm_metrics.detection_recall,
+        alarm_f1=alarm_metrics.detection_f1,
+        alarm_total=alarm_metrics.detection_count,
+        # 変化点の推定。
+        change_point_mae=change_point_metrics.mean_absolute_error_sample_count,
+        change_point_bias=change_point_metrics.mean_signed_error_sample_count,
+        change_point_estimate_count=change_point_metrics.matched_alarm_count,
+        # 適応の区分。
+        adaptation_reuse_count=action_metrics.reuse_held_model_count,
+        adaptation_reuse_precision=action_metrics.reuse_held_model_precision,
+        adaptation_create_count=action_metrics.adopt_candidate_model_count,
+        adaptation_create_precision=action_metrics.adopt_candidate_model_precision,
+        adaptation_create_rejected_count=action_metrics.reject_candidate_model_count,
+        adaptation_maintain_count=action_metrics.maintain_current_model_count,
+        server_mapping_change_count=action_metrics.remap_by_server_consolidation_count,
+        model_reuse_current_fit_count=action_metrics.current_model_fit_selection_count,
+        model_reuse_alternative_fit_count=action_metrics.alternative_model_reuse_selection_count,
+        # 候補の判定。
+        provisional_acceptance_rate=decision_metrics.accepted_decision_rate,
+        provisional_matched_true_count=decision_metrics.matched_decision_count,
+        provisional_accepted_matched_true_count=decision_metrics.matched_accepted_decision_count,
+        provisional_rejected_matched_true_count=decision_metrics.matched_rejected_decision_count,
+        provisional_accepted_precision=decision_metrics.accepted_decision_precision,
+        # 最終構成では、候補の学習区間の全部を、学習に使う（旧の2つの指標は同じ値）。
+        provisional_interval_count_mean=(
+            decision_metrics.mean_candidate_training_interval_sample_count
+        ),
+        provisional_training_count_mean=(
+            decision_metrics.mean_candidate_training_interval_sample_count
+        ),
+        provisional_validation_count_mean=decision_metrics.mean_validation_sample_count,
+        provisional_resolution_delay_mean=decision_metrics.mean_resolution_delay_sample_count,
+        provisional_accepted_full_margin_mean=(
+            decision_metrics.accepted_mean_full_interval_loss_margin
+        ),
+        provisional_accepted_recent_margin_mean=(
+            decision_metrics.accepted_mean_second_segment_loss_margin
+        ),
+        provisional_rejected_full_margin_mean=(
+            decision_metrics.rejected_mean_full_interval_loss_margin
+        ),
+        provisional_rejected_recent_margin_mean=(
+            decision_metrics.rejected_mean_second_segment_loss_margin
+        ),
+        provisional_matched_full_margin_mean=decision_metrics.matched_mean_full_interval_loss_margin,
+        provisional_matched_recent_margin_mean=(
+            decision_metrics.matched_mean_second_segment_loss_margin
+        ),
+        provisional_unmatched_full_margin_mean=(
+            decision_metrics.unmatched_mean_full_interval_loss_margin
+        ),
+        provisional_unmatched_recent_margin_mean=(
+            decision_metrics.unmatched_mean_second_segment_loss_margin
+        ),
+        provisional_reject_insufficient_forward_data_count=(
+            decision_metrics.incomplete_at_run_end_decision_count
+        ),
+        provisional_reject_first_interval_count=(
+            decision_metrics.first_segment_margin_failed_decision_count
+        ),
+        provisional_reject_second_interval_count=(
+            decision_metrics.second_segment_margin_failed_decision_count
+        ),
+        provisional_reject_first_and_second_count=(
+            decision_metrics.both_segment_margins_failed_decision_count
+        ),
+        provisional_reject_current_refit_count=(
+            decision_metrics.current_reference_within_historical_loss_tolerance_decision_count
+        ),
+        provisional_reject_alternative_refit_count=(
+            decision_metrics.alternative_reference_within_historical_loss_tolerance_decision_count
+        ),
+        # 旧の「参照の再適合」は、現行と、別の保有モデルの合計。
+        provisional_reject_reference_refit_count=(
+            decision_metrics.current_reference_within_historical_loss_tolerance_decision_count
+            + decision_metrics.alternative_reference_within_historical_loss_tolerance_decision_count
+        ),
+        provisional_reference_excess_mean=(
+            decision_metrics.mean_reference_loss_excess_over_historical_mean
+        ),
+    )
+
+
+def assert_change_response_metrics_match_legacy_metrics(*, run_metrics, legacy_metric_values):
+    """応答の指標が、旧の指標の値（`compute_metrics`の戻り値を含む辞書）と、全部の項目で一致する。
+
+    旧の`compute_metrics`が返す指標の全部が、照合済みの33指標・応答の指標・最終構成では使わない指標の
+    どれかに入ることも確かめる。
+    """
+    change_response_values = derive_legacy_change_response_metric_values(run_metrics)
+    for legacy_metric_name, metric_value in change_response_values.items():
+        assert metric_value == legacy_metric_values[legacy_metric_name], legacy_metric_name
+        assert type(metric_value) in (int, float), legacy_metric_name
+    for legacy_metric_name in LEGACY_METRIC_NAMES_OF_UNUSED_OPTIONS:
+        assert legacy_metric_values[legacy_metric_name] == 0, legacy_metric_name
+    legacy_compute_metrics_names = set(compute_metrics([], []))
+    assert legacy_compute_metrics_names == (
+        (set(derive_legacy_metric_values(run_metrics)) & legacy_compute_metrics_names)
+        | set(change_response_values)
+        | set(LEGACY_METRIC_NAMES_OF_UNUSED_OPTIONS)
+    )
+    assert len(change_response_values) == 52
+
+
 def derive_legacy_trace_arrays(*, run_result, participants):
     """新の記録の読取りから、旧の保存形式（`_save_raw_run`）の31の離散列を作る。"""
     run_clients = participants.client_operations
@@ -562,6 +719,10 @@ def golden_condition_runs(request, tmp_path_factory):
             legacy_trace_arrays = {
                 trace_name: legacy_arrays[trace_name] for trace_name in legacy_regression.TRACES
             }
+            # 実旧が保存した配列の全部（名前→配列）。
+            legacy_saved_arrays = {
+                array_name: legacy_arrays[array_name] for array_name in legacy_arrays.files
+            }
             # 旧の、ラウンドごとの、モデル数（同期の後の、グローバルモデル数と、クラスタリング待ちのモデル数）。
             legacy_round_model_counts = dict(
                 global_model_count=legacy_arrays["round_global_model_count"],
@@ -596,6 +757,7 @@ def golden_condition_runs(request, tmp_path_factory):
             legacy_trace_arrays=legacy_trace_arrays,
             legacy_round_client_counts=legacy_round_client_counts,
             legacy_round_model_counts=legacy_round_model_counts,
+            legacy_saved_arrays=legacy_saved_arrays,
             run_result=run_result,
             participants=participants,
             run_metric_settings=run_metric_settings,
@@ -626,6 +788,14 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
         assert metric_value == golden_condition_runs.legacy_result[legacy_metric_name], (
             legacy_metric_name
         )
+    # 応答の指標（検出の遅れ、警報、変化点の推定、適応の区分、候補の判定）も、実旧の実行結果と一致する。
+    assert_change_response_metrics_match_legacy_metrics(
+        run_metrics=run_metrics, legacy_metric_values=golden_condition_runs.legacy_result
+    )
+    assert (
+        run_metrics.change_response_metrics.maximum_monitored_log_e_value
+        == golden_condition_runs.legacy_result["e_detector_max_log_e"]
+    )
     # 旧の回帰testが求める経路（複数のモデル、候補の採用、統合、再較正）を通っている。
     # 旧の回帰testと同じく、すべての経路を求めるのはsine2だけ（datasetごとの期待は、上の表）。
     expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
@@ -1132,6 +1302,10 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
     experiment._add_telemetry_results(
         legacy_computation_results, legacy_clients, experiment._new_round_telemetry()
     )
+    # 応答の指標が、実旧の`compute_metrics`の戻り値と、全部の項目で一致する。
+    assert_change_response_metrics_match_legacy_metrics(
+        run_metrics=run_metrics, legacy_metric_values=legacy_metrics
+    )
     legacy_metric_values = derive_legacy_metric_values(run_metrics)
     for legacy_metric_name in legacy_regression.METRICS:
         if legacy_metric_name.startswith("compute_"):
@@ -1323,7 +1497,7 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
         derive_fedsda_run_metrics(
             run_result, participants, golden_condition_runs.run_metric_settings
         )
-    # 設定を変えると、検出の指標と定常精度だけが変わる。
+    # 設定を変えると、検出の指標と、応答の指標と、定常精度だけが変わる。
     strict_run_metrics = derive_fedsda_run_metrics(
         **valid_arguments
         | dict(
@@ -1348,6 +1522,7 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
             strict_run_metrics,
             stable_period_prediction_accuracy=run_metrics.stable_period_prediction_accuracy,
             training_model_switch_detection_metrics=run_metrics.training_model_switch_detection_metrics,
+            change_response_metrics=run_metrics.change_response_metrics,
         )
         == run_metrics
     )
