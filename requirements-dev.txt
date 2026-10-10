@@ -1,6 +1,8 @@
 # 開発・テスト用の追加依存。実行時依存は requirements.txt を先に入れること:
 #   pip install -r requirements.txt -r requirements-dev.txt
 pytest==9.1.1
+# 全pytestの並列実行（-n 8 --dist loadfile）。golden再現環境の版固定には含めない。
+pytest-xdist==3.8.0
 ruff==0.16.10
 pyright==1.1.414
 pre-commit==4.6.2

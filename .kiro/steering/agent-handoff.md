@@ -123,15 +123,16 @@ export FDE_MNIST_DATA_DIR="$(cd ../../data/mnist && pwd -W)"
 PY=../../venv/Scripts/python.exe
 
 $PY -m pytest tests/refactoring/test_<対象>.py tests/refactoring/test_single_run_dependency_boundaries.py -q -p no:cacheprovider
-$PY -m pytest tests -q -p no:cacheprovider --junitxml="$TMP/<feature名>-full.xml"   # 約3分
+$PY -m pytest tests -q -p no:cacheprovider -n 8 --dist loadfile --junitxml="$TMP/<feature名>-full.xml"   # 並列で約7分（逐次は約21分）
 $PY -m ruff check src tests/refactoring; $PY -m ruff format --check src tests/refactoring
 $PY -m pyright --pythonpath ../../venv/Scripts/python.exe; $PY -m pip check
 $PY .kiro/settings/scripts/spec_checks.py identity <feature名> --junit "$TMP/<feature名>-full.xml"
 ```
 
 - 全pytestと品質検査は、独立レビューの指摘を反映した後に実行する。通ったらcommitし、そのcommitと件数をtasks.mdの「Implementation Notes」へ記録する（source・testを変えたら、やり直す）。下位taskごとのcommitは、対象testが通った時点で行ってよい。
+- 全pytestの並列実行（2026-10-10、ユーザー決定で導入）: `pytest-xdist`（`requirements-dev.txt`で版固定。固定venvへ導入済み）を使い、`-n 8 --dist loadfile`で実行する。**`--dist loadfile`は必須**（同じファイルのtestを同じprocessで実行する。経路の網羅のtestや、moduleで1回だけ実行するfixtureは、同じファイルのtestが同じprocessで動くことを前提にしている。既定の`load`では、網羅のtestがskipされたり、重い実行が重複したりする）。導入時（2026-10-10、`65c3bf4`）に、逐次実行と、全11544件の合否が一致することを確かめた（JUnitの照合）。所要時間は、逐次21分→並列7分（8 workerと12 workerで同じ。最も長いファイル——指標の導出のtest——が下限になる）。JUnitは1つにまとまるので、`spec_checks.py identity`は、そのまま使える。旧の回帰（`tests/test_regression.py`・`tests/test_proposed_regression.py`）も、同じ実行に含める（ファイル単位で1つのprocessが実行するので、逐次実行のとき——全ファイルが1つのprocess——より、processの共有は少ない）。結果が逐次と違う疑いがあるときは、`-n`を外して逐次で取り直す。`pytest.ini`へは既定として書かない（golden再現環境——`environments/golden/windows-cpu/`——は、`pytest-xdist`を含まない）。レビュー担当へ許可する検証コマンドは、対象のファイルを指定した逐次の実行のままでよい。
 - 長い検証の前に、必要な一時ファイル操作と実行環境を短い確認で確かめる。既知の権限エラーがある条件で全suiteを試し直さない。必要な権限は通常の承認手順で扱い、sandbox解除・認証変更を回避策にしない。
-- 待ち時間を減らす（2026-10-10の実測では、作業時間の大半がtoolの待ちだった）: 重いtest（例: `test_observed_sample_processing.py`は全条件で約95秒）は、開発中は`-k`で条件を絞って回し、全条件と全pytest（約6分）は最後に1回にする。全pytestや長いコマンドは裏で走らせて、その間に文書を書く。
+- 待ち時間を減らす（2026-10-10の実測では、作業時間の大半がtoolの待ちだった）: 重いtest（例: `test_observed_sample_processing.py`は全条件で約95秒）は、開発中は`-k`で条件を絞って回し、全条件と全pytest（並列で約7分）は最後に1回にする。全pytestや長いコマンドは裏で走らせて、その間に文書を書く。
 - Git Bashでの注意: toolのBashは呼出しごとに作業ディレクトリが元checkoutへ戻ることがあるので、毎回worktreeへ`cd`してから実行する。引用符やbacktick、`\n`を含むscriptをheredocで書くと壊れやすいので、ファイルとして書いてから実行する。変異toolや整形は対象ファイルを書き換えるので、worktreeで実行する前に`pwd`を確かめる。
 - 所要時間を報告するときは、会話記録のtimestampで、モデルの時間・toolの待ち・ユーザーの指示待ちを分けて測る（commitの時刻だけで推定しない）。
 - source hashは、tracked Pythonと2goldenを、パス昇順でLF内容として連結したもの（`spec_checks.py identity`が計算する）。2026-10-09までのspecは、文書ごとの承認hashも持つ。
