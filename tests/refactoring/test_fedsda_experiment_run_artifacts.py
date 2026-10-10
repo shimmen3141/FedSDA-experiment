@@ -11,8 +11,12 @@ import torch
 from test_fedsda_final_configuration_run_settings import make_golden_condition_run_settings
 from test_fedsda_run_metric_derivation import (
     GOLDEN_CONDITION_PATHS_BY_DATASET_NAME,
+    client_test_module,
     derive_legacy_metric_values,
+    experiment,
+    extract_true_drift_events,
     legacy_regression,
+    whole_run_test_module,
 )
 from test_fedsda_run_metric_derivation import (
     golden_condition_runs as golden_condition_runs,
@@ -32,6 +36,10 @@ from federated_learning_experiments.core.configuration_errors import RunSettings
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
+from federated_learning_experiments.evaluation.model_clustering_record_store import (
+    ModelClusteringObservation,
+    ModelPairClusteringObservation,
+)
 from federated_learning_experiments.evaluation.run_metric_calculations import RunMetricSettings
 from federated_learning_experiments.learning.models.model_computation_measurement import (
     ModelComputationCounts,
@@ -46,6 +54,9 @@ from federated_learning_experiments.runtime.fedsda_experiment_run import (
 )
 from federated_learning_experiments.runtime.fedsda_final_configuration_run_settings import (
     build_final_configuration_fedsda_run_settings,
+)
+from federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_derivation import (
+    derive_fedsda_model_diagnostic_metrics,
 )
 from federated_learning_experiments.runtime.fedsda_run_artifact_files import (
     RUN_ARTIFACT_FORMAT_VERSION,
@@ -108,7 +119,11 @@ EXPECTED_TABLE_COLUMNS = {
         matched_to_concept_change="b",
     ),
     "model_registration": dict(
-        model_id="i", registered_server_round_index="i", is_final_global_model="b"
+        model_id="i",
+        registered_server_round_index="i",
+        is_final_global_model="b",
+        registering_client_id="i",
+        maximum_weight_prediction_sample_count="i",
     ),
     "model_clustering": dict(
         server_round_index="i",
@@ -116,12 +131,29 @@ EXPECTED_TABLE_COLUMNS = {
         representative_model_id="i",
         merged_with_other_models="b",
         absorbed_into_representative="b",
+        nearest_model_id="i",
+        nearest_loss_increase_distance="f",
+        cluster_model_count="i",
+        maximum_within_cluster_distance="f",
+        evaluated_within_cluster_pair_count="i",
+        possible_within_cluster_pair_count="i",
     ),
     "model_pair_clustering": dict(
         server_round_index="i",
         lower_model_id="i",
         higher_model_id="i",
         assigned_to_same_cluster="b",
+        loss_increase_distance="f",
+        decision_score="f",
+        true_concepts_match="i",
+        concept_specific_parameter_distance="f",
+    ),
+    "client_held_model": dict(
+        client_id="i",
+        model_id="i",
+        stored_training_sample_count="i",
+        trained_sample_count="i",
+        parameter_update_step_count="i",
     ),
     "server_round": dict(
         global_model_count_after_synchronization="i",
@@ -549,6 +581,117 @@ def test_golden_condition_change_response_columns_match_legacy_saved_arrays(
     ) == expected_paths["candidate_decisions"]
 
 
+# 条件ごとの、足した列が通った場合の観測（goldenの3ケースと、小さい条件）。
+MODEL_DIAGNOSTIC_COLUMN_OBSERVATIONS = []
+# どの条件も通らない場合（実測）。真の概念の一致が分からない対（割当の最多の真の概念が一意でないモデルを含む対）は、
+# 実旧との照合では通らない。表での表し方（−1）は、下の、記録を足したtestで確かめる。
+MODEL_DIAGNOSTIC_COLUMN_CASES_NOT_COVERED = {"true_concepts_unknown_pair"}
+# 旧の配列の名前から、モデル別の診断・登録・クラスタリングの、新の表の列への対応（値が同じもの）。
+NEW_COLUMN_BY_LEGACY_MODEL_DIAGNOSTIC_ARRAY_NAME = {
+    "model_registration_client_ids": "model_registration.registering_client_id",
+    "model_registration_selection_counts": "model_registration.maximum_weight_prediction_sample_count",
+    "clustering_nearest_model_ids": "model_clustering.nearest_model_id",
+    "clustering_nearest_distances": "model_clustering.nearest_loss_increase_distance",
+    "clustering_cluster_sizes": "model_clustering.cluster_model_count",
+    "clustering_cluster_max_distances": "model_clustering.maximum_within_cluster_distance",
+    "clustering_evaluated_pair_counts": "model_clustering.evaluated_within_cluster_pair_count",
+    "clustering_possible_pair_counts": "model_clustering.possible_within_cluster_pair_count",
+    "clustering_pair_distances": "model_pair_clustering.loss_increase_distance",
+    "clustering_pair_decision_scores": "model_pair_clustering.decision_score",
+    "clustering_pair_oracle_same_concept": "model_pair_clustering.true_concepts_match",
+    "clustering_pair_personalized_parameter_distances": (
+        "model_pair_clustering.concept_specific_parameter_distance"
+    ),
+    "model_diagnostic_client_ids": "client_held_model.client_id",
+    "model_diagnostic_model_ids": "client_held_model.model_id",
+    "model_diagnostic_assigned_samples": "client_held_model.stored_training_sample_count",
+    "model_diagnostic_training_examples": "client_held_model.trained_sample_count",
+    "model_diagnostic_optimizer_steps": "client_held_model.parameter_update_step_count",
+}
+
+
+def assert_model_diagnostic_columns_match_legacy_saved_arrays(record_tables, legacy_saved_arrays):
+    """モデル別の診断・登録・クラスタリングの、足した列が、実旧が保存した配列と、形と値で一致する。"""
+    for (
+        legacy_array_name,
+        table_column_name,
+    ) in NEW_COLUMN_BY_LEGACY_MODEL_DIAGNOSTIC_ARRAY_NAME.items():
+        legacy_array = legacy_saved_arrays[legacy_array_name]
+        column = record_tables[table_column_name]
+        assert column.shape == legacy_array.shape, legacy_array_name
+        assert column.dtype.kind == legacy_array.dtype.kind, legacy_array_name
+        # 値がないとき（距離を持つ対がない、最も近い相手がいない）は、新旧とも、距離はNaN、IDは−1。
+        assert np.array_equal(column, legacy_array, equal_nan=column.dtype.kind == "f"), (
+            legacy_array_name
+        )
+
+
+def observe_model_diagnostic_column_cases(record_tables):
+    """足した列が通った場合を、観測へ積む。"""
+    MODEL_DIAGNOSTIC_COLUMN_OBSERVATIONS.append(
+        dict(
+            absorbed_model=bool(
+                record_tables["model_clustering.absorbed_into_representative"].any()
+            ),
+            model_without_nearest_model=bool(
+                (record_tables["model_clustering.nearest_model_id"] == -1).any()
+            ),
+            true_concepts_match_values=set(
+                record_tables["model_pair_clustering.true_concepts_match"].tolist()
+            ),
+            decision_score_differs_from_distance=bool(
+                (
+                    record_tables["model_pair_clustering.decision_score"]
+                    != record_tables["model_pair_clustering.loss_increase_distance"]
+                ).any()
+            ),
+            client_holds_unregistered_model=bool(
+                (record_tables["client_held_model.model_id"] < 0).any()
+            ),
+            cluster_with_three_or_more_models=bool(
+                (record_tables["model_clustering.cluster_model_count"] >= 3).any()
+            ),
+        )
+    )
+
+
+def test_golden_condition_model_diagnostic_columns_match_legacy_saved_arrays(
+    golden_condition_runs, golden_experiment_runs
+):
+    """goldenの条件で、登録・クラスタリング・保有モデルの、足した列が、実旧が保存した配列と、値で一致する。"""
+    record_tables = build_fedsda_run_record_tables(experiment_run=golden_experiment_runs)
+    assert_model_diagnostic_columns_match_legacy_saved_arrays(
+        record_tables, golden_condition_runs.legacy_saved_arrays
+    )
+    observe_model_diagnostic_column_cases(record_tables)
+    # 保有モデルごとの表は、clientの順・モデルIDの昇順で、clientごとに、1つ以上の行を持つ。
+    held_model_rows = list(
+        zip(
+            record_tables["client_held_model.client_id"].tolist(),
+            record_tables["client_held_model.model_id"].tolist(),
+            strict=True,
+        )
+    )
+    assert held_model_rows == sorted(held_model_rows)
+    assert len(set(held_model_rows)) == len(held_model_rows)
+    assert set(record_tables["client_held_model.client_id"].tolist()) == set(
+        range(record_tables["sample_prediction.maximum_weight_model_id"].shape[0])
+    )
+    # 最大重みになった標本の数は、標本ごとの列から数えた値。登録されたモデル以外（一時IDのモデル）が
+    # 最大重みの標本は、どのモデルにも数えない。
+    maximum_weight_model_ids = record_tables["sample_prediction.maximum_weight_model_id"]
+    selection_counts = record_tables["model_registration.maximum_weight_prediction_sample_count"]
+    assert (
+        selection_counts.sum()
+        == np.isin(maximum_weight_model_ids, record_tables["model_registration.model_id"]).sum()
+    )
+    assert selection_counts.sum() > 0
+    expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
+    assert (record_tables["model_pair_clustering.loss_increase_distance"].size > 0) == (
+        expected_paths["multiple_global_models"]
+    )
+
+
 # モデルの登録・統合を通る、小さい条件: (seed, client数, 標本数, 集約間隔, 変更までの最小の間隔, 変更の確率, 学習の間隔)。
 # 最後の要素: 登録されたモデルが、同じラウンドの集約でグローバルモデルに残らない場合を含むか
 # （含むとき、登録の数と、統合で吸収された数からは、グローバルモデル数を求められない）。
@@ -573,6 +716,7 @@ def test_round_model_counts_match_real_legacy_whole_run(
     update_interval,
     registered_model_is_dropped,
     monkeypatch,
+    tmp_path,
     valid_run_settings_mapping,
 ):
     """登録・統合を通る小さい条件で、ラウンドごとのモデル数が、実旧の全体runの、同期の後の値と一致する。"""
@@ -602,6 +746,26 @@ def test_round_model_counts_match_real_legacy_whole_run(
         )
     )
     record_tables = build_fedsda_run_record_tables(experiment_run=experiment_run)
+    # 実旧の保存処理を、実旧の全体runの結果へ呼んで、旧の保存形式の配列を得る（設定の差し替えが有効な間に）。
+    legacy_raw_path = tmp_path / "legacy-small-run.npz"
+    experiment._save_raw_run(
+        str(legacy_raw_path),
+        legacy_run["legacy_clients"],
+        legacy_run["legacy_server"],
+        extract_true_drift_events(legacy_run["legacy_concept_schedules"]),
+        whole_run_test_module.LEGACY_MODE_NAME,
+        whole_run_test_module.LEGACY_MODE_NAME,
+        random_seed,
+        experiment._new_round_telemetry(),
+        client_test_module.MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
+    )
+    with np.load(legacy_raw_path, allow_pickle=False) as legacy_arrays:
+        legacy_saved_arrays = {
+            array_name: legacy_arrays[array_name] for array_name in legacy_arrays.files
+        }
+    # 登録・クラスタリング・保有モデルの、足した列が、実旧が保存した配列と一致する。
+    assert_model_diagnostic_columns_match_legacy_saved_arrays(record_tables, legacy_saved_arrays)
+    observe_model_diagnostic_column_cases(record_tables)
     legacy_round_model_counts = legacy_run["legacy_round_model_counts"]
     assert (
         record_tables["server_round.global_model_count_after_synchronization"].tolist()
@@ -637,6 +801,97 @@ def test_round_model_counts_match_real_legacy_whole_run(
         )
         for held_model_count in held_model_counts
     )
+
+
+def test_pair_with_unknown_true_concepts_and_model_without_distance_are_written_as_missing():
+    """真の概念の一致が分からない対は−1、距離を持つ対がないモデルは、最も近い相手が−1・距離がNaNになる。"""
+    experiment_run = execute_fedsda_experiment_run(run_settings=make_small_run_settings())
+    record_store = experiment_run.measured_run.participants.server_operations.owners.model_clustering_record_store
+    row_counts_before = (
+        len(record_store.snapshot_pair_clustering_observations()),
+        len(record_store.snapshot_model_clustering_observations()),
+    )
+    record_store.append_clustering_observations(
+        pair_observations=(
+            ModelPairClusteringObservation(
+                round_index=0,
+                lower_model_id=0,
+                higher_model_id=1,
+                loss_increase_distance=0.25,
+                decision_score=0.5,
+                assigned_to_same_cluster=False,
+                true_concepts_match=None,
+                concept_specific_parameter_distance=1.5,
+            ),
+        ),
+        model_observations=(
+            ModelClusteringObservation(
+                round_index=0,
+                model_id=2,
+                nearest_model_id=None,
+                nearest_loss_increase_distance=None,
+                representative_model_id=2,
+                cluster_model_count=1,
+                maximum_within_cluster_distance=None,
+                evaluated_within_cluster_pair_count=0,
+                possible_within_cluster_pair_count=0,
+                merged_with_other_models=False,
+                absorbed_into_representative=False,
+            ),
+        ),
+    )
+    record_tables = build_fedsda_run_record_tables(experiment_run=experiment_run)
+    pair_row, model_row = row_counts_before
+    assert record_tables["model_pair_clustering.true_concepts_match"][pair_row] == -1
+    assert record_tables["model_pair_clustering.loss_increase_distance"][pair_row] == 0.25
+    assert record_tables["model_pair_clustering.decision_score"][pair_row] == 0.5
+    assert (
+        record_tables["model_pair_clustering.concept_specific_parameter_distance"][pair_row] == 1.5
+    )
+    assert record_tables["model_clustering.nearest_model_id"][model_row] == -1
+    assert np.isnan(record_tables["model_clustering.nearest_loss_increase_distance"][model_row])
+    assert np.isnan(record_tables["model_clustering.maximum_within_cluster_distance"][model_row])
+    assert record_tables["model_clustering.cluster_model_count"][model_row] == 1
+    # 真の概念の一致が分からない対は、指標の比較に入らない。
+    assert (
+        derive_fedsda_model_diagnostic_metrics(
+            run_clients=tuple(experiment_run.measured_run.participants.client_operations),
+            run_server=experiment_run.measured_run.participants.server_operations,
+        ).clustering_true_concept_agreement_metrics
+        == experiment_run.run_metrics.model_diagnostic_metrics.clustering_true_concept_agreement_metrics
+    )
+
+
+def test_model_diagnostic_column_conditions_cover_required_cases():
+    """goldenの3ケースと、上の小さい条件が、統合で吸収されたモデル、真の概念の一致・不一致の対を通っている。"""
+    if len(MODEL_DIAGNOSTIC_COLUMN_OBSERVATIONS) < len(ROUND_MODEL_COUNT_CONDITIONS) + len(
+        legacy_regression.CASES
+    ):
+        pytest.skip("goldenの3ケースと、小さい条件の全部を実行したときだけ確かめる")
+    assert any(
+        observation["absorbed_model"] for observation in MODEL_DIAGNOSTIC_COLUMN_OBSERVATIONS
+    )
+    observed_true_concepts_match_values = set().union(
+        *(
+            observation["true_concepts_match_values"]
+            for observation in MODEL_DIAGNOSTIC_COLUMN_OBSERVATIONS
+        )
+    )
+    assert {0, 1} <= observed_true_concepts_match_values <= {-1, 0, 1}
+    # 通っていない場合（照合が、その場合を確かめていないこと）を、ここに書く。
+    cases_not_covered = {
+        case_name
+        for case_name in (
+            "model_without_nearest_model",
+            "decision_score_differs_from_distance",
+            "client_holds_unregistered_model",
+            "cluster_with_three_or_more_models",
+        )
+        if not any(observation[case_name] for observation in MODEL_DIAGNOSTIC_COLUMN_OBSERVATIONS)
+    }
+    if -1 not in observed_true_concepts_match_values:
+        cases_not_covered.add("true_concepts_unknown_pair")
+    assert cases_not_covered == MODEL_DIAGNOSTIC_COLUMN_CASES_NOT_COVERED
 
 
 # ---- 保存と読込み ----
@@ -682,7 +937,9 @@ def test_saved_artifacts_round_trip(small_experiment_run, tmp_path):
         column = record_tables[table_column_name]
         assert column.shape == expected_column.shape, table_column_name
         assert column.dtype == expected_column.dtype, table_column_name
-        assert np.array_equal(column, expected_column), table_column_name
+        assert np.array_equal(column, expected_column, equal_nan=column.dtype.kind == "f"), (
+            table_column_name
+        )
     # 要約のファイルは、非有限の値を含まないJSON。
     json.loads(
         artifact_paths.summary_file_path.read_text(encoding="utf-8"),

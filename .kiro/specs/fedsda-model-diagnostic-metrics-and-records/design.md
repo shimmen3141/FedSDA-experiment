@@ -27,7 +27,7 @@
 |---|---|
 | `ValueDistributionSummary` | `total_value`、`mean_value`、`minimum_value`、`coefficient_of_variation`（すべてfloat） |
 | `summarize_value_distribution(*, values)` | 値（intまたはfloatのtuple）の、合計・平均・最小・変動係数。空なら、すべて0.0。変動係数は、母標準偏差÷平均（平均が0以下なら0.0）。旧と同じく、NumPyのfloat64の配列で計算する |
-| `calculate_lower_value_same_concept_auc(*, same_concept_values, different_concept_values)` | 小さい値を、同じ概念の証拠とみなしたROC-AUC。有限でない値は除く。どちらかが空になれば、NaN |
+| `calculate_lower_value_same_concept_auc(*, same_concept_values, different_concept_values)` | 小さい値を、同じ概念の証拠とみなしたROC-AUC。有限でない値は除く。どちらかが空になれば、None |
 | `ClusterAssignmentTrueConceptAgreement` | `same_cluster_same_concept_pair_count`、`same_cluster_different_concept_pair_count`、`different_cluster_same_concept_pair_count`、`different_cluster_different_concept_pair_count`、`same_cluster_precision`、`same_cluster_recall`、`same_cluster_f1` |
 | `calculate_cluster_assignment_true_concept_agreement(*, assigned_to_same_cluster_flags, true_concepts_match_flags)` | 同じ長さの、boolの2つのtupleから、上を作る |
 
@@ -44,7 +44,7 @@
 | `ClusteringTrueConceptAgreementMetrics` | `true_concept_known_pair_count`、`same_true_concept_pair_count`、`cluster_assignment_agreement`（`ClusterAssignmentTrueConceptAgreement`）、`loss_increase_distance_same_concept_auc`、`concept_specific_parameter_distance_same_concept_auc` |
 | `FedsdaModelDiagnosticMetrics` | 上の3つ |
 | `ClientHeldModelTrainingAmount` | `client_id`、`model_id`、`stored_training_sample_count`、`trained_sample_count`、`parameter_update_step_count` |
-| `collect_client_held_model_training_amounts(*, run_clients)` | clientの順、モデルIDの昇順で、実行の終わりの保有モデルごとの学習量（表と、指標が使う） |
+| `collect_client_held_model_training_amounts(*, run_clients)` | clientの順、clientの保有の順で、実行の終わりの保有モデルごとの学習量（表と、指標が使う。表は、clientの中を、モデルIDの昇順に並べ直す——旧の配列と同じ順） |
 | `derive_fedsda_model_diagnostic_metrics(*, run_clients, run_server)` | 上のまとまりを作る |
 
 - 保有モデルは、`HeldModelTrainingStateRegistry`の保有モデル（まだ登録していない一時IDのモデルを含む。旧の`client.models`と同じ）。
@@ -67,6 +67,7 @@
 
 ## 旧と違う点
 
+- 2つの距離のAUCを定義できないとき（真の概念が一致する対か、一致しない対が、ない）、旧はNaN、新はNone（`float | None`）。NaNは、自分自身と等しくないので、指標の型どうしの等値の比較（同じ結果を2回導出して比べる、読み込んだ要約と比べる）が、成り立たなくなる。保存する要約では、どちらも`null`。
 - 旧は、対の、概念固有部のパラメータの距離がないとき、NaNを入れる。新の記録は、この距離を、いつも持つ（NaNを許さない）。最終構成では、旧も、いつも持つ。
 - 旧の`model_count_auc`は、ラウンドごとのモデル数の合計（面積ではない）。新の名前は、`total_global_model_count_over_server_rounds`。
 
@@ -75,4 +76,4 @@
 - 計算: 乱数で作った列で、NumPyでの旧と同じ式、実旧の`_lower_score_auc`と照合する。拒否のtest。
 - 指標: goldenの3ケースの実旧の実行結果（263の指標の辞書）と、全部の項目で照合する。モデル別の学習量とクラスタリングの比較は、小さい条件の実旧の`_add_model_diagnostic_results`の戻り値とも照合する（モデル数のまとめは、小さい条件の実旧の実行が、ラウンドごとの値を記録しないので、goldenだけ）。新→旧の対応を、testの`derive_legacy_model_diagnostic_metric_values`にする。
 - 対応表の取り違え: 前のspecと同じ形（実行した全部の条件で、旧の値が同じになる対と、値が変わらない項目を数える）。
-- 表: goldenの3ケースと、小さい条件の、実旧が保存した配列と照合する（小さい条件は、統合を通る）。
+- 表: goldenの3ケースと、小さい条件の、実旧が保存した配列と照合する（小さい条件は、統合を通る）。照合が通った場合（吸収されたモデル、最も近い相手のないモデル、判定の値が距離と違う対、未登録のモデルの保有、3つ以上のモデルのクラスタ、真の概念の一致・不一致）を観測し、通らない場合を、明示の一覧にする。

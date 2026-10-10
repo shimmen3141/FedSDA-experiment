@@ -7,6 +7,7 @@
 """
 
 from dataclasses import fields
+from math import nan
 from typing import cast
 
 from numpy import asarray, bool_, float64, int64, ndarray, str_
@@ -30,12 +31,17 @@ from federated_learning_experiments.runtime.fedsda_change_response_metric_deriva
     ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME,
 )
 from federated_learning_experiments.runtime.fedsda_experiment_run import FedsdaExperimentRun
+from federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_derivation import (
+    collect_client_held_model_training_amounts,
+    count_models_after_server_round_synchronizations,
+)
 from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
 from federated_learning_experiments.runtime.fedsda_run_server import FedsdaRunServer
 
 # 初期モデル（登録のラウンドがない）の、登録ラウンドの値。
 INITIAL_MODEL_REGISTERED_ROUND_INDEX = -1
-# 整数の列で、値がないこと（推定した変化点がない、比較した参照モデルがない）を表す値。
+# 整数の列で、値がないこと（推定した変化点がない、比較した参照モデルがない、登録したclientがない、
+# 最も近い相手のモデルがない、真の概念の一致が分からない）を表す値。
 MISSING_INTEGER_VALUE = -1
 
 
@@ -344,6 +350,31 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
             for registration_record in registration_records
         ]
     )
+    # 登録したclient（初期モデルには、ない）。
+    record_tables["model_registration.registering_client_id"] = _integer_column(
+        [
+            MISSING_INTEGER_VALUE
+            if registration_record.registering_client_id is None
+            else registration_record.registering_client_id
+            for registration_record in registration_records
+        ]
+    )
+    # 全clientの、処理した標本のうち、そのモデルが、予測で最大重みだった標本の数。
+    maximum_weight_prediction_sample_counts: dict[int, int] = {}
+    for prediction_records in prediction_records_by_client:
+        for prediction_record in prediction_records:
+            maximum_weight_prediction_sample_counts[prediction_record.maximum_weight_model_id] = (
+                maximum_weight_prediction_sample_counts.get(
+                    prediction_record.maximum_weight_model_id, 0
+                )
+                + 1
+            )
+    record_tables["model_registration.maximum_weight_prediction_sample_count"] = _integer_column(
+        [
+            maximum_weight_prediction_sample_counts.get(registration_record.model_id, 0)
+            for registration_record in registration_records
+        ]
+    )
 
     # ---- クラスタリングの観測（モデルごと、対ごと） ----
     model_observations = (
@@ -364,6 +395,47 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     record_tables["model_clustering.absorbed_into_representative"] = _boolean_column(
         [model_observation.absorbed_into_representative for model_observation in model_observations]
     )
+    # 損失の距離が最も小さい相手と、その距離（距離を持つ対がなければ、−1とNaN）。
+    record_tables["model_clustering.nearest_model_id"] = _integer_column(
+        [
+            MISSING_INTEGER_VALUE
+            if model_observation.nearest_model_id is None
+            else model_observation.nearest_model_id
+            for model_observation in model_observations
+        ]
+    )
+    record_tables["model_clustering.nearest_loss_increase_distance"] = _float_column(
+        [
+            nan
+            if model_observation.nearest_loss_increase_distance is None
+            else model_observation.nearest_loss_increase_distance
+            for model_observation in model_observations
+        ]
+    )
+    record_tables["model_clustering.cluster_model_count"] = _integer_column(
+        [model_observation.cluster_model_count for model_observation in model_observations]
+    )
+    # 自分のクラスタの中の対の、損失の距離の最大（距離を持つ対がなければ、NaN）。
+    record_tables["model_clustering.maximum_within_cluster_distance"] = _float_column(
+        [
+            nan
+            if model_observation.maximum_within_cluster_distance is None
+            else model_observation.maximum_within_cluster_distance
+            for model_observation in model_observations
+        ]
+    )
+    record_tables["model_clustering.evaluated_within_cluster_pair_count"] = _integer_column(
+        [
+            model_observation.evaluated_within_cluster_pair_count
+            for model_observation in model_observations
+        ]
+    )
+    record_tables["model_clustering.possible_within_cluster_pair_count"] = _integer_column(
+        [
+            model_observation.possible_within_cluster_pair_count
+            for model_observation in model_observations
+        ]
+    )
     pair_observations = (
         server_owners.model_clustering_record_store.snapshot_pair_clustering_observations()
     )
@@ -379,37 +451,57 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     record_tables["model_pair_clustering.assigned_to_same_cluster"] = _boolean_column(
         [pair_observation.assigned_to_same_cluster for pair_observation in pair_observations]
     )
+    record_tables["model_pair_clustering.loss_increase_distance"] = _float_column(
+        [pair_observation.loss_increase_distance for pair_observation in pair_observations]
+    )
+    record_tables["model_pair_clustering.decision_score"] = _float_column(
+        [pair_observation.decision_score for pair_observation in pair_observations]
+    )
+    # 真の概念の一致（診断値）: 一致1、不一致0、分からなければ−1。
+    record_tables["model_pair_clustering.true_concepts_match"] = _integer_column(
+        [
+            MISSING_INTEGER_VALUE
+            if pair_observation.true_concepts_match is None
+            else int(pair_observation.true_concepts_match)
+            for pair_observation in pair_observations
+        ]
+    )
+    record_tables["model_pair_clustering.concept_specific_parameter_distance"] = _float_column(
+        [
+            pair_observation.concept_specific_parameter_distance
+            for pair_observation in pair_observations
+        ]
+    )
+
+    # ---- clientの保有モデルごとの、実行の終わりの学習量（clientの順、モデルIDの昇順） ----
+    held_model_training_amounts = sorted(
+        collect_client_held_model_training_amounts(run_clients=tuple(run_clients)),
+        key=lambda training_amount: (training_amount.client_id, training_amount.model_id),
+    )
+    for column_name in (
+        "client_id",
+        "model_id",
+        "stored_training_sample_count",
+        "trained_sample_count",
+        "parameter_update_step_count",
+    ):
+        record_tables[f"client_held_model.{column_name}"] = _integer_column(
+            [
+                getattr(training_amount, column_name)
+                for training_amount in held_model_training_amounts
+            ]
+        )
 
     # ---- サーバの同期のラウンドごとの、モデル数（同期の最後の、配布の後の値） ----
-    # 同期の最後の配布で、各clientが受け取った後の保有モデルのIDから数える。グローバルモデルは、
-    # 正式ID（0以上）のモデルで、全clientが同じものを受け取る。clientは、そのほかに、まだ登録していない
-    # 一時ID（負）のモデルを持つことがある。
-    synchronizations = run_server.snapshot_server_round_synchronizations()
-    global_model_counts: list[int] = []
-    client_held_model_counts: list[list[int]] = []
-    for synchronization in synchronizations:
-        held_model_ids_by_client = [
-            distribution_application.held_model_ids
-            for distribution_application in synchronization.distribution_applications
-        ]
-        if len(held_model_ids_by_client) != len(run_clients):
-            raise ValueError("every client must have a distribution application in each round")
-        distributed_global_model_ids_by_client = {
-            tuple(model_id for model_id in held_model_ids if model_id >= 0)
-            for held_model_ids in held_model_ids_by_client
-        }
-        if len(distributed_global_model_ids_by_client) != 1:
-            raise ValueError("all clients must hold the same global models after a distribution")
-        global_model_counts.append(len(next(iter(distributed_global_model_ids_by_client))))
-        client_held_model_counts.append(
-            [len(held_model_ids) for held_model_ids in held_model_ids_by_client]
-        )
+    server_round_model_counts = count_models_after_server_round_synchronizations(
+        run_clients=tuple(run_clients), run_server=run_server
+    )
     record_tables["server_round.global_model_count_after_synchronization"] = _integer_column(
-        global_model_counts
+        list(server_round_model_counts.global_model_counts)
     )
     record_tables["server_round.client_held_model_count_after_synchronization"] = asarray(
-        client_held_model_counts, dtype=int64
-    ).reshape(len(synchronizations), len(run_clients))
+        server_round_model_counts.client_held_model_counts, dtype=int64
+    ).reshape(len(server_round_model_counts.global_model_counts), len(run_clients))
 
     # ---- サーバの同期のラウンドごとの、モデルの計算（標本の処理と区間末の学習＝ローカルの処理、と、同期の間の別） ----
     record_tables.update(

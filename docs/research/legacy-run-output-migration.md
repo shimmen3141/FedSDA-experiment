@@ -136,6 +136,11 @@
 | `provisional_interval_counts`、`provisional_training_counts` | `candidate_validation_decision.candidate_training_interval_sample_count`（最終構成では、旧の2つは同じ値） |
 | `provisional_candidate_mean_losses`・`provisional_reference_mean_losses`・`provisional_candidate_recent_losses`・`provisional_reference_recent_losses`・`provisional_reference_historical_means` | `candidate_validation_decision.candidate_full_interval_mean_loss`・`.reference_full_interval_mean_loss`・`.candidate_second_segment_mean_loss`・`.reference_second_segment_mean_loss`・`.reference_historical_mean_loss`（ないときは、新旧ともNaN） |
 | `provisional_validation_sources` | なし（最終構成では、常に`forward`） |
+| `model_registration_client_ids`・`model_registration_selection_counts` | `model_registration.registering_client_id`（初期モデルは、新旧とも−1）・`.maximum_weight_prediction_sample_count` |
+| `clustering_nearest_model_ids`・`clustering_nearest_distances` | `model_clustering.nearest_model_id`・`.nearest_loss_increase_distance`（距離を持つ対がなければ、新旧とも−1とNaN） |
+| `clustering_cluster_sizes`・`clustering_cluster_max_distances`・`clustering_evaluated_pair_counts`・`clustering_possible_pair_counts` | `model_clustering.cluster_model_count`・`.maximum_within_cluster_distance`（なければ、新旧ともNaN）・`.evaluated_within_cluster_pair_count`・`.possible_within_cluster_pair_count` |
+| `clustering_pair_distances`・`clustering_pair_decision_scores`・`clustering_pair_oracle_same_concept`・`clustering_pair_personalized_parameter_distances` | `model_pair_clustering.loss_increase_distance`・`.decision_score`・`.true_concepts_match`（一致1、不一致0、分からなければ、新旧とも−1）・`.concept_specific_parameter_distance` |
+| `model_diagnostic_client_ids`・`model_diagnostic_model_ids`・`model_diagnostic_assigned_samples`・`model_diagnostic_training_examples`・`model_diagnostic_optimizer_steps` | `client_held_model.client_id`・`.model_id`・`.stored_training_sample_count`・`.trained_sample_count`・`.parameter_update_step_count`（実行の終わりの値。clientの順、モデルIDの昇順） |
 | （なし） | `sample_prediction.held_model_count_at_prediction`（その標本の予測に使った保有モデルの数）、`server_round.local_processing_*`・`server_round.synchronization_*`（サーバの同期のラウンドごとの、モデルの計算） |
 
 整数は、新では`int64`（旧は、列により`int32`・`int8`・`float64`）。
@@ -195,9 +200,22 @@
 
 新は、適応の区分ごとの件数を、8つとも持つ（旧が返すのは、上の5つ）。
 
+モデル別の診断の指標（[fedsda-model-diagnostic-metrics-and-records](../../.kiro/specs/fedsda-model-diagnostic-metrics-and-records/design.md)）は、
+`run_metrics.model_diagnostic_metrics`にある。対応は、同じtestの`derive_legacy_model_diagnostic_metric_values`。
+
+| 旧 | 新（`model_diagnostic_metrics`の下） |
+|---|---|
+| `mean_model_count`・`max_model_count`・`model_count_auc` | `global_model_count_metrics`の`mean_global_model_count_after_synchronization`・`maximum_global_model_count_after_synchronization`・`total_global_model_count_over_server_rounds`（旧の「auc」は、ラウンドごとのモデル数の合計） |
+| `model_assigned_samples_{total,mean,min,cv}` | `held_model_training_amount_metrics.stored_training_sample_count_summary`の`total_value`・`mean_value`・`minimum_value`・`coefficient_of_variation` |
+| `model_training_examples_{total,mean,min,cv}` | 同、`trained_sample_count_summary`の4つ |
+| `model_optimizer_steps_{total,mean,min,cv}` | 同、`parameter_update_step_count_summary`の4つ |
+| `clustering_oracle_pair_count`・`clustering_oracle_same_pair_count` | `clustering_true_concept_agreement_metrics`の`true_concept_known_pair_count`・`same_true_concept_pair_count` |
+| `clustering_oracle_merge_tp`・`_fp`・`_fn`・`_tn` | 同、`cluster_assignment_agreement`の`same_cluster_same_concept_pair_count`・`same_cluster_different_concept_pair_count`・`different_cluster_same_concept_pair_count`・`different_cluster_different_concept_pair_count` |
+| `clustering_oracle_merge_precision`・`_recall`・`_f1` | 同、`cluster_assignment_agreement`の`same_cluster_precision`・`same_cluster_recall`・`same_cluster_f1` |
+| `clustering_oracle_loss_distance_auc`・`clustering_oracle_parameter_distance_auc` | 同、`loss_increase_distance_same_concept_auc`・`concept_specific_parameter_distance_same_concept_auc`（定義できないとき、旧はNaN、新は`None`。保存した要約では、`null`） |
+
 ### 残り（2026-10-11時点）
 
-「記録から導く（未照合）」（指標124・配列85）のうち、照合が済んだのは、指標53（応答の指標52と、`e_detector_max_log_e`）と、配列21（ラウンドごとのモデル数の2つ、応答の記録の、値を照合した18、常に`forward`であることを確かめた`provisional_validation_sources`）。
-まだ照合していないのは、指標71・配列64: モデル別の診断と登録・クラスタリング
-（`model_*`、`mean_model_count`ほか、`clustering_oracle_*`、クラスタリングの距離の配列）、予測の集計（`routing_*`のうち、
+「記録から導く（未照合）」（指標124・配列85）のうち、照合が済んだのは、指標79（応答の指標52、`e_detector_max_log_e`、モデル別の診断の指標26）と、配列38（ラウンドごとのモデル数の2つ、応答の記録の、値を照合した18、常に`forward`であることを確かめた`provisional_validation_sources`、登録・クラスタリング・保有モデルの17）。
+まだ照合していないのは、指標45・配列47: モデル対の予測の相補性（`model_pair_*`の5指標）、予測の集計（`routing_*`のうち、
 最終構成で意味のあるもの）、クロス評価の配列（`cross_evaluation_*`、`model_pair_*`）、`runtime_seconds`以外の時系列。

@@ -4870,6 +4870,14 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in ("dataclasses.dataclass",)
     if source_module_path == "evaluation/held_model_count_record_store.py":
         return imported_module_name in ()
+    if source_module_path == "evaluation/model_diagnostic_metric_calculations.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math.isfinite",
+            "math.isnan",
+            "numpy.asarray",
+            "numpy.float64",
+        )
     if source_module_path == "evaluation/change_response_metric_calculations.py":
         return imported_module_name in ("dataclasses.dataclass",)
     if source_module_path == "evaluation/computation_cost_summary.py":
@@ -5013,6 +5021,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.model_registration.global_model_repository.GlobalModelRepository",
             "federated_learning_experiments.runtime.fedsda_change_response_metric_derivation.FedsdaChangeResponseMetrics",
             "federated_learning_experiments.runtime.fedsda_change_response_metric_derivation.derive_fedsda_change_response_metrics",
+            "federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_derivation.FedsdaModelDiagnosticMetrics",
+            "federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_derivation.derive_fedsda_model_diagnostic_metrics",
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.fedsda_run_server.FedsdaRunServer",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.split_shared_and_concept_specific_parameters",
@@ -5030,6 +5040,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "runtime/fedsda_run_record_tables.py":
         return imported_module_name in (
             "dataclasses.fields",
+            "math.nan",
             "typing.cast",
             "numpy.asarray",
             "numpy.bool_",
@@ -5044,6 +5055,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
             "federated_learning_experiments.runtime.fedsda_change_response_metric_derivation.ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME",
             "federated_learning_experiments.runtime.fedsda_experiment_run.FedsdaExperimentRun",
+            "federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_derivation.collect_client_held_model_training_amounts",
+            "federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_derivation.count_models_after_server_round_synchronizations",
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.fedsda_run_server.FedsdaRunServer",
         )
@@ -5066,6 +5079,19 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
             "federated_learning_experiments.runtime.fedsda_experiment_run.FedsdaExperimentRun",
             "federated_learning_experiments.runtime.fedsda_run_record_tables.build_fedsda_run_record_tables",
+        )
+    if source_module_path == "runtime/fedsda_model_diagnostic_metric_derivation.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "numpy.asarray",
+            "numpy.float64",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.ClusterAssignmentTrueConceptAgreement",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.ValueDistributionSummary",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.calculate_cluster_assignment_true_concept_agreement",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.calculate_lower_value_same_concept_auc",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.summarize_value_distribution",
+            "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
+            "federated_learning_experiments.runtime.fedsda_run_server.FedsdaRunServer",
         )
     if source_module_path == "runtime/fedsda_change_response_metric_derivation.py":
         return imported_module_name in (
@@ -6367,6 +6393,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/fedsda_final_configuration_run_settings.py",
             "runtime/fedsda_run_settings.py",
             "runtime/fedsda_change_response_metric_derivation.py",
+            "runtime/fedsda_model_diagnostic_metric_derivation.py",
             "runtime/fedsda_run_artifact_files.py",
             "runtime/fedsda_run_record_tables.py",
             "runtime/fedsda_experiment_run.py",
@@ -6384,6 +6411,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "data/mnist/mnist_training_data.py",
             "evaluation/computation_cost_summary.py",
             "evaluation/change_response_metric_calculations.py",
+            "evaluation/model_diagnostic_metric_calculations.py",
             "evaluation/held_model_count_record_store.py",
             "evaluation/loss_monitoring_computation_count_store.py",
             "learning/models/model_computation_measurement.py",
@@ -6469,6 +6497,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedsda_final_configuration_run_settings.py",
                     "runtime/fedsda_run_settings.py",
                     "runtime/fedsda_change_response_metric_derivation.py",
+                    "runtime/fedsda_model_diagnostic_metric_derivation.py",
                     "runtime/fedsda_run_artifact_files.py",
                     "runtime/fedsda_run_record_tables.py",
                     "runtime/fedsda_experiment_run.py",
@@ -6486,6 +6515,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "data/mnist/mnist_training_data.py",
                     "evaluation/computation_cost_summary.py",
                     "evaluation/change_response_metric_calculations.py",
+                    "evaluation/model_diagnostic_metric_calculations.py",
                     "evaluation/held_model_count_record_store.py",
                     "evaluation/loss_monitoring_computation_count_store.py",
                     "learning/models/model_computation_measurement.py",

@@ -354,6 +354,98 @@ def assert_change_response_metrics_match_legacy_metrics(*, run_metrics, legacy_m
     )
 
 
+# 旧の、ラウンドごとのグローバルモデル数のまとめ（`_add_telemetry_results`）。
+LEGACY_GLOBAL_MODEL_COUNT_METRIC_NAMES = ("mean_model_count", "max_model_count", "model_count_auc")
+# 旧の、2つの距離のAUC（定義できないとき、旧はNaN、新はNone）。
+LEGACY_AUC_METRIC_NAMES = (
+    "clustering_oracle_loss_distance_auc",
+    "clustering_oracle_parameter_distance_auc",
+)
+# 照合のたびに、旧の指標の値（モデル別の診断の指標の、旧の名前→値。NaNはNone）を積む（対応表の取り違えの検査に使う）。
+LEGACY_MODEL_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS = []
+# 実行した全部の条件で、旧の値が同じになる、指標の対（対応表で、この2つを取り違えても、照合は検出できない）。
+# クラスタの割当の適合率・再現率・F1は、実行した条件では、いつも同じ値になる（統合した対が、すべて、真の概念の一致する対で、
+# 一致する対を、すべて統合したか、統合が1つもないか）。この3つは、4通りの数（条件の間で、互いに違う値を取る）から、
+# 計算のmoduleが作り、乱数の列で、旧と同じ式と照合してある（test_model_diagnostic_metric_calculations.py）。
+INDISTINGUISHABLE_LEGACY_MODEL_DIAGNOSTIC_METRIC_NAME_PAIRS = {
+    ("clustering_oracle_merge_f1", "clustering_oracle_merge_precision"),
+    ("clustering_oracle_merge_f1", "clustering_oracle_merge_recall"),
+    ("clustering_oracle_merge_precision", "clustering_oracle_merge_recall"),
+}
+
+
+def derive_legacy_model_diagnostic_metric_values(run_metrics):
+    """モデル別の診断の指標を、旧の指標の名前へ写す（照合のための対応表）。"""
+    model_diagnostic_metrics = run_metrics.model_diagnostic_metrics
+    global_model_count_metrics = model_diagnostic_metrics.global_model_count_metrics
+    training_amount_metrics = model_diagnostic_metrics.held_model_training_amount_metrics
+    clustering_metrics = model_diagnostic_metrics.clustering_true_concept_agreement_metrics
+    cluster_assignment_agreement = clustering_metrics.cluster_assignment_agreement
+    legacy_metric_values = dict(
+        mean_model_count=global_model_count_metrics.mean_global_model_count_after_synchronization,
+        max_model_count=global_model_count_metrics.maximum_global_model_count_after_synchronization,
+        model_count_auc=global_model_count_metrics.total_global_model_count_over_server_rounds,
+    )
+    for legacy_prefix, summary in (
+        ("model_assigned_samples", training_amount_metrics.stored_training_sample_count_summary),
+        ("model_training_examples", training_amount_metrics.trained_sample_count_summary),
+        ("model_optimizer_steps", training_amount_metrics.parameter_update_step_count_summary),
+    ):
+        legacy_metric_values[f"{legacy_prefix}_total"] = summary.total_value
+        legacy_metric_values[f"{legacy_prefix}_mean"] = summary.mean_value
+        legacy_metric_values[f"{legacy_prefix}_min"] = summary.minimum_value
+        legacy_metric_values[f"{legacy_prefix}_cv"] = summary.coefficient_of_variation
+    legacy_metric_values.update(
+        clustering_oracle_pair_count=clustering_metrics.true_concept_known_pair_count,
+        clustering_oracle_same_pair_count=clustering_metrics.same_true_concept_pair_count,
+        clustering_oracle_merge_tp=cluster_assignment_agreement.same_cluster_same_concept_pair_count,
+        clustering_oracle_merge_fp=(
+            cluster_assignment_agreement.same_cluster_different_concept_pair_count
+        ),
+        clustering_oracle_merge_fn=(
+            cluster_assignment_agreement.different_cluster_same_concept_pair_count
+        ),
+        clustering_oracle_merge_tn=(
+            cluster_assignment_agreement.different_cluster_different_concept_pair_count
+        ),
+        clustering_oracle_merge_precision=cluster_assignment_agreement.same_cluster_precision,
+        clustering_oracle_merge_recall=cluster_assignment_agreement.same_cluster_recall,
+        clustering_oracle_merge_f1=cluster_assignment_agreement.same_cluster_f1,
+        clustering_oracle_loss_distance_auc=clustering_metrics.loss_increase_distance_same_concept_auc,
+        clustering_oracle_parameter_distance_auc=(
+            clustering_metrics.concept_specific_parameter_distance_same_concept_auc
+        ),
+    )
+    return legacy_metric_values
+
+
+def assert_model_diagnostic_metrics_match_legacy_metrics(
+    *, run_metrics, legacy_metric_values, global_model_counts_are_recorded
+):
+    """モデル別の診断の指標が、旧の指標の値と、全部の項目で一致する（旧のNaN——AUCを定義できない——は、新ではNone）。
+
+    小さい条件の実旧の実行は、ラウンドごとのモデル数を記録しないので、そのまとめの3項目は、比べない。
+    """
+    model_diagnostic_values = derive_legacy_model_diagnostic_metric_values(run_metrics)
+    assert len(model_diagnostic_values) == 26
+    compared_values = {}
+    for legacy_metric_name, metric_value in model_diagnostic_values.items():
+        if (
+            legacy_metric_name in LEGACY_GLOBAL_MODEL_COUNT_METRIC_NAMES
+            and not global_model_counts_are_recorded
+        ):
+            continue
+        legacy_metric_value = legacy_metric_values[legacy_metric_name]
+        if isnan(legacy_metric_value):
+            assert legacy_metric_name in LEGACY_AUC_METRIC_NAMES, legacy_metric_name
+            assert metric_value is None, legacy_metric_name
+        else:
+            assert type(metric_value) in (int, float), legacy_metric_name
+            assert metric_value == legacy_metric_value, legacy_metric_name
+        compared_values[legacy_metric_name] = metric_value
+    LEGACY_MODEL_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS.append(compared_values)
+
+
 def derive_legacy_trace_arrays(*, run_result, participants):
     """新の記録の読取りから、旧の保存形式（`_save_raw_run`）の31の離散列を作る。"""
     run_clients = participants.client_operations
@@ -815,6 +907,12 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
     assert (
         run_metrics.change_response_metrics.maximum_monitored_log_e_value
         == golden_condition_runs.legacy_result["e_detector_max_log_e"]
+    )
+    # モデル別の診断の指標（モデル数のまとめ、モデル別の学習量、クラスタリングの判定と真の概念の一致）も、一致する。
+    assert_model_diagnostic_metrics_match_legacy_metrics(
+        run_metrics=run_metrics,
+        legacy_metric_values=golden_condition_runs.legacy_result,
+        global_model_counts_are_recorded=True,
     )
     # 旧の回帰testが求める経路（複数のモデル、候補の採用、統合、再較正）を通っている。
     # 旧の回帰testと同じく、すべての経路を求めるのはsine2だけ（datasetごとの期待は、上の表）。
@@ -1331,6 +1429,16 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
     assert_change_response_metrics_match_legacy_metrics(
         run_metrics=run_metrics, legacy_metric_values=legacy_metrics
     )
+    # モデル別の学習量と、クラスタリングの判定と真の概念の一致が、実旧の集計と一致する。
+    legacy_model_diagnostic_results = {}
+    experiment._add_model_diagnostic_results(
+        legacy_model_diagnostic_results, legacy_clients, legacy_server, legacy_true_drift_events
+    )
+    assert_model_diagnostic_metrics_match_legacy_metrics(
+        run_metrics=run_metrics,
+        legacy_metric_values=legacy_model_diagnostic_results,
+        global_model_counts_are_recorded=False,
+    )
     legacy_metric_values = derive_legacy_metric_values(run_metrics)
     for legacy_metric_name in legacy_regression.METRICS:
         if legacy_metric_name.startswith("compute_"):
@@ -1548,6 +1656,7 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
             stable_period_prediction_accuracy=run_metrics.stable_period_prediction_accuracy,
             training_model_switch_detection_metrics=run_metrics.training_model_switch_detection_metrics,
             change_response_metrics=run_metrics.change_response_metrics,
+            model_diagnostic_metrics=run_metrics.model_diagnostic_metrics,
         )
         == run_metrics
     )
@@ -1575,4 +1684,41 @@ def test_change_response_metric_correspondence_distinguishes_metric_pairs():
         legacy_metric_name
         for legacy_metric_name in legacy_metric_names
         if all(observation[legacy_metric_name] == 0 for observation in observations)
+    ]
+
+
+def test_model_diagnostic_metric_correspondence_distinguishes_metric_pairs():
+    """モデル別の診断の指標の対応表で、2つの指標を取り違えたら、goldenと小さい条件の照合が検出する。
+
+    実行した全部の条件（2つとも比べた条件）で、旧の値が同じになる対が、期待の一覧と同じであることを確かめる。
+    """
+    observations = LEGACY_MODEL_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS
+    if len(observations) < len(GOLDEN_DATASET_NAMES) + 2 * len(SMALL_RUN_CONDITIONS):
+        pytest.skip("goldenと、対照の全条件を実行したときだけ確かめる")
+    legacy_metric_names = sorted({name for observation in observations for name in observation})
+    assert len(legacy_metric_names) == 26
+    indistinguishable_name_pairs = {
+        (first_name, second_name)
+        for first_name, second_name in combinations(legacy_metric_names, 2)
+        if all(
+            observation[first_name] == observation[second_name]
+            for observation in observations
+            if first_name in observation and second_name in observation
+        )
+    }
+    assert (
+        indistinguishable_name_pairs == INDISTINGUISHABLE_LEGACY_MODEL_DIAGNOSTIC_METRIC_NAME_PAIRS
+    )
+    # どの条件でも同じ値のままの指標（値の照合が、取り違え以外の誤りも検出しにくいもの）は、ない。
+    assert not [
+        legacy_metric_name
+        for legacy_metric_name in legacy_metric_names
+        if len(
+            {
+                observation[legacy_metric_name]
+                for observation in observations
+                if legacy_metric_name in observation
+            }
+        )
+        == 1
     ]
