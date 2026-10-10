@@ -60,6 +60,7 @@ research.mdの対応表のとおり。旧と違う点:
 - **真の概念**: 旧のclientは、標本ごとに真の概念を受け取る。新の全体runでは、渡さない（実行の枠の契約）。真の概念に依存する診断は、行われない。
 - **同期の結果の保持**: 新のサーバは、ラウンドごとの同期の結果を保持する。旧は持たない。
 - **設定の検査**: 新は、設定の束と、準備の引数を、乱数を消費する前に確かめる。
+- **クラスタリングを有効にする条件**: 旧は、設定（`FEDSDA_CLUSTERING_POLICY`）で、無効・新規モデルがあるラウンドだけ・毎ラウンド、を選ぶ。新は、最終構成の「新規モデルがあるラウンドだけ」（`on_new_model`）に固定する（実行の枠が渡す「新規モデルの登録が可能か」を、そのまま使う）。
 - **計算量・所要時間・ラウンドごとの計測**（旧`telemetry`）を記録しない。**表示**を行わない。
 
 ## Requirements Traceability
@@ -124,7 +125,7 @@ class FedsdaRunParticipantFactory:
     def prepare_run(self, *, experiment_run_conditions, run_random_sources, sample_generator) -> RunParticipants
 ```
 
-- 束の検査（生成時。不正は`RunSettingsValidationError`）: 各fieldのexact型、各設定の再検査、隠れ層の幅（正のbuiltin intの、空でないtuple）、clientの上限（正のbuiltin int）、クラスタリングの閾値＝clientの束の`maximum_tolerated_mean_loss_increase`。
+- 束の検査（生成時。不正は`RunSettingsValidationError`）: 各fieldのexact型、各設定の再検査（設定自身が`RunSettingsValidationError`を出せば、その設定の中の項目名のまま伝える。`TypeError`・`ValueError`を出す設定——判定の基準——は、束のfield名で包む）、隠れ層の幅（正のbuiltin intの、空でないtuple）、clientの上限（正のbuiltin int）、クラスタリングの閾値＝clientの束の`maximum_tolerated_mean_loss_increase`。
 - `prepare_run`の順:
   1. 検査: 束（再検査）、固定条件・乱数源・標本生成器のexact型、datasetが`sine2`。
   2. 事前学習`pretrain_initial_model`（クラス数は2。optimizerの設定は、clientの束の`rebuilt_model_parameter_optimizer_settings`。乱数は、runのPythonの乱数生成器と、渡された標本生成器）。

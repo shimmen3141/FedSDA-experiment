@@ -316,6 +316,7 @@ def assert_whole_run_matches_legacy(*, run_result, participants, run_random_sour
 WHOLE_RUN_OBSERVED_COVERAGE_BY_CONDITION = {}
 # (seed, client数, clientごとの標本数, 集約間隔, 概念の変更までの最小の間隔, 変更の確率, 学習の間隔)。
 # 統合が起きる条件は、実旧だけの全体runを64条件進めて選んだ（seed 0・2・4・7の4条件）。
+# 最後の条件（seed 17、250件）は、終端で、未完了の候補検証が回収される（実旧だけの76条件から選んだ）。
 WHOLE_RUN_CONDITIONS = [
     (0, 3, 300, 10, 30, 0.05, 2),
     (17, 3, 300, 10, 30, 0.05, 1),
@@ -325,6 +326,7 @@ WHOLE_RUN_CONDITIONS = [
     (2, 5, 300, 10, 50, 0.03, 1),
     (4, 3, 500, 25, 60, 0.03, 1),
     (7, 3, 300, 10, 30, 0.05, 2),
+    (17, 3, 250, 10, 30, 0.05, 2),
 ]
 
 
@@ -388,6 +390,24 @@ def test_whole_stream_protocol_run_matches_real_legacy_whole_run(
         for legacy_event in legacy_client.adaptation_events
     }
     observed_paths |= {f"adaptation_{legacy_action}" for legacy_action in legacy_actions}
+    # 新の適応記録の結果種別（候補の採用、終端での未完了の候補検証の回収、を含む）。
+    observed_paths |= {
+        adaptation_record.adaptation_outcome
+        for run_client in participants.client_operations
+        for adaptation_record in run_client.owners.adaptation_record_store.get_state_snapshot().adaptation_records
+    }
+    # 終端での回収は、実旧では、理由が「前向きの標本が足りない」の、候補の判定として残る。
+    assert ("post_alarm_validation_incomplete_candidate_rejected" in observed_paths) == any(
+        legacy_decision.reason == "insufficient_forward_data"
+        for legacy_client in legacy_clients
+        for legacy_decision in legacy_client.provisional_model_decisions
+    )
+    # 終端の後、どのclientも、候補検証を保持していない。
+    assert all(legacy_client._forward_validation is None for legacy_client in legacy_clients)
+    assert all(
+        run_client.owners.validation_session_holder.held_validation_session is None
+        for run_client in participants.client_operations
+    )
     if any(synchronization.registered_client_models for synchronization in synchronizations):
         observed_paths.add("new_model_registered")
     if any(synchronization.model_consolidation is not None for synchronization in synchronizations):
@@ -414,6 +434,9 @@ def test_whole_run_conditions_cover_required_paths():
     observed_paths = set().union(*WHOLE_RUN_OBSERVED_COVERAGE_BY_CONDITION.values())
     assert observed_paths >= {
         "alarm_raised",
+        # 候補の採用と、終端での未完了の候補検証の回収。
+        "post_alarm_validation_candidate_adopted",
+        "post_alarm_validation_incomplete_candidate_rejected",
         "new_model_registered",
         "models_clustered",
         "models_consolidated",
@@ -481,6 +504,8 @@ def test_whole_run_without_true_concepts_differs_only_in_concept_dependent_diagn
             run_client=injected_run_client,
             python_random_generator=injected_random_sources.python_random_generator,
         )
+        # 許す項目の名前は、読取りの実際の項目名である。
+        assert set(CONCEPT_DEPENDENT_STATE_NAMES) <= set(state_snapshot)
         differing_state_names = set()
         for state_name, state in state_snapshot.items():
             injected_state = injected_state_snapshot[state_name]
@@ -505,6 +530,8 @@ def test_whole_run_without_true_concepts_differs_only_in_concept_dependent_diagn
             if not states_equal:
                 differing_state_names.add(state_name)
         assert differing_state_names <= set(CONCEPT_DEPENDENT_STATE_NAMES), differing_state_names
+        # 少なくとも、診断証拠・割当概念の計数・標本ごとの記録は、実際に違っている（比較が働いている）。
+        assert differing_state_names >= {"diagnostics", "counts", "sample_prediction_records"}
         # 真の概念を渡さないと、割当概念の計数と、真の概念別の診断証拠は、作られない。
         owners = run_client.owners
         assert owners.diagnostic_evidence_collection.created_true_concept_ids == ()
@@ -605,7 +632,6 @@ def test_factory_prepares_fresh_participants_for_each_run(valid_run_settings_map
             second_run_client.owners.sample_prediction_record_store.snapshot_sample_prediction_records()
             == first_records
         )
-    # 全clientとサーバは、runの同じ乱数生成器を借りている（clientごとの乱数の列に分かれていない）。
     assert len(first_prediction_records[0]) == first_run_result.processed_sample_count_per_client
 
 
