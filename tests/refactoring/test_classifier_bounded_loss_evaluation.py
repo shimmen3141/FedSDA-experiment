@@ -15,6 +15,8 @@ from test_joint_model_parameter_update import (
     build_joint_update_oracle_pair,
     run_legacy_joint_update,
 )
+from test_model_computation_measurement import make_classifier as make_measured_classifier
+from test_model_computation_measurement import make_inputs as make_measured_inputs
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
     build_attachment_classifier,
@@ -28,8 +30,14 @@ from federated_drift_experiment.clients.shared_backbone import (
 from federated_learning_experiments.learning.loss_statistics.batch_loss_statistics_initialization import (
     initialize_model_and_class_loss_statistics_from_batch,
 )
+from federated_learning_experiments.learning.models.model_computation_measurement import (
+    measure_model_computation,
+)
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
+    evaluate_classifier_per_sample_bounded_losses_and_outputs,
+    evaluate_classifiers_per_sample_bounded_losses_from_shared_features,
+    validate_classifier_bounded_loss_inputs,
 )
 from federated_learning_experiments.learning.training.adopted_candidate_shared_feature_integration import (
     integrate_adopted_candidate_shared_features,
@@ -488,3 +496,190 @@ def test_bounded_loss_evaluation_connects_prepared_model_to_initial_statistics(
                 shared_parameter_optimizer=shared_parameter_optimizer,
                 legacy_client=legacy_client,
             )
+
+
+def build_classifiers_sharing_feature_extractor(*, class_count, classifier_count):
+    """同じ共有部につながる分類器（概念固有部は、別々の値）。"""
+    first_classifier = make_measured_classifier(class_count=class_count)
+    classifiers = [first_classifier]
+    for seed in range(1, classifier_count):
+        classifier = make_measured_classifier(
+            class_count=class_count,
+            shared_feature_extractor=first_classifier.feature_extractor,
+            seed=seed,
+        )
+        # 展開層は0で初期化されるので、分類器ごとに違う値を入れる。
+        with torch.no_grad():
+            classifier.residual_adapter.feature_expansion.weight.fill_(0.1 * seed)
+        classifiers.append(classifier)
+    return tuple(classifiers)
+
+
+def make_bounded_loss_inputs(*, class_count, sample_count):
+    input_features = make_measured_inputs(sample_count)
+    observed_class_labels = torch.tensor(
+        [[float(sample_position % class_count)] for sample_position in range(sample_count)]
+    )
+    return input_features, observed_class_labels
+
+
+@pytest.mark.parametrize("class_count", [2, 3])
+@pytest.mark.parametrize("sample_count", [1, 6])
+def test_losses_and_outputs_come_from_one_forward_and_match_existing_evaluation(
+    class_count, sample_count
+):
+    """損失は既存の評価と同じ値、出力は分類器の出力そのもので、順伝播は1回だけ。"""
+    (classifier,) = build_classifiers_sharing_feature_extractor(
+        class_count=class_count, classifier_count=1
+    )
+    input_features, observed_class_labels = make_bounded_loss_inputs(
+        class_count=class_count, sample_count=sample_count
+    )
+    expected_losses = evaluate_classifier_per_sample_bounded_losses(
+        classifier=classifier,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+    )
+    with torch.no_grad():
+        expected_outputs = classifier(input_features)
+    with measure_model_computation() as model_computation_meter:
+        per_sample_losses, classifier_outputs = (
+            evaluate_classifier_per_sample_bounded_losses_and_outputs(
+                classifier=classifier,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+            )
+        )
+    assert torch.equal(per_sample_losses, expected_losses)
+    assert torch.equal(classifier_outputs, expected_outputs)
+    assert not per_sample_losses.requires_grad
+    assert not classifier_outputs.requires_grad
+    counts = model_computation_meter.get_model_computation_counts()
+    assert counts.shared_part_inference_example_count == sample_count
+    assert counts.concept_specific_part_inference_example_count == sample_count
+    assert counts.shared_part_training_example_count == 0
+    # 既存の評価も、順伝播は1回だけ。
+    with measure_model_computation() as model_computation_meter:
+        evaluate_classifier_per_sample_bounded_losses(
+            classifier=classifier,
+            input_features=input_features,
+            observed_class_labels=observed_class_labels,
+        )
+    assert model_computation_meter.get_model_computation_counts() == counts
+
+
+@pytest.mark.parametrize("class_count", [2, 3])
+@pytest.mark.parametrize("classifier_count", [1, 3])
+def test_losses_from_shared_features_match_per_classifier_evaluation_with_one_shared_forward(
+    class_count, classifier_count
+):
+    """共有部の特徴を1回だけ計算した損失が、分類器ごとに計算した損失と、完全に一致する。"""
+    classifiers = build_classifiers_sharing_feature_extractor(
+        class_count=class_count, classifier_count=classifier_count
+    )
+    input_features, observed_class_labels = make_bounded_loss_inputs(
+        class_count=class_count, sample_count=5
+    )
+    expected_losses = [
+        evaluate_classifier_per_sample_bounded_losses(
+            classifier=classifier,
+            input_features=input_features,
+            observed_class_labels=observed_class_labels,
+        )
+        for classifier in classifiers
+    ]
+    training_modes = [classifier.training for classifier in classifiers]
+    with measure_model_computation() as model_computation_meter:
+        per_sample_losses_by_classifier = (
+            evaluate_classifiers_per_sample_bounded_losses_from_shared_features(
+                classifiers=classifiers,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+            )
+        )
+    assert type(per_sample_losses_by_classifier) is tuple
+    assert len(per_sample_losses_by_classifier) == classifier_count
+    for per_sample_losses, expected in zip(
+        per_sample_losses_by_classifier, expected_losses, strict=True
+    ):
+        assert torch.equal(per_sample_losses, expected)
+        assert not per_sample_losses.requires_grad
+    if classifier_count > 1:
+        # 分類器ごとに、違う損失になっている（同じ値どうしの比較ではない）。
+        assert not torch.equal(
+            per_sample_losses_by_classifier[0], per_sample_losses_by_classifier[1]
+        )
+    counts = model_computation_meter.get_model_computation_counts()
+    assert counts.shared_part_inference_example_count == 5
+    assert counts.concept_specific_part_inference_example_count == 5 * classifier_count
+    assert [classifier.training for classifier in classifiers] == training_modes
+
+
+def test_losses_from_shared_features_reject_invalid_arguments_before_any_forward():
+    classifiers = build_classifiers_sharing_feature_extractor(class_count=2, classifier_count=2)
+    unrelated_classifier = make_measured_classifier(class_count=2, seed=9)
+    input_features, observed_class_labels = make_bounded_loss_inputs(class_count=2, sample_count=4)
+    valid_arguments = dict(
+        classifiers=classifiers,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+    )
+    invalid_cases = [
+        ("classifiers", list(classifiers), TypeError),
+        ("classifiers", (), ValueError),
+        ("classifiers", (classifiers[0], SimpleNamespace()), TypeError),
+        # 別の共有部につながる分類器。
+        ("classifiers", (classifiers[0], unrelated_classifier), ValueError),
+        ("input_features", input_features.double(), ValueError),
+        ("input_features", input_features[:, :2], ValueError),
+        ("observed_class_labels", observed_class_labels + 5, ValueError),
+        ("observed_class_labels", observed_class_labels[:3], ValueError),
+    ]
+    with measure_model_computation() as model_computation_meter:
+        for argument_name, invalid_value, expected_exception_type in invalid_cases:
+            with pytest.raises(expected_exception_type):
+                evaluate_classifiers_per_sample_bounded_losses_from_shared_features(
+                    **valid_arguments | {argument_name: invalid_value}
+                )
+        with pytest.raises(TypeError):
+            evaluate_classifiers_per_sample_bounded_losses_from_shared_features(
+                classifiers, input_features, observed_class_labels
+            )
+    # どの拒否も、順伝播より前。
+    assert not any(vars(model_computation_meter.get_model_computation_counts()).values())
+
+
+def test_input_validation_rejects_like_the_evaluation_without_any_forward():
+    """公開の検査は、評価と同じ入力を、順伝播なしで拒否する。"""
+    (classifier,) = build_classifiers_sharing_feature_extractor(class_count=3, classifier_count=1)
+    input_features, observed_class_labels = make_bounded_loss_inputs(class_count=3, sample_count=4)
+    valid_arguments = dict(
+        classifier=classifier,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+    )
+    invalid_cases = [
+        ("classifier", SimpleNamespace()),
+        ("input_features", input_features.double()),
+        ("input_features", input_features[:, :2]),
+        ("input_features", input_features[:0]),
+        ("input_features", torch.full_like(input_features, float("nan"))),
+        ("observed_class_labels", observed_class_labels + 5),
+        ("observed_class_labels", observed_class_labels + 0.5),
+        ("observed_class_labels", observed_class_labels[:3]),
+        ("observed_class_labels", observed_class_labels.reshape(-1)),
+    ]
+    with measure_model_computation() as model_computation_meter:
+        assert validate_classifier_bounded_loss_inputs(**valid_arguments) is None
+        for argument_name, invalid_value in invalid_cases:
+            invalid_arguments = valid_arguments | {argument_name: invalid_value}
+            with pytest.raises((TypeError, ValueError)) as validation_error:
+                validate_classifier_bounded_loss_inputs(**invalid_arguments)
+            with pytest.raises(type(validation_error.value)) as evaluation_error:
+                evaluate_classifier_per_sample_bounded_losses(**invalid_arguments)
+            assert str(validation_error.value) == str(evaluation_error.value)
+        with pytest.raises(TypeError):
+            validate_classifier_bounded_loss_inputs(
+                classifier, input_features, observed_class_labels
+            )
+    assert not any(vars(model_computation_meter.get_model_computation_counts()).values())
