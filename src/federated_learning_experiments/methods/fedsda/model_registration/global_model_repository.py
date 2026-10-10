@@ -140,6 +140,20 @@ class GlobalModelRepository:
             ].items()
         }
 
+    def remove_global_model(self, *, model_id: int) -> None:
+        """モデルIDのパラメータと損失統計を外す（統合で、代表へ吸収されたモデル）。
+
+        パラメータも統計も持たないIDはKeyError。次の正式IDと、登録の来歴は変えない。
+        """
+        _validate_nonnegative_identifier(identifier=model_id, identifier_name="model_id")
+        if (
+            model_id not in self._parameter_snapshots_by_model_id
+            and model_id not in self._loss_statistics_by_model_id
+        ):
+            raise KeyError(model_id)
+        self._parameter_snapshots_by_model_id.pop(model_id, None)
+        self._loss_statistics_by_model_id.pop(model_id, None)
+
     def set_global_model_loss_statistics(
         self, *, model_id: int, loss_statistics: ModelAndClassLossStatistics
     ) -> None:

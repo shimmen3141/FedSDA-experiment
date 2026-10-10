@@ -438,3 +438,47 @@ def test_communication_volume_store_rejects_invalid_input_without_change(
     with pytest.raises(expected_exception):
         invalid_operation(communication_volume_record_store)
     assert communication_volume_record_store.get_state_snapshot() == state_snapshot
+
+
+def test_repository_removes_global_model_keeping_identifier_allocation_and_records():
+    global_model_repository = make_repository()
+    for model_id in (1, 2):
+        allocated_model_id = global_model_repository.allocate_global_model_id()
+        assert allocated_model_id == model_id
+        global_model_repository.record_model_registration(
+            model_id=model_id, registered_round_index=3, registering_client_id=model_id
+        )
+        global_model_repository.set_global_model_parameters(
+            model_id=model_id, parameter_snapshot=make_parameter_snapshot(offset=float(model_id))
+        )
+        global_model_repository.set_global_model_loss_statistics(
+            model_id=model_id, loss_statistics=make_loss_statistics(mean_loss=0.25 * model_id)
+        )
+    registration_records = global_model_repository.snapshot_model_registration_records()
+    global_model_repository.remove_global_model(model_id=1)
+    assert global_model_repository.global_model_ids == (0, 2)
+    assert [
+        model_id for model_id, _ in global_model_repository.snapshot_global_model_loss_statistics()
+    ] == [0, 2]
+    assert global_model_repository.get_global_model_loss_statistics(model_id=1) is None
+    with pytest.raises(KeyError):
+        global_model_repository.get_global_model_parameters(model_id=1)
+    # 次の正式IDと来歴は、外しても変わらない（外したIDは、再び採番されない）。
+    assert global_model_repository.next_global_model_id == 3
+    assert global_model_repository.snapshot_model_registration_records() == registration_records
+    # 統計だけを持つIDも外せる。どちらも持たないIDは拒否して、何も変えない。
+    global_model_repository.set_global_model_loss_statistics(
+        model_id=7, loss_statistics=make_loss_statistics()
+    )
+    global_model_repository.remove_global_model(model_id=7)
+    for invalid_model_id, expected_exception in (
+        (1, KeyError),
+        (99, KeyError),
+        (-1, ValueError),
+        (True, TypeError),
+        ("0", TypeError),
+    ):
+        with pytest.raises(expected_exception):
+            global_model_repository.remove_global_model(model_id=invalid_model_id)
+        assert global_model_repository.global_model_ids == (0, 2)
+        assert global_model_repository.next_global_model_id == 3

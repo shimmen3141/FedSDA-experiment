@@ -4836,6 +4836,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.Tensor",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
         )
+    if source_module_path == "evaluation/model_clustering_record_store.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.replace",
+            "math.isnan",
+        )
     if source_module_path == "evaluation/cross_evaluation_record_store.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6040,6 +6046,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/initial_model_pretraining.py",
             "evaluation/communication_volume_record_store.py",
             "evaluation/cross_evaluation_record_store.py",
+            "evaluation/model_clustering_record_store.py",
             "methods/fedsda/model_registration/global_model_repository.py",
             "methods/fedsda/consolidation/model_clustering_calculations.py",
             "runtime/server_model_registration_and_aggregation.py",
@@ -6118,6 +6125,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/initial_model_pretraining.py",
                     "evaluation/communication_volume_record_store.py",
                     "evaluation/cross_evaluation_record_store.py",
+                    "evaluation/model_clustering_record_store.py",
                     "methods/fedsda/model_registration/global_model_repository.py",
                     "methods/fedsda/consolidation/model_clustering_calculations.py",
                     "runtime/server_model_registration_and_aggregation.py",

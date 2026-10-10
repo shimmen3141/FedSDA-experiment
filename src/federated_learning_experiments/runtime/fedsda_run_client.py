@@ -296,6 +296,12 @@ class FedsdaRunClient:
             python_random_generator=self._python_random_generator,
         )
 
+    def get_model_assigned_sample_concept_counts(self, *, model_id: int) -> dict[int, int]:
+        """モデルへ帰属させた標本の、真の概念ごとの件数（診断用。真の概念を渡されていなければ空）。"""
+        return self._owners.model_training_and_assignment_counts_store.get_model_assigned_sample_concept_counts(
+            model_id=model_id
+        )
+
     def get_cross_evaluation_held_model_ids(self) -> frozenset[int]:
         """サーバのクロス評価で、このclientが保有するとみなすモデルID。
 

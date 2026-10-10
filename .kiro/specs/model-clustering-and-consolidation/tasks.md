@@ -2,13 +2,13 @@
 
 逐次実行（並行しない）。testを先に書く。独立レビューは、全taskの後に1回受ける（共通引継ぎ手順）。
 
-- [ ] 1. 計算とowner
+- [x] 1. 計算とowner
 - [x] 1.1 判定の計算と、判定の基準の型を、実旧の関数との対照つきで実装する
   - 実旧の、Wilsonの下限・クラス別の同時信頼下限・average linkageへ、同じ入力を与えて照合するtestを先に書く。
   - 完了: 3つの関数の対照（境界の入力を含む）と、拒否、判定の基準の型のtest、依存境界のsuiteが成功する。
   - _Boundary: model_clustering_calculations_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 6.3, 8.2_
-- [ ] 1.2 診断の記録のowner、グローバルモデルを外す操作、clientの割当概念の計数を足す
+- [x] 1.2 診断の記録のowner、グローバルモデルを外す操作、clientの割当概念の計数を足す
   - 完了: 記録のownerの単独のtest（順、検査、不正で不変）、外す操作のtest（パラメータと統計が外れ、次の正式IDと来歴は変わらない。持たないIDは拒否）、clientの操作のtest、依存境界のsuiteが成功する。
   - _Boundary: ModelClusteringRecordStore、GlobalModelRepository、FedsdaRunClient_
   - _Requirements: 3.1, 3.2, 4.4, 8.2_
