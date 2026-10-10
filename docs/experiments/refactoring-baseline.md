@@ -110,8 +110,15 @@ export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 python -m pytest tests/refactoring/test_linux_proposed_regression.py   tests/refactoring/test_fedsda_run_metric_derivation.py -q
 ```
 
-WSLでは、`tests/test_proposed_regression.py`と`tests/test_regression.py`（どちらもWindows用のgoldenと
-比べる）は、失敗する。これは環境差であり、goldenを変える理由にしない。
+WSLでは、次の3件が失敗する。どれも環境差であり、goldenやtestを変える理由にしない。
+
+- `tests/test_proposed_regression.py`と`tests/test_regression.py`: Windows用のgoldenと比べる。
+- `tests/refactoring/test_single_run_dependency_boundaries.py`の1ケース
+  （`from __future__ import *`）: Python 3.14の構文解析の違い。
+
+全体runの対照（`tests/refactoring/test_fedsda_stream_protocol_run.py`）の、sine2以外のdatasetの条件は、
+新旧の全状態の一致を、どの環境でも確かめる。条件ごとの「通る経路」（複数モデルでの終了ほか）の期待は、
+条件を選んだWindowsでだけ確かめる（Linuxでは、浮動小数点の差で、警報やモデルの登録の起き方が変わる）。
 
 研究室サーバは、WSL Ubuntuと、CPUやライブラリの版が違う可能性がある。研究室サーバで上のコマンドを
 実行して、`test_linux_proposed_regression.py`が失敗した場合は、goldenを自動で直さない。

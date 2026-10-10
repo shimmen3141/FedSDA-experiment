@@ -1,5 +1,6 @@
 """最終構成のFedSDAの全体run（factoryと実行の枠）を、実旧の全体runの最終状態と照合する。"""
 
+import platform
 import random
 import sys
 from dataclasses import replace
@@ -575,7 +576,8 @@ def test_whole_run_conditions_cover_required_paths():
 
 # sine2以外のdataset: (dataset, seed, client数, clientごとの標本数, 集約間隔, 変更までの最小の間隔, 変更の確率, 学習の間隔)。
 # 実旧だけでなく新旧の全体runを、3 dataset×6 seed×3条件（54条件。全部一致）進めて、新しいモデルの登録を通る条件を選んだ。
-# 最後の要素は、その条件が通ることを確かめる経路（sine2の条件が通らない、別の保有モデルの再利用を含む）。
+# 最後の要素は、その条件が通ることを確かめる経路（sine2の条件が通らない、別の保有モデルの再利用を含む）。Windowsでの値で、
+# ほかの環境では、通る経路が違うことがある（Windows以外では、経路は確かめない）。
 OTHER_DATASET_WHOLE_RUN_CONDITIONS = [
     ("sea2", 1, 3, 500, 25, 60, 0.03, 2, {"decision_alternative_reference_refit"}),
     ("sea2", 17, 3, 300, 10, 30, 0.05, 1, set()),
@@ -674,8 +676,12 @@ def test_whole_run_of_other_datasets_matches_real_legacy_whole_run(
     assert visited_concept_ids == set(range(dataset_definition.concept_count))
     legacy_server = legacy_run["legacy_server"]
     legacy_clients = legacy_run["legacy_clients"]
-    assert any(legacy_client.detected_event_positions for legacy_client in legacy_clients)
     synchronizations = participants.server_operations.snapshot_server_round_synchronizations()
+    # 通る経路の期待は、条件を選んだ環境（Windows）でだけ確かめる。ほかの環境では、浮動小数点の差で、
+    # 警報やモデルの登録の起き方が変わる（WSL Ubuntuで確認。新旧の全状態の一致は、上で、どの環境でも確かめている）。
+    if platform.system() != "Windows":
+        return
+    assert any(legacy_client.detected_event_positions for legacy_client in legacy_clients)
     observed_paths = {
         f"decision_{legacy_decision.reason}"
         for legacy_client in legacy_clients
