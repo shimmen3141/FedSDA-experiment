@@ -30,8 +30,8 @@
   - _Depends: 2.1_
   - _Requirements: 5.1, 5.4, 5.5_
 
-- [ ] 3. 検証
-- [ ] 3.1 独立レビューの指摘を反映し、全回帰を通す
+- [x] 3. 検証
+- [x] 3.1 独立レビューの指摘を反映し、全回帰を通す
   - 独立レビュー（別session、検証コマンドだけを許可）を1回受け、指摘の採否を下の「Implementation Notes」へ書く。
   - 完了: 全pytest（旧11・最終3goldenを含む）、Ruff、Pyright、`pip check`、照合script（`names`・`identity`・`progress`）が成功し、件数とcommitを「Implementation Notes」へ記録してある。固定旧実装とgoldenの差分が空である。
   - _Depends: 2.2_
@@ -59,6 +59,13 @@
 
 - 全体runの対照のhelper（`assert_run_client_matches_legacy`）が、2特徴の入力を固定で使っていた。特徴数を、実旧の（差し替えた）datasetの定義から取る形へ直した（sine2では、同じ入力のまま）。
 - 指標の導出のtestの、sine2の条件に固有の定数（標本数4500、ラウンド数30ほか）を、datasetの条件から計算する形へ直した。
+
+### 独立レビューと検証
+
+- 独立レビュー（1回、2026-10-10）: Claude Haiku 5.5（独立CLI、effort `medium`を指定。実効値は出力されない）。GPT-6 Lunaは利用上限で使えない期間。session `02d6d7bf-791c-401f-be2d-afb6405d6fc0`、対象`0ff1554..1f9e85e`。判定は`IMPLEMENTATION: APPROVED`（Blocker・Major・Minorなし。任意 5件）。レビュー担当は、対象test（定義・生成・SINE・実行の枠・事前学習・依存境界 3816 passed、全体runの対照 20 passed、指標の導出 29 passed——Windows用のgoldenの照合を含む——、client 52 passed）、Ruff（check・format）、共用scriptを独立に実行した。全pytest・Pyright・`pip check`・`spec_checks.py`は実行していない（基準どおり）。レビューの後、作業ツリーは空だった。
+- 指摘の採否（すべて任意）: (1)生成器を作る関数と、datasetとの対応を判定する関数が、別々の分岐でdataset名を見ている→採用。dataset名から生成器の型への表を1つにし、両方がその表を使う形にした。(2)実行設定と実行の枠のmoduleのdocstringが「SINE供給」のまま→採用。(3)`ClientConceptTrace`は、概念IDの上限を検査しない→不採用（型はdatasetを知らない。実行の経路では、観測列の生成で、生成器が範囲外を拒否する）。(4)sea2のgoldenの条件は、モデルが1つのまま終わる→変更なし（goldenの条件は旧の回帰testが決めている。経路は、小さい条件の全体runの対照が照合する）。(5)SEAの判定の`isinstance`と`type(...) is`の重複→(1)の書き直しで解消。Blocker・Majorがないので、確認のレビューは行っていない（反映は、挙動を変えない書き直しとdocstring。`6674046`）。
+- 検証（Windows基準環境、`6674046`。この後は、specの文書とsteeringだけを変えた）: 全pytest（並列、`-n 8 --dist loadfile`）11737 passed / 3 skipped / 3 warnings、exit 0。JUnitはfailure 0、error 0。`tests.test_regression`・`tests.test_proposed_regression`を含む。レビューの前の`1f9e85e`でも、全pytestは 11737 passed / 3 skipped。Ruff（check・format）、Pyright 0 errors、`pip check`成功。固定旧`748c3aa`からの差分は空。`spec_checks.py names`は、変更・新規のsourceで「未登録: なし」。
+- 変異テストは実行していない（既定）。
 
 ### 未検証・残る制約
 
