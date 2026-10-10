@@ -33,6 +33,9 @@ from federated_learning_experiments.evaluation.model_evaluation_sample_records i
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
 )
+from federated_learning_experiments.learning.models.model_computation_measurement import (
+    measure_model_computation,
+)
 from federated_learning_experiments.learning.training.indexed_observed_training_sample import (
     IndexedObservedTrainingSample,
 )
@@ -682,13 +685,16 @@ def test_alarm_preparation_rejects_contract_errors_without_state_changes(invalid
     )
 
 
-def test_alarm_preparation_saves_evaluation_before_real_absorption(monkeypatch):
+def test_alarm_preparation_validates_without_forward_then_saves_evaluation_before_real_absorption(
+    monkeypatch,
+):
     preparation_arguments, _, _, _ = build_alarm_preparation_oracle(monkeypatch=monkeypatch)
     operation_calls = []
     original_save = ModelEvaluationSampleStore.sample_and_append_model_evaluation_samples
     original_absorption = preparation_module.absorb_assigned_training_samples_into_held_model
+    original_input_validation = preparation_module.validate_classifier_bounded_loss_inputs
     original_bounded_loss_evaluation = (
-        preparation_module.evaluate_classifier_per_sample_bounded_losses
+        absorption_module.evaluate_classifier_per_sample_bounded_losses
     )
     classifier = (
         preparation_arguments["held_model_training_state_registry"]
@@ -700,27 +706,29 @@ def test_alarm_preparation_saves_evaluation_before_real_absorption(monkeypatch):
         .classifier
     )
 
+    def recorded_input_validation(**operation_keyword_arguments):
+        operation_calls.append(("validate", operation_keyword_arguments["classifier"]))
+        return original_input_validation(**operation_keyword_arguments)
+
     def recorded_bounded_loss_evaluation(**operation_keyword_arguments):
         operation_calls.append(("loss", operation_keyword_arguments["classifier"]))
         return original_bounded_loss_evaluation(**operation_keyword_arguments)
 
     def recorded_save(self, **operation_keyword_arguments):
-        assert operation_calls == [("loss", classifier)] * 3
+        assert operation_calls == [("validate", classifier)] * 3
         operation_calls.append("save")
         return original_save(self, **operation_keyword_arguments)
 
     def recorded_absorption(**operation_keyword_arguments):
         operation_calls.append("absorb")
-        assert operation_calls == [("loss", classifier)] * 3 + ["save", "absorb"]
+        assert operation_calls == [("validate", classifier)] * 3 + ["save", "absorb"]
         return original_absorption(**operation_keyword_arguments)
 
     monkeypatch.setattr(
         ModelEvaluationSampleStore, "sample_and_append_model_evaluation_samples", recorded_save
     )
     monkeypatch.setattr(
-        preparation_module,
-        "evaluate_classifier_per_sample_bounded_losses",
-        recorded_bounded_loss_evaluation,
+        preparation_module, "validate_classifier_bounded_loss_inputs", recorded_input_validation
     )
     monkeypatch.setattr(
         absorption_module,
@@ -730,11 +738,17 @@ def test_alarm_preparation_saves_evaluation_before_real_absorption(monkeypatch):
     monkeypatch.setattr(
         preparation_module, "absorb_assigned_training_samples_into_held_model", recorded_absorption
     )
-    prepare_alarm_training_intervals(**preparation_arguments)
+    with measure_model_computation() as model_computation_meter:
+        prepare_alarm_training_intervals(**preparation_arguments)
+    # 検査（順伝播なし）→評価標本の保存→取込み。損失は、取込みが1回だけ計算する。
     assert (
         operation_calls
-        == [("loss", classifier)] * 3 + ["save", "absorb"] + [("loss", classifier)] * 3
+        == [("validate", classifier)] * 3 + ["save", "absorb"] + [("loss", classifier)] * 3
     )
+    counts = model_computation_meter.get_model_computation_counts()
+    assert counts.shared_part_inference_example_count == 3
+    assert counts.concept_specific_part_inference_example_count == 3
+    assert counts.shared_part_training_example_count == 0
 
 
 @pytest.mark.parametrize("class_count", [2, 4])

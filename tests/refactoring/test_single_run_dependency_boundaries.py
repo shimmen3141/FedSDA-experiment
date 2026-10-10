@@ -3721,12 +3721,12 @@ def test_alarm_buffer_response_dependency_contract(source_text, expected_accepta
         ),
         (
             "runtime/alarm_training_interval_preparation.py",
-            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import validate_classifier_bounded_loss_inputs",
             True,
         ),
         (
             "runtime/alarm_training_interval_preparation.py",
-            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses as AcceptedDependency",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import validate_classifier_bounded_loss_inputs as AcceptedDependency",
             True,
         ),
         (
@@ -3766,7 +3766,7 @@ def test_alarm_buffer_response_dependency_contract(source_text, expected_accepta
         ),
         (
             "runtime/alarm_training_interval_preparation.py",
-            "from ..learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
+            "from ..learning.prediction.classifier_bounded_loss_evaluation import validate_classifier_bounded_loss_inputs",
             True,
         ),
         (
@@ -5039,7 +5039,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
             "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
             "federated_learning_experiments.learning.prediction.class_probability_calculations.predict_class_labels_from_prediction_scores",
-            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses_and_outputs",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
             "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
@@ -5049,7 +5049,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "torch.cat",
             "federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection.AdaHedgeDiagnosticEvidenceCollection",
-            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifiers_per_sample_bounded_losses_from_shared_features",
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
             "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights.FixedSharePredictionWeightController",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store.PendingSampleObservationStore",
@@ -5345,7 +5345,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
             "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
             "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
         )
     if source_module_path == "runtime/alarm_response_completion.py":

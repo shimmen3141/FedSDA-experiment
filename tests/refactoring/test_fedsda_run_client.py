@@ -1,6 +1,7 @@
 """組み立てたclientを、実__init__で作った実旧の最終構成のclient（サーバなし）と、生成直後から終端まで照合する。"""
 
 import random
+from collections import Counter
 from copy import deepcopy
 from dataclasses import replace
 from math import isnan
@@ -51,6 +52,9 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 )
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
+)
+from federated_learning_experiments.learning.models.model_computation_measurement import (
+    measure_model_computation,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
     ResidualAdapterClassifier,
@@ -719,10 +723,70 @@ def make_concept_stream(*, sample_count, concept_block_length, stream_seed):
     return stream
 
 
-def run_in_both(*, run_client, legacy_client, python_random_generator, legacy_operation, operation):
-    """同じ乱数の状態から、実旧の操作と新の操作を実行し、実行後の乱数の状態が同じであることを確かめる。"""
+def sum_legacy_computation_counts(legacy_clients):
+    """実旧のclientの計数の、全clientの合計。"""
+    legacy_computation_counts = Counter()
+    for legacy_client in legacy_clients:
+        legacy_computation_counts.update(legacy_client.compute_counters)
+    return legacy_computation_counts
+
+
+def assert_model_computation_matches_legacy_counter_increase(
+    *, model_computation_counts, legacy_clients, legacy_computation_counts_before
+):
+    """新の操作の、モデルの計算（外側から数えた値）が、実旧のclientの計数の増分（全clientの合計）と一致する。
+
+    共有部・概念固有部を通った標本数、学習の標本数、optimizerの更新回数を比べる。
+    """
+
+    def legacy_increase(counter_name):
+        return (
+            sum_legacy_computation_counts(legacy_clients)[counter_name]
+            - legacy_computation_counts_before[counter_name]
+        )
+
+    assert (
+        model_computation_counts.shared_part_training_example_count
+        + model_computation_counts.shared_part_inference_example_count
+    ) == legacy_increase("backbone_examples")
+    assert (
+        model_computation_counts.concept_specific_part_training_example_count
+        + model_computation_counts.concept_specific_part_inference_example_count
+    ) == legacy_increase("head_examples")
+    assert model_computation_counts.concept_specific_part_training_example_count == (
+        legacy_increase("training_examples")
+    )
+    assert model_computation_counts.shared_part_training_example_count == (
+        legacy_increase("training_examples")
+    )
+    assert model_computation_counts.concept_specific_parameter_optimizer_step_count == (
+        legacy_increase("optimizer_steps")
+    )
+    assert model_computation_counts.shared_parameter_optimizer_step_count == (
+        legacy_increase("backbone_optimizer_steps")
+    )
+
+
+def run_in_both(
+    *,
+    run_client,
+    legacy_client,
+    python_random_generator,
+    legacy_operation,
+    operation,
+    legacy_clients=None,
+):
+    """同じ乱数の状態から、実旧の操作と新の操作を実行し、実行後の乱数の状態が同じであることを確かめる。
+
+    新の操作の、モデルの計算（外側から数えた値）が、実旧のclientの計数の増分と一致することも確かめる。
+    複数のclientにまたがる操作では、`legacy_clients`へ、実旧の全clientを渡す。
+    """
+    if legacy_clients is None:
+        assert legacy_client is not None
+        legacy_clients = [legacy_client]
     global_python_random_state = random.getstate()
     torch_random_state = torch.get_rng_state().clone()
+    legacy_computation_counts_before = sum_legacy_computation_counts(legacy_clients)
     try:
         random.setstate(python_random_generator.getstate())
         legacy_result = legacy_operation()
@@ -731,9 +795,15 @@ def run_in_both(*, run_client, legacy_client, python_random_generator, legacy_op
         random.setstate(global_python_random_state)
     legacy_torch_random_state = torch.get_rng_state().clone()
     torch.set_rng_state(torch_random_state)
-    result = operation()
+    with measure_model_computation() as model_computation_meter:
+        result = operation()
     assert torch.equal(torch.get_rng_state(), legacy_torch_random_state)
     assert python_random_generator.getstate() == legacy_python_random_state
+    assert_model_computation_matches_legacy_counter_increase(
+        model_computation_counts=model_computation_meter.get_model_computation_counts(),
+        legacy_clients=legacy_clients,
+        legacy_computation_counts_before=legacy_computation_counts_before,
+    )
     return result, legacy_result
 
 

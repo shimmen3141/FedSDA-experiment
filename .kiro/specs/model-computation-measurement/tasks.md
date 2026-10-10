@@ -22,14 +22,14 @@
   - _Boundary: LossMonitoringComputationCountStore、FedsdaRunClient_
   - _Requirements: 3.1, 3.2, 6.2_
 
-- [ ] 2. 重複した計算の解消
+- [x] 2. 重複した計算の解消
 - [x] 2.1 有界損失の評価へ、3つの入口を足す
   - 既存の関数との一致、共有部を使い回した損失の一致、検査と拒否のtestを先に書く。
   - 完了: 有界損失の評価のtestが成功する。
   - _Boundary: classifier_bounded_loss_evaluation_
   - _Requirements: 4.4_
 
-- [ ] 2.2 クロス評価・警報時の区間の準備・集約後の再較正の、重複した順伝播をなくす
+- [x] 2.2 クロス評価・警報時の区間の準備・集約後の再較正の、重複した順伝播をなくす
   - 3つの対照のtestへ、順伝播の標本数が、実旧の同じ処理の計数と一致することの確認を、先に足す（失敗を確かめる）。
   - 完了: 3つのmoduleの既存のtest（実旧との対照、拒否）と、足した確認が成功する。
   - _Depends: 1.2, 2.1_

@@ -14,7 +14,7 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
     ModelAndClassLossStatisticsStore,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
-    evaluate_classifier_per_sample_bounded_losses,
+    validate_classifier_bounded_loss_inputs,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
@@ -144,14 +144,14 @@ def prepare_alarm_training_intervals(
     earlier_sample_count = len(buffered_change_interval_partition.earlier_sample_indices)
     earlier_observations = pending_sample_observations[:earlier_sample_count]
     change_interval_observations = pending_sample_observations[earlier_sample_count:]
+    # 取込み（損失の計算と統計の更新）が受け付ける入力であることを、状態の更新より前に、
+    # 順伝播なしで確かめる。損失は、取込みが1回だけ計算する。
     for indexed_observation in earlier_observations:
-        per_sample_bounded_losses = evaluate_classifier_per_sample_bounded_losses(
+        validate_classifier_bounded_loss_inputs(
             classifier=classifier,
             input_features=indexed_observation.training_sample.input_features,
             observed_class_labels=indexed_observation.training_sample.observed_class_labels,
         )
-        if len(per_sample_bounded_losses) != 1:
-            raise ValueError("前区間の各観測は1標本の損失が必要です。")
     if earlier_observations:
         model_evaluation_sample_store.sample_and_append_model_evaluation_samples(
             model_id=current_training_model_id,

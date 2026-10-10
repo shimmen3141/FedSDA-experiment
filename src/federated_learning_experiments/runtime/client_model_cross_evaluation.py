@@ -18,7 +18,7 @@ from federated_learning_experiments.learning.prediction.class_probability_calcul
     predict_class_labels_from_prediction_scores,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
-    evaluate_classifier_per_sample_bounded_losses,
+    evaluate_classifier_per_sample_bounded_losses_and_outputs,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
@@ -246,11 +246,15 @@ def evaluate_candidate_model_on_target_model_samples(
     )
     candidate_classifier.load_state_dict(candidate_parameter_snapshot, strict=True)
     # 和と2乗和は、float32の配列のまま求める（旧と同じ演算。Pythonのfloatへは、和を取ってから直す）。
-    per_sample_losses = evaluate_classifier_per_sample_bounded_losses(
-        classifier=candidate_classifier,
-        input_features=input_features,
-        observed_class_labels=observed_class_labels,
-    ).numpy()
+    # 渡されたモデルの順伝播は1回だけ。損失と、正誤の比較に使う予測を、同じ出力から得る。
+    per_sample_loss_tensor, candidate_classifier_outputs = (
+        evaluate_classifier_per_sample_bounded_losses_and_outputs(
+            classifier=candidate_classifier,
+            input_features=input_features,
+            observed_class_labels=observed_class_labels,
+        )
+    )
+    per_sample_losses = per_sample_loss_tensor.numpy()
     evaluated_sample_count = len(per_sample_losses)
     bounded_loss_sum = float(per_sample_losses.sum())
     squared_bounded_loss_sum = float((per_sample_losses**2).sum())
@@ -267,7 +271,7 @@ def evaluate_candidate_model_on_target_model_samples(
     flat_observed_class_labels = observed_class_labels.reshape(-1)
     candidate_is_correct = (
         predict_class_labels_from_prediction_scores(
-            prediction_scores=candidate_classifier(input_features), class_count=class_count
+            prediction_scores=candidate_classifier_outputs, class_count=class_count
         ).reshape(-1)
         == flat_observed_class_labels
     )

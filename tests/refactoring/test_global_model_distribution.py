@@ -790,6 +790,7 @@ def distribute_from_server_in_both(server_round_oracle, model_id_mapping=None):
     distribution_applications, _ = run_in_both(
         run_client=None,
         legacy_client=None,
+        legacy_clients=legacy_server.clients,
         python_random_generator=server_round_oracle["python_random_generator"],
         legacy_operation=lambda: legacy_server.broadcast_models(dict(model_id_mapping or {})),
         operation=lambda: distribute_global_models_to_clients(

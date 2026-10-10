@@ -8,7 +8,7 @@ from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_coll
     AdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
-    evaluate_classifier_per_sample_bounded_losses,
+    evaluate_classifiers_per_sample_bounded_losses_from_shared_features,
 )
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
@@ -61,14 +61,24 @@ def _compute_pending_sample_loss_sequence(
         ]
     )
     # 全モデルの損失を計算し終えてから、列を作る（どれかのモデルで失敗したら、何も返さない）。
-    per_sample_losses_by_model_id = {
-        held_model_training_state.model_id: evaluate_classifier_per_sample_bounded_losses(
-            classifier=held_model_training_state.classifier,
-            input_features=input_features,
-            observed_class_labels=observed_class_labels,
+    # 保有モデルは、同じ共有部につながっているので、共有部の特徴は、1回だけ計算する。
+    per_sample_losses_by_model_id = dict(
+        zip(
+            (
+                held_model_training_state.model_id
+                for held_model_training_state in held_model_training_states
+            ),
+            evaluate_classifiers_per_sample_bounded_losses_from_shared_features(
+                classifiers=tuple(
+                    held_model_training_state.classifier
+                    for held_model_training_state in held_model_training_states
+                ),
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+            ),
+            strict=True,
         )
-        for held_model_training_state in held_model_training_states
-    }
+    )
     return tuple(
         {
             model_id: float(per_sample_losses[sample_position].item())

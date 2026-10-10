@@ -99,6 +99,7 @@ def run_round_with_recalibration_in_both(*, server_round_oracle, client_streams,
     recalibrations, _ = run_in_both(
         run_client=None,
         legacy_client=None,
+        legacy_clients=legacy_server.clients,
         python_random_generator=server_round_oracle["python_random_generator"],
         legacy_operation=lambda: legacy_server.run_round(round_index, clustering_enabled=False),
         operation=synchronize_and_recalibrate,

@@ -190,6 +190,7 @@ def run_round_with_clustering_in_both(
     server_round_synchronization, _ = run_in_both(
         run_client=None,
         legacy_client=None,
+        legacy_clients=legacy_server.clients,
         python_random_generator=server_round_oracle["python_random_generator"],
         legacy_operation=lambda: legacy_server.run_round(
             round_index, clustering_enabled=model_clustering_enabled
@@ -464,6 +465,7 @@ def build_cross_evaluated_server_round_oracle(*, monkeypatch, valid_run_settings
         model_cross_evaluation, legacy_statistics_matrix = run_in_both(
             run_client=None,
             legacy_client=None,
+            legacy_clients=legacy_server.clients,
             python_random_generator=server_round_oracle["python_random_generator"],
             legacy_operation=lambda: legacy_server._cross_evaluate(
                 legacy_active_model_ids, round_index=round_index

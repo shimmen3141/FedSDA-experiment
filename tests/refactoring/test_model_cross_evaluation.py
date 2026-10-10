@@ -640,6 +640,7 @@ def cross_evaluate_in_both(
     model_cross_evaluation, legacy_statistics_matrix = run_in_both(
         run_client=None,
         legacy_client=None,
+        legacy_clients=legacy_server.clients,
         python_random_generator=server_round_oracle["python_random_generator"],
         legacy_operation=lambda: legacy_server._cross_evaluate(
             active_model_ids, round_index=round_index
@@ -803,6 +804,7 @@ def run_round_with_cross_evaluation_in_both(
     run_in_both(
         run_client=None,
         legacy_client=None,
+        legacy_clients=legacy_server.clients,
         python_random_generator=python_random_generator,
         legacy_operation=distribute_and_recalibrate_in_legacy,
         operation=distribute_and_recalibrate,
