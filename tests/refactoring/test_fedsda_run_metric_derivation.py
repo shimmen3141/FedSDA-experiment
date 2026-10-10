@@ -446,6 +446,41 @@ def assert_model_diagnostic_metrics_match_legacy_metrics(
     LEGACY_MODEL_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS.append(compared_values)
 
 
+# 照合のたびに、旧の指標の値（モデル対の予測の相補性の、旧の名前→値）を積む（対応表の取り違えの検査に使う）。
+LEGACY_MODEL_PAIR_METRIC_VALUE_OBSERVATIONS = []
+# 実行した全部の条件で、旧の値が同じになる、指標の対（実測で決める）。
+INDISTINGUISHABLE_LEGACY_MODEL_PAIR_METRIC_NAME_PAIRS = set()
+
+
+def derive_legacy_model_pair_metric_values(run_metrics):
+    """モデル対の予測の相補性の指標を、旧の指標の名前へ写す（照合のための対応表）。"""
+    complementarity_metrics = run_metrics.model_pair_prediction_complementarity_metrics
+    return dict(
+        model_pair_evaluation_count=complementarity_metrics.correctness_compared_evaluation_count,
+        model_pair_sample_count=complementarity_metrics.correctness_compared_sample_count,
+        model_pair_correctness_disagreement_rate=(
+            complementarity_metrics.correctness_disagreement_rate
+        ),
+        model_pair_oracle_gain_rate=complementarity_metrics.per_sample_selection_gain_rate,
+        model_pair_both_correct_rate=complementarity_metrics.both_correct_rate,
+    )
+
+
+def assert_model_pair_metrics_match_legacy_metrics(*, run_metrics, legacy_metric_values):
+    """モデル対の予測の相補性の指標が、旧の指標の値と、全部の項目で一致する。"""
+    model_pair_values = derive_legacy_model_pair_metric_values(run_metrics)
+    assert len(model_pair_values) == 5
+    for legacy_metric_name, metric_value in model_pair_values.items():
+        assert type(metric_value) in (int, float), legacy_metric_name
+        assert metric_value == legacy_metric_values[legacy_metric_name], legacy_metric_name
+    LEGACY_MODEL_PAIR_METRIC_VALUE_OBSERVATIONS.append(
+        {
+            legacy_metric_name: legacy_metric_values[legacy_metric_name]
+            for legacy_metric_name in model_pair_values
+        }
+    )
+
+
 def derive_legacy_trace_arrays(*, run_result, participants):
     """新の記録の読取りから、旧の保存形式（`_save_raw_run`）の31の離散列を作る。"""
     run_clients = participants.client_operations
@@ -913,6 +948,10 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
         run_metrics=run_metrics,
         legacy_metric_values=golden_condition_runs.legacy_result,
         global_model_counts_are_recorded=True,
+    )
+    # モデル対の予測の相補性の指標も、一致する。
+    assert_model_pair_metrics_match_legacy_metrics(
+        run_metrics=run_metrics, legacy_metric_values=golden_condition_runs.legacy_result
     )
     # 旧の回帰testが求める経路（複数のモデル、候補の採用、統合、再較正）を通っている。
     # 旧の回帰testと同じく、すべての経路を求めるのはsine2だけ（datasetごとの期待は、上の表）。
@@ -1429,6 +1468,10 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
     assert_change_response_metrics_match_legacy_metrics(
         run_metrics=run_metrics, legacy_metric_values=legacy_metrics
     )
+    # モデル対の予測の相補性の指標が、実旧のサーバの集計と一致する。
+    assert_model_pair_metrics_match_legacy_metrics(
+        run_metrics=run_metrics, legacy_metric_values=legacy_server.pair_diagnostic_summary()
+    )
     # clientの保有モデルの順が、実旧の`client.models`の順と同じ（モデル別の学習量を、モデルの間でまとめるときの、値の順）。
     for run_client, legacy_client in zip(
         participants.client_operations, legacy_clients, strict=True
@@ -1665,6 +1708,9 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
             training_model_switch_detection_metrics=run_metrics.training_model_switch_detection_metrics,
             change_response_metrics=run_metrics.change_response_metrics,
             model_diagnostic_metrics=run_metrics.model_diagnostic_metrics,
+            model_pair_prediction_complementarity_metrics=(
+                run_metrics.model_pair_prediction_complementarity_metrics
+            ),
         )
         == run_metrics
     )
@@ -1729,4 +1775,24 @@ def test_model_diagnostic_metric_correspondence_distinguishes_metric_pairs():
             }
         )
         == 1
+    ]
+
+
+def test_model_pair_metric_correspondence_distinguishes_metric_pairs():
+    """モデル対の予測の相補性の指標の対応表で、2つの指標を取り違えたら、goldenと小さい条件の照合が検出する。"""
+    observations = LEGACY_MODEL_PAIR_METRIC_VALUE_OBSERVATIONS
+    if len(observations) < len(GOLDEN_DATASET_NAMES) + 2 * len(SMALL_RUN_CONDITIONS):
+        pytest.skip("goldenと、対照の全条件を実行したときだけ確かめる")
+    legacy_metric_names = sorted(observations[0])
+    indistinguishable_name_pairs = {
+        (first_name, second_name)
+        for first_name, second_name in combinations(legacy_metric_names, 2)
+        if all(observation[first_name] == observation[second_name] for observation in observations)
+    }
+    assert indistinguishable_name_pairs == INDISTINGUISHABLE_LEGACY_MODEL_PAIR_METRIC_NAME_PAIRS
+    # どの条件でも0のままの指標は、ない。
+    assert not [
+        legacy_metric_name
+        for legacy_metric_name in legacy_metric_names
+        if all(observation[legacy_metric_name] == 0 for observation in observations)
     ]

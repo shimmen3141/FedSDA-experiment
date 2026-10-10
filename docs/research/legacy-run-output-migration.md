@@ -140,6 +140,10 @@
 | `clustering_nearest_model_ids`・`clustering_nearest_distances` | `model_clustering.nearest_model_id`・`.nearest_loss_increase_distance`（距離を持つ対がなければ、新旧とも−1とNaN） |
 | `clustering_cluster_sizes`・`clustering_cluster_max_distances`・`clustering_evaluated_pair_counts`・`clustering_possible_pair_counts` | `model_clustering.cluster_model_count`・`.maximum_within_cluster_distance`（なければ、新旧ともNaN）・`.evaluated_within_cluster_pair_count`・`.possible_within_cluster_pair_count` |
 | `clustering_pair_distances`・`clustering_pair_decision_scores`・`clustering_pair_oracle_same_concept`・`clustering_pair_personalized_parameter_distances` | `model_pair_clustering.loss_increase_distance`・`.decision_score`・`.true_concepts_match`（一致1、不一致0、分からなければ、新旧とも−1）・`.concept_specific_parameter_distance` |
+| `cross_evaluation_round_index`・`_client_id`・`_candidate_model_id`・`_target_model_id`・`_n`・`_sum`・`_sum_sq` | `client_cross_evaluation.server_round_index`・`.client_id`・`.candidate_model_id`・`.target_model_id`・`.evaluated_sample_count`・`.bounded_loss_sum`・`.squared_bounded_loss_sum` |
+| `cross_evaluation_candidate_only_correct`・`_target_only_correct`・`_both_correct`・`_both_wrong` | `client_cross_evaluation.candidate_only_correct_sample_count`・`.target_only_correct_sample_count`・`.both_correct_sample_count`・`.both_wrong_sample_count`（正誤を比べなかった評価では、新旧とも−1） |
+| `cross_evaluation_class_*`（10） | `client_cross_evaluation_class`の、同じ名前の対応の列と、`.class_id`（クラスごとの標本数は、`.evaluated_sample_count`） |
+| `model_pair_candidate_model_id`・`_target_model_id`・`_n`・`_candidate_only_correct`・`_target_only_correct`・`_both_correct`・`_both_wrong` | 表は持たない。`client_cross_evaluation`の、正誤を比べた行（`both_correct_sample_count`が0以上）の、対応する列と同じ |
 | `model_diagnostic_client_ids`・`model_diagnostic_model_ids`・`model_diagnostic_assigned_samples`・`model_diagnostic_training_examples`・`model_diagnostic_optimizer_steps` | `client_held_model.client_id`・`.model_id`・`.stored_training_sample_count`・`.trained_sample_count`・`.parameter_update_step_count`（実行の終わりの値。clientの順、モデルIDの昇順） |
 | （なし） | `sample_prediction.held_model_count_at_prediction`（その標本の予測に使った保有モデルの数）、`server_round.local_processing_*`・`server_round.synchronization_*`（サーバの同期のラウンドごとの、モデルの計算） |
 
@@ -203,6 +207,8 @@
 モデル別の診断の指標（[fedsda-model-diagnostic-metrics-and-records](../../.kiro/specs/fedsda-model-diagnostic-metrics-and-records/design.md)）は、
 `run_metrics.model_diagnostic_metrics`にある。対応は、同じtestの`derive_legacy_model_diagnostic_metric_values`。
 
+| `model_pair_evaluation_count`・`model_pair_sample_count`・`model_pair_correctness_disagreement_rate`・`model_pair_oracle_gain_rate`・`model_pair_both_correct_rate` | `run_metrics.model_pair_prediction_complementarity_metrics`の`correctness_compared_evaluation_count`・`correctness_compared_sample_count`・`correctness_disagreement_rate`・`per_sample_selection_gain_rate`・`both_correct_rate`（[fedsda-cross-evaluation-records-and-metrics](../../.kiro/specs/fedsda-cross-evaluation-records-and-metrics/design.md)。対応は、同じtestの`derive_legacy_model_pair_metric_values`） |
+
 | 旧 | 新（`model_diagnostic_metrics`の下） |
 |---|---|
 | `mean_model_count`・`max_model_count`・`model_count_auc` | `global_model_count_metrics`の`mean_global_model_count_after_synchronization`・`maximum_global_model_count_after_synchronization`・`total_global_model_count_over_server_rounds`（旧の「auc」は、ラウンドごとのモデル数の合計） |
@@ -216,6 +222,5 @@
 
 ### 残り（2026-10-11時点）
 
-「記録から導く（未照合）」（指標124・配列85）のうち、照合が済んだのは、指標79（応答の指標52、`e_detector_max_log_e`、モデル別の診断の指標26）と、配列38（ラウンドごとのモデル数の2つ、応答の記録の、値を照合した18、常に`forward`であることを確かめた`provisional_validation_sources`、登録・クラスタリング・保有モデルの17）。
-まだ照合していないのは、指標45・配列47: モデル対の予測の相補性（`model_pair_*`の5指標）、予測の集計（`routing_*`のうち、
-最終構成で意味のあるもの）、クロス評価の配列（`cross_evaluation_*`、`model_pair_*`）、`runtime_seconds`以外の時系列。
+「記録から導く（未照合）」（指標124・配列85）のうち、照合が済んだのは、指標84（応答の指標52、`e_detector_max_log_e`、モデル別の診断の指標26、モデル対の予測の相補性の指標5）と、配列66（ラウンドごとのモデル数の2つ、応答の記録の、値を照合した18、常に`forward`であることを確かめた`provisional_validation_sources`、登録・クラスタリング・保有モデルの17、クロス評価の28）。
+まだ照合していないのは、指標40・配列19: 予測の集計（`routing_*`の指標と、`history_routing_*`・`routing_*`の配列）。

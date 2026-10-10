@@ -4870,6 +4870,11 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in ("dataclasses.dataclass",)
     if source_module_path == "evaluation/held_model_count_record_store.py":
         return imported_module_name in ()
+    if source_module_path == "evaluation/cross_evaluation_metric_calculations.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.evaluation.cross_evaluation_record_store.ClientCrossEvaluationRecord",
+        )
     if source_module_path == "evaluation/model_diagnostic_metric_calculations.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5015,6 +5020,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.evaluation.run_metric_calculations.calculate_stable_period_prediction_accuracy",
             "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
             "federated_learning_experiments.execution.run_execution_records.StreamProtocolRunResult",
+            "federated_learning_experiments.evaluation.cross_evaluation_metric_calculations.ModelPairPredictionComplementarityMetrics",
+            "federated_learning_experiments.evaluation.cross_evaluation_metric_calculations.summarize_model_pair_prediction_complementarity",
             "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
             "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
             "federated_learning_experiments.methods.fedsda.model_registration.global_model_repository.GlobalModelRepository",
@@ -6411,6 +6418,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/computation_cost_summary.py",
             "evaluation/change_response_metric_calculations.py",
             "evaluation/model_diagnostic_metric_calculations.py",
+            "evaluation/cross_evaluation_metric_calculations.py",
             "evaluation/held_model_count_record_store.py",
             "evaluation/loss_monitoring_computation_count_store.py",
             "learning/models/model_computation_measurement.py",
@@ -6515,6 +6523,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/computation_cost_summary.py",
                     "evaluation/change_response_metric_calculations.py",
                     "evaluation/model_diagnostic_metric_calculations.py",
+                    "evaluation/cross_evaluation_metric_calculations.py",
                     "evaluation/held_model_count_record_store.py",
                     "evaluation/loss_monitoring_computation_count_store.py",
                     "learning/models/model_computation_measurement.py",

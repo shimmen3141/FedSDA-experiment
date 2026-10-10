@@ -41,7 +41,7 @@ from federated_learning_experiments.runtime.fedsda_run_server import FedsdaRunSe
 # 初期モデル（登録のラウンドがない）の、登録ラウンドの値。
 INITIAL_MODEL_REGISTERED_ROUND_INDEX = -1
 # 整数の列で、値がないこと（推定した変化点がない、比較した参照モデルがない、登録したclientがない、
-# 最も近い相手のモデルがない、真の概念の一致が分からない）を表す値。
+# 最も近い相手のモデルがない、真の概念の一致が分からない、クロス評価で正誤を比べなかった）を表す値。
 MISSING_INTEGER_VALUE = -1
 
 
@@ -472,6 +472,73 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
             for pair_observation in pair_observations
         ]
     )
+
+    # ---- クロス評価の、clientの評価ごとの記録（評価した順）と、そのクラスごとの記録（クラスの昇順） ----
+    # 候補（candidate）は評価する側、対象（target）は標本を持つ側のモデル。正誤の4つの数は、
+    # 標本ごとの正誤を比べなかった評価では、4つとも−1。
+    cross_evaluation_records = (
+        server_owners.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
+    )
+    correctness_column_names = (
+        "candidate_only_correct_sample_count",
+        "target_only_correct_sample_count",
+        "both_correct_sample_count",
+        "both_wrong_sample_count",
+    )
+    for column_name, record_field_name in (
+        ("server_round_index", "round_index"),
+        ("client_id", "client_id"),
+        ("candidate_model_id", "candidate_model_id"),
+        ("target_model_id", "target_model_id"),
+        ("evaluated_sample_count", "evaluated_sample_count"),
+    ):
+        record_tables[f"client_cross_evaluation.{column_name}"] = _integer_column(
+            [
+                getattr(cross_evaluation_record, record_field_name)
+                for cross_evaluation_record in cross_evaluation_records
+            ]
+        )
+    for column_name in ("bounded_loss_sum", "squared_bounded_loss_sum"):
+        record_tables[f"client_cross_evaluation.{column_name}"] = _float_column(
+            [
+                getattr(cross_evaluation_record, column_name)
+                for cross_evaluation_record in cross_evaluation_records
+            ]
+        )
+    for count_position, column_name in enumerate(correctness_column_names):
+        record_tables[f"client_cross_evaluation.{column_name}"] = _integer_column(
+            [
+                MISSING_INTEGER_VALUE
+                if cross_evaluation_record.correctness_counts is None
+                else cross_evaluation_record.correctness_counts[count_position]
+                for cross_evaluation_record in cross_evaluation_records
+            ]
+        )
+    class_rows = [
+        (
+            cross_evaluation_record.round_index,
+            cross_evaluation_record.client_id,
+            cross_evaluation_record.candidate_model_id,
+            cross_evaluation_record.target_model_id,
+            *class_counts,
+        )
+        for cross_evaluation_record in cross_evaluation_records
+        for class_counts in cross_evaluation_record.class_correctness_counts
+    ]
+    for row_position, column_name in enumerate(
+        (
+            "server_round_index",
+            "client_id",
+            "candidate_model_id",
+            "target_model_id",
+            "class_id",
+            "evaluated_sample_count",
+            *correctness_column_names,
+        )
+    ):
+        record_tables[f"client_cross_evaluation_class.{column_name}"] = _integer_column(
+            [class_row[row_position] for class_row in class_rows]
+        )
 
     # ---- clientの保有モデルごとの、実行の終わりの学習量（clientの順、モデルIDの昇順） ----
     held_model_training_amounts = sorted(

@@ -148,6 +148,31 @@ EXPECTED_TABLE_COLUMNS = {
         true_concepts_match="i",
         concept_specific_parameter_distance="f",
     ),
+    "client_cross_evaluation": dict(
+        server_round_index="i",
+        client_id="i",
+        candidate_model_id="i",
+        target_model_id="i",
+        evaluated_sample_count="i",
+        bounded_loss_sum="f",
+        squared_bounded_loss_sum="f",
+        candidate_only_correct_sample_count="i",
+        target_only_correct_sample_count="i",
+        both_correct_sample_count="i",
+        both_wrong_sample_count="i",
+    ),
+    "client_cross_evaluation_class": dict(
+        server_round_index="i",
+        client_id="i",
+        candidate_model_id="i",
+        target_model_id="i",
+        class_id="i",
+        evaluated_sample_count="i",
+        candidate_only_correct_sample_count="i",
+        target_only_correct_sample_count="i",
+        both_correct_sample_count="i",
+        both_wrong_sample_count="i",
+    ),
     "client_held_model": dict(
         client_id="i",
         model_id="i",
@@ -610,6 +635,112 @@ NEW_COLUMN_BY_LEGACY_MODEL_DIAGNOSTIC_ARRAY_NAME = {
 }
 
 
+# 旧の配列の名前の末尾から、clientの評価ごとの表・クラスごとの表の、列の名前への対応。
+CROSS_EVALUATION_COLUMN_BY_LEGACY_ARRAY_NAME_SUFFIX = {
+    "round_index": "server_round_index",
+    "client_id": "client_id",
+    "candidate_model_id": "candidate_model_id",
+    "target_model_id": "target_model_id",
+    "class_id": "class_id",
+    "n": "evaluated_sample_count",
+    "sum": "bounded_loss_sum",
+    "sum_sq": "squared_bounded_loss_sum",
+    "candidate_only_correct": "candidate_only_correct_sample_count",
+    "target_only_correct": "target_only_correct_sample_count",
+    "both_correct": "both_correct_sample_count",
+    "both_wrong": "both_wrong_sample_count",
+}
+# 条件ごとの、クロス評価の表が通った場合の観測（goldenの3ケースと、小さい条件）。
+CROSS_EVALUATION_TABLE_OBSERVATIONS = []
+# どの条件も通らない場合（実測で決める）。
+CROSS_EVALUATION_TABLE_CASES_NOT_COVERED = set()
+
+
+def assert_cross_evaluation_tables_match_legacy_saved_arrays(record_tables, legacy_saved_arrays):
+    """clientの評価ごとの表と、クラスごとの表が、実旧が保存した配列と、形と値で一致する。"""
+    compared_legacy_array_names = set()
+    for table_name, legacy_prefix in (
+        ("client_cross_evaluation", "cross_evaluation_"),
+        ("client_cross_evaluation_class", "cross_evaluation_class_"),
+    ):
+        column_names = EXPECTED_TABLE_COLUMNS[table_name]
+        for (
+            legacy_suffix,
+            column_name,
+        ) in CROSS_EVALUATION_COLUMN_BY_LEGACY_ARRAY_NAME_SUFFIX.items():
+            if column_name not in column_names:
+                continue
+            legacy_array_name = legacy_prefix + legacy_suffix
+            legacy_array = legacy_saved_arrays[legacy_array_name]
+            column = record_tables[f"{table_name}.{column_name}"]
+            assert column.shape == legacy_array.shape, legacy_array_name
+            assert column.dtype == legacy_array.dtype, legacy_array_name
+            assert np.array_equal(column, legacy_array), legacy_array_name
+            compared_legacy_array_names.add(legacy_array_name)
+    # 旧の`model_pair_*`の配列は、clientの評価ごとの表の、正誤を比べた行。
+    correctness_compared = record_tables["client_cross_evaluation.both_correct_sample_count"] >= 0
+    for legacy_suffix in (
+        "candidate_model_id",
+        "target_model_id",
+        "n",
+        "candidate_only_correct",
+        "target_only_correct",
+        "both_correct",
+        "both_wrong",
+    ):
+        legacy_array_name = "model_pair_" + legacy_suffix
+        legacy_array = legacy_saved_arrays[legacy_array_name]
+        column = record_tables[
+            "client_cross_evaluation."
+            + CROSS_EVALUATION_COLUMN_BY_LEGACY_ARRAY_NAME_SUFFIX[legacy_suffix]
+        ][correctness_compared]
+        assert column.dtype == legacy_array.dtype, legacy_array_name
+        assert np.array_equal(column, legacy_array), legacy_array_name
+        compared_legacy_array_names.add(legacy_array_name)
+    assert len(compared_legacy_array_names) == 11 + 10 + 7
+    # 旧の配列のうち、この3つのまとまりの名前を持つものは、全部、比べた。
+    assert compared_legacy_array_names == {
+        array_name
+        for array_name in legacy_saved_arrays
+        if array_name.startswith(("cross_evaluation_", "model_pair_"))
+    }
+    # 正誤の4つの数は、比べなかった行では、4つとも−1。比べた行では、和が、標本数。
+    correctness_columns = np.stack(
+        [
+            record_tables[f"client_cross_evaluation.{column_name}"]
+            for column_name in (
+                "candidate_only_correct_sample_count",
+                "target_only_correct_sample_count",
+                "both_correct_sample_count",
+                "both_wrong_sample_count",
+            )
+        ]
+    )
+    assert (correctness_columns[:, ~correctness_compared] == -1).all()
+    assert (
+        correctness_columns[:, correctness_compared].sum(axis=0)
+        == record_tables["client_cross_evaluation.evaluated_sample_count"][correctness_compared]
+    ).all()
+    evaluated_sample_counts = record_tables["client_cross_evaluation.evaluated_sample_count"]
+    CROSS_EVALUATION_TABLE_OBSERVATIONS.append(
+        dict(
+            correctness_compared_evaluation=bool(correctness_compared.any()),
+            correctness_not_compared_evaluation=bool((~correctness_compared).any()),
+            class_row=bool(record_tables["client_cross_evaluation_class.class_id"].size),
+            evaluation_without_samples=bool((evaluated_sample_counts == 0).any()),
+            candidate_differs_from_target_without_comparison=bool(
+                (
+                    ~correctness_compared
+                    & (
+                        record_tables["client_cross_evaluation.candidate_model_id"]
+                        != record_tables["client_cross_evaluation.target_model_id"]
+                    )
+                ).any()
+            ),
+        )
+    )
+
+
 def assert_model_diagnostic_columns_match_legacy_saved_arrays(record_tables, legacy_saved_arrays):
     """モデル別の診断・登録・クラスタリングの、足した列が、実旧が保存した配列と、形と値で一致する。"""
     for (
@@ -664,6 +795,10 @@ def test_golden_condition_model_diagnostic_columns_match_legacy_saved_arrays(
         record_tables, golden_condition_runs.legacy_saved_arrays
     )
     observe_model_diagnostic_column_cases(record_tables)
+    # clientの評価ごとの表と、クラスごとの表も、実旧が保存した配列と一致する。
+    assert_cross_evaluation_tables_match_legacy_saved_arrays(
+        record_tables, golden_condition_runs.legacy_saved_arrays
+    )
     # 保有モデルごとの表は、clientの順・モデルIDの昇順で、clientごとに、1つ以上の行を持つ。
     held_model_rows = list(
         zip(
@@ -766,6 +901,7 @@ def test_round_model_counts_match_real_legacy_whole_run(
     # 登録・クラスタリング・保有モデルの、足した列が、実旧が保存した配列と一致する。
     assert_model_diagnostic_columns_match_legacy_saved_arrays(record_tables, legacy_saved_arrays)
     observe_model_diagnostic_column_cases(record_tables)
+    assert_cross_evaluation_tables_match_legacy_saved_arrays(record_tables, legacy_saved_arrays)
     legacy_round_model_counts = legacy_run["legacy_round_model_counts"]
     assert (
         record_tables["server_round.global_model_count_after_synchronization"].tolist()
@@ -860,6 +996,19 @@ def test_pair_with_unknown_true_concepts_and_model_without_distance_are_written_
         ).clustering_true_concept_agreement_metrics
         == experiment_run.run_metrics.model_diagnostic_metrics.clustering_true_concept_agreement_metrics
     )
+
+
+def test_cross_evaluation_table_conditions_cover_required_cases():
+    """goldenの3ケースと、小さい条件が、正誤を比べた評価・比べなかった評価・クラスごとの行を通っている。"""
+    if len(CROSS_EVALUATION_TABLE_OBSERVATIONS) < len(ROUND_MODEL_COUNT_CONDITIONS) + len(
+        legacy_regression.CASES
+    ):
+        pytest.skip("goldenの3ケースと、小さい条件の全部を実行したときだけ確かめる")
+    assert CROSS_EVALUATION_TABLE_CASES_NOT_COVERED == {
+        case_name
+        for case_name in CROSS_EVALUATION_TABLE_OBSERVATIONS[0]
+        if not any(observation[case_name] for observation in CROSS_EVALUATION_TABLE_OBSERVATIONS)
+    }
 
 
 def test_model_diagnostic_column_conditions_cover_required_cases():
