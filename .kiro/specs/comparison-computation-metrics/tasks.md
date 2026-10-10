@@ -9,7 +9,7 @@
   - _Boundary: ClientModelAggregation、ModelConsolidation_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 5.1, 5.2_
 
-- [ ] 1.2 clientが、標本ごとの保有モデル数を記録する
+- [x] 1.2 clientが、標本ごとの保有モデル数を記録する
   - ownerのtestと、clientの全状態の新旧照合への照合を先に書く。
   - 完了: ownerのtest、clientのtest、依存境界のsuiteが成功する。
   - _Boundary: HeldModelCountRecordStore、FedsdaRunClient_

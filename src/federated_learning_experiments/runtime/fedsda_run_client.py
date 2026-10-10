@@ -13,6 +13,9 @@ from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_coll
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecordStore,
 )
+from federated_learning_experiments.evaluation.held_model_count_record_store import (
+    HeldModelCountRecordStore,
+)
 from federated_learning_experiments.evaluation.loss_change_alarm_record_store import (
     LossChangeAlarmRecordStore,
 )
@@ -130,6 +133,7 @@ class FedsdaRunClientOwners:
     loss_change_monitor: OverallAndTrueClassLossMonitor
     loss_change_alarm_record_store: LossChangeAlarmRecordStore
     loss_monitoring_computation_count_store: LossMonitoringComputationCountStore
+    held_model_count_record_store: HeldModelCountRecordStore
     pending_training_assignment_buffer: PendingTrainingAssignmentBuffer
     pending_sample_observation_store: PendingSampleObservationStore
     held_model_training_state_registry: HeldModelTrainingStateRegistry
@@ -200,6 +204,7 @@ class FedsdaRunClient:
         位置と概念IDの型、位置の連続は、標本1件の処理が、どの更新より前に確かめる。
         この標本で、保持中の候補検証が確定したときは、その判定記録を、判定記録の保持へ足す。
         この標本の、損失の監視（検出器）の計算の計数を、計数の保持へ足す。
+        この標本の予測の時点（処理の前）の保有モデル数を、保有モデル数の列へ足す。
         """
         if type(observed_sample) is not ObservedSample:
             raise TypeError("observed_sample must be exact ObservedSample")
@@ -207,6 +212,10 @@ class FedsdaRunClient:
         settings = self._run_client_settings
         scalar_settings = settings.scalar_settings
         current_training_classifier = self._get_current_training_classifier()
+        # 予測は、処理の最初に、その時点の保有モデルの全部で行う。
+        held_model_count_before_processing = len(
+            owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+        )
         sample_processing = process_observed_sample(
             indexed_observation=IndexedObservedTrainingSample(
                 sample_index=sample_index,
@@ -252,6 +261,9 @@ class FedsdaRunClient:
             local_training_settings=settings.local_training_settings,
             shared_feature_extractor=current_training_classifier.feature_extractor,
             shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer,
+        )
+        owners.held_model_count_record_store.append_held_model_count(
+            held_model_count=held_model_count_before_processing
         )
         loss_monitoring_observation = sample_processing.loss_monitoring_observation
         owners.loss_monitoring_computation_count_store.record_loss_monitoring_computation(
@@ -570,6 +582,7 @@ def assemble_fedsda_run_client(
         ),
         loss_change_alarm_record_store=LossChangeAlarmRecordStore(),
         loss_monitoring_computation_count_store=LossMonitoringComputationCountStore(),
+        held_model_count_record_store=HeldModelCountRecordStore(),
         pending_training_assignment_buffer=PendingTrainingAssignmentBuffer(
             training_data_assignment_settings=run_client_settings.training_data_assignment_settings
         ),

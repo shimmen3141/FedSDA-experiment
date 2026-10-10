@@ -641,6 +641,12 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
     assert adaptation_record_snapshot.training_model_switch_sample_indices == tuple(
         legacy_client.local_switch_positions
     )
+    # 標本ごとの保有モデル数: 処理した標本ごとに1件。合計は、実旧の、予測でモデルへ入力した標本の数
+    # （旧は、標本ごとに、保有する全モデルを通す）。
+    held_model_counts = owners.held_model_count_record_store.snapshot_held_model_counts()
+    assert len(held_model_counts) == len(alarm_record_snapshot.monitored_log_e_values)
+    assert sum(held_model_counts) == legacy_client.compute_counters["prediction_examples"]
+    assert all(held_model_count >= 1 for held_model_count in held_model_counts)
     # 検出器の計算の計数: 実旧の、検出器の更新回数と、評価した候補×賭け率の数。
     loss_monitoring_computation_counts = (
         owners.loss_monitoring_computation_count_store.get_loss_monitoring_computation_counts()
@@ -1119,6 +1125,11 @@ def test_assembly_copies_initial_model_and_keeps_clients_independent(
             second_client.owners.loss_monitoring_computation_count_store.get_loss_monitoring_computation_counts()
         ).values()
     )
+    assert (
+        first_client.owners.held_model_count_record_store
+        is not second_client.owners.held_model_count_record_store
+    )
+    assert second_client.owners.held_model_count_record_store.snapshot_held_model_counts() == ()
     assert first_decision_record_store.snapshot_candidate_validation_decision_records() == ()
     assert second_decision_record_store.snapshot_candidate_validation_decision_records() == ()
     # 片方のclientだけ標本を処理しても、もう片方と、渡した初期モデルは変わらない。
