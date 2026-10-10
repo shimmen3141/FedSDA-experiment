@@ -1,9 +1,9 @@
 {
   "feature_name": "model-computation-measurement",
   "created_at": "2026-10-12T10:00:00+09:00",
-  "updated_at": "2026-10-12T12:00:00+09:00",
+  "updated_at": "2026-10-12T18:00:00+09:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -23,16 +23,28 @@
     },
     "naming": {
       "generated": true,
-      "approved": false,
-      "note": "名前は、全taskの後の独立レビューで確認を受ける"
+      "approved": true,
+      "note": "名前は、全taskの後の独立レビューで確認を受けた（下のimplementation_review）"
     }
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "user_decision": "2026-10-10: 計算量の指標は必要。旧の計数の検査を含めて、1つのspecで扱う。順序は、計算量→datasetの移植→Linux用のgolden。2026-10-10追加: 旧と同じ件数に加えて、積和演算の数を測る（逆伝播は分離できる形で）。サーバの計算、保有モデル数での正規化、ラウンドごとの系列は、次のspec",
   "handoff": {
-    "execution_status": "in_progress",
-    "next_step": "tasks.mdの下位taskを1.1から順に実装する（/kiro-impl model-computation-measurement --review off の手順）",
-    "independent_review": "未実施（全taskの後に1回）"
+    "execution_status": "completed",
+    "next_step": "none（次のspecは再開案内の「次の一手」）"
+  },
+  "implementation_review": {
+    "verdict": "IMPLEMENTATION: CHANGES_REQUESTED → FIX: APPROVED",
+    "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+    "reviewer_selection": "GPT-6 Lunaは利用上限で利用不能の期間のため、Haiku 5.5",
+    "reviewer_session": "4153a1bf-6099-49db-af2d-d0f32bff4e9e",
+    "fix_confirmation_session": "fc825cdc-fb1a-4f3a-bba8-7637e151a6ea",
+    "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+    "reviewed_range": "f6b21ec..f4390e4（1回め）、f4390e4..baf072c（修正の確認）",
+    "independent_test_execution": true,
+    "independent_full_pytest_reproduction": false,
+    "findings": "1回め: Major 1件（警報時の区間の準備の拒否の時点。修正）、Minor 6件、任意 1件。2回め: Minor 1件（文書の表現）。採否はtasks.mdのImplementation Notes",
+    "full_pytest": "11541 passed / 3 skipped / 2 warnings (baf072c、主担当の実測とJUnit)"
   }
 }
