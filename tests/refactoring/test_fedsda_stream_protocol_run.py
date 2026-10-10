@@ -485,6 +485,16 @@ def test_whole_stream_protocol_run_matches_real_legacy_whole_run(
         for run_client in participants.client_operations
         for adaptation_record in run_client.owners.adaptation_record_store.get_state_snapshot().adaptation_records
     }
+    # サーバの計数: 統合の加重平均と、診断のパラメータ距離を、実際に通った条件。
+    _, consolidation_count, diagnostic_distance_count = (
+        assert_server_parameter_computation_counts_match_records(
+            run_server=participants.server_operations, legacy_server=legacy_server
+        )
+    )
+    if consolidation_count > 0:
+        observed_paths.add("server_consolidation_parameters_accumulated")
+    if diagnostic_distance_count > 0:
+        observed_paths.add("server_parameter_distance_computed")
     # 候補の判定の種類（実旧の理由）。保持した判定記録との照合は、clientの全状態の照合が行う。
     observed_paths |= {
         f"decision_{legacy_decision.reason}"
@@ -544,6 +554,8 @@ def test_whole_run_conditions_cover_required_paths():
         "multiple_global_models_at_run_end",
         "unprocessed_tail_samples",
         "adaptation_server_merge",
+        "server_consolidation_parameters_accumulated",
+        "server_parameter_distance_computed",
         # 候補の判定の種類: 採用、区間の判定での棄却（前半、後半、両方）、現行モデルの維持、終端の回収。
         # 別の保有モデルの再利用（alternative_reference_refit）は、この条件では通らない。
         "decision_accepted",

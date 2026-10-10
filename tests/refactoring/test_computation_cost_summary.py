@@ -61,6 +61,9 @@ def test_summary_matches_hand_calculation():
         client_forward_multiply_accumulate_count_per_held_model_sample=79.2,
         client_forward_and_backward_multiply_accumulate_count_per_processed_sample=284.0,
         client_forward_and_backward_multiply_accumulate_count_per_held_model_sample=113.6,
+        # 共有部は標本あたり（14000÷100）、概念固有部は保有モデル×標本あたり（5800÷250）。
+        client_shared_part_forward_multiply_accumulate_count_per_processed_sample=140.0,
+        client_concept_specific_part_forward_multiply_accumulate_count_per_held_model_sample=23.2,
     )
     with pytest.raises(FrozenInstanceError):
         summary.processed_sample_count = 0
@@ -89,6 +92,8 @@ def test_ratios_are_nan_when_denominators_are_zero():
         "client_forward_multiply_accumulate_count_per_held_model_sample",
         "client_forward_and_backward_multiply_accumulate_count_per_processed_sample",
         "client_forward_and_backward_multiply_accumulate_count_per_held_model_sample",
+        "client_shared_part_forward_multiply_accumulate_count_per_processed_sample",
+        "client_concept_specific_part_forward_multiply_accumulate_count_per_held_model_sample",
     ):
         assert isnan(getattr(summary, ratio_name)), ratio_name
     assert summary.client_forward_multiply_accumulate_count == 19800

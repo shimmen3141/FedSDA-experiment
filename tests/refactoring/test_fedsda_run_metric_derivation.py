@@ -668,6 +668,21 @@ def test_golden_condition_comparison_computation_metrics_match_real_legacy_count
     assert computation_cost_summary.mean_held_model_count == (
         run_metrics.held_model_sample_count / 4500
     )
+    # 概念固有部だけの、保有モデル×標本あたりの値: 予測では、保有モデル×標本ごとに、概念固有部を1回通す。
+    # ほかの処理（検出、統計、学習ほか）の分があるので、1回ぶんの積和演算の数より大きい。
+    concept_specific_macs_per_example = (
+        model_computation_counts.concept_specific_part_inference_forward_multiply_accumulate_count
+        // model_computation_counts.concept_specific_part_inference_example_count
+    )
+    assert (
+        computation_cost_summary.client_concept_specific_part_forward_multiply_accumulate_count_per_held_model_sample
+        > concept_specific_macs_per_example
+    )
+    assert (
+        computation_cost_summary.client_shared_part_forward_multiply_accumulate_count_per_processed_sample
+        * 4500
+        == computation_cost_summary.client_shared_part_forward_multiply_accumulate_count
+    )
     assert computation_cost_summary.server_multiply_accumulate_count == (
         aggregation_count + consolidation_count
     )

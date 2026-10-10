@@ -41,6 +41,10 @@ class ComputationCostSummary:
     clientの値は、モデルの計算（全結合層）。`forward`は順伝播（推論＋学習）の実測、
     `estimated_backward`は逆伝播の見積り。サーバの値は、集約と統合（診断のパラメータ距離は別）。
     比は、分母が0のとき、NaN。
+
+    共有部の計算は、標本ごとに1回で、保有モデル数に依らない。概念固有部の計算は、保有モデルごとに
+    行う。このため、「保有モデル×標本あたり」の値は、全体（共有部を含む）のものと、概念固有部だけの
+    ものを、別に持つ。全体の値は、保有モデルが増えると、共有部の分が薄まって小さくなる。
     """
 
     processed_sample_count: int
@@ -56,6 +60,9 @@ class ComputationCostSummary:
     client_forward_multiply_accumulate_count_per_held_model_sample: float
     client_forward_and_backward_multiply_accumulate_count_per_processed_sample: float
     client_forward_and_backward_multiply_accumulate_count_per_held_model_sample: float
+    # 共有部は標本あたり、概念固有部は保有モデル×標本あたり（順伝播）。
+    client_shared_part_forward_multiply_accumulate_count_per_processed_sample: float
+    client_concept_specific_part_forward_multiply_accumulate_count_per_held_model_sample: float
 
 
 def _divide_or_nan(*, numerator: int, denominator: int) -> float:
@@ -126,5 +133,13 @@ def summarize_computation_cost(
         client_forward_and_backward_multiply_accumulate_count_per_held_model_sample=_divide_or_nan(
             numerator=forward_count + estimated_backward_count,
             denominator=held_model_sample_count,
+        ),
+        client_shared_part_forward_multiply_accumulate_count_per_processed_sample=_divide_or_nan(
+            numerator=shared_part_forward_count, denominator=processed_sample_count
+        ),
+        client_concept_specific_part_forward_multiply_accumulate_count_per_held_model_sample=(
+            _divide_or_nan(
+                numerator=concept_specific_part_forward_count, denominator=held_model_sample_count
+            )
         ),
     )

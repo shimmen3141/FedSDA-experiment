@@ -22,7 +22,7 @@
 | 主張 | 使う量 |
 |---|---|
 | (a) clientの計算が少ない | clientの積和演算の数（順伝播。逆伝播の見積りを含むものも）。標本1件あたりに直した値（ストリームの長さ・client数が違っても比べられる） |
-| (b) 1モデルあたりの計算量 | clientの積和演算の数 ÷ Σ（client・標本ごとの保有モデル数）。保有していた期間に応じて重みがつく |
+| (b) 1モデルあたりの計算量 | 概念固有部の積和演算の数 ÷ Σ（client・標本ごとの保有モデル数）。保有していた期間に応じて重みがつく。共有部の計算は、保有モデル数に依らない（標本ごとに1回）ので、標本あたりの値として、別に示す。全体（共有部を含む）÷Σ保有モデル数、の値も持つが、保有モデルが増えると、共有部の分が薄まって小さくなる点に注意する（独立レビューの指摘で、概念固有部だけの値を足した） |
 | (c) モデル数が増えても、増えにくい | 共有部と概念固有部の内訳（共有部は、保有モデル数に依らない）。ラウンドごとの計算量と、標本ごとの保有モデル数の列（関係を、分析で見る） |
 | サーバの負荷 | サーバの積和演算の数（集約＋統合。診断のパラメータ距離は別） |
 
@@ -92,7 +92,7 @@ class ModelConsolidation:
     diagnostic_parameter_distance_multiply_accumulate_count: int    # 対ごとに、概念固有部の値の数×3
 ```
 
-- 集約: `_add_weighted_parameters`を呼ぶたびに、渡したパラメータの値の数（`numel`の合計）を足す。
+- 集約: 重み付きの和へ足したパラメータ（`_add_weighted_parameters`へ渡したもの）は、上りとして数えるパラメータの一覧（`uploaded_parameter_snapshots`）と同じなので、その一覧の値の数（`numel`の合計）を、計数にする。
 - 統合: `_compute_sample_weighted_mean_parameters`が、足したメンバーの値の数も返す（重みが0のメンバーと、重みがすべて0のクラスタは、0）。
 - パラメータ距離: 距離を計算した対ごとに、概念固有部の値の数×3。
 
@@ -148,6 +148,8 @@ class ComputationCostSummary:
     client_forward_multiply_accumulate_count_per_held_model_sample: float
     client_forward_and_backward_multiply_accumulate_count_per_processed_sample: float
     client_forward_and_backward_multiply_accumulate_count_per_held_model_sample: float
+    client_shared_part_forward_multiply_accumulate_count_per_processed_sample: float
+    client_concept_specific_part_forward_multiply_accumulate_count_per_held_model_sample: float
 
 def summarize_computation_cost(
     *, model_computation_counts: ModelComputationCounts, server_computation_counts: ServerComputationCounts,
