@@ -58,6 +58,13 @@ def make_field_values(run_settings):
     return {field_name: getattr(run_settings, field_name) for field_name in FIELD_NAMES}
 
 
+def mutate(settings, field_name, value):
+    """frozenを回避して、検証を通らない値を入れた写しを作る。"""
+    mutated_settings = replace(settings)
+    object.__setattr__(mutated_settings, field_name, value)
+    return mutated_settings
+
+
 def test_run_settings_hold_the_four_parts_and_are_frozen_and_keyword_only():
     run_settings = make_valid_run_settings()
     assert tuple(settings_field.name for settings_field in fields(FedsdaRunSettings)) == FIELD_NAMES
@@ -95,13 +102,6 @@ def test_each_part_must_be_its_exact_settings_type(field_name):
         assert exception_info.value.specified_parameter_value is invalid_value
 
 
-def mutate(settings, field_name, value):
-    """frozenを回避して、検証を通らない値を入れた写しを作る。"""
-    mutated_settings = replace(settings)
-    object.__setattr__(mutated_settings, field_name, value)
-    return mutated_settings
-
-
 def test_parts_are_validated_again_when_run_settings_are_built():
     """frozenを回避して組み立てた、不正な部分を、生成時に拒否する（各部分の検証を、もう一度行う）。"""
     run_settings = make_valid_run_settings()
@@ -134,6 +134,95 @@ def test_parts_are_validated_again_when_run_settings_are_built():
         for invalid_value in invalid_values:
             with pytest.raises((RunSettingsValidationError, TypeError, ValueError)):
                 FedsdaRunSettings(**make_field_values(run_settings) | {field_name: invalid_value})
+
+
+def test_detector_display_name_must_match_the_detection_method():
+    """検出器の表示名（警報の記録に残る）が、検出の方式と食い違う設定を、拒否する。"""
+    run_settings = make_valid_run_settings()
+    assert (
+        run_settings.run_participant_settings.run_client_settings.scalar_settings.detector_name
+        == "overall + class-conditional e-SR mixture"
+    )
+    run_client_settings = run_settings.run_participant_settings.run_client_settings
+    for mismatched_detector_name in ("ADWIN", "overall + class-conditional HDDM-A", "e-SR"):
+        # clientの設定の束が、生成時に拒否する。
+        with pytest.raises(RunSettingsValidationError) as exception_info:
+            replace(
+                run_client_settings,
+                scalar_settings=replace(
+                    run_client_settings.scalar_settings, detector_name=mismatched_detector_name
+                ),
+            )
+        assert exception_info.value.configuration_parameter_name == "detector_name"
+        assert exception_info.value.specified_parameter_value == mismatched_detector_name
+        # frozenを回避して組み立てた食い違いも、完全なrun設定の生成時に拒否する。
+        mismatched_participant_settings = mutate(
+            run_settings.run_participant_settings,
+            "run_client_settings",
+            mutate(
+                run_client_settings,
+                "scalar_settings",
+                mutate(
+                    run_client_settings.scalar_settings, "detector_name", mismatched_detector_name
+                ),
+            ),
+        )
+        with pytest.raises(RunSettingsValidationError) as exception_info:
+            replace(run_settings, run_participant_settings=mismatched_participant_settings)
+        assert exception_info.value.configuration_parameter_name == "detector_name"
+
+
+def test_reuse_tolerance_and_clustering_threshold_must_be_the_same_value():
+    """最終構成では、モデルの再利用の許容量（γ）と、クラスタリングの同じクラスタの判定の上限は、同じ値。
+
+    旧では、1つの設定の値を、両方に使う。新では、別々のfieldなので、食い違いを拒否する。
+    """
+    run_settings = make_valid_run_settings()
+    run_participant_settings = run_settings.run_participant_settings
+    assert (
+        run_participant_settings.run_client_settings.scalar_settings.maximum_tolerated_mean_loss_increase
+        == run_participant_settings.model_clustering_criteria.maximum_same_cluster_decision_score
+    )
+    run_client_settings = run_participant_settings.run_client_settings
+    changed_run_client_settings = replace(
+        run_client_settings,
+        scalar_settings=replace(
+            run_client_settings.scalar_settings, maximum_tolerated_mean_loss_increase=0.2
+        ),
+    )
+    changed_clustering_criteria = replace(
+        run_participant_settings.model_clustering_criteria,
+        maximum_same_cluster_decision_score=0.2,
+    )
+    for field_name, field_value in (
+        ("run_client_settings", changed_run_client_settings),
+        ("model_clustering_criteria", changed_clustering_criteria),
+    ):
+        # 片方だけを変えた束は、参加者の設定の束が、生成時に拒否する。
+        with pytest.raises(RunSettingsValidationError) as exception_info:
+            replace(run_participant_settings, **{field_name: field_value})
+        assert (
+            exception_info.value.configuration_parameter_name
+            == "maximum_same_cluster_decision_score"
+        )
+        # frozenを回避して組み立てた食い違いも、完全なrun設定の生成時に拒否する。
+        with pytest.raises(RunSettingsValidationError):
+            replace(
+                run_settings,
+                run_participant_settings=mutate(run_participant_settings, field_name, field_value),
+            )
+    # 両方を、同じ値へ変えるのは、受け入れる。
+    consistent_participant_settings = replace(
+        run_participant_settings,
+        run_client_settings=changed_run_client_settings,
+        model_clustering_criteria=changed_clustering_criteria,
+    )
+    assert (
+        replace(
+            run_settings, run_participant_settings=consistent_participant_settings
+        ).run_participant_settings
+        is consistent_participant_settings
+    )
 
 
 def test_replacing_a_part_builds_validated_run_settings():

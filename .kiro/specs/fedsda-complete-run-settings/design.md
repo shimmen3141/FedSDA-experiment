@@ -25,7 +25,7 @@
 
 ### Out of Boundary
 
-- 既存の設定型（機能別、束、実行の枠、指標）の定義と検証。全体runの実行。
+- 既存の設定型（機能別、束、実行の枠、指標）の定義と検証（clientの設定の束への、検出器の表示名の検査の追加を除く）。全体runの実行。
 
 ### Allowed Dependencies
 
@@ -79,6 +79,7 @@ class FedsdaRunSettings:
 - 生成時: 4つの部分の型（exact）を確かめ、各部分の検証をもう一度行う。既存の部分型`ValidatedExperimentRunSettingsSubset`を、部分から組み立てて、機能の組合せを検証する（手法の名前は`fedsda`）。
 - 部分型へ渡す値: 実行条件（実行の枠の設定から）、モデルの構造・検出・予測の結合・学習・帰属・候補の方針（参加者の設定の束と、その中のclientの設定の束から）、統合の設定。モデルの構造は、参加者の設定の束が持つ1つだけなので、食い違いは起きない。
 - 失敗は、既存の`RunSettingsValidationError`。
+- 一致すべき値の食い違い（要求1.3）は、値を両方持つ束が確かめる: 検出の方式と検出器の表示名は、clientの設定の束（このspecで足した。対応は、`("e_sr", "overall_and_true_class_losses")`→`"overall + class-conditional e-SR mixture"`の1つ）。再利用の許容量とクラスタリングの判定の上限は、参加者の設定の束（既存）。完全なrun設定は、各部分の検証をもう一度行うので、frozenを回避して組み立てた食い違いも、ここで拒否される。
 
 ### runtime: fedsda_final_configuration_run_settings
 

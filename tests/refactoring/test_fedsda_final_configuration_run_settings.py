@@ -1,7 +1,7 @@
 """最終構成の既定値を持つ完全なrun設定を、旧の設定の値と照合する。"""
 
 import json
-from dataclasses import replace
+from dataclasses import fields, is_dataclass, replace
 
 import pytest
 from test_fedsda_run_metric_derivation import legacy_regression, make_golden_condition_settings
@@ -58,6 +58,80 @@ REDUCED_LEGACY_SETTING_NAMES_BY_DATASET_NAME = {
 }
 
 
+# 最終構成の、方式の選択の対応: (旧の設定の名前, 旧の値, 新の設定の名前, 新の値)。
+LEGACY_AND_NEW_FINAL_CONFIGURATION_CHOICES = (
+    (
+        "SOFT_ROUTING_CONTEXT",
+        "switching",
+        "prediction_combination_strategy",
+        "fixed_share_weighted_prediction",
+    ),
+    ("SOFT_ROUTING_ACTIVATION_POLICY", "always", "prediction_mixture_activation_policy", "always"),
+    (
+        "SHARED_BACKBONE_ROUTING_RECALIBRATION",
+        "fifo_replay",
+        "prediction_weight_recalibration_after_aggregation_policy",
+        "recompute_buffer_losses_and_replay_weight_updates",
+    ),
+    (
+        "SHARED_BACKBONE_TRAINING",
+        "joint",
+        "local_model_parameter_update_strategy",
+        "joint_backbone_adapter_and_head_training",
+    ),
+    (
+        "SHARED_BACKBONE_GRADIENT_STRATEGY",
+        "mean",
+        "shared_backbone_gradient_combination_strategy",
+        "sample_weighted_mean_per_concept_gradients",
+    ),
+    (
+        "NEW_MODEL_CREATION_POLICY",
+        "forward_persistent",
+        "candidate_model_acceptance_policy",
+        "current_model_first_reuse_then_two_segment_candidate_validation",
+    ),
+    (
+        "NEW_MODEL_TRAINING",
+        "early_stopping",
+        "candidate_training_strategy",
+        "validation_loss_early_stopping",
+    ),
+    (
+        "NEW_MODEL_INITIALIZATION",
+        "best_candidate",
+        "candidate_parameter_initialization_source",
+        "lowest_evaluated_mean_loss_model",
+    ),
+    (
+        "FEDSDA_CLUSTERING_POLICY",
+        "on_new_model",
+        "model_clustering_trigger_policy",
+        "on_new_model_registration",
+    ),
+    (
+        "FEDSDA_CLUSTERING_DECISION",
+        "class_functional_confidence",
+        "model_pair_comparison_strategy",
+        "classwise_unique_correctness_lower_confidence_bound",
+    ),
+    ("FEDSDA_CLUSTER_LINKAGE", "average", "model_clustering_linkage", "average_linkage"),
+    (
+        "FEDSDA_CLUSTERING_CONSOLIDATION",
+        "merge",
+        "model_consolidation_policy",
+        "weighted_parameter_average_and_merge_ids",
+    ),
+    ("SHARED_ADAPTER_RANK", 8, "model_architecture_name", "shared_backbone_residual_adapter"),
+    (
+        "CONCEPT_SCHEDULE",
+        "random",
+        "concept_schedule_strategy",
+        "random_changes_after_minimum_index_gap",
+    ),
+)
+
+
 def read_legacy_final_configuration_values(dataset_name, legacy_overrides=None):
     """旧の設定を、最終構成の固定設定（と、渡した上書き）で有効化して、全部の値を読む。
 
@@ -111,6 +185,19 @@ def make_run_settings_from_legacy_values(
     )
 
 
+def collect_settings_types(settings):
+    """設定の中に現れる、dataclassの型の集合（入れ子と、tupleの中を含む）。"""
+    settings_types = set()
+    if is_dataclass(settings) and not isinstance(settings, type):
+        settings_types.add(type(settings))
+        for settings_field in fields(settings):
+            settings_types |= collect_settings_types(getattr(settings, settings_field.name))
+    elif isinstance(settings, tuple):
+        for element in settings:
+            settings_types |= collect_settings_types(element)
+    return settings_types
+
+
 def make_experiment_run_conditions(dataset_name, legacy_values):
     return ExperimentRunConditions(
         dataset_name=dataset_name,
@@ -159,6 +246,65 @@ def test_final_configuration_defaults_match_legacy_configuration(
         "best_candidate",
     )
     assert legacy_values["CONCEPT_SCHEDULE"] == "random"
+    # 方式の選択: 旧の選択肢の値と、新の方式の名前の対応（最終構成）。
+    new_values_by_name = dict(
+        prediction_combination_strategy=(
+            run_client_settings.prediction_combination_settings.prediction_combination_strategy
+        ),
+        prediction_mixture_activation_policy=(
+            run_client_settings.prediction_combination_settings.prediction_mixture_activation_policy
+        ),
+        prediction_weight_recalibration_after_aggregation_policy=(
+            run_client_settings.prediction_combination_settings.prediction_weight_recalibration_after_aggregation_policy
+        ),
+        local_model_parameter_update_strategy=(
+            run_client_settings.local_training_settings.local_model_parameter_update_strategy
+        ),
+        shared_backbone_gradient_combination_strategy=(
+            run_client_settings.local_training_settings.shared_backbone_gradient_combination_strategy
+        ),
+        candidate_model_acceptance_policy=(
+            run_client_settings.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy
+        ),
+        candidate_training_strategy=(
+            run_client_settings.candidate_epoch_training_settings.candidate_training_strategy
+        ),
+        candidate_parameter_initialization_source=(
+            run_client_settings.candidate_parameter_initialization_settings.candidate_parameter_initialization_source
+        ),
+        model_clustering_trigger_policy=(
+            run_settings.model_consolidation_settings.model_clustering_trigger_policy
+        ),
+        model_pair_comparison_strategy=(
+            run_settings.model_consolidation_settings.model_pair_comparison_strategy
+        ),
+        model_clustering_linkage=run_settings.model_consolidation_settings.model_clustering_linkage,
+        model_consolidation_policy=(
+            run_settings.model_consolidation_settings.model_consolidation_policy
+        ),
+        model_architecture_name=(
+            run_settings.run_participant_settings.model_architecture_settings.model_architecture_name
+        ),
+        concept_schedule_strategy=(
+            run_settings.execution_settings.concept_schedule_settings.concept_schedule_strategy
+        ),
+    )
+    for (
+        legacy_setting_name,
+        legacy_value,
+        new_setting_name,
+        new_value,
+    ) in LEGACY_AND_NEW_FINAL_CONFIGURATION_CHOICES:
+        assert legacy_values[legacy_setting_name] == legacy_value, legacy_setting_name
+        assert new_values_by_name.pop(new_setting_name) == new_value, new_setting_name
+    assert not new_values_by_name
+    # 検出器: 旧のmode名（ClassESR）が決める。新は、e-SRで、全体と正解クラスの損失を監視する。
+    assert "ClassESR" in legacy_regression.MODE and "ResidualAdapter" in legacy_regression.MODE
+    detection_settings = run_client_settings.loss_change_detection_settings
+    assert (detection_settings.drift_detector_name, detection_settings.loss_monitoring_scope) == (
+        "e_sr",
+        "overall_and_true_class_losses",
+    )
     # datasetごとのモデルの既定は、旧のdatasetの定義。
     legacy_dataset_spec = DATASET_SPECS[dataset_name]
     assert run_settings.run_participant_settings.hidden_layer_widths == tuple(
@@ -334,6 +480,10 @@ def test_final_configuration_settings_are_saved_as_a_complete_plain_mapping():
     )
     plain_mapping = convert_settings_to_plain_mapping(run_settings)
     assert json.loads(json.dumps(plain_mapping)) == plain_mapping
+    # 型の名前は、moduleを含まない。完全なrun設定の中の設定型は、名前が重ならない（辞書で区別できる）。
+    settings_types = collect_settings_types(run_settings)
+    assert len({settings_type.__name__ for settings_type in settings_types}) == len(settings_types)
+    assert len(settings_types) >= 15
     assert plain_mapping["settings_type"] == "FedsdaRunSettings"
     assert list(plain_mapping) == [
         "settings_type",
@@ -372,4 +522,7 @@ def test_final_configuration_settings_are_saved_as_a_complete_plain_mapping():
             run_settings.run_metric_settings, maximum_detection_delay_sample_count=99
         ),
     )
-    assert convert_settings_to_plain_mapping(other_run_settings) != plain_mapping
+    # 保存する文字列（JSON）で比べる（Pythonの`==`は、1と1.0とTrueを区別しない）。
+    assert json.dumps(convert_settings_to_plain_mapping(other_run_settings), sort_keys=True) != (
+        json.dumps(plain_mapping, sort_keys=True)
+    )

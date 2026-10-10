@@ -119,6 +119,11 @@ class FedsdaRunClientScalarSettings:
             )
 
 
+# 検出の方式（検出器、監視の範囲）から、警報と判定の記録に残す、検出器の表示名への対応。
+_DETECTOR_NAME_BY_DETECTION_METHOD: dict[tuple[str, str], str] = {
+    ("e_sr", "overall_and_true_class_losses"): "overall + class-conditional e-SR mixture",
+}
+
 # 束のfield名から、受け入れるexact型への対応（宣言順）。
 _REQUIRED_SETTINGS_TYPES_BY_FIELD_NAME: dict[str, tuple[type, ...]] = {
     "loss_change_detection_settings": (LossChangeDetectionSettings,),
@@ -205,6 +210,19 @@ class FedsdaRunClientSettings:
                 specified_parameter_value=self.rebuilt_model_parameter_optimizer_settings,
                 validation_failure_reason=(
                     "parameter_optimizer_settingsと同じ種類（AdamどうしかSGDどうし）の設定を指定してください。"
+                ),
+            )
+        detection_settings = self.loss_change_detection_settings
+        expected_detector_name = _DETECTOR_NAME_BY_DETECTION_METHOD.get(
+            (detection_settings.drift_detector_name, detection_settings.loss_monitoring_scope)
+        )
+        if self.scalar_settings.detector_name != expected_detector_name:
+            raise RunSettingsValidationError(
+                configuration_parameter_name="detector_name",
+                specified_parameter_value=self.scalar_settings.detector_name,
+                validation_failure_reason=(
+                    "検出の方式（drift_detector_nameとloss_monitoring_scope）に対応する表示名を指定してください: "
+                    f"{expected_detector_name!r}。"
                 ),
             )
         fixed_share_time_scale = self.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples

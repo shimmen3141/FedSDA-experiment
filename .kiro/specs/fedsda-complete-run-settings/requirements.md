@@ -23,7 +23,7 @@
 
 - **In scope**: 1 runの完全な設定の型。最終構成の既定値を返す関数（datasetごとのモデルの既定を含む）。設定を、保存用の辞書にする変換。
 - **Out of scope**: 1 runの実行と結果の保存（A2）。掃引・並列・コマンド・重複の確認（A3）。辞書から設定へ戻す変換。設定の束の中の、仮の置き場所（`FedsdaRunClientScalarSettings`ほか）の作り直し（挙動を変えない移植の後で判断する）。FedDriftの設定（B）。
-- **Adjacent expectations**: 既存の設定型と、全体runの結果は、変えない。
+- **Adjacent expectations**: 全体runの結果は、変えない。既存の設定型は、変えない。ただし、clientの設定の束（`FedsdaRunClientSettings`）へ、検出の方式と検出器の表示名の一致の検査を足す（独立レビューの指摘。これまで、食い違う表示名を受け入れていた）。
 
 ## Requirements
 
@@ -33,7 +33,7 @@
 
 1. The FedSDA Run Settings shall 1 runに要る設定（実行の枠の設定、参加者の設定の束、統合の設定、指標の設定）を、1つの不変の値として持つ。
 2. When 生成されたとき, the FedSDA Run Settings shall 各部分の型と値、機能の組合せ（既存の部分型の検証）、部分の間で一致すべき値（下の3）を確かめる。
-3. If 部分の間で、値が食い違うとき（アダプタのrank・検出器・予測の結合・学習・帰属・候補の方針が、束の中の同じ設定と違う。クロス評価のclientの上限が1未満）, the FedSDA Run Settings shall 拒否する。
+3. If 最終構成として一致すべき値が、食い違うとき（検出の方式と、記録に残す検出器の表示名。モデルの再利用の許容量と、クラスタリングの同じクラスタの判定の上限。既存の束が確かめている組——Fixed-Shareの時間尺度と保留の容量、候補の最小改善量と早期終了の最小改善量、ローカル学習と候補の学習のbatchの件数——）, the FedSDA Run Settings shall 拒否する（frozenを回避して組み立てた値を含む）。
 4. The 完全なrun設定 shall 全体runの実行（実行の枠の設定と、参加者のfactory）と、指標の導出へ、そのまま渡せる。
 
 ### Requirement 2: 最終構成の既定値

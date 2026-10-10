@@ -110,8 +110,15 @@ def test_conversion_is_deterministic_and_distinguishes_every_value_and_type():
             inner_settings=OtherInnerSettings(learning_rate=0.01, variant_name="amsgrad")
         ),
         make_outer_settings(inner_settings_sequence=()),
+        # 保存する文字列（JSON）では区別される、型だけの違い（Pythonの`==`は、1と1.0とTrueを区別しない）。
+        make_outer_settings(sample_count=True),
+        make_outer_settings(
+            inner_settings=InnerSettings(learning_rate=1, variant_name="amsgrad")  # type: ignore[arg-type]
+        ),
     ):
-        assert convert_settings_to_plain_mapping(changed_settings) != plain_mapping
+        assert json.dumps(
+            convert_settings_to_plain_mapping(changed_settings), sort_keys=True
+        ) != json.dumps(plain_mapping, sort_keys=True)
 
 
 @dataclass(frozen=True)
