@@ -106,8 +106,13 @@ Windows用のgolden（`tests/proposed_regression_golden.json`）と`tests/test_p
 - 一致するgoldenがない環境では、goldenとの照合だけをskipする（失敗にしない。skipの理由に、
   環境の記録と、足し方が出る。`-rs`で表示できる）。新実装と旧実装を、同じprocessの中で比べる照合は、
   goldenに依らないので、どの環境でも実行される。
-- 版が1つ変わると、goldenは選ばれなくなり、照合がskipになる。開発の環境（Windowsの基準環境とWSL）では、
-  検証のときに、skipの件数を確かめる。
+- 版が1つ変わると、goldenは選ばれなくなり、照合がskipになる（失敗にならないので、気づきにくい）。
+  これは、Windowsでも同じである: 新実装の照合は、Windowsの基準環境（Windows用のgoldenの`_env`）と
+  版が違うWindowsでは、skipされる（既存の回帰test`tests/test_proposed_regression.py`は、これまでどおり、
+  版が違っても、警告して比較する）。開発の環境（Windowsの基準環境とWSL）では、検証のときに、`-rs`で、
+  skipの件数と理由を確かめる。skipの理由には、いまあるgoldenの環境の記録も出るので、どの版が違うかが分かる。
+  Windowsの基準環境での全pytestのskipは、4件（POSIX bashがない3件と、旧実装の照合を既存の回帰testに任せる1件）。
+  WSLでは、goldenに関わるskipは、ない。
 
 照合するtest:
 
@@ -134,7 +139,8 @@ git add tests/refactoring/proposed_regression_goldens/
 ```
 
 できたファイルをcommitすれば、その環境で、goldenとの照合が行われるようになる。
-消すときは、ファイルを消す（ほかに変える所はない）。
+消すときは、ファイルを消す（ほかに変える所はない。環境ごとのgoldenが1つもなくても、testは成功する）。
+ディレクトリには、goldenのファイルだけを置く（名前を変えたり、ほかのファイルを置いたりすると、検査が失敗する）。
 
 ふだんのspec（挙動を変えない移植・整理）では、goldenを作り直さない。照合が失敗したら、実装の差を調べる。
 作り直すのは、意図したアルゴリズムの変更を承認して、結果が変わるときだけで、そのときは、
@@ -179,10 +185,14 @@ python -m pytest tests/refactoring/test_environment_proposed_regression.py \
 2回め以降は、`cd ../FedSDA-refactoring && git fetch origin && git checkout --detach origin/refactor/architecture`で更新する。
 不要になったら、`main`のcheckoutで`git worktree remove ../FedSDA-refactoring`。
 
-研究室サーバのgoldenを足すとき（1回だけ）は、上の環境のまま、worktreeで次を実行する。
-ブランチへ直接commitして、pushする。
+研究室サーバのgoldenを足すとき（1回だけ）は、上の環境（`.venv`と環境変数）のまま、worktreeで次を実行する。
+ブランチへ直接commitして、pushする。`git checkout -B`は、worktreeのローカルの`refactor/architecture`を、
+取得した最新の`origin/refactor/architecture`の位置へ作り直す（このworktreeに、pushしていないローカルのcommitが
+ある場合は、失われる。上の手順で作ったworktreeには、ない）。
 
 ```bash
+cd ../FedSDA-refactoring          # すでにworktreeにいるなら不要
+git fetch origin
 git checkout -B refactor/architecture origin/refactor/architecture
 python tests/refactoring/test_environment_proposed_regression.py --update
 python -m pytest tests/refactoring/test_environment_proposed_regression.py \
@@ -193,7 +203,8 @@ git push origin refactor/architecture
 ```
 
 研究室サーバでの照合は、ふだんのspecのたびに行う必要はない（開発中の照合は、Windowsの基準環境とWSLで行う）。
-`git pull`（worktreeの更新）の後に、確かめたいときだけ実行すればよい。
+worktreeを更新（`git fetch origin`の後、`git checkout --detach origin/refactor/architecture`。上でブランチを
+作った後なら、`git pull`）した後に、確かめたいときだけ実行すればよい。
 
 ## リファクタリングの進め方
 

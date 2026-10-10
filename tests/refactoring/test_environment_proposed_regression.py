@@ -59,7 +59,16 @@ def list_golden_paths(golden_directory=GOLDEN_DIRECTORY):
 
 
 def load_golden(golden_path):
-    return json.loads(golden_path.read_text(encoding="utf-8"))
+    """goldenを読む。壊れたJSONや、`_env`のないfileは、fileの名前つきで拒否する。"""
+    try:
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as decode_error:
+        raise ValueError(f"golden file is not valid JSON: {golden_path}: {decode_error}") from (
+            decode_error
+        )
+    if not isinstance(golden, dict) or not isinstance(golden.get("_env"), dict):
+        raise ValueError(f"golden file has no `_env` record: {golden_path}")
+    return golden
 
 
 def find_golden_path(environment, golden_directory=GOLDEN_DIRECTORY):
@@ -77,11 +86,19 @@ def find_golden_path(environment, golden_directory=GOLDEN_DIRECTORY):
     return matching_paths[0] if matching_paths else None
 
 
-def describe_missing_golden(environment):
-    """goldenのない環境でのskipの理由（環境の記録と、足し方）。"""
+def describe_missing_golden(environment, golden_directory=GOLDEN_DIRECTORY):
+    """goldenのない環境でのskipの理由（環境の記録、足し方、いまあるgoldenの環境）。
+
+    版が変わってgoldenが合わなくなったときに、どのgoldenと、どこが違うかを、理由から読めるようにする。
+    """
+    available_environments = "; ".join(
+        f"{golden_path.name}: {load_golden(golden_path)['_env']}"
+        for golden_path in list_golden_paths(golden_directory)
+    )
     return (
         f"この実行環境のgoldenがない: {environment}。"
-        f"足すには、この環境で `{UPDATE_COMMAND}` を実行して、できたファイルをcommitする"
+        f"足すには、この環境で `{UPDATE_COMMAND}` を実行して、できたファイルをcommitする。"
+        f"いまあるgolden: {available_environments}"
     )
 
 
@@ -133,8 +150,13 @@ def write_environment_golden(
             f"a golden for this environment already exists: {existing_golden_path}. "
             "Pass --overwrite only after reviewing why the results changed"
         )
-    payload = build_golden_payload(source_commit=source_commit)
     golden_path = golden_directory / make_golden_file_name(environment)
+    if golden_path.exists() and golden_path != existing_golden_path:
+        # 名前は、環境の記録の一部から作る。名前が同じで、記録が違うgoldenを、黙って上書きしない。
+        raise RuntimeError(
+            f"another golden already uses the file name of this environment: {golden_path}"
+        )
+    payload = build_golden_payload(source_commit=source_commit)
     golden_directory.mkdir(parents=True, exist_ok=True)
     golden_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -145,22 +167,77 @@ def write_environment_golden(
 # ---- 全goldenの検査（どの環境でも） ----
 
 
-def test_golden_directory_holds_only_goldens_named_after_their_environment():
-    """ディレクトリのgoldenは、名前が`_env`から決まり、`_env`が、ほかのgolden（固定のものを含む）と重ならない。"""
-    environment_golden_paths = sorted(GOLDEN_DIRECTORY.glob("*.json"))
-    assert environment_golden_paths, "環境ごとのgoldenが、1つもない"
-    assert sorted(path.name for path in GOLDEN_DIRECTORY.iterdir()) == [
-        path.name for path in environment_golden_paths
-    ]
+def check_golden_collection(golden_directory):
+    """ディレクトリのgoldenは、名前が`_env`から決まり、`_env`が、ほかのgolden（固定のものを含む）と重ならない。
+
+    環境ごとのgoldenが1つもない状態（ディレクトリが空、または、ない）も、正しい状態である。
+    """
+    environment_golden_paths = sorted(golden_directory.glob("*.json"))
+    if golden_directory.is_dir():
+        assert sorted(path.name for path in golden_directory.iterdir()) == [
+            path.name for path in environment_golden_paths
+        ]
     for golden_path in environment_golden_paths:
         assert golden_path.name == make_golden_file_name(load_golden(golden_path)["_env"])
-    all_environments = [load_golden(golden_path)["_env"] for golden_path in list_golden_paths()]
+    all_golden_paths = list_golden_paths(golden_directory)
+    all_environments = [load_golden(golden_path)["_env"] for golden_path in all_golden_paths]
     assert len({json.dumps(environment, sort_keys=True) for environment in all_environments}) == (
         len(all_environments)
     )
     # どのgoldenも、自分の環境の記録で、自分が選ばれる。
-    for golden_path in list_golden_paths():
-        assert find_golden_path(load_golden(golden_path)["_env"]) == golden_path
+    for golden_path in all_golden_paths:
+        assert find_golden_path(load_golden(golden_path)["_env"], golden_directory) == golden_path
+
+
+def test_golden_directory_holds_only_goldens_named_after_their_environment():
+    check_golden_collection(GOLDEN_DIRECTORY)
+
+
+def test_golden_collection_may_be_empty_and_detects_misplaced_files(tmp_path):
+    """環境ごとのgoldenを全部消しても（ディレクトリごと消しても）、検査は成功する。誤った置き方は、検出する。"""
+    check_golden_collection(tmp_path / "missing")
+    (tmp_path / "empty").mkdir()
+    check_golden_collection(tmp_path / "empty")
+    environment = make_environment()
+    # 正しい名前のgolden。
+    correct_directory = tmp_path / "correct"
+    write_golden_with_environment(correct_directory, environment)
+    check_golden_collection(correct_directory)
+    # 名前が、環境の記録と合わない。
+    misnamed_directory = tmp_path / "misnamed"
+    write_golden_with_environment(misnamed_directory, environment, file_name="my-golden.json")
+    with pytest.raises(AssertionError):
+        check_golden_collection(misnamed_directory)
+    # goldenでないfileが、混ざっている。
+    stray_directory = tmp_path / "stray"
+    write_golden_with_environment(stray_directory, environment)
+    (stray_directory / "notes.txt").write_text("memo", encoding="utf-8")
+    with pytest.raises(AssertionError):
+        check_golden_collection(stray_directory)
+    # 固定のgoldenと、同じ環境の記録（写しを置いた）。
+    copied_directory = tmp_path / "copied"
+    write_golden_with_environment(copied_directory, load_golden(FIXED_GOLDEN_PATH)["_env"])
+    with pytest.raises((AssertionError, RuntimeError)):
+        check_golden_collection(copied_directory)
+
+
+@pytest.mark.parametrize(
+    ("file_text", "expected_message"),
+    [("{not json", "not valid JSON"), ("{}", "_env"), ("[]", "_env"), ('{"_env": 1}', "_env")],
+)
+def test_damaged_golden_files_are_reported_with_their_file_name(
+    tmp_path, file_text, expected_message
+):
+    """壊れたJSONや、`_env`のないfileは、どのfileかが分かる例外になる。"""
+    damaged_path = tmp_path / "damaged-golden.json"
+    damaged_path.write_text(file_text, encoding="utf-8")
+    for read_goldens in (
+        lambda: load_golden(damaged_path),
+        lambda: find_golden_path(make_environment(), tmp_path),
+    ):
+        with pytest.raises(ValueError, match=expected_message) as exception_info:
+            read_goldens()
+        assert "damaged-golden.json" in str(exception_info.value)
 
 
 @pytest.mark.parametrize(
@@ -258,11 +335,17 @@ def test_goldens_with_the_same_environment_are_rejected(tmp_path):
         find_golden_path(environment, tmp_path)
 
 
-def test_missing_golden_reason_tells_the_environment_and_how_to_add_one():
+def test_missing_golden_reason_tells_the_environment_and_how_to_add_one(tmp_path):
+    """skipの理由から、実行環境の記録、足し方、いまあるgoldenの環境（版の違いを見比べられる）が読める。"""
     environment = make_environment()
-    reason = describe_missing_golden(environment)
+    other_environment = make_environment(numpy="0.0.1")
+    other_golden_path = write_golden_with_environment(tmp_path, other_environment)
+    reason = describe_missing_golden(environment, tmp_path)
     assert str(environment) in reason
     assert UPDATE_COMMAND in reason
+    assert other_golden_path.name in reason and str(other_environment) in reason
+    assert FIXED_GOLDEN_PATH.name in reason
+    assert str(load_golden(FIXED_GOLDEN_PATH)["_env"]) in reason
 
 
 def test_writing_a_golden_follows_the_environment_and_refuses_unreviewed_overwrites(
@@ -305,6 +388,17 @@ def test_writing_a_golden_follows_the_environment_and_refuses_unreviewed_overwri
         write_environment_golden(golden_directory=tmp_path / "other", source_commit="0123456")
     assert computed == [1, 1]
     assert not (tmp_path / "other").exists()
+    # 名前が同じで、環境の記録が違うgolden（名前に入らない項目だけが違う）を、黙って上書きしない。
+    monkeypatch.setattr(
+        legacy_regression, "environment", lambda: environment | dict(dtype="torch.float64")
+    )
+    for overwrite in (False, True):
+        with pytest.raises(RuntimeError, match="file name"):
+            write_environment_golden(
+                golden_directory=tmp_path, overwrite=overwrite, source_commit=source_commit
+            )
+    assert computed == [1, 1]
+    assert load_golden(golden_path)["_env"] == environment
 
 
 def test_writing_a_golden_is_always_refused_in_the_fixed_golden_environment(tmp_path, monkeypatch):
