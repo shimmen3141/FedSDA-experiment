@@ -48,7 +48,7 @@
 
 #### Acceptance Criteria
 
-1. The 記録の表 shall 次を持つ: clientの評価ごとの表（サーバの同期のラウンド、client、候補のモデル、対象のモデル、評価した標本数、損失の和、損失の二乗和、正誤の4つの数——比べなかった評価では−1）。クラスごとの表（上の識別に、クラス、クラスの標本数、正誤の4つの数）。
+1. The 記録の表 shall 次を持つ: clientの評価ごとの表（サーバの同期のラウンド、client、候補のモデル、対象のモデル、評価した標本数、損失の和、損失の二乗和、正誤の4つの数——比べなかった評価では−1）。クラスごとの表（上の識別に、クラス、クラスの標本数——`class_evaluated_sample_count`——、正誤の4つの数）。
 2. The 表 shall goldenの3ケースと、小さい条件で、実旧が保存した配列（`cross_evaluation_*`・`cross_evaluation_class_*`）と、値で一致する。旧の`model_pair_*`の配列は、clientの評価ごとの表の、正誤を比べた行と一致する。
 
 ### Requirement 4: 記録

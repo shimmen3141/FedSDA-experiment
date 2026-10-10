@@ -39,11 +39,15 @@
 | 表 | 列 |
 |---|---|
 | `client_cross_evaluation`（新。clientの評価ごと、評価した順） | `server_round_index`、`client_id`、`candidate_model_id`、`target_model_id`、`evaluated_sample_count`、`bounded_loss_sum`、`squared_bounded_loss_sum`、`candidate_only_correct_sample_count`、`target_only_correct_sample_count`、`both_correct_sample_count`、`both_wrong_sample_count`（正誤を比べなかった評価では、4つとも−1） |
-| `client_cross_evaluation_class`（新。clientの評価の、クラスごと。評価した順、クラスの昇順） | `server_round_index`、`client_id`、`candidate_model_id`、`target_model_id`、`class_id`、`evaluated_sample_count`、上の4つの数 |
+| `client_cross_evaluation_class`（新。clientの評価の、クラスごと。評価した順、クラスの昇順） | `server_round_index`、`client_id`、`candidate_model_id`、`target_model_id`、`class_id`、`class_evaluated_sample_count`（そのクラスの、評価した標本数。評価の全体の標本数と、同じ名前にしない——独立レビューの指摘）、上の4つの数 |
 
 - 「候補（candidate）」は評価する側のモデル、「対象（target）」は標本を持つ側のモデル（記録の型の語）。
 - 列の名前は、記録の型のfieldの名前から作る。ラウンドは、ほかの表とそろえて`server_round_index`。正誤の数は、何の数かが分かるように`*_sample_count`。
 - 旧の`model_pair_*`の配列に当たる表は、作らない（`client_cross_evaluation`の、正誤を比べた行——`both_correct_sample_count`が0以上——と同じ内容）。
+
+## 旧と違う点
+
+- 旧は、標本ごとの正誤と、クラスごとの正誤を、設定によって集める（サーバの`collect_pair_diagnostics`と、クラスタリングの判定の方式。クラスごとは、`class_functional_confidence`のときだけ）。新実装は、最終構成だけを実装していて、いつも集める。表が旧の配列と一致するのは、最終構成の実行（goldenの条件と、testの小さい条件）。
 
 ## 検証の方針
 

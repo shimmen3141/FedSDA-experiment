@@ -167,7 +167,7 @@ EXPECTED_TABLE_COLUMNS = {
         candidate_model_id="i",
         target_model_id="i",
         class_id="i",
-        evaluated_sample_count="i",
+        class_evaluated_sample_count="i",
         candidate_only_correct_sample_count="i",
         target_only_correct_sample_count="i",
         both_correct_sample_count="i",
@@ -668,6 +668,9 @@ def assert_cross_evaluation_tables_match_legacy_saved_arrays(record_tables, lega
             legacy_suffix,
             column_name,
         ) in CROSS_EVALUATION_COLUMN_BY_LEGACY_ARRAY_NAME_SUFFIX.items():
+            # クラスごとの表では、標本数は、そのクラスの標本数。
+            if table_name == "client_cross_evaluation_class" and legacy_suffix == "n":
+                column_name = "class_evaluated_sample_count"
             if column_name not in column_names:
                 continue
             legacy_array_name = legacy_prefix + legacy_suffix

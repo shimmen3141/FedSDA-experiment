@@ -532,7 +532,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
             "candidate_model_id",
             "target_model_id",
             "class_id",
-            "evaluated_sample_count",
+            "class_evaluated_sample_count",
             *correctness_column_names,
         )
     ):
