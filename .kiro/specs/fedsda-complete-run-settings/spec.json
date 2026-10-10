@@ -1,9 +1,9 @@
 {
   "feature_name": "fedsda-complete-run-settings",
   "created_at": "2026-10-11T01:23:25+09:00",
-  "updated_at": "2026-10-11T01:23:25+09:00",
+  "updated_at": "2026-10-11T02:08:37+09:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -23,16 +23,29 @@
     },
     "naming": {
       "generated": true,
-      "approved": false,
-      "note": "名前は、全taskの後の独立レビューで確認を受ける"
+      "approved": true,
+      "note": "名前は、全taskの後の独立レビューで確認を受けた（下のimplementation_review）"
     }
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "user_decision": "2026-10-11: 次のspecの順序は (A)新実装の実験の入口→(B)FedDrift→(C)残る診断→(D)旧実装を外す準備。(A)を(A1)完全なrun設定・(A2)実行と保存・(A3)掃引とコマンドに分けるのは、主担当の案",
   "handoff": {
-    "execution_status": "in_progress",
-    "next_step": "tasks.mdの下位taskを1.1から順に実装する",
-    "independent_review": "未実施（全taskの後に1回）"
+    "execution_status": "completed",
+    "next_step": "none（次のspecは再開案内の「次の一手」）"
+  },
+  "implementation_review": {
+    "verdict": "IMPLEMENTATION: CHANGES_REQUESTED → FIX: APPROVED",
+    "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)。確認は別session",
+    "reviewer_selection": "GPT-6 Lunaは利用上限で利用不能の期間のため、Haiku 5.5",
+    "reviewer_session": "a6ff612f-9c12-4594-a149-2ce598f1dcc1",
+    "fix_reviewer_session": "7e249cd0-eece-4a50-9fa5-44937c68e2c6",
+    "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+    "reviewed_range": "344ff4f..a3b3756",
+    "fix_reviewed_range": "a3b3756..83a6271",
+    "independent_test_execution": true,
+    "independent_full_pytest_reproduction": false,
+    "findings": "Major 1件（検出の方式と検出器の表示名の食い違いを拒否していない。修正）、Minor 2件、任意 1件。確認のレビューの補足は、testだけを直した（929acd0）。採否はtasks.mdのImplementation Notes",
+    "full_pytest": "11900 passed / 4 skipped / 3 warnings (929acd0、主担当の実測とJUnit。並列 -n 8 --dist loadfile)"
   }
 }
