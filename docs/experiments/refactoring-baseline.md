@@ -120,6 +120,25 @@ WSLでは、次の3件が失敗する。どれも環境差であり、goldenやt
 新旧の全状態の一致を、どの環境でも確かめる。条件ごとの「通る経路」（複数モデルでの終了ほか）の期待は、
 条件を選んだWindowsでだけ確かめる（Linuxでは、浮動小数点の差で、警報やモデルの登録の起き方が変わる）。
 
+リファクタリングの作業は、ブランチ`refactor/architecture`にある（`main`には、新実装`src/`と、上のtestがない）。
+`main`のcheckoutしかない計算機（研究室サーバ）では、`main`を切り替えずに、別のディレクトリへworktreeを作って実行する。
+実行中の実験と、`main`の作業ツリーには、影響しない。
+
+```bash
+cd <リポジトリのルート>                      # mainのcheckout
+git fetch origin
+git worktree add ../FedSDA-refactoring origin/refactor/architecture   # 初回だけ（detached HEAD）
+source .venv/bin/activate                    # mainのcheckoutの環境を使う
+python -c "import pytest; print(pytest.__version__)"   # なければ: pip install pytest==9.1.1
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+export FDE_MNIST_DATA_DIR="$PWD/data/mnist"  # mainのcheckoutのMNIST（なければ、旧の読込みが、ここへ取得する）
+cd ../FedSDA-refactoring
+python -m pytest tests/refactoring/test_linux_proposed_regression.py   tests/refactoring/test_fedsda_run_metric_derivation.py -q
+```
+
+2回め以降は、`cd ../FedSDA-refactoring && git fetch origin && git checkout --detach origin/refactor/architecture`で更新する。
+不要になったら、`main`のcheckoutで`git worktree remove ../FedSDA-refactoring`。
+
 研究室サーバは、WSL Ubuntuと、CPUやライブラリの版が違う可能性がある。研究室サーバで上のコマンドを
 実行して、`test_linux_proposed_regression.py`が失敗した場合は、goldenを自動で直さない。
 同じprocessの中の実旧との照合（`test_fedsda_run_metric_derivation.py`の、goldenを読まないtest）が
