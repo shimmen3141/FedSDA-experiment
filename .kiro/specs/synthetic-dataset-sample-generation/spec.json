@@ -1,0 +1,38 @@
+{
+  "feature_name": "synthetic-dataset-sample-generation",
+  "created_at": "2026-10-13T04:00:00+09:00",
+  "updated_at": "2026-10-13T05:00:00+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（ユーザーの委任。段階ごとの独立レビューは置かず、最後の独立レビューが読む）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）",
+      "task_graph_sanity_review": "PASS（inline。子エージェントは使わない決定のため）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": false,
+      "note": "名前は、全taskの後の独立レビューで確認を受ける"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
+  "user_decision": "2026-10-10: 論文の実験で使うdatasetは、blobs以外の全部。datasetの移植は、Linux用のgoldenより前",
+  "handoff": {
+    "execution_status": "in_progress",
+    "next_step": "tasks.mdの下位taskを1.1から順に実装する（/kiro-impl synthetic-dataset-sample-generation --review off の手順）",
+    "independent_review": "未実施（全taskの後に1回）"
+  }
+}
