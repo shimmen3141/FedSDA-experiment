@@ -34,6 +34,7 @@
 | NEW-001 | 候補検証sessionの保持への反映で、拒否の文言が一部の入力に合わない | 修正済み（2026-10-09、`42fc7b8`。文言だけ） | [記録](new-001-holder-rejection-message-wording.md) |
 | NEW-002 | 候補検証sessionの保持と進行のtestに、汎用の変異toolで見つかった穴が2件ある | 修正済み（2026-10-09、`97d9c43`） | [記録](new-002-held-validation-test-gaps-found-by-mutation-tool.md) |
 | NEW-003 | 1回の共同更新の途中で失敗したときの学習量の計数が、旧と違う | 許容（2026-10-09、ユーザー決定。現在の流れでは読まれない） | [記録](new-003-training-count-after-mid-update-failure.md) |
+| NEW-004 | 旧実装の計算量との照合は、旧実装を外すときに取り除く（残すものと、置き換えるもの） | 後でやる作業の記録・未着手（2026-10-10、ユーザーの指示で記録。時期と方法は、ユーザーが決める） | [記録](new-004-legacy-computation-comparison-removal.md) |
 
 ## 記録・更新の規約
 
