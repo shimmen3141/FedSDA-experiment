@@ -221,6 +221,40 @@ def test_optimizer_steps_are_counted_by_shared_or_concept_specific_parameters():
     assert intermediate_counts.concept_specific_parameter_optimizer_step_count == 2
 
 
+def test_optimizer_step_before_any_shared_forward_in_the_interval_counts_as_concept_specific():
+    """共有部かどうかは、区間の中で順伝播した共有部のパラメータで見分ける（制約）。
+
+    区間の中で、共有部を1度も順伝播せずに、そのoptimizerを更新すると、概念固有部として数える。
+    学習では、更新の前に、必ず順伝播があるので、この場合は起きない。
+    """
+    classifier = make_classifier()
+    shared_parameter_optimizer = torch.optim.Adam(classifier.feature_extractor.parameters())
+    with measure_model_computation() as model_computation_meter:
+        shared_parameter_optimizer.step()
+        counts_before_forward = model_computation_meter.get_model_computation_counts()
+        with torch.no_grad():
+            classifier(make_inputs(1))
+        shared_parameter_optimizer.step()
+    assert counts_before_forward.shared_parameter_optimizer_step_count == 0
+    assert counts_before_forward.concept_specific_parameter_optimizer_step_count == 1
+    counts = model_computation_meter.get_model_computation_counts()
+    assert counts.shared_parameter_optimizer_step_count == 1
+    assert counts.concept_specific_parameter_optimizer_step_count == 1
+
+
+def test_keyword_only_and_non_tensor_inputs_are_not_counted():
+    """入力を位置引数のtensorで渡さない順伝播は、数えない（制約。新実装のモデルは、位置引数で呼ぶ）。"""
+    classifier = make_classifier()
+    with measure_model_computation() as model_computation_meter, torch.no_grad():
+        classifier.feature_extractor(input_features=make_inputs(2))
+    counts = model_computation_meter.get_model_computation_counts()
+    assert counts.shared_part_inference_example_count == 0
+    # 中の全結合層は、位置引数で呼ばれるので、積和演算は数える。
+    assert counts.shared_part_inference_forward_multiply_accumulate_count == (
+        2 * SHARED_PART_MACS_PER_EXAMPLE
+    )
+
+
 def test_measurement_removes_hooks_after_exit_and_after_exception():
     """区間を出た後と、例外で出た後は、登録が残らず、区間の外の計算は数えない。"""
     classifier = make_classifier()

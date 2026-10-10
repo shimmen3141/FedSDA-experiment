@@ -72,7 +72,7 @@
 #### Acceptance Criteria
 
 1. When クロス評価で、正誤を比べるとき, the Client Model Cross Evaluation shall 渡されたモデルの順伝播を1回だけ行い、損失と予測の両方を、その出力から得る。
-2. When 警報時に、変更区間より前の保留標本を取り込むとき, the Alarm Training Interval Preparation shall それらの標本の損失を、1回だけ計算する（検査は、順伝播を行わない方法で、状態の更新より前に行う）。
+2. When 警報時に、変更区間より前の保留標本を取り込むとき, the Alarm Training Interval Preparation shall それらの標本の損失を、状態の更新より前に、1回だけ計算し、取込みは、その損失を使って、計算し直さない。
 3. When 集約後の再較正で、保留標本の損失を、保有する全モデルで計算するとき, the Post Aggregation Prediction Recalibration shall 共有部の特徴を1回だけ計算し、概念固有部だけを、モデルごとに計算する。
 4. The 解消 shall 結果（戻り値、状態、乱数の消費、拒否する入力と、その時点で状態を変えないこと）を変えない（既存の、実旧との対照が、そのまま通る）。
 5. The 3箇所 shall 解消の後の順伝播の標本数が、実旧の同じ処理の計数と一致することを、testで確かめる。

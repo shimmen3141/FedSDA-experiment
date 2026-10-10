@@ -3721,12 +3721,12 @@ def test_alarm_buffer_response_dependency_contract(source_text, expected_accepta
         ),
         (
             "runtime/alarm_training_interval_preparation.py",
-            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import validate_classifier_bounded_loss_inputs",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
             True,
         ),
         (
             "runtime/alarm_training_interval_preparation.py",
-            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import validate_classifier_bounded_loss_inputs as AcceptedDependency",
+            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses as AcceptedDependency",
             True,
         ),
         (
@@ -3766,7 +3766,7 @@ def test_alarm_buffer_response_dependency_contract(source_text, expected_accepta
         ),
         (
             "runtime/alarm_training_interval_preparation.py",
-            "from ..learning.prediction.classifier_bounded_loss_evaluation import validate_classifier_bounded_loss_inputs",
+            "from ..learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
             True,
         ),
         (
@@ -5364,7 +5364,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
             "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
         )
     if source_module_path == "runtime/alarm_response_completion.py":
@@ -5605,6 +5605,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/assigned_training_sample_absorption.py":
         return imported_module_name in (
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
             "__future__.annotations",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",

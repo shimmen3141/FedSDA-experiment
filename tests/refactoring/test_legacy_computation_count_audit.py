@@ -3,6 +3,11 @@
 旧のclientは、処理の各所で、計数（`compute_counters`）を足す。このtestは、旧の全体runの間、共有部と
 概念固有部の順伝播へ入力された標本数と、optimizerの更新回数を、旧の計数とは独立に数えて、旧の計数に、
 漏れ・重複がないことを確かめる。旧実装は変えない。
+
+数え方の前提: 旧のモデルは、共有部を`self.backbone(x)`、概念固有部を`self.adapter(features)`と
+`self.head(...)`で呼ぶ（どれも`__call__`を通る）。概念固有部の標本数は、アダプタの順伝播で数える。
+分類層（素の`nn.Linear`）は、同じ関数（`forward_from_features`）の中で、アダプタの出力を1回受けるので、
+同じ標本数になる（分類層そのものは、数えていない）。
 """
 
 import io
@@ -83,11 +88,17 @@ def run_real_legacy_whole_run_counting_model_computation(dataset_name):
             legacy_counts_after_setup = Counter()
             for legacy_client in legacy_clients:
                 legacy_counts_after_setup.update(legacy_client.compute_counters)
-            input_feature_count = config.dataset_spec().input_dim
+            # 順伝播した共有部が持つoptimizer（旧の共有部は、自分のoptimizerを属性に持つ）。
+            shared_part_optimizers = []
 
             def count_forward(module, inputs, output):
                 if type(module) is SharedFeatureBackbone:
                     part_name = "shared_part"
+                    if not any(
+                        module.optimizer is shared_part_optimizer
+                        for shared_part_optimizer in shared_part_optimizers
+                    ):
+                        shared_part_optimizers.append(module.optimizer)
                 elif type(module) is ResidualConceptAdapter:
                     part_name = "concept_specific_part"
                 else:
@@ -97,11 +108,13 @@ def run_real_legacy_whole_run_counting_model_computation(dataset_name):
                 observed_counts[f"{part_name}_forward_calls"] += 1
 
             def count_optimizer_step(optimizer, arguments, keyword_arguments):
-                # 共有部のoptimizerは、最初のパラメータが、入力の特徴数を列に持つ（最初の層の重み）。
-                first_parameter = optimizer.param_groups[0]["params"][0]
+                # 共有部のoptimizerかどうかは、順伝播した共有部が持つoptimizerとの同一性で見分ける。
                 part_name = (
                     "shared_part"
-                    if first_parameter.shape[-1] == input_feature_count
+                    if any(
+                        optimizer is shared_part_optimizer
+                        for shared_part_optimizer in shared_part_optimizers
+                    )
                     else "concept_specific_part"
                 )
                 observed_counts[f"{part_name}_optimizer_steps"] += 1

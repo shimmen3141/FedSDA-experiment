@@ -3,6 +3,7 @@
 import random
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -24,6 +25,12 @@ from test_shared_feature_extractor_attachment import (
 
 import federated_learning_experiments.runtime.assigned_training_sample_absorption as absorption_module
 from federated_drift_experiment import config
+from federated_learning_experiments.learning.models.model_computation_measurement import (
+    measure_model_computation,
+)
+from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
+    evaluate_classifier_per_sample_bounded_losses,
+)
 from federated_learning_experiments.learning.training.joint_model_parameter_update import (
     perform_joint_model_parameter_update,
 )
@@ -742,3 +749,135 @@ def test_absorbed_samples_continue_actual_joint_training(
         assert numpy_state[0] == random_states[2][0]
         assert np.array_equal(numpy_state[1], random_states[2][1])
         assert numpy_state[2:] == random_states[2][2:]
+
+
+def evaluate_absorption_losses(absorption_arguments):
+    """取込みが計算するのと同じ、標本ごとの損失（Pythonのfloat）。"""
+    classifier = (
+        absorption_arguments["held_model_training_state_registry"]
+        .get_held_model_training_state(model_id=absorption_arguments["model_id"])
+        .classifier
+    )
+    return tuple(
+        evaluate_classifier_per_sample_bounded_losses(
+            classifier=classifier,
+            input_features=training_sample.input_features,
+            observed_class_labels=training_sample.observed_class_labels,
+        )[0].item()
+        for training_sample in absorption_arguments["assigned_training_samples"]
+    )
+
+
+@pytest.mark.parametrize("class_count", [2, 4])
+@pytest.mark.parametrize("absorbed_sample_count", [0, 1, 5])
+def test_absorption_with_evaluated_losses_matches_legacy_without_another_forward(
+    class_count, absorbed_sample_count, monkeypatch
+):
+    """計算済みの損失を渡した取込みは、順伝播を行わずに、実旧の取込みと同じ状態になる。"""
+    with torch.random.fork_rng(devices=[]):
+        absorption_arguments, _, _, legacy_client, legacy_training_samples = (
+            build_absorption_oracle(
+                class_count=class_count,
+                absorbed_sample_count=absorbed_sample_count,
+                monkeypatch=monkeypatch,
+            )
+        )
+        evaluated_observed_losses = evaluate_absorption_losses(absorption_arguments)
+        legacy_client._absorb_into_store(absorption_arguments["model_id"], legacy_training_samples)
+        with measure_model_computation() as model_computation_meter:
+            absorb_assigned_training_samples_into_held_model(
+                **absorption_arguments, evaluated_observed_losses=evaluated_observed_losses
+            )
+        assert not any(vars(model_computation_meter.get_model_computation_counts()).values())
+        assert_absorption_matches_legacy(
+            absorption_arguments=absorption_arguments, legacy_client=legacy_client
+        )
+        if absorbed_sample_count > 1:
+            assert len(set(evaluated_observed_losses)) > 1
+
+
+@pytest.mark.parametrize(
+    ("make_invalid_losses", "expected_exception_type"),
+    [
+        (lambda losses: list(losses), TypeError),
+        (lambda losses: losses[:-1], ValueError),
+        (lambda losses: (*losses, 0.5), ValueError),
+        (lambda losses: (1, *losses[1:]), TypeError),
+        (lambda losses: (True, *losses[1:]), TypeError),
+        (lambda losses: (torch.tensor(0.5), *losses[1:]), TypeError),
+        (lambda losses: (*losses[:-1], float("nan")), ValueError),
+        (lambda losses: (*losses[:-1], 1.5), ValueError),
+        (lambda losses: (-0.25, *losses[1:]), ValueError),
+    ],
+    ids=["list", "short", "long", "int", "bool", "tensor", "nan", "above_one", "negative"],
+)
+def test_absorption_rejects_invalid_evaluated_losses_without_state_changes(
+    make_invalid_losses, expected_exception_type, monkeypatch
+):
+    with torch.random.fork_rng(devices=[]):
+        absorption_arguments, _, shared_optimizer_owners, _, _ = build_absorption_oracle(
+            class_count=2, absorbed_sample_count=3, monkeypatch=monkeypatch
+        )
+        evaluated_observed_losses = evaluate_absorption_losses(absorption_arguments)
+        previous_snapshot = snapshot_absorption_state(
+            absorption_arguments=absorption_arguments,
+            shared_optimizer_owners=shared_optimizer_owners,
+        )
+        with pytest.raises(expected_exception_type):
+            absorb_assigned_training_samples_into_held_model(
+                **absorption_arguments,
+                evaluated_observed_losses=make_invalid_losses(evaluated_observed_losses),
+            )
+        assert_absorption_state_unchanged(
+            previous_snapshot=previous_snapshot, valid_absorption_arguments=absorption_arguments
+        )
+
+
+def test_absorption_with_evaluated_losses_still_rejects_invalid_samples_without_state_changes(
+    monkeypatch,
+):
+    """損失を計算しない場合も、評価と同じ入力の検査（順伝播なし）で、不正な標本を拒否する。"""
+    with torch.random.fork_rng(devices=[]):
+        absorption_arguments, _, shared_optimizer_owners, _, _ = build_absorption_oracle(
+            class_count=2, absorbed_sample_count=3, monkeypatch=monkeypatch
+        )
+        evaluated_observed_losses = evaluate_absorption_losses(absorption_arguments)
+        training_samples = absorption_arguments["assigned_training_samples"]
+        previous_snapshot = snapshot_absorption_state(
+            absorption_arguments=absorption_arguments,
+            shared_optimizer_owners=shared_optimizer_owners,
+        )
+        for invalid_sample in (
+            replace(
+                training_samples[1],
+                observed_class_labels=training_samples[1].observed_class_labels + 7,
+            ),
+            replace(
+                training_samples[1],
+                input_features=torch.full_like(training_samples[1].input_features, float("nan")),
+            ),
+            # 2標本ぶんを持つ要素。
+            replace(
+                training_samples[1],
+                input_features=training_samples[1].input_features.repeat(2, 1),
+                observed_class_labels=training_samples[1].observed_class_labels.repeat(2, 1),
+            ),
+        ):
+            with measure_model_computation() as model_computation_meter:
+                with pytest.raises(ValueError):
+                    absorb_assigned_training_samples_into_held_model(
+                        **absorption_arguments
+                        | dict(
+                            assigned_training_samples=(
+                                training_samples[0],
+                                invalid_sample,
+                                training_samples[2],
+                            )
+                        ),
+                        evaluated_observed_losses=evaluated_observed_losses,
+                    )
+            assert not any(vars(model_computation_meter.get_model_computation_counts()).values())
+            assert_absorption_state_unchanged(
+                previous_snapshot=previous_snapshot,
+                valid_absorption_arguments=absorption_arguments,
+            )

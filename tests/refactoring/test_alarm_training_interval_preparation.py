@@ -685,16 +685,15 @@ def test_alarm_preparation_rejects_contract_errors_without_state_changes(invalid
     )
 
 
-def test_alarm_preparation_validates_without_forward_then_saves_evaluation_before_real_absorption(
+def test_alarm_preparation_evaluates_losses_once_before_saving_evaluation_and_real_absorption(
     monkeypatch,
 ):
     preparation_arguments, _, _, _ = build_alarm_preparation_oracle(monkeypatch=monkeypatch)
     operation_calls = []
     original_save = ModelEvaluationSampleStore.sample_and_append_model_evaluation_samples
     original_absorption = preparation_module.absorb_assigned_training_samples_into_held_model
-    original_input_validation = preparation_module.validate_classifier_bounded_loss_inputs
     original_bounded_loss_evaluation = (
-        absorption_module.evaluate_classifier_per_sample_bounded_losses
+        preparation_module.evaluate_classifier_per_sample_bounded_losses
     )
     classifier = (
         preparation_arguments["held_model_training_state_registry"]
@@ -706,29 +705,29 @@ def test_alarm_preparation_validates_without_forward_then_saves_evaluation_befor
         .classifier
     )
 
-    def recorded_input_validation(**operation_keyword_arguments):
-        operation_calls.append(("validate", operation_keyword_arguments["classifier"]))
-        return original_input_validation(**operation_keyword_arguments)
-
     def recorded_bounded_loss_evaluation(**operation_keyword_arguments):
         operation_calls.append(("loss", operation_keyword_arguments["classifier"]))
         return original_bounded_loss_evaluation(**operation_keyword_arguments)
 
     def recorded_save(self, **operation_keyword_arguments):
-        assert operation_calls == [("validate", classifier)] * 3
+        assert operation_calls == [("loss", classifier)] * 3
         operation_calls.append("save")
         return original_save(self, **operation_keyword_arguments)
 
     def recorded_absorption(**operation_keyword_arguments):
         operation_calls.append("absorb")
-        assert operation_calls == [("validate", classifier)] * 3 + ["save", "absorb"]
+        assert operation_calls == [("loss", classifier)] * 3 + ["save", "absorb"]
+        # 取込みは、準備が計算した損失を受け取る。
+        assert len(operation_keyword_arguments["evaluated_observed_losses"]) == 3
         return original_absorption(**operation_keyword_arguments)
 
     monkeypatch.setattr(
         ModelEvaluationSampleStore, "sample_and_append_model_evaluation_samples", recorded_save
     )
     monkeypatch.setattr(
-        preparation_module, "validate_classifier_bounded_loss_inputs", recorded_input_validation
+        preparation_module,
+        "evaluate_classifier_per_sample_bounded_losses",
+        recorded_bounded_loss_evaluation,
     )
     monkeypatch.setattr(
         absorption_module,
@@ -740,11 +739,8 @@ def test_alarm_preparation_validates_without_forward_then_saves_evaluation_befor
     )
     with measure_model_computation() as model_computation_meter:
         prepare_alarm_training_intervals(**preparation_arguments)
-    # 検査（順伝播なし）→評価標本の保存→取込み。損失は、取込みが1回だけ計算する。
-    assert (
-        operation_calls
-        == [("validate", classifier)] * 3 + ["save", "absorb"] + [("loss", classifier)] * 3
-    )
+    # 損失の計算（状態の更新より前）→評価標本の保存→取込み。取込みは、損失を計算し直さない。
+    assert operation_calls == [("loss", classifier)] * 3 + ["save", "absorb"]
     counts = model_computation_meter.get_model_computation_counts()
     assert counts.shared_part_inference_example_count == 3
     assert counts.concept_specific_part_inference_example_count == 3
@@ -955,3 +951,58 @@ def test_prepared_alarm_interval_continues_resolution_and_joint_training(
         assert numpy_state[0] == random_states[2][0]
         assert np.array_equal(numpy_state[1], random_states[2][1])
         assert numpy_state[2:] == random_states[2][2:]
+
+
+def test_alarm_preparation_rejects_classifier_with_invalid_outputs_before_any_state_change(
+    monkeypatch,
+):
+    """出力が不正になる分類器（非有限のパラメータ）は、評価標本の保存と取込みより前に拒否する。"""
+    preparation_arguments, _, _, _ = build_alarm_preparation_oracle(monkeypatch=monkeypatch)
+    classifier = (
+        preparation_arguments["held_model_training_state_registry"]
+        .get_held_model_training_state(
+            model_id=preparation_arguments[
+                "current_training_model_assignment"
+            ].current_training_model_id
+        )
+        .classifier
+    )
+    with torch.no_grad():
+        classifier.classification_layer.bias.fill_(float("nan"))
+
+    # パラメータに非有限の値があるので、状態は、ownerの読取りで比べる（パラメータの比較を使わない）。
+    def snapshot_owner_states():
+        return (
+            repr(
+                preparation_arguments[
+                    "training_sample_store"
+                ].snapshot_ordered_model_training_samples()
+            ),
+            preparation_arguments[
+                "model_training_and_assignment_counts_store"
+            ].snapshot_model_training_and_assignment_counts(),
+            preparation_arguments["loss_statistics_store"].get_state_snapshot(),
+        )
+
+    previous_owner_states = snapshot_owner_states()
+    evaluation_snapshot = preparation_arguments[
+        "model_evaluation_sample_store"
+    ].snapshot_ordered_model_evaluation_samples()
+    python_random_state = preparation_arguments["python_random_generator"].getstate()
+    pending_snapshot = preparation_arguments[
+        "pending_training_assignment_buffer"
+    ].get_state_snapshot()
+    with pytest.raises(ValueError):
+        prepare_alarm_training_intervals(**preparation_arguments)
+    assert snapshot_owner_states() == previous_owner_states
+    assert (
+        preparation_arguments[
+            "model_evaluation_sample_store"
+        ].snapshot_ordered_model_evaluation_samples()
+        == evaluation_snapshot
+    )
+    assert preparation_arguments["python_random_generator"].getstate() == python_random_state
+    assert (
+        preparation_arguments["pending_training_assignment_buffer"].get_state_snapshot()
+        == pending_snapshot
+    )

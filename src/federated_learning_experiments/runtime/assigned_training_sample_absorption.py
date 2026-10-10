@@ -5,6 +5,7 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
+    validate_classifier_bounded_loss_inputs,
 )
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
@@ -75,8 +76,13 @@ def absorb_assigned_training_samples_into_held_model(
     training_sample_store: ModelTrainingSampleStore,
     model_training_and_assignment_counts_store: ModelTrainingAndAssignmentCountsStore,
     loss_statistics_store: ModelAndClassLossStatisticsStore,
+    evaluated_observed_losses: tuple[float, ...] | None = None,
 ) -> None:
-    """全標本の検証と損失評価の後に、標本順で標本→割当概念→損失統計を更新する。"""
+    """全標本の検証と損失評価の後に、標本順で標本→割当概念→損失統計を更新する。
+
+    `evaluated_observed_losses`を渡すと、損失を計算し直さずに、その値を使う。呼出し側が、同じモデルで、
+    同じ標本の損失を、すでに計算しているとき（状態の更新より前の検査のため）に、順伝播の重複を避ける。
+    """
     _validate_absorption_inputs(
         model_id=model_id,
         assigned_training_samples=assigned_training_samples,
@@ -92,15 +98,36 @@ def absorb_assigned_training_samples_into_held_model(
     # 吸収中にモデルは変わらないため、先に評価しても各標本の損失は逐次評価と同じ値になる。
     observed_losses: list[float] = []
     observed_class_ids: list[int] = []
+    if evaluated_observed_losses is not None:
+        if type(evaluated_observed_losses) is not tuple:
+            raise TypeError("evaluated_observed_lossesはexact tupleまたはNoneが必要です。")
+        if len(evaluated_observed_losses) != len(assigned_training_samples):
+            raise ValueError("evaluated_observed_lossesは標本列と同じ長さが必要です。")
+        for evaluated_observed_loss in evaluated_observed_losses:
+            if type(evaluated_observed_loss) is not float:
+                raise TypeError("evaluated_observed_lossesの各要素はbuiltin floatが必要です。")
+            if not 0.0 <= evaluated_observed_loss <= 1.0:
+                raise ValueError("evaluated_observed_lossesの各要素は0以上1以下が必要です。")
+        for training_sample in assigned_training_samples:
+            # 損失を計算しない場合も、評価と同じ入力の検査を、順伝播なしで行う。
+            validate_classifier_bounded_loss_inputs(
+                classifier=classifier,
+                input_features=training_sample.input_features,
+                observed_class_labels=training_sample.observed_class_labels,
+            )
+            if training_sample.input_features.shape[0] != 1:
+                raise ValueError("assigned_training_samplesの各要素は1標本ぶんが必要です。")
+        observed_losses.extend(evaluated_observed_losses)
     for training_sample in assigned_training_samples:
-        per_sample_bounded_losses = evaluate_classifier_per_sample_bounded_losses(
-            classifier=classifier,
-            input_features=training_sample.input_features,
-            observed_class_labels=training_sample.observed_class_labels,
-        )
-        if len(per_sample_bounded_losses) != 1:
-            raise ValueError("assigned_training_samplesの各要素は1標本ぶんが必要です。")
-        observed_losses.append(per_sample_bounded_losses[0].item())
+        if evaluated_observed_losses is None:
+            per_sample_bounded_losses = evaluate_classifier_per_sample_bounded_losses(
+                classifier=classifier,
+                input_features=training_sample.input_features,
+                observed_class_labels=training_sample.observed_class_labels,
+            )
+            if len(per_sample_bounded_losses) != 1:
+                raise ValueError("assigned_training_samplesの各要素は1標本ぶんが必要です。")
+            observed_losses.append(per_sample_bounded_losses[0].item())
         observed_class_ids.append(int(training_sample.observed_class_labels.reshape(-1)[0].item()))
     for training_sample, observed_concept_id, observed_loss, observed_class_id in zip(
         assigned_training_samples,

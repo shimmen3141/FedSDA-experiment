@@ -14,7 +14,7 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
     ModelAndClassLossStatisticsStore,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
-    validate_classifier_bounded_loss_inputs,
+    evaluate_classifier_per_sample_bounded_losses,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
@@ -144,14 +144,18 @@ def prepare_alarm_training_intervals(
     earlier_sample_count = len(buffered_change_interval_partition.earlier_sample_indices)
     earlier_observations = pending_sample_observations[:earlier_sample_count]
     change_interval_observations = pending_sample_observations[earlier_sample_count:]
-    # 取込み（損失の計算と統計の更新）が受け付ける入力であることを、状態の更新より前に、
-    # 順伝播なしで確かめる。損失は、取込みが1回だけ計算する。
+    # 前区間の標本の損失を、状態の更新より前に計算する（計算できない入力・分類器は、ここで拒否する）。
+    # 取込みは、この損失を使い、計算し直さない。
+    earlier_observed_losses: list[float] = []
     for indexed_observation in earlier_observations:
-        validate_classifier_bounded_loss_inputs(
+        per_sample_bounded_losses = evaluate_classifier_per_sample_bounded_losses(
             classifier=classifier,
             input_features=indexed_observation.training_sample.input_features,
             observed_class_labels=indexed_observation.training_sample.observed_class_labels,
         )
+        if len(per_sample_bounded_losses) != 1:
+            raise ValueError("前区間の各観測は1標本の損失が必要です。")
+        earlier_observed_losses.append(per_sample_bounded_losses[0].item())
     if earlier_observations:
         model_evaluation_sample_store.sample_and_append_model_evaluation_samples(
             model_id=current_training_model_id,
@@ -177,6 +181,7 @@ def prepare_alarm_training_intervals(
             training_sample_store=training_sample_store,
             model_training_and_assignment_counts_store=model_training_and_assignment_counts_store,
             loss_statistics_store=loss_statistics_store,
+            evaluated_observed_losses=tuple(earlier_observed_losses),
         )
     return PreparedAlarmTrainingIntervals(
         earlier_observations=earlier_observations,
