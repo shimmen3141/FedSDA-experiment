@@ -1093,11 +1093,65 @@ def test_cross_evaluation_stops_at_failed_client_evaluation_without_rollback(
     assert volume_after.downloaded_model_count > volume_before.downloaded_model_count
     # グローバルモデルとclientの状態（乱数を除く）は変わらない。
     python_random_generator.setstate(python_random_state)
-    server_round_oracle["communication_volume_record_store"] = type(
-        "CommunicationVolumeBeforeCrossEvaluation",
-        (),
-        {"get_state_snapshot": lambda self: volume_before},
-    )()
-    assert_server_and_client_states_unchanged(
-        state_snapshot=state_snapshot, server_round_oracle=server_round_oracle
+    current_snapshot = snapshot_server_and_client_states(server_round_oracle)
+    for state_name in (
+        "next_global_model_id",
+        "global_model_ids",
+        "global_loss_statistics",
+        "registration_records",
+    ):
+        assert current_snapshot[state_name] == state_snapshot[state_name], state_name
+    for parameters, current_parameters in zip(
+        state_snapshot["global_parameters"], current_snapshot["global_parameters"], strict=True
+    ):
+        assert all(
+            torch.equal(current_parameters[parameter_name], parameter_values)
+            for parameter_name, parameter_values in parameters.items()
+        )
+    for run_client, client_state_snapshot in zip(
+        server_round_oracle["run_clients"], state_snapshot["clients"], strict=True
+    ):
+        assert_run_client_state_unchanged(
+            state_snapshot=client_state_snapshot,
+            run_client=run_client,
+            python_random_generator=python_random_generator,
+        )
+
+
+def test_cross_evaluation_of_current_model_does_not_create_empty_training_collection(
+    monkeypatch, valid_run_settings_mapping
+):
+    """旧は、対象が現行モデルで評価標本が足りないとき、学習データの辞書を既定値つきで読み、空の列を作る（LEGACY-017）。
+
+    新は、状態を変えずに読む。評価の結果と、クロス評価で保有とみなすモデルIDは、どちらも同じ。
+    """
+    server_round_oracle = build_server_round_oracle(
+        monkeypatch=monkeypatch,
+        valid_run_settings_mapping=valid_run_settings_mapping,
+        class_count=2,
+        **FIFO_REPLAY_RECALIBRATION,
+    )
+    run_client = server_round_oracle["run_clients"][0]
+    legacy_client = server_round_oracle["legacy_clients"][0]
+    legacy_server = server_round_oracle["legacy_server"]
+    # 生成直後: 現行モデル（ID 0）は、まだ学習データを持たない。
+    assert dict(legacy_client.train_data_store) == {}
+    assert run_client.owners.training_sample_store.snapshot_ordered_model_training_samples() == ()
+    for compare_correctness in (False, True):
+        client_cross_evaluation = evaluate_on_client_in_both(
+            run_client=run_client,
+            legacy_client=legacy_client,
+            python_random_generator=server_round_oracle["python_random_generator"],
+            legacy_candidate_parameters=legacy_server.global_models[0],
+            candidate_parameter_snapshot=dict(
+                convert_legacy_global_models(legacy_server.global_models)
+            )[0],
+            target_model_id=0,
+            compare_correctness=compare_correctness,
+        )
+        assert client_cross_evaluation.evaluated_sample_count == 0
+    assert dict(legacy_client.train_data_store) == {0: []}
+    assert run_client.owners.training_sample_store.snapshot_ordered_model_training_samples() == ()
+    assert run_client.get_cross_evaluation_held_model_ids() == frozenset(
+        legacy_client.get_held_model_ids()
     )

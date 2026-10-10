@@ -73,7 +73,7 @@
 #### Acceptance Criteria
 
 1. When 同じ状態のサーバとclientへクロス評価を求めたとき, the Cross Evaluation shall 実旧のサーバの`_cross_evaluate`と、損失の統計の表、対ごとの正誤の集計、3つの診断の記録、通信量、乱数の状態が一致する。clientの状態は、どちらも変わらない。
-2. The 対照 shall 登録→集約の後（配布の前）の状態で、新規モデルが登録されたラウンドごとにクロス評価を行い、2値と多クラス、件数0の評価と件数が正の評価、評価標本を使う場合と学習データを使う場合、標本の抜出し、clientの抜出し、正誤の比較がある評価とない評価、同じclientへの共有部と概念固有部の重複しない計上を通る。
+2. The 対照 shall 登録→集約の後（配布の前）の状態で、毎ラウンド（新規モデルが登録されたラウンドを含む）クロス評価を行い、2値と多クラス、件数0の評価と件数が正の評価、評価標本を使う場合と学習データを使う場合、標本の抜出し、clientの抜出し、正誤の比較がある評価とない評価、同じclientへの共有部と概念固有部の重複しない計上を通る。
 3. When clientの評価だけを行ったとき, the Run Client shall 実旧のclientの`evaluate_model`・`evaluate_model_diagnostics`（クラス別つき）と、結果と乱数の状態が一致する。
 
 ### Requirement 5: 拒否
@@ -83,7 +83,7 @@
 #### Acceptance Criteria
 
 1. If clientの列、owner、モデルIDの列（非負のbuiltin int、重複なし、グローバルモデルのownerがパラメータを持つID）、ラウンド、clientの上限、乱数生成器が、決まった型と範囲でないとき, the Cross Evaluation shall どの状態も変える前に拒否する。
-2. If 渡されたパラメータが、clientの分類器の構造（名前と形）に合わないとき、または対象のモデルID・標本の上限・ownerが決まった型と範囲でないとき, the Run Client shall 乱数を消費する前に拒否する。
+2. If 渡されたパラメータが、clientの分類器の構造（名前と形）に合わないとき、または対象のモデルID（builtin int。保有していないIDや一時IDは、不正ではなく、件数0の結果になる）・標本の上限・ownerが決まった型と範囲でないとき, the Run Client shall 乱数を消費する前に拒否する。
 3. If クロス評価の途中で、あるclientの評価が失敗したとき, the Cross Evaluation shall 後の評価へ進まない。済んだ分の通信量と記録は残る（巻戻しなし）。
 4. The Cross Evaluation shall 並行した呼出しでの結果を保証しない。
 

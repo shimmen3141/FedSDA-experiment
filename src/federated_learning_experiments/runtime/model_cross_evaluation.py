@@ -157,54 +157,20 @@ def _make_client_cross_evaluation_record(
     )
 
 
-class _ModelPairUniqueCorrectnessAccumulator:
-    """1つの対（小さいID、大きいID）の、片方だけが正解した数を、全体とクラス別に足していく。"""
-
-    def __init__(self) -> None:
-        self.overall_counts = [0, 0, 0]
-        self.class_counts_by_class_id: dict[int, list[int]] = {}
-
-    def add_client_cross_evaluation(
-        self,
-        *,
-        client_cross_evaluation: ClientModelCrossEvaluation,
-        candidate_is_lower_id_model: bool,
-    ) -> None:
-        correctness_counts = client_cross_evaluation.correctness_counts
-        if correctness_counts is None:
-            return
-        self._add(self.overall_counts, correctness_counts, candidate_is_lower_id_model)
-        for class_id, class_correctness_counts in client_cross_evaluation.class_correctness_counts:
-            self._add(
-                self.class_counts_by_class_id.setdefault(class_id, [0, 0, 0]),
-                class_correctness_counts,
-                candidate_is_lower_id_model,
-            )
-
-    @staticmethod
-    def _add(
-        accumulated_counts: list[int],
-        correctness_counts: ModelPairCorrectnessCounts,
-        candidate_is_lower_id_model: bool,
-    ) -> None:
-        accumulated_counts[0] += correctness_counts.evaluated_sample_count
-        if candidate_is_lower_id_model:
-            accumulated_counts[1] += correctness_counts.candidate_only_correct_count
-            accumulated_counts[2] += correctness_counts.target_only_correct_count
-        else:
-            accumulated_counts[1] += correctness_counts.target_only_correct_count
-            accumulated_counts[2] += correctness_counts.candidate_only_correct_count
-
-    def to_unique_correctness_counts(self) -> ModelPairUniqueCorrectnessCounts:
-        return ModelPairUniqueCorrectnessCounts(
-            evaluated_sample_count=self.overall_counts[0],
-            lower_id_model_only_correct_count=self.overall_counts[1],
-            higher_id_model_only_correct_count=self.overall_counts[2],
-            class_counts=tuple(
-                (class_id, class_counts[0], class_counts[1], class_counts[2])
-                for class_id, class_counts in self.class_counts_by_class_id.items()
-            ),
-        )
+def _add_correctness_counts_in_model_id_order(
+    *,
+    accumulated_counts: list[int],
+    correctness_counts: ModelPairCorrectnessCounts,
+    candidate_is_lower_id_model: bool,
+) -> None:
+    """［件数、小さいIDのモデルだけ正解、大きいIDのモデルだけ正解］へ、評価1回ぶんを、IDの向きにそろえて足す。"""
+    accumulated_counts[0] += correctness_counts.evaluated_sample_count
+    if candidate_is_lower_id_model:
+        accumulated_counts[1] += correctness_counts.candidate_only_correct_count
+        accumulated_counts[2] += correctness_counts.target_only_correct_count
+    else:
+        accumulated_counts[1] += correctness_counts.target_only_correct_count
+        accumulated_counts[2] += correctness_counts.candidate_only_correct_count
 
 
 def cross_evaluate_global_models(
@@ -254,9 +220,9 @@ def cross_evaluate_global_models(
     client_ids_sent_shared_parameters: set[int] = set()
     candidate_and_client_ids_sent_concept_specific_parameters: set[tuple[int, int]] = set()
     loss_sums_by_candidate_and_target_model_id: dict[tuple[int, int], CrossEvaluationLossSums] = {}
-    unique_correctness_accumulators: dict[
-        tuple[int, int], _ModelPairUniqueCorrectnessAccumulator
-    ] = {}
+    # 対（小さいID、大きいID）ごとの、［件数、小さいIDだけ正解、大きいIDだけ正解］の、全体と、クラス別。
+    overall_unique_correctness_counts_by_model_pair: dict[tuple[int, int], list[int]] = {}
+    class_unique_correctness_counts_by_model_pair: dict[tuple[int, int], dict[int, list[int]]] = {}
     for candidate_model_id in cross_evaluated_model_ids:
         shared_parameters, concept_specific_parameters = split_candidate_parameter_snapshots[
             candidate_model_id
@@ -309,16 +275,32 @@ def cross_evaluate_global_models(
                     )
                 )
                 if client_cross_evaluation.correctness_counts is not None:
-                    unique_correctness_accumulators.setdefault(
-                        (
-                            min(candidate_model_id, target_model_id),
-                            max(candidate_model_id, target_model_id),
-                        ),
-                        _ModelPairUniqueCorrectnessAccumulator(),
-                    ).add_client_cross_evaluation(
-                        client_cross_evaluation=client_cross_evaluation,
-                        candidate_is_lower_id_model=candidate_model_id < target_model_id,
+                    model_pair = (
+                        min(candidate_model_id, target_model_id),
+                        max(candidate_model_id, target_model_id),
                     )
+                    candidate_is_lower_id_model = candidate_model_id < target_model_id
+                    _add_correctness_counts_in_model_id_order(
+                        accumulated_counts=overall_unique_correctness_counts_by_model_pair.setdefault(
+                            model_pair, [0, 0, 0]
+                        ),
+                        correctness_counts=client_cross_evaluation.correctness_counts,
+                        candidate_is_lower_id_model=candidate_is_lower_id_model,
+                    )
+                    class_unique_correctness_counts = (
+                        class_unique_correctness_counts_by_model_pair.setdefault(model_pair, {})
+                    )
+                    for (
+                        class_id,
+                        class_correctness_counts,
+                    ) in client_cross_evaluation.class_correctness_counts:
+                        _add_correctness_counts_in_model_id_order(
+                            accumulated_counts=class_unique_correctness_counts.setdefault(
+                                class_id, [0, 0, 0]
+                            ),
+                            correctness_counts=class_correctness_counts,
+                            candidate_is_lower_id_model=candidate_is_lower_id_model,
+                        )
                 cross_evaluation_record_store.append_client_cross_evaluation_record(
                     client_cross_evaluation_record=_make_client_cross_evaluation_record(
                         round_index=round_index,
@@ -342,7 +324,17 @@ def cross_evaluate_global_models(
         cross_evaluated_model_ids=cross_evaluated_model_ids,
         loss_sums_by_candidate_and_target_model_id=loss_sums_by_candidate_and_target_model_id,
         unique_correctness_counts_by_model_pair={
-            model_pair: unique_correctness_accumulator.to_unique_correctness_counts()
-            for model_pair, unique_correctness_accumulator in unique_correctness_accumulators.items()
+            model_pair: ModelPairUniqueCorrectnessCounts(
+                evaluated_sample_count=overall_counts[0],
+                lower_id_model_only_correct_count=overall_counts[1],
+                higher_id_model_only_correct_count=overall_counts[2],
+                class_counts=tuple(
+                    (class_id, class_counts[0], class_counts[1], class_counts[2])
+                    for class_id, class_counts in class_unique_correctness_counts_by_model_pair[
+                        model_pair
+                    ].items()
+                ),
+            )
+            for model_pair, overall_counts in overall_unique_correctness_counts_by_model_pair.items()
         },
     )
