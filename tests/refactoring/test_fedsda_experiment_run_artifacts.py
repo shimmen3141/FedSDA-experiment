@@ -80,6 +80,15 @@ EXPECTED_TABLE_COLUMNS = {
         combined_prediction_is_correct="b",
         maximum_weight_model_id="i",
         held_model_count_at_prediction="i",
+        observed_class_id="i",
+        observed_concept_id="i",
+        maximum_prediction_weight="f",
+        effective_model_count="f",
+        any_model_or_combined_prediction_is_correct="b",
+        maximum_weight_model_prediction_is_correct="b",
+        highest_confidence_model_prediction_is_correct="b",
+        global_diagnostic_prediction_is_correct="b",
+        true_concept_diagnostic_prediction_is_correct="i",
     ),
     "concept_change": dict(client_id="i", first_new_concept_sample_index="i"),
     "training_model_switch": dict(client_id="i", switch_sample_index="i"),
@@ -172,6 +181,17 @@ EXPECTED_TABLE_COLUMNS = {
         target_only_correct_sample_count="i",
         both_correct_sample_count="i",
         both_wrong_sample_count="i",
+    ),
+    "client_weight_update_count": dict(
+        client_id="i",
+        global_diagnostic_model_pool_reset_count="i",
+        global_diagnostic_concept_operation_restart_count="i",
+        global_diagnostic_aggregation_recalibration_count="i",
+        global_diagnostic_aggregation_recalibration_replayed_sample_count="i",
+        prediction_weight_model_pool_reset_count="i",
+        prediction_weight_leader_switch_count="i",
+        prediction_weight_aggregation_recalibration_count="i",
+        prediction_weight_aggregation_recalibration_replayed_sample_count="i",
     ),
     "client_held_model": dict(
         client_id="i",
@@ -744,6 +764,210 @@ def assert_cross_evaluation_tables_match_legacy_saved_arrays(record_tables, lega
     )
 
 
+# 旧の配列の名前から、予測の診断の、新の表の列への対応（値が同じもの）。
+NEW_COLUMN_BY_LEGACY_PREDICTION_DIAGNOSTIC_ARRAY_NAME = {
+    # 最終構成では、Fixed-Shareの予測重みが、実際の予測の重み（旧の2つの配列は同じ値）。
+    "history_routing_effective_experts": "sample_prediction.effective_model_count",
+    "history_routing_switching_effective_experts": "sample_prediction.effective_model_count",
+    "history_routing_max_weight": "sample_prediction.maximum_prediction_weight",
+    "history_routing_oracle_correct": (
+        "sample_prediction.any_model_or_combined_prediction_is_correct"
+    ),
+    "history_routing_leader_correct": "sample_prediction.maximum_weight_model_prediction_is_correct",
+    "history_routing_oracle_concept_correct": (
+        "sample_prediction.true_concept_diagnostic_prediction_is_correct"
+    ),
+    "routing_pool_reset_counts": "client_weight_update_count.global_diagnostic_model_pool_reset_count",
+    "routing_concept_restart_counts": (
+        "client_weight_update_count.global_diagnostic_concept_operation_restart_count"
+    ),
+    "routing_aggregation_recalibration_counts": (
+        "client_weight_update_count.global_diagnostic_aggregation_recalibration_count"
+    ),
+    "routing_aggregation_recalibration_sample_counts": (
+        "client_weight_update_count.global_diagnostic_aggregation_recalibration_replayed_sample_count"
+    ),
+}
+# 条件ごとの、予測の診断の列が通った場合の観測（goldenの3ケースと、小さい条件）。
+PREDICTION_DIAGNOSTIC_COLUMN_OBSERVATIONS = []
+# どの条件も通らない場合（実測で決める）。
+PREDICTION_DIAGNOSTIC_COLUMN_CASES_NOT_COVERED = set()
+
+
+def derive_legacy_class_arrays_from_sample_prediction_table(record_tables):
+    """標本ごとの表から、旧の、clientとクラスごとの配列（`routing_class_*`）を数える（clientの順、クラスの昇順）。"""
+    observed_class_ids = record_tables["sample_prediction.observed_class_id"]
+    combined_correct = record_tables["sample_prediction.combined_prediction_is_correct"]
+    any_correct = record_tables["sample_prediction.any_model_or_combined_prediction_is_correct"]
+    maximum_weight_correct = record_tables[
+        "sample_prediction.maximum_weight_model_prediction_is_correct"
+    ]
+    highest_confidence_correct = record_tables[
+        "sample_prediction.highest_confidence_model_prediction_is_correct"
+    ]
+    rows = []
+    for client_id in range(observed_class_ids.shape[0]):
+        for class_id in sorted(set(observed_class_ids[client_id].tolist())):
+            class_samples = observed_class_ids[client_id] == class_id
+            client_any_correct = any_correct[client_id][class_samples]
+            rows.append(
+                (
+                    client_id,
+                    class_id,
+                    int(class_samples.sum()),
+                    int(client_any_correct.sum()),
+                    int(combined_correct[client_id][class_samples].sum()),
+                    int(maximum_weight_correct[client_id][class_samples].sum()),
+                    int(highest_confidence_correct[client_id][class_samples].sum()),
+                    int((client_any_correct & ~combined_correct[client_id][class_samples]).sum()),
+                    int(
+                        (
+                            client_any_correct
+                            & ~highest_confidence_correct[client_id][class_samples]
+                        ).sum()
+                    ),
+                )
+            )
+    return {
+        legacy_array_name: np.asarray([row[position] for row in rows], dtype=np.int64)
+        for position, legacy_array_name in enumerate(
+            (
+                "routing_class_client_ids",
+                "routing_class_ids",
+                "routing_class_sample_counts",
+                "routing_class_oracle_correct_counts",
+                "routing_class_mixture_correct_counts",
+                "routing_class_leader_correct_counts",
+                "routing_class_confidence_leader_correct_counts",
+                "routing_class_missed_oracle_counts",
+                "routing_class_confidence_leader_missed_oracle_counts",
+            )
+        )
+    }
+
+
+def assert_prediction_diagnostic_columns_match_legacy_saved_arrays(
+    record_tables, legacy_saved_arrays, *, experiment_run
+):
+    """予測の診断の、足した列が、実旧が保存した配列と、形と値で一致する。"""
+    for (
+        legacy_array_name,
+        table_column_name,
+    ) in NEW_COLUMN_BY_LEGACY_PREDICTION_DIAGNOSTIC_ARRAY_NAME.items():
+        legacy_array = legacy_saved_arrays[legacy_array_name]
+        column = record_tables[table_column_name]
+        assert column.shape == legacy_array.shape, legacy_array_name
+        if legacy_array_name == "history_routing_oracle_concept_correct":
+            # 新は、整数（正解1、不正解0、真の概念が分からなければ−1）。旧は、真偽。
+            assert legacy_array.dtype == np.bool_ and column.dtype == np.int64
+            assert np.array_equal(column, legacy_array.astype(np.int64)), legacy_array_name
+        else:
+            assert column.dtype.kind == legacy_array.dtype.kind, legacy_array_name
+            assert np.array_equal(column, legacy_array), legacy_array_name
+    # 旧の、clientとクラスごとの配列は、標本ごとの表から数えた値。
+    class_arrays = derive_legacy_class_arrays_from_sample_prediction_table(record_tables)
+    assert len(class_arrays) + len(NEW_COLUMN_BY_LEGACY_PREDICTION_DIAGNOSTIC_ARRAY_NAME) == 19
+    for legacy_array_name, class_array in class_arrays.items():
+        legacy_array = legacy_saved_arrays[legacy_array_name]
+        assert class_array.shape == legacy_array.shape, legacy_array_name
+        assert legacy_array.dtype.kind == "i", legacy_array_name
+        assert np.array_equal(class_array, legacy_array), legacy_array_name
+    # 観測した真の概念は、評価用の概念列の、処理した標本の部分（旧は、この列を保存しない）。
+    observed_concept_ids = record_tables["sample_prediction.observed_concept_id"]
+    for client_id, concept_trace in enumerate(
+        experiment_run.measured_run.run_result.evaluation_concept_traces
+    ):
+        assert observed_concept_ids[client_id].tolist() == list(
+            concept_trace.concept_ids_by_sample_index[: observed_concept_ids.shape[1]]
+        )
+    # clientごとの表は、clientの順に、1行ずつ。
+    assert record_tables["client_weight_update_count.client_id"].tolist() == list(
+        range(observed_concept_ids.shape[0])
+    )
+    # 予測重みの側の回数は、指標（全clientの合計）と合う。
+    run_metrics = experiment_run.run_metrics
+    diagnostic_metrics = run_metrics.prediction_diagnostic_metrics
+    assert (
+        record_tables["client_weight_update_count.prediction_weight_leader_switch_count"].sum()
+        == diagnostic_metrics.prediction_weight_leader_switch_count
+    )
+    assert (
+        record_tables["client_weight_update_count.prediction_weight_model_pool_reset_count"].sum()
+        == diagnostic_metrics.prediction_weight_model_pool_reset_count
+    )
+    assert (
+        record_tables[
+            "client_weight_update_count.prediction_weight_aggregation_recalibration_replayed_sample_count"
+        ].sum()
+        == run_metrics.prediction_weight_recalibration_replayed_sample_count
+    )
+    # 正否の列の合計は、指標の数と合う（globalの診断重みでの結合と、確信度が最大のモデルを含む）。
+    for column_name, correct_count in (
+        (
+            "global_diagnostic_prediction_is_correct",
+            diagnostic_metrics.global_diagnostic_prediction_correct_count,
+        ),
+        (
+            "highest_confidence_model_prediction_is_correct",
+            diagnostic_metrics.prediction_correct_counts.highest_confidence_model_prediction_correct_count,
+        ),
+        (
+            "any_model_or_combined_prediction_is_correct",
+            diagnostic_metrics.prediction_correct_counts.any_model_or_combined_prediction_correct_count,
+        ),
+    ):
+        assert record_tables[f"sample_prediction.{column_name}"].sum() == correct_count, column_name
+    # 最大の重みと、実効モデル数の関係: モデルが1つなら、どちらも1。
+    single_model_samples = record_tables["sample_prediction.held_model_count_at_prediction"] == 1
+    assert (
+        record_tables["sample_prediction.maximum_prediction_weight"][single_model_samples] == 1
+    ).all()
+    assert (
+        record_tables["sample_prediction.effective_model_count"][single_model_samples] == 1
+    ).all()
+    counts = record_tables
+    PREDICTION_DIAGNOSTIC_COLUMN_OBSERVATIONS.append(
+        dict(
+            effective_model_count_above_one=bool(
+                (counts["sample_prediction.effective_model_count"] > 1).any()
+            ),
+            correctness_columns_differ=bool(
+                (
+                    counts["sample_prediction.any_model_or_combined_prediction_is_correct"]
+                    != counts["sample_prediction.combined_prediction_is_correct"]
+                ).any()
+                and (
+                    counts["sample_prediction.maximum_weight_model_prediction_is_correct"]
+                    != counts["sample_prediction.combined_prediction_is_correct"]
+                ).any()
+                and (
+                    counts["sample_prediction.true_concept_diagnostic_prediction_is_correct"]
+                    != counts["sample_prediction.combined_prediction_is_correct"]
+                ).any()
+            ),
+            global_diagnostic_model_pool_reset=bool(
+                counts["client_weight_update_count.global_diagnostic_model_pool_reset_count"].any()
+            ),
+            global_diagnostic_concept_operation_restart=bool(
+                counts[
+                    "client_weight_update_count.global_diagnostic_concept_operation_restart_count"
+                ].any()
+            ),
+            global_diagnostic_aggregation_recalibration=bool(
+                counts[
+                    "client_weight_update_count.global_diagnostic_aggregation_recalibration_count"
+                ].any()
+            ),
+            prediction_weight_leader_switch=bool(
+                counts["client_weight_update_count.prediction_weight_leader_switch_count"].any()
+            ),
+            multiple_classes_per_client=bool(
+                np.unique(counts["sample_prediction.observed_class_id"]).size > 1
+            ),
+        )
+    )
+
+
 def assert_model_diagnostic_columns_match_legacy_saved_arrays(record_tables, legacy_saved_arrays):
     """モデル別の診断・登録・クラスタリングの、足した列が、実旧が保存した配列と、形と値で一致する。"""
     for (
@@ -798,6 +1022,12 @@ def test_golden_condition_model_diagnostic_columns_match_legacy_saved_arrays(
         record_tables, golden_condition_runs.legacy_saved_arrays
     )
     observe_model_diagnostic_column_cases(record_tables)
+    # 予測の診断の列も、実旧が保存した配列と一致する。
+    assert_prediction_diagnostic_columns_match_legacy_saved_arrays(
+        record_tables,
+        golden_condition_runs.legacy_saved_arrays,
+        experiment_run=golden_experiment_runs,
+    )
     # clientの評価ごとの表と、クラスごとの表も、実旧が保存した配列と一致する。
     assert_cross_evaluation_tables_match_legacy_saved_arrays(
         record_tables, golden_condition_runs.legacy_saved_arrays
@@ -905,6 +1135,23 @@ def test_round_model_counts_match_real_legacy_whole_run(
     assert_model_diagnostic_columns_match_legacy_saved_arrays(record_tables, legacy_saved_arrays)
     observe_model_diagnostic_column_cases(record_tables)
     assert_cross_evaluation_tables_match_legacy_saved_arrays(record_tables, legacy_saved_arrays)
+    assert_prediction_diagnostic_columns_match_legacy_saved_arrays(
+        record_tables, legacy_saved_arrays, experiment_run=experiment_run
+    )
+    # 予測重みの側の、clientごとの回数が、実旧のclientの値と一致する。
+    for column_name, legacy_attribute_name in (
+        ("prediction_weight_model_pool_reset_count", "pool_reset_count"),
+        ("prediction_weight_leader_switch_count", "leader_switch_count"),
+        ("prediction_weight_aggregation_recalibration_count", "aggregation_recalibration_count"),
+        (
+            "prediction_weight_aggregation_recalibration_replayed_sample_count",
+            "aggregation_recalibration_sample_count",
+        ),
+    ):
+        assert record_tables[f"client_weight_update_count.{column_name}"].tolist() == [
+            getattr(legacy_client.switching_expert_router, legacy_attribute_name)
+            for legacy_client in legacy_run["legacy_clients"]
+        ], column_name
     legacy_round_model_counts = legacy_run["legacy_round_model_counts"]
     assert (
         record_tables["server_round.global_model_count_after_synchronization"].tolist()
@@ -1011,6 +1258,21 @@ def test_cross_evaluation_table_conditions_cover_required_cases():
         case_name
         for case_name in CROSS_EVALUATION_TABLE_OBSERVATIONS[0]
         if not any(observation[case_name] for observation in CROSS_EVALUATION_TABLE_OBSERVATIONS)
+    }
+
+
+def test_prediction_diagnostic_column_conditions_cover_required_cases():
+    """goldenの3ケースと、小さい条件が、予測の診断の列の、値が変わる場合を通っている。"""
+    if len(PREDICTION_DIAGNOSTIC_COLUMN_OBSERVATIONS) < len(ROUND_MODEL_COUNT_CONDITIONS) + len(
+        legacy_regression.CASES
+    ):
+        pytest.skip("goldenの3ケースと、小さい条件の全部を実行したときだけ確かめる")
+    assert PREDICTION_DIAGNOSTIC_COLUMN_CASES_NOT_COVERED == {
+        case_name
+        for case_name in PREDICTION_DIAGNOSTIC_COLUMN_OBSERVATIONS[0]
+        if not any(
+            observation[case_name] for observation in PREDICTION_DIAGNOSTIC_COLUMN_OBSERVATIONS
+        )
     }
 
 

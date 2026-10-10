@@ -44,6 +44,10 @@ from federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_deriv
     FedsdaModelDiagnosticMetrics,
     derive_fedsda_model_diagnostic_metrics,
 )
+from federated_learning_experiments.runtime.fedsda_prediction_diagnostic_metric_derivation import (
+    FedsdaPredictionDiagnosticMetrics,
+    derive_fedsda_prediction_diagnostic_metrics,
+)
 from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
 from federated_learning_experiments.runtime.fedsda_run_server import FedsdaRunServer
 from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
@@ -68,6 +72,8 @@ class FedsdaRunMetrics:
     model_diagnostic_metrics: FedsdaModelDiagnosticMetrics
     # クロス評価で、標本ごとの正誤を比べたモデル対の、予測の相補性の指標。
     model_pair_prediction_complementarity_metrics: ModelPairPredictionComplementarityMetrics
+    # 予測の診断（実際の予測と、比較用の予測の、正否の集計）の指標。
+    prediction_diagnostic_metrics: FedsdaPredictionDiagnosticMetrics
     final_global_model_count: int
     communication_volume: CommunicationVolumeSnapshot
     final_parameter_value_count: int
@@ -266,6 +272,11 @@ def derive_fedsda_run_metrics(
             summarize_model_pair_prediction_complementarity(
                 client_cross_evaluation_records=server_owners.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
             )
+        ),
+        prediction_diagnostic_metrics=derive_fedsda_prediction_diagnostic_metrics(
+            run_clients=tuple(run_clients),
+            concept_change_sample_indices_by_client=concept_change_sample_indices_by_client,
+            recovery_window_sample_count=run_metric_settings.post_change_recovery_window_sample_count,
         ),
         final_global_model_count=len(server_owners.global_model_repository.global_model_ids),
         communication_volume=server_owners.communication_volume_record_store.get_state_snapshot(),

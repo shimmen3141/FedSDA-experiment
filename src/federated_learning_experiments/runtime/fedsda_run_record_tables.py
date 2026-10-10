@@ -41,7 +41,8 @@ from federated_learning_experiments.runtime.fedsda_run_server import FedsdaRunSe
 # 初期モデル（登録のラウンドがない）の、登録ラウンドの値。
 INITIAL_MODEL_REGISTERED_ROUND_INDEX = -1
 # 整数の列で、値がないこと（推定した変化点がない、比較した参照モデルがない、登録したclientがない、
-# 最も近い相手のモデルがない、真の概念の一致が分からない、クロス評価で正誤を比べなかった）を表す値。
+# 最も近い相手のモデルがない、真の概念の一致が分からない、クロス評価で正誤を比べなかった、
+# 標本の真の概念が分からない）を表す値。
 MISSING_INTEGER_VALUE = -1
 
 
@@ -114,6 +115,59 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     )
     record_tables["sample_prediction.held_model_count_at_prediction"] = _integer_column(
         held_model_counts_by_client
+    )
+    # 観測したクラスと、観測した真の概念（分からなければ、−1）。
+    record_tables["sample_prediction.observed_class_id"] = _integer_column(
+        [
+            [record.observed_class_id for record in prediction_records]
+            for prediction_records in prediction_records_by_client
+        ]
+    )
+    record_tables["sample_prediction.observed_concept_id"] = _integer_column(
+        [
+            [
+                MISSING_INTEGER_VALUE
+                if record.observed_concept_id is None
+                else record.observed_concept_id
+                for record in prediction_records
+            ]
+            for prediction_records in prediction_records_by_client
+        ]
+    )
+    # 予測重みの最大と、実効モデル数（予測重みの二乗和の逆数）。
+    for column_name in ("maximum_prediction_weight", "effective_model_count"):
+        record_tables[f"sample_prediction.{column_name}"] = _float_column(
+            [
+                [getattr(record, column_name) for record in prediction_records]
+                for prediction_records in prediction_records_by_client
+            ]
+        )
+    # 比較用の予測の正否（予測と学習の判断には、使われていない）。
+    for column_name in (
+        "any_model_or_combined_prediction_is_correct",
+        "maximum_weight_model_prediction_is_correct",
+        "highest_confidence_model_prediction_is_correct",
+        "global_diagnostic_prediction_is_correct",
+    ):
+        record_tables[f"sample_prediction.{column_name}"] = _boolean_column(
+            [
+                [getattr(record, column_name) for record in prediction_records]
+                for prediction_records in prediction_records_by_client
+            ]
+        )
+    # 真の概念別の診断重みでの結合の正否: 正解1、不正解0、真の概念が分からなければ−1。
+    record_tables["sample_prediction.true_concept_diagnostic_prediction_is_correct"] = (
+        _integer_column(
+            [
+                [
+                    MISSING_INTEGER_VALUE
+                    if record.true_concept_diagnostic_prediction_is_correct is None
+                    else int(record.true_concept_diagnostic_prediction_is_correct)
+                    for record in prediction_records
+                ]
+                for prediction_records in prediction_records_by_client
+            ]
+        )
     )
 
     # ---- 概念の変更（評価用の概念列で、前の標本と概念が違う標本——新しい概念の最初の標本——の位置。
@@ -538,6 +592,57 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     ):
         record_tables[f"client_cross_evaluation_class.{column_name}"] = _integer_column(
             [class_row[row_position] for class_row in class_rows]
+        )
+
+    # ---- clientごとの、重みの更新に関わる出来事の回数（実行の終わりの値） ----
+    # globalの診断重み（AdaHedge）と、予測重み（Fixed-Share）の別。
+    record_tables["client_weight_update_count.client_id"] = _integer_column(
+        [run_client.client_id for run_client in run_clients]
+    )
+    for column_name, evidence_property_name in (
+        ("global_diagnostic_model_pool_reset_count", "model_pool_reset_count"),
+        (
+            "global_diagnostic_concept_operation_restart_count",
+            "concept_operation_restart_count",
+        ),
+        (
+            "global_diagnostic_aggregation_recalibration_count",
+            "aggregation_recalibration_count",
+        ),
+        (
+            "global_diagnostic_aggregation_recalibration_replayed_sample_count",
+            "aggregation_recalibration_sample_count",
+        ),
+    ):
+        record_tables[f"client_weight_update_count.{column_name}"] = _integer_column(
+            [
+                getattr(
+                    run_client.owners.diagnostic_evidence_collection.global_diagnostic_evidence,
+                    evidence_property_name,
+                )
+                for run_client in run_clients
+            ]
+        )
+    for column_name, controller_property_name in (
+        ("prediction_weight_model_pool_reset_count", "model_pool_reset_count"),
+        ("prediction_weight_leader_switch_count", "prediction_weight_leader_switch_count"),
+        (
+            "prediction_weight_aggregation_recalibration_count",
+            "aggregation_recalibration_count",
+        ),
+        (
+            "prediction_weight_aggregation_recalibration_replayed_sample_count",
+            "aggregation_recalibration_sample_count",
+        ),
+    ):
+        record_tables[f"client_weight_update_count.{column_name}"] = _integer_column(
+            [
+                getattr(
+                    run_client.owners.fixed_share_prediction_weight_controller,
+                    controller_property_name,
+                )
+                for run_client in run_clients
+            ]
         )
 
     # ---- clientの保有モデルごとの、実行の終わりの学習量（clientの順、モデルIDの昇順） ----

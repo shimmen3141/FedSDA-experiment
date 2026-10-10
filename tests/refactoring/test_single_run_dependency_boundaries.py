@@ -4870,6 +4870,13 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in ("dataclasses.dataclass",)
     if source_module_path == "evaluation/held_model_count_record_store.py":
         return imported_module_name in ()
+    if source_module_path == "evaluation/prediction_diagnostic_metric_calculations.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.fields",
+            "numpy.mean",
+            "numpy.std",
+        )
     if source_module_path == "evaluation/cross_evaluation_metric_calculations.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5012,6 +5019,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.evaluation.computation_cost_summary.ComputationCostSummary",
             "federated_learning_experiments.evaluation.computation_cost_summary.ServerComputationCounts",
             "federated_learning_experiments.evaluation.computation_cost_summary.summarize_computation_cost",
+            "federated_learning_experiments.evaluation.cross_evaluation_metric_calculations.ModelPairPredictionComplementarityMetrics",
+            "federated_learning_experiments.evaluation.cross_evaluation_metric_calculations.summarize_model_pair_prediction_complementarity",
             "federated_learning_experiments.evaluation.loss_monitoring_computation_count_store.LossMonitoringComputationCounts",
             "federated_learning_experiments.evaluation.run_metric_calculations.DetectionMetrics",
             "federated_learning_experiments.evaluation.run_metric_calculations.RunMetricSettings",
@@ -5020,8 +5029,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.evaluation.run_metric_calculations.calculate_stable_period_prediction_accuracy",
             "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
             "federated_learning_experiments.execution.run_execution_records.StreamProtocolRunResult",
-            "federated_learning_experiments.evaluation.cross_evaluation_metric_calculations.ModelPairPredictionComplementarityMetrics",
-            "federated_learning_experiments.evaluation.cross_evaluation_metric_calculations.summarize_model_pair_prediction_complementarity",
             "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
             "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
             "federated_learning_experiments.methods.fedsda.model_registration.global_model_repository.GlobalModelRepository",
@@ -5029,6 +5036,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_change_response_metric_derivation.derive_fedsda_change_response_metrics",
             "federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_derivation.FedsdaModelDiagnosticMetrics",
             "federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_derivation.derive_fedsda_model_diagnostic_metrics",
+            "federated_learning_experiments.runtime.fedsda_prediction_diagnostic_metric_derivation.FedsdaPredictionDiagnosticMetrics",
+            "federated_learning_experiments.runtime.fedsda_prediction_diagnostic_metric_derivation.derive_fedsda_prediction_diagnostic_metrics",
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.fedsda_run_server.FedsdaRunServer",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.split_shared_and_concept_specific_parameters",
@@ -5085,6 +5094,17 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
             "federated_learning_experiments.runtime.fedsda_experiment_run.FedsdaExperimentRun",
             "federated_learning_experiments.runtime.fedsda_run_record_tables.build_fedsda_run_record_tables",
+        )
+    if source_module_path == "runtime/fedsda_prediction_diagnostic_metric_derivation.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.evaluation.prediction_diagnostic_metric_calculations.ClassMacroPredictionMetrics",
+            "federated_learning_experiments.evaluation.prediction_diagnostic_metric_calculations.PredictionCorrectCounts",
+            "federated_learning_experiments.evaluation.prediction_diagnostic_metric_calculations.StableAndRecoveryPeriodAccuracies",
+            "federated_learning_experiments.evaluation.prediction_diagnostic_metric_calculations.calculate_stable_and_recovery_period_accuracies",
+            "federated_learning_experiments.evaluation.prediction_diagnostic_metric_calculations.summarize_class_prediction_metrics",
+            "federated_learning_experiments.evaluation.sample_prediction_record_store.SamplePredictionRecord",
+            "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
         )
     if source_module_path == "runtime/fedsda_model_diagnostic_metric_derivation.py":
         return imported_module_name in (
@@ -6400,6 +6420,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/fedsda_run_settings.py",
             "runtime/fedsda_change_response_metric_derivation.py",
             "runtime/fedsda_model_diagnostic_metric_derivation.py",
+            "runtime/fedsda_prediction_diagnostic_metric_derivation.py",
             "runtime/fedsda_run_artifact_files.py",
             "runtime/fedsda_run_record_tables.py",
             "runtime/fedsda_experiment_run.py",
@@ -6419,6 +6440,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/change_response_metric_calculations.py",
             "evaluation/model_diagnostic_metric_calculations.py",
             "evaluation/cross_evaluation_metric_calculations.py",
+            "evaluation/prediction_diagnostic_metric_calculations.py",
             "evaluation/held_model_count_record_store.py",
             "evaluation/loss_monitoring_computation_count_store.py",
             "learning/models/model_computation_measurement.py",
@@ -6505,6 +6527,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedsda_run_settings.py",
                     "runtime/fedsda_change_response_metric_derivation.py",
                     "runtime/fedsda_model_diagnostic_metric_derivation.py",
+                    "runtime/fedsda_prediction_diagnostic_metric_derivation.py",
                     "runtime/fedsda_run_artifact_files.py",
                     "runtime/fedsda_run_record_tables.py",
                     "runtime/fedsda_experiment_run.py",
@@ -6524,6 +6547,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/change_response_metric_calculations.py",
                     "evaluation/model_diagnostic_metric_calculations.py",
                     "evaluation/cross_evaluation_metric_calculations.py",
+                    "evaluation/prediction_diagnostic_metric_calculations.py",
                     "evaluation/held_model_count_record_store.py",
                     "evaluation/loss_monitoring_computation_count_store.py",
                     "learning/models/model_computation_measurement.py",

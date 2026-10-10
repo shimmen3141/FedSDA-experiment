@@ -481,6 +481,152 @@ def assert_model_pair_metrics_match_legacy_metrics(*, run_metrics, legacy_metric
     )
 
 
+# 旧の予測の集計の指標のうち、最終構成では、いつも0のもの（Fixed-Shareの結合と、実際の予測の差。最終構成では、同じ予測）。
+LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ALWAYS_ZERO = (
+    "routing_switching_gain_rate",
+    "routing_switching_stable_gain_rate",
+    "routing_switching_recovery_gain_rate",
+)
+# 照合のたびに、旧の指標の値（予測の診断の指標の、旧の名前→値）を積む（対応表の取り違えの検査に使う）。
+LEGACY_PREDICTION_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS = []
+# 実行した全部の条件で、旧の値が同じになる、指標の対（実測で決める）。
+INDISTINGUISHABLE_LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAME_PAIRS = {
+    # 最終構成では、Fixed-Shareの結合が、実際の予測（新は、1つの値で持つ）。
+    ("routing_mixture_accuracy", "routing_switching_accuracy"),
+}
+
+
+def derive_legacy_prediction_diagnostic_metric_values(run_metrics):
+    """予測の診断の指標を、旧の指標の名前へ写す（照合のための対応表）。
+
+    旧の指標のうち、数から計算できるもの（正解の割合、差、比）は、ここで、旧と同じ式で計算する。
+    """
+    diagnostic_metrics = run_metrics.prediction_diagnostic_metrics
+    correct_counts = diagnostic_metrics.prediction_correct_counts
+    sample_count = correct_counts.predicted_sample_count
+    combined_correct_count = correct_counts.combined_prediction_correct_count
+    any_correct_count = correct_counts.any_model_or_combined_prediction_correct_count
+    maximum_weight_correct_count = correct_counts.maximum_weight_model_prediction_correct_count
+    highest_confidence_correct_count = (
+        correct_counts.highest_confidence_model_prediction_correct_count
+    )
+    combined_period = diagnostic_metrics.combined_prediction_period_accuracies
+    any_period = diagnostic_metrics.any_model_or_combined_prediction_period_accuracies
+    maximum_weight_period = diagnostic_metrics.maximum_weight_model_prediction_period_accuracies
+    true_concept_period = diagnostic_metrics.true_concept_diagnostic_prediction_period_accuracies
+    class_metrics = diagnostic_metrics.class_macro_prediction_metrics
+
+    def divide_or_zero(numerator, denominator):
+        return numerator / denominator if denominator else 0.0
+
+    return dict(
+        routing_sample_count=sample_count,
+        routing_oracle_accuracy=divide_or_zero(any_correct_count, sample_count),
+        routing_mixture_accuracy=divide_or_zero(combined_correct_count, sample_count),
+        routing_leader_accuracy=divide_or_zero(maximum_weight_correct_count, sample_count),
+        routing_confidence_leader_accuracy=divide_or_zero(
+            highest_confidence_correct_count, sample_count
+        ),
+        routing_oracle_gain_rate=divide_or_zero(
+            any_correct_count - combined_correct_count, sample_count
+        ),
+        routing_oracle_recovery_rate=divide_or_zero(combined_correct_count, any_correct_count),
+        routing_oracle_stable_accuracy=any_period.stable_period_accuracy,
+        routing_oracle_recovery_accuracy=any_period.recovery_period_accuracy,
+        routing_oracle_concept_accuracy=divide_or_zero(
+            diagnostic_metrics.true_concept_diagnostic_prediction_correct_count,
+            diagnostic_metrics.true_concept_known_sample_count,
+        ),
+        routing_oracle_concept_stable_accuracy=true_concept_period.stable_period_accuracy,
+        routing_oracle_concept_recovery_accuracy=true_concept_period.recovery_period_accuracy,
+        routing_oracle_concept_stable_gain_rate=(
+            true_concept_period.stable_period_accuracy - combined_period.stable_period_accuracy
+        ),
+        routing_oracle_concept_recovery_gain_rate=(
+            true_concept_period.recovery_period_accuracy - combined_period.recovery_period_accuracy
+        ),
+        routing_leader_stable_accuracy=maximum_weight_period.stable_period_accuracy,
+        routing_leader_recovery_accuracy=maximum_weight_period.recovery_period_accuracy,
+        routing_stable_oracle_gap=(
+            any_period.stable_period_accuracy - combined_period.stable_period_accuracy
+        ),
+        routing_recovery_oracle_gap=(
+            any_period.recovery_period_accuracy - combined_period.recovery_period_accuracy
+        ),
+        routing_missed_oracle_count=any_correct_count - combined_correct_count,
+        routing_confidence_leader_oracle_recovery_rate=divide_or_zero(
+            highest_confidence_correct_count, any_correct_count
+        ),
+        routing_confidence_leader_missed_oracle_count=(
+            any_correct_count - highest_confidence_correct_count
+        ),
+        routing_class_macro_oracle_accuracy=(
+            class_metrics.macro_any_model_or_combined_prediction_accuracy
+        ),
+        routing_class_macro_mixture_accuracy=class_metrics.macro_combined_prediction_accuracy,
+        routing_class_macro_leader_accuracy=(
+            class_metrics.macro_maximum_weight_model_prediction_accuracy
+        ),
+        routing_class_macro_confidence_leader_accuracy=(
+            class_metrics.macro_highest_confidence_model_prediction_accuracy
+        ),
+        routing_class_oracle_gap_mean=class_metrics.mean_any_model_or_combined_accuracy_gap,
+        routing_class_oracle_gap_std=(
+            class_metrics.any_model_or_combined_accuracy_gap_standard_deviation
+        ),
+        routing_class_oracle_recovery_rate_mean=(
+            class_metrics.mean_combined_to_any_model_or_combined_correct_ratio
+        ),
+        routing_class_oracle_recovery_rate_min=(
+            class_metrics.minimum_combined_to_any_model_or_combined_correct_ratio
+        ),
+        # 最終構成では、Fixed-Shareの結合が、実際の予測（旧の2つの指標は同じ値）。
+        routing_switching_accuracy=divide_or_zero(combined_correct_count, sample_count),
+        routing_switching_global_gain_rate=divide_or_zero(
+            combined_correct_count - diagnostic_metrics.global_diagnostic_prediction_correct_count,
+            sample_count,
+        ),
+        routing_switching_stable_accuracy=combined_period.stable_period_accuracy,
+        routing_switching_recovery_accuracy=combined_period.recovery_period_accuracy,
+        routing_switching_effective_experts_mean=diagnostic_metrics.mean_effective_model_count,
+        routing_switching_leader_switch_count=(
+            diagnostic_metrics.prediction_weight_leader_switch_count
+        ),
+        routing_switching_pool_reset_count=(
+            diagnostic_metrics.prediction_weight_model_pool_reset_count
+        ),
+        routing_aggregation_recalibration_count=(
+            diagnostic_metrics.global_diagnostic_aggregation_recalibration_count
+        ),
+    )
+
+
+def assert_prediction_diagnostic_metrics_match_legacy_metrics(*, run_metrics, legacy_metric_values):
+    """予測の診断の指標が、旧の指標の値（旧の40の指標）と、全部の項目で一致する。"""
+    prediction_diagnostic_values = derive_legacy_prediction_diagnostic_metric_values(run_metrics)
+    assert len(prediction_diagnostic_values) == 37
+    for legacy_metric_name, metric_value in prediction_diagnostic_values.items():
+        assert type(metric_value) in (int, float), legacy_metric_name
+        assert metric_value == legacy_metric_values[legacy_metric_name], legacy_metric_name
+    for legacy_metric_name in LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ALWAYS_ZERO:
+        assert legacy_metric_values[legacy_metric_name] == 0, legacy_metric_name
+    assert (
+        len(prediction_diagnostic_values)
+        + len(LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ALWAYS_ZERO)
+        == 40
+    )
+    # 実際の予測の正解の割合と、定常の区間の正解の割合は、既存の指標と同じ値。
+    assert (
+        prediction_diagnostic_values["routing_mixture_accuracy"] == run_metrics.prediction_accuracy
+    )
+    LEGACY_PREDICTION_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS.append(
+        {
+            legacy_metric_name: legacy_metric_values[legacy_metric_name]
+            for legacy_metric_name in prediction_diagnostic_values
+        }
+    )
+
+
 def derive_legacy_trace_arrays(*, run_result, participants):
     """新の記録の読取りから、旧の保存形式（`_save_raw_run`）の31の離散列を作る。"""
     run_clients = participants.client_operations
@@ -951,6 +1097,10 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
     )
     # モデル対の予測の相補性の指標も、一致する。
     assert_model_pair_metrics_match_legacy_metrics(
+        run_metrics=run_metrics, legacy_metric_values=golden_condition_runs.legacy_result
+    )
+    # 予測の診断の指標も、一致する。
+    assert_prediction_diagnostic_metrics_match_legacy_metrics(
         run_metrics=run_metrics, legacy_metric_values=golden_condition_runs.legacy_result
     )
     # 旧の回帰testが求める経路（複数のモデル、候補の採用、統合、再較正）を通っている。
@@ -1481,6 +1631,8 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
             for held_model_training_state in run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
         ] == list(legacy_client.models)
     # モデル別の学習量と、クラスタリングの判定と真の概念の一致が、実旧の集計と一致する。
+    # 旧の、回復の区間の窓は、設定の値から取る（この条件の値にする）。
+    monkeypatch.setattr(config, "STABLE_WINDOW", recovery_window)
     legacy_model_diagnostic_results = {}
     experiment._add_model_diagnostic_results(
         legacy_model_diagnostic_results, legacy_clients, legacy_server, legacy_true_drift_events
@@ -1489,6 +1641,10 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
         run_metrics=run_metrics,
         legacy_metric_values=legacy_model_diagnostic_results,
         global_model_counts_are_recorded=False,
+    )
+    # 予測の診断の指標が、実旧の集計と一致する。
+    assert_prediction_diagnostic_metrics_match_legacy_metrics(
+        run_metrics=run_metrics, legacy_metric_values=legacy_model_diagnostic_results
     )
     legacy_metric_values = derive_legacy_metric_values(run_metrics)
     for legacy_metric_name in legacy_regression.METRICS:
@@ -1711,6 +1867,7 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
             model_pair_prediction_complementarity_metrics=(
                 run_metrics.model_pair_prediction_complementarity_metrics
             ),
+            prediction_diagnostic_metrics=run_metrics.prediction_diagnostic_metrics,
         )
         == run_metrics
     )
@@ -1790,6 +1947,29 @@ def test_model_pair_metric_correspondence_distinguishes_metric_pairs():
         if all(observation[first_name] == observation[second_name] for observation in observations)
     }
     assert indistinguishable_name_pairs == INDISTINGUISHABLE_LEGACY_MODEL_PAIR_METRIC_NAME_PAIRS
+    # どの条件でも0のままの指標は、ない。
+    assert not [
+        legacy_metric_name
+        for legacy_metric_name in legacy_metric_names
+        if all(observation[legacy_metric_name] == 0 for observation in observations)
+    ]
+
+
+def test_prediction_diagnostic_metric_correspondence_distinguishes_metric_pairs():
+    """予測の診断の指標の対応表で、2つの指標を取り違えたら、goldenと小さい条件の照合が検出する。"""
+    observations = LEGACY_PREDICTION_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS
+    if len(observations) < len(GOLDEN_DATASET_NAMES) + 2 * len(SMALL_RUN_CONDITIONS):
+        pytest.skip("goldenと、対照の全条件を実行したときだけ確かめる")
+    legacy_metric_names = sorted(observations[0])
+    indistinguishable_name_pairs = {
+        (first_name, second_name)
+        for first_name, second_name in combinations(legacy_metric_names, 2)
+        if all(observation[first_name] == observation[second_name] for observation in observations)
+    }
+    assert (
+        indistinguishable_name_pairs
+        == INDISTINGUISHABLE_LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAME_PAIRS
+    )
     # どの条件でも0のままの指標は、ない。
     assert not [
         legacy_metric_name
