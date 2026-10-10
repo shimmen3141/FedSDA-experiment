@@ -64,6 +64,7 @@ clientの組立てと実行の枠の5操作（`FedsdaRunClient`）、標本1件�
 
 ## ユーザー確認待ち・未解消の事項
 
+- 【決定済み。2026-10-10ユーザー】datasetの移植: 論文の実験で使うのは、blobs以外の全部（sea4、circle2、sine2、sea2、mnist2、mnist4）。時期は、計算量のspecの後、Linux用のgoldenの前（Linux用のgoldenを作る時点で、goldenの3ケース——sine2・sea2・mnist2——を新実装で照合できるようにする）。blobsは移植しない。移植で見直す点: 観測標本の特徴数（いまは2で固定）、概念列の型`ClientConceptTrace`が0/1だけを受理すること（sea4・mnist4は4概念）、datasetごとの学習率と隠れ層の幅（mnistは1e-3、(1568,)）、MNISTの画像の読込み、SEAのラベル雑音と閾値。旧の定義は`federated_drift_experiment/data/`（specs.py、synthetic.py、mnist.py、streams.py）。
 - 【決定済み。2026-10-10ユーザー】計算量の指標: 必要。旧の計数に漏れ・重複がないかの検査を含めて、1つのspecで扱う（上の「次の一手」）。旧の計数に誤りが見つかった場合に、goldenの7項目を更新するかは、そのときにユーザーが決める。
 - 【決定済み。2026-10-10ユーザー】真の概念をclientへ渡すか: 実行の枠が、診断専用の引数として、真の概念をclientへ渡す（evaluation-concept-diagnostic-deliveryで実装した）。真の概念に依存する診断（真の概念別の診断証拠、割当概念の計数、標本ごとの記録の概念、クラスタリングの真の概念の一致）は、全体runで行われる。新しい手法のclientを足すときも、真の概念は、診断にだけ使う（契約の説明と、不干渉のtest）。
 - LEGACY-014: 旧の採用分岐は、新モデルへ移す保留標本を割当概念計数と損失統計へ反映しない（他の分岐と非対称）。2026-10-08ユーザー回答: LEGACYは後でまとめて判断するので、現状のまま置く。新実装は旧挙動を維持しtestで固定している。主担当からの再確認は不要。記録は[implementation-findings](../../docs/research/implementation-findings/README.md)。
