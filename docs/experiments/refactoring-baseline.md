@@ -188,11 +188,12 @@ python -m pytest tests/refactoring/test_environment_proposed_regression.py \
 研究室サーバのgoldenを足すとき（1回だけ）は、上の環境（`.venv`と環境変数）のまま、worktreeで次を実行する。
 ブランチへ直接commitして、pushする。`git checkout -B`は、worktreeのローカルの`refactor/architecture`を、
 取得した最新の`origin/refactor/architecture`の位置へ作り直す（このworktreeに、pushしていないローカルのcommitが
-ある場合は、失われる。上の手順で作ったworktreeには、ない）。
+ある場合は、ブランチから外れる。上の手順で作ったworktreeには、ない）。
 
 ```bash
 cd ../FedSDA-refactoring          # すでにworktreeにいるなら不要
 git fetch origin
+git log --oneline origin/refactor/architecture..refactor/architecture 2>/dev/null   # 何も出なければ、ローカルだけのcommitはない
 git checkout -B refactor/architecture origin/refactor/architecture
 python tests/refactoring/test_environment_proposed_regression.py --update
 python -m pytest tests/refactoring/test_environment_proposed_regression.py \
