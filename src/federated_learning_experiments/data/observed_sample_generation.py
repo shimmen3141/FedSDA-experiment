@@ -23,12 +23,24 @@ class ObservedSampleGenerator(Protocol):
     def generate_sample(self, *, concept_id: int) -> ObservedSample: ...
 
 
+# dataset名から、生成器の型（生成と、datasetとの対応の判定が、同じ表を使う）。
+_GENERATOR_TYPE_BY_DATASET_NAME: dict[str, type] = {
+    "sine2": SineSampleGenerator,
+    "sea2": SeaSampleGenerator,
+    "sea4": SeaSampleGenerator,
+    "circle2": CircleSampleGenerator,
+}
+
 # 下の関数が返す、生成器の型（受け取る側の、exact型の検査に使う）。
-OBSERVED_SAMPLE_GENERATOR_TYPES: tuple[type, ...] = (
-    SineSampleGenerator,
-    SeaSampleGenerator,
-    CircleSampleGenerator,
+OBSERVED_SAMPLE_GENERATOR_TYPES: tuple[type, ...] = tuple(
+    dict.fromkeys(_GENERATOR_TYPE_BY_DATASET_NAME.values())
 )
+
+
+def _get_generator_type(*, dataset_name: str) -> type:
+    if dataset_name not in _GENERATOR_TYPE_BY_DATASET_NAME:
+        raise ValueError(f"no observed sample generator for dataset {dataset_name!r}")
+    return _GENERATOR_TYPE_BY_DATASET_NAME[dataset_name]
 
 
 def create_observed_sample_generator(
@@ -38,32 +50,28 @@ def create_observed_sample_generator(
     dataset_definition = get_dataset_definition(dataset_name=dataset_name)
     if type(numpy_random_generator) is not RandomState:
         raise TypeError("numpy_random_generator must be exact numpy.random.RandomState")
-    if dataset_name == "sine2":
-        return SineSampleGenerator(numpy_random_generator=numpy_random_generator)
-    if dataset_name in ("sea2", "sea4"):
+    generator_type = _get_generator_type(dataset_name=dataset_name)
+    if generator_type is SeaSampleGenerator:
+        # SEAは、受け付ける概念IDの範囲を、datasetの概念数で決める。
         return SeaSampleGenerator(
             numpy_random_generator=numpy_random_generator,
             concept_count=dataset_definition.concept_count,
         )
-    if dataset_name == "circle2":
+    if generator_type is CircleSampleGenerator:
         return CircleSampleGenerator(numpy_random_generator=numpy_random_generator)
+    if generator_type is SineSampleGenerator:
+        return SineSampleGenerator(numpy_random_generator=numpy_random_generator)
     raise ValueError(f"no observed sample generator for dataset {dataset_name!r}")
 
 
 def is_observed_sample_generator_of_dataset(*, sample_generator: object, dataset_name: str) -> bool:
     """生成器が、そのdatasetのもの（型が一致し、SEAなら概念数も一致する）かを返す。"""
     dataset_definition = get_dataset_definition(dataset_name=dataset_name)
-    if dataset_name == "sine2":
-        return type(sample_generator) is SineSampleGenerator
-    if dataset_name in ("sea2", "sea4"):
-        return (
-            isinstance(sample_generator, SeaSampleGenerator)
-            and type(sample_generator) is SeaSampleGenerator
-            and sample_generator.concept_count == dataset_definition.concept_count
-        )
-    if dataset_name == "circle2":
-        return type(sample_generator) is CircleSampleGenerator
-    raise ValueError(f"no observed sample generator for dataset {dataset_name!r}")
+    if type(sample_generator) is not _get_generator_type(dataset_name=dataset_name):
+        return False
+    if isinstance(sample_generator, SeaSampleGenerator):
+        return sample_generator.concept_count == dataset_definition.concept_count
+    return True
 
 
 def build_client_observed_streams(

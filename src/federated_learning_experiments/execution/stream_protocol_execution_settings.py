@@ -1,4 +1,4 @@
-"""SINE供給と区間進行だけを扱う単一runの固定条件。"""
+"""観測標本の供給と区間進行だけを扱う単一runの固定条件。"""
 
 from dataclasses import dataclass
 
