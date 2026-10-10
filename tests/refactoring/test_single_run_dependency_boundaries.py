@@ -4735,6 +4735,8 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
         "federated_learning_experiments.core",
         "federated_learning_experiments.data",
         "federated_learning_experiments.data.concept_schedules",
+        "federated_learning_experiments.data.circle",
+        "federated_learning_experiments.data.sea",
         "federated_learning_experiments.data.sine",
         "federated_learning_experiments.execution",
         "federated_learning_experiments.learning",
@@ -4873,6 +4875,20 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.fields",
             "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
         )
+    if source_module_path == "data/dataset_definitions.py":
+        return imported_module_name in ("dataclasses.dataclass",)
+    if source_module_path == "data/observed_sample_generation.py":
+        return imported_module_name in (
+            "typing.Protocol",
+            "numpy.random.RandomState",
+            "federated_learning_experiments.data.circle.circle_sample_generation.CircleSampleGenerator",
+            "federated_learning_experiments.data.dataset_definitions.get_dataset_definition",
+            "federated_learning_experiments.data.observed_streams.ClientConceptTrace",
+            "federated_learning_experiments.data.observed_streams.ClientObservedStream",
+            "federated_learning_experiments.data.observed_streams.ObservedSample",
+            "federated_learning_experiments.data.sea.sea_sample_generation.SeaSampleGenerator",
+            "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",
+        )
     if source_module_path == "evaluation/run_metric_calculations.py":
         return imported_module_name in (
             "bisect.bisect_right",
@@ -4903,8 +4919,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.float32",
             "torch.is_grad_enabled",
             "torch.tensor",
+            "federated_learning_experiments.data.observed_sample_generation.OBSERVED_SAMPLE_GENERATOR_TYPES",
+            "federated_learning_experiments.data.observed_sample_generation.ObservedSampleGenerator",
             "federated_learning_experiments.data.observed_streams.ObservedSample",
-            "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
@@ -4928,12 +4945,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_measured_run_execution.py":
         return imported_module_name in (
-            "federated_learning_experiments.execution.run_participant_contracts.RunServerOperations",
             "dataclasses.dataclass",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
-            "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",
+            "federated_learning_experiments.data.observed_sample_generation.ObservedSampleGenerator",
             "federated_learning_experiments.execution.run_execution_records.StreamProtocolRunResult",
             "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
+            "federated_learning_experiments.execution.run_participant_contracts.RunServerOperations",
             "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
             "federated_learning_experiments.execution.stream_protocol_execution_settings.StreamProtocolExecutionSettings",
             "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
@@ -4974,7 +4991,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "typing.cast",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
-            "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",
+            "federated_learning_experiments.data.dataset_definitions.get_dataset_definition",
+            "federated_learning_experiments.data.observed_sample_generation.OBSERVED_SAMPLE_GENERATOR_TYPES",
+            "federated_learning_experiments.data.observed_sample_generation.ObservedSampleGenerator",
+            "federated_learning_experiments.data.observed_sample_generation.is_observed_sample_generator_of_dataset",
             "federated_learning_experiments.execution.run_participant_contracts.RunClientOperations",
             "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
             "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
@@ -6123,6 +6143,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         if source_module_layer == "execution":
             allowed_internal_module_prefixes += (
                 "federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings.",
+                "federated_learning_experiments.data.dataset_definitions.",
             )
     elif (
         source_module_path
@@ -6218,6 +6239,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/cross_evaluation_record_store.py",
             "evaluation/model_clustering_record_store.py",
             "evaluation/run_metric_calculations.py",
+            "data/observed_sample_generation.py",
+            "data/dataset_definitions.py",
             "evaluation/computation_cost_summary.py",
             "evaluation/held_model_count_record_store.py",
             "evaluation/loss_monitoring_computation_count_store.py",
@@ -6309,6 +6332,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/cross_evaluation_record_store.py",
                     "evaluation/model_clustering_record_store.py",
                     "evaluation/run_metric_calculations.py",
+                    "data/observed_sample_generation.py",
+                    "data/dataset_definitions.py",
                     "evaluation/computation_cost_summary.py",
                     "evaluation/held_model_count_record_store.py",
                     "evaluation/loss_monitoring_computation_count_store.py",
@@ -7689,6 +7714,8 @@ def test_single_run_package_boundaries_have_no_exports():
     package_boundary_paths = (
         "data",
         "data/concept_schedules",
+        "data/circle",
+        "data/sea",
         "data/sine",
         "execution",
         "runtime",

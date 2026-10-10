@@ -34,6 +34,8 @@ from federated_learning_experiments.core.configuration_errors import RunSettings
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
     RandomConceptScheduleSettings,
 )
+from federated_learning_experiments.data.dataset_definitions import get_dataset_definition
+from federated_learning_experiments.data.sea.sea_sample_generation import SeaSampleGenerator
 from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
 from federated_learning_experiments.execution.run_participant_contracts import RunParticipants
 from federated_learning_experiments.execution.run_random_sources import create_run_random_sources
@@ -74,10 +76,11 @@ def make_execution_settings(
     aggregation_interval,
     minimum_change_gap,
     concept_change_probability,
+    dataset_name="sine2",
 ):
     return StreamProtocolExecutionSettings(
         experiment_run_conditions=ExperimentRunConditions(
-            dataset_name="sine2",
+            dataset_name=dataset_name,
             random_seed=random_seed,
             client_count=client_count,
             per_client_sample_count=per_client_sample_count,
@@ -121,10 +124,11 @@ def run_real_legacy_whole_run(*, monkeypatch, execution_settings, update_interva
         class_count=2,
         update_interval=update_interval,
         routing_recalibration="fifo_replay",
+        dataset_name=experiment_run_conditions.dataset_name,
         **overrides,
     )
     for legacy_setting_name, legacy_setting_value in dict(
-        DATASET="sine2",
+        DATASET=experiment_run_conditions.dataset_name,
         CONCEPT_SCHEDULE="random",
         N_CLIENTS=experiment_run_conditions.client_count,
         TOTAL_DATA_POINTS=experiment_run_conditions.per_client_sample_count,
@@ -567,6 +571,105 @@ def test_whole_run_conditions_cover_required_paths():
     }, sorted(observed_paths)
 
 
+# sine2以外の合成データ: (dataset, seed, client数, clientごとの標本数, 集約間隔, 変更までの最小の間隔, 変更の確率, 学習の間隔)。
+# 実旧だけでなく新旧の全体runを、3 dataset×6 seed×3条件（54条件。全部一致）進めて、新しいモデルの登録を通る条件を選んだ。
+# 最後の要素は、その条件が通ることを確かめる経路（sine2の条件が通らない、別の保有モデルの再利用を含む）。
+OTHER_DATASET_WHOLE_RUN_CONDITIONS = [
+    ("sea2", 1, 3, 500, 25, 60, 0.03, 2, {"decision_alternative_reference_refit"}),
+    ("sea2", 17, 3, 300, 10, 30, 0.05, 1, set()),
+    ("sea4", 23, 5, 300, 10, 50, 0.03, 2, {"multiple_global_models_at_run_end"}),
+    ("sea4", 2, 5, 300, 10, 50, 0.03, 2, {"models_consolidated"}),
+    ("circle2", 7, 3, 500, 25, 60, 0.03, 2, {"models_consolidated"}),
+    ("circle2", 17, 3, 300, 10, 30, 0.05, 1, set()),
+]
+
+
+@pytest.mark.parametrize(
+    "dataset_name,random_seed,client_count,per_client_sample_count,aggregation_interval,minimum_change_gap,concept_change_probability,update_interval,required_paths",
+    OTHER_DATASET_WHOLE_RUN_CONDITIONS,
+)
+def test_whole_run_of_other_synthetic_datasets_matches_real_legacy_whole_run(
+    dataset_name,
+    random_seed,
+    client_count,
+    per_client_sample_count,
+    aggregation_interval,
+    minimum_change_gap,
+    concept_change_probability,
+    update_interval,
+    required_paths,
+    monkeypatch,
+    valid_run_settings_mapping,
+):
+    """sea2・sea4・circle2でも、全体runの全状態が実旧と一致する（特徴数と概念数は、datasetの定義から）。"""
+    dataset_definition = get_dataset_definition(dataset_name=dataset_name)
+    execution_settings = make_execution_settings(
+        random_seed=random_seed,
+        client_count=client_count,
+        per_client_sample_count=per_client_sample_count,
+        aggregation_interval=aggregation_interval,
+        minimum_change_gap=minimum_change_gap,
+        concept_change_probability=concept_change_probability,
+        dataset_name=dataset_name,
+    )
+    legacy_run = run_real_legacy_whole_run(
+        monkeypatch=monkeypatch,
+        execution_settings=execution_settings,
+        update_interval=update_interval,
+    )
+    run_result, participants, run_random_sources = execute_stream_protocol_run_with_factory(
+        execution_settings=execution_settings,
+        run_participant_settings=make_run_participant_settings(
+            valid_run_settings_mapping, update_interval=update_interval
+        ),
+    )
+    assert_whole_run_matches_legacy(
+        run_result=run_result,
+        participants=participants,
+        run_random_sources=run_random_sources,
+        legacy_run=legacy_run,
+    )
+    # datasetの定義どおりの特徴数・概念で、実行している。
+    assert all(
+        len(observed_sample.feature_values) == dataset_definition.input_feature_count
+        for observed_client_stream in run_result.observed_client_streams
+        for observed_sample in observed_client_stream.observed_samples
+    )
+    assert all(
+        legacy_features.shape == (dataset_definition.input_feature_count,)
+        for legacy_data_stream in legacy_run["legacy_data_streams"]
+        for legacy_features, _ in legacy_data_stream
+    )
+    visited_concept_ids = {
+        concept_id
+        for concept_trace in run_result.evaluation_concept_traces
+        for concept_id in concept_trace.concept_ids_by_sample_index
+    }
+    # 全概念を通る（sea4は4概念）。
+    assert visited_concept_ids == set(range(dataset_definition.concept_count))
+    legacy_server = legacy_run["legacy_server"]
+    legacy_clients = legacy_run["legacy_clients"]
+    assert any(legacy_client.detected_event_positions for legacy_client in legacy_clients)
+    synchronizations = participants.server_operations.snapshot_server_round_synchronizations()
+    observed_paths = {
+        f"decision_{legacy_decision.reason}"
+        for legacy_client in legacy_clients
+        for legacy_decision in legacy_client.provisional_model_decisions
+    }
+    if any(synchronization.registered_client_models for synchronization in synchronizations):
+        observed_paths.add("new_model_registered")
+    if any(
+        synchronization.model_consolidation is not None
+        and synchronization.model_consolidation.absorbed_model_ids
+        for synchronization in synchronizations
+    ):
+        observed_paths.add("models_consolidated")
+    if len(legacy_server.global_models) >= 2:
+        observed_paths.add("multiple_global_models_at_run_end")
+    if required_paths:
+        assert observed_paths >= required_paths | {"new_model_registered", "decision_accepted"}
+
+
 def owners_decision_records(run_client):
     """clientが保持している、候補検証の判定記録の一覧。"""
     return run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
@@ -892,7 +995,17 @@ def test_factory_rejects_invalid_preparation_before_consuming_random_numbers(
     for invalid_arguments in (
         dict(experiment_run_conditions=None),
         dict(experiment_run_conditions=make_subclass_copy(experiment_run_conditions)),
+        # 生成器と違うdataset（sea2）と、定義のないdataset（mnist2）。
         dict(experiment_run_conditions=replace(experiment_run_conditions, dataset_name="sea2")),
+        dict(experiment_run_conditions=replace(experiment_run_conditions, dataset_name="mnist2")),
+        # sea2の実行条件へ、sea4の生成器（同じ型で、概念数が違う）。
+        dict(
+            experiment_run_conditions=replace(experiment_run_conditions, dataset_name="sea2"),
+            sample_generator=SeaSampleGenerator(
+                numpy_random_generator=run_random_sources.numpy_random_generator,
+                concept_count=4,
+            ),
+        ),
         dict(run_random_sources=None),
         dict(run_random_sources=random.Random(3)),
         dict(sample_generator=None),

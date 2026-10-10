@@ -801,7 +801,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         assert settings_field.default_factory is MISSING
         if get_type_hints(settings_type)[settings_field.name] is str:
             assert settings_field.metadata["allowed_parameter_values"] == (
-                ("sine2", "sea2", "mnist2")
+                ("sine2", "sea2", "sea4", "circle2", "mnist2")
                 if settings_field.name == "dataset_name"
                 else ("shared_backbone_residual_adapter",)
                 if settings_field.name == "model_architecture_name"

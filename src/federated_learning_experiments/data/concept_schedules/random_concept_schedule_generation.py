@@ -1,4 +1,4 @@
-"""借りたPython乱数でclient順に評価用の二概念系列を生成する。"""
+"""借りたPython乱数でclient順に評価用の概念系列を生成する（概念数は、datasetの定義から）。"""
 
 from random import Random
 
@@ -8,6 +8,7 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
     RandomConceptScheduleSettings,
 )
+from federated_learning_experiments.data.dataset_definitions import get_dataset_definition
 from federated_learning_experiments.data.observed_streams import ClientConceptTrace
 
 
@@ -18,6 +19,9 @@ def generate_random_client_concept_traces(
     python_random_generator: Random,
 ) -> tuple[ClientConceptTrace, ...]:
     """全clientの概念列を生成し、変更試行と概念選択の乱数順を維持する。"""
+    concept_count = get_dataset_definition(
+        dataset_name=experiment_run_conditions.dataset_name
+    ).concept_count
     evaluation_concept_traces: list[ClientConceptTrace] = []
     for client_id in range(experiment_run_conditions.client_count):
         concept_ids_by_sample_index: list[int] = []
@@ -31,7 +35,9 @@ def generate_random_client_concept_traces(
                 < concept_schedule_settings.per_eligible_sample_concept_change_probability
             ):
                 alternative_concept_ids = [
-                    concept_id for concept_id in range(2) if concept_id != current_concept_id
+                    concept_id
+                    for concept_id in range(concept_count)
+                    if concept_id != current_concept_id
                 ]
                 # 候補が一つでもchoiceの乱数消費を省略しない。
                 current_concept_id = python_random_generator.choice(alternative_concept_ids)

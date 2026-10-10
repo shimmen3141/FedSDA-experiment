@@ -6,8 +6,11 @@ from random import Random
 from numpy.random import RandomState
 from torch import float32, is_grad_enabled, tensor
 
+from federated_learning_experiments.data.observed_sample_generation import (
+    OBSERVED_SAMPLE_GENERATOR_TYPES,
+    ObservedSampleGenerator,
+)
 from federated_learning_experiments.data.observed_streams import ObservedSample
-from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatistics,
     ModelAndClassLossStatisticsStore,
@@ -45,7 +48,6 @@ from federated_learning_experiments.learning.training.participating_model_traini
 )
 
 # 観測標本（ObservedSample）が持つ特徴の数と、事前学習に使う概念。
-_OBSERVED_SAMPLE_FEATURE_COUNT = 2
 _PRETRAINING_CONCEPT_ID = 0
 # 統計を求めるための一時的なownerの中で、初期モデルを指すID（結果には残らない）。
 _STATISTICS_MODEL_ID = 0
@@ -65,10 +67,11 @@ def _validate_initial_model_pretraining_inputs(
     *,
     initial_model_pretraining_settings: InitialModelPretrainingSettings,
     model_architecture_settings: ModelArchitectureSettings,
+    input_feature_count: int,
     hidden_layer_widths: tuple[int, ...],
     class_count: int,
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
-    sample_generator: SineSampleGenerator,
+    sample_generator: ObservedSampleGenerator,
     python_random_generator: Random,
 ) -> None:
     if type(initial_model_pretraining_settings) is not InitialModelPretrainingSettings:
@@ -89,15 +92,15 @@ def _validate_initial_model_pretraining_inputs(
     initial_model_pretraining_settings.__post_init__()
     model_architecture_settings.__post_init__()
     parameter_optimizer_settings.__post_init__()
-    if type(sample_generator) is not SineSampleGenerator:
-        raise TypeError("sample_generator must be exact SineSampleGenerator")
-    if type(sample_generator.numpy_random_generator) is not RandomState:
+    if type(sample_generator) not in OBSERVED_SAMPLE_GENERATOR_TYPES:
+        raise TypeError("sample_generator must be a generator of a supported dataset")
+    if type(getattr(sample_generator, "numpy_random_generator", None)) is not RandomState:
         raise TypeError("sample_generator must hold exact numpy.random.RandomState")
     if type(python_random_generator) is not Random:
         raise TypeError("python_random_generator must be exact random.Random")
     # 分類器の生成が拒否する寸法とクラス数を、乱数を使わない検査で先に確かめる。
     SharedFeatureExtractor.validate_feature_dimensions(
-        input_feature_count=_OBSERVED_SAMPLE_FEATURE_COUNT, hidden_layer_widths=hidden_layer_widths
+        input_feature_count=input_feature_count, hidden_layer_widths=hidden_layer_widths
     )
     # 隠れ層がないと共有部にパラメータがなく、共有部のoptimizerを作れない（分類器の生成の後に拒否される）。
     if not hidden_layer_widths:
@@ -117,10 +120,11 @@ def pretrain_initial_model(
     *,
     initial_model_pretraining_settings: InitialModelPretrainingSettings,
     model_architecture_settings: ModelArchitectureSettings,
+    input_feature_count: int,
     hidden_layer_widths: tuple[int, ...],
     class_count: int,
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
-    sample_generator: SineSampleGenerator,
+    sample_generator: ObservedSampleGenerator,
     python_random_generator: Random,
 ) -> PretrainedInitialModel:
     """分類器を作り、概念0の標本で学習して、最後の並びの順に求めた損失統計とともに返す。
@@ -131,6 +135,7 @@ def pretrain_initial_model(
     _validate_initial_model_pretraining_inputs(
         initial_model_pretraining_settings=initial_model_pretraining_settings,
         model_architecture_settings=model_architecture_settings,
+        input_feature_count=input_feature_count,
         hidden_layer_widths=hidden_layer_widths,
         class_count=class_count,
         parameter_optimizer_settings=parameter_optimizer_settings,
@@ -140,7 +145,7 @@ def pretrain_initial_model(
     # (1) 分類器と、概念固有部（アダプタ→分類層）・共有部のoptimizerの状態。
     classifier = ResidualAdapterClassifier(
         model_architecture_settings=model_architecture_settings,
-        input_feature_count=_OBSERVED_SAMPLE_FEATURE_COUNT,
+        input_feature_count=input_feature_count,
         hidden_layer_widths=hidden_layer_widths,
         class_count=class_count,
     )

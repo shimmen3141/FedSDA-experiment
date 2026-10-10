@@ -20,6 +20,9 @@ from federated_learning_experiments.data.concept_schedules.random_concept_schedu
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
     RandomConceptScheduleSettings,
 )
+from federated_learning_experiments.data.observed_sample_generation import (
+    build_client_observed_streams,
+)
 from federated_learning_experiments.data.observed_streams import (
     ClientConceptTrace,
     ClientObservedStream,
@@ -27,7 +30,6 @@ from federated_learning_experiments.data.observed_streams import (
 )
 from federated_learning_experiments.data.sine.sine_sample_generation import (
     SineSampleGenerator,
-    build_sine_client_observed_streams,
 )
 
 
@@ -184,6 +186,28 @@ def test_random_concept_schedule_settings_are_frozen_and_keyword_only(
         RandomConceptScheduleSettings(*valid_concept_schedule_values.values())
 
 
+@pytest.mark.parametrize(
+    ("feature_values", "class_label"),
+    [((0.5,), 0), ((0.125, 0.75, 9.5), 1), (tuple(0.25 for _ in range(784)), 9)],
+)
+def test_observed_sample_accepts_any_feature_count_and_class_label(feature_values, class_label):
+    """特徴の数とクラスの数は、datasetが決める（1特徴、3特徴、784特徴・10クラス）。"""
+    observed_sample = ObservedSample(feature_values=feature_values, class_label=class_label)
+    assert observed_sample.feature_values is feature_values
+    assert observed_sample.class_label == class_label
+
+
+def test_client_concept_trace_accepts_more_than_two_concepts():
+    """概念の数は、datasetが決める（4概念）。"""
+    concept_ids_by_sample_index = (0, 3, 2, 1, 3)
+    assert (
+        ClientConceptTrace(
+            client_id=0, concept_ids_by_sample_index=concept_ids_by_sample_index
+        ).concept_ids_by_sample_index
+        is concept_ids_by_sample_index
+    )
+
+
 @pytest.mark.parametrize("class_label", [0, 1])
 def test_observed_sample_preserves_features_and_binary_label(class_label):
     """観測標本は指定した特徴とクラスだけを持ち、評価用真値を持たない。"""
@@ -306,14 +330,11 @@ def test_observed_data_records_reject_mutable_collections(
     "record_field_name,invalid_field_value,expected_exception_type",
     [
         ("feature_values", (), ValueError),
-        ("feature_values", (0.5,), ValueError),
-        ("feature_values", (0.5, 0.5, 0.5), ValueError),
         ("feature_values", None, TypeError),
         ("feature_values", (1, 0.5), TypeError),
         ("feature_values", (True, 0.5), TypeError),
         ("feature_values", (0.5, "0.5"), TypeError),
         ("class_label", -1, ValueError),
-        ("class_label", 2, ValueError),
         ("class_label", True, TypeError),
         ("class_label", False, TypeError),
         ("class_label", 0.0, TypeError),
@@ -326,7 +347,7 @@ def test_observed_sample_rejects_invalid_values(
     invalid_field_value,
     expected_exception_type,
 ):
-    """2特徴のfloat tupleと厳密な整数の二値クラスだけを受理する。"""
+    """1つ以上のfloatの特徴のtupleと、0以上の厳密な整数のクラスラベルだけを受理する。"""
     record_field_values = {"feature_values": (0.125, 0.75), "class_label": 1}
     record_field_values[record_field_name] = invalid_field_value
     with pytest.raises(expected_exception_type, match=record_field_name):
@@ -378,7 +399,6 @@ def test_observed_sample_rejects_invalid_values(
             for invalid_field_value, expected_exception_type in (
                 (None, TypeError),
                 ((-1,), ValueError),
-                ((2,), ValueError),
                 ((True,), TypeError),
                 ((False,), TypeError),
                 ((0.0,), TypeError),
@@ -694,7 +714,7 @@ def test_sine_client_observed_streams_preserve_client_order_positions_and_counts
         ),
     )
     sample_generator = SineSampleGenerator(numpy_random_generator=numpy_random_generator)
-    observed_client_streams = build_sine_client_observed_streams(
+    observed_client_streams = build_client_observed_streams(
         evaluation_concept_traces=evaluation_concept_traces,
         sample_generator=sample_generator,
     )
@@ -731,13 +751,13 @@ def test_sine_client_observed_streams_accept_empty_traces():
     initial_numpy_random_state = numpy_random_generator.get_state()
     sample_generator = SineSampleGenerator(numpy_random_generator=numpy_random_generator)
     assert (
-        build_sine_client_observed_streams(
+        build_client_observed_streams(
             evaluation_concept_traces=(),
             sample_generator=sample_generator,
         )
         == ()
     )
-    assert build_sine_client_observed_streams(
+    assert build_client_observed_streams(
         evaluation_concept_traces=(
             ClientConceptTrace(client_id=7, concept_ids_by_sample_index=()),
         ),
@@ -755,4 +775,4 @@ def test_sine_sample_generation_requires_keyword_arguments():
     with pytest.raises(TypeError):
         sample_generator.generate_sample(0)
     with pytest.raises(TypeError):
-        build_sine_client_observed_streams((), sample_generator)
+        build_client_observed_streams((), sample_generator)

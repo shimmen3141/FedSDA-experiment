@@ -6,13 +6,13 @@ from federated_learning_experiments.core.configuration_errors import RunSettings
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_generation import (
     generate_random_client_concept_traces,
 )
+from federated_learning_experiments.data.observed_sample_generation import (
+    build_client_observed_streams,
+    create_observed_sample_generator,
+)
 from federated_learning_experiments.data.observed_streams import (
     ClientConceptTrace,
     ClientObservedStream,
-)
-from federated_learning_experiments.data.sine.sine_sample_generation import (
-    SineSampleGenerator,
-    build_sine_client_observed_streams,
 )
 from federated_learning_experiments.execution.run_execution_errors import RunExecutionError
 from federated_learning_experiments.execution.run_execution_records import (
@@ -111,8 +111,9 @@ def execute_stream_protocol_run(
         random_seed=experiment_run_conditions.random_seed
     )
     with isolated_cpu_torch_random_state(random_seed=experiment_run_conditions.random_seed):
-        sample_generator = SineSampleGenerator(
-            numpy_random_generator=run_random_sources.numpy_random_generator
+        sample_generator = create_observed_sample_generator(
+            dataset_name=experiment_run_conditions.dataset_name,
+            numpy_random_generator=run_random_sources.numpy_random_generator,
         )
         execution_events = [RunExecutionEvent(stage_name="configuration_validation")]
         # 操作wrapperのobject戻り値を、操作の宣言型へ対応付ける。値は変更しない。
@@ -154,7 +155,7 @@ def execute_stream_protocol_run(
         observed_client_streams = cast(
             tuple[ClientObservedStream, ...],
             invoke_run_operation_and_record_success(
-                run_operation=build_sine_client_observed_streams,
+                run_operation=build_client_observed_streams,
                 operation_arguments={
                     "evaluation_concept_traces": evaluation_concept_traces,
                     "sample_generator": sample_generator,

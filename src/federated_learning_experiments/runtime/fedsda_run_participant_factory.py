@@ -7,7 +7,12 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
     ExperimentRunConditions,
 )
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
-from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
+from federated_learning_experiments.data.dataset_definitions import get_dataset_definition
+from federated_learning_experiments.data.observed_sample_generation import (
+    OBSERVED_SAMPLE_GENERATOR_TYPES,
+    ObservedSampleGenerator,
+    is_observed_sample_generator_of_dataset,
+)
 from federated_learning_experiments.execution.run_participant_contracts import (
     RunClientOperations,
     RunParticipants,
@@ -34,10 +39,6 @@ from federated_learning_experiments.runtime.initial_model_pretraining import pre
 
 # 初期モデルの正式ID。
 _INITIAL_MODEL_ID = 0
-# SINEの観測標本のクラス数。
-_SINE_CLASS_COUNT = 2
-# この準備が扱うdataset（実行の枠も、SINEだけを受け入れる）。
-_SUPPORTED_DATASET_NAME = "sine2"
 
 _REQUIRED_SETTINGS_TYPE_BY_FIELD_NAME = {
     "run_client_settings": FedsdaRunClientSettings,
@@ -155,7 +156,7 @@ class FedsdaRunParticipantFactory:
         *,
         experiment_run_conditions: ExperimentRunConditions,
         run_random_sources: RunRandomSources,
-        sample_generator: SineSampleGenerator,
+        sample_generator: ObservedSampleGenerator,
     ) -> RunParticipants:
         """初期モデルを事前学習し、全clientを0から順に組み立て、サーバを組み立てて、参加者を返す。
 
@@ -166,12 +167,20 @@ class FedsdaRunParticipantFactory:
         for argument_name, argument, required_type in (
             ("experiment_run_conditions", experiment_run_conditions, ExperimentRunConditions),
             ("run_random_sources", run_random_sources, RunRandomSources),
-            ("sample_generator", sample_generator, SineSampleGenerator),
         ):
             if type(argument) is not required_type:
                 raise TypeError(f"{argument_name} must be exact {required_type.__name__}")
-        if experiment_run_conditions.dataset_name != _SUPPORTED_DATASET_NAME:
-            raise ValueError(f"dataset_name must be {_SUPPORTED_DATASET_NAME!r}")
+        if type(sample_generator) not in OBSERVED_SAMPLE_GENERATOR_TYPES:
+            raise TypeError("sample_generator must be a generator of a supported dataset")
+        # 定義のないdatasetは、ここで拒否する（入力の特徴数とクラス数は、定義から取る）。
+        dataset_definition = get_dataset_definition(
+            dataset_name=experiment_run_conditions.dataset_name
+        )
+        if not is_observed_sample_generator_of_dataset(
+            sample_generator=sample_generator,
+            dataset_name=experiment_run_conditions.dataset_name,
+        ):
+            raise ValueError("sample_generator must be the generator of the dataset")
         run_participant_settings = self._run_participant_settings
         run_client_settings = run_participant_settings.run_client_settings
         python_random_generator = run_random_sources.python_random_generator
@@ -181,7 +190,8 @@ class FedsdaRunParticipantFactory:
             ),
             model_architecture_settings=run_participant_settings.model_architecture_settings,
             hidden_layer_widths=run_participant_settings.hidden_layer_widths,
-            class_count=_SINE_CLASS_COUNT,
+            input_feature_count=dataset_definition.input_feature_count,
+            class_count=dataset_definition.class_count,
             parameter_optimizer_settings=(
                 run_client_settings.rebuilt_model_parameter_optimizer_settings
             ),

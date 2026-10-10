@@ -28,6 +28,7 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
     RandomConceptScheduleSettings,
 )
+from federated_learning_experiments.data.dataset_definitions import get_dataset_definition
 from federated_learning_experiments.data.observed_streams import (
     ClientConceptTrace,
     ClientObservedStream,
@@ -1040,6 +1041,7 @@ def run_assembled_client_flow(*, class_count):
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
         ),
+        input_feature_count=2,
         hidden_layer_widths=(5,),
         class_count=class_count,
         parameter_optimizer_settings=parameter_optimizer_settings,
@@ -1320,8 +1322,8 @@ WHOLE_RUN_SAMPLE_COUNT = 305
 WHOLE_RUN_INTERVAL_SAMPLE_COUNT = 10
 
 
-def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
-    """factoryと実行の枠で、最終構成のFedSDAの全体run（事前学習→SINEの供給→区間の進行→終端）を実行する。
+def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_name="sine2"):
+    """factoryと実行の枠で、最終構成のFedSDAの全体run（事前学習→datasetの標本の供給→区間の進行→終端）を実行する。
 
     戻り値: 比較できる結果の要約（同じ条件の2回の実行が、同じ結果になることを、mainが確かめる）。
     """
@@ -1349,7 +1351,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
     measured_run = execute_fedsda_stream_protocol_run_with_computation_measurement(
         execution_settings=StreamProtocolExecutionSettings(
             experiment_run_conditions=ExperimentRunConditions(
-                dataset_name="sine2",
+                dataset_name=dataset_name,
                 random_seed=random_seed,
                 client_count=WHOLE_RUN_CLIENT_COUNT,
                 per_client_sample_count=WHOLE_RUN_SAMPLE_COUNT,
@@ -1481,12 +1483,18 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
         model_computation_counts.shared_part_inference_example_count
         <= model_computation_counts.concept_specific_part_inference_example_count
     )
-    # 積和演算: 共有部は、全結合層が1つ（特徴2→幅5）。
+    # 積和演算: 共有部は、全結合層が1つ（datasetの特徴数→幅5）。
+    input_feature_count = get_dataset_definition(dataset_name=dataset_name).input_feature_count
+    assert all(
+        len(observed_sample.feature_values) == input_feature_count
+        for observed_client_stream in run_result.observed_client_streams
+        for observed_sample in observed_client_stream.observed_samples
+    )
     assert model_computation_counts.shared_part_inference_forward_multiply_accumulate_count == (
-        model_computation_counts.shared_part_inference_example_count * 2 * 5
+        model_computation_counts.shared_part_inference_example_count * input_feature_count * 5
     )
     assert model_computation_counts.shared_part_estimated_backward_multiply_accumulate_count == (
-        model_computation_counts.shared_part_training_example_count * 2 * 5
+        model_computation_counts.shared_part_training_example_count * input_feature_count * 5
     )
     # 検出器: 標本1件につき、全体と正解クラスの2つを更新する。
     assert (
@@ -1622,6 +1630,37 @@ def main():
         "absorbed",
         whole_run_summaries[0]["absorbed_model_count"],
     )
+    # sine2以外の合成データでも、同じ条件を2回実行して、同じ結果になる（特徴数と概念数は、datasetの定義から）。
+    for dataset_name in ("sea2", "sea4", "circle2"):
+        dataset_run_summaries = [
+            run_whole_stream_protocol_run(
+                run_client_settings=whole_run_client_settings,
+                random_seed=7,
+                dataset_name=dataset_name,
+            )
+            for _ in range(2)
+        ]
+        assert dataset_run_summaries[0] == dataset_run_summaries[1]
+        observed_concept_ids = sorted(
+            {
+                concept_id
+                for concept_trace in dataset_run_summaries[0]["evaluation_concept_traces"]
+                for concept_id in concept_trace.concept_ids_by_sample_index
+            }
+        )
+        assert observed_concept_ids == list(
+            range(get_dataset_definition(dataset_name=dataset_name).concept_count)
+        ), observed_concept_ids
+        print(
+            "PASS whole stream protocol run of",
+            dataset_name,
+            "concepts",
+            observed_concept_ids,
+            "alarms",
+            dataset_run_summaries[0]["alarm_count"],
+            "global models",
+            dataset_run_summaries[0]["global_model_ids"],
+        )
     required_outcomes = {
         "alarm_change_interval_too_short",
         "alarm_interval_held_model_reused",

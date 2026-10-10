@@ -1,12 +1,8 @@
-"""借りたNumPy乱数でSINEの観測標本とclient別観測列を供給する。"""
+"""借りたNumPy乱数でSINEの観測標本を供給する。"""
 
 import numpy as np
 
-from federated_learning_experiments.data.observed_streams import (
-    ClientConceptTrace,
-    ClientObservedStream,
-    ObservedSample,
-)
+from federated_learning_experiments.data.observed_streams import ObservedSample
 
 
 class SineSampleGenerator:
@@ -29,24 +25,3 @@ class SineSampleGenerator:
             feature_values=(float(float32_feature_values[0]), float(float32_feature_values[1])),
             class_label=class_label,
         )
-
-
-def build_sine_client_observed_streams(
-    *,
-    evaluation_concept_traces: tuple[ClientConceptTrace, ...],
-    sample_generator: SineSampleGenerator,
-) -> tuple[ClientObservedStream, ...]:
-    """全概念列を受け取り、client順・標本位置順に観測値を生成する。"""
-    observed_client_streams: list[ClientObservedStream] = []
-    for client_concept_trace in evaluation_concept_traces:
-        observed_samples = tuple(
-            sample_generator.generate_sample(concept_id=concept_id)
-            for concept_id in client_concept_trace.concept_ids_by_sample_index
-        )
-        observed_client_streams.append(
-            ClientObservedStream(
-                client_id=client_concept_trace.client_id,
-                observed_samples=observed_samples,
-            )
-        )
-    return tuple(observed_client_streams)

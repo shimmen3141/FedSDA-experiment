@@ -524,7 +524,7 @@ def test_single_run_failure_preserves_cause_position_and_caller_random_states(
     for operation_name in (
         "validate_prepared_run_participants",
         "generate_random_client_concept_traces",
-        "build_sine_client_observed_streams",
+        "build_client_observed_streams",
         "run_stream_protocol_intervals",
     ):
         run_operation = getattr(runtime_module, operation_name)
@@ -534,7 +534,7 @@ def test_single_run_failure_preserves_cause_position_and_caller_random_states(
             == {
                 "participant_validation": "validate_prepared_run_participants",
                 "concept_trace_generation": "generate_random_client_concept_traces",
-                "observed_stream_generation": "build_sine_client_observed_streams",
+                "observed_stream_generation": "build_client_observed_streams",
             }.get(injected_failure_stage_name)
             else Mock(wraps=run_operation)
         )
@@ -573,7 +573,7 @@ def test_single_run_failure_preserves_cause_position_and_caller_random_states(
             == [
                 "validate_prepared_run_participants",
                 "generate_random_client_concept_traces",
-                "build_sine_client_observed_streams",
+                "build_client_observed_streams",
             ][
                 : [
                     "participant_validation",
@@ -587,7 +587,7 @@ def test_single_run_failure_preserves_cause_position_and_caller_random_states(
         assert runtime_call_order == [
             "validate_prepared_run_participants",
             "generate_random_client_concept_traces",
-            "build_sine_client_observed_streams",
+            "build_client_observed_streams",
             "run_stream_protocol_intervals",
         ]
     if injected_failure_stage_name in (
@@ -763,10 +763,10 @@ def test_single_run_validation_precedes_random_generation_and_preparation(
         operation_name: Mock(side_effect=AssertionError("事前検査中に生成してはいけません"))
         for operation_name in (
             "create_run_random_sources",
-            "SineSampleGenerator",
+            "create_observed_sample_generator",
             "isolated_cpu_torch_random_state",
             "generate_random_client_concept_traces",
-            "build_sine_client_observed_streams",
+            "build_client_observed_streams",
             "run_stream_protocol_intervals",
         )
     }
@@ -816,10 +816,10 @@ def test_single_run_runtime_prepares_once_and_orders_supply_before_execution(
         "validate_stream_protocol_execution_settings",
         "validate_run_participant_factory_contract",
         "create_run_random_sources",
-        "SineSampleGenerator",
+        "create_observed_sample_generator",
         "validate_prepared_run_participants",
         "generate_random_client_concept_traces",
-        "build_sine_client_observed_streams",
+        "build_client_observed_streams",
         "run_stream_protocol_intervals",
         "StreamProtocolRunResult",
     ):
@@ -852,11 +852,11 @@ def test_single_run_runtime_prepares_once_and_orders_supply_before_execution(
         "validate_run_participant_factory_contract",
         "validate_configuration",
         "create_run_random_sources",
-        "SineSampleGenerator",
+        "create_observed_sample_generator",
         "prepare_run",
         "validate_prepared_run_participants",
         "generate_random_client_concept_traces",
-        "build_sine_client_observed_streams",
+        "build_client_observed_streams",
         "run_stream_protocol_intervals",
         "StreamProtocolRunResult",
     ]
@@ -874,7 +874,7 @@ def test_single_run_runtime_prepares_once_and_orders_supply_before_execution(
         ]
         is participant_factory.borrowed_run_random_sources.python_random_generator
     )
-    runtime_operation_spies["build_sine_client_observed_streams"].assert_called_once_with(
+    runtime_operation_spies["build_client_observed_streams"].assert_called_once_with(
         evaluation_concept_traces=run_result.evaluation_concept_traces,
         sample_generator=participant_factory.borrowed_sample_generator,
     )
@@ -964,7 +964,7 @@ def test_single_run_runtime_rejects_invalid_prepared_participants_before_supply(
         operation_name: Mock(side_effect=AssertionError("参加者検査中に供給してはいけません"))
         for operation_name in (
             "generate_random_client_concept_traces",
-            "build_sine_client_observed_streams",
+            "build_client_observed_streams",
             "run_stream_protocol_intervals",
         )
     }
@@ -1072,7 +1072,7 @@ def test_single_run_runtime_returns_immutable_observations_truth_counts_and_even
     [
         ("initial_preparation", "prepare_run"),
         ("concept_trace_generation", "generate_random_client_concept_traces"),
-        ("observed_stream_generation", "build_sine_client_observed_streams"),
+        ("observed_stream_generation", "build_client_observed_streams"),
     ],
 )
 def test_single_run_runtime_reports_preparation_and_supply_failure_stages(
@@ -1088,7 +1088,7 @@ def test_single_run_runtime_reports_preparation_and_supply_failure_stages(
     for record_field_name in (
         "prepare_run",
         "generate_random_client_concept_traces",
-        "build_sine_client_observed_streams",
+        "build_client_observed_streams",
         "run_stream_protocol_intervals",
     ):
         run_operation = getattr(
@@ -1125,12 +1125,12 @@ def test_single_run_runtime_reports_preparation_and_supply_failure_stages(
         == [
             "prepare_run",
             "generate_random_client_concept_traces",
-            "build_sine_client_observed_streams",
+            "build_client_observed_streams",
         ][
             : [
                 "prepare_run",
                 "generate_random_client_concept_traces",
-                "build_sine_client_observed_streams",
+                "build_client_observed_streams",
             ].index(operation_name)
             + 1
         ]
@@ -1983,7 +1983,6 @@ def test_stream_protocol_execution_settings_accept_seed_and_interval_boundaries(
             "execution_strategy",
             np.array(["sample_index_then_client_order_with_interval_synchronization"]),
         ),
-        ("dataset_name", "sea2"),
         ("dataset_name", "mnist2"),
         ("random_seed", 2**32),
     ],

@@ -112,10 +112,15 @@ OBSERVED_SAMPLE_GENERATOR_TYPES: tuple[type, ...]   # このmoduleが作る生�
 def create_observed_sample_generator(
     *, dataset_name: str, numpy_random_generator: np.random.RandomState
 ) -> ObservedSampleGenerator: ...
+def is_observed_sample_generator_of_dataset(
+    *, sample_generator: object, dataset_name: str
+) -> bool: ...
 def build_client_observed_streams(
     *, evaluation_concept_traces: tuple[ClientConceptTrace, ...], sample_generator: ObservedSampleGenerator
 ) -> tuple[ClientObservedStream, ...]: ...
 ```
+
+- `is_observed_sample_generator_of_dataset`（実装中に追加）: 生成器が、そのdatasetのものかを返す（型が一致し、SEAなら概念数も一致する）。factoryが、実行条件のdataset名と違うdatasetの生成器を、乱数を進める前に拒否するために使う。
 
 - `build_client_observed_streams`は、SINE専用だった`build_sine_client_observed_streams`を、名前を変えて、ここへ移す（処理は同じ）。
 
@@ -130,7 +135,7 @@ def build_client_observed_streams(
 - 実行設定の検査: dataset名が、datasetの定義にあること（mnist2は、まだ拒否）。
 - 契約`RunParticipantFactory.prepare_run`の`sample_generator`の型を、`ObservedSampleGenerator`にする。
 - 実行の枠: `create_observed_sample_generator`で生成器を作り、`build_client_observed_streams`で観測列を作る。
-- factory: dataset名の検査を、定義の有無にする。初期モデルの、入力の特徴数とクラス数を、定義から取る。生成器の型の検査は、`OBSERVED_SAMPLE_GENERATOR_TYPES`で行う。
+- factory: dataset名の検査を、定義の有無にする。初期モデルの、入力の特徴数とクラス数を、定義から取る。生成器の型の検査は、`OBSERVED_SAMPLE_GENERATOR_TYPES`で行い、実行条件のdatasetの生成器であることを、`is_observed_sample_generator_of_dataset`で確かめる。
 - 事前学習: 入力の特徴数を、引数で受け取る（定数をやめる）。
 - client: 初期モデルの入力の特徴数を、定数と比べる検査をやめる（分類器と標本の特徴数の不一致は、標本の処理の、入力の検査が拒否する）。
 

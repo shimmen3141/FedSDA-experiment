@@ -6,8 +6,10 @@ from typing import Protocol
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
+from federated_learning_experiments.data.observed_sample_generation import (
+    ObservedSampleGenerator,
+)
 from federated_learning_experiments.data.observed_streams import ObservedSample
-from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
 from federated_learning_experiments.execution.run_random_sources import RunRandomSources
 
 
@@ -69,5 +71,5 @@ class RunParticipantFactory(Protocol):
         *,
         experiment_run_conditions: ExperimentRunConditions,
         run_random_sources: RunRandomSources,
-        sample_generator: SineSampleGenerator,
+        sample_generator: ObservedSampleGenerator,
     ) -> RunParticipants: ...

@@ -116,6 +116,7 @@ def make_pretraining_arguments(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=ADAPTER_RANK,
         ),
+        input_feature_count=2,
         hidden_layer_widths=HIDDEN_LAYER_WIDTHS,
         class_count=class_count,
         parameter_optimizer_settings=make_parameter_optimizer_settings(optimizer_variant),

@@ -12,6 +12,7 @@ from federated_learning_experiments.core.settings_field_validation import (
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
     RandomConceptScheduleSettings,
 )
+from federated_learning_experiments.data.dataset_definitions import DEFINED_DATASET_NAMES
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -58,11 +59,15 @@ def validate_stream_protocol_execution_settings(*, execution_settings: object) -
             specified_parameter_value=execution_settings.execution_strategy,
             validation_failure_reason="sample_index_then_client_order_with_interval_synchronizationを指定してください。",
         )
-    if execution_settings.experiment_run_conditions.dataset_name != "sine2":
+    if execution_settings.experiment_run_conditions.dataset_name not in DEFINED_DATASET_NAMES:
         raise RunSettingsValidationError(
             configuration_parameter_name="dataset_name",
             specified_parameter_value=execution_settings.experiment_run_conditions.dataset_name,
-            validation_failure_reason="この実行窓口ではsine2を指定してください。",
+            validation_failure_reason=(
+                "この実行窓口では"
+                + "・".join(DEFINED_DATASET_NAMES)
+                + "のいずれかを指定してください。"
+            ),
         )
     if execution_settings.experiment_run_conditions.random_seed > 2**32 - 1:
         raise RunSettingsValidationError(

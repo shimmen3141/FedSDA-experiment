@@ -116,9 +116,6 @@ from federated_learning_experiments.runtime.post_aggregation_prediction_recalibr
     recalibrate_prediction_state_after_aggregation,
 )
 
-# 観測標本（ObservedSample）が持つ特徴の数。
-_OBSERVED_SAMPLE_FEATURE_COUNT = 2
-
 
 @dataclass(frozen=True, kw_only=True)
 class FedsdaRunClientOwners:
@@ -498,11 +495,6 @@ def _validate_fedsda_run_client_assembly_inputs(
             )
     if type(initial_loss_statistics) is not ModelAndClassLossStatistics:
         raise TypeError("initial_loss_statistics must be exact ModelAndClassLossStatistics")
-    if initial_classifier.feature_extractor.input_feature_count != _OBSERVED_SAMPLE_FEATURE_COUNT:
-        raise ValueError(
-            "initial_classifier must take the feature count of observed samples "
-            f"({_OBSERVED_SAMPLE_FEATURE_COUNT})"
-        )
     _validate_optimizer_state_parameters(
         parameter_optimizer_state=initial_concept_specific_parameter_optimizer_state,
         expected_parameters=tuple(initial_classifier.residual_adapter.parameters())

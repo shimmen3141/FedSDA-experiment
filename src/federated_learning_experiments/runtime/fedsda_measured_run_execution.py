@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
-from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
+from federated_learning_experiments.data.observed_sample_generation import (
+    ObservedSampleGenerator,
+)
 from federated_learning_experiments.execution.run_execution_records import StreamProtocolRunResult
 from federated_learning_experiments.execution.run_participant_contracts import (
     RunParticipants,
@@ -126,7 +128,7 @@ class _PreparationMeasuringParticipantFactory:
         *,
         experiment_run_conditions: ExperimentRunConditions,
         run_random_sources: RunRandomSources,
-        sample_generator: SineSampleGenerator,
+        sample_generator: ObservedSampleGenerator,
     ) -> RunParticipants:
         participants = self._participant_factory.prepare_run(
             experiment_run_conditions=experiment_run_conditions,

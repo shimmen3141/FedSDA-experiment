@@ -19,6 +19,8 @@ sourceの公開する名前（module、class、公開の関数・メソッド）
 | `get_dataset_definition` | dataset名から、定義を返す |
 | `create_observed_sample_generator` | dataset名と、借りた乱数から、生成器を作る |
 | `build_client_observed_streams` | 概念列と生成器から、clientごとの観測列を作る（`build_sine_client_observed_streams`を、名前を変えて移す） |
+| `is_observed_sample_generator_of_dataset` | 生成器が、そのdatasetのもの（型と、SEAなら概念数）かを返す（実装中に追加） |
+| `DEFINED_DATASET_NAMES` | 定義のあるdataset名の一覧（実行設定の検査に使う） |
 | `OBSERVED_SAMPLE_GENERATOR_TYPES` | 生成器を作る関数が返す、型の一覧（受け取る側のexact型の検査に使う） |
 | `SeaSampleGenerator.generate_sample`・`CircleSampleGenerator.generate_sample` | 既存の`SineSampleGenerator.generate_sample`と同じ名前・同じ役割 |
 

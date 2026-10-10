@@ -31,7 +31,7 @@ from federated_drift_experiment import config, experiment
 from federated_drift_experiment.clients.shared_backbone import (
     ResidualAdapterRestartingSoftRoutingFedSDAClient,
 )
-from federated_drift_experiment.data.specs import DatasetSpec
+from federated_drift_experiment.data.specs import DATASET_SPECS, DatasetSpec
 from federated_drift_experiment.models import ResidualAdapterMLP
 from federated_drift_experiment.provisional_model import ProvisionalModelDecision
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
@@ -135,13 +135,19 @@ def set_legacy_configuration(
     added_evaluation_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
     cross_evaluation_sample_limit=CROSS_EVALUATION_SAMPLE_LIMIT,
     cross_evaluation_client_limit=CROSS_EVALUATION_CLIENT_LIMIT,
+    dataset_name="sine2",
 ):
     """実旧clientが生成時と実行時に読む設定を、最終構成の値と、上の小さい条件へ差し替える。
+
+    特徴数と概念数は、実旧の`dataset_name`の定義から取る（隠れ層の幅とクラス数だけ、小さい条件へ差し替える）。
 
     学習率は2つある（事前学習と配布での作り直しに使う`BASE_LR`、候補とつなぎ直しに使う`NEW_MODEL_LR`）。
     """
     legacy_dataset_spec = DatasetSpec(
-        input_dim=2, num_concepts=2, num_classes=class_count, hidden_dims=HIDDEN_LAYER_WIDTHS
+        input_dim=DATASET_SPECS[dataset_name].input_dim,
+        num_concepts=DATASET_SPECS[dataset_name].num_concepts,
+        num_classes=class_count,
+        hidden_dims=HIDDEN_LAYER_WIDTHS,
     )
     monkeypatch.setattr(config, "dataset_spec", lambda dataset=None: legacy_dataset_spec)
     monkeypatch.setattr(config, "num_classes", lambda dataset=None: class_count)
@@ -513,7 +519,10 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
             owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state
         ],
         legacy_client=legacy_client,
-        input_features=torch.tensor([[0.25, 0.5], [0.75, 0.125]]),
+        # 出力を比べる入力。特徴数は、実旧の（差し替えた）datasetの定義に合わせる。
+        input_features=torch.tensor([[0.25, 0.5, 0.625], [0.75, 0.125, 0.875]])[
+            :, : config.dataset_spec().input_dim
+        ],
     )
     # 学習データ、評価標本、保留（値で照合する）。
     training_collections = owners.training_sample_store.snapshot_ordered_model_training_samples()
@@ -1270,11 +1279,6 @@ INVALID_ASSEMBLY_ARGUMENT_CASES = {
             )
         ),
         RunSettingsValidationError,
-    ),
-    # 観測標本の特徴数（2）と違う特徴数の分類器（optimizerの状態は、その分類器に対応している）。
-    "classifier_with_other_feature_count": (
-        lambda arguments: make_other_initial_model(arguments, input_feature_count=3),
-        ValueError,
     ),
     # 別の分類器のパラメータを指すoptimizerの状態。
     "concept_optimizer_state_of_other_classifier": (
