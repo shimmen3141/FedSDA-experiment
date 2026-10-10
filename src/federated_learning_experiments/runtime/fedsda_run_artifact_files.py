@@ -72,7 +72,7 @@ def save_fedsda_experiment_run(
         {
             "format_version": RUN_ARTIFACT_FORMAT_VERSION,
             "run_settings": convert_settings_to_plain_mapping(experiment_run.run_settings),
-            # 計算量のまとめの、0で割った値（非有限）は、nullにする。
+            # 非有限の値（0で割った値のNaN: 計算量のまとめと、定常の標本がないときの定常精度）は、nullにする。
             "run_metrics": convert_settings_to_plain_mapping(
                 experiment_run.run_metrics, non_finite_float_as_none=True
             ),
@@ -123,14 +123,17 @@ def load_fedsda_run_artifacts(
     summary = loads(summary_file_path.read_text(encoding="utf-8"))
     if not isinstance(summary, dict):
         raise ValueError(f"run summary must be a JSON object: {summary_file_path}")
-    if summary.get("format_version") != RUN_ARTIFACT_FORMAT_VERSION:
+    format_version = summary.get("format_version")
+    if type(format_version) is not int or format_version != RUN_ARTIFACT_FORMAT_VERSION:
         raise ValueError(
             f"unsupported run artifact format version in {summary_file_path}: "
             f"{summary.get('format_version')!r} (supported: {RUN_ARTIFACT_FORMAT_VERSION})"
         )
     record_table_file_name = summary.get("record_table_file_name")
-    if type(record_table_file_name) is not str or Path(record_table_file_name).name != (
-        record_table_file_name
+    if (
+        type(record_table_file_name) is not str
+        or record_table_file_name in ("", ".", "..")
+        or Path(record_table_file_name).name != record_table_file_name
     ):
         raise ValueError(f"run summary has no valid record table file name: {summary_file_path}")
     with load(

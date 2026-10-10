@@ -153,6 +153,8 @@
 | | `alternative_reference_refit` | `alternative_reference_within_historical_loss_tolerance` |
 | | `insufficient_forward_data` | 空文字（`is_incomplete_at_run_end`が真） |
 
+旧の`action`には、最終構成では現れない値もある: `episode_suppressed`（検出episodeの統合。未移植——UNPORTED-001）と、前向きの検証を使わない新規作成の方針での`create`・`create_rejected`（意味が、最終構成のものと違う）。最終構成でない旧の結果を変換するときは、これらの値の扱いを、(A2-変換)で決める。
+
 ### 指標（旧→新）
 
 照合済みの33指標は、要約の`run_metrics`（`FedsdaRunMetrics`の辞書）にある。対応は、

@@ -447,17 +447,17 @@ def test_golden_condition_round_model_counts_match_legacy_saved_arrays(
 
 
 # モデルの登録・統合を通る、小さい条件: (seed, client数, 標本数, 集約間隔, 変更までの最小の間隔, 変更の確率, 学習の間隔)。
-# 2つめの条件は、登録されたモデルが、同じラウンドの集約でグローバルモデルに残らない場合を含む
-# （登録の数と、統合で吸収された数からは、グローバルモデル数を求められない）。
+# 最後の要素: 登録されたモデルが、同じラウンドの集約でグローバルモデルに残らない場合を含むか
+# （含むとき、登録の数と、統合で吸収された数からは、グローバルモデル数を求められない）。
 ROUND_MODEL_COUNT_CONDITIONS = [
-    (7, 3, 300, 10, 30, 0.05, 2),
-    (2, 5, 300, 10, 50, 0.03, 1),
-    (4, 3, 500, 25, 60, 0.03, 1),
+    (7, 3, 300, 10, 30, 0.05, 2, False),
+    (2, 5, 300, 10, 50, 0.03, 1, True),
+    (4, 3, 500, 25, 60, 0.03, 1, False),
 ]
 
 
 @pytest.mark.parametrize(
-    "random_seed,client_count,per_client_sample_count,aggregation_interval,minimum_change_gap,concept_change_probability,update_interval",
+    "random_seed,client_count,per_client_sample_count,aggregation_interval,minimum_change_gap,concept_change_probability,update_interval,registered_model_is_dropped",
     ROUND_MODEL_COUNT_CONDITIONS,
 )
 def test_round_model_counts_match_real_legacy_whole_run(
@@ -468,6 +468,7 @@ def test_round_model_counts_match_real_legacy_whole_run(
     minimum_change_gap,
     concept_change_probability,
     update_interval,
+    registered_model_is_dropped,
     monkeypatch,
     valid_run_settings_mapping,
 ):
@@ -509,6 +510,20 @@ def test_round_model_counts_match_real_legacy_whole_run(
     )
     # 旧の「クラスタリング待ちのモデル数」は、最終構成のサーバでは、いつも0（表に入れない）。
     assert not any(legacy_round_model_counts["pending_clustering_count"])
+    # 登録の数と、統合で吸収された数から数えた値（最初の案）と、実際のグローバルモデル数の比較。
+    synchronizations = experiment_run.measured_run.participants.server_operations.snapshot_server_round_synchronizations()
+    registered_minus_absorbed_counts = []
+    registered_minus_absorbed_count = 1
+    for synchronization in synchronizations:
+        registered_minus_absorbed_count += len(synchronization.registered_client_models)
+        if synchronization.model_consolidation is not None:
+            registered_minus_absorbed_count -= len(
+                synchronization.model_consolidation.absorbed_model_ids
+            )
+        registered_minus_absorbed_counts.append(registered_minus_absorbed_count)
+    assert (
+        registered_minus_absorbed_counts != legacy_round_model_counts["global_model_count"]
+    ) == registered_model_is_dropped
     # 中身のある照合になっている: clientごとの保有モデル数が、グローバルモデル数と違うラウンドがある。
     assert any(
         held_model_count != global_model_count
@@ -614,6 +629,24 @@ def test_failed_save_leaves_no_partial_files(small_experiment_run, tmp_path, mon
             experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
         )
     assert list(tmp_path.iterdir()) == []
+    monkeypatch.undo()
+
+    # 表の一時のファイルを書いた後、要約の内容を作る・書く段で失敗する（表の一時のファイルも、残さない）。
+    def fail_to_place_tables(source_path, destination_path):
+        raise OSError("simulated failure while placing the tables")
+
+    monkeypatch.setattr(fedsda_run_artifact_files, "replace", fail_to_place_tables)
+    with pytest.raises(OSError, match="simulated failure"):
+        save_fedsda_experiment_run(
+            experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+        )
+    assert list(tmp_path.iterdir()) == []
+    monkeypatch.undo()
+    # 失敗の後、同じ保存先へ、保存できる。
+    save_fedsda_experiment_run(
+        experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+    )
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["run-a.json", "run-a.npz"]
 
 
 @pytest.mark.parametrize(
@@ -660,7 +693,12 @@ def test_loading_rejects_unsupported_or_damaged_summaries(small_experiment_run, 
     for damaged_summary in (
         summary | dict(format_version=RUN_ARTIFACT_FORMAT_VERSION + 1),
         {key: value for key, value in summary.items() if key != "format_version"},
+        summary | dict(format_version=True),
+        summary | dict(format_version=float(RUN_ARTIFACT_FORMAT_VERSION)),
         summary | dict(record_table_file_name="../run-a.npz"),
+        summary | dict(record_table_file_name=".."),
+        summary | dict(record_table_file_name="."),
+        summary | dict(record_table_file_name=""),
         summary | dict(record_table_file_name=None),
         [summary],
     ):

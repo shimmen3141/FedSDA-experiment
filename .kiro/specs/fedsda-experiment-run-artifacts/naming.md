@@ -6,6 +6,7 @@ sourceの公開する名前（module、class、公開の関数）と、保存す
 |---|---|---|
 | `fedsda_experiment_run` / `FedsdaExperimentRun` / `execute_fedsda_experiment_run` | `runtime/` | 完全なrun設定から、計測つきの全体runと指標の導出までを行い、設定・結果・指標をまとめて返す |
 | `fedsda_run_record_tables` / `build_fedsda_run_record_tables` | `runtime/` | 1 runの結果を、表ごと・列ごとの配列にする |
+| `ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME` / `INITIAL_MODEL_REGISTERED_ROUND_INDEX` | 同上 | 適応の結果種別から粗い区分への対応、初期モデルの登録ラウンドの値（−1） |
 | `fedsda_run_artifact_files` / `save_fedsda_experiment_run` / `load_fedsda_run_artifacts` / `FedsdaRunArtifactPaths` / `RUN_ARTIFACT_FORMAT_VERSION` | `runtime/` | 要約（JSON）と記録の表（NPZ）の保存と読込み |
 
 ## 保存する表の名前
