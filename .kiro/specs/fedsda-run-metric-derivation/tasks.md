@@ -9,8 +9,8 @@
   - _Boundary: run_metric_calculations_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 4.5, 5.2_
 
-- [ ] 2. 全体runからの導出と照合
-- [ ] 2.1 全体runの結果と参加者から指標を導出し、実旧・goldenと照合する
+- [x] 2. 全体runからの導出と照合
+- [x] 2.1 全体runの結果と参加者から指標を導出し、実旧・goldenと照合する
   - goldenの条件の照合（実旧の実行と保存結果、Windows用のgolden）、小さい条件の照合、状態を変えないこと、拒否のtestを先に書く。31の離散列は、testが、新の記録から作る。
   - 導出を実装する。共用scriptへ、導出を足す。
   - 完了: 導出のtest（Windowsでは、goldenの照合を含む）、依存境界のsuite、共用scriptが成功する。

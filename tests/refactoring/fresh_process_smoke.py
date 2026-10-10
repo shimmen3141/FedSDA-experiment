@@ -53,6 +53,7 @@ from federated_learning_experiments.evaluation.model_clustering_record_store imp
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
 )
+from federated_learning_experiments.evaluation.run_metric_calculations import RunMetricSettings
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecordStore,
 )
@@ -170,6 +171,9 @@ from federated_learning_experiments.runtime.fedsda_run_client import assemble_fe
 from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientScalarSettings,
     FedsdaRunClientSettings,
+)
+from federated_learning_experiments.runtime.fedsda_run_metric_derivation import (
+    derive_fedsda_run_metrics,
 )
 from federated_learning_experiments.runtime.fedsda_run_participant_factory import (
     FedsdaRunParticipantFactory,
@@ -1453,7 +1457,35 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
                 tuple(held_state.model_id for held_state in held_model_training_states),
             )
         )
+    # 指標の導出: 参加者の記録から計算する。値が、記録と整合している。
+    run_metrics = derive_fedsda_run_metrics(
+        run_result=run_result,
+        participants=participants,
+        run_metric_settings=RunMetricSettings(
+            maximum_detection_delay_sample_count=20, post_change_recovery_window_sample_count=5
+        ),
+    )
+    assert 0.5 < run_metrics.prediction_accuracy <= 1.0
+    assert 0.5 < run_metrics.stable_period_prediction_accuracy <= 1.0
+    detection_metrics = run_metrics.training_model_switch_detection_metrics
+    assert detection_metrics.detection_count == sum(
+        len(
+            run_client.owners.adaptation_record_store.get_state_snapshot().training_model_switch_sample_indices
+        )
+        for run_client in participants.client_operations
+    )
+    assert detection_metrics.concept_change_count > 0
+    assert 0 <= detection_metrics.matched_detection_count <= detection_metrics.detection_count
+    assert run_metrics.final_global_model_count == len(global_model_ids)
+    assert run_metrics.communication_volume == communication_volume
+    assert run_metrics.final_parameter_value_count > 0
+    assert run_metrics.final_parameter_byte_count == 4 * run_metrics.final_parameter_value_count
+    assert run_metrics.candidate_validation_decision_count == whole_run_decision_record_count
+    assert (
+        run_metrics.mixed_prediction_sample_count == processed_sample_count * WHOLE_RUN_CLIENT_COUNT
+    )
     return dict(
+        run_metrics=run_metrics,
         observed_client_streams=run_result.observed_client_streams,
         evaluation_concept_traces=run_result.evaluation_concept_traces,
         global_model_ids=global_model_ids,

@@ -4897,6 +4897,24 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
             "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
         )
+    if source_module_path == "runtime/fedsda_run_metric_derivation.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "torch.Tensor",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
+            "federated_learning_experiments.evaluation.run_metric_calculations.DetectionMetrics",
+            "federated_learning_experiments.evaluation.run_metric_calculations.RunMetricSettings",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_detection_metrics",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_prediction_accuracy",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_stable_period_prediction_accuracy",
+            "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
+            "federated_learning_experiments.execution.run_execution_records.StreamProtocolRunResult",
+            "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
+            "federated_learning_experiments.methods.fedsda.model_registration.global_model_repository.GlobalModelRepository",
+            "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
+            "federated_learning_experiments.runtime.fedsda_run_server.FedsdaRunServer",
+            "federated_learning_experiments.runtime.server_model_registration_and_aggregation.split_shared_and_concept_specific_parameters",
+        )
     if source_module_path == "runtime/fedsda_run_participant_factory.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6136,6 +6154,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/server_round_synchronization.py",
             "runtime/fedsda_run_server.py",
             "runtime/fedsda_run_participant_factory.py",
+            "runtime/fedsda_run_metric_derivation.py",
             "learning/training/initial_model_pretraining_settings.py",
             "runtime/initial_model_pretraining.py",
             "evaluation/communication_volume_record_store.py",
@@ -6221,6 +6240,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/server_round_synchronization.py",
                     "runtime/fedsda_run_server.py",
                     "runtime/fedsda_run_participant_factory.py",
+                    "runtime/fedsda_run_metric_derivation.py",
                     "learning/training/initial_model_pretraining_settings.py",
                     "runtime/initial_model_pretraining.py",
                     "evaluation/communication_volume_record_store.py",
