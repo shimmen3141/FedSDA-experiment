@@ -1,0 +1,38 @@
+{
+  "feature_name": "evaluation-concept-diagnostic-delivery",
+  "created_at": "2026-10-11T21:00:00+09:00",
+  "updated_at": "2026-10-11T21:30:00+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（ユーザーの委任。段階ごとの独立レビューは置かず、最後の独立レビューが読む）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）",
+      "task_graph_sanity_review": "PASS（inline。子エージェントは使わない決定のため）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": false,
+      "note": "名前は、全taskの後の独立レビューで確認を受ける"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
+  "user_decision": "2026-10-10: 真の概念に依存する診断を、全体runで出す（実行の枠が、診断専用の引数として、真の概念をclientへ渡す）",
+  "handoff": {
+    "execution_status": "in_progress",
+    "next_step": "tasks.mdの下位taskを1.1から順に実装する（/kiro-impl evaluation-concept-diagnostic-delivery --review off の手順）",
+    "independent_review": "未実施（全taskの後に1回）"
+  }
+}
