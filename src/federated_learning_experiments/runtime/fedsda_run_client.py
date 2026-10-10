@@ -59,6 +59,9 @@ from federated_learning_experiments.learning.training.shared_parameter_optimizer
 from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
     TemporaryModelIdAllocator,
 )
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_validation_decision_record_store import (
+    CandidateValidationDecisionRecordStore,
+)
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
 )
@@ -119,6 +122,7 @@ class FedsdaRunClientOwners:
     sample_prediction_record_store: SamplePredictionRecordStore
     validation_session_holder: CandidateValidationSessionHolder
     adaptation_record_store: AdaptationRecordStore
+    candidate_validation_decision_record_store: CandidateValidationDecisionRecordStore
     diagnostic_evidence_collection: AdaHedgeDiagnosticEvidenceCollection
     loss_change_monitor: OverallAndTrueClassLossMonitor
     loss_change_alarm_record_store: LossChangeAlarmRecordStore
@@ -190,6 +194,7 @@ class FedsdaRunClient:
         真の概念IDは診断にだけ使う（実行の枠は、標本ごとに渡す）。
         渡されなければ、概念別の診断と割当概念の計数は行われない。
         位置と概念IDの型、位置の連続は、標本1件の処理が、どの更新より前に確かめる。
+        この標本で、保持中の候補検証が確定したときは、その判定記録を、判定記録の保持へ足す。
         """
         if type(observed_sample) is not ObservedSample:
             raise TypeError("observed_sample must be exact ObservedSample")
@@ -197,7 +202,7 @@ class FedsdaRunClient:
         settings = self._run_client_settings
         scalar_settings = settings.scalar_settings
         current_training_classifier = self._get_current_training_classifier()
-        return process_observed_sample(
+        sample_processing = process_observed_sample(
             indexed_observation=IndexedObservedTrainingSample(
                 sample_index=sample_index,
                 training_sample=ObservedTrainingSample(
@@ -243,6 +248,14 @@ class FedsdaRunClient:
             shared_feature_extractor=current_training_classifier.feature_extractor,
             shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer,
         )
+        completed_validation = (
+            sample_processing.held_validation_advance.validation_progress.completed_validation
+        )
+        if completed_validation is not None:
+            owners.candidate_validation_decision_record_store.append_candidate_validation_decision_record(
+                decision_record=completed_validation.decision_record
+            )
+        return sample_processing
 
     def flush_pending_local_updates(self, *, round_index: int) -> tuple[float, ...]:
         """ラウンド境界で、保留中の学習要求があれば学習する。完了した共同更新の損失を返す。"""
@@ -363,7 +376,10 @@ class FedsdaRunClient:
     def finalize_incomplete_candidate_validation(
         self,
     ) -> HeldIncompleteCandidateValidationFinalization | None:
-        """終端で、保持中の未完了の候補検証を回収し、候補検証へ渡した標本の概念IDの保持を外す。"""
+        """終端で、保持中の未完了の候補検証を回収し、候補検証へ渡した標本の概念IDの保持を外す。
+
+        回収したときは、その判定記録（未完了用）を、判定記録の保持へ足す。
+        """
         owners = self._owners
         if owners.validation_session_holder.held_validation_session is None:
             return None
@@ -389,6 +405,10 @@ class FedsdaRunClient:
             current_training_model_assignment=owners.current_training_model_assignment,
         )
         owners.pending_sample_observation_store.release_validation_assignment_sample_concept_ids()
+        if incomplete_validation_finalization is not None:
+            owners.candidate_validation_decision_record_store.append_candidate_validation_decision_record(
+                decision_record=incomplete_validation_finalization.incomplete_validation_finalization.decision_record
+            )
         return incomplete_validation_finalization
 
 
@@ -527,6 +547,7 @@ def assemble_fedsda_run_client(
         sample_prediction_record_store=SamplePredictionRecordStore(),
         validation_session_holder=CandidateValidationSessionHolder(),
         adaptation_record_store=AdaptationRecordStore(),
+        candidate_validation_decision_record_store=CandidateValidationDecisionRecordStore(),
         diagnostic_evidence_collection=AdaHedgeDiagnosticEvidenceCollection(),
         loss_change_monitor=OverallAndTrueClassLossMonitor(
             loss_change_detection_settings=run_client_settings.loss_change_detection_settings,

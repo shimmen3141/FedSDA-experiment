@@ -1393,6 +1393,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
     assert communication_volume.uploaded_model_count > 0
     assert communication_volume.downloaded_model_count >= round_count * WHOLE_RUN_CLIENT_COUNT
     alarm_count = 0
+    whole_run_decision_record_count = 0
     client_summaries = []
     for run_client in participants.client_operations:
         owners = run_client.owners
@@ -1409,6 +1410,15 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
             ]
         )
         assert owners.diagnostic_evidence_collection.created_true_concept_ids
+        # 候補検証の判定記録は、適応記録の、候補検証の確定と終端回収の結果と、同じ数だけ保持されている。
+        decision_record_count = len(
+            owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
+        )
+        assert decision_record_count == sum(
+            adaptation_record.adaptation_outcome.startswith("post_alarm_validation_")
+            for adaptation_record in owners.adaptation_record_store.get_state_snapshot().adaptation_records
+        )
+        whole_run_decision_record_count += decision_record_count
         held_model_training_states = (
             owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
         )
@@ -1459,6 +1469,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
             if synchronization.model_consolidation is not None
         ),
         alarm_count=alarm_count,
+        decision_record_count=whole_run_decision_record_count,
         client_summaries=tuple(client_summaries),
     )
 
@@ -1504,6 +1515,7 @@ def main():
     ]
     assert whole_run_summaries[0] == whole_run_summaries[1]
     assert whole_run_summaries[0]["alarm_count"] > 0
+    assert whole_run_summaries[0]["decision_record_count"] > 0
     print(
         "PASS whole stream protocol run through the participant factory:",
         "alarms",

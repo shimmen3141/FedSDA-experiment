@@ -3,6 +3,7 @@
 import random
 from copy import deepcopy
 from dataclasses import replace
+from math import isnan
 
 import numpy as np
 import pytest
@@ -31,6 +32,7 @@ from federated_drift_experiment.clients.shared_backbone import (
 )
 from federated_drift_experiment.data.specs import DatasetSpec
 from federated_drift_experiment.models import ResidualAdapterMLP
+from federated_drift_experiment.provisional_model import ProvisionalModelDecision
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
 from federated_learning_experiments.data.observed_streams import (
     ClientConceptTrace,
@@ -67,6 +69,12 @@ from federated_learning_experiments.learning.training.parameter_optimizer_state 
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
+)
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import (
+    IncompletePostAlarmCandidateValidationDecisionRecord,
+)
+from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import (
+    PostAlarmCandidateValidationDecisionRecord,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     TrainingDataAssignmentSettings,
@@ -409,6 +417,84 @@ def assert_samples_equal_legacy(samples, legacy_samples):
         assert torch.equal(sample.observed_class_labels, legacy_sample[1])
 
 
+# 判定記録の理由の名前から、実旧の候補の判定の理由への対応。
+LEGACY_REASON_BY_DECISION_REASON = {
+    "current_reference_within_historical_loss_tolerance": "current_reference_refit",
+    "alternative_reference_within_historical_loss_tolerance": "alternative_reference_refit",
+    "first_segment_margin_failed": "first_interval",
+    "second_segment_margin_failed": "second_interval",
+    "both_segment_margins_failed": "first_and_second",
+    "both_segment_margins_passed": "accepted",
+}
+
+
+def assert_candidate_validation_decision_records_match_legacy(
+    *, decision_records, legacy_decisions
+):
+    """保持した判定記録の一覧を、実旧の候補の判定の一覧（`provisional_model_decisions`）と、全項目で照合する。"""
+    assert len(decision_records) == len(legacy_decisions)
+    for decision_record, legacy_decision in zip(decision_records, legacy_decisions, strict=True):
+        assert type(legacy_decision) is ProvisionalModelDecision
+        assert decision_record.proposal_sample_index == legacy_decision.position
+        assert decision_record.detector_name == legacy_decision.detector
+        assert (
+            decision_record.candidate_training_interval_sample_count
+            == legacy_decision.interval_count
+            == legacy_decision.training_count
+        )
+        # 最終構成の判定は、すべて、警報後の標本での検証。
+        assert legacy_decision.validation_source == "forward"
+        if type(decision_record) is IncompletePostAlarmCandidateValidationDecisionRecord:
+            # 終端での、未完了の候補検証の回収。比較は成立していない。
+            assert decision_record.finalization_sample_index == legacy_decision.resolution_position
+            assert decision_record.validation_sample_count == legacy_decision.validation_count
+            assert legacy_decision.accepted is False
+            assert legacy_decision.reason == "insufficient_forward_data"
+            assert legacy_decision.reference_model_id is None
+            assert all(
+                isnan(legacy_loss)
+                for legacy_loss in (
+                    legacy_decision.candidate_mean_loss,
+                    legacy_decision.reference_mean_loss,
+                    legacy_decision.candidate_recent_loss,
+                    legacy_decision.reference_recent_loss,
+                    legacy_decision.reference_historical_mean,
+                )
+            )
+            continue
+        assert type(decision_record) is PostAlarmCandidateValidationDecisionRecord
+        loss_evaluation = decision_record.post_alarm_candidate_loss_evaluation
+        assert decision_record.resolution_sample_index == legacy_decision.resolution_position
+        assert loss_evaluation.validation_sample_count == legacy_decision.validation_count
+        assert loss_evaluation.candidate_accepted is legacy_decision.accepted
+        assert (
+            LEGACY_REASON_BY_DECISION_REASON[loss_evaluation.decision_reason]
+            == legacy_decision.reason
+        )
+        assert loss_evaluation.comparison_reference_model_id == legacy_decision.reference_model_id
+        assert (
+            loss_evaluation.candidate_full_interval_mean_loss == legacy_decision.candidate_mean_loss
+        )
+        assert (
+            loss_evaluation.reference_full_interval_mean_loss == legacy_decision.reference_mean_loss
+        )
+        assert (
+            loss_evaluation.candidate_second_segment_mean_loss
+            == legacy_decision.candidate_recent_loss
+        )
+        assert (
+            loss_evaluation.reference_second_segment_mean_loss
+            == legacy_decision.reference_recent_loss
+        )
+        if loss_evaluation.reference_historical_mean_loss is None:
+            assert isnan(legacy_decision.reference_historical_mean)
+        else:
+            assert (
+                loss_evaluation.reference_historical_mean_loss
+                == legacy_decision.reference_historical_mean
+            )
+
+
 def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random_generator=None):
     """clientの全ownerの状態を、実旧clientの対応する属性と照合する。"""
     owners = run_client.owners
@@ -551,6 +637,25 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
     assert adaptation_record_snapshot.training_model_switch_sample_indices == tuple(
         legacy_client.local_switch_positions
     )
+    # 候補検証の判定記録: 実旧の候補の判定の一覧と1件ずつ対応する。
+    decision_records = owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
+    assert_candidate_validation_decision_records_match_legacy(
+        decision_records=decision_records,
+        legacy_decisions=legacy_client.provisional_model_decisions,
+    )
+    # 判定記録は、適応記録の、候補検証の確定と終端回収の結果と、同じ数・同じ位置にある。
+    assert [
+        (
+            decision_record.finalization_sample_index
+            if type(decision_record) is IncompletePostAlarmCandidateValidationDecisionRecord
+            else decision_record.resolution_sample_index
+        )
+        for decision_record in decision_records
+    ] == [
+        adaptation_record.adaptation_sample_index
+        for adaptation_record in adaptation_record_snapshot.adaptation_records
+        if adaptation_record.adaptation_outcome.startswith("post_alarm_validation_")
+    ]
     # 予測: Fixed-Shareの重み、診断証拠、標本ごとの記録と旧の列・集計の計数。
     assert_prediction_state_matches_legacy(
         fixed_share_prediction_weight_controller=owners.fixed_share_prediction_weight_controller,
@@ -915,6 +1020,12 @@ def test_assembly_copies_initial_model_and_keeps_clients_independent(
     assert first_client.client_id == 1
     assert second_client.client_id == 2
     assert second_client.owners.temporary_model_id_allocator.next_temporary_model_id == -102
+    # 判定記録の保持は、clientごとに別々で、組立ての直後は空。
+    first_decision_record_store = first_client.owners.candidate_validation_decision_record_store
+    second_decision_record_store = second_client.owners.candidate_validation_decision_record_store
+    assert first_decision_record_store is not second_decision_record_store
+    assert first_decision_record_store.snapshot_candidate_validation_decision_records() == ()
+    assert second_decision_record_store.snapshot_candidate_validation_decision_records() == ()
     # 片方のclientだけ標本を処理しても、もう片方と、渡した初期モデルは変わらない。
     second_client_snapshot = snapshot_run_client_state(
         run_client=second_client, python_random_generator=second_random_generator

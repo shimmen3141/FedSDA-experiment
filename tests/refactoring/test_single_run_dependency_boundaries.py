@@ -5050,6 +5050,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_client.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_validation_decision_record_store.CandidateValidationDecisionRecordStore",
             "copy.deepcopy",
             "dataclasses.dataclass",
             "random.Random",

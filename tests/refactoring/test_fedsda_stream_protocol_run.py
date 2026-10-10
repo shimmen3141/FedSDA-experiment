@@ -397,6 +397,18 @@ def test_whole_stream_protocol_run_matches_real_legacy_whole_run(
         for run_client in participants.client_operations
         for adaptation_record in run_client.owners.adaptation_record_store.get_state_snapshot().adaptation_records
     }
+    # 候補の判定の種類（実旧の理由）。保持した判定記録との照合は、clientの全状態の照合が行う。
+    observed_paths |= {
+        f"decision_{legacy_decision.reason}"
+        for legacy_client in legacy_clients
+        for legacy_decision in legacy_client.provisional_model_decisions
+    }
+    assert sum(
+        len(
+            run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
+        )
+        for run_client in participants.client_operations
+    ) == sum(len(legacy_client.provisional_model_decisions) for legacy_client in legacy_clients)
     # 終端での回収は、実旧では、理由が「前向きの標本が足りない」の、候補の判定として残る。
     assert ("post_alarm_validation_incomplete_candidate_rejected" in observed_paths) == any(
         legacy_decision.reason == "insufficient_forward_data"
@@ -444,7 +456,20 @@ def test_whole_run_conditions_cover_required_paths():
         "multiple_global_models_at_run_end",
         "unprocessed_tail_samples",
         "adaptation_server_merge",
+        # 候補の判定の種類: 採用、区間の判定での棄却（前半、後半、両方）、現行モデルの維持、終端の回収。
+        # 別の保有モデルの再利用（alternative_reference_refit）は、この条件では通らない。
+        "decision_accepted",
+        "decision_first_interval",
+        "decision_second_interval",
+        "decision_first_and_second",
+        "decision_current_reference_refit",
+        "decision_insufficient_forward_data",
     }, sorted(observed_paths)
+
+
+def owners_decision_records(run_client):
+    """clientが保持している、候補検証の判定記録の一覧。"""
+    return run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
 
 
 # 真の概念に依存する診断（読取りの項目名）。真の概念を受け取らない全体runでは、これらだけが違ってよい。
@@ -510,6 +535,7 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
         run_random_sources.python_random_generator.getstate()
         == delivered_random_sources.python_random_generator.getstate()
     )
+    client_decision_record_counts = []
     for run_client, delivered_run_client in zip(
         participants.client_operations, delivered_participants.client_operations, strict=True
     ):
@@ -583,6 +609,10 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
                 for pending_observation in delivered_state_snapshot["pending_sample_observations"]
             )
         ) == repr(state_snapshot["pending_sample_observations"])
+        # 候補検証の判定記録は、真の概念に依存しない。
+        decision_records = owners_decision_records(run_client)
+        assert decision_records == owners_decision_records(delivered_run_client)
+        client_decision_record_counts.append(len(decision_records))
         # 真の概念を受け取らないと、割当概念の計数と、真の概念別の診断証拠は、作られない。
         owners = run_client.owners
         assert owners.diagnostic_evidence_collection.created_true_concept_ids == ()
@@ -591,6 +621,8 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
             for record in owners.sample_prediction_record_store.snapshot_sample_prediction_records()
         )
         assert delivered_run_client.owners.diagnostic_evidence_collection.created_true_concept_ids
+    # 判定記録の比較は、空どうしの比較ではない。
+    assert sum(client_decision_record_counts) > 0
     # サーバ側は、クラスタリングの真の概念の一致の診断だけが違う。
     server_owners = participants.server_operations.owners
     delivered_server_owners = delivered_participants.server_operations.owners
