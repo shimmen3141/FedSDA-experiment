@@ -4844,6 +4844,25 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.Tensor",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
         )
+    if source_module_path == "learning/models/model_computation_measurement.py":
+        return imported_module_name in (
+            "collections.abc.Iterator",
+            "contextlib.contextmanager",
+            "dataclasses.dataclass",
+            "dataclasses.fields",
+            "weakref.ReferenceType",
+            "weakref.ref",
+            "torch.Tensor",
+            "torch.is_grad_enabled",
+            "torch.nn.Linear",
+            "torch.nn.Module",
+            "torch.nn.modules.module.register_module_forward_hook",
+            "torch.nn.modules.module.register_module_forward_pre_hook",
+            "torch.optim.Optimizer",
+            "torch.optim.optimizer.register_optimizer_step_post_hook",
+            "federated_learning_experiments.learning.models.nonlinear_residual_adapter.NonlinearResidualAdapter",
+            "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
+        )
     if source_module_path == "evaluation/run_metric_calculations.py":
         return imported_module_name in (
             "bisect.bisect_right",
@@ -6161,6 +6180,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/cross_evaluation_record_store.py",
             "evaluation/model_clustering_record_store.py",
             "evaluation/run_metric_calculations.py",
+            "learning/models/model_computation_measurement.py",
             "methods/fedsda/model_registration/global_model_repository.py",
             "methods/fedsda/consolidation/model_clustering_calculations.py",
             "methods/fedsda/candidate_model_selection/candidate_validation_decision_record_store.py",
@@ -6247,6 +6267,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/cross_evaluation_record_store.py",
                     "evaluation/model_clustering_record_store.py",
                     "evaluation/run_metric_calculations.py",
+                    "learning/models/model_computation_measurement.py",
                     "methods/fedsda/model_registration/global_model_repository.py",
                     "methods/fedsda/consolidation/model_clustering_calculations.py",
                     "methods/fedsda/candidate_model_selection/candidate_validation_decision_record_store.py",

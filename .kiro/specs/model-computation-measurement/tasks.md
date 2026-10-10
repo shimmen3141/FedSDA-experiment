@@ -9,7 +9,7 @@
   - _Boundary: test_legacy_computation_count_audit_
   - _Requirements: 1.1, 1.2_
 
-- [ ] 1.2 モデルの計算を、計測の区間の間、外側から数える
+- [x] 1.2 モデルの計算を、計測の区間の間、外側から数える
   - 計数の照合（手計算）、対象外のmodule、区間の後と例外の後、入れ子、差、結果と乱数を変えないことのtestを先に書く。
   - 完了: 計測のtestと、依存境界のsuiteが成功する。
   - _Boundary: model_computation_measurement_
