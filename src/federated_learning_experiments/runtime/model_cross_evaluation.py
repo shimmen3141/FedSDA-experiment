@@ -201,7 +201,7 @@ class _ModelPairUniqueCorrectnessAccumulator:
             lower_id_model_only_correct_count=self.overall_counts[1],
             higher_id_model_only_correct_count=self.overall_counts[2],
             class_counts=tuple(
-                (class_id, *class_counts)
+                (class_id, class_counts[0], class_counts[1], class_counts[2])
                 for class_id, class_counts in self.class_counts_by_class_id.items()
             ),
         )

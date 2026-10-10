@@ -24,8 +24,8 @@
   - _Boundary: cross_evaluate_global_models、ModelCrossEvaluation、CrossEvaluationLossSums、ModelPairUniqueCorrectnessCounts_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 5.1, 5.3, 5.4, 6.2_
 
-- [ ] 3. 新実装だけの確認
-- [ ] 3.1 共用のfresh process scriptで、新規モデルが登録されたラウンドにクロス評価を行う
+- [x] 3. 新実装だけの確認
+- [x] 3.1 共用のfresh process scriptで、新規モデルが登録されたラウンドにクロス評価を行う
   - 完了: 共用scriptが、旧実装とtestのmoduleを読み込まずに、集約の後にクロス評価を行い、表の形と、通信量と記録が足されたことを確かめて成功する。別processで実行するtest、Ruff、Pyrightが成功する。
   - _Depends: 2.2_
   - _Boundary: 共用のfresh process script_

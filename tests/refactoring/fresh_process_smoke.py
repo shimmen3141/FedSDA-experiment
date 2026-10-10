@@ -34,6 +34,9 @@ from federated_learning_experiments.evaluation.adaptation_record_store import Ad
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeRecordStore,
 )
+from federated_learning_experiments.evaluation.cross_evaluation_record_store import (
+    CrossEvaluationRecordStore,
+)
 from federated_learning_experiments.evaluation.loss_change_alarm_record_store import (
     LossChangeAlarmRecordStore,
 )
@@ -163,6 +166,9 @@ from federated_learning_experiments.runtime.held_model_training_request_handling
     train_held_models_for_pending_training_requests,
 )
 from federated_learning_experiments.runtime.initial_model_pretraining import pretrain_initial_model
+from federated_learning_experiments.runtime.model_cross_evaluation import (
+    cross_evaluate_global_models,
+)
 from federated_learning_experiments.runtime.observed_sample_processing import (
     process_observed_sample,
 )
@@ -787,12 +793,26 @@ PROCESSED_ALARM_COUNTS = []
 
 
 class ServerOperationsRegisteringAggregatingAndDistributing:
-    """実行の枠が求めるサーバの操作の代役。ラウンドごとに、新規モデルの登録・集約・配布と、全clientの再較正を行う（統合は未移植）。"""
+    """実行の枠が求めるサーバの操作の代役。
 
-    def __init__(self, *, run_clients, global_model_repository, communication_volume_record_store):
+    ラウンドごとに、新規モデルの登録・集約・配布と、全clientの再較正を行う。新規モデルを登録したラウンドでは、
+    集約の後にクロス評価も行う（クラスタリングと統合は未移植なので、結果は使わない）。
+    """
+
+    def __init__(
+        self,
+        *,
+        run_clients,
+        global_model_repository,
+        communication_volume_record_store,
+        python_random_generator,
+    ):
         self.run_clients = run_clients
         self.global_model_repository = global_model_repository
         self.communication_volume_record_store = communication_volume_record_store
+        self.python_random_generator = python_random_generator
+        self.cross_evaluation_record_store = CrossEvaluationRecordStore()
+        self.model_cross_evaluations = []
         self.registered_model_count = 0
         self.aggregations = []
         self.distributed_model_count = 0
@@ -818,6 +838,8 @@ class ServerOperationsRegisteringAggregatingAndDistributing:
                 communication_volume_record_store=self.communication_volume_record_store,
             )
         )
+        if registered_client_models:
+            self.cross_evaluate_global_models_after_aggregation(round_index=round_index)
         downloaded_byte_count = (
             self.communication_volume_record_store.get_state_snapshot().downloaded_byte_count
         )
@@ -909,6 +931,84 @@ class ServerOperationsRegisteringAggregatingAndDistributing:
                 assert tuple(sorted(weights_by_model_id)) == recalibration.replayed_model_ids
                 assert abs(sum(weights_by_model_id.values()) - 1.0) < 1e-9
             self.replayed_recalibration_sample_count += recalibration.replayed_sample_count
+
+    def cross_evaluate_global_models_after_aggregation(self, *, round_index):
+        """全グローバルモデルの全部の組を、保有するclientへ評価させ、表の形と、通信量と記録の増加を確かめる。"""
+        global_model_ids = self.global_model_repository.global_model_ids
+        volume_before = self.communication_volume_record_store.get_state_snapshot()
+        record_count = len(
+            self.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
+        )
+        parameters_before = {
+            model_id: self.global_model_repository.get_global_model_parameters(model_id=model_id)
+            for model_id in global_model_ids
+        }
+        model_cross_evaluation = cross_evaluate_global_models(
+            run_clients=self.run_clients,
+            global_model_repository=self.global_model_repository,
+            communication_volume_record_store=self.communication_volume_record_store,
+            cross_evaluation_record_store=self.cross_evaluation_record_store,
+            cross_evaluated_model_ids=global_model_ids,
+            round_index=round_index,
+            maximum_evaluating_client_count_per_model=len(self.run_clients),
+            python_random_generator=self.python_random_generator,
+        )
+        self.model_cross_evaluations.append(model_cross_evaluation)
+        assert list(model_cross_evaluation.loss_sums_by_candidate_and_target_model_id) == [
+            (candidate_model_id, target_model_id)
+            for candidate_model_id in global_model_ids
+            for target_model_id in global_model_ids
+        ]
+        added_records = (
+            self.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()[
+                record_count:
+            ]
+        )
+        # 表の件数と和は、clientの評価の記録を足し合わせたもの。
+        for (
+            candidate_model_id,
+            target_model_id,
+        ), loss_sums in model_cross_evaluation.loss_sums_by_candidate_and_target_model_id.items():
+            pair_records = [
+                record
+                for record in added_records
+                if (record.candidate_model_id, record.target_model_id)
+                == (candidate_model_id, target_model_id)
+            ]
+            assert loss_sums.evaluated_sample_count == sum(
+                record.evaluated_sample_count for record in pair_records
+            )
+            assert all(
+                (record.correctness_counts is None)
+                == (candidate_model_id == target_model_id or record.evaluated_sample_count == 0)
+                for record in pair_records
+            )
+            assert 0.0 <= loss_sums.bounded_loss_sum <= loss_sums.evaluated_sample_count
+        for model_pair in model_cross_evaluation.unique_correctness_counts_by_model_pair:
+            assert model_pair[0] < model_pair[1]
+        volume_after = self.communication_volume_record_store.get_state_snapshot()
+        assert added_records
+        assert (
+            volume_after.downloaded_message_count - volume_before.downloaded_message_count
+            == len(added_records)
+        )
+        assert volume_after.uploaded_message_count - volume_before.uploaded_message_count == len(
+            added_records
+        )
+        # モデル転送は、（評価する側のモデル、client）ごとに1回。
+        assert volume_after.downloaded_model_count - volume_before.downloaded_model_count == len(
+            {(record.candidate_model_id, record.client_id) for record in added_records}
+        )
+        assert volume_after.downloaded_byte_count > volume_before.downloaded_byte_count
+        # グローバルモデルは変わらない。
+        for model_id, parameters in parameters_before.items():
+            current_parameters = self.global_model_repository.get_global_model_parameters(
+                model_id=model_id
+            )
+            assert all(
+                torch.equal(current_parameters[parameter_name], parameter_values)
+                for parameter_name, parameter_values in parameters.items()
+            )
 
     def finalize_started_communications(self, *, completed_round_count):
         assert len(self.aggregations) == completed_round_count
@@ -1030,6 +1130,7 @@ def run_assembled_client_flow(*, class_count):
         run_clients=run_clients,
         global_model_repository=global_model_repository,
         communication_volume_record_store=communication_volume_record_store,
+        python_random_generator=python_random_generator,
     )
     participants = RunParticipants(
         client_operations=run_clients, server_operations=server_operations
@@ -1111,17 +1212,38 @@ def run_assembled_client_flow(*, class_count):
         for parameter_name, initial_parameter_values in initial_global_parameters.items()
     )
     communication_volume = communication_volume_record_store.get_state_snapshot()
-    assert communication_volume.uploaded_message_count == round_count * ASSEMBLED_CLIENT_COUNT
+    cross_evaluation_records = (
+        server_operations.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
+    )
+    # クロス評価が1回以上行われた（新規モデルを登録したラウンド）。
+    assert server_operations.model_cross_evaluations
+    assert cross_evaluation_records
+    # 上りの軽量メッセージは、ラウンドごとの状態の報告と、クロス評価の統計の返信。
+    assert communication_volume.uploaded_message_count == (
+        round_count * ASSEMBLED_CLIENT_COUNT + len(cross_evaluation_records)
+    )
     assert communication_volume.uploaded_model_count > 0
     assert communication_volume.uploaded_byte_count == 4 * (
         communication_volume.uploaded_parameter_value_count
     )
     # 配布: 下りの通信量が、ラウンドごとの（グローバルモデルの数×clientの数）だけ足されている。
-    assert communication_volume.downloaded_model_count == server_operations.distributed_model_count
+    # 下りのモデル転送数は、配布の分と、クロス評価の分（（評価する側のモデル、client）ごとに1回）。
+    assert communication_volume.downloaded_model_count == (
+        server_operations.distributed_model_count
+        + len(
+            {
+                (record.round_index, record.candidate_model_id, record.client_id)
+                for record in cross_evaluation_records
+            }
+        )
+    )
+    assert len(server_operations.model_cross_evaluations) == len(
+        {record.round_index for record in cross_evaluation_records}
+    )
     assert server_operations.distributed_model_count >= round_count * ASSEMBLED_CLIENT_COUNT
     # 再較正: 空でない損失の列での再生が、1回以上あった。
     assert server_operations.replayed_recalibration_sample_count > 0
-    assert communication_volume.downloaded_message_count == 0
+    assert communication_volume.downloaded_message_count == len(cross_evaluation_records)
     assert communication_volume.downloaded_byte_count == 4 * (
         communication_volume.downloaded_parameter_value_count
     )
