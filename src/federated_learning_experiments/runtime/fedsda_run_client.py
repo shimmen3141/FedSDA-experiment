@@ -80,6 +80,10 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.pend
 from federated_learning_experiments.runtime.candidate_validation_session_holder import (
     CandidateValidationSessionHolder,
 )
+from federated_learning_experiments.runtime.client_model_cross_evaluation import (
+    ClientModelCrossEvaluation,
+    evaluate_candidate_model_on_target_model_samples,
+)
 from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientSettings,
 )
@@ -289,6 +293,51 @@ class FedsdaRunClient:
             pending_training_assignment_buffer=owners.pending_training_assignment_buffer,
             rebuilt_model_parameter_optimizer_settings=settings.rebuilt_model_parameter_optimizer_settings,
             reconnected_model_parameter_optimizer_settings=settings.parameter_optimizer_settings,
+            python_random_generator=self._python_random_generator,
+        )
+
+    def get_cross_evaluation_held_model_ids(self) -> frozenset[int]:
+        """サーバのクロス評価で、このclientが保有するとみなすモデルID。
+
+        評価標本・学習データ・保有モデルのどれかを持つIDと、現在の学習帰属のID。状態は変えない。
+        """
+        owners = self._owners
+        return frozenset(
+            (
+                *(
+                    evaluation_sample_collection.model_id
+                    for evaluation_sample_collection in owners.model_evaluation_sample_store.snapshot_ordered_model_evaluation_samples()
+                ),
+                *(
+                    training_sample_collection.model_id
+                    for training_sample_collection in owners.training_sample_store.snapshot_ordered_model_training_samples()
+                ),
+                *(
+                    held_model_training_state.model_id
+                    for held_model_training_state in owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+                ),
+                owners.current_training_model_assignment.current_training_model_id,
+            )
+        )
+
+    def evaluate_candidate_model_on_target_model_samples(
+        self,
+        *,
+        candidate_parameter_snapshot: dict[str, Tensor],
+        target_model_id: int,
+        compare_correctness_with_held_target_model: bool,
+    ) -> ClientModelCrossEvaluation:
+        """サーバから渡されたモデルを、対象のモデルの手元の標本で評価する。状態は変えない（乱数は進む）。"""
+        owners = self._owners
+        return evaluate_candidate_model_on_target_model_samples(
+            candidate_parameter_snapshot=candidate_parameter_snapshot,
+            target_model_id=target_model_id,
+            compare_correctness_with_held_target_model=compare_correctness_with_held_target_model,
+            held_model_training_state_registry=owners.held_model_training_state_registry,
+            model_evaluation_sample_store=owners.model_evaluation_sample_store,
+            training_sample_store=owners.training_sample_store,
+            current_training_model_assignment=owners.current_training_model_assignment,
+            maximum_evaluation_sample_count=self._run_client_settings.scalar_settings.maximum_cross_evaluation_sample_count,
             python_random_generator=self._python_random_generator,
         )
 

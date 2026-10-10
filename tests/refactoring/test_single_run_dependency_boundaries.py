@@ -4871,6 +4871,25 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
             "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
         )
+    if source_module_path == "runtime/client_model_cross_evaluation.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "random.Random",
+            "torch.Tensor",
+            "torch.cat",
+            "torch.float32",
+            "torch.no_grad",
+            "torch.strided",
+            "torch.unique",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.predict_class_labels_from_prediction_scores",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+        )
     if source_module_path == "runtime/post_aggregation_prediction_recalibration.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -4953,6 +4972,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store.PendingSampleObservationStore",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
             "federated_learning_experiments.runtime.candidate_validation_session_holder.CandidateValidationSessionHolder",
+            "federated_learning_experiments.runtime.client_model_cross_evaluation.ClientModelCrossEvaluation",
+            "federated_learning_experiments.runtime.client_model_cross_evaluation.evaluate_candidate_model_on_target_model_samples",
             "federated_learning_experiments.runtime.fedsda_run_client_settings.FedsdaRunClientSettings",
             "federated_learning_experiments.runtime.global_model_distribution_application.GlobalModelDistributionApplication",
             "federated_learning_experiments.runtime.global_model_distribution_application.apply_global_model_distribution",
@@ -5993,6 +6014,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/global_model_distribution_application.py",
             "runtime/global_model_distribution.py",
             "runtime/post_aggregation_prediction_recalibration.py",
+            "runtime/client_model_cross_evaluation.py",
             "learning/training/initial_model_pretraining_settings.py",
             "runtime/initial_model_pretraining.py",
             "evaluation/communication_volume_record_store.py",
@@ -6068,6 +6090,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/global_model_distribution_application.py",
                     "runtime/global_model_distribution.py",
                     "runtime/post_aggregation_prediction_recalibration.py",
+                    "runtime/client_model_cross_evaluation.py",
                     "learning/training/initial_model_pretraining_settings.py",
                     "runtime/initial_model_pretraining.py",
                     "evaluation/communication_volume_record_store.py",
