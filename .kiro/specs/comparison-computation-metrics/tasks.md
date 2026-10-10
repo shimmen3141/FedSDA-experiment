@@ -23,7 +23,7 @@
   - _Requirements: 3.1, 3.2, 3.4_
 
 - [ ] 2. まとめと指標
-- [ ] 2.1 計算量のまとめを計算する
+- [x] 2.1 計算量のまとめを計算する
   - 手計算との照合、NaN、拒否のtestを先に書く。
   - 完了: まとめのtestと、依存境界のsuiteが成功する。
   - _Boundary: computation_cost_summary_

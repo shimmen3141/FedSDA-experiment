@@ -4867,6 +4867,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in ("dataclasses.dataclass",)
     if source_module_path == "evaluation/held_model_count_record_store.py":
         return imported_module_name in ()
+    if source_module_path == "evaluation/computation_cost_summary.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.fields",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
+        )
     if source_module_path == "evaluation/run_metric_calculations.py":
         return imported_module_name in (
             "bisect.bisect_right",
@@ -6208,6 +6214,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/cross_evaluation_record_store.py",
             "evaluation/model_clustering_record_store.py",
             "evaluation/run_metric_calculations.py",
+            "evaluation/computation_cost_summary.py",
             "evaluation/held_model_count_record_store.py",
             "evaluation/loss_monitoring_computation_count_store.py",
             "learning/models/model_computation_measurement.py",
@@ -6298,6 +6305,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/cross_evaluation_record_store.py",
                     "evaluation/model_clustering_record_store.py",
                     "evaluation/run_metric_calculations.py",
+                    "evaluation/computation_cost_summary.py",
                     "evaluation/held_model_count_record_store.py",
                     "evaluation/loss_monitoring_computation_count_store.py",
                     "learning/models/model_computation_measurement.py",
