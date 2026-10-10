@@ -35,6 +35,7 @@ from test_fedsda_stream_protocol_run import (
     make_run_participant_settings,
     run_real_legacy_whole_run,
 )
+from test_linux_proposed_regression import LINUX_GOLDEN_PATH
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 from federated_drift_experiment import config, experiment
@@ -874,15 +875,24 @@ def test_golden_condition_trace_arrays_match_real_legacy_saved_arrays(golden_con
         assert set(trace_arrays["adaptation_actions"].tolist()) == {"maintain"}
 
 
-def test_golden_condition_metrics_and_traces_match_windows_golden(golden_condition_runs):
-    """Windowsの基準環境で、導出した指標と列が、Windows用のgolden（sine2・sea2）と一致する。
+# 実行環境（OS）ごとの、最終構成のgolden。旧実装の結果自体が、WindowsとLinuxで違うので、別のfileに持つ。
+GOLDEN_PATH_BY_SYSTEM = {
+    "Windows": legacy_regression.GOLDEN_PATH,
+    "Linux": LINUX_GOLDEN_PATH,
+}
 
-    goldenは、実行環境に依存する（Linuxでは、旧実装の結果自体が、このgoldenと違う）。Windows以外では
+
+def test_golden_condition_metrics_and_traces_match_platform_golden(golden_condition_runs):
+    """導出した指標と列が、実行環境のgolden（WindowsではWindows用、LinuxではLinux用）と一致する。
+
+    goldenは、実行環境に依存する（Linuxでは、旧実装の結果自体が、Windows用のgoldenと違う）。goldenのないOSでは
     照合しない。同じprocessの中の実旧との照合（上の2つ）は、どの環境でも行う。
     """
-    if platform.system() != "Windows":
-        pytest.skip("Windows用のgoldenとの照合は、Windowsでだけ行う（Linux用のgoldenは後のspec）")
-    golden = json.loads(legacy_regression.GOLDEN_PATH.read_text(encoding="utf-8"))
+    if platform.system() not in GOLDEN_PATH_BY_SYSTEM:
+        pytest.skip("goldenは、WindowsとLinuxのものだけがある")
+    golden_path = GOLDEN_PATH_BY_SYSTEM[platform.system()]
+    golden = json.loads(golden_path.read_text(encoding="utf-8"))
+    assert golden["_env"]["system"] == platform.system()
     golden_case = golden["cases"][golden_condition_runs.dataset_name]
     legacy_metric_values = derive_legacy_metric_values(golden_condition_runs.run_metrics)
     assert set(golden_case["metrics"]) == set(legacy_metric_values) | set(

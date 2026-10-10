@@ -83,6 +83,52 @@ $env:MPLCONFIGDIR=(Resolve-Path venv/matplotlib-cache).Path
 更新前後の指標・イベント件数・離散列の差と理由をレビューする。
 旧goldenはこのコマンドで変更されない。
 
+## Linux用の最終構成golden
+
+Linuxでは、旧実装の最終構成の結果自体が、Windows用のgoldenと違う（SINE-2は指標10・離散列15、
+SEA-2は指標1・離散列2が違い、MNIST-2は一致する。イベント件数は、3ケースとも同じ）。
+そのため、Linux用のgoldenを、別ファイル・別testとして持つ（2026-10-08ユーザー決定）。
+Windows用のgoldenと`tests/test_proposed_regression.py`は、変更していない。
+
+- `tests/refactoring/proposed_regression_golden_linux.json`: Linux用のgolden。形・条件の定義・
+  使用したMNISTファイルは、Windows用と同じ。
+- `tests/refactoring/test_linux_proposed_regression.py`: Linuxでは、旧実装の3ケースをLinux用のgoldenと
+  照合する（基準は、既存の回帰testと同じ。イベント件数と離散列は完全に一致、指標は絶対誤差`1e-9`）。
+  Linux以外では、この照合をskipし、goldenの形の検査だけを行う。
+- 新実装の照合（`tests/refactoring/test_fedsda_run_metric_derivation.py`）は、実行環境のgolden
+  （WindowsではWindows用、LinuxではLinux用）を選ぶ。
+
+2026-10-10に作成した基準は、WSL Ubuntu / x86_64 / CPU / float32、Python 3.14.4、NumPy 2.4.6、
+torch 2.12.1+cpu、1スレッドである。作成の前に、旧実装を別のprocessで2回実行して、結果が
+一致することを確かめた。環境が異なる場合は警告し、比較を実行する（Windows用と同じ扱い）。
+
+Linuxで、リポジトリ（worktree）のルートから実行する。
+
+```bash
+source .venv/bin/activate   # リポジトリ直下のLinux用環境
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+python -m pytest tests/refactoring/test_linux_proposed_regression.py   tests/refactoring/test_fedsda_run_metric_derivation.py -q
+```
+
+WSLでは、`tests/test_proposed_regression.py`と`tests/test_regression.py`（どちらもWindows用のgoldenと
+比べる）は、失敗する。これは環境差であり、goldenを変える理由にしない。
+
+研究室サーバは、WSL Ubuntuと、CPUやライブラリの版が違う可能性がある。研究室サーバで上のコマンドを
+実行して、`test_linux_proposed_regression.py`が失敗した場合は、goldenを自動で直さない。
+同じprocessの中の実旧との照合（`test_fedsda_run_metric_derivation.py`の、goldenを読まないtest）が
+成功していれば、新実装は、その環境の旧実装と一致している。どの環境を基準にするか
+（研究室サーバで作り直すか、環境ごとに持つか）は、ユーザーが決める。
+
+意図したアルゴリズム変更を承認して、Windows用の最終構成goldenを更新した場合に限り、Linux用も、
+Linuxで作り直す。
+
+```bash
+python tests/refactoring/test_linux_proposed_regression.py --update
+```
+
+WSLからWindows側のworktreeを使うときは、WSLのgitがworktreeを読めないので、Windows側で求めた
+commitを`--source-commit <40桁のhash>`で渡す。
+
 ## リファクタリングの進め方
 
 同じGit履歴のブランチまたはworktreeから開始し、現状のcommitとgoldenを保存する。
