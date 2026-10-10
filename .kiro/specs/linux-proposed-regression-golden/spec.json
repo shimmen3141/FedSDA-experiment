@@ -1,9 +1,9 @@
 {
   "feature_name": "linux-proposed-regression-golden",
-  "created_at": "2026-10-13T17:00:00+09:00",
-  "updated_at": "2026-10-13T17:00:00+09:00",
+  "created_at": "2026-10-10T23:00:00+09:00",
+  "updated_at": "2026-10-11T01:00:00+09:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -23,16 +23,28 @@
     },
     "naming": {
       "generated": true,
-      "approved": false,
-      "note": "名前は、全taskの後の独立レビューで確認を受ける"
+      "approved": true,
+      "note": "名前は、全taskの後の独立レビューで確認を受けた（下のimplementation_review）"
     }
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "user_decision": "2026-10-08: 旧実装がLinuxで再現すれば、Linux用のgoldenを、別ファイル・別testとして作り、新の全体runをWindowsとLinuxの両方で照合する。2026-10-10: datasetの移植の後に行う",
   "handoff": {
-    "execution_status": "in_progress",
-    "next_step": "tasks.mdの下位taskを1.1から順に実装する（/kiro-impl linux-proposed-regression-golden --review off の手順）",
-    "independent_review": "未実施（全taskの後に1回）"
+    "execution_status": "completed",
+    "next_step": "none（次のspecは再開案内の「次の一手」）"
+  },
+  "implementation_review": {
+    "verdict": "IMPLEMENTATION: APPROVED",
+    "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+    "reviewer_selection": "GPT-6 Lunaは利用上限で利用不能の期間のため、Haiku 5.5",
+    "reviewer_session": "fae00899-d17c-4e8f-a1a7-06b243bf0df4",
+    "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+    "reviewed_range": "f6c9e5a..a1e2e4e",
+    "independent_test_execution": true,
+    "independent_full_pytest_reproduction": false,
+    "independent_linux_reproduction": false,
+    "findings": "Minor 2件（spec.jsonの日付と状態。採用）、任意 2件（文書の一覧を採用、命名表は変更なし）。レビューの後、WSLでの実行で、全体runの対照の経路の期待を、Windowsだけにした（8325413）。採否はtasks.mdのImplementation Notes",
+    "full_pytest": "11843 passed / 4 skipped / 3 warnings (8325413、主担当の実測とJUnit。並列 -n 8 --dist loadfile)"
   }
 }
