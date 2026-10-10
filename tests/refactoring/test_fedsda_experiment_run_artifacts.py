@@ -925,44 +925,47 @@ def assert_prediction_diagnostic_columns_match_legacy_saved_arrays(
     assert (
         record_tables["sample_prediction.effective_model_count"][single_model_samples] == 1
     ).all()
-    counts = record_tables
     PREDICTION_DIAGNOSTIC_COLUMN_OBSERVATIONS.append(
         dict(
             effective_model_count_above_one=bool(
-                (counts["sample_prediction.effective_model_count"] > 1).any()
+                (record_tables["sample_prediction.effective_model_count"] > 1).any()
             ),
             correctness_columns_differ=bool(
                 (
-                    counts["sample_prediction.any_model_or_combined_prediction_is_correct"]
-                    != counts["sample_prediction.combined_prediction_is_correct"]
+                    record_tables["sample_prediction.any_model_or_combined_prediction_is_correct"]
+                    != record_tables["sample_prediction.combined_prediction_is_correct"]
                 ).any()
                 and (
-                    counts["sample_prediction.maximum_weight_model_prediction_is_correct"]
-                    != counts["sample_prediction.combined_prediction_is_correct"]
+                    record_tables["sample_prediction.maximum_weight_model_prediction_is_correct"]
+                    != record_tables["sample_prediction.combined_prediction_is_correct"]
                 ).any()
                 and (
-                    counts["sample_prediction.true_concept_diagnostic_prediction_is_correct"]
-                    != counts["sample_prediction.combined_prediction_is_correct"]
+                    record_tables["sample_prediction.true_concept_diagnostic_prediction_is_correct"]
+                    != record_tables["sample_prediction.combined_prediction_is_correct"]
                 ).any()
             ),
             global_diagnostic_model_pool_reset=bool(
-                counts["client_weight_update_counts.global_diagnostic_model_pool_reset_count"].any()
+                record_tables[
+                    "client_weight_update_counts.global_diagnostic_model_pool_reset_count"
+                ].any()
             ),
             global_diagnostic_concept_operation_restart=bool(
-                counts[
+                record_tables[
                     "client_weight_update_counts.global_diagnostic_concept_operation_restart_count"
                 ].any()
             ),
             global_diagnostic_aggregation_recalibration=bool(
-                counts[
+                record_tables[
                     "client_weight_update_counts.global_diagnostic_aggregation_recalibration_count"
                 ].any()
             ),
             prediction_weight_leader_switch=bool(
-                counts["client_weight_update_counts.prediction_weight_leader_switch_count"].any()
+                record_tables[
+                    "client_weight_update_counts.prediction_weight_leader_switch_count"
+                ].any()
             ),
             multiple_classes_per_client=bool(
-                np.unique(counts["sample_prediction.observed_class_id"]).size > 1
+                np.unique(record_tables["sample_prediction.observed_class_id"]).size > 1
             ),
         )
     )
