@@ -33,6 +33,19 @@
 - サーバ: `GlobalModelRepository`の登録の来歴とグローバルモデル、`CommunicationVolumeRecordStore`、`ModelClusteringRecordStore`。
 - 再較正: `FixedSharePredictionWeightController.aggregation_recalibration_sample_count`、globalの診断証拠の`aggregation_recalibration_sample_count`。
 
+### goldenの条件のうち、新の設定へ写していない値（新実装では固定）
+
+goldenの条件（tests/test_proposed_regression.pyの`COMMON`・`ALGORITHM`）のうち、次は、新の設定の値として写していない。新実装が、最終構成の値に固定して実装しているためである（設定の束では、選べる値が1つだけの方式名、または、項目がない）。旧の側でこれらを変えた場合の一致は、確かめていない。
+
+- optimizer: `OPTIMIZER="adam"`・`AMSGRAD=True`（新は`AdamParameterOptimizerSettings`の`adam_variant="amsgrad"`。testの組立てが固定で渡す）。
+- 候補の学習と初期化: `NEW_MODEL_TRAINING="early_stopping"`、`NEW_MODEL_INITIALIZATION="best_candidate"`（新は、方式名が1つだけの設定）。
+- 学習の回数: `UPDATES_PER_SAMPLE=1`（新は、testの組立てが、学習要求1回あたりの共同更新を1で渡す）。
+- 方式の選択: `clustering_policy`・`clustering_decision`・`cluster_linkage`、`new_model_creation_policy`、`shared_backbone_training`・`shared_backbone_gradient_strategy`、`shared_backbone_routing_recalibration`、`soft_routing_context`・`soft_routing_activation_policy`、`detection_episodes`（新は、最終構成の方式だけを実装している）。
+- 検出器の賭け率の候補（新は、testの組立てが`(0.05, 0.1, 0.2, 0.4, 0.8)`を渡す。旧は、コードの中の定数）。
+- 指標の設定以外の、評価用の値: `SEA_*`（sine2では使わない）。
+
+これらを含めて、新の設定が旧の条件を表していることの根拠は、goldenの条件で、全状態が実旧と一致したこと（前のspecの調査。下書きのtest）と、このspecの、指標と列の一致である。
+
 ## Design Decisions
 
 ### Decision: 指標だけをsourceに置き、旧の保存形式の列は、testで作る

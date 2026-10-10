@@ -616,13 +616,16 @@ def test_derivation_does_not_change_participant_state_and_is_repeatable(golden_c
 
 
 # 小さい条件: (seed, client数, 標本数, 集約間隔, 最小の変更間隔, 変更確率, 学習の間隔)。
-# 統合が起きる条件、終端で候補検証が回収される条件、処理されない末尾がある条件（末尾に変更がありうる）。
+# 統合が起きる条件、終端で候補検証が回収される条件、処理されない末尾がある条件（末尾に変更がありうる）、
+# 候補が区間の判定で棄却される条件（全体runの対照の条件から、実旧だけの実行で理由を調べて選んだ）。
 SMALL_RUN_CONDITIONS = [
     (7, 3, 300, 10, 30, 0.05, 2),
     (17, 3, 250, 10, 30, 0.05, 2),
     (23, 2, 300, 10, 25, 0.06, 2),
     (1, 3, 330, 50, 30, 0.05, 1),
     (3, 2, 137, 30, 3, 0.2, 1),
+    (2, 5, 300, 10, 50, 0.03, 1),
+    (0, 3, 500, 25, 60, 0.03, 2),
 ]
 SMALL_RUN_OBSERVATIONS = {}
 # 条件ごとの、実旧の全体runと、新の全体run（指標の設定を変えたtestで、使い回す）。
@@ -644,6 +647,7 @@ SMALL_RUNS_BY_CONDITION = {}
 @pytest.mark.parametrize(("maximum_delay", "recovery_window"), [(100, 50), (8, 5)])
 def test_small_run_metrics_match_real_legacy_metric_computation(
     monkeypatch,
+    tmp_path,
     valid_run_settings_mapping,
     random_seed,
     client_count,
@@ -685,8 +689,41 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
                 valid_run_settings_mapping, update_interval=update_interval
             ),
         )
-        SMALL_RUNS_BY_CONDITION[condition] = (legacy_run, run_result, participants)
-    legacy_run, run_result, participants = SMALL_RUNS_BY_CONDITION[condition]
+        # 実旧の保存処理を、実旧の全体runの結果へ呼んで、旧の保存形式の配列を得る（設定の差し替えが有効な間に）。
+        legacy_raw_path = tmp_path / "legacy-small-run.npz"
+        experiment._save_raw_run(
+            str(legacy_raw_path),
+            legacy_run["legacy_clients"],
+            legacy_run["legacy_server"],
+            extract_true_drift_events(legacy_run["legacy_concept_schedules"]),
+            whole_run_test_module.LEGACY_MODE_NAME,
+            whole_run_test_module.LEGACY_MODE_NAME,
+            random_seed,
+            experiment._new_round_telemetry(),
+            client_test_module.MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
+        )
+        with np.load(legacy_raw_path, allow_pickle=False) as legacy_arrays:
+            legacy_trace_arrays = {
+                trace_name: legacy_arrays[trace_name] for trace_name in legacy_regression.TRACES
+            }
+        SMALL_RUNS_BY_CONDITION[condition] = (
+            legacy_run,
+            run_result,
+            participants,
+            legacy_trace_arrays,
+        )
+    legacy_run, run_result, participants, legacy_trace_arrays = SMALL_RUNS_BY_CONDITION[condition]
+    # 新の記録から作った31の離散列が、実旧の保存処理が作った配列と、形・型・値で一致する。
+    trace_arrays = derive_legacy_trace_arrays(run_result=run_result, participants=participants)
+    assert tuple(trace_arrays) == legacy_regression.TRACES
+    for trace_name, trace_values in trace_arrays.items():
+        legacy_trace_values = legacy_trace_arrays[trace_name]
+        assert trace_values.shape == legacy_trace_values.shape, trace_name
+        # 空の文字列の配列は、要素の長さが決まらないので、型は、種類で比べる。
+        assert trace_values.dtype.kind == legacy_trace_values.dtype.kind, trace_name
+        if trace_values.size:
+            assert trace_values.dtype == legacy_trace_values.dtype, trace_name
+        assert np.array_equal(trace_values, legacy_trace_values), trace_name
     legacy_clients = legacy_run["legacy_clients"]
     legacy_server = legacy_run["legacy_server"]
     legacy_true_drift_events = extract_true_drift_events(legacy_run["legacy_concept_schedules"])
@@ -773,11 +810,21 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
         stable_accuracy_differs=(
             run_metrics.stable_period_prediction_accuracy != run_metrics.prediction_accuracy
         ),
+        # 終端で回収された、未完了の候補検証の判定（列では、理由が「前向きの標本が足りない」）。
+        incomplete_candidate_validation_decision=(
+            "insufficient_forward_data" in trace_arrays["provisional_reasons"].tolist()
+        ),
+        candidate_rejected_by_segment_margin=bool(
+            {"first_interval", "second_interval", "first_and_second"}
+            & set(trace_arrays["provisional_reasons"].tolist())
+        ),
+        models_absorbed=bool(trace_arrays["clustering_absorbed"].any()),
+        server_remapped_adaptation="server_merge" in trace_arrays["adaptation_actions"].tolist(),
     )
 
 
 def test_small_run_conditions_cover_required_cases():
-    """上の対照が、処理されない末尾（その中の変更を含む）、対応する検出・しない検出、見逃しを通っている。"""
+    """上の対照が、処理されない末尾（その中の変更を含む）、対応する検出・しない検出、見逃し、未完了の候補検証の判定、区間の判定での棄却、統合を通っている。"""
     if len(SMALL_RUN_OBSERVATIONS) < 2 * len(SMALL_RUN_CONDITIONS):
         pytest.skip("対照の全条件を実行したときだけ確かめる")
     for observation_name in next(iter(SMALL_RUN_OBSERVATIONS.values())):
