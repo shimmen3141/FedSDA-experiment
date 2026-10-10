@@ -550,6 +550,39 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
         assert differing_state_names <= set(CONCEPT_DEPENDENT_STATE_NAMES), differing_state_names
         # 少なくとも、診断証拠・割当概念の計数・標本ごとの記録は、実際に違っている（比較が働いている）。
         assert differing_state_names >= {"diagnostics", "counts", "sample_prediction_records"}
+        # 違ってよい項目も、違うのは、真の概念の部分だけである（ほかの部分は、同じ）。
+        # 標本ごとの記録: 概念の欄と、真の概念別の診断証拠の予測の正誤を除くと同じ（予測、正誤、重みほか）。
+        assert [
+            replace(
+                prediction_record,
+                observed_concept_id=None,
+                true_concept_diagnostic_prediction_is_correct=None,
+            )
+            for prediction_record in delivered_state_snapshot["sample_prediction_records"]
+        ] == list(state_snapshot["sample_prediction_records"])
+        assert all(
+            prediction_record.true_concept_diagnostic_prediction_is_correct is not None
+            for prediction_record in delivered_state_snapshot["sample_prediction_records"]
+        )
+        # 計数: 割当概念の計数を除くと同じ（学習した標本数、更新の回数）。
+        assert replace(
+            delivered_state_snapshot["counts"], assigned_sample_counts_by_model_and_concept_id={}
+        ) == replace(state_snapshot["counts"], assigned_sample_counts_by_model_and_concept_id={})
+        # 診断証拠: globalの診断証拠は同じ。違うのは、真の概念別の診断証拠だけ。
+        global_evidence, created_true_concept_ids, _ = state_snapshot["diagnostics"]
+        delivered_global_evidence, delivered_true_concept_ids, _ = delivered_state_snapshot[
+            "diagnostics"
+        ]
+        assert global_evidence == delivered_global_evidence
+        assert created_true_concept_ids == ()
+        assert delivered_true_concept_ids
+        # 保留中の標本: 概念の欄を除くと同じ（位置と標本）。
+        assert repr(
+            tuple(
+                replace(pending_observation, observed_concept_id=None)
+                for pending_observation in delivered_state_snapshot["pending_sample_observations"]
+            )
+        ) == repr(state_snapshot["pending_sample_observations"])
         # 真の概念を受け取らないと、割当概念の計数と、真の概念別の診断証拠は、作られない。
         owners = run_client.owners
         assert owners.diagnostic_evidence_collection.created_true_concept_ids == ()

@@ -11,7 +11,7 @@
 調査で確かめたこと:
 
 - 実行の枠（`runtime/single_run_execution.py`の`execute_stream_protocol_run`）は、概念列（`ClientConceptTrace`。評価用の真値）を生成し、そこから観測列を作り、観測列だけを、区間の進行（`execution/stream_protocol_execution_loop.py`の`run_stream_protocol_intervals`）へ渡す。区間の進行は、clientの`process_observed_sample(observed_sample, sample_index)`を呼ぶ。
-- 実行の枠の契約（`execution/run_participant_contracts.py`の`RunClientOperations`）と、そのtest（tests/refactoring/test_single_run_execution.py）は、「観測処理が、真の概念を受け取らない」形である。single-run-executionの要求1.4は、「真の概念・ドリフト位置を評価用の情報として区別し、通常の学習・予測に利用できる観測値と混同しない」。
+- 実行の枠の契約（`execution/run_participant_contracts.py`の`RunClientOperations`）と、そのtest（tests/refactoring/test_single_run_execution.py）は、「観測処理が、真の概念を受け取らない」形である。single-run-executionの要求2.4は、「真の概念・ドリフト位置を評価用の情報として区別し、通常の学習・予測に利用できる観測値と混同しない」。
 - `FedsdaRunClient.process_observed_sample`は、任意の引数`evaluation_concept_id`を、すでに受け取れる。渡されたときだけ、真の概念に依存する診断を行う。渡したときに、診断まで実旧と一致することは、fedsda-run-participant-preparationの対照test（test専用の中継で渡す）で確かめてある。
 - 旧のclientは、標本ごとに、観測値と一緒に、真の概念を受け取る（`process_one_step(x, y, concept_id)`）。
 
