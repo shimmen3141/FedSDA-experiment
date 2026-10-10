@@ -199,21 +199,25 @@ def cluster_model_ids_by_average_linkage(
         score_name="maximum_same_cluster_decision_score",
     )
 
-    model_clusters = [(model_id,) for model_id in sorted(model_ids)]
+    model_clusters: list[tuple[int, ...]] = [(model_id,) for model_id in sorted(model_ids)]
     while True:
         best_candidate = None
         for left_position, left_cluster in enumerate(model_clusters):
             for right_position in range(left_position + 1, len(model_clusters)):
                 right_cluster = model_clusters[right_position]
-                pair_decision_scores = [
-                    decision_scores_by_model_pair.get(
-                        (min(left_model_id, right_model_id), max(left_model_id, right_model_id))
-                    )
+                cluster_model_pairs = [
+                    (min(left_model_id, right_model_id), max(left_model_id, right_model_id))
                     for left_model_id in left_cluster
                     for right_model_id in right_cluster
                 ]
-                if any(pair_decision_score is None for pair_decision_score in pair_decision_scores):
+                if any(
+                    model_pair not in decision_scores_by_model_pair
+                    for model_pair in cluster_model_pairs
+                ):
                     continue
+                pair_decision_scores = [
+                    decision_scores_by_model_pair[model_pair] for model_pair in cluster_model_pairs
+                ]
                 candidate = (
                     sum(pair_decision_scores) / len(pair_decision_scores),
                     left_cluster,
