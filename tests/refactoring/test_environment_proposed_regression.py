@@ -254,7 +254,17 @@ def test_environment_golden_has_the_same_form_and_definition_as_fixed_golden(gol
     assert golden["definition"] == fixed_golden["definition"]
     assert golden["mnist_sha256"] == fixed_golden["mnist_sha256"]
     assert len(golden["mnist_sha256"]) == 2
-    assert golden["legacy_golden_sha256"] == fixed_golden["legacy_golden_sha256"]
+    # 旧の代表11ケースのgoldenのfileのSHA-256。作成時のcheckoutの改行（LFかCRLF）で、fileのbytesが違うので、
+    # 現在のfileの、どちらかの改行の形のSHA-256と一致すればよい（Windowsのcheckoutは、CRLFへ変換される）。
+    legacy_golden_bytes = FIXED_GOLDEN_PATH.with_name("regression_golden.json").read_bytes()
+    legacy_golden_lf_bytes = legacy_golden_bytes.replace(b"\r\n", b"\n")
+    accepted_legacy_golden_sha256 = {
+        hashlib.sha256(legacy_golden_lf_bytes).hexdigest(),
+        hashlib.sha256(legacy_golden_lf_bytes.replace(b"\n", b"\r\n")).hexdigest(),
+    }
+    assert len(accepted_legacy_golden_sha256) == 2
+    assert golden["legacy_golden_sha256"] in accepted_legacy_golden_sha256
+    assert fixed_golden["legacy_golden_sha256"] in accepted_legacy_golden_sha256
     assert len(golden["source_commit"]) == 40
     assert set(golden["cases"]) == set(legacy_regression.CASES) == set(fixed_golden["cases"])
     for dataset_name, golden_case in golden["cases"].items():

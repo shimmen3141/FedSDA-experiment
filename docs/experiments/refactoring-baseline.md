@@ -139,6 +139,8 @@ git add tests/refactoring/proposed_regression_goldens/
 ```
 
 できたファイルをcommitすれば、その環境で、goldenとの照合が行われるようになる。
+goldenに記録する、旧の代表11ケースのgoldenのSHA-256（`legacy_golden_sha256`）は、checkoutの改行（LinuxはLF、
+WindowsはCRLF）で値が違う。検査は、どちらの形のSHA-256も受け入れる。
 消すときは、ファイルを消す（ほかに変える所はない。環境ごとのgoldenが1つもなくても、testは成功する）。
 ディレクトリには、goldenのファイルだけを置く（名前を変えたり、ほかのファイルを置いたりすると、検査が失敗する）。
 
