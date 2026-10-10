@@ -187,7 +187,8 @@ class FedsdaRunClient:
     ) -> ObservedSampleProcessing:
         """観測標本を1行のtensorへ変換して、標本1件の処理（予測を含む）を行う。
 
-        真の概念IDは診断にだけ使う。渡されなければ、概念別の診断と割当概念の計数は行われない。
+        真の概念IDは診断にだけ使う（実行の枠は、標本ごとに渡す）。
+        渡されなければ、概念別の診断と割当概念の計数は行われない。
         位置と概念IDの型、位置の連続は、標本1件の処理が、どの更新より前に確かめる。
         """
         if type(observed_sample) is not ObservedSample:

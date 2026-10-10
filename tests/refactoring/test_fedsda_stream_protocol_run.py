@@ -180,17 +180,17 @@ def run_real_legacy_whole_run(*, monkeypatch, execution_settings, update_interva
         np.random.set_state(numpy_random_state)
 
 
-class ConceptInjectingClientOperations:
-    """test専用の中継: 実行の枠からの標本処理へ、標本位置の真の概念を足して、clientへ渡す。
+class ConceptWithholdingClientOperations:
+    """test専用の中継: 実行の枠が渡す真の概念を捨てて、真の概念なしでclientを呼ぶ。
 
-    実行の枠の契約は、clientへ真の概念を渡さない。実旧のclientは、標本ごとに真の概念を受け取るので、
-    診断まで照合するときに、これで包む。ほかの操作は、そのままclientへ渡す。
+    真の概念が、診断以外の状態へ影響しないことを確かめるときに、これで包む。
+    ほかの操作は、そのままclientへ渡す。
     """
 
-    def __init__(self, *, run_client, concept_ids_by_sample_index):
+    def __init__(self, *, run_client):
         self.run_client = run_client
         self.client_id = run_client.client_id
-        self.concept_ids_by_sample_index = concept_ids_by_sample_index
+        self.withheld_evaluation_concept_ids = []
         self.flush_pending_local_updates = run_client.flush_pending_local_updates
         self.has_model_ready_for_server_registration = (
             run_client.has_model_ready_for_server_registration
@@ -202,20 +202,20 @@ class ConceptInjectingClientOperations:
             run_client.finalize_incomplete_candidate_validation
         )
 
-    def process_observed_sample(self, *, observed_sample, sample_index):
+    def process_observed_sample(self, *, observed_sample, sample_index, evaluation_concept_id):
+        self.withheld_evaluation_concept_ids.append(evaluation_concept_id)
         return self.run_client.process_observed_sample(
-            observed_sample=observed_sample,
-            sample_index=sample_index,
-            evaluation_concept_id=self.concept_ids_by_sample_index[sample_index],
+            observed_sample=observed_sample, sample_index=sample_index
         )
 
 
 class ObservingParticipantFactory:
-    """test専用の中継: factoryの準備の引数（乱数源）を控える。求められたら、clientを真の概念の中継で包む。"""
+    """test専用の中継: factoryの準備の引数（乱数源）を控える。求められたら、clientを、真の概念を捨てる中継で包む。"""
 
-    def __init__(self, *, participant_factory, concept_schedules=None):
+    def __init__(self, *, participant_factory, withhold_evaluation_concepts=False):
         self.participant_factory = participant_factory
-        self.concept_schedules = concept_schedules
+        self.withhold_evaluation_concepts = withhold_evaluation_concepts
+        self.withholding_client_operations = ()
         self.run_random_sources = None
         self.validate_configuration = participant_factory.validate_configuration
 
@@ -226,30 +226,32 @@ class ObservingParticipantFactory:
             run_random_sources=run_random_sources,
             sample_generator=sample_generator,
         )
-        if self.concept_schedules is None:
+        if not self.withhold_evaluation_concepts:
             return participants
+        self.withholding_client_operations = tuple(
+            ConceptWithholdingClientOperations(run_client=run_client)
+            for run_client in participants.client_operations
+        )
         return RunParticipants(
-            client_operations=tuple(
-                ConceptInjectingClientOperations(
-                    run_client=run_client, concept_ids_by_sample_index=concept_schedule
-                )
-                for run_client, concept_schedule in zip(
-                    participants.client_operations, self.concept_schedules, strict=True
-                )
-            ),
+            client_operations=self.withholding_client_operations,
             server_operations=participants.server_operations,
         )
 
 
 def execute_stream_protocol_run_with_factory(
-    *, execution_settings, run_participant_settings, concept_schedules=None
+    *, execution_settings, run_participant_settings, withhold_evaluation_concepts=False
 ):
-    """新の全体runを実行する。戻り値: (実行の枠の結果, 準備された参加者, 準備に渡された乱数源)。"""
+    """新の全体runを実行する。戻り値: (実行の枠の結果, 準備された参加者, 準備に渡された乱数源)。
+
+    `withhold_evaluation_concepts`が真のときだけ、clientを、真の概念を捨てる中継で包む。
+    偽のとき、factoryを包む中継は、準備の引数を控えるだけで、参加者をそのまま返す（実行の枠の本来の経路）。
+    """
     participant_factory = FedsdaRunParticipantFactory(
         run_participant_settings=run_participant_settings
     )
     observing_factory = ObservingParticipantFactory(
-        participant_factory=participant_factory, concept_schedules=concept_schedules
+        participant_factory=participant_factory,
+        withhold_evaluation_concepts=withhold_evaluation_concepts,
     )
     run_result = execute_stream_protocol_run(
         execution_settings=execution_settings, participant_factory=observing_factory
@@ -365,7 +367,6 @@ def test_whole_stream_protocol_run_matches_real_legacy_whole_run(
         run_participant_settings=make_run_participant_settings(
             valid_run_settings_mapping, update_interval=update_interval
         ),
-        concept_schedules=legacy_run["legacy_concept_schedules"],
     )
     # 全体runは、呼出し側の乱数を進めない。
     assert random.getstate() == python_random_state
@@ -446,7 +447,7 @@ def test_whole_run_conditions_cover_required_paths():
     }, sorted(observed_paths)
 
 
-# 真の概念に依存する診断（読取りの項目名）。真の概念を渡さない全体runでは、これらだけが違ってよい。
+# 真の概念に依存する診断（読取りの項目名）。真の概念を受け取らない全体runでは、これらだけが違ってよい。
 CONCEPT_DEPENDENT_STATE_NAMES = (
     "diagnostics",
     "counts",
@@ -457,10 +458,10 @@ CONCEPT_DEPENDENT_STATE_NAMES = (
 )
 
 
-def test_whole_run_without_true_concepts_differs_only_in_concept_dependent_diagnostics(
+def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
     valid_run_settings_mapping,
 ):
-    """実行の枠は、clientへ真の概念を渡さない。そのときの全体runは、真の概念に依存する診断だけが、渡した全体runと違う。"""
+    """真の概念は、診断にだけ使われる: 真の概念を捨ててclientを呼んだ全体runは、真の概念に依存する診断だけが、本来の全体runと違う。"""
     # クラスタリングと統合が起きる条件（上の対照の条件の1つ）。
     execution_settings = make_execution_settings(
         random_seed=7,
@@ -473,87 +474,104 @@ def test_whole_run_without_true_concepts_differs_only_in_concept_dependent_diagn
     run_participant_settings = make_run_participant_settings(
         valid_run_settings_mapping, update_interval=2
     )
-    run_result, participants, run_random_sources = execute_stream_protocol_run_with_factory(
-        execution_settings=execution_settings, run_participant_settings=run_participant_settings
+    # 真の概念を捨てる全体run（clientは、真の概念を受け取らない）。
+    participant_factory = FedsdaRunParticipantFactory(
+        run_participant_settings=run_participant_settings
     )
-    concept_schedules = [
-        list(concept_trace.concept_ids_by_sample_index)
-        for concept_trace in run_result.evaluation_concept_traces
-    ]
-    injected_run_result, injected_participants, injected_random_sources = (
+    withholding_factory = ObservingParticipantFactory(
+        participant_factory=participant_factory, withhold_evaluation_concepts=True
+    )
+    run_result = execute_stream_protocol_run(
+        execution_settings=execution_settings, participant_factory=withholding_factory
+    )
+    participants = participant_factory.prepared_run_participants
+    run_random_sources = withholding_factory.run_random_sources
+    # 中継は、実行の枠から、概念列の値を受け取って、捨てている（渡されなかったのではない）。
+    assert len(withholding_factory.withholding_client_operations) == 3
+    for withholding_client_operations, concept_trace in zip(
+        withholding_factory.withholding_client_operations,
+        run_result.evaluation_concept_traces,
+        strict=True,
+    ):
+        assert withholding_client_operations.withheld_evaluation_concept_ids == list(
+            concept_trace.concept_ids_by_sample_index[
+                : run_result.processed_sample_count_per_client
+            ]
+        )
+    # 本来の全体run（実行の枠が、真の概念をclientへ渡す）。
+    delivered_run_result, delivered_participants, delivered_random_sources = (
         execute_stream_protocol_run_with_factory(
             execution_settings=execution_settings,
             run_participant_settings=run_participant_settings,
-            concept_schedules=concept_schedules,
         )
     )
-    assert injected_run_result == run_result
+    assert delivered_run_result == run_result
     assert (
         run_random_sources.python_random_generator.getstate()
-        == injected_random_sources.python_random_generator.getstate()
+        == delivered_random_sources.python_random_generator.getstate()
     )
-    for run_client, injected_run_client in zip(
-        participants.client_operations, injected_participants.client_operations, strict=True
+    for run_client, delivered_run_client in zip(
+        participants.client_operations, delivered_participants.client_operations, strict=True
     ):
-        assert run_client is not injected_run_client
+        assert run_client is not delivered_run_client
         state_snapshot = snapshot_run_client_state(
             run_client=run_client,
             python_random_generator=run_random_sources.python_random_generator,
         )
-        injected_state_snapshot = snapshot_run_client_state(
-            run_client=injected_run_client,
-            python_random_generator=injected_random_sources.python_random_generator,
+        delivered_state_snapshot = snapshot_run_client_state(
+            run_client=delivered_run_client,
+            python_random_generator=delivered_random_sources.python_random_generator,
         )
         # 許す項目の名前は、読取りの実際の項目名である。
         assert set(CONCEPT_DEPENDENT_STATE_NAMES) <= set(state_snapshot)
         differing_state_names = set()
         for state_name, state in state_snapshot.items():
-            injected_state = injected_state_snapshot[state_name]
+            delivered_state = delivered_state_snapshot[state_name]
             if state_name in ("parameters", "torch_random_state"):
-                states_equal = len(state) == len(injected_state) and all(
-                    torch.equal(tensor, injected_tensor)
-                    for tensor, injected_tensor in zip(state, injected_state, strict=True)
+                states_equal = len(state) == len(delivered_state) and all(
+                    torch.equal(tensor, delivered_tensor)
+                    for tensor, delivered_tensor in zip(state, delivered_state, strict=True)
                 )
             elif state_name == "optimizer_states":
-                states_equal = repr(state) == repr(injected_state)
+                states_equal = repr(state) == repr(delivered_state)
             elif state_name in ("held_validation_session", "pending_model_upload"):
                 # 別のrunの別のオブジェクトなので、有無だけを比べる。
-                states_equal = (state is None) == (injected_state is None)
+                states_equal = (state is None) == (delivered_state is None)
             elif state_name in (
                 "training_samples",
                 "evaluation_samples",
                 "pending_sample_observations",
             ):
-                states_equal = repr(state) == repr(injected_state)
+                states_equal = repr(state) == repr(delivered_state)
             else:
-                states_equal = state == injected_state
+                states_equal = state == delivered_state
             if not states_equal:
                 differing_state_names.add(state_name)
         assert differing_state_names <= set(CONCEPT_DEPENDENT_STATE_NAMES), differing_state_names
         # 少なくとも、診断証拠・割当概念の計数・標本ごとの記録は、実際に違っている（比較が働いている）。
         assert differing_state_names >= {"diagnostics", "counts", "sample_prediction_records"}
-        # 真の概念を渡さないと、割当概念の計数と、真の概念別の診断証拠は、作られない。
+        # 真の概念を受け取らないと、割当概念の計数と、真の概念別の診断証拠は、作られない。
         owners = run_client.owners
         assert owners.diagnostic_evidence_collection.created_true_concept_ids == ()
         assert all(
             record.observed_concept_id is None
             for record in owners.sample_prediction_record_store.snapshot_sample_prediction_records()
         )
-        assert injected_run_client.owners.diagnostic_evidence_collection.created_true_concept_ids
+        assert delivered_run_client.owners.diagnostic_evidence_collection.created_true_concept_ids
     # サーバ側は、クラスタリングの真の概念の一致の診断だけが違う。
     server_owners = participants.server_operations.owners
-    injected_server_owners = injected_participants.server_operations.owners
+    delivered_server_owners = delivered_participants.server_operations.owners
     assert (
         server_owners.communication_volume_record_store.get_state_snapshot()
-        == injected_server_owners.communication_volume_record_store.get_state_snapshot()
+        == delivered_server_owners.communication_volume_record_store.get_state_snapshot()
     )
     assert (
         server_owners.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
-        == injected_server_owners.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
+        == delivered_server_owners.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
     )
     assert (
         server_owners.model_clustering_record_store.snapshot_model_clustering_observations()
-        == injected_server_owners.model_clustering_record_store.snapshot_model_clustering_observations()
+        == delivered_server_owners.model_clustering_record_store.snapshot_model_clustering_observations()
     )
     pair_observations = (
         server_owners.model_clustering_record_store.snapshot_pair_clustering_observations()
@@ -564,7 +582,7 @@ def test_whole_run_without_true_concepts_differs_only_in_concept_dependent_diagn
     )
     assert [
         replace(pair_observation, true_concepts_match=None)
-        for pair_observation in injected_server_owners.model_clustering_record_store.snapshot_pair_clustering_observations()
+        for pair_observation in delivered_server_owners.model_clustering_record_store.snapshot_pair_clustering_observations()
     ] == list(pair_observations)
 
 

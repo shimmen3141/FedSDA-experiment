@@ -29,6 +29,7 @@ from federated_learning_experiments.data.concept_schedules.random_concept_schedu
     RandomConceptScheduleSettings,
 )
 from federated_learning_experiments.data.observed_streams import (
+    ClientConceptTrace,
     ClientObservedStream,
     ObservedSample,
 )
@@ -1157,9 +1158,21 @@ def run_assembled_client_flow(*, class_count):
         )
         for client_id in range(ASSEMBLED_CLIENT_COUNT)
     )
+    # 概念列: ラベルの境界が反転する区間（24件ごと）を、真の概念とする。
+    evaluation_concept_traces = tuple(
+        ClientConceptTrace(
+            client_id=client_id,
+            concept_ids_by_sample_index=tuple(
+                (sample_index // 24) % 2
+                for sample_index in range(ASSEMBLED_CLIENT_STREAM_SAMPLE_COUNT)
+            ),
+        )
+        for client_id in range(ASSEMBLED_CLIENT_COUNT)
+    )
     execution_events = run_stream_protocol_intervals(
         participants=participants,
         observed_client_streams=observed_client_streams,
+        evaluation_concept_traces=evaluation_concept_traces,
         server_aggregation_interval_per_client_samples=ASSEMBLED_CLIENT_INTERVAL_SAMPLE_COUNT,
     )
     round_count = ASSEMBLED_CLIENT_STREAM_SAMPLE_COUNT // ASSEMBLED_CLIENT_INTERVAL_SAMPLE_COUNT
@@ -1180,6 +1193,12 @@ def run_assembled_client_flow(*, class_count):
         )
         assert [record.sample_index for record in prediction_records] == list(
             range(processed_sample_count)
+        )
+        # 実行の枠が、標本位置の真の概念を渡している。
+        assert [record.observed_concept_id for record in prediction_records] == list(
+            evaluation_concept_traces[run_client.client_id].concept_ids_by_sample_index[
+                :processed_sample_count
+            ]
         )
         assert owners.local_training_request_schedule.pending_training_request_count == 0
         assert owners.validation_session_holder.held_validation_session is None
@@ -1383,8 +1402,13 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
         assert [record.sample_index for record in prediction_records] == list(
             range(processed_sample_count)
         )
-        # 実行の枠は、clientへ真の概念を渡さない。
-        assert all(record.observed_concept_id is None for record in prediction_records)
+        # 実行の枠は、標本位置の真の概念を、診断専用の引数として、clientへ渡す。
+        assert [record.observed_concept_id for record in prediction_records] == list(
+            run_result.evaluation_concept_traces[run_client.client_id].concept_ids_by_sample_index[
+                :processed_sample_count
+            ]
+        )
+        assert owners.diagnostic_evidence_collection.created_true_concept_ids
         held_model_training_states = (
             owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
         )

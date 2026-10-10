@@ -33,6 +33,7 @@ from federated_drift_experiment.data.specs import DatasetSpec
 from federated_drift_experiment.models import ResidualAdapterMLP
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
 from federated_learning_experiments.data.observed_streams import (
+    ClientConceptTrace,
     ClientObservedStream,
     ObservedSample,
 )
@@ -1388,25 +1389,37 @@ def test_run_clients_run_as_participants_of_the_stream_protocol_loop(
         client_operations=run_clients, server_operations=server_operations
     )
     validate_prepared_run_participants(participants=participants, client_count=client_count)
+    concept_streams = tuple(
+        tuple(
+            make_concept_stream(
+                sample_count=stream_sample_count,
+                concept_block_length=13,
+                stream_seed=5 + client_id,
+            )
+        )
+        for client_id in range(client_count)
+    )
     observed_client_streams = tuple(
         ClientObservedStream(
             client_id=client_id,
-            observed_samples=tuple(
-                observed_sample
-                for observed_sample, _ in make_concept_stream(
-                    sample_count=stream_sample_count,
-                    concept_block_length=13,
-                    stream_seed=5 + client_id,
-                )
-            ),
+            observed_samples=tuple(observed_sample for observed_sample, _ in concept_stream),
         )
-        for client_id in range(client_count)
+        for client_id, concept_stream in enumerate(concept_streams)
+    )
+    # 概念列の型は0/1だけを受理するので、標本列の4つの概念を2値へ畳む（受渡しの確認にだけ使う）。
+    evaluation_concept_traces = tuple(
+        ClientConceptTrace(
+            client_id=client_id,
+            concept_ids_by_sample_index=tuple(concept_id % 2 for _, concept_id in concept_stream),
+        )
+        for client_id, concept_stream in enumerate(concept_streams)
     )
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(41)
         execution_events = run_stream_protocol_intervals(
             participants=participants,
             observed_client_streams=observed_client_streams,
+            evaluation_concept_traces=evaluation_concept_traces,
             server_aggregation_interval_per_client_samples=interval_sample_count,
         )
     round_count = stream_sample_count // interval_sample_count
@@ -1438,6 +1451,12 @@ def test_run_clients_run_as_participants_of_the_stream_protocol_loop(
         prediction_records_by_client.append(prediction_records)
         assert [record.sample_index for record in prediction_records] == list(
             range(processed_sample_count)
+        )
+        # 実行の枠が、標本位置の真の概念を渡している。
+        assert [record.observed_concept_id for record in prediction_records] == list(
+            evaluation_concept_traces[run_client.client_id].concept_ids_by_sample_index[
+                :processed_sample_count
+            ]
         )
         # 境界で学習要求が消化され、終端で候補検証の保持が外れている。
         assert owners.local_training_request_schedule.pending_training_request_count == 0

@@ -167,6 +167,7 @@ def execute_stream_protocol_run(
             run_stream_protocol_intervals(
                 participants=participants,
                 observed_client_streams=observed_client_streams,
+                evaluation_concept_traces=evaluation_concept_traces,
                 server_aggregation_interval_per_client_samples=(
                     experiment_run_conditions.server_aggregation_interval_per_client_samples
                 ),

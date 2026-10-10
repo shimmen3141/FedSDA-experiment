@@ -2,16 +2,16 @@
 
 逐次実行（並行しない）。testを先に書く。独立レビューは、全taskの後に1回受ける（共通引継ぎ手順）。
 
-- [ ] 1. 契約と受渡し
-- [ ] 1.1 実行の枠が、真の概念を、診断専用の引数としてclientへ渡す
+- [x] 1. 契約と受渡し
+- [x] 1.1 実行の枠が、真の概念を、診断専用の引数としてclientへ渡す
   - 実行の枠のtestを先に直す: 観測用のclientが真の概念を記録する、受渡しのtest（clientと位置の対応）、契約の引数のtest、概念列の拒否のtest。
   - 契約、区間の進行（検査と受渡し）、全体runの実行を変更する。区間の進行を直接呼ぶ、ほかのtestと共用scriptを、概念列を渡すように直す。
   - 完了: 実行の枠のtest、clientのtest、依存境界のsuite、共用scriptが成功する。
   - _Boundary: RunClientOperations、run_stream_protocol_intervals、execute_stream_protocol_run_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.2, 4.1, 4.3_
 
-- [ ] 2. 全体runの照合
-- [ ] 2.1 全体runの対照を、test専用の中継なしにし、判断への不干渉のtestを書く
+- [x] 2. 全体runの照合
+- [x] 2.1 全体runの対照を、test専用の中継なしにし、判断への不干渉のtestを書く
   - 全体runの対照から、真の概念を渡す中継を外す。真の概念を渡さない中継で実行した全体runとの比較へ、不干渉のtestを書き換える。共用scriptの全体runの確認を、真の概念が渡っていることの確認にする。
   - 完了: 全体runの対照の全条件が、中継なしで、診断まで実旧と一致する。不干渉のtest、共用scriptが成功する。
   - _Depends: 1.1_

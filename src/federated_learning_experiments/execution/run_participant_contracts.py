@@ -17,8 +17,14 @@ class RunClientOperations(Protocol):
     client_id: int
 
     def process_observed_sample(
-        self, *, observed_sample: ObservedSample, sample_index: int
-    ) -> None: ...
+        self, *, observed_sample: ObservedSample, sample_index: int, evaluation_concept_id: int
+    ) -> None:
+        """標本を1件処理する。
+
+        `evaluation_concept_id`は、その標本の真の概念ID（評価用の真値）で、診断専用である。
+        clientは、予測・検出・学習・モデルの選択に使ってはならない。
+        """
+        ...
 
     def flush_pending_local_updates(self, *, round_index: int) -> None: ...
 

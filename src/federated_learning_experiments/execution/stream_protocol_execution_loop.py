@@ -2,7 +2,10 @@
 
 from collections.abc import Callable
 
-from federated_learning_experiments.data.observed_streams import ClientObservedStream
+from federated_learning_experiments.data.observed_streams import (
+    ClientConceptTrace,
+    ClientObservedStream,
+)
 from federated_learning_experiments.execution.run_execution_errors import RunExecutionError
 from federated_learning_experiments.execution.run_execution_records import RunExecutionEvent
 from federated_learning_experiments.execution.run_participant_contracts import RunParticipants
@@ -42,13 +45,49 @@ def invoke_run_operation_and_record_success(
     return operation_result
 
 
+def validate_evaluation_concept_traces_match_observed_streams(
+    *,
+    evaluation_concept_traces: tuple[ClientConceptTrace, ...],
+    observed_client_streams: tuple[ClientObservedStream, ...],
+) -> None:
+    """概念列が、観測列と、同じclientの順・同じ標本の数で対応することを確かめる。"""
+    if type(evaluation_concept_traces) is not tuple:
+        raise TypeError("evaluation_concept_tracesには概念列のtupleを指定してください。")
+    for evaluation_concept_trace in evaluation_concept_traces:
+        if type(evaluation_concept_trace) is not ClientConceptTrace:
+            raise TypeError(
+                "evaluation_concept_tracesの各要素にはClientConceptTraceを指定してください。"
+            )
+    if len(evaluation_concept_traces) != len(observed_client_streams):
+        raise ValueError("evaluation_concept_tracesの数を、観測列の数と同じにしてください。")
+    for evaluation_concept_trace, observed_client_stream in zip(
+        evaluation_concept_traces, observed_client_streams, strict=True
+    ):
+        if evaluation_concept_trace.client_id != observed_client_stream.client_id:
+            raise ValueError(
+                "evaluation_concept_tracesのclientの順を、観測列と同じにしてください。"
+            )
+        if len(evaluation_concept_trace.concept_ids_by_sample_index) != len(
+            observed_client_stream.observed_samples
+        ):
+            raise ValueError("evaluation_concept_tracesの標本の数を、観測列と同じにしてください。")
+
+
 def run_stream_protocol_intervals(
     *,
     participants: RunParticipants,
     observed_client_streams: tuple[ClientObservedStream, ...],
+    evaluation_concept_traces: tuple[ClientConceptTrace, ...],
     server_aggregation_interval_per_client_samples: int,
 ) -> tuple[RunExecutionEvent, ...]:
-    """検証済みの参加者と観測列を標本位置・client順に進める。"""
+    """検証済みの参加者と観測列を標本位置・client順に進める。
+
+    概念列（評価用の真値）は、標本位置の値を、診断専用の引数として、clientへ渡すためだけに使う。
+    """
+    validate_evaluation_concept_traces_match_observed_streams(
+        evaluation_concept_traces=evaluation_concept_traces,
+        observed_client_streams=observed_client_streams,
+    )
     execution_events: list[RunExecutionEvent] = []
     stream_sample_count = len(observed_client_streams[0].observed_samples)
     synchronization_interval_count = (
@@ -60,9 +99,10 @@ def run_stream_protocol_intervals(
             interval_start_sample_index + server_aggregation_interval_per_client_samples
         )
         for sample_index in range(interval_start_sample_index, interval_end_sample_index):
-            for client_operation, observed_client_stream in zip(
+            for client_operation, observed_client_stream, evaluation_concept_trace in zip(
                 participants.client_operations,
                 observed_client_streams,
+                evaluation_concept_traces,
                 strict=True,
             ):
                 invoke_run_operation_and_record_success(
@@ -70,6 +110,9 @@ def run_stream_protocol_intervals(
                     operation_arguments={
                         "observed_sample": observed_client_stream.observed_samples[sample_index],
                         "sample_index": sample_index,
+                        "evaluation_concept_id": (
+                            evaluation_concept_trace.concept_ids_by_sample_index[sample_index]
+                        ),
                     },
                     execution_events=execution_events,
                     stage_name="sample_processing",

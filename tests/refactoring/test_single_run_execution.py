@@ -3,7 +3,7 @@
 import inspect
 import random
 from contextlib import nullcontext
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import FrozenInstanceError, fields, replace
 from types import SimpleNamespace
 from typing import get_protocol_members
 from unittest.mock import Mock
@@ -61,6 +61,7 @@ class RunOperationObserver:
     def __init__(self):
         self.operation_calls: list[RunExecutionEvent] = []
         self.processed_observed_samples: list[tuple[int, int, ObservedSample]] = []
+        self.received_evaluation_concept_ids: list[tuple[int, int, object]] = []
         self.synchronization_readiness_values: list[bool] = []
         self.registration_readiness_by_client: dict[int, object] = {}
         self.failure_at_event: RunExecutionEvent | None = None
@@ -89,7 +90,7 @@ class ObservingRunClient:
         self.client_id = client_id
         self.observer = observer
 
-    def process_observed_sample(self, *, observed_sample, sample_index):
+    def process_observed_sample(self, *, observed_sample, sample_index, evaluation_concept_id):
         self.observer.record_operation_call(
             stage_name="sample_processing",
             client_id=self.client_id,
@@ -98,6 +99,9 @@ class ObservingRunClient:
         )
         self.observer.processed_observed_samples.append(
             (self.client_id, sample_index, observed_sample)
+        )
+        self.observer.received_evaluation_concept_ids.append(
+            (self.client_id, sample_index, evaluation_concept_id)
         )
 
     def flush_pending_local_updates(self, *, round_index):
@@ -163,6 +167,28 @@ def build_observing_run_participants(*, client_count, observer):
             for client_id in range(client_count)
         ),
         server_operations=ObservingRunServer(observer=observer),
+    )
+
+
+def build_interval_test_concept_traces(*, client_count, per_client_sample_count):
+    """clientごとに違い、位置でも変わる概念列を作る（切替の周期がclientごとに違う）。"""
+    return tuple(
+        ClientConceptTrace(
+            client_id=client_id,
+            concept_ids_by_sample_index=tuple(
+                (sample_index // (client_id + 1)) % 2
+                for sample_index in range(per_client_sample_count)
+            ),
+        )
+        for client_id in range(client_count)
+    )
+
+
+def build_matching_interval_test_concept_traces(observed_client_streams):
+    """観測列と同じclient・同じ長さの概念列を作る。"""
+    return build_interval_test_concept_traces(
+        client_count=len(observed_client_streams),
+        per_client_sample_count=len(observed_client_streams[0].observed_samples),
     )
 
 
@@ -855,6 +881,7 @@ def test_single_run_runtime_prepares_once_and_orders_supply_before_execution(
     runtime_operation_spies["run_stream_protocol_intervals"].assert_called_once_with(
         participants=participant_factory.prepared_participant_history[0],
         observed_client_streams=run_result.observed_client_streams,
+        evaluation_concept_traces=run_result.evaluation_concept_traces,
         server_aggregation_interval_per_client_samples=50,
     )
 
@@ -997,6 +1024,17 @@ def test_single_run_runtime_returns_immutable_observations_truth_counts_and_even
     assert (
         len(observer.processed_observed_samples) == 3 * run_result.processed_sample_count_per_client
     )
+    assert observer.received_evaluation_concept_ids == [
+        (
+            client_id,
+            sample_index,
+            run_result.evaluation_concept_traces[client_id].concept_ids_by_sample_index[
+                sample_index
+            ],
+        )
+        for sample_index in range(run_result.processed_sample_count_per_client)
+        for client_id in range(3)
+    ]
     for client_id, client_observed_stream in enumerate(run_result.observed_client_streams):
         assert client_observed_stream.client_id == client_id
         assert len(client_observed_stream.observed_samples) == per_client_sample_count
@@ -1146,6 +1184,9 @@ def test_interval_execution_matches_sample_client_and_synchronization_order():
     execution_events = run_stream_protocol_intervals(
         participants=participants,
         observed_client_streams=observed_client_streams,
+        evaluation_concept_traces=build_matching_interval_test_concept_traces(
+            observed_client_streams
+        ),
         server_aggregation_interval_per_client_samples=50,
     )
     expected_operation_calls = []
@@ -1226,6 +1267,9 @@ def test_interval_execution_processes_only_complete_intervals_and_preserves_term
     execution_events = run_stream_protocol_intervals(
         participants=participants,
         observed_client_streams=observed_client_streams,
+        evaluation_concept_traces=build_matching_interval_test_concept_traces(
+            observed_client_streams
+        ),
         server_aggregation_interval_per_client_samples=server_aggregation_interval_per_client_samples,
     )
     completed_round_count = (
@@ -1277,6 +1321,9 @@ def test_interval_execution_checks_every_client_and_preserves_readiness_at_sync_
         observed_client_streams=build_interval_test_observed_streams(
             client_count=3, per_client_sample_count=4
         ),
+        evaluation_concept_traces=build_interval_test_concept_traces(
+            client_count=3, per_client_sample_count=4
+        ),
         server_aggregation_interval_per_client_samples=2,
     )
     assert [
@@ -1300,6 +1347,9 @@ def test_interval_execution_rejects_non_boolean_registration_readiness(invalid_r
         run_stream_protocol_intervals(
             participants=build_observing_run_participants(client_count=3, observer=observer),
             observed_client_streams=build_interval_test_observed_streams(
+                client_count=3, per_client_sample_count=4
+            ),
+            evaluation_concept_traces=build_interval_test_concept_traces(
                 client_count=3, per_client_sample_count=4
             ),
             server_aggregation_interval_per_client_samples=2,
@@ -1344,6 +1394,9 @@ def test_interval_execution_reports_failure_positions_and_stops_without_finaliza
     expected_execution_events = run_stream_protocol_intervals(
         participants=build_observing_run_participants(client_count=3, observer=observer),
         observed_client_streams=observed_client_streams,
+        evaluation_concept_traces=build_matching_interval_test_concept_traces(
+            observed_client_streams
+        ),
         server_aggregation_interval_per_client_samples=2,
     )
     failure_call_index = expected_execution_events.index(expected_failure_event)
@@ -1355,6 +1408,9 @@ def test_interval_execution_reports_failure_positions_and_stops_without_finaliza
         run_stream_protocol_intervals(
             participants=build_observing_run_participants(client_count=3, observer=observer),
             observed_client_streams=observed_client_streams,
+            evaluation_concept_traces=build_matching_interval_test_concept_traces(
+                observed_client_streams
+            ),
             server_aggregation_interval_per_client_samples=2,
         )
     assert exception_info.value.__cause__ is original_exception
@@ -1407,13 +1463,91 @@ def test_operation_invocation_records_only_successful_events():
 
 
 def test_interval_execution_requires_keyword_arguments():
-    """公開進行関数の参加者・観測列・同期区間をkeywordで渡す。"""
+    """公開進行関数の参加者・観測列・概念列・同期区間をkeywordで渡す。"""
     with pytest.raises(TypeError):
         run_stream_protocol_intervals(
             build_observing_run_participants(client_count=1, observer=RunOperationObserver()),
             build_interval_test_observed_streams(client_count=1, per_client_sample_count=1),
+            build_interval_test_concept_traces(client_count=1, per_client_sample_count=1),
             1,
         )
+
+
+def test_interval_execution_delivers_evaluation_concept_of_each_client_and_position():
+    """clientごと・標本位置ごとに、概念列の値を、観測標本とは別の引数で渡す。"""
+    observer = RunOperationObserver()
+    observed_client_streams = build_interval_test_observed_streams(
+        client_count=3, per_client_sample_count=14
+    )
+    evaluation_concept_traces = build_interval_test_concept_traces(
+        client_count=3, per_client_sample_count=14
+    )
+    # 概念列は、clientごとに違い、位置でも変わる（取り違えると一致しない）。
+    assert len({trace.concept_ids_by_sample_index for trace in evaluation_concept_traces}) == 3
+    run_stream_protocol_intervals(
+        participants=build_observing_run_participants(client_count=3, observer=observer),
+        observed_client_streams=observed_client_streams,
+        evaluation_concept_traces=evaluation_concept_traces,
+        server_aggregation_interval_per_client_samples=6,
+    )
+    assert observer.received_evaluation_concept_ids == [
+        (
+            client_id,
+            sample_index,
+            evaluation_concept_traces[client_id].concept_ids_by_sample_index[sample_index],
+        )
+        for sample_index in range(12)
+        for client_id in range(3)
+    ]
+    assert all(
+        type(evaluation_concept_id) is int
+        for _, _, evaluation_concept_id in observer.received_evaluation_concept_ids
+    )
+    # 観測標本は、真の概念を持たない。
+    assert {observed_sample_field.name for observed_sample_field in fields(ObservedSample)} == {
+        "feature_values",
+        "class_label",
+    }
+
+
+@pytest.mark.parametrize(
+    ("make_invalid_concept_traces", "expected_exception_type"),
+    [
+        (lambda traces: list(traces), TypeError),
+        (lambda traces: (traces[0], SimpleNamespace(), traces[2]), TypeError),
+        (lambda traces: traces[:2], ValueError),
+        (lambda traces: (traces[1], traces[0], traces[2]), ValueError),
+        (
+            lambda traces: (
+                traces[0],
+                ClientConceptTrace(
+                    client_id=1,
+                    concept_ids_by_sample_index=traces[1].concept_ids_by_sample_index[:-1],
+                ),
+                traces[2],
+            ),
+            ValueError,
+        ),
+    ],
+    ids=["list", "foreign_element", "missing_client", "client_order", "sample_count"],
+)
+def test_interval_execution_rejects_concept_traces_not_matching_observed_streams(
+    make_invalid_concept_traces, expected_exception_type
+):
+    """概念列が観測列と対応しないとき、どのclientの操作も呼ぶ前に拒否する。"""
+    observer = RunOperationObserver()
+    with pytest.raises(expected_exception_type):
+        run_stream_protocol_intervals(
+            participants=build_observing_run_participants(client_count=3, observer=observer),
+            observed_client_streams=build_interval_test_observed_streams(
+                client_count=3, per_client_sample_count=4
+            ),
+            evaluation_concept_traces=make_invalid_concept_traces(
+                build_interval_test_concept_traces(client_count=3, per_client_sample_count=4)
+            ),
+            server_aggregation_interval_per_client_samples=2,
+        )
+    assert observer.operation_calls == []
 
 
 @pytest.fixture
@@ -1479,13 +1613,13 @@ def test_run_participant_protocols_expose_only_declared_observation_operations(
     protocol_type,
     expected_protocol_member_names,
 ):
-    """宣言した操作だけを持ち、観測処理に真の概念入力を要求しない。"""
+    """宣言した操作だけを持ち、観測処理は、真の概念を、観測標本とは別の診断専用の引数で受け取る。"""
     protocol_member_names = get_protocol_members(protocol_type)
     assert protocol_member_names == expected_protocol_member_names
     operation_parameters = {
         "validate_configuration": (),
         "prepare_run": ("experiment_run_conditions", "run_random_sources", "sample_generator"),
-        "process_observed_sample": ("observed_sample", "sample_index"),
+        "process_observed_sample": ("observed_sample", "sample_index", "evaluation_concept_id"),
         "flush_pending_local_updates": ("round_index",),
         "has_model_ready_for_server_registration": (),
         "advance_new_model_upload_wait_after_synchronization": ("round_index",),
@@ -1514,7 +1648,9 @@ def test_run_participants_preserve_operation_references_and_reject_mutable_clien
     """接続先が所有する可変状態への参照を保持し、参加者集合だけを固定する。"""
     operation_reference = SimpleNamespace(
         client_id=0,
-        process_observed_sample=lambda *, observed_sample, sample_index: None,
+        process_observed_sample=(
+            lambda *, observed_sample, sample_index, evaluation_concept_id: None
+        ),
         flush_pending_local_updates=lambda *, round_index: None,
         has_model_ready_for_server_registration=lambda: False,
         advance_new_model_upload_wait_after_synchronization=lambda *, round_index: None,
