@@ -76,11 +76,11 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
 | `model_registration` | 登録したモデル | `model_id`、`registered_round_index`(初期モデルは−1)、`is_final_global_model`(bool) |
 | `model_clustering` | クラスタリングの、モデルごとの観測 | `round_index`、`model_id`、`representative_model_id`、`merged_with_other_models`(bool)、`absorbed_into_representative`(bool) |
 | `model_pair_clustering` | クラスタリングの、対ごとの観測 | `round_index`、`lower_model_id`、`higher_model_id`、`assigned_to_same_cluster`(bool) |
-| `round` | ラウンド | `global_model_count`、`pending_clustering_model_count`、`client_held_model_count`(ラウンド×client) |
+| `round` | ラウンド | `global_model_count`、`client_held_model_count`(ラウンド×client) |
 | `round_local_processing_computation`・`round_synchronization_computation` | ラウンド | `ModelComputationCounts`の12のfield |
 
 - 整数は`int64`、真偽は`bool`、文字列はNumPyのUnicode。事象の表は、client順・起きた順。
-- `adaptation_action`: 結果種別からの区分（`maintain_current_model`・`reuse_held_model`・`create_new_model`・`reject_new_model`・`start_candidate_validation`・`server_consolidation_remap`）。対応の表を、moduleの定数として持ち、未知の結果種別は拒否する。
+- `adaptation_action`: 結果種別からの区分（`defer_during_candidate_validation`・`skip_too_short_change_interval`・`reuse_held_model`・`maintain_current_model`・`start_candidate_validation`・`adopt_candidate_model`・`reject_candidate_model`・`remap_by_server_consolidation`の8つ。旧の`action`の8つの値と、1対1）。対応の表を、moduleの定数として持ち、未知の結果種別は拒否する。
 - ラウンドごとのモデル数は、research.mdの求め方。
 
 ### runtime: fedsda_run_artifact_files

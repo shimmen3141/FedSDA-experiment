@@ -408,7 +408,24 @@ def test_golden_conditions_are_the_defaults_with_only_the_reduced_items_replaced
     default_run_settings = build_final_configuration_fedsda_run_settings(
         experiment_run_conditions=make_experiment_run_conditions(dataset_name, golden_legacy_values)
     )
-    reduced_run_settings = replace(
+    reduced_run_settings = make_golden_condition_run_settings(dataset_name)
+    assert reduced_run_settings == golden_run_settings
+    assert reduced_run_settings != default_run_settings
+
+
+def make_golden_condition_run_settings(dataset_name):
+    """goldenの条件の、完全なrun設定: 最終構成の既定値から、旧の回帰testが縮小した項目だけを置き換える。"""
+    golden_overrides = {**legacy_regression.COMMON, **legacy_regression.CASES[dataset_name]}
+    default_run_settings = build_final_configuration_fedsda_run_settings(
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name=dataset_name,
+            random_seed=0,
+            client_count=golden_overrides["N_CLIENTS"],
+            per_client_sample_count=golden_overrides["TOTAL_DATA_POINTS"],
+            server_aggregation_interval_per_client_samples=50,
+        )
+    )
+    return replace(
         default_run_settings,
         execution_settings=replace(
             default_run_settings.execution_settings,
@@ -431,8 +448,6 @@ def test_golden_conditions_are_the_defaults_with_only_the_reduced_items_replaced
             post_change_recovery_window_sample_count=golden_overrides["STABLE_WINDOW"],
         ),
     )
-    assert reduced_run_settings == golden_run_settings
-    assert reduced_run_settings != default_run_settings
 
 
 def test_defaults_can_be_replaced_and_are_validated_again():

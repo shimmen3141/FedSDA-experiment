@@ -170,3 +170,31 @@ def test_nested_lists_and_plain_values_are_converted():
     assert convert_settings_to_plain_mapping(
         SettingsWithAnyValue(value=[1, (2.5, "a", None, False), []])
     ) == {"settings_type": "SettingsWithAnyValue", "value": [1, [2.5, "a", None, False], []]}
+
+
+def test_non_finite_floats_become_none_only_when_requested():
+    """指定したときだけ、非有限のfloatを`None`にする（入れ子の中も）。指定しなければ、拒否する。"""
+    settings = SettingsWithAnyValue(value=(math.nan, 1.5, [math.inf, -math.inf], None))
+    with pytest.raises(ValueError, match="value"):
+        convert_settings_to_plain_mapping(settings)
+    with pytest.raises(ValueError, match="value"):
+        convert_settings_to_plain_mapping(settings, non_finite_float_as_none=False)
+    plain_mapping = convert_settings_to_plain_mapping(settings, non_finite_float_as_none=True)
+    assert plain_mapping == {
+        "settings_type": "SettingsWithAnyValue",
+        "value": [None, 1.5, [None, None], None],
+    }
+    assert json.loads(json.dumps(plain_mapping, allow_nan=False)) == plain_mapping
+    # 有限の値だけの設定は、指定しても、同じ辞書。JSONにできない型は、指定しても、拒否する。
+    assert convert_settings_to_plain_mapping(
+        make_outer_settings(), non_finite_float_as_none=True
+    ) == convert_settings_to_plain_mapping(make_outer_settings())
+    with pytest.raises(TypeError, match="value"):
+        convert_settings_to_plain_mapping(
+            SettingsWithAnyValue(value=object()), non_finite_float_as_none=True
+        )
+    for invalid_flag in (None, 1, "yes"):
+        with pytest.raises(TypeError, match="non_finite_float_as_none"):
+            convert_settings_to_plain_mapping(settings, non_finite_float_as_none=invalid_flag)
+    with pytest.raises(TypeError):
+        convert_settings_to_plain_mapping(settings, True)  # type: ignore[misc]

@@ -562,6 +562,11 @@ def golden_condition_runs(request, tmp_path_factory):
             legacy_trace_arrays = {
                 trace_name: legacy_arrays[trace_name] for trace_name in legacy_regression.TRACES
             }
+            # 旧の、ラウンドごとの、モデル数（同期の後の、グローバルモデル数と、クラスタリング待ちのモデル数）。
+            legacy_round_model_counts = dict(
+                global_model_count=legacy_arrays["round_global_model_count"],
+                pending_clustering_count=legacy_arrays["round_pending_clustering_count"],
+            )
             # 旧の、ラウンドごとの、clientの計数の増分（形は、ラウンド×client）。
             legacy_round_client_counts = {
                 array_name.removeprefix("round_client_"): legacy_arrays[array_name]
@@ -590,6 +595,7 @@ def golden_condition_runs(request, tmp_path_factory):
             legacy_result=legacy_result,
             legacy_trace_arrays=legacy_trace_arrays,
             legacy_round_client_counts=legacy_round_client_counts,
+            legacy_round_model_counts=legacy_round_model_counts,
             run_result=run_result,
             participants=participants,
             run_metric_settings=run_metric_settings,

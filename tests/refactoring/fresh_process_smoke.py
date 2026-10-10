@@ -17,6 +17,7 @@ testへ置き換えて廃止する。
 import sys
 from pathlib import Path
 from random import Random
+from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import torch
@@ -168,8 +169,18 @@ from federated_learning_experiments.runtime.alarm_occurrence_handling import (
 from federated_learning_experiments.runtime.candidate_validation_session_holder import (
     CandidateValidationSessionHolder,
 )
+from federated_learning_experiments.runtime.fedsda_experiment_run import (
+    execute_fedsda_experiment_run,
+)
+from federated_learning_experiments.runtime.fedsda_final_configuration_run_settings import (
+    build_final_configuration_fedsda_run_settings,
+)
 from federated_learning_experiments.runtime.fedsda_measured_run_execution import (
     execute_fedsda_stream_protocol_run_with_computation_measurement,
+)
+from federated_learning_experiments.runtime.fedsda_run_artifact_files import (
+    load_fedsda_run_artifacts,
+    save_fedsda_experiment_run,
 )
 from federated_learning_experiments.runtime.fedsda_run_client import assemble_fedsda_run_client
 from federated_learning_experiments.runtime.fedsda_run_client_settings import (
@@ -1663,6 +1674,40 @@ def main():
             "global models",
             dataset_run_summaries[0]["global_model_ids"],
         )
+    # 完全なrun設定（最終構成の既定値）から、実行・保存・読込みを行う。
+    experiment_run = execute_fedsda_experiment_run(
+        run_settings=build_final_configuration_fedsda_run_settings(
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="circle2",
+                random_seed=11,
+                client_count=2,
+                per_client_sample_count=65,
+                server_aggregation_interval_per_client_samples=10,
+            )
+        )
+    )
+    with TemporaryDirectory() as artifact_directory:
+        artifact_paths = save_fedsda_experiment_run(
+            experiment_run=experiment_run,
+            output_directory=Path(artifact_directory),
+            file_stem="smoke-run",
+        )
+        run_summary, record_tables = load_fedsda_run_artifacts(
+            summary_file_path=artifact_paths.summary_file_path
+        )
+    assert run_summary["run_metrics"]["processed_sample_count"] == 2 * 60
+    assert run_summary["run_settings"]["execution_settings"]["experiment_run_conditions"][
+        "dataset_name"
+    ] == ("circle2")
+    assert record_tables["sample_prediction.combined_prediction_is_correct"].shape == (2, 60)
+    assert record_tables["round.client_held_model_count"].shape == (6, 2)
+    assert record_tables["round.global_model_count"].tolist()[0] >= 1
+    print(
+        "PASS experiment run from final configuration settings, saved and loaded:",
+        len(record_tables),
+        "table columns, accuracy",
+        run_summary["run_metrics"]["prediction_accuracy"],
+    )
     required_outcomes = {
         "alarm_change_interval_too_short",
         "alarm_interval_held_model_reused",

@@ -5013,6 +5013,52 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_server.FedsdaRunServer",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.split_shared_and_concept_specific_parameters",
         )
+    if source_module_path == "runtime/fedsda_experiment_run.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
+            "federated_learning_experiments.runtime.fedsda_measured_run_execution.FedsdaMeasuredRun",
+            "federated_learning_experiments.runtime.fedsda_measured_run_execution.execute_fedsda_stream_protocol_run_with_computation_measurement",
+            "federated_learning_experiments.runtime.fedsda_run_metric_derivation.FedsdaRunMetrics",
+            "federated_learning_experiments.runtime.fedsda_run_metric_derivation.derive_fedsda_run_metrics",
+            "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
+        )
+    if source_module_path == "runtime/fedsda_run_record_tables.py":
+        return imported_module_name in (
+            "dataclasses.fields",
+            "typing.cast",
+            "numpy.asarray",
+            "numpy.bool_",
+            "numpy.int64",
+            "numpy.ndarray",
+            "numpy.str_",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
+            "federated_learning_experiments.runtime.fedsda_experiment_run.FedsdaExperimentRun",
+            "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
+            "federated_learning_experiments.runtime.fedsda_run_server.FedsdaRunServer",
+        )
+    if source_module_path == "runtime/fedsda_run_artifact_files.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "json.dumps",
+            "json.loads",
+            "os.getpid",
+            "os.replace",
+            "pathlib.Path",
+            "platform.machine",
+            "platform.python_version",
+            "platform.system",
+            "numpy.__version__",
+            "numpy.load",
+            "numpy.ndarray",
+            "numpy.savez_compressed",
+            "torch.__version__",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.runtime.fedsda_experiment_run.FedsdaExperimentRun",
+            "federated_learning_experiments.runtime.fedsda_run_record_tables.build_fedsda_run_record_tables",
+        )
     if source_module_path == "runtime/fedsda_run_settings.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6297,6 +6343,9 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/fedsda_run_participant_factory.py",
             "runtime/fedsda_final_configuration_run_settings.py",
             "runtime/fedsda_run_settings.py",
+            "runtime/fedsda_run_artifact_files.py",
+            "runtime/fedsda_run_record_tables.py",
+            "runtime/fedsda_experiment_run.py",
             "runtime/fedsda_run_metric_derivation.py",
             "runtime/fedsda_measured_run_execution.py",
             "learning/training/initial_model_pretraining_settings.py",
@@ -6394,6 +6443,9 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedsda_run_participant_factory.py",
                     "runtime/fedsda_final_configuration_run_settings.py",
                     "runtime/fedsda_run_settings.py",
+                    "runtime/fedsda_run_artifact_files.py",
+                    "runtime/fedsda_run_record_tables.py",
+                    "runtime/fedsda_experiment_run.py",
                     "runtime/fedsda_run_metric_derivation.py",
                     "runtime/fedsda_measured_run_execution.py",
                     "learning/training/initial_model_pretraining_settings.py",

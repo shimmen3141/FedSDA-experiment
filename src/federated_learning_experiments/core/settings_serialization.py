@@ -8,13 +8,21 @@ from typing import cast
 _SETTINGS_TYPE_KEY = "settings_type"
 
 
-def _convert_value(*, value: object, value_path: str) -> object:
+def _convert_value(*, value: object, value_path: str, non_finite_float_as_none: bool) -> object:
     if is_dataclass(value) and not isinstance(value, type):
-        return _convert_settings(settings=value, settings_path=value_path)
+        return _convert_settings(
+            settings=value,
+            settings_path=value_path,
+            non_finite_float_as_none=non_finite_float_as_none,
+        )
     if isinstance(value, (tuple, list)):
         elements = cast("tuple[object, ...] | list[object]", value)
         return [
-            _convert_value(value=element, value_path=f"{value_path}[{element_index}]")
+            _convert_value(
+                value=element,
+                value_path=f"{value_path}[{element_index}]",
+                non_finite_float_as_none=non_finite_float_as_none,
+            )
             for element_index, element in enumerate(elements)
         ]
     if value is None or type(value) in (str, int, bool):
@@ -22,6 +30,8 @@ def _convert_value(*, value: object, value_path: str) -> object:
     if type(value) is float:
         float_value = cast(float, value)
         if not isfinite(float_value):
+            if non_finite_float_as_none:
+                return None
             raise ValueError(f"value at {value_path} must be finite: {value!r}")
         return float_value
     raise TypeError(
@@ -30,7 +40,9 @@ def _convert_value(*, value: object, value_path: str) -> object:
     )
 
 
-def _convert_settings(*, settings: object, settings_path: str) -> dict[str, object]:
+def _convert_settings(
+    *, settings: object, settings_path: str, non_finite_float_as_none: bool
+) -> dict[str, object]:
     plain_mapping: dict[str, object] = {_SETTINGS_TYPE_KEY: type(settings).__name__}
     # 呼出し側が、dataclassの値であることを確かめている。
     for settings_field in fields(settings):  # type: ignore[arg-type]
@@ -41,16 +53,27 @@ def _convert_settings(*, settings: object, settings_path: str) -> dict[str, obje
         plain_mapping[settings_field.name] = _convert_value(
             value=getattr(settings, settings_field.name),
             value_path=f"{settings_path}.{settings_field.name}",
+            non_finite_float_as_none=non_finite_float_as_none,
         )
     return plain_mapping
 
 
-def convert_settings_to_plain_mapping(settings: object) -> dict[str, object]:
+def convert_settings_to_plain_mapping(
+    settings: object, *, non_finite_float_as_none: bool = False
+) -> dict[str, object]:
     """dataclassの設定を、型の名前と、全部のfieldの値を持つ、入れ子の辞書へ変換する。
 
     dataclassは`{"settings_type": 型の名前, field名: 値, ...}`（fieldの宣言の順）、tuple・listはlist、
     `str`・`int`・`bool`・`None`と、有限の`float`は、そのまま。ほかの値は拒否する。
+    非有限の`float`は、拒否する。`non_finite_float_as_none`を指定したときだけ、`None`にする
+    （指標のまとめの、0で割った値を保存するとき）。
     """
     if not is_dataclass(settings) or isinstance(settings, type):
         raise TypeError("settings must be a dataclass instance")
-    return _convert_settings(settings=settings, settings_path=type(settings).__name__)
+    if type(non_finite_float_as_none) is not bool:
+        raise TypeError("non_finite_float_as_none must be builtin bool")
+    return _convert_settings(
+        settings=settings,
+        settings_path=type(settings).__name__,
+        non_finite_float_as_none=non_finite_float_as_none,
+    )

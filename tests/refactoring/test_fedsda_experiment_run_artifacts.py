@@ -1,0 +1,736 @@
+"""完全なrun設定からの1 runの実行、記録の表、保存と読込みを、実旧と照合する。"""
+
+import hashlib
+import json
+import random
+from dataclasses import FrozenInstanceError, fields, replace
+
+import numpy as np
+import pytest
+import torch
+from test_fedsda_final_configuration_run_settings import make_golden_condition_run_settings
+from test_fedsda_run_metric_derivation import (
+    derive_legacy_metric_values,
+    legacy_regression,
+)
+from test_fedsda_run_metric_derivation import (
+    golden_condition_runs as golden_condition_runs,
+)
+from test_fedsda_stream_protocol_run import (
+    make_execution_settings,
+    make_run_participant_settings,
+    run_real_legacy_whole_run,
+)
+from test_held_candidate_validation_progress import make_subclass_copy
+from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
+
+from federated_learning_experiments.configuration.experiment_run_conditions import (
+    ExperimentRunConditions,
+)
+from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
+from federated_learning_experiments.core.settings_serialization import (
+    convert_settings_to_plain_mapping,
+)
+from federated_learning_experiments.evaluation.run_metric_calculations import RunMetricSettings
+from federated_learning_experiments.learning.models.model_computation_measurement import (
+    ModelComputationCounts,
+)
+from federated_learning_experiments.runtime import fedsda_run_artifact_files
+from federated_learning_experiments.runtime.fedsda_experiment_run import (
+    FedsdaExperimentRun,
+    execute_fedsda_experiment_run,
+)
+from federated_learning_experiments.runtime.fedsda_final_configuration_run_settings import (
+    build_final_configuration_fedsda_run_settings,
+)
+from federated_learning_experiments.runtime.fedsda_run_artifact_files import (
+    RUN_ARTIFACT_FORMAT_VERSION,
+    FedsdaRunArtifactPaths,
+    load_fedsda_run_artifacts,
+    save_fedsda_experiment_run,
+)
+from federated_learning_experiments.runtime.fedsda_run_record_tables import (
+    ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME,
+    build_fedsda_run_record_tables,
+)
+from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
+
+# 表の名前から、列の名前と型の種類（i: int64、b: bool、U: 文字列）への対応。
+COMPUTATION_COLUMNS = {count_field.name: "i" for count_field in fields(ModelComputationCounts)}
+EXPECTED_TABLE_COLUMNS = {
+    "sample_prediction": dict(
+        combined_prediction_is_correct="b", maximum_weight_model_id="i", held_model_count="i"
+    ),
+    "concept_change": dict(client_id="i", sample_index="i"),
+    "training_model_switch": dict(client_id="i", sample_index="i"),
+    "adaptation": dict(
+        client_id="i",
+        adaptation_sample_index="i",
+        adaptation_outcome="U",
+        adaptation_action="U",
+        previous_training_model_id="i",
+        current_training_model_id="i",
+    ),
+    "candidate_validation_decision": dict(
+        client_id="i",
+        proposal_sample_index="i",
+        is_incomplete_at_run_end="b",
+        candidate_accepted="b",
+        decision_reason="U",
+        resolution_sample_index="i",
+    ),
+    "model_registration": dict(model_id="i", registered_round_index="i", is_final_global_model="b"),
+    "model_clustering": dict(
+        round_index="i",
+        model_id="i",
+        representative_model_id="i",
+        merged_with_other_models="b",
+        absorbed_into_representative="b",
+    ),
+    "model_pair_clustering": dict(
+        round_index="i", lower_model_id="i", higher_model_id="i", assigned_to_same_cluster="b"
+    ),
+    "round": dict(global_model_count="i", client_held_model_count="i"),
+    "round_local_processing_computation": COMPUTATION_COLUMNS,
+    "round_synchronization_computation": COMPUTATION_COLUMNS,
+}
+# 新の粗い区分から、旧の`action`への対応（照合のため。旧の結果の変換では、逆向きに使う）。
+LEGACY_ACTION_BY_ADAPTATION_ACTION = {
+    "defer_during_candidate_validation": "forward_validation_pending",
+    "skip_too_short_change_interval": "insufficient_data",
+    "reuse_held_model": "reuse",
+    "maintain_current_model": "maintain",
+    "start_candidate_validation": "create_pending",
+    "adopt_candidate_model": "create",
+    "reject_candidate_model": "create_rejected",
+    "remap_by_server_consolidation": "server_merge",
+}
+LEGACY_REASON_BY_DECISION_REASON = {
+    "current_reference_within_historical_loss_tolerance": "current_reference_refit",
+    "alternative_reference_within_historical_loss_tolerance": "alternative_reference_refit",
+    "first_segment_margin_failed": "first_interval",
+    "second_segment_margin_failed": "second_interval",
+    "both_segment_margins_failed": "first_and_second",
+    "both_segment_margins_passed": "accepted",
+}
+
+
+def derive_legacy_trace_arrays_from_record_tables(record_tables):
+    """保存する表だけから、旧の保存形式の31の配列を作る（表が、旧の配列を作るのに足りることの確認）。"""
+    correctness = record_tables["sample_prediction.combined_prediction_is_correct"]
+    maximum_weight_model_ids = record_tables["sample_prediction.maximum_weight_model_id"]
+    is_incomplete = record_tables["candidate_validation_decision.is_incomplete_at_run_end"]
+    return dict(
+        history_accuracy=correctness.astype(np.int8),
+        history_model_id=maximum_weight_model_ids.astype(np.int32),
+        drift_client_ids=record_tables["concept_change.client_id"].astype(np.int32),
+        drift_positions=record_tables["concept_change.sample_index"].astype(np.int32),
+        switch_client_ids=record_tables["training_model_switch.client_id"].astype(np.int32),
+        switch_positions=record_tables["training_model_switch.sample_index"].astype(np.int32),
+        adaptation_client_ids=record_tables["adaptation.client_id"].astype(np.int32),
+        adaptation_positions=record_tables["adaptation.adaptation_sample_index"].astype(np.int32),
+        adaptation_actions=np.asarray(
+            [
+                LEGACY_ACTION_BY_ADAPTATION_ACTION[adaptation_action]
+                for adaptation_action in record_tables["adaptation.adaptation_action"].tolist()
+            ],
+            dtype=np.str_,
+        ),
+        adaptation_old_model_ids=record_tables["adaptation.previous_training_model_id"].astype(
+            np.int32
+        ),
+        adaptation_new_model_ids=record_tables["adaptation.current_training_model_id"].astype(
+            np.int32
+        ),
+        provisional_client_ids=record_tables["candidate_validation_decision.client_id"].astype(
+            np.int32
+        ),
+        provisional_positions=record_tables[
+            "candidate_validation_decision.proposal_sample_index"
+        ].astype(np.int32),
+        provisional_accepted=record_tables["candidate_validation_decision.candidate_accepted"],
+        provisional_reasons=np.asarray(
+            [
+                "insufficient_forward_data"
+                if incomplete
+                else LEGACY_REASON_BY_DECISION_REASON[decision_reason]
+                for incomplete, decision_reason in zip(
+                    is_incomplete.tolist(),
+                    record_tables["candidate_validation_decision.decision_reason"].tolist(),
+                    strict=True,
+                )
+            ],
+            dtype=np.str_,
+        ),
+        provisional_resolution_positions=record_tables[
+            "candidate_validation_decision.resolution_sample_index"
+        ].astype(np.int32),
+        model_registration_ids=record_tables["model_registration.model_id"].astype(np.int32),
+        model_registration_rounds=record_tables["model_registration.registered_round_index"].astype(
+            np.int32
+        ),
+        model_registration_final_active=record_tables["model_registration.is_final_global_model"],
+        clustering_rounds=record_tables["model_clustering.round_index"].astype(np.int32),
+        clustering_model_ids=record_tables["model_clustering.model_id"].astype(np.int32),
+        clustering_representative_model_ids=record_tables[
+            "model_clustering.representative_model_id"
+        ].astype(np.int32),
+        clustering_participated_in_merge=record_tables["model_clustering.merged_with_other_models"],
+        clustering_absorbed=record_tables["model_clustering.absorbed_into_representative"],
+        history_routing_switching_correct=correctness,
+        history_routing_switching_leader_id=maximum_weight_model_ids.astype(np.int32),
+        history_routing_soft_active=np.ones(correctness.shape, dtype=np.bool_),
+        clustering_pair_rounds=record_tables["model_pair_clustering.round_index"].astype(np.int32),
+        clustering_pair_left_model_ids=record_tables["model_pair_clustering.lower_model_id"].astype(
+            np.int32
+        ),
+        clustering_pair_right_model_ids=record_tables[
+            "model_pair_clustering.higher_model_id"
+        ].astype(np.int32),
+        clustering_pair_same_cluster=record_tables[
+            "model_pair_clustering.assigned_to_same_cluster"
+        ],
+    )
+
+
+def assert_record_tables_are_well_formed(record_tables, *, client_count, round_count):
+    """表と列の名前・型・行の数が、決めた形である。"""
+    assert set(record_tables) == {
+        f"{table_name}.{column_name}"
+        for table_name, columns in EXPECTED_TABLE_COLUMNS.items()
+        for column_name in columns
+    }
+    for table_name, columns in EXPECTED_TABLE_COLUMNS.items():
+        row_counts = set()
+        for column_name, kind in columns.items():
+            column = record_tables[f"{table_name}.{column_name}"]
+            assert type(column) is np.ndarray
+            assert column.dtype == {"i": np.int64, "b": np.bool_}.get(kind, column.dtype), (
+                table_name,
+                column_name,
+            )
+            assert column.dtype.kind == kind, (table_name, column_name, column.dtype)
+            row_counts.add(column.shape[0])
+            expected_dimension_count = (
+                2
+                if table_name == "sample_prediction"
+                or (table_name, column_name) == ("round", "client_held_model_count")
+                else 1
+            )
+            assert column.ndim == expected_dimension_count, (table_name, column_name)
+        assert len(row_counts) == 1, table_name
+    assert record_tables["sample_prediction.held_model_count"].shape[0] == client_count
+    assert record_tables["round.client_held_model_count"].shape == (round_count, client_count)
+    assert record_tables[
+        "round_local_processing_computation.shared_part_training_example_count"
+    ].shape == (round_count,)
+    assert set(record_tables["adaptation.adaptation_action"].tolist()) <= set(
+        ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME.values()
+    )
+
+
+def get_random_states():
+    return random.getstate(), repr(np.random.get_state()), torch.get_rng_state().clone()
+
+
+def assert_random_states_equal(random_states, other_random_states):
+    assert random_states[0] == other_random_states[0]
+    assert random_states[1] == other_random_states[1]
+    assert torch.equal(random_states[2], other_random_states[2])
+
+
+def make_small_run_settings(**conditions):
+    return build_final_configuration_fedsda_run_settings(
+        experiment_run_conditions=ExperimentRunConditions(
+            **dict(
+                dataset_name="sine2",
+                random_seed=5,
+                client_count=2,
+                per_client_sample_count=75,
+                server_aggregation_interval_per_client_samples=10,
+            )
+            | conditions
+        )
+    )
+
+
+@pytest.fixture(scope="module")
+def small_experiment_run():
+    return execute_fedsda_experiment_run(run_settings=make_small_run_settings())
+
+
+@pytest.fixture(scope="module")
+def golden_experiment_runs(golden_condition_runs):
+    """goldenの条件を、完全なrun設定から実行する（実旧の結果は、指標の導出のtestのfixtureのもの）。"""
+    run_settings = make_golden_condition_run_settings(golden_condition_runs.dataset_name)
+    random_states = get_random_states()
+    experiment_run = execute_fedsda_experiment_run(run_settings=run_settings)
+    assert_random_states_equal(get_random_states(), random_states)
+    return experiment_run
+
+
+# ---- 1 runの実行 ----
+
+
+def test_experiment_run_holds_settings_measured_run_and_metrics(small_experiment_run):
+    experiment_run = small_experiment_run
+    assert type(experiment_run) is FedsdaExperimentRun
+    assert tuple(run_field.name for run_field in fields(FedsdaExperimentRun)) == (
+        "run_settings",
+        "measured_run",
+        "run_metrics",
+    )
+    assert experiment_run.run_settings == make_small_run_settings()
+    assert experiment_run.measured_run.run_result.processed_sample_count_per_client == 70
+    assert experiment_run.run_metrics.processed_sample_count == 140
+    assert (
+        experiment_run.run_metrics.model_computation_counts
+        == experiment_run.measured_run.model_computation_counts
+    )
+    with pytest.raises(FrozenInstanceError):
+        experiment_run.run_metrics = experiment_run.run_metrics  # type: ignore[misc]
+
+
+def test_experiment_run_is_repeatable_and_leaves_caller_random_state(small_experiment_run):
+    """同じ設定からは、同じ結果（指標、表）を返す。呼出し側の乱数を進めない。"""
+    random_states = get_random_states()
+    repeated_experiment_run = execute_fedsda_experiment_run(run_settings=make_small_run_settings())
+    assert_random_states_equal(get_random_states(), random_states)
+    assert repeated_experiment_run.run_metrics == small_experiment_run.run_metrics
+    record_tables = build_fedsda_run_record_tables(experiment_run=small_experiment_run)
+    repeated_record_tables = build_fedsda_run_record_tables(experiment_run=repeated_experiment_run)
+    assert set(record_tables) == set(repeated_record_tables)
+    for table_column_name, column in record_tables.items():
+        assert np.array_equal(column, repeated_record_tables[table_column_name]), table_column_name
+    # seedを変えると、結果が変わる（seedが、実行へ渡っている）。
+    other_experiment_run = execute_fedsda_experiment_run(
+        run_settings=make_small_run_settings(random_seed=6)
+    )
+    assert not np.array_equal(
+        build_fedsda_run_record_tables(experiment_run=other_experiment_run)[
+            "sample_prediction.combined_prediction_is_correct"
+        ],
+        record_tables["sample_prediction.combined_prediction_is_correct"],
+    )
+
+
+def test_experiment_run_rejects_invalid_settings_before_running(monkeypatch):
+    run_settings = make_small_run_settings()
+    executed = []
+    monkeypatch.setattr(
+        "federated_learning_experiments.runtime.fedsda_experiment_run."
+        "execute_fedsda_stream_protocol_run_with_computation_measurement",
+        lambda **arguments: executed.append(arguments),
+    )
+    mutated_run_settings = replace(run_settings)
+    object.__setattr__(mutated_run_settings, "run_metric_settings", None)
+    for invalid_run_settings in (
+        None,
+        run_settings.execution_settings,
+        make_subclass_copy(run_settings),
+        mutated_run_settings,
+    ):
+        with pytest.raises(RunSettingsValidationError):
+            execute_fedsda_experiment_run(run_settings=invalid_run_settings)
+    with pytest.raises(TypeError):
+        execute_fedsda_experiment_run(run_settings)  # type: ignore[misc]
+    assert executed == []
+
+
+# ---- 記録の表 ----
+
+
+def test_record_tables_of_small_run_are_well_formed_and_do_not_change_the_run(small_experiment_run):
+    random_states = get_random_states()
+    record_tables = build_fedsda_run_record_tables(experiment_run=small_experiment_run)
+    assert_random_states_equal(get_random_states(), random_states)
+    assert_record_tables_are_well_formed(record_tables, client_count=2, round_count=7)
+    assert record_tables["sample_prediction.combined_prediction_is_correct"].shape == (2, 70)
+    # 概念の変更は、処理しなかった末尾の標本（70〜74）も含む、概念列の全体から求める。
+    concept_traces = small_experiment_run.measured_run.run_result.evaluation_concept_traces
+    assert len(concept_traces[0].concept_ids_by_sample_index) == 75
+    # 2回めの読取りも、同じ表（読取りは、参加者の状態を変えない）。
+    repeated_record_tables = build_fedsda_run_record_tables(experiment_run=small_experiment_run)
+    for table_column_name, column in record_tables.items():
+        assert np.array_equal(column, repeated_record_tables[table_column_name]), table_column_name
+        assert column is not repeated_record_tables[table_column_name]
+    with pytest.raises(TypeError):
+        build_fedsda_run_record_tables(experiment_run=small_experiment_run.measured_run)
+    with pytest.raises(TypeError):
+        build_fedsda_run_record_tables(small_experiment_run)  # type: ignore[misc]
+
+
+def test_adaptation_actions_cover_every_adaptation_outcome():
+    """粗い区分は、全部の結果種別に決まっていて、旧の`action`と1対1に対応する。"""
+    from typing import get_args
+
+    from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationOutcome
+
+    assert set(ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME) == set(get_args(AdaptationOutcome))
+    assert set(ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME.values()) == set(
+        LEGACY_ACTION_BY_ADAPTATION_ACTION
+    )
+    assert len(set(LEGACY_ACTION_BY_ADAPTATION_ACTION.values())) == len(
+        LEGACY_ACTION_BY_ADAPTATION_ACTION
+    )
+    # 粗い区分→旧の`action`が、既存の対照の対応（結果種別→旧の`action`）と一致する。
+    from test_observed_sample_processing import LEGACY_ACTION_BY_ADAPTATION_OUTCOME
+
+    assert {
+        adaptation_outcome: LEGACY_ACTION_BY_ADAPTATION_ACTION[adaptation_action]
+        for adaptation_outcome, adaptation_action in ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME.items()
+    } == LEGACY_ACTION_BY_ADAPTATION_OUTCOME
+
+
+def test_golden_condition_experiment_run_matches_separately_executed_run(
+    golden_condition_runs, golden_experiment_runs
+):
+    """設定からの実行は、計測つきの全体runと指標の導出を別々に呼んだ場合と、同じ指標になる。"""
+    assert golden_experiment_runs.run_metrics == golden_condition_runs.run_metrics
+    assert golden_experiment_runs.run_metrics is not golden_condition_runs.run_metrics
+    assert (
+        golden_experiment_runs.measured_run.round_model_computation_counts
+        == golden_condition_runs.measured_run.round_model_computation_counts
+    )
+
+
+def test_golden_condition_record_tables_rebuild_legacy_saved_arrays(
+    golden_condition_runs, golden_experiment_runs
+):
+    """goldenの条件で、表だけから作った31の配列が、実旧が保存した配列と、形・型・値で一致する。"""
+    client_count = len(golden_experiment_runs.measured_run.participants.client_operations)
+    round_count = golden_experiment_runs.measured_run.run_result.synchronization_interval_count
+    record_tables = build_fedsda_run_record_tables(experiment_run=golden_experiment_runs)
+    assert_record_tables_are_well_formed(
+        record_tables, client_count=client_count, round_count=round_count
+    )
+    legacy_arrays = derive_legacy_trace_arrays_from_record_tables(record_tables)
+    assert tuple(legacy_arrays) == legacy_regression.TRACES
+    for trace_name, trace_values in legacy_arrays.items():
+        legacy_trace_values = golden_condition_runs.legacy_trace_arrays[trace_name]
+        assert trace_values.shape == legacy_trace_values.shape, trace_name
+        assert trace_values.dtype == legacy_trace_values.dtype, trace_name
+        assert np.array_equal(trace_values, legacy_trace_values), trace_name
+
+
+def test_golden_condition_round_model_counts_match_legacy_saved_arrays(
+    golden_condition_runs, golden_experiment_runs
+):
+    """goldenの条件で、ラウンドごとのモデル数（グローバル、clientごとの保有、クラスタリング待ち）が、実旧と一致する。"""
+    record_tables = build_fedsda_run_record_tables(experiment_run=golden_experiment_runs)
+    legacy_round_model_counts = golden_condition_runs.legacy_round_model_counts
+    assert (
+        record_tables["round.global_model_count"].tolist()
+        == legacy_round_model_counts["global_model_count"].tolist()
+    )
+    assert (
+        record_tables["round.client_held_model_count"].tolist()
+        == golden_condition_runs.legacy_round_client_counts["held_model_count"].tolist()
+    )
+    # 旧の「クラスタリング待ちのモデル数」は、最終構成のサーバでは、いつも0（表に入れない）。
+    assert not legacy_round_model_counts["pending_clustering_count"].any()
+    # ラウンドごとのモデルの計算は、計測つきの全体runの値。
+    round_counts = golden_experiment_runs.measured_run.round_model_computation_counts
+    for count_field in fields(ModelComputationCounts):
+        assert record_tables[f"round_local_processing_computation.{count_field.name}"].tolist() == [
+            getattr(each_round.local_processing_model_computation_counts, count_field.name)
+            for each_round in round_counts
+        ]
+        assert record_tables[f"round_synchronization_computation.{count_field.name}"].tolist() == [
+            getattr(each_round.synchronization_model_computation_counts, count_field.name)
+            for each_round in round_counts
+        ]
+    # 標本ごとの保有モデル数は、clientの記録。
+    assert record_tables["sample_prediction.held_model_count"].sum() == (
+        golden_experiment_runs.run_metrics.held_model_sample_count
+    )
+
+
+# モデルの登録・統合を通る、小さい条件: (seed, client数, 標本数, 集約間隔, 変更までの最小の間隔, 変更の確率, 学習の間隔)。
+# 2つめの条件は、登録されたモデルが、同じラウンドの集約でグローバルモデルに残らない場合を含む
+# （登録の数と、統合で吸収された数からは、グローバルモデル数を求められない）。
+ROUND_MODEL_COUNT_CONDITIONS = [
+    (7, 3, 300, 10, 30, 0.05, 2),
+    (2, 5, 300, 10, 50, 0.03, 1),
+    (4, 3, 500, 25, 60, 0.03, 1),
+]
+
+
+@pytest.mark.parametrize(
+    "random_seed,client_count,per_client_sample_count,aggregation_interval,minimum_change_gap,concept_change_probability,update_interval",
+    ROUND_MODEL_COUNT_CONDITIONS,
+)
+def test_round_model_counts_match_real_legacy_whole_run(
+    random_seed,
+    client_count,
+    per_client_sample_count,
+    aggregation_interval,
+    minimum_change_gap,
+    concept_change_probability,
+    update_interval,
+    monkeypatch,
+    valid_run_settings_mapping,
+):
+    """登録・統合を通る小さい条件で、ラウンドごとのモデル数が、実旧の全体runの、同期の後の値と一致する。"""
+    execution_settings = make_execution_settings(
+        random_seed=random_seed,
+        client_count=client_count,
+        per_client_sample_count=per_client_sample_count,
+        aggregation_interval=aggregation_interval,
+        minimum_change_gap=minimum_change_gap,
+        concept_change_probability=concept_change_probability,
+    )
+    legacy_run = run_real_legacy_whole_run(
+        monkeypatch=monkeypatch,
+        execution_settings=execution_settings,
+        update_interval=update_interval,
+    )
+    experiment_run = execute_fedsda_experiment_run(
+        run_settings=FedsdaRunSettings(
+            execution_settings=execution_settings,
+            run_participant_settings=make_run_participant_settings(
+                valid_run_settings_mapping, update_interval=update_interval
+            ),
+            model_consolidation_settings=valid_run_settings_mapping["model_consolidation_settings"],
+            run_metric_settings=RunMetricSettings(
+                maximum_detection_delay_sample_count=20, post_change_recovery_window_sample_count=5
+            ),
+        )
+    )
+    record_tables = build_fedsda_run_record_tables(experiment_run=experiment_run)
+    legacy_round_model_counts = legacy_run["legacy_round_model_counts"]
+    assert (
+        record_tables["round.global_model_count"].tolist()
+        == legacy_round_model_counts["global_model_count"]
+    )
+    assert (
+        record_tables["round.client_held_model_count"].tolist()
+        == legacy_round_model_counts["client_held_model_count"]
+    )
+    # 旧の「クラスタリング待ちのモデル数」は、最終構成のサーバでは、いつも0（表に入れない）。
+    assert not any(legacy_round_model_counts["pending_clustering_count"])
+    # 中身のある照合になっている: clientごとの保有モデル数が、グローバルモデル数と違うラウンドがある。
+    assert any(
+        held_model_count != global_model_count
+        for global_model_count, held_model_counts in zip(
+            legacy_round_model_counts["global_model_count"],
+            legacy_round_model_counts["client_held_model_count"],
+            strict=True,
+        )
+        for held_model_count in held_model_counts
+    )
+
+
+# ---- 保存と読込み ----
+
+
+def test_saved_artifacts_round_trip(small_experiment_run, tmp_path):
+    """保存した要約と表を読み込むと、保存したときと同じ内容が返る。"""
+    artifact_paths = save_fedsda_experiment_run(
+        experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+    )
+    assert artifact_paths == FedsdaRunArtifactPaths(
+        summary_file_path=tmp_path / "run-a.json", record_table_file_path=tmp_path / "run-a.npz"
+    )
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["run-a.json", "run-a.npz"]
+    summary, record_tables = load_fedsda_run_artifacts(
+        summary_file_path=artifact_paths.summary_file_path
+    )
+    assert list(summary) == [
+        "format_version",
+        "run_settings",
+        "run_metrics",
+        "environment",
+        "record_table_file_name",
+    ]
+    assert summary["format_version"] == RUN_ARTIFACT_FORMAT_VERSION == 1
+    assert summary["run_settings"] == convert_settings_to_plain_mapping(
+        small_experiment_run.run_settings
+    )
+    assert summary["run_metrics"] == convert_settings_to_plain_mapping(
+        small_experiment_run.run_metrics, non_finite_float_as_none=True
+    )
+    assert summary["run_metrics"]["settings_type"] == "FedsdaRunMetrics"
+    assert summary["run_metrics"]["prediction_accuracy"] == (
+        small_experiment_run.run_metrics.prediction_accuracy
+    )
+    assert summary["record_table_file_name"] == "run-a.npz"
+    assert set(summary["environment"]) == {"system", "machine", "python", "numpy", "torch"}
+    assert summary["environment"]["numpy"] == np.__version__
+    assert summary["environment"]["torch"] == torch.__version__
+    expected_record_tables = build_fedsda_run_record_tables(experiment_run=small_experiment_run)
+    assert set(record_tables) == set(expected_record_tables)
+    for table_column_name, expected_column in expected_record_tables.items():
+        column = record_tables[table_column_name]
+        assert column.shape == expected_column.shape, table_column_name
+        assert column.dtype == expected_column.dtype, table_column_name
+        assert np.array_equal(column, expected_column), table_column_name
+    # 要約のファイルは、非有限の値を含まないJSON。
+    json.loads(
+        artifact_paths.summary_file_path.read_text(encoding="utf-8"),
+        parse_constant=lambda constant: pytest.fail(f"non-finite value in summary: {constant}"),
+    )
+
+
+def test_saving_refuses_to_overwrite_and_writes_nothing(small_experiment_run, tmp_path):
+    """どちらかのファイルがあれば、上書きせず、何も書かない。"""
+    for existing_file_name in ("run-a.json", "run-a.npz"):
+        output_directory = tmp_path / existing_file_name
+        output_directory.mkdir()
+        (output_directory / existing_file_name).write_text("existing", encoding="utf-8")
+        with pytest.raises(FileExistsError, match="run-a"):
+            save_fedsda_experiment_run(
+                experiment_run=small_experiment_run,
+                output_directory=output_directory,
+                file_stem="run-a",
+            )
+        assert [path.name for path in output_directory.iterdir()] == [existing_file_name]
+        assert (output_directory / existing_file_name).read_text(encoding="utf-8") == "existing"
+
+
+def test_failed_save_leaves_no_partial_files(small_experiment_run, tmp_path, monkeypatch):
+    """保存が途中で失敗したとき、書きかけのファイルも、片方だけのファイルも、残さない。"""
+
+    def fail_to_replace_summary(source_path, destination_path):
+        if str(destination_path).endswith(".json"):
+            raise OSError("simulated failure while placing the summary")
+        real_replace(source_path, destination_path)
+
+    real_replace = fedsda_run_artifact_files.replace
+    monkeypatch.setattr(fedsda_run_artifact_files, "replace", fail_to_replace_summary)
+    with pytest.raises(OSError, match="simulated failure"):
+        save_fedsda_experiment_run(
+            experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+        )
+    assert list(tmp_path.iterdir()) == []
+
+    def fail_to_write_tables(*arguments, **keyword_arguments):
+        raise OSError("simulated failure while writing the tables")
+
+    monkeypatch.setattr(fedsda_run_artifact_files, "replace", real_replace)
+    monkeypatch.setattr(fedsda_run_artifact_files, "savez_compressed", fail_to_write_tables)
+    with pytest.raises(OSError, match="simulated failure"):
+        save_fedsda_experiment_run(
+            experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+        )
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "invalid_file_stem", ["", " run", "run ", ".", "..", "a/b", "a\\b", "c:run", None, 1]
+)
+def test_saving_rejects_invalid_destinations(small_experiment_run, tmp_path, invalid_file_stem):
+    with pytest.raises((TypeError, ValueError), match="file_stem"):
+        save_fedsda_experiment_run(
+            experiment_run=small_experiment_run,
+            output_directory=tmp_path,
+            file_stem=invalid_file_stem,
+        )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_saving_rejects_invalid_arguments(small_experiment_run, tmp_path):
+    with pytest.raises(FileNotFoundError):
+        save_fedsda_experiment_run(
+            experiment_run=small_experiment_run,
+            output_directory=tmp_path / "missing",
+            file_stem="run-a",
+        )
+    assert not (tmp_path / "missing").exists()
+    with pytest.raises(TypeError, match="output_directory"):
+        save_fedsda_experiment_run(
+            experiment_run=small_experiment_run, output_directory=str(tmp_path), file_stem="run-a"
+        )
+    with pytest.raises(TypeError, match="experiment_run"):
+        save_fedsda_experiment_run(
+            experiment_run=small_experiment_run.run_metrics,
+            output_directory=tmp_path,
+            file_stem="run-a",
+        )
+    with pytest.raises(TypeError):
+        save_fedsda_experiment_run(small_experiment_run, tmp_path, "run-a")  # type: ignore[misc]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_loading_rejects_unsupported_or_damaged_summaries(small_experiment_run, tmp_path):
+    artifact_paths = save_fedsda_experiment_run(
+        experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+    )
+    summary = json.loads(artifact_paths.summary_file_path.read_text(encoding="utf-8"))
+    for damaged_summary in (
+        summary | dict(format_version=RUN_ARTIFACT_FORMAT_VERSION + 1),
+        {key: value for key, value in summary.items() if key != "format_version"},
+        summary | dict(record_table_file_name="../run-a.npz"),
+        summary | dict(record_table_file_name=None),
+        [summary],
+    ):
+        damaged_summary_file_path = tmp_path / "damaged.json"
+        damaged_summary_file_path.write_text(json.dumps(damaged_summary), encoding="utf-8")
+        with pytest.raises(ValueError):
+            load_fedsda_run_artifacts(summary_file_path=damaged_summary_file_path)
+    with pytest.raises(TypeError, match="summary_file_path"):
+        load_fedsda_run_artifacts(summary_file_path=str(artifact_paths.summary_file_path))
+    with pytest.raises(FileNotFoundError):
+        load_fedsda_run_artifacts(summary_file_path=tmp_path / "missing.json")
+
+
+def test_golden_condition_saved_artifacts_match_real_legacy_and_golden(
+    golden_condition_runs, golden_experiment_runs, tmp_path
+):
+    """goldenの条件を、設定から実行・保存・読込みした結果が、実旧の33指標と31の配列（と、実行環境のgolden）に一致する。"""
+    artifact_paths = save_fedsda_experiment_run(
+        experiment_run=golden_experiment_runs,
+        output_directory=tmp_path,
+        file_stem=golden_condition_runs.dataset_name,
+    )
+    summary, record_tables = load_fedsda_run_artifacts(
+        summary_file_path=artifact_paths.summary_file_path
+    )
+    # 要約の指標: 保存した辞書が、導出した指標の辞書。そこから作った旧の33指標が、実旧の実行結果。
+    assert summary["run_metrics"] == convert_settings_to_plain_mapping(
+        golden_experiment_runs.run_metrics, non_finite_float_as_none=True
+    )
+    legacy_metric_values = derive_legacy_metric_values(golden_experiment_runs.run_metrics)
+    assert set(legacy_metric_values) == set(legacy_regression.METRICS)
+    for legacy_metric_name, metric_value in legacy_metric_values.items():
+        assert metric_value == golden_condition_runs.legacy_result[legacy_metric_name], (
+            legacy_metric_name
+        )
+    assert (
+        summary["run_metrics"]["prediction_accuracy"]
+        == (golden_condition_runs.legacy_result["accuracy"])
+    )
+    assert (
+        summary["run_metrics"]["stable_period_prediction_accuracy"]
+        == (golden_condition_runs.legacy_result["stable_accuracy"])
+    )
+    assert (
+        summary["run_metrics"]["final_global_model_count"]
+        == (golden_condition_runs.legacy_result["final_model_count"])
+    )
+    # 読み込んだ表から作った31の配列が、実旧が保存した配列。
+    legacy_arrays = derive_legacy_trace_arrays_from_record_tables(record_tables)
+    for trace_name, trace_values in legacy_arrays.items():
+        legacy_trace_values = golden_condition_runs.legacy_trace_arrays[trace_name]
+        assert trace_values.dtype == legacy_trace_values.dtype, trace_name
+        assert np.array_equal(trace_values, legacy_trace_values), trace_name
+    # 実行環境のgoldenがあれば、読み込んだ表から作った配列のSHA-256が、goldenの記録と一致する。
+    from test_environment_proposed_regression import find_golden_path
+
+    golden_path = find_golden_path(legacy_regression.environment())
+    if golden_path is not None:
+        golden_case = json.loads(golden_path.read_text(encoding="utf-8"))["cases"][
+            golden_condition_runs.dataset_name
+        ]
+        for trace_name, trace_values in legacy_arrays.items():
+            serialized_values = json.dumps(
+                trace_values.tolist(), separators=(",", ":"), ensure_ascii=True
+            )
+            assert golden_case["traces"][trace_name] == dict(
+                shape=list(trace_values.shape),
+                sha256=hashlib.sha256(serialized_values.encode()).hexdigest(),
+            ), trace_name
+    # 完全なrun設定が、保存されている。
+    assert summary["run_settings"] == convert_settings_to_plain_mapping(
+        make_golden_condition_run_settings(golden_condition_runs.dataset_name)
+    )

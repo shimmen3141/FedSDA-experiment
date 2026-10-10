@@ -161,6 +161,10 @@ def run_real_legacy_whole_run(*, monkeypatch, execution_settings, update_interva
                 config.N_CLIENTS, config.TOTAL_DATA_POINTS
             )
             legacy_data_streams = experiment.build_data_streams(legacy_concept_schedules)
+            # ラウンドごとの、同期の後のモデル数（旧の`_record_round_telemetry`と同じ値）。
+            legacy_round_model_counts = dict(
+                global_model_count=[], client_held_model_count=[], pending_clustering_count=[]
+            )
             for round_index in range(round_count):
                 start_index = round_index * chunk_sample_count
                 end_index = start_index + chunk_sample_count
@@ -173,6 +177,16 @@ def run_real_legacy_whole_run(*, monkeypatch, execution_settings, update_interva
                     legacy_mode_specification.use_server,
                     False,
                 )
+                legacy_round_model_counts["global_model_count"].append(
+                    len(legacy_server.global_models)
+                )
+                legacy_round_model_counts["client_held_model_count"].append(
+                    [len(legacy_client.models) for legacy_client in legacy_clients]
+                )
+                legacy_round_model_counts["pending_clustering_count"].append(
+                    # 旧の記録と同じ読み方（この属性を持たないサーバでは、0）。
+                    len(getattr(legacy_server, "models_pending_clustering", ()))
+                )
             for legacy_client in legacy_clients:
                 legacy_client.finalize_incomplete_forward_validation()
             assert not any(hasattr(legacy_client, "flush") for legacy_client in legacy_clients)
@@ -182,6 +196,7 @@ def run_real_legacy_whole_run(*, monkeypatch, execution_settings, update_interva
                 legacy_clients=legacy_clients,
                 legacy_concept_schedules=legacy_concept_schedules,
                 legacy_data_streams=legacy_data_streams,
+                legacy_round_model_counts=legacy_round_model_counts,
                 python_random_state=random.getstate(),
                 numpy_random_state=np.random.get_state(),
             )
