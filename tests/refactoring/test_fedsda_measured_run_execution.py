@@ -1,5 +1,7 @@
 """計測つきの全体run: 計測なしの全体runと同じ結果、準備の間の計算の分離、計測の後始末。"""
 
+from dataclasses import fields
+
 import pytest
 from test_fedsda_run_client import snapshot_run_client_state
 from test_fedsda_stream_protocol_run import (
@@ -19,6 +21,7 @@ from federated_learning_experiments.learning.models.model_computation_measuremen
 )
 from federated_learning_experiments.runtime.fedsda_measured_run_execution import (
     FedsdaMeasuredRun,
+    RoundModelComputationCounts,
     execute_fedsda_stream_protocol_run_with_computation_measurement,
 )
 from federated_learning_experiments.runtime.fedsda_run_metric_derivation import (
@@ -110,6 +113,48 @@ def test_measured_run_matches_unmeasured_run_and_separates_preparation_computati
         earlier_counts=preparation_counts,
     )
     assert measured_run.model_computation_counts.concept_specific_part_training_example_count > 0
+    # ラウンドごとのモデルの計算: ラウンドの順に、ローカルの処理と、同期。
+    round_counts = measured_run.round_model_computation_counts
+    assert type(round_counts) is tuple
+    assert all(type(each_round) is RoundModelComputationCounts for each_round in round_counts)
+    assert [each_round.round_index for each_round in round_counts] == list(
+        range(measured_run.run_result.synchronization_interval_count)
+    )
+    # ラウンドの値と、終端の値の合計が、全体（準備の後から終わりまで）と一致する。
+    for count_field in fields(ModelComputationCounts):
+        assert sum(
+            getattr(each_round.local_processing_model_computation_counts, count_field.name)
+            + getattr(each_round.synchronization_model_computation_counts, count_field.name)
+            for each_round in round_counts
+        ) + getattr(
+            measured_run.finalization_model_computation_counts, count_field.name
+        ) == getattr(measured_run.model_computation_counts, count_field.name), count_field.name
+    # 同期の間は、clientの評価と再較正だけ（学習と、optimizerの更新はない）。
+    for each_round in round_counts:
+        synchronization_counts = each_round.synchronization_model_computation_counts
+        assert synchronization_counts.shared_part_training_example_count == 0
+        assert synchronization_counts.concept_specific_part_training_example_count == 0
+        assert synchronization_counts.shared_parameter_optimizer_step_count == 0
+        assert synchronization_counts.concept_specific_parameter_optimizer_step_count == 0
+        assert synchronization_counts.shared_part_estimated_backward_multiply_accumulate_count == 0
+        # ローカルの処理は、標本ごとの予測を含む（clientの数×区間の標本数、以上）。
+        local_processing_counts = each_round.local_processing_model_computation_counts
+        assert local_processing_counts.concept_specific_part_inference_example_count >= 3 * 10
+    assert any(
+        each_round.synchronization_model_computation_counts.concept_specific_part_inference_example_count
+        > 0
+        for each_round in round_counts
+    )
+    assert any(
+        each_round.local_processing_model_computation_counts.concept_specific_part_training_example_count
+        > 0
+        for each_round in round_counts
+    )
+    # 終端の処理は、学習を行わない。
+    assert (
+        measured_run.finalization_model_computation_counts.concept_specific_part_training_example_count
+        == 0
+    )
     assert measured_run.model_computation_counts.concept_specific_part_inference_example_count > (
         3 * measured_run.run_result.processed_sample_count_per_client
     )

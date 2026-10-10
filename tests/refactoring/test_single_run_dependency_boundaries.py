@@ -4922,6 +4922,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_measured_run_execution.py":
         return imported_module_name in (
+            "federated_learning_experiments.execution.run_participant_contracts.RunServerOperations",
             "dataclasses.dataclass",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
             "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",
