@@ -27,11 +27,11 @@
   - _Boundary: fedsda_run_record_tables_
   - _Requirements: 4.1, 4.2_
 
-- [ ] 4. 記録と検証
+- [x] 4. 記録と検証
 - [x] 4.1 移行の一覧を更新する
   - _Requirements: 5.1_
 
-- [ ] 4.2 独立レビューの指摘を反映し、全回帰を通す
+- [x] 4.2 独立レビューの指摘を反映し、全回帰を通す
   - 完了: 全pytest、Ruff、Pyright、`pip check`、照合script（`names`・`identity`・`progress`）が成功し、件数とcommitを「Implementation Notes」へ記録してある。固定旧実装とgoldenの差分が空である。WSLでの実行結果を、区別して記録してある。
   - _Depends: 2.2, 3.1, 4.1_
 
@@ -59,7 +59,7 @@
 - 指摘の採否: (1)Minor: 小さい条件で、監視の値の最大を照合していない→採用（実旧の`_add_telemetry_results`の値と`==`で比べる）。(2)Minor: 値が0のままの指標は、対応表の取り違えを検出できない疑い→採用。照合のたびに旧の値を積み、最後のtestが、実行した全部の条件（goldenの3ケースと、小さい条件14）で、旧の値が同じになる指標の対と、0のままの指標を数える。実測: 0のままの指標はない。取り違えを検出できない対は2つだけ——`provisional_interval_count_mean`と`provisional_training_count_mean`（最終構成では同じ値。新は1つの値で持つ）、`provisional_resolution_delay_mean`と`provisional_validation_count_mean`（最終構成の検証は、提案の次の標本から1標本ずつ進むので、同じ値になる。もとの2つの列は、表のtestで、別々に、旧の配列と照合している）。(3)任意: 理由と採否が、境界の丸めで食い違いうる（旧と同じ）→設計へ注記。(4)任意: 長さの違う列で、旧は飛ばし、新は例外→設計の「旧と違う点」へ記載。(5)任意: 名前の基準を、残りの名前にも当てる→採用。`training_model_switch.sample_index`→`switch_sample_index`、クラスタリングの2つの表の`round_index`→`server_round_index`、`model_registration.registered_round_index`→`registered_server_round_index`（testの期待を先に直し、失敗を確かめてから、sourceを直した）。`resolution_sample_index`は、名前はそのままで、未完了の行での意味を設計へ書いた。(6)任意: 件数の書き方→直した（値を照合した配列は18。ほかに、`provisional_validation_sources`が常に`forward`であることを確かめた。移行の一覧へ、内訳を書いた）。(7)任意: 適応の粗い区分の対応の定数を、`evaluation/`へ置く→見送り（粗い区分は、指標と表のための、旧の`action`に当たるまとめ方で、使うのは`runtime/`の2つのmoduleだけ）。testのimportは、定義しているmoduleからに直した。
 - Blocker・Majorがないので、確認のレビューは行っていない（手順どおり）。
 - WSLで成功（`6440083`、WSL Ubuntu）: このspecの3つのtestファイルが、231 passed・skipなし（goldenの3ケースの応答の指標と列が、WSLでの実旧の実行とも一致）。指摘の反映の後は、WSLでは実行していない（変えたのは、列の名前と、testの補強）。
-- 検証（Windows基準環境）: レビューの前の`6440083`で、全pytest（並列、`-n 8 --dist loadfile`）12097 passed / 4 skipped / 3 warnings、exit 0。指摘の反映の後の件数とcommitは、下の「最終の検証」。
+- 検証（Windows基準環境）: レビューの前の`6440083`で、全pytest（並列、`-n 8 --dist loadfile`）12097 passed / 4 skipped / 3 warnings、exit 0。指摘の反映の後の`ded63bf`で、全pytest 12098 passed / 4 skipped / 3 warnings、exit 0。JUnitはfailure 0、error 0。`tests.test_regression`・`tests.test_proposed_regression`を含む。skipの4件は、POSIX bashがない3件と、旧実装の照合を既存の回帰testに任せる1件。Ruff（check・format）、Pyright 0 errors、`pip check`成功。固定旧`748c3aa`からの差分は空。`spec_checks.py names`は、新規・変更のsourceで「未登録: なし」。この後は、specの文書とsteeringだけを変えた。
 - 変異テストは実行していない（既定）。
 
 ### 未検証・残る制約
