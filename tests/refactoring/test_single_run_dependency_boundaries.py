@@ -4918,8 +4918,27 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
             "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
         )
+    if source_module_path == "runtime/fedsda_measured_run_execution.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.data.sine.sine_sample_generation.SineSampleGenerator",
+            "federated_learning_experiments.execution.run_execution_records.StreamProtocolRunResult",
+            "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
+            "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.StreamProtocolExecutionSettings",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationMeter",
+            "federated_learning_experiments.learning.models.model_computation_measurement.measure_model_computation",
+            "federated_learning_experiments.learning.models.model_computation_measurement.subtract_model_computation_counts",
+            "federated_learning_experiments.runtime.fedsda_run_participant_factory.FedsdaRunParticipantFactory",
+            "federated_learning_experiments.runtime.fedsda_run_participant_factory.FedsdaRunParticipantSettings",
+            "federated_learning_experiments.runtime.single_run_execution.execute_stream_protocol_run",
+        )
     if source_module_path == "runtime/fedsda_run_metric_derivation.py":
         return imported_module_name in (
+            "federated_learning_experiments.evaluation.loss_monitoring_computation_count_store.LossMonitoringComputationCounts",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
             "dataclasses.dataclass",
             "torch.Tensor",
             "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
@@ -6177,6 +6196,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/fedsda_run_server.py",
             "runtime/fedsda_run_participant_factory.py",
             "runtime/fedsda_run_metric_derivation.py",
+            "runtime/fedsda_measured_run_execution.py",
             "learning/training/initial_model_pretraining_settings.py",
             "runtime/initial_model_pretraining.py",
             "evaluation/communication_volume_record_store.py",
@@ -6265,6 +6285,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedsda_run_server.py",
                     "runtime/fedsda_run_participant_factory.py",
                     "runtime/fedsda_run_metric_derivation.py",
+                    "runtime/fedsda_measured_run_execution.py",
                     "learning/training/initial_model_pretraining_settings.py",
                     "runtime/initial_model_pretraining.py",
                     "evaluation/communication_volume_record_store.py",

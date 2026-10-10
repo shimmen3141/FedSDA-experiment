@@ -7,6 +7,9 @@ from torch import Tensor
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeSnapshot,
 )
+from federated_learning_experiments.evaluation.loss_monitoring_computation_count_store import (
+    LossMonitoringComputationCounts,
+)
 from federated_learning_experiments.evaluation.run_metric_calculations import (
     DetectionMetrics,
     RunMetricSettings,
@@ -17,6 +20,9 @@ from federated_learning_experiments.evaluation.run_metric_calculations import (
 )
 from federated_learning_experiments.execution.run_execution_records import StreamProtocolRunResult
 from federated_learning_experiments.execution.run_participant_contracts import RunParticipants
+from federated_learning_experiments.learning.models.model_computation_measurement import (
+    ModelComputationCounts,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.global_model_repository import (
     GlobalModelRepository,
 )
@@ -46,6 +52,10 @@ class FedsdaRunMetrics:
     mixed_prediction_sample_count: int
     prediction_weight_recalibration_replayed_sample_count: int
     global_diagnostic_recalibration_replayed_sample_count: int
+    # 損失の監視（検出器）の計算の計数（全clientの合計）。
+    loss_monitoring_computation_counts: LossMonitoringComputationCounts
+    # モデルの計算の計数（計測つきで実行したときだけ。なければNone）。事前学習の計算は含めない。
+    model_computation_counts: ModelComputationCounts | None
 
 
 def _count_parameter_values_and_bytes(*, parameters: dict[str, Tensor]) -> tuple[int, int]:
@@ -92,8 +102,11 @@ def derive_fedsda_run_metrics(
     run_result: StreamProtocolRunResult,
     participants: RunParticipants,
     run_metric_settings: RunMetricSettings,
+    model_computation_counts: ModelComputationCounts | None = None,
 ) -> FedsdaRunMetrics:
     """全体runの結果と参加者から、指標を導出する。
+
+    モデルの計算の計数は、計測つきで実行したときに、その結果を渡す（導出は、計測しない）。
 
     概念の変更位置は、概念列の全体（処理されなかった末尾を含む）から取る。末尾にある変更は、
     検出されないので、見逃しとして数える。
@@ -104,6 +117,11 @@ def derive_fedsda_run_metrics(
         raise TypeError("participants must be exact RunParticipants")
     if type(run_metric_settings) is not RunMetricSettings:
         raise TypeError("run_metric_settings must be exact RunMetricSettings")
+    if (
+        model_computation_counts is not None
+        and type(model_computation_counts) is not ModelComputationCounts
+    ):
+        raise TypeError("model_computation_counts must be exact ModelComputationCounts or None")
     # 手で壊した設定も、値を使う前に検査し直す。
     run_metric_settings.__post_init__()
     run_clients: list[FedsdaRunClient] = []
@@ -138,6 +156,10 @@ def derive_fedsda_run_metrics(
     )
     training_model_switch_sample_indices_by_client = tuple(
         run_client.owners.adaptation_record_store.get_state_snapshot().training_model_switch_sample_indices
+        for run_client in run_clients
+    )
+    loss_monitoring_computation_counts_by_client = tuple(
+        run_client.owners.loss_monitoring_computation_count_store.get_loss_monitoring_computation_counts()
         for run_client in run_clients
     )
     server_owners = run_server.owners
@@ -183,4 +205,15 @@ def derive_fedsda_run_metrics(
             run_client.owners.diagnostic_evidence_collection.global_diagnostic_evidence.aggregation_recalibration_sample_count
             for run_client in run_clients
         ),
+        loss_monitoring_computation_counts=LossMonitoringComputationCounts(
+            detector_component_update_count=sum(
+                client_counts.detector_component_update_count
+                for client_counts in loss_monitoring_computation_counts_by_client
+            ),
+            evaluated_candidate_bet_count=sum(
+                client_counts.evaluated_candidate_bet_count
+                for client_counts in loss_monitoring_computation_counts_by_client
+            ),
+        ),
+        model_computation_counts=model_computation_counts,
     )

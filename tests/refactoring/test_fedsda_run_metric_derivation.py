@@ -30,7 +30,6 @@ from test_fedsda_run_client import (
     snapshot_run_client_state,
 )
 from test_fedsda_stream_protocol_run import (
-    execute_stream_protocol_run_with_factory,
     make_execution_settings,
     make_run_participant_settings,
     run_real_legacy_whole_run,
@@ -59,25 +58,50 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.inc
 from federated_learning_experiments.methods.fedsda.consolidation.model_clustering_calculations import (
     ModelClusteringCriteria,
 )
+from federated_learning_experiments.runtime.fedsda_measured_run_execution import (
+    execute_fedsda_stream_protocol_run_with_computation_measurement,
+)
 from federated_learning_experiments.runtime.fedsda_run_metric_derivation import (
     FedsdaRunMetrics,
     derive_fedsda_run_metrics,
 )
 
 GOLDEN_DATASET_NAME = "sine2"
-# goldenが比べる33指標のうち、計算量の7項目は、新実装に計数がないので、照合しない（後のspecで扱う）。
-UNDERIVED_LEGACY_METRIC_NAMES = tuple(
-    legacy_metric_name
-    for legacy_metric_name in legacy_regression.METRICS
-    if legacy_metric_name.startswith("compute_")
-)
+# goldenが比べる33指標のうち、導出していないもの（なし。計算量の7項目も、計測つきの全体runから導出する）。
+UNDERIVED_LEGACY_METRIC_NAMES = ()
 
 
 def derive_legacy_metric_values(run_metrics):
     """導出した指標を、旧の指標の名前へ写す（照合のための対応表）。"""
     detection_metrics = run_metrics.training_model_switch_detection_metrics
     communication_volume = run_metrics.communication_volume
+    model_computation_counts = run_metrics.model_computation_counts
+    loss_monitoring_computation_counts = run_metrics.loss_monitoring_computation_counts
     return dict(
+        # 計算量: 旧の「推論」は、学習以外の用途の、概念固有部を通った標本数。「optimizerの更新」は、概念固有部の更新。
+        compute_inference_examples_total=(
+            model_computation_counts.concept_specific_part_inference_example_count
+        ),
+        compute_training_examples_total=(
+            model_computation_counts.concept_specific_part_training_example_count
+        ),
+        compute_optimizer_steps_total=(
+            model_computation_counts.concept_specific_parameter_optimizer_step_count
+        ),
+        compute_backbone_examples_total=(
+            model_computation_counts.shared_part_training_example_count
+            + model_computation_counts.shared_part_inference_example_count
+        ),
+        compute_head_examples_total=(
+            model_computation_counts.concept_specific_part_training_example_count
+            + model_computation_counts.concept_specific_part_inference_example_count
+        ),
+        compute_drift_detector_updates_total=(
+            loss_monitoring_computation_counts.detector_component_update_count
+        ),
+        compute_drift_detector_hypotheses_total=(
+            loss_monitoring_computation_counts.evaluated_candidate_bet_count
+        ),
         accuracy=run_metrics.prediction_accuracy,
         stable_accuracy=run_metrics.stable_period_prediction_accuracy,
         final_model_count=run_metrics.final_global_model_count,
@@ -323,6 +347,55 @@ def derive_legacy_trace_arrays(*, run_result, participants):
     )
 
 
+def assert_multiply_accumulate_counts_match_example_counts(
+    *, model_computation_counts, participants
+):
+    """積和演算の数が、標本数の計数×（部品の全結合層の、入力の次元×出力の次元の合計）と一致する。
+
+    逆伝播の見積りは、共有部の最初の層だけ、入力へ勾配を戻さない（重みの勾配だけ）。
+    """
+    run_client = participants.client_operations[0]
+    classifier = run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()[
+        0
+    ].classifier
+
+    def linear_layer_sizes(module):
+        return [
+            layer.in_features * layer.out_features
+            for layer in module.modules()
+            if type(layer) is torch.nn.Linear
+        ]
+
+    shared_layer_sizes = linear_layer_sizes(classifier.feature_extractor)
+    concept_specific_size = sum(linear_layer_sizes(classifier.residual_adapter)) + sum(
+        linear_layer_sizes(classifier.classification_layer)
+    )
+    assert len(shared_layer_sizes) >= 1
+    assert concept_specific_size > 0
+    counts = model_computation_counts
+    assert counts.shared_part_inference_forward_multiply_accumulate_count == (
+        counts.shared_part_inference_example_count * sum(shared_layer_sizes)
+    )
+    assert counts.shared_part_training_forward_multiply_accumulate_count == (
+        counts.shared_part_training_example_count * sum(shared_layer_sizes)
+    )
+    assert counts.concept_specific_part_inference_forward_multiply_accumulate_count == (
+        counts.concept_specific_part_inference_example_count * concept_specific_size
+    )
+    assert counts.concept_specific_part_training_forward_multiply_accumulate_count == (
+        counts.concept_specific_part_training_example_count * concept_specific_size
+    )
+    assert counts.shared_part_estimated_backward_multiply_accumulate_count == (
+        counts.shared_part_training_example_count
+        * (shared_layer_sizes[0] + 2 * sum(shared_layer_sizes[1:]))
+    )
+    assert counts.concept_specific_part_estimated_backward_multiply_accumulate_count == (
+        counts.concept_specific_part_training_example_count * 2 * concept_specific_size
+    )
+    assert counts.shared_part_training_example_count > 0
+    assert counts.shared_part_inference_example_count > 0
+
+
 def make_golden_condition_settings(*, legacy_values, hidden_layer_widths, monkeypatch):
     """goldenの条件の、旧の設定の値を、新の実行設定と参加者の設定の束へ写す。
 
@@ -451,21 +524,24 @@ def golden_condition_runs(tmp_path_factory):
                     monkeypatch=monkeypatch,
                 )
             )
-        run_result, participants, run_random_sources = execute_stream_protocol_run_with_factory(
+        measured_run = execute_fedsda_stream_protocol_run_with_computation_measurement(
             execution_settings=execution_settings,
             run_participant_settings=run_participant_settings,
         )
+        run_result = measured_run.run_result
+        participants = measured_run.participants
         yield SimpleNamespace(
+            measured_run=measured_run,
             legacy_result=legacy_result,
             legacy_trace_arrays=legacy_trace_arrays,
             run_result=run_result,
             participants=participants,
-            run_random_sources=run_random_sources,
             run_metric_settings=run_metric_settings,
             run_metrics=derive_fedsda_run_metrics(
                 run_result=run_result,
                 participants=participants,
                 run_metric_settings=run_metric_settings,
+                model_computation_counts=measured_run.model_computation_counts,
             ),
         )
     finally:
@@ -475,15 +551,15 @@ def golden_condition_runs(tmp_path_factory):
 
 
 def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_condition_runs):
-    """goldenの条件で、導出した指標が、実旧の実行結果の26項目と、完全に一致する。"""
+    """goldenの条件で、導出した指標が、実旧の実行結果の33項目（計算量の7項目を含む）と、完全に一致する。"""
     run_metrics = golden_condition_runs.run_metrics
     assert type(run_metrics) is FedsdaRunMetrics
     legacy_metric_values = derive_legacy_metric_values(run_metrics)
     assert set(legacy_metric_values) | set(UNDERIVED_LEGACY_METRIC_NAMES) == set(
         legacy_regression.METRICS
     )
-    assert len(legacy_metric_values) == 26
-    assert len(UNDERIVED_LEGACY_METRIC_NAMES) == 7
+    assert len(legacy_metric_values) == 33
+    assert len(UNDERIVED_LEGACY_METRIC_NAMES) == 0
     for legacy_metric_name, metric_value in legacy_metric_values.items():
         assert metric_value == golden_condition_runs.legacy_result[legacy_metric_name], (
             legacy_metric_name
@@ -498,6 +574,22 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
         < run_metrics.training_model_switch_detection_metrics.matched_detection_count
         < run_metrics.training_model_switch_detection_metrics.detection_count
     )
+    # 計算量: 積和演算の数が、標本数の計数と、層の形から計算した値と一致する。
+    assert_multiply_accumulate_counts_match_example_counts(
+        model_computation_counts=run_metrics.model_computation_counts,
+        participants=golden_condition_runs.participants,
+    )
+    # 共有部の特徴を使い回すので、共有部を通った標本数は、概念固有部より少ない。
+    assert (
+        run_metrics.model_computation_counts.shared_part_inference_example_count
+        < run_metrics.model_computation_counts.concept_specific_part_inference_example_count
+    )
+    # 準備の間の計算（事前学習）は、指標に含めない。
+    preparation_counts = golden_condition_runs.measured_run.preparation_model_computation_counts
+    assert preparation_counts.concept_specific_part_training_example_count == (
+        legacy_regression.COMMON["PRETRAIN_SAMPLES"] * legacy_regression.COMMON["PRETRAIN_EPOCHS"]
+    )
+    assert preparation_counts.concept_specific_parameter_optimizer_step_count > 0
     # 定常精度は、精度と違う値（回復の窓が、実際に標本を除いている）。
     assert run_metrics.stable_period_prediction_accuracy != run_metrics.prediction_accuracy
 
@@ -579,7 +671,6 @@ GOLDEN_CONDITION_DECISION_REASONS = {"accepted", "alternative_reference_refit", 
 def test_derivation_does_not_change_participant_state_and_is_repeatable(golden_condition_runs):
     """導出は、参加者の状態と乱数を変えず、同じ結果を返す。"""
     participants = golden_condition_runs.participants
-    run_random_sources = golden_condition_runs.run_random_sources
 
     def snapshot_all_states():
         server_owners = participants.server_operations.owners
@@ -588,7 +679,7 @@ def test_derivation_does_not_change_participant_state_and_is_repeatable(golden_c
                 repr(
                     snapshot_run_client_state(
                         run_client=run_client,
-                        python_random_generator=run_random_sources.python_random_generator,
+                        python_random_generator=run_client._python_random_generator,
                     )
                 )
                 for run_client in participants.client_operations
@@ -610,9 +701,20 @@ def test_derivation_does_not_change_participant_state_and_is_repeatable(golden_c
         run_result=golden_condition_runs.run_result,
         participants=participants,
         run_metric_settings=golden_condition_runs.run_metric_settings,
+        model_computation_counts=golden_condition_runs.measured_run.model_computation_counts,
     )
     assert snapshot_all_states() == states_before
     assert repeated_run_metrics == golden_condition_runs.run_metrics
+    # 計測なしの導出は、モデルの計算の計数を「なし」として、ほかの指標を同じに返す。
+    unmeasured_run_metrics = derive_fedsda_run_metrics(
+        run_result=golden_condition_runs.run_result,
+        participants=participants,
+        run_metric_settings=golden_condition_runs.run_metric_settings,
+    )
+    assert unmeasured_run_metrics.model_computation_counts is None
+    assert unmeasured_run_metrics == replace(
+        golden_condition_runs.run_metrics, model_computation_counts=None
+    )
 
 
 # 小さい条件: (seed, client数, 標本数, 集約間隔, 最小の変更間隔, 変更確率, 学習の間隔)。
@@ -683,12 +785,13 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
             execution_settings=execution_settings,
             update_interval=update_interval,
         )
-        run_result, participants, _ = execute_stream_protocol_run_with_factory(
+        measured_run = execute_fedsda_stream_protocol_run_with_computation_measurement(
             execution_settings=execution_settings,
             run_participant_settings=make_run_participant_settings(
                 valid_run_settings_mapping, update_interval=update_interval
             ),
         )
+        run_result, participants = measured_run.run_result, measured_run.participants
         # 実旧の保存処理を、実旧の全体runの結果へ呼んで、旧の保存形式の配列を得る（設定の差し替えが有効な間に）。
         legacy_raw_path = tmp_path / "legacy-small-run.npz"
         experiment._save_raw_run(
@@ -711,8 +814,11 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
             run_result,
             participants,
             legacy_trace_arrays,
+            measured_run.model_computation_counts,
         )
-    legacy_run, run_result, participants, legacy_trace_arrays = SMALL_RUNS_BY_CONDITION[condition]
+    legacy_run, run_result, participants, legacy_trace_arrays, model_computation_counts = (
+        SMALL_RUNS_BY_CONDITION[condition]
+    )
     # 新の記録から作った31の離散列が、実旧の保存処理が作った配列と、形・型・値で一致する。
     trace_arrays = derive_legacy_trace_arrays(run_result=run_result, participants=participants)
     assert tuple(trace_arrays) == legacy_regression.TRACES
@@ -743,6 +849,22 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
             maximum_detection_delay_sample_count=maximum_delay,
             post_change_recovery_window_sample_count=recovery_window,
         ),
+        model_computation_counts=model_computation_counts,
+    )
+    # 計算量の7項目: 実旧の指標の集計（全clientの計数の合計から）。
+    legacy_computation_results = {}
+    experiment._add_telemetry_results(
+        legacy_computation_results, legacy_clients, experiment._new_round_telemetry()
+    )
+    legacy_metric_values = derive_legacy_metric_values(run_metrics)
+    for legacy_metric_name in legacy_regression.METRICS:
+        if legacy_metric_name.startswith("compute_"):
+            assert (
+                legacy_metric_values[legacy_metric_name]
+                == legacy_computation_results[legacy_metric_name]
+            ), legacy_metric_name
+    assert_multiply_accumulate_counts_match_example_counts(
+        model_computation_counts=model_computation_counts, participants=participants
     )
     assert run_metrics.prediction_accuracy == legacy_metrics["accuracy"]
     if isnan(legacy_metrics["stable_accuracy"]):
@@ -841,6 +963,7 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
         run_result=run_result,
         participants=participants,
         run_metric_settings=golden_condition_runs.run_metric_settings,
+        model_computation_counts=golden_condition_runs.measured_run.model_computation_counts,
     )
     invalid_argument_cases = [
         ("run_result", SimpleNamespace(), TypeError),
@@ -848,6 +971,8 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
         ("participants", SimpleNamespace(), TypeError),
         ("run_metric_settings", dict(maximum_detection_delay_sample_count=1), TypeError),
         ("run_metric_settings", None, TypeError),
+        ("model_computation_counts", dict(shared_part_training_example_count=1), TypeError),
+        ("model_computation_counts", 0, TypeError),
         # clientの操作が、FedSDAのclientそのものでない。
         (
             "participants",

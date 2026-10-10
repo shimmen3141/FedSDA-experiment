@@ -167,6 +167,9 @@ from federated_learning_experiments.runtime.alarm_occurrence_handling import (
 from federated_learning_experiments.runtime.candidate_validation_session_holder import (
     CandidateValidationSessionHolder,
 )
+from federated_learning_experiments.runtime.fedsda_measured_run_execution import (
+    execute_fedsda_stream_protocol_run_with_computation_measurement,
+)
 from federated_learning_experiments.runtime.fedsda_run_client import assemble_fedsda_run_client
 from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientScalarSettings,
@@ -176,7 +179,6 @@ from federated_learning_experiments.runtime.fedsda_run_metric_derivation import 
     derive_fedsda_run_metrics,
 )
 from federated_learning_experiments.runtime.fedsda_run_participant_factory import (
-    FedsdaRunParticipantFactory,
     FedsdaRunParticipantSettings,
 )
 from federated_learning_experiments.runtime.held_candidate_validation_progress import (
@@ -197,7 +199,6 @@ from federated_learning_experiments.runtime.server_round_synchronization import 
     synchronize_models_in_server_round,
 )
 from federated_learning_experiments.runtime.single_run_execution import (
-    execute_stream_protocol_run,
     validate_prepared_run_participants,
 )
 
@@ -1324,29 +1325,28 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
 
     戻り値: 比較できる結果の要約（同じ条件の2回の実行が、同じ結果になることを、mainが確かめる）。
     """
-    participant_factory = FedsdaRunParticipantFactory(
-        run_participant_settings=FedsdaRunParticipantSettings(
-            run_client_settings=run_client_settings,
-            initial_model_pretraining_settings=InitialModelPretrainingSettings(
-                pretraining_sample_count=40,
-                pretraining_epoch_count=3,
-                pretraining_batch_sample_count=8,
-            ),
-            model_architecture_settings=ModelArchitectureSettings(
-                model_architecture_name="shared_backbone_residual_adapter",
-                residual_adapter_requested_rank=2,
-            ),
-            hidden_layer_widths=(5,),
-            model_clustering_criteria=ModelClusteringCriteria(
-                maximum_same_cluster_decision_score=0.1,
-                minimum_pair_evaluation_sample_count=5,
-                clustering_confidence_level=0.95,
-            ),
-            maximum_evaluating_client_count_per_model=WHOLE_RUN_CLIENT_COUNT,
-        )
+    run_participant_settings = FedsdaRunParticipantSettings(
+        run_client_settings=run_client_settings,
+        initial_model_pretraining_settings=InitialModelPretrainingSettings(
+            pretraining_sample_count=40,
+            pretraining_epoch_count=3,
+            pretraining_batch_sample_count=8,
+        ),
+        model_architecture_settings=ModelArchitectureSettings(
+            model_architecture_name="shared_backbone_residual_adapter",
+            residual_adapter_requested_rank=2,
+        ),
+        hidden_layer_widths=(5,),
+        model_clustering_criteria=ModelClusteringCriteria(
+            maximum_same_cluster_decision_score=0.1,
+            minimum_pair_evaluation_sample_count=5,
+            clustering_confidence_level=0.95,
+        ),
+        maximum_evaluating_client_count_per_model=WHOLE_RUN_CLIENT_COUNT,
     )
     torch_random_state = torch.get_rng_state().clone()
-    run_result = execute_stream_protocol_run(
+    # モデルの計算の計測つきで実行する（計測は、この呼出しの間だけ）。
+    measured_run = execute_fedsda_stream_protocol_run_with_computation_measurement(
         execution_settings=StreamProtocolExecutionSettings(
             experiment_run_conditions=ExperimentRunConditions(
                 dataset_name="sine2",
@@ -1362,8 +1362,9 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
             ),
             execution_strategy="sample_index_then_client_order_with_interval_synchronization",
         ),
-        participant_factory=participant_factory,
+        run_participant_settings=run_participant_settings,
     )
+    run_result = measured_run.run_result
     # 全体runは、呼出し側のtorchの乱数を進めない。
     assert torch.equal(torch.get_rng_state(), torch_random_state)
     round_count = WHOLE_RUN_SAMPLE_COUNT // WHOLE_RUN_INTERVAL_SAMPLE_COUNT
@@ -1380,7 +1381,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
     assert stage_counts["server_synchronization"] == round_count
     assert stage_counts["incomplete_candidate_validation_finalization"] == WHOLE_RUN_CLIENT_COUNT
     assert run_result.execution_events[-1].stage_name == "started_communication_finalization"
-    participants = participant_factory.prepared_run_participants
+    participants = measured_run.participants
     run_server = participants.server_operations
     server_owners = run_server.owners
     synchronizations = run_server.snapshot_server_round_synchronizations()
@@ -1464,7 +1465,35 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
         run_metric_settings=RunMetricSettings(
             maximum_detection_delay_sample_count=20, post_change_recovery_window_sample_count=5
         ),
+        model_computation_counts=measured_run.model_computation_counts,
     )
+    # 計算量: 準備の間（事前学習: 40件×3 epoch）は別に数え、指標には、その後の計算だけを含める。
+    preparation_counts = measured_run.preparation_model_computation_counts
+    assert preparation_counts.concept_specific_part_training_example_count == 40 * 3
+    model_computation_counts = run_metrics.model_computation_counts
+    assert model_computation_counts == measured_run.model_computation_counts
+    assert model_computation_counts.concept_specific_part_training_example_count > 0
+    # 予測は、標本ごとに、保有する全モデルの概念固有部を通す（共有部は1回）。
+    assert model_computation_counts.concept_specific_part_inference_example_count > (
+        processed_sample_count * WHOLE_RUN_CLIENT_COUNT
+    )
+    assert (
+        model_computation_counts.shared_part_inference_example_count
+        <= model_computation_counts.concept_specific_part_inference_example_count
+    )
+    # 積和演算: 共有部は、全結合層が1つ（特徴2→幅5）。
+    assert model_computation_counts.shared_part_inference_forward_multiply_accumulate_count == (
+        model_computation_counts.shared_part_inference_example_count * 2 * 5
+    )
+    assert model_computation_counts.shared_part_estimated_backward_multiply_accumulate_count == (
+        model_computation_counts.shared_part_training_example_count * 2 * 5
+    )
+    # 検出器: 標本1件につき、全体と正解クラスの2つを更新する。
+    assert (
+        run_metrics.loss_monitoring_computation_counts.detector_component_update_count
+        == 2 * processed_sample_count * WHOLE_RUN_CLIENT_COUNT
+    )
+    assert run_metrics.loss_monitoring_computation_counts.evaluated_candidate_bet_count > 0
     assert 0.5 < run_metrics.prediction_accuracy <= 1.0
     assert 0.5 < run_metrics.stable_period_prediction_accuracy <= 1.0
     detection_metrics = run_metrics.training_model_switch_detection_metrics

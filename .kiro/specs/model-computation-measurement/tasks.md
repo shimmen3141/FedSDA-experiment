@@ -36,8 +36,8 @@
   - _Boundary: client_model_cross_evaluation、alarm_training_interval_preparation、post_aggregation_prediction_recalibration_
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 3. 計測つきの全体runと指標
-- [ ] 3.1 計測つきの全体runを実行し、計算量の指標を導出して、goldenの7項目と照合する
+- [x] 3. 計測つきの全体runと指標
+- [x] 3.1 計測つきの全体runを実行し、計算量の指標を導出して、goldenの7項目と照合する
   - 指標の導出のtestを、33指標のすべてを照合する形へ、先に直す。計測つきの全体runのtest。
   - 計測つきの全体run、指標の導出の2項目を実装する。共用scriptへ足す。
   - 完了: 指標の導出のtest（Windowsでは、goldenの33指標の照合を含む）、計測つきの全体runのtest、共用script、依存境界のsuiteが成功する。
