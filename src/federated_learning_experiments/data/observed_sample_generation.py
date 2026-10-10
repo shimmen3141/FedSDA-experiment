@@ -8,6 +8,13 @@ from federated_learning_experiments.data.circle.circle_sample_generation import 
     CircleSampleGenerator,
 )
 from federated_learning_experiments.data.dataset_definitions import get_dataset_definition
+from federated_learning_experiments.data.mnist.mnist_sample_generation import (
+    MnistSampleGenerator,
+)
+from federated_learning_experiments.data.mnist.mnist_training_data import (
+    load_mnist_training_data,
+    resolve_mnist_data_directory,
+)
 from federated_learning_experiments.data.observed_streams import (
     ClientConceptTrace,
     ClientObservedStream,
@@ -29,6 +36,8 @@ _GENERATOR_TYPE_BY_DATASET_NAME: dict[str, type] = {
     "sea2": SeaSampleGenerator,
     "sea4": SeaSampleGenerator,
     "circle2": CircleSampleGenerator,
+    "mnist2": MnistSampleGenerator,
+    "mnist4": MnistSampleGenerator,
 }
 
 # 下の関数が返す、生成器の型（受け取る側の、exact型の検査に使う）。
@@ -57,6 +66,15 @@ def create_observed_sample_generator(
             numpy_random_generator=numpy_random_generator,
             concept_count=dataset_definition.concept_count,
         )
+    if generator_type is MnistSampleGenerator:
+        # MNISTは、置いてあるファイルから読んだ学習用データ（processの中で使い回す）を使う。
+        return MnistSampleGenerator(
+            numpy_random_generator=numpy_random_generator,
+            concept_count=dataset_definition.concept_count,
+            mnist_training_data=load_mnist_training_data(
+                data_directory=resolve_mnist_data_directory()
+            ),
+        )
     if generator_type is CircleSampleGenerator:
         return CircleSampleGenerator(numpy_random_generator=numpy_random_generator)
     if generator_type is SineSampleGenerator:
@@ -65,11 +83,11 @@ def create_observed_sample_generator(
 
 
 def is_observed_sample_generator_of_dataset(*, sample_generator: object, dataset_name: str) -> bool:
-    """生成器が、そのdatasetのもの（型が一致し、SEAなら概念数も一致する）かを返す。"""
+    """生成器が、そのdatasetのもの（型が一致し、SEAとMNISTなら概念数も一致する）かを返す。"""
     dataset_definition = get_dataset_definition(dataset_name=dataset_name)
     if type(sample_generator) is not _get_generator_type(dataset_name=dataset_name):
         return False
-    if isinstance(sample_generator, SeaSampleGenerator):
+    if isinstance(sample_generator, (SeaSampleGenerator, MnistSampleGenerator)):
         return sample_generator.concept_count == dataset_definition.concept_count
     return True
 

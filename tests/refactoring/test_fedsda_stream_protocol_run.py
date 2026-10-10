@@ -1,6 +1,7 @@
 """最終構成のFedSDAの全体run（factoryと実行の枠）を、実旧の全体runの最終状態と照合する。"""
 
 import random
+import sys
 from dataclasses import replace
 
 import numpy as np
@@ -27,6 +28,7 @@ from test_run_settings_validation import valid_run_settings_mapping as valid_run
 from test_server_model_registration_and_aggregation import assert_server_state_matches_legacy
 
 from federated_drift_experiment import config, experiment
+from federated_drift_experiment.data.specs import DATASET_SPECS
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
@@ -121,7 +123,7 @@ def run_real_legacy_whole_run(*, monkeypatch, execution_settings, update_interva
     concept_schedule_settings = execution_settings.concept_schedule_settings
     set_legacy_configuration(
         monkeypatch,
-        class_count=2,
+        class_count=DATASET_SPECS[experiment_run_conditions.dataset_name].num_classes,
         update_interval=update_interval,
         routing_recalibration="fifo_replay",
         dataset_name=experiment_run_conditions.dataset_name,
@@ -571,7 +573,7 @@ def test_whole_run_conditions_cover_required_paths():
     }, sorted(observed_paths)
 
 
-# sine2以外の合成データ: (dataset, seed, client数, clientごとの標本数, 集約間隔, 変更までの最小の間隔, 変更の確率, 学習の間隔)。
+# sine2以外のdataset: (dataset, seed, client数, clientごとの標本数, 集約間隔, 変更までの最小の間隔, 変更の確率, 学習の間隔)。
 # 実旧だけでなく新旧の全体runを、3 dataset×6 seed×3条件（54条件。全部一致）進めて、新しいモデルの登録を通る条件を選んだ。
 # 最後の要素は、その条件が通ることを確かめる経路（sine2の条件が通らない、別の保有モデルの再利用を含む）。
 OTHER_DATASET_WHOLE_RUN_CONDITIONS = [
@@ -581,14 +583,31 @@ OTHER_DATASET_WHOLE_RUN_CONDITIONS = [
     ("sea4", 2, 5, 300, 10, 50, 0.03, 2, {"models_consolidated"}),
     ("circle2", 7, 3, 500, 25, 60, 0.03, 2, {"models_consolidated"}),
     ("circle2", 17, 3, 300, 10, 30, 0.05, 1, set()),
+    # MNIST（784特徴・10クラス）: 新旧の全体runを、2 dataset×6 seed×4条件（48条件。全部一致）進めて選んだ。
+    ("mnist2", 17, 3, 400, 10, 30, 0.05, 2, {"multiple_global_models_at_run_end"}),
+    ("mnist2", 2, 3, 500, 25, 60, 0.03, 2, {"models_consolidated"}),
+    (
+        "mnist4",
+        17,
+        3,
+        400,
+        10,
+        30,
+        0.05,
+        2,
+        {"multiple_global_models_at_run_end", "decision_alternative_reference_refit"},
+    ),
+    ("mnist4", 7, 3, 400, 10, 30, 0.05, 2, {"decision_alternative_reference_refit"}),
 ]
+# MNISTの小さい条件の、隠れ層の幅（合成データの小さい条件の幅では、概念の変化が損失に現れず、モデルが増えない）。
+MNIST_HIDDEN_LAYER_WIDTHS = (48,)
 
 
 @pytest.mark.parametrize(
     "dataset_name,random_seed,client_count,per_client_sample_count,aggregation_interval,minimum_change_gap,concept_change_probability,update_interval,required_paths",
     OTHER_DATASET_WHOLE_RUN_CONDITIONS,
 )
-def test_whole_run_of_other_synthetic_datasets_matches_real_legacy_whole_run(
+def test_whole_run_of_other_datasets_matches_real_legacy_whole_run(
     dataset_name,
     random_seed,
     client_count,
@@ -601,8 +620,14 @@ def test_whole_run_of_other_synthetic_datasets_matches_real_legacy_whole_run(
     monkeypatch,
     valid_run_settings_mapping,
 ):
-    """sea2・sea4・circle2でも、全体runの全状態が実旧と一致する（特徴数と概念数は、datasetの定義から）。"""
+    """sea2・sea4・circle2・mnist2・mnist4でも、全体runの全状態が実旧と一致する（特徴数・概念数・クラス数は、datasetの定義から）。"""
     dataset_definition = get_dataset_definition(dataset_name=dataset_name)
+    if dataset_name.startswith("mnist"):
+        # 新旧の組立てが読む、testの定数（旧の設定の差し替えと、新の参加者の設定の束）。
+        for test_module_name in ("test_fedsda_run_client", __name__):
+            monkeypatch.setattr(
+                sys.modules[test_module_name], "HIDDEN_LAYER_WIDTHS", MNIST_HIDDEN_LAYER_WIDTHS
+            )
     execution_settings = make_execution_settings(
         random_seed=random_seed,
         client_count=client_count,
@@ -995,7 +1020,7 @@ def test_factory_rejects_invalid_preparation_before_consuming_random_numbers(
     for invalid_arguments in (
         dict(experiment_run_conditions=None),
         dict(experiment_run_conditions=make_subclass_copy(experiment_run_conditions)),
-        # 生成器と違うdataset（sea2）と、定義のないdataset（mnist2）。
+        # 生成器と違うdataset（sea2、mnist2）。
         dict(experiment_run_conditions=replace(experiment_run_conditions, dataset_name="sea2")),
         dict(experiment_run_conditions=replace(experiment_run_conditions, dataset_name="mnist2")),
         # sea2の実行条件へ、sea4の生成器（同じ型で、概念数が違う）。

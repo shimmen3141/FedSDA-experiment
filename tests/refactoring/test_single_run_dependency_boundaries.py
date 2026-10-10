@@ -4736,6 +4736,7 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
         "federated_learning_experiments.data",
         "federated_learning_experiments.data.concept_schedules",
         "federated_learning_experiments.data.circle",
+        "federated_learning_experiments.data.mnist",
         "federated_learning_experiments.data.sea",
         "federated_learning_experiments.data.sine",
         "federated_learning_experiments.execution",
@@ -4875,6 +4876,27 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.fields",
             "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
         )
+    if source_module_path == "data/mnist/mnist_training_data.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "gzip.open",
+            "os.environ",
+            "pathlib.Path",
+            "struct.unpack",
+            "numpy.frombuffer",
+            "numpy.int64",
+            "numpy.ndarray",
+            "numpy.uint8",
+        )
+    if source_module_path == "data/mnist/mnist_sample_generation.py":
+        return imported_module_name in (
+            "numpy.arange",
+            "numpy.float32",
+            "numpy.uint8",
+            "numpy.random.RandomState",
+            "federated_learning_experiments.data.mnist.mnist_training_data.MnistTrainingData",
+            "federated_learning_experiments.data.observed_streams.ObservedSample",
+        )
     if source_module_path == "data/dataset_definitions.py":
         return imported_module_name in ("dataclasses.dataclass",)
     if source_module_path == "data/observed_sample_generation.py":
@@ -4883,6 +4905,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "numpy.random.RandomState",
             "federated_learning_experiments.data.circle.circle_sample_generation.CircleSampleGenerator",
             "federated_learning_experiments.data.dataset_definitions.get_dataset_definition",
+            "federated_learning_experiments.data.mnist.mnist_sample_generation.MnistSampleGenerator",
+            "federated_learning_experiments.data.mnist.mnist_training_data.load_mnist_training_data",
+            "federated_learning_experiments.data.mnist.mnist_training_data.resolve_mnist_data_directory",
             "federated_learning_experiments.data.observed_streams.ClientConceptTrace",
             "federated_learning_experiments.data.observed_streams.ClientObservedStream",
             "federated_learning_experiments.data.observed_streams.ObservedSample",
@@ -6241,6 +6266,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/run_metric_calculations.py",
             "data/observed_sample_generation.py",
             "data/dataset_definitions.py",
+            "data/mnist/mnist_sample_generation.py",
+            "data/mnist/mnist_training_data.py",
             "evaluation/computation_cost_summary.py",
             "evaluation/held_model_count_record_store.py",
             "evaluation/loss_monitoring_computation_count_store.py",
@@ -6334,6 +6361,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/run_metric_calculations.py",
                     "data/observed_sample_generation.py",
                     "data/dataset_definitions.py",
+                    "data/mnist/mnist_sample_generation.py",
+                    "data/mnist/mnist_training_data.py",
                     "evaluation/computation_cost_summary.py",
                     "evaluation/held_model_count_record_store.py",
                     "evaluation/loss_monitoring_computation_count_store.py",
@@ -7715,6 +7744,7 @@ def test_single_run_package_boundaries_have_no_exports():
         "data",
         "data/concept_schedules",
         "data/circle",
+        "data/mnist",
         "data/sea",
         "data/sine",
         "execution",

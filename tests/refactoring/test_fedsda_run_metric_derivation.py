@@ -72,10 +72,34 @@ from federated_learning_experiments.runtime.fedsda_run_metric_derivation import 
     derive_fedsda_run_metrics,
 )
 
-# goldenの条件を照合するdataset（旧の回帰testの対象のうち、新実装へ移植済みのもの。mnist2は後のspec）。
-GOLDEN_DATASET_NAMES = ("sine2", "sea2")
+# goldenの条件を照合するdataset（旧の回帰testの3ケースの全部）。
+GOLDEN_DATASET_NAMES = ("sine2", "sea2", "mnist2")
 # goldenが比べる33指標のうち、導出していないもの（なし。計算量の7項目も、計測つきの全体runから導出する）。
 UNDERIVED_LEGACY_METRIC_NAMES = ()
+# goldenの条件ごとの、通る経路（照合が、中身のある比較になっていることを確かめるための期待）。
+# sine2（1500件）: 複数のグローバルモデル、統合、候補の判定、学習帰属の切替を、すべて通る。
+# sea2（600件）: 警報のたびに現行モデルを維持し、モデルが1つのまま終わる。
+# mnist2（client 2、100件）: 候補の採用と棄却、学習帰属の切替を通るが、グローバルモデルは1つのまま終わる。
+GOLDEN_CONDITION_PATHS_BY_DATASET_NAME = {
+    "sine2": dict(
+        multiple_global_models=True,
+        candidate_decisions=True,
+        multiple_held_models=True,
+        synchronization_computation=True,
+    ),
+    "sea2": dict(
+        multiple_global_models=False,
+        candidate_decisions=False,
+        multiple_held_models=False,
+        synchronization_computation=False,
+    ),
+    "mnist2": dict(
+        multiple_global_models=False,
+        candidate_decisions=True,
+        multiple_held_models=True,
+        synchronization_computation=True,
+    ),
+}
 
 
 def derive_legacy_metric_values(run_metrics):
@@ -403,6 +427,11 @@ def assert_multiply_accumulate_counts_match_example_counts(
     assert counts.shared_part_inference_example_count > 0
 
 
+def legacy_result_client_count(dataset_name):
+    """goldenの条件の、clientの数（旧の回帰testの条件から）。"""
+    return {**legacy_regression.COMMON, **legacy_regression.CASES[dataset_name]}["N_CLIENTS"]
+
+
 def make_golden_condition_settings(
     *, dataset_name, legacy_values, hidden_layer_widths, monkeypatch
 ):
@@ -523,6 +552,12 @@ def golden_condition_runs(request, tmp_path_factory):
                     if setting_name.isupper()
                 }
                 hidden_layer_widths = tuple(config.dataset_spec().hidden_dims)
+                # 旧のdatasetの定義の学習率（mnistは1e-3）は、通常の学習率と、新規モデルの学習率の両方に優先する。
+                dataset_learning_rate = config.dataset_spec().learning_rate
+                if dataset_learning_rate is not None:
+                    legacy_values = legacy_values | dict(
+                        BASE_LR=dataset_learning_rate, NEW_MODEL_LR=dataset_learning_rate
+                    )
         with np.load(raw_path, allow_pickle=False) as legacy_arrays:
             legacy_trace_arrays = {
                 trace_name: legacy_arrays[trace_name] for trace_name in legacy_regression.TRACES
@@ -586,40 +621,46 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
             legacy_metric_name
         )
     # 旧の回帰testが求める経路（複数のモデル、候補の採用、統合、再較正）を通っている。
-    # 旧の回帰testと同じく、経路を求めるのはsine2だけ（sea2の条件は、600件で、警報のたびに現行モデルを維持し、モデルが切り替わらない）。
-    if golden_condition_runs.dataset_name == "sine2":
+    # 旧の回帰testと同じく、すべての経路を求めるのはsine2だけ（datasetごとの期待は、上の表）。
+    expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
+    detection_metrics = run_metrics.training_model_switch_detection_metrics
+    assert detection_metrics.concept_change_count > 0
+    if expected_paths["multiple_global_models"]:
         assert run_metrics.final_global_model_count > 1
-        assert run_metrics.candidate_validation_decision_count > 0
         assert run_metrics.prediction_weight_recalibration_replayed_sample_count > 0
-        assert run_metrics.training_model_switch_detection_metrics.matched_detection_count > 0
-        assert (
-            0
-            < run_metrics.training_model_switch_detection_metrics.matched_detection_count
-            < run_metrics.training_model_switch_detection_metrics.detection_count
-        )
+        assert 0 < detection_metrics.matched_detection_count < detection_metrics.detection_count
     else:
         assert run_metrics.final_global_model_count == 1
-        assert run_metrics.training_model_switch_detection_metrics.detection_count == 0
-        assert run_metrics.training_model_switch_detection_metrics.concept_change_count > 0
+    assert (run_metrics.candidate_validation_decision_count > 0) == (
+        expected_paths["candidate_decisions"]
+    )
+    assert (detection_metrics.detection_count > 0) == expected_paths["candidate_decisions"]
+    assert (detection_metrics.matched_detection_count > 0) == (
+        expected_paths["candidate_decisions"]
+    )
     # 計算量: 積和演算の数が、標本数の計数と、層の形から計算した値と一致する。
     assert_multiply_accumulate_counts_match_example_counts(
         model_computation_counts=run_metrics.model_computation_counts,
         participants=golden_condition_runs.participants,
     )
     # 共有部の特徴を使い回すので、共有部を通った標本数は、概念固有部より少ない
-    # （モデルが1つのままのsea2では、同じ数）。
+    # （clientの保有モデルが1つのままのsea2では、同じ数）。
     shared_part_count = run_metrics.model_computation_counts.shared_part_inference_example_count
     concept_specific_part_count = (
         run_metrics.model_computation_counts.concept_specific_part_inference_example_count
     )
-    if golden_condition_runs.dataset_name == "sine2":
+    if expected_paths["multiple_held_models"]:
         assert shared_part_count < concept_specific_part_count
     else:
         assert shared_part_count == concept_specific_part_count
     # 準備の間の計算（事前学習）は、指標に含めない。
     preparation_counts = golden_condition_runs.measured_run.preparation_model_computation_counts
+    golden_condition = {
+        **legacy_regression.COMMON,
+        **legacy_regression.CASES[golden_condition_runs.dataset_name],
+    }
     assert preparation_counts.concept_specific_part_training_example_count == (
-        legacy_regression.COMMON["PRETRAIN_SAMPLES"] * legacy_regression.COMMON["PRETRAIN_EPOCHS"]
+        golden_condition["PRETRAIN_SAMPLES"] * golden_condition["PRETRAIN_EPOCHS"]
     )
     assert preparation_counts.concept_specific_parameter_optimizer_step_count > 0
     # 定常精度は、精度と違う値（回復の窓が、実際に標本を除いている）。
@@ -653,20 +694,22 @@ def test_golden_condition_comparison_computation_metrics_match_real_legacy_count
         consolidation_parameter_multiply_accumulate_count=consolidation_count,
         diagnostic_parameter_distance_multiply_accumulate_count=diagnostic_distance_count,
     )
-    covers_multiple_models = golden_condition_runs.dataset_name == "sine2"
-    assert (consolidation_count > 0) == covers_multiple_models
-    assert (diagnostic_distance_count > 0) == covers_multiple_models
+    expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
+    assert (consolidation_count > 0) == expected_paths["multiple_global_models"]
+    assert (diagnostic_distance_count > 0) == expected_paths["multiple_global_models"]
     # 処理した標本数と、保有モデル×標本の延べ数（旧の、予測でモデルへ入力した標本の数）。
     per_client_sample_count = legacy_regression.CASES[golden_condition_runs.dataset_name][
         "TOTAL_DATA_POINTS"
     ]
-    processed_sample_count = 3 * per_client_sample_count
+    client_count = len(golden_condition_runs.participants.client_operations)
+    assert client_count == legacy_result_client_count(golden_condition_runs.dataset_name)
+    processed_sample_count = client_count * per_client_sample_count
     assert run_metrics.processed_sample_count == processed_sample_count
     assert run_metrics.held_model_sample_count == legacy_result["compute_prediction_examples_total"]
-    # モデルが1つのままなら、延べ数は、処理した標本数と同じ。
+    # clientの保有モデルが1つのままなら、延べ数は、処理した標本数と同じ。
     assert (
         run_metrics.held_model_sample_count > run_metrics.processed_sample_count
-    ) == covers_multiple_models
+    ) == expected_paths["multiple_held_models"]
     assert run_metrics.held_model_sample_count >= run_metrics.processed_sample_count
     # まとめ: 計数からの計算と一致する。
     model_computation_counts = run_metrics.model_computation_counts
@@ -708,8 +751,8 @@ def test_golden_condition_comparison_computation_metrics_match_real_legacy_count
     )
     assert (
         computation_cost_summary.client_shared_part_forward_multiply_accumulate_count_per_processed_sample
-        * processed_sample_count
         == computation_cost_summary.client_shared_part_forward_multiply_accumulate_count
+        / processed_sample_count
     )
     assert computation_cost_summary.server_multiply_accumulate_count == (
         aggregation_count + consolidation_count
@@ -768,14 +811,14 @@ def test_golden_condition_comparison_computation_metrics_match_real_legacy_count
             + local_counts.concept_specific_part_inference_example_count
             + synchronization_counts.concept_specific_part_inference_example_count
         ) == legacy_round_sum("head_examples")
-    # 同期の間のclientの計算が、実際にある（クロス評価か再較正。モデルが1つのままのsea2では、ない）。
+    # 同期の間のclientの計算が、実際にある（クロス評価か再較正。clientの保有モデルが1つのままのsea2では、ない）。
     assert (
         any(
             each_round.synchronization_model_computation_counts.concept_specific_part_inference_example_count
             > 0
             for each_round in round_counts
         )
-        == covers_multiple_models
+        == expected_paths["synchronization_computation"]
     )
     # 終端の処理（旧のラウンドの値に入らない分）: 旧の累計−ラウンドの合計。
     assert (
@@ -783,6 +826,7 @@ def test_golden_condition_comparison_computation_metrics_match_real_legacy_count
         == legacy_result["compute_head_examples_total"] - sum(legacy_round_counts["head_examples"])
     )
     # 標本ごとの保有モデル数の、ラウンドごとの合計は、旧の、ラウンドごとの予測の計数（clientごと）。
+    clients_with_changing_held_model_count = 0
     for client_index, run_client in enumerate(golden_condition_runs.participants.client_operations):
         held_model_counts = (
             run_client.owners.held_model_count_record_store.snapshot_held_model_counts()
@@ -793,7 +837,8 @@ def test_golden_condition_comparison_computation_metrics_match_real_legacy_count
         ] == golden_condition_runs.legacy_round_client_counts["prediction_examples"][
             :, client_index
         ].tolist()
-        assert (len(set(held_model_counts)) > 1) == covers_multiple_models
+        clients_with_changing_held_model_count += len(set(held_model_counts)) > 1
+    assert (clients_with_changing_held_model_count > 0) == expected_paths["multiple_held_models"]
 
 
 def test_golden_condition_trace_arrays_match_real_legacy_saved_arrays(golden_condition_runs):
@@ -810,18 +855,22 @@ def test_golden_condition_trace_arrays_match_real_legacy_saved_arrays(golden_con
         assert trace_values.dtype == legacy_trace_values.dtype, trace_name
         assert np.array_equal(trace_values, legacy_trace_values), trace_name
     assert trace_arrays["drift_positions"].size > 0
-    # 列が、中身のある比較になっている（旧の回帰testの経路の件数。経路を求めるのはsine2だけ）。
-    if golden_condition_runs.dataset_name == "sine2":
+    # 列が、中身のある比較になっている（旧の回帰testの経路の件数。datasetごとの期待は、上の表）。
+    expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
+    if expected_paths["multiple_global_models"]:
         assert trace_arrays["model_registration_ids"].size > 1
+        assert trace_arrays["clustering_absorbed"].sum() > 0
+        assert trace_arrays["clustering_pair_same_cluster"].size > 0
+    else:
+        assert trace_arrays["model_registration_ids"].size == 1
+    if expected_paths["candidate_decisions"]:
         assert trace_arrays["provisional_accepted"].sum() > 0
         assert (~trace_arrays["provisional_accepted"]).sum() > 0
-        assert trace_arrays["clustering_absorbed"].sum() > 0
         assert trace_arrays["switch_positions"].size > 0
-        assert trace_arrays["clustering_pair_same_cluster"].size > 0
         assert len(set(trace_arrays["adaptation_actions"].tolist())) > 2
         assert len(set(trace_arrays["provisional_reasons"].tolist())) > 1
     else:
-        # sea2の条件は、警報のたびに現行モデルを維持する（候補の判定まで進まない）。
+        # 警報のたびに現行モデルを維持する（候補の判定まで進まない）。
         assert set(trace_arrays["adaptation_actions"].tolist()) == {"maintain"}
 
 
@@ -874,9 +923,11 @@ def test_golden_condition_decision_kinds_are_reported(golden_condition_runs):
 
 # goldenの条件の全体runが通る、候補の判定の理由（実旧の名前）。
 # sine2は、別の保有モデルの再利用（alternative_reference_refit）を含む。sea2は、警報のたびに現行モデルを維持し、候補の判定まで進まない。
+# mnist2は、候補の採用と、後半の区間での棄却。
 GOLDEN_CONDITION_DECISION_REASONS_BY_DATASET_NAME = {
     "sine2": {"accepted", "alternative_reference_refit", "first_interval"},
     "sea2": set(),
+    "mnist2": {"accepted", "second_interval"},
 }
 
 
@@ -1236,7 +1287,7 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
         (
             "participants",
             RunParticipants(
-                client_operations=participants.client_operations[:2],
+                client_operations=participants.client_operations[:-1],
                 server_operations=participants.server_operations,
             ),
             ValueError,
@@ -1248,7 +1299,7 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
                 client_operations=(
                     participants.client_operations[1],
                     participants.client_operations[0],
-                    participants.client_operations[2],
+                    *participants.client_operations[2:],
                 ),
                 server_operations=participants.server_operations,
             ),
@@ -1277,7 +1328,11 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
     assert (
         strict_run_metrics.training_model_switch_detection_metrics
         != run_metrics.training_model_switch_detection_metrics
-    ) == (golden_condition_runs.dataset_name == "sine2")
+    ) == (
+        GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name][
+            "candidate_decisions"
+        ]
+    )
     assert (
         replace(
             strict_run_metrics,

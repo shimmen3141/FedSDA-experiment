@@ -27,6 +27,7 @@
 | IMPROVE-009 | 依存境界testの方式を一本化し、機械生成の注入契約testを減らす | 見送り（2026-10-09ユーザー決定） | [詳細](improve-009-unify-dependency-boundary-tests.md) |
 | IMPROVE-010 | 保留標本の並びの検査を1箇所にまとめる | 未検証・未採用 | [詳細](improve-010-share-pending-observation-validation.md) |
 | IMPROVE-011 | 共同学習の反復が、参加したモデルを返す（計数の側の参加条件の重複をなくす） | 未検証・未採用 | [詳細](improve-011-report-participating-models-from-joint-training.md) |
+| IMPROVE-012 | 観測標本の特徴を、配列で持つ（MNISTの784特徴で、標本ごとのメモリを減らす） | 未検証・未採用 | [詳細](improve-012-hold-observed-sample-features-as-array.md) |
 
 ## 記録・更新の規約
 

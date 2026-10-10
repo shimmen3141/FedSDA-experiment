@@ -406,7 +406,9 @@ def test_validation_error_preserves_parameter_details(
     assert expected_failure_reason in str(validation_error.value)
 
 
-@pytest.mark.parametrize("specified_parameter_value", ["sine2", "sea2", "mnist2"])
+@pytest.mark.parametrize(
+    "specified_parameter_value", ["sine2", "sea2", "sea4", "circle2", "mnist2", "mnist4"]
+)
 def test_existing_dataset_identifiers_are_accepted(specified_parameter_value):
     settings_instance = ExperimentRunConditions(
         dataset_name=specified_parameter_value,
@@ -422,7 +424,8 @@ def test_existing_dataset_identifiers_are_accepted(specified_parameter_value):
     "specified_parameter_value",
     [
         "unknown",
-        "mnist4",
+        "blobs",
+        "mnist",
         "sine_two_concepts",
         "sea_two_concepts",
         "mnist_two_concepts",
@@ -450,7 +453,7 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
     assert "文字列" in validation_error.value.validation_failure_reason
     assert all(
         value in validation_error.value.validation_failure_reason
-        for value in ("sine2", "sea2", "mnist2")
+        for value in ("sine2", "sea2", "sea4", "circle2", "mnist2", "mnist4")
     )
 
 
@@ -801,7 +804,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         assert settings_field.default_factory is MISSING
         if get_type_hints(settings_type)[settings_field.name] is str:
             assert settings_field.metadata["allowed_parameter_values"] == (
-                ("sine2", "sea2", "sea4", "circle2", "mnist2")
+                ("sine2", "sea2", "sea4", "circle2", "mnist2", "mnist4")
                 if settings_field.name == "dataset_name"
                 else ("shared_backbone_residual_adapter",)
                 if settings_field.name == "model_architecture_name"

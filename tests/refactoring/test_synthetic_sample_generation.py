@@ -18,10 +18,8 @@ from federated_learning_experiments.data.concept_schedules.random_concept_schedu
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
     RandomConceptScheduleSettings,
 )
-from federated_learning_experiments.data.dataset_definitions import (
-    DEFINED_DATASET_NAMES,
-    get_dataset_definition,
-)
+from federated_learning_experiments.data.dataset_definitions import get_dataset_definition
+from federated_learning_experiments.data.mnist.mnist_sample_generation import MnistSampleGenerator
 from federated_learning_experiments.data.observed_sample_generation import (
     OBSERVED_SAMPLE_GENERATOR_TYPES,
     build_client_observed_streams,
@@ -35,6 +33,8 @@ from federated_learning_experiments.data.observed_streams import (
 from federated_learning_experiments.data.sea.sea_sample_generation import SeaSampleGenerator
 from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
 
+# 合成データのdataset（MNISTは、test_mnist_sample_generation.py）。
+DEFINED_DATASET_NAMES = ("sine2", "sea2", "sea4", "circle2")
 EXPECTED_GENERATOR_TYPE_BY_DATASET_NAME = {
     "sine2": SineSampleGenerator,
     "sea2": SeaSampleGenerator,
@@ -68,9 +68,24 @@ def borrow_legacy_numpy_random_generator(monkeypatch, legacy_numpy_random_genera
 
 def test_expected_generator_types_cover_all_defined_datasets():
     """定義のある全datasetに生成器があり、検査用の型の一覧と一致する。"""
+    from federated_learning_experiments.data.dataset_definitions import (
+        DEFINED_DATASET_NAMES as ALL_DEFINED_DATASET_NAMES,
+    )
+
     assert tuple(EXPECTED_GENERATOR_TYPE_BY_DATASET_NAME) == DEFINED_DATASET_NAMES
-    assert set(OBSERVED_SAMPLE_GENERATOR_TYPES) == set(
-        EXPECTED_GENERATOR_TYPE_BY_DATASET_NAME.values()
+    assert ALL_DEFINED_DATASET_NAMES == (*DEFINED_DATASET_NAMES, "mnist2", "mnist4")
+    assert set(OBSERVED_SAMPLE_GENERATOR_TYPES) == {
+        *EXPECTED_GENERATOR_TYPE_BY_DATASET_NAME.values(),
+        MnistSampleGenerator,
+    }
+    assert all(
+        type(
+            create_observed_sample_generator(
+                dataset_name=dataset_name, numpy_random_generator=np.random.RandomState(0)
+            )
+        )
+        in OBSERVED_SAMPLE_GENERATOR_TYPES
+        for dataset_name in ALL_DEFINED_DATASET_NAMES
     )
 
 
@@ -114,7 +129,7 @@ def test_other_objects_are_not_generators_of_a_dataset(dataset_name):
         )
     with pytest.raises(ValueError, match="dataset_name"):
         is_observed_sample_generator_of_dataset(
-            sample_generator=sample_generator, dataset_name="mnist2"
+            sample_generator=sample_generator, dataset_name="blobs"
         )
     with pytest.raises(TypeError):
         is_observed_sample_generator_of_dataset(sample_generator, dataset_name)  # type: ignore[misc]
@@ -124,7 +139,7 @@ def test_other_objects_are_not_generators_of_a_dataset(dataset_name):
     ("argument_name", "invalid_value", "expected_error_type"),
     [
         ("dataset_name", "blobs", ValueError),
-        ("dataset_name", "mnist2", ValueError),
+        ("dataset_name", "mnist", ValueError),
         ("dataset_name", None, TypeError),
         ("numpy_random_generator", None, TypeError),
         ("numpy_random_generator", np.random, TypeError),

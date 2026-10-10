@@ -1983,7 +1983,7 @@ def test_stream_protocol_execution_settings_accept_seed_and_interval_boundaries(
             "execution_strategy",
             np.array(["sample_index_then_client_order_with_interval_synchronization"]),
         ),
-        ("dataset_name", "mnist2"),
+        ("dataset_name", "blobs"),
         ("random_seed", 2**32),
     ],
 )

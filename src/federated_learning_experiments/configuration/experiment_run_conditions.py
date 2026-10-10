@@ -12,7 +12,9 @@ class ExperimentRunConditions:
     """実行状態を持たず、構築時に宣言された型と値域を検証する。"""
 
     dataset_name: str = field(
-        metadata={"allowed_parameter_values": ("sine2", "sea2", "sea4", "circle2", "mnist2")},
+        metadata={
+            "allowed_parameter_values": ("sine2", "sea2", "sea4", "circle2", "mnist2", "mnist4")
+        },
     )
     random_seed: int = field(
         metadata={

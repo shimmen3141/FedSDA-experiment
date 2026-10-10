@@ -28,6 +28,12 @@ _DATASET_DEFINITIONS_BY_NAME = {
         DatasetDefinition(
             dataset_name="circle2", input_feature_count=2, concept_count=2, class_count=2
         ),
+        DatasetDefinition(
+            dataset_name="mnist2", input_feature_count=784, concept_count=2, class_count=10
+        ),
+        DatasetDefinition(
+            dataset_name="mnist4", input_feature_count=784, concept_count=4, class_count=10
+        ),
     )
 }
 

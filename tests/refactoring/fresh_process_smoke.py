@@ -1536,8 +1536,10 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
         + measured_run.finalization_model_computation_counts.concept_specific_part_inference_example_count
         == model_computation_counts.concept_specific_part_inference_example_count
     )
-    assert 0.5 < run_metrics.prediction_accuracy <= 1.0
-    assert 0.5 < run_metrics.stable_period_prediction_accuracy <= 1.0
+    # 偶然の正解率（1／クラス数）より高い。
+    chance_accuracy = 1.0 / get_dataset_definition(dataset_name=dataset_name).class_count
+    assert chance_accuracy < run_metrics.prediction_accuracy <= 1.0
+    assert chance_accuracy < run_metrics.stable_period_prediction_accuracy <= 1.0
     detection_metrics = run_metrics.training_model_switch_detection_metrics
     assert detection_metrics.detection_count == sum(
         len(
@@ -1630,8 +1632,8 @@ def main():
         "absorbed",
         whole_run_summaries[0]["absorbed_model_count"],
     )
-    # sine2以外の合成データでも、同じ条件を2回実行して、同じ結果になる（特徴数と概念数は、datasetの定義から）。
-    for dataset_name in ("sea2", "sea4", "circle2"):
+    # sine2以外のdataset（MNISTは、`FDE_MNIST_DATA_DIR`か、リポジトリ直下の`data/mnist`のファイルを読む）でも、同じ条件を2回実行して、同じ結果になる（特徴数と概念数は、datasetの定義から）。
+    for dataset_name in ("sea2", "sea4", "circle2", "mnist2", "mnist4"):
         dataset_run_summaries = [
             run_whole_stream_protocol_run(
                 run_client_settings=whole_run_client_settings,

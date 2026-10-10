@@ -505,6 +505,13 @@ def assert_candidate_validation_decision_records_match_legacy(
             )
 
 
+def make_comparison_input_features(input_feature_count):
+    """新旧のモデルの出力を比べる、2件の入力（3特徴までは、決めた値。それより多いときは、位置から作る）。"""
+    if input_feature_count <= 3:
+        return torch.tensor([[0.25, 0.5, 0.625], [0.75, 0.125, 0.875]])[:, :input_feature_count]
+    return (torch.arange(2 * input_feature_count).reshape(2, input_feature_count) % 7).float() / 8.0
+
+
 def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random_generator=None):
     """clientの全ownerの状態を、実旧clientの対応する属性と照合する。"""
     owners = run_client.owners
@@ -520,9 +527,7 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
         ],
         legacy_client=legacy_client,
         # 出力を比べる入力。特徴数は、実旧の（差し替えた）datasetの定義に合わせる。
-        input_features=torch.tensor([[0.25, 0.5, 0.625], [0.75, 0.125, 0.875]])[
-            :, : config.dataset_spec().input_dim
-        ],
+        input_features=make_comparison_input_features(config.dataset_spec().input_dim),
     )
     # 学習データ、評価標本、保留（値で照合する）。
     training_collections = owners.training_sample_store.snapshot_ordered_model_training_samples()
