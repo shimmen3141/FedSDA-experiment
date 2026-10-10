@@ -637,6 +637,22 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
     assert adaptation_record_snapshot.training_model_switch_sample_indices == tuple(
         legacy_client.local_switch_positions
     )
+    # 検出器の計算の計数: 実旧の、検出器の更新回数と、評価した候補×賭け率の数。
+    loss_monitoring_computation_counts = (
+        owners.loss_monitoring_computation_count_store.get_loss_monitoring_computation_counts()
+    )
+    assert (
+        loss_monitoring_computation_counts.detector_component_update_count
+        == legacy_client.compute_counters["drift_detector_updates"]
+    )
+    assert (
+        loss_monitoring_computation_counts.evaluated_candidate_bet_count
+        == legacy_client.compute_counters["drift_detector_hypotheses"]
+    )
+    # 更新は、処理した標本1件につき、全体と正解クラスの2つ。
+    assert loss_monitoring_computation_counts.detector_component_update_count == 2 * len(
+        alarm_record_snapshot.monitored_log_e_values
+    )
     # 候補検証の判定記録: 実旧の候補の判定の一覧と1件ずつ対応する。
     decision_records = owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
     assert_candidate_validation_decision_records_match_legacy(
@@ -1024,6 +1040,15 @@ def test_assembly_copies_initial_model_and_keeps_clients_independent(
     first_decision_record_store = first_client.owners.candidate_validation_decision_record_store
     second_decision_record_store = second_client.owners.candidate_validation_decision_record_store
     assert first_decision_record_store is not second_decision_record_store
+    assert (
+        first_client.owners.loss_monitoring_computation_count_store
+        is not second_client.owners.loss_monitoring_computation_count_store
+    )
+    assert not any(
+        vars(
+            second_client.owners.loss_monitoring_computation_count_store.get_loss_monitoring_computation_counts()
+        ).values()
+    )
     assert first_decision_record_store.snapshot_candidate_validation_decision_records() == ()
     assert second_decision_record_store.snapshot_candidate_validation_decision_records() == ()
     # 片方のclientだけ標本を処理しても、もう片方と、渡した初期モデルは変わらない。

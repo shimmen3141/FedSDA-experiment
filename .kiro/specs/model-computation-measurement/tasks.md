@@ -2,7 +2,7 @@
 
 逐次実行（並行しない）。testを先に書く。独立レビューは、全taskの後に1回受ける（共通引継ぎ手順）。
 
-- [ ] 1. 検査と計測
+- [x] 1. 検査と計測
 - [x] 1.1 旧の計数を、外側からの数え直しと照合するtestを書く
   - goldenの3ケースで、旧の全体runを、hookつきで実行し、旧の計数の合計と照合する。
   - 完了: 検査のtestが成功する（旧実装は変えない）。
@@ -15,7 +15,7 @@
   - _Boundary: model_computation_measurement_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 6.2_
 
-- [ ] 1.3 clientが、検出器の計算の計数を保持する
+- [x] 1.3 clientが、検出器の計算の計数を保持する
   - ownerのtestと、clientの全状態の新旧照合への、実旧の検出器の計数との照合を先に書く。
   - 完了: ownerのtest、clientのtest、依存境界のsuiteが成功する。
   - _Depends: なし_

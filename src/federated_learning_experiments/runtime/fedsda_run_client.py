@@ -16,6 +16,9 @@ from federated_learning_experiments.evaluation.adaptation_record_store import (
 from federated_learning_experiments.evaluation.loss_change_alarm_record_store import (
     LossChangeAlarmRecordStore,
 )
+from federated_learning_experiments.evaluation.loss_monitoring_computation_count_store import (
+    LossMonitoringComputationCountStore,
+)
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
 )
@@ -126,6 +129,7 @@ class FedsdaRunClientOwners:
     diagnostic_evidence_collection: AdaHedgeDiagnosticEvidenceCollection
     loss_change_monitor: OverallAndTrueClassLossMonitor
     loss_change_alarm_record_store: LossChangeAlarmRecordStore
+    loss_monitoring_computation_count_store: LossMonitoringComputationCountStore
     pending_training_assignment_buffer: PendingTrainingAssignmentBuffer
     pending_sample_observation_store: PendingSampleObservationStore
     held_model_training_state_registry: HeldModelTrainingStateRegistry
@@ -195,6 +199,7 @@ class FedsdaRunClient:
         渡されなければ、概念別の診断と割当概念の計数は行われない。
         位置と概念IDの型、位置の連続は、標本1件の処理が、どの更新より前に確かめる。
         この標本で、保持中の候補検証が確定したときは、その判定記録を、判定記録の保持へ足す。
+        この標本の、損失の監視（検出器）の計算の計数を、計数の保持へ足す。
         """
         if type(observed_sample) is not ObservedSample:
             raise TypeError("observed_sample must be exact ObservedSample")
@@ -247,6 +252,11 @@ class FedsdaRunClient:
             local_training_settings=settings.local_training_settings,
             shared_feature_extractor=current_training_classifier.feature_extractor,
             shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer,
+        )
+        loss_monitoring_observation = sample_processing.loss_monitoring_observation
+        owners.loss_monitoring_computation_count_store.record_loss_monitoring_computation(
+            detector_component_update_count=loss_monitoring_observation.component_update_count,
+            evaluated_candidate_bet_count=loss_monitoring_observation.evaluated_candidate_bet_count,
         )
         completed_validation = (
             sample_processing.held_validation_advance.validation_progress.completed_validation
@@ -559,6 +569,7 @@ def assemble_fedsda_run_client(
             betting_fractions=run_client_settings.loss_monitor_betting_fractions,
         ),
         loss_change_alarm_record_store=LossChangeAlarmRecordStore(),
+        loss_monitoring_computation_count_store=LossMonitoringComputationCountStore(),
         pending_training_assignment_buffer=PendingTrainingAssignmentBuffer(
             training_data_assignment_settings=run_client_settings.training_data_assignment_settings
         ),
