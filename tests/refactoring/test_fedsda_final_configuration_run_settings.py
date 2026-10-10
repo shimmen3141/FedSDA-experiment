@@ -122,7 +122,7 @@ LEGACY_AND_NEW_FINAL_CONFIGURATION_CHOICES = (
         "model_consolidation_policy",
         "weighted_parameter_average_and_merge_ids",
     ),
-    ("SHARED_ADAPTER_RANK", 8, "model_architecture_name", "shared_backbone_residual_adapter"),
+    ("SHARED_ADAPTER_RANK", 8, "residual_adapter_requested_rank", 8),
     (
         "CONCEPT_SCHEDULE",
         "random",
@@ -229,6 +229,10 @@ def test_final_configuration_defaults_match_legacy_configuration(
     assert convert_settings_to_plain_mapping(run_settings) == convert_settings_to_plain_mapping(
         expected_run_settings
     )
+    # 保存する文字列（JSON）でも一致する（値の型——intとfloatとbool——まで同じ）。
+    assert json.dumps(convert_settings_to_plain_mapping(run_settings), sort_keys=True) == (
+        json.dumps(convert_settings_to_plain_mapping(expected_run_settings), sort_keys=True)
+    )
     # 既存のtestの対応が、旧の設定からではなく、決めた値で渡している項目を、旧の値と照合する。
     run_client_settings = run_settings.run_participant_settings.run_client_settings
     assert (
@@ -282,8 +286,8 @@ def test_final_configuration_defaults_match_legacy_configuration(
         model_consolidation_policy=(
             run_settings.model_consolidation_settings.model_consolidation_policy
         ),
-        model_architecture_name=(
-            run_settings.run_participant_settings.model_architecture_settings.model_architecture_name
+        residual_adapter_requested_rank=(
+            run_settings.run_participant_settings.model_architecture_settings.residual_adapter_requested_rank
         ),
         concept_schedule_strategy=(
             run_settings.execution_settings.concept_schedule_settings.concept_schedule_strategy
@@ -299,7 +303,12 @@ def test_final_configuration_defaults_match_legacy_configuration(
         assert new_values_by_name.pop(new_setting_name) == new_value, new_setting_name
     assert not new_values_by_name
     # 検出器: 旧のmode名（ClassESR）が決める。新は、e-SRで、全体と正解クラスの損失を監視する。
+    # モデルの構造も、旧のmode名（ResidualAdapter）が決める。
     assert "ClassESR" in legacy_regression.MODE and "ResidualAdapter" in legacy_regression.MODE
+    assert (
+        run_settings.run_participant_settings.model_architecture_settings.model_architecture_name
+        == "shared_backbone_residual_adapter"
+    )
     detection_settings = run_client_settings.loss_change_detection_settings
     assert (detection_settings.drift_detector_name, detection_settings.loss_monitoring_scope) == (
         "e_sr",
