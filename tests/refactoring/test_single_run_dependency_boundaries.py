@@ -5013,6 +5013,42 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_server.FedsdaRunServer",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.split_shared_and_concept_specific_parameters",
         )
+    if source_module_path == "runtime/fedsda_run_settings.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.configuration.run_settings.ValidatedExperimentRunSettingsSubset",
+            "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
+            "federated_learning_experiments.evaluation.run_metric_calculations.RunMetricSettings",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.StreamProtocolExecutionSettings",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.validate_stream_protocol_execution_settings",
+            "federated_learning_experiments.methods.fedsda.consolidation.model_consolidation_settings.ModelConsolidationSettings",
+            "federated_learning_experiments.runtime.fedsda_run_participant_factory.FedsdaRunParticipantSettings",
+        )
+    if source_module_path == "runtime/fedsda_final_configuration_run_settings.py":
+        return imported_module_name in (
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
+            "federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings.RandomConceptScheduleSettings",
+            "federated_learning_experiments.evaluation.run_metric_calculations.RunMetricSettings",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.StreamProtocolExecutionSettings",
+            "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
+            "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
+            "federated_learning_experiments.learning.training.initial_model_pretraining_settings.InitialModelPretrainingSettings",
+            "federated_learning_experiments.learning.training.local_training_schedule_settings.LocalTrainingScheduleSettings",
+            "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
+            "federated_learning_experiments.methods.fedsda.consolidation.model_clustering_calculations.ModelClusteringCriteria",
+            "federated_learning_experiments.methods.fedsda.consolidation.model_consolidation_settings.ModelConsolidationSettings",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.LossChangeDetectionSettings",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings.PredictionCombinationSettings",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.TrainingDataAssignmentSettings",
+            "federated_learning_experiments.runtime.fedsda_run_client_settings.FedsdaRunClientScalarSettings",
+            "federated_learning_experiments.runtime.fedsda_run_client_settings.FedsdaRunClientSettings",
+            "federated_learning_experiments.runtime.fedsda_run_participant_factory.FedsdaRunParticipantSettings",
+            "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
+        )
     if source_module_path == "runtime/fedsda_run_participant_factory.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6259,6 +6295,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/server_round_synchronization.py",
             "runtime/fedsda_run_server.py",
             "runtime/fedsda_run_participant_factory.py",
+            "runtime/fedsda_final_configuration_run_settings.py",
+            "runtime/fedsda_run_settings.py",
             "runtime/fedsda_run_metric_derivation.py",
             "runtime/fedsda_measured_run_execution.py",
             "learning/training/initial_model_pretraining_settings.py",
@@ -6354,6 +6392,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/server_round_synchronization.py",
                     "runtime/fedsda_run_server.py",
                     "runtime/fedsda_run_participant_factory.py",
+                    "runtime/fedsda_final_configuration_run_settings.py",
+                    "runtime/fedsda_run_settings.py",
                     "runtime/fedsda_run_metric_derivation.py",
                     "runtime/fedsda_measured_run_execution.py",
                     "learning/training/initial_model_pretraining_settings.py",
