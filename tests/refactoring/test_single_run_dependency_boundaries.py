@@ -4874,7 +4874,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "dataclasses.dataclass",
             "math.isfinite",
-            "math.isnan",
             "numpy.asarray",
             "numpy.float64",
         )

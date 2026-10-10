@@ -1,7 +1,7 @@
 """手法に依存しない、モデル別の診断の計算（値の列のまとめ、同じ概念のAUC、クラスタの割当と真の概念の一致の比較）。"""
 
 from dataclasses import dataclass
-from math import isfinite, isnan
+from math import isfinite
 
 from numpy import asarray, float64
 
@@ -65,8 +65,6 @@ def _select_finite_values(*, values: object, parameter_name: str) -> list[float]
     for value in values:
         if type(value) is not float:
             raise TypeError(f"{parameter_name} must hold builtin float")
-        if isnan(value):
-            raise ValueError(f"{parameter_name} must not hold NaN")
     return [value for value in values if isfinite(value)]
 
 
@@ -76,7 +74,7 @@ def calculate_lower_value_same_concept_auc(
     """小さい値を、同じ概念の証拠とみなしたROC-AUCを返す。
 
     同じ概念の対の値と、違う概念の対の値の、すべての組のうち、同じ概念の値のほうが小さい組の割合
-    （等しい組は、半分と数える）。無限大の値は、数えない。どちらかに、有限の値がなければ、定義できないので、None。
+    （等しい組は、半分と数える）。有限でない値（無限大、NaN）は、数えない。どちらかに、有限の値がなければ、定義できないので、None。
     """
     finite_same_concept_values = _select_finite_values(
         values=same_concept_values, parameter_name="same_concept_values"

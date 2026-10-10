@@ -27,7 +27,7 @@
 |---|---|
 | `ValueDistributionSummary` | `total_value`、`mean_value`、`minimum_value`、`coefficient_of_variation`（すべてfloat） |
 | `summarize_value_distribution(*, values)` | 値（intまたはfloatのtuple）の、合計・平均・最小・変動係数。空なら、すべて0.0。変動係数は、母標準偏差÷平均（平均が0以下なら0.0）。旧と同じく、NumPyのfloat64の配列で計算する |
-| `calculate_lower_value_same_concept_auc(*, same_concept_values, different_concept_values)` | 小さい値を、同じ概念の証拠とみなしたROC-AUC。有限でない値は除く。どちらかが空になれば、None |
+| `calculate_lower_value_same_concept_auc(*, same_concept_values, different_concept_values)` | 小さい値を、同じ概念の証拠とみなしたROC-AUC。有限でない値（無限大、NaN）は除く（旧と同じ）。どちらかが空になれば、None |
 | `ClusterAssignmentTrueConceptAgreement` | `same_cluster_same_concept_pair_count`、`same_cluster_different_concept_pair_count`、`different_cluster_same_concept_pair_count`、`different_cluster_different_concept_pair_count`、`same_cluster_precision`、`same_cluster_recall`、`same_cluster_f1` |
 | `calculate_cluster_assignment_true_concept_agreement(*, assigned_to_same_cluster_flags, true_concepts_match_flags)` | 同じ長さの、boolの2つのtupleから、上を作る |
 
@@ -49,7 +49,7 @@
 
 - 保有モデルは、`HeldModelTrainingStateRegistry`の保有モデル（まだ登録していない一時IDのモデルを含む。旧の`client.models`と同じ）。
 - 保持している学習標本の数は、`ModelTrainingSampleStore`の、そのモデルの標本の数（なければ0）。学習に使った標本の延べ数と、パラメータ更新の回数は、`ModelTrainingAndAssignmentCountsStore`の値（なければ0）。
-- モデルの間のまとめは、全clientの保有モデルのIDの集まりについて、最初に現れた順に、値を並べて計算する（旧と同じ順。合計・平均・最小・変動係数は、順によらないが、浮動小数点の和の順を、旧とそろえる）。
+- モデルの間のまとめは、全clientの保有モデルのIDの集まりについて、最初に現れた順に、値を並べて計算する（clientの保有モデルの順は、`HeldModelTrainingStateRegistry`の順で、旧の`client.models`の順と同じ。小さい条件のtestで、clientごとに、実旧の順と比べている。合計・平均・最小・変動係数は、順によらないが、浮動小数点の和の順を、旧とそろえる）。
 - クラスタリングの比較は、`ModelClusteringRecordStore`の対の観測のうち、`true_concepts_match`がNoneでないものを使う。
 
 `FedsdaRunMetrics`へ、`model_diagnostic_metrics: FedsdaModelDiagnosticMetrics`を足す。

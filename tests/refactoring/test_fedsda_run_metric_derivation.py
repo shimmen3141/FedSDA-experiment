@@ -1429,6 +1429,14 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
     assert_change_response_metrics_match_legacy_metrics(
         run_metrics=run_metrics, legacy_metric_values=legacy_metrics
     )
+    # clientの保有モデルの順が、実旧の`client.models`の順と同じ（モデル別の学習量を、モデルの間でまとめるときの、値の順）。
+    for run_client, legacy_client in zip(
+        participants.client_operations, legacy_clients, strict=True
+    ):
+        assert [
+            held_model_training_state.model_id
+            for held_model_training_state in run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+        ] == list(legacy_client.models)
     # モデル別の学習量と、クラスタリングの判定と真の概念の一致が、実旧の集計と一致する。
     legacy_model_diagnostic_results = {}
     experiment._add_model_diagnostic_results(

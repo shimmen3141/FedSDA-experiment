@@ -92,14 +92,14 @@ def make_legacy_pair_observations(same_concept_values, different_concept_values)
 
 @pytest.mark.parametrize("random_seed", range(40))
 def test_lower_value_same_concept_auc_matches_legacy_function(random_seed):
-    """乱数で作った列（同じ値、有限でない値、空を含む）で、AUCが、実旧の`_lower_score_auc`と一致する。"""
+    """乱数で作った列（同じ値、無限大、NaN、空を含む）で、AUCが、実旧の`_lower_score_auc`と一致する。"""
     random_generator = random.Random(random_seed)
 
     def make_values():
         return tuple(
             random_generator.choice(
                 # 等しい値の組と、有限でない値を含める。
-                (0.0, 0.5, 1.0, 1.5, 2.0, inf, random_generator.uniform(0.0, 2.0))
+                (0.0, 0.5, 1.0, 1.5, 2.0, inf, -inf, nan, random_generator.uniform(0.0, 2.0))
             )
             for _ in range(random_generator.randrange(0, 7))
         )
@@ -136,7 +136,20 @@ def test_lower_value_same_concept_auc_of_known_values():
         )
         == 0.75
     )
+    # 有限でない値（無限大、NaN）は、数えない。
+    assert (
+        calculate_lower_value_same_concept_auc(
+            same_concept_values=(1.0, nan, inf), different_concept_values=(2.0, nan, -inf)
+        )
+        == 1.0
+    )
     # 有限の値が、片方にない。
+    assert (
+        calculate_lower_value_same_concept_auc(
+            same_concept_values=(nan,), different_concept_values=(1.0,)
+        )
+        is None
+    )
     assert (
         calculate_lower_value_same_concept_auc(
             same_concept_values=(inf,), different_concept_values=(1.0,)
@@ -158,8 +171,6 @@ def test_lower_value_same_concept_auc_of_known_values():
         ((1.0,), [1.0], TypeError),
         ((1,), (1.0,), TypeError),
         ((1.0,), (True,), TypeError),
-        ((nan,), (1.0,), ValueError),
-        ((1.0,), (nan,), ValueError),
     ],
 )
 def test_lower_value_same_concept_auc_rejects_invalid_values(
