@@ -78,6 +78,10 @@ def synchronize_models_in_server_round(
     """
     if type(model_clustering_enabled) is not bool:
         raise TypeError("model_clustering_enabled must be builtin bool")
+    # 判定の基準は、クロス評価（通信量と乱数を進める）の後の段で使う。不正なら、どの段より前に拒否する。
+    if type(model_clustering_criteria) is not ModelClusteringCriteria:
+        raise TypeError("model_clustering_criteria must be exact ModelClusteringCriteria")
+    model_clustering_criteria.__post_init__()
     registered_client_models = register_ready_client_models(
         run_clients=run_clients,
         global_model_repository=global_model_repository,

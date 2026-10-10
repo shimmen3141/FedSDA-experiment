@@ -595,6 +595,10 @@ INVALID_CLUSTERING_ARGUMENT_CASES = (
         "cross_evaluation_without_model_ids": lambda arguments: replace_cross_evaluation(
             arguments, cross_evaluated_model_ids=()
         ),
+        # モデルが1つ（クラスタリングの対象がない。旧も、対象が1つ以下なら何もしない）。
+        "cross_evaluation_single_model_id": lambda arguments: replace_cross_evaluation(
+            arguments, cross_evaluated_model_ids=(0,)
+        ),
         "cross_evaluation_model_ids_list": lambda arguments: replace_cross_evaluation(
             arguments, cross_evaluated_model_ids=[0, 1, 2, 3]
         ),
@@ -818,3 +822,81 @@ def test_server_round_synchronization_rejects_invalid_clustering_flag(
         assert_server_and_client_states_unchanged(
             state_snapshot=state_snapshot, server_round_oracle=server_round_oracle
         )
+    # 判定の基準が不正なら、登録・集約・クロス評価のどれより前に拒否する（クラスタリングが無効のラウンドでも）。
+    for invalid_criteria in (
+        None,
+        make_subclass_copy(MODEL_CLUSTERING_CRITERIA),
+        make_criteria_mutated_around_frozen(MODEL_CLUSTERING_CRITERIA),
+    ):
+        for model_clustering_enabled in (False, True):
+            with pytest.raises((TypeError, ValueError)):
+                synchronize_models_in_server_round(
+                    **synchronization_owners | dict(model_clustering_criteria=invalid_criteria),
+                    round_index=0,
+                    model_clustering_enabled=model_clustering_enabled,
+                )
+            assert_server_and_client_states_unchanged(
+                state_snapshot=state_snapshot, server_round_oracle=server_round_oracle
+            )
+
+
+@pytest.mark.parametrize("evaluated_sample_count", [4, 5])
+def test_pair_is_evaluated_only_with_minimum_sample_count_in_all_four_loss_sums(
+    evaluated_sample_count, monkeypatch, valid_run_settings_mapping
+):
+    """対は、4つの損失の統計の件数が、すべて下限（5件）以上のときだけ、距離を持つ（下限ちょうどは持つ）。
+
+    クロス評価の結果の、1つの組の件数だけを、下限の前後へ書き換えて、実旧のクラスタリングと照合する。
+    """
+    cross_evaluated_state = build_cross_evaluated_server_round_oracle(
+        monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
+    )
+    legacy_server = cross_evaluated_state["server_round_oracle"]["legacy_server"]
+    arguments = get_clustering_and_consolidation_arguments(cross_evaluated_state)
+    model_cross_evaluation = arguments["model_cross_evaluation"]
+    # モデル2を、モデル1の標本で評価した組の件数を書き換える（和は、そのままにする）。
+    replaced_loss_sums = replace(
+        model_cross_evaluation.loss_sums_by_candidate_and_target_model_id[(2, 1)],
+        evaluated_sample_count=evaluated_sample_count,
+    )
+    legacy_statistics_matrix = {
+        candidate_model_id: dict(target_statistics)
+        for candidate_model_id, target_statistics in cross_evaluated_state[
+            "legacy_statistics_matrix"
+        ].items()
+    }
+    legacy_statistics_matrix[2][1] = (
+        evaluated_sample_count,
+        *legacy_statistics_matrix[2][1][1:],
+    )
+    legacy_server.perform_hierarchical_clustering(
+        cross_evaluated_state["legacy_active_model_ids"], legacy_statistics_matrix
+    )
+    # 新は、閾値を、どの対も同じクラスタにならない値にして、観測だけを読む。
+    cluster_and_consolidate_global_models(
+        **arguments
+        | dict(
+            model_cross_evaluation=replace(
+                model_cross_evaluation,
+                loss_sums_by_candidate_and_target_model_id=(
+                    model_cross_evaluation.loss_sums_by_candidate_and_target_model_id
+                    | {(2, 1): replaced_loss_sums}
+                ),
+            ),
+            model_clustering_criteria=replace(
+                MODEL_CLUSTERING_CRITERIA, maximum_same_cluster_decision_score=-1.0
+            ),
+        )
+    )
+    pair_observations = arguments[
+        "model_clustering_record_store"
+    ].snapshot_pair_clustering_observations()
+    assert {
+        (pair_observation.lower_model_id, pair_observation.higher_model_id): (
+            pair_observation.loss_increase_distance
+        )
+        for pair_observation in pair_observations
+    } == legacy_server._last_pair_distances
+    assert ((1, 2) in legacy_server._last_pair_distances) == (evaluated_sample_count >= 5)
+    # ほかの対（1と3、2と3）は、どちらの件数でも、距離を持つ。
+    assert {(1, 3), (2, 3)} <= set(legacy_server._last_pair_distances)

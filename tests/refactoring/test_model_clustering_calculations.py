@@ -233,7 +233,7 @@ def test_average_linkage_clusters_match_real_legacy_for_generated_scores():
         (dict(decision_scores_by_model_pair={(0, 0): 0.0}), ValueError),
         (dict(decision_scores_by_model_pair={(0, 9): 0.0}), ValueError),
         (dict(decision_scores_by_model_pair={(0, 1, 2): 0.0}), ValueError),
-        (dict(decision_scores_by_model_pair={[0, 1].__len__(): 0.0}), TypeError),
+        (dict(decision_scores_by_model_pair={2: 0.0}), TypeError),
         (dict(decision_scores_by_model_pair={(0, 1): 0}), TypeError),
         (dict(decision_scores_by_model_pair={(0, 1): math.nan}), ValueError),
         (dict(decision_scores_by_model_pair={(0, 1): math.inf}), ValueError),

@@ -81,8 +81,9 @@ def _validate_clustering_and_consolidation_inputs(
     if round_index < 0:
         raise ValueError("round_index must be nonnegative")
     clustered_model_ids = model_cross_evaluation.cross_evaluated_model_ids
-    if type(clustered_model_ids) is not tuple or not clustered_model_ids:
-        raise ValueError("model_cross_evaluation must hold a nonempty tuple of model IDs")
+    # モデルが1つ以下なら、クラスタリングの対象がない（呼出し側が、クロス評価もクラスタリングも行わない）。
+    if type(clustered_model_ids) is not tuple or len(clustered_model_ids) < 2:
+        raise ValueError("model_cross_evaluation must hold a tuple of two or more model IDs")
     held_global_model_ids = global_model_repository.global_model_ids
     for model_id in clustered_model_ids:
         if type(model_id) is not int or model_id not in held_global_model_ids:
@@ -293,7 +294,7 @@ def cluster_and_consolidate_global_models(
     model_clustering_criteria: ModelClusteringCriteria,
     round_index: int,
 ) -> ModelConsolidation:
-    """クロス評価したモデルを、対ごとの判定の値でクラスタリングし、診断の観測を足し、クラスタが減るなら統合する。
+    """クロス評価したモデル（2つ以上）を、対ごとの判定の値でクラスタリングし、診断の観測を足し、クラスタが減るなら統合する。
 
     対は、4つの損失の統計（自分どうし2つと、互いの2つ）の件数がすべて下限以上のときだけ、損失の距離を持つ。
     その対に、正誤の集計があれば、判定の値を持つ。判定の値で、average linkageのクラスタを求める。
