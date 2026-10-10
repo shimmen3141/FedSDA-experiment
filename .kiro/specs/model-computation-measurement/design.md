@@ -83,6 +83,13 @@ class ModelComputationCounts:
     concept_specific_part_inference_example_count: int
     shared_parameter_optimizer_step_count: int
     concept_specific_parameter_optimizer_step_count: int
+    # 全結合層の積和演算の数。順伝播は実測、逆伝播は、勾配つきの順伝播ごとの見積り。
+    shared_part_training_forward_multiply_accumulate_count: int
+    shared_part_inference_forward_multiply_accumulate_count: int
+    concept_specific_part_training_forward_multiply_accumulate_count: int
+    concept_specific_part_inference_forward_multiply_accumulate_count: int
+    shared_part_estimated_backward_multiply_accumulate_count: int
+    concept_specific_part_estimated_backward_multiply_accumulate_count: int
 
 class ModelComputationMeter:
     def get_model_computation_counts(self) -> ModelComputationCounts: ...
@@ -95,7 +102,9 @@ def subtract_model_computation_counts(
 
 - 順伝播: moduleの型がexact `SharedFeatureExtractor`なら共有部、exact `NonlinearResidualAdapter`なら概念固有部。足す数は、最初の入力のtensorの、先頭の次元の大きさ（標本数）。`torch.is_grad_enabled()`が真なら学習、偽なら推論。ほかのmoduleは数えない。
 - optimizerの更新: そのoptimizerが、「これまでに順伝播した共有部のパラメータ」を1つでも持てば共有部、そうでなければ概念固有部。共有部のパラメータは、弱参照の集合で覚える（計測が、モデルを生かし続けない）。
-- `measure_model_computation`は、入るときに2つのhookを登録し、出るとき（例外を含む）に外す。meterは、区間を出た後も、最後の計数を読める。
+- 積和演算: exact `torch.nn.Linear`の順伝播ごとに、`入力の要素数 ÷ 入力の次元 × 入力の次元 × 出力の次元`（＝標本数×入力の次元×出力の次元）を足す。共有部か概念固有部かは、その順伝播が、共有部（`SharedFeatureExtractor`）の順伝播の中で起きたかで決める（共有部の順伝播の前と後のhookで、深さを数える）。共有部の外の全結合層（アダプタの2層と、分類層）は、概念固有部。バイアスの加算、活性化関数、損失、optimizerの更新は、数えない。
+- 逆伝播の見積り: 勾配が有効な順伝播の全結合層ごとに、重みが勾配を求める（`weight.requires_grad`）なら、順伝播と同じ数（重みの勾配）、入力が勾配を求める（`input.requires_grad`）なら、さらに同じ数（入力へ戻す勾配）を足す。順伝播の項目とは別に持つ。実際に`backward`が呼ばれたかは見ない（新実装では、勾配つきの順伝播は、学習だけ）。
+- `measure_model_computation`は、入るときにhook（moduleの順伝播の前と後、optimizerの更新）を登録し、出るとき（例外を含む）に外す。meterは、区間を出た後も、最後の計数を読める。
 - 差の計算は、各項目の引き算。どれかが負になる組は拒否する。
 
 ### evaluation: LossMonitoringComputationCountStore
@@ -174,7 +183,8 @@ def execute_fedsda_stream_protocol_run_with_computation_measurement(
 ## 旧と違う点
 
 - 数え方（部品が足す→外側から数える）。値は、同じになることを、照合で確かめる。
-- 用途別の内訳、clientごと・ラウンドごとの時系列は、作らない。
+- 用途別の内訳、clientごと・ラウンドごとの時系列は、作らない（ラウンドごとの系列は、次のspec）。
+- 積和演算の数と、逆伝播の見積りを足す（旧にはない）。
 - 準備の間の計算（事前学習）を、別の項目として返す（旧は、数えない）。指標には含めない。
 
 ## Error Handling
@@ -190,7 +200,7 @@ def execute_fedsda_stream_protocol_run_with_computation_measurement(
 
 ### 計測（2.x）
 
-- 小さい分類器で、共有部を使い回す順伝播、勾配つき・なし、複数の概念固有部、optimizerの更新（共有部・概念固有部）を行い、計数を、手計算の値と照合する。対象外のmoduleを数えないこと。区間の後と、例外の後に、登録が残らないこと（区間の外の計算が、数えられないこと）。入れ子。差の計算と拒否。計測の有無で、出力と乱数が変わらないこと。
+- 小さい分類器で、共有部を使い回す順伝播、勾配つき・なし、複数の概念固有部、optimizerの更新（共有部・概念固有部）を行い、計数を、手計算の値と照合する。積和演算の数は、層の形からの手計算と照合する。逆伝播の見積りは、実際の逆伝播で勾配が付いた層（最初の層の入力は数えない、勾配を止めた重みは数えない）と対応することを確かめる。goldenの条件では、積和演算の数が、標本数の計数×部品の層の形の合計と一致することを確かめる。対象外のmoduleを数えないこと。区間の後と、例外の後に、登録が残らないこと（区間の外の計算が、数えられないこと）。入れ子。差の計算と拒否。計測の有無で、出力と乱数が変わらないこと。
 
 ### 検出器の計数（3.x）
 

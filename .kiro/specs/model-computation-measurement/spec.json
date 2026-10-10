@@ -1,7 +1,7 @@
 {
   "feature_name": "model-computation-measurement",
   "created_at": "2026-10-12T10:00:00+09:00",
-  "updated_at": "2026-10-12T11:00:00+09:00",
+  "updated_at": "2026-10-12T12:00:00+09:00",
   "language": "ja",
   "phase": "tasks-generated",
   "approvals": {
@@ -29,7 +29,7 @@
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
-  "user_decision": "2026-10-10: 計算量の指標は必要。旧の計数の検査を含めて、1つのspecで扱う。順序は、計算量→datasetの移植→Linux用のgolden",
+  "user_decision": "2026-10-10: 計算量の指標は必要。旧の計数の検査を含めて、1つのspecで扱う。順序は、計算量→datasetの移植→Linux用のgolden。2026-10-10追加: 旧と同じ件数に加えて、積和演算の数を測る（逆伝播は分離できる形で）。サーバの計算、保有モデル数での正規化、ラウンドごとの系列は、次のspec",
   "handoff": {
     "execution_status": "in_progress",
     "next_step": "tasks.mdの下位taskを1.1から順に実装する（/kiro-impl model-computation-measurement --review off の手順）",

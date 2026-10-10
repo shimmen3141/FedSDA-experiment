@@ -39,4 +39,5 @@ sourceの公開する名前（module、class、公開の関数・メソッド）
 - 「shared part」「concept-specific part」は、新実装の既存の語（`shared_parameter_optimizer`、`concept_specific_parameter_optimizer_state`、`split_shared_and_concept_specific_parameters`）に合わせる。旧の「backbone」「head」を使わない。
 - 「training」「inference」は、順伝播のときの勾配の有無（学習か、それ以外か）。旧の用途名（prediction、detectionほか）は使わない。
 - 「example」は、モデルへ入力した標本（旧の`examples`）。観測標本（sample）と区別する: 1つの観測標本が、複数のモデル・複数の処理で、何度も入力される。
-- 「computation」は、計数で表す計算量。実行時間・FLOPsではない。
+- 「computation」は、計数で表す計算量。実行時間ではない。
+- 「multiply-accumulate」は、全結合層の重み行列の積和演算（MAC）。`forward`は実測、`estimated_backward`は、層の形からの見積り。
