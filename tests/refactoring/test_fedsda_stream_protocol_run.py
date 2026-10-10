@@ -52,6 +52,9 @@ from federated_learning_experiments.runtime.fedsda_run_participant_factory impor
     FedsdaRunParticipantSettings,
 )
 from federated_learning_experiments.runtime.fedsda_run_server import FedsdaRunServer
+from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
+    split_shared_and_concept_specific_parameters,
+)
 from federated_learning_experiments.runtime.single_run_execution import (
     execute_stream_protocol_run,
 )
@@ -263,6 +266,88 @@ def execute_stream_protocol_run_with_factory(
     )
 
 
+def assert_server_parameter_computation_counts_match_records(*, run_server, legacy_server):
+    """サーバのパラメータの積和演算の数を、通信量（実旧と一致する値）と、診断の記録・層の形から計算した値と照合する。
+
+    戻り値: (集約の合計, 統合の合計, 診断のパラメータ距離の合計)。
+    """
+    server_owners = run_server.owners
+    synchronizations = run_server.snapshot_server_round_synchronizations()
+    # 集約: 重み付きの和へ足したのは、上りとして数えたパラメータ（上りを数えるのは、集約だけ）。
+    aggregation_count = sum(
+        synchronization.client_model_aggregation.weighted_parameter_multiply_accumulate_count
+        for synchronization in synchronizations
+    )
+    assert aggregation_count == legacy_server.comm_parameter_values_up
+    assert (
+        aggregation_count
+        == server_owners.communication_volume_record_store.get_state_snapshot().uploaded_parameter_value_count
+    )
+    # 層の形: グローバルモデルの、完全なパラメータと、概念固有部の、値の数。
+    global_model_repository = server_owners.global_model_repository
+    parameter_snapshot = global_model_repository.get_global_model_parameters(
+        model_id=global_model_repository.global_model_ids[0]
+    )
+    full_parameter_value_count = sum(
+        parameter_values.numel() for parameter_values in parameter_snapshot.values()
+    )
+    _, concept_specific_parameters = split_shared_and_concept_specific_parameters(
+        parameter_snapshot=parameter_snapshot
+    )
+    concept_specific_parameter_value_count = sum(
+        parameter_values.numel() for parameter_values in concept_specific_parameters.values()
+    )
+    pair_observations = (
+        server_owners.model_clustering_record_store.snapshot_pair_clustering_observations()
+    )
+    consolidation_count = 0
+    diagnostic_distance_count = 0
+    for round_index, synchronization in enumerate(synchronizations):
+        model_consolidation = synchronization.model_consolidation
+        if model_consolidation is None:
+            continue
+        # 診断のパラメータ距離: クラスタリングの対象のモデルの、全部の対ごとに、概念固有部の値の数×3
+        # （距離は、診断の観測に残る対だけでなく、全部の対で計算される）。
+        clustered_model_count = sum(
+            len(model_cluster) for model_cluster in model_consolidation.model_clusters
+        )
+        expected_diagnostic_distance_count = (
+            3
+            * concept_specific_parameter_value_count
+            * (clustered_model_count * (clustered_model_count - 1) // 2)
+        )
+        # 観測に残る対は、その一部（または全部）。
+        assert (
+            sum(
+                pair_observation.round_index == round_index
+                for pair_observation in pair_observations
+            )
+            <= clustered_model_count * (clustered_model_count - 1) // 2
+        )
+        assert (
+            model_consolidation.diagnostic_parameter_distance_multiply_accumulate_count
+            == expected_diagnostic_distance_count
+        )
+        # 統合: 統合したクラスタの、集約の件数が正のメンバーごとに、完全なパラメータの値の数。
+        sample_counts = (
+            synchronization.client_model_aggregation.aggregated_training_sample_counts_by_model_id
+        )
+        expected_consolidation_count = 0
+        if model_consolidation.model_id_mapping:
+            for model_cluster in model_consolidation.model_clusters:
+                if len(model_cluster) > 1:
+                    expected_consolidation_count += full_parameter_value_count * sum(
+                        sample_counts[model_id] > 0 for model_id in model_cluster
+                    )
+        assert (
+            model_consolidation.consolidation_parameter_multiply_accumulate_count
+            == expected_consolidation_count
+        )
+        consolidation_count += expected_consolidation_count
+        diagnostic_distance_count += expected_diagnostic_distance_count
+    return aggregation_count, consolidation_count, diagnostic_distance_count
+
+
 def assert_whole_run_matches_legacy(*, run_result, participants, run_random_sources, legacy_run):
     """概念列、観測列、サーバの全状態、診断の記録、各clientの全状態、runの乱数の最終状態を、実旧と照合する。"""
     legacy_server = legacy_run["legacy_server"]
@@ -309,6 +394,9 @@ def assert_whole_run_matches_legacy(*, run_result, participants, run_random_sour
         )
     assert (
         run_random_sources.python_random_generator.getstate() == legacy_run["python_random_state"]
+    )
+    assert_server_parameter_computation_counts_match_records(
+        run_server=run_server, legacy_server=legacy_server
     )
     assert_numpy_random_states_equal(
         run_random_sources.numpy_random_generator.get_state(), legacy_run["numpy_random_state"]

@@ -45,6 +45,10 @@ class ModelConsolidation:
     model_id_mapping: dict[int, int]
     # 代表へ吸収されて、グローバルモデルから外されたモデルID（昇順）。
     absorbed_model_ids: tuple[int, ...]
+    # 統合の加重平均で、重み付きの和へ足した、パラメータの値の数（割り算は数えない）。
+    consolidation_parameter_multiply_accumulate_count: int
+    # 診断のパラメータ距離の、積和演算の数（対ごとに、概念固有部の値の数×3: 差の2乗和と、2つの2乗和）。
+    diagnostic_parameter_distance_multiply_accumulate_count: int
 
 
 def _validate_clustering_and_consolidation_inputs(
@@ -218,21 +222,28 @@ def _compute_sample_weighted_mean_parameters(
     model_cluster: tuple[int, ...],
     parameter_snapshots_by_model_id: dict[int, dict[str, Tensor]],
     aggregated_training_sample_counts_by_model_id: dict[int, int],
-) -> dict[str, Tensor]:
-    """クラスタのメンバーのパラメータの、集約の件数での加重平均。件数がすべて0なら、代表のパラメータ。"""
+) -> tuple[dict[str, Tensor], int]:
+    """クラスタのメンバーのパラメータの、集約の件数での加重平均。件数がすべて0なら、代表のパラメータ。
+
+    戻り値: (平均したパラメータ, 重み付きの和へ足した、パラメータの値の数)。
+    """
     sample_weights = {
         model_id: max(aggregated_training_sample_counts_by_model_id[model_id], 0)
         for model_id in model_cluster
     }
     total_sample_weight = sum(sample_weights.values())
     if total_sample_weight <= 0:
-        return parameter_snapshots_by_model_id[min(model_cluster)]
+        return parameter_snapshots_by_model_id[min(model_cluster)], 0
     weighted_parameter_sum: dict[str, Tensor] | None = None
+    multiply_accumulate_count = 0
     for model_id in model_cluster:
         sample_weight = sample_weights[model_id]
         if sample_weight == 0:
             continue
         member_parameters = parameter_snapshots_by_model_id[model_id]
+        multiply_accumulate_count += sum(
+            parameter_values.numel() for parameter_values in member_parameters.values()
+        )
         if weighted_parameter_sum is None:
             weighted_parameter_sum = {
                 parameter_name: parameter_values * sample_weight
@@ -246,10 +257,13 @@ def _compute_sample_weighted_mean_parameters(
                 )
     if weighted_parameter_sum is None:
         raise ValueError("at least one cluster member must have a positive sample weight")
-    return {
-        parameter_name: parameter_sum / total_sample_weight
-        for parameter_name, parameter_sum in weighted_parameter_sum.items()
-    }
+    return (
+        {
+            parameter_name: parameter_sum / total_sample_weight
+            for parameter_name, parameter_sum in weighted_parameter_sum.items()
+        },
+        multiply_accumulate_count,
+    )
 
 
 def _compute_count_weighted_mean_loss_statistics(
@@ -428,6 +442,7 @@ def cluster_and_consolidate_global_models(
     # 統合の計算（クラスタが減るときだけ）。グローバルモデルは、まだ変えない。
     consolidates_models = len(model_clusters) < len(clustered_model_ids)
     model_id_mapping: dict[int, int] = {}
+    consolidation_parameter_multiply_accumulate_count = 0
     consolidated_parameters_by_representative_model_id: dict[int, dict[str, Tensor]] = {}
     consolidated_loss_statistics_by_representative_model_id: dict[
         int, ModelAndClassLossStatistics
@@ -439,13 +454,17 @@ def cluster_and_consolidate_global_models(
                 model_id_mapping[model_id] = representative_model_id
             if len(model_cluster) <= 1:
                 continue
-            consolidated_parameters_by_representative_model_id[representative_model_id] = (
+            consolidated_parameters, cluster_multiply_accumulate_count = (
                 _compute_sample_weighted_mean_parameters(
                     model_cluster=model_cluster,
                     parameter_snapshots_by_model_id=parameter_snapshots_by_model_id,
                     aggregated_training_sample_counts_by_model_id=aggregated_training_sample_counts_by_model_id,
                 )
             )
+            consolidated_parameters_by_representative_model_id[representative_model_id] = (
+                consolidated_parameters
+            )
+            consolidation_parameter_multiply_accumulate_count += cluster_multiply_accumulate_count
             consolidated_loss_statistics = _compute_count_weighted_mean_loss_statistics(
                 model_cluster=model_cluster, global_model_repository=global_model_repository
             )
@@ -464,6 +483,18 @@ def cluster_and_consolidate_global_models(
         model_clusters=model_clusters,
         model_id_mapping=model_id_mapping,
         absorbed_model_ids=absorbed_model_ids,
+        consolidation_parameter_multiply_accumulate_count=consolidation_parameter_multiply_accumulate_count,
+        # 距離は、対象のモデルの全部の対で計算する。対ごとに、差の2乗和と、2つの2乗和。
+        diagnostic_parameter_distance_multiply_accumulate_count=3
+        * sum(
+            sum(
+                parameter_values.numel()
+                for parameter_values in concept_specific_parameters_by_model_id[
+                    lower_model_id
+                ].values()
+            )
+            for lower_model_id, _ in parameter_distances_by_model_pair
+        ),
     )
 
     model_clustering_record_store.append_clustering_observations(

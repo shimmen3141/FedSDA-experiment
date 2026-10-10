@@ -377,12 +377,21 @@ def test_registration_and_aggregation_match_real_legacy_server_for_each_round(
                 )
                 for run_client in run_clients
             ]
+            uploaded_parameter_value_count_before = communication_volume_record_store.get_state_snapshot().uploaded_parameter_value_count
             client_model_aggregation = aggregate_client_models_into_global_models(
                 run_clients=run_clients,
                 global_model_repository=global_model_repository,
                 communication_volume_record_store=communication_volume_record_store,
             )
             assert type(client_model_aggregation) is ClientModelAggregation
+            # 重み付きの和へ足したパラメータの値の数は、この集約で上りとして数えた、パラメータの値の数。
+            assert client_model_aggregation.weighted_parameter_multiply_accumulate_count == (
+                communication_volume_record_store.get_state_snapshot().uploaded_parameter_value_count
+                - uploaded_parameter_value_count_before
+            )
+            assert (
+                type(client_model_aggregation.weighted_parameter_multiply_accumulate_count) is int
+            )
             assert client_model_aggregation.aggregated_global_model_ids == tuple(
                 legacy_active_model_ids
             )

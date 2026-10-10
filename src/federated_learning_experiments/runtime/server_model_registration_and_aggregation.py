@@ -49,6 +49,9 @@ class ClientModelAggregation:
 
     aggregated_global_model_ids: tuple[int, ...]
     aggregated_training_sample_counts_by_model_id: dict[int, int]
+    # 重み付きの和へ足した、パラメータの値の数（値1つの「重みを掛けて足す」を1と数える）。
+    # 割り算と、写しは、数えない。
+    weighted_parameter_multiply_accumulate_count: int
 
 
 def _validate_run_clients(*, run_clients: tuple[FedsdaRunClient, ...]) -> None:
@@ -328,4 +331,10 @@ def aggregate_client_models_into_global_models(
     return ClientModelAggregation(
         aggregated_global_model_ids=aggregated_global_model_ids,
         aggregated_training_sample_counts_by_model_id=aggregated_sample_counts_by_model_id,
+        # 重み付きの和へ足したのは、上りとして数えたパラメータの全部（共有部と、参加モデルの概念固有部）。
+        weighted_parameter_multiply_accumulate_count=sum(
+            parameter_values.numel()
+            for uploaded_parameter_snapshot in uploaded_parameter_snapshots
+            for parameter_values in uploaded_parameter_snapshot.values()
+        ),
     )
