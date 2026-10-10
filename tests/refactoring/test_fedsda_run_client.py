@@ -144,6 +144,12 @@ def set_legacy_configuration(
         SHARED_BACKBONE_TRAINING="joint",
         SHARED_BACKBONE_GRADIENT_STRATEGY="mean",
         FEDSDA_DETECTION_EPISODES_ENABLED=False,
+        # サーバのクラスタリング（サーバの生成時に読まれる）。
+        FEDSDA_CLUSTERING_POLICY="on_new_model",
+        FEDSDA_CLUSTERING_DECISION="class_functional_confidence",
+        FEDSDA_CLUSTER_LINKAGE="average",
+        FEDSDA_CLUSTERING_CONSOLIDATION="merge",
+        FEDSDA_CLUSTERING_CONFIDENCE=0.95,
         OPTIMIZER="adam",
         AMSGRAD=True,
         # 条件。

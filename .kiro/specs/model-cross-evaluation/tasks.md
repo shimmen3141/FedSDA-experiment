@@ -9,7 +9,7 @@
   - _Boundary: CrossEvaluationRecordStore、ClientCrossEvaluationRecord、FedsdaRunClientScalarSettings_
   - _Requirements: 3.3, 3.4, 6.2_
 
-- [ ] 2. クロス評価
+- [x] 2. クロス評価
 - [x] 2.1 clientの評価を、実旧のclientの評価との対照つきで実装する
   - 旧の設定の差し替えへ、評価標本の追加の件数と、評価の標本の上限を足す。同期したラウンドの途中の状態で、実旧のclientの`evaluate_model`・`evaluate_model_diagnostics`と照合する対照testを先に書く。
   - 評価の関数、結果の型、clientの2つの操作を実装する。依存の許可集合を登録する。
@@ -17,7 +17,7 @@
   - _Depends: 1.1_
   - _Boundary: evaluate_candidate_model_on_target_model_samples、ClientModelCrossEvaluation、ModelPairCorrectnessCounts、FedsdaRunClientの2つの操作_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 4.3, 5.2, 6.2_
-- [ ] 2.2 サーバのクロス評価を、実旧のサーバのクロス評価との対照つきで実装する
+- [x] 2.2 サーバのクロス評価を、実旧のサーバのクロス評価との対照つきで実装する
   - ラウンドの対照（登録→集約→クロス評価→配布→再較正）を先に書く。クロス評価の関数と結果の型を実装する。依存の許可集合を登録する。
   - 完了: ラウンドの対照が、表・対の集計・3つの診断の記録・通信量・乱数・clientの状態の一致を示し、要求4.2の経路を通ったことを確かめるtestが成功する。拒否と途中の失敗のtest、依存境界のsuiteが成功する。
   - _Depends: 2.1_
