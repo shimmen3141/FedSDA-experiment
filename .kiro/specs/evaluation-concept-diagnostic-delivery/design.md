@@ -85,7 +85,7 @@ def run_stream_protocol_intervals(
 ) -> tuple[RunExecutionEvent, ...]: ...
 ```
 
-- 最初に、概念列を確かめる（どのclientの操作も呼ぶ前）: exact tuple、各要素がexact `ClientConceptTrace`、数が観測列と同じ、位置ごとに、clientのIDが観測列と同じ、標本の数が観測列と同じ。不正は`TypeError`／`ValueError`。
+- 最初に、概念列を確かめる（どのclientの操作も呼ぶ前。同じmoduleの`validate_evaluation_concept_traces_match_observed_streams`）: exact tuple、各要素がexact `ClientConceptTrace`、数が観測列と同じ、位置ごとに、clientのIDが観測列と同じ、標本の数が観測列と同じ。不正は`TypeError`／`ValueError`。
 - 標本の処理: `process_observed_sample(observed_sample=…, sample_index=…, evaluation_concept_id=概念列[client][標本位置])`。記録する実行の記録（段、client、位置、ラウンド）は、変えない。
 
 ### runtime: execute_stream_protocol_run
