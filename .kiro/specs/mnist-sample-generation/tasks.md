@@ -29,8 +29,8 @@
   - _Depends: 2.1_
   - _Requirements: 4.1, 4.4_
 
-- [ ] 3. 検証
-- [ ] 3.1 独立レビューの指摘を反映し、全回帰を通す
+- [x] 3. 検証
+- [x] 3.1 独立レビューの指摘を反映し、全回帰を通す
   - 独立レビュー（別session、検証コマンドだけを許可）を1回受け、指摘の採否を下の「Implementation Notes」へ書く。
   - 完了: 全pytest（旧11・最終3goldenを含む）、Ruff、Pyright、`pip check`、照合script（`names`・`identity`・`progress`）が成功し、件数とcommitを「Implementation Notes」へ記録してある。固定旧実装とgoldenの差分が空である。
   - _Depends: 2.2_
@@ -59,6 +59,13 @@
 - 指標の導出のtestの、経路の検査を、datasetごとの期待の表（`GOLDEN_CONDITION_PATHS_BY_DATASET_NAME`）へまとめた（sine2とsea2の期待は、前と同じ）。clientの数3の定数と、事前学習のepoch数は、goldenの条件から取る形へ直した。「標本あたりの値×標本数＝合計」の検査は、浮動小数点の丸めで成り立たない条件があるので、「標本あたりの値＝合計÷標本数」へ直した。
 - 共用scriptの精度の下限を、0.5から、偶然の正解率（1／クラス数）へ直した（MNISTは10クラス）。
 - 全体runの対照の、モデルの出力を比べる入力を、特徴数に合わせて作る形へ直した（3特徴までは、前と同じ値）。
+
+### 独立レビューと検証
+
+- 独立レビュー（1回、2026-10-10）: Claude Haiku 5.5（独立CLI、effort `medium`を指定。実効値は出力されない）。GPT-6 Lunaは利用上限で使えない期間。session `35304eb7-c95b-4f60-bcd6-a3591eb2e63f`、対象`7a2edef..710648d`。判定は`IMPLEMENTATION: APPROVED`（Blocker・Major・Minorなし。任意 3件）。レビュー担当は、対象test（読込みと生成・定義・合成データ・実行条件・実行の枠・依存境界 4715 passed、全体runの対照・指標の導出・client 112 passed——Windows用のgoldenの3ケースの照合を含む——）、Ruff（check・format）、共用scriptを独立に実行した。全pytest・Pyright・`pip check`・`spec_checks.py`は実行していない（基準どおり）。レビューの後、作業ツリーは空だった。レビュー担当は、長いtestの出力を、worktreeの外の`venv/refactoring-tests/review-mnist-long.log`へ書いた（依頼文の「ファイルを作成しない」からの逸脱。Git管理外の作業用ディレクトリで、sourceとtestには触れていない）。
+- 指摘の採否（すべて任意）: (1)途中で切れたgzip・gzipでないファイル・先頭の数値に足りないファイルで、`EOFError`ほかが出て、ほかの形式の不正の`ValueError`とそろわない（旧も同じ）→採用。testを先に足して失敗を確かめ、読込みを、ファイル名つきの`ValueError`で拒否する形にした（`b5dc3a7`）。(2)MNISTの既定の学習率と隠れ層の幅は、goldenの照合のtestだけが渡している→変更なし（範囲外として記録済み。再開案内へ書いた）。(3)計算量のtestの式の書き換えは、検査の力を保っている→変更なし。Blocker・Majorがないので、確認のレビューは行っていない。
+- 検証（Windows基準環境、`b5dc3a7`。この後は、specの文書とsteeringだけを変えた）: 全pytest（並列、`-n 8 --dist loadfile`）11841 passed / 3 skipped / 4 warnings、exit 0。JUnitはfailure 0、error 0。`tests.test_regression`・`tests.test_proposed_regression`を含む。レビューの前の`710648d`では、全pytestは 11833 passed / 3 skipped。Ruff（check・format）、Pyright 0 errors、`pip check`成功。固定旧`748c3aa`からの差分は空。`spec_checks.py names`は、変更・新規のsourceで「未登録: なし」。
+- 変異テストは実行していない（既定）。
 
 ### 未検証・残る制約
 
