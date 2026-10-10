@@ -22,8 +22,8 @@
   - _Boundary: cluster_and_consolidate_global_models、ModelConsolidation、synchronize_models_in_server_round、ServerRoundSynchronization_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 6.1, 6.2, 7.1, 7.2, 7.3, 8.2_
 
-- [ ] 3. 新実装だけの確認
-- [ ] 3.1 共用のfresh process scriptのサーバの代役を、同期の関数の呼出しにする
+- [x] 3. 新実装だけの確認
+- [x] 3.1 共用のfresh process scriptのサーバの代役を、同期の関数の呼出しにする
   - 完了: 共用scriptが、旧実装とtestのmoduleを読み込まずに、ラウンドごとに同期の関数を呼び、クラスタリングが1回以上行われ、記録が足されたことを確かめて成功する。別processで実行するtest、Ruff、Pyrightが成功する。
   - _Depends: 2.1_
   - _Boundary: 共用のfresh process script_

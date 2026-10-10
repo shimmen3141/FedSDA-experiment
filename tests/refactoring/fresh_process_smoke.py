@@ -40,6 +40,9 @@ from federated_learning_experiments.evaluation.cross_evaluation_record_store imp
 from federated_learning_experiments.evaluation.loss_change_alarm_record_store import (
     LossChangeAlarmRecordStore,
 )
+from federated_learning_experiments.evaluation.model_clustering_record_store import (
+    ModelClusteringRecordStore,
+)
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
 )
@@ -117,6 +120,9 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.can
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
 )
+from federated_learning_experiments.methods.fedsda.consolidation.model_clustering_calculations import (
+    ModelClusteringCriteria,
+)
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
     LossChangeDetectionSettings,
 )
@@ -155,9 +161,6 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientScalarSettings,
     FedsdaRunClientSettings,
 )
-from federated_learning_experiments.runtime.global_model_distribution import (
-    distribute_global_models_to_clients,
-)
 from federated_learning_experiments.runtime.held_candidate_validation_progress import (
     advance_held_candidate_validation,
 )
@@ -166,18 +169,14 @@ from federated_learning_experiments.runtime.held_model_training_request_handling
     train_held_models_for_pending_training_requests,
 )
 from federated_learning_experiments.runtime.initial_model_pretraining import pretrain_initial_model
-from federated_learning_experiments.runtime.model_cross_evaluation import (
-    cross_evaluate_global_models,
-)
 from federated_learning_experiments.runtime.observed_sample_processing import (
     process_observed_sample,
 )
 from federated_learning_experiments.runtime.released_pending_sample_assignment import (
     assign_released_pending_samples_to_current_training_model,
 )
-from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
-    aggregate_client_models_into_global_models,
-    register_ready_client_models,
+from federated_learning_experiments.runtime.server_round_synchronization import (
+    synchronize_models_in_server_round,
 )
 from federated_learning_experiments.runtime.single_run_execution import (
     validate_prepared_run_participants,
@@ -792,11 +791,11 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
 PROCESSED_ALARM_COUNTS = []
 
 
-class ServerOperationsRegisteringAggregatingAndDistributing:
-    """実行の枠が求めるサーバの操作の代役。
+class ServerOperationsSynchronizingModels:
+    """実行の枠が求めるサーバの操作の代役。ラウンドごとに、サーバの1ラウンドの同期の関数を呼ぶ。
 
-    ラウンドごとに、新規モデルの登録・集約・配布と、全clientの再較正を行う。新規モデルを登録したラウンドでは、
-    集約の後にクロス評価も行う（クラスタリングと統合は未移植なので、結果は使わない）。
+    同期: 新規モデルの登録→集約→（新規モデルがあり、モデルが2つ以上なら）クロス評価→クラスタリングと統合→
+    配布→全clientの再較正。呼ぶたびに、各段の結果と、サーバとclientの状態の対応を確かめる。
     """
 
     def __init__(
@@ -812,10 +811,12 @@ class ServerOperationsRegisteringAggregatingAndDistributing:
         self.communication_volume_record_store = communication_volume_record_store
         self.python_random_generator = python_random_generator
         self.cross_evaluation_record_store = CrossEvaluationRecordStore()
-        self.model_cross_evaluations = []
+        self.model_clustering_record_store = ModelClusteringRecordStore()
+        self.synchronizations = []
         self.registered_model_count = 0
-        self.aggregations = []
         self.distributed_model_count = 0
+        self.consolidation_message_count = 0
+        self.absorbed_model_count = 0
         self.replayed_recalibration_sample_count = 0
 
     def record_client_states_before_synchronization(self, *, round_index):
@@ -824,43 +825,114 @@ class ServerOperationsRegisteringAggregatingAndDistributing:
         )
 
     def synchronize_models(self, *, round_index, new_model_registration_available):
-        registered_client_models = register_ready_client_models(
-            run_clients=self.run_clients,
-            global_model_repository=self.global_model_repository,
-            round_index=round_index,
+        cross_evaluation_record_count = len(
+            self.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
         )
-        assert bool(registered_client_models) == new_model_registration_available
-        self.registered_model_count += len(registered_client_models)
-        self.aggregations.append(
-            aggregate_client_models_into_global_models(
-                run_clients=self.run_clients,
-                global_model_repository=self.global_model_repository,
-                communication_volume_record_store=self.communication_volume_record_store,
-            )
+        model_observation_count = len(
+            self.model_clustering_record_store.snapshot_model_clustering_observations()
         )
-        if registered_client_models:
-            self.cross_evaluate_global_models_after_aggregation(round_index=round_index)
-        downloaded_byte_count = (
-            self.communication_volume_record_store.get_state_snapshot().downloaded_byte_count
-        )
-        distribution_applications = distribute_global_models_to_clients(
+        global_model_ids_before = self.global_model_repository.global_model_ids
+        synchronization = synchronize_models_in_server_round(
             run_clients=self.run_clients,
             global_model_repository=self.global_model_repository,
             communication_volume_record_store=self.communication_volume_record_store,
-            model_id_mapping={},
+            cross_evaluation_record_store=self.cross_evaluation_record_store,
+            model_clustering_record_store=self.model_clustering_record_store,
+            model_clustering_criteria=ModelClusteringCriteria(
+                maximum_same_cluster_decision_score=0.1,
+                minimum_pair_evaluation_sample_count=5,
+                clustering_confidence_level=0.95,
+            ),
+            maximum_evaluating_client_count_per_model=len(self.run_clients),
+            python_random_generator=self.python_random_generator,
+            round_index=round_index,
+            model_clustering_enabled=new_model_registration_available,
         )
-        assert (
-            self.communication_volume_record_store.get_state_snapshot().downloaded_byte_count
-            > downloaded_byte_count
+        self.synchronizations.append(synchronization)
+        # 登録: 送信できるモデルを持つclientがいたラウンドだけ。
+        assert bool(synchronization.registered_client_models) == new_model_registration_available
+        self.registered_model_count += len(synchronization.registered_client_models)
+        aggregated_model_ids = synchronization.client_model_aggregation.aggregated_global_model_ids
+        assert set(global_model_ids_before) <= set(aggregated_model_ids)
+        # クロス評価とクラスタリング: 新規モデルがあり、モデルが2つ以上のラウンドだけ。
+        clustered = new_model_registration_available and len(aggregated_model_ids) > 1
+        assert (synchronization.model_cross_evaluation is not None) == clustered
+        assert (synchronization.model_consolidation is not None) == clustered
+        added_cross_evaluation_records = (
+            self.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()[
+                cross_evaluation_record_count:
+            ]
         )
+        added_model_observations = (
+            self.model_clustering_record_store.snapshot_model_clustering_observations()[
+                model_observation_count:
+            ]
+        )
+        absorbed_model_ids = ()
+        if clustered:
+            model_cross_evaluation = synchronization.model_cross_evaluation
+            model_consolidation = synchronization.model_consolidation
+            assert model_cross_evaluation.cross_evaluated_model_ids == aggregated_model_ids
+            assert list(model_cross_evaluation.loss_sums_by_candidate_and_target_model_id) == [
+                (candidate_model_id, target_model_id)
+                for candidate_model_id in aggregated_model_ids
+                for target_model_id in aggregated_model_ids
+            ]
+            # 表の件数は、clientの評価の記録を足し合わせたもの。
+            for (
+                model_pair,
+                loss_sums,
+            ) in model_cross_evaluation.loss_sums_by_candidate_and_target_model_id.items():
+                assert loss_sums.evaluated_sample_count == sum(
+                    record.evaluated_sample_count
+                    for record in added_cross_evaluation_records
+                    if (record.candidate_model_id, record.target_model_id) == model_pair
+                )
+                assert 0.0 <= loss_sums.bounded_loss_sum <= loss_sums.evaluated_sample_count
+            assert added_cross_evaluation_records
+            # クラスタリングの観測は、モデルごとに1件。クラスタは、全モデルをちょうど1回ずつ持つ。
+            assert [observation.model_id for observation in added_model_observations] == list(
+                aggregated_model_ids
+            )
+            assert sorted(
+                model_id
+                for model_cluster in model_consolidation.model_clusters
+                for model_id in model_cluster
+            ) == sorted(aggregated_model_ids)
+            absorbed_model_ids = model_consolidation.absorbed_model_ids
+            assert absorbed_model_ids == tuple(
+                observation.model_id
+                for observation in added_model_observations
+                if observation.absorbed_into_representative
+            )
+            if model_consolidation.model_id_mapping:
+                # 統合した: ID対応は全モデルを持ち、配布で、clientの数だけ軽量メッセージを数える。
+                assert sorted(model_consolidation.model_id_mapping) == sorted(aggregated_model_ids)
+                assert absorbed_model_ids
+                self.consolidation_message_count += len(self.run_clients)
+            else:
+                assert not absorbed_model_ids
+            self.absorbed_model_count += len(absorbed_model_ids)
+        else:
+            assert not added_cross_evaluation_records
+            assert not added_model_observations
         # 配布の後、全clientが、全グローバルモデルを同じ値で保有し、client内では1つの共有部につながっている。
         global_model_ids = self.global_model_repository.global_model_ids
+        assert global_model_ids == tuple(
+            model_id for model_id in aggregated_model_ids if model_id not in absorbed_model_ids
+        )
         self.distributed_model_count += len(global_model_ids) * len(self.run_clients)
-        for run_client, distribution_application in zip(
-            self.run_clients, distribution_applications, strict=True
+        shared_source_parameters = self.global_model_repository.get_global_model_parameters(
+            model_id=min(global_model_ids)
+        )
+        for run_client, distribution_application, prediction_recalibration in zip(
+            self.run_clients,
+            synchronization.distribution_applications,
+            synchronization.prediction_recalibrations,
+            strict=True,
         ):
-            assert distribution_application.training_assignment_change is None
-            held_model_training_states = run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+            owners = run_client.owners
+            held_model_training_states = owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
             assert (
                 tuple(
                     held_state.model_id
@@ -872,6 +944,16 @@ class ServerOperationsRegisteringAggregatingAndDistributing:
             assert distribution_application.held_model_ids == tuple(
                 held_state.model_id for held_state in held_model_training_states
             )
+            # 現在の学習帰属は、保有しているモデル。吸収されたモデルが現行だったclientは、代表へ付け替わっている。
+            current_training_model_id = (
+                owners.current_training_model_assignment.current_training_model_id
+            )
+            assert current_training_model_id in distribution_application.held_model_ids
+            if distribution_application.training_assignment_change is not None:
+                assert (
+                    distribution_application.training_assignment_change.previous_model_id
+                    in absorbed_model_ids
+                )
             assert (
                 len(
                     {
@@ -887,131 +969,34 @@ class ServerOperationsRegisteringAggregatingAndDistributing:
                 global_parameters = self.global_model_repository.get_global_model_parameters(
                     model_id=held_state.model_id
                 )
-                held_parameters = held_state.classifier.state_dict()
                 # 共有部は、つなぎ先（非負のIDが最小のモデル）のもの。概念固有部は、そのモデルのもの。
-                shared_source_parameters = self.global_model_repository.get_global_model_parameters(
-                    model_id=min(global_model_ids)
-                )
-                for parameter_name, held_parameter_values in held_parameters.items():
+                for (
+                    parameter_name,
+                    held_parameter_values,
+                ) in held_state.classifier.state_dict().items():
                     expected_parameters = (
                         shared_source_parameters
                         if parameter_name.startswith("feature_extractor.")
                         else global_parameters
                     )
                     assert torch.equal(held_parameter_values, expected_parameters[parameter_name])
-        # 配布の後、全clientが、保留中の標本の損失を計算し直して、予測の重みと診断証拠を作り直す。
-        for run_client in self.run_clients:
-            owners = run_client.owners
-            fixed_share_controller = owners.fixed_share_prediction_weight_controller
-            global_diagnostic_evidence = (
-                owners.diagnostic_evidence_collection.global_diagnostic_evidence
-            )
-            recalibration_counts = (
-                fixed_share_controller.aggregation_recalibration_count,
-                fixed_share_controller.aggregation_recalibration_sample_count,
-                global_diagnostic_evidence.aggregation_recalibration_count,
-                global_diagnostic_evidence.aggregation_recalibration_sample_count,
-            )
-            recalibration = run_client.recalibrate_prediction_state_after_aggregation()
-            replayed = int(recalibration.replayed_sample_count > 0)
-            assert (
-                fixed_share_controller.aggregation_recalibration_count,
-                fixed_share_controller.aggregation_recalibration_sample_count,
-                global_diagnostic_evidence.aggregation_recalibration_count,
-                global_diagnostic_evidence.aggregation_recalibration_sample_count,
-            ) == (
-                recalibration_counts[0] + replayed,
-                recalibration_counts[1] + recalibration.replayed_sample_count,
-                recalibration_counts[2] + replayed,
-                recalibration_counts[3] + recalibration.replayed_sample_count,
-            )
-            if replayed:
-                # 再生の後の重みは、列に含めたモデル（保有する全モデル）の上の分布になる。
-                weights_by_model_id = fixed_share_controller.weights_by_model_id
-                assert tuple(sorted(weights_by_model_id)) == recalibration.replayed_model_ids
+            # 再較正: 再生した列は、保有する全モデルの損失を持ち、重みは、その上の分布になる。
+            if prediction_recalibration.replayed_sample_count > 0:
+                weights_by_model_id = (
+                    owners.fixed_share_prediction_weight_controller.weights_by_model_id
+                )
+                assert (
+                    tuple(sorted(weights_by_model_id))
+                    == prediction_recalibration.replayed_model_ids
+                    == tuple(sorted(distribution_application.held_model_ids))
+                )
                 assert abs(sum(weights_by_model_id.values()) - 1.0) < 1e-9
-            self.replayed_recalibration_sample_count += recalibration.replayed_sample_count
-
-    def cross_evaluate_global_models_after_aggregation(self, *, round_index):
-        """全グローバルモデルの全部の組を、保有するclientへ評価させ、表の形と、通信量と記録の増加を確かめる。"""
-        global_model_ids = self.global_model_repository.global_model_ids
-        volume_before = self.communication_volume_record_store.get_state_snapshot()
-        record_count = len(
-            self.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
-        )
-        parameters_before = {
-            model_id: self.global_model_repository.get_global_model_parameters(model_id=model_id)
-            for model_id in global_model_ids
-        }
-        model_cross_evaluation = cross_evaluate_global_models(
-            run_clients=self.run_clients,
-            global_model_repository=self.global_model_repository,
-            communication_volume_record_store=self.communication_volume_record_store,
-            cross_evaluation_record_store=self.cross_evaluation_record_store,
-            cross_evaluated_model_ids=global_model_ids,
-            round_index=round_index,
-            maximum_evaluating_client_count_per_model=len(self.run_clients),
-            python_random_generator=self.python_random_generator,
-        )
-        self.model_cross_evaluations.append(model_cross_evaluation)
-        assert list(model_cross_evaluation.loss_sums_by_candidate_and_target_model_id) == [
-            (candidate_model_id, target_model_id)
-            for candidate_model_id in global_model_ids
-            for target_model_id in global_model_ids
-        ]
-        added_records = (
-            self.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()[
-                record_count:
-            ]
-        )
-        # 表の件数と和は、clientの評価の記録を足し合わせたもの。
-        for (
-            candidate_model_id,
-            target_model_id,
-        ), loss_sums in model_cross_evaluation.loss_sums_by_candidate_and_target_model_id.items():
-            pair_records = [
-                record
-                for record in added_records
-                if (record.candidate_model_id, record.target_model_id)
-                == (candidate_model_id, target_model_id)
-            ]
-            assert loss_sums.evaluated_sample_count == sum(
-                record.evaluated_sample_count for record in pair_records
-            )
-            assert all(
-                (record.correctness_counts is None)
-                == (candidate_model_id == target_model_id or record.evaluated_sample_count == 0)
-                for record in pair_records
-            )
-            assert 0.0 <= loss_sums.bounded_loss_sum <= loss_sums.evaluated_sample_count
-        for model_pair in model_cross_evaluation.unique_correctness_counts_by_model_pair:
-            assert model_pair[0] < model_pair[1]
-        volume_after = self.communication_volume_record_store.get_state_snapshot()
-        assert added_records
-        assert (
-            volume_after.downloaded_message_count - volume_before.downloaded_message_count
-            == len(added_records)
-        )
-        assert volume_after.uploaded_message_count - volume_before.uploaded_message_count == len(
-            added_records
-        )
-        # モデル転送は、（評価する側のモデル、client）ごとに1回。
-        assert volume_after.downloaded_model_count - volume_before.downloaded_model_count == len(
-            {(record.candidate_model_id, record.client_id) for record in added_records}
-        )
-        assert volume_after.downloaded_byte_count > volume_before.downloaded_byte_count
-        # グローバルモデルは変わらない。
-        for model_id, parameters in parameters_before.items():
-            current_parameters = self.global_model_repository.get_global_model_parameters(
-                model_id=model_id
-            )
-            assert all(
-                torch.equal(current_parameters[parameter_name], parameter_values)
-                for parameter_name, parameter_values in parameters.items()
+            self.replayed_recalibration_sample_count += (
+                prediction_recalibration.replayed_sample_count
             )
 
     def finalize_started_communications(self, *, completed_round_count):
-        assert len(self.aggregations) == completed_round_count
+        assert len(self.synchronizations) == completed_round_count
 
 
 ASSEMBLED_CLIENT_COUNT = 2
@@ -1126,7 +1111,7 @@ def run_assembled_client_flow(*, class_count):
         initial_loss_statistics=pretrained_initial_model.loss_statistics,
     )
     communication_volume_record_store = CommunicationVolumeRecordStore()
-    server_operations = ServerOperationsRegisteringAggregatingAndDistributing(
+    server_operations = ServerOperationsSynchronizingModels(
         run_clients=run_clients,
         global_model_repository=global_model_repository,
         communication_volume_record_store=communication_volume_record_store,
@@ -1199,12 +1184,13 @@ def run_assembled_client_flow(*, class_count):
     )
     assert alarm_count > 0, alarm_count
     # サーバ: 毎ラウンド集約して配布し、グローバルモデル0が、clientの学習を反映して初期の値から変わっている。
-    assert len(server_operations.aggregations) == round_count
-    assert all(
-        0 in aggregation.aggregated_global_model_ids
-        for aggregation in server_operations.aggregations
-    )
-    assert server_operations.aggregations[-1].aggregated_training_sample_counts_by_model_id[0] > 0
+    aggregations = [
+        synchronization.client_model_aggregation
+        for synchronization in server_operations.synchronizations
+    ]
+    assert len(aggregations) == round_count
+    assert all(0 in aggregation.aggregated_global_model_ids for aggregation in aggregations)
+    assert aggregations[-1].aggregated_training_sample_counts_by_model_id[0] > 0
     aggregated_global_parameters = global_model_repository.get_global_model_parameters(model_id=0)
     assert list(aggregated_global_parameters) == list(initial_global_parameters)
     assert any(
@@ -1215,9 +1201,21 @@ def run_assembled_client_flow(*, class_count):
     cross_evaluation_records = (
         server_operations.cross_evaluation_record_store.snapshot_client_cross_evaluation_records()
     )
-    # クロス評価が1回以上行われた（新規モデルを登録したラウンド）。
-    assert server_operations.model_cross_evaluations
-    assert cross_evaluation_records
+    # クロス評価とクラスタリングが、1回以上行われた（新規モデルを登録したラウンド）。
+    model_cross_evaluations = [
+        synchronization.model_cross_evaluation
+        for synchronization in server_operations.synchronizations
+        if synchronization.model_cross_evaluation is not None
+    ]
+    # クラスタリングが起きたかどうかは、標本列による（どちらかの流れで起きたことを、mainが確かめる）。
+    assert bool(model_cross_evaluations) == bool(cross_evaluation_records)
+    model_clustering_observations = (
+        server_operations.model_clustering_record_store.snapshot_model_clustering_observations()
+    )
+    assert bool(model_clustering_observations) == bool(model_cross_evaluations)
+    assert len({observation.round_index for observation in model_clustering_observations}) == len(
+        model_cross_evaluations
+    )
     # 上りの軽量メッセージは、ラウンドごとの状態の報告と、クロス評価の統計の返信。
     assert communication_volume.uploaded_message_count == (
         round_count * ASSEMBLED_CLIENT_COUNT + len(cross_evaluation_records)
@@ -1237,13 +1235,16 @@ def run_assembled_client_flow(*, class_count):
             }
         )
     )
-    assert len(server_operations.model_cross_evaluations) == len(
+    assert len(model_cross_evaluations) == len(
         {record.round_index for record in cross_evaluation_records}
     )
     assert server_operations.distributed_model_count >= round_count * ASSEMBLED_CLIENT_COUNT
     # 再較正: 空でない損失の列での再生が、1回以上あった。
     assert server_operations.replayed_recalibration_sample_count > 0
-    assert communication_volume.downloaded_message_count == len(cross_evaluation_records)
+    # 下りの軽量メッセージは、クロス評価の依頼と、統合したラウンドの配布のID対応。
+    assert communication_volume.downloaded_message_count == (
+        len(cross_evaluation_records) + server_operations.consolidation_message_count
+    )
     assert communication_volume.downloaded_byte_count == 4 * (
         communication_volume.downloaded_parameter_value_count
     )
@@ -1256,7 +1257,24 @@ def run_assembled_client_flow(*, class_count):
         len(global_model_repository.snapshot_model_registration_records())
         == 1 + server_operations.registered_model_count
     )
-    return alarm_count
+    # グローバルモデルの数は、初期モデルと、登録したモデルから、統合で吸収されたモデルを除いた数を超えない
+    # （採番だけが行われて、モデルが登録されないことがある）。
+    assert len(global_model_repository.global_model_ids) <= (
+        1 + server_operations.registered_model_count - server_operations.absorbed_model_count
+    )
+    print(
+        "  synchronized rounds:",
+        round_count,
+        "registered:",
+        server_operations.registered_model_count,
+        "clustered rounds:",
+        len(model_cross_evaluations),
+        "absorbed:",
+        server_operations.absorbed_model_count,
+        "global models:",
+        global_model_repository.global_model_ids,
+    )
+    return alarm_count, len(model_cross_evaluations)
 
 
 def main():
@@ -1275,11 +1293,22 @@ def main():
                 "->",
                 " / ".join(observed_outcomes),
             )
-    assembled_client_alarm_counts = [
+    assembled_client_flow_results = [
         run_assembled_client_flow(class_count=class_count) for class_count in (2, 4)
     ]
+    assembled_client_alarm_counts = [
+        alarm_count for alarm_count, _ in assembled_client_flow_results
+    ]
+    clustered_round_counts = [
+        clustered_round_count for _, clustered_round_count in assembled_client_flow_results
+    ]
+    # サーバの同期の中で、クロス評価とクラスタリングが、1回以上行われた。
+    assert sum(clustered_round_counts) > 0, clustered_round_counts
     print(
-        "PASS assembled clients in the stream protocol loop: alarms", assembled_client_alarm_counts
+        "PASS assembled clients in the stream protocol loop: alarms",
+        assembled_client_alarm_counts,
+        "clustered rounds",
+        clustered_round_counts,
     )
     required_outcomes = {
         "alarm_change_interval_too_short",
