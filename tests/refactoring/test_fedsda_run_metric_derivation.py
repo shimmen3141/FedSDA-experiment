@@ -11,6 +11,7 @@ import random
 import sys
 from contextlib import redirect_stdout
 from dataclasses import replace
+from itertools import combinations
 from math import isnan
 from pathlib import Path
 from types import SimpleNamespace
@@ -187,6 +188,19 @@ LEGACY_METRIC_NAMES_OF_UNUSED_OPTIONS = (
 )
 
 
+# 照合のたびに、旧の指標の値（応答の指標の、旧の名前→値）を積む。対応表の取り違えを検出できるかを、
+# 最後のtestが、この観測から確かめる。
+LEGACY_CHANGE_RESPONSE_METRIC_VALUE_OBSERVATIONS = []
+# 実行した全部の条件で、旧の値が同じになる、指標の対（対応表で、この2つを取り違えても、照合は検出できない）。
+INDISTINGUISHABLE_LEGACY_CHANGE_RESPONSE_METRIC_NAME_PAIRS = {
+    # 最終構成では、候補の学習区間の全部を、学習に使う（新は、1つの値で持つ）。
+    ("provisional_interval_count_mean", "provisional_training_count_mean"),
+    # 最終構成の検証は、提案の次の標本から、1標本ずつ進む（判定までの標本数と、検証に使った標本数が、同じになる）。
+    # 新の2つの値は、別の記録（判定の位置と、検証の標本数）から作り、表の列で、別々に、旧の配列と照合している。
+    ("provisional_resolution_delay_mean", "provisional_validation_count_mean"),
+}
+
+
 def derive_legacy_change_response_metric_values(run_metrics):
     """応答の指標を、旧の指標（`compute_metrics`と、監視の値の最大）の名前へ写す（照合のための対応表）。
 
@@ -332,6 +346,12 @@ def assert_change_response_metrics_match_legacy_metrics(*, run_metrics, legacy_m
         | set(LEGACY_METRIC_NAMES_OF_UNUSED_OPTIONS)
     )
     assert len(change_response_values) == 52
+    LEGACY_CHANGE_RESPONSE_METRIC_VALUE_OBSERVATIONS.append(
+        {
+            legacy_metric_name: legacy_metric_values[legacy_metric_name]
+            for legacy_metric_name in change_response_values
+        }
+    )
 
 
 def derive_legacy_trace_arrays(*, run_result, participants):
@@ -1302,6 +1322,11 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
     experiment._add_telemetry_results(
         legacy_computation_results, legacy_clients, experiment._new_round_telemetry()
     )
+    # 監視の値の最大が、実旧の集計と一致する。
+    assert (
+        run_metrics.change_response_metrics.maximum_monitored_log_e_value
+        == legacy_computation_results["e_detector_max_log_e"]
+    )
     # 応答の指標が、実旧の`compute_metrics`の戻り値と、全部の項目で一致する。
     assert_change_response_metrics_match_legacy_metrics(
         run_metrics=run_metrics, legacy_metric_values=legacy_metrics
@@ -1526,3 +1551,28 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
         )
         == run_metrics
     )
+
+
+def test_change_response_metric_correspondence_distinguishes_metric_pairs():
+    """応答の指標の対応表で、2つの指標を取り違えたら、goldenと小さい条件の照合が検出する。
+
+    実行した全部の条件で、旧の値が同じになる対（取り違えを検出できない対）が、期待の一覧と同じであることを確かめる。
+    """
+    observations = LEGACY_CHANGE_RESPONSE_METRIC_VALUE_OBSERVATIONS
+    if len(observations) < len(GOLDEN_DATASET_NAMES) + 2 * len(SMALL_RUN_CONDITIONS):
+        pytest.skip("goldenと、対照の全条件を実行したときだけ確かめる")
+    legacy_metric_names = sorted(observations[0])
+    indistinguishable_name_pairs = {
+        (first_name, second_name)
+        for first_name, second_name in combinations(legacy_metric_names, 2)
+        if all(observation[first_name] == observation[second_name] for observation in observations)
+    }
+    assert (
+        indistinguishable_name_pairs == INDISTINGUISHABLE_LEGACY_CHANGE_RESPONSE_METRIC_NAME_PAIRS
+    )
+    # どの条件でも0のままの指標（値の照合が、中身のない比較になるもの）は、ない。
+    assert not [
+        legacy_metric_name
+        for legacy_metric_name in legacy_metric_names
+        if all(observation[legacy_metric_name] == 0 for observation in observations)
+    ]

@@ -31,7 +31,16 @@
 | `sample_prediction.held_model_count` | `sample_prediction.held_model_count_at_prediction` | その標本の予測に使った保有モデルの数（処理の前の値）であることを表す |
 | `concept_change.sample_index` | `concept_change.first_new_concept_sample_index` | 変更の前後の、どちらの標本かが分からない |
 
-ほかの表と列は、記録の型とfieldの名前のままで、十分と判断した（`adaptation.adaptation_sample_index`、`candidate_validation_decision.proposal_sample_index`、`model_registration.registered_round_index`ほか）。
+| `training_model_switch.sample_index` | `training_model_switch.switch_sample_index` | ほかの表の位置の列（`alarm_sample_index`、`adaptation_sample_index`、`proposal_sample_index`）とそろえる（独立レビューの指摘） |
+| `model_clustering.round_index`、`model_pair_clustering.round_index` | `server_round_index` | 表`round`を直したのと同じ理由（どのラウンドかが分からない）。表`server_round`の行を指す（独立レビューの指摘） |
+| `model_registration.registered_round_index` | `model_registration.registered_server_round_index` | 同上 |
+
+ほかの表と列は、記録の型とfieldの名前のままで、十分と判断した（`adaptation.adaptation_sample_index`、`candidate_validation_decision.proposal_sample_index`ほか）。記録の型のfieldの名前（`round_index`、`registered_round_index`）は、変えていない（保存する列の名前だけを直した）。
+
+列の読み方の注意:
+
+- `candidate_validation_decision.resolution_sample_index`は、判定が確定した標本の位置。終端で回収した未完了の判定（`is_incomplete_at_run_end`が真）では、回収した位置（提案の位置と、最後に処理した標本の位置の、大きいほう。旧と同じ）。
+- `candidate_validation_decision.decision_reason`が「2つの区間とも通過」でも、`candidate_accepted`が偽のことがある（採否は、平均の損失を倍精度で比べ、理由は、単精度の差で決めるので、境界の丸めで食い違いうる。旧と同じ構造で、件数は旧と一致する）。
 
 ## Components
 
@@ -110,8 +119,13 @@ def derive_fedsda_change_response_metrics(*, run_clients, concept_change_sample_
 | `adaptation` | `detector_name`、`estimated_change_point_sample_index`（ないときは−1） |
 | `candidate_validation_decision` | `detector_name`、`candidate_training_interval_sample_count`、`validation_sample_count`、`comparison_reference_model_id`（ないときは−1）、`candidate_full_interval_mean_loss`・`reference_full_interval_mean_loss`・`candidate_second_segment_mean_loss`・`reference_second_segment_mean_loss`・`reference_historical_mean_loss`（ないときはNaN）、`matched_to_concept_change`(bool) |
 
+## 旧と違う点
+
+- 変化点の推定の誤差の計算は、警報の位置の列と、推定の位置の列の長さが違うと、`ValueError`を出す（旧の`_change_point_errors`は、そのclientを黙って飛ばす）。2つの記録は、同じ場所で同時に足すので、実行では、長さは食い違わない。
+
 ## 検証の方針
 
 - 計算: 乱数で作った変更位置とイベントの列で、実旧の`match_events`・`_classify_unmatched_events`・`_change_point_errors`と照合する。
 - 指標: goldenの3ケースの実旧の実行結果（263の指標の辞書）と、小さい条件の実旧の`compute_metrics`の戻り値と、全部の項目で照合する。新→旧の対応を、testの`derive_legacy_metric_values`へ足す。
 - 表: goldenの3ケースの、実旧が保存した配列と照合する。
+- 対応表の取り違え: 照合のたびに、旧の値を積み、実行した全部の条件（goldenの3ケースと、小さい条件）で旧の値が同じになる指標の対と、0のままの指標を、最後のtestで数える（取り違えを検出できない対が、期待の一覧と同じであること、0のままの指標がないこと。独立レビューの指摘で足した）。

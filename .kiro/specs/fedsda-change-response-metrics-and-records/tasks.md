@@ -49,8 +49,18 @@
 
 - 計算: 乱数で作った列（72条件と、60条件）で、対応づけ・対応づかなかったイベントの分類・変化点の推定の誤差が、実旧の`match_events`・`_classify_unmatched_events`・`_change_point_errors`と一致。乱数の条件は、4つの区分を、すべて通る。
 - 指標: 旧の`compute_metrics`が返す指標のうち、照合済みの33指標に入らない52項目と、監視の値の最大が、goldenの3ケースの実旧の実行結果と、小さい条件（7条件×設定2通り）の実旧の`compute_metrics`の戻り値と、`==`で一致。旧の`compute_metrics`の戻り値の、全部のキーが、照合済み・応答の指標・最終構成では使わない指標（5項目。値は0）のどれかに入ることを、testで確かめた。
-- 表: 足した列（19の旧の配列に当たる）が、goldenの3ケースの、実旧が保存した配列と、形と値で一致（欠損は、新旧とも、整数は−1、損失はNaN）。
+- 表: 足した列（18の旧の配列に当たる）が、goldenの3ケースの、実旧が保存した配列と、形と値で一致（欠損は、新旧とも、整数は−1、損失はNaN）。
 - 名前の見直しの後、前のspecの照合（31の配列、ラウンドごとのモデル数、保存と読込み）が、新しい名前で成功。
+
+### 独立レビューと検証
+
+- 独立レビュー（2026-10-11）: Claude Haiku 5.5（独立CLI、effort `medium`を指定）。GPT-6 Lunaは利用上限で使えない期間。対象`b21458b..6440083`。起動は2回になった——1回目（session `597f9d7b-8e61-4512-9bd2-44d975d42257`）は、レビュー担当が検証コマンドを裏で実行し、保存された出力が、最後の通知への返答（判定`CHANGES_REQUESTED`、Blocker・Majorなし、Minor 3件・任意2件、とだけ書いたもの）だけになり、指摘の本文が残らなかった（sessionは保存していないので、復元できない）。2回目（session `7ed93530-421a-4af7-a98d-bfd7eb5caccf`。同じ依頼文に、裏で実行しないこと、最後のメッセージに全文を書くことを足し、全部のメッセージが残る出力形式にした）の判定は`IMPLEMENTATION: APPROVED`（Blocker・Majorなし。Minor 2件、任意5件）。採否は、2回目の指摘で決めた（1回目の指摘の本文は、読めていない）。
+- レビュー担当（2回目）が独立に実行したもの: 計算のtest（157 passed）、表のtestのうちgoldenと実旧を使わないもの（20 passed）、依存境界（3043 passed）、Ruff。実旧との照合のtest（約8分の2つ）、全pytest、Pyright、WSLは実行していない（依頼文で、主担当が実行すると伝えた）。計算と指標の導出を、旧のsource（`metrics.py`、`provisional_model.py`、`experiment.py`、`clients/fedsda.py`）と照合した。レビュー担当の逸脱: 読取りに、許可していないshellのコマンド（`grep`・`sed`・`cat`）を使った（ファイルは変えていない。レビューの後、作業ツリーは空だった）。
+- 指摘の採否: (1)Minor: 小さい条件で、監視の値の最大を照合していない→採用（実旧の`_add_telemetry_results`の値と`==`で比べる）。(2)Minor: 値が0のままの指標は、対応表の取り違えを検出できない疑い→採用。照合のたびに旧の値を積み、最後のtestが、実行した全部の条件（goldenの3ケースと、小さい条件14）で、旧の値が同じになる指標の対と、0のままの指標を数える。実測: 0のままの指標はない。取り違えを検出できない対は2つだけ——`provisional_interval_count_mean`と`provisional_training_count_mean`（最終構成では同じ値。新は1つの値で持つ）、`provisional_resolution_delay_mean`と`provisional_validation_count_mean`（最終構成の検証は、提案の次の標本から1標本ずつ進むので、同じ値になる。もとの2つの列は、表のtestで、別々に、旧の配列と照合している）。(3)任意: 理由と採否が、境界の丸めで食い違いうる（旧と同じ）→設計へ注記。(4)任意: 長さの違う列で、旧は飛ばし、新は例外→設計の「旧と違う点」へ記載。(5)任意: 名前の基準を、残りの名前にも当てる→採用。`training_model_switch.sample_index`→`switch_sample_index`、クラスタリングの2つの表の`round_index`→`server_round_index`、`model_registration.registered_round_index`→`registered_server_round_index`（testの期待を先に直し、失敗を確かめてから、sourceを直した）。`resolution_sample_index`は、名前はそのままで、未完了の行での意味を設計へ書いた。(6)任意: 件数の書き方→直した（値を照合した配列は18。ほかに、`provisional_validation_sources`が常に`forward`であることを確かめた。移行の一覧へ、内訳を書いた）。(7)任意: 適応の粗い区分の対応の定数を、`evaluation/`へ置く→見送り（粗い区分は、指標と表のための、旧の`action`に当たるまとめ方で、使うのは`runtime/`の2つのmoduleだけ）。testのimportは、定義しているmoduleからに直した。
+- Blocker・Majorがないので、確認のレビューは行っていない（手順どおり）。
+- WSLで成功（`6440083`、WSL Ubuntu）: このspecの3つのtestファイルが、231 passed・skipなし（goldenの3ケースの応答の指標と列が、WSLでの実旧の実行とも一致）。指摘の反映の後は、WSLでは実行していない（変えたのは、列の名前と、testの補強）。
+- 検証（Windows基準環境）: レビューの前の`6440083`で、全pytest（並列、`-n 8 --dist loadfile`）12097 passed / 4 skipped / 3 warnings、exit 0。指摘の反映の後の件数とcommitは、下の「最終の検証」。
+- 変異テストは実行していない（既定）。
 
 ### 未検証・残る制約
 

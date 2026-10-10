@@ -32,7 +32,7 @@
 #### Acceptance Criteria
 
 1. The ラウンドごとの表 shall 1つの表`server_round`にまとまり、同期の後のモデル数（`global_model_count_after_synchronization`、`client_held_model_count_after_synchronization`）と、ローカルの処理・同期の間のモデルの計算（`local_processing_*`、`synchronization_*`）の列を持つ。
-2. The 標本ごとの保有モデル数の列 shall `sample_prediction.held_model_count_at_prediction`という名前になる。概念の変更の位置の列 shall `concept_change.first_new_concept_sample_index`という名前になる。
+2. The 標本ごとの保有モデル数の列 shall `sample_prediction.held_model_count_at_prediction`という名前になる。概念の変更の位置の列 shall `concept_change.first_new_concept_sample_index`という名前になる。学習帰属の切替の位置の列 shall `training_model_switch.switch_sample_index`、サーバの同期のラウンドを指す列 shall `server_round_index`（クラスタリングの2つの表）と`model_registration.registered_server_round_index`という名前になる（独立レビューの指摘で足した）。
 3. The 名前の変更 shall 値を変えない（前のspecの照合が、新しい名前で、そのまま成功する）。
 
 ### Requirement 2: 指標の計算

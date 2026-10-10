@@ -120,14 +120,14 @@
 | `history_model_id`、`history_routing_switching_leader_id` | `sample_prediction.maximum_weight_model_id` |
 | `history_routing_soft_active` | なし（最終構成では、常に真） |
 | `drift_client_ids`・`drift_positions` | `concept_change.client_id`・`.first_new_concept_sample_index` |
-| `switch_client_ids`・`switch_positions` | `training_model_switch.client_id`・`.sample_index` |
+| `switch_client_ids`・`switch_positions` | `training_model_switch.client_id`・`.switch_sample_index` |
 | `adaptation_client_ids`・`adaptation_positions`・`adaptation_old_model_ids`・`adaptation_new_model_ids` | `adaptation.client_id`・`.adaptation_sample_index`・`.previous_training_model_id`・`.current_training_model_id` |
 | `adaptation_actions` | `adaptation.adaptation_action`（値の名前が変わる。下の表）。新は、より細かい`adaptation.adaptation_outcome`も持つ（旧の結果からは、作れない） |
 | `provisional_client_ids`・`provisional_positions`・`provisional_accepted`・`provisional_resolution_positions` | `candidate_validation_decision.client_id`・`.proposal_sample_index`・`.candidate_accepted`・`.resolution_sample_index` |
 | `provisional_reasons` | `candidate_validation_decision.decision_reason`と`.is_incomplete_at_run_end`（値の名前が変わる。下の表） |
-| `model_registration_ids`・`model_registration_rounds`・`model_registration_final_active` | `model_registration.model_id`・`.registered_round_index`（初期モデルは−1）・`.is_final_global_model` |
-| `clustering_rounds`・`clustering_model_ids`・`clustering_representative_model_ids`・`clustering_participated_in_merge`・`clustering_absorbed` | `model_clustering.round_index`・`.model_id`・`.representative_model_id`・`.merged_with_other_models`・`.absorbed_into_representative` |
-| `clustering_pair_rounds`・`clustering_pair_left_model_ids`・`clustering_pair_right_model_ids`・`clustering_pair_same_cluster` | `model_pair_clustering.round_index`・`.lower_model_id`・`.higher_model_id`・`.assigned_to_same_cluster` |
+| `model_registration_ids`・`model_registration_rounds`・`model_registration_final_active` | `model_registration.model_id`・`.registered_server_round_index`（初期モデルは−1）・`.is_final_global_model` |
+| `clustering_rounds`・`clustering_model_ids`・`clustering_representative_model_ids`・`clustering_participated_in_merge`・`clustering_absorbed` | `model_clustering.server_round_index`・`.model_id`・`.representative_model_id`・`.merged_with_other_models`・`.absorbed_into_representative` |
+| `clustering_pair_rounds`・`clustering_pair_left_model_ids`・`clustering_pair_right_model_ids`・`clustering_pair_same_cluster` | `model_pair_clustering.server_round_index`・`.lower_model_id`・`.higher_model_id`・`.assigned_to_same_cluster` |
 | `round_global_model_count`・`round_client_held_model_count` | `server_round.global_model_count_after_synchronization`・`server_round.client_held_model_count_after_synchronization` |
 | `estimated_drift_start_client_ids`・`estimated_drift_alarm_positions`・`estimated_drift_start_positions`・`detector_candidate_start_positions` | `loss_change_alarm.client_id`・`.alarm_sample_index`・`.estimated_change_point_sample_index`・`.detector_candidate_start_sample_index` |
 | `history_detector_log_e` | `sample_loss_monitoring.monitored_log_e_value` |
@@ -197,6 +197,7 @@
 
 ### 残り（2026-10-11時点）
 
-「記録から導く（未照合）」のうち、まだ照合していないのは、指標71・配列64: モデル別の診断と登録・クラスタリング
+「記録から導く（未照合）」（指標124・配列85）のうち、照合が済んだのは、指標53（応答の指標52と、`e_detector_max_log_e`）と、配列21（ラウンドごとのモデル数の2つ、応答の記録の、値を照合した18、常に`forward`であることを確かめた`provisional_validation_sources`）。
+まだ照合していないのは、指標71・配列64: モデル別の診断と登録・クラスタリング
 （`model_*`、`mean_model_count`ほか、`clustering_oracle_*`、クラスタリングの距離の配列）、予測の集計（`routing_*`のうち、
 最終構成で意味のあるもの）、クロス評価の配列（`cross_evaluation_*`、`model_pair_*`）、`runtime_seconds`以外の時系列。

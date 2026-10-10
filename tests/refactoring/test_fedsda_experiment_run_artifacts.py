@@ -37,6 +37,9 @@ from federated_learning_experiments.learning.models.model_computation_measuremen
     ModelComputationCounts,
 )
 from federated_learning_experiments.runtime import fedsda_run_artifact_files
+from federated_learning_experiments.runtime.fedsda_change_response_metric_derivation import (
+    ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME,
+)
 from federated_learning_experiments.runtime.fedsda_experiment_run import (
     FedsdaExperimentRun,
     execute_fedsda_experiment_run,
@@ -51,7 +54,6 @@ from federated_learning_experiments.runtime.fedsda_run_artifact_files import (
     save_fedsda_experiment_run,
 )
 from federated_learning_experiments.runtime.fedsda_run_record_tables import (
-    ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME,
     build_fedsda_run_record_tables,
 )
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
@@ -69,7 +71,7 @@ EXPECTED_TABLE_COLUMNS = {
         held_model_count_at_prediction="i",
     ),
     "concept_change": dict(client_id="i", first_new_concept_sample_index="i"),
-    "training_model_switch": dict(client_id="i", sample_index="i"),
+    "training_model_switch": dict(client_id="i", switch_sample_index="i"),
     "loss_change_alarm": dict(
         client_id="i",
         alarm_sample_index="i",
@@ -105,16 +107,21 @@ EXPECTED_TABLE_COLUMNS = {
         reference_historical_mean_loss="f",
         matched_to_concept_change="b",
     ),
-    "model_registration": dict(model_id="i", registered_round_index="i", is_final_global_model="b"),
+    "model_registration": dict(
+        model_id="i", registered_server_round_index="i", is_final_global_model="b"
+    ),
     "model_clustering": dict(
-        round_index="i",
+        server_round_index="i",
         model_id="i",
         representative_model_id="i",
         merged_with_other_models="b",
         absorbed_into_representative="b",
     ),
     "model_pair_clustering": dict(
-        round_index="i", lower_model_id="i", higher_model_id="i", assigned_to_same_cluster="b"
+        server_round_index="i",
+        lower_model_id="i",
+        higher_model_id="i",
+        assigned_to_same_cluster="b",
     ),
     "server_round": dict(
         global_model_count_after_synchronization="i",
@@ -156,7 +163,9 @@ def derive_legacy_trace_arrays_from_record_tables(record_tables):
             np.int32
         ),
         switch_client_ids=record_tables["training_model_switch.client_id"].astype(np.int32),
-        switch_positions=record_tables["training_model_switch.sample_index"].astype(np.int32),
+        switch_positions=record_tables["training_model_switch.switch_sample_index"].astype(
+            np.int32
+        ),
         adaptation_client_ids=record_tables["adaptation.client_id"].astype(np.int32),
         adaptation_positions=record_tables["adaptation.adaptation_sample_index"].astype(np.int32),
         adaptation_actions=np.asarray(
@@ -196,11 +205,11 @@ def derive_legacy_trace_arrays_from_record_tables(record_tables):
             "candidate_validation_decision.resolution_sample_index"
         ].astype(np.int32),
         model_registration_ids=record_tables["model_registration.model_id"].astype(np.int32),
-        model_registration_rounds=record_tables["model_registration.registered_round_index"].astype(
-            np.int32
-        ),
+        model_registration_rounds=record_tables[
+            "model_registration.registered_server_round_index"
+        ].astype(np.int32),
         model_registration_final_active=record_tables["model_registration.is_final_global_model"],
-        clustering_rounds=record_tables["model_clustering.round_index"].astype(np.int32),
+        clustering_rounds=record_tables["model_clustering.server_round_index"].astype(np.int32),
         clustering_model_ids=record_tables["model_clustering.model_id"].astype(np.int32),
         clustering_representative_model_ids=record_tables[
             "model_clustering.representative_model_id"
@@ -210,7 +219,9 @@ def derive_legacy_trace_arrays_from_record_tables(record_tables):
         history_routing_switching_correct=correctness,
         history_routing_switching_leader_id=maximum_weight_model_ids.astype(np.int32),
         history_routing_soft_active=np.ones(correctness.shape, dtype=np.bool_),
-        clustering_pair_rounds=record_tables["model_pair_clustering.round_index"].astype(np.int32),
+        clustering_pair_rounds=record_tables["model_pair_clustering.server_round_index"].astype(
+            np.int32
+        ),
         clustering_pair_left_model_ids=record_tables["model_pair_clustering.lower_model_id"].astype(
             np.int32
         ),

@@ -167,7 +167,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     record_tables["training_model_switch.client_id"] = _integer_column(
         [client_id for client_id, _ in switches]
     )
-    record_tables["training_model_switch.sample_index"] = _integer_column(
+    record_tables["training_model_switch.switch_sample_index"] = _integer_column(
         [sample_index for _, sample_index in switches]
     )
     adaptations = [
@@ -330,7 +330,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     record_tables["model_registration.model_id"] = _integer_column(
         [registration_record.model_id for registration_record in registration_records]
     )
-    record_tables["model_registration.registered_round_index"] = _integer_column(
+    record_tables["model_registration.registered_server_round_index"] = _integer_column(
         [
             INITIAL_MODEL_REGISTERED_ROUND_INDEX
             if registration_record.registered_round_index is None
@@ -349,7 +349,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     model_observations = (
         server_owners.model_clustering_record_store.snapshot_model_clustering_observations()
     )
-    record_tables["model_clustering.round_index"] = _integer_column(
+    record_tables["model_clustering.server_round_index"] = _integer_column(
         [model_observation.round_index for model_observation in model_observations]
     )
     record_tables["model_clustering.model_id"] = _integer_column(
@@ -367,7 +367,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     pair_observations = (
         server_owners.model_clustering_record_store.snapshot_pair_clustering_observations()
     )
-    record_tables["model_pair_clustering.round_index"] = _integer_column(
+    record_tables["model_pair_clustering.server_round_index"] = _integer_column(
         [pair_observation.round_index for pair_observation in pair_observations]
     )
     record_tables["model_pair_clustering.lower_model_id"] = _integer_column(
