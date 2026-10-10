@@ -1,11 +1,17 @@
 """FedSDAの全体run 1回の結果と参加者の記録から、指標を導出する（状態は変えない）。"""
 
 from dataclasses import dataclass
+from typing import cast
 
 from torch import Tensor
 
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeSnapshot,
+)
+from federated_learning_experiments.evaluation.computation_cost_summary import (
+    ComputationCostSummary,
+    ServerComputationCounts,
+    summarize_computation_cost,
 )
 from federated_learning_experiments.evaluation.loss_monitoring_computation_count_store import (
     LossMonitoringComputationCounts,
@@ -56,6 +62,13 @@ class FedsdaRunMetrics:
     loss_monitoring_computation_counts: LossMonitoringComputationCounts
     # モデルの計算の計数（計測つきで実行したときだけ。なければNone）。事前学習の計算は含めない。
     model_computation_counts: ModelComputationCounts | None
+    # サーバの、パラメータの積和演算の数（全ラウンドの合計）。
+    server_computation_counts: ServerComputationCounts
+    # 全clientの、処理した標本数の合計と、その時点の保有モデル数の合計（保有モデル×標本の延べ数）。
+    processed_sample_count: int
+    held_model_sample_count: int
+    # 計算量のまとめ（モデルの計算の計数があるときだけ。なければNone）。
+    computation_cost_summary: ComputationCostSummary | None
 
 
 def _count_parameter_values_and_bytes(*, parameters: dict[str, Tensor]) -> tuple[int, int]:
@@ -129,9 +142,10 @@ def derive_fedsda_run_metrics(
         if type(client_operations) is not FedsdaRunClient:
             raise TypeError("client operations must be exact FedsdaRunClient")
         run_clients.append(client_operations)
-    run_server = participants.server_operations
-    if type(run_server) is not FedsdaRunServer:
+    server_operations = participants.server_operations
+    if type(server_operations) is not FedsdaRunServer:
         raise TypeError("server operations must be exact FedsdaRunServer")
+    run_server = cast(FedsdaRunServer, server_operations)
     evaluation_concept_traces = run_result.evaluation_concept_traces
     if len(run_clients) != len(evaluation_concept_traces):
         raise ValueError("client count must equal the evaluation concept trace count")
@@ -168,7 +182,47 @@ def derive_fedsda_run_metrics(
             global_model_repository=server_owners.global_model_repository
         )
     )
+    server_round_synchronizations = run_server.snapshot_server_round_synchronizations()
+    model_consolidations = tuple(
+        server_round_synchronization.model_consolidation
+        for server_round_synchronization in server_round_synchronizations
+        if server_round_synchronization.model_consolidation is not None
+    )
+    server_computation_counts = ServerComputationCounts(
+        aggregation_parameter_multiply_accumulate_count=sum(
+            server_round_synchronization.client_model_aggregation.weighted_parameter_multiply_accumulate_count
+            for server_round_synchronization in server_round_synchronizations
+        ),
+        consolidation_parameter_multiply_accumulate_count=sum(
+            model_consolidation.consolidation_parameter_multiply_accumulate_count
+            for model_consolidation in model_consolidations
+        ),
+        diagnostic_parameter_distance_multiply_accumulate_count=sum(
+            model_consolidation.diagnostic_parameter_distance_multiply_accumulate_count
+            for model_consolidation in model_consolidations
+        ),
+    )
+    processed_sample_count = sum(
+        len(prediction_correctness) for prediction_correctness in prediction_correctness_by_client
+    )
+    held_model_sample_count = sum(
+        sum(run_client.owners.held_model_count_record_store.snapshot_held_model_counts())
+        for run_client in run_clients
+    )
     return FedsdaRunMetrics(
+        server_computation_counts=server_computation_counts,
+        processed_sample_count=processed_sample_count,
+        held_model_sample_count=held_model_sample_count,
+        computation_cost_summary=(
+            None
+            if model_computation_counts is None
+            else summarize_computation_cost(
+                model_computation_counts=model_computation_counts,
+                server_computation_counts=server_computation_counts,
+                processed_sample_count=processed_sample_count,
+                held_model_sample_count=held_model_sample_count,
+            )
+        ),
         prediction_accuracy=calculate_prediction_accuracy(
             prediction_correctness_by_client=prediction_correctness_by_client
         ),

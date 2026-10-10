@@ -4946,6 +4946,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_metric_derivation.py":
         return imported_module_name in (
+            "typing.cast",
+            "federated_learning_experiments.evaluation.computation_cost_summary.ComputationCostSummary",
+            "federated_learning_experiments.evaluation.computation_cost_summary.ServerComputationCounts",
+            "federated_learning_experiments.evaluation.computation_cost_summary.summarize_computation_cost",
             "federated_learning_experiments.evaluation.loss_monitoring_computation_count_store.LossMonitoringComputationCounts",
             "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
             "dataclasses.dataclass",

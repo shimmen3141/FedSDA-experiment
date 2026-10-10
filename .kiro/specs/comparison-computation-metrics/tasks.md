@@ -22,14 +22,14 @@
   - _Boundary: fedsda_measured_run_execution_
   - _Requirements: 3.1, 3.2, 3.4_
 
-- [ ] 2. まとめと指標
+- [x] 2. まとめと指標
 - [x] 2.1 計算量のまとめを計算する
   - 手計算との照合、NaN、拒否のtestを先に書く。
   - 完了: まとめのtestと、依存境界のsuiteが成功する。
   - _Boundary: computation_cost_summary_
   - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 2.2 指標の導出へ足し、goldenの条件で、実旧と照合する
+- [x] 2.2 指標の導出へ足し、goldenの条件で、実旧と照合する
   - 指標の導出のtestへ、サーバの計数・保有モデル数・ラウンドごとの値・まとめの照合を先に足す。共用scriptへ足す。
   - 完了: 指標の導出のtest（goldenの33指標の照合を含む）、共用script、依存境界のsuiteが成功する。
   - _Depends: 1.1, 1.2, 1.3, 2.1_

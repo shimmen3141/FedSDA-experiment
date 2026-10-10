@@ -1494,6 +1494,40 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed):
         == 2 * processed_sample_count * WHOLE_RUN_CLIENT_COUNT
     )
     assert run_metrics.loss_monitoring_computation_counts.evaluated_candidate_bet_count > 0
+    # 比較用の計算量: サーバの集約の積和演算は、上りのパラメータの値の数。
+    server_computation_counts = run_metrics.server_computation_counts
+    assert (
+        server_computation_counts.aggregation_parameter_multiply_accumulate_count
+        == communication_volume.uploaded_parameter_value_count
+    )
+    # 保有モデル×標本の延べ数は、標本ごとの保有モデル数の合計（どの標本でも、1つ以上）。
+    assert run_metrics.processed_sample_count == processed_sample_count * WHOLE_RUN_CLIENT_COUNT
+    assert run_metrics.held_model_sample_count >= run_metrics.processed_sample_count
+    assert run_metrics.held_model_sample_count == sum(
+        sum(run_client.owners.held_model_count_record_store.snapshot_held_model_counts())
+        for run_client in participants.client_operations
+    )
+    computation_cost_summary = run_metrics.computation_cost_summary
+    assert computation_cost_summary.client_forward_multiply_accumulate_count == (
+        computation_cost_summary.client_shared_part_forward_multiply_accumulate_count
+        + computation_cost_summary.client_concept_specific_part_forward_multiply_accumulate_count
+    )
+    assert computation_cost_summary.mean_held_model_count >= 1.0
+    assert (
+        computation_cost_summary.client_forward_multiply_accumulate_count_per_held_model_sample
+        <= computation_cost_summary.client_forward_multiply_accumulate_count_per_processed_sample
+    )
+    # ラウンドごとのモデルの計算と、終端の計算の合計は、全体と一致する。
+    assert len(measured_run.round_model_computation_counts) == round_count
+    assert (
+        sum(
+            each_round.local_processing_model_computation_counts.concept_specific_part_inference_example_count
+            + each_round.synchronization_model_computation_counts.concept_specific_part_inference_example_count
+            for each_round in measured_run.round_model_computation_counts
+        )
+        + measured_run.finalization_model_computation_counts.concept_specific_part_inference_example_count
+        == model_computation_counts.concept_specific_part_inference_example_count
+    )
     assert 0.5 < run_metrics.prediction_accuracy <= 1.0
     assert 0.5 < run_metrics.stable_period_prediction_accuracy <= 1.0
     detection_metrics = run_metrics.training_model_switch_detection_metrics

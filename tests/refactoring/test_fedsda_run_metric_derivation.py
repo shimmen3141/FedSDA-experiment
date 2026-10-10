@@ -30,6 +30,7 @@ from test_fedsda_run_client import (
     snapshot_run_client_state,
 )
 from test_fedsda_stream_protocol_run import (
+    assert_server_parameter_computation_counts_match_records,
     make_execution_settings,
     make_run_participant_settings,
     run_real_legacy_whole_run,
@@ -46,6 +47,11 @@ from federated_drift_experiment.experiment_spec.configuration import (
 from federated_drift_experiment.metrics import compute_metrics
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeSnapshot,
+)
+from federated_learning_experiments.evaluation.computation_cost_summary import (
+    ComputationCostSummary,
+    ServerComputationCounts,
+    summarize_computation_cost,
 )
 from federated_learning_experiments.evaluation.run_metric_calculations import (
     DetectionMetrics,
@@ -515,6 +521,12 @@ def golden_condition_runs(tmp_path_factory):
             legacy_trace_arrays = {
                 trace_name: legacy_arrays[trace_name] for trace_name in legacy_regression.TRACES
             }
+            # 旧の、ラウンドごとの、clientの計数の増分（形は、ラウンド×client）。
+            legacy_round_client_counts = {
+                array_name.removeprefix("round_client_"): legacy_arrays[array_name]
+                for array_name in legacy_arrays.files
+                if array_name.startswith("round_client_") and not array_name.endswith("_seconds")
+            }
         # 定数の差し替えは、設定の束を作る間だけ（同じmoduleの、小さい条件のtestへ残さない）。
         with pytest.MonkeyPatch.context() as monkeypatch:
             execution_settings, run_participant_settings, run_metric_settings = (
@@ -534,6 +546,7 @@ def golden_condition_runs(tmp_path_factory):
             measured_run=measured_run,
             legacy_result=legacy_result,
             legacy_trace_arrays=legacy_trace_arrays,
+            legacy_round_client_counts=legacy_round_client_counts,
             run_result=run_result,
             participants=participants,
             run_metric_settings=run_metric_settings,
@@ -592,6 +605,145 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
     assert preparation_counts.concept_specific_parameter_optimizer_step_count > 0
     # 定常精度は、精度と違う値（回復の窓が、実際に標本を除いている）。
     assert run_metrics.stable_period_prediction_accuracy != run_metrics.prediction_accuracy
+
+
+def test_golden_condition_comparison_computation_metrics_match_real_legacy_counts(
+    golden_condition_runs,
+):
+    """goldenの条件で、比較用の計算量（サーバ、保有モデル数、まとめ、ラウンドごと）を、実旧の値と照合する。"""
+    run_metrics = golden_condition_runs.run_metrics
+    legacy_result = golden_condition_runs.legacy_result
+    measured_run = golden_condition_runs.measured_run
+    # 集約の積和演算の数は、上りのパラメータの値の数（実旧の通信量）。
+    server_computation_counts = run_metrics.server_computation_counts
+    assert (
+        server_computation_counts.aggregation_parameter_multiply_accumulate_count
+        == legacy_result["comm_parameter_values_up"]
+    )
+    # 統合と、診断のパラメータ距離は、記録と層の形からの計算。goldenの条件は、統合を通る。
+    aggregation_count, consolidation_count, diagnostic_distance_count = (
+        assert_server_parameter_computation_counts_match_records(
+            run_server=golden_condition_runs.participants.server_operations,
+            legacy_server=SimpleNamespace(
+                comm_parameter_values_up=legacy_result["comm_parameter_values_up"]
+            ),
+        )
+    )
+    assert server_computation_counts == ServerComputationCounts(
+        aggregation_parameter_multiply_accumulate_count=aggregation_count,
+        consolidation_parameter_multiply_accumulate_count=consolidation_count,
+        diagnostic_parameter_distance_multiply_accumulate_count=diagnostic_distance_count,
+    )
+    assert consolidation_count > 0
+    assert diagnostic_distance_count > 0
+    # 処理した標本数と、保有モデル×標本の延べ数（旧の、予測でモデルへ入力した標本の数）。
+    assert run_metrics.processed_sample_count == 3 * 1500
+    assert run_metrics.held_model_sample_count == legacy_result["compute_prediction_examples_total"]
+    assert run_metrics.held_model_sample_count > run_metrics.processed_sample_count
+    # まとめ: 計数からの計算と一致する。
+    model_computation_counts = run_metrics.model_computation_counts
+    computation_cost_summary = run_metrics.computation_cost_summary
+    assert type(computation_cost_summary) is ComputationCostSummary
+    assert computation_cost_summary == summarize_computation_cost(
+        model_computation_counts=model_computation_counts,
+        server_computation_counts=server_computation_counts,
+        processed_sample_count=run_metrics.processed_sample_count,
+        held_model_sample_count=run_metrics.held_model_sample_count,
+    )
+    forward_count = (
+        model_computation_counts.shared_part_training_forward_multiply_accumulate_count
+        + model_computation_counts.shared_part_inference_forward_multiply_accumulate_count
+        + model_computation_counts.concept_specific_part_training_forward_multiply_accumulate_count
+        + model_computation_counts.concept_specific_part_inference_forward_multiply_accumulate_count
+    )
+    assert computation_cost_summary.client_forward_multiply_accumulate_count == forward_count
+    assert (
+        computation_cost_summary.client_forward_multiply_accumulate_count_per_processed_sample
+        == (forward_count / 4500)
+    )
+    assert (
+        computation_cost_summary.client_forward_multiply_accumulate_count_per_held_model_sample
+        == forward_count / run_metrics.held_model_sample_count
+    )
+    assert computation_cost_summary.mean_held_model_count == (
+        run_metrics.held_model_sample_count / 4500
+    )
+    assert computation_cost_summary.server_multiply_accumulate_count == (
+        aggregation_count + consolidation_count
+    )
+    # ラウンドごとのモデルの計算: 実旧の、ラウンドごとの計数の増分の、全clientの合計。
+    legacy_round_counts = {
+        counter_name: counter_values.sum(axis=1).tolist()
+        for counter_name, counter_values in golden_condition_runs.legacy_round_client_counts.items()
+    }
+    round_counts = measured_run.round_model_computation_counts
+    assert len(round_counts) == len(legacy_round_counts["head_examples"]) == 30
+    for each_round in round_counts:
+        round_index = each_round.round_index
+        local_counts = each_round.local_processing_model_computation_counts
+        synchronization_counts = each_round.synchronization_model_computation_counts
+
+        def legacy_round_sum(*counter_names, round_index=round_index):
+            return sum(
+                legacy_round_counts[counter_name][round_index] for counter_name in counter_names
+            )
+
+        # ローカルの処理: 予測・検出・統計・初期化（推論）と、学習。
+        assert local_counts.concept_specific_part_inference_example_count == legacy_round_sum(
+            "prediction_examples",
+            "detection_examples",
+            "statistics_examples",
+            "initialization_examples",
+        )
+        assert local_counts.concept_specific_part_training_example_count == legacy_round_sum(
+            "training_examples"
+        )
+        assert local_counts.concept_specific_parameter_optimizer_step_count == legacy_round_sum(
+            "optimizer_steps"
+        )
+        assert local_counts.shared_parameter_optimizer_step_count == legacy_round_sum(
+            "backbone_optimizer_steps"
+        )
+        # 同期: クロス評価と、再較正（どちらも推論）。
+        assert (
+            synchronization_counts.concept_specific_part_inference_example_count
+            == legacy_round_sum("cross_evaluation_examples", "routing_recalibration_examples")
+        )
+        assert synchronization_counts.concept_specific_part_training_example_count == 0
+        # 共有部と概念固有部の合計（旧は、用途別に分けていない）。
+        assert (
+            local_counts.shared_part_training_example_count
+            + local_counts.shared_part_inference_example_count
+            + synchronization_counts.shared_part_inference_example_count
+        ) == legacy_round_sum("backbone_examples")
+        assert (
+            local_counts.concept_specific_part_training_example_count
+            + local_counts.concept_specific_part_inference_example_count
+            + synchronization_counts.concept_specific_part_inference_example_count
+        ) == legacy_round_sum("head_examples")
+    # 同期の間のclientの計算が、実際にある（クロス評価か再較正）。
+    assert any(
+        each_round.synchronization_model_computation_counts.concept_specific_part_inference_example_count
+        > 0
+        for each_round in round_counts
+    )
+    # 終端の処理（旧のラウンドの値に入らない分）: 旧の累計−ラウンドの合計。
+    assert (
+        measured_run.finalization_model_computation_counts.concept_specific_part_inference_example_count
+        == legacy_result["compute_head_examples_total"] - sum(legacy_round_counts["head_examples"])
+    )
+    # 標本ごとの保有モデル数の、ラウンドごとの合計は、旧の、ラウンドごとの予測の計数（clientごと）。
+    for client_index, run_client in enumerate(golden_condition_runs.participants.client_operations):
+        held_model_counts = (
+            run_client.owners.held_model_count_record_store.snapshot_held_model_counts()
+        )
+        assert [
+            sum(held_model_counts[round_start : round_start + 50])
+            for round_start in range(0, 1500, 50)
+        ] == golden_condition_runs.legacy_round_client_counts["prediction_examples"][
+            :, client_index
+        ].tolist()
+        assert len(set(held_model_counts)) > 1
 
 
 def test_golden_condition_trace_arrays_match_real_legacy_saved_arrays(golden_condition_runs):
@@ -712,8 +864,11 @@ def test_derivation_does_not_change_participant_state_and_is_repeatable(golden_c
         run_metric_settings=golden_condition_runs.run_metric_settings,
     )
     assert unmeasured_run_metrics.model_computation_counts is None
+    assert unmeasured_run_metrics.computation_cost_summary is None
     assert unmeasured_run_metrics == replace(
-        golden_condition_runs.run_metrics, model_computation_counts=None
+        golden_condition_runs.run_metrics,
+        model_computation_counts=None,
+        computation_cost_summary=None,
     )
 
 
@@ -865,6 +1020,29 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
             ), legacy_metric_name
     assert_multiply_accumulate_counts_match_example_counts(
         model_computation_counts=model_computation_counts, participants=participants
+    )
+    # サーバの計数（集約＝実旧の上りのパラメータの値の数。統合と距離は、記録と層の形から）と、保有モデル数。
+    aggregation_count, consolidation_count, diagnostic_distance_count = (
+        assert_server_parameter_computation_counts_match_records(
+            run_server=participants.server_operations, legacy_server=legacy_server
+        )
+    )
+    assert run_metrics.server_computation_counts == ServerComputationCounts(
+        aggregation_parameter_multiply_accumulate_count=aggregation_count,
+        consolidation_parameter_multiply_accumulate_count=consolidation_count,
+        diagnostic_parameter_distance_multiply_accumulate_count=diagnostic_distance_count,
+    )
+    assert run_metrics.held_model_sample_count == sum(
+        legacy_client.compute_counters["prediction_examples"] for legacy_client in legacy_clients
+    )
+    assert run_metrics.processed_sample_count == (
+        client_count * run_result.processed_sample_count_per_client
+    )
+    assert run_metrics.computation_cost_summary == summarize_computation_cost(
+        model_computation_counts=model_computation_counts,
+        server_computation_counts=run_metrics.server_computation_counts,
+        processed_sample_count=run_metrics.processed_sample_count,
+        held_model_sample_count=run_metrics.held_model_sample_count,
     )
     assert run_metrics.prediction_accuracy == legacy_metrics["accuracy"]
     if isnan(legacy_metrics["stable_accuracy"]):
