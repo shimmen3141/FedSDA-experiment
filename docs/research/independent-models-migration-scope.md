@@ -1,6 +1,6 @@
 # 構成`independent`（モデルが共有部を持たない構成）の、移植の規模の調査
 
-- 調査日: 2026-10-11。状態: 調査だけ。移植するかどうかは、未定（ユーザーの判断）。
+- 調査日: 2026-10-11。状態: 移植済み（2026-10-11、ユーザーの決定で、案1。[fedsda-independent-models](../../.kiro/specs/fedsda-independent-models/design.md)）。実際の移植は、「空の共有部と、モデルごとの隠れ層」という表し方で、下の表の「変更が要る箇所」の多くが不要になり、1つのspecで済んだ（下の見積りと、3つのspecに分ける案は、その表し方を見つける前のもの）。
 - 対象: 旧の`tools/run_main_ablation_suite.sh`の`independent`（新実装での構成名の案は`fedsda-independent-models`）。
 - 基準: 旧実装は`748c3aa`、新実装は`7a472e9`。
 

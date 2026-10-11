@@ -4,8 +4,16 @@ import torch
 from torch.nn import Identity, Linear, Module, Sigmoid
 
 from .model_architecture_settings import ModelArchitectureSettings
-from .nonlinear_residual_adapter import IdentityFeatureAdapter, NonlinearResidualAdapter
+from .nonlinear_residual_adapter import (
+    IdentityFeatureAdapter,
+    ModelOwnedHiddenLayers,
+    NonlinearResidualAdapter,
+)
 from .shared_feature_extractor import SharedFeatureExtractor
+
+# 共有部を持たない構造の名前。この構造の分類器は、パラメータを持たない特徴抽出部（入力をそのまま返す）と、
+# モデルごとの隠れ層を持つ。
+INDEPENDENT_MODEL_ARCHITECTURE_NAME = "independent_models_without_shared_backbone"
 
 
 def _validate_shared_feature_extractor(
@@ -50,7 +58,13 @@ def _validate_classifier_inputs(
     _validate_shared_feature_extractor(
         shared_feature_extractor=shared_feature_extractor,
         input_feature_count=input_feature_count,
-        hidden_layer_widths=hidden_layer_widths,
+        # 共有部を持たない構造では、特徴抽出部は、隠れ層を持たない。
+        hidden_layer_widths=(
+            ()
+            if validated_model_architecture_settings.model_architecture_name
+            == INDEPENDENT_MODEL_ARCHITECTURE_NAME
+            else hidden_layer_widths
+        ),
     )
     return validated_model_architecture_settings
 
@@ -60,6 +74,13 @@ class ResidualAdapterClassifier(Module):
 
     adapterを持たない構造（設定の構造の名前）では、`residual_adapter`は、共有特徴をそのまま返す部品で、
     パラメータを持たない（概念固有部は、分類層だけ）。
+
+    共有部を持たない構造では、特徴抽出部（`feature_extractor`）は、隠れ層を持たず（入力をそのまま返す。
+    パラメータなし）、隠れ層は、`residual_adapter`の場所に、モデルごとに独立に持つ（`ModelOwnedHiddenLayers`）。
+    概念固有部（`residual_adapter`と`classification_layer`のパラメータ）が、モデルの全パラメータになる。
+
+    `input_feature_count`と`hidden_layer_widths`は、どの構造でも、構築のときに指定された値。同じ構造の
+    分類器を作るときは、特徴抽出部の寸法でなく、これらを使う。
     """
 
     def __init__(
@@ -81,15 +102,29 @@ class ResidualAdapterClassifier(Module):
         super().__init__()
         self.model_architecture_settings = validated_model_architecture_settings
         self.class_count = class_count
+        self.input_feature_count = input_feature_count
+        self.hidden_layer_widths = hidden_layer_widths
+        models_are_independent = (
+            validated_model_architecture_settings.model_architecture_name
+            == INDEPENDENT_MODEL_ARCHITECTURE_NAME
+        )
         self.feature_extractor = (
             shared_feature_extractor
             if shared_feature_extractor is not None
             else SharedFeatureExtractor(
-                input_feature_count=input_feature_count, hidden_layer_widths=hidden_layer_widths
+                input_feature_count=input_feature_count,
+                hidden_layer_widths=() if models_are_independent else hidden_layer_widths,
             )
         )
-        self.residual_adapter: IdentityFeatureAdapter | NonlinearResidualAdapter
-        if (
+        self.residual_adapter: (
+            IdentityFeatureAdapter | ModelOwnedHiddenLayers | NonlinearResidualAdapter
+        )
+        if models_are_independent:
+            # 隠れ層→分類層の順に作る（旧の、共有部を持たないモデルと、同じ順に乱数を消費する）。
+            self.residual_adapter = ModelOwnedHiddenLayers(
+                input_feature_count=input_feature_count, hidden_layer_widths=hidden_layer_widths
+            )
+        elif (
             validated_model_architecture_settings.model_architecture_name
             == "shared_backbone_without_residual_adapter"
         ):
@@ -104,7 +139,11 @@ class ResidualAdapterClassifier(Module):
             )
         classification_output_count = 1 if class_count == 2 else class_count
         self.classification_layer = Linear(
-            self.feature_extractor.output_feature_count,
+            (
+                self.residual_adapter.output_feature_count
+                if type(self.residual_adapter) is ModelOwnedHiddenLayers
+                else self.feature_extractor.output_feature_count
+            ),
             classification_output_count,
             device="cpu",
             dtype=torch.float32,

@@ -71,8 +71,8 @@ def fix_reference_models_at_alarm(
         held_classifier = held_model_training_state.classifier
         reference_classifier = ResidualAdapterClassifier(
             model_architecture_settings=held_classifier.model_architecture_settings,
-            input_feature_count=held_classifier.feature_extractor.input_feature_count,
-            hidden_layer_widths=held_classifier.feature_extractor.hidden_layer_widths,
+            input_feature_count=held_classifier.input_feature_count,
+            hidden_layer_widths=held_classifier.hidden_layer_widths,
             class_count=held_classifier.class_count,
         )
         reference_classifier.load_state_dict(

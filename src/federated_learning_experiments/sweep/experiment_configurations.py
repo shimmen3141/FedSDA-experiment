@@ -36,6 +36,9 @@ CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME = "fedsda-classwise-adwin-detection
 OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME = "fedsda-overall-loss-adwin-detection"
 # 提案構成のモデルから、概念固有の残差adapterを外した構成（概念固有部は、出力層だけ）。
 WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME = "fedsda-without-concept-specific-adapter"
+# 提案構成のモデルを、共有部を持たないモデル（隠れ層と分類層の全部を、モデルごとに独立に持つ）へ替えた構成。
+# ローカル学習は、モデルごとに順に行い、集約後の、予測の重みの再較正は、行わない。
+INDEPENDENT_MODELS_CONFIGURATION_NAME = "fedsda-independent-models"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -48,6 +51,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
     OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
     WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,
+    INDEPENDENT_MODELS_CONFIGURATION_NAME,
 )
 
 
@@ -199,6 +203,32 @@ def build_experiment_run_settings(
                 model_architecture_settings=replace(
                     run_participant_settings.model_architecture_settings,
                     model_architecture_name="shared_backbone_without_residual_adapter",
+                ),
+            ),
+        )
+    if configuration_name == INDEPENDENT_MODELS_CONFIGURATION_NAME:
+        without_recalibration_run_settings = _replace_prediction_combination_settings(
+            run_settings=proposed_run_settings,
+            prediction_weight_recalibration_after_aggregation_policy=(
+                "keep_weights_without_recalibration"
+            ),
+        )
+        run_participant_settings = without_recalibration_run_settings.run_participant_settings
+        run_client_settings = run_participant_settings.run_client_settings
+        return replace(
+            without_recalibration_run_settings,
+            run_participant_settings=replace(
+                run_participant_settings,
+                model_architecture_settings=replace(
+                    run_participant_settings.model_architecture_settings,
+                    model_architecture_name="independent_models_without_shared_backbone",
+                ),
+                run_client_settings=replace(
+                    run_client_settings,
+                    local_training_settings=replace(
+                        run_client_settings.local_training_settings,
+                        local_model_parameter_update_strategy="sequential_per_model_training",
+                    ),
                 ),
             ),
         )

@@ -40,6 +40,7 @@ from torch.optim.optimizer import register_optimizer_step_post_hook
 
 from federated_learning_experiments.learning.models.nonlinear_residual_adapter import (
     IdentityFeatureAdapter,
+    ModelOwnedHiddenLayers,
     NonlinearResidualAdapter,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
@@ -135,12 +136,19 @@ class ModelComputationMeter:
             return
         mode_name = "training" if is_grad_enabled() else "inference"
         if type(module) is SharedFeatureExtractor:
-            self._counts[f"shared_part_{mode_name}_example_count"] += _count_input_examples(
-                forward_input=forward_input
-            )
+            # 隠れ層を持たない特徴抽出部（共有部を持たない構造）は、計算をしないので、数えない。
+            if module.hidden_layer_widths:
+                self._counts[f"shared_part_{mode_name}_example_count"] += _count_input_examples(
+                    forward_input=forward_input
+                )
             return
-        # 概念固有部の入口（adapter。adapterを持たない構造では、共有特徴をそのまま返す部品）。
-        if type(module) in (NonlinearResidualAdapter, IdentityFeatureAdapter):
+        # 概念固有部の入口（adapter。adapterを持たない構造では、共有特徴をそのまま返す部品。
+        # 共有部を持たない構造では、モデルごとの隠れ層）。
+        if type(module) in (
+            NonlinearResidualAdapter,
+            IdentityFeatureAdapter,
+            ModelOwnedHiddenLayers,
+        ):
             self._counts[f"concept_specific_part_{mode_name}_example_count"] += (
                 _count_input_examples(forward_input=forward_input)
             )

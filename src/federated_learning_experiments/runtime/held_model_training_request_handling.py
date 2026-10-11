@@ -66,7 +66,11 @@ def train_held_models_for_pending_training_requests(
     shared_feature_extractor: SharedFeatureExtractor,
     shared_parameter_optimizer: Optimizer | None,
 ) -> tuple[float, ...]:
-    """保留中の全学習要求のぶんを共同学習し、共同更新の完了ごとに計数へ足して、最後に保留を消化する。"""
+    """保留中の全学習要求のぶんを共同学習し、共同更新の完了ごとに計数へ足して、最後に保留を消化する。
+
+    学習の方式が「モデルごとに順に」のときは、標本を持つ保有モデルを、標本列の順に1つずつ取り、
+    そのモデルだけのbatchで、更新の回数ぶん、続けて更新する（旧の、共有部を持たないモデルの学習と同じ順）。
+    """
     _validate_training_request_owners(
         local_training_request_schedule=local_training_request_schedule,
         held_model_training_state_registry=held_model_training_state_registry,
@@ -84,6 +88,49 @@ def train_held_models_for_pending_training_requests(
         training_binding.model_id for training_binding in held_model_training_bindings
     )
     completed_joint_update_losses: list[float] = []
+    if (
+        type(local_training_settings) is LocalTrainingSettings
+        and local_training_settings.local_model_parameter_update_strategy
+        == "sequential_per_model_training"
+    ):
+        bindings_by_model_id = {
+            training_binding.model_id: training_binding
+            for training_binding in held_model_training_bindings
+        }
+        update_iteration_count = (
+            local_training_request_schedule.calculate_pending_joint_update_iteration_count()
+        )
+        for model_training_samples in ordered_model_training_samples:
+            if model_training_samples.model_id not in held_model_ids:
+                continue
+            for _update_iteration_index in range(update_iteration_count):
+                # 1モデルだけを渡すので、乱数は、このモデルのbatchの抽出に、1回だけ使われる。
+                model_update_losses = perform_held_model_joint_training_iterations(
+                    requested_joint_update_iteration_count=1,
+                    held_model_training_bindings=(
+                        bindings_by_model_id[model_training_samples.model_id],
+                    ),
+                    ordered_model_training_samples=(model_training_samples,),
+                    batch_sample_count=batch_sample_count,
+                    python_random_generator=python_random_generator,
+                    local_training_settings=local_training_settings,
+                    shared_feature_extractor=shared_feature_extractor,
+                    shared_parameter_optimizer=shared_parameter_optimizer,
+                    update_shared_features=True,
+                )
+                if not model_update_losses:
+                    # 標本がbatchの件数に満たないモデルは、学習しない（どの回でも同じ）。
+                    break
+                completed_joint_update_losses.extend(model_update_losses)
+                model_training_and_assignment_counts_store.record_completed_model_training(
+                    model_id=model_training_samples.model_id,
+                    trained_sample_count=batch_sample_count,
+                    parameter_update_step_count=1,
+                )
+        local_training_request_schedule.acknowledge_completed_training_requests(
+            completed_training_request_count=pending_training_request_count
+        )
+        return tuple(completed_joint_update_losses)
     for _joint_update_iteration_index in range(
         local_training_request_schedule.calculate_pending_joint_update_iteration_count()
     ):

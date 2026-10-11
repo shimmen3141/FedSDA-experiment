@@ -11,6 +11,7 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
     snapshot_classifier_parameters,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+    INDEPENDENT_MODEL_ARCHITECTURE_NAME,
     ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
@@ -58,7 +59,11 @@ def _validate_candidate_epoch_training_inputs(
     concept_specific_parameters = tuple(candidate_classifier.residual_adapter.parameters()) + tuple(
         candidate_classifier.classification_layer.parameters()
     )
-    if not shared_parameters:
+    # 共有部がparameterを持たないのは、共有部を持たない構造のときだけ。
+    if not shared_parameters and (
+        candidate_classifier.model_architecture_settings.model_architecture_name
+        != INDEPENDENT_MODEL_ARCHITECTURE_NAME
+    ):
         raise ValueError("候補の共有parameterは非空が必要です。")
     for classifier_parameter in shared_parameters + concept_specific_parameters:
         if not classifier_parameter.requires_grad:
@@ -69,7 +74,12 @@ def _validate_candidate_epoch_training_inputs(
     ):
         if type(parameter_optimizer_state) is not ParameterOptimizerState:
             raise TypeError("exact ParameterOptimizerStateが必要です。")
-        parameter_optimizer = parameter_optimizer_state.parameter_optimizer
+        parameter_optimizer = parameter_optimizer_state.parameter_optimizer_if_any
+        if parameter_optimizer is None:
+            # parameterが空の状態は、optimizerを持たない。
+            if expected_parameters:
+                raise ValueError("optimizerは候補parameterへnative順で結合してください。")
+            continue
         if type(parameter_optimizer) not in (Adam, SGD):
             raise TypeError("exact Adam/SGDが必要です。")
         optimizer_parameters = tuple(
@@ -83,7 +93,7 @@ def _validate_candidate_epoch_training_inputs(
         ):
             raise ValueError("optimizerは候補parameterへnative順で結合してください。")
     if (
-        candidate_shared_parameter_optimizer_state.parameter_optimizer
+        candidate_shared_parameter_optimizer_state.parameter_optimizer_if_any
         is candidate_concept_specific_parameter_optimizer_state.parameter_optimizer
     ):
         raise ValueError("二つのoptimizerは専用の別物が必要です。")
@@ -159,7 +169,7 @@ def _train_candidate_dataset_epochs(
             perform_joint_model_parameter_update(
                 local_training_settings=local_training_settings,
                 shared_feature_extractor=candidate_classifier.feature_extractor,
-                shared_parameter_optimizer=candidate_shared_parameter_optimizer_state.parameter_optimizer,
+                shared_parameter_optimizer=candidate_shared_parameter_optimizer_state.parameter_optimizer_if_any,
                 participating_training_batches=(participating_training_batch,),
                 update_shared_features=True,
             )

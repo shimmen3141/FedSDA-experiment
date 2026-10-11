@@ -7,6 +7,7 @@ from torch.nn import Parameter
 from torch.optim import SGD, Adam
 
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+    INDEPENDENT_MODEL_ARCHITECTURE_NAME,
     ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
@@ -31,7 +32,12 @@ def _validate_optimizer_parameter_binding(
 ) -> None:
     if type(optimizer_state) is not ParameterOptimizerState:
         raise ValueError("optimizer_stateはexact ParameterOptimizerStateが必要です。")
-    parameter_optimizer = optimizer_state.parameter_optimizer
+    parameter_optimizer = optimizer_state.parameter_optimizer_if_any
+    if parameter_optimizer is None:
+        # parameterが空の状態（共有部を持たない構造の、共有部）は、optimizerを持たない。
+        if expected_parameters:
+            raise ValueError("現在optimizerとモデルのparameter列が対応していません。")
+        return
     if type(parameter_optimizer) not in (Adam, SGD):
         raise ValueError("現在optimizerはexact Adam/SGDが必要です。")
     optimizer_parameters = tuple(
@@ -125,7 +131,11 @@ def _validate_held_model_optimizer_bindings(
 def reconnect_held_models_to_shared_feature_extractor(
     *, held_model_optimizer_bindings: tuple[HeldModelOptimizerBinding, ...]
 ) -> tuple[HeldModelOptimizerBinding, ...]:
-    """事前検証後、旧順序で接続/resetし、成功時の現在対応だけを返す。"""
+    """事前検証後、旧順序で接続/resetし、成功時の現在対応だけを返す。
+
+    共有部を持たない構造では、（parameterを持たない）特徴抽出部をつなぐだけで、概念固有部のoptimizerは、
+    作り直さない（旧の、共有部を持たないモデルは、配布の後に、つなぎ直しをしない）。
+    """
     source_binding = _validate_held_model_optimizer_bindings(
         held_model_optimizer_bindings=held_model_optimizer_bindings
     )
@@ -139,7 +149,11 @@ def reconnect_held_models_to_shared_feature_extractor(
         binding.classifier.attach_shared_feature_extractor(
             shared_feature_extractor=source_binding.classifier.feature_extractor
         )
-        binding.concept_specific_parameter_optimizer_state.reset_parameter_optimizer()
+        if (
+            binding.classifier.model_architecture_settings.model_architecture_name
+            != INDEPENDENT_MODEL_ARCHITECTURE_NAME
+        ):
+            binding.concept_specific_parameter_optimizer_state.reset_parameter_optimizer()
         reconnected_bindings.append(
             HeldModelOptimizerBinding(
                 model_id=binding.model_id,

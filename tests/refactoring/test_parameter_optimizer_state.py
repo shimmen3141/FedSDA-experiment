@@ -186,12 +186,32 @@ def test_current_optimizer_reference_is_readonly_and_learning_state_is_borrowed(
     assert optimizer_state.parameter_optimizer.state == {}
 
 
-@pytest.mark.parametrize("invalid_value", [[], (), (object(),), None])
+@pytest.mark.parametrize("invalid_value", [[], (object(),), None])
 def test_invalid_parameters_are_rejected_by_existing_factory(invalid_value):
     with pytest.raises(ValueError):
         ParameterOptimizerState(
             parameters=invalid_value, optimizer_settings=OPTIMIZER_SETTINGS_CASES[0]
         )
+
+
+@pytest.mark.parametrize("optimizer_settings", OPTIMIZER_SETTINGS_CASES)
+def test_empty_parameters_hold_no_optimizer(optimizer_settings):
+    """パラメータが空の状態（共有部を持たない構造の、共有部）は、optimizerを持たない。設定は、確かめる。"""
+    optimizer_state = ParameterOptimizerState(parameters=(), optimizer_settings=optimizer_settings)
+    assert optimizer_state.parameter_optimizer_if_any is None
+    with pytest.raises(LookupError):
+        optimizer_state.parameter_optimizer  # noqa: B018
+    optimizer_state.reset_parameter_optimizer()
+    assert optimizer_state.parameter_optimizer_if_any is None
+    for invalid_settings in (None, {}, "adam", True):
+        with pytest.raises(ValueError):
+            ParameterOptimizerState(parameters=(), optimizer_settings=invalid_settings)
+    # パラメータを持つ状態は、どちらの読み方でも、同じoptimizerを返す。
+    parameter = torch.nn.Parameter(torch.tensor([0.25], dtype=torch.float32))
+    held_state = ParameterOptimizerState(
+        parameters=(parameter,), optimizer_settings=optimizer_settings
+    )
+    assert held_state.parameter_optimizer_if_any is held_state.parameter_optimizer
 
 
 @pytest.mark.parametrize("invalid_value", [None, {}, "adam", True])

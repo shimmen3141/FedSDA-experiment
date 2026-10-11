@@ -5,6 +5,7 @@ from torch.nn import Parameter
 from torch.optim import SGD, Adam
 
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+    INDEPENDENT_MODEL_ARCHITECTURE_NAME,
     ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
@@ -88,7 +89,11 @@ def integrate_adopted_candidate_shared_features(
     candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     active_shared_feature_extractor: SharedFeatureExtractor,
 ) -> None:
-    """全入力検証後に値反映・接続・個別resetを行う。登録は上位で行う。"""
+    """全入力検証後に値反映・接続・個別resetを行う。登録は上位で行う。
+
+    共有部を持たない構造では、反映する共有部の値がなく、候補のoptimizerも、作り直さない
+    （候補は、学習で蓄積したoptimizerの状態を、そのまま持ち続ける。旧の、共有部を持たないモデルと同じ）。
+    """
     _validate_adopted_candidate_integration_inputs(
         adopted_candidate_classifier=adopted_candidate_classifier,
         candidate_concept_specific_parameter_optimizer_state=candidate_concept_specific_parameter_optimizer_state,
@@ -100,4 +105,8 @@ def integrate_adopted_candidate_shared_features(
     adopted_candidate_classifier.attach_shared_feature_extractor(
         shared_feature_extractor=active_shared_feature_extractor
     )
-    candidate_concept_specific_parameter_optimizer_state.reset_parameter_optimizer()
+    if (
+        adopted_candidate_classifier.model_architecture_settings.model_architecture_name
+        != INDEPENDENT_MODEL_ARCHITECTURE_NAME
+    ):
+        candidate_concept_specific_parameter_optimizer_state.reset_parameter_optimizer()

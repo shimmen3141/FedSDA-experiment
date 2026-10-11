@@ -176,7 +176,7 @@ def pretrain_initial_model(
             perform_joint_model_parameter_update(
                 local_training_settings=local_training_settings,
                 shared_feature_extractor=classifier.feature_extractor,
-                shared_parameter_optimizer=shared_parameter_optimizer_state.parameter_optimizer,
+                shared_parameter_optimizer=shared_parameter_optimizer_state.parameter_optimizer_if_any,
                 participating_training_batches=(
                     ParticipatingModelTrainingBatch(
                         classifier=classifier,

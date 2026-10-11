@@ -8,6 +8,7 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
     snapshot_classifier_parameters,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+    INDEPENDENT_MODEL_ARCHITECTURE_NAME,
     ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
@@ -37,7 +38,11 @@ def _validate_candidate_construction_inputs(
     expected_parameter_snapshot = snapshot_classifier_parameters(
         classifier=architecture_reference_classifier
     )
-    if not tuple(architecture_reference_classifier.feature_extractor.parameters()):
+    # 共有部がparameterを持たないのは、共有部を持たない構造のときだけ。
+    if not tuple(architecture_reference_classifier.feature_extractor.parameters()) and (
+        architecture_reference_classifier.model_architecture_settings.model_architecture_name
+        != INDEPENDENT_MODEL_ARCHITECTURE_NAME
+    ):
         raise ValueError("architecture_reference_classifierの共有部にはparameterが必要です。")
     if type(initial_candidate_parameter_snapshot) is not dict:
         raise TypeError("initial_candidate_parameter_snapshotはexact dictが必要です。")
@@ -97,8 +102,8 @@ def create_independent_candidate_training_state(
     )
     candidate_classifier = ResidualAdapterClassifier(
         model_architecture_settings=architecture_reference_classifier.model_architecture_settings,
-        input_feature_count=architecture_reference_classifier.feature_extractor.input_feature_count,
-        hidden_layer_widths=architecture_reference_classifier.feature_extractor.hidden_layer_widths,
+        input_feature_count=architecture_reference_classifier.input_feature_count,
+        hidden_layer_widths=architecture_reference_classifier.hidden_layer_widths,
         class_count=architecture_reference_classifier.class_count,
     )
     candidate_classifier.load_state_dict(initial_candidate_parameter_snapshot, strict=True)

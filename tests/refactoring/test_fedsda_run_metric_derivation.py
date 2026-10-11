@@ -874,11 +874,12 @@ def derive_legacy_trace_arrays(*, run_result, participants):
 
 
 def assert_multiply_accumulate_counts_match_example_counts(
-    *, model_computation_counts, participants
+    *, model_computation_counts, participants, models_share_feature_extractor=True
 ):
     """積和演算の数が、標本数の計数×（部品の全結合層の、入力の次元×出力の次元の合計）と一致する。
 
     逆伝播の見積りは、共有部の最初の層だけ、入力へ勾配を戻さない（重みの勾配だけ）。
+    共有部を持たない構造では、共有部の計数は、全部0で、最初の層は、概念固有部（モデルごとの隠れ層）の最初の層。
     """
     run_client = participants.client_operations[0]
     classifier = run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()[
@@ -896,9 +897,33 @@ def assert_multiply_accumulate_counts_match_example_counts(
     concept_specific_size = sum(linear_layer_sizes(classifier.residual_adapter)) + sum(
         linear_layer_sizes(classifier.classification_layer)
     )
-    assert len(shared_layer_sizes) >= 1
     assert concept_specific_size > 0
     counts = model_computation_counts
+    if not models_share_feature_extractor:
+        assert shared_layer_sizes == []
+        assert (
+            counts.shared_part_training_example_count,
+            counts.shared_part_inference_example_count,
+            counts.shared_parameter_optimizer_step_count,
+            counts.shared_part_training_forward_multiply_accumulate_count,
+            counts.shared_part_inference_forward_multiply_accumulate_count,
+            counts.shared_part_estimated_backward_multiply_accumulate_count,
+        ) == (0, 0, 0, 0, 0, 0)
+        assert counts.concept_specific_part_inference_forward_multiply_accumulate_count == (
+            counts.concept_specific_part_inference_example_count * concept_specific_size
+        )
+        assert counts.concept_specific_part_training_forward_multiply_accumulate_count == (
+            counts.concept_specific_part_training_example_count * concept_specific_size
+        )
+        first_layer_size = linear_layer_sizes(classifier.residual_adapter)[0]
+        assert counts.concept_specific_part_estimated_backward_multiply_accumulate_count == (
+            counts.concept_specific_part_training_example_count
+            * (2 * concept_specific_size - first_layer_size)
+        )
+        assert counts.concept_specific_part_training_example_count > 0
+        assert counts.concept_specific_part_inference_example_count > 0
+        return
+    assert len(shared_layer_sizes) >= 1
     assert counts.shared_part_inference_forward_multiply_accumulate_count == (
         counts.shared_part_inference_example_count * sum(shared_layer_sizes)
     )
@@ -1756,6 +1781,21 @@ def compare_small_run_with_real_legacy(
             not hasattr(legacy_client, "routing_diagnostics") for legacy_client in legacy_clients
         )
     legacy_metric_values = derive_legacy_metric_values(run_metrics)
+    # 構成が指定しなければ、実旧のモデルは、共有部を持つ。
+    legacy_models_share_feature_extractor = getattr(
+        configuration_variant, "legacy_models_share_feature_extractor", True
+    )
+    if not legacy_models_share_feature_extractor:
+        # 共有部を持たない実旧のモデルは、共有部の標本数として、概念固有部と同じ数（モデル×標本の延べ数）を数える。
+        # 新は、共有部が無いので、共有部の計数は0。旧の値は、新の、概念固有部の標本数と照合する。
+        assert (
+            legacy_computation_results["compute_backbone_examples_total"]
+            == legacy_computation_results["compute_head_examples_total"]
+        )
+        assert legacy_metric_values["compute_backbone_examples_total"] == 0
+        legacy_metric_values["compute_backbone_examples_total"] = legacy_metric_values[
+            "compute_head_examples_total"
+        ]
     for legacy_metric_name in legacy_regression.METRICS:
         if legacy_metric_name.startswith("compute_"):
             assert (
@@ -1763,7 +1803,9 @@ def compare_small_run_with_real_legacy(
                 == legacy_computation_results[legacy_metric_name]
             ), legacy_metric_name
     assert_multiply_accumulate_counts_match_example_counts(
-        model_computation_counts=model_computation_counts, participants=participants
+        model_computation_counts=model_computation_counts,
+        participants=participants,
+        models_share_feature_extractor=legacy_models_share_feature_extractor,
     )
     # サーバの計数（集約＝実旧の上りのパラメータの値の数。統合と距離は、記録と層の形から）と、保有モデル数。
     aggregation_count, consolidation_count, diagnostic_distance_count = (

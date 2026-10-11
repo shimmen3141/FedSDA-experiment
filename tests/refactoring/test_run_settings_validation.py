@@ -815,6 +815,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 else (
                     "shared_backbone_residual_adapter",
                     "shared_backbone_without_residual_adapter",
+                    "independent_models_without_shared_backbone",
                 )
                 if settings_field.name == "model_architecture_name"
                 else ("e_sr", "adwin")
@@ -834,7 +835,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                     "keep_weights_without_recalibration",
                 )
                 if settings_field.name == "prediction_weight_recalibration_after_aggregation_policy"
-                else ("joint_backbone_adapter_and_head_training",)
+                else ("joint_backbone_adapter_and_head_training", "sequential_per_model_training")
                 if settings_field.name == "local_model_parameter_update_strategy"
                 else ("sample_weighted_mean_per_concept_gradients",)
                 if settings_field.name == "shared_backbone_gradient_combination_strategy"

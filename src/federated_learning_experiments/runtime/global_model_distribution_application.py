@@ -24,6 +24,7 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
     snapshot_classifier_parameters,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+    INDEPENDENT_MODEL_ARCHITECTURE_NAME,
     ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
@@ -306,8 +307,8 @@ def apply_global_model_distribution(
     for distributed_model_id, distributed_parameter_snapshot in distributed_parameter_snapshots:
         rebuilt_classifier = ResidualAdapterClassifier(
             model_architecture_settings=architecture_reference_classifier.model_architecture_settings,
-            input_feature_count=architecture_reference_classifier.feature_extractor.input_feature_count,
-            hidden_layer_widths=architecture_reference_classifier.feature_extractor.hidden_layer_widths,
+            input_feature_count=architecture_reference_classifier.input_feature_count,
+            hidden_layer_widths=architecture_reference_classifier.hidden_layer_widths,
             class_count=architecture_reference_classifier.class_count,
         )
         rebuilt_classifier.load_state_dict(distributed_parameter_snapshot, strict=True)
@@ -322,9 +323,12 @@ def apply_global_model_distribution(
                 ),
                 concept_specific_parameter_optimizer_state=ParameterOptimizerState(
                     parameters=_get_concept_specific_parameters(classifier=rebuilt_classifier),
+                    # 共有部を持たない構造では、つなぎ直しで作り直さないので、どのモデルも、作り直しの設定。
                     optimizer_settings=(
                         rebuilt_model_parameter_optimizer_settings
                         if distributed_model_id == shared_feature_source_model_id
+                        or architecture_reference_classifier.model_architecture_settings.model_architecture_name
+                        == INDEPENDENT_MODEL_ARCHITECTURE_NAME
                         else reconnected_model_parameter_optimizer_settings
                     ),
                 ),

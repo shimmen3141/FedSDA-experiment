@@ -263,7 +263,7 @@ class FedsdaRunClient:
             python_random_generator=self._python_random_generator,
             local_training_settings=settings.local_training_settings,
             shared_feature_extractor=current_training_classifier.feature_extractor,
-            shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer,
+            shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer_if_any,
         )
         owners.held_model_count_record_store.append_held_model_count(
             held_model_count=held_model_count_before_processing
@@ -295,7 +295,7 @@ class FedsdaRunClient:
             python_random_generator=self._python_random_generator,
             local_training_settings=self._run_client_settings.local_training_settings,
             shared_feature_extractor=self._get_current_training_classifier().feature_extractor,
-            shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer,
+            shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer_if_any,
         )
 
     def has_model_ready_for_server_registration(self) -> bool:
@@ -451,10 +451,16 @@ def _validate_optimizer_state_parameters(
     expected_parameters: tuple[object, ...],
     optimizer_state_argument_name: str,
 ) -> None:
-    optimizer_parameters = tuple(
-        parameter
-        for parameter_group in parameter_optimizer_state.parameter_optimizer.param_groups
-        for parameter in parameter_group["params"]
+    # parameterが空の状態（共有部を持たない構造の、共有部）は、optimizerを持たない。
+    parameter_optimizer = parameter_optimizer_state.parameter_optimizer_if_any
+    optimizer_parameters = (
+        ()
+        if parameter_optimizer is None
+        else tuple(
+            parameter
+            for parameter_group in parameter_optimizer.param_groups
+            for parameter in parameter_group["params"]
+        )
     )
     if len(optimizer_parameters) != len(expected_parameters) or any(
         parameter is not expected_parameter

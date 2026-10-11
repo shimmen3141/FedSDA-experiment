@@ -34,6 +34,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
     CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
     EXPERIMENT_CONFIGURATION_NAMES,
+    INDEPENDENT_MODELS_CONFIGURATION_NAME,
     LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
     OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
     OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
@@ -109,6 +110,38 @@ def replace_loss_monitor_maximum_window(run_participant_settings):
             scalar_settings=replace(
                 run_client_settings.scalar_settings,
                 loss_monitor_maximum_retained_candidate_count=1000,
+            ),
+        ),
+    )
+
+
+def replace_with_independent_models(run_participant_settings):
+    """参加者の設定の束を、モデルが共有部を持たない構成のものへ、置き換える。
+
+    モデル構造、ローカル学習の方式（モデルごとに順に学習する）、集約後の重みの再較正をしない方針の、3つ。
+    """
+    run_client_settings = run_participant_settings.run_client_settings
+    return replace(
+        replace_prediction_combination_settings(
+            run_participant_settings,
+            prediction_weight_recalibration_after_aggregation_policy=(
+                "keep_weights_without_recalibration"
+            ),
+        ),
+        model_architecture_settings=replace(
+            run_participant_settings.model_architecture_settings,
+            model_architecture_name="independent_models_without_shared_backbone",
+        ),
+        run_client_settings=replace(
+            replace_prediction_combination_settings(
+                run_participant_settings,
+                prediction_weight_recalibration_after_aggregation_policy=(
+                    "keep_weights_without_recalibration"
+                ),
+            ).run_client_settings,
+            local_training_settings=replace(
+                run_client_settings.local_training_settings,
+                local_model_parameter_update_strategy="sequential_per_model_training",
             ),
         ),
     )
@@ -249,6 +282,18 @@ CONFIGURATION_VARIANTS = {
                 model_architecture_name="shared_backbone_without_residual_adapter",
             ),
         ),
+    ),
+    INDEPENDENT_MODELS_CONFIGURATION_NAME: SimpleNamespace(
+        name=INDEPENDENT_MODELS_CONFIGURATION_NAME,
+        # 旧の`tools/run_main_ablation_suite.sh`の`independent`（モデルは、共有部を持たないMLP。
+        # サーバは、集約後の再較正を呼ばない）。
+        legacy_mode_name="FedSDA_NoCached_ClassESR_RestartingSoftRouting",
+        legacy_setting_overrides={"SHARED_BACKBONE_ROUTING_RECALIBRATION": "none"},
+        modify_run_participant_settings=lambda run_participant_settings: (
+            replace_with_independent_models(run_participant_settings)
+        ),
+        # 実旧のモデルは、共有部を持たない（計算量の、共有部の計数が、概念固有部と同じ値になる）。
+        legacy_models_share_feature_extractor=False,
     ),
 }
 # 構成と条件ごとの、照合の結果（構成の結果と、同じ条件の提案構成の結果）。
@@ -861,7 +906,9 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
         OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
         WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,
+        INDEPENDENT_MODELS_CONFIGURATION_NAME,
     )
+    assert INDEPENDENT_MODELS_CONFIGURATION_NAME == "fedsda-independent-models"
     assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
         "fedsda-without-concept-specific-adapter"
     )
@@ -997,7 +1044,10 @@ def test_single_model_prediction_requires_no_weight_recalibration():
 
 # モデル構造を変える構成は、mnist2（784特徴・10クラス）でも、全体runを実旧と照合する（了承済みの照合の基準）。
 # 条件は、提案構成のmnist2の照合（test_fedsda_stream_protocol_run.py）と同じ2つ。
-MODEL_ARCHITECTURE_VARIANT_NAMES = (WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,)
+MODEL_ARCHITECTURE_VARIANT_NAMES = (
+    WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,
+    INDEPENDENT_MODELS_CONFIGURATION_NAME,
+)
 # 構成と条件ごとの、新しいモデルの登録があったか。
 MNIST2_NEW_MODEL_REGISTRATION_BY_CONDITION = {}
 # 条件の最後の要素（提案構成で通る経路の集合）は、この構成には当てはまらないので、外す。
@@ -1086,3 +1136,135 @@ def test_model_architecture_variant_registers_new_models_on_mnist2(configuration
     if len(registrations) < len(MNIST2_WHOLE_RUN_CONDITIONS):
         pytest.skip("mnist2の条件の全部を実行したときだけ確かめる")
     assert any(registrations)
+
+
+def test_independent_models_take_their_own_path():
+    """共有部を持たない構成は、保有モデルが、パラメータを共有せず、共有部の計算も無い。実旧のモデルも、共有部を持たない。"""
+    comparisons = collect_variant_comparisons(INDEPENDENT_MODELS_CONFIGURATION_NAME)
+    multiple_held_model_client_count = 0
+    for comparison in comparisons:
+        variant_comparison = comparison["variant"]
+        run_metrics = variant_comparison.run_metrics
+        # 共有部の計算は、無い（学習・推論の標本数、optimizerの更新、積和演算）。
+        model_computation_counts = run_metrics.model_computation_counts
+        assert model_computation_counts.shared_part_training_example_count == 0
+        assert model_computation_counts.shared_part_inference_example_count == 0
+        assert model_computation_counts.shared_parameter_optimizer_step_count == 0
+        assert model_computation_counts.concept_specific_parameter_optimizer_step_count > 0
+        # 集約後の、予測の重みの再較正は、行わない。
+        assert run_metrics.fixed_share_weight_recalibration_replayed_sample_count == 0
+        assert run_metrics.adahedge_weight_recalibration_replayed_sample_count == 0
+        for run_client, legacy_client in zip(
+            variant_comparison.participants.client_operations,
+            variant_comparison.legacy_run["legacy_clients"],
+            strict=True,
+        ):
+            owners = run_client.owners
+            held_states = owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+            multiple_held_model_client_count += len(held_states) > 1
+            # 共有部のoptimizerは、無い。
+            assert (
+                owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer_if_any
+                is None
+            )
+            parameter_ids = set()
+            for held_state in held_states:
+                classifier = held_state.classifier
+                assert list(classifier.feature_extractor.parameters()) == []
+                # 全パラメータが、このモデルだけのもの（ほかの保有モデルと、同じParameterを持たない）。
+                classifier_parameter_ids = {id(parameter) for parameter in classifier.parameters()}
+                assert classifier_parameter_ids
+                assert not classifier_parameter_ids & parameter_ids
+                parameter_ids |= classifier_parameter_ids
+                # 実旧のモデルは、層を1列に持ち、パラメータの数が同じ。
+                legacy_model = legacy_client.models[held_state.model_id]
+                assert not hasattr(legacy_model, "backbone")
+                assert sum(parameter.numel() for parameter in classifier.parameters()) == sum(
+                    parameter.numel() for parameter in legacy_model.parameters()
+                )
+            assert not hasattr(legacy_client, "_shared_backbone")
+    assert multiple_held_model_client_count > 0
+    # 同じ条件の提案構成は、共有部の計算があり、結果が違う。最終のパラメータの数は、複数のグローバルモデルが残る条件で、
+    # 提案構成（共有部を1回だけ数える）より多い。
+    assert all(
+        comparison[
+            "proposed"
+        ].run_metrics.model_computation_counts.shared_part_training_example_count
+        > 0
+        for comparison in comparisons
+    )
+    assert any(
+        comparison["variant"].run_metrics.prediction_accuracy
+        != comparison["proposed"].run_metrics.prediction_accuracy
+        for comparison in comparisons
+    )
+    assert any(
+        comparison["variant"].run_metrics.final_global_model_count > 1
+        and comparison["variant"].run_metrics.final_parameter_value_count
+        > comparison["proposed"].run_metrics.final_parameter_value_count
+        for comparison in comparisons
+    )
+
+
+def test_independent_models_require_sequential_training_and_no_weight_recalibration():
+    """共有部を持たないモデル構造は、モデルごとに順に学習する方式・再較正をしない方針との組でだけ、設定を作れる。"""
+    run_settings = build_experiment_run_settings(
+        configuration_name=INDEPENDENT_MODELS_CONFIGURATION_NAME,
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name="sine2",
+            random_seed=0,
+            client_count=3,
+            per_client_sample_count=200,
+            server_aggregation_interval_per_client_samples=50,
+        ),
+    )
+    run_participant_settings = run_settings.run_participant_settings
+    run_client_settings = run_participant_settings.run_client_settings
+    assert run_participant_settings.model_architecture_settings.model_architecture_name == (
+        "independent_models_without_shared_backbone"
+    )
+    assert run_client_settings.local_training_settings.local_model_parameter_update_strategy == (
+        "sequential_per_model_training"
+    )
+    for mismatched_settings_fields, rejected_parameter_name in (
+        (
+            dict(
+                run_client_settings=replace(
+                    run_client_settings,
+                    local_training_settings=replace(
+                        run_client_settings.local_training_settings,
+                        local_model_parameter_update_strategy=(
+                            "joint_backbone_adapter_and_head_training"
+                        ),
+                    ),
+                )
+            ),
+            "local_model_parameter_update_strategy",
+        ),
+        (
+            dict(
+                model_architecture_settings=replace(
+                    run_participant_settings.model_architecture_settings,
+                    model_architecture_name="shared_backbone_residual_adapter",
+                )
+            ),
+            "local_model_parameter_update_strategy",
+        ),
+        (
+            dict(
+                run_client_settings=replace(
+                    run_client_settings,
+                    prediction_combination_settings=replace(
+                        run_client_settings.prediction_combination_settings,
+                        prediction_weight_recalibration_after_aggregation_policy=(
+                            "recompute_buffer_losses_and_replay_weight_updates"
+                        ),
+                    ),
+                )
+            ),
+            "prediction_weight_recalibration_after_aggregation_policy",
+        ),
+    ):
+        with pytest.raises(RunSettingsValidationError) as error_information:
+            replace(run_participant_settings, **mismatched_settings_fields)
+        assert error_information.value.configuration_parameter_name == rejected_parameter_name

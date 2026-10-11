@@ -21,6 +21,7 @@
 | LEGACY-015 | 標本吸収の途中失敗で先行標本の更新と不正標本が残る | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-015-partial-absorption-on-invalid-sample.md) |
 | LEGACY-016 | 採用の後に現行モデルが戻ると、正式IDだけが採番され、採用したモデルは登録されない | 再現済み・未修正、意図した仕様か未確認、移植では維持 | [記録](legacy-016-registration-id-consumed-without-model.md) |
 | LEGACY-017 | クロス評価の読取りで、現行モデルの空の学習データの列が作られる | 再現済み・未修正、ラウンドの中で起きるかは未確認、新実装は作らない | [記録](legacy-017-cross-evaluation-creates-empty-training-collection.md) |
+| LEGACY-018 | 共有部を持たないモデルでは、クロス評価の下りの通信量が、同じclientへの同じ候補の送信を、重複して数える | 再現済み・未修正、移植では維持（構成の間の通信量の比較に、数え方の差が混ざる） | [記録](legacy-018-cross-evaluation-download-volume-without-shared-part.md) |
 
 ## 移植しないと決めた旧機能・新実装で見つけた事項
 

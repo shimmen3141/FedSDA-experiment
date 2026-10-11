@@ -18,6 +18,8 @@ class ModelArchitectureSettings:
                 "shared_backbone_residual_adapter",
                 # adapterを持たない。共有部の特徴を、そのまま、概念別の出力層へ渡す。要求rankは、使わない（値の検査は行い、条件の記録にも残る）。
                 "shared_backbone_without_residual_adapter",
+                # 共有部を持たない。隠れ層と分類層の全部を、モデルごとに独立に持つ。要求rankは、使わない。
+                "independent_models_without_shared_backbone",
             )
         },
     )

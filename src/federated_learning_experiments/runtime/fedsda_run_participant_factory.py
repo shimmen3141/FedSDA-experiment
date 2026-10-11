@@ -123,6 +123,40 @@ class FedsdaRunParticipantSettings:
                     f"maximum_tolerated_mean_loss_increase={maximum_tolerated_mean_loss_increase!r}。"
                 ),
             )
+        # 共有部を持たないモデル構造は、モデルごとに順に学習する方式と、集約後の重みの再較正をしない方針との組で、
+        # 旧実装と照合してある。ほかの組は、受け付けない。
+        models_are_independent = (
+            self.model_architecture_settings.model_architecture_name
+            == "independent_models_without_shared_backbone"
+        )
+        local_model_parameter_update_strategy = (
+            self.run_client_settings.local_training_settings.local_model_parameter_update_strategy
+        )
+        if models_are_independent != (
+            local_model_parameter_update_strategy == "sequential_per_model_training"
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="local_model_parameter_update_strategy",
+                specified_parameter_value=local_model_parameter_update_strategy,
+                validation_failure_reason=(
+                    "sequential_per_model_trainingは、モデル構造が"
+                    "independent_models_without_shared_backboneのときだけ、指定してください"
+                    "（その構造では、必ず、この方式を指定してください）。"
+                ),
+            )
+        prediction_weight_recalibration_policy = self.run_client_settings.prediction_combination_settings.prediction_weight_recalibration_after_aggregation_policy
+        if (
+            models_are_independent
+            and prediction_weight_recalibration_policy != "keep_weights_without_recalibration"
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="prediction_weight_recalibration_after_aggregation_policy",
+                specified_parameter_value=prediction_weight_recalibration_policy,
+                validation_failure_reason=(
+                    "モデル構造がindependent_models_without_shared_backboneのときは、"
+                    "keep_weights_without_recalibrationを指定してください。"
+                ),
+            )
 
 
 class FedsdaRunParticipantFactory:

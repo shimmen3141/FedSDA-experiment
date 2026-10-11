@@ -122,7 +122,10 @@ def register_ready_client_models(
 def split_shared_and_concept_specific_parameters(
     *, parameter_snapshot: dict[str, Tensor]
 ) -> tuple[dict[str, Tensor], dict[str, Tensor]]:
-    """完全なパラメータを、名前の順を保ったまま、共有部と概念固有部へ分ける。"""
+    """完全なパラメータを、名前の順を保ったまま、共有部と概念固有部へ分ける。
+
+    共有部を持たない構造のモデルでは、共有部は空（全パラメータが、概念固有部）。
+    """
     shared_parameters = {
         parameter_name: parameter_values
         for parameter_name, parameter_values in parameter_snapshot.items()
@@ -133,8 +136,8 @@ def split_shared_and_concept_specific_parameters(
         for parameter_name, parameter_values in parameter_snapshot.items()
         if not parameter_name.startswith(_SHARED_PARAMETER_NAME_PREFIX)
     }
-    if not shared_parameters or not concept_specific_parameters:
-        raise ValueError("parameter snapshot must hold both shared and concept-specific parameters")
+    if not concept_specific_parameters:
+        raise ValueError("parameter snapshot must hold concept-specific parameters")
     return shared_parameters, concept_specific_parameters
 
 

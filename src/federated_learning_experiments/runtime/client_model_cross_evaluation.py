@@ -240,8 +240,8 @@ def evaluate_candidate_model_on_target_model_samples(
     # 評価用の分類器を新しく作る（torchの乱数を消費する）。値は、渡されたパラメータで上書きする。
     candidate_classifier = ResidualAdapterClassifier(
         model_architecture_settings=architecture_reference_classifier.model_architecture_settings,
-        input_feature_count=architecture_reference_classifier.feature_extractor.input_feature_count,
-        hidden_layer_widths=architecture_reference_classifier.feature_extractor.hidden_layer_widths,
+        input_feature_count=architecture_reference_classifier.input_feature_count,
+        hidden_layer_widths=architecture_reference_classifier.hidden_layer_widths,
         class_count=architecture_reference_classifier.class_count,
     )
     candidate_classifier.load_state_dict(candidate_parameter_snapshot, strict=True)

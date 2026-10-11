@@ -13,7 +13,12 @@ class LocalTrainingSettings:
 
     local_model_parameter_update_strategy: str = field(
         metadata={
-            "allowed_parameter_values": ("joint_backbone_adapter_and_head_training",),
+            "allowed_parameter_values": (
+                # 更新ごとに、全保有モデルのbatchの損失を平均し、共有部を1回、各概念固有部を1回ずつ更新する（提案構成）。
+                "joint_backbone_adapter_and_head_training",
+                # モデルごとに順に、そのモデルのbatchだけで更新する（共有部を持たない構造）。
+                "sequential_per_model_training",
+            ),
         },
     )
     shared_backbone_gradient_combination_strategy: str = field(

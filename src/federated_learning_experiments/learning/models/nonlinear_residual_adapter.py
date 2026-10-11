@@ -1,7 +1,7 @@
 """共有特徴と分類層の間に置く部品: 初期状態が恒等写像となる非線形残差adapterと、adapterを持たない構造の恒等の部品。"""
 
 import torch
-from torch.nn import Linear, Module, ReLU
+from torch.nn import Linear, Module, ReLU, Sequential
 from torch.nn.init import zeros_
 
 
@@ -37,6 +37,49 @@ class IdentityFeatureAdapter(Module):
             input_features=shared_features, expected_feature_count=self.feature_count
         )
         return shared_features
+
+
+class ModelOwnedHiddenLayers(Module):
+    """共有部を持たない構造の、モデルごとの隠れ層（Linear/ReLUの列）。入力の特徴から、最後の隠れ層の特徴を作る。
+
+    層の作り方と順は、共有の特徴抽出部（`SharedFeatureExtractor`）と同じ。こちらは、モデルごとに独立に持つ、
+    概念固有部の部品で、分類器の`residual_adapter`の場所に置く。
+    """
+
+    def __init__(self, *, input_feature_count: int, hidden_layer_widths: tuple[int, ...]):
+        if type(input_feature_count) is not int or input_feature_count < 1:
+            raise ValueError("input_feature_countはbool以外の正整数が必要です。")
+        if type(hidden_layer_widths) is not tuple:
+            raise ValueError("hidden_layer_widthsはexact tupleが必要です。")
+        for hidden_layer_width in hidden_layer_widths:
+            if type(hidden_layer_width) is not int or hidden_layer_width < 1:
+                raise ValueError("hidden_layer_widthsの各幅はbool以外の正整数が必要です。")
+        super().__init__()
+        self.feature_count = input_feature_count
+        self.hidden_layer_widths = hidden_layer_widths
+        hidden_layers = []
+        previous_feature_count = input_feature_count
+        for hidden_layer_width in hidden_layer_widths:
+            hidden_layers.extend(
+                (
+                    Linear(
+                        previous_feature_count,
+                        hidden_layer_width,
+                        device="cpu",
+                        dtype=torch.float32,
+                    ),
+                    ReLU(),
+                )
+            )
+            previous_feature_count = hidden_layer_width
+        self.output_feature_count = previous_feature_count
+        self.hidden_layers = Sequential(*hidden_layers)
+
+    def forward(self, shared_features: torch.Tensor) -> torch.Tensor:
+        _validate_feature_tensor(
+            input_features=shared_features, expected_feature_count=self.feature_count
+        )
+        return self.hidden_layers(shared_features)
 
 
 class NonlinearResidualAdapter(Module):

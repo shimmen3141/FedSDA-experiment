@@ -1,6 +1,7 @@
 """採用候補の一時ID登録を、実旧登録処理と旧FedSDAの待機設定へ対照する。"""
 
 import random
+import sys
 from collections import defaultdict
 from copy import deepcopy
 
@@ -94,6 +95,18 @@ class IntSubclass(int):
 
 
 def convert_legacy_parameter_name(legacy_parameter_name):
+    """旧のモデルのパラメータの名前を、新の分類器の名前へ直す。
+
+    共有部を持たない旧のモデル（`SimpleMLP`）は、層を1列（`net`）に持つ: 隠れ層（Linear、ReLU）の並びの後に、
+    出力層。新は、隠れ層を`residual_adapter.hidden_layers`、出力層を`classification_layer`に持つ。
+    隠れ層の数は、全体runの対照が使う、testの定数（`test_fedsda_run_client.HIDDEN_LAYER_WIDTHS`）から取る。
+    """
+    if legacy_parameter_name.startswith("net."):
+        _, layer_index, parameter_kind = legacy_parameter_name.split(".")
+        hidden_layer_count = len(sys.modules["test_fedsda_run_client"].HIDDEN_LAYER_WIDTHS)
+        if int(layer_index) == 2 * hidden_layer_count:
+            return f"classification_layer.{parameter_kind}"
+        return f"residual_adapter.hidden_layers.{layer_index}.{parameter_kind}"
     return (
         legacy_parameter_name.replace("backbone.net.", "feature_extractor.hidden_layers.")
         .replace("adapter.down.", "residual_adapter.feature_compression.")
@@ -308,7 +321,11 @@ def register_candidate_in_legacy_client(*, legacy_client, legacy_candidate_model
 def assert_held_model_states_match_legacy(
     *, registry, shared_optimizer_owners, legacy_client, input_features
 ):
-    """保有一覧の順序と、各モデルの全値・grad・optimizer state・共有参照・出力を対照する。"""
+    """保有一覧の順序と、各モデルの全値・grad・optimizer state・共有参照・出力を対照する。
+
+    共有部を持たない旧のモデル（optimizerが1つで、全パラメータを更新する）は、新の、概念固有部のoptimizer
+    （全パラメータが概念固有部）と照合する。新の共有部はパラメータを持たず、optimizerも無い。
+    """
     held_model_training_states = registry.snapshot_ordered_held_model_training_states()
     assert tuple(state.model_id for state in held_model_training_states) == tuple(
         legacy_client.models
@@ -316,6 +333,7 @@ def assert_held_model_states_match_legacy(
     shared_optimizer_owner_by_extractor_id = {
         id(tuple(owner.parameter_optimizer.param_groups[0]["params"])[0]): owner
         for owner in shared_optimizer_owners
+        if owner.parameter_optimizer_if_any is not None
     }
     legacy_models = tuple(legacy_client.models.values())
     for state_index, (state, legacy_model) in enumerate(
@@ -332,6 +350,17 @@ def assert_held_model_states_match_legacy(
         ):
             assert torch.equal(parameter, legacy_parameter)
             assert_nested_state_equal(parameter.grad, legacy_parameter.grad)
+        if not hasattr(legacy_model, "backbone"):
+            # 共有部を持たないモデル。
+            assert_nested_state_equal(
+                state.concept_specific_parameter_optimizer_state.parameter_optimizer.state_dict(),
+                legacy_model.optimizer.state_dict(),
+            )
+            assert list(state.classifier.feature_extractor.parameters()) == []
+            assert shared_optimizer_owner_by_extractor_id == {}
+            with torch.no_grad():
+                assert torch.equal(state.classifier(input_features), legacy_model(input_features))
+            continue
         assert_nested_state_equal(
             state.concept_specific_parameter_optimizer_state.parameter_optimizer.state_dict(),
             legacy_model.head_optimizer.state_dict(),
