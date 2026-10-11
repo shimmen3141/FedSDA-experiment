@@ -158,7 +158,7 @@ def _predict_with_current_training_model_only(
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
     current_training_model_assignment: CurrentTrainingModelAssignment,
 ) -> ObservedSamplePrediction:
-    """現在の学習帰属のモデルだけを評価して予測し、記録を足す。重みと証拠は、作らない・更新しない。
+    """現在の学習帰属のモデルだけを評価して予測し、記録を足す。重みの保持と証拠は、使わない・更新しない。
 
     記録と戻り値の、重みに関する項目は、「現在のモデルに重み1」の値にする: 最大重みのモデルは現在のモデル、
     最大の重みと実効モデル数は1、どの重みでの結合の正否も、現在のモデルの予測の正否。

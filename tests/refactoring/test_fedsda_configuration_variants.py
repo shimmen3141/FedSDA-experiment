@@ -565,6 +565,42 @@ def test_single_model_prediction_takes_its_own_path():
             ]
     # 複数のモデルを保有している標本でも、現在のモデルだけで予測している。
     assert multiple_held_model_sample_count > 0
+    # 学習帰属の変更が起きていて（この構成でも、同じ条件の提案構成でも）、提案構成では、AdaHedgeの証拠が始め直されている。
+    # この構成で始め直しが0回なのは、変更が無かったからではない。
+    for variant_role in ("variant", "proposed"):
+        assert any(
+            run_client.owners.adaptation_record_store.get_state_snapshot().training_model_switch_sample_indices
+            for comparison in comparisons
+            for run_client in comparison[variant_role].participants.client_operations
+        )
+    assert any(
+        run_client.owners.adahedge_weight_evidence_collection.all_sample_weight_evidence.concept_operation_restart_count
+        > 0
+        for comparison in comparisons
+        for run_client in comparison["proposed"].participants.client_operations
+    )
+    # 指標でも、予測の内訳は、全部、現在のモデルの予測の値になる。結合して予測した標本は、無い。
+    for comparison in comparisons:
+        run_metrics = comparison["variant"].run_metrics
+        diagnostic_metrics = run_metrics.prediction_diagnostic_metrics
+        correct_counts = diagnostic_metrics.prediction_correct_counts
+        assert (
+            len(
+                {
+                    correct_counts.combined_prediction_correct_count,
+                    correct_counts.any_model_or_combined_prediction_correct_count,
+                    correct_counts.maximum_weight_model_prediction_correct_count,
+                    correct_counts.highest_confidence_model_prediction_correct_count,
+                    diagnostic_metrics.fixed_share_weighted_prediction_correct_count,
+                    diagnostic_metrics.adahedge_weighted_prediction_correct_count,
+                }
+            )
+            == 1
+        )
+        assert diagnostic_metrics.mean_effective_model_count == 1.0
+        assert diagnostic_metrics.mean_fixed_share_effective_model_count == 1.0
+        assert diagnostic_metrics.fixed_share_weight_leader_switch_count == 0
+        assert run_metrics.mixed_prediction_sample_count == 0
     # 同じ条件の提案構成と、予測の結果が違う条件がある。
     assert any(
         comparison["variant"].run_metrics.prediction_accuracy
