@@ -28,3 +28,5 @@
 - 実装レビュー（GPT-6 Luna medium、`/root/feddrift_factory_implementation_review`）PASS、指摘なし。独立対象/依存3125 passed（11.15秒）、Ruff check/format、names、progress、diff --check成功。fresh/全pytestは独立再実行なし。命名の実態も承認。主担当がこの後の全pytestで最終判定する。
 
 - 独立実装レビュー後の最終検証（2026-10-12）: 全pytestは13214 passed / 4 skipped / 9 warnings、exit 0（673.80秒、-n 8 --dist loadfile）。前specの13168件へ対象43件と禁止依存3件を加えた数と一致。JUnitは13218件、failure/error 0、対象43件・既存11ケース/提案3ケースgolden回帰・fresh smoke成功。skipはPOSIX bashなし3件と既存回帰へ委ねる環境golden1件。最終Ruff check/format（316 files）、Pyright 0 errors/0 warnings、pip check、names、progress、diff --check成功。固定旧748c3aa・golden・tools差分なし。全7要求の初期準備/拒否/再準備/観測・同期接続を主担当が照合。source/testはこの検証後に変更しない。全pytest/freshは独立再現なし、WSL/変異は未実施。終端/精度評価/全体run指標/成果物/CLI/golden移植は後続。ログ/JUnitは`../../venv/refactoring-tests/feddrift-run-participant-factory-full.log`と同名`.xml`。
+
+- 完了確認: 検証済みsource commit `2eaeb18ef43acf146f777c68de4d677c788a29e7`、source hash LF `3ddfe117d6c0bc76cd8ba51347b6331707cb1ff34cb652c52ac263fd94ac62d7`（420パス）。identityで固定旧差分/clean tree/JUnit/2回帰/件数を確認してPASS。初期準備から観測・同期までの境界・7要求・独立承認・全体検証が揃いspec GO、completedへ更新。以後は完了文書のみ変更。
