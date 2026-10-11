@@ -12,7 +12,7 @@
   - _Boundary: バッチ処理のruntime接続_
   - _Depends: 1_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2_
-- [ ] 3. 新実装だけの実行と依存境界・独立レビュー・全回帰を確認する
+- [x] 3. 新実装だけの実行と依存境界・独立レビュー・全回帰を確認する
   - 依存を登録し、fresh smokeから実際の生成・割当を呼ぶ。
   - 全task後の独立レビューの有用な指摘を反映し、全pytestと品質検査の成功を完了条件とする。
   - _Boundary: 共用実行への接続と検証_
@@ -27,3 +27,5 @@
 - 主担当の接続検証: `1b205a9`の対象と依存境界は3116 passed、共用fresh process smokeを含め3117 passed / 3 warnings（140.18秒）。固定旧748c3aaの差分が空、source hash `ae02573b1f18de0409a40b106ad43e82d6a6013bb0b49c166e561340d79c9644`（403パス）、クリーンを確認してレビューへ出した。
 - 独立レビュー: `7138fab..1b205a9`、session `01a12b30-3add-7bf3-aaf3-3cf79eb51af0`、実モデル`gpt-6-luna`・`reasoning effort: medium`（ログ確認）、判定`IMPLEMENTATION: NEEDS_FIXES`。Blocker/Majorなし、Minor 1件。既存parameter/optimizerの参照と状態の照合不足を採用し、実Adamの更新済み非空state、SGD、二値/多クラス、生成/非生成の8testを追加した。parameter・classifier・管理器・optimizerのidentityと全state_dictの値を照合し、対象75件成功。実装は変更していない。Minorだけなので共通手順に従い再レビューしない。9要求と公開名・役割は独立担当が確認した。指摘の反映を主担当が受け入れ、残るゲートは全回帰。
 - 独立実行は3183 passed / 1 failed。fresh smokeは最後のTemporaryDirectory cleanupがsandboxから元checkoutのvenv配下への削除を拒否されWinError 5で失敗したため、独立成功とは記録しない。主担当の同smoke実行は成功している。Ruff check/format（299ファイル）、names、identityは独立成功。全pytestは独立再現していない。ログと依頼文は`venv/refactoring-tests/feddrift-detection-batch-processing-review-1.log`、`feddrift-detection-batch-processing-review-prompt.txt`。
+- 最終全回帰: `b2d19d6`、12725 passed / 4 skipped / 7 warnings、exit 0、843.33秒（固定Windows、`-n 8 --dist loadfile`）。前specの12647件＋新規75件＋依存拒否3件と一致。JUnitは`venv/refactoring-tests/feddrift-detection-batch-processing-full.xml`、logは同stemの`.log`。JUnitでfailure/error 0、対象75件、旧と提案golden、共用fresh process smokeの成功を再照合した。警告のうち新規3件は実旧の1件バッチでの不偏分散計算（新実装は既存部品の0.1 fallbackで同値）。source hash `1cd89c2304d3fdf931093b2fc823be3469f257e8e0620d759add48bc2e2d79dc`（403パス）、固定旧748c3aaの差分は空。Ruff check/format、Pyright 0 errors、pip check成功。
+- 完了判定: 全9要求の実旧対照・不正入力・保持・依存境界とruntime接続を確認した。独立担当の元判定NEEDS_FIXESは保持し、Minorを反映・全回帰で検証した後に主担当が受け入れた（共通手順ではMinorだけの再レビューは不要）。task 3を完了とする。全回帰後は文書だけを更新し、source/testは変更していない。WSLと変異は未実施。FedDriftのバッファ・逐次予測・位置記録・局所学習・client組立、サーバ同期・全体run/goldenと旧early_stoppingは後続であり、本specの完了で代替しない。

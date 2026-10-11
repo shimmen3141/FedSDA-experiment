@@ -1,9 +1,9 @@
 {
   "feature_name": "feddrift-detection-batch-processing",
   "created_at": "2026-10-11T22:28:00+09:00",
-  "updated_at": "2026-10-11T22:43:56+09:00",
+  "updated_at": "2026-10-11T22:59:56+09:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {"generated": true, "approved": true, "approved_by": "主担当Codex（共通引継ぎ手順のユーザー委任）"},
     "design": {"generated": true, "approved": true, "approved_by": "主担当Codex（同上）"},
@@ -12,7 +12,7 @@
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
-  "handoff": {"execution_status": "validating", "next_step": "独立レビューのMinorは反映済み。全pytestの終了と品質・source/JUnitを照合して完了にする"},
+  "handoff": {"execution_status": "completed", "next_step": "none（FedDriftのclient組立とサーバ・全体runは後続spec）"},
   "implementation_review": {
     "verdict": "IMPLEMENTATION: NEEDS_FIXES",
     "reviewer": "gpt-6-luna, effort medium（独立CLI）",
@@ -23,8 +23,21 @@
     "review_output": "venv/refactoring-tests/feddrift-detection-batch-processing-review-1.log",
     "findings": "Minor 1件（既存parameter/optimizerのidentityと状態のtest不足）。Blocker/Majorなし。9要求と命名・依存境界を確認",
     "findings_resolution": "採用。実Adam/SGD、二値/多クラス、生成/非生成の8件を追加し、75件成功。主担当が反映を受入。Minorだけなので共通手順に従い再レビューしない",
+    "main_acceptance": "ACCEPTED（Minor反映を対象75件と全回帰で検証して受入。独立担当の元判定は上のverdictへ保持）",
     "independent_test_execution": true,
     "independent_full_pytest_reproduction": false,
-    "independent_checks": "3183 passed / 1 failed。fresh smoke末尾のTemporaryDirectory cleanupがsandboxのWinError 5で失敗。Ruff check/format、names、identity成功。全pytest未実施"
+    "independent_checks": "3183 passed / 1 failed。fresh smoke末尾のTemporaryDirectory cleanupがsandboxのWinError 5で失敗。Ruff check/format、names、identity成功。全pytest未実施",
+    "full_pytest": "12725 passed / 4 skipped / 7 warnings, exit 0（b2d19d6、主担当実測、-n 8 --dist loadfile、843.33秒）"
+  },
+  "integration_validation": {
+    "tested_commit": "b2d19d6783c8b4800b03bd95335ffc09054d811a",
+    "source_sha256_lf": "1cd89c2304d3fdf931093b2fc823be3469f257e8e0620d759add48bc2e2d79dc",
+    "full_passed": 12725,
+    "full_skipped": 4,
+    "full_warnings": 7,
+    "exit_code": 0,
+    "junit": "venv/refactoring-tests/feddrift-detection-batch-processing-full.xml",
+    "quality_checks": "Ruff check/format、Pyright 0 errors、pip check成功。全9要求と設計・runtimeからlearning/evaluationへの接続を確認",
+    "limitations": "独立担当のfresh smokeはsandbox cleanupで失敗。主担当の全pytestでは成功。WSL・変異・旧early_stopping・FedDrift client/サーバ/全体runとgolden移植は未実施"
   }
 }
