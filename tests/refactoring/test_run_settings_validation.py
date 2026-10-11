@@ -812,7 +812,10 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             assert settings_field.metadata["allowed_parameter_values"] == (
                 ("sine2", "sea2", "sea4", "circle2", "mnist2", "mnist4")
                 if settings_field.name == "dataset_name"
-                else ("shared_backbone_residual_adapter",)
+                else (
+                    "shared_backbone_residual_adapter",
+                    "shared_backbone_without_residual_adapter",
+                )
                 if settings_field.name == "model_architecture_name"
                 else ("e_sr", "adwin")
                 if settings_field.name == "drift_detector_name"

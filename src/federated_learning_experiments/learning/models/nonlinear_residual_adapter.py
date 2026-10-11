@@ -19,6 +19,26 @@ def _validate_feature_tensor(*, input_features: torch.Tensor, expected_feature_c
         raise ValueError("shared_featuresは末尾の特徴数が一致するvector/batchが必要です。")
 
 
+class IdentityFeatureAdapter(Module):
+    """adapterを持たない構造の、概念固有部の入口。共有特徴を、そのまま返す。パラメータは持たない。
+
+    分類器が、どの構造でも、同じ場所（`residual_adapter`）に部品を持てるようにする。入力の検査は、
+    残差adapterと同じ。
+    """
+
+    def __init__(self, *, feature_count: int):
+        if type(feature_count) is not int or feature_count < 1:
+            raise ValueError("feature_countはbool以外の正整数が必要です。")
+        super().__init__()
+        self.feature_count = feature_count
+
+    def forward(self, shared_features: torch.Tensor) -> torch.Tensor:
+        _validate_feature_tensor(
+            input_features=shared_features, expected_feature_count=self.feature_count
+        )
+        return shared_features
+
+
 class NonlinearResidualAdapter(Module):
     """圧縮/ReLU/展開を通る残差を共有特徴へ加算する。"""
 

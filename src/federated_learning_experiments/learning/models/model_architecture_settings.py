@@ -12,7 +12,14 @@ class ModelArchitectureSettings:
     """要求rankを丸めず保持し、構築時に宣言された型と値域を検証する。"""
 
     model_architecture_name: str = field(
-        metadata={"allowed_parameter_values": ("shared_backbone_residual_adapter",)},
+        metadata={
+            "allowed_parameter_values": (
+                # 共有部の特徴へ、概念別の残差adapterを通してから、概念別の出力層へ渡す（提案構成）。
+                "shared_backbone_residual_adapter",
+                # adapterを持たない。共有部の特徴を、そのまま、概念別の出力層へ渡す。要求rankは、使わない。
+                "shared_backbone_without_residual_adapter",
+            )
+        },
     )
     residual_adapter_requested_rank: int = field(
         metadata={

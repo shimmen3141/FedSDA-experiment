@@ -4,7 +4,7 @@ import torch
 from torch.nn import Identity, Linear, Module, Sigmoid
 
 from .model_architecture_settings import ModelArchitectureSettings
-from .nonlinear_residual_adapter import NonlinearResidualAdapter
+from .nonlinear_residual_adapter import IdentityFeatureAdapter, NonlinearResidualAdapter
 from .shared_feature_extractor import SharedFeatureExtractor
 
 
@@ -56,7 +56,11 @@ def _validate_classifier_inputs(
 
 
 class ResidualAdapterClassifier(Module):
-    """共有部だけを借用し、adapterと分類層を独立に所有する。"""
+    """共有部だけを借用し、adapterと分類層を独立に所有する。
+
+    adapterを持たない構造（設定の構造の名前）では、`residual_adapter`は、共有特徴をそのまま返す部品で、
+    パラメータを持たない（概念固有部は、分類層だけ）。
+    """
 
     def __init__(
         self,
@@ -84,10 +88,20 @@ class ResidualAdapterClassifier(Module):
                 input_feature_count=input_feature_count, hidden_layer_widths=hidden_layer_widths
             )
         )
-        self.residual_adapter = NonlinearResidualAdapter(
-            feature_count=self.feature_extractor.output_feature_count,
-            requested_rank=validated_model_architecture_settings.residual_adapter_requested_rank,
-        )
+        self.residual_adapter: IdentityFeatureAdapter | NonlinearResidualAdapter
+        if (
+            validated_model_architecture_settings.model_architecture_name
+            == "shared_backbone_without_residual_adapter"
+        ):
+            # パラメータを作らないので、乱数も消費しない（旧の、adapterを持たないモデルと同じ）。
+            self.residual_adapter = IdentityFeatureAdapter(
+                feature_count=self.feature_extractor.output_feature_count
+            )
+        else:
+            self.residual_adapter = NonlinearResidualAdapter(
+                feature_count=self.feature_extractor.output_feature_count,
+                requested_rank=validated_model_architecture_settings.residual_adapter_requested_rank,
+            )
         classification_output_count = 1 if class_count == 2 else class_count
         self.classification_layer = Linear(
             self.feature_extractor.output_feature_count,

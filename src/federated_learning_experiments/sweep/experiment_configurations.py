@@ -34,6 +34,8 @@ SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME = "fedsda-single-model-prediction"
 CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME = "fedsda-classwise-adwin-detection"
 # 同じく、ADWINで、全体の損失の系列だけを監視する構成。
 OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME = "fedsda-overall-loss-adwin-detection"
+# 提案構成のモデルから、概念固有の残差adapterを外した構成（概念固有部は、出力層だけ）。
+WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME = "fedsda-without-concept-specific-adapter"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -45,6 +47,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
     CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
     OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
+    WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,
 )
 
 
@@ -185,6 +188,18 @@ def build_experiment_run_settings(
             prediction_combination_strategy="current_training_model_prediction",
             prediction_weight_recalibration_after_aggregation_policy=(
                 "keep_weights_without_recalibration"
+            ),
+        )
+    if configuration_name == WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME:
+        run_participant_settings = proposed_run_settings.run_participant_settings
+        return replace(
+            proposed_run_settings,
+            run_participant_settings=replace(
+                run_participant_settings,
+                model_architecture_settings=replace(
+                    run_participant_settings.model_architecture_settings,
+                    model_architecture_name="shared_backbone_without_residual_adapter",
+                ),
             ),
         )
     return proposed_run_settings

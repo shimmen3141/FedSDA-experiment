@@ -29,10 +29,11 @@
 | IMPROVE-011 | 共同学習の反復が、参加したモデルを返す（計数の側の参加条件の重複をなくす） | 未検証・未採用 | [詳細](improve-011-report-participating-models-from-joint-training.md) |
 | IMPROVE-012 | 観測標本の特徴を、配列で持つ（MNISTの784特徴で、標本ごとのメモリを減らす） | 未検証・未採用 | [詳細](improve-012-hold-observed-sample-features-as-array.md) |
 | IMPROVE-013 | AdaHedgeの重みの証拠を、評価の層から移す（予測に使う構成ができたため） | 未検証・未採用 | [詳細](improve-013-move-adahedge-weight-evidence-out-of-evaluation-layer.md) |
+| IMPROVE-014 | adapterを持たない構造も扱う分類器の、クラスと属性の名前を、構造に依らない名前へ改める | 未検証・未採用 | [詳細](improve-014-rename-classifier-that-may-have-no-adapter.md) |
 
 ## 記録・更新の規約
 
-IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-014。候補の発見時点で記録し、実験済みである必要はない。
+IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-015。候補の発見時点で記録し、実験済みである必要はない。
 
 各ファイルへ以下を記載する。未確認・未定の項目はそのまま明記する。
 

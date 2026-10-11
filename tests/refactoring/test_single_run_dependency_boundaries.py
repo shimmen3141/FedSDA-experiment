@@ -4863,6 +4863,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.nn.modules.module.register_module_forward_pre_hook",
             "torch.optim.Optimizer",
             "torch.optim.optimizer.register_optimizer_step_post_hook",
+            "federated_learning_experiments.learning.models.nonlinear_residual_adapter.IdentityFeatureAdapter",
             "federated_learning_experiments.learning.models.nonlinear_residual_adapter.NonlinearResidualAdapter",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
         )
@@ -6283,6 +6284,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
                 "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
                 "federated_learning_experiments.learning.models.nonlinear_residual_adapter",
                 "federated_learning_experiments.learning.models.nonlinear_residual_adapter.NonlinearResidualAdapter",
+                "federated_learning_experiments.learning.models.nonlinear_residual_adapter.IdentityFeatureAdapter",
             )
         )
     if imported_module_name.split(".")[0] in sys.stdlib_module_names:

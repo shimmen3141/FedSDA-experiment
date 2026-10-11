@@ -38,6 +38,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
     SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
+    WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,
     build_experiment_run_settings,
 )
 
@@ -233,6 +234,19 @@ CONFIGURATION_VARIANTS = {
             )
         ),
         legacy_records_monitored_log_e_values=False,
+    ),
+    WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME: SimpleNamespace(
+        name=WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,
+        # 旧の`tools/run_main_ablation_suite.sh`の`shared-backbone`（モデルが、共有部と出力層だけ）。
+        legacy_mode_name="FedSDA_NoCached_SharedBackbone_ClassESR_RestartingSoftRouting",
+        legacy_setting_overrides={},
+        modify_run_participant_settings=lambda run_participant_settings: replace(
+            run_participant_settings,
+            model_architecture_settings=replace(
+                run_participant_settings.model_architecture_settings,
+                model_architecture_name="shared_backbone_without_residual_adapter",
+            ),
+        ),
     ),
 }
 # 構成と条件ごとの、照合の結果（構成の結果と、同じ条件の提案構成の結果）。
@@ -783,6 +797,55 @@ def test_adwin_detection_takes_its_own_path(configuration_name, class_detectors_
     )
 
 
+def test_without_concept_specific_adapter_takes_its_own_path():
+    """adapterを持たない構成は、保有モデルの概念固有部が、出力層だけ。実旧のモデルも、adapterを持たない。"""
+    comparisons = collect_variant_comparisons(WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME)
+    multiple_held_model_client_count = 0
+    for comparison in comparisons:
+        for variant_role, adapter_is_expected in (("variant", False), ("proposed", True)):
+            role_comparison = comparison[variant_role]
+            for run_client, legacy_client in zip(
+                role_comparison.participants.client_operations,
+                role_comparison.legacy_run["legacy_clients"],
+                strict=True,
+            ):
+                held_states = run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+                multiple_held_model_client_count += (
+                    variant_role == "variant" and len(held_states) > 1
+                )
+                for held_state in held_states:
+                    parameter_names = set(held_state.classifier.state_dict())
+                    assert (
+                        any(
+                            parameter_name.startswith("residual_adapter.")
+                            for parameter_name in parameter_names
+                        )
+                        == adapter_is_expected
+                    )
+                    # 概念固有部のパラメータの数が、実旧のモデルの、共有部以外のパラメータの数と同じ。
+                    legacy_model = legacy_client.models[held_state.model_id]
+                    assert sum(
+                        parameter.numel()
+                        for parameter_name, parameter in held_state.classifier.state_dict().items()
+                        if not parameter_name.startswith("feature_extractor.")
+                    ) == sum(
+                        parameter.numel() for parameter in legacy_model.personalized_parameters()
+                    )
+                    assert hasattr(legacy_model, "adapter") == adapter_is_expected
+    assert multiple_held_model_client_count > 0
+    # 同じ条件の提案構成と、結果と、通信量（パラメータの数）が違う。
+    assert any(
+        comparison["variant"].run_metrics.prediction_accuracy
+        != comparison["proposed"].run_metrics.prediction_accuracy
+        for comparison in comparisons
+    )
+    assert all(
+        comparison["variant"].run_metrics.final_parameter_value_count
+        < comparison["proposed"].run_metrics.final_parameter_value_count
+        for comparison in comparisons
+    )
+
+
 def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_element():
     """掃引のコマンドの構成の名前から作るrun設定は、提案構成と、変える要素だけが違う。"""
     assert EXPERIMENT_CONFIGURATION_NAMES == (
@@ -795,6 +858,10 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
         CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
         OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
+        WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,
+    )
+    assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
+        "fedsda-without-concept-specific-adapter"
     )
     assert CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME == "fedsda-classwise-adwin-detection"
     assert OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME == (

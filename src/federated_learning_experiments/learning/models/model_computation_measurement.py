@@ -39,6 +39,7 @@ from torch.optim import Optimizer
 from torch.optim.optimizer import register_optimizer_step_post_hook
 
 from federated_learning_experiments.learning.models.nonlinear_residual_adapter import (
+    IdentityFeatureAdapter,
     NonlinearResidualAdapter,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
@@ -138,7 +139,8 @@ class ModelComputationMeter:
                 forward_input=forward_input
             )
             return
-        if type(module) is NonlinearResidualAdapter:
+        # 概念固有部の入口（adapter。adapterを持たない構造では、共有特徴をそのまま返す部品）。
+        if type(module) in (NonlinearResidualAdapter, IdentityFeatureAdapter):
             self._counts[f"concept_specific_part_{mode_name}_example_count"] += (
                 _count_input_examples(forward_input=forward_input)
             )
