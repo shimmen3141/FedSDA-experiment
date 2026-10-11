@@ -46,3 +46,5 @@
 - 実装レビューのMajor修正箇所の再確認はPASS。同じLuna reviewerが副作用前の全保有state検証と拒否時のowner/乱数不変を確認し、対象/依存境界3228 passedを独立実行。命名も設計/実態の一致を承認。spec完了判定は、この後の全pytest/JUnitと品質検査を待つ。
 
 - 指摘反映・Major再確認後の最終検証（2026-10-12）: 全pytestは13168 passed / 4 skipped / 9 warnings、exit 0（667.16秒、-n 8 --dist loadfile）。JUnitは13172件、failure/error 0、対象149件・既存11ケース/提案3ケースgolden回帰・共用fresh smoke成功。前specの13007 passedへ対象149件と禁止依存12件を加えた数と一致。skipはPOSIX bashなし3件と既存回帰へ委ねる環境golden1件。Ruff check/format（314 files）、Pyright 0 errors/0 warnings、pip check、names、progress、diff --check成功。固定旧748c3aa・2 golden・toolsの差分なし。ログ/JUnitは`../../venv/refactoring-tests/feddrift-server-synchronization-full.log`と同名`.xml`。WSL・変異未実施。全参加者factory/終端/精度評価/全体run指標/成果物/CLI/任意相補性診断は後続で、全体run/golden移植の完了は主張しない。
+
+- 完了確認: 検証済みsource commit `4b8a56b871b4919a00b6e25a7b14e6ee20c7df8a`、source hash LF `c77422e746af9852ae7e9ce6a48ba44f8209e9ff91a162c3af984729cbd48137`（418パス）。identityは固定旧差分・clean tree・JUnit・2回帰・件数一致を確認してPASS。全12要求の実旧連続操作/異常系/依存/freshへの対応とレビュー採否・最終検証を主担当が確認しspec GO、completedへ更新。以後は完了文書のみ変更しsource hashを保持する。
