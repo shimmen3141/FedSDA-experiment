@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-11（fedsda-independent-modelsの完了。構成の移植は、10個の全部が済んだ。Codexへの引継ぎは、下の「引継ぎ」を最初に読む。この行の2つ前の更新は「2026-10-12」と書いていたが、日付の誤りで、実際は2026-10-11。主担当はClaude Code→Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
+更新: 2026-10-12（FedDriftの保存済みモデル群の加重統合の数値部を完了。主担当Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -11,7 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### いまの状態
 
-- ブランチ`refactor/architecture`。2026-10-11、ユーザーがpushを明示的に許可。[feddrift-run-client-assembly](../specs/feddrift-run-client-assembly/tasks.md)は独立レビュー承認・全回帰成功で完了。次はFedDrift固有のサーバ準備・同期とRラウンド進行への接続を調査・仕様化する。状態の正本は各specのspec.jsonとtasks.md。
+- ブランチ`refactor/architecture`。2026-10-11、ユーザーがpushを明示的に許可。[feddrift-cached-cluster-consolidation](../specs/feddrift-cached-cluster-consolidation/tasks.md)は独立レビュー承認・全回帰成功で完了。数値部を再利用し、次はclientのownerへの統合適用を含むFedDrift固有のサーバ準備・同期とRラウンド進行への接続を調査・仕様化する。状態の正本は各specのspec.jsonとtasks.md。
 - 構成の移植は、10個の全部が完了した（最後は[fedsda-independent-models](../specs/fedsda-independent-models/tasks.md)。独立レビューは承認、指摘は反映済み。検証の証拠は同specのtasks.md）。
 - (B) FedDriftは、数値の判定を先に小さいspecへ切り出して移植中。次は判定後のclient処理とサーバ同期のspec（下の「FedDriftの調査のメモ」）→全構成のgolden→(D)旧実装を外す準備（NEW-004、MNISTの取得コマンド）。順は、決定事項の「進める順」。
 
@@ -191,4 +191,8 @@ HTMLは元checkoutの`docs/overview/fedsda-processing-flow.html`にあるコミ�
 
 ## 次のspecの再開（2026-10-12）
 
-`feddrift-run-client-assembly`は完了。clientを初期モデル0・optimizer・統計から独立に組み立て、観測block・一round学習・ready照会・終端flushを既存ownerへ接続した。次は旧`FedDriftServer.prepare_timestep`（状態記録→隔離解除済みモデルの統合→新規隔離モデルの登録）と、R回のlocal_train/run_training_round（FedAvg→配布）の接続を調査・仕様化する。全参加者factory・全体run/goldenも残る。旧experimentは観測→prepare_timestep→R回のlocal_train/server roundなので、FedSDAの実行Protocolへ流用しない。旧early_stoppingは初期学習0回でもrandpermを消費するため構成選択の移植時に扱う。対象コードをClaude/AnthropicまたはOpenAIのGPT-6 Lunaへ送信する独立レビューは、このセッションでユーザーが明示許可した。証拠は各specのspec.json/tasks.md。
+`feddrift-cached-cluster-consolidation`は完了。過去重み/全0fallback/指定順の平均/統計M2のリセット/隔離期限の数値部をmethods/feddriftへ分離した。server計算と、決定した重みをclient自身の異なるsnapshotへ適用する計算を実旧へ照合済み。これは数値部だけを切り出す共通手順の例外で、owner適用/サーバ進行の完成とは扱わない。
+
+次は旧`FedDriftServer.prepare_timestep`（状態記録→隔離解除済みモデルの統合→新規隔離モデルの登録）と、R回のlocal_train/run_training_round（FedAvg→配布）の接続を仕様化する。今回の数値部を再実装せず利用し、旧client.apply_server_mappingの統計選択・標本store/計数の再配置・現在IDの変更・optimizer再構築・一時モデル保持と通信記録まで接続する。既存FedSDA runtimeはexact FedsdaRunClientやFedSDA固有ownerを要求するため、そのままFedDriftへ流用しない。クラスタ判定/linkageも旧FedDriftの設定に照合する。全参加者factory・全体run/goldenも残る。
+
+client assemblyは初期モデル0・optimizer・統計からの独立組立と観測block・一round学習・ready照会・終端flushまで完了。旧experimentは観測→prepare_timestep→R回のlocal_train/server roundなので、FedSDAの実行Protocolへ流用しない。旧early_stoppingは初期学習0回でもrandpermを消費するため構成選択の移植時に扱う。対象コードをClaude/AnthropicまたはOpenAIのGPT-6 Lunaへ送信する独立レビューは、このセッションでユーザーが明示許可した。証拠は各specのspec.json/tasks.md。
