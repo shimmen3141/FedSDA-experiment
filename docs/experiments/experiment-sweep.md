@@ -24,7 +24,7 @@ python run_experiment_sweep.py \
 
 | 引数 | 内容 | 既定 |
 |---|---|---|
-| `--configurations` | 実験の構成の名前（複数可） | `fedsda`（提案構成） |
+| `--configurations` | 実験の構成の名前（複数可。下の「構成」） | `fedsda`（提案構成） |
 | `--datasets` | datasetの名前（複数可）。`sine2`・`sea2`・`sea4`・`circle2`・`mnist2`・`mnist4` | 必須 |
 | `--seeds` | 乱数のseed（複数可） | 必須 |
 | `--aggregation-intervals` | サーバの集約の間隔（clientあたりの標本数。複数可） | 必須 |
@@ -71,9 +71,18 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
   開始と終了の時刻、runごとの結果（`completed`・`skipped_existing`・`failed`と、失敗の理由）を持つ。
 - 指標と、表の列の意味、旧実装の名前との対応は、[旧実装の出力と、新実装への移行の一覧](../research/legacy-run-output-migration.md)。
 
+## 構成
+
+| 名前 | 内容 | 旧実装（`tools/run_main_ablation_suite.sh`）での名前 |
+|---|---|---|
+| `fedsda` | 提案構成 | `reference` |
+| `fedsda-without-prediction-weight-recalibration` | 提案構成から、サーバの集約の後の、予測重みの再較正を外す（集約の後も、予測重みと診断重みを、作り直さずに使う） | `no-recalibration` |
+
+提案構成以外の構成は、提案構成の、1つの要素だけを変える。小さい条件（sine2）で、旧実装の、同じ指定の全体runと、指標と離散列が一致することを確かめている。
+
 ## いまの範囲
 
-- 構成は、提案構成（`fedsda`）だけ。ablationの構成と、FedDriftは、順に足す。
+- 構成は、上の表のもの。残りのablationの構成と、FedDriftは、順に足す。
 - 図（Paretoの図ほか）は、作らない。`run_summary.csv`から作る。
 - 別の出力先との、runの重複は、調べない。
 
