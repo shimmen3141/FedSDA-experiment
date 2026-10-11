@@ -177,7 +177,9 @@ def execute_experiment_sweep(
     """計画のrunを実行して保存し、runごとの結果を、計画の順で返す。
 
     出力先に、済んだ結果があるrunは、実行せずに飛ばす。食い違うファイルがあるrunは、上書きせずに、失敗とする。
-    `worker_count`が2以上なら、残りのrunを、別々のprocessで並列に実行する（時間のかかる見込みのrunから投入する）。
+    `worker_count`が2以上で、残りのrunが2つ以上なら、残りのrunを、別々のprocessで並列に実行する
+    （時間のかかる見込みのrunから投入する）。残りが1つなら、呼出し側のprocessで実行する。
+    途中で例外（中断を含む）が出たら、まだ始まっていないrunを取り消して、例外を伝える。
     """
     if type(planned_runs) is not tuple:
         raise TypeError("planned_runs must be exact tuple")
@@ -246,11 +248,12 @@ def execute_experiment_sweep(
                 ),
             )
     else:
-        with ProcessPoolExecutor(
+        process_pool = ProcessPoolExecutor(
             max_workers=min(worker_count, len(pending_run_positions)),
             mp_context=get_context("spawn"),
             initializer=_initialize_worker_process,
-        ) as process_pool:
+        )
+        try:
             run_position_by_future = {
                 process_pool.submit(
                     execute_planned_experiment_run,
@@ -279,4 +282,10 @@ def execute_experiment_sweep(
                         ),
                     )
                 record_outcome(run_position, outcome)
+        except BaseException:
+            # 中断（Ctrl-C）や、進み具合の報告の失敗: まだ始まっていないrunを取り消し、実行中のrunが終わるのを待ってから、
+            # 例外を伝える（実行中のrunは、途中で止めない。保存は、済むか、何も残さないかの、どちらか）。
+            process_pool.shutdown(wait=True, cancel_futures=True)
+            raise
+        process_pool.shutdown(wait=True)
     return tuple(outcomes_by_position[run_position] for run_position in range(len(planned_runs)))

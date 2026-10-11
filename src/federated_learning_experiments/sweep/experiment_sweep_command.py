@@ -1,6 +1,6 @@
 """実験の掃引のコマンド（リポジトリ直下の`run_experiment_sweep.py`から呼ばれる）。
 
-終了コード: 0＝全部のrunが、済んだか、飛ばされた。1＝失敗したrunがある。2＝引数や計画が不正、または、
+終了コード: 0＝全部のrunが、済んだか、飛ばされた。1＝失敗したrunがある、または、出力先に、読めない要約がある。2＝引数や計画が不正、または、
 実行の前の確認（MNISTのファイル）で止まった。
 """
 
@@ -185,13 +185,18 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
         worker_count=parsed_arguments.workers,
         report_progress=lambda progress_message: print(progress_message, flush=True),
     )
+    unreadable_run_summary_descriptions: list[str] = []
     for configuration_name in sweep_plan.configuration_names:
         configuration_directory = output_directory / configuration_name
         if (configuration_directory / "runs").is_dir():
-            write_run_summary_table(
-                configuration_directory=configuration_directory,
-                configuration_name=configuration_name,
+            unreadable_run_summary_descriptions.extend(
+                write_run_summary_table(
+                    configuration_directory=configuration_directory,
+                    configuration_name=configuration_name,
+                ).unreadable_run_summary_descriptions
             )
+    for unreadable_description in unreadable_run_summary_descriptions:
+        print(f"unreadable run summary (left out of the table): {unreadable_description}")
     record_file_path = write_sweep_record(
         output_directory=output_directory,
         started_at=started_time.isoformat(),
@@ -201,6 +206,7 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
         worker_count=parsed_arguments.workers,
         outcomes=outcomes,
         code_revision=describe_code_revision(repository_directory=_REPOSITORY_DIRECTORY),
+        unreadable_run_summary_descriptions=tuple(unreadable_run_summary_descriptions),
     )
     failed_run_count = sum(outcome.run_status == "failed" for outcome in outcomes)
     print(
@@ -209,4 +215,4 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
         f"failed: {failed_run_count}"
     )
     print(f"sweep record: {record_file_path}")
-    return 1 if failed_run_count else 0
+    return 1 if failed_run_count or unreadable_run_summary_descriptions else 0

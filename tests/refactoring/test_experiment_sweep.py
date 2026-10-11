@@ -53,6 +53,7 @@ from federated_learning_experiments.sweep.experiment_sweep_plan import (
     make_run_identifier,
 )
 from federated_learning_experiments.sweep.experiment_sweep_records import (
+    RunSummaryTableResult,
     describe_code_revision,
     write_run_summary_table,
     write_sweep_record,
@@ -477,6 +478,35 @@ def test_parallel_sweep_saves_the_same_content_as_sequential_sweep(sequential_sw
         assert_record_tables_equal(record_tables, sequential_record_tables)
 
 
+def test_parallel_sweep_cancels_waiting_runs_when_interrupted(tmp_path):
+    """並列の実行の途中で、例外（進み具合の報告の失敗、中断）が出たら、まだ始まっていないrunを取り消す。"""
+    planned_runs = build_planned_experiment_runs(
+        sweep_plan=replace(SMALL_SWEEP_PLAN, random_seeds=tuple(range(8)))
+    )
+
+    def interrupt_on_first_outcome(progress_message):
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        execute_experiment_sweep(
+            planned_runs=planned_runs,
+            output_directory=tmp_path,
+            worker_count=2,
+            report_progress=interrupt_on_first_outcome,
+        )
+    # 戻った時点で、workerのprocessは終わっている（この後、ファイルは増えない）。
+    saved_run_count = len(list((tmp_path / "fedsda" / "runs").glob("*.json")))
+    assert 1 <= saved_run_count < len(planned_runs)
+    # 済んだrunは、次の実行で飛ばされ、残りだけが実行される。
+    outcomes = execute_experiment_sweep(
+        planned_runs=planned_runs, output_directory=tmp_path, worker_count=2
+    )
+    assert [outcome.run_status for outcome in outcomes].count("skipped_existing") == saved_run_count
+    assert [outcome.run_status for outcome in outcomes].count("completed") == (
+        len(planned_runs) - saved_run_count
+    )
+
+
 def test_sweep_execution_rejects_invalid_arguments(tmp_path):
     planned_runs = build_planned_experiment_runs(sweep_plan=SMALL_SWEEP_PLAN)
     valid_arguments = dict(planned_runs=planned_runs, output_directory=tmp_path, worker_count=1)
@@ -505,9 +535,12 @@ def test_run_summary_table_holds_one_row_per_saved_run(sequential_sweep, tmp_pat
     source_directory, planned_runs, _, _ = sequential_sweep
     copy_sweep_output(source_directory, tmp_path)
     configuration_directory = tmp_path / "fedsda"
-    table_file_path = write_run_summary_table(
+    table_result = write_run_summary_table(
         configuration_directory=configuration_directory, configuration_name="fedsda"
     )
+    assert type(table_result) is RunSummaryTableResult
+    assert table_result.unreadable_run_summary_descriptions == ()
+    table_file_path = table_result.table_file_path
     assert table_file_path == configuration_directory / "run_summary.csv"
     with table_file_path.open(encoding="utf-8", newline="") as table_file:
         rows = list(csv.DictReader(table_file))
@@ -565,6 +598,21 @@ def test_run_summary_table_holds_one_row_per_saved_run(sequential_sweep, tmp_pat
         "run_summary.csv",
         "runs",
     ]
+    # 読めない要約（JSONでない、要るキーがない）は、表から外して、理由を返す。ほかの行は、作る。
+    (configuration_directory / "runs" / "broken.json").write_text("{not json", encoding="utf-8")
+    (configuration_directory / "runs" / "incomplete.json").write_text(
+        json.dumps({"run_settings": {}}), encoding="utf-8"
+    )
+    broken_table_result = write_run_summary_table(
+        configuration_directory=configuration_directory, configuration_name="fedsda"
+    )
+    assert len(broken_table_result.unreadable_run_summary_descriptions) == 2
+    assert "broken.json" in broken_table_result.unreadable_run_summary_descriptions[0]
+    assert "incomplete.json" in broken_table_result.unreadable_run_summary_descriptions[1]
+    with table_file_path.open(encoding="utf-8", newline="") as table_file:
+        assert [row["run_identifier"] for row in csv.DictReader(table_file)] == [
+            planned_runs[1].run_identifier
+        ]
     with pytest.raises(FileNotFoundError):
         write_run_summary_table(
             configuration_directory=tmp_path / "missing", configuration_name="fedsda"
@@ -577,9 +625,15 @@ def test_code_revision_describes_commit_or_reason(tmp_path):
     """コードの版は、gitのcommitと、未コミットの変更の有無。取れなければ、理由。"""
     code_revision = describe_code_revision(repository_directory=REPOSITORY_DIRECTORY)
     assert set(code_revision) == {"commit", "has_uncommitted_changes", "unavailable_reason"}
-    assert re.fullmatch(r"[0-9a-f]{40}", code_revision["commit"])
-    assert type(code_revision["has_uncommitted_changes"]) is bool
-    assert code_revision["unavailable_reason"] is None
+    if code_revision["unavailable_reason"] is None:
+        assert re.fullmatch(r"[0-9a-f]{40}", code_revision["commit"])
+        assert type(code_revision["has_uncommitted_changes"]) is bool
+    else:
+        # gitが、この作業ツリーを読めない環境（WSLから見た、Windowsのworktree）。
+        assert code_revision["commit"] is None
+        assert code_revision["has_uncommitted_changes"] is None
+    # Windowsの基準環境では、取れる。
+    assert code_revision["unavailable_reason"] is None or sys.platform != "win32"
     # gitのリポジトリでない場所。
     outside_revision = describe_code_revision(repository_directory=tmp_path)
     assert outside_revision["commit"] is None
@@ -613,6 +667,7 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         worker_count=2,
         outcomes=outcomes,
         code_revision=dict(commit="a" * 40, has_uncommitted_changes=False, unavailable_reason=None),
+        unreadable_run_summary_descriptions=("fedsda/runs/broken.json: JSONDecodeError",),
     )
     record_file_path = write_sweep_record(**arguments)
     assert record_file_path == tmp_path / "sweep_record_20261011_120000.json"
@@ -628,6 +683,7 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         "environment",
         "run_status_counts",
         "run_outcomes",
+        "unreadable_run_summary_descriptions",
     ]
     assert record["record_format_version"] == 1
     assert record["command_arguments"] == ["--datasets", "circle2"]
@@ -641,7 +697,24 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
     )
     assert record["worker_count"] == 2
     assert record["code_revision"]["commit"] == "a" * 40
-    assert set(record["environment"]) == {"system", "machine", "python", "numpy", "torch"}
+    assert set(record["environment"]) == {
+        "system",
+        "machine",
+        "python",
+        "numpy",
+        "torch",
+        "torch_thread_count",
+        "thread_count_environment_variables",
+    }
+    assert record["environment"]["torch_thread_count"] == torch.get_num_threads()
+    assert set(record["environment"]["thread_count_environment_variables"]) == {
+        "OMP_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+    }
+    assert record["unreadable_run_summary_descriptions"] == [
+        "fedsda/runs/broken.json: JSONDecodeError"
+    ]
     assert record["run_status_counts"] == dict(completed=1, skipped_existing=0, failed=1)
     assert record["run_outcomes"] == [
         dict(
@@ -652,9 +725,11 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         )
         for outcome in outcomes
     ]
-    # 同じ開始時刻の記録は、上書きしない。
-    with pytest.raises(FileExistsError):
-        write_sweep_record(**arguments)
+    # 同じ開始時刻の記録は、上書きせず、番号をつけた別の名前にする。
+    record_text_before = record_file_path.read_text(encoding="utf-8")
+    assert write_sweep_record(**arguments) == tmp_path / "sweep_record_20261011_120000_2.json"
+    assert write_sweep_record(**arguments) == tmp_path / "sweep_record_20261011_120000_3.json"
+    assert record_file_path.read_text(encoding="utf-8") == record_text_before
     with pytest.raises(ValueError):
         write_sweep_record(**{**arguments, "started_at": "yesterday"})
     with pytest.raises(TypeError):
@@ -709,12 +784,33 @@ def test_command_runs_sweep_and_writes_table_and_record(tmp_path, capsys):
     record = json.loads(record_file_paths[0].read_text(encoding="utf-8"))
     assert record["command_arguments"] == command_arguments
     assert record["run_status_counts"] == dict(completed=1, skipped_existing=0, failed=0)
-    assert record["code_revision"]["commit"]
+    assert record["code_revision"]["commit"] or record["code_revision"]["unavailable_reason"]
     assert "completed" in capsys.readouterr().out
     # `--print-plan`は、済んだrunを、済んだものとして表示する。
     assert experiment_sweep_command.main([*command_arguments, "--print-plan"]) == 0
     assert "completed" in capsys.readouterr().out
     assert len(sorted(output_directory.glob("sweep_record_*.json"))) == 1
+
+
+def test_command_writes_record_even_when_a_run_summary_is_unreadable(tmp_path, capsys):
+    """出力先に、読めない要約があっても、ほかのrunの表と、実行の記録を書き、失敗として報告する。"""
+    output_directory = tmp_path / "broken-output"
+    run_directory = output_directory / "fedsda" / "runs"
+    run_directory.mkdir(parents=True)
+    (run_directory / "unrelated_broken_run.json").write_text("{not json", encoding="utf-8")
+    command_arguments = [*SMALL_COMMAND_ARGUMENTS, "--output-directory", str(output_directory)]
+    assert experiment_sweep_command.main(command_arguments) == 1
+    record = json.loads(
+        next(output_directory.glob("sweep_record_*.json")).read_text(encoding="utf-8")
+    )
+    assert record["run_status_counts"] == dict(completed=1, skipped_existing=0, failed=0)
+    assert len(record["unreadable_run_summary_descriptions"]) == 1
+    assert "unrelated_broken_run.json" in record["unreadable_run_summary_descriptions"][0]
+    with (output_directory / "fedsda" / "run_summary.csv").open(
+        encoding="utf-8", newline=""
+    ) as table_file:
+        assert len(list(csv.DictReader(table_file))) == 1
+    assert "unrelated_broken_run.json" in capsys.readouterr().out
 
 
 def test_command_returns_nonzero_when_a_run_fails(tmp_path, monkeypatch, capsys):
@@ -834,3 +930,60 @@ def test_repository_script_runs_without_installation_or_environment_variables(tm
     assert completed_process.returncode == 0, completed_process.stderr
     assert "circle2_interval10_seed0_" in completed_process.stdout
     assert not output_directory.exists()
+
+
+def test_repository_script_runs_parallel_sweep_in_separate_processes(tmp_path, sequential_sweep):
+    """直下のscriptでの並列の実行（workerのprocessが、scriptを読み直す経路）が、逐次の実行と、同じ内容を保存する。
+
+    scriptは、数値計算のライブラリのthreadの数の環境変数を、未設定なら1にする。
+    """
+    sequential_directory, planned_runs, _, _ = sequential_sweep
+    output_directory = tmp_path / "script-parallel-output"
+    environment = {
+        name: value
+        for name, value in __import__("os").environ.items()
+        if name not in ("PYTHONPATH", "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS")
+    }
+    completed_process = subprocess.run(
+        [
+            sys.executable,
+            str(REPOSITORY_DIRECTORY / "run_experiment_sweep.py"),
+            "--datasets",
+            "circle2",
+            "--seeds",
+            "0",
+            "1",
+            "--client-count",
+            "2",
+            "--per-client-sample-count",
+            "65",
+            "--aggregation-intervals",
+            "10",
+            "--workers",
+            "2",
+            "--output-directory",
+            str(output_directory),
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        cwd=tmp_path,
+        env=environment,
+        timeout=600,
+        check=False,
+    )
+    assert completed_process.returncode == 0, completed_process.stdout + completed_process.stderr
+    for planned_run in planned_runs:
+        summary, record_tables = read_run_files(output_directory, planned_run)
+        sequential_summary, sequential_record_tables = read_run_files(
+            sequential_directory, planned_run
+        )
+        assert summary == sequential_summary
+        assert_record_tables_equal(record_tables, sequential_record_tables)
+    record = json.loads(
+        next(output_directory.glob("sweep_record_*.json")).read_text(encoding="utf-8")
+    )
+    assert record["environment"]["thread_count_environment_variables"] == dict(
+        OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1"
+    )
+    assert record["worker_count"] == 2

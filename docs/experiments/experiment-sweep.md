@@ -30,13 +30,14 @@ python run_experiment_sweep.py \
 | `--aggregation-intervals` | サーバの集約の間隔（clientあたりの標本数。複数可） | 必須 |
 | `--client-count` | clientの数 | 10 |
 | `--per-client-sample-count` | clientあたりの標本数 | 5000 |
-| `--workers` | 並列に実行するprocessの数。各processの計算のthreadは、1つ | 1 |
+| `--workers` | 並列に実行するprocessの数。各processの計算のthread（torchと、OpenMP・MKL・OpenBLAS）は、1つ | 1 |
 | `--output-directory` | 出力先 | `results/<開始時刻>_<ラベル>` |
 | `--label` | 出力先を省略したときの、ディレクトリ名のラベル | `sweep` |
 | `--print-plan` | 計画のrunと、出力先にある済んだrunを表示するだけ。何も実行せず、何も作らない | — |
 
 - 研究室サーバ（16コア）では、同時に動かす`--workers`の合計を、14以下にする。長い実験は、tmuxの中で実行する。
-- 終了コード: 0＝全部のrunが、済んだか、飛ばされた。1＝失敗したrunがある。2＝引数や計画が不正、または、MNISTのファイルがない。
+- 終了コード: 0＝全部のrunが、済んだか、飛ばされた。1＝失敗したrunがある、または、出力先に、読めない要約がある。2＝引数や計画が不正、または、MNISTのファイルがない。
+- scriptは、`OMP_NUM_THREADS`・`MKL_NUM_THREADS`・`OPENBLAS_NUM_THREADS`を、未設定なら1にする（設定されている値は、変えない。結果を再現するには、1のままにする）。
 
 ## 途中で止まったとき
 
@@ -44,8 +45,10 @@ python run_experiment_sweep.py \
 run設定が同じもの）は、飛ばして、残りだけを実行する。出力先を省略して実行していた場合は、作られたディレクトリ
 （`results/<開始時刻>_<ラベル>`）を、`--output-directory`で指定する。
 
+Ctrl-Cで止めたときは、まだ始まっていないrunを取り消し、実行中のrunが終わるのを待ってから、止まる（その実行の記録`sweep_record_*.json`は、書かれない）。
+
 同じ識別子のファイルが、片方しかない、または、中のrun設定が計画と違うときは、上書きせずに、そのrunを失敗として報告する。
-そのファイルを確かめて、消すか、別の出力先を使う。
+そのファイルを確かめて、消すか、別の出力先を使う。保存の途中でprocessが強制終了されると、`.npz`だけが残ることがある（そのファイルを消して、もう一度実行する）。
 
 ## 出力
 

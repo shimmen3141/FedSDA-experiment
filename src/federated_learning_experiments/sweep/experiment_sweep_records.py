@@ -1,16 +1,17 @@
 """掃引の結果の、一覧の表（構成ごとのCSV）と、実行の記録（実行ごとのJSON）。"""
 
 from csv import writer
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from json import dumps, loads
-from os import getpid, replace
+from os import environ, getpid, replace
 from pathlib import Path
 from platform import machine, python_version, system
 from subprocess import run
 
 from numpy import __version__ as numpy_version
 from torch import __version__ as torch_version
+from torch import get_num_threads
 
 from federated_learning_experiments.sweep.experiment_sweep_execution import (
     RUN_DIRECTORY_NAME,
@@ -31,6 +32,20 @@ _CONDITION_COLUMN_NAMES = (
 # 要約の辞書の中の、型の名前のキー（表には入れない）。
 _SETTINGS_TYPE_KEY = "settings_type"
 _RUN_STATUSES = ("completed", "skipped_existing", "failed")
+# 数値計算のライブラリの、threadの数を決める環境変数（実行の記録に残す）。
+_THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES = (
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class RunSummaryTableResult:
+    """一覧の表を作った結果。読めなかった要約（表から外したもの）の、ファイルと理由を持つ。"""
+
+    table_file_path: Path
+    unreadable_run_summary_descriptions: tuple[str, ...]
 
 
 def _flatten_metric_values(
@@ -61,11 +76,14 @@ def _format_table_value(table_value: object) -> object:
     return table_value
 
 
-def write_run_summary_table(*, configuration_directory: Path, configuration_name: str) -> Path:
+def write_run_summary_table(
+    *, configuration_directory: Path, configuration_name: str
+) -> RunSummaryTableResult:
     """構成のディレクトリの`runs/`にある全部の要約から、1 runを1行とする表（CSV）を作り直す。
 
     列: 識別子、構成の名前、実行条件、指標の全部（入れ子の指標は、`.`でつないだ名前）。
     行の順: dataset、集約間隔、seed、識別子。一時の名前へ書いてから、置き換える。
+    読めない要約（JSONでない、要る項目がない）は、表から外して、ファイルと理由を返す。
     """
     if not isinstance(configuration_directory, Path):
         raise TypeError("configuration_directory must be pathlib.Path")
@@ -75,13 +93,14 @@ def write_run_summary_table(*, configuration_directory: Path, configuration_name
     if not run_directory.is_dir():
         raise FileNotFoundError(f"run directory does not exist: {run_directory}")
     table_rows: list[dict[str, object]] = []
+    unreadable_run_summary_descriptions: list[str] = []
     for summary_file_path in sorted(run_directory.glob("*.json")):
-        summary = loads(summary_file_path.read_text(encoding="utf-8"))
-        experiment_run_conditions = summary["run_settings"]["execution_settings"][
-            "experiment_run_conditions"
-        ]
-        table_rows.append(
-            {
+        try:
+            summary = loads(summary_file_path.read_text(encoding="utf-8"))
+            experiment_run_conditions = summary["run_settings"]["execution_settings"][
+                "experiment_run_conditions"
+            ]
+            table_row = {
                 "run_identifier": summary_file_path.stem,
                 "configuration_name": configuration_name,
                 **{
@@ -90,7 +109,12 @@ def write_run_summary_table(*, configuration_directory: Path, configuration_name
                 },
                 **_flatten_metric_values(metric_values=summary["run_metrics"], name_prefix=""),
             }
-        )
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as caught_exception:
+            unreadable_run_summary_descriptions.append(
+                f"{summary_file_path}: {type(caught_exception).__name__}: {caught_exception}"
+            )
+            continue
+        table_rows.append(table_row)
     table_rows.sort(
         key=lambda table_row: (
             table_row["dataset_name"],
@@ -122,7 +146,10 @@ def write_run_summary_table(*, configuration_directory: Path, configuration_name
         replace(temporary_file_path, table_file_path)
     finally:
         temporary_file_path.unlink(missing_ok=True)
-    return table_file_path
+    return RunSummaryTableResult(
+        table_file_path=table_file_path,
+        unreadable_run_summary_descriptions=tuple(unreadable_run_summary_descriptions),
+    )
 
 
 def describe_code_revision(*, repository_directory: Path) -> dict[str, object]:
@@ -189,8 +216,11 @@ def write_sweep_record(
     worker_count: int,
     outcomes: tuple[ExperimentRunOutcome, ...],
     code_revision: dict[str, object],
+    unreadable_run_summary_descriptions: tuple[str, ...] = (),
 ) -> Path:
-    """1回の実行の記録を、`sweep_record_<開始時刻>.json`へ書く。同じ名前があれば、上書きせずに拒否する。
+    """1回の実行の記録を、`sweep_record_<開始時刻>.json`へ書く。
+
+    同じ名前があれば、上書きせず、`_2`・`_3`…をつけた名前にする。
 
     時刻は、ISO 8601の文字列。
     """
@@ -215,6 +245,10 @@ def write_sweep_record(
         raise TypeError("outcomes must be exact tuple of ExperimentRunOutcome")
     if type(code_revision) is not dict:
         raise TypeError("code_revision must be exact dict")
+    if type(unreadable_run_summary_descriptions) is not tuple or any(
+        type(description) is not str for description in unreadable_run_summary_descriptions
+    ):
+        raise TypeError("unreadable_run_summary_descriptions must be exact tuple of builtin str")
     record_text = dumps(
         {
             "record_format_version": SWEEP_RECORD_FORMAT_VERSION,
@@ -230,21 +264,36 @@ def write_sweep_record(
                 "python": python_version(),
                 "numpy": numpy_version,
                 "torch": torch_version,
+                # この記録を書いたprocessの値（workerのprocessは、runの間、torchのthreadを1つにする）。
+                "torch_thread_count": get_num_threads(),
+                "thread_count_environment_variables": {
+                    variable_name: environ.get(variable_name)
+                    for variable_name in _THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES
+                },
             },
             "run_status_counts": {
                 run_status: sum(outcome.run_status == run_status for outcome in outcomes)
                 for run_status in _RUN_STATUSES
             },
             "run_outcomes": [asdict(outcome) for outcome in outcomes],
+            "unreadable_run_summary_descriptions": list(unreadable_run_summary_descriptions),
         },
         ensure_ascii=False,
         indent=2,
         allow_nan=False,
     )
-    record_file_path = output_directory / (
-        f"sweep_record_{started_time.strftime('%Y%m%d_%H%M%S')}.json"
-    )
-    # 排他的に作る（同じ名前があれば、FileExistsError）。
-    with record_file_path.open("x", encoding="utf-8", newline="\n") as record_file:
-        record_file.write(record_text + "\n")
+    record_file_stem = f"sweep_record_{started_time.strftime('%Y%m%d_%H%M%S')}"
+    record_number = 1
+    while True:
+        record_file_path = output_directory / (
+            record_file_stem + ("" if record_number == 1 else f"_{record_number}") + ".json"
+        )
+        try:
+            # 排他的に作る（同じ名前があれば、次の番号を試す）。
+            with record_file_path.open("x", encoding="utf-8", newline="\n") as record_file:
+                record_file.write(record_text + "\n")
+        except FileExistsError:
+            record_number += 1
+            continue
+        break
     return record_file_path
