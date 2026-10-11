@@ -68,6 +68,8 @@ def valid_run_settings_mapping():
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=0.05,
+            adwin_confidence_delta=0.05,
+            adwin_minimum_test_window_sample_count=10,
         ),
         "prediction_combination_settings": PredictionCombinationSettings(
             prediction_combination_strategy="fixed_share_weighted_prediction",
@@ -666,6 +668,8 @@ def test_aggregation_interval_can_exceed_stream_length():
                     drift_detector_name="e_sr",
                     loss_monitoring_scope="overall_and_true_class_losses",
                     e_sr_false_alarm_control_alpha=specified_parameter_value,
+                    adwin_confidence_delta=0.05,
+                    adwin_minimum_test_window_sample_count=10,
                 ),
             )
             for specified_parameter_value in (0.05, 5e-324, 0.9999999999999999)
@@ -767,6 +771,8 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             "drift_detector_name": str,
             "loss_monitoring_scope": str,
             "e_sr_false_alarm_control_alpha": float,
+            "adwin_confidence_delta": float,
+            "adwin_minimum_test_window_sample_count": int,
         }
         if settings_type is LossChangeDetectionSettings
         else {
@@ -808,7 +814,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "dataset_name"
                 else ("shared_backbone_residual_adapter",)
                 if settings_field.name == "model_architecture_name"
-                else ("e_sr",)
+                else ("e_sr", "adwin")
                 if settings_field.name == "drift_detector_name"
                 else ("overall_and_true_class_losses", "overall_loss")
                 if settings_field.name == "loss_monitoring_scope"
@@ -844,7 +850,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "model_consolidation_policy"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
-        elif settings_field.name == "e_sr_false_alarm_control_alpha":
+        elif settings_field.name in ("e_sr_false_alarm_control_alpha", "adwin_confidence_delta"):
             assert settings_field.metadata["parameter_unit"] == "dimensionless"
             assert settings_field.metadata["minimum_allowed_value"] == 0
             assert settings_field.metadata["minimum_value_is_inclusive"] is False
@@ -938,6 +944,8 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
                     drift_detector_name="e_sr",
                     loss_monitoring_scope="overall_and_true_class_losses",
                     e_sr_false_alarm_control_alpha=0.05,
+                    adwin_confidence_delta=0.05,
+                    adwin_minimum_test_window_sample_count=10,
                 ),
                 configuration_parameter_name,
             )
@@ -1135,6 +1143,8 @@ def test_monitoring_alpha_rejects_nonfinite_and_out_of_range_values(specified_pa
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=specified_parameter_value,
+            adwin_confidence_delta=0.05,
+            adwin_minimum_test_window_sample_count=10,
         )
     assert validation_error.value.configuration_parameter_name == "e_sr_false_alarm_control_alpha"
     assert validation_error.value.specified_parameter_value is specified_parameter_value

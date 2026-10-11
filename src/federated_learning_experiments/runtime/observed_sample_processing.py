@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from random import Random
 
-from torch import Tensor
+from torch import Tensor, cat
 from torch.optim import Optimizer
 
 from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
@@ -78,6 +78,7 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.overall
     OverallAndTrueClassLossMonitor,
 )
 from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
+    select_alarm_interval_reuse_baseline_mean_loss,
     select_loss_monitoring_baseline_mean_loss,
 )
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
@@ -245,6 +246,70 @@ def _select_validation_assignment_sample_concept_ids(
     )
 
 
+def _current_model_loss_worsened_over_adwin_window(
+    *,
+    adwin_window_sample_count: int,
+    pending_buffer_capacity_sample_count: int,
+    pending_sample_observations: tuple[IndexedObservedTrainingSample, ...],
+    current_training_model_id: int,
+    held_model_training_state_registry: HeldModelTrainingStateRegistry,
+    loss_statistics_store: ModelAndClassLossStatisticsStore,
+    maximum_mean_loss_increase: float,
+) -> bool:
+    """ADWINの窓にあたる、直近の保留標本で、現在のモデルの平均損失が、履歴の平均より、許容量以上に大きいか。
+
+    調べるのは、窓の標本数が、保留の容量の近く（容量−5以上、その2倍と100の大きいほう以下）で、
+    現在のモデルが、サーバに登録済み（IDが0以上）で、保留標本が窓の標本数以上あるときだけ。
+    履歴の平均が使えない（2件未満か、0）ときは、偽。条件と式は、旧の`_forced_drift_check`と同じ。
+    """
+    lower_window_sample_count = max(0, pending_buffer_capacity_sample_count - 5)
+    upper_window_sample_count = max(100, 2 * lower_window_sample_count)
+    if not (
+        lower_window_sample_count <= adwin_window_sample_count <= upper_window_sample_count
+        and adwin_window_sample_count > 0
+        and current_training_model_id >= 0
+    ):
+        return False
+    if len(pending_sample_observations) < adwin_window_sample_count:
+        return False
+    window_observations = pending_sample_observations[-adwin_window_sample_count:]
+    window_mean_loss = float(
+        evaluate_classifier_per_sample_bounded_losses(
+            classifier=held_model_training_state_registry.get_held_model_training_state(
+                model_id=current_training_model_id
+            ).classifier,
+            input_features=cat(
+                [
+                    indexed_observation.training_sample.input_features
+                    for indexed_observation in window_observations
+                ]
+            ),
+            observed_class_labels=cat(
+                [
+                    indexed_observation.training_sample.observed_class_labels
+                    for indexed_observation in window_observations
+                ]
+            ),
+        )
+        .mean()
+        .item()
+    )
+    current_model_loss_statistics = loss_statistics_store.get_model_loss_statistics(
+        model_id=current_training_model_id
+    )
+    historical_mean_loss = select_alarm_interval_reuse_baseline_mean_loss(
+        loss_moments=(
+            None
+            if current_model_loss_statistics is None
+            else current_model_loss_statistics.overall_loss_moments
+        )
+    )
+    return (
+        historical_mean_loss is not None
+        and window_mean_loss >= historical_mean_loss + maximum_mean_loss_increase
+    )
+
+
 def process_observed_sample(
     *,
     indexed_observation: IndexedObservedTrainingSample,
@@ -391,7 +456,21 @@ def process_observed_sample(
     )
     alarm_occurrence_handling = None
     released_sample_observations: tuple[IndexedObservedTrainingSample, ...] = ()
-    if loss_monitoring_observation.drift_detected:
+    # ADWINで監視する設定では、検出器が検知しなくても、ADWINの窓にあたる直近の標本で、現在のモデルの損失が
+    # 悪化していれば、警報とする（旧の、ADWINのclientの補助の判定）。
+    alarm_raised = loss_monitoring_observation.drift_detected or (
+        loss_monitoring_observation.overall_adwin_window_sample_count is not None
+        and _current_model_loss_worsened_over_adwin_window(
+            adwin_window_sample_count=loss_monitoring_observation.overall_adwin_window_sample_count,
+            pending_buffer_capacity_sample_count=pending_training_assignment_buffer.capacity_sample_count,
+            pending_sample_observations=pending_sample_observations,
+            current_training_model_id=current_training_model_id,
+            held_model_training_state_registry=held_model_training_state_registry,
+            loss_statistics_store=loss_statistics_store,
+            maximum_mean_loss_increase=maximum_alarm_interval_mean_loss_increase,
+        )
+    )
+    if alarm_raised:
         # (4a) 警報: 保留中の学習要求を先に学習し、警報の位置を記録してから、警報1回ぶんの処理を行う。
         completed_joint_update_losses = train_held_models_for_pending_training_requests(
             local_training_request_schedule=local_training_request_schedule,

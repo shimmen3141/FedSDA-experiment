@@ -48,6 +48,11 @@ class PendingTrainingAssignmentBuffer:
         self._pending_sample_indices: deque[int] = deque()
         self._last_observed_sample_index: int | None = None
 
+    @property
+    def capacity_sample_count(self) -> int:
+        """保留の容量（設定の値）。"""
+        return self._training_data_assignment_settings.pending_assignment_buffer_capacity_samples
+
     def append_observed_sample_index(self, *, sample_index: int) -> None:
         """追加時に容量で切り捨てず、警報時の容量＋1件を保持する。"""
         _validate_nonnegative_sample_index(sample_index=sample_index)

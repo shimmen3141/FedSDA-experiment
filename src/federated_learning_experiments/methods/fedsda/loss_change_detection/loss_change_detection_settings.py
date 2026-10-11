@@ -12,7 +12,14 @@ class LossChangeDetectionSettings:
     """検出器の実行状態を持たず、構築時に正式名とalphaの値域を検証する。"""
 
     drift_detector_name: str = field(
-        metadata={"allowed_parameter_values": ("e_sr",)},
+        metadata={
+            "allowed_parameter_values": (
+                # 有界な損失の平均の増加を、e値（Shiryaev-Roberts型の和）で検定する（提案構成）。
+                "e_sr",
+                # 損失の窓を2つに分けたときの、平均の差で検定する（ADWIN）。
+                "adwin",
+            )
+        },
     )
     loss_monitoring_scope: str = field(
         metadata={
@@ -31,6 +38,25 @@ class LossChangeDetectionSettings:
             "minimum_value_is_inclusive": False,
             "maximum_allowed_value": 1,
             "maximum_value_is_inclusive": False,
+        },
+    )
+
+    # ADWINの信頼度のパラメータ。e-SRでは使わない。
+    adwin_confidence_delta: float = field(
+        metadata={
+            "parameter_unit": "dimensionless",
+            "minimum_allowed_value": 0,
+            "minimum_value_is_inclusive": False,
+            "maximum_allowed_value": 1,
+            "maximum_value_is_inclusive": False,
+        },
+    )
+    # ADWINが、分割の検定を始める、窓の標本数。e-SRでは使わない。
+    adwin_minimum_test_window_sample_count: int = field(
+        metadata={
+            "parameter_unit": "sample/client",
+            "minimum_allowed_value": 1,
+            "minimum_value_is_inclusive": True,
         },
     )
 

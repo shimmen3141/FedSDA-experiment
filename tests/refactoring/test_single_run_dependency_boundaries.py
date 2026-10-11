@@ -5517,6 +5517,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "random.Random",
             "torch.Tensor",
+            "torch.cat",
             "torch.optim.Optimizer",
             "federated_learning_experiments.evaluation.adahedge_weight_evidence_collection.AdaHedgeWeightEvidenceCollection",
             "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
@@ -5543,8 +5544,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.LossMonitoringObservation",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor",
+            "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_alarm_interval_reuse_baseline_mean_loss",
             "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights.FixedShareWeightController",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store.PendingSampleObservationStore",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
             "federated_learning_experiments.runtime.alarm_occurrence_handling.AlarmOccurrenceHandling",
@@ -5556,7 +5559,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.held_model_training_request_handling.train_held_models_for_pending_training_requests",
             "federated_learning_experiments.runtime.observed_sample_prediction.ObservedSamplePrediction",
             "federated_learning_experiments.runtime.observed_sample_prediction.predict_observed_sample_and_update_prediction_weights",
-            "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights.FixedShareWeightController",
             "federated_learning_experiments.runtime.released_pending_sample_assignment.assign_released_pending_samples_to_current_training_model",
         )
     if source_module_path == "runtime/alarm_occurrence_handling.py":
@@ -6432,6 +6434,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     ):
         # 混合監視は同機能の検出器と固定条件だけを参照する。
         allowed_internal_module_prefixes = (
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.adwin_loss_window_detection.",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.bounded_loss_e_sr_detection.",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.",
         )

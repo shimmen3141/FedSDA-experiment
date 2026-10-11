@@ -123,6 +123,9 @@ class FedsdaRunClientScalarSettings:
 _DETECTOR_NAME_BY_DETECTION_METHOD: dict[tuple[str, str], str] = {
     ("e_sr", "overall_and_true_class_losses"): "overall + class-conditional e-SR mixture",
     ("e_sr", "overall_loss"): "e-SR",
+    # ADWINは、監視の対象に依らず、同じ表示名（旧のclientも、同じ）。
+    ("adwin", "overall_and_true_class_losses"): "ADWIN",
+    ("adwin", "overall_loss"): "ADWIN",
 }
 
 # 束のfield名から、受け入れるexact型への対応（宣言順）。

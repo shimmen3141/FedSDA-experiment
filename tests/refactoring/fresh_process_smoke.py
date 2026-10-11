@@ -413,6 +413,8 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=0.05,
+            adwin_confidence_delta=0.05,
+            adwin_minimum_test_window_sample_count=10,
         ),
         class_count=class_count,
         initial_baseline_loss_mean=0.5,
@@ -1073,6 +1075,8 @@ def run_assembled_client_flow(*, class_count):
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=0.05,
+            adwin_confidence_delta=0.05,
+            adwin_minimum_test_window_sample_count=10,
         ),
         prediction_combination_settings=PredictionCombinationSettings(
             prediction_combination_strategy="fixed_share_weighted_prediction",

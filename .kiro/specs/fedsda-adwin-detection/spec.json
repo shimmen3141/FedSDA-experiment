@@ -1,0 +1,38 @@
+{
+  "feature_name": "fedsda-adwin-detection",
+  "created_at": "2026-10-11T18:39:04+09:00",
+  "updated_at": "2026-10-11T18:39:04+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（ユーザーの委任。段階ごとの独立レビューは置かず、最後の独立レビューが読む）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）",
+      "task_graph_sanity_review": "PASS（inline。子エージェントは使わない決定のため）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": false,
+      "note": "構成の名前は、ユーザーが案を了承した（2026-10-11）。型・設定の値ほかの名前は、独立レビューで確認を受ける"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
+  "user_decision": "2026-10-11: ablationの構成を、新実装へ移植する。照合は、構成ごとに、小さい規模で、新と実旧の全体runが一致することと、その構成に固有の経路を通ったことを確かめる。文書は薄くする",
+  "handoff": {
+    "execution_status": "in_progress",
+    "next_step": "独立レビューと全pytest",
+    "independent_review": "未実施（全taskの後に1回）"
+  }
+}

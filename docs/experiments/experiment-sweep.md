@@ -82,6 +82,8 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 | `fedsda-overall-loss-esr-detection` | 提案構成の、損失の監視の対象を、全体の損失の系列だけにする（正解クラス別の系列を混合しない） | `overall-esr` |
 | `fedsda-adahedge-prediction-weights` | 提案構成の、予測に使う重みを、Fixed-Shareの重みから、AdaHedgeの重みへ替える（Fixed-Shareの重みも更新し続け、比較用に記録する） | `global-routing` |
 | `fedsda-single-model-prediction` | 提案構成から、モデルの予測の結合を外す（現在の学習帰属のモデルだけで予測する。重みを持たないので、集約後の重みの再較正も行わない） | `hard-routing` |
+| `fedsda-classwise-adwin-detection` | 提案構成の、損失の監視の検出器を、e-SRから、ADWINへ替える（全体と、正解クラス別の損失の窓を監視する。ADWINが検知しないときも、直近の損失の悪化で警報を出す補助の判定を使う） | `class-adwin` |
+| `fedsda-overall-loss-adwin-detection` | 同じく、ADWINで、全体の損失の窓だけを監視する | `overall-adwin` |
 
 提案構成以外の構成は、提案構成の、1つの要素だけを変える。小さい条件（sine2）で、旧実装の、同じ指定の全体runと、指標と離散列が一致することを確かめている。
 

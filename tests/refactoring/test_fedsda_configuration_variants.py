@@ -21,11 +21,19 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
 from federated_learning_experiments.core.configuration_errors import (
     RunSettingsValidationError,
 )
+from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
+    OverallAndTrueClassLossMonitor,
+)
+from federated_learning_experiments.runtime import (
+    observed_sample_processing as observed_sample_processing_module,
+)
 from federated_learning_experiments.sweep.experiment_configurations import (
     ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
+    CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
     EXPERIMENT_CONFIGURATION_NAMES,
     LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
+    OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
     OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -69,9 +77,9 @@ def replace_candidate_model_training_and_acceptance_settings(
 
 
 def replace_loss_monitoring_scope(
-    run_participant_settings, *, loss_monitoring_scope, detector_name
+    run_participant_settings, *, detector_name, **changed_detection_settings_fields
 ):
-    """参加者の設定の束の、損失の監視の対象と、それに対応する検出器の表示名を、置き換える。"""
+    """参加者の設定の束の、損失の監視の設定（対象、検出器）と、それに対応する検出器の表示名を、置き換える。"""
     run_client_settings = run_participant_settings.run_client_settings
     return replace(
         run_participant_settings,
@@ -79,10 +87,25 @@ def replace_loss_monitoring_scope(
             run_client_settings,
             loss_change_detection_settings=replace(
                 run_client_settings.loss_change_detection_settings,
-                loss_monitoring_scope=loss_monitoring_scope,
+                **changed_detection_settings_fields,
             ),
             scalar_settings=replace(
                 run_client_settings.scalar_settings, detector_name=detector_name
+            ),
+        ),
+    )
+
+
+def replace_loss_monitor_maximum_window(run_participant_settings):
+    """参加者の設定の束の、監視の窓（候補）の上限を、提案構成のrun設定と同じ値（旧の既定の1000）にする。"""
+    run_client_settings = run_participant_settings.run_client_settings
+    return replace(
+        run_participant_settings,
+        run_client_settings=replace(
+            run_client_settings,
+            scalar_settings=replace(
+                run_client_settings.scalar_settings,
+                loss_monitor_maximum_retained_candidate_count=1000,
             ),
         ),
     )
@@ -179,9 +202,78 @@ CONFIGURATION_VARIANTS = {
         # 実旧のclientは、重みと、予測の内訳の記録を、持たない。
         legacy_records_prediction_weight_diagnostics=False,
     ),
+    CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME: SimpleNamespace(
+        name=CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
+        # 旧の`tools/run_main_ablation_suite.sh`の`class-adwin`（`--fixed-adwin-delta 0.05`）。
+        legacy_mode_name="FedSDA_NoCached_ResidualAdapter_ClassADWIN_RestartingSoftRouting",
+        # 窓の上限は、旧の既定（1000）にする（小さい上限では、ADWIN自身が検知しない）。
+        legacy_setting_overrides={"ADWIN_DELTA": 0.05, "ADWIN_MAX_WINDOW": 1000},
+        modify_run_participant_settings=lambda run_participant_settings: (
+            replace_loss_monitoring_scope(
+                replace_loss_monitor_maximum_window(run_participant_settings),
+                drift_detector_name="adwin",
+                detector_name="ADWIN",
+            )
+        ),
+        # 実旧のADWINのclientは、監視の値（e値）を持たない。
+        legacy_records_monitored_log_e_values=False,
+    ),
+    OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME: SimpleNamespace(
+        name=OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
+        # 旧の`tools/run_main_ablation_suite.sh`の`overall-adwin`。
+        legacy_mode_name="FedSDA_NoCached_ResidualAdapter_ADWIN_RestartingSoftRouting",
+        # 窓の上限は、旧の既定（1000）にする（小さい上限では、ADWIN自身が検知しない）。
+        legacy_setting_overrides={"ADWIN_DELTA": 0.05, "ADWIN_MAX_WINDOW": 1000},
+        modify_run_participant_settings=lambda run_participant_settings: (
+            replace_loss_monitoring_scope(
+                replace_loss_monitor_maximum_window(run_participant_settings),
+                drift_detector_name="adwin",
+                loss_monitoring_scope="overall_loss",
+                detector_name="ADWIN",
+            )
+        ),
+        legacy_records_monitored_log_e_values=False,
+    ),
 }
 # 構成と条件ごとの、照合の結果（構成の結果と、同じ条件の提案構成の結果）。
 VARIANT_COMPARISONS = {}
+# ADWINで監視する構成の照合で通った、警報の経路の回数（構成の名前→経路→回数）。
+ADWIN_ALARM_PATH_COUNTS = {}
+
+
+def count_adwin_alarm_paths(*, monkeypatch, configuration_name):
+    """ADWINの監視と、補助の警報判定を包んで、通った経路を数える（動きは変えない）。"""
+    path_counts = ADWIN_ALARM_PATH_COUNTS.setdefault(
+        configuration_name,
+        dict(adwin_detection=0, window_loss_check_alarm=0, window_loss_check_without_alarm=0),
+    )
+    observe_loss_with_adwin = OverallAndTrueClassLossMonitor._observe_loss_with_adwin
+    window_loss_check = (
+        observed_sample_processing_module._current_model_loss_worsened_over_adwin_window
+    )
+
+    def counting_observe_loss_with_adwin(loss_change_monitor, **observation_arguments):
+        monitoring_observation = observe_loss_with_adwin(
+            loss_change_monitor, **observation_arguments
+        )
+        path_counts["adwin_detection"] += monitoring_observation.drift_detected
+        return monitoring_observation
+
+    def counting_window_loss_check(**check_arguments):
+        loss_worsened = window_loss_check(**check_arguments)
+        path_counts[
+            "window_loss_check_alarm" if loss_worsened else "window_loss_check_without_alarm"
+        ] += 1
+        return loss_worsened
+
+    monkeypatch.setattr(
+        OverallAndTrueClassLossMonitor, "_observe_loss_with_adwin", counting_observe_loss_with_adwin
+    )
+    monkeypatch.setattr(
+        observed_sample_processing_module,
+        "_current_model_loss_worsened_over_adwin_window",
+        counting_window_loss_check,
+    )
 
 
 @pytest.mark.parametrize("small_run_condition", SMALL_RUN_CONDITIONS)
@@ -205,6 +297,13 @@ def test_configuration_variant_matches_real_legacy_whole_run(
         ("proposed", PROPOSED_CONFIGURATION_VARIANT),
     ):
         with pytest.MonkeyPatch.context() as variant_monkeypatch:
+            if variant_role == "variant" and configuration_name in (
+                CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
+                OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
+            ):
+                count_adwin_alarm_paths(
+                    monkeypatch=variant_monkeypatch, configuration_name=configuration_name
+                )
             comparisons[variant_role] = compare_small_run_with_real_legacy(
                 monkeypatch=variant_monkeypatch,
                 tmp_path=tmp_path,
@@ -609,6 +708,81 @@ def test_single_model_prediction_takes_its_own_path():
     )
 
 
+@pytest.mark.parametrize(
+    ("configuration_name", "class_detectors_are_used"),
+    (
+        (CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME, True),
+        (OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME, False),
+    ),
+)
+def test_adwin_detection_takes_its_own_path(configuration_name, class_detectors_are_used):
+    """ADWINで監視する構成は、e値を持たず、ADWINの窓で警報を出す。クラス別の窓は、クラス別の構成だけが持つ。"""
+    comparisons = collect_variant_comparisons(configuration_name)
+    alarm_count = 0
+    class_window_was_held = False
+    for comparison in comparisons:
+        variant_comparison = comparison["variant"]
+        # 監視の値（e値）は、無い（負の無限大）。
+        assert (
+            variant_comparison.run_metrics.change_response_metrics.maximum_monitored_log_e_value
+            == float("-inf")
+        )
+        for run_client, legacy_client in zip(
+            variant_comparison.participants.client_operations,
+            variant_comparison.legacy_run["legacy_clients"],
+            strict=True,
+        ):
+            owners = run_client.owners
+            monitoring_state = owners.loss_change_monitor.get_state_snapshot()
+            assert monitoring_state.overall_esr_state is None
+            assert monitoring_state.class_esr_states_by_class_id == ()
+            # 実旧のclientの、ADWINの窓と、run終了時の状態が同じ。
+            assert monitoring_state.overall_adwin_state.window_losses == tuple(
+                legacy_client.adwin.window
+            )
+            assert monitoring_state.overall_adwin_state.loss_sum == legacy_client.adwin.total
+            assert hasattr(legacy_client, "class_adwins") == class_detectors_are_used
+            if class_detectors_are_used:
+                assert {
+                    class_id: class_adwin_state.window_losses
+                    for class_id, class_adwin_state in monitoring_state.class_adwin_states_by_class_id
+                } == {
+                    class_id: tuple(class_adwin.window)
+                    for class_id, class_adwin in legacy_client.class_adwins.items()
+                    if class_adwin.width > 0
+                }
+                class_window_was_held |= bool(monitoring_state.class_adwin_states_by_class_id)
+            else:
+                assert monitoring_state.class_adwin_states_by_class_id == ()
+            assert legacy_client._detector_label() == "ADWIN"
+            assert not hasattr(legacy_client, "e_detector")
+            adaptation_records = (
+                owners.adaptation_record_store.get_state_snapshot().adaptation_records
+            )
+            alarm_count += len(
+                owners.loss_change_alarm_record_store.get_state_snapshot().alarm_sample_indices
+            )
+            assert all(
+                adaptation_record.detector_name == "ADWIN"
+                for adaptation_record in adaptation_records
+                if adaptation_record.adaptation_outcome
+                != "server_consolidation_training_model_remapped"
+            )
+    assert alarm_count > 0
+    assert class_window_was_held == class_detectors_are_used
+    # ADWINの検知による警報と、補助の判定（直近の損失の悪化）による警報の、両方を通っている。
+    path_counts = ADWIN_ALARM_PATH_COUNTS[configuration_name]
+    assert path_counts["adwin_detection"] > 0
+    assert path_counts["window_loss_check_alarm"] > 0
+    assert path_counts["window_loss_check_without_alarm"] > 0
+    # 同じ条件の提案構成と、結果が違う条件がある。
+    assert any(
+        comparison["variant"].run_metrics.change_response_metrics
+        != comparison["proposed"].run_metrics.change_response_metrics
+        for comparison in comparisons
+    )
+
+
 def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_element():
     """掃引のコマンドの構成の名前から作るrun設定は、提案構成と、変える要素だけが違う。"""
     assert EXPERIMENT_CONFIGURATION_NAMES == (
@@ -619,6 +793,12 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
         ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
         SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
+        CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
+        OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
+    )
+    assert CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME == "fedsda-classwise-adwin-detection"
+    assert OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME == (
+        "fedsda-overall-loss-adwin-detection"
     )
     assert SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME == "fedsda-single-model-prediction"
     assert ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME == ("fedsda-adahedge-prediction-weights")

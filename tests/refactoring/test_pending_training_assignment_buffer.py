@@ -333,6 +333,8 @@ def test_pending_assignment_monitoring_span_connects_to_buffer_partition(capacit
     """monitor public結果を入力し、FIFO前の候補を明示的に切り詰める。"""
     loss_change_detection_settings = LossChangeDetectionSettings(
         e_sr_false_alarm_control_alpha=0.01,
+        adwin_confidence_delta=0.05,
+        adwin_minimum_test_window_sample_count=10,
         drift_detector_name="e_sr",
         loss_monitoring_scope="overall_and_true_class_losses",
     )

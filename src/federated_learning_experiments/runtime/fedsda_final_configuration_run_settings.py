@@ -98,6 +98,8 @@ _LOSS_MONITOR_BETTING_FRACTIONS = (0.05, 0.1, 0.2, 0.4, 0.8)
 # 検出器が保持する、変化点の候補の数の上限（旧では、設定`ADWIN_MAX_WINDOW`の値を、e-SRの検出器にも渡していた）。
 _LOSS_MONITOR_MAXIMUM_RETAINED_CANDIDATE_COUNT = 1000
 # 警報と判定の記録に残す、検出器の表示名（検出の方式に対応する名前。clientの設定の束が、対応を確かめる）。
+_ADWIN_CONFIDENCE_DELTA = 0.05
+_ADWIN_MINIMUM_TEST_WINDOW_SAMPLE_COUNT = 10
 _DETECTOR_NAME = "overall + class-conditional e-SR mixture"
 _MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT = 5
 
@@ -159,6 +161,9 @@ def build_final_configuration_fedsda_run_settings(
     run_client_settings = FedsdaRunClientSettings(
         loss_change_detection_settings=LossChangeDetectionSettings(
             drift_detector_name="e_sr",
+            # ADWINの値は、提案構成（e-SR）では使わない。ADWINで監視する構成が、この値を使う（旧の既定と同じ）。
+            adwin_confidence_delta=_ADWIN_CONFIDENCE_DELTA,
+            adwin_minimum_test_window_sample_count=_ADWIN_MINIMUM_TEST_WINDOW_SAMPLE_COUNT,
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=_E_SR_FALSE_ALARM_CONTROL_ALPHA,
         ),

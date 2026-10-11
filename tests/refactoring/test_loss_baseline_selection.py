@@ -253,6 +253,8 @@ def test_loss_baseline_connects_to_monitor_and_reference():
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=0.01,
+            adwin_confidence_delta=0.05,
+            adwin_minimum_test_window_sample_count=10,
         ),
         class_count=2,
         initial_baseline_loss_mean=baseline_mean_loss,

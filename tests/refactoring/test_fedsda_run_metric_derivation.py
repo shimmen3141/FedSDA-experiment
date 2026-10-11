@@ -12,7 +12,7 @@ import sys
 from contextlib import redirect_stdout
 from dataclasses import replace
 from itertools import combinations
-from math import isnan
+from math import inf, isnan
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -1697,11 +1697,19 @@ def compare_small_run_with_real_legacy(
     experiment._add_telemetry_results(
         legacy_computation_results, legacy_clients, experiment._new_round_telemetry()
     )
-    # 監視の値の最大が、実旧の集計と一致する。
-    assert (
-        run_metrics.change_response_metrics.maximum_monitored_log_e_value
-        == legacy_computation_results["e_detector_max_log_e"]
-    )
+    # 監視の値の最大が、実旧の集計と一致する。構成が指定しなければ、実旧は、監視の値（e値）を持つ。
+    if getattr(configuration_variant, "legacy_records_monitored_log_e_values", True):
+        assert (
+            run_metrics.change_response_metrics.maximum_monitored_log_e_value
+            == legacy_computation_results["e_detector_max_log_e"]
+        )
+    else:
+        # e値を持たない検出器（ADWIN）の実旧は、この指標を作らない。新は、負の無限大。
+        assert "e_detector_max_log_e" not in legacy_computation_results
+        assert all(
+            not hasattr(legacy_client, "history_detector_log_e") for legacy_client in legacy_clients
+        )
+        assert run_metrics.change_response_metrics.maximum_monitored_log_e_value == -inf
     # 応答の指標が、実旧の`compute_metrics`の戻り値と、全部の項目で一致する。
     assert_change_response_metrics_match_legacy_metrics(
         run_metrics=run_metrics, legacy_metric_values=legacy_metrics

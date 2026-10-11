@@ -30,6 +30,10 @@ OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME = "fedsda-overall-loss-esr-detecti
 ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME = "fedsda-adahedge-prediction-weights"
 # 提案構成から、モデルの予測の結合を外した構成（現在の学習帰属のモデルだけで予測する）。
 SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME = "fedsda-single-model-prediction"
+# 提案構成の、損失の監視の検出器を、e-SRから、ADWINへ替えた構成（全体と、正解クラス別の系列を監視する）。
+CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME = "fedsda-classwise-adwin-detection"
+# 同じく、ADWINで、全体の損失の系列だけを監視する構成。
+OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME = "fedsda-overall-loss-adwin-detection"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -39,7 +43,23 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
     ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
     SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
+    CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
+    OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
 )
+
+
+# 損失の監視を替える構成: 検出の設定の、替えるfieldと、検出器の表示名。
+_LOSS_CHANGE_DETECTION_CHANGES_BY_CONFIGURATION_NAME: dict[str, tuple[dict[str, str], str]] = {
+    OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME: (
+        {"loss_monitoring_scope": "overall_loss"},
+        "e-SR",
+    ),
+    CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME: ({"drift_detector_name": "adwin"}, "ADWIN"),
+    OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME: (
+        {"drift_detector_name": "adwin", "loss_monitoring_scope": "overall_loss"},
+        "ADWIN",
+    ),
+}
 
 
 def _replace_prediction_combination_settings(
@@ -130,8 +150,11 @@ def build_experiment_run_settings(
                 model_pair_comparison_strategy="mean_loss_increase",
             ),
         )
-    if configuration_name == OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME:
-        # 監視の対象と、それに対応する検出器の表示名を、替える。
+    if configuration_name in _LOSS_CHANGE_DETECTION_CHANGES_BY_CONFIGURATION_NAME:
+        # 監視の設定（対象、検出器）と、それに対応する検出器の表示名を、替える。
+        changed_detection_settings_fields, detector_name = (
+            _LOSS_CHANGE_DETECTION_CHANGES_BY_CONFIGURATION_NAME[configuration_name]
+        )
         run_participant_settings = proposed_run_settings.run_participant_settings
         run_client_settings = run_participant_settings.run_client_settings
         return replace(
@@ -142,10 +165,10 @@ def build_experiment_run_settings(
                     run_client_settings,
                     loss_change_detection_settings=replace(
                         run_client_settings.loss_change_detection_settings,
-                        loss_monitoring_scope="overall_loss",
+                        **changed_detection_settings_fields,
                     ),
                     scalar_settings=replace(
-                        run_client_settings.scalar_settings, detector_name="e-SR"
+                        run_client_settings.scalar_settings, detector_name=detector_name
                     ),
                 ),
             ),

@@ -737,3 +737,118 @@ def test_loss_monitoring_overall_loss_scope_matches_single_reference_detector(
     )
     reference_detector.update(0.5)
     assert monitoring_observation.log_e_value == reference_detector.log_e_value
+
+
+@pytest.mark.parametrize("loss_monitoring_scope", ("overall_and_true_class_losses", "overall_loss"))
+def test_loss_monitoring_with_adwin_matches_reference_client(
+    loss_monitoring_scope, monkeypatch, valid_run_settings_mapping
+):
+    """ADWINで監視する設定の、警報・変化の候補の長さ・計算の件数が、旧のADWINのclientと、標本ごとに一致する。
+
+    クラス別の窓だけが検知する標本（全体の窓は検知しない）を通す。
+    """
+    from federated_drift_experiment.clients.fedsda import (
+        ADWINFedSDAClient,
+        ClassConditionalADWINFedSDAClient,
+    )
+    from federated_drift_experiment.drift_detectors.adwin import FullScanADWIN
+
+    monkeypatch.setattr(config, "ADWIN_MIN_WIDTH", 10)
+    monkeypatch.setattr(config, "ADWIN_MAX_WINDOW", 1000)
+    uses_class_windows = loss_monitoring_scope == "overall_and_true_class_losses"
+    monitor = OverallAndTrueClassLossMonitor(
+        loss_change_detection_settings=replace(
+            valid_run_settings_mapping["loss_change_detection_settings"],
+            drift_detector_name="adwin",
+            loss_monitoring_scope=loss_monitoring_scope,
+            adwin_confidence_delta=0.05,
+            adwin_minimum_test_window_sample_count=10,
+        ),
+        class_count=3,
+        initial_baseline_loss_mean=0.2,
+        maximum_retained_candidate_count=1000,
+        betting_fractions=(0.05, 0.1, 0.2, 0.4, 0.8),
+    )
+    reference_client_type = (
+        ClassConditionalADWINFedSDAClient if uses_class_windows else ADWINFedSDAClient
+    )
+    reference_client = reference_client_type.__new__(reference_client_type)
+    reference_client.adwin = FullScanADWIN(delta=0.05)
+    reference_client.class_adwins = defaultdict(lambda: FullScanADWIN(delta=0.05))
+    reference_client.class_adwin_positions = defaultdict(deque)
+    reference_client._class_drift_start = None
+    reference_client.compute_counters = defaultdict(int)
+    loss_generator = random.Random(29)
+    overall_detection_count = 0
+    class_only_detection_count = 0
+    sample_index = 0
+    for global_sample_number in range(900):
+        # クラス2は、まれに現れ、途中で損失が大きくなる。ほかのクラスの損失は、変わらない。
+        observed_class_id = 2 if global_sample_number % 6 == 5 else global_sample_number % 2
+        if observed_class_id == 2 and global_sample_number >= 300:
+            observed_loss = min(1.0, 0.9 + loss_generator.uniform(-0.05, 0.05))
+        else:
+            observed_loss = max(0.0, 0.1 + loss_generator.uniform(-0.05, 0.05))
+        updates_before = reference_client.compute_counters["drift_detector_updates"]
+        hypotheses_before = reference_client.compute_counters["drift_detector_hypotheses"]
+        reference_drift_detected = reference_client._update_drift_detectors(
+            observed_loss, torch.tensor([[float(observed_class_id)]]), sample_index
+        )
+        monitoring_observation = monitor.observe_loss_after_label_observation(
+            observed_loss=observed_loss,
+            observed_class_id=observed_class_id,
+            sample_index=sample_index,
+            current_model_baseline_loss_mean=0.2,
+        )
+        assert monitoring_observation.drift_detected == reference_drift_detected
+        assert monitoring_observation.log_e_value == -math.inf
+        assert monitoring_observation.estimated_change_span_sample_count == (
+            reference_client._estimated_new_concept_span(sample_index)
+        )
+        assert monitoring_observation.detector_candidate_start_sample_index == (
+            sample_index - reference_client._estimated_new_concept_span(sample_index) + 1
+        )
+        assert monitoring_observation.overall_adwin_window_sample_count == (
+            reference_client.adwin.width
+        )
+        assert monitoring_observation.component_update_count == (
+            reference_client.compute_counters["drift_detector_updates"] - updates_before
+        )
+        assert monitoring_observation.evaluated_candidate_bet_count == (
+            reference_client.compute_counters["drift_detector_hypotheses"] - hypotheses_before
+        )
+        state_snapshot = monitor.get_state_snapshot()
+        assert state_snapshot.overall_esr_state is None
+        assert state_snapshot.overall_adwin_state.window_losses == tuple(
+            reference_client.adwin.window
+        )
+        if uses_class_windows:
+            assert {
+                class_id: class_adwin_state.window_losses
+                for class_id, class_adwin_state in state_snapshot.class_adwin_states_by_class_id
+            } == {
+                class_id: tuple(class_adwin.window)
+                for class_id, class_adwin in reference_client.class_adwins.items()
+                # 旧は、警報の後、空にした検出器を持ち続ける。新は、捨てて、次に現れたときに作り直す。
+                if class_adwin.width > 0
+            }
+            assert dict(state_snapshot.class_sample_indices_by_class_id) == {
+                class_id: tuple(sample_indices)
+                for class_id, sample_indices in reference_client.class_adwin_positions.items()
+            }
+        else:
+            assert state_snapshot.class_adwin_states_by_class_id == ()
+        sample_index += 1
+        if reference_drift_detected:
+            if reference_client.adwin.drift_detected:
+                overall_detection_count += 1
+            else:
+                class_only_detection_count += 1
+            # 警報の後は、旧のclientと同じく、窓を空にして、位置を数え直す。
+            reference_client._reset_drift_detectors()
+            monitor.reset(baseline_loss_mean=0.2)
+            assert monitor.get_state_snapshot().class_adwin_states_by_class_id == ()
+            sample_index = 0
+    # クラス別の窓だけが検知する標本は、クラス別の設定でだけ、通る。
+    assert (class_only_detection_count > 0) == uses_class_windows
+    assert overall_detection_count + class_only_detection_count > 0
