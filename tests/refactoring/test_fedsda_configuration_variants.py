@@ -349,15 +349,19 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
             run_settings.model_consolidation_settings
             != proposed_run_settings.model_consolidation_settings
         ):
-            with pytest.raises(RunSettingsValidationError) as error_information:
-                replace(
-                    run_settings,
-                    model_consolidation_settings=proposed_run_settings.model_consolidation_settings,
+            # どちらの向きのずれも、拒否する。
+            for mismatched_settings_fields in (
+                dict(
+                    model_consolidation_settings=proposed_run_settings.model_consolidation_settings
+                ),
+                dict(run_participant_settings=proposed_run_settings.run_participant_settings),
+            ):
+                with pytest.raises(RunSettingsValidationError) as error_information:
+                    replace(run_settings, **mismatched_settings_fields)
+                assert (
+                    error_information.value.configuration_parameter_name
+                    == "model_pair_comparison_strategy"
                 )
-            assert (
-                error_information.value.configuration_parameter_name
-                == "model_pair_comparison_strategy"
-            )
         # testの側の変更（実旧と照合したもの）を、提案構成の設定へ当てると、同じ設定になる。
         assert run_settings == replace(
             proposed_run_settings,
