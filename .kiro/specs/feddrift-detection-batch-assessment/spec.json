@@ -1,9 +1,9 @@
 {
   "feature_name": "feddrift-detection-batch-assessment",
   "created_at": "2026-10-11T21:44:48+09:00",
-  "updated_at": "2026-10-11T22:07:53+09:00",
+  "updated_at": "2026-10-11T22:21:29+09:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -23,23 +23,58 @@
     },
     "naming": {
       "generated": true,
-      "approved": false,
-      "note": "全taskの後の独立レビューで確認する"
+      "approved": true,
+      "note": "GPT-6 Luna mediumの独立レビューで、公開名の役割とclient状態ownerとの区別を確認。指摘なし"
     }
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "handoff": {
-    "execution_status": "awaiting_review_authorization",
-    "next_step": "ユーザーがClaude CLIへの対象コードとspecの送信を許可したら、40083daの独立レビューを実行する。Blocker/Major修正時だけ別sessionの確認。source変更時は全回帰をやり直す。"
+    "execution_status": "completed",
+    "next_step": "none（FedDriftの判定後client処理と全体runの移植は後続spec）"
   },
   "implementation_review": {
-    "verdict": "NOT_RUN",
-    "execution_status": "awaiting_user_authorization",
-    "planned_reviewer": "claude-haiku-5-5, effort medium（数値比較の移植のため。未起動）",
+    "verdict": "IMPLEMENTATION: APPROVED",
+    "execution_status": "completed",
+    "planned_reviewer": "gpt-6-luna, effort medium（Haiku 5.5が週間上限のため所定の代替）",
+    "current_authorization": "ユーザーが『GPT-6 Lunaへの送信を許可する』を明示選択。OpenAIへの対象spec・実装・テスト・必要な旧コード送信は許可済み",
     "planned_revision": "40083da5d95e9003b58934f5f48e13dce6cfca87",
+    "reviewer": "gpt-6-luna, effort medium（独立CLI）",
+    "reviewer_selection": "数値移植のためHaiku 5.5を優先したが週間上限で利用不能。共通手順所定のLunaへ代替",
+    "reviewer_session": "01a12b1c-f78d-7481-83be-a1d62a1322c9",
+    "reviewer_identity_basis": "CLIログのmodel: gpt-6-luna、reasoning effort: medium",
+    "reviewed_range": "4ecdae7..40083da（追加の未コミット差分はレビュー記録と要求文書末尾空行のみ）",
+    "review_output": "venv/refactoring-tests/feddrift-detection-batch-assessment-luna-review-2.log",
+    "findings": "実装の指摘なし。過去の許可待ち記録の誤解による初回未実施と空行指摘の採否はtasks.md",
     "approval_review_rejection": "外部サービスへの対象payloadとClaudeの送信先へのユーザー承認を確認できないため、独立CLIレビュー起動が拒否された。ユーザーへ対象と送信先を明記して実行許可を依頼済み。",
-    "independent_test_execution": false,
+    "attempts": [
+      {
+        "reviewer": "claude-haiku-5-5",
+        "requested_effort": "medium",
+        "authorization": "ユーザーの『独立レビューは許可します。』によりClaudeへの対象送信を許可",
+        "session_id": "bbd528b6-08b6-4651-aed6-a0c55f48ecc2",
+        "result": "利用不能。is_error=true、api_error_status=429、usage_limit_reached。modelUsageは空でレビューは未実施",
+        "output": "venv/refactoring-tests/feddrift-detection-batch-assessment-review-1.json"
+      },
+      {
+        "reviewer": "gpt-6-luna",
+        "requested_effort": "medium",
+        "result": "自動承認レビューが起動拒否。Claude/Anthropicとは異なるOpenAIへの非公開コード送信に具体的承認がないため。別送信先への許可をユーザーへ依頼済み。起動していない"
+      }
+    ],
+    "independent_test_execution": true,
+    "independent_full_pytest_reproduction": false,
+    "independent_checks": "対象・依存境界3108 passed、Ruff check/format、命名成功。identityは固定旧とsource一致、文書差分による非クリーン判定。fresh smokeは独立担当が終了を未確認",
     "full_pytest": "12647 passed / 4 skipped / 4 warnings, exit 0（40083da、Codexの実測。-n 8 --dist loadfile）"
+  },
+  "integration_validation": {
+    "tested_commit": "40083da5d95e9003b58934f5f48e13dce6cfca87",
+    "source_sha256_lf": "f7b0446ccbf16aa92939352c7ba764662c1acc4ba363269771e6f1e05133c5e3",
+    "full_passed": 12647,
+    "full_skipped": 4,
+    "full_warnings": 4,
+    "exit_code": 0,
+    "junit": "venv/refactoring-tests/feddrift-detection-batch-assessment-full.xml",
+    "note": "全回帰を独立レビュー許可待ち中に先行実行。レビュー後はsource・test変更なし、文書のみ。旧goldenとfresh process smoke成功。WSL・変異テスト・FedDrift全体runは未実施"
   }
 }

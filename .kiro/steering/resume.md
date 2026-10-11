@@ -11,7 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### いまの状態
 
-- ブランチ`refactor/architecture`。2026-10-11、ユーザーがpushを明示的に許可し、independentの完了までpush済み。次のspec [feddrift-detection-batch-assessment](../specs/feddrift-detection-batch-assessment/tasks.md)が進行中（数値判定と接続を実装し、対象testと全回帰は成功。独立CLIレビューの外部送信が自動承認レビューで拒否され、ユーザーの実行許可待ち）。状態の正本は同specのspec.jsonとtasks.md。
+- ブランチ`refactor/architecture`。2026-10-11、ユーザーがpushを明示的に許可。[feddrift-detection-batch-assessment](../specs/feddrift-detection-batch-assessment/tasks.md)は完了。進行中のspecは無い。次は、FedDriftの判定後client処理の移植。状態の正本は同specのspec.jsonとtasks.md。
 - 構成の移植は、10個の全部が完了した（最後は[fedsda-independent-models](../specs/fedsda-independent-models/tasks.md)。独立レビューは承認、指摘は反映済み。検証の証拠は同specのtasks.md）。
 - (B) FedDriftは、数値の判定を先に小さいspecへ切り出して移植中。次は判定後のclient処理とサーバ同期のspec（下の「FedDriftの調査のメモ」）→全構成のgolden→(D)旧実装を外す準備（NEW-004、MNISTの取得コマンド）。順は、決定事項の「進める順」。
 
@@ -70,6 +70,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 clientの組立てと実行の枠の5操作（`FedsdaRunClient`）、標本1件の予測と学習側の処理（`process_observed_sample`）、警報後の「参照の固定→標本の観測→損失収集→採否評価→確定→正式ID確認」、警報時の「区間の準備→再利用評価→切替または候補検証の開始→完了処理→記録」、候補検証sessionの保持、診断証拠と通知までの部品が、実旧の対応するメソッドとの対照つきで揃っている。サーバ側は、登録・集約・クロス評価・クラスタリングと統合・配布・集約後の再較正と、それらをつなぐ1ラウンドの同期まで揃い、実行の枠へ接続した（全体runを、新実装だけで実行できる）。残りは、全体runの結果の指標の導出と、goldenとの照合。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
 
+- [feddrift-detection-batch-assessment](../specs/feddrift-detection-batch-assessment/tasks.md): FedDriftの検出バッチの数値判定。保有順の平均損失・最小選択・閾値比較。client状態更新と全体runは後続。
 - [fedsda-independent-models](../specs/fedsda-independent-models/tasks.md): 構成の移植の10個目・最後（旧`independent`）。モデル構造`independent_models_without_shared_backbone`（共有部は空。隠れ層は、分類器の`residual_adapter`の場所に、モデルごとに持つ`ModelOwnedHiddenLayers`）。学習の方式`sequential_per_model_training`（モデルごとに順に）。再較正をしない方針との組。パラメータが空のoptimizerの状態（`parameter_optimizer_if_any`）。クロス評価の下りの通信量は、旧と同じ数え方（LEGACY-018）。照合は、sine2の7条件と、mnist2の2条件（全状態）。
 - [fedsda-without-concept-specific-adapter](../specs/fedsda-without-concept-specific-adapter/tasks.md): 構成の移植の9つ目（旧`shared-backbone`）。モデル構造`shared_backbone_without_residual_adapter`。分類器の`residual_adapter`へ、パラメータを持たない`IdentityFeatureAdapter`を置く（概念固有部は、分類層だけ）。計算量の計測は、どちらの部品でも、概念固有部の標本数を数える。
 - [fedsda-adwin-detection](../specs/fedsda-adwin-detection/tasks.md): 構成の移植の7つ目と8つ目（旧`class-adwin`・`overall-adwin`）。検出器`AdwinLossWindowDetector`（旧`FullScanADWIN`）。監視は、設定の`drift_detector_name`が`adwin`のとき、全体（とクラス別）の窓で警報を出す。標本1件の処理が、ADWINのときだけ、補助の判定（旧`_forced_drift_check`）を行う。e値は、負の無限大。構成の照合は、窓の上限を1000にして行う（50では、ADWIN自身が検知しない）。
@@ -189,4 +190,4 @@ HTMLは元checkoutの`docs/overview/fedsda-processing-flow.html`にあるコミ�
 
 ## 次のspecの再開（2026-10-11）
 
-`feddrift-detection-batch-assessment`の残作業は独立レビュー。対象revision・検証結果・実行許可待ちの理由は同specのspec.jsonとtasks.mdを読む。許可待ちを承認と扱わず、specを完了にしない。ユーザーが許可したら、共通引継ぎ手順の独立CLIでレビューし、有用な指摘を反映する。sourceを変更した場合は対象test・全回帰・品質検査を再実行する。次の移植は、判定後の新規モデル生成・割当・前回値更新・評価用標本保持を含むclientの処理。
+`feddrift-detection-batch-assessment`は完了。次の移植は、判定後の新規モデル生成・割当・前回値更新・評価用標本保持を含むclientの処理。FedDriftのclient・サーバ・全体runとgoldenは未移植なので、数値判定の完了と混同しない。対象コードをClaude/AnthropicまたはOpenAIのGPT-6 Lunaへ送信する独立レビューは、このセッションでユーザーが明示許可した。試行と承認の経緯は同specのspec.jsonとtasks.mdを読む。

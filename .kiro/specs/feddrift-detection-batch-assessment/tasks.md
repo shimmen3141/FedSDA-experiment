@@ -8,7 +8,7 @@
   - _Boundary: 検出バッチの数値評価と比較判断_
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2_
 
-- [ ] 2. 依存境界と新実装だけの実行へ接続し、回帰と独立レビューを通す
+- [x] 2. 依存境界と新実装だけの実行へ接続し、回帰と独立レビューを通す
   - 新moduleの許可依存を登録し、上位runtimeへの依存を拒否する。
   - 共用fresh smokeへ、実分類器を使った判定を足す。
   - 全taskの独立レビュー1回の有用な指摘を反映し、固定Windows環境の全pytestと品質検査が成功することを完了条件とする。
@@ -25,3 +25,7 @@
 - Windows全回帰: `40083da`で12647 passed / 4 skipped / 4 warnings、exit 0（681.26秒。`-n 8 --dist loadfile`）。JUnitは`venv/refactoring-tests/feddrift-detection-batch-assessment-full.xml`、実行ログは同じstemの`.log`。前specの12582 passedに、新規判定62件と依存拒否3件を足した件数と一致。旧11ケース・最終3ケースのgoldenと、既存構成の実旧照合、共用fresh process smoke（新しいFedDriftの呼出しを含む）が成功。Ruff check/format、Pyright 0 errors、pip check成功。固定旧748c3aaの差分が空。source hashは`f7b0446ccbf16aa92939352c7ba764662c1acc4ba363269771e6f1e05133c5e3`（401パス）。
 - 独立レビューは起動していない。Haiku 5.5・effort mediumの独立CLIを、数値比較の移植のレビュー用に選び、対象40083daと許可した検証だけを依頼する準備をしたが、自動承認レビューが外部送信の承認不足で拒否した。依頼文は`venv/refactoring-tests/feddrift-detection-batch-assessment-review-prompt.txt`。ユーザーへ対象ソース・test・specと必要な旧対照コードをAnthropicのClaude CLIへ渡すことの許可を依頼済み。自己レビューや別の外部CLIで拒否を迂回せず、task 2と命名承認を未完了のままにする。
 - 手順との差: 独立レビューの起動が拒否されたため、影響しない全回帰を先に実行した。指摘の反映でsourceを変更した場合は、反映後に全回帰を取り直す。WSLと変異テストは実行していない。FedDriftのclient・サーバ・全体runとgoldenはまだ移植していない。
+- レビュー再開: ユーザーがClaudeへの独立レビューを許可した後、Haiku 5.5・effort mediumを起動したが、session `bbd528b6-08b6-4651-aed6-a0c55f48ecc2`は`is_error=true`、HTTP 429 `usage_limit_reached`で終了した。実モデルの使用・レビュー・独立test実行はない。応答は`venv/refactoring-tests/feddrift-detection-batch-assessment-review-1.json`。共通手順所定の代替GPT-6 Luna・mediumを試みたが、自動承認レビューが、OpenAIへの非公開コード送信について具体的許可がないとして起動を拒否した。送信先を明記してユーザーへ許可を依頼済み。拒否を迂回せず、task 2と命名承認は未完了のまま。
+- 代替先の許可後: ユーザーが「GPT-6 Lunaへの送信を許可する」を明示選択した。初回Luna session `01a12b1b-a499-7de2-be40-be4901fa2142`（ログの実モデルgpt-6-luna、reasoning effort medium）は、過去の許可待ち記録を現在の制約と誤解し、要求された実装レビューと独立testを実施せずNEEDS_FIXESを返した。このBlockerは実装欠陥ではなくレビュー未実施の状態なので、独立レビューの承認には数えない。Task 2・phase・命名の未承認はレビュー前の意図した状態で、これ自体を欠陥としては採用しない。requirements.md末尾空行の指摘は動作に影響しない任意の整形として採用した。現在の具体的な許可と独立担当の役割を依頼文へ明記し、UTF-8で再起動した。初回ログは`venv/refactoring-tests/feddrift-detection-batch-assessment-luna-review-1.log`。sourceとtestは変更していない。
+- 独立レビューの完了: session `01a12b1c-f78d-7481-83be-a1d62a1322c9`、実モデル`gpt-6-luna`、`reasoning effort: medium`（CLIログで確認）、対象`4ecdae7..40083da`、判定`IMPLEMENTATION: APPROVED`。実装の指摘なし。公開名は判定の役割と状態ownerの違いを確認し、命名も承認。独立実行は対象・依存境界3108 passed、Ruff check/format・names成功。identityは固定旧とsource hashが一致し、レビュー記録の文書差分による非クリーンだけを報告した。独立担当はfresh process smokeを起動したが終了を確認していない。主担当の全pytestのJUnitでは同smokeと旧goldenが成功している。全pytest・Pyright・pip checkの独立再現はしていない。ログは`venv/refactoring-tests/feddrift-detection-batch-assessment-luna-review-2.log`。
+- 完了の範囲: 9要求を、判定の実旧照合・異常系・状態保持・依存境界・新実装だけのfresh smokeで満たした。task間の接続は判定から既存learningへの評価で、設計の依存方向と一致する。レビュー後は文書のみの変更で、source・testと全回帰のsource hashは同一。したがって全回帰は再実行せず、既存JUnitと固定旧・source hashを再照合する。FedDrift全体の移植完了は主張しない。
