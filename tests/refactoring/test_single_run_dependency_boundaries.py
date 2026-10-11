@@ -4754,8 +4754,53 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
     )
 
 
+@pytest.mark.parametrize(
+    "forbidden_module",
+    (
+        "federated_drift_experiment.models",
+        "federated_learning_experiments.sweep.experiment_sweep",
+        "tests.refactoring.test_feddrift_detection_batch_processing",
+    ),
+)
+def test_feddrift_detection_batch_processing_rejects_outer_dependencies(forbidden_module):
+    assert collect_dependency_boundary_violations(
+        source_module_path="runtime/feddrift_detection_batch_processing.py",
+        source_text=f"import {forbidden_module}",
+    )
+
+
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "runtime/feddrift_detection_batch_processing.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math.isfinite",
+            "random.Random",
+            "torch.cat",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_records.ObservedEvaluationSample",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
+            "federated_learning_experiments.learning.loss_statistics.batch_loss_statistics_initialization.initialize_model_and_class_loss_statistics_from_batch",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier._validate_classifier_inputs",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingState",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry._validate_held_model_training_state_inputs",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
+            "federated_learning_experiments.methods.feddrift.detection_batch_assessment.assess_feddrift_detection_batch",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUpload",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
+        )
     if source_module_path == "methods/feddrift/detection_batch_assessment.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6502,6 +6547,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "runtime/feddrift_detection_batch_processing.py",
             "methods/feddrift/detection_batch_assessment.py",
             "evaluation/adahedge_weight_evidence_collection.py",
             "runtime/training_assignment_adahedge_weight_evidence_restart.py",

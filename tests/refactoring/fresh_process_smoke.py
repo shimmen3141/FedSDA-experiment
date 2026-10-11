@@ -1606,6 +1606,9 @@ def run_feddrift_detection_batch_smoke():
     from federated_learning_experiments.methods.feddrift.detection_batch_assessment import (
         assess_feddrift_detection_batch,
     )
+    from federated_learning_experiments.runtime.feddrift_detection_batch_processing import (
+        FeddriftDetectionBatchProcessor,
+    )
 
     with torch.random.fork_rng():
         for class_count in (2, 4):
@@ -1645,6 +1648,53 @@ def run_feddrift_detection_batch_smoke():
             )
             assert changed_batch.drift_detected
             assert changed_batch.model_mean_bounded_losses == first_batch.model_mean_bounded_losses
+            registry = HeldModelTrainingStateRegistry()
+            optimizer_settings = AdamParameterOptimizerSettings(
+                learning_rate=0.01, weight_decay=0.0, adam_variant="standard"
+            )
+            for model_id, classifier in held_models:
+                registry.register_held_model_training_state(
+                    model_id=model_id,
+                    classifier=classifier,
+                    concept_specific_parameter_optimizer_state=ParameterOptimizerState(
+                        parameters=tuple(classifier.parameters()),
+                        optimizer_settings=optimizer_settings,
+                    ),
+                )
+            uploads = PendingModelUploadState()
+            assignment = CurrentTrainingModelAssignment(initial_model_id=7)
+            processor = FeddriftDetectionBatchProcessor(
+                held_model_training_state_registry=registry,
+                loss_statistics_store=ModelAndClassLossStatisticsStore(),
+                current_training_model_assignment=assignment,
+                training_sample_store=ModelTrainingSampleStore(),
+                evaluation_sample_store=ModelEvaluationSampleStore(
+                    maximum_stored_sample_count_per_model=5, added_batch_sample_count=2
+                ),
+                temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=6),
+                pending_model_upload_state=uploads,
+                python_random_generator=Random(87),
+                new_model_optimizer_settings=optimizer_settings,
+                loss_increase_threshold=0.0,
+                previous_minimum_mean_bounded_loss=0.0,
+            )
+            samples = tuple(
+                ObservedTrainingSample(
+                    input_features=torch.ones(1, 3), observed_class_labels=torch.zeros(1, 1)
+                )
+                for _ in range(3)
+            )
+            created = processor.process_detection_batch(
+                training_samples=samples, processed_sample_count=3
+            )
+            assert created.adaptation_kind == "new_model_created"
+            assert assignment.current_training_model_id == -106
+            assert uploads.has_ready_model_upload()
+            retained = processor.process_detection_batch(
+                training_samples=samples, processed_sample_count=6
+            )
+            assert retained.adaptation_kind == "held_model_selected"
+            assert retained.assigned_model_id == 7
     print("PASS FedDrift detection batch assessment: binary/multiclass; first/tied/increased loss")
 
 

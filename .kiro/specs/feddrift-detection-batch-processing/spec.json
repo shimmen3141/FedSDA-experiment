@@ -1,0 +1,17 @@
+{
+  "feature_name": "feddrift-detection-batch-processing",
+  "created_at": "2026-10-11T22:28:00+09:00",
+  "updated_at": "2026-10-11T22:28:00+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {"generated": true, "approved": true, "approved_by": "主担当Codex（共通引継ぎ手順のユーザー委任）"},
+    "design": {"generated": true, "approved": true, "approved_by": "主担当Codex（同上）"},
+    "tasks": {"generated": true, "approved": true, "approved_by": "主担当Codex（同上）", "task_graph_sanity_review": "PASS（inline。子エージェント禁止のため）"},
+    "naming": {"generated": true, "approved": false, "note": "全task後の独立レビューで確認する"}
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
+  "handoff": {"execution_status": "implementing", "next_step": "task順にtestを先に書き、独立CLIレビューと全回帰を通す"},
+  "implementation_review": {"verdict": "NOT_RUN", "planned_reviewer": "gpt-6-luna, effort medium（Haiku週間上限による所定の代替）"}
+}

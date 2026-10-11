@@ -80,6 +80,16 @@ class PendingModelUploadState:
     def get_pending_model_upload(self) -> PendingModelUpload | None:
         return self._pending_model_upload
 
+    def queue_ready_model_upload(
+        self, *, model_id: int, parameter_snapshot: dict[str, Tensor]
+    ) -> None:
+        """検査後、即時送信可能なsnapshotで一保留枠を置換する。"""
+        pending_model_upload = PendingModelUpload(
+            model_id=model_id, parameter_snapshot=parameter_snapshot
+        )
+        self._pending_model_upload = pending_model_upload
+        self._remaining_upload_delay_round_count = 0
+
     def has_ready_model_upload(self) -> bool:
         return (
             self._pending_model_upload is not None and self._remaining_upload_delay_round_count == 0
