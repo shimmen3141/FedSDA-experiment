@@ -1,4 +1,9 @@
-"""保有モデルの検証済みpopulationから一回の学習batchを抽出する。"""
+"""保有モデルの学習標本のpopulationから、一回の学習batchを抽出する。
+
+入れ物（ID、標本の列の型、件数、乱数の生成器）は、乱数を進める前に検査する。標本の中身（tensorの種類・形・有限性）は、
+抽出した標本だけを検査する（1回の費用を、保持する標本の数に依らないようにするため）。抽出した標本が不正なら、
+乱数の生成器の状態を、呼出しの前へ戻して、拒否する。
+"""
 
 from random import Random
 
@@ -22,6 +27,7 @@ def _validate_observed_training_sample(
     expected_input_feature_count: int | None,
     tensor_name: str,
 ) -> int:
+    """一標本の、型と、tensorの種類・形を検査する（有限性は、連結したbatchで、まとめて確かめる）。"""
     if type(training_sample) is not ObservedTrainingSample:
         raise ValueError(f"{tensor_name}はexact ObservedTrainingSampleが必要です。")
     for training_tensor, tensor_field_name in (
@@ -51,8 +57,6 @@ def _validate_observed_training_sample(
                 raise ValueError(f"{tensor_name}.input_featuresの列内特徴数が一致しません。")
         elif training_tensor.shape[1] != 1:
             raise ValueError(f"{tensor_name}.observed_class_labelsは[1,1]が必要です。")
-        if not isfinite(training_tensor).all().item():
-            raise ValueError(f"{tensor_name}.{tensor_field_name}は有限値が必要です。")
     return training_sample.input_features.shape[1]
 
 
@@ -62,7 +66,8 @@ def _validate_sampling_request(
     ordered_model_training_samples: tuple[ModelTrainingSampleCollection, ...],
     batch_sample_count: int,
     python_random_generator: Random,
-) -> tuple[ModelTrainingSampleCollection, ...]:
+) -> tuple[tuple[int, ModelTrainingSampleCollection], ...]:
+    """入れ物を検査し、抽出の対象（列の位置と、保有モデルの、件数の足りる列）を返す。標本の中身は、見ない。"""
     if type(held_model_ids) is not frozenset:
         raise ValueError("held_model_idsはexact frozensetが必要です。")
     if type(ordered_model_training_samples) is not tuple:
@@ -91,16 +96,7 @@ def _validate_sampling_request(
             raise ValueError(f"{tensor_name}.training_samplesはexact tupleが必要です。")
         if len(model_training_samples.training_samples) < batch_sample_count:
             continue
-        expected_input_feature_count = None
-        for training_sample_index, training_sample in enumerate(
-            model_training_samples.training_samples
-        ):
-            expected_input_feature_count = _validate_observed_training_sample(
-                training_sample=training_sample,
-                expected_input_feature_count=expected_input_feature_count,
-                tensor_name=f"{tensor_name}.training_samples[{training_sample_index}]",
-            )
-        eligible_model_training_samples.append(model_training_samples)
+        eligible_model_training_samples.append((collection_index, model_training_samples))
     return tuple(eligible_model_training_samples)
 
 
@@ -111,20 +107,34 @@ def sample_training_batches_for_held_models(
     batch_sample_count: int,
     python_random_generator: Random,
 ) -> tuple[SampledModelTrainingBatch, ...]:
-    """全候補の検証後、借用Randomを参加順に一回ずつ進める。"""
+    """入れ物の検証後、借用Randomを参加順に一回ずつ進め、抽出した標本の中身を検証する。
+
+    抽出した標本が不正なら、借用Randomの状態を、呼出しの前へ戻して、拒否する。
+    """
     eligible_model_training_samples = _validate_sampling_request(
         held_model_ids=held_model_ids,
         ordered_model_training_samples=ordered_model_training_samples,
         batch_sample_count=batch_sample_count,
         python_random_generator=python_random_generator,
     )
+    random_state_before_sampling = python_random_generator.getstate()
     sampled_model_training_batches = []
-    for model_training_samples in eligible_model_training_samples:
-        sampled_training_samples = python_random_generator.sample(
-            model_training_samples.training_samples, batch_sample_count
-        )
-        sampled_model_training_batches.append(
-            SampledModelTrainingBatch(
+    try:
+        for collection_index, model_training_samples in eligible_model_training_samples:
+            sampled_training_samples = python_random_generator.sample(
+                model_training_samples.training_samples, batch_sample_count
+            )
+            expected_input_feature_count = None
+            for training_sample in sampled_training_samples:
+                expected_input_feature_count = _validate_observed_training_sample(
+                    training_sample=training_sample,
+                    expected_input_feature_count=expected_input_feature_count,
+                    tensor_name=(
+                        f"ordered_model_training_samples[{collection_index}]"
+                        ".training_samplesから抽出した標本"
+                    ),
+                )
+            sampled_training_batch = SampledModelTrainingBatch(
                 model_id=model_training_samples.model_id,
                 input_features=cat(
                     [training_sample.input_features for training_sample in sampled_training_samples]
@@ -136,5 +146,18 @@ def sample_training_batches_for_held_models(
                     ]
                 ),
             )
-        )
+            # 有限性は、抽出した標本を連結したbatchで、1回ずつ確かめる。
+            for batch_tensor, tensor_field_name in (
+                (sampled_training_batch.input_features, "input_features"),
+                (sampled_training_batch.observed_class_labels, "observed_class_labels"),
+            ):
+                if not isfinite(batch_tensor).all().item():
+                    raise ValueError(
+                        f"ordered_model_training_samples[{collection_index}]"
+                        f".training_samplesから抽出した標本の{tensor_field_name}は有限値が必要です。"
+                    )
+            sampled_model_training_batches.append(sampled_training_batch)
+    except ValueError:
+        python_random_generator.setstate(random_state_before_sampling)
+        raise
     return tuple(sampled_model_training_batches)

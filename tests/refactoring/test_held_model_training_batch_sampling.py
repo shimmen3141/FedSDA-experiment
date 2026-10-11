@@ -17,6 +17,9 @@ from test_joint_model_parameter_update import (
 from federated_drift_experiment.clients.shared_backbone import (
     _SharedRepresentationFedSDAClientMixin,
 )
+from federated_learning_experiments.learning.training import (
+    held_model_training_batch_sampling,
+)
 from federated_learning_experiments.learning.training.held_model_training_batch_sampling import (
     sample_training_batches_for_held_models,
 )
@@ -272,7 +275,10 @@ def capture_training_sample_inputs(*, ordered_model_training_samples):
         "feature_width_mismatch",
     ],
 )
-def test_training_batch_sampling_rejects_before_random_draw(input_contract_case, monkeypatch):
+def test_training_batch_sampling_rejects_invalid_inputs_and_keeps_random_state(
+    input_contract_case, monkeypatch
+):
+    """入れ物の不正は、乱数を進める前に拒否する。抽出した標本の中身の不正は、乱数の状態を戻して拒否する。"""
     held_model_ids, ordered_model_training_samples, python_random_generator, legacy_client = (
         build_sampling_oracle_inputs()
     )
@@ -282,13 +288,11 @@ def test_training_batch_sampling_rejects_before_random_draw(input_contract_case,
         batch_sample_count=2,
         python_random_generator=python_random_generator,
     )
-    model_training_samples = ordered_model_training_samples[2]
-    training_sample = model_training_samples.training_samples[-1]
-    # 99番位置はこの乱数状態からの次回抽出に入らないが、事前検査の対象である。
+    # 標本の中身の不正は、この乱数の状態からの抽出に入る位置へ置く（中身の検査は、抽出した標本だけ）。
     expected_random_generator = random.Random()
     expected_random_generator.setstate(python_random_generator.getstate())
     expected_random_generator.sample(range(5), 2)
-    assert 99 not in expected_random_generator.sample(range(100), 2)
+    drawn_sample_position = expected_random_generator.sample(range(100), 2)[-1]
     for model_training_samples in ordered_model_training_samples:
         for training_sample in model_training_samples.training_samples:
             training_sample.input_features.grad = torch.full_like(
@@ -298,8 +302,25 @@ def test_training_batch_sampling_rejects_before_random_draw(input_contract_case,
                 training_sample.observed_class_labels, -0.25
             )
     model_training_samples = ordered_model_training_samples[2]
-    training_sample = model_training_samples.training_samples[-1]
+    training_sample = model_training_samples.training_samples[drawn_sample_position]
     expected_error_field = r"ordered_model_training_samples\[2\]"
+    # 入れ物の不正か（そうでなければ、抽出した標本の中身の不正）。
+    container_is_invalid = input_contract_case in (
+        "held_type",
+        "held_bool",
+        "collections_list",
+        "collection_type",
+        "model_id_bool",
+        "model_id_float",
+        "duplicate_id",
+        "count_bool",
+        "count_zero",
+        "count_negative",
+        "count_float",
+        "generator_none",
+        "generator_system",
+        "samples_list",
+    )
     if input_contract_case == "held_type":
         invalid_inputs["held_model_ids"] = set(held_model_ids)
         expected_error_field = "held_model_ids"
@@ -345,7 +366,9 @@ def test_training_batch_sampling_rejects_before_random_draw(input_contract_case,
         object.__setattr__(
             model_training_samples,
             "training_samples",
-            model_training_samples.training_samples[:-1] + (None,),
+            model_training_samples.training_samples[:drawn_sample_position]
+            + (None,)
+            + model_training_samples.training_samples[drawn_sample_position + 1 :],
         )
     else:
         input_features = training_sample.input_features
@@ -398,7 +421,12 @@ def test_training_batch_sampling_rejects_before_random_draw(input_contract_case,
     )
     with pytest.raises(ValueError, match=expected_error_field):
         sample_training_batches_for_held_models(**invalid_inputs)
-    python_random_generator.sample.assert_not_called()
+    if container_is_invalid:
+        python_random_generator.sample.assert_not_called()
+    else:
+        # 1つ目のモデルと、不正な標本を持つモデルの抽出の後で、拒否する。
+        assert python_random_generator.sample.call_count == 2
+    # どちらの場合も、乱数の状態は、呼出しの前と同じ。
     assert python_random_generator.getstate() == expected_random_state
     assert random.getstate() == global_python_random_state
     input_snapshot_after_sampling = capture_training_sample_inputs(
@@ -412,6 +440,89 @@ def test_training_batch_sampling_rejects_before_random_draw(input_contract_case,
         atol=0,
         equal_nan=True,
     )
+
+
+@pytest.mark.parametrize("corruption", ["nan_features", "wrong_type", "other_feature_count"])
+def test_training_batch_sampling_does_not_inspect_samples_outside_the_draw(corruption):
+    """抽出に入らなかった標本の中身は、検査しない（その標本は、学習に使われない）。結果は、正しい入力と同じ。"""
+    held_model_ids, ordered_model_training_samples, python_random_generator, _ = (
+        build_sampling_oracle_inputs()
+    )
+    expected_random_generator = random.Random()
+    expected_random_generator.setstate(python_random_generator.getstate())
+    expected_batches = sample_training_batches_for_held_models(
+        held_model_ids=held_model_ids,
+        ordered_model_training_samples=ordered_model_training_samples,
+        batch_sample_count=2,
+        python_random_generator=expected_random_generator,
+    )
+    position_generator = random.Random()
+    position_generator.setstate(python_random_generator.getstate())
+    position_generator.sample(range(5), 2)
+    drawn_sample_positions = position_generator.sample(range(100), 2)
+    undrawn_sample_position = next(
+        position for position in range(100) if position not in drawn_sample_positions
+    )
+    model_training_samples = ordered_model_training_samples[2]
+    if corruption == "wrong_type":
+        object.__setattr__(
+            model_training_samples,
+            "training_samples",
+            model_training_samples.training_samples[:undrawn_sample_position]
+            + (None,)
+            + model_training_samples.training_samples[undrawn_sample_position + 1 :],
+        )
+    else:
+        object.__setattr__(
+            model_training_samples.training_samples[undrawn_sample_position],
+            "input_features",
+            torch.full((1, 2), float("nan")) if corruption == "nan_features" else torch.ones(1, 3),
+        )
+    sampled_batches = sample_training_batches_for_held_models(
+        held_model_ids=held_model_ids,
+        ordered_model_training_samples=ordered_model_training_samples,
+        batch_sample_count=2,
+        python_random_generator=python_random_generator,
+    )
+    assert python_random_generator.getstate() == expected_random_generator.getstate()
+    assert len(sampled_batches) == len(expected_batches) == 2
+    for sampled_batch, expected_batch in zip(sampled_batches, expected_batches, strict=True):
+        assert sampled_batch.model_id == expected_batch.model_id
+        assert torch.equal(sampled_batch.input_features, expected_batch.input_features)
+        assert torch.equal(
+            sampled_batch.observed_class_labels, expected_batch.observed_class_labels
+        )
+
+
+@pytest.mark.parametrize("population_sample_count", [10, 1000])
+def test_training_batch_sampling_inspection_count_does_not_depend_on_population(
+    population_sample_count, monkeypatch
+):
+    """標本の中身の検査の回数は、保持する標本の数に依らず、抽出する件数で決まる。"""
+    training_samples = tuple(
+        ObservedTrainingSample(
+            input_features=torch.tensor([[float(sample_index), 1.0]]),
+            observed_class_labels=torch.tensor([[float(sample_index % 2)]]),
+        )
+        for sample_index in range(population_sample_count)
+    )
+    monkeypatch.setattr(
+        held_model_training_batch_sampling,
+        "isfinite",
+        Mock(wraps=held_model_training_batch_sampling.isfinite),
+    )
+    sampled_batches = sample_training_batches_for_held_models(
+        held_model_ids=frozenset((0, 1)),
+        ordered_model_training_samples=(
+            ModelTrainingSampleCollection(model_id=0, training_samples=training_samples),
+            ModelTrainingSampleCollection(model_id=1, training_samples=training_samples),
+        ),
+        batch_sample_count=4,
+        python_random_generator=random.Random(5),
+    )
+    assert len(sampled_batches) == 2
+    # 有限性は、モデルごとに、抽出して連結したbatchの、特徴とラベルを、1回ずつ確かめる（モデル2つ×tensor 2つ）。
+    assert held_model_training_batch_sampling.isfinite.call_count == 2 * 2
 
 
 def test_training_batch_sampling_skips_ineligible_payloads(monkeypatch):
