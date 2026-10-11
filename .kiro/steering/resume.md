@@ -11,7 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### いまの状態
 
-- ブランチ`refactor/architecture`。2026-10-11、ユーザーがpushを明示的に許可。[feddrift-client-stream-processing](../specs/feddrift-client-stream-processing/tasks.md)は完了。進行中のspecは無い。次はFedDriftのラウンド内局所学習・client組立。状態の正本は各specのspec.jsonとtasks.md。
+- ブランチ`refactor/architecture`。2026-10-11、ユーザーがpushを明示的に許可。[feddrift-client-round-training](../specs/feddrift-client-round-training/tasks.md)は実装済み・独立レビュー待ち。先に本specの検証を完了する。状態の正本は各specのspec.jsonとtasks.md。
 - 構成の移植は、10個の全部が完了した（最後は[fedsda-independent-models](../specs/fedsda-independent-models/tasks.md)。独立レビューは承認、指摘は反映済み。検証の証拠は同specのtasks.md）。
 - (B) FedDriftは、数値の判定を先に小さいspecへ切り出して移植中。次は判定後のclient処理とサーバ同期のspec（下の「FedDriftの調査のメモ」）→全構成のgolden→(D)旧実装を外す準備（NEW-004、MNISTの取得コマンド）。順は、決定事項の「進める順」。
 
@@ -191,4 +191,4 @@ HTMLは元checkoutの`docs/overview/fedsda-processing-flow.html`にあるコミ�
 
 ## 次のspecの再開（2026-10-11）
 
-`feddrift-client-stream-processing`は完了。client組立のうち、逐次予測・跨時刻バッファ・位置記録・終端flushを分離した。次はFedDriftのラウンド内局所学習・client組立へ接続する。旧experimentは観測→prepare_timestep→R回のlocal_train/server roundで、FedSDAの観測ごとの学習要求をそのまま使わない。既存sequential_per_model_trainingのモデル順/標本抽出/optimizer更新と、旧k_steps×UPDATES_PER_SAMPLEを先に照合する。旧early_stoppingは初期学習0回でもrandpermを消費するため、構成選択を移植するときに扱う。サーバ・全体runとgoldenはまだ未移植。対象コードをClaude/AnthropicまたはOpenAIのGPT-6 Lunaへ送信する独立レビューは、このセッションでユーザーが明示許可した。レビューの経緯と検証結果は各specのspec.jsonとtasks.mdを読む。
+`feddrift-client-round-training`の独立レビューと全回帰を先に完了する。観測列の前specは完了済み。旧experimentは観測→prepare_timestep→R回のlocal_train/server roundで、FedSDAの観測ごとの学習要求をそのまま使わない。今回のround処理は同じregistry/store/Randomを借用し、store順のモデル別連続更新と学習量を接続する。全client factory・サーバ・全体runとgoldenはまだ未移植。旧early_stoppingは初期学習0回でもrandpermを消費するため構成選択の移植時に扱う。対象コードをClaude/AnthropicまたはOpenAIのGPT-6 Lunaへ送信する独立レビューは、このセッションでユーザーが明示許可した。証拠は各specのspec.json/tasks.md。

@@ -1,0 +1,5 @@
+# Research & Design Decisions
+- 旧base.train_all_held_modelsはstoreの挿入順、各モデルでupdates_per_sample×count_multiplierの連続更新。FedDrift.local_trainのk_stepsをcount_multiplierへ渡す。各回random.sample→cat→model.update→計数。
+- 旧SimpleMLP.updateはBCE/CE lossを直接backwardする。既存共同更新はloss×sample_count/sample_countを経由するため、任意batch件数でも旧演算順を維持する単一モデル更新を切り出す。共有部のないclassifierのfeature_extractorは空で、全parameterが個別optimizerに属する。
+- 初期モデルと生成モデルのoptimizer継続はregistryの実参照を借用する。モデルごとの学習をFedSDAのpending training scheduleへ変換しない。
+- 基準748c3aa、起点8d73ba6。旧/金値は変更しない。段階gateは主担当委任、最後の独立CLIレビューを維持する。

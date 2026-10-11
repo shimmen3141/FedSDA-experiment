@@ -1606,6 +1606,9 @@ def run_feddrift_detection_batch_smoke():
     from federated_learning_experiments.methods.feddrift.detection_batch_assessment import (
         assess_feddrift_detection_batch,
     )
+    from federated_learning_experiments.runtime.feddrift_client_round_training import (
+        train_feddrift_held_models_for_round,
+    )
     from federated_learning_experiments.runtime.feddrift_client_stream_processing import (
         FeddriftClientStreamProcessor,
     )
@@ -1666,11 +1669,12 @@ def run_feddrift_detection_batch_smoke():
                 )
             uploads = PendingModelUploadState()
             assignment = CurrentTrainingModelAssignment(initial_model_id=7)
+            training_store = ModelTrainingSampleStore()
             processor = FeddriftDetectionBatchProcessor(
                 held_model_training_state_registry=registry,
                 loss_statistics_store=ModelAndClassLossStatisticsStore(),
                 current_training_model_assignment=assignment,
-                training_sample_store=ModelTrainingSampleStore(),
+                training_sample_store=training_store,
                 evaluation_sample_store=ModelEvaluationSampleStore(
                     maximum_stored_sample_count_per_model=5, added_batch_sample_count=2
                 ),
@@ -1716,6 +1720,27 @@ def run_feddrift_detection_batch_smoke():
             assert stream.flush_detection_buffer() is None
             assert stream.sample_predictions == predictions_before_flush
             assert not stream.buffered_training_samples
+            counts = ModelTrainingAndAssignmentCountsStore()
+            classifier = registry.get_held_model_training_state(model_id=7).classifier
+            before = tuple(parameter.detach().clone() for parameter in classifier.parameters())
+            losses = train_feddrift_held_models_for_round(
+                held_model_training_state_registry=registry,
+                training_sample_store=training_store,
+                model_training_and_assignment_counts_store=counts,
+                python_random_generator=Random(41),
+                batch_sample_count=3,
+                updates_per_sample=2,
+                k_steps=2,
+            )
+            assert len(losses) == 8
+            assert (
+                counts.snapshot_model_training_and_assignment_counts().parameter_update_step_counts_by_model_id
+                == {-106: 4, 7: 4}
+            )
+            assert any(
+                not torch.equal(actual, expected)
+                for actual, expected in zip(classifier.parameters(), before, strict=True)
+            )
     print("PASS FedDrift detection batch assessment: binary/multiclass; first/tied/increased loss")
 
 
