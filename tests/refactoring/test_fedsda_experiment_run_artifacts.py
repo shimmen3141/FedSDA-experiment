@@ -79,15 +79,18 @@ EXPECTED_TABLE_COLUMNS = {
     "sample_prediction": dict(
         combined_prediction_is_correct="b",
         maximum_weight_model_id="i",
+        fixed_share_maximum_weight_model_id="i",
         held_model_count_at_prediction="i",
         observed_class_id="i",
         observed_concept_id="i",
         maximum_prediction_weight="f",
         effective_model_count="f",
+        fixed_share_effective_model_count="f",
         any_model_or_combined_prediction_is_correct="b",
         maximum_weight_model_prediction_is_correct="b",
         highest_confidence_model_prediction_is_correct="b",
         adahedge_weighted_prediction_is_correct="b",
+        fixed_share_weighted_prediction_is_correct="b",
         true_concept_diagnostic_prediction_is_correct="i",
     ),
     "concept_change": dict(client_id="i", first_new_concept_sample_index="i"),
@@ -293,8 +296,13 @@ def derive_legacy_trace_arrays_from_record_tables(record_tables):
         ].astype(np.int32),
         clustering_participated_in_merge=record_tables["model_clustering.merged_with_other_models"],
         clustering_absorbed=record_tables["model_clustering.absorbed_into_representative"],
-        history_routing_switching_correct=correctness,
-        history_routing_switching_leader_id=maximum_weight_model_ids.astype(np.int32),
+        # 旧の`history_routing_switching_*`は、Fixed-Shareの重みでの結合の列。
+        history_routing_switching_correct=record_tables[
+            "sample_prediction.fixed_share_weighted_prediction_is_correct"
+        ],
+        history_routing_switching_leader_id=record_tables[
+            "sample_prediction.fixed_share_maximum_weight_model_id"
+        ].astype(np.int32),
         history_routing_soft_active=np.ones(correctness.shape, dtype=np.bool_),
         clustering_pair_rounds=record_tables["model_pair_clustering.server_round_index"].astype(
             np.int32
@@ -766,9 +774,11 @@ def assert_cross_evaluation_tables_match_legacy_saved_arrays(record_tables, lega
 
 # 旧の配列の名前から、予測の診断の、新の表の列への対応（値が同じもの）。
 NEW_COLUMN_BY_LEGACY_PREDICTION_DIAGNOSTIC_ARRAY_NAME = {
-    # 最終構成では、Fixed-Shareの予測重みが、実際の予測の重み（旧の2つの配列は同じ値）。
+    # 予測に使う重みでの値と、Fixed-Shareの重みでの値（提案構成では、同じ値）。
     "history_routing_effective_experts": "sample_prediction.effective_model_count",
-    "history_routing_switching_effective_experts": "sample_prediction.effective_model_count",
+    "history_routing_switching_effective_experts": (
+        "sample_prediction.fixed_share_effective_model_count"
+    ),
     "history_routing_max_weight": "sample_prediction.maximum_prediction_weight",
     "history_routing_oracle_correct": (
         "sample_prediction.any_model_or_combined_prediction_is_correct"

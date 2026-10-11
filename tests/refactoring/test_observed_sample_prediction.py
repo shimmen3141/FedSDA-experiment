@@ -271,6 +271,7 @@ def build_sample_prediction_oracle(*, monkeypatch, valid_run_settings_mapping, c
         sample_prediction_record_store=SamplePredictionRecordStore(),
         held_model_training_state_registry=handling_arguments["held_model_training_state_registry"],
         current_training_model_assignment=handling_arguments["current_training_model_assignment"],
+        prediction_combination_strategy="fixed_share_weighted_prediction",
     )
     return prediction_arguments, legacy_client
 

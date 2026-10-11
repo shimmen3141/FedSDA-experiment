@@ -134,8 +134,19 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
             for prediction_records in prediction_records_by_client
         ]
     )
-    # 予測重みの最大と、実効モデル数（予測重みの二乗和の逆数）。
-    for column_name in ("maximum_prediction_weight", "effective_model_count"):
+    # Fixed-Shareの重みでの、最大重みのモデル（Fixed-Shareの重みで予測する設定では、上の列と同じ値）。
+    record_tables["sample_prediction.fixed_share_maximum_weight_model_id"] = _integer_column(
+        [
+            [record.fixed_share_maximum_weight_model_id for record in prediction_records]
+            for prediction_records in prediction_records_by_client
+        ]
+    )
+    # 予測重みの最大と、実効モデル数（予測重みの二乗和の逆数）。実効モデル数は、Fixed-Shareの重みでの値も持つ。
+    for column_name in (
+        "maximum_prediction_weight",
+        "effective_model_count",
+        "fixed_share_effective_model_count",
+    ):
         record_tables[f"sample_prediction.{column_name}"] = _float_column(
             [
                 [getattr(record, column_name) for record in prediction_records]
@@ -148,6 +159,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
         "maximum_weight_model_prediction_is_correct",
         "highest_confidence_model_prediction_is_correct",
         "adahedge_weighted_prediction_is_correct",
+        "fixed_share_weighted_prediction_is_correct",
     ):
         record_tables[f"sample_prediction.{column_name}"] = _boolean_column(
             [

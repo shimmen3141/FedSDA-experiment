@@ -37,13 +37,17 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_
 
 @dataclass(frozen=True, kw_only=True)
 class ObservedSamplePrediction:
-    """標本1件の予測の結果。重みは、結合に使った正規化後の値（Fixed-Shareと、AdaHedge）。"""
+    """標本1件の予測の結果。重みは、正規化後の値。
+
+    `prediction_weights_by_model_id`は、予測に使った重み（設定により、Fixed-Shareの重みか、AdaHedgeの重み）。
+    """
 
     sample_prediction_record: SamplePredictionRecord
     predicted_class_labels: Tensor
     combined_prediction_probabilities: Tensor
     prediction_probabilities_by_model_id: dict[int, Tensor]
     prediction_weights_by_model_id: dict[int, float]
+    fixed_share_weights_by_model_id: dict[int, float]
     adahedge_weights_by_model_id: dict[int, float]
     observed_losses_by_model_id: dict[int, float]
 
@@ -155,8 +159,12 @@ def predict_observed_sample_and_update_prediction_weights(
     sample_prediction_record_store: SamplePredictionRecordStore,
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
     current_training_model_assignment: CurrentTrainingModelAssignment,
+    prediction_combination_strategy: str,
 ) -> ObservedSamplePrediction:
-    """保有する全モデルの確率をFixed-Shareの重みで結合して予測し、記録を足してから、重みを更新する。
+    """保有する全モデルの確率を、予測に使う重みで結合して予測し、記録を足してから、重みを更新する。
+
+    予測に使う重みは、`prediction_combination_strategy`で決まる: Fixed-Shareの重み（提案構成）か、AdaHedgeの重み。
+    どちらの設定でも、両方の重みを更新し、使わなかった側の結合の結果も、比較用に記録する。
 
     AdaHedgeの証拠（全標本のものと、真の概念IDがあればその概念の診断のもの）も、同じ損失で更新する。旧の最終構成の予測と同じ数値になる。
     """
@@ -173,6 +181,13 @@ def predict_observed_sample_and_update_prediction_weights(
         held_model_training_state_registry=held_model_training_state_registry,
         current_training_model_assignment=current_training_model_assignment,
     )
+    if type(prediction_combination_strategy) is not str:
+        raise TypeError("prediction_combination_strategy must be builtin str")
+    if prediction_combination_strategy not in (
+        "fixed_share_weighted_prediction",
+        "adahedge_weighted_prediction",
+    ):
+        raise ValueError("prediction_combination_strategy must be a declared value")
     input_features = indexed_observation.training_sample.input_features
     observed_class_labels = indexed_observation.training_sample.observed_class_labels
     observed_concept_id = indexed_observation.observed_concept_id
@@ -233,10 +248,16 @@ def predict_observed_sample_and_update_prediction_weights(
             model_ids=model_ids
         )
     )
-    prediction_weights_by_model_id = normalize_model_prediction_weights(
+    fixed_share_weights_by_model_id = normalize_model_prediction_weights(
         prediction_weights_by_model_id=fixed_share_weight_controller.get_weights_before_label_observation(
             model_ids=model_ids
         )
+    )
+    # 予測に使う重み。
+    prediction_weights_by_model_id = (
+        adahedge_weights_by_model_id
+        if prediction_combination_strategy == "adahedge_weighted_prediction"
+        else fixed_share_weights_by_model_id
     )
     true_concept_diagnostic_evidence = None
     unnormalized_true_concept_diagnostic_weights_by_model_id = None
@@ -277,8 +298,20 @@ def predict_observed_sample_and_update_prediction_weights(
             observed_class_labels=observed_class_labels,
         )
     )
+    # Fixed-Shareの重みでの結合（比較用。Fixed-Shareの重みで予測する設定では、実際の予測と同じ）。
+    _, _, fixed_share_weighted_prediction_is_correct = _combine_and_compare_with_observed_class(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        normalized_weights_by_model_id=fixed_share_weights_by_model_id,
+        class_count=class_count,
+        observed_class_labels=observed_class_labels,
+    )
+    # 最大重みのモデルの選び方（同率なら、現在の学習帰属のモデル、次にIDが小さいもの）は、どちらの重みでも同じ。
     maximum_weight_model_id = FixedShareWeightController.select_maximum_weight_model_id(
         prediction_weights_by_model_id=prediction_weights_by_model_id,
+        preferred_model_id=current_training_model_id,
+    )
+    fixed_share_maximum_weight_model_id = FixedShareWeightController.select_maximum_weight_model_id(
+        prediction_weights_by_model_id=fixed_share_weights_by_model_id,
         preferred_model_id=current_training_model_id,
     )
     maximum_prediction_confidence = max(prediction_confidences_by_model_id.values())
@@ -318,6 +351,13 @@ def predict_observed_sample_and_update_prediction_weights(
         highest_confidence_model_prediction_is_correct=model_prediction_is_correct_by_model_id[
             highest_confidence_model_id
         ],
+        fixed_share_weighted_prediction_is_correct=fixed_share_weighted_prediction_is_correct,
+        fixed_share_maximum_weight_model_id=fixed_share_maximum_weight_model_id,
+        fixed_share_effective_model_count=1.0
+        / sum(
+            fixed_share_weight * fixed_share_weight
+            for fixed_share_weight in fixed_share_weights_by_model_id.values()
+        ),
     )
     # (5) 記録を足す。
     sample_prediction_record_store.append_sample_prediction_record(
@@ -338,7 +378,7 @@ def predict_observed_sample_and_update_prediction_weights(
         )
     fixed_share_weight_controller.update_weights_after_loss_observation(
         observed_losses_by_model_id=observed_losses_by_model_id,
-        prediction_weights_by_model_id=prediction_weights_by_model_id,
+        prediction_weights_by_model_id=fixed_share_weights_by_model_id,
     )
     return ObservedSamplePrediction(
         sample_prediction_record=sample_prediction_record,
@@ -346,6 +386,7 @@ def predict_observed_sample_and_update_prediction_weights(
         combined_prediction_probabilities=combined_prediction_probabilities,
         prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
         prediction_weights_by_model_id=prediction_weights_by_model_id,
+        fixed_share_weights_by_model_id=fixed_share_weights_by_model_id,
         adahedge_weights_by_model_id=adahedge_weights_by_model_id,
         observed_losses_by_model_id=observed_losses_by_model_id,
     )

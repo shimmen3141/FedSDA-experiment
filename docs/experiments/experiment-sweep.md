@@ -80,6 +80,7 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 | `fedsda-without-candidate-validation` | 提案構成から、候補モデルの検証を外す（警報の区間に合う保有モデルが無いとき、区間で学習した候補を、警報の後の標本で検証せずに、その場で採用する） | `immediate-creation` |
 | `fedsda-loss-distance-clustering` | 提案構成の、サーバのクラスタリングの、モデル対の比べ方を替える（クラス別の正誤の信頼下限の代わりに、互いの標本での平均損失の増加量で判定する。閾値とlinkageは同じ） | `distance-average` |
 | `fedsda-overall-loss-esr-detection` | 提案構成の、損失の監視の対象を、全体の損失の系列だけにする（正解クラス別の系列を混合しない） | `overall-esr` |
+| `fedsda-adahedge-prediction-weights` | 提案構成の、予測に使う重みを、Fixed-Shareの重みから、AdaHedgeの重みへ替える（Fixed-Shareの重みも更新し続け、比較用に記録する） | `global-routing` |
 
 提案構成以外の構成は、提案構成の、1つの要素だけを変える。小さい条件（sine2）で、旧実装の、同じ指定の全体runと、指標と離散列が一致することを確かめている。
 

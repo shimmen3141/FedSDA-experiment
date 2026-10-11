@@ -26,6 +26,8 @@ CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME = "fedsda-without-candidate-val
 LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME = "fedsda-loss-distance-clustering"
 # 提案構成の、損失の監視の対象を、全体の損失の系列だけにした構成（正解クラス別の系列を混合しない）。
 OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME = "fedsda-overall-loss-esr-detection"
+# 提案構成の、予測に使う重みを、Fixed-Shareの重みから、AdaHedgeの重みへ替えた構成。
+ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME = "fedsda-adahedge-prediction-weights"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -33,6 +35,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
     LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
     OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
+    ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
 )
 
 
@@ -143,5 +146,10 @@ def build_experiment_run_settings(
                     ),
                 ),
             ),
+        )
+    if configuration_name == ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME:
+        return _replace_prediction_combination_settings(
+            run_settings=proposed_run_settings,
+            prediction_combination_strategy="adahedge_weighted_prediction",
         )
     return proposed_run_settings

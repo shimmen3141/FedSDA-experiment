@@ -22,6 +22,7 @@ from federated_learning_experiments.core.configuration_errors import (
     RunSettingsValidationError,
 )
 from federated_learning_experiments.sweep.experiment_configurations import (
+    ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
     EXPERIMENT_CONFIGURATION_NAMES,
     LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
@@ -143,6 +144,18 @@ CONFIGURATION_VARIANTS = {
                 run_participant_settings,
                 loss_monitoring_scope="overall_loss",
                 detector_name="e-SR",
+            )
+        ),
+    ),
+    ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME: SimpleNamespace(
+        name=ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
+        legacy_mode_name=PROPOSED_CONFIGURATION_VARIANT.legacy_mode_name,
+        # 旧の`tools/run_main_ablation_suite.sh`の`global-routing`。
+        legacy_setting_overrides={"SOFT_ROUTING_CONTEXT": "global"},
+        modify_run_participant_settings=lambda run_participant_settings: (
+            replace_prediction_combination_settings(
+                run_participant_settings,
+                prediction_combination_strategy="adahedge_weighted_prediction",
             )
         ),
     ),
@@ -394,6 +407,84 @@ def test_overall_loss_esr_detection_takes_its_own_path():
     )
 
 
+def collect_sample_prediction_records(comparison):
+    return [
+        prediction_record
+        for run_client in comparison.participants.client_operations
+        for prediction_record in run_client.owners.sample_prediction_record_store.snapshot_sample_prediction_records()
+    ]
+
+
+def test_adahedge_prediction_weights_take_their_own_path():
+    """AdaHedgeの重みで予測する構成は、実際の予測が、AdaHedgeの重みでの結合と同じ。Fixed-Share側は、比較用に残る。"""
+    comparisons = collect_variant_comparisons(ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME)
+    variant_records = [
+        prediction_record
+        for comparison in comparisons
+        for prediction_record in collect_sample_prediction_records(comparison["variant"])
+    ]
+    proposed_records = [
+        prediction_record
+        for comparison in comparisons
+        for prediction_record in collect_sample_prediction_records(comparison["proposed"])
+    ]
+    # この構成: 実際の予測の正否は、全標本で、AdaHedgeの重みでの結合の正否と同じ。
+    assert all(
+        prediction_record.combined_prediction_is_correct
+        == prediction_record.adahedge_weighted_prediction_is_correct
+        for prediction_record in variant_records
+    )
+    # Fixed-Shareの重みでの結合と、正否・最大重みのモデル・実効モデル数が違う標本がある。
+    assert any(
+        prediction_record.combined_prediction_is_correct
+        != prediction_record.fixed_share_weighted_prediction_is_correct
+        for prediction_record in variant_records
+    )
+    assert any(
+        prediction_record.maximum_weight_model_id
+        != prediction_record.fixed_share_maximum_weight_model_id
+        for prediction_record in variant_records
+    )
+    assert any(
+        prediction_record.effective_model_count
+        != prediction_record.fixed_share_effective_model_count
+        for prediction_record in variant_records
+    )
+    # 提案構成: 実際の予測は、全標本で、Fixed-Share側の項目と同じ。AdaHedgeの重みでの結合と違う標本がある。
+    assert all(
+        (
+            prediction_record.combined_prediction_is_correct,
+            prediction_record.maximum_weight_model_id,
+            prediction_record.effective_model_count,
+        )
+        == (
+            prediction_record.fixed_share_weighted_prediction_is_correct,
+            prediction_record.fixed_share_maximum_weight_model_id,
+            prediction_record.fixed_share_effective_model_count,
+        )
+        for prediction_record in proposed_records
+    )
+    assert any(
+        prediction_record.combined_prediction_is_correct
+        != prediction_record.adahedge_weighted_prediction_is_correct
+        for prediction_record in proposed_records
+    )
+    # 実旧も、AdaHedgeの重みで予測している（Fixed-Share側の診断の「実際の正解数」が、AdaHedge側の正解数と同じ）。
+    for comparison in comparisons:
+        for legacy_client in comparison["variant"].legacy_run["legacy_clients"]:
+            switching_diagnostics = legacy_client.routing_switching_diagnostics
+            assert (
+                switching_diagnostics["actual_correct_count"]
+                == switching_diagnostics["global_correct_count"]
+            )
+    # 同じ条件の提案構成と、予測の結果が違う条件がある。
+    assert any(
+        comparison["variant"].run_metrics.prediction_accuracy
+        != comparison["proposed"].run_metrics.prediction_accuracy
+        for comparison in comparisons
+    )
+
+
 def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_element():
     """掃引のコマンドの構成の名前から作るrun設定は、提案構成と、変える要素だけが違う。"""
     assert EXPERIMENT_CONFIGURATION_NAMES == (
@@ -402,7 +493,9 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
         LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
         OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
+        ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
     )
+    assert ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME == ("fedsda-adahedge-prediction-weights")
     assert OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME == ("fedsda-overall-loss-esr-detection")
     assert LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME == "fedsda-loss-distance-clustering"
     assert PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME == (

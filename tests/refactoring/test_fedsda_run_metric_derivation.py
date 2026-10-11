@@ -481,8 +481,9 @@ def assert_model_pair_metrics_match_legacy_metrics(*, run_metrics, legacy_metric
     )
 
 
-# 旧の予測の集計の指標のうち、最終構成では、いつも0のもの（Fixed-Shareの結合と、実際の予測の差。最終構成では、同じ予測）。
-LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ALWAYS_ZERO = (
+# 旧の予測の集計の指標のうち、Fixed-Shareの重みで予測する構成では、いつも0のもの（Fixed-Shareの結合と、実際の予測の差）。
+# 値そのものは、どの構成でも、新の指標から計算して照合する。
+LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ZERO_FOR_FIXED_SHARE_PREDICTION = (
     "routing_switching_gain_rate",
     "routing_switching_stable_gain_rate",
     "routing_switching_recovery_gain_rate",
@@ -580,15 +581,38 @@ def derive_legacy_prediction_diagnostic_metric_values(run_metrics):
         routing_class_oracle_recovery_rate_min=(
             class_metrics.minimum_combined_to_any_model_or_combined_correct_ratio
         ),
-        # 最終構成では、Fixed-Shareの結合が、実際の予測（旧の2つの指標は同じ値）。
-        routing_switching_accuracy=divide_or_zero(combined_correct_count, sample_count),
-        routing_switching_global_gain_rate=divide_or_zero(
-            combined_correct_count - diagnostic_metrics.adahedge_weighted_prediction_correct_count,
+        # 旧の`routing_switching_*`は、Fixed-Shareの重みでの結合の指標（提案構成では、実際の予測と同じ値）。
+        routing_switching_accuracy=divide_or_zero(
+            diagnostic_metrics.fixed_share_weighted_prediction_correct_count, sample_count
+        ),
+        # Fixed-Shareの結合と、実際の予測の差。
+        routing_switching_gain_rate=divide_or_zero(
+            diagnostic_metrics.fixed_share_weighted_prediction_correct_count
+            - combined_correct_count,
             sample_count,
         ),
-        routing_switching_stable_accuracy=combined_period.stable_period_accuracy,
-        routing_switching_recovery_accuracy=combined_period.recovery_period_accuracy,
-        routing_switching_effective_experts_mean=diagnostic_metrics.mean_effective_model_count,
+        routing_switching_stable_gain_rate=(
+            diagnostic_metrics.fixed_share_weighted_prediction_period_accuracies.stable_period_accuracy
+            - combined_period.stable_period_accuracy
+        ),
+        routing_switching_recovery_gain_rate=(
+            diagnostic_metrics.fixed_share_weighted_prediction_period_accuracies.recovery_period_accuracy
+            - combined_period.recovery_period_accuracy
+        ),
+        routing_switching_global_gain_rate=divide_or_zero(
+            diagnostic_metrics.fixed_share_weighted_prediction_correct_count
+            - diagnostic_metrics.adahedge_weighted_prediction_correct_count,
+            sample_count,
+        ),
+        routing_switching_stable_accuracy=(
+            diagnostic_metrics.fixed_share_weighted_prediction_period_accuracies.stable_period_accuracy
+        ),
+        routing_switching_recovery_accuracy=(
+            diagnostic_metrics.fixed_share_weighted_prediction_period_accuracies.recovery_period_accuracy
+        ),
+        routing_switching_effective_experts_mean=(
+            diagnostic_metrics.mean_fixed_share_effective_model_count
+        ),
         routing_switching_leader_switch_count=(
             diagnostic_metrics.fixed_share_weight_leader_switch_count
         ),
@@ -604,17 +628,19 @@ def derive_legacy_prediction_diagnostic_metric_values(run_metrics):
 def assert_prediction_diagnostic_metrics_match_legacy_metrics(*, run_metrics, legacy_metric_values):
     """予測の診断の指標が、旧の指標の値（旧の40の指標）と、全部の項目で一致する。"""
     prediction_diagnostic_values = derive_legacy_prediction_diagnostic_metric_values(run_metrics)
-    assert len(prediction_diagnostic_values) == 37
+    assert len(prediction_diagnostic_values) == 40
     for legacy_metric_name, metric_value in prediction_diagnostic_values.items():
         assert type(metric_value) in (int, float), legacy_metric_name
         assert metric_value == legacy_metric_values[legacy_metric_name], legacy_metric_name
-    for legacy_metric_name in LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ALWAYS_ZERO:
-        assert legacy_metric_values[legacy_metric_name] == 0, legacy_metric_name
-    assert (
-        len(prediction_diagnostic_values)
-        + len(LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ALWAYS_ZERO)
-        == 40
-    )
+    if (
+        run_metrics.prediction_diagnostic_metrics.prediction_correct_counts.combined_prediction_correct_count
+        == run_metrics.prediction_diagnostic_metrics.fixed_share_weighted_prediction_correct_count
+    ):
+        for (
+            legacy_metric_name
+        ) in LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ZERO_FOR_FIXED_SHARE_PREDICTION:
+            assert legacy_metric_values[legacy_metric_name] == 0, legacy_metric_name
+    assert len(prediction_diagnostic_values) == 40
     # 実際の予測の正解の割合と、定常の区間の正解の割合は、既存の指標と同じ値。
     assert (
         prediction_diagnostic_values["routing_mixture_accuracy"] == run_metrics.prediction_accuracy
@@ -799,9 +825,27 @@ def derive_legacy_trace_arrays(*, run_result, participants):
             ],
             dtype=np.bool_,
         ),
-        # 最終構成では、Fixed-Shareの予測が、そのまま実際の予測（旧の2組の列は同じ値）。
-        history_routing_switching_correct=np.asarray(combined_correctness, dtype=np.bool_),
-        history_routing_switching_leader_id=np.asarray(maximum_weight_model_ids, dtype=np.int32),
+        # 旧の`history_routing_switching_*`は、Fixed-Shareの重みでの結合の列（提案構成では、実際の予測と同じ値）。
+        history_routing_switching_correct=np.asarray(
+            [
+                [
+                    prediction_record.fixed_share_weighted_prediction_is_correct
+                    for prediction_record in prediction_records
+                ]
+                for prediction_records in prediction_records_by_client
+            ],
+            dtype=np.bool_,
+        ),
+        history_routing_switching_leader_id=np.asarray(
+            [
+                [
+                    prediction_record.fixed_share_maximum_weight_model_id
+                    for prediction_record in prediction_records
+                ]
+                for prediction_records in prediction_records_by_client
+            ],
+            dtype=np.int32,
+        ),
         # 混合予測は常時有効。
         history_routing_soft_active=np.asarray(
             [
@@ -2040,7 +2084,12 @@ def test_prediction_diagnostic_metric_correspondence_distinguishes_metric_pairs(
     observations = LEGACY_PREDICTION_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS
     if len(observations) < len(GOLDEN_DATASET_NAMES) + 2 * len(SMALL_RUN_CONDITIONS):
         pytest.skip("goldenと、対照の全条件を実行したときだけ確かめる")
-    legacy_metric_names = sorted(observations[0])
+    # Fixed-Shareの結合と実際の予測の差の指標は、ここで見る提案構成の観測では、いつも0なので、除く
+    # （AdaHedgeの重みで予測する構成の照合——test_fedsda_configuration_variants.py——が、0でない値で確かめる）。
+    legacy_metric_names = sorted(
+        set(observations[0])
+        - set(LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ZERO_FOR_FIXED_SHARE_PREDICTION)
+    )
     indistinguishable_name_pairs = {
         (first_name, second_name)
         for first_name, second_name in combinations(legacy_metric_names, 2)

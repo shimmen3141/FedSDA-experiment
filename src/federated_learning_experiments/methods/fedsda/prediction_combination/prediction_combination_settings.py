@@ -12,7 +12,14 @@ class PredictionCombinationSettings:
     """予測処理の状態を持たず、構築時に正式名と時間尺度を検証する。"""
 
     prediction_combination_strategy: str = field(
-        metadata={"allowed_parameter_values": ("fixed_share_weighted_prediction",)},
+        metadata={
+            "allowed_parameter_values": (
+                # Fixed-Shareの重みで、全保有モデルの確率を結合して予測する（提案構成）。
+                "fixed_share_weighted_prediction",
+                # AdaHedgeの重みで結合して予測する。Fixed-Shareの重みも更新し続け、比較用に記録する。
+                "adahedge_weighted_prediction",
+            )
+        },
     )
     prediction_mixture_activation_policy: str = field(
         metadata={"allowed_parameter_values": ("always",)},

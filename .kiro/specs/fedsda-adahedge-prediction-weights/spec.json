@@ -1,0 +1,38 @@
+{
+  "feature_name": "fedsda-adahedge-prediction-weights",
+  "created_at": "2026-10-11T15:32:13+09:00",
+  "updated_at": "2026-10-11T15:32:13+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（ユーザーの委任。段階ごとの独立レビューは置かず、最後の独立レビューが読む）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）",
+      "task_graph_sanity_review": "PASS（inline。子エージェントは使わない決定のため）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "note": "2026-10-11ユーザー決定: 案A（AdaHedge側を、役割でなく方式の名前へ改める。Fixed-Share側の項目を足す）。合わせて変える名前は、主担当が洗い出した（naming.md）。個々の名前は、独立レビューで確認を受ける"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
+  "user_decision": "2026-10-11: 「案Aにしてください。他にも合わせて変更した方が良い名前がないか確認し、進んでください。」",
+  "handoff": {
+    "execution_status": "in_progress",
+    "next_step": "独立レビューと全pytest",
+    "independent_review": "未実施（全taskの後に1回）"
+  }
+}

@@ -116,8 +116,10 @@
 
 | 旧 | 新 |
 |---|---|
-| `history_accuracy`、`history_routing_switching_correct` | `sample_prediction.combined_prediction_is_correct` |
-| `history_model_id`、`history_routing_switching_leader_id` | `sample_prediction.maximum_weight_model_id` |
+| `history_accuracy` | `sample_prediction.combined_prediction_is_correct`（予測に使う重みでの結合） |
+| `history_routing_switching_correct` | `sample_prediction.fixed_share_weighted_prediction_is_correct`（Fixed-Shareの重みでの結合。Fixed-Shareの重みで予測する構成では、上と同じ値） |
+| `history_model_id` | `sample_prediction.maximum_weight_model_id`（予測に使う重みでの、最大重みのモデル） |
+| `history_routing_switching_leader_id` | `sample_prediction.fixed_share_maximum_weight_model_id` |
 | `history_routing_soft_active` | なし（最終構成では、常に真） |
 | `drift_client_ids`・`drift_positions` | `concept_change.client_id`・`.first_new_concept_sample_index` |
 | `switch_client_ids`・`switch_positions` | `training_model_switch.client_id`・`.switch_sample_index` |
@@ -140,7 +142,8 @@
 | `clustering_nearest_model_ids`・`clustering_nearest_distances` | `model_clustering.nearest_model_id`・`.nearest_loss_increase_distance`（距離を持つ対がなければ、新旧とも−1とNaN） |
 | `clustering_cluster_sizes`・`clustering_cluster_max_distances`・`clustering_evaluated_pair_counts`・`clustering_possible_pair_counts` | `model_clustering.cluster_model_count`・`.maximum_within_cluster_distance`（なければ、新旧ともNaN）・`.evaluated_within_cluster_pair_count`・`.possible_within_cluster_pair_count` |
 | `clustering_pair_distances`・`clustering_pair_decision_scores`・`clustering_pair_oracle_same_concept`・`clustering_pair_personalized_parameter_distances` | `model_pair_clustering.loss_increase_distance`・`.decision_score`・`.true_concepts_match`（一致1、不一致0、分からなければ、新旧とも−1）・`.concept_specific_parameter_distance` |
-| `history_routing_effective_experts`、`history_routing_switching_effective_experts` | `sample_prediction.effective_model_count`（最終構成では、旧の2つは同じ値） |
+| `history_routing_effective_experts` | `sample_prediction.effective_model_count`（予測に使う重みでの値） |
+| `history_routing_switching_effective_experts` | `sample_prediction.fixed_share_effective_model_count`（Fixed-Shareの重みで予測する構成では、上と同じ値） |
 | `history_routing_max_weight` | `sample_prediction.maximum_prediction_weight` |
 | `history_routing_oracle_correct`・`history_routing_leader_correct` | `sample_prediction.any_model_or_combined_prediction_is_correct`・`.maximum_weight_model_prediction_is_correct` |
 | `history_routing_oracle_concept_correct` | `sample_prediction.true_concept_diagnostic_prediction_is_correct`（新は整数: 正解1、不正解0、真の概念が分からなければ−1。旧は真偽） |
@@ -240,14 +243,15 @@ combined・any・maxw・conf＝`prediction_correct_counts`の`combined_predictio
 | 旧 | 新（`prediction_diagnostic_metrics`の下）と、計算 |
 |---|---|
 | `routing_sample_count` | n |
-| `routing_mixture_accuracy`、`routing_switching_accuracy` | combined÷n（最終構成では、旧の2つは同じ値。`run_metrics.prediction_accuracy`とも同じ） |
+| `routing_mixture_accuracy` | combined÷n（`run_metrics.prediction_accuracy`と同じ） |
+| `routing_switching_accuracy` | `fixed_share_weighted_prediction_correct_count`÷n（Fixed-Shareの重みで予測する構成では、上と同じ値） |
 | `routing_oracle_accuracy`・`routing_leader_accuracy`・`routing_confidence_leader_accuracy` | any÷n・maxw÷n・conf÷n |
 | `routing_oracle_gain_rate`・`routing_missed_oracle_count` | （any−combined）÷n・any−combined |
 | `routing_oracle_recovery_rate`・`routing_confidence_leader_oracle_recovery_rate` | combined÷any・conf÷any |
 | `routing_confidence_leader_missed_oracle_count` | any−conf |
 | `routing_oracle_concept_accuracy` | `true_concept_diagnostic_prediction_correct_count`÷`true_concept_known_sample_count` |
-| `routing_switching_global_gain_rate` | （combined−`adahedge_weighted_prediction_correct_count`）÷n |
-| `routing_switching_stable_accuracy`・`routing_switching_recovery_accuracy` | `combined_prediction_period_accuracies`の`stable_period_accuracy`・`recovery_period_accuracy` |
+| `routing_switching_global_gain_rate` | （`fixed_share_weighted_prediction_correct_count`−`adahedge_weighted_prediction_correct_count`）÷n |
+| `routing_switching_stable_accuracy`・`routing_switching_recovery_accuracy` | `fixed_share_weighted_prediction_period_accuracies`の`stable_period_accuracy`・`recovery_period_accuracy` |
 | `routing_oracle_stable_accuracy`・`routing_oracle_recovery_accuracy` | `any_model_or_combined_prediction_period_accuracies`の2つ |
 | `routing_leader_stable_accuracy`・`routing_leader_recovery_accuracy` | `maximum_weight_model_prediction_period_accuracies`の2つ |
 | `routing_oracle_concept_stable_accuracy`・`routing_oracle_concept_recovery_accuracy` | `true_concept_diagnostic_prediction_period_accuracies`の2つ |
@@ -256,10 +260,10 @@ combined・any・maxw・conf＝`prediction_correct_counts`の`combined_predictio
 | `routing_class_macro_mixture_accuracy`・`routing_class_macro_oracle_accuracy`・`routing_class_macro_leader_accuracy`・`routing_class_macro_confidence_leader_accuracy` | `class_macro_prediction_metrics`の`macro_combined_prediction_accuracy`・`macro_any_model_or_combined_prediction_accuracy`・`macro_maximum_weight_model_prediction_accuracy`・`macro_highest_confidence_model_prediction_accuracy` |
 | `routing_class_oracle_gap_mean`・`routing_class_oracle_gap_std` | 同、`mean_any_model_or_combined_accuracy_gap`・`any_model_or_combined_accuracy_gap_standard_deviation` |
 | `routing_class_oracle_recovery_rate_mean`・`routing_class_oracle_recovery_rate_min` | 同、`mean_combined_to_any_model_or_combined_correct_ratio`・`minimum_combined_to_any_model_or_combined_correct_ratio` |
-| `routing_switching_effective_experts_mean` | `mean_effective_model_count` |
+| `routing_switching_effective_experts_mean` | `mean_fixed_share_effective_model_count` |
 | `routing_switching_leader_switch_count`・`routing_switching_pool_reset_count` | `fixed_share_weight_leader_switch_count`・`fixed_share_weight_model_pool_reset_count` |
 | `routing_aggregation_recalibration_count` | `adahedge_weight_aggregation_recalibration_count` |
-| `routing_switching_gain_rate`・`routing_switching_stable_gain_rate`・`routing_switching_recovery_gain_rate` | 持たない（最終構成では、いつも0: Fixed-Shareの結合が、実際の予測） |
+| `routing_switching_gain_rate`・`routing_switching_stable_gain_rate`・`routing_switching_recovery_gain_rate` | 持たない。Fixed-Shareの結合と、実際の予測の差で、上の数と割合から計算できる（（`fixed_share_weighted_prediction_correct_count`−combined）÷n、区間の正解の割合の差）。Fixed-Shareの重みで予測する構成では、いつも0 |
 
 ### 残り（2026-10-11時点）
 

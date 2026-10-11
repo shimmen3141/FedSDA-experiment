@@ -242,6 +242,7 @@ class FedsdaRunClient:
             temporary_model_id_allocator=owners.temporary_model_id_allocator,
             pending_model_upload_state=owners.pending_model_upload_state,
             local_training_request_schedule=owners.local_training_request_schedule,
+            prediction_combination_strategy=settings.prediction_combination_settings.prediction_combination_strategy,
             candidate_model_training_and_acceptance_settings=settings.candidate_model_training_and_acceptance_settings,
             maximum_reference_mean_loss_increase=scalar_settings.maximum_tolerated_mean_loss_increase,
             minimum_candidate_mean_loss_improvement=scalar_settings.minimum_candidate_mean_loss_improvement,

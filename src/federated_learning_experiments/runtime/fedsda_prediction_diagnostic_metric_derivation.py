@@ -22,13 +22,16 @@ from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunCl
 class FedsdaPredictionDiagnosticMetrics:
     """予測の診断の指標。数と回数は、全clientの合計。
 
-    「実際の予測」（combined prediction）は、Fixed-Shareの予測重みで全保有モデルの出力を結合した予測。
+    「実際の予測」（combined prediction）は、予測に使う重み（設定により、Fixed-Shareの重みか、AdaHedgeの重み）で、
+    全保有モデルの出力を結合した予測。Fixed-Shareの重みでの結合の指標は、Fixed-Shareの重みで予測する設定では、
+    実際の予測の指標と同じ値になる。
     ほかの種類の予測（どれかのモデルか実際の予測、最大重みのモデル、確信度が最大のモデル、AdaHedgeの重みでの結合、
     真の概念別の診断重みでの結合）は、比較のためのもので、予測と学習の判断には使われていない。
     正解の割合・差・比は、数から計算できるので、持たない。
     """
 
     prediction_correct_counts: PredictionCorrectCounts
+    fixed_share_weighted_prediction_correct_count: int
     adahedge_weighted_prediction_correct_count: int
     # 真の概念が分かる標本の数と、そのうち、真の概念別の診断重みでの結合が正解した数。
     true_concept_known_sample_count: int
@@ -37,12 +40,15 @@ class FedsdaPredictionDiagnosticMetrics:
     combined_prediction_period_accuracies: StableAndRecoveryPeriodAccuracies
     any_model_or_combined_prediction_period_accuracies: StableAndRecoveryPeriodAccuracies
     maximum_weight_model_prediction_period_accuracies: StableAndRecoveryPeriodAccuracies
+    fixed_share_weighted_prediction_period_accuracies: StableAndRecoveryPeriodAccuracies
     # 真の概念が分かる標本だけを数える。
     true_concept_diagnostic_prediction_period_accuracies: StableAndRecoveryPeriodAccuracies
     # クラスごとの数（全clientの合計）からの、クラスの間のまとめ。
     class_macro_prediction_metrics: ClassMacroPredictionMetrics
     # 標本ごとの実効モデル数（予測重みの二乗和の逆数）の平均。予測した標本がなければ0。
     mean_effective_model_count: float
+    # 同じ平均を、Fixed-Shareの重みで計算したもの。
+    mean_fixed_share_effective_model_count: float
     # 予測重みの、最大重みのモデルが変わった回数と、モデルの集まりが変わった回数。
     fixed_share_weight_leader_switch_count: int
     fixed_share_weight_model_pool_reset_count: int
@@ -135,16 +141,28 @@ def derive_fedsda_prediction_diagnostic_metrics(
         )
 
     # 実効モデル数の平均（clientごとに、標本の順に足し、clientの順に足す）。
-    effective_model_count_sum = 0.0
-    for prediction_records in prediction_records_by_client:
-        client_effective_model_count_sum = 0.0
-        for prediction_record in prediction_records:
-            client_effective_model_count_sum += prediction_record.effective_model_count
-        effective_model_count_sum += client_effective_model_count_sum
+    def calculate_mean_effective_model_count(effective_model_count_field_name: str) -> float:
+        effective_model_count_sum = 0.0
+        for prediction_records in prediction_records_by_client:
+            client_effective_model_count_sum = 0.0
+            for prediction_record in prediction_records:
+                client_effective_model_count_sum += getattr(
+                    prediction_record, effective_model_count_field_name
+                )
+            effective_model_count_sum += client_effective_model_count_sum
+        return (
+            effective_model_count_sum / len(all_prediction_records)
+            if all_prediction_records
+            else 0.0
+        )
 
     return FedsdaPredictionDiagnosticMetrics(
         prediction_correct_counts=_count_prediction_correctness(
             prediction_records=all_prediction_records
+        ),
+        fixed_share_weighted_prediction_correct_count=sum(
+            prediction_record.fixed_share_weighted_prediction_is_correct
+            for prediction_record in all_prediction_records
         ),
         adahedge_weighted_prediction_correct_count=sum(
             prediction_record.adahedge_weighted_prediction_is_correct
@@ -167,6 +185,9 @@ def derive_fedsda_prediction_diagnostic_metrics(
         maximum_weight_model_prediction_period_accuracies=calculate_period_accuracies(
             "maximum_weight_model_prediction_is_correct"
         ),
+        fixed_share_weighted_prediction_period_accuracies=calculate_period_accuracies(
+            "fixed_share_weighted_prediction_is_correct"
+        ),
         true_concept_diagnostic_prediction_period_accuracies=calculate_period_accuracies(
             "true_concept_diagnostic_prediction_is_correct", only_true_concept_known_samples=True
         ),
@@ -176,10 +197,9 @@ def derive_fedsda_prediction_diagnostic_metrics(
                 for class_prediction_records in prediction_records_by_class_id.values()
             )
         ),
-        mean_effective_model_count=(
-            effective_model_count_sum / len(all_prediction_records)
-            if all_prediction_records
-            else 0.0
+        mean_effective_model_count=calculate_mean_effective_model_count("effective_model_count"),
+        mean_fixed_share_effective_model_count=calculate_mean_effective_model_count(
+            "fixed_share_effective_model_count"
         ),
         fixed_share_weight_leader_switch_count=sum(
             run_client.owners.fixed_share_weight_controller.leader_switch_count

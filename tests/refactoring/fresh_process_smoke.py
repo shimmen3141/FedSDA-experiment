@@ -755,6 +755,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         loss_change_alarm_record_store=loss_change_alarm_record_store,
         fixed_share_weight_controller=fixed_share_weight_controller,
         sample_prediction_record_store=sample_prediction_record_store,
+        prediction_combination_strategy="fixed_share_weighted_prediction",
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=6),
         pending_model_upload_state=PendingModelUploadState(),

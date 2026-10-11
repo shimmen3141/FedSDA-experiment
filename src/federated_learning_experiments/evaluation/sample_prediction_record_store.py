@@ -11,7 +11,9 @@ _EFFECTIVE_MODEL_COUNT_ROUNDING_TOLERANCE = 1e-9
 class SamplePredictionRecord:
     """標本1件の予測の結果。正否は、その標本の観測ラベルと比べた結果。入力の検査はownerが行う。
 
-    「結合した予測」は、Fixed-Shareの予測重みで全モデルの確率を結合した予測。診断の項目は、
+    「結合した予測」は、予測に使う重み（設定により、Fixed-Shareの重みか、AdaHedgeの重み）で、全モデルの確率を
+    結合した予測。最大重みのモデル・最大の重み・実効モデル数も、予測に使う重みのもの。Fixed-Share側の3項目は、
+    Fixed-Shareの重みでの値（Fixed-Shareの重みで予測する設定では、上の項目と同じ値）。診断の項目は、
     AdaHedgeの重みと、真の概念別の診断重みで結合した予測の正否で、予測と学習の判断には使わない。
     """
 
@@ -27,6 +29,9 @@ class SamplePredictionRecord:
     adahedge_weighted_prediction_is_correct: bool
     true_concept_diagnostic_prediction_is_correct: bool | None
     highest_confidence_model_prediction_is_correct: bool
+    fixed_share_weighted_prediction_is_correct: bool
+    fixed_share_maximum_weight_model_id: int
+    fixed_share_effective_model_count: float
 
 
 _REQUIRED_BOOL_FIELD_NAMES = (
@@ -35,6 +40,7 @@ _REQUIRED_BOOL_FIELD_NAMES = (
     "maximum_weight_model_prediction_is_correct",
     "adahedge_weighted_prediction_is_correct",
     "highest_confidence_model_prediction_is_correct",
+    "fixed_share_weighted_prediction_is_correct",
 )
 
 
@@ -43,7 +49,12 @@ def _validate_sample_prediction_record(
 ) -> None:
     if type(sample_prediction_record) is not SamplePredictionRecord:
         raise TypeError("sample_prediction_record must be exact SamplePredictionRecord")
-    for int_field_name in ("sample_index", "observed_class_id", "maximum_weight_model_id"):
+    for int_field_name in (
+        "sample_index",
+        "observed_class_id",
+        "maximum_weight_model_id",
+        "fixed_share_maximum_weight_model_id",
+    ):
         if type(getattr(sample_prediction_record, int_field_name)) is not int:
             raise TypeError(f"{int_field_name} must be builtin int")
     observed_concept_id = sample_prediction_record.observed_concept_id
@@ -62,19 +73,27 @@ def _validate_sample_prediction_record(
         raise TypeError(
             "true_concept_diagnostic_prediction_is_correct must be builtin bool or None"
         )
-    for float_field_name in ("maximum_prediction_weight", "effective_model_count"):
+    for float_field_name in (
+        "maximum_prediction_weight",
+        "effective_model_count",
+        "fixed_share_effective_model_count",
+    ):
         if type(getattr(sample_prediction_record, float_field_name)) is not float:
             raise TypeError(f"{float_field_name} must be builtin float")
     if sample_prediction_record.sample_index < 0 or sample_prediction_record.observed_class_id < 0:
         raise ValueError("sample_index and observed_class_id must be nonnegative")
     if not 0.0 < sample_prediction_record.maximum_prediction_weight <= 1.0:
         raise ValueError("maximum_prediction_weight must be greater than 0 and at most 1")
-    if not (
-        isfinite(sample_prediction_record.effective_model_count)
-        and sample_prediction_record.effective_model_count
-        >= 1.0 - _EFFECTIVE_MODEL_COUNT_ROUNDING_TOLERANCE
+    for effective_model_count_field_name in (
+        "effective_model_count",
+        "fixed_share_effective_model_count",
     ):
-        raise ValueError("effective_model_count must be finite and at least 1")
+        effective_model_count = getattr(sample_prediction_record, effective_model_count_field_name)
+        if not (
+            isfinite(effective_model_count)
+            and effective_model_count >= 1.0 - _EFFECTIVE_MODEL_COUNT_ROUNDING_TOLERANCE
+        ):
+            raise ValueError(f"{effective_model_count_field_name} must be finite and at least 1")
     if (observed_concept_id is None) != (true_concept_diagnostic_prediction_is_correct is None):
         raise ValueError(
             "true concept diagnostic result must be held exactly when the concept ID is held"

@@ -266,6 +266,7 @@ def process_observed_sample(
     temporary_model_id_allocator: TemporaryModelIdAllocator,
     pending_model_upload_state: PendingModelUploadState,
     local_training_request_schedule: LocalTrainingRequestSchedule,
+    prediction_combination_strategy: str,
     candidate_model_training_and_acceptance_settings: CandidateModelTrainingAndAcceptanceSettings,
     maximum_reference_mean_loss_increase: float,
     minimum_candidate_mean_loss_improvement: float,
@@ -326,6 +327,7 @@ def process_observed_sample(
         sample_prediction_record_store=sample_prediction_record_store,
         held_model_training_state_registry=held_model_training_state_registry,
         current_training_model_assignment=current_training_model_assignment,
+        prediction_combination_strategy=prediction_combination_strategy,
     )
     # (1) 保持中の候補検証へ、この標本を観測させる。確定したら学習帰属が変わりうる。
     held_validation_advance = advance_held_candidate_validation(

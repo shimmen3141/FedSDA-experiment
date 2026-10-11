@@ -237,6 +237,7 @@ def build_sample_processing_oracle(
             )
         ),
         sample_prediction_record_store=SamplePredictionRecordStore(),
+        prediction_combination_strategy="fixed_share_weighted_prediction",
         loss_change_alarm_record_store=LossChangeAlarmRecordStore(),
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=temporary_model_id_allocator,
@@ -1091,6 +1092,9 @@ def make_record_store_recorded_at(*, sample_index):
             adahedge_weighted_prediction_is_correct=True,
             true_concept_diagnostic_prediction_is_correct=None,
             highest_confidence_model_prediction_is_correct=True,
+            fixed_share_weighted_prediction_is_correct=True,
+            fixed_share_maximum_weight_model_id=0,
+            fixed_share_effective_model_count=1.0,
         )
     )
     return recorded_store

@@ -28,6 +28,9 @@ def make_sample_prediction_record(**replaced_fields):
             adahedge_weighted_prediction_is_correct=False,
             true_concept_diagnostic_prediction_is_correct=True,
             highest_confidence_model_prediction_is_correct=False,
+            fixed_share_weighted_prediction_is_correct=True,
+            fixed_share_maximum_weight_model_id=-3,
+            fixed_share_effective_model_count=1.6,
         ),
         **replaced_fields,
     )
