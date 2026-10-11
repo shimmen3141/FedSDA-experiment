@@ -1,7 +1,7 @@
 {
   "feature_name": "feddrift-detection-batch-assessment",
   "created_at": "2026-10-11T21:44:48+09:00",
-  "updated_at": "2026-10-11T21:47:09+09:00",
+  "updated_at": "2026-10-11T22:07:53+09:00",
   "language": "ja",
   "phase": "tasks-generated",
   "approvals": {
@@ -30,7 +30,16 @@
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "handoff": {
-    "execution_status": "in_progress",
-    "next_step": "task 1の実旧対照testから実装する"
+    "execution_status": "awaiting_review_authorization",
+    "next_step": "ユーザーがClaude CLIへの対象コードとspecの送信を許可したら、40083daの独立レビューを実行する。Blocker/Major修正時だけ別sessionの確認。source変更時は全回帰をやり直す。"
+  },
+  "implementation_review": {
+    "verdict": "NOT_RUN",
+    "execution_status": "awaiting_user_authorization",
+    "planned_reviewer": "claude-haiku-5-5, effort medium（数値比較の移植のため。未起動）",
+    "planned_revision": "40083da5d95e9003b58934f5f48e13dce6cfca87",
+    "approval_review_rejection": "外部サービスへの対象payloadとClaudeの送信先へのユーザー承認を確認できないため、独立CLIレビュー起動が拒否された。ユーザーへ対象と送信先を明記して実行許可を依頼済み。",
+    "independent_test_execution": false,
+    "full_pytest": "12647 passed / 4 skipped / 4 warnings, exit 0（40083da、Codexの実測。-n 8 --dist loadfile）"
   }
 }

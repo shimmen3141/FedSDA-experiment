@@ -11,7 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### いまの状態
 
-- ブランチ`refactor/architecture`。2026-10-11、ユーザーがpushを明示的に許可し、independentの完了までpush済み。次のspec [feddrift-detection-batch-assessment](../specs/feddrift-detection-batch-assessment/tasks.md)が進行中（要求・設計・tasksを作成し、実旧対照testから実装する）。状態の正本は同specのspec.jsonとtasks.md。
+- ブランチ`refactor/architecture`。2026-10-11、ユーザーがpushを明示的に許可し、independentの完了までpush済み。次のspec [feddrift-detection-batch-assessment](../specs/feddrift-detection-batch-assessment/tasks.md)が進行中（数値判定と接続を実装し、対象testと全回帰は成功。独立CLIレビューの外部送信が自動承認レビューで拒否され、ユーザーの実行許可待ち）。状態の正本は同specのspec.jsonとtasks.md。
 - 構成の移植は、10個の全部が完了した（最後は[fedsda-independent-models](../specs/fedsda-independent-models/tasks.md)。独立レビューは承認、指摘は反映済み。検証の証拠は同specのtasks.md）。
 - (B) FedDriftは、数値の判定を先に小さいspecへ切り出して移植中。次は判定後のclient処理とサーバ同期のspec（下の「FedDriftの調査のメモ」）→全構成のgolden→(D)旧実装を外す準備（NEW-004、MNISTの取得コマンド）。順は、決定事項の「進める順」。
 
@@ -185,3 +185,8 @@ clientは、`assemble_fedsda_run_client`で組み立て、実行の枠の5操作
 HTMLは元checkoutの`docs/overview/fedsda-processing-flow.html`にあるコミット保留資料。worktreeへ自動コピー・stageしない。他の保留2資料もAGENTS.mdに従う。
 旧実装の不具合は[implementation-findings](../../docs/research/implementation-findings/README.md)、開発手順の問題は`development-findings/`に記録する。
 中断時は対象specへ未完了task/検証/差分を記録し、この案内の現在地を更新する。別タスクの結果をリファクタリングの完了証拠に混ぜない。
+
+
+## 次のspecの再開（2026-10-11）
+
+`feddrift-detection-batch-assessment`の残作業は独立レビュー。対象revision・検証結果・実行許可待ちの理由は同specのspec.jsonとtasks.mdを読む。許可待ちを承認と扱わず、specを完了にしない。ユーザーが許可したら、共通引継ぎ手順の独立CLIでレビューし、有用な指摘を反映する。sourceを変更した場合は対象test・全回帰・品質検査を再実行する。次の移植は、判定後の新規モデル生成・割当・前回値更新・評価用標本保持を含むclientの処理。
