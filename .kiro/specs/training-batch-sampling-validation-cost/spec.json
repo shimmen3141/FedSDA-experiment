@@ -1,9 +1,9 @@
 {
   "feature_name": "training-batch-sampling-validation-cost",
   "created_at": "2026-10-11T11:07:07+09:00",
-  "updated_at": "2026-10-11T11:07:07+09:00",
+  "updated_at": "2026-10-11T11:35:56+09:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -31,8 +31,20 @@
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "user_decision": "2026-10-11: ablationを新実装でも実行する（本番の規模: client 10、標本5000、120 run/構成）。このspecは、そのための速度の対処で、完了済みのspec（held-model-training-batch-sampling）の、検査の契約を変える。変更の是非は、完了の報告で、ユーザーへ確認する",
   "handoff": {
-    "execution_status": "in_progress",
-    "next_step": "tasks.mdの下位taskを1.1から順に実装する",
-    "independent_review": "未実施（全taskの後に1回）"
+    "execution_status": "completed",
+    "next_step": "none（次のspecは再開案内の「次の一手」）"
+  },
+  "implementation_review": {
+    "verdict": "IMPLEMENTATION: CHANGES_REQUESTED → FIX CONFIRMATION: APPROVED",
+    "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+    "reviewer_selection": "GPT-6 Lunaは利用上限で利用不能の期間のため、Haiku 5.5",
+    "reviewer_session": "1b80b5e2-2b5a-4f63-a40e-3b2b16f285b8",
+    "fix_confirmation_session": "366a9c4f-9451-4f1d-859f-cecd9fe330c8",
+    "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+    "reviewed_range": "e90f91a..93911da（修正の確認: 93911da..8a9bcb9）",
+    "independent_test_execution": true,
+    "independent_full_pytest_reproduction": false,
+    "findings": "Major 2件（途中の繰り返しで止まる経路——保持へ入る標本は入口で検査済み、という根拠と残る制約を設計へ書き、確認の担当が経路をたどって承認——、研究記録の誤り）、Minor 3件（採用）。採否はtasks.mdのImplementation Notes",
+    "full_pytest": "12458 passed / 4 skipped / 4 warnings (8a9bcb9、主担当の実測とJUnit。並列 -n 8 --dist loadfile)"
   }
 }

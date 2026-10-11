@@ -26,8 +26,8 @@
 保持（`ModelTrainingSampleStore`）へ入る標本は、どれも、観測標本の処理を通ったもので、その入口で、状態を変える前に、検査されている:
 
 - 型と、1標本の形: `runtime/observed_sample_processing.py`の`_validate_observed_sample_processing_inputs`。
-- 特徴の有限性、ラベルのdevice・dtype: 処理の最初に行う予測（`runtime/observed_sample_prediction.py`の入口の検査）。
-- 特徴の数とdtype（共有特徴抽出部）、ラベルの有限性・範囲・整数値（`learning/prediction/classifier_bounded_loss_evaluation.py`）: 同じく、予測と損失の評価の中。
+- 特徴の形と有限性、ラベルの形・device・dtype・layout: 処理の最初に行う予測（`runtime/observed_sample_prediction.py`の入口の検査）。
+- 特徴のdevice・dtype・layout・nested、特徴の数（分類器の特徴数との一致）、形、有限性、ラベルの形・有限性・整数値・範囲: 損失の評価（`learning/prediction/classifier_bounded_loss_evaluation.py`の入口の検査）。保留へ足す前に、必ず通る（確認のレビューが、保持へ足す2つの経路——`runtime/assigned_training_sample_absorption.py`と`runtime/adopted_candidate_local_adoption.py`——を、たどって確かめた。抽出の検査の基準を、全部含む）。
 - 拒否のtest: `tests/refactoring/test_observed_sample_prediction.py`（NaN・無限大・dtypeほか。状態を変える前に拒否する）。
 
 したがって、変更の前の、抽出のたびの全数の検査は、入口の検査と重複していた。抽出の中の検査が意味を持つのは、入口の後で、標本が書き換えられた場合だけである。
