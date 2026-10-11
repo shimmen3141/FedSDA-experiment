@@ -24,8 +24,8 @@ kiroの標準の構成（2026-10-10から。この規則より後に作ったspe
     names: 命名表はnaming.md。sourceの公開する名前（module直下とclass直下の、下線で始まらない
         関数・class・メソッド）だけを照合する。引数・局所名・field・testの名前は照合しない。
     identity: 文書ごとの承認hashは、spec.jsonに記録があるものだけ照合する（文書のrevisionとhashは管理しない）。
-    progress: spec.jsonのphaseがcompletedであることと、tasks.mdのcheckboxがすべて済みであることが
-        対応しているかを確かめる。
+    progress: spec.jsonのphaseがcompletedなら、tasks.mdのcheckboxがすべて済みであることを確かめる。
+        全taskの実装が済んでも、最終レビュー・検証待ちならcompletedではない状態を許す。
 
 独立レビューの代わりにはならない。名前の役割が実態と合うか、検査の順序が正しいかは人とレビュー担当が確かめる。
 """
@@ -367,14 +367,14 @@ def check_progress(arguments):
         print(f"[{'OK' if passed else 'NG'}] {label}{' — ' + detail if detail else ''}")
 
     if follows_kiro_standard_flow(arguments.spec):
-        # kiroの標準の構成: tasks.mdのcheckbox（下位taskを含む）と、spec.jsonのphaseの対応だけを確かめる。
+        # 実装task完了後に最終レビュー・検証を行うため、全checkbox完了だけではspec完了にしない。
         step_states = re.findall(
             r"^\s*- \[([ x])\]", (spec_directory / "tasks.md").read_text(encoding="utf-8"), re.M
         )
         all_steps_done = bool(step_states) and step_states.count("x") == len(step_states)
         report(
-            "spec.jsonのphaseがcompletedであることと、tasks.mdのcheckboxがすべて済みであることが対応",
-            (spec.get("phase") == "completed") == all_steps_done,
+            "specがcompletedなら、実装taskのcheckboxがすべて済み",
+            spec.get("phase") != "completed" or all_steps_done,
             f"phase {spec.get('phase')}、tasks.md {step_states.count('x')}/{len(step_states)}",
         )
         for document_path in PROGRESS_DOCUMENT_PATHS:

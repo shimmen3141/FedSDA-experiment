@@ -1,0 +1,7 @@
+# Research & Design Decisions
+
+固定旧748c3aaのservers/feddrift.py、servers/base.py、servers/clustering.py、clients/base.py、experiment._run_feddrift_timestepを照合した。experimentのMODE_SPECSは通常FedDriftServerを作り、collect_pair_diagnosticsを指定しない（既定False）。モデルを送らないクロス評価でもclientは新しい分類器を作る。手元キャッシュの順伝播へ変えるとTorch RNGがずれる。
+
+既存FedSDA server/runtimeはexact FedsdaRunClientや共有optimizer/pending-assignment ownerを要求する。ダミーownerを作る流用を避け、同じ役割の純粋統計選択・store再配置・client cross評価・診断計算だけを再利用する。旧再構築はmodel_cls()なので、そのoptimizer設定はNEW_MODEL_LRとは別入力。独立モデルの全parameterをOptimizerへ束ね、空の共有optimizer ownerは作らない。
+
+数値部のcached_model_cluster_consolidationは完了済み。今回はowner適用・登録・FedAvg/配布・R回まで接続し、正常経路を小さい未接続specへさらに分けない。全体runの観測/終端・精度評価・成果物/構成登録は隣接する残作業。

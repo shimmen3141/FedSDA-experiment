@@ -29,12 +29,25 @@ resumeは要約であり、承認状態を単独で決める根拠にしない�
 ```text
 このリファクタリングworktreeのAGENTS.md、.kiro/steering/resume.md、
 .kiro/steering/agent-handoff.mdを読み、Gitと対象specから現在地を確認してください。
-未完了・レビュー待ちを優先し、共有規約と、対象の難度に応じたLuna/Haiku 5.5の選択・相互代替による独立レビュー（全taskの後にまとめて1回）を維持して続けてください。
+未完了・レビュー待ちを優先し、共有規約に従い、実装前の独立CLIによる仕様書群レビューと、全task後の独立CLIによる実装レビューを維持して続けてください。担当モデルは対象の難度に応じてLuna/Haiku 5.5から選び、利用不能時は他方へ代替してください。
 ```
 
 ## 承認と独立レビュー
 
-cc-sdd（kiro）のskillと標準の構成を基本とする（2026-10-10ユーザー決定）。進め方は次のとおり。(1)`/kiro-spec-init`→`/kiro-spec-requirements`→`/kiro-spec-design`→`/kiro-spec-tasks`で、requirements.md・design.md・tasks.mdを作る（各skillのSKILL.mdと`.kiro/settings/templates/specs/`の雛形に従う。調査が要るときは`/kiro-validate-gap`）。命名表（naming.md）は設計と一緒に作る。(2)`/kiro-impl <feature> --review off`の手順で、tasks.mdの下位taskを1つずつ、testを先に書いて実装する（下位taskごとのレビューはしない）。(3)全taskの後に、独立レビューを1回受ける。実装していない別sessionが、検証コマンドだけを許可した状態で、未コミットまたは対象commitの差分と3文書・命名表を読み、対象test・共用script・Ruffを独立に実行して、要求1項目ずつと実装・testの照合、旧との対応、検査の位置を確かめる。(4)指摘を反映し、`/kiro-validate-impl`の観点（全test、要求の網羅、設計との一致）で全pytestと品質検査を通して、完了にする。Blocker・Majorの指摘を直したときだけ、直した内容を別sessionが確認する。Minor・文面の指摘の反映は、採否を記録するだけで、再レビューを受けない。要求・設計・tasksの各段階の承認（spec.jsonの`approvals`）は、ユーザーの委任により、主担当が内容を確かめて記録する（段階ごとの独立レビューは置かない。最後の独立レビューが3文書も読む）。子エージェントは使わない（2026-10-10ユーザー決定。skillが子エージェントへの委譲を勧める箇所——調査、実装、レビュー——は、調査と実装を主担当自身が行い、レビューを下の独立CLIで行う）。独立レビューと、主担当による有用な指摘の反映を完了の条件とする。自己レビュー、cc-sddの`inline`、`kiro-spec-quick --auto`で独立レビューを置き換えない。
+cc-sdd（kiro）のskillと標準の構成を基本とする。2026-10-12ユーザー指示により、task実行前に独立CLIによる仕様書群レビューを必須とする。進め方は次のとおり。
+
+1. `/kiro-spec-init`→`/kiro-spec-requirements`→`/kiro-spec-design`→`/kiro-spec-tasks`で仕様書群を作る。各skillのSKILL.mdと`.kiro/settings/templates/specs/`に従い、命名表（naming.md）は設計と一緒に作る。調査が要るときは`/kiro-validate-gap`を使う。
+2. **最初のtaskのtest・実装に着手する前に**、実装を担当していない別セッションの独立CLIがrequirements.md・design.md・tasks.md・naming.mdをまとめて1回レビューする。必要に応じてresearch.md・brief.md・旧実装・既存の型/契約を読む。要求の網羅と検証可能性、設計の責務・依存・更新/RNG順序、命名の役割と既存名との差、taskの依存・粒度・完了条件を照合する。レビュー担当は読取り専用で、実装・文書修正・再委譲を行わない。
+3. 主担当が指摘を反映し、仕様レビューのPASSを確認してから`ready_for_implementation=true`とする。要求・設計・tasksの各段階の承認は従来どおりユーザー委任で主担当が記録できるが、これだけではtaskへ進めない。自己レビュー、`inline`、`-y`、`--auto`は仕様レビューを代替しない。
+4. `/kiro-impl <feature> --review off`の手順で、下位taskを1つずつ、testを先に書いて実装する。下位taskごとのレビューは置かない。
+5. 全taskの実装後に、独立CLIによる実装レビューをまとめて1回受ける。実装していない別sessionが対象差分と仕様書群を読み、対象test・依存境界test・共用fresh script・Ruffを独立実行して、各要求と実装/test、旧との対応、検査の位置を確認する。実装前の仕様レビューで、この実装レビューを代替しない。
+6. 指摘を反映し、`/kiro-validate-impl`の観点で全pytestと品質検査を通して完了にする。仕様レビュー・実装レビューとも、Blocker・Majorを修正したときは同じ段階のレビュー担当に修正箇所を再確認させる。Minor・文面の指摘は採否と理由を記録し、再レビューを必須としない。
+
+ここでいう「サブエージェント」は、主担当から独立した別セッションのCLIレビュー担当を指す（2026-10-12ユーザー明確化）。仕様レビュー・実装レビューとも下の独立CLIで行い、Codexの`collaboration.spawn_agent`やClaudeの`Agent`など内蔵の子エージェントは使わない。調査・実装は主担当が行う。独立CLIを利用できない場合は該当段階のレビュー待ちとして記録し、自己承認や仕様レビューの実装後への先送りで代替しない。
+
+レビュー承認後に要求・設計・公開名・taskの依存/完了条件を実質的に変更した場合は、影響するtaskへ進む前に変更部分の仕様レビューを受け直す。軽微な文面修正は採否の記録だけでよい。進行中のspecで実装前レビューを未実施だった場合も、済んだtaskの履歴を変更せず、残りのtaskへ進む前に仕様書群をレビューする。過去の完了specを自動で再レビューしない。
+
+仕様レビューの担当・モデル/effort・CLIのsession ID・対象（基点commitと対象ファイル、未コミットならその旨）・判定をspec.jsonの`specification_review`へ記録する。待機中は`status=pending`、通過後は`status=passed`とし、`ready_for_implementation`と対応させる。実装レビューは別の記録とし、仕様レビューを実装の承認として扱わない。指摘の採否・理由はtasks.mdのImplementation Notesへ書く。
 
 | 対象 | 優先モデル | 利用不能時 |
 | --- | --- | --- |
@@ -44,11 +57,11 @@ cc-sdd（kiro）のskillと標準の構成を基本とする（2026-10-10ユー�
 - 分量より難易度を優先し、対象の実際の判断難度から主担当が選ぶ。両方利用不能ならレビュー待ちとして対象specのspec.jsonへ記録して引き継ぐ。自己承認やSonnetへの自動代替はしない。
 - effortは明示指定し、代替で使うときも各モデルの上の指定とする。指定が拒否されたら既定値で続行せず他方へ代替する。
 - 毎回、実装担当の会話を継続せず独立したreviewerとして起動し、再委譲しない役割を明記する。permission bypassや認証・ユーザー設定の変更は行わない。
-- 記録するもの: 選択理由、実際のモデルとeffort、代替時の利用不能の事実、対象revision/hash、結果、指摘の採否と理由。Lunaはログのmodel行と`reasoning effort`行、HaikuはJSONの`is_error=false`と`modelUsage`の実モデルで確認する（Haikuの実効effortは出力されないので指定値として記録する）。呼出しの成功だけを承認に数えない。
+- 記録するもの: 選択理由、実際のモデルとeffort、代替時の利用不能の事実、対象revision/hash、結果、指摘の採否と理由。独立CLIのLunaはログのmodel行と`reasoning effort`行、HaikuはJSONの`is_error=false`と`modelUsage`の実モデルで確認する（Haikuの実効effortは出力されないので指定値として記録する）。呼出しの成功だけを承認に数えない。
 - 独立レビューの承認より前に、specを完了（spec.jsonのphaseを`completed`）にしない。過去の承認記録は書き換えない。
-- 名前（2026-10-10ユーザー決定）: naming.mdに、sourceの公開する名前（module、class、公開の関数・メソッド）と、役割・似た名前との違いを書く。引数・field・局所名・非公開の名前・testの名前は書かない（`spec_checks.py names`も同じ範囲を照合する）。名前は、最後の独立レビューで確認を受ける（命名だけを先に承認する段階は置かない）。既存名の再利用は元と同じ役割にする。記録用wrapperに、判定を行う関数と読める名前を付けない。
+- 名前（2026-10-10ユーザー決定）: naming.mdに、sourceの公開する名前（module、class、公開の関数・メソッド）と、役割・似た名前との違いを書く。引数・field・局所名・非公開の名前・testの名前は書かない（`spec_checks.py names`も同じ範囲を照合する）。名前は、実装前の仕様書群レビューで設計上の役割を確認し、実装後の独立レビューで実態との一致を確認する（命名だけの別レビュー段階は置かない）。既存名の再利用は元と同じ役割にする。記録用wrapperに、判定を行う関数と読める名前を付けない。
 
-起動例（PowerShell。依頼文は`$reviewPrompt`へ。複数行は単一引用符のhere-string）。下は読取りだけの形。レビュー担当にtestを実行させるとき（通常のレビュー）は、Haikuは`--tools Read,Glob,Grep,Bash`と`--allowedTools`で検証コマンドだけ（固定venvのpytest・Ruff・共用script・`spec_checks.py`、`git status`、`git diff`）を許可し、ファイルの変更やその他のコマンドは許可しない。Lunaは`--sandbox workspace-write`。
+以下は仕様レビュー・実装レビュー共通の独立CLI起動例（PowerShell。依頼文は`$reviewPrompt`へ。複数行は単一引用符のhere-string）。下は読取りだけの形。レビュー担当にtestを実行させるとき（通常のレビュー）は、Haikuは`--tools Read,Glob,Grep,Bash`と`--allowedTools`で検証コマンドだけ（固定venvのpytest・Ruff・共用script・`spec_checks.py`、`git status`、`git diff`）を許可し、ファイルの変更やその他のコマンドは許可しない。Lunaは`--sandbox workspace-write`。
 
 ```powershell
 claude -p $reviewPrompt --model claude-haiku-5-5 --effort medium --output-format json --no-session-persistence --tools Read,Glob,Grep --permission-mode plan

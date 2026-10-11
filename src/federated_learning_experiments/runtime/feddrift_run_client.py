@@ -4,9 +4,10 @@ from copy import deepcopy
 from dataclasses import dataclass
 from random import Random
 
-from torch import float32, tensor
+from torch import Tensor, float32, tensor
 
 from federated_learning_experiments.data.observed_streams import ObservedSample
+from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
 )
@@ -47,6 +48,10 @@ from federated_learning_experiments.learning.training.model_training_sample_reco
 from federated_learning_experiments.learning.training.model_training_sample_store import (
     ModelTrainingSampleStore,
 )
+from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
+    AdamParameterOptimizerSettings,
+    SgdParameterOptimizerSettings,
+)
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
     ParameterOptimizerState,
 )
@@ -66,6 +71,9 @@ from federated_learning_experiments.runtime.feddrift_detection_batch_processing 
     FeddriftDetectionBatchProcessor,
     FeddriftDetectionBatchTransition,
 )
+from federated_learning_experiments.runtime.feddrift_model_distribution_application import (
+    apply_feddrift_model_distribution,
+)
 from federated_learning_experiments.runtime.feddrift_run_client_settings import (
     FeddriftRunClientSettings,
 )
@@ -83,6 +91,7 @@ class FeddriftRunClientOwners:
     temporary_model_id_allocator: TemporaryModelIdAllocator
     pending_model_upload_state: PendingModelUploadState
     model_training_and_assignment_counts_store: ModelTrainingAndAssignmentCountsStore
+    adaptation_record_store: AdaptationRecordStore
 
 
 class FeddriftRunClient:
@@ -112,6 +121,52 @@ class FeddriftRunClient:
     @property
     def owners(self) -> FeddriftRunClientOwners:
         return self._owners
+
+    @property
+    def python_random_generator(self) -> Random:
+        """同じrunで借用するRandom。"""
+        return self._random
+
+    def get_held_model_ids(self) -> set[int]:
+        """クロス評価の保持者判定に使うIDの集合。"""
+        return (
+            {
+                s.model_id
+                for s in self._owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+            }
+            | {mid for mid, _ in self._owners.loss_statistics_store.get_state_snapshot()}
+            | {
+                s.model_id
+                for s in self._owners.training_sample_store.snapshot_ordered_model_training_samples()
+            }
+            | {self._owners.current_training_model_assignment.current_training_model_id}
+        )
+
+    def apply_server_model_distribution(
+        self,
+        *,
+        model_id_mapping: dict[int, int],
+        model_parameters_by_model_id: dict[int, dict[str, Tensor]],
+        server_loss_statistics: tuple[tuple[int, ModelAndClassLossStatistics], ...],
+        rebuilt_model_optimizer_settings: AdamParameterOptimizerSettings
+        | SgdParameterOptimizerSettings,
+    ) -> None:
+        """統合または配布を、同じownerへ反映する。"""
+        apply_feddrift_model_distribution(
+            model_id_mapping=model_id_mapping,
+            model_parameters_by_model_id=model_parameters_by_model_id,
+            server_loss_statistics=server_loss_statistics,
+            rebuilt_model_optimizer_settings=rebuilt_model_optimizer_settings,
+            held_model_training_state_registry=self._owners.held_model_training_state_registry,
+            loss_statistics_store=self._owners.loss_statistics_store,
+            training_sample_store=self._owners.training_sample_store,
+            evaluation_sample_store=self._owners.evaluation_sample_store,
+            model_training_and_assignment_counts_store=self._owners.model_training_and_assignment_counts_store,
+            current_training_model_assignment=self._owners.current_training_model_assignment,
+            adaptation_record_store=self._owners.adaptation_record_store,
+            processed_sample_count=self._stream_processor.processed_sample_count,
+            python_random_generator=self._random,
+        )
 
     @property
     def detection_batch_processor(self) -> FeddriftDetectionBatchProcessor:
@@ -237,6 +292,7 @@ def assemble_feddrift_run_client(
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=client_id),
         pending_model_upload_state=PendingModelUploadState(),
         model_training_and_assignment_counts_store=ModelTrainingAndAssignmentCountsStore(),
+        adaptation_record_store=AdaptationRecordStore(),
     )
     processor = FeddriftDetectionBatchProcessor(
         held_model_training_state_registry=registry,

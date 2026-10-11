@@ -1782,6 +1782,43 @@ def run_feddrift_detection_batch_smoke():
                 client.owners.model_training_and_assignment_counts_store.snapshot_model_training_and_assignment_counts().parameter_update_step_counts_by_model_id
                 == {0: 6}
             )
+            from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
+                snapshot_classifier_parameters,
+            )
+            from federated_learning_experiments.runtime.feddrift_run_server import FeddriftRunServer
+            from federated_learning_experiments.runtime.feddrift_server_settings import (
+                FeddriftServerSettings,
+            )
+
+            server = FeddriftRunServer(
+                run_clients=(client,),
+                server_settings=FeddriftServerSettings(
+                    maximum_same_cluster_loss_increase=1.0,
+                    cluster_linkage="complete",
+                    minimum_cross_evaluation_sample_count=5,
+                    maximum_cross_evaluation_client_count=1,
+                    maximum_client_evaluation_sample_count=7,
+                    new_model_isolation_timestep_count=2,
+                    local_training_round_count=2,
+                    initial_model_aggregation_weight=0,
+                    rebuilt_model_optimizer_settings=optimizer_settings,
+                ),
+                initial_parameter_snapshot=snapshot_classifier_parameters(
+                    classifier=client.owners.held_model_training_state_registry.get_held_model_training_state(
+                        model_id=0
+                    ).classifier
+                ),
+                initial_loss_statistics=client.owners.loss_statistics_store.get_model_loss_statistics(
+                    model_id=0
+                ),
+                python_random_generator=client.python_random_generator,
+            )
+            server.synchronize_timestep(timestep_index=0)
+            assert server.snapshot_model_weights() == {0: 7}
+            assert (
+                server.communication_volume_record_store.get_state_snapshot().uploaded_model_count
+                == 2
+            )
     print("PASS FedDrift detection batch assessment: binary/multiclass; first/tied/increased loss")
 
 
