@@ -810,7 +810,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "model_architecture_name"
                 else ("e_sr",)
                 if settings_field.name == "drift_detector_name"
-                else ("overall_and_true_class_losses",)
+                else ("overall_and_true_class_losses", "overall_loss")
                 if settings_field.name == "loss_monitoring_scope"
                 else ("fixed_share_weighted_prediction",)
                 if settings_field.name == "prediction_combination_strategy"

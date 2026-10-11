@@ -679,3 +679,61 @@ def test_loss_monitoring_public_functions_require_explicit_keyword_arguments(ope
     assert "*, " in str(inspect.signature(operation))
     with pytest.raises(TypeError):
         operation(object(), object())
+
+
+@pytest.mark.parametrize("maximum_retained_candidate_count", (3, 50))
+def test_loss_monitoring_overall_loss_scope_matches_single_reference_detector(
+    maximum_retained_candidate_count, valid_run_settings_mapping
+):
+    """監視の対象が全体の損失だけのとき、e値・警報・候補の位置・計算の件数が、旧の全体のe-SR（検出器1つ）と一致する。"""
+    monitor = OverallAndTrueClassLossMonitor(
+        loss_change_detection_settings=replace(
+            valid_run_settings_mapping["loss_change_detection_settings"],
+            loss_monitoring_scope="overall_loss",
+        ),
+        class_count=3,
+        initial_baseline_loss_mean=0.2,
+        maximum_retained_candidate_count=maximum_retained_candidate_count,
+        betting_fractions=(0.05, 0.1, 0.2, 0.4, 0.8),
+    )
+    reference_detector = BoundedMeanEDetector(
+        baseline=0.2, alpha=0.05, max_candidates=maximum_retained_candidate_count
+    )
+    loss_generator = random.Random(4)
+    drift_detected_values = set()
+    for sample_index in range(60):
+        # 途中から損失を大きくして、警報の前後を通す。
+        observed_loss = loss_generator.uniform(0.0, 0.3) if sample_index < 30 else 0.95
+        monitoring_observation = monitor.observe_loss_after_label_observation(
+            observed_loss=observed_loss,
+            observed_class_id=sample_index % 3,
+            sample_index=sample_index,
+            current_model_baseline_loss_mean=0.2,
+        )
+        reference_detector.update(observed_loss)
+        assert monitoring_observation.log_e_value == reference_detector.log_e_value
+        assert monitoring_observation.drift_detected == reference_detector.drift_detected
+        assert monitoring_observation.estimated_change_span_sample_count == (
+            reference_detector.width
+        )
+        assert monitoring_observation.detector_candidate_start_sample_index == (
+            sample_index - reference_detector.width + 1
+        )
+        assert monitoring_observation.component_update_count == 1
+        assert monitoring_observation.evaluated_candidate_bet_count == (
+            reference_detector.active_hypothesis_count
+        )
+        assert monitor.last_observation is monitoring_observation
+        drift_detected_values.add(monitoring_observation.drift_detected)
+        # クラス別の検出器は、作らない。
+        assert monitor.get_state_snapshot().class_esr_states_by_class_id == ()
+        assert monitor.get_state_snapshot().class_sample_indices_by_class_id == ()
+    assert drift_detected_values == {False, True}
+    monitor.reset(baseline_loss_mean=0.3)
+    reference_detector.reset(0.3)
+    assert monitor.last_observation is None
+    monitoring_observation = monitor.observe_loss_after_label_observation(
+        observed_loss=0.5, observed_class_id=0, sample_index=0, current_model_baseline_loss_mean=0.3
+    )
+    reference_detector.update(0.5)
+    assert monitoring_observation.log_e_value == reference_detector.log_e_value

@@ -15,7 +15,14 @@ class LossChangeDetectionSettings:
         metadata={"allowed_parameter_values": ("e_sr",)},
     )
     loss_monitoring_scope: str = field(
-        metadata={"allowed_parameter_values": ("overall_and_true_class_losses",)},
+        metadata={
+            "allowed_parameter_values": (
+                # 全体の損失の系列と、正解クラス別の損失の系列を、固定の重みで混合する（提案構成）。
+                "overall_and_true_class_losses",
+                # 全体の損失の系列だけを監視する。
+                "overall_loss",
+            )
+        },
     )
     e_sr_false_alarm_control_alpha: float = field(
         metadata={

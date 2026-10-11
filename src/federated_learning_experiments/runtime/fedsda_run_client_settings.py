@@ -122,6 +122,7 @@ class FedsdaRunClientScalarSettings:
 # 検出の方式（検出器、監視の範囲）から、警報と判定の記録に残す、検出器の表示名への対応。
 _DETECTOR_NAME_BY_DETECTION_METHOD: dict[tuple[str, str], str] = {
     ("e_sr", "overall_and_true_class_losses"): "overall + class-conditional e-SR mixture",
+    ("e_sr", "overall_loss"): "e-SR",
 }
 
 # 束のfield名から、受け入れるexact型への対応（宣言順）。

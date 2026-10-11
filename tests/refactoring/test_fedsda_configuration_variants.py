@@ -25,6 +25,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
     EXPERIMENT_CONFIGURATION_NAMES,
     LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
+    OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
     build_experiment_run_settings,
@@ -60,6 +61,26 @@ def replace_candidate_model_training_and_acceptance_settings(
             candidate_model_training_and_acceptance_settings=replace(
                 run_client_settings.candidate_model_training_and_acceptance_settings,
                 **changed_fields,
+            ),
+        ),
+    )
+
+
+def replace_loss_monitoring_scope(
+    run_participant_settings, *, loss_monitoring_scope, detector_name
+):
+    """参加者の設定の束の、損失の監視の対象と、それに対応する検出器の表示名を、置き換える。"""
+    run_client_settings = run_participant_settings.run_client_settings
+    return replace(
+        run_participant_settings,
+        run_client_settings=replace(
+            run_client_settings,
+            loss_change_detection_settings=replace(
+                run_client_settings.loss_change_detection_settings,
+                loss_monitoring_scope=loss_monitoring_scope,
+            ),
+            scalar_settings=replace(
+                run_client_settings.scalar_settings, detector_name=detector_name
             ),
         ),
     )
@@ -110,6 +131,19 @@ CONFIGURATION_VARIANTS = {
         # 統合の方式の宣言（条件の保存用）も、同じ値にする。
         modify_model_consolidation_settings=lambda model_consolidation_settings: replace(
             model_consolidation_settings, model_pair_comparison_strategy="mean_loss_increase"
+        ),
+    ),
+    OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME: SimpleNamespace(
+        name=OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
+        # 旧の`tools/run_main_ablation_suite.sh`の`overall-esr`（構成名だけが違う）。
+        legacy_mode_name="FedSDA_NoCached_ResidualAdapter_ESR_RestartingSoftRouting",
+        legacy_setting_overrides={},
+        modify_run_participant_settings=lambda run_participant_settings: (
+            replace_loss_monitoring_scope(
+                run_participant_settings,
+                loss_monitoring_scope="overall_loss",
+                detector_name="e-SR",
+            )
         ),
     ),
 }
@@ -309,6 +343,56 @@ def test_loss_distance_clustering_takes_its_own_path():
     )
 
 
+def test_overall_loss_esr_detection_takes_its_own_path():
+    """全体の損失だけを監視する構成は、クラス別の検出器を持たず、1標本につき、検出器の更新が1回。結果も違う。"""
+    comparisons = collect_variant_comparisons(OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME)
+    alarm_count = 0
+    for comparison in comparisons:
+        variant_comparison = comparison["variant"]
+        for run_client, legacy_client in zip(
+            variant_comparison.participants.client_operations,
+            variant_comparison.legacy_run["legacy_clients"],
+            strict=True,
+        ):
+            owners = run_client.owners
+            assert (
+                owners.loss_change_monitor.get_state_snapshot().class_esr_states_by_class_id == ()
+            )
+            adaptation_records = (
+                owners.adaptation_record_store.get_state_snapshot().adaptation_records
+            )
+            alarm_count += len(adaptation_records)
+            assert all(
+                adaptation_record.detector_name == "e-SR"
+                for adaptation_record in adaptation_records
+                if adaptation_record.adaptation_outcome
+                != "server_consolidation_training_model_remapped"
+            )
+            # 実旧のclientは、全体の損失のe-SRのclientで、クラス別の検出器を持たない。
+            assert legacy_client._detector_label() == "e-SR"
+            assert not hasattr(legacy_client, "class_e_detectors")
+            # 検出器の更新は、処理した標本1件につき1回（提案構成は2回）。
+            assert legacy_client.compute_counters["drift_detector_updates"] == (
+                legacy_client.processed_samples
+            )
+        for proposed_client in comparison["proposed"].legacy_run["legacy_clients"]:
+            assert proposed_client.compute_counters["drift_detector_updates"] == (
+                2 * proposed_client.processed_samples
+            )
+    assert alarm_count > 0
+    # 同じ条件の提案構成と、結果が違う条件がある。
+    assert any(
+        comparison["variant"].run_metrics.change_response_metrics
+        != comparison["proposed"].run_metrics.change_response_metrics
+        for comparison in comparisons
+    )
+    assert any(
+        comparison["variant"].run_metrics.prediction_accuracy
+        != comparison["proposed"].run_metrics.prediction_accuracy
+        for comparison in comparisons
+    )
+
+
 def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_element():
     """掃引のコマンドの構成の名前から作るrun設定は、提案構成と、変える要素だけが違う。"""
     assert EXPERIMENT_CONFIGURATION_NAMES == (
@@ -316,7 +400,9 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
         CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
         LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
+        OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
     )
+    assert OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME == ("fedsda-overall-loss-esr-detection")
     assert LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME == "fedsda-loss-distance-clustering"
     assert PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME == (
         "fedsda-without-prediction-weight-recalibration"

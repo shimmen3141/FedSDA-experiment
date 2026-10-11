@@ -24,12 +24,15 @@ PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME = (
 CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME = "fedsda-without-candidate-validation"
 # 提案構成の、クラスタリングのモデル対の比べ方を、損失の増加量（互いの標本での平均損失の増加）へ替えた構成。
 LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME = "fedsda-loss-distance-clustering"
+# 提案構成の、損失の監視の対象を、全体の損失の系列だけにした構成（正解クラス別の系列を混合しない）。
+OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME = "fedsda-overall-loss-esr-detection"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
     LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
+    OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
 )
 
 
@@ -119,6 +122,26 @@ def build_experiment_run_settings(
             model_consolidation_settings=replace(
                 proposed_run_settings.model_consolidation_settings,
                 model_pair_comparison_strategy="mean_loss_increase",
+            ),
+        )
+    if configuration_name == OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME:
+        # 監視の対象と、それに対応する検出器の表示名を、替える。
+        run_participant_settings = proposed_run_settings.run_participant_settings
+        run_client_settings = run_participant_settings.run_client_settings
+        return replace(
+            proposed_run_settings,
+            run_participant_settings=replace(
+                run_participant_settings,
+                run_client_settings=replace(
+                    run_client_settings,
+                    loss_change_detection_settings=replace(
+                        run_client_settings.loss_change_detection_settings,
+                        loss_monitoring_scope="overall_loss",
+                    ),
+                    scalar_settings=replace(
+                        run_client_settings.scalar_settings, detector_name="e-SR"
+                    ),
+                ),
             ),
         )
     return proposed_run_settings

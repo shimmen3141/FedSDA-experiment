@@ -1,4 +1,7 @@
-"""全体と正解クラス系列のe-SRを混合し、候補をglobal位置へ対応させる。"""
+"""全体と正解クラス系列のe-SRを混合し、候補をglobal位置へ対応させる。
+
+監視の対象が全体の損失だけの設定では、全体の系列のe-SRを、そのまま使う。
+"""
 
 import math
 from collections import deque
@@ -38,7 +41,10 @@ class OverallAndTrueClassLossMonitoringState:
 
 
 class OverallAndTrueClassLossMonitor:
-    """モデルを持たず、観測後の現行モデル損失だけを監視する。"""
+    """モデルを持たず、観測後の現行モデル損失だけを監視する。
+
+    監視の対象（設定の`loss_monitoring_scope`）が`overall_loss`のときは、クラス別の検出器を作らない。
+    """
 
     def __init__(
         self,
@@ -125,6 +131,23 @@ class OverallAndTrueClassLossMonitor:
             current_model_baseline_loss_mean=current_model_baseline_loss_mean,
         )
         overall_observation = self._overall_detector.observe_loss(observed_loss=observed_loss)
+        if self._loss_change_detection_settings.loss_monitoring_scope == "overall_loss":
+            # 全体の系列だけ。e値・警報・候補の位置は、全体の検出器のもの（混合の重みは掛けない）。
+            self._last_sample_index = sample_index
+            self._last_observation = LossMonitoringObservation(
+                sample_index=sample_index,
+                log_e_value=overall_observation.log_e_value,
+                drift_detected=overall_observation.drift_detected,
+                detector_candidate_start_sample_index=(
+                    sample_index - overall_observation.estimated_change_span_sample_count + 1
+                ),
+                estimated_change_span_sample_count=(
+                    overall_observation.estimated_change_span_sample_count
+                ),
+                component_update_count=1,
+                evaluated_candidate_bet_count=overall_observation.evaluated_candidate_bet_count,
+            )
+            return self._last_observation
         class_detector = self._class_detectors_by_class_id.get(observed_class_id)
         if class_detector is None:
             class_detector = BoundedLossESRDetector(
