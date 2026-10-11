@@ -983,7 +983,9 @@ def test_run_client_trajectories_cover_required_paths():
     }
     # 候補検証の確定での他モデルの再利用は、標本1件の処理の対照（上流）が通している。
     # サーバの統合による付け替えは、サーバなしの対照では起きない。
+    # 警報の位置での候補の採用は、候補検証をしない構成だけで起きる（test_fedsda_configuration_variants.pyが通す）。
     assert observed_outcomes >= set(LEGACY_ACTION_BY_ADAPTATION_OUTCOME) - {
+        "alarm_interval_candidate_adopted_as_new_model",
         "post_alarm_validation_held_model_reused",
         "server_consolidation_training_model_remapped",
     }

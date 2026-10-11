@@ -41,6 +41,9 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
     AdamParameterOptimizerSettings,
     SgdParameterOptimizerSettings,
 )
+from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
+    TemporaryModelIdAllocator,
+)
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
     CandidateModelTrainingAndAcceptanceSettings,
 )
@@ -49,6 +52,9 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.can
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
+)
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
+    PendingModelUploadState,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
@@ -101,6 +107,9 @@ def handle_alarm_occurrence(
     training_sample_store: ModelTrainingSampleStore,
     model_training_and_assignment_counts_store: ModelTrainingAndAssignmentCountsStore,
     current_training_model_assignment: CurrentTrainingModelAssignment,
+    temporary_model_id_allocator: TemporaryModelIdAllocator,
+    pending_model_upload_state: PendingModelUploadState,
+    upload_delay_round_count: int,
     candidate_parameter_initialization_settings: CandidateParameterInitializationSettings,
     architecture_reference_classifier: ResidualAdapterClassifier,
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
@@ -158,6 +167,9 @@ def handle_alarm_occurrence(
         training_sample_store=training_sample_store,
         model_training_and_assignment_counts_store=model_training_and_assignment_counts_store,
         current_training_model_assignment=current_training_model_assignment,
+        temporary_model_id_allocator=temporary_model_id_allocator,
+        pending_model_upload_state=pending_model_upload_state,
+        upload_delay_round_count=upload_delay_round_count,
         candidate_parameter_initialization_settings=candidate_parameter_initialization_settings,
         architecture_reference_classifier=architecture_reference_classifier,
         parameter_optimizer_settings=parameter_optimizer_settings,

@@ -573,7 +573,9 @@ def test_sample_processing_trajectories_cover_every_adaptation_outcome():
         for adaptation_outcome in condition_outcomes
     }
     # 終端の回収と、サーバの統合による付け替えは、標本1件の処理では起きない。
+    # 警報の位置での候補の採用は、候補検証をしない構成だけで起きる（test_fedsda_configuration_variants.pyが通す）。
     assert observed_outcomes == set(LEGACY_ACTION_BY_ADAPTATION_OUTCOME) - {
+        "alarm_interval_candidate_adopted_as_new_model",
         "post_alarm_validation_incomplete_candidate_rejected",
         "server_consolidation_training_model_remapped",
     }

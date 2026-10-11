@@ -32,6 +32,7 @@ ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME: dict[str, str] = {
     "alarm_interval_held_model_reused": "reuse_held_model",
     "alarm_interval_current_model_maintained": "maintain_current_model",
     "alarm_interval_candidate_validation_started": "start_candidate_validation",
+    "alarm_interval_candidate_adopted_as_new_model": "adopt_candidate_model",
     "post_alarm_validation_candidate_adopted": "adopt_candidate_model",
     "post_alarm_validation_held_model_reused": "reuse_held_model",
     "post_alarm_validation_current_model_maintained": "maintain_current_model",

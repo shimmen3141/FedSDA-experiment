@@ -825,7 +825,10 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "local_model_parameter_update_strategy"
                 else ("sample_weighted_mean_per_concept_gradients",)
                 if settings_field.name == "shared_backbone_gradient_combination_strategy"
-                else ("current_model_first_reuse_then_two_segment_candidate_validation",)
+                else (
+                    "current_model_first_reuse_then_two_segment_candidate_validation",
+                    "current_model_first_reuse_then_candidate_adoption_without_validation",
+                )
                 if settings_field.name == "candidate_model_acceptance_policy"
                 else ("on_new_model_registration",)
                 if settings_field.name == "model_clustering_trigger_policy"

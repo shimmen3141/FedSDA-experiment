@@ -14,7 +14,12 @@ class CandidateModelTrainingAndAcceptanceSettings:
     candidate_model_acceptance_policy: str = field(
         metadata={
             "allowed_parameter_values": (
+                # 警報時に、保有モデルの再利用を先に試し、合うモデルが無ければ、候補を学習して、
+                # 警報の後の標本で、2つの区間に分けて検証してから採否を決める（提案構成）。
                 "current_model_first_reuse_then_two_segment_candidate_validation",
+                # 合うモデルが無ければ、学習した候補を、検証せずに、その場で採用する（候補検証を外した構成）。
+                # このとき、検証の標本件数は、使わない。
+                "current_model_first_reuse_then_candidate_adoption_without_validation",
             ),
         },
     )

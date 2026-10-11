@@ -75,9 +75,12 @@ class AlarmResponseCompletion:
                 raise ValueError("drained sample indices must be nonnegative")
         training_model_changed = self.previous_training_model_id != self.current_training_model_id
         if training_model_changed != (
-            self.alarm_buffer_response.response_outcome == "alarm_interval_held_model_reused"
+            self.alarm_buffer_response.response_outcome
+            in ("alarm_interval_held_model_reused", "alarm_interval_candidate_adopted_as_new_model")
         ):
-            raise ValueError("training model IDs must differ exactly for a reused held model")
+            raise ValueError(
+                "training model IDs must differ exactly for a reused held model or an adopted candidate"
+            )
         if (
             not self.alarm_buffer_response.pending_assignment_buffer_should_be_cleared
             and self.drained_pending_sample_indices

@@ -59,11 +59,17 @@ from federated_learning_experiments.learning.training.model_training_sample_stor
 from federated_learning_experiments.learning.training.participating_model_training_batch import (
     ParticipatingModelTrainingBatch,
 )
+from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
+    TemporaryModelIdAllocator,
+)
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment import (
     AlarmIntervalModelReuseAssessment,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
+)
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
+    PendingModelUploadState,
 )
 from federated_learning_experiments.runtime import (
     alarm_change_interval_resolution as resolution_module,
@@ -86,6 +92,7 @@ def test_alarm_change_interval_resolution_is_immutable():
         "alarm_interval_held_model_reused",
         "alarm_interval_current_model_maintained",
         "alarm_interval_candidate_validation_started",
+        "alarm_interval_candidate_adopted_as_new_model",
     )
     assert type(ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES) is tuple
     assert tuple(field.name for field in fields(AlarmChangeIntervalResolution)) == (
@@ -396,6 +403,10 @@ def build_alarm_change_interval_resolution_oracle(
         candidate_parameter_initialization_settings=CandidateParameterInitializationSettings(
             candidate_parameter_initialization_source=candidate_parameter_initialization_source
         ),
+        # 候補検証をしない方針での採用に使うowner（提案構成の方針では、使われない）。
+        temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=0),
+        pending_model_upload_state=PendingModelUploadState(),
+        upload_delay_round_count=2,
         **{
             field_name: session_start_arguments[field_name]
             for field_name in (

@@ -9,6 +9,7 @@ AdaptationOutcome = Literal[
     "alarm_interval_held_model_reused",
     "alarm_interval_current_model_maintained",
     "alarm_interval_candidate_validation_started",
+    "alarm_interval_candidate_adopted_as_new_model",
     "post_alarm_validation_candidate_adopted",
     "post_alarm_validation_held_model_reused",
     "post_alarm_validation_current_model_maintained",
@@ -20,6 +21,7 @@ AdaptationOutcome = Literal[
 # 学習帰属IDが変わる結果。この結果のときだけ変更前後のIDが異なり、切替位置を記録する。
 TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES: tuple[AdaptationOutcome, ...] = (
     "alarm_interval_held_model_reused",
+    "alarm_interval_candidate_adopted_as_new_model",
     "post_alarm_validation_candidate_adopted",
     "post_alarm_validation_held_model_reused",
 )

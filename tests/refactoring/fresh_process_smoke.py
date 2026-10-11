@@ -480,7 +480,13 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     pending_training_assignment_buffer.append_observed_sample_index(
         sample_index=first_alarm_observations[-1].sample_index
     )
+    # 候補の採用に使うowner（警報の処理と、候補検証の進行で、同じものを使う）。
+    temporary_model_id_allocator = TemporaryModelIdAllocator(client_id=5)
+    pending_model_upload_state = PendingModelUploadState()
     alarm_handling_arguments = dict(
+        temporary_model_id_allocator=temporary_model_id_allocator,
+        pending_model_upload_state=pending_model_upload_state,
+        upload_delay_round_count=1,
         validation_session_holder=validation_session_holder,
         adaptation_record_store=adaptation_record_store,
         diagnostic_evidence_collection=diagnostic_evidence_collection,
@@ -637,9 +643,9 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
                     indexed_observation.observed_concept_id
                     for indexed_observation in first_alarm_observations
                 ),
-                temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=5),
+                temporary_model_id_allocator=temporary_model_id_allocator,
                 upload_delay_round_count=1,
-                pending_model_upload_state=PendingModelUploadState(),
+                pending_model_upload_state=pending_model_upload_state,
                 **training_owners,
             )
         assert held_validation_advance is not None

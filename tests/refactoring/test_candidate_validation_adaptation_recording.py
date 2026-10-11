@@ -291,7 +291,7 @@ def test_incomplete_validation_record_matches_real_legacy_event(
 
 def test_adaptation_outcomes_cover_alarm_and_validation_results_exactly():
     validation_adaptation_outcomes = tuple(LEGACY_ACTION_BY_VALIDATION_ADAPTATION_OUTCOME)
-    # 警報応答の5結果、候補検証の5結果、サーバの統合による付け替え。
+    # 警報応答の6結果、候補検証の5結果、サーバの統合による付け替え。
     assert get_args(AdaptationOutcome) == (
         *ALARM_BUFFER_RESPONSE_OUTCOMES,
         *validation_adaptation_outcomes,
@@ -305,7 +305,7 @@ def test_adaptation_outcomes_cover_alarm_and_validation_results_exactly():
         == validation_adaptation_outcomes[:4]
     )
     assert set(TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES) < set(get_args(AdaptationOutcome))
-    # 旧actionとの対応は、警報応答の5結果と合わせて、サーバの統合による付け替えを除く全結果を覆う。
+    # 旧actionとの対応は、警報応答の6結果と合わせて、サーバの統合による付け替えを除く全結果を覆う。
     assert set(LEGACY_ACTION_BY_RESPONSE_OUTCOME) | set(validation_adaptation_outcomes) == set(
         get_args(AdaptationOutcome)
     ) - {SERVER_REMAP_ADAPTATION_OUTCOME}
@@ -315,6 +315,7 @@ def test_adaptation_outcomes_cover_alarm_and_validation_results_exactly():
 def test_store_applies_switch_index_and_count_rules_for_every_outcome(adaptation_outcome):
     training_model_switches = adaptation_outcome in (
         "alarm_interval_held_model_reused",
+        "alarm_interval_candidate_adopted_as_new_model",
         "post_alarm_validation_candidate_adopted",
         "post_alarm_validation_held_model_reused",
     )

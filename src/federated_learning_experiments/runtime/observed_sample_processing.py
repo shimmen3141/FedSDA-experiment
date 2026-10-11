@@ -444,6 +444,9 @@ def process_observed_sample(
             training_sample_store=training_sample_store,
             model_training_and_assignment_counts_store=model_training_and_assignment_counts_store,
             current_training_model_assignment=current_training_model_assignment,
+            temporary_model_id_allocator=temporary_model_id_allocator,
+            pending_model_upload_state=pending_model_upload_state,
+            upload_delay_round_count=upload_delay_round_count,
         )
         alarm_buffer_response = (
             alarm_occurrence_handling.alarm_response_completion.alarm_buffer_response

@@ -290,8 +290,8 @@ def test_completed_alarm_record_matches_all_real_legacy_event_fields(
 
 
 def test_record_store_keeps_input_order_equal_positions_and_old_immutable_snapshot():
-    # 警報応答の5結果は適応結果の先頭5値。候補検証の結果はその後に続く。
-    assert get_args(AdaptationOutcome)[:5] == ALARM_BUFFER_RESPONSE_OUTCOMES
+    # 警報応答の6結果は適応結果の先頭6値。候補検証の結果はその後に続く。
+    assert get_args(AdaptationOutcome)[:6] == ALARM_BUFFER_RESPONSE_OUTCOMES
     adaptation_record_store = AdaptationRecordStore()
     empty_snapshot = adaptation_record_store.get_state_snapshot()
     first_adaptation_record = make_adaptation_record()

@@ -19,6 +19,7 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
     ExperimentRunConditions,
 )
 from federated_learning_experiments.sweep.experiment_configurations import (
+    CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
     EXPERIMENT_CONFIGURATION_NAMES,
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -43,6 +44,23 @@ def replace_prediction_combination_settings(run_participant_settings, **changed_
     )
 
 
+def replace_candidate_model_training_and_acceptance_settings(
+    run_participant_settings, **changed_fields
+):
+    """参加者の設定の束の、候補モデルの学習と採否の設定の一部を、置き換える。"""
+    run_client_settings = run_participant_settings.run_client_settings
+    return replace(
+        run_participant_settings,
+        run_client_settings=replace(
+            run_client_settings,
+            candidate_model_training_and_acceptance_settings=replace(
+                run_client_settings.candidate_model_training_and_acceptance_settings,
+                **changed_fields,
+            ),
+        ),
+    )
+
+
 # 構成: 名前（掃引のコマンドでの名前）、旧の構成名、旧の設定の上書き、新の参加者の設定の変更。
 CONFIGURATION_VARIANTS = {
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME: SimpleNamespace(
@@ -55,6 +73,20 @@ CONFIGURATION_VARIANTS = {
                 run_participant_settings,
                 prediction_weight_recalibration_after_aggregation_policy=(
                     "keep_weights_without_recalibration"
+                ),
+            )
+        ),
+    ),
+    CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME: SimpleNamespace(
+        name=CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
+        legacy_mode_name=PROPOSED_CONFIGURATION_VARIANT.legacy_mode_name,
+        # 旧の`tools/run_main_ablation_suite.sh`の`immediate-creation`。
+        legacy_setting_overrides={"NEW_MODEL_CREATION_POLICY": "immediate"},
+        modify_run_participant_settings=lambda run_participant_settings: (
+            replace_candidate_model_training_and_acceptance_settings(
+                run_participant_settings,
+                candidate_model_acceptance_policy=(
+                    "current_model_first_reuse_then_candidate_adoption_without_validation"
                 ),
             )
         ),
@@ -158,14 +190,77 @@ def test_without_prediction_weight_recalibration_takes_its_own_path():
     )
 
 
+def test_without_candidate_validation_takes_its_own_path():
+    """候補検証をしない構成は、警報の位置で候補を採用し、候補検証の開始・判定が、新旧とも無い。結果も違う。"""
+    comparisons = collect_variant_comparisons(CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME)
+    adopted_at_alarm_count = 0
+    for comparison in comparisons:
+        variant_comparison = comparison["variant"]
+        for run_client, legacy_client in zip(
+            variant_comparison.participants.client_operations,
+            variant_comparison.legacy_run["legacy_clients"],
+            strict=True,
+        ):
+            adaptation_outcomes = [
+                adaptation_record.adaptation_outcome
+                for adaptation_record in run_client.owners.adaptation_record_store.get_state_snapshot().adaptation_records
+            ]
+            # 候補検証に関わる結果（開始、検証中の警報、検証の確定）は、1つも無い。
+            assert not any(
+                adaptation_outcome.startswith("post_alarm_validation_")
+                or adaptation_outcome
+                in (
+                    "alarm_interval_candidate_validation_started",
+                    "alarm_during_candidate_validation",
+                )
+                for adaptation_outcome in adaptation_outcomes
+            )
+            assert run_client.owners.validation_session_holder.held_validation_session is None
+            assert (
+                run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
+                == ()
+            )
+            client_adopted_at_alarm_count = adaptation_outcomes.count(
+                "alarm_interval_candidate_adopted_as_new_model"
+            )
+            adopted_at_alarm_count += client_adopted_at_alarm_count
+            # 実旧も、候補の判定の記録が無く、警報の位置での作成（`create`）の数が、新と同じ。
+            assert legacy_client.provisional_model_decisions == []
+            legacy_actions = [
+                legacy_event.action for legacy_event in legacy_client.adaptation_events
+            ]
+            assert legacy_actions.count("create") == client_adopted_at_alarm_count
+            assert not {
+                "create_pending",
+                "create_rejected",
+                "forward_validation_pending",
+            } & set(legacy_actions)
+    assert adopted_at_alarm_count > 0
+    # 同じ条件の提案構成は、候補検証を開始していて、結果が、この構成と違う条件がある。
+    assert any(
+        comparison["proposed"].run_metrics.change_response_metrics
+        != comparison["variant"].run_metrics.change_response_metrics
+        for comparison in comparisons
+    )
+    assert any(
+        comparison["variant"].run_metrics.prediction_accuracy
+        != comparison["proposed"].run_metrics.prediction_accuracy
+        for comparison in comparisons
+    )
+
+
 def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_element():
     """掃引のコマンドの構成の名前から作るrun設定は、提案構成と、変える要素だけが違う。"""
     assert EXPERIMENT_CONFIGURATION_NAMES == (
         PROPOSED_FEDSDA_CONFIGURATION_NAME,
         PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
+        CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
     )
     assert PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME == (
         "fedsda-without-prediction-weight-recalibration"
+    )
+    assert CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME == (
+        "fedsda-without-candidate-validation"
     )
     assert set(CONFIGURATION_VARIANTS) == set(EXPERIMENT_CONFIGURATION_NAMES) - {
         PROPOSED_FEDSDA_CONFIGURATION_NAME

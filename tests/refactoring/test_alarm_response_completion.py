@@ -55,6 +55,8 @@ LEGACY_ACTION_BY_RESPONSE_OUTCOME = {
     "alarm_interval_held_model_reused": "reuse",
     "alarm_interval_current_model_maintained": "maintain",
     "alarm_interval_candidate_validation_started": "create_pending",
+    # 候補検証をしない方針での、警報の位置での採用（旧の`immediate`）。
+    "alarm_interval_candidate_adopted_as_new_model": "create",
 }
 LEGACY_REUSE_SELECTION_COUNTS_BY_RESPONSE_OUTCOME = {
     "alarm_during_candidate_validation": {},
@@ -62,6 +64,7 @@ LEGACY_REUSE_SELECTION_COUNTS_BY_RESPONSE_OUTCOME = {
     "alarm_interval_held_model_reused": {"alternative_fit": 1},
     "alarm_interval_current_model_maintained": {"current_fit": 1},
     "alarm_interval_candidate_validation_started": {},
+    "alarm_interval_candidate_adopted_as_new_model": {},
 }
 LOSS_MONITOR_BETTING_FRACTIONS = (0.05, 0.1, 0.2, 0.4, 0.8)
 MAXIMUM_RETAINED_CANDIDATE_COUNT = 7

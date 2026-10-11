@@ -20,10 +20,13 @@ PROPOSED_FEDSDA_CONFIGURATION_NAME = "fedsda"
 PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME = (
     "fedsda-without-prediction-weight-recalibration"
 )
+# 提案構成から、候補検証を外した構成（合う保有モデルが無いとき、学習した候補を、その場で採用する）。
+CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME = "fedsda-without-candidate-validation"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
+    CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
 )
 
 
@@ -41,6 +44,27 @@ def _replace_prediction_combination_settings(
                 run_client_settings,
                 prediction_combination_settings=replace(
                     run_client_settings.prediction_combination_settings, **changed_fields
+                ),
+            ),
+        ),
+    )
+
+
+def _replace_candidate_model_training_and_acceptance_settings(
+    *, run_settings: FedsdaRunSettings, **changed_fields: object
+) -> FedsdaRunSettings:
+    """完全なrun設定の、候補モデルの学習と採否の設定の一部を置き換える。"""
+    run_participant_settings = run_settings.run_participant_settings
+    run_client_settings = run_participant_settings.run_client_settings
+    return replace(
+        run_settings,
+        run_participant_settings=replace(
+            run_participant_settings,
+            run_client_settings=replace(
+                run_client_settings,
+                candidate_model_training_and_acceptance_settings=replace(
+                    run_client_settings.candidate_model_training_and_acceptance_settings,
+                    **changed_fields,
                 ),
             ),
         ),
@@ -68,6 +92,13 @@ def build_experiment_run_settings(
             run_settings=proposed_run_settings,
             prediction_weight_recalibration_after_aggregation_policy=(
                 "keep_weights_without_recalibration"
+            ),
+        )
+    if configuration_name == CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME:
+        return _replace_candidate_model_training_and_acceptance_settings(
+            run_settings=proposed_run_settings,
+            candidate_model_acceptance_policy=(
+                "current_model_first_reuse_then_candidate_adoption_without_validation"
             ),
         )
     return proposed_run_settings

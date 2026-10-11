@@ -227,6 +227,71 @@ def _validate_post_alarm_candidate_validation_start_inputs(
         raise ValueError("候補の学習更新にはgrad有効が必要です。")
 
 
+@dataclass(frozen=True, kw_only=True)
+class TrainedAlarmIntervalCandidate:
+    """警報の変化区間で学習した独立候補と、その学習の結果。"""
+
+    candidate_training_state: IndependentCandidateTrainingState
+    candidate_epoch_training_result: CandidateEpochTrainingResult
+
+
+def train_candidate_on_alarm_change_interval(
+    *,
+    architecture_reference_classifier: ResidualAdapterClassifier,
+    initial_candidate_parameter_snapshot: dict[str, Tensor],
+    parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
+    candidate_epoch_training_settings: CandidateEpochTrainingSettings,
+    candidate_model_training_and_acceptance_settings: CandidateModelTrainingAndAcceptanceSettings,
+    held_model_training_state_registry: HeldModelTrainingStateRegistry,
+    loss_statistics_store: ModelAndClassLossStatisticsStore,
+    current_training_model_assignment: CurrentTrainingModelAssignment,
+    input_features: Tensor,
+    observed_class_labels: Tensor,
+    pending_assignment_training_samples: tuple[ObservedTrainingSample, ...],
+    proposal_sample_index: int,
+    estimated_change_point_sample_index: int | None,
+    detection_episode_id: int | None,
+    detector_name: str,
+) -> TrainedAlarmIntervalCandidate:
+    """入力を検査してから、独立候補を作り、変化区間で学習する。借用ownerは更新しない。
+
+    候補検証の開始と、候補検証をしない方針での採用の、両方が使う（参照モデルは固定しない）。
+    """
+    _validate_post_alarm_candidate_validation_start_inputs(
+        architecture_reference_classifier=architecture_reference_classifier,
+        candidate_epoch_training_settings=candidate_epoch_training_settings,
+        candidate_model_training_and_acceptance_settings=candidate_model_training_and_acceptance_settings,
+        held_model_training_state_registry=held_model_training_state_registry,
+        loss_statistics_store=loss_statistics_store,
+        current_training_model_assignment=current_training_model_assignment,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+        pending_assignment_training_samples=pending_assignment_training_samples,
+        proposal_sample_index=proposal_sample_index,
+        estimated_change_point_sample_index=estimated_change_point_sample_index,
+        detection_episode_id=detection_episode_id,
+        detector_name=detector_name,
+    )
+    # 初期値・optimizer設定の検査は、この既存public生成API内で生成前に行う。
+    candidate_training_state = create_independent_candidate_training_state(
+        architecture_reference_classifier=architecture_reference_classifier,
+        initial_candidate_parameter_snapshot=initial_candidate_parameter_snapshot,
+        parameter_optimizer_settings=parameter_optimizer_settings,
+    )
+    candidate_epoch_training_result = train_candidate_classifier_epochs(
+        candidate_classifier=candidate_training_state.candidate_classifier,
+        candidate_shared_parameter_optimizer_state=candidate_training_state.candidate_shared_parameter_optimizer_state,
+        candidate_concept_specific_parameter_optimizer_state=candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
+        input_features=input_features,
+        observed_class_labels=observed_class_labels,
+        candidate_epoch_training_settings=candidate_epoch_training_settings,
+    )
+    return TrainedAlarmIntervalCandidate(
+        candidate_training_state=candidate_training_state,
+        candidate_epoch_training_result=candidate_epoch_training_result,
+    )
+
+
 def start_post_alarm_candidate_validation_session(
     *,
     architecture_reference_classifier: ResidualAdapterClassifier,
@@ -246,8 +311,10 @@ def start_post_alarm_candidate_validation_session(
     detector_name: str,
 ) -> PostAlarmCandidateValidationSession:
     """借用ownerは更新せず、独立候補と固定参照を含む新sessionを返す。"""
-    _validate_post_alarm_candidate_validation_start_inputs(
+    trained_candidate = train_candidate_on_alarm_change_interval(
         architecture_reference_classifier=architecture_reference_classifier,
+        initial_candidate_parameter_snapshot=initial_candidate_parameter_snapshot,
+        parameter_optimizer_settings=parameter_optimizer_settings,
         candidate_epoch_training_settings=candidate_epoch_training_settings,
         candidate_model_training_and_acceptance_settings=candidate_model_training_and_acceptance_settings,
         held_model_training_state_registry=held_model_training_state_registry,
@@ -262,20 +329,8 @@ def start_post_alarm_candidate_validation_session(
         detector_name=detector_name,
     )
     initial_training_model_id = current_training_model_assignment.current_training_model_id
-    # 初期値・optimizer設定の検査は、この既存public生成API内で生成前に行う。
-    candidate_training_state = create_independent_candidate_training_state(
-        architecture_reference_classifier=architecture_reference_classifier,
-        initial_candidate_parameter_snapshot=initial_candidate_parameter_snapshot,
-        parameter_optimizer_settings=parameter_optimizer_settings,
-    )
-    candidate_epoch_training_result = train_candidate_classifier_epochs(
-        candidate_classifier=candidate_training_state.candidate_classifier,
-        candidate_shared_parameter_optimizer_state=candidate_training_state.candidate_shared_parameter_optimizer_state,
-        candidate_concept_specific_parameter_optimizer_state=candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
-        input_features=input_features,
-        observed_class_labels=observed_class_labels,
-        candidate_epoch_training_settings=candidate_epoch_training_settings,
-    )
+    candidate_training_state = trained_candidate.candidate_training_state
+    candidate_epoch_training_result = trained_candidate.candidate_epoch_training_result
     fixed_reference_models = fix_reference_models_at_alarm(
         held_model_training_state_registry=held_model_training_state_registry,
         loss_statistics_store=loss_statistics_store,
