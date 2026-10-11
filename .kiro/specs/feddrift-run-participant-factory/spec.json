@@ -1,0 +1,66 @@
+{
+  "feature_name": "feddrift-run-participant-factory",
+  "created_at": "2026-10-12T08:29:28+09:00",
+  "updated_at": "2026-10-12T08:29:28+09:00",
+  "language": "ja",
+  "phase": "implementation-complete",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "GPT-6 Luna mediumの仕様書群レビューPASS、主担当受入"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "GPT-6 Luna mediumの仕様書群レビューPASS、主担当受入"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "GPT-6 Luna mediumの仕様書群レビューPASS、主担当受入"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "GPT-6 Luna mediumの仕様・実装レビューPASS",
+      "note": "設計上の役割と実装実態の一致を確認"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "reviewer": "/root/feddrift_factory_spec_review",
+    "result": "PASS、Blocker/Major/Minorなし",
+    "scope": "仕様書群と必要な旧/新構築契約、task graph。テスト/実装は独立未実行。"
+  },
+  "handoff": {
+    "execution_status": "identity_pending",
+    "next_step": "検証済みsourceをcommitし、JUnit/source identityを確認してcompletedへ更新"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "reviewer": "/root/feddrift_factory_implementation_review",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "result": "PASS、Blocker/Major/Minorなし",
+    "independent_checks": "対象/依存3125 passed（11.15秒）、Ruff check/format、names、progress、diff --check成功",
+    "independent_full_pytest_reproduction": false,
+    "independent_fresh_reproduction": false
+  },
+  "integration_validation": {
+    "full_passed": 13214,
+    "full_skipped": 4,
+    "full_warnings": 9,
+    "full_exit_code": 0,
+    "full_duration_seconds": 673.8,
+    "target_passed": 43,
+    "dependency_passed": 3082,
+    "junit": "../../venv/refactoring-tests/feddrift-run-participant-factory-full.xml",
+    "log": "../../venv/refactoring-tests/feddrift-run-participant-factory-full.log",
+    "quality": "Ruff check/format（316 files）、Pyright 0 errors/0 warnings、pip check、names、progress、diff --check成功",
+    "limitations": "全pytest/freshは主担当実測で独立再現なし。WSL/変異未実施。終端run_round・サーバ精度評価・全体run指標/成果物/CLIとgolden移植は後続。"
+  }
+}

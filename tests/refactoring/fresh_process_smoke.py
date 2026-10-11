@@ -1819,7 +1819,75 @@ def run_feddrift_detection_batch_smoke():
                 server.communication_volume_record_store.get_state_snapshot().uploaded_model_count
                 == 2
             )
-    print("PASS FedDrift detection batch assessment: binary/multiclass; first/tied/increased loss")
+    from federated_learning_experiments.data.observed_sample_generation import (
+        create_observed_sample_generator,
+    )
+    from federated_learning_experiments.execution.run_random_sources import (
+        create_run_random_sources,
+    )
+    from federated_learning_experiments.learning.training.initial_model_pretraining_settings import (
+        InitialModelPretrainingSettings,
+    )
+    from federated_learning_experiments.runtime.feddrift_run_participant_factory import (
+        FeddriftRunParticipantFactory,
+        FeddriftRunParticipantSettings,
+    )
+
+    sources = create_run_random_sources(random_seed=71)
+    generator = create_observed_sample_generator(
+        dataset_name="sine2", numpy_random_generator=sources.numpy_random_generator
+    )
+    settings = FeddriftRunParticipantSettings(
+        run_client_settings=FeddriftRunClientSettings(
+            loss_increase_threshold=1.0,
+            detection_batch_sample_count=3,
+            local_training_batch_sample_count=3,
+            updates_per_sample=1,
+            maximum_stored_evaluation_sample_count_per_model=5,
+            added_evaluation_batch_sample_count=2,
+            new_model_optimizer_settings=optimizer_settings,
+        ),
+        server_settings=FeddriftServerSettings(
+            maximum_same_cluster_loss_increase=1.0,
+            cluster_linkage="complete",
+            minimum_cross_evaluation_sample_count=5,
+            maximum_cross_evaluation_client_count=1,
+            maximum_client_evaluation_sample_count=7,
+            new_model_isolation_timestep_count=2,
+            local_training_round_count=2,
+            initial_model_aggregation_weight=7,
+            rebuilt_model_optimizer_settings=optimizer_settings,
+        ),
+        initial_model_pretraining_settings=InitialModelPretrainingSettings(
+            pretraining_sample_count=7,
+            pretraining_epoch_count=1,
+            pretraining_batch_sample_count=3,
+        ),
+        hidden_layer_widths=(7, 5),
+    )
+    participants = FeddriftRunParticipantFactory(run_participant_settings=settings).prepare_run(
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name="sine2",
+            random_seed=71,
+            client_count=2,
+            per_client_sample_count=3,
+            server_aggregation_interval_per_client_samples=3,
+        ),
+        run_random_sources=sources,
+        sample_generator=generator,
+    )
+    for client in participants.run_clients:
+        client.process_observed_block(
+            observed_samples=tuple(generator.generate_sample(concept_id=0) for _ in range(3)),
+            evaluation_concept_ids=(0, 0, 0),
+        )
+    participants.run_server.synchronize_timestep(timestep_index=0)
+    assert participants.run_server.snapshot_model_weights() == {0: 6}
+    assert (
+        participants.run_server.communication_volume_record_store.get_state_snapshot().uploaded_model_count
+        == 4
+    )
+    print("PASS FedDrift: detection/client/server and participant factory observation/sync")
 
 
 def main():
