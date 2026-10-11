@@ -460,3 +460,31 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
                 lambda model_consolidation_settings: model_consolidation_settings,
             )(proposed_run_settings.model_consolidation_settings),
         )
+
+
+def test_overall_loss_scope_requires_its_own_detector_display_name():
+    """監視の対象が全体の損失だけの設定は、検出器の表示名が`e-SR`のときだけ作れる（混合の表示名は、拒否する）。"""
+    run_settings = build_experiment_run_settings(
+        configuration_name=OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name="sine2",
+            random_seed=0,
+            client_count=3,
+            per_client_sample_count=200,
+            server_aggregation_interval_per_client_samples=50,
+        ),
+    )
+    run_client_settings = run_settings.run_participant_settings.run_client_settings
+    assert run_client_settings.loss_change_detection_settings.loss_monitoring_scope == (
+        "overall_loss"
+    )
+    assert run_client_settings.scalar_settings.detector_name == "e-SR"
+    with pytest.raises(RunSettingsValidationError) as error_information:
+        replace(
+            run_client_settings,
+            scalar_settings=replace(
+                run_client_settings.scalar_settings,
+                detector_name="overall + class-conditional e-SR mixture",
+            ),
+        )
+    assert error_information.value.configuration_parameter_name == "detector_name"
