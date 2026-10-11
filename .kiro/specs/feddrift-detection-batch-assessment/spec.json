@@ -1,0 +1,36 @@
+{
+  "feature_name": "feddrift-detection-batch-assessment",
+  "created_at": "2026-10-11T21:44:48+09:00",
+  "updated_at": "2026-10-11T21:47:09+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Codex（共通引継ぎ手順のユーザー委任。独立レビューは全taskの後に1回）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Codex（共通引継ぎ手順のユーザー委任。独立レビューは全taskの後に1回）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Codex（共通引継ぎ手順のユーザー委任。独立レビューは全taskの後に1回）",
+      "task_graph_sanity_review": "PASS（inline。子エージェントは使わない決定のため）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": false,
+      "note": "全taskの後の独立レビューで確認する"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
+  "handoff": {
+    "execution_status": "in_progress",
+    "next_step": "task 1の実旧対照testから実装する"
+  }
+}

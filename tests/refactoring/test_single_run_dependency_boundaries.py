@@ -4756,6 +4756,17 @@ def resolve_imported_module_names(*, import_statement, importing_package_name):
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "methods/feddrift/detection_batch_assessment.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math.isfinite",
+            "torch.Tensor",
+            "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
+        )
     if source_module_path == "evaluation/adahedge_weight_evidence_collection.py":
         return imported_module_name in (
             "federated_learning_experiments.evaluation.adahedge_weight_evidence.AdaHedgeWeightEvidence",
@@ -6491,6 +6502,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "methods/feddrift/detection_batch_assessment.py",
             "evaluation/adahedge_weight_evidence_collection.py",
             "runtime/training_assignment_adahedge_weight_evidence_restart.py",
             "evaluation/adahedge_weight_evidence.py",
@@ -7949,6 +7961,21 @@ def test_candidate_classifier_construction_exact_dependency_contract(
     ) == expected_acceptance
 
 
+@pytest.mark.parametrize(
+    "source_text",
+    (
+        "from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient",
+        "from federated_learning_experiments.evaluation.sample_prediction_record_store import SamplePredictionRecordStore",
+        "from federated_drift_experiment.clients.feddrift import FedDriftClient",
+    ),
+)
+def test_feddrift_batch_assessment_rejects_state_and_legacy_dependencies(source_text):
+    assert collect_dependency_boundary_violations(
+        source_module_path="methods/feddrift/detection_batch_assessment.py",
+        source_text=source_text,
+    )
+
+
 def collect_module_allowed_dependency_names():
     """dependency_is_allowedのうち、moduleごとに`return imported_module_name in (...)`で書いた許可集合を読む。"""
     dependency_rule_function = next(
@@ -8046,6 +8073,7 @@ def test_single_run_package_boundaries_have_no_exports():
         "learning/prediction",
         "evaluation",
         "sweep",
+        "methods/feddrift",
     )
     for package_boundary_path in package_boundary_paths:
         source_file_path = package_source_directory / package_boundary_path / "__init__.py"

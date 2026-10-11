@@ -1601,7 +1601,55 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
     )
 
 
+def run_feddrift_detection_batch_smoke():
+    """FedDriftの数値判定を、新実装の独立モデルだけで呼び出す。"""
+    from federated_learning_experiments.methods.feddrift.detection_batch_assessment import (
+        assess_feddrift_detection_batch,
+    )
+
+    with torch.random.fork_rng():
+        for class_count in (2, 4):
+            torch.manual_seed(61)
+            held_models = tuple(
+                (
+                    model_id,
+                    ResidualAdapterClassifier(
+                        model_architecture_settings=ModelArchitectureSettings(
+                            model_architecture_name="independent_models_without_shared_backbone",
+                            residual_adapter_requested_rank=8,
+                        ),
+                        input_feature_count=3,
+                        hidden_layer_widths=(6, 4),
+                        class_count=class_count,
+                    ),
+                )
+                for model_id in (7, -104)
+            )
+            held_models[1][1].load_state_dict(held_models[0][1].state_dict())
+            arguments = dict(
+                held_models=held_models,
+                input_features=torch.ones(3, 3),
+                observed_class_labels=torch.zeros(3, 1),
+                loss_increase_threshold=0.0,
+            )
+            first_batch = assess_feddrift_detection_batch(
+                **arguments,
+                previous_minimum_mean_bounded_loss=None,
+            )
+            assert first_batch.minimum_loss_model_id == 7
+            assert not first_batch.drift_detected
+            assert first_batch.batch_sample_count == 3
+            changed_batch = assess_feddrift_detection_batch(
+                **arguments,
+                previous_minimum_mean_bounded_loss=0.0,
+            )
+            assert changed_batch.drift_detected
+            assert changed_batch.model_mean_bounded_losses == first_batch.model_mean_bounded_losses
+    print("PASS FedDrift detection batch assessment: binary/multiclass; first/tied/increased loss")
+
+
 def main():
+    run_feddrift_detection_batch_smoke()
     all_observed_outcomes = set()
     for class_count in (2, 4):
         for smoke_scenario in SMOKE_SCENARIOS:
