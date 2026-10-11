@@ -816,7 +816,10 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "prediction_combination_strategy"
                 else ("always",)
                 if settings_field.name == "prediction_mixture_activation_policy"
-                else ("recompute_buffer_losses_and_replay_weight_updates",)
+                else (
+                    "recompute_buffer_losses_and_replay_weight_updates",
+                    "keep_weights_without_recalibration",
+                )
                 if settings_field.name == "prediction_weight_recalibration_after_aggregation_policy"
                 else ("joint_backbone_adapter_and_head_training",)
                 if settings_field.name == "local_model_parameter_update_strategy"

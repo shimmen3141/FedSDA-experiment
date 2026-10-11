@@ -5173,6 +5173,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_configurations.py":
         return imported_module_name in (
+            "dataclasses.replace",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
             "federated_learning_experiments.runtime.fedsda_final_configuration_run_settings.build_final_configuration_fedsda_run_settings",
             "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",

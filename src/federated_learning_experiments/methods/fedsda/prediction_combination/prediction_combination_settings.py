@@ -19,7 +19,12 @@ class PredictionCombinationSettings:
     )
     prediction_weight_recalibration_after_aggregation_policy: str = field(
         metadata={
-            "allowed_parameter_values": ("recompute_buffer_losses_and_replay_weight_updates",)
+            "allowed_parameter_values": (
+                # 保留中の標本の損失を、集約後のモデルで計算し直して、重みを作り直す（提案構成）。
+                "recompute_buffer_losses_and_replay_weight_updates",
+                # 集約の後も、重みを、作り直さずに、そのまま使う（再較正を外した構成）。
+                "keep_weights_without_recalibration",
+            )
         },
     )
     prediction_state_reset_on_training_assignment_change_policy: str = field(

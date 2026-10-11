@@ -1,7 +1,10 @@
 """実験の構成の名前（手法と、その選択肢の組）から、完全なrun設定を作る。
 
 構成は、実行条件（dataset、seed、規模、集約間隔）とは別のもの。構成を足すときは、ここへ足す。
+提案構成以外の構成は、提案構成のrun設定の、1つの要素だけを置き換える（要素を外す構成は`fedsda-without-…`）。
 """
+
+from dataclasses import replace
 
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
@@ -13,8 +16,35 @@ from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRun
 
 # 提案構成（docs/overview/proposed-method.mdの「最終提案構成」）。
 PROPOSED_FEDSDA_CONFIGURATION_NAME = "fedsda"
+# 提案構成から、集約後の、予測重みの再較正を外した構成。
+PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME = (
+    "fedsda-without-prediction-weight-recalibration"
+)
 # コマンドで指定できる構成の名前。
-EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (PROPOSED_FEDSDA_CONFIGURATION_NAME,)
+EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
+    PROPOSED_FEDSDA_CONFIGURATION_NAME,
+    PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
+)
+
+
+def _replace_prediction_combination_settings(
+    *, run_settings: FedsdaRunSettings, **changed_fields: object
+) -> FedsdaRunSettings:
+    """完全なrun設定の、予測の結合の設定の一部を置き換える（設定の検証は、もう一度行われる）。"""
+    run_participant_settings = run_settings.run_participant_settings
+    run_client_settings = run_participant_settings.run_client_settings
+    return replace(
+        run_settings,
+        run_participant_settings=replace(
+            run_participant_settings,
+            run_client_settings=replace(
+                run_client_settings,
+                prediction_combination_settings=replace(
+                    run_client_settings.prediction_combination_settings, **changed_fields
+                ),
+            ),
+        ),
+    )
 
 
 def build_experiment_run_settings(
@@ -25,11 +55,19 @@ def build_experiment_run_settings(
         raise TypeError("configuration_name must be builtin str")
     if type(experiment_run_conditions) is not ExperimentRunConditions:
         raise TypeError("experiment_run_conditions must be exact ExperimentRunConditions")
-    if configuration_name == PROPOSED_FEDSDA_CONFIGURATION_NAME:
-        return build_final_configuration_fedsda_run_settings(
-            experiment_run_conditions=experiment_run_conditions
+    if configuration_name not in EXPERIMENT_CONFIGURATION_NAMES:
+        raise ValueError(
+            f"unknown experiment configuration: {configuration_name!r} "
+            f"(available: {', '.join(EXPERIMENT_CONFIGURATION_NAMES)})"
         )
-    raise ValueError(
-        f"unknown experiment configuration: {configuration_name!r} "
-        f"(available: {', '.join(EXPERIMENT_CONFIGURATION_NAMES)})"
+    proposed_run_settings = build_final_configuration_fedsda_run_settings(
+        experiment_run_conditions=experiment_run_conditions
     )
+    if configuration_name == PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME:
+        return _replace_prediction_combination_settings(
+            run_settings=proposed_run_settings,
+            prediction_weight_recalibration_after_aggregation_policy=(
+                "keep_weights_without_recalibration"
+            ),
+        )
+    return proposed_run_settings

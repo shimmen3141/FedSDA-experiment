@@ -382,8 +382,16 @@ class FedsdaRunClient:
 
     def recalibrate_prediction_state_after_aggregation(
         self,
-    ) -> PostAggregationPredictionRecalibration:
-        """配布を受け取った後で、保留中の標本の損失を計算し直して、予測の重みと診断証拠を作り直す。"""
+    ) -> PostAggregationPredictionRecalibration | None:
+        """配布を受け取った後で、保留中の標本の損失を計算し直して、予測の重みと診断証拠を作り直す。
+
+        再較正の方針が「再較正しない」のときは、何も変えず、Noneを返す。
+        """
+        if (
+            self._run_client_settings.prediction_combination_settings.prediction_weight_recalibration_after_aggregation_policy
+            == "keep_weights_without_recalibration"
+        ):
+            return None
         owners = self._owners
         return recalibrate_prediction_state_after_aggregation(
             held_model_training_state_registry=owners.held_model_training_state_registry,

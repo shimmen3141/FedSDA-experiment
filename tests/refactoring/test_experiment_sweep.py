@@ -90,7 +90,7 @@ SMALL_COMMAND_ARGUMENTS = [
 def test_proposed_configuration_builds_final_configuration_run_settings():
     """提案構成の名前は、最終構成の既定値の、完全なrun設定を作る。"""
     assert PROPOSED_FEDSDA_CONFIGURATION_NAME == "fedsda"
-    assert EXPERIMENT_CONFIGURATION_NAMES == ("fedsda",)
+    assert EXPERIMENT_CONFIGURATION_NAMES[0] == "fedsda"
     conditions = ExperimentRunConditions(
         dataset_name="sine2",
         random_seed=3,

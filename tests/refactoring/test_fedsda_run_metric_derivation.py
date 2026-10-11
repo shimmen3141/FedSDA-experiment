@@ -1487,20 +1487,24 @@ SMALL_RUN_OBSERVATIONS = {}
 SMALL_RUNS_BY_CONDITION = {}
 
 
-@pytest.mark.parametrize(
-    (
-        "random_seed",
-        "client_count",
-        "per_client_sample_count",
-        "aggregation_interval",
-        "minimum_change_gap",
-        "concept_change_probability",
-        "update_interval",
-    ),
-    SMALL_RUN_CONDITIONS,
+# 実験の構成（照合の単位）: 名前、旧の構成名、旧の設定の上書き、新の参加者の設定の変更。提案構成は、何も変えない。
+PROPOSED_CONFIGURATION_VARIANT = SimpleNamespace(
+    name="fedsda",
+    legacy_mode_name=whole_run_test_module.LEGACY_MODE_NAME,
+    legacy_setting_overrides={},
+    modify_run_participant_settings=lambda run_participant_settings: run_participant_settings,
 )
-@pytest.mark.parametrize(("maximum_delay", "recovery_window"), [(100, 50), (8, 5)])
-def test_small_run_metrics_match_real_legacy_metric_computation(
+# 照合のたびに、旧の値を積む一覧（対応表の取り違えの検査が読む）。
+LEGACY_METRIC_VALUE_OBSERVATION_LISTS = (
+    LEGACY_CHANGE_RESPONSE_METRIC_VALUE_OBSERVATIONS,
+    LEGACY_MODEL_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS,
+    LEGACY_MODEL_PAIR_METRIC_VALUE_OBSERVATIONS,
+    LEGACY_PREDICTION_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS,
+)
+
+
+def compare_small_run_with_real_legacy(
+    *,
     monkeypatch,
     tmp_path,
     valid_run_settings_mapping,
@@ -1513,8 +1517,19 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
     update_interval,
     maximum_delay,
     recovery_window,
+    configuration_variant=None,
 ):
-    """小さい条件で、導出した指標が、実旧の全体runの後に、旧の指標の計算を呼んだ結果と一致する。"""
+    """小さい条件で、導出した指標と離散列が、実旧の全体runの後に、旧の指標の計算と保存を呼んだ結果と一致する。
+
+    `configuration_variant`（名前、旧の構成名、旧の設定の上書き、新の参加者の設定の変更）で、提案構成以外の構成を照合できる。
+    戻り値: 指標、離散列、通った場合の観測、実旧の全体run、新の参加者。
+    """
+    if configuration_variant is None:
+        configuration_variant = PROPOSED_CONFIGURATION_VARIANT
+    # 提案構成以外の照合は、対応表の取り違えの検査（提案構成の条件の数を前提にしている）の観測へ、足さない。
+    value_observation_counts = [
+        len(value_observations) for value_observations in LEGACY_METRIC_VALUE_OBSERVATION_LISTS
+    ]
     condition = (
         random_seed,
         client_count,
@@ -1524,7 +1539,8 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
         concept_change_probability,
         update_interval,
     )
-    if condition not in SMALL_RUNS_BY_CONDITION:
+    run_key = (configuration_variant.name, condition)
+    if run_key not in SMALL_RUNS_BY_CONDITION:
         execution_settings = make_execution_settings(
             random_seed=random_seed,
             client_count=client_count,
@@ -1537,11 +1553,15 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
             monkeypatch=monkeypatch,
             execution_settings=execution_settings,
             update_interval=update_interval,
+            legacy_mode_name=configuration_variant.legacy_mode_name,
+            legacy_setting_overrides=configuration_variant.legacy_setting_overrides,
         )
         measured_run = execute_fedsda_stream_protocol_run_with_computation_measurement(
             execution_settings=execution_settings,
-            run_participant_settings=make_run_participant_settings(
-                valid_run_settings_mapping, update_interval=update_interval
+            run_participant_settings=configuration_variant.modify_run_participant_settings(
+                make_run_participant_settings(
+                    valid_run_settings_mapping, update_interval=update_interval
+                )
             ),
         )
         run_result, participants = measured_run.run_result, measured_run.participants
@@ -1552,8 +1572,8 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
             legacy_run["legacy_clients"],
             legacy_run["legacy_server"],
             extract_true_drift_events(legacy_run["legacy_concept_schedules"]),
-            whole_run_test_module.LEGACY_MODE_NAME,
-            whole_run_test_module.LEGACY_MODE_NAME,
+            configuration_variant.legacy_mode_name,
+            configuration_variant.legacy_mode_name,
             random_seed,
             experiment._new_round_telemetry(),
             client_test_module.MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
@@ -1562,7 +1582,7 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
             legacy_trace_arrays = {
                 trace_name: legacy_arrays[trace_name] for trace_name in legacy_regression.TRACES
             }
-        SMALL_RUNS_BY_CONDITION[condition] = (
+        SMALL_RUNS_BY_CONDITION[run_key] = (
             legacy_run,
             run_result,
             participants,
@@ -1570,7 +1590,7 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
             measured_run.model_computation_counts,
         )
     legacy_run, run_result, participants, legacy_trace_arrays, model_computation_counts = (
-        SMALL_RUNS_BY_CONDITION[condition]
+        SMALL_RUNS_BY_CONDITION[run_key]
     )
     # 新の記録から作った31の離散列が、実旧の保存処理が作った配列と、形・型・値で一致する。
     trace_arrays = derive_legacy_trace_arrays(run_result=run_result, participants=participants)
@@ -1722,9 +1742,7 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
         for legacy_client in legacy_clients
     )
     processed_sample_count = run_result.processed_sample_count_per_client
-    SMALL_RUN_OBSERVATIONS[
-        (random_seed, per_client_sample_count, maximum_delay, recovery_window)
-    ] = dict(
+    small_run_observation = dict(
         unprocessed_tail=run_result.unprocessed_tail_sample_count_per_client > 0,
         concept_change_in_unprocessed_tail=any(
             sample_index >= processed_sample_count
@@ -1755,6 +1773,67 @@ def test_small_run_metrics_match_real_legacy_metric_computation(
         ),
         models_absorbed=bool(trace_arrays["clustering_absorbed"].any()),
         server_remapped_adaptation="server_merge" in trace_arrays["adaptation_actions"].tolist(),
+    )
+    if configuration_variant is PROPOSED_CONFIGURATION_VARIANT:
+        SMALL_RUN_OBSERVATIONS[
+            (random_seed, per_client_sample_count, maximum_delay, recovery_window)
+        ] = small_run_observation
+    else:
+        for value_observations, value_observation_count in zip(
+            LEGACY_METRIC_VALUE_OBSERVATION_LISTS, value_observation_counts, strict=True
+        ):
+            del value_observations[value_observation_count:]
+    return SimpleNamespace(
+        run_metrics=run_metrics,
+        trace_arrays=trace_arrays,
+        small_run_observation=small_run_observation,
+        legacy_run=legacy_run,
+        participants=participants,
+        run_result=run_result,
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        "random_seed",
+        "client_count",
+        "per_client_sample_count",
+        "aggregation_interval",
+        "minimum_change_gap",
+        "concept_change_probability",
+        "update_interval",
+    ),
+    SMALL_RUN_CONDITIONS,
+)
+@pytest.mark.parametrize(("maximum_delay", "recovery_window"), [(100, 50), (8, 5)])
+def test_small_run_metrics_match_real_legacy_metric_computation(
+    monkeypatch,
+    tmp_path,
+    valid_run_settings_mapping,
+    random_seed,
+    client_count,
+    per_client_sample_count,
+    aggregation_interval,
+    minimum_change_gap,
+    concept_change_probability,
+    update_interval,
+    maximum_delay,
+    recovery_window,
+):
+    """小さい条件で、導出した指標が、実旧の全体runの後に、旧の指標の計算を呼んだ結果と一致する（提案構成）。"""
+    compare_small_run_with_real_legacy(
+        monkeypatch=monkeypatch,
+        tmp_path=tmp_path,
+        valid_run_settings_mapping=valid_run_settings_mapping,
+        random_seed=random_seed,
+        client_count=client_count,
+        per_client_sample_count=per_client_sample_count,
+        aggregation_interval=aggregation_interval,
+        minimum_change_gap=minimum_change_gap,
+        concept_change_probability=concept_change_probability,
+        update_interval=update_interval,
+        maximum_delay=maximum_delay,
+        recovery_window=recovery_window,
     )
 
 

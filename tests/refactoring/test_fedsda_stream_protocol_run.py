@@ -115,8 +115,19 @@ def make_run_participant_settings(valid_run_settings_mapping, *, update_interval
     )
 
 
-def run_real_legacy_whole_run(*, monkeypatch, execution_settings, update_interval, **overrides):
+def run_real_legacy_whole_run(
+    *,
+    monkeypatch,
+    execution_settings,
+    update_interval,
+    legacy_mode_name=LEGACY_MODE_NAME,
+    legacy_setting_overrides=None,
+    **overrides,
+):
     """旧の全体の流れ（指標の計算より前）を、旧の部品を、旧のrun_random_drift_experimentと同じ順に呼んで実行する。
+
+    `legacy_mode_name`と`legacy_setting_overrides`（旧の設定の名前→値）で、最終構成以外の構成を実行できる
+    （上書きは、最終構成の値を置いた後に行う）。
 
     戻り値: 辞書（サーバ、clientのlist、概念列、観測列、終了時のPythonとNumPyの乱数の状態）。呼出し側の乱数は進めない。
     """
@@ -144,7 +155,10 @@ def run_real_legacy_whole_run(*, monkeypatch, execution_settings, update_interva
     ).items():
         assert hasattr(config, legacy_setting_name), legacy_setting_name
         monkeypatch.setattr(config, legacy_setting_name, legacy_setting_value)
-    legacy_mode_specification = experiment.MODE_SPECS[LEGACY_MODE_NAME]
+    for legacy_setting_name, legacy_setting_value in (legacy_setting_overrides or {}).items():
+        assert hasattr(config, legacy_setting_name), legacy_setting_name
+        monkeypatch.setattr(config, legacy_setting_name, legacy_setting_value)
+    legacy_mode_specification = experiment.MODE_SPECS[legacy_mode_name]
     python_random_state = random.getstate()
     numpy_random_state = np.random.get_state()
     try:

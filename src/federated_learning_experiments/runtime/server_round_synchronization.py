@@ -46,14 +46,17 @@ from federated_learning_experiments.runtime.server_model_registration_and_aggreg
 
 @dataclass(frozen=True, kw_only=True)
 class ServerRoundSynchronization:
-    """同期1回の、各段の結果。クラスタリングを行わなかったラウンドでは、クロス評価と統合の結果はNone。"""
+    """同期1回の、各段の結果。クラスタリングを行わなかったラウンドでは、クロス評価と統合の結果はNone。
+
+    `prediction_recalibrations`は、clientごとの、集約後の再較正の結果（再較正しない方針のclientでは、None）。
+    """
 
     registered_client_models: tuple[RegisteredClientModel, ...]
     client_model_aggregation: ClientModelAggregation
     model_cross_evaluation: ModelCrossEvaluation | None
     model_consolidation: ModelConsolidation | None
     distribution_applications: tuple[GlobalModelDistributionApplication, ...]
-    prediction_recalibrations: tuple[PostAggregationPredictionRecalibration, ...]
+    prediction_recalibrations: tuple[PostAggregationPredictionRecalibration | None, ...]
 
 
 def synchronize_models_in_server_round(
