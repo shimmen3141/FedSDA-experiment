@@ -76,7 +76,7 @@
 | 名前 | 内容 |
 |---|---|
 | `ExperimentRunOutcome` | `configuration_name`、`run_identifier`、`run_status`（`completed`・`skipped_existing`・`failed`）、`failure_description`（失敗のときだけ） |
-| `find_existing_run_status(*, planned_run, output_directory)` | 出力先の、そのrunの状態（`missing`・`completed`・`conflicting`と、理由） |
+| `ExistingRunState` / `find_existing_run_state(*, planned_run, output_directory)` | 出力先の、そのrunのファイルの状態（`run_state`: `missing`・`completed`・`conflicting`と、`description`: 理由） |
 | `execute_planned_experiment_run(*, planned_run, output_directory)` | 1 runを、実行して保存する（workerのprocessで呼ばれる）。計算のthreadを1つにする |
 | `execute_experiment_sweep(*, planned_runs, output_directory, worker_count, report_progress=None)` | 済んだrunを飛ばし、残りを、逐次（worker 1）か、並列（`spawn`のprocess）で実行し、結果を、計画の順で返す。並列のときは、時間のかかる見込みのrun（MNIST、短い集約間隔）から投入する |
 

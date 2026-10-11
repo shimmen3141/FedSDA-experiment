@@ -3,7 +3,7 @@
 required-version = "==0.16.10"
 target-version = "py313"
 line-length = 100
-include = ["src/**/*.py", "tests/refactoring/**/*.py"]
+include = ["src/**/*.py", "tests/refactoring/**/*.py", "run_experiment_sweep.py"]
 force-exclude = true
 extend-exclude = ["federated_drift_experiment", "tools", "tests/test_*.py", "experiment_runtime.py", "run_experiment.py", "run_comparative_trials.py", "run_pareto_sweep.py", "recovery_analysis.py"]
 

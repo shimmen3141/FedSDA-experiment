@@ -5095,6 +5095,83 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_experiment_run.FedsdaExperimentRun",
             "federated_learning_experiments.runtime.fedsda_run_record_tables.build_fedsda_run_record_tables",
         )
+    if source_module_path == "sweep/experiment_sweep_command.py":
+        return imported_module_name in (
+            "argparse.ArgumentParser",
+            "collections.abc.Sequence",
+            "datetime.datetime",
+            "pathlib.Path",
+            "sys.argv",
+            "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
+            "federated_learning_experiments.data.mnist.mnist_training_data.load_mnist_training_data",
+            "federated_learning_experiments.data.mnist.mnist_training_data.resolve_mnist_data_directory",
+            "federated_learning_experiments.sweep.experiment_configurations.EXPERIMENT_CONFIGURATION_NAMES",
+            "federated_learning_experiments.sweep.experiment_configurations.PROPOSED_FEDSDA_CONFIGURATION_NAME",
+            "federated_learning_experiments.sweep.experiment_sweep_execution.execute_experiment_sweep",
+            "federated_learning_experiments.sweep.experiment_sweep_execution.find_existing_run_state",
+            "federated_learning_experiments.sweep.experiment_sweep_plan.ExperimentSweepPlan",
+            "federated_learning_experiments.sweep.experiment_sweep_plan.build_planned_experiment_runs",
+            "federated_learning_experiments.sweep.experiment_sweep_records.describe_code_revision",
+            "federated_learning_experiments.sweep.experiment_sweep_records.write_run_summary_table",
+            "federated_learning_experiments.sweep.experiment_sweep_records.write_sweep_record",
+        )
+    if source_module_path == "sweep/experiment_sweep_records.py":
+        return imported_module_name in (
+            "csv.writer",
+            "dataclasses.asdict",
+            "datetime.datetime",
+            "json.dumps",
+            "json.loads",
+            "os.getpid",
+            "os.replace",
+            "pathlib.Path",
+            "platform.machine",
+            "platform.python_version",
+            "platform.system",
+            "subprocess.run",
+            "numpy.__version__",
+            "torch.__version__",
+            "federated_learning_experiments.sweep.experiment_sweep_execution.RUN_DIRECTORY_NAME",
+            "federated_learning_experiments.sweep.experiment_sweep_execution.ExperimentRunOutcome",
+            "federated_learning_experiments.sweep.experiment_sweep_plan.ExperimentSweepPlan",
+        )
+    if source_module_path == "sweep/experiment_sweep_execution.py":
+        return imported_module_name in (
+            "collections.abc.Callable",
+            "concurrent.futures.ProcessPoolExecutor",
+            "concurrent.futures.as_completed",
+            "dataclasses.dataclass",
+            "json.dumps",
+            "json.loads",
+            "multiprocessing.get_context",
+            "pathlib.Path",
+            "time.perf_counter",
+            "traceback.format_exc",
+            "torch.get_num_threads",
+            "torch.set_num_threads",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.runtime.fedsda_experiment_run.execute_fedsda_experiment_run",
+            "federated_learning_experiments.runtime.fedsda_run_artifact_files.load_fedsda_run_artifacts",
+            "federated_learning_experiments.runtime.fedsda_run_artifact_files.save_fedsda_experiment_run",
+            "federated_learning_experiments.sweep.experiment_sweep_plan.PlannedExperimentRun",
+        )
+    if source_module_path == "sweep/experiment_sweep_plan.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "hashlib.sha256",
+            "json.dumps",
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
+            "federated_learning_experiments.sweep.experiment_configurations.EXPERIMENT_CONFIGURATION_NAMES",
+            "federated_learning_experiments.sweep.experiment_configurations.build_experiment_run_settings",
+        )
+    if source_module_path == "sweep/experiment_configurations.py":
+        return imported_module_name in (
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.runtime.fedsda_final_configuration_run_settings.build_final_configuration_fedsda_run_settings",
+            "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
+        )
     if source_module_path == "runtime/fedsda_prediction_diagnostic_metric_derivation.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6421,6 +6498,11 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/fedsda_change_response_metric_derivation.py",
             "runtime/fedsda_model_diagnostic_metric_derivation.py",
             "runtime/fedsda_prediction_diagnostic_metric_derivation.py",
+            "sweep/experiment_configurations.py",
+            "sweep/experiment_sweep_plan.py",
+            "sweep/experiment_sweep_execution.py",
+            "sweep/experiment_sweep_records.py",
+            "sweep/experiment_sweep_command.py",
             "runtime/fedsda_run_artifact_files.py",
             "runtime/fedsda_run_record_tables.py",
             "runtime/fedsda_experiment_run.py",
@@ -6528,6 +6610,11 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedsda_change_response_metric_derivation.py",
                     "runtime/fedsda_model_diagnostic_metric_derivation.py",
                     "runtime/fedsda_prediction_diagnostic_metric_derivation.py",
+                    "sweep/experiment_configurations.py",
+                    "sweep/experiment_sweep_plan.py",
+                    "sweep/experiment_sweep_execution.py",
+                    "sweep/experiment_sweep_records.py",
+                    "sweep/experiment_sweep_command.py",
                     "runtime/fedsda_run_artifact_files.py",
                     "runtime/fedsda_run_record_tables.py",
                     "runtime/fedsda_experiment_run.py",
@@ -7935,6 +8022,7 @@ def test_single_run_package_boundaries_have_no_exports():
         "runtime",
         "learning/prediction",
         "evaluation",
+        "sweep",
     )
     for package_boundary_path in package_boundary_paths:
         source_file_path = package_source_directory / package_boundary_path / "__init__.py"

@@ -43,6 +43,7 @@ Claude・Codexの交代は[共通引継ぎ手順](../.kiro/steering/agent-handof
 - [固定baselineの構成](experiments/baselines.md)
 - [リファクタリング前の回帰基準](experiments/refactoring-baseline.md): 旧11ケースと最終構成3ケース、基準環境、検証手順。
 - [実験設定・掃引計画・manifest](experiments/experiment-configuration.md)
+- [実験の掃引のコマンド（新実装）](experiments/experiment-sweep.md): `run_experiment_sweep.py`の使い方、出力の形、再開。
 - [データ特性](experiments/dataset-characteristics.md)
 - [評価指標](experiments/metrics.md)
 - [FedDrift元論文との相違点](experiments/differences-from-feddrift.md)
