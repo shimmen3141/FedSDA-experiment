@@ -8,6 +8,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from json import dumps, loads
 from multiprocessing import get_context
+from os import environ
 from pathlib import Path
 from time import perf_counter
 from traceback import format_exc
@@ -32,6 +33,12 @@ _SUMMARY_FILE_SUFFIX = ".json"
 _RECORD_TABLE_FILE_SUFFIX = ".npz"
 # 1 runのprocessが使う、計算のthreadの数。
 _RUN_THREAD_COUNT = 1
+# 数値計算のライブラリの、threadの数を決める環境変数（workerのprocessを作る前に、未設定なら1にする）。
+THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES = (
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -179,7 +186,9 @@ def execute_experiment_sweep(
     出力先に、済んだ結果があるrunは、実行せずに飛ばす。食い違うファイルがあるrunは、上書きせずに、失敗とする。
     `worker_count`が2以上で、残りのrunが2つ以上なら、残りのrunを、別々のprocessで並列に実行する
     （時間のかかる見込みのrunから投入する）。残りが1つなら、呼出し側のprocessで実行する。
-    途中で例外（中断を含む）が出たら、まだ始まっていないrunを取り消して、例外を伝える。
+    並列のときは、workerのprocessを作る前に、数値計算のライブラリのthreadの数の環境変数を、未設定なら1にする
+    （このprocessの環境を変える。workerのprocessは、それを受け継ぐ）。
+    途中で例外（中断を含む）が出たら、workerへ渡す前の、待ちのrunを取り消して、例外を伝える。
     """
     if type(planned_runs) is not tuple:
         raise TypeError("planned_runs must be exact tuple")
@@ -248,6 +257,8 @@ def execute_experiment_sweep(
                 ),
             )
     else:
+        for thread_count_variable_name in THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES:
+            environ.setdefault(thread_count_variable_name, str(_RUN_THREAD_COUNT))
         process_pool = ProcessPoolExecutor(
             max_workers=min(worker_count, len(pending_run_positions)),
             mp_context=get_context("spawn"),
@@ -283,8 +294,10 @@ def execute_experiment_sweep(
                     )
                 record_outcome(run_position, outcome)
         except BaseException:
-            # 中断（Ctrl-C）や、進み具合の報告の失敗: まだ始まっていないrunを取り消し、実行中のrunが終わるのを待ってから、
-            # 例外を伝える（実行中のrunは、途中で止めない。保存は、済むか、何も残さないかの、どちらか）。
+            # 中断（Ctrl-C）や、進み具合の報告の失敗: workerへ渡す前の、待ちのrunを取り消し、workerのprocessが
+            # 終わるのを待ってから、例外を伝える（すでにworkerへ渡したrun——実行中のものと、その次の数件——は、
+            # 取り消せない。中断の信号がworkerにも届く環境では、実行中のrunも途中で止まり、一時のファイルや、
+            # 表のファイルだけが、残ることがある。保存の済んだrunのファイルは、壊れない）。
             process_pool.shutdown(wait=True, cancel_futures=True)
             raise
         process_pool.shutdown(wait=True)

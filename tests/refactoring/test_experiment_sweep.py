@@ -2,6 +2,7 @@
 
 import csv
 import json
+import os
 import re
 import subprocess
 import sys
@@ -454,9 +455,18 @@ def test_failed_run_is_reported_and_other_runs_continue(tmp_path, monkeypatch):
     assert "failed" in progress_messages[0] and "simulated run failure" in progress_messages[0]
 
 
-def test_parallel_sweep_saves_the_same_content_as_sequential_sweep(sequential_sweep, tmp_path):
-    """別々のprocessでの並列の実行が保存した内容は、逐次の実行と、同じ。"""
+def test_parallel_sweep_saves_the_same_content_as_sequential_sweep(
+    sequential_sweep, tmp_path, monkeypatch
+):
+    """別々のprocessでの並列の実行が保存した内容は、逐次の実行と、同じ。
+
+    並列の実行は、workerのprocessを作る前に、数値計算のライブラリのthreadの数の環境変数を、未設定なら1にする
+    （workerのprocessは、その環境を受け継ぐ）。設定されている値は、変えない。
+    """
     sequential_directory, planned_runs, _, _ = sequential_sweep
+    monkeypatch.delenv("OMP_NUM_THREADS", raising=False)
+    monkeypatch.delenv("MKL_NUM_THREADS", raising=False)
+    monkeypatch.setenv("OPENBLAS_NUM_THREADS", "3")
     progress_messages = []
     outcomes = execute_experiment_sweep(
         planned_runs=planned_runs,
@@ -464,6 +474,9 @@ def test_parallel_sweep_saves_the_same_content_as_sequential_sweep(sequential_sw
         worker_count=2,
         report_progress=progress_messages.append,
     )
+    assert os.environ["OMP_NUM_THREADS"] == "1"
+    assert os.environ["MKL_NUM_THREADS"] == "1"
+    assert os.environ["OPENBLAS_NUM_THREADS"] == "3"
     # 結果は、計画の順で返る。
     assert [(outcome.run_identifier, outcome.run_status) for outcome in outcomes] == [
         (planned_run.run_identifier, "completed") for planned_run in planned_runs
@@ -479,7 +492,7 @@ def test_parallel_sweep_saves_the_same_content_as_sequential_sweep(sequential_sw
 
 
 def test_parallel_sweep_cancels_waiting_runs_when_interrupted(tmp_path):
-    """並列の実行の途中で、例外（進み具合の報告の失敗、中断）が出たら、まだ始まっていないrunを取り消す。"""
+    """並列の実行の途中で、例外（進み具合の報告の失敗、中断）が出たら、workerへ渡す前の、待ちのrunを取り消す。"""
     planned_runs = build_planned_experiment_runs(
         sweep_plan=replace(SMALL_SWEEP_PLAN, random_seeds=tuple(range(8)))
     )
@@ -603,12 +616,25 @@ def test_run_summary_table_holds_one_row_per_saved_run(sequential_sweep, tmp_pat
     (configuration_directory / "runs" / "incomplete.json").write_text(
         json.dumps({"run_settings": {}}), encoding="utf-8"
     )
+    # 実行条件の値の型が違う要約（行の並べ替えを壊す）。
+    mistyped_summary = json.loads(
+        (configuration_directory / "runs" / f"{planned_runs[1].run_identifier}.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    mistyped_summary["run_settings"]["execution_settings"]["experiment_run_conditions"][
+        "random_seed"
+    ] = None
+    (configuration_directory / "runs" / "mistyped.json").write_text(
+        json.dumps(mistyped_summary), encoding="utf-8"
+    )
     broken_table_result = write_run_summary_table(
         configuration_directory=configuration_directory, configuration_name="fedsda"
     )
-    assert len(broken_table_result.unreadable_run_summary_descriptions) == 2
+    assert len(broken_table_result.unreadable_run_summary_descriptions) == 3
     assert "broken.json" in broken_table_result.unreadable_run_summary_descriptions[0]
     assert "incomplete.json" in broken_table_result.unreadable_run_summary_descriptions[1]
+    assert "mistyped.json" in broken_table_result.unreadable_run_summary_descriptions[2]
     with table_file_path.open(encoding="utf-8", newline="") as table_file:
         assert [row["run_identifier"] for row in csv.DictReader(table_file)] == [
             planned_runs[1].run_identifier
@@ -907,7 +933,7 @@ def test_repository_script_runs_without_installation_or_environment_variables(tm
     output_directory = tmp_path / "script-output"
     environment = {
         name: value
-        for name, value in __import__("os").environ.items()
+        for name, value in os.environ.items()
         if name not in ("PYTHONPATH", "FDE_MNIST_DATA_DIR")
     }
     completed_process = subprocess.run(
@@ -941,7 +967,7 @@ def test_repository_script_runs_parallel_sweep_in_separate_processes(tmp_path, s
     output_directory = tmp_path / "script-parallel-output"
     environment = {
         name: value
-        for name, value in __import__("os").environ.items()
+        for name, value in os.environ.items()
         if name not in ("PYTHONPATH", "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS")
     }
     completed_process = subprocess.run(

@@ -15,6 +15,7 @@ from torch import get_num_threads
 
 from federated_learning_experiments.sweep.experiment_sweep_execution import (
     RUN_DIRECTORY_NAME,
+    THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES,
     ExperimentRunOutcome,
 )
 from federated_learning_experiments.sweep.experiment_sweep_plan import ExperimentSweepPlan
@@ -32,12 +33,6 @@ _CONDITION_COLUMN_NAMES = (
 # 要約の辞書の中の、型の名前のキー（表には入れない）。
 _SETTINGS_TYPE_KEY = "settings_type"
 _RUN_STATUSES = ("completed", "skipped_existing", "failed")
-# 数値計算のライブラリの、threadの数を決める環境変数（実行の記録に残す）。
-_THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES = (
-    "OMP_NUM_THREADS",
-    "MKL_NUM_THREADS",
-    "OPENBLAS_NUM_THREADS",
-)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -100,6 +95,11 @@ def write_run_summary_table(
             experiment_run_conditions = summary["run_settings"]["execution_settings"][
                 "experiment_run_conditions"
             ]
+            for condition_name in _CONDITION_COLUMN_NAMES:
+                # 行の並べ替えに使う値の型を確かめる（datasetは文字列、ほかは整数）。
+                expected_condition_type = str if condition_name == "dataset_name" else int
+                if type(experiment_run_conditions[condition_name]) is not expected_condition_type:
+                    raise TypeError(f"{condition_name} must be {expected_condition_type.__name__}")
             table_row = {
                 "run_identifier": summary_file_path.stem,
                 "configuration_name": configuration_name,
@@ -264,11 +264,12 @@ def write_sweep_record(
                 "python": python_version(),
                 "numpy": numpy_version,
                 "torch": torch_version,
-                # この記録を書いたprocessの値（workerのprocessは、runの間、torchのthreadを1つにする）。
+                # この記録を書いたprocess（コマンドのprocess）の値。runの実行の間は、どのprocessでも、
+                # torchのthreadを1つにする（この値には、現れない）。
                 "torch_thread_count": get_num_threads(),
                 "thread_count_environment_variables": {
                     variable_name: environ.get(variable_name)
-                    for variable_name in _THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES
+                    for variable_name in THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES
                 },
             },
             "run_status_counts": {

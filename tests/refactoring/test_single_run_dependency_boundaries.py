@@ -5135,6 +5135,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.__version__",
             "torch.get_num_threads",
             "federated_learning_experiments.sweep.experiment_sweep_execution.RUN_DIRECTORY_NAME",
+            "federated_learning_experiments.sweep.experiment_sweep_execution.THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES",
             "federated_learning_experiments.sweep.experiment_sweep_execution.ExperimentRunOutcome",
             "federated_learning_experiments.sweep.experiment_sweep_plan.ExperimentSweepPlan",
         )
@@ -5147,6 +5148,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "json.dumps",
             "json.loads",
             "multiprocessing.get_context",
+            "os.environ",
             "pathlib.Path",
             "time.perf_counter",
             "traceback.format_exc",
