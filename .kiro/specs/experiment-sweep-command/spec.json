@@ -1,9 +1,9 @@
 {
   "feature_name": "experiment-sweep-command",
   "created_at": "2026-10-11T09:50:34+09:00",
-  "updated_at": "2026-10-11T09:50:34+09:00",
+  "updated_at": "2026-10-11T11:05:01+09:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -23,16 +23,28 @@
     },
     "naming": {
       "generated": true,
-      "approved": false,
-      "note": "名前は、全taskの後の独立レビューで確認を受ける。構成の名前の案は、ユーザーの確認を受ける"
+      "approved": true,
+      "note": "sourceの名前は、全taskの後の独立レビューで確認を受けた（下のimplementation_review）。構成の名前の案（design.mdの表）は、ユーザーの確認待ち"
     }
   },
   "ready_for_implementation": true,
   "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
   "user_decision": "2026-10-11: ablationを新実装でも実行する。進める順は、(A3)実験の入口→提案構成を、ablationの規模で1回、サーバで新旧を比べる→構成の移植。旧実装の構成名は分かりにくいので、新実装に合わせて、分かりやすくする",
   "handoff": {
-    "execution_status": "in_progress",
-    "next_step": "tasks.mdの下位taskを1.1から順に実装する",
-    "independent_review": "未実施（全taskの後に1回）"
+    "execution_status": "completed",
+    "next_step": "none（次のspecは再開案内の「次の一手」）"
+  },
+  "implementation_review": {
+    "verdict": "IMPLEMENTATION: CHANGES_REQUESTED → FIX CONFIRMATION: APPROVED",
+    "reviewer": "claude-haiku-5-5 (independent CLI, --effort medium requested)",
+    "reviewer_selection": "GPT-6 Lunaは利用上限で利用不能の期間のため、Haiku 5.5",
+    "reviewer_session": "07f94291-245b-457b-acf0-2436cd3c3baa",
+    "fix_confirmation_session": "bac5df71-0a87-4f9f-89c0-dcd397360ccc",
+    "reviewer_identity_basis": "launch_model_flag_and_json_modelUsage",
+    "reviewed_range": "ee15630..9c50e92（修正の確認: 9c50e92..307ed51）",
+    "independent_test_execution": true,
+    "independent_full_pytest_reproduction": false,
+    "findings": "Major 3件（workerのthreadの数、中断で待ちのrunが止まらない、壊れた要約で表と記録が書かれない。採用して修正、別sessionが確認）、Minor・任意（大半を採用。.npzだけ残る場合の自動の実行し直しは見送り）。採否はtasks.mdのImplementation Notes",
+    "full_pytest": "12451 passed / 4 skipped / 3 warnings (06dc386、主担当の実測とJUnit。並列 -n 8 --dist loadfile)"
   }
 }
