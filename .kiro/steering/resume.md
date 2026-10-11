@@ -1,11 +1,60 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-12（サーバでの新旧比較の一致、independentの移植の決定、mnist2での照合の追加。その前: fedsda-without-concept-specific-adapterの完了。構成の移植の9つ目。主担当はClaude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証commit・件数・hash・レビューの経緯は、各specのintegration-validation.mdとreview.mdを読む（ここへ写さない）。
+更新: 2026-10-11（Codexへの引継ぎ。構成の移植の10個目`fedsda-independent-models`は、実装と全pytestまで済み、独立レビューの結果の反映と完了の記録が残る。下の「引継ぎ」を最初に読む。この行の1つ前の更新は「2026-10-12」と書いていたが、日付の誤りで、実際は2026-10-11。主担当はClaude Code→Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証commit・件数・hash・レビューの経緯は、各specのintegration-validation.mdとreview.mdを読む（ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
 Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う。レビュー担当の選択・起動・回数の正本は共通引継ぎ手順。
+
+## 引継ぎ（2026-10-11、Claude Code→Codex。進行中の作業）
+
+### いまの状態
+
+- ブランチ`refactor/architecture`。push済みは`653be8a`まで。その上に、未pushのcommitがある（`git log origin/refactor/architecture..HEAD`で確かめる）。作業ツリーに、未commitの変更は残していない（この文書の更新を含めてcommit済み）。
+- 構成の移植は、10個のうち9個が完了・push済み。10個目[fedsda-independent-models](../specs/fedsda-independent-models/tasks.md)（旧の`independent`）が、進行中。
+  - 実装・spec文書・構成の一覧（`docs/experiments/experiment-sweep.md`）・LEGACY-018の記録と索引・調査の文書の状態の行は、commit `95ae52e`にある。
+  - 主担当の実測（Windows、`95ae52e`の内容）: 全pytest 12579 passed / 4 skipped（JUnitは`venv/refactoring-tests/fedsda-independent-models-full.xml`）。Ruff（check・format）、Pyright 成功。構成の照合は、sine2の7条件（指標と離散列）と、mnist2の2条件（全状態）で、実旧と一致。固有の経路のtest（`-n`なしで`-k "independent or configuration_names"`）13 passed。
+  - 独立レビュー（Claude Haiku 5.5、effort medium。数値・乱数・更新順の実装なので）を、`95ae52e`に対して1回、起動した。依頼文は`venv/refactoring-tests/fedsda-independent-models-review-prompt-1.txt`、出力は`venv/refactoring-tests/fedsda-independent-models-review-1.jsonl`（stream-json。最後の`"type":"result"`の行の`result`が判定と指摘、`session_id`がsession）。引継ぎの時点で、結果が出ているかどうかは、下の「残っている作業」の1を読む。
+- 手順からの逸脱（申告済みのものと同じ種類）: このspecの文書は、実装の後に書いた。調査の文書は3つのspecに分ける案だったが、1つにまとめた（理由は、specのdesign.mdの「進め方の変更」）。
+
+### 残っている作業（この順）
+
+1. 独立レビューの結果を読む。`result`の行が無ければ、レビューは終わっていない（途中で止まっていたら、同じ依頼文で、共通引継ぎ手順の起動例のとおりに、やり直す。構成の照合`tests/refactoring/test_fedsda_configuration_variants.py`は、5分以上かかるので、レビュー担当には実行させない）。結果が、この節の末尾の「レビューの結果」に書いてあれば、それを使う。
+2. 指摘を反映する。Blocker/Majorを直したときだけ、別sessionで確認を受ける。コードを変えたら、関係するtest、構成の照合（`tests/refactoring/test_fedsda_configuration_variants.py`を`-n`なしで`-k independent`。固有の経路のtestは、同じprocessで全条件を実行したときだけ動く）、全pytestを、やり直す。
+3. 完了の記録: specの`tasks.md`のcheckboxと「Implementation Notes」（実測の件数、レビューのsessionと指摘の採否、未検証と残る制約）、`spec.json`（`phase`を`completed`、`handoff`、`naming`の承認）、この文書（完了specの一覧へ1行、この「引継ぎ」の節を消す）。`python .kiro/settings/scripts/spec_checks.py progress fedsda-independent-models`と`identity fedsda-independent-models --junit <xml> --rev <commit>`で確かめる。対象のファイルを明示してstageし、commit、通常のpush。
+4. 次は、(B) FedDriftの移植（下の「FedDriftの調査のメモ」）→全構成のgolden→(D)旧実装を外す準備（NEW-004、MNISTの取得コマンド）。順は、決定事項の「進める順」。
+
+### ユーザーの返答待ち（作業は止めない）
+
+- LEGACY-018（共有部を持たないモデルでは、旧のクロス評価の下りの通信量が、同じclientへの同じ候補の送信を重複して数える。`fedsda-independent-models`は、旧と同じ数え方で移植した。3〜13%多く出る）を、ほかの構成の数え方へ揃えるか。ユーザーへ、動きの不具合ではなく数え方の不揃いであることを説明済みで、揃えるかどうかの返答は、まだ無い。
+- 構成`fedsda-single-model-prediction`の記録の、重みの項目（「現在のモデルに重み1」）の入れ方。確認を求めたが、明示の返答は無い。
+
+### この期間に決まったこと（2026-10-11ユーザー）
+
+- サーバでの新旧比較（提案構成、120 run）は、ユーザーが実行し、全runが11指標で一致した（exit 0）。
+- `independent`は移植する（[調査の文書](../../docs/research/independent-models-migration-scope.md)の案1）。
+- GPT-6 Lunaは、再び使える。レビュー担当の分担は、共通引継ぎ手順の通常の形（数値・乱数・更新順の実装はHaiku 5.5、命名・文書・機械的な照合はLuna）へ戻す。下の「現在地」の「レビュー担当の利用状況」の行は、古い。
+
+### 作業の仕方で、文書に無いこと
+
+- Git Bashでは、worktreeのルートへ毎回`cd`する。検証の環境変数とコマンドは、共通引継ぎ手順の「検証コマンド」。全pytestは約11分（`-n 8 --dist loadfile`）。`-rs`だけだと失敗したtestの名前が出ないので、`-rf`かJUnitで読む。
+- 構成の照合の土台: `tests/refactoring/test_fedsda_configuration_variants.py`の`CONFIGURATION_VARIANTS`（構成ごとに、旧の構成名・旧の設定の上書き・新の設定の替え方と、照合の分岐のflag）、`tests/refactoring/test_fedsda_run_metric_derivation.py`の`compare_small_run_with_real_legacy`、`tests/refactoring/test_fedsda_stream_protocol_run.py`の`run_real_legacy_whole_run`。モデル構造を変える構成は、`MODEL_ARCHITECTURE_VARIANT_NAMES`へ足すと、mnist2の全状態の照合も行う。
+- 依存境界（`tests/refactoring/test_single_run_dependency_boundaries.py`）は、moduleごとの許可集合。新しいimportを足したら、登録も足す。
+- 旧は、処理の途中で乱数を消費する箇所がある（候補検証の開始での参照モデルの写し、評価用データの抽出など）。経路を変えるときは、乱数を消費する処理を、旧と同じ場合にだけ行う。
+- 編集用のscriptで、同じ置換を二重に適用しない（途中で止まったscriptを、そのまま再実行しない）。
+
+### FedDriftの調査のメモ（(B)の準備。読んだだけで、未仕様化・未実装）
+
+- 旧の構成名は`FedDrift`。client `federated_drift_experiment/clients/feddrift.py`の`FedDriftClient`（基底は`clients/base.py`の`BaseClient`）、サーバ`servers/feddrift.py`の`FedDriftServer`（基底は`servers/clustering.py`の`CrossEvaluationClusteringServer`と`servers/base.py`の`BaseServer`）、モデルは`SimpleMLP`、1時刻の進行は`experiment.py`の`_run_feddrift_timestep`。旧の`tools/run_main_ablation_suite.sh`は、FedDriftを実行しない（`--no-feddrift`）。比較の実行は、`run_pareto_sweep.py`の、検出バッチと検出閾値の掃引。
+- 1時刻（= 検出バッチ`FEDDRIFT_DETECTION_BATCH_SIZE`件）の流れ: (1) clientごとに、その時刻の標本を全部処理する（現在のモデルで予測を記録し、検出バッファへ積む。バッファが検出バッチに達したら、全保有モデルの平均損失の最小を求め、前回の最小より閾値を超えて増えていれば、ドリフトと判定して、現在のモデルのパラメータから新しいモデルを作る。初期学習のepochは0。そうでなければ、最小損失のモデルへ切り替え、標本を学習データへ足して損失の統計を更新する。最後に、評価用データを`random.sample`で保存する）。(2) サーバ`prepare_timestep`: 状態の報告を数え、隔離が明けたモデルだけでクロス評価（モデルは送らない）→距離での階層クラスタリング（既定の結合は`complete`）→統合（clientが、手元のモデルから、重みつき平均を作る）→保留中の新しいモデルへIDを割り当て、隔離の期限を置く。(3) `FEDDRIFT_ROUNDS`回: 各clientが、全保有モデルを、モデルごとに順に学習（更新の回数は、検出バッチ×`UPDATES_PER_SAMPLE`）→FedAvg→全モデルを全clientへ配布。終端では、残りのバッファを処理し、保留中のモデルがあれば、`run_round`を1回。
+- 新実装で使えそうなもの: 実行の枠（`execution/stream_protocol_execution_loop.py`。同期の間隔を検出バッチにすれば、標本→clientの順でも、乱数の消費の順は、旧のclient→標本の順と同じになる見込み: 乱数を使うのは、バッチの末尾の処理だけ）、共有部を持たないモデル構造（`independent_models_without_shared_backbone`）、モデルごとに順に学習する方式（`sequential_per_model_training`）、集約・配布（空の共有部）、クロス評価と距離でのクラスタリング。新しく要るもの: FedDriftのclient（検出バッファ、最小損失の検出、モデルの生成と切替、評価用データの保存、統合の適用）、サーバの時刻の手順（隔離、モデルを送らないクロス評価、結合`complete`、重みつきの統合、R回の学習ラウンド）、終端の処理、指標の導出、構成と掃引の軸（検出バッチ、検出閾値）。置き場所は、方針の正本のとおり`methods/feddrift/`。
+- 実行の枠の、参加者の契約（`execution/run_participant_contracts.py`）は、FedSDAの操作名（候補検証の終端など）を含む。FedDriftの手順（同期の前に統合、同期の中でR回の学習）を、この契約へどう載せるかが、設計の最初の論点。
+- 照合の基準は、構成の移植と同じにする想定（小さい規模で、新と実旧の全体runを同じprocessで実行し、指標と離散列が`==`で一致。ユーザーの確認は、まだ取っていない）。
+
+### レビューの結果
+
+（引継ぎの時点で未着。届いたら、ここへ判定・session・指摘の要約を書く）
 
 ## 現在地
 
