@@ -829,7 +829,10 @@ def test_prediction_rejects_non_finite_model_output_before_any_update(
 def test_prediction_inspects_each_model_output_once(
     class_count, monkeypatch, valid_run_settings_mapping
 ):
-    """標本1件の予測は、保有モデルの出力を、モデルごとに1回だけ検査する（出力から確率への変換のとき）。"""
+    """標本1件の予測は、モデルの出力と確率を、出力から確率への変換のときだけ検査する。
+
+    2値は、モデルごとに1回（出力が確率）。多クラスは、モデルごとに2回（logitと、変換後の確率）。
+    """
     prediction_arguments, _ = build_sample_prediction_oracle(
         monkeypatch=monkeypatch,
         valid_run_settings_mapping=valid_run_settings_mapping,
@@ -854,7 +857,7 @@ def test_prediction_inspects_each_model_output_once(
             **prediction_arguments,
         )
         assert class_probability_calculations._validate_prediction_tensor.call_count == (
-            held_model_count * (sample_index + 1)
+            held_model_count * (1 if class_count == 2 else 2) * (sample_index + 1)
         )
 
 

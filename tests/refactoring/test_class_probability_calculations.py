@@ -728,3 +728,50 @@ def test_validated_flags_must_be_builtin_bool(invalid_flag):
             class_count=2,
             prediction_scores_are_validated=invalid_flag,
         )
+
+
+def test_conversion_inspects_multiclass_probabilities_after_softmax(monkeypatch):
+    """多クラスの変換は、logitと、変換後の確率（softmaxの結果）の両方を検査する（戻り値は、検査済みの確率）。"""
+    model_outputs_by_model_id = {
+        4: torch.tensor([[0.3, 1.2, -0.4]]),
+        -1: torch.tensor([[1.5, -0.2, 0.4]]),
+    }
+    monkeypatch.setattr(
+        class_probability_calculations,
+        "_validate_prediction_tensor",
+        Mock(wraps=class_probability_calculations._validate_prediction_tensor),
+    )
+    convert_model_outputs_to_prediction_probabilities(
+        model_outputs_by_model_id=model_outputs_by_model_id, class_count=3
+    )
+    validation_calls = class_probability_calculations._validate_prediction_tensor.call_args_list
+    assert [call.kwargs["require_probabilities"] for call in validation_calls] == [
+        False,
+        False,
+        True,
+        True,
+    ]
+    # 変換後の確率が、確率の条件を外れるとき（ここでは、softmaxを差し替えて作る）、変換が拒否する。
+    monkeypatch.setattr(
+        class_probability_calculations.torch,
+        "softmax",
+        lambda logits, dim: torch.full_like(logits, 0.5),
+    )
+    with pytest.raises(ValueError, match="行総和"):
+        convert_model_outputs_to_prediction_probabilities(
+            model_outputs_by_model_id=model_outputs_by_model_id, class_count=3
+        )
+
+
+def test_validated_probabilities_still_require_the_same_sample_count():
+    """検査済みと伝えても、全モデルの標本数の一致は、確かめる。"""
+    with pytest.raises(ValueError, match="標本数"):
+        combine_model_prediction_probabilities(
+            prediction_probabilities_by_model_id={
+                4: torch.tensor([[0.2], [0.9]]),
+                -1: torch.tensor([[0.7]]),
+            },
+            prediction_weights_by_model_id={4: 0.5, -1: 0.5},
+            class_count=2,
+            prediction_probabilities_are_validated=True,
+        )

@@ -27,14 +27,14 @@
 #### Acceptance Criteria
 
 1. Where 呼出し側が、確率のtensorを検査済みと伝えたとき, the Class Probability Calculations（確率の結合、観測後の損失の計算、予測クラスの決定） shall そのtensorの中身（型、device、dtype、形、有限性、0〜1の範囲、行の和）を検査せず、検査した場合と、同じ結果を返す。
-2. The 引数の既定 shall 「検査する」であり、既定の挙動は、これまでと同じである。重み、観測ラベル、クラス数、モデルIDの検査は、引数に依らず、行う。
+2. The 引数の既定 shall 「検査する」であり、既定の挙動は、これまでと同じである。重み、観測ラベル、クラス数、モデルID、全モデルの標本数の一致の検査は、引数に依らず、行う。
 3. If 引数が、builtin boolでないとき, the 関数 shall 拒否する。
 
 ### Requirement 2: 標本1件の予測
 
 #### Acceptance Criteria
 
-1. When 標本1件を予測するとき, the Observed Sample Prediction shall 保有モデルの出力を、モデルごとに1回だけ検査する（出力から確率への変換のとき）。
+1. When 標本1件を予測するとき, the Observed Sample Prediction shall 保有モデルの出力と確率を、出力から確率への変換のときだけ検査する（2値は、モデルごとに1回——出力が確率——。多クラスは、モデルごとに2回——logitと、変換後の確率——）。
 2. The 予測の結果、記録、重みと証拠の更新 shall これまでと同じである（実旧の予測との照合が、そのまま成功する）。
 3. If モデルの出力が不正なとき（有限でない、ほか）, the 予測 shall これまでと同じく、状態を変える前に拒否する。
 

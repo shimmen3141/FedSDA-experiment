@@ -6,7 +6,8 @@
 - **Discovery Scope**: Simple Addition
 - **Key Findings**（sine2・client 10・標本500、3回のうち最短）:
   - 変更なし 16.73秒。予測の中の、確率のtensorの検査を、変換のときの1回だけにする 15.68秒。標本1件の処理の、損失の評価での、標本の再検査を省く 16.56秒。両方 15.47秒。結果（精度、通信量）は、どれも同じ。
-  - プロファイル（標本300）: `_validate_prediction_tensor`が27,000回（標本1件あたり9回）。
+  - プロファイル（client 10・標本300＝全部で3,000標本）: `_validate_prediction_tensor`が27,000回（標本1件あたり9回）。
+  - 上の時間は、sourceを変える前の、検査を差し替える実験の値。実装の後の実測は、tasks.mdのImplementation Notes。
 
 ## Design Decisions
 

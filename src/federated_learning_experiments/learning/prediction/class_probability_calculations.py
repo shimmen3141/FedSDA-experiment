@@ -64,14 +64,14 @@ def _validated_model_prediction_tensor_ids(
     if any(type(model_id) is not int for model_id in model_tensors_by_model_id):
         raise TypeError("モデルIDはbool以外のbuiltin intにしてください。")
     model_ids = tuple(sorted(model_tensors_by_model_id))
-    if tensors_are_validated:
-        return model_ids
-    for model_id in model_ids:
-        _validate_prediction_tensor(
-            prediction_tensor=model_tensors_by_model_id[model_id],
-            class_count=class_count,
-            require_probabilities=require_probabilities,
-        )
+    if not tensors_are_validated:
+        for model_id in model_ids:
+            _validate_prediction_tensor(
+                prediction_tensor=model_tensors_by_model_id[model_id],
+                class_count=class_count,
+                require_probabilities=require_probabilities,
+            )
+    # 標本数の一致は、検査済みと伝えられても、確かめる。
     batch_sample_count = model_tensors_by_model_id[model_ids[0]].shape[0]
     if any(
         model_tensors_by_model_id[model_id].shape[0] != batch_sample_count for model_id in model_ids
@@ -109,18 +109,33 @@ def convert_model_outputs_to_prediction_probabilities(
     model_outputs_by_model_id: Mapping[int, torch.Tensor],
     class_count: int,
 ) -> dict[int, torch.Tensor]:
-    """二値確率をコピーし、多クラスlogitをモデルごとに確率化する。"""
+    """二値確率をコピーし、多クラスlogitをモデルごとに確率化する。
+
+    戻り値は、確率の検査（有限、0〜1、多クラスは行の和）を通った値。2値は、入力の確率を検査する。
+    多クラスは、入力のlogitと、変換後の確率の両方を検査する。
+    """
     model_ids = _validated_model_prediction_tensor_ids(
         model_tensors_by_model_id=model_outputs_by_model_id,
         class_count=class_count,
         require_probabilities=class_count == 2,
     )
-    return {
-        model_id: model_outputs_by_model_id[model_id].detach().clone()
-        if class_count == 2
-        else torch.softmax(model_outputs_by_model_id[model_id], dim=1)
+    if class_count == 2:
+        # 検査した確率の写し。
+        return {
+            model_id: model_outputs_by_model_id[model_id].detach().clone() for model_id in model_ids
+        }
+    prediction_probabilities_by_model_id = {
+        model_id: torch.softmax(model_outputs_by_model_id[model_id], dim=1)
         for model_id in model_ids
     }
+    # 変換後の確率も、ここで検査する（戻り値を、検査済みの確率として、後の計算へ渡せるようにする）。
+    for model_id in model_ids:
+        _validate_prediction_tensor(
+            prediction_tensor=prediction_probabilities_by_model_id[model_id],
+            class_count=class_count,
+            require_probabilities=True,
+        )
+    return prediction_probabilities_by_model_id
 
 
 def normalize_model_prediction_weights(
