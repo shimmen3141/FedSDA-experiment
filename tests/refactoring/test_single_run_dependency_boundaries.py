@@ -4807,6 +4807,46 @@ def test_feddrift_round_training_rejects_outer_dependencies(source_module_path, 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "runtime/feddrift_run_client.py":
+        return imported_module_name in (
+            "copy.deepcopy",
+            "dataclasses.dataclass",
+            "federated_learning_experiments.data.observed_streams.ObservedSample",
+            "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics._copy_model_and_class_loss_statistics",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry._validate_held_model_training_state_inputs",
+            "federated_learning_experiments.learning.training.independent_model_parameter_update._validate_independent_model_structure",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            "federated_learning_experiments.learning.training.joint_model_parameter_update._validate_trainable_parameters",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
+            "federated_learning_experiments.runtime.feddrift_client_round_training.train_feddrift_held_models_for_round",
+            "federated_learning_experiments.runtime.feddrift_client_stream_processing.FeddriftClientStreamProcessor",
+            "federated_learning_experiments.runtime.feddrift_detection_batch_processing.FeddriftDetectionBatchProcessor",
+            "federated_learning_experiments.runtime.feddrift_detection_batch_processing.FeddriftDetectionBatchTransition",
+            "federated_learning_experiments.runtime.feddrift_run_client_settings.FeddriftRunClientSettings",
+            "random.Random",
+            "torch.float32",
+            "torch.tensor",
+        )
+    if source_module_path == "runtime/feddrift_run_client_settings.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "math.isfinite",
+        )
     if source_module_path == "learning/training/independent_model_parameter_update.py":
         return imported_module_name in (
             "torch.nn.Identity",
@@ -6631,6 +6671,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "runtime/feddrift_run_client.py",
+            "runtime/feddrift_run_client_settings.py",
             "runtime/feddrift_client_round_training.py",
             "learning/training/independent_model_parameter_update.py",
             "runtime/feddrift_client_stream_processing.py",
@@ -11773,3 +11815,21 @@ def test_held_adahedge_diagnostic_exact_dependency_contract(
             source_module_path=source_module_path, source_text=source_text
         )
     ) == expected_acceptance
+
+
+@pytest.mark.parametrize(
+    "source_module_path",
+    ("runtime/feddrift_run_client.py", "runtime/feddrift_run_client_settings.py"),
+)
+@pytest.mark.parametrize(
+    "forbidden_module",
+    (
+        "federated_drift_experiment.config",
+        "federated_learning_experiments.execution.run_participant_contracts",
+        "tests.refactoring.test_feddrift_run_client",
+    ),
+)
+def test_feddrift_run_client_rejects_outer_dependencies(source_module_path, forbidden_module):
+    assert collect_dependency_boundary_violations(
+        source_module_path=source_module_path, source_text=f"import {forbidden_module}"
+    )

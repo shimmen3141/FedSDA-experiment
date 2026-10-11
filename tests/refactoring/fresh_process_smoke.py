@@ -1615,6 +1615,12 @@ def run_feddrift_detection_batch_smoke():
     from federated_learning_experiments.runtime.feddrift_detection_batch_processing import (
         FeddriftDetectionBatchProcessor,
     )
+    from federated_learning_experiments.runtime.feddrift_run_client import (
+        assemble_feddrift_run_client,
+    )
+    from federated_learning_experiments.runtime.feddrift_run_client_settings import (
+        FeddriftRunClientSettings,
+    )
 
     with torch.random.fork_rng():
         for class_count in (2, 4):
@@ -1740,6 +1746,41 @@ def run_feddrift_detection_batch_smoke():
             assert any(
                 not torch.equal(actual, expected)
                 for actual, expected in zip(classifier.parameters(), before, strict=True)
+            )
+            initial_state = registry.get_held_model_training_state(model_id=7)
+            client = assemble_feddrift_run_client(
+                client_id=6,
+                initial_classifier=classifier,
+                initial_parameter_optimizer_state=initial_state.concept_specific_parameter_optimizer_state,
+                initial_loss_statistics=ModelAndClassLossStatistics(
+                    overall_loss_moments=BoundedLossMoments(
+                        observed_loss_count=0, mean_loss=0.0, sum_squared_loss_deviations=0.0
+                    )
+                ),
+                run_client_settings=FeddriftRunClientSettings(
+                    loss_increase_threshold=1.0,
+                    detection_batch_sample_count=3,
+                    local_training_batch_sample_count=3,
+                    updates_per_sample=2,
+                    maximum_stored_evaluation_sample_count_per_model=5,
+                    added_evaluation_batch_sample_count=2,
+                    new_model_optimizer_settings=optimizer_settings,
+                ),
+                python_random_generator=Random(41),
+            )
+            block = tuple(
+                ObservedSample(feature_values=(1.0, 1.0, 1.0), class_label=0) for _ in range(7)
+            )
+            assert client.process_observed_block(
+                observed_samples=block, evaluation_concept_ids=(None,) * 7
+            )
+            assert len(client.train_local_round()) == 6
+            assert client.flush_detection_buffer() is not None
+            assert client.flush_detection_buffer() is None
+            assert not client.has_model_ready_for_server_registration()
+            assert (
+                client.owners.model_training_and_assignment_counts_store.snapshot_model_training_and_assignment_counts().parameter_update_step_counts_by_model_id
+                == {0: 6}
             )
     print("PASS FedDrift detection batch assessment: binary/multiclass; first/tied/increased loss")
 
