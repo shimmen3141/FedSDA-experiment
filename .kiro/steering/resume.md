@@ -11,16 +11,16 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### いまの状態
 
-- ブランチ`refactor/architecture`。push済みは`653be8a`まで。その上に、未pushのcommitがある（`git log origin/refactor/architecture..HEAD`で確かめる）。作業ツリーに、未commitの変更は残していない（この文書の更新を含めてcommit済み）。
+- ブランチ`refactor/architecture`。この文書の更新まで、push済み（`git log origin/refactor/architecture..HEAD`が空であることを確かめる）。作業ツリーに、未commitの変更は残していない。
 - 構成の移植は、10個のうち9個が完了・push済み。10個目[fedsda-independent-models](../specs/fedsda-independent-models/tasks.md)（旧の`independent`）が、進行中。
   - 実装・spec文書・構成の一覧（`docs/experiments/experiment-sweep.md`）・LEGACY-018の記録と索引・調査の文書の状態の行は、commit `95ae52e`にある。
   - 主担当の実測（Windows、`95ae52e`の内容）: 全pytest 12579 passed / 4 skipped（JUnitは`venv/refactoring-tests/fedsda-independent-models-full.xml`）。Ruff（check・format）、Pyright 成功。構成の照合は、sine2の7条件（指標と離散列）と、mnist2の2条件（全状態）で、実旧と一致。固有の経路のtest（`-n`なしで`-k "independent or configuration_names"`）13 passed。
-  - 独立レビュー（Claude Haiku 5.5、effort medium。数値・乱数・更新順の実装なので）を、`95ae52e`に対して1回、起動した。依頼文は`venv/refactoring-tests/fedsda-independent-models-review-prompt-1.txt`、出力は`venv/refactoring-tests/fedsda-independent-models-review-1.jsonl`（stream-json。最後の`"type":"result"`の行の`result`が判定と指摘、`session_id`がsession）。引継ぎの時点で、結果が出ているかどうかは、下の「残っている作業」の1を読む。
+  - 独立レビュー（Claude Haiku 5.5、effort medium。数値・乱数・更新順の実装なので）を、`95ae52e`に対して1回、起動した。依頼文は`venv/refactoring-tests/fedsda-independent-models-review-prompt-1.txt`、出力は`venv/refactoring-tests/fedsda-independent-models-review-1.jsonl`（stream-json。最後の`"type":"result"`の行の`result`が判定と指摘、`session_id`がsession）。結果は出ている（この節の末尾の「レビューの結果」）。
 - 手順からの逸脱（申告済みのものと同じ種類）: このspecの文書は、実装の後に書いた。調査の文書は3つのspecに分ける案だったが、1つにまとめた（理由は、specのdesign.mdの「進め方の変更」）。
 
 ### 残っている作業（この順）
 
-1. 独立レビューの結果を読む。`result`の行が無ければ、レビューは終わっていない（途中で止まっていたら、同じ依頼文で、共通引継ぎ手順の起動例のとおりに、やり直す。構成の照合`tests/refactoring/test_fedsda_configuration_variants.py`は、5分以上かかるので、レビュー担当には実行させない）。結果が、この節の末尾の「レビューの結果」に書いてあれば、それを使う。
+1. 独立レビューは済んだ（承認。この節の末尾の「レビューの結果」）。やり直しは不要。
 2. 指摘を反映する。Blocker/Majorを直したときだけ、別sessionで確認を受ける。コードを変えたら、関係するtest、構成の照合（`tests/refactoring/test_fedsda_configuration_variants.py`を`-n`なしで`-k independent`。固有の経路のtestは、同じprocessで全条件を実行したときだけ動く）、全pytestを、やり直す。
 3. 完了の記録: specの`tasks.md`のcheckboxと「Implementation Notes」（実測の件数、レビューのsessionと指摘の採否、未検証と残る制約）、`spec.json`（`phase`を`completed`、`handoff`、`naming`の承認）、この文書（完了specの一覧へ1行、この「引継ぎ」の節を消す）。`python .kiro/settings/scripts/spec_checks.py progress fedsda-independent-models`と`identity fedsda-independent-models --junit <xml> --rev <commit>`で確かめる。対象のファイルを明示してstageし、commit、通常のpush。
 4. 次は、(B) FedDriftの移植（下の「FedDriftの調査のメモ」）→全構成のgolden→(D)旧実装を外す準備（NEW-004、MNISTの取得コマンド）。順は、決定事項の「進める順」。
@@ -54,7 +54,15 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### レビューの結果
 
-（引継ぎの時点で未着。届いたら、ここへ判定・session・指摘の要約を書く）
+- 判定: `IMPLEMENTATION: APPROVED`（Claude Haiku 5.5、effort medium、session `d51ae405-7f8c-4a3d-8129-82251bf9dd72`、対象`95ae52e`）。Blocker・Majorなし。レビュー担当が実行したのは、分類器・optimizerの状態・計算量の計測のtest（72 passed）とRuff。構成の照合と全pytestは、主担当の実測に依る。全文は、出力のjsonlの`result`。
+- 指摘（全部Minor以下。採否は、反映した側が、specのtasks.mdの「Implementation Notes」へ書く）:
+  1. Minor: `ParameterOptimizerState`が、空のパラメータを、構造によらず受け付ける（下流の3か所が、共有部が空でないのにoptimizerが無い組を拒否するので、検出はされる）。空の許容を呼出し側へ寄せるか、設計書に書くだけにするかの判断を、記録する。
+  2. Minor: 1モデルの更新の損失（（損失×件数）÷件数）が、旧とビット単位で同じ勾配になるのは、件数が2の冪のとき。最終構成のbatchは32。specのresearch.mdへ、「batch 32でだけ、一致を確かめた」と書く。
+  3. Minor: `tests/refactoring/test_adopted_candidate_initial_local_registration.py`の102〜107行が、`sys.modules["test_fedsda_run_client"]`から定数を引く（そのmoduleが読み込まれていないとKeyError）。隠れ層の幅を、明示して渡す形へ直す。
+  4. Minor（記録）: tasks.md・spec.json・この文書の、完了の記録（下の「残っている作業」の3）。
+  5. Minor（命名）: 定数`INDEPENDENT_MODEL_ARCHITECTURE_NAME`（単数）と、値`independent_models_without_shared_backbone`（複数）が、揃っていない。`INDEPENDENT_MODELS_ARCHITECTURE_NAME`へ改め、naming.mdの記述も合わせる。
+  6. 任意: `sequential_per_model_training`の分岐（`runtime/held_model_training_request_handling.py`）の単体testが無い（件数が足りないモデルの扱い、標本列の順）。照合は、全体runに依っている。
+  7. 任意: `tests/refactoring/test_fedsda_configuration_variants.py`の`replace_with_independent_models`が、`replace_prediction_combination_settings`を2回呼ぶ（1回にまとめられる）。
 
 ## 現在地
 
