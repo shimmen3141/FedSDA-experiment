@@ -187,6 +187,11 @@ class FedsdaRunClient:
     def owners(self) -> FedsdaRunClientOwners:
         return self._owners
 
+    @property
+    def prediction_combination_strategy(self) -> str:
+        """このclientの、予測の結合の方式（設定の値）。"""
+        return self._run_client_settings.prediction_combination_settings.prediction_combination_strategy
+
     def process_observed_sample(
         self,
         *,
@@ -571,7 +576,13 @@ def assemble_fedsda_run_client(
         validation_session_holder=CandidateValidationSessionHolder(),
         adaptation_record_store=AdaptationRecordStore(),
         candidate_validation_decision_record_store=CandidateValidationDecisionRecordStore(),
-        adahedge_weight_evidence_collection=AdaHedgeWeightEvidenceCollection(),
+        adahedge_weight_evidence_collection=AdaHedgeWeightEvidenceCollection(
+            # 現在のモデルだけで予測する構成では、予測の処理が、証拠を更新しない。
+            evidence_is_updated_by_prediction=(
+                run_client_settings.prediction_combination_settings.prediction_combination_strategy
+                != "current_training_model_prediction"
+            )
+        ),
         loss_change_monitor=OverallAndTrueClassLossMonitor(
             loss_change_detection_settings=run_client_settings.loss_change_detection_settings,
             class_count=held_classifier.class_count,

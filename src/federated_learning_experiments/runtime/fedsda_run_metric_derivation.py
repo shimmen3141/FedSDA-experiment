@@ -288,10 +288,14 @@ def derive_fedsda_run_metrics(
             )
             for run_client in run_clients
         ),
-        # 最終構成は、混合予測が常時有効なので、予測した標本のすべてが、混合予測。
+        # 重みで結合して予測する方式では、結合が常時有効なので、予測した標本のすべてを数える。
+        # 現在のモデルだけで予測する方式では、0。
         mixed_prediction_sample_count=sum(
             len(prediction_correctness)
-            for prediction_correctness in prediction_correctness_by_client
+            for run_client, prediction_correctness in zip(
+                run_clients, prediction_correctness_by_client, strict=True
+            )
+            if run_client.prediction_combination_strategy != "current_training_model_prediction"
         ),
         fixed_share_weight_recalibration_replayed_sample_count=sum(
             run_client.owners.fixed_share_weight_controller.aggregation_recalibration_sample_count

@@ -1533,6 +1533,14 @@ SMALL_RUN_OBSERVATIONS = {}
 SMALL_RUNS_BY_CONDITION = {}
 
 
+# 旧の離散列のうち、重みで結合して予測するclientだけが保存するもの。
+LEGACY_TRACE_NAMES_RECORDED_ONLY_WITH_PREDICTION_WEIGHTS = (
+    "history_routing_switching_correct",
+    "history_routing_switching_leader_id",
+    "history_routing_soft_active",
+)
+
+
 # 実験の構成（照合の単位）: 名前、旧の構成名、旧の設定の上書き、新の参加者の設定の変更。提案構成は、何も変えない。
 PROPOSED_CONFIGURATION_VARIANT = SimpleNamespace(
     name="fedsda",
@@ -1625,8 +1633,11 @@ def compare_small_run_with_real_legacy(
             client_test_module.MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
         )
         with np.load(legacy_raw_path, allow_pickle=False) as legacy_arrays:
+            # 重みを持たない構成の実旧は、重みでの結合の列を、保存しない（下で、その列だけが無いことを確かめる）。
             legacy_trace_arrays = {
-                trace_name: legacy_arrays[trace_name] for trace_name in legacy_regression.TRACES
+                trace_name: legacy_arrays[trace_name]
+                for trace_name in legacy_regression.TRACES
+                if trace_name in legacy_arrays.files
             }
         SMALL_RUNS_BY_CONDITION[run_key] = (
             legacy_run,
@@ -1641,7 +1652,18 @@ def compare_small_run_with_real_legacy(
     # 新の記録から作った31の離散列が、実旧の保存処理が作った配列と、形・型・値で一致する。
     trace_arrays = derive_legacy_trace_arrays(run_result=run_result, participants=participants)
     assert tuple(trace_arrays) == legacy_regression.TRACES
+    # 構成が指定しなければ、実旧は、重みと、予測の内訳の記録を持つ。
+    legacy_records_prediction_weight_diagnostics = getattr(
+        configuration_variant, "legacy_records_prediction_weight_diagnostics", True
+    )
+    assert set(legacy_regression.TRACES) - set(legacy_trace_arrays) == (
+        set()
+        if legacy_records_prediction_weight_diagnostics
+        else set(LEGACY_TRACE_NAMES_RECORDED_ONLY_WITH_PREDICTION_WEIGHTS)
+    )
     for trace_name, trace_values in trace_arrays.items():
+        if trace_name not in legacy_trace_arrays:
+            continue
         legacy_trace_values = legacy_trace_arrays[trace_name]
         assert trace_values.shape == legacy_trace_values.shape, trace_name
         # 空の文字列の配列は、要素の長さが決まらないので、型は、種類で比べる。
@@ -1708,15 +1730,23 @@ def compare_small_run_with_real_legacy(
         legacy_metric_values=legacy_model_diagnostic_results,
         global_model_counts_are_recorded=False,
     )
-    # 予測の診断の指標が、実旧の集計と一致する。
-    assert_prediction_diagnostic_metrics_match_legacy_metrics(
-        run_metrics=run_metrics,
-        legacy_metric_values=legacy_model_diagnostic_results,
-        # 構成が指定しなければ、Fixed-Shareの重みで予測する構成。
-        fixed_share_weights_are_used_for_prediction=getattr(
-            configuration_variant, "fixed_share_weights_are_used_for_prediction", True
-        ),
-    )
+    if legacy_records_prediction_weight_diagnostics:
+        # 予測の診断の指標が、実旧の集計と一致する。
+        assert_prediction_diagnostic_metrics_match_legacy_metrics(
+            run_metrics=run_metrics,
+            legacy_metric_values=legacy_model_diagnostic_results,
+            # 構成が指定しなければ、Fixed-Shareの重みで予測する構成。
+            fixed_share_weights_are_used_for_prediction=getattr(
+                configuration_variant, "fixed_share_weights_are_used_for_prediction", True
+            ),
+        )
+    else:
+        # 実旧は、予測の内訳を数えていない（旧の指標は、標本数0からの値）。新の、予測の内訳の指標は、照合しない。
+        # 予測の正否そのもの（`history_accuracy`）と、予測したモデル（`history_model_id`）は、上の離散列で照合している。
+        assert legacy_model_diagnostic_results["routing_sample_count"] == 0
+        assert all(
+            not hasattr(legacy_client, "routing_diagnostics") for legacy_client in legacy_clients
+        )
     legacy_metric_values = derive_legacy_metric_values(run_metrics)
     for legacy_metric_name in legacy_regression.METRICS:
         if legacy_metric_name.startswith("compute_"):
@@ -1738,9 +1768,21 @@ def compare_small_run_with_real_legacy(
         consolidation_parameter_multiply_accumulate_count=consolidation_count,
         diagnostic_parameter_distance_multiply_accumulate_count=diagnostic_distance_count,
     )
-    assert run_metrics.held_model_sample_count == sum(
+    # 保有モデル×標本の延べ数。重みで結合して予測する実旧では、予測で評価した標本の数と同じ。
+    # 重みを持たない実旧は、標本ごとに、現在のモデルだけを評価する。
+    legacy_prediction_example_count = sum(
         legacy_client.compute_counters["prediction_examples"] for legacy_client in legacy_clients
     )
+    if legacy_records_prediction_weight_diagnostics:
+        assert run_metrics.held_model_sample_count == legacy_prediction_example_count
+    else:
+        assert legacy_prediction_example_count == (
+            client_count * run_result.processed_sample_count_per_client
+        )
+        assert run_metrics.held_model_sample_count == sum(
+            sum(run_client.owners.held_model_count_record_store.snapshot_held_model_counts())
+            for run_client in participants.client_operations
+        )
     assert run_metrics.processed_sample_count == (
         client_count * run_result.processed_sample_count_per_client
     )
@@ -1781,17 +1823,30 @@ def compare_small_run_with_real_legacy(
         == legacy_metrics["provisional_proposal_count"]
         == legacy_metrics["provisional_forward_count"]
     )
-    assert run_metrics.mixed_prediction_sample_count == sum(
-        legacy_client.soft_routing_activation.soft_sample_count for legacy_client in legacy_clients
-    )
-    assert run_metrics.fixed_share_weight_recalibration_replayed_sample_count == sum(
-        legacy_client.switching_expert_router.aggregation_recalibration_sample_count
-        for legacy_client in legacy_clients
-    )
-    assert run_metrics.adahedge_weight_recalibration_replayed_sample_count == sum(
-        legacy_client.expert_router.aggregation_recalibration_sample_count
-        for legacy_client in legacy_clients
-    )
+    if legacy_records_prediction_weight_diagnostics:
+        assert run_metrics.mixed_prediction_sample_count == sum(
+            legacy_client.soft_routing_activation.soft_sample_count
+            for legacy_client in legacy_clients
+        )
+        assert run_metrics.fixed_share_weight_recalibration_replayed_sample_count == sum(
+            legacy_client.switching_expert_router.aggregation_recalibration_sample_count
+            for legacy_client in legacy_clients
+        )
+        assert run_metrics.adahedge_weight_recalibration_replayed_sample_count == sum(
+            legacy_client.expert_router.aggregation_recalibration_sample_count
+            for legacy_client in legacy_clients
+        )
+    else:
+        # 重みを持たない実旧: 結合して予測した標本も、重みの再較正も、無い。
+        assert all(
+            not hasattr(legacy_client, "soft_routing_activation")
+            and not hasattr(legacy_client, "switching_expert_router")
+            and not hasattr(legacy_client, "expert_router")
+            for legacy_client in legacy_clients
+        )
+        assert run_metrics.mixed_prediction_sample_count == 0
+        assert run_metrics.fixed_share_weight_recalibration_replayed_sample_count == 0
+        assert run_metrics.adahedge_weight_recalibration_replayed_sample_count == 0
     processed_sample_count = run_result.processed_sample_count_per_client
     small_run_observation = dict(
         unprocessed_tail=run_result.unprocessed_tail_sample_count_per_client > 0,

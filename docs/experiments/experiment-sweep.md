@@ -81,8 +81,11 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 | `fedsda-loss-distance-clustering` | 提案構成の、サーバのクラスタリングの、モデル対の比べ方を替える（クラス別の正誤の信頼下限の代わりに、互いの標本での平均損失の増加量で判定する。閾値とlinkageは同じ） | `distance-average` |
 | `fedsda-overall-loss-esr-detection` | 提案構成の、損失の監視の対象を、全体の損失の系列だけにする（正解クラス別の系列を混合しない） | `overall-esr` |
 | `fedsda-adahedge-prediction-weights` | 提案構成の、予測に使う重みを、Fixed-Shareの重みから、AdaHedgeの重みへ替える（Fixed-Shareの重みも更新し続け、比較用に記録する） | `global-routing` |
+| `fedsda-single-model-prediction` | 提案構成から、モデルの予測の結合を外す（現在の学習帰属のモデルだけで予測する。重みを持たないので、集約後の重みの再較正も行わない） | `hard-routing` |
 
 提案構成以外の構成は、提案構成の、1つの要素だけを変える。小さい条件（sine2）で、旧実装の、同じ指定の全体runと、指標と離散列が一致することを確かめている。
+
+`fedsda-single-model-prediction`では、標本ごとに、現在のモデルだけを評価する。記録の、重みに関する項目（最大重みのモデル、実効モデル数、Fixed-Share・AdaHedgeの重みでの結合の正否ほか）は、「現在のモデルに重み1」の値になり、「どれかのモデルが正解」「確信度が最大のモデルが正解」も、現在のモデルの正否と同じになる。予測の内訳の指標を、ほかの構成と比べるときは、この違いに注意する。
 
 ## いまの範囲
 

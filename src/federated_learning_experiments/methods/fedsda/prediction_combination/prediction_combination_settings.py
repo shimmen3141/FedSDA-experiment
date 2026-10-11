@@ -18,6 +18,8 @@ class PredictionCombinationSettings:
                 "fixed_share_weighted_prediction",
                 # AdaHedgeの重みで結合して予測する。Fixed-Shareの重みも更新し続け、比較用に記録する。
                 "adahedge_weighted_prediction",
+                # 結合しない。現在の学習帰属のモデルだけで予測する（重みは、作らない・更新しない）。
+                "current_training_model_prediction",
             )
         },
     )

@@ -23,5 +23,8 @@ def restart_adahedge_weight_evidence_after_training_assignment_change(
     for model_id in (assignment_change.previous_model_id, assignment_change.current_model_id):
         if type(model_id) is not int:
             raise TypeError("モデルIDはbool・派生型以外のbuiltin intが必要です。")
+    # 予測の処理が証拠を更新しない構成では、使われない証拠を、始め直さない。
+    if not adahedge_weight_evidence_collection.evidence_is_updated_by_prediction:
+        return
     if assignment_change.previous_model_id != assignment_change.current_model_id:
         adahedge_weight_evidence_collection.all_sample_weight_evidence.restart_evidence_after_concept_operation()

@@ -28,6 +28,8 @@ LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME = "fedsda-loss-distance-clustering"
 OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME = "fedsda-overall-loss-esr-detection"
 # 提案構成の、予測に使う重みを、Fixed-Shareの重みから、AdaHedgeの重みへ替えた構成。
 ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME = "fedsda-adahedge-prediction-weights"
+# 提案構成から、モデルの予測の結合を外した構成（現在の学習帰属のモデルだけで予測する）。
+SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME = "fedsda-single-model-prediction"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -36,6 +38,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
     OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
     ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
+    SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
 )
 
 
@@ -151,5 +154,14 @@ def build_experiment_run_settings(
         return _replace_prediction_combination_settings(
             run_settings=proposed_run_settings,
             prediction_combination_strategy="adahedge_weighted_prediction",
+        )
+    if configuration_name == SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME:
+        # 重みを持たないので、集約後の、重みの再較正も行わない。
+        return _replace_prediction_combination_settings(
+            run_settings=proposed_run_settings,
+            prediction_combination_strategy="current_training_model_prediction",
+            prediction_weight_recalibration_after_aggregation_policy=(
+                "keep_weights_without_recalibration"
+            ),
         )
     return proposed_run_settings

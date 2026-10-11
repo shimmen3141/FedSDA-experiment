@@ -29,6 +29,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (
     OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
+    SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
     build_experiment_run_settings,
 )
 
@@ -160,6 +161,23 @@ CONFIGURATION_VARIANTS = {
                 prediction_combination_strategy="adahedge_weighted_prediction",
             )
         ),
+    ),
+    SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME: SimpleNamespace(
+        name=SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
+        # 旧の`tools/run_main_ablation_suite.sh`の`hard-routing`（重みを持たないclient。再較正は、既定の「しない」）。
+        legacy_mode_name="FedSDA_NoCached_ResidualAdapter_ClassESR",
+        legacy_setting_overrides={"SHARED_BACKBONE_ROUTING_RECALIBRATION": "none"},
+        modify_run_participant_settings=lambda run_participant_settings: (
+            replace_prediction_combination_settings(
+                run_participant_settings,
+                prediction_combination_strategy="current_training_model_prediction",
+                prediction_weight_recalibration_after_aggregation_policy=(
+                    "keep_weights_without_recalibration"
+                ),
+            )
+        ),
+        # 実旧のclientは、重みと、予測の内訳の記録を、持たない。
+        legacy_records_prediction_weight_diagnostics=False,
     ),
 }
 # 構成と条件ごとの、照合の結果（構成の結果と、同じ条件の提案構成の結果）。
@@ -487,6 +505,74 @@ def test_adahedge_prediction_weights_take_their_own_path():
     )
 
 
+def test_single_model_prediction_takes_its_own_path():
+    """現在のモデルだけで予測する構成は、重みを使わず、記録の重みの項目が、現在のモデルに重み1の値になる。"""
+    comparisons = collect_variant_comparisons(SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME)
+    multiple_held_model_sample_count = 0
+    for comparison in comparisons:
+        variant_comparison = comparison["variant"]
+        for run_client, legacy_client in zip(
+            variant_comparison.participants.client_operations,
+            variant_comparison.legacy_run["legacy_clients"],
+            strict=True,
+        ):
+            owners = run_client.owners
+            prediction_records = (
+                owners.sample_prediction_record_store.snapshot_sample_prediction_records()
+            )
+            held_model_counts = owners.held_model_count_record_store.snapshot_held_model_counts()
+            assert len(prediction_records) == len(held_model_counts) > 0
+            multiple_held_model_sample_count += sum(
+                held_model_count > 1 for held_model_count in held_model_counts
+            )
+            for prediction_record in prediction_records:
+                # 重みは、現在のモデルに1。どの重みでの結合も、現在のモデルの予測。
+                assert prediction_record.maximum_prediction_weight == 1.0
+                assert prediction_record.effective_model_count == 1.0
+                assert prediction_record.fixed_share_effective_model_count == 1.0
+                assert (
+                    prediction_record.fixed_share_maximum_weight_model_id
+                    == prediction_record.maximum_weight_model_id
+                )
+                assert (
+                    len(
+                        {
+                            prediction_record.combined_prediction_is_correct,
+                            prediction_record.any_model_or_combined_prediction_is_correct,
+                            prediction_record.maximum_weight_model_prediction_is_correct,
+                            prediction_record.highest_confidence_model_prediction_is_correct,
+                            prediction_record.fixed_share_weighted_prediction_is_correct,
+                            prediction_record.adahedge_weighted_prediction_is_correct,
+                        }
+                    )
+                    == 1
+                )
+            # Fixed-Shareの重みと、AdaHedgeの証拠は、1回も使われていない。
+            assert owners.fixed_share_weight_controller.weights_by_model_id == {}
+            assert owners.fixed_share_weight_controller.model_pool_reset_count == 0
+            all_sample_weight_evidence = (
+                owners.adahedge_weight_evidence_collection.all_sample_weight_evidence
+            )
+            assert all_sample_weight_evidence.cumulative_losses_by_model_id == {}
+            assert all_sample_weight_evidence.concept_operation_restart_count == 0
+            assert owners.adahedge_weight_evidence_collection.created_true_concept_ids == ()
+            # 実旧のclientは、重みを持たない。予測したモデルは、新の記録と同じ。
+            assert not hasattr(legacy_client, "expert_router")
+            assert not hasattr(legacy_client, "switching_expert_router")
+            assert legacy_client.history_model_id == [
+                prediction_record.maximum_weight_model_id
+                for prediction_record in prediction_records
+            ]
+    # 複数のモデルを保有している標本でも、現在のモデルだけで予測している。
+    assert multiple_held_model_sample_count > 0
+    # 同じ条件の提案構成と、予測の結果が違う条件がある。
+    assert any(
+        comparison["variant"].run_metrics.prediction_accuracy
+        != comparison["proposed"].run_metrics.prediction_accuracy
+        for comparison in comparisons
+    )
+
+
 def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_element():
     """掃引のコマンドの構成の名前から作るrun設定は、提案構成と、変える要素だけが違う。"""
     assert EXPERIMENT_CONFIGURATION_NAMES == (
@@ -496,7 +582,9 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
         OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
         ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
+        SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
     )
+    assert SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME == "fedsda-single-model-prediction"
     assert ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME == ("fedsda-adahedge-prediction-weights")
     assert OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME == ("fedsda-overall-loss-esr-detection")
     assert LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME == "fedsda-loss-distance-clustering"
@@ -584,3 +672,39 @@ def test_overall_loss_scope_requires_its_own_detector_display_name():
             ),
         )
     assert error_information.value.configuration_parameter_name == "detector_name"
+
+
+def test_single_model_prediction_requires_no_weight_recalibration():
+    """現在のモデルだけで予測する設定は、集約後の、重みの再較正をしない設定と組のときだけ作れる。"""
+    run_settings = build_experiment_run_settings(
+        configuration_name=SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
+        experiment_run_conditions=ExperimentRunConditions(
+            dataset_name="sine2",
+            random_seed=0,
+            client_count=3,
+            per_client_sample_count=200,
+            server_aggregation_interval_per_client_samples=50,
+        ),
+    )
+    run_client_settings = run_settings.run_participant_settings.run_client_settings
+    prediction_combination_settings = run_client_settings.prediction_combination_settings
+    assert prediction_combination_settings.prediction_combination_strategy == (
+        "current_training_model_prediction"
+    )
+    assert (
+        prediction_combination_settings.prediction_weight_recalibration_after_aggregation_policy
+        == "keep_weights_without_recalibration"
+    )
+    with pytest.raises(RunSettingsValidationError) as error_information:
+        replace(
+            run_client_settings,
+            prediction_combination_settings=replace(
+                prediction_combination_settings,
+                prediction_weight_recalibration_after_aggregation_policy=(
+                    "recompute_buffer_losses_and_replay_weight_updates"
+                ),
+            ),
+        )
+    assert error_information.value.configuration_parameter_name == (
+        "prediction_weight_recalibration_after_aggregation_policy"
+    )

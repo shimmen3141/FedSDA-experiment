@@ -226,6 +226,21 @@ class FedsdaRunClientSettings:
                     f"{expected_detector_name!r}。"
                 ),
             )
+        # 重みを持たない予測（現在のモデルだけで予測する）では、集約後に作り直す重みがない。
+        if (
+            self.prediction_combination_settings.prediction_combination_strategy
+            == "current_training_model_prediction"
+            and self.prediction_combination_settings.prediction_weight_recalibration_after_aggregation_policy
+            != "keep_weights_without_recalibration"
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="prediction_weight_recalibration_after_aggregation_policy",
+                specified_parameter_value=self.prediction_combination_settings.prediction_weight_recalibration_after_aggregation_policy,
+                validation_failure_reason=(
+                    "prediction_combination_strategyがcurrent_training_model_predictionのときは、"
+                    "keep_weights_without_recalibrationを指定してください（作り直す重みがありません）。"
+                ),
+            )
         fixed_share_time_scale = self.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
         pending_capacity = (
             self.training_data_assignment_settings.pending_assignment_buffer_capacity_samples

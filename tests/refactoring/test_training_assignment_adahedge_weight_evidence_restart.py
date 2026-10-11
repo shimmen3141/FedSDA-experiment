@@ -319,3 +319,31 @@ def test_diagnostic_notification_preserves_random_states():
     assert numpy.array_equal(random_states_before[1][1], random_states_after[1][1])
     assert random_states_before[1][2:] == random_states_after[1][2:]
     assert torch.equal(random_states_before[2], random_states_after[2])
+
+
+def test_evidence_not_updated_by_prediction_is_not_restarted_by_assignment_change():
+    """予測の処理が更新しない構成の証拠は、学習帰属の変更でも、始め直さない（入力の検査は、同じに行う）。"""
+    maintained_collection = AdaHedgeWeightEvidenceCollection()
+    assert maintained_collection.evidence_is_updated_by_prediction is True
+    unused_collection = AdaHedgeWeightEvidenceCollection(evidence_is_updated_by_prediction=False)
+    assert unused_collection.evidence_is_updated_by_prediction is False
+    assignment_change = TrainingModelAssignmentChange(previous_model_id=1, current_model_id=-1)
+    for evidence_collection, expected_restart_count in (
+        (maintained_collection, 1),
+        (unused_collection, 0),
+    ):
+        restart_adahedge_weight_evidence_after_training_assignment_change(
+            assignment_change=assignment_change,
+            adahedge_weight_evidence_collection=evidence_collection,
+        )
+        assert (
+            evidence_collection.all_sample_weight_evidence.concept_operation_restart_count
+            == expected_restart_count
+        )
+    with pytest.raises(TypeError):
+        restart_adahedge_weight_evidence_after_training_assignment_change(
+            assignment_change="change", adahedge_weight_evidence_collection=unused_collection
+        )
+    for invalid_flag in (None, 1, "True"):
+        with pytest.raises(TypeError):
+            AdaHedgeWeightEvidenceCollection(evidence_is_updated_by_prediction=invalid_flag)

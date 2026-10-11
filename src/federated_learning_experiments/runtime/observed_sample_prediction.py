@@ -151,6 +151,85 @@ def _combine_and_compare_with_observed_class(
     )
 
 
+def _predict_with_current_training_model_only(
+    *,
+    indexed_observation: IndexedObservedTrainingSample,
+    sample_prediction_record_store: SamplePredictionRecordStore,
+    held_model_training_state_registry: HeldModelTrainingStateRegistry,
+    current_training_model_assignment: CurrentTrainingModelAssignment,
+) -> ObservedSamplePrediction:
+    """現在の学習帰属のモデルだけを評価して予測し、記録を足す。重みと証拠は、作らない・更新しない。
+
+    記録と戻り値の、重みに関する項目は、「現在のモデルに重み1」の値にする: 最大重みのモデルは現在のモデル、
+    最大の重みと実効モデル数は1、どの重みでの結合の正否も、現在のモデルの予測の正否。
+    入力の検査は、呼出し元（`predict_observed_sample_and_update_prediction_weights`）が済ませている。
+    """
+    input_features = indexed_observation.training_sample.input_features
+    observed_class_labels = indexed_observation.training_sample.observed_class_labels
+    observed_concept_id = indexed_observation.observed_concept_id
+    current_training_model_id = current_training_model_assignment.current_training_model_id
+    current_classifier = held_model_training_state_registry.get_held_model_training_state(
+        model_id=current_training_model_id
+    ).classifier
+    class_count = current_classifier.class_count
+    with no_grad():
+        model_outputs_by_model_id = {
+            current_training_model_id: current_classifier.forward_from_shared_features(
+                current_classifier.extract_shared_features(input_features)
+            )
+        }
+    prediction_probabilities_by_model_id = convert_model_outputs_to_prediction_probabilities(
+        model_outputs_by_model_id=model_outputs_by_model_id, class_count=class_count
+    )
+    observed_losses_by_model_id = compute_model_mean_bounded_losses_after_label_observation(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        observed_class_labels=observed_class_labels,
+        class_count=class_count,
+        prediction_probabilities_are_validated=True,
+    )
+    single_model_weights_by_model_id = {current_training_model_id: 1.0}
+    combined_prediction_probabilities, predicted_class_labels, prediction_is_correct = (
+        _combine_and_compare_with_observed_class(
+            prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+            normalized_weights_by_model_id=single_model_weights_by_model_id,
+            class_count=class_count,
+            observed_class_labels=observed_class_labels,
+        )
+    )
+    sample_prediction_record = SamplePredictionRecord(
+        sample_index=indexed_observation.sample_index,
+        observed_concept_id=observed_concept_id,
+        observed_class_id=int(observed_class_labels.view(-1)[0].item()),
+        combined_prediction_is_correct=prediction_is_correct,
+        maximum_weight_model_id=current_training_model_id,
+        maximum_prediction_weight=1.0,
+        effective_model_count=1.0,
+        any_model_or_combined_prediction_is_correct=prediction_is_correct,
+        maximum_weight_model_prediction_is_correct=prediction_is_correct,
+        adahedge_weighted_prediction_is_correct=prediction_is_correct,
+        true_concept_diagnostic_prediction_is_correct=(
+            None if observed_concept_id is None else prediction_is_correct
+        ),
+        highest_confidence_model_prediction_is_correct=prediction_is_correct,
+        fixed_share_weighted_prediction_is_correct=prediction_is_correct,
+        fixed_share_maximum_weight_model_id=current_training_model_id,
+        fixed_share_effective_model_count=1.0,
+    )
+    sample_prediction_record_store.append_sample_prediction_record(
+        sample_prediction_record=sample_prediction_record
+    )
+    return ObservedSamplePrediction(
+        sample_prediction_record=sample_prediction_record,
+        predicted_class_labels=predicted_class_labels,
+        combined_prediction_probabilities=combined_prediction_probabilities,
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        prediction_weights_by_model_id=dict(single_model_weights_by_model_id),
+        fixed_share_weights_by_model_id=dict(single_model_weights_by_model_id),
+        adahedge_weights_by_model_id=dict(single_model_weights_by_model_id),
+        observed_losses_by_model_id=observed_losses_by_model_id,
+    )
+
+
 def predict_observed_sample_and_update_prediction_weights(
     *,
     indexed_observation: IndexedObservedTrainingSample,
@@ -165,6 +244,8 @@ def predict_observed_sample_and_update_prediction_weights(
 
     予測に使う重みは、`prediction_combination_strategy`で決まる: Fixed-Shareの重み（提案構成）か、AdaHedgeの重み。
     どちらの設定でも、両方の重みを更新し、使わなかった側の結合の結果も、比較用に記録する。
+    `current_training_model_prediction`では、結合せず、現在の学習帰属のモデルだけを評価して予測する（下の
+    `_predict_with_current_training_model_only`）。
 
     AdaHedgeの証拠（全標本のものと、真の概念IDがあればその概念の診断のもの）も、同じ損失で更新する。
     Fixed-Shareの重みで予測する設定は、旧の最終構成の予測と、AdaHedgeの重みで予測する設定は、旧の`global`の指定の予測と、同じ数値になる。
@@ -187,8 +268,16 @@ def predict_observed_sample_and_update_prediction_weights(
     if prediction_combination_strategy not in (
         "fixed_share_weighted_prediction",
         "adahedge_weighted_prediction",
+        "current_training_model_prediction",
     ):
         raise ValueError("prediction_combination_strategy must be a declared value")
+    if prediction_combination_strategy == "current_training_model_prediction":
+        return _predict_with_current_training_model_only(
+            indexed_observation=indexed_observation,
+            sample_prediction_record_store=sample_prediction_record_store,
+            held_model_training_state_registry=held_model_training_state_registry,
+            current_training_model_assignment=current_training_model_assignment,
+        )
     input_features = indexed_observation.training_sample.input_features
     observed_class_labels = indexed_observation.training_sample.observed_class_labels
     observed_concept_id = indexed_observation.observed_concept_id
