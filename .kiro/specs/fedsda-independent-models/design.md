@@ -14,7 +14,7 @@
 
 | 点 | 変更 |
 |---|---|
-| モデル構造 | `ModelArchitectureSettings`へ`independent_models_without_shared_backbone`。分類器（`learning/models/residual_adapter_classifier.py`）は、この構造で、空の特徴抽出部と`ModelOwnedHiddenLayers`を作る。分類器へ、構築のときの`input_feature_count`と`hidden_layer_widths`を持たせ、同じ構造の分類器を作る5か所は、特徴抽出部の寸法でなく、これらを使う |
+| モデル構造 | `ModelArchitectureSettings`へ`independent_models_without_shared_backbone`。分類器（`learning/models/residual_adapter_classifier.py`）は、この構造で、空の特徴抽出部と`ModelOwnedHiddenLayers`を作る。分類器へ、構築のときの`input_feature_count`と`hidden_layer_widths`を持たせ、同じ構造の分類器を作る箇所は、特徴抽出部の寸法でなく、これらを使う |
 | 空の共有部のoptimizer | `ParameterOptimizerState`は、パラメータが空なら、optimizerを持たない（`parameter_optimizer_if_any`がNone。`parameter_optimizer`は拒否）。共有部のoptimizerを取り出す箇所は、`parameter_optimizer_if_any`を使う（共同更新は、もともと、空の共有部とNoneのoptimizerの組を受け付ける） |
 | 学習 | `LocalTrainingSettings`へ`sequential_per_model_training`。学習要求の処理（`runtime/held_model_training_request_handling.py`）は、この方式のとき、モデルごとに、1モデルだけを渡して、共同学習の繰り返しを呼ぶ（batchの抽出と更新は、既存の部品。乱数は、そのモデルのbatchの抽出に、1回ずつ使われる） |
 | 採用と配布 | 採用した候補の統合（`adopted_candidate_shared_feature_integration.py`）と、配布の後のつなぎ直し（`held_model_shared_feature_reconnection.py`）は、この構造では、概念固有部のoptimizerを作り直さない。配布の適用は、作り直すモデルのoptimizerを、どれも、作り直しの設定で作る |
@@ -23,6 +23,8 @@
 | 計算量の計測 | 隠れ層を持たない特徴抽出部は、数えない。`ModelOwnedHiddenLayers`の順伝播を、概念固有部の入口として数える |
 | 設定の組 | 参加者の設定（`FedsdaRunParticipantSettings`）が、構造・学習の方式・再較正の方針の組を確かめる |
 | 掃引 | 構成`fedsda-independent-models` |
+
+空のパラメータを受け付けるのは、`ParameterOptimizerState`（パラメータの列とoptimizerだけを持つ、下位の部品。モデル構造を知らない）。空の共有部を、どの構造で許すかは、構造を知る側（候補の構築、候補の学習、参加者の設定の検査）が決める。共有部が空でないのに、optimizerが無い組は、共同更新・候補の学習・保有モデルのつなぎ直しの検査が、拒否する（独立レビューの指摘1への判断）。
 
 ## 旧と同じになる理由（主なもの）
 
