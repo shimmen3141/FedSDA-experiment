@@ -1,0 +1,11 @@
+# Research & Design Decisions
+
+## 調査対象
+
+固定旧748c3aaのservers/feddrift.py（_merge_cached_clusters/_weighted_model/_combined_stats）、clients/base.py（apply_cached_merge/apply_server_mapping）、新runtime/global_model_distribution_application.pyとFedSDAのserver統合を読んだ。旧serverは実質的な直近正重みを保持し、0件roundで重みを上書きしない。旧clientはserverの統合済みparameterを受けず、自身の保存値へ同じ重みを適用する。統合直後にserverとclientの値が違うことは正常であり維持する。
+
+## 分離の判断
+
+統計のM2を0へ戻すこと、max(重み,0)、全0の均等fallback、指定順のfloat32乗算・加算はFedSDAの統合と異なる。共通手順が認める「数値の一致が繊細な部分」だけを今回切り出す。後続のowner適用・登録/隔離/round接続を、小さい未接続specへ際限なく分割する根拠にはしない。
+
+全入力検査を計算前へ置く。tensor演算はno_gradで行い、旧モデルget_paramsのdetach snapshotに対応する。乱数を消費しない計算なので検査の前置きは成功時の数値/RNGを変えない。旧統計のclass_statsは統合後に捨てられるため入力は全体momentだけにする。

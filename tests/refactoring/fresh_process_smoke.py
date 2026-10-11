@@ -1786,6 +1786,43 @@ def run_feddrift_detection_batch_smoke():
 
 
 def main():
+    from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import (
+        BoundedLossMoments,
+    )
+    from federated_learning_experiments.methods.feddrift.cached_model_cluster_consolidation import (
+        average_feddrift_cached_cluster_parameters,
+        consolidate_feddrift_cached_model_clusters,
+    )
+
+    parameters = {3: {"weight": torch.tensor([2.0])}, 0: {"weight": torch.tensor([8.0])}}
+    consolidation = consolidate_feddrift_cached_model_clusters(
+        timestep_index=2,
+        model_clusters=((3, 0),),
+        model_parameters_by_model_id=parameters,
+        historical_model_weights_by_model_id={3: 1, 0: 3},
+        loss_moments_by_model_id={
+            3: BoundedLossMoments(
+                observed_loss_count=2, mean_loss=0.25, sum_squared_loss_deviations=0.125
+            )
+        },
+        isolation_until_by_model_id={3: 4},
+    )
+    assert torch.equal(
+        consolidation.model_parameters_by_representative_id[0]["weight"], torch.tensor([6.5])
+    )
+    assert consolidation.model_weights_by_representative_id == {0: 4}
+    assert consolidation.isolation_until_by_representative_id == {0: 4}
+    assert consolidation.loss_moments_by_representative_id[0].sum_squared_loss_deviations == 0.0
+    own_parameters = {
+        mid: {name: value + 1 for name, value in p.items()} for mid, p in parameters.items()
+    }
+    own_result = average_feddrift_cached_cluster_parameters(
+        model_clusters=((3, 0),),
+        model_parameters_by_model_id=own_parameters,
+        cluster_weights_by_representative_id=consolidation.cluster_weights_by_representative_id,
+    )
+    assert torch.equal(own_result[0]["weight"], torch.tensor([7.5]))
+    print("PASS FedDrift cached cluster consolidation: server and client own parameters")
     run_feddrift_detection_batch_smoke()
     all_observed_outcomes = set()
     for class_count in (2, 4):

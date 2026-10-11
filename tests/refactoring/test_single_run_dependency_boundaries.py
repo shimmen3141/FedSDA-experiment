@@ -4807,6 +4807,20 @@ def test_feddrift_round_training_rejects_outer_dependencies(source_module_path, 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "methods/feddrift/cached_model_cluster_consolidation.py":
+        return imported_module_name in (
+            "dataclasses",
+            "dataclasses.dataclass",
+            "torch",
+            "torch.Tensor",
+            "torch.float32",
+            "torch.isfinite",
+            "torch.no_grad",
+            "torch.strided",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.BoundedLossMoments",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments._validate_loss_moments",
+        )
     if source_module_path == "runtime/feddrift_run_client.py":
         return imported_module_name in (
             "copy.deepcopy",
@@ -11832,4 +11846,19 @@ def test_held_adahedge_diagnostic_exact_dependency_contract(
 def test_feddrift_run_client_rejects_outer_dependencies(source_module_path, forbidden_module):
     assert collect_dependency_boundary_violations(
         source_module_path=source_module_path, source_text=f"import {forbidden_module}"
+    )
+
+
+@pytest.mark.parametrize(
+    "forbidden_module",
+    (
+        "federated_drift_experiment.servers.feddrift",
+        "federated_learning_experiments.runtime.feddrift_run_client",
+        "tests.refactoring.test_feddrift_cached_cluster_consolidation",
+    ),
+)
+def test_feddrift_cached_consolidation_rejects_outer_dependencies(forbidden_module):
+    assert collect_dependency_boundary_violations(
+        source_module_path="methods/feddrift/cached_model_cluster_consolidation.py",
+        source_text=f"import {forbidden_module}",
     )
