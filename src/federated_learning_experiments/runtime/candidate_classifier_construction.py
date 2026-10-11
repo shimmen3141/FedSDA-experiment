@@ -8,7 +8,7 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
     snapshot_classifier_parameters,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    INDEPENDENT_MODEL_ARCHITECTURE_NAME,
+    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
     ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
@@ -41,7 +41,7 @@ def _validate_candidate_construction_inputs(
     # 共有部がparameterを持たないのは、共有部を持たない構造のときだけ。
     if not tuple(architecture_reference_classifier.feature_extractor.parameters()) and (
         architecture_reference_classifier.model_architecture_settings.model_architecture_name
-        != INDEPENDENT_MODEL_ARCHITECTURE_NAME
+        != INDEPENDENT_MODELS_ARCHITECTURE_NAME
     ):
         raise ValueError("architecture_reference_classifierの共有部にはparameterが必要です。")
     if type(initial_candidate_parameter_snapshot) is not dict:

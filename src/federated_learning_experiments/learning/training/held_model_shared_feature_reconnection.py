@@ -7,7 +7,7 @@ from torch.nn import Parameter
 from torch.optim import SGD, Adam
 
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    INDEPENDENT_MODEL_ARCHITECTURE_NAME,
+    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
     ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
@@ -151,7 +151,7 @@ def reconnect_held_models_to_shared_feature_extractor(
         )
         if (
             binding.classifier.model_architecture_settings.model_architecture_name
-            != INDEPENDENT_MODEL_ARCHITECTURE_NAME
+            != INDEPENDENT_MODELS_ARCHITECTURE_NAME
         ):
             binding.concept_specific_parameter_optimizer_state.reset_parameter_optimizer()
         reconnected_bindings.append(

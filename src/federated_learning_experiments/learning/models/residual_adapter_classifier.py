@@ -13,7 +13,7 @@ from .shared_feature_extractor import SharedFeatureExtractor
 
 # 共有部を持たない構造の名前。この構造の分類器は、パラメータを持たない特徴抽出部（入力をそのまま返す）と、
 # モデルごとの隠れ層を持つ。
-INDEPENDENT_MODEL_ARCHITECTURE_NAME = "independent_models_without_shared_backbone"
+INDEPENDENT_MODELS_ARCHITECTURE_NAME = "independent_models_without_shared_backbone"
 
 
 def _validate_shared_feature_extractor(
@@ -62,7 +62,7 @@ def _validate_classifier_inputs(
         hidden_layer_widths=(
             ()
             if validated_model_architecture_settings.model_architecture_name
-            == INDEPENDENT_MODEL_ARCHITECTURE_NAME
+            == INDEPENDENT_MODELS_ARCHITECTURE_NAME
             else hidden_layer_widths
         ),
     )
@@ -106,7 +106,7 @@ class ResidualAdapterClassifier(Module):
         self.hidden_layer_widths = hidden_layer_widths
         models_are_independent = (
             validated_model_architecture_settings.model_architecture_name
-            == INDEPENDENT_MODEL_ARCHITECTURE_NAME
+            == INDEPENDENT_MODELS_ARCHITECTURE_NAME
         )
         self.feature_extractor = (
             shared_feature_extractor

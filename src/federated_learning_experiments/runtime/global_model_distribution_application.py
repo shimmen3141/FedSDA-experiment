@@ -24,7 +24,7 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
     snapshot_classifier_parameters,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    INDEPENDENT_MODEL_ARCHITECTURE_NAME,
+    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
     ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
@@ -328,7 +328,7 @@ def apply_global_model_distribution(
                         rebuilt_model_parameter_optimizer_settings
                         if distributed_model_id == shared_feature_source_model_id
                         or architecture_reference_classifier.model_architecture_settings.model_architecture_name
-                        == INDEPENDENT_MODEL_ARCHITECTURE_NAME
+                        == INDEPENDENT_MODELS_ARCHITECTURE_NAME
                         else reconnected_model_parameter_optimizer_settings
                     ),
                 ),

@@ -120,25 +120,19 @@ def replace_with_independent_models(run_participant_settings):
 
     モデル構造、ローカル学習の方式（モデルごとに順に学習する）、集約後の重みの再較正をしない方針の、3つ。
     """
-    run_client_settings = run_participant_settings.run_client_settings
+    settings_without_recalibration = replace_prediction_combination_settings(
+        run_participant_settings,
+        prediction_weight_recalibration_after_aggregation_policy="keep_weights_without_recalibration",
+    )
+    run_client_settings = settings_without_recalibration.run_client_settings
     return replace(
-        replace_prediction_combination_settings(
-            run_participant_settings,
-            prediction_weight_recalibration_after_aggregation_policy=(
-                "keep_weights_without_recalibration"
-            ),
-        ),
+        settings_without_recalibration,
         model_architecture_settings=replace(
             run_participant_settings.model_architecture_settings,
             model_architecture_name="independent_models_without_shared_backbone",
         ),
         run_client_settings=replace(
-            replace_prediction_combination_settings(
-                run_participant_settings,
-                prediction_weight_recalibration_after_aggregation_policy=(
-                    "keep_weights_without_recalibration"
-                ),
-            ).run_client_settings,
+            run_client_settings,
             local_training_settings=replace(
                 run_client_settings.local_training_settings,
                 local_model_parameter_update_strategy="sequential_per_model_training",

@@ -1,7 +1,6 @@
 """採用候補の一時ID登録を、実旧登録処理と旧FedSDAの待機設定へ対照する。"""
 
 import random
-import sys
 from collections import defaultdict
 from copy import deepcopy
 
@@ -99,11 +98,14 @@ def convert_legacy_parameter_name(legacy_parameter_name):
 
     共有部を持たない旧のモデル（`SimpleMLP`）は、層を1列（`net`）に持つ: 隠れ層（Linear、ReLU）の並びの後に、
     出力層。新は、隠れ層を`residual_adapter.hidden_layers`、出力層を`classification_layer`に持つ。
-    隠れ層の数は、全体runの対照が使う、testの定数（`test_fedsda_run_client.HIDDEN_LAYER_WIDTHS`）から取る。
+    隠れ層の数は、全体runの対照が使う、testの定数（`test_fedsda_run_client.HIDDEN_LAYER_WIDTHS`）から取る
+    （そのmoduleは、このmoduleを読み込むので、呼ばれた時点で読み込む）。
     """
     if legacy_parameter_name.startswith("net."):
+        from test_fedsda_run_client import HIDDEN_LAYER_WIDTHS
+
         _, layer_index, parameter_kind = legacy_parameter_name.split(".")
-        hidden_layer_count = len(sys.modules["test_fedsda_run_client"].HIDDEN_LAYER_WIDTHS)
+        hidden_layer_count = len(HIDDEN_LAYER_WIDTHS)
         if int(layer_index) == 2 * hidden_layer_count:
             return f"classification_layer.{parameter_kind}"
         return f"residual_adapter.hidden_layers.{layer_index}.{parameter_kind}"

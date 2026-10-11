@@ -5399,7 +5399,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.loss_statistics.model_id_mapped_loss_statistics_selection.select_loss_statistics_after_model_id_mapping",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODEL_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
@@ -5844,7 +5844,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "learning/training/candidate_epoch_training.py":
         return imported_module_name in (
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODEL_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "dataclasses.dataclass",
             "math.inf",
             "torch.Tensor",
@@ -5874,7 +5874,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.isfinite",
             "torch.strided",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODEL_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
@@ -6040,7 +6040,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "learning/training/adopted_candidate_shared_feature_integration.py":
         # 外側接続はモデルとownerの公開型/属性だけを使い、学習計算へ依存しない。
         return imported_module_name in (
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODEL_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "torch",
             "torch.float32",
             "torch.strided",
@@ -6059,7 +6059,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "learning/training/held_model_shared_feature_reconnection.py":
         # 外側接続はモデルとownerの公開型/属性だけを使い、学習計算へ依存しない。
         return imported_module_name in (
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODEL_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "dataclasses",
             "dataclasses.dataclass",
             "torch",

@@ -11,7 +11,7 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
     snapshot_classifier_parameters,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    INDEPENDENT_MODEL_ARCHITECTURE_NAME,
+    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
     ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
@@ -62,7 +62,7 @@ def _validate_candidate_epoch_training_inputs(
     # 共有部がparameterを持たないのは、共有部を持たない構造のときだけ。
     if not shared_parameters and (
         candidate_classifier.model_architecture_settings.model_architecture_name
-        != INDEPENDENT_MODEL_ARCHITECTURE_NAME
+        != INDEPENDENT_MODELS_ARCHITECTURE_NAME
     ):
         raise ValueError("候補の共有parameterは非空が必要です。")
     for classifier_parameter in shared_parameters + concept_specific_parameters:

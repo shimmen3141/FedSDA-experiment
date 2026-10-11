@@ -710,3 +710,89 @@ def test_counts_are_not_recorded_for_iterations_without_completed_update(monkeyp
             training_arguments=training_arguments,
             absorption_arguments=absorption_arguments,
         )
+
+
+@pytest.mark.parametrize("batch_sample_count", (3, 4, 6))
+def test_sequential_per_model_training_updates_one_model_at_a_time(batch_sample_count, monkeypatch):
+    """モデルごとに順に学習する方式: 標本列の順に、保有モデルを1つずつ、更新の回数ぶん続けて更新する。
+
+    標本数は、モデル4が3件、モデル9が5件、保有していないモデル55が6件（標本列の順も、この順）。
+    """
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(541)
+        training_arguments, absorption_arguments, _, _, _ = build_training_request_oracle(
+            class_count=2,
+            monkeypatch=monkeypatch,
+            update_interval=1,
+            iterations_per_request=2,
+            batch_sample_count=batch_sample_count,
+        )
+        training_arguments["local_training_settings"] = LocalTrainingSettings(
+            local_model_parameter_update_strategy="sequential_per_model_training",
+            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        )
+        training_sample_store = training_arguments["training_sample_store"]
+        assert [
+            (collection.model_id, len(collection.training_samples))
+            for collection in training_sample_store.snapshot_ordered_model_training_samples()
+        ] == [(4, 3), (9, 5), (UNHELD_MODEL_ID, 6)]
+        counts_store = training_arguments["model_training_and_assignment_counts_store"]
+        counts_before = counts_store.snapshot_model_training_and_assignment_counts()
+        # 乱数の消費の順（モデル→更新）: 同じ乱数の状態から、学習するモデルの標本を、順に、更新の回数ぶん抽出する。
+        python_random_generator = training_arguments["python_random_generator"]
+        expected_random_generator = random.Random()
+        expected_random_generator.setstate(python_random_generator.getstate())
+        trained_model_ids = [
+            model_id
+            for model_id, sample_count in ((4, 3), (9, 5))
+            if sample_count >= batch_sample_count
+        ]
+        for model_id in trained_model_ids:
+            for _ in range(2):
+                expected_random_generator.sample(range({4: 3, 9: 5}[model_id]), batch_sample_count)
+        joint_training_calls = spy_on_joint_training_iterations(monkeypatch)
+        completed_losses = record_training_request_and_train_held_models_when_due(
+            **training_arguments
+        )
+        # 呼出しは、1モデルずつ。標本が足りないモデルは、1回目で「更新なし」になり、続けない。保有していないモデルは、呼ばない。
+        observed_calls = [
+            (
+                [binding.model_id for binding in arguments["held_model_training_bindings"]],
+                [collection.model_id for collection in arguments["ordered_model_training_samples"]],
+                arguments["requested_joint_update_iteration_count"],
+                len(losses),
+            )
+            for arguments, _, losses in joint_training_calls
+        ]
+        expected_calls = []
+        for model_id in (4, 9):
+            if model_id in trained_model_ids:
+                expected_calls.extend([([model_id], [model_id], 1, 1)] * 2)
+            else:
+                expected_calls.append(([model_id], [model_id], 1, 0))
+        assert observed_calls == expected_calls
+        assert len(completed_losses) == 2 * len(trained_model_ids)
+        assert python_random_generator.getstate() == expected_random_generator.getstate()
+        assert (
+            training_arguments["local_training_request_schedule"].pending_training_request_count
+            == 0
+        )
+        # 学習量の計数は、学習したモデルにだけ、更新ごとに、batchの件数と1回を足す。
+        counts_after = counts_store.snapshot_model_training_and_assignment_counts()
+        for model_id in (4, 9, UNHELD_MODEL_ID):
+            trained = model_id in trained_model_ids
+            assert counts_after.trained_sample_counts_by_model_id.get(
+                model_id, 0
+            ) - counts_before.trained_sample_counts_by_model_id.get(model_id, 0) == (
+                2 * batch_sample_count if trained else 0
+            )
+            assert counts_after.parameter_update_step_counts_by_model_id.get(
+                model_id, 0
+            ) - counts_before.parameter_update_step_counts_by_model_id.get(model_id, 0) == (
+                2 if trained else 0
+            )
+        assert (
+            counts_after.assigned_sample_counts_by_model_and_concept_id
+            == counts_before.assigned_sample_counts_by_model_and_concept_id
+        )
+        del absorption_arguments
