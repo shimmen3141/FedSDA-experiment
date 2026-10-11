@@ -8,6 +8,8 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
+import test_fedsda_run_client as run_client_test_module
+import test_fedsda_stream_protocol_run as whole_run_test_module
 from test_fedsda_run_metric_derivation import (
     PROPOSED_CONFIGURATION_VARIANT,
     SMALL_RUN_CONDITIONS,
@@ -991,3 +993,96 @@ def test_single_model_prediction_requires_no_weight_recalibration():
     assert error_information.value.configuration_parameter_name == (
         "prediction_weight_recalibration_after_aggregation_policy"
     )
+
+
+# モデル構造を変える構成は、mnist2（784特徴・10クラス）でも、全体runを実旧と照合する（了承済みの照合の基準）。
+# 条件は、提案構成のmnist2の照合（test_fedsda_stream_protocol_run.py）と同じ2つ。
+MODEL_ARCHITECTURE_VARIANT_NAMES = (WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,)
+# 構成と条件ごとの、新しいモデルの登録があったか。
+MNIST2_NEW_MODEL_REGISTRATION_BY_CONDITION = {}
+# 条件の最後の要素（提案構成で通る経路の集合）は、この構成には当てはまらないので、外す。
+MNIST2_WHOLE_RUN_CONDITIONS = tuple(
+    whole_run_condition[:-1]
+    for whole_run_condition in whole_run_test_module.OTHER_DATASET_WHOLE_RUN_CONDITIONS
+    if whole_run_condition[0] == "mnist2"
+)
+
+
+@pytest.mark.parametrize("whole_run_condition", MNIST2_WHOLE_RUN_CONDITIONS)
+@pytest.mark.parametrize("configuration_name", MODEL_ARCHITECTURE_VARIANT_NAMES)
+def test_model_architecture_variant_matches_real_legacy_whole_run_on_mnist2(
+    configuration_name, whole_run_condition, monkeypatch, valid_run_settings_mapping
+):
+    """モデル構造を変える構成の、mnist2での全体runの全状態が、実旧の、同じ指定の全体runと一致する。"""
+    assert len(MNIST2_WHOLE_RUN_CONDITIONS) == 2
+    (
+        dataset_name,
+        random_seed,
+        client_count,
+        per_client_sample_count,
+        aggregation_interval,
+        minimum_change_gap,
+        concept_change_probability,
+        update_interval,
+    ) = whole_run_condition
+    configuration_variant = CONFIGURATION_VARIANTS[configuration_name]
+    # 新旧の組立てが読む、testの定数（MNISTの小さい条件の、隠れ層の幅）。
+    for test_module in (run_client_test_module, whole_run_test_module):
+        monkeypatch.setattr(
+            test_module, "HIDDEN_LAYER_WIDTHS", whole_run_test_module.MNIST_HIDDEN_LAYER_WIDTHS
+        )
+    execution_settings = whole_run_test_module.make_execution_settings(
+        random_seed=random_seed,
+        client_count=client_count,
+        per_client_sample_count=per_client_sample_count,
+        aggregation_interval=aggregation_interval,
+        minimum_change_gap=minimum_change_gap,
+        concept_change_probability=concept_change_probability,
+        dataset_name=dataset_name,
+    )
+    legacy_run = whole_run_test_module.run_real_legacy_whole_run(
+        monkeypatch=monkeypatch,
+        execution_settings=execution_settings,
+        update_interval=update_interval,
+        legacy_mode_name=configuration_variant.legacy_mode_name,
+        legacy_setting_overrides=configuration_variant.legacy_setting_overrides,
+    )
+    run_result, participants, run_random_sources = (
+        whole_run_test_module.execute_stream_protocol_run_with_factory(
+            execution_settings=execution_settings,
+            run_participant_settings=configuration_variant.modify_run_participant_settings(
+                whole_run_test_module.make_run_participant_settings(
+                    valid_run_settings_mapping, update_interval=update_interval
+                )
+            ),
+        )
+    )
+    whole_run_test_module.assert_whole_run_matches_legacy(
+        run_result=run_result,
+        participants=participants,
+        run_random_sources=run_random_sources,
+        legacy_run=legacy_run,
+    )
+    # 784特徴で実行している。
+    assert all(
+        len(observed_sample.feature_values) == 784
+        for observed_client_stream in run_result.observed_client_streams
+        for observed_sample in observed_client_stream.observed_samples
+    )
+    MNIST2_NEW_MODEL_REGISTRATION_BY_CONDITION[(configuration_name, whole_run_condition)] = any(
+        synchronization.registered_client_models
+        for synchronization in participants.server_operations.snapshot_server_round_synchronizations()
+    )
+
+
+@pytest.mark.parametrize("configuration_name", MODEL_ARCHITECTURE_VARIANT_NAMES)
+def test_model_architecture_variant_registers_new_models_on_mnist2(configuration_name):
+    """mnist2の照合が、新しいモデルの登録（集約と配布に、複数のモデルが関わる）まで進む条件を含む。"""
+    registrations = [
+        MNIST2_NEW_MODEL_REGISTRATION_BY_CONDITION[(configuration_name, whole_run_condition)]
+        for whole_run_condition in MNIST2_WHOLE_RUN_CONDITIONS
+        if (configuration_name, whole_run_condition) in MNIST2_NEW_MODEL_REGISTRATION_BY_CONDITION
+    ]
+    if len(registrations) < len(MNIST2_WHOLE_RUN_CONDITIONS):
+        pytest.skip("mnist2の条件の全部を実行したときだけ確かめる")
+    assert any(registrations)
