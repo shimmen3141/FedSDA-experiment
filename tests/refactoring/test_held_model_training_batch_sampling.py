@@ -511,6 +511,11 @@ def test_training_batch_sampling_inspection_count_does_not_depend_on_population(
         "isfinite",
         Mock(wraps=held_model_training_batch_sampling.isfinite),
     )
+    monkeypatch.setattr(
+        held_model_training_batch_sampling,
+        "_validate_observed_training_sample",
+        Mock(wraps=held_model_training_batch_sampling._validate_observed_training_sample),
+    )
     sampled_batches = sample_training_batches_for_held_models(
         held_model_ids=frozenset((0, 1)),
         ordered_model_training_samples=(
@@ -523,6 +528,32 @@ def test_training_batch_sampling_inspection_count_does_not_depend_on_population(
     assert len(sampled_batches) == 2
     # 有限性は、モデルごとに、抽出して連結したbatchの、特徴とラベルを、1回ずつ確かめる（モデル2つ×tensor 2つ）。
     assert held_model_training_batch_sampling.isfinite.call_count == 2 * 2
+    # 標本ごとの検査（型と、tensorの種類・形）は、抽出した標本だけ（モデル2つ×抽出4件）。
+    assert held_model_training_batch_sampling._validate_observed_training_sample.call_count == 2 * 4
+
+
+@pytest.mark.parametrize("raised_exception_type", [RuntimeError, KeyboardInterrupt])
+def test_training_batch_sampling_restores_random_state_on_any_exception(
+    raised_exception_type, monkeypatch
+):
+    """抽出の後の検査や連結が、どの種類の例外で止まっても、乱数の状態を、呼出しの前へ戻す。"""
+    held_model_ids, ordered_model_training_samples, python_random_generator, _ = (
+        build_sampling_oracle_inputs()
+    )
+    expected_random_state = python_random_generator.getstate()
+
+    def raise_exception(*_, **__):
+        raise raised_exception_type("simulated")
+
+    monkeypatch.setattr(held_model_training_batch_sampling, "cat", raise_exception)
+    with pytest.raises(raised_exception_type):
+        sample_training_batches_for_held_models(
+            held_model_ids=held_model_ids,
+            ordered_model_training_samples=ordered_model_training_samples,
+            batch_sample_count=2,
+            python_random_generator=python_random_generator,
+        )
+    assert python_random_generator.getstate() == expected_random_state
 
 
 def test_training_batch_sampling_skips_ineligible_payloads(monkeypatch):

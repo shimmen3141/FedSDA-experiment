@@ -3,6 +3,9 @@
 入れ物（ID、標本の列の型、件数、乱数の生成器）は、乱数を進める前に検査する。標本の中身（tensorの種類・形・有限性）は、
 抽出した標本だけを検査する（1回の費用を、保持する標本の数に依らないようにするため）。抽出した標本が不正なら、
 乱数の生成器の状態を、呼出しの前へ戻して、拒否する。
+
+標本の中身は、観測標本の処理の入口（標本1件の処理と、その最初の予測・損失の評価）が、保持へ入る前に検査している。
+ここでの検査は、その後に標本が書き換えられた場合の、使う時点での防御である。
 """
 
 from random import Random
@@ -157,7 +160,8 @@ def sample_training_batches_for_held_models(
                         f".training_samplesから抽出した標本の{tensor_field_name}は有限値が必要です。"
                     )
             sampled_model_training_batches.append(sampled_training_batch)
-    except ValueError:
+    except BaseException:
+        # 例外の種類に依らず、乱数の状態を、呼出しの前へ戻す。
         python_random_generator.setstate(random_state_before_sampling)
         raise
     return tuple(sampled_model_training_batches)
