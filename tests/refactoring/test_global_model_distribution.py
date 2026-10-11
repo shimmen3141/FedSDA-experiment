@@ -712,7 +712,7 @@ STATES_KEPT_BY_DISTRIBUTION_APPLICATION = (
     "held_validation_session",
     "pending_training_request_count",
     "diagnostics",
-    "fixed_share_prediction_weights",
+    "fixed_share_weights",
     "sample_prediction_records",
     "next_temporary_model_id",
     "pending_model_upload",

@@ -1,11 +1,11 @@
-"""集約（と配布）の後で、client 1つの予測の重みと診断証拠を、現在の保有モデルに合わせて再較正する。"""
+"""集約（と配布）の後で、client 1つの予測の重みとAdaHedgeの証拠を、現在の保有モデルに合わせて再較正する。"""
 
 from dataclasses import dataclass
 
 from torch import cat
 
-from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
-    AdaHedgeDiagnosticEvidenceCollection,
+from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
+    AdaHedgeWeightEvidenceCollection,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifiers_per_sample_bounded_losses_from_shared_features,
@@ -13,8 +13,8 @@ from federated_learning_experiments.learning.prediction.classifier_bounded_loss_
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
 )
-from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
-    FixedSharePredictionWeightController,
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
+    FixedShareWeightController,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
@@ -92,12 +92,12 @@ def recalibrate_prediction_state_after_aggregation(
     *,
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
     pending_sample_observation_store: PendingSampleObservationStore,
-    fixed_share_prediction_weight_controller: FixedSharePredictionWeightController,
-    diagnostic_evidence_collection: AdaHedgeDiagnosticEvidenceCollection,
+    fixed_share_weight_controller: FixedShareWeightController,
+    adahedge_weight_evidence_collection: AdaHedgeWeightEvidenceCollection,
 ) -> PostAggregationPredictionRecalibration:
-    """保留中の標本の損失を現在の保有モデルで計算し直し、その列で、診断証拠と予測の重みを作り直す。
+    """保留中の標本の損失を現在の保有モデルで計算し直し、その列で、AdaHedgeの証拠と予測の重みを作り直す。
 
-    globalの診断証拠の再生→真の概念別の診断証拠の再始動→Fixed-Shareの重みの再生、の順に行う。
+    全標本のAdaHedgeの証拠の再生→真の概念別の診断証拠の再始動→Fixed-Shareの重みの再生、の順に行う。
     損失の列が空（保留中の標本がないか、保有モデルが1つ以下）なら、再生は何も変えない。
     真の概念別の診断証拠は、列が空でも再始動する。モデルと、ほかのownerは変えない。
     """
@@ -113,14 +113,14 @@ def recalibrate_prediction_state_after_aggregation(
             PendingSampleObservationStore,
         ),
         (
-            "fixed_share_prediction_weight_controller",
-            fixed_share_prediction_weight_controller,
-            FixedSharePredictionWeightController,
+            "fixed_share_weight_controller",
+            fixed_share_weight_controller,
+            FixedShareWeightController,
         ),
         (
-            "diagnostic_evidence_collection",
-            diagnostic_evidence_collection,
-            AdaHedgeDiagnosticEvidenceCollection,
+            "adahedge_weight_evidence_collection",
+            adahedge_weight_evidence_collection,
+            AdaHedgeWeightEvidenceCollection,
         ),
     ):
         if type(owner) is not required_type:
@@ -129,21 +129,21 @@ def recalibrate_prediction_state_after_aggregation(
         held_model_training_state_registry=held_model_training_state_registry,
         pending_sample_observation_store=pending_sample_observation_store,
     )
-    restarted_true_concept_ids = diagnostic_evidence_collection.created_true_concept_ids
+    restarted_true_concept_ids = adahedge_weight_evidence_collection.created_true_concept_ids
     recalibration = PostAggregationPredictionRecalibration(
         replayed_sample_count=len(observed_loss_sequence),
         replayed_model_ids=tuple(observed_loss_sequence[0]) if observed_loss_sequence else (),
         restarted_true_concept_ids=restarted_true_concept_ids,
     )
-    diagnostic_evidence_collection.global_diagnostic_evidence.replay_observed_losses_after_aggregation(
+    adahedge_weight_evidence_collection.all_sample_weight_evidence.replay_observed_losses_after_aggregation(
         observed_loss_sequence=observed_loss_sequence
     )
     # 真の概念別の証拠は、集約の前の表現で得た比較なので、再生せずに捨てる。
     for true_concept_id in restarted_true_concept_ids:
-        diagnostic_evidence_collection.get_true_concept_diagnostic_evidence(
+        adahedge_weight_evidence_collection.get_true_concept_diagnostic_evidence(
             true_concept_id=true_concept_id
         ).restart_evidence_after_aggregation()
-    fixed_share_prediction_weight_controller.replay_observed_losses_after_aggregation(
+    fixed_share_weight_controller.replay_observed_losses_after_aggregation(
         observed_loss_sequence=observed_loss_sequence
     )
     return recalibration

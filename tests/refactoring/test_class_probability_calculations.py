@@ -8,7 +8,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 import torch
-from test_fixed_share_prediction_weights import (
+from test_fixed_share_weights import (
     assert_fixed_share_state_matches_reference,
     capture_fixed_share_controller_state,
 )
@@ -24,8 +24,8 @@ from federated_learning_experiments.learning.prediction.class_probability_calcul
     normalize_model_prediction_weights,
     predict_class_labels_from_prediction_scores,
 )
-from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
-    FixedSharePredictionWeightController,
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
+    FixedShareWeightController,
 )
 
 
@@ -422,7 +422,7 @@ def test_class_probability_fixed_share_prediction_and_observation_match_referenc
         valid_run_settings_mapping["prediction_combination_settings"],
         fixed_share_weight_redistribution_time_scale_samples=30,
     )
-    controller = FixedSharePredictionWeightController(
+    controller = FixedShareWeightController(
         prediction_combination_settings=prediction_combination_settings
     )
     reference_router = SwitchingExpertRouter(30)
@@ -437,7 +437,7 @@ def test_class_probability_fixed_share_prediction_and_observation_match_referenc
                 else ((7,) if observation_index < 20 else tuple(reversed(range(10))))
             )
         )
-        prediction_weights_by_model_id = controller.get_prediction_weights_before_label_observation(
+        prediction_weights_by_model_id = controller.get_weights_before_label_observation(
             model_ids=model_ids
         )
         reference_prediction_weights = reference_router.probabilities(model_ids)

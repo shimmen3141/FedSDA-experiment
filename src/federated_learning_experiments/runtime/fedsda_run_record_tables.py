@@ -147,7 +147,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
         "any_model_or_combined_prediction_is_correct",
         "maximum_weight_model_prediction_is_correct",
         "highest_confidence_model_prediction_is_correct",
-        "global_diagnostic_prediction_is_correct",
+        "adahedge_weighted_prediction_is_correct",
     ):
         record_tables[f"sample_prediction.{column_name}"] = _boolean_column(
             [
@@ -595,50 +595,50 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
         )
 
     # ---- clientごとの、重みの更新に関わる出来事の回数（実行の終わりの値） ----
-    # globalの診断重み（AdaHedge）と、予測重み（Fixed-Share）の別。
+    # AdaHedgeの重みと、Fixed-Shareの重みの別。
     record_tables["client_weight_update_counts.client_id"] = _integer_column(
         [run_client.client_id for run_client in run_clients]
     )
     for column_name, evidence_property_name in (
-        ("global_diagnostic_model_pool_reset_count", "model_pool_reset_count"),
+        ("adahedge_weight_model_pool_reset_count", "model_pool_reset_count"),
         (
-            "global_diagnostic_concept_operation_restart_count",
+            "adahedge_weight_concept_operation_restart_count",
             "concept_operation_restart_count",
         ),
         (
-            "global_diagnostic_aggregation_recalibration_count",
+            "adahedge_weight_aggregation_recalibration_count",
             "aggregation_recalibration_count",
         ),
         (
-            "global_diagnostic_aggregation_recalibration_replayed_sample_count",
+            "adahedge_weight_aggregation_recalibration_replayed_sample_count",
             "aggregation_recalibration_sample_count",
         ),
     ):
         record_tables[f"client_weight_update_counts.{column_name}"] = _integer_column(
             [
                 getattr(
-                    run_client.owners.diagnostic_evidence_collection.global_diagnostic_evidence,
+                    run_client.owners.adahedge_weight_evidence_collection.all_sample_weight_evidence,
                     evidence_property_name,
                 )
                 for run_client in run_clients
             ]
         )
     for column_name, controller_property_name in (
-        ("prediction_weight_model_pool_reset_count", "model_pool_reset_count"),
-        ("prediction_weight_leader_switch_count", "prediction_weight_leader_switch_count"),
+        ("fixed_share_weight_model_pool_reset_count", "model_pool_reset_count"),
+        ("fixed_share_weight_leader_switch_count", "leader_switch_count"),
         (
-            "prediction_weight_aggregation_recalibration_count",
+            "fixed_share_weight_aggregation_recalibration_count",
             "aggregation_recalibration_count",
         ),
         (
-            "prediction_weight_aggregation_recalibration_replayed_sample_count",
+            "fixed_share_weight_aggregation_recalibration_replayed_sample_count",
             "aggregation_recalibration_sample_count",
         ),
     ):
         record_tables[f"client_weight_update_counts.{column_name}"] = _integer_column(
             [
                 getattr(
-                    run_client.owners.fixed_share_prediction_weight_controller,
+                    run_client.owners.fixed_share_weight_controller,
                     controller_property_name,
                 )
                 for run_client in run_clients

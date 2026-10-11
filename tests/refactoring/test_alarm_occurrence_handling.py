@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 import torch
-from test_adahedge_diagnostic_evidence import assert_adahedge_matches_legacy
+from test_adahedge_weight_evidence import assert_adahedge_matches_legacy
 from test_alarm_adaptation_recording import RECORDING_ORACLE_CASES
 from test_alarm_buffer_response import assert_buffer_response_matches_legacy
 from test_alarm_response_completion import (
@@ -15,16 +15,18 @@ from test_alarm_response_completion import (
     build_response_completion_oracle,
     run_legacy_alarm_with_real_completion,
 )
-from test_held_adahedge_diagnostic_notification import get_diagnostic_collection_snapshot
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
+from test_training_assignment_adahedge_weight_evidence_restart import (
+    get_diagnostic_collection_snapshot,
+)
 
 import federated_learning_experiments.runtime.alarm_occurrence_handling as occurrence_module
 from federated_drift_experiment.clients.fedsda import (
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
 )
 from federated_drift_experiment.expert_routing import AdaHedgeRouter
-from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
-    AdaHedgeDiagnosticEvidenceCollection,
+from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
+    AdaHedgeWeightEvidenceCollection,
 )
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecord,
@@ -50,12 +52,12 @@ ALARM_OCCURRENCE_STEP_NAMES = (
     "complete_alarm_buffer_response",
     "record_completed_alarm_response",
     "apply_alarm_response_to_validation_session_holder",
-    "notify_diagnostics_of_training_assignment_change",
+    "restart_adahedge_weight_evidence_after_training_assignment_change",
 )
 ARGUMENT_NAMES_ADDED_TO_RESPONSE = (
     "validation_session_holder",
     "adaptation_record_store",
-    "diagnostic_evidence_collection",
+    "adahedge_weight_evidence_collection",
     "loss_change_monitor",
     "alarm_sample_index",
 )
@@ -103,15 +105,15 @@ def build_alarm_occurrence_oracle(
         )
 
     legacy_client._on_local_model_change = record_change_then_restart_legacy_routers
-    diagnostic_evidence_collection = AdaHedgeDiagnosticEvidenceCollection()
-    global_diagnostic_evidence = diagnostic_evidence_collection.global_diagnostic_evidence
-    diagnostic_weights = global_diagnostic_evidence.get_diagnostic_weights_before_loss_observation(
+    adahedge_weight_evidence_collection = AdaHedgeWeightEvidenceCollection()
+    all_sample_weight_evidence = adahedge_weight_evidence_collection.all_sample_weight_evidence
+    diagnostic_weights = all_sample_weight_evidence.get_weights_before_loss_observation(
         model_ids=tuple(DIAGNOSTIC_LOSSES_BEFORE_ALARM)
     )
     legacy_weights = legacy_client.expert_router.probabilities(DIAGNOSTIC_LOSSES_BEFORE_ALARM)
-    global_diagnostic_evidence.update_evidence_after_loss_observation(
+    all_sample_weight_evidence.update_evidence_after_loss_observation(
         observed_losses_by_model_id=DIAGNOSTIC_LOSSES_BEFORE_ALARM,
-        diagnostic_weights_by_model_id=diagnostic_weights,
+        weights_by_model_id=diagnostic_weights,
     )
     legacy_client.expert_router.update(DIAGNOSTIC_LOSSES_BEFORE_ALARM, legacy_weights)
     handling_arguments = {
@@ -122,7 +124,7 @@ def build_alarm_occurrence_oracle(
     handling_arguments.update(
         validation_session_holder=CandidateValidationSessionHolder(),
         adaptation_record_store=AdaptationRecordStore(),
-        diagnostic_evidence_collection=diagnostic_evidence_collection,
+        adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
         loss_change_monitor=completion_arguments["loss_change_monitor"],
         alarm_sample_index=completion_arguments["alarm_sample_index"],
     )
@@ -144,7 +146,9 @@ def snapshot_owners_updated_after_response(*, handling_arguments):
         handling_arguments["pending_training_assignment_buffer"].get_state_snapshot(),
         handling_arguments["adaptation_record_store"].get_state_snapshot(),
         handling_arguments["validation_session_holder"].held_validation_session,
-        get_diagnostic_collection_snapshot(handling_arguments["diagnostic_evidence_collection"]),
+        get_diagnostic_collection_snapshot(
+            handling_arguments["adahedge_weight_evidence_collection"]
+        ),
     )
 
 
@@ -184,7 +188,9 @@ def test_alarm_occurrence_matches_real_legacy_alarm(
         )
         validation_session_holder = handling_arguments["validation_session_holder"]
         adaptation_record_store = handling_arguments["adaptation_record_store"]
-        diagnostic_evidence_collection = handling_arguments["diagnostic_evidence_collection"]
+        adahedge_weight_evidence_collection = handling_arguments[
+            "adahedge_weight_evidence_collection"
+        ]
         pending_training_assignment_buffer = handling_arguments[
             "pending_training_assignment_buffer"
         ]
@@ -295,12 +301,12 @@ def test_alarm_occurrence_matches_real_legacy_alarm(
         legacy_client._forward_validation is not None
     )
     # 診断: 実旧の再始動hookを通した後のAdaHedge状態と一致し、再始動は他モデルの再利用のときだけ1回。
-    global_diagnostic_evidence = diagnostic_evidence_collection.global_diagnostic_evidence
-    assert_adahedge_matches_legacy(global_diagnostic_evidence, legacy_client.expert_router)
-    assert global_diagnostic_evidence.concept_operation_restart_count == (
+    all_sample_weight_evidence = adahedge_weight_evidence_collection.all_sample_weight_evidence
+    assert_adahedge_matches_legacy(all_sample_weight_evidence, legacy_client.expert_router)
+    assert all_sample_weight_evidence.concept_operation_restart_count == (
         1 if expected_response_outcome == "alarm_interval_held_model_reused" else 0
     )
-    assert diagnostic_evidence_collection.created_true_concept_ids == ()
+    assert adahedge_weight_evidence_collection.created_true_concept_ids == ()
 
 
 def test_alarm_occurrence_runs_each_step_once_in_order(monkeypatch, valid_run_settings_mapping):
@@ -360,7 +366,7 @@ def test_alarm_occurrence_runs_each_step_once_in_order(monkeypatch, valid_run_se
     )
     assert training_model_assignment_change is not None
     assert notification_step_arguments.pop("assignment_change") is training_model_assignment_change
-    assert notification_step_arguments.keys() == {"diagnostic_evidence_collection"}
+    assert notification_step_arguments.keys() == {"adahedge_weight_evidence_collection"}
     for step_arguments in (
         response_step_arguments,
         completion_step_arguments,
@@ -391,7 +397,7 @@ def get_last_observed_sample_index(handling_arguments):
 OWNER_ARGUMENT_NAMES_VALIDATED_BEFORE_RESPONSE = (
     "validation_session_holder",
     "adaptation_record_store",
-    "diagnostic_evidence_collection",
+    "adahedge_weight_evidence_collection",
     "loss_change_monitor",
     "pending_training_assignment_buffer",
 )

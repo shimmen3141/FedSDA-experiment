@@ -227,7 +227,7 @@ def build_recalibrated_server_round_oracle(*, monkeypatch, valid_run_settings_ma
 
 
 # 再較正が変える状態（読取りの項目名）。ほかは変えない。
-STATES_CHANGED_BY_RECALIBRATION = ("diagnostics", "fixed_share_prediction_weights")
+STATES_CHANGED_BY_RECALIBRATION = ("diagnostics", "fixed_share_weights")
 
 
 def test_client_recalibration_matches_real_legacy_client_and_keeps_other_states(
@@ -259,7 +259,7 @@ def test_client_recalibration_matches_real_legacy_client_and_keeps_other_states(
                 run_client=run_client, python_random_generator=python_random_generator
             )
             recalibration_count = (
-                owners.fixed_share_prediction_weight_controller.aggregation_recalibration_count
+                owners.fixed_share_weight_controller.aggregation_recalibration_count
             )
             recalibration, _ = run_in_both(
                 run_client=run_client,
@@ -272,7 +272,7 @@ def test_client_recalibration_matches_real_legacy_client_and_keeps_other_states(
             assert_recalibration_result_matches_legacy_state(recalibration, legacy_client)
             assert recalibration.replayed_sample_count > 0
             assert (
-                owners.fixed_share_prediction_weight_controller.aggregation_recalibration_count
+                owners.fixed_share_weight_controller.aggregation_recalibration_count
                 == recalibration_count + 1
             )
             current_snapshot = snapshot_run_client_state(
@@ -310,8 +310,8 @@ def test_client_recalibration_matches_real_legacy_client_and_keeps_other_states(
 RECALIBRATION_OWNER_ARGUMENT_NAMES = (
     "held_model_training_state_registry",
     "pending_sample_observation_store",
-    "fixed_share_prediction_weight_controller",
-    "diagnostic_evidence_collection",
+    "fixed_share_weight_controller",
+    "adahedge_weight_evidence_collection",
 )
 
 

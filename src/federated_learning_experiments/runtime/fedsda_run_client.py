@@ -7,8 +7,8 @@ from random import Random
 from torch import Tensor, float32, tensor
 
 from federated_learning_experiments.data.observed_streams import ObservedSample
-from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
-    AdaHedgeDiagnosticEvidenceCollection,
+from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
+    AdaHedgeWeightEvidenceCollection,
 )
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecordStore,
@@ -77,8 +77,8 @@ from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
-from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
-    FixedSharePredictionWeightController,
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
+    FixedShareWeightController,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
@@ -121,12 +121,12 @@ from federated_learning_experiments.runtime.post_aggregation_prediction_recalibr
 class FedsdaRunClientOwners:
     """clientが持つ全ownerへの参照。状態はowner自身が持つ。field名は、標本1件の処理の引数名と同じ。"""
 
-    fixed_share_prediction_weight_controller: FixedSharePredictionWeightController
+    fixed_share_weight_controller: FixedShareWeightController
     sample_prediction_record_store: SamplePredictionRecordStore
     validation_session_holder: CandidateValidationSessionHolder
     adaptation_record_store: AdaptationRecordStore
     candidate_validation_decision_record_store: CandidateValidationDecisionRecordStore
-    diagnostic_evidence_collection: AdaHedgeDiagnosticEvidenceCollection
+    adahedge_weight_evidence_collection: AdaHedgeWeightEvidenceCollection
     loss_change_monitor: OverallAndTrueClassLossMonitor
     loss_change_alarm_record_store: LossChangeAlarmRecordStore
     loss_monitoring_computation_count_store: LossMonitoringComputationCountStore
@@ -224,11 +224,11 @@ class FedsdaRunClient:
                 ),
                 observed_concept_id=evaluation_concept_id,
             ),
-            fixed_share_prediction_weight_controller=owners.fixed_share_prediction_weight_controller,
+            fixed_share_weight_controller=owners.fixed_share_weight_controller,
             sample_prediction_record_store=owners.sample_prediction_record_store,
             validation_session_holder=owners.validation_session_holder,
             adaptation_record_store=owners.adaptation_record_store,
-            diagnostic_evidence_collection=owners.diagnostic_evidence_collection,
+            adahedge_weight_evidence_collection=owners.adahedge_weight_evidence_collection,
             loss_change_monitor=owners.loss_change_monitor,
             loss_change_alarm_record_store=owners.loss_change_alarm_record_store,
             pending_training_assignment_buffer=owners.pending_training_assignment_buffer,
@@ -383,7 +383,7 @@ class FedsdaRunClient:
     def recalibrate_prediction_state_after_aggregation(
         self,
     ) -> PostAggregationPredictionRecalibration | None:
-        """配布を受け取った後で、保留中の標本の損失を計算し直して、予測の重みと診断証拠を作り直す。
+        """配布を受け取った後で、保留中の標本の損失を計算し直して、予測の重みとAdaHedgeの証拠を作り直す。
 
         再較正の方針が「再較正しない」のときは、何も変えず、Noneを返す。
         """
@@ -396,8 +396,8 @@ class FedsdaRunClient:
         return recalibrate_prediction_state_after_aggregation(
             held_model_training_state_registry=owners.held_model_training_state_registry,
             pending_sample_observation_store=owners.pending_sample_observation_store,
-            fixed_share_prediction_weight_controller=owners.fixed_share_prediction_weight_controller,
-            diagnostic_evidence_collection=owners.diagnostic_evidence_collection,
+            fixed_share_weight_controller=owners.fixed_share_weight_controller,
+            adahedge_weight_evidence_collection=owners.adahedge_weight_evidence_collection,
         )
 
     def finalize_incomplete_candidate_validation(
@@ -563,14 +563,14 @@ def assemble_fedsda_run_client(
         concept_specific_parameter_optimizer_state=concept_specific_parameter_optimizer_state,
     )
     owners = FedsdaRunClientOwners(
-        fixed_share_prediction_weight_controller=FixedSharePredictionWeightController(
+        fixed_share_weight_controller=FixedShareWeightController(
             prediction_combination_settings=run_client_settings.prediction_combination_settings
         ),
         sample_prediction_record_store=SamplePredictionRecordStore(),
         validation_session_holder=CandidateValidationSessionHolder(),
         adaptation_record_store=AdaptationRecordStore(),
         candidate_validation_decision_record_store=CandidateValidationDecisionRecordStore(),
-        diagnostic_evidence_collection=AdaHedgeDiagnosticEvidenceCollection(),
+        adahedge_weight_evidence_collection=AdaHedgeWeightEvidenceCollection(),
         loss_change_monitor=OverallAndTrueClassLossMonitor(
             loss_change_detection_settings=run_client_settings.loss_change_detection_settings,
             class_count=held_classifier.class_count,

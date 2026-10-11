@@ -8,7 +8,7 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.predic
 )
 
 
-class FixedSharePredictionWeightController:
+class FixedShareWeightController:
     """予測用重みと分散・計数を一実体で所有し、診断値をコピーで公開する。"""
 
     def __init__(self, *, prediction_combination_settings: PredictionCombinationSettings) -> None:
@@ -34,7 +34,7 @@ class FixedSharePredictionWeightController:
         self._weights_by_model_id: dict[int, float] = {}
         self._cumulative_observed_loss_variance = 0.0
         self._model_pool_reset_count = 0
-        self._prediction_weight_leader_switch_count = 0
+        self._leader_switch_count = 0
         self._aggregation_recalibration_count = 0
         self._aggregation_recalibration_sample_count = 0
 
@@ -54,9 +54,9 @@ class FixedSharePredictionWeightController:
         return self._model_pool_reset_count
 
     @property
-    def prediction_weight_leader_switch_count(self) -> int:
+    def leader_switch_count(self) -> int:
         """重み更新による最大重みモデルの変更回数を返す。"""
-        return self._prediction_weight_leader_switch_count
+        return self._leader_switch_count
 
     @property
     def aggregation_recalibration_count(self) -> int:
@@ -94,7 +94,7 @@ class FixedSharePredictionWeightController:
             }
             self._cumulative_observed_loss_variance = 0.0
 
-    def get_prediction_weights_before_label_observation(
+    def get_weights_before_label_observation(
         self,
         *,
         model_ids: Iterable[int],
@@ -112,7 +112,7 @@ class FixedSharePredictionWeightController:
         """状態変更前に有限損失を検証し、昇順の独立辞書へ変換する。"""
         if not isinstance(observed_losses_by_model_id, Mapping):
             raise TypeError("observed_losses_by_model_idにはMappingを指定してください。")
-        validated_model_ids = FixedSharePredictionWeightController._validated_model_ids(
+        validated_model_ids = FixedShareWeightController._validated_model_ids(
             model_ids=observed_losses_by_model_id,
         )
         observed_losses_by_model_id = dict(observed_losses_by_model_id)
@@ -141,7 +141,7 @@ class FixedSharePredictionWeightController:
         """確率の型・値域・総和を検証し、再正規化せずコピーを返す。"""
         if not isinstance(prediction_weights_by_model_id, Mapping):
             raise TypeError("prediction_weights_by_model_idにはMappingを指定してください。")
-        validated_model_ids = FixedSharePredictionWeightController._validated_model_ids(
+        validated_model_ids = FixedShareWeightController._validated_model_ids(
             model_ids=prediction_weights_by_model_id,
         )
         prediction_weights_by_model_id = dict(prediction_weights_by_model_id)
@@ -182,10 +182,8 @@ class FixedSharePredictionWeightController:
             raise TypeError(
                 "preferred_model_idにはbuiltin intまたはNoneを指定してください。boolは受理しません。"
             )
-        prediction_weights_by_model_id = (
-            FixedSharePredictionWeightController._validated_prediction_weights(
-                prediction_weights_by_model_id=prediction_weights_by_model_id,
-            )
+        prediction_weights_by_model_id = FixedShareWeightController._validated_prediction_weights(
+            prediction_weights_by_model_id=prediction_weights_by_model_id,
         )
         maximum_prediction_weight = max(prediction_weights_by_model_id.values())
         maximum_weight_model_ids = [
@@ -269,7 +267,7 @@ class FixedSharePredictionWeightController:
             )
             != previous_leader_model_id
         ):
-            self._prediction_weight_leader_switch_count += 1
+            self._leader_switch_count += 1
 
     def _clear_prediction_weight_evidence(self) -> None:
         """重みと累積分散だけを消去し、診断計数を保持する。"""
@@ -283,7 +281,7 @@ class FixedSharePredictionWeightController:
     ) -> tuple[dict[int, float], ...]:
         """後段や列挙の失敗より前に状態を変更しないため、全行をコピーする。"""
         return tuple(
-            FixedSharePredictionWeightController._validated_observed_losses(
+            FixedShareWeightController._validated_observed_losses(
                 observed_losses_by_model_id=observed_losses_by_model_id,
             )
             for observed_losses_by_model_id in observed_loss_sequence
@@ -307,7 +305,7 @@ class FixedSharePredictionWeightController:
             return
         self._clear_prediction_weight_evidence()
         for observed_losses_by_model_id in validated_observed_loss_sequence:
-            prediction_weights_by_model_id = self.get_prediction_weights_before_label_observation(
+            prediction_weights_by_model_id = self.get_weights_before_label_observation(
                 model_ids=observed_losses_by_model_id,
             )
             self.update_weights_after_loss_observation(

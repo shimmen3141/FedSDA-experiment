@@ -36,8 +36,8 @@ from federated_learning_experiments.data.observed_streams import (
     ObservedSample,
 )
 from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
-from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
-    AdaHedgeDiagnosticEvidenceCollection,
+from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
+    AdaHedgeWeightEvidenceCollection,
 )
 from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
@@ -148,8 +148,8 @@ from federated_learning_experiments.methods.fedsda.model_registration.global_mod
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
-from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
-    FixedSharePredictionWeightController,
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
+    FixedShareWeightController,
 )
 from federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings import (
     PredictionCombinationSettings,
@@ -398,13 +398,13 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     counts_store = ModelTrainingAndAssignmentCountsStore()
     validation_session_holder = CandidateValidationSessionHolder()
     adaptation_record_store = AdaptationRecordStore()
-    diagnostic_evidence_collection = AdaHedgeDiagnosticEvidenceCollection()
-    global_diagnostic_evidence = diagnostic_evidence_collection.global_diagnostic_evidence
+    adahedge_weight_evidence_collection = AdaHedgeWeightEvidenceCollection()
+    all_sample_weight_evidence = adahedge_weight_evidence_collection.all_sample_weight_evidence
     # 再始動で消えることを確かめるため、診断証拠へ損失を1回与えておく。
     diagnostic_losses = {CURRENT_MODEL_ID: 0.8, OTHER_MODEL_ID: 0.1}
-    global_diagnostic_evidence.update_evidence_after_loss_observation(
+    all_sample_weight_evidence.update_evidence_after_loss_observation(
         observed_losses_by_model_id=diagnostic_losses,
-        diagnostic_weights_by_model_id=global_diagnostic_evidence.get_diagnostic_weights_before_loss_observation(
+        weights_by_model_id=all_sample_weight_evidence.get_weights_before_loss_observation(
             model_ids=tuple(diagnostic_losses)
         ),
     )
@@ -489,7 +489,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         upload_delay_round_count=1,
         validation_session_holder=validation_session_holder,
         adaptation_record_store=adaptation_record_store,
-        diagnostic_evidence_collection=diagnostic_evidence_collection,
+        adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
         loss_change_monitor=loss_change_monitor,
         pending_training_assignment_buffer=pending_training_assignment_buffer,
         minimum_change_interval_sample_count=3,
@@ -523,7 +523,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     ):
         """警報を1回処理し、戻り値と記録・保持・監視・保留位置・診断の状態が互いに合うことを確かめる。"""
         model_id_before_alarm = current_training_model_assignment.current_training_model_id
-        restart_count_before_alarm = global_diagnostic_evidence.concept_operation_restart_count
+        restart_count_before_alarm = all_sample_weight_evidence.concept_operation_restart_count
         alarm_occurrence_handling = handle_alarm_occurrence(
             alarm_sample_index=alarm_sample_index,
             pending_sample_observations=pending_sample_observations,
@@ -573,7 +573,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         assert (
             current_training_model_assignment.current_training_model_id != model_id_before_alarm
         ) == model_switched
-        assert global_diagnostic_evidence.concept_operation_restart_count == (
+        assert all_sample_weight_evidence.concept_operation_restart_count == (
             restart_count_before_alarm + int(model_switched)
         )
         observed_outcomes.append(response_outcome)
@@ -617,13 +617,13 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             for sample_offset in range(observed_validation_sample_count)
         )
         model_id_before_validation = current_training_model_assignment.current_training_model_id
-        restart_count_before_validation = global_diagnostic_evidence.concept_operation_restart_count
+        restart_count_before_validation = all_sample_weight_evidence.concept_operation_restart_count
         held_validation_advance = None
         for indexed_observation in later_observations:
             # 未到達の間: 保持が続き、診断は再始動しない。
             assert validation_session_holder.held_validation_session is started_validation_session
             assert (
-                global_diagnostic_evidence.concept_operation_restart_count
+                all_sample_weight_evidence.concept_operation_restart_count
                 == restart_count_before_validation
             )
             pending_training_assignment_buffer.append_observed_sample_index(
@@ -632,7 +632,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             held_validation_advance = advance_held_candidate_validation(
                 validation_session_holder=validation_session_holder,
                 adaptation_record_store=adaptation_record_store,
-                diagnostic_evidence_collection=diagnostic_evidence_collection,
+                adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
                 sample_index=indexed_observation.sample_index,
                 input_features=indexed_observation.training_sample.input_features,
                 observed_class_labels=indexed_observation.training_sample.observed_class_labels,
@@ -667,7 +667,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
                 current_training_model_assignment.current_training_model_id
                 != model_id_before_validation
             ) == model_switched
-            assert global_diagnostic_evidence.concept_operation_restart_count == (
+            assert all_sample_weight_evidence.concept_operation_restart_count == (
                 restart_count_before_validation + int(model_switched)
             )
             observed_outcomes.append(expected_completion_outcome)
@@ -711,7 +711,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     assert tuple(record.adaptation_outcome for record in state_snapshot.adaptation_records) == (
         tuple(observed_outcomes)
     )
-    assert global_diagnostic_evidence.concept_operation_restart_count == sum(
+    assert all_sample_weight_evidence.concept_operation_restart_count == sum(
         outcome in MODEL_SWITCHING_OUTCOMES for outcome in observed_outcomes
     )
     # 標本1件の処理: ここまでの流れの後の状態から、標本を続けて処理する。
@@ -732,7 +732,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         )
     loss_change_alarm_record_store = LossChangeAlarmRecordStore()
     # 予測のowner。Fixed-Shareの時間尺度は、保留の容量と同じにする。
-    fixed_share_prediction_weight_controller = FixedSharePredictionWeightController(
+    fixed_share_weight_controller = FixedShareWeightController(
         prediction_combination_settings=PredictionCombinationSettings(
             prediction_combination_strategy="fixed_share_weighted_prediction",
             prediction_mixture_activation_policy="always",
@@ -753,7 +753,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     } | dict(
         training_request_arguments,
         loss_change_alarm_record_store=loss_change_alarm_record_store,
-        fixed_share_prediction_weight_controller=fixed_share_prediction_weight_controller,
+        fixed_share_weight_controller=fixed_share_weight_controller,
         sample_prediction_record_store=sample_prediction_record_store,
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=6),
@@ -820,7 +820,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     assert len(processed_outcomes) == processed_alarm_count + completed_validation_count
     PROCESSED_ALARM_COUNTS.append(processed_alarm_count)
     # 予測重みは、標本の処理の後、均等のままではない（ラベル観測後の更新が行われている）。
-    updated_prediction_weights = fixed_share_prediction_weight_controller.weights_by_model_id
+    updated_prediction_weights = fixed_share_weight_controller.weights_by_model_id
     assert len(set(updated_prediction_weights.values())) > 1, updated_prediction_weights
     return tuple(observed_outcomes)
 
@@ -1021,9 +1021,7 @@ class ServerOperationsSynchronizingModels:
                     assert torch.equal(held_parameter_values, expected_parameters[parameter_name])
             # 再較正: 再生した列は、保有する全モデルの損失を持ち、重みは、その上の分布になる。
             if prediction_recalibration.replayed_sample_count > 0:
-                weights_by_model_id = (
-                    owners.fixed_share_prediction_weight_controller.weights_by_model_id
-                )
+                weights_by_model_id = owners.fixed_share_weight_controller.weights_by_model_id
                 assert (
                     tuple(sorted(weights_by_model_id))
                     == prediction_recalibration.replayed_model_ids
@@ -1435,7 +1433,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
                 :processed_sample_count
             ]
         )
-        assert owners.diagnostic_evidence_collection.created_true_concept_ids
+        assert owners.adahedge_weight_evidence_collection.created_true_concept_ids
         # 候補検証の判定記録は、適応記録の、候補検証の確定と終端回収の結果と、同じ数だけ保持されている。
         decision_record_count = len(
             owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()

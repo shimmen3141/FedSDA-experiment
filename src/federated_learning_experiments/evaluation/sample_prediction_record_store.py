@@ -12,7 +12,7 @@ class SamplePredictionRecord:
     """標本1件の予測の結果。正否は、その標本の観測ラベルと比べた結果。入力の検査はownerが行う。
 
     「結合した予測」は、Fixed-Shareの予測重みで全モデルの確率を結合した予測。診断の項目は、
-    globalと真の概念別の診断重みで結合した予測の正否で、予測と学習の判断には使わない。
+    AdaHedgeの重みと、真の概念別の診断重みで結合した予測の正否で、予測と学習の判断には使わない。
     """
 
     sample_index: int
@@ -24,7 +24,7 @@ class SamplePredictionRecord:
     effective_model_count: float
     any_model_or_combined_prediction_is_correct: bool
     maximum_weight_model_prediction_is_correct: bool
-    global_diagnostic_prediction_is_correct: bool
+    adahedge_weighted_prediction_is_correct: bool
     true_concept_diagnostic_prediction_is_correct: bool | None
     highest_confidence_model_prediction_is_correct: bool
 
@@ -33,7 +33,7 @@ _REQUIRED_BOOL_FIELD_NAMES = (
     "combined_prediction_is_correct",
     "any_model_or_combined_prediction_is_correct",
     "maximum_weight_model_prediction_is_correct",
-    "global_diagnostic_prediction_is_correct",
+    "adahedge_weighted_prediction_is_correct",
     "highest_confidence_model_prediction_is_correct",
 )
 

@@ -23,13 +23,13 @@ class FedsdaPredictionDiagnosticMetrics:
     """予測の診断の指標。数と回数は、全clientの合計。
 
     「実際の予測」（combined prediction）は、Fixed-Shareの予測重みで全保有モデルの出力を結合した予測。
-    ほかの種類の予測（どれかのモデルか実際の予測、最大重みのモデル、確信度が最大のモデル、globalの診断重みでの結合、
+    ほかの種類の予測（どれかのモデルか実際の予測、最大重みのモデル、確信度が最大のモデル、AdaHedgeの重みでの結合、
     真の概念別の診断重みでの結合）は、比較のためのもので、予測と学習の判断には使われていない。
     正解の割合・差・比は、数から計算できるので、持たない。
     """
 
     prediction_correct_counts: PredictionCorrectCounts
-    global_diagnostic_prediction_correct_count: int
+    adahedge_weighted_prediction_correct_count: int
     # 真の概念が分かる標本の数と、そのうち、真の概念別の診断重みでの結合が正解した数。
     true_concept_known_sample_count: int
     true_concept_diagnostic_prediction_correct_count: int
@@ -44,10 +44,10 @@ class FedsdaPredictionDiagnosticMetrics:
     # 標本ごとの実効モデル数（予測重みの二乗和の逆数）の平均。予測した標本がなければ0。
     mean_effective_model_count: float
     # 予測重みの、最大重みのモデルが変わった回数と、モデルの集まりが変わった回数。
-    prediction_weight_leader_switch_count: int
-    prediction_weight_model_pool_reset_count: int
-    # globalの診断重みの、集約後の再較正の回数。
-    global_diagnostic_aggregation_recalibration_count: int
+    fixed_share_weight_leader_switch_count: int
+    fixed_share_weight_model_pool_reset_count: int
+    # AdaHedgeの重みの、集約後の再較正の回数。
+    adahedge_weight_aggregation_recalibration_count: int
 
 
 def _count_prediction_correctness(
@@ -146,8 +146,8 @@ def derive_fedsda_prediction_diagnostic_metrics(
         prediction_correct_counts=_count_prediction_correctness(
             prediction_records=all_prediction_records
         ),
-        global_diagnostic_prediction_correct_count=sum(
-            prediction_record.global_diagnostic_prediction_is_correct
+        adahedge_weighted_prediction_correct_count=sum(
+            prediction_record.adahedge_weighted_prediction_is_correct
             for prediction_record in all_prediction_records
         ),
         true_concept_known_sample_count=sum(
@@ -181,16 +181,16 @@ def derive_fedsda_prediction_diagnostic_metrics(
             if all_prediction_records
             else 0.0
         ),
-        prediction_weight_leader_switch_count=sum(
-            run_client.owners.fixed_share_prediction_weight_controller.prediction_weight_leader_switch_count
+        fixed_share_weight_leader_switch_count=sum(
+            run_client.owners.fixed_share_weight_controller.leader_switch_count
             for run_client in run_clients
         ),
-        prediction_weight_model_pool_reset_count=sum(
-            run_client.owners.fixed_share_prediction_weight_controller.model_pool_reset_count
+        fixed_share_weight_model_pool_reset_count=sum(
+            run_client.owners.fixed_share_weight_controller.model_pool_reset_count
             for run_client in run_clients
         ),
-        global_diagnostic_aggregation_recalibration_count=sum(
-            run_client.owners.diagnostic_evidence_collection.global_diagnostic_evidence.aggregation_recalibration_count
+        adahedge_weight_aggregation_recalibration_count=sum(
+            run_client.owners.adahedge_weight_evidence_collection.all_sample_weight_evidence.aggregation_recalibration_count
             for run_client in run_clients
         ),
     )

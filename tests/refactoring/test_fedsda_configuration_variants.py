@@ -208,10 +208,10 @@ def test_without_prediction_weight_recalibration_takes_its_own_path():
     )
     for comparison in comparisons:
         variant_metrics = comparison["variant"].run_metrics
-        assert variant_metrics.prediction_weight_recalibration_replayed_sample_count == 0
-        assert variant_metrics.global_diagnostic_recalibration_replayed_sample_count == 0
+        assert variant_metrics.fixed_share_weight_recalibration_replayed_sample_count == 0
+        assert variant_metrics.adahedge_weight_recalibration_replayed_sample_count == 0
         assert (
-            variant_metrics.prediction_diagnostic_metrics.global_diagnostic_aggregation_recalibration_count
+            variant_metrics.prediction_diagnostic_metrics.adahedge_weight_aggregation_recalibration_count
             == 0
         )
         # サーバの同期の結果は、clientごとに、再較正なし（None）。
@@ -230,7 +230,8 @@ def test_without_prediction_weight_recalibration_takes_its_own_path():
             assert legacy_client.expert_router.aggregation_recalibration_count == 0
     # 同じ条件の提案構成は、再較正で標本を再生していて、予測の結果が、この構成と違う条件がある。
     assert any(
-        comparison["proposed"].run_metrics.prediction_weight_recalibration_replayed_sample_count > 0
+        comparison["proposed"].run_metrics.fixed_share_weight_recalibration_replayed_sample_count
+        > 0
         for comparison in comparisons
     )
     assert any(

@@ -144,14 +144,14 @@
 | `history_routing_max_weight` | `sample_prediction.maximum_prediction_weight` |
 | `history_routing_oracle_correct`・`history_routing_leader_correct` | `sample_prediction.any_model_or_combined_prediction_is_correct`・`.maximum_weight_model_prediction_is_correct` |
 | `history_routing_oracle_concept_correct` | `sample_prediction.true_concept_diagnostic_prediction_is_correct`（新は整数: 正解1、不正解0、真の概念が分からなければ−1。旧は真偽） |
-| `routing_pool_reset_counts`・`routing_concept_restart_counts`・`routing_aggregation_recalibration_counts`・`routing_aggregation_recalibration_sample_counts` | `client_weight_update_counts.global_diagnostic_model_pool_reset_count`・`.global_diagnostic_concept_operation_restart_count`・`.global_diagnostic_aggregation_recalibration_count`・`.global_diagnostic_aggregation_recalibration_replayed_sample_count` |
+| `routing_pool_reset_counts`・`routing_concept_restart_counts`・`routing_aggregation_recalibration_counts`・`routing_aggregation_recalibration_sample_counts` | `client_weight_update_counts.adahedge_weight_model_pool_reset_count`・`.adahedge_weight_concept_operation_restart_count`・`.adahedge_weight_aggregation_recalibration_count`・`.adahedge_weight_aggregation_recalibration_replayed_sample_count` |
 | `routing_class_client_ids`・`routing_class_ids`・`routing_class_sample_counts`・`routing_class_oracle_correct_counts`・`routing_class_mixture_correct_counts`・`routing_class_leader_correct_counts`・`routing_class_confidence_leader_correct_counts`・`routing_class_missed_oracle_counts`・`routing_class_confidence_leader_missed_oracle_counts` | 表は持たない。`sample_prediction`の、`observed_class_id`と、正否の列（`combined_prediction_is_correct`・`any_model_or_combined_prediction_is_correct`・`maximum_weight_model_prediction_is_correct`・`highest_confidence_model_prediction_is_correct`）から、clientとクラスごとに数える（「missed」は、どれかのモデルか実際の予測が正解で、その予測が不正解の標本の数） |
 | `cross_evaluation_round_index`・`_client_id`・`_candidate_model_id`・`_target_model_id`・`_n`・`_sum`・`_sum_sq` | `client_cross_evaluation.server_round_index`・`.client_id`・`.candidate_model_id`・`.target_model_id`・`.evaluated_sample_count`・`.bounded_loss_sum`・`.squared_bounded_loss_sum` |
 | `cross_evaluation_candidate_only_correct`・`_target_only_correct`・`_both_correct`・`_both_wrong` | `client_cross_evaluation.candidate_only_correct_sample_count`・`.target_only_correct_sample_count`・`.both_correct_sample_count`・`.both_wrong_sample_count`（正誤を比べなかった評価では、新旧とも−1） |
 | `cross_evaluation_class_*`（10） | `client_cross_evaluation_class`の、同じ名前の対応の列と、`.class_id`（クラスごとの標本数は、`.class_evaluated_sample_count`） |
 | `model_pair_candidate_model_id`・`_target_model_id`・`_n`・`_candidate_only_correct`・`_target_only_correct`・`_both_correct`・`_both_wrong` | 表は持たない。`client_cross_evaluation`の、正誤を比べた行（`both_correct_sample_count`が0以上）の、対応する列と同じ |
 | `model_diagnostic_client_ids`・`model_diagnostic_model_ids`・`model_diagnostic_assigned_samples`・`model_diagnostic_training_examples`・`model_diagnostic_optimizer_steps` | `client_held_model.client_id`・`.model_id`・`.stored_training_sample_count`・`.trained_sample_count`・`.parameter_update_step_count`（実行の終わりの値。clientの順、モデルIDの昇順） |
-| （なし） | `sample_prediction.observed_class_id`・`.observed_concept_id`（観測したクラスと、真の概念）、`.highest_confidence_model_prediction_is_correct`・`.global_diagnostic_prediction_is_correct`（旧は、合計だけを持つ）、`client_weight_update_counts.prediction_weight_*`（予測重みの側の、clientごとの回数。旧は、合計だけを指標に持つ） |
+| （なし） | `sample_prediction.observed_class_id`・`.observed_concept_id`（観測したクラスと、真の概念）、`.highest_confidence_model_prediction_is_correct`・`.adahedge_weighted_prediction_is_correct`（旧は、合計だけを持つ）、`client_weight_update_counts.prediction_weight_*`（予測重みの側の、clientごとの回数。旧は、合計だけを指標に持つ） |
 | （なし） | `sample_prediction.held_model_count_at_prediction`（その標本の予測に使った保有モデルの数）、`server_round.local_processing_*`・`server_round.synchronization_*`（サーバの同期のラウンドごとの、モデルの計算） |
 
 整数は、新では`int64`（旧は、列により`int32`・`int8`・`float64`）。
@@ -246,7 +246,7 @@ combined・any・maxw・conf＝`prediction_correct_counts`の`combined_predictio
 | `routing_oracle_recovery_rate`・`routing_confidence_leader_oracle_recovery_rate` | combined÷any・conf÷any |
 | `routing_confidence_leader_missed_oracle_count` | any−conf |
 | `routing_oracle_concept_accuracy` | `true_concept_diagnostic_prediction_correct_count`÷`true_concept_known_sample_count` |
-| `routing_switching_global_gain_rate` | （combined−`global_diagnostic_prediction_correct_count`）÷n |
+| `routing_switching_global_gain_rate` | （combined−`adahedge_weighted_prediction_correct_count`）÷n |
 | `routing_switching_stable_accuracy`・`routing_switching_recovery_accuracy` | `combined_prediction_period_accuracies`の`stable_period_accuracy`・`recovery_period_accuracy` |
 | `routing_oracle_stable_accuracy`・`routing_oracle_recovery_accuracy` | `any_model_or_combined_prediction_period_accuracies`の2つ |
 | `routing_leader_stable_accuracy`・`routing_leader_recovery_accuracy` | `maximum_weight_model_prediction_period_accuracies`の2つ |
@@ -257,8 +257,8 @@ combined・any・maxw・conf＝`prediction_correct_counts`の`combined_predictio
 | `routing_class_oracle_gap_mean`・`routing_class_oracle_gap_std` | 同、`mean_any_model_or_combined_accuracy_gap`・`any_model_or_combined_accuracy_gap_standard_deviation` |
 | `routing_class_oracle_recovery_rate_mean`・`routing_class_oracle_recovery_rate_min` | 同、`mean_combined_to_any_model_or_combined_correct_ratio`・`minimum_combined_to_any_model_or_combined_correct_ratio` |
 | `routing_switching_effective_experts_mean` | `mean_effective_model_count` |
-| `routing_switching_leader_switch_count`・`routing_switching_pool_reset_count` | `prediction_weight_leader_switch_count`・`prediction_weight_model_pool_reset_count` |
-| `routing_aggregation_recalibration_count` | `global_diagnostic_aggregation_recalibration_count` |
+| `routing_switching_leader_switch_count`・`routing_switching_pool_reset_count` | `fixed_share_weight_leader_switch_count`・`fixed_share_weight_model_pool_reset_count` |
+| `routing_aggregation_recalibration_count` | `adahedge_weight_aggregation_recalibration_count` |
 | `routing_switching_gain_rate`・`routing_switching_stable_gain_rate`・`routing_switching_recovery_gain_rate` | 持たない（最終構成では、いつも0: Fixed-Shareの結合が、実際の予測） |
 
 ### 残り（2026-10-11時点）

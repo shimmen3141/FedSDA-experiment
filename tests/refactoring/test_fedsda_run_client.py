@@ -698,8 +698,8 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
     ]
     # 予測: Fixed-Shareの重み、診断証拠、標本ごとの記録と旧の列・集計の計数。
     assert_prediction_state_matches_legacy(
-        fixed_share_prediction_weight_controller=owners.fixed_share_prediction_weight_controller,
-        diagnostic_evidence_collection=owners.diagnostic_evidence_collection,
+        fixed_share_weight_controller=owners.fixed_share_weight_controller,
+        adahedge_weight_evidence_collection=owners.adahedge_weight_evidence_collection,
         sample_prediction_record_store=owners.sample_prediction_record_store,
         legacy_client=legacy_client,
     )
@@ -1528,7 +1528,7 @@ def test_run_client_processes_samples_without_concept_id_as_the_execution_contra
             assert prediction_record.observed_concept_id is None
             assert prediction_record.observed_class_id == observed_sample.class_label
     owners = run_client.owners
-    assert owners.diagnostic_evidence_collection.created_true_concept_ids == ()
+    assert owners.adahedge_weight_evidence_collection.created_true_concept_ids == ()
     assert len(owners.sample_prediction_record_store.snapshot_sample_prediction_records()) == 30
     # 保留へ入った標本は、観測標本と同じ値の、1行のfloat32のtensor。
     last_pending_observation = (

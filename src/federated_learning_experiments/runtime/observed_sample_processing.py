@@ -6,8 +6,8 @@ from random import Random
 from torch import Tensor
 from torch.optim import Optimizer
 
-from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence_collection import (
-    AdaHedgeDiagnosticEvidenceCollection,
+from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
+    AdaHedgeWeightEvidenceCollection,
 )
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecordStore,
@@ -83,8 +83,8 @@ from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
-from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
-    FixedSharePredictionWeightController,
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
+    FixedShareWeightController,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
@@ -130,11 +130,11 @@ class ObservedSampleProcessing:
 
 # 引数名から、本処理が受け取るownerのexact型への対応（最初の状態更新より前に確かめる）。
 _REQUIRED_OWNER_TYPES_BY_ARGUMENT_NAME = {
-    "fixed_share_prediction_weight_controller": FixedSharePredictionWeightController,
+    "fixed_share_weight_controller": FixedShareWeightController,
     "sample_prediction_record_store": SamplePredictionRecordStore,
     "validation_session_holder": CandidateValidationSessionHolder,
     "adaptation_record_store": AdaptationRecordStore,
-    "diagnostic_evidence_collection": AdaHedgeDiagnosticEvidenceCollection,
+    "adahedge_weight_evidence_collection": AdaHedgeWeightEvidenceCollection,
     "loss_change_monitor": OverallAndTrueClassLossMonitor,
     "loss_change_alarm_record_store": LossChangeAlarmRecordStore,
     "pending_training_assignment_buffer": PendingTrainingAssignmentBuffer,
@@ -248,11 +248,11 @@ def _select_validation_assignment_sample_concept_ids(
 def process_observed_sample(
     *,
     indexed_observation: IndexedObservedTrainingSample,
-    fixed_share_prediction_weight_controller: FixedSharePredictionWeightController,
+    fixed_share_weight_controller: FixedShareWeightController,
     sample_prediction_record_store: SamplePredictionRecordStore,
     validation_session_holder: CandidateValidationSessionHolder,
     adaptation_record_store: AdaptationRecordStore,
-    diagnostic_evidence_collection: AdaHedgeDiagnosticEvidenceCollection,
+    adahedge_weight_evidence_collection: AdaHedgeWeightEvidenceCollection,
     loss_change_monitor: OverallAndTrueClassLossMonitor,
     loss_change_alarm_record_store: LossChangeAlarmRecordStore,
     pending_training_assignment_buffer: PendingTrainingAssignmentBuffer,
@@ -290,11 +290,11 @@ def process_observed_sample(
     _validate_observed_sample_processing_inputs(
         indexed_observation=indexed_observation,
         owners_by_argument_name=dict(
-            fixed_share_prediction_weight_controller=fixed_share_prediction_weight_controller,
+            fixed_share_weight_controller=fixed_share_weight_controller,
             sample_prediction_record_store=sample_prediction_record_store,
             validation_session_holder=validation_session_holder,
             adaptation_record_store=adaptation_record_store,
-            diagnostic_evidence_collection=diagnostic_evidence_collection,
+            adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
             loss_change_monitor=loss_change_monitor,
             loss_change_alarm_record_store=loss_change_alarm_record_store,
             pending_training_assignment_buffer=pending_training_assignment_buffer,
@@ -318,11 +318,11 @@ def process_observed_sample(
     sample_index = indexed_observation.sample_index
     input_features = indexed_observation.training_sample.input_features
     observed_class_labels = indexed_observation.training_sample.observed_class_labels
-    # (0) この標本を予測し、記録して、予測重みと診断証拠を更新する（学習側のどの段よりも前）。
+    # (0) この標本を予測し、記録して、予測重みとAdaHedgeの証拠を更新する（学習側のどの段よりも前）。
     observed_sample_prediction = predict_observed_sample_and_update_prediction_weights(
         indexed_observation=indexed_observation,
-        fixed_share_prediction_weight_controller=fixed_share_prediction_weight_controller,
-        diagnostic_evidence_collection=diagnostic_evidence_collection,
+        fixed_share_weight_controller=fixed_share_weight_controller,
+        adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
         sample_prediction_record_store=sample_prediction_record_store,
         held_model_training_state_registry=held_model_training_state_registry,
         current_training_model_assignment=current_training_model_assignment,
@@ -331,7 +331,7 @@ def process_observed_sample(
     held_validation_advance = advance_held_candidate_validation(
         validation_session_holder=validation_session_holder,
         adaptation_record_store=adaptation_record_store,
-        diagnostic_evidence_collection=diagnostic_evidence_collection,
+        adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
         sample_index=sample_index,
         input_features=input_features,
         observed_class_labels=observed_class_labels,
@@ -421,7 +421,7 @@ def process_observed_sample(
         alarm_occurrence_handling = handle_alarm_occurrence(
             validation_session_holder=validation_session_holder,
             adaptation_record_store=adaptation_record_store,
-            diagnostic_evidence_collection=diagnostic_evidence_collection,
+            adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
             loss_change_monitor=loss_change_monitor,
             alarm_sample_index=sample_index,
             pending_training_assignment_buffer=pending_training_assignment_buffer,

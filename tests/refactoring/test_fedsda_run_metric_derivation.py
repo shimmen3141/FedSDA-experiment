@@ -170,10 +170,10 @@ def derive_legacy_metric_values(run_metrics):
         provisional_forward_count=run_metrics.candidate_validation_decision_count,
         routing_soft_prediction_sample_count=run_metrics.mixed_prediction_sample_count,
         routing_switching_recalibration_sample_count=(
-            run_metrics.prediction_weight_recalibration_replayed_sample_count
+            run_metrics.fixed_share_weight_recalibration_replayed_sample_count
         ),
         routing_aggregation_recalibration_sample_count=(
-            run_metrics.global_diagnostic_recalibration_replayed_sample_count
+            run_metrics.adahedge_weight_recalibration_replayed_sample_count
         ),
     )
 
@@ -583,20 +583,20 @@ def derive_legacy_prediction_diagnostic_metric_values(run_metrics):
         # 最終構成では、Fixed-Shareの結合が、実際の予測（旧の2つの指標は同じ値）。
         routing_switching_accuracy=divide_or_zero(combined_correct_count, sample_count),
         routing_switching_global_gain_rate=divide_or_zero(
-            combined_correct_count - diagnostic_metrics.global_diagnostic_prediction_correct_count,
+            combined_correct_count - diagnostic_metrics.adahedge_weighted_prediction_correct_count,
             sample_count,
         ),
         routing_switching_stable_accuracy=combined_period.stable_period_accuracy,
         routing_switching_recovery_accuracy=combined_period.recovery_period_accuracy,
         routing_switching_effective_experts_mean=diagnostic_metrics.mean_effective_model_count,
         routing_switching_leader_switch_count=(
-            diagnostic_metrics.prediction_weight_leader_switch_count
+            diagnostic_metrics.fixed_share_weight_leader_switch_count
         ),
         routing_switching_pool_reset_count=(
-            diagnostic_metrics.prediction_weight_model_pool_reset_count
+            diagnostic_metrics.fixed_share_weight_model_pool_reset_count
         ),
         routing_aggregation_recalibration_count=(
-            diagnostic_metrics.global_diagnostic_aggregation_recalibration_count
+            diagnostic_metrics.adahedge_weight_aggregation_recalibration_count
         ),
     )
 
@@ -1111,7 +1111,7 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
     assert detection_metrics.concept_change_count > 0
     if expected_paths["multiple_global_models"]:
         assert run_metrics.final_global_model_count > 1
-        assert run_metrics.prediction_weight_recalibration_replayed_sample_count > 0
+        assert run_metrics.fixed_share_weight_recalibration_replayed_sample_count > 0
         assert 0 < detection_metrics.matched_detection_count < detection_metrics.detection_count
     else:
         assert run_metrics.final_global_model_count == 1
@@ -1734,11 +1734,11 @@ def compare_small_run_with_real_legacy(
     assert run_metrics.mixed_prediction_sample_count == sum(
         legacy_client.soft_routing_activation.soft_sample_count for legacy_client in legacy_clients
     )
-    assert run_metrics.prediction_weight_recalibration_replayed_sample_count == sum(
+    assert run_metrics.fixed_share_weight_recalibration_replayed_sample_count == sum(
         legacy_client.switching_expert_router.aggregation_recalibration_sample_count
         for legacy_client in legacy_clients
     )
-    assert run_metrics.global_diagnostic_recalibration_replayed_sample_count == sum(
+    assert run_metrics.adahedge_weight_recalibration_replayed_sample_count == sum(
         legacy_client.expert_router.aggregation_recalibration_sample_count
         for legacy_client in legacy_clients
     )

@@ -1,10 +1,10 @@
-"""モデル推論から独立した単一AdaHedge診断証拠を所有する。"""
+"""モデル推論から独立した単一のAdaHedgeの証拠を所有する。"""
 
 import math
 from collections.abc import Iterable, Mapping
 
 
-class AdaHedgeDiagnosticEvidence:
+class AdaHedgeWeightEvidence:
     """累積損失・gapと、再始動・再較正の計数を、独立した状態として保持する。"""
 
     def __init__(self) -> None:
@@ -68,7 +68,7 @@ class AdaHedgeDiagnosticEvidence:
         """独立した入力辞書の全IDと有限数値を状態変更前に検証する。"""
         if not isinstance(mapping, Mapping):
             raise TypeError(f"{parameter_name}にはMappingを指定してください。")
-        validated_model_ids = AdaHedgeDiagnosticEvidence._validate_model_ids(model_ids=mapping)
+        validated_model_ids = AdaHedgeWeightEvidence._validate_model_ids(model_ids=mapping)
         validated_mapping = {}
         for model_id in validated_model_ids:
             value = mapping[model_id]
@@ -120,10 +120,8 @@ class AdaHedgeDiagnosticEvidence:
         self._mixability_gap = proposed_mixability_gap
         self._model_pool_reset_count = proposed_pool_reset_count
 
-    def get_diagnostic_weights_before_loss_observation(
-        self, *, model_ids: Iterable[int]
-    ) -> dict[int, float]:
-        """全演算成功後に集合を同期し、観測前の診断重みを返す。"""
+    def get_weights_before_loss_observation(self, *, model_ids: Iterable[int]) -> dict[int, float]:
+        """全演算成功後に集合を同期し、観測前の重みを返す。"""
         validated_model_ids = self._validate_model_ids(model_ids=model_ids)
         proposed_cumulative_losses, proposed_mixability_gap, proposed_pool_reset_count = (
             self._prepare_synchronized_evidence(validated_model_ids=validated_model_ids)
@@ -134,7 +132,7 @@ class AdaHedgeDiagnosticEvidence:
         )
         minimum_cumulative_loss = min(proposed_cumulative_losses.values())
         if len(validated_model_ids) == 1:
-            diagnostic_weights_by_model_id = {validated_model_ids[0]: 1.0}
+            weights_by_model_id = {validated_model_ids[0]: 1.0}
         elif math.isinf(learning_rate):
             minimum_loss_model_ids = [
                 model_id
@@ -142,7 +140,7 @@ class AdaHedgeDiagnosticEvidence:
                 if proposed_cumulative_losses[model_id] == minimum_cumulative_loss
             ]
             weight = 1.0 / len(minimum_loss_model_ids)
-            diagnostic_weights_by_model_id = {
+            weights_by_model_id = {
                 model_id: weight if model_id in minimum_loss_model_ids else 0.0
                 for model_id in validated_model_ids
             }
@@ -155,7 +153,7 @@ class AdaHedgeDiagnosticEvidence:
                 for model_id in validated_model_ids
             }
             weight_sum = sum(unnormalized_weights.values())
-            diagnostic_weights_by_model_id = {
+            weights_by_model_id = {
                 model_id: value / weight_sum for model_id, value in unnormalized_weights.items()
             }
         self._commit_evidence(
@@ -163,33 +161,33 @@ class AdaHedgeDiagnosticEvidence:
             proposed_mixability_gap=proposed_mixability_gap,
             proposed_pool_reset_count=proposed_pool_reset_count,
         )
-        return diagnostic_weights_by_model_id
+        return weights_by_model_id
 
     def update_evidence_after_loss_observation(
         self,
         *,
         observed_losses_by_model_id: Mapping[int, float],
-        diagnostic_weights_by_model_id: Mapping[int, float],
+        weights_by_model_id: Mapping[int, float],
     ) -> None:
         """全入力を先行検証し、旧実装の昇順・演算順で証拠を更新する。"""
         if not isinstance(observed_losses_by_model_id, Mapping):
             raise TypeError("observed_losses_by_model_idにはMappingを指定してください。")
-        if not isinstance(diagnostic_weights_by_model_id, Mapping):
-            raise TypeError("diagnostic_weights_by_model_idにはMappingを指定してください。")
+        if not isinstance(weights_by_model_id, Mapping):
+            raise TypeError("weights_by_model_idにはMappingを指定してください。")
         observed_losses_by_model_id = dict(observed_losses_by_model_id)
-        diagnostic_weights_by_model_id = dict(diagnostic_weights_by_model_id)
+        weights_by_model_id = dict(weights_by_model_id)
         validated_losses = self._validate_numeric_mapping(
             mapping=observed_losses_by_model_id, parameter_name="observed_losses_by_model_id"
         )
-        validated_diagnostic_weights = self._validate_numeric_mapping(
-            mapping=diagnostic_weights_by_model_id, parameter_name="diagnostic_weights_by_model_id"
+        validated_weights = self._validate_numeric_mapping(
+            mapping=weights_by_model_id, parameter_name="weights_by_model_id"
         )
-        if set(validated_losses) != set(validated_diagnostic_weights):
-            raise ValueError("損失と診断重みは同じID集合にしてください。")
-        if any(not 0.0 <= weight <= 1.0 for weight in validated_diagnostic_weights.values()):
-            raise ValueError("診断重みは0から1の範囲にしてください。")
-        if abs(math.fsum(validated_diagnostic_weights.values()) - 1.0) > 1e-12:
-            raise ValueError("診断重みの総和は1との差を1e-12以内にしてください。")
+        if set(validated_losses) != set(validated_weights):
+            raise ValueError("損失と重みは同じID集合にしてください。")
+        if any(not 0.0 <= weight <= 1.0 for weight in validated_weights.values()):
+            raise ValueError("重みは0から1の範囲にしてください。")
+        if abs(math.fsum(validated_weights.values()) - 1.0) > 1e-12:
+            raise ValueError("重みの総和は1との差を1e-12以内にしてください。")
         validated_model_ids = tuple(validated_losses)
         proposed_cumulative_losses, proposed_mixability_gap, proposed_pool_reset_count = (
             self._prepare_synchronized_evidence(validated_model_ids=validated_model_ids)
@@ -199,7 +197,7 @@ class AdaHedgeDiagnosticEvidence:
             for model_id in validated_model_ids
         }
         expected_loss = sum(
-            validated_diagnostic_weights[model_id] * bounded_losses_by_model_id[model_id]
+            validated_weights[model_id] * bounded_losses_by_model_id[model_id]
             for model_id in validated_model_ids
         )
         learning_rate = self._get_evidence_learning_rate(
@@ -210,15 +208,15 @@ class AdaHedgeDiagnosticEvidence:
             active_losses = [
                 bounded_losses_by_model_id[model_id]
                 for model_id in validated_model_ids
-                if validated_diagnostic_weights[model_id] > 0.0
+                if validated_weights[model_id] > 0.0
             ]
             mix_loss = min(active_losses)
         else:
             log_terms = [
-                math.log(validated_diagnostic_weights[model_id])
+                math.log(validated_weights[model_id])
                 - learning_rate * bounded_losses_by_model_id[model_id]
                 for model_id in validated_model_ids
-                if validated_diagnostic_weights[model_id] > 0.0
+                if validated_weights[model_id] > 0.0
             ]
             maximum_log_term = max(log_terms)
             log_mixture = maximum_log_term + math.log(
@@ -265,10 +263,10 @@ class AdaHedgeDiagnosticEvidence:
         self._cumulative_losses_by_model_id = {}
         self._mixability_gap = 0.0
         for observed_losses_by_model_id in validated_observed_loss_sequence:
-            diagnostic_weights_by_model_id = self.get_diagnostic_weights_before_loss_observation(
+            weights_by_model_id = self.get_weights_before_loss_observation(
                 model_ids=observed_losses_by_model_id
             )
             self.update_evidence_after_loss_observation(
                 observed_losses_by_model_id=observed_losses_by_model_id,
-                diagnostic_weights_by_model_id=diagnostic_weights_by_model_id,
+                weights_by_model_id=weights_by_model_id,
             )

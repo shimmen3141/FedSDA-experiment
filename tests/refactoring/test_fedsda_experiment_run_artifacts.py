@@ -87,7 +87,7 @@ EXPECTED_TABLE_COLUMNS = {
         any_model_or_combined_prediction_is_correct="b",
         maximum_weight_model_prediction_is_correct="b",
         highest_confidence_model_prediction_is_correct="b",
-        global_diagnostic_prediction_is_correct="b",
+        adahedge_weighted_prediction_is_correct="b",
         true_concept_diagnostic_prediction_is_correct="i",
     ),
     "concept_change": dict(client_id="i", first_new_concept_sample_index="i"),
@@ -184,14 +184,14 @@ EXPECTED_TABLE_COLUMNS = {
     ),
     "client_weight_update_counts": dict(
         client_id="i",
-        global_diagnostic_model_pool_reset_count="i",
-        global_diagnostic_concept_operation_restart_count="i",
-        global_diagnostic_aggregation_recalibration_count="i",
-        global_diagnostic_aggregation_recalibration_replayed_sample_count="i",
-        prediction_weight_model_pool_reset_count="i",
-        prediction_weight_leader_switch_count="i",
-        prediction_weight_aggregation_recalibration_count="i",
-        prediction_weight_aggregation_recalibration_replayed_sample_count="i",
+        adahedge_weight_model_pool_reset_count="i",
+        adahedge_weight_concept_operation_restart_count="i",
+        adahedge_weight_aggregation_recalibration_count="i",
+        adahedge_weight_aggregation_recalibration_replayed_sample_count="i",
+        fixed_share_weight_model_pool_reset_count="i",
+        fixed_share_weight_leader_switch_count="i",
+        fixed_share_weight_aggregation_recalibration_count="i",
+        fixed_share_weight_aggregation_recalibration_replayed_sample_count="i",
     ),
     "client_held_model": dict(
         client_id="i",
@@ -777,15 +777,15 @@ NEW_COLUMN_BY_LEGACY_PREDICTION_DIAGNOSTIC_ARRAY_NAME = {
     "history_routing_oracle_concept_correct": (
         "sample_prediction.true_concept_diagnostic_prediction_is_correct"
     ),
-    "routing_pool_reset_counts": "client_weight_update_counts.global_diagnostic_model_pool_reset_count",
+    "routing_pool_reset_counts": "client_weight_update_counts.adahedge_weight_model_pool_reset_count",
     "routing_concept_restart_counts": (
-        "client_weight_update_counts.global_diagnostic_concept_operation_restart_count"
+        "client_weight_update_counts.adahedge_weight_concept_operation_restart_count"
     ),
     "routing_aggregation_recalibration_counts": (
-        "client_weight_update_counts.global_diagnostic_aggregation_recalibration_count"
+        "client_weight_update_counts.adahedge_weight_aggregation_recalibration_count"
     ),
     "routing_aggregation_recalibration_sample_counts": (
-        "client_weight_update_counts.global_diagnostic_aggregation_recalibration_replayed_sample_count"
+        "client_weight_update_counts.adahedge_weight_aggregation_recalibration_replayed_sample_count"
     ),
 }
 # 条件ごとの、予測の診断の列が通った場合の観測（goldenの3ケースと、小さい条件）。
@@ -888,24 +888,24 @@ def assert_prediction_diagnostic_columns_match_legacy_saved_arrays(
     run_metrics = experiment_run.run_metrics
     diagnostic_metrics = run_metrics.prediction_diagnostic_metrics
     assert (
-        record_tables["client_weight_update_counts.prediction_weight_leader_switch_count"].sum()
-        == diagnostic_metrics.prediction_weight_leader_switch_count
+        record_tables["client_weight_update_counts.fixed_share_weight_leader_switch_count"].sum()
+        == diagnostic_metrics.fixed_share_weight_leader_switch_count
     )
     assert (
-        record_tables["client_weight_update_counts.prediction_weight_model_pool_reset_count"].sum()
-        == diagnostic_metrics.prediction_weight_model_pool_reset_count
+        record_tables["client_weight_update_counts.fixed_share_weight_model_pool_reset_count"].sum()
+        == diagnostic_metrics.fixed_share_weight_model_pool_reset_count
     )
     assert (
         record_tables[
-            "client_weight_update_counts.prediction_weight_aggregation_recalibration_replayed_sample_count"
+            "client_weight_update_counts.fixed_share_weight_aggregation_recalibration_replayed_sample_count"
         ].sum()
-        == run_metrics.prediction_weight_recalibration_replayed_sample_count
+        == run_metrics.fixed_share_weight_recalibration_replayed_sample_count
     )
     # 正否の列の合計は、指標の数と合う（globalの診断重みでの結合と、確信度が最大のモデルを含む）。
     for column_name, correct_count in (
         (
-            "global_diagnostic_prediction_is_correct",
-            diagnostic_metrics.global_diagnostic_prediction_correct_count,
+            "adahedge_weighted_prediction_is_correct",
+            diagnostic_metrics.adahedge_weighted_prediction_correct_count,
         ),
         (
             "highest_confidence_model_prediction_is_correct",
@@ -944,24 +944,24 @@ def assert_prediction_diagnostic_columns_match_legacy_saved_arrays(
                     != record_tables["sample_prediction.combined_prediction_is_correct"]
                 ).any()
             ),
-            global_diagnostic_model_pool_reset=bool(
+            adahedge_weight_model_pool_reset=bool(
                 record_tables[
-                    "client_weight_update_counts.global_diagnostic_model_pool_reset_count"
+                    "client_weight_update_counts.adahedge_weight_model_pool_reset_count"
                 ].any()
             ),
-            global_diagnostic_concept_operation_restart=bool(
+            adahedge_weight_concept_operation_restart=bool(
                 record_tables[
-                    "client_weight_update_counts.global_diagnostic_concept_operation_restart_count"
+                    "client_weight_update_counts.adahedge_weight_concept_operation_restart_count"
                 ].any()
             ),
-            global_diagnostic_aggregation_recalibration=bool(
+            adahedge_weight_aggregation_recalibration=bool(
                 record_tables[
-                    "client_weight_update_counts.global_diagnostic_aggregation_recalibration_count"
+                    "client_weight_update_counts.adahedge_weight_aggregation_recalibration_count"
                 ].any()
             ),
-            prediction_weight_leader_switch=bool(
+            fixed_share_weight_leader_switch=bool(
                 record_tables[
-                    "client_weight_update_counts.prediction_weight_leader_switch_count"
+                    "client_weight_update_counts.fixed_share_weight_leader_switch_count"
                 ].any()
             ),
             multiple_classes_per_client=bool(
@@ -1143,11 +1143,11 @@ def test_round_model_counts_match_real_legacy_whole_run(
     )
     # 予測重みの側の、clientごとの回数が、実旧のclientの値と一致する。
     for column_name, legacy_attribute_name in (
-        ("prediction_weight_model_pool_reset_count", "pool_reset_count"),
-        ("prediction_weight_leader_switch_count", "leader_switch_count"),
-        ("prediction_weight_aggregation_recalibration_count", "aggregation_recalibration_count"),
+        ("fixed_share_weight_model_pool_reset_count", "pool_reset_count"),
+        ("fixed_share_weight_leader_switch_count", "leader_switch_count"),
+        ("fixed_share_weight_aggregation_recalibration_count", "aggregation_recalibration_count"),
         (
-            "prediction_weight_aggregation_recalibration_replayed_sample_count",
+            "fixed_share_weight_aggregation_recalibration_replayed_sample_count",
             "aggregation_recalibration_sample_count",
         ),
     ):

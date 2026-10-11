@@ -80,8 +80,8 @@ class FedsdaRunMetrics:
     final_parameter_byte_count: int
     candidate_validation_decision_count: int
     mixed_prediction_sample_count: int
-    prediction_weight_recalibration_replayed_sample_count: int
-    global_diagnostic_recalibration_replayed_sample_count: int
+    fixed_share_weight_recalibration_replayed_sample_count: int
+    adahedge_weight_recalibration_replayed_sample_count: int
     # 損失の監視（検出器）の計算の計数（全clientの合計）。
     loss_monitoring_computation_counts: LossMonitoringComputationCounts
     # モデルの計算の計数（計測つきで実行したときだけ。なければNone）。事前学習の計算は含めない。
@@ -293,12 +293,12 @@ def derive_fedsda_run_metrics(
             len(prediction_correctness)
             for prediction_correctness in prediction_correctness_by_client
         ),
-        prediction_weight_recalibration_replayed_sample_count=sum(
-            run_client.owners.fixed_share_prediction_weight_controller.aggregation_recalibration_sample_count
+        fixed_share_weight_recalibration_replayed_sample_count=sum(
+            run_client.owners.fixed_share_weight_controller.aggregation_recalibration_sample_count
             for run_client in run_clients
         ),
-        global_diagnostic_recalibration_replayed_sample_count=sum(
-            run_client.owners.diagnostic_evidence_collection.global_diagnostic_evidence.aggregation_recalibration_sample_count
+        adahedge_weight_recalibration_replayed_sample_count=sum(
+            run_client.owners.adahedge_weight_evidence_collection.all_sample_weight_evidence.aggregation_recalibration_sample_count
             for run_client in run_clients
         ),
         loss_monitoring_computation_counts=LossMonitoringComputationCounts(

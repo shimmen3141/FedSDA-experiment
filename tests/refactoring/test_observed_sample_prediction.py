@@ -10,16 +10,16 @@ from unittest.mock import Mock
 import pytest
 import torch
 from test_alarm_occurrence_handling import build_alarm_occurrence_oracle
-from test_fixed_share_prediction_weights import (
+from test_fixed_share_weights import (
     assert_fixed_share_state_matches_reference,
     capture_fixed_share_controller_state,
 )
-from test_held_adahedge_diagnostic_notification import (
+from test_held_candidate_validation_progress import make_subclass_copy
+from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
+from test_training_assignment_adahedge_weight_evidence_restart import (
     assert_diagnostic_collection_matches_legacy,
     get_diagnostic_collection_snapshot,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
-from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 import federated_learning_experiments.runtime.observed_sample_prediction as sample_prediction_module
 from federated_drift_experiment import config
@@ -32,8 +32,8 @@ from federated_drift_experiment.expert_routing import (
     SoftRoutingActivationController,
     SwitchingExpertRouter,
 )
-from federated_learning_experiments.evaluation.adahedge_diagnostic_evidence import (
-    AdaHedgeDiagnosticEvidence,
+from federated_learning_experiments.evaluation.adahedge_weight_evidence import (
+    AdaHedgeWeightEvidence,
 )
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecord,
@@ -58,15 +58,15 @@ from federated_learning_experiments.learning.training.indexed_observed_training_
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
 )
-from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_prediction_weights import (
-    FixedSharePredictionWeightController,
+from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
+    FixedShareWeightController,
 )
 from federated_learning_experiments.runtime.observed_sample_prediction import (
     ObservedSamplePrediction,
     predict_observed_sample_and_update_prediction_weights,
 )
-from federated_learning_experiments.runtime.training_assignment_diagnostic_notification import (
-    notify_diagnostics_of_training_assignment_change,
+from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import (
+    restart_adahedge_weight_evidence_after_training_assignment_change,
 )
 
 FIXED_SHARE_TIME_SCALE_SAMPLE_COUNT = 6
@@ -164,17 +164,17 @@ def derive_legacy_overall_counts(sample_prediction_records):
 
 def assert_prediction_state_matches_legacy(
     *,
-    fixed_share_prediction_weight_controller,
-    diagnostic_evidence_collection,
+    fixed_share_weight_controller,
+    adahedge_weight_evidence_collection,
     sample_prediction_record_store,
     legacy_client,
 ):
     """Fixed-Shareの重み、診断証拠、記録を、実旧clientの対応する属性（標本ごとの列と集計の計数）と照合する。"""
     assert_fixed_share_state_matches_reference(
-        controller=fixed_share_prediction_weight_controller,
+        controller=fixed_share_weight_controller,
         reference_router=legacy_client.switching_expert_router,
     )
-    assert_diagnostic_collection_matches_legacy(diagnostic_evidence_collection, legacy_client)
+    assert_diagnostic_collection_matches_legacy(adahedge_weight_evidence_collection, legacy_client)
     records = sample_prediction_record_store.snapshot_sample_prediction_records()
     assert all(type(record) is SamplePredictionRecord for record in records)
     combined_correct = [record.combined_prediction_is_correct for record in records]
@@ -226,7 +226,7 @@ def assert_prediction_state_matches_legacy(
         "correct_count": combined_correct_count,
         "actual_correct_count": combined_correct_count,
         "global_correct_count": count_records(
-            records, lambda record: record.global_diagnostic_prediction_is_correct
+            records, lambda record: record.adahedge_weighted_prediction_is_correct
         ),
         # 旧は標本ごとに足す。組み込みのsumは浮動小数を補正つきで足すので、逐次加算で導く。
         "effective_experts_sum": reduce(add, effective_model_counts, 0.0),
@@ -259,13 +259,15 @@ def build_sample_prediction_oracle(*, monkeypatch, valid_run_settings_mapping, c
         fixed_share_time_scale_sample_count=FIXED_SHARE_TIME_SCALE_SAMPLE_COUNT,
     )
     prediction_arguments = dict(
-        fixed_share_prediction_weight_controller=FixedSharePredictionWeightController(
+        fixed_share_weight_controller=FixedShareWeightController(
             prediction_combination_settings=replace(
                 valid_run_settings_mapping["prediction_combination_settings"],
                 fixed_share_weight_redistribution_time_scale_samples=FIXED_SHARE_TIME_SCALE_SAMPLE_COUNT,
             )
         ),
-        diagnostic_evidence_collection=handling_arguments["diagnostic_evidence_collection"],
+        adahedge_weight_evidence_collection=handling_arguments[
+            "adahedge_weight_evidence_collection"
+        ],
         sample_prediction_record_store=SamplePredictionRecordStore(),
         held_model_training_state_registry=handling_arguments["held_model_training_state_registry"],
         current_training_model_assignment=handling_arguments["current_training_model_assignment"],
@@ -311,11 +313,13 @@ def reassign_model_id_in_both(
 
 def change_training_assignment_in_both(*, prediction_arguments, legacy_client, model_id):
     """学習帰属を変える: 新は帰属の変更と診断への通知、実旧は現行モデルの変更（切替の通知を含む）。"""
-    notify_diagnostics_of_training_assignment_change(
+    restart_adahedge_weight_evidence_after_training_assignment_change(
         assignment_change=prediction_arguments[
             "current_training_model_assignment"
         ].assign_model_for_training(model_id=model_id),
-        diagnostic_evidence_collection=prediction_arguments["diagnostic_evidence_collection"],
+        adahedge_weight_evidence_collection=prediction_arguments[
+            "adahedge_weight_evidence_collection"
+        ],
     )
     legacy_client._set_local_current_model(model_id)
 
@@ -345,7 +349,7 @@ def test_prediction_matches_real_legacy_prediction_for_each_sample(
         if sample_index == 24:
             # 学習帰属の変更: globalの証拠だけが再始動し、Fixed-Shareの重みは保たれる。
             fixed_share_state = capture_fixed_share_controller_state(
-                controller=prediction_arguments["fixed_share_prediction_weight_controller"]
+                controller=prediction_arguments["fixed_share_weight_controller"]
             )
             change_training_assignment_in_both(
                 prediction_arguments=prediction_arguments,
@@ -354,7 +358,7 @@ def test_prediction_matches_real_legacy_prediction_for_each_sample(
             )
             assert (
                 capture_fixed_share_controller_state(
-                    controller=prediction_arguments["fixed_share_prediction_weight_controller"]
+                    controller=prediction_arguments["fixed_share_weight_controller"]
                 )
                 == fixed_share_state
             )
@@ -380,8 +384,8 @@ def test_prediction_matches_real_legacy_prediction_for_each_sample(
             **{
                 argument_name: prediction_arguments[argument_name]
                 for argument_name in (
-                    "fixed_share_prediction_weight_controller",
-                    "diagnostic_evidence_collection",
+                    "fixed_share_weight_controller",
+                    "adahedge_weight_evidence_collection",
                     "sample_prediction_record_store",
                 )
             },
@@ -403,7 +407,7 @@ def test_prediction_matches_real_legacy_prediction_for_each_sample(
         for mapping_by_model_id in (
             sample_prediction.prediction_probabilities_by_model_id,
             sample_prediction.prediction_weights_by_model_id,
-            sample_prediction.global_diagnostic_weights_by_model_id,
+            sample_prediction.adahedge_weights_by_model_id,
             sample_prediction.observed_losses_by_model_id,
         ):
             assert list(mapping_by_model_id) == held_model_ids
@@ -424,12 +428,12 @@ def test_prediction_matches_real_legacy_prediction_for_each_sample(
     # この標本列が、最大重みのモデルの交代と、正否の組合せの違いを通っていること。
     assert len(observed_maximum_weight_model_ids) >= 3
     assert len(observed_correctness) >= 3
-    controller = prediction_arguments["fixed_share_prediction_weight_controller"]
+    controller = prediction_arguments["fixed_share_weight_controller"]
     assert controller.model_pool_reset_count == 2
     assert (
         prediction_arguments[
-            "diagnostic_evidence_collection"
-        ].global_diagnostic_evidence.concept_operation_restart_count
+            "adahedge_weight_evidence_collection"
+        ].all_sample_weight_evidence.concept_operation_restart_count
         >= 1
     )
 
@@ -467,10 +471,10 @@ def test_prediction_with_single_held_model_matches_real_legacy_prediction(
         assert sample_prediction.sample_prediction_record.effective_model_count == 1.0
         assert_prediction_state_matches_legacy(
             legacy_client=legacy_client,
-            fixed_share_prediction_weight_controller=prediction_arguments[
-                "fixed_share_prediction_weight_controller"
+            fixed_share_weight_controller=prediction_arguments["fixed_share_weight_controller"],
+            adahedge_weight_evidence_collection=prediction_arguments[
+                "adahedge_weight_evidence_collection"
             ],
-            diagnostic_evidence_collection=prediction_arguments["diagnostic_evidence_collection"],
             sample_prediction_record_store=prediction_arguments["sample_prediction_record_store"],
         )
 
@@ -512,10 +516,10 @@ def snapshot_prediction_state(*, prediction_arguments):
     ].snapshot_ordered_held_model_training_states()
     return dict(
         fixed_share_state=capture_fixed_share_controller_state(
-            controller=prediction_arguments["fixed_share_prediction_weight_controller"]
+            controller=prediction_arguments["fixed_share_weight_controller"]
         ),
         diagnostic_state=get_diagnostic_collection_snapshot(
-            prediction_arguments["diagnostic_evidence_collection"]
+            prediction_arguments["adahedge_weight_evidence_collection"]
         ),
         records=prediction_arguments[
             "sample_prediction_record_store"
@@ -737,8 +741,8 @@ def test_prediction_rejects_invalid_observation_before_any_update(
 @pytest.mark.parametrize(
     "owner_argument_name",
     [
-        "fixed_share_prediction_weight_controller",
-        "diagnostic_evidence_collection",
+        "fixed_share_weight_controller",
+        "adahedge_weight_evidence_collection",
         "sample_prediction_record_store",
         "held_model_training_state_registry",
         "current_training_model_assignment",
@@ -906,8 +910,8 @@ def test_prediction_does_not_depend_on_observed_label_or_concept_id(
             == reference_prediction.prediction_weights_by_model_id
         )
         assert (
-            other_prediction.global_diagnostic_weights_by_model_id
-            == reference_prediction.global_diagnostic_weights_by_model_id
+            other_prediction.adahedge_weights_by_model_id
+            == reference_prediction.adahedge_weights_by_model_id
         )
         for (
             model_id,
@@ -936,8 +940,10 @@ def test_prediction_without_concept_id_skips_only_true_concept_diagnostics(
         prediction_arguments = build_predicted_sample_prediction_oracle(
             monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
         )
-        diagnostic_evidence_collection = prediction_arguments["diagnostic_evidence_collection"]
-        created_true_concept_ids = diagnostic_evidence_collection.created_true_concept_ids
+        adahedge_weight_evidence_collection = prediction_arguments[
+            "adahedge_weight_evidence_collection"
+        ]
+        created_true_concept_ids = adahedge_weight_evidence_collection.created_true_concept_ids
         assert 1 not in created_true_concept_ids
         sample_prediction = predict_observed_sample_and_update_prediction_weights(
             indexed_observation=make_prediction_observation(
@@ -949,7 +955,7 @@ def test_prediction_without_concept_id_skips_only_true_concept_diagnostics(
             sample_prediction,
             snapshot_prediction_state(prediction_arguments=prediction_arguments),
             created_true_concept_ids,
-            diagnostic_evidence_collection.created_true_concept_ids,
+            adahedge_weight_evidence_collection.created_true_concept_ids,
         )
     prediction_with_concept, state_with_concept, _, concept_ids_with_concept = results[1]
     prediction_without_concept, state_without_concept, concept_ids_before, concept_ids_after = (
@@ -1014,12 +1020,12 @@ def test_prediction_stops_after_failed_update_without_rollback(
     )
     state_snapshot = snapshot_prediction_state(prediction_arguments=prediction_arguments)
 
-    def fail_to_update(self, *, observed_losses_by_model_id, diagnostic_weights_by_model_id):
+    def fail_to_update(self, *, observed_losses_by_model_id, weights_by_model_id):
         raise RuntimeError("update failed")
 
     with monkeypatch.context() as patch_context:
         patch_context.setattr(
-            AdaHedgeDiagnosticEvidence, "update_evidence_after_loss_observation", fail_to_update
+            AdaHedgeWeightEvidence, "update_evidence_after_loss_observation", fail_to_update
         )
         with pytest.raises(RuntimeError, match="update failed"):
             predict_observed_sample_and_update_prediction_weights(
@@ -1039,8 +1045,10 @@ def test_prediction_runs_steps_in_design_order(monkeypatch, valid_run_settings_m
     prediction_arguments = build_predicted_sample_prediction_oracle(
         monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
     )
-    diagnostic_evidence_collection = prediction_arguments["diagnostic_evidence_collection"]
-    global_diagnostic_evidence = diagnostic_evidence_collection.global_diagnostic_evidence
+    adahedge_weight_evidence_collection = prediction_arguments[
+        "adahedge_weight_evidence_collection"
+    ]
+    all_sample_weight_evidence = adahedge_weight_evidence_collection.all_sample_weight_evidence
     step_names = []
 
     def record_step_then_call(owner_type, method_name, make_step_name):
@@ -1053,17 +1061,17 @@ def test_prediction_runs_steps_in_design_order(monkeypatch, valid_run_settings_m
         monkeypatch.setattr(owner_type, method_name, recording_method)
 
     def name_evidence(evidence):
-        return "global" if evidence is global_diagnostic_evidence else "true_concept"
+        return "global" if evidence is all_sample_weight_evidence else "true_concept"
 
     record_step_then_call(SharedFeatureExtractor, "forward", lambda extractor: "shared_features")
     record_step_then_call(
-        AdaHedgeDiagnosticEvidence,
-        "get_diagnostic_weights_before_loss_observation",
+        AdaHedgeWeightEvidence,
+        "get_weights_before_loss_observation",
         lambda evidence: f"get_{name_evidence(evidence)}_weights",
     )
     record_step_then_call(
-        FixedSharePredictionWeightController,
-        "get_prediction_weights_before_label_observation",
+        FixedShareWeightController,
+        "get_weights_before_label_observation",
         lambda controller: "get_fixed_share_weights",
     )
     record_step_then_call(
@@ -1072,12 +1080,12 @@ def test_prediction_runs_steps_in_design_order(monkeypatch, valid_run_settings_m
         lambda store: "append_record",
     )
     record_step_then_call(
-        AdaHedgeDiagnosticEvidence,
+        AdaHedgeWeightEvidence,
         "update_evidence_after_loss_observation",
         lambda evidence: f"update_{name_evidence(evidence)}_evidence",
     )
     record_step_then_call(
-        FixedSharePredictionWeightController,
+        FixedShareWeightController,
         "update_weights_after_loss_observation",
         lambda controller: "update_fixed_share_weights",
     )
@@ -1107,9 +1115,9 @@ def test_prediction_updates_true_concept_evidence_with_unnormalized_weights(
     prediction_arguments = build_predicted_sample_prediction_oracle(
         monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
     )
-    global_diagnostic_evidence = prediction_arguments[
-        "diagnostic_evidence_collection"
-    ].global_diagnostic_evidence
+    all_sample_weight_evidence = prediction_arguments[
+        "adahedge_weight_evidence_collection"
+    ].all_sample_weight_evidence
     # 正規化で値が変わる重み（総和が1との差1e-12以内で、1でない）を、両方の証拠の取得が返すようにする。
     unnormalized_weights = {4: 0.25 + 4e-13, 9: 0.75}
     normalized_weights = sample_prediction_module.normalize_model_prediction_weights(
@@ -1117,23 +1125,23 @@ def test_prediction_updates_true_concept_evidence_with_unnormalized_weights(
     )
     assert normalized_weights != unnormalized_weights
     updated_weights = {}
-    original_update = AdaHedgeDiagnosticEvidence.update_evidence_after_loss_observation
+    original_update = AdaHedgeWeightEvidence.update_evidence_after_loss_observation
 
-    def record_update(self, *, observed_losses_by_model_id, diagnostic_weights_by_model_id):
-        updated_weights[self is global_diagnostic_evidence] = dict(diagnostic_weights_by_model_id)
+    def record_update(self, *, observed_losses_by_model_id, weights_by_model_id):
+        updated_weights[self is all_sample_weight_evidence] = dict(weights_by_model_id)
         return original_update(
             self,
             observed_losses_by_model_id=observed_losses_by_model_id,
-            diagnostic_weights_by_model_id=diagnostic_weights_by_model_id,
+            weights_by_model_id=weights_by_model_id,
         )
 
     monkeypatch.setattr(
-        AdaHedgeDiagnosticEvidence,
-        "get_diagnostic_weights_before_loss_observation",
+        AdaHedgeWeightEvidence,
+        "get_weights_before_loss_observation",
         lambda self, *, model_ids: dict(unnormalized_weights),
     )
     monkeypatch.setattr(
-        AdaHedgeDiagnosticEvidence, "update_evidence_after_loss_observation", record_update
+        AdaHedgeWeightEvidence, "update_evidence_after_loss_observation", record_update
     )
     sample_prediction = predict_observed_sample_and_update_prediction_weights(
         indexed_observation=make_prediction_observation(
@@ -1142,7 +1150,7 @@ def test_prediction_updates_true_concept_evidence_with_unnormalized_weights(
         **prediction_arguments,
     )
     assert updated_weights == {True: normalized_weights, False: unnormalized_weights}
-    assert sample_prediction.global_diagnostic_weights_by_model_id == normalized_weights
+    assert sample_prediction.adahedge_weights_by_model_id == normalized_weights
 
 
 def test_prediction_does_not_change_models_or_consume_random_numbers(

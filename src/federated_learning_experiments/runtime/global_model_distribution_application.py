@@ -191,7 +191,7 @@ def apply_global_model_distribution(
 
     検査と、新しい分類器・optimizerの状態の生成（torchの乱数を消費する）を、ownerの更新より前に行う。
     一時IDの保有モデルは、そのまま残す。全保有モデルを、非負のIDが最小のモデルの共有部へつなぎ直す。
-    予測の重みと診断証拠には触れない。
+    予測の重みとAdaHedgeの証拠には触れない。
     """
     # 段1: 検査（どの更新・乱数の消費より前）。
     _validate_owner_types(
