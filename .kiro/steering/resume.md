@@ -11,7 +11,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### いまの状態
 
-- ブランチ`refactor/architecture`。この文書の更新まで、push済み（`git log origin/refactor/architecture..HEAD`が空であることを確かめる）。作業ツリーに、未commitの変更は残していない。進行中のspecは無い。
+- ブランチ`refactor/architecture`。完了の記録までcommit済み。通常pushは自動承認レビューに拒否された（送信先と今回のpayloadへの明示的承認を確認できないという理由）。送信先は`https://github.com/shimmen3141/FedSDA-experiment`の同名ブランチ。未送信commitは`git log origin/refactor/architecture..HEAD`で確認する。作業ツリーに、未commitの変更は残していない。進行中のspecは無い。pushの承認待ちは実装の未完了と区別する。
 - 構成の移植は、10個の全部が完了した（最後は[fedsda-independent-models](../specs/fedsda-independent-models/tasks.md)。独立レビューは承認、指摘は反映済み。検証の証拠は同specのtasks.md）。
 - 次は、(B) FedDriftの移植（下の「FedDriftの調査のメモ」。未仕様化）→全構成のgolden→(D)旧実装を外す準備（NEW-004、MNISTの取得コマンド）。順は、決定事項の「進める順」。
 
