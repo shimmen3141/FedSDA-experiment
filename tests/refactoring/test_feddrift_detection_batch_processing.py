@@ -1,6 +1,7 @@
 """FedDriftの一バッチ処理を、実旧の状態更新と乱数に照合する。"""
 
 import random
+from copy import deepcopy
 from dataclasses import replace
 from random import Random
 
@@ -32,6 +33,7 @@ from federated_learning_experiments.learning.training.model_training_sample_stor
     ModelTrainingSampleStore,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
+    AdamParameterOptimizerSettings,
     SgdParameterOptimizerSettings,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
@@ -581,6 +583,113 @@ def test_non_drift_temporary_model_selection_skips_evaluation_sampling(monkeypat
     assert result.assigned_model_id == -104
     assert owners["evaluation_sample_store"].snapshot_ordered_model_evaluation_samples() == ()
     assert owners["python_random_generator"].getstate() == random_state
+
+
+def assert_optimizer_state_equal(actual, expected):
+    """optimizerのTensor値・入れ子構造を省略や丸めなしで照合する。"""
+    assert type(actual) is type(expected)
+    if isinstance(actual, torch.Tensor):
+        assert torch.equal(actual, expected)
+    elif isinstance(actual, dict):
+        assert tuple(actual) == tuple(expected)
+        for key in actual:
+            assert_optimizer_state_equal(actual[key], expected[key])
+    elif isinstance(actual, (tuple, list)):
+        assert len(actual) == len(expected)
+        for value, expected_value in zip(actual, expected, strict=True):
+            assert_optimizer_state_equal(value, expected_value)
+    else:
+        assert actual == expected
+
+
+@pytest.mark.parametrize("class_count", (2, 4))
+@pytest.mark.parametrize("optimizer_name", ("sgd", "adam"))
+@pytest.mark.parametrize("created", (False, True))
+def test_existing_parameter_optimizer_identity_and_state_are_preserved(
+    class_count, optimizer_name, created, monkeypatch
+):
+    legacy, processor, owners = build_processing_oracle(
+        class_count=class_count,
+        previous_loss=0.0 if created else None,
+        threshold=0.0,
+        monkeypatch=monkeypatch,
+    )
+    states = owners[
+        "held_model_training_state_registry"
+    ].snapshot_ordered_held_model_training_states()
+    samples = make_samples(sample_count=3, class_count=class_count)
+    features = torch.cat([sample.input_features for sample in samples])
+    labels = torch.cat([sample.observed_class_labels for sample in samples])
+    if optimizer_name == "adam":
+        monkeypatch.setattr(config, "OPTIMIZER", "adam")
+        monkeypatch.setattr(config, "WEIGHT_DECAY", 0.0)
+        monkeypatch.setattr(config, "AMSGRAD", True)
+        settings = AdamParameterOptimizerSettings(
+            learning_rate=0.01, weight_decay=0.0, adam_variant="amsgrad"
+        )
+        for state in states:
+            legacy.models[state.model_id].reset_optimizer()
+            legacy.models[state.model_id].update(features, labels)
+            optimizer_state = ParameterOptimizerState(
+                parameters=tuple(state.classifier.parameters()), optimizer_settings=settings
+            )
+            optimizer = optimizer_state.parameter_optimizer
+            optimizer.zero_grad()
+            outputs = state.classifier(features)
+            loss = (
+                torch.nn.functional.binary_cross_entropy(outputs, labels)
+                if class_count == 2
+                else torch.nn.functional.cross_entropy(outputs, labels.reshape(-1).long())
+            )
+            loss.backward()
+            optimizer.step()
+            assert optimizer.state
+            owners["held_model_training_state_registry"].register_held_model_training_state(
+                model_id=state.model_id,
+                classifier=state.classifier,
+                concept_specific_parameter_optimizer_state=optimizer_state,
+            )
+        states = owners[
+            "held_model_training_state_registry"
+        ].snapshot_ordered_held_model_training_states()
+    before = tuple(
+        (
+            state.classifier,
+            tuple(state.classifier.parameters()),
+            tuple(parameter.detach().clone() for parameter in state.classifier.parameters()),
+            state.concept_specific_parameter_optimizer_state,
+            state.concept_specific_parameter_optimizer_state.parameter_optimizer,
+            deepcopy(
+                state.concept_specific_parameter_optimizer_state.parameter_optimizer.state_dict()
+            ),
+        )
+        for state in states
+    )
+    result = run_processing_pair(
+        legacy=legacy, processor=processor, owners=owners, samples=samples, processed_sample_count=3
+    )
+    assert (result.adaptation_kind == "new_model_created") is created
+    for state, (
+        classifier,
+        parameters,
+        parameter_values,
+        optimizer_state,
+        optimizer,
+        optimizer_values,
+    ) in zip(states, before, strict=True):
+        after = owners["held_model_training_state_registry"].get_held_model_training_state(
+            model_id=state.model_id
+        )
+        assert after.classifier is classifier
+        assert after.concept_specific_parameter_optimizer_state is optimizer_state
+        assert after.concept_specific_parameter_optimizer_state.parameter_optimizer is optimizer
+        assert all(
+            actual is expected
+            for actual, expected in zip(after.classifier.parameters(), parameters, strict=True)
+        )
+        for actual, expected in zip(after.classifier.parameters(), parameter_values, strict=True):
+            assert torch.equal(actual, expected)
+        assert_optimizer_state_equal(optimizer.state_dict(), optimizer_values)
 
 
 def test_ready_upload_replaces_delayed_slot_without_waiting():
