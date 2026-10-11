@@ -2,7 +2,7 @@
 
 数えるもの:
 
-- 共有部（`SharedFeatureExtractor`）と概念固有部（`NonlinearResidualAdapter`）の順伝播へ入力された標本数。
+- 共有部（`SharedFeatureExtractor`）と概念固有部の入口（`NonlinearResidualAdapter`。adapterを持たない構造では`IdentityFeatureAdapter`）の順伝播へ入力された標本数。
 - 全結合層（`torch.nn.Linear`）の積和演算の数（標本数×入力の次元×出力の次元）。共有部の順伝播の中の層は
   共有部、それ以外の層は概念固有部。バイアスの加算、活性化関数、損失、optimizerの更新は数えない。
 - optimizerの更新回数。

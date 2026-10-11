@@ -16,7 +16,7 @@ class ModelArchitectureSettings:
             "allowed_parameter_values": (
                 # 共有部の特徴へ、概念別の残差adapterを通してから、概念別の出力層へ渡す（提案構成）。
                 "shared_backbone_residual_adapter",
-                # adapterを持たない。共有部の特徴を、そのまま、概念別の出力層へ渡す。要求rankは、使わない。
+                # adapterを持たない。共有部の特徴を、そのまま、概念別の出力層へ渡す。要求rankは、使わない（値の検査は行い、条件の記録にも残る）。
                 "shared_backbone_without_residual_adapter",
             )
         },

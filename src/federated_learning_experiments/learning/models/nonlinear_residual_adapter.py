@@ -1,4 +1,4 @@
-"""初期状態が恒等写像となる非線形残差adapter。"""
+"""共有特徴と分類層の間に置く部品: 初期状態が恒等写像となる非線形残差adapterと、adapterを持たない構造の恒等の部品。"""
 
 import torch
 from torch.nn import Linear, Module, ReLU
