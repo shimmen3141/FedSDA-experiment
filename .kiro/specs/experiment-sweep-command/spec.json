@@ -1,0 +1,38 @@
+{
+  "feature_name": "experiment-sweep-command",
+  "created_at": "2026-10-11T09:50:34+09:00",
+  "updated_at": "2026-10-11T09:50:34+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（ユーザーの委任。段階ごとの独立レビューは置かず、最後の独立レビューが読む）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "主担当Claude Code（同上）",
+      "task_graph_sanity_review": "PASS（inline。子エージェントは使わない決定のため）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": false,
+      "note": "名前は、全taskの後の独立レビューで確認を受ける。構成の名前の案は、ユーザーの確認を受ける"
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
+  "user_decision": "2026-10-11: ablationを新実装でも実行する。進める順は、(A3)実験の入口→提案構成を、ablationの規模で1回、サーバで新旧を比べる→構成の移植。旧実装の構成名は分かりにくいので、新実装に合わせて、分かりやすくする",
+  "handoff": {
+    "execution_status": "in_progress",
+    "next_step": "tasks.mdの下位taskを1.1から順に実装する",
+    "independent_review": "未実施（全taskの後に1回）"
+  }
+}
