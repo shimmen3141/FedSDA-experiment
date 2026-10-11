@@ -123,14 +123,22 @@ def _combine_and_compare_with_observed_class(
     class_count: int,
     observed_class_labels: Tensor,
 ) -> tuple[Tensor, Tensor, bool]:
-    """重みで確率を結合し、（結合した確率、予測クラス、観測クラスと同じか）を返す。"""
+    """重みで確率を結合し、（結合した確率、予測クラス、観測クラスと同じか）を返す。
+
+    確率は、出力から確率への変換（`convert_model_outputs_to_prediction_probabilities`）で検査済みのものを、
+    重みは、正規化（`normalize_model_prediction_weights`）で検査済みのものを、渡すこと。
+    """
     combined_prediction_probabilities = combine_model_prediction_probabilities(
         prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
         prediction_weights_by_model_id=normalized_weights_by_model_id,
         class_count=class_count,
+        prediction_probabilities_are_validated=True,
     )
+    # 検査済みの確率の、検査済みの重みでの結合なので、結果の中身は、検査し直さない。
     predicted_class_labels = predict_class_labels_from_prediction_scores(
-        prediction_scores=combined_prediction_probabilities, class_count=class_count
+        prediction_scores=combined_prediction_probabilities,
+        class_count=class_count,
+        prediction_scores_are_validated=True,
     )
     return (
         combined_prediction_probabilities,
@@ -186,6 +194,8 @@ def predict_observed_sample_and_update_prediction_weights(
             )
             for model_id in model_ids
         }
+    # モデルの出力の検査は、この変換の1回だけ。変換の結果（モデル別の確率）は、この関数の中で、何度も使うので、
+    # 以後の呼出しには、検査済みと伝える（同じtensorを、検査し直さない）。
     prediction_probabilities_by_model_id = convert_model_outputs_to_prediction_probabilities(
         model_outputs_by_model_id=model_outputs_by_model_id, class_count=class_count
     )
@@ -193,6 +203,7 @@ def predict_observed_sample_and_update_prediction_weights(
         prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
         observed_class_labels=observed_class_labels,
         class_count=class_count,
+        prediction_probabilities_are_validated=True,
     )
     observed_class_value = observed_class_labels.view(-1)[0].item()
     model_prediction_is_correct_by_model_id: dict[int, bool] = {}
@@ -201,7 +212,9 @@ def predict_observed_sample_and_update_prediction_weights(
         model_prediction_probabilities = prediction_probabilities_by_model_id[model_id]
         model_prediction_is_correct_by_model_id[model_id] = bool(
             predict_class_labels_from_prediction_scores(
-                prediction_scores=model_prediction_probabilities, class_count=class_count
+                prediction_scores=model_prediction_probabilities,
+                class_count=class_count,
+                prediction_scores_are_validated=True,
             )
             .view(-1)[0]
             .item()

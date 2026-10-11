@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import replace
 from functools import reduce
 from operator import add
+from unittest.mock import Mock
 
 import pytest
 import torch
@@ -44,6 +45,7 @@ from federated_learning_experiments.learning.models.residual_adapter_classifier 
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
 )
+from federated_learning_experiments.learning.prediction import class_probability_calculations
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
 )
@@ -821,6 +823,39 @@ def test_prediction_rejects_non_finite_model_output_before_any_update(
         indexed_observation=make_prediction_observation(sample_index=4, class_count=2),
         **prediction_arguments,
     )
+
+
+@pytest.mark.parametrize("class_count", (2, 4))
+def test_prediction_inspects_each_model_output_once(
+    class_count, monkeypatch, valid_run_settings_mapping
+):
+    """標本1件の予測は、保有モデルの出力を、モデルごとに1回だけ検査する（出力から確率への変換のとき）。"""
+    prediction_arguments, _ = build_sample_prediction_oracle(
+        monkeypatch=monkeypatch,
+        valid_run_settings_mapping=valid_run_settings_mapping,
+        class_count=class_count,
+    )
+    held_model_count = len(
+        prediction_arguments[
+            "held_model_training_state_registry"
+        ].snapshot_ordered_held_model_training_states()
+    )
+    assert held_model_count == 2
+    monkeypatch.setattr(
+        class_probability_calculations,
+        "_validate_prediction_tensor",
+        Mock(wraps=class_probability_calculations._validate_prediction_tensor),
+    )
+    for sample_index in range(3):
+        predict_observed_sample_and_update_prediction_weights(
+            indexed_observation=make_prediction_observation(
+                sample_index=sample_index, class_count=class_count
+            ),
+            **prediction_arguments,
+        )
+        assert class_probability_calculations._validate_prediction_tensor.call_count == (
+            held_model_count * (sample_index + 1)
+        )
 
 
 @pytest.mark.parametrize("class_count", (2, 4))

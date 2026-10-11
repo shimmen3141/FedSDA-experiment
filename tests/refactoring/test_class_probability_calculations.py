@@ -3,6 +3,7 @@
 import inspect
 import random
 from dataclasses import replace
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -15,6 +16,7 @@ from test_run_settings_validation import valid_run_settings_mapping as valid_run
 
 from federated_drift_experiment.clients.fedsda import _AdaHedgeRoutingFedSDAClientMixin
 from federated_drift_experiment.expert_routing import SwitchingExpertRouter
+from federated_learning_experiments.learning.prediction import class_probability_calculations
 from federated_learning_experiments.learning.prediction.class_probability_calculations import (
     combine_model_prediction_probabilities,
     compute_model_mean_bounded_losses_after_label_observation,
@@ -586,3 +588,143 @@ def test_class_probability_numeric_calls_preserve_caller_random_states():
     assert np.array_equal(np.random.get_state()[1], global_numpy_random_state[1])
     assert np.random.get_state()[2:] == global_numpy_random_state[2:]
     assert torch.equal(torch.random.get_rng_state(), global_torch_random_state)
+
+
+def make_validated_probabilities(class_count):
+    """モデル別の出力を、確率へ変換する（変換が、出力を検査する）。"""
+    if class_count == 2:
+        model_outputs_by_model_id = {
+            4: torch.tensor([[0.2], [0.9], [0.5]]),
+            -1: torch.tensor([[0.7], [0.1], [0.5]]),
+        }
+    else:
+        model_outputs_by_model_id = {
+            4: torch.tensor([[0.3, 1.2, -0.4], [2.0, 0.1, 0.1], [0.0, 0.0, 0.0]]),
+            -1: torch.tensor([[1.5, -0.2, 0.4], [0.2, 0.3, 2.5], [0.1, 0.0, 0.0]]),
+        }
+    return convert_model_outputs_to_prediction_probabilities(
+        model_outputs_by_model_id=model_outputs_by_model_id, class_count=class_count
+    )
+
+
+@pytest.mark.parametrize("class_count", [2, 3])
+def test_validated_probabilities_give_the_same_results_without_inspection(class_count, monkeypatch):
+    """検査済みと伝えたとき、tensorの中身を検査せず、検査した場合と同じ結果を返す。"""
+    prediction_probabilities_by_model_id = make_validated_probabilities(class_count)
+    prediction_weights_by_model_id = {4: 0.25, -1: 0.75}
+    observed_class_labels = torch.tensor([[1.0], [0.0], [float(class_count - 1)]])
+    inspected_combination = combine_model_prediction_probabilities(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        prediction_weights_by_model_id=prediction_weights_by_model_id,
+        class_count=class_count,
+    )
+    inspected_losses = compute_model_mean_bounded_losses_after_label_observation(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        observed_class_labels=observed_class_labels,
+        class_count=class_count,
+    )
+    inspected_class_labels = predict_class_labels_from_prediction_scores(
+        prediction_scores=inspected_combination, class_count=class_count
+    )
+    monkeypatch.setattr(
+        class_probability_calculations,
+        "_validate_prediction_tensor",
+        Mock(wraps=class_probability_calculations._validate_prediction_tensor),
+    )
+    combination = combine_model_prediction_probabilities(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        prediction_weights_by_model_id=prediction_weights_by_model_id,
+        class_count=class_count,
+        prediction_probabilities_are_validated=True,
+    )
+    losses = compute_model_mean_bounded_losses_after_label_observation(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        observed_class_labels=observed_class_labels,
+        class_count=class_count,
+        prediction_probabilities_are_validated=True,
+    )
+    class_labels = predict_class_labels_from_prediction_scores(
+        prediction_scores=combination, class_count=class_count, prediction_scores_are_validated=True
+    )
+    class_probability_calculations._validate_prediction_tensor.assert_not_called()
+    assert torch.equal(combination, inspected_combination)
+    assert losses == inspected_losses
+    assert torch.equal(class_labels, inspected_class_labels)
+    # 既定（検査する）では、tensorごとに検査する。
+    combine_model_prediction_probabilities(
+        prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+        prediction_weights_by_model_id=prediction_weights_by_model_id,
+        class_count=class_count,
+    )
+    assert class_probability_calculations._validate_prediction_tensor.call_count == 2
+
+
+def test_validated_probabilities_still_require_valid_weights_labels_and_class_count():
+    """検査済みと伝えても、重み、観測ラベル、クラス数、モデルIDの検査は、行う。"""
+    prediction_probabilities_by_model_id = make_validated_probabilities(2)
+    with pytest.raises(ValueError):
+        combine_model_prediction_probabilities(
+            prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+            prediction_weights_by_model_id={4: 0.5, 7: 0.5},
+            class_count=2,
+            prediction_probabilities_are_validated=True,
+        )
+    with pytest.raises((TypeError, ValueError)):
+        combine_model_prediction_probabilities(
+            prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+            prediction_weights_by_model_id={4: float("nan"), -1: 0.5},
+            class_count=2,
+            prediction_probabilities_are_validated=True,
+        )
+    with pytest.raises(ValueError):
+        compute_model_mean_bounded_losses_after_label_observation(
+            prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+            observed_class_labels=torch.tensor([[2.0], [0.0], [1.0]]),
+            class_count=2,
+            prediction_probabilities_are_validated=True,
+        )
+    with pytest.raises((TypeError, ValueError)):
+        predict_class_labels_from_prediction_scores(
+            prediction_scores=torch.tensor([[0.5]]),
+            class_count=1,
+            prediction_scores_are_validated=True,
+        )
+    with pytest.raises(ValueError):
+        combine_model_prediction_probabilities(
+            prediction_probabilities_by_model_id={},
+            prediction_weights_by_model_id={},
+            class_count=2,
+            prediction_probabilities_are_validated=True,
+        )
+    with pytest.raises(TypeError):
+        compute_model_mean_bounded_losses_after_label_observation(
+            prediction_probabilities_by_model_id={True: torch.tensor([[0.5]])},
+            observed_class_labels=torch.tensor([[1.0]]),
+            class_count=2,
+            prediction_probabilities_are_validated=True,
+        )
+
+
+@pytest.mark.parametrize("invalid_flag", [None, 1, "True", 0.0])
+def test_validated_flags_must_be_builtin_bool(invalid_flag):
+    prediction_probabilities_by_model_id = make_validated_probabilities(2)
+    with pytest.raises(TypeError):
+        combine_model_prediction_probabilities(
+            prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+            prediction_weights_by_model_id={4: 0.5, -1: 0.5},
+            class_count=2,
+            prediction_probabilities_are_validated=invalid_flag,
+        )
+    with pytest.raises(TypeError):
+        compute_model_mean_bounded_losses_after_label_observation(
+            prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
+            observed_class_labels=torch.tensor([[1.0], [0.0], [1.0]]),
+            class_count=2,
+            prediction_probabilities_are_validated=invalid_flag,
+        )
+    with pytest.raises(TypeError):
+        predict_class_labels_from_prediction_scores(
+            prediction_scores=torch.tensor([[0.5]]),
+            class_count=2,
+            prediction_scores_are_validated=invalid_flag,
+        )

@@ -43,12 +43,19 @@ def _validate_prediction_tensor(
             raise ValueError("モデル別確率の行総和は1との差1e-6以内にしてください。")
 
 
+def _validate_tensor_validation_flag(*, tensors_are_validated: bool, flag_name: str) -> None:
+    if type(tensors_are_validated) is not bool:
+        raise TypeError(f"{flag_name}はbuiltin boolにしてください。")
+
+
 def _validated_model_prediction_tensor_ids(
     *,
     model_tensors_by_model_id: Mapping[int, torch.Tensor],
     class_count: int,
     require_probabilities: bool,
+    tensors_are_validated: bool = False,
 ) -> tuple[int, ...]:
+    """クラス数、Mapping、モデルIDを検査し、IDの昇順を返す。tensorの中身は、検査済みと伝えられなければ、検査する。"""
     _validate_class_count(class_count=class_count)
     if not isinstance(model_tensors_by_model_id, Mapping):
         raise TypeError("モデル別TensorはMappingにしてください。")
@@ -57,6 +64,8 @@ def _validated_model_prediction_tensor_ids(
     if any(type(model_id) is not int for model_id in model_tensors_by_model_id):
         raise TypeError("モデルIDはbool以外のbuiltin intにしてください。")
     model_ids = tuple(sorted(model_tensors_by_model_id))
+    if tensors_are_validated:
+        return model_ids
     for model_id in model_ids:
         _validate_prediction_tensor(
             prediction_tensor=model_tensors_by_model_id[model_id],
@@ -170,12 +179,22 @@ def combine_model_prediction_probabilities(
     prediction_probabilities_by_model_id: Mapping[int, torch.Tensor],
     prediction_weights_by_model_id: Mapping[int, float],
     class_count: int,
+    prediction_probabilities_are_validated: bool = False,
 ) -> torch.Tensor:
-    """正規化済み重みをそのまま使い、ID昇順に積を逐次加算する。"""
+    """正規化済み重みをそのまま使い、ID昇順に積を逐次加算する。
+
+    `prediction_probabilities_are_validated`を真にしてよいのは、同じ確率を、このmoduleの関数で検査した場合だけ
+    （`convert_model_outputs_to_prediction_probabilities`の戻り値）。真なら、確率のtensorの中身を検査しない。
+    """
+    _validate_tensor_validation_flag(
+        tensors_are_validated=prediction_probabilities_are_validated,
+        flag_name="prediction_probabilities_are_validated",
+    )
     model_ids = _validated_model_prediction_tensor_ids(
         model_tensors_by_model_id=prediction_probabilities_by_model_id,
         class_count=class_count,
         require_probabilities=True,
+        tensors_are_validated=prediction_probabilities_are_validated,
     )
     prediction_weights_by_model_id = _validated_model_prediction_weights(
         prediction_weights_by_model_id=prediction_weights_by_model_id,
@@ -194,14 +213,24 @@ def predict_class_labels_from_prediction_scores(
     *,
     prediction_scores: torch.Tensor,
     class_count: int,
+    prediction_scores_are_validated: bool = False,
 ) -> torch.Tensor:
-    """混合丸めを補正せず、二値の厳密閾値または最小番号argmaxを返す。"""
+    """混合丸めを補正せず、二値の厳密閾値または最小番号argmaxを返す。
+
+    `prediction_scores_are_validated`を真にしてよいのは、渡すtensorが、このmoduleで検査した確率か、
+    検査済みの確率と重みから、`combine_model_prediction_probabilities`で作った結合の結果の場合だけ。
+    """
     _validate_class_count(class_count=class_count)
-    _validate_prediction_tensor(
-        prediction_tensor=prediction_scores,
-        class_count=class_count,
-        require_probabilities=False,
+    _validate_tensor_validation_flag(
+        tensors_are_validated=prediction_scores_are_validated,
+        flag_name="prediction_scores_are_validated",
     )
+    if not prediction_scores_are_validated:
+        _validate_prediction_tensor(
+            prediction_tensor=prediction_scores,
+            class_count=class_count,
+            require_probabilities=False,
+        )
     if class_count == 2:
         return (prediction_scores > 0.5).float()
     return torch.argmax(prediction_scores, dim=1, keepdim=True).float()
@@ -213,12 +242,22 @@ def compute_model_mean_bounded_losses_after_label_observation(
     prediction_probabilities_by_model_id: Mapping[int, torch.Tensor],
     observed_class_labels: torch.Tensor,
     class_count: int,
+    prediction_probabilities_are_validated: bool = False,
 ) -> dict[int, float]:
-    """予測時と同じモデル別確率と観測ラベルから旧順序の平均損失を得る。"""
+    """予測時と同じモデル別確率と観測ラベルから旧順序の平均損失を得る。
+
+    `prediction_probabilities_are_validated`の意味は、`combine_model_prediction_probabilities`と同じ。
+    観測ラベルは、いつも検査する。
+    """
+    _validate_tensor_validation_flag(
+        tensors_are_validated=prediction_probabilities_are_validated,
+        flag_name="prediction_probabilities_are_validated",
+    )
     model_ids = _validated_model_prediction_tensor_ids(
         model_tensors_by_model_id=prediction_probabilities_by_model_id,
         class_count=class_count,
         require_probabilities=True,
+        tensors_are_validated=prediction_probabilities_are_validated,
     )
     _validate_observed_class_labels(
         observed_class_labels=observed_class_labels,
