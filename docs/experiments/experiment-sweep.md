@@ -76,3 +76,15 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 - 構成は、提案構成（`fedsda`）だけ。ablationの構成と、FedDriftは、順に足す。
 - 図（Paretoの図ほか）は、作らない。`run_summary.csv`から作る。
 - 別の出力先との、runの重複は、調べない。
+
+## 旧実装の結果との比較（移行の間だけ）
+
+提案構成の、新旧の結果が一致することを確かめるには、同じ条件を、旧実装（`bash tools/run_main_ablation_suite.sh reference`）でも
+実行し、次のscriptで比べる。同じdataset・seed・集約間隔のrunどうしで、精度・定常精度・検出の指標・モデル数・通信量の
+11項目が、完全に同じ値かを調べる（終了コード0＝全部一致）。
+
+```bash
+python compare_sweep_results_with_legacy.py \
+    <新の出力先>/fedsda/run_summary.csv \
+    <旧の結果>/reference/pareto/pareto_*.csv
+```
