@@ -1,15 +1,42 @@
 {
   "feature_name": "feddrift-client-round-training",
   "created_at": "2026-10-11T23:45:00+09:00",
-  "updated_at": "2026-10-11T23:45:00+09:00",
+  "updated_at": "2026-10-12T02:26:49+09:00",
   "language": "ja",
-  "phase": "implementation-review-pending",
+  "phase": "completed",
   "approvals": {
     "requirements": {"generated": true, "approved": true, "approved_by": "主担当（共通手順のユーザー委任）"},
     "design": {"generated": true, "approved": true, "approved_by": "主担当（同上）"},
     "tasks": {"generated": true, "approved": true, "approved_by": "主担当（同上）", "task_graph_sanity_review": "PASS（inline、子エージェント禁止）"},
-    "naming": {"generated": true, "approved": false}
+    "naming": {"generated": true, "approved": true, "note": "独立Luna mediumが公開名と役割を確認。指摘なし"}
   },
   "ready_for_implementation": true,
-  "handoff": {"execution_status": "review_pending", "next_step": "独立Luna mediumレビュー、その後全回帰"}
+  "handoff": {"execution_status": "completed", "next_step": "none（client組立・サーバ同期は後続spec）"},
+  "implementation_review": {
+    "verdict": "IMPLEMENTATION: APPROVED",
+    "reviewer": "gpt-6-luna, effort medium（独立CLI）",
+    "reviewer_selection": "NN数値/状態接続のためHaiku 5.5優先だが、前specで確認した週間上限により共通手順所定の代替Luna",
+    "reviewer_session": "01a12b7a-373e-7f23-a9c4-19f9130c77c7",
+    "reviewer_identity_basis": "CLIログのmodel: gpt-6-lunaとreasoning effort: medium",
+    "reviewed_range": "8d73ba6..790ec55",
+    "review_output": "venv/refactoring-tests/feddrift-client-round-training-review-1.log",
+    "findings": "Blocker/Major/Minorなし。9要求・命名・実旧update/local_trainとの対応を確認",
+    "findings_resolution": "指摘なし。主担当が実行証拠と要求/設計の対応を確認して受入",
+    "main_acceptance": "ACCEPTED（全回帰と要求・設計・実旧対照の証拠を確認）",
+    "independent_test_execution": true,
+    "independent_full_pytest_reproduction": false,
+    "independent_checks": "3121 passed（13.67秒）、Ruff check/format（304ファイル）、names、identity、diff --check成功。全pytest/fresh smoke/Pyright/pip checkは独立未実施",
+    "full_pytest": "12853 passed / 4 skipped / 9 warnings, exit 0（主担当、790ec55、-n 8 --dist loadfile、886.46秒）"
+  },
+  "integration_validation": {
+    "tested_commit": "790ec55ff4de0053dd65b8379975d07b7b634373",
+    "source_sha256_lf": "3db919278a9f104342c1cf83fab5e190d0a0cf9f1c04b501da323f4655cb573f",
+    "full_passed": 12853,
+    "full_skipped": 4,
+    "full_warnings": 9,
+    "exit_code": 0,
+    "junit": "venv/refactoring-tests/feddrift-client-round-training-full.xml",
+    "quality_checks": "Ruff check/format（304ファイル）、Pyright 0 errors、pip check成功。JUnit failure/error 0、対象63件・旧/提案goldenとfresh smoke成功",
+    "limitations": "全pytest/fresh smokeは主担当の実測で独立再現なし。WSL・変異は未実施。通信/時間/演算計数・client factory・サーバ/全体run/golden移植・early_stoppingは後続"
+  }
 }
