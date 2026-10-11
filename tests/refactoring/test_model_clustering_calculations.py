@@ -3,6 +3,7 @@
 import itertools
 import math
 import random
+from dataclasses import replace
 
 import pytest
 from test_held_candidate_validation_progress import make_subclass_copy
@@ -13,6 +14,7 @@ from federated_drift_experiment.clustering import (
     cluster_models,
 )
 from federated_learning_experiments.methods.fedsda.consolidation.model_clustering_calculations import (
+    MODEL_PAIR_COMPARISON_STRATEGIES,
     ModelClusteringCriteria,
     cluster_model_ids_by_average_linkage,
     compute_binomial_proportion_lower_confidence_bound,
@@ -258,8 +260,20 @@ def test_clustering_criteria_validate_values():
         maximum_same_cluster_decision_score=0.1,
         minimum_pair_evaluation_sample_count=5,
         clustering_confidence_level=0.95,
+        model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
     )
     assert criteria.maximum_same_cluster_decision_score == 0.1
+    # 対の比べ方は、2つ（提案構成の、クラス別の正誤の信頼下限。損失の増加量）。
+    assert MODEL_PAIR_COMPARISON_STRATEGIES == (
+        "classwise_unique_correctness_lower_confidence_bound",
+        "mean_loss_increase",
+    )
+    assert (
+        replace(
+            criteria, model_pair_comparison_strategy="mean_loss_increase"
+        ).model_pair_comparison_strategy
+        == "mean_loss_increase"
+    )
     for invalid_fields, expected_exception in (
         (dict(maximum_same_cluster_decision_score=1), TypeError),
         (dict(maximum_same_cluster_decision_score=math.inf), ValueError),
@@ -270,6 +284,8 @@ def test_clustering_criteria_validate_values():
         (dict(clustering_confidence_level=1), TypeError),
         (dict(clustering_confidence_level=0.5), ValueError),
         (dict(clustering_confidence_level=1.0), ValueError),
+        (dict(model_pair_comparison_strategy=None), TypeError),
+        (dict(model_pair_comparison_strategy="distance"), ValueError),
     ):
         with pytest.raises(expected_exception):
             ModelClusteringCriteria(
@@ -277,6 +293,7 @@ def test_clustering_criteria_validate_values():
                     maximum_same_cluster_decision_score=0.1,
                     minimum_pair_evaluation_sample_count=5,
                     clustering_confidence_level=0.95,
+                    model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
                 )
                 | invalid_fields
             )

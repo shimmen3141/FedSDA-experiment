@@ -36,8 +36,9 @@ class FedsdaRunSettings:
 
     `execution_settings`は、実行の枠（実行条件、概念の変更、実行の方式）。`run_participant_settings`は、
     参加者の準備（clientの設定の束、事前学習、モデルの構造と隠れ層の幅、クラスタリングの判定の基準、
-    クロス評価のclientの上限）。`model_consolidation_settings`は、統合の方式の宣言（サーバは、最終構成の
-    方式だけを実装しているので、条件の保存と、組合せの検証に使う）。`run_metric_settings`は、指標の計算。
+    クロス評価のclientの上限）。`model_consolidation_settings`は、統合の方式の宣言（条件の保存と、組合せの検証に使う。
+    サーバは、モデル対の比べ方だけを、判定の基準から読む。両者の値は、同じでなければならない）。
+    `run_metric_settings`は、指標の計算。
     """
 
     execution_settings: StreamProtocolExecutionSettings
@@ -61,6 +62,18 @@ class FedsdaRunSettings:
         self.run_participant_settings.__post_init__()
         self.model_consolidation_settings.__post_init__()
         self.run_metric_settings.__post_init__()
+        # サーバが使う判定の基準と、統合の方式の宣言とで、モデル対の比べ方が同じこと。
+        if (
+            self.run_participant_settings.model_clustering_criteria.model_pair_comparison_strategy
+            != self.model_consolidation_settings.model_pair_comparison_strategy
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="model_pair_comparison_strategy",
+                specified_parameter_value=self.model_consolidation_settings.model_pair_comparison_strategy,
+                validation_failure_reason=(
+                    "クラスタリングの判定の基準（model_clustering_criteria）と、同じ値を指定してください。"
+                ),
+            )
         # 機能の組合せ（最終構成の条件）は、既存の部分型の検証で確かめる。
         run_client_settings = self.run_participant_settings.run_client_settings
         ValidatedExperimentRunSettingsSubset(

@@ -26,6 +26,15 @@ def _validate_finite_score(*, score: float, score_name: str) -> None:
         raise ValueError(f"{score_name} must be finite")
 
 
+# モデル対の比べ方（判定の値の作り方）。
+MODEL_PAIR_COMPARISON_STRATEGIES: tuple[str, ...] = (
+    # クラス別の「片方だけが正解した割合」の、同時信頼下限の最大（提案構成）。
+    "classwise_unique_correctness_lower_confidence_bound",
+    # 互いの標本での平均損失の増加量の、大きいほう（損失の距離で判定する構成）。
+    "mean_loss_increase",
+)
+
+
 @dataclass(frozen=True, kw_only=True)
 class ModelClusteringCriteria:
     """クラスタリングの判定の基準。生成時に範囲を確かめる。"""
@@ -34,8 +43,10 @@ class ModelClusteringCriteria:
     maximum_same_cluster_decision_score: float
     # モデル対を判定するのに要る、4つの損失の統計それぞれの評価の件数。クラス別の集計を使うのに要る件数でもある。
     minimum_pair_evaluation_sample_count: int
-    # 判定の値（信頼下限）の信頼水準。
+    # 判定の値（信頼下限）の信頼水準。損失の増加量で判定するときは、使わない。
     clustering_confidence_level: float
+    # モデル対の比べ方（`MODEL_PAIR_COMPARISON_STRATEGIES`のどれか）。
+    model_pair_comparison_strategy: str
 
     def __post_init__(self) -> None:
         _validate_finite_score(
@@ -48,6 +59,10 @@ class ModelClusteringCriteria:
             minimum_count=1,
         )
         _validate_confidence_level(confidence_level=self.clustering_confidence_level)
+        if type(self.model_pair_comparison_strategy) is not str:
+            raise TypeError("model_pair_comparison_strategy must be builtin str")
+        if self.model_pair_comparison_strategy not in MODEL_PAIR_COMPARISON_STRATEGIES:
+            raise ValueError("model_pair_comparison_strategy must be a declared value")
 
 
 def _compute_wilson_lower_bound(

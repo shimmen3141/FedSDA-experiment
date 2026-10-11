@@ -880,6 +880,7 @@ class ServerOperationsSynchronizingModels:
                 maximum_same_cluster_decision_score=0.1,
                 minimum_pair_evaluation_sample_count=5,
                 clustering_confidence_level=0.95,
+                model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
             ),
             maximum_evaluating_client_count_per_model=len(self.run_clients),
             python_random_generator=self.python_random_generator,
@@ -1360,6 +1361,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
             maximum_same_cluster_decision_score=0.1,
             minimum_pair_evaluation_sample_count=5,
             clustering_confidence_level=0.95,
+            model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
         ),
         maximum_evaluating_client_count_per_model=WHOLE_RUN_CLIENT_COUNT,
     )

@@ -60,6 +60,7 @@ MODEL_CLUSTERING_CRITERIA = ModelClusteringCriteria(
     maximum_same_cluster_decision_score=MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
     minimum_pair_evaluation_sample_count=5,
     clustering_confidence_level=0.95,
+    model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
 )
 
 

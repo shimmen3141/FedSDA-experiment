@@ -311,7 +311,8 @@ def cluster_and_consolidate_global_models(
     """クロス評価したモデル（2つ以上）を、対ごとの判定の値でクラスタリングし、診断の観測を足し、クラスタが減るなら統合する。
 
     対は、4つの損失の統計（自分どうし2つと、互いの2つ）の件数がすべて下限以上のときだけ、損失の距離を持つ。
-    その対に、正誤の集計があれば、判定の値を持つ。判定の値で、average linkageのクラスタを求める。
+    その対に、正誤の集計があれば、判定の値を持つ（損失の増加量で判定する基準では、損失の距離が、そのまま判定の値）。
+    判定の値で、average linkageのクラスタを求める。
     統合は、クラスタの最小のID（代表）へ、パラメータ（集約の件数での加重平均）と損失統計（件数での加重平均）を置き、
     ほかのメンバーをグローバルモデルから外す。全部の計算の後で、記録とグローバルモデルを更新する。
     """
@@ -386,6 +387,12 @@ def cluster_and_consolidate_global_models(
                 _compute_mean_bounded_loss(higher_on_lower)
                 - _compute_mean_bounded_loss(higher_on_higher),
             )
+            if model_clustering_criteria.model_pair_comparison_strategy == "mean_loss_increase":
+                # 損失の増加量で判定する。正誤の集計は、使わない。
+                decision_scores_by_model_pair[model_pair] = loss_increase_distances_by_model_pair[
+                    model_pair
+                ]
+                continue
             unique_correctness_counts = (
                 model_cross_evaluation.unique_correctness_counts_by_model_pair.get(model_pair)
             )

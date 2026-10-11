@@ -22,11 +22,14 @@ PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME = (
 )
 # 提案構成から、候補検証を外した構成（合う保有モデルが無いとき、学習した候補を、その場で採用する）。
 CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME = "fedsda-without-candidate-validation"
+# 提案構成の、クラスタリングのモデル対の比べ方を、損失の増加量（互いの標本での平均損失の増加）へ替えた構成。
+LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME = "fedsda-loss-distance-clustering"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
+    LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
 )
 
 
@@ -99,6 +102,23 @@ def build_experiment_run_settings(
             run_settings=proposed_run_settings,
             candidate_model_acceptance_policy=(
                 "current_model_first_reuse_then_candidate_adoption_without_validation"
+            ),
+        )
+    if configuration_name == LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME:
+        # サーバが読む判定の基準と、統合の方式の宣言の、両方を替える。
+        run_participant_settings = proposed_run_settings.run_participant_settings
+        return replace(
+            proposed_run_settings,
+            run_participant_settings=replace(
+                run_participant_settings,
+                model_clustering_criteria=replace(
+                    run_participant_settings.model_clustering_criteria,
+                    model_pair_comparison_strategy="mean_loss_increase",
+                ),
+            ),
+            model_consolidation_settings=replace(
+                proposed_run_settings.model_consolidation_settings,
+                model_pair_comparison_strategy="mean_loss_increase",
             ),
         )
     return proposed_run_settings

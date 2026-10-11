@@ -917,6 +917,7 @@ def make_golden_condition_settings(
             maximum_same_cluster_decision_score=legacy_values["FEDSDA_DISTANCE_THRESHOLD"],
             minimum_pair_evaluation_sample_count=legacy_values["CLUSTER_MIN_EVAL_N"],
             clustering_confidence_level=legacy_values["FEDSDA_CLUSTERING_CONFIDENCE"],
+            model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
         ),
         CROSS_EVALUATION_CLIENT_LIMIT=legacy_values["CROSS_EVAL_MAX_CLIENTS"],
     ).items():

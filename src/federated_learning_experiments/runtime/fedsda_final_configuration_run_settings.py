@@ -261,6 +261,7 @@ def build_final_configuration_fedsda_run_settings(
                 maximum_same_cluster_decision_score=_MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
                 minimum_pair_evaluation_sample_count=_MINIMUM_PAIR_EVALUATION_SAMPLE_COUNT,
                 clustering_confidence_level=_CLUSTERING_CONFIDENCE_LEVEL,
+                model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
             ),
             maximum_evaluating_client_count_per_model=_MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL,
         ),

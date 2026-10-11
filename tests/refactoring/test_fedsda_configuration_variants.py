@@ -18,9 +18,13 @@ from test_run_settings_validation import valid_run_settings_mapping as valid_run
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
+from federated_learning_experiments.core.configuration_errors import (
+    RunSettingsValidationError,
+)
 from federated_learning_experiments.sweep.experiment_configurations import (
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
     EXPERIMENT_CONFIGURATION_NAMES,
+    LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
     PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
     build_experiment_run_settings,
@@ -89,6 +93,23 @@ CONFIGURATION_VARIANTS = {
                     "current_model_first_reuse_then_candidate_adoption_without_validation"
                 ),
             )
+        ),
+    ),
+    LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME: SimpleNamespace(
+        name=LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
+        legacy_mode_name=PROPOSED_CONFIGURATION_VARIANT.legacy_mode_name,
+        # 旧の`tools/run_main_ablation_suite.sh`の`distance-average`（linkageは、提案構成と同じaverage）。
+        legacy_setting_overrides={"FEDSDA_CLUSTERING_DECISION": "distance"},
+        modify_run_participant_settings=lambda run_participant_settings: replace(
+            run_participant_settings,
+            model_clustering_criteria=replace(
+                run_participant_settings.model_clustering_criteria,
+                model_pair_comparison_strategy="mean_loss_increase",
+            ),
+        ),
+        # 統合の方式の宣言（条件の保存用）も、同じ値にする。
+        modify_model_consolidation_settings=lambda model_consolidation_settings: replace(
+            model_consolidation_settings, model_pair_comparison_strategy="mean_loss_increase"
         ),
     ),
 }
@@ -249,13 +270,54 @@ def test_without_candidate_validation_takes_its_own_path():
     )
 
 
+def collect_pair_clustering_observations(comparison):
+    return comparison.participants.server_operations.owners.model_clustering_record_store.snapshot_pair_clustering_observations()
+
+
+def test_loss_distance_clustering_takes_its_own_path():
+    """損失の増加量で判定する構成は、対の判定の値が、損失の増加量そのもの。提案構成では、別の値。結果も違う。"""
+    comparisons = collect_variant_comparisons(LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME)
+    variant_pair_observations = [
+        pair_observation
+        for comparison in comparisons
+        for pair_observation in collect_pair_clustering_observations(comparison["variant"])
+    ]
+    assert variant_pair_observations
+    assert all(
+        pair_observation.decision_score == pair_observation.loss_increase_distance
+        for pair_observation in variant_pair_observations
+    )
+    # 同じクラスタになった対と、ならなかった対の、両方を通っている。
+    assert {
+        pair_observation.assigned_to_same_cluster for pair_observation in variant_pair_observations
+    } == {True, False}
+    # 実旧も、判定の値として、損失の距離を使っている。
+    for comparison in comparisons:
+        legacy_server = comparison["variant"].legacy_run["legacy_server"]
+        assert legacy_server.clustering_decision == "distance"
+        assert legacy_server.linkage == "average"
+    # 同じ条件の提案構成は、判定の値が、損失の増加量と違う対があり、結果が、この構成と違う条件がある。
+    assert any(
+        pair_observation.decision_score != pair_observation.loss_increase_distance
+        for comparison in comparisons
+        for pair_observation in collect_pair_clustering_observations(comparison["proposed"])
+    )
+    assert any(
+        comparison["variant"].run_metrics.model_diagnostic_metrics
+        != comparison["proposed"].run_metrics.model_diagnostic_metrics
+        for comparison in comparisons
+    )
+
+
 def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_element():
     """掃引のコマンドの構成の名前から作るrun設定は、提案構成と、変える要素だけが違う。"""
     assert EXPERIMENT_CONFIGURATION_NAMES == (
         PROPOSED_FEDSDA_CONFIGURATION_NAME,
         PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME,
         CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
+        LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
     )
+    assert LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME == "fedsda-loss-distance-clustering"
     assert PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME == (
         "fedsda-without-prediction-weight-recalibration"
     )
@@ -282,10 +344,29 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
             experiment_run_conditions=experiment_run_conditions,
         )
         assert run_settings != proposed_run_settings
+        # サーバが読む判定の基準と、統合の方式の宣言とで、モデル対の比べ方が違う設定は、作れない。
+        if (
+            run_settings.model_consolidation_settings
+            != proposed_run_settings.model_consolidation_settings
+        ):
+            with pytest.raises(RunSettingsValidationError) as error_information:
+                replace(
+                    run_settings,
+                    model_consolidation_settings=proposed_run_settings.model_consolidation_settings,
+                )
+            assert (
+                error_information.value.configuration_parameter_name
+                == "model_pair_comparison_strategy"
+            )
         # testの側の変更（実旧と照合したもの）を、提案構成の設定へ当てると、同じ設定になる。
         assert run_settings == replace(
             proposed_run_settings,
             run_participant_settings=configuration_variant.modify_run_participant_settings(
                 proposed_run_settings.run_participant_settings
             ),
+            model_consolidation_settings=getattr(
+                configuration_variant,
+                "modify_model_consolidation_settings",
+                lambda model_consolidation_settings: model_consolidation_settings,
+            )(proposed_run_settings.model_consolidation_settings),
         )

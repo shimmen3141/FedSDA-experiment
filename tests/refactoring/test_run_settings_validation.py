@@ -832,7 +832,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "candidate_model_acceptance_policy"
                 else ("on_new_model_registration",)
                 if settings_field.name == "model_clustering_trigger_policy"
-                else ("classwise_unique_correctness_lower_confidence_bound",)
+                else ("classwise_unique_correctness_lower_confidence_bound", "mean_loss_increase")
                 if settings_field.name == "model_pair_comparison_strategy"
                 else ("average_linkage",)
                 if settings_field.name == "model_clustering_linkage"
