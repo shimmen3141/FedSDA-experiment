@@ -1,0 +1,6 @@
+# Research & Design Decisions
+- 旧`clients/feddrift.py`の実process_batchは予測→count→buffer→満杯検出→末尾のhistory_drift_type。部分flushはhistoryへ追記しない。検出先頭はcount−batch件数、切替末尾はcount−1。
+- 旧experimentの時刻進行は観測と局所学習が分離している。FedSDAの観測ごとの学習要求を転用するとFedDriftの更新回数/順が変わるため、今回はstreamだけを分離し局所学習は次に接続する。
+- 既存IndexedObservedTrainingSampleはconstructorでfieldを検査しない。利用側で全blockを検査する。前specのバッチvalidatorは全保有モデル/optimizer/標本をforward前に検査しており、公開検査methodで再利用する。
+- 現在モデルstateをバッチ部品から借用して、別registry/assignmentの注入による接続不一致を排除する。FedSDA予測runtimeは診断用weight/evidenceを伴うため転用せず、純粋なクラス判定だけ再利用する。
+- legacy基準748c3aa、作業起点2dd8cd7。旧/goldenは変更しない。

@@ -160,6 +160,21 @@ class FeddriftDetectionBatchProcessor:
     def previous_minimum_mean_bounded_loss(self) -> float | None:
         return self._previous_loss
 
+    @property
+    def current_training_model_state(self) -> HeldModelTrainingState:
+        """同じ割当ownerが指す保有記録を借用する。利用前の検査は外側が行う。"""
+        return self._registry.get_held_model_training_state(
+            model_id=self._assignment.current_training_model_id
+        )
+
+    def validate_detection_batch_inputs(
+        self, *, training_samples: tuple[ObservedTrainingSample, ...], processed_sample_count: int
+    ) -> None:
+        """外側の観測列から、forwardもowner更新もせずに既存batch検査を呼ぶ。"""
+        self._validate_batch(
+            training_samples=training_samples, processed_sample_count=processed_sample_count
+        )
+
     def _validate_batch(
         self, *, training_samples: tuple[ObservedTrainingSample, ...], processed_sample_count: int
     ) -> tuple[HeldModelTrainingState, ...]:
@@ -178,6 +193,7 @@ class FeddriftDetectionBatchProcessor:
         ):
             raise ValueError("現在IDが保有モデルにありません。")
         self._optimizer_settings.__post_init__()
+        dimensions: tuple[int, int] | None = None
         for state in states:
             if type(state) is not HeldModelTrainingState:
                 raise TypeError("保有記録はexact HeldModelTrainingStateが必要です。")
@@ -187,6 +203,10 @@ class FeddriftDetectionBatchProcessor:
                 concept_specific_parameter_optimizer_state=state.concept_specific_parameter_optimizer_state,
             )
             classifier = state.classifier
+            current_dimensions = (classifier.input_feature_count, classifier.class_count)
+            if dimensions is not None and current_dimensions != dimensions:
+                raise ValueError("保有モデルの入力幅とクラス数は一致させてください。")
+            dimensions = current_dimensions
             _validate_classifier_inputs(
                 model_architecture_settings=classifier.model_architecture_settings,
                 input_feature_count=classifier.input_feature_count,

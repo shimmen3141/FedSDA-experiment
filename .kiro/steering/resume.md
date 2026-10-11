@@ -191,4 +191,4 @@ HTMLは元checkoutの`docs/overview/fedsda-processing-flow.html`にあるコミ�
 
 ## 次のspecの再開（2026-10-11）
 
-`feddrift-detection-batch-processing`は完了。次は、バッファ蓄積・逐次予測・位置記録・局所学習を含むFedDriftのclient組立。旧early_stoppingは初期学習0回でもrandpermを消費するため、構成選択を移植するときに扱う。サーバ・全体runとgoldenはまだ未移植。対象コードをClaude/AnthropicまたはOpenAIのGPT-6 Lunaへ送信する独立レビューは、このセッションでユーザーが明示許可した。レビューの経緯と検証結果は各specのspec.jsonとtasks.mdを読む。
+`feddrift-client-stream-processing`を実装し独立レビュー待ち。client組立のうち、逐次予測・跨時刻バッファ・位置記録・終端flushを分離した。次は本specの独立Luna mediumレビューと全回帰を先に完了する。その後、FedDriftのラウンド内局所学習・client組立へ接続する。旧early_stoppingは初期学習0回でもrandpermを消費するため、構成選択を移植するときに扱う。サーバ・全体runとgoldenはまだ未移植。対象コードをClaude/AnthropicまたはOpenAIのGPT-6 Lunaへ送信する独立レビューは、このセッションでユーザーが明示許可した。レビューの経緯と検証結果は各specのspec.jsonとtasks.mdを読む。

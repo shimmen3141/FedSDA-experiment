@@ -4769,8 +4769,34 @@ def test_feddrift_detection_batch_processing_rejects_outer_dependencies(forbidde
     )
 
 
+@pytest.mark.parametrize(
+    "forbidden_module",
+    (
+        "federated_drift_experiment.clients.feddrift",
+        "federated_learning_experiments.sweep.experiment_sweep",
+        "tests.refactoring.test_feddrift_client_stream_processing",
+    ),
+)
+def test_feddrift_client_stream_processing_rejects_outer_dependencies(forbidden_module):
+    assert collect_dependency_boundary_violations(
+        source_module_path="runtime/feddrift_client_stream_processing.py",
+        source_text=f"import {forbidden_module}",
+    )
+
+
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "runtime/feddrift_client_stream_processing.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.replace",
+            "torch.no_grad",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.predict_class_labels_from_prediction_scores",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.runtime.feddrift_detection_batch_processing.FeddriftDetectionBatchProcessor",
+            "federated_learning_experiments.runtime.feddrift_detection_batch_processing.FeddriftDetectionBatchTransition",
+        )
     if source_module_path == "runtime/feddrift_detection_batch_processing.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6547,6 +6573,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "runtime/feddrift_client_stream_processing.py",
             "runtime/feddrift_detection_batch_processing.py",
             "methods/feddrift/detection_batch_assessment.py",
             "evaluation/adahedge_weight_evidence_collection.py",

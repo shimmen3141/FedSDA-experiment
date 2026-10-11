@@ -1,0 +1,16 @@
+{
+  "feature_name": "feddrift-client-stream-processing",
+  "created_at": "2026-10-11T23:10:00+09:00",
+  "updated_at": "2026-10-11T23:10:00+09:00",
+  "language": "ja",
+  "phase": "implementation-review-pending",
+  "approvals": {
+    "requirements": {"generated": true, "approved": true, "approved_by": "主担当（共通手順のユーザー委任）"},
+    "design": {"generated": true, "approved": true, "approved_by": "主担当（同上）"},
+    "tasks": {"generated": true, "approved": true, "approved_by": "主担当（同上）", "task_graph_sanity_review": "PASS（inline。子エージェント禁止）"},
+    "naming": {"generated": true, "approved": false}
+  },
+  "ready_for_implementation": true,
+  "approval_policy": "user_delegated_luna_medium_or_haiku_5_5_medium_by_difficulty_independent_review",
+  "handoff": {"execution_status": "review_pending", "next_step": "独立Luna mediumレビュー、その後全回帰"}
+}

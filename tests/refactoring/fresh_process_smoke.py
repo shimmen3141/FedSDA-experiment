@@ -1606,6 +1606,9 @@ def run_feddrift_detection_batch_smoke():
     from federated_learning_experiments.methods.feddrift.detection_batch_assessment import (
         assess_feddrift_detection_batch,
     )
+    from federated_learning_experiments.runtime.feddrift_client_stream_processing import (
+        FeddriftClientStreamProcessor,
+    )
     from federated_learning_experiments.runtime.feddrift_detection_batch_processing import (
         FeddriftDetectionBatchProcessor,
     )
@@ -1695,6 +1698,24 @@ def run_feddrift_detection_batch_smoke():
             )
             assert retained.adaptation_kind == "held_model_selected"
             assert retained.assigned_model_id == 7
+            stream = FeddriftClientStreamProcessor(
+                detection_batch_processor=processor, detection_batch_sample_count=3
+            )
+            observations = tuple(
+                IndexedObservedTrainingSample(
+                    sample_index=index, training_sample=sample, observed_concept_id=None
+                )
+                for index, sample in enumerate(samples + samples + samples[:1])
+            )
+            assert not stream.process_observations(indexed_observations=observations[:2])
+            assert stream.process_observations(indexed_observations=observations[2:])
+            assert stream.processed_sample_count == 7
+            assert len(stream.completed_detection_batch_transitions) == 2
+            predictions_before_flush = stream.sample_predictions
+            assert stream.flush_detection_buffer() is not None
+            assert stream.flush_detection_buffer() is None
+            assert stream.sample_predictions == predictions_before_flush
+            assert not stream.buffered_training_samples
     print("PASS FedDrift detection batch assessment: binary/multiclass; first/tied/increased loss")
 
 
