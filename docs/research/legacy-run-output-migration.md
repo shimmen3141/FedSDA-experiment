@@ -263,7 +263,7 @@ combined・any・maxw・conf＝`prediction_correct_counts`の`combined_predictio
 | `routing_switching_effective_experts_mean` | `mean_fixed_share_effective_model_count` |
 | `routing_switching_leader_switch_count`・`routing_switching_pool_reset_count` | `fixed_share_weight_leader_switch_count`・`fixed_share_weight_model_pool_reset_count` |
 | `routing_aggregation_recalibration_count` | `adahedge_weight_aggregation_recalibration_count` |
-| `routing_switching_gain_rate`・`routing_switching_stable_gain_rate`・`routing_switching_recovery_gain_rate` | 持たない。Fixed-Shareの結合と、実際の予測の差で、上の数と割合から計算できる（（`fixed_share_weighted_prediction_correct_count`−combined）÷n、区間の正解の割合の差）。Fixed-Shareの重みで予測する構成では、いつも0 |
+| `routing_switching_gain_rate`・`routing_switching_stable_gain_rate`・`routing_switching_recovery_gain_rate` | 持たない。Fixed-Shareの結合と、実際の予測の差で、上の数と割合から計算できる: （`fixed_share_weighted_prediction_correct_count`−combined）÷n と、区間の正解の割合の差。Fixed-Shareの重みで予測する構成では、いつも0 |
 
 ### 残り（2026-10-11時点）
 

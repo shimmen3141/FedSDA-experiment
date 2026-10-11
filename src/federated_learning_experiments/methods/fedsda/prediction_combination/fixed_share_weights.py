@@ -1,4 +1,4 @@
-"""明示した固定条件と独立したモデル別予測重みの状態を管理する。"""
+"""明示した固定条件と独立した、モデル別のFixed-Shareの重みの状態を管理する。"""
 
 import math
 from collections.abc import Iterable, Mapping
@@ -40,7 +40,7 @@ class FixedShareWeightController:
 
     @property
     def weights_by_model_id(self) -> dict[int, float]:
-        """内部辞書と結合しない現在の予測重みを返す。"""
+        """内部辞書と結合しない現在の重みを返す。"""
         return dict(self._weights_by_model_id)
 
     @property
@@ -269,7 +269,7 @@ class FixedShareWeightController:
         ):
             self._leader_switch_count += 1
 
-    def _clear_prediction_weight_evidence(self) -> None:
+    def _clear_weight_evidence(self) -> None:
         """重みと累積分散だけを消去し、診断計数を保持する。"""
         self._weights_by_model_id = {}
         self._cumulative_observed_loss_variance = 0.0
@@ -289,7 +289,7 @@ class FixedShareWeightController:
 
     def reset_weights_after_aggregation(self) -> None:
         """集約後の明示的resetを、証拠が空でも一回として計数する。"""
-        self._clear_prediction_weight_evidence()
+        self._clear_weight_evidence()
         self._aggregation_recalibration_count += 1
 
     def replay_observed_losses(
@@ -303,7 +303,7 @@ class FixedShareWeightController:
         )
         if not validated_observed_loss_sequence:
             return
-        self._clear_prediction_weight_evidence()
+        self._clear_weight_evidence()
         for observed_losses_by_model_id in validated_observed_loss_sequence:
             prediction_weights_by_model_id = self.get_weights_before_label_observation(
                 model_ids=observed_losses_by_model_id,

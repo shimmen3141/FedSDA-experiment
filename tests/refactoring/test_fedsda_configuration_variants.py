@@ -152,6 +152,8 @@ CONFIGURATION_VARIANTS = {
         legacy_mode_name=PROPOSED_CONFIGURATION_VARIANT.legacy_mode_name,
         # 旧の`tools/run_main_ablation_suite.sh`の`global-routing`。
         legacy_setting_overrides={"SOFT_ROUTING_CONTEXT": "global"},
+        # 旧の、Fixed-Shareの結合と実際の予測の差の指標が、0とは限らない構成。
+        fixed_share_weights_are_used_for_prediction=False,
         modify_run_participant_settings=lambda run_participant_settings: (
             replace_prediction_combination_settings(
                 run_participant_settings,

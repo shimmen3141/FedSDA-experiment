@@ -625,22 +625,23 @@ def derive_legacy_prediction_diagnostic_metric_values(run_metrics):
     )
 
 
-def assert_prediction_diagnostic_metrics_match_legacy_metrics(*, run_metrics, legacy_metric_values):
-    """予測の診断の指標が、旧の指標の値（旧の40の指標）と、全部の項目で一致する。"""
+def assert_prediction_diagnostic_metrics_match_legacy_metrics(
+    *, run_metrics, legacy_metric_values, fixed_share_weights_are_used_for_prediction=True
+):
+    """予測の診断の指標が、旧の指標の値（旧の40の指標）と、全部の項目で一致する。
+
+    Fixed-Shareの重みで予測する構成では、Fixed-Shareの結合と実際の予測の差の指標が、いつも0であることも確かめる。
+    """
     prediction_diagnostic_values = derive_legacy_prediction_diagnostic_metric_values(run_metrics)
     assert len(prediction_diagnostic_values) == 40
     for legacy_metric_name, metric_value in prediction_diagnostic_values.items():
         assert type(metric_value) in (int, float), legacy_metric_name
         assert metric_value == legacy_metric_values[legacy_metric_name], legacy_metric_name
-    if (
-        run_metrics.prediction_diagnostic_metrics.prediction_correct_counts.combined_prediction_correct_count
-        == run_metrics.prediction_diagnostic_metrics.fixed_share_weighted_prediction_correct_count
-    ):
+    if fixed_share_weights_are_used_for_prediction:
         for (
             legacy_metric_name
         ) in LEGACY_PREDICTION_DIAGNOSTIC_METRIC_NAMES_ZERO_FOR_FIXED_SHARE_PREDICTION:
             assert legacy_metric_values[legacy_metric_name] == 0, legacy_metric_name
-    assert len(prediction_diagnostic_values) == 40
     # 実際の予測の正解の割合と、定常の区間の正解の割合は、既存の指標と同じ値。
     assert (
         prediction_diagnostic_values["routing_mixture_accuracy"] == run_metrics.prediction_accuracy
@@ -1709,7 +1710,12 @@ def compare_small_run_with_real_legacy(
     )
     # 予測の診断の指標が、実旧の集計と一致する。
     assert_prediction_diagnostic_metrics_match_legacy_metrics(
-        run_metrics=run_metrics, legacy_metric_values=legacy_model_diagnostic_results
+        run_metrics=run_metrics,
+        legacy_metric_values=legacy_model_diagnostic_results,
+        # 構成が指定しなければ、Fixed-Shareの重みで予測する構成。
+        fixed_share_weights_are_used_for_prediction=getattr(
+            configuration_variant, "fixed_share_weights_are_used_for_prediction", True
+        ),
     )
     legacy_metric_values = derive_legacy_metric_values(run_metrics)
     for legacy_metric_name in legacy_regression.METRICS:

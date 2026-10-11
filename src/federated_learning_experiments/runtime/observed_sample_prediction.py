@@ -166,7 +166,8 @@ def predict_observed_sample_and_update_prediction_weights(
     予測に使う重みは、`prediction_combination_strategy`で決まる: Fixed-Shareの重み（提案構成）か、AdaHedgeの重み。
     どちらの設定でも、両方の重みを更新し、使わなかった側の結合の結果も、比較用に記録する。
 
-    AdaHedgeの証拠（全標本のものと、真の概念IDがあればその概念の診断のもの）も、同じ損失で更新する。旧の最終構成の予測と同じ数値になる。
+    AdaHedgeの証拠（全標本のものと、真の概念IDがあればその概念の診断のもの）も、同じ損失で更新する。
+    Fixed-Shareの重みで予測する設定は、旧の最終構成の予測と、AdaHedgeの重みで予測する設定は、旧の`global`の指定の予測と、同じ数値になる。
     """
     _validate_observed_sample_prediction_inputs(
         indexed_observation=indexed_observation,
