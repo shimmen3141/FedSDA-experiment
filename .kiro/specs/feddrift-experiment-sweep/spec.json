@@ -3,7 +3,7 @@
   "created_at": "2026-10-12",
   "updated_at": "2026-10-12",
   "language": "ja",
-  "phase": "implementation-in-progress",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -56,5 +56,16 @@
     "result": "PASS、Blocker/Majorなし。Minor/任意の採否はtasks.mdへ記録、再レビュー不要。",
     "output": "../../venv/refactoring-tests/feddrift-sweep-haiku-review.jsonl",
     "independent_checks": "3189passed/exit0、fresh直接exit0/16flows、Ruff/format335、Git状態不変。全pytest/Linux/Pyright/names/identity未再現。"
-  }
+  },
+  "integration_validation": {
+    "tested_commit": "af8b6716053297534f5944b49b5b32ab35ba93bc",
+    "source_sha256_lf": "06d691f387f1e2aed6b6c6b173964570c7be40961febcdb44335d7dd1b260db4",
+    "source_path_count": 439,
+    "full_passed": 13646,
+    "full_skipped": 8,
+    "junit_testcase_count": 13654,
+    "junit": "../../venv/refactoring-tests/feddrift-experiment-sweep-full.xml",
+    "full_exit_code": 0
+  },
+  "completion_decision": "GO。3taskと全要求、仕様/実装独立レビュー、全pytest/品質/既存Linux golden/fresh/source identity成功。全構成goldenと旧実装を外す準備、残る適用可能な診断は後続。"
 }
