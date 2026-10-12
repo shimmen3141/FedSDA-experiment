@@ -16,7 +16,7 @@
 - 全構成golden、他LEGACY、旧実装削除は後続。変異testは既定で未実施。
 
 - task1 RED: 初回fixtureの必須統計不足は訂正しREDに数えない。その後1failed/11passed、重複ケースの下り3項目のみ不一致（240 vs 144byte）。修正後部品/既存クロス評価33passed。
-- task2 保存testの型名メタデータ不足を期待値に反映し、新規14passed。構成全体対照とfreshは進行中、実装レビュー・最終検証は未完了。
+- task2 保存testの型名メタデータ不足を期待値に反映し、新規14passed。当該時点では構成全体対照とfreshが進行中だった。その後のレビューと最終検証の結果は以下。
 
 - 独立Haiku 5.5 medium実装レビューPASS（Blocker/Majorなし）。Minor1/2: 完了時のfinding/README/承認文面更新を反映。Minor3: helper内の実旧補正照合と単独API保存の二段階をtest docstringで明記。Minor4: 観測wrapperを旧payloadと同じTensor限定に補足。Minor5: 空共有部でも重複除外するコメントを追加。任意6: 経路の観測条件は既存小規模の条件集合で有無を確かめる目的のため維持。Minor以下につき再レビュー不要。
 - 構成一括の初回は102passed/2failed。保存形式の期待値不足は新規14testで修正確認済み。クロス評価を全く実行しない条件では観測属性が作られないため、経路集計だけを0既定値に修正した（旧比較の期待値helperは元から0既定）。
@@ -26,3 +26,5 @@
 - Linux: WSL Ubuntu固定環境の新規14とFedDrift既存golden4は18passed/24.09秒。レビューMinor補足後の新規14は14passed/42.01秒。最初の選択式ではgoldenが選ばれなかったため、FedSDA環境別goldenをnode IDで明示し3passed/76.50秒。Windows/Linuxのgoldenは更新していない。
 - 受入れ判定: 要求1→呼出しごとの候補/client重複除外と全組テスト、要求2→抽出/RNG/評価/メッセージ維持と既存拒否/途中失敗/全状態対照、要求3→実旧イベント観測による補正期待値と合成/MNIST/保存/全回帰。3要求領域を満たし、依存方向/API/保存形式の変更なし、未完task/blockedなし。kiro-validate-impl/verify-completion: GO、証拠に対応する範囲でVERIFIED。
 - 未実施: 独立レビュー担当による全pytest/Linux/構成一括対照の再現、変異test。全構成goldenの作成と旧実装削除はこのspecの対象外。
+
+- 検証対象source commit: `48bcf8b655eee6cb48a2d9e4df5610e50aafe0d4`。tracked Python＋固定2golden計440パス、LF sha256 `a66c9450f28cb582481078ad3a91dd4e9306949b08e13cb384ef2617b50b4fc4`。identityで未commit差分なし、固定748c3aaとの差分なし、JUnit/旧golden case/件数の一致を確認。完了記録のcommitでPython/goldenは変更しない。
