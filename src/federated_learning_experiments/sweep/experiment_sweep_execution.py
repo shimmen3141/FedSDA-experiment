@@ -18,6 +18,14 @@ from torch import get_num_threads, set_num_threads
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
+from federated_learning_experiments.runtime.feddrift_experiment_run import (
+    execute_feddrift_experiment_run,
+)
+from federated_learning_experiments.runtime.feddrift_run_artifact_files import (
+    load_feddrift_run_artifacts,
+    save_feddrift_experiment_run,
+)
+from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
 from federated_learning_experiments.runtime.fedsda_experiment_run import (
     execute_fedsda_experiment_run,
 )
@@ -25,6 +33,7 @@ from federated_learning_experiments.runtime.fedsda_run_artifact_files import (
     load_fedsda_run_artifacts,
     save_fedsda_experiment_run,
 )
+from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.sweep.experiment_sweep_plan import PlannedExperimentRun
 
 # 構成のディレクトリの中の、runのファイルを置くディレクトリの名前。
@@ -67,12 +76,18 @@ def _get_run_directory(*, planned_run: PlannedExperimentRun, output_directory: P
     return output_directory / planned_run.configuration_name / RUN_DIRECTORY_NAME
 
 
+def _validate_run_settings_type(planned_run: PlannedExperimentRun) -> None:
+    if type(planned_run.run_settings) not in (FedsdaRunSettings, FeddriftRunSettings):
+        raise TypeError("run_settings must be exact FedsdaRunSettings or FeddriftRunSettings")
+
+
 def find_existing_run_state(
     *, planned_run: PlannedExperimentRun, output_directory: Path
 ) -> ExistingRunState:
     """出力先に、そのrunの、済んだ結果があるかを調べる。何も変えない。"""
     if type(planned_run) is not PlannedExperimentRun:
         raise TypeError("planned_run must be exact PlannedExperimentRun")
+    _validate_run_settings_type(planned_run)
     if not isinstance(output_directory, Path):
         raise TypeError("output_directory must be pathlib.Path")
     run_directory = _get_run_directory(planned_run=planned_run, output_directory=output_directory)
@@ -93,7 +108,12 @@ def find_existing_run_state(
             ),
         )
     try:
-        summary, _ = load_fedsda_run_artifacts(summary_file_path=summary_file_path)
+        loader = (
+            load_feddrift_run_artifacts
+            if type(planned_run.run_settings) is FeddriftRunSettings
+            else load_fedsda_run_artifacts
+        )
+        summary, _ = loader(summary_file_path=summary_file_path)
     except Exception as caught_exception:
         # 壊れたファイル（JSONでない、形式の版が違う、表のファイルが読めない、ほか）。
         return ExistingRunState(
@@ -122,6 +142,7 @@ def execute_planned_experiment_run(
     """
     if type(planned_run) is not PlannedExperimentRun:
         raise TypeError("planned_run must be exact PlannedExperimentRun")
+    _validate_run_settings_type(planned_run)
     if not isinstance(output_directory, Path):
         raise TypeError("output_directory must be pathlib.Path")
     thread_count_before = get_num_threads()
@@ -131,12 +152,20 @@ def execute_planned_experiment_run(
             planned_run=planned_run, output_directory=output_directory
         )
         run_directory.mkdir(parents=True, exist_ok=True)
-        experiment_run = execute_fedsda_experiment_run(run_settings=planned_run.run_settings)
-        save_fedsda_experiment_run(
-            experiment_run=experiment_run,
-            output_directory=run_directory,
-            file_stem=planned_run.run_identifier,
-        )
+        if type(planned_run.run_settings) is FeddriftRunSettings:
+            feddrift_run = execute_feddrift_experiment_run(run_settings=planned_run.run_settings)
+            save_feddrift_experiment_run(
+                experiment_run=feddrift_run,
+                output_directory=run_directory,
+                file_stem=planned_run.run_identifier,
+            )
+        elif type(planned_run.run_settings) is FedsdaRunSettings:
+            experiment_run = execute_fedsda_experiment_run(run_settings=planned_run.run_settings)
+            save_fedsda_experiment_run(
+                experiment_run=experiment_run,
+                output_directory=run_directory,
+                file_stem=planned_run.run_identifier,
+            )
     except Exception as caught_exception:
         return ExperimentRunOutcome(
             configuration_name=planned_run.configuration_name,

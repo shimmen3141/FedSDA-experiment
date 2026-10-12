@@ -1,8 +1,9 @@
 """掃引の計画（構成・dataset・seed・規模・集約間隔の組合せ）と、runの識別子。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 from json import dumps
+from math import isfinite
 
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
@@ -10,6 +11,7 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
+from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.sweep.experiment_configurations import (
     EXPERIMENT_CONFIGURATION_NAMES,
@@ -46,6 +48,7 @@ class ExperimentSweepPlan:
     client_count: int
     per_client_sample_count: int
     server_aggregation_intervals_per_client_samples: tuple[int, ...]
+    feddrift_loss_increase_thresholds: tuple[float, ...] | None = None
 
     def __post_init__(self) -> None:
         _validate_distinct_values(
@@ -71,6 +74,20 @@ class ExperimentSweepPlan:
         for count_name in ("client_count", "per_client_sample_count"):
             if type(getattr(self, count_name)) is not int:
                 raise TypeError(f"{count_name} must be builtin int")
+        if self.feddrift_loss_increase_thresholds is not None:
+            _validate_distinct_values(
+                values=self.feddrift_loss_increase_thresholds,
+                value_type=float,
+                field_name="feddrift_loss_increase_thresholds",
+            )
+            if "feddrift" not in self.configuration_names:
+                raise ValueError(
+                    "feddrift_loss_increase_thresholds requires feddrift configuration"
+                )
+            if any(
+                not isfinite(value) or value < 0 for value in self.feddrift_loss_increase_thresholds
+            ):
+                raise ValueError("feddrift_loss_increase_thresholds must be finite and nonnegative")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -79,10 +96,12 @@ class PlannedExperimentRun:
 
     configuration_name: str
     run_identifier: str
-    run_settings: FedsdaRunSettings
+    run_settings: FedsdaRunSettings | FeddriftRunSettings
 
 
-def make_run_identifier(*, configuration_name: str, run_settings: FedsdaRunSettings) -> str:
+def make_run_identifier(
+    *, configuration_name: str, run_settings: FedsdaRunSettings | FeddriftRunSettings
+) -> str:
     """`<dataset>_interval<集約間隔>_seed<seed>_<hash>`を返す。
 
     hashは、構成の名前と、完全なrun設定（保存用の辞書）から計算する。読める部分が同じでも、
@@ -92,8 +111,8 @@ def make_run_identifier(*, configuration_name: str, run_settings: FedsdaRunSetti
         raise TypeError("configuration_name must be builtin str")
     if not configuration_name:
         raise ValueError("configuration_name must not be empty")
-    if type(run_settings) is not FedsdaRunSettings:
-        raise TypeError("run_settings must be exact FedsdaRunSettings")
+    if type(run_settings) not in (FedsdaRunSettings, FeddriftRunSettings):
+        raise TypeError("run_settings must be exact FedsdaRunSettings or FeddriftRunSettings")
     canonical_text = dumps(
         {
             "configuration_name": configuration_name,
@@ -143,13 +162,38 @@ def build_planned_experiment_runs(
                             ),
                         ),
                     )
-                    planned_runs.append(
-                        PlannedExperimentRun(
-                            configuration_name=configuration_name,
-                            run_identifier=make_run_identifier(
-                                configuration_name=configuration_name, run_settings=run_settings
-                            ),
-                            run_settings=run_settings,
+                    if type(run_settings) is FeddriftRunSettings:
+                        participant = run_settings.run_participant_settings
+                        settings_variants = tuple(
+                            replace(
+                                run_settings,
+                                run_participant_settings=replace(
+                                    participant,
+                                    run_client_settings=replace(
+                                        participant.run_client_settings,
+                                        loss_increase_threshold=threshold,
+                                    ),
+                                    server_settings=replace(
+                                        participant.server_settings,
+                                        maximum_same_cluster_loss_increase=threshold,
+                                    ),
+                                ),
+                            )
+                            for threshold in (
+                                sweep_plan.feddrift_loss_increase_thresholds or (0.1,)
+                            )
                         )
-                    )
+                    else:
+                        settings_variants = (run_settings,)
+                    for settings_variant in settings_variants:
+                        planned_runs.append(
+                            PlannedExperimentRun(
+                                configuration_name=configuration_name,
+                                run_identifier=make_run_identifier(
+                                    configuration_name=configuration_name,
+                                    run_settings=settings_variant,
+                                ),
+                                run_settings=settings_variant,
+                            )
+                        )
     return tuple(planned_runs)

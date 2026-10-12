@@ -9,6 +9,10 @@ from dataclasses import replace
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
+from federated_learning_experiments.runtime.feddrift_default_run_settings import (
+    build_default_feddrift_run_settings,
+)
+from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
 from federated_learning_experiments.runtime.fedsda_final_configuration_run_settings import (
     build_final_configuration_fedsda_run_settings,
 )
@@ -52,6 +56,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
     WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,
     INDEPENDENT_MODELS_CONFIGURATION_NAME,
+    "feddrift",
 )
 
 
@@ -112,7 +117,7 @@ def _replace_candidate_model_training_and_acceptance_settings(
 
 def build_experiment_run_settings(
     *, configuration_name: str, experiment_run_conditions: ExperimentRunConditions
-) -> FedsdaRunSettings:
+) -> FedsdaRunSettings | FeddriftRunSettings:
     """構成の名前と実行条件から、1 runの完全なrun設定を作る。"""
     if type(configuration_name) is not str:
         raise TypeError("configuration_name must be builtin str")
@@ -122,6 +127,10 @@ def build_experiment_run_settings(
         raise ValueError(
             f"unknown experiment configuration: {configuration_name!r} "
             f"(available: {', '.join(EXPERIMENT_CONFIGURATION_NAMES)})"
+        )
+    if configuration_name == "feddrift":
+        return build_default_feddrift_run_settings(
+            experiment_run_conditions=experiment_run_conditions
         )
     proposed_run_settings = build_final_configuration_fedsda_run_settings(
         experiment_run_conditions=experiment_run_conditions

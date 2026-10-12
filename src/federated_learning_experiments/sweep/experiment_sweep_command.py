@@ -78,6 +78,14 @@ def _build_argument_parser() -> ArgumentParser:
         help="サーバの集約の間隔（clientあたりの標本数）",
     )
     argument_parser.add_argument(
+        "--feddrift-loss-increase-thresholds",
+        nargs="+",
+        type=float,
+        default=None,
+        metavar="THRESHOLD",
+        help="FedDriftの損失増分閾値（feddrift選択時だけ指定可、省略時0.1）。FedSDAはこの軸で増やさない",
+    )
+    argument_parser.add_argument(
         "--workers", type=int, default=1, help="並列に実行するprocessの数（既定1）"
     )
     argument_parser.add_argument(
@@ -130,6 +138,11 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
             per_client_sample_count=parsed_arguments.per_client_sample_count,
             server_aggregation_intervals_per_client_samples=tuple(
                 parsed_arguments.aggregation_intervals
+            ),
+            feddrift_loss_increase_thresholds=(
+                tuple(parsed_arguments.feddrift_loss_increase_thresholds)
+                if parsed_arguments.feddrift_loss_increase_thresholds is not None
+                else None
             ),
         )
         planned_runs = build_planned_experiment_runs(sweep_plan=sweep_plan)

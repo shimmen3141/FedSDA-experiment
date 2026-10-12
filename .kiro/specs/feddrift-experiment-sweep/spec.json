@@ -1,0 +1,60 @@
+{
+  "feature_name": "feddrift-experiment-sweep",
+  "created_at": "2026-10-12",
+  "updated_at": "2026-10-12",
+  "language": "ja",
+  "phase": "implementation-in-progress",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "base_revision": "021b0ef",
+    "target": "未commit仕様書群6文書",
+    "session_id": "01a12f84-8c33-74a1-a7b9-c956fc08a922",
+    "initial_result": "FAIL Major2件。修正範囲の独立再確認でPASS。",
+    "output": "../../venv/refactoring-tests/feddrift-sweep-spec-review-utf8.log",
+    "result": "Major2件の範囲明記を確認、PASS。新たな必須指摘なし。",
+    "correction_session_id": "01a12f86-9547-7c31-a5aa-49edd8fe8aea",
+    "correction_output": "../../venv/refactoring-tests/feddrift-sweep-spec-correction-review.log",
+    "discarded_review": {
+      "session_id": "01a12f82-c02d-73d2-b50e-a67b1ca2dd83",
+      "reason": "日本語文字化けで未確認、承認に使用しない"
+    }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "021b0ef",
+    "target": "未commit対象spec/source/test差分",
+    "session_id": "72e91c8e-7ea4-4af6-ba3d-c22ca7b16d84",
+    "actual_model": "claude-haiku-5-5",
+    "is_error": false,
+    "result": "PASS、Blocker/Majorなし。Minor/任意の採否はtasks.mdへ記録、再レビュー不要。",
+    "output": "../../venv/refactoring-tests/feddrift-sweep-haiku-review.jsonl",
+    "independent_checks": "3189passed/exit0、fresh直接exit0/16flows、Ruff/format335、Git状態不変。全pytest/Linux/Pyright/names/identity未再現。"
+  }
+}

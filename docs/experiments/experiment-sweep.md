@@ -108,3 +108,15 @@ python compare_sweep_results_with_legacy.py \
     <新の出力先>/fedsda/run_summary.csv \
     <旧の結果>/reference/pareto/pareto_*.csv
 ```
+
+## FedDriftを比較する
+
+新しい構成名は`feddrift`。`--aggregation-intervals`はFedDriftでは検出バッチ件数も指定する。`--feddrift-loss-increase-thresholds`は検出と統合に共通の損失増分閾値で、省略時は0.1。FedDriftを含まない計画では指定できない。
+
+```bash
+python run_experiment_sweep.py --configurations fedsda feddrift --datasets sine2 --seeds 0 1 --client-count 10 --per-client-sample-count 5000 --aggregation-intervals 50 --feddrift-loss-increase-thresholds 0.05 0.1 --workers 14 --output-directory results/comparison
+```
+
+この例はFedSDA 2 run、FedDrift 4 run。同じdataset・seed・規模・間隔で比較し、閾値軸はFedSDAを複製しない。FedDriftのRは既定1で、client/serverの閾値を同時に設定する。対応datasetはsine2・sea2・sea4・circle2・mnist2・mnist4。MNISTのファイルを配置する手順は既存と同じ。
+
+保存先は`<出力先>/feddrift/runs/`。要約JSONは完全条件と共通指標、NPZは記録表。`feddrift/run_summary.csv`は検出バッチ件数と損失増分閾値も含む。再実行は同じ条件の結果を飛ばし、破損・片方だけ・手法/条件不一致は上書きせず失敗とする。

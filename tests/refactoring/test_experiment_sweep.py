@@ -720,6 +720,7 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         client_count=2,
         per_client_sample_count=65,
         server_aggregation_intervals_per_client_samples=[10],
+        feddrift_loss_increase_thresholds=None,
     )
     assert record["worker_count"] == 2
     assert record["code_revision"]["commit"] == "a" * 40

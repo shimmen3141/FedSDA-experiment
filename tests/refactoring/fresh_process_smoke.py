@@ -2156,6 +2156,34 @@ def main():
     assert required_outcomes <= all_observed_outcomes, required_outcomes - all_observed_outcomes
     assert len(PROCESSED_ALARM_COUNTS) == len(SMOKE_SCENARIOS) * 2
     assert sum(PROCESSED_ALARM_COUNTS) > 0, PROCESSED_ALARM_COUNTS
+    # 新CLIから、既定FedDrift条件・専用軸・保存・再開を旧importなしで通す。
+    from federated_learning_experiments.sweep.experiment_sweep_command import main as sweep_main
+
+    with TemporaryDirectory() as directory:
+        arguments = [
+            "--configurations",
+            "feddrift",
+            "--datasets",
+            "sine2",
+            "--seeds",
+            "0",
+            "--client-count",
+            "2",
+            "--per-client-sample-count",
+            "5",
+            "--aggregation-intervals",
+            "3",
+            "--feddrift-loss-increase-thresholds",
+            "0.0",
+            "--workers",
+            "1",
+            "--output-directory",
+            directory,
+        ]
+        assert sweep_main(arguments + ["--print-plan"]) == 0
+        assert sweep_main(arguments) == 0
+        assert sweep_main(arguments) == 0
+    print("PASS FedDrift default configuration and sweep command, artifacts and resume")
     loaded_forbidden_modules = sorted(
         name
         for name in sys.modules

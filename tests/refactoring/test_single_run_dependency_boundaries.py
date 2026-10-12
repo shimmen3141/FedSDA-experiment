@@ -5580,26 +5580,49 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.get_num_threads",
             "torch.set_num_threads",
             "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.runtime.feddrift_experiment_run.execute_feddrift_experiment_run",
+            "federated_learning_experiments.runtime.feddrift_run_artifact_files.load_feddrift_run_artifacts",
+            "federated_learning_experiments.runtime.feddrift_run_artifact_files.save_feddrift_experiment_run",
+            "federated_learning_experiments.runtime.feddrift_run_settings.FeddriftRunSettings",
             "federated_learning_experiments.runtime.fedsda_experiment_run.execute_fedsda_experiment_run",
             "federated_learning_experiments.runtime.fedsda_run_artifact_files.load_fedsda_run_artifacts",
             "federated_learning_experiments.runtime.fedsda_run_artifact_files.save_fedsda_experiment_run",
+            "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
             "federated_learning_experiments.sweep.experiment_sweep_plan.PlannedExperimentRun",
         )
     if source_module_path == "sweep/experiment_sweep_plan.py":
         return imported_module_name in (
             "dataclasses.dataclass",
+            "dataclasses.replace",
             "hashlib.sha256",
             "json.dumps",
+            "math.isfinite",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
             "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.runtime.feddrift_run_settings.FeddriftRunSettings",
             "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
             "federated_learning_experiments.sweep.experiment_configurations.EXPERIMENT_CONFIGURATION_NAMES",
             "federated_learning_experiments.sweep.experiment_configurations.build_experiment_run_settings",
+        )
+    if source_module_path == "runtime/feddrift_default_run_settings.py":
+        return imported_module_name in (
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings.RandomConceptScheduleSettings",
+            "federated_learning_experiments.evaluation.run_metric_calculations.RunMetricSettings",
+            "federated_learning_experiments.learning.training.initial_model_pretraining_settings.InitialModelPretrainingSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.runtime.feddrift_run_client_settings.FeddriftRunClientSettings",
+            "federated_learning_experiments.runtime.feddrift_run_participant_factory.FeddriftRunParticipantSettings",
+            "federated_learning_experiments.runtime.feddrift_run_settings.FeddriftRunSettings",
+            "federated_learning_experiments.runtime.feddrift_server_settings.FeddriftServerSettings",
+            "federated_learning_experiments.runtime.feddrift_stream_run_execution.FeddriftStreamProtocolExecutionSettings",
         )
     if source_module_path == "sweep/experiment_configurations.py":
         return imported_module_name in (
             "dataclasses.replace",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.runtime.feddrift_default_run_settings.build_default_feddrift_run_settings",
+            "federated_learning_experiments.runtime.feddrift_run_settings.FeddriftRunSettings",
             "federated_learning_experiments.runtime.fedsda_final_configuration_run_settings.build_final_configuration_fedsda_run_settings",
             "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
         )
@@ -7039,6 +7062,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/fedsda_run_server.py",
             "runtime/fedsda_run_participant_factory.py",
             "runtime/fedsda_final_configuration_run_settings.py",
+            "runtime/feddrift_default_run_settings.py",
             "runtime/fedsda_run_settings.py",
             "runtime/fedsda_change_response_metric_derivation.py",
             "runtime/fedsda_model_diagnostic_metric_derivation.py",
@@ -7151,6 +7175,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedsda_run_server.py",
                     "runtime/fedsda_run_participant_factory.py",
                     "runtime/fedsda_final_configuration_run_settings.py",
+                    "runtime/feddrift_default_run_settings.py",
                     "runtime/fedsda_run_settings.py",
                     "runtime/fedsda_change_response_metric_derivation.py",
                     "runtime/fedsda_model_diagnostic_metric_derivation.py",
