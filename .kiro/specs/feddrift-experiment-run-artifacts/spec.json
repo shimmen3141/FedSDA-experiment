@@ -1,0 +1,63 @@
+{
+  "feature_name": "feddrift-experiment-run-artifacts",
+  "created_at": "2026-10-12",
+  "updated_at": "2026-10-12",
+  "language": "ja",
+  "phase": "implementation-in-progress",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "base_revision": "f968b2e",
+    "target": "未commit仕様書群6文書",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "result": "UTF-8で全6文書を確認しPASS。Minor1はloaderの境界明記として採用。",
+    "output": "../../venv/refactoring-tests/feddrift-artifacts-spec-review-utf8.log",
+    "session_id": "01a12f2e-554f-7b02-ac5d-836cc2b8a797",
+    "discarded_review": {
+      "session_id": "01a12f2c-d52d-7a32-9d1d-9d123632ceb6",
+      "reason": "日本語の文字化けで仕様全体を読めていなかったためPASSを承認に使用しない",
+      "output": "../../venv/refactoring-tests/feddrift-artifacts-spec-review.log"
+    }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "f968b2e",
+    "target": "未commit対象spec/source/test差分",
+    "session_id": "3bc24570-d18d-4991-bf73-47032378e6a5",
+    "actual_model": "claude-haiku-5-5",
+    "is_error": false,
+    "result": "Major1の修正範囲を独立再確認してPASS。新たな必須指摘なし。",
+    "output": "../../venv/refactoring-tests/feddrift-artifacts-haiku-review.jsonl",
+    "correction_session_id": "db1e7985-5196-4ff3-89c2-721f77feefbb",
+    "correction_actual_model": "claude-haiku-5-5",
+    "correction_is_error": false,
+    "correction_output": "../../venv/refactoring-tests/feddrift-artifacts-haiku-correction-review.jsonl",
+    "independent_checks": "初回3236passed/18.82s、fresh直接exit0/16flows、Ruff/format333、names/progress。修正再確認3146passed/11.78s、Ruff/format。全pytest/Linux/Pyright/変異未再現。",
+    "initial_result": "FAIL Major1（概念変更の表の値の照合不足）。修正後の狭い再確認でPASS。"
+  }
+}

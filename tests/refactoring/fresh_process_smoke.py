@@ -1917,44 +1917,46 @@ def run_feddrift_detection_batch_smoke():
         == 10
     )
     print("PASS FedDrift: participant factory observation/sync/stream finalization")
-    from federated_learning_experiments.runtime.feddrift_measured_run_execution import (
-        execute_feddrift_stream_protocol_run_with_computation_measurement,
+    from federated_learning_experiments.runtime.feddrift_experiment_run import (
+        execute_feddrift_experiment_run,
     )
-    from federated_learning_experiments.runtime.feddrift_run_metric_derivation import (
-        derive_feddrift_run_metrics,
+    from federated_learning_experiments.runtime.feddrift_run_artifact_files import (
+        load_feddrift_run_artifacts,
+        save_feddrift_experiment_run,
     )
+    from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
     from federated_learning_experiments.runtime.feddrift_stream_run_execution import (
         FeddriftStreamProtocolExecutionSettings,
     )
 
-    measured = execute_feddrift_stream_protocol_run_with_computation_measurement(
-        execution_settings=FeddriftStreamProtocolExecutionSettings(
-            experiment_run_conditions=ExperimentRunConditions(
-                dataset_name="sine2",
-                random_seed=71,
-                client_count=2,
-                per_client_sample_count=11,
-                server_aggregation_interval_per_client_samples=3,
+    experiment_run = execute_feddrift_experiment_run(
+        run_settings=FeddriftRunSettings(
+            execution_settings=FeddriftStreamProtocolExecutionSettings(
+                experiment_run_conditions=ExperimentRunConditions(
+                    dataset_name="sine2",
+                    random_seed=71,
+                    client_count=2,
+                    per_client_sample_count=11,
+                    server_aggregation_interval_per_client_samples=3,
+                ),
+                concept_schedule_settings=RandomConceptScheduleSettings(
+                    concept_schedule_strategy="random_changes_after_minimum_index_gap",
+                    minimum_sample_index_gap_before_change_trial=1,
+                    per_eligible_sample_concept_change_probability=0.5,
+                ),
             ),
-            concept_schedule_settings=RandomConceptScheduleSettings(
-                concept_schedule_strategy="random_changes_after_minimum_index_gap",
-                minimum_sample_index_gap_before_change_trial=1,
-                per_eligible_sample_concept_change_probability=0.5,
+            run_participant_settings=settings,
+            run_metric_settings=RunMetricSettings(
+                maximum_detection_delay_sample_count=3, post_change_recovery_window_sample_count=3
             ),
-        ),
-        run_participant_settings=settings,
+        )
     )
+    measured = experiment_run.measured_run
+
     result = measured.run_result
     assert measured.model_computation_counts.concept_specific_parameter_optimizer_step_count > 0
     assert len(measured.timestep_model_computation_counts) == 3
-    metrics = derive_feddrift_run_metrics(
-        run_result=result,
-        participants=measured.participants,
-        model_computation_counts=measured.model_computation_counts,
-        run_metric_settings=RunMetricSettings(
-            maximum_detection_delay_sample_count=3, post_change_recovery_window_sample_count=3
-        ),
-    )
+    metrics = experiment_run.run_metrics
     assert result.processed_sample_count_per_client == 9
     assert result.unprocessed_tail_sample_count_per_client == 2
     assert metrics.final_global_model_count >= 1
@@ -1968,7 +1970,17 @@ def run_feddrift_detection_batch_smoke():
     assert len(metrics.model_diagnostic_metrics.synchronized_timestep_model_counts) == 3
     assert metrics.model_diagnostic_metrics.mean_global_model_count_after_synchronization >= 1
     assert metrics.model_diagnostic_metrics.client_held_model_training_amounts
-    print("PASS FedDrift measured whole run and common core/cost/model metrics")
+    with TemporaryDirectory() as artifact_directory:
+        paths = save_feddrift_experiment_run(
+            experiment_run=experiment_run,
+            output_directory=Path(artifact_directory),
+            file_stem="feddrift",
+        )
+        summary, tables = load_feddrift_run_artifacts(summary_file_path=paths.summary_file_path)
+        assert summary["method_name"] == "feddrift"
+        assert tables["sample_prediction.prediction_is_correct"].shape == (2, 9)
+        assert tables["server_timestep.timestep_index"].tolist() == [0, 1, 2]
+    print("PASS FedDrift measured whole run and common core/cost/model metrics and artifacts")
 
 
 def main():

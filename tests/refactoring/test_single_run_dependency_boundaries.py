@@ -4849,6 +4849,63 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.Tensor",
             "torch.isfinite",
         )
+    if source_module_path == "runtime/feddrift_run_settings.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.evaluation.run_metric_calculations.RunMetricSettings",
+            "federated_learning_experiments.runtime.feddrift_run_participant_factory.FeddriftRunParticipantSettings",
+            "federated_learning_experiments.runtime.feddrift_stream_run_execution.FeddriftStreamProtocolExecutionSettings",
+        )
+    if source_module_path == "runtime/feddrift_experiment_run.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.runtime.feddrift_measured_run_execution.FeddriftMeasuredRun",
+            "federated_learning_experiments.runtime.feddrift_measured_run_execution.execute_feddrift_stream_protocol_run_with_computation_measurement",
+            "federated_learning_experiments.runtime.feddrift_run_metric_derivation.FeddriftRunMetrics",
+            "federated_learning_experiments.runtime.feddrift_run_metric_derivation.derive_feddrift_run_metrics",
+            "federated_learning_experiments.runtime.feddrift_run_settings.FeddriftRunSettings",
+        )
+    if source_module_path == "runtime/feddrift_run_record_tables.py":
+        return imported_module_name in (
+            "dataclasses.fields",
+            "math.nan",
+            "numpy.asarray",
+            "numpy.bool_",
+            "numpy.float64",
+            "numpy.int64",
+            "numpy.ndarray",
+            "numpy.str_",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
+            "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
+            "federated_learning_experiments.runtime.feddrift_detection_batch_processing.FeddriftDetectionBatchTransition",
+            "federated_learning_experiments.runtime.feddrift_experiment_run.FeddriftExperimentRun",
+            "federated_learning_experiments.runtime.feddrift_measured_run_execution.FeddriftMeasuredRun",
+            "federated_learning_experiments.runtime.feddrift_run_metric_derivation.FeddriftRunMetrics",
+            "federated_learning_experiments.runtime.feddrift_run_metric_derivation.derive_feddrift_run_metrics",
+            "federated_learning_experiments.runtime.feddrift_run_settings.FeddriftRunSettings",
+        )
+    if source_module_path == "runtime/feddrift_run_artifact_files.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "json.dumps",
+            "json.loads",
+            "os.replace",
+            "pathlib.Path",
+            "platform.machine",
+            "platform.python_version",
+            "platform.system",
+            "uuid.uuid4",
+            "numpy.__version__",
+            "numpy.load",
+            "numpy.ndarray",
+            "numpy.savez_compressed",
+            "torch.__version__",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.runtime.feddrift_experiment_run.FeddriftExperimentRun",
+            "federated_learning_experiments.runtime.feddrift_run_record_tables.build_feddrift_run_record_tables",
+        )
     if source_module_path == "evaluation/feddrift_model_diagnostic_records.py":
         return imported_module_name in ("dataclasses.dataclass",)
     if source_module_path == "runtime/feddrift_model_diagnostic_metric_derivation.py":
@@ -6935,6 +6992,10 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "runtime/feddrift_run_settings.py",
+            "runtime/feddrift_experiment_run.py",
+            "runtime/feddrift_run_record_tables.py",
+            "runtime/feddrift_run_artifact_files.py",
             "runtime/feddrift_model_diagnostic_metric_derivation.py",
             "evaluation/feddrift_model_diagnostic_records.py",
             "runtime/feddrift_measured_run_execution.py",
