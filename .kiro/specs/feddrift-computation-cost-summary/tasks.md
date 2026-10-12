@@ -8,7 +8,7 @@
   - 正/0/全0重み、単独/隔離、R/終端、事前検査失敗と旧状態/RNG/通信一致を確認。
   - _Depends: 1_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
-- [ ] 3. 共通summaryを指標とfreshへ接続し全検証を完了する
+- [x] 3. 共通summaryを指標とfreshへ接続し全検証を完了する
   - 任意モデル計数と記録対応検査をtest-firstで導出へ接続。None/ゼロ分母/破損記録/読取り性、既存基本指標を確認。
   - 共用freshとexact境界、独立実装レビュー/有用指摘対応、全pytest/旧golden/Linux/品質、source identity・完了記録・commit/push。
   - _Depends: 2_
@@ -30,4 +30,7 @@
 - Minor反映後の対象61 passed/6.05s。source/testを固定して全pytestを実行。今回の増分61は基点13432 testcaseから13493への増分と一致。変異testは既定に従い未実施。
 
 - 最終全pytest: 13485 passed/8 skipped/8 warnings、684.62s、exit0。JUnit13493 testcase、failure0/error0。基点13424 passed/8 skippedから61件増分。skipは環境別golden1/Linux専用4/POSIX bash不在3で、Linux専用4は別途成功。warningsは既存nested tensor/旧var/TypedStorageで、新testの警告なし。
-- 最終品質: Ruff check/format325成功、Pyright 0 errors/0 warnings、pip check成功、diff-check成功。names4source未登録なし。全pytest開始後のsource/test変更なし。検証commitとidentityは次の完了記録で照合する。
+- 最終品質: Ruff check/format325成功、Pyright 0 errors/0 warnings、pip check成功、diff-check成功。names4source未登録なし。全pytest開始後のsource/test変更なし。検証commitとidentityは下記。
+
+- 検証対象commit: f18f3a073f608e64ce1979db5b1845533e219e36。LF source hash 875596d5e945acba2693901764b2444c1a90d47accf7f6daff35682baf2c366f（429パス）。identityは固定旧748c3aaの差分なし、clean tree、JUnit13493/13485 passed/8 skipped、既存回帰2testcase（内部旧11・最終3golden）の成功を確認。最終文書commit後も同hashを再照合。
+- 完了判定: GO、3taskと全要求の証拠を確認、未完了taskなし。追加診断/成果物/CLIは後続の境界。共通summaryのclientはLinear演算のみで、clientパラメータ統合MACは別field。モデル計数の別run混入を認証するAPIは対象外。独立全pytest/Linux再現は未実施（主担当の実測は上記）。
