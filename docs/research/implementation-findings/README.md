@@ -4,23 +4,23 @@
 
 | ID | 件名 | 対象・状態 | 詳細 |
 |---|---|---|---|
-| LEGACY-001 | 候補採否と区間margin理由の丸め不整合 | 再現済み・未修正、移植では維持 | [記録](legacy-001-candidate-decision-reason-rounding.md) |
-| LEGACY-002 | 警報区間が短いと割当済み旧区間もFIFOに残る | 再現済み・未修正 | [記録](legacy-002-retained-assigned-samples-after-short-alarm.md) |
-| LEGACY-003 | 実験終端でFedSDA FIFO末尾を確定しない | 改善案・未採用、コード上の保持を確認 | [記録](legacy-003-unassigned-fifo-tail-at-run-end.md) |
-| LEGACY-004 | 不正な参照損失入力で旧収集sessionが部分更新 | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-004-partial-loss-collection-on-invalid-input.md) |
-| LEGACY-005 | クラス統計の保持について旧説明と実装が不一致 | 再現済み・未修正、説明の不整合 | [記録](legacy-005-class-statistics-documentation-mismatch.md) |
-| LEGACY-006 | 不正class入力で旧モデル全体統計が部分更新 | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-006-partial-model-statistics-on-invalid-class.md) |
-| LEGACY-007 | 空batchでNaN初期統計を登録する | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-007-empty-batch-nan-initial-statistics.md) |
-| LEGACY-008 | 極大件数でサーバ損失平均の範囲超過/除算失敗 | 再現済み・未修正、通常実験への影響未確認 | [記録](legacy-008-extreme-count-server-loss-aggregation.md) |
-| LEGACY-009 | 極大parameter値の単純平均が非有限になる | 再現済み・未修正、通常実験への影響未確認 | [記録](legacy-009-extreme-parameter-mean-overflow.md) |
-| LEGACY-010 | 空の共有特徴抽出部でoptimizer生成が失敗 | 再現済み・未修正、通常実験への影響未確認 | [記録](legacy-010-empty-shared-feature-optimizer.md) |
-| LEGACY-011 | 同一負IDの登録確認で件数倍増・概念件数消失 | 再現済み・未修正、不正通知での再現/通常影響未確認 | [記録](legacy-011-same-id-registration-count-corruption.md) |
-| LEGACY-012 | 新規モデル登録の途中失敗で共有部の上書きと採番消費が残る | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-012-partial-registration-on-invalid-statistics-input.md) |
-| LEGACY-013 | 使用済みの一時IDへの再登録が既存モデルを黙って置換する | 再現済み・未修正、正常経路での発生は未確認 | [記録](legacy-013-temporary-id-reregistration-overwrite.md) |
-| LEGACY-014 | 採用時の保留標本が割当概念計数と損失統計へ反映されない | 再現済み・未修正、意図した仕様か未確認、oracle診断への影響未確認 | [記録](legacy-014-adopted-model-pending-samples-not-counted.md) |
-| LEGACY-015 | 標本吸収の途中失敗で先行標本の更新と不正標本が残る | 再現済み・未修正、正常経路への影響未確認 | [記録](legacy-015-partial-absorption-on-invalid-sample.md) |
-| LEGACY-016 | 採用の後に現行モデルが戻ると、正式IDだけが採番され、採用したモデルは登録されない | 再現済み・未修正、意図した仕様か未確認、移植では維持 | [記録](legacy-016-registration-id-consumed-without-model.md) |
-| LEGACY-017 | クロス評価の読取りで、現行モデルの空の学習データの列が作られる | 再現済み・未修正、ラウンドの中で起きるかは未確認、新実装は作らない | [記録](legacy-017-cross-evaluation-creates-empty-training-collection.md) |
+| LEGACY-001 | 候補採否と区間margin理由の丸め不整合 | 採用（優先度低。採否から理由を作る。2026-10-13） | [記録](legacy-001-candidate-decision-reason-rounding.md) |
+| LEGACY-002 | 警報区間が短いと割当済み旧区間もFIFOに残る | 採用（2番目。前区間だけ消費。2026-10-13） | [記録](legacy-002-retained-assigned-samples-after-short-alarm.md) |
+| LEGACY-003 | 実験終端でFedSDA FIFO末尾を確定しない | 見送り（現行方針を維持。2026-10-13） | [記録](legacy-003-unassigned-fifo-tail-at-run-end.md) |
+| LEGACY-004 | 不正な参照損失入力で旧収集sessionが部分更新 | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-004-partial-loss-collection-on-invalid-input.md) |
+| LEGACY-005 | クラス統計の保持について旧説明と実装が不一致 | 説明の整理として採用（優先度低。2026-10-13） | [記録](legacy-005-class-statistics-documentation-mismatch.md) |
+| LEGACY-006 | 不正class入力で旧モデル全体統計が部分更新 | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-006-partial-model-statistics-on-invalid-class.md) |
+| LEGACY-007 | 空batchでNaN初期統計を登録する | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-007-empty-batch-nan-initial-statistics.md) |
+| LEGACY-008 | 極大件数でサーバ損失平均の範囲超過/除算失敗 | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-008-extreme-count-server-loss-aggregation.md) |
+| LEGACY-009 | 極大parameter値の単純平均が非有限になる | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-009-extreme-parameter-mean-overflow.md) |
+| LEGACY-010 | 空の共有特徴抽出部でoptimizer生成が失敗 | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-010-empty-shared-feature-optimizer.md) |
+| LEGACY-011 | 同一負IDの登録確認で件数倍増・概念件数消失 | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-011-same-id-registration-count-corruption.md) |
+| LEGACY-012 | 新規モデル登録の途中失敗で共有部の上書きと採番消費が残る | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-012-partial-registration-on-invalid-statistics-input.md) |
+| LEGACY-013 | 使用済みの一時IDへの再登録が既存モデルを黙って置換する | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-013-temporary-id-reregistration-overwrite.md) |
+| LEGACY-014 | 採用時の保留標本が割当概念計数と損失統計へ反映されない | 損失統計は問題なしで閉じた。概念計数だけ採用（3番目。2026-10-13） | [記録](legacy-014-adopted-model-pending-samples-not-counted.md) |
+| LEGACY-015 | 標本吸収の途中失敗で先行標本の更新と不正標本が残る | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-015-partial-absorption-on-invalid-sample.md) |
+| LEGACY-016 | 採用の後に現行モデルが戻ると、正式IDだけが採番され、採用したモデルは登録されない | 採用（最優先。送信保留の上書きの対処を含む。2026-10-13） | [記録](legacy-016-registration-id-consumed-without-model.md) |
+| LEGACY-017 | クロス評価の読取りで、現行モデルの空の学習データの列が作られる | 新実装の扱いを維持して閉じた（2026-10-13） | [記録](legacy-017-cross-evaluation-creates-empty-training-collection.md) |
 | LEGACY-018 | 共有部を持たないモデルでは、クロス評価の下りの通信量が、同じclientへの同じ候補の送信を、重複して数える | 新実装修正。合意済みの重複除外を全構成golden前に主担当判断で先行。固定旧は維持し、旧イベントから重複分を減算して厳密に照合 | [記録](legacy-018-cross-evaluation-download-volume-without-shared-part.md) |
 
 ## 移植しないと決めた旧機能・新実装で見つけた事項
@@ -29,15 +29,23 @@
 
 | ID | 件名 | 対象・状態 | 詳細 |
 |---|---|---|---|
-| UNPORTED-001 | 検出episodeの制御を新実装へ移植していない | 当面移植しない（2026-10-09、主担当の判断。最終構成で無効） | [記録](unported-001-detection-episode-control.md) |
+| UNPORTED-001 | 検出episodeの制御を新実装へ移植していない | 移植しない（2026-10-13、ユーザー了承。過去の結果では試行の2 runだけ） | [記録](unported-001-detection-episode-control.md) |
 | UNPORTED-002 | 参照モデルも学習させる候補検証方針を移植していない | 当面移植しない（2026-10-07、ユーザー判断） | [記録](unported-002-reference-shadow-tournament.md) |
-| UNPORTED-003 | 回復期だけ混合予測を有効にする方針と、警報側の通知を移植していない | 当面移植しない（2026-10-10、主担当の判断。最終構成は常時有効で、通知は何も変えない） | [記録](unported-003-drift-recovery-prediction-mixture-activation.md) |
+| UNPORTED-003 | 回復期だけ混合予測を有効にする方針と、警報側の通知を移植していない | 移植しない（2026-10-13、ユーザー了承。過去の結果では試行の12 runだけ） | [記録](unported-003-drift-recovery-prediction-mixture-activation.md) |
 | NEW-001 | 候補検証sessionの保持への反映で、拒否の文言が一部の入力に合わない | 修正済み（2026-10-09、`42fc7b8`。文言だけ） | [記録](new-001-holder-rejection-message-wording.md) |
 | NEW-002 | 候補検証sessionの保持と進行のtestに、汎用の変異toolで見つかった穴が2件ある | 修正済み（2026-10-09、`97d9c43`） | [記録](new-002-held-validation-test-gaps-found-by-mutation-tool.md) |
 | NEW-003 | 1回の共同更新の途中で失敗したときの学習量の計数が、旧と違う | 許容（2026-10-09、ユーザー決定。現在の流れでは読まれない） | [記録](new-003-training-count-after-mid-update-failure.md) |
 | NEW-004 | 旧実装の計算量との照合は、旧実装を外すときに取り除く（残すものと、置き換えるもの） | 後でやる作業の記録・未着手（2026-10-10、ユーザーの指示で記録。時期と方法は、ユーザーが決める） | [記録](new-004-legacy-computation-comparison-removal.md) |
 
-## 引継ぎ時の判断案（2026-10-13、Codex）
+## 決定（2026-10-13、ユーザー）
+
+下の「引継ぎ時の判断案」をClaude Codeが個別記録・現行コード・計測と照合して提案し、ユーザーが了承した。上の表の状態と、各記録の「判断（2026-10-13）」が正本。
+
+- 進める順: LEGACY-016（送信保留の上書きの対処を含む）→LEGACY-002→LEGACY-014の概念計数→LEGACY-001→整理（IMPROVE-013/014、LEGACY-005の説明）。
+- 挙動を直す変更（016・002）は、旧と同じ扱いを設定で選べる形で入れる（旧実装を外すまで）。旧との照合testと基準版1は、旧と同じ設定で通し続け、直した既定の値は、新しい基準版へ足す。移植し忘れを後から足すときに、旧との一致を確かめられるようにするため。
+- 判断案と違う点: LEGACY-016は送信保留の上書きも直す。LEGACY-014の損失統計は問題なし。LEGACY-004/006〜013/015/017は一括で閉じる。IMPROVE-005は実装済み。IMPROVE-002/003は見送り。
+
+## 引継ぎ時の判断案（2026-10-13、Codex。上の決定より前の案）
 
 以下は個別記録の観測と未確認事項に基づく**主担当の推奨案で、採用決定・変更承認ではない**。ユーザーはClaudeの見解も聞いて最終的な扱いを決めたいと希望している。再開時には個別記録と現行コードを照合し、未測定の効果や過去成果への影響を確定事項として扱わない。
 

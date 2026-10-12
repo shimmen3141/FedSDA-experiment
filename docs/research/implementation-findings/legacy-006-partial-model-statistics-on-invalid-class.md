@@ -39,3 +39,7 @@ worktreeの既存venvで実行し、上記assertとexit 0を確認した。
 [テスト](../../../tests/refactoring/test_model_and_class_loss_statistics.py)の`test_model_class_statistics_rejects_invalid_input_atomically`で同じ不正class入力の旧部分更新と新store非変更を対照した。後段class count overflowでも全体を保存しないことを確認。
 正常系列の全体/class値は旧直接oracleへ一致。全testsは2885 passed /3 skipped、旧11/最終3golden更新なし。詳細は同specのintegration-validation.md。
 これは新部品の堅牢性契約であり、旧productionを修正した記録ではない。旧修正spec/commitと正常client・過去成果への影響調査は引き続き未定。
+
+## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
+
+新実装で対応済みとして閉じる。新実装は、この入力を状態の更新より前に拒否する（上の「今回の扱い」と対照test）。固定旧748c3aaは変更しないので、直す対象は残らない。通常の実験の数値への影響はない。

@@ -23,3 +23,7 @@ Fixed-Shareの重みの保持（`FixedShareWeightController`）は、手法の�
 ## 必要な検証
 
 全pytest（依存境界、goldenの3ケース、構成の照合）が、変わらず成功すること。採否・変更commitは未定。
+
+## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
+
+採用（整理。値は変えない）。挙動を直す変更の後に行う。

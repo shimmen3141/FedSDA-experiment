@@ -38,3 +38,7 @@ assert -1 in client.models
 [テスト](../../../tests/refactoring/test_batch_loss_statistics_initialization.py)の`test_batch_initial_statistics_rejects_invalid_input_without_mutation`で旧空NaN登録と新非空拒否を同入力で対照し、正常24ケースは旧全fieldへ完全一致。
 全testsは2965 passed /3 skipped、旧11/最終3golden更新なし。詳細は同specのintegration-validation.md。
 新関数はモデル登録を所有しないため、旧登録処理の原子的修正を完了したとは扱わない。旧修正と正常経路・過去成果への影響調査は未定のまま保持する。
+
+## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
+
+新実装で対応済みとして閉じる。新実装は、この入力を状態の更新より前に拒否する（上の「今回の扱い」と対照test）。固定旧748c3aaは変更しないので、直す対象は残らない。通常の実験の数値への影響はない。

@@ -26,3 +26,7 @@
 - 全体runのgoldenとの照合で、学習データの並びに由来する差が出た場合は、ここを最初に疑う。
 
 関連: [model-cross-evaluationのdesign.md](../../../.kiro/specs/model-cross-evaluation/design.md)の「旧と違う点」。
+
+## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
+
+新実装の扱い（空の列を作らない）を維持して閉じる。

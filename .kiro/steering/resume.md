@@ -1,18 +1,18 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-13（important-behavior-regression-goldens完了。主担当Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
+更新: 2026-10-13（残る事項の採否をユーザーが決定。LEGACY-016の修正から進める。主担当Claude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
 Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
 Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う。レビュー担当の選択・起動・回数の正本は共通引継ぎ手順。
 
-## 最新の引継ぎ（2026-10-13、Codex→Claude Code）
+## 現在の作業（2026-10-13、主担当Claude Code。Codexからの引継ぎの後）
 
 - 同じworktree `.worktrees/refactoring`、ブランチ `refactor/architecture`で再開する。FedSDAの11構成、FedDrift、FedAvg（旧Oblivious）の実験入口まで移植済み。重要動作goldenのspecも完了し、未完了task・レビュー待ちはない。Git状態は再開時に確認する。
 - 完了の正本: [important-behavior-regression-goldensのspec.json](../specs/important-behavior-regression-goldens/spec.json)と[tasks.md](../specs/important-behavior-regression-goldens/tasks.md)。goldenの基準版・環境・追加手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。13構成の小runは全構成の全重要分岐を網羅するものではない。
-- **次の一手は実装ではなく採否の相談。** ユーザーは、Codexの調査・判断案を共有したうえでClaudeにも考えさせ、LEGACY／IMPROVE／NEW／UNPORTEDの最終的な扱いを決めたいと希望している。個別記録の根拠と現行コードを照合し、既決定・対応済みと未決定を分け、Claudeの推奨案をユーザーへ提示する。今回の整理は未採用案の実装承認ではない。
-- Codexの判断案の入口: [実装findingの判断案](../../docs/research/implementation-findings/README.md#引継ぎ時の判断案2026-10-13codex)、[改善候補の判断案](../../docs/research/improvement-candidates/README.md#引継ぎ時の判断案2026-10-13codex)。各案は未検証・未採用のまま。LEGACY-018、NEW-001/002は対応済み、NEW-003・IMPROVE-009・UNPORTED-002にはユーザー判断がある。
+- **採否は決まった（2026-10-13ユーザー）。** 正本は[実装findingの決定](../../docs/research/implementation-findings/README.md#決定2026-10-13ユーザー)と[改善候補の決定](../../docs/research/improvement-candidates/README.md#決定2026-10-13ユーザー)、各記録の「判断（2026-10-13）」。進める順: LEGACY-016（送信保留の上書きの対処を含む）→LEGACY-002→LEGACY-014の概念計数→LEGACY-001→整理（IMPROVE-013/014、LEGACY-005の説明）。保留は、効果や頻度を測ってから決める。
+- 挙動を直す変更（016・002）は、旧と同じ扱いを設定で選べる形で入れる（旧実装を外すまで）。旧との照合testと基準版1は、旧と同じ設定で通し続け、直した既定の値は、新しい基準版へ足す。修正で精度・通信量などが下がる場合は、ユーザーへ報告する（2026-10-13ユーザー指示）。
 - 採否後の変更は影響に応じた別specで扱う。固定旧748c3aaと旧goldenは維持する。新基準版1は修正前の比較に使い、意図した変更の期待差を検証してから必要な新基準版を追加する。旧実装削除やNEW-004の照合削除へ先に進まない。
 
 以下の2026-10-11の引継ぎ、長い過去の分割案、末尾のserver同期開始メモは履歴であり、そこにある「次」「進行中」「未移植」は当時の状態。現在の次の一手は上記を優先し、実際の完了状態は各specで確認する。

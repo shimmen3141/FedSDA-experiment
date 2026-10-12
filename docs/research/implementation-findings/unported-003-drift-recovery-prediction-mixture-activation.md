@@ -32,3 +32,7 @@
 - 必要な検証: 実旧の`drift_recovery`のclientを使う対照test、設定の値の追加、有効にした条件の基準（golden）の作成。
 
 関連: [observed-sample-predictionのresearch.md](../../../.kiro/specs/observed-sample-prediction/research.md)、[observed-sample-processingのdesign.md](../../../.kiro/specs/observed-sample-processing/design.md) 2節の「予測側の通知の位置」。
+
+## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
+
+見送り（移植しない）。過去の結果のmanifestで、`drift_recovery`のrunは12件（`results/results_20260904_002849_soft-routing-activation-smoke`）だけで、試行と判断した。

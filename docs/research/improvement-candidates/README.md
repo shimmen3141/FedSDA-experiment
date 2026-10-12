@@ -16,24 +16,28 @@
 
 | ID | 件名 | 状態 | 記録 |
 | --- | --- | --- | --- |
-| IMPROVE-001（旧ALGO-001） | 警報区間の同率再利用候補で現行モデルを優先 | 未検証・未採用 | [詳細](improve-001-current-model-priority-on-reuse-ties.md) |
-| IMPROVE-002 | 参照モデルの固定で不要なランダム初期化を省く | 未検証・未採用 | [詳細](improve-002-skip-random-initialization-of-fixed-reference-models.md) |
-| IMPROVE-003 | 固定した参照モデルの検証損失を到達時にまとめて評価 | 未検証・未採用 | [詳細](improve-003-batch-fixed-reference-loss-evaluation.md) |
-| IMPROVE-004 | 履歴基準が使えないモデルの警報区間評価を省く | 未検証・未採用 | [詳細](improve-004-skip-alarm-loss-evaluation-without-reuse-baseline.md) |
-| IMPROVE-005 | 前区間の事前検査と吸収で損失評価を共用 | 未検証・未採用 | [詳細](improve-005-reuse-prevalidated-alarm-interval-losses.md) |
-| IMPROVE-006 | 変化区間が不足した警報の後、検出の証拠を破棄しない | 未検証・未採用 | [詳細](improve-006-keep-detection-evidence-after-too-short-alarm.md) |
-| IMPROVE-007 | 最終予測に不要な比較予測診断を選択実行する | 未検証・未採用 | [詳細](improve-007-optional-counterfactual-prediction-diagnostics.md) |
-| IMPROVE-008 | 警報応答で、区間解決の引数の検査を区間の準備より前に行う | 未検証・未採用 | [詳細](improve-008-validate-alarm-resolution-inputs-before-preparation.md) |
+| IMPROVE-001（旧ALGO-001） | 警報区間の同率再利用候補で現行モデルを優先 | 保留（2026-10-13） | [詳細](improve-001-current-model-priority-on-reuse-ties.md) |
+| IMPROVE-002 | 参照モデルの固定で不要なランダム初期化を省く | 見送り（2026-10-13） | [詳細](improve-002-skip-random-initialization-of-fixed-reference-models.md) |
+| IMPROVE-003 | 固定した参照モデルの検証損失を到達時にまとめて評価 | 見送り（2026-10-13） | [詳細](improve-003-batch-fixed-reference-loss-evaluation.md) |
+| IMPROVE-004 | 履歴基準が使えないモデルの警報区間評価を省く | 保留（2026-10-13） | [詳細](improve-004-skip-alarm-loss-evaluation-without-reuse-baseline.md) |
+| IMPROVE-005 | 前区間の事前検査と吸収で損失評価を共用 | 対応済み（`baf072c`。2026-10-13に確認） | [詳細](improve-005-reuse-prevalidated-alarm-interval-losses.md) |
+| IMPROVE-006 | 変化区間が不足した警報の後、検出の証拠を破棄しない | 保留（LEGACY-002の後。2026-10-13） | [詳細](improve-006-keep-detection-evidence-after-too-short-alarm.md) |
+| IMPROVE-007 | 最終予測に不要な比較予測診断を選択実行する | 保留（2026-10-13） | [詳細](improve-007-optional-counterfactual-prediction-diagnostics.md) |
+| IMPROVE-008 | 警報応答で、区間解決の引数の検査を区間の準備より前に行う | 保留（2026-10-13） | [詳細](improve-008-validate-alarm-resolution-inputs-before-preparation.md) |
 | IMPROVE-009 | 依存境界testの方式を一本化し、機械生成の注入契約testを減らす | 見送り（2026-10-09ユーザー決定） | [詳細](improve-009-unify-dependency-boundary-tests.md) |
-| IMPROVE-010 | 保留標本の並びの検査を1箇所にまとめる | 未検証・未採用 | [詳細](improve-010-share-pending-observation-validation.md) |
-| IMPROVE-011 | 共同学習の反復が、参加したモデルを返す（計数の側の参加条件の重複をなくす） | 未検証・未採用 | [詳細](improve-011-report-participating-models-from-joint-training.md) |
-| IMPROVE-012 | 観測標本の特徴を、配列で持つ（MNISTの784特徴で、標本ごとのメモリを減らす） | 未検証・未採用 | [詳細](improve-012-hold-observed-sample-features-as-array.md) |
-| IMPROVE-013 | AdaHedgeの重みの証拠を、評価の層から移す（予測に使う構成ができたため） | 未検証・未採用 | [詳細](improve-013-move-adahedge-weight-evidence-out-of-evaluation-layer.md) |
-| IMPROVE-014 | adapterを持たない構造も扱う分類器の、クラスと属性の名前を、構造に依らない名前へ改める | 未検証・未採用 | [詳細](improve-014-rename-classifier-that-may-have-no-adapter.md) |
+| IMPROVE-010 | 保留標本の並びの検査を1箇所にまとめる | 保留（2026-10-13） | [詳細](improve-010-share-pending-observation-validation.md) |
+| IMPROVE-011 | 共同学習の反復が、参加したモデルを返す（計数の側の参加条件の重複をなくす） | 保留（2026-10-13） | [詳細](improve-011-report-participating-models-from-joint-training.md) |
+| IMPROVE-012 | 観測標本の特徴を、配列で持つ（MNISTの784特徴で、標本ごとのメモリを減らす） | 保留（2026-10-13） | [詳細](improve-012-hold-observed-sample-features-as-array.md) |
+| IMPROVE-013 | AdaHedgeの重みの証拠を、評価の層から移す（予測に使う構成ができたため） | 採用（整理。挙動の修正の後。2026-10-13） | [詳細](improve-013-move-adahedge-weight-evidence-out-of-evaluation-layer.md) |
+| IMPROVE-014 | adapterを持たない構造も扱う分類器の、クラスと属性の名前を、構造に依らない名前へ改める | 採用（整理。挙動の修正の後。2026-10-13） | [詳細](improve-014-rename-classifier-that-may-have-no-adapter.md) |
 
-## 引継ぎ時の判断案（2026-10-13、Codex）
+## 決定（2026-10-13、ユーザー）
 
-以下は**未検証の主担当推奨案であり、採用決定ではない**。ユーザーはClaudeにも再検討させて最終判断することを希望している。まず[実装findingの判断案](../implementation-findings/README.md#引継ぎ時の判断案2026-10-13codex)の正常経路の整合性を検討し、効率化・構造整理・研究アルゴリズム調整を同じ修正へ混ぜない。
+上の表の状態と、各記録の「判断（2026-10-13）」が正本（Claude Codeの提案をユーザーが了承）。保留は、効果や頻度を測ってから採否を決める（測るまで実装しない）。経緯は[実装findingの決定](../implementation-findings/README.md#決定2026-10-13ユーザー)。
+
+## 引継ぎ時の判断案（2026-10-13、Codex。上の決定より前の案）
+
+以下は**未検証の主担当推奨案であり、採用決定ではない**。ユーザーはClaudeにも再検討させて最終判断することを希望している。まず[実装findingの判断案](../implementation-findings/README.md#引継ぎ時の判断案2026-10-13codex上の決定より前の案)の正常経路の整合性を検討し、効率化・構造整理・研究アルゴリズム調整を同じ修正へ混ぜない。
 
 | 対象 | Codexの判断案 | 判断に必要な条件 |
 |---|---|---|

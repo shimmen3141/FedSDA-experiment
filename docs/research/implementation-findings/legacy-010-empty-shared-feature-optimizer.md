@@ -22,3 +22,7 @@ ResidualAdapterMLP(input_dim=2, dataset="sine2", backbone=SharedFeatureBackbone(
 ## 将来修正案
 後続の共同/単一モデル学習specで、共有Parameterが空なら共有optimizerを生成せず個別Parameterだけを更新する案を検討する。
 空共有部のforward/backward/個別optimizer step、非空構成の旧golden不変を検証する。旧実装側の修正採否と必要な再実験は未定。
+
+## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
+
+新実装で対応済みとして閉じる。共有部を持たない構造（fedsda-independent-models）は、共有部のoptimizerを持たない形で動く。固定旧は変更しない。

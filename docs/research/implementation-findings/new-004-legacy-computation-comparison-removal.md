@@ -52,3 +52,7 @@
 
 - 調査の記録（旧の計数の検査の結果、新実装の3箇所の重複）: [model-computation-measurementのrequirements.md・research.md](../../../.kiro/specs/model-computation-measurement/)
 - 計算量の測り方の決定（積和演算、逆伝播の見積り、サーバの演算数、保有モデル数での正規化）: 再開案内（`.kiro/steering/resume.md`）の「ユーザー確認待ち・未解消の事項」
+
+## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
+
+保留（旧実装を外す準備のときに行う）。変更なし。

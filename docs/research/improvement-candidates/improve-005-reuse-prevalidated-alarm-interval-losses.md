@@ -24,3 +24,7 @@
 - 採否の閾値は未定。未検証の候補であり、現移植のsource・goldenには適用していない。
 
 IMPROVE-004は履歴基準を使えないモデルを区間評価から省く案。本件は前区間の入力検査と吸収にある同一損失評価の共用で、対象も拒否契約上のリスクも異なる。
+
+## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
+
+対応済み。commit `baf072c`（model-computation-measurementの独立レビューの反映）で、区間の準備が計算した損失を、取込みへ渡している（`absorb_assigned_training_samples_into_held_model`の`evaluated_observed_losses`）。この記録の状態が、古いままだった。

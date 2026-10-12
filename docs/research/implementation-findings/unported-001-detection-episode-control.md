@@ -32,3 +32,7 @@
 - 旧の掃引軸・CLI・manifestの`detection_episodes`を新の実行scriptへ引き継ぐかどうかは、掃引・CLIの切替えのspecで決める。それまで、新実装でこの機能を有効にする指定は受け付けない形にする（黙って無視しない）。
 
 関連: [alarm-occurrence-handlingのresearch.md](../../../.kiro/specs/alarm-occurrence-handling/research.md)、[再開案内](../../../.kiro/steering/resume.md)の「未移植として残している細目」。
+
+## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
+
+見送り（移植しない）。過去の結果のmanifestで、有効（`detection_episodes: true`）のrunは2件（`results/_detection_episode_comparison`）だけで、試行と判断した。
