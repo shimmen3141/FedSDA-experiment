@@ -31,6 +31,10 @@ from federated_learning_experiments.runtime.feddrift_client_stream_processing im
 from federated_learning_experiments.runtime.feddrift_detection_batch_processing import (
     FeddriftDetectionBatchTransition,
 )
+from federated_learning_experiments.runtime.feddrift_model_diagnostic_metric_derivation import (
+    FeddriftModelDiagnosticMetrics,
+    derive_feddrift_model_diagnostic_metrics,
+)
 from federated_learning_experiments.runtime.feddrift_run_participant_factory import (
     FeddriftRunParticipants,
 )
@@ -40,6 +44,7 @@ from federated_learning_experiments.runtime.feddrift_run_participant_factory imp
 class FeddriftRunMetrics:
     """共通定義によるFedDrift基本指標。"""
 
+    model_diagnostic_metrics: FeddriftModelDiagnosticMetrics
     prediction_accuracy: float
     stable_period_prediction_accuracy: float
     training_model_switch_detection_metrics: DetectionMetrics
@@ -179,6 +184,15 @@ def derive_feddrift_run_metrics(
         for mid in repository.global_model_ids
         for parameter in repository.get_global_model_parameters(model_id=mid).values()
     )
+    model_diagnostics = derive_feddrift_model_diagnostic_metrics(
+        run_clients=participants.run_clients,
+        run_server=participants.run_server,
+    )
+    records = model_diagnostics.synchronized_timestep_model_counts
+    if len(records) != run_result.synchronization_interval_count or tuple(
+        record.timestep_index for record in records
+    ) != tuple(range(run_result.synchronization_interval_count)):
+        raise ValueError("モデル数記録の時刻/件数がrunの同期と対応していません。")
     server_counts = participants.run_server.snapshot_server_computation_counts()
     client_consolidation_count = (
         participants.run_server.client_consolidation_parameter_multiply_accumulate_count
@@ -195,6 +209,7 @@ def derive_feddrift_run_metrics(
         else None
     )
     return FeddriftRunMetrics(
+        model_diagnostic_metrics=model_diagnostics,
         prediction_accuracy=calculate_prediction_accuracy(
             prediction_correctness_by_client=correctness
         ),

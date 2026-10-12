@@ -4849,8 +4849,32 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.Tensor",
             "torch.isfinite",
         )
+    if source_module_path == "evaluation/feddrift_model_diagnostic_records.py":
+        return imported_module_name in ("dataclasses.dataclass",)
+    if source_module_path == "runtime/feddrift_model_diagnostic_metric_derivation.py":
+        return imported_module_name in (
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingState",
+            "dataclasses.dataclass",
+            "numpy.asarray",
+            "numpy.float64",
+            "federated_learning_experiments.evaluation.model_clustering_record_store.ModelClusteringRecordStore",
+            "federated_learning_experiments.evaluation.model_clustering_record_store.ModelPairClusteringObservation",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
+            "federated_learning_experiments.evaluation.feddrift_model_diagnostic_records.FeddriftClientHeldModelTrainingAmount",
+            "federated_learning_experiments.evaluation.feddrift_model_diagnostic_records.FeddriftSynchronizedTimestepModelCounts",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.ClusterAssignmentTrueConceptAgreement",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.ValueDistributionSummary",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.calculate_cluster_assignment_true_concept_agreement",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.calculate_lower_value_same_concept_auc",
+            "federated_learning_experiments.evaluation.model_diagnostic_metric_calculations.summarize_value_distribution",
+            "federated_learning_experiments.runtime.feddrift_run_client.FeddriftRunClient",
+            "federated_learning_experiments.runtime.feddrift_run_server.FeddriftRunServer",
+        )
     if source_module_path == "runtime/feddrift_run_server.py":
         return imported_module_name in (
+            "federated_learning_experiments.evaluation.feddrift_model_diagnostic_records.FeddriftSynchronizedTimestepModelCounts",
             "federated_learning_experiments.evaluation.computation_cost_summary.ServerComputationCounts",
             "federated_learning_experiments.evaluation.communication_volume_record_store",
             "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
@@ -5634,6 +5658,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/feddrift_run_metric_derivation.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.feddrift_model_diagnostic_metric_derivation.FeddriftModelDiagnosticMetrics",
+            "federated_learning_experiments.runtime.feddrift_model_diagnostic_metric_derivation.derive_feddrift_model_diagnostic_metrics",
             "federated_learning_experiments.evaluation.computation_cost_summary.ComputationCostSummary",
             "federated_learning_experiments.evaluation.computation_cost_summary.ServerComputationCounts",
             "federated_learning_experiments.evaluation.computation_cost_summary.summarize_computation_cost",
@@ -6909,6 +6935,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "runtime/feddrift_model_diagnostic_metric_derivation.py",
+            "evaluation/feddrift_model_diagnostic_records.py",
             "runtime/feddrift_measured_run_execution.py",
             "runtime/feddrift_stream_run_execution.py",
             "runtime/feddrift_run_metric_derivation.py",

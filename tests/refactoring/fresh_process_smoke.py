@@ -1965,7 +1965,10 @@ def run_feddrift_detection_batch_smoke():
     assert metrics.computation_cost_summary is not None
     assert metrics.server_computation_counts.aggregation_parameter_multiply_accumulate_count > 0
     assert metrics.client_consolidation_parameter_multiply_accumulate_count >= 0
-    print("PASS FedDrift measured whole run and common core/cost metrics")
+    assert len(metrics.model_diagnostic_metrics.synchronized_timestep_model_counts) == 3
+    assert metrics.model_diagnostic_metrics.mean_global_model_count_after_synchronization >= 1
+    assert metrics.model_diagnostic_metrics.client_held_model_training_amounts
+    print("PASS FedDrift measured whole run and common core/cost/model metrics")
 
 
 def main():

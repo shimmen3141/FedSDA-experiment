@@ -1,0 +1,15 @@
+# Research & Design Decisions
+## Summary
+Extension。FedSDAで既に使うモデル診断の算式を、FedDriftの実同期と既存ownerへ接続する。
+
+## Research Log
+- FeddriftRunServerのsynchronize_timestepはprepareとR回の学習/集約/配布を一つの入口で実行する。成功出口のrecordで通常時刻1件を得られる。終端は別入口なので系列へ混ぜない。
+- FedDriftのget_held_model_idsは統計/学習標本のIDも含む。実数はheld registryから得る。
+- model_training_and_assignment_countsは統合/正式ID確認で既に移送済み。終了時保有モデルに限定する旧experiment._add_model_diagnostic_resultsと一致する。
+- 共通model_diagnostic_metric_calculationsは学習量の分布/クラスタ一致/AUCを持つ。FedSDA runtimeにある記録型をimportせず、FedDriftの記録型を追加することで手法間依存を作らない。
+- 旧experiment._add_telemetry_resultsはglobal数を通常時刻ごとに集計する。model_count_aucは面積の連続積分ではなく件数の和。新名は延べ合計とする。
+- FedDriftのクロス評価はcorrectness比較なし。予測相補性の追加forward/0を未計測の意味で流用する変更は、このモデル診断specへ混ぜない。
+- fable-method、既読cc-sdd skills・rules/templatesと共有手順を使用。外部依存や新方式は導入せずlocalコードの契約で調査。
+
+## Decisions and Risks
+既存平均/学習/乱数の順は変えない。追加は不変recordと成功出口のappend、読取り集計だけ。別runの記録を認証するAPIは設けない。契約外入力の旧部分更新は維持し、新記録の全operation rollbackを追加しない。

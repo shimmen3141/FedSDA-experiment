@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-12（feddrift-computation-cost-summary完了。主担当Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
+更新: 2026-10-12（feddrift-model-diagnostic-metricsの独立実装レビュー・最終検証へ進行中。主担当Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -149,6 +149,8 @@ clientの組立てと実行の枠の5操作（`FedsdaRunClient`）、標本1件�
 ## 次の候補（未仕様化・未承認）
 
 ### 次: FedDriftの追加診断と成果物/CLI
+
+[feddrift-model-diagnostic-metrics](../specs/feddrift-model-diagnostic-metrics/tasks.md)のモデル数系列/終了時学習量/クラスタ診断とwhole metrics接続を実装中。未完了taskの最終レビュー・検証を先に完了する。
 
 全体run・共通基本指標・共通モデル計測は接続済み。[feddrift-computation-cost-summary](../specs/feddrift-computation-cost-summary/tasks.md)で保有モデル数とパラメータ演算の記録・共通summary接続を完了した。FedDriftは現在モデルだけで予測するため、予測のforward標本数を保有モデル×標本の分母へ流用しない。適用可能な追加診断と記録/保存/CLIは後続。候補検証/予測混合/再較正はFedDriftへ機械的に当てはめない。基本指標のLinux別goldenと、未接続の指標/成果物の検証範囲を区別する。
 

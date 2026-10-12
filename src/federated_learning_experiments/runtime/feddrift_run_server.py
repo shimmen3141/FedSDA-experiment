@@ -13,6 +13,9 @@ from federated_learning_experiments.evaluation.computation_cost_summary import (
 from federated_learning_experiments.evaluation.cross_evaluation_record_store import (
     CrossEvaluationRecordStore,
 )
+from federated_learning_experiments.evaluation.feddrift_model_diagnostic_records import (
+    FeddriftSynchronizedTimestepModelCounts,
+)
 from federated_learning_experiments.evaluation.model_clustering_record_store import (
     ModelClusteringRecordStore,
     ModelPairClusteringObservation,
@@ -125,6 +128,7 @@ class FeddriftRunServer:
         self.communication_volume_record_store = CommunicationVolumeRecordStore()
         self.cross_evaluation_record_store = CrossEvaluationRecordStore()
         self.model_clustering_record_store = ModelClusteringRecordStore()
+        self._synchronized_timestep_model_counts: list[FeddriftSynchronizedTimestepModelCounts] = []
         self._model_weights = {0: server_settings.initial_model_aggregation_weight}
         self._isolation_until: dict[int, int] = {}
         self._aggregation_parameter_multiply_accumulate_count = 0
@@ -258,6 +262,20 @@ class FeddriftRunServer:
             raise ValueError("client統合MACは非負が必要です。")
         return count
 
+    def snapshot_synchronized_timestep_model_counts(
+        self,
+    ) -> tuple[FeddriftSynchronizedTimestepModelCounts, ...]:
+        """完了した通常同期のモデル数を記録順で返す。"""
+        if type(self._synchronized_timestep_model_counts) is not list:
+            raise TypeError("同期モデル数のownerはlistが必要です。")
+        for record in self._synchronized_timestep_model_counts:
+            if type(record) is not FeddriftSynchronizedTimestepModelCounts:
+                raise TypeError("exact FeddriftSynchronizedTimestepModelCountsが必要です。")
+            record.__post_init__()
+            if len(record.client_held_model_counts) != len(self.run_clients):
+                raise ValueError("同期保有数とclient件数が対応していません。")
+        return tuple(self._synchronized_timestep_model_counts)
+
     def snapshot_isolation_until(self) -> dict[int, int]:
         return dict(self._isolation_until)
 
@@ -389,6 +407,18 @@ class FeddriftRunServer:
             for client in self.run_clients:
                 client.train_local_round()
             self.aggregate_and_distribute_training_round(timestep_index=timestep_index)
+        self._synchronized_timestep_model_counts.append(
+            FeddriftSynchronizedTimestepModelCounts(
+                timestep_index=timestep_index,
+                global_model_count=len(self.global_model_repository.global_model_ids),
+                client_held_model_counts=tuple(
+                    len(
+                        client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+                    )
+                    for client in self.run_clients
+                ),
+            )
+        )
 
     def _validate_clients(self, *, validate_training_inputs: bool = True) -> None:
         if type(self.run_clients) is not tuple or not self.run_clients:
@@ -491,6 +521,7 @@ class FeddriftRunServer:
         self, timestep_index: int, *, validate_training_inputs: bool = True
     ) -> None:
         _validate_timestep(timestep_index)
+        self.snapshot_synchronized_timestep_model_counts()
         self.snapshot_server_computation_counts()
         _ = self.client_consolidation_parameter_multiply_accumulate_count
         self._settings.__post_init__()

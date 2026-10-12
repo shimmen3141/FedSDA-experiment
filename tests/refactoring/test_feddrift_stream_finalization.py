@@ -191,6 +191,7 @@ def terminal_snapshot(server):
         server.global_model_repository.next_global_model_id,
         server.snapshot_model_weights(),
         server.snapshot_isolation_until(),
+        server.snapshot_synchronized_timestep_model_counts(),
         server.snapshot_server_computation_counts(),
         server.client_consolidation_parameter_multiply_accumulate_count,
         server.communication_volume_record_store.get_state_snapshot(),
