@@ -167,6 +167,11 @@ class FeddriftDetectionBatchProcessor:
             model_id=self._assignment.current_training_model_id
         )
 
+    @property
+    def held_model_count(self) -> int:
+        """予測前の実モデル保有数。"""
+        return len(self._registry.snapshot_ordered_held_model_training_states())
+
     def validate_detection_batch_inputs(
         self, *, training_samples: tuple[ObservedTrainingSample, ...], processed_sample_count: int
     ) -> None:

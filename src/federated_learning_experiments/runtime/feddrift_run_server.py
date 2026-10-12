@@ -7,6 +7,9 @@ from torch import Tensor, cat, isfinite
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeRecordStore,
 )
+from federated_learning_experiments.evaluation.computation_cost_summary import (
+    ServerComputationCounts,
+)
 from federated_learning_experiments.evaluation.cross_evaluation_record_store import (
     CrossEvaluationRecordStore,
 )
@@ -124,6 +127,10 @@ class FeddriftRunServer:
         self.model_clustering_record_store = ModelClusteringRecordStore()
         self._model_weights = {0: server_settings.initial_model_aggregation_weight}
         self._isolation_until: dict[int, int] = {}
+        self._aggregation_parameter_multiply_accumulate_count = 0
+        self._consolidation_parameter_multiply_accumulate_count = 0
+        self._diagnostic_parameter_distance_multiply_accumulate_count = 0
+        self._client_consolidation_parameter_multiply_accumulate_count = 0
 
     def finalize_observed_stream(self, *, timestep_index: int) -> None:
         """観測済みbufferを確定し、readyがある場合だけ最終回収・集約・配布する。"""
@@ -233,6 +240,24 @@ class FeddriftRunServer:
     def snapshot_model_weights(self) -> dict[int, int]:
         return dict(self._model_weights)
 
+    def snapshot_server_computation_counts(self) -> ServerComputationCounts:
+        """サーバの成功操作に対応するパラメータMAC。"""
+        return ServerComputationCounts(
+            aggregation_parameter_multiply_accumulate_count=self._aggregation_parameter_multiply_accumulate_count,
+            consolidation_parameter_multiply_accumulate_count=self._consolidation_parameter_multiply_accumulate_count,
+            diagnostic_parameter_distance_multiply_accumulate_count=self._diagnostic_parameter_distance_multiply_accumulate_count,
+        )
+
+    @property
+    def client_consolidation_parameter_multiply_accumulate_count(self) -> int:
+        """client自身のパラメータ統合MACの合計。"""
+        count = self._client_consolidation_parameter_multiply_accumulate_count
+        if type(count) is not int:
+            raise TypeError("client統合MACはbuiltin intが必要です。")
+        if count < 0:
+            raise ValueError("client統合MACは非負が必要です。")
+        return count
+
     def snapshot_isolation_until(self) -> dict[int, int]:
         return dict(self._isolation_until)
 
@@ -341,6 +366,10 @@ class FeddriftRunServer:
                 server_loss_statistics=tuple(planned_statistics.items()),
                 rebuilt_model_optimizer_settings=self._settings.rebuilt_model_optimizer_settings,
             )
+
+        self._aggregation_parameter_multiply_accumulate_count += sum(
+            value.numel() for parameters in uploads for value in parameters.values()
+        )
 
     def _record_parameter_transfer(
         self, direction: str, parameters: dict[str, Tensor], count: int
@@ -462,6 +491,8 @@ class FeddriftRunServer:
         self, timestep_index: int, *, validate_training_inputs: bool = True
     ) -> None:
         _validate_timestep(timestep_index)
+        self.snapshot_server_computation_counts()
+        _ = self.client_consolidation_parameter_multiply_accumulate_count
         self._settings.__post_init__()
         self._validate_clients(validate_training_inputs=validate_training_inputs)
         next_id = self.global_model_repository.next_global_model_id
@@ -592,6 +623,17 @@ class FeddriftRunServer:
             pair_observations=pairs, model_observations=models
         )
 
+        if pairs:
+            parameter_count = sum(
+                value.numel()
+                for value in self.global_model_repository.get_global_model_parameters(
+                    model_id=ids[0]
+                ).values()
+            )
+            self._diagnostic_parameter_distance_multiply_accumulate_count += (
+                3 * parameter_count * len(pairs)
+            )
+
     def prepare_timestep(self, *, timestep_index: int) -> None:
         """成熟モデルの統合の後、新モデルを隔離登録する。"""
         self._validate_operation(timestep_index)
@@ -644,17 +686,17 @@ class FeddriftRunServer:
                     (mid, ModelAndClassLossStatistics(overall_loss_moments=stat))
                     for mid, stat in consolidation.loss_moments_by_representative_id.items()
                 )
+                own_inputs = tuple(
+                    {mid: value for mid, value in _client_parameters(client).items() if mid >= 0}
+                    for client in self.run_clients
+                )
                 own_parameters = tuple(
                     average_feddrift_cached_cluster_parameters(
                         model_clusters=all_clusters,
-                        model_parameters_by_model_id={
-                            mid: value
-                            for mid, value in _client_parameters(client).items()
-                            if mid >= 0
-                        },
+                        model_parameters_by_model_id=values,
                         cluster_weights_by_representative_id=consolidation.cluster_weights_by_representative_id,
                     )
-                    for client in self.run_clients
+                    for values in own_inputs
                 )
                 for client, own in zip(self.run_clients, own_parameters, strict=True):
                     client.apply_server_model_distribution(
@@ -678,6 +720,15 @@ class FeddriftRunServer:
                     )
                 self._model_weights = consolidation.model_weights_by_representative_id
                 self._isolation_until = consolidation.isolation_until_by_representative_id
+                self._consolidation_parameter_multiply_accumulate_count += sum(
+                    value.numel() for values in parameters.values() for value in values.values()
+                )
+                self._client_consolidation_parameter_multiply_accumulate_count += sum(
+                    value.numel()
+                    for own in own_inputs
+                    for values in own.values()
+                    for value in values.values()
+                )
         for client in self.run_clients:
             if not client.has_model_ready_for_server_registration():
                 continue

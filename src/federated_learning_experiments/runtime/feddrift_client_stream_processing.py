@@ -4,6 +4,9 @@ from dataclasses import dataclass, replace
 
 from torch import no_grad
 
+from federated_learning_experiments.evaluation.held_model_count_record_store import (
+    HeldModelCountRecordStore,
+)
 from federated_learning_experiments.learning.prediction.class_probability_calculations import (
     predict_class_labels_from_prediction_scores,
 )
@@ -75,6 +78,7 @@ class FeddriftClientStreamProcessor:
         self._buffer: list[ObservedTrainingSample] = []
         self._predictions: list[FeddriftSamplePrediction] = []
         self._transitions: list[FeddriftDetectionBatchTransition] = []
+        self.held_model_count_record_store = HeldModelCountRecordStore()
 
     @property
     def processed_sample_count(self) -> int:
@@ -101,6 +105,8 @@ class FeddriftClientStreamProcessor:
             raise TypeError("観測列はexact tupleが必要です。")
         if not indexed_observations:
             return False
+        if type(self.held_model_count_record_store) is not HeldModelCountRecordStore:
+            raise TypeError("保有数の記録にはexact HeldModelCountRecordStoreが必要です。")
         for offset, observation in enumerate(indexed_observations):
             if type(observation) is not IndexedObservedTrainingSample:
                 raise TypeError("観測はexact IndexedObservedTrainingSampleが必要です。")
@@ -120,6 +126,11 @@ class FeddriftClientStreamProcessor:
         )
         fired = False
         for observation in indexed_observations:
+            held_model_count = self._processor.held_model_count
+            if type(held_model_count) is not int:
+                raise TypeError("予測前保有数はbuiltin intが必要です。")
+            if held_model_count < 1:
+                raise ValueError("予測前保有数は正が必要です。")
             current = self._processor.current_training_model_state
             sample = observation.training_sample
             with no_grad():
@@ -147,6 +158,9 @@ class FeddriftClientStreamProcessor:
                 prediction = replace(prediction, detection_batch_transition=transition)
                 fired = True
             self._predictions.append(prediction)
+            self.held_model_count_record_store.append_held_model_count(
+                held_model_count=held_model_count
+            )
         return fired
 
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:

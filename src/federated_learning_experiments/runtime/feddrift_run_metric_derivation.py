@@ -5,6 +5,14 @@ from dataclasses import dataclass
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeSnapshot,
 )
+from federated_learning_experiments.evaluation.computation_cost_summary import (
+    ComputationCostSummary,
+    ServerComputationCounts,
+    summarize_computation_cost,
+)
+from federated_learning_experiments.evaluation.held_model_count_record_store import (
+    HeldModelCountRecordStore,
+)
 from federated_learning_experiments.evaluation.run_metric_calculations import (
     DetectionMetrics,
     RunMetricSettings,
@@ -14,6 +22,9 @@ from federated_learning_experiments.evaluation.run_metric_calculations import (
     extract_concept_change_sample_indices,
 )
 from federated_learning_experiments.execution.run_execution_records import StreamProtocolRunResult
+from federated_learning_experiments.learning.models.model_computation_measurement import (
+    ModelComputationCounts,
+)
 from federated_learning_experiments.runtime.feddrift_client_stream_processing import (
     FeddriftSamplePrediction,
 )
@@ -36,6 +47,12 @@ class FeddriftRunMetrics:
     communication_volume: CommunicationVolumeSnapshot
     final_parameter_value_count: int
     final_parameter_byte_count: int
+    model_computation_counts: ModelComputationCounts | None
+    server_computation_counts: ServerComputationCounts
+    processed_sample_count: int
+    held_model_sample_count: int
+    client_consolidation_parameter_multiply_accumulate_count: int
+    computation_cost_summary: ComputationCostSummary | None
 
 
 def derive_feddrift_run_metrics(
@@ -43,6 +60,7 @@ def derive_feddrift_run_metrics(
     run_result: StreamProtocolRunResult,
     participants: FeddriftRunParticipants,
     run_metric_settings: RunMetricSettings,
+    model_computation_counts: ModelComputationCounts | None = None,
 ) -> FeddriftRunMetrics:
     """記録の対応を検査してから指標を導出する。"""
     for value, expected in (
@@ -63,6 +81,7 @@ def derive_feddrift_run_metrics(
     processed = run_result.processed_sample_count_per_client
     for event in run_result.execution_events:
         event.__post_init__()
+    held_model_sample_count = 0
     for client, stream, trace in zip(
         participants.run_clients,
         run_result.observed_client_streams,
@@ -93,6 +112,18 @@ def derive_feddrift_run_metrics(
             or len(predictions) != processed
         ):
             raise ValueError("予測記録と処理件数が対応していません。")
+        store = client.stream_processor.held_model_count_record_store
+        if type(store) is not HeldModelCountRecordStore:
+            raise TypeError("exact HeldModelCountRecordStoreが必要です。")
+        counts = store.snapshot_held_model_counts()
+        if len(counts) != processed:
+            raise ValueError("保有数記録と処理件数が対応していません。")
+        for count in counts:
+            if type(count) is not int:
+                raise TypeError("保有数はbuiltin intが必要です。")
+            if count < 1:
+                raise ValueError("保有数は正が必要です。")
+        held_model_sample_count += sum(counts)
         for sample in stream.observed_samples:
             sample.__post_init__()
         transitions = client.stream_processor.completed_detection_batch_transitions
@@ -148,6 +179,21 @@ def derive_feddrift_run_metrics(
         for mid in repository.global_model_ids
         for parameter in repository.get_global_model_parameters(model_id=mid).values()
     )
+    server_counts = participants.run_server.snapshot_server_computation_counts()
+    client_consolidation_count = (
+        participants.run_server.client_consolidation_parameter_multiply_accumulate_count
+    )
+    processed_sample_count = processed * len(participants.run_clients)
+    summary = (
+        summarize_computation_cost(
+            model_computation_counts=model_computation_counts,
+            server_computation_counts=server_counts,
+            processed_sample_count=processed_sample_count,
+            held_model_sample_count=held_model_sample_count,
+        )
+        if model_computation_counts is not None
+        else None
+    )
     return FeddriftRunMetrics(
         prediction_accuracy=calculate_prediction_accuracy(
             prediction_correctness_by_client=correctness
@@ -166,4 +212,10 @@ def derive_feddrift_run_metrics(
         communication_volume=participants.run_server.communication_volume_record_store.get_state_snapshot(),
         final_parameter_value_count=sum(p.numel() for p in parameters),
         final_parameter_byte_count=sum(p.numel() * p.element_size() for p in parameters),
+        model_computation_counts=model_computation_counts,
+        server_computation_counts=server_counts,
+        processed_sample_count=processed_sample_count,
+        held_model_sample_count=held_model_sample_count,
+        client_consolidation_parameter_multiply_accumulate_count=client_consolidation_count,
+        computation_cost_summary=summary,
     )

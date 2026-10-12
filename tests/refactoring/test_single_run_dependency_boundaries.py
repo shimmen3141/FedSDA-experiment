@@ -4851,6 +4851,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/feddrift_run_server.py":
         return imported_module_name in (
+            "federated_learning_experiments.evaluation.computation_cost_summary.ServerComputationCounts",
             "federated_learning_experiments.evaluation.communication_volume_record_store",
             "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
             "federated_learning_experiments.evaluation.cross_evaluation_record_store",
@@ -5046,6 +5047,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/feddrift_client_stream_processing.py":
         return imported_module_name in (
+            "federated_learning_experiments.evaluation.held_model_count_record_store.HeldModelCountRecordStore",
             "dataclasses.dataclass",
             "dataclasses.replace",
             "torch.no_grad",
@@ -5632,6 +5634,11 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/feddrift_run_metric_derivation.py":
         return imported_module_name in (
+            "federated_learning_experiments.evaluation.computation_cost_summary.ComputationCostSummary",
+            "federated_learning_experiments.evaluation.computation_cost_summary.ServerComputationCounts",
+            "federated_learning_experiments.evaluation.computation_cost_summary.summarize_computation_cost",
+            "federated_learning_experiments.evaluation.held_model_count_record_store.HeldModelCountRecordStore",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
             "dataclasses.dataclass",
             "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
             "federated_learning_experiments.evaluation.run_metric_calculations.DetectionMetrics",

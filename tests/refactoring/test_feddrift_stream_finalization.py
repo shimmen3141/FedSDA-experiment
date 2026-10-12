@@ -171,6 +171,14 @@ def terminal_snapshot(server):
                 c.stream_processor.buffered_training_samples,
                 c.stream_processor.sample_predictions,
                 c.stream_processor.completed_detection_batch_transitions,
+                (
+                    c.stream_processor.held_model_count_record_store.snapshot_held_model_counts()
+                    if hasattr(
+                        c.stream_processor.held_model_count_record_store,
+                        "snapshot_held_model_counts",
+                    )
+                    else type(c.stream_processor.held_model_count_record_store)
+                ),
             )
             for c in server.run_clients
         ),
@@ -183,6 +191,8 @@ def terminal_snapshot(server):
         server.global_model_repository.next_global_model_id,
         server.snapshot_model_weights(),
         server.snapshot_isolation_until(),
+        server.snapshot_server_computation_counts(),
+        server.client_consolidation_parameter_multiply_accumulate_count,
         server.communication_volume_record_store.get_state_snapshot(),
         server.cross_evaluation_record_store.snapshot_client_cross_evaluation_records(),
         server.model_clustering_record_store.snapshot_pair_clustering_observations(),

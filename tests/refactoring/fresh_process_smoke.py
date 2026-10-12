@@ -1950,6 +1950,7 @@ def run_feddrift_detection_batch_smoke():
     metrics = derive_feddrift_run_metrics(
         run_result=result,
         participants=measured.participants,
+        model_computation_counts=measured.model_computation_counts,
         run_metric_settings=RunMetricSettings(
             maximum_detection_delay_sample_count=3, post_change_recovery_window_sample_count=3
         ),
@@ -1959,7 +1960,12 @@ def run_feddrift_detection_batch_smoke():
     assert metrics.final_global_model_count >= 1
     assert metrics.communication_volume.uploaded_model_count >= 12
     assert 0.0 <= metrics.prediction_accuracy <= 1.0
-    print("PASS FedDrift measured whole run and common core metrics")
+    assert metrics.processed_sample_count == 18
+    assert metrics.held_model_sample_count >= 18
+    assert metrics.computation_cost_summary is not None
+    assert metrics.server_computation_counts.aggregation_parameter_multiply_accumulate_count > 0
+    assert metrics.client_consolidation_parameter_multiply_accumulate_count >= 0
+    print("PASS FedDrift measured whole run and common core/cost metrics")
 
 
 def main():

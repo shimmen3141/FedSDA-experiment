@@ -1,0 +1,48 @@
+{
+  "feature_name": "feddrift-computation-cost-summary",
+  "created_at": "2026-10-12",
+  "updated_at": "2026-10-12",
+  "language": "ja",
+  "phase": "implementation-in-progress",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna medium仕様書群レビューPASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna medium仕様書群レビューPASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna medium仕様書群レビューPASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna medium仕様書群レビューPASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "base_revision": "df74dec",
+    "target": "未commit対象specの6文書",
+    "session_id": "/root/feddrift_summary_spec_review",
+    "result": "PASS、Blocker/Majorなし。fieldのnaming指摘はユーザーの公開関数/class/module範囲により不採用。"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "df74dec",
+    "target": "未commit対象spec・source・test差分",
+    "session_id": "24154147-ace6-4acb-ac88-233d484d5d64",
+    "result": "PASS、Blocker/Majorなし、Minor3件。実モデルとis_error=falseを確認。"
+  }
+}
