@@ -125,6 +125,111 @@ class FeddriftRunServer:
         self._model_weights = {0: server_settings.initial_model_aggregation_weight}
         self._isolation_until: dict[int, int] = {}
 
+    def finalize_observed_stream(self, *, timestep_index: int) -> None:
+        """観測済みbufferを確定し、readyがある場合だけ最終回収・集約・配布する。"""
+        self._validate_operation(timestep_index, validate_training_inputs=False)
+        next_id = self.global_model_repository.next_global_model_id
+        potential_registration_count = 0
+        reference = next(iter(_client_parameters(self.run_clients[0]).values()))
+        for client in self.run_clients:
+            stream = client.stream_processor
+            count = stream.processed_sample_count
+            if type(count) is not int or count < 0:
+                raise ValueError("観測件数は非負builtin intが必要です。")
+            buffer = stream.buffered_training_samples
+            client.detection_batch_processor._validate_stream_finalization_inputs()
+            if buffer:
+                client.detection_batch_processor.validate_detection_batch_inputs(
+                    training_samples=buffer, processed_sample_count=count
+                )
+            owners = client.owners
+            delay = owners.pending_model_upload_state.remaining_upload_delay_round_count
+            if type(delay) is not int or delay < 0:
+                raise ValueError("保留の待機回数は非負builtin intが必要です。")
+            pending = owners.pending_model_upload_state.get_pending_model_upload()
+            if pending is not None:
+                _validate_candidate_parameter_snapshot(
+                    candidate_parameter_snapshot=pending.parameter_snapshot,
+                    reference_parameter_snapshot=reference,
+                )
+                statistics = owners.loss_statistics_store.get_model_loss_statistics(
+                    model_id=pending.model_id
+                )
+                if statistics is None:
+                    raise ValueError("保留モデルの損失統計が必要です。")
+                _copy_model_and_class_loss_statistics(loss_statistics=statistics)
+            current = owners.current_training_model_assignment.current_training_model_id
+            if current >= 0 and current not in self.global_model_repository.global_model_ids:
+                raise ValueError("現在の正式モデルがrepositoryに存在しません。")
+            potential_registration_count += (
+                bool(buffer) or client.has_model_ready_for_server_registration()
+            )
+        planned_ids = range(next_id, next_id + potential_registration_count)
+        if any(
+            mid in client.get_held_model_ids() for mid in planned_ids for client in self.run_clients
+        ) or any(mid in self.global_model_repository.global_model_ids for mid in planned_ids):
+            raise ValueError("割当予定の正式IDが既存モデルと衝突しています。")
+        for client in self.run_clients:
+            client.flush_detection_buffer()
+        if not any(client.has_model_ready_for_server_registration() for client in self.run_clients):
+            return
+        registrations = []
+        for client in self.run_clients:
+            if not client.has_model_ready_for_server_registration():
+                continue
+            pending = client.owners.pending_model_upload_state.get_pending_model_upload()
+            if pending is None:
+                raise ValueError("readyモデルのsnapshotが必要です。")
+            statistics = client.owners.loss_statistics_store.get_model_loss_statistics(
+                model_id=pending.model_id
+            )
+            if statistics is None:
+                raise ValueError("readyモデルの損失統計が必要です。")
+            registrations.append((client, pending, statistics))
+        for client, pending, statistics in registrations:
+            owners = client.owners
+            self._record_parameter_transfer("upload", pending.parameter_snapshot, 1)
+            self.communication_volume_record_store.record_messages(
+                transfer_direction="upload", message_count=1
+            )
+            mid = self.global_model_repository.allocate_global_model_id()
+            self.global_model_repository.set_global_model_parameters(
+                model_id=mid, parameter_snapshot=pending.parameter_snapshot
+            )
+            self.global_model_repository.set_global_model_loss_statistics(
+                model_id=mid, loss_statistics=statistics
+            )
+            self._model_weights.setdefault(mid, self._settings.initial_model_aggregation_weight)
+            self.global_model_repository.record_model_registration(
+                model_id=mid,
+                registered_round_index=timestep_index,
+                registering_client_id=client.client_id,
+            )
+            confirm_held_model_registration(
+                registered_global_model_id=mid,
+                held_model_training_state_registry=owners.held_model_training_state_registry,
+                loss_statistics_store=owners.loss_statistics_store,
+                training_sample_store=owners.training_sample_store,
+                evaluation_sample_store=owners.evaluation_sample_store,
+                model_training_and_assignment_counts_store=owners.model_training_and_assignment_counts_store,
+                current_training_model_assignment=owners.current_training_model_assignment,
+                pending_model_upload_state=owners.pending_model_upload_state,
+            )
+            self.communication_volume_record_store.record_messages(
+                transfer_direction="download", message_count=1
+            )
+        self._aggregate_and_distribute_models(
+            active_ids=tuple(sorted(self.global_model_repository.global_model_ids)),
+            update_model_weights=False,
+        )
+        for client in self.run_clients:
+            state = client.owners.pending_model_upload_state
+            pending = state.get_pending_model_upload()
+            if pending is not None and not state.has_ready_model_upload():
+                state.queue_ready_model_upload(
+                    model_id=pending.model_id, parameter_snapshot=pending.parameter_snapshot
+                )
+
     def snapshot_model_weights(self) -> dict[int, int]:
         return dict(self._model_weights)
 
@@ -134,10 +239,22 @@ class FeddriftRunServer:
     def aggregate_and_distribute_training_round(self, *, timestep_index: int) -> None:
         """学習済みclientをID順・client順に集約し、全モデルを配布する。"""
         self._validate_operation(timestep_index)
-        client_parameters = tuple(_client_parameters(client) for client in self.run_clients)
-        active_ids = sorted(
-            {mid for parameters in client_parameters for mid in parameters if mid >= 0}
+        active_ids = tuple(
+            sorted(
+                {
+                    mid
+                    for client in self.run_clients
+                    for mid in client.get_held_model_ids()
+                    if mid >= 0
+                }
+            )
         )
+        self._aggregate_and_distribute_models(active_ids=active_ids, update_model_weights=True)
+
+    def _aggregate_and_distribute_models(
+        self, *, active_ids: tuple[int, ...], update_model_weights: bool
+    ) -> None:
+        client_parameters = tuple(_client_parameters(client) for client in self.run_clients)
         planned_parameters = {
             mid: self.global_model_repository.get_global_model_parameters(model_id=mid)
             for mid in self.global_model_repository.global_model_ids
@@ -183,7 +300,8 @@ class FeddriftRunServer:
                 planned_parameters[mid] = {
                     name: value / total_weight for name, value in averaged.items()
                 }
-                planned_weights[mid] = total_weight
+                if update_model_weights:
+                    planned_weights[mid] = total_weight
             if total_count:
                 planned_statistics[mid] = ModelAndClassLossStatistics(
                     overall_loss_moments=BoundedLossMoments(
@@ -243,7 +361,7 @@ class FeddriftRunServer:
                 client.train_local_round()
             self.aggregate_and_distribute_training_round(timestep_index=timestep_index)
 
-    def _validate_clients(self) -> None:
+    def _validate_clients(self, *, validate_training_inputs: bool = True) -> None:
         if type(self.run_clients) is not tuple or not self.run_clients:
             raise TypeError("client列は非空builtin tupleが必要です。")
         ids = []
@@ -325,7 +443,12 @@ class FeddriftRunServer:
                         expected_input_feature_count=state.classifier.input_feature_count,
                         tensor_name="training_sample",
                     )
-                if collection.training_samples:
+                    validate_classifier_bounded_loss_inputs(
+                        classifier=state.classifier,
+                        input_features=sample.input_features,
+                        observed_class_labels=sample.observed_class_labels,
+                    )
+                if collection.training_samples and validate_training_inputs:
                     validate_independent_model_parameter_update_inputs(
                         classifier=state.classifier,
                         parameter_optimizer=state.concept_specific_parameter_optimizer_state.parameter_optimizer,
@@ -335,10 +458,12 @@ class FeddriftRunServer:
                         ),
                     )
 
-    def _validate_operation(self, timestep_index: int) -> None:
+    def _validate_operation(
+        self, timestep_index: int, *, validate_training_inputs: bool = True
+    ) -> None:
         _validate_timestep(timestep_index)
         self._settings.__post_init__()
-        self._validate_clients()
+        self._validate_clients(validate_training_inputs=validate_training_inputs)
         next_id = self.global_model_repository.next_global_model_id
         if type(next_id) is not int or next_id < 0:
             raise ValueError("次の正式IDは非負builtin intが必要です。")

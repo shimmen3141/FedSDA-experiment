@@ -232,6 +232,21 @@ class FeddriftDetectionBatchProcessor:
                     raise ValueError("各標本のpayloadは1件が必要です。")
         return states
 
+    def _validate_stream_finalization_inputs(self) -> None:
+        """終端で触る検出状態を、全clientのflushより前に検査する。"""
+        if self._previous_loss is not None:
+            _validate_mean_loss(self._previous_loss)
+        if (
+            type(self._threshold) is not float
+            or not isfinite(self._threshold)
+            or self._threshold < 0
+        ):
+            raise ValueError("検出閾値は有限な非負builtin floatが必要です。")
+        self._validate_new_model_id(
+            self._allocator.next_temporary_model_id,
+            self._registry.snapshot_ordered_held_model_training_states(),
+        )
+
     def _validate_new_model_id(
         self, temporary_model_id: int, states: tuple[HeldModelTrainingState, ...]
     ) -> None:

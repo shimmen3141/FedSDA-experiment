@@ -1887,7 +1887,36 @@ def run_feddrift_detection_batch_smoke():
         participants.run_server.communication_volume_record_store.get_state_snapshot().uploaded_model_count
         == 4
     )
-    print("PASS FedDrift: detection/client/server and participant factory observation/sync")
+    trained_before = tuple(
+        client.owners.model_training_and_assignment_counts_store.snapshot_model_training_and_assignment_counts().trained_sample_counts_by_model_id
+        for client in participants.run_clients
+    )
+    for client in participants.run_clients:
+        client.detection_batch_processor._previous_loss = 0.0
+        client.detection_batch_processor._threshold = 0.0
+        client.process_observed_block(
+            observed_samples=tuple(generator.generate_sample(concept_id=1) for _ in range(2)),
+            evaluation_concept_ids=(1, 1),
+        )
+    with torch.no_grad():
+        participants.run_server.finalize_observed_stream(timestep_index=0)
+    assert participants.run_server.snapshot_model_weights() == {0: 6, 1: 7, 2: 7}
+    assert participants.run_server.snapshot_isolation_until() == {}
+    assert all(
+        client.stream_processor.processed_sample_count == 5 for client in participants.run_clients
+    )
+    assert all(
+        not client.stream_processor.buffered_training_samples for client in participants.run_clients
+    )
+    assert trained_before == tuple(
+        client.owners.model_training_and_assignment_counts_store.snapshot_model_training_and_assignment_counts().trained_sample_counts_by_model_id
+        for client in participants.run_clients
+    )
+    assert (
+        participants.run_server.communication_volume_record_store.get_state_snapshot().uploaded_model_count
+        == 10
+    )
+    print("PASS FedDrift: participant factory observation/sync/stream finalization")
 
 
 def main():

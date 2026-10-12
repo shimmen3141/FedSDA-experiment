@@ -1,0 +1,14 @@
+# Research & Design Decisions
+
+## 調査
+固定旧748c3aaは未変更。experiment.pyの終端は全client flush後、any(has_pending_model)の場合だけserver.run_round(t, clustering_enabled=True)と全client promote_pending_to_readyを呼ぶ。FedDriftはBaseServer.run_roundを継承し、_maybe_clusterもBaseのno-opなので、ここでクラスタリングやR回学習を行わない。finalize_protocolはno-opである。Baseの回収はpayload/statを即座にrepositoryへ登録し、FedDriftのregister_model_paramsが初期重みを補う。Base update_global_modelsの返した重みをrun_roundは保存しないため、既存重みは保持される。隔離も付けない。これらは通常prepare/R同期と異なるため、別の小さいspecで移植する。
+
+旧pending_model_statsは作成時のmodel_stats辞書を参照しており、その後のin-place統計更新を含む。新側はloss_statistics_storeから同じ時点の統計を読む。pending parameterは保存snapshotを使う。
+
+旧全体runはTOTAL_DATA_POINTS // detection batch sizeの全chunkだけ観測する。未観測の端数を終端で読み足さない。全体runの接続と出力指標の照合は後続。旧に独立したserver精度評価の終端操作は無く、client prequential評価の指標導出として後続で扱う。
+
+## 検証方針
+既存server_pair/assert_server_equal/run_pairとfactory prepare_pairを再利用する。REDより前に実旧flush/run_round oracleが実行できることを確認する。全flushに先行する入力検査は数値計算や乱数を行わない。成功時は旧のclient順flush・回収・集約・配布順を保つ。
+
+## 実旧oracle起動確認
+主担当が実旧client.process_batchの2標本→flushを実行し、2readyから実旧server.run_round(0, True)→promoteを実行できた。正式ID0/1/2、既存重み3と新登録重み500/500、隔離なし、モデルupload4/download6を実測した。既存server_pairは初期重み3と旧PRETRAIN_SAMPLES500が異なるため、対照fixtureでは旧PRETRAIN_SAMPLESを新初期重みに揃える（factoryの実旧setupは既に7で一致）。
