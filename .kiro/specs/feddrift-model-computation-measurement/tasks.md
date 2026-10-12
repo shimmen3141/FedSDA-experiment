@@ -9,7 +9,7 @@
   - 失敗後にhook集合が復帰し正常runが同じ計数を持つことを確認。
   - _Depends: 1_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.2, 3.3_
-- [ ] 3. freshと依存境界を接続し、独立レビューと全検証を完了する
+- [x] 3. freshと依存境界を接続し、独立レビューと全検証を完了する
   - 共用freshの全体FedDrift flowに計測を接続、exact import許可と少数の禁止例を追加。
   - 独立実装レビュー/指摘対応、全pytestと既存golden、Linux対象、品質/names/progress、commit/source identity/完了記録/push。
   - _Depends: 2_
@@ -19,7 +19,7 @@
 
 - 基点: `286792d`。固定旧: `748c3aa`。調査/実装は主担当、仕様書群レビュー後にtaskへ進む。下位taskはkiro-impl manual `--review off`、全task後に独立実装レビュー。
 - 仕様レビュー: Luna medium `/root/feddrift_measurement_spec_review`、未commitの6文書、PASS（指摘なし）。taskのtest/source開始前に確認。
-- 最終確認中: Haiku medium独立CLI実装レビュー、Linux対象とgolden、全pytest、identity、push。
+- 完了: 仕様/実装の独立レビューと有用な指摘対応、全pytest/既存golden・Linux対象・品質検査、source identity。検証済み単位でcommitし通常pushする。
 
 - Task 1: 実旧bootstrap20 passed。入口stubからNotImplementedErrorでRED確認後、11 passed。Task 2: 時刻未接続で6 failed/1 passedのRED後、対象と既存run合わせ73 passed。型/loader/途中失敗・独立の操作境界照合を追加。
 - 学習batch不足時の独立test前提を既存skip契約に修正（実装は変更せず）。
@@ -35,7 +35,10 @@
 
 - Minor対応のtest期待型を2回修正してもseed条件が残ったため、fable-methodの2回ルールで読取り専用の一点診断を実施。`/root/measurement_error_contract_diagnosis`が専用RunSettingsValidationErrorを確認（独立修正前1 failed/3 passed）。cause4種類をexact表で指定するtest-only修正、source変更なし。追加の完了レビューではない。
 
-- Minor対応後の対象34 passed/16.05s、最終Ruff/format324成功。Linux対象82 passed/99.80s（全pytest並行時）、exit0。source/testはこの時点で固定し最終全pytestを実行中。
+- Minor対応後の対象34 passed/16.05s、最終Ruff/format324成功。Linux対象82 passed/99.80s（全pytest並行時）、exit0。source/testはこの時点で固定し、この内容で最終全pytestを実施。
 
 - 最終全pytest: 13424 passed/8 skipped/9 warnings、689.06s、exit0。JUnit13432 testcase、failure0/error0。基点13387 passed/8 skippedから、対象34+禁止依存3の37増分と一致。旧11/最終3goldenの成功は次のsource identityでも照合する。
 - skip8件: 固定Windows回帰で代替する環境別golden1、Linux専用golden4（Linuxで成功済み）、POSIX bash不在3。warnings9件は既存testのnested tensor/旧var/TypedStorage、今回追加testの警告なし。検証source/testは最終全pytest開始後無変更。
+
+- 検証対象commit: `3abc0bd823470b5d8980bd08d9d22db5f26c2a37`。LF正規化source hash: `4ed5fe8ff60cd725535122034c3fcb67daa02f06e01a554138f799a87d17e9d7`（428パス）。identityで固定旧差分なし/clean tree/JUnit13432・13424 passed・8 skipped/既存回帰2testcase（内部11/3golden）の成功/件数を照合。最終文書commit後も同じhashとJUnitを照合する。
+- 完了判定: 全3 taskと12受入基準を実測・独立レビューで確認、GO。未完了taskなし。サーバ算術/保有モデルの分母・正規化summary/追加診断/成果物/CLIは後続specであり、このspecの未完了taskではない。

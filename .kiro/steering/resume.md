@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-12（feddrift-model-computation-measurementの最終確認中。主担当Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
+更新: 2026-10-12（feddrift-model-computation-measurement完了。主担当Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -41,8 +41,8 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **現在の対象:** [feddrift-model-computation-measurement](../specs/feddrift-model-computation-measurement/tasks.md)。仕様書群レビューを通過し、モデル計測入口・準備/時刻別/終端の計数を実装済み。独立実装レビューと最終全検証の段階。検証とレビューの正本は同specのspec.json/tasks.md。
-- [feddrift-server-synchronization](../specs/feddrift-server-synchronization/tasks.md)と[参加者factory](../specs/feddrift-run-participant-factory/tasks.md)は完了。残るのは計算量・追加診断と成果物/CLIへの接続。
+- **現在の対象:** [feddrift-model-computation-measurement](../specs/feddrift-model-computation-measurement/tasks.md)。完了。共通モデル計測と準備/時刻別/終端の計数を接続した。次は保有モデル数の分母とサーバのパラメータ演算を共通計算量summaryへ接続する境界を調査する。検証とレビューの正本は同specのspec.json/tasks.md。
+- [feddrift-server-synchronization](../specs/feddrift-server-synchronization/tasks.md)と[参加者factory](../specs/feddrift-run-participant-factory/tasks.md)は完了。モデル計測も完了。残るのは保有モデル数/サーバ演算・計算量summary・追加診断と成果物/CLIへの接続。
 
 - **過去の到達点（FedSDA、現在の作業対象ではない）:** [experiment-sweep-command](../specs/experiment-sweep-command/tasks.md)（(A3)新実装の実験の入口: `python run_experiment_sweep.py`。使い方は[docs/experiments/experiment-sweep.md](../../docs/experiments/experiment-sweep.md)）まで完了。構成は、提案構成（`fedsda`）と、移植済みの10構成。速度の対処（[training-batch-sampling-validation-cost](../specs/training-batch-sampling-validation-cost/tasks.md)）も完了: 本番の規模（client 10・標本5000・sine2）の1 runが、257秒（旧実装は179秒）で、結果は、旧実装（手元）と一致する。その前は、(A2-2)の4つ目・最後（予測の診断の指標と記録）まで完了。**これで、旧実装の1 runの出力のうち、「記録から導く（未照合）」の区分（指標124・配列85）の全部が、新実装で導出・保存され、goldenの3ケースと小さい条件で、実旧の値と一致している。**新の1 runの保存は、要約（指標）と、記録の表130列。その前は、(A2-2)の3つ目（クロス評価の表と、モデル対の予測の相補性の指標）、(A2-2)の2つ目（モデル別の診断の指標と記録）、(A2-2)の1つ目（概念の変更への応答の指標と記録、保存する表と列の名前の見直し）と、(A2-1)1 runの実行と保存の骨組み（完全なrun設定から、実行・指標の導出・保存・読込み）。完全なrun設定（(A1)）から、1つの関数で実行して、要約（JSON）と記録の表（NPZ）を、新実装の名前で保存できる。全体runの接続（(4a)・(4b)）は、全部終わっている。新実装の全体runは、blobs以外の全dataset（sine2・sea2・sea4・circle2・mnist2・mnist4）で実行でき、goldenの3ケース（sine2・sea2・mnist2）の33指標と31の離散列が、実行環境のgolden（Windowsの基準環境では固定のWindows用、WSL Ubuntuでは環境ごとのgolden）と一致する（どの環境でも、同じprocessの中の実旧とも一致する。研究室サーバ——Python 3.10.16、NumPy 2.2.6——でも、実旧との一致は、ユーザーが確認済み）。goldenは、環境の記録が完全に一致するものを、自動で選ぶ（[environment-keyed-regression-goldens](../specs/environment-keyed-regression-goldens/tasks.md)）。全pytestは、Windowsで、並列（`-n 8 --dist loadfile`）で約8〜12分（`FDE_MNIST_DATA_DIR`に、MNISTの2つのファイルが要る）。WSLでは、新実装のtest全体（逐次）が約25分。進行中の編集・未解消レビュー指摘はない。
 - **手順（2026-10-12更新）:** cc-sddのskillと標準の構成、実装前の仕様書群の独立CLIレビュー、下位taskごとの実装、実装後の独立CLIレビュー、変異テストは任意。observed-sample-prediction・fedsda-run-client-assembly・initial-model-pretrainingが、この手順で進めたspecなので、文書の形（spec.json、requirements.md、design.md、research.md、naming.md、tasks.mdと末尾の「Implementation Notes」）は、これを参考にしてよい。observed-sample-processingまでのspecの文書（README、review.md、証拠文書、局所名まで載せた命名表、revisionとhash）は、古い手順の形なので、雛形にしない。新しいspecは、cc-sddのskill（`.claude/skills/kiro-spec-*`、`kiro-impl`、`kiro-validate-impl`）と`.kiro/settings/templates/specs/`の雛形から作る。
@@ -71,6 +71,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 完了specの一覧（新しい順。詳細は各spec）
 
+- [feddrift-model-computation-measurement](../specs/feddrift-model-computation-measurement/tasks.md): FedSDA共通モデル計測、準備分離、時刻ごとの標本処理/同期と終端の計数。
 - [feddrift-stream-run-and-core-metrics](../specs/feddrift-stream-run-and-core-metrics/tasks.md): FedDrift全体run、共通基本指標、Linux別goldenの接続。
 
 clientの組立てと実行の枠の5操作（`FedsdaRunClient`）、標本1件の予測と学習側の処理（`process_observed_sample`）、警報後の「参照の固定→標本の観測→損失収集→採否評価→確定→正式ID確認」、警報時の「区間の準備→再利用評価→切替または候補検証の開始→完了処理→記録」、候補検証sessionの保持、診断証拠と通知までの部品が、実旧の対応するメソッドとの対照つきで揃っている。サーバ側は、登録・集約・クロス評価・クラスタリングと統合・配布・集約後の再較正と、それらをつなぐ1ラウンドの同期まで揃い、実行の枠へ接続した（全体runを、新実装だけで実行できる）。残りは、全体runの結果の指標の導出と、goldenとの照合。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
@@ -146,9 +147,9 @@ clientの組立てと実行の枠の5操作（`FedsdaRunClient`）、標本1件�
 
 ## 次の候補（未仕様化・未承認）
 
-### 次: FedDriftの計算量・追加診断と成果物/CLI
+### 次: FedDriftの計算量summary・追加診断と成果物/CLI
 
-全体runと共通基本指標は接続済み。新FedSDAの計算量の単位と適用可能な追加診断へ合わせ、FedDriftの記録/保存/CLIを調査して次の責務境界を決める。候補検証/予測混合/再較正はFedDriftへ機械的に当てはめない。基本指標のLinux別goldenと、未接続の指標/成果物の検証範囲を区別する。
+全体run・共通基本指標・共通モデル計測は接続済み。次は予測前の保有モデル数とサーバのパラメータ演算を記録し、共通計算量summaryへ合わせる境界を調査する。FedDriftは現在モデルだけで予測するため、予測のforward標本数を保有モデル×標本の分母へ流用しない。適用可能な追加診断と記録/保存/CLIは後続。候補検証/予測混合/再較正はFedDriftへ機械的に当てはめない。基本指標のLinux別goldenと、未接続の指標/成果物の検証範囲を区別する。
 
 ### 1. サーバ同期と、残る診断（未仕様化）
 
