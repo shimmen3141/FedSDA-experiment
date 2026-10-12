@@ -56,3 +56,12 @@
 ## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
 
 保留（旧実装を外す準備のときに行う）。変更なし。
+
+## 旧実装を外すときに、一緒に外すもの（2026-10-13追記）
+
+旧実装との照合を続けるために、挙動を直す変更に、旧と同じ扱いを設定で残している。旧実装を外すときに、値と分岐を外す。
+
+| 修正 | 残している値 | 外す箇所 |
+|---|---|---|
+| LEGACY-016（[pending-model-registration-by-own-id](../../../.kiro/specs/pending-model-registration-by-own-id/design.md)） | `keep_latest_pending_model_and_reassign_current_model_id`（設定`PendingModelRegistrationSettings.pending_model_registration_policy`） | `methods/fedsda/model_registration/pending_model_registration_settings.py`の値、`pending_model_upload.py`の`_append_or_replace_pending_model_upload`の置換えの分岐、`runtime/held_model_registration_confirmation.py`の、現行を付け替える分岐。testの`use_pending_model_registration_policy_matching_legacy`・`assert_pending_model_registration_policy_matches_legacy`、基準版1のgolden（旧と同じ扱いで照合している）。**FedDriftのclientが、この値を使っている**（`runtime/feddrift_run_client.py`）。外す前に、FedDriftを、もう一方の値へ替えても結果が同じであることを確かめる（FedDriftでは、確認のとき、送信保留のモデルが常に現行なので、同じになる見込み。未検証） |
+

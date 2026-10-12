@@ -222,7 +222,7 @@ goldenが通っても、全seed・全データセット・全オプションの�
 コミット保留の3資料と既存の`results/`は、リファクタリングのために削除・上書きしない。
 
 
-## 新実装の重要動作golden（基準版1）
+## 新実装の重要動作golden（基準版1・2）
 
 旧基準とは別に、`tests/refactoring/behavior_regression_goldens/v1/`へ新APIの基準を保存する。
 FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境界の追加4ケースを扱う。
@@ -241,6 +241,17 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 | `schema_version` | このgolden JSONの形式。現在は1 | snapshotの記録形式を変えるとき |
 | `environment` | OS・機種・Python/NumPy/torch・CPU/dtype/thread | 同じ動作基準を別環境で検証するとき |
 | `source_commit` | 生成した生産コードの来歴 | 新しい基準や環境別goldenを生成するとき |
+
+基準版は、次のとおり。照合のtestは、全部の版を、毎回、確かめる。
+
+| 版 | 動作 | 設定 | ケース |
+| --- | --- | --- | --- |
+| 1 | 2026-10-13の移植完了時点。FedSDAの登録の扱いは、固定旧と同じ（送信保留を1つだけ保持し、確認で現行モデルを付け替える） | 最終構成の既定から、登録の扱いだけを、`keep_latest_pending_model_and_reassign_current_model_id`へ替えて実行する。保存した設定は、この項目を持たない（版1の後に足された）ので、値を確かめてから、除いて比べる | 17 |
+| 2 | 採用したモデルを、それ自身のIDで登録する（LEGACY-016の修正。[spec](../../.kiro/specs/pending-model-registration-by-own-id/design.md)） | 最終構成の既定 | 版1の17（同じ設定）＋`fedsda-sine2-reference-reuse` |
+
+版2と版1の差は、版1の扱いで、登録されないままの採用が起きるケース（`fedsda-sine2-events`の2件）に限る。ほかの16ケースは、指標・表・パラメータが、版1と同じであることを、testが確かめる。`fedsda-sine2-events`は、版2では、別の保有モデルの再利用の判定を通らなくなる（登録されずにclientへ残っていたモデルが、登録・統合されるため）ので、その経路は、版2で足した`fedsda-sine2-reference-reuse`（同じ設定で、seedが4）が守る。版2の結果は、「登録されないままの採用の数」（0であること）も持つ。
+
+現在の版（新しい基準を生成するときの既定）は、helperの定数`BASELINE_VERSION`。別の版を生成・照合するときは、`--baseline-version`で指定する。
 
 通常のcommitごとには基準版を増やさない。意図した動作変更は対象specで旧基準との差分理由を説明し、
 レビューと検証後に新しい版directoryを追加する。現在の版はhelperで明示し、最新directoryを自動採用しない。

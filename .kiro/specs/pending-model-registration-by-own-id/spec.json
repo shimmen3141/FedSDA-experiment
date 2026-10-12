@@ -3,7 +3,7 @@
   "created_at": "2026-10-13",
   "updated_at": "2026-10-13",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -43,5 +43,25 @@
     "result": "1〜4回目はCHANGES REQUIRED（Majorを直すたびに再確認）、5回目でPASS。採否はtasks.mdのImplementation Notes。",
     "output": "../../venv/refactoring-tests/pending-model-registration-spec-review-{1..5}.jsonl",
     "selection_reason": "可変状態と更新順の設計なので、Haiku 5.5"
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "93b902d（基点4e61774）",
+    "session_id": "f13f3c46-8da3-4213-8cf1-d6e6d4e13248",
+    "is_error": false,
+    "result": "APPROVED。Blocker・Majorなし。Minor 3・任意2の採否はtasks.md。",
+    "output": "../../venv/refactoring-tests/pending-model-registration-review-1.jsonl",
+    "independent_checks": "対象9ファイル4852 passed、fresh 16 flows、Ruff、固定旧と版1のgoldenの差分なし。全pytest・構成の照合・Pyrightは未再現。"
+  },
+  "integration_validation": {
+    "full_passed": 13844,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/pending-model-registration-by-own-id-full.xml",
+    "tested_commit": "200cd73",
+    "wsl": "対象4ファイル 283 passed"
+  },
+  "completion_decision": "完了。LEGACY-016を新実装で修正（旧と同じ扱いは設定で選べる）。基準版2を追加、基準版1と実旧との照合は維持。"
 }

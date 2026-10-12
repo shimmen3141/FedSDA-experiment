@@ -19,9 +19,10 @@
 | LEGACY-013 | 使用済みの一時IDへの再登録が既存モデルを黙って置換する | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-013-temporary-id-reregistration-overwrite.md) |
 | LEGACY-014 | 採用時の保留標本が割当概念計数と損失統計へ反映されない | 損失統計は問題なしで閉じた。概念計数だけ採用（3番目。2026-10-13） | [記録](legacy-014-adopted-model-pending-samples-not-counted.md) |
 | LEGACY-015 | 標本吸収の途中失敗で先行標本の更新と不正標本が残る | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-015-partial-absorption-on-invalid-sample.md) |
-| LEGACY-016 | 採用の後に現行モデルが戻ると、正式IDだけが採番され、採用したモデルは登録されない | 採用（最優先。送信保留の上書きの対処を含む。2026-10-13） | [記録](legacy-016-registration-id-consumed-without-model.md) |
+| LEGACY-016 | 採用の後に現行モデルが戻ると、正式IDだけが採番され、採用したモデルは登録されない | 新実装で修正（2026-10-13、`93b902d`。旧と同じ扱いは設定で選べる。固定旧は未変更） | [記録](legacy-016-registration-id-consumed-without-model.md) |
 | LEGACY-017 | クロス評価の読取りで、現行モデルの空の学習データの列が作られる | 新実装の扱いを維持して閉じた（2026-10-13） | [記録](legacy-017-cross-evaluation-creates-empty-training-collection.md) |
 | LEGACY-018 | 共有部を持たないモデルでは、クロス評価の下りの通信量が、同じclientへの同じ候補の送信を、重複して数える | 新実装修正。合意済みの重複除外を全構成golden前に主担当判断で先行。固定旧は維持し、旧イベントから重複分を減算して厳密に照合 | [記録](legacy-018-cross-evaluation-download-volume-without-shared-part.md) |
+| LEGACY-019 | 候補検証の途中でIDが付け替わった参照モデルは、その検証で、再利用の対象から外れる | 記録だけ（2026-10-13。旧と同じ扱いを移植済み。頻度と影響は未確認） | [記録](legacy-019-renamed-reference-excluded-from-validation-reuse.md) |
 
 ## 移植しないと決めた旧機能・新実装で見つけた事項
 

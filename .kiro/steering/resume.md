@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-13（残る事項の採否をユーザーが決定。LEGACY-016の修正から進める。主担当Claude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
+更新: 2026-10-13（LEGACY-016の修正が完了。次はLEGACY-002。主担当Claude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -13,6 +13,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - 完了の正本: [important-behavior-regression-goldensのspec.json](../specs/important-behavior-regression-goldens/spec.json)と[tasks.md](../specs/important-behavior-regression-goldens/tasks.md)。goldenの基準版・環境・追加手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。13構成の小runは全構成の全重要分岐を網羅するものではない。
 - **採否は決まった（2026-10-13ユーザー）。** 正本は[実装findingの決定](../../docs/research/implementation-findings/README.md#決定2026-10-13ユーザー)と[改善候補の決定](../../docs/research/improvement-candidates/README.md#決定2026-10-13ユーザー)、各記録の「判断（2026-10-13）」。進める順: LEGACY-016（送信保留の上書きの対処を含む）→LEGACY-002→LEGACY-014の概念計数→LEGACY-001→整理（IMPROVE-013/014、LEGACY-005の説明）。保留は、効果や頻度を測ってから決める。
 - 挙動を直す変更（016・002）は、旧と同じ扱いを設定で選べる形で入れる（旧実装を外すまで）。旧との照合testと基準版1は、旧と同じ設定で通し続け、直した既定の値は、新しい基準版へ足す。修正で精度・通信量などが下がる場合は、ユーザーへ報告する（2026-10-13ユーザー指示）。
+- **LEGACY-016は完了**（[pending-model-registration-by-own-id](../specs/pending-model-registration-by-own-id/tasks.md)。証拠は同specのtasks.md）。修正の前後の比較（8条件）では、精度は、circle2・sine2で上がり、mnist2で下がった（−0.3〜−0.9ポイント）。下りの通信量は、最大で+46%。ユーザーへ報告済み。ablationの規模の再実験は、未実施。重要動作のgoldenは、基準版1（旧と同じ扱いで照合）と基準版2（既定）の2つ。**次は、LEGACY-002**（短い警報のあと、取込み済みの前区間だけを保留から消費する。同じく、旧と同じ扱いを設定で残す。分岐が1つの機能に閉じない場合は、設定で残さず、差を説明して照合する）。その後、LEGACY-014の概念計数→LEGACY-001→整理。
 - 採否後の変更は影響に応じた別specで扱う。固定旧748c3aaと旧goldenは維持する。新基準版1は修正前の比較に使い、意図した変更の期待差を検証してから必要な新基準版を追加する。旧実装削除やNEW-004の照合削除へ先に進まない。
 
 以下の2026-10-11の引継ぎ、長い過去の分割案、末尾のserver同期開始メモは履歴であり、そこにある「次」「進行中」「未移植」は当時の状態。現在の次の一手は上記を優先し、実際の完了状態は各specで確認する。
