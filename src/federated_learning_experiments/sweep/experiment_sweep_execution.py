@@ -18,6 +18,14 @@ from torch import get_num_threads, set_num_threads
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
+from federated_learning_experiments.runtime.fedavg_experiment_run import (
+    execute_fedavg_experiment_run,
+)
+from federated_learning_experiments.runtime.fedavg_run_artifact_files import (
+    load_fedavg_run_artifacts,
+    save_fedavg_experiment_run,
+)
+from federated_learning_experiments.runtime.fedavg_run_settings import FedavgRunSettings
 from federated_learning_experiments.runtime.feddrift_experiment_run import (
     execute_feddrift_experiment_run,
 )
@@ -77,8 +85,14 @@ def _get_run_directory(*, planned_run: PlannedExperimentRun, output_directory: P
 
 
 def _validate_run_settings_type(planned_run: PlannedExperimentRun) -> None:
-    if type(planned_run.run_settings) not in (FedsdaRunSettings, FeddriftRunSettings):
-        raise TypeError("run_settings must be exact FedsdaRunSettings or FeddriftRunSettings")
+    if type(planned_run.run_settings) not in (
+        FedsdaRunSettings,
+        FeddriftRunSettings,
+        FedavgRunSettings,
+    ):
+        raise TypeError(
+            "run_settings must be exact FedsdaRunSettings, FeddriftRunSettings or FedavgRunSettings"
+        )
 
 
 def find_existing_run_state(
@@ -109,7 +123,9 @@ def find_existing_run_state(
         )
     try:
         loader = (
-            load_feddrift_run_artifacts
+            load_fedavg_run_artifacts
+            if type(planned_run.run_settings) is FedavgRunSettings
+            else load_feddrift_run_artifacts
             if type(planned_run.run_settings) is FeddriftRunSettings
             else load_fedsda_run_artifacts
         )
@@ -152,7 +168,14 @@ def execute_planned_experiment_run(
             planned_run=planned_run, output_directory=output_directory
         )
         run_directory.mkdir(parents=True, exist_ok=True)
-        if type(planned_run.run_settings) is FeddriftRunSettings:
+        if type(planned_run.run_settings) is FedavgRunSettings:
+            fedavg_run = execute_fedavg_experiment_run(run_settings=planned_run.run_settings)
+            save_fedavg_experiment_run(
+                experiment_run=fedavg_run,
+                output_directory=run_directory,
+                file_stem=planned_run.run_identifier,
+            )
+        elif type(planned_run.run_settings) is FeddriftRunSettings:
             feddrift_run = execute_feddrift_experiment_run(run_settings=planned_run.run_settings)
             save_feddrift_experiment_run(
                 experiment_run=feddrift_run,

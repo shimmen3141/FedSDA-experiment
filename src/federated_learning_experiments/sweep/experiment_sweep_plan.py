@@ -11,6 +11,7 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
+from federated_learning_experiments.runtime.fedavg_run_settings import FedavgRunSettings
 from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.sweep.experiment_configurations import (
@@ -96,11 +97,13 @@ class PlannedExperimentRun:
 
     configuration_name: str
     run_identifier: str
-    run_settings: FedsdaRunSettings | FeddriftRunSettings
+    run_settings: FedsdaRunSettings | FeddriftRunSettings | FedavgRunSettings
 
 
 def make_run_identifier(
-    *, configuration_name: str, run_settings: FedsdaRunSettings | FeddriftRunSettings
+    *,
+    configuration_name: str,
+    run_settings: FedsdaRunSettings | FeddriftRunSettings | FedavgRunSettings,
 ) -> str:
     """`<dataset>_interval<集約間隔>_seed<seed>_<hash>`を返す。
 
@@ -111,8 +114,10 @@ def make_run_identifier(
         raise TypeError("configuration_name must be builtin str")
     if not configuration_name:
         raise ValueError("configuration_name must not be empty")
-    if type(run_settings) not in (FedsdaRunSettings, FeddriftRunSettings):
-        raise TypeError("run_settings must be exact FedsdaRunSettings or FeddriftRunSettings")
+    if type(run_settings) not in (FedsdaRunSettings, FeddriftRunSettings, FedavgRunSettings):
+        raise TypeError(
+            "run_settings must be exact FedsdaRunSettings, FeddriftRunSettings or FedavgRunSettings"
+        )
     canonical_text = dumps(
         {
             "configuration_name": configuration_name,

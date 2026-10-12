@@ -2213,6 +2213,37 @@ def main():
         == independent_run.run_metrics.communication_volume.downloaded_byte_count
     )
     print("PASS independent-model cross evaluation, run metrics and saved communication volume")
+    from federated_learning_experiments.runtime.fedavg_experiment_run import (
+        execute_fedavg_experiment_run,
+    )
+    from federated_learning_experiments.runtime.fedavg_run_artifact_files import (
+        load_fedavg_run_artifacts,
+        save_fedavg_experiment_run,
+    )
+    from federated_learning_experiments.runtime.fedavg_run_settings import (
+        build_default_fedavg_run_settings,
+    )
+
+    fedavg_run = execute_fedavg_experiment_run(
+        run_settings=build_default_fedavg_run_settings(
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="sine2",
+                random_seed=0,
+                client_count=2,
+                per_client_sample_count=35,
+                server_aggregation_interval_per_client_samples=10,
+            )
+        )
+    )
+    with TemporaryDirectory() as directory:
+        paths = save_fedavg_experiment_run(
+            experiment_run=fedavg_run, output_directory=Path(directory), file_stem="fedavg"
+        )
+        summary, tables = load_fedavg_run_artifacts(summary_file_path=paths.summary_file_path)
+    assert summary["method_name"] == "fedavg"
+    assert fedavg_run.run_metrics.final_global_model_count == 1
+    assert tables["sample_prediction.sample_index"].shape == (2, 30)
+    print("PASS FedAvg full run, measurement and artifact roundtrip")
     loaded_forbidden_modules = sorted(
         name
         for name in sys.modules

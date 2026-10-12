@@ -903,6 +903,7 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME,
         INDEPENDENT_MODELS_CONFIGURATION_NAME,
         "feddrift",
+        "fedavg",
     )
     assert INDEPENDENT_MODELS_CONFIGURATION_NAME == "fedsda-independent-models"
     assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
@@ -925,6 +926,7 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
     assert set(CONFIGURATION_VARIANTS) == set(EXPERIMENT_CONFIGURATION_NAMES) - {
         PROPOSED_FEDSDA_CONFIGURATION_NAME,
         "feddrift",
+        "fedavg",
     }
     experiment_run_conditions = ExperimentRunConditions(
         dataset_name="sine2",

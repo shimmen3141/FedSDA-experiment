@@ -83,7 +83,7 @@ def _build_argument_parser() -> ArgumentParser:
         type=float,
         default=None,
         metavar="THRESHOLD",
-        help="FedDriftの損失増分閾値（feddrift選択時だけ指定可、省略時0.1）。FedSDAはこの軸で増やさない",
+        help="FedDriftの損失増分閾値（feddrift選択時だけ指定可、省略時0.1）。FedSDA・FedAvgはこの軸で増やさない",
     )
     argument_parser.add_argument(
         "--workers", type=int, default=1, help="並列に実行するprocessの数（既定1）"

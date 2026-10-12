@@ -120,3 +120,16 @@ python run_experiment_sweep.py --configurations fedsda feddrift --datasets sine2
 この例はFedSDA 2 run、FedDrift 4 run。同じdataset・seed・規模・間隔で比較し、閾値軸はFedSDAを複製しない。FedDriftのRは既定1で、client/serverの閾値を同時に設定する。対応datasetはsine2・sea2・sea4・circle2・mnist2・mnist4。MNISTのファイルを配置する手順は既存と同じ。
 
 保存先は`<出力先>/feddrift/runs/`。要約JSONは完全条件と共通指標、NPZは記録表。`feddrift/run_summary.csv`は検出バッチ件数と損失増分閾値も含む。再実行は同じ条件の結果を飛ばし、破損・片方だけ・手法/条件不一致は上書きせず失敗とする。
+
+
+## 単一モデル比較のFedAvg
+
+`--configurations fedavg`で、旧Obliviousに対応する単一モデルの比較手法を実行できる。全到着標本を保持してオンライン学習し、累積保持件数でFedAvgする。同期後のoptimizerは初期化する。検出・モデル生成・切替・クラスタリングは行わない。正式名は`fedavg`で、旧名aliasは用意しない。
+
+FedSDA・FedDriftと同じdataset/seed/client数/標本数/集約間隔で比較でき、精度・定常精度・通信量・計算量は共通定義。切替検出の列は空、モデル数は常に1。候補検証・routing・クロス評価などの固有指標は生成しない。`--feddrift-loss-increase-thresholds`はFedDriftだけを増やす。
+
+```powershell
+python run_experiment_sweep.py --configurations fedsda feddrift fedavg --datasets sine2 --seeds 0 --client-count 10 --per-client-sample-count 5000 --aggregation-intervals 100 --workers 1 --output-directory results/three-method-comparison
+```
+
+FedAvgの成果物は`fedavg/runs/`配下の完全設定・共通指標・環境のJSONと名前付き記録のNPZ。再開と競合拒否、`run_summary.csv`の生成は他構成と同じ。準備の計算は本実行へ含めず、処理されない末尾は生成概念列と進行件数へ残す。

@@ -4807,6 +4807,140 @@ def test_feddrift_round_training_rejects_outer_dependencies(source_module_path, 
 
 def dependency_is_allowed(*, source_module_path, imported_module_name):
     """各層の依存方向と数値ライブラリを参照できる場所を判定する。"""
+    if source_module_path == "methods/fedavg/fedavg_client.py":
+        return imported_module_name in (
+            "copy.deepcopy",
+            "dataclasses.dataclass",
+            "federated_learning_experiments.data.observed_streams.ObservedSample",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
+            "federated_learning_experiments.learning.training.independent_model_parameter_update.update_independent_model_parameters",
+            "federated_learning_experiments.learning.training.independent_model_parameter_update.validate_independent_model_parameter_update_inputs",
+            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
+            "random.Random",
+            "torch.Tensor",
+            "torch.cat",
+            "torch.float32",
+            "torch.isfinite",
+            "torch.no_grad",
+            "torch.tensor",
+        )
+    if source_module_path == "runtime/fedavg_experiment_run.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.data.observed_sample_generation.ObservedSampleGenerator",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
+            "federated_learning_experiments.evaluation.computation_cost_summary.ComputationCostSummary",
+            "federated_learning_experiments.evaluation.computation_cost_summary.ServerComputationCounts",
+            "federated_learning_experiments.evaluation.computation_cost_summary.summarize_computation_cost",
+            "federated_learning_experiments.evaluation.run_metric_calculations.DetectionMetrics",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_detection_metrics",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_prediction_accuracy",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_stable_period_prediction_accuracy",
+            "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
+            "federated_learning_experiments.execution.run_execution_records.StreamProtocolRunResult",
+            "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
+            "federated_learning_experiments.execution.run_participant_contracts.RunServerOperations",
+            "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.StreamProtocolExecutionSettings",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationMeter",
+            "federated_learning_experiments.learning.models.model_computation_measurement.measure_model_computation",
+            "federated_learning_experiments.learning.models.model_computation_measurement.subtract_model_computation_counts",
+            "federated_learning_experiments.methods.fedavg.fedavg_client.FedavgClient",
+            "federated_learning_experiments.methods.fedavg.fedavg_client.FedavgSamplePrediction",
+            "federated_learning_experiments.runtime.fedavg_run_participant_factory.FedavgRunParticipantFactory",
+            "federated_learning_experiments.runtime.fedavg_run_server.FedavgRunServer",
+            "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunParticipantSettings",
+            "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunSettings",
+            "federated_learning_experiments.runtime.single_run_execution.execute_stream_protocol_run",
+            "typing.cast",
+        )
+    if source_module_path == "runtime/fedavg_run_artifact_files.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.runtime.fedavg_experiment_run.FedavgExperimentRun",
+            "federated_learning_experiments.runtime.fedavg_run_record_tables.build_fedavg_run_record_tables",
+            "json.dumps",
+            "json.loads",
+            "numpy.__version__",
+            "numpy.load",
+            "numpy.ndarray",
+            "numpy.savez_compressed",
+            "os.replace",
+            "pathlib.Path",
+            "platform.machine",
+            "platform.python_version",
+            "platform.system",
+            "torch.__version__",
+            "uuid.uuid4",
+        )
+    if source_module_path == "runtime/fedavg_run_participant_factory.py":
+        return imported_module_name in (
+            "copy.deepcopy",
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.data.dataset_definitions.get_dataset_definition",
+            "federated_learning_experiments.data.observed_sample_generation.ObservedSampleGenerator",
+            "federated_learning_experiments.data.observed_sample_generation.is_observed_sample_generator_of_dataset",
+            "federated_learning_experiments.execution.run_participant_contracts.RunParticipants",
+            "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
+            "federated_learning_experiments.methods.fedavg.fedavg_client.FedavgClient",
+            "federated_learning_experiments.runtime.fedavg_run_server.FedavgRunServer",
+            "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunParticipantSettings",
+            "federated_learning_experiments.runtime.initial_model_pretraining.pretrain_initial_model",
+            "numpy.random.RandomState",
+            "random.Random",
+        )
+    if source_module_path == "runtime/fedavg_run_record_tables.py":
+        return imported_module_name in (
+            "dataclasses.fields",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
+            "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
+            "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
+            "federated_learning_experiments.methods.fedavg.fedavg_client.FedavgClient",
+            "federated_learning_experiments.runtime.fedavg_experiment_run.FedavgExperimentRun",
+            "federated_learning_experiments.runtime.fedavg_experiment_run.derive_fedavg_run_metrics",
+            "federated_learning_experiments.runtime.fedavg_run_server.FedavgRunServer",
+            "numpy.asarray",
+            "numpy.bool_",
+            "numpy.float64",
+            "numpy.int64",
+            "numpy.ndarray",
+            "numpy.str_",
+            "typing.cast",
+        )
+    if source_module_path == "runtime/fedavg_run_server.py":
+        return imported_module_name in (
+            "copy.deepcopy",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
+            "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.BoundedLossMoments",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
+            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
+            "federated_learning_experiments.methods.fedavg.fedavg_client.FedavgClient",
+            "torch.Tensor",
+        )
+    if source_module_path == "runtime/fedavg_run_settings.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings.RandomConceptScheduleSettings",
+            "federated_learning_experiments.evaluation.run_metric_calculations.RunMetricSettings",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.StreamProtocolExecutionSettings",
+            "federated_learning_experiments.execution.stream_protocol_execution_settings.validate_stream_protocol_execution_settings",
+            "federated_learning_experiments.learning.training.initial_model_pretraining_settings.InitialModelPretrainingSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+        )
     if source_module_path == "runtime/feddrift_model_distribution_application.py":
         return imported_module_name in (
             "federated_learning_experiments.evaluation.adaptation_record_store",
@@ -5566,6 +5700,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_execution.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunSettings",
+            "federated_learning_experiments.runtime.fedavg_run_artifact_files.save_fedavg_experiment_run",
+            "federated_learning_experiments.runtime.fedavg_run_artifact_files.load_fedavg_run_artifacts",
+            "federated_learning_experiments.runtime.fedavg_experiment_run.execute_fedavg_experiment_run",
             "collections.abc.Callable",
             "concurrent.futures.ProcessPoolExecutor",
             "concurrent.futures.as_completed",
@@ -5592,6 +5730,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_plan.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunSettings",
             "dataclasses.dataclass",
             "dataclasses.replace",
             "hashlib.sha256",
@@ -5619,6 +5758,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_configurations.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.fedavg_run_settings.build_default_fedavg_run_settings",
+            "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunSettings",
             "dataclasses.replace",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
             "federated_learning_experiments.runtime.feddrift_default_run_settings.build_default_feddrift_run_settings",
@@ -7015,6 +7156,13 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "methods/fedavg/fedavg_client.py",
+            "runtime/fedavg_experiment_run.py",
+            "runtime/fedavg_run_artifact_files.py",
+            "runtime/fedavg_run_participant_factory.py",
+            "runtime/fedavg_run_record_tables.py",
+            "runtime/fedavg_run_server.py",
+            "runtime/fedavg_run_settings.py",
             "runtime/feddrift_run_settings.py",
             "runtime/feddrift_experiment_run.py",
             "runtime/feddrift_run_record_tables.py",
@@ -7149,6 +7297,13 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             if (
                 source_module_path
                 in (
+                    "methods/fedavg/fedavg_client.py",
+                    "runtime/fedavg_experiment_run.py",
+                    "runtime/fedavg_run_artifact_files.py",
+                    "runtime/fedavg_run_participant_factory.py",
+                    "runtime/fedavg_run_record_tables.py",
+                    "runtime/fedavg_run_server.py",
+                    "runtime/fedavg_run_settings.py",
                     "evaluation/adahedge_weight_evidence_collection.py",
                     "runtime/training_assignment_adahedge_weight_evidence_restart.py",
                     "evaluation/adahedge_weight_evidence.py",
