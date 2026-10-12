@@ -1,0 +1,22 @@
+# Research & Design Decisions
+
+## Summary
+主担当が旧ObliviousClient、BaseClient.train_step/flush_pending_updates/train_all_held_models/apply_server_mapping、BaseServer.run_round/update_global_models/broadcast_models、experiment._pretrain_initial_model/_setup_server_and_clients/_run_per_sample_timestepと新実装を調査した。利用skillはfable-methodとcc-sdd init/requirements/design/tasks/impl。新しい外部依存は不要。
+
+## Research Log
+- 旧モデルはSimpleMLP。新のindependent_models_without_shared_backboneと既存の独立モデル更新/初期事前学習が数値的な対応先。
+- 旧は全データ保持・間隔ごとのpending予算・区間末flush。オンライン損失は全体だけ。検出履歴は全0、概念割当カウンタは未追加。初期optimizerの学習済み状態はclientへ複製するが、同期は新モデル生成なのでoptimizerはリセット、Torch RNGも消費する。
+- 旧serverは累積保持件数重み、モデルID0のみ。統計は別のn重みmean/M2=0、clientの既存統計は維持。初期モデル配布は通信に数えない。
+- 既存sample-index→clientの共通executorは旧と同じ順。候補等の操作はno-op adapter。FedDriftのclient順block executorを借りるとRandom.sampleの順が変わるので利用しない。
+- 既存sweepは完全設定unionと型dispatchの追加で接続できる。FedDriftの閾値専用分岐をそのまま残す。既存保存形式を変更せずFedAvg専用format1として接続する。
+
+## Design Decisions
+単一spec内で4つの責務taskを逐次実施する。手法名はユーザー案fedavgを採用し、設定/説明に全データ保持オンライン方式を明記する。Oblivious aliasは置かない。汎用の単一モデル比較基盤を新設せず、既存の実際のモデル/評価/進行を再利用する。固有の状態はmethods/fedavgへ置き、組立てと保存はruntime。
+
+## Risks & Mitigations
+乱数/optimizer/反復順の差は実旧への状態対照で検出。モデル生成はcopyではなく同期時に新規生成。計測は既存hookとread-only checkpointで判断へ干渉しない。旧goldenのOblivious/blobsはそのまま残すがblobsは新実装対象外。新goldenの追加はこのspec後。
+
+
+## 実装で確認した対応
+実旧OracleはObliviousClient.__init__/process_one_step、BaseServer.run_round、およびexperimentの実setup/生成/時刻進行をそのまま呼んだ。旧と新のparameter名はtestでnative順のLinear weight/biasを対応付け、optimizer state全体と保持Tensor/統計/乱数を比較した。6dataset×Adam/SGDで一致。FedAvg固有の状態を使うため、FedSDAの検出等を無効化してbaselineを作る方式は採らなかった。
+共通進行の計測wrapperはFedSDAの既存の準備/同期checkpointと同じ方法をFedAvgのfactoryへ適用し、既存FedSDA sourceを変更していない。旧の統計n=0補充は正の事前学習件数の正常runでは到達しない。
