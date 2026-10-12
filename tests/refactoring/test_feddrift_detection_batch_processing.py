@@ -42,6 +42,9 @@ from federated_learning_experiments.learning.training.parameter_optimizer_state 
 from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
     TemporaryModelIdAllocator,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -98,7 +101,9 @@ def build_processing_oracle(
             maximum_stored_sample_count_per_model=5, added_batch_sample_count=added_count
         ),
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=6),
-        pending_model_upload_state=PendingModelUploadState(),
+        pending_model_upload_state=PendingModelUploadState(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        ),
         python_random_generator=Random(87),
         new_model_optimizer_settings=optimizer_settings,
         loss_increase_threshold=threshold,
@@ -693,7 +698,9 @@ def test_existing_parameter_optimizer_identity_and_state_are_preserved(
 
 
 def test_ready_upload_replaces_delayed_slot_without_waiting():
-    state = PendingModelUploadState()
+    state = PendingModelUploadState(
+        pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+    )
     state.queue_model_upload(
         model_id=-100, parameter_snapshot={"a": torch.ones(2)}, upload_delay_round_count=3
     )
@@ -712,7 +719,9 @@ def test_ready_upload_replaces_delayed_slot_without_waiting():
     ((True, {"a": torch.ones(1)}), (-100, {}), (-100, {"a": torch.tensor([float("nan")])})),
 )
 def test_invalid_ready_upload_preserves_previous_slot(model_id, snapshot):
-    state = PendingModelUploadState()
+    state = PendingModelUploadState(
+        pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+    )
     state.queue_model_upload(
         model_id=-99, parameter_snapshot={"a": torch.ones(2)}, upload_delay_round_count=2
     )

@@ -70,6 +70,9 @@ from federated_learning_experiments.learning.training.parameter_optimizer_state 
 from federated_learning_experiments.learning.training.participating_model_training_batch import (
     ParticipatingModelTrainingBatch,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -257,7 +260,9 @@ def build_initial_registration_oracle(
             "class_stats": {1: {"n": 2, "mean": 0.125, "M2": 0.25}},
         }
     current_model_id = held_model_ids[-1] if current_model_is_held and held_model_ids else 77
-    pending_upload_state = PendingModelUploadState()
+    pending_upload_state = PendingModelUploadState(
+        pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+    )
     legacy_client.current_model_id = current_model_id
     legacy_client.compute_counters = defaultdict(int)
     legacy_client.verbose = False
@@ -851,6 +856,10 @@ def test_invalid_owner_is_rejected_without_any_change(
             registration_arguments[invalid_owner_name] = (
                 owner_subclass(initial_model_id=4)
                 if owner_type is CurrentTrainingModelAssignment
+                else owner_subclass(
+                    pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+                )
+                if owner_type is PendingModelUploadState
                 else owner_subclass()
             )
         else:

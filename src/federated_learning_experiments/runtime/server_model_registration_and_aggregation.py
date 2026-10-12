@@ -78,6 +78,9 @@ def register_ready_client_models(
 ) -> tuple[RegisteredClientModel, ...]:
     """送信できるモデルを持つclientへ、渡された順に、正式IDを採番し、来歴を記録し、clientへ確認させる。
 
+    1つのclientが、送信できるモデルを複数持つときは、その全部を、採用の順に登録する（件数は、登録を
+    始める前に数える）。
+
     パラメータは送らない（集約のときに1回だけ送る）ので、通信量もグローバルモデルの値も変えない。
     clientの現在の学習帰属が非負のIDへ戻っていた場合も、採番と来歴の記録は行う（旧の挙動の維持）。
     """
@@ -91,31 +94,33 @@ def register_ready_client_models(
     for run_client in run_clients:
         if not run_client.has_model_ready_for_server_registration():
             continue
-        registered_global_model_id = global_model_repository.allocate_global_model_id()
-        global_model_repository.record_model_registration(
-            model_id=registered_global_model_id,
-            registered_round_index=round_index,
-            registering_client_id=run_client.client_id,
-        )
-        owners = run_client.owners
-        # 学習帰属の変更は、診断へ通知しない（旧も、切替の通知を呼ばずに現行モデルを置き換える）。
-        training_assignment_change = confirm_held_model_registration(
-            registered_global_model_id=registered_global_model_id,
-            held_model_training_state_registry=owners.held_model_training_state_registry,
-            loss_statistics_store=owners.loss_statistics_store,
-            training_sample_store=owners.training_sample_store,
-            evaluation_sample_store=owners.model_evaluation_sample_store,
-            model_training_and_assignment_counts_store=owners.model_training_and_assignment_counts_store,
-            current_training_model_assignment=owners.current_training_model_assignment,
-            pending_model_upload_state=owners.pending_model_upload_state,
-        )
-        registered_client_models.append(
-            RegisteredClientModel(
-                client_id=run_client.client_id,
-                registered_global_model_id=registered_global_model_id,
-                training_assignment_change=training_assignment_change,
+        # 現行を付け替える方針では、送信保留は1つなので、1回。
+        for _ in range(max(run_client.count_models_ready_for_server_registration(), 1)):
+            registered_global_model_id = global_model_repository.allocate_global_model_id()
+            global_model_repository.record_model_registration(
+                model_id=registered_global_model_id,
+                registered_round_index=round_index,
+                registering_client_id=run_client.client_id,
             )
-        )
+            owners = run_client.owners
+            # 学習帰属の変更は、診断へ通知しない（旧も、切替の通知を呼ばずに現行モデルを置き換える）。
+            training_assignment_change = confirm_held_model_registration(
+                registered_global_model_id=registered_global_model_id,
+                held_model_training_state_registry=owners.held_model_training_state_registry,
+                loss_statistics_store=owners.loss_statistics_store,
+                training_sample_store=owners.training_sample_store,
+                evaluation_sample_store=owners.model_evaluation_sample_store,
+                model_training_and_assignment_counts_store=owners.model_training_and_assignment_counts_store,
+                current_training_model_assignment=owners.current_training_model_assignment,
+                pending_model_upload_state=owners.pending_model_upload_state,
+            )
+            registered_client_models.append(
+                RegisteredClientModel(
+                    client_id=run_client.client_id,
+                    registered_global_model_id=registered_global_model_id,
+                    training_assignment_change=training_assignment_change,
+                )
+            )
     return tuple(registered_client_models)
 
 

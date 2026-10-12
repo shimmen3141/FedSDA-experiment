@@ -33,6 +33,9 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -262,7 +265,9 @@ def test_loss_statistics_id_reassignment_connects_pending_upload_confirmation(
         loss_statistics_store.set_model_loss_statistics(
             model_id=-7, loss_statistics=initial_loss_statistics
         )
-        pending_upload_state = PendingModelUploadState()
+        pending_upload_state = PendingModelUploadState(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        )
         pending_upload_state.queue_model_upload(
             model_id=-7,
             parameter_snapshot=initial_parameter_snapshot,

@@ -21,6 +21,10 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+    PendingModelRegistrationSettings,
+)
 from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientScalarSettings,
     FedsdaRunClientSettings,
@@ -77,6 +81,9 @@ def make_valid_run_client_settings(valid_run_settings_mapping, **replaced_fields
             ),
             rebuilt_model_parameter_optimizer_settings=AdamParameterOptimizerSettings(
                 learning_rate=0.02, weight_decay=0.001, adam_variant="amsgrad"
+            ),
+            pending_model_registration_settings=PendingModelRegistrationSettings(
+                pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
             ),
             scalar_settings=FedsdaRunClientScalarSettings(**VALID_SCALAR_VALUES),
             loss_monitor_betting_fractions=(0.05, 0.1, 0.2, 0.4, 0.8),

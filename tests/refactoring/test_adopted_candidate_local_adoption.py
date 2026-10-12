@@ -50,6 +50,12 @@ from federated_learning_experiments.learning.training.participating_model_traini
 from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
     TemporaryModelIdAllocator,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+)
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
+    PendingModelUploadState,
+)
 from federated_learning_experiments.runtime.adopted_candidate_local_adoption import (
     adopt_candidate_as_current_training_model,
 )
@@ -545,6 +551,10 @@ def test_rejected_adoption_changes_no_state_including_allocator(
                     if owner_type is TemporaryModelIdAllocator
                     else owner_subclass(initial_model_id=9)
                     if owner_type is CurrentTrainingModelAssignment
+                    else owner_subclass(
+                        pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+                    )
+                    if owner_type is PendingModelUploadState
                     else owner_subclass()
                 )
         invalid_count_by_case_suffix = {

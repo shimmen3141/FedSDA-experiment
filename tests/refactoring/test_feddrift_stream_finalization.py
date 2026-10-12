@@ -243,7 +243,11 @@ def test_finalization_rejects_before_any_client_flush(monkeypatch, case):
     elif case == "bad_allocator":
         second.owners.temporary_model_id_allocator._next_temporary_model_id = True
     elif case == "bad_delay":
-        second.owners.pending_model_upload_state._remaining_upload_delay_round_count = True
+        # 送信保留が無いと、待ちの値を壊せないので、先に、bufferを確定して送信保留を作る。
+        for client in clients:
+            client.flush_detection_buffer()
+        pending_model_uploads = second.owners.pending_model_upload_state._pending_model_uploads
+        pending_model_uploads[0] = (pending_model_uploads[0][0], True)
     elif case == "bad_second_id":
         # 次ID1は空いていても、その次2が既存clientモデルと衝突する。
         state = second.owners.held_model_training_state_registry.get_held_model_training_state(

@@ -5197,6 +5197,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.temporary_model_id_allocation",
             "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
             "federated_learning_experiments.runtime.feddrift_client_round_training",
             "federated_learning_experiments.runtime.feddrift_client_round_training.train_feddrift_held_models_for_round",
@@ -5841,6 +5842,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_client_settings.FedsdaRunClientSettings",
             "federated_learning_experiments.runtime.fedsda_run_participant_factory.FedsdaRunParticipantSettings",
             "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.PendingModelRegistrationSettings",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME",
         )
     if source_module_path == "runtime/feddrift_measured_run_execution.py":
         return imported_module_name in (
@@ -6146,6 +6149,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.LossChangeDetectionSettings",
             "federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings.PredictionCombinationSettings",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.TrainingDataAssignmentSettings",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.PendingModelRegistrationSettings",
         )
     if source_module_path == "runtime/observed_sample_prediction.py":
         return imported_module_name in (
@@ -6640,6 +6644,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
             "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
             "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
         )
     if source_module_path in (
@@ -6660,9 +6665,22 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.evaluation.model_evaluation_sample_records.ObservedEvaluationSample",
             "federated_learning_experiments.evaluation.model_evaluation_sample_records.ModelEvaluationSampleCollection",
         )
+    if (
+        source_module_path
+        == "methods/fedsda/model_registration/pending_model_registration_settings.py"
+    ):
+        # 設定の宣言は、field検査の関数と、同じ機能の、方針の値の一覧だけを参照する。
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "dataclasses.field",
+            "federated_learning_experiments.core.settings_field_validation",
+            "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
+        )
     if source_module_path == "methods/fedsda/model_registration/pending_model_upload.py":
         return imported_module_name in (
             "dataclasses.dataclass",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.PENDING_MODEL_REGISTRATION_POLICIES",
             "torch.Tensor",
             "torch.float32",
             "torch.isfinite",
@@ -7257,6 +7275,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "learning/prediction/classifier_bounded_loss_evaluation.py",
             "learning/models/classifier_parameter_snapshot.py",
             "methods/fedsda/model_registration/pending_model_upload.py",
+            "methods/fedsda/model_registration/pending_model_registration_settings.py",
             "evaluation/model_evaluation_sample_records.py",
             "evaluation/model_evaluation_sample_store.py",
             "learning/training/model_training_and_assignment_counts.py",
@@ -7377,6 +7396,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "learning/prediction/classifier_bounded_loss_evaluation.py",
                     "learning/models/classifier_parameter_snapshot.py",
                     "methods/fedsda/model_registration/pending_model_upload.py",
+                    "methods/fedsda/model_registration/pending_model_registration_settings.py",
                     "evaluation/model_evaluation_sample_records.py",
                     "evaluation/model_evaluation_sample_store.py",
                     "learning/training/model_training_and_assignment_counts.py",

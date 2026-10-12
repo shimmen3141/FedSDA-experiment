@@ -40,9 +40,17 @@ def test_case_registry_preserves_all_registered_configurations():
     )
 
     assert golden.CASE_NAMES[:13] == EXPERIMENT_CONFIGURATION_NAMES
-    assert len(golden.CASE_NAMES) == 17
-    for case_name in golden.CASE_NAMES:
-        golden.build_case_settings(case_name).__post_init__()
+    assert len(golden.CASE_NAMES_BY_BASELINE_VERSION[1]) == 17
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[2] == (
+        *golden.CASE_NAMES_BY_BASELINE_VERSION[1],
+        "fedsda-sine2-reference-reuse",
+    )
+    assert golden.CASE_NAMES == golden.CASE_NAMES_BY_BASELINE_VERSION[golden.BASELINE_VERSION]
+    for baseline_version, case_names in golden.CASE_NAMES_BY_BASELINE_VERSION.items():
+        for case_name in case_names:
+            golden.build_case_settings(case_name, baseline_version).__post_init__()
+    with pytest.raises(ValueError):
+        golden.build_case_settings("fedsda-sine2-reference-reuse", 1)
 
 
 def test_helper_does_not_import_legacy_or_other_tests():
@@ -90,7 +98,7 @@ def structural_document():
         count = conditions.per_client_sample_count
         interval = conditions.server_aggregation_interval_per_client_samples
         cases[name] = dict(
-            run_settings=golden._plain(golden.build_case_settings(name)),
+            run_settings=golden.comparable_run_settings(name),
             run_metrics={"test_value": 1},
             record_tables={"test.column": digest},
             global_parameters={"0.test.weight": digest},
@@ -111,10 +119,11 @@ def structural_document():
                 recalibration_replayed_sample_count=1,
                 registered_model_count=2,
                 detection_count=1,
+                unregistered_adopted_model_count=0,
             ),
         )
     return dict(
-        baseline_version=1,
+        baseline_version=golden.BASELINE_VERSION,
         schema_version=1,
         source_commit="a" * 40,
         environment=dict(
@@ -168,7 +177,7 @@ def test_corrupt_golden_is_rejected_before_environment_skip(tmp_path, structural
     document = deepcopy(structural_document)
     case = document["cases"]["fedsda-sine2-events"]
     if damage == "unknown_version":
-        document["baseline_version"] = 2
+        document["baseline_version"] = max(golden.SUPPORTED_BASELINE_VERSIONS) + 1
     elif damage == "boolean_version":
         document["schema_version"] = True
     elif damage == "missing_case":
@@ -255,17 +264,19 @@ def test_generation_preserves_existing_output_before_starting(monkeypatch, tmp_p
     assert output.read_bytes() == b"original"
 
 
-def test_committed_goldens_cover_both_reference_environments():
-    paths = sorted(golden.GOLDEN_DIRECTORY.glob("*.json"))
+@pytest.mark.parametrize("baseline_version", golden.SUPPORTED_BASELINE_VERSIONS)
+def test_committed_goldens_cover_both_reference_environments(baseline_version):
+    paths = sorted(golden.golden_directory(baseline_version).glob("*.json"))
     assert len(paths) == 2, "Windows/WSL baselines are required"
-    documents = [golden.load_golden(path) for path in paths]
+    documents = [golden.load_golden(path, baseline_version) for path in paths]
     assert {d["environment"]["system"] for d in documents} == {"Windows", "Linux"}
-    for name in golden.CASE_NAMES:
+    case_names = golden.CASE_NAMES_BY_BASELINE_VERSION[baseline_version]
+    for name in case_names:
         assert (
             documents[0]["cases"][name]["run_settings"]
             == documents[1]["cases"][name]["run_settings"]
         )
-    for name in golden.CASE_NAMES:
+    for name in case_names:
         for section in ("run_metrics", "record_tables"):
             assert set(documents[0]["cases"][name][section]) == set(
                 documents[1]["cases"][name][section]
@@ -273,20 +284,70 @@ def test_committed_goldens_cover_both_reference_environments():
     assert documents[0]["mnist_sha256"] == documents[1]["mnist_sha256"]
 
 
+# ケースの実行の結果（ケース名と基準版ごとに1回だけ実行して、数値の照合と、版の差の説明のtestで共有する）。
+_CAPTURED_CASES = {}
+
+
+def capture_case_once(case_name, baseline_version):
+    key = (case_name, baseline_version)
+    if key not in _CAPTURED_CASES:
+        _CAPTURED_CASES[key] = golden.capture_case_and_count_unregistered_adopted_models(
+            case_name, baseline_version
+        )
+    return _CAPTURED_CASES[key]
+
+
 @pytest.mark.numerical_golden
-@pytest.mark.parametrize("case_name", golden.CASE_NAMES)
-def test_new_implementation_matches_important_behavior_golden(case_name):
+@pytest.mark.parametrize(
+    ("baseline_version", "case_name"),
+    [
+        (baseline_version, case_name)
+        for baseline_version, case_names in golden.CASE_NAMES_BY_BASELINE_VERSION.items()
+        for case_name in case_names
+    ],
+)
+def test_new_implementation_matches_important_behavior_golden(case_name, baseline_version):
+    """全部の基準版を照合する。版1は、版1の動作に当たる設定（登録の扱いが、固定旧と同じ）で実行する。"""
     environment = golden.numerical_environment()
-    path = golden.find_golden_path(environment)
+    path = golden.find_golden_path(environment, baseline_version=baseline_version)
     if path is None:
         pytest.skip(
-            f"baseline v{golden.BASELINE_VERSION} has no numerical golden for {environment}; structural checks remain required"
+            f"baseline v{baseline_version} has no numerical golden for {environment}; structural checks remain required"
         )
-    document = golden.load_golden(path)
+    document = golden.load_golden(path, baseline_version)
     assert document["mnist_sha256"] == golden.mnist_sha256(), "MNIST reference data changed"
     golden.assert_case_matches(
-        case_name, golden.capture_case(case_name), document["cases"][case_name]
+        case_name,
+        capture_case_once(case_name, baseline_version)[0],
+        document["cases"][case_name],
     )
+
+
+@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[1])
+def test_baseline_2_differs_from_baseline_1_only_where_adopted_models_stayed_unregistered(
+    case_name,
+):
+    """版2と版1の差は、版1の扱いで、登録されないままの採用が起きるケースに限る（LEGACY-016の修正の範囲）。
+
+    FedDrift・FedAvgのケースは、登録の扱いの設定を持たず、数は0（2つの版で、同じ設定）。
+    """
+    version_1_case, version_1_unregistered_model_count = capture_case_once(case_name, 1)
+    version_2_case, version_2_unregistered_model_count = capture_case_once(case_name, 2)
+    assert version_2_unregistered_model_count == 0
+    compared_sections = ("run_metrics", "record_tables", "global_parameters")
+    values_are_equal = all(
+        version_1_case[section] == version_2_case[section] for section in compared_sections
+    )
+    if version_1_unregistered_model_count == 0:
+        for section in compared_sections:
+            golden.assert_case_matches(
+                case_name, version_2_case[section], version_1_case[section], section
+            )
+    else:
+        assert not values_are_equal, case_name
+    # 修正の経路を通るケースが、基準に入っている。
+    if case_name == "fedsda-sine2-events":
+        assert version_1_unregistered_model_count == 2
 
 
 @pytest.mark.parametrize("condition", ("wrong_head", "modified_source", "untracked_source"))
@@ -332,6 +393,7 @@ def test_incomplete_candidate_is_not_counted_as_rejection():
                 [False, False, True]
             ),
         },
+        baseline_version=1,
     )
     assert coverage["candidate_accepted_count"] == coverage["candidate_rejected_count"] == 1
 

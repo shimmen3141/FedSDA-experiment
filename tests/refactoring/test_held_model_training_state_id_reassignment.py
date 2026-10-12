@@ -48,6 +48,9 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
     ParameterOptimizerState,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -262,7 +265,9 @@ def test_reassigned_training_state_continues_joint_updates_and_statistics(
             classifier=training_batches[1].classifier
         )
         previous_parameter_snapshot = deepcopy(initial_parameter_snapshot)
-        pending_upload_state = PendingModelUploadState()
+        pending_upload_state = PendingModelUploadState(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        )
         pending_upload_state.queue_model_upload(
             model_id=-7, parameter_snapshot=initial_parameter_snapshot, upload_delay_round_count=2
         )

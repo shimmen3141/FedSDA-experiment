@@ -302,6 +302,10 @@ class FedsdaRunClient:
         """送信保留のモデルがあり、送信までの待ちが済んでいるときだけ真。状態は変えない。"""
         return self._owners.pending_model_upload_state.has_ready_model_upload()
 
+    def count_models_ready_for_server_registration(self) -> int:
+        """送信までの待ちが済んだ、送信保留のモデルの数。状態は変えない。"""
+        return self._owners.pending_model_upload_state.count_ready_model_uploads()
+
     def advance_new_model_upload_wait_after_synchronization(self, *, round_index: int) -> None:
         """同期の後で、送信保留のモデルの待ちを1ラウンド進める。"""
         _validate_round_index(round_index=round_index)
@@ -619,7 +623,11 @@ def assemble_fedsda_run_client(
             added_batch_sample_count=scalar_settings.added_evaluation_batch_sample_count,
         ),
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=client_id),
-        pending_model_upload_state=PendingModelUploadState(),
+        pending_model_upload_state=PendingModelUploadState(
+            pending_model_registration_policy=(
+                run_client_settings.pending_model_registration_settings.pending_model_registration_policy
+            )
+        ),
         local_training_request_schedule=LocalTrainingRequestSchedule(
             local_training_schedule_settings=run_client_settings.local_training_schedule_settings
         ),

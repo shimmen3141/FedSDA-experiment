@@ -68,6 +68,9 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.ala
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -405,7 +408,9 @@ def build_alarm_change_interval_resolution_oracle(
         ),
         # 候補検証をしない方針での採用に使うowner（提案構成の方針では、使われない）。
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=0),
-        pending_model_upload_state=PendingModelUploadState(),
+        pending_model_upload_state=PendingModelUploadState(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        ),
         upload_delay_round_count=2,
         **{
             field_name: session_start_arguments[field_name]

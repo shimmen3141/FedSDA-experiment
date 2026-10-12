@@ -32,6 +32,9 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.can
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
     LossChangeDetectionSettings,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    PendingModelRegistrationSettings,
+)
 from federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings import (
     PredictionCombinationSettings,
 )
@@ -148,6 +151,7 @@ _REQUIRED_SETTINGS_TYPES_BY_FIELD_NAME: dict[str, tuple[type, ...]] = {
         AdamParameterOptimizerSettings,
         SgdParameterOptimizerSettings,
     ),
+    "pending_model_registration_settings": (PendingModelRegistrationSettings,),
     "scalar_settings": (FedsdaRunClientScalarSettings,),
 }
 
@@ -173,6 +177,7 @@ class FedsdaRunClientSettings:
     rebuilt_model_parameter_optimizer_settings: (
         AdamParameterOptimizerSettings | SgdParameterOptimizerSettings
     )
+    pending_model_registration_settings: PendingModelRegistrationSettings
     scalar_settings: FedsdaRunClientScalarSettings
     loss_monitor_betting_fractions: tuple[float, ...]
 

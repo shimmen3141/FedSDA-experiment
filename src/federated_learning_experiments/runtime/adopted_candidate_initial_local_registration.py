@@ -87,8 +87,10 @@ def _reject_temporary_model_id_already_in_use(
         raise ValueError("temporary_model_idは学習状態一覧に保有済みです。")
     if loss_statistics_store.get_model_loss_statistics(model_id=temporary_model_id) is not None:
         raise ValueError("temporary_model_idは損失統計に登録済みです。")
-    pending_model_upload = pending_model_upload_state.get_pending_model_upload()
-    if pending_model_upload is not None and pending_model_upload.model_id == temporary_model_id:
+    if any(
+        pending_model_upload.model_id == temporary_model_id
+        for pending_model_upload in pending_model_upload_state.get_all_pending_model_uploads()
+    ):
         raise ValueError("temporary_model_idは既存の送信保留の対応IDです。")
 
 

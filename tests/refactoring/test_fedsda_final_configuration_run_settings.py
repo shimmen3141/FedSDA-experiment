@@ -4,6 +4,7 @@ import json
 from dataclasses import fields, is_dataclass, replace
 
 import pytest
+from test_fedsda_run_client import use_pending_model_registration_policy_matching_legacy
 from test_fedsda_run_metric_derivation import legacy_regression, make_golden_condition_settings
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
@@ -22,6 +23,11 @@ from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
 from federated_learning_experiments.data.dataset_definitions import DEFINED_DATASET_NAMES
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+    REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+    PendingModelRegistrationSettings,
+)
 from federated_learning_experiments.runtime.fedsda_final_configuration_run_settings import (
     build_final_configuration_fedsda_run_settings,
 )
@@ -212,13 +218,40 @@ def make_experiment_run_conditions(dataset_name, legacy_values):
 def test_final_configuration_defaults_match_legacy_configuration(
     dataset_name, valid_run_settings_mapping
 ):
-    """既定値が、旧の設定の初期値に最終構成の固定設定を重ねた値と、全部の項目で一致する（全dataset）。"""
+    """既定値が、旧の設定の初期値に最終構成の固定設定を重ねた値と、登録の扱いを除く全部の項目で一致する（全dataset）。
+
+    登録の扱いだけは、旧と違う（送信保留のモデルを、それ自身のIDで登録する。LEGACY-016の修正）。
+    """
     legacy_values, hidden_layer_widths = read_legacy_final_configuration_values(dataset_name)
-    expected_run_settings = make_run_settings_from_legacy_values(
+    legacy_equivalent_run_settings = make_run_settings_from_legacy_values(
         dataset_name=dataset_name,
         legacy_values=legacy_values,
         hidden_layer_widths=hidden_layer_widths,
         model_consolidation_settings=valid_run_settings_mapping["model_consolidation_settings"],
+    )
+    legacy_equivalent_client_settings = (
+        legacy_equivalent_run_settings.run_participant_settings.run_client_settings
+    )
+    assert legacy_equivalent_client_settings.pending_model_registration_settings == (
+        PendingModelRegistrationSettings(
+            pending_model_registration_policy=(
+                KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+            )
+        )
+    )
+    expected_run_settings = replace(
+        legacy_equivalent_run_settings,
+        run_participant_settings=replace(
+            legacy_equivalent_run_settings.run_participant_settings,
+            run_client_settings=replace(
+                legacy_equivalent_client_settings,
+                pending_model_registration_settings=PendingModelRegistrationSettings(
+                    pending_model_registration_policy=(
+                        REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+                    )
+                ),
+            ),
+        ),
     )
     run_settings = build_final_configuration_fedsda_run_settings(
         experiment_run_conditions=make_experiment_run_conditions(dataset_name, legacy_values)
@@ -414,7 +447,7 @@ def test_golden_conditions_are_the_defaults_with_only_the_reduced_items_replaced
 
 
 def make_golden_condition_run_settings(dataset_name):
-    """goldenの条件の、完全なrun設定: 最終構成の既定値から、旧の回帰testが縮小した項目だけを置き換える。"""
+    """goldenの条件の、完全なrun設定: 最終構成の既定値から、旧の回帰testが縮小した項目と、登録の扱いを置き換える。"""
     golden_overrides = {**legacy_regression.COMMON, **legacy_regression.CASES[dataset_name]}
     default_run_settings = build_final_configuration_fedsda_run_settings(
         experiment_run_conditions=ExperimentRunConditions(
@@ -425,28 +458,33 @@ def make_golden_condition_run_settings(dataset_name):
             server_aggregation_interval_per_client_samples=50,
         )
     )
-    return replace(
-        default_run_settings,
-        execution_settings=replace(
-            default_run_settings.execution_settings,
-            concept_schedule_settings=replace(
-                default_run_settings.execution_settings.concept_schedule_settings,
-                minimum_sample_index_gap_before_change_trial=golden_overrides["MIN_STABLE_PERIOD"],
-                per_eligible_sample_concept_change_probability=golden_overrides["DRIFT_PROB"],
+    # 旧のgolden・実旧の結果と比べる条件なので、登録の扱いは、固定旧と同じにする（既定は、LEGACY-016の修正後の扱い）。
+    return use_pending_model_registration_policy_matching_legacy(
+        replace(
+            default_run_settings,
+            execution_settings=replace(
+                default_run_settings.execution_settings,
+                concept_schedule_settings=replace(
+                    default_run_settings.execution_settings.concept_schedule_settings,
+                    minimum_sample_index_gap_before_change_trial=golden_overrides[
+                        "MIN_STABLE_PERIOD"
+                    ],
+                    per_eligible_sample_concept_change_probability=golden_overrides["DRIFT_PROB"],
+                ),
             ),
-        ),
-        run_participant_settings=replace(
-            default_run_settings.run_participant_settings,
-            initial_model_pretraining_settings=replace(
-                default_run_settings.run_participant_settings.initial_model_pretraining_settings,
-                pretraining_sample_count=golden_overrides["PRETRAIN_SAMPLES"],
-                pretraining_epoch_count=golden_overrides["PRETRAIN_EPOCHS"],
+            run_participant_settings=replace(
+                default_run_settings.run_participant_settings,
+                initial_model_pretraining_settings=replace(
+                    default_run_settings.run_participant_settings.initial_model_pretraining_settings,
+                    pretraining_sample_count=golden_overrides["PRETRAIN_SAMPLES"],
+                    pretraining_epoch_count=golden_overrides["PRETRAIN_EPOCHS"],
+                ),
             ),
-        ),
-        run_metric_settings=replace(
-            default_run_settings.run_metric_settings,
-            post_change_recovery_window_sample_count=golden_overrides["STABLE_WINDOW"],
-        ),
+            run_metric_settings=replace(
+                default_run_settings.run_metric_settings,
+                post_change_recovery_window_sample_count=golden_overrides["STABLE_WINDOW"],
+            ),
+        )
     )
 
 

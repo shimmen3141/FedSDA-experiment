@@ -58,6 +58,9 @@ from federated_learning_experiments.learning.training.parameter_optimizer_state 
 from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
     TemporaryModelIdAllocator,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -290,7 +293,9 @@ def assemble_feddrift_run_client(
             added_batch_sample_count=run_client_settings.added_evaluation_batch_sample_count,
         ),
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=client_id),
-        pending_model_upload_state=PendingModelUploadState(),
+        pending_model_upload_state=PendingModelUploadState(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        ),
         model_training_and_assignment_counts_store=ModelTrainingAndAssignmentCountsStore(),
         adaptation_record_store=AdaptationRecordStore(),
     )

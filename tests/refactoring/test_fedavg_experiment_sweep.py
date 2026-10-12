@@ -37,7 +37,7 @@ def test_mixed_plan_uses_feddrift_axis_only_and_preserves_existing_identity():
     assert [r.configuration_name for r in runs] == ["fedsda"] * 2 + ["feddrift"] * 4 + [
         "fedavg"
     ] * 2
-    assert runs[0].run_identifier == "sine2_interval3_seed0_98b98b1b6b40"
+    assert runs[0].run_identifier == "sine2_interval3_seed0_7d900086e666"
     assert all(type(r.run_settings) is FedavgRunSettings for r in runs[-2:])
     assert len({r.run_identifier for r in runs}) == 8
 

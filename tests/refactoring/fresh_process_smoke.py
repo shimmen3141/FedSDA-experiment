@@ -145,6 +145,10 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.overall
 from federated_learning_experiments.methods.fedsda.model_registration.global_model_repository import (
     GlobalModelRepository,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+    PendingModelRegistrationSettings,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -484,7 +488,9 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     )
     # 候補の採用に使うowner（警報の処理と、候補検証の進行で、同じものを使う）。
     temporary_model_id_allocator = TemporaryModelIdAllocator(client_id=5)
-    pending_model_upload_state = PendingModelUploadState()
+    pending_model_upload_state = PendingModelUploadState(
+        pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+    )
     alarm_handling_arguments = dict(
         temporary_model_id_allocator=temporary_model_id_allocator,
         pending_model_upload_state=pending_model_upload_state,
@@ -760,7 +766,9 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         prediction_combination_strategy="fixed_share_weighted_prediction",
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=6),
-        pending_model_upload_state=PendingModelUploadState(),
+        pending_model_upload_state=PendingModelUploadState(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        ),
         maximum_reference_mean_loss_increase=0.0,
         minimum_candidate_mean_loss_improvement=0.0,
         upload_delay_round_count=1,
@@ -1117,6 +1125,9 @@ def run_assembled_client_flow(*, class_count):
         ),
         parameter_optimizer_settings=parameter_optimizer_settings,
         rebuilt_model_parameter_optimizer_settings=parameter_optimizer_settings,
+        pending_model_registration_settings=PendingModelRegistrationSettings(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        ),
         scalar_settings=FedsdaRunClientScalarSettings(
             maximum_tolerated_mean_loss_increase=0.1,
             minimum_candidate_mean_loss_improvement=0.0001,
@@ -1673,7 +1684,9 @@ def run_feddrift_detection_batch_smoke():
                         optimizer_settings=optimizer_settings,
                     ),
                 )
-            uploads = PendingModelUploadState()
+            uploads = PendingModelUploadState(
+                pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+            )
             assignment = CurrentTrainingModelAssignment(initial_model_id=7)
             training_store = ModelTrainingSampleStore()
             processor = FeddriftDetectionBatchProcessor(
@@ -2117,6 +2130,22 @@ def main():
             )
         )
     )
+    # 最終構成の既定は、送信保留のモデルを、それ自身のIDで登録する。runの終わりに、送信保留でない一時IDの
+    # 保有モデル（登録されないままの採用）は、残らない。
+    for run_client in experiment_run.measured_run.participants.client_operations:
+        client_owners = run_client.owners
+        assert (
+            client_owners.pending_model_upload_state.pending_model_registration_policy
+            == "register_each_pending_model_by_its_own_id"
+        )
+        pending_model_ids = {
+            pending_model_upload.model_id
+            for pending_model_upload in client_owners.pending_model_upload_state.get_all_pending_model_uploads()
+        }
+        assert all(
+            held_state.model_id >= 0 or held_state.model_id in pending_model_ids
+            for held_state in client_owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+        )
     with TemporaryDirectory() as artifact_directory:
         artifact_paths = save_fedsda_experiment_run(
             experiment_run=experiment_run,

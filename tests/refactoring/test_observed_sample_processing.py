@@ -70,6 +70,9 @@ from federated_learning_experiments.learning.training.model_training_sample_reco
 from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
     TemporaryModelIdAllocator,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -241,7 +244,9 @@ def build_sample_processing_oracle(
         loss_change_alarm_record_store=LossChangeAlarmRecordStore(),
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=temporary_model_id_allocator,
-        pending_model_upload_state=PendingModelUploadState(),
+        pending_model_upload_state=PendingModelUploadState(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        ),
         local_training_request_schedule=LocalTrainingRequestSchedule(
             local_training_schedule_settings=LocalTrainingScheduleSettings(
                 training_requests_per_update_interval=UPDATE_INTERVAL,

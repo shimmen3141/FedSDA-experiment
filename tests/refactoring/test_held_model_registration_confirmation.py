@@ -68,6 +68,9 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
 from federated_learning_experiments.learning.training.parameter_optimizer_state import (
     ParameterOptimizerState,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -146,7 +149,9 @@ def build_registration_confirmation_oracle(
             observed_concept_id=0,
         )
     classifier = legacy_client.models.get(-7, next(iter(legacy_client.models.values())))
-    pending_upload_state = PendingModelUploadState()
+    pending_upload_state = PendingModelUploadState(
+        pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+    )
     pending_upload_state.queue_model_upload(
         model_id=-7,
         parameter_snapshot=snapshot_classifier_parameters(classifier=classifier),

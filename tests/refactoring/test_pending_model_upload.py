@@ -31,6 +31,11 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+    PENDING_MODEL_REGISTRATION_POLICIES,
+    REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUpload,
     PendingModelUploadState,
@@ -69,7 +74,9 @@ def assert_pending_upload_state_matches_legacy(pending_upload_state, legacy_clie
 @pytest.mark.parametrize("upload_delay_round_count", [1, 2, 4])
 @pytest.mark.parametrize("model_id", [-7, 0, 5])
 def test_pending_upload_transition_sequence_matches_legacy(upload_delay_round_count, model_id):
-    pending_upload_state = PendingModelUploadState()
+    pending_upload_state = PendingModelUploadState(
+        pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+    )
     legacy_client = build_legacy_pending_upload_client()
     assert_pending_upload_state_matches_legacy(pending_upload_state, legacy_client)
     pending_upload_state.advance_upload_readiness_at_round_boundary()
@@ -116,7 +123,9 @@ def test_pending_upload_transition_sequence_matches_legacy(upload_delay_round_co
 def test_pending_upload_retains_borrowed_snapshot_and_nonconsuming_record():
     initial_parameter_snapshot = {"second": torch.tensor([0.5]), "first": torch.tensor([-0.25])}
     previous_parameter_snapshot = deepcopy(initial_parameter_snapshot)
-    pending_upload_state = PendingModelUploadState()
+    pending_upload_state = PendingModelUploadState(
+        pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+    )
     pending_upload_state.queue_model_upload(
         model_id=-7, parameter_snapshot=initial_parameter_snapshot, upload_delay_round_count=1
     )
@@ -169,7 +178,9 @@ def test_pending_upload_retains_borrowed_snapshot_and_nonconsuming_record():
     ],
 )
 def test_pending_upload_rejects_invalid_inputs_without_mutation(state_variant, invalid_input_kind):
-    pending_upload_state = PendingModelUploadState()
+    pending_upload_state = PendingModelUploadState(
+        pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+    )
     initial_parameter_snapshot = {"weight": torch.tensor([0.25])}
     if state_variant != "empty":
         pending_upload_state.queue_model_upload(
@@ -310,7 +321,9 @@ def test_pending_upload_connects_fixed_parameters_to_current_statistics(
         loss_statistics_store = ModelAndClassLossStatisticsStore(
             initial_loss_statistics_by_model_id={-7: initial_loss_statistics}
         )
-        pending_upload_state = PendingModelUploadState()
+        pending_upload_state = PendingModelUploadState(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        )
         pending_upload_state.queue_model_upload(
             model_id=-7,
             parameter_snapshot=initial_parameter_snapshot,
@@ -374,3 +387,177 @@ def test_pending_upload_connects_fixed_parameters_to_current_statistics(
         assert np.array_equal(np.random.get_state()[1], previous_random_states[1][1])
         assert np.random.get_state()[2:] == previous_random_states[1][2:]
         assert torch.equal(torch.get_rng_state(), previous_random_states[2])
+
+
+def make_upload_parameter_snapshot(value):
+    return {"weight": torch.tensor([value])}
+
+
+def snapshot_pending_uploads(pending_upload_state):
+    return tuple(
+        (pending_model_upload.model_id, pending_model_upload.parameter_snapshot)
+        for pending_model_upload in pending_upload_state.get_all_pending_model_uploads()
+    )
+
+
+def test_registration_policy_names_are_declared_and_required():
+    assert PENDING_MODEL_REGISTRATION_POLICIES == (
+        REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+        KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+    )
+    assert (
+        REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+        == "register_each_pending_model_by_its_own_id"
+    )
+    assert (
+        KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        == "keep_latest_pending_model_and_reassign_current_model_id"
+    )
+    with pytest.raises(TypeError):
+        PendingModelUploadState()
+    for invalid_policy in (
+        "",
+        "register_each",
+        None,
+        1,
+        b"register_each_pending_model_by_its_own_id",
+    ):
+        with pytest.raises((TypeError, ValueError)):
+            PendingModelUploadState(pending_model_registration_policy=invalid_policy)
+    for policy_name in PENDING_MODEL_REGISTRATION_POLICIES:
+        pending_upload_state = PendingModelUploadState(
+            pending_model_registration_policy=policy_name
+        )
+        assert pending_upload_state.pending_model_registration_policy == policy_name
+        assert pending_upload_state.get_all_pending_model_uploads() == ()
+        assert pending_upload_state.get_pending_model_upload() is None
+        assert pending_upload_state.get_ready_pending_model_upload() is None
+        assert not pending_upload_state.has_ready_model_upload()
+        assert pending_upload_state.remaining_upload_delay_round_count == 0
+        with pytest.raises(AttributeError):
+            pending_upload_state.pending_model_registration_policy = policy_name
+
+
+def test_each_pending_model_policy_keeps_every_upload_with_its_own_delay():
+    """全部保持する方針: 採用の順に保持し、待ちは、それぞれの採用の時点から数える。"""
+    pending_upload_state = PendingModelUploadState(
+        pending_model_registration_policy=REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+    )
+    first_snapshot = make_upload_parameter_snapshot(0.5)
+    second_snapshot = make_upload_parameter_snapshot(-0.5)
+    third_snapshot = make_upload_parameter_snapshot(0.25)
+    pending_upload_state.queue_model_upload(
+        model_id=-100, parameter_snapshot=first_snapshot, upload_delay_round_count=2
+    )
+    pending_upload_state.advance_upload_readiness_at_round_boundary()
+    pending_upload_state.queue_model_upload(
+        model_id=-101, parameter_snapshot=second_snapshot, upload_delay_round_count=2
+    )
+    assert snapshot_pending_uploads(pending_upload_state) == (
+        (-100, first_snapshot),
+        (-101, second_snapshot),
+    )
+    # 最も古いものと、その残りの待ち。待ちの済んだものは、まだ無い。
+    assert pending_upload_state.get_pending_model_upload().model_id == -100
+    assert pending_upload_state.remaining_upload_delay_round_count == 1
+    assert not pending_upload_state.has_ready_model_upload()
+    assert pending_upload_state.get_ready_pending_model_upload() is None
+    pending_upload_state.advance_upload_readiness_at_round_boundary()
+    # 1つ目だけ、待ちが済む。
+    assert pending_upload_state.has_ready_model_upload()
+    assert pending_upload_state.get_ready_pending_model_upload().model_id == -100
+    assert pending_upload_state.remaining_upload_delay_round_count == 0
+    # 待ちの要らない送信保留も、末尾へ足す。
+    pending_upload_state.queue_ready_model_upload(model_id=-102, parameter_snapshot=third_snapshot)
+    assert [model_id for model_id, _ in snapshot_pending_uploads(pending_upload_state)] == [
+        -100,
+        -101,
+        -102,
+    ]
+    # 待ちの済んだもののうち、最も古いもの。
+    assert pending_upload_state.get_ready_pending_model_upload().model_id == -100
+    pending_upload_state.remove_pending_model_upload(model_id=-100)
+    assert pending_upload_state.get_pending_model_upload().model_id == -101
+    assert pending_upload_state.remaining_upload_delay_round_count == 1
+    assert pending_upload_state.get_ready_pending_model_upload().model_id == -102
+    pending_upload_state.advance_upload_readiness_at_round_boundary()
+    assert pending_upload_state.get_ready_pending_model_upload().model_id == -101
+    # 待ちが0のものは、進めても0のまま。
+    pending_upload_state.advance_upload_readiness_at_round_boundary()
+    assert pending_upload_state.remaining_upload_delay_round_count == 0
+    pending_upload_state.remove_pending_model_upload(model_id=-102)
+    assert snapshot_pending_uploads(pending_upload_state) == ((-101, second_snapshot),)
+    pending_upload_state.clear_pending_model_upload()
+    assert pending_upload_state.get_all_pending_model_uploads() == ()
+    assert not pending_upload_state.has_ready_model_upload()
+    assert pending_upload_state.remaining_upload_delay_round_count == 0
+
+
+@pytest.mark.parametrize("queue_operation_name", ["queue_model_upload", "queue_ready_model_upload"])
+def test_each_pending_model_policy_rejects_duplicate_model_id_without_mutation(
+    queue_operation_name,
+):
+    pending_upload_state = PendingModelUploadState(
+        pending_model_registration_policy=REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+    )
+    first_snapshot = make_upload_parameter_snapshot(0.5)
+    pending_upload_state.queue_model_upload(
+        model_id=-100, parameter_snapshot=first_snapshot, upload_delay_round_count=3
+    )
+    queue_arguments = {"model_id": -100, "parameter_snapshot": make_upload_parameter_snapshot(1.0)}
+    if queue_operation_name == "queue_model_upload":
+        queue_arguments["upload_delay_round_count"] = 1
+    with pytest.raises(ValueError):
+        getattr(pending_upload_state, queue_operation_name)(**queue_arguments)
+    assert snapshot_pending_uploads(pending_upload_state) == ((-100, first_snapshot),)
+    assert pending_upload_state.remaining_upload_delay_round_count == 3
+
+
+@pytest.mark.parametrize("policy_name", PENDING_MODEL_REGISTRATION_POLICIES)
+def test_invalid_queue_input_and_missing_removal_keep_pending_uploads(policy_name):
+    pending_upload_state = PendingModelUploadState(pending_model_registration_policy=policy_name)
+    first_snapshot = make_upload_parameter_snapshot(0.5)
+    pending_upload_state.queue_model_upload(
+        model_id=-100, parameter_snapshot=first_snapshot, upload_delay_round_count=2
+    )
+    for invalid_arguments in (
+        {"model_id": True, "parameter_snapshot": first_snapshot, "upload_delay_round_count": 1},
+        {"model_id": -101, "parameter_snapshot": {}, "upload_delay_round_count": 1},
+        {"model_id": -101, "parameter_snapshot": first_snapshot, "upload_delay_round_count": 0},
+        {"model_id": -101, "parameter_snapshot": first_snapshot, "upload_delay_round_count": True},
+    ):
+        with pytest.raises((TypeError, ValueError)):
+            pending_upload_state.queue_model_upload(**invalid_arguments)
+    with pytest.raises(ValueError):
+        pending_upload_state.remove_pending_model_upload(model_id=-101)
+    with pytest.raises(TypeError):
+        pending_upload_state.remove_pending_model_upload(model_id=True)
+    assert snapshot_pending_uploads(pending_upload_state) == ((-100, first_snapshot),)
+    assert pending_upload_state.remaining_upload_delay_round_count == 2
+
+
+def test_keep_latest_policy_replaces_the_only_pending_upload():
+    """1つだけ保持する方針: 足すと、前の送信保留と待ちを置き換える（同じIDでも受け入れる）。"""
+    pending_upload_state = PendingModelUploadState(
+        pending_model_registration_policy=(
+            KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        )
+    )
+    first_snapshot = make_upload_parameter_snapshot(0.5)
+    second_snapshot = make_upload_parameter_snapshot(-0.5)
+    pending_upload_state.queue_model_upload(
+        model_id=-100, parameter_snapshot=first_snapshot, upload_delay_round_count=1
+    )
+    pending_upload_state.advance_upload_readiness_at_round_boundary()
+    assert pending_upload_state.get_ready_pending_model_upload().model_id == -100
+    pending_upload_state.queue_model_upload(
+        model_id=-101, parameter_snapshot=second_snapshot, upload_delay_round_count=2
+    )
+    assert snapshot_pending_uploads(pending_upload_state) == ((-101, second_snapshot),)
+    assert pending_upload_state.remaining_upload_delay_round_count == 2
+    assert pending_upload_state.get_ready_pending_model_upload() is None
+    pending_upload_state.queue_ready_model_upload(model_id=-101, parameter_snapshot=first_snapshot)
+    assert snapshot_pending_uploads(pending_upload_state) == ((-101, first_snapshot),)
+    assert pending_upload_state.get_ready_pending_model_upload().model_id == -101
+    pending_upload_state.remove_pending_model_upload(model_id=-101)
+    assert pending_upload_state.get_all_pending_model_uploads() == ()

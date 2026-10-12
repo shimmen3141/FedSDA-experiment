@@ -19,6 +19,9 @@ from federated_learning_experiments.learning.training.model_training_and_assignm
 from federated_learning_experiments.learning.training.model_training_sample_store import (
     ModelTrainingSampleStore,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
@@ -75,7 +78,12 @@ def confirm_held_model_registration(
     current_training_model_assignment: CurrentTrainingModelAssignment,
     pending_model_upload_state: PendingModelUploadState,
 ) -> TrainingModelAssignmentChange | None:
-    """入力/保有を先に確認し、付替え→加算→現在ID→保留解除を順次行う。"""
+    """入力/保有を先に確認し、付替え→加算→現在ID→保留解除を順次行う。
+
+    付け替えるモデルは、送信保留のownerの方針で決まる。現行を付け替える方針では、現在の学習帰属の
+    モデル（非負なら、送信保留を外すだけ）。それ自身のIDの方針では、待ちの済んだ最も古い送信保留の
+    モデルで、現行がそのモデルのときだけ、現在の学習帰属も正式IDへ変える。
+    """
     _validate_confirmation_inputs(
         registered_global_model_id=registered_global_model_id,
         held_model_training_state_registry=held_model_training_state_registry,
@@ -86,10 +94,23 @@ def confirm_held_model_registration(
         current_training_model_assignment=current_training_model_assignment,
         pending_model_upload_state=pending_model_upload_state,
     )
-    original_model_id = current_training_model_assignment.current_training_model_id
-    if original_model_id >= 0:
-        pending_model_upload_state.clear_pending_model_upload()
-        return None
+    registers_pending_model_by_its_own_id = (
+        pending_model_upload_state.pending_model_registration_policy
+        == REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+    )
+    if registers_pending_model_by_its_own_id:
+        # 現行が非負でも、送信保留を捨てない（現行を付け替える方針の、下の短絡を通らない）。
+        ready_pending_model_upload = pending_model_upload_state.get_ready_pending_model_upload()
+        if ready_pending_model_upload is None:
+            raise ValueError("待ちの済んだ送信保留がありません。")
+        original_model_id = ready_pending_model_upload.model_id
+        if original_model_id >= 0:
+            raise ValueError("送信保留のモデルIDは、一時ID（負）が必要です。")
+    else:
+        original_model_id = current_training_model_assignment.current_training_model_id
+        if original_model_id >= 0:
+            pending_model_upload_state.clear_pending_model_upload()
+            return None
     held_model_training_state_registry.get_held_model_training_state(model_id=original_model_id)
     held_model_training_state_registry.reassign_held_model_training_state_id(
         original_model_id=original_model_id, reassigned_model_id=registered_global_model_id
@@ -106,6 +127,14 @@ def confirm_held_model_registration(
     model_training_and_assignment_counts_store.transfer_model_training_and_assignment_counts(
         original_model_id=original_model_id, receiving_model_id=registered_global_model_id
     )
+    if registers_pending_model_by_its_own_id:
+        assignment_change = None
+        if current_training_model_assignment.current_training_model_id == original_model_id:
+            assignment_change = current_training_model_assignment.assign_model_for_training(
+                model_id=registered_global_model_id
+            )
+        pending_model_upload_state.remove_pending_model_upload(model_id=original_model_id)
+        return assignment_change
     assignment_change = current_training_model_assignment.assign_model_for_training(
         model_id=registered_global_model_id
     )

@@ -1647,6 +1647,8 @@ def compare_small_run_with_real_legacy(
             ),
         )
         run_result, participants = measured_run.run_result, measured_run.participants
+        for run_client in participants.client_operations:
+            client_test_module.assert_pending_model_registration_policy_matches_legacy(run_client)
         # 実旧の保存処理を、実旧の全体runの結果へ呼んで、旧の保存形式の配列を得る（設定の差し替えが有効な間に）。
         legacy_raw_path = tmp_path / "legacy-small-run.npz"
         experiment._save_raw_run(

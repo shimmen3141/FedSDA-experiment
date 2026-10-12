@@ -32,6 +32,10 @@ from federated_learning_experiments.data.mnist.mnist_training_data import (  # n
 from federated_learning_experiments.learning.training.initial_model_pretraining_settings import (  # noqa: E402
     InitialModelPretrainingSettings,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (  # noqa: E402
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+    PendingModelRegistrationSettings,
+)
 from federated_learning_experiments.runtime.fedavg_experiment_run import (  # noqa: E402
     execute_fedavg_experiment_run,
 )
@@ -61,16 +65,50 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
     build_experiment_run_settings,
 )
 
-BASELINE_VERSION = 1
+# 照合する基準版の全部と、現在の版（新しい基準は、現在の版で生成する。最新のdirectoryを自動で選ばない）。
+# 版1: 2026-10-13の移植完了時点の動作。FedSDAは、送信保留を1つだけ保持し、確認で現行モデルを付け替える
+#      （固定旧と同じ登録の扱い）。保存した設定は、登録の扱いの項目を持たない（版1の後に足された）。
+# 版2: FedSDAが、送信保留のモデルを、それ自身のIDで登録する（LEGACY-016の修正。最終構成の既定）。
+#      版1との差は、版1の扱いで、登録されないままの採用が起きるケースに限る。
+SUPPORTED_BASELINE_VERSIONS = (1, 2)
+BASELINE_VERSION = 2
 SCHEMA_VERSION = 1
-GOLDEN_DIRECTORY = Path(__file__).with_name("behavior_regression_goldens") / "v1"
-CASE_NAMES = (
+# 版1の後に足された、FedSDAのclientの設定の項目と、版1の動作に当たる値。
+_SETTINGS_ADDED_AFTER_VERSION_1 = {
+    "pending_model_registration_settings": {
+        "settings_type": "PendingModelRegistrationSettings",
+        "pending_model_registration_policy": (
+            KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+        ),
+    }
+}
+
+
+def _validate_baseline_version(baseline_version):
+    if type(baseline_version) is not int or baseline_version not in SUPPORTED_BASELINE_VERSIONS:
+        raise ValueError(f"unsupported baseline version: {baseline_version!r}")
+
+
+def golden_directory(baseline_version=BASELINE_VERSION):
+    _validate_baseline_version(baseline_version)
+    return Path(__file__).with_name("behavior_regression_goldens") / f"v{baseline_version}"
+
+
+GOLDEN_DIRECTORY = golden_directory()
+_VERSION_1_CASE_NAMES = (
     *EXPERIMENT_CONFIGURATION_NAMES,
     "fedsda-sine2-events",
     "fedsda-mnist2-decisions",
     "feddrift-drift-tail",
     "fedavg-no-complete-interval",
 )
+# 版2では、`fedsda-sine2-events`（版1と同じ設定）が、登録の扱いの修正で、参照モデルの再利用の判定を通らなくなる
+# （登録されずにclientへ残っていたモデルが、登録・統合されるため）。その経路は、seedの違うケースで守る。
+CASE_NAMES_BY_BASELINE_VERSION = {
+    1: _VERSION_1_CASE_NAMES,
+    2: (*_VERSION_1_CASE_NAMES, "fedsda-sine2-reference-reuse"),
+}
+CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[2]
 ENVIRONMENT_KEYS = {"system", "machine", "python", "numpy", "torch", "device", "dtype", "threads"}
 CASE_KEYS = {"run_settings", "run_metrics", "record_tables", "global_parameters", "coverage"}
 DIGEST_KEYS = {"shape", "dtype", "sha256"}
@@ -90,11 +128,16 @@ def _plain(value):
     )
 
 
-def build_case_settings(case_name):
-    """builderの方式を維持して、明示した代表条件にだけ置換する。"""
-    if case_name not in CASE_NAMES:
+def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
+    """builderの方式を維持して、明示した代表条件にだけ置換する。
+
+    版1のFedSDAのケースは、登録の扱いを、版1の動作に当たる値（現行モデルを付け替える）にする。
+    """
+    _validate_baseline_version(baseline_version)
+    if case_name not in CASE_NAMES_BY_BASELINE_VERSION[baseline_version]:
         raise ValueError(f"unknown golden case: {case_name}")
-    rich = case_name in ("fedsda-sine2-events", "fedsda-mnist2-decisions")
+    sine2_rich = case_name in ("fedsda-sine2-events", "fedsda-sine2-reference-reuse")
+    rich = sine2_rich or case_name == "fedsda-mnist2-decisions"
     mnist = case_name == "fedsda-mnist2-decisions"
     configuration = (
         "fedsda"
@@ -107,8 +150,14 @@ def build_case_settings(case_name):
     )
     conditions = ExperimentRunConditions(
         dataset_name="mnist2" if mnist else "sine2",
-        random_seed=0 if rich else 71 if case_name == "feddrift-drift-tail" else 37,
-        client_count=3 if case_name == "fedsda-sine2-events" else 2,
+        random_seed=4
+        if case_name == "fedsda-sine2-reference-reuse"
+        else 0
+        if rich
+        else 71
+        if case_name == "feddrift-drift-tail"
+        else 37,
+        client_count=3 if sine2_rich else 2,
         per_client_sample_count=100
         if mnist
         else 1500
@@ -190,6 +239,15 @@ def build_case_settings(case_name):
                     client.rebuilt_model_parameter_optimizer_settings, learning_rate=0.01
                 ),
             )
+        if baseline_version == 1:
+            client = replace(
+                client,
+                pending_model_registration_settings=PendingModelRegistrationSettings(
+                    pending_model_registration_policy=(
+                        KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+                    )
+                ),
+            )
         changes["run_client_settings"] = client
     return replace(
         settings,
@@ -201,6 +259,24 @@ def build_case_settings(case_name):
         if rich
         else settings.run_metric_settings,
     )
+
+
+def comparable_run_settings(case_name, baseline_version=BASELINE_VERSION):
+    """保存してある`run_settings`と比べる形の設定（読込みの検査と、実行した結果の照合の、両方が使う）。
+
+    版1のFedSDAのケースは、版1の後に足された項目を、値が版1の動作に当たる値であることを確かめてから、
+    除く（保存してある版1の設定は、その項目を持たない。確かめずに除くと、別の動作の設定でも通ってしまう）。
+    """
+    settings = build_case_settings(case_name, baseline_version)
+    plain_settings = _plain(settings)
+    if baseline_version == 1 and type(settings) not in (FedavgRunSettings, FeddriftRunSettings):
+        client_settings = plain_settings["run_participant_settings"]["run_client_settings"]
+        for added_field_name, version_1_value in _SETTINGS_ADDED_AFTER_VERSION_1.items():
+            assert client_settings[added_field_name] == version_1_value, (
+                f"{case_name}: baseline v1 requires {added_field_name}={version_1_value!r}"
+            )
+            del client_settings[added_field_name]
+    return plain_settings
 
 
 def numerical_environment():
@@ -270,7 +346,52 @@ def assert_case_matches(case_name, actual, expected, path=""):
         )
 
 
-def _coverage(case_name, run, tables):
+def _held_and_pending_model_ids_by_client(run):
+    """FedSDAのrunの終わりの、clientごとの（保有モデルのID、送信保留のモデルのID）。"""
+    held_and_pending_model_ids = []
+    for run_client in run.measured_run.participants.client_operations:
+        owners = run_client.owners
+        held_and_pending_model_ids.append(
+            (
+                tuple(
+                    held_state.model_id
+                    for held_state in owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+                ),
+                tuple(
+                    pending_model_upload.model_id
+                    for pending_model_upload in owners.pending_model_upload_state.get_all_pending_model_uploads()
+                ),
+            )
+        )
+    return held_and_pending_model_ids
+
+
+def count_unregistered_adopted_models(run):
+    """runの終わりに、clientが一時ID（負）で保有していて、送信保留でもないモデルの数（全clientの合計）。
+
+    採用したのに、サーバへ登録されないままになったモデル（LEGACY-016）。送信保留のまま残るモデル（最後の区間の
+    採用など。以後の同期が無い）は、数えない。FedDrift・FedAvgのrunは、定義により0。
+    """
+    if type(run.run_settings) in (FedavgRunSettings, FeddriftRunSettings):
+        return 0
+    return sum(
+        model_id < 0 and model_id not in pending_model_ids
+        for held_model_ids, pending_model_ids in _held_and_pending_model_ids_by_client(run)
+        for model_id in held_model_ids
+    )
+
+
+def count_pending_models_at_run_end(run):
+    """runの終わりに、送信保留のまま残ったモデルの数（全clientの合計）。FedDrift・FedAvgのrunは、数えない（0）。"""
+    if type(run.run_settings) in (FedavgRunSettings, FeddriftRunSettings):
+        return 0
+    return sum(
+        len(pending_model_ids)
+        for _, pending_model_ids in _held_and_pending_model_ids_by_client(run)
+    )
+
+
+def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
     result = run.measured_run.run_result
     coverage = dict(
         generated_sample_count_per_client=result.generated_sample_count_per_client,
@@ -302,13 +423,19 @@ def _coverage(case_name, run, tables):
         registered_model_count=int(column("model_registration.model_id").size),
         detection_count=run.run_metrics.training_model_switch_detection_metrics.detection_count,
     )
+    if baseline_version >= 2:
+        coverage.update(unregistered_adopted_model_count=count_unregistered_adopted_models(run))
     return coverage
 
 
-def assert_required_paths(case_name, coverage):
+def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION):
     """イベントが空のケースを重要経路の基準に採用しない。"""
+    if baseline_version >= 2:
+        # 版2の扱いでは、採用したモデルが、登録されないまま残らない。
+        assert coverage["unregistered_adopted_model_count"] == 0, (case_name, coverage)
     if case_name.startswith("fedsda-") and case_name in (
         "fedsda-sine2-events",
+        "fedsda-sine2-reference-reuse",
         "fedsda-mnist2-decisions",
     ):
         for key in (
@@ -320,9 +447,20 @@ def assert_required_paths(case_name, coverage):
             assert coverage[key] > 0, f"{case_name}: required {key}"
         reasons = set(coverage["decision_reasons"])
         if case_name == "fedsda-sine2-events":
+            # 版2では、別の保有モデルの再利用の判定を通らない（上の、ケース名の注記）。
+            assert (
+                {"first_segment_margin_failed"}
+                | (
+                    {"alternative_reference_within_historical_loss_tolerance"}
+                    if baseline_version == 1
+                    else set()
+                )
+            ) <= reasons, (case_name, reasons)
+            assert coverage["merged_model_count"] > 0, case_name
+        elif case_name == "fedsda-sine2-reference-reuse":
             assert {
-                "first_segment_margin_failed",
                 "alternative_reference_within_historical_loss_tolerance",
+                "second_segment_margin_failed",
             } <= reasons, (case_name, reasons)
             assert coverage["merged_model_count"] > 0, case_name
         else:
@@ -347,8 +485,19 @@ def assert_required_paths(case_name, coverage):
         assert coverage["unprocessed_tail_sample_count_per_client"] == 9, coverage
 
 
-def capture_case(case_name):
-    settings = build_case_settings(case_name)
+def capture_case(case_name, baseline_version=BASELINE_VERSION):
+    """ケースを実行して、goldenと比べる形の結果を返す。"""
+    return capture_case_and_count_unregistered_adopted_models(case_name, baseline_version)[0]
+
+
+def capture_case_and_count_unregistered_adopted_models(
+    case_name, baseline_version=BASELINE_VERSION
+):
+    """ケースを実行して、（goldenと比べる形の結果、登録されないまま残った採用の数）を返す。
+
+    後者は、版1の結果には入らない（版1のファイルは、変更しない）ので、版の差の説明のtestが、ここから読む。
+    """
+    settings = build_case_settings(case_name, baseline_version)
     if type(settings) is FedavgRunSettings:
         run = execute_fedavg_experiment_run(run_settings=settings)
         tables = build_fedavg_run_record_tables(experiment_run=run)
@@ -376,29 +525,33 @@ def capture_case(case_name):
             mid: repository.get_global_model_parameters(model_id=mid)
             for mid in repository.global_model_ids
         }
-    coverage = _coverage(case_name, run, tables)
-    assert_required_paths(case_name, coverage)
-    return dict(
-        run_settings=_plain(settings),
-        run_metrics=_plain(run.run_metrics),
-        record_tables={name: array_snapshot(value) for name, value in tables.items()},
-        global_parameters={
-            f"{mid}.{name}": array_snapshot(value.detach().cpu().numpy())
-            for mid, values in parameters.items()
-            for name, value in values.items()
-        },
-        coverage=coverage,
+    coverage = _coverage(case_name, run, tables, baseline_version)
+    assert_required_paths(case_name, coverage, baseline_version)
+    return (
+        dict(
+            run_settings=comparable_run_settings(case_name, baseline_version),
+            run_metrics=_plain(run.run_metrics),
+            record_tables={name: array_snapshot(value) for name, value in tables.items()},
+            global_parameters={
+                f"{mid}.{name}": array_snapshot(value.detach().cpu().numpy())
+                for mid, values in parameters.items()
+                for name, value in values.items()
+            },
+            coverage=coverage,
+        ),
+        count_unregistered_adopted_models(run),
     )
 
 
-def load_golden(path):
+def load_golden(path, baseline_version=BASELINE_VERSION):
     """未知版や破損を環境選択の前に拒否する。"""
+    _validate_baseline_version(baseline_version)
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
         json.dumps(document, allow_nan=False)
         assert set(document) == TOP_LEVEL_KEYS
         for key, version in (
-            ("baseline_version", BASELINE_VERSION),
+            ("baseline_version", baseline_version),
             ("schema_version", SCHEMA_VERSION),
         ):
             assert type(document[key]) is int and document[key] == version, key
@@ -422,11 +575,16 @@ def load_golden(path):
         assert all(
             re.fullmatch(r"[0-9a-f]{64}", value) for value in document["mnist_sha256"].values()
         )
-        assert set(document["cases"]) == set(CASE_NAMES), "cases"
+        assert set(document["cases"]) == set(CASE_NAMES_BY_BASELINE_VERSION[baseline_version]), (
+            "cases"
+        )
         for name, case in document["cases"].items():
             assert set(case) == CASE_KEYS, name
             assert_case_matches(
-                name, case["run_settings"], _plain(build_case_settings(name)), "run_settings"
+                name,
+                case["run_settings"],
+                comparable_run_settings(name, baseline_version),
+                "run_settings",
             )
             assert isinstance(case["run_metrics"], dict) and case["run_metrics"], name
             for section in ("record_tables", "global_parameters"):
@@ -444,17 +602,19 @@ def load_golden(path):
                         or np.dtype(digest["dtype"]).kind in "biufU"
                     )
                     assert re.fullmatch(r"[0-9a-f]{64}", digest["sha256"])
-            assert_required_paths(name, case["coverage"])
+            assert_required_paths(name, case["coverage"], baseline_version)
     except (AssertionError, KeyError, TypeError, ValueError) as error:
         raise ValueError(f"invalid behavior golden: {path}: {error}") from error
     return document
 
 
-def find_golden_path(environment, directory=GOLDEN_DIRECTORY):
+def find_golden_path(environment, directory=None, baseline_version=BASELINE_VERSION):
+    if directory is None:
+        directory = golden_directory(baseline_version)
     matches = [
         path
         for path in sorted(directory.glob("*.json"))
-        if load_golden(path)["environment"] == environment
+        if load_golden(path, baseline_version)["environment"] == environment
     ]
     if len(matches) > 1:
         raise ValueError(f"duplicate golden environment: {matches}")
@@ -467,8 +627,9 @@ def _write_exclusive(path, document):
         stream.write("\n")
 
 
-def generate_golden(output, source_commit):
+def generate_golden(output, source_commit, baseline_version=BASELINE_VERSION):
     """2つの新processの全結果一致後に、新規出力へ保存する。"""
+    _validate_baseline_version(baseline_version)
     if output.exists():
         raise FileExistsError(output)
     if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
@@ -502,11 +663,13 @@ def generate_golden(output, source_commit):
                     str(candidate),
                     "--source-commit",
                     source_commit,
+                    "--baseline-version",
+                    str(baseline_version),
                 ],
                 cwd=ROOT,
                 check=True,
             )
-            documents.append(load_golden(candidate))
+            documents.append(load_golden(candidate, baseline_version))
         assert_case_matches("independent-processes", documents[0], documents[1])
         _write_exclusive(output, documents[0])
     return output
@@ -517,6 +680,12 @@ def _main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--worker-output", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--source-commit", required=True)
+    parser.add_argument(
+        "--baseline-version",
+        type=int,
+        default=BASELINE_VERSION,
+        choices=SUPPORTED_BASELINE_VERSIONS,
+    )
     args = parser.parse_args()
     if bool(args.output) == bool(args.worker_output):
         parser.error("exactly one output is required")
@@ -531,13 +700,13 @@ def _main():
         )
     if args.worker_output:
         cases = {}
-        for name in CASE_NAMES:
-            cases[name] = capture_case(name)
+        for name in CASE_NAMES_BY_BASELINE_VERSION[args.baseline_version]:
+            cases[name] = capture_case(name, args.baseline_version)
             print(f"captured {name}", flush=True)
         _write_exclusive(
             args.worker_output,
             dict(
-                baseline_version=BASELINE_VERSION,
+                baseline_version=args.baseline_version,
                 schema_version=SCHEMA_VERSION,
                 source_commit=args.source_commit,
                 environment=environment,
@@ -546,7 +715,7 @@ def _main():
             ),
         )
     else:
-        print(generate_golden(args.output, args.source_commit))
+        print(generate_golden(args.output, args.source_commit, args.baseline_version))
 
 
 if __name__ == "__main__":

@@ -49,6 +49,10 @@ from federated_learning_experiments.methods.fedsda.consolidation.model_consolida
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
     LossChangeDetectionSettings,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+    PendingModelRegistrationSettings,
+)
 from federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings import (
     PredictionCombinationSettings,
 )
@@ -218,6 +222,9 @@ def build_final_configuration_fedsda_run_settings(
         ),
         parameter_optimizer_settings=parameter_optimizer_settings,
         rebuilt_model_parameter_optimizer_settings=parameter_optimizer_settings,
+        pending_model_registration_settings=PendingModelRegistrationSettings(
+            pending_model_registration_policy=REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+        ),
         scalar_settings=FedsdaRunClientScalarSettings(
             maximum_tolerated_mean_loss_increase=_MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
             minimum_candidate_mean_loss_improvement=_MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,

@@ -80,6 +80,10 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.inc
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import (
     PostAlarmCandidateValidationDecisionRecord,
 )
+from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
+    KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+    PendingModelRegistrationSettings,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     TrainingDataAssignmentSettings,
 )
@@ -255,6 +259,9 @@ def make_run_client_settings(
         ),
         rebuilt_model_parameter_optimizer_settings=AdamParameterOptimizerSettings(
             learning_rate=base_learning_rate, weight_decay=WEIGHT_DECAY, adam_variant="amsgrad"
+        ),
+        pending_model_registration_settings=PendingModelRegistrationSettings(
+            pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
         ),
         scalar_settings=FedsdaRunClientScalarSettings(
             **VALID_SCALAR_VALUES
@@ -512,8 +519,38 @@ def make_comparison_input_features(input_feature_count):
     return (torch.arange(2 * input_feature_count).reshape(2, input_feature_count) % 7).float() / 8.0
 
 
+def assert_pending_model_registration_policy_matches_legacy(run_client):
+    """実旧と比べる新のclientは、登録の扱いが、固定旧と同じ（1つだけ保持し、現行を付け替える）でなければならない。
+
+    最終構成の既定は、送信保留のモデルを、それ自身のIDで登録する（LEGACY-016の修正）。既定のまま実旧と比べると、
+    その経路を通らない条件では、気づかずに通ってしまうので、照合の入口で確かめる。
+    """
+    assert (
+        run_client.owners.pending_model_upload_state.pending_model_registration_policy
+        == KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+    ), "実旧との照合には、旧と同じ登録の扱いの設定が必要です。"
+
+
+def use_pending_model_registration_policy_matching_legacy(run_settings):
+    """完全なrun設定の、登録の扱いを、固定旧と同じ値へ替える（実旧・旧のgoldenと比べるtest用）。"""
+    run_participant_settings = run_settings.run_participant_settings
+    return replace(
+        run_settings,
+        run_participant_settings=replace(
+            run_participant_settings,
+            run_client_settings=replace(
+                run_participant_settings.run_client_settings,
+                pending_model_registration_settings=PendingModelRegistrationSettings(
+                    pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+                ),
+            ),
+        ),
+    )
+
+
 def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random_generator=None):
     """clientの全ownerの状態を、実旧clientの対応する属性と照合する。"""
+    assert_pending_model_registration_policy_matches_legacy(run_client)
     owners = run_client.owners
     assert run_client.client_id == legacy_client.client_id
     assert (
