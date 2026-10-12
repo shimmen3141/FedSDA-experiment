@@ -1,5 +1,6 @@
 """FedDriftの全体runを接続する。"""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
 
@@ -108,6 +109,18 @@ def execute_feddrift_stream_protocol_run(
     participant_factory: FeddriftRunParticipantFactory,
 ) -> StreamProtocolRunResult:
     """準備から終端まで実行する。"""
+    return _execute_feddrift_stream_protocol_run(
+        execution_settings=execution_settings, participant_factory=participant_factory
+    )
+
+
+def _execute_feddrift_stream_protocol_run(
+    *,
+    execution_settings: FeddriftStreamProtocolExecutionSettings,
+    participant_factory: FeddriftRunParticipantFactory,
+    computation_checkpoint: Callable[[str], None] | None = None,
+) -> StreamProtocolRunResult:
+    """通常入口と計測入口で同じ進行を使う。checkpointは成功境界の読取りだけ。"""
     events: list[RunExecutionEvent] = []
     invoke_run_operation_and_record_success(
         run_operation=_validate_configuration,
@@ -133,6 +146,8 @@ def execute_feddrift_stream_protocol_run(
                 stage_name="initial_preparation",
             ),
         )
+        if computation_checkpoint is not None:
+            computation_checkpoint("preparation")
         invoke_run_operation_and_record_success(
             run_operation=_validate_participants,
             operation_arguments=dict(
@@ -186,6 +201,8 @@ def execute_feddrift_stream_protocol_run(
                     sample_index=start,
                     round_index=timestep,
                 )
+            if computation_checkpoint is not None:
+                computation_checkpoint("sample_processing")
             invoke_run_operation_and_record_success(
                 run_operation=participants.run_server.synchronize_timestep,
                 operation_arguments=dict(timestep_index=timestep),
@@ -193,6 +210,8 @@ def execute_feddrift_stream_protocol_run(
                 stage_name="server_synchronization",
                 round_index=timestep,
             )
+            if computation_checkpoint is not None:
+                computation_checkpoint("synchronization")
         invoke_run_operation_and_record_success(
             run_operation=participants.run_server.finalize_observed_stream,
             operation_arguments=dict(timestep_index=max(0, count - 1)),
@@ -200,6 +219,8 @@ def execute_feddrift_stream_protocol_run(
             stage_name="observed_stream_finalization",
             round_index=max(0, count - 1),
         )
+        if computation_checkpoint is not None:
+            computation_checkpoint("finalization")
         return StreamProtocolRunResult(
             observed_client_streams=streams,
             evaluation_concept_traces=traces,

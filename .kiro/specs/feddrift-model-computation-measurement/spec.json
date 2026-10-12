@@ -1,0 +1,71 @@
+{
+  "feature_name": "feddrift-model-computation-measurement",
+  "created_at": "2026-10-12",
+  "updated_at": "2026-10-12",
+  "language": "ja",
+  "phase": "implementation-in-progress",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna medium仕様書群PASSを主担当受入"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna medium仕様書群PASSを主担当受入"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna medium仕様書群PASSを主担当受入"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna medium仕様書群PASSを主担当受入"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "base_revision": "286792d",
+    "target": "未commit対象specの6文書",
+    "session_id": "/root/feddrift_measurement_spec_review",
+    "result": "PASS、Blocker/Majorなし。実装・testは未実施。"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium",
+    "base_revision": "286792d",
+    "target": "未commit対象source/test/fresh/dependency/spec",
+    "output": "../../venv/refactoring-tests/feddrift-measurement-haiku-review.json",
+    "session_id": "2a87cfa1-699a-4c9b-8320-bdf3b9c92e14",
+    "actual_model": "claude-haiku-5-5",
+    "is_error": false,
+    "result": "PASS、Blocker/Majorなし。Minor/任意の採否はtasks.md。",
+    "independent_checks": "3169 passed/35.59s、Ruff/format324、fresh16、diff-check成功。全pytest/WSL/Pyright/identity未実施。"
+  },
+  "handoff": {
+    "execution_status": "source-identity-validation",
+    "next_step": "source/test commit後にclean/source hash/JUnit/goldenのidentityを検査し完了記録/push"
+  },
+  "integration_validation": {
+    "full_passed": 13424,
+    "full_skipped": 8,
+    "full_warnings": 9,
+    "full_exit_code": 0,
+    "full_duration_seconds": 689.06,
+    "junit_testcase_count": 13432,
+    "target_passed": 34,
+    "target_linux_passed": 82,
+    "dependency_passed": 3091,
+    "junit": "../../venv/refactoring-tests/feddrift-model-computation-measurement-full.xml",
+    "log": "../../venv/refactoring-tests/feddrift-model-computation-measurement-full.log",
+    "quality": "Ruff check/format324、Pyright0 errors/0 warnings、pip check、names --base286792d、diff-check、固定旧差分なし",
+    "limitations": "独立全pytest/WSLの再現なし。主担当は最終全pytest/WSL実測、独立target/fresh/Ruff成功。サーバ算術/保有モデル分母/summary/追加診断/保存/CLIは後続。"
+  }
+}
