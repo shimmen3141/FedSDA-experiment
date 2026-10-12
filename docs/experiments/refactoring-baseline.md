@@ -220,3 +220,55 @@ goldenが通っても、全seed・全データセット・全オプションの�
 論文用の全実験を最初から再実行する必要はない。
 
 コミット保留の3資料と既存の`results/`は、リファクタリングのために削除・上書きしない。
+
+
+## 新実装の重要動作golden（基準版1）
+
+旧基準とは別に、`tests/refactoring/behavior_regression_goldens/v1/`へ新APIの基準を保存する。
+FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境界の追加4ケースを扱う。
+完全設定・全指標・全記録列のshape/dtype/digest・最終グローバルパラメータを固定する。
+候補の採用/棄却/再利用、統合、予測重み再較正が実際に起きたかもケースごとに検査する。
+これは性能評価でも全条件の網羅でもなく、検証済み移植の現在の挙動を後続変更から守る基準である。
+13構成の小runは、構成の選択・設定・基本学習の回帰を守る。ADWINなど各方式固有の警報・候補検証・
+統合経路をすべて通すものではない。追加の重要FedSDA runは最終提案構成の経路を扱い、
+他の構成固有の動作は既存の実旧対照・部品testと組み合わせて検証する。
+
+版は次の役割で区別する。全履歴はGitに残す。
+
+| 項目 | 意味 | 変更する場合 |
+| --- | --- | --- |
+| `baseline_version` | 期待する動作の基準。現在は1 | LEGACY/IMPROVEなどで期待値を意図的に変えるとき |
+| `schema_version` | このgolden JSONの形式。現在は1 | snapshotの記録形式を変えるとき |
+| `environment` | OS・機種・Python/NumPy/torch・CPU/dtype/thread | 同じ動作基準を別環境で検証するとき |
+| `source_commit` | 生成した生産コードの来歴 | 新しい基準や環境別goldenを生成するとき |
+
+通常のcommitごとには基準版を増やさない。意図した動作変更は対象specで旧基準との差分理由を説明し、
+レビューと検証後に新しい版directoryを追加する。現在の版はhelperで明示し、最新directoryを自動採用しない。
+環境差だけで既存goldenを上書きしたり、許容誤差を増やしたりしない。未知環境は数値testだけを理由つきでskipし、
+構造/定義検査は必須にする。CPU型番・数値ビルドの差まで完全一致を保証しないためホストCIは数値診断、固定ローカルは全回帰必須。
+
+照合はworktreeルートで、固定環境・OMP/MKL各1thread・MNIST配置を用意して行う。
+
+```powershell
+$env:OMP_NUM_THREADS='1'
+$env:MKL_NUM_THREADS='1'
+../../venv/Scripts/python.exe -m pytest tests/refactoring/test_important_behavior_regression_goldens.py -q -p no:cacheprovider
+```
+
+生成は通常のpytestから呼ばれない。未使用のGit管理外出力を指定し、候補を確認してから対象版へ追加する。
+検証用tempの置き場所とMNISTは、この文書と共通引継ぎ手順に従って準備する。
+
+```powershell
+$goldenSourceCommit=git rev-parse HEAD
+../../venv/Scripts/python.exe tests/refactoring/behavior_golden_cases.py --output ../../venv/refactoring-tests/behavior-candidate-windows.json --source-commit $goldenSourceCommit
+```
+
+Linuxでは固定`.venv`をactivateして同じhelperを実行する。生成元commitはHEADとの一致と、srcの変更/未追跡ファイルなしを検査する。
+Windows作成worktreeをWSLで使う場合は、対応するWindowsパスに対し`git.exe -C`で読取り検査する（Git設定は変えない）。
+独立processで2回すべてのケースを実行し、全snapshot一致と必須経路を確認した後にだけ新規出力へ保存する。
+既存先は上書きせず拒否する。MNISTの画像/ラベル2ファイルのSHA256も保存する。
+
+数値は対応環境内で完全一致させる。未定義指標は公開serializerの定義に従いnull、
+記録列のNaN/+Inf/-Infは区別したtagでcanonical JSONのdigestへ含める。
+差分はケースと指標/設定のfield path、記録列名、モデルIDとparameter名までを示す。
+digestの異なる元要素の位置は保存しないため、原因調査では同条件runの公開記録表を読む。
