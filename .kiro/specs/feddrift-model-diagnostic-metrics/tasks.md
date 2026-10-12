@@ -7,7 +7,7 @@
   - 導出stubのREDから、共通集計関数と既存ownerの記録を読取りで接続する。
   - 実旧の学習量・クラスタ診断と対応し、統合/一時ID/0計数/未知対/未定義AUC・不正記録拒否で状態と乱数を変えない。
   - _Requirements: 2.1, 2.2, 2.3, 3.2_
-- [ ] 3. 全体run指標とfreshへ接続して検証を完了する
+- [x] 3. 全体run指標とfreshへ接続して検証を完了する
   - 接続testを先に書き、同期数/位置/client数との対応検査を追加する。基本指標・計算量の値は維持する。
   - 共用fresh/exact境界、独立実装レビュー/指摘対応、全pytest/品質/旧golden/names/progress/identity、commit/pushを完了する。
   - _Requirements: 3.1, 3.2, 3.3_
@@ -28,4 +28,7 @@
 - 最終品質: Ruff check/format328成功、Pyright 0 errors/0 warnings、pip check成功、diff-check成功。全pytest開始後にsource/testを変更していない。変異testは既定に従い未実施。最終全pytestとidentityは下記。
 
 - 最終全pytest: 13544 passed/8 skipped/8 warnings、886.74s、exit0。JUnit13552 testcase、failure0/error0。基点13485 passed/8 skippedから今回59増分。skipは環境別golden1/Linux専用4/POSIX bash不在3。Linux専用4は別途成功。warningsは既存nested tensor/旧var/TypedStorage、新testの警告なし。
-- 3taskの記録→導出→whole/fresh接続と全要求の証拠を確認。source/testは最終全pytest開始後に変更なし。検証commit/source identityは次の完了記録で照合する。
+- 3taskの記録→導出→whole/fresh接続と全要求の証拠を確認。source/testは最終全pytest開始後に変更なし。検証commit/source identityは下記。
+
+- 検証対象commit: 2ec6efe6aadbc99618e54a899a24320d76dc7e2f。LF source hash f137fe9bbaecd477465c431e490348bb5e7cf31acc4d4fce8d3811192abd8675（432パス）。identityは固定旧748c3aa差分なし、clean tree、JUnit13552/13544 passed/8 skipped、既存回帰2testcase（内部旧11・最終3golden）の成功を照合。最終文書commit後も同hashを再確認する。
+- 完了判定: GO、全3taskと全要求の証拠が揃い、未完了taskなし。保存/CLIと他の診断は後続の境界。負の一時IDも同じ整数ID単位でclient間合算する既存の集計定義を維持。独立全pytest/Linux再現は未実施、主担当実測は上記。
