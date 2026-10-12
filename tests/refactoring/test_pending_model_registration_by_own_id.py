@@ -536,7 +536,7 @@ def test_whole_run_with_keep_latest_policy_leaves_adopted_models_unregistered(
     )
 
 
-def test_whole_runs_of_both_policies_differ_only_after_the_registration_path(
+def test_whole_runs_of_both_policies_produce_different_metrics(
     sine2_event_runs_by_policy,
 ):
     """2つの扱いの結果は、この条件では違う（修正が、実際に結果を変える）。"""
