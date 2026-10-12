@@ -1,0 +1,86 @@
+{
+  "feature_name": "feddrift-stream-run-and-core-metrics",
+  "created_at": "2026-10-12",
+  "updated_at": "2026-10-12",
+  "language": "ja",
+  "phase": "implementation-complete",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "Luna medium仕様書群レビューPASS、主担当受入"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "Luna medium仕様書群レビューPASS、主担当受入"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "Luna medium仕様書群レビューPASS、主担当受入"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "Luna medium仕様書群レビューPASS、主担当受入"
+    }
+  },
+  "ready_for_implementation": true,
+  "handoff": {
+    "execution_status": "validation",
+    "next_step": "修正後の最終全pytest/identity→完了commit/push"
+  },
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "session_id": "/root/feddrift_whole_run_spec_review",
+    "base_revision": "27d41b0",
+    "target": "未commit対象specの6文書",
+    "selection_reason": "仕様書群のレビュー",
+    "initial_result": "FAIL Major 2件;修正範囲再確認待ち",
+    "result": "Major 2件修正再確認PASS。追加の学習batch指摘はk_steps別引数の読み違いとreviewer確認、不採用。"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium",
+    "selection_reason": "全体run接続、可変状態と3乱数・終端の更新順を含むため",
+    "base_revision": "27d41b0",
+    "target": "未commit対象source/test/fresh/dependency/LINUXfixture",
+    "output": "../../venv/refactoring-tests/feddrift-whole-haiku-review.json",
+    "initial_result": "FAIL Major 1件Linux golden検出0ケース補強。Minor4件は採否記録予定",
+    "session_id": "875f985f-a8d7-4cac-9a05-7ede62d8a024",
+    "actual_model": "claude-haiku-5-5",
+    "is_error": false,
+    "independent_checks": "3162 passed/3 skipped、fresh16flows、Ruff/format322、固定旧差分/diff-check成功、全pytest/WSL/identityは未実施",
+    "result": "Major 1件修正範囲再確認PASS。Minor採否はtasks.md。",
+    "correction_session_id": "98319505-8aa0-4354-8ff7-860708840f7d",
+    "correction_actual_model": "claude-haiku-5-5",
+    "correction_is_error": false,
+    "correction_output": "../../venv/refactoring-tests/feddrift-whole-haiku-correction.json",
+    "independent_full_pytest_reproduction": false,
+    "independent_linux_reproduction": false,
+    "post_review_correction": "初期準備のwrapper接続ロジックを再確認、整形ゲートも解消PASS",
+    "bootstrap_session_id": "128b8c79-bcdc-4186-b8ab-17b5da27fd6b",
+    "bootstrap_result": "ロジック/3132 pytest/fresh16/Ruff PASS、CRLF formatだけFAIL",
+    "format_session_id": "65fd02e4-7e66-4d24-b07d-4dd6ad8946f6",
+    "format_result": "format322/diff-check PASS、前回ロジック承認と合わせ有効"
+  },
+  "integration_validation": {
+    "full_passed": 13387,
+    "full_skipped": 8,
+    "full_warnings": 8,
+    "full_exit_code": 0,
+    "full_duration_seconds": 673.53,
+    "target_passed": 78,
+    "target_linux_passed": 82,
+    "dependency_passed": 3088,
+    "junit": "../../venv/refactoring-tests/feddrift-stream-run-and-core-metrics-full.xml",
+    "log": "../../venv/refactoring-tests/feddrift-stream-run-and-core-metrics-full.log",
+    "quality": "Ruff check/format322、Pyright0 errors/0 warnings、pip check、names --base27d41b0、progress3/3、diff-check、固定旧差分なし",
+    "limitations": "全pytest/WSLは主担当実測、独立全pytest/WSLの再現なし。独立target/fresh/formatは成功。計算量/追加診断/成果物/CLIは後続。",
+    "initial_full_run": "入口失敗境界修正のため停止、未完走結果は成功へ含めない"
+  }
+}

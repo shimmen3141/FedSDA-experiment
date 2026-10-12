@@ -1,0 +1,106 @@
+{
+  "python": "3.14.4",
+  "torch": "2.12.1+cpu",
+  "cases": {
+    "sine2": {
+      "metrics": {
+        "accuracy": 0.4444444444444444,
+        "stable_accuracy": 0.5555555555555556,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "total_detect": 0,
+        "final_model_count": 1,
+        "final_parameter_values": 67,
+        "final_parameter_bytes": 268,
+        "comm_models_up": 12,
+        "comm_models_down": 12,
+        "comm_messages_up": 6,
+        "comm_messages_down": 0,
+        "comm_parameter_values_up": 804,
+        "comm_parameter_values_down": 804,
+        "comm_bytes_up": 3216,
+        "comm_bytes_down": 3216
+      },
+      "global_parameter_sha256": "3e6bce59a020ad3c9071a274d634c6f22658a0372d0aeb0e1bafcf3e18967e66"
+    },
+    "sea4": {
+      "metrics": {
+        "accuracy": 0.7777777777777778,
+        "stable_accuracy": 0.8888888888888888,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "total_detect": 0,
+        "final_model_count": 1,
+        "final_parameter_values": 74,
+        "final_parameter_bytes": 296,
+        "comm_models_up": 12,
+        "comm_models_down": 12,
+        "comm_messages_up": 6,
+        "comm_messages_down": 0,
+        "comm_parameter_values_up": 888,
+        "comm_parameter_values_down": 888,
+        "comm_bytes_up": 3552,
+        "comm_bytes_down": 3552
+      },
+      "global_parameter_sha256": "e7eb23e4ba181e70a54e6a38662cd7162dc359d794c864a01b92d7479caeeb32"
+    },
+    "mnist2": {
+      "metrics": {
+        "accuracy": 0.2777777777777778,
+        "stable_accuracy": 0.1111111111111111,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "total_detect": 0,
+        "final_model_count": 1,
+        "final_parameter_values": 5595,
+        "final_parameter_bytes": 22380,
+        "comm_models_up": 12,
+        "comm_models_down": 12,
+        "comm_messages_up": 6,
+        "comm_messages_down": 0,
+        "comm_parameter_values_up": 67140,
+        "comm_parameter_values_down": 67140,
+        "comm_bytes_up": 268560,
+        "comm_bytes_down": 268560
+      },
+      "global_parameter_sha256": "a2ad40b3729e0ed87243ffd5a7d19bc9b8a75da5f1c94e5cb8b45a6bb6753dc1"
+    },
+    "sine2_drift": {
+      "metrics": {
+        "accuracy": 0.36666666666666664,
+        "stable_accuracy": 0.25,
+        "precision": 1.0,
+        "recall": 0.25,
+        "f1": 0.4,
+        "total_detect": 4,
+        "final_model_count": 3,
+        "final_parameter_values": 201,
+        "final_parameter_bytes": 804,
+        "comm_models_up": 51,
+        "comm_models_down": 66,
+        "comm_messages_up": 18,
+        "comm_messages_down": 10,
+        "comm_parameter_values_up": 3417,
+        "comm_parameter_values_down": 4422,
+        "comm_bytes_up": 13668,
+        "comm_bytes_down": 17688
+      },
+      "global_parameter_sha256": "62ad964bc79d9ddd30bb2334357cfa58980df8180d920c87d9405fe812f5f920"
+    }
+  },
+  "numpy": "2.4.6",
+  "provenance": "旧748c3aa全体run。独立2 processで基本指標/最終parameter hash完全一致を確認。hidden=(7,5), clients=2, samples=11, chunk=3, seed=37; test run_inputsの固定条件。",
+  "additional_case_conditions": {
+    "sine2_drift": {
+      "dataset": "sine2",
+      "count": 17,
+      "threshold": 0.03,
+      "rounds": 3,
+      "seed": 71,
+      "probability": 1.0
+    }
+  }
+}

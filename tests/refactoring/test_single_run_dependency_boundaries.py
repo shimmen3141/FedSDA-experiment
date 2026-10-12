@@ -5595,6 +5595,42 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_participant_factory.FedsdaRunParticipantSettings",
             "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
         )
+    if source_module_path == "runtime/feddrift_stream_run_execution.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
+            "federated_learning_experiments.data.concept_schedules.random_concept_schedule_generation.generate_random_client_concept_traces",
+            "federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings.RandomConceptScheduleSettings",
+            "federated_learning_experiments.data.observed_sample_generation.ObservedSampleGenerator",
+            "federated_learning_experiments.data.observed_sample_generation.build_client_observed_streams",
+            "federated_learning_experiments.data.observed_sample_generation.create_observed_sample_generator",
+            "federated_learning_experiments.data.observed_streams.ClientConceptTrace",
+            "federated_learning_experiments.data.observed_streams.ClientObservedStream",
+            "federated_learning_experiments.execution.run_execution_records.RunExecutionEvent",
+            "federated_learning_experiments.execution.run_execution_records.StreamProtocolRunResult",
+            "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
+            "federated_learning_experiments.execution.run_random_sources.create_run_random_sources",
+            "federated_learning_experiments.execution.stream_protocol_execution_loop.invoke_run_operation_and_record_success",
+            "federated_learning_experiments.learning.models.torch_random_state_scope.isolated_cpu_torch_random_state",
+            "federated_learning_experiments.runtime.feddrift_run_participant_factory.FeddriftRunParticipantFactory",
+            "federated_learning_experiments.runtime.feddrift_run_participant_factory.FeddriftRunParticipants",
+            "typing.cast",
+        )
+    if source_module_path == "runtime/feddrift_run_metric_derivation.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeSnapshot",
+            "federated_learning_experiments.evaluation.run_metric_calculations.DetectionMetrics",
+            "federated_learning_experiments.evaluation.run_metric_calculations.RunMetricSettings",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_detection_metrics",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_prediction_accuracy",
+            "federated_learning_experiments.evaluation.run_metric_calculations.calculate_stable_period_prediction_accuracy",
+            "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
+            "federated_learning_experiments.execution.run_execution_records.StreamProtocolRunResult",
+            "federated_learning_experiments.runtime.feddrift_client_stream_processing.FeddriftSamplePrediction",
+            "federated_learning_experiments.runtime.feddrift_detection_batch_processing.FeddriftDetectionBatchTransition",
+            "federated_learning_experiments.runtime.feddrift_run_participant_factory.FeddriftRunParticipants",
+        )
     if source_module_path == "runtime/feddrift_run_participant_factory.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6852,6 +6888,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             importing_package_name=importing_package_name,
         )
         if source_module_path in (
+            "runtime/feddrift_stream_run_execution.py",
+            "runtime/feddrift_run_metric_derivation.py",
             "runtime/feddrift_model_distribution_application.py",
             "runtime/feddrift_run_participant_factory.py",
             "runtime/feddrift_run_server.py",
@@ -12073,4 +12111,22 @@ def test_feddrift_participant_factory_rejects_outer_dependencies(forbidden_modul
     assert collect_dependency_boundary_violations(
         source_module_path="runtime/feddrift_run_participant_factory.py",
         source_text=f"import {forbidden_module}",
+    )
+
+
+@pytest.mark.parametrize(
+    "source_module_path",
+    ("runtime/feddrift_stream_run_execution.py", "runtime/feddrift_run_metric_derivation.py"),
+)
+@pytest.mark.parametrize(
+    "forbidden_module",
+    (
+        "federated_drift_experiment.experiment",
+        "federated_learning_experiments.artifacts.single_run_artifact_records",
+        "tests.refactoring.test_feddrift_stream_run_execution",
+    ),
+)
+def test_feddrift_whole_run_rejects_outer_dependencies(source_module_path, forbidden_module):
+    assert not dependency_is_allowed(
+        source_module_path=source_module_path, imported_module_name=forbidden_module
     )

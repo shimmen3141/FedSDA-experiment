@@ -116,6 +116,20 @@ class FeddriftRunParticipantFactory:
             raise TypeError("exact FeddriftRunParticipantSettingsが必要です。")
         self._settings.__post_init__()
 
+    def validate_run_conditions(
+        self, *, experiment_run_conditions: ExperimentRunConditions
+    ) -> None:
+        """生成前にrunと検出chunkの対応を再検査する。"""
+        self.validate_configuration()
+        if type(experiment_run_conditions) is not ExperimentRunConditions:
+            raise TypeError("exact ExperimentRunConditionsが必要です。")
+        experiment_run_conditions.__post_init__()
+        if (
+            experiment_run_conditions.server_aggregation_interval_per_client_samples
+            != self._settings.run_client_settings.detection_batch_sample_count
+        ):
+            raise ValueError("FedDriftの集約間隔は検出バッチ件数と一致させてください。")
+
     def prepare_run(
         self,
         *,
@@ -124,10 +138,7 @@ class FeddriftRunParticipantFactory:
         sample_generator: ObservedSampleGenerator,
     ) -> FeddriftRunParticipants:
         """概念0の事前学習後にclient、serverを組み立てる。seedは呼出元が設定する。"""
-        self.validate_configuration()
-        if type(experiment_run_conditions) is not ExperimentRunConditions:
-            raise TypeError("exact ExperimentRunConditionsが必要です。")
-        experiment_run_conditions.__post_init__()
+        self.validate_run_conditions(experiment_run_conditions=experiment_run_conditions)
         if type(run_random_sources) is not RunRandomSources:
             raise TypeError("exact RunRandomSourcesが必要です。")
         if (
@@ -147,11 +158,6 @@ class FeddriftRunParticipantFactory:
         ):
             raise ValueError("生成器はrunの同じNumPy乱数源を借用してください。")
         settings = self._settings
-        if (
-            experiment_run_conditions.server_aggregation_interval_per_client_samples
-            != settings.run_client_settings.detection_batch_sample_count
-        ):
-            raise ValueError("FedDriftの集約間隔は検出バッチ件数と一致させてください。")
         initial = pretrain_initial_model(
             initial_model_pretraining_settings=settings.initial_model_pretraining_settings,
             model_architecture_settings=ModelArchitectureSettings(

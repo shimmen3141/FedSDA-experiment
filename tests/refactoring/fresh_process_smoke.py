@@ -1917,6 +1917,46 @@ def run_feddrift_detection_batch_smoke():
         == 10
     )
     print("PASS FedDrift: participant factory observation/sync/stream finalization")
+    from federated_learning_experiments.runtime.feddrift_run_metric_derivation import (
+        derive_feddrift_run_metrics,
+    )
+    from federated_learning_experiments.runtime.feddrift_stream_run_execution import (
+        FeddriftStreamProtocolExecutionSettings,
+        execute_feddrift_stream_protocol_run,
+    )
+
+    factory = FeddriftRunParticipantFactory(run_participant_settings=settings)
+    result = execute_feddrift_stream_protocol_run(
+        execution_settings=FeddriftStreamProtocolExecutionSettings(
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="sine2",
+                random_seed=71,
+                client_count=2,
+                per_client_sample_count=11,
+                server_aggregation_interval_per_client_samples=3,
+            ),
+            concept_schedule_settings=RandomConceptScheduleSettings(
+                concept_schedule_strategy="random_changes_after_minimum_index_gap",
+                minimum_sample_index_gap_before_change_trial=1,
+                per_eligible_sample_concept_change_probability=0.5,
+            ),
+        ),
+        participant_factory=factory,
+    )
+    assert factory.prepared_run_participants is not None
+    metrics = derive_feddrift_run_metrics(
+        run_result=result,
+        participants=factory.prepared_run_participants,
+        run_metric_settings=RunMetricSettings(
+            maximum_detection_delay_sample_count=3, post_change_recovery_window_sample_count=3
+        ),
+    )
+    assert result.processed_sample_count_per_client == 9
+    assert result.unprocessed_tail_sample_count_per_client == 2
+    assert metrics.final_global_model_count >= 1
+    assert metrics.communication_volume.uploaded_model_count >= 12
+    assert 0.0 <= metrics.prediction_accuracy <= 1.0
+    print("PASS FedDrift whole run and common core metrics")
 
 
 def main():
