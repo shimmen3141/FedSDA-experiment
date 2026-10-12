@@ -1,0 +1,47 @@
+{
+  "feature_name": "pending-model-registration-by-own-id",
+  "created_at": "2026-10-13",
+  "updated_at": "2026-10-13",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビューPASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビューPASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビューPASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビューPASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "29643c5",
+    "target": "未commitの仕様書群5文書",
+    "session_ids": [
+      "7e9c4f44-a34c-450c-ad91-8107f870e6f9",
+      "71e39b99-35df-4aa2-9633-f28da0822514",
+      "c4b94d4c-d6e1-4f63-a9c6-0b067b07376b",
+      "9725f88c-57b4-4e9e-a52d-e95146f11a2e",
+      "4c8e4b3b-d5a7-4cce-a693-3759c1f39d16"
+    ],
+    "result": "1〜4回目はCHANGES REQUIRED（Majorを直すたびに再確認）、5回目でPASS。採否はtasks.mdのImplementation Notes。",
+    "output": "../../venv/refactoring-tests/pending-model-registration-spec-review-{1..5}.jsonl",
+    "selection_reason": "可変状態と更新順の設計なので、Haiku 5.5"
+  }
+}
