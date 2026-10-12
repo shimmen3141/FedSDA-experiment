@@ -1,0 +1,62 @@
+{
+  "feature_name": "cross-evaluation-download-deduplication",
+  "created_at": "2026-10-12",
+  "updated_at": "2026-10-12",
+  "language": "ja",
+  "phase": "implementation-validated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Luna medium仕様レビューPASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "base_revision": "4e13029",
+    "target": "未commit仕様書群6文書",
+    "session_id": "01a12fce-f41e-7471-ab3d-3a5d7d9cf010",
+    "correction_session_id": "01a12fd0-4dcc-7fd0-99ae-dcfe04cddc2b",
+    "result": "初回Major1/Minor1を修正、重大範囲再確認PASS。",
+    "output": "../../venv/refactoring-tests/dedup-spec-correction.log"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "4e13029",
+    "target": "未commit対象spec/source/test差分",
+    "session_id": "9299f24b-b471-457c-9d33-f2018cec9c31",
+    "actual_model": "claude-haiku-5-5",
+    "is_error": false,
+    "result": "PASS、Blocker/Majorなし。Minorの文書/観測wrapper/コメント補足を反映、再レビュー不要。",
+    "output": "../../venv/refactoring-tests/dedup-haiku-review.jsonl",
+    "independent_checks": "3105passed、fresh直接exit0/16flows、Ruff336、固定旧差分なし。全pytest/Linux/構成一括対照未再現。"
+  },
+  "integration_validation": {
+    "full_passed": 13660,
+    "full_skipped": 8,
+    "junit_testcase_count": 13668,
+    "junit": "../../venv/refactoring-tests/cross-evaluation-download-deduplication-full.xml",
+    "full_exit_code": 0
+  },
+  "completion_decision": "検証GO。source commitとidentity記録後にcompletedへ更新する。"
+}

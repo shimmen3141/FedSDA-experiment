@@ -240,18 +240,8 @@ def cross_evaluate_global_models(
                 )
             for evaluating_client in evaluating_clients:
                 client_id = evaluating_client.client_id
-                if not shared_parameters:
-                    # 共有部を持たない構造: 候補の全パラメータを、評価のたびに、そのclientへ送る
-                    # （同じclientへの、同じ候補の送信を、省かない。旧の、共有部を持たないモデルと同じ数え方）。
-                    communication_volume_record_store.record_model_transfers(
-                        transfer_direction="download", model_count=1
-                    )
-                    communication_volume_record_store.record_parameter_transfer(
-                        transfer_direction="download",
-                        parameter_snapshot=concept_specific_parameters,
-                    )
-                    continue
-                if client_id not in client_ids_sent_shared_parameters:
+                # 共有部が空でも、候補とclientの組ごとに全パラメータの転送を1回だけ数える。
+                if shared_parameters and client_id not in client_ids_sent_shared_parameters:
                     communication_volume_record_store.record_parameter_transfer(
                         transfer_direction="download", parameter_snapshot=shared_parameters
                     )

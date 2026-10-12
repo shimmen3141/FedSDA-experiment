@@ -24,6 +24,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import test_fedsda_run_client as client_test_module
 import test_fedsda_stream_protocol_run as whole_run_test_module
 import test_proposed_regression as legacy_regression
+from test_cross_evaluation_download_deduplication import (
+    expected_legacy_communication_volume_after_deduplication,
+    observe_legacy_duplicate_downloads,
+)
 from test_environment_proposed_regression import describe_missing_golden, find_golden_path
 from test_fedsda_run_client import (
     LEGACY_ACTION_BY_ADAPTATION_OUTCOME,
@@ -46,9 +50,6 @@ from federated_drift_experiment.experiment_spec.configuration import (
     temporary_config,
 )
 from federated_drift_experiment.metrics import compute_metrics
-from federated_learning_experiments.evaluation.communication_volume_record_store import (
-    CommunicationVolumeSnapshot,
-)
 from federated_learning_experiments.evaluation.computation_cost_summary import (
     ComputationCostSummary,
     ServerComputationCounts,
@@ -1628,6 +1629,8 @@ def compare_small_run_with_real_legacy(
             minimum_change_gap=minimum_change_gap,
             concept_change_probability=concept_change_probability,
         )
+        if not getattr(configuration_variant, "legacy_models_share_feature_extractor", True):
+            observe_legacy_duplicate_downloads(monkeypatch)
         legacy_run = run_real_legacy_whole_run(
             monkeypatch=monkeypatch,
             execution_settings=execution_settings,
@@ -1856,15 +1859,9 @@ def compare_small_run_with_real_legacy(
         matched_detection_count=legacy_metrics["tp"],
     )
     assert run_metrics.final_global_model_count == len(legacy_server.global_models)
-    assert run_metrics.communication_volume == CommunicationVolumeSnapshot(
-        uploaded_model_count=legacy_server.comm_models_up,
-        downloaded_model_count=legacy_server.comm_models_down,
-        uploaded_message_count=legacy_server.comm_messages_up,
-        downloaded_message_count=legacy_server.comm_messages_down,
-        uploaded_parameter_value_count=legacy_server.comm_parameter_values_up,
-        downloaded_parameter_value_count=legacy_server.comm_parameter_values_down,
-        uploaded_byte_count=legacy_server.comm_bytes_up,
-        downloaded_byte_count=legacy_server.comm_bytes_down,
+    assert (
+        run_metrics.communication_volume
+        == expected_legacy_communication_volume_after_deduplication(legacy_server)
     )
     assert run_metrics.final_parameter_value_count == legacy_parameter_value_count
     assert run_metrics.final_parameter_byte_count == legacy_parameter_byte_count

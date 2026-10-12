@@ -1,7 +1,7 @@
 # LEGACY-018: 共有部を持たないモデルでは、クロス評価の下りの通信量が、同じclientへの同じ候補の送信を、重複して数える
 
 - 発見日: 2026-10-11（構成`independent`の移植で、新旧の通信量の差として現れた）。対象: 旧`federated_drift_experiment/servers/clustering.py::_record_cross_evaluation_model_transfer`（基底の実装）と、`servers/shared_backbone.py`の同名の上書き。固定基準748c3aa。
-- 発見spec: fedsda-independent-models。種別: 通信量の数え方が、モデルの構造（サーバのクラス）で揃っていない。状態: 再現済み・未修正。移植では、旧と同じ数え方を維持。
+- 発見spec: fedsda-independent-models。種別: 通信量の数え方が、モデルの構造（サーバのクラス）で揃っていない。状態: 新実装を修正。固定旧748c3aaは未変更。移植当初は旧の数え方を維持した。
 
 ## 再現と観測
 
@@ -19,6 +19,8 @@
 
 ## 新実装の扱い
 
-- 構成`fedsda-independent-models`（共有部が空の構造）では、旧と同じく、重複を省かずに数える（`runtime/model_cross_evaluation.py`）。旧実装との照合を通すため。
-- 共有部を持つ構造の数え方は、変えていない。
-- 【決定。2026-10-11ユーザー】重複を省く数え方（ほかの構成と同じ）へ揃える。揃えると、この構成の下りの通信量が、旧と一致しなくなるので、旧実装との照合から、その項目を外す必要がある。修正時期は未確定。主担当の推奨は、全構成のgoldenを作る前に、LEGACYをまとめて直すとき（goldenを作った後に直すと、goldenを作り直すことになる）。まだ、直していない。
+- 【決定。2026-10-11ユーザー】重複を省く数え方（ほかの構成と同じ）へ揃える。
+- [cross-evaluation-download-deduplication](../../../.kiro/specs/cross-evaluation-download-deduplication/tasks.md)で、新実装を修正。時期についてのユーザー返答は無かったが、全構成goldenの作り直しを避けるため、主担当がこの順で先行実施した。他のLEGACYの修正は含まない。
+- クロス評価1回内では、候補の概念固有部（共有部が無ければ全パラメータ）を候補モデルIDとclient IDの組ごとに1回数える。共有部がある構成の数え方、メッセージ、評価/RNG順は維持する。
+- 旧のsourceと既存goldenは変更しない。独立構成の照合では、実旧の転送イベントを観測して重複分を求め、下り3計数を「旧の値−重複分」へ厳密に照合する。その他の指標・離散列・モデル状態の比較は維持する。
+- 検証と独立レビューの正本は上記specのtasks.md/spec.json。

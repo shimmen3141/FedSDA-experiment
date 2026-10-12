@@ -7,6 +7,9 @@ import numpy as np
 import pytest
 import torch
 from test_adopted_candidate_initial_local_registration import convert_legacy_parameter_name
+from test_cross_evaluation_download_deduplication import (
+    expected_legacy_communication_volume_after_deduplication,
+)
 from test_fedsda_run_client import (
     MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
     assert_run_client_matches_legacy,
@@ -31,7 +34,6 @@ from federated_drift_experiment.models import ResidualAdapterMLP
 from federated_drift_experiment.servers import SharedBackboneFedSDANoCachedServer
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeRecordStore,
-    CommunicationVolumeSnapshot,
 )
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
@@ -180,15 +182,9 @@ def assert_server_state_matches_legacy(
         )
         for legacy_registration in legacy_server.model_lineage.registrations
     )
-    assert communication_volume_record_store.get_state_snapshot() == CommunicationVolumeSnapshot(
-        uploaded_model_count=legacy_server.comm_models_up,
-        downloaded_model_count=legacy_server.comm_models_down,
-        uploaded_message_count=legacy_server.comm_messages_up,
-        downloaded_message_count=legacy_server.comm_messages_down,
-        uploaded_parameter_value_count=legacy_server.comm_parameter_values_up,
-        downloaded_parameter_value_count=legacy_server.comm_parameter_values_down,
-        uploaded_byte_count=legacy_server.comm_bytes_up,
-        downloaded_byte_count=legacy_server.comm_bytes_down,
+    assert (
+        communication_volume_record_store.get_state_snapshot()
+        == expected_legacy_communication_volume_after_deduplication(legacy_server)
     )
 
 

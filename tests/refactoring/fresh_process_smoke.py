@@ -2184,6 +2184,35 @@ def main():
         assert sweep_main(arguments) == 0
         assert sweep_main(arguments) == 0
     print("PASS FedDrift default configuration and sweep command, artifacts and resume")
+    # 独立モデルのクロス評価を含む新実装だけの全体runと保存を通す。
+    from federated_learning_experiments.sweep.experiment_configurations import (
+        build_experiment_run_settings,
+    )
+
+    independent_run = execute_fedsda_experiment_run(
+        run_settings=build_experiment_run_settings(
+            configuration_name="fedsda-independent-models",
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="sine2",
+                random_seed=0,
+                client_count=2,
+                per_client_sample_count=30,
+                server_aggregation_interval_per_client_samples=10,
+            ),
+        )
+    )
+    with TemporaryDirectory() as directory:
+        paths = save_fedsda_experiment_run(
+            experiment_run=independent_run,
+            output_directory=Path(directory),
+            file_stem="independent",
+        )
+        summary, _ = load_fedsda_run_artifacts(summary_file_path=paths.summary_file_path)
+    assert (
+        summary["run_metrics"]["communication_volume"]["downloaded_byte_count"]
+        == independent_run.run_metrics.communication_volume.downloaded_byte_count
+    )
+    print("PASS independent-model cross evaluation, run metrics and saved communication volume")
     loaded_forbidden_modules = sorted(
         name
         for name in sys.modules

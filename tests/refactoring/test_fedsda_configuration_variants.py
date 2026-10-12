@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 import test_fedsda_run_client as run_client_test_module
 import test_fedsda_stream_protocol_run as whole_run_test_module
+from test_cross_evaluation_download_deduplication import observe_legacy_duplicate_downloads
 from test_fedsda_run_metric_derivation import (
     PROPOSED_CONFIGURATION_VARIANT,
     SMALL_RUN_CONDITIONS,
@@ -1086,6 +1087,8 @@ def test_model_architecture_variant_matches_real_legacy_whole_run_on_mnist2(
         concept_change_probability=concept_change_probability,
         dataset_name=dataset_name,
     )
+    if not getattr(configuration_variant, "legacy_models_share_feature_extractor", True):
+        observe_legacy_duplicate_downloads(monkeypatch)
     legacy_run = whole_run_test_module.run_real_legacy_whole_run(
         monkeypatch=monkeypatch,
         execution_settings=execution_settings,
@@ -1179,6 +1182,16 @@ def test_independent_models_take_their_own_path():
                     parameter.numel() for parameter in legacy_model.parameters()
                 )
             assert not hasattr(legacy_client, "_shared_backbone")
+    duplicate_counts = [
+        getattr(
+            comparison["variant"].legacy_run["legacy_server"],
+            "_observed_duplicate_download_counts",
+            [0, 0, 0],
+        )
+        for comparison in comparisons
+    ]
+    assert any(counts[0] > 0 for counts in duplicate_counts)
+    assert any(counts == [0, 0, 0] for counts in duplicate_counts)
     assert multiple_held_model_client_count > 0
     # 同じ条件の提案構成は、共有部の計算があり、結果が違う。最終のパラメータの数は、複数のグローバルモデルが残る条件で、
     # 提案構成（共有部を1回だけ数える）より多い。
