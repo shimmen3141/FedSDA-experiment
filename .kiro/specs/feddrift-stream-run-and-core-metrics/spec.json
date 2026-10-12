@@ -3,7 +3,7 @@
   "created_at": "2026-10-12",
   "updated_at": "2026-10-12",
   "language": "ja",
-  "phase": "implementation-complete",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -28,8 +28,8 @@
   },
   "ready_for_implementation": true,
   "handoff": {
-    "execution_status": "validation",
-    "next_step": "修正後の最終全pytest/identity→完了commit/push"
+    "execution_status": "completed",
+    "next_step": "FedDriftの計算量・適用可能な追加診断・成果物/CLI接続の次specを調査"
   },
   "specification_review": {
     "status": "passed",
@@ -81,6 +81,11 @@
     "log": "../../venv/refactoring-tests/feddrift-stream-run-and-core-metrics-full.log",
     "quality": "Ruff check/format322、Pyright0 errors/0 warnings、pip check、names --base27d41b0、progress3/3、diff-check、固定旧差分なし",
     "limitations": "全pytest/WSLは主担当実測、独立全pytest/WSLの再現なし。独立target/fresh/formatは成功。計算量/追加診断/成果物/CLIは後続。",
-    "initial_full_run": "入口失敗境界修正のため停止、未完走結果は成功へ含めない"
-  }
+    "initial_full_run": "入口失敗境界修正のため停止、未完走結果は成功へ含めない",
+    "tested_commit": "1f58084dabd8426bd336803b4c4d35719b482df7",
+    "source_sha256_lf": "d4a4c41798c777876d292ddac38cd43fffd749a19cba081b5504160c61bc977c",
+    "source_path_count": 426,
+    "identity": "PASS（固定旧/clean tree/JUnit/回帰/件数/source hash、最終文書commit後再照合）"
+  },
+  "completion_decision": "仕様書群Luna PASS、全task実装とHaiku実装/修正範囲PASS、11要求の実旧全体run/基本指標・Linux golden/fresh/exact境界、最終全pytestとsource identityを確認しGO。未完了taskなし。"
 }
