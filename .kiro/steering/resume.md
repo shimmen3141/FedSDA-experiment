@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-13（fedavg-experiment-run完了。主担当Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
+更新: 2026-10-13（important-behavior-regression-goldens完了。主担当Codex）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -41,7 +41,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 現在地
 
-- **現在の対象:** [fedavg-experiment-run](../specs/fedavg-experiment-run/tasks.md)。ユーザー指示により旧Obliviousを正式構成名fedavgで移植。単一spec内の4task、独立仕様/実装レビュー、最終検証を完了した。次は重要動作の新実装用goldenを追加し、残るLEGACY/IMPROVEの採否と適用を別に進める。状態の正本は各spec。
+- **現在の対象:** [important-behavior-regression-goldens](../specs/important-behavior-regression-goldens/tasks.md)。新実装の重要動作を基準版1・環境別goldenで固定し、実装・独立レビュー・最終検証を完了した。旧goldenは維持し、LEGACY/IMPROVEの採否・適用は後続。状態の正本は各spec。
 
 - **過去の到達点（FedSDA、現在の作業対象ではない）:** [experiment-sweep-command](../specs/experiment-sweep-command/tasks.md)（(A3)新実装の実験の入口: `python run_experiment_sweep.py`。使い方は[docs/experiments/experiment-sweep.md](../../docs/experiments/experiment-sweep.md)）まで完了。構成は、提案構成（`fedsda`）と、移植済みの10構成。速度の対処（[training-batch-sampling-validation-cost](../specs/training-batch-sampling-validation-cost/tasks.md)）も完了: 本番の規模（client 10・標本5000・sine2）の1 runが、257秒（旧実装は179秒）で、結果は、旧実装（手元）と一致する。その前は、(A2-2)の4つ目・最後（予測の診断の指標と記録）まで完了。**これで、旧実装の1 runの出力のうち、「記録から導く（未照合）」の区分（指標124・配列85）の全部が、新実装で導出・保存され、goldenの3ケースと小さい条件で、実旧の値と一致している。**新の1 runの保存は、要約（指標）と、記録の表130列。その前は、(A2-2)の3つ目（クロス評価の表と、モデル対の予測の相補性の指標）、(A2-2)の2つ目（モデル別の診断の指標と記録）、(A2-2)の1つ目（概念の変更への応答の指標と記録、保存する表と列の名前の見直し）と、(A2-1)1 runの実行と保存の骨組み（完全なrun設定から、実行・指標の導出・保存・読込み）。完全なrun設定（(A1)）から、1つの関数で実行して、要約（JSON）と記録の表（NPZ）を、新実装の名前で保存できる。全体runの接続（(4a)・(4b)）は、全部終わっている。新実装の全体runは、blobs以外の全dataset（sine2・sea2・sea4・circle2・mnist2・mnist4）で実行でき、goldenの3ケース（sine2・sea2・mnist2）の33指標と31の離散列が、実行環境のgolden（Windowsの基準環境では固定のWindows用、WSL Ubuntuでは環境ごとのgolden）と一致する（どの環境でも、同じprocessの中の実旧とも一致する。研究室サーバ——Python 3.10.16、NumPy 2.2.6——でも、実旧との一致は、ユーザーが確認済み）。goldenは、環境の記録が完全に一致するものを、自動で選ぶ（[environment-keyed-regression-goldens](../specs/environment-keyed-regression-goldens/tasks.md)）。全pytestは、Windowsで、並列（`-n 8 --dist loadfile`）で約8〜12分（`FDE_MNIST_DATA_DIR`に、MNISTの2つのファイルが要る）。WSLでは、新実装のtest全体（逐次）が約25分。進行中の編集・未解消レビュー指摘はない。
 - **手順（2026-10-12更新）:** cc-sddのskillと標準の構成、実装前の仕様書群の独立CLIレビュー、下位taskごとの実装、実装後の独立CLIレビュー、変異テストは任意。observed-sample-prediction・fedsda-run-client-assembly・initial-model-pretrainingが、この手順で進めたspecなので、文書の形（spec.json、requirements.md、design.md、research.md、naming.md、tasks.mdと末尾の「Implementation Notes」）は、これを参考にしてよい。observed-sample-processingまでのspecの文書（README、review.md、証拠文書、局所名まで載せた命名表、revisionとhash）は、古い手順の形なので、雛形にしない。新しいspecは、cc-sddのskill（`.claude/skills/kiro-spec-*`、`kiro-impl`、`kiro-validate-impl`）と`.kiro/settings/templates/specs/`の雛形から作る。
@@ -69,6 +69,8 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)、不具合の疑い・移植しない判断・新実装で見つけた事項は[implementation-findings](../../docs/research/implementation-findings/README.md)へ、気づいた時点で1件1ファイルで記録する（2026-10-09ユーザー指示）。研究アルゴリズムの変更は採用していない。
 
 ## 完了specの一覧（新しい順。詳細は各spec）
+
+- [important-behavior-regression-goldens](../specs/important-behavior-regression-goldens/tasks.md): 構成選択と重要経路を新APIの基準版・環境別goldenで固定。旧goldenを維持。
 
 - [fedavg-experiment-run](../specs/fedavg-experiment-run/tasks.md): 旧Obliviousを正式名fedavgで移植。単一モデルの学習・集約・全体run・共通指標・成果物・掃引入口を接続。
 
@@ -156,7 +158,7 @@ clientの組立てと実行の枠の5操作（`FedsdaRunClient`）、標本1件�
 
 ### 次: 重要動作のgoldenと残る判断
 
-[feddrift-experiment-sweep](../specs/feddrift-experiment-sweep/tasks.md)で既定条件・専用閾値軸・CLI/CSV・再開まで接続した。[fedavg-experiment-run](../specs/fedavg-experiment-run/tasks.md)で単一モデル比較手法の移植も完了した。次は重要動作を守る新実装用の代表goldenを追加し、その後に残るLEGACY/IMPROVEの採否と適用を別途進める。既存goldenの再作成や全条件の直積を目的にしない。LEGACY-018は、[cross-evaluation-download-deduplication](../specs/cross-evaluation-download-deduplication/tasks.md)で合意済みの重複除外を主担当判断で先行した。旧との通信量比較は、旧イベントから重複分を引いた期待値へ厳密に照合する。他のLEGACYの扱いは従来の決定記録を維持する。残る適用可能な診断と、旧実装を外す準備も後続。
+[feddrift-experiment-sweep](../specs/feddrift-experiment-sweep/tasks.md)で既定条件・専用閾値軸・CLI/CSV・再開まで接続した。[fedavg-experiment-run](../specs/fedavg-experiment-run/tasks.md)で単一モデル比較手法の移植も完了した。[important-behavior-regression-goldens](../specs/important-behavior-regression-goldens/tasks.md)で重要動作を守る新実装用の代表goldenを追加した。次は残るLEGACY/IMPROVEの採否と適用を別途進める。既存goldenの再作成や全条件の直積を目的にしない。LEGACY-018は、[cross-evaluation-download-deduplication](../specs/cross-evaluation-download-deduplication/tasks.md)で合意済みの重複除外を主担当判断で先行した。旧との通信量比較は、旧イベントから重複分を引いた期待値へ厳密に照合する。他のLEGACYの扱いは従来の決定記録を維持する。残る適用可能な診断と、旧実装を外す準備も後続。
 
 全体run・共通基本指標・共通モデル計測は接続済み。[feddrift-computation-cost-summary](../specs/feddrift-computation-cost-summary/tasks.md)で保有モデル数とパラメータ演算の記録・共通summary接続を完了した。FedDriftは現在モデルだけで予測するため、予測のforward標本数を保有モデル×標本の分母へ流用しない。適用可能な追加診断と全構成の照合は後続。候補検証/予測混合/再較正はFedDriftへ機械的に当てはめない。基本指標のLinux別goldenと、追加診断/全構成の検証範囲を区別する。
 

@@ -1,0 +1,72 @@
+{
+  "feature_name": "important-behavior-regression-goldens",
+  "created_at": "2026-10-13",
+  "updated_at": "2026-10-13",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、主担当gate（独立仕様レビューは別に必要）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、主担当gate（独立仕様レビューは別に必要）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、主担当gate（独立仕様レビューは別に必要）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、主担当gate（独立仕様レビューは別に必要）"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "base_revision": "7bb91d8",
+    "target": "未commit仕様書群6文書",
+    "session_id": "01a1314b-bb67-7f40-b160-62c24ccb0f04",
+    "result": "Major2修正、重大箇所再確認PASS",
+    "output": "../../venv/refactoring-tests/behavior-golden-spec-correction.log",
+    "correction_session_id": "01a1314d-3a40-7981-8beb-9879e5334e33",
+    "scope_correction_session_id": "01a13152-e7c2-7a71-b559-feae4260d09e",
+    "scope_correction_result": "FedDrift終端/未処理末尾の明確化PASS"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "selection_reason": "数値snapshot・重要経路の実証と独立process/環境/CIの接続を確認するため",
+    "base_revision": "7bb91d8",
+    "target": "未commit対象spec/test/golden/CI/基準手順差分",
+    "session_id": "40c8a477-a1d1-4b32-b6cf-4a0647bec720",
+    "actual_model": "claude-haiku-5-5",
+    "is_error": false,
+    "result": "PASS、Blocker/Majorなし。Minor/任意の採否はtasks.mdへ記録、再レビュー不要。",
+    "output": "../../venv/refactoring-tests/behavior-golden-haiku-review.jsonl",
+    "independent_checks": "3140passed/skip0（対象49＋依存3091）、fresh exit0、Ruff/format348、progress3/3。全pytest/WSL/生成CLI/ホストCI未再現。"
+  },
+  "integration_validation": {
+    "tested_commit": "593aed77340b6cc9937047699838db564c21b338",
+    "source_sha256_lf": "43d6587d776d1e71e3a3af085d982dae4329b3d868c87861b953f81f4a5fa1c3",
+    "source_path_count": 452,
+    "behavior_golden_sha256_lf": {
+      "tests/refactoring/behavior_regression_goldens/v1/linux-x86_64-python3.14.4-numpy2.4.6-torch2.12.1+cpu.json": "63655e331926de0735a3270940a249ae5908e62d114e9c479e6419cc66857062",
+      "tests/refactoring/behavior_regression_goldens/v1/windows-amd64-python3.13.15-numpy2.4.6-torch2.12.1+cpu.json": "f32e22ac1c71eca042a3e6589945df78d372152c97136f5e0aab141ba7ea7562"
+    },
+    "full_passed": 13777,
+    "full_skipped": 8,
+    "junit_testcase_count": 13785,
+    "junit": "../../venv/refactoring-tests/important-behavior-regression-goldens-full.xml",
+    "full_exit_code": 0
+  },
+  "completion_decision": "GO。3task、独立仕様/実装レビュー、全pytest/品質/両環境生成2回一致/WindowsとWSLの新golden/fresh成功。旧実装と旧goldenは無変更。ホストCIは未実行、13小runは構成固有の全イベントを網羅しない。LEGACY/IMPROVE採否・適用は後続。"
+}
