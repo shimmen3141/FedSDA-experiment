@@ -362,7 +362,8 @@ def test_waiting_processes_short_interval_signal_like_a_sample_without_signal(
         assert waiting_step["alarm_outcome"] != SHORT_ALARM_OUTCOME
         signal_is_deferred = waiting_step["signal"] and not change_interval_is_long_enough
         deferred_signal_count += signal_is_deferred
-        # 待った標本では、候補検証の保持は変わらない（上の一致）ので、処理の後の状態で、保持の有無を読める。
+        # 処理の後の状態で数える。待った標本の処理の中で、保持していた検証が完了した場合は、数えない
+        # （少なく数える側。下の網羅のtestは、1件以上あることを確かめる）。
         deferred_signal_count_while_holding_validation += (
             signal_is_deferred and waiting_step["state"]["held_validation_session"] is not None
         )

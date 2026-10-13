@@ -3,7 +3,7 @@
   "created_at": "2026-10-13",
   "updated_at": "2026-10-13",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -41,5 +41,28 @@
     "result": "1・2回目はCHANGES REQUIRED、3回目でPASS。採否はtasks.mdのImplementation Notes。",
     "output": "../../venv/refactoring-tests/alarm-wait-spec-review-{1..3}.jsonl",
     "selection_reason": "検出と更新順の設計なので、Haiku 5.5"
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "011e2d4（1回目）、3cc5ee8（再確認）",
+    "session_ids": [
+      "2219c5d9-301c-41a9-bec2-b91b1fff0596",
+      "44332e7b-c078-47ad-871b-9c695862800c"
+    ],
+    "is_error": false,
+    "result": "1回目CHANGES REQUIRED（Major 1、Minor 2）、修正の再確認でAPPROVED（Minor 1）。採否はtasks.md。",
+    "output": "../../venv/refactoring-tests/alarm-wait-review-{1,2}.jsonl",
+    "independent_checks": "対象6ファイル4784 passed（1回目）、3ファイル3246 passed（再確認）、fresh 16 flows、Ruff、出力と記録の照合、固定旧と版1〜3のgoldenの差分なし。全pytest・golden・構成の照合・Pyright・WSLは未再現。"
+  },
+  "integration_validation": {
+    "full_passed": 13949,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/alarm-wait-for-minimum-change-interval-full.xml",
+    "tested_commit": "3cc5ee8（その後の変更は、testのコメント1か所と文書だけ）",
+    "wsl": "このspecのtest・clientの設定の束・標本1件の処理・fresh processのsmokeで、380 passed"
+  },
+  "completion_decision": "完了。IMPROVE-006の待つ扱いを、設定で選べる形で実装（既定は変えない。新しい基準版は足さない）。既定の切替えは、研究室サーバでの複数seedの比較の後に、ユーザーが決める。"
 }

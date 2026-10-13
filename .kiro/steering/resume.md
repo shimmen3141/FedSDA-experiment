@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-13（LEGACY-016・002の修正が完了。影響の比較はサーバで実行中。次はIMPROVE-006の試行。主担当Claude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
+更新: 2026-10-13（LEGACY-016・002の修正と、IMPROVE-006の待つ扱いの実装が完了。016・002の影響の比較はサーバで実行中。次は、値を変えない整理——IMPROVE-013/014、LEGACY-005の説明——。主担当Claude Code）。これは案内であり、承認・進捗の正本は各specのspec.jsonとtasks.md。完了specの検証とレビューの経緯は、各specのtasks.mdのImplementation Notesを読む（2026-10-09までのspecはintegration-validation.mdとreview.md。ここへ写さない）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -15,6 +15,8 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - 挙動を直す変更（016・002）は、旧と同じ扱いを設定で選べる形で入れる（旧実装を外すまで）。旧との照合testと基準版1は、旧と同じ設定で通し続け、直した既定の値は、新しい基準版へ足す。修正で精度・通信量などが下がる場合は、ユーザーへ報告する（2026-10-13ユーザー指示）。
 - **LEGACY-016は完了**（[pending-model-registration-by-own-id](../specs/pending-model-registration-by-own-id/tasks.md)。証拠は同specのtasks.md）。修正の前後の比較（8条件）では、精度は、circle2・sine2で上がり、mnist2で下がった（−0.3〜−0.9ポイント）。下りの通信量は、最大で+46%。ユーザーへ報告済み。ablationの規模の再実験は、未実施。重要動作のgoldenは、基準版1（旧と同じ扱いで照合）と基準版2（既定）の2つ。**次は、LEGACY-002**（短い警報のあと、取込み済みの前区間だけを保留から消費する。同じく、旧と同じ扱いを設定で残す。分岐が1つの機能に閉じない場合は、設定で残さず、差を説明して照合する）。その後、LEGACY-014の概念計数→LEGACY-001→整理。
 - **LEGACY-002も完了**（[too-short-alarm-earlier-sample-release](../specs/too-short-alarm-earlier-sample-release/tasks.md)。証拠は同specのtasks.md）。修正の前後の比較（8条件＋ADWINの2構成）では、精度は、sine2・circle2の一部で下がり（−0.08〜−0.69ポイント）、mnist2で上がった。sine2で、短い警報が約3〜4倍に増えた（IMPROVE-006の検討の材料）。ユーザーへ報告済み。重要動作のgoldenは、基準版1・2（旧と同じ扱いで照合）と基準版3（既定）。実旧との照合の入口のhelperは、`use_legacy_compatible_policies`・`assert_run_client_uses_legacy_compatible_policies`（`tests/refactoring/test_fedsda_run_client.py`）。LEGACY-014の概念計数とLEGACY-001は、旧実装を外したあとに直す（2026-10-13ユーザー決定。古い基準版のgoldenの列を変えるため。見送りではない。NEW-004の記録に一覧）。016・002の影響の比較（4通り×6 dataset×seed 10×集約間隔2つ、`run_behavior_fix_comparison.py`）は、ユーザーが研究室サーバで実行中。**次は、IMPROVE-006（短い警報の連鎖）の具体案の試行**→整理（IMPROVE-013/014、LEGACY-005の説明）。
+- **IMPROVE-006の待つ扱いも実装済み**（[alarm-wait-for-minimum-change-interval](../specs/alarm-wait-for-minimum-change-interval/tasks.md)。証拠は同specのtasks.md）。推定変化区間が最小件数に達するまで警報を待つ扱いを、設定で選べる（`LossChangeDetectionSettings.short_change_interval_alarm_policy`。既定は変えていない。e-SRのときだけ）。手元の9条件では、sine2で精度+0.43ポイント・切替の遅れ34→9標本・短い警報0、グローバルモデル数と下りの通信量は増える。mnist2は、2 seedの平均で精度−0.85±1.02ポイント（判断できない）。ユーザーへ報告済み。既定を切り替えるかどうかは、サーバでの複数seedの比較（`run_behavior_fix_comparison.py … --alarm-wait-levels on`。[実験の入口の文書](../../docs/experiments/experiment-sweep.md)）の後に、ユーザーが決める。待つ扱いを既定にする場合は、新しい基準版が要る。
+- 全pytestの高速化の案（長いtestファイルの分割と、重いtestの印付け）を、ユーザーへ提示した（2026-10-13。採否は未定）。
 - 採否後の変更は影響に応じた別specで扱う。固定旧748c3aaと旧goldenは維持する。新基準版1は修正前の比較に使い、意図した変更の期待差を検証してから必要な新基準版を追加する。旧実装削除やNEW-004の照合削除へ先に進まない。
 
 以下の2026-10-11の引継ぎ、長い過去の分割案、末尾のserver同期開始メモは履歴であり、そこにある「次」「進行中」「未移植」は当時の状態。現在の次の一手は上記を優先し、実際の完了状態は各specで確認する。
