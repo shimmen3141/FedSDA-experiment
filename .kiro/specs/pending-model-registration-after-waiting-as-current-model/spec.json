@@ -3,7 +3,7 @@
   "created_at": "2026-10-14",
   "updated_at": "2026-10-14",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -47,5 +47,28 @@
     "result": "1〜9回目はCHANGES REQUIRED（Majorを直すたびに再確認）。9回目のMajor 2件（検証用の包みと観測）を直し、ユーザーの承認で、10回目を受けずに実装へ進んだ（手順の逸脱。tasks.mdのImplementation Notes）。",
     "output": "../../venv/refactoring-tests/registration-after-waiting-spec-review-{1..9}.jsonl",
     "selection_reason": "可変状態と更新順の設計なので、Haiku 5.5"
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "0bad0c8（基点ac9f3bb）",
+    "session_ids": [
+      "59ad81e0-6847-46b5-a939-8fc990e2357a"
+    ],
+    "is_error": false,
+    "result": "APPROVED（Minor 1・任意4。採否はtasks.md）。仕様レビュー9回目のMajor 2件の修正も確認。",
+    "output": "../../venv/refactoring-tests/registration-after-waiting-review-1.jsonl",
+    "independent_checks": "対象10ファイル3452 passed、実旧との照合を含む3ファイル117 passed/2 skipped、goldenの構造と版の差77 passed、Ruff、fresh 16 flows、名前の照合、固定旧と版1〜3のgoldenの差分なし。全pytest・Pyright・WSL・goldenの値の照合は未再現。",
+    "selection_reason": "可変状態と更新順の実装なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14088,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/registration-after-waiting-full.xml",
+    "tested_commit": "78da285",
+    "wsl": "重要動作のgolden（版1〜4）・このspec・owner・前のspec・比較scriptのtestで300 passed（78da285）"
+  },
+  "completion_decision": "完了。FedSDAの既定を、送信保留を現行モデルとして待った後に登録する扱いにした（LEGACY-016の見直し）。全部登録の扱いと旧と同じ扱いは設定で選べる。基準版4を追加、基準版1〜3と実旧との照合は維持。本規模の比較は、研究室サーバでユーザーが実行する。"
 }
