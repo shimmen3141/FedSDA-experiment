@@ -65,3 +65,11 @@
 |---|---|---|
 | LEGACY-016（[pending-model-registration-by-own-id](../../../.kiro/specs/pending-model-registration-by-own-id/design.md)） | `keep_latest_pending_model_and_reassign_current_model_id`（設定`PendingModelRegistrationSettings.pending_model_registration_policy`） | `methods/fedsda/model_registration/pending_model_registration_settings.py`の値、`pending_model_upload.py`の`_append_or_replace_pending_model_upload`の置換えの分岐、`runtime/held_model_registration_confirmation.py`の、現行を付け替える分岐。testの`use_pending_model_registration_policy_matching_legacy`・`assert_pending_model_registration_policy_matches_legacy`、基準版1のgolden（旧と同じ扱いで照合している）。**FedDriftのclientが、この値を使っている**（`runtime/feddrift_run_client.py`）。外す前に、FedDriftを、もう一方の値へ替えても結果が同じであることを確かめる（FedDriftでは、確認のとき、送信保留のモデルが常に現行なので、同じになる見込み。未検証） |
 | LEGACY-002（[too-short-alarm-earlier-sample-release](../../../.kiro/specs/too-short-alarm-earlier-sample-release/design.md)） | `keep_all_pending_samples`（設定`TrainingDataAssignmentSettings.pending_sample_retention_after_too_short_change_interval_policy`） | `methods/fedsda/training_data_assignment/training_data_assignment_settings.py`の項目と値（項目ごと外せる）、`pending_training_assignment_buffer.py`の`releases_earlier_samples_after_too_short_change_interval`、`runtime/alarm_response_completion.py`の、短い警報で何も外さない分岐。testの`use_legacy_compatible_policies`・`assert_run_client_uses_legacy_compatible_policies`、基準版1・2のgolden（旧と同じ扱いで照合している） |
+
+## 旧実装を外したあとに直す候補（2026-10-13、ユーザー決定）
+
+診断だけの修正で、古い基準版のgoldenの記録の列を変えるため、旧実装を外すまで待つもの。旧実装と、旧と同じ扱いの設定・古い基準版の照合を外したら、着手する。
+
+- [LEGACY-014](legacy-014-adopted-model-pending-samples-not-counted.md)の割当概念計数: 採用のとき、保留標本の真の概念を数える。
+- [LEGACY-001](legacy-001-candidate-decision-reason-rounding.md): 採否の演算を正本にし、区間ごとの合否から理由を作る。
+

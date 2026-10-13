@@ -4,7 +4,7 @@
 
 | ID | 件名 | 対象・状態 | 詳細 |
 |---|---|---|---|
-| LEGACY-001 | 候補採否と区間margin理由の丸め不整合 | 採用（優先度低。採否から理由を作る。2026-10-13） | [記録](legacy-001-candidate-decision-reason-rounding.md) |
+| LEGACY-001 | 候補採否と区間margin理由の丸め不整合 | 採用。旧実装を外したあとに直す（2026-10-13ユーザー決定。古い基準版のgoldenの列に入っているため、いまは直さない） | [記録](legacy-001-candidate-decision-reason-rounding.md) |
 | LEGACY-002 | 警報区間が短いと割当済み旧区間もFIFOに残る | 新実装で修正（2026-10-13、`5cbab63`。旧と同じ扱いは設定で選べる。固定旧は未変更） | [記録](legacy-002-retained-assigned-samples-after-short-alarm.md) |
 | LEGACY-003 | 実験終端でFedSDA FIFO末尾を確定しない | 見送り（現行方針を維持。2026-10-13） | [記録](legacy-003-unassigned-fifo-tail-at-run-end.md) |
 | LEGACY-004 | 不正な参照損失入力で旧収集sessionが部分更新 | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-004-partial-loss-collection-on-invalid-input.md) |
@@ -17,7 +17,7 @@
 | LEGACY-011 | 同一負IDの登録確認で件数倍増・概念件数消失 | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-011-same-id-registration-count-corruption.md) |
 | LEGACY-012 | 新規モデル登録の途中失敗で共有部の上書きと採番消費が残る | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-012-partial-registration-on-invalid-statistics-input.md) |
 | LEGACY-013 | 使用済みの一時IDへの再登録が既存モデルを黙って置換する | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-013-temporary-id-reregistration-overwrite.md) |
-| LEGACY-014 | 採用時の保留標本が割当概念計数と損失統計へ反映されない | 損失統計は問題なしで閉じた。概念計数だけ採用（3番目。2026-10-13） | [記録](legacy-014-adopted-model-pending-samples-not-counted.md) |
+| LEGACY-014 | 採用時の保留標本が割当概念計数と損失統計へ反映されない | 損失統計は問題なしで閉じた。概念計数は採用で、旧実装を外したあとに直す（2026-10-13ユーザー決定。古い基準版のgoldenの列に入っているため、いまは直さない） | [記録](legacy-014-adopted-model-pending-samples-not-counted.md) |
 | LEGACY-015 | 標本吸収の途中失敗で先行標本の更新と不正標本が残る | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-015-partial-absorption-on-invalid-sample.md) |
 | LEGACY-016 | 採用の後に現行モデルが戻ると、正式IDだけが採番され、採用したモデルは登録されない | 新実装で修正（2026-10-13、`93b902d`。旧と同じ扱いは設定で選べる。固定旧は未変更） | [記録](legacy-016-registration-id-consumed-without-model.md) |
 | LEGACY-017 | クロス評価の読取りで、現行モデルの空の学習データの列が作られる | 新実装の扱いを維持して閉じた（2026-10-13） | [記録](legacy-017-cross-evaluation-creates-empty-training-collection.md) |
@@ -42,7 +42,7 @@
 
 下の「引継ぎ時の判断案」をClaude Codeが個別記録・現行コード・計測と照合して提案し、ユーザーが了承した。上の表の状態と、各記録の「判断（2026-10-13）」が正本。
 
-- 進める順: LEGACY-016（送信保留の上書きの対処を含む）→LEGACY-002→LEGACY-014の概念計数→LEGACY-001→整理（IMPROVE-013/014、LEGACY-005の説明）。
+- 進める順: LEGACY-016（送信保留の上書きの対処を含む）→LEGACY-002→整理（IMPROVE-013/014、LEGACY-005の説明）。LEGACY-014の概念計数とLEGACY-001は、旧実装を外したあとに直す（2026-10-13、後からの決定。見送りではない）。
 - 挙動を直す変更（016・002）は、旧と同じ扱いを設定で選べる形で入れる（旧実装を外すまで）。旧との照合testと基準版1は、旧と同じ設定で通し続け、直した既定の値は、新しい基準版へ足す。移植し忘れを後から足すときに、旧との一致を確かめられるようにするため。
 - 判断案と違う点: LEGACY-016は送信保留の上書きも直す。LEGACY-014の損失統計は問題なし。LEGACY-004/006〜013/015/017は一括で閉じる。IMPROVE-005は実装済み。IMPROVE-002/003は見送り。
 
