@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 送信保留のownerに、3つ目の方針と、現行のモデルIDを受け取る操作を足す
+- [x] 1. 送信保留のownerに、3つ目の方針と、現行のモデルIDを受け取る操作を足す
   - 3つの方針での、現行のモデルIDを受け取る3つの操作（件数`count_model_uploads_to_register`・次に登録するもの`get_next_pending_model_upload_to_register`・待ちの進行`advance_upload_wait_after_synchronization`。ownerの操作で、clientの`advance_new_model_upload_wait_after_synchronization`とは層が違う）のtest、新しい方針での、現行を知らない既存の4つの操作の拒否と状態の不変、足す操作の末尾への追加と同じIDの拒否、新しい送信保留の待ちが設定のラウンド数から始まること（要求1.4）、型の不正の拒否のtestを先に書き、REDを確かめる。
   - 値の定数とownerを実装する。既存の2つの方針で、既存のownerのtestと、ownerを使う既存testが、値を変えずに通る。
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.4_

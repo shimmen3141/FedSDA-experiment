@@ -25,7 +25,6 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
 )
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
-    PENDING_MODEL_REGISTRATION_POLICIES,
     REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
     PendingModelRegistrationSettings,
 )
@@ -497,7 +496,11 @@ def execute_sine2_event_run_with_observation(pending_model_registration_policy):
 def sine2_event_runs_by_policy():
     return {
         policy_name: execute_sine2_event_run_with_observation(policy_name)
-        for policy_name in PENDING_MODEL_REGISTRATION_POLICIES
+        # このspecの2つの方針（現行モデルとして待った後に登録する方針は、別のspecのtestが扱う）。
+        for policy_name in (
+            REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+            KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+        )
     }
 
 

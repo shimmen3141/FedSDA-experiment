@@ -35,6 +35,7 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
     PENDING_MODEL_REGISTRATION_POLICIES,
     REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+    REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME,
 )
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUpload,
@@ -393,6 +394,16 @@ def make_upload_parameter_snapshot(value):
     return {"weight": torch.tensor([value])}
 
 
+def snapshot_pending_upload_waits(pending_upload_state):
+    """（送信保留のID、残りの待ち）の列。新しい方針では、残りの待ちを読む公開の操作が無いので、内部を読む。"""
+    return tuple(
+        (pending_model_upload.model_id, remaining_upload_delay_round_count)
+        for pending_model_upload, remaining_upload_delay_round_count in (
+            pending_upload_state._pending_model_uploads
+        )
+    )
+
+
 def snapshot_pending_uploads(pending_upload_state):
     return tuple(
         (pending_model_upload.model_id, pending_model_upload.parameter_snapshot)
@@ -404,6 +415,11 @@ def test_registration_policy_names_are_declared_and_required():
     assert PENDING_MODEL_REGISTRATION_POLICIES == (
         REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
         KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+        REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME,
+    )
+    assert (
+        REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
+        == "register_pending_model_after_waiting_as_current_model"
     )
     assert (
         REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
@@ -431,9 +447,19 @@ def test_registration_policy_names_are_declared_and_required():
         assert pending_upload_state.pending_model_registration_policy == policy_name
         assert pending_upload_state.get_all_pending_model_uploads() == ()
         assert pending_upload_state.get_pending_model_upload() is None
-        assert pending_upload_state.get_ready_pending_model_upload() is None
-        assert not pending_upload_state.has_ready_model_upload()
-        assert pending_upload_state.remaining_upload_delay_round_count == 0
+        assert (
+            pending_upload_state.count_model_uploads_to_register(current_training_model_id=0) == 0
+        )
+        assert (
+            pending_upload_state.get_next_pending_model_upload_to_register(
+                current_training_model_id=0
+            )
+            is None
+        )
+        if policy_name != REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME:
+            assert pending_upload_state.get_ready_pending_model_upload() is None
+            assert not pending_upload_state.has_ready_model_upload()
+            assert pending_upload_state.remaining_upload_delay_round_count == 0
         with pytest.raises(AttributeError):
             pending_upload_state.pending_model_registration_policy = policy_name
 
@@ -493,13 +519,18 @@ def test_each_pending_model_policy_keeps_every_upload_with_its_own_delay():
     assert pending_upload_state.remaining_upload_delay_round_count == 0
 
 
+@pytest.mark.parametrize(
+    "policy_name",
+    [
+        REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+        REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME,
+    ],
+)
 @pytest.mark.parametrize("queue_operation_name", ["queue_model_upload", "queue_ready_model_upload"])
 def test_each_pending_model_policy_rejects_duplicate_model_id_without_mutation(
-    queue_operation_name,
+    queue_operation_name, policy_name
 ):
-    pending_upload_state = PendingModelUploadState(
-        pending_model_registration_policy=REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
-    )
+    pending_upload_state = PendingModelUploadState(pending_model_registration_policy=policy_name)
     first_snapshot = make_upload_parameter_snapshot(0.5)
     pending_upload_state.queue_model_upload(
         model_id=-100, parameter_snapshot=first_snapshot, upload_delay_round_count=3
@@ -510,7 +541,7 @@ def test_each_pending_model_policy_rejects_duplicate_model_id_without_mutation(
     with pytest.raises(ValueError):
         getattr(pending_upload_state, queue_operation_name)(**queue_arguments)
     assert snapshot_pending_uploads(pending_upload_state) == ((-100, first_snapshot),)
-    assert pending_upload_state.remaining_upload_delay_round_count == 3
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-100, 3),)
 
 
 @pytest.mark.parametrize("policy_name", PENDING_MODEL_REGISTRATION_POLICIES)
@@ -533,7 +564,7 @@ def test_invalid_queue_input_and_missing_removal_keep_pending_uploads(policy_nam
     with pytest.raises(TypeError):
         pending_upload_state.remove_pending_model_upload(model_id=True)
     assert snapshot_pending_uploads(pending_upload_state) == ((-100, first_snapshot),)
-    assert pending_upload_state.remaining_upload_delay_round_count == 2
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-100, 2),)
 
 
 def test_keep_latest_policy_replaces_the_only_pending_upload():
@@ -561,3 +592,212 @@ def test_keep_latest_policy_replaces_the_only_pending_upload():
     assert pending_upload_state.get_ready_pending_model_upload().model_id == -101
     pending_upload_state.remove_pending_model_upload(model_id=-101)
     assert pending_upload_state.get_all_pending_model_uploads() == ()
+
+
+def make_waiting_as_current_state():
+    return PendingModelUploadState(
+        pending_model_registration_policy=(
+            REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
+        )
+    )
+
+
+def test_waiting_as_current_policy_advances_and_registers_only_the_current_pending_model():
+    """新しい方針: 待ちは現行の送信保留だけ進み、登録の対象は、待ちが0の現行の送信保留だけ。"""
+    pending_upload_state = make_waiting_as_current_state()
+    first_snapshot = make_upload_parameter_snapshot(0.5)
+    second_snapshot = make_upload_parameter_snapshot(-0.5)
+    pending_upload_state.queue_model_upload(
+        model_id=-100, parameter_snapshot=first_snapshot, upload_delay_round_count=1
+    )
+    # 次の採用（送信保留を置き換えず、末尾へ足す）。待ちは、設定のラウンド数から始まる。
+    pending_upload_state.queue_model_upload(
+        model_id=-101, parameter_snapshot=second_snapshot, upload_delay_round_count=2
+    )
+    assert snapshot_pending_uploads(pending_upload_state) == (
+        (-100, first_snapshot),
+        (-101, second_snapshot),
+    )
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-100, 1), (-101, 2))
+    # 現行の-101だけ、待ちが進む。
+    pending_upload_state.advance_upload_wait_after_synchronization(current_training_model_id=-101)
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-100, 1), (-101, 1))
+    for current_training_model_id in (-101, -100, 0):
+        assert (
+            pending_upload_state.count_model_uploads_to_register(
+                current_training_model_id=current_training_model_id
+            )
+            == 0
+        )
+    pending_upload_state.advance_upload_wait_after_synchronization(current_training_model_id=-101)
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-100, 1), (-101, 0))
+    # 待ちが0で現行なら、1件。現行でなければ、待ちが0でも、対象にならない。
+    assert pending_upload_state.count_model_uploads_to_register(current_training_model_id=-101) == 1
+    assert (
+        pending_upload_state.get_next_pending_model_upload_to_register(
+            current_training_model_id=-101
+        ).model_id
+        == -101
+    )
+    for current_training_model_id in (-100, 0, 3):
+        assert (
+            pending_upload_state.count_model_uploads_to_register(
+                current_training_model_id=current_training_model_id
+            )
+            == 0
+        )
+        assert (
+            pending_upload_state.get_next_pending_model_upload_to_register(
+                current_training_model_id=current_training_model_id
+            )
+            is None
+        )
+    # 現行が送信保留でない（非負のモデル）なら、待ちは変わらない。待ちが0の送信保留も、捨てない。
+    pending_upload_state.advance_upload_wait_after_synchronization(current_training_model_id=0)
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-100, 1), (-101, 0))
+    # 外れていた-100が現行へ戻ると、その後の境界で待ちが0になり、登録の対象になる。
+    pending_upload_state.advance_upload_wait_after_synchronization(current_training_model_id=-100)
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-100, 0), (-101, 0))
+    assert (
+        pending_upload_state.get_next_pending_model_upload_to_register(
+            current_training_model_id=-100
+        ).model_id
+        == -100
+    )
+    # 待ちが0なら、進めても0のまま。
+    pending_upload_state.advance_upload_wait_after_synchronization(current_training_model_id=-100)
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-100, 0), (-101, 0))
+    pending_upload_state.remove_pending_model_upload(model_id=-100)
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-101, 0),)
+
+
+def test_waiting_as_current_policy_ready_upload_needs_the_current_model():
+    """待ちの要らない送信保留も、現行でなければ、登録の対象にならない。"""
+    pending_upload_state = make_waiting_as_current_state()
+    pending_upload_state.queue_ready_model_upload(
+        model_id=-102, parameter_snapshot=make_upload_parameter_snapshot(0.25)
+    )
+    assert snapshot_pending_upload_waits(pending_upload_state) == ((-102, 0),)
+    assert pending_upload_state.count_model_uploads_to_register(current_training_model_id=1) == 0
+    assert pending_upload_state.count_model_uploads_to_register(current_training_model_id=-102) == 1
+
+
+@pytest.mark.parametrize(
+    "current_unaware_operation",
+    [
+        lambda state: state.has_ready_model_upload(),
+        lambda state: state.count_ready_model_uploads(),
+        lambda state: state.get_ready_pending_model_upload(),
+        lambda state: state.advance_upload_readiness_at_round_boundary(),
+        lambda state: state.remaining_upload_delay_round_count,
+    ],
+    ids=[
+        "has_ready_model_upload",
+        "count_ready_model_uploads",
+        "get_ready_pending_model_upload",
+        "advance_upload_readiness_at_round_boundary",
+        "remaining_upload_delay_round_count",
+    ],
+)
+@pytest.mark.parametrize("held_wait", [0, 1])
+def test_waiting_as_current_policy_rejects_current_unaware_operations_without_mutation(
+    current_unaware_operation, held_wait
+):
+    pending_upload_state = make_waiting_as_current_state()
+    snapshot = make_upload_parameter_snapshot(0.5)
+    if held_wait == 0:
+        pending_upload_state.queue_ready_model_upload(model_id=-100, parameter_snapshot=snapshot)
+    else:
+        pending_upload_state.queue_model_upload(
+            model_id=-100, parameter_snapshot=snapshot, upload_delay_round_count=held_wait
+        )
+    before = snapshot_pending_upload_waits(pending_upload_state)
+    with pytest.raises(ValueError):
+        current_unaware_operation(pending_upload_state)
+    assert snapshot_pending_upload_waits(pending_upload_state) == before
+    assert snapshot_pending_uploads(pending_upload_state) == ((-100, snapshot),)
+
+
+@pytest.mark.parametrize("policy_name", PENDING_MODEL_REGISTRATION_POLICIES)
+def test_current_model_operations_reject_invalid_current_model_id_without_mutation(policy_name):
+    pending_upload_state = PendingModelUploadState(pending_model_registration_policy=policy_name)
+    pending_upload_state.queue_model_upload(
+        model_id=-100,
+        parameter_snapshot=make_upload_parameter_snapshot(0.5),
+        upload_delay_round_count=1,
+    )
+    before = snapshot_pending_upload_waits(pending_upload_state)
+    for invalid_current_training_model_id in (True, None, 1.0, "-100"):
+        for operation in (
+            pending_upload_state.count_model_uploads_to_register,
+            pending_upload_state.get_next_pending_model_upload_to_register,
+            pending_upload_state.advance_upload_wait_after_synchronization,
+        ):
+            with pytest.raises(TypeError):
+                operation(current_training_model_id=invalid_current_training_model_id)
+    assert snapshot_pending_upload_waits(pending_upload_state) == before
+
+
+@pytest.mark.parametrize(
+    "policy_name",
+    [
+        REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+        KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+    ],
+)
+def test_current_model_operations_match_current_unaware_ones_for_other_policies(policy_name):
+    """現行に依らない2つの方針では、現行のIDを受け取る操作は、現行を知らない操作と同じ結果。"""
+    current_aware_state = PendingModelUploadState(pending_model_registration_policy=policy_name)
+    current_unaware_state = PendingModelUploadState(pending_model_registration_policy=policy_name)
+    steps = (
+        ("queue", -100, 1),
+        ("advance", 0, None),
+        ("queue", -101, 2),
+        ("advance", -101, None),
+        ("ready", -102, None),
+        ("advance", 5, None),
+        ("remove", -100, None),
+        ("advance", -100, None),
+    )
+    for step_index, (step_kind, model_id, upload_delay_round_count) in enumerate(steps):
+        for state in (current_aware_state, current_unaware_state):
+            snapshot = make_upload_parameter_snapshot(float(step_index))
+            if step_kind == "queue":
+                state.queue_model_upload(
+                    model_id=model_id,
+                    parameter_snapshot=snapshot,
+                    upload_delay_round_count=upload_delay_round_count,
+                )
+            elif step_kind == "ready":
+                state.queue_ready_model_upload(model_id=model_id, parameter_snapshot=snapshot)
+            elif step_kind == "remove" and any(
+                upload.model_id == model_id for upload in state.get_all_pending_model_uploads()
+            ):
+                state.remove_pending_model_upload(model_id=model_id)
+        if step_kind == "advance":
+            current_aware_state.advance_upload_wait_after_synchronization(
+                current_training_model_id=model_id
+            )
+            current_unaware_state.advance_upload_readiness_at_round_boundary()
+        assert snapshot_pending_upload_waits(current_aware_state) == snapshot_pending_upload_waits(
+            current_unaware_state
+        )
+        for current_training_model_id in (-102, -101, -100, 0):
+            assert (
+                current_aware_state.count_model_uploads_to_register(
+                    current_training_model_id=current_training_model_id
+                )
+                == current_unaware_state.count_ready_model_uploads()
+            )
+            next_pending_model_upload = (
+                current_aware_state.get_next_pending_model_upload_to_register(
+                    current_training_model_id=current_training_model_id
+                )
+            )
+            ready_pending_model_upload = current_unaware_state.get_ready_pending_model_upload()
+            # 2つのownerは別のobjectを持つので、IDで比べる（Noneどうしも等しい）。
+            assert (
+                None if next_pending_model_upload is None else next_pending_model_upload.model_id
+            ) == (
+                None if ready_pending_model_upload is None else ready_pending_model_upload.model_id
+            )

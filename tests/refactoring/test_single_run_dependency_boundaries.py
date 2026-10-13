@@ -6700,6 +6700,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.PENDING_MODEL_REGISTRATION_POLICIES",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME",
             "torch.Tensor",
             "torch.float32",
             "torch.isfinite",
