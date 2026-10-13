@@ -1,14 +1,17 @@
-"""挙動を直した2つの扱い（LEGACY-016・LEGACY-002）の、適用の有無の4通りを、同じ条件で実行する（検証用）。
+"""挙動を直した2つの扱い（LEGACY-016・LEGACY-002）の、適用の有無の組合せを、同じ条件で実行する（検証用）。
 
 提案構成（`fedsda`）の設定の、次の2つの扱いだけを替えて、全部の組合せを実行し、組合せごとに、
 `run_experiment_sweep.py`と同じ形（`<組合せの名前>/runs/`と`run_summary.csv`）で保存する。
 
-- 登録（LEGACY-016）: `fixed`＝採用したモデルを、それ自身のIDで登録する（既定）。`legacy`＝固定旧と同じ。
+- 登録（LEGACY-016）: `waited-as-current`＝送信保留のモデルを、現行モデルとして待った後に、それ自身のIDで
+  登録する（既定。LEGACY-016の扱いの見直し）。`fixed`＝待ちの済んだ送信保留の全部を、現行かどうかに依らず、
+  それ自身のIDで登録する（基準版2・3の扱い）。`legacy`＝固定旧と同じ。指定しなければ、`legacy`と`fixed`を
+  実行する（2026-10-13の480 runの計画を変えない）。
 - 短い警報（LEGACY-002）: `fixed`＝取り込んだ前区間を、保留から外す（既定）。`legacy`＝固定旧と同じ。
 - 警報を待つ（IMPROVE-006。`--alarm-wait-levels`）: `off`＝合図があれば、すぐに警報とする（既定）。
   `on`＝推定変化区間が最小件数に達するまで、警報を待つ。指定しなければ、`off`だけを実行する。
 
-組合せの名前は、`registration-<fixed|legacy>__short-alarm-<fixed|legacy>`（警報を待つ扱いが`on`の組合せは、
+組合せの名前は、`registration-<legacy|fixed|waited-as-current>__short-alarm-<fixed|legacy>`（警報を待つ扱いが`on`の組合せは、
 末尾に`__alarm-wait-on`が付く）。出力先に済んだrunがあれば、飛ばして続ける。runの識別子は、run設定から計算するので、
 設定の項目が増える前に実行したrunは、済んだrunとして扱われない（集計は、識別子でなく、dataset・集約間隔・seedで
 対にするので、前の結果も、そのまま比べられる。組合せを後から足すときは、足す組合せだけを指定する）。
@@ -36,12 +39,17 @@ sys.path.insert(0, str(REPOSITORY_DIRECTORY / "src"))
 REGISTRATION_POLICY_BY_LEVEL = {
     "fixed": "register_each_pending_model_by_its_own_id",
     "legacy": "keep_latest_pending_model_and_reassign_current_model_id",
+    "waited-as-current": "register_pending_model_after_waiting_as_current_model",
 }
 SHORT_ALARM_POLICY_BY_LEVEL = {
     "fixed": "release_earlier_samples_assigned_to_current_model",
     "legacy": "keep_all_pending_samples",
 }
-LEVELS = ("legacy", "fixed")
+# 登録の水準と、短い警報の水準（軸ごとに分ける。短い警報の軸に、登録の水準が入らないように）。
+REGISTRATION_LEVELS = ("legacy", "fixed", "waited-as-current")
+# 登録の水準を指定しないときに実行する水準（2026-10-13の480 runと同じ計画）。
+DEFAULT_REGISTRATION_LEVELS = ("legacy", "fixed")
+SHORT_ALARM_LEVELS = ("legacy", "fixed")
 ALARM_WAIT_POLICY_BY_LEVEL = {
     "off": "raise_alarm_immediately",
     "on": "wait_until_change_interval_reaches_minimum",
@@ -140,10 +148,16 @@ def main(command_arguments=None):
     argument_parser.add_argument("--client-count", type=int, default=10)
     argument_parser.add_argument("--per-client-sample-count", type=int, default=5000)
     argument_parser.add_argument(
-        "--registration-levels", nargs="+", choices=LEVELS, default=list(LEVELS)
+        "--registration-levels",
+        nargs="+",
+        choices=REGISTRATION_LEVELS,
+        default=list(DEFAULT_REGISTRATION_LEVELS),
     )
     argument_parser.add_argument(
-        "--short-alarm-levels", nargs="+", choices=LEVELS, default=list(LEVELS)
+        "--short-alarm-levels",
+        nargs="+",
+        choices=SHORT_ALARM_LEVELS,
+        default=list(SHORT_ALARM_LEVELS),
     )
     argument_parser.add_argument(
         "--alarm-wait-levels", nargs="+", choices=ALARM_WAIT_LEVELS, default=["off"]

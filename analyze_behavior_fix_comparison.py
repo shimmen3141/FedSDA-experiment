@@ -3,14 +3,15 @@
 使い方:
     python analyze_behavior_fix_comparison.py <出力先> [--chains]
 
-出すもの（Markdownの表。標準出力）:
-1. datasetと集約間隔ごとの、4通りの組合せの平均（精度、定常精度、通信量、最終のグローバルモデル数、検出数、短い警報の数）。
-2. 対の差（同じseedのrunどうしの差の、平均±標準誤差、上がったseedの数/下がったseedの数）:
-   - LEGACY-016の効果（短い警報の扱いを固定して、登録だけを替える。2通り）
-   - LEGACY-002の効果（登録の扱いを固定して、短い警報だけを替える。2通り）
-   - 両方の効果（どちらも旧と同じ→どちらも直した）
-   - 警報を待つ扱い（IMPROVE-006）の効果（ほかの2つを固定して、待たない→待つ。結果がある組合せだけ）
-   平均の差の絶対値が、標準誤差の2倍を超えるものに、`*`を付ける（seedの揺らぎより大きい目安。検定ではない）。
+出すもの（Markdownの表。標準出力。種類の違うデータを越えて平均した行は出さない）:
+1. datasetと集約間隔ごとの、組合せの絶対値（平均±標準偏差。runが1つなら標準偏差は「—」）。
+2. 対の差（datasetと集約間隔ごとに、同じseedのrunどうしの差の、平均±標準誤差、上がったseedの数/下がったseedの数）:
+   - 登録の扱いの効果（短い警報・警報を待つ扱いを固定して、登録だけを替える。登録の水準の対の全部）
+   - LEGACY-002の効果（登録・警報を待つ扱いを固定して、短い警報だけを替える）
+   - 両方の効果（どちらも旧と同じ→登録を直した側か現行として待つ側、短い警報を直した側）
+   - 警報を待つ扱い（IMPROVE-006）の効果（ほかの2つを固定して、待たない→待つ）
+   どれも、両方の組合せの結果があるものだけを出す。平均の差の絶対値が、標準誤差の2倍を超えるものに、`*`を付ける
+   （seedの揺らぎより大きい目安。検定ではない）。
 3. `--chains`: 短い警報の連鎖（同じclientで、短い警報が、ほかの結果の警報を挟まずに続く並び）の数と長さ。
    runごとの記録の表（NPZ）の、適応の記録から数える。
 """
@@ -21,7 +22,9 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-LEVELS = ("legacy", "fixed")
+# 登録の水準と、短い警報の水準（`run_behavior_fix_comparison.py`と同じ）。
+REGISTRATION_LEVELS = ("legacy", "fixed", "waited-as-current")
+SHORT_ALARM_LEVELS = ("legacy", "fixed")
 SHORT_ALARM_OUTCOME = "alarm_change_interval_too_short"
 # 一覧の表の列の名前→（表示名、表示の倍率、小数の桁数）。
 METRICS = {
@@ -83,6 +86,15 @@ def read_combination(output_directory, name):
     return runs
 
 
+def mean_and_standard_deviation(values):
+    """平均と、標本の標準偏差（n−1で割った分散の平方根）。値が1つなら、標準偏差はNaN。"""
+    count = len(values)
+    mean = sum(values) / count
+    if count < 2:
+        return mean, float("nan")
+    return mean, math.sqrt(sum((value - mean) ** 2 for value in values) / (count - 1))
+
+
 def mean_and_standard_error(values):
     count = len(values)
     mean = sum(values) / count
@@ -112,6 +124,50 @@ def format_paired_difference(before_runs, after_runs, group_keys, column):
     return (
         f"{mean:+.{digits}f}{error_text}{marker}（↑{increased}/↓{decreased}/n={len(differences)}）"
     )
+
+
+def build_comparisons():
+    """（表題、前の組合せの水準、後の組合せの水準）の列。軸の水準から生成する。"""
+    comparisons = []
+    for alarm_wait_level in ALARM_WAIT_LEVELS:
+        for short_alarm_level in reversed(SHORT_ALARM_LEVELS):
+            for before_index, before_level in enumerate(REGISTRATION_LEVELS):
+                for after_level in REGISTRATION_LEVELS[before_index + 1 :]:
+                    comparisons.append(
+                        (
+                            f"登録の扱いの効果（{before_level}→{after_level}。短い警報は{short_alarm_level}、"
+                            f"警報を待つ扱いは{alarm_wait_level}）",
+                            (before_level, short_alarm_level, alarm_wait_level),
+                            (after_level, short_alarm_level, alarm_wait_level),
+                        )
+                    )
+    for alarm_wait_level in ALARM_WAIT_LEVELS:
+        for registration_level in reversed(REGISTRATION_LEVELS):
+            comparisons.append(
+                (
+                    f"LEGACY-002の効果（登録は{registration_level}、警報を待つ扱いは{alarm_wait_level}）",
+                    (registration_level, "legacy", alarm_wait_level),
+                    (registration_level, "fixed", alarm_wait_level),
+                )
+            )
+    for registration_level in REGISTRATION_LEVELS[1:]:
+        comparisons.append(
+            (
+                f"両方の効果（旧と同じ→登録は{registration_level}、短い警報は直した側）",
+                ("legacy", "legacy", "off"),
+                (registration_level, "fixed", "off"),
+            )
+        )
+    for registration_level in reversed(REGISTRATION_LEVELS):
+        for short_alarm_level in reversed(SHORT_ALARM_LEVELS):
+            comparisons.append(
+                (
+                    f"警報を待つ扱い（IMPROVE-006）の効果（登録は{registration_level}、短い警報は{short_alarm_level}）",
+                    (registration_level, short_alarm_level, "off"),
+                    (registration_level, short_alarm_level, "on"),
+                )
+            )
+    return tuple(comparisons)
 
 
 def collect_short_alarm_chains(record_table_path):
@@ -154,8 +210,8 @@ def main(arguments):
             output_directory,
             combination_name(registration_level, short_alarm_level, alarm_wait_level),
         )
-        for registration_level in LEVELS
-        for short_alarm_level in LEVELS
+        for registration_level in REGISTRATION_LEVELS
+        for short_alarm_level in SHORT_ALARM_LEVELS
         for alarm_wait_level in ALARM_WAIT_LEVELS
     }
     available = {levels: runs for levels, runs in runs_by_combination.items() if runs}
@@ -170,7 +226,7 @@ def main(arguments):
             f"{combination_name(*levels)}（{len(runs)} run）" for levels, runs in available.items()
         )
     )
-    print("\n## 1. 組合せごとの平均\n")
+    print("\n## 1. 組合せごとの絶対値（平均±標準偏差）\n")
     print(
         "| dataset | 集約間隔 | 登録（016） | 短い警報（002） | 警報を待つ（006） | n | "
         + " | ".join(display_name for display_name, _, _ in METRICS.values())
@@ -189,46 +245,25 @@ def main(arguments):
             cells = []
             for column, (_, scale, digits) in METRICS.items():
                 values = [run[column] * scale for run in group_runs if column in run]
-                cells.append(f"{sum(values) / len(values):.{digits}f}" if values else "—")
+                if not values:
+                    cells.append("—")
+                    continue
+                mean, standard_deviation = mean_and_standard_deviation(values)
+                deviation_text = (
+                    "—"
+                    if standard_deviation != standard_deviation
+                    else f"{standard_deviation:.{digits}f}"
+                )
+                cells.append(f"{mean:.{digits}f}±{deviation_text}")
             print(
                 f"| {dataset_name} | {aggregation_interval} | {levels[0]} | {levels[1]} | {levels[2]} | {len(group_runs)} | "
                 + " | ".join(cells)
                 + " |"
             )
-    comparisons = [
-        (
-            "LEGACY-016の効果（短い警報は旧と同じ）",
-            ("legacy", "legacy", "off"),
-            ("fixed", "legacy", "off"),
-        ),
-        (
-            "LEGACY-016の効果（短い警報は直した側）",
-            ("legacy", "fixed", "off"),
-            ("fixed", "fixed", "off"),
-        ),
-        (
-            "LEGACY-002の効果（登録は旧と同じ）",
-            ("legacy", "legacy", "off"),
-            ("legacy", "fixed", "off"),
-        ),
-        (
-            "LEGACY-002の効果（登録は直した側）",
-            ("fixed", "legacy", "off"),
-            ("fixed", "fixed", "off"),
-        ),
-        ("両方の効果", ("legacy", "legacy", "off"), ("fixed", "fixed", "off")),
-        *[
-            (
-                f"警報を待つ扱い（IMPROVE-006）の効果（登録は{registration_level}、短い警報は{short_alarm_level}）",
-                (registration_level, short_alarm_level, "off"),
-                (registration_level, short_alarm_level, "on"),
-            )
-            for registration_level in reversed(LEVELS)
-            for short_alarm_level in reversed(LEVELS)
-        ],
-    ]
+    comparisons = build_comparisons()
     print(
-        "\n## 2. 対の差（同じseedのrunどうし。後−前の、平均±標準誤差。`*`は、平均の絶対値が標準誤差の2倍を超えるもの）\n"
+        "\n## 2. 対の差（datasetと集約間隔ごと。同じseedのrunどうしの、後−前の平均±標準誤差。"
+        "`*`は、平均の絶対値が標準誤差の2倍を超えるもの）\n"
     )
     for title, before_levels, after_levels in comparisons:
         if before_levels not in available or after_levels not in available:
@@ -241,15 +276,13 @@ def main(arguments):
         )
         print("|---|---|" + "---|" * len(METRICS))
         before_runs, after_runs = available[before_levels], available[after_levels]
-        for group in [*groups, None]:
+        for group in groups:
             group_keys = sorted(
-                key
-                for key in before_runs
-                if key in after_runs and (group is None or key[:2] == group)
+                key for key in before_runs if key in after_runs and key[:2] == group
             )
             if not group_keys:
                 continue
-            label = "| 全部 | — | " if group is None else f"| {group[0]} | {group[1]} | "
+            label = f"| {group[0]} | {group[1]} | "
             print(
                 label
                 + " | ".join(

@@ -31,7 +31,7 @@
   - 計測script（このspecのdirectoryの`measure_registration_after_waiting_effect.py`）を、前のspecの計測script（`pending-model-registration-by-own-id/measure_registration_policy_effect.py`）の形で作り、8条件×3方針を、Windowsの基準環境で8並列で実行し（見積り1時間前後）、記録する。下がる条件があれば、ユーザーへ伝える。
   - _Requirements: 4.1, 4.3_
 
-- [ ] 7. 比較scriptを広げる
+- [x] 7. 比較scriptを広げる
   - 2つの比較scriptで、登録の水準と短い警報の水準の定数を分け（引数の選択肢とループの全部の箇所）、`run_behavior_fix_comparison.py`の登録の水準へ`waited-as-current`を足し（docstringの既定の説明も改める）、`analyze_behavior_fix_comparison.py`を、3つの水準と、データと集約間隔ごとの絶対値（平均±標準偏差。新しい関数）・対の差（平均±標準誤差）の形へ改める（第2節の「全部」の行など、データを越えた平均の行は出さない）。比較scriptのtestを足す。
   - _Requirements: 4.2_
 
@@ -90,3 +90,4 @@
 - task 4（既定の変更）: 既定を替えた後の全pytestで失敗したのは、既定の値に依るtestの10件だけだった（掃引のrunの識別子の期待値2件——`72f2b5b47a95`→`dd4db54a72ef`——、最終構成の既定の照合6件、前のspecの構成の既定のtest、共用のfresh scriptの方針の名前）。実旧との照合と、基準版1〜3は、どれも通った。前のspecの構成の既定のtestは、このspecのtestファイルへ移し、新しい既定へ改めた。出力（指標の導出・記録の表）を作るmoduleは、送信保留のownerを読まない（`grep`で確かめた）。sourceの説明（方針の定数の注記、確認とサーバの登録のdocstring）は、task 1・2で改めた。
 - task 5（版4の定義）: 版4の全ケースを、生成の前に、版3と比べて実行した（Windows）。版3の扱いで事象が0の16ケースは、版3と同じ結果。事象のある`fedsda-sine2-events`（登録6→5件）と`fedsda-sine2-reference-reuse`（4→3件）は、差がある。`fedsda-sine2-reference-reuse`は、版4で、別の保有モデルの再利用の判定を通らなくなったので、同じ設定でseedを0〜15と替えて調べ、版4で必須の経路を全部通るseed 5を、`fedsda-sine2-alternative-reference-reuse`として版4だけに足した（版3のgoldenは変えない。設計の「基準版のgolden」）。seedを替えた実行で、seed 0と4が、それぞれ既存の2ケースの版4の結果を再現することも確かめた。
 - 基準版4の生成（source `eeeedcb`、commit `fa767d1`）: Windowsの基準環境とWSLで、既存の生成手順（2つのprocessの一致、未使用の出力先）で生成し、19ケースを`behavior_regression_goldens/v4/`へ置いた。照合: Windows 165 passed（goldenのtestの全体）、WSL 273 passed（goldenのtest、このspecのtest、ownerのtest）。研究室サーバ用は、対象外。
+- task 7（比較script）: 設計は「既存の比較scriptのtestへ足す」としていたが、比較scriptのtestは無かった（`grep`で確かめた）。新しいファイル`tests/refactoring/test_behavior_fix_comparison_scripts.py`に、水準と方針の対応、既定の水準（480 runの計画を変えない）、短い警報の軸が登録の水準を拒否すること、組合せの名前、集計の絶対値（平均±標準偏差）・対の差（平均±標準誤差）・データを越えた平均の行が無いこと、のtestを置いた。既存の480 runの結果（`results/behavior-fix-comparison`）を、新しい集計で読めることも確かめた（絶対値は、前回の手計算と一致）。
