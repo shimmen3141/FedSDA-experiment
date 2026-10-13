@@ -135,3 +135,19 @@ python run_experiment_sweep.py --configurations fedsda feddrift fedavg --dataset
 ```
 
 FedAvgの成果物は`fedavg/runs/`配下の完全設定・共通指標・環境のJSONと名前付き記録のNPZ。再開と競合拒否、`run_summary.csv`の生成は他構成と同じ。準備の計算は本実行へ含めず、処理されない末尾は生成概念列と進行件数へ残す。
+
+## 挙動の修正の、適用の有無の比較（検証用）
+
+LEGACY-016（採用したモデルの登録）とLEGACY-002（短い警報のあとの保留）の修正が、精度・通信量へ与える影響を、
+提案構成で、適用の有無の4通りを同じ条件・同じseedで実行して比べる。旧と同じ扱いは、この検証と、旧実装との照合の
+testだけが使う（通常の実験のコマンドからは選べない）。
+
+```bash
+python run_behavior_fix_comparison.py --datasets sine2 circle2 sea4 mnist2 \
+    --seeds 0 1 2 3 4 5 6 7 8 9 --aggregation-intervals 50 \
+    --workers 14 --output-directory results/behavior-fix-comparison
+python analyze_behavior_fix_comparison.py results/behavior-fix-comparison --chains > behavior-fix-comparison.md
+```
+
+出力先に済んだrunがあれば、飛ばして続ける（dataset・seed・集約間隔を、後から足せる）。集計は、同じseedのrunどうしの
+差の、平均と標準誤差（組合せごとの平均、LEGACY-016の効果、LEGACY-002の効果、両方の効果）と、短い警報の連鎖の数と長さを出す。
