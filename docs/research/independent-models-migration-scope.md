@@ -49,7 +49,7 @@
 
 | 違い | 新実装の、変更が要る箇所 | 変更の中身 |
 |---|---|---|
-| 1・2 | 分類器（`learning/models/residual_adapter_classifier.py`）、モデル構造の設定 | 分類器は、共有部を渡さなければ、自分の特徴抽出部を持てる（今の実装で可能）。adapterを持たない構造（`IdentityFeatureAdapter`）と組み合わせれば、旧の`SimpleMLP`と、同じ構造になる。新しい構造の名前を足す |
+| 1・2 | 分類器（`learning/models/model_architecture_classifier.py`。2026-10-13に、`residual_adapter_classifier.py`から改名）、モデル構造の設定 | 分類器は、共有部を渡さなければ、自分の特徴抽出部を持てる（今の実装で可能）。adapterを持たない構造（`IdentityFeatureAdapter`）と組み合わせれば、旧の`SimpleMLP`と、同じ構造になる。新しい構造の名前を足す |
 | 3 | 保有モデルの共有部のつなぎ直し（`learning/training/held_model_shared_feature_reconnection.py`）、配布の適用（`runtime/global_model_distribution_application.py`） | この構造では、つなぎ直さない。配布の適用は、モデルごとに、全パラメータを置く |
 | 4 | 採用した候補の共有部の統合（`learning/training/adopted_candidate_shared_feature_integration.py`）、採用の登録（`runtime/adopted_candidate_initial_local_registration.py`） | この構造では、統合しない |
 | 5 | 標本1件の予測（`runtime/observed_sample_prediction.py`）、損失の評価（`learning/prediction/classifier_bounded_loss_evaluation.py`の、共有特徴からの評価）、クロス評価（`runtime/client_model_cross_evaluation.py`） | モデルごとに、特徴抽出から行う |

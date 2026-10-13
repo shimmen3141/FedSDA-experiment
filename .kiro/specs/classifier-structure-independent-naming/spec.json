@@ -3,7 +3,7 @@
   "created_at": "2026-10-13",
   "updated_at": "2026-10-13",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -40,5 +40,28 @@
     "result": "1回目は判定の行がCHANGES REQUIRED（Minor 1、任意2）、2回目でPASS。採否はtasks.mdのImplementation Notes。",
     "output": "../../venv/refactoring-tests/classifier-naming-spec-review-{1,2}.log",
     "selection_reason": "命名と文書が主題なので、GPT-6 Luna"
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "8fd02e1",
+    "session_ids": [
+      "d7518548-00cf-4d5b-90b0-af4854965b6a"
+    ],
+    "is_error": false,
+    "result": "APPROVED（任意2。採否はtasks.md）。",
+    "output": "../../venv/refactoring-tests/classifier-naming-review-1.jsonl",
+    "independent_checks": "対象5ファイル4479 passed、goldenの照合127 passed、fresh 16 flows、Ruff、名前の検査、goldenの6ファイルの前後の比較、固定旧の差分なし。全pytest・Pyright・WSLは未再現。",
+    "selection_reason": "goldenの照合など、testの実行が要る確認なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14013,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/classifier-structure-independent-naming-full.xml",
+    "tested_commit": "3d77ce2",
+    "wsl": "重要動作のgolden（Linuxのgolden。書き換えた後のファイル）・分類器・パラメータのsnapshot・fresh processのsmokeのtestで、217 passed（skipなし）"
+  },
+  "completion_decision": "完了。IMPROVE-014（分類器のクラス・module・属性の名前を、構造に依らない名前へ）。値は変えない。goldenは、パラメータ名のキーだけを書き換えた。"
 }
