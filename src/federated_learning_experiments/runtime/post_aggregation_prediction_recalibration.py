@@ -4,14 +4,17 @@ from dataclasses import dataclass
 
 from torch import cat
 
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
+from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
+    TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifiers_per_sample_bounded_losses_from_shared_features,
 )
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
+    AllSampleAdaHedgeWeightEvidenceHolder,
 )
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
@@ -93,7 +96,8 @@ def recalibrate_prediction_state_after_aggregation(
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
     pending_sample_observation_store: PendingSampleObservationStore,
     fixed_share_weight_controller: FixedShareWeightController,
-    adahedge_weight_evidence_collection: AdaHedgeWeightEvidenceCollection,
+    all_sample_adahedge_weight_evidence_holder: AllSampleAdaHedgeWeightEvidenceHolder,
+    true_concept_adahedge_diagnostic_evidence_collection: TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 ) -> PostAggregationPredictionRecalibration:
     """保留中の標本の損失を現在の保有モデルで計算し直し、その列で、AdaHedgeの証拠と予測の重みを作り直す。
 
@@ -118,9 +122,14 @@ def recalibrate_prediction_state_after_aggregation(
             FixedShareWeightController,
         ),
         (
-            "adahedge_weight_evidence_collection",
-            adahedge_weight_evidence_collection,
-            AdaHedgeWeightEvidenceCollection,
+            "all_sample_adahedge_weight_evidence_holder",
+            all_sample_adahedge_weight_evidence_holder,
+            AllSampleAdaHedgeWeightEvidenceHolder,
+        ),
+        (
+            "true_concept_adahedge_diagnostic_evidence_collection",
+            true_concept_adahedge_diagnostic_evidence_collection,
+            TrueConceptAdaHedgeDiagnosticEvidenceCollection,
         ),
     ):
         if type(owner) is not required_type:
@@ -129,18 +138,20 @@ def recalibrate_prediction_state_after_aggregation(
         held_model_training_state_registry=held_model_training_state_registry,
         pending_sample_observation_store=pending_sample_observation_store,
     )
-    restarted_true_concept_ids = adahedge_weight_evidence_collection.created_true_concept_ids
+    restarted_true_concept_ids = (
+        true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
+    )
     recalibration = PostAggregationPredictionRecalibration(
         replayed_sample_count=len(observed_loss_sequence),
         replayed_model_ids=tuple(observed_loss_sequence[0]) if observed_loss_sequence else (),
         restarted_true_concept_ids=restarted_true_concept_ids,
     )
-    adahedge_weight_evidence_collection.all_sample_weight_evidence.replay_observed_losses_after_aggregation(
+    all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence.replay_observed_losses_after_aggregation(
         observed_loss_sequence=observed_loss_sequence
     )
     # 真の概念別の証拠は、集約の前の表現で得た比較なので、再生せずに捨てる。
     for true_concept_id in restarted_true_concept_ids:
-        adahedge_weight_evidence_collection.get_true_concept_diagnostic_evidence(
+        true_concept_adahedge_diagnostic_evidence_collection.get_true_concept_diagnostic_evidence(
             true_concept_id=true_concept_id
         ).restart_evidence_after_aggregation()
     fixed_share_weight_controller.replay_observed_losses_after_aggregation(

@@ -3,9 +3,6 @@
 from dataclasses import dataclass
 from random import Random
 
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
-)
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecord,
     AdaptationRecordStore,
@@ -56,6 +53,9 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.overall
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
+    AllSampleAdaHedgeWeightEvidenceHolder,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
 )
@@ -75,8 +75,8 @@ from federated_learning_experiments.runtime.candidate_validation_session_holder 
 from federated_learning_experiments.runtime.held_candidate_validation_progress import (
     apply_alarm_response_to_validation_session_holder,
 )
-from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import (
-    restart_adahedge_weight_evidence_after_training_assignment_change,
+from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import (
+    restart_all_sample_adahedge_weight_evidence_after_training_assignment_change,
 )
 
 
@@ -92,7 +92,7 @@ def handle_alarm_occurrence(
     *,
     validation_session_holder: CandidateValidationSessionHolder,
     adaptation_record_store: AdaptationRecordStore,
-    adahedge_weight_evidence_collection: AdaHedgeWeightEvidenceCollection,
+    all_sample_adahedge_weight_evidence_holder: AllSampleAdaHedgeWeightEvidenceHolder,
     loss_change_monitor: OverallAndTrueClassLossMonitor,
     alarm_sample_index: int,
     pending_training_assignment_buffer: PendingTrainingAssignmentBuffer,
@@ -125,9 +125,9 @@ def handle_alarm_occurrence(
         ("validation_session_holder", validation_session_holder, CandidateValidationSessionHolder),
         ("adaptation_record_store", adaptation_record_store, AdaptationRecordStore),
         (
-            "adahedge_weight_evidence_collection",
-            adahedge_weight_evidence_collection,
-            AdaHedgeWeightEvidenceCollection,
+            "all_sample_adahedge_weight_evidence_holder",
+            all_sample_adahedge_weight_evidence_holder,
+            AllSampleAdaHedgeWeightEvidenceHolder,
         ),
         ("loss_change_monitor", loss_change_monitor, OverallAndTrueClassLossMonitor),
         (
@@ -200,13 +200,13 @@ def handle_alarm_occurrence(
         validation_session_holder=validation_session_holder,
     )
     change_interval_resolution = alarm_buffer_response.change_interval_resolution
-    restart_adahedge_weight_evidence_after_training_assignment_change(
+    restart_all_sample_adahedge_weight_evidence_after_training_assignment_change(
         assignment_change=(
             None
             if change_interval_resolution is None
             else change_interval_resolution.training_model_assignment_change
         ),
-        adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+        all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
     )
     return AlarmOccurrenceHandling(
         alarm_response_completion=alarm_response_completion, adaptation_record=adaptation_record

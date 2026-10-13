@@ -7,9 +7,6 @@ from random import Random
 from torch import Tensor, float32, tensor
 
 from federated_learning_experiments.data.observed_streams import ObservedSample
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
-)
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecordStore,
 )
@@ -27,6 +24,9 @@ from federated_learning_experiments.evaluation.model_evaluation_sample_store imp
 )
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecordStore,
+)
+from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
+    TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatistics,
@@ -77,6 +77,9 @@ from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
+    AllSampleAdaHedgeWeightEvidenceHolder,
+)
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
 )
@@ -126,7 +129,10 @@ class FedsdaRunClientOwners:
     validation_session_holder: CandidateValidationSessionHolder
     adaptation_record_store: AdaptationRecordStore
     candidate_validation_decision_record_store: CandidateValidationDecisionRecordStore
-    adahedge_weight_evidence_collection: AdaHedgeWeightEvidenceCollection
+    all_sample_adahedge_weight_evidence_holder: AllSampleAdaHedgeWeightEvidenceHolder
+    true_concept_adahedge_diagnostic_evidence_collection: (
+        TrueConceptAdaHedgeDiagnosticEvidenceCollection
+    )
     loss_change_monitor: OverallAndTrueClassLossMonitor
     loss_change_alarm_record_store: LossChangeAlarmRecordStore
     loss_monitoring_computation_count_store: LossMonitoringComputationCountStore
@@ -238,7 +244,8 @@ class FedsdaRunClient:
             sample_prediction_record_store=owners.sample_prediction_record_store,
             validation_session_holder=owners.validation_session_holder,
             adaptation_record_store=owners.adaptation_record_store,
-            adahedge_weight_evidence_collection=owners.adahedge_weight_evidence_collection,
+            all_sample_adahedge_weight_evidence_holder=owners.all_sample_adahedge_weight_evidence_holder,
+            true_concept_adahedge_diagnostic_evidence_collection=owners.true_concept_adahedge_diagnostic_evidence_collection,
             loss_change_monitor=owners.loss_change_monitor,
             loss_change_alarm_record_store=owners.loss_change_alarm_record_store,
             pending_training_assignment_buffer=owners.pending_training_assignment_buffer,
@@ -413,7 +420,8 @@ class FedsdaRunClient:
             held_model_training_state_registry=owners.held_model_training_state_registry,
             pending_sample_observation_store=owners.pending_sample_observation_store,
             fixed_share_weight_controller=owners.fixed_share_weight_controller,
-            adahedge_weight_evidence_collection=owners.adahedge_weight_evidence_collection,
+            all_sample_adahedge_weight_evidence_holder=owners.all_sample_adahedge_weight_evidence_holder,
+            true_concept_adahedge_diagnostic_evidence_collection=owners.true_concept_adahedge_diagnostic_evidence_collection,
         )
 
     def finalize_incomplete_candidate_validation(
@@ -592,13 +600,14 @@ def assemble_fedsda_run_client(
         validation_session_holder=CandidateValidationSessionHolder(),
         adaptation_record_store=AdaptationRecordStore(),
         candidate_validation_decision_record_store=CandidateValidationDecisionRecordStore(),
-        adahedge_weight_evidence_collection=AdaHedgeWeightEvidenceCollection(
+        all_sample_adahedge_weight_evidence_holder=AllSampleAdaHedgeWeightEvidenceHolder(
             # 現在のモデルだけで予測する構成では、予測の処理が、証拠を更新しない。
             evidence_is_updated_by_prediction=(
                 run_client_settings.prediction_combination_settings.prediction_combination_strategy
                 != "current_training_model_prediction"
             )
         ),
+        true_concept_adahedge_diagnostic_evidence_collection=TrueConceptAdaHedgeDiagnosticEvidenceCollection(),
         loss_change_monitor=OverallAndTrueClassLossMonitor(
             loss_change_detection_settings=run_client_settings.loss_change_detection_settings,
             class_count=held_classifier.class_count,

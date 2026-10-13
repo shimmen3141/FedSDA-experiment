@@ -36,9 +36,6 @@ from federated_learning_experiments.data.observed_streams import (
     ObservedSample,
 )
 from federated_learning_experiments.data.sine.sine_sample_generation import SineSampleGenerator
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
-)
 from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeRecordStore,
@@ -58,6 +55,9 @@ from federated_learning_experiments.evaluation.model_evaluation_sample_store imp
 from federated_learning_experiments.evaluation.run_metric_calculations import RunMetricSettings
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecordStore,
+)
+from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
+    TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.execution.run_participant_contracts import RunParticipants
 from federated_learning_experiments.execution.stream_protocol_execution_loop import (
@@ -152,6 +152,9 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
 )
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
+    AllSampleAdaHedgeWeightEvidenceHolder,
 )
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
@@ -405,8 +408,10 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     counts_store = ModelTrainingAndAssignmentCountsStore()
     validation_session_holder = CandidateValidationSessionHolder()
     adaptation_record_store = AdaptationRecordStore()
-    adahedge_weight_evidence_collection = AdaHedgeWeightEvidenceCollection()
-    all_sample_weight_evidence = adahedge_weight_evidence_collection.all_sample_weight_evidence
+    all_sample_adahedge_weight_evidence_holder = AllSampleAdaHedgeWeightEvidenceHolder()
+    all_sample_weight_evidence = (
+        all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
+    )
     # 再始動で消えることを確かめるため、診断証拠へ損失を1回与えておく。
     diagnostic_losses = {CURRENT_MODEL_ID: 0.8, OTHER_MODEL_ID: 0.1}
     all_sample_weight_evidence.update_evidence_after_loss_observation(
@@ -501,7 +506,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         upload_delay_round_count=1,
         validation_session_holder=validation_session_holder,
         adaptation_record_store=adaptation_record_store,
-        adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+        all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
         loss_change_monitor=loss_change_monitor,
         pending_training_assignment_buffer=pending_training_assignment_buffer,
         minimum_change_interval_sample_count=3,
@@ -644,7 +649,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             held_validation_advance = advance_held_candidate_validation(
                 validation_session_holder=validation_session_holder,
                 adaptation_record_store=adaptation_record_store,
-                adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+                all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
                 sample_index=indexed_observation.sample_index,
                 input_features=indexed_observation.training_sample.input_features,
                 observed_class_labels=indexed_observation.training_sample.observed_class_labels,
@@ -767,6 +772,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         loss_change_alarm_record_store=loss_change_alarm_record_store,
         fixed_share_weight_controller=fixed_share_weight_controller,
         sample_prediction_record_store=sample_prediction_record_store,
+        true_concept_adahedge_diagnostic_evidence_collection=TrueConceptAdaHedgeDiagnosticEvidenceCollection(),
         prediction_combination_strategy="fixed_share_weighted_prediction",
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=TemporaryModelIdAllocator(client_id=6),
@@ -1456,7 +1462,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
                 :processed_sample_count
             ]
         )
-        assert owners.adahedge_weight_evidence_collection.created_true_concept_ids
+        assert owners.true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
         # 候補検証の判定記録は、適応記録の、候補検証の確定と終端回収の結果と、同じ数だけ保持されている。
         decision_record_count = len(
             owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()

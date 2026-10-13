@@ -32,7 +32,8 @@ from test_observed_sample_prediction import (
     enable_real_legacy_final_configuration_prediction,
 )
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
-from test_training_assignment_adahedge_weight_evidence_restart import (
+from test_training_assignment_all_sample_adahedge_weight_evidence_restart import (
+    collect_client_adahedge_evidence_owners,
     get_diagnostic_collection_snapshot,
 )
 
@@ -45,6 +46,9 @@ from federated_learning_experiments.evaluation.loss_change_alarm_record_store im
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecord,
     SamplePredictionRecordStore,
+)
+from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
+    TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import (
     BoundedLossMoments,
@@ -243,6 +247,7 @@ def build_sample_processing_oracle(
             )
         ),
         sample_prediction_record_store=SamplePredictionRecordStore(),
+        true_concept_adahedge_diagnostic_evidence_collection=TrueConceptAdaHedgeDiagnosticEvidenceCollection(),
         prediction_combination_strategy="fixed_share_weighted_prediction",
         loss_change_alarm_record_store=LossChangeAlarmRecordStore(),
         pending_sample_observation_store=pending_sample_observation_store,
@@ -425,14 +430,19 @@ def assert_sample_processing_state_matches_legacy(
         legacy_client.local_switch_positions
     )
     assert_adahedge_matches_legacy(
-        processing_arguments["adahedge_weight_evidence_collection"].all_sample_weight_evidence,
+        processing_arguments[
+            "all_sample_adahedge_weight_evidence_holder"
+        ].all_sample_weight_evidence,
         legacy_client.expert_router,
     )
     # 予測: Fixed-Shareの重み、globalと真の概念別の診断証拠、標本ごとの記録と旧の列・集計の計数。
     assert_prediction_state_matches_legacy(
         fixed_share_weight_controller=processing_arguments["fixed_share_weight_controller"],
-        adahedge_weight_evidence_collection=processing_arguments[
-            "adahedge_weight_evidence_collection"
+        all_sample_adahedge_weight_evidence_holder=processing_arguments[
+            "all_sample_adahedge_weight_evidence_holder"
+        ],
+        true_concept_adahedge_diagnostic_evidence_collection=processing_arguments[
+            "true_concept_adahedge_diagnostic_evidence_collection"
         ],
         sample_prediction_record_store=processing_arguments["sample_prediction_record_store"],
         legacy_client=legacy_client,
@@ -666,7 +676,7 @@ def snapshot_sample_processing_state(*, processing_arguments):
         python_random_state=processing_arguments["python_random_generator"].getstate(),
         torch_random_state=(torch.get_rng_state().clone(),),
         diagnostics=get_diagnostic_collection_snapshot(
-            processing_arguments["adahedge_weight_evidence_collection"]
+            collect_client_adahedge_evidence_owners(processing_arguments)
         ),
         fixed_share_weights=capture_fixed_share_controller_state(
             controller=processing_arguments["fixed_share_weight_controller"]
@@ -759,7 +769,8 @@ OWNER_ARGUMENT_NAMES_VALIDATED_FIRST = (
     "sample_prediction_record_store",
     "validation_session_holder",
     "adaptation_record_store",
-    "adahedge_weight_evidence_collection",
+    "all_sample_adahedge_weight_evidence_holder",
+    "true_concept_adahedge_diagnostic_evidence_collection",
     "loss_change_monitor",
     "loss_change_alarm_record_store",
     "pending_training_assignment_buffer",
@@ -1485,10 +1496,12 @@ def test_samples_without_concept_id_are_processed_without_true_concept_diagnosti
         processing_arguments, _, _ = build_default_sample_processing_oracle(
             monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
         )
-        adahedge_weight_evidence_collection = processing_arguments[
-            "adahedge_weight_evidence_collection"
+        true_concept_adahedge_diagnostic_evidence_collection = processing_arguments[
+            "true_concept_adahedge_diagnostic_evidence_collection"
         ]
-        created_true_concept_ids = adahedge_weight_evidence_collection.created_true_concept_ids
+        created_true_concept_ids = (
+            true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
+        )
         completed_validation_count = 0
         processed_observations = []
         for _ in range(12):
@@ -1508,7 +1521,10 @@ def test_samples_without_concept_id_are_processed_without_true_concept_diagnosti
             completed_validation_count += int(
                 sample_processing.held_validation_advance.adaptation_record is not None
             )
-    assert adahedge_weight_evidence_collection.created_true_concept_ids == created_true_concept_ids
+    assert (
+        true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
+        == created_true_concept_ids
+    )
     # 候補検証が、この標本列の途中で1回以上確定している（確定の後の段も、概念IDなしで通っている）。
     assert completed_validation_count >= 1
     pending_sample_observations = processing_arguments[

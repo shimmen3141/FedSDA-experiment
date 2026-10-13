@@ -6,9 +6,6 @@ from random import Random
 from torch import Tensor, cat
 from torch.optim import Optimizer
 
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
-)
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecordStore,
 )
@@ -20,6 +17,9 @@ from federated_learning_experiments.evaluation.model_evaluation_sample_store imp
 )
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecordStore,
+)
+from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
+    TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatisticsStore,
@@ -88,6 +88,9 @@ from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
+    AllSampleAdaHedgeWeightEvidenceHolder,
+)
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
 )
@@ -139,7 +142,8 @@ _REQUIRED_OWNER_TYPES_BY_ARGUMENT_NAME = {
     "sample_prediction_record_store": SamplePredictionRecordStore,
     "validation_session_holder": CandidateValidationSessionHolder,
     "adaptation_record_store": AdaptationRecordStore,
-    "adahedge_weight_evidence_collection": AdaHedgeWeightEvidenceCollection,
+    "all_sample_adahedge_weight_evidence_holder": AllSampleAdaHedgeWeightEvidenceHolder,
+    "true_concept_adahedge_diagnostic_evidence_collection": TrueConceptAdaHedgeDiagnosticEvidenceCollection,
     "loss_change_monitor": OverallAndTrueClassLossMonitor,
     "loss_change_alarm_record_store": LossChangeAlarmRecordStore,
     "pending_training_assignment_buffer": PendingTrainingAssignmentBuffer,
@@ -321,7 +325,8 @@ def process_observed_sample(
     sample_prediction_record_store: SamplePredictionRecordStore,
     validation_session_holder: CandidateValidationSessionHolder,
     adaptation_record_store: AdaptationRecordStore,
-    adahedge_weight_evidence_collection: AdaHedgeWeightEvidenceCollection,
+    all_sample_adahedge_weight_evidence_holder: AllSampleAdaHedgeWeightEvidenceHolder,
+    true_concept_adahedge_diagnostic_evidence_collection: TrueConceptAdaHedgeDiagnosticEvidenceCollection,
     loss_change_monitor: OverallAndTrueClassLossMonitor,
     loss_change_alarm_record_store: LossChangeAlarmRecordStore,
     pending_training_assignment_buffer: PendingTrainingAssignmentBuffer,
@@ -373,7 +378,8 @@ def process_observed_sample(
             sample_prediction_record_store=sample_prediction_record_store,
             validation_session_holder=validation_session_holder,
             adaptation_record_store=adaptation_record_store,
-            adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+            all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
+            true_concept_adahedge_diagnostic_evidence_collection=true_concept_adahedge_diagnostic_evidence_collection,
             loss_change_monitor=loss_change_monitor,
             loss_change_alarm_record_store=loss_change_alarm_record_store,
             pending_training_assignment_buffer=pending_training_assignment_buffer,
@@ -401,7 +407,8 @@ def process_observed_sample(
     observed_sample_prediction = predict_observed_sample_and_update_prediction_weights(
         indexed_observation=indexed_observation,
         fixed_share_weight_controller=fixed_share_weight_controller,
-        adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+        all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
+        true_concept_adahedge_diagnostic_evidence_collection=true_concept_adahedge_diagnostic_evidence_collection,
         sample_prediction_record_store=sample_prediction_record_store,
         held_model_training_state_registry=held_model_training_state_registry,
         current_training_model_assignment=current_training_model_assignment,
@@ -411,7 +418,7 @@ def process_observed_sample(
     held_validation_advance = advance_held_candidate_validation(
         validation_session_holder=validation_session_holder,
         adaptation_record_store=adaptation_record_store,
-        adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+        all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
         sample_index=sample_index,
         input_features=input_features,
         observed_class_labels=observed_class_labels,
@@ -527,7 +534,7 @@ def process_observed_sample(
         alarm_occurrence_handling = handle_alarm_occurrence(
             validation_session_holder=validation_session_holder,
             adaptation_record_store=adaptation_record_store,
-            adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+            all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
             loss_change_monitor=loss_change_monitor,
             alarm_sample_index=sample_index,
             pending_training_assignment_buffer=pending_training_assignment_buffer,

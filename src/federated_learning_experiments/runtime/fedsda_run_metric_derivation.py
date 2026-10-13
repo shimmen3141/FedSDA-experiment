@@ -302,7 +302,7 @@ def derive_fedsda_run_metrics(
             for run_client in run_clients
         ),
         adahedge_weight_recalibration_replayed_sample_count=sum(
-            run_client.owners.adahedge_weight_evidence_collection.all_sample_weight_evidence.aggregation_recalibration_sample_count
+            run_client.owners.all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence.aggregation_recalibration_sample_count
             for run_client in run_clients
         ),
         loss_monitoring_computation_counts=LossMonitoringComputationCounts(

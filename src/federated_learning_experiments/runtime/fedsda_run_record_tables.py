@@ -629,7 +629,7 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
         record_tables[f"client_weight_update_counts.{column_name}"] = _integer_column(
             [
                 getattr(
-                    run_client.owners.adahedge_weight_evidence_collection.all_sample_weight_evidence,
+                    run_client.owners.all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence,
                     evidence_property_name,
                 )
                 for run_client in run_clients

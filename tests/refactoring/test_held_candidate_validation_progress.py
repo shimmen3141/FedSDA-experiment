@@ -6,7 +6,10 @@ from unittest.mock import Mock
 
 import pytest
 import torch
-from test_adahedge_weight_evidence import assert_adahedge_matches_legacy
+from test_adahedge_weight_evidence import (
+    assert_adahedge_matches_legacy,
+    get_adahedge_evidence_snapshot,
+)
 from test_alarm_adaptation_recording import (
     RECORDING_ORACLE_CASES,
     build_completed_recording_oracle,
@@ -28,23 +31,20 @@ from test_post_alarm_candidate_validation_progress import (
     set_scripted_validation_losses,
 )
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
-from test_training_assignment_adahedge_weight_evidence_restart import (
-    get_diagnostic_collection_snapshot,
-)
 
 import federated_learning_experiments.runtime.held_candidate_validation_progress as held_progress_module
 from federated_drift_experiment.clients.fedsda import (
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
 )
 from federated_drift_experiment.expert_routing import AdaHedgeRouter
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
-)
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecordStore,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import (
     PostAlarmCandidateLossCollection,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
+    AllSampleAdaHedgeWeightEvidenceHolder,
 )
 from federated_learning_experiments.runtime.candidate_validation_session_holder import (
     CandidateValidationSessionHolder,
@@ -81,8 +81,10 @@ DIAGNOSTIC_LOSSES_BEFORE_VALIDATION = {4: 0.1, 9: 0.8}
 
 def make_diagnostics_observing_losses(*, legacy_client=None):
     """損失を1回観測済みの診断証拠を作る。実旧clientを渡すと、実旧の再始動hookと同じ損失の実旧routerも置く。"""
-    adahedge_weight_evidence_collection = AdaHedgeWeightEvidenceCollection()
-    all_sample_weight_evidence = adahedge_weight_evidence_collection.all_sample_weight_evidence
+    all_sample_adahedge_weight_evidence_holder = AllSampleAdaHedgeWeightEvidenceHolder()
+    all_sample_weight_evidence = (
+        all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
+    )
     all_sample_weight_evidence.update_evidence_after_loss_observation(
         observed_losses_by_model_id=DIAGNOSTIC_LOSSES_BEFORE_VALIDATION,
         weights_by_model_id=all_sample_weight_evidence.get_weights_before_loss_observation(
@@ -90,7 +92,7 @@ def make_diagnostics_observing_losses(*, legacy_client=None):
         ),
     )
     if legacy_client is None:
-        return adahedge_weight_evidence_collection
+        return all_sample_adahedge_weight_evidence_holder
     # 上流oracleの記録用hookを残したまま、実旧の再始動（確定した切替ごとのAdaHedge再始動）を実行させる。
     legacy_client.expert_router = AdaHedgeRouter()
     legacy_client.context_expert_routers = {}
@@ -109,7 +111,7 @@ def make_diagnostics_observing_losses(*, legacy_client=None):
         )
 
     legacy_client._on_local_model_change = record_change_then_restart_legacy_routers
-    return adahedge_weight_evidence_collection
+    return all_sample_adahedge_weight_evidence_holder
 
 
 def make_record_store_with_alarm_record():
@@ -371,14 +373,12 @@ def test_completed_held_validation_is_recorded_then_released_like_legacy(
         adaptation_record_store = make_record_store_with_alarm_record()
         previous_state_snapshot = adaptation_record_store.get_state_snapshot()
         previous_model_id = legacy_client.current_model_id
-        adahedge_weight_evidence_collection = make_diagnostics_observing_losses(
+        all_sample_adahedge_weight_evidence_holder = make_diagnostics_observing_losses(
             legacy_client=legacy_client
         )
         # 通知の時点で、記録が追加済みで保持が空であること（記録→解除→通知の順）。
         notification_calls = []
-        notify_diagnostics = (
-            held_progress_module.restart_adahedge_weight_evidence_after_training_assignment_change
-        )
+        notify_diagnostics = held_progress_module.restart_all_sample_adahedge_weight_evidence_after_training_assignment_change
 
         def record_notification_call(**notification_arguments):
             notification_calls.append(
@@ -392,7 +392,7 @@ def test_completed_held_validation_is_recorded_then_released_like_legacy(
 
         monkeypatch.setattr(
             held_progress_module,
-            "restart_adahedge_weight_evidence_after_training_assignment_change",
+            "restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
             record_notification_call,
         )
         # 解除の時点で適応記録が追加済みであること（旧のイベント記録→session解除の順）。
@@ -416,7 +416,7 @@ def test_completed_held_validation_is_recorded_then_released_like_legacy(
         held_validation_advance = advance_held_candidate_validation(
             validation_session_holder=validation_session_holder,
             adaptation_record_store=adaptation_record_store,
-            adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+            all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
             **{
                 argument_name: argument
                 for argument_name, argument in progress_arguments.items()
@@ -435,19 +435,21 @@ def test_completed_held_validation_is_recorded_then_released_like_legacy(
         )
         assert notification_arguments.keys() == {
             "assignment_change",
-            "adahedge_weight_evidence_collection",
+            "all_sample_adahedge_weight_evidence_holder",
         }
         assert (
             notification_arguments["assignment_change"]
             is validation_resolution.training_model_assignment_change
         )
         assert (
-            notification_arguments["adahedge_weight_evidence_collection"]
-            is adahedge_weight_evidence_collection
+            notification_arguments["all_sample_adahedge_weight_evidence_holder"]
+            is all_sample_adahedge_weight_evidence_holder
         )
         assert held_session_at_notification is None
         assert record_count_at_notification == len(previous_state_snapshot.adaptation_records) + 1
-        all_sample_weight_evidence = adahedge_weight_evidence_collection.all_sample_weight_evidence
+        all_sample_weight_evidence = (
+            all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
+        )
         assert_adahedge_matches_legacy(all_sample_weight_evidence, legacy_client.expert_router)
         assert all_sample_weight_evidence.concept_operation_restart_count == (
             1 if legacy_resolution_case in ("create", "reuse") else 0
@@ -511,9 +513,9 @@ def test_unfinished_held_validation_keeps_session_and_adds_no_record(monkeypatch
         validation_session_holder = make_holder_holding(validation_session=validation_session)
         adaptation_record_store = make_record_store_with_alarm_record()
         previous_state_snapshot = adaptation_record_store.get_state_snapshot()
-        adahedge_weight_evidence_collection = make_diagnostics_observing_losses()
-        diagnostic_snapshot = get_diagnostic_collection_snapshot(
-            adahedge_weight_evidence_collection
+        all_sample_adahedge_weight_evidence_holder = make_diagnostics_observing_losses()
+        diagnostic_snapshot = get_adahedge_evidence_snapshot(
+            all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
         )
         for sample_index in (54, 55, 56):
             assert (
@@ -527,7 +529,7 @@ def test_unfinished_held_validation_keeps_session_and_adds_no_record(monkeypatch
             held_validation_advance = advance_held_candidate_validation(
                 validation_session_holder=validation_session_holder,
                 adaptation_record_store=adaptation_record_store,
-                adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+                all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
                 **{
                     argument_name: argument
                     for argument_name, argument in progress_arguments.items()
@@ -537,7 +539,9 @@ def test_unfinished_held_validation_keeps_session_and_adds_no_record(monkeypatch
             )
             # 未到達の間は診断へ通知しない。
             assert (
-                get_diagnostic_collection_snapshot(adahedge_weight_evidence_collection)
+                get_adahedge_evidence_snapshot(
+                    all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
+                )
                 == diagnostic_snapshot
             )
             assert held_validation_advance.adaptation_record is None
@@ -565,8 +569,8 @@ def make_placeholder_arguments(*, operation, validation_session_holder, adaptati
         adaptation_record_store=adaptation_record_store,
     )
     # 診断のownerを受け取るのは進行だけ（終端回収は学習帰属を変えない）。
-    if "adahedge_weight_evidence_collection" in placeholder_arguments:
-        placeholder_arguments["adahedge_weight_evidence_collection"] = (
+    if "all_sample_adahedge_weight_evidence_holder" in placeholder_arguments:
+        placeholder_arguments["all_sample_adahedge_weight_evidence_holder"] = (
             make_diagnostics_observing_losses()
         )
     return placeholder_arguments
@@ -582,13 +586,17 @@ def test_operations_without_held_session_change_nothing():
         validation_session_holder=validation_session_holder,
         adaptation_record_store=adaptation_record_store,
     )
-    diagnostic_snapshot = get_diagnostic_collection_snapshot(
-        placeholder_arguments["adahedge_weight_evidence_collection"]
+    diagnostic_snapshot = get_adahedge_evidence_snapshot(
+        placeholder_arguments[
+            "all_sample_adahedge_weight_evidence_holder"
+        ].all_sample_weight_evidence
     )
     held_validation_advance = advance_held_candidate_validation(**placeholder_arguments)
     assert (
-        get_diagnostic_collection_snapshot(
-            placeholder_arguments["adahedge_weight_evidence_collection"]
+        get_adahedge_evidence_snapshot(
+            placeholder_arguments[
+                "all_sample_adahedge_weight_evidence_holder"
+            ].all_sample_weight_evidence
         )
         == diagnostic_snapshot
     )
@@ -629,7 +637,7 @@ def test_operations_without_held_session_change_nothing():
         (
             advance_held_candidate_validation,
             "advance_post_alarm_candidate_validation",
-            "adahedge_weight_evidence_collection",
+            "all_sample_adahedge_weight_evidence_holder",
         ),
         (
             finalize_held_incomplete_candidate_validation,

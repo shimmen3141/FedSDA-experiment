@@ -4,12 +4,12 @@ from dataclasses import dataclass
 
 from torch import Tensor, float32, isfinite, no_grad, strided
 
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
-)
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecord,
     SamplePredictionRecordStore,
+)
+from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
+    TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.learning.prediction.class_probability_calculations import (
     combine_model_prediction_probabilities,
@@ -29,6 +29,9 @@ from federated_learning_experiments.learning.training.indexed_observed_training_
 )
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
+    AllSampleAdaHedgeWeightEvidenceHolder,
 )
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
@@ -55,7 +58,8 @@ class ObservedSamplePrediction:
 # 引数名から、予測が受け取るownerのexact型への対応（最初の状態更新より前に確かめる）。
 _REQUIRED_OWNER_TYPES_BY_ARGUMENT_NAME = {
     "fixed_share_weight_controller": FixedShareWeightController,
-    "adahedge_weight_evidence_collection": AdaHedgeWeightEvidenceCollection,
+    "all_sample_adahedge_weight_evidence_holder": AllSampleAdaHedgeWeightEvidenceHolder,
+    "true_concept_adahedge_diagnostic_evidence_collection": TrueConceptAdaHedgeDiagnosticEvidenceCollection,
     "sample_prediction_record_store": SamplePredictionRecordStore,
     "held_model_training_state_registry": HeldModelTrainingStateRegistry,
     "current_training_model_assignment": CurrentTrainingModelAssignment,
@@ -234,7 +238,8 @@ def predict_observed_sample_and_update_prediction_weights(
     *,
     indexed_observation: IndexedObservedTrainingSample,
     fixed_share_weight_controller: FixedShareWeightController,
-    adahedge_weight_evidence_collection: AdaHedgeWeightEvidenceCollection,
+    all_sample_adahedge_weight_evidence_holder: AllSampleAdaHedgeWeightEvidenceHolder,
+    true_concept_adahedge_diagnostic_evidence_collection: TrueConceptAdaHedgeDiagnosticEvidenceCollection,
     sample_prediction_record_store: SamplePredictionRecordStore,
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
     current_training_model_assignment: CurrentTrainingModelAssignment,
@@ -254,7 +259,8 @@ def predict_observed_sample_and_update_prediction_weights(
         indexed_observation=indexed_observation,
         owners_by_argument_name=dict(
             fixed_share_weight_controller=fixed_share_weight_controller,
-            adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+            all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
+            true_concept_adahedge_diagnostic_evidence_collection=true_concept_adahedge_diagnostic_evidence_collection,
             sample_prediction_record_store=sample_prediction_record_store,
             held_model_training_state_registry=held_model_training_state_registry,
             current_training_model_assignment=current_training_model_assignment,
@@ -332,7 +338,9 @@ def predict_observed_sample_and_update_prediction_weights(
             else model_prediction_probabilities.max(dim=1).values.mean().item()
         )
     # (3) 観測前の重み。モデル集合が変わっていれば、それぞれのownerが初期化する（最初の状態更新）。
-    all_sample_weight_evidence = adahedge_weight_evidence_collection.all_sample_weight_evidence
+    all_sample_weight_evidence = (
+        all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
+    )
     adahedge_weights_by_model_id = normalize_model_prediction_weights(
         prediction_weights_by_model_id=all_sample_weight_evidence.get_weights_before_loss_observation(
             model_ids=model_ids
@@ -353,10 +361,8 @@ def predict_observed_sample_and_update_prediction_weights(
     unnormalized_true_concept_diagnostic_weights_by_model_id = None
     true_concept_diagnostic_prediction_is_correct = None
     if observed_concept_id is not None:
-        true_concept_diagnostic_evidence = (
-            adahedge_weight_evidence_collection.get_true_concept_diagnostic_evidence(
-                true_concept_id=observed_concept_id
-            )
+        true_concept_diagnostic_evidence = true_concept_adahedge_diagnostic_evidence_collection.get_true_concept_diagnostic_evidence(
+            true_concept_id=observed_concept_id
         )
         unnormalized_true_concept_diagnostic_weights_by_model_id = (
             true_concept_diagnostic_evidence.get_weights_before_loss_observation(

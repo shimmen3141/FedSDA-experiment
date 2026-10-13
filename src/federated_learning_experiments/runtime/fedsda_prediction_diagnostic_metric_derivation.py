@@ -209,7 +209,7 @@ def derive_fedsda_prediction_diagnostic_metrics(
             for run_client in run_clients
         ),
         adahedge_weight_aggregation_recalibration_count=sum(
-            run_client.owners.adahedge_weight_evidence_collection.all_sample_weight_evidence.aggregation_recalibration_count
+            run_client.owners.all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence.aggregation_recalibration_count
             for run_client in run_clients
         ),
     )

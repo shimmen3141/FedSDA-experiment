@@ -1,4 +1,4 @@
-"""保持した診断証拠と帰属変更通知を実旧クライアントへ照合する。"""
+"""全標本の証拠と、真の概念別の診断証拠の、2つのownerと、帰属変更の通知を、実旧クライアントへ照合する。"""
 
 import random
 from collections import defaultdict
@@ -15,15 +15,64 @@ from federated_drift_experiment.clients.fedsda import (
     RestartingSoftRoutingClassConditionalESRFedSDAClient,
 )
 from federated_drift_experiment.expert_routing import AdaHedgeRouter
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
+from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
+    TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     TrainingModelAssignmentChange,
 )
-from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import (
-    restart_adahedge_weight_evidence_after_training_assignment_change,
+from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
+    AllSampleAdaHedgeWeightEvidenceHolder,
 )
+from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import (
+    restart_all_sample_adahedge_weight_evidence_after_training_assignment_change,
+)
+
+
+class ClientAdaHedgeEvidenceOwners:
+    """1つのclientが持つ、2つのowner（全標本の側、真の概念別の側）を、並べて読むためのtestのhelper。"""
+
+    def __init__(
+        self,
+        *,
+        all_sample_adahedge_weight_evidence_holder=None,
+        true_concept_adahedge_diagnostic_evidence_collection=None,
+    ):
+        self.all_sample_adahedge_weight_evidence_holder = (
+            AllSampleAdaHedgeWeightEvidenceHolder()
+            if all_sample_adahedge_weight_evidence_holder is None
+            else all_sample_adahedge_weight_evidence_holder
+        )
+        self.true_concept_adahedge_diagnostic_evidence_collection = (
+            TrueConceptAdaHedgeDiagnosticEvidenceCollection()
+            if true_concept_adahedge_diagnostic_evidence_collection is None
+            else true_concept_adahedge_diagnostic_evidence_collection
+        )
+
+    @property
+    def all_sample_weight_evidence(self):
+        return self.all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
+
+    @property
+    def created_true_concept_ids(self):
+        return self.true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
+
+    def get_true_concept_diagnostic_evidence(self, *, true_concept_id):
+        return self.true_concept_adahedge_diagnostic_evidence_collection.get_true_concept_diagnostic_evidence(
+            true_concept_id=true_concept_id
+        )
+
+
+def collect_client_adahedge_evidence_owners(arguments):
+    """引数の辞書（予測・標本1件の処理の引数）から、2つのownerを取り出して、並べる。"""
+    return ClientAdaHedgeEvidenceOwners(
+        all_sample_adahedge_weight_evidence_holder=arguments[
+            "all_sample_adahedge_weight_evidence_holder"
+        ],
+        true_concept_adahedge_diagnostic_evidence_collection=arguments[
+            "true_concept_adahedge_diagnostic_evidence_collection"
+        ],
+    )
 
 
 def build_legacy_diagnostic_client():
@@ -69,7 +118,7 @@ def assert_diagnostic_collection_matches_legacy(diagnostic_collection, legacy_cl
 
 
 def test_held_diagnostic_evidence_matches_real_legacy_notifications():
-    diagnostic_collection = AdaHedgeWeightEvidenceCollection()
+    diagnostic_collection = ClientAdaHedgeEvidenceOwners()
     legacy_client = build_legacy_diagnostic_client()
     assert_diagnostic_collection_matches_legacy(diagnostic_collection, legacy_client)
     assignment_changes = (None, (-1, -1), (-1, 2), (2, -3), (-3, -3), (-3, 2), (2, -3))
@@ -99,7 +148,7 @@ def test_held_diagnostic_evidence_matches_real_legacy_notifications():
             legacy_router.update(observed_losses, legacy_weights)
             assert_diagnostic_collection_matches_legacy(diagnostic_collection, legacy_client)
         before = get_diagnostic_collection_snapshot(diagnostic_collection)
-        restart_adahedge_weight_evidence_after_training_assignment_change(
+        restart_all_sample_adahedge_weight_evidence_after_training_assignment_change(
             assignment_change=(
                 None
                 if case is None
@@ -107,7 +156,7 @@ def test_held_diagnostic_evidence_matches_real_legacy_notifications():
                     previous_model_id=case[0], current_model_id=case[1]
                 )
             ),
-            adahedge_weight_evidence_collection=diagnostic_collection,
+            all_sample_adahedge_weight_evidence_holder=diagnostic_collection.all_sample_adahedge_weight_evidence_holder,
         )
         if case is not None:
             assert legacy_client.current_model_id == case[0]
@@ -140,11 +189,11 @@ def test_held_diagnostic_evidence_matches_real_legacy_notifications():
     # 同じ変更recordの再通知も毎回数える。履歴・重複防止は保持しない。
     before = get_diagnostic_collection_snapshot(diagnostic_collection)
     for index in range(2):
-        restart_adahedge_weight_evidence_after_training_assignment_change(
+        restart_all_sample_adahedge_weight_evidence_after_training_assignment_change(
             assignment_change=TrainingModelAssignmentChange(
                 previous_model_id=2, current_model_id=-3
             ),
-            adahedge_weight_evidence_collection=diagnostic_collection,
+            all_sample_adahedge_weight_evidence_holder=diagnostic_collection.all_sample_adahedge_weight_evidence_holder,
         )
         assert diagnostic_collection.all_sample_weight_evidence.concept_operation_restart_count == (
             before[0][3] + index + 1
@@ -153,8 +202,8 @@ def test_held_diagnostic_evidence_matches_real_legacy_notifications():
 
 
 def test_diagnostic_collection_keeps_distinct_live_owners():
-    first_collection = AdaHedgeWeightEvidenceCollection()
-    second_collection = AdaHedgeWeightEvidenceCollection()
+    first_collection = ClientAdaHedgeEvidenceOwners()
+    second_collection = ClientAdaHedgeEvidenceOwners()
     assert first_collection.created_true_concept_ids == ()
     assert get_diagnostic_collection_snapshot(first_collection) == (
         ({}, 0.0, 0, 0, 0, 0, 0),
@@ -216,7 +265,7 @@ def test_diagnostic_collection_keeps_distinct_live_owners():
     ],
 )
 def test_diagnostic_notification_rejects_invalid_input_before_restart(invalid_notification_case):
-    diagnostic_collection = AdaHedgeWeightEvidenceCollection()
+    diagnostic_collection = ClientAdaHedgeEvidenceOwners()
     for adahedge_weight_evidence in (
         diagnostic_collection.all_sample_weight_evidence,
         diagnostic_collection.get_true_concept_diagnostic_evidence(true_concept_id=-3),
@@ -230,16 +279,16 @@ def test_diagnostic_notification_rejects_invalid_input_before_restart(invalid_no
         "assignment_change": TrainingModelAssignmentChange(
             previous_model_id=-1, current_model_id=2
         ),
-        "adahedge_weight_evidence_collection": diagnostic_collection,
+        "all_sample_adahedge_weight_evidence_holder": diagnostic_collection.all_sample_adahedge_weight_evidence_holder,
     }
     if invalid_notification_case == "collection_none":
-        notification_arguments["adahedge_weight_evidence_collection"] = None
+        notification_arguments["all_sample_adahedge_weight_evidence_holder"] = None
         notification_arguments["assignment_change"] = None
     elif invalid_notification_case == "collection_object":
-        notification_arguments["adahedge_weight_evidence_collection"] = object()
+        notification_arguments["all_sample_adahedge_weight_evidence_holder"] = object()
     elif invalid_notification_case == "collection_subclass":
-        notification_arguments["adahedge_weight_evidence_collection"] = type(
-            "RejectedCollection", (AdaHedgeWeightEvidenceCollection,), {}
+        notification_arguments["all_sample_adahedge_weight_evidence_holder"] = type(
+            "RejectedCollection", (AllSampleAdaHedgeWeightEvidenceHolder,), {}
         )()
     elif invalid_notification_case == "record_object":
         notification_arguments["assignment_change"] = object()
@@ -266,7 +315,9 @@ def test_diagnostic_notification_rejects_invalid_input_before_restart(invalid_no
         )
     diagnostic_states_before = get_diagnostic_collection_snapshot(diagnostic_collection)
     with pytest.raises(TypeError):
-        restart_adahedge_weight_evidence_after_training_assignment_change(**notification_arguments)
+        restart_all_sample_adahedge_weight_evidence_after_training_assignment_change(
+            **notification_arguments
+        )
     diagnostic_states_after = get_diagnostic_collection_snapshot(diagnostic_collection)
     assert diagnostic_states_after == diagnostic_states_before
 
@@ -276,7 +327,7 @@ def test_diagnostic_notification_rejects_invalid_input_before_restart(invalid_no
     [True, False, None, 2.0, numpy.int64(2), "2", type("RejectedConceptId", (int,), {})(2)],
 )
 def test_diagnostic_collection_rejects_invalid_concept_id_without_creation(invalid_concept_id):
-    diagnostic_collection = AdaHedgeWeightEvidenceCollection()
+    diagnostic_collection = ClientAdaHedgeEvidenceOwners()
     diagnostic_collection.get_true_concept_diagnostic_evidence(true_concept_id=3)
     before = get_diagnostic_collection_snapshot(diagnostic_collection)
     with pytest.raises(TypeError):
@@ -292,7 +343,7 @@ def test_diagnostic_notification_preserves_random_states():
         numpy.random.get_state(),
         torch.get_rng_state().clone(),
     )
-    diagnostic_collection = AdaHedgeWeightEvidenceCollection()
+    diagnostic_collection = ClientAdaHedgeEvidenceOwners()
     adahedge_weight_evidence = diagnostic_collection.all_sample_weight_evidence
     diagnostic_weights = adahedge_weight_evidence.get_weights_before_loss_observation(
         model_ids=[2, -1]
@@ -303,7 +354,7 @@ def test_diagnostic_notification_preserves_random_states():
     )
     diagnostic_collection.get_true_concept_diagnostic_evidence(true_concept_id=-7)
     for case in (None, (-1, -1), (-1, 2), (2, -3)):
-        restart_adahedge_weight_evidence_after_training_assignment_change(
+        restart_all_sample_adahedge_weight_evidence_after_training_assignment_change(
             assignment_change=(
                 None
                 if case is None
@@ -311,7 +362,7 @@ def test_diagnostic_notification_preserves_random_states():
                     previous_model_id=case[0], current_model_id=case[1]
                 )
             ),
-            adahedge_weight_evidence_collection=diagnostic_collection,
+            all_sample_adahedge_weight_evidence_holder=diagnostic_collection.all_sample_adahedge_weight_evidence_holder,
         )
     random_states_after = (random.getstate(), numpy.random.get_state(), torch.get_rng_state())
     assert random_states_before[0] == random_states_after[0]
@@ -323,27 +374,29 @@ def test_diagnostic_notification_preserves_random_states():
 
 def test_evidence_not_updated_by_prediction_is_not_restarted_by_assignment_change():
     """予測の処理が更新しない構成の証拠は、学習帰属の変更でも、始め直さない（入力の検査は、同じに行う）。"""
-    maintained_collection = AdaHedgeWeightEvidenceCollection()
+    maintained_collection = AllSampleAdaHedgeWeightEvidenceHolder()
     assert maintained_collection.evidence_is_updated_by_prediction is True
-    unused_collection = AdaHedgeWeightEvidenceCollection(evidence_is_updated_by_prediction=False)
+    unused_collection = AllSampleAdaHedgeWeightEvidenceHolder(
+        evidence_is_updated_by_prediction=False
+    )
     assert unused_collection.evidence_is_updated_by_prediction is False
     assignment_change = TrainingModelAssignmentChange(previous_model_id=1, current_model_id=-1)
     for evidence_collection, expected_restart_count in (
         (maintained_collection, 1),
         (unused_collection, 0),
     ):
-        restart_adahedge_weight_evidence_after_training_assignment_change(
+        restart_all_sample_adahedge_weight_evidence_after_training_assignment_change(
             assignment_change=assignment_change,
-            adahedge_weight_evidence_collection=evidence_collection,
+            all_sample_adahedge_weight_evidence_holder=evidence_collection,
         )
         assert (
             evidence_collection.all_sample_weight_evidence.concept_operation_restart_count
             == expected_restart_count
         )
     with pytest.raises(TypeError):
-        restart_adahedge_weight_evidence_after_training_assignment_change(
-            assignment_change="change", adahedge_weight_evidence_collection=unused_collection
+        restart_all_sample_adahedge_weight_evidence_after_training_assignment_change(
+            assignment_change="change", all_sample_adahedge_weight_evidence_holder=unused_collection
         )
     for invalid_flag in (None, 1, "True"):
         with pytest.raises(TypeError):
-            AdaHedgeWeightEvidenceCollection(evidence_is_updated_by_prediction=invalid_flag)
+            AllSampleAdaHedgeWeightEvidenceHolder(evidence_is_updated_by_prediction=invalid_flag)

@@ -4,9 +4,6 @@ from dataclasses import dataclass
 
 from torch import Tensor
 
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
-)
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     AdaptationRecord,
     AdaptationRecordStore,
@@ -35,6 +32,9 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.can
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
+    AllSampleAdaHedgeWeightEvidenceHolder,
+)
 from federated_learning_experiments.runtime.alarm_buffer_response import AlarmBufferResponse
 from federated_learning_experiments.runtime.candidate_validation_adaptation_recording import (
     record_completed_candidate_validation,
@@ -51,8 +51,8 @@ from federated_learning_experiments.runtime.post_alarm_candidate_validation_prog
     PostAlarmCandidateValidationProgress,
     advance_post_alarm_candidate_validation,
 )
-from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import (
-    restart_adahedge_weight_evidence_after_training_assignment_change,
+from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import (
+    restart_all_sample_adahedge_weight_evidence_after_training_assignment_change,
 )
 
 
@@ -123,7 +123,7 @@ def advance_held_candidate_validation(
     *,
     validation_session_holder: CandidateValidationSessionHolder,
     adaptation_record_store: AdaptationRecordStore,
-    adahedge_weight_evidence_collection: AdaHedgeWeightEvidenceCollection,
+    all_sample_adahedge_weight_evidence_holder: AllSampleAdaHedgeWeightEvidenceHolder,
     sample_index: int,
     input_features: Tensor,
     observed_class_labels: Tensor,
@@ -146,9 +146,12 @@ def advance_held_candidate_validation(
         validation_session_holder=validation_session_holder,
         adaptation_record_store=adaptation_record_store,
     )
-    if type(adahedge_weight_evidence_collection) is not AdaHedgeWeightEvidenceCollection:
+    if (
+        type(all_sample_adahedge_weight_evidence_holder)
+        is not AllSampleAdaHedgeWeightEvidenceHolder
+    ):
         raise TypeError(
-            "adahedge_weight_evidence_collection must be exact AdaHedgeWeightEvidenceCollection"
+            "all_sample_adahedge_weight_evidence_holder must be exact AllSampleAdaHedgeWeightEvidenceHolder"
         )
     validation_progress = advance_post_alarm_candidate_validation(
         validation_session=validation_session_holder.held_validation_session,
@@ -179,9 +182,9 @@ def advance_held_candidate_validation(
     )
     validation_session_holder.release_validation_session()
     # 確定で学習帰属が変わったとき（候補の採用、他の保有モデルの再利用）だけ、AdaHedgeの証拠が再始動する。
-    restart_adahedge_weight_evidence_after_training_assignment_change(
+    restart_all_sample_adahedge_weight_evidence_after_training_assignment_change(
         assignment_change=validation_progress.completed_validation.validation_resolution.training_model_assignment_change,
-        adahedge_weight_evidence_collection=adahedge_weight_evidence_collection,
+        all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
     )
     return HeldCandidateValidationAdvance(
         validation_progress=validation_progress, adaptation_record=adaptation_record

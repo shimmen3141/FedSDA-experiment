@@ -884,14 +884,15 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
         client_decision_record_counts.append(len(decision_records))
         # 真の概念を受け取らないと、割当概念の計数と、真の概念別の診断証拠は、作られない。
         owners = run_client.owners
-        assert owners.adahedge_weight_evidence_collection.created_true_concept_ids == ()
+        assert (
+            owners.true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
+            == ()
+        )
         assert all(
             record.observed_concept_id is None
             for record in owners.sample_prediction_record_store.snapshot_sample_prediction_records()
         )
-        assert (
-            delivered_run_client.owners.adahedge_weight_evidence_collection.created_true_concept_ids
-        )
+        assert delivered_run_client.owners.true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
     # 判定記録の比較は、空どうしの比較ではない。
     assert sum(client_decision_record_counts) > 0
     # サーバ側は、クラスタリングの真の概念の一致の診断だけが違う。

@@ -715,11 +715,14 @@ def test_single_model_prediction_takes_its_own_path(configuration_name):
             assert owners.fixed_share_weight_controller.weights_by_model_id == {}
             assert owners.fixed_share_weight_controller.model_pool_reset_count == 0
             all_sample_weight_evidence = (
-                owners.adahedge_weight_evidence_collection.all_sample_weight_evidence
+                owners.all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
             )
             assert all_sample_weight_evidence.cumulative_losses_by_model_id == {}
             assert all_sample_weight_evidence.concept_operation_restart_count == 0
-            assert owners.adahedge_weight_evidence_collection.created_true_concept_ids == ()
+            assert (
+                owners.true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
+                == ()
+            )
             # 実旧のclientは、重みを持たない。予測したモデルは、新の記録と同じ。
             assert not hasattr(legacy_client, "expert_router")
             assert not hasattr(legacy_client, "switching_expert_router")
@@ -738,7 +741,7 @@ def test_single_model_prediction_takes_its_own_path(configuration_name):
             for run_client in comparison[variant_role].participants.client_operations
         )
     assert any(
-        run_client.owners.adahedge_weight_evidence_collection.all_sample_weight_evidence.concept_operation_restart_count
+        run_client.owners.all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence.concept_operation_restart_count
         > 0
         for comparison in comparisons
         for run_client in comparison["proposed"].participants.client_operations

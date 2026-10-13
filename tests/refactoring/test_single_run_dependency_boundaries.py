@@ -14,52 +14,52 @@ import pytest
     [
         (
             "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import AdaHedgeWeightEvidenceCollection",
+            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import AllSampleAdaHedgeWeightEvidenceHolder",
             True,
         ),
         (
             "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import AdaHedgeWeightEvidenceCollection as AcceptedDependency",
+            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import AllSampleAdaHedgeWeightEvidenceHolder as AcceptedDependency",
             True,
         ),
         (
             "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.evaluation.adahedge_weight_evidence_collection",
+            "import federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder",
             False,
         ),
         (
             "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import _private",
+            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import _private",
             False,
         ),
         (
             "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import *",
+            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import *",
             False,
         ),
         (
             "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import restart_adahedge_weight_evidence_after_training_assignment_change",
+            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
             True,
         ),
         (
             "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import restart_adahedge_weight_evidence_after_training_assignment_change as AcceptedDependency",
+            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import restart_all_sample_adahedge_weight_evidence_after_training_assignment_change as AcceptedDependency",
             True,
         ),
         (
             "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart",
+            "import federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart",
             False,
         ),
         (
             "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import _private",
+            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import _private",
             False,
         ),
         (
             "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import *",
+            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import *",
             False,
         ),
         (
@@ -115,27 +115,27 @@ def test_held_candidate_validation_diagnostic_notification_dependency_contract(
         ("runtime/alarm_occurrence_handling.py", "from random import *", False),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import AdaHedgeWeightEvidenceCollection",
+            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import AllSampleAdaHedgeWeightEvidenceHolder",
             True,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import AdaHedgeWeightEvidenceCollection as AcceptedDependency",
+            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import AllSampleAdaHedgeWeightEvidenceHolder as AcceptedDependency",
             True,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "import federated_learning_experiments.evaluation.adahedge_weight_evidence_collection",
+            "import federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder",
             False,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import _private",
+            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import _private",
             False,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import *",
+            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import *",
             False,
         ),
         (
@@ -715,27 +715,27 @@ def test_held_candidate_validation_diagnostic_notification_dependency_contract(
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import restart_adahedge_weight_evidence_after_training_assignment_change",
+            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
             True,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import restart_adahedge_weight_evidence_after_training_assignment_change as AcceptedDependency",
+            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import restart_all_sample_adahedge_weight_evidence_after_training_assignment_change as AcceptedDependency",
             True,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "import federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart",
+            "import federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart",
             False,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import _private",
+            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import _private",
             False,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import *",
+            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import *",
             False,
         ),
         (
@@ -5329,9 +5329,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "federated_learning_experiments.methods.fedsda.prediction_combination.adahedge_weight_evidence.AdaHedgeWeightEvidence",
         )
-    if source_module_path == "runtime/training_assignment_adahedge_weight_evidence_restart.py":
+    if (
+        source_module_path
+        == "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py"
+    ):
         return imported_module_name in (
-            "federated_learning_experiments.evaluation.adahedge_weight_evidence_collection.AdaHedgeWeightEvidenceCollection",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
             "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
         )
     if source_module_path == "methods/fedsda/prediction_combination/adahedge_weight_evidence.py":
@@ -6051,7 +6054,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "dataclasses.dataclass",
             "torch.cat",
-            "federated_learning_experiments.evaluation.adahedge_weight_evidence_collection.AdaHedgeWeightEvidenceCollection",
+            "federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection.TrueConceptAdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifiers_per_sample_bounded_losses_from_shared_features",
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
             "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights.FixedShareWeightController",
@@ -6108,7 +6112,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.float32",
             "torch.tensor",
             "federated_learning_experiments.data.observed_streams.ObservedSample",
-            "federated_learning_experiments.evaluation.adahedge_weight_evidence_collection.AdaHedgeWeightEvidenceCollection",
+            "federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection.TrueConceptAdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
             "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
             "federated_learning_experiments.evaluation.loss_change_alarm_record_store.LossChangeAlarmRecordStore",
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
@@ -6173,7 +6178,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.isfinite",
             "torch.no_grad",
             "torch.strided",
-            "federated_learning_experiments.evaluation.adahedge_weight_evidence_collection.AdaHedgeWeightEvidenceCollection",
+            "federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection.TrueConceptAdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
             "federated_learning_experiments.evaluation.sample_prediction_record_store.SamplePredictionRecord",
             "federated_learning_experiments.evaluation.sample_prediction_record_store.SamplePredictionRecordStore",
             "federated_learning_experiments.learning.prediction.class_probability_calculations.combine_model_prediction_probabilities",
@@ -6205,7 +6211,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.Tensor",
             "torch.cat",
             "torch.optim.Optimizer",
-            "federated_learning_experiments.evaluation.adahedge_weight_evidence_collection.AdaHedgeWeightEvidenceCollection",
+            "federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection.TrueConceptAdaHedgeDiagnosticEvidenceCollection",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
             "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
             "federated_learning_experiments.evaluation.loss_change_alarm_record_store.LossChangeAlarmRecordStore",
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
@@ -6253,7 +6260,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "dataclasses.dataclass",
             "random.Random",
-            "federated_learning_experiments.evaluation.adahedge_weight_evidence_collection.AdaHedgeWeightEvidenceCollection",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
             "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
             "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
@@ -6279,7 +6286,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.alarm_response_completion.complete_alarm_buffer_response",
             "federated_learning_experiments.runtime.candidate_validation_session_holder.CandidateValidationSessionHolder",
             "federated_learning_experiments.runtime.held_candidate_validation_progress.apply_alarm_response_to_validation_session_holder",
-            "federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart.restart_adahedge_weight_evidence_after_training_assignment_change",
+            "federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart.restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
         )
     if source_module_path == "runtime/candidate_validation_session_holder.py":
         return imported_module_name in (
@@ -6307,8 +6314,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization.finalize_incomplete_post_alarm_candidate_validation",
             "federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.PostAlarmCandidateValidationProgress",
             "federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.advance_post_alarm_candidate_validation",
-            "federated_learning_experiments.evaluation.adahedge_weight_evidence_collection.AdaHedgeWeightEvidenceCollection",
-            "federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart.restart_adahedge_weight_evidence_after_training_assignment_change",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
+            "federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart.restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
         )
     if source_module_path == "runtime/candidate_validation_adaptation_recording.py":
         return imported_module_name in (
@@ -7221,7 +7228,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "evaluation/adahedge_weight_evidence_collection.py",
             "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
             "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
-            "runtime/training_assignment_adahedge_weight_evidence_restart.py",
+            "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
             "methods/fedsda/prediction_combination/adahedge_weight_evidence.py",
             "evaluation/adaptation_record_store.py",
             "runtime/alarm_adaptation_recording.py",
@@ -7344,7 +7351,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "evaluation/adahedge_weight_evidence_collection.py",
                     "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
                     "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
-                    "runtime/training_assignment_adahedge_weight_evidence_restart.py",
+                    "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
                     "methods/fedsda/prediction_combination/adahedge_weight_evidence.py",
                     "evaluation/adaptation_record_store.py",
                     "runtime/alarm_adaptation_recording.py",
@@ -12259,7 +12266,7 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
             "evaluation/adahedge_weight_evidence_collection.py",
             "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
             "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
-            "runtime/training_assignment_adahedge_weight_evidence_restart.py",
+            "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
         )
         for source_text, expected_acceptance in (
             (
@@ -12297,28 +12304,28 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
                 == "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
             ),
             (
-                "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection "
-                "import AdaHedgeWeightEvidenceCollection",
+                "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder "
+                "import AllSampleAdaHedgeWeightEvidenceHolder",
                 source_module_path
-                == "runtime/training_assignment_adahedge_weight_evidence_restart.py",
+                == "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
             ),
             (
-                "from ..evaluation.adahedge_weight_evidence_collection "
-                "import AdaHedgeWeightEvidenceCollection as AcceptedDependency",
+                "from ..methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder "
+                "import AllSampleAdaHedgeWeightEvidenceHolder as AcceptedDependency",
                 source_module_path
-                == "runtime/training_assignment_adahedge_weight_evidence_restart.py",
+                == "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
             ),
             (
                 "from federated_learning_experiments.learning.training.current_training_model_assignment "
                 "import TrainingModelAssignmentChange",
                 source_module_path
-                == "runtime/training_assignment_adahedge_weight_evidence_restart.py",
+                == "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
             ),
             (
                 "from ..learning.training.current_training_model_assignment "
                 "import TrainingModelAssignmentChange as AcceptedDependency",
                 source_module_path
-                == "runtime/training_assignment_adahedge_weight_evidence_restart.py",
+                == "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
             ),
             ("import math", False),
             ("from math import exp", False),
@@ -12340,8 +12347,8 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
                 False,
             ),
             (
-                "import federated_learning_experiments.evaluation.adahedge_weight_evidence_collection"
-                ".AdaHedgeWeightEvidenceCollection as AcceptedDependency",
+                "import federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder"
+                ".AllSampleAdaHedgeWeightEvidenceHolder as AcceptedDependency",
                 False,
             ),
             (
@@ -12360,13 +12367,13 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
                 False,
             ),
             (
-                "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection "
-                "import AdaHedgeWeightEvidenceCollection, OtherDependency",
+                "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder "
+                "import AllSampleAdaHedgeWeightEvidenceHolder, OtherDependency",
                 False,
             ),
             (
-                "from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection.child "
-                "import AdaHedgeWeightEvidenceCollection",
+                "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.child "
+                "import AllSampleAdaHedgeWeightEvidenceHolder",
                 False,
             ),
             (
@@ -12381,7 +12388,10 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
             ),
             ("from ..methods.fedsda.prediction_combination import adahedge_weight_evidence", False),
             ("from . import adahedge_weight_evidence", False),
-            ("from ..evaluation import adahedge_weight_evidence_collection", False),
+            (
+                "from ..methods.fedsda.prediction_combination import all_sample_adahedge_weight_evidence_holder",
+                False,
+            ),
             ("from ..learning.training import current_training_model_assignment", False),
         )
     ],

@@ -1,5 +1,7 @@
 """AdaHedgeの証拠の2つのowner（全標本の側、真の概念別の側）が、前の集まりと同じに動き、互いの証拠を持たないこと。"""
 
+import inspect
+
 import pytest
 
 from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
@@ -13,6 +15,24 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.adahed
 )
 from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
     AllSampleAdaHedgeWeightEvidenceHolder,
+)
+from federated_learning_experiments.runtime.alarm_occurrence_handling import handle_alarm_occurrence
+from federated_learning_experiments.runtime.held_candidate_validation_progress import (
+    advance_held_candidate_validation,
+    apply_alarm_response_to_validation_session_holder,
+    finalize_held_incomplete_candidate_validation,
+)
+from federated_learning_experiments.runtime.observed_sample_prediction import (
+    predict_observed_sample_and_update_prediction_weights,
+)
+from federated_learning_experiments.runtime.observed_sample_processing import (
+    process_observed_sample,
+)
+from federated_learning_experiments.runtime.post_aggregation_prediction_recalibration import (
+    recalibrate_prediction_state_after_aggregation,
+)
+from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import (
+    restart_all_sample_adahedge_weight_evidence_after_training_assignment_change,
 )
 
 # 標本ごとの、真の概念ID（無ければNone）と、保有モデルごとの損失。途中で、保有モデルが増える。
@@ -193,3 +213,34 @@ def test_true_concept_collection_rejects_invalid_id_without_creating(invalid_tru
             true_concept_id=invalid_true_concept_id
         )
     assert true_concept_collection.created_true_concept_ids == ()
+
+
+@pytest.mark.parametrize(
+    ("entry_function", "receives_true_concept_collection"),
+    [
+        (predict_observed_sample_and_update_prediction_weights, True),
+        (recalibrate_prediction_state_after_aggregation, True),
+        (process_observed_sample, True),
+        (handle_alarm_occurrence, False),
+        (advance_held_candidate_validation, False),
+        (apply_alarm_response_to_validation_session_holder, False),
+        (finalize_held_incomplete_candidate_validation, False),
+        (restart_all_sample_adahedge_weight_evidence_after_training_assignment_change, False),
+    ],
+)
+def test_true_concept_collection_is_received_only_by_prediction_and_recalibration_paths(
+    entry_function, receives_true_concept_collection
+):
+    """真の概念別の証拠のownerを受け取るのは、更新・再始動する処理と、その通り道だけ（判断の処理は、受け取らない）。"""
+    parameter_names = set(inspect.signature(entry_function).parameters)
+    assert (
+        "true_concept_adahedge_diagnostic_evidence_collection" in parameter_names
+    ) is receives_true_concept_collection
+    # 終端回収と、警報の応答の、保持への反映は、学習帰属を変えないので、全標本の側のownerも受け取らない。
+    assert ("all_sample_adahedge_weight_evidence_holder" in parameter_names) is (
+        entry_function
+        not in (
+            finalize_held_incomplete_candidate_validation,
+            apply_alarm_response_to_validation_session_holder,
+        )
+    )

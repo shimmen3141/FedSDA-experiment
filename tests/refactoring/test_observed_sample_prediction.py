@@ -16,8 +16,10 @@ from test_fixed_share_weights import (
 )
 from test_held_candidate_validation_progress import make_subclass_copy
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
-from test_training_assignment_adahedge_weight_evidence_restart import (
+from test_training_assignment_all_sample_adahedge_weight_evidence_restart import (
+    ClientAdaHedgeEvidenceOwners,
     assert_diagnostic_collection_matches_legacy,
+    collect_client_adahedge_evidence_owners,
     get_diagnostic_collection_snapshot,
 )
 
@@ -35,6 +37,9 @@ from federated_drift_experiment.expert_routing import (
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecord,
     SamplePredictionRecordStore,
+)
+from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
+    TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
 from federated_learning_experiments.learning.models.residual_adapter_classifier import (
     ResidualAdapterClassifier,
@@ -65,8 +70,8 @@ from federated_learning_experiments.runtime.observed_sample_prediction import (
     ObservedSamplePrediction,
     predict_observed_sample_and_update_prediction_weights,
 )
-from federated_learning_experiments.runtime.training_assignment_adahedge_weight_evidence_restart import (
-    restart_adahedge_weight_evidence_after_training_assignment_change,
+from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import (
+    restart_all_sample_adahedge_weight_evidence_after_training_assignment_change,
 )
 
 FIXED_SHARE_TIME_SCALE_SAMPLE_COUNT = 6
@@ -165,7 +170,8 @@ def derive_legacy_overall_counts(sample_prediction_records):
 def assert_prediction_state_matches_legacy(
     *,
     fixed_share_weight_controller,
-    adahedge_weight_evidence_collection,
+    all_sample_adahedge_weight_evidence_holder,
+    true_concept_adahedge_diagnostic_evidence_collection,
     sample_prediction_record_store,
     legacy_client,
 ):
@@ -174,7 +180,13 @@ def assert_prediction_state_matches_legacy(
         controller=fixed_share_weight_controller,
         reference_router=legacy_client.switching_expert_router,
     )
-    assert_diagnostic_collection_matches_legacy(adahedge_weight_evidence_collection, legacy_client)
+    assert_diagnostic_collection_matches_legacy(
+        ClientAdaHedgeEvidenceOwners(
+            all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
+            true_concept_adahedge_diagnostic_evidence_collection=true_concept_adahedge_diagnostic_evidence_collection,
+        ),
+        legacy_client,
+    )
     records = sample_prediction_record_store.snapshot_sample_prediction_records()
     assert all(type(record) is SamplePredictionRecord for record in records)
     combined_correct = [record.combined_prediction_is_correct for record in records]
@@ -265,9 +277,10 @@ def build_sample_prediction_oracle(*, monkeypatch, valid_run_settings_mapping, c
                 fixed_share_weight_redistribution_time_scale_samples=FIXED_SHARE_TIME_SCALE_SAMPLE_COUNT,
             )
         ),
-        adahedge_weight_evidence_collection=handling_arguments[
-            "adahedge_weight_evidence_collection"
+        all_sample_adahedge_weight_evidence_holder=handling_arguments[
+            "all_sample_adahedge_weight_evidence_holder"
         ],
+        true_concept_adahedge_diagnostic_evidence_collection=TrueConceptAdaHedgeDiagnosticEvidenceCollection(),
         sample_prediction_record_store=SamplePredictionRecordStore(),
         held_model_training_state_registry=handling_arguments["held_model_training_state_registry"],
         current_training_model_assignment=handling_arguments["current_training_model_assignment"],
@@ -314,12 +327,12 @@ def reassign_model_id_in_both(
 
 def change_training_assignment_in_both(*, prediction_arguments, legacy_client, model_id):
     """学習帰属を変える: 新は帰属の変更と診断への通知、実旧は現行モデルの変更（切替の通知を含む）。"""
-    restart_adahedge_weight_evidence_after_training_assignment_change(
+    restart_all_sample_adahedge_weight_evidence_after_training_assignment_change(
         assignment_change=prediction_arguments[
             "current_training_model_assignment"
         ].assign_model_for_training(model_id=model_id),
-        adahedge_weight_evidence_collection=prediction_arguments[
-            "adahedge_weight_evidence_collection"
+        all_sample_adahedge_weight_evidence_holder=prediction_arguments[
+            "all_sample_adahedge_weight_evidence_holder"
         ],
     )
     legacy_client._set_local_current_model(model_id)
@@ -386,7 +399,8 @@ def test_prediction_matches_real_legacy_prediction_for_each_sample(
                 argument_name: prediction_arguments[argument_name]
                 for argument_name in (
                     "fixed_share_weight_controller",
-                    "adahedge_weight_evidence_collection",
+                    "all_sample_adahedge_weight_evidence_holder",
+                    "true_concept_adahedge_diagnostic_evidence_collection",
                     "sample_prediction_record_store",
                 )
             },
@@ -433,7 +447,7 @@ def test_prediction_matches_real_legacy_prediction_for_each_sample(
     assert controller.model_pool_reset_count == 2
     assert (
         prediction_arguments[
-            "adahedge_weight_evidence_collection"
+            "all_sample_adahedge_weight_evidence_holder"
         ].all_sample_weight_evidence.concept_operation_restart_count
         >= 1
     )
@@ -473,8 +487,11 @@ def test_prediction_with_single_held_model_matches_real_legacy_prediction(
         assert_prediction_state_matches_legacy(
             legacy_client=legacy_client,
             fixed_share_weight_controller=prediction_arguments["fixed_share_weight_controller"],
-            adahedge_weight_evidence_collection=prediction_arguments[
-                "adahedge_weight_evidence_collection"
+            all_sample_adahedge_weight_evidence_holder=prediction_arguments[
+                "all_sample_adahedge_weight_evidence_holder"
+            ],
+            true_concept_adahedge_diagnostic_evidence_collection=prediction_arguments[
+                "true_concept_adahedge_diagnostic_evidence_collection"
             ],
             sample_prediction_record_store=prediction_arguments["sample_prediction_record_store"],
         )
@@ -520,7 +537,7 @@ def snapshot_prediction_state(*, prediction_arguments):
             controller=prediction_arguments["fixed_share_weight_controller"]
         ),
         diagnostic_state=get_diagnostic_collection_snapshot(
-            prediction_arguments["adahedge_weight_evidence_collection"]
+            collect_client_adahedge_evidence_owners(prediction_arguments)
         ),
         records=prediction_arguments[
             "sample_prediction_record_store"
@@ -743,7 +760,8 @@ def test_prediction_rejects_invalid_observation_before_any_update(
     "owner_argument_name",
     [
         "fixed_share_weight_controller",
-        "adahedge_weight_evidence_collection",
+        "all_sample_adahedge_weight_evidence_holder",
+        "true_concept_adahedge_diagnostic_evidence_collection",
         "sample_prediction_record_store",
         "held_model_training_state_registry",
         "current_training_model_assignment",
@@ -941,10 +959,12 @@ def test_prediction_without_concept_id_skips_only_true_concept_diagnostics(
         prediction_arguments = build_predicted_sample_prediction_oracle(
             monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
         )
-        adahedge_weight_evidence_collection = prediction_arguments[
-            "adahedge_weight_evidence_collection"
+        true_concept_adahedge_diagnostic_evidence_collection = prediction_arguments[
+            "true_concept_adahedge_diagnostic_evidence_collection"
         ]
-        created_true_concept_ids = adahedge_weight_evidence_collection.created_true_concept_ids
+        created_true_concept_ids = (
+            true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
+        )
         assert 1 not in created_true_concept_ids
         sample_prediction = predict_observed_sample_and_update_prediction_weights(
             indexed_observation=make_prediction_observation(
@@ -956,7 +976,7 @@ def test_prediction_without_concept_id_skips_only_true_concept_diagnostics(
             sample_prediction,
             snapshot_prediction_state(prediction_arguments=prediction_arguments),
             created_true_concept_ids,
-            adahedge_weight_evidence_collection.created_true_concept_ids,
+            true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids,
         )
     prediction_with_concept, state_with_concept, _, concept_ids_with_concept = results[1]
     prediction_without_concept, state_without_concept, concept_ids_before, concept_ids_after = (
@@ -1046,10 +1066,12 @@ def test_prediction_runs_steps_in_design_order(monkeypatch, valid_run_settings_m
     prediction_arguments = build_predicted_sample_prediction_oracle(
         monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
     )
-    adahedge_weight_evidence_collection = prediction_arguments[
-        "adahedge_weight_evidence_collection"
+    all_sample_adahedge_weight_evidence_holder = prediction_arguments[
+        "all_sample_adahedge_weight_evidence_holder"
     ]
-    all_sample_weight_evidence = adahedge_weight_evidence_collection.all_sample_weight_evidence
+    all_sample_weight_evidence = (
+        all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
+    )
     step_names = []
 
     def record_step_then_call(owner_type, method_name, make_step_name):
@@ -1117,7 +1139,7 @@ def test_prediction_updates_true_concept_evidence_with_unnormalized_weights(
         monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
     )
     all_sample_weight_evidence = prediction_arguments[
-        "adahedge_weight_evidence_collection"
+        "all_sample_adahedge_weight_evidence_holder"
     ].all_sample_weight_evidence
     # 正規化で値が変わる重み（総和が1との差1e-12以内で、1でない）を、両方の証拠の取得が返すようにする。
     unnormalized_weights = {4: 0.25 + 4e-13, 9: 0.75}

@@ -312,7 +312,8 @@ RECALIBRATION_OWNER_ARGUMENT_NAMES = (
     "held_model_training_state_registry",
     "pending_sample_observation_store",
     "fixed_share_weight_controller",
-    "adahedge_weight_evidence_collection",
+    "all_sample_adahedge_weight_evidence_holder",
+    "true_concept_adahedge_diagnostic_evidence_collection",
 )
 
 
