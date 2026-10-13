@@ -1,4 +1,4 @@
-"""共有特徴抽出部・概念別残差・分類層を構築する。"""
+"""特徴抽出部・モデルごとの部品・分類層からなる分類器を、モデル構造の設定に従って構築する。"""
 
 import torch
 from torch.nn import Identity, Linear, Module, Sigmoid
@@ -70,7 +70,9 @@ def _validate_classifier_inputs(
 
 
 class ModelArchitectureClassifier(Module):
-    """共有部だけを借用し、adapterと分類層を独立に所有する。
+    """特徴抽出部（共有できる）を借用し、モデルごとの部品（`model_owned_feature_transform`）と分類層を独立に所有する。
+
+    モデルごとの部品は、提案構成の構造では、残差adapter。
 
     adapterを持たない構造（設定の構造の名前）では、`model_owned_feature_transform`は、共有特徴をそのまま返す部品で、
     パラメータを持たない（概念固有部は、分類層だけ）。
