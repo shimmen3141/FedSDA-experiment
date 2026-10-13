@@ -5314,10 +5314,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
         )
-    if source_module_path == "evaluation/adahedge_weight_evidence_collection.py":
-        return imported_module_name in (
-            "federated_learning_experiments.methods.fedsda.prediction_combination.adahedge_weight_evidence.AdaHedgeWeightEvidence",
-        )
     if (
         source_module_path
         == "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py"
@@ -7225,7 +7221,6 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/feddrift_client_stream_processing.py",
             "runtime/feddrift_detection_batch_processing.py",
             "methods/feddrift/detection_batch_assessment.py",
-            "evaluation/adahedge_weight_evidence_collection.py",
             "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
             "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
             "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
@@ -7348,7 +7343,6 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/fedavg_run_record_tables.py",
                     "runtime/fedavg_run_server.py",
                     "runtime/fedavg_run_settings.py",
-                    "evaluation/adahedge_weight_evidence_collection.py",
                     "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
                     "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
                     "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
@@ -12263,7 +12257,6 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
     [
         (source_module_path, source_text, expected_acceptance)
         for source_module_path in (
-            "evaluation/adahedge_weight_evidence_collection.py",
             "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
             "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
             "runtime/training_assignment_all_sample_adahedge_weight_evidence_restart.py",
@@ -12274,7 +12267,6 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
                 "import AdaHedgeWeightEvidence",
                 source_module_path
                 in (
-                    "evaluation/adahedge_weight_evidence_collection.py",
                     "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
                     "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
                 ),
@@ -12284,7 +12276,6 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
                 "import AdaHedgeWeightEvidence as AcceptedDependency",
                 source_module_path
                 in (
-                    "evaluation/adahedge_weight_evidence_collection.py",
                     "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py",
                     "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
                 ),
@@ -12293,10 +12284,7 @@ def test_adahedge_diagnostic_evidence_exact_dependency_contract(source_text, exp
                 "from ..methods.fedsda.prediction_combination.adahedge_weight_evidence "
                 "import AdaHedgeWeightEvidence",
                 source_module_path
-                in (
-                    "evaluation/adahedge_weight_evidence_collection.py",
-                    "evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",
-                ),
+                in ("evaluation/true_concept_adahedge_diagnostic_evidence_collection.py",),
             ),
             (
                 "from .adahedge_weight_evidence import AdaHedgeWeightEvidence",

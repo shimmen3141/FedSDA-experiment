@@ -1,12 +1,9 @@
-"""AdaHedgeの証拠の2つのowner（全標本の側、真の概念別の側）が、前の集まりと同じに動き、互いの証拠を持たないこと。"""
+"""AdaHedgeの証拠の2つのowner（全標本の側、真の概念別の側）が、証拠の部品をそのまま保持し、互いの証拠を持たないこと。"""
 
 import inspect
 
 import pytest
 
-from federated_learning_experiments.evaluation.adahedge_weight_evidence_collection import (
-    AdaHedgeWeightEvidenceCollection,
-)
 from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
     TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
@@ -47,6 +44,23 @@ OBSERVED_SAMPLES = (
 )
 
 
+class DirectlyHeldEvidenceReference:
+    """ownerを介さずに、証拠の部品を直接持つ、期待の側（全標本の証拠1つと、真の概念IDごとの証拠）。"""
+
+    def __init__(self):
+        self.all_sample_weight_evidence = AdaHedgeWeightEvidence()
+        self._true_concept_diagnostic_evidence_by_id = {}
+
+    def get_true_concept_diagnostic_evidence(self, *, true_concept_id):
+        return self._true_concept_diagnostic_evidence_by_id.setdefault(
+            true_concept_id, AdaHedgeWeightEvidence()
+        )
+
+    @property
+    def created_true_concept_ids(self):
+        return tuple(self._true_concept_diagnostic_evidence_by_id)
+
+
 def describe_evidence(weight_evidence):
     return (
         weight_evidence.cumulative_losses_by_model_id,
@@ -72,29 +86,23 @@ def observe_sample(weight_evidence, observed_losses_by_model_id):
 
 
 @pytest.mark.parametrize("evidence_is_updated_by_prediction", [True, False])
-def test_two_owners_match_previous_collection_for_same_operations(
+def test_two_owners_hold_evidence_that_behaves_like_directly_held_evidence(
     evidence_is_updated_by_prediction,
 ):
-    """同じ操作の列で、2つのownerの証拠の値・作成順が、前の集まり（1つのowner）と同じ。"""
-    previous_collection = AdaHedgeWeightEvidenceCollection(
-        evidence_is_updated_by_prediction=evidence_is_updated_by_prediction
-    )
+    """同じ操作の列で、2つのownerの証拠の値・作成順が、証拠の部品を直接持った場合と同じ（ownerは、計算を足さない）。"""
+    directly_held_reference = DirectlyHeldEvidenceReference()
     all_sample_holder = AllSampleAdaHedgeWeightEvidenceHolder(
         evidence_is_updated_by_prediction=evidence_is_updated_by_prediction
     )
     true_concept_collection = TrueConceptAdaHedgeDiagnosticEvidenceCollection()
-    assert (
-        all_sample_holder.evidence_is_updated_by_prediction
-        is previous_collection.evidence_is_updated_by_prediction
-        is evidence_is_updated_by_prediction
-    )
+    assert all_sample_holder.evidence_is_updated_by_prediction is evidence_is_updated_by_prediction
     for sample_position, (true_concept_id, observed_losses_by_model_id) in enumerate(
         OBSERVED_SAMPLES
     ):
         assert observe_sample(
             all_sample_holder.all_sample_weight_evidence, observed_losses_by_model_id
         ) == observe_sample(
-            previous_collection.all_sample_weight_evidence, observed_losses_by_model_id
+            directly_held_reference.all_sample_weight_evidence, observed_losses_by_model_id
         )
         if true_concept_id is not None:
             assert observe_sample(
@@ -103,7 +111,7 @@ def test_two_owners_match_previous_collection_for_same_operations(
                 ),
                 observed_losses_by_model_id,
             ) == observe_sample(
-                previous_collection.get_true_concept_diagnostic_evidence(
+                directly_held_reference.get_true_concept_diagnostic_evidence(
                     true_concept_id=true_concept_id
                 ),
                 observed_losses_by_model_id,
@@ -112,7 +120,7 @@ def test_two_owners_match_previous_collection_for_same_operations(
             # 学習帰属の変更（全標本の証拠だけ）と、集約後の再較正（全標本は再生、真の概念別は再始動）。
             for weight_evidence in (
                 all_sample_holder.all_sample_weight_evidence,
-                previous_collection.all_sample_weight_evidence,
+                directly_held_reference.all_sample_weight_evidence,
             ):
                 weight_evidence.restart_evidence_after_concept_operation()
                 weight_evidence.replay_observed_losses_after_aggregation(
@@ -120,19 +128,19 @@ def test_two_owners_match_previous_collection_for_same_operations(
                 )
             assert (
                 true_concept_collection.created_true_concept_ids
-                == previous_collection.created_true_concept_ids
+                == directly_held_reference.created_true_concept_ids
             )
             for created_true_concept_id in true_concept_collection.created_true_concept_ids:
-                for owner in (true_concept_collection, previous_collection):
+                for owner in (true_concept_collection, directly_held_reference):
                     owner.get_true_concept_diagnostic_evidence(
                         true_concept_id=created_true_concept_id
                     ).restart_evidence_after_aggregation()
         assert describe_evidence(all_sample_holder.all_sample_weight_evidence) == describe_evidence(
-            previous_collection.all_sample_weight_evidence
+            directly_held_reference.all_sample_weight_evidence
         )
         assert (
             true_concept_collection.created_true_concept_ids
-            == previous_collection.created_true_concept_ids
+            == directly_held_reference.created_true_concept_ids
         )
         for created_true_concept_id in true_concept_collection.created_true_concept_ids:
             assert describe_evidence(
@@ -140,7 +148,7 @@ def test_two_owners_match_previous_collection_for_same_operations(
                     true_concept_id=created_true_concept_id
                 )
             ) == describe_evidence(
-                previous_collection.get_true_concept_diagnostic_evidence(
+                directly_held_reference.get_true_concept_diagnostic_evidence(
                     true_concept_id=created_true_concept_id
                 )
             )
