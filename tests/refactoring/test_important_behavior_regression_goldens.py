@@ -341,6 +341,11 @@ BASELINE_VERSION_DIFFERENCES = {
         "too_short_alarm_with_earlier_interval_count",
         {"fedsda-sine2-events": None, "fedsda-sine2-reference-reuse": None},
     ),
+    # 版3の扱いで、待ちの間に現行でない送信保留が起きるケース（2026-10-14、Windowsで4件と1件）。
+    (3, 4): (
+        "pending_model_not_current_while_waiting_count",
+        {"fedsda-sine2-events": None, "fedsda-sine2-reference-reuse": None},
+    ),
 }
 
 
@@ -358,6 +363,7 @@ def test_next_baseline_differs_only_where_the_fixed_behavior_occurred(
     """次の版との差は、前の版の扱いで、直した挙動の事象が起きるケースに限る。
 
     版1→2: 登録されないままの採用（LEGACY-016）。版2→3: 前区間のある短い警報（LEGACY-002）。
+    版3→4: 待ちの間に現行でない送信保留（LEGACY-016の扱いの見直し。事象が1以上のケースは、全部、名前を挙げる）。
     事象が0のケースは、指標・表・パラメータが、前の版と同じ。事象があるケースの差は、名前を挙げたケースで確かめる。
     FedDrift・FedAvgのケースは、これらの扱いの設定を持たず、事象は0（2つの版で、同じ設定）。
     """
@@ -377,6 +383,11 @@ def test_next_baseline_differs_only_where_the_fixed_behavior_occurred(
             golden.assert_case_matches(
                 case_name, next_case[section], previous_case[section], section
             )
+    if (previous_version, next_version) == (3, 4):
+        # 事象が1以上のケースは、名前を挙げたケースに限る（挙げていないケースの差を、見落とさない）。
+        assert (previous_event_counts[divergence_event_name] > 0) == (
+            case_name in differing_case_event_counts
+        ), (case_name, previous_event_counts)
     if case_name in differing_case_event_counts:
         expected_event_count = differing_case_event_counts[case_name]
         assert previous_event_counts[divergence_event_name] > 0

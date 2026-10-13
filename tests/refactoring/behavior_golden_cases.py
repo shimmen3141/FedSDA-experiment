@@ -87,8 +87,8 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版3: FedSDAが、短い警報（変化区間が最小件数より少ない警報）のあと、現行モデルへ取り込んだ前区間を、
 #      保留から外す（LEGACY-002の修正。最終構成の既定）。版2との差は、版2の扱いで、前区間のある
 #      短い警報が起きるケースに限る。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3)
-BASELINE_VERSION = 3
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4)
+BASELINE_VERSION = 4
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
 # （保存の形）。その版の設定を組み立てるときは、この値を入れ、保存してある設定と比べるときは、値を確かめてから除く。
@@ -156,6 +156,13 @@ CASE_NAMES_BY_BASELINE_VERSION = {
     1: _VERSION_1_CASE_NAMES,
     2: (*_VERSION_1_CASE_NAMES, "fedsda-sine2-reference-reuse"),
     3: (*_VERSION_1_CASE_NAMES, "fedsda-sine2-reference-reuse"),
+    # 版4では、`fedsda-sine2-reference-reuse`（seed 4）が、登録の扱いの見直しで、別の保有モデルの再利用の判定を
+    # 通らなくなる。その経路は、同じ設定でseedが5のケースで守る（2026-10-14、seed 0〜15を調べて選んだ）。
+    4: (
+        *_VERSION_1_CASE_NAMES,
+        "fedsda-sine2-reference-reuse",
+        "fedsda-sine2-alternative-reference-reuse",
+    ),
 }
 CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[BASELINE_VERSION]
 ENVIRONMENT_KEYS = {"system", "machine", "python", "numpy", "torch", "device", "dtype", "threads"}
@@ -186,7 +193,11 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
     _validate_baseline_version(baseline_version)
     if case_name not in CASE_NAMES_BY_BASELINE_VERSION[baseline_version]:
         raise ValueError(f"unknown golden case: {case_name}")
-    sine2_rich = case_name in ("fedsda-sine2-events", "fedsda-sine2-reference-reuse")
+    sine2_rich = case_name in (
+        "fedsda-sine2-events",
+        "fedsda-sine2-reference-reuse",
+        "fedsda-sine2-alternative-reference-reuse",
+    )
     rich = sine2_rich or case_name == "fedsda-mnist2-decisions"
     mnist = case_name == "fedsda-mnist2-decisions"
     configuration = (
@@ -202,6 +213,8 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
         dataset_name="mnist2" if mnist else "sine2",
         random_seed=4
         if case_name == "fedsda-sine2-reference-reuse"
+        else 5
+        if case_name == "fedsda-sine2-alternative-reference-reuse"
         else 0
         if rich
         else 71
@@ -556,6 +569,7 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
     if case_name.startswith("fedsda-") and case_name in (
         "fedsda-sine2-events",
         "fedsda-sine2-reference-reuse",
+        "fedsda-sine2-alternative-reference-reuse",
         "fedsda-mnist2-decisions",
     ):
         for key in (
@@ -578,6 +592,17 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
             ) <= reasons, (case_name, reasons)
             assert coverage["merged_model_count"] > 0, case_name
         elif case_name == "fedsda-sine2-reference-reuse":
+            # 版4では、別の保有モデルの再利用の判定を通らない（上の、ケース名の注記）。
+            assert (
+                {"second_segment_margin_failed"}
+                | (
+                    {"alternative_reference_within_historical_loss_tolerance"}
+                    if baseline_version <= 3
+                    else set()
+                )
+            ) <= reasons, (case_name, reasons)
+            assert coverage["merged_model_count"] > 0, case_name
+        elif case_name == "fedsda-sine2-alternative-reference-reuse":
             assert {
                 "alternative_reference_within_historical_loss_tolerance",
                 "second_segment_margin_failed",
