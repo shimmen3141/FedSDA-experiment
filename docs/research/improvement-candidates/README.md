@@ -28,7 +28,7 @@
 | IMPROVE-010 | 保留標本の並びの検査を1箇所にまとめる | 保留（2026-10-13） | [詳細](improve-010-share-pending-observation-validation.md) |
 | IMPROVE-011 | 共同学習の反復が、参加したモデルを返す（計数の側の参加条件の重複をなくす） | 保留（2026-10-13） | [詳細](improve-011-report-participating-models-from-joint-training.md) |
 | IMPROVE-012 | 観測標本の特徴を、配列で持つ（MNISTの784特徴で、標本ごとのメモリを減らす） | 保留（2026-10-13） | [詳細](improve-012-hold-observed-sample-features-as-array.md) |
-| IMPROVE-013 | AdaHedgeの重みの証拠を、評価の層から移す（予測に使う構成ができたため） | 採用（整理。挙動の修正の後。2026-10-13） | [詳細](improve-013-move-adahedge-weight-evidence-out-of-evaluation-layer.md) |
+| IMPROVE-013 | AdaHedgeの重みの証拠を、評価の層から移す（予測に使う構成ができたため） | 対応済み（証拠の部品と全標本のownerを手法の層へ、真の概念別のownerを評価の層へ分けた。値は変えない。2026-10-13） | [詳細](improve-013-move-adahedge-weight-evidence-out-of-evaluation-layer.md) |
 | IMPROVE-014 | adapterを持たない構造も扱う分類器の、クラスと属性の名前を、構造に依らない名前へ改める | 採用（整理。挙動の修正の後。2026-10-13） | [詳細](improve-014-rename-classifier-that-may-have-no-adapter.md) |
 
 ## 決定（2026-10-13、ユーザー）

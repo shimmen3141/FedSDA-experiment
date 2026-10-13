@@ -1,7 +1,7 @@
 # IMPROVE-013. AdaHedgeの重みの証拠を、評価の層から移す
 
-- 記録日: 2026-10-11。種別: 層の置き場所。状態: 未検証・未採用。
-- 対象: 新実装`src/federated_learning_experiments/evaluation/adahedge_weight_evidence.py`・`evaluation/adahedge_weight_evidence_collection.py`と、それを読む箇所（`runtime/`の7つのmodule）。
+- 記録日: 2026-10-11。種別: 層の置き場所。状態: 対応済み（2026-10-13。下の「対応」）。
+- 対象: 新実装`src/federated_learning_experiments/evaluation/adahedge_weight_evidence.py`・`evaluation/adahedge_weight_evidence_collection.py`と、それを読む箇所（`runtime/`の10のmodule。記録の時点では、7つと数えていた）。
 
 ## 確認した事実
 
@@ -27,3 +27,13 @@ Fixed-Shareの重みの保持（`FixedShareWeightController`）は、手法の�
 ## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
 
 採用（整理。値は変えない）。挙動を直す変更の後に行う。
+
+## 対応（2026-10-13）
+
+[adahedge-weight-evidence-owner-separation](../../../.kiro/specs/adahedge-weight-evidence-owner-separation/tasks.md)で対応した。
+
+- 証拠の計算の部品（`AdaHedgeWeightEvidence`）は、中身を変えずに、`methods/fedsda/prediction_combination/adahedge_weight_evidence.py`へ移した。
+- 全標本の証拠のowner（`AllSampleAdaHedgeWeightEvidenceHolder`）は、同じ場所（手法の層）。真の概念別の証拠は持たない。
+- 真の概念別の、診断用の証拠のowner（`TrueConceptAdaHedgeDiagnosticEvidenceCollection`）は、評価の層（`evaluation/true_concept_adahedge_diagnostic_evidence_collection.py`）。受け取るのは、標本の予測、集約後の再較正と、その通り道（標本1件の処理、client）だけ。警報の処理・候補検証の進行・証拠の再始動は、受け取らない。
+- 前の集まり（`AdaHedgeWeightEvidenceCollection`）と、前の2つのmoduleは、削除した。証拠の再始動は、名前へ`all_sample`を足した。
+- 値は変えていない（全pytest——実旧との照合、基準版1〜3、構成の照合——が、期待値を変えずに通過）。

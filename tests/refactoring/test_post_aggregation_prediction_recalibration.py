@@ -334,7 +334,11 @@ def test_recalibration_rejects_invalid_owners_before_any_update(
         run_client=run_client, python_random_generator=python_random_generator
     )
     for owner_argument_name in RECALIBRATION_OWNER_ARGUMENT_NAMES:
-        for invalid_owner in (None, make_subclass_copy(arguments[owner_argument_name])):
+        for invalid_owner in (
+            None,
+            object(),
+            make_subclass_copy(arguments[owner_argument_name]),
+        ):
             with pytest.raises(TypeError, match=owner_argument_name):
                 recalibrate_prediction_state_after_aggregation(
                     **arguments | {owner_argument_name: invalid_owner}

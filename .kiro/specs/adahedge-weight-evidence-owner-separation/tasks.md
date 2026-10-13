@@ -2,25 +2,25 @@
 
 taskの途中でも、対象のtestが通る状態を保つ。task 1の後は、証拠の部品が、手法の層に1つだけあり（評価の層の前のmoduleは、削除済み）、前の集まりは、手法の層の部品を読む形で、一時的に残る。新しい2つのownerは、まだ、どこからも使われない。task 2で、受渡しを、一度に替える（分けない理由は、設計の「Risks」）。task 3で、前の集まりを削除する。依存境界のtestの、どの箇所を、どのtaskで替えるかは、設計の表の「替えるtask」。
 
-- [ ] 1. 証拠の部品を手法の層へ移し、2つのownerを作る
+- [x] 1. 証拠の部品を手法の層へ移し、2つのownerを作る
   - 2つのownerのtestを先に書く: 前の集まりを正解にした比較（同じ操作の列で、作成順・IDごとの証拠の値・全標本の証拠の値が同じ）、組立ての引数とIDの型の拒否、全標本の側に真の概念別の口が無いこと、真の概念別の側に全標本の証拠が無いこと。REDは、新しいmoduleが無いことによる収集の失敗でなく、空の実装（口だけを持ち、証拠を返さない）に対する、比較の失敗で確かめる。
   - `AdaHedgeWeightEvidence`を、中身を変えずに、手法の層へ移し、評価の層の前のmoduleを削除する。前の集まりと、testのimportを、新しい場所へ替える。全標本の側のownerと、真の概念別の側のownerを実装する。
   - 依存境界のtest: 設計の表の、「替えるtask」に1がある箇所を替える（証拠の部品の許可集合・`math`の例外・期待の表と契約の、証拠の部品の行を、新しい場所へ。前の集まりの許可集合を、手法の層の証拠の部品へ。新しい2つのownerの許可集合と、厳しく確かめる一覧への追加。前の集まりは、一覧に残す）。
   - 完了の条件: `test_adahedge_weight_evidence.py`、`test_single_run_dependency_boundaries.py`、前の集まりを受け取る処理のtest（予測、再始動）が通る。
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 4.1, 4.2, 4.3_
 
-- [ ] 2. 受け取る処理とclientを、2つのownerへ替える
+- [x] 2. 受け取る処理とclientを、2つのownerへ替える
   - `runtime/`の受け取るmodule（予測、再較正、標本1件の処理、警報の処理、候補検証の進行、証拠の再始動、client、指標と記録の表）の引数・型の検査・読取りを、一度に替える。処理の順序と、型の検査の位置は、変えない。証拠の再始動の、moduleと関数の名前を替える。
   - testの引数・状態のsnapshot・型の拒否のtest（真の概念別の側のownerを足す）、fresh processのsmoke、依存境界の、「替えるtask」に2がある箇所を替える。集まりの状態を読むtestのhelperを、新しい2つのownerへ移す。警報の処理・候補検証の進行・証拠の再始動が、真の概念別の側のownerの引数を持たないことのtestを足す。
   - 完了の条件: 部品、予測、標本1件の処理、警報の処理、候補検証の進行、再較正、再始動、client、依存境界、fresh processのsmokeのtestが、期待値を変えずに通る。このtaskは、1つのcommitで閉じる（途中の、通らない状態を、commitに残さない）。
   - _Requirements: 2.2, 2.4, 3.1, 3.2, 3.3, 4.1, 4.4_
 
-- [ ] 3. 前の集まりを削除する
+- [x] 3. 前の集まりを削除する
   - `evaluation/adahedge_weight_evidence_collection.py`を削除する。前の集まりを正解にした比較のtestは、同じ期待（作成順、初回だけ作る、IDごとに独立、全標本の証拠の値）を、直接確かめるtestへ直して、残す。依存境界の、「替えるtask」に3がある箇所（前の集まりの許可集合、一覧、前の集まりだけに関する期待の行）を削除する。前の名前が残っていないことを、`grep`で確かめる（範囲は、設計の「Risks」）。
   - 完了の条件: 依存境界のtestと、task 2の対象のtestが通る。
   - _Requirements: 2.3, 4.1_
 
-- [ ] 4. 全体の検証と、記録
+- [x] 4. 全体の検証と、記録
   - 全pytest（実旧との照合、基準版1〜3、構成の照合、掃引の識別子の期待値、真の概念の全体runのtestが、期待値とgoldenのファイルを変えずに通る）、Ruff、Pyright。
   - 独立CLIの実装レビューを受け、指摘を反映する。WSLの対象test。
   - IMPROVE-013の記録（対象のmoduleの数——「7つ」は、実際は10——、状態の行——「未検証・未採用」——を、判断と対応に合わせて直す）と一覧、再開案内を更新する。
@@ -41,3 +41,14 @@ taskの途中でも、対象のtestが通る状態を保つ。task 1の後は、
   - 3（関数名を変えない理由が、命名の規約——実態との一致を優先——に照らして不十分）: 採用へ変更。再始動の、moduleと関数の名前へ、`all_sample`を足す（要求2.4、naming）。
   - naming（引数・fieldの行を書かない）・設計の数え方（2つのmoduleから3つの名前）・要求とtaskの対応（task 1へ4.1）・IMPROVE-013の記録の食い違い（task 4で直す）・testの扱い（削除でなく、移す。REDは、収集の失敗で数えない）・構造の原則との関係（researchへ1文）: 採用。
 - 仕様レビュー3回目（修正の再確認。同じ担当・effort、session `04e1a374-206c-4e21-bf73-7ddc08c5539d`、読取りだけ）: `SPECIFICATION: PASS`（Blocker・Majorなし）。依存境界のtestの、taskごとの途中の状態を、実際の行と照らして、通る形と確認。Minor（削除の時期、requirementsの「新しい3つ」の言い方、namingへ再始動の行、再始動のtestのファイル名、task 2を1つのcommitで閉じること）は、反映した。期待の表の、行ごとのtaskの割当ては、実装のときに、実装の記録へ書く。
+- 実装（task 1〜3。taskごとに1つのcommit: `14e2f5b`、`fb4dc39`、`738366d`）。設計からの変更と、分かったこと:
+  - task 1のREDは、取っていない（手順の逸脱）。2つのownerは、前の集まりの口を、そのまま2つへ分けたもので、空の実装を先に置かずに、実装とtestを同時に書いた。代わりに、前の集まりを正解にした比較のtestを、task 1の時点で通し（同じ操作の列で、作成順・IDごとの証拠の値・全標本の証拠の値が同じ）、task 3で、証拠の部品を直接持った場合との比較へ直した。
+  - 依存境界のtestの、行ごとのtask: task 1で、証拠の部品のpath（許可集合の分岐、厳しく確かめる一覧の2か所、`math`の例外、契約のtestの対象）と、moduleの名前（期待の表の67・778行、契約のtestの、証拠の部品をimportする行）を、新しい場所へ替え、新しい2つのownerの許可集合・一覧・契約のtestの対象を足した。task 2で、前の集まりのmoduleの名前を持つ行（期待の表の17〜37行・118〜138行、受け取るmoduleの許可集合、契約のtestの、集まりをimportする行）を、全標本の側のownerへ、再始動のmoduleと関数の名前（期待の表の42〜62行・718〜738行、許可集合、一覧、契約のtest）を、新しい名前へ替え、真の概念別の側のownerを、予測・再較正・標本1件の処理・clientの許可集合へ足した。task 3で、前の集まりのpathの行（許可集合の分岐、一覧の2か所、契約のtestの対象と期待の4か所）を削除した。期待（True/False）は、変えていない。
+  - testの側: 実旧のclientは、全標本のrouterと、真の概念別のrouterを、1つのclientが持つ。実旧との照合のtestは、2つのownerを並べて読むtestのhelper（`ClientAdaHedgeEvidenceOwners`。両方のownerへ委譲するだけ）を通して、これまでと同じ比較を行う。警報の処理と、候補検証の進行のtestは、真の概念別の証拠を読まなくなった（これらの処理は、そのownerを受け取らない。受け取らないことは、引数の一覧のtestで確かめる）。
+  - 再始動の、型の拒否の文言を、「全標本のAdaHedgeの証拠のownerは…」へ直した（例外の型は同じ）。
+  - 前の名前の`grep`（`src`、`tests/refactoring`、直下のscript、`docs/`、`.kiro/steering`）: 残るのは、IMPROVE-013の記録（経緯）と、再開案内の、過去のspecの説明（当時の記録）だけ。
+- 全pytest（Windows、`738366d`、`-n 12 --dist loadfile`）: 14010 passed / 8 skipped、exit 0（JUnit: `../../venv/refactoring-tests/adahedge-weight-evidence-owner-separation-full.xml`）。Ruff（check・format）、Pyright 成功。証拠の部品のmoduleは、移動の前と、差分0行。固定旧と、基準版1〜3のgoldenのファイルに、差分なし。掃引のrunの識別子の期待値は、変えていない（設定を変えていないので、識別子は同じ）。
+- 実装レビュー（独立CLI、Claude Haiku 5.5、effort medium、session `19ebd1d2-960d-42c1-9b74-97394d04da15`、対象 `738366d`）: `IMPLEMENTATION: APPROVED`（Blocker・Majorなし）。値を変えていないこと（差分の1行ずつの確認、処理の順序、ownerを作る場所）、型の検査、要求の全項目、依存境界のtestの差分（期待を弱めていない）、名前、固定旧とgoldenの無変更を確認。独立の実行: 対象8ファイル 3409 passed、Ruff、fresh process 16 flows。Minor 1（再較正の、不正なownerの拒否のtestが、別の型——`object()`——を確かめていない）: 採用。testへ足した（実装は変えない）。レビュー担当は、許可したコマンドのほかに、読取りのコマンド（`grep`・`git log`など）を使い、一時ファイルを2つ（worktreeのルートの`dep_review_diff.txt`、`venv/refactoring-tests/claude-review-tests.diff`）作った、と報告した（手順の逸脱として記録する。主担当が、中身を確かめて、2つとも削除した。追跡ファイルの変更は無い）。
+- 最終検証: 上の全pytestの後の変更は、再較正のtestへ、不正なownerの1つの場合を足しただけ（そのtestファイルを実行し直して、13 passed）。WSL: 部品・2つのowner・再始動・予測・再較正・fresh processのsmokeのtestで、[exited with code 0]
+- 完了の判断: AdaHedgeの証拠の、計算の部品と、全標本の証拠のownerは、手法の層にある。真の概念別の診断用の証拠は、評価の層の別のownerが持ち、手法の判断の処理へは、渡らない。値は変えていない。
+- 未検証・残る事項: 研究室サーバ（Linux）での全pytestは、未実施。
