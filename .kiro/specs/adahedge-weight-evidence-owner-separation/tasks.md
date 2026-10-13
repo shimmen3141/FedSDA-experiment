@@ -49,6 +49,6 @@ taskの途中でも、対象のtestが通る状態を保つ。task 1の後は、
   - 前の名前の`grep`（`src`、`tests/refactoring`、直下のscript、`docs/`、`.kiro/steering`）: 残るのは、IMPROVE-013の記録（経緯）と、再開案内の、過去のspecの説明（当時の記録）だけ。
 - 全pytest（Windows、`738366d`、`-n 12 --dist loadfile`）: 14010 passed / 8 skipped、exit 0（JUnit: `../../venv/refactoring-tests/adahedge-weight-evidence-owner-separation-full.xml`）。Ruff（check・format）、Pyright 成功。証拠の部品のmoduleは、移動の前と、差分0行。固定旧と、基準版1〜3のgoldenのファイルに、差分なし。掃引のrunの識別子の期待値は、変えていない（設定を変えていないので、識別子は同じ）。
 - 実装レビュー（独立CLI、Claude Haiku 5.5、effort medium、session `19ebd1d2-960d-42c1-9b74-97394d04da15`、対象 `738366d`）: `IMPLEMENTATION: APPROVED`（Blocker・Majorなし）。値を変えていないこと（差分の1行ずつの確認、処理の順序、ownerを作る場所）、型の検査、要求の全項目、依存境界のtestの差分（期待を弱めていない）、名前、固定旧とgoldenの無変更を確認。独立の実行: 対象8ファイル 3409 passed、Ruff、fresh process 16 flows。Minor 1（再較正の、不正なownerの拒否のtestが、別の型——`object()`——を確かめていない）: 採用。testへ足した（実装は変えない）。レビュー担当は、許可したコマンドのほかに、読取りのコマンド（`grep`・`git log`など）を使い、一時ファイルを2つ（worktreeのルートの`dep_review_diff.txt`、`venv/refactoring-tests/claude-review-tests.diff`）作った、と報告した（手順の逸脱として記録する。主担当が、中身を確かめて、2つとも削除した。追跡ファイルの変更は無い）。
-- 最終検証: 上の全pytestの後の変更は、再較正のtestへ、不正なownerの1つの場合を足しただけ（そのtestファイルを実行し直して、13 passed）。WSL: 部品・2つのowner・再始動・予測・再較正・fresh processのsmokeのtestで、[exited with code 0]
+- 最終検証: 上の全pytestの後の変更は、再較正のtestへ、不正なownerの1つの場合を足しただけ（そのtestファイルを実行し直して、13 passed）。WSL: 部品・2つのowner・再始動・予測・再較正・fresh processのsmokeのtestで、185 passed
 - 完了の判断: AdaHedgeの証拠の、計算の部品と、全標本の証拠のownerは、手法の層にある。真の概念別の診断用の証拠は、評価の層の別のownerが持ち、手法の判断の処理へは、渡らない。値は変えていない。
 - 未検証・残る事項: 研究室サーバ（Linux）での全pytestは、未実施。

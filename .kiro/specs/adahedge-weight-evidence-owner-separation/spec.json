@@ -61,7 +61,7 @@
     "full_exit_code": 0,
     "junit": "../../venv/refactoring-tests/adahedge-weight-evidence-owner-separation-full.xml",
     "tested_commit": "738366d（その後の変更は、再較正のtestへ、1つの場合を足しただけ）",
-    "wsl": "部品・2つのowner・再始動・予測・再較正・fresh processのsmokeのtestで、[exited with code 0]"
+    "wsl": "部品・2つのowner・再始動・予測・再較正・fresh processのsmokeのtestで、185 passed"
   },
   "completion_decision": "完了。IMPROVE-013（AdaHedgeの証拠の部品と全標本のownerを手法の層へ、真の概念別の診断用のownerを評価の層へ分ける）。値は変えない。"
 }
