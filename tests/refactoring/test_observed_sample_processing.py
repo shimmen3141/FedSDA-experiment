@@ -70,6 +70,9 @@ from federated_learning_experiments.learning.training.model_training_sample_reco
 from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
     TemporaryModelIdAllocator,
 )
+from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
 )
@@ -260,6 +263,7 @@ def build_sample_processing_oracle(
             minimum_validation_loss_decrease=minimum_candidate_mean_loss_improvement,
         ),
         upload_delay_round_count=UPLOAD_DELAY_ROUND_COUNT,
+        short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         batch_sample_count=BATCH_SAMPLE_COUNT,
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",

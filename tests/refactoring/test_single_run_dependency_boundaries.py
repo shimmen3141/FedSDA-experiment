@@ -5845,6 +5845,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.PendingModelRegistrationSettings",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.RAISE_ALARM_IMMEDIATELY_POLICY_NAME",
         )
     if source_module_path == "runtime/feddrift_measured_run_execution.py":
         return imported_module_name in (
@@ -6233,6 +6234,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.observed_sample_prediction.ObservedSamplePrediction",
             "federated_learning_experiments.runtime.observed_sample_prediction.predict_observed_sample_and_update_prediction_weights",
             "federated_learning_experiments.runtime.released_pending_sample_assignment.assign_released_pending_samples_to_current_training_model",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.SHORT_CHANGE_INTERVAL_ALARM_POLICIES",
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME",
         )
     if source_module_path == "runtime/alarm_occurrence_handling.py":
         return imported_module_name in (

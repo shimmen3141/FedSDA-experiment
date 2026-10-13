@@ -73,6 +73,10 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.can
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
 )
+from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    SHORT_CHANGE_INTERVAL_ALARM_POLICIES,
+    WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     LossMonitoringObservation,
     OverallAndTrueClassLossMonitor,
@@ -337,6 +341,7 @@ def process_observed_sample(
     minimum_candidate_mean_loss_improvement: float,
     upload_delay_round_count: int,
     minimum_change_interval_sample_count: int,
+    short_change_interval_alarm_policy: str,
     maximum_alarm_interval_mean_loss_increase: float,
     candidate_parameter_initialization_settings: CandidateParameterInitializationSettings,
     architecture_reference_classifier: ResidualAdapterClassifier,
@@ -352,7 +357,15 @@ def process_observed_sample(
     """標本1件を、旧の標本処理と同じ順で処理する（最初に予測する）。
 
     旧の標本処理のうち、計算量と所要時間の記録、モデル別の除外寄与の診断は含めない。
+
+    `short_change_interval_alarm_policy`が「待つ」のときは、検出器の合図があっても、推定変化区間の件数
+    （保留の件数と、検出器の推定の長さの、小さい方）が最小件数に達するまで、警報の無い標本として処理する
+    （検出器を再開しないので、証拠は残る）。
     """
+    if type(short_change_interval_alarm_policy) is not str:
+        raise TypeError("short_change_interval_alarm_policy must be builtin str")
+    if short_change_interval_alarm_policy not in SHORT_CHANGE_INTERVAL_ALARM_POLICIES:
+        raise ValueError("short_change_interval_alarm_policy must be a declared value")
     _validate_observed_sample_processing_inputs(
         indexed_observation=indexed_observation,
         owners_by_argument_name=dict(
@@ -470,6 +483,18 @@ def process_observed_sample(
             maximum_mean_loss_increase=maximum_alarm_interval_mean_loss_increase,
         )
     )
+    if (
+        alarm_raised
+        and short_change_interval_alarm_policy
+        == WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME
+        and min(
+            len(pending_sample_observations),
+            loss_monitoring_observation.estimated_change_span_sample_count,
+        )
+        < minimum_change_interval_sample_count
+    ):
+        # 警報の処理が変化区間とする件数（同じ式）が、最小件数より少ない。警報とせずに、待つ。
+        alarm_raised = False
     if alarm_raised:
         # (4a) 警報: 保留中の学習要求を先に学習し、警報の位置を記録してから、警報1回ぶんの処理を行う。
         completed_joint_update_losses = train_held_models_for_pending_training_requests(

@@ -5,8 +5,13 @@
 
 - 登録（LEGACY-016）: `fixed`＝採用したモデルを、それ自身のIDで登録する（既定）。`legacy`＝固定旧と同じ。
 - 短い警報（LEGACY-002）: `fixed`＝取り込んだ前区間を、保留から外す（既定）。`legacy`＝固定旧と同じ。
+- 警報を待つ（IMPROVE-006。`--alarm-wait-levels`）: `off`＝合図があれば、すぐに警報とする（既定）。
+  `on`＝推定変化区間が最小件数に達するまで、警報を待つ。指定しなければ、`off`だけを実行する。
 
-組合せの名前は、`registration-<fixed|legacy>__short-alarm-<fixed|legacy>`。出力先に済んだrunがあれば、飛ばして続ける。
+組合せの名前は、`registration-<fixed|legacy>__short-alarm-<fixed|legacy>`（警報を待つ扱いが`on`の組合せは、
+末尾に`__alarm-wait-on`が付く）。出力先に済んだrunがあれば、飛ばして続ける。runの識別子は、run設定から計算するので、
+設定の項目が増える前に実行したrunは、済んだrunとして扱われない（集計は、識別子でなく、dataset・集約間隔・seedで
+対にするので、前の結果も、そのまま比べられる。組合せを後から足すときは、足す組合せだけを指定する）。
 結果の比較は、`analyze_behavior_fix_comparison.py`。旧と同じ扱いは、通常の実験のコマンドからは選べない（この検証と、
 旧実装との照合のtestだけが使う）。
 
@@ -37,10 +42,16 @@ SHORT_ALARM_POLICY_BY_LEVEL = {
     "legacy": "keep_all_pending_samples",
 }
 LEVELS = ("legacy", "fixed")
+ALARM_WAIT_POLICY_BY_LEVEL = {
+    "off": "raise_alarm_immediately",
+    "on": "wait_until_change_interval_reaches_minimum",
+}
+ALARM_WAIT_LEVELS = ("off", "on")
 
 
-def make_combination_name(*, registration_level, short_alarm_level):
-    return f"registration-{registration_level}__short-alarm-{short_alarm_level}"
+def make_combination_name(*, registration_level, short_alarm_level, alarm_wait_level="off"):
+    combination_name = f"registration-{registration_level}__short-alarm-{short_alarm_level}"
+    return combination_name + ("__alarm-wait-on" if alarm_wait_level == "on" else "")
 
 
 def build_planned_runs(parsed_arguments):
@@ -61,53 +72,63 @@ def build_planned_runs(parsed_arguments):
     planned_runs = []
     for registration_level in parsed_arguments.registration_levels:
         for short_alarm_level in parsed_arguments.short_alarm_levels:
-            combination_name = make_combination_name(
-                registration_level=registration_level, short_alarm_level=short_alarm_level
-            )
-            for dataset_name in parsed_arguments.datasets:
-                for aggregation_interval in parsed_arguments.aggregation_intervals:
-                    for random_seed in parsed_arguments.seeds:
-                        default_run_settings = build_experiment_run_settings(
-                            configuration_name="fedsda",
-                            experiment_run_conditions=ExperimentRunConditions(
-                                dataset_name=dataset_name,
-                                random_seed=random_seed,
-                                client_count=parsed_arguments.client_count,
-                                per_client_sample_count=parsed_arguments.per_client_sample_count,
-                                server_aggregation_interval_per_client_samples=aggregation_interval,
-                            ),
-                        )
-                        run_participant_settings = default_run_settings.run_participant_settings
-                        run_client_settings = run_participant_settings.run_client_settings
-                        run_settings = replace(
-                            default_run_settings,
-                            run_participant_settings=replace(
-                                run_participant_settings,
-                                run_client_settings=replace(
-                                    run_client_settings,
-                                    pending_model_registration_settings=PendingModelRegistrationSettings(
-                                        pending_model_registration_policy=REGISTRATION_POLICY_BY_LEVEL[
-                                            registration_level
-                                        ]
-                                    ),
-                                    training_data_assignment_settings=replace(
-                                        run_client_settings.training_data_assignment_settings,
-                                        pending_sample_retention_after_too_short_change_interval_policy=(
-                                            SHORT_ALARM_POLICY_BY_LEVEL[short_alarm_level]
+            for alarm_wait_level in parsed_arguments.alarm_wait_levels:
+                combination_name = make_combination_name(
+                    registration_level=registration_level,
+                    short_alarm_level=short_alarm_level,
+                    alarm_wait_level=alarm_wait_level,
+                )
+                for dataset_name in parsed_arguments.datasets:
+                    for aggregation_interval in parsed_arguments.aggregation_intervals:
+                        for random_seed in parsed_arguments.seeds:
+                            default_run_settings = build_experiment_run_settings(
+                                configuration_name="fedsda",
+                                experiment_run_conditions=ExperimentRunConditions(
+                                    dataset_name=dataset_name,
+                                    random_seed=random_seed,
+                                    client_count=parsed_arguments.client_count,
+                                    per_client_sample_count=parsed_arguments.per_client_sample_count,
+                                    server_aggregation_interval_per_client_samples=aggregation_interval,
+                                ),
+                            )
+                            run_participant_settings = default_run_settings.run_participant_settings
+                            run_client_settings = run_participant_settings.run_client_settings
+                            run_settings = replace(
+                                default_run_settings,
+                                run_participant_settings=replace(
+                                    run_participant_settings,
+                                    run_client_settings=replace(
+                                        run_client_settings,
+                                        pending_model_registration_settings=PendingModelRegistrationSettings(
+                                            pending_model_registration_policy=REGISTRATION_POLICY_BY_LEVEL[
+                                                registration_level
+                                            ]
+                                        ),
+                                        loss_change_detection_settings=replace(
+                                            run_client_settings.loss_change_detection_settings,
+                                            short_change_interval_alarm_policy=ALARM_WAIT_POLICY_BY_LEVEL[
+                                                alarm_wait_level
+                                            ],
+                                        ),
+                                        training_data_assignment_settings=replace(
+                                            run_client_settings.training_data_assignment_settings,
+                                            pending_sample_retention_after_too_short_change_interval_policy=(
+                                                SHORT_ALARM_POLICY_BY_LEVEL[short_alarm_level]
+                                            ),
                                         ),
                                     ),
                                 ),
-                            ),
-                        )
-                        planned_runs.append(
-                            PlannedExperimentRun(
-                                configuration_name=combination_name,
-                                run_identifier=make_run_identifier(
-                                    configuration_name=combination_name, run_settings=run_settings
-                                ),
-                                run_settings=run_settings,
                             )
-                        )
+                            planned_runs.append(
+                                PlannedExperimentRun(
+                                    configuration_name=combination_name,
+                                    run_identifier=make_run_identifier(
+                                        configuration_name=combination_name,
+                                        run_settings=run_settings,
+                                    ),
+                                    run_settings=run_settings,
+                                )
+                            )
     return tuple(planned_runs)
 
 
@@ -123,6 +144,9 @@ def main(command_arguments=None):
     )
     argument_parser.add_argument(
         "--short-alarm-levels", nargs="+", choices=LEVELS, default=list(LEVELS)
+    )
+    argument_parser.add_argument(
+        "--alarm-wait-levels", nargs="+", choices=ALARM_WAIT_LEVELS, default=["off"]
     )
     argument_parser.add_argument("--workers", type=int, default=1)
     argument_parser.add_argument("--output-directory", type=Path, required=True)

@@ -151,3 +151,16 @@ python analyze_behavior_fix_comparison.py results/behavior-fix-comparison --chai
 
 出力先に済んだrunがあれば、飛ばして続ける（dataset・seed・集約間隔を、後から足せる）。集計は、同じseedのrunどうしの
 差の、平均と標準誤差（組合せごとの平均、LEGACY-016の効果、LEGACY-002の効果、両方の効果）と、短い警報の連鎖の数と長さを出す。
+
+推定変化区間が最小件数に達するまで警報を待つ扱い（IMPROVE-006。既定は、合図があればすぐに警報とする）の効果は、
+`--alarm-wait-levels`で比べる。指定しなければ`off`（待たない）だけを実行する。上の結果へ後から足すときは、足す組合せだけを
+指定する（設定の項目が増えたので、前のrunは識別子が違い、済んだrunとして飛ばされない。集計は、dataset・集約間隔・seedで
+対にするので、前の結果もそのまま比べられる）。
+
+```bash
+python run_behavior_fix_comparison.py --datasets sine2 circle2 sea4 mnist2     --seeds 0 1 2 3 4 5 6 7 8 9 --aggregation-intervals 50     --registration-levels fixed --short-alarm-levels fixed --alarm-wait-levels on     --workers 14 --output-directory results/behavior-fix-comparison
+```
+
+待つ扱いの組合せは、名前の末尾に`__alarm-wait-on`が付く。集計は、結果がある組合せについて、待つ扱いの効果（登録と短い警報の
+扱いを固定して、待たない→待つ）と、切替の検出の再現率・適合率、変化から切替までの遅れを出す。待つ扱いは、検出器がe-SRの
+ときだけ選べる（ADWINとの組合せは、設定の検査で拒否する）。

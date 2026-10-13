@@ -137,6 +137,7 @@ from federated_learning_experiments.methods.fedsda.consolidation.model_clusterin
     ModelClusteringCriteria,
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
     LossChangeDetectionSettings,
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
@@ -416,6 +417,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     )
     loss_change_monitor = OverallAndTrueClassLossMonitor(
         loss_change_detection_settings=LossChangeDetectionSettings(
+            short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=0.05,
@@ -774,6 +776,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         maximum_reference_mean_loss_increase=0.0,
         minimum_candidate_mean_loss_improvement=0.0,
         upload_delay_round_count=1,
+        short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
     )
     record_count_before_processing = len(state_snapshot.adaptation_records)
     first_processed_sample_index = pending_assignment_state.last_observed_sample_index + 1
@@ -1082,6 +1085,7 @@ def run_assembled_client_flow(*, class_count):
     pending_capacity = 6
     run_client_settings = FedsdaRunClientSettings(
         loss_change_detection_settings=LossChangeDetectionSettings(
+            short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=0.05,

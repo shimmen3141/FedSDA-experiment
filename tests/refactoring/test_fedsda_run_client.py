@@ -80,6 +80,9 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.inc
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import (
     PostAlarmCandidateValidationDecisionRecord,
 )
+from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
     PendingModelRegistrationSettings,
@@ -536,6 +539,9 @@ def assert_run_client_uses_legacy_compatible_policies(run_client):
     assert not (
         owners.pending_training_assignment_buffer.releases_earlier_samples_after_too_short_change_interval
     ), "実旧との照合には、短い警報のあと保留を全部残す設定が必要です。"
+    assert run_client.short_change_interval_alarm_policy == RAISE_ALARM_IMMEDIATELY_POLICY_NAME, (
+        "実旧との照合には、合図があればすぐに警報とする設定が必要です。"
+    )
 
 
 def use_legacy_compatible_policies(run_settings):
@@ -554,6 +560,10 @@ def use_legacy_compatible_policies(run_settings):
                 training_data_assignment_settings=replace(
                     run_client_settings.training_data_assignment_settings,
                     pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+                ),
+                loss_change_detection_settings=replace(
+                    run_client_settings.loss_change_detection_settings,
+                    short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
                 ),
             ),
         ),

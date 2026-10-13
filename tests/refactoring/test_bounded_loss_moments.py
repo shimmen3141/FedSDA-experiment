@@ -234,6 +234,7 @@ def test_loss_moments_connect_to_monitor_and_reference_evaluation(loss_sequence)
         select_available_reference_within_historical_loss_tolerance,
     )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+        RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         LossChangeDetectionSettings,
     )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
@@ -259,6 +260,7 @@ def test_loss_moments_connect_to_monitor_and_reference_evaluation(loss_sequence)
     assert result == ESRFedSDAClient._e_detector_baseline(legacy_client)
     monitor = OverallAndTrueClassLossMonitor(
         loss_change_detection_settings=LossChangeDetectionSettings(
+            short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=0.01,

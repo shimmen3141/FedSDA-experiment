@@ -38,6 +38,7 @@ from federated_learning_experiments.methods.fedsda.consolidation.model_consolida
     ModelConsolidationSettings,
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
     LossChangeDetectionSettings,
 )
 from federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings import (
@@ -66,6 +67,7 @@ def valid_run_settings_mapping():
             residual_adapter_requested_rank=2,
         ),
         "loss_change_detection_settings": LossChangeDetectionSettings(
+            short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=0.05,
@@ -678,6 +680,7 @@ def test_aggregation_interval_can_exceed_stream_length():
                     e_sr_false_alarm_control_alpha=specified_parameter_value,
                     adwin_confidence_delta=0.05,
                     adwin_minimum_test_window_sample_count=10,
+                    short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
                 ),
             )
             for specified_parameter_value in (0.05, 5e-324, 0.9999999999999999)
@@ -782,6 +785,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             "e_sr_false_alarm_control_alpha": float,
             "adwin_confidence_delta": float,
             "adwin_minimum_test_window_sample_count": int,
+            "short_change_interval_alarm_policy": str,
         }
         if settings_type is LossChangeDetectionSettings
         else {
@@ -868,6 +872,8 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 )
                 if settings_field.name
                 == "pending_sample_retention_after_too_short_change_interval_policy"
+                else ("raise_alarm_immediately", "wait_until_change_interval_reaches_minimum")
+                if settings_field.name == "short_change_interval_alarm_policy"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
         elif settings_field.name in ("e_sr_false_alarm_control_alpha", "adwin_confidence_delta"):
@@ -966,6 +972,7 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
                     e_sr_false_alarm_control_alpha=0.05,
                     adwin_confidence_delta=0.05,
                     adwin_minimum_test_window_sample_count=10,
+                    short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
                 ),
                 configuration_parameter_name,
             )
@@ -1160,6 +1167,7 @@ def test_monitoring_alpha_rejects_nonfinite_and_out_of_range_values(specified_pa
     """誤警報制御値はboolを除く有限実数の開区間だけを受理する。"""
     with pytest.raises(RunSettingsValidationError) as validation_error:
         LossChangeDetectionSettings(
+            short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
             e_sr_false_alarm_control_alpha=specified_parameter_value,

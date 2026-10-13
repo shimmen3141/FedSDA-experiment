@@ -9,6 +9,7 @@
    - LEGACY-016の効果（短い警報の扱いを固定して、登録だけを替える。2通り）
    - LEGACY-002の効果（登録の扱いを固定して、短い警報だけを替える。2通り）
    - 両方の効果（どちらも旧と同じ→どちらも直した）
+   - 警報を待つ扱い（IMPROVE-006）の効果（ほかの2つを固定して、待たない→待つ。結果がある組合せだけ）
    平均の差の絶対値が、標準誤差の2倍を超えるものに、`*`を付ける（seedの揺らぎより大きい目安。検定ではない）。
 3. `--chains`: 短い警報の連鎖（同じclientで、短い警報が、ほかの結果の警報を挟まずに続く並び）の数と長さ。
    runごとの記録の表（NPZ）の、適応の記録から数える。
@@ -35,6 +36,13 @@ METRICS = {
         1.0,
         1,
     ),
+    "training_model_switch_detection_metrics.detection_recall": ("切替の検出の再現率", 1.0, 3),
+    "training_model_switch_detection_metrics.detection_precision": ("切替の検出の適合率", 1.0, 3),
+    "change_response_metrics.training_model_switch_timing_metrics.mean_matched_switch_delay_sample_count": (
+        "変化から切替までの遅れ（標本）",
+        1.0,
+        1,
+    ),
     "change_response_metrics.adaptation_action_metrics.adopt_candidate_model_count": (
         "候補の採用の数",
         1.0,
@@ -43,8 +51,12 @@ METRICS = {
 }
 
 
-def combination_name(registration_level, short_alarm_level):
-    return f"registration-{registration_level}__short-alarm-{short_alarm_level}"
+ALARM_WAIT_LEVELS = ("off", "on")
+
+
+def combination_name(registration_level, short_alarm_level, alarm_wait_level="off"):
+    name = f"registration-{registration_level}__short-alarm-{short_alarm_level}"
+    return name + ("__alarm-wait-on" if alarm_wait_level == "on" else "")
 
 
 def read_combination(output_directory, name):
@@ -138,11 +150,13 @@ def main(arguments):
     output_directory = Path(arguments[0])
     report_chains = "--chains" in arguments[1:]
     runs_by_combination = {
-        (registration_level, short_alarm_level): read_combination(
-            output_directory, combination_name(registration_level, short_alarm_level)
+        (registration_level, short_alarm_level, alarm_wait_level): read_combination(
+            output_directory,
+            combination_name(registration_level, short_alarm_level, alarm_wait_level),
         )
         for registration_level in LEVELS
         for short_alarm_level in LEVELS
+        for alarm_wait_level in ALARM_WAIT_LEVELS
     }
     available = {levels: runs for levels, runs in runs_by_combination.items() if runs}
     if not available:
@@ -158,11 +172,11 @@ def main(arguments):
     )
     print("\n## 1. 組合せごとの平均\n")
     print(
-        "| dataset | 集約間隔 | 登録（016） | 短い警報（002） | n | "
+        "| dataset | 集約間隔 | 登録（016） | 短い警報（002） | 警報を待つ（006） | n | "
         + " | ".join(display_name for display_name, _, _ in METRICS.values())
         + " |"
     )
-    print("|---|---|---|---|---|" + "---|" * len(METRICS))
+    print("|---|---|---|---|---|---|" + "---|" * len(METRICS))
     for dataset_name, aggregation_interval in groups:
         for levels, runs in available.items():
             group_runs = [
@@ -177,16 +191,41 @@ def main(arguments):
                 values = [run[column] * scale for run in group_runs if column in run]
                 cells.append(f"{sum(values) / len(values):.{digits}f}" if values else "—")
             print(
-                f"| {dataset_name} | {aggregation_interval} | {levels[0]} | {levels[1]} | {len(group_runs)} | "
+                f"| {dataset_name} | {aggregation_interval} | {levels[0]} | {levels[1]} | {levels[2]} | {len(group_runs)} | "
                 + " | ".join(cells)
                 + " |"
             )
     comparisons = [
-        ("LEGACY-016の効果（短い警報は旧と同じ）", ("legacy", "legacy"), ("fixed", "legacy")),
-        ("LEGACY-016の効果（短い警報は直した側）", ("legacy", "fixed"), ("fixed", "fixed")),
-        ("LEGACY-002の効果（登録は旧と同じ）", ("legacy", "legacy"), ("legacy", "fixed")),
-        ("LEGACY-002の効果（登録は直した側）", ("fixed", "legacy"), ("fixed", "fixed")),
-        ("両方の効果", ("legacy", "legacy"), ("fixed", "fixed")),
+        (
+            "LEGACY-016の効果（短い警報は旧と同じ）",
+            ("legacy", "legacy", "off"),
+            ("fixed", "legacy", "off"),
+        ),
+        (
+            "LEGACY-016の効果（短い警報は直した側）",
+            ("legacy", "fixed", "off"),
+            ("fixed", "fixed", "off"),
+        ),
+        (
+            "LEGACY-002の効果（登録は旧と同じ）",
+            ("legacy", "legacy", "off"),
+            ("legacy", "fixed", "off"),
+        ),
+        (
+            "LEGACY-002の効果（登録は直した側）",
+            ("fixed", "legacy", "off"),
+            ("fixed", "fixed", "off"),
+        ),
+        ("両方の効果", ("legacy", "legacy", "off"), ("fixed", "fixed", "off")),
+        *[
+            (
+                f"警報を待つ扱い（IMPROVE-006）の効果（登録は{registration_level}、短い警報は{short_alarm_level}）",
+                (registration_level, short_alarm_level, "off"),
+                (registration_level, short_alarm_level, "on"),
+            )
+            for registration_level in reversed(LEVELS)
+            for short_alarm_level in reversed(LEVELS)
+        ],
     ]
     print(
         "\n## 2. 対の差（同じseedのrunどうし。後−前の、平均±標準誤差。`*`は、平均の絶対値が標準誤差の2倍を超えるもの）\n"
@@ -223,9 +262,9 @@ def main(arguments):
     if report_chains:
         print("## 3. 短い警報の連鎖（同じclientで、短い警報が続く並び）\n")
         print(
-            "| dataset | 集約間隔 | 登録（016） | 短い警報（002） | run | 警報の総数（平均） | 短い警報（平均） | 連鎖の数（平均） | 連鎖の長さの平均 | 連鎖の長さの最大 | 長さ5以上の連鎖にある短い警報の割合 |"
+            "| dataset | 集約間隔 | 登録（016） | 短い警報（002） | 警報を待つ（006） | run | 警報の総数（平均） | 短い警報（平均） | 連鎖の数（平均） | 連鎖の長さの平均 | 連鎖の長さの最大 | 長さ5以上の連鎖にある短い警報の割合 |"
         )
-        print("|---|---|---|---|---|---|---|---|---|---|---|")
+        print("|---|---|---|---|---|---|---|---|---|---|---|---|")
         for dataset_name, aggregation_interval in groups:
             for levels, runs in available.items():
                 all_chain_lengths, alarm_counts, run_count = [], [], 0
@@ -253,7 +292,7 @@ def main(arguments):
                     else 0.0
                 )
                 print(
-                    f"| {dataset_name} | {aggregation_interval} | {levels[0]} | {levels[1]} | {run_count} | "
+                    f"| {dataset_name} | {aggregation_interval} | {levels[0]} | {levels[1]} | {levels[2]} | {run_count} | "
                     f"{sum(alarm_counts) / run_count:.1f} | {short_alarm_count / run_count:.1f} | "
                     f"{len(all_chain_lengths) / run_count:.1f} | "
                     f"{(short_alarm_count / len(all_chain_lengths)) if all_chain_lengths else 0:.1f} | "

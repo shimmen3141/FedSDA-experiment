@@ -192,6 +192,11 @@ class FedsdaRunClient:
         """このclientの、予測の結合の方式（設定の値）。"""
         return self._run_client_settings.prediction_combination_settings.prediction_combination_strategy
 
+    @property
+    def short_change_interval_alarm_policy(self) -> str:
+        """検出器の合図があり、推定変化区間が最小件数より短いときに、警報とするかどうかの方針（設定の値）。"""
+        return self._run_client_settings.loss_change_detection_settings.short_change_interval_alarm_policy
+
     def process_observed_sample(
         self,
         *,
@@ -253,6 +258,7 @@ class FedsdaRunClient:
             minimum_candidate_mean_loss_improvement=scalar_settings.minimum_candidate_mean_loss_improvement,
             upload_delay_round_count=scalar_settings.new_model_upload_delay_round_count,
             minimum_change_interval_sample_count=scalar_settings.minimum_change_interval_sample_count,
+            short_change_interval_alarm_policy=self.short_change_interval_alarm_policy,
             maximum_alarm_interval_mean_loss_increase=scalar_settings.maximum_tolerated_mean_loss_increase,
             candidate_parameter_initialization_settings=settings.candidate_parameter_initialization_settings,
             architecture_reference_classifier=current_training_classifier,

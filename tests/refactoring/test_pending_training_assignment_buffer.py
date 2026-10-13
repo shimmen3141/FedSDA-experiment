@@ -13,6 +13,7 @@ import torch
 from federated_drift_experiment import config
 from federated_drift_experiment.clients.fedsda import FedSDAClient
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
     LossChangeDetectionSettings,
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
@@ -335,6 +336,7 @@ def test_pending_assignment_copies_instances_and_random_states_are_independent()
 def test_pending_assignment_monitoring_span_connects_to_buffer_partition(capacity):
     """monitor public結果を入力し、FIFO前の候補を明示的に切り詰める。"""
     loss_change_detection_settings = LossChangeDetectionSettings(
+        short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         e_sr_false_alarm_control_alpha=0.01,
         adwin_confidence_delta=0.05,
         adwin_minimum_test_window_sample_count=10,

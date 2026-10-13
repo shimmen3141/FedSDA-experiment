@@ -32,6 +32,9 @@ from federated_learning_experiments.data.mnist.mnist_training_data import (  # n
 from federated_learning_experiments.learning.training.initial_model_pretraining_settings import (  # noqa: E402
     InitialModelPretrainingSettings,
 )
+from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (  # noqa: E402
+    RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (  # noqa: E402
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
     PendingModelRegistrationSettings,
@@ -87,6 +90,10 @@ _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH = (
     "training_data_assignment_settings",
     "pending_sample_retention_after_too_short_change_interval_policy",
 )
+_SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH = (
+    "loss_change_detection_settings",
+    "short_change_interval_alarm_policy",
+)
 _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     1: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: {
@@ -96,8 +103,13 @@ _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
             ),
         },
         _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+        _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
     },
-    2: {_TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME},
+    2: {
+        _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+        _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+    },
+    3: {_SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME},
 }
 
 
@@ -266,6 +278,14 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                     pending_model_registration_policy=(
                         KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
                     )
+                ),
+            )
+        if _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH in added_settings:
+            client = replace(
+                client,
+                loss_change_detection_settings=replace(
+                    client.loss_change_detection_settings,
+                    short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
                 ),
             )
         if _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH in added_settings:
