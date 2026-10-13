@@ -19,3 +19,7 @@ docstringは「クラス別の事前統計を保持していないため」全�
 ## 判断（2026-10-13、Claude Codeの提案をユーザーが了承）
 
 説明の整理として採用（優先度は低い）。新実装の文書に、「クラス別の統計は保持するが、監視の基準は全体の統計」と書く。固定旧のsourceは変更しない。
+
+## 対応（2026-10-13）
+
+新実装の監視の部品（`methods/fedsda/loss_change_detection/overall_and_true_class_loss_monitoring.py`の`OverallAndTrueClassLossMonitor`のdocstring）と、[検出の文書](../../components/drift-detection.md)の「全体・正解クラス別e-SR混合」へ、上の説明を書いた。実コードとの照合: クラス別の検出器は、そのクラスの最初の観測で、`current_model_baseline_loss_mean`を基準に作る。クラス別の統計は、`learning/loss_statistics/model_and_class_loss_statistics.py`が保持する。動作は変えていない（説明だけ）。固定旧のdocstringは、そのまま。

@@ -53,6 +53,10 @@ class OverallAndTrueClassLossMonitor:
     """モデルを持たず、観測後の現行モデル損失だけを監視する。
 
     監視の対象（設定の`loss_monitoring_scope`）が`overall_loss`のときは、クラス別の検出器を作らない。
+
+    クラス別のe-SRの基準は、そのクラスを最初に観測した時点の、現行モデルの全体の損失の平均
+    （`current_model_baseline_loss_mean`）。モデルごとのクラス別の損失の統計は、保持している
+    （`ModelAndClassLossStatistics`）が、監視の基準には使わない（旧実装と同じ方針）。
     """
 
     def __init__(
