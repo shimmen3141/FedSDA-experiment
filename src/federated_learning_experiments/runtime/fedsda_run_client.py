@@ -313,16 +313,24 @@ class FedsdaRunClient:
 
     def has_model_ready_for_server_registration(self) -> bool:
         """送信保留のモデルがあり、送信までの待ちが済んでいるときだけ真。状態は変えない。"""
-        return self._owners.pending_model_upload_state.has_ready_model_upload()
+        return self.count_models_ready_for_server_registration() > 0
 
     def count_models_ready_for_server_registration(self) -> int:
         """送信までの待ちが済んだ、送信保留のモデルの数。状態は変えない。"""
-        return self._owners.pending_model_upload_state.count_ready_model_uploads()
+        return self._owners.pending_model_upload_state.count_model_uploads_to_register(
+            current_training_model_id=(
+                self._owners.current_training_model_assignment.current_training_model_id
+            )
+        )
 
     def advance_new_model_upload_wait_after_synchronization(self, *, round_index: int) -> None:
         """同期の後で、送信保留のモデルの待ちを1ラウンド進める。"""
         _validate_round_index(round_index=round_index)
-        self._owners.pending_model_upload_state.advance_upload_readiness_at_round_boundary()
+        self._owners.pending_model_upload_state.advance_upload_wait_after_synchronization(
+            current_training_model_id=(
+                self._owners.current_training_model_assignment.current_training_model_id
+            )
+        )
 
     def apply_global_model_distribution(
         self,

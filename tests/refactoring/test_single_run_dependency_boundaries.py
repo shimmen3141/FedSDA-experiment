@@ -6663,7 +6663,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
             "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
             "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
-            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
         )
     if source_module_path in (
