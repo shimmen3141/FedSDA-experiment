@@ -527,8 +527,7 @@ def make_comparison_input_features(input_feature_count):
 def assert_run_client_uses_legacy_compatible_policies(run_client):
     """実旧と比べる新のclientは、挙動を直した2つの扱いが、固定旧と同じでなければならない。
 
-    最終構成の既定は、直した側（送信保留のモデルを、現行モデルとして待った後に、それ自身のIDで登録する——LEGACY-016
-    とその見直し——。短い警報のあと、
+    最終構成の既定は、直した側（採用したモデルを、それ自身のIDで登録する——LEGACY-016——。短い警報のあと、
     取り込んだ前区間を保留から外す——LEGACY-002——）。既定のまま実旧と比べると、その経路を通らない条件では、
     気づかずに通ってしまうので、照合の入口で確かめる。
     """

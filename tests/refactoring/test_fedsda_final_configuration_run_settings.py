@@ -25,7 +25,7 @@ from federated_learning_experiments.core.settings_serialization import (
 from federated_learning_experiments.data.dataset_definitions import DEFINED_DATASET_NAMES
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
-    REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME,
+    REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
     PendingModelRegistrationSettings,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
@@ -224,8 +224,7 @@ def test_final_configuration_defaults_match_legacy_configuration(
 ):
     """既定値が、旧の設定の初期値に最終構成の固定設定を重ねた値と、登録の扱いを除く全部の項目で一致する（全dataset）。
 
-    挙動を直した2つの扱いだけは、旧と違う（送信保留のモデルを、現行モデルとして待った後に、それ自身のIDで
-    登録する——LEGACY-016とその見直し——。
+    挙動を直した2つの扱いだけは、旧と違う（送信保留のモデルを、それ自身のIDで登録する——LEGACY-016——。
     短い警報のあと、取り込んだ前区間を保留から外す——LEGACY-002——）。
     """
     legacy_values, hidden_layer_widths = read_legacy_final_configuration_values(dataset_name)
@@ -257,7 +256,7 @@ def test_final_configuration_defaults_match_legacy_configuration(
                 legacy_equivalent_client_settings,
                 pending_model_registration_settings=PendingModelRegistrationSettings(
                     pending_model_registration_policy=(
-                        REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
+                        REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
                     )
                 ),
                 training_data_assignment_settings=replace(

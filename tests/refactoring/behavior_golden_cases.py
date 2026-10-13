@@ -39,6 +39,7 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_ch
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (  # noqa: E402
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
     REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+    REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME,
     PendingModelRegistrationSettings,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (  # noqa: E402
@@ -87,8 +88,8 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版3: FedSDAが、短い警報（変化区間が最小件数より少ない警報）のあと、現行モデルへ取り込んだ前区間を、
 #      保留から外す（LEGACY-002の修正。当時の最終構成の既定）。版2との差は、版2の扱いで、前区間のある
 #      短い警報が起きるケースに限る。
-# 版4: FedSDAが、送信保留のモデルを、現行モデルとして待った後に登録する（LEGACY-016の扱いの見直し。最終構成の
-#      既定）。版3との差は、版3の扱いで、待ちの間に現行でない送信保留が起きるケースに限る。
+# 版4: FedSDAが、送信保留のモデルを、現行モデルとして待った後に登録する（LEGACY-016の扱いの見直し。2026-10-14に
+#      一度既定にしたが、比較で精度がわずかに下がったので、既定は版3の扱いへ戻した。版4は、この扱いを明示する）。版3との差は、版3の扱いで、待ちの間に現行でない送信保留が起きるケースに限る。
 SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4)
 BASELINE_VERSION = 4
 SCHEMA_VERSION = 1
@@ -122,14 +123,17 @@ _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
 }
 # 版の後に、最終構成の既定の値が変わった、FedSDAのclientの設定の項目と、その版の値。保存してある設定は、
 # この項目を持つので、比べる前に除かない（上の「後に足された項目」の表へ入れると、除かれて比べられなくなる）。
-# 版2・3: 登録の扱いは、送信保留の全部を、それ自身のIDで登録する（既定は、版4で、現行モデルとして待った後に
-# 登録する扱いへ変わる）。
+# 版2・3: 登録の扱いは、送信保留の全部を、それ自身のIDで登録する（現在の既定と同じ。2026-10-14に一度既定が
+# 変わった間も照合できるように明示した）。版4: 現行モデルとして待った後に登録する（既定ではない扱い）。
 _CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION = {
     2: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
     },
     3: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+    },
+    4: {
+        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
     },
 }
 

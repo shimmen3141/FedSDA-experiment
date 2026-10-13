@@ -99,7 +99,7 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 
 ## 旧実装の結果との比較（移行の間だけ）
 
-**2026-10-13から、FedSDAの構成は、旧実装と一致しないrunがある（意図した差）。** 新実装は、clientが採用したモデルを、現行モデルとして送信までの待ちを終えたときに、サーバへ登録する（2026-10-14から。待ちの途中で現行から外れたモデルは、送信保留のまま保持し、現行へ戻って待ちを終えたら登録する。旧実装は、送信までの待ちの間に現行モデルが変わると、正式IDだけを採番して、登録しない。[LEGACY-016](../research/implementation-findings/legacy-016-registration-id-consumed-without-model.md)、[spec](../../.kiro/specs/pending-model-registration-after-waiting-as-current-model/design.md)）。また、短い警報（推定変化区間が最小件数より少ない警報）のあと、現行モデルへ取り込んだ前区間を、保留から外す（旧実装は、保留に残すので、同じ標本が、後で、もう一度取り込まれる。[LEGACY-002](../research/implementation-findings/legacy-002-retained-assigned-samples-after-short-alarm.md)）。これらの経路を通ったrunでは、モデル数・通信量・精度が、旧実装と違う。旧と同じ扱いは、実験のコマンドからは選べない（旧実装との照合のtestだけが使う）。これらの修正のたびに、FedSDAのrunの識別子（run設定から計算する）は、全部変わった。修正より前に新実装で実行した結果は、同じ出力先を指定しても、済んだrunとしては扱われない（別のrunとして、実行される）。
+**2026-10-13から、FedSDAの構成は、旧実装と一致しないrunがある（意図した差）。** 新実装は、clientが採用したモデルを、送信までの待ちが済んだら、現行かどうかに依らず、必ずサーバへ登録する（旧実装は、送信までの待ちの間に現行モデルが変わると、正式IDだけを採番して、登録しない。2026-10-14に、現行モデルとして待ちを終えたモデルだけを登録する扱いを一度既定にしたが、比較で精度がわずかに下がったので、既定を戻した。その扱いは、設定で選べる。[LEGACY-016](../research/implementation-findings/legacy-016-registration-id-consumed-without-model.md)、[spec](../../.kiro/specs/pending-model-registration-after-waiting-as-current-model/design.md)）。また、短い警報（推定変化区間が最小件数より少ない警報）のあと、現行モデルへ取り込んだ前区間を、保留から外す（旧実装は、保留に残すので、同じ標本が、後で、もう一度取り込まれる。[LEGACY-002](../research/implementation-findings/legacy-002-retained-assigned-samples-after-short-alarm.md)）。これらの経路を通ったrunでは、モデル数・通信量・精度が、旧実装と違う。旧と同じ扱いは、実験のコマンドからは選べない（旧実装との照合のtestだけが使う）。これらの修正のたびに、FedSDAのrunの識別子（run設定から計算する）は、全部変わった。修正より前に新実装で実行した結果は、同じ出力先を指定しても、済んだrunとしては扱われない（別のrunとして、実行される）。
 
 提案構成の、新旧の結果が一致することを確かめるには、同じ条件を、旧実装（`bash tools/run_main_ablation_suite.sh reference`）でも
 実行し、次のscriptで比べる。同じdataset・seed・集約間隔のrunどうしで、精度・定常精度・検出の指標・モデル数・通信量の
@@ -141,7 +141,7 @@ FedAvgの成果物は`fedavg/runs/`配下の完全設定・共通指標・環境
 LEGACY-016（採用したモデルの登録）とLEGACY-002（短い警報のあとの保留）の修正が、精度・通信量へ与える影響を、
 提案構成で、適用の有無の組合せを同じ条件・同じseedで実行して比べる。登録の水準は3つ: `legacy`（固定旧と同じ）、
 `fixed`（待ちの済んだ送信保留の全部を、現行かどうかに依らず登録する。基準版2・3の扱い）、`waited-as-current`
-（現行モデルとして待った後に登録する。既定）。`--registration-levels`を省くと、`legacy`と`fixed`を実行する
+（現行モデルとして待った後に登録する。既定ではない。通信量を優先するときの選択肢）。`fixed`が既定の扱い。`--registration-levels`を省くと、`legacy`と`fixed`を実行する
 （2026-10-13の480 runと同じ計画）。旧と同じ扱いは、この検証と、旧実装との照合の
 testだけが使う（通常の実験のコマンドからは選べない）。
 
@@ -156,7 +156,7 @@ python analyze_behavior_fix_comparison.py results/behavior-fix-comparison --chai
 組合せの絶対値（平均±標準偏差）と、同じseedのrunどうしの差（平均±標準誤差。登録の扱いの効果、LEGACY-002の効果、
 両方の効果、警報を待つ扱いの効果）と、短い警報の連鎖の数と長さを出す。種類の違うデータを越えて平均した行は出さない。
 
-現行モデルとして待った後に登録する扱い（2026-10-14からの既定）を、短い警報の扱いの2水準と、警報を待つ扱いと組み合わせて
+現行モデルとして待った後に登録する扱い（2026-10-14に一度既定にした扱い）を、短い警報の扱いの2水準と、警報を待つ扱いと組み合わせて
 足すときは、次の2つを、上と同じ出力先へ実行する（組合せの全部を作るので、2回に分ける）。
 
 ```bash

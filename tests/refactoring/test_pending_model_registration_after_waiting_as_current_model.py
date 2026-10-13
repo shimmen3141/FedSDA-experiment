@@ -325,13 +325,13 @@ def test_server_registers_a_returned_pending_model_only_while_it_is_current(
 # ---- 構成の既定と、全体runの不変条件 ----
 
 
-def build_default_run_settings_for_case(case_name):
-    """基準版3のケースの条件で、最終構成の既定（この方針）の設定を組み立てる（版3の設定は、それ自身のIDを明示する）。"""
+def build_waiting_as_current_run_settings_for_case(case_name):
+    """基準版3のケースの条件で、登録の扱いだけを、現行モデルとして待った後に登録する扱いにした設定。
+
+    2026-10-14に、この扱いを一度既定にしたが、比較で精度がわずかに下がったので、既定は「それ自身のID」へ
+    戻した。この扱いは、設定で選ぶ（基準版4と同じ扱い）。
+    """
     case_run_settings = golden.build_case_settings(case_name, 3)
-    default_client_settings = build_experiment_run_settings(
-        configuration_name="fedsda",
-        experiment_run_conditions=case_run_settings.execution_settings.experiment_run_conditions,
-    ).run_participant_settings.run_client_settings
     case_participant_settings = case_run_settings.run_participant_settings
     return replace(
         case_run_settings,
@@ -339,15 +339,18 @@ def build_default_run_settings_for_case(case_name):
             case_participant_settings,
             run_client_settings=replace(
                 case_participant_settings.run_client_settings,
-                pending_model_registration_settings=(
-                    default_client_settings.pending_model_registration_settings
+                pending_model_registration_settings=PendingModelRegistrationSettings(
+                    pending_model_registration_policy=(
+                        REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
+                    )
                 ),
             ),
         ),
     )
 
 
-def test_every_fedsda_configuration_defaults_to_registration_after_waiting_as_current_model():
+def test_every_fedsda_configuration_defaults_to_registration_by_own_id():
+    """既定は、待ちの済んだ送信保留の全部を、それ自身のIDで登録する（2026-10-14、ユーザー判断で戻した）。"""
     fedsda_configuration_count = 0
     for configuration_name in EXPERIMENT_CONFIGURATION_NAMES:
         run_settings = golden.build_case_settings(configuration_name, 3)
@@ -360,7 +363,7 @@ def test_every_fedsda_configuration_defaults_to_registration_after_waiting_as_cu
         )
         assert (
             default_run_settings.run_participant_settings.run_client_settings.pending_model_registration_settings.pending_model_registration_policy
-            == REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
+            == REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
         ), configuration_name
     assert fedsda_configuration_count == 11
 
@@ -370,12 +373,12 @@ SINE2_EVENT_CASE_NAME = "fedsda-sine2-events"
 
 @pytest.mark.slow
 def test_whole_run_registers_only_pending_models_that_are_current():
-    """新しい既定の全体run: 確認で外れる送信保留は、毎回、確認の直前の現行。登録されなかった採用は0。
+    """この扱いの全体run: 確認で外れる送信保留は、毎回、確認の直前の現行。登録されなかった採用は0。
 
     観測は、確認と同じ選択の関数を使わず、確認の直前と直後の送信保留の一覧の差と、直前の現行のIDで行う。
     同じ条件の、それ自身のIDの方針（基準版3）の実行では、待ちの間に現行でない送信保留が、実際に起きている。
     """
-    run_settings = build_default_run_settings_for_case(SINE2_EVENT_CASE_NAME)
+    run_settings = build_waiting_as_current_run_settings_for_case(SINE2_EVENT_CASE_NAME)
     assert (
         run_settings.run_participant_settings.run_client_settings.pending_model_registration_settings.pending_model_registration_policy
         == REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
