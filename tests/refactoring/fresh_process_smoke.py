@@ -2143,13 +2143,14 @@ def main():
             )
         )
     )
-    # 最終構成の既定は、送信保留のモデルを、それ自身のIDで登録する。runの終わりに、送信保留でない一時IDの
-    # 保有モデル（登録されないままの採用）は、残らない。
+    # 最終構成の既定は、送信保留のモデルを、現行モデルとして待った後に、それ自身のIDで登録する。runの終わりに、
+    # 送信保留でない一時IDの保有モデル（登録されないままの採用）は、残らない（現行でない送信保留は、送信保留のまま
+    # 残る）。
     for run_client in experiment_run.measured_run.participants.client_operations:
         client_owners = run_client.owners
         assert (
             client_owners.pending_model_upload_state.pending_model_registration_policy
-            == "register_each_pending_model_by_its_own_id"
+            == "register_pending_model_after_waiting_as_current_model"
         )
         pending_model_ids = {
             pending_model_upload.model_id

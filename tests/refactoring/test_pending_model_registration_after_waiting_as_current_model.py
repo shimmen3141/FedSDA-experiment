@@ -6,6 +6,7 @@
 
 from dataclasses import replace
 
+import behavior_golden_cases as golden
 import pytest
 import test_server_model_registration_and_aggregation as server_test_module
 import torch
@@ -30,11 +31,19 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.runtime.fedsda_experiment_run import (
+    execute_fedsda_experiment_run,
+)
+from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.runtime.held_model_registration_confirmation import (
     confirm_held_model_registration,
 )
 from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
     register_ready_client_models,
+)
+from federated_learning_experiments.sweep.experiment_configurations import (
+    EXPERIMENT_CONFIGURATION_NAMES,
+    build_experiment_run_settings,
 )
 
 
@@ -311,3 +320,87 @@ def test_server_registers_a_returned_pending_model_only_while_it_is_current(
         (record.model_id, record.registered_round_index, record.registering_client_id)
         for record in global_model_repository.snapshot_model_registration_records()[-1:]
     ] == [(first_registered_model_id, 4, run_client.client_id)]
+
+
+# ---- 構成の既定と、全体runの不変条件 ----
+
+
+def build_default_run_settings_for_case(case_name):
+    """基準版3のケースの条件で、最終構成の既定（この方針）の設定を組み立てる（版3の設定は、それ自身のIDを明示する）。"""
+    case_run_settings = golden.build_case_settings(case_name, 3)
+    default_client_settings = build_experiment_run_settings(
+        configuration_name="fedsda",
+        experiment_run_conditions=case_run_settings.execution_settings.experiment_run_conditions,
+    ).run_participant_settings.run_client_settings
+    case_participant_settings = case_run_settings.run_participant_settings
+    return replace(
+        case_run_settings,
+        run_participant_settings=replace(
+            case_participant_settings,
+            run_client_settings=replace(
+                case_participant_settings.run_client_settings,
+                pending_model_registration_settings=(
+                    default_client_settings.pending_model_registration_settings
+                ),
+            ),
+        ),
+    )
+
+
+def test_every_fedsda_configuration_defaults_to_registration_after_waiting_as_current_model():
+    fedsda_configuration_count = 0
+    for configuration_name in EXPERIMENT_CONFIGURATION_NAMES:
+        run_settings = golden.build_case_settings(configuration_name, 3)
+        if type(run_settings) is not FedsdaRunSettings:
+            continue
+        fedsda_configuration_count += 1
+        default_run_settings = build_experiment_run_settings(
+            configuration_name=configuration_name,
+            experiment_run_conditions=run_settings.execution_settings.experiment_run_conditions,
+        )
+        assert (
+            default_run_settings.run_participant_settings.run_client_settings.pending_model_registration_settings.pending_model_registration_policy
+            == REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
+        ), configuration_name
+    assert fedsda_configuration_count == 11
+
+
+SINE2_EVENT_CASE_NAME = "fedsda-sine2-events"
+
+
+@pytest.mark.slow
+def test_whole_run_registers_only_pending_models_that_are_current():
+    """新しい既定の全体run: 確認で外れる送信保留は、毎回、確認の直前の現行。登録されなかった採用は0。
+
+    観測は、確認と同じ選択の関数を使わず、確認の直前と直後の送信保留の一覧の差と、直前の現行のIDで行う。
+    同じ条件の、それ自身のIDの方針（基準版3）の実行では、待ちの間に現行でない送信保留が、実際に起きている。
+    """
+    run_settings = build_default_run_settings_for_case(SINE2_EVENT_CASE_NAME)
+    assert (
+        run_settings.run_participant_settings.run_client_settings.pending_model_registration_settings.pending_model_registration_policy
+        == REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
+    )
+    counter = golden.PendingModelNotCurrentWhileWaitingCounter()
+    with torch.random.fork_rng(devices=[]), counter.counting():
+        experiment_run = execute_fedsda_experiment_run(run_settings=run_settings)
+    # 登録があり、そのどれもが、確認の直前の現行。
+    assert counter.confirmed_pending_model_currentness
+    assert all(
+        removed_pending_model_id == current_training_model_id
+        for removed_pending_model_id, current_training_model_id in (
+            counter.confirmed_pending_model_currentness
+        )
+    )
+    assert golden.count_unregistered_adopted_models(experiment_run) == 0
+    # runの終わりの一時IDの保有モデルは、全部、送信保留のまま残ったもの（現行へ戻らなかったものと、最後の区間の
+    # 採用）。その数は、送信保留の数と等しい。
+    temporary_held_model_count = sum(
+        held_state.model_id < 0
+        for run_client in experiment_run.measured_run.participants.client_operations
+        for held_state in run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+    )
+    assert golden.count_pending_models_at_run_end(experiment_run) == temporary_held_model_count
+    _, own_id_event_counts = golden.capture_case_and_count_divergence_events(
+        SINE2_EVENT_CASE_NAME, 3
+    )
+    assert own_id_event_counts["pending_model_not_current_while_waiting_count"] > 0

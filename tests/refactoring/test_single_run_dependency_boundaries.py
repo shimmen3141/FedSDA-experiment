@@ -5853,7 +5853,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_participant_factory.FedsdaRunParticipantSettings",
             "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.PendingModelRegistrationSettings",
-            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME",
+            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.RAISE_ALARM_IMMEDIATELY_POLICY_NAME",
         )
