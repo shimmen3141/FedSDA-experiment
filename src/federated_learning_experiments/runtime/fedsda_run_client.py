@@ -312,11 +312,13 @@ class FedsdaRunClient:
         )
 
     def has_model_ready_for_server_registration(self) -> bool:
-        """送信保留のモデルがあり、送信までの待ちが済んでいるときだけ真。状態は変えない。"""
+        """この同期で登録する送信保留のモデルがあるときだけ真（現行モデルとして待った後に登録する方針では、待ちの済んだ
+        現行の送信保留があるとき）。状態は変えない。"""
         return self.count_models_ready_for_server_registration() > 0
 
     def count_models_ready_for_server_registration(self) -> int:
-        """送信までの待ちが済んだ、送信保留のモデルの数。状態は変えない。"""
+        """この同期で登録する送信保留のモデルの数（現行モデルとして待った後に登録する方針では、待ちの済んだ現行の
+        送信保留の有無で、0か1）。状態は変えない。"""
         return self._owners.pending_model_upload_state.count_model_uploads_to_register(
             current_training_model_id=(
                 self._owners.current_training_model_assignment.current_training_model_id
