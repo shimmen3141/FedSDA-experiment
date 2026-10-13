@@ -211,7 +211,9 @@ def complete_alarm_buffer_response(
         drained_pending_sample_indices = _select_earlier_interval_sample_indices(
             alarm_buffer_response=alarm_buffer_response
         )
-        # 外す位置は、保留の先頭の並びでなければならない（更新より前に確かめる）。
+        # 外す位置は、保留の先頭の並びでなければならない（更新より前に確かめる）。上の、準備した区間の位置が
+        # 保留の位置とちょうど一致することの検査に含まれるので、ここでは拒否しない。保留の消費の前提を、
+        # この分岐の中に、明示して置く。
         if (
             pending_assignment_state.pending_sample_indices[: len(drained_pending_sample_indices)]
             != drained_pending_sample_indices

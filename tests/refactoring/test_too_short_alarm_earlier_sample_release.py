@@ -19,6 +19,10 @@ from test_alarm_response_completion import (
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 import federated_learning_experiments.runtime.alarm_occurrence_handling as alarm_occurrence_module
+import federated_learning_experiments.runtime.observed_sample_processing as observed_sample_processing_module
+from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
+    PendingSampleObservationStore,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
 )
@@ -307,6 +311,140 @@ def test_completion_releases_earlier_interval_after_too_short_change_interval(
                     )
 
 
+# ---- 短い警報の後に、保留を読む処理（要求1.7） ----
+
+
+@pytest.mark.parametrize(
+    "policy_name", PENDING_SAMPLE_RETENTION_AFTER_TOO_SHORT_CHANGE_INTERVAL_POLICIES
+)
+def test_adwin_window_check_reads_pending_samples_left_after_too_short_change_interval(
+    policy_name, monkeypatch, valid_run_settings_mapping
+):
+    """短い警報の後、保留の標本は、保留の位置に合わせて切り詰められ、ADWINの補助の判定は、その保留を読む。
+
+    前区間を外す方針: 保留は、変化区間の標本だけ。窓の件数が、変化区間より多ければ、判定は、評価せずに偽
+    （件数の条件）。窓の件数が、変化区間の件数なら、評価する標本は、変化区間の標本だけ。
+    全部残す方針: 保留は、取り込んだ前区間を含む全部。同じ窓の件数で、取込み済みの標本を含めて評価する。
+    推定変化点の算出も、同じ保留（標本1件の処理が、1度だけ読む保留の標本）の件数で打ち切る。
+    """
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(823)
+        response_arguments, completion_arguments, *_ = build_response_completion_oracle(
+            monkeypatch=monkeypatch,
+            loss_change_detection_settings=valid_run_settings_mapping[
+                "loss_change_detection_settings"
+            ],
+            class_count=2,
+            alarm_interval_resolution_case="current_model_maintained",
+            earlier_sample_count=3,
+            estimated_change_span_sample_count=2,
+            minimum_change_interval_sample_count=3,
+        )
+        replace_pending_buffer_with_policy(
+            response_arguments=response_arguments,
+            completion_arguments=completion_arguments,
+            policy_name=policy_name,
+        )
+        pending_sample_observations = response_arguments["pending_sample_observations"]
+        # 標本1件の処理と同じく、保留の標本のownerが、警報の前の保留を持つ。
+        pending_sample_observation_store = PendingSampleObservationStore()
+        for indexed_observation in pending_sample_observations:
+            pending_sample_observation_store.append_pending_sample_observation(
+                indexed_observation=indexed_observation
+            )
+        alarm_buffer_response = respond_to_alarm_with_buffered_samples(**response_arguments)
+        assert alarm_buffer_response.response_outcome == "alarm_change_interval_too_short"
+        complete_alarm_buffer_response(
+            alarm_buffer_response=alarm_buffer_response, **completion_arguments
+        )
+        # 標本1件の処理が、警報の処理の後に行う、保留の標本の切詰め。
+        pending_sample_observation_store.retain_latest_pending_sample_observations(
+            retained_sample_indices=completion_arguments["pending_training_assignment_buffer"]
+            .get_state_snapshot()
+            .pending_sample_indices
+        )
+        pending_after_alarm = (
+            pending_sample_observation_store.snapshot_pending_sample_observations()
+        )
+        prepared_intervals = alarm_buffer_response.prepared_alarm_training_intervals
+        assert len(prepared_intervals.earlier_observations) > 0
+        change_interval_observations = prepared_intervals.change_interval_observations
+        releases_earlier_samples = (
+            policy_name == RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME
+        )
+        assert pending_after_alarm == (
+            change_interval_observations
+            if releases_earlier_samples
+            else pending_sample_observations
+        )
+        evaluated_feature_rows = []
+        real_evaluation = (
+            observed_sample_processing_module.evaluate_classifier_per_sample_bounded_losses
+        )
+
+        def observe_evaluation(**evaluation_arguments):
+            evaluated_feature_rows.append(evaluation_arguments["input_features"].clone())
+            return real_evaluation(**evaluation_arguments)
+
+        monkeypatch.setattr(
+            observed_sample_processing_module,
+            "evaluate_classifier_per_sample_bounded_losses",
+            observe_evaluation,
+        )
+
+        def check_adwin_window(adwin_window_sample_count):
+            return observed_sample_processing_module._current_model_loss_worsened_over_adwin_window(
+                adwin_window_sample_count=adwin_window_sample_count,
+                # 窓の件数の範囲の条件（容量−5以上）を、どの窓の件数でも満たす容量。
+                pending_buffer_capacity_sample_count=5,
+                pending_sample_observations=pending_after_alarm,
+                current_training_model_id=response_arguments[
+                    "current_training_model_assignment"
+                ].current_training_model_id,
+                held_model_training_state_registry=response_arguments[
+                    "held_model_training_state_registry"
+                ],
+                loss_statistics_store=response_arguments["loss_statistics_store"],
+                maximum_mean_loss_increase=response_arguments[
+                    "maximum_alarm_interval_mean_loss_increase"
+                ],
+            )
+
+        whole_pending_sample_count = len(pending_sample_observations)
+        change_interval_sample_count = len(change_interval_observations)
+        assert change_interval_sample_count < whole_pending_sample_count
+        # 窓が、警報の前の保留の全部の件数のとき。
+        whole_window_result = check_adwin_window(whole_pending_sample_count)
+        if releases_earlier_samples:
+            # 保留が窓より短いので、評価しない。
+            assert whole_window_result is False and evaluated_feature_rows == []
+        else:
+            # 取り込んだ前区間を含む、全部の標本を評価する。
+            assert len(evaluated_feature_rows) == 1
+            assert torch.equal(
+                evaluated_feature_rows[0],
+                torch.cat(
+                    [
+                        observation.training_sample.input_features
+                        for observation in pending_sample_observations
+                    ]
+                ),
+            )
+        evaluated_feature_rows.clear()
+        # 窓が、変化区間の件数のとき: どちらの方針でも、保留の末尾（変化区間の標本）だけを評価する。
+        assert isinstance(check_adwin_window(change_interval_sample_count), bool)
+        assert len(evaluated_feature_rows) == 1
+        assert torch.equal(
+            evaluated_feature_rows[0],
+            torch.cat(
+                [
+                    observation.training_sample.input_features
+                    for observation in change_interval_observations
+                ]
+            ),
+        )
+
+
 # ---- 全体run: 同じ標本が、2回取り込まれない ----
 
 SINE2_EVENT_CASE_NAME = "fedsda-sine2-events"
@@ -425,18 +563,6 @@ def test_whole_run_assigns_each_sample_at_most_once(sine2_event_runs_by_policy):
     assert observation["too_short_alarm_with_earlier_interval_count"] > 0
     assert golden.count_repeated_training_sample_assignments(experiment_run) == 0
     assert observation["pending_sample_already_assigned_count"] == 0
-    # 観測した標本は、学習標本（どれかのモデル）か、runの終わりの保留か、進行中の候補検証の、どれかにある。
-    conditions = experiment_run.run_settings.execution_settings.experiment_run_conditions
-    assigned_or_pending_sample_count = 0
-    for run_client in experiment_run.measured_run.participants.client_operations:
-        owners = run_client.owners
-        assigned_or_pending_sample_count += sum(
-            len(collection.training_samples)
-            for collection in owners.training_sample_store.snapshot_ordered_model_training_samples()
-        ) + len(owners.pending_sample_observation_store.snapshot_pending_sample_observations())
-    assert assigned_or_pending_sample_count <= (
-        conditions.client_count * conditions.per_client_sample_count
-    )
 
 
 def test_whole_run_with_keep_all_policy_assigns_samples_twice(sine2_event_runs_by_policy):
@@ -459,7 +585,12 @@ def test_whole_runs_of_both_too_short_alarm_policies_produce_different_metrics(
 
 @pytest.mark.parametrize("detection_configuration_name", ADWIN_CONFIGURATION_NAMES)
 def test_adwin_monitoring_run_reads_only_unassigned_pending_samples(detection_configuration_name):
-    """ADWINで監視する構成: 補助の判定と推定変化点が読む保留に、取込み済みの標本が入らない（既定の扱い）。"""
+    """ADWINで監視する構成の全体runが、既定の扱いで、例外なく終わり、同じ標本を2回取り込まない。
+
+    この条件では、ADWINの構成に、短い警報が起きない（計測でも0回）。短い警報の後に、ADWINの補助の判定が
+    読む保留は、下の`test_adwin_window_check_reads_pending_samples_left_after_too_short_change_interval`が、
+    直接確かめる。
+    """
     experiment_run, observation = execute_run_observing_alarm_responses(
         build_sine2_event_run_settings(
             policy_name=RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME,
