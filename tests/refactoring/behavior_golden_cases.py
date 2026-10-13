@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 
@@ -37,12 +38,18 @@ from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_ch
 )
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (  # noqa: E402
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
+    REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
     PendingModelRegistrationSettings,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (  # noqa: E402
     KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
 )
-from federated_learning_experiments.runtime import alarm_occurrence_handling  # noqa: E402
+from federated_learning_experiments.runtime import (  # noqa: E402
+    alarm_occurrence_handling,
+    fedsda_run_client,
+    server_model_registration_and_aggregation,
+    server_round_synchronization,
+)
 from federated_learning_experiments.runtime.fedavg_experiment_run import (  # noqa: E402
     execute_fedavg_experiment_run,
 )
@@ -110,6 +117,18 @@ _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
     },
     3: {_SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME},
+}
+# 版の後に、最終構成の既定の値が変わった、FedSDAのclientの設定の項目と、その版の値。保存してある設定は、
+# この項目を持つので、比べる前に除かない（上の「後に足された項目」の表へ入れると、除かれて比べられなくなる）。
+# 版2・3: 登録の扱いは、送信保留の全部を、それ自身のIDで登録する（既定は、版4で、現行モデルとして待った後に
+# 登録する扱いへ変わる）。
+_CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION = {
+    2: {
+        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+    },
+    3: {
+        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+    },
 }
 
 
@@ -271,6 +290,18 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                 ),
             )
         added_settings = _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(baseline_version, {})
+        changed_settings = _CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION.get(
+            baseline_version, {}
+        )
+        if _PENDING_MODEL_REGISTRATION_SETTINGS_PATH in changed_settings:
+            client = replace(
+                client,
+                pending_model_registration_settings=PendingModelRegistrationSettings(
+                    pending_model_registration_policy=changed_settings[
+                        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH
+                    ]
+                ),
+            )
         if _PENDING_MODEL_REGISTRATION_SETTINGS_PATH in added_settings:
             client = replace(
                 client,
@@ -579,18 +610,110 @@ def capture_case(case_name, baseline_version=BASELINE_VERSION):
     return capture_case_and_count_divergence_events(case_name, baseline_version)[0]
 
 
+def _pending_model_ids(pending_model_upload_state):
+    return tuple(
+        pending_model_upload.model_id
+        for pending_model_upload in pending_model_upload_state.get_all_pending_model_uploads()
+    )
+
+
+class PendingModelNotCurrentWhileWaitingCounter:
+    """待ちの間に現行でない送信保留の事象を、FedSDAの全体runの実行の間だけ数える（版3→4の差の説明）。
+
+    (i) 後に同期が続く、clientの待ちの進行の直前の、現行でない送信保留の数（進行のたびに仮の数へ足し、次の
+    同期の登録が呼ばれたときに、本の数へ移す。最後の同期の後の進行の分は、本の数へ入らない）。(ii) 確認で外れた
+    送信保留のIDが、確認の直前の現行のIDと違った回数。読むのは、送信保留の一覧と現行のIDだけ（どの方針でも
+    許される）。確認と同じ選択の関数は、観測に使わない。
+
+    包みは、runの参加者を組み立てる前に入れる（clientの待ちの進行はclassの属性、登録と確認は、それを名前で
+    importして呼ぶmoduleの名前を包む）。`confirmed_pending_model_currentness`には、確認ごとに、（外れた送信保留
+    のID、確認の直前の現行のID）を残す（新しい既定の全体runの不変条件のtestが読む）。
+    """
+
+    def __init__(self):
+        self.counted_event_count = 0
+        self._provisional_event_count = 0
+        self.confirmed_pending_model_currentness = []
+
+    @contextmanager
+    def counting(self):
+        client_type = fedsda_run_client.FedsdaRunClient
+        real_advance = client_type.advance_new_model_upload_wait_after_synchronization
+        real_registration = server_round_synchronization.register_ready_client_models
+        real_confirmation = (
+            server_model_registration_and_aggregation.confirm_held_model_registration
+        )
+        counter = self
+
+        def advance_counting_pending_models_that_are_not_current(run_client, **arguments):
+            owners = run_client.owners
+            current_training_model_id = (
+                owners.current_training_model_assignment.current_training_model_id
+            )
+            counter._provisional_event_count += sum(
+                pending_model_id != current_training_model_id
+                for pending_model_id in _pending_model_ids(owners.pending_model_upload_state)
+            )
+            return real_advance(run_client, **arguments)
+
+        def registration_moving_provisional_events(**arguments):
+            counter.counted_event_count += counter._provisional_event_count
+            counter._provisional_event_count = 0
+            return real_registration(**arguments)
+
+        def confirmation_observing_removed_pending_model(**arguments):
+            pending_model_upload_state = arguments["pending_model_upload_state"]
+            current_training_model_id = arguments[
+                "current_training_model_assignment"
+            ].current_training_model_id
+            pending_model_ids_before = _pending_model_ids(pending_model_upload_state)
+            assignment_change = real_confirmation(**arguments)
+            pending_model_ids_after = _pending_model_ids(pending_model_upload_state)
+            for removed_pending_model_id in pending_model_ids_before:
+                if removed_pending_model_id in pending_model_ids_after:
+                    continue
+                counter.confirmed_pending_model_currentness.append(
+                    (removed_pending_model_id, current_training_model_id)
+                )
+                counter.counted_event_count += removed_pending_model_id != current_training_model_id
+            return assignment_change
+
+        client_type.advance_new_model_upload_wait_after_synchronization = (
+            advance_counting_pending_models_that_are_not_current
+        )
+        server_round_synchronization.register_ready_client_models = (
+            registration_moving_provisional_events
+        )
+        server_model_registration_and_aggregation.confirm_held_model_registration = (
+            confirmation_observing_removed_pending_model
+        )
+        try:
+            yield self
+        finally:
+            client_type.advance_new_model_upload_wait_after_synchronization = real_advance
+            server_round_synchronization.register_ready_client_models = real_registration
+            server_model_registration_and_aggregation.confirm_held_model_registration = (
+                real_confirmation
+            )
+
+
 def capture_case_and_count_divergence_events(case_name, baseline_version=BASELINE_VERSION):
     """ケースを実行して、（goldenと比べる形の結果、次の版と状態が分かれる事象の数）を返す。
 
     事象の数は、名前→数の辞書: 登録されないまま残った採用（版1→2で直した。runの終わりの状態から数える）、
     前区間のある短い警報（版2→3で、扱いが分かれる。実行の間だけ、警報の処理が呼ぶ完了処理を包んで数える）、
-    同じ標本の2回目の取込み（runの終わりの状態から数える）。FedDrift・FedAvgのケースは、どれも0。
+    同じ標本の2回目の取込み（runの終わりの状態から数える）、待ちの間に現行でない送信保留（版3→4で、扱いが
+    分かれる。後に同期が続く待ちの進行の直前に、現行でない送信保留の数と、確認で外れた送信保留が、確認の直前の
+    現行でなかった回数の和。実行の間だけ、clientの待ちの進行・同期が呼ぶ登録・登録が呼ぶ確認を包んで数える。
+    包みが読むのは、3つの方針の全部で許される操作——送信保留の一覧と現行のID——だけ）。FedDrift・FedAvgの
+    ケースは、どれも0。
     これらは、古い版の結果には入らない（古い版のファイルは、変更しない）ので、版の差の説明のtestが、ここから読む。
     """
     divergence_event_counts = dict(
         unregistered_adopted_model_count=0,
         too_short_alarm_with_earlier_interval_count=0,
         repeated_training_sample_assignment_count=0,
+        pending_model_not_current_while_waiting_count=0,
     )
     settings = build_case_settings(case_name, baseline_version)
     if type(settings) is FedavgRunSettings:
@@ -629,10 +752,15 @@ def capture_case_and_count_divergence_events(case_name, baseline_version=BASELIN
         alarm_occurrence_handling.complete_alarm_buffer_response = (
             count_too_short_alarm_with_earlier_interval
         )
+        pending_model_event_counter = PendingModelNotCurrentWhileWaitingCounter()
         try:
-            run = execute_fedsda_experiment_run(run_settings=settings)
+            with pending_model_event_counter.counting():
+                run = execute_fedsda_experiment_run(run_settings=settings)
         finally:
             alarm_occurrence_handling.complete_alarm_buffer_response = real_completion
+        divergence_event_counts["pending_model_not_current_while_waiting_count"] = (
+            pending_model_event_counter.counted_event_count
+        )
         divergence_event_counts.update(
             unregistered_adopted_model_count=count_unregistered_adopted_models(run),
             repeated_training_sample_assignment_count=count_repeated_training_sample_assignments(
