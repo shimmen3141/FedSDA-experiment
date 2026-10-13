@@ -21,7 +21,7 @@
 | IMPROVE-003 | 固定した参照モデルの検証損失を到達時にまとめて評価 | 見送り（2026-10-13） | [詳細](improve-003-batch-fixed-reference-loss-evaluation.md) |
 | IMPROVE-004 | 履歴基準が使えないモデルの警報区間評価を省く | 保留（2026-10-13） | [詳細](improve-004-skip-alarm-loss-evaluation-without-reuse-baseline.md) |
 | IMPROVE-005 | 前区間の事前検査と吸収で損失評価を共用 | 対応済み（`baf072c`。2026-10-13に確認） | [詳細](improve-005-reuse-prevalidated-alarm-interval-losses.md) |
-| IMPROVE-006 | 変化区間が不足した警報の後、検出の証拠を破棄しない | 保留（LEGACY-002の修正の後、sine2で短い警報が約3〜4倍に増えた。検討の材料あり。2026-10-13） | [詳細](improve-006-keep-detection-evidence-after-too-short-alarm.md) |
+| IMPROVE-006 | 変化区間が不足した警報の後、検出の証拠を破棄しない | 保留（待つ案を、設定で選べる形で実装済み。既定は変えていない。sine2では精度+0.43ポイント・切替の遅れ34→9標本、ほかのdatasetは複数seedの比較待ち。2026-10-13） | [詳細](improve-006-keep-detection-evidence-after-too-short-alarm.md) |
 | IMPROVE-007 | 最終予測に不要な比較予測診断を選択実行する | 保留（2026-10-13） | [詳細](improve-007-optional-counterfactual-prediction-diagnostics.md) |
 | IMPROVE-008 | 警報応答で、区間解決の引数の検査を区間の準備より前に行う | 保留（2026-10-13） | [詳細](improve-008-validate-alarm-resolution-inputs-before-preparation.md) |
 | IMPROVE-009 | 依存境界testの方式を一本化し、機械生成の注入契約testを減らす | 見送り（2026-10-09ユーザー決定） | [詳細](improve-009-unify-dependency-boundary-tests.md) |

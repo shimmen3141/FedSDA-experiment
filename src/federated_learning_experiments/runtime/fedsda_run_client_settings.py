@@ -30,6 +30,7 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.can
     CandidateParameterInitializationSettings,
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME,
     LossChangeDetectionSettings,
 )
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
@@ -260,6 +261,23 @@ class FedsdaRunClientSettings:
                 validation_failure_reason=(
                     "最終FedSDA構成ではFixed-Shareの時間尺度を帰属保留FIFO容量と同値にしてください。"
                     f"pending_assignment_buffer_capacity_samples={pending_capacity!r}。"
+                ),
+            )
+        # 待つ扱いは、保留の件数と推定の長さの小さい方が、最小件数に達するまで警報としない。保留の容量が
+        # 最小件数より小さいと、合図が続いても、警報にならない。
+        minimum_change_interval = self.scalar_settings.minimum_change_interval_sample_count
+        if (
+            detection_settings.short_change_interval_alarm_policy
+            == WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME
+            and pending_capacity < minimum_change_interval
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="short_change_interval_alarm_policy",
+                specified_parameter_value=detection_settings.short_change_interval_alarm_policy,
+                validation_failure_reason=(
+                    "警報を待つ扱いでは、帰属保留FIFO容量を、変化区間の最小件数以上にしてください。"
+                    f"pending_assignment_buffer_capacity_samples={pending_capacity!r}、"
+                    f"minimum_change_interval_sample_count={minimum_change_interval!r}。"
                 ),
             )
         minimum_improvement = self.scalar_settings.minimum_candidate_mean_loss_improvement

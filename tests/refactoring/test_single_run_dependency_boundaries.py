@@ -6137,6 +6137,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_client_settings.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME",
             "dataclasses.dataclass",
             "dataclasses.field",
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",

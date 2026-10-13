@@ -11,6 +11,7 @@ from dataclasses import fields, is_dataclass, replace
 import behavior_golden_cases as golden
 import pytest
 import torch
+from test_fedsda_run_client_settings import make_valid_run_client_settings
 from test_observed_sample_processing import (
     RECORDING_ORACLE_CASES,
     build_sample_processing_oracle,
@@ -97,6 +98,41 @@ def test_waiting_policy_is_rejected_with_adwin(loss_monitoring_scope):
             short_change_interval_alarm_policy=(
                 WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME
             ),
+        )
+    assert raised_error.value.configuration_parameter_name == "short_change_interval_alarm_policy"
+
+
+def test_waiting_policy_requires_pending_capacity_not_below_minimum_change_interval(
+    valid_run_settings_mapping,
+):
+    """待つ扱いで、保留の容量が最小件数より小さいと、合図が続いても警報にならない。組合せを拒否する。"""
+    valid_settings = make_valid_run_client_settings(valid_run_settings_mapping)
+    pending_capacity = (
+        valid_settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
+    )
+    waiting_detection_settings = replace(
+        valid_settings.loss_change_detection_settings,
+        short_change_interval_alarm_policy=WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME,
+    )
+    # 容量と最小件数が同じなら、受け付ける。いまの扱いは、容量より大きい最小件数も、これまでどおり受け付ける。
+    make_valid_run_client_settings(
+        valid_run_settings_mapping,
+        loss_change_detection_settings=waiting_detection_settings,
+        scalar_settings=replace(
+            valid_settings.scalar_settings, minimum_change_interval_sample_count=pending_capacity
+        ),
+    )
+    too_large_minimum_scalar_settings = replace(
+        valid_settings.scalar_settings, minimum_change_interval_sample_count=pending_capacity + 1
+    )
+    make_valid_run_client_settings(
+        valid_run_settings_mapping, scalar_settings=too_large_minimum_scalar_settings
+    )
+    with pytest.raises(RunSettingsValidationError) as raised_error:
+        make_valid_run_client_settings(
+            valid_run_settings_mapping,
+            loss_change_detection_settings=waiting_detection_settings,
+            scalar_settings=too_large_minimum_scalar_settings,
         )
     assert raised_error.value.configuration_parameter_name == "short_change_interval_alarm_policy"
 
@@ -313,6 +349,7 @@ def test_waiting_processes_short_interval_signal_like_a_sample_without_signal(
         suppress_signal_while_change_interval_is_short=True,
     )
     deferred_signal_count = 0
+    deferred_signal_count_while_holding_validation = 0
     alarm_count = 0
     for waiting_step, reference_step in zip(waiting_steps, reference_steps, strict=True):
         assert waiting_step == reference_step, waiting_step["sample_index"]
@@ -323,11 +360,17 @@ def test_waiting_processes_short_interval_signal_like_a_sample_without_signal(
             waiting_step["signal"] and change_interval_is_long_enough
         ), waiting_step["sample_index"]
         assert waiting_step["alarm_outcome"] != SHORT_ALARM_OUTCOME
-        deferred_signal_count += waiting_step["signal"] and not change_interval_is_long_enough
+        signal_is_deferred = waiting_step["signal"] and not change_interval_is_long_enough
+        deferred_signal_count += signal_is_deferred
+        # 待った標本では、候補検証の保持は変わらない（上の一致）ので、処理の後の状態で、保持の有無を読める。
+        deferred_signal_count_while_holding_validation += (
+            signal_is_deferred and waiting_step["state"]["held_validation_session"] is not None
+        )
         alarm_count += waiting_step["alarm_handled"]
     OBSERVED_TRAJECTORY_COVERAGE[(recording_oracle_case, historical_mean_losses, block_length)] = (
         deferred_signal_count,
         alarm_count,
+        deferred_signal_count_while_holding_validation,
     )
 
 
@@ -335,11 +378,13 @@ def test_waiting_trajectories_cover_deferred_signals_and_alarms():
     """上の条件の集まりが、待った標本と、待った後の警報の、両方を通っている。"""
     if len(OBSERVED_TRAJECTORY_COVERAGE) != len(TRAJECTORY_CONDITIONS):
         pytest.skip("全条件を実行したときだけ判定する")
-    assert sum(deferred for deferred, _ in OBSERVED_TRAJECTORY_COVERAGE.values()) > 0
-    assert sum(alarms for _, alarms in OBSERVED_TRAJECTORY_COVERAGE.values()) > 0
-    assert any(deferred and alarms for deferred, alarms in OBSERVED_TRAJECTORY_COVERAGE.values())
-    # 待った標本が2つ以上ある条件（2つ目は、候補検証を保持している間の合図）。
-    assert any(deferred >= 2 for deferred, _ in OBSERVED_TRAJECTORY_COVERAGE.values())
+    coverage = list(OBSERVED_TRAJECTORY_COVERAGE.values())
+    assert sum(deferred for deferred, _, _ in coverage) > 0
+    assert sum(alarms for _, alarms, _ in coverage) > 0
+    assert any(deferred and alarms for deferred, alarms, _ in coverage)
+    # 候補検証を保持している間の合図を、待った標本がある（要求1.5）。保持していない間に待った標本もある。
+    assert any(held_deferred > 0 for _, _, held_deferred in coverage)
+    assert any(deferred > held_deferred for deferred, _, held_deferred in coverage)
 
 
 def test_immediate_policy_raises_short_alarms_on_the_same_stream(
