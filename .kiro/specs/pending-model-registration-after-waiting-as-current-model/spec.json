@@ -1,0 +1,51 @@
+{
+  "feature_name": "pending-model-registration-after-waiting-as-current-model",
+  "created_at": "2026-10-14",
+  "updated_at": "2026-10-14",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任。独立Haiku 5.5 medium仕様レビュー9回（9回目はCHANGES REQUIRED。Major 2を直し、ユーザーの承認で、10回目を受けずに進めた）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任。独立Haiku 5.5 medium仕様レビュー9回（9回目はCHANGES REQUIRED。Major 2を直し、ユーザーの承認で、10回目を受けずに進めた）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任。独立Haiku 5.5 medium仕様レビュー9回（9回目はCHANGES REQUIRED。Major 2を直し、ユーザーの承認で、10回目を受けずに進めた）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任。独立Haiku 5.5 medium仕様レビュー9回（9回目はCHANGES REQUIRED。Major 2を直し、ユーザーの承認で、10回目を受けずに進めた）"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "deviation_approved_by_user",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "9ebc67e",
+    "target": "未commitの仕様書群5文書",
+    "session_ids": [
+      "ad6c6342-a049-4e99-acfc-5b7cac023ea0",
+      "8d922683-8b4a-46f2-a132-ce88e4f79dce",
+      "f40be7c3-a3a0-4110-9c64-aa43b6ee6b55",
+      "691ea910-c494-4e5b-bb36-b1d1922e9437",
+      "8a2d11b4-5df6-45b1-a738-57f6fa2c08ba",
+      "22a41aa3-20a3-4abe-b1b5-f9367fa0bc12",
+      "340339da-e601-4be1-8fd3-c55caeadb8e2",
+      "8f1ecdf8-20a7-45ff-b549-dcbfa97b291f",
+      "f4b93ee9-73c5-42a6-85df-c8f431381608"
+    ],
+    "result": "1〜9回目はCHANGES REQUIRED（Majorを直すたびに再確認）。9回目のMajor 2件（検証用の包みと観測）を直し、ユーザーの承認で、10回目を受けずに実装へ進んだ（手順の逸脱。tasks.mdのImplementation Notes）。",
+    "output": "../../venv/refactoring-tests/registration-after-waiting-spec-review-{1..9}.jsonl",
+    "selection_reason": "可変状態と更新順の設計なので、Haiku 5.5"
+  }
+}
