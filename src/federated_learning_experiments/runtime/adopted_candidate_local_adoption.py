@@ -5,8 +5,8 @@ from torch import Tensor
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatisticsStore,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
@@ -111,7 +111,7 @@ def _reject_temporary_model_id_already_in_use_for_adoption(
 def adopt_candidate_as_current_training_model(
     *,
     temporary_model_id_allocator: TemporaryModelIdAllocator,
-    adopted_candidate_classifier: ResidualAdapterClassifier,
+    adopted_candidate_classifier: ModelArchitectureClassifier,
     candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     initial_statistics_input_features: Tensor,
     initial_statistics_observed_class_labels: Tensor,

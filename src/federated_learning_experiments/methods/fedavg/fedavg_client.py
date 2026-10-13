@@ -14,8 +14,8 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
@@ -49,7 +49,7 @@ class FedavgClient:
         self,
         *,
         client_id: int,
-        initial_classifier: ResidualAdapterClassifier,
+        initial_classifier: ModelArchitectureClassifier,
         initial_parameter_optimizer_state: ParameterOptimizerState,
         initial_loss_statistics: ModelAndClassLossStatistics,
         local_training_batch_sample_count: int,
@@ -196,7 +196,7 @@ class FedavgClient:
             ):
                 raise ValueError("配布parameterは同じshape/device/dtypeの有限値が必要です。")
         old = self.classifier
-        classifier = ResidualAdapterClassifier(
+        classifier = ModelArchitectureClassifier(
             model_architecture_settings=old.model_architecture_settings,
             input_feature_count=old.input_feature_count,
             hidden_layer_widths=old.hidden_layer_widths,

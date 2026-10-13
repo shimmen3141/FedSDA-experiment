@@ -4,9 +4,9 @@ from torch import float32, strided
 from torch.nn import Parameter
 from torch.optim import SGD, Adam
 
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
     INDEPENDENT_MODELS_ARCHITECTURE_NAME,
-    ResidualAdapterClassifier,
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -17,12 +17,12 @@ from .parameter_optimizer_state import ParameterOptimizerState
 
 def _validate_adopted_candidate_integration_inputs(
     *,
-    adopted_candidate_classifier: ResidualAdapterClassifier,
+    adopted_candidate_classifier: ModelArchitectureClassifier,
     candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     active_shared_feature_extractor: SharedFeatureExtractor,
 ) -> None:
-    if type(adopted_candidate_classifier) is not ResidualAdapterClassifier:
-        raise ValueError("採用候補はexact ResidualAdapterClassifierが必要です。")
+    if type(adopted_candidate_classifier) is not ModelArchitectureClassifier:
+        raise ValueError("採用候補はexact ModelArchitectureClassifierが必要です。")
     if type(candidate_concept_specific_parameter_optimizer_state) is not ParameterOptimizerState:
         raise ValueError("候補個別管理器はexact ParameterOptimizerStateが必要です。")
     source_feature_extractor = adopted_candidate_classifier.feature_extractor
@@ -40,7 +40,7 @@ def _validate_adopted_candidate_integration_inputs(
         hidden_layer_widths=source_feature_extractor.hidden_layer_widths,
     )
     candidate_concept_parameters = tuple(
-        adopted_candidate_classifier.residual_adapter.parameters()
+        adopted_candidate_classifier.model_owned_feature_transform.parameters()
     ) + tuple(adopted_candidate_classifier.classification_layer.parameters())
     candidate_parameter_optimizer = (
         candidate_concept_specific_parameter_optimizer_state.parameter_optimizer
@@ -85,7 +85,7 @@ def _validate_adopted_candidate_integration_inputs(
 
 def integrate_adopted_candidate_shared_features(
     *,
-    adopted_candidate_classifier: ResidualAdapterClassifier,
+    adopted_candidate_classifier: ModelArchitectureClassifier,
     candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     active_shared_feature_extractor: SharedFeatureExtractor,
 ) -> None:

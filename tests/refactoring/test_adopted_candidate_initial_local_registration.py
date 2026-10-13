@@ -36,11 +36,11 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
@@ -100,7 +100,7 @@ def convert_legacy_parameter_name(legacy_parameter_name):
     """旧のモデルのパラメータの名前を、新の分類器の名前へ直す。
 
     共有部を持たない旧のモデル（`SimpleMLP`）は、層を1列（`net`）に持つ: 隠れ層（Linear、ReLU）の並びの後に、
-    出力層。新は、隠れ層を`residual_adapter.hidden_layers`、出力層を`classification_layer`に持つ。
+    出力層。新は、隠れ層を`model_owned_feature_transform.hidden_layers`、出力層を`classification_layer`に持つ。
     隠れ層の数は、全体runの対照が使う、testの定数（`test_fedsda_run_client.HIDDEN_LAYER_WIDTHS`）から取る
     （そのmoduleは、このmoduleを読み込むので、呼ばれた時点で読み込む）。
     """
@@ -111,11 +111,11 @@ def convert_legacy_parameter_name(legacy_parameter_name):
         hidden_layer_count = len(HIDDEN_LAYER_WIDTHS)
         if int(layer_index) == 2 * hidden_layer_count:
             return f"classification_layer.{parameter_kind}"
-        return f"residual_adapter.hidden_layers.{layer_index}.{parameter_kind}"
+        return f"model_owned_feature_transform.hidden_layers.{layer_index}.{parameter_kind}"
     return (
         legacy_parameter_name.replace("backbone.net.", "feature_extractor.hidden_layers.")
-        .replace("adapter.down.", "residual_adapter.feature_compression.")
-        .replace("adapter.up.", "residual_adapter.feature_expansion.")
+        .replace("adapter.down.", "model_owned_feature_transform.feature_compression.")
+        .replace("adapter.up.", "model_owned_feature_transform.feature_expansion.")
         .replace("head.", "classification_layer.")
     )
 
@@ -171,7 +171,7 @@ def build_initial_registration_oracle(
         with torch.no_grad():
             legacy_model.adapter.up.weight.fill_(0.15 + 0.02 * model_index)
             legacy_model.adapter.up.bias.fill_(0.05 - 0.01 * model_index)
-        classifier = ResidualAdapterClassifier(
+        classifier = ModelArchitectureClassifier(
             model_architecture_settings=ModelArchitectureSettings(
                 model_architecture_name="shared_backbone_residual_adapter",
                 residual_adapter_requested_rank=2,
@@ -190,7 +190,7 @@ def build_initial_registration_oracle(
             }
         )
         optimizer_owner = ParameterOptimizerState(
-            parameters=tuple(classifier.residual_adapter.parameters())
+            parameters=tuple(classifier.model_owned_feature_transform.parameters())
             + tuple(classifier.classification_layer.parameters()),
             optimizer_settings=optimizer_settings,
         )
@@ -617,7 +617,7 @@ def test_initial_registration_matches_old_registration_and_upload_delay(
         concept_parameter_snapshots = snapshot_parameter_values_and_gradients(
             parameter
             for classifier in tuple(state.classifier for state in previous_states) + (candidate,)
-            for parameter in tuple(classifier.residual_adapter.parameters())
+            for parameter in tuple(classifier.model_owned_feature_transform.parameters())
             + tuple(classifier.classification_layer.parameters())
         )
         random_states = (torch.get_rng_state().clone(), random.getstate())

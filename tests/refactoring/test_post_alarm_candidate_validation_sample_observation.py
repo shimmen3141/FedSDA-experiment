@@ -29,11 +29,11 @@ from test_shared_feature_extractor_attachment import (
 import federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation as observation_module
 from federated_drift_experiment import config
 from federated_drift_experiment.models import ResidualAdapterMLP
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.joint_model_parameter_update import (
     perform_joint_model_parameter_update,
@@ -104,7 +104,7 @@ def prepare_validation_session_in_both_implementations(
     }[historical_mean_case]
     reference_classifiers_by_model_id = {}
     for model_id, legacy_reference_model in legacy_session.reference_models.items():
-        reference_classifier = ResidualAdapterClassifier(
+        reference_classifier = ModelArchitectureClassifier(
             model_architecture_settings=ModelArchitectureSettings(
                 model_architecture_name="shared_backbone_residual_adapter",
                 residual_adapter_requested_rank=2,

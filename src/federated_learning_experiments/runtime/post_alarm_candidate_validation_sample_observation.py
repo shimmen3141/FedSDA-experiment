@@ -2,8 +2,8 @@
 
 from torch import Tensor
 
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
@@ -15,7 +15,7 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.pos
 
 def _evaluate_single_sample_bounded_loss(
     *,
-    classifier: ResidualAdapterClassifier,
+    classifier: ModelArchitectureClassifier,
     input_features: Tensor,
     observed_class_labels: Tensor,
 ) -> float:
@@ -32,8 +32,8 @@ def observe_post_alarm_candidate_validation_sample(
     sample_index: int,
     input_features: Tensor,
     observed_class_labels: Tensor,
-    candidate_classifier: ResidualAdapterClassifier,
-    reference_classifiers_by_model_id: dict[int, ResidualAdapterClassifier],
+    candidate_classifier: ModelArchitectureClassifier,
+    reference_classifiers_by_model_id: dict[int, ModelArchitectureClassifier],
     post_alarm_candidate_loss_collection: PostAlarmCandidateLossCollection,
 ) -> bool:
     """全分類器の損失評価を終えてから収集へ1回だけ追加し、規定件数への到達を返す。"""

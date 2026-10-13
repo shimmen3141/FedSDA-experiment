@@ -6,8 +6,8 @@ from torch import float32, strided
 from torch.nn import Parameter
 from torch.optim import SGD, Adam
 
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 
 from .held_model_training_binding import HeldModelTrainingBinding
@@ -19,7 +19,7 @@ class HeldModelTrainingState:
     """フィールドは固定し、分類器とoptimizer管理器をliveな参照で保持する。"""
 
     model_id: int
-    classifier: ResidualAdapterClassifier
+    classifier: ModelArchitectureClassifier
     concept_specific_parameter_optimizer_state: ParameterOptimizerState
 
 
@@ -31,17 +31,17 @@ def _validate_model_id(*, model_id: int, parameter_name: str = "model_id") -> No
 def _validate_held_model_training_state_inputs(
     *,
     model_id: int,
-    classifier: ResidualAdapterClassifier,
+    classifier: ModelArchitectureClassifier,
     concept_specific_parameter_optimizer_state: ParameterOptimizerState,
 ) -> None:
     _validate_model_id(model_id=model_id)
-    if type(classifier) is not ResidualAdapterClassifier:
-        raise ValueError("classifierはexact ResidualAdapterClassifierが必要です。")
+    if type(classifier) is not ModelArchitectureClassifier:
+        raise ValueError("classifierはexact ModelArchitectureClassifierが必要です。")
     if type(concept_specific_parameter_optimizer_state) is not ParameterOptimizerState:
         raise ValueError("個別optimizer管理器はexact ParameterOptimizerStateが必要です。")
-    concept_specific_parameters = tuple(classifier.residual_adapter.parameters()) + tuple(
-        classifier.classification_layer.parameters()
-    )
+    concept_specific_parameters = tuple(
+        classifier.model_owned_feature_transform.parameters()
+    ) + tuple(classifier.classification_layer.parameters())
     if not concept_specific_parameters or len(
         {id(parameter) for parameter in concept_specific_parameters}
     ) != len(concept_specific_parameters):
@@ -87,7 +87,7 @@ class HeldModelTrainingStateRegistry:
         self,
         *,
         model_id: int,
-        classifier: ResidualAdapterClassifier,
+        classifier: ModelArchitectureClassifier,
         concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     ) -> None:
         """対応検証後に登録する。同ID置換は初出位置と旧取得記録を保持する。"""

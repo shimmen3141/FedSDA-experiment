@@ -11,14 +11,16 @@ from federated_drift_experiment import config
 from federated_drift_experiment.clients.fedsda import _AdaHedgeRoutingFedSDAClientMixin
 from federated_drift_experiment.data.specs import DatasetSpec
 from federated_drift_experiment.models import ResidualAdapterMLP, SharedFeatureBackbone
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
 from federated_learning_experiments.learning.models.nonlinear_residual_adapter import (
+    IdentityFeatureAdapter,
+    ModelOwnedHiddenLayers,
     NonlinearResidualAdapter,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -67,8 +69,8 @@ def build_legacy_residual_adapter_classifier(
 def map_residual_adapter_state_to_legacy_keys(*, state):
     return {
         name.replace("feature_extractor.hidden_layers.", "backbone.net.")
-        .replace("residual_adapter.feature_compression.", "adapter.down.")
-        .replace("residual_adapter.feature_expansion.", "adapter.up.")
+        .replace("model_owned_feature_transform.feature_compression.", "adapter.down.")
+        .replace("model_owned_feature_transform.feature_expansion.", "adapter.up.")
         .replace("classification_layer.", "head."): value
         for name, value in state.items()
     }
@@ -106,7 +108,7 @@ def capture_torch_random_state_after_model_construction(*, constructor, random_s
     ],
 )
 @pytest.mark.parametrize("shared", [False, True])
-def test_residual_adapter_classifier_matches_legacy(
+def test_model_architecture_classifier_matches_legacy(
     input_feature_count,
     hidden_layer_widths,
     class_count,
@@ -134,7 +136,7 @@ def test_residual_adapter_classifier_matches_legacy(
         )
         assert torch.equal(random_state, expected_random_state)
     actual, actual_random_state = capture_torch_random_state_after_model_construction(
-        constructor=lambda: ResidualAdapterClassifier(
+        constructor=lambda: ModelArchitectureClassifier(
             model_architecture_settings=ModelArchitectureSettings(
                 model_architecture_name="shared_backbone_residual_adapter",
                 residual_adapter_requested_rank=requested_rank,
@@ -159,7 +161,7 @@ def test_residual_adapter_classifier_matches_legacy(
     )
     assert torch.equal(actual_random_state, expected_random_state)
     assert_residual_adapter_state_matches_legacy(actual=actual, expected=expected)
-    assert actual.residual_adapter.effective_rank == min(
+    assert actual.model_owned_feature_transform.effective_rank == min(
         requested_rank, hidden_layer_widths[-1] if hidden_layer_widths else input_feature_count
     )
     for input_features in (
@@ -172,13 +174,13 @@ def test_residual_adapter_classifier_matches_legacy(
         assert torch.equal(
             actual.forward_from_shared_features(shared_features), actual(input_features)
         )
-        assert torch.equal(actual.residual_adapter(shared_features), shared_features)
+        assert torch.equal(actual.model_owned_feature_transform(shared_features), shared_features)
         assert torch.equal(torch.get_rng_state(), original)
     if shared:
         assert actual.feature_extractor is shared_feature_extractor
 
 
-def test_residual_adapter_classifier_shares_only_feature_extractor():
+def test_model_architecture_classifier_shares_only_feature_extractor():
     shared_feature_extractor = SharedFeatureExtractor(
         input_feature_count=2, hidden_layer_widths=(4,)
     )
@@ -186,14 +188,14 @@ def test_residual_adapter_classifier_shares_only_feature_extractor():
         model_architecture_name="shared_backbone_residual_adapter",
         residual_adapter_requested_rank=2,
     )
-    first = ResidualAdapterClassifier(
+    first = ModelArchitectureClassifier(
         model_architecture_settings=settings,
         input_feature_count=2,
         hidden_layer_widths=(4,),
         class_count=2,
         shared_feature_extractor=shared_feature_extractor,
     )
-    second = ResidualAdapterClassifier(
+    second = ModelArchitectureClassifier(
         model_architecture_settings=settings,
         input_feature_count=2,
         hidden_layer_widths=(4,),
@@ -201,10 +203,11 @@ def test_residual_adapter_classifier_shares_only_feature_extractor():
         shared_feature_extractor=shared_feature_extractor,
     )
     assert first.feature_extractor is second.feature_extractor is shared_feature_extractor
-    assert first.residual_adapter is not second.residual_adapter
+    assert first.model_owned_feature_transform is not second.model_owned_feature_transform
     assert first.classification_layer is not second.classification_layer
     for parameter, expected in zip(
-        first.residual_adapter.parameters(), second.residual_adapter.parameters()
+        first.model_owned_feature_transform.parameters(),
+        second.model_owned_feature_transform.parameters(),
     ):
         assert parameter.data_ptr() != expected.data_ptr()
     assert (
@@ -220,7 +223,7 @@ def test_residual_adapter_classifier_shares_only_feature_extractor():
 
 
 @pytest.mark.parametrize("name", ["weight", "bias"])
-def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomness_unregistered_parameter(
+def test_model_architecture_classifier_rejects_invalid_inputs_without_consuming_randomness_unregistered_parameter(
     name,
 ):
     shared_feature_extractor = SharedFeatureExtractor(
@@ -240,7 +243,7 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
     random_state = torch.get_rng_state()
     try:
         with pytest.raises(ValueError, match="shared_feature_extractor"):
-            ResidualAdapterClassifier(
+            ModelArchitectureClassifier(
                 model_architecture_settings=ModelArchitectureSettings(
                     model_architecture_name="shared_backbone_residual_adapter",
                     residual_adapter_requested_rank=2,
@@ -274,7 +277,7 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
         ("shared_feature_extractor", torch.nn.Identity()),
     ],
 )
-def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomness_constructor(
+def test_model_architecture_classifier_rejects_invalid_inputs_without_consuming_randomness_constructor(
     name, invalid_value
 ):
     constructor_arguments = dict(
@@ -289,7 +292,7 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
     constructor_arguments[name] = invalid_value
     random_state = torch.get_rng_state()
     with pytest.raises(ValueError, match=name):
-        ResidualAdapterClassifier(**constructor_arguments)
+        ModelArchitectureClassifier(**constructor_arguments)
     assert torch.equal(torch.get_rng_state(), random_state)
 
 
@@ -301,7 +304,7 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
         ("residual_adapter_requested_rank", 0),
     ],
 )
-def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomness_forged_settings(
+def test_model_architecture_classifier_rejects_invalid_inputs_without_consuming_randomness_forged_settings(
     name, invalid_value
 ):
     settings = ModelArchitectureSettings(
@@ -311,7 +314,7 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
     object.__setattr__(settings, name, invalid_value)
     random_state = torch.get_rng_state()
     with pytest.raises(ValueError, match=name):
-        ResidualAdapterClassifier(
+        ModelArchitectureClassifier(
             model_architecture_settings=settings,
             input_feature_count=2,
             hidden_layer_widths=(4,),
@@ -324,7 +327,7 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
 @pytest.mark.parametrize(
     "case", ["declared_width", "layer_count", "activation", "weight_shape", "dtype", "bias"]
 )
-def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomness_shared_structure(
+def test_model_architecture_classifier_rejects_invalid_inputs_without_consuming_randomness_shared_structure(
     case,
 ):
     shared_feature_extractor = SharedFeatureExtractor(
@@ -349,7 +352,7 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
     original = tuple(shared_feature_extractor.modules())
     random_state = torch.get_rng_state()
     with pytest.raises(ValueError, match="shared_feature_extractor"):
-        ResidualAdapterClassifier(
+        ModelArchitectureClassifier(
             model_architecture_settings=ModelArchitectureSettings(
                 model_architecture_name="shared_backbone_residual_adapter",
                 residual_adapter_requested_rank=2,
@@ -368,8 +371,10 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
 @pytest.mark.parametrize(
     "case", ["dtype", "width", "scalar", "rank_three", "device", "layout", "type"]
 )
-def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomness_forward(case):
-    classifier = ResidualAdapterClassifier(
+def test_model_architecture_classifier_rejects_invalid_inputs_without_consuming_randomness_forward(
+    case,
+):
+    classifier = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=1,
@@ -398,7 +403,7 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
         classifier,
         classifier.extract_shared_features,
         classifier.forward_from_shared_features,
-        classifier.residual_adapter,
+        classifier.model_owned_feature_transform,
     ):
         with pytest.raises(ValueError):
             constructor(input_features)
@@ -418,10 +423,10 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
 
 @pytest.mark.parametrize("class_count", [2, 3])
 @pytest.mark.parametrize("use_nonzero_expansion_weights", [False, True])
-def test_residual_adapter_model_gradients_match_legacy(
+def test_model_architecture_classifier_gradients_match_legacy(
     class_count, use_nonzero_expansion_weights, monkeypatch
 ):
-    classifier = ResidualAdapterClassifier(
+    classifier = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -442,8 +447,8 @@ def test_residual_adapter_model_gradients_match_legacy(
         for parameter in classifier.parameters():
             parameter.fill_(0.1)
         if not use_nonzero_expansion_weights:
-            classifier.residual_adapter.feature_expansion.weight.zero_()
-            classifier.residual_adapter.feature_expansion.bias.zero_()
+            classifier.model_owned_feature_transform.feature_expansion.weight.zero_()
+            classifier.model_owned_feature_transform.feature_expansion.bias.zero_()
     legacy_classifier.load_state_dict(
         map_residual_adapter_state_to_legacy_keys(state=classifier.state_dict())
     )
@@ -471,7 +476,11 @@ def test_residual_adapter_model_gradients_match_legacy(
         assert actual is not None
         assert torch.equal(actual, legacy_parameter_gradients_by_name[name])
     assert (
-        bool(torch.count_nonzero(classifier.residual_adapter.feature_compression.weight.grad))
+        bool(
+            torch.count_nonzero(
+                classifier.model_owned_feature_transform.feature_compression.weight.grad
+            )
+        )
         == use_nonzero_expansion_weights
     )
     for name, expected in parameter_snapshot_before_call.items():
@@ -480,8 +489,8 @@ def test_residual_adapter_model_gradients_match_legacy(
 
 
 @pytest.mark.parametrize("class_count", [2, 3])
-def test_residual_adapter_model_accepts_empty_batches(class_count, monkeypatch):
-    classifier = ResidualAdapterClassifier(
+def test_model_architecture_classifier_accepts_empty_batches(class_count, monkeypatch):
+    classifier = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -503,15 +512,15 @@ def test_residual_adapter_model_accepts_empty_batches(class_count, monkeypatch):
     input_features = torch.empty(0, 2)
     shared_features = classifier.extract_shared_features(input_features)
     assert shared_features.shape == (0, 4)
-    assert classifier.residual_adapter(shared_features).shape == (0, 4)
+    assert classifier.model_owned_feature_transform(shared_features).shape == (0, 4)
     actual = classifier(input_features)
     assert actual.shape == (0, 1 if class_count == 2 else class_count)
     assert torch.equal(actual, legacy_classifier(input_features))
     assert torch.equal(actual, classifier.forward_from_shared_features(shared_features))
 
 
-def test_residual_adapter_classifier_reuses_extracted_shared_features(monkeypatch):
-    classifier = ResidualAdapterClassifier(
+def test_model_architecture_classifier_reuses_extracted_shared_features(monkeypatch):
+    classifier = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -535,7 +544,7 @@ def test_residual_adapter_classifier_reuses_extracted_shared_features(monkeypatc
 
 
 @pytest.mark.parametrize("name,invalid_value", [("feature_count", False), ("requested_rank", 0)])
-def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomness_adapter(
+def test_model_architecture_classifier_rejects_invalid_inputs_without_consuming_randomness_adapter(
     name, invalid_value
 ):
     constructor_arguments = dict(feature_count=4, requested_rank=2)
@@ -547,7 +556,7 @@ def test_residual_adapter_model_rejects_invalid_inputs_without_consuming_randomn
 
 
 @pytest.mark.parametrize("case", [True, False])
-def test_residual_adapter_model_preserves_default_tensor_environment(case):
+def test_model_architecture_classifier_preserves_default_tensor_environment(case):
     input_features = torch.ones(2, 2, dtype=torch.float32, device="cpu")
     settings = ModelArchitectureSettings(
         model_architecture_name="shared_backbone_residual_adapter",
@@ -561,7 +570,7 @@ def test_residual_adapter_model_preserves_default_tensor_environment(case):
         torch.set_default_dtype(torch.float64)
         with torch.device("meta"), torch.set_grad_enabled(case):
             classifier, actual_random_state = capture_torch_random_state_after_model_construction(
-                constructor=lambda: ResidualAdapterClassifier(
+                constructor=lambda: ModelArchitectureClassifier(
                     model_architecture_settings=settings,
                     input_feature_count=2,
                     hidden_layer_widths=(4,),
@@ -585,7 +594,7 @@ def test_residual_adapter_model_preserves_default_tensor_environment(case):
             assert torch.is_grad_enabled() is case
         repeated_classifier, expected_random_state = (
             capture_torch_random_state_after_model_construction(
-                constructor=lambda: ResidualAdapterClassifier(
+                constructor=lambda: ModelArchitectureClassifier(
                     model_architecture_settings=settings,
                     input_feature_count=2,
                     hidden_layer_widths=(4,),
@@ -612,8 +621,10 @@ def test_residual_adapter_model_preserves_default_tensor_environment(case):
 
 
 @pytest.mark.parametrize("class_count", [2, 3])
-def test_residual_adapter_classifier_connects_to_probability_calculations(class_count, monkeypatch):
-    classifier = ResidualAdapterClassifier(
+def test_model_architecture_classifier_connects_to_probability_calculations(
+    class_count, monkeypatch
+):
+    classifier = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -669,7 +680,7 @@ def test_residual_adapter_classifier_connects_to_probability_calculations(class_
         "equal_mean_of_available_models",
     ],
 )
-def test_residual_adapter_classifier_loads_selected_initial_parameters(
+def test_model_architecture_classifier_loads_selected_initial_parameters(
     candidate_parameter_initialization_source, monkeypatch
 ):
     settings = ModelArchitectureSettings(
@@ -677,7 +688,7 @@ def test_residual_adapter_classifier_loads_selected_initial_parameters(
         residual_adapter_requested_rank=2,
     )
     source_classifiers_by_model_id = {
-        model_id: ResidualAdapterClassifier(
+        model_id: ModelArchitectureClassifier(
             model_architecture_settings=settings,
             input_feature_count=2,
             hidden_layer_widths=(4,),
@@ -697,7 +708,7 @@ def test_residual_adapter_classifier_loads_selected_initial_parameters(
         current_training_model_id=-7,
         evaluated_mean_losses_by_model_id=((-7, 0.8), (4, 0.2)),
     )
-    initialized_classifier = ResidualAdapterClassifier(
+    initialized_classifier = ModelArchitectureClassifier(
         model_architecture_settings=settings,
         input_feature_count=2,
         hidden_layer_widths=(4,),
@@ -736,3 +747,70 @@ def test_residual_adapter_classifier_loads_selected_initial_parameters(
     for model_id, classifier in source_classifiers_by_model_id.items():
         for name, expected in available_parameter_snapshots_by_model_id[model_id].items():
             assert torch.equal(classifier.state_dict()[name], expected)
+
+
+_SHARED_HIDDEN_LAYER_PARAMETER_NAMES = (
+    "feature_extractor.hidden_layers.0.weight",
+    "feature_extractor.hidden_layers.0.bias",
+    "feature_extractor.hidden_layers.2.weight",
+    "feature_extractor.hidden_layers.2.bias",
+)
+_CLASSIFICATION_LAYER_PARAMETER_NAMES = ("classification_layer.weight", "classification_layer.bias")
+
+
+@pytest.mark.parametrize(
+    ("model_architecture_name", "expected_transform_type", "expected_parameter_names"),
+    [
+        (
+            "shared_backbone_residual_adapter",
+            NonlinearResidualAdapter,
+            (
+                *_SHARED_HIDDEN_LAYER_PARAMETER_NAMES,
+                "model_owned_feature_transform.feature_compression.weight",
+                "model_owned_feature_transform.feature_compression.bias",
+                "model_owned_feature_transform.feature_expansion.weight",
+                "model_owned_feature_transform.feature_expansion.bias",
+                *_CLASSIFICATION_LAYER_PARAMETER_NAMES,
+            ),
+        ),
+        (
+            "shared_backbone_without_residual_adapter",
+            IdentityFeatureAdapter,
+            (*_SHARED_HIDDEN_LAYER_PARAMETER_NAMES, *_CLASSIFICATION_LAYER_PARAMETER_NAMES),
+        ),
+        (
+            "independent_models_without_shared_backbone",
+            ModelOwnedHiddenLayers,
+            (
+                "model_owned_feature_transform.hidden_layers.0.weight",
+                "model_owned_feature_transform.hidden_layers.0.bias",
+                "model_owned_feature_transform.hidden_layers.2.weight",
+                "model_owned_feature_transform.hidden_layers.2.bias",
+                *_CLASSIFICATION_LAYER_PARAMETER_NAMES,
+            ),
+        ),
+    ],
+)
+def test_classifier_names_model_owned_part_the_same_way_in_every_architecture(
+    model_architecture_name, expected_transform_type, expected_parameter_names
+):
+    """どの構造でも、特徴抽出部と分類層の間の部品は、同じ属性にあり、パラメータ名の並び（登録の順）は、構造ごとに決まる。"""
+    classifier = ModelArchitectureClassifier(
+        model_architecture_settings=ModelArchitectureSettings(
+            model_architecture_name=model_architecture_name, residual_adapter_requested_rank=2
+        ),
+        input_feature_count=3,
+        hidden_layer_widths=(5, 4),
+        class_count=2,
+    )
+    assert type(classifier.model_owned_feature_transform) is expected_transform_type
+    parameter_names = tuple(name for name, _ in classifier.named_parameters())
+    assert parameter_names == expected_parameter_names
+    assert tuple(classifier.state_dict()) == expected_parameter_names
+    # 属性は、特徴抽出部・間の部品・分類層・出力の変換の、4つだけ（前の名前の属性は、無い）。
+    assert tuple(name for name, _ in classifier.named_children()) == (
+        "feature_extractor",
+        "model_owned_feature_transform",
+        "classification_layer",
+        "output_activation",
+    )

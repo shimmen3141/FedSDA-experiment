@@ -24,8 +24,8 @@ from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatisticsStore,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -349,7 +349,7 @@ def process_observed_sample(
     short_change_interval_alarm_policy: str,
     maximum_alarm_interval_mean_loss_increase: float,
     candidate_parameter_initialization_settings: CandidateParameterInitializationSettings,
-    architecture_reference_classifier: ResidualAdapterClassifier,
+    architecture_reference_classifier: ModelArchitectureClassifier,
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
     candidate_epoch_training_settings: CandidateEpochTrainingSettings,
     detector_name: str,

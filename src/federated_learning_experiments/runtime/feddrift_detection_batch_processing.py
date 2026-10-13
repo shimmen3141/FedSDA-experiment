@@ -21,9 +21,9 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
     INDEPENDENT_MODELS_ARCHITECTURE_NAME,
-    ResidualAdapterClassifier,
+    ModelArchitectureClassifier,
     _validate_classifier_inputs,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
@@ -297,7 +297,7 @@ class FeddriftDetectionBatchProcessor:
             self._validate_new_model_id(assigned_id, states)
             current = self._registry.get_held_model_training_state(model_id=previous_id).classifier
             # 最小損失モデルではなく、判定前の現在モデルから複写する。
-            classifier = ResidualAdapterClassifier(
+            classifier = ModelArchitectureClassifier(
                 model_architecture_settings=current.model_architecture_settings,
                 input_feature_count=current.input_feature_count,
                 hidden_layer_widths=current.hidden_layer_widths,

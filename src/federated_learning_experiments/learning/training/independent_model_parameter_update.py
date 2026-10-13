@@ -7,16 +7,16 @@ from torch.optim import Optimizer
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
+    ModelArchitectureClassifier,
+    _validate_classifier_inputs,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
 from federated_learning_experiments.learning.models.nonlinear_residual_adapter import (
     ModelOwnedHiddenLayers,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
-    ResidualAdapterClassifier,
-    _validate_classifier_inputs,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -42,7 +42,7 @@ def _validate_linear_layer(layer: object, input_width: int, output_width: int) -
         raise ValueError("Linearの宣言幅とparameter shapeが一致しません。")
 
 
-def _validate_independent_model_structure(classifier: ResidualAdapterClassifier) -> None:
+def _validate_independent_model_structure(classifier: ModelArchitectureClassifier) -> None:
     _validate_classifier_inputs(
         model_architecture_settings=classifier.model_architecture_settings,
         input_feature_count=classifier.input_feature_count,
@@ -55,7 +55,7 @@ def _validate_independent_model_structure(classifier: ResidualAdapterClassifier)
     classifier.feature_extractor.validate_structure(
         input_feature_count=classifier.input_feature_count, hidden_layer_widths=()
     )
-    adapter = classifier.residual_adapter
+    adapter = classifier.model_owned_feature_transform
     if type(adapter) is not ModelOwnedHiddenLayers or (
         adapter.feature_count != classifier.input_feature_count
         or adapter.hidden_layer_widths != classifier.hidden_layer_widths
@@ -84,14 +84,14 @@ def _validate_independent_model_structure(classifier: ResidualAdapterClassifier)
 
 def validate_independent_model_parameter_update_inputs(
     *,
-    classifier: ResidualAdapterClassifier,
+    classifier: ModelArchitectureClassifier,
     parameter_optimizer: Optimizer,
     input_features: Tensor,
     observed_class_labels: Tensor,
 ) -> None:
     """学習に使うモデル・標本を、forward/zero_gradより前に検査する。"""
-    if type(classifier) is not ResidualAdapterClassifier:
-        raise TypeError("分類器はexact ResidualAdapterClassifierが必要です。")
+    if type(classifier) is not ModelArchitectureClassifier:
+        raise TypeError("分類器はexact ModelArchitectureClassifierが必要です。")
     if type(classifier.model_architecture_settings) is not ModelArchitectureSettings or (
         classifier.model_architecture_settings.model_architecture_name
         != INDEPENDENT_MODELS_ARCHITECTURE_NAME
@@ -119,7 +119,7 @@ def validate_independent_model_parameter_update_inputs(
 
 def update_independent_model_parameters(
     *,
-    classifier: ResidualAdapterClassifier,
+    classifier: ModelArchitectureClassifier,
     parameter_optimizer: Optimizer,
     input_features: Tensor,
     observed_class_labels: Tensor,

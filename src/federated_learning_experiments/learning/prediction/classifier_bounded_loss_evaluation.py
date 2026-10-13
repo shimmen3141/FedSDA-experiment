@@ -2,20 +2,20 @@
 
 from torch import Tensor, abs, float32, isfinite, no_grad, softmax, strided, trunc
 
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 
 
 def _validate_classifier_bounded_loss_inputs(
     *,
-    classifier: ResidualAdapterClassifier,
+    classifier: ModelArchitectureClassifier,
     input_features: Tensor,
     observed_class_labels: Tensor,
 ) -> None:
     """forward前にモデルの実行環境と観測batchを検査する。"""
-    if type(classifier) is not ResidualAdapterClassifier:
-        raise TypeError("classifierはexact ResidualAdapterClassifierが必要です。")
+    if type(classifier) is not ModelArchitectureClassifier:
+        raise TypeError("classifierはexact ModelArchitectureClassifierが必要です。")
     if type(classifier.class_count) is not int or classifier.class_count < 2:
         raise ValueError("classifier.class_countは2以上のbuiltin intが必要です。")
     for classifier_parameter in classifier.parameters():
@@ -90,7 +90,7 @@ def _validate_classifier_outputs_for_bounded_loss(
 
 def validate_classifier_bounded_loss_inputs(
     *,
-    classifier: ResidualAdapterClassifier,
+    classifier: ModelArchitectureClassifier,
     input_features: Tensor,
     observed_class_labels: Tensor,
 ) -> None:
@@ -123,7 +123,7 @@ def _compute_per_sample_bounded_losses_from_outputs(
 @no_grad()
 def evaluate_classifier_per_sample_bounded_losses_and_outputs(
     *,
-    classifier: ResidualAdapterClassifier,
+    classifier: ModelArchitectureClassifier,
     input_features: Tensor,
     observed_class_labels: Tensor,
 ) -> tuple[Tensor, Tensor]:
@@ -145,7 +145,7 @@ def evaluate_classifier_per_sample_bounded_losses_and_outputs(
 @no_grad()
 def evaluate_classifier_per_sample_bounded_losses(
     *,
-    classifier: ResidualAdapterClassifier,
+    classifier: ModelArchitectureClassifier,
     input_features: Tensor,
     observed_class_labels: Tensor,
 ) -> Tensor:
@@ -161,7 +161,7 @@ def evaluate_classifier_per_sample_bounded_losses(
 @no_grad()
 def evaluate_classifiers_per_sample_bounded_losses_from_shared_features(
     *,
-    classifiers: tuple[ResidualAdapterClassifier, ...],
+    classifiers: tuple[ModelArchitectureClassifier, ...],
     input_features: Tensor,
     observed_class_labels: Tensor,
 ) -> tuple[Tensor, ...]:

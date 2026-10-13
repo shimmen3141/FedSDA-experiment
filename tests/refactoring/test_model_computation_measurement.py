@@ -8,6 +8,9 @@ import torch
 from torch.nn.modules import module as torch_module_internals
 from torch.optim import optimizer as torch_optimizer_internals
 
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
@@ -16,9 +19,6 @@ from federated_learning_experiments.learning.models.model_computation_measuremen
     ModelComputationMeter,
     measure_model_computation,
     subtract_model_computation_counts,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 
 INPUT_FEATURE_COUNT = 3
@@ -37,7 +37,7 @@ ZERO_COUNTS = ModelComputationCounts(
 def make_classifier(*, class_count=2, shared_feature_extractor=None, seed=0):
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(seed)
-        return ResidualAdapterClassifier(
+        return ModelArchitectureClassifier(
             model_architecture_settings=ModelArchitectureSettings(
                 model_architecture_name="shared_backbone_residual_adapter",
                 residual_adapter_requested_rank=ADAPTER_RANK,
@@ -192,7 +192,7 @@ def test_optimizer_steps_are_counted_by_shared_or_concept_specific_parameters():
     concept_specific_parameter_optimizers = [
         torch.optim.Adam(
             [
-                *each_classifier.residual_adapter.parameters(),
+                *each_classifier.model_owned_feature_transform.parameters(),
                 *each_classifier.classification_layer.parameters(),
             ]
         )

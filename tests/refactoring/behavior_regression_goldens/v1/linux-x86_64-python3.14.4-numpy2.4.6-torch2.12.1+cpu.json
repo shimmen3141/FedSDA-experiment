@@ -32,14 +32,14 @@
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.0.bias": {
+        "0.model_owned_feature_transform.hidden_layers.0.bias": {
           "dtype": "float32",
           "sha256": "13b5bb68a367a1e151ed78460f94d4a54d09108e8e3ac2415ba8ad9f85857362",
           "shape": [
             5
           ]
         },
-        "0.residual_adapter.hidden_layers.0.weight": {
+        "0.model_owned_feature_transform.hidden_layers.0.weight": {
           "dtype": "float32",
           "sha256": "f53559cf3f64bea6b276d2e9da82990986a1091dae6aa14c4ef5777468044e77",
           "shape": [
@@ -47,14 +47,14 @@
             2
           ]
         },
-        "0.residual_adapter.hidden_layers.2.bias": {
+        "0.model_owned_feature_transform.hidden_layers.2.bias": {
           "dtype": "float32",
           "sha256": "9ffdd55961070142d45a7ad8649af17856082a0c3fa0a166fdd5c8883aeefcf0",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.2.weight": {
+        "0.model_owned_feature_transform.hidden_layers.2.weight": {
           "dtype": "float32",
           "sha256": "2b7e0341372378825dfb4673ea024a1007eda6c237fc50b3a91cf79699afba8f",
           "shape": [
@@ -833,14 +833,14 @@
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.0.bias": {
+        "0.model_owned_feature_transform.hidden_layers.0.bias": {
           "dtype": "float32",
           "sha256": "7b005fa3a6c204840826c06e7708c2277b461a809342eef196a40b8ea749fec3",
           "shape": [
             5
           ]
         },
-        "0.residual_adapter.hidden_layers.0.weight": {
+        "0.model_owned_feature_transform.hidden_layers.0.weight": {
           "dtype": "float32",
           "sha256": "fbcbb5d64f27f85e6d7c18267675152f7adcad2a8022c867c1a8ebc3ba27b2b5",
           "shape": [
@@ -848,14 +848,14 @@
             2
           ]
         },
-        "0.residual_adapter.hidden_layers.2.bias": {
+        "0.model_owned_feature_transform.hidden_layers.2.bias": {
           "dtype": "float32",
           "sha256": "48ee411d5b91341021632e1662089951d020c215913dd188de446c4b5049173b",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.2.weight": {
+        "0.model_owned_feature_transform.hidden_layers.2.weight": {
           "dtype": "float32",
           "sha256": "8cc4938dfbae4b1b55380cd1e367281d2f7bdcfb9e3615f4c592557f6b2bfe35",
           "shape": [
@@ -1634,14 +1634,14 @@
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.0.bias": {
+        "0.model_owned_feature_transform.hidden_layers.0.bias": {
           "dtype": "float32",
           "sha256": "c6137203f39e52e271f9e6b6621b757f6a89a75c09200a8c77a8060ca98258eb",
           "shape": [
             5
           ]
         },
-        "0.residual_adapter.hidden_layers.0.weight": {
+        "0.model_owned_feature_transform.hidden_layers.0.weight": {
           "dtype": "float32",
           "sha256": "97e14f047d28175b1e32a9e2238ea7ad6244f30fc2bfa0e5e73b25961685bb8d",
           "shape": [
@@ -1649,14 +1649,14 @@
             2
           ]
         },
-        "0.residual_adapter.hidden_layers.2.bias": {
+        "0.model_owned_feature_transform.hidden_layers.2.bias": {
           "dtype": "float32",
           "sha256": "9f198b10828ad2caaa1553deb1afca739b08f36243f00746d42a79703fa5140d",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.2.weight": {
+        "0.model_owned_feature_transform.hidden_layers.2.weight": {
           "dtype": "float32",
           "sha256": "00a96b6f36bda107dbe40516ef05b1c5ced3bf9b768b7d0334c56bf38844fa15",
           "shape": [
@@ -2810,14 +2810,14 @@
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.0.bias": {
+        "0.model_owned_feature_transform.hidden_layers.0.bias": {
           "dtype": "float32",
           "sha256": "c04da678b7a7ea03dc3c4a81934ceb650ab0f1b17195ab966dc4d75501162f74",
           "shape": [
             5
           ]
         },
-        "0.residual_adapter.hidden_layers.0.weight": {
+        "0.model_owned_feature_transform.hidden_layers.0.weight": {
           "dtype": "float32",
           "sha256": "4fcf805a3586e4f02fe8becc26a37aa0adf47c94e32e97841733d1fc54c9d5bf",
           "shape": [
@@ -2825,14 +2825,14 @@
             2
           ]
         },
-        "0.residual_adapter.hidden_layers.2.bias": {
+        "0.model_owned_feature_transform.hidden_layers.2.bias": {
           "dtype": "float32",
           "sha256": "5844035893a96fd20d20ea58c44e4749aec26c3842f3456d3e31cd778e0c2600",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.2.weight": {
+        "0.model_owned_feature_transform.hidden_layers.2.weight": {
           "dtype": "float32",
           "sha256": "61a5e7c6deeeea4e1857f79fa41a84e6b697114df9547e3e9ba3427c15495307",
           "shape": [
@@ -2855,14 +2855,14 @@
             4
           ]
         },
-        "1.residual_adapter.hidden_layers.0.bias": {
+        "1.model_owned_feature_transform.hidden_layers.0.bias": {
           "dtype": "float32",
           "sha256": "13469f728e7f83fbf9e7e6a4cdbe18430b1975299cc9761c1998791ccc4aa49e",
           "shape": [
             5
           ]
         },
-        "1.residual_adapter.hidden_layers.0.weight": {
+        "1.model_owned_feature_transform.hidden_layers.0.weight": {
           "dtype": "float32",
           "sha256": "bd1ed288ebb0060ed250d65b319b7e3230ecdb06a7787604860dcd84f44c4577",
           "shape": [
@@ -2870,14 +2870,14 @@
             2
           ]
         },
-        "1.residual_adapter.hidden_layers.2.bias": {
+        "1.model_owned_feature_transform.hidden_layers.2.bias": {
           "dtype": "float32",
           "sha256": "61b1d6974f8aa749d330908dc402feec4a78e327dbbc4a33a2cc1e7ee968bc82",
           "shape": [
             4
           ]
         },
-        "1.residual_adapter.hidden_layers.2.weight": {
+        "1.model_owned_feature_transform.hidden_layers.2.weight": {
           "dtype": "float32",
           "sha256": "0038cdaf8dfff865ed64552c67d4ef24e7d74398efc5af64c94f583e65b31d29",
           "shape": [
@@ -4086,14 +4086,14 @@
             5
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "7e2215a49c2edb1c31d09d8426df4136be3b503369e0b29562a6fa17470c6271",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "83f2757f749e5b871ed5875f935c393b431799c8d9d1864b95d9e179e7507e80",
           "shape": [
@@ -4101,14 +4101,14 @@
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "279c4c677f127c8190737ff97e55cda0177d47c86d48f78523a32a97d086e76c",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "d279ada8b4af642cf930f2ff1b8e8dbd1dc8fbc12e082dd7a442822487d3b945",
           "shape": [
@@ -5534,14 +5534,14 @@
             5
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "7e2215a49c2edb1c31d09d8426df4136be3b503369e0b29562a6fa17470c6271",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "83f2757f749e5b871ed5875f935c393b431799c8d9d1864b95d9e179e7507e80",
           "shape": [
@@ -5549,14 +5549,14 @@
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "279c4c677f127c8190737ff97e55cda0177d47c86d48f78523a32a97d086e76c",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "d279ada8b4af642cf930f2ff1b8e8dbd1dc8fbc12e082dd7a442822487d3b945",
           "shape": [
@@ -6982,14 +6982,14 @@
             5
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "7e2215a49c2edb1c31d09d8426df4136be3b503369e0b29562a6fa17470c6271",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "83f2757f749e5b871ed5875f935c393b431799c8d9d1864b95d9e179e7507e80",
           "shape": [
@@ -6997,14 +6997,14 @@
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "279c4c677f127c8190737ff97e55cda0177d47c86d48f78523a32a97d086e76c",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "d279ada8b4af642cf930f2ff1b8e8dbd1dc8fbc12e082dd7a442822487d3b945",
           "shape": [
@@ -8400,14 +8400,14 @@
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.0.bias": {
+        "0.model_owned_feature_transform.hidden_layers.0.bias": {
           "dtype": "float32",
           "sha256": "7b005fa3a6c204840826c06e7708c2277b461a809342eef196a40b8ea749fec3",
           "shape": [
             5
           ]
         },
-        "0.residual_adapter.hidden_layers.0.weight": {
+        "0.model_owned_feature_transform.hidden_layers.0.weight": {
           "dtype": "float32",
           "sha256": "fbcbb5d64f27f85e6d7c18267675152f7adcad2a8022c867c1a8ebc3ba27b2b5",
           "shape": [
@@ -8415,14 +8415,14 @@
             2
           ]
         },
-        "0.residual_adapter.hidden_layers.2.bias": {
+        "0.model_owned_feature_transform.hidden_layers.2.bias": {
           "dtype": "float32",
           "sha256": "48ee411d5b91341021632e1662089951d020c215913dd188de446c4b5049173b",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.hidden_layers.2.weight": {
+        "0.model_owned_feature_transform.hidden_layers.2.weight": {
           "dtype": "float32",
           "sha256": "8cc4938dfbae4b1b55380cd1e367281d2f7bdcfb9e3615f4c592557f6b2bfe35",
           "shape": [
@@ -9848,14 +9848,14 @@
             5
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "7e2215a49c2edb1c31d09d8426df4136be3b503369e0b29562a6fa17470c6271",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "83f2757f749e5b871ed5875f935c393b431799c8d9d1864b95d9e179e7507e80",
           "shape": [
@@ -9863,14 +9863,14 @@
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "279c4c677f127c8190737ff97e55cda0177d47c86d48f78523a32a97d086e76c",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "d279ada8b4af642cf930f2ff1b8e8dbd1dc8fbc12e082dd7a442822487d3b945",
           "shape": [
@@ -11287,14 +11287,14 @@
             784
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "a345ce00bd5c769991adf9258c037b29ae085f36d38564d29404127082920b84",
           "shape": [
             8
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "84bf970c6998d0dabf15a58bec184844b97d652f48fdc82d0c7719588076a0d3",
           "shape": [
@@ -11302,14 +11302,14 @@
             1568
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "fc611a725f55827b4e168f714374f4f9d93374031dd6e5223edb247797517aca",
           "shape": [
             1568
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "510f3562ed9a1ef7c44053ce3cec71b29ec23a2bc4d83086c3e4a5011aa6b13b",
           "shape": [
@@ -11347,14 +11347,14 @@
             784
           ]
         },
-        "1.residual_adapter.feature_compression.bias": {
+        "1.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "62fe1154001f987c4effecd6360e9227ca67eafd96921a078aaefd6fc3ef5f0b",
           "shape": [
             8
           ]
         },
-        "1.residual_adapter.feature_compression.weight": {
+        "1.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "7bbd0e6456aa21e2a227548365a335d21ce587fbc4b8c931c9acc9873354cbdf",
           "shape": [
@@ -11362,14 +11362,14 @@
             1568
           ]
         },
-        "1.residual_adapter.feature_expansion.bias": {
+        "1.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "2628bc27f58db3f37dd457c0bb37c19ce0d6e2ea04ef2f9303babe90edfaf764",
           "shape": [
             1568
           ]
         },
-        "1.residual_adapter.feature_expansion.weight": {
+        "1.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "bc5f187467c1d311b925ecd3c7e9170ab963099d464376f4b4b93b8bde8c3ed7",
           "shape": [
@@ -12794,14 +12794,14 @@
             5
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "7e2215a49c2edb1c31d09d8426df4136be3b503369e0b29562a6fa17470c6271",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "83f2757f749e5b871ed5875f935c393b431799c8d9d1864b95d9e179e7507e80",
           "shape": [
@@ -12809,14 +12809,14 @@
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "279c4c677f127c8190737ff97e55cda0177d47c86d48f78523a32a97d086e76c",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "d279ada8b4af642cf930f2ff1b8e8dbd1dc8fbc12e082dd7a442822487d3b945",
           "shape": [
@@ -14242,14 +14242,14 @@
             5
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "7e2215a49c2edb1c31d09d8426df4136be3b503369e0b29562a6fa17470c6271",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "83f2757f749e5b871ed5875f935c393b431799c8d9d1864b95d9e179e7507e80",
           "shape": [
@@ -14257,14 +14257,14 @@
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "279c4c677f127c8190737ff97e55cda0177d47c86d48f78523a32a97d086e76c",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "d279ada8b4af642cf930f2ff1b8e8dbd1dc8fbc12e082dd7a442822487d3b945",
           "shape": [
@@ -15694,14 +15694,14 @@
             32
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "c849924ef5244c0052dd3cf42c39fdc4679493b316d6f319ffc82cdbb31f187c",
           "shape": [
             8
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "dd0009d1a5e0b906a51b536885f3692b0e0019914ea8f458849c50ed06a1cb17",
           "shape": [
@@ -15709,14 +15709,14 @@
             32
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "0c5d6bff542ba2fe2f548b945fa29df2f1a31b141766ab629e47683fe4fe7ffa",
           "shape": [
             32
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "79c6c1f8a4bf734aede5a64bbcba36461cf930e4783a1fdc1a40f41decdbac97",
           "shape": [
@@ -15769,14 +15769,14 @@
             32
           ]
         },
-        "1.residual_adapter.feature_compression.bias": {
+        "1.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "2680d0752c1ccfea8ce813fc22fc49eec70bec13ac66ee10959e324052b988d4",
           "shape": [
             8
           ]
         },
-        "1.residual_adapter.feature_compression.weight": {
+        "1.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "9236fdcf813c9cf8ccffc028690343889f081e4fc9786b384033b4a898f811ea",
           "shape": [
@@ -15784,14 +15784,14 @@
             32
           ]
         },
-        "1.residual_adapter.feature_expansion.bias": {
+        "1.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "5162bc0c4fef8e0e640bab9da501f278c05b0b85243ce2e8d1c6772adcb22f42",
           "shape": [
             32
           ]
         },
-        "1.residual_adapter.feature_expansion.weight": {
+        "1.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "b4368a98049a2a9de68925099f2f9388c5e5170b92f883b6c9486940d2471c64",
           "shape": [
@@ -17217,14 +17217,14 @@
             5
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "7e2215a49c2edb1c31d09d8426df4136be3b503369e0b29562a6fa17470c6271",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "83f2757f749e5b871ed5875f935c393b431799c8d9d1864b95d9e179e7507e80",
           "shape": [
@@ -17232,14 +17232,14 @@
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "279c4c677f127c8190737ff97e55cda0177d47c86d48f78523a32a97d086e76c",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "d279ada8b4af642cf930f2ff1b8e8dbd1dc8fbc12e082dd7a442822487d3b945",
           "shape": [
@@ -18665,14 +18665,14 @@
             5
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "7e2215a49c2edb1c31d09d8426df4136be3b503369e0b29562a6fa17470c6271",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "83f2757f749e5b871ed5875f935c393b431799c8d9d1864b95d9e179e7507e80",
           "shape": [
@@ -18680,14 +18680,14 @@
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "279c4c677f127c8190737ff97e55cda0177d47c86d48f78523a32a97d086e76c",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "d279ada8b4af642cf930f2ff1b8e8dbd1dc8fbc12e082dd7a442822487d3b945",
           "shape": [
@@ -21531,14 +21531,14 @@
             5
           ]
         },
-        "0.residual_adapter.feature_compression.bias": {
+        "0.model_owned_feature_transform.feature_compression.bias": {
           "dtype": "float32",
           "sha256": "7e2215a49c2edb1c31d09d8426df4136be3b503369e0b29562a6fa17470c6271",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_compression.weight": {
+        "0.model_owned_feature_transform.feature_compression.weight": {
           "dtype": "float32",
           "sha256": "83f2757f749e5b871ed5875f935c393b431799c8d9d1864b95d9e179e7507e80",
           "shape": [
@@ -21546,14 +21546,14 @@
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.bias": {
+        "0.model_owned_feature_transform.feature_expansion.bias": {
           "dtype": "float32",
           "sha256": "279c4c677f127c8190737ff97e55cda0177d47c86d48f78523a32a97d086e76c",
           "shape": [
             4
           ]
         },
-        "0.residual_adapter.feature_expansion.weight": {
+        "0.model_owned_feature_transform.feature_expansion.weight": {
           "dtype": "float32",
           "sha256": "d279ada8b4af642cf930f2ff1b8e8dbd1dc8fbc12e082dd7a442822487d3b945",
           "shape": [

@@ -895,7 +895,7 @@ def assert_multiply_accumulate_counts_match_example_counts(
         ]
 
     shared_layer_sizes = linear_layer_sizes(classifier.feature_extractor)
-    concept_specific_size = sum(linear_layer_sizes(classifier.residual_adapter)) + sum(
+    concept_specific_size = sum(linear_layer_sizes(classifier.model_owned_feature_transform)) + sum(
         linear_layer_sizes(classifier.classification_layer)
     )
     assert concept_specific_size > 0
@@ -916,7 +916,7 @@ def assert_multiply_accumulate_counts_match_example_counts(
         assert counts.concept_specific_part_training_forward_multiply_accumulate_count == (
             counts.concept_specific_part_training_example_count * concept_specific_size
         )
-        first_layer_size = linear_layer_sizes(classifier.residual_adapter)[0]
+        first_layer_size = linear_layer_sizes(classifier.model_owned_feature_transform)[0]
         assert counts.concept_specific_part_estimated_backward_multiply_accumulate_count == (
             counts.concept_specific_part_training_example_count
             * (2 * concept_specific_size - first_layer_size)

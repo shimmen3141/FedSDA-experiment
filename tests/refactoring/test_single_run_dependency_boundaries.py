@@ -240,27 +240,27 @@ def test_held_candidate_validation_diagnostic_notification_dependency_contract(
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier as AcceptedDependency",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier as AcceptedDependency",
             True,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier",
             False,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import _private",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import _private",
             False,
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import *",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import *",
             False,
         ),
         (
@@ -2120,43 +2120,43 @@ def test_alarm_response_completion_dependency_contract(source_text, expected_acc
             True,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier as AcceptedDependency",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier as AcceptedDependency",
             True,
         ),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier",
             False,
         ),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier as AcceptedDependency",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier as AcceptedDependency",
             False,
         ),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import _private",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import _private",
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier.child import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier.child import ModelArchitectureClassifier",
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import *",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import *",
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import field",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import field",
             False,
         ),
         (
-            "from ..learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -3869,7 +3869,7 @@ def test_alarm_training_interval_preparation_dependency_contract(
                 "torch.strided",
                 "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
                 "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-                "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+                "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
                 "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
                 "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
                 "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
@@ -3914,7 +3914,7 @@ def test_alarm_training_interval_preparation_dependency_contract(
             for imported_module_name in (
                 "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
                 "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-                "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+                "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
                 "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
                 "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
                 "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
@@ -4452,10 +4452,10 @@ def test_pending_model_upload_dependency_contract(source_text, expected_acceptan
         ("from torch import mean", False),
         ("from torch import clamp", False),
         ("from torch.optim import Adam", False),
-        ("from .residual_adapter_classifier import _validate_classifier_inputs", False),
-        ("from . import residual_adapter_classifier", False),
+        ("from .model_architecture_classifier import _validate_classifier_inputs", False),
+        ("from . import model_architecture_classifier", False),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier",
             False,
         ),
         (
@@ -4478,9 +4478,9 @@ def test_pending_model_upload_dependency_contract(source_text, expected_acceptan
         ("from torch import Tensor", True),
         ("from torch import float32, isfinite", True),
         ("from torch import no_grad, strided", True),
-        ("from .residual_adapter_classifier import ResidualAdapterClassifier", True),
+        ("from .model_architecture_classifier import ModelArchitectureClassifier", True),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier as Classifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier as Classifier",
             True,
         ),
     ],
@@ -4511,10 +4511,10 @@ def test_classifier_parameter_snapshot_dependency_contract(source_text, expected
             "from .class_probability_calculations import compute_model_mean_bounded_losses_after_label_observation",
             False,
         ),
-        ("from ..models.residual_adapter_classifier import _validate_classifier_inputs", False),
-        ("from ..models import residual_adapter_classifier", False),
+        ("from ..models.model_architecture_classifier import _validate_classifier_inputs", False),
+        ("from ..models import model_architecture_classifier", False),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier",
             False,
         ),
         (
@@ -4533,9 +4533,9 @@ def test_classifier_parameter_snapshot_dependency_contract(source_text, expected
         ("from torch import Tensor", True),
         ("from torch import abs, float32, isfinite", True),
         ("from torch import no_grad, softmax, strided, trunc", True),
-        ("from ..models.residual_adapter_classifier import ResidualAdapterClassifier", True),
+        ("from ..models.model_architecture_classifier import ModelArchitectureClassifier", True),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier as Classifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier as Classifier",
             True,
         ),
     ],
@@ -4574,7 +4574,7 @@ def test_classifier_bounded_loss_evaluation_dependency_contract(source_text, exp
         ("from .parameter_optimizer_state import ParameterOptimizerState", True),
         ("from .held_model_training_binding import HeldModelTrainingBinding", True),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
     ],
@@ -4623,7 +4623,7 @@ def test_held_model_training_state_registry_rejects_module_imports(source_text):
         ("from .parameter_optimizer_construction import create_parameter_optimizer", False),
         ("from .parameter_optimizer_state import _private", False),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import _validate_classifier_inputs",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import _validate_classifier_inputs",
             False,
         ),
         (
@@ -4639,7 +4639,7 @@ def test_held_model_training_state_registry_rejects_module_imports(source_text):
         ("from torch.optim import Adam, SGD", True),
         ("from .parameter_optimizer_state import ParameterOptimizerState", True),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -4674,7 +4674,7 @@ def test_adopted_candidate_shared_feature_integration_dependency_contract(
         ("from .parameter_optimizer_construction import create_parameter_optimizer", False),
         ("from .parameter_optimizer_state import _private", False),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import _validate_classifier_inputs",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import _validate_classifier_inputs",
             False,
         ),
         (
@@ -4690,7 +4690,7 @@ def test_adopted_candidate_shared_feature_integration_dependency_contract(
         ("from torch.optim import Adam, SGD", True),
         ("from .parameter_optimizer_state import ParameterOptimizerState", True),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -4815,7 +4815,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
             "federated_learning_experiments.learning.training.independent_model_parameter_update.update_independent_model_parameters",
@@ -4956,8 +4956,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.model_id_mapped_loss_statistics_selection.select_loss_statistics_after_model_id_mapping",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.current_training_model_assignment",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.held_model_training_state_registry",
@@ -5169,9 +5169,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics._copy_model_and_class_loss_statistics",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.current_training_model_assignment",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.held_model_training_state_registry",
@@ -5233,7 +5233,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.nn.Sigmoid",
             "federated_learning_experiments.learning.models.nonlinear_residual_adapter.ModelOwnedHiddenLayers",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier._validate_classifier_inputs",
+            "federated_learning_experiments.learning.models.model_architecture_classifier._validate_classifier_inputs",
             "torch.Tensor",
             "torch.is_grad_enabled",
             "torch.nn.BCELoss",
@@ -5241,8 +5241,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.optim.Optimizer",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
             "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
             "federated_learning_experiments.learning.training.joint_model_parameter_update._validate_parameter_optimizer",
             "federated_learning_experiments.learning.training.joint_model_parameter_update._validate_trainable_parameters",
@@ -5284,9 +5284,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.batch_loss_statistics_initialization.initialize_model_and_class_loss_statistics_from_batch",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier._validate_classifier_inputs",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier._validate_classifier_inputs",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
@@ -5309,8 +5309,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "math.isfinite",
             "torch.Tensor",
             "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
         )
@@ -5544,7 +5544,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.learning.training.initial_model_pretraining_settings.InitialModelPretrainingSettings",
@@ -5924,7 +5924,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.execution.run_random_sources.RunRandomSources",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
             "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "federated_learning_experiments.learning.training.initial_model_pretraining_settings.InitialModelPretrainingSettings",
             "federated_learning_experiments.runtime.feddrift_run_client.FeddriftRunClient",
             "federated_learning_experiments.runtime.feddrift_run_client.assemble_feddrift_run_client",
@@ -6039,7 +6039,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.unique",
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.prediction.class_probability_calculations.predict_class_labels_from_prediction_scores",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses_and_outputs",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
@@ -6080,8 +6080,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.loss_statistics.model_id_mapped_loss_statistics_selection.select_loss_statistics_after_model_id_mapping",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
             "federated_learning_experiments.learning.training.held_model_shared_feature_reconnection.HeldModelOptimizerBinding",
@@ -6116,7 +6116,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.evaluation.sample_prediction_record_store.SamplePredictionRecordStore",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
@@ -6214,7 +6214,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
             "federated_learning_experiments.evaluation.sample_prediction_record_store.SamplePredictionRecordStore",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
@@ -6261,7 +6261,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
@@ -6381,7 +6381,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "random.Random",
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
@@ -6412,7 +6412,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.strided",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
@@ -6508,7 +6508,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.strided",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.candidate_epoch_training.CandidateEpochTrainingResult",
             "federated_learning_experiments.learning.training.candidate_epoch_training.train_candidate_classifier_epochs",
             "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
@@ -6532,7 +6532,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "learning/training/candidate_epoch_training.py":
         return imported_module_name in (
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "dataclasses.dataclass",
             "math.inf",
             "torch.Tensor",
@@ -6546,7 +6546,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.utils.data.DataLoader",
             "torch.utils.data.TensorDataset",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
             "federated_learning_experiments.learning.training.joint_model_parameter_update.perform_joint_model_parameter_update",
@@ -6562,8 +6562,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.isfinite",
             "torch.strided",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
@@ -6574,7 +6574,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "__future__.annotations",
             "dataclasses.dataclass",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
@@ -6584,7 +6584,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "__future__.annotations",
             "torch.Tensor",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection.PostAlarmCandidateLossCollection",
         )
@@ -6594,7 +6594,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "torch.Tensor",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation.PostAlarmCandidateLossEvaluation",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
@@ -6624,7 +6624,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "__future__.annotations",
             "torch.Tensor",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
             "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
             "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
@@ -6643,7 +6643,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.loss_statistics.batch_loss_statistics_initialization.initialize_model_and_class_loss_statistics_from_batch",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
             "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.learning.training.adopted_candidate_shared_feature_integration.integrate_adopted_candidate_shared_features",
@@ -6712,7 +6712,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.isfinite",
             "torch.no_grad",
             "torch.strided",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
         )
     if source_module_path == "learning/prediction/classifier_bounded_loss_evaluation.py":
         return imported_module_name in (
@@ -6724,7 +6724,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.softmax",
             "torch.strided",
             "torch.trunc",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
         )
     if source_module_path == "learning/training/held_model_training_state_registry.py":
         # 一覧構造と公開状態参照だけを許可し、上位処理の呼出しを防ぐ。
@@ -6735,14 +6735,14 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.nn.Parameter",
             "torch.optim.Adam",
             "torch.optim.SGD",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
             "federated_learning_experiments.learning.training.held_model_training_binding.HeldModelTrainingBinding",
         )
     if source_module_path == "learning/training/adopted_candidate_shared_feature_integration.py":
         # 外側接続はモデルとownerの公開型/属性だけを使い、学習計算へ依存しない。
         return imported_module_name in (
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "torch",
             "torch.float32",
             "torch.strided",
@@ -6751,8 +6751,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.optim",
             "torch.optim.Adam",
             "torch.optim.SGD",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.models.shared_feature_extractor",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
             "federated_learning_experiments.learning.training.parameter_optimizer_state",
@@ -6761,7 +6761,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "learning/training/held_model_shared_feature_reconnection.py":
         # 外側接続はモデルとownerの公開型/属性だけを使い、学習計算へ依存しない。
         return imported_module_name in (
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "dataclasses",
             "dataclasses.dataclass",
             "torch",
@@ -6772,8 +6772,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.optim",
             "torch.optim.Adam",
             "torch.optim.SGD",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.models.shared_feature_extractor",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
             "federated_learning_experiments.learning.training.parameter_optimizer_state",
@@ -6831,8 +6831,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "torch.optim",
             "torch.optim.Optimizer",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
         )
     if source_module_path == "learning/training/held_model_joint_training_iterations.py":
         # 借用参照と公開部品の接続だけに限定し、演算・上位層・private依存を拒否する。
@@ -6897,8 +6897,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.Tensor",
             "torch.optim",
             "torch.optim.Optimizer",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
         )
     if source_module_path == "learning/training/joint_model_parameter_update.py":
         # 共同更新は明示演算と兄弟記録/設定・モデル公開型へ限定する。
@@ -6927,8 +6927,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.participating_model_training_batch.ParticipatingModelTrainingBatch",
             "federated_learning_experiments.learning.models.shared_feature_extractor",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
         )
     if source_module_path == "learning/training/parameter_optimizer_settings.py":
         # optimizer設定は一般stdlib/core許可より前に公開field検査へ限定する。
@@ -6962,7 +6962,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path in (
         "learning/models/shared_feature_extractor.py",
         "learning/models/nonlinear_residual_adapter.py",
-        "learning/models/residual_adapter_classifier.py",
+        "learning/models/model_architecture_classifier.py",
     ):
         # モデル構造は一般stdlib許可より先にexact module/public symbolで制限する。
         return imported_module_name in (
@@ -6983,7 +6983,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.nn.init",
             "torch.nn.init.zeros_",
         ) or (
-            source_module_path == "learning/models/residual_adapter_classifier.py"
+            source_module_path == "learning/models/model_architecture_classifier.py"
             and imported_module_name
             in (
                 "federated_learning_experiments.learning.models.model_architecture_settings",
@@ -7668,7 +7668,7 @@ def test_held_model_registration_confirmation_exact_dependency_contract(
             True,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -7947,7 +7947,7 @@ def test_temporary_model_id_allocation_rejects_every_import_except_annotations(
             True,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -8084,7 +8084,7 @@ def test_adopted_candidate_local_adoption_exact_dependency_contract(
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             False,
         ),
         (
@@ -8273,7 +8273,7 @@ def test_assigned_training_sample_absorption_exact_dependency_contract(
             True,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -8446,7 +8446,7 @@ def test_post_alarm_candidate_validation_resolution_exact_dependency_contract(
             True,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -8458,7 +8458,7 @@ def test_post_alarm_candidate_validation_resolution_exact_dependency_contract(
             True,
         ),
         (
-            "from ..learning.models.residual_adapter_classifier import ResidualAdapterClassifier as Classifier",
+            "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier as Classifier",
             True,
         ),
         ("from __future__ import annotations", True),
@@ -8579,11 +8579,11 @@ def test_post_alarm_candidate_validation_sample_observation_exact_dependency_con
             False,
         ),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier",
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models import ModelArchitectureClassifier",
             False,
         ),
         (
@@ -8595,7 +8595,7 @@ def test_post_alarm_candidate_validation_sample_observation_exact_dependency_con
             True,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -8615,7 +8615,7 @@ def test_post_alarm_candidate_validation_sample_observation_exact_dependency_con
             True,
         ),
         (
-            "from ..learning.models.residual_adapter_classifier import ResidualAdapterClassifier as Classifier",
+            "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier as Classifier",
             True,
         ),
         ("from __future__ import annotations", True),
@@ -8661,7 +8661,7 @@ def test_post_alarm_reference_model_fixation_exact_dependency_contract(
         ("from dataclasses import dataclass", True),
         ("from torch import Tensor, float32, isfinite, strided", True),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -8943,8 +8943,8 @@ def test_single_run_layers_import_only_allowed_dependencies():
                     "federated_drift_experiment.clients.base",
                 ),
                 (
-                    "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
-                    "federated_learning_experiments.learning.models.residual_adapter_classifier",
+                    "from ..models.model_architecture_classifier import ModelArchitectureClassifier",
+                    "federated_learning_experiments.learning.models.model_architecture_classifier",
                 ),
                 (
                     "import federated_learning_experiments.runtime.single_run_execution",
@@ -9094,8 +9094,8 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ),
         (
             "learning/training/participating_model_training_batch.py",
-            "from ..models.residual_adapter_classifier import _validate_classifier_inputs",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier._validate_classifier_inputs",
+            "from ..models.model_architecture_classifier import _validate_classifier_inputs",
+            "federated_learning_experiments.learning.models.model_architecture_classifier._validate_classifier_inputs",
         ),
         (
             "learning/training/joint_model_parameter_update.py",
@@ -9119,8 +9119,8 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ),
         (
             "learning/training/joint_model_parameter_update.py",
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier.child",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier.child",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier.child",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.child",
         ),
         *[
             (source_module_path, source_text, expected_imported_module_name)
@@ -9135,8 +9135,8 @@ def test_single_run_layers_import_only_allowed_dependencies():
                 ("import torch._C", "torch._C"),
                 ("import federated_drift_experiment.models", "federated_drift_experiment.models"),
                 (
-                    "from ..models import residual_adapter_classifier",
-                    "federated_learning_experiments.learning.models.residual_adapter_classifier",
+                    "from ..models import model_architecture_classifier",
+                    "federated_learning_experiments.learning.models.model_architecture_classifier",
                 ),
                 (
                     "import federated_learning_experiments.data.sine.sine_sample_generation",
@@ -9219,7 +9219,7 @@ def test_single_run_layers_import_only_allowed_dependencies():
             for source_module_path in (
                 "learning/models/shared_feature_extractor.py",
                 "learning/models/nonlinear_residual_adapter.py",
-                "learning/models/residual_adapter_classifier.py",
+                "learning/models/model_architecture_classifier.py",
             )
             for source_text, expected_imported_module_name in (
                 ("import numpy", "numpy"),
@@ -9233,8 +9233,8 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ],
         (
             "learning/models/shared_feature_extractor.py",
-            "from .residual_adapter_classifier import ResidualAdapterClassifier",
-            "federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "from .model_architecture_classifier import ModelArchitectureClassifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier",
         ),
         (
             "learning/models/nonlinear_residual_adapter.py",
@@ -9242,27 +9242,27 @@ def test_single_run_layers_import_only_allowed_dependencies():
             "federated_learning_experiments.learning.models.shared_feature_extractor",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "from .shared_feature_extractor import _validate_feature_tensor",
             "federated_learning_experiments.learning.models.shared_feature_extractor._validate_feature_tensor",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "from .model_architecture_settings import validate_settings_field_values",
             "federated_learning_experiments.learning.models.model_architecture_settings.validate_settings_field_values",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "import federated_learning_experiments.learning.models.shared_feature_extractor.child",
             "federated_learning_experiments.learning.models.shared_feature_extractor.child",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "import federated_learning_experiments.runtime.single_run_execution",
             "federated_learning_experiments.runtime.single_run_execution",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "from ...methods.fedsda.candidate_model_selection import candidate_parameter_initialization",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection",
         ),
@@ -9992,11 +9992,11 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
         ),
         (
             "learning/training/participating_model_training_batch.py",
-            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from ..models.model_architecture_classifier import ModelArchitectureClassifier",
         ),
         (
             "learning/training/participating_model_training_batch.py",
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
         ),
         (
             "learning/training/participating_model_training_batch.py",
@@ -10028,7 +10028,7 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
         ),
         (
             "learning/training/joint_model_parameter_update.py",
-            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from ..models.model_architecture_classifier import ModelArchitectureClassifier",
         ),
         (
             "learning/training/joint_model_parameter_update.py",
@@ -10044,7 +10044,7 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
         ),
         (
             "learning/training/joint_model_parameter_update.py",
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
         ),
         ("learning/training/joint_model_parameter_update.py", "from __future__ import annotations"),
         (
@@ -10087,7 +10087,7 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
             for source_module_path in (
                 "learning/models/shared_feature_extractor.py",
                 "learning/models/nonlinear_residual_adapter.py",
-                "learning/models/residual_adapter_classifier.py",
+                "learning/models/model_architecture_classifier.py",
             )
             for source_text in (
                 "import torch",
@@ -10098,27 +10098,27 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
             )
         ],
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "from .model_architecture_settings import ModelArchitectureSettings",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "from .shared_feature_extractor import SharedFeatureExtractor",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "from .nonlinear_residual_adapter import NonlinearResidualAdapter",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "from federated_learning_experiments.learning.models.model_architecture_settings import ModelArchitectureSettings",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor",
         ),
         (
-            "learning/models/residual_adapter_classifier.py",
+            "learning/models/model_architecture_classifier.py",
             "from federated_learning_experiments.learning.models.nonlinear_residual_adapter import NonlinearResidualAdapter",
         ),
         (
@@ -10435,7 +10435,7 @@ def test_single_run_dependency_checker_accepts_allowed_imports(source_module_pat
         ),
         (
             "learning/training/held_model_training_binding.py",
-            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from ..models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
@@ -10524,7 +10524,7 @@ def test_joint_training_iteration_dependency_contract(
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models import ModelArchitectureClassifier",
             False,
         ),
         ("from __future__ import annotations", True),
@@ -10610,7 +10610,7 @@ def test_model_training_sample_store_dependency_contract(source_text, expected_a
                 "from federated_learning_experiments.evaluation import model_evaluation_sample_records",
                 "from federated_learning_experiments.runtime import run_experiment",
                 "from ..learning.training.model_training_sample_store import ModelTrainingSampleStore",
-                "from ..learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+                "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             )
         ],
         (
@@ -10725,7 +10725,7 @@ def test_training_state_owner_dataclass_only_dependency_contract(
         ),
         (
             "learning/training/local_training_schedule_settings.py",
-            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from ..models.model_architecture_classifier import ModelArchitectureClassifier",
             False,
         ),
         ("learning/training/local_training_schedule_settings.py", "import numpy", False),
@@ -10769,7 +10769,7 @@ def test_training_state_owner_dataclass_only_dependency_contract(
         ),
         (
             "learning/training/local_training_request_schedule.py",
-            "from ..models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from ..models.model_architecture_classifier import ModelArchitectureClassifier",
             False,
         ),
         ("learning/training/local_training_request_schedule.py", "import numpy", False),
@@ -11015,12 +11015,12 @@ def test_local_training_schedule_dependency_contract(
         ),
         (
             "learning/training/candidate_epoch_training.py",
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
             "learning/training/candidate_epoch_training.py",
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier as AcceptedDependency",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier as AcceptedDependency",
             True,
         ),
         (
@@ -11191,19 +11191,19 @@ def test_candidate_epoch_training_dependency_contract(
             True,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import ResidualAdapterClassifier as AcceptedDependency",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier as AcceptedDependency",
             True,
         ),
         (
-            "from ..learning.models.residual_adapter_classifier import ResidualAdapterClassifier",
+            "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier",
             True,
         ),
         (
-            "from ..learning.models.residual_adapter_classifier import ResidualAdapterClassifier as AcceptedDependency",
+            "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier as AcceptedDependency",
             True,
         ),
         (
@@ -11462,19 +11462,19 @@ def test_candidate_epoch_training_dependency_contract(
             False,
         ),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier",
             False,
         ),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier as AcceptedDependency",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier as AcceptedDependency",
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import *",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import *",
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models.residual_adapter_classifier import _private",
+            "from federated_learning_experiments.learning.models.model_architecture_classifier import _private",
             False,
         ),
         ("import federated_learning_experiments.learning.training.candidate_epoch_training", False),
@@ -11664,7 +11664,7 @@ def test_candidate_epoch_training_dependency_contract(
             False,
         ),
         (
-            "from federated_learning_experiments.learning.models import ResidualAdapterClassifier",
+            "from federated_learning_experiments.learning.models import ModelArchitectureClassifier",
             False,
         ),
         (
@@ -11687,14 +11687,14 @@ def test_candidate_epoch_training_dependency_contract(
             "from .post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
             False,
         ),
-        ("from ..models.residual_adapter_classifier import ResidualAdapterClassifier", False),
-        ("from ..learning.models import residual_adapter_classifier", False),
+        ("from ..models.model_architecture_classifier import ModelArchitectureClassifier", False),
+        ("from ..learning.models import model_architecture_classifier", False),
         (
             "from ..learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters, _private",
             False,
         ),
         ("from .candidate_classifier_construction import _private", False),
-        ("from .post_alarm_reference_model_fixation import ResidualAdapterClassifier", False),
+        ("from .post_alarm_reference_model_fixation import ModelArchitectureClassifier", False),
         (
             "from .post_alarm_candidate_validation_sample_observation import observe_post_alarm_candidate_validation_sample",
             False,
@@ -11745,11 +11745,11 @@ def test_candidate_epoch_training_dependency_contract(
             False,
         ),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             False,
         ),
         (
-            "import federated_learning_experiments.learning.models.residual_adapter_classifier.ResidualAdapterClassifier as AcceptedDependency",
+            "import federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier as AcceptedDependency",
             False,
         ),
         (

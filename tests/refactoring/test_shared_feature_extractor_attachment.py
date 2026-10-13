@@ -13,11 +13,11 @@ from test_joint_model_parameter_update import (
 )
 
 from federated_drift_experiment.models import SharedFeatureBackbone
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -42,7 +42,7 @@ class SharedFeatureExtractorSubclass(SharedFeatureExtractor):
 
 
 def build_attachment_classifier(*, class_count=2, hidden_layer_widths=(5, 4)):
-    return ResidualAdapterClassifier(
+    return ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -95,7 +95,7 @@ def test_attachment_preserves_concept_parameters_and_uses_target_forward(
                 input_feature_count=2, hidden_layer_widths=hidden_layer_widths
             )
         )
-        previous_residual_adapter = classifier.residual_adapter
+        previous_model_owned_feature_transform = classifier.model_owned_feature_transform
         previous_classification_layer = classifier.classification_layer
         previous_output_activation = classifier.output_activation
         for parameter in tuple(classifier.parameters()) + tuple(
@@ -115,7 +115,7 @@ def test_attachment_preserves_concept_parameters_and_uses_target_forward(
             is None
         )
         assert classifier.feature_extractor is shared_feature_extractor
-        assert classifier.residual_adapter is previous_residual_adapter
+        assert classifier.model_owned_feature_transform is previous_model_owned_feature_transform
         assert classifier.classification_layer is previous_classification_layer
         assert classifier.output_activation is previous_output_activation
         assert classifier.class_count == class_count
@@ -159,7 +159,9 @@ def test_attachment_and_explicit_optimizer_selection_match_legacy_joint_training
         )
         concept_specific_optimizer_states = tuple(
             ParameterOptimizerState(
-                parameters=tuple(training_batch.classifier.residual_adapter.parameters())
+                parameters=tuple(
+                    training_batch.classifier.model_owned_feature_transform.parameters()
+                )
                 + tuple(training_batch.classifier.classification_layer.parameters()),
                 optimizer_settings=optimizer_settings,
             )

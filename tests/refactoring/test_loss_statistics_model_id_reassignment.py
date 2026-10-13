@@ -247,8 +247,8 @@ def test_loss_statistics_id_reassignment_connects_pending_upload_confirmation(
         initial_parameter_snapshot = snapshot_classifier_parameters(classifier=classifier)
         expected_parameter_values = {
             parameter_name.replace("backbone.net.", "feature_extractor.hidden_layers.")
-            .replace("adapter.down.", "residual_adapter.feature_compression.")
-            .replace("adapter.up.", "residual_adapter.feature_expansion.")
+            .replace("adapter.down.", "model_owned_feature_transform.feature_compression.")
+            .replace("adapter.up.", "model_owned_feature_transform.feature_expansion.")
             .replace("head.", "classification_layer."): parameter_values
             for parameter_name, parameter_values in legacy_client.pending_model_params.items()
         }

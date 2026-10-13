@@ -69,15 +69,15 @@ def _validate_classifier_inputs(
     return validated_model_architecture_settings
 
 
-class ResidualAdapterClassifier(Module):
+class ModelArchitectureClassifier(Module):
     """共有部だけを借用し、adapterと分類層を独立に所有する。
 
-    adapterを持たない構造（設定の構造の名前）では、`residual_adapter`は、共有特徴をそのまま返す部品で、
+    adapterを持たない構造（設定の構造の名前）では、`model_owned_feature_transform`は、共有特徴をそのまま返す部品で、
     パラメータを持たない（概念固有部は、分類層だけ）。
 
     共有部を持たない構造では、特徴抽出部（`feature_extractor`）は、隠れ層を持たず（入力をそのまま返す。
-    パラメータなし）、隠れ層は、`residual_adapter`の場所に、モデルごとに独立に持つ（`ModelOwnedHiddenLayers`）。
-    概念固有部（`residual_adapter`と`classification_layer`のパラメータ）が、モデルの全パラメータになる。
+    パラメータなし）、隠れ層は、`model_owned_feature_transform`の場所に、モデルごとに独立に持つ（`ModelOwnedHiddenLayers`）。
+    概念固有部（`model_owned_feature_transform`と`classification_layer`のパラメータ）が、モデルの全パラメータになる。
 
     `input_feature_count`と`hidden_layer_widths`は、どの構造でも、構築のときに指定された値。同じ構造の
     分類器を作るときは、特徴抽出部の寸法でなく、これらを使う。
@@ -116,12 +116,12 @@ class ResidualAdapterClassifier(Module):
                 hidden_layer_widths=() if models_are_independent else hidden_layer_widths,
             )
         )
-        self.residual_adapter: (
+        self.model_owned_feature_transform: (
             IdentityFeatureAdapter | ModelOwnedHiddenLayers | NonlinearResidualAdapter
         )
         if models_are_independent:
             # 隠れ層→分類層の順に作る（旧の、共有部を持たないモデルと、同じ順に乱数を消費する）。
-            self.residual_adapter = ModelOwnedHiddenLayers(
+            self.model_owned_feature_transform = ModelOwnedHiddenLayers(
                 input_feature_count=input_feature_count, hidden_layer_widths=hidden_layer_widths
             )
         elif (
@@ -129,19 +129,19 @@ class ResidualAdapterClassifier(Module):
             == "shared_backbone_without_residual_adapter"
         ):
             # パラメータを作らないので、乱数も消費しない（旧の、adapterを持たないモデルと同じ）。
-            self.residual_adapter = IdentityFeatureAdapter(
+            self.model_owned_feature_transform = IdentityFeatureAdapter(
                 feature_count=self.feature_extractor.output_feature_count
             )
         else:
-            self.residual_adapter = NonlinearResidualAdapter(
+            self.model_owned_feature_transform = NonlinearResidualAdapter(
                 feature_count=self.feature_extractor.output_feature_count,
                 requested_rank=validated_model_architecture_settings.residual_adapter_requested_rank,
             )
         classification_output_count = 1 if class_count == 2 else class_count
         self.classification_layer = Linear(
             (
-                self.residual_adapter.output_feature_count
-                if type(self.residual_adapter) is ModelOwnedHiddenLayers
+                self.model_owned_feature_transform.output_feature_count
+                if type(self.model_owned_feature_transform) is ModelOwnedHiddenLayers
                 else self.feature_extractor.output_feature_count
             ),
             classification_output_count,
@@ -166,8 +166,8 @@ class ResidualAdapterClassifier(Module):
         return self.feature_extractor(input_features)
 
     def forward_from_shared_features(self, shared_features: torch.Tensor) -> torch.Tensor:
-        adapted_features = self.residual_adapter(shared_features)
-        classification_scores = self.classification_layer(adapted_features)
+        transformed_features = self.model_owned_feature_transform(shared_features)
+        classification_scores = self.classification_layer(transformed_features)
         return self.output_activation(classification_scores)
 
     def forward(self, input_features: torch.Tensor) -> torch.Tensor:

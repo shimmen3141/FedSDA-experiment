@@ -48,7 +48,7 @@ def build_candidate_integration_inputs(*, initially_shared=False, hidden_layer_w
     if initially_shared:
         candidate.attach_shared_feature_extractor(shared_feature_extractor=active)
     owner = ParameterOptimizerState(
-        parameters=tuple(candidate.residual_adapter.parameters())
+        parameters=tuple(candidate.model_owned_feature_transform.parameters())
         + tuple(candidate.classification_layer.parameters()),
         optimizer_settings=AdamParameterOptimizerSettings(
             learning_rate=0.01, weight_decay=0.001, adam_variant="standard"
@@ -72,7 +72,7 @@ def test_integration_copies_values_preserves_references_and_resets_only_concept_
         source = candidate.feature_extractor
         source_snapshot = snapshot_parameter_values_and_gradients(source.parameters())
         concept_snapshot = snapshot_parameter_values_and_gradients(
-            tuple(candidate.residual_adapter.parameters())
+            tuple(candidate.model_owned_feature_transform.parameters())
             + tuple(candidate.classification_layer.parameters())
         )
         active_parameters = tuple(active.parameters())
@@ -169,12 +169,12 @@ def test_invalid_inputs_are_rejected_before_any_mutation(invalid_case):
         elif invalid_case == "owner_reversed_parameters":
             owner.parameter_optimizer.param_groups[0]["params"].reverse()
         elif invalid_case == "concept_dtype":
-            candidate.residual_adapter.double()
+            candidate.model_owned_feature_transform.double()
         elif invalid_case == "concept_shared_parameter":
             candidate.classification_layer.bias = active.hidden_layers[2].bias
             arguments["candidate_concept_specific_parameter_optimizer_state"] = (
                 ParameterOptimizerState(
-                    parameters=tuple(candidate.residual_adapter.parameters())
+                    parameters=tuple(candidate.model_owned_feature_transform.parameters())
                     + tuple(candidate.classification_layer.parameters()),
                     optimizer_settings=AdamParameterOptimizerSettings(
                         learning_rate=0.01, weight_decay=0.001, adam_variant="standard"
@@ -293,7 +293,7 @@ def test_old_candidate_preparation_and_three_joint_updates_match(
         )
         concept_owners = tuple(
             ParameterOptimizerState(
-                parameters=tuple(batch.classifier.residual_adapter.parameters())
+                parameters=tuple(batch.classifier.model_owned_feature_transform.parameters())
                 + tuple(batch.classifier.classification_layer.parameters()),
                 optimizer_settings=optimizer_settings,
             )

@@ -50,14 +50,14 @@ from federated_learning_experiments.learning.loss_statistics.bounded_loss_moment
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatistics,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
 from federated_learning_experiments.learning.models.model_computation_measurement import (
     measure_model_computation,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.candidate_epoch_training_settings import (
     CandidateEpochTrainingSettings,
@@ -307,7 +307,7 @@ def convert_legacy_loss_statistics(legacy_statistics):
 
 def build_initial_model_from_legacy(*, legacy_model, class_count, run_client_settings):
     """実旧の初期モデルと同じ値の分類器と、同じ蓄積状態の2つのoptimizerの状態を作る。"""
-    initial_classifier = ResidualAdapterClassifier(
+    initial_classifier = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=ADAPTER_RANK,
@@ -323,7 +323,7 @@ def build_initial_model_from_legacy(*, legacy_model, class_count, run_client_set
         }
     )
     concept_specific_parameter_optimizer_state = ParameterOptimizerState(
-        parameters=tuple(initial_classifier.residual_adapter.parameters())
+        parameters=tuple(initial_classifier.model_owned_feature_transform.parameters())
         + tuple(initial_classifier.classification_layer.parameters()),
         optimizer_settings=run_client_settings.rebuilt_model_parameter_optimizer_settings,
     )
@@ -1252,7 +1252,7 @@ def test_assembly_copies_initial_model_and_keeps_clients_independent(
 def make_other_initial_model(assembly_arguments, *, input_feature_count=2):
     """同じ構造（または特徴数だけ違う構造）の、別の分類器と、それに対応する2つのoptimizerの状態。"""
     reference_classifier = assembly_arguments["initial_classifier"]
-    other_classifier = ResidualAdapterClassifier(
+    other_classifier = ModelArchitectureClassifier(
         model_architecture_settings=reference_classifier.model_architecture_settings,
         input_feature_count=input_feature_count,
         hidden_layer_widths=HIDDEN_LAYER_WIDTHS,
@@ -1262,7 +1262,7 @@ def make_other_initial_model(assembly_arguments, *, input_feature_count=2):
     return dict(
         initial_classifier=other_classifier,
         initial_concept_specific_parameter_optimizer_state=ParameterOptimizerState(
-            parameters=tuple(other_classifier.residual_adapter.parameters())
+            parameters=tuple(other_classifier.model_owned_feature_transform.parameters())
             + tuple(other_classifier.classification_layer.parameters()),
             optimizer_settings=optimizer_settings,
         ),

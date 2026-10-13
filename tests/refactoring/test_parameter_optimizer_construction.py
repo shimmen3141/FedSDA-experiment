@@ -10,11 +10,11 @@ import torch
 
 from federated_drift_experiment import config
 from federated_drift_experiment.models import SharedBackboneMLP
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training import parameter_optimizer_construction
 from federated_learning_experiments.learning.training.parameter_optimizer_construction import (
@@ -391,7 +391,7 @@ def test_parameter_optimizer_preserves_random_state_and_tensor_environment(
 
 
 def test_parameter_optimizer_uses_separate_model_parameter_groups():
-    actual = ResidualAdapterClassifier(
+    actual = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -410,7 +410,7 @@ def test_parameter_optimizer_uses_separate_model_parameter_groups():
         for model_module_name, model_module in actual.named_modules()
     }
     shared_feature_parameters = tuple(actual.feature_extractor.parameters())
-    concept_specific_parameters = tuple(actual.residual_adapter.parameters()) + tuple(
+    concept_specific_parameters = tuple(actual.model_owned_feature_transform.parameters()) + tuple(
         actual.classification_layer.parameters()
     )
     assert not {id(parameter) for parameter in shared_feature_parameters} & {

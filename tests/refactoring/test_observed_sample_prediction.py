@@ -41,8 +41,8 @@ from federated_learning_experiments.evaluation.sample_prediction_record_store im
 from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
     TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -830,7 +830,7 @@ def test_prediction_rejects_non_finite_model_output_before_any_update(
     state_snapshot = snapshot_prediction_state(prediction_arguments=prediction_arguments)
     with monkeypatch.context() as patch_context:
         patch_context.setattr(
-            ResidualAdapterClassifier,
+            ModelArchitectureClassifier,
             "forward_from_shared_features",
             lambda self, shared_features: torch.full((1, 1), float("nan")),
         )

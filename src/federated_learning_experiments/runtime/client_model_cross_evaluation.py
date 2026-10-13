@@ -11,8 +11,8 @@ from federated_learning_experiments.evaluation.model_evaluation_sample_store imp
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.prediction.class_probability_calculations import (
     predict_class_labels_from_prediction_scores,
@@ -238,7 +238,7 @@ def evaluate_candidate_model_on_target_model_samples(
         [selected_sample.observed_class_labels for selected_sample in selected_samples]
     )
     # 評価用の分類器を新しく作る（torchの乱数を消費する）。値は、渡されたパラメータで上書きする。
-    candidate_classifier = ResidualAdapterClassifier(
+    candidate_classifier = ModelArchitectureClassifier(
         model_architecture_settings=architecture_reference_classifier.model_architecture_settings,
         input_feature_count=architecture_reference_classifier.input_feature_count,
         hidden_layer_widths=architecture_reference_classifier.hidden_layer_widths,

@@ -5,12 +5,12 @@ from math import isfinite
 
 from torch import Tensor
 
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
@@ -59,7 +59,7 @@ class FeddriftDetectionBatchAssessment:
 
 def assess_feddrift_detection_batch(
     *,
-    held_models: tuple[tuple[int, ResidualAdapterClassifier], ...],
+    held_models: tuple[tuple[int, ModelArchitectureClassifier], ...],
     input_features: Tensor,
     observed_class_labels: Tensor,
     previous_minimum_mean_bounded_loss: float | None,
@@ -85,8 +85,8 @@ def assess_feddrift_detection_batch(
         if type(model_id) is not int or model_id in seen_model_ids:
             raise ValueError("モデルIDは重複しないbuiltin intが必要です。")
         seen_model_ids.add(model_id)
-        if type(classifier) is not ResidualAdapterClassifier:
-            raise TypeError("分類器はexact ResidualAdapterClassifierが必要です。")
+        if type(classifier) is not ModelArchitectureClassifier:
+            raise TypeError("分類器はexact ModelArchitectureClassifierが必要です。")
         if (
             type(classifier.model_architecture_settings) is not ModelArchitectureSettings
             or classifier.model_architecture_settings.model_architecture_name

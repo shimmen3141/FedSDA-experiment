@@ -7,9 +7,9 @@ from torch import Tensor, float32, isfinite, strided
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
     INDEPENDENT_MODELS_ARCHITECTURE_NAME,
-    ResidualAdapterClassifier,
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
@@ -24,14 +24,14 @@ from federated_learning_experiments.learning.training.parameter_optimizer_state 
 class IndependentCandidateTrainingState:
     """候補と二つの管理器を借用で返し、bindingの交換を禁止する。"""
 
-    candidate_classifier: ResidualAdapterClassifier
+    candidate_classifier: ModelArchitectureClassifier
     candidate_shared_parameter_optimizer_state: ParameterOptimizerState
     candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState
 
 
 def _validate_candidate_construction_inputs(
     *,
-    architecture_reference_classifier: ResidualAdapterClassifier,
+    architecture_reference_classifier: ModelArchitectureClassifier,
     initial_candidate_parameter_snapshot: dict[str, Tensor],
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
 ) -> AdamParameterOptimizerSettings | SgdParameterOptimizerSettings:
@@ -90,7 +90,7 @@ def _validate_candidate_construction_inputs(
 
 def create_independent_candidate_training_state(
     *,
-    architecture_reference_classifier: ResidualAdapterClassifier,
+    architecture_reference_classifier: ModelArchitectureClassifier,
     initial_candidate_parameter_snapshot: dict[str, Tensor],
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
 ) -> IndependentCandidateTrainingState:
@@ -100,7 +100,7 @@ def create_independent_candidate_training_state(
         initial_candidate_parameter_snapshot=initial_candidate_parameter_snapshot,
         parameter_optimizer_settings=parameter_optimizer_settings,
     )
-    candidate_classifier = ResidualAdapterClassifier(
+    candidate_classifier = ModelArchitectureClassifier(
         model_architecture_settings=architecture_reference_classifier.model_architecture_settings,
         input_feature_count=architecture_reference_classifier.input_feature_count,
         hidden_layer_widths=architecture_reference_classifier.hidden_layer_widths,
@@ -111,9 +111,9 @@ def create_independent_candidate_training_state(
         parameters=tuple(candidate_classifier.feature_extractor.parameters()),
         optimizer_settings=validated_parameter_optimizer_settings,
     )
-    concept_specific_parameters = tuple(candidate_classifier.residual_adapter.parameters()) + tuple(
-        candidate_classifier.classification_layer.parameters()
-    )
+    concept_specific_parameters = tuple(
+        candidate_classifier.model_owned_feature_transform.parameters()
+    ) + tuple(candidate_classifier.classification_layer.parameters())
     candidate_concept_specific_parameter_optimizer_state = ParameterOptimizerState(
         parameters=concept_specific_parameters,
         optimizer_settings=validated_parameter_optimizer_settings,

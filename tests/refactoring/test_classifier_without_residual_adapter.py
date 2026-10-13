@@ -5,6 +5,9 @@ import torch
 
 from federated_drift_experiment import config
 from federated_drift_experiment.models import ResidualAdapterMLP, SharedBackboneMLP
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
@@ -15,16 +18,13 @@ from federated_learning_experiments.learning.models.nonlinear_residual_adapter i
     IdentityFeatureAdapter,
     NonlinearResidualAdapter,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
-)
 
 HIDDEN_LAYER_WIDTHS = (6, 4)
 INPUT_FEATURE_COUNT = 3
 
 
 def make_classifier(*, model_architecture_name, class_count):
-    return ResidualAdapterClassifier(
+    return ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name=model_architecture_name, residual_adapter_requested_rank=8
         ),
@@ -62,11 +62,13 @@ def test_classifier_without_adapter_matches_legacy_shared_backbone_model(class_c
         model_architecture_name="shared_backbone_without_residual_adapter", class_count=class_count
     )
     assert torch.equal(torch.random.get_rng_state(), legacy_random_state_after_construction)
-    assert type(classifier.residual_adapter) is IdentityFeatureAdapter
-    assert list(classifier.residual_adapter.parameters()) == []
+    assert type(classifier.model_owned_feature_transform) is IdentityFeatureAdapter
+    assert list(classifier.model_owned_feature_transform.parameters()) == []
     # パラメータの名前は、共有部と分類層だけ。値は、旧のモデルの、対応するパラメータと同じ。
     classifier_parameters = classifier.state_dict()
-    assert not any(name.startswith("residual_adapter.") for name in classifier_parameters)
+    assert not any(
+        name.startswith("model_owned_feature_transform.") for name in classifier_parameters
+    )
     legacy_parameters = legacy_model.state_dict()
     assert not any(name.startswith("adapter.") for name in legacy_parameters)
     assert len(classifier_parameters) == len(legacy_parameters)
@@ -78,7 +80,7 @@ def test_classifier_without_adapter_matches_legacy_shared_backbone_model(class_c
     with torch.no_grad():
         assert torch.equal(classifier(input_features), legacy_model(input_features))
         shared_features = classifier.extract_shared_features(input_features)
-        assert classifier.residual_adapter(shared_features) is shared_features
+        assert classifier.model_owned_feature_transform(shared_features) is shared_features
     # adapterを持つ構造は、同じ乱数の状態から、旧の、adapterつきのモデルと同じ数の乱数を消費する（提案構成）。
     monkeypatch.setattr(config, "SHARED_ADAPTER_RANK", 8)
     torch.manual_seed(31)
@@ -89,7 +91,7 @@ def test_classifier_without_adapter_matches_legacy_shared_backbone_model(class_c
         model_architecture_name="shared_backbone_residual_adapter", class_count=class_count
     )
     assert torch.equal(torch.random.get_rng_state(), legacy_adapter_random_state)
-    assert type(adapter_classifier.residual_adapter) is NonlinearResidualAdapter
+    assert type(adapter_classifier.model_owned_feature_transform) is NonlinearResidualAdapter
     assert not torch.equal(legacy_adapter_random_state, legacy_random_state_after_construction)
 
 
@@ -159,12 +161,12 @@ def test_independent_classifier_matches_legacy_model_without_shared_part(class_c
     # 特徴抽出部は、パラメータを持たず、入力をそのまま返す。隠れ層は、モデルごとの部品が持つ。
     assert list(classifier.feature_extractor.parameters()) == []
     assert classifier.feature_extractor.hidden_layer_widths == ()
-    assert type(classifier.residual_adapter) is ModelOwnedHiddenLayers
+    assert type(classifier.model_owned_feature_transform) is ModelOwnedHiddenLayers
     assert classifier.hidden_layer_widths == HIDDEN_LAYER_WIDTHS
     assert classifier.input_feature_count == INPUT_FEATURE_COUNT
     classifier_parameters = classifier.state_dict()
     assert all(
-        name.startswith(("residual_adapter.hidden_layers.", "classification_layer."))
+        name.startswith(("model_owned_feature_transform.hidden_layers.", "classification_layer."))
         for name in classifier_parameters
     )
     legacy_parameters = legacy_model.state_dict()
@@ -178,7 +180,7 @@ def test_independent_classifier_matches_legacy_model_without_shared_part(class_c
         assert torch.equal(classifier(input_features), legacy_model(input_features))
         assert classifier.extract_shared_features(input_features) is input_features
     # 同じ構造の分類器を、分類器が持つ寸法から、もう1つ作れる（特徴抽出部の寸法は、隠れ層を持たない）。
-    second_classifier = ResidualAdapterClassifier(
+    second_classifier = ModelArchitectureClassifier(
         model_architecture_settings=classifier.model_architecture_settings,
         input_feature_count=classifier.input_feature_count,
         hidden_layer_widths=classifier.hidden_layer_widths,

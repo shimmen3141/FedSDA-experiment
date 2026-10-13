@@ -6,9 +6,9 @@ from torch import float32, strided
 from torch.nn import Parameter
 from torch.optim import SGD, Adam
 
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
     INDEPENDENT_MODELS_ARCHITECTURE_NAME,
-    ResidualAdapterClassifier,
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -22,7 +22,7 @@ class HeldModelOptimizerBinding:
     """分類器とoptimizer管理器の対応を借用する。所有者は生成しない。"""
 
     model_id: int
-    classifier: ResidualAdapterClassifier
+    classifier: ModelArchitectureClassifier
     shared_parameter_optimizer_state: ParameterOptimizerState
     concept_specific_parameter_optimizer_state: ParameterOptimizerState
 
@@ -79,10 +79,10 @@ def _validate_held_model_optimizer_bindings(
             raise ValueError("model_idはbool/派生型以外の一意なintが必要です。")
         model_ids.add(binding.model_id)
         if (
-            type(binding.classifier) is not ResidualAdapterClassifier
+            type(binding.classifier) is not ModelArchitectureClassifier
             or id(binding.classifier) in classifier_ids
         ):
-            raise ValueError("classifierは重複しないexact ResidualAdapterClassifierが必要です。")
+            raise ValueError("classifierは重複しないexact ModelArchitectureClassifierが必要です。")
         classifier_ids.add(id(binding.classifier))
         if type(binding.classifier.feature_extractor) is not SharedFeatureExtractor:
             raise ValueError("共有部はexact SharedFeatureExtractorが必要です。")
@@ -94,7 +94,7 @@ def _validate_held_model_optimizer_bindings(
             optimizer_state=binding.shared_parameter_optimizer_state,
             expected_parameters=tuple(binding.classifier.feature_extractor.parameters()),
         )
-        parameters = tuple(binding.classifier.residual_adapter.parameters()) + tuple(
+        parameters = tuple(binding.classifier.model_owned_feature_transform.parameters()) + tuple(
             binding.classifier.classification_layer.parameters()
         )
         _validate_optimizer_parameter_binding(

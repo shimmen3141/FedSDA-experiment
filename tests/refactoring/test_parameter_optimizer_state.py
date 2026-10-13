@@ -301,7 +301,9 @@ def test_optimizer_owners_reset_and_rebind_match_actual_joint_learning(
         )
         concept_specific_optimizer_states = tuple(
             ParameterOptimizerState(
-                parameters=tuple(training_batch.classifier.residual_adapter.parameters())
+                parameters=tuple(
+                    training_batch.classifier.model_owned_feature_transform.parameters()
+                )
                 + tuple(training_batch.classifier.classification_layer.parameters()),
                 optimizer_settings=optimizer_settings,
             )

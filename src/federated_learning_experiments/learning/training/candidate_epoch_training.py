@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader, TensorDataset
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
     INDEPENDENT_MODELS_ARCHITECTURE_NAME,
-    ResidualAdapterClassifier,
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
@@ -37,7 +37,7 @@ class CandidateEpochTrainingResult:
 
 def _validate_candidate_epoch_training_inputs(
     *,
-    candidate_classifier: ResidualAdapterClassifier,
+    candidate_classifier: ModelArchitectureClassifier,
     candidate_shared_parameter_optimizer_state: ParameterOptimizerState,
     candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     input_features: Tensor,
@@ -56,9 +56,9 @@ def _validate_candidate_epoch_training_inputs(
     )
     snapshot_classifier_parameters(classifier=candidate_classifier)
     shared_parameters = tuple(candidate_classifier.feature_extractor.parameters())
-    concept_specific_parameters = tuple(candidate_classifier.residual_adapter.parameters()) + tuple(
-        candidate_classifier.classification_layer.parameters()
-    )
+    concept_specific_parameters = tuple(
+        candidate_classifier.model_owned_feature_transform.parameters()
+    ) + tuple(candidate_classifier.classification_layer.parameters())
     # 共有部がparameterを持たないのは、共有部を持たない構造のときだけ。
     if not shared_parameters and (
         candidate_classifier.model_architecture_settings.model_architecture_name
@@ -139,7 +139,7 @@ def _validate_candidate_epoch_training_inputs(
 
 def _train_candidate_dataset_epochs(
     *,
-    candidate_classifier: ResidualAdapterClassifier,
+    candidate_classifier: ModelArchitectureClassifier,
     candidate_shared_parameter_optimizer_state: ParameterOptimizerState,
     candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     training_dataset: TensorDataset,
@@ -186,7 +186,7 @@ def _train_candidate_dataset_epochs(
 
 def train_candidate_classifier_epochs(
     *,
-    candidate_classifier: ResidualAdapterClassifier,
+    candidate_classifier: ModelArchitectureClassifier,
     candidate_shared_parameter_optimizer_state: ParameterOptimizerState,
     candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     input_features: Tensor,

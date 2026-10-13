@@ -15,11 +15,11 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
     ModelAndClassLossStatistics,
     ModelAndClassLossStatisticsStore,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -57,7 +57,7 @@ _STATISTICS_MODEL_ID = 0
 class PretrainedInitialModel:
     """事前学習の結果。clientの組立て（assemble_fedsda_run_client）の、初期モデルと統計の引数に対応する。"""
 
-    classifier: ResidualAdapterClassifier
+    classifier: ModelArchitectureClassifier
     concept_specific_parameter_optimizer_state: ParameterOptimizerState
     shared_parameter_optimizer_state: ParameterOptimizerState
     loss_statistics: ModelAndClassLossStatistics
@@ -143,14 +143,14 @@ def pretrain_initial_model(
         python_random_generator=python_random_generator,
     )
     # (1) 分類器と、概念固有部（アダプタ→分類層）・共有部のoptimizerの状態。
-    classifier = ResidualAdapterClassifier(
+    classifier = ModelArchitectureClassifier(
         model_architecture_settings=model_architecture_settings,
         input_feature_count=input_feature_count,
         hidden_layer_widths=hidden_layer_widths,
         class_count=class_count,
     )
     concept_specific_parameter_optimizer_state = ParameterOptimizerState(
-        parameters=tuple(classifier.residual_adapter.parameters())
+        parameters=tuple(classifier.model_owned_feature_transform.parameters())
         + tuple(classifier.classification_layer.parameters()),
         optimizer_settings=parameter_optimizer_settings,
     )

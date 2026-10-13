@@ -35,11 +35,11 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
@@ -896,7 +896,7 @@ def test_alarm_interval_reuse_evaluation_rejects_without_mutation(
             )
         else:
             assert invalid_case == "later_model_feature_count_mismatch"
-            mismatched_feature_count_classifier = ResidualAdapterClassifier(
+            mismatched_feature_count_classifier = ModelArchitectureClassifier(
                 model_architecture_settings=ModelArchitectureSettings(
                     model_architecture_name="shared_backbone_residual_adapter",
                     residual_adapter_requested_rank=2,
@@ -912,7 +912,7 @@ def test_alarm_interval_reuse_evaluation_rejects_without_mutation(
                 classifier=mismatched_feature_count_classifier,
                 concept_specific_parameter_optimizer_state=ParameterOptimizerState(
                     parameters=tuple(
-                        mismatched_feature_count_classifier.residual_adapter.parameters()
+                        mismatched_feature_count_classifier.model_owned_feature_transform.parameters()
                     )
                     + tuple(mismatched_feature_count_classifier.classification_layer.parameters()),
                     optimizer_settings=SgdParameterOptimizerSettings(learning_rate=0.01),

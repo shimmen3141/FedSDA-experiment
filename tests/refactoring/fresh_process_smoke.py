@@ -76,11 +76,11 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
@@ -309,7 +309,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     registry = HeldModelTrainingStateRegistry()
     classifiers = {}
     for model_id in HELD_MODEL_IDS:
-        classifier = ResidualAdapterClassifier(
+        classifier = ModelArchitectureClassifier(
             model_architecture_settings=ModelArchitectureSettings(
                 model_architecture_name="shared_backbone_residual_adapter",
                 residual_adapter_requested_rank=2,
@@ -324,7 +324,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             model_id=model_id,
             classifier=classifier,
             concept_specific_parameter_optimizer_state=ParameterOptimizerState(
-                parameters=tuple(classifier.residual_adapter.parameters())
+                parameters=tuple(classifier.model_owned_feature_transform.parameters())
                 + tuple(classifier.classification_layer.parameters()),
                 optimizer_settings=parameter_optimizer_settings,
             ),
@@ -1652,7 +1652,7 @@ def run_feddrift_detection_batch_smoke():
             held_models = tuple(
                 (
                     model_id,
-                    ResidualAdapterClassifier(
+                    ModelArchitectureClassifier(
                         model_architecture_settings=ModelArchitectureSettings(
                             model_architecture_name="independent_models_without_shared_backbone",
                             residual_adapter_requested_rank=8,

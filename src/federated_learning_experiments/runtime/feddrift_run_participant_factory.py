@@ -17,11 +17,11 @@ from federated_learning_experiments.execution.run_random_sources import RunRando
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    INDEPENDENT_MODELS_ARCHITECTURE_NAME,
 )
 from federated_learning_experiments.learning.training.initial_model_pretraining_settings import (
     InitialModelPretrainingSettings,

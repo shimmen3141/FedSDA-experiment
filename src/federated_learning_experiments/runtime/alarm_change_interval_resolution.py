@@ -10,8 +10,8 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.candidate_epoch_training_settings import (
     CandidateEpochTrainingSettings,
@@ -202,7 +202,7 @@ def resolve_alarm_change_interval(
     pending_model_upload_state: PendingModelUploadState,
     upload_delay_round_count: int,
     candidate_parameter_initialization_settings: CandidateParameterInitializationSettings,
-    architecture_reference_classifier: ResidualAdapterClassifier,
+    architecture_reference_classifier: ModelArchitectureClassifier,
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
     candidate_epoch_training_settings: CandidateEpochTrainingSettings,
     candidate_model_training_and_acceptance_settings: CandidateModelTrainingAndAcceptanceSettings,

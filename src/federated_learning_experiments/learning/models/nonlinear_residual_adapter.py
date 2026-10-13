@@ -22,7 +22,7 @@ def _validate_feature_tensor(*, input_features: torch.Tensor, expected_feature_c
 class IdentityFeatureAdapter(Module):
     """adapterを持たない構造の、概念固有部の入口。共有特徴を、そのまま返す。パラメータは持たない。
 
-    分類器が、どの構造でも、同じ場所（`residual_adapter`）に部品を持てるようにする。入力の検査は、
+    分類器が、どの構造でも、同じ場所（`model_owned_feature_transform`）に部品を持てるようにする。入力の検査は、
     残差adapterと同じ。
     """
 
@@ -43,7 +43,7 @@ class ModelOwnedHiddenLayers(Module):
     """共有部を持たない構造の、モデルごとの隠れ層（Linear/ReLUの列）。入力の特徴から、最後の隠れ層の特徴を作る。
 
     層の作り方と順は、共有の特徴抽出部（`SharedFeatureExtractor`）と同じ。こちらは、モデルごとに独立に持つ、
-    概念固有部の部品で、分類器の`residual_adapter`の場所に置く。
+    概念固有部の部品で、分類器の`model_owned_feature_transform`の場所に置く。
     """
 
     def __init__(self, *, input_feature_count: int, hidden_layer_widths: tuple[int, ...]):

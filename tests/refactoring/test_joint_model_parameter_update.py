@@ -18,11 +18,11 @@ from federated_drift_experiment.clients.shared_backbone import (
 )
 from federated_drift_experiment.data.specs import DatasetSpec
 from federated_drift_experiment.models import ResidualAdapterMLP
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.joint_model_parameter_update import (
     perform_joint_model_parameter_update,
@@ -68,7 +68,7 @@ def build_joint_update_oracle_pair(
                 backbone=legacy_models[0].backbone if legacy_models else None,
             )
         )
-        classifier = ResidualAdapterClassifier(
+        classifier = ModelArchitectureClassifier(
             model_architecture_settings=ModelArchitectureSettings(
                 model_architecture_name="shared_backbone_residual_adapter",
                 residual_adapter_requested_rank=2,
@@ -83,8 +83,8 @@ def build_joint_update_oracle_pair(
         classifier.load_state_dict(
             {
                 parameter_name.replace("backbone.net.", "feature_extractor.hidden_layers.")
-                .replace("adapter.down.", "residual_adapter.feature_compression.")
-                .replace("adapter.up.", "residual_adapter.feature_expansion.")
+                .replace("adapter.down.", "model_owned_feature_transform.feature_compression.")
+                .replace("adapter.up.", "model_owned_feature_transform.feature_expansion.")
                 .replace("head.", "classification_layer."): parameter_value
                 for parameter_name, parameter_value in legacy_models[-1].state_dict().items()
             }
@@ -118,7 +118,7 @@ def build_joint_update_oracle_pair(
             ParticipatingModelTrainingBatch(
                 classifier=classifier,
                 concept_specific_parameter_optimizer=create_parameter_optimizer(
-                    parameters=tuple(classifier.residual_adapter.parameters())
+                    parameters=tuple(classifier.model_owned_feature_transform.parameters())
                     + tuple(classifier.classification_layer.parameters()),
                     optimizer_settings=optimizer_settings,
                 ),
@@ -205,10 +205,10 @@ def assert_joint_update_states_equal(
                 "feature_extractor.hidden_layers.", "backbone.net."
             )
             old_parameter_name = old_parameter_name.replace(
-                "residual_adapter.feature_compression.", "adapter.down."
+                "model_owned_feature_transform.feature_compression.", "adapter.down."
             )
             old_parameter_name = old_parameter_name.replace(
-                "residual_adapter.feature_expansion.", "adapter.up."
+                "model_owned_feature_transform.feature_expansion.", "adapter.up."
             )
             old_parameter_name = old_parameter_name.replace("classification_layer.", "head.")
             assert torch.equal(parameter, legacy_parameters[old_parameter_name])
@@ -569,8 +569,10 @@ def test_joint_model_parameter_update_rejects_invalid_inputs_before_mutation(
             ),
         )
     elif input_contract_case in ("individual_parameter_duplicate", "individual_shared_parameter"):
-        training_batch.classifier.residual_adapter.feature_compression.weight = (
-            participating_training_batches[0].classifier.residual_adapter.feature_compression.weight
+        training_batch.classifier.model_owned_feature_transform.feature_compression.weight = (
+            participating_training_batches[
+                0
+            ].classifier.model_owned_feature_transform.feature_compression.weight
             if input_contract_case == "individual_parameter_duplicate"
             else next(training_batch.classifier.feature_extractor.parameters())
         )
@@ -790,7 +792,7 @@ def test_joint_model_parameter_update_empty_participation_preserves_state(monkey
 def test_joint_model_parameter_update_without_shared_parameters(
     update_shared_features, monkeypatch
 ):
-    classifier = ResidualAdapterClassifier(
+    classifier = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -804,7 +806,7 @@ def test_joint_model_parameter_update_without_shared_parameters(
         learning_rate=0.01, weight_decay=0.001, adam_variant="amsgrad"
     )
     concept_specific_parameter_optimizer = create_parameter_optimizer(
-        parameters=tuple(classifier.residual_adapter.parameters())
+        parameters=tuple(classifier.model_owned_feature_transform.parameters())
         + tuple(classifier.classification_layer.parameters()),
         optimizer_settings=optimizer_settings,
     )
@@ -1083,7 +1085,7 @@ def test_joint_model_parameter_update_preserves_environment_and_borrowed_inputs(
         torch.set_default_dtype(torch.float64)
         with torch.device("meta"):
             # モデル構築もambientに依存せず明示CPU32。生成分のCPU乱数だけ復元する。
-            classifier = ResidualAdapterClassifier(
+            classifier = ModelArchitectureClassifier(
                 model_architecture_settings=ModelArchitectureSettings(
                     model_architecture_name="shared_backbone_residual_adapter",
                     residual_adapter_requested_rank=2,

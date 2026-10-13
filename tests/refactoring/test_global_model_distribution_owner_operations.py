@@ -16,11 +16,11 @@ from federated_learning_experiments.evaluation.adaptation_record_store import (
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatisticsStore,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingState,
@@ -40,7 +40,7 @@ OPTIMIZER_SETTINGS = SgdParameterOptimizerSettings(learning_rate=0.01)
 
 
 def make_classifier():
-    return ResidualAdapterClassifier(
+    return ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -53,7 +53,7 @@ def make_classifier():
 
 def make_concept_specific_optimizer_state(classifier):
     return ParameterOptimizerState(
-        parameters=tuple(classifier.residual_adapter.parameters())
+        parameters=tuple(classifier.model_owned_feature_transform.parameters())
         + tuple(classifier.classification_layer.parameters()),
         optimizer_settings=OPTIMIZER_SETTINGS,
     )

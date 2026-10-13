@@ -2,16 +2,16 @@
 
 from torch import Tensor, float32, isfinite, no_grad, strided
 
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 
 
 def _validate_classifier_parameter_snapshot_inputs(
-    *, classifier: ResidualAdapterClassifier
+    *, classifier: ModelArchitectureClassifier
 ) -> None:
-    if type(classifier) is not ResidualAdapterClassifier:
-        raise TypeError("classifierはexact ResidualAdapterClassifierが必要です。")
+    if type(classifier) is not ModelArchitectureClassifier:
+        raise TypeError("classifierはexact ModelArchitectureClassifierが必要です。")
     for parameter_name, parameter_values in classifier.named_parameters():
         if (
             parameter_values.device.type != "cpu"
@@ -25,7 +25,7 @@ def _validate_classifier_parameter_snapshot_inputs(
 
 
 @no_grad()
-def snapshot_classifier_parameters(*, classifier: ResidualAdapterClassifier) -> dict[str, Tensor]:
+def snapshot_classifier_parameters(*, classifier: ModelArchitectureClassifier) -> dict[str, Tensor]:
     """native順を保持し、モデル・勾配から独立した値を返す。"""
     _validate_classifier_parameter_snapshot_inputs(classifier=classifier)
     classifier_parameter_values = classifier.state_dict()

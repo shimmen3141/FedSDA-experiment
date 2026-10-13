@@ -12,11 +12,11 @@ import torch
 from federated_drift_experiment import config
 from federated_drift_experiment.clients.feddrift import FedDriftClient
 from federated_drift_experiment.models import SimpleMLP
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 
 
@@ -35,7 +35,7 @@ def build_models(*, class_count, monkeypatch):
         for model_id, seed in ((9, 31), (-104, 73), (2, 97)):
             torch.manual_seed(seed)
             legacy = SimpleMLP(dataset="sine2")
-            classifier = ResidualAdapterClassifier(
+            classifier = ModelArchitectureClassifier(
                 model_architecture_settings=ModelArchitectureSettings(
                     model_architecture_name="independent_models_without_shared_backbone",
                     residual_adapter_requested_rank=8,

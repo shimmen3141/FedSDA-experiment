@@ -25,8 +25,8 @@ from federated_drift_experiment.clients.shared_backbone import (
 )
 from federated_drift_experiment.data.specs import DatasetSpec
 from federated_drift_experiment.models import ResidualAdapterMLP, SharedFeatureBackbone
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -83,7 +83,7 @@ def build_held_model_optimizer_binding(
             optimizer_settings=optimizer_settings,
         ),
         concept_specific_parameter_optimizer_state=ParameterOptimizerState(
-            parameters=tuple(classifier.residual_adapter.parameters())
+            parameters=tuple(classifier.model_owned_feature_transform.parameters())
             + tuple(classifier.classification_layer.parameters()),
             optimizer_settings=optimizer_settings,
         ),
@@ -95,7 +95,7 @@ def snapshot_reconnection_input_states(previous_bindings):
         (
             binding.classifier.feature_extractor,
             snapshot_parameter_values_and_gradients(binding.classifier.parameters()),
-            binding.classifier.residual_adapter,
+            binding.classifier.model_owned_feature_transform,
             binding.classifier.classification_layer,
             binding.classifier.output_activation,
             binding.classifier.class_count,
@@ -123,7 +123,10 @@ def assert_reconnection_input_states_unchanged(
 ):
     for binding_index, binding in enumerate(previous_bindings):
         assert binding.classifier.feature_extractor is parameter_snapshots[binding_index][0]
-        assert binding.classifier.residual_adapter is parameter_snapshots[binding_index][2]
+        assert (
+            binding.classifier.model_owned_feature_transform
+            is parameter_snapshots[binding_index][2]
+        )
         assert binding.classifier.classification_layer is parameter_snapshots[binding_index][3]
         assert binding.classifier.output_activation is parameter_snapshots[binding_index][4]
         assert binding.classifier.class_count == parameter_snapshots[binding_index][5]
@@ -192,8 +195,8 @@ def test_reconnection_source_and_optimizer_states_match_legacy(
             legacy_model.load_state_dict(
                 {
                     parameter_name.replace("feature_extractor.hidden_layers.", "backbone.net.")
-                    .replace("residual_adapter.feature_compression.", "adapter.down.")
-                    .replace("residual_adapter.feature_expansion.", "adapter.up.")
+                    .replace("model_owned_feature_transform.feature_compression.", "adapter.down.")
+                    .replace("model_owned_feature_transform.feature_expansion.", "adapter.up.")
                     .replace("classification_layer.", "head."): parameter_value
                     for parameter_name, parameter_value in binding.classifier.state_dict().items()
                 }
@@ -230,7 +233,10 @@ def test_reconnection_source_and_optimizer_states_match_legacy(
         )
         for binding_index, binding in enumerate(result_bindings):
             assert binding.classifier is previous_bindings[binding_index].classifier
-            assert binding.classifier.residual_adapter is parameter_snapshots[binding_index][2]
+            assert (
+                binding.classifier.model_owned_feature_transform
+                is parameter_snapshots[binding_index][2]
+            )
             assert binding.classifier.classification_layer is parameter_snapshots[binding_index][3]
             assert binding.classifier.output_activation is parameter_snapshots[binding_index][4]
             assert binding.classifier.class_count == parameter_snapshots[binding_index][5]
@@ -364,7 +370,7 @@ def test_invalid_tail_rejects_before_any_reconnection(invalid_case):
         elif invalid_case in ("connection_input", "connection_hidden"):
             invalid_value = build_held_model_optimizer_binding(
                 -8,
-                classifier=ResidualAdapterClassifier(
+                classifier=ModelArchitectureClassifier(
                     model_architecture_settings=invalid_value.classifier.model_architecture_settings,
                     input_feature_count=3 if invalid_case == "connection_input" else 2,
                     hidden_layer_widths=(5, 3) if invalid_case == "connection_hidden" else (5, 4),
@@ -376,9 +382,9 @@ def test_invalid_tail_rejects_before_any_reconnection(invalid_case):
                 0
             ]["params"].reverse()
         elif invalid_case == "shared_concept_parameters":
-            invalid_value.classifier.residual_adapter = previous_bindings[
+            invalid_value.classifier.model_owned_feature_transform = previous_bindings[
                 0
-            ].classifier.residual_adapter
+            ].classifier.model_owned_feature_transform
             invalid_value = build_held_model_optimizer_binding(
                 -8, classifier=invalid_value.classifier
             )
@@ -463,7 +469,7 @@ def test_reconnection_calls_follow_input_order_and_skip_source(monkeypatch):
                 Mock(
                     side_effect=lambda *, shared_feature_extractor, binding=binding: (
                         events.append((binding.model_id, "attach")),
-                        ResidualAdapterClassifier.attach_shared_feature_extractor(
+                        ModelArchitectureClassifier.attach_shared_feature_extractor(
                             binding.classifier, shared_feature_extractor=shared_feature_extractor
                         ),
                     )[1]
@@ -538,7 +544,9 @@ def test_reconnection_result_bindings_match_legacy_joint_training(
                 classifier=training_batches[0].classifier,
                 shared_parameter_optimizer_state=shared_optimizer_state,
                 concept_specific_parameter_optimizer_state=ParameterOptimizerState(
-                    parameters=tuple(training_batches[0].classifier.residual_adapter.parameters())
+                    parameters=tuple(
+                        training_batches[0].classifier.model_owned_feature_transform.parameters()
+                    )
                     + tuple(training_batches[0].classifier.classification_layer.parameters()),
                     optimizer_settings=optimizer_settings,
                 ),
@@ -553,7 +561,9 @@ def test_reconnection_result_bindings_match_legacy_joint_training(
                     optimizer_settings=optimizer_settings,
                 ),
                 concept_specific_parameter_optimizer_state=ParameterOptimizerState(
-                    parameters=tuple(training_batches[1].classifier.residual_adapter.parameters())
+                    parameters=tuple(
+                        training_batches[1].classifier.model_owned_feature_transform.parameters()
+                    )
                     + tuple(training_batches[1].classifier.classification_layer.parameters()),
                     optimizer_settings=optimizer_settings,
                 ),

@@ -19,9 +19,9 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
     INDEPENDENT_MODELS_ARCHITECTURE_NAME,
-    ResidualAdapterClassifier,
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
@@ -237,7 +237,7 @@ class FeddriftRunClient:
 def assemble_feddrift_run_client(
     *,
     client_id: int,
-    initial_classifier: ResidualAdapterClassifier,
+    initial_classifier: ModelArchitectureClassifier,
     initial_parameter_optimizer_state: ParameterOptimizerState,
     initial_loss_statistics: ModelAndClassLossStatistics,
     run_client_settings: FeddriftRunClientSettings,

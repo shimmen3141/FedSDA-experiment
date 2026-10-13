@@ -70,7 +70,7 @@ def build_bounded_loss_oracle_pair(*, class_count, sample_count, monkeypatch):
     with torch.no_grad():
         legacy_model.adapter.up.weight.fill_(0.15)
         legacy_model.adapter.up.bias.fill_(0.05)
-    classifier.residual_adapter.feature_expansion.load_state_dict(
+    classifier.model_owned_feature_transform.feature_expansion.load_state_dict(
         legacy_model.adapter.up.state_dict()
     )
     return classifier, legacy_model, training_batches[0]
@@ -98,7 +98,7 @@ def test_classifier_bounded_losses_match_legacy(
         classifier.train(training)
         legacy_model.train(training)
         # 親flagだけの検査にせず、子の異なるflagも保持する。
-        classifier.residual_adapter.eval()
+        classifier.model_owned_feature_transform.eval()
         for parameter in classifier.parameters():
             parameter.grad = torch.ones_like(parameter)
         state_before = snapshot_parameter_values_and_gradients(classifier.parameters())
@@ -387,7 +387,7 @@ def test_bounded_loss_evaluation_connects_prepared_model_to_initial_statistics(
             )
         )
         candidate_owner = ParameterOptimizerState(
-            parameters=tuple(candidate.residual_adapter.parameters())
+            parameters=tuple(candidate.model_owned_feature_transform.parameters())
             + tuple(candidate.classification_layer.parameters()),
             optimizer_settings=optimizer_settings,
         )
@@ -510,7 +510,7 @@ def build_classifiers_sharing_feature_extractor(*, class_count, classifier_count
         )
         # 展開層は0で初期化されるので、分類器ごとに違う値を入れる。
         with torch.no_grad():
-            classifier.residual_adapter.feature_expansion.weight.fill_(0.1 * seed)
+            classifier.model_owned_feature_transform.feature_expansion.weight.fill_(0.1 * seed)
         classifiers.append(classifier)
     return tuple(classifiers)
 

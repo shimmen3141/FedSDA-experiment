@@ -332,8 +332,8 @@ def test_pending_upload_connects_fixed_parameters_to_current_statistics(
         assert_parameter_values_and_gradients_unchanged(previous_parameter_state)
         expected_parameter_values = {
             parameter_name.replace("backbone.net.", "feature_extractor.hidden_layers.")
-            .replace("adapter.down.", "residual_adapter.feature_compression.")
-            .replace("adapter.up.", "residual_adapter.feature_expansion.")
+            .replace("adapter.down.", "model_owned_feature_transform.feature_compression.")
+            .replace("adapter.up.", "model_owned_feature_transform.feature_expansion.")
             .replace("head.", "classification_layer."): parameter_values
             for parameter_name, parameter_values in legacy_client.pending_model_params.items()
         }

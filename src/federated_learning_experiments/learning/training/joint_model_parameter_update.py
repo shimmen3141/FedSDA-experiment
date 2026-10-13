@@ -4,8 +4,8 @@ from torch import Tensor, cat, float32, is_grad_enabled, isfinite, no_grad, stri
 from torch.nn import BCELoss, CrossEntropyLoss, Parameter
 from torch.optim import SGD, Adam, Optimizer
 
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -138,9 +138,9 @@ def _validate_joint_update_inputs(
     for training_batch_index, training_batch in enumerate(participating_training_batches):
         tensor_name = f"participating_training_batches[{training_batch_index}]"
         classifier = training_batch.classifier
-        if type(classifier) is not ResidualAdapterClassifier:
+        if type(classifier) is not ModelArchitectureClassifier:
             raise ValueError(
-                f"{tensor_name}.classifierはexact ResidualAdapterClassifierが必要です。"
+                f"{tensor_name}.classifierはexact ModelArchitectureClassifierが必要です。"
             )
         if classifier.feature_extractor is not shared_feature_extractor:
             raise ValueError(
@@ -184,9 +184,9 @@ def _validate_joint_update_inputs(
             raise ValueError(
                 f"{tensor_name}.observed_class_labelsは多クラスの範囲内整数値が必要です。"
             )
-        concept_specific_parameters = tuple(classifier.residual_adapter.parameters()) + tuple(
-            classifier.classification_layer.parameters()
-        )
+        concept_specific_parameters = tuple(
+            classifier.model_owned_feature_transform.parameters()
+        ) + tuple(classifier.classification_layer.parameters())
         _validate_trainable_parameters(
             expected_parameters=concept_specific_parameters,
             require_trainable=True,

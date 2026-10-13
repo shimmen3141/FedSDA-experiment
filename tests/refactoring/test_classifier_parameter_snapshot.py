@@ -21,8 +21,8 @@ from test_shared_feature_extractor_attachment import (
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.joint_model_parameter_update import (
     perform_joint_model_parameter_update,
@@ -38,7 +38,7 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.can
 )
 
 
-class ResidualAdapterClassifierSubclass(ResidualAdapterClassifier):
+class ModelArchitectureClassifierSubclass(ModelArchitectureClassifier):
     pass
 
 
@@ -56,8 +56,8 @@ def test_snapshot_matches_legacy_values_and_native_key_order(class_count, monkey
         parameter_snapshot = snapshot_classifier_parameters(classifier=classifier)
         prefix_pairs = (
             ("backbone.net.", "feature_extractor.hidden_layers."),
-            ("adapter.down.", "residual_adapter.feature_compression."),
-            ("adapter.up.", "residual_adapter.feature_expansion."),
+            ("adapter.down.", "model_owned_feature_transform.feature_compression."),
+            ("adapter.up.", "model_owned_feature_transform.feature_expansion."),
             ("head.", "classification_layer."),
         )
         expected_parameter_values = {}
@@ -87,7 +87,7 @@ def test_snapshot_matches_legacy_values_and_native_key_order(class_count, monkey
 @pytest.mark.parametrize("hidden_layer_widths", [(), (3,), (5, 4)])
 def test_snapshot_is_independent_in_both_directions_and_across_calls(hidden_layer_widths):
     classifier = build_attachment_classifier(hidden_layer_widths=hidden_layer_widths)
-    first_parameter = classifier.residual_adapter.feature_compression.weight
+    first_parameter = classifier.model_owned_feature_transform.feature_compression.weight
     # 非連続strided parameterでも値とshapeを保持する。
     first_parameter.data = first_parameter.detach().t().contiguous().t()
     first_parameter_snapshot = snapshot_classifier_parameters(classifier=classifier)
@@ -100,7 +100,7 @@ def test_snapshot_is_independent_in_both_directions_and_across_calls(hidden_laye
     expected_parameter_values = first_parameter.detach().clone()
     with torch.no_grad():
         first_parameter.add_(2)
-    parameter_name = "residual_adapter.feature_compression.weight"
+    parameter_name = "model_owned_feature_transform.feature_compression.weight"
     assert torch.equal(first_parameter_snapshot[parameter_name], expected_parameter_values)
     first_parameter_snapshot[parameter_name].add_(3)
     assert torch.equal(first_parameter, expected_parameter_values + 2)
@@ -115,7 +115,7 @@ def test_snapshot_is_independent_in_both_directions_and_across_calls(hidden_laye
 def test_snapshot_preserves_model_state_and_caller_environment(previous_grad_mode):
     with torch.random.fork_rng(devices=[]):
         classifier = build_attachment_classifier()
-        second_classifier = ResidualAdapterClassifier(
+        second_classifier = ModelArchitectureClassifier(
             model_architecture_settings=classifier.model_architecture_settings,
             input_feature_count=2,
             hidden_layer_widths=(5, 4),
@@ -126,7 +126,7 @@ def test_snapshot_preserves_model_state_and_caller_environment(previous_grad_mod
             parameter_values.grad = torch.ones_like(parameter_values)
         next(classifier.parameters()).grad = None
         classifier.train(False)
-        classifier.residual_adapter.train(True)
+        classifier.model_owned_feature_transform.train(True)
         previous_training_flags = tuple(module.training for module in classifier.modules())
         previous_parameter_state = snapshot_parameter_values_and_gradients(classifier.parameters())
         previous_feature_extractor = classifier.feature_extractor
@@ -180,7 +180,7 @@ def test_snapshot_rejects_invalid_classifier(invalid_classifier):
     with pytest.raises(TypeError, match="classifier"):
         snapshot_classifier_parameters(classifier=invalid_classifier)
     classifier = build_attachment_classifier()
-    classifier.__class__ = ResidualAdapterClassifierSubclass
+    classifier.__class__ = ModelArchitectureClassifierSubclass
     with pytest.raises(TypeError, match="classifier"):
         snapshot_classifier_parameters(classifier=classifier)
 
@@ -288,8 +288,8 @@ def test_training_snapshot_and_candidate_initialization_match_legacy(
             legacy_parameter_snapshot = legacy_client.models[model_id].get_params()
             expected_parameter_values = {
                 legacy_parameter_name.replace("backbone.net.", "feature_extractor.hidden_layers.")
-                .replace("adapter.down.", "residual_adapter.feature_compression.")
-                .replace("adapter.up.", "residual_adapter.feature_expansion.")
+                .replace("adapter.down.", "model_owned_feature_transform.feature_compression.")
+                .replace("adapter.up.", "model_owned_feature_transform.feature_expansion.")
                 .replace("head.", "classification_layer."): parameter_values
                 for legacy_parameter_name, parameter_values in legacy_parameter_snapshot.items()
             }

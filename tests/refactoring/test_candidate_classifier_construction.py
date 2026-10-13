@@ -109,7 +109,7 @@ def assert_candidate_matches_legacy(*, candidate_training_state, legacy_candidat
         ),
         (
             candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
-            tuple(candidate_classifier.residual_adapter.parameters())
+            tuple(candidate_classifier.model_owned_feature_transform.parameters())
             + tuple(candidate_classifier.classification_layer.parameters()),
             legacy_candidate.head_optimizer,
         ),

@@ -32,8 +32,8 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
     ModelAndClassLossStatistics,
     ModelAndClassLossStatisticsStore,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
@@ -179,7 +179,7 @@ class FedsdaRunClient:
         self._run_client_settings = run_client_settings
         self._python_random_generator = python_random_generator
 
-    def _get_current_training_classifier(self) -> ResidualAdapterClassifier:
+    def _get_current_training_classifier(self) -> ModelArchitectureClassifier:
         owners = self._owners
         return owners.held_model_training_state_registry.get_held_model_training_state(
             model_id=owners.current_training_model_assignment.current_training_model_id
@@ -494,7 +494,7 @@ def _validate_fedsda_run_client_assembly_inputs(
     *,
     client_id: int,
     initial_model_id: int,
-    initial_classifier: ResidualAdapterClassifier,
+    initial_classifier: ModelArchitectureClassifier,
     initial_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     initial_shared_parameter_optimizer_state: ParameterOptimizerState,
     initial_loss_statistics: ModelAndClassLossStatistics,
@@ -518,8 +518,8 @@ def _validate_fedsda_run_client_assembly_inputs(
         raise ValueError("initial_model_id must be nonnegative")
     if type(python_random_generator) is not Random:
         raise TypeError("python_random_generator must be exact random.Random")
-    if type(initial_classifier) is not ResidualAdapterClassifier:
-        raise TypeError("initial_classifier must be exact ResidualAdapterClassifier")
+    if type(initial_classifier) is not ModelArchitectureClassifier:
+        raise TypeError("initial_classifier must be exact ModelArchitectureClassifier")
     for optimizer_state_argument_name, parameter_optimizer_state in (
         (
             "initial_concept_specific_parameter_optimizer_state",
@@ -535,7 +535,7 @@ def _validate_fedsda_run_client_assembly_inputs(
         raise TypeError("initial_loss_statistics must be exact ModelAndClassLossStatistics")
     _validate_optimizer_state_parameters(
         parameter_optimizer_state=initial_concept_specific_parameter_optimizer_state,
-        expected_parameters=tuple(initial_classifier.residual_adapter.parameters())
+        expected_parameters=tuple(initial_classifier.model_owned_feature_transform.parameters())
         + tuple(initial_classifier.classification_layer.parameters()),
         optimizer_state_argument_name="initial_concept_specific_parameter_optimizer_state",
     )
@@ -550,7 +550,7 @@ def assemble_fedsda_run_client(
     *,
     client_id: int,
     initial_model_id: int,
-    initial_classifier: ResidualAdapterClassifier,
+    initial_classifier: ModelArchitectureClassifier,
     initial_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     initial_shared_parameter_optimizer_state: ParameterOptimizerState,
     initial_loss_statistics: ModelAndClassLossStatistics,

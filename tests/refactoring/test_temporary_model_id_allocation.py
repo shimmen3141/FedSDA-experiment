@@ -9,11 +9,11 @@ import torch
 from test_adopted_candidate_initial_local_registration import build_initial_registration_oracle
 
 from federated_drift_experiment.clients.base import BaseClient
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
@@ -127,7 +127,7 @@ def test_allocated_ids_satisfy_initial_registration_contract_for_consecutive_can
                 == expected_temporary_model_ids[-1]
             )
             # 次の採用候補を、独立した共有部を持つ新しい分類器として用意する。
-            classifier = ResidualAdapterClassifier(
+            classifier = ModelArchitectureClassifier(
                 model_architecture_settings=ModelArchitectureSettings(
                     model_architecture_name="shared_backbone_residual_adapter",
                     residual_adapter_requested_rank=2,
@@ -139,7 +139,7 @@ def test_allocated_ids_satisfy_initial_registration_contract_for_consecutive_can
             registration_arguments["adopted_candidate_classifier"] = classifier
             registration_arguments["candidate_concept_specific_parameter_optimizer_state"] = (
                 ParameterOptimizerState(
-                    parameters=tuple(classifier.residual_adapter.parameters())
+                    parameters=tuple(classifier.model_owned_feature_transform.parameters())
                     + tuple(classifier.classification_layer.parameters()),
                     optimizer_settings=AdamParameterOptimizerSettings(
                         learning_rate=0.01, weight_decay=0.001, adam_variant="standard"

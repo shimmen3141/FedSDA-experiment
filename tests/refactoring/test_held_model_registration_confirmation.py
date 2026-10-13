@@ -467,7 +467,9 @@ def test_confirmed_registration_continues_actual_joint_training(
         )
         concept_owners = tuple(
             ParameterOptimizerState(
-                parameters=tuple(training_batch.classifier.residual_adapter.parameters())
+                parameters=tuple(
+                    training_batch.classifier.model_owned_feature_transform.parameters()
+                )
                 + tuple(training_batch.classifier.classification_layer.parameters()),
                 optimizer_settings=optimizer_settings,
             )

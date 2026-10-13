@@ -23,11 +23,11 @@ from test_shared_feature_extractor_attachment import (
 
 from federated_drift_experiment import config
 from federated_drift_experiment.clients.base import BaseClient
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.held_model_joint_training_iterations import (
     perform_held_model_joint_training_iterations,
@@ -53,7 +53,7 @@ class IntSubclass(int):
 
 
 def build_registry_classifier_and_owner():
-    classifier = ResidualAdapterClassifier(
+    classifier = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -63,7 +63,7 @@ def build_registry_classifier_and_owner():
         class_count=2,
     )
     optimizer_owner = ParameterOptimizerState(
-        parameters=tuple(classifier.residual_adapter.parameters())
+        parameters=tuple(classifier.model_owned_feature_transform.parameters())
         + tuple(classifier.classification_layer.parameters()),
         optimizer_settings=AdamParameterOptimizerSettings(
             learning_rate=0.01, weight_decay=0.001, adam_variant="standard"
@@ -163,9 +163,9 @@ def test_invalid_registration_keeps_registry_and_learning_state(invalid_case):
         classifier, optimizer_owner = build_registry_classifier_and_owner()
         register_training_state(registry, 4, classifier, optimizer_owner)
         replacement_classifier, replacement_owner = build_registry_classifier_and_owner()
-        concept_parameters = tuple(replacement_classifier.residual_adapter.parameters()) + tuple(
-            replacement_classifier.classification_layer.parameters()
-        )
+        concept_parameters = tuple(
+            replacement_classifier.model_owned_feature_transform.parameters()
+        ) + tuple(replacement_classifier.classification_layer.parameters())
         if invalid_case == "classifier":
             replacement_classifier = object()
         elif invalid_case == "owner":
@@ -184,7 +184,7 @@ def test_invalid_registration_keeps_registry_and_learning_state(invalid_case):
                     replacement_classifier.feature_extractor.parameters()
                 )
                 concept_parameters = tuple(
-                    replacement_classifier.residual_adapter.parameters()
+                    replacement_classifier.model_owned_feature_transform.parameters()
                 ) + tuple(replacement_classifier.classification_layer.parameters())
             replacement_owner._parameter_optimizer.param_groups[0]["params"] = list(
                 concept_parameters
@@ -192,7 +192,7 @@ def test_invalid_registration_keeps_registry_and_learning_state(invalid_case):
         elif invalid_case == "dtype":
             concept_parameters[0].data = concept_parameters[0].data.double()
         elif invalid_case == "empty":
-            replacement_classifier.residual_adapter = torch.nn.Identity()
+            replacement_classifier.model_owned_feature_transform = torch.nn.Identity()
             replacement_classifier.classification_layer = torch.nn.Identity()
         elif invalid_case == "optimizer_type":
             replacement_owner._parameter_optimizer = torch.optim.AdamW(concept_parameters)
@@ -201,7 +201,7 @@ def test_invalid_registration_keeps_registry_and_learning_state(invalid_case):
             tuple(classifier.parameters())
             + (
                 tuple(replacement_classifier.parameters())
-                if type(replacement_classifier) is ResidualAdapterClassifier
+                if type(replacement_classifier) is ModelArchitectureClassifier
                 else ()
             )
         )
@@ -243,7 +243,9 @@ def test_old_registration_order_and_training_with_current_optimizers_match(
         )
         concept_owners = tuple(
             ParameterOptimizerState(
-                parameters=tuple(training_batch.classifier.residual_adapter.parameters())
+                parameters=tuple(
+                    training_batch.classifier.model_owned_feature_transform.parameters()
+                )
                 + tuple(training_batch.classifier.classification_layer.parameters()),
                 optimizer_settings=optimizer_settings,
             )

@@ -8,8 +8,8 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
@@ -23,7 +23,7 @@ from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline
 class FixedPostAlarmReferenceModels:
     """保有一覧の順の参照分類器と、全体統計が2件以上あるモデルの履歴平均損失。"""
 
-    reference_classifiers_by_model_id: dict[int, ResidualAdapterClassifier]
+    reference_classifiers_by_model_id: dict[int, ModelArchitectureClassifier]
     reference_historical_mean_losses_by_model_id: dict[int, float]
 
 
@@ -66,10 +66,10 @@ def fix_reference_models_at_alarm(
                 historical_mean_loss
             )
     # モデルの生成は初期化でCPUのtorch乱数を消費する。一覧の順に1つずつ生成する。
-    reference_classifiers_by_model_id: dict[int, ResidualAdapterClassifier] = {}
+    reference_classifiers_by_model_id: dict[int, ModelArchitectureClassifier] = {}
     for held_model_training_state in held_model_training_states:
         held_classifier = held_model_training_state.classifier
-        reference_classifier = ResidualAdapterClassifier(
+        reference_classifier = ModelArchitectureClassifier(
             model_architecture_settings=held_classifier.model_architecture_settings,
             input_feature_count=held_classifier.input_feature_count,
             hidden_layer_widths=held_classifier.hidden_layer_widths,

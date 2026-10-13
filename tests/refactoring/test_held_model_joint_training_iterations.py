@@ -17,11 +17,11 @@ from test_joint_model_parameter_update import (
 from federated_drift_experiment.clients.shared_backbone import (
     _SharedRepresentationFedSDAClientMixin,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training import (
     held_model_joint_training_iterations as training_iteration_module,
@@ -406,7 +406,7 @@ def test_joint_training_iterations_preserve_environment(keyword_arguments, updat
             model_id=binding.model_id,
             classifier=binding.classifier,
             concept_specific_parameter_optimizer=torch.optim.SGD(
-                tuple(binding.classifier.residual_adapter.parameters())
+                tuple(binding.classifier.model_owned_feature_transform.parameters())
                 + tuple(binding.classifier.classification_layer.parameters()),
                 lr=0.01,
             ),
@@ -594,7 +594,7 @@ def test_joint_training_iterations_preserve_completed_updates_on_failure(monkeyp
 def test_joint_training_iterations_with_empty_shared_features(
     keyword_arguments, update_shared_features
 ):
-    empty_shared_classifier = ResidualAdapterClassifier(
+    empty_shared_classifier = ModelArchitectureClassifier(
         model_architecture_settings=ModelArchitectureSettings(
             model_architecture_name="shared_backbone_residual_adapter",
             residual_adapter_requested_rank=2,
@@ -605,7 +605,7 @@ def test_joint_training_iterations_with_empty_shared_features(
     )
     expected_classifier = deepcopy(empty_shared_classifier)
     empty_shared_optimizer = torch.optim.Adam(
-        tuple(empty_shared_classifier.residual_adapter.parameters())
+        tuple(empty_shared_classifier.model_owned_feature_transform.parameters())
         + tuple(empty_shared_classifier.classification_layer.parameters()),
         lr=0.01,
         amsgrad=True,

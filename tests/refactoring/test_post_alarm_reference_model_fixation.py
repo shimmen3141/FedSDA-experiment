@@ -37,8 +37,8 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
@@ -164,7 +164,7 @@ def assert_fixed_references_match_legacy(
     for state in held_model_training_states:
         reference_classifier = reference_classifiers_by_model_id[state.model_id]
         legacy_reference_model = legacy_reference_models[state.model_id]
-        assert type(reference_classifier) is ResidualAdapterClassifier
+        assert type(reference_classifier) is ModelArchitectureClassifier
         assert reference_classifier is not state.classifier
         assert reference_classifier.feature_extractor is not state.classifier.feature_extractor
         legacy_parameters = dict(legacy_reference_model.named_parameters())
@@ -416,7 +416,7 @@ def start_validation_in_both_implementations(
     current_classifier = registry.get_held_model_training_state(
         model_id=current_model_id
     ).classifier
-    candidate_classifier = ResidualAdapterClassifier(
+    candidate_classifier = ModelArchitectureClassifier(
         model_architecture_settings=current_classifier.model_architecture_settings,
         input_feature_count=current_classifier.feature_extractor.input_feature_count,
         hidden_layer_widths=current_classifier.feature_extractor.hidden_layer_widths,
@@ -435,7 +435,7 @@ def start_validation_in_both_implementations(
     adoption_arguments.update(
         adopted_candidate_classifier=candidate_classifier,
         candidate_concept_specific_parameter_optimizer_state=ParameterOptimizerState(
-            parameters=tuple(candidate_classifier.residual_adapter.parameters())
+            parameters=tuple(candidate_classifier.model_owned_feature_transform.parameters())
             + tuple(candidate_classifier.classification_layer.parameters()),
             optimizer_settings=AdamParameterOptimizerSettings(
                 learning_rate=0.01, weight_decay=0.001, adam_variant="standard"

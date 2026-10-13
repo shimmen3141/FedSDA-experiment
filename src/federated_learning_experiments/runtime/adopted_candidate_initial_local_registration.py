@@ -11,8 +11,8 @@ from federated_learning_experiments.learning.loss_statistics.model_and_class_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.models.shared_feature_extractor import (
     SharedFeatureExtractor,
@@ -111,7 +111,7 @@ def _select_active_shared_feature_extractor(
 def register_adopted_candidate_as_temporary_held_model(
     *,
     temporary_model_id: int,
-    adopted_candidate_classifier: ResidualAdapterClassifier,
+    adopted_candidate_classifier: ModelArchitectureClassifier,
     candidate_concept_specific_parameter_optimizer_state: ParameterOptimizerState,
     initial_statistics_input_features: Tensor,
     initial_statistics_observed_class_labels: Tensor,

@@ -34,11 +34,11 @@ from federated_learning_experiments.data.sine.sine_sample_generation import Sine
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatistics,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
-)
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
 )
 from federated_learning_experiments.learning.training.initial_model_pretraining_settings import (
     InitialModelPretrainingSettings,
@@ -179,7 +179,7 @@ def assert_pretrained_model_matches_legacy(
     """分類器の全パラメータ、2つのoptimizerの状態、損失統計を、実旧の事前学習の結果と照合する。"""
     assert type(pretrained_initial_model) is PretrainedInitialModel
     classifier = pretrained_initial_model.classifier
-    assert type(classifier) is ResidualAdapterClassifier
+    assert type(classifier) is ModelArchitectureClassifier
     legacy_state = legacy_model.state_dict()
     classifier_state = classifier.state_dict()
     assert list(classifier_state) == [
@@ -356,7 +356,7 @@ def test_pretraining_result_matches_client_assembly_arguments():
     for parameter_optimizer_state, expected_parameters in (
         (
             pretrained_initial_model.concept_specific_parameter_optimizer_state,
-            tuple(classifier.residual_adapter.parameters())
+            tuple(classifier.model_owned_feature_transform.parameters())
             + tuple(classifier.classification_layer.parameters()),
         ),
         (
@@ -381,7 +381,7 @@ def test_pretraining_with_zero_epochs_keeps_initialized_classifier_and_computes_
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(7)
         pretraining_arguments = make_pretraining_arguments(pretraining_values=pretraining_values)
-        initialized_classifier = ResidualAdapterClassifier(
+        initialized_classifier = ModelArchitectureClassifier(
             model_architecture_settings=pretraining_arguments["model_architecture_settings"],
             input_feature_count=2,
             hidden_layer_widths=HIDDEN_LAYER_WIDTHS,

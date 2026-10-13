@@ -874,7 +874,7 @@ def test_without_concept_specific_adapter_takes_its_own_path(configuration_name)
                     parameter_names = set(held_state.classifier.state_dict())
                     assert (
                         any(
-                            parameter_name.startswith("residual_adapter.")
+                            parameter_name.startswith("model_owned_feature_transform.")
                             for parameter_name in parameter_names
                         )
                         == adapter_is_expected

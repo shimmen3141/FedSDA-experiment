@@ -23,9 +23,9 @@ from federated_learning_experiments.learning.loss_statistics.model_id_mapped_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
     INDEPENDENT_MODELS_ARCHITECTURE_NAME,
-    ResidualAdapterClassifier,
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
@@ -162,8 +162,8 @@ def _validate_parameter_optimizer_settings(
     parameter_optimizer_settings.__post_init__()
 
 
-def _get_concept_specific_parameters(*, classifier: ResidualAdapterClassifier) -> tuple:
-    return tuple(classifier.residual_adapter.parameters()) + tuple(
+def _get_concept_specific_parameters(*, classifier: ModelArchitectureClassifier) -> tuple:
+    return tuple(classifier.model_owned_feature_transform.parameters()) + tuple(
         classifier.classification_layer.parameters()
     )
 
@@ -305,7 +305,7 @@ def apply_global_model_distribution(
     shared_feature_source_model_id = min(distributed_model_ids)
     rebuilt_optimizer_bindings: list[HeldModelOptimizerBinding] = []
     for distributed_model_id, distributed_parameter_snapshot in distributed_parameter_snapshots:
-        rebuilt_classifier = ResidualAdapterClassifier(
+        rebuilt_classifier = ModelArchitectureClassifier(
             model_architecture_settings=architecture_reference_classifier.model_architecture_settings,
             input_feature_count=architecture_reference_classifier.input_feature_count,
             hidden_layer_widths=architecture_reference_classifier.hidden_layer_widths,

@@ -22,8 +22,8 @@ from federated_learning_experiments.learning.loss_statistics.model_id_mapped_los
 from federated_learning_experiments.learning.models.classifier_parameter_snapshot import (
     snapshot_classifier_parameters,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     CurrentTrainingModelAssignment,
@@ -161,7 +161,7 @@ def apply_feddrift_model_distribution(
     )
     rebuilt = []
     for model_id, parameters in model_parameters_by_model_id.items():
-        classifier = ResidualAdapterClassifier(
+        classifier = ModelArchitectureClassifier(
             model_architecture_settings=reference.model_architecture_settings,
             input_feature_count=reference.input_feature_count,
             hidden_layer_widths=reference.hidden_layer_widths,

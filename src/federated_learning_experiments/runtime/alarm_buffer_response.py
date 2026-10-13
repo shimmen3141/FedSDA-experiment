@@ -9,8 +9,8 @@ from federated_learning_experiments.evaluation.model_evaluation_sample_store imp
 from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
     ModelAndClassLossStatisticsStore,
 )
-from federated_learning_experiments.learning.models.residual_adapter_classifier import (
-    ResidualAdapterClassifier,
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
 )
 from federated_learning_experiments.learning.training.candidate_epoch_training_settings import (
     CandidateEpochTrainingSettings,
@@ -166,7 +166,7 @@ def respond_to_alarm_with_buffered_samples(
     pending_model_upload_state: PendingModelUploadState,
     upload_delay_round_count: int,
     candidate_parameter_initialization_settings: CandidateParameterInitializationSettings,
-    architecture_reference_classifier: ResidualAdapterClassifier,
+    architecture_reference_classifier: ModelArchitectureClassifier,
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
     candidate_epoch_training_settings: CandidateEpochTrainingSettings,
     candidate_model_training_and_acceptance_settings: CandidateModelTrainingAndAcceptanceSettings,
