@@ -501,6 +501,7 @@ def sine2_event_runs_by_policy():
     }
 
 
+@pytest.mark.slow
 def test_whole_run_registers_every_adopted_model_by_its_own_id(sine2_event_runs_by_policy):
     """既定の扱い: 採番した正式IDの全部が、登録したclientに保有され、登録されないままの採用が残らない。"""
     experiment_run, observation = sine2_event_runs_by_policy[

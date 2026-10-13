@@ -1139,6 +1139,7 @@ def golden_condition_runs(request, tmp_path_factory):
         np.random.set_state(numpy_random_state)
 
 
+@pytest.mark.slow
 def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_condition_runs):
     """goldenの条件で、導出した指標が、実旧の実行結果の33項目（計算量の7項目を含む）と、完全に一致する。"""
     run_metrics = golden_condition_runs.run_metrics
@@ -1961,6 +1962,7 @@ def compare_small_run_with_real_legacy(
     SMALL_RUN_CONDITIONS,
 )
 @pytest.mark.parametrize(("maximum_delay", "recovery_window"), [(100, 50), (8, 5)])
+@pytest.mark.slow
 def test_small_run_metrics_match_real_legacy_metric_computation(
     monkeypatch,
     tmp_path,

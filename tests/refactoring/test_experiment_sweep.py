@@ -455,6 +455,7 @@ def test_failed_run_is_reported_and_other_runs_continue(tmp_path, monkeypatch):
     assert "failed" in progress_messages[0] and "simulated run failure" in progress_messages[0]
 
 
+@pytest.mark.slow
 def test_parallel_sweep_saves_the_same_content_as_sequential_sweep(
     sequential_sweep, tmp_path, monkeypatch
 ):
@@ -491,6 +492,7 @@ def test_parallel_sweep_saves_the_same_content_as_sequential_sweep(
         assert_record_tables_equal(record_tables, sequential_record_tables)
 
 
+@pytest.mark.slow
 def test_parallel_sweep_cancels_waiting_runs_when_interrupted(tmp_path):
     """並列の実行の途中で、例外（進み具合の報告の失敗、中断）が出たら、workerへ渡す前の、待ちのrunを取り消す。"""
     planned_runs = build_planned_experiment_runs(
@@ -959,6 +961,7 @@ def test_repository_script_runs_without_installation_or_environment_variables(tm
     assert not output_directory.exists()
 
 
+@pytest.mark.slow
 def test_repository_script_runs_parallel_sweep_in_separate_processes(tmp_path, sequential_sweep):
     """直下のscriptでの並列の実行（workerのprocessが、scriptを読み直す経路）が、逐次の実行と、同じ内容を保存する。
 

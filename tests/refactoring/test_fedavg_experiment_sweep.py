@@ -43,6 +43,7 @@ def test_mixed_plan_uses_feddrift_axis_only_and_preserves_existing_identity():
 
 
 @pytest.mark.parametrize("workers", [1, 2])
+@pytest.mark.slow
 def test_real_sweep_saves_resumes_and_refuses_conflict(tmp_path, workers):
     settings = small_run_settings(samples=5, interval=3)
     second = replace(

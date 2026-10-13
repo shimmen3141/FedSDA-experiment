@@ -516,6 +516,7 @@ def test_adaptation_actions_cover_every_adaptation_outcome():
     } == LEGACY_ACTION_BY_ADAPTATION_OUTCOME
 
 
+@pytest.mark.slow
 def test_golden_condition_experiment_run_matches_separately_executed_run(
     golden_condition_runs, golden_experiment_runs
 ):
@@ -1087,6 +1088,7 @@ ROUND_MODEL_COUNT_CONDITIONS = [
     "random_seed,client_count,per_client_sample_count,aggregation_interval,minimum_change_gap,concept_change_probability,update_interval,registered_model_is_dropped",
     ROUND_MODEL_COUNT_CONDITIONS,
 )
+@pytest.mark.slow
 def test_round_model_counts_match_real_legacy_whole_run(
     random_seed,
     client_count,

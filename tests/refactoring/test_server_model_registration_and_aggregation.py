@@ -273,6 +273,7 @@ SERVER_ROUND_CONDITIONS = [
 
 
 @pytest.mark.parametrize("class_count,concept_block_length,stream_seed", SERVER_ROUND_CONDITIONS)
+@pytest.mark.slow
 def test_registration_and_aggregation_match_real_legacy_server_for_each_round(
     class_count, concept_block_length, stream_seed, monkeypatch, valid_run_settings_mapping
 ):
@@ -602,6 +603,7 @@ INVALID_AGGREGATION_ARGUMENT_CASES = INVALID_COMMON_ARGUMENT_CASES | {
 
 
 @pytest.mark.parametrize("invalid_case_name", INVALID_REGISTRATION_ARGUMENT_CASES)
+@pytest.mark.slow
 def test_registration_rejects_invalid_arguments_before_any_update(
     invalid_case_name, monkeypatch, valid_run_settings_mapping
 ):

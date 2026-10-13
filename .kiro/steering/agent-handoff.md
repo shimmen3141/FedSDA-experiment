@@ -136,7 +136,8 @@ export FDE_MNIST_DATA_DIR="$(cd ../../data/mnist && pwd -W)"
 PY=../../venv/Scripts/python.exe
 
 $PY -m pytest tests/refactoring/test_<対象>.py tests/refactoring/test_single_run_dependency_boundaries.py -q -p no:cacheprovider
-$PY -m pytest tests -q -p no:cacheprovider -n 8 --dist loadfile --junitxml="$TMP/<feature名>-full.xml"   # 並列で約7分（逐次は約21分）
+$PY -m pytest tests -q -p no:cacheprovider -n 12 --dist loadfile --junitxml="$TMP/<feature名>-full.xml"   # 全pytest。約7分
+$PY -m pytest tests -q -p no:cacheprovider -n 12 --dist loadfile -m "not slow"   # 作業中の確認（重いtestを外す）。約3分半
 $PY -m ruff check src tests/refactoring; $PY -m ruff format --check src tests/refactoring
 $PY -m pyright --pythonpath ../../venv/Scripts/python.exe; $PY -m pip check
 $PY .kiro/settings/scripts/spec_checks.py identity <feature名> --junit "$TMP/<feature名>-full.xml"
@@ -144,8 +145,12 @@ $PY .kiro/settings/scripts/spec_checks.py identity <feature名> --junit "$TMP/<f
 
 - 全pytestと品質検査は、独立レビューの指摘を反映した後に実行する。通ったらcommitし、そのcommitと件数をtasks.mdの「Implementation Notes」へ記録する（source・testを変えたら、やり直す）。下位taskごとのcommitは、対象testが通った時点で行ってよい。
 - 全pytestの並列実行（2026-10-10、ユーザー決定で導入）: `pytest-xdist`（`requirements-dev.txt`で版固定。固定venvへ導入済み）を使い、`-n 8 --dist loadfile`で実行する。**`--dist loadfile`は必須**（同じファイルのtestを同じprocessで実行する。経路の網羅のtestや、moduleで1回だけ実行するfixtureは、同じファイルのtestが同じprocessで動くことを前提にしている。既定の`load`では、網羅のtestがskipされたり、重い実行が重複したりする）。導入時（2026-10-10、`65c3bf4`）に、逐次実行と、全11544件の合否が一致することを確かめた（JUnitの照合）。所要時間は、逐次21分→並列7分（8 workerと12 workerで同じ。最も長いファイル——指標の導出のtest——が下限になる）。JUnitは1つにまとまるので、`spec_checks.py identity`は、そのまま使える。旧の回帰（`tests/test_regression.py`・`tests/test_proposed_regression.py`）も、同じ実行に含める（ファイル単位で1つのprocessが実行するので、逐次実行のとき——全ファイルが1つのprocess——より、processの共有は少ない）。結果が逐次と違う疑いがあるときは、`-n`を外して逐次で取り直す。`pytest.ini`へは既定として書かない（golden再現環境——`environments/golden/windows-cpu/`——は、`pytest-xdist`を含まない）。レビュー担当へ許可する検証コマンドは、対象のファイルを指定した逐次の実行のままでよい。
+- 全pytestの高速化（2026-10-13、ユーザー決定で導入）:
+  - 配り方: `tests/conftest.py`が、`--dist loadfile`のときの配り方を決める。同じファイルのtestは同じprocess、という前提は、そのまま。例外は、最も長かった`tests/refactoring/test_fedsda_configuration_variants.py`だけで、構成の名前で3つの組へ分ける（同じ構成の名前を持つtestは、同じprocess。構成に固有の経路のtestは、読む構成の名前を、parametrizeの値として持つ。同じファイルのtestが、これを確かめる）。組を増やすと、同じprocessの中で使い回していた、提案構成の照合を、組ごとに計算し直すので、組は3つにした（構成ごとの10組では、CPU時間が増え、所要時間は7分34秒）。pytest-xdistが無い環境（goldenの再現環境）では、このhookは呼ばれない。
+  - 重いtestの印: 計測で重かった41のtest関数（1件が5秒を超える、または、関数の合計が20秒を超える）へ、`slow`の印を付けた（固定旧の2つの回帰は、ファイルを変えずに、`tests/conftest.py`で付ける）。作業中は`-m "not slow"`で外せる（13512 passed / 38 skipped。skipは、重いtestの結果を読む、網羅のtest）。**完了の判定に使う全pytestは、印に関係なく、全部を実行する**（`-m`を付けない）。新しく重いtestを足したら、印を付ける。
+  - 実測（Windows、16コア）: 変更の前は、8 workerで9分36秒〜13分09秒（PCの負荷で変わる）。変更の後は、12 workerで7分03秒、8 workerで7分28秒。軽い組は、12 workerで3分19秒、8 workerで3分27秒（workerごとの、約1万4千件の収集と読込みが、下限になっている）。変更の前（`alarm-wait-for-minimum-change-interval-full.xml`）と、全13957件の合否が一致することを、JUnitの照合で確かめた（増えた1件は、配り方を確かめるtest。構成に固有の経路のtest 8件は、idに構成の名前が付いた）。逐次実行での照合は、していない。結果が逐次と違う疑いがあるときは、`-n`を外して逐次で取り直す。
 - 長い検証の前に、必要な一時ファイル操作と実行環境を短い確認で確かめる。既知の権限エラーがある条件で全suiteを試し直さない。必要な権限は通常の承認手順で扱い、sandbox解除・認証変更を回避策にしない。
-- 待ち時間を減らす（2026-10-10の実測では、作業時間の大半がtoolの待ちだった）: 重いtest（例: `test_observed_sample_processing.py`は全条件で約95秒）は、開発中は`-k`で条件を絞って回し、全条件と全pytest（並列で約7分）は最後に1回にする。全pytestや長いコマンドは裏で走らせて、その間に文書を書く。
+- 待ち時間を減らす（2026-10-10の実測では、作業時間の大半がtoolの待ちだった）: 重いtest（例: `test_observed_sample_processing.py`は全条件で約95秒）は、開発中は`-k`で条件を絞って回し、全条件と全pytest（並列で約7分）は最後に1回にする。途中の広い確認は、`-m "not slow"`（約3分半）を使う。全pytestや長いコマンドは裏で走らせて、その間に文書を書く。
 - Git Bashでの注意: toolのBashは呼出しごとに作業ディレクトリが元checkoutへ戻ることがあるので、毎回worktreeへ`cd`してから実行する。引用符やbacktick、`\n`を含むscriptをheredocで書くと壊れやすいので、ファイルとして書いてから実行する。変異toolや整形は対象ファイルを書き換えるので、worktreeで実行する前に`pwd`を確かめる。
 - 所要時間を報告するときは、会話記録のtimestampで、モデルの時間・toolの待ち・ユーザーの指示待ちを分けて測る（commitの時刻だけで推定しない）。
 - source hashは、tracked Pythonと2goldenを、パス昇順でLF内容として連結したもの（`spec_checks.py identity`が計算する）。2026-10-09までのspecは、文書ごとの承認hashも持つ。

@@ -463,6 +463,7 @@ WHOLE_RUN_CONDITIONS = [
     "random_seed,client_count,per_client_sample_count,aggregation_interval,minimum_change_gap,concept_change_probability,update_interval",
     WHOLE_RUN_CONDITIONS,
 )
+@pytest.mark.slow
 def test_whole_stream_protocol_run_matches_real_legacy_whole_run(
     random_seed,
     client_count,
@@ -641,6 +642,7 @@ MNIST_HIDDEN_LAYER_WIDTHS = (48,)
     "dataset_name,random_seed,client_count,per_client_sample_count,aggregation_interval,minimum_change_gap,concept_change_probability,update_interval,required_paths",
     OTHER_DATASET_WHOLE_RUN_CONDITIONS,
 )
+@pytest.mark.slow
 def test_whole_run_of_other_datasets_matches_real_legacy_whole_run(
     dataset_name,
     random_seed,
@@ -749,6 +751,7 @@ CONCEPT_DEPENDENT_STATE_NAMES = (
 )
 
 
+@pytest.mark.slow
 def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
     valid_run_settings_mapping,
 ):

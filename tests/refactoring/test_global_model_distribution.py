@@ -226,6 +226,7 @@ MODEL_ID_MAPPING_CONDITIONS = [
     "class_count,concept_block_length,stream_seed,round_count_before_mapping,condition_overrides,mapping_kind",
     MODEL_ID_MAPPING_CONDITIONS,
 )
+@pytest.mark.slow
 def test_distribution_application_with_model_id_mapping_matches_real_legacy_client(
     class_count,
     concept_block_length,
@@ -824,6 +825,7 @@ DISTRIBUTION_ROUND_CONDITIONS = [
     "class_count,concept_block_length,stream_seed,condition_overrides",
     DISTRIBUTION_ROUND_CONDITIONS,
 )
+@pytest.mark.slow
 def test_registration_aggregation_and_distribution_match_real_legacy_server_for_each_round(
     class_count,
     concept_block_length,

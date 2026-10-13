@@ -5,9 +5,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SMOKE_SCRIPT_PATH = Path(__file__).with_name("fresh_process_smoke.py")
 
 
+@pytest.mark.slow
 def test_fresh_process_smoke_runs_without_legacy_or_test_modules():
     # pytestのprocessが読み込んだmoduleやPYTHONPATHを引き継がない、新しいprocessで実行する。
     child_environment = {name: value for name, value in os.environ.items() if name != "PYTHONPATH"}

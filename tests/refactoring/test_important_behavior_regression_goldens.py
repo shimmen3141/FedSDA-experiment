@@ -315,6 +315,7 @@ def capture_case_once(case_name, baseline_version):
         for case_name in case_names
     ],
 )
+@pytest.mark.slow
 def test_new_implementation_matches_important_behavior_golden(case_name, baseline_version):
     """全部の基準版を照合する。版1は、版1の動作に当たる設定（登録の扱いが、固定旧と同じ）で実行する。"""
     environment = golden.numerical_environment()

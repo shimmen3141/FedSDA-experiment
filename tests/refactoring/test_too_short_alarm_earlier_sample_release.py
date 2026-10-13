@@ -555,6 +555,7 @@ def sine2_event_runs_by_policy():
     }
 
 
+@pytest.mark.slow
 def test_whole_run_assigns_each_sample_at_most_once(sine2_event_runs_by_policy):
     """既定の扱い: 短い警報が起きても、同じ標本が2回取り込まれない。警報が読む保留は、未取込みの標本だけ。"""
     experiment_run, observation = sine2_event_runs_by_policy[
@@ -585,6 +586,7 @@ def test_whole_runs_of_both_too_short_alarm_policies_produce_different_metrics(
 
 
 @pytest.mark.parametrize("detection_configuration_name", ADWIN_CONFIGURATION_NAMES)
+@pytest.mark.slow
 def test_adwin_monitoring_run_reads_only_unassigned_pending_samples(detection_configuration_name):
     """ADWINで監視する構成の全体runが、既定の扱いで、例外なく終わり、同じ標本を2回取り込まない。
 

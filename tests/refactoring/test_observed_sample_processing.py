@@ -464,6 +464,7 @@ OBSERVED_PREDICTION_COVERAGE_BY_CONDITION = {}
 @pytest.mark.parametrize("stream_name", STREAM_NAMES)
 @pytest.mark.parametrize("historical_mean_losses", HISTORICAL_MEAN_LOSS_PROFILES)
 @pytest.mark.parametrize("minimum_candidate_mean_loss_improvement", (10.0, 0.0))
+@pytest.mark.slow
 def test_sample_processing_matches_real_legacy_sample_processing(
     class_count,
     recording_oracle_case,

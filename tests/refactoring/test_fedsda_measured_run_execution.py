@@ -44,6 +44,7 @@ def make_small_run_settings(valid_run_settings_mapping):
     return execution_settings, run_participant_settings
 
 
+@pytest.mark.slow
 def test_measured_run_matches_unmeasured_run_and_separates_preparation_computation(
     valid_run_settings_mapping,
 ):

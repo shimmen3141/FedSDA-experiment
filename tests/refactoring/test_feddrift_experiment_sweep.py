@@ -174,6 +174,7 @@ def small_feddrift_runs():
 
 
 @pytest.mark.parametrize("workers", (1, 2))
+@pytest.mark.slow
 def test_actual_sweep_matches_single_run_and_resumes_without_execution(
     tmp_path, monkeypatch, workers
 ):
@@ -470,6 +471,7 @@ def test_feddrift_cli_reports_execution_failure(tmp_path, monkeypatch):
     )
 
 
+@pytest.mark.slow
 def test_real_cli_help_and_spawn_execution(tmp_path):
     root = Path(__file__).resolve().parents[2]
     help_result = subprocess.run(

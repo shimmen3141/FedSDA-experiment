@@ -150,6 +150,7 @@ CLIENT_CROSS_EVALUATION_CONDITIONS = [
     "class_count,concept_block_length,stream_seed,round_count,condition_overrides",
     CLIENT_CROSS_EVALUATION_CONDITIONS,
 )
+@pytest.mark.slow
 def test_client_cross_evaluation_matches_real_legacy_client(
     class_count,
     concept_block_length,
@@ -318,6 +319,7 @@ def find_client_and_evaluable_non_current_target(server_round_oracle):
     raise AssertionError("no client holds enough evaluation samples of a non-current model")
 
 
+@pytest.mark.slow
 def test_client_cross_evaluation_without_held_target_model_matches_real_legacy_client(
     monkeypatch, valid_run_settings_mapping
 ):
@@ -484,6 +486,7 @@ INVALID_CLIENT_CROSS_EVALUATION_ARGUMENT_CASES = (
 )
 
 
+@pytest.mark.slow
 def test_client_cross_evaluation_rejects_invalid_arguments_and_changes_no_state(
     monkeypatch, valid_run_settings_mapping
 ):
@@ -836,6 +839,7 @@ SERVER_CROSS_EVALUATION_CONDITIONS = [
     "class_count,concept_block_length,stream_seed,condition_overrides",
     SERVER_CROSS_EVALUATION_CONDITIONS,
 )
+@pytest.mark.slow
 def test_cross_evaluation_matches_real_legacy_server_for_each_round(
     class_count,
     concept_block_length,
@@ -1028,6 +1032,7 @@ INVALID_CROSS_EVALUATION_ARGUMENT_CASES = (
 )
 
 
+@pytest.mark.slow
 def test_cross_evaluation_rejects_invalid_arguments_before_any_update(
     monkeypatch, valid_run_settings_mapping
 ):
@@ -1054,6 +1059,7 @@ def test_cross_evaluation_rejects_invalid_arguments_before_any_update(
         assert random.getstate() == global_python_random_state, invalid_case_name
 
 
+@pytest.mark.slow
 def test_cross_evaluation_stops_at_failed_client_evaluation_without_rollback(
     monkeypatch, valid_run_settings_mapping
 ):

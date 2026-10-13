@@ -126,6 +126,7 @@ RECALIBRATION_ROUND_CONDITIONS = [
     "class_count,concept_block_length,stream_seed,condition_overrides",
     RECALIBRATION_ROUND_CONDITIONS,
 )
+@pytest.mark.slow
 def test_round_with_recalibration_matches_real_legacy_server_run_round(
     class_count,
     concept_block_length,

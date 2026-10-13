@@ -537,6 +537,7 @@ def sine2_event_runs_by_policy():
     }
 
 
+@pytest.mark.slow
 def test_whole_run_with_waiting_policy_has_no_short_alarm(sine2_event_runs_by_policy):
     """待つ扱い: 警報のたびに（候補検証を保持している間を含めて）、推定変化区間の件数が最小件数以上。短い警報は無い。"""
     experiment_run, observation = sine2_event_runs_by_policy[

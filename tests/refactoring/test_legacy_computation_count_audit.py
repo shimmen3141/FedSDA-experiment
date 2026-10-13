@@ -171,6 +171,7 @@ def run_real_legacy_whole_run_counting_model_computation(dataset_name):
 
 
 @pytest.mark.parametrize("dataset_name", tuple(legacy_regression.CASES))
+@pytest.mark.slow
 def test_legacy_computation_counters_match_independent_forward_and_optimizer_counts(dataset_name):
     """goldenの3ケースで、旧の計数が、hookで数えた、実際の順伝播とoptimizerの更新と一致する。"""
     (
@@ -260,6 +261,7 @@ def test_legacy_computation_counters_match_independent_forward_and_optimizer_cou
     assert legacy_counts["optimizer_steps"] > 0
 
 
+@pytest.mark.slow
 def test_legacy_computation_counters_match_golden_for_all_cases():
     """上の検査の旧の実行が、goldenの計算量の7項目を再現している（Windowsの基準環境）。"""
     if sys.platform != "win32":

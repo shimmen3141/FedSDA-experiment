@@ -202,6 +202,7 @@ def test_downloads_are_unique_per_candidate_client_and_per_call(
         assert len(records.snapshot_client_cross_evaluation_records()) == expected_messages
 
 
+@pytest.mark.slow
 def test_independent_run_saves_corrected_communication_volume(
     monkeypatch, tmp_path, valid_run_settings_mapping
 ):

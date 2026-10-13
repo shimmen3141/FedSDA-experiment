@@ -911,6 +911,7 @@ TRAJECTORY_CONDITIONS = [
     "class_count,concept_block_length,stream_seed,update_interval,validation_sample_count,sample_count",
     TRAJECTORY_CONDITIONS,
 )
+@pytest.mark.slow
 def test_run_client_matches_real_legacy_client_from_construction_to_run_end(
     class_count,
     concept_block_length,

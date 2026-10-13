@@ -235,6 +235,7 @@ CLUSTERING_ROUND_CONDITIONS = [
     "class_count,concept_block_length,stream_seed,condition_overrides",
     CLUSTERING_ROUND_CONDITIONS,
 )
+@pytest.mark.slow
 def test_server_round_with_clustering_matches_real_legacy_server_run_round(
     class_count,
     concept_block_length,

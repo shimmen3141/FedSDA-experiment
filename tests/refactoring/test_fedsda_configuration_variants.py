@@ -334,6 +334,7 @@ def count_adwin_alarm_paths(*, monkeypatch, configuration_name):
 
 @pytest.mark.parametrize("small_run_condition", SMALL_RUN_CONDITIONS)
 @pytest.mark.parametrize("configuration_name", sorted(CONFIGURATION_VARIANTS))
+@pytest.mark.slow
 def test_configuration_variant_matches_real_legacy_whole_run(
     configuration_name, small_run_condition, monkeypatch, tmp_path, valid_run_settings_mapping
 ):
@@ -378,6 +379,8 @@ def test_configuration_variant_matches_real_legacy_whole_run(
     VARIANT_COMPARISONS[(configuration_name, small_run_condition)] = comparisons
 
 
+# 下の「固有の経路」のtestは、同じ構成の、上の照合の結果を読む。並列の実行では、構成の名前で、別のprocessへ
+# 配る（tests/conftest.py）ので、読む構成の名前を、parametrizeの値として持つ（testのidの先頭が、構成の名前）。
 def collect_variant_comparisons(configuration_name):
     comparisons = [
         VARIANT_COMPARISONS[(configuration_name, small_run_condition)]
@@ -389,11 +392,12 @@ def collect_variant_comparisons(configuration_name):
     return comparisons
 
 
-def test_without_prediction_weight_recalibration_takes_its_own_path():
+@pytest.mark.parametrize(
+    "configuration_name", [PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME]
+)
+def test_without_prediction_weight_recalibration_takes_its_own_path(configuration_name):
     """再較正をしない構成は、再較正の回数と、再生した標本数が0で、同じ条件の提案構成では0でない。結果も違う。"""
-    comparisons = collect_variant_comparisons(
-        PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME
-    )
+    comparisons = collect_variant_comparisons(configuration_name)
     for comparison in comparisons:
         variant_metrics = comparison["variant"].run_metrics
         assert variant_metrics.fixed_share_weight_recalibration_replayed_sample_count == 0
@@ -434,9 +438,10 @@ def test_without_prediction_weight_recalibration_takes_its_own_path():
     )
 
 
-def test_without_candidate_validation_takes_its_own_path():
+@pytest.mark.parametrize("configuration_name", [CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME])
+def test_without_candidate_validation_takes_its_own_path(configuration_name):
     """候補検証をしない構成は、警報の位置で候補を採用し、候補検証の開始・判定が、新旧とも無い。結果も違う。"""
-    comparisons = collect_variant_comparisons(CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME)
+    comparisons = collect_variant_comparisons(configuration_name)
     adopted_at_alarm_count = 0
     for comparison in comparisons:
         variant_comparison = comparison["variant"]
@@ -497,9 +502,10 @@ def collect_pair_clustering_observations(comparison):
     return comparison.participants.server_operations.owners.model_clustering_record_store.snapshot_pair_clustering_observations()
 
 
-def test_loss_distance_clustering_takes_its_own_path():
+@pytest.mark.parametrize("configuration_name", [LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME])
+def test_loss_distance_clustering_takes_its_own_path(configuration_name):
     """損失の増加量で判定する構成は、対の判定の値が、損失の増加量そのもの。提案構成では、別の値。結果も違う。"""
-    comparisons = collect_variant_comparisons(LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME)
+    comparisons = collect_variant_comparisons(configuration_name)
     variant_pair_observations = [
         pair_observation
         for comparison in comparisons
@@ -532,9 +538,10 @@ def test_loss_distance_clustering_takes_its_own_path():
     )
 
 
-def test_overall_loss_esr_detection_takes_its_own_path():
+@pytest.mark.parametrize("configuration_name", [OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME])
+def test_overall_loss_esr_detection_takes_its_own_path(configuration_name):
     """全体の損失だけを監視する構成は、クラス別の検出器を持たず、1標本につき、検出器の更新が1回。結果も違う。"""
-    comparisons = collect_variant_comparisons(OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME)
+    comparisons = collect_variant_comparisons(configuration_name)
     alarm_count = 0
     for comparison in comparisons:
         variant_comparison = comparison["variant"]
@@ -590,9 +597,10 @@ def collect_sample_prediction_records(comparison):
     ]
 
 
-def test_adahedge_prediction_weights_take_their_own_path():
+@pytest.mark.parametrize("configuration_name", [ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME])
+def test_adahedge_prediction_weights_take_their_own_path(configuration_name):
     """AdaHedgeの重みで予測する構成は、実際の予測が、AdaHedgeの重みでの結合と同じ。Fixed-Share側は、比較用に残る。"""
-    comparisons = collect_variant_comparisons(ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME)
+    comparisons = collect_variant_comparisons(configuration_name)
     variant_records = [
         prediction_record
         for comparison in comparisons
@@ -660,9 +668,10 @@ def test_adahedge_prediction_weights_take_their_own_path():
     )
 
 
-def test_single_model_prediction_takes_its_own_path():
+@pytest.mark.parametrize("configuration_name", [SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME])
+def test_single_model_prediction_takes_its_own_path(configuration_name):
     """現在のモデルだけで予測する構成は、重みを使わず、記録の重みの項目が、現在のモデルに重み1の値になる。"""
-    comparisons = collect_variant_comparisons(SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME)
+    comparisons = collect_variant_comparisons(configuration_name)
     multiple_held_model_sample_count = 0
     for comparison in comparisons:
         variant_comparison = comparison["variant"]
@@ -839,9 +848,12 @@ def test_adwin_detection_takes_its_own_path(configuration_name, class_detectors_
     )
 
 
-def test_without_concept_specific_adapter_takes_its_own_path():
+@pytest.mark.parametrize(
+    "configuration_name", [WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME]
+)
+def test_without_concept_specific_adapter_takes_its_own_path(configuration_name):
     """adapterを持たない構成は、保有モデルの概念固有部が、出力層だけ。実旧のモデルも、adapterを持たない。"""
-    comparisons = collect_variant_comparisons(WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME)
+    comparisons = collect_variant_comparisons(configuration_name)
     multiple_held_model_client_count = 0
     for comparison in comparisons:
         for variant_role, adapter_is_expected in (("variant", False), ("proposed", True)):
@@ -1059,6 +1071,7 @@ MNIST2_WHOLE_RUN_CONDITIONS = tuple(
 
 @pytest.mark.parametrize("whole_run_condition", MNIST2_WHOLE_RUN_CONDITIONS)
 @pytest.mark.parametrize("configuration_name", MODEL_ARCHITECTURE_VARIANT_NAMES)
+@pytest.mark.slow
 def test_model_architecture_variant_matches_real_legacy_whole_run_on_mnist2(
     configuration_name, whole_run_condition, monkeypatch, valid_run_settings_mapping
 ):
@@ -1139,9 +1152,10 @@ def test_model_architecture_variant_registers_new_models_on_mnist2(configuration
     assert any(registrations)
 
 
-def test_independent_models_take_their_own_path():
+@pytest.mark.parametrize("configuration_name", [INDEPENDENT_MODELS_CONFIGURATION_NAME])
+def test_independent_models_take_their_own_path(configuration_name):
     """共有部を持たない構成は、保有モデルが、パラメータを共有せず、共有部の計算も無い。実旧のモデルも、共有部を持たない。"""
-    comparisons = collect_variant_comparisons(INDEPENDENT_MODELS_CONFIGURATION_NAME)
+    comparisons = collect_variant_comparisons(configuration_name)
     multiple_held_model_client_count = 0
     for comparison in comparisons:
         variant_comparison = comparison["variant"]
@@ -1279,3 +1293,24 @@ def test_independent_models_require_sequential_training_and_no_weight_recalibrat
         with pytest.raises(RunSettingsValidationError) as error_information:
             replace(run_participant_settings, **mismatched_settings_fields)
         assert error_information.value.configuration_parameter_name == rejected_parameter_name
+
+
+def test_parallel_scope_keeps_tests_of_one_configuration_in_one_process(request):
+    """並列の実行での組が、このファイルの、同じ構成の名前を持つtestの全部で、同じ組になる。"""
+    from conftest import select_parallel_test_scope
+
+    scopes_by_configuration_name = {}
+    for test_item in request.session.items:
+        if test_item.path.name != "test_fedsda_configuration_variants.py":
+            continue
+        call_specification = getattr(test_item, "callspec", None)
+        test_scope = select_parallel_test_scope(
+            test_node_id=test_item.nodeid, configuration_names=EXPERIMENT_CONFIGURATION_NAMES
+        )
+        if call_specification is None or "configuration_name" not in call_specification.params:
+            assert "::" not in test_scope, test_item.nodeid
+            continue
+        configuration_name = call_specification.params["configuration_name"]
+        assert "::configuration-group-" in test_scope, test_item.nodeid
+        scopes_by_configuration_name.setdefault(configuration_name, set()).add(test_scope)
+    assert all(len(scopes) == 1 for scopes in scopes_by_configuration_name.values())

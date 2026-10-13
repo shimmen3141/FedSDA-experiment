@@ -16,7 +16,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - **LEGACY-016は完了**（[pending-model-registration-by-own-id](../specs/pending-model-registration-by-own-id/tasks.md)。証拠は同specのtasks.md）。修正の前後の比較（8条件）では、精度は、circle2・sine2で上がり、mnist2で下がった（−0.3〜−0.9ポイント）。下りの通信量は、最大で+46%。ユーザーへ報告済み。ablationの規模の再実験は、未実施。重要動作のgoldenは、基準版1（旧と同じ扱いで照合）と基準版2（既定）の2つ。**次は、LEGACY-002**（短い警報のあと、取込み済みの前区間だけを保留から消費する。同じく、旧と同じ扱いを設定で残す。分岐が1つの機能に閉じない場合は、設定で残さず、差を説明して照合する）。その後、LEGACY-014の概念計数→LEGACY-001→整理。
 - **LEGACY-002も完了**（[too-short-alarm-earlier-sample-release](../specs/too-short-alarm-earlier-sample-release/tasks.md)。証拠は同specのtasks.md）。修正の前後の比較（8条件＋ADWINの2構成）では、精度は、sine2・circle2の一部で下がり（−0.08〜−0.69ポイント）、mnist2で上がった。sine2で、短い警報が約3〜4倍に増えた（IMPROVE-006の検討の材料）。ユーザーへ報告済み。重要動作のgoldenは、基準版1・2（旧と同じ扱いで照合）と基準版3（既定）。実旧との照合の入口のhelperは、`use_legacy_compatible_policies`・`assert_run_client_uses_legacy_compatible_policies`（`tests/refactoring/test_fedsda_run_client.py`）。LEGACY-014の概念計数とLEGACY-001は、旧実装を外したあとに直す（2026-10-13ユーザー決定。古い基準版のgoldenの列を変えるため。見送りではない。NEW-004の記録に一覧）。016・002の影響の比較（4通り×6 dataset×seed 10×集約間隔2つ、`run_behavior_fix_comparison.py`）は、ユーザーが研究室サーバで実行中。**次は、IMPROVE-006（短い警報の連鎖）の具体案の試行**→整理（IMPROVE-013/014、LEGACY-005の説明）。
 - **IMPROVE-006の待つ扱いも実装済み**（[alarm-wait-for-minimum-change-interval](../specs/alarm-wait-for-minimum-change-interval/tasks.md)。証拠は同specのtasks.md）。推定変化区間が最小件数に達するまで警報を待つ扱いを、設定で選べる（`LossChangeDetectionSettings.short_change_interval_alarm_policy`。既定は変えていない。e-SRのときだけ）。手元の9条件では、sine2で精度+0.43ポイント・切替の遅れ34→9標本・短い警報0、グローバルモデル数と下りの通信量は増える。mnist2は、2 seedの平均で精度−0.85±1.02ポイント（判断できない）。ユーザーへ報告済み。既定を切り替えるかどうかは、サーバでの複数seedの比較（`run_behavior_fix_comparison.py … --alarm-wait-levels on`。[実験の入口の文書](../../docs/experiments/experiment-sweep.md)）の後に、ユーザーが決める。待つ扱いを既定にする場合は、新しい基準版が要る。
-- 全pytestの高速化の案（長いtestファイルの分割と、重いtestの印付け）を、ユーザーへ提示した（2026-10-13。採否は未定）。
+- 全pytestの高速化を入れた（2026-10-13、ユーザー決定）。全pytestは`-n 12 --dist loadfile`で約7分、作業中の確認は`-m "not slow"`を足して約3分半。配り方と印の説明は、共通引継ぎ手順の「全pytestの高速化」。
 - 採否後の変更は影響に応じた別specで扱う。固定旧748c3aaと旧goldenは維持する。新基準版1は修正前の比較に使い、意図した変更の期待差を検証してから必要な新基準版を追加する。旧実装削除やNEW-004の照合削除へ先に進まない。
 
 以下の2026-10-11の引継ぎ、長い過去の分割案、末尾のserver同期開始メモは履歴であり、そこにある「次」「進行中」「未移植」は当時の状態。現在の次の一手は上記を優先し、実際の完了状態は各specで確認する。
@@ -39,7 +39,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ### 作業の仕方で、文書に無いこと
 
-- Git Bashでは、worktreeのルートへ毎回`cd`する。検証の環境変数とコマンドは、共通引継ぎ手順の「検証コマンド」。全pytestは約11分（`-n 8 --dist loadfile`）。`-rs`だけだと失敗したtestの名前が出ないので、`-rf`かJUnitで読む。
+- Git Bashでは、worktreeのルートへ毎回`cd`する。検証の環境変数とコマンドは、共通引継ぎ手順の「検証コマンド」。全pytestは約7分（`-n 12 --dist loadfile`）。`-rs`だけだと失敗したtestの名前が出ないので、`-rf`かJUnitで読む。
 - 構成の照合の土台: `tests/refactoring/test_fedsda_configuration_variants.py`の`CONFIGURATION_VARIANTS`（構成ごとに、旧の構成名・旧の設定の上書き・新の設定の替え方と、照合の分岐のflag）、`tests/refactoring/test_fedsda_run_metric_derivation.py`の`compare_small_run_with_real_legacy`、`tests/refactoring/test_fedsda_stream_protocol_run.py`の`run_real_legacy_whole_run`。モデル構造を変える構成は、`MODEL_ARCHITECTURE_VARIANT_NAMES`へ足すと、mnist2の全状態の照合も行う。
 - 依存境界（`tests/refactoring/test_single_run_dependency_boundaries.py`）は、moduleごとの許可集合。新しいimportを足したら、登録も足す。
 - 旧は、処理の途中で乱数を消費する箇所がある（候補検証の開始での参照モデルの写し、評価用データの抽出など）。経路を変えるときは、乱数を消費する処理を、旧と同じ場合にだけ行う。
