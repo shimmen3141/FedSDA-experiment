@@ -5,7 +5,7 @@
 | ID | 件名 | 対象・状態 | 詳細 |
 |---|---|---|---|
 | LEGACY-001 | 候補採否と区間margin理由の丸め不整合 | 採用（優先度低。採否から理由を作る。2026-10-13） | [記録](legacy-001-candidate-decision-reason-rounding.md) |
-| LEGACY-002 | 警報区間が短いと割当済み旧区間もFIFOに残る | 採用（2番目。前区間だけ消費。2026-10-13） | [記録](legacy-002-retained-assigned-samples-after-short-alarm.md) |
+| LEGACY-002 | 警報区間が短いと割当済み旧区間もFIFOに残る | 新実装で修正（2026-10-13、`5cbab63`。旧と同じ扱いは設定で選べる。固定旧は未変更） | [記録](legacy-002-retained-assigned-samples-after-short-alarm.md) |
 | LEGACY-003 | 実験終端でFedSDA FIFO末尾を確定しない | 見送り（現行方針を維持。2026-10-13） | [記録](legacy-003-unassigned-fifo-tail-at-run-end.md) |
 | LEGACY-004 | 不正な参照損失入力で旧収集sessionが部分更新 | 新実装で対応済みとして閉じた（2026-10-13） | [記録](legacy-004-partial-loss-collection-on-invalid-input.md) |
 | LEGACY-005 | クラス統計の保持について旧説明と実装が不一致 | 説明の整理として採用（優先度低。2026-10-13） | [記録](legacy-005-class-statistics-documentation-mismatch.md) |

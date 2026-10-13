@@ -3,7 +3,7 @@
   "created_at": "2026-10-13",
   "updated_at": "2026-10-13",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -41,5 +41,28 @@
     "result": "1・2回目はCHANGES REQUIRED、3回目でPASS。採否はtasks.mdのImplementation Notes。",
     "output": "../../venv/refactoring-tests/too-short-alarm-spec-review-{1..3}.jsonl",
     "selection_reason": "可変状態と更新順の設計なので、Haiku 5.5"
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "5cbab63（1回目）、a19b81e（再確認）",
+    "session_ids": [
+      "f767d694-3ee7-4641-9320-065de2ed8c2f",
+      "80cf70a9-aa39-415e-883d-129c662a3c56"
+    ],
+    "is_error": false,
+    "result": "1回目CHANGES REQUIRED（Major 1）、修正の再確認でAPPROVED。採否はtasks.md。",
+    "output": "../../venv/refactoring-tests/too-short-alarm-review-{1,2}.jsonl",
+    "independent_checks": "対象6ファイル4660 passed、fresh 16 flows、Ruff、固定旧と版1・2のgoldenの差分なし。全pytest・構成の照合・Pyright・WSLは未再現。"
+  },
+  "integration_validation": {
+    "full_passed": 13929,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/too-short-alarm-earlier-sample-release-full.xml",
+    "tested_commit": "f346d37",
+    "wsl": "goldenのtest・このspecのtest・保留の位置のowner・完了処理・LEGACY-016のspecのtestで、323 passed / 1 failed（失敗は、このspecの全体runのtestが、2回目の取込みの件数を、Windowsの値487で固定していたため。件数は数値計算の環境で違うので、1以上を確かめる形へ直し——f346d37——、このspecのtestを実行し直して、47 passed）"
+  },
+  "completion_decision": "完了。LEGACY-002を新実装で修正（旧と同じ扱いは設定で選べる）。基準版3を追加、基準版1・2と実旧との照合は維持。"
 }

@@ -222,7 +222,7 @@ goldenが通っても、全seed・全データセット・全オプションの�
 コミット保留の3資料と既存の`results/`は、リファクタリングのために削除・上書きしない。
 
 
-## 新実装の重要動作golden（基準版1・2）
+## 新実装の重要動作golden（基準版1〜3）
 
 旧基準とは別に、`tests/refactoring/behavior_regression_goldens/v1/`へ新APIの基準を保存する。
 FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境界の追加4ケースを扱う。
@@ -248,6 +248,9 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 | --- | --- | --- | --- |
 | 1 | 2026-10-13の移植完了時点。FedSDAの登録の扱いは、固定旧と同じ（送信保留を1つだけ保持し、確認で現行モデルを付け替える） | 最終構成の既定から、登録の扱いだけを、`keep_latest_pending_model_and_reassign_current_model_id`へ替えて実行する。保存した設定は、この項目を持たない（版1の後に足された）ので、値を確かめてから、除いて比べる | 17 |
 | 2 | 採用したモデルを、それ自身のIDで登録する（LEGACY-016の修正。[spec](../../.kiro/specs/pending-model-registration-by-own-id/design.md)） | 最終構成の既定 | 版1の17（同じ設定）＋`fedsda-sine2-reference-reuse` |
+| 3 | 短い警報のあと、現行モデルへ取り込んだ前区間を、保留から外す（LEGACY-002の修正。[spec](../../.kiro/specs/too-short-alarm-earlier-sample-release/design.md)） | 最終構成の既定 | 版2と同じ18 |
+
+版1・2は、短い警報のあとの保留の扱いも、固定旧と同じ値（`keep_all_pending_samples`）へ替えて実行する（保存した設定は、この項目も持たない）。版3と版2の差は、版2の扱いで、前区間のある短い警報が起きるケース（`fedsda-sine2-events`と`fedsda-sine2-reference-reuse`。同じ標本の2回目の取込みが、Windowsの基準環境で、487件と467件）に限る。ほかの16ケースは、版2と同じであることを、testが確かめる。版3の、FedSDAのケースの結果は、「同じ標本の2回目の取込みの数」（0であること）も持つ。
 
 版2と版1の差は、版1の扱いで、登録されないままの採用が起きるケース（`fedsda-sine2-events`の2件）に限る。ほかの16ケースは、指標・表・パラメータが、版1と同じであることを、testが確かめる。`fedsda-sine2-events`は、版2では、別の保有モデルの再利用の判定を通らなくなる（登録されずにclientへ残っていたモデルが、登録・統合されるため）ので、その経路は、版2で足した`fedsda-sine2-reference-reuse`（同じ設定で、seedが4）が守る。版2の結果は、「登録されないままの採用の数」（0であること）も持つ。
 

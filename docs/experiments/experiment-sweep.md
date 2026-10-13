@@ -99,7 +99,7 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 
 ## 旧実装の結果との比較（移行の間だけ）
 
-**2026-10-13から、FedSDAの構成は、旧実装と一致しないrunがある（意図した差）。** 新実装は、clientが採用したモデルを、必ずサーバへ登録する（旧実装は、送信までの待ちの間に現行モデルが変わると、登録されないまま残す。[LEGACY-016](../research/implementation-findings/legacy-016-registration-id-consumed-without-model.md)）。その経路を通ったrunでは、モデル数・通信量・精度が、旧実装と違う。旧と同じ扱いは、実験のコマンドからは選べない（旧実装との照合のtestだけが使う）。この修正で、FedSDAのrunの識別子（run設定から計算する）は、全部変わった。修正より前に新実装で実行した結果は、同じ出力先を指定しても、済んだrunとしては扱われない（別のrunとして、実行される）。
+**2026-10-13から、FedSDAの構成は、旧実装と一致しないrunがある（意図した差）。** 新実装は、clientが採用したモデルを、必ずサーバへ登録する（旧実装は、送信までの待ちの間に現行モデルが変わると、登録されないまま残す。[LEGACY-016](../research/implementation-findings/legacy-016-registration-id-consumed-without-model.md)）。また、短い警報（推定変化区間が最小件数より少ない警報）のあと、現行モデルへ取り込んだ前区間を、保留から外す（旧実装は、保留に残すので、同じ標本が、後で、もう一度取り込まれる。[LEGACY-002](../research/implementation-findings/legacy-002-retained-assigned-samples-after-short-alarm.md)）。これらの経路を通ったrunでは、モデル数・通信量・精度が、旧実装と違う。旧と同じ扱いは、実験のコマンドからは選べない（旧実装との照合のtestだけが使う）。これらの修正のたびに、FedSDAのrunの識別子（run設定から計算する）は、全部変わった。修正より前に新実装で実行した結果は、同じ出力先を指定しても、済んだrunとしては扱われない（別のrunとして、実行される）。
 
 提案構成の、新旧の結果が一致することを確かめるには、同じ条件を、旧実装（`bash tools/run_main_ablation_suite.sh reference`）でも
 実行し、次のscriptで比べる。同じdataset・seed・集約間隔のrunどうしで、精度・定常精度・検出の指標・モデル数・通信量の
