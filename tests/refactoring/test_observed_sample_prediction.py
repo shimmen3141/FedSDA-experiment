@@ -32,9 +32,6 @@ from federated_drift_experiment.expert_routing import (
     SoftRoutingActivationController,
     SwitchingExpertRouter,
 )
-from federated_learning_experiments.evaluation.adahedge_weight_evidence import (
-    AdaHedgeWeightEvidence,
-)
 from federated_learning_experiments.evaluation.sample_prediction_record_store import (
     SamplePredictionRecord,
     SamplePredictionRecordStore,
@@ -57,6 +54,9 @@ from federated_learning_experiments.learning.training.indexed_observed_training_
 )
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.adahedge_weight_evidence import (
+    AdaHedgeWeightEvidence,
 )
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,

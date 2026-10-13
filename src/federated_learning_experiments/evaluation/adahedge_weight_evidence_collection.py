@@ -1,6 +1,6 @@
 """一つのクライアントの全標本のAdaHedgeの証拠と、真の概念別の診断の証拠を独立して保持する。"""
 
-from federated_learning_experiments.evaluation.adahedge_weight_evidence import (
+from federated_learning_experiments.methods.fedsda.prediction_combination.adahedge_weight_evidence import (
     AdaHedgeWeightEvidence,
 )
 

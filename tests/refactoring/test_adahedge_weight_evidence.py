@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from federated_drift_experiment.expert_routing import AdaHedgeRouter
-from federated_learning_experiments.evaluation.adahedge_weight_evidence import (
+from federated_learning_experiments.methods.fedsda.prediction_combination.adahedge_weight_evidence import (
     AdaHedgeWeightEvidence,
 )
 
