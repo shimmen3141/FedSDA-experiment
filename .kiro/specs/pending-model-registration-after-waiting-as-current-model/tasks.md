@@ -22,7 +22,7 @@
   - 全体runの不変条件（確認のたびに対象が現行、runの終わりに登録されなかった採用が0、送信保留のまま残る数の記録、同じ条件の「それ自身のID」で版の差の事象が1以上）のtestを足す。共用のfresh process scriptのFedSDAの全体runの流れの、既定の方針の名前のassertを、新しい方針の名前へ改める（登録されなかった採用が0のassertは、そのまま通る）。
   - _Requirements: 2.2, 2.3, 3.4_
 
-- [ ] 5. 基準版4を生成する
+- [x] 5. 基準版4を生成する
   - 版の差の説明のtestへ、版3→4を足す（task 3で足した事象を使う。`BASELINE_VERSION_DIFFERENCES`の`(3, 4)`の形は設計。名前の無いケースで事象が1以上なら失敗する検査は、既存のtestの本体の`(3, 4)`の分岐として足す）。`golden.BASELINE_VERSION`を使う既存のtest（`test_pending_model_registration_by_own_id.py`、`test_too_short_alarm_earlier_sample_release.py`ほか。着手時に`grep`で拾う）は、版4にすると新しい既定を受け取るので、版を明示するか、新しい既定に合わせる。版4の定義（版3と同じケース、新しい既定）を足す。版4で、版3の必須の経路が通らないケースがあれば、通るseedのケースを足す。版3の扱いの実行で、事象が1以上のケースが1つ以上あることを確かめる（task 3で確かめ済み。無い場合は、task 3でユーザーへ確認して止まっている。版4だけにケースを足さない）。
   - ここまでのsourceとtestをcommitしてから、基準版4を、Windowsの基準環境とWSLで生成して足す。必須の条件（事象が1以上のケースがあり、そこで版3と差が出る）と、事象が0のケースで版3と同じであることを確かめる。
   - _Requirements: 3.2, 3.3_
@@ -89,3 +89,4 @@
 - task 3（版の差の事象と、版2・3の方針の明示）: 版3の扱いで、版3の全18ケースの事象（待ちの間に現行でない送信保留）を数えた（`capture_case_and_count_divergence_events`、Windows）。`fedsda-sine2-events`が4、`fedsda-sine2-reference-reuse`が1、ほかの16ケースは0。1以上のケースがあるので、版3のgoldenへケースを足す必要は無かった（ユーザーへの確認は不要）。版2・3の設定は、「版の後に、既定の値が変わった項目」の表で、それ自身のIDの方針を明示した。この時点で、基準版1〜3の照合、前の2つのspecのtest（198件）が通過。
 - task 4（既定の変更）: 既定を替えた後の全pytestで失敗したのは、既定の値に依るtestの10件だけだった（掃引のrunの識別子の期待値2件——`72f2b5b47a95`→`dd4db54a72ef`——、最終構成の既定の照合6件、前のspecの構成の既定のtest、共用のfresh scriptの方針の名前）。実旧との照合と、基準版1〜3は、どれも通った。前のspecの構成の既定のtestは、このspecのtestファイルへ移し、新しい既定へ改めた。出力（指標の導出・記録の表）を作るmoduleは、送信保留のownerを読まない（`grep`で確かめた）。sourceの説明（方針の定数の注記、確認とサーバの登録のdocstring）は、task 1・2で改めた。
 - task 5（版4の定義）: 版4の全ケースを、生成の前に、版3と比べて実行した（Windows）。版3の扱いで事象が0の16ケースは、版3と同じ結果。事象のある`fedsda-sine2-events`（登録6→5件）と`fedsda-sine2-reference-reuse`（4→3件）は、差がある。`fedsda-sine2-reference-reuse`は、版4で、別の保有モデルの再利用の判定を通らなくなったので、同じ設定でseedを0〜15と替えて調べ、版4で必須の経路を全部通るseed 5を、`fedsda-sine2-alternative-reference-reuse`として版4だけに足した（版3のgoldenは変えない。設計の「基準版のgolden」）。seedを替えた実行で、seed 0と4が、それぞれ既存の2ケースの版4の結果を再現することも確かめた。
+- 基準版4の生成（source `eeeedcb`、commit `fa767d1`）: Windowsの基準環境とWSLで、既存の生成手順（2つのprocessの一致、未使用の出力先）で生成し、19ケースを`behavior_regression_goldens/v4/`へ置いた。照合: Windows 165 passed（goldenのtestの全体）、WSL 273 passed（goldenのtest、このspecのtest、ownerのtest）。研究室サーバ用は、対象外。
