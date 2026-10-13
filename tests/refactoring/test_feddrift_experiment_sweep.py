@@ -83,7 +83,7 @@ def test_mixed_plan_expands_only_applicable_axis_in_order_and_preserves_fedsda_h
         for seed in (0, 1)
         for threshold in (0.0, 0.2)
     ]
-    assert runs[0].run_identifier == "sine2_interval3_seed0_7d900086e666"
+    assert runs[0].run_identifier == "sine2_interval3_seed0_a2a4cc2f1951"
     assert len({(r.configuration_name, r.run_identifier) for r in runs}) == 12
     for r in runs[4:]:
         participant = r.run_settings.run_participant_settings

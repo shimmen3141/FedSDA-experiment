@@ -13,8 +13,8 @@ from test_fedsda_run_client import (
     CROSS_EVALUATION_CLIENT_LIMIT,
     HIDDEN_LAYER_WIDTHS,
     MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
-    assert_pending_model_registration_policy_matches_legacy,
     assert_run_client_matches_legacy,
+    assert_run_client_uses_legacy_compatible_policies,
     make_run_client_settings,
     set_legacy_configuration,
     snapshot_run_client_state,
@@ -388,7 +388,7 @@ def assert_server_parameter_computation_counts_match_records(*, run_server, lega
 def assert_whole_run_matches_legacy(*, run_result, participants, run_random_sources, legacy_run):
     """概念列、観測列、サーバの全状態、診断の記録、各clientの全状態、runの乱数の最終状態を、実旧と照合する。"""
     for run_client in participants.client_operations:
-        assert_pending_model_registration_policy_matches_legacy(run_client)
+        assert_run_client_uses_legacy_compatible_policies(run_client)
     legacy_server = legacy_run["legacy_server"]
     assert [
         list(concept_trace.concept_ids_by_sample_index)

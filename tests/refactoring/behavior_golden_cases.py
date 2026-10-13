@@ -36,6 +36,10 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
     PendingModelRegistrationSettings,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (  # noqa: E402
+    KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+)
+from federated_learning_experiments.runtime import alarm_occurrence_handling  # noqa: E402
 from federated_learning_experiments.runtime.fedavg_experiment_run import (  # noqa: E402
     execute_fedavg_experiment_run,
 )
@@ -70,17 +74,30 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 #      （固定旧と同じ登録の扱い）。保存した設定は、登録の扱いの項目を持たない（版1の後に足された）。
 # 版2: FedSDAが、送信保留のモデルを、それ自身のIDで登録する（LEGACY-016の修正。最終構成の既定）。
 #      版1との差は、版1の扱いで、登録されないままの採用が起きるケースに限る。
-SUPPORTED_BASELINE_VERSIONS = (1, 2)
-BASELINE_VERSION = 2
+# 版3: FedSDAが、短い警報（変化区間が最小件数より少ない警報）のあと、現行モデルへ取り込んだ前区間を、
+#      保留から外す（LEGACY-002の修正。最終構成の既定）。版2との差は、版2の扱いで、前区間のある
+#      短い警報が起きるケースに限る。
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3)
+BASELINE_VERSION = 3
 SCHEMA_VERSION = 1
-# 版1の後に足された、FedSDAのclientの設定の項目と、版1の動作に当たる値。
-_SETTINGS_ADDED_AFTER_VERSION_1 = {
-    "pending_model_registration_settings": {
-        "settings_type": "PendingModelRegistrationSettings",
-        "pending_model_registration_policy": (
-            KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
-        ),
-    }
+# 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
+# （保存の形）。その版の設定を組み立てるときは、この値を入れ、保存してある設定と比べるときは、値を確かめてから除く。
+_PENDING_MODEL_REGISTRATION_SETTINGS_PATH = ("pending_model_registration_settings",)
+_TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH = (
+    "training_data_assignment_settings",
+    "pending_sample_retention_after_too_short_change_interval_policy",
+)
+_CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
+    1: {
+        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: {
+            "settings_type": "PendingModelRegistrationSettings",
+            "pending_model_registration_policy": (
+                KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
+            ),
+        },
+        _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+    },
+    2: {_TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME},
 }
 
 
@@ -107,8 +124,9 @@ _VERSION_1_CASE_NAMES = (
 CASE_NAMES_BY_BASELINE_VERSION = {
     1: _VERSION_1_CASE_NAMES,
     2: (*_VERSION_1_CASE_NAMES, "fedsda-sine2-reference-reuse"),
+    3: (*_VERSION_1_CASE_NAMES, "fedsda-sine2-reference-reuse"),
 }
-CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[2]
+CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[BASELINE_VERSION]
 ENVIRONMENT_KEYS = {"system", "machine", "python", "numpy", "torch", "device", "dtype", "threads"}
 CASE_KEYS = {"run_settings", "run_metrics", "record_tables", "global_parameters", "coverage"}
 DIGEST_KEYS = {"shape", "dtype", "sha256"}
@@ -131,7 +149,8 @@ def _plain(value):
 def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
     """builderの方式を維持して、明示した代表条件にだけ置換する。
 
-    版1のFedSDAのケースは、登録の扱いを、版1の動作に当たる値（現行モデルを付け替える）にする。
+    FedSDAのケースは、その版の後に足された設定の項目を、その版の動作に当たる値にする
+    （版1: 登録の扱いは、現行モデルを付け替える。版1・2: 短い警報のあと、保留を全部残す）。
     """
     _validate_baseline_version(baseline_version)
     if case_name not in CASE_NAMES_BY_BASELINE_VERSION[baseline_version]:
@@ -239,13 +258,22 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                     client.rebuilt_model_parameter_optimizer_settings, learning_rate=0.01
                 ),
             )
-        if baseline_version == 1:
+        added_settings = _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(baseline_version, {})
+        if _PENDING_MODEL_REGISTRATION_SETTINGS_PATH in added_settings:
             client = replace(
                 client,
                 pending_model_registration_settings=PendingModelRegistrationSettings(
                     pending_model_registration_policy=(
                         KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
                     )
+                ),
+            )
+        if _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH in added_settings:
+            client = replace(
+                client,
+                training_data_assignment_settings=replace(
+                    client.training_data_assignment_settings,
+                    pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
                 ),
             )
         changes["run_client_settings"] = client
@@ -264,18 +292,24 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
 def comparable_run_settings(case_name, baseline_version=BASELINE_VERSION):
     """保存してある`run_settings`と比べる形の設定（読込みの検査と、実行した結果の照合の、両方が使う）。
 
-    版1のFedSDAのケースは、版1の後に足された項目を、値が版1の動作に当たる値であることを確かめてから、
-    除く（保存してある版1の設定は、その項目を持たない。確かめずに除くと、別の動作の設定でも通ってしまう）。
+    FedSDAのケースは、その版の後に足された項目を、値がその版の動作に当たる値であることを確かめてから、
+    除く（保存してあるその版の設定は、その項目を持たない。確かめずに除くと、別の動作の設定でも通ってしまう）。
     """
     settings = build_case_settings(case_name, baseline_version)
     plain_settings = _plain(settings)
-    if baseline_version == 1 and type(settings) not in (FedavgRunSettings, FeddriftRunSettings):
+    if type(settings) not in (FedavgRunSettings, FeddriftRunSettings):
         client_settings = plain_settings["run_participant_settings"]["run_client_settings"]
-        for added_field_name, version_1_value in _SETTINGS_ADDED_AFTER_VERSION_1.items():
-            assert client_settings[added_field_name] == version_1_value, (
-                f"{case_name}: baseline v1 requires {added_field_name}={version_1_value!r}"
+        for added_field_path, version_value in _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(
+            baseline_version, {}
+        ).items():
+            holder = client_settings
+            for field_name in added_field_path[:-1]:
+                holder = holder[field_name]
+            assert holder[added_field_path[-1]] == version_value, (
+                f"{case_name}: baseline v{baseline_version} requires "
+                f"{'.'.join(added_field_path)}={version_value!r}"
             )
-            del client_settings[added_field_name]
+            del holder[added_field_path[-1]]
     return plain_settings
 
 
@@ -391,6 +425,28 @@ def count_pending_models_at_run_end(run):
     )
 
 
+def count_repeated_training_sample_assignments(run):
+    """FedSDAのrunの終わりに、clientの学習標本（全モデル）にある、同じ標本の2つ目以降の数（全clientの合計）。
+
+    標本のobjectは、観測のたびに1つ作られ、取込みは、そのobjectを学習標本へ足す（統合と正式IDの付替えは、
+    列を移すか連結するだけ）ので、2回取り込まれた標本（LEGACY-002）は、同じobjectが2つになる。
+    FedDrift・FedAvgのrunは、保留の部品を持たないので、受け付けない。
+    """
+    if type(run.run_settings) in (FedavgRunSettings, FeddriftRunSettings):
+        raise TypeError("FedSDAのrunが必要です。")
+    repeated_assignment_count = 0
+    for run_client in run.measured_run.participants.client_operations:
+        training_sample_object_ids = [
+            id(training_sample)
+            for collection in run_client.owners.training_sample_store.snapshot_ordered_model_training_samples()
+            for training_sample in collection.training_samples
+        ]
+        repeated_assignment_count += len(training_sample_object_ids) - len(
+            set(training_sample_object_ids)
+        )
+    return repeated_assignment_count
+
+
 def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
     result = run.measured_run.run_result
     coverage = dict(
@@ -425,6 +481,16 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
     )
     if baseline_version >= 2:
         coverage.update(unregistered_adopted_model_count=count_unregistered_adopted_models(run))
+    if baseline_version >= 3 and type(run.run_settings) not in (
+        FedavgRunSettings,
+        FeddriftRunSettings,
+    ):
+        # 保留の部品を持つ、FedSDAのケースだけの項目。
+        coverage.update(
+            repeated_training_sample_assignment_count=count_repeated_training_sample_assignments(
+                run
+            )
+        )
     return coverage
 
 
@@ -433,6 +499,9 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
     if baseline_version >= 2:
         # 版2の扱いでは、採用したモデルが、登録されないまま残らない。
         assert coverage["unregistered_adopted_model_count"] == 0, (case_name, coverage)
+    if baseline_version >= 3 and "repeated_training_sample_assignment_count" in coverage:
+        # 版3の扱いでは、同じ標本が、2回取り込まれない。
+        assert coverage["repeated_training_sample_assignment_count"] == 0, (case_name, coverage)
     if case_name.startswith("fedsda-") and case_name in (
         "fedsda-sine2-events",
         "fedsda-sine2-reference-reuse",
@@ -487,16 +556,22 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
 
 def capture_case(case_name, baseline_version=BASELINE_VERSION):
     """ケースを実行して、goldenと比べる形の結果を返す。"""
-    return capture_case_and_count_unregistered_adopted_models(case_name, baseline_version)[0]
+    return capture_case_and_count_divergence_events(case_name, baseline_version)[0]
 
 
-def capture_case_and_count_unregistered_adopted_models(
-    case_name, baseline_version=BASELINE_VERSION
-):
-    """ケースを実行して、（goldenと比べる形の結果、登録されないまま残った採用の数）を返す。
+def capture_case_and_count_divergence_events(case_name, baseline_version=BASELINE_VERSION):
+    """ケースを実行して、（goldenと比べる形の結果、次の版と状態が分かれる事象の数）を返す。
 
-    後者は、版1の結果には入らない（版1のファイルは、変更しない）ので、版の差の説明のtestが、ここから読む。
+    事象の数は、名前→数の辞書: 登録されないまま残った採用（版1→2で直した。runの終わりの状態から数える）、
+    前区間のある短い警報（版2→3で、扱いが分かれる。実行の間だけ、警報の処理が呼ぶ完了処理を包んで数える）、
+    同じ標本の2回目の取込み（runの終わりの状態から数える）。FedDrift・FedAvgのケースは、どれも0。
+    これらは、古い版の結果には入らない（古い版のファイルは、変更しない）ので、版の差の説明のtestが、ここから読む。
     """
+    divergence_event_counts = dict(
+        unregistered_adopted_model_count=0,
+        too_short_alarm_with_earlier_interval_count=0,
+        repeated_training_sample_assignment_count=0,
+    )
     settings = build_case_settings(case_name, baseline_version)
     if type(settings) is FedavgRunSettings:
         run = execute_fedavg_experiment_run(run_settings=settings)
@@ -518,7 +593,32 @@ def capture_case_and_count_unregistered_adopted_models(
             for mid in repository.global_model_ids
         }
     else:
-        run = execute_fedsda_experiment_run(run_settings=settings)
+        # 警報の処理は、完了処理を、名前でimportしている。呼ぶ側のmoduleの名前を、この実行の間だけ包む。
+        real_completion = alarm_occurrence_handling.complete_alarm_buffer_response
+
+        def count_too_short_alarm_with_earlier_interval(**completion_arguments):
+            alarm_buffer_response = completion_arguments["alarm_buffer_response"]
+            divergence_event_counts["too_short_alarm_with_earlier_interval_count"] += (
+                alarm_buffer_response.response_outcome == "alarm_change_interval_too_short"
+                and bool(
+                    alarm_buffer_response.prepared_alarm_training_intervals.earlier_observations
+                )
+            )
+            return real_completion(**completion_arguments)
+
+        alarm_occurrence_handling.complete_alarm_buffer_response = (
+            count_too_short_alarm_with_earlier_interval
+        )
+        try:
+            run = execute_fedsda_experiment_run(run_settings=settings)
+        finally:
+            alarm_occurrence_handling.complete_alarm_buffer_response = real_completion
+        divergence_event_counts.update(
+            unregistered_adopted_model_count=count_unregistered_adopted_models(run),
+            repeated_training_sample_assignment_count=count_repeated_training_sample_assignments(
+                run
+            ),
+        )
         tables = build_fedsda_run_record_tables(experiment_run=run)
         repository = run.measured_run.participants.server_operations.owners.global_model_repository
         parameters = {
@@ -539,7 +639,7 @@ def capture_case_and_count_unregistered_adopted_models(
             },
             coverage=coverage,
         ),
-        count_unregistered_adopted_models(run),
+        divergence_event_counts,
     )
 
 

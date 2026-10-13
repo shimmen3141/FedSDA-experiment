@@ -44,6 +44,7 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.predic
     PredictionCombinationSettings,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
 
@@ -89,6 +90,7 @@ def valid_run_settings_mapping():
             ),
         ),
         "training_data_assignment_settings": TrainingDataAssignmentSettings(
+            pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             pending_assignment_buffer_capacity_samples=2,
         ),
         "candidate_model_training_and_acceptance_settings": (
@@ -140,6 +142,7 @@ def valid_run_settings_mapping():
             (
                 "training_data_assignment_settings",
                 TrainingDataAssignmentSettings(
+                    pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
                     pending_assignment_buffer_capacity_samples=specified_parameter_value,
                 ),
             )
@@ -161,6 +164,7 @@ def test_direct_subset_construction_uses_the_same_validation(
         )
         unvalidated_run_settings["training_data_assignment_settings"] = (
             TrainingDataAssignmentSettings(
+                pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
                 pending_assignment_buffer_capacity_samples=specified_parameter_value,
             )
         )
@@ -240,6 +244,7 @@ def test_run_settings_validation_accepts_valid_component_mapping(
     )
     valid_run_settings_mapping["training_data_assignment_settings"] = (
         TrainingDataAssignmentSettings(
+            pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             pending_assignment_buffer_capacity_samples=specified_parameter_value,
         )
     )
@@ -318,6 +323,7 @@ def test_fixed_share_time_scale_must_match_assignment_buffer_capacity(
 ):
     unvalidated_run_settings = valid_run_settings_mapping.copy()
     unvalidated_run_settings["training_data_assignment_settings"] = TrainingDataAssignmentSettings(
+        pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         pending_assignment_buffer_capacity_samples=specified_parameter_value,
     )
     with pytest.raises(RunSettingsValidationError) as validation_error:
@@ -504,6 +510,7 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
             TrainingDataAssignmentSettings,
             dict(
                 pending_assignment_buffer_capacity_samples=1,
+                pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             ),
             "pending_assignment_buffer_capacity_samples",
         ),
@@ -589,6 +596,7 @@ def test_integer_settings_reject_invalid_types_and_ranges(
             TrainingDataAssignmentSettings,
             dict(
                 pending_assignment_buffer_capacity_samples=1,
+                pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             ),
             "pending_assignment_buffer_capacity_samples",
         ),
@@ -688,6 +696,7 @@ def test_aggregation_interval_can_exceed_stream_length():
             TrainingDataAssignmentSettings,
             dict(
                 pending_assignment_buffer_capacity_samples=1,
+                pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             ),
         ),
         (
@@ -785,6 +794,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         if settings_type is PredictionCombinationSettings
         else {
             "pending_assignment_buffer_capacity_samples": int,
+            "pending_sample_retention_after_too_short_change_interval_policy": str,
         }
         if settings_type is TrainingDataAssignmentSettings
         else {
@@ -852,6 +862,12 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "model_clustering_linkage"
                 else ("weighted_parameter_average_and_merge_ids",)
                 if settings_field.name == "model_consolidation_policy"
+                else (
+                    "release_earlier_samples_assigned_to_current_model",
+                    "keep_all_pending_samples",
+                )
+                if settings_field.name
+                == "pending_sample_retention_after_too_short_change_interval_policy"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
         elif settings_field.name in ("e_sr_false_alarm_control_alpha", "adwin_confidence_delta"):
@@ -894,7 +910,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         elif settings_type is LossChangeDetectionSettings:
             settings_type("e_sr", "overall_and_true_class_losses", 0.05)
         elif settings_type is TrainingDataAssignmentSettings:
-            settings_type(1)
+            settings_type(1, KEEP_ALL_PENDING_SAMPLES_POLICY_NAME)
         elif settings_type is LocalTrainingSettings:
             settings_type(
                 "joint_backbone_adapter_and_head_training",

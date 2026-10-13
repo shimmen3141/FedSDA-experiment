@@ -57,6 +57,7 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.predic
     PredictionCombinationSettings,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
 from federated_learning_experiments.runtime.fedsda_run_client_settings import (
@@ -197,7 +198,8 @@ def build_final_configuration_fedsda_run_settings(
             ),
         ),
         training_data_assignment_settings=TrainingDataAssignmentSettings(
-            pending_assignment_buffer_capacity_samples=_PENDING_ASSIGNMENT_BUFFER_CAPACITY_SAMPLES
+            pending_sample_retention_after_too_short_change_interval_policy=RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME,
+            pending_assignment_buffer_capacity_samples=_PENDING_ASSIGNMENT_BUFFER_CAPACITY_SAMPLES,
         ),
         candidate_model_training_and_acceptance_settings=(
             CandidateModelTrainingAndAcceptanceSettings(

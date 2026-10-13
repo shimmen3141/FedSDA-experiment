@@ -45,6 +45,7 @@ def test_case_registry_preserves_all_registered_configurations():
         *golden.CASE_NAMES_BY_BASELINE_VERSION[1],
         "fedsda-sine2-reference-reuse",
     )
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[3] == golden.CASE_NAMES_BY_BASELINE_VERSION[2]
     assert golden.CASE_NAMES == golden.CASE_NAMES_BY_BASELINE_VERSION[golden.BASELINE_VERSION]
     for baseline_version, case_names in golden.CASE_NAMES_BY_BASELINE_VERSION.items():
         for case_name in case_names:
@@ -97,8 +98,9 @@ def structural_document():
         conditions = golden.build_case_settings(name).execution_settings.experiment_run_conditions
         count = conditions.per_client_sample_count
         interval = conditions.server_aggregation_interval_per_client_samples
+        cases_run_settings = golden.comparable_run_settings(name)
         cases[name] = dict(
-            run_settings=golden.comparable_run_settings(name),
+            run_settings=cases_run_settings,
             run_metrics={"test_value": 1},
             record_tables={"test.column": digest},
             global_parameters={"0.test.weight": digest},
@@ -120,6 +122,13 @@ def structural_document():
                 registered_model_count=2,
                 detection_count=1,
                 unregistered_adopted_model_count=0,
+            )
+            | (
+                dict(repeated_training_sample_assignment_count=0)
+                if "run_client_settings" in cases_run_settings["run_participant_settings"]
+                and "pending_model_registration_settings"
+                in cases_run_settings["run_participant_settings"]["run_client_settings"]
+                else {}
             ),
         )
     return dict(
@@ -291,7 +300,7 @@ _CAPTURED_CASES = {}
 def capture_case_once(case_name, baseline_version):
     key = (case_name, baseline_version)
     if key not in _CAPTURED_CASES:
-        _CAPTURED_CASES[key] = golden.capture_case_and_count_unregistered_adopted_models(
+        _CAPTURED_CASES[key] = golden.capture_case_and_count_divergence_events(
             case_name, baseline_version
         )
     return _CAPTURED_CASES[key]
@@ -323,31 +332,71 @@ def test_new_implementation_matches_important_behavior_golden(case_name, baselin
     )
 
 
-@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[1])
-def test_baseline_2_differs_from_baseline_1_only_where_adopted_models_stayed_unregistered(
-    case_name,
-):
-    """版2と版1の差は、版1の扱いで、登録されないままの採用が起きるケースに限る（LEGACY-016の修正の範囲）。
+# 隣り合う版の組ごとの、（前の版の扱いで、2つの版の状態が分かれる事象の名前、実測で差を確かめるケースと、その事象の数）。
+# 一般に言えるのは、「事象が0なら、2つの版の値は同じ」の向きだけ（事象があっても、値が違うとは限らない）。
+BASELINE_VERSION_DIFFERENCES = {
+    (1, 2): ("unregistered_adopted_model_count", {"fedsda-sine2-events": 2}),
+    (2, 3): (
+        "too_short_alarm_with_earlier_interval_count",
+        {"fedsda-sine2-events": None, "fedsda-sine2-reference-reuse": None},
+    ),
+}
 
-    FedDrift・FedAvgのケースは、登録の扱いの設定を持たず、数は0（2つの版で、同じ設定）。
+
+@pytest.mark.parametrize(
+    ("previous_version", "next_version", "case_name"),
+    [
+        (previous_version, next_version, case_name)
+        for previous_version, next_version in BASELINE_VERSION_DIFFERENCES
+        for case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[previous_version]
+    ],
+)
+def test_next_baseline_differs_only_where_the_fixed_behavior_occurred(
+    previous_version, next_version, case_name
+):
+    """次の版との差は、前の版の扱いで、直した挙動の事象が起きるケースに限る。
+
+    版1→2: 登録されないままの採用（LEGACY-016）。版2→3: 前区間のある短い警報（LEGACY-002）。
+    事象が0のケースは、指標・表・パラメータが、前の版と同じ。事象があるケースの差は、名前を挙げたケースで確かめる。
+    FedDrift・FedAvgのケースは、これらの扱いの設定を持たず、事象は0（2つの版で、同じ設定）。
     """
-    version_1_case, version_1_unregistered_model_count = capture_case_once(case_name, 1)
-    version_2_case, version_2_unregistered_model_count = capture_case_once(case_name, 2)
-    assert version_2_unregistered_model_count == 0
+    divergence_event_name, differing_case_event_counts = BASELINE_VERSION_DIFFERENCES[
+        (previous_version, next_version)
+    ]
+    previous_case, previous_event_counts = capture_case_once(case_name, previous_version)
+    next_case, next_event_counts = capture_case_once(case_name, next_version)
+    # 次の版の扱いでは、直した挙動は起きない。
+    assert next_event_counts["unregistered_adopted_model_count"] == 0
+    if next_version >= 3:
+        assert next_event_counts["repeated_training_sample_assignment_count"] == 0
     compared_sections = ("run_metrics", "record_tables", "global_parameters")
-    values_are_equal = all(
-        version_1_case[section] == version_2_case[section] for section in compared_sections
-    )
-    if version_1_unregistered_model_count == 0:
+    if previous_event_counts[divergence_event_name] == 0:
+        assert case_name not in differing_case_event_counts
         for section in compared_sections:
             golden.assert_case_matches(
-                case_name, version_2_case[section], version_1_case[section], section
+                case_name, next_case[section], previous_case[section], section
             )
-    else:
-        assert not values_are_equal, case_name
-    # 修正の経路を通るケースが、基準に入っている。
-    if case_name == "fedsda-sine2-events":
-        assert version_1_unregistered_model_count == 2
+    if case_name in differing_case_event_counts:
+        expected_event_count = differing_case_event_counts[case_name]
+        assert previous_event_counts[divergence_event_name] > 0
+        if expected_event_count is not None:
+            assert previous_event_counts[divergence_event_name] == expected_event_count
+        if (previous_version, next_version) == (2, 3):
+            # 版2の扱いでは、同じ標本の2回目の取込みが、実際に起きている。
+            assert previous_event_counts["repeated_training_sample_assignment_count"] > 0
+        assert not all(
+            previous_case[section] == next_case[section] for section in compared_sections
+        ), case_name
+
+
+def test_named_difference_cases_exist_in_both_baseline_versions():
+    for (previous_version, next_version), (
+        _,
+        differing_cases,
+    ) in BASELINE_VERSION_DIFFERENCES.items():
+        for case_name in differing_cases:
+            assert case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[previous_version]
+            assert case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[next_version]
 
 
 @pytest.mark.parametrize("condition", ("wrong_head", "modified_source", "untracked_source"))

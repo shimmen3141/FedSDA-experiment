@@ -84,8 +84,14 @@ class AlarmResponseCompletion:
         if (
             not self.alarm_buffer_response.pending_assignment_buffer_should_be_cleared
             and self.drained_pending_sample_indices
+            and self.drained_pending_sample_indices
+            != _select_earlier_interval_sample_indices(
+                alarm_buffer_response=self.alarm_buffer_response
+            )
         ):
-            raise ValueError("a too short change interval must keep pending sample indices")
+            raise ValueError(
+                "a too short change interval must keep pending sample indices or release exactly the earlier interval"
+            )
 
     @property
     def training_model_switch_sample_index(self) -> int | None:
@@ -96,6 +102,19 @@ class AlarmResponseCompletion:
     @property
     def detection_episode_operation_required(self) -> bool:
         return self.previous_training_model_id != self.current_training_model_id
+
+
+def _select_earlier_interval_sample_indices(
+    *, alarm_buffer_response: AlarmBufferResponse
+) -> tuple[int, ...]:
+    """応答が準備した、前区間（現行モデルへ取り込んだ標本）の位置。準備の無い応答では、空。"""
+    prepared_alarm_training_intervals = alarm_buffer_response.prepared_alarm_training_intervals
+    if prepared_alarm_training_intervals is None:
+        return ()
+    return tuple(
+        indexed_observation.sample_index
+        for indexed_observation in prepared_alarm_training_intervals.earlier_observations
+    )
 
 
 def complete_alarm_buffer_response(
@@ -182,6 +201,24 @@ def complete_alarm_buffer_response(
             else current_model_loss_statistics.overall_loss_moments
         )
     )
+    # 保留から消費する位置。短い警報では、保留の方針が「前区間を外す」のときだけ、取り込んだ前区間の位置
+    # （変化区間は残す）。それ以外の警報では、全部。
+    if alarm_buffer_response.pending_assignment_buffer_should_be_cleared:
+        drained_pending_sample_indices = pending_assignment_state.pending_sample_indices
+    elif (
+        pending_training_assignment_buffer.releases_earlier_samples_after_too_short_change_interval
+    ):
+        drained_pending_sample_indices = _select_earlier_interval_sample_indices(
+            alarm_buffer_response=alarm_buffer_response
+        )
+        # 外す位置は、保留の先頭の並びでなければならない（更新より前に確かめる）。
+        if (
+            pending_assignment_state.pending_sample_indices[: len(drained_pending_sample_indices)]
+            != drained_pending_sample_indices
+        ):
+            raise ValueError("earlier interval must be the earliest pending sample indices")
+    else:
+        drained_pending_sample_indices = ()
     # 記録を更新より前に組み立て、結果種別と帰属変更の対応を含む受理集合の検査を済ませる。
     response_completion = AlarmResponseCompletion(
         alarm_buffer_response=alarm_buffer_response,
@@ -191,14 +228,14 @@ def complete_alarm_buffer_response(
         estimated_change_point_sample_index=estimated_change_point_sample_index,
         detection_episode_id=detection_episode_id,
         loss_monitoring_baseline_mean_loss=loss_monitoring_baseline_mean_loss,
-        drained_pending_sample_indices=(
-            pending_assignment_state.pending_sample_indices
-            if alarm_buffer_response.pending_assignment_buffer_should_be_cleared
-            else ()
-        ),
+        drained_pending_sample_indices=drained_pending_sample_indices,
     )
     # ここまで読取りだけ。更新は監視の再開、保留位置の消費の順（旧のreset→clear）。
     loss_change_monitor.reset(baseline_loss_mean=loss_monitoring_baseline_mean_loss)
     if alarm_buffer_response.pending_assignment_buffer_should_be_cleared:
         pending_training_assignment_buffer.drain_pending_sample_indices()
+    elif drained_pending_sample_indices:
+        pending_training_assignment_buffer.release_earliest_pending_sample_indices(
+            released_sample_indices=drained_pending_sample_indices
+        )
     return response_completion

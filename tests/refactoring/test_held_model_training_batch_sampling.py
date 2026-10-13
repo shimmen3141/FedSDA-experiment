@@ -41,6 +41,7 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.pend
     PendingTrainingAssignmentBuffer,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
 
@@ -767,7 +768,8 @@ def test_training_batch_sampling_connects_fifo_and_joint_update(
         }
         pending_assignment_buffer = PendingTrainingAssignmentBuffer(
             training_data_assignment_settings=TrainingDataAssignmentSettings(
-                pending_assignment_buffer_capacity_samples=3
+                pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+                pending_assignment_buffer_capacity_samples=3,
             )
         )
         training_samples_by_model_id = {4: [], -7: []}

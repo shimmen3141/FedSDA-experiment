@@ -4,6 +4,7 @@ from collections import deque
 from dataclasses import dataclass
 
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
 
@@ -52,6 +53,14 @@ class PendingTrainingAssignmentBuffer:
     def capacity_sample_count(self) -> int:
         """保留の容量（設定の値）。"""
         return self._training_data_assignment_settings.pending_assignment_buffer_capacity_samples
+
+    @property
+    def releases_earlier_samples_after_too_short_change_interval(self) -> bool:
+        """短い警報のあと、現行モデルへ取り込んだ前区間を、保留から外す方針か（設定の値）。"""
+        return (
+            self._training_data_assignment_settings.pending_sample_retention_after_too_short_change_interval_policy
+            == RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME
+        )
 
     def append_observed_sample_index(self, *, sample_index: int) -> None:
         """追加時に容量で切り捨てず、警報時の容量＋1件を保持する。"""
@@ -113,6 +122,26 @@ class PendingTrainingAssignmentBuffer:
                 change_interval_sample_indices[0] if change_interval_sample_indices else None
             ),
         )
+
+    def release_earliest_pending_sample_indices(
+        self, *, released_sample_indices: tuple[int, ...]
+    ) -> tuple[int, ...]:
+        """指定した位置だけを、保留から外す。位置は、保留の先頭（最も古い側）の並びと一致していること。
+
+        一致しなければ、何も変えずに拒否する。最後の観測位置は、次回の連続性のため維持する。
+        """
+        if type(released_sample_indices) is not tuple:
+            raise TypeError("released_sample_indices must be exact tuple")
+        for sample_index in released_sample_indices:
+            _validate_nonnegative_sample_index(sample_index=sample_index)
+        if (
+            tuple(self._pending_sample_indices)[: len(released_sample_indices)]
+            != released_sample_indices
+        ):
+            raise ValueError("released sample indices must be the earliest pending sample indices")
+        for _ in released_sample_indices:
+            self._pending_sample_indices.popleft()
+        return released_sample_indices
 
     def drain_pending_sample_indices(self) -> tuple[int, ...]:
         """全件消費を明示し、最後の観測位置は次回の連続性のため維持する。"""

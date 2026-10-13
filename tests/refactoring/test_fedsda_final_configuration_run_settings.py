@@ -4,7 +4,7 @@ import json
 from dataclasses import fields, is_dataclass, replace
 
 import pytest
-from test_fedsda_run_client import use_pending_model_registration_policy_matching_legacy
+from test_fedsda_run_client import use_legacy_compatible_policies
 from test_fedsda_run_metric_derivation import legacy_regression, make_golden_condition_settings
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
@@ -27,6 +27,10 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
     KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME,
     REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
     PendingModelRegistrationSettings,
+)
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+    RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME,
 )
 from federated_learning_experiments.runtime.fedsda_final_configuration_run_settings import (
     build_final_configuration_fedsda_run_settings,
@@ -220,7 +224,8 @@ def test_final_configuration_defaults_match_legacy_configuration(
 ):
     """既定値が、旧の設定の初期値に最終構成の固定設定を重ねた値と、登録の扱いを除く全部の項目で一致する（全dataset）。
 
-    登録の扱いだけは、旧と違う（送信保留のモデルを、それ自身のIDで登録する。LEGACY-016の修正）。
+    挙動を直した2つの扱いだけは、旧と違う（送信保留のモデルを、それ自身のIDで登録する——LEGACY-016——。
+    短い警報のあと、取り込んだ前区間を保留から外す——LEGACY-002——）。
     """
     legacy_values, hidden_layer_widths = read_legacy_final_configuration_values(dataset_name)
     legacy_equivalent_run_settings = make_run_settings_from_legacy_values(
@@ -239,6 +244,10 @@ def test_final_configuration_defaults_match_legacy_configuration(
             )
         )
     )
+    assert (
+        legacy_equivalent_client_settings.training_data_assignment_settings.pending_sample_retention_after_too_short_change_interval_policy
+        == KEEP_ALL_PENDING_SAMPLES_POLICY_NAME
+    )
     expected_run_settings = replace(
         legacy_equivalent_run_settings,
         run_participant_settings=replace(
@@ -249,6 +258,12 @@ def test_final_configuration_defaults_match_legacy_configuration(
                     pending_model_registration_policy=(
                         REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
                     )
+                ),
+                training_data_assignment_settings=replace(
+                    legacy_equivalent_client_settings.training_data_assignment_settings,
+                    pending_sample_retention_after_too_short_change_interval_policy=(
+                        RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME
+                    ),
                 ),
             ),
         ),
@@ -459,7 +474,7 @@ def make_golden_condition_run_settings(dataset_name):
         )
     )
     # 旧のgolden・実旧の結果と比べる条件なので、登録の扱いは、固定旧と同じにする（既定は、LEGACY-016の修正後の扱い）。
-    return use_pending_model_registration_policy_matching_legacy(
+    return use_legacy_compatible_policies(
         replace(
             default_run_settings,
             execution_settings=replace(

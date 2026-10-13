@@ -30,6 +30,7 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.pend
     PendingTrainingAssignmentBuffer,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
 from federated_learning_experiments.runtime.released_pending_sample_assignment import (
@@ -55,7 +56,8 @@ def build_released_assignment_oracle(*, class_count, monkeypatch, capacity, pend
     )
     pending_training_assignment_buffer = PendingTrainingAssignmentBuffer(
         training_data_assignment_settings=TrainingDataAssignmentSettings(
-            pending_assignment_buffer_capacity_samples=capacity
+            pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            pending_assignment_buffer_capacity_samples=capacity,
         )
     )
     pending_sample_observations = tuple(

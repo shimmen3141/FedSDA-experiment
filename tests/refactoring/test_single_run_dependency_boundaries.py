@@ -5844,6 +5844,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_settings.FedsdaRunSettings",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.PendingModelRegistrationSettings",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings.REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME",
         )
     if source_module_path == "runtime/feddrift_measured_run_execution.py":
         return imported_module_name in (

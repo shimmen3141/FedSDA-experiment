@@ -165,6 +165,7 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.pend
     PendingTrainingAssignmentBuffer,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
 from federated_learning_experiments.runtime.alarm_occurrence_handling import (
@@ -392,7 +393,8 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         )
     pending_training_assignment_buffer = PendingTrainingAssignmentBuffer(
         training_data_assignment_settings=TrainingDataAssignmentSettings(
-            pending_assignment_buffer_capacity_samples=10
+            pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            pending_assignment_buffer_capacity_samples=10,
         )
     )
     current_training_model_assignment = CurrentTrainingModelAssignment(
@@ -1106,7 +1108,8 @@ def run_assembled_client_flow(*, class_count):
             joint_update_iterations_per_training_request=1,
         ),
         training_data_assignment_settings=TrainingDataAssignmentSettings(
-            pending_assignment_buffer_capacity_samples=pending_capacity
+            pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            pending_assignment_buffer_capacity_samples=pending_capacity,
         ),
         candidate_model_training_and_acceptance_settings=CandidateModelTrainingAndAcceptanceSettings(
             candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
@@ -2146,6 +2149,14 @@ def main():
             held_state.model_id >= 0 or held_state.model_id in pending_model_ids
             for held_state in client_owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
         )
+        # 既定は、短い警報のあと、取り込んだ前区間を保留から外す。同じ標本が、2回取り込まれない。
+        assert client_owners.pending_training_assignment_buffer.releases_earlier_samples_after_too_short_change_interval
+        training_sample_object_ids = [
+            id(training_sample)
+            for training_sample_collection in client_owners.training_sample_store.snapshot_ordered_model_training_samples()
+            for training_sample in training_sample_collection.training_samples
+        ]
+        assert len(training_sample_object_ids) == len(set(training_sample_object_ids))
     with TemporaryDirectory() as artifact_directory:
         artifact_paths = save_fedsda_experiment_run(
             experiment_run=experiment_run,

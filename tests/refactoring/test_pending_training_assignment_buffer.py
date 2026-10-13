@@ -22,6 +22,7 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.pend
     PendingTrainingAssignmentBuffer,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
 
@@ -30,6 +31,7 @@ def make_assignment_buffer(capacity=3):
     """容量の所有者である固定条件を明示入力する。"""
     return PendingTrainingAssignmentBuffer(
         training_data_assignment_settings=TrainingDataAssignmentSettings(
+            pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             pending_assignment_buffer_capacity_samples=capacity,
         ),
     )
@@ -107,6 +109,7 @@ def test_pending_assignment_invalid_inputs_preserve_state(invalid_value):
 def test_pending_assignment_invalid_inputs_preserve_state_for_capacity(invalid_value):
     """改変された設定も既存検証器で再検査する。"""
     training_data_assignment_settings = TrainingDataAssignmentSettings(
+        pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         pending_assignment_buffer_capacity_samples=3,
     )
     object.__setattr__(
@@ -393,5 +396,8 @@ def test_pending_assignment_public_functions_require_explicit_keyword_arguments(
         buffer.get_change_interval_partition(1)
     with pytest.raises(TypeError):
         PendingTrainingAssignmentBuffer(
-            TrainingDataAssignmentSettings(pending_assignment_buffer_capacity_samples=3)
+            TrainingDataAssignmentSettings(
+                pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+                pending_assignment_buffer_capacity_samples=3,
+            )
         )
