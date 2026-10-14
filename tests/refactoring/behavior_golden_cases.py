@@ -48,6 +48,7 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.trai
 from federated_learning_experiments.runtime import (  # noqa: E402
     alarm_occurrence_handling,
     fedsda_run_client,
+    observed_sample_processing,
     server_model_registration_and_aggregation,
     server_round_synchronization,
 )
@@ -133,7 +134,9 @@ _CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION = {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
     },
     4: {
-        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
+        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME,
+        # 版4の警報の扱いは、即時（版5で、既定が、最小件数まで待つ扱いへ変わる）。
+        _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
     },
 }
 
@@ -319,6 +322,16 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                     pending_model_registration_policy=changed_settings[
                         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH
                     ]
+                ),
+            )
+        if _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH in changed_settings:
+            client = replace(
+                client,
+                loss_change_detection_settings=replace(
+                    client.loss_change_detection_settings,
+                    short_change_interval_alarm_policy=changed_settings[
+                        _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH
+                    ],
                 ),
             )
         if _PENDING_MODEL_REGISTRATION_SETTINGS_PATH in added_settings:
@@ -745,6 +758,7 @@ def capture_case_and_count_divergence_events(case_name, baseline_version=BASELIN
         too_short_alarm_with_earlier_interval_count=0,
         repeated_training_sample_assignment_count=0,
         pending_model_not_current_while_waiting_count=0,
+        alarm_wait_situation_count=0,
     )
     settings = build_case_settings(case_name, baseline_version)
     if type(settings) is FedavgRunSettings:
@@ -784,11 +798,36 @@ def capture_case_and_count_divergence_events(case_name, baseline_version=BASELIN
             count_too_short_alarm_with_earlier_interval
         )
         pending_model_event_counter = PendingModelNotCurrentWhileWaitingCounter()
+        # 待つ扱いなら警報を抑える場面（警報が上がり、保留の件数と推定変化区間の小さい方が、最小件数より短い）。
+        # 即時の扱いでは、その警報は警報の処理へ渡るので、その引数から同じ式で数える。標本1件の処理のmoduleが
+        # 名前でimportしている警報の処理を、この実行の間だけ包む（e-SRの検出器のケースだけ。ADWINのケースは、
+        # 版4・5とも即時の警報で、動作が変わらないので数えない）。
+        real_alarm_occurrence_handling = observed_sample_processing.handle_alarm_occurrence
+        counts_alarm_wait_situations = (
+            settings.run_participant_settings.run_client_settings.loss_change_detection_settings.drift_detector_name
+            != "adwin"
+        )
+
+        def count_alarm_wait_situation(**alarm_arguments):
+            divergence_event_counts["alarm_wait_situation_count"] += (
+                counts_alarm_wait_situations
+                and (
+                    min(
+                        len(alarm_arguments["pending_sample_observations"]),
+                        alarm_arguments["estimated_change_span_sample_count"],
+                    )
+                    < alarm_arguments["minimum_change_interval_sample_count"]
+                )
+            )
+            return real_alarm_occurrence_handling(**alarm_arguments)
+
+        observed_sample_processing.handle_alarm_occurrence = count_alarm_wait_situation
         try:
             with pending_model_event_counter.counting():
                 run = execute_fedsda_experiment_run(run_settings=settings)
         finally:
             alarm_occurrence_handling.complete_alarm_buffer_response = real_completion
+            observed_sample_processing.handle_alarm_occurrence = real_alarm_occurrence_handling
         divergence_event_counts["pending_model_not_current_while_waiting_count"] = (
             pending_model_event_counter.counted_event_count
         )

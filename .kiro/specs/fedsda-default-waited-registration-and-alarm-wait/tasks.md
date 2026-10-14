@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 版の差の事象`alarm_wait_situation_count`を足し、基準版4の警報の扱いを明示する（既定は、まだ変えない）
+- [x] 1. 版の差の事象`alarm_wait_situation_count`を足し、基準版4の警報の扱いを明示する（既定は、まだ変えない）
   - `capture_case_and_count_divergence_events`で、標本1件の処理のmoduleの`handle_alarm_occurrence`を包み、待つ扱いなら警報を抑える場面（設計の条件）の回数を数える（このtaskでは、e-SRの検出器のFedSDAのケースで数える。次の版で待つ扱いを使うケースへの限定は、版5を定義するtask 3で行う）。「版の後に、既定の値が変わった項目」の表へ、版4の警報の扱いを足し、`build_case_settings`がその経路を扱う。
   - この時点で、全部のtestが値を変えずに通る。版4の扱いで、版4の全ケースの事象の回数を確かめ、記録する。1以上のケースが無ければ、ユーザーへ確認する。
   - _Requirements: 2.2, 3.2_
@@ -33,3 +33,4 @@
 - 仕様レビュー3回目（修正の再確認。同じ担当・effort、session `7efa6625-3f70-4e37-8b8f-de39235fe4d8`）: 2回目のMajorは解消。新しいMajor 1で`CHANGES REQUIRED`。採否（採用）:
   - M1（ADWINの2構成でも、この場面が数えられうる。版4・5で動作が同じなので、「事象が1以上なら差がある」の検査と矛盾する）: 事象を、次の版で警報を待つ扱いを使うケースだけで数える定義に改めた（ADWINの2構成と、FedDrift・FedAvgは、定義により0）。要求3.2・3.3と設計へ書いた。
 - 仕様レビュー4回目（修正の再確認。同じ担当・effort、session `eebab257-248b-4548-ac67-53eafa788bba`）: `SPECIFICATION: PASS`（Blocker・Majorなし。Minor 5）。採否（全部採用）: m1（版5のgoldenを生成する前の中間のcommitで、版5のgoldenの存在のtestが失敗する）・m2（task 1の事象の数え方の範囲）・m3（要求1.4のtestをtask 2の本文へ）・m4（既定に依るtestの候補に、構成の派生のtestのADWINの補助関数を足す）・m5（古い注記）: taskへ書いた。Minorだけなので、再レビューは受けない。
+- task 1: 版4の扱いで、版4の全19ケースの事象（`alarm_wait_situation_count`）を数えた（Windows）。`fedsda-sine2-events`が10、`fedsda-sine2-reference-reuse`と`fedsda-sine2-alternative-reference-reuse`が16、ほかの16ケースは0（ADWINの2構成は、定義により数えない）。1以上のケースがあるので、ユーザーへの確認は不要。基準版1〜4の照合は、値を変えずに通過（goldenのtest 165 passed）。
