@@ -91,7 +91,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 #      短い警報が起きるケースに限る。
 # 版4: FedSDAが、送信保留のモデルを、現行モデルとして待った後に登録する（LEGACY-016の扱いの見直し。2026-10-14に
 #      一度既定にしたが、比較で精度がわずかに下がったので、既定は版3の扱いへ戻した。版4は、この扱いを明示する）。版3との差は、版3の扱いで、待ちの間に現行でない送信保留が起きるケースに限る。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4)
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5)
 BASELINE_VERSION = 4
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
@@ -168,6 +168,11 @@ CASE_NAMES_BY_BASELINE_VERSION = {
     # 版4では、`fedsda-sine2-reference-reuse`（seed 4）が、登録の扱いの見直しで、別の保有モデルの再利用の判定を
     # 通らなくなる。その経路は、同じ設定でseedが5のケースで守る（2026-10-14、seed 0〜15を調べて選んだ）。
     4: (
+        *_VERSION_1_CASE_NAMES,
+        "fedsda-sine2-reference-reuse",
+        "fedsda-sine2-alternative-reference-reuse",
+    ),
+    5: (
         *_VERSION_1_CASE_NAMES,
         "fedsda-sine2-reference-reuse",
         "fedsda-sine2-alternative-reference-reuse",
@@ -611,21 +616,22 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
             ) <= reasons, (case_name, reasons)
             assert coverage["merged_model_count"] > 0, case_name
         elif case_name == "fedsda-sine2-reference-reuse":
-            # 版4では、別の保有モデルの再利用の判定を通らない（上の、ケース名の注記）。
+            # 版4では、別の保有モデルの再利用の判定を通らない（上の、ケース名の注記）。版5では、再び通る。
             assert (
                 {"second_segment_margin_failed"}
                 | (
                     {"alternative_reference_within_historical_loss_tolerance"}
-                    if baseline_version <= 3
+                    if baseline_version != 4
                     else set()
                 )
             ) <= reasons, (case_name, reasons)
             assert coverage["merged_model_count"] > 0, case_name
         elif case_name == "fedsda-sine2-alternative-reference-reuse":
-            assert {
-                "alternative_reference_within_historical_loss_tolerance",
-                "second_segment_margin_failed",
-            } <= reasons, (case_name, reasons)
+            # 版5では、第2区間の差の不足の判定を通らない（その経路は、`fedsda-sine2-reference-reuse`が受け持つ）。
+            assert (
+                {"alternative_reference_within_historical_loss_tolerance"}
+                | ({"second_segment_margin_failed"} if baseline_version == 4 else set())
+            ) <= reasons, (case_name, reasons)
             assert coverage["merged_model_count"] > 0, case_name
         else:
             assert "second_segment_margin_failed" in reasons, (case_name, reasons)
