@@ -1,0 +1,44 @@
+{
+  "feature_name": "experiment-run-code-provenance",
+  "created_at": "2026-10-14",
+  "updated_at": "2026-10-14",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー2回目PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー2回目PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー2回目PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー2回目PASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "bbb3c67",
+    "target": "未commitの仕様書群5文書",
+    "session_ids": [
+      "181f5cbf-e56b-4b12-bd01-0891ced71e23",
+      "a92273df-8545-4a44-80b9-ccbe0b364f2f"
+    ],
+    "result": "1回目はCHANGES REQUIRED（Major 2: 壊れた来歴の扱いの曖昧さ、taskの境界で呼出しが壊れる）。直して2回目でPASS（Minor 9は文面の補足として反映）。",
+    "output": "../../venv/refactoring-tests/run-provenance-spec-review-{1,2}.jsonl",
+    "selection_reason": "状態の判定と分岐の論証なので、Haiku 5.5"
+  }
+}
