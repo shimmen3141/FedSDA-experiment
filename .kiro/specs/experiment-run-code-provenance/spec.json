@@ -3,7 +3,7 @@
   "created_at": "2026-10-14",
   "updated_at": "2026-10-14",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -40,5 +40,28 @@
     "result": "1回目はCHANGES REQUIRED（Major 2: 壊れた来歴の扱いの曖昧さ、taskの境界で呼出しが壊れる）。直して2回目でPASS（Minor 9は文面の補足として反映）。",
     "output": "../../venv/refactoring-tests/run-provenance-spec-review-{1,2}.jsonl",
     "selection_reason": "状態の判定と分岐の論証なので、Haiku 5.5"
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "43e9bc9（基点7af0160）",
+    "session_ids": [
+      "f84943d6-80be-4e74-858e-25157482656b"
+    ],
+    "is_error": false,
+    "result": "APPROVED（Minor 2・任意1。採否はtasks.md）。",
+    "output": "../../venv/refactoring-tests/run-provenance-review-1.jsonl",
+    "selection_reason": "状態の判定と分岐の論証なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14169,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/run-provenance-full.xml",
+    "tested_commit": "43e9bc9",
+    "after_review_fix": "test_experiment_sweep.py 65 passed、Pyright 0件（全pytestは未再実行）",
+    "wsl": "対象5 test fileで196 passed"
+  },
+  "completion_decision": "完了。runの要約と一覧の表・実行の記録にコードの版と基準版を残し、基準版の違う済んだrunでは掃引を始めずに止める。"
 }

@@ -19,7 +19,7 @@
   - 実験の入口の文書（出力、途中で止まったとき、終了コード、未commitの変更の判定がこの変更の前後で比べられないことと、追跡しないファイルを数えないこと）、基準の文書（版を上げる手順に、`BEHAVIOR_BASELINE_VERSION`を足す）、再開案内。
   - _Requirements: 5.1_
 
-- [ ] 4. 実装レビューと最終検証
+- [x] 4. 実装レビューと最終検証
   - 独立CLIの実装レビュー、指摘の反映、全pytest・Ruff・Pyright・WSLの掃引のtestを通す。
   - _Requirements: 全部_
 
@@ -31,4 +31,6 @@
 - 警告を出す関数`report_behavior_baseline_mismatch`は、掃引のコマンドのmoduleに置き、比較scriptもそれを使う（naming.mdに無い公開名。2つのコマンドで同じ文面にするため）。実行の記録の辞書を作る`describe_run_provenance_for_record`も、同じ理由で、記録のmoduleに置いた（naming.mdに無い公開名）。
 - testの例の来歴は、`tests/refactoring/run_provenance_examples.py`の`TEST_RUN_PROVENANCE`。fresh scriptは、test moduleをimportしないので、同じ値を自分で作る。
 - 新しいtest: `test_experiment_run_code_provenance.py`（来歴の値、goldenの版との一致）、`test_experiment_sweep.py`の末尾（同じ基準版でcommitが違えば飛ばす、違う基準版・記録なし——run設定も違う場合を含む——で逐次・並列とも何も報告・実行せずに止まる、版2の壊れた来歴は食い違い、表の3列、追跡しないファイル、コマンドの終了コード2と警告と`--print-plan`）、`test_behavior_fix_comparison_scripts.py`（比較scriptの終了コード2・警告・`--print-plan`の理由、比較の記録の来歴）、保存のtest（来歴の書込み、版1の読込み、版2の不正の拒否）。
+- 実装レビュー（独立Haiku 5.5 medium、1回、43e9bc9）: APPROVED。Minor 2（版1なのに来歴を持つ要約を、一覧の表だけが受け入れ、読込みは拒否する不一致）は採用し、表も読めない要約として外すようにした（testを足した）。Minor 1（`test_feddrift_experiment_sweep.py::test_real_cli_help_and_spawn_execution`が、レビュー担当の環境で、子processの日本語のhelpの文字コードの解読に失敗）は、このspecで触れていないhelpの出力の環境依存で、主担当の基準手順（`PYTHONIOENCODING=utf-8`）の全pytestでは通るので、直さない（記録のみ）。任意1（手順の逸脱の記録）は対応不要。
+- 検証: 全pytest 14169 passed / 8 skipped（43e9bc9、Windows、JUnit `../../venv/refactoring-tests/run-provenance-full.xml`）、Pyright 0件、Ruff成功。Minor 2の修正の後は、`test_experiment_sweep.py`（65 passed）とPyrightを再実行した（全pytestは再実行していない。修正は表の関数とそのtestだけ）。WSL: 来歴・掃引・比較script・保存の5つのtest fileで196 passed。
 

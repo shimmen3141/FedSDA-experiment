@@ -115,7 +115,10 @@ def write_run_summary_table(
                 expected_condition_type = str if condition_name == "dataset_name" else int
                 if type(experiment_run_conditions[condition_name]) is not expected_condition_type:
                     raise TypeError(f"{condition_name} must be {expected_condition_type.__name__}")
-            if summary.get("format_version") == 1 and "run_provenance" not in summary:
+            if summary.get("format_version") == 1:
+                # 読込みと同じく、版1の要約は、来歴を持たない。
+                if "run_provenance" in summary:
+                    raise ValueError("run summary of format version 1 must not hold run_provenance")
                 run_provenance_values: dict[str, object] = {
                     column_name: None for column_name in _RUN_PROVENANCE_COLUMN_NAMES
                 }

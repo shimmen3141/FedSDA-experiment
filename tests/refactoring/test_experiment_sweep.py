@@ -1257,6 +1257,20 @@ def test_run_summary_table_holds_run_provenance_columns(sequential_sweep, tmp_pa
         (row["code_commit"], row["has_uncommitted_changes"], row["behavior_baseline_version"])
         for row in rows
     } == {("", "", "")}
+    # 版1なのに来歴を持つ要約は、読込みと同じく、読めないとして外す。
+    rewrite_summary(
+        runs_directory / f"{planned_runs[1].run_identifier}.json",
+        lambda summary: summary.update(
+            run_provenance=convert_run_provenance_to_mapping(TEST_RUN_PROVENANCE)
+        ),
+    )
+    table_result, rows = read_rows()
+    assert len(table_result.unreadable_run_summary_descriptions) == 1
+    assert [row["run_identifier"] for row in rows] == [planned_runs[0].run_identifier]
+    rewrite_summary(
+        runs_directory / f"{planned_runs[1].run_identifier}.json",
+        lambda summary: summary.pop("run_provenance"),
+    )
     # 形式の版2で来歴が無い要約は、読めないとして外す。
     rewrite_summary(
         runs_directory / f"{planned_runs[0].run_identifier}.json",
