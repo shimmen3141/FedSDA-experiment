@@ -1,7 +1,7 @@
 """1 runの結果を、要約（JSON）と記録の表（NPZ）の2つのファイルへ保存し、読み込む。
 
-要約は、形式の版、完全なrun設定の辞書、指標の辞書、実行環境の記録、表のファイルの名前を持つ。
-保存先の名前の決め方、来歴（commitほか）、重複の確認は、ここでは扱わない。
+要約は、形式の版、完全なrun設定の辞書、指標の辞書、実行環境の記録、runの来歴（コードの版と基準版）、
+表のファイルの名前を持つ。保存先の名前の決め方、来歴の取り方（git）、重複の確認は、ここでは扱わない。
 """
 
 from dataclasses import dataclass
@@ -15,6 +15,11 @@ from numpy import __version__ as numpy_version
 from numpy import load, ndarray, savez_compressed
 from torch import __version__ as torch_version
 
+from federated_learning_experiments.core.run_provenance import (
+    RunProvenance,
+    convert_run_provenance_to_mapping,
+    read_run_provenance,
+)
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
@@ -24,7 +29,9 @@ from federated_learning_experiments.runtime.fedavg_run_record_tables import (
 )
 
 # 保存の形式の版。要約のキーや、表の名前・列の意味を変えるときに上げる。
-RUN_ARTIFACT_FORMAT_VERSION = 1
+# 版2: runの来歴（`run_provenance`）を足した。版1の要約（来歴を持たない）も読む。
+RUN_ARTIFACT_FORMAT_VERSION = 2
+_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS = (1, 2)
 _SUMMARY_FILE_SUFFIX = ".json"
 _RECORD_TABLE_FILE_SUFFIX = ".npz"
 
@@ -38,7 +45,11 @@ class FedavgRunArtifactPaths:
 
 
 def save_fedavg_experiment_run(
-    *, experiment_run: FedavgExperimentRun, output_directory: Path, file_stem: str
+    *,
+    experiment_run: FedavgExperimentRun,
+    output_directory: Path,
+    file_stem: str,
+    run_provenance: RunProvenance,
 ) -> FedavgRunArtifactPaths:
     """1 runの結果を、`<file_stem>.json`と`<file_stem>.npz`へ保存する。
 
@@ -51,6 +62,8 @@ def save_fedavg_experiment_run(
         raise TypeError("output_directory must be pathlib.Path")
     if type(file_stem) is not str:
         raise TypeError("file_stem must be builtin str")
+    if type(run_provenance) is not RunProvenance:
+        raise TypeError("run_provenance must be exact RunProvenance")
     if (
         not file_stem
         or file_stem != file_stem.strip()
@@ -85,6 +98,7 @@ def save_fedavg_experiment_run(
                 "numpy": numpy_version,
                 "torch": torch_version,
             },
+            "run_provenance": convert_run_provenance_to_mapping(run_provenance),
             "record_table_file_name": artifact_paths.record_table_file_path.name,
         },
         ensure_ascii=False,
@@ -126,11 +140,27 @@ def load_fedavg_run_artifacts(
     if not isinstance(summary, dict):
         raise ValueError(f"run summary must be a JSON object: {summary_file_path}")
     format_version = summary.get("format_version")
-    if type(format_version) is not int or format_version != RUN_ARTIFACT_FORMAT_VERSION:
+    if (
+        type(format_version) is not int
+        or format_version not in _READABLE_RUN_ARTIFACT_FORMAT_VERSIONS
+    ):
         raise ValueError(
             f"unsupported run artifact format version in {summary_file_path}: "
-            f"{summary.get('format_version')!r} (supported: {RUN_ARTIFACT_FORMAT_VERSION})"
+            f"{summary.get('format_version')!r} "
+            f"(supported: {_READABLE_RUN_ARTIFACT_FORMAT_VERSIONS})"
         )
+    if format_version == 1:
+        if "run_provenance" in summary:
+            raise ValueError(
+                f"run summary of format version 1 must not hold run_provenance: {summary_file_path}"
+            )
+    else:
+        try:
+            read_run_provenance(summary.get("run_provenance"))
+        except (TypeError, ValueError) as caught_exception:
+            raise ValueError(
+                f"run summary has no valid run_provenance: {summary_file_path} ({caught_exception})"
+            ) from caught_exception
     if summary.get("method_name") != "fedavg":
         raise ValueError("run summary must identify fedavg")
     record_table_file_name = summary.get("record_table_file_name")

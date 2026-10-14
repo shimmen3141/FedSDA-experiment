@@ -1,7 +1,7 @@
 """実験の掃引のコマンド（リポジトリ直下の`run_experiment_sweep.py`から呼ばれる）。
 
 終了コード: 0＝全部のrunが、済んだか、飛ばされた。1＝失敗したrunがある、または、出力先に、読めない要約がある。2＝引数や計画が不正、または、
-実行の前の確認（MNISTのファイル）で止まった。
+実行の前の確認（MNISTのファイル、出力先の済んだrunの基準版が今のコードと違う）で止まった。
 """
 
 from argparse import ArgumentParser
@@ -20,6 +20,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
 )
 from federated_learning_experiments.sweep.experiment_sweep_execution import (
+    ExistingRunBehaviorBaselineMismatchError,
     execute_experiment_sweep,
     find_existing_run_state,
 )
@@ -28,7 +29,7 @@ from federated_learning_experiments.sweep.experiment_sweep_plan import (
     build_planned_experiment_runs,
 )
 from federated_learning_experiments.sweep.experiment_sweep_records import (
-    describe_code_revision,
+    build_run_provenance,
     write_run_summary_table,
     write_sweep_record,
 )
@@ -37,6 +38,22 @@ from federated_learning_experiments.sweep.experiment_sweep_records import (
 _REPOSITORY_DIRECTORY = Path(__file__).resolve().parents[3]
 _DEFAULT_RESULT_DIRECTORY_NAME = "results"
 _MNIST_DATASET_NAME_PREFIX = "mnist"
+
+
+def report_behavior_baseline_mismatch(
+    mismatch_error: ExistingRunBehaviorBaselineMismatchError,
+) -> None:
+    """基準版の違う済んだrunを、標準エラーへ、1件1行の警告で出し、対処を1行出す。"""
+    # 呼出しの時点の標準エラーへ出す（読込みの時点で束縛すると、差し替えた標準エラーへ出ない）。
+    from sys import stderr
+
+    for mismatch_description in mismatch_error.mismatch_descriptions:
+        print(f"warning: {mismatch_description}", file=stderr)
+    print(
+        f"stopped before running: {mismatch_error}. "
+        "Use another output directory for results of the current code.",
+        file=stderr,
+    )
 
 
 def _build_argument_parser() -> ArgumentParser:
@@ -189,15 +206,22 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
                 error_message=f"MNIST data is not available: {caught_exception}",
             )
 
+    # 要約と実行の記録に、同じ来歴を書く（gitの取り直しで、ずれないように）。
+    run_provenance = build_run_provenance(repository_directory=_REPOSITORY_DIRECTORY)
     output_directory.mkdir(parents=True, exist_ok=True)
     print(f"output directory: {output_directory}")
     print(f"planned runs: {len(planned_runs)}, workers: {parsed_arguments.workers}")
-    outcomes = execute_experiment_sweep(
-        planned_runs=planned_runs,
-        output_directory=output_directory,
-        worker_count=parsed_arguments.workers,
-        report_progress=lambda progress_message: print(progress_message, flush=True),
-    )
+    try:
+        outcomes = execute_experiment_sweep(
+            planned_runs=planned_runs,
+            output_directory=output_directory,
+            worker_count=parsed_arguments.workers,
+            run_provenance=run_provenance,
+            report_progress=lambda progress_message: print(progress_message, flush=True),
+        )
+    except ExistingRunBehaviorBaselineMismatchError as mismatch_error:
+        report_behavior_baseline_mismatch(mismatch_error)
+        return 2
     unreadable_run_summary_descriptions: list[str] = []
     for configuration_name in sweep_plan.configuration_names:
         configuration_directory = output_directory / configuration_name
@@ -218,7 +242,7 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
         sweep_plan=sweep_plan,
         worker_count=parsed_arguments.workers,
         outcomes=outcomes,
-        code_revision=describe_code_revision(repository_directory=_REPOSITORY_DIRECTORY),
+        run_provenance=run_provenance,
         unreadable_run_summary_descriptions=tuple(unreadable_run_summary_descriptions),
     )
     failed_run_count = sum(outcome.run_status == "failed" for outcome in outcomes)

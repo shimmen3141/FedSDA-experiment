@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from run_provenance_examples import TEST_RUN_PROVENANCE
 
 from federated_drift_experiment import config
 from federated_drift_experiment.data.specs import get_dataset_spec
@@ -183,7 +184,10 @@ def test_actual_sweep_matches_single_run_and_resumes_without_execution(
     runs = small_feddrift_runs()
     before = rng_snapshot()
     outcomes = execute_experiment_sweep(
-        planned_runs=runs, output_directory=tmp_path, worker_count=workers
+        planned_runs=runs,
+        output_directory=tmp_path,
+        worker_count=workers,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert_rng_equal(before)
     assert [o.run_status for o in outcomes] == ["completed", "completed"]
@@ -218,7 +222,10 @@ def test_actual_sweep_matches_single_run_and_resumes_without_execution(
     assert [
         o.run_status
         for o in execute_experiment_sweep(
-            planned_runs=runs, output_directory=tmp_path, worker_count=workers
+            planned_runs=runs,
+            output_directory=tmp_path,
+            worker_count=workers,
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     ] == ["skipped_existing", "skipped_existing"]
     assert snapshot == {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
@@ -230,9 +237,12 @@ def test_actual_sweep_matches_single_run_and_resumes_without_execution(
 def test_conflicting_feddrift_artifacts_are_not_overwritten(tmp_path, corruption):
     run = small_feddrift_runs()[0]
     assert (
-        execute_experiment_sweep(planned_runs=(run,), output_directory=tmp_path, worker_count=1)[
-            0
-        ].run_status
+        execute_experiment_sweep(
+            planned_runs=(run,),
+            output_directory=tmp_path,
+            worker_count=1,
+            run_provenance=TEST_RUN_PROVENANCE,
+        )[0].run_status
         == "completed"
     )
     directory = tmp_path / "feddrift" / "runs"
@@ -259,9 +269,12 @@ def test_conflicting_feddrift_artifacts_are_not_overwritten(tmp_path, corruption
         == "conflicting"
     )
     assert (
-        execute_experiment_sweep(planned_runs=(run,), output_directory=tmp_path, worker_count=1)[
-            0
-        ].run_status
+        execute_experiment_sweep(
+            planned_runs=(run,),
+            output_directory=tmp_path,
+            worker_count=1,
+            run_provenance=TEST_RUN_PROVENANCE,
+        )[0].run_status
         == "failed"
     )
     assert before == {p: p.read_bytes() for p in directory.iterdir()}

@@ -8,11 +8,17 @@ from os import environ, getpid, replace
 from pathlib import Path
 from platform import machine, python_version, system
 from subprocess import run
+from typing import cast
 
 from numpy import __version__ as numpy_version
 from torch import __version__ as torch_version
 from torch import get_num_threads
 
+from federated_learning_experiments.core.run_provenance import (
+    BEHAVIOR_BASELINE_VERSION,
+    RunProvenance,
+    read_run_provenance,
+)
 from federated_learning_experiments.sweep.experiment_sweep_execution import (
     RUN_DIRECTORY_NAME,
     THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES,
@@ -21,7 +27,8 @@ from federated_learning_experiments.sweep.experiment_sweep_execution import (
 from federated_learning_experiments.sweep.experiment_sweep_plan import ExperimentSweepPlan
 
 RUN_SUMMARY_TABLE_FILE_NAME = "run_summary.csv"
-SWEEP_RECORD_FORMAT_VERSION = 1
+# 版2: コードの版の記録を、runの来歴から作り、期待する動作の基準版を足した。
+SWEEP_RECORD_FORMAT_VERSION = 2
 # 一覧の表の、実行条件の列（要約の`run_settings.execution_settings.experiment_run_conditions`のキー）。
 _CONDITION_COLUMN_NAMES = (
     "dataset_name",
@@ -29,6 +36,12 @@ _CONDITION_COLUMN_NAMES = (
     "client_count",
     "per_client_sample_count",
     "server_aggregation_interval_per_client_samples",
+)
+# 一覧の表の、runの来歴の列（実行条件の列の次。要約の形式に依らず、常に置く）。
+_RUN_PROVENANCE_COLUMN_NAMES = (
+    "code_commit",
+    "has_uncommitted_changes",
+    "behavior_baseline_version",
 )
 # 要約の辞書の中の、型の名前のキー（表には入れない）。
 _SETTINGS_TYPE_KEY = "settings_type"
@@ -76,9 +89,11 @@ def write_run_summary_table(
 ) -> RunSummaryTableResult:
     """構成のディレクトリの`runs/`にある全部の要約から、1 runを1行とする表（CSV）を作り直す。
 
-    列: 識別子、構成の名前、実行条件、指標の全部（入れ子の指標は、`.`でつないだ名前）。
+    列: 識別子、構成の名前、実行条件、runの来歴（commit、未commitの変更の有無、基準版。来歴を持たない前の形式の
+    要約は、空の欄）、指標の全部（入れ子の指標は、`.`でつないだ名前）。
     行の順: dataset、集約間隔、seed、識別子。一時の名前へ書いてから、置き換える。
-    読めない要約（JSONでない、要る項目がない）は、表から外して、ファイルと理由を返す。
+    読めない要約（JSONでない、要る項目がない、形式の版2なのに来歴が無いか壊れている）は、表から外して、
+    ファイルと理由を返す。
     """
     if not isinstance(configuration_directory, Path):
         raise TypeError("configuration_directory must be pathlib.Path")
@@ -100,6 +115,16 @@ def write_run_summary_table(
                 expected_condition_type = str if condition_name == "dataset_name" else int
                 if type(experiment_run_conditions[condition_name]) is not expected_condition_type:
                     raise TypeError(f"{condition_name} must be {expected_condition_type.__name__}")
+            if summary.get("format_version") == 1 and "run_provenance" not in summary:
+                run_provenance_values: dict[str, object] = {
+                    column_name: None for column_name in _RUN_PROVENANCE_COLUMN_NAMES
+                }
+            else:
+                run_provenance = read_run_provenance(summary.get("run_provenance"))
+                run_provenance_values = {
+                    column_name: getattr(run_provenance, column_name)
+                    for column_name in _RUN_PROVENANCE_COLUMN_NAMES
+                }
             table_row = {
                 "run_identifier": summary_file_path.stem,
                 "configuration_name": configuration_name,
@@ -107,6 +132,7 @@ def write_run_summary_table(
                     condition_name: experiment_run_conditions[condition_name]
                     for condition_name in _CONDITION_COLUMN_NAMES
                 },
+                **run_provenance_values,
                 **_flatten_metric_values(metric_values=summary["run_metrics"], name_prefix=""),
             }
             if configuration_name == "feddrift":
@@ -159,7 +185,10 @@ def write_run_summary_table(
 
 
 def describe_code_revision(*, repository_directory: Path) -> dict[str, object]:
-    """コードの版（gitのcommitと、未コミットの変更の有無）を返す。取れなければ、理由を返す。"""
+    """コードの版（gitのcommitと、未コミットの変更の有無）を返す。取れなければ、理由を返す。
+
+    未コミットの変更は、gitが追跡するファイルだけで判定する（追跡しないファイルは数えない）。
+    """
     if not isinstance(repository_directory, Path):
         raise TypeError("repository_directory must be pathlib.Path")
 
@@ -191,7 +220,7 @@ def describe_code_revision(*, repository_directory: Path) -> dict[str, object]:
             check=False,
         )
         status_process = run(
-            ["git", "status", "--porcelain"],
+            ["git", "status", "--porcelain", "--untracked-files=no"],
             cwd=repository_directory,
             capture_output=True,
             text=True,
@@ -212,6 +241,31 @@ def describe_code_revision(*, repository_directory: Path) -> dict[str, object]:
     }
 
 
+def build_run_provenance(*, repository_directory: Path) -> RunProvenance:
+    """gitの版（`describe_code_revision`）と、今のコードの基準版から、runの来歴を組み立てる。"""
+    code_revision = describe_code_revision(repository_directory=repository_directory)
+    return RunProvenance(
+        code_commit=cast("str | None", code_revision["commit"]),
+        has_uncommitted_changes=cast("bool | None", code_revision["has_uncommitted_changes"]),
+        code_revision_unavailable_reason=cast("str | None", code_revision["unavailable_reason"]),
+        behavior_baseline_version=BEHAVIOR_BASELINE_VERSION,
+    )
+
+
+def describe_run_provenance_for_record(run_provenance: RunProvenance) -> dict[str, object]:
+    """実行の記録へ書く、コードの版の辞書（`describe_code_revision`と同じキー）と基準版。"""
+    if type(run_provenance) is not RunProvenance:
+        raise TypeError("run_provenance must be exact RunProvenance")
+    return {
+        "code_revision": {
+            "commit": run_provenance.code_commit,
+            "has_uncommitted_changes": run_provenance.has_uncommitted_changes,
+            "unavailable_reason": run_provenance.code_revision_unavailable_reason,
+        },
+        "behavior_baseline_version": run_provenance.behavior_baseline_version,
+    }
+
+
 def write_sweep_record(
     *,
     output_directory: Path,
@@ -221,7 +275,7 @@ def write_sweep_record(
     sweep_plan: ExperimentSweepPlan,
     worker_count: int,
     outcomes: tuple[ExperimentRunOutcome, ...],
-    code_revision: dict[str, object],
+    run_provenance: RunProvenance,
     unreadable_run_summary_descriptions: tuple[str, ...] = (),
 ) -> Path:
     """1回の実行の記録を、`sweep_record_<開始時刻>.json`へ書く。
@@ -249,8 +303,8 @@ def write_sweep_record(
         type(outcome) is not ExperimentRunOutcome for outcome in outcomes
     ):
         raise TypeError("outcomes must be exact tuple of ExperimentRunOutcome")
-    if type(code_revision) is not dict:
-        raise TypeError("code_revision must be exact dict")
+    if type(run_provenance) is not RunProvenance:
+        raise TypeError("run_provenance must be exact RunProvenance")
     if type(unreadable_run_summary_descriptions) is not tuple or any(
         type(description) is not str for description in unreadable_run_summary_descriptions
     ):
@@ -263,7 +317,7 @@ def write_sweep_record(
             "command_arguments": list(command_arguments),
             "sweep_plan": asdict(sweep_plan),
             "worker_count": worker_count,
-            "code_revision": code_revision,
+            **describe_run_provenance_for_record(run_provenance),
             "environment": {
                 "system": system(),
                 "machine": machine(),

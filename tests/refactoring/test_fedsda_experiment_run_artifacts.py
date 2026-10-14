@@ -8,6 +8,7 @@ from dataclasses import FrozenInstanceError, fields, replace
 import numpy as np
 import pytest
 import torch
+from run_provenance_examples import TEST_RUN_PROVENANCE
 from test_fedsda_final_configuration_run_settings import make_golden_condition_run_settings
 from test_fedsda_run_metric_derivation import (
     GOLDEN_CONDITION_PATHS_BY_DATASET_NAME,
@@ -33,6 +34,7 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
     ExperimentRunConditions,
 )
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
+from federated_learning_experiments.core.run_provenance import convert_run_provenance_to_mapping
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
@@ -1329,7 +1331,10 @@ def test_model_diagnostic_column_conditions_cover_required_cases():
 def test_saved_artifacts_round_trip(small_experiment_run, tmp_path):
     """保存した要約と表を読み込むと、保存したときと同じ内容が返る。"""
     artifact_paths = save_fedsda_experiment_run(
-        experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+        experiment_run=small_experiment_run,
+        output_directory=tmp_path,
+        file_stem="run-a",
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert artifact_paths == FedsdaRunArtifactPaths(
         summary_file_path=tmp_path / "run-a.json", record_table_file_path=tmp_path / "run-a.npz"
@@ -1343,9 +1348,11 @@ def test_saved_artifacts_round_trip(small_experiment_run, tmp_path):
         "run_settings",
         "run_metrics",
         "environment",
+        "run_provenance",
         "record_table_file_name",
     ]
-    assert summary["format_version"] == RUN_ARTIFACT_FORMAT_VERSION == 1
+    assert summary["format_version"] == RUN_ARTIFACT_FORMAT_VERSION == 2
+    assert summary["run_provenance"] == convert_run_provenance_to_mapping(TEST_RUN_PROVENANCE)
     assert summary["run_settings"] == convert_settings_to_plain_mapping(
         small_experiment_run.run_settings
     )
@@ -1387,6 +1394,7 @@ def test_saving_refuses_to_overwrite_and_writes_nothing(small_experiment_run, tm
                 experiment_run=small_experiment_run,
                 output_directory=output_directory,
                 file_stem="run-a",
+                run_provenance=TEST_RUN_PROVENANCE,
             )
         assert [path.name for path in output_directory.iterdir()] == [existing_file_name]
         assert (output_directory / existing_file_name).read_text(encoding="utf-8") == "existing"
@@ -1404,7 +1412,10 @@ def test_failed_save_leaves_no_partial_files(small_experiment_run, tmp_path, mon
     monkeypatch.setattr(fedsda_run_artifact_files, "replace", fail_to_replace_summary)
     with pytest.raises(OSError, match="simulated failure"):
         save_fedsda_experiment_run(
-            experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+            experiment_run=small_experiment_run,
+            output_directory=tmp_path,
+            file_stem="run-a",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert list(tmp_path.iterdir()) == []
 
@@ -1415,7 +1426,10 @@ def test_failed_save_leaves_no_partial_files(small_experiment_run, tmp_path, mon
     monkeypatch.setattr(fedsda_run_artifact_files, "savez_compressed", fail_to_write_tables)
     with pytest.raises(OSError, match="simulated failure"):
         save_fedsda_experiment_run(
-            experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+            experiment_run=small_experiment_run,
+            output_directory=tmp_path,
+            file_stem="run-a",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert list(tmp_path.iterdir()) == []
     monkeypatch.undo()
@@ -1427,13 +1441,19 @@ def test_failed_save_leaves_no_partial_files(small_experiment_run, tmp_path, mon
     monkeypatch.setattr(fedsda_run_artifact_files, "replace", fail_to_place_tables)
     with pytest.raises(OSError, match="simulated failure"):
         save_fedsda_experiment_run(
-            experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+            experiment_run=small_experiment_run,
+            output_directory=tmp_path,
+            file_stem="run-a",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert list(tmp_path.iterdir()) == []
     monkeypatch.undo()
     # 失敗の後、同じ保存先へ、保存できる。
     save_fedsda_experiment_run(
-        experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+        experiment_run=small_experiment_run,
+        output_directory=tmp_path,
+        file_stem="run-a",
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert sorted(path.name for path in tmp_path.iterdir()) == ["run-a.json", "run-a.npz"]
 
@@ -1447,6 +1467,7 @@ def test_saving_rejects_invalid_destinations(small_experiment_run, tmp_path, inv
             experiment_run=small_experiment_run,
             output_directory=tmp_path,
             file_stem=invalid_file_stem,
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert list(tmp_path.iterdir()) == []
 
@@ -1457,30 +1478,65 @@ def test_saving_rejects_invalid_arguments(small_experiment_run, tmp_path):
             experiment_run=small_experiment_run,
             output_directory=tmp_path / "missing",
             file_stem="run-a",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert not (tmp_path / "missing").exists()
     with pytest.raises(TypeError, match="output_directory"):
         save_fedsda_experiment_run(
-            experiment_run=small_experiment_run, output_directory=str(tmp_path), file_stem="run-a"
+            experiment_run=small_experiment_run,
+            output_directory=str(tmp_path),
+            file_stem="run-a",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     with pytest.raises(TypeError, match="experiment_run"):
         save_fedsda_experiment_run(
             experiment_run=small_experiment_run.run_metrics,
             output_directory=tmp_path,
             file_stem="run-a",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     with pytest.raises(TypeError):
         save_fedsda_experiment_run(small_experiment_run, tmp_path, "run-a")  # type: ignore[misc]
     assert list(tmp_path.iterdir()) == []
 
 
+def test_loading_accepts_previous_format_without_run_provenance(small_experiment_run, tmp_path):
+    """版1の要約（来歴を持たない）も読める。"""
+    artifact_paths = save_fedsda_experiment_run(
+        experiment_run=small_experiment_run,
+        output_directory=tmp_path,
+        file_stem="run-a",
+        run_provenance=TEST_RUN_PROVENANCE,
+    )
+    summary = json.loads(artifact_paths.summary_file_path.read_text(encoding="utf-8"))
+    previous_summary = {
+        key: value for key, value in summary.items() if key != "run_provenance"
+    } | dict(format_version=1)
+    artifact_paths.summary_file_path.write_text(json.dumps(previous_summary), encoding="utf-8")
+    loaded_summary, record_tables = load_fedsda_run_artifacts(
+        summary_file_path=artifact_paths.summary_file_path
+    )
+    assert loaded_summary == previous_summary
+    assert record_tables
+
+
 def test_loading_rejects_unsupported_or_damaged_summaries(small_experiment_run, tmp_path):
     artifact_paths = save_fedsda_experiment_run(
-        experiment_run=small_experiment_run, output_directory=tmp_path, file_stem="run-a"
+        experiment_run=small_experiment_run,
+        output_directory=tmp_path,
+        file_stem="run-a",
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     summary = json.loads(artifact_paths.summary_file_path.read_text(encoding="utf-8"))
     for damaged_summary in (
         summary | dict(format_version=RUN_ARTIFACT_FORMAT_VERSION + 1),
+        # 版2で来歴が無い・壊れている。版1なのに来歴を持つ。
+        {key: value for key, value in summary.items() if key != "run_provenance"},
+        summary | dict(run_provenance=None),
+        summary
+        | dict(run_provenance=summary["run_provenance"] | dict(behavior_baseline_version=0)),
+        summary | dict(run_provenance={**summary["run_provenance"], "extra": 1}),
+        summary | dict(format_version=1),
         {key: value for key, value in summary.items() if key != "format_version"},
         summary | dict(format_version=True),
         summary | dict(format_version=float(RUN_ARTIFACT_FORMAT_VERSION)),
@@ -1509,6 +1565,7 @@ def test_golden_condition_saved_artifacts_match_real_legacy_and_golden(
         experiment_run=golden_experiment_runs,
         output_directory=tmp_path,
         file_stem=golden_condition_runs.dataset_name,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     summary, record_tables = load_fedsda_run_artifacts(
         summary_file_path=artifact_paths.summary_file_path

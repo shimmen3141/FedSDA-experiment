@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 import torch
+from run_provenance_examples import TEST_RUN_PROVENANCE
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 from federated_drift_experiment.servers.clustering import CrossEvaluationClusteringServer
@@ -265,7 +266,10 @@ def test_independent_run_saves_corrected_communication_volume(
     run = execute_fedsda_experiment_run(run_settings=settings)
     assert run.run_metrics.communication_volume == comparison.run_metrics.communication_volume
     paths = save_fedsda_experiment_run(
-        experiment_run=run, output_directory=tmp_path, file_stem="independent"
+        experiment_run=run,
+        output_directory=tmp_path,
+        file_stem="independent",
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     summary, tables = load_fedsda_run_artifacts(summary_file_path=paths.summary_file_path)
     from dataclasses import asdict

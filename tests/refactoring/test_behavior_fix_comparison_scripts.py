@@ -8,6 +8,7 @@ import contextlib
 import csv
 import importlib.util
 import io
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -152,3 +153,83 @@ def test_analysis_reports_absolute_values_and_differences_per_dataset_only(tmp_p
     assert "全部" not in report
     # 結果の無い組合せの比較は、出さない。
     assert "legacy→fixed" not in report
+
+
+def test_comparison_stops_with_a_warning_when_existing_runs_have_another_baseline(
+    tmp_path, monkeypatch, capsys
+):
+    """比較scriptも、基準版の違う済んだrunがあれば、警告を出して2を返し、比較の記録を書かない。"""
+    from federated_learning_experiments.sweep import experiment_sweep_execution
+
+    mismatch_description = "existing run summary was saved with behavior baseline version 4"
+
+    def stop_sweep(**_):
+        raise experiment_sweep_execution.ExistingRunBehaviorBaselineMismatchError(
+            (mismatch_description,)
+        )
+
+    monkeypatch.setattr(experiment_sweep_execution, "execute_experiment_sweep", stop_sweep)
+    output_directory = tmp_path / "comparison"
+    command_arguments = [
+        "--datasets",
+        "sine2",
+        "--seeds",
+        "0",
+        "--aggregation-intervals",
+        "50",
+        "--output-directory",
+        str(output_directory),
+    ]
+    assert run_script.main(command_arguments) == 2
+    assert f"warning: {mismatch_description}" in capsys.readouterr().err
+    assert not list(output_directory.glob("comparison_record_*.json"))
+    # `--print-plan`は、状態の理由も表示する。
+
+    def report_mismatch(**_):
+        return experiment_sweep_execution.ExistingRunState(
+            run_state="different_behavior_baseline", description=mismatch_description
+        )
+
+    monkeypatch.setattr(experiment_sweep_execution, "find_existing_run_state", report_mismatch)
+    assert run_script.main([*command_arguments, "--print-plan"]) == 0
+    assert f"different_behavior_baseline — {mismatch_description}" in capsys.readouterr().out
+
+
+def test_comparison_record_holds_code_revision_and_behavior_baseline(tmp_path, monkeypatch):
+    """比較の記録は、コードの版の辞書と、基準版を持つ（要約へ渡したのと同じ来歴）。"""
+    from federated_learning_experiments.core.run_provenance import BEHAVIOR_BASELINE_VERSION
+    from federated_learning_experiments.sweep import experiment_sweep_execution
+
+    passed_run_provenances = []
+
+    def record_run_provenance(*, planned_runs, run_provenance, **_):
+        passed_run_provenances.append(run_provenance)
+        return ()
+
+    monkeypatch.setattr(
+        experiment_sweep_execution, "execute_experiment_sweep", record_run_provenance
+    )
+    output_directory = tmp_path / "comparison"
+    assert (
+        run_script.main(
+            [
+                "--datasets",
+                "sine2",
+                "--seeds",
+                "0",
+                "--aggregation-intervals",
+                "50",
+                "--output-directory",
+                str(output_directory),
+            ]
+        )
+        == 0
+    )
+    (run_provenance,) = passed_run_provenances
+    record = json.loads(next(output_directory.glob("comparison_record_*.json")).read_text("utf-8"))
+    assert record["behavior_baseline_version"] == BEHAVIOR_BASELINE_VERSION
+    assert record["code_revision"] == dict(
+        commit=run_provenance.code_commit,
+        has_uncommitted_changes=run_provenance.has_uncommitted_changes,
+        unavailable_reason=run_provenance.code_revision_unavailable_reason,
+    )

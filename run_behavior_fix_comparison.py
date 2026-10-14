@@ -172,12 +172,17 @@ def main(command_arguments=None):
     )
     parsed_arguments = argument_parser.parse_args(command_arguments)
 
+    from federated_learning_experiments.sweep.experiment_sweep_command import (
+        report_behavior_baseline_mismatch,
+    )
     from federated_learning_experiments.sweep.experiment_sweep_execution import (
+        ExistingRunBehaviorBaselineMismatchError,
         execute_experiment_sweep,
         find_existing_run_state,
     )
     from federated_learning_experiments.sweep.experiment_sweep_records import (
-        describe_code_revision,
+        build_run_provenance,
+        describe_run_provenance_for_record,
         write_run_summary_table,
     )
 
@@ -193,6 +198,11 @@ def main(command_arguments=None):
             print(
                 f"{planned_run.configuration_name}/{planned_run.run_identifier}: "
                 f"{existing_run_state.run_state}"
+                + (
+                    f" — {existing_run_state.description}"
+                    if existing_run_state.description is not None
+                    else ""
+                )
             )
         return 0
     if any(dataset_name.startswith("mnist") for dataset_name in parsed_arguments.datasets):
@@ -203,15 +213,22 @@ def main(command_arguments=None):
 
         load_mnist_training_data(data_directory=resolve_mnist_data_directory())
     started_time = datetime.now().astimezone().replace(microsecond=0)
+    # 要約と比較の記録に、同じ来歴を書く。
+    run_provenance = build_run_provenance(repository_directory=REPOSITORY_DIRECTORY)
     output_directory.mkdir(parents=True, exist_ok=True)
     print(f"output directory: {output_directory}")
     print(f"planned runs: {len(planned_runs)}, workers: {parsed_arguments.workers}")
-    outcomes = execute_experiment_sweep(
-        planned_runs=planned_runs,
-        output_directory=output_directory,
-        worker_count=parsed_arguments.workers,
-        report_progress=lambda progress_message: print(progress_message, flush=True),
-    )
+    try:
+        outcomes = execute_experiment_sweep(
+            planned_runs=planned_runs,
+            output_directory=output_directory,
+            worker_count=parsed_arguments.workers,
+            run_provenance=run_provenance,
+            report_progress=lambda progress_message: print(progress_message, flush=True),
+        )
+    except ExistingRunBehaviorBaselineMismatchError as mismatch_error:
+        report_behavior_baseline_mismatch(mismatch_error)
+        return 2
     combination_names = sorted({planned_run.configuration_name for planned_run in planned_runs})
     for combination_name in combination_names:
         combination_directory = output_directory / combination_name
@@ -233,7 +250,7 @@ def main(command_arguments=None):
                 ),
                 combination_names=combination_names,
                 worker_count=parsed_arguments.workers,
-                code_revision=describe_code_revision(repository_directory=REPOSITORY_DIRECTORY),
+                **describe_run_provenance_for_record(run_provenance),
                 outcomes=[
                     dict(
                         combination_name=outcome.configuration_name,

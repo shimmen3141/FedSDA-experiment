@@ -5,6 +5,7 @@ import json
 from dataclasses import replace
 
 import pytest
+from run_provenance_examples import TEST_RUN_PROVENANCE
 
 from federated_learning_experiments.runtime.fedavg_run_settings import FedavgRunSettings
 from federated_learning_experiments.sweep.experiment_sweep_command import main
@@ -64,11 +65,17 @@ def test_real_sweep_saves_resumes_and_refuses_conflict(tmp_path, workers):
         for s in (settings, second)
     )
     first = execute_experiment_sweep(
-        planned_runs=runs, output_directory=tmp_path, worker_count=workers
+        planned_runs=runs,
+        output_directory=tmp_path,
+        worker_count=workers,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert [o.run_status for o in first] == ["completed", "completed"], first
     repeated = execute_experiment_sweep(
-        planned_runs=runs, output_directory=tmp_path, worker_count=workers
+        planned_runs=runs,
+        output_directory=tmp_path,
+        worker_count=workers,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert [o.run_status for o in repeated] == ["skipped_existing"] * 2
     csv_path = write_run_summary_table(
@@ -88,7 +95,10 @@ def test_real_sweep_saves_resumes_and_refuses_conflict(tmp_path, workers):
     )
     assert (
         execute_experiment_sweep(
-            planned_runs=runs, output_directory=tmp_path, worker_count=workers
+            planned_runs=runs,
+            output_directory=tmp_path,
+            worker_count=workers,
+            run_provenance=TEST_RUN_PROVENANCE,
         )[0].run_status
         == "failed"
     )

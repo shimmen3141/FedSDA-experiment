@@ -8,6 +8,7 @@ from random import Random
 import numpy as np
 import pytest
 import torch
+from run_provenance_examples import TEST_RUN_PROVENANCE
 
 from federated_drift_experiment import config, experiment
 from federated_drift_experiment.clients.oblivious import ObliviousClient
@@ -414,7 +415,10 @@ def test_run_artifact_roundtrip(tmp_path, samples, interval):
         run_settings=small_run_settings(samples=samples, interval=interval)
     )
     paths = save_fedavg_experiment_run(
-        experiment_run=run, output_directory=tmp_path, file_stem="baseline"
+        experiment_run=run,
+        output_directory=tmp_path,
+        file_stem="baseline",
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     summary, tables = load_fedavg_run_artifacts(summary_file_path=paths.summary_file_path)
     assert summary["method_name"] == "fedavg"
@@ -431,7 +435,10 @@ def test_run_artifact_roundtrip(tmp_path, samples, interval):
     assert len(tables["synchronization.round_index"]) == samples // interval
     with pytest.raises(FileExistsError):
         save_fedavg_experiment_run(
-            experiment_run=run, output_directory=tmp_path, file_stem="baseline"
+            experiment_run=run,
+            output_directory=tmp_path,
+            file_stem="baseline",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert not list(tmp_path.glob("*.partial"))
 
@@ -442,7 +449,10 @@ def test_existing_half_artifact_is_not_overwritten(tmp_path, suffix):
     (tmp_path / ("baseline" + suffix)).write_bytes(b"keep")
     with pytest.raises(FileExistsError):
         save_fedavg_experiment_run(
-            experiment_run=run, output_directory=tmp_path, file_stem="baseline"
+            experiment_run=run,
+            output_directory=tmp_path,
+            file_stem="baseline",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert list(tmp_path.iterdir()) == [tmp_path / ("baseline" + suffix)]
     assert (tmp_path / ("baseline" + suffix)).read_bytes() == b"keep"
@@ -453,13 +463,19 @@ def test_stale_summary_and_inconsistent_predictions_are_rejected_before_write(tm
     stale = replace(run, run_metrics=replace(run.run_metrics, prediction_accuracy=0.12345))
     with pytest.raises(ValueError):
         save_fedavg_experiment_run(
-            experiment_run=stale, output_directory=tmp_path, file_stem="stale"
+            experiment_run=stale,
+            output_directory=tmp_path,
+            file_stem="stale",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     client = run.measured_run.participants.client_operations[0]
     client.sample_predictions[0] = replace(client.sample_predictions[0], sample_index=9)
     with pytest.raises(ValueError):
         save_fedavg_experiment_run(
-            experiment_run=run, output_directory=tmp_path, file_stem="invalid"
+            experiment_run=run,
+            output_directory=tmp_path,
+            file_stem="invalid",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert not list(tmp_path.iterdir())
 
@@ -470,7 +486,10 @@ def test_loader_rejects_other_method_and_unsafe_reference(tmp_path, bad):
 
     run = execute_fedavg_experiment_run(run_settings=small_run_settings())
     paths = save_fedavg_experiment_run(
-        experiment_run=run, output_directory=tmp_path, file_stem="baseline"
+        experiment_run=run,
+        output_directory=tmp_path,
+        file_stem="baseline",
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     summary = json.loads(paths.summary_file_path.read_text("utf-8"))
     if bad == "method":

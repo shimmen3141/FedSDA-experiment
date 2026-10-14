@@ -26,6 +26,10 @@ from numpy.random import RandomState
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
+from federated_learning_experiments.core.run_provenance import (
+    BEHAVIOR_BASELINE_VERSION,
+    RunProvenance,
+)
 from federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings import (
     RandomConceptScheduleSettings,
 )
@@ -286,6 +290,15 @@ SMOKE_SCENARIOS = (
         "alarm_interval_candidate_validation_started",
         (None, 1.0, "post_alarm_validation_held_model_reused"),
     ),
+)
+
+
+# 保存の関数へ渡すrunの来歴（test moduleをimportしないので、ここで作る）。
+TEST_RUN_PROVENANCE = RunProvenance(
+    code_commit="0123456789abcdef0123456789abcdef01234567",
+    has_uncommitted_changes=False,
+    code_revision_unavailable_reason=None,
+    behavior_baseline_version=BEHAVIOR_BASELINE_VERSION,
 )
 
 
@@ -2001,6 +2014,7 @@ def run_feddrift_detection_batch_smoke():
             experiment_run=experiment_run,
             output_directory=Path(artifact_directory),
             file_stem="feddrift",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
         summary, tables = load_feddrift_run_artifacts(summary_file_path=paths.summary_file_path)
         assert summary["method_name"] == "feddrift"
@@ -2173,6 +2187,7 @@ def main():
             experiment_run=experiment_run,
             output_directory=Path(artifact_directory),
             file_stem="smoke-run",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
         run_summary, record_tables = load_fedsda_run_artifacts(
             summary_file_path=artifact_paths.summary_file_path
@@ -2257,6 +2272,7 @@ def main():
             experiment_run=independent_run,
             output_directory=Path(directory),
             file_stem="independent",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
         summary, _ = load_fedsda_run_artifacts(summary_file_path=paths.summary_file_path)
     assert (
@@ -2288,7 +2304,10 @@ def main():
     )
     with TemporaryDirectory() as directory:
         paths = save_fedavg_experiment_run(
-            experiment_run=fedavg_run, output_directory=Path(directory), file_stem="fedavg"
+            experiment_run=fedavg_run,
+            output_directory=Path(directory),
+            file_stem="fedavg",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
         summary, tables = load_fedavg_run_artifacts(summary_file_path=paths.summary_file_path)
     assert summary["method_name"] == "fedavg"

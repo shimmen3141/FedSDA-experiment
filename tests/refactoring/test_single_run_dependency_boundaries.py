@@ -4863,6 +4863,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedavg_run_artifact_files.py":
         return imported_module_name in (
+            "federated_learning_experiments.core.run_provenance.RunProvenance",
+            "federated_learning_experiments.core.run_provenance.convert_run_provenance_to_mapping",
+            "federated_learning_experiments.core.run_provenance.read_run_provenance",
             "dataclasses.dataclass",
             "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
             "federated_learning_experiments.runtime.fedavg_experiment_run.FedavgExperimentRun",
@@ -5022,6 +5025,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/feddrift_run_artifact_files.py":
         return imported_module_name in (
+            "federated_learning_experiments.core.run_provenance.RunProvenance",
+            "federated_learning_experiments.core.run_provenance.convert_run_provenance_to_mapping",
+            "federated_learning_experiments.core.run_provenance.read_run_provenance",
             "dataclasses.dataclass",
             "json.dumps",
             "json.loads",
@@ -5647,6 +5653,9 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_artifact_files.py":
         return imported_module_name in (
+            "federated_learning_experiments.core.run_provenance.RunProvenance",
+            "federated_learning_experiments.core.run_provenance.convert_run_provenance_to_mapping",
+            "federated_learning_experiments.core.run_provenance.read_run_provenance",
             "dataclasses.dataclass",
             "json.dumps",
             "json.loads",
@@ -5667,6 +5676,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_command.py":
         return imported_module_name in (
+            "sys.stderr",
+            "federated_learning_experiments.sweep.experiment_sweep_execution.ExistingRunBehaviorBaselineMismatchError",
             "argparse.ArgumentParser",
             "collections.abc.Sequence",
             "datetime.datetime",
@@ -5681,12 +5692,16 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.sweep.experiment_sweep_execution.find_existing_run_state",
             "federated_learning_experiments.sweep.experiment_sweep_plan.ExperimentSweepPlan",
             "federated_learning_experiments.sweep.experiment_sweep_plan.build_planned_experiment_runs",
-            "federated_learning_experiments.sweep.experiment_sweep_records.describe_code_revision",
+            "federated_learning_experiments.sweep.experiment_sweep_records.build_run_provenance",
             "federated_learning_experiments.sweep.experiment_sweep_records.write_run_summary_table",
             "federated_learning_experiments.sweep.experiment_sweep_records.write_sweep_record",
         )
     if source_module_path == "sweep/experiment_sweep_records.py":
         return imported_module_name in (
+            "typing.cast",
+            "federated_learning_experiments.core.run_provenance.BEHAVIOR_BASELINE_VERSION",
+            "federated_learning_experiments.core.run_provenance.RunProvenance",
+            "federated_learning_experiments.core.run_provenance.read_run_provenance",
             "csv.writer",
             "dataclasses.asdict",
             "dataclasses.dataclass",
@@ -5711,6 +5726,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_execution.py":
         return imported_module_name in (
+            "federated_learning_experiments.core.run_provenance.BEHAVIOR_BASELINE_VERSION",
+            "federated_learning_experiments.core.run_provenance.RunProvenance",
             "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunSettings",
             "federated_learning_experiments.runtime.fedavg_run_artifact_files.save_fedavg_experiment_run",
             "federated_learning_experiments.runtime.fedavg_run_artifact_files.load_fedavg_run_artifacts",

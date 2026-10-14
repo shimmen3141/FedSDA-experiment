@@ -5,7 +5,9 @@ from dataclasses import replace
 from math import isnan
 
 import pytest
+from run_provenance_examples import TEST_RUN_PROVENANCE
 
+from federated_learning_experiments.core.run_provenance import convert_run_provenance_to_mapping
 from federated_learning_experiments.runtime import feddrift_experiment_run as execution
 from federated_learning_experiments.runtime.feddrift_run_settings import FeddriftRunSettings
 from tests.refactoring.test_feddrift_run_client import assert_rng_equal, rng_snapshot
@@ -46,16 +48,20 @@ def test_save_load_roundtrip_and_nonfinite_summary(monkeypatch, tmp_path, count)
         rng_snapshot(),
     )
     paths = save_feddrift_experiment_run(
-        experiment_run=result, output_directory=tmp_path, file_stem="test-run"
+        experiment_run=result,
+        output_directory=tmp_path,
+        file_stem="test-run",
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     summary, tables = load_feddrift_run_artifacts(summary_file_path=paths.summary_file_path)
     assert {p.name for p in tmp_path.iterdir()} == {"test-run.json", "test-run.npz"}
     assert (
         summary["method_name"] == "feddrift"
         and type(summary["format_version"]) is int
-        and summary["format_version"] == 1
+        and summary["format_version"] == 2
     )
     assert summary["record_table_file_name"] == "test-run.npz"
+    assert summary["run_provenance"] == convert_run_provenance_to_mapping(TEST_RUN_PROVENANCE)
     assert summary["run_settings"] == json.loads(
         json.dumps(convert_settings_to_plain_mapping(result.run_settings))
     )
@@ -88,7 +94,10 @@ def test_save_rejects_invalid_name_without_writing(artifact_run, tmp_path, inval
 
     with pytest.raises((TypeError, ValueError)):
         save_feddrift_experiment_run(
-            experiment_run=artifact_run, output_directory=tmp_path, file_stem=invalid
+            experiment_run=artifact_run,
+            output_directory=tmp_path,
+            file_stem=invalid,
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert list(tmp_path.iterdir()) == []
 
@@ -103,7 +112,10 @@ def test_existing_output_is_preserved(artifact_run, tmp_path, suffix):
     existing.write_bytes(b"existing data")
     with pytest.raises(FileExistsError):
         save_feddrift_experiment_run(
-            experiment_run=artifact_run, output_directory=tmp_path, file_stem="result"
+            experiment_run=artifact_run,
+            output_directory=tmp_path,
+            file_stem="result",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert existing.read_bytes() == b"existing data"
     assert list(tmp_path.iterdir()) == [existing]
@@ -124,6 +136,7 @@ def test_save_rejects_invalid_result_or_directory(artifact_run, tmp_path, invali
             if invalid == "missing_directory"
             else tmp_path,
             file_stem="result",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert list(tmp_path.iterdir()) == []
 
@@ -156,7 +169,10 @@ def test_save_failure_cleans_its_files(monkeypatch, artifact_run, tmp_path, stag
         monkeypatch.setattr(artifacts, "replace", fail_selected, raising=False)
     with pytest.raises(OSError, match="injected failure"):
         artifacts.save_feddrift_experiment_run(
-            experiment_run=artifact_run, output_directory=tmp_path, file_stem="result"
+            experiment_run=artifact_run,
+            output_directory=tmp_path,
+            file_stem="result",
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     assert list(tmp_path.iterdir()) == []
 
@@ -165,7 +181,10 @@ def test_save_failure_cleans_its_files(monkeypatch, artifact_run, tmp_path, stag
     "change",
     (
         {"format_version": True},
+        {"format_version": 3},
+        # 版2は、来歴が要る。版1は、来歴を持たない。
         {"format_version": 2},
+        {"run_provenance": {"behavior_baseline_version": 5}},
         {"method_name": "fedsda"},
         {"record_table_file_name": "../escape.npz"},
         {"record_table_file_name": "..\\escape.npz"},

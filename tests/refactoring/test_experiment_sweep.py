@@ -12,9 +12,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
+from run_provenance_examples import TEST_RUN_PROVENANCE
 
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
+)
+from federated_learning_experiments.core.run_provenance import (
+    BEHAVIOR_BASELINE_VERSION,
+    RunProvenance,
+    convert_run_provenance_to_mapping,
 )
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
@@ -42,6 +48,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (
     build_experiment_run_settings,
 )
 from federated_learning_experiments.sweep.experiment_sweep_execution import (
+    ExistingRunBehaviorBaselineMismatchError,
     ExistingRunState,
     ExperimentRunOutcome,
     execute_experiment_sweep,
@@ -55,6 +62,7 @@ from federated_learning_experiments.sweep.experiment_sweep_plan import (
 )
 from federated_learning_experiments.sweep.experiment_sweep_records import (
     RunSummaryTableResult,
+    build_run_provenance,
     describe_code_revision,
     write_run_summary_table,
     write_sweep_record,
@@ -290,6 +298,7 @@ def sequential_sweep(tmp_path_factory):
         output_directory=output_directory,
         worker_count=1,
         report_progress=progress_messages.append,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     # 逐次の実行は、呼出し側のprocessの、計算のthreadの数を、元へ戻す。
     assert torch.get_num_threads() == thread_count_before
@@ -360,6 +369,7 @@ def test_completed_runs_are_skipped_and_left_unchanged(sequential_sweep, monkeyp
         output_directory=output_directory,
         worker_count=1,
         report_progress=progress_messages.append,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert [outcome.run_status for outcome in outcomes] == ["skipped_existing"] * 2
     assert all(outcome.failure_description is None for outcome in outcomes)
@@ -414,7 +424,10 @@ def test_conflicting_existing_files_are_reported_and_not_overwritten(
         experiment_sweep_execution, "execute_fedsda_experiment_run", reject_execution
     )
     outcomes = execute_experiment_sweep(
-        planned_runs=planned_runs, output_directory=tmp_path, worker_count=1
+        planned_runs=planned_runs,
+        output_directory=tmp_path,
+        worker_count=1,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert [outcome.run_status for outcome in outcomes] == ["failed", "skipped_existing"]
     assert outcomes[0].run_identifier == damaged_run.run_identifier
@@ -444,6 +457,7 @@ def test_failed_run_is_reported_and_other_runs_continue(tmp_path, monkeypatch):
         output_directory=tmp_path,
         worker_count=1,
         report_progress=progress_messages.append,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert [outcome.run_status for outcome in outcomes] == ["failed", "completed"]
     assert "RuntimeError: simulated run failure" in outcomes[0].failure_description
@@ -474,6 +488,7 @@ def test_parallel_sweep_saves_the_same_content_as_sequential_sweep(
         output_directory=tmp_path,
         worker_count=2,
         report_progress=progress_messages.append,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert os.environ["OMP_NUM_THREADS"] == "1"
     assert os.environ["MKL_NUM_THREADS"] == "1"
@@ -508,13 +523,17 @@ def test_parallel_sweep_cancels_waiting_runs_when_interrupted(tmp_path):
             output_directory=tmp_path,
             worker_count=2,
             report_progress=interrupt_on_first_outcome,
+            run_provenance=TEST_RUN_PROVENANCE,
         )
     # 戻った時点で、workerのprocessは終わっている（この後、ファイルは増えない）。
     saved_run_count = len(list((tmp_path / "fedsda" / "runs").glob("*.json")))
     assert 1 <= saved_run_count < len(planned_runs)
     # 済んだrunは、次の実行で飛ばされ、残りだけが実行される。
     outcomes = execute_experiment_sweep(
-        planned_runs=planned_runs, output_directory=tmp_path, worker_count=2
+        planned_runs=planned_runs,
+        output_directory=tmp_path,
+        worker_count=2,
+        run_provenance=TEST_RUN_PROVENANCE,
     )
     assert [outcome.run_status for outcome in outcomes].count("skipped_existing") == saved_run_count
     assert [outcome.run_status for outcome in outcomes].count("completed") == (
@@ -524,7 +543,12 @@ def test_parallel_sweep_cancels_waiting_runs_when_interrupted(tmp_path):
 
 def test_sweep_execution_rejects_invalid_arguments(tmp_path):
     planned_runs = build_planned_experiment_runs(sweep_plan=SMALL_SWEEP_PLAN)
-    valid_arguments = dict(planned_runs=planned_runs, output_directory=tmp_path, worker_count=1)
+    valid_arguments = dict(
+        planned_runs=planned_runs,
+        output_directory=tmp_path,
+        worker_count=1,
+        run_provenance=TEST_RUN_PROVENANCE,
+    )
     for changed_arguments, error_type in (
         (dict(planned_runs=list(planned_runs)), TypeError),
         (dict(planned_runs=(planned_runs[0], None)), TypeError),
@@ -535,6 +559,15 @@ def test_sweep_execution_rejects_invalid_arguments(tmp_path):
         (dict(worker_count=True), TypeError),
         (dict(worker_count=1.0), TypeError),
         (dict(report_progress="print"), TypeError),
+        (dict(run_provenance=None), TypeError),
+        (
+            dict(
+                run_provenance=replace(
+                    TEST_RUN_PROVENANCE, behavior_baseline_version=BEHAVIOR_BASELINE_VERSION + 1
+                )
+            ),
+            ValueError,
+        ),
     ):
         with pytest.raises(error_type):
             execute_experiment_sweep(**{**valid_arguments, **changed_arguments})
@@ -694,7 +727,7 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         sweep_plan=SMALL_SWEEP_PLAN,
         worker_count=2,
         outcomes=outcomes,
-        code_revision=dict(commit="a" * 40, has_uncommitted_changes=False, unavailable_reason=None),
+        run_provenance=TEST_RUN_PROVENANCE,
         unreadable_run_summary_descriptions=("fedsda/runs/broken.json: JSONDecodeError",),
     )
     record_file_path = write_sweep_record(**arguments)
@@ -708,12 +741,13 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         "sweep_plan",
         "worker_count",
         "code_revision",
+        "behavior_baseline_version",
         "environment",
         "run_status_counts",
         "run_outcomes",
         "unreadable_run_summary_descriptions",
     ]
-    assert record["record_format_version"] == 1
+    assert record["record_format_version"] == 2
     assert record["command_arguments"] == ["--datasets", "circle2"]
     assert record["sweep_plan"] == dict(
         configuration_names=["fedsda"],
@@ -725,7 +759,12 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         feddrift_loss_increase_thresholds=None,
     )
     assert record["worker_count"] == 2
-    assert record["code_revision"]["commit"] == "a" * 40
+    assert record["code_revision"] == dict(
+        commit=TEST_RUN_PROVENANCE.code_commit,
+        has_uncommitted_changes=False,
+        unavailable_reason=None,
+    )
+    assert record["behavior_baseline_version"] == BEHAVIOR_BASELINE_VERSION
     assert set(record["environment"]) == {
         "system",
         "machine",
@@ -1008,6 +1047,11 @@ def test_repository_script_runs_parallel_sweep_in_separate_processes(tmp_path, s
         sequential_summary, sequential_record_tables = read_run_files(
             sequential_directory, planned_run
         )
+        # 来歴は、コマンドがgitから取る（直接の掃引は、testの例を渡した）。
+        assert summary.pop("run_provenance")["behavior_baseline_version"] == (
+            BEHAVIOR_BASELINE_VERSION
+        )
+        sequential_summary.pop("run_provenance")
         assert summary == sequential_summary
         assert_record_tables_equal(record_tables, sequential_record_tables)
     record = json.loads(
@@ -1017,3 +1061,285 @@ def test_repository_script_runs_parallel_sweep_in_separate_processes(tmp_path, s
         OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1"
     )
     assert record["worker_count"] == 2
+
+
+# ---- runの来歴と、基準版での停止 ----
+
+
+def rewrite_summary(summary_file_path, change_summary):
+    summary = json.loads(summary_file_path.read_text(encoding="utf-8"))
+    change_summary(summary)
+    summary_file_path.write_text(json.dumps(summary), encoding="utf-8")
+
+
+def save_as_previous_format(summary):
+    """前の形式（版1。来歴を持たない）の要約にする。"""
+    del summary["run_provenance"]
+    summary["format_version"] = 1
+
+
+def test_saved_summary_holds_the_given_run_provenance(sequential_sweep):
+    output_directory, planned_runs, _, _ = sequential_sweep
+    for planned_run in planned_runs:
+        summary, _ = read_run_files(output_directory, planned_run)
+        assert summary["run_provenance"] == convert_run_provenance_to_mapping(TEST_RUN_PROVENANCE)
+
+
+def test_existing_runs_with_the_same_baseline_are_skipped_even_with_another_commit(
+    sequential_sweep, tmp_path, monkeypatch
+):
+    """基準版が同じなら、commitや未commitの変更の有無が違っても、済んだrunとして飛ばす。"""
+    source_directory, planned_runs, _, _ = sequential_sweep
+    copy_sweep_output(source_directory, tmp_path)
+    runs_directory = tmp_path / "fedsda" / "runs"
+
+    def use_another_commit(summary):
+        summary["run_provenance"].update(code_commit="f" * 40, has_uncommitted_changes=True)
+
+    for planned_run in planned_runs:
+        rewrite_summary(runs_directory / f"{planned_run.run_identifier}.json", use_another_commit)
+    file_contents_before = {path.name: path.read_bytes() for path in runs_directory.iterdir()}
+
+    def reject_execution(**_):
+        raise AssertionError("a completed run must not be executed again")
+
+    monkeypatch.setattr(
+        experiment_sweep_execution, "execute_fedsda_experiment_run", reject_execution
+    )
+    outcomes = execute_experiment_sweep(
+        planned_runs=planned_runs,
+        output_directory=tmp_path,
+        worker_count=1,
+        run_provenance=TEST_RUN_PROVENANCE,
+    )
+    assert [outcome.run_status for outcome in outcomes] == ["skipped_existing"] * 2
+    assert {
+        path.name: path.read_bytes() for path in runs_directory.iterdir()
+    } == file_contents_before
+
+
+@pytest.mark.parametrize("worker_count", [1, 2])
+@pytest.mark.parametrize(
+    "mismatch", ["other_version", "not_recorded", "not_recorded_other_settings"]
+)
+def test_existing_runs_with_another_baseline_stop_the_sweep_before_anything_runs(
+    sequential_sweep, tmp_path, monkeypatch, worker_count, mismatch
+):
+    """基準版が違う（記録が無いものを含む）済んだrunがあれば、報告も実行もせずに止め、ファイルを変えない。"""
+    source_directory, planned_runs, _, _ = sequential_sweep
+    copy_sweep_output(source_directory, tmp_path)
+    runs_directory = tmp_path / "fedsda" / "runs"
+    mismatched_run, missing_run = planned_runs
+    # 片方のrunは、未実行（実行されるはずのrun）にする。
+    for suffix in (".json", ".npz"):
+        (runs_directory / f"{missing_run.run_identifier}{suffix}").unlink()
+
+    def change_baseline(summary):
+        if mismatch == "other_version":
+            summary["run_provenance"]["behavior_baseline_version"] = BEHAVIOR_BASELINE_VERSION - 1
+            return
+        save_as_previous_format(summary)
+        if mismatch == "not_recorded_other_settings":
+            # 基準版の判定が先なので、run設定が違っても、止める側になる。
+            summary["run_settings"]["run_metric_settings"][
+                "maximum_detection_delay_sample_count"
+            ] += 1
+
+    summary_file_path = runs_directory / f"{mismatched_run.run_identifier}.json"
+    rewrite_summary(summary_file_path, change_baseline)
+    file_contents_before = {path.name: path.read_bytes() for path in runs_directory.iterdir()}
+    expected_version_text = (
+        str(BEHAVIOR_BASELINE_VERSION - 1) if mismatch == "other_version" else "(not recorded)"
+    )
+    existing_run_state = find_existing_run_state(
+        planned_run=mismatched_run, output_directory=tmp_path
+    )
+    assert existing_run_state == ExistingRunState(
+        run_state="different_behavior_baseline",
+        description=(
+            "existing run summary was saved with behavior baseline version "
+            f"{expected_version_text} (current: {BEHAVIOR_BASELINE_VERSION}): {summary_file_path}"
+        ),
+    )
+
+    def reject_execution(**_):
+        raise AssertionError("no run must be executed")
+
+    def reject_process_pool(**_):
+        raise AssertionError("no worker process must be started")
+
+    monkeypatch.setattr(
+        experiment_sweep_execution, "execute_fedsda_experiment_run", reject_execution
+    )
+    monkeypatch.setattr(experiment_sweep_execution, "ProcessPoolExecutor", reject_process_pool)
+    progress_messages = []
+    with pytest.raises(ExistingRunBehaviorBaselineMismatchError) as raised:
+        execute_experiment_sweep(
+            planned_runs=planned_runs,
+            output_directory=tmp_path,
+            worker_count=worker_count,
+            run_provenance=TEST_RUN_PROVENANCE,
+            report_progress=progress_messages.append,
+        )
+    assert raised.value.mismatch_descriptions == (existing_run_state.description,)
+    assert progress_messages == []
+    assert {
+        path.name: path.read_bytes() for path in runs_directory.iterdir()
+    } == file_contents_before
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        lambda summary: summary.pop("run_provenance"),
+        lambda summary: summary.update(run_provenance=None),
+        lambda summary: summary["run_provenance"].update(behavior_baseline_version="5"),
+    ],
+)
+def test_existing_runs_with_damaged_provenance_are_conflicting_not_stopping(
+    sequential_sweep, tmp_path, damage
+):
+    """形式の版2で来歴が無い・壊れている要約は、止めずに、そのrunだけを食い違いとする（今の扱い）。"""
+    source_directory, planned_runs, _, _ = sequential_sweep
+    copy_sweep_output(source_directory, tmp_path)
+    damaged_run = planned_runs[0]
+    rewrite_summary(tmp_path / "fedsda" / "runs" / f"{damaged_run.run_identifier}.json", damage)
+    existing_run_state = find_existing_run_state(planned_run=damaged_run, output_directory=tmp_path)
+    assert existing_run_state.run_state == "conflicting"
+    assert "run_provenance" in existing_run_state.description
+    outcomes = execute_experiment_sweep(
+        planned_runs=planned_runs,
+        output_directory=tmp_path,
+        worker_count=1,
+        run_provenance=TEST_RUN_PROVENANCE,
+    )
+    assert [outcome.run_status for outcome in outcomes] == ["failed", "skipped_existing"]
+
+
+def test_run_summary_table_holds_run_provenance_columns(sequential_sweep, tmp_path):
+    """一覧の表は、実行条件の次に、来歴の3列を、要約の形式に依らず持つ。前の形式の要約は、空の欄。"""
+    source_directory, planned_runs, _, _ = sequential_sweep
+    copy_sweep_output(source_directory, tmp_path)
+    configuration_directory = tmp_path / "fedsda"
+    runs_directory = configuration_directory / "runs"
+
+    def read_rows():
+        table_result = write_run_summary_table(
+            configuration_directory=configuration_directory, configuration_name="fedsda"
+        )
+        with table_result.table_file_path.open(encoding="utf-8", newline="") as table_file:
+            return table_result, list(csv.DictReader(table_file))
+
+    _, rows = read_rows()
+    assert list(rows[0])[7:10] == [
+        "code_commit",
+        "has_uncommitted_changes",
+        "behavior_baseline_version",
+    ]
+    assert {
+        (row["code_commit"], row["has_uncommitted_changes"], row["behavior_baseline_version"])
+        for row in rows
+    } == {(TEST_RUN_PROVENANCE.code_commit, "False", str(BEHAVIOR_BASELINE_VERSION))}
+    # 全部の要約が前の形式でも、3列があり、空の欄になる（行は外さない）。
+    for planned_run in planned_runs:
+        rewrite_summary(
+            runs_directory / f"{planned_run.run_identifier}.json", save_as_previous_format
+        )
+    table_result, rows = read_rows()
+    assert table_result.unreadable_run_summary_descriptions == ()
+    assert len(rows) == 2
+    assert list(rows[0])[7:10] == [
+        "code_commit",
+        "has_uncommitted_changes",
+        "behavior_baseline_version",
+    ]
+    assert {
+        (row["code_commit"], row["has_uncommitted_changes"], row["behavior_baseline_version"])
+        for row in rows
+    } == {("", "", "")}
+    # 形式の版2で来歴が無い要約は、読めないとして外す。
+    rewrite_summary(
+        runs_directory / f"{planned_runs[0].run_identifier}.json",
+        lambda summary: summary.update(format_version=2),
+    )
+    table_result, rows = read_rows()
+    assert len(table_result.unreadable_run_summary_descriptions) == 1
+    assert [row["run_identifier"] for row in rows] == [planned_runs[1].run_identifier]
+
+
+def run_git(repository_directory, *arguments):
+    subprocess.run(
+        ["git", "-c", "user.name=test", "-c", "user.email=test@example.com", *arguments],
+        cwd=repository_directory,
+        check=True,
+        capture_output=True,
+    )
+
+
+def test_code_revision_counts_only_tracked_files_as_uncommitted_changes(tmp_path):
+    """追跡しないファイルだけがあるときは、未commitの変更なし。追跡するファイルの変更は、変更あり。"""
+    run_git(tmp_path, "init", "-q")
+    (tmp_path / "tracked.py").write_text("value = 1\n", encoding="utf-8")
+    run_git(tmp_path, "add", "tracked.py")
+    run_git(tmp_path, "commit", "-q", "-m", "initial")
+    (tmp_path / "untracked.md").write_text("held document\n", encoding="utf-8")
+    code_revision = describe_code_revision(repository_directory=tmp_path)
+    assert code_revision["unavailable_reason"] is None
+    assert code_revision["has_uncommitted_changes"] is False
+    run_provenance = build_run_provenance(repository_directory=tmp_path)
+    assert run_provenance == RunProvenance(
+        code_commit=code_revision["commit"],
+        has_uncommitted_changes=False,
+        code_revision_unavailable_reason=None,
+        behavior_baseline_version=BEHAVIOR_BASELINE_VERSION,
+    )
+    (tmp_path / "tracked.py").write_text("value = 2\n", encoding="utf-8")
+    assert describe_code_revision(repository_directory=tmp_path)["has_uncommitted_changes"] is True
+    # gitの情報が取れない場所でも、来歴は作れる（理由と基準版を持つ）。
+    outside_provenance = build_run_provenance(repository_directory=tmp_path / "missing")
+    assert outside_provenance.code_commit is None
+    assert outside_provenance.code_revision_unavailable_reason
+    assert outside_provenance.behavior_baseline_version == BEHAVIOR_BASELINE_VERSION
+
+
+def test_command_stops_with_a_warning_when_existing_runs_have_another_baseline(tmp_path, capsys):
+    """コマンドは、基準版の違う済んだrunがあれば、警告を出して2を返し、表と記録とrunのファイルを変えない。"""
+    output_directory = tmp_path / "command-output"
+    command_arguments = [*SMALL_COMMAND_ARGUMENTS, "--output-directory", str(output_directory)]
+    assert experiment_sweep_command.main(command_arguments) == 0
+    planned_run = build_planned_experiment_runs(
+        sweep_plan=replace(SMALL_SWEEP_PLAN, random_seeds=(0,))
+    )[0]
+    summary, _ = read_run_files(output_directory, planned_run)
+    record = json.loads(
+        next(output_directory.glob("sweep_record_*.json")).read_text(encoding="utf-8")
+    )
+    # 要約と実行の記録は、同じ来歴を持つ。
+    assert record["behavior_baseline_version"] == BEHAVIOR_BASELINE_VERSION
+    assert record["code_revision"] == dict(
+        commit=summary["run_provenance"]["code_commit"],
+        has_uncommitted_changes=summary["run_provenance"]["has_uncommitted_changes"],
+        unavailable_reason=summary["run_provenance"]["code_revision_unavailable_reason"],
+    )
+    assert summary["run_provenance"]["behavior_baseline_version"] == BEHAVIOR_BASELINE_VERSION
+    summary_file_path = output_directory / "fedsda" / "runs" / f"{planned_run.run_identifier}.json"
+    rewrite_summary(summary_file_path, save_as_previous_format)
+    capsys.readouterr()
+    file_contents_before = {
+        path: path.read_bytes() for path in output_directory.rglob("*") if path.is_file()
+    }
+    assert experiment_sweep_command.main(command_arguments) == 2
+    captured = capsys.readouterr()
+    assert (
+        f"warning: existing run summary was saved with behavior baseline version (not recorded) (current: {BEHAVIOR_BASELINE_VERSION}): {summary_file_path}"
+        in captured.err
+    )
+    assert "another output directory" in captured.err
+    assert {
+        path: path.read_bytes() for path in output_directory.rglob("*") if path.is_file()
+    } == file_contents_before
+    # `--print-plan`は、基準版の違う済んだrunを、状態と理由で表示する。
+    assert experiment_sweep_command.main([*command_arguments, "--print-plan"]) == 0
+    printed_text = capsys.readouterr().out
+    assert "different_behavior_baseline" in printed_text
+    assert "(not recorded)" in printed_text

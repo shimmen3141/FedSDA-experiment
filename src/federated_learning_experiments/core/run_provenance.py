@@ -4,6 +4,7 @@
 """
 
 from dataclasses import dataclass
+from typing import cast
 
 # 今のコードが満たす、期待する動作の基準版（重要動作goldenの現在の版と同じ番号）。goldenの版を上げるときに、
 # 一緒に上げる（testが、goldenのhelperの現在の版との一致を確かめる）。runの設定が選んだ扱い（前の版の扱いを、
@@ -66,9 +67,18 @@ def read_run_provenance(run_provenance_mapping: object) -> RunProvenance:
     """要約の`run_provenance`の辞書を読む。キーが4つちょうどでない、値が不正なら、拒否する。"""
     if not isinstance(run_provenance_mapping, dict):
         raise TypeError("run_provenance must be a JSON object")
-    if set(run_provenance_mapping) != set(_RUN_PROVENANCE_KEYS):
+    # 値の型は、`RunProvenance`の検査が確かめる。
+    provenance_values = cast("dict[str, object]", run_provenance_mapping)
+    if set(provenance_values) != set(_RUN_PROVENANCE_KEYS):
         raise ValueError(
             f"run_provenance must hold exactly {', '.join(_RUN_PROVENANCE_KEYS)}: "
-            f"{sorted(map(str, run_provenance_mapping))}"
+            f"{sorted(map(str, provenance_values))}"
         )
-    return RunProvenance(**{key: run_provenance_mapping[key] for key in _RUN_PROVENANCE_KEYS})
+    return RunProvenance(
+        code_commit=cast("str | None", provenance_values["code_commit"]),
+        has_uncommitted_changes=cast("bool | None", provenance_values["has_uncommitted_changes"]),
+        code_revision_unavailable_reason=cast(
+            "str | None", provenance_values["code_revision_unavailable_reason"]
+        ),
+        behavior_baseline_version=cast("int", provenance_values["behavior_baseline_version"]),
+    )

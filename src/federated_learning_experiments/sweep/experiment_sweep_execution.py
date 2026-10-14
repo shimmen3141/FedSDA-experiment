@@ -1,5 +1,7 @@
 """計画のrunを、逐次か、別々のprocessで並列に実行して、保存する。済んだrunは飛ばす。
 
+済んだrunの基準版（期待する動作の版）が今のコードと違えば、どのrunも実行せずに止める。
+
 出力先の形: `<出力先>/<構成の名前>/runs/<識別子>.json`（要約）と`.npz`（記録の表）。
 """
 
@@ -15,6 +17,10 @@ from traceback import format_exc
 
 from torch import get_num_threads, set_num_threads
 
+from federated_learning_experiments.core.run_provenance import (
+    BEHAVIOR_BASELINE_VERSION,
+    RunProvenance,
+)
 from federated_learning_experiments.core.settings_serialization import (
     convert_settings_to_plain_mapping,
 )
@@ -62,12 +68,28 @@ THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES = (
 class ExistingRunState:
     """出力先の、あるrunのファイルの状態。
 
-    `missing`: ファイルがない。`completed`: 要約と表があり、要約のrun設定が、計画と同じ。
+    `missing`: ファイルがない。`completed`: 要約と表があり、要約の基準版が今のコードと同じで、run設定が計画と同じ。
+    `different_behavior_baseline`: 要約と表が読めて、要約の基準版が今のコードと違うか、基準版の記録が無い
+    （前の形式。run設定は比べない）。
     `conflicting`: ファイルが片方しかない、読めない、または、要約のrun設定が計画と違う（`description`に理由）。
     """
 
     run_state: str
     description: str | None
+
+
+class ExistingRunBehaviorBaselineMismatchError(Exception):
+    """出力先の済んだrunの基準版が今のコードと違うため、掃引を始めずに止めたこと。
+
+    `mismatch_descriptions`に、当たるrunのファイルと、記録された基準版・今の基準版を、1件ずつ持つ。
+    """
+
+    def __init__(self, mismatch_descriptions: tuple[str, ...]) -> None:
+        self.mismatch_descriptions = mismatch_descriptions
+        super().__init__(
+            f"{len(mismatch_descriptions)} existing run(s) were saved with a different behavior "
+            f"baseline version (current: {BEHAVIOR_BASELINE_VERSION})"
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -139,6 +161,26 @@ def find_existing_run_state(
                 f"({type(caught_exception).__name__}: {caught_exception})"
             ),
         )
+    # 基準版を、run設定より先に比べる（読込みが、版2の来歴を確かめている。版1は来歴を持たない）。
+    run_provenance_mapping = summary.get("run_provenance")
+    recorded_behavior_baseline_version = (
+        run_provenance_mapping["behavior_baseline_version"]
+        if isinstance(run_provenance_mapping, dict)
+        else None
+    )
+    if recorded_behavior_baseline_version != BEHAVIOR_BASELINE_VERSION:
+        recorded_version_text = (
+            "(not recorded)"
+            if recorded_behavior_baseline_version is None
+            else str(recorded_behavior_baseline_version)
+        )
+        return ExistingRunState(
+            run_state="different_behavior_baseline",
+            description=(
+                "existing run summary was saved with behavior baseline version "
+                f"{recorded_version_text} (current: {BEHAVIOR_BASELINE_VERSION}): {summary_file_path}"
+            ),
+        )
     # 保存した辞書と同じ形（JSONを通した形）にして比べる。
     planned_run_settings = loads(dumps(convert_settings_to_plain_mapping(planned_run.run_settings)))
     if summary.get("run_settings") != planned_run_settings:
@@ -150,17 +192,22 @@ def find_existing_run_state(
 
 
 def execute_planned_experiment_run(
-    *, planned_run: PlannedExperimentRun, output_directory: Path
+    *,
+    planned_run: PlannedExperimentRun,
+    output_directory: Path,
+    run_provenance: RunProvenance,
 ) -> ExperimentRunOutcome:
     """1 runを実行して、保存する。runの中の例外は、失敗の結果として返す。
 
-    計算のthreadを1つにして実行し、終わったら、元の数へ戻す。
+    計算のthreadを1つにして実行し、終わったら、元の数へ戻す。要約に、runの来歴を書く。
     """
     if type(planned_run) is not PlannedExperimentRun:
         raise TypeError("planned_run must be exact PlannedExperimentRun")
     _validate_run_settings_type(planned_run)
     if not isinstance(output_directory, Path):
         raise TypeError("output_directory must be pathlib.Path")
+    if type(run_provenance) is not RunProvenance:
+        raise TypeError("run_provenance must be exact RunProvenance")
     thread_count_before = get_num_threads()
     set_num_threads(_RUN_THREAD_COUNT)
     try:
@@ -174,6 +221,7 @@ def execute_planned_experiment_run(
                 experiment_run=fedavg_run,
                 output_directory=run_directory,
                 file_stem=planned_run.run_identifier,
+                run_provenance=run_provenance,
             )
         elif type(planned_run.run_settings) is FeddriftRunSettings:
             feddrift_run = execute_feddrift_experiment_run(run_settings=planned_run.run_settings)
@@ -181,6 +229,7 @@ def execute_planned_experiment_run(
                 experiment_run=feddrift_run,
                 output_directory=run_directory,
                 file_stem=planned_run.run_identifier,
+                run_provenance=run_provenance,
             )
         elif type(planned_run.run_settings) is FedsdaRunSettings:
             experiment_run = execute_fedsda_experiment_run(run_settings=planned_run.run_settings)
@@ -188,6 +237,7 @@ def execute_planned_experiment_run(
                 experiment_run=experiment_run,
                 output_directory=run_directory,
                 file_stem=planned_run.run_identifier,
+                run_provenance=run_provenance,
             )
     except Exception as caught_exception:
         return ExperimentRunOutcome(
@@ -231,11 +281,14 @@ def execute_experiment_sweep(
     planned_runs: tuple[PlannedExperimentRun, ...],
     output_directory: Path,
     worker_count: int,
+    run_provenance: RunProvenance,
     report_progress: Callable[[str], None] | None = None,
 ) -> tuple[ExperimentRunOutcome, ...]:
     """計画のrunを実行して保存し、runごとの結果を、計画の順で返す。
 
     出力先に、済んだ結果があるrunは、実行せずに飛ばす。食い違うファイルがあるrunは、上書きせずに、失敗とする。
+    済んだ結果の基準版が今のコードと違う（記録が無いものを含む）runが1つでもあれば、進み具合の報告も実行も
+    せずに、`ExistingRunBehaviorBaselineMismatchError`を出す。保存するrunの要約には、`run_provenance`を書く。
     `worker_count`が2以上で、残りのrunが2つ以上なら、残りのrunを、別々のprocessで並列に実行する
     （時間のかかる見込みのrunから投入する）。残りが1つなら、呼出し側のprocessで実行する。
     並列のときは、workerのprocessを作る前に、数値計算のライブラリのthreadの数の環境変数を、未設定なら1にする
@@ -260,6 +313,13 @@ def execute_experiment_sweep(
         raise TypeError("worker_count must be builtin int")
     if worker_count < 1:
         raise ValueError("worker_count must be positive")
+    if type(run_provenance) is not RunProvenance:
+        raise TypeError("run_provenance must be exact RunProvenance")
+    if run_provenance.behavior_baseline_version != BEHAVIOR_BASELINE_VERSION:
+        raise ValueError(
+            "run_provenance.behavior_baseline_version must be the current behavior baseline "
+            f"version {BEHAVIOR_BASELINE_VERSION}"
+        )
     if report_progress is not None and not callable(report_progress):
         raise TypeError("report_progress must be callable or None")
 
@@ -280,11 +340,22 @@ def execute_experiment_sweep(
             progress_message += f" — {outcome.failure_description.splitlines()[0]}"
         report_progress(progress_message)
 
+    # 全部のrunの状態を、報告と実行の前に調べ終える（基準版の違うrunがあれば、何もせずに止めるため）。
+    existing_run_states = tuple(
+        find_existing_run_state(planned_run=planned_run, output_directory=output_directory)
+        for planned_run in planned_runs
+    )
+    mismatch_descriptions = tuple(
+        str(existing_run_state.description)
+        for existing_run_state in existing_run_states
+        if existing_run_state.run_state == "different_behavior_baseline"
+    )
+    if mismatch_descriptions:
+        raise ExistingRunBehaviorBaselineMismatchError(mismatch_descriptions)
     pending_run_positions: list[int] = []
-    for run_position, planned_run in enumerate(planned_runs):
-        existing_run_state = find_existing_run_state(
-            planned_run=planned_run, output_directory=output_directory
-        )
+    for run_position, (planned_run, existing_run_state) in enumerate(
+        zip(planned_runs, existing_run_states, strict=True)
+    ):
         if existing_run_state.run_state == "missing":
             pending_run_positions.append(run_position)
             continue
@@ -305,7 +376,9 @@ def execute_experiment_sweep(
             record_outcome(
                 run_position,
                 execute_planned_experiment_run(
-                    planned_run=planned_runs[run_position], output_directory=output_directory
+                    planned_run=planned_runs[run_position],
+                    output_directory=output_directory,
+                    run_provenance=run_provenance,
                 ),
             )
     else:
@@ -322,6 +395,7 @@ def execute_experiment_sweep(
                     execute_planned_experiment_run,
                     planned_run=planned_runs[run_position],
                     output_directory=output_directory,
+                    run_provenance=run_provenance,
                 ): run_position
                 for run_position in sorted(
                     pending_run_positions,

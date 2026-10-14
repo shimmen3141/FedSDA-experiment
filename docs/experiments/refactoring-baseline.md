@@ -263,6 +263,7 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 2026-10-13に、分類器の属性の名前を改めた（`residual_adapter`→`model_owned_feature_transform`。IMPROVE-014。[spec](../../.kiro/specs/classifier-structure-independent-naming/design.md)）。属性の名前は、パラメータ名の一部なので、版1〜3の、WindowsとLinuxの6ファイルの、最終グローバルパラメータのキーの名前だけを、機械的に書き換えた（版1は76、版2は100、版3は96のキー）。値（digest・shape・dtype）と、生成の記録（`source_commit`など）は、変えていない（実行し直していない）。書き換えの前後で、キーの名前を戻すと、内容が一致することを確かめた。動作の基準は変わらないので、版は増やしていない。
 
 現在の版（新しい基準を生成するときの既定）は、helperの定数`BASELINE_VERSION`。別の版を生成・照合するときは、`--baseline-version`で指定する。
+現在の版を上げるときは、実行のコードの基準版`BEHAVIOR_BASELINE_VERSION`（`src/federated_learning_experiments/core/run_provenance.py`）も、同じ番号へ上げる（runの要約に残り、済んだrunを飛ばす判定に使う。testが一致を確かめる。[spec](../../.kiro/specs/experiment-run-code-provenance/design.md)）。
 
 通常のcommitごとには基準版を増やさない。意図した動作変更は対象specで旧基準との差分理由を説明し、
 レビューと検証後に新しい版directoryを追加する。現在の版はhelperで明示し、最新directoryを自動採用しない。
