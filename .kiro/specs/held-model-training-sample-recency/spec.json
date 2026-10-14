@@ -62,7 +62,7 @@
     "full_exit_code": 0,
     "junit": "../../venv/refactoring-tests/recency-full.xml",
     "tested_commit": "be9396b",
-    "wsl": "未実行"
+    "wsl": "2d352cf（sourceとtestは7831e74と同じ）で、抜き出し・共同更新・設定の検査のtestと、goldenの版1〜5で1690 passed（2026-10-15）"
   },
   "completion_decision": "完了。保有モデルの学習batchの抜き出し方（全履歴・直近K件・指数減衰α）を設定と掃引の軸で選べる。既定の動作と値は不変。"
 }

@@ -37,5 +37,5 @@
 - 手順の逸脱: testを実装の後に書いた。代わりに、主な処理を1つずつ外して、新しいtestが落ちることを確かめた（区間の和を引かない、直近K件で絞らない、共同更新が設定を渡さない、相対の重みにしない、表の列を書かない、値の重複を見ない。どれも1件以上失敗。元に戻した）。
 - FedSDAのrunの識別子の期待値（`sine2_interval3_seed0_ecef3c8ebd73`→`..._2e8614da3d86`）を合わせた（要求2.3のとおり）。掃引の記録の形式の版は4。
 - 実装レビュー（独立Haiku 5.5 medium、1回、be9396b）: APPROVED（任意3）。重複の例のコメント（`recent:0300`は解析で先に拒否されるので、`decay:0.5`と`decay:0.50`へ）と、設計の「既定値つき」の文を直した。任意3（手順の逸脱）は記録済み。
-- 検証: 全pytest 14255 passed / 8 skipped（be9396b、goldenの版1〜5を含む。JUnit `../../venv/refactoring-tests/recency-full.xml`）、Pyright 0件、Ruff成功。レビューの後の修正は、コメントと文書だけ。WSLは未実行（数値の環境に依るのは既定の経路だけで、goldenの照合はWindowsの全pytestで通った）。
+- 検証: 全pytest 14255 passed / 8 skipped（be9396b、goldenの版1〜5を含む。JUnit `../../venv/refactoring-tests/recency-full.xml`）、Pyright 0件、Ruff成功。レビューの後の修正は、コメントと文書だけ。WSLは、2026-10-15に、2d352cf（sourceとtestは7831e74と同じ）で、抜き出し・共同更新・設定の検査のtestとgoldenの版1〜5を実行し、1690 passed。
 
