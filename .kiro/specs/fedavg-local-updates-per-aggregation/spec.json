@@ -1,0 +1,65 @@
+{
+  "feature_name": "fedavg-local-updates-per-aggregation",
+  "created_at": "2026-10-15",
+  "updated_at": "2026-10-15",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "dd428e4",
+    "target": "未commitの仕様書群4文書とspec.json",
+    "session_ids": [
+      "e9d2b5c7-5f91-452b-abf9-84f1c072c91f",
+      "be1f8f81-bb39-4440-91c6-ddc65eea03e2"
+    ],
+    "result": "1回目はCHANGES REQUIRED（Major 3: 構成の一覧を使う既存testの3ファイルの漏れとtaskの順）。2回目はCHANGES REQUIRED（Major 1: 保護の一覧へ鍵を入れる時点）。3回目でPASS（Minor 7は実装で扱う。tasks.md）。3回目のsession_idは出力のjsonlにある。",
+    "output": "../../venv/refactoring-tests/fedavg-per-aggregation-spec-review-{1..3}.jsonl",
+    "selection_reason": "golden・testの一覧の整合と、実行の順の論証なので、Haiku 5.5"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "未commitの変更（基点dd428e4）",
+    "session_ids": [
+      "a31f2ed9-9992-4db2-a8b7-81be902a7bb6"
+    ],
+    "is_error": false,
+    "result": "APPROVED（Minor 3。採否はtasks.md）。",
+    "output": "../../venv/refactoring-tests/fedavg-per-aggregation-review-1.jsonl",
+    "selection_reason": "golden・testの一覧の整合と、実行の順の論証なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14261,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/fedavg-per-aggregation-full.xml",
+    "tested_revision": "未commitの変更（基点dd428e4）。レビューの後の修正は文書だけ"
+  },
+  "completion_decision": "完了。局所更新の間隔を集約間隔と同じにしたFedAvgを、構成fedavg-local-updates-per-aggregationで選べる。既存の構成の動作と値は不変。"
+}

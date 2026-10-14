@@ -35,11 +35,23 @@ def test_array_digest_includes_values_shape_and_dtype(values):
 
 
 def test_case_registry_preserves_all_registered_configurations():
+    from pathlib import Path
+
     from federated_learning_experiments.sweep.experiment_configurations import (
         EXPERIMENT_CONFIGURATION_NAMES,
     )
 
-    assert golden.CASE_NAMES[:13] == EXPERIMENT_CONFIGURATION_NAMES
+    # 構成の全部が、goldenの事例か、専用のtestで守る構成の、どちらか一方に入る。既存の構成の並びは変えない。
+    assert golden.CASE_NAMES[:13] == golden.BASELINE_CONFIGURATION_CASE_NAMES
+    assert EXPERIMENT_CONFIGURATION_NAMES[:13] == golden.BASELINE_CONFIGURATION_CASE_NAMES
+    protected = set(golden.CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN)
+    assert not protected & set(golden.BASELINE_CONFIGURATION_CASE_NAMES)
+    assert set(EXPERIMENT_CONFIGURATION_NAMES) == (
+        set(golden.BASELINE_CONFIGURATION_CASE_NAMES) | protected
+    )
+    repository_root = Path(__file__).resolve().parents[2]
+    for test_file in golden.CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN.values():
+        assert (repository_root / test_file).is_file(), test_file
     assert len(golden.CASE_NAMES_BY_BASELINE_VERSION[1]) == 17
     assert golden.CASE_NAMES_BY_BASELINE_VERSION[2] == (
         *golden.CASE_NAMES_BY_BASELINE_VERSION[1],

@@ -43,7 +43,6 @@ from federated_learning_experiments.runtime.fedsda_experiment_run import (
 )
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.sweep.experiment_configurations import (
-    EXPERIMENT_CONFIGURATION_NAMES,
     build_experiment_run_settings,
 )
 
@@ -607,7 +606,7 @@ def test_adwin_monitoring_run_reads_only_unassigned_pending_samples(detection_co
 
 def test_every_fedsda_configuration_defaults_to_releasing_earlier_samples():
     fedsda_configuration_count = 0
-    for configuration_name in EXPERIMENT_CONFIGURATION_NAMES:
+    for configuration_name in golden.BASELINE_CONFIGURATION_CASE_NAMES:
         run_settings = golden.build_case_settings(configuration_name, golden.BASELINE_VERSION)
         if type(run_settings) is not FedsdaRunSettings:
             continue

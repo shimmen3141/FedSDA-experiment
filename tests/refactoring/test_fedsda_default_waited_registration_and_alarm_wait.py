@@ -15,7 +15,6 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.sweep.experiment_configurations import (
     CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
-    EXPERIMENT_CONFIGURATION_NAMES,
     OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
     build_experiment_run_settings,
 )
@@ -30,7 +29,7 @@ ADWIN_CONFIGURATION_NAMES = (
 def test_every_fedsda_configuration_uses_waited_registration_and_alarm_wait_by_default():
     """全部のFedSDAの構成の組立てが通り、登録は待った後に登録、警報は待つ（ADWINの2構成だけ即時）。"""
     fedsda_configuration_names = []
-    for configuration_name in EXPERIMENT_CONFIGURATION_NAMES:
+    for configuration_name in golden.BASELINE_CONFIGURATION_CASE_NAMES:
         case_run_settings = golden.build_case_settings(configuration_name, 3)
         default_run_settings = build_experiment_run_settings(
             configuration_name=configuration_name,

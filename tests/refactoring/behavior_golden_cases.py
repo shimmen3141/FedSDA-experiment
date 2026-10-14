@@ -77,7 +77,6 @@ from federated_learning_experiments.runtime.fedsda_run_record_tables import (  #
     build_fedsda_run_record_tables,
 )
 from federated_learning_experiments.sweep.experiment_configurations import (  # noqa: E402
-    EXPERIMENT_CONFIGURATION_NAMES,
     build_experiment_run_settings,
 )
 
@@ -171,8 +170,30 @@ def golden_directory(baseline_version=BASELINE_VERSION):
 
 
 GOLDEN_DIRECTORY = golden_directory()
+# 基準版1〜5のgoldenの事例にした構成（構成の一覧の、2026-10-15までの13個。並びも同じ）。後から足した構成は、
+# goldenの事例にせず、下の`CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN`の専用のtestで守る（保存済みのgoldenは、
+# 事例の集合を一覧と厳密に比べ、既存の版を更新する経路も無いため）。
+BASELINE_CONFIGURATION_CASE_NAMES = (
+    "fedsda",
+    "fedsda-without-prediction-weight-recalibration",
+    "fedsda-without-candidate-validation",
+    "fedsda-loss-distance-clustering",
+    "fedsda-overall-loss-esr-detection",
+    "fedsda-adahedge-prediction-weights",
+    "fedsda-single-model-prediction",
+    "fedsda-classwise-adwin-detection",
+    "fedsda-overall-loss-adwin-detection",
+    "fedsda-without-concept-specific-adapter",
+    "fedsda-independent-models",
+    "feddrift",
+    "fedavg",
+)
+# goldenの事例にしない構成の名前と、その構成を守る専用のtestのファイル（リポジトリの根からの位置）。
+CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
+    "fedavg-local-updates-per-aggregation": "tests/refactoring/test_fedavg_local_updates_per_aggregation.py",
+}
 _VERSION_1_CASE_NAMES = (
-    *EXPERIMENT_CONFIGURATION_NAMES,
+    *BASELINE_CONFIGURATION_CASE_NAMES,
     "fedsda-sine2-events",
     "fedsda-mnist2-decisions",
     "feddrift-drift-tail",

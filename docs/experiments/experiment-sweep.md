@@ -177,6 +177,22 @@ python run_experiment_sweep.py --configurations fedsda feddrift fedavg --dataset
 
 FedAvgの成果物は`fedavg/runs/`配下の完全設定・共通指標・環境のJSONと名前付き記録のNPZ。再開と競合拒否、`run_summary.csv`の生成は他構成と同じ。準備の計算は本実行へ含めず、処理されない末尾は生成概念列と進行件数へ残す。
 
+### 局所更新を集約ごとにまとめるFedAvg
+
+`--configurations fedavg-local-updates-per-aggregation`は、`fedavg`の局所更新の間隔（旧のτ、`local_update_interval_per_client_samples`）を、集約間隔と同じにした構成。ほかの設定は`fedavg`と同じ。元論文のFedAvg（roundのデータで学習してから集約し、配布されたモデルで予測する）に沿った形で、FedDriftの学習と予測の時機とも同じになる（FedDriftも、roundの全標本を配布されたモデルで予測し、roundの終わりに学習する。`runtime/feddrift_run_server.py`の`synchronize_timestep`）。
+
+| | `fedavg` | `fedavg-local-updates-per-aggregation` |
+|---|---|---|
+| 局所更新の時機 | 標本を1つ予測するたびに1回（τ=1） | roundの最後の標本の処理で、集約間隔の回数をまとめて |
+| roundの中の予測に使うモデル | 局所更新したモデル | そのroundの始めに配布されたモデル |
+| 1 roundの更新の回数・batch・使うデータ・通信 | 同じ | 同じ |
+
+どちらも、累積の保持標本がbatchの件数（32）に足りないときは、その時点の局所更新を学習せずに捨てる（既存の挙動）。集約間隔を32より小さくすると、この構成では、最初の数roundの更新がまとめて捨てられる。成果物は`fedavg-local-updates-per-aggregation/runs/`に、`fedavg`と同じ形で保存する（要約の`method_name`は`fedavg`）。旧実装に対応する構成は無いので、旧とは照合しない。goldenの事例にもせず、専用のtest（`tests/refactoring/test_fedavg_local_updates_per_aggregation.py`）で守る。
+
+```powershell
+python run_experiment_sweep.py --configurations fedavg-local-updates-per-aggregation --datasets sea2 sea4 circle2 sine2 mnist2 mnist4 --seeds 0 1 2 3 4 5 6 7 8 9 --aggregation-intervals 50 200 --workers 14 --study method-baselines --label fedavg-local-updates-per-aggregation-n5000 --purpose "局所更新を集約ごとにまとめるFedAvg（元論文に沿った形）の基準値を取る"
+```
+
 ## 挙動の修正の、適用の有無の比較（検証用）
 
 LEGACY-016（採用したモデルの登録）とLEGACY-002（短い警報のあとの保留）の修正が、精度・通信量へ与える影響を、

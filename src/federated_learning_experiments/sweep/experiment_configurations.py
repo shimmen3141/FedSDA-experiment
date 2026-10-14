@@ -1,7 +1,8 @@
 """実験の構成の名前（手法と、その選択肢の組）から、完全なrun設定を作る。
 
 構成は、実行条件（dataset、seed、規模、集約間隔）とは別のもの。構成を足すときは、ここへ足す。
-提案構成以外の構成は、提案構成のrun設定の、1つの要素だけを置き換える（要素を外す構成は`fedsda-without-…`）。
+提案構成以外のFedSDAの構成は、提案構成のrun設定の、1つの要素だけを置き換える（要素を外す構成は
+`fedsda-without-…`）。FedDrift・FedAvgの構成は、それぞれの既定のrun設定から作る。
 """
 
 from dataclasses import replace
@@ -50,6 +51,9 @@ WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME = "fedsda-without-concept-sp
 # 提案構成のモデルを、共有部を持たないモデル（隠れ層と分類層の全部を、モデルごとに独立に持つ）へ替えた構成。
 # ローカル学習は、モデルごとに順に行い、集約後の、予測の重みの再較正は、行わない。
 INDEPENDENT_MODELS_CONFIGURATION_NAME = "fedsda-independent-models"
+# `fedavg`の、局所更新の間隔を、集約の間隔と同じにした構成。roundの中は、そのroundの始めに配布されたモデルで
+# 予測し、局所更新は、roundの最後の標本の処理でまとめて行う（`fedavg`は、1標本ごとに局所更新する）。
+FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME = "fedavg-local-updates-per-aggregation"
 # コマンドで指定できる構成の名前。
 EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
@@ -65,6 +69,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     INDEPENDENT_MODELS_CONFIGURATION_NAME,
     "feddrift",
     "fedavg",
+    FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME,
 )
 
 
@@ -150,6 +155,19 @@ def build_experiment_run_settings(
     if configuration_name == "fedavg":
         return build_default_fedavg_run_settings(
             experiment_run_conditions=experiment_run_conditions
+        )
+    if configuration_name == FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME:
+        fedavg_run_settings = build_default_fedavg_run_settings(
+            experiment_run_conditions=experiment_run_conditions
+        )
+        return replace(
+            fedavg_run_settings,
+            run_participant_settings=replace(
+                fedavg_run_settings.run_participant_settings,
+                local_update_interval_per_client_samples=(
+                    experiment_run_conditions.server_aggregation_interval_per_client_samples
+                ),
+            ),
         )
     if configuration_name == "feddrift":
         return build_default_feddrift_run_settings(
