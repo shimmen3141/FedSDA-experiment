@@ -158,6 +158,8 @@ seaでは、どの抜き出し方もFedDriftを上回る（sea4の間隔50で`de
 
 実装（2026-10-15、[fedsda-synchronized-model-prediction](../../.kiro/specs/fedsda-synchronized-model-prediction/tasks.md)）: 予測に使うパラメータを設定で選べるようにし（`prediction_model_parameter_source`。既定は今の動作）、構成`fedsda-synchronized-model-prediction`で掃引できる。実装の予測の記録は、診断の差し替えと一致する（4つの構成——3つのモデルの構造と、結合・現在のモデルだけの2つの予測の仕方——で確かめた。本規模のsea2・circle2・sine2のseed 0でも、精度が診断の記録と厳密に一致した）。
 
+局所更新を集約ごとにまとめるFedAvgの本規模の結果（2026-10-15、server、seed 0〜9、`results/method-baselines/`の`analysis_*_method_baselines.md`）: 1標本ごとのFedAvgと比べ、精度は、sea2で+0.65・+0.46（間隔50・200）、mnist2で+1.13・+1.00、mnist4で+1.45・+1.45と上がり、circle2で−0.47・−0.90、sine2で−3.45・−3.56と下がった（変化の直後に適応できない）。sea4はほぼ同じ。sea2では、FedSDAの既定（85.94）だけでなく、FedDrift（86.32・86.51）も上回る。
+
 次の候補: serverの本規模（6データセット・間隔50と200）で、提案構成と比べる。その結果で、既定にするかを決める。circle2の残りの差（共有部が他の概念の標本で混ざる影響、上の2）は、別に確かめる。（以下は、2026-10-15の前半に挙げた候補）(d) FedDriftのモデルは概念より多い（circle2で4.4、概念は2）。clientごとの入力の分布の違いに合わせて、同じ概念の中で局所に特化している可能性があり、FedSDAは概念ごとに少数のモデルへまとめる。FedDriftのクラスタとclientの対応、circle2のclientごとの入力の分布を調べる。(e) 共有部を持たない構成で、全体の精度が下がる理由（予測の選び方が悪くなる）を調べ、当てはまりの良さを予測に活かせるか。
 
 後回しにした理由（2026-10-14、ユーザー判断）: 7（学習の標本の選び方）を変えると各モデルの当てはまりも変わるので、7の扱いを決めてから調べるほうが、原因の切り分けが混ざらない。
