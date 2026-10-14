@@ -119,6 +119,9 @@ def build_training_request_oracle(
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+            training_sample_selection_policy="uniform_over_all_stored_samples",
+            most_recent_stored_sample_count=None,
+            stored_sample_recency_decay_factor=None,
         ),
         shared_feature_extractor=registry.get_held_model_training_state(
             model_id=absorption_arguments["model_id"]
@@ -730,6 +733,9 @@ def test_sequential_per_model_training_updates_one_model_at_a_time(batch_sample_
         training_arguments["local_training_settings"] = LocalTrainingSettings(
             local_model_parameter_update_strategy="sequential_per_model_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+            training_sample_selection_policy="uniform_over_all_stored_samples",
+            most_recent_stored_sample_count=None,
+            stored_sample_recency_decay_factor=None,
         )
         training_sample_store = training_arguments["training_sample_store"]
         assert [

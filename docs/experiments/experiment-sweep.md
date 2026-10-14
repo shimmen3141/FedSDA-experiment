@@ -35,6 +35,7 @@ python run_experiment_sweep.py \
 | `--output-directory` | 出力先（再開のときに指定する。`--study`とは同時に使えない） | `results/<研究の問い>/<開始時刻>_<ラベル>`（`--study`が無ければ`results/<開始時刻>_<ラベル>`） |
 | `--study` | 研究の問いの名前（出力先の1段目） | なし |
 | `--label` | 出力先を省略したときの、ディレクトリ名のラベル（`/`・`\`・`:`と、Windowsでファイル名に使えない文字を含まない名前） | `sweep` |
+| `--fedsda-training-sample-selections` | FedSDAの構成の、保有モデルの学習batchの抜き出し方（複数可。下の「学習batchの抜き出し方」）。FedSDAの構成を選んだときだけ | `uniform`だけ |
 | `--purpose` | この実験の目的（1行）。実行するときは必須。`README.md`と実行の記録に書く | 必須（`--print-plan`では不要） |
 | `--print-plan` | 計画のrunと、出力先にある済んだrunを表示するだけ。何も実行せず、何も作らない | — |
 
@@ -50,6 +51,18 @@ python run_experiment_sweep.py \
   未commitの変更の有無、基準版、結論の欄）。既にあれば変えない（人が書いた結論を消さないため。各回の目的は、実行の記録に残る）。
   基準版の違う済んだrunで止まるときは、READMEも作らない。
 - 実験を始めたら、[実験の台帳](experiment-log.md)に1行足し、結論が出たら、台帳とREADMEの結論に、判断の記録への参照を書く。
+
+## 学習batchの抜き出し方（FedSDA）
+
+FedSDAの保有モデルは、割り当てた全部の標本を保存し、学習要求ごとにbatch（32件）を抜き出す。抜き出し方は、`--fedsda-training-sample-selections`で並べて比べられる（FedSDAの構成ごとに、書いた数だけrunが増える。FedDrift・FedAvgは増えない）。
+
+| 書き方 | 意味 |
+|---|---|
+| `uniform` | 全部の標本から一様に（既定） |
+| `recent:<K>` | 直近K件から一様に（Kは正の整数で、batchの件数32以上。列がK件未満なら全部から） |
+| `decay:<α>` | 新しい標本ほど選ばれやすく（重複なしに1件ずつ、まだ選んでいない位置の中で、末尾からa件前の位置がαのa乗に比例して選ばれる。αは`0.`に続く数字で書く。影響が届く範囲の目安は約1/(1−α)件: 0.99で約100件、0.997で約330件、0.999で約1000件） |
+
+例: `--fedsda-training-sample-selections uniform recent:300 decay:0.997`。`recent:0300`・`decay:.5`・`decay:1e-3`のような書き方は拒否する（引数の誤り）。新しさは、保存した順で測る（モデルの統合の直後は、保存の順が観測の順と一致しないことがある）。一覧の表の`training_sample_selection`の列に、runの抜き出し方が入る（この項目を持たない前の結果は空の欄）。[spec](../../.kiro/specs/held-model-training-sample-recency/design.md)、背景は[研究バックログの7](../research/research-backlog.md)。
 
 ## 途中で止まったとき
 

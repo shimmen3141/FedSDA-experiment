@@ -248,6 +248,9 @@ def test_joint_model_parameter_update_matches_legacy(
         local_training_settings = LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+            training_sample_selection_policy="uniform_over_all_stored_samples",
+            most_recent_stored_sample_count=None,
+            stored_sample_recency_decay_factor=None,
         )
         for _ in range(3):
             expected_joint_loss = run_legacy_joint_update(
@@ -331,6 +334,9 @@ def test_joint_model_parameter_update_observes_operation_order(update_shared_fea
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+            training_sample_selection_policy="uniform_over_all_stored_samples",
+            most_recent_stored_sample_count=None,
+            stored_sample_recency_decay_factor=None,
         ),
         shared_feature_extractor=participating_training_batches[0].classifier.feature_extractor,
         shared_parameter_optimizer=shared_parameter_optimizer,
@@ -484,6 +490,9 @@ def test_joint_model_parameter_update_rejects_invalid_inputs_before_mutation(
     local_training_settings = LocalTrainingSettings(
         local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
         shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        training_sample_selection_policy="uniform_over_all_stored_samples",
+        most_recent_stored_sample_count=None,
+        stored_sample_recency_decay_factor=None,
     )
     invalid_inputs = dict(
         local_training_settings=local_training_settings,
@@ -733,6 +742,9 @@ def test_joint_model_parameter_update_empty_participation_preserves_state(monkey
     local_training_settings = LocalTrainingSettings(
         local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
         shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        training_sample_selection_policy="uniform_over_all_stored_samples",
+        most_recent_stored_sample_count=None,
+        stored_sample_recency_decay_factor=None,
     )
     perform_joint_model_parameter_update(
         local_training_settings=local_training_settings,
@@ -822,6 +834,9 @@ def test_joint_model_parameter_update_without_shared_parameters(
     local_training_settings = LocalTrainingSettings(
         local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
         shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        training_sample_selection_policy="uniform_over_all_stored_samples",
+        most_recent_stored_sample_count=None,
+        stored_sample_recency_decay_factor=None,
     )
     assert tuple(classifier.feature_extractor.parameters()) == ()
     for _ in range(2):
@@ -911,6 +926,9 @@ def test_joint_model_parameter_update_accepts_soft_binary_labels_and_noncontiguo
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+            training_sample_selection_policy="uniform_over_all_stored_samples",
+            most_recent_stored_sample_count=None,
+            stored_sample_recency_decay_factor=None,
         ),
         shared_feature_extractor=participating_training_batches[0].classifier.feature_extractor,
         shared_parameter_optimizer=shared_parameter_optimizer,
@@ -951,6 +969,9 @@ def test_joint_model_parameter_update_accepts_ordered_multiple_optimizer_groups(
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+            training_sample_selection_policy="uniform_over_all_stored_samples",
+            most_recent_stored_sample_count=None,
+            stored_sample_recency_decay_factor=None,
         ),
         shared_feature_extractor=participating_training_batches[0].classifier.feature_extractor,
         shared_parameter_optimizer=shared_parameter_optimizer,
@@ -987,6 +1008,9 @@ def test_joint_model_parameter_update_preserves_frozen_shared_optimizer_state(
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+            training_sample_selection_policy="uniform_over_all_stored_samples",
+            most_recent_stored_sample_count=None,
+            stored_sample_recency_decay_factor=None,
         ),
         shared_feature_extractor=participating_training_batches[0].classifier.feature_extractor,
         shared_parameter_optimizer=shared_parameter_optimizer,
@@ -1103,6 +1127,9 @@ def test_joint_model_parameter_update_preserves_environment_and_borrowed_inputs(
                 local_training_settings=LocalTrainingSettings(
                     local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
                     shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+                    training_sample_selection_policy="uniform_over_all_stored_samples",
+                    most_recent_stored_sample_count=None,
+                    stored_sample_recency_decay_factor=None,
                 ),
                 shared_feature_extractor=participating_training_batches[
                     0

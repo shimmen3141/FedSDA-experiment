@@ -5726,6 +5726,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.sweep.experiment_sweep_execution.THREAD_COUNT_ENVIRONMENT_VARIABLE_NAMES",
             "federated_learning_experiments.sweep.experiment_sweep_execution.ExperimentRunOutcome",
             "federated_learning_experiments.sweep.experiment_sweep_plan.ExperimentSweepPlan",
+            "federated_learning_experiments.sweep.experiment_sweep_plan.describe_fedsda_training_sample_selection",
         )
     if source_module_path == "sweep/experiment_sweep_execution.py":
         return imported_module_name in (
@@ -6897,12 +6898,20 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "__future__.annotations",
             "random",
             "random.Random",
+            # 指数減衰の抜き出し（区間の重みの和と逆関数、選んだ位置の昇順の列）。
+            "bisect",
+            "bisect.insort",
+            "math",
+            "math.floor",
+            "math.log",
             "torch",
             "torch.Tensor",
             "torch.cat",
             "torch.isfinite",
             "torch.float32",
             "torch.strided",
+            "federated_learning_experiments.learning.training.local_training_settings",
+            "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
             "federated_learning_experiments.learning.training.model_training_sample_records",
             "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
             "federated_learning_experiments.learning.training.model_training_sample_records.ModelTrainingSampleCollection",
@@ -8955,7 +8964,12 @@ def test_single_run_layers_import_only_allowed_dependencies():
                 "learning/training/held_model_training_batch_sampling.py",
             )
             for source_text, expected_imported_module_name in (
-                ("import math", "math"),
+                # 抜き出しは、mathの`floor`・`log`だけを使う（mathのほかの名前は禁止のまま）。
+                (
+                    ("import math", "math")
+                    if source_module_path == "learning/training/model_training_sample_records.py"
+                    else ("from math import exp", "math.exp")
+                ),
                 ("import numpy", "numpy"),
                 ("import torch._C", "torch._C"),
                 ("import torch.optim", "torch.optim"),

@@ -167,6 +167,9 @@ def pretrain_initial_model(
     local_training_settings = LocalTrainingSettings(
         local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
         shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+        training_sample_selection_policy="uniform_over_all_stored_samples",
+        most_recent_stored_sample_count=None,
+        stored_sample_recency_decay_factor=None,
     )
     batch_sample_count = initial_model_pretraining_settings.pretraining_batch_sample_count
     for _ in range(initial_model_pretraining_settings.pretraining_epoch_count):

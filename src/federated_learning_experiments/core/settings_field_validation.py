@@ -2,7 +2,8 @@
 
 from dataclasses import fields
 from math import isfinite
-from typing import get_type_hints
+from types import NoneType, UnionType
+from typing import Union, get_args, get_origin, get_type_hints
 
 from federated_learning_experiments.core.configuration_errors import (
     RunSettingsValidationError,
@@ -17,6 +18,20 @@ def validate_settings_field_values(settings_instance: object) -> None:
         settings_field_type = get_type_hints(type(settings_instance))[configuration_parameter_name]
         specified_parameter_value = getattr(settings_instance, configuration_parameter_name)
         settings_field_metadata = settings_field.metadata
+        # `int | None`・`float | None`は、Noneなら通し、Noneでなければ`int`・`float`と同じに検査する。
+        if get_origin(settings_field_type) in (Union, UnionType):
+            union_member_types = get_args(settings_field_type)
+            non_none_member_types = tuple(
+                member_type for member_type in union_member_types if member_type is not NoneType
+            )
+            if (
+                len(union_member_types) == 2
+                and len(non_none_member_types) == 1
+                and non_none_member_types[0] in (int, float)
+            ):
+                settings_field_type = non_none_member_types[0]
+                if specified_parameter_value is None:
+                    continue
         if settings_field_type not in (str, int, float):
             raise TypeError(
                 f"設定項目 {configuration_parameter_name!r} の宣言型 "

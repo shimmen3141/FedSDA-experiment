@@ -8,10 +8,13 @@
 ここでの検査は、その後に標本が書き換えられた場合の、使う時点での防御である。
 """
 
+from bisect import insort
+from math import floor, log
 from random import Random
 
 from torch import Tensor, cat, float32, isfinite, strided
 
+from .local_training_settings import LocalTrainingSettings
 from .model_training_sample_records import (
     ModelTrainingSampleCollection,
     ObservedTrainingSample,
@@ -103,16 +106,98 @@ def _validate_sampling_request(
     return tuple(eligible_model_training_samples)
 
 
+def _validate_training_sample_selection(
+    *, local_training_settings: LocalTrainingSettings | None, batch_sample_count: int
+) -> None:
+    """抜き出し方の設定を、乱数を進める前に、対象のモデルの有無に依らず確かめる（凍結を迂回した値も拒否する）。"""
+    if local_training_settings is None:
+        return
+    if type(local_training_settings) is not LocalTrainingSettings:
+        raise ValueError("local_training_settingsはexact LocalTrainingSettingsかNoneが必要です。")
+    policy = local_training_settings.training_sample_selection_policy
+    most_recent_count = local_training_settings.most_recent_stored_sample_count
+    decay_factor = local_training_settings.stored_sample_recency_decay_factor
+    if policy == "uniform_over_most_recent_stored_samples":
+        if type(most_recent_count) is not int or most_recent_count < batch_sample_count:
+            raise ValueError("直近K件のKは、bool以外のbuiltin intで、batchの件数以上が必要です。")
+    elif policy == "recency_decayed_stored_samples":
+        if type(decay_factor) is not float or not 0.0 < decay_factor < 1.0:
+            raise ValueError("指数減衰のαは、0より大きく1より小さいbuiltin floatが必要です。")
+    elif policy != "uniform_over_all_stored_samples":
+        raise ValueError(f"未知の抜き出し方です: {policy!r}")
+
+
+def _sample_recency_decayed_positions(
+    *, population_size: int, sample_count: int, decay_factor: float, python_random_generator: Random
+) -> list[int]:
+    """末尾からa件前（a=0が最新）を、未選択の位置の中でαのa乗に比例する条件付き確率で、重複なしに選ぶ。
+
+    選んだ位置で区切られた区間ごとの重みの和を閉じた式で求め、1件あたり`random()`を1回だけ使う。手数は、
+    選んだ件数に比例し、列の長さに依らない。重みは、まだ選んでいない最新の位置を1とする相対値で扱うので、
+    αが極端に小さくても、全体の和は0にならない。戻り値は、列の位置（0が最古）を、選んだ順に並べたもの。
+    """
+    selected_ages: list[int] = []
+    selected_positions: list[int] = []
+    for _ in range(sample_count):
+        # 未選択の範囲を、選んだ位置で区切られた区間[start, end)の列にする（新しい順。長さ0の区間は作らない）。
+        intervals: list[tuple[int, int]] = []
+        interval_start = 0
+        for selected_age in selected_ages:
+            if interval_start < selected_age:
+                intervals.append((interval_start, selected_age))
+            interval_start = selected_age + 1
+        if interval_start < population_size:
+            intervals.append((interval_start, population_size))
+        newest_unselected_age = intervals[0][0]
+        interval_weights = []
+        for start, end in intervals:
+            start_weight = decay_factor ** (start - newest_unselected_age)
+            interval_weights.append(
+                start_weight * (1.0 - decay_factor ** (end - start)) / (1.0 - decay_factor)
+            )
+        remaining_weight = python_random_generator.random() * sum(interval_weights)
+        chosen_age = None
+        for (start, end), interval_weight in zip(intervals, interval_weights, strict=True):
+            if interval_weight <= 0.0:
+                continue
+            if remaining_weight < interval_weight:
+                start_weight = decay_factor ** (start - newest_unselected_age)
+                inverse_argument = 1.0 - remaining_weight * (1.0 - decay_factor) / start_weight
+                distance = (
+                    floor(log(inverse_argument) / log(decay_factor))
+                    if inverse_argument > 0.0
+                    else end - start - 1
+                )
+                chosen_age = start + min(max(distance, 0), end - start - 1)
+                break
+            remaining_weight -= interval_weight
+        if chosen_age is None:
+            # 丸めで、どの区間でも止まらなかった: 和が正の最後の区間の、最後の位置。
+            start, end = next(
+                interval
+                for interval, interval_weight in reversed(
+                    tuple(zip(intervals, interval_weights, strict=True))
+                )
+                if interval_weight > 0.0
+            )
+            chosen_age = end - 1
+        insort(selected_ages, chosen_age)
+        selected_positions.append(population_size - 1 - chosen_age)
+    return selected_positions
+
+
 def sample_training_batches_for_held_models(
     *,
     held_model_ids: frozenset[int],
     ordered_model_training_samples: tuple[ModelTrainingSampleCollection, ...],
     batch_sample_count: int,
     python_random_generator: Random,
+    local_training_settings: LocalTrainingSettings | None = None,
 ) -> tuple[SampledModelTrainingBatch, ...]:
     """入れ物の検証後、借用Randomを参加順に一回ずつ進め、抽出した標本の中身を検証する。
 
     抽出した標本が不正なら、借用Randomの状態を、呼出しの前へ戻して、拒否する。
+    `local_training_settings`の抜き出し方（省略か既定なら、全部の標本から一様。今と同じ乱数の使い方）で抜き出す。
     """
     eligible_model_training_samples = _validate_sampling_request(
         held_model_ids=held_model_ids,
@@ -120,13 +205,46 @@ def sample_training_batches_for_held_models(
         batch_sample_count=batch_sample_count,
         python_random_generator=python_random_generator,
     )
+    # 抜き出し方は、乱数を進める前に、対象のモデルの有無に依らず確かめる。
+    _validate_training_sample_selection(
+        local_training_settings=local_training_settings,
+        batch_sample_count=batch_sample_count,
+    )
+    # 設定の検査で、直近K件ならKだけ、指数減衰ならαだけが値を持つ（全履歴ならどちらもNone）。
+    most_recent_count = (
+        None
+        if local_training_settings is None
+        else local_training_settings.most_recent_stored_sample_count
+    )
+    decay_factor = (
+        None
+        if local_training_settings is None
+        else local_training_settings.stored_sample_recency_decay_factor
+    )
     random_state_before_sampling = python_random_generator.getstate()
     sampled_model_training_batches = []
     try:
         for collection_index, model_training_samples in eligible_model_training_samples:
-            sampled_training_samples = python_random_generator.sample(
-                model_training_samples.training_samples, batch_sample_count
-            )
+            training_samples = model_training_samples.training_samples
+            if most_recent_count is not None:
+                # 直近K件（列がK件未満なら、全部）から一様に。
+                sampled_training_samples = python_random_generator.sample(
+                    training_samples[-most_recent_count:], batch_sample_count
+                )
+            elif decay_factor is not None:
+                sampled_training_samples = [
+                    training_samples[position]
+                    for position in _sample_recency_decayed_positions(
+                        population_size=len(training_samples),
+                        sample_count=batch_sample_count,
+                        decay_factor=decay_factor,
+                        python_random_generator=python_random_generator,
+                    )
+                ]
+            else:
+                sampled_training_samples = python_random_generator.sample(
+                    training_samples, batch_sample_count
+                )
             expected_input_feature_count = None
             for training_sample in sampled_training_samples:
                 expected_input_feature_count = _validate_observed_training_sample(

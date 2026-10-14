@@ -493,6 +493,9 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+            training_sample_selection_policy="uniform_over_all_stored_samples",
+            most_recent_stored_sample_count=None,
+            stored_sample_recency_decay_factor=None,
         ),
         shared_feature_extractor=classifiers[7].feature_extractor,
         shared_parameter_optimizer=ParameterOptimizerState(
@@ -1125,6 +1128,9 @@ def run_assembled_client_flow(*, class_count):
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
+            training_sample_selection_policy="uniform_over_all_stored_samples",
+            most_recent_stored_sample_count=None,
+            stored_sample_recency_decay_factor=None,
         ),
         local_training_schedule_settings=LocalTrainingScheduleSettings(
             training_requests_per_update_interval=2,
