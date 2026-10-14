@@ -19,7 +19,7 @@
   - 実験の入口の文書、基準の文書、IMPROVE-006の記録と一覧、LEGACY-016の記録、再開案内、比較scriptの説明の文。
   - _Requirements: 4.1_
 
-- [ ] 5. 実装レビューと最終検証
+- [x] 5. 実装レビューと最終検証
   - 独立CLIの実装レビュー、指摘の反映、全pytest・Ruff・Pyright・WSLの対象testを通す。
   - _Requirements: 全部_
 
@@ -38,3 +38,10 @@
 - task 3（版5の定義）: 版5の全19ケースを、生成の前に、版4と比べて実行した（Windows）。事象が0の16ケースは、版4と同じ値（ADWINの2構成を含む）。事象のある3ケース（sine2）は、差がある。設計からの変更: 版5で、`fedsda-sine2-alternative-reference-reuse`が第2区間の差の不足の判定を通らなくなり、代わりに`fedsda-sine2-reference-reuse`が、別の保有モデルの再利用と第2区間の差の不足の両方を、再び通った。必須の経路は、版5でも全部どれかのケースが受け持つので、seedのケースを足さずに、版5の必須の経路の割り当てを合わせた（設計に書いた）。WSLの生成で、`fedsda-sine2-alternative-reference-reuse`が、版5で再利用の経路も通らなかった（Windowsでは通った。数値の環境の違い）。両方の経路を`fedsda-sine2-reference-reuse`が両方の環境で通るので、`alternative`のケースには、版5で経路の必須を課さない形に改め、sourceをcommitし直して、両方の環境で生成し直した。
 - 基準版5の生成（source `2995689`、commit `5d3a425`）: Windowsの基準環境とWSLで生成し、19ケースを`behavior_regression_goldens/v5/`へ置いた後に、現在の版を5へ替えた。照合: Windows 204 passed（goldenのtestの全体）、WSL 219 passed（goldenのtest、このspecのtest、待つ登録のspecのtest）。研究室サーバ用は、対象外。
 - task 4（文書）: 実験の入口の文書、基準の文書（版4の明示、版5）、IMPROVE-006の記録と一覧（採用、既定）、LEGACY-016の記録、再開案内、比較scriptの説明の文を更新した。
+- 実装レビュー（独立CLI、Claude Haiku 5.5、effort medium、session `2e31df27-85d3-4ab1-a149-1218485c444b`、対象 `b71051c..cd78d32`。選んだ理由: 既定の変更と版の差の事象の論証なので、Haiku）: `IMPLEMENTATION: APPROVED`（Blocker・Majorなし。Minor 3、任意4）。独立の実行: 対象4ファイル 3157 passed、goldenのtest 204 passed、構成の派生のADWINの実旧との照合 16 passed、Ruff、fresh 16 flows、作業ツリーの変更なし。採否:
+  - Minor 1（基準の文書の「現在の既定は版3」）・Minor 2（goldenのhelperの、版2〜4の注記）・Minor 3（版5の説明の抜け）: 採用。
+  - 任意4（基準の文書の`baseline_version`の「現在は1」）・任意5（LEGACY-016の記録の「修正」の節に、当時の記録である注記）・任意6（比較scriptで、引数なしの`off`が既定と違うこと）: 採用。
+  - 任意7（版5の2つの経路を、1つのケースが受け持つ）: 採用しない（記録済み。経路が落ちれば、必須の経路の検査で気づける）。
+- 最終検証（Windows、`cd78d32`、`-n 12 --dist loadfile`）: 全pytest 14128 passed / 8 skipped、exit 0（JUnit: `../../venv/refactoring-tests/default-case-y-full.xml`）。Ruff・Pyright成功。WSL（`5d3a425`）: goldenのtest（版1〜5）、このspecと待つ登録のspecのtestで219 passed。レビューの指摘の修正（コメントと文書だけ）の後は、Ruffで確かめた。
+- 完了の判断: FedSDAの既定は案Y。ADWINの2構成は即時の警報。基準版1〜4と実旧との照合は、値を変えずに通る。基準版5と版4の差は、版4の扱いで警報を待つ場面が起きるsine2の3ケースに限る。
+- 未検証・残る事項: 研究室サーバ（Linuxの基準環境）での基準版の照合は、未実施。

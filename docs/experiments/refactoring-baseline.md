@@ -237,7 +237,7 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 
 | 項目 | 意味 | 変更する場合 |
 | --- | --- | --- |
-| `baseline_version` | 期待する動作の基準。現在は1 | LEGACY/IMPROVEなどで期待値を意図的に変えるとき |
+| `baseline_version` | 期待する動作の基準。現在は5 | LEGACY/IMPROVEなどで期待値を意図的に変えるとき |
 | `schema_version` | このgolden JSONの形式。現在は1 | snapshotの記録形式を変えるとき |
 | `environment` | OS・機種・Python/NumPy/torch・CPU/dtype/thread | 同じ動作基準を別環境で検証するとき |
 | `source_commit` | 生成した生産コードの来歴 | 新しい基準や環境別goldenを生成するとき |
@@ -254,7 +254,7 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 
 版1・2は、短い警報のあとの保留の扱いも、固定旧と同じ値（`keep_all_pending_samples`）へ替えて実行する（保存した設定は、この項目も持たない）。版3と版2の差は、版2の扱いで、前区間のある短い警報が起きるケース（`fedsda-sine2-events`と`fedsda-sine2-reference-reuse`。同じ標本の2回目の取込みが、Windowsの基準環境で、487件と467件）に限る。ほかの16ケースは、版2と同じであることを、testが確かめる。版3の、FedSDAのケースの結果は、「同じ標本の2回目の取込みの数」（0であること）も持つ。
 
-版4と版3の差は、版3の扱いで、待ちの間に現行でない送信保留がある（後に同期が続く待ちの進行の時点か、登録の確認の時点）ケース（`fedsda-sine2-events`の4件と`fedsda-sine2-reference-reuse`の1件。Windowsの基準環境）に限る。ほかの16ケースは、版3と同じであることを、testが確かめる。`fedsda-sine2-reference-reuse`（seed 4）は、版4では、別の保有モデルの再利用の判定を通らなくなるので、その経路は、版4で足した`fedsda-sine2-alternative-reference-reuse`（同じ設定で、seedが5）が守る（版4だけのケース。版3のgoldenは変えない）。版2・3は、登録の扱いを`register_each_pending_model_by_its_own_id`に明示して組み立てる（helperの「版の後に、既定の値が変わった項目」の表。既定は、2026-10-14に一度変わり、同日に戻った。現在の既定は、版3の扱い）。版4は、現行モデルとして待った後に登録する扱いを、同じ表で明示する。
+版4と版3の差は、版3の扱いで、待ちの間に現行でない送信保留がある（後に同期が続く待ちの進行の時点か、登録の確認の時点）ケース（`fedsda-sine2-events`の4件と`fedsda-sine2-reference-reuse`の1件。Windowsの基準環境）に限る。ほかの16ケースは、版3と同じであることを、testが確かめる。`fedsda-sine2-reference-reuse`（seed 4）は、版4では、別の保有モデルの再利用の判定を通らなくなるので、その経路は、版4で足した`fedsda-sine2-alternative-reference-reuse`（同じ設定で、seedが5）が守る（版4だけのケース。版3のgoldenは変えない）。版2・3は、登録の扱いを`register_each_pending_model_by_its_own_id`に明示して組み立てる（helperの「版の後に、既定の値が変わった項目」の表。既定は、2026-10-14に一度変わって戻り、同日に、さらに案Yへ変わった。現在の既定は、版5の扱い）。版4は、現行モデルとして待った後に登録する扱いを、同じ表で明示する。
 
 版5と版4の差は、版4の扱いで、警報を待つ場面（警報が上がり、保留の件数と推定変化区間の小さい方が、最小件数より短い）が起きるケース（sine2の3ケース。Windowsで10件・16件・16件）に限る。ADWINの2構成は、版4・5とも即時の警報なので、同じ値。ほかの16ケースも、版4と同じであることを、testが確かめる。版5では、別の保有モデルの再利用と第2区間の差の不足の経路を、`fedsda-sine2-reference-reuse`が受け持つ（`fedsda-sine2-alternative-reference-reuse`は、環境によって、どちらの経路も通らないことがあるので、版5では経路の必須を課さない）。
 
