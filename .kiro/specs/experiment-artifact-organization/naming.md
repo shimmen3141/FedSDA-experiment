@@ -6,6 +6,8 @@
 |---|---|---|
 | `collect_behavior_baseline_mismatch_descriptions` | `sweep/experiment_sweep_execution.py` | 計画のrunのうち、出力先の済んだrunの基準版が今と違うものの理由を、計画の順で集める（何も変えない） |
 | `validate_plain_directory_name` | `sweep/experiment_sweep_command.py` | 研究の問い・ラベルが、1段のディレクトリ名として使えるかを確かめる |
+| `validate_experiment_purpose` | `sweep/experiment_sweep_command.py` | 目的（`--purpose`）を確かめ、前後の空白を除いて返す（無い・空白だけ・改行を含むものは拒否）。掃引のコマンドと比較scriptで共用する |
+| `report_experiment_readme` | `sweep/experiment_sweep_command.py` | READMEを作ったか、既にあって変えなかったかを表示する。掃引のコマンドと比較scriptで共用する（READMEを書くのは`write_experiment_readme`） |
 | `write_experiment_readme` | `sweep/experiment_sweep_records.py` | 結果のディレクトリに、目的と出どころを書いた`README.md`を、無ければ作る |
 | `BEHAVIOR_FIX_COMPARISON_STUDY_NAME` | 直下の`run_behavior_fix_comparison.py` | 比較scriptの研究の問いの名前（`behavior-fix-comparison`） |
 | `--study`・`--purpose`・`--label`・`--stdout` | コマンドの引数 | 研究の問い、目的、ディレクトリ名のラベル、分析の結果を標準出力へ出す |

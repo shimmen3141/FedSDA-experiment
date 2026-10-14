@@ -4,6 +4,7 @@ import csv
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from dataclasses import FrozenInstanceError, replace
@@ -1469,7 +1470,7 @@ def test_command_places_results_under_the_study_with_a_readme(tmp_path, monkeypa
         "- 研究の問い: question",
         f"- 作成の日時: {record['started_at']}",
         f"- 期待する動作の基準版: {BEHAVIOR_BASELINE_VERSION}",
-        " ".join(record["command_arguments"]),
+        shlex.join(record["command_arguments"]),
         "## 結論",
     ):
         assert expected_line in readme_text
@@ -1544,6 +1545,17 @@ def test_experiment_readme_is_written_once_and_validates_arguments(tmp_path):
     readme_file_path = write_experiment_readme(**arguments)
     assert readme_file_path == tmp_path / "README.md"
     assert "- 研究の問い: なし" in readme_file_path.read_text(encoding="utf-8")
+    # 空白を含む引数も、貼り直せる形で書く。
+    spaced_directory = tmp_path / "spaced"
+    spaced_directory.mkdir()
+    spaced_readme_file_path = write_experiment_readme(
+        **{
+            **arguments,
+            "output_directory": spaced_directory,
+            "command_arguments": ("--purpose", "a b"),
+        }
+    )
+    assert "--purpose 'a b'" in spaced_readme_file_path.read_text(encoding="utf-8")
     assert write_experiment_readme(**{**arguments, "purpose": "other"}) is None
     assert "other" not in readme_file_path.read_text(encoding="utf-8")
     for changed_arguments, error_type in (

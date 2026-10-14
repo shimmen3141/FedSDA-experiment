@@ -5700,6 +5700,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_records.py":
         return imported_module_name in (
+            "shlex.join",
             "typing.cast",
             "federated_learning_experiments.core.run_provenance.BEHAVIOR_BASELINE_VERSION",
             "federated_learning_experiments.core.run_provenance.RunProvenance",

@@ -30,4 +30,4 @@
 | 日付 | 研究の問い / 結果 | 目的 | 規模 | コード | 結論の参照 |
 |---|---|---|---|---|---|
 | 2026-10-13〜14 | behavior-fix-comparison / `results/behavior-fix-comparison`（このしくみより前の平らな形。3回の実行が同じ場所にある） | LEGACY-016（登録）・LEGACY-002（短い警報）の修正と、IMPROVE-006（警報を待つ）の、精度・通信量への影響を、同じ条件・同じseedで比べる | 提案構成、6データ（sea2・sea4・circle2・sine2・mnist2・mnist4）、seed 0〜9、集約間隔50・200。2026-10-13: 登録legacy・fixed×短い警報legacy・fixed（480 run）。2026-10-14: 登録waited-as-current×短い警報legacy・fixed（240 run）、登録waited-as-current×短い警報fixed×警報を待つon（120 run） | c577e52e2fe9（10-13）、ad5231049df1（10-14の2回）。基準版は記録なし（runの要約も来歴を持たない） | [LEGACY-016の記録](../research/implementation-findings/legacy-016-registration-id-consumed-without-model.md)の「本規模の比較と、扱いの見直し」「seedを増やした比較と、既定を全部登録へ戻した判断」「本規模の比較（待つ登録と待つ警報を含む8通り）と、案Yの判断」 |
-| 2026-10-14 | behavior-fix-comparison / 未確認（上の出力先の記録に無い） | 全部登録の下で、警報を待つ扱いの効果を比べる（上の8通りの残りの1つ） | 登録fixed×短い警報fixed×警報を待つon、上と同じ条件（120 run） | 未確認 | 上と同じ |
+| 未確認 | behavior-fix-comparison / 記録なし（上の出力先の記録に無い） | 全部登録の下で、警報を待つ扱いの効果を比べる | 登録fixed×短い警報fixed×警報を待つon（LEGACY-016の記録の「8通り」に含まれるが、実行の記録が見つかっていない。実施の有無と場所を確認する） | 記録なし | 上と同じ |

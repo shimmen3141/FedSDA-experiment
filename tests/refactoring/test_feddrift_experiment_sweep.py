@@ -2,6 +2,7 @@
 
 import csv
 import json
+import os
 import subprocess
 import sys
 from dataclasses import replace
@@ -496,6 +497,8 @@ def test_real_cli_help_and_spawn_execution(tmp_path):
         text=True,
         encoding="utf-8",
         timeout=60,
+        # 日本語のhelpを、端末の文字コードに依らず、UTF-8で受け取る。
+        env={**os.environ, "PYTHONUTF8": "1"},
     )
     assert help_result.returncode == 0, help_result.stderr
     assert (
@@ -512,6 +515,7 @@ def test_real_cli_help_and_spawn_execution(tmp_path):
         text=True,
         encoding="utf-8",
         timeout=90,
+        env={**os.environ, "PYTHONUTF8": "1"},
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "completed: 2" in result.stdout

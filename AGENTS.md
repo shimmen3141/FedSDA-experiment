@@ -69,8 +69,9 @@
 
 ## 実験成果物と重複確認
 
-- 新実装の実験（`run_experiment_sweep.py`・`run_behavior_fix_comparison.py`）は、`--study`（研究の問い）・`--label`・
-  `--purpose`（目的。必須）を指定し、結果を`results/<研究の問い>/<開始時刻>_<ラベル>/`へ置く。始めたら
+- 新実装の実験（`run_experiment_sweep.py`・`run_behavior_fix_comparison.py`）は、`--purpose`（目的。必須）と`--label`を指定し、
+  結果を`results/<研究の問い>/<開始時刻>_<ラベル>/`へ置く（研究の問いは、掃引では`--study`で指定し、比較scriptでは
+  `behavior-fix-comparison`に固定）。始めたら
   `docs/experiments/experiment-log.md`の台帳に1行足し、結論が出たら、台帳と結果の`README.md`に判断の記録への参照を書く。
   分析の出力は、入力のディレクトリの`analysis_*.md`（分析scriptが作る）を使い、標準出力を連番のファイルへ移さない。
 - 長い条件を成果物ファイル名へ埋め込まない。`run_pareto_sweep.py`が短い内容ハッシュ名を生成し、

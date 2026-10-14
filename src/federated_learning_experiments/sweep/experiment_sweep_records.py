@@ -7,6 +7,7 @@ from json import dumps, loads
 from os import environ, getpid, replace
 from pathlib import Path
 from platform import machine, python_version, system
+from shlex import join as join_shell_arguments
 from subprocess import run
 from typing import cast
 
@@ -317,7 +318,7 @@ def write_experiment_readme(
             "## コマンドの引数",
             "",
             "```",
-            " ".join(command_arguments),
+            join_shell_arguments(command_arguments),
             "```",
             "",
             "## 結論",
