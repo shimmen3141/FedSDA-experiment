@@ -189,3 +189,8 @@ FedDriftは、旧実装の基準値（`results/baselines/feddrift`、変化の�
 #### 判断（2026-10-14、ユーザー）
 
 案Y（待つ登録＋002を直した側＋待つ警報）を既定にする。「作ったclientですぐ外れたモデルは共有に値しない」という当初の仮説は成り立たなかったので、待つ登録の根拠は、仮説ではなく、比較で確かめた通信量と精度の引き換えの選択とする（精度の差は、sine2を除いて有意でなく、通信量は全データで少ない）。配布の仕方で通信量を減らす案は、研究バックログの6で、別の研究課題として扱う。
+
+#### 既定の変更（2026-10-14）
+
+[fedsda-default-waited-registration-and-alarm-wait](../../../.kiro/specs/fedsda-default-waited-registration-and-alarm-wait/tasks.md)で、最終構成の既定を案Yにした（登録`register_pending_model_after_waiting_as_current_model`、警報`wait_until_change_interval_reaches_minimum`。ADWINの2構成は、警報を即時に明示）。基準版5を足した（版4との差は、版4の扱いで、警報を待つ場面が起きるsine2の3ケースに限る）。全部登録の扱い（基準版2・3）と、旧と同じ扱いは、設定で選べる。
+

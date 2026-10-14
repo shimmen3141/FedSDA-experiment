@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-14（LEGACY-016の扱いを見直し、送信保留を現行モデルとして待った後に登録する扱いを実装した。手元の比較で精度がわずかに下がったので、既定は全部登録へ戻した。研究室サーバでの比較は、ユーザーが実行中。それまでの経緯は下の箇条）。
+更新: 2026-10-14（FedSDAの既定を案Y——現行モデルとして待った後に登録＋短い警報のあと前区間を外す＋最小件数まで警報を待つ——にした。[fedsda-default-waited-registration-and-alarm-wait](../specs/fedsda-default-waited-registration-and-alarm-wait/tasks.md)。基準版5を追加。次は、実験の成果物の管理の改善——runのファイルにコードの版を残し、済んだrunの判定に使う——のspec。それまでの経緯は下の箇条）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 
@@ -19,6 +19,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 - **IMPROVE-013も完了**（[adahedge-weight-evidence-owner-separation](../specs/adahedge-weight-evidence-owner-separation/tasks.md)。証拠は同specのtasks.md）。AdaHedgeの証拠の部品と、全標本の証拠のowner（`AllSampleAdaHedgeWeightEvidenceHolder`）は、手法の層（`methods/fedsda/prediction_combination/`）。真の概念別の診断用の証拠のowner（`TrueConceptAdaHedgeDiagnosticEvidenceCollection`）は、評価の層。値は変えていない。LEGACY-005（クラス統計の説明）も、新実装の説明へ書いた。残る整理は、IMPROVE-014（adapterを持たない構造も扱う分類器の名前。共有部を持たない構造も含めて、名前を決める）。
 - **IMPROVE-014も完了**（[classifier-structure-independent-naming](../specs/classifier-structure-independent-naming/tasks.md)。証拠は同specのtasks.md）。分類器は`ModelArchitectureClassifier`（`learning/models/model_architecture_classifier.py`）、特徴抽出部と分類層の間の部品の属性は`model_owned_feature_transform`。パラメータ名が変わったので、重要動作のgoldenの6ファイルは、キーの名前だけを書き換えた（値は同じ。経緯は[基準の文書](../../docs/experiments/refactoring-baseline.md)）。下の履歴の中の、前の名前（`ResidualAdapterClassifier`、`residual_adapter`の属性）は、当時の記録。
 - **LEGACY-016の扱いの見直し（2026-10-14）**（[pending-model-registration-after-waiting-as-current-model](../specs/pending-model-registration-after-waiting-as-current-model/tasks.md)。証拠は同specのtasks.md）。本規模の比較（2026-10-13、480 run）で、全部登録の扱いは、通信量の増加に見合う精度の改善が無かったので、ユーザーの判断で、現行モデルとして送信までの待ちを終えたモデルだけを登録する扱い（`register_pending_model_after_waiting_as_current_model`）を実装し、一度既定にした。同日、手元の計測（5データ、44 seedの対）で、精度がわずかに下がり、早く共有したモデルの約7割がほかのclientで再利用されていたので、既定を全部登録へ戻した（この扱いは設定で選べる。基準版4が、この扱いを明示して照合する）。配布の仕方で通信量を減らす案は、研究バックログの6へ記録した。基準版4を足した。仕様レビューは9回で、9回目のMajorを直した後、ユーザーの承認で10回目を受けずに実装へ進んだ（手順の逸脱。tasks.md）。研究室サーバでの本規模の比較（新しい既定×短い警報の2水準、と警報を待つ扱い。360 run）は、実装レビューと全pytestの後に、ユーザーが実行する（コマンドは`docs/experiments/experiment-sweep.md`）。002と待つ扱いの判断は、その結果で行う。
+- **既定を案Yにした（2026-10-14、ユーザー判断）**: 本規模の比較（8通り×120 run）とFedDriftとの比較から、案Y（待つ登録＋002を直した側＋待つ警報）を既定にした。根拠はLEGACY-016の記録の末尾。ADWINの2構成は、警報を即時に明示。基準版5を足した。研究室サーバでのFedDrift・FedAvgの新実装での掃引（6データ、seed 0〜9、集約間隔50・200）は、ユーザーが実行する（約1〜2時間の見込み）。
 - **残る事項（2026-10-13時点）**: サーバでの比較の結果の読み解き（LEGACY-016・002の4通りと、IMPROVE-006の待つ扱い。待つ扱いを既定にするかは、その後に、ユーザーが決める）。旧実装を外したあとに直す候補（LEGACY-014の概念計数、LEGACY-001）。研究室サーバ用の基準版2・3のgoldenは、未作成。
 - 全pytestの高速化を入れた（2026-10-13、ユーザー決定）。全pytestは`-n 12 --dist loadfile`で約7分、作業中の確認は`-m "not slow"`を足して約3分半。配り方と印の説明は、共通引継ぎ手順の「全pytestの高速化」。
 - 採否後の変更は影響に応じた別specで扱う。固定旧748c3aaと旧goldenは維持する。新基準版1は修正前の比較に使い、意図した変更の期待差を検証してから必要な新基準版を追加する。旧実装削除やNEW-004の照合削除へ先に進まない。
