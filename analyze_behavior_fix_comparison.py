@@ -1,9 +1,14 @@
 """`run_behavior_fix_comparison.py`の結果を、同じdataset・集約間隔・seedのrunどうしの対で比べる（検証用）。
 
 使い方:
-    python analyze_behavior_fix_comparison.py <出力先> [--chains]
+    python analyze_behavior_fix_comparison.py <出力先> [--chains] [--stdout]
 
-出すもの（Markdownの表。標準出力。種類の違うデータを越えて平均した行は出さない）:
+結果は、`<出力先>/analysis_<作成日時>.md`へ書く（同じ名前があれば`_2`・`_3`…）。`--stdout`では、同じ中身を
+標準出力へ出し、ファイルを作らない。先頭に、出どころ（作成の日時、分析のコマンドの引数、分析のコードの版、入力の
+ディレクトリ、組合せごとのrun数と、入力のrunのcommit・基準版）を書く。入力のrunの基準版が揃っていなければ、
+見出しの直後に警告を書く。
+
+出すもの（Markdownの表。種類の違うデータを越えて平均した行は出さない）:
 1. datasetと集約間隔ごとの、組合せの絶対値（平均±標準偏差。runが1つなら標準偏差は「—」）。
 2. 対の差（datasetと集約間隔ごとに、同じseedのrunどうしの差の、平均±標準誤差、上がったseedの数/下がったseedの数）:
    - 登録の扱いの効果（短い警報・警報を待つ扱いを固定して、登録だけを替える。登録の水準の対の全部）
@@ -19,8 +24,15 @@
 import csv
 import math
 import sys
+from argparse import ArgumentParser
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
+
+REPOSITORY_DIRECTORY = Path(__file__).resolve().parent
+ANALYSIS_FILE_NAME_PREFIX = "analysis_"
+# 一覧の表の、入力のrunの来歴の列（`run_experiment_sweep.py`と同じ。前の形式の表には無い）。
+PROVENANCE_NOT_RECORDED = "記録なし"
 
 # 登録の水準と、短い警報の水準（`run_behavior_fix_comparison.py`と同じ）。
 REGISTRATION_LEVELS = ("legacy", "fixed", "waited-as-current")
@@ -199,12 +211,114 @@ def collect_short_alarm_chains(record_table_path):
     return chain_lengths, alarm_count
 
 
+def read_combination_provenance(output_directory, name):
+    """組合せの一覧の表の全行の、入力のrunのcommitと基準版の一覧を返す。列が無い・空なら「記録なし」。"""
+    table_path = output_directory / name / "run_summary.csv"
+    provenances = []
+    with table_path.open(encoding="utf-8", newline="") as table_file:
+        for row in csv.DictReader(table_file):
+            provenances.append(
+                (
+                    row.get("code_commit") or PROVENANCE_NOT_RECORDED,
+                    row.get("behavior_baseline_version") or PROVENANCE_NOT_RECORDED,
+                )
+            )
+    return provenances
+
+
+def describe_analysis_code_revision():
+    """分析のコードの版（commit、未commitの変更の有無、基準版）の1行。実行のときだけ、torchほかを読む。"""
+    sys.path.insert(0, str(REPOSITORY_DIRECTORY / "src"))
+    from federated_learning_experiments.sweep.experiment_sweep_records import (
+        build_run_provenance,
+    )
+
+    run_provenance = build_run_provenance(repository_directory=REPOSITORY_DIRECTORY)
+    code_commit_text = (
+        run_provenance.code_commit
+        if run_provenance.code_commit is not None
+        else f"（取れなかった: {run_provenance.code_revision_unavailable_reason}）"
+    )
+    return (
+        f"commit {code_commit_text}、未commitの変更 {run_provenance.has_uncommitted_changes}、"
+        f"基準版 {run_provenance.behavior_baseline_version}"
+    )
+
+
+def build_provenance_lines(*, output_directory, available, command_arguments, created_at):
+    """見出しの直後の警告（基準版が揃っていなければ）と、出どころの節の行を返す。"""
+    provenance_by_combination = {
+        levels: read_combination_provenance(output_directory, combination_name(*levels))
+        for levels in available
+    }
+    baseline_versions = sorted(
+        {
+            version
+            for provenances in provenance_by_combination.values()
+            for _, version in provenances
+        }
+    )
+    lines = []
+    if len(baseline_versions) != 1:
+        lines.append(
+            f"> 警告: 入力のrunの基準版が揃っていない（{'、'.join(baseline_versions)}）。"
+            "版の違う結果を比べている可能性がある。\n"
+        )
+    lines.append("## 出どころ\n")
+    lines.append(f"- 作成の日時: {created_at}")
+    lines.append(f"- 分析のコマンドの引数: `{' '.join(command_arguments)}`")
+    lines.append(f"- 分析のコードの版: {describe_analysis_code_revision()}")
+    lines.append(f"- 入力のディレクトリ: `{output_directory}`\n")
+    lines.append("| 組合せ | run | 入力のrunのcommit | 入力のrunの基準版 |")
+    lines.append("|---|---|---|---|")
+    for levels, runs in available.items():
+        provenances = provenance_by_combination[levels]
+        commits = sorted(
+            {
+                commit if commit == PROVENANCE_NOT_RECORDED else commit[:12]
+                for commit, _ in provenances
+            }
+        )
+        versions = sorted({version for _, version in provenances})
+        lines.append(
+            f"| {combination_name(*levels)} | {len(runs)} | {'、'.join(commits)} | {'、'.join(versions)} |"
+        )
+    return lines
+
+
+def write_analysis_file(output_directory, report_text, created_time):
+    """`analysis_<作成日時>.md`へ排他的に書く（同じ名前があれば、次の番号）。書いた場所を返す。"""
+    file_stem = f"{ANALYSIS_FILE_NAME_PREFIX}{created_time.strftime('%Y%m%d_%H%M%S')}"
+    file_number = 1
+    while True:
+        analysis_file_path = output_directory / (
+            file_stem + ("" if file_number == 1 else f"_{file_number}") + ".md"
+        )
+        try:
+            with analysis_file_path.open("x", encoding="utf-8", newline="\n") as analysis_file:
+                analysis_file.write(report_text)
+        except FileExistsError:
+            file_number += 1
+            continue
+        return analysis_file_path
+
+
 def main(arguments):
-    if not arguments or arguments[0] in ("-h", "--help"):
-        print(__doc__)
-        return 1
-    output_directory = Path(arguments[0])
-    report_chains = "--chains" in arguments[1:]
+    argument_parser = ArgumentParser(
+        prog="analyze_behavior_fix_comparison.py",
+        description=__doc__.split("\n\n")[0],
+    )
+    argument_parser.add_argument("output_directory", type=Path, help="比較scriptの出力先")
+    argument_parser.add_argument("--chains", action="store_true", help="短い警報の連鎖の表も出す")
+    argument_parser.add_argument(
+        "--stdout", action="store_true", help="ファイルを作らず、結果を標準出力へ出す"
+    )
+    parsed_arguments = argument_parser.parse_args(arguments)
+    output_directory = parsed_arguments.output_directory
+    report_chains = parsed_arguments.chains
+    created_time = datetime.now().astimezone().replace(microsecond=0)
+    report_lines = []
+    emit = report_lines.append
     runs_by_combination = {
         (registration_level, short_alarm_level, alarm_wait_level): read_combination(
             output_directory,
@@ -219,20 +333,22 @@ def main(arguments):
         print(f"no run_summary.csv under {output_directory}")
         return 1
     groups = sorted({key[:2] for runs in available.values() for key in runs})
-    print("# 挙動の修正（LEGACY-016・LEGACY-002）の、適用の有無の比較\n")
-    print(
-        f"出力先: `{output_directory}`。組合せ: "
-        + "、".join(
-            f"{combination_name(*levels)}（{len(runs)} run）" for levels, runs in available.items()
+    emit("# 挙動の修正（LEGACY-016・LEGACY-002）の、適用の有無の比較\n")
+    report_lines.extend(
+        build_provenance_lines(
+            output_directory=output_directory,
+            available=available,
+            command_arguments=list(arguments),
+            created_at=created_time.isoformat(),
         )
     )
-    print("\n## 1. 組合せごとの絶対値（平均±標準偏差）\n")
-    print(
+    emit("\n## 1. 組合せごとの絶対値（平均±標準偏差）\n")
+    emit(
         "| dataset | 集約間隔 | 登録（016） | 短い警報（002） | 警報を待つ（006） | n | "
         + " | ".join(display_name for display_name, _, _ in METRICS.values())
         + " |"
     )
-    print("|---|---|---|---|---|---|" + "---|" * len(METRICS))
+    emit("|---|---|---|---|---|---|" + "---|" * len(METRICS))
     for dataset_name, aggregation_interval in groups:
         for levels, runs in available.items():
             group_runs = [
@@ -255,26 +371,26 @@ def main(arguments):
                     else f"{standard_deviation:.{digits}f}"
                 )
                 cells.append(f"{mean:.{digits}f}±{deviation_text}")
-            print(
+            emit(
                 f"| {dataset_name} | {aggregation_interval} | {levels[0]} | {levels[1]} | {levels[2]} | {len(group_runs)} | "
                 + " | ".join(cells)
                 + " |"
             )
     comparisons = build_comparisons()
-    print(
+    emit(
         "\n## 2. 対の差（datasetと集約間隔ごと。同じseedのrunどうしの、後−前の平均±標準誤差。"
         "`*`は、平均の絶対値が標準誤差の2倍を超えるもの）\n"
     )
     for title, before_levels, after_levels in comparisons:
         if before_levels not in available or after_levels not in available:
             continue
-        print(f"### {title}\n")
-        print(
+        emit(f"### {title}\n")
+        emit(
             "| dataset | 集約間隔 | "
             + " | ".join(display_name for display_name, _, _ in METRICS.values())
             + " |"
         )
-        print("|---|---|" + "---|" * len(METRICS))
+        emit("|---|---|" + "---|" * len(METRICS))
         before_runs, after_runs = available[before_levels], available[after_levels]
         for group in groups:
             group_keys = sorted(
@@ -283,7 +399,7 @@ def main(arguments):
             if not group_keys:
                 continue
             label = f"| {group[0]} | {group[1]} | "
-            print(
+            emit(
                 label
                 + " | ".join(
                     format_paired_difference(before_runs, after_runs, group_keys, column)
@@ -291,13 +407,13 @@ def main(arguments):
                 )
                 + " |"
             )
-        print()
+        emit("")
     if report_chains:
-        print("## 3. 短い警報の連鎖（同じclientで、短い警報が続く並び）\n")
-        print(
+        emit("## 3. 短い警報の連鎖（同じclientで、短い警報が続く並び）\n")
+        emit(
             "| dataset | 集約間隔 | 登録（016） | 短い警報（002） | 警報を待つ（006） | run | 警報の総数（平均） | 短い警報（平均） | 連鎖の数（平均） | 連鎖の長さの平均 | 連鎖の長さの最大 | 長さ5以上の連鎖にある短い警報の割合 |"
         )
-        print("|---|---|---|---|---|---|---|---|---|---|---|---|")
+        emit("|---|---|---|---|---|---|---|---|---|---|---|---|")
         for dataset_name, aggregation_interval in groups:
             for levels, runs in available.items():
                 all_chain_lengths, alarm_counts, run_count = [], [], 0
@@ -324,13 +440,18 @@ def main(arguments):
                     if short_alarm_count
                     else 0.0
                 )
-                print(
+                emit(
                     f"| {dataset_name} | {aggregation_interval} | {levels[0]} | {levels[1]} | {levels[2]} | {run_count} | "
                     f"{sum(alarm_counts) / run_count:.1f} | {short_alarm_count / run_count:.1f} | "
                     f"{len(all_chain_lengths) / run_count:.1f} | "
                     f"{(short_alarm_count / len(all_chain_lengths)) if all_chain_lengths else 0:.1f} | "
                     f"{max(all_chain_lengths, default=0)} | {long_chain_share:.0%} |"
                 )
+    report_text = "\n".join(report_lines) + "\n"
+    if parsed_arguments.stdout:
+        sys.stdout.write(report_text)
+    else:
+        print(f"analysis: {write_analysis_file(output_directory, report_text, created_time)}")
     return 0
 
 

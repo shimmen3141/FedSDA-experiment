@@ -2243,6 +2243,8 @@ def main():
             "0.0",
             "--workers",
             "1",
+            "--purpose",
+            "fresh process smoke",
             "--output-directory",
             directory,
         ]

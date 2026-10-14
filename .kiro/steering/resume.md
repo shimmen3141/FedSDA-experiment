@@ -1,6 +1,6 @@
 # リファクタリングの再開案内
 
-更新: 2026-10-14（FedSDAの既定を案Y——現行モデルとして待った後に登録＋短い警報のあと前区間を外す＋最小件数まで警報を待つ——にした。[fedsda-default-waited-registration-and-alarm-wait](../specs/fedsda-default-waited-registration-and-alarm-wait/tasks.md)。基準版5を追加。続けて、runの要約と一覧の表にコードの版と基準版を残し、基準版の違う済んだrunでは掃引を始めずに止めるようにした（[experiment-run-code-provenance](../specs/experiment-run-code-provenance/tasks.md)）。実験の管理の残りの案——B 実験の台帳、C 分析の出力の名前と見出し、D 研究のディレクトリの名前——は、ユーザーの判断待ち。それまでの経緯は下の箇条）。
+更新: 2026-10-14（FedSDAの既定を案Y——現行モデルとして待った後に登録＋短い警報のあと前区間を外す＋最小件数まで警報を待つ——にした。[fedsda-default-waited-registration-and-alarm-wait](../specs/fedsda-default-waited-registration-and-alarm-wait/tasks.md)。基準版5を追加。続けて、runの要約と一覧の表にコードの版と基準版を残し、基準版の違う済んだrunでは掃引を始めずに止めるようにした（[experiment-run-code-provenance](../specs/experiment-run-code-provenance/tasks.md)）。続けて、結果のディレクトリを研究の問い→日時とラベルの2段にし、コマンドが目的のREADMEを置き、gitの中に[実験の台帳](../../docs/experiments/experiment-log.md)を置き、分析scriptが出どころつきのファイルを書くようにした（[experiment-artifact-organization](../specs/experiment-artifact-organization/tasks.md)）。それまでの経緯は下の箇条）。
 
 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
 

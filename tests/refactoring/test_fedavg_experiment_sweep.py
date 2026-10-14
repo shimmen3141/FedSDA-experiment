@@ -122,6 +122,8 @@ def test_print_plan_is_read_only_and_old_name_is_rejected(tmp_path, capsys):
         "5",
         "--workers",
         "1",
+        "--purpose",
+        "fedavg test",
         "--output-directory",
         str(output),
         "--print-plan",

@@ -27,8 +27,9 @@ from federated_learning_experiments.sweep.experiment_sweep_execution import (
 from federated_learning_experiments.sweep.experiment_sweep_plan import ExperimentSweepPlan
 
 RUN_SUMMARY_TABLE_FILE_NAME = "run_summary.csv"
-# 版2: コードの版の記録を、runの来歴から作り、期待する動作の基準版を足した。
-SWEEP_RECORD_FORMAT_VERSION = 2
+# 版2: コードの版の記録を、runの来歴から作り、期待する動作の基準版を足した。版3: 目的と研究の問いを足した。
+SWEEP_RECORD_FORMAT_VERSION = 3
+EXPERIMENT_README_FILE_NAME = "README.md"
 # 一覧の表の、実行条件の列（要約の`run_settings.execution_settings.experiment_run_conditions`のキー）。
 _CONDITION_COLUMN_NAMES = (
     "dataset_name",
@@ -269,6 +270,72 @@ def describe_run_provenance_for_record(run_provenance: RunProvenance) -> dict[st
     }
 
 
+def write_experiment_readme(
+    *,
+    output_directory: Path,
+    purpose: str,
+    study_name: str | None,
+    started_at: str,
+    command_arguments: tuple[str, ...],
+    run_provenance: RunProvenance,
+) -> Path | None:
+    """結果のディレクトリに、目的と出どころを書いた`README.md`を作る。既にあれば、変えずにNoneを返す。
+
+    出力のディレクトリは、作らない。結論の欄は、人が書く（未記入の案内だけを置く）。
+    """
+    if not isinstance(output_directory, Path):
+        raise TypeError("output_directory must be pathlib.Path")
+    if type(purpose) is not str or not purpose.strip():
+        raise ValueError("purpose must be a non-blank builtin str")
+    if study_name is not None and type(study_name) is not str:
+        raise TypeError("study_name must be builtin str or None")
+    datetime.fromisoformat(started_at)
+    if type(command_arguments) is not tuple or any(
+        type(command_argument) is not str for command_argument in command_arguments
+    ):
+        raise TypeError("command_arguments must be exact tuple of builtin str")
+    if type(run_provenance) is not RunProvenance:
+        raise TypeError("run_provenance must be exact RunProvenance")
+    if not output_directory.is_dir():
+        raise FileNotFoundError(f"output_directory does not exist: {output_directory}")
+    code_commit_text = (
+        run_provenance.code_commit
+        if run_provenance.code_commit is not None
+        else f"（取れなかった: {run_provenance.code_revision_unavailable_reason}）"
+    )
+    readme_text = "\n".join(
+        (
+            f"# {output_directory.name}",
+            "",
+            f"- 目的: {purpose}",
+            f"- 研究の問い: {study_name if study_name is not None else 'なし'}",
+            f"- 作成の日時: {started_at}",
+            f"- commit: {code_commit_text}",
+            f"- 未commitの変更（gitが追跡するファイル）: {run_provenance.has_uncommitted_changes}",
+            f"- 期待する動作の基準版: {run_provenance.behavior_baseline_version}",
+            "",
+            "## コマンドの引数",
+            "",
+            "```",
+            " ".join(command_arguments),
+            "```",
+            "",
+            "## 結論",
+            "",
+            "（未記入。結論が出たら、ここと、`docs/experiments/experiment-log.md`の台帳に書く）",
+            "",
+        )
+    )
+    readme_file_path = output_directory / EXPERIMENT_README_FILE_NAME
+    try:
+        # 排他的に作る（既にあれば、人が書いた結論を消さないように、変えない）。
+        with readme_file_path.open("x", encoding="utf-8", newline="\n") as readme_file:
+            readme_file.write(readme_text)
+    except FileExistsError:
+        return None
+    return readme_file_path
+
+
 def write_sweep_record(
     *,
     output_directory: Path,
@@ -279,6 +346,8 @@ def write_sweep_record(
     worker_count: int,
     outcomes: tuple[ExperimentRunOutcome, ...],
     run_provenance: RunProvenance,
+    purpose: str,
+    study_name: str | None,
     unreadable_run_summary_descriptions: tuple[str, ...] = (),
 ) -> Path:
     """1回の実行の記録を、`sweep_record_<開始時刻>.json`へ書く。
@@ -308,6 +377,10 @@ def write_sweep_record(
         raise TypeError("outcomes must be exact tuple of ExperimentRunOutcome")
     if type(run_provenance) is not RunProvenance:
         raise TypeError("run_provenance must be exact RunProvenance")
+    if type(purpose) is not str or not purpose.strip():
+        raise ValueError("purpose must be a non-blank builtin str")
+    if study_name is not None and type(study_name) is not str:
+        raise TypeError("study_name must be builtin str or None")
     if type(unreadable_run_summary_descriptions) is not tuple or any(
         type(description) is not str for description in unreadable_run_summary_descriptions
     ):
@@ -317,6 +390,8 @@ def write_sweep_record(
             "record_format_version": SWEEP_RECORD_FORMAT_VERSION,
             "started_at": started_at,
             "finished_at": finished_at,
+            "purpose": purpose,
+            "study_name": study_name,
             "command_arguments": list(command_arguments),
             "sweep_plan": asdict(sweep_plan),
             "worker_count": worker_count,

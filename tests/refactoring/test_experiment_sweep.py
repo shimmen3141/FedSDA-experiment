@@ -51,6 +51,7 @@ from federated_learning_experiments.sweep.experiment_sweep_execution import (
     ExistingRunBehaviorBaselineMismatchError,
     ExistingRunState,
     ExperimentRunOutcome,
+    collect_behavior_baseline_mismatch_descriptions,
     execute_experiment_sweep,
     find_existing_run_state,
 )
@@ -64,6 +65,7 @@ from federated_learning_experiments.sweep.experiment_sweep_records import (
     RunSummaryTableResult,
     build_run_provenance,
     describe_code_revision,
+    write_experiment_readme,
     write_run_summary_table,
     write_sweep_record,
 )
@@ -89,6 +91,8 @@ SMALL_COMMAND_ARGUMENTS = [
     "65",
     "--aggregation-intervals",
     "10",
+    "--purpose",
+    "small sweep for tests",
 ]
 
 
@@ -728,6 +732,8 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         worker_count=2,
         outcomes=outcomes,
         run_provenance=TEST_RUN_PROVENANCE,
+        purpose="record test",
+        study_name="question",
         unreadable_run_summary_descriptions=("fedsda/runs/broken.json: JSONDecodeError",),
     )
     record_file_path = write_sweep_record(**arguments)
@@ -737,6 +743,8 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         "record_format_version",
         "started_at",
         "finished_at",
+        "purpose",
+        "study_name",
         "command_arguments",
         "sweep_plan",
         "worker_count",
@@ -747,7 +755,7 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         "run_outcomes",
         "unreadable_run_summary_descriptions",
     ]
-    assert record["record_format_version"] == 2
+    assert record["record_format_version"] == 3
     assert record["command_arguments"] == ["--datasets", "circle2"]
     assert record["sweep_plan"] == dict(
         configuration_names=["fedsda"],
@@ -919,6 +927,8 @@ def test_command_stops_before_running_when_mnist_files_are_missing(tmp_path, mon
             "65",
             "--aggregation-intervals",
             "10",
+            "--purpose",
+            "mnist",
             "--output-directory",
             str(output_directory),
         ]
@@ -926,6 +936,7 @@ def test_command_stops_before_running_when_mnist_files_are_missing(tmp_path, mon
     assert exit_code == 2
     assert not output_directory.exists()
     error_text = capsys.readouterr().err
+    assert "MNIST data is not available" in error_text
     assert str(empty_data_directory.resolve()) in error_text
     assert "FDE_MNIST_DATA_DIR" in error_text
 
@@ -962,12 +973,18 @@ def test_command_rejects_invalid_plans_before_running(tmp_path, capsys, invalid_
     output_directory = tmp_path / "rejected-output"
     assert (
         experiment_sweep_command.main(
-            [*invalid_arguments, "--output-directory", str(output_directory)]
+            [
+                *invalid_arguments,
+                "--purpose",
+                "invalid plan",
+                "--output-directory",
+                str(output_directory),
+            ]
         )
         == 2
     )
     assert not output_directory.exists()
-    assert capsys.readouterr().err
+    assert "invalid sweep plan" in capsys.readouterr().err
 
 
 def test_repository_script_runs_without_installation_or_environment_variables(tmp_path):
@@ -1028,6 +1045,8 @@ def test_repository_script_runs_parallel_sweep_in_separate_processes(tmp_path, s
             "65",
             "--aggregation-intervals",
             "10",
+            "--purpose",
+            "parallel script",
             "--workers",
             "2",
             "--output-directory",
@@ -1357,3 +1376,183 @@ def test_command_stops_with_a_warning_when_existing_runs_have_another_baseline(t
     printed_text = capsys.readouterr().out
     assert "different_behavior_baseline" in printed_text
     assert "(not recorded)" in printed_text
+
+
+# ---- 結果のディレクトリ、目的、README ----
+
+
+def run_small_command(*extra_arguments):
+    return experiment_sweep_command.main([*SMALL_COMMAND_ARGUMENTS, *extra_arguments])
+
+
+@pytest.mark.parametrize(
+    "purpose_arguments,expected_message",
+    [
+        ([], "--purpose is required to run"),
+        (["--purpose", "   "], "--purpose must not be blank"),
+        (["--purpose", "first line\nsecond line"], "--purpose must be a single line"),
+    ],
+)
+def test_command_requires_a_single_line_purpose_to_run(
+    tmp_path, capsys, purpose_arguments, expected_message
+):
+    """実行には、目的が要る。無い・空白だけ・改行を含むときは、何も作らずに2で止まる。"""
+    purpose_position = SMALL_COMMAND_ARGUMENTS.index("--purpose")
+    arguments = (
+        SMALL_COMMAND_ARGUMENTS[:purpose_position] + SMALL_COMMAND_ARGUMENTS[purpose_position + 2 :]
+    )
+    output_directory = tmp_path / "no-purpose"
+    assert (
+        experiment_sweep_command.main(
+            [*arguments, *purpose_arguments, "--output-directory", str(output_directory)]
+        )
+        == 2
+    )
+    assert expected_message in capsys.readouterr().err
+    assert not output_directory.exists()
+    # 計画の表示だけなら、目的は要らない。
+    assert (
+        experiment_sweep_command.main(
+            [*arguments, "--output-directory", str(output_directory), "--print-plan"]
+        )
+        == 0
+    )
+    assert not output_directory.exists()
+
+
+@pytest.mark.parametrize(
+    "name_arguments,expected_message",
+    [
+        (["--study", "a/b"], "--study must be a plain directory name"),
+        (["--study", ".."], "--study must be a plain directory name"),
+        (["--study", " padded"], "--study must be a plain directory name"),
+        (["--label", "a:b"], "--label must be a plain directory name"),
+        (["--label", ""], "--label must be a plain directory name"),
+    ],
+)
+def test_command_rejects_names_that_are_not_plain_directory_names(
+    tmp_path, monkeypatch, capsys, name_arguments, expected_message
+):
+    monkeypatch.setattr(experiment_sweep_command, "_REPOSITORY_DIRECTORY", tmp_path)
+    assert run_small_command(*name_arguments) == 2
+    assert expected_message in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_command_rejects_study_with_output_directory(tmp_path, capsys):
+    output_directory = tmp_path / "explicit"
+    assert (
+        run_small_command("--study", "question", "--output-directory", str(output_directory)) == 2
+    )
+    assert "--study cannot be used with --output-directory" in capsys.readouterr().err
+    assert not output_directory.exists()
+
+
+def test_command_places_results_under_the_study_with_a_readme(tmp_path, monkeypatch, capsys):
+    """研究の問いがあれば、results/<研究の問い>/<開始日時>_<ラベル>に置き、目的と出どころのREADMEを作る。"""
+    monkeypatch.setattr(experiment_sweep_command, "_REPOSITORY_DIRECTORY", tmp_path)
+    assert run_small_command("--study", "question", "--label", "first-try") == 0
+    (output_directory,) = (tmp_path / "results" / "question").iterdir()
+    assert re.fullmatch(r"\d{8}_\d{6}_first-try", output_directory.name)
+    readme_text = (output_directory / "README.md").read_text(encoding="utf-8")
+    record = json.loads(
+        next(output_directory.glob("sweep_record_*.json")).read_text(encoding="utf-8")
+    )
+    assert record["record_format_version"] == 3
+    assert (
+        record["purpose"] == SMALL_COMMAND_ARGUMENTS[SMALL_COMMAND_ARGUMENTS.index("--purpose") + 1]
+    )
+    assert record["study_name"] == "question"
+    assert readme_text.startswith(f"# {output_directory.name}\n")
+    for expected_line in (
+        f"- 目的: {record['purpose']}",
+        "- 研究の問い: question",
+        f"- 作成の日時: {record['started_at']}",
+        f"- 期待する動作の基準版: {BEHAVIOR_BASELINE_VERSION}",
+        " ".join(record["command_arguments"]),
+        "## 結論",
+    ):
+        assert expected_line in readme_text
+    assert f"- commit: {record['code_revision']['commit']}" in readme_text or (
+        record["code_revision"]["commit"] is None and "- commit: （取れなかった: " in readme_text
+    )
+    assert f"README: {output_directory / 'README.md'}" in capsys.readouterr().out
+    # 研究の問いが無ければ、今までどおり、results/<開始日時>_<ラベル>。
+    assert run_small_command("--label", "flat") == 0
+    assert [path.name for path in (tmp_path / "results").glob("*_flat")]
+
+
+def test_command_keeps_an_existing_readme_and_records_each_purpose(tmp_path, capsys):
+    """同じ出力先で再開しても、READMEは変えない。各回の目的は、実行の記録に残る。"""
+    output_directory = tmp_path / "resumed"
+    command_arguments = [*SMALL_COMMAND_ARGUMENTS, "--output-directory", str(output_directory)]
+    assert experiment_sweep_command.main(command_arguments) == 0
+    readme_file_path = output_directory / "README.md"
+    readme_file_path.write_text(
+        readme_file_path.read_text(encoding="utf-8") + "結論を書いた。\n", encoding="utf-8"
+    )
+    readme_before = readme_file_path.read_bytes()
+    capsys.readouterr()
+    purpose_position = command_arguments.index("--purpose") + 1
+    command_arguments[purpose_position] = "another purpose"
+    assert experiment_sweep_command.main(command_arguments) == 0
+    assert "(already exists; left unchanged)" in capsys.readouterr().out
+    assert readme_file_path.read_bytes() == readme_before
+    purposes = sorted(
+        json.loads(path.read_text(encoding="utf-8"))["purpose"]
+        for path in output_directory.glob("sweep_record_*.json")
+    )
+    assert "another purpose" in purposes
+
+
+def test_command_creates_no_readme_when_existing_runs_have_another_baseline(tmp_path, capsys):
+    """基準版の違う済んだrunで止まるとき、出力先の中のファイルの一覧を変えない（READMEも作らない）。"""
+    output_directory = tmp_path / "command-output"
+    command_arguments = [*SMALL_COMMAND_ARGUMENTS, "--output-directory", str(output_directory)]
+    assert experiment_sweep_command.main(command_arguments) == 0
+    planned_run = build_planned_experiment_runs(
+        sweep_plan=replace(SMALL_SWEEP_PLAN, random_seeds=(0,))
+    )[0]
+    rewrite_summary(
+        output_directory / "fedsda" / "runs" / f"{planned_run.run_identifier}.json",
+        save_as_previous_format,
+    )
+    (output_directory / "README.md").unlink()
+    paths_before = sorted(output_directory.rglob("*"))
+    capsys.readouterr()
+    assert experiment_sweep_command.main(command_arguments) == 2
+    assert "warning: existing run summary" in capsys.readouterr().err
+    assert sorted(output_directory.rglob("*")) == paths_before
+    assert collect_behavior_baseline_mismatch_descriptions(
+        planned_runs=(planned_run,), output_directory=output_directory
+    ) == (
+        find_existing_run_state(
+            planned_run=planned_run, output_directory=output_directory
+        ).description,
+    )
+
+
+def test_experiment_readme_is_written_once_and_validates_arguments(tmp_path):
+    arguments = dict(
+        output_directory=tmp_path,
+        purpose="purpose",
+        study_name=None,
+        started_at="2026-10-14T12:00:00+09:00",
+        command_arguments=("--datasets", "circle2"),
+        run_provenance=TEST_RUN_PROVENANCE,
+    )
+    readme_file_path = write_experiment_readme(**arguments)
+    assert readme_file_path == tmp_path / "README.md"
+    assert "- 研究の問い: なし" in readme_file_path.read_text(encoding="utf-8")
+    assert write_experiment_readme(**{**arguments, "purpose": "other"}) is None
+    assert "other" not in readme_file_path.read_text(encoding="utf-8")
+    for changed_arguments, error_type in (
+        (dict(purpose=" "), ValueError),
+        (dict(study_name=1), TypeError),
+        (dict(command_arguments=["--datasets"]), TypeError),
+        (dict(run_provenance=None), TypeError),
+        (dict(started_at="yesterday"), ValueError),
+        (dict(output_directory=tmp_path / "missing"), FileNotFoundError),
+    ):
+        with pytest.raises(error_type):
+            write_experiment_readme(**{**arguments, **changed_arguments})

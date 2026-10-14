@@ -19,7 +19,8 @@ python run_experiment_sweep.py \
     --seeds 0 1 2 3 4 \
     --aggregation-intervals 50 100 200 500 \
     --workers 14 \
-    --label main
+    --study main-results --label all-datasets \
+    --purpose "提案構成の主結果を、6データで取る"
 ```
 
 | 引数 | 内容 | 既定 |
@@ -31,13 +32,24 @@ python run_experiment_sweep.py \
 | `--client-count` | clientの数 | 10 |
 | `--per-client-sample-count` | clientあたりの標本数 | 5000 |
 | `--workers` | 並列に実行するprocessの数。各processの計算のthread（torchと、OpenMP・MKL・OpenBLAS）は、1つ | 1 |
-| `--output-directory` | 出力先 | `results/<開始時刻>_<ラベル>` |
-| `--label` | 出力先を省略したときの、ディレクトリ名のラベル | `sweep` |
+| `--output-directory` | 出力先（再開のときに指定する。`--study`とは同時に使えない） | `results/<研究の問い>/<開始時刻>_<ラベル>`（`--study`が無ければ`results/<開始時刻>_<ラベル>`） |
+| `--study` | 研究の問いの名前（出力先の1段目） | なし |
+| `--label` | 出力先を省略したときの、ディレクトリ名のラベル（`/`・`\`・`:`を含まない名前） | `sweep` |
+| `--purpose` | この実験の目的（1行）。実行するときは必須。`README.md`と実行の記録に書く | 必須（`--print-plan`では不要） |
 | `--print-plan` | 計画のrunと、出力先にある済んだrunを表示するだけ。何も実行せず、何も作らない | — |
 
 - 研究室サーバ（16コア）では、同時に動かす`--workers`の合計を、14以下にする。長い実験は、tmuxの中で実行する。
 - 終了コード: 0＝全部のrunが、済んだか、飛ばされた。1＝失敗したrunがある、または、出力先に、読めない要約がある。2＝引数や計画が不正、または、MNISTのファイルがない。
 - scriptは、`OMP_NUM_THREADS`・`MKL_NUM_THREADS`・`OPENBLAS_NUM_THREADS`を、未設定なら1にする（設定されている値は、変えない。結果を再現するには、1のままにする）。
+
+## 結果の置き場所、README、台帳
+
+- 結果は、研究の問いごとに、`results/<研究の問い>/<開始時刻>_<ラベル>/`へ置く（`--study`と`--label`）。名前に長い条件を入れない
+  （条件は、要約・実行の記録・READMEに残る）。1つの出力先は、1つの実験（1つの目的）に使い、再開は同じ目的のときだけにする。
+- コマンドは、実行を始めるとき、出力先に`README.md`が無ければ作る（目的、研究の問い、作成の日時、コマンドの引数、commit、
+  未commitの変更の有無、基準版、結論の欄）。既にあれば変えない（人が書いた結論を消さないため。各回の目的は、実行の記録に残る）。
+  基準版の違う済んだrunで止まるときは、READMEも作らない。
+- 実験を始めたら、[実験の台帳](experiment-log.md)に1行足し、結論が出たら、台帳とREADMEの結論に、判断の記録への参照を書く。
 
 ## 途中で止まったとき
 
@@ -62,6 +74,7 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 
 ```
 <出力先>/
+  README.md                         目的と出どころ（最初の実行で作る。結論は人が書く）
   sweep_record_<開始時刻>.json        実行の記録（コマンドの実行ごとに1つ）
   <構成の名前>/
     run_summary.csv                   一覧の表（1 runが1行）
@@ -80,10 +93,10 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 - `run_summary.csv`は、その構成の`runs/`にある全部の要約から、毎回、作り直す。列は、識別子、構成の名前、実行条件、
   runの来歴（`code_commit`・`has_uncommitted_changes`・`behavior_baseline_version`。版1の要約は、空の欄）、
   指標の全部（入れ子の指標は、`.`でつないだ名前。値のない指標は、空の欄）。
-- `sweep_record_*.json`は、計画、コマンドの引数、コードの版（gitのcommitと、未コミットの変更の有無。runの要約と同じ値）、
+- `sweep_record_*.json`は、目的、研究の問い、計画、コマンドの引数、コードの版（gitのcommitと、未コミットの変更の有無。runの要約と同じ値）、
   期待する動作の基準版、実行環境、
   開始と終了の時刻、runごとの結果（`completed`・`skipped_existing`・`failed`と、失敗の理由）を持つ。
-  記録の形式の版2から。版1の記録の未コミットの変更の有無は、追跡しないファイルも数えていたので、版2の値とは比べられない。
+  記録の形式の版2から基準版、版3から目的と研究の問いを持つ。版1の記録の未コミットの変更の有無は、追跡しないファイルも数えていたので、版2の値とは比べられない。
 - 指標と、表の列の意味、旧実装の名前との対応は、[旧実装の出力と、新実装への移行の一覧](../research/legacy-run-output-migration.md)。
 
 ## 構成
@@ -131,7 +144,7 @@ python compare_sweep_results_with_legacy.py \
 新しい構成名は`feddrift`。`--aggregation-intervals`はFedDriftでは検出バッチ件数も指定する。`--feddrift-loss-increase-thresholds`は検出と統合に共通の損失増分閾値で、省略時は0.1。FedDriftを含まない計画では指定できない。
 
 ```bash
-python run_experiment_sweep.py --configurations fedsda feddrift --datasets sine2 --seeds 0 1 --client-count 10 --per-client-sample-count 5000 --aggregation-intervals 50 --feddrift-loss-increase-thresholds 0.05 0.1 --workers 14 --output-directory results/comparison
+python run_experiment_sweep.py --configurations fedsda feddrift --datasets sine2 --seeds 0 1 --client-count 10 --per-client-sample-count 5000 --aggregation-intervals 50 --feddrift-loss-increase-thresholds 0.05 0.1 --workers 14 --study fedsda-vs-feddrift --label threshold --purpose "FedDriftの損失増分閾値を替えて、FedSDAと比べる"
 ```
 
 この例はFedSDA 2 run、FedDrift 4 run。同じdataset・seed・規模・間隔で比較し、閾値軸はFedSDAを複製しない。FedDriftのRは既定1で、client/serverの閾値を同時に設定する。対応datasetはsine2・sea2・sea4・circle2・mnist2・mnist4。MNISTのファイルを配置する手順は既存と同じ。
@@ -146,7 +159,7 @@ python run_experiment_sweep.py --configurations fedsda feddrift --datasets sine2
 FedSDA・FedDriftと同じdataset/seed/client数/標本数/集約間隔で比較でき、精度・定常精度・通信量・計算量は共通定義。切替検出の列は空、モデル数は常に1。候補検証・routing・クロス評価などの固有指標は生成しない。`--feddrift-loss-increase-thresholds`はFedDriftだけを増やす。
 
 ```powershell
-python run_experiment_sweep.py --configurations fedsda feddrift fedavg --datasets sine2 --seeds 0 --client-count 10 --per-client-sample-count 5000 --aggregation-intervals 100 --workers 1 --output-directory results/three-method-comparison
+python run_experiment_sweep.py --configurations fedsda feddrift fedavg --datasets sine2 --seeds 0 --client-count 10 --per-client-sample-count 5000 --aggregation-intervals 100 --workers 1 --study three-methods --label sine2 --purpose "3手法を同じ条件で比べる"
 ```
 
 FedAvgの成果物は`fedavg/runs/`配下の完全設定・共通指標・環境のJSONと名前付き記録のNPZ。再開と競合拒否、`run_summary.csv`の生成は他構成と同じ。準備の計算は本実行へ含めず、処理されない末尾は生成概念列と進行件数へ残す。
@@ -163,26 +176,36 @@ testだけが使う（通常の実験のコマンドからは選べない）。
 ```bash
 python run_behavior_fix_comparison.py --datasets sine2 circle2 sea4 mnist2 \
     --seeds 0 1 2 3 4 5 6 7 8 9 --aggregation-intervals 50 \
-    --workers 14 --output-directory results/behavior-fix-comparison
-python analyze_behavior_fix_comparison.py results/behavior-fix-comparison --chains > behavior-fix-comparison.md
+    --workers 14 --label legacy-vs-fixed --purpose "016と002の修正の効果を比べる"
+python analyze_behavior_fix_comparison.py results/behavior-fix-comparison/<開始時刻>_legacy-vs-fixed --chains
 ```
+
+比較scriptは、出力先を省略すると、`results/behavior-fix-comparison/<開始時刻>_<ラベル>`に置き（研究の問いは固定）、
+`--purpose`（実行のとき必須）と出どころを書いた`README.md`を作る。組合せを後から足すときや、再開するときは、その出力先を
+`--output-directory`で指定する。`results/behavior-fix-comparison`の直下にある組合せのディレクトリ（2026-10-13〜14の結果）は、
+このしくみより前の平らな形で、新しい規約の対象外（移さない。[台帳](experiment-log.md)を参照）。
+
+分析scriptは、結果を、入力のディレクトリの中の`analysis_<作成日時>.md`へ書く（同じ名前があれば`_2`・`_3`…）。先頭に、
+出どころ（作成の日時、分析のコマンドの引数、分析のコードの版、入力のディレクトリ、組合せごとのrun数と、入力のrunのcommit・基準版。
+前の形式のrunは「記録なし」）を書き、入力のrunの基準版が揃っていなければ、見出しの直後に警告を書く。`--stdout`では、同じ中身を
+標準出力へ出し、ファイルを作らない。
 
 出力先に済んだrunがあれば、飛ばして続ける（dataset・seed・集約間隔を、後から足せる）。集計は、datasetと集約間隔ごとに、
 組合せの絶対値（平均±標準偏差）と、同じseedのrunどうしの差（平均±標準誤差。登録の扱いの効果、LEGACY-002の効果、
 両方の効果、警報を待つ扱いの効果）と、短い警報の連鎖の数と長さを出す。種類の違うデータを越えて平均した行は出さない。
 
 現行モデルとして待った後に登録する扱い（2026-10-14に一度既定にした扱い）を、短い警報の扱いの2水準と、警報を待つ扱いと組み合わせて
-足すときは、次の2つを、上と同じ出力先へ実行する（組合せの全部を作るので、2回に分ける）。
+足すときは、次の2つを、上と同じ出力先（`<出力先>`）へ実行する（組合せの全部を作るので、2回に分ける）。
 
 ```bash
 python run_behavior_fix_comparison.py --datasets sea2 sea4 circle2 sine2 mnist2 mnist4 \
     --seeds 0 1 2 3 4 5 6 7 8 9 --aggregation-intervals 50 200 \
     --registration-levels waited-as-current --short-alarm-levels legacy fixed \
-    --workers 14 --output-directory results/behavior-fix-comparison
+    --workers 14 --output-directory <出力先> --purpose "現行として待つ登録の効果を足す"
 python run_behavior_fix_comparison.py --datasets sea2 sea4 circle2 sine2 mnist2 mnist4 \
     --seeds 0 1 2 3 4 5 6 7 8 9 --aggregation-intervals 50 200 \
     --registration-levels waited-as-current --short-alarm-levels fixed --alarm-wait-levels on \
-    --workers 14 --output-directory results/behavior-fix-comparison
+    --workers 14 --output-directory <出力先> --purpose "現行として待つ登録の効果を足す"
 ```
 
 推定変化区間が最小件数に達するまで警報を待つ扱い（IMPROVE-006。2026-10-14から既定。比較scriptの水準`off`は、すぐに警報とする扱い）の効果は、
@@ -191,7 +214,7 @@ python run_behavior_fix_comparison.py --datasets sea2 sea4 circle2 sine2 mnist2 
 対にするので、前の結果もそのまま比べられる）。
 
 ```bash
-python run_behavior_fix_comparison.py --datasets sine2 circle2 sea4 mnist2     --seeds 0 1 2 3 4 5 6 7 8 9 --aggregation-intervals 50     --registration-levels fixed --short-alarm-levels fixed --alarm-wait-levels on     --workers 14 --output-directory results/behavior-fix-comparison
+python run_behavior_fix_comparison.py --datasets sine2 circle2 sea4 mnist2     --seeds 0 1 2 3 4 5 6 7 8 9 --aggregation-intervals 50     --registration-levels fixed --short-alarm-levels fixed --alarm-wait-levels on     --workers 14 --output-directory <出力先> --purpose "警報を待つ扱いの効果を足す"
 ```
 
 待つ扱いの組合せは、名前の末尾に`__alarm-wait-on`が付く。集計は、結果がある組合せについて、待つ扱いの効果（登録と短い警報の

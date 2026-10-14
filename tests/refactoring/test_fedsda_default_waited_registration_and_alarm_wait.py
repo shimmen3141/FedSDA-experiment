@@ -57,8 +57,9 @@ def test_every_fedsda_configuration_uses_waited_registration_and_alarm_wait_by_d
     assert set(ADWIN_CONFIGURATION_NAMES) <= set(fedsda_configuration_names)
 
 
-def test_sweep_command_arguments_are_unchanged():
-    """既定の変更で、実験のコマンドの引数は変えない（要求1.4）。"""
+def test_sweep_command_arguments_are_only_extended_by_the_artifact_organization():
+    """既定の変更で、実験のコマンドの引数は変えない（要求1.4）。後のspec（experiment-artifact-organization）で、
+    `--study`・`--purpose`だけが増えた。"""
     argument_parser = _build_argument_parser()
     assert sorted(
         option_string
@@ -75,7 +76,9 @@ def test_sweep_command_arguments_are_unchanged():
         "--output-directory",
         "--per-client-sample-count",
         "--print-plan",
+        "--purpose",
         "--seeds",
+        "--study",
         "--workers",
         "-h",
     ]

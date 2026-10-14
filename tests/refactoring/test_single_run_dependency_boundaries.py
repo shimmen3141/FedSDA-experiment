@@ -5693,6 +5693,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.sweep.experiment_sweep_plan.ExperimentSweepPlan",
             "federated_learning_experiments.sweep.experiment_sweep_plan.build_planned_experiment_runs",
             "federated_learning_experiments.sweep.experiment_sweep_records.build_run_provenance",
+            "federated_learning_experiments.sweep.experiment_sweep_records.write_experiment_readme",
+            "federated_learning_experiments.sweep.experiment_sweep_execution.collect_behavior_baseline_mismatch_descriptions",
             "federated_learning_experiments.sweep.experiment_sweep_records.write_run_summary_table",
             "federated_learning_experiments.sweep.experiment_sweep_records.write_sweep_record",
         )

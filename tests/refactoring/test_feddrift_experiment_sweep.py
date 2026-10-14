@@ -409,6 +409,8 @@ def command_arguments(output):
         "0.2",
         "--workers",
         "1",
+        "--purpose",
+        "feddrift test",
         "--output-directory",
         str(output),
     ]

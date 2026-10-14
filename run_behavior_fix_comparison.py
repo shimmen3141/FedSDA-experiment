@@ -19,9 +19,14 @@
 結果の比較は、`analyze_behavior_fix_comparison.py`。旧と同じ扱いは、通常の実験のコマンドからは選べない（この検証と、
 旧実装との照合のtestだけが使う）。
 
+出力先を省略すると、`results/behavior-fix-comparison/<開始日時>_<ラベル>`へ置く（研究の問いは`behavior-fix-comparison`に固定）。
+再開は、その出力先を`--output-directory`で指定する。実行するときは、目的（`--purpose`）が要り、出力先に、目的と
+出どころを書いた`README.md`を（無ければ）作る。1つの出力先は、1つの実験（1つの目的）に使う。
+
 使い方（例）:
     python run_behavior_fix_comparison.py --datasets sine2 circle2 sea4 mnist2 --seeds 0 1 2 3 4 5 6 7 8 9 \\
-        --aggregation-intervals 50 --workers 14 --output-directory results/behavior-fix-comparison
+        --aggregation-intervals 50 --workers 14 --label waited-registration \\
+        --purpose "現行として待つ登録の効果を、本規模で確かめる"
 """
 
 import os
@@ -35,6 +40,8 @@ from pathlib import Path
 for thread_count_variable_name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
     os.environ.setdefault(thread_count_variable_name, "1")
 REPOSITORY_DIRECTORY = Path(__file__).resolve().parent
+# 比較scriptの研究の問い（出力先の既定の1段目）。
+BEHAVIOR_FIX_COMPARISON_STUDY_NAME = "behavior-fix-comparison"
 sys.path.insert(0, str(REPOSITORY_DIRECTORY / "src"))
 
 REGISTRATION_POLICY_BY_LEVEL = {
@@ -164,30 +171,69 @@ def main(command_arguments=None):
         "--alarm-wait-levels", nargs="+", choices=ALARM_WAIT_LEVELS, default=["off"]
     )
     argument_parser.add_argument("--workers", type=int, default=1)
-    argument_parser.add_argument("--output-directory", type=Path, required=True)
+    argument_parser.add_argument(
+        "--output-directory",
+        type=Path,
+        default=None,
+        help="出力先（省略時: results/behavior-fix-comparison/<開始時刻>_<ラベル>。再開は、出力先を指定する）",
+    )
+    argument_parser.add_argument(
+        "--label",
+        default="comparison",
+        help="出力先を省略したときの、ディレクトリ名のラベル（既定comparison）",
+    )
+    argument_parser.add_argument(
+        "--purpose",
+        default=None,
+        help="この実験の目的（1行。実行するときは必須。READMEと比較の記録に書く）",
+    )
     argument_parser.add_argument(
         "--print-plan",
         action="store_true",
         help="計画のrunと、済んだrunを表示するだけで、何も実行せず、何も作らない",
     )
-    parsed_arguments = argument_parser.parse_args(command_arguments)
+    given_arguments = tuple(sys.argv[1:] if command_arguments is None else command_arguments)
+    parsed_arguments = argument_parser.parse_args(given_arguments)
 
     from federated_learning_experiments.sweep.experiment_sweep_command import (
         report_behavior_baseline_mismatch,
+        report_experiment_readme,
+        validate_experiment_purpose,
+        validate_plain_directory_name,
     )
     from federated_learning_experiments.sweep.experiment_sweep_execution import (
         ExistingRunBehaviorBaselineMismatchError,
+        collect_behavior_baseline_mismatch_descriptions,
         execute_experiment_sweep,
         find_existing_run_state,
     )
     from federated_learning_experiments.sweep.experiment_sweep_records import (
         build_run_provenance,
         describe_run_provenance_for_record,
+        write_experiment_readme,
         write_run_summary_table,
     )
 
+    # 引数を読んだ直後に、名前と目的を確かめる（何も作らずに、引数の誤りとして止める）。
+    try:
+        validate_plain_directory_name(parsed_arguments.label, argument_name="--label")
+        purpose = (
+            None
+            if parsed_arguments.print_plan
+            else validate_experiment_purpose(parsed_arguments.purpose)
+        )
+    except ValueError as caught_exception:
+        argument_parser.error(str(caught_exception))
+    started_time = datetime.now().astimezone().replace(microsecond=0)
     planned_runs = build_planned_runs(parsed_arguments)
-    output_directory = parsed_arguments.output_directory
+    output_directory = (
+        parsed_arguments.output_directory
+        if parsed_arguments.output_directory is not None
+        else REPOSITORY_DIRECTORY
+        / "results"
+        / BEHAVIOR_FIX_COMPARISON_STUDY_NAME
+        / f"{started_time.strftime('%Y%m%d_%H%M%S')}_{parsed_arguments.label}"
+    )
     if parsed_arguments.print_plan:
         print(f"output directory: {output_directory}")
         print(f"planned runs: {len(planned_runs)}")
@@ -212,11 +258,30 @@ def main(command_arguments=None):
         )
 
         load_mnist_training_data(data_directory=resolve_mnist_data_directory())
-    started_time = datetime.now().astimezone().replace(microsecond=0)
     # 要約と比較の記録に、同じ来歴を書く。
     run_provenance = build_run_provenance(repository_directory=REPOSITORY_DIRECTORY)
+    # 基準版の違う済んだrunがあれば、出力先を作る前に止める（READMEも作らない）。
+    mismatch_descriptions = collect_behavior_baseline_mismatch_descriptions(
+        planned_runs=planned_runs, output_directory=output_directory
+    )
+    if mismatch_descriptions:
+        report_behavior_baseline_mismatch(
+            ExistingRunBehaviorBaselineMismatchError(mismatch_descriptions)
+        )
+        return 2
     output_directory.mkdir(parents=True, exist_ok=True)
     print(f"output directory: {output_directory}")
+    report_experiment_readme(
+        output_directory=output_directory,
+        readme_file_path=write_experiment_readme(
+            output_directory=output_directory,
+            purpose=purpose,
+            study_name=BEHAVIOR_FIX_COMPARISON_STUDY_NAME,
+            started_at=started_time.isoformat(),
+            command_arguments=given_arguments,
+            run_provenance=run_provenance,
+        ),
+    )
     print(f"planned runs: {len(planned_runs)}, workers: {parsed_arguments.workers}")
     try:
         outcomes = execute_experiment_sweep(
@@ -237,17 +302,14 @@ def main(command_arguments=None):
                 configuration_directory=combination_directory, configuration_name=combination_name
             ).unreadable_run_summary_descriptions:
                 print(f"unreadable run summary (left out of the table): {unreadable_description}")
-    record_file_path = (
-        output_directory / f"comparison_record_{started_time.strftime('%Y%m%d_%H%M%S')}.json"
-    )
-    record_file_path.write_text(
+    record_text = (
         dumps(
             dict(
                 started_at=started_time.isoformat(),
                 finished_at=datetime.now().astimezone().replace(microsecond=0).isoformat(),
-                command_arguments=list(
-                    sys.argv[1:] if command_arguments is None else command_arguments
-                ),
+                purpose=purpose,
+                study_name=BEHAVIOR_FIX_COMPARISON_STUDY_NAME,
+                command_arguments=list(given_arguments),
                 combination_names=combination_names,
                 worker_count=parsed_arguments.workers,
                 **describe_run_provenance_for_record(run_provenance),
@@ -264,9 +326,22 @@ def main(command_arguments=None):
             ensure_ascii=False,
             indent=2,
         )
-        + "\n",
-        encoding="utf-8",
+        + "\n"
     )
+    # 排他的に作る（同じ秒の再実行で、前の記録を上書きしないように。同じ名前があれば、次の番号）。
+    record_file_stem = f"comparison_record_{started_time.strftime('%Y%m%d_%H%M%S')}"
+    record_number = 1
+    while True:
+        record_file_path = output_directory / (
+            record_file_stem + ("" if record_number == 1 else f"_{record_number}") + ".json"
+        )
+        try:
+            with record_file_path.open("x", encoding="utf-8", newline="\n") as record_file:
+                record_file.write(record_text)
+        except FileExistsError:
+            record_number += 1
+            continue
+        break
     failed_run_count = sum(outcome.run_status == "failed" for outcome in outcomes)
     print(
         f"completed: {sum(outcome.run_status == 'completed' for outcome in outcomes)}, "

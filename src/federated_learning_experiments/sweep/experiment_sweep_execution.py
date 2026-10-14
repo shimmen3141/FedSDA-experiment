@@ -191,6 +191,33 @@ def find_existing_run_state(
     return ExistingRunState(run_state="completed", description=None)
 
 
+def _describe_behavior_baseline_mismatches(
+    existing_run_states: tuple[ExistingRunState, ...],
+) -> tuple[str, ...]:
+    return tuple(
+        str(existing_run_state.description)
+        for existing_run_state in existing_run_states
+        if existing_run_state.run_state == "different_behavior_baseline"
+    )
+
+
+def collect_behavior_baseline_mismatch_descriptions(
+    *, planned_runs: tuple[PlannedExperimentRun, ...], output_directory: Path
+) -> tuple[str, ...]:
+    """計画のrunのうち、出力先の済んだrunの基準版が今と違うものの理由を、計画の順で返す。何も変えない。
+
+    コマンドが、出力先を作る前に、掃引を始めずに止めるかを決めるために使う。
+    """
+    if type(planned_runs) is not tuple:
+        raise TypeError("planned_runs must be exact tuple")
+    return _describe_behavior_baseline_mismatches(
+        tuple(
+            find_existing_run_state(planned_run=planned_run, output_directory=output_directory)
+            for planned_run in planned_runs
+        )
+    )
+
+
 def execute_planned_experiment_run(
     *,
     planned_run: PlannedExperimentRun,
@@ -345,11 +372,7 @@ def execute_experiment_sweep(
         find_existing_run_state(planned_run=planned_run, output_directory=output_directory)
         for planned_run in planned_runs
     )
-    mismatch_descriptions = tuple(
-        str(existing_run_state.description)
-        for existing_run_state in existing_run_states
-        if existing_run_state.run_state == "different_behavior_baseline"
-    )
+    mismatch_descriptions = _describe_behavior_baseline_mismatches(existing_run_states)
     if mismatch_descriptions:
         raise ExistingRunBehaviorBaselineMismatchError(mismatch_descriptions)
     pending_run_positions: list[int] = []
