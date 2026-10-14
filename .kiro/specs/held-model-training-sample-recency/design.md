@@ -1,7 +1,7 @@
 # Design Document
 
 ## Overview
-`LocalTrainingSettings`へ、学習のbatchの抜き出し方の3つの項目（既定値つき）を足し、共同更新の繰り返し（`perform_held_model_joint_training_iterations`）が、抜き出しの関数へ渡す。抜き出しの関数は、選び方の引数を省略すれば今と同じ。掃引の計画へ、FedSDAの構成の変種を作る軸を足す。
+`LocalTrainingSettings`へ、学習のbatchの抜き出し方の3つの項目を足し（実装では、設定の項目は既定値を持たない規約に合わせて必須の項目にし、作る側で今と同じ値を明示した。tasks.mdのImplementation Notes）、共同更新の繰り返し（`perform_held_model_joint_training_iterations`）が、抜き出しの関数へ渡す。抜き出しの関数は、選び方の引数を省略すれば今と同じ。掃引の計画へ、FedSDAの構成の変種を作る軸を足す。
 
 ## Boundary Commitments
 ### This Spec Owns

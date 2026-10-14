@@ -3,7 +3,7 @@
   "created_at": "2026-10-14",
   "updated_at": "2026-10-14",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -42,5 +42,27 @@
     "result": "1〜3回目はCHANGES REQUIRED（Major 4・4・2。共有の検査の型、指数減衰の終わり方・計算量・丸め、依存境界の否定例、表の読み方、識別子の変化）。4回目でPASS（Minor 9は実装で扱う。tasks.md）。",
     "output": "../../venv/refactoring-tests/recency-spec-review-{1..4}.jsonl",
     "selection_reason": "数値の抜き出しと設定の検査の論証なので、Haiku 5.5"
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "be9396b（基点9420d4d）",
+    "session_ids": [
+      "93653101-3ef1-4346-832b-84ced4d0a488"
+    ],
+    "is_error": false,
+    "result": "APPROVED（任意3。採否はtasks.md）。",
+    "output": "../../venv/refactoring-tests/recency-review-1.jsonl",
+    "selection_reason": "数値の抜き出しと設定の検査の論証なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14255,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/recency-full.xml",
+    "tested_commit": "be9396b",
+    "wsl": "未実行"
+  },
+  "completion_decision": "完了。保有モデルの学習batchの抜き出し方（全履歴・直近K件・指数減衰α）を設定と掃引の軸で選べる。既定の動作と値は不変。"
 }

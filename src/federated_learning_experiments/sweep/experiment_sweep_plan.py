@@ -151,7 +151,7 @@ class ExperimentSweepPlan:
                 parse_fedsda_training_sample_selection(text)
                 for text in self.fedsda_training_sample_selections
             ]
-            # 書き方が違っても、同じ値（`recent:300`と`recent:0300`ほか）は重複とする。
+            # 書き方が違っても、同じ値（`decay:0.5`と`decay:0.50`ほか）は重複とする。
             if len(set(parsed_selections)) != len(parsed_selections):
                 raise ValueError("fedsda_training_sample_selections must not hold duplicate values")
 
