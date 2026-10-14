@@ -92,7 +92,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版4: FedSDAが、送信保留のモデルを、現行モデルとして待った後に登録する（LEGACY-016の扱いの見直し。2026-10-14に
 #      一度既定にしたが、比較で精度がわずかに下がったので、既定は版3の扱いへ戻した。版4は、この扱いを明示する）。版3との差は、版3の扱いで、待ちの間に現行でない送信保留が起きるケースに限る。
 SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5)
-BASELINE_VERSION = 4
+BASELINE_VERSION = 5
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
 # （保存の形）。その版の設定を組み立てるときは、この値を入れ、保存してある設定と比べるときは、値を確かめてから除く。
