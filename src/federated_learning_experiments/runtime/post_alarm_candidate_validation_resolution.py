@@ -171,9 +171,11 @@ def apply_post_alarm_candidate_validation_resolution(
             model_training_and_assignment_counts_store=model_training_and_assignment_counts_store,
             loss_statistics_store=loss_statistics_store,
         )
-        training_sample_store.mark_latest_alarm_boundary(
-            model_id=previous_model_id, position=boundary_position
-        )
+        # 吸収の後も列が無ければ（検証の標本が0件で、今のモデルの列もまだ無い）、区切りで分ける標本が無いので付けない。
+        if training_sample_store.count_model_training_samples(model_id=previous_model_id):
+            training_sample_store.mark_latest_alarm_boundary(
+                model_id=previous_model_id, position=boundary_position
+            )
         return PostAlarmCandidateValidationResolution(
             resolution_outcome="candidate_rejected",
             assigned_model_id=previous_model_id,
@@ -195,7 +197,9 @@ def apply_post_alarm_candidate_validation_resolution(
     assignment_change = current_training_model_assignment.assign_model_for_training(
         model_id=reusable_reference_model_id
     )
-    if assignment_change is None:
+    if assignment_change is None and training_sample_store.count_model_training_samples(
+        model_id=reusable_reference_model_id
+    ):
         # 参照に今のモデルが選ばれた（今のモデルで続ける）: 吸収の前の長さで区切りを付ける。
         training_sample_store.mark_latest_alarm_boundary(
             model_id=reusable_reference_model_id, position=reference_boundary_position

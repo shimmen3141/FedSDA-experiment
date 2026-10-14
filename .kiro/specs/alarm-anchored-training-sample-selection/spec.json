@@ -3,7 +3,7 @@
   "created_at": "2026-10-15",
   "updated_at": "2026-10-15",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -40,5 +40,28 @@
     "result": "1〜3回目はCHANGES REQUIRED（Major 3・1・1）。3回目の指摘を反映し、ユーザー判断で4回目を省略（tasks.mdの手順の逸脱）。",
     "output": "../../venv/refactoring-tests/alarm-anchor-spec-review-{1..3}.jsonl",
     "selection_reason": "状態の記録と数値の抜き出しの論証なので、Haiku 5.5"
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "01112c9（基点ea79b57）",
+    "session_ids": [
+      "87298e3f-5a97-49d9-a8a0-b31709304bd6"
+    ],
+    "is_error": false,
+    "result": "APPROVED（Minor 2・任意3。採否はtasks.md）。",
+    "output": "../../venv/refactoring-tests/alarm-anchor-review-1.jsonl",
+    "selection_reason": "状態の記録と数値の抜き出しの論証なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14299,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/alarm-anchor-full.xml",
+    "tested_commit": "01112c9",
+    "after_review_fix": "新しいtest fileと候補の検証の確定のtest file 169 passed、Pyright 0件（全pytestは未再実行）",
+    "wsl": "未実行"
+  },
+  "completion_decision": "完了。警報の後に同じモデルで続けた時点を区切りとして残し、区切りを使う2つの抜き出し方（alarm・alarm-decay）を選べる。既定の動作と値は不変。"
 }

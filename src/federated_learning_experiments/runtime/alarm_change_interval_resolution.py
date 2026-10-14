@@ -262,7 +262,10 @@ def resolve_alarm_change_interval(
             model_training_and_assignment_counts_store=model_training_and_assignment_counts_store,
             loss_statistics_store=loss_statistics_store,
         )
-        if keeps_current_training_model:
+        # 吸収の後も列が無ければ（区切りで分ける標本が無い）、付けない。
+        if keeps_current_training_model and training_sample_store.count_model_training_samples(
+            model_id=selected_reuse_model_id
+        ):
             training_sample_store.mark_latest_alarm_boundary(
                 model_id=selected_reuse_model_id, position=boundary_position
             )

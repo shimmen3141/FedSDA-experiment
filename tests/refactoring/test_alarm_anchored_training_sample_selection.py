@@ -193,16 +193,17 @@ def test_change_interval_resolution_marks_boundary_only_when_current_model_conti
         assert marked == {}
 
 
+@pytest.mark.parametrize("pending_sample_count", [0, 4])
 @pytest.mark.parametrize("legacy_resolution_case", LEGACY_RESOLUTION_CASES)
 def test_validation_resolution_marks_boundary_only_when_current_model_continues(
-    legacy_resolution_case, monkeypatch
+    legacy_resolution_case, pending_sample_count, monkeypatch
 ):
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(601)
         resolution_arguments, _, _, _ = build_resolution_oracle(
             class_count=2,
             legacy_resolution_case=legacy_resolution_case,
-            pending_sample_count=4,
+            pending_sample_count=pending_sample_count,
             monkeypatch=monkeypatch,
         )
         store = resolution_arguments["training_sample_store"]
@@ -216,7 +217,10 @@ def test_validation_resolution_marks_boundary_only_when_current_model_continues(
         for model_id, position in boundaries(store).items()
         if position is not None
     }
-    if resolution.resolution_outcome in ("candidate_rejected", "current_model_maintained"):
+    if resolution.resolution_outcome in (
+        "candidate_rejected",
+        "current_model_maintained",
+    ) and store.count_model_training_samples(model_id=current_model_id):
         assert marked == {current_model_id: length_before}
     else:
         assert marked == {}
@@ -634,3 +638,20 @@ def test_decay_before_boundary_draws_uniformly_among_the_samples_after_the_bound
         for seed in range(200)
     }
     assert first_positions == set(range(20, 33))
+
+
+def test_validation_resolution_without_samples_does_not_fail_or_mark(monkeypatch):
+    """検証の標本が0件で、今のモデルの列も無いとき、区切りを付けずに確定する（例外を出さない）。"""
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(601)
+        resolution_arguments, _, _, _ = build_resolution_oracle(
+            class_count=2,
+            legacy_resolution_case="create_rejected",
+            pending_sample_count=0,
+            monkeypatch=monkeypatch,
+        )
+        store = ModelTrainingSampleStore()
+        resolution_arguments["training_sample_store"] = store
+        resolution = apply_post_alarm_candidate_validation_resolution(**resolution_arguments)
+    assert resolution.resolution_outcome == "candidate_rejected"
+    assert boundaries(store) == {}
