@@ -1,0 +1,46 @@
+{
+  "feature_name": "fedsda-default-waited-registration-and-alarm-wait",
+  "created_at": "2026-10-14",
+  "updated_at": "2026-10-14",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "a30d8bd",
+    "target": "未commitの仕様書群5文書",
+    "session_ids": [
+      "832049c9-86f2-4fb3-a04d-2efe0a8ee7b9",
+      "f6bca78d-be69-4119-b90b-d4f25e664e80",
+      "7efa6625-3f70-4e37-8b8f-de39235fe4d8",
+      "eebab257-248b-4548-ac67-53eafa788bba"
+    ],
+    "result": "1〜3回目はCHANGES REQUIRED（Majorを直すたびに再確認）、4回目でPASS。採否はtasks.md。",
+    "output": "../../venv/refactoring-tests/default-case-y-spec-review-{1..4}.jsonl",
+    "selection_reason": "状態と分岐の論証なので、Haiku 5.5"
+  }
+}
