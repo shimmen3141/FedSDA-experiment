@@ -47,11 +47,11 @@ from federated_learning_experiments.methods.fedsda.consolidation.model_consolida
     ModelConsolidationSettings,
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
-    RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+    WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME,
     LossChangeDetectionSettings,
 )
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_registration_settings import (
-    REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+    REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME,
     PendingModelRegistrationSettings,
 )
 from federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings import (
@@ -166,7 +166,7 @@ def build_final_configuration_fedsda_run_settings(
     )
     run_client_settings = FedsdaRunClientSettings(
         loss_change_detection_settings=LossChangeDetectionSettings(
-            short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+            short_change_interval_alarm_policy=WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME,
             drift_detector_name="e_sr",
             # ADWINの値は、提案構成（e-SR）では使わない。ADWINで監視する構成が、この値を使う（旧の既定と同じ）。
             adwin_confidence_delta=_ADWIN_CONFIDENCE_DELTA,
@@ -227,7 +227,9 @@ def build_final_configuration_fedsda_run_settings(
         parameter_optimizer_settings=parameter_optimizer_settings,
         rebuilt_model_parameter_optimizer_settings=parameter_optimizer_settings,
         pending_model_registration_settings=PendingModelRegistrationSettings(
-            pending_model_registration_policy=REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+            pending_model_registration_policy=(
+                REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME
+            )
         ),
         scalar_settings=FedsdaRunClientScalarSettings(
             maximum_tolerated_mean_loss_increase=_MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,

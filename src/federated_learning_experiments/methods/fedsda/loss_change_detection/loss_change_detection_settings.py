@@ -8,9 +8,10 @@ from federated_learning_experiments.core.settings_field_validation import (
 )
 
 # 検出器の合図があり、推定変化区間が最小件数より短いときに、警報とするかどうか。
-# 合図があれば、すぐに警報とする（短い警報として処理し、検出器を再開する。既定。固定旧と同じ）。
+# 合図があれば、すぐに警報とする（短い警報として処理し、検出器を再開する。固定旧と同じ。ADWINの検出器の構成の値）。
 RAISE_ALARM_IMMEDIATELY_POLICY_NAME = "raise_alarm_immediately"
-# 推定変化区間が最小件数に達するまで、警報としない（検出器の証拠は残す。検出器がe-SRのときだけ選べる）。
+# 推定変化区間が最小件数に達するまで、警報としない（検出器の証拠は残す。検出器がe-SRのときだけ選べる。
+# FedSDAの既定。2026-10-14）。
 WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME = (
     "wait_until_change_interval_reaches_minimum"
 )

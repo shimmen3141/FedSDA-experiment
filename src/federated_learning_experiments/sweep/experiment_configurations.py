@@ -9,6 +9,9 @@ from dataclasses import replace
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
 )
+from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+)
 from federated_learning_experiments.runtime.fedavg_run_settings import (
     FedavgRunSettings,
     build_default_fedavg_run_settings,
@@ -71,9 +74,20 @@ _LOSS_CHANGE_DETECTION_CHANGES_BY_CONFIGURATION_NAME: dict[str, tuple[dict[str, 
         {"loss_monitoring_scope": "overall_loss"},
         "e-SR",
     ),
-    CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME: ({"drift_detector_name": "adwin"}, "ADWIN"),
+    # ADWINは、最小件数まで警報を待つ扱い（最終構成の既定）と組み合わせられないので、警報を即時に明示する。
+    CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME: (
+        {
+            "drift_detector_name": "adwin",
+            "short_change_interval_alarm_policy": RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+        },
+        "ADWIN",
+    ),
     OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME: (
-        {"drift_detector_name": "adwin", "loss_monitoring_scope": "overall_loss"},
+        {
+            "drift_detector_name": "adwin",
+            "loss_monitoring_scope": "overall_loss",
+            "short_change_interval_alarm_policy": RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+        },
         "ADWIN",
     ),
 }

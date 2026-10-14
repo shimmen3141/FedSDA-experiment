@@ -24,6 +24,9 @@ from federated_learning_experiments.configuration.experiment_run_conditions impo
 from federated_learning_experiments.core.configuration_errors import (
     RunSettingsValidationError,
 )
+from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
+    RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+)
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
 )
@@ -243,6 +246,7 @@ CONFIGURATION_VARIANTS = {
             replace_loss_monitoring_scope(
                 replace_loss_monitor_maximum_window(run_participant_settings),
                 drift_detector_name="adwin",
+                short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
                 detector_name="ADWIN",
             )
         ),
@@ -260,6 +264,7 @@ CONFIGURATION_VARIANTS = {
                 replace_loss_monitor_maximum_window(run_participant_settings),
                 drift_detector_name="adwin",
                 loss_monitoring_scope="overall_loss",
+                short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
                 detector_name="ADWIN",
             )
         ),

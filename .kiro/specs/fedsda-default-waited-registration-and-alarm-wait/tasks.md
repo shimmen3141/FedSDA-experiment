@@ -5,7 +5,7 @@
   - この時点で、全部のtestが値を変えずに通る。版4の扱いで、版4の全ケースの事象の回数を確かめ、記録する。1以上のケースが無ければ、ユーザーへ確認する。
   - _Requirements: 2.2, 3.2_
 
-- [ ] 2. 最終構成の既定を案Yにし、ADWINの2構成の警報を即時に明示する
+- [x] 2. 最終構成の既定を案Yにし、ADWINの2構成の警報を即時に明示する
   - 構成の既定のtest（11構成の登録と警報の値、ADWINの2構成は即時、全構成の組立てが例外を出さない、掃引のコマンドの引数の一覧が変わらない）を先に書き、REDを確かめる。既定に依るtestの候補: 掃引のrunの識別子の期待値、最終構成の既定の照合、構成の既定のtest、共用のfresh scriptの方針の名前、待つ扱いのspecの「既定は即時」のtest、`test_fedsda_configuration_variants.py`のADWINへ替える補助関数と構造の比較（既定の待つ扱いを引き継いだまま、ADWINへ替えると拒否される）。
   - 最終構成の2つの既定と、ADWINの2構成を替える。既定に依るtestを、失敗したものから合わせる（実旧と比べるtestの期待値は変えない。失敗したら、旧と同じ扱いの明示の漏れを直す）。依存境界の許可の名前を入れ替える。sourceの既定の注記を直す。
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1_
@@ -34,3 +34,4 @@
   - M1（ADWINの2構成でも、この場面が数えられうる。版4・5で動作が同じなので、「事象が1以上なら差がある」の検査と矛盾する）: 事象を、次の版で警報を待つ扱いを使うケースだけで数える定義に改めた（ADWINの2構成と、FedDrift・FedAvgは、定義により0）。要求3.2・3.3と設計へ書いた。
 - 仕様レビュー4回目（修正の再確認。同じ担当・effort、session `eebab257-248b-4548-ac67-53eafa788bba`）: `SPECIFICATION: PASS`（Blocker・Majorなし。Minor 5）。採否（全部採用）: m1（版5のgoldenを生成する前の中間のcommitで、版5のgoldenの存在のtestが失敗する）・m2（task 1の事象の数え方の範囲）・m3（要求1.4のtestをtask 2の本文へ）・m4（既定に依るtestの候補に、構成の派生のtestのADWINの補助関数を足す）・m5（古い注記）: taskへ書いた。Minorだけなので、再レビューは受けない。
 - task 1: 版4の扱いで、版4の全19ケースの事象（`alarm_wait_situation_count`）を数えた（Windows）。`fedsda-sine2-events`が10、`fedsda-sine2-reference-reuse`と`fedsda-sine2-alternative-reference-reuse`が16、ほかの16ケースは0（ADWINの2構成は、定義により数えない）。1以上のケースがあるので、ユーザーへの確認は不要。基準版1〜4の照合は、値を変えずに通過（goldenのtest 165 passed）。
+- task 2: 構成の既定のtest（新規`test_fedsda_default_waited_registration_and_alarm_wait.py`）で、REDを確かめた（既定の登録の扱いが違う）。既定を替えた後の全pytestで失敗したのは、既定に依るtestの12件だけだった（依存境界2件——最終構成のmoduleのimportの入替えと、構成のmoduleの`RAISE_ALARM_IMMEDIATELY_POLICY_NAME`の追加——、掃引のrunの識別子2件——`72f2b5b47a95`→`ecef3c8ebd73`——、最終構成の既定の照合6件、構成の派生の構造の比較——test側のADWINの2構成の定義に、即時の警報を明示した。実旧と比べる設定は、もともと即時なので、照合の値は変わらない——、共用のfresh scriptの方針の名前）。実旧と比べるtestの期待値は変えていない。合わせた後、対象のtest（構成の派生の実旧との照合、基準版1〜4の照合を含む）3452 passed。前のspecの、全部登録を既定とするtestは、このspecのtestファイルへ置き換えた。

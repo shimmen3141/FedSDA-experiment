@@ -34,16 +34,11 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
 from federated_learning_experiments.runtime.fedsda_experiment_run import (
     execute_fedsda_experiment_run,
 )
-from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.runtime.held_model_registration_confirmation import (
     confirm_held_model_registration,
 )
 from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
     register_ready_client_models,
-)
-from federated_learning_experiments.sweep.experiment_configurations import (
-    EXPERIMENT_CONFIGURATION_NAMES,
-    build_experiment_run_settings,
 )
 
 
@@ -349,23 +344,7 @@ def build_waiting_as_current_run_settings_for_case(case_name):
     )
 
 
-def test_every_fedsda_configuration_defaults_to_registration_by_own_id():
-    """既定は、待ちの済んだ送信保留の全部を、それ自身のIDで登録する（2026-10-14、ユーザー判断で戻した）。"""
-    fedsda_configuration_count = 0
-    for configuration_name in EXPERIMENT_CONFIGURATION_NAMES:
-        run_settings = golden.build_case_settings(configuration_name, 3)
-        if type(run_settings) is not FedsdaRunSettings:
-            continue
-        fedsda_configuration_count += 1
-        default_run_settings = build_experiment_run_settings(
-            configuration_name=configuration_name,
-            experiment_run_conditions=run_settings.execution_settings.experiment_run_conditions,
-        )
-        assert (
-            default_run_settings.run_participant_settings.run_client_settings.pending_model_registration_settings.pending_model_registration_policy
-            == REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
-        ), configuration_name
-    assert fedsda_configuration_count == 11
+# 構成の既定のtestは、既定を案Yにしたspecのtestファイル（`test_fedsda_default_waited_registration_and_alarm_wait.py`）へ移した。
 
 
 SINE2_EVENT_CASE_NAME = "fedsda-sine2-events"
