@@ -1,0 +1,46 @@
+{
+  "feature_name": "experiment-artifact-organization",
+  "created_at": "2026-10-14",
+  "updated_at": "2026-10-14",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "5ca896f",
+    "target": "未commitの仕様書群5文書",
+    "session_ids": [
+      "3e8bb9b7-23d0-4cfb-a811-bcb6ead4d56c",
+      "e412cd44-bfa1-4ce9-8d90-0a65871f75aa",
+      "fb2408bd-4967-4882-a46a-249df3f32a4b",
+      "3a073331-b57b-4945-acca-f83de6fe885e"
+    ],
+    "result": "1〜3回目はCHANGES REQUIRED（Major 3・2・2。既存の呼出しの漏れ、--stdoutの中身、表の比較の循環、ラベルの検査の範囲、連鎖の表の入力、警告の位置、引数一覧のtest）。4回目でPASS（Minor 8は文面と手順の補足として反映）。",
+    "output": "../../venv/refactoring-tests/organization-spec-review-{1..4}.jsonl",
+    "selection_reason": "コマンドの引数と実行の順の論証なので、Haiku 5.5"
+  }
+}
