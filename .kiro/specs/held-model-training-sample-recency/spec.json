@@ -1,0 +1,46 @@
+{
+  "feature_name": "held-model-training-sample-recency",
+  "created_at": "2026-10-14",
+  "updated_at": "2026-10-14",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー4回目PASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "e79e5cf",
+    "target": "未commitの仕様書群5文書",
+    "session_ids": [
+      "3655313f-f850-412f-8ae7-9d2b7b9f4c5a",
+      "d4081fe4-7cd4-4caa-9621-552498377732",
+      "5d193e06-5cf7-45bb-8cf8-876306e73e9a",
+      "3d5d141d-d9a6-4203-b3f6-8a8ddaa2d6be"
+    ],
+    "result": "1〜3回目はCHANGES REQUIRED（Major 4・4・2。共有の検査の型、指数減衰の終わり方・計算量・丸め、依存境界の否定例、表の読み方、識別子の変化）。4回目でPASS（Minor 9は実装で扱う。tasks.md）。",
+    "output": "../../venv/refactoring-tests/recency-spec-review-{1..4}.jsonl",
+    "selection_reason": "数値の抜き出しと設定の検査の論証なので、Haiku 5.5"
+  }
+}
