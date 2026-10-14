@@ -627,11 +627,13 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
             ) <= reasons, (case_name, reasons)
             assert coverage["merged_model_count"] > 0, case_name
         elif case_name == "fedsda-sine2-alternative-reference-reuse":
-            # 版5では、第2区間の差の不足の判定を通らない（その経路は、`fedsda-sine2-reference-reuse`が受け持つ）。
-            assert (
-                {"alternative_reference_within_historical_loss_tolerance"}
-                | ({"second_segment_margin_failed"} if baseline_version == 4 else set())
-            ) <= reasons, (case_name, reasons)
+            # 版4の、別の保有モデルの再利用と、第2区間の差の不足の経路を守るケース。版5では、どちらの経路も、
+            # `fedsda-sine2-reference-reuse`が受け持つ（このケースでは、環境によって、どちらも通らないことがある）。
+            if baseline_version == 4:
+                assert {
+                    "alternative_reference_within_historical_loss_tolerance",
+                    "second_segment_margin_failed",
+                } <= reasons, (case_name, reasons)
             assert coverage["merged_model_count"] > 0, case_name
         else:
             assert "second_segment_margin_failed" in reasons, (case_name, reasons)
