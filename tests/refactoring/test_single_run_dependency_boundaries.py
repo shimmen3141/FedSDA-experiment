@@ -6900,10 +6900,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "random.Random",
             # 指数減衰の抜き出し（区間の重みの和と逆関数、選んだ位置の昇順の列）。
             "bisect",
-            "bisect.bisect_left",
             "bisect.insort",
-            "sys",
-            "sys.float_info",
             "math",
             "math.floor",
             "math.log",

@@ -887,8 +887,6 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                     "uniform_over_all_stored_samples",
                     "uniform_over_most_recent_stored_samples",
                     "recency_decayed_stored_samples",
-                    "uniform_after_latest_alarm_boundary",
-                    "recency_decayed_before_latest_alarm_boundary",
                 )
                 if settings_field.name == "training_sample_selection_policy"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)

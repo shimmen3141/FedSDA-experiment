@@ -23,14 +23,10 @@ from federated_learning_experiments.sweep.experiment_configurations import (
 _UNIFORM_SELECTION_TEXT = "uniform"
 _RECENT_SELECTION_PREFIX = "recent:"
 _DECAY_SELECTION_PREFIX = "decay:"
-_ALARM_SELECTION_TEXT = "alarm"
-_ALARM_DECAY_SELECTION_PREFIX = "alarm-decay:"
 _SELECTION_POLICY_BY_KIND = {
     "uniform": "uniform_over_all_stored_samples",
     "recent": "uniform_over_most_recent_stored_samples",
     "decay": "recency_decayed_stored_samples",
-    "alarm": "uniform_after_latest_alarm_boundary",
-    "alarm-decay": "recency_decayed_before_latest_alarm_boundary",
 }
 # 識別子のhashの桁数（16進）。
 _RUN_IDENTIFIER_HASH_LENGTH = 12
@@ -49,7 +45,7 @@ def _validate_distinct_values(*, values: object, value_type: type, field_name: s
 
 
 def parse_fedsda_training_sample_selection(text: str) -> tuple[str, int | None, float | None]:
-    """掃引の軸の書き方（`uniform`・`recent:<K>`・`decay:<α>`・`alarm`・`alarm-decay:<α>`）を、設定の3つの値へ変換する。
+    """掃引の軸の書き方（`uniform`・`recent:<K>`・`decay:<α>`）を、設定の3つの値へ変換する。
 
     Kは先頭が0でない10進の数字だけ。αは`0.`に続く1桁以上の10進の数字だけ（0は不可）。それ以外は拒否する。
     Kとbatchの件数の関係は、作ったrun設定の検査が確かめる。
@@ -58,19 +54,12 @@ def parse_fedsda_training_sample_selection(text: str) -> tuple[str, int | None, 
         raise TypeError("training sample selection must be builtin str")
     if text == _UNIFORM_SELECTION_TEXT:
         return _SELECTION_POLICY_BY_KIND["uniform"], None, None
-    if text == _ALARM_SELECTION_TEXT:
-        return _SELECTION_POLICY_BY_KIND["alarm"], None, None
     if text.startswith(_RECENT_SELECTION_PREFIX):
         digits = text[len(_RECENT_SELECTION_PREFIX) :]
         if digits.isascii() and digits.isdigit() and not digits.startswith("0"):
             return _SELECTION_POLICY_BY_KIND["recent"], int(digits), None
-    for prefix, kind in (
-        (_DECAY_SELECTION_PREFIX, "decay"),
-        (_ALARM_DECAY_SELECTION_PREFIX, "alarm-decay"),
-    ):
-        if not text.startswith(prefix):
-            continue
-        number = text[len(prefix) :]
+    if text.startswith(_DECAY_SELECTION_PREFIX):
+        number = text[len(_DECAY_SELECTION_PREFIX) :]
         fraction_digits = number[2:]
         if (
             number.startswith("0.")
@@ -78,11 +67,10 @@ def parse_fedsda_training_sample_selection(text: str) -> tuple[str, int | None, 
             and fraction_digits.isdigit()
             and fraction_digits.strip("0")
         ):
-            return _SELECTION_POLICY_BY_KIND[kind], None, float(number)
+            return _SELECTION_POLICY_BY_KIND["decay"], None, float(number)
     raise ValueError(
         f"invalid FedSDA training sample selection: {text!r} "
-        "(use uniform, recent:<K> with a positive integer K, decay:<α> written as 0.<digits>, "
-        "alarm, or alarm-decay:<α>)"
+        "(use uniform, recent:<K> with a positive integer K, or decay:<α> written as 0.<digits>)"
     )
 
 
@@ -94,10 +82,6 @@ def describe_fedsda_training_sample_selection(
         return f"{_RECENT_SELECTION_PREFIX}{most_recent_count}"
     if policy == _SELECTION_POLICY_BY_KIND["decay"]:
         return f"{_DECAY_SELECTION_PREFIX}{decay_factor!r}"
-    if policy == _SELECTION_POLICY_BY_KIND["alarm"]:
-        return _ALARM_SELECTION_TEXT
-    if policy == _SELECTION_POLICY_BY_KIND["alarm-decay"]:
-        return f"{_ALARM_DECAY_SELECTION_PREFIX}{decay_factor!r}"
     return _UNIFORM_SELECTION_TEXT
 
 

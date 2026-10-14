@@ -3,7 +3,7 @@
   "created_at": "2026-10-15",
   "updated_at": "2026-10-15",
   "language": "ja",
-  "phase": "completed",
+  "phase": "withdrawn",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -63,5 +63,5 @@
     "after_review_fix": "新しいtest fileと候補の検証の確定のtest file 169 passed、Pyright 0件（全pytestは未再実行）",
     "wsl": "未実行"
   },
-  "completion_decision": "完了。警報の後に同じモデルで続けた時点を区切りとして残し、区切りを使う2つの抜き出し方（alarm・alarm-decay）を選べる。既定の動作と値は不変。"
+  "completion_decision": "取り下げ（2026-10-15、ユーザー判断）。手元の当たり付けで固定のK・αに届かず、変更が中心の流れに広がっていたので、sourceとtestを7831e74へ戻した。実装は01112c9・8cbc306。"
 }

@@ -245,13 +245,6 @@ def resolve_alarm_change_interval(
     )
     selected_reuse_model_id = alarm_interval_reuse_assessment.selected_reuse_model_id
     if selected_reuse_model_id is not None:
-        # 今のモデルで続けるなら、区間の標本の前の列の長さを、吸収の後に、区切りとして付ける。
-        keeps_current_training_model = (
-            selected_reuse_model_id == current_training_model_assignment.current_training_model_id
-        )
-        boundary_position = training_sample_store.count_model_training_samples(
-            model_id=selected_reuse_model_id
-        )
         # 吸収は自身の検査と全標本の損失評価の後に更新する。帰属の切替えはその後に行う。
         absorb_assigned_training_samples_into_held_model(
             model_id=selected_reuse_model_id,
@@ -262,13 +255,6 @@ def resolve_alarm_change_interval(
             model_training_and_assignment_counts_store=model_training_and_assignment_counts_store,
             loss_statistics_store=loss_statistics_store,
         )
-        # 吸収の後も列が無ければ（区切りで分ける標本が無い）、付けない。
-        if keeps_current_training_model and training_sample_store.count_model_training_samples(
-            model_id=selected_reuse_model_id
-        ):
-            training_sample_store.mark_latest_alarm_boundary(
-                model_id=selected_reuse_model_id, position=boundary_position
-            )
         training_model_assignment_change = (
             current_training_model_assignment.assign_model_for_training(
                 model_id=selected_reuse_model_id
