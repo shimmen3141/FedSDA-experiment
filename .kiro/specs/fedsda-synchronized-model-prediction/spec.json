@@ -1,0 +1,67 @@
+{
+  "feature_name": "fedsda-synchronized-model-prediction",
+  "created_at": "2026-10-15",
+  "updated_at": "2026-10-15",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー判断（4回目の指摘を反映し、5回目を省く）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー判断（4回目の指摘を反映し、5回目を省く）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー判断（4回目の指摘を反映し、5回目を省く）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー判断（4回目の指摘を反映し、5回目を省く）"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "approved_by_user_without_fifth_review",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "9f706b2",
+    "session_ids": [
+      "8f061a1c-eea8-4d28-be43-7735d3662bb7",
+      "1242f365-3c59-4e98-be57-293d7109a7cd",
+      "a3d3526f-0b2c-4ca7-a113-6959696f13e9",
+      "d8baeb0c-8252-420c-a99f-88e800d12b8d"
+    ],
+    "result": "1回目はCHANGES REQUIRED（Major 1: 省略可能なownerをexactな型の検査の表へ入れると、既定の経路が壊れる。Minor 8）。反映して2回目へ。 2回目はCHANGES REQUIRED（Major 1: 共有部を持たない構造とadapterを持たない構造の照合の計画が無い。Minor 6）。反映して3回目へ。 3回目はCHANGES REQUIRED（Major 2: adapterを持たない構造の共有部はパラメータを持つ——設計の記述の誤り。新しいownerをFedsdaRunClientOwnersへ入れると、既存testの補助collect_processing_arguments——ownerの全部を標本の処理の引数として読む——へ入る。Minor 6）。3回目でPASSしなかったので、ユーザーへ報告して判断を待つ（2026-10-15）。 ユーザーの指示（2026-10-15）で、3回目のMajorを直して4回目を受けた。4回目はCHANGES REQUIRED（Major 1: 要求1.4の検証の観測点——標本の処理の戻り値の、損失の監視の観測——は損失を持たない。Minor 5: 参照のパス、設定の検査のtestの列挙表、clientの構成子の引数、oracleをtestの中で再実装すること・本規模の一致の条件、定数名の接頭辞）。ユーザーの指示どおり、ここで止めて報告する。 4回目の指摘を反映し、ユーザーの判断（2026-10-15、選択肢1）で5回目を省いて実装へ進む。反映した箇所は、実装の後の独立レビューで確かめる。",
+    "output": "../../venv/refactoring-tests/synchronized-prediction-spec-review-{1..}.jsonl"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "未commitの変更（基点9f706b2）",
+    "session_ids": [
+      "51b176e4-b42d-4000-bfb4-833d0804f03e"
+    ],
+    "is_error": false,
+    "result": "APPROVED（Minor 3。採否はtasks.md）。",
+    "output": "../../venv/refactoring-tests/synchronized-prediction-review-1.jsonl",
+    "selection_reason": "数値の一致と、予測・学習の経路の論証なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14347,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/synchronized-prediction-full.xml",
+    "wsl": "新しいtest・goldenの版1〜5・fedavg-local-updates-per-aggregationのtestで231 passed",
+    "full_scale_check": "sea2・circle2・sine2のseed 0で、診断の記録と精度が6つとも厳密に一致",
+    "tested_revision": "未commitの変更（基点9f706b2）。レビューの後の修正は文書だけ"
+  },
+  "completion_decision": "完了。予測（と予測重みの更新）に使うパラメータを設定で選べ、構成fedsda-synchronized-model-predictionで掃引できる。既定の動作と値は不変。"
+}

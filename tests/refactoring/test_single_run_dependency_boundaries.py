@@ -5322,6 +5322,18 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if (
         source_module_path
+        == "methods/fedsda/prediction_combination/synchronized_prediction_model_snapshot.py"
+    ):
+        return imported_module_name in (
+            "copy",
+            "copy.deepcopy",
+            "federated_learning_experiments.learning.models.model_architecture_classifier",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+        )
+    if (
+        source_module_path
         == "methods/fedsda/prediction_combination/all_sample_adahedge_weight_evidence_holder.py"
     ):
         return imported_module_name in (
@@ -6153,6 +6165,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_loss_monitoring_baseline_mean_loss",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
             "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights.FixedShareWeightController",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot.SynchronizedPredictionModelSnapshot",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store.PendingSampleObservationStore",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
             "federated_learning_experiments.runtime.candidate_validation_session_holder.CandidateValidationSessionHolder",
@@ -6210,6 +6223,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
             "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
             "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights.FixedShareWeightController",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot.SynchronizedPredictionModelSnapshot",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
         )
     if source_module_path == "evaluation/sample_prediction_record_store.py":
         return imported_module_name in (
@@ -6231,6 +6246,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.optim.Optimizer",
             "federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection.TrueConceptAdaHedgeDiagnosticEvidenceCollection",
             "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
+            "federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot.SynchronizedPredictionModelSnapshot",
             "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
             "federated_learning_experiments.evaluation.loss_change_alarm_record_store.LossChangeAlarmRecordStore",
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",

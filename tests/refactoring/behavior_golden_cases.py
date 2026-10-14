@@ -116,6 +116,12 @@ _TRAINING_SAMPLE_SELECTION_DEFAULTS = {
     ("local_training_settings", "most_recent_stored_sample_count"): None,
     ("local_training_settings", "stored_sample_recency_decay_factor"): None,
 }
+# 予測に使うパラメータ（2026-10-15に足した項目）。版1〜5は、どれも局所更新した現在の値。
+_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS = {
+    ("prediction_combination_settings", "prediction_model_parameter_source"): (
+        "current_local_parameters"
+    ),
+}
 _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     1: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: {
@@ -127,18 +133,21 @@ _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
         _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         **_TRAINING_SAMPLE_SELECTION_DEFAULTS,
+        **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
     },
     2: {
         _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         **_TRAINING_SAMPLE_SELECTION_DEFAULTS,
+        **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
     },
     3: {
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         **_TRAINING_SAMPLE_SELECTION_DEFAULTS,
+        **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
     },
-    4: dict(_TRAINING_SAMPLE_SELECTION_DEFAULTS),
-    5: dict(_TRAINING_SAMPLE_SELECTION_DEFAULTS),
+    4: {**_TRAINING_SAMPLE_SELECTION_DEFAULTS, **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS},
+    5: {**_TRAINING_SAMPLE_SELECTION_DEFAULTS, **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS},
 }
 # 版の後に、最終構成の既定の値が変わった、FedSDAのclientの設定の項目と、その版の値。保存してある設定は、
 # この項目を持つので、比べる前に除かない（上の「後に足された項目」の表へ入れると、除かれて比べられなくなる）。
@@ -191,6 +200,7 @@ BASELINE_CONFIGURATION_CASE_NAMES = (
 # goldenの事例にしない構成の名前と、その構成を守る専用のtestのファイル（リポジトリの根からの位置）。
 CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
     "fedavg-local-updates-per-aggregation": "tests/refactoring/test_fedavg_local_updates_per_aggregation.py",
+    "fedsda-synchronized-model-prediction": "tests/refactoring/test_fedsda_synchronized_model_prediction.py",
 }
 _VERSION_1_CASE_NAMES = (
     *BASELINE_CONFIGURATION_CASE_NAMES,

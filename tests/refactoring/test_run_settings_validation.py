@@ -84,6 +84,7 @@ def valid_run_settings_mapping():
                 "restart_adahedge_preserve_fixed_share_prediction_state"
             ),
             fixed_share_weight_redistribution_time_scale_samples=2,
+            prediction_model_parameter_source="current_local_parameters",
         ),
         "local_training_settings": LocalTrainingSettings(
             local_model_parameter_update_strategy=("joint_backbone_adapter_and_head_training"),
@@ -508,6 +509,7 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
                 prediction_weight_recalibration_after_aggregation_policy="recompute_buffer_losses_and_replay_weight_updates",
                 prediction_state_reset_on_training_assignment_change_policy="restart_adahedge_preserve_fixed_share_prediction_state",
                 fixed_share_weight_redistribution_time_scale_samples=2,
+                prediction_model_parameter_source="current_local_parameters",
             ),
             "fixed_share_weight_redistribution_time_scale_samples",
         ),
@@ -594,6 +596,7 @@ def test_integer_settings_reject_invalid_types_and_ranges(
                 prediction_weight_recalibration_after_aggregation_policy="recompute_buffer_losses_and_replay_weight_updates",
                 prediction_state_reset_on_training_assignment_change_policy="restart_adahedge_preserve_fixed_share_prediction_state",
                 fixed_share_weight_redistribution_time_scale_samples=2,
+                prediction_model_parameter_source="current_local_parameters",
             ),
             "fixed_share_weight_redistribution_time_scale_samples",
         ),
@@ -696,6 +699,7 @@ def test_aggregation_interval_can_exceed_stream_length():
                 prediction_weight_recalibration_after_aggregation_policy="recompute_buffer_losses_and_replay_weight_updates",
                 prediction_state_reset_on_training_assignment_change_policy="restart_adahedge_preserve_fixed_share_prediction_state",
                 fixed_share_weight_redistribution_time_scale_samples=2,
+                prediction_model_parameter_source="current_local_parameters",
             ),
         ),
         (
@@ -799,6 +803,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             "prediction_mixture_activation_policy": str,
             "prediction_weight_recalibration_after_aggregation_policy": str,
             "prediction_state_reset_on_training_assignment_change_policy": str,
+            "prediction_model_parameter_source": str,
             "fixed_share_weight_redistribution_time_scale_samples": int,
         }
         if settings_type is PredictionCombinationSettings
@@ -889,6 +894,8 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                     "recency_decayed_stored_samples",
                 )
                 if settings_field.name == "training_sample_selection_policy"
+                else ("current_local_parameters", "parameters_at_last_synchronization")
+                if settings_field.name == "prediction_model_parameter_source"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
         elif settings_field.name in (
@@ -1035,6 +1042,7 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
                     prediction_weight_recalibration_after_aggregation_policy="recompute_buffer_losses_and_replay_weight_updates",
                     prediction_state_reset_on_training_assignment_change_policy="restart_adahedge_preserve_fixed_share_prediction_state",
                     fixed_share_weight_redistribution_time_scale_samples=2,
+                    prediction_model_parameter_source="current_local_parameters",
                 ),
                 configuration_parameter_name,
             )
@@ -1043,6 +1051,7 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
                 "prediction_mixture_activation_policy",
                 "prediction_weight_recalibration_after_aggregation_policy",
                 "prediction_state_reset_on_training_assignment_change_policy",
+                "prediction_model_parameter_source",
             )
         ],
         *[

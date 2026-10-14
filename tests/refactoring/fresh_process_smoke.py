@@ -776,6 +776,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
                 "restart_adahedge_preserve_fixed_share_prediction_state"
             ),
             fixed_share_weight_redistribution_time_scale_samples=10,
+            prediction_model_parameter_source="current_local_parameters",
         )
     )
     sample_prediction_record_store = SamplePredictionRecordStore()
@@ -1124,6 +1125,7 @@ def run_assembled_client_flow(*, class_count):
                 "restart_adahedge_preserve_fixed_share_prediction_state"
             ),
             fixed_share_weight_redistribution_time_scale_samples=pending_capacity,
+            prediction_model_parameter_source="current_local_parameters",
         ),
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",

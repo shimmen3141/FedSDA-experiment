@@ -11,6 +11,9 @@ from federated_learning_experiments.evaluation.sample_prediction_record_store im
 from federated_learning_experiments.evaluation.true_concept_adahedge_diagnostic_evidence_collection import (
     TrueConceptAdaHedgeDiagnosticEvidenceCollection,
 )
+from federated_learning_experiments.learning.models.model_architecture_classifier import (
+    ModelArchitectureClassifier,
+)
 from federated_learning_experiments.learning.prediction.class_probability_calculations import (
     combine_model_prediction_probabilities,
     compute_model_mean_bounded_losses_after_label_observation,
@@ -35,6 +38,9 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.all_sa
 )
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
+)
+from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot import (
+    SynchronizedPredictionModelSnapshot,
 )
 
 
@@ -155,12 +161,33 @@ def _combine_and_compare_with_observed_class(
     )
 
 
+def _select_prediction_classifiers(
+    *,
+    held_model_training_state_registry: HeldModelTrainingStateRegistry,
+    synchronized_prediction_model_snapshot: SynchronizedPredictionModelSnapshot | None,
+) -> tuple[ModelArchitectureClassifier, dict[int, ModelArchitectureClassifier]]:
+    """共有特徴を計算する分類器と、保有モデルごとの予測の分類器。
+
+    写しのownerが無ければ、保有モデルの現在の分類器で、共有特徴はID昇順で最初のモデルで計算する。
+    """
+    if synchronized_prediction_model_snapshot is not None:
+        return synchronized_prediction_model_snapshot.select_prediction_classifiers(
+            held_model_training_state_registry=held_model_training_state_registry
+        )
+    classifiers_by_model_id = {
+        held_model_training_state.model_id: held_model_training_state.classifier
+        for held_model_training_state in held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+    }
+    return classifiers_by_model_id[min(classifiers_by_model_id)], classifiers_by_model_id
+
+
 def _predict_with_current_training_model_only(
     *,
     indexed_observation: IndexedObservedTrainingSample,
     sample_prediction_record_store: SamplePredictionRecordStore,
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
     current_training_model_assignment: CurrentTrainingModelAssignment,
+    synchronized_prediction_model_snapshot: SynchronizedPredictionModelSnapshot | None,
 ) -> ObservedSamplePrediction:
     """現在の学習帰属のモデルだけを評価して予測し、記録を足す。重みの保持と証拠は、使わない・更新しない。
 
@@ -172,14 +199,23 @@ def _predict_with_current_training_model_only(
     observed_class_labels = indexed_observation.training_sample.observed_class_labels
     observed_concept_id = indexed_observation.observed_concept_id
     current_training_model_id = current_training_model_assignment.current_training_model_id
-    current_classifier = held_model_training_state_registry.get_held_model_training_state(
-        model_id=current_training_model_id
-    ).classifier
+    if synchronized_prediction_model_snapshot is None:
+        current_classifier = held_model_training_state_registry.get_held_model_training_state(
+            model_id=current_training_model_id
+        ).classifier
+        shared_feature_classifier = current_classifier
+    else:
+        shared_feature_classifier, prediction_classifiers_by_model_id = (
+            synchronized_prediction_model_snapshot.select_prediction_classifiers(
+                held_model_training_state_registry=held_model_training_state_registry
+            )
+        )
+        current_classifier = prediction_classifiers_by_model_id[current_training_model_id]
     class_count = current_classifier.class_count
     with no_grad():
         model_outputs_by_model_id = {
             current_training_model_id: current_classifier.forward_from_shared_features(
-                current_classifier.extract_shared_features(input_features)
+                shared_feature_classifier.extract_shared_features(input_features)
             )
         }
     prediction_probabilities_by_model_id = convert_model_outputs_to_prediction_probabilities(
@@ -244,6 +280,7 @@ def predict_observed_sample_and_update_prediction_weights(
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
     current_training_model_assignment: CurrentTrainingModelAssignment,
     prediction_combination_strategy: str,
+    synchronized_prediction_model_snapshot: SynchronizedPredictionModelSnapshot | None = None,
 ) -> ObservedSamplePrediction:
     """保有する全モデルの確率を、予測に使う重みで結合して予測し、記録を足してから、重みを更新する。
 
@@ -253,8 +290,18 @@ def predict_observed_sample_and_update_prediction_weights(
     `_predict_with_current_training_model_only`）。
 
     AdaHedgeの証拠（全標本のものと、真の概念IDがあればその概念の診断のもの）も、同じ損失で更新する。
+    `synchronized_prediction_model_snapshot`を渡すと、評価する分類器を、そのowner（最後の同期の時点の写し）が
+    選んだものにする。省略かNoneなら、保有モデルの現在の分類器で評価する。
     Fixed-Shareの重みで予測する設定は、旧の最終構成の予測と、AdaHedgeの重みで予測する設定は、旧の`global`の指定の予測と、同じ数値になる。
     """
+    if (
+        synchronized_prediction_model_snapshot is not None
+        and type(synchronized_prediction_model_snapshot) is not SynchronizedPredictionModelSnapshot
+    ):
+        raise TypeError(
+            "synchronized_prediction_model_snapshot must be None or exact "
+            "SynchronizedPredictionModelSnapshot"
+        )
     _validate_observed_sample_prediction_inputs(
         indexed_observation=indexed_observation,
         owners_by_argument_name=dict(
@@ -283,22 +330,22 @@ def predict_observed_sample_and_update_prediction_weights(
             sample_prediction_record_store=sample_prediction_record_store,
             held_model_training_state_registry=held_model_training_state_registry,
             current_training_model_assignment=current_training_model_assignment,
+            synchronized_prediction_model_snapshot=synchronized_prediction_model_snapshot,
         )
     input_features = indexed_observation.training_sample.input_features
     observed_class_labels = indexed_observation.training_sample.observed_class_labels
     observed_concept_id = indexed_observation.observed_concept_id
     current_training_model_id = current_training_model_assignment.current_training_model_id
-    # (2) 全モデルの評価。状態を変えない。共有特徴は、ID昇順で最初のモデルで1回だけ計算する。
-    classifiers_by_model_id = {
-        held_model_training_state.model_id: held_model_training_state.classifier
-        for held_model_training_state in held_model_training_state_registry.snapshot_ordered_held_model_training_states()
-    }
+    # (2) 全モデルの評価。状態を変えない。共有特徴は、1回だけ計算する（写しのownerが無ければ、ID昇順で
+    # 最初のモデルで）。
+    shared_feature_classifier, classifiers_by_model_id = _select_prediction_classifiers(
+        held_model_training_state_registry=held_model_training_state_registry,
+        synchronized_prediction_model_snapshot=synchronized_prediction_model_snapshot,
+    )
     model_ids = tuple(sorted(classifiers_by_model_id))
     class_count = classifiers_by_model_id[model_ids[0]].class_count
     with no_grad():
-        shared_features = classifiers_by_model_id[model_ids[0]].extract_shared_features(
-            input_features
-        )
+        shared_features = shared_feature_classifier.extract_shared_features(input_features)
         model_outputs_by_model_id = {
             model_id: classifiers_by_model_id[model_id].forward_from_shared_features(
                 shared_features

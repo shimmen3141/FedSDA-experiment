@@ -41,6 +41,17 @@ class PredictionCombinationSettings:
             "allowed_parameter_values": ("restart_adahedge_preserve_fixed_share_prediction_state",)
         },
     )
+    prediction_model_parameter_source: str = field(
+        metadata={
+            "allowed_parameter_values": (
+                # 予測（と予測重みの更新）に、局所更新した現在のパラメータを使う（提案構成）。
+                "current_local_parameters",
+                # 予測（と予測重みの更新）に、最後の同期の時点のパラメータを使う。同期の後に作ったモデルは、
+                # 共有部を同期の時点の値、モデル固有部を現在の値で評価する。学習・検出ほかは、現在の値のまま。
+                "parameters_at_last_synchronization",
+            )
+        },
+    )
     fixed_share_weight_redistribution_time_scale_samples: int = field(
         metadata={
             "parameter_unit": "sample/client",

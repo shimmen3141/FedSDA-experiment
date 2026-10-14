@@ -186,6 +186,7 @@ def build_final_configuration_fedsda_run_settings(
             fixed_share_weight_redistribution_time_scale_samples=(
                 _PENDING_ASSIGNMENT_BUFFER_CAPACITY_SAMPLES
             ),
+            prediction_model_parameter_source="current_local_parameters",
         ),
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",

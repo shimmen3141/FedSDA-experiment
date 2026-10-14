@@ -94,6 +94,9 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.all_sa
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot import (
+    SynchronizedPredictionModelSnapshot,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
 )
@@ -358,6 +361,7 @@ def process_observed_sample(
     local_training_settings: LocalTrainingSettings,
     shared_feature_extractor: SharedFeatureExtractor,
     shared_parameter_optimizer: Optimizer | None,
+    synchronized_prediction_model_snapshot: SynchronizedPredictionModelSnapshot | None = None,
 ) -> ObservedSampleProcessing:
     """標本1件を、旧の標本処理と同じ順で処理する（最初に予測する）。
 
@@ -366,7 +370,19 @@ def process_observed_sample(
     `short_change_interval_alarm_policy`が「待つ」のときは、検出器の合図があっても、推定変化区間の件数
     （保留の件数と、検出器の推定の長さの、小さい方）が最小件数に達するまで、警報の無い標本として処理する
     （検出器を再開しないので、証拠は残る）。
+
+    `synchronized_prediction_model_snapshot`は、予測（と予測重みの更新）にだけ渡す（最後の同期の時点の写しで
+    予測する設定）。省略かNoneなら、今の予測。損失の監視・候補の検証・学習・統計は、どちらでも、保有モデルの
+    現在の分類器を使う。
     """
+    if (
+        synchronized_prediction_model_snapshot is not None
+        and type(synchronized_prediction_model_snapshot) is not SynchronizedPredictionModelSnapshot
+    ):
+        raise TypeError(
+            "synchronized_prediction_model_snapshot must be None or exact "
+            "SynchronizedPredictionModelSnapshot"
+        )
     if type(short_change_interval_alarm_policy) is not str:
         raise TypeError("short_change_interval_alarm_policy must be builtin str")
     if short_change_interval_alarm_policy not in SHORT_CHANGE_INTERVAL_ALARM_POLICIES:
@@ -413,6 +429,7 @@ def process_observed_sample(
         held_model_training_state_registry=held_model_training_state_registry,
         current_training_model_assignment=current_training_model_assignment,
         prediction_combination_strategy=prediction_combination_strategy,
+        synchronized_prediction_model_snapshot=synchronized_prediction_model_snapshot,
     )
     # (1) 保持中の候補検証へ、この標本を観測させる。確定したら学習帰属が変わりうる。
     held_validation_advance = advance_held_candidate_validation(

@@ -83,6 +83,9 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.all_sa
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot import (
+    SynchronizedPredictionModelSnapshot,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
 )
@@ -173,11 +176,15 @@ class FedsdaRunClient:
         owners: FedsdaRunClientOwners,
         run_client_settings: FedsdaRunClientSettings,
         python_random_generator: Random,
+        synchronized_prediction_model_snapshot: SynchronizedPredictionModelSnapshot,
     ) -> None:
         self._client_id = client_id
         self._owners = owners
         self._run_client_settings = run_client_settings
         self._python_random_generator = python_random_generator
+        # 最後の同期の時点の写し（予測に使うパラメータが`parameters_at_last_synchronization`のときだけ使う）。
+        # ownerの束へは入れない（束の項目は、標本1件の処理の引数と1対1で、旧実装との照合にも使うため）。
+        self._synchronized_prediction_model_snapshot = synchronized_prediction_model_snapshot
 
     def _get_current_training_classifier(self) -> ModelArchitectureClassifier:
         owners = self._owners
@@ -192,6 +199,17 @@ class FedsdaRunClient:
     @property
     def owners(self) -> FedsdaRunClientOwners:
         return self._owners
+
+    @property
+    def synchronized_prediction_model_snapshot(self) -> SynchronizedPredictionModelSnapshot:
+        """最後の同期の時点の写しのowner（設定が`current_local_parameters`なら、使わず、空のまま）。"""
+        return self._synchronized_prediction_model_snapshot
+
+    def _predicts_with_parameters_at_last_synchronization(self) -> bool:
+        return (
+            self._run_client_settings.prediction_combination_settings.prediction_model_parameter_source
+            == "parameters_at_last_synchronization"
+        )
 
     @property
     def prediction_combination_strategy(self) -> str:
@@ -277,6 +295,11 @@ class FedsdaRunClient:
             local_training_settings=settings.local_training_settings,
             shared_feature_extractor=current_training_classifier.feature_extractor,
             shared_parameter_optimizer=owners.shared_parameter_optimizer_state_holder.held_shared_parameter_optimizer_state.parameter_optimizer_if_any,
+            synchronized_prediction_model_snapshot=(
+                self._synchronized_prediction_model_snapshot
+                if self._predicts_with_parameters_at_last_synchronization()
+                else None
+            ),
         )
         owners.held_model_count_record_store.append_held_model_count(
             held_model_count=held_model_count_before_processing
@@ -344,7 +367,7 @@ class FedsdaRunClient:
         """サーバから配布されたグローバルモデルと損失統計を受け取り、ID対応を自分の状態へ適用する。"""
         owners = self._owners
         settings = self._run_client_settings
-        return apply_global_model_distribution(
+        distribution_application = apply_global_model_distribution(
             model_id_mapping=model_id_mapping,
             distributed_parameter_snapshots=distributed_parameter_snapshots,
             distributed_loss_statistics=distributed_loss_statistics,
@@ -361,6 +384,12 @@ class FedsdaRunClient:
             reconnected_model_parameter_optimizer_settings=settings.parameter_optimizer_settings,
             python_random_generator=self._python_random_generator,
         )
+        if self._predicts_with_parameters_at_last_synchronization():
+            # 配布を反映し終えた時点（再較正の前）の保有モデル全部を、次の同期までの予測のために写す。
+            self._synchronized_prediction_model_snapshot.capture_held_models(
+                held_model_training_state_registry=owners.held_model_training_state_registry
+            )
+        return distribution_application
 
     def get_model_assigned_sample_concept_counts(self, *, model_id: int) -> dict[int, int]:
         """モデルへ帰属させた標本の、真の概念ごとの件数（診断用。真の概念を渡されていなければ空）。"""
@@ -665,4 +694,5 @@ def assemble_fedsda_run_client(
         owners=owners,
         run_client_settings=run_client_settings,
         python_random_generator=python_random_generator,
+        synchronized_prediction_model_snapshot=SynchronizedPredictionModelSnapshot(),
     )
