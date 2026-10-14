@@ -2,6 +2,7 @@
 
 新実装（`run_experiment_sweep.py`・`run_behavior_fix_comparison.py`）で回した実験を、1つの目的の実験につき1行で記録する。
 結果のディレクトリ（`results/`）はgitの対象外なので、いつ・何のために・何を回し・どう判断したかを、ここで追えるようにする。
+新実装の結果は、新実装のworktreeの`results/`に置く（2026-10-15、ユーザーの指示で、旧実装のcheckoutの`results/`から、`behavior-fix-comparison`・`method-baselines`・`fedsda-training-recency`を移した）。旧実装の`results/`には、旧実装の結果だけを残す。
 
 ## 規約
 
@@ -33,3 +34,5 @@
 | 2026-10-14 | method-baselines / `results/method-baselines/20261014_141259_feddrift-fedavg-n5000`（2026-10-14に`results/20261014_141259_baselines-n5000`から移した。READMEは記録から後で作った） | FedDriftとFedAvgの新実装での基準値を、本規模で取り、FedSDAの既定（案Y）と比べる | FedDrift・FedAvg、6データ、seed 0〜9、集約間隔50・200、240 run | a30d8bd1e512。基準版は記録なし | 比較の表は、結果のディレクトリの`analysis_20261014_method_comparison.md`。判断は未 |
 | 2026-10-14 | fedsda-training-recency / `results/fedsda-training-recency/20261014_202611_local-probes`（手元のWindows） | FedSDAがsea2で弱いことと、定常期の精度がFedDriftに届かないことの原因を切り分ける（計算量の内訳、構造の比較、直近K件の学習の試作） | 提案構成と構造の2派生、sea2・circle2・sine2、seed 0〜2、間隔50（sea2は200も）、標本5000。構造の比較18 run、直近K件の試作36 run、計算量の内訳2 run（標本2000） | 426b6f7（構造の比較と計算量の内訳。未commitの変更は文書だけ）、8409296（試作）。差は文書だけ。基準版5 | [研究バックログの7](../research/research-backlog.md) |
 | 2026-10-14〜15 | fedsda-training-recency / `results/fedsda-training-recency/20261015_selection-probe`（手元のWindows） | 直近K件と指数減衰の学習batchの抜き出しを、実装した設定で手元で比べる（試作と同じ傾向かの確認） | 提案構成、`uniform`・`recent:300`・`decay:0.997`、sea2・circle2・sine2の間隔50とsea2の間隔200、seed 0〜2、標本5000（36 run）。2026-10-15に、同じ条件で`alarm`・`alarm-decay:0.99`を足した（24 run） | 7831e74f5042、8cbc306（追加分）。基準版5 | [研究バックログの7](../research/research-backlog.md) |
+| 2026-10-15 | fedsda-training-recency / `results/fedsda-training-recency/20261015_000543_selection-n5000`（研究室サーバ） | 学習batchの抜き出し方（全履歴・直近300件・指数減衰0.99と0.997）を本規模で比べる | 提案構成、`uniform`・`recent:300`・`decay:0.99`・`decay:0.997`、6データ、seed 0〜4、集約間隔50・200、240 run | fddd5d29ced9。基準版5 | [研究バックログの7](../research/research-backlog.md) |
+| 2026-10-15 | fedsda-training-recency / `results/fedsda-training-recency/20261015_circle2-diagnosis`（手元のWindows） | circle2ほかで、FedSDAの定常期の精度がFedDriftに届かない原因を切り分ける（学習データの純度、adapterのrank、round内の位置ごとの精度、FedAvgの局所更新の時機、FedSDAで予測を配布モデルで行う診断） | 診断ごとに異なる（README）。主なものは、FedAvg 30 run・FedSDA 30 run（circle2・sine2・sea2、間隔50、seed 0〜4、標本5000）と、serverの既存の結果の読取り | 2d352cf〜56e6001の作業ツリー（sourceは7831e74と同じ。FedSDAの診断は、実行時に差し替え）。基準版5 | [研究バックログの8](../research/research-backlog.md) |
