@@ -9,6 +9,7 @@ import csv
 import importlib.util
 import io
 import json
+import shlex
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -355,7 +356,7 @@ def test_analysis_writes_a_file_with_provenance_in_the_input_directory(tmp_path,
     assert "警告" not in report
     for expected_line in (
         "- 作成の日時: 2026-10-14T12:00:00",
-        f"- 分析のコマンドの引数: `{tmp_path}`",
+        f"- 分析のコマンドの引数: `{shlex.join([str(tmp_path)])}`",
         "- 分析のコードの版: commit ",
         f"- 入力のディレクトリ: `{tmp_path}`",
         "| registration-fixed__short-alarm-fixed | 12 | aaaaaaaaaaaa | 5 |",

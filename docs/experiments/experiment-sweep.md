@@ -34,7 +34,7 @@ python run_experiment_sweep.py \
 | `--workers` | 並列に実行するprocessの数。各processの計算のthread（torchと、OpenMP・MKL・OpenBLAS）は、1つ | 1 |
 | `--output-directory` | 出力先（再開のときに指定する。`--study`とは同時に使えない） | `results/<研究の問い>/<開始時刻>_<ラベル>`（`--study`が無ければ`results/<開始時刻>_<ラベル>`） |
 | `--study` | 研究の問いの名前（出力先の1段目） | なし |
-| `--label` | 出力先を省略したときの、ディレクトリ名のラベル（`/`・`\`・`:`を含まない名前） | `sweep` |
+| `--label` | 出力先を省略したときの、ディレクトリ名のラベル（`/`・`\`・`:`と、Windowsでファイル名に使えない文字を含まない名前） | `sweep` |
 | `--purpose` | この実験の目的（1行）。実行するときは必須。`README.md`と実行の記録に書く | 必須（`--print-plan`では不要） |
 | `--print-plan` | 計画のrunと、出力先にある済んだrunを表示するだけ。何も実行せず、何も作らない | — |
 
@@ -180,7 +180,7 @@ python run_behavior_fix_comparison.py --datasets sine2 circle2 sea4 mnist2 \
 python analyze_behavior_fix_comparison.py results/behavior-fix-comparison/<開始時刻>_legacy-vs-fixed --chains
 ```
 
-比較scriptは、出力先を省略すると、`results/behavior-fix-comparison/<開始時刻>_<ラベル>`に置き（研究の問いは固定）、
+比較scriptは、出力先を省略すると、`results/behavior-fix-comparison/<開始時刻>_<ラベル>`に置き（研究の問いは固定。`--label`の既定は`comparison`）、
 `--purpose`（実行のとき必須）と出どころを書いた`README.md`を作る。組合せを後から足すときや、再開するときは、その出力先を
 `--output-directory`で指定する。`results/behavior-fix-comparison`の直下にある組合せのディレクトリ（2026-10-13〜14の結果）は、
 このしくみより前の平らな形で、新しい規約の対象外（移さない。[台帳](experiment-log.md)を参照）。

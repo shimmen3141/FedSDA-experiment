@@ -43,7 +43,8 @@ from federated_learning_experiments.sweep.experiment_sweep_records import (
 _REPOSITORY_DIRECTORY = Path(__file__).resolve().parents[3]
 _DEFAULT_RESULT_DIRECTORY_NAME = "results"
 _MNIST_DATASET_NAME_PREFIX = "mnist"
-_DIRECTORY_NAME_SEPARATORS = ("/", "\\", ":")
+# ディレクトリの区切りと、Windowsでファイル名に使えない文字。
+_DIRECTORY_NAME_SEPARATORS = ("/", "\\", ":", "*", "?", '"', "<", ">", "|")
 
 
 def validate_plain_directory_name(name: str, *, argument_name: str) -> str:

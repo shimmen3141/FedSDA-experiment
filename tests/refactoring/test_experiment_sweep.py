@@ -1428,6 +1428,7 @@ def test_command_requires_a_single_line_purpose_to_run(
         (["--study", ".."], "--study must be a plain directory name"),
         (["--study", " padded"], "--study must be a plain directory name"),
         (["--label", "a:b"], "--label must be a plain directory name"),
+        (["--label", "a*b"], "--label must be a plain directory name"),
         (["--label", ""], "--label must be a plain directory name"),
     ],
 )

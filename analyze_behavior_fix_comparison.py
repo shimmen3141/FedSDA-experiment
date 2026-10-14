@@ -23,6 +23,7 @@
 
 import csv
 import math
+import shlex
 import sys
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -266,7 +267,7 @@ def build_provenance_lines(*, output_directory, available, command_arguments, cr
         )
     lines.append("## 出どころ\n")
     lines.append(f"- 作成の日時: {created_at}")
-    lines.append(f"- 分析のコマンドの引数: `{' '.join(command_arguments)}`")
+    lines.append(f"- 分析のコマンドの引数: `{shlex.join(command_arguments)}`")
     lines.append(f"- 分析のコードの版: {describe_analysis_code_revision()}")
     lines.append(f"- 入力のディレクトリ: `{output_directory}`\n")
     lines.append("| 組合せ | run | 入力のrunのcommit | 入力のrunの基準版 |")

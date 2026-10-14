@@ -26,7 +26,7 @@
   - `docs/experiments/experiment-log.md`（規約、列、既存の3回の実行——コードは、メインの作業ツリーの`results/behavior-fix-comparison/comparison_record_*.json`から——と、未確認の120 run）、実験の入口の文書（コマンドの例の全部。1つの出力先は1つの実験に使うこと）、比較script・分析scriptのdocstringの例、AGENTS.mdの規約、再開案内。
   - _Requirements: 3.1, 3.2, 3.3, 5.1_
 
-- [ ] 5. 実装レビューと最終検証
+- [x] 5. 実装レビューと最終検証
   - 独立CLIの実装レビュー、指摘の反映、全pytest・Ruff・Pyright・WSLの対象testを通す。
   - _Requirements: 全部_
 
@@ -37,4 +37,7 @@
 - 設計からの変更: 分析scriptの来歴は、`read_combination`の戻り値を変えずに、別の関数`read_combination_provenance`で一覧の表の全行から読んだ（表の計算の経路に触れないため）。目的の検査`validate_experiment_purpose`と、READMEの表示`report_experiment_readme`は、2つのコマンドで共用するため、掃引のコマンドのmoduleの公開名にした（naming.mdに無い）。
 - 比較scriptの引数の誤り（目的・ラベル）は、今の比較scriptの引数の誤りと同じく、argparseの`error`（SystemExit 2）で止める。掃引のコマンドは、今までどおり終了コード2を返す。
 - 台帳の2行目（全部登録×002を直した側×待つ警報の120 run）は、結果の場所とcommitが、メインの作業ツリーの`results/behavior-fix-comparison`の記録に無いので「未確認」と書いた（ユーザーへ確認する）。
+- 実装レビュー（独立Haiku 5.5 medium）: 1回目（43acc4c）はCHANGES REQUIRED（Major 1: naming.mdに`validate_experiment_purpose`・`report_experiment_readme`が無い。Minor 4: FedDriftのhelpの文字コードのtest、AGENTS.mdの`--study`の記述、台帳の未確認の行、READMEの引数の書き方）。全部を直し（44e864d。helpのtestは子processへ`PYTHONUTF8=1`を渡す。READMEの引数は`shlex.join`）、2回目でAPPROVED。2回目のMinorのうち、分析の出どころの引数も`shlex.join`にすること、ディレクトリ名にWindowsで使えない文字（`*?"<>|`）も拒否すること、比較scriptの`--label`の既定値を文書に書くことを直した。比較scriptの事前の基準版の確認を、モックなしで通すtestは足していない（掃引のコマンドの同じ経路は、モックなしのtestがある。比較scriptは同じ関数を呼ぶだけ）。
+- 挙動の変更の記録: 分析scriptは、argparseにしたので、引数なしは「説明を出して1」から、使い方を出して2になり、`--help`は0になった。比較scriptで基準版のために止まるとき、出力先のディレクトリも作らない（以前は作ってから止まった）。
+- 検証: 全pytest 14188 passed / 8 skipped（43acc4c、JUnit `../../venv/refactoring-tests/organization-full.xml`）、Pyright 0件、Ruff成功。レビューの修正の後（44e864dと、その後の小さい修正）は、掃引・FedDriftの掃引・比較script・依存境界のtest fileを再実行した（全pytestは再実行していない）。WSL: 掃引・比較script・FedDriftの掃引・来歴の4つのtest fileで160 passed（WSLの環境にpytest-xdistが無いので、逐次で実行）。
 

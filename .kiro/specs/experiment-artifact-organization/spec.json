@@ -3,7 +3,7 @@
   "created_at": "2026-10-14",
   "updated_at": "2026-10-14",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -42,5 +42,29 @@
     "result": "1〜3回目はCHANGES REQUIRED（Major 3・2・2。既存の呼出しの漏れ、--stdoutの中身、表の比較の循環、ラベルの検査の範囲、連鎖の表の入力、警告の位置、引数一覧のtest）。4回目でPASS（Minor 8は文面と手順の補足として反映）。",
     "output": "../../venv/refactoring-tests/organization-spec-review-{1..4}.jsonl",
     "selection_reason": "コマンドの引数と実行の順の論証なので、Haiku 5.5"
-  }
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "43acc4c→44e864d（基点1a6eed4）",
+    "session_ids": [
+      "950268ed-e973-4cef-8987-160afcedbff7",
+      "721e0420-6cb4-440c-8dbc-e418e7875690"
+    ],
+    "is_error": false,
+    "result": "1回目CHANGES REQUIRED（Major 1）、直して2回目APPROVED。採否はtasks.md。",
+    "output": "../../venv/refactoring-tests/organization-review-{1,2}.jsonl",
+    "selection_reason": "コマンドの引数と実行の順の論証なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14188,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/organization-full.xml",
+    "tested_commit": "43acc4c",
+    "after_review_fix": "掃引・FedDriftの掃引・比較script・依存境界のtest fileを再実行（全pytestは未再実行）",
+    "wsl": "掃引・比較script・FedDriftの掃引・来歴の4 test fileで160 passed"
+  },
+  "completion_decision": "完了。結果を研究の問い→日時とラベルで置き、コマンドが目的のREADMEを作り、gitの中に実験の台帳を置き、分析scriptが出どころつきのファイルを書く。"
 }
