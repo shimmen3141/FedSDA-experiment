@@ -36,6 +36,10 @@ class LocalTrainingSettings:
                 "uniform_over_all_stored_samples",
                 "uniform_over_most_recent_stored_samples",
                 "recency_decayed_stored_samples",
+                # 警報の後に同じモデルで続けると決まった区切りより後から一様（区切りが無ければ全部から）。
+                "uniform_after_latest_alarm_boundary",
+                # 区切りより後の重みを1、区切りより前をαで減衰（区切りの直前がα）。
+                "recency_decayed_before_latest_alarm_boundary",
             ),
         },
     )
@@ -76,6 +80,8 @@ class LocalTrainingSettings:
             "uniform_over_all_stored_samples": None,
             "uniform_over_most_recent_stored_samples": "most_recent_stored_sample_count",
             "recency_decayed_stored_samples": "stored_sample_recency_decay_factor",
+            "uniform_after_latest_alarm_boundary": None,
+            "recency_decayed_before_latest_alarm_boundary": "stored_sample_recency_decay_factor",
         }[self.training_sample_selection_policy]
         for field_name in (
             "most_recent_stored_sample_count",

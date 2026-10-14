@@ -158,6 +158,10 @@ def apply_post_alarm_candidate_validation_resolution(
         )
     reusable_reference_model_id = post_alarm_candidate_loss_evaluation.reusable_reference_model_id
     if reusable_reference_model_id is None:
+        # 候補を退けて今のモデルで続ける: 検証の標本の前の列の長さを、吸収の後に、区切りとして付ける。
+        boundary_position = training_sample_store.count_model_training_samples(
+            model_id=previous_model_id
+        )
         absorb_assigned_training_samples_into_held_model(
             model_id=previous_model_id,
             assigned_training_samples=pending_assignment_training_samples,
@@ -167,11 +171,17 @@ def apply_post_alarm_candidate_validation_resolution(
             model_training_and_assignment_counts_store=model_training_and_assignment_counts_store,
             loss_statistics_store=loss_statistics_store,
         )
+        training_sample_store.mark_latest_alarm_boundary(
+            model_id=previous_model_id, position=boundary_position
+        )
         return PostAlarmCandidateValidationResolution(
             resolution_outcome="candidate_rejected",
             assigned_model_id=previous_model_id,
             training_model_assignment_change=None,
         )
+    reference_boundary_position = training_sample_store.count_model_training_samples(
+        model_id=reusable_reference_model_id
+    )
     # 吸収が全検証を終えてから学習帰属を切り替え、拒否時に現在IDを変えない。
     absorb_assigned_training_samples_into_held_model(
         model_id=reusable_reference_model_id,
@@ -185,6 +195,11 @@ def apply_post_alarm_candidate_validation_resolution(
     assignment_change = current_training_model_assignment.assign_model_for_training(
         model_id=reusable_reference_model_id
     )
+    if assignment_change is None:
+        # 参照に今のモデルが選ばれた（今のモデルで続ける）: 吸収の前の長さで区切りを付ける。
+        training_sample_store.mark_latest_alarm_boundary(
+            model_id=reusable_reference_model_id, position=reference_boundary_position
+        )
     return PostAlarmCandidateValidationResolution(
         resolution_outcome="current_model_maintained"
         if assignment_change is None

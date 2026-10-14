@@ -19,6 +19,9 @@ class ModelTrainingSampleCollection:
 
     model_id: int
     training_samples: tuple[ObservedTrainingSample, ...]
+    # 最新の区切りの位置（区切りより後の標本は、警報の後に同じモデルで続けると決まった後に足されたもの）。
+    # 無ければNone。範囲の検査は、抜き出しが行う（記録は参照を束ねるだけ）。
+    latest_alarm_boundary_position: int | None
 
 
 @dataclass(frozen=True, kw_only=True)

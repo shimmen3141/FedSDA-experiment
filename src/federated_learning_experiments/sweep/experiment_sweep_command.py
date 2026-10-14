@@ -150,7 +150,7 @@ def _build_argument_parser() -> ArgumentParser:
         default=None,
         metavar="SELECTION",
         help=(
-            "FedSDAの保有モデルの学習batchの抜き出し方（uniform、recent:<K>、decay:<α>。FedSDAの構成を選んだときだけ）"
+            "FedSDAの保有モデルの学習batchの抜き出し方（uniform、recent:<K>、decay:<α>、alarm、alarm-decay:<α>。FedSDAの構成を選んだときだけ）"
         ),
     )
     argument_parser.add_argument(

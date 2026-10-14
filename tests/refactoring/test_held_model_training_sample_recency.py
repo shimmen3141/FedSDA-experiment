@@ -78,6 +78,7 @@ def collection(sample_count, model_id=7):
             )
             for position in range(sample_count)
         ),
+        latest_alarm_boundary_position=None,
     )
 
 

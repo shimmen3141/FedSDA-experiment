@@ -10,6 +10,26 @@ class ModelTrainingSampleStore:
 
     def __init__(self) -> None:
         self._training_samples_by_model_id: dict[int, list[ObservedTrainingSample]] = {}
+        # モデルごとの最新の区切り（列の位置）。警報の後に同じモデルで続けると決まったときに付く。
+        self._latest_alarm_boundary_position_by_model_id: dict[int, int] = {}
+
+    def count_model_training_samples(self, *, model_id: int) -> int:
+        """そのモデルの列の標本の数を返す（列が無ければ0）。"""
+        if type(model_id) is not int:
+            raise TypeError("model_idはbool以外のbuiltin intが必要です。")
+        return len(self._training_samples_by_model_id.get(model_id, ()))
+
+    def mark_latest_alarm_boundary(self, *, model_id: int, position: int) -> None:
+        """指定の位置を、そのモデルの最新の区切りとして記録する（列があり、位置が0以上かつ列の長さ以下）。"""
+        if type(model_id) is not int:
+            raise TypeError("model_idはbool以外のbuiltin intが必要です。")
+        if type(position) is not int:
+            raise TypeError("positionはbool以外のbuiltin intが必要です。")
+        if model_id not in self._training_samples_by_model_id:
+            raise ValueError("区切りは、標本の列があるモデルにだけ付けられます。")
+        if not 0 <= position <= len(self._training_samples_by_model_id[model_id]):
+            raise ValueError("positionは0以上かつ標本の列の長さ以下が必要です。")
+        self._latest_alarm_boundary_position_by_model_id[model_id] = position
 
     def append_model_training_samples(
         self, *, model_id: int, training_samples: tuple[ObservedTrainingSample, ...]
@@ -39,12 +59,26 @@ class ModelTrainingSampleStore:
         if original_model_id in self._training_samples_by_model_id:
             training_samples = self._training_samples_by_model_id.pop(original_model_id)
             self._training_samples_by_model_id[reassigned_model_id] = training_samples
+            # 区切りも、列と同じく移す（元に区切りが無ければ、先の区切りも消す）。
+            boundary_position = self._latest_alarm_boundary_position_by_model_id.pop(
+                original_model_id, None
+            )
+            if boundary_position is None:
+                self._latest_alarm_boundary_position_by_model_id.pop(reassigned_model_id, None)
+            else:
+                self._latest_alarm_boundary_position_by_model_id[reassigned_model_id] = (
+                    boundary_position
+                )
 
     def snapshot_ordered_model_training_samples(self) -> tuple[ModelTrainingSampleCollection, ...]:
         """構造を分離したsnapshotを返す。標本recordとTensorは共有する。"""
         return tuple(
             ModelTrainingSampleCollection(
-                model_id=model_id, training_samples=tuple(training_samples)
+                model_id=model_id,
+                training_samples=tuple(training_samples),
+                latest_alarm_boundary_position=(
+                    self._latest_alarm_boundary_position_by_model_id.get(model_id)
+                ),
             )
             for model_id, training_samples in self._training_samples_by_model_id.items()
         )
@@ -57,9 +91,24 @@ class ModelTrainingSampleStore:
             if type(original_model_id) is not int or type(mapped_model_id) is not int:
                 raise TypeError("model_id_mappingの全キーと値はbool以外のbuiltin intが必要です。")
         remapped_training_samples_by_model_id: dict[int, list[ObservedTrainingSample]] = {}
+        original_model_ids_by_mapped_model_id: dict[int, list[int]] = {}
         for original_model_id, training_samples in self._training_samples_by_model_id.items():
             mapped_model_id = model_id_mapping.get(original_model_id, original_model_id)
             remapped_training_samples_by_model_id.setdefault(mapped_model_id, []).extend(
                 training_samples
             )
+            original_model_ids_by_mapped_model_id.setdefault(mapped_model_id, []).append(
+                original_model_id
+            )
+        # 区切り: 1つの列がIDだけ変わったなら移し、複数の列がつながったなら消す（どこが新しい概念か決められない）。
+        remapped_boundary_positions: dict[int, int] = {}
+        for mapped_model_id, original_model_ids in original_model_ids_by_mapped_model_id.items():
+            if len(original_model_ids) != 1:
+                continue
+            boundary_position = self._latest_alarm_boundary_position_by_model_id.get(
+                original_model_ids[0]
+            )
+            if boundary_position is not None:
+                remapped_boundary_positions[mapped_model_id] = boundary_position
         self._training_samples_by_model_id = remapped_training_samples_by_model_id
+        self._latest_alarm_boundary_position_by_model_id = remapped_boundary_positions

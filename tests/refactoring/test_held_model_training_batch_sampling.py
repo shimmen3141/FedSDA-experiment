@@ -66,7 +66,11 @@ def build_sampling_oracle_inputs(*, batch_sample_count=2, input_contract_case="m
         if input_contract_case == "same_reference" and training_samples:
             training_samples = (training_samples[0],) * sample_count
         ordered_model_training_samples.append(
-            ModelTrainingSampleCollection(model_id=model_id, training_samples=training_samples)
+            ModelTrainingSampleCollection(
+                model_id=model_id,
+                training_samples=training_samples,
+                latest_alarm_boundary_position=None,
+            )
         )
         # 真の概念情報は旧oracleだけに付け、新sampleの契約へ持ち込まない。
         legacy_training_samples[model_id] = [
@@ -342,6 +346,7 @@ def test_training_batch_sampling_rejects_invalid_inputs_and_keeps_random_state(
                     input_contract_case
                 ],
                 training_samples=model_training_samples.training_samples,
+                latest_alarm_boundary_position=None,
             ),
         )
     elif input_contract_case.startswith("count_"):
@@ -360,7 +365,9 @@ def test_training_batch_sampling_rejects_invalid_inputs_and_keeps_random_state(
     elif input_contract_case == "samples_list":
         invalid_inputs["ordered_model_training_samples"] = ordered_model_training_samples[:2] + (
             ModelTrainingSampleCollection(
-                model_id=-7, training_samples=list(model_training_samples.training_samples)
+                model_id=-7,
+                training_samples=list(model_training_samples.training_samples),
+                latest_alarm_boundary_position=None,
             ),
         )
     elif input_contract_case == "sample_type":
@@ -520,8 +527,12 @@ def test_training_batch_sampling_inspection_count_does_not_depend_on_population(
     sampled_batches = sample_training_batches_for_held_models(
         held_model_ids=frozenset((0, 1)),
         ordered_model_training_samples=(
-            ModelTrainingSampleCollection(model_id=0, training_samples=training_samples),
-            ModelTrainingSampleCollection(model_id=1, training_samples=training_samples),
+            ModelTrainingSampleCollection(
+                model_id=0, training_samples=training_samples, latest_alarm_boundary_position=None
+            ),
+            ModelTrainingSampleCollection(
+                model_id=1, training_samples=training_samples, latest_alarm_boundary_position=None
+            ),
         ),
         batch_sample_count=4,
         python_random_generator=random.Random(5),
@@ -615,6 +626,7 @@ def test_training_batch_sampling_preserves_borrowed_inputs_and_environment(
                 )
                 for training_sample_index in range(2)
             ),
+            latest_alarm_boundary_position=None,
         )
         for model_id, input_feature_count in ((8, 4), (-7, 3))
     )
@@ -702,7 +714,9 @@ def test_training_sample_records_are_frozen_and_explicit():
     )
     for sampling_record in (
         training_sample,
-        ModelTrainingSampleCollection(model_id=-7, training_samples=(training_sample,)),
+        ModelTrainingSampleCollection(
+            model_id=-7, training_samples=(training_sample,), latest_alarm_boundary_position=None
+        ),
         SampledModelTrainingBatch(
             model_id=-7,
             input_features=training_sample.input_features,
@@ -723,7 +737,7 @@ def test_training_sample_records_are_frozen_and_explicit():
     assert training_sample.observed_class_labels is observed_class_labels
     # constructorは参照を束ねるだけで、解釈/検査はsamplerが担当する。
     model_training_samples = ModelTrainingSampleCollection(
-        model_id=-7, training_samples=(training_sample,)
+        model_id=-7, training_samples=(training_sample,), latest_alarm_boundary_position=None
     )
     assert model_training_samples.training_samples[0] is training_sample
 
@@ -796,7 +810,9 @@ def test_training_batch_sampling_connects_fifo_and_joint_update(
         assert pending_assignment_buffer.get_state_snapshot().pending_sample_indices == ()
         ordered_model_training_samples = tuple(
             ModelTrainingSampleCollection(
-                model_id=model_id, training_samples=tuple(training_samples)
+                model_id=model_id,
+                training_samples=tuple(training_samples),
+                latest_alarm_boundary_position=None,
             )
             for model_id, training_samples in training_samples_by_model_id.items()
         )

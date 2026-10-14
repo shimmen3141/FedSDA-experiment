@@ -2151,6 +2151,58 @@ def main():
             "global models",
             dataset_run_summaries[0]["global_model_ids"],
         )
+    # 警報を区切りに使う抜き出し方: 区切りが付き、区切りより後から抜き出して、runが最後まで進む。
+    from dataclasses import replace as replace_settings
+
+    for alarm_selection in (
+        dict(
+            training_sample_selection_policy="uniform_after_latest_alarm_boundary",
+            stored_sample_recency_decay_factor=None,
+        ),
+        dict(
+            training_sample_selection_policy="recency_decayed_before_latest_alarm_boundary",
+            stored_sample_recency_decay_factor=0.9,
+        ),
+    ):
+        default_run_settings = build_final_configuration_fedsda_run_settings(
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="sine2",
+                random_seed=3,
+                client_count=2,
+                per_client_sample_count=400,
+                server_aggregation_interval_per_client_samples=50,
+            )
+        )
+        participant_settings = default_run_settings.run_participant_settings
+        client_settings = participant_settings.run_client_settings
+        alarm_run = execute_fedsda_experiment_run(
+            run_settings=replace_settings(
+                default_run_settings,
+                run_participant_settings=replace_settings(
+                    participant_settings,
+                    run_client_settings=replace_settings(
+                        client_settings,
+                        local_training_settings=replace_settings(
+                            client_settings.local_training_settings, **alarm_selection
+                        ),
+                    ),
+                ),
+            )
+        )
+        marked_boundaries = [
+            sample_collection.latest_alarm_boundary_position
+            for run_client in alarm_run.measured_run.participants.client_operations
+            for sample_collection in run_client.owners.training_sample_store.snapshot_ordered_model_training_samples()
+            if sample_collection.latest_alarm_boundary_position is not None
+        ]
+        assert marked_boundaries, "警報の後に同じモデルで続けたときに、区切りが付く"
+        assert alarm_run.run_metrics.processed_sample_count == 2 * 400
+        print(
+            "PASS alarm-anchored selection",
+            alarm_selection["training_sample_selection_policy"],
+            "boundaries",
+            marked_boundaries,
+        )
     # 完全なrun設定（最終構成の既定値）から、実行・保存・読込みを行う。
     experiment_run = execute_fedsda_experiment_run(
         run_settings=build_final_configuration_fedsda_run_settings(

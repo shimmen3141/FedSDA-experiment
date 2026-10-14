@@ -64,6 +64,7 @@ def build_training_iteration_oracle_pair(*, class_count, optimizer_variant, monk
                 )
                 for training_sample_index in range(len(training_batch.input_features))
             ),
+            latest_alarm_boundary_position=None,
         )
         for model_id, training_batch in zip((4, -7), participating_training_batches)
     )
@@ -376,10 +377,16 @@ def test_joint_training_iterations_skip_ineligible_models(
     keyword_arguments["ordered_model_training_samples"] = {
         "empty": (),
         "unheld": (
-            ModelTrainingSampleCollection(model_id=4, training_samples=(invalid_sample,) * 3),
+            ModelTrainingSampleCollection(
+                model_id=4,
+                training_samples=(invalid_sample,) * 3,
+                latest_alarm_boundary_position=None,
+            ),
         ),
         "insufficient": (
-            ModelTrainingSampleCollection(model_id=-7, training_samples=(invalid_sample,)),
+            ModelTrainingSampleCollection(
+                model_id=-7, training_samples=(invalid_sample,), latest_alarm_boundary_position=None
+            ),
         ),
     }[binding_contract_case]
     keyword_arguments.update(
@@ -482,7 +489,9 @@ def test_joint_training_iterations_reject_invalid_batch_before_draw(keyword_argu
         observed_class_labels=torch.tensor([[0.0]]),
     )
     keyword_arguments["ordered_model_training_samples"] = (
-        ModelTrainingSampleCollection(model_id=4, training_samples=(invalid_sample,) * 3),
+        ModelTrainingSampleCollection(
+            model_id=4, training_samples=(invalid_sample,) * 3, latest_alarm_boundary_position=None
+        ),
     )
     generator_state_before = keyword_arguments["python_random_generator"].getstate()
     classifier_parameters_before = tuple(
