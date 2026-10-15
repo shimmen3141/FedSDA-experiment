@@ -31,7 +31,8 @@ RUN_SUMMARY_TABLE_FILE_NAME = "run_summary.csv"
 # 版2: コードの版の記録を、runの来歴から作り、期待する動作の基準版を足した。版3: 目的と研究の問いを足した。
 # 版4: 計画に、FedSDAの学習batchの抜き出し方の軸を足した。版5: 計画に、FedSDAの帰属の保留の容量の軸を足した。
 # 版6: 計画から、学習batchの抜き出し方の軸を外した（2026-10-15）。
-SWEEP_RECORD_FORMAT_VERSION = 6
+# 版7: 計画に、Fixed-Shareの時間尺度の軸を足し、容量の軸は時間尺度を替えなくなった（版5・6では同じ値に替えた）。
+SWEEP_RECORD_FORMAT_VERSION = 7
 EXPERIMENT_README_FILE_NAME = "README.md"
 # 一覧の表の、実行条件の列（要約の`run_settings.execution_settings.experiment_run_conditions`のキー）。
 _CONDITION_COLUMN_NAMES = (
@@ -151,6 +152,10 @@ def write_run_summary_table(
                 table_row["pending_assignment_fifo_capacity"] = fedsda_client_settings.get(
                     "training_data_assignment_settings", {}
                 ).get("pending_assignment_buffer_capacity_samples")
+                # Fixed-Shareの時間尺度。容量の列と同じく`.get`で読む。
+                table_row["fixed_share_time_scale"] = fedsda_client_settings.get(
+                    "prediction_combination_settings", {}
+                ).get("fixed_share_weight_redistribution_time_scale_samples")
             if configuration_name == "feddrift":
                 client_settings = summary["run_settings"]["run_participant_settings"][
                     "run_client_settings"

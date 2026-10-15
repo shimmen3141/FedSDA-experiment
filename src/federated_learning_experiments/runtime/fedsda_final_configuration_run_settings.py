@@ -109,8 +109,9 @@ _ADWIN_MINIMUM_TEST_WINDOW_SAMPLE_COUNT = 10
 _DETECTOR_NAME = "overall + class-conditional e-SR mixture"
 _MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT = 5
 
-# ---- 帰属の保留（FIFO）と、予測の結合（Fixed-Shareの時間尺度は、FIFOの容量と同じ値） ----
+# ---- 帰属の保留（FIFO）と、予測の結合（Fixed-Shareの時間尺度。別々に指定できる。IMPROVE-015） ----
 _PENDING_ASSIGNMENT_BUFFER_CAPACITY_SAMPLES = 30
+_FIXED_SHARE_WEIGHT_REDISTRIBUTION_TIME_SCALE_SAMPLES = 30
 
 # ---- モデルの再利用と、候補の作成・検証 ----
 # 履歴の平均損失からの増加の許容量（γ）。クラスタリングの、同じクラスタとみなす判定の値の上限にも使う。
@@ -184,7 +185,7 @@ def build_final_configuration_fedsda_run_settings(
                 "restart_adahedge_preserve_fixed_share_prediction_state"
             ),
             fixed_share_weight_redistribution_time_scale_samples=(
-                _PENDING_ASSIGNMENT_BUFFER_CAPACITY_SAMPLES
+                _FIXED_SHARE_WEIGHT_REDISTRIBUTION_TIME_SCALE_SAMPLES
             ),
             prediction_model_parameter_source="current_local_parameters",
         ),

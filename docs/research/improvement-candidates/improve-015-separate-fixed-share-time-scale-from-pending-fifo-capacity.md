@@ -1,6 +1,6 @@
 # IMPROVE-015. Fixed-Shareの時間尺度を、帰属の保留（FIFO）の容量から分けて指定する
 
-- 記録日: 2026-10-15。種別: 設定の整理。状態: 保留（2026-10-15、ユーザー）。
+- 記録日: 2026-10-15。種別: 設定の整理。状態: 実装済み（2026-10-16、[fedsda-fixed-share-time-scale-axis](../../../.kiro/specs/fedsda-fixed-share-time-scale-axis/tasks.md)）。
 - 対象: `runtime/fedsda_run_client_settings.py`と`configuration/run_settings_validation.py`の、「Fixed-Shareの時間尺度＝帰属の保留の容量」を求める検査。最終構成の`fixed_share_weight_redistribution_time_scale_samples`と`pending_assignment_buffer_capacity_samples`（どちらも30）。
 
 ## 確認した事実
@@ -20,3 +20,7 @@
 ## 判断（2026-10-15、ユーザー）
 
 将来的には別々に指定できた方がよい。今回の、保留の容量の掃引の軸（[fedsda-pending-assignment-fifo-capacity-axis](../../../.kiro/specs/fedsda-pending-assignment-fifo-capacity-axis/tasks.md)）では、同値のまま、両方を同じ値で替える。
+
+## 実装（2026-10-16、ユーザーの決定）
+
+混ぜる予測で、容量の値が兼ねる3つの役割（容量、T、混ぜる分け合い）を分けた手元の診断（研究バックログの8）で、データによって得失が割れるのは容量だけだった。そこで、同値の検査を外し、Tを掃引の軸`--fedsda-fixed-share-time-scales`で替え、容量の軸は容量だけを替えるようにした。混ぜる予測の重みの分け合いの割合は1/Tのまま（どちらも、最良の候補が入れ替わる見込みの間隔Tを表す、同じ概念のため。別のハイパーパラメータにしない）。既定の値（どちらも30）と、既存の構成の動作・識別子は変わらない。

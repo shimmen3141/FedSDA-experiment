@@ -1,7 +1,6 @@
 """初回の機能設定と機能間条件を、入力を変更せずに検証する。"""
 
 from collections.abc import Mapping
-from typing import cast
 
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
@@ -107,25 +106,3 @@ def validate_experiment_run_settings(
                 specified_parameter_value=component_settings,
                 validation_failure_reason="初回の対応手法は正式名'fedsda'だけです。",
             )
-
-    # 上の全項目検査で型を確定済み。castは値や受理条件を変更しない。
-    component_settings = cast(
-        PredictionCombinationSettings, unvalidated_run_settings["prediction_combination_settings"]
-    )
-    if component_settings.fixed_share_weight_redistribution_time_scale_samples != (
-        cast(
-            TrainingDataAssignmentSettings,
-            unvalidated_run_settings["training_data_assignment_settings"],
-        ).pending_assignment_buffer_capacity_samples
-    ):
-        raise RunSettingsValidationError(
-            configuration_parameter_name="fixed_share_weight_redistribution_time_scale_samples",
-            specified_parameter_value=(
-                component_settings.fixed_share_weight_redistribution_time_scale_samples
-            ),
-            validation_failure_reason=(
-                "最終FedSDA構成ではFixed-Shareの時間尺度を帰属保留FIFO容量と同値にしてください。"
-                "pending_assignment_buffer_capacity_samples="
-                f"{cast(TrainingDataAssignmentSettings, unvalidated_run_settings['training_data_assignment_settings']).pending_assignment_buffer_capacity_samples!r}。"
-            ),
-        )

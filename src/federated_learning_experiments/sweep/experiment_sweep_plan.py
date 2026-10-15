@@ -50,9 +50,10 @@ class ExperimentSweepPlan:
     per_client_sample_count: int
     server_aggregation_intervals_per_client_samples: tuple[int, ...]
     feddrift_loss_increase_thresholds: tuple[float, ...] | None = None
-    # FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。Fixed-Shareの時間尺度も同じ値にする（今の設定の検査が
-    # 同じ値を求める。IMPROVE-015）。
+    # FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。Fixed-Shareの時間尺度は替えない。
     fedsda_pending_assignment_fifo_capacities: tuple[int, ...] | None = None
+    # FedSDAの構成の、Fixed-Shareの時間尺度T（標本数）。混ぜる予測の重みの分け合いの割合も1/Tになる。
+    fedsda_fixed_share_time_scales: tuple[int, ...] | None = None
 
     def __post_init__(self) -> None:
         _validate_distinct_values(
@@ -98,9 +99,18 @@ class ExperimentSweepPlan:
                 value_type=int,
                 field_name="fedsda_pending_assignment_fifo_capacities",
             )
-            # 実効の下限は2（Fixed-Shareの時間尺度の下限）。それは、作ったrun設定の検査が確かめる。
+            # 警報を待つ扱いの構成では、実効の下限は変化区間の最小件数。それは、作ったrun設定の検査が確かめる。
             if any(capacity < 1 for capacity in self.fedsda_pending_assignment_fifo_capacities):
                 raise ValueError("fedsda_pending_assignment_fifo_capacities must be positive")
+        if self.fedsda_fixed_share_time_scales is not None:
+            _validate_distinct_values(
+                values=self.fedsda_fixed_share_time_scales,
+                value_type=int,
+                field_name="fedsda_fixed_share_time_scales",
+            )
+            # 実効の下限は2。それは、作ったrun設定の検査が確かめる。
+            if any(time_scale < 1 for time_scale in self.fedsda_fixed_share_time_scales):
+                raise ValueError("fedsda_fixed_share_time_scales must be positive")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -152,33 +162,48 @@ def make_run_identifier(
 def _build_fedsda_settings_variants(
     *, run_settings: FedsdaRunSettings, sweep_plan: ExperimentSweepPlan
 ) -> tuple[FedsdaRunSettings, ...]:
-    """FedSDAの軸（帰属の保留の容量）の値ごとの設定（軸の順）。"""
+    """FedSDAの軸（帰属の保留の容量、Fixed-Shareの時間尺度）の値ごとの設定（容量の順の中で、時間尺度の順）。"""
     settings_variants = (run_settings,)
     if sweep_plan.fedsda_pending_assignment_fifo_capacities is not None:
-        # 容量と時間尺度は、構築のたびに同じ値かを確かめられるので、2つの部分の設定を先に作り、
-        # clientの設定の1回の`replace`へ同時に渡す。
         settings_variants = tuple(
-            replace(
-                variant,
-                run_participant_settings=replace(
-                    variant.run_participant_settings,
-                    run_client_settings=replace(
-                        variant.run_participant_settings.run_client_settings,
-                        training_data_assignment_settings=replace(
-                            variant.run_participant_settings.run_client_settings.training_data_assignment_settings,
-                            pending_assignment_buffer_capacity_samples=capacity,
-                        ),
-                        prediction_combination_settings=replace(
-                            variant.run_participant_settings.run_client_settings.prediction_combination_settings,
-                            fixed_share_weight_redistribution_time_scale_samples=capacity,
-                        ),
-                    ),
+            _replace_client_settings(
+                run_settings=variant,
+                training_data_assignment_settings=replace(
+                    variant.run_participant_settings.run_client_settings.training_data_assignment_settings,
+                    pending_assignment_buffer_capacity_samples=capacity,
                 ),
             )
             for variant in settings_variants
             for capacity in sweep_plan.fedsda_pending_assignment_fifo_capacities
         )
+    if sweep_plan.fedsda_fixed_share_time_scales is not None:
+        settings_variants = tuple(
+            _replace_client_settings(
+                run_settings=variant,
+                prediction_combination_settings=replace(
+                    variant.run_participant_settings.run_client_settings.prediction_combination_settings,
+                    fixed_share_weight_redistribution_time_scale_samples=time_scale,
+                ),
+            )
+            for variant in settings_variants
+            for time_scale in sweep_plan.fedsda_fixed_share_time_scales
+        )
     return settings_variants
+
+
+def _replace_client_settings(
+    *, run_settings: FedsdaRunSettings, **client_changes: object
+) -> FedsdaRunSettings:
+    """clientの設定の一部を替えたrun設定（構築のたびに、設定の検査が通る）。"""
+    return replace(
+        run_settings,
+        run_participant_settings=replace(
+            run_settings.run_participant_settings,
+            run_client_settings=replace(
+                run_settings.run_participant_settings.run_client_settings, **client_changes
+            ),
+        ),
+    )
 
 
 def build_planned_experiment_runs(
@@ -234,9 +259,8 @@ def build_planned_experiment_runs(
                                 sweep_plan.feddrift_loss_increase_thresholds or (0.1,)
                             )
                         )
-                    elif (
-                        type(run_settings) is FedsdaRunSettings
-                        and sweep_plan.fedsda_pending_assignment_fifo_capacities is not None
+                    elif type(run_settings) is FedsdaRunSettings and _fedsda_axis_names(
+                        sweep_plan=sweep_plan
                     ):
                         built_fedsda_run_count += 1
                         settings_variants = _build_fedsda_settings_variants(
@@ -255,11 +279,19 @@ def build_planned_experiment_runs(
                                 run_settings=settings_variant,
                             )
                         )
-    if (
-        sweep_plan.fedsda_pending_assignment_fifo_capacities is not None
-        and not built_fedsda_run_count
-    ):
-        raise ValueError(
-            "fedsda_pending_assignment_fifo_capacities requires a FedSDA configuration"
-        )
+    fedsda_axis_names = _fedsda_axis_names(sweep_plan=sweep_plan)
+    if fedsda_axis_names and not built_fedsda_run_count:
+        raise ValueError(f"{' and '.join(fedsda_axis_names)} requires a FedSDA configuration")
     return tuple(planned_runs)
+
+
+def _fedsda_axis_names(*, sweep_plan: ExperimentSweepPlan) -> tuple[str, ...]:
+    """指定したFedSDAの軸の項目名。"""
+    return tuple(
+        field_name
+        for field_name in (
+            "fedsda_pending_assignment_fifo_capacities",
+            "fedsda_fixed_share_time_scales",
+        )
+        if getattr(sweep_plan, field_name) is not None
+    )

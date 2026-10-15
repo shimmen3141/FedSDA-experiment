@@ -273,9 +273,10 @@ def test_settings_bundle_accepts_single_and_repeated_betting_fractions(valid_run
         )
 
 
-def test_settings_bundle_requires_fixed_share_time_scale_equal_to_pending_capacity(
+def test_settings_bundle_accepts_fixed_share_time_scale_different_from_pending_capacity(
     valid_run_settings_mapping,
 ):
+    """Fixed-Shareの時間尺度と帰属の保留の容量は、違う値でも受理される（IMPROVE-015）。"""
     prediction_combination_settings = valid_run_settings_mapping["prediction_combination_settings"]
     pending_capacity = valid_run_settings_mapping[
         "training_data_assignment_settings"
@@ -284,19 +285,21 @@ def test_settings_bundle_requires_fixed_share_time_scale_equal_to_pending_capaci
         prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
         == pending_capacity
     )
-    with pytest.raises(RunSettingsValidationError) as raised_error:
-        make_valid_run_client_settings(
-            valid_run_settings_mapping,
-            prediction_combination_settings=replace(
-                prediction_combination_settings,
-                fixed_share_weight_redistribution_time_scale_samples=pending_capacity + 1,
-            ),
-        )
-    assert (
-        raised_error.value.configuration_parameter_name
-        == "fixed_share_weight_redistribution_time_scale_samples"
+    settings = make_valid_run_client_settings(
+        valid_run_settings_mapping,
+        prediction_combination_settings=replace(
+            prediction_combination_settings,
+            fixed_share_weight_redistribution_time_scale_samples=pending_capacity + 1,
+        ),
     )
-    assert raised_error.value.specified_parameter_value == pending_capacity + 1
+    assert (
+        settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
+        == pending_capacity + 1
+    )
+    assert (
+        settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
+        == pending_capacity
+    )
 
 
 def test_settings_bundle_requires_equal_minimum_improvement_and_early_stopping_decrease(

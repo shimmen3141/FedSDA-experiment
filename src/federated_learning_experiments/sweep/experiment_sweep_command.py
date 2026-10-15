@@ -150,9 +150,17 @@ def _build_argument_parser() -> ArgumentParser:
         type=int,
         default=None,
         metavar="CAPACITY",
+        help="FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。FedSDAの構成を選んだときだけ",
+    )
+    argument_parser.add_argument(
+        "--fedsda-fixed-share-time-scales",
+        nargs="+",
+        type=int,
+        default=None,
+        metavar="TIME_SCALE",
         help=(
-            "FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。Fixed-Shareの時間尺度も同じ値にする。"
-            "FedSDAの構成を選んだときだけ"
+            "FedSDAの構成の、Fixed-Shareの時間尺度T（標本数。予測の重みを分け直す速さ。"
+            "混ぜる予測の重みの分け合いの割合も1/T）。FedSDAの構成を選んだときだけ"
         ),
     )
     argument_parser.add_argument(
@@ -240,6 +248,11 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
             feddrift_loss_increase_thresholds=(
                 tuple(parsed_arguments.feddrift_loss_increase_thresholds)
                 if parsed_arguments.feddrift_loss_increase_thresholds is not None
+                else None
+            ),
+            fedsda_fixed_share_time_scales=(
+                tuple(parsed_arguments.fedsda_fixed_share_time_scales)
+                if parsed_arguments.fedsda_fixed_share_time_scales is not None
                 else None
             ),
             fedsda_pending_assignment_fifo_capacities=(

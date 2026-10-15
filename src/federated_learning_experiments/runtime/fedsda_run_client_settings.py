@@ -264,19 +264,9 @@ class FedsdaRunClientSettings:
                     "（結合して予測する設定を選んでください）。"
                 ),
             )
-        fixed_share_time_scale = self.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
         pending_capacity = (
             self.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
         )
-        if fixed_share_time_scale != pending_capacity:
-            raise RunSettingsValidationError(
-                configuration_parameter_name="fixed_share_weight_redistribution_time_scale_samples",
-                specified_parameter_value=fixed_share_time_scale,
-                validation_failure_reason=(
-                    "最終FedSDA構成ではFixed-Shareの時間尺度を帰属保留FIFO容量と同値にしてください。"
-                    f"pending_assignment_buffer_capacity_samples={pending_capacity!r}。"
-                ),
-            )
         # 待つ扱いは、保留の件数と推定の長さの小さい方が、最小件数に達するまで警報としない。保留の容量が
         # 最小件数より小さいと、合図が続いても、警報にならない。
         minimum_change_interval = self.scalar_settings.minimum_change_interval_sample_count

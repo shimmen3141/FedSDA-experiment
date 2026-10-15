@@ -1,6 +1,7 @@
 """掃引の軸`--fedsda-pending-assignment-fifo-capacities`（FedSDAの帰属の保留の容量）を確認する。
 
-軸の値で、帰属の保留の容量とFixed-Shareの時間尺度の両方を替える（今の設定の検査が、同じ値を求める）。
+軸の値で、帰属の保留の容量だけを替える（Fixed-Shareの時間尺度は構成の値のまま。Tは`--fedsda-fixed-share-time-scales`）。
+記録の形式の版6までは、Tも同じ値に替えていた（IMPROVE-015）。
 """
 
 import csv
@@ -48,9 +49,6 @@ def without_capacity(planned_run):
     mapping = convert_settings_to_plain_mapping(planned_run.run_settings)
     client = mapping["run_participant_settings"]["run_client_settings"]
     del client["training_data_assignment_settings"]["pending_assignment_buffer_capacity_samples"]
-    del client["prediction_combination_settings"][
-        "fixed_share_weight_redistribution_time_scale_samples"
-    ]
     return mapping
 
 
@@ -72,8 +70,8 @@ def test_capacity_axis_makes_one_fedsda_variant_per_capacity():
     }
     for name in ("fedsda", "fedsda-independent-models"):
         runs = by_configuration[name]
-        assert [capacity_and_time_scale(run) for run in runs] == [(30, 30), (60, 60)]
-        # 容量と時間尺度のほかの設定は、変わらない。
+        assert [capacity_and_time_scale(run) for run in runs] == [(30, 30), (60, 30)]
+        # 容量のほかの設定は、変わらない。
         assert without_capacity(runs[0]) == without_capacity(runs[1])
     assert len({run.run_identifier for run in planned_runs}) == len(planned_runs)
 
@@ -108,7 +106,7 @@ def test_capacity_axis_requires_fedsda_and_values_accepted_by_run_settings():
                 fedsda_pending_assignment_fifo_capacities=(60,),
             )
         )
-    # 容量1は、Fixed-Shareの時間尺度の下限（2）で拒否される。
+    # 容量1は、警報を待つ扱い（既定）の、変化区間の最小件数（5）の下限で拒否される。
     with pytest.raises(RunSettingsValidationError):
         build_planned_experiment_runs(
             sweep_plan=small_plan(fedsda_pending_assignment_fifo_capacities=(1,))
@@ -125,7 +123,7 @@ def test_capacity_axis_requires_fedsda_and_values_accepted_by_run_settings():
             fedsda_pending_assignment_fifo_capacities=(4,),
         )
     )
-    assert capacity_and_time_scale(planned_run) == (4, 4)
+    assert capacity_and_time_scale(planned_run) == (4, 30)
 
 
 def base_arguments(output_directory):
@@ -208,7 +206,7 @@ def test_command_saves_runs_with_capacity_column_and_record_format_version(tmp_p
     assert sorted(row["pending_assignment_fifo_capacity"] for row in rows) == ["30", "60"]
     (record_path,) = output_directory.glob("sweep_record_*.json")
     record = json.loads(record_path.read_text(encoding="utf-8"))
-    assert record["record_format_version"] == 6
+    assert record["record_format_version"] == 7
     assert record["sweep_plan"]["fedsda_pending_assignment_fifo_capacities"] == [30, 60]
     # 要約の形式の版1と同じ形（来歴を持たない。run設定は今と同じ形）の要約から作った表でも、列が埋まる。
     # 実物の版1の要約は作っていない（版1でもこの項目が在ることは、gitの履歴で確かめた。spec のtasks.md）。

@@ -141,16 +141,6 @@ def valid_run_settings_mapping():
                 "fedsda_residual_adapter_switching",
             )
         ],
-        *[
-            (
-                "training_data_assignment_settings",
-                TrainingDataAssignmentSettings(
-                    pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
-                    pending_assignment_buffer_capacity_samples=specified_parameter_value,
-                ),
-            )
-            for specified_parameter_value in (1, 3, 100)
-        ],
     ],
 )
 def test_direct_subset_construction_uses_the_same_validation(
@@ -202,9 +192,6 @@ def test_direct_subset_construction_uses_the_same_validation(
     with pytest.raises(RunSettingsValidationError) as validation_error:
         validate_experiment_run_settings(unvalidated_run_settings)
     expected_failure_reason = validation_error.value.validation_failure_reason
-    if isinstance(specified_parameter_value, TrainingDataAssignmentSettings):
-        configuration_parameter_name = "fixed_share_weight_redistribution_time_scale_samples"
-        specified_parameter_value = 2
     with pytest.raises(RunSettingsValidationError) as validation_error:
         ValidatedExperimentRunSettingsSubset(**unvalidated_run_settings)
     assert validation_error.value.configuration_parameter_name == configuration_parameter_name
@@ -320,25 +307,18 @@ def test_run_settings_validation_rejects_invalid_component_mapping(
 
 
 @pytest.mark.parametrize("specified_parameter_value", [1, 3, 100])
-def test_fixed_share_time_scale_must_match_assignment_buffer_capacity(
+def test_fixed_share_time_scale_may_differ_from_assignment_buffer_capacity(
     valid_run_settings_mapping,
     specified_parameter_value,
 ):
+    """Fixed-Shareの時間尺度（2）と帰属の保留の容量は、違う値でも受理される（IMPROVE-015）。"""
     unvalidated_run_settings = valid_run_settings_mapping.copy()
     unvalidated_run_settings["training_data_assignment_settings"] = TrainingDataAssignmentSettings(
         pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         pending_assignment_buffer_capacity_samples=specified_parameter_value,
     )
-    with pytest.raises(RunSettingsValidationError) as validation_error:
-        validate_experiment_run_settings(unvalidated_run_settings)
-    assert validation_error.value.configuration_parameter_name == (
-        "fixed_share_weight_redistribution_time_scale_samples"
-    )
-    assert validation_error.value.specified_parameter_value == 2
-    assert "pending_assignment_buffer_capacity_samples" in (
-        validation_error.value.validation_failure_reason
-    )
-    assert str(specified_parameter_value) in validation_error.value.validation_failure_reason
+    assert validate_experiment_run_settings(unvalidated_run_settings) is None
+    ValidatedExperimentRunSettingsSubset(**unvalidated_run_settings)
     assert (
         unvalidated_run_settings[
             "training_data_assignment_settings"

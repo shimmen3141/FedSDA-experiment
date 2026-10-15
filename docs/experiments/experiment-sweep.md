@@ -35,7 +35,8 @@ python run_experiment_sweep.py \
 | `--output-directory` | 出力先（再開のときに指定する。`--study`とは同時に使えない） | `results/<研究の問い>/<開始時刻>_<ラベル>`（`--study`が無ければ`results/<開始時刻>_<ラベル>`） |
 | `--study` | 研究の問いの名前（出力先の1段目） | なし |
 | `--label` | 出力先を省略したときの、ディレクトリ名のラベル（`/`・`\`・`:`と、Windowsでファイル名に使えない文字を含まない名前） | `sweep` |
-| `--fedsda-pending-assignment-fifo-capacities` | FedSDAの構成の、帰属の保留（FIFO）の容量（標本数。複数可。下の「帰属の保留の容量」）。FedSDAの構成を選んだときだけ | `30`だけ |
+| `--fedsda-pending-assignment-fifo-capacities` | FedSDAの構成の、帰属の保留（FIFO）の容量（標本数。複数可。下の「帰属の保留の容量とFixed-Shareの時間尺度」）。FedSDAの構成を選んだときだけ | `30`だけ |
+| `--fedsda-fixed-share-time-scales` | FedSDAの構成の、Fixed-Shareの時間尺度T（標本数。複数可。同じ節）。FedSDAの構成を選んだときだけ | `30`だけ |
 | `--purpose` | この実験の目的（1行）。実行するときは必須。`README.md`と実行の記録に書く | 必須（`--print-plan`では不要） |
 | `--print-plan` | 計画のrunと、出力先にある済んだrunを表示するだけ。何も実行せず、何も作らない | — |
 
@@ -52,16 +53,21 @@ python run_experiment_sweep.py \
   基準版の違う済んだrunで止まるときは、READMEも作らない。
 - 実験を始めたら、[実験の台帳](experiment-log.md)に1行足し、結論が出たら、台帳とREADMEの結論に、判断の記録への参照を書く。
 
-## 帰属の保留の容量（FedSDA）
+## 帰属の保留の容量とFixed-Shareの時間尺度（FedSDA）
 
-FedSDAのclientは、観測した標本を帰属の保留（FIFO）に置き、あふれた古い標本から、現在のモデルの学習データへ確定する。`--fedsda-pending-assignment-fifo-capacities`で、この容量（標本数）を並べて比べられる（FedSDAの構成ごとに、書いた数だけrunが増える）。Fixed-Shareの時間尺度も、同じ値に替わる（今の設定の検査が、2つが同じ値であることを求める。将来は分けて指定できるようにする候補: IMPROVE-015）。
+FedSDAのclientは、観測した標本を帰属の保留（FIFO）に置き、あふれた古い標本から、現在のモデルの学習データへ確定する。`--fedsda-pending-assignment-fifo-capacities`で、この容量（標本数）を並べて比べられる。
 
-- 既定は30。30を指定したrunは、指定しないrunと同じ設定・同じ識別子になる。
-- 制約: 実効の下限は2（Fixed-Shareの時間尺度の下限）。警報を待つ扱いの構成（既定）では、変化区間の最小件数（5）以上。満たさない値は、引数の誤り（終了コード2）。
-- 目安（手元の試行、研究バックログの8）: 同期の時点で予測する構成で、60にすると、circle2の精度が間隔50・200で上がり、sine2・sea2はほぼ同じ。100は60より少し悪い。容量が長いほど、警報までの遅れの間の標本が古いモデルへ入りにくくなるが、新しい概念の標本の学習は保留の分だけ遅れる。
-- 一覧の表の`pending_assignment_fifo_capacity`の列に、runの容量が入る。
+Fixed-Shareの時間尺度Tは、予測の重みを他のモデルへ分け直す速さ（最良のモデルが入れ替わる見込みの間隔）。混ぜる予測（`fedsda-synchronized-local-mixture-prediction`）の、同期の時点と局所の重みの分け合いの割合も1/Tになる。`--fedsda-fixed-share-time-scales`で並べられる。
 
-例: `--fedsda-pending-assignment-fifo-capacities 30 60`。[spec](../../.kiro/specs/fedsda-pending-assignment-fifo-capacity-axis/design.md)。
+- 2つの軸は、それぞれの値だけを替える（指定しない側は構成の値のまま）。両方を指定すると全部の組を作る（容量の順の中で、Tの順）。FedSDAの構成ごとに、組の数だけrunが増える。
+- 掃引の記録の形式の版6まで（2026-10-16より前）は、容量の軸がTも同じ値に替えていた（設定の検査が同じ値を求めた。IMPROVE-015で分けた）。その結果の「容量60」は、T＝60でもある。
+- 既定はどちらも30。30を指定したrunは、指定しないrunと同じ設定・同じ識別子になる。
+- 制約: 容量は、警報を待つ扱いの構成（既定）では変化区間の最小件数（5）以上（警報を即時にする構成では1以上）。Tは2以上。満たさない値は、引数の誤り（終了コード2）。
+- Tを替えても予測が変わらない構成がある: 現在のモデルだけで予測する構成（`fedsda-single-model-prediction`）と、Fixed-Shareの重みを予測に使わない構成（`fedsda-adahedge-prediction-weights`）。計画からは除かない。
+- 目安（手元の診断、混ぜる予測、研究バックログの8）: 容量を60にすると、circle2の間隔50は学習データの混ざりが減って上がるが、sine2の間隔200は新しい概念の学習が遅れて下がる（データによって得失が割れる）。Tだけ・混ぜる分け合いだけを、それぞれ60にすると、circle2で揃って上がり、sine2はほぼ同じ（どちらもTで決まるので、今は一緒に替わる）。
+- 一覧の表の`pending_assignment_fifo_capacity`と`fixed_share_time_scale`の列に、runの値が入る。
+
+例: `--fedsda-pending-assignment-fifo-capacities 30 --fedsda-fixed-share-time-scales 30 60`。[容量の軸のspec](../../.kiro/specs/fedsda-pending-assignment-fifo-capacity-axis/design.md)、[時間尺度の軸のspec](../../.kiro/specs/fedsda-fixed-share-time-scale-axis/design.md)。
 
 ## 途中で止まったとき
 
@@ -108,7 +114,7 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 - `sweep_record_*.json`は、目的、研究の問い、計画、コマンドの引数、コードの版（gitのcommitと、未コミットの変更の有無。runの要約と同じ値）、
   期待する動作の基準版、実行環境、
   開始と終了の時刻、runごとの結果（`completed`・`skipped_existing`・`failed`と、失敗の理由）を持つ。
-  記録の形式の版2から基準版、版3から目的と研究の問い、版4から学習batchの抜き出し方の軸、版5から帰属の保留の容量の軸を持つ。版6で、学習batchの抜き出し方の軸を外した（2026-10-15）（記録の形式の版は、動作の基準版とは別の番号）。版1の記録の未コミットの変更の有無は、追跡しないファイルも数えていたので、版2の値とは比べられない。
+  記録の形式の版2から基準版、版3から目的と研究の問い、版4から学習batchの抜き出し方の軸、版5から帰属の保留の容量の軸を持つ。版6で、学習batchの抜き出し方の軸を外した（2026-10-15）。版7から、Fixed-Shareの時間尺度の軸を持ち、容量の軸が時間尺度を替えない（2026-10-16）（記録の形式の版は、動作の基準版とは別の番号）。版1の記録の未コミットの変更の有無は、追跡しないファイルも数えていたので、版2の値とは比べられない。
 - 指標と、表の列の意味、旧実装の名前との対応は、[旧実装の出力と、新実装への移行の一覧](../research/legacy-run-output-migration.md)。
 
 ## 構成

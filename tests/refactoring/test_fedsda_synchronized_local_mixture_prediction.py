@@ -366,9 +366,10 @@ def test_configuration_combines_with_the_pending_fifo_capacity_axis():
     client = planned_run.run_settings.run_participant_settings.run_client_settings
     assert client.prediction_combination_settings.prediction_model_parameter_source == MIXTURE_VALUE
     assert client.training_data_assignment_settings.pending_assignment_buffer_capacity_samples == 60
+    # 容量の軸は、Fixed-Shareの時間尺度を替えない。
     assert (
         client.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
-        == 60
+        == 30
     )
 
 

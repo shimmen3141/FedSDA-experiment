@@ -335,7 +335,7 @@ circle2の間隔200で、同期の時点の予測が下がる理由（2026-10-15
 - 写しを50標本ごとに取り直すと、circle2は局所の予測に近づき（96.41）、sine2も上がる（+0.20）が、sea2は下がる（−0.32）。→ 間隔が長いと、同期の時点のモデルが古いまま使われて損をする（circle2・sine2は、変化の後もモデルの当てはまりが上がり続ける）。一方で、局所のモデルで予測し直すと、seaでは局所の学習の雑音が戻る。どちらを取るかはデータに依り、取り直しは、既定の候補にしない（主担当の判断）。
 - 確定済みの標本を取り消す案（(2)）は、容量60で、学習データから他の概念を全部除く診断に近い精度になったので、見送る（主担当の判断）。
 
-掃引の軸（2026-10-15、[fedsda-pending-assignment-fifo-capacity-axis](../../.kiro/specs/fedsda-pending-assignment-fifo-capacity-axis/tasks.md)）: `--fedsda-pending-assignment-fifo-capacities`で、容量（とFixed-Shareの時間尺度）を並べられる。2つを分けて指定する案は、IMPROVE-015（将来）。
+掃引の軸（2026-10-15、[fedsda-pending-assignment-fifo-capacity-axis](../../.kiro/specs/fedsda-pending-assignment-fifo-capacity-axis/tasks.md)）: `--fedsda-pending-assignment-fifo-capacities`で、容量を並べられる（記録の形式の版6までは、Fixed-Shareの時間尺度も同じ値に替えた）。2026-10-16に、2つを分け、Tは`--fedsda-fixed-share-time-scales`で替える（IMPROVE-015、[fedsda-fixed-share-time-scale-axis](../../.kiro/specs/fedsda-fixed-share-time-scale-axis/tasks.md)）。次の候補: 本規模で「容量30・T60」を、容量30・60（Tも同じ）と比べる。
 
 次の候補: 同期の時点で予測する構成で、容量30と60を、serverの本規模で比べる。新しい概念の標本の学習が保留の分だけ遅れるので、変化の直後の精度とのかね合いを見る。(2) 警報が出たとき、推定した変化点より後の標本で、すでに古いモデルへ確定したものを、古いモデルの学習データから外す（取り消す）。(3) circle2の間隔200で、同期の時点の予測が下がる理由（同じ混ざりが、予測を同期の時点に固定すると、より長く効くのか）。
 

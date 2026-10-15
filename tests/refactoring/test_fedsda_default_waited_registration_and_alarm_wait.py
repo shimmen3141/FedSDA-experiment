@@ -58,7 +58,8 @@ def test_every_fedsda_configuration_uses_waited_registration_and_alarm_wait_by_d
 
 def test_sweep_command_arguments_are_only_extended_by_the_artifact_organization():
     """既定の変更で、実験のコマンドの引数は変えない（要求1.4）。後のspec（experiment-artifact-organization）で、
-    `--study`・`--purpose`が、fedsda-pending-assignment-fifo-capacity-axisで`--fedsda-pending-assignment-fifo-capacities`が増えた
+    `--study`・`--purpose`が、fedsda-pending-assignment-fifo-capacity-axisで`--fedsda-pending-assignment-fifo-capacities`が、
+    fedsda-fixed-share-time-scale-axisで`--fedsda-fixed-share-time-scales`が増えた
     （held-model-training-sample-recencyで足した`--fedsda-training-sample-selections`は、2026-10-15に外した）。"""
     argument_parser = _build_argument_parser()
     assert sorted(
@@ -71,6 +72,7 @@ def test_sweep_command_arguments_are_only_extended_by_the_artifact_organization(
         "--configurations",
         "--datasets",
         "--feddrift-loss-increase-thresholds",
+        "--fedsda-fixed-share-time-scales",
         "--fedsda-pending-assignment-fifo-capacities",
         "--help",
         "--label",

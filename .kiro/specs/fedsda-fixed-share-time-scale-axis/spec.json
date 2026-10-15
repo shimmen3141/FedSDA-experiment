@@ -1,0 +1,67 @@
+{
+  "feature_name": "fedsda-fixed-share-time-scale-axis",
+  "created_at": "2026-10-16",
+  "updated_at": "2026-10-16",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー2回目PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー2回目PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー2回目PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー2回目PASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "5818eab",
+  "specification_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "5818eab",
+    "session_ids": [
+      "9b83ef35-ce8f-4043-b6d9-55a011be3d08",
+      "0629728a-ec2b-43e0-b5ee-209a6fc040b4"
+    ],
+    "result": "1回目はCHANGES REQUIRED（Major 1: test_direct_subset_construction_uses_the_same_validationの容量の3 caseが一覧に無い。Minor 3）。反映して2回目へ。2回目でPASS（Minor 4: 記録の版の期待の3か所目、重みを使わない構成でのTの軸の説明、容量の下限のコメント。設計へ反映）。",
+    "output": [
+      "../../venv/refactoring-tests/time-scale-spec-review-1.jsonl",
+      "../../venv/refactoring-tests/time-scale-spec-review-2.jsonl"
+    ]
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "未commitの変更（基点5818eab）",
+    "session_ids": [
+      "70b0707e-d24e-4ea7-a588-a5270e1380f4"
+    ],
+    "is_error": false,
+    "result": "APPROVED（Minor 4。採否はtasks.md）。",
+    "output": "../../venv/refactoring-tests/time-scale-review-1.jsonl"
+  },
+  "integration_validation": {
+    "full_passed": 14325,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/time-scale-full.xml",
+    "wsl": "新しいtestとgoldenの版1〜5で220 passed",
+    "tested_revision": "未commitの変更（基点5818eab）。全pytestの後の修正は、test 1 caseの追加（そのファイルを再実行して16 passed）と文書だけ"
+  },
+  "completion_decision": "完了。容量とTの同値の検査を外し、Tを掃引の軸--fedsda-fixed-share-time-scalesで替えられる。容量の軸は容量だけを替える。既存の構成の動作と値は不変。"
+}
