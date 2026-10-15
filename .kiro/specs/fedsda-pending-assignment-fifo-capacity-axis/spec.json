@@ -1,0 +1,65 @@
+{
+  "feature_name": "fedsda-pending-assignment-fifo-capacity-axis",
+  "created_at": "2026-10-15",
+  "updated_at": "2026-10-15",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "57d792a",
+    "session_ids": [
+      "5e375bf9-20f7-47ae-a3c6-eb8cc2bfb450",
+      "84a4eaa1-0a34-494c-b7b4-66643daea1f1",
+      "06e0aaab-1dee-4a6a-83a0-c3065ea33f5e"
+    ],
+    "result": "1回目はCHANGES REQUIRED（Major 1: 容量と時間尺度を1回のreplaceで同時に替えることが設計に無い。Minor 5）。反映して2回目へ。 2回目はCHANGES REQUIRED（Major 1: 要求3.1と、記録の形式の版を上げる要求・taskの矛盾。Minor 2: 表の列の読み方の根拠、文書の目安の中身）。反映して3回目へ。 3回目でPASS（Minorは実装で扱う。tasks.md）。",
+    "output": "../../venv/refactoring-tests/fifo-capacity-spec-review-{1..}.jsonl",
+    "selection_reason": "計画の組み立てと設定の検査の論証なので、Haiku 5.5"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "未commitの変更（基点57d792a）",
+    "session_ids": [
+      "7c1c5199-0d4d-424b-852a-fc84a335d999"
+    ],
+    "is_error": false,
+    "result": "APPROVED（Minor 3。採否はtasks.md）。",
+    "output": "../../venv/refactoring-tests/fifo-capacity-review-1.jsonl",
+    "selection_reason": "計画の組み立てと設定の検査の論証なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14358,
+    "full_skipped": 8,
+    "full_failed_then_fixed": "test_sweep_command_arguments_are_only_extended_by_the_artifact_organization（引数の一覧の期待へ足し、再実行で通過）",
+    "junit": "../../venv/refactoring-tests/fifo-capacity-full.xml",
+    "tested_revision": "未commitの変更（基点57d792a）"
+  },
+  "completion_decision": "完了。FedSDAの帰属の保留の容量（とFixed-Shareの時間尺度）を、掃引の軸--fedsda-pending-assignment-fifo-capacitiesで並べられる。既定の動作と値は不変。"
+}

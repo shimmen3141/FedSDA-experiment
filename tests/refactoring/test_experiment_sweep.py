@@ -756,7 +756,7 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         "run_outcomes",
         "unreadable_run_summary_descriptions",
     ]
-    assert record["record_format_version"] == 4
+    assert record["record_format_version"] == 5
     assert record["command_arguments"] == ["--datasets", "circle2"]
     assert record["sweep_plan"] == dict(
         configuration_names=["fedsda"],
@@ -767,6 +767,7 @@ def test_sweep_record_holds_plan_command_revision_and_outcomes(tmp_path):
         server_aggregation_intervals_per_client_samples=[10],
         feddrift_loss_increase_thresholds=None,
         fedsda_training_sample_selections=None,
+        fedsda_pending_assignment_fifo_capacities=None,
     )
     assert record["worker_count"] == 2
     assert record["code_revision"] == dict(
@@ -1461,7 +1462,7 @@ def test_command_places_results_under_the_study_with_a_readme(tmp_path, monkeypa
     record = json.loads(
         next(output_directory.glob("sweep_record_*.json")).read_text(encoding="utf-8")
     )
-    assert record["record_format_version"] == 4
+    assert record["record_format_version"] == 5
     assert (
         record["purpose"] == SMALL_COMMAND_ARGUMENTS[SMALL_COMMAND_ARGUMENTS.index("--purpose") + 1]
     )

@@ -36,6 +36,7 @@ python run_experiment_sweep.py \
 | `--study` | 研究の問いの名前（出力先の1段目） | なし |
 | `--label` | 出力先を省略したときの、ディレクトリ名のラベル（`/`・`\`・`:`と、Windowsでファイル名に使えない文字を含まない名前） | `sweep` |
 | `--fedsda-training-sample-selections` | FedSDAの構成の、保有モデルの学習batchの抜き出し方（複数可。下の「学習batchの抜き出し方」）。FedSDAの構成を選んだときだけ | `uniform`だけ |
+| `--fedsda-pending-assignment-fifo-capacities` | FedSDAの構成の、帰属の保留（FIFO）の容量（標本数。複数可。下の「帰属の保留の容量」）。FedSDAの構成を選んだときだけ | `30`だけ |
 | `--purpose` | この実験の目的（1行）。実行するときは必須。`README.md`と実行の記録に書く | 必須（`--print-plan`では不要） |
 | `--print-plan` | 計画のrunと、出力先にある済んだrunを表示するだけ。何も実行せず、何も作らない | — |
 
@@ -63,6 +64,18 @@ FedSDAの保有モデルは、割り当てた全部の標本を保存し、学�
 | `decay:<α>` | 新しい標本ほど選ばれやすく（重複なしに1件ずつ、まだ選んでいない位置の中で、末尾からa件前の位置がαのa乗に比例して選ばれる。αは`0.`に続く数字で書く。影響が届く範囲の目安は約1/(1−α)件: 0.99で約100件、0.997で約330件、0.999で約1000件） |
 
 例: `--fedsda-training-sample-selections uniform recent:300 decay:0.997`。`recent:0300`・`decay:.5`・`decay:1e-3`のような書き方は拒否する（引数の誤り）。新しさは、保存した順で測る（モデルの統合の直後は、保存の順が観測の順と一致しないことがある）。一覧の表の`training_sample_selection`の列に、runの抜き出し方が入る（この項目を持たない前の結果は空の欄）。[spec](../../.kiro/specs/held-model-training-sample-recency/design.md)、背景は[研究バックログの7](../research/research-backlog.md)。
+
+## 帰属の保留の容量（FedSDA）
+
+FedSDAのclientは、観測した標本を帰属の保留（FIFO）に置き、あふれた古い標本から、現在のモデルの学習データへ確定する。`--fedsda-pending-assignment-fifo-capacities`で、この容量（標本数）を並べて比べられる（FedSDAの構成ごとに、書いた数だけrunが増える）。Fixed-Shareの時間尺度も、同じ値に替わる（今の設定の検査が、2つが同じ値であることを求める。将来は分けて指定できるようにする候補: IMPROVE-015）。
+
+- 既定は30。30を指定したrunは、指定しないrunと同じ設定・同じ識別子になる。
+- 制約: 実効の下限は2（Fixed-Shareの時間尺度の下限）。警報を待つ扱いの構成（既定）では、変化区間の最小件数（5）以上。満たさない値は、引数の誤り（終了コード2）。
+- 目安（手元の試行、研究バックログの8）: 同期の時点で予測する構成で、60にすると、circle2の精度が間隔50・200で上がり、sine2・sea2はほぼ同じ。100は60より少し悪い。容量が長いほど、警報までの遅れの間の標本が古いモデルへ入りにくくなるが、新しい概念の標本の学習は保留の分だけ遅れる。
+- 学習batchの抜き出し方の軸と一緒に指定すると、全部の組を作る（抜き出し方の順の中で、容量の順）。
+- 一覧の表の`pending_assignment_fifo_capacity`の列に、runの容量が入る。
+
+例: `--fedsda-pending-assignment-fifo-capacities 30 60`。[spec](../../.kiro/specs/fedsda-pending-assignment-fifo-capacity-axis/design.md)。
 
 ## 途中で止まったとき
 
@@ -109,7 +122,7 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 - `sweep_record_*.json`は、目的、研究の問い、計画、コマンドの引数、コードの版（gitのcommitと、未コミットの変更の有無。runの要約と同じ値）、
   期待する動作の基準版、実行環境、
   開始と終了の時刻、runごとの結果（`completed`・`skipped_existing`・`failed`と、失敗の理由）を持つ。
-  記録の形式の版2から基準版、版3から目的と研究の問いを持つ。版1の記録の未コミットの変更の有無は、追跡しないファイルも数えていたので、版2の値とは比べられない。
+  記録の形式の版2から基準版、版3から目的と研究の問い、版4から学習batchの抜き出し方の軸、版5から帰属の保留の容量の軸を持つ（記録の形式の版は、動作の基準版とは別の番号）。版1の記録の未コミットの変更の有無は、追跡しないファイルも数えていたので、版2の値とは比べられない。
 - 指標と、表の列の意味、旧実装の名前との対応は、[旧実装の出力と、新実装への移行の一覧](../research/legacy-run-output-migration.md)。
 
 ## 構成

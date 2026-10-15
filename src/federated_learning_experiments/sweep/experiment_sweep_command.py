@@ -154,6 +154,17 @@ def _build_argument_parser() -> ArgumentParser:
         ),
     )
     argument_parser.add_argument(
+        "--fedsda-pending-assignment-fifo-capacities",
+        nargs="+",
+        type=int,
+        default=None,
+        metavar="CAPACITY",
+        help=(
+            "FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。Fixed-Shareの時間尺度も同じ値にする。"
+            "FedSDAの構成を選んだときだけ"
+        ),
+    )
+    argument_parser.add_argument(
         "--workers", type=int, default=1, help="並列に実行するprocessの数（既定1）"
     )
     argument_parser.add_argument(
@@ -243,6 +254,11 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
             fedsda_training_sample_selections=(
                 tuple(parsed_arguments.fedsda_training_sample_selections)
                 if parsed_arguments.fedsda_training_sample_selections is not None
+                else None
+            ),
+            fedsda_pending_assignment_fifo_capacities=(
+                tuple(parsed_arguments.fedsda_pending_assignment_fifo_capacities)
+                if parsed_arguments.fedsda_pending_assignment_fifo_capacities is not None
                 else None
             ),
         )

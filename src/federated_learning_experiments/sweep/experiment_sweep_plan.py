@@ -102,6 +102,9 @@ class ExperimentSweepPlan:
     feddrift_loss_increase_thresholds: tuple[float, ...] | None = None
     # FedSDAの構成の、保有モデルの学習batchの抜き出し方（`uniform`・`recent:<K>`・`decay:<α>`）。
     fedsda_training_sample_selections: tuple[str, ...] | None = None
+    # FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。Fixed-Shareの時間尺度も同じ値にする（今の設定の検査が
+    # 同じ値を求める。IMPROVE-015）。
+    fedsda_pending_assignment_fifo_capacities: tuple[int, ...] | None = None
 
     def __post_init__(self) -> None:
         _validate_distinct_values(
@@ -154,6 +157,15 @@ class ExperimentSweepPlan:
             # 書き方が違っても、同じ値（`decay:0.5`と`decay:0.50`ほか）は重複とする。
             if len(set(parsed_selections)) != len(parsed_selections):
                 raise ValueError("fedsda_training_sample_selections must not hold duplicate values")
+        if self.fedsda_pending_assignment_fifo_capacities is not None:
+            _validate_distinct_values(
+                values=self.fedsda_pending_assignment_fifo_capacities,
+                value_type=int,
+                field_name="fedsda_pending_assignment_fifo_capacities",
+            )
+            # 実効の下限は2（Fixed-Shareの時間尺度の下限）。それは、作ったrun設定の検査が確かめる。
+            if any(capacity < 1 for capacity in self.fedsda_pending_assignment_fifo_capacities):
+                raise ValueError("fedsda_pending_assignment_fifo_capacities must be positive")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -200,6 +212,61 @@ def make_run_identifier(
         f"_seed{experiment_run_conditions.random_seed}"
         f"_{settings_hash}"
     )
+
+
+def _build_fedsda_settings_variants(
+    *, run_settings: FedsdaRunSettings, sweep_plan: ExperimentSweepPlan
+) -> tuple[FedsdaRunSettings, ...]:
+    """FedSDAの2つの軸（学習batchの抜き出し方、帰属の保留の容量）の全部の組の設定（抜き出し方の順の中で、容量の順）。"""
+    settings_variants = (run_settings,)
+    if sweep_plan.fedsda_training_sample_selections is not None:
+        settings_variants = tuple(
+            replace(
+                variant,
+                run_participant_settings=replace(
+                    variant.run_participant_settings,
+                    run_client_settings=replace(
+                        variant.run_participant_settings.run_client_settings,
+                        local_training_settings=replace(
+                            variant.run_participant_settings.run_client_settings.local_training_settings,
+                            training_sample_selection_policy=policy,
+                            most_recent_stored_sample_count=most_recent_count,
+                            stored_sample_recency_decay_factor=decay_factor,
+                        ),
+                    ),
+                ),
+            )
+            for variant in settings_variants
+            for policy, most_recent_count, decay_factor in (
+                parse_fedsda_training_sample_selection(text)
+                for text in sweep_plan.fedsda_training_sample_selections
+            )
+        )
+    if sweep_plan.fedsda_pending_assignment_fifo_capacities is not None:
+        # 容量と時間尺度は、構築のたびに同じ値かを確かめられるので、2つの部分の設定を先に作り、
+        # clientの設定の1回の`replace`へ同時に渡す。
+        settings_variants = tuple(
+            replace(
+                variant,
+                run_participant_settings=replace(
+                    variant.run_participant_settings,
+                    run_client_settings=replace(
+                        variant.run_participant_settings.run_client_settings,
+                        training_data_assignment_settings=replace(
+                            variant.run_participant_settings.run_client_settings.training_data_assignment_settings,
+                            pending_assignment_buffer_capacity_samples=capacity,
+                        ),
+                        prediction_combination_settings=replace(
+                            variant.run_participant_settings.run_client_settings.prediction_combination_settings,
+                            fixed_share_weight_redistribution_time_scale_samples=capacity,
+                        ),
+                    ),
+                ),
+            )
+            for variant in settings_variants
+            for capacity in sweep_plan.fedsda_pending_assignment_fifo_capacities
+        )
+    return settings_variants
 
 
 def build_planned_experiment_runs(
@@ -255,33 +322,13 @@ def build_planned_experiment_runs(
                                 sweep_plan.feddrift_loss_increase_thresholds or (0.1,)
                             )
                         )
-                    elif (
-                        type(run_settings) is FedsdaRunSettings
-                        and sweep_plan.fedsda_training_sample_selections is not None
+                    elif type(run_settings) is FedsdaRunSettings and (
+                        sweep_plan.fedsda_training_sample_selections is not None
+                        or sweep_plan.fedsda_pending_assignment_fifo_capacities is not None
                     ):
                         built_fedsda_run_count += 1
-                        participant = run_settings.run_participant_settings
-                        client = participant.run_client_settings
-                        settings_variants = tuple(
-                            replace(
-                                run_settings,
-                                run_participant_settings=replace(
-                                    participant,
-                                    run_client_settings=replace(
-                                        client,
-                                        local_training_settings=replace(
-                                            client.local_training_settings,
-                                            training_sample_selection_policy=policy,
-                                            most_recent_stored_sample_count=most_recent_count,
-                                            stored_sample_recency_decay_factor=decay_factor,
-                                        ),
-                                    ),
-                                ),
-                            )
-                            for policy, most_recent_count, decay_factor in (
-                                parse_fedsda_training_sample_selection(text)
-                                for text in sweep_plan.fedsda_training_sample_selections
-                            )
+                        settings_variants = _build_fedsda_settings_variants(
+                            run_settings=run_settings, sweep_plan=sweep_plan
                         )
                     else:
                         settings_variants = (run_settings,)
@@ -296,6 +343,11 @@ def build_planned_experiment_runs(
                                 run_settings=settings_variant,
                             )
                         )
-    if sweep_plan.fedsda_training_sample_selections is not None and not built_fedsda_run_count:
-        raise ValueError("fedsda_training_sample_selections requires a FedSDA configuration")
+    if not built_fedsda_run_count:
+        for axis_name in (
+            "fedsda_training_sample_selections",
+            "fedsda_pending_assignment_fifo_capacities",
+        ):
+            if getattr(sweep_plan, axis_name) is not None:
+                raise ValueError(f"{axis_name} requires a FedSDA configuration")
     return tuple(planned_runs)

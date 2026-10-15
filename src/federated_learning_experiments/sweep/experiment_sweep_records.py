@@ -33,7 +33,7 @@ from federated_learning_experiments.sweep.experiment_sweep_plan import (
 RUN_SUMMARY_TABLE_FILE_NAME = "run_summary.csv"
 # 版2: コードの版の記録を、runの来歴から作り、期待する動作の基準版を足した。版3: 目的と研究の問いを足した。
 # 版4: 計画に、FedSDAの学習batchの抜き出し方の軸を足した。
-SWEEP_RECORD_FORMAT_VERSION = 4
+SWEEP_RECORD_FORMAT_VERSION = 5
 EXPERIMENT_README_FILE_NAME = "README.md"
 # 一覧の表の、実行条件の列（要約の`run_settings.execution_settings.experiment_run_conditions`のキー）。
 _CONDITION_COLUMN_NAMES = (
@@ -146,9 +146,10 @@ def write_run_summary_table(
             }
             if summary["run_settings"].get(_SETTINGS_TYPE_KEY) == "FedsdaRunSettings":
                 # この経路は、FedSDAの要約に必ずある。抜き出し方の項目だけを`.get`で読む（前の要約は空の欄）。
-                local_training_settings = summary["run_settings"]["run_participant_settings"][
+                fedsda_client_settings = summary["run_settings"]["run_participant_settings"][
                     "run_client_settings"
-                ]["local_training_settings"]
+                ]
+                local_training_settings = fedsda_client_settings["local_training_settings"]
                 selection_policy = local_training_settings.get("training_sample_selection_policy")
                 table_row["training_sample_selection"] = (
                     None
@@ -163,6 +164,10 @@ def write_run_summary_table(
                         ),
                     )
                 )
+                # 帰属の保留（FIFO）の容量。要約の形式の版1から在るが、`.get`で読む（無い要約は、行を外さず空の欄）。
+                table_row["pending_assignment_fifo_capacity"] = fedsda_client_settings.get(
+                    "training_data_assignment_settings", {}
+                ).get("pending_assignment_buffer_capacity_samples")
             if configuration_name == "feddrift":
                 client_settings = summary["run_settings"]["run_participant_settings"][
                     "run_client_settings"
