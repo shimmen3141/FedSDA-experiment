@@ -27,3 +27,4 @@
 - testを先に書き、実装の前に失敗することを確かめた（12件中10件が失敗。残る2件は、まだ無い項目を渡すと型の誤りになるため）。
 - 実装レビュー（独立Haiku 5.5 medium、1回）: APPROVED（Minor 3）。1: このnotesを足した。2: 前の形式の要約のtestのコメントを直した。3: 要求3.1へ、コマンドの引数の一覧の期待の変更を足した。
 - 検証: 全pytest 14358 passed / 8 skipped、失敗1件（コマンドの引数の一覧を完全に照合する`test_sweep_command_arguments_are_only_extended_by_the_artifact_organization`。新しい引数を期待へ足し、そのファイルを再実行して2 passed）。JUnit `../../venv/refactoring-tests/fifo-capacity-full.xml`。Ruff・Pyright 0件。レビューの後の修正は、文書とtestのコメントだけ。
+- 修正の後の全pytest（921d90c、2026-10-15）: 14359 passed / 8 skipped、失敗0（JUnit `../../venv/refactoring-tests/fifo-capacity-full-2.xml`）。

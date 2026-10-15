@@ -59,7 +59,14 @@
     "full_skipped": 8,
     "full_failed_then_fixed": "test_sweep_command_arguments_are_only_extended_by_the_artifact_organization（引数の一覧の期待へ足し、再実行で通過）",
     "junit": "../../venv/refactoring-tests/fifo-capacity-full.xml",
-    "tested_revision": "未commitの変更（基点57d792a）"
+    "tested_revision": "未commitの変更（基点57d792a）",
+    "rerun_after_fix": {
+      "full_passed": 14359,
+      "full_skipped": 8,
+      "full_failed": 0,
+      "junit": "../../venv/refactoring-tests/fifo-capacity-full-2.xml",
+      "tested_revision": "921d90c"
+    }
   },
   "completion_decision": "完了。FedSDAの帰属の保留の容量（とFixed-Shareの時間尺度）を、掃引の軸--fedsda-pending-assignment-fifo-capacitiesで並べられる。既定の動作と値は不変。"
 }
