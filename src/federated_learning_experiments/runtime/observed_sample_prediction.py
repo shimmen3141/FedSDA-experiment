@@ -39,6 +39,10 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.all_sa
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_and_local_prediction_mixture import (
+    SynchronizedAndLocalPredictionMixture,
+    true_class_loss_of_prediction_probabilities,
+)
 from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot import (
     SynchronizedPredictionModelSnapshot,
 )
@@ -281,6 +285,7 @@ def predict_observed_sample_and_update_prediction_weights(
     current_training_model_assignment: CurrentTrainingModelAssignment,
     prediction_combination_strategy: str,
     synchronized_prediction_model_snapshot: SynchronizedPredictionModelSnapshot | None = None,
+    synchronized_and_local_prediction_mixture: SynchronizedAndLocalPredictionMixture | None = None,
 ) -> ObservedSamplePrediction:
     """保有する全モデルの確率を、予測に使う重みで結合して予測し、記録を足してから、重みを更新する。
 
@@ -292,6 +297,10 @@ def predict_observed_sample_and_update_prediction_weights(
     AdaHedgeの証拠（全標本のものと、真の概念IDがあればその概念の診断のもの）も、同じ損失で更新する。
     `synchronized_prediction_model_snapshot`を渡すと、評価する分類器を、そのowner（最後の同期の時点の写し）が
     選んだものにする。省略かNoneなら、保有モデルの現在の分類器で評価する。
+    `synchronized_and_local_prediction_mixture`も渡すと（写しのownerと一緒にだけ）、上の結合予測（同期の側）と、
+    保有モデルの現在の分類器を同じ重みで結合した予測（局所の側）を、そのownerの重みで混ぜた確率で予測する。
+    記録のうち、`combined_prediction_is_correct`と`any_model_or_combined_prediction_is_correct`は混ぜた確率の側、
+    ほかの項目とモデルの重みの更新は同期の側。混ぜる重みは、記録の後に、2つの結合予測の損失で更新する。
     Fixed-Shareの重みで予測する設定は、旧の最終構成の予測と、AdaHedgeの重みで予測する設定は、旧の`global`の指定の予測と、同じ数値になる。
     """
     if (
@@ -301,6 +310,22 @@ def predict_observed_sample_and_update_prediction_weights(
         raise TypeError(
             "synchronized_prediction_model_snapshot must be None or exact "
             "SynchronizedPredictionModelSnapshot"
+        )
+    if (
+        synchronized_and_local_prediction_mixture is not None
+        and type(synchronized_and_local_prediction_mixture)
+        is not SynchronizedAndLocalPredictionMixture
+    ):
+        raise TypeError(
+            "synchronized_and_local_prediction_mixture must be None or exact "
+            "SynchronizedAndLocalPredictionMixture"
+        )
+    if (
+        synchronized_and_local_prediction_mixture is not None
+        and synchronized_prediction_model_snapshot is None
+    ):
+        raise ValueError(
+            "synchronized_and_local_prediction_mixture requires synchronized_prediction_model_snapshot"
         )
     _validate_observed_sample_prediction_inputs(
         indexed_observation=indexed_observation,
@@ -325,6 +350,10 @@ def predict_observed_sample_and_update_prediction_weights(
     ):
         raise ValueError("prediction_combination_strategy must be a declared value")
     if prediction_combination_strategy == "current_training_model_prediction":
+        if synchronized_and_local_prediction_mixture is not None:
+            raise ValueError(
+                "synchronized_and_local_prediction_mixture needs a weighted prediction combination"
+            )
         return _predict_with_current_training_model_only(
             indexed_observation=indexed_observation,
             sample_prediction_record_store=sample_prediction_record_store,
@@ -441,6 +470,52 @@ def predict_observed_sample_and_update_prediction_weights(
             observed_class_labels=observed_class_labels,
         )
     )
+    synchronized_combined_prediction_probabilities = combined_prediction_probabilities
+    local_combined_prediction_probabilities = None
+    if synchronized_and_local_prediction_mixture is not None:
+        # 局所の側: 保有モデルの現在の分類器（この標本の学習は、予測の後）を、同じ重みで結合する。
+        current_classifiers_by_model_id = {
+            held_model_training_state.model_id: held_model_training_state.classifier
+            for held_model_training_state in held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+        }
+        with no_grad():
+            current_shared_features = current_classifiers_by_model_id[
+                model_ids[0]
+            ].extract_shared_features(input_features)
+            local_prediction_probabilities_by_model_id = (
+                convert_model_outputs_to_prediction_probabilities(
+                    model_outputs_by_model_id={
+                        model_id: current_classifiers_by_model_id[
+                            model_id
+                        ].forward_from_shared_features(current_shared_features)
+                        for model_id in model_ids
+                    },
+                    class_count=class_count,
+                )
+            )
+        local_combined_prediction_probabilities = combine_model_prediction_probabilities(
+            prediction_probabilities_by_model_id={
+                model_id: local_prediction_probabilities_by_model_id[model_id]
+                for model_id in prediction_weights_by_model_id
+            },
+            prediction_weights_by_model_id=prediction_weights_by_model_id,
+            class_count=class_count,
+        )
+        combined_prediction_probabilities = (
+            synchronized_and_local_prediction_mixture.mix_prediction_probabilities(
+                synchronized_probabilities=synchronized_combined_prediction_probabilities,
+                local_probabilities=local_combined_prediction_probabilities,
+            )
+        )
+        # 混ぜた確率は、この関数の検査を省ける条件に当たらないので、検査する。
+        predicted_class_labels = predict_class_labels_from_prediction_scores(
+            prediction_scores=combined_prediction_probabilities,
+            class_count=class_count,
+            prediction_scores_are_validated=False,
+        )
+        combined_prediction_is_correct = bool(
+            predicted_class_labels.view(-1)[0].item() == observed_class_value
+        )
     # Fixed-Shareの重みでの結合（比較用。Fixed-Shareの重みで予測する設定では、実際の予測と同じ）。
     _, _, fixed_share_weighted_prediction_is_correct = _combine_and_compare_with_observed_class(
         prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
@@ -523,6 +598,23 @@ def predict_observed_sample_and_update_prediction_weights(
         observed_losses_by_model_id=observed_losses_by_model_id,
         prediction_weights_by_model_id=fixed_share_weights_by_model_id,
     )
+    if (
+        synchronized_and_local_prediction_mixture is not None
+        and local_combined_prediction_probabilities is not None
+    ):
+        observed_class_id = int(observed_class_value)
+        synchronized_and_local_prediction_mixture.update_weights_after_loss_observation(
+            synchronized_loss=true_class_loss_of_prediction_probabilities(
+                prediction_probabilities=synchronized_combined_prediction_probabilities,
+                observed_class_id=observed_class_id,
+                class_count=class_count,
+            ),
+            local_loss=true_class_loss_of_prediction_probabilities(
+                prediction_probabilities=local_combined_prediction_probabilities,
+                observed_class_id=observed_class_id,
+                class_count=class_count,
+            ),
+        )
     return ObservedSamplePrediction(
         sample_prediction_record=sample_prediction_record,
         predicted_class_labels=predicted_class_labels,

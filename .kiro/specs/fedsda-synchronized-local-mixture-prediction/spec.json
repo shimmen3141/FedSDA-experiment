@@ -1,0 +1,66 @@
+{
+  "feature_name": "fedsda-synchronized-local-mixture-prediction",
+  "created_at": "2026-10-15",
+  "updated_at": "2026-10-15",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立Haiku 5.5 medium仕様レビュー3回目PASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "base_revision": "3f7acbb",
+    "session_ids": [
+      "06fe3736-0863-4646-b66c-4ba95bf410a9",
+      "82cd175b-4781-4281-9849-689bcb672271",
+      "20948670-d25b-41dc-b71a-f9a07283c82e"
+    ],
+    "result": "1回目はCHANGES REQUIRED（Major 1: 混ぜる重みの損失の式が、診断と浮動小数の精度で一致しない。Minor 6）。反映して2回目へ。 2回目はCHANGES REQUIRED（Major 2: 診断の差し替えが実装と同じ損失の関数を使う、混ぜた確率の側の記録の項目の食い違い。Minor）。反映して3回目へ。 3回目でPASS（指摘なし）。",
+    "output": "../../venv/refactoring-tests/mixture-spec-review-{1..}.jsonl",
+    "selection_reason": "数値の一致と、予測の経路の論証なので、Haiku 5.5"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium（指定値）",
+    "target": "未commitの変更（基点3f7acbb）",
+    "session_ids": [
+      "6321009b-fbb3-4503-981a-d6b7eedf55cd"
+    ],
+    "is_error": false,
+    "result": "APPROVED（Minor 4。採否はtasks.md）。",
+    "output": "../../venv/refactoring-tests/mixture-review-1.jsonl",
+    "selection_reason": "数値の一致と、予測の経路の論証なので、Haiku 5.5"
+  },
+  "integration_validation": {
+    "full_passed": 14311,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/mixture-full.xml",
+    "wsl": "新しいtest・同期の時点の予測のtest・goldenの版1〜5で244 passed",
+    "tested_revision": "未commitの変更（基点3f7acbb）。レビューの後の修正は、test 1件の追加と文書だけ"
+  },
+  "completion_decision": "完了。同期の時点と局所の2つの結合予測を混ぜる予測を、設定の値と構成fedsda-synchronized-local-mixture-predictionで選べる。既定の動作と値は不変。"
+}

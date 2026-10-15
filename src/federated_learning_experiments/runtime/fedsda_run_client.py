@@ -83,6 +83,9 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.all_sa
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_and_local_prediction_mixture import (
+    SynchronizedAndLocalPredictionMixture,
+)
 from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot import (
     SynchronizedPredictionModelSnapshot,
 )
@@ -177,6 +180,7 @@ class FedsdaRunClient:
         run_client_settings: FedsdaRunClientSettings,
         python_random_generator: Random,
         synchronized_prediction_model_snapshot: SynchronizedPredictionModelSnapshot,
+        synchronized_and_local_prediction_mixture: SynchronizedAndLocalPredictionMixture,
     ) -> None:
         self._client_id = client_id
         self._owners = owners
@@ -185,6 +189,8 @@ class FedsdaRunClient:
         # 最後の同期の時点の写し（予測に使うパラメータが`parameters_at_last_synchronization`のときだけ使う）。
         # ownerの束へは入れない（束の項目は、標本1件の処理の引数と1対1で、旧実装との照合にも使うため）。
         self._synchronized_prediction_model_snapshot = synchronized_prediction_model_snapshot
+        # 2つの結合予測（同期の時点・局所）を混ぜる重み（予測に使うパラメータが混ぜる値のときだけ使う）。
+        self._synchronized_and_local_prediction_mixture = synchronized_and_local_prediction_mixture
 
     def _get_current_training_classifier(self) -> ModelArchitectureClassifier:
         owners = self._owners
@@ -205,10 +211,25 @@ class FedsdaRunClient:
         """最後の同期の時点の写しのowner（設定が`current_local_parameters`なら、使わず、空のまま）。"""
         return self._synchronized_prediction_model_snapshot
 
+    @property
+    def synchronized_and_local_prediction_mixture(self) -> SynchronizedAndLocalPredictionMixture:
+        """2つの結合予測を混ぜる重みのowner（混ぜる値でなければ、使わず、半々のまま）。"""
+        return self._synchronized_and_local_prediction_mixture
+
     def _predicts_with_parameters_at_last_synchronization(self) -> bool:
+        """同期の時点の写しを使うか（同期の時点で予測する値と、2つを混ぜる値）。"""
         return (
             self._run_client_settings.prediction_combination_settings.prediction_model_parameter_source
-            == "parameters_at_last_synchronization"
+            in (
+                "parameters_at_last_synchronization",
+                "mixture_of_synchronized_and_local_parameters",
+            )
+        )
+
+    def _mixes_synchronized_and_local_predictions(self) -> bool:
+        return (
+            self._run_client_settings.prediction_combination_settings.prediction_model_parameter_source
+            == "mixture_of_synchronized_and_local_parameters"
         )
 
     @property
@@ -298,6 +319,11 @@ class FedsdaRunClient:
             synchronized_prediction_model_snapshot=(
                 self._synchronized_prediction_model_snapshot
                 if self._predicts_with_parameters_at_last_synchronization()
+                else None
+            ),
+            synchronized_and_local_prediction_mixture=(
+                self._synchronized_and_local_prediction_mixture
+                if self._mixes_synchronized_and_local_predictions()
                 else None
             ),
         )
@@ -695,4 +721,8 @@ def assemble_fedsda_run_client(
         run_client_settings=run_client_settings,
         python_random_generator=python_random_generator,
         synchronized_prediction_model_snapshot=SynchronizedPredictionModelSnapshot(),
+        synchronized_and_local_prediction_mixture=SynchronizedAndLocalPredictionMixture(
+            share_rate=1.0
+            / run_client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
+        ),
     )

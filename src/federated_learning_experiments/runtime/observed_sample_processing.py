@@ -94,6 +94,9 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.all_sa
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
 )
+from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_and_local_prediction_mixture import (
+    SynchronizedAndLocalPredictionMixture,
+)
 from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot import (
     SynchronizedPredictionModelSnapshot,
 )
@@ -362,6 +365,7 @@ def process_observed_sample(
     shared_feature_extractor: SharedFeatureExtractor,
     shared_parameter_optimizer: Optimizer | None,
     synchronized_prediction_model_snapshot: SynchronizedPredictionModelSnapshot | None = None,
+    synchronized_and_local_prediction_mixture: SynchronizedAndLocalPredictionMixture | None = None,
 ) -> ObservedSampleProcessing:
     """標本1件を、旧の標本処理と同じ順で処理する（最初に予測する）。
 
@@ -382,6 +386,22 @@ def process_observed_sample(
         raise TypeError(
             "synchronized_prediction_model_snapshot must be None or exact "
             "SynchronizedPredictionModelSnapshot"
+        )
+    if (
+        synchronized_and_local_prediction_mixture is not None
+        and type(synchronized_and_local_prediction_mixture)
+        is not SynchronizedAndLocalPredictionMixture
+    ):
+        raise TypeError(
+            "synchronized_and_local_prediction_mixture must be None or exact "
+            "SynchronizedAndLocalPredictionMixture"
+        )
+    if (
+        synchronized_and_local_prediction_mixture is not None
+        and synchronized_prediction_model_snapshot is None
+    ):
+        raise ValueError(
+            "synchronized_and_local_prediction_mixture requires synchronized_prediction_model_snapshot"
         )
     if type(short_change_interval_alarm_policy) is not str:
         raise TypeError("short_change_interval_alarm_policy must be builtin str")
@@ -430,6 +450,7 @@ def process_observed_sample(
         current_training_model_assignment=current_training_model_assignment,
         prediction_combination_strategy=prediction_combination_strategy,
         synchronized_prediction_model_snapshot=synchronized_prediction_model_snapshot,
+        synchronized_and_local_prediction_mixture=synchronized_and_local_prediction_mixture,
     )
     # (1) 保持中の候補検証へ、この標本を観測させる。確定したら学習帰属が変わりうる。
     held_validation_advance = advance_held_candidate_validation(

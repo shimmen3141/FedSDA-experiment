@@ -189,6 +189,7 @@ BASELINE_CONFIGURATION_CASE_NAMES = (
 CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
     "fedavg-local-updates-per-aggregation": "tests/refactoring/test_fedavg_local_updates_per_aggregation.py",
     "fedsda-synchronized-model-prediction": "tests/refactoring/test_fedsda_synchronized_model_prediction.py",
+    "fedsda-synchronized-local-mixture-prediction": "tests/refactoring/test_fedsda_synchronized_local_mixture_prediction.py",
 }
 _VERSION_1_CASE_NAMES = (
     *BASELINE_CONFIGURATION_CASE_NAMES,

@@ -879,7 +879,11 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 == "pending_sample_retention_after_too_short_change_interval_policy"
                 else ("raise_alarm_immediately", "wait_until_change_interval_reaches_minimum")
                 if settings_field.name == "short_change_interval_alarm_policy"
-                else ("current_local_parameters", "parameters_at_last_synchronization")
+                else (
+                    "current_local_parameters",
+                    "parameters_at_last_synchronization",
+                    "mixture_of_synchronized_and_local_parameters",
+                )
                 if settings_field.name == "prediction_model_parameter_source"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )

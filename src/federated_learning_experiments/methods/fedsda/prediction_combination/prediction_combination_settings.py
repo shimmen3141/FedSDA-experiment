@@ -49,6 +49,8 @@ class PredictionCombinationSettings:
                 # 予測（と予測重みの更新）に、最後の同期の時点のパラメータを使う。同期の後に作ったモデルは、
                 # 共有部を同期の時点の値、モデル固有部を現在の値で評価する。学習・検出ほかは、現在の値のまま。
                 "parameters_at_last_synchronization",
+                # 上の2つの結合予測（同期の時点・局所）を、clientごとの2つの候補の重みで混ぜて予測する。
+                "mixture_of_synchronized_and_local_parameters",
             )
         },
     )

@@ -54,6 +54,11 @@ INDEPENDENT_MODELS_CONFIGURATION_NAME = "fedsda-independent-models"
 # 提案構成の、予測（と予測重みの更新）を、最後の同期の時点のモデルで行う構成。学習・検出・候補の検証は、
 # 局所更新した現在のモデルのまま。
 SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME = "fedsda-synchronized-model-prediction"
+# 提案構成の予測を、同期の時点のモデルの結合予測と、局所更新したモデルの結合予測を、clientごとの重みで
+# 混ぜて行う構成。学習・検出ほかは、局所更新した現在のモデルのまま。
+SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME = (
+    "fedsda-synchronized-local-mixture-prediction"
+)
 # `fedavg`の、局所更新の間隔を、集約の間隔と同じにした構成。roundの中は、そのroundの始めに配布されたモデルで
 # 予測し、局所更新は、roundの最後の標本の処理でまとめて行う（`fedavg`は、1標本ごとに局所更新する）。
 FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME = "fedavg-local-updates-per-aggregation"
@@ -74,6 +79,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     "fedavg",
     FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME,
     SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
+    SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
 )
 
 
@@ -238,6 +244,11 @@ def build_experiment_run_settings(
         return _replace_prediction_combination_settings(
             run_settings=proposed_run_settings,
             prediction_model_parameter_source="parameters_at_last_synchronization",
+        )
+    if configuration_name == SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME:
+        return _replace_prediction_combination_settings(
+            run_settings=proposed_run_settings,
+            prediction_model_parameter_source="mixture_of_synchronized_and_local_parameters",
         )
     if configuration_name == ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME:
         return _replace_prediction_combination_settings(

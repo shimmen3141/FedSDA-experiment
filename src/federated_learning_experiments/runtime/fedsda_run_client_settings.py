@@ -250,6 +250,20 @@ class FedsdaRunClientSettings:
                     "keep_weights_without_recalibrationを指定してください（作り直す重みがありません）。"
                 ),
             )
+        if (
+            self.prediction_combination_settings.prediction_model_parameter_source
+            == "mixture_of_synchronized_and_local_parameters"
+            and self.prediction_combination_settings.prediction_combination_strategy
+            == "current_training_model_prediction"
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="prediction_model_parameter_source",
+                specified_parameter_value=self.prediction_combination_settings.prediction_model_parameter_source,
+                validation_failure_reason=(
+                    "2つの結合予測を混ぜる設定は、現在のモデルだけで予測する設定と組み合わせられません"
+                    "（結合して予測する設定を選んでください）。"
+                ),
+            )
         fixed_share_time_scale = self.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
         pending_capacity = (
             self.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
