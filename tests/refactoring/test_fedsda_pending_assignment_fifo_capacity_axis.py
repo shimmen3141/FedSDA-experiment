@@ -84,28 +84,6 @@ def test_default_capacity_keeps_the_plan_without_the_axis():
     )
 
 
-def test_two_fedsda_axes_make_every_combination_in_order():
-    planned_runs = build_planned_experiment_runs(
-        sweep_plan=small_plan(
-            fedsda_training_sample_selections=("uniform", "decay:0.997"),
-            fedsda_pending_assignment_fifo_capacities=(30, 60),
-        )
-    )
-    combinations = [
-        (
-            run.run_settings.run_participant_settings.run_client_settings.local_training_settings.training_sample_selection_policy,
-            capacity_and_time_scale(run)[0],
-        )
-        for run in planned_runs
-    ]
-    assert combinations == [
-        ("uniform_over_all_stored_samples", 30),
-        ("uniform_over_all_stored_samples", 60),
-        ("recency_decayed_stored_samples", 30),
-        ("recency_decayed_stored_samples", 60),
-    ]
-
-
 @pytest.mark.parametrize(
     "capacities,error_type",
     [
@@ -230,7 +208,7 @@ def test_command_saves_runs_with_capacity_column_and_record_format_version(tmp_p
     assert sorted(row["pending_assignment_fifo_capacity"] for row in rows) == ["30", "60"]
     (record_path,) = output_directory.glob("sweep_record_*.json")
     record = json.loads(record_path.read_text(encoding="utf-8"))
-    assert record["record_format_version"] == 5
+    assert record["record_format_version"] == 6
     assert record["sweep_plan"]["fedsda_pending_assignment_fifo_capacities"] == [30, 60]
     # 要約の形式の版1と同じ形（来歴を持たない。run設定は今と同じ形）の要約から作った表でも、列が埋まる。
     # 実物の版1の要約は作っていない（版1でもこの項目が在ることは、gitの履歴で確かめた。spec のtasks.md）。

@@ -156,9 +156,6 @@ def test_attachment_and_explicit_optimizer_selection_match_legacy_joint_training
         local_training_settings = LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
-            training_sample_selection_policy="uniform_over_all_stored_samples",
-            most_recent_stored_sample_count=None,
-            stored_sample_recency_decay_factor=None,
         )
         concept_specific_optimizer_states = tuple(
             ParameterOptimizerState(

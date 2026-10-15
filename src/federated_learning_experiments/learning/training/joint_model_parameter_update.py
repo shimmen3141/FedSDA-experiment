@@ -93,9 +93,6 @@ def _validate_joint_update_inputs(
         LocalTrainingSettings(
             local_model_parameter_update_strategy=local_training_settings.local_model_parameter_update_strategy,
             shared_backbone_gradient_combination_strategy=local_training_settings.shared_backbone_gradient_combination_strategy,
-            training_sample_selection_policy=local_training_settings.training_sample_selection_policy,
-            most_recent_stored_sample_count=local_training_settings.most_recent_stored_sample_count,
-            stored_sample_recency_decay_factor=local_training_settings.stored_sample_recency_decay_factor,
         )
     except (TypeError, ValueError) as validation_error:
         raise ValueError(f"local_training_settings: {validation_error}") from validation_error

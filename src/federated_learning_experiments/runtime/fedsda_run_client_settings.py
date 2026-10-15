@@ -292,16 +292,6 @@ class FedsdaRunClientSettings:
                 ),
             )
         local_batch_sample_count = self.scalar_settings.local_training_batch_sample_count
-        most_recent_count = self.local_training_settings.most_recent_stored_sample_count
-        if most_recent_count is not None and most_recent_count < local_batch_sample_count:
-            raise RunSettingsValidationError(
-                configuration_parameter_name="most_recent_stored_sample_count",
-                specified_parameter_value=most_recent_count,
-                validation_failure_reason=(
-                    "直近K件のKは、ローカル学習のbatchの件数以上にしてください。"
-                    f"local_training_batch_sample_count={local_batch_sample_count!r}。"
-                ),
-            )
         candidate_batch_sample_count = (
             self.candidate_epoch_training_settings.maximum_batch_sample_count
         )

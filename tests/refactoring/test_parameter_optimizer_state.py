@@ -312,9 +312,6 @@ def test_optimizer_owners_reset_and_rebind_match_actual_joint_learning(
         local_training_settings = LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
-            training_sample_selection_policy="uniform_over_all_stored_samples",
-            most_recent_stored_sample_count=None,
-            stored_sample_recency_decay_factor=None,
         )
         for update_index, update_shared_features in enumerate((True, False, True)):
             if update_index == 1:

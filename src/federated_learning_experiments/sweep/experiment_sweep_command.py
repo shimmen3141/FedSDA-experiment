@@ -145,15 +145,6 @@ def _build_argument_parser() -> ArgumentParser:
         help="FedDriftの損失増分閾値（feddrift選択時だけ指定可、省略時0.1）。FedSDA・FedAvgはこの軸で増やさない",
     )
     argument_parser.add_argument(
-        "--fedsda-training-sample-selections",
-        nargs="+",
-        default=None,
-        metavar="SELECTION",
-        help=(
-            "FedSDAの保有モデルの学習batchの抜き出し方（uniform、recent:<K>、decay:<α>。FedSDAの構成を選んだときだけ）"
-        ),
-    )
-    argument_parser.add_argument(
         "--fedsda-pending-assignment-fifo-capacities",
         nargs="+",
         type=int,
@@ -249,11 +240,6 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
             feddrift_loss_increase_thresholds=(
                 tuple(parsed_arguments.feddrift_loss_increase_thresholds)
                 if parsed_arguments.feddrift_loss_increase_thresholds is not None
-                else None
-            ),
-            fedsda_training_sample_selections=(
-                tuple(parsed_arguments.fedsda_training_sample_selections)
-                if parsed_arguments.fedsda_training_sample_selections is not None
                 else None
             ),
             fedsda_pending_assignment_fifo_capacities=(

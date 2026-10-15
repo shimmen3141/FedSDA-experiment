@@ -456,9 +456,6 @@ def test_model_counts_connect_completed_training_and_id_transfer(
                 local_training_settings=LocalTrainingSettings(
                     local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
                     shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
-                    training_sample_selection_policy="uniform_over_all_stored_samples",
-                    most_recent_stored_sample_count=None,
-                    stored_sample_recency_decay_factor=None,
                 ),
                 shared_feature_extractor=training_batches[0].classifier.feature_extractor,
                 shared_parameter_optimizer=shared_optimizer,

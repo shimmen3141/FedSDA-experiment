@@ -193,9 +193,6 @@ def build_final_configuration_fedsda_run_settings(
             shared_backbone_gradient_combination_strategy=(
                 "sample_weighted_mean_per_concept_gradients"
             ),
-            training_sample_selection_policy="uniform_over_all_stored_samples",
-            most_recent_stored_sample_count=None,
-            stored_sample_recency_decay_factor=None,
         ),
         local_training_schedule_settings=LocalTrainingScheduleSettings(
             training_requests_per_update_interval=_TRAINING_REQUESTS_PER_UPDATE_INTERVAL,

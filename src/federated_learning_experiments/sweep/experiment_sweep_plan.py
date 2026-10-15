@@ -19,15 +19,6 @@ from federated_learning_experiments.sweep.experiment_configurations import (
     build_experiment_run_settings,
 )
 
-# 保有モデルの学習batchの抜き出し方の、掃引の軸の書き方と、設定の値。
-_UNIFORM_SELECTION_TEXT = "uniform"
-_RECENT_SELECTION_PREFIX = "recent:"
-_DECAY_SELECTION_PREFIX = "decay:"
-_SELECTION_POLICY_BY_KIND = {
-    "uniform": "uniform_over_all_stored_samples",
-    "recent": "uniform_over_most_recent_stored_samples",
-    "decay": "recency_decayed_stored_samples",
-}
 # 識別子のhashの桁数（16進）。
 _RUN_IDENTIFIER_HASH_LENGTH = 12
 
@@ -42,47 +33,6 @@ def _validate_distinct_values(*, values: object, value_type: type, field_name: s
             raise TypeError(f"{field_name} must hold builtin {value_type.__name__}")
     if len(set(values)) != len(values):
         raise ValueError(f"{field_name} must not hold duplicates")
-
-
-def parse_fedsda_training_sample_selection(text: str) -> tuple[str, int | None, float | None]:
-    """掃引の軸の書き方（`uniform`・`recent:<K>`・`decay:<α>`）を、設定の3つの値へ変換する。
-
-    Kは先頭が0でない10進の数字だけ。αは`0.`に続く1桁以上の10進の数字だけ（0は不可）。それ以外は拒否する。
-    Kとbatchの件数の関係は、作ったrun設定の検査が確かめる。
-    """
-    if type(text) is not str:
-        raise TypeError("training sample selection must be builtin str")
-    if text == _UNIFORM_SELECTION_TEXT:
-        return _SELECTION_POLICY_BY_KIND["uniform"], None, None
-    if text.startswith(_RECENT_SELECTION_PREFIX):
-        digits = text[len(_RECENT_SELECTION_PREFIX) :]
-        if digits.isascii() and digits.isdigit() and not digits.startswith("0"):
-            return _SELECTION_POLICY_BY_KIND["recent"], int(digits), None
-    if text.startswith(_DECAY_SELECTION_PREFIX):
-        number = text[len(_DECAY_SELECTION_PREFIX) :]
-        fraction_digits = number[2:]
-        if (
-            number.startswith("0.")
-            and fraction_digits.isascii()
-            and fraction_digits.isdigit()
-            and fraction_digits.strip("0")
-        ):
-            return _SELECTION_POLICY_BY_KIND["decay"], None, float(number)
-    raise ValueError(
-        f"invalid FedSDA training sample selection: {text!r} "
-        "(use uniform, recent:<K> with a positive integer K, or decay:<α> written as 0.<digits>)"
-    )
-
-
-def describe_fedsda_training_sample_selection(
-    *, policy: str, most_recent_count: int | None, decay_factor: float | None
-) -> str:
-    """設定の3つの値を、掃引の軸の書き方（`uniform`・`recent:<K>`・`decay:<α>`。αは`repr`）にする。"""
-    if policy == _SELECTION_POLICY_BY_KIND["recent"]:
-        return f"{_RECENT_SELECTION_PREFIX}{most_recent_count}"
-    if policy == _SELECTION_POLICY_BY_KIND["decay"]:
-        return f"{_DECAY_SELECTION_PREFIX}{decay_factor!r}"
-    return _UNIFORM_SELECTION_TEXT
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -100,8 +50,6 @@ class ExperimentSweepPlan:
     per_client_sample_count: int
     server_aggregation_intervals_per_client_samples: tuple[int, ...]
     feddrift_loss_increase_thresholds: tuple[float, ...] | None = None
-    # FedSDAの構成の、保有モデルの学習batchの抜き出し方（`uniform`・`recent:<K>`・`decay:<α>`）。
-    fedsda_training_sample_selections: tuple[str, ...] | None = None
     # FedSDAの構成の、帰属の保留（FIFO）の容量（標本数）。Fixed-Shareの時間尺度も同じ値にする（今の設定の検査が
     # 同じ値を求める。IMPROVE-015）。
     fedsda_pending_assignment_fifo_capacities: tuple[int, ...] | None = None
@@ -144,19 +92,6 @@ class ExperimentSweepPlan:
                 not isfinite(value) or value < 0 for value in self.feddrift_loss_increase_thresholds
             ):
                 raise ValueError("feddrift_loss_increase_thresholds must be finite and nonnegative")
-        if self.fedsda_training_sample_selections is not None:
-            _validate_distinct_values(
-                values=self.fedsda_training_sample_selections,
-                value_type=str,
-                field_name="fedsda_training_sample_selections",
-            )
-            parsed_selections = [
-                parse_fedsda_training_sample_selection(text)
-                for text in self.fedsda_training_sample_selections
-            ]
-            # 書き方が違っても、同じ値（`decay:0.5`と`decay:0.50`ほか）は重複とする。
-            if len(set(parsed_selections)) != len(parsed_selections):
-                raise ValueError("fedsda_training_sample_selections must not hold duplicate values")
         if self.fedsda_pending_assignment_fifo_capacities is not None:
             _validate_distinct_values(
                 values=self.fedsda_pending_assignment_fifo_capacities,
@@ -217,31 +152,8 @@ def make_run_identifier(
 def _build_fedsda_settings_variants(
     *, run_settings: FedsdaRunSettings, sweep_plan: ExperimentSweepPlan
 ) -> tuple[FedsdaRunSettings, ...]:
-    """FedSDAの2つの軸（学習batchの抜き出し方、帰属の保留の容量）の全部の組の設定（抜き出し方の順の中で、容量の順）。"""
+    """FedSDAの軸（帰属の保留の容量）の値ごとの設定（軸の順）。"""
     settings_variants = (run_settings,)
-    if sweep_plan.fedsda_training_sample_selections is not None:
-        settings_variants = tuple(
-            replace(
-                variant,
-                run_participant_settings=replace(
-                    variant.run_participant_settings,
-                    run_client_settings=replace(
-                        variant.run_participant_settings.run_client_settings,
-                        local_training_settings=replace(
-                            variant.run_participant_settings.run_client_settings.local_training_settings,
-                            training_sample_selection_policy=policy,
-                            most_recent_stored_sample_count=most_recent_count,
-                            stored_sample_recency_decay_factor=decay_factor,
-                        ),
-                    ),
-                ),
-            )
-            for variant in settings_variants
-            for policy, most_recent_count, decay_factor in (
-                parse_fedsda_training_sample_selection(text)
-                for text in sweep_plan.fedsda_training_sample_selections
-            )
-        )
     if sweep_plan.fedsda_pending_assignment_fifo_capacities is not None:
         # 容量と時間尺度は、構築のたびに同じ値かを確かめられるので、2つの部分の設定を先に作り、
         # clientの設定の1回の`replace`へ同時に渡す。
@@ -322,9 +234,9 @@ def build_planned_experiment_runs(
                                 sweep_plan.feddrift_loss_increase_thresholds or (0.1,)
                             )
                         )
-                    elif type(run_settings) is FedsdaRunSettings and (
-                        sweep_plan.fedsda_training_sample_selections is not None
-                        or sweep_plan.fedsda_pending_assignment_fifo_capacities is not None
+                    elif (
+                        type(run_settings) is FedsdaRunSettings
+                        and sweep_plan.fedsda_pending_assignment_fifo_capacities is not None
                     ):
                         built_fedsda_run_count += 1
                         settings_variants = _build_fedsda_settings_variants(
@@ -343,11 +255,11 @@ def build_planned_experiment_runs(
                                 run_settings=settings_variant,
                             )
                         )
-    if not built_fedsda_run_count:
-        for axis_name in (
-            "fedsda_training_sample_selections",
-            "fedsda_pending_assignment_fifo_capacities",
-        ):
-            if getattr(sweep_plan, axis_name) is not None:
-                raise ValueError(f"{axis_name} requires a FedSDA configuration")
+    if (
+        sweep_plan.fedsda_pending_assignment_fifo_capacities is not None
+        and not built_fedsda_run_count
+    ):
+        raise ValueError(
+            "fedsda_pending_assignment_fifo_capacities requires a FedSDA configuration"
+        )
     return tuple(planned_runs)

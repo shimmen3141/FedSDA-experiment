@@ -107,15 +107,6 @@ _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH = (
     "loss_change_detection_settings",
     "short_change_interval_alarm_policy",
 )
-# 保有モデルの学習batchの抜き出し方（版5の後に足された。どの版も、全履歴から一様の既定）。
-_TRAINING_SAMPLE_SELECTION_DEFAULTS = {
-    (
-        "local_training_settings",
-        "training_sample_selection_policy",
-    ): "uniform_over_all_stored_samples",
-    ("local_training_settings", "most_recent_stored_sample_count"): None,
-    ("local_training_settings", "stored_sample_recency_decay_factor"): None,
-}
 # 予測に使うパラメータ（2026-10-15に足した項目）。版1〜5は、どれも局所更新した現在の値。
 _PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS = {
     ("prediction_combination_settings", "prediction_model_parameter_source"): (
@@ -132,22 +123,19 @@ _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
         },
         _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
-        **_TRAINING_SAMPLE_SELECTION_DEFAULTS,
         **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
     },
     2: {
         _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
-        **_TRAINING_SAMPLE_SELECTION_DEFAULTS,
         **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
     },
     3: {
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
-        **_TRAINING_SAMPLE_SELECTION_DEFAULTS,
         **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
     },
-    4: {**_TRAINING_SAMPLE_SELECTION_DEFAULTS, **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS},
-    5: {**_TRAINING_SAMPLE_SELECTION_DEFAULTS, **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS},
+    4: dict(_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS),
+    5: dict(_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS),
 }
 # 版の後に、最終構成の既定の値が変わった、FedSDAのclientの設定の項目と、その版の値。保存してある設定は、
 # この項目を持つので、比べる前に除かない（上の「後に足された項目」の表へ入れると、除かれて比べられなくなる）。

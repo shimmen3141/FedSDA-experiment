@@ -74,7 +74,6 @@ def perform_held_model_joint_training_iterations(
             held_model_ids=frozenset(bindings_by_model_id),
             batch_sample_count=batch_sample_count,
             python_random_generator=python_random_generator,
-            local_training_settings=local_training_settings,
         )
         if not sampled_training_batches:
             continue

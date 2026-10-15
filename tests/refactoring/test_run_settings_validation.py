@@ -91,9 +91,6 @@ def valid_run_settings_mapping():
             shared_backbone_gradient_combination_strategy=(
                 "sample_weighted_mean_per_concept_gradients"
             ),
-            training_sample_selection_policy="uniform_over_all_stored_samples",
-            most_recent_stored_sample_count=None,
-            stored_sample_recency_decay_factor=None,
         ),
         "training_data_assignment_settings": TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
@@ -714,9 +711,6 @@ def test_aggregation_interval_can_exceed_stream_length():
             dict(
                 local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
                 shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
-                training_sample_selection_policy="uniform_over_all_stored_samples",
-                most_recent_stored_sample_count=None,
-                stored_sample_recency_decay_factor=None,
             ),
         ),
         (
@@ -815,9 +809,6 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         else {
             "local_model_parameter_update_strategy": str,
             "shared_backbone_gradient_combination_strategy": str,
-            "training_sample_selection_policy": str,
-            "most_recent_stored_sample_count": int | None,
-            "stored_sample_recency_decay_factor": float | None,
         }
         if settings_type is LocalTrainingSettings
         else {
@@ -888,21 +879,11 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 == "pending_sample_retention_after_too_short_change_interval_policy"
                 else ("raise_alarm_immediately", "wait_until_change_interval_reaches_minimum")
                 if settings_field.name == "short_change_interval_alarm_policy"
-                else (
-                    "uniform_over_all_stored_samples",
-                    "uniform_over_most_recent_stored_samples",
-                    "recency_decayed_stored_samples",
-                )
-                if settings_field.name == "training_sample_selection_policy"
                 else ("current_local_parameters", "parameters_at_last_synchronization")
                 if settings_field.name == "prediction_model_parameter_source"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
-        elif settings_field.name in (
-            "e_sr_false_alarm_control_alpha",
-            "adwin_confidence_delta",
-            "stored_sample_recency_decay_factor",
-        ):
+        elif settings_field.name in ("e_sr_false_alarm_control_alpha", "adwin_confidence_delta"):
             assert settings_field.metadata["parameter_unit"] == "dimensionless"
             assert settings_field.metadata["minimum_allowed_value"] == 0
             assert settings_field.metadata["minimum_value_is_inclusive"] is False
@@ -1060,9 +1041,6 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
                 dict(
                     local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
                     shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
-                    training_sample_selection_policy="uniform_over_all_stored_samples",
-                    most_recent_stored_sample_count=None,
-                    stored_sample_recency_decay_factor=None,
                 ),
                 configuration_parameter_name,
             )
@@ -1286,9 +1264,7 @@ def test_settings_field_validation_rejects_invalid_values(
         ) in validation_error.value.validation_failure_reason
 
 
-@pytest.mark.parametrize(
-    "settings_field_type", [bool, list[int], object, str | None, int | str, int | float | None]
-)
+@pytest.mark.parametrize("settings_field_type", [bool, list[int], object, int | None])
 def test_settings_field_validation_rejects_unsupported_annotations(settings_field_type):
     @dataclass(frozen=True, kw_only=True)
     class UnsupportedSettingsForValidation:

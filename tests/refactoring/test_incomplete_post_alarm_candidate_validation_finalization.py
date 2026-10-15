@@ -875,9 +875,6 @@ def test_incomplete_validation_finalization_connects_actual_training(
         local_training_settings = LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
             shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
-            training_sample_selection_policy="uniform_over_all_stored_samples",
-            most_recent_stored_sample_count=None,
-            stored_sample_recency_decay_factor=None,
         )
         monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
         legacy_client.updates_per_sample = 1
