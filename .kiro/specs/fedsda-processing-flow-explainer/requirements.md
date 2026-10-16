@@ -42,5 +42,3 @@
 3. The explainer shall 狭い画面では縦方向へ並べ替えて読め、縮小して文字を潰さない。動きを減らす設定に対応し、自動再生は初期停止とする。
 4. The explainer shall 単一HTMLとして外部通信なしで開け、JavaScriptが無効でも全体像・用語・制約を読める。
 5. The explainer shall 説明対象の構成・参照commitと、図は実験を実行しない説明用であることを補足する。実装の細かい識別子は補足へ置く。
-
-
