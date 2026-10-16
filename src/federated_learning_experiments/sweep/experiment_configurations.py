@@ -55,10 +55,16 @@ INDEPENDENT_MODELS_CONFIGURATION_NAME = "fedsda-independent-models"
 # 局所更新した現在のモデルのまま。
 SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME = "fedsda-synchronized-model-prediction"
 # 提案構成の予測を、同期の時点のモデルの結合予測と、局所更新したモデルの結合予測を、clientごとの重みで
-# 混ぜて行う構成。学習・検出ほかは、局所更新した現在のモデルのまま。
+# 混ぜて行う構成。学習・検出ほかは、局所更新した現在のモデルのまま。2026-10-16に、この予測が提案構成の既定に
+# なったので、提案構成と同じ設定（名前だけが違う。これまでのコマンドと文書のために残す。この名前の過去の結果は
+# Fixed-Shareの時間尺度30で、これからは既定の120なので、値は連続しない）。
 SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME = (
     "fedsda-synchronized-local-mixture-prediction"
 )
+# 提案構成から、予測に使うパラメータだけを、局所更新した現在の値にした構成（2026-10-15までの既定の予測。
+# 混ぜる予測の寄与を比べる用）。全モデルの結合予測は、提案構成と同じ（`fedsda-single-model-prediction`は、
+# 結合をせず、現在の学習帰属のモデルだけで予測する）。
+LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME = "fedsda-local-parameter-prediction"
 # `fedavg`の、局所更新の間隔を、集約の間隔と同じにした構成。roundの中は、そのroundの始めに配布されたモデルで
 # 予測し、局所更新は、roundの最後の標本の処理でまとめて行う（`fedavg`は、1標本ごとに局所更新する）。
 FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME = "fedavg-local-updates-per-aggregation"
@@ -80,6 +86,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME,
     SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
     SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
+    LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
 )
 
 
@@ -250,16 +257,23 @@ def build_experiment_run_settings(
             run_settings=proposed_run_settings,
             prediction_model_parameter_source="mixture_of_synchronized_and_local_parameters",
         )
+    if configuration_name == LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME:
+        return _replace_prediction_combination_settings(
+            run_settings=proposed_run_settings,
+            prediction_model_parameter_source="current_local_parameters",
+        )
     if configuration_name == ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME:
         return _replace_prediction_combination_settings(
             run_settings=proposed_run_settings,
             prediction_combination_strategy="adahedge_weighted_prediction",
         )
     if configuration_name == SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME:
-        # 重みを持たないので、集約後の、重みの再較正も行わない。
+        # 重みを持たないので、集約後の、重みの再較正も行わない。混ぜる予測（既定）とは組み合わせられないので、
+        # 予測に使うパラメータは、局所更新した現在の値に明示する。
         return _replace_prediction_combination_settings(
             run_settings=proposed_run_settings,
             prediction_combination_strategy="current_training_model_prediction",
+            prediction_model_parameter_source="current_local_parameters",
             prediction_weight_recalibration_after_aggregation_policy=(
                 "keep_weights_without_recalibration"
             ),

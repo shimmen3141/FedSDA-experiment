@@ -111,7 +111,7 @@ _MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT = 5
 
 # ---- 帰属の保留（FIFO）と、予測の結合（Fixed-Shareの時間尺度。別々に指定できる。IMPROVE-015） ----
 _PENDING_ASSIGNMENT_BUFFER_CAPACITY_SAMPLES = 30
-_FIXED_SHARE_WEIGHT_REDISTRIBUTION_TIME_SCALE_SAMPLES = 30
+_FIXED_SHARE_WEIGHT_REDISTRIBUTION_TIME_SCALE_SAMPLES = 120
 
 # ---- モデルの再利用と、候補の作成・検証 ----
 # 履歴の平均損失からの増加の許容量（γ）。クラスタリングの、同じクラスタとみなす判定の値の上限にも使う。
@@ -187,7 +187,7 @@ def build_final_configuration_fedsda_run_settings(
             fixed_share_weight_redistribution_time_scale_samples=(
                 _FIXED_SHARE_WEIGHT_REDISTRIBUTION_TIME_SCALE_SAMPLES
             ),
-            prediction_model_parameter_source="current_local_parameters",
+            prediction_model_parameter_source="mixture_of_synchronized_and_local_parameters",
         ),
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",

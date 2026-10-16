@@ -47,6 +47,7 @@ from federated_learning_experiments.runtime.fedsda_experiment_run import (
 from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
 from federated_learning_experiments.sweep.experiment_configurations import (
     INDEPENDENT_MODELS_CONFIGURATION_NAME,
+    LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
     SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
     SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
@@ -468,7 +469,8 @@ def test_loss_monitoring_and_validation_use_current_classifiers(monkeypatch):
     assert not any(id(classifier) in copied_ids for classifier in evaluated_classifiers)
 
 
-def test_default_configuration_does_not_capture_snapshots(monkeypatch):
+def test_local_parameter_configuration_does_not_capture_snapshots(monkeypatch):
+    """局所更新した現在のモデルで予測する構成は、写しを作らない（2026-10-16から、提案構成の既定は混ぜる予測）。"""
     captured = []
     monkeypatch.setattr(
         SynchronizedPredictionModelSnapshot,
@@ -477,7 +479,7 @@ def test_default_configuration_does_not_capture_snapshots(monkeypatch):
     )
     experiment_run = execute_fedsda_experiment_run(
         run_settings=build_experiment_run_settings(
-            configuration_name=PROPOSED_FEDSDA_CONFIGURATION_NAME,
+            configuration_name=LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
             experiment_run_conditions=_CONDITIONS,
         )
     )
@@ -528,7 +530,10 @@ def test_configuration_differs_from_proposed_only_in_prediction_model_parameter_
     for mapping in (proposed, synchronized):
         holder = mapping["run_participant_settings"]["run_client_settings"]
         holders.append(holder["prediction_combination_settings"])
-    assert holders[0]["prediction_model_parameter_source"] == "current_local_parameters"
+    # 提案構成の既定の予測は、2026-10-16から混ぜる予測。
+    assert holders[0]["prediction_model_parameter_source"] == (
+        "mixture_of_synchronized_and_local_parameters"
+    )
     assert holders[1]["prediction_model_parameter_source"] == "parameters_at_last_synchronization"
-    holders[1]["prediction_model_parameter_source"] = "current_local_parameters"
+    holders[1]["prediction_model_parameter_source"] = "mixture_of_synchronized_and_local_parameters"
     assert synchronized == proposed

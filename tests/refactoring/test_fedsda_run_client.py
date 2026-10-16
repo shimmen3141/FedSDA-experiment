@@ -542,10 +542,20 @@ def assert_run_client_uses_legacy_compatible_policies(run_client):
     assert run_client.short_change_interval_alarm_policy == RAISE_ALARM_IMMEDIATELY_POLICY_NAME, (
         "実旧との照合には、合図があればすぐに警報とする設定が必要です。"
     )
+    # 予測の2つの値は、clientの設定から読む（testの補助なので、非公開の属性を読む。clientは、この2つの値を
+    # 公開していない）。旧は、局所更新した現在のモデルで予測し、Fixed-Shareの分け合いの割合は1/（保留の容量）。
+    run_client_settings = run_client._run_client_settings
+    prediction_combination_settings = run_client_settings.prediction_combination_settings
+    assert prediction_combination_settings.prediction_model_parameter_source == (
+        "current_local_parameters"
+    ), "実旧との照合には、局所更新した現在のモデルで予測する設定が必要です。"
+    assert prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples == (
+        run_client_settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
+    ), "実旧との照合には、Fixed-Shareの時間尺度を、帰属の保留の容量と同じ値にする設定が必要です。"
 
 
 def use_legacy_compatible_policies(run_settings):
-    """完全なrun設定の、挙動を直した2つの扱いを、固定旧と同じ値へ替える（実旧・旧のgoldenと比べるtest用）。"""
+    """完全なrun設定の、挙動を直した扱いと、予測の2つの値を、固定旧と同じ値へ替える（実旧・旧のgoldenと比べるtest用）。"""
     run_participant_settings = run_settings.run_participant_settings
     run_client_settings = run_participant_settings.run_client_settings
     return replace(
@@ -564,6 +574,13 @@ def use_legacy_compatible_policies(run_settings):
                 loss_change_detection_settings=replace(
                     run_client_settings.loss_change_detection_settings,
                     short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+                ),
+                prediction_combination_settings=replace(
+                    run_client_settings.prediction_combination_settings,
+                    prediction_model_parameter_source="current_local_parameters",
+                    fixed_share_weight_redistribution_time_scale_samples=(
+                        run_client_settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
+                    ),
                 ),
             ),
         ),

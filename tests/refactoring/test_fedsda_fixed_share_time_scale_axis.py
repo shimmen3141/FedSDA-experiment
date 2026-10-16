@@ -74,13 +74,13 @@ def test_fedsda_run_settings_accept_different_capacity_and_time_scale():
             pending_assignment_buffer_capacity_samples=60,
         ),
     )
-    for changed, expected in ((only_time_scale, (30, 60)), (only_capacity, (60, 30))):
+    for changed, expected in ((only_time_scale, (30, 60)), (only_capacity, (60, 120))):
         changed_client = changed.run_participant_settings.run_client_settings
         assert (
             changed_client.training_data_assignment_settings.pending_assignment_buffer_capacity_samples,
             changed_client.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,
         ) == expected
-    # 警報を即時にする構成では、容量1も、T（30）と違う値のまま受理される。
+    # 警報を即時にする構成では、容量1も、T（既定の120）と違う値のまま受理される。
     immediate = build_experiment_run_settings(
         configuration_name="fedsda-classwise-adwin-detection", experiment_run_conditions=_CONDITIONS
     )
@@ -94,7 +94,7 @@ def test_fedsda_run_settings_accept_different_capacity_and_time_scale():
     )
     assert (
         capacity_one.run_participant_settings.run_client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
-        == 30
+        == 120
     )
     # Tの下限（2）は、今どおり拒否される。
     with pytest.raises(RunSettingsValidationError):
@@ -175,7 +175,7 @@ def test_capacity_axis_keeps_the_time_scale():
     planned_runs = build_planned_experiment_runs(
         sweep_plan=small_plan(fedsda_pending_assignment_fifo_capacities=(30, 60))
     )
-    assert [capacity_and_time_scale(run) for run in planned_runs] == [(30, 30), (60, 30)]
+    assert [capacity_and_time_scale(run) for run in planned_runs] == [(30, 120), (60, 120)]
 
 
 def test_capacity_and_time_scale_axes_make_every_pair():
@@ -197,7 +197,7 @@ def test_capacity_and_time_scale_axes_make_every_pair():
 
 def test_default_time_scale_keeps_the_plan_without_the_axis():
     assert build_planned_experiment_runs(sweep_plan=small_plan()) == build_planned_experiment_runs(
-        sweep_plan=small_plan(fedsda_fixed_share_time_scales=(30,))
+        sweep_plan=small_plan(fedsda_fixed_share_time_scales=(120,))
     )
 
 

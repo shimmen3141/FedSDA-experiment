@@ -70,7 +70,7 @@ def test_capacity_axis_makes_one_fedsda_variant_per_capacity():
     }
     for name in ("fedsda", "fedsda-independent-models"):
         runs = by_configuration[name]
-        assert [capacity_and_time_scale(run) for run in runs] == [(30, 30), (60, 30)]
+        assert [capacity_and_time_scale(run) for run in runs] == [(30, 120), (60, 120)]
         # 容量のほかの設定は、変わらない。
         assert without_capacity(runs[0]) == without_capacity(runs[1])
     assert len({run.run_identifier for run in planned_runs}) == len(planned_runs)
@@ -123,7 +123,7 @@ def test_capacity_axis_requires_fedsda_and_values_accepted_by_run_settings():
             fedsda_pending_assignment_fifo_capacities=(4,),
         )
     )
-    assert capacity_and_time_scale(planned_run) == (4, 30)
+    assert capacity_and_time_scale(planned_run) == (4, 120)
 
 
 def base_arguments(output_directory):

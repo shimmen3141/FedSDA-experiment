@@ -32,6 +32,7 @@ from federated_learning_experiments.runtime.fedsda_experiment_run import (
 )
 from federated_learning_experiments.sweep.experiment_configurations import (
     ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
+    LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
     PROPOSED_FEDSDA_CONFIGURATION_NAME,
     SINGLE_MODEL_PREDICTION_CONFIGURATION_NAME,
     SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
@@ -330,25 +331,30 @@ def test_mixture_value_is_accepted_and_rejected_with_single_model_prediction():
         )
 
 
-def test_configuration_differs_from_proposed_only_in_prediction_model_parameter_source():
-    proposed = convert_settings_to_plain_mapping(
-        build_experiment_run_settings(
-            configuration_name=PROPOSED_FEDSDA_CONFIGURATION_NAME,
-            experiment_run_conditions=_CONDITIONS,
+def test_configuration_has_the_same_settings_as_proposed():
+    """混ぜる予測は、2026-10-16に提案構成の既定になった。この構成は、提案構成と同じ設定（名前だけが違う）。
+
+    局所の予測の構成（2026-10-15までの既定の予測）とは、予測に使うパラメータだけが違う。
+    """
+    proposed, mixture, local = (
+        convert_settings_to_plain_mapping(
+            build_experiment_run_settings(
+                configuration_name=configuration_name, experiment_run_conditions=_CONDITIONS
+            )
+        )
+        for configuration_name in (
+            PROPOSED_FEDSDA_CONFIGURATION_NAME,
+            SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
+            LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
         )
     )
-    mixture = convert_settings_to_plain_mapping(
-        build_experiment_run_settings(
-            configuration_name=SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
-            experiment_run_conditions=_CONDITIONS,
-        )
-    )
-    holder = mixture["run_participant_settings"]["run_client_settings"][
+    assert mixture == proposed
+    holder = local["run_participant_settings"]["run_client_settings"][
         "prediction_combination_settings"
     ]
-    assert holder["prediction_model_parameter_source"] == MIXTURE_VALUE
-    holder["prediction_model_parameter_source"] = "current_local_parameters"
-    assert mixture == proposed
+    assert holder["prediction_model_parameter_source"] == "current_local_parameters"
+    holder["prediction_model_parameter_source"] = MIXTURE_VALUE
+    assert local == mixture
 
 
 def test_configuration_combines_with_the_pending_fifo_capacity_axis():
@@ -369,7 +375,7 @@ def test_configuration_combines_with_the_pending_fifo_capacity_axis():
     # 容量の軸は、Fixed-Shareの時間尺度を替えない。
     assert (
         client.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
-        == 30
+        == 120
     )
 
 

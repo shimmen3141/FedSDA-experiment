@@ -1,0 +1,68 @@
+{
+  "feature_name": "fedsda-default-synchronized-local-mixture-prediction",
+  "created_at": "2026-10-16",
+  "updated_at": "2026-10-16",
+  "language": "ja",
+  "phase": "implementing",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna medium）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna medium）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna medium）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna medium）"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "c4222ff",
+  "specification_review": {
+    "status": "passed",
+    "base_revision": "c4222ff",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "claude-haiku-5-5",
+        "reasoning_effort": "medium（指定値）",
+        "session_id": "1fd7db86-eb16-40e5-8ecd-a00ff12b7905",
+        "result": "CHANGES REQUIRED（Major 3: 要求3.2と設計の許容範囲の矛盾、指標の許容が広すぎる、既定に依る既存testの一覧が無い。Minor 7）。全部反映",
+        "output": "../../venv/refactoring-tests/default-mixture-spec-review-1.jsonl"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（ログで確認）",
+        "session_id": "01a143dd-c312-7f81-bb37-144ec9038dde",
+        "result": "PASS（指摘なし）",
+        "output": "../../venv/refactoring-tests/default-mixture-spec-review-luna-2.log"
+      }
+    ],
+    "selection_reason": "1回目はHaiku（既定の変更と照合の論証）。1回目の後に、ユーザーの指示（2026-10-16「レビューはlunaにやらせてください」）で、2回目からLunaへ替えた"
+  },
+  "review_execution_instruction": {
+    "model": "gpt-6-luna",
+    "reasoning_effort": "high",
+    "basis": "2026-10-17 ユーザー指示。以後のレビューに適用し、過去のmedium承認記録は保持する。"
+  },
+  "intermediate_code_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "high",
+    "session_id": "01a145ee-e0ea-7221-ae5a-63787a0a3dd8",
+    "scope": "c4222ffからの未コミットsource/test、版6生成前の中間状態",
+    "result": "PASS。既定/派生/旧基準保護/予測側差分制約を確認。数値test未実施、RuffはCLI環境のコマンド不足で未実施。最終実装レビューは別途行う。",
+    "note": "最初の起動は日本語stdin文字化けで依頼条件が欠落し、全specの完了判定になったため承認証拠に使わず、ASCII依頼で再実行した。"
+  }
+}

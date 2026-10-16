@@ -371,6 +371,114 @@ BASELINE_VERSION_DIFFERENCES = {
 }
 
 
+# 版6では、予測と、その推論に由来する項目だけが変わる。学習の計算回数は許容しない。
+_PREDICTION_SIDE_RECORD_TABLE_COLUMNS = {
+    "client_weight_update_counts.fixed_share_weight_leader_switch_count",
+    "model_registration.maximum_weight_prediction_sample_count",
+    "server_round.local_processing_concept_specific_part_inference_example_count",
+    "server_round.local_processing_concept_specific_part_inference_forward_multiply_accumulate_count",
+    "server_round.local_processing_shared_part_inference_example_count",
+    "server_round.local_processing_shared_part_inference_forward_multiply_accumulate_count",
+}
+_PREDICTION_SIDE_RUN_METRIC_PATHS = {
+    "prediction_accuracy",
+    "stable_period_prediction_accuracy",
+    *(
+        f"model_computation_counts.{name}"
+        for name in (
+            "shared_part_inference_example_count",
+            "shared_part_inference_forward_multiply_accumulate_count",
+            "concept_specific_part_inference_example_count",
+            "concept_specific_part_inference_forward_multiply_accumulate_count",
+        )
+    ),
+    *(
+        f"computation_cost_summary.{name}"
+        for name in (
+            "client_concept_specific_part_forward_multiply_accumulate_count",
+            "client_concept_specific_part_forward_multiply_accumulate_count_per_held_model_sample",
+            "client_forward_and_backward_multiply_accumulate_count_per_held_model_sample",
+            "client_forward_and_backward_multiply_accumulate_count_per_processed_sample",
+            "client_forward_multiply_accumulate_count",
+            "client_forward_multiply_accumulate_count_per_held_model_sample",
+            "client_forward_multiply_accumulate_count_per_processed_sample",
+            "client_shared_part_forward_multiply_accumulate_count",
+            "client_shared_part_forward_multiply_accumulate_count_per_processed_sample",
+        )
+    ),
+}
+
+
+def _flatten_metric_paths(mapping, prefix=""):
+    return {
+        path: leaf
+        for key, value in mapping.items()
+        for path, leaf in (
+            _flatten_metric_paths(value, f"{prefix}{key}.").items()
+            if isinstance(value, dict)
+            else [(f"{prefix}{key}", value)]
+        )
+    }
+
+
+def test_baseline_6_retains_all_cases_and_changes_only_prediction_settings():
+    assert 6 in golden.SUPPORTED_BASELINE_VERSIONS
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[6] == golden.CASE_NAMES_BY_BASELINE_VERSION[5]
+    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[5]:
+        previous = deepcopy(golden.comparable_run_settings(name, 5))
+        current = golden.comparable_run_settings(name, 6)
+        if name.startswith("fedsda"):
+            prediction = previous["run_participant_settings"]["run_client_settings"][
+                "prediction_combination_settings"
+            ]
+            prediction["prediction_model_parameter_source"] = (
+                "current_local_parameters"
+                if name == "fedsda-single-model-prediction"
+                else "mixture_of_synchronized_and_local_parameters"
+            )
+            prediction["fixed_share_weight_redistribution_time_scale_samples"] = 120
+        golden.assert_case_matches(name, current, previous, "run_settings")
+
+
+@pytest.mark.slow
+def test_baseline_6_differs_from_5_only_on_the_prediction_side():
+    prediction_records_changed = []
+    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[5]:
+        previous = capture_case_once(name, 5)[0]
+        current = capture_case_once(name, 6)[0]
+        for section in ("global_parameters", "coverage"):
+            golden.assert_case_matches(name, current[section], previous[section], section)
+        if not name.startswith("fedsda") or name == "fedsda-single-model-prediction":
+            for section in ("run_metrics", "record_tables"):
+                golden.assert_case_matches(name, current[section], previous[section], section)
+            continue
+        previous_tables = previous["record_tables"]
+        current_tables = current["record_tables"]
+        assert set(previous_tables) == set(current_tables), name
+        changed_tables = {
+            key for key in previous_tables if previous_tables[key] != current_tables[key]
+        }
+        assert all(
+            key.startswith("sample_prediction.") or key in _PREDICTION_SIDE_RECORD_TABLE_COLUMNS
+            for key in changed_tables
+        ), (name, changed_tables)
+        previous_metrics = _flatten_metric_paths(previous["run_metrics"])
+        current_metrics = _flatten_metric_paths(current["run_metrics"])
+        assert set(previous_metrics) == set(current_metrics), name
+        changed_metrics = {
+            key for key in previous_metrics if previous_metrics[key] != current_metrics[key]
+        }
+        assert all(
+            key.startswith("prediction_diagnostic_metrics.")
+            or key in _PREDICTION_SIDE_RUN_METRIC_PATHS
+            for key in changed_metrics
+        ), (name, changed_metrics)
+        assert changed_tables or changed_metrics, name
+        if any(key.startswith("sample_prediction.") for key in changed_tables):
+            prediction_records_changed.append(name)
+    assert prediction_records_changed
+
+
 @pytest.mark.parametrize(
     ("previous_version", "next_version", "case_name"),
     [

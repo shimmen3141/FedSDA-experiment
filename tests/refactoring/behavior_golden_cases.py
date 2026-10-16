@@ -92,7 +92,8 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 #      この扱いを明示する）。版3との差は、版3の扱いで、待ちの間に現行でない送信保留が起きるケースに限る。
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5)
+# 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6)
 BASELINE_VERSION = 5
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
@@ -108,11 +109,18 @@ _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH = (
     "short_change_interval_alarm_policy",
 )
 # 予測に使うパラメータ（2026-10-15に足した項目）。版1〜5は、どれも局所更新した現在の値。
+_PREDICTION_MODEL_PARAMETER_SOURCE_PATH = (
+    "prediction_combination_settings",
+    "prediction_model_parameter_source",
+)
 _PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS = {
-    ("prediction_combination_settings", "prediction_model_parameter_source"): (
-        "current_local_parameters"
-    ),
+    _PREDICTION_MODEL_PARAMETER_SOURCE_PATH: "current_local_parameters",
 }
+# Fixed-Shareの時間尺度T。版1〜5は30（帰属の保留の容量と同じ値）。
+_FIXED_SHARE_TIME_SCALE_PATH = (
+    "prediction_combination_settings",
+    "fixed_share_weight_redistribution_time_scale_samples",
+)
 _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     1: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: {
@@ -141,18 +149,24 @@ _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
 # この項目を持つので、比べる前に除かない（上の「後に足された項目」の表へ入れると、除かれて比べられなくなる）。
 # 版2・3: 登録の扱いは、送信保留の全部を、それ自身のIDで登録する（現在の既定——版5——とは違う扱い）。
 # 版4: 登録は、現行モデルとして待った後に登録する（版5の既定と同じ）。警報は即時（版5の既定とは違う）。
+# 版1〜5: Fixed-Shareの時間尺度Tは30（版6で、既定が120へ変わる）。
 _CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION = {
+    1: {_FIXED_SHARE_TIME_SCALE_PATH: 30},
     2: {
-        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+        _FIXED_SHARE_TIME_SCALE_PATH: 30,
     },
     3: {
-        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME
+        _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
+        _FIXED_SHARE_TIME_SCALE_PATH: 30,
     },
     4: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME,
         # 版4の警報の扱いは、即時（版5で、既定が、最小件数まで待つ扱いへ変わる）。
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+        _FIXED_SHARE_TIME_SCALE_PATH: 30,
     },
+    5: {_FIXED_SHARE_TIME_SCALE_PATH: 30},
 }
 
 
@@ -190,6 +204,7 @@ CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
     "fedavg-local-updates-per-aggregation": "tests/refactoring/test_fedavg_local_updates_per_aggregation.py",
     "fedsda-synchronized-model-prediction": "tests/refactoring/test_fedsda_synchronized_model_prediction.py",
     "fedsda-synchronized-local-mixture-prediction": "tests/refactoring/test_fedsda_synchronized_local_mixture_prediction.py",
+    "fedsda-local-parameter-prediction": "tests/refactoring/test_fedsda_local_parameter_prediction.py",
 }
 _VERSION_1_CASE_NAMES = (
     *BASELINE_CONFIGURATION_CASE_NAMES,
@@ -212,6 +227,11 @@ CASE_NAMES_BY_BASELINE_VERSION = {
         "fedsda-sine2-alternative-reference-reuse",
     ),
     5: (
+        *_VERSION_1_CASE_NAMES,
+        "fedsda-sine2-reference-reuse",
+        "fedsda-sine2-alternative-reference-reuse",
+    ),
+    6: (
         *_VERSION_1_CASE_NAMES,
         "fedsda-sine2-reference-reuse",
         "fedsda-sine2-alternative-reference-reuse",
@@ -393,6 +413,26 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                 loss_change_detection_settings=replace(
                     client.loss_change_detection_settings,
                     short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+                ),
+            )
+        if _FIXED_SHARE_TIME_SCALE_PATH in changed_settings:
+            client = replace(
+                client,
+                prediction_combination_settings=replace(
+                    client.prediction_combination_settings,
+                    fixed_share_weight_redistribution_time_scale_samples=changed_settings[
+                        _FIXED_SHARE_TIME_SCALE_PATH
+                    ],
+                ),
+            )
+        if _PREDICTION_MODEL_PARAMETER_SOURCE_PATH in added_settings:
+            client = replace(
+                client,
+                prediction_combination_settings=replace(
+                    client.prediction_combination_settings,
+                    prediction_model_parameter_source=added_settings[
+                        _PREDICTION_MODEL_PARAMETER_SOURCE_PATH
+                    ],
                 ),
             )
         if _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH in added_settings:

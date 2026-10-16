@@ -40,6 +40,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (
     EXPERIMENT_CONFIGURATION_NAMES,
     FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME,
     INDEPENDENT_MODELS_CONFIGURATION_NAME,
+    LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
     LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME,
     OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME,
     OVERALL_LOSS_ESR_DETECTION_CONFIGURATION_NAME,
@@ -234,6 +235,8 @@ CONFIGURATION_VARIANTS = {
                 prediction_weight_recalibration_after_aggregation_policy=(
                     "keep_weights_without_recalibration"
                 ),
+                # 混ぜる予測（2026-10-16からの既定）とは組み合わせられないので、局所を明示する。
+                prediction_model_parameter_source="current_local_parameters",
             )
         ),
         # 実旧のclientは、重みと、予測の内訳の記録を、持たない。
@@ -930,6 +933,7 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME,
         SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
         SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
+        LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
     )
     assert INDEPENDENT_MODELS_CONFIGURATION_NAME == "fedsda-independent-models"
     assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
@@ -957,6 +961,7 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME,
         SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
         SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
+        LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
     }
     experiment_run_conditions = ExperimentRunConditions(
         dataset_name="sine2",

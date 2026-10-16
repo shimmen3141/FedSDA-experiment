@@ -229,7 +229,8 @@ def test_final_configuration_defaults_match_legacy_configuration(
 
     挙動を直した扱いと、選んだ扱いだけは、旧と違う（送信保留のモデルを、現行モデルとして待った後に登録する
     ——LEGACY-016とその見直し——。推定変化区間が最小件数に達するまで警報を待つ——IMPROVE-006——。
-    短い警報のあと、取り込んだ前区間を保留から外す——LEGACY-002——）。
+    短い警報のあと、取り込んだ前区間を保留から外す——LEGACY-002——。予測を、同期の時点と局所の2つの結合予測を
+    混ぜて行い、Fixed-Shareの時間尺度を120にする——2026-10-16、研究バックログの8——）。
     """
     legacy_values, hidden_layer_widths = read_legacy_final_configuration_values(dataset_name)
     legacy_equivalent_run_settings = make_run_settings_from_legacy_values(
@@ -251,6 +252,15 @@ def test_final_configuration_defaults_match_legacy_configuration(
     assert (
         legacy_equivalent_client_settings.training_data_assignment_settings.pending_sample_retention_after_too_short_change_interval_policy
         == KEEP_ALL_PENDING_SAMPLES_POLICY_NAME
+    )
+    # 旧は、局所更新した現在のモデルで予測し、Fixed-Shareの時間尺度は帰属の保留の容量と同じ値。
+    assert (
+        legacy_equivalent_client_settings.prediction_combination_settings.prediction_model_parameter_source
+        == "current_local_parameters"
+    )
+    assert (
+        legacy_equivalent_client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
+        == legacy_equivalent_client_settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
     )
     expected_run_settings = replace(
         legacy_equivalent_run_settings,
@@ -274,6 +284,11 @@ def test_final_configuration_defaults_match_legacy_configuration(
                     pending_sample_retention_after_too_short_change_interval_policy=(
                         RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME
                     ),
+                ),
+                prediction_combination_settings=replace(
+                    legacy_equivalent_client_settings.prediction_combination_settings,
+                    prediction_model_parameter_source="mixture_of_synchronized_and_local_parameters",
+                    fixed_share_weight_redistribution_time_scale_samples=120,
                 ),
             ),
         ),
