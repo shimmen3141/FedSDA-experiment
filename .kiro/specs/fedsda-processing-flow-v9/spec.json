@@ -1,0 +1,105 @@
+{
+  "feature_name": "fedsda-processing-flow-v9",
+  "created_at": "2026-10-17T01:33:21.853743+09:00",
+  "updated_at": "2026-10-17T01:47:51.433841+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a1458f-9cb8-71b3-a211-91f1a089c039",
+    "result": "PASS。R06限定枠/改名/固定時点と非学習の意味/既存IDと順序保持が整合。"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a14592-77ba-7c63-9ed5-9860f2664190",
+    "target_sha256": "c79991d27f76e204c27c1e02eefb94a7fb7e8c45db910bd23a52a50a2ff52321",
+    "result": "PASS、指摘なし。全差分・仕様と実HTMLを照合し、対象SHAとNode構文を独立確認。全経路/画面/実時間遷移は主担当の報告を確認し、独立再実行は未実施。"
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        1440,
+        900
+      ]
+    ],
+    "combinations_each": 18,
+    "frames_each": 472,
+    "issues": 0,
+    "actual_transition_flash": "passed",
+    "old_files": "hashes unchanged",
+    "standalone_html": "unique ids/no external assets/inline matches target",
+    "numeric_tests": "HTMLのみのため未実施",
+    "commit_push": "未実施"
+  },
+  "followup_reviews": [
+    {
+      "scope": "v9矢印の接続点とラベルのみ",
+      "specification_status": "passed",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "before_sha256": "c79991d27f76e204c27c1e02eefb94a7fb7e8c45db910bd23a52a50a2ff52321",
+      "specification_session_id": "01a1459a-73b2-7120-8eda-6c570e8a66b3",
+      "implementation_status": "passed",
+      "implementation_session_id": "01a1459c-3348-7553-96a5-adbb364358c8",
+      "target_sha256": "232d92b5dc93755612bda227c1246fc0dc535a787bb0901c8be1f134245aa054",
+      "result": "PASS。3要素の全差分と幾何を独立確認。その他HTML/JSの全バイト不変を逆置換で証明。3画面の各18経路472コマは主担当実測の提示証拠で、独立再実行は未実施。",
+      "validation": {
+        "viewports": [
+          [
+            1280,
+            720
+          ],
+          [
+            390,
+            844
+          ],
+          [
+            1440,
+            900
+          ]
+        ],
+        "frames_each": 472,
+        "combinations_each": 18,
+        "issues": 0,
+        "html_scope": "矢印2本とラベル1つの3要素のみ",
+        "javascript": "全バイト不変",
+        "commit_push": "未実施"
+      }
+    }
+  ]
+}

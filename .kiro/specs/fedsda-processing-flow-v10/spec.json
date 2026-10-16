@@ -1,0 +1,147 @@
+{
+  "feature_name": "fedsda-processing-flow-v10",
+  "created_at": "2026-10-17T01:56:30.457264+09:00",
+  "updated_at": "2026-10-17T02:23:46.402093+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "今回のユーザー依頼と主担当への既存委任に基づく確認"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a145a4-ccdf-7f91-88f2-7aff581cfd77",
+    "result": "PASS。Minor: 始点1102.5は右枠中心1105より2.5左だが、元のバックボーン中心と一致させた意図的な位置で、下辺上の要件を満たす。"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a145a7-6e6f-7a61-8afb-b6ef91622ccb",
+    "target_sha256": "ce371e5ac0262c218b396e9afc0d7d8da9f11b2a2a6e86598fd304ddc86b5e6d",
+    "result": "PASS、指摘なし。全差分/specと構文を独立確認。全経路/画面/過渡遷移は主担当の報告を参照し、ブラウザ独立再実行は未実施。"
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        1440,
+        900
+      ]
+    ],
+    "combinations_each": 18,
+    "frames_each": 472,
+    "issues": 0,
+    "first_left_button_and_keyboard_wrap": "passed for all combinations",
+    "copy_only_R10": "passed including overview hidden",
+    "actual_transition_flash": "passed",
+    "standalone_html": "unique ids/no external assets/inline matches target",
+    "old_files": "hashes unchanged",
+    "numeric_tests": "HTMLのみのため未実施",
+    "commit_push": "未実施"
+  },
+  "followup_reviews": [
+    {
+      "scope": "R11再較正の対象モデルの濃淡のみ",
+      "specification_status": "passed",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "before_sha256": "ce371e5ac0262c218b396e9afc0d7d8da9f11b2a2a6e86598fd304ddc86b5e6d",
+      "specification_session_id": "01a145b1-2e98-7773-9eba-9668e44ff744",
+      "implementation_status": "passed",
+      "implementation_session_id": "01a145b3-4415-70a0-815b-e428e2c96502",
+      "target_sha256": "11702135121c488fa1ef3593790895d84060e45e958a56d64d2a922c099ddc33",
+      "result": "濃淡のみの初回修正はPASS。続くユーザー追記で評価線と説明を追加する。"
+    },
+    {
+      "scope": "R11のモデル使用線と説明の平易化",
+      "specification_status": "passed",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "before_sha256": "11702135121c488fa1ef3593790895d84060e45e958a56d64d2a922c099ddc33",
+      "specification_session_id": "01a145b8-8c97-73b3-951f-a57bf389eef8",
+      "specification_result": "初回は左寄せという解釈でFAIL。中央揃えと実測bbox非交差の明記後、限定再判定PASS。",
+      "implementation_status": "passed",
+      "implementation_session_id": "01a145bb-e29d-7732-a74d-4fd5e24bd537",
+      "target_sha256": "910bb644a4dfcf1e1217b006849433a44b5dacad1e4674cad76413a8095d6a15",
+      "result": "PASS。R11使用線/平易化した説明/損失からwへの流れの追加差分を独立確認。ブラウザ/過渡遷移は主担当の証拠を確認し、独立再実行は未実施。",
+      "validation": {
+        "viewports": [
+          [
+            1280,
+            720
+          ],
+          [
+            390,
+            844
+          ],
+          [
+            1440,
+            900
+          ]
+        ],
+        "frames_each": 472,
+        "combinations_each": 18,
+        "issues": 0,
+        "true_transitions": "passed",
+        "other_frame_contracts": "unchanged",
+        "javascript_outside_frames": "unchanged",
+        "old_versions": "hashes unchanged",
+        "commit_push": "未実施"
+      }
+    }
+  ],
+  "finalization": {
+    "date": "2026-10-17",
+    "authorization": "ユーザーによる最終版承認、旧HTML削除、改名、commit/pushの明示指示。main mergeは保留。",
+    "artifact": "docs/overview/fedsda-processing-flow.html",
+    "sha256": "910bb644a4dfcf1e1217b006849433a44b5dacad1e4674cad76413a8095d6a15",
+    "content_change": false,
+    "deleted_html": [
+      "fedsda-processing-flow-v2.html",
+      "fedsda-processing-flow-v3.html",
+      "fedsda-processing-flow-v4.html",
+      "fedsda-processing-flow-v5.html",
+      "fedsda-processing-flow-v6.html",
+      "fedsda-processing-flow-v7.html",
+      "fedsda-processing-flow-v8.html",
+      "fedsda-processing-flow-v9.html",
+      "fedsda-processing-flow_1.html"
+    ],
+    "specification_review": "Luna medium PASS。初回は完了判定との取り違えでFAIL、計画レビューへ限定してPASS。",
+    "implementation_review": "Luna medium PASS。hash/旧版不在/入口差分/履歴保持を独立確認。ブラウザは主担当の実測証拠を参照。",
+    "commit_push": "レビュー済み成果物をこの最終化コミットに含め、専用ブランチへ通常pushする。実行結果はGit履歴/remoteで確認。",
+    "historical_records": "旧版のパス・hash・commit保留は当時の履歴。現在の成果物パスは本finalizationを参照。",
+    "specification_session_id": "01a145d2-f7e2-7d33-9610-da69a05882bf",
+    "implementation_session_id": "01a145d3-c816-7ff0-b167-90bfa8826d14",
+    "validation": "改名後1280×720の18経路472コマ、issues=0。内容hash一致。"
+  }
+}

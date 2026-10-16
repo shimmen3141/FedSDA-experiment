@@ -1,0 +1,68 @@
+{
+  "feature_name": "fedsda-processing-flow-v2",
+  "created_at": "2026-10-16T18:47:58.212967+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーのv2修正依頼に基づく主担当確認"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーのv2修正依頼に基づく主担当確認"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーのv2修正依頼に基づく主担当確認"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーのv2修正依頼に基づく主担当確認"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a1441c-c9d7-7601-aaf2-2d2358827cb4",
+    "result": "PASS。Minor epochの切替位置を追記。"
+  },
+  "constraints": "コミット/プッシュ禁止。既存HTML/元checkoutは変更しない。",
+  "updated_at": "2026-10-16T18:58:36.868952+09:00",
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a14423-41a6-7362-bd6b-5ae90009f099",
+    "supplement_session_id": "01a14425-66c5-7a11-a273-376fe3ffc1e6",
+    "result": "PASS。最初のレビューで構文/分岐を確認。日本語の出力文字化けをASCII JSON経由で補い、最終画像3枚と対象外表示の修正を別Luna sessionで確認、Major/Minorなし。独立ブラウザ再実行はなし。",
+    "fallback": "Haiku 5.5 mediumを試行したが429 usage_limit_reached。Luna mediumで補完。"
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "combinations_each": 108,
+    "frames_each": 2256,
+    "checks": "全列順序、共通位置保持/prefix復帰、分岐無効化、固定bbox、文字実寸、一画面fit、短線実線、通常travel/低モーション、keyboard、再生停止、狭幅拡大、ID一意、外部依存なし、旧HTMLと元checkoutのhash不変",
+    "numerical_tests": "HTML専用につき未実施。Python/実験/golden変更なし",
+    "git": "stage/commit/push未実施。v2は専用worktreeのみ。"
+  }
+}

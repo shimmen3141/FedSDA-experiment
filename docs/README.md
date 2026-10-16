@@ -21,7 +21,7 @@ Claude・Codexの交代は[共通引継ぎ手順](../.kiro/steering/agent-handof
 
 - [FedSDAとFedDriftの構成比較](overview/fedsda-feddrift-comparison.md): 最終提案構成と本リポジトリの比較実装の違い。
 - [最終提案構成](overview/proposed-method.md): 論文で扱うSwitching構成の正本。
-- [1サンプルのコマ送り図](overview/fedsda-processing-flow.html): 作成中のフロー図。コミット保留のローカル資料。
+- [1サンプルのコマ送り図](overview/fedsda-processing-flow.html): クライアントとサーバの処理を、分岐を選びながらコマ送りで確認できる図。
 - [実装用仕様書](overview/fedsda-algorithm.md): ADWIN中心の初期構成の全体説明。最終Switching構成とは区別する。
 - [シーケンス図](overview/sequence-diagrams.md): 複数方式の通信処理。削除済み方式も設計比較用に含む。
 

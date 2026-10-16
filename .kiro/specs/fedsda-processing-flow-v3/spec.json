@@ -1,0 +1,78 @@
+{
+  "feature_name": "fedsda-processing-flow-v3",
+  "created_at": "2026-10-16T19:22:03.380521+09:00",
+  "phase": "completed",
+  "language": "ja",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーのv3修正依頼に基づく主担当確認"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーのv3修正依頼に基づく主担当確認"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーのv3修正依頼に基づく主担当確認"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザーのv3修正依頼に基づく主担当確認"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a1443d-3110-7560-a917-a917d91ae63f",
+    "result": "初回Major:出力対応/明示検査の不足を指摘。対応表・DOM属性/実opacity/marker条件を追加して限定再レビューPASS。Minor: opacity順序/実装レビュー記録も明記。"
+  },
+  "updated_at": "2026-10-16T19:37:20.339508+09:00",
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a14444-9286-7fb3-9360-9e4658981ca2",
+    "notation_session_id": "01a14448-5ee7-7500-a84f-70b0a99e6ac0",
+    "result": "PASS。仕様4ファイルと実SVG/JS/CSS、代表画像5枚、3画面の報告を独立確認し、node --check成功。ユーザーによる確率ベクトル表記の明確化も限定レビューPASS。ブラウザの独立再実行はなし。"
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "combinations_each": 108,
+    "frames_each": 2256,
+    "checks": [
+      "分岐/コマ順序/再生/位置保持",
+      "特徴と正解の内部opacityと実alpha",
+      "バックボーン/モデル/出力の左右対応",
+      "6つの確率ベクトル記号と結合欄の対応/条件付き確率の定義",
+      "段階/コマの色一致と対象外グレー",
+      "marker10と最小軸5/短線実線",
+      "文字枠内/無関係box横断なし/固定bbox",
+      "全画面fit/文字実寸/狭幅拡大",
+      "低motion/通常travel",
+      "JS構文/ID一意/外部参照なし",
+      "v2/旧版/元checkoutのhash不変"
+    ],
+    "numerical_tests": "HTML専用のため未実施。Python/実験/golden変更なし",
+    "git": "stage/commit/push未実施。v3は専用worktreeのみ。"
+  }
+}
