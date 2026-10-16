@@ -39,7 +39,7 @@
   - Tは、版1〜5の保存済みの設定が持つ項目（値30）なので、「版の後に既定の値が変わった項目」の表へ、版1〜5のT＝30を足し、`build_case_settings`がこの経路も扱うようにする（今は登録と警報の経路だけ）。
   - `fedsda-single-model-prediction`のケースも、版1〜5ではT＝30を明示する（保存済みの設定はT30。新しい既定のT120を引き継ぐと、比べられない）。予測に使うパラメータは、構成が局所を明示するので、版1〜5でも同じ値になる。「変わった項目」の表は、FedSDAの全ケース（単一モデルのケースを含む）に当てる。
 - 版6を足す（`SUPPORTED_BASELINE_VERSIONS`、`BASELINE_VERSION`、`CASE_NAMES_BY_BASELINE_VERSION`。ケースは版5と同じ19）。設定は、新しい既定のまま。版6は予測の側だけを変えるので、必須の経路（`assert_required_paths`）は版5と同じ分岐を使う（下調べで、全ケースの`coverage`が版5と同じだった）。
-- `BASELINE_VERSION`を6へ替えるのは、版6のWindowsとWSLのgoldenを生成して置いた後にする（前の版と同じ）。sourceとtestをcommitしてから生成する（この中間のcommitでは、版6のgoldenの存在を確かめるtestが失敗する。前の版と同じく避けられない）。
+- `BASELINE_VERSION`を6へ替えるのは、版6のWindowsとWSLのgoldenを生成して置いた後にする（前の版と同じ）。既存の来歴契約に従い、`core/run_provenance.py`の`BEHAVIOR_BASELINE_VERSION`も同時に6へ上げる。sourceとtestをcommitしてから生成する（この中間のcommitでは、版6のgoldenの存在を確かめるtestが失敗する。前の版と同じく避けられない）。
 
 ### 版5→6の差の説明（`tests/refactoring/test_important_behavior_regression_goldens.py`）
 前の版の差は「直した挙動の事象の回数」で説明したが、版6は動作の修正ではなく予測の方式の変更なので、別のtest `test_baseline_6_differs_from_5_only_on_the_prediction_side`で、全ケースについて次を確かめる（`BASELINE_VERSION_DIFFERENCES`には足さない）:

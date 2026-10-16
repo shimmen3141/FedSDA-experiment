@@ -98,6 +98,7 @@ codex execのWindows sandboxでは一時ディレクトリの操作が拒否さ�
 - 全pytest（旧11・最終3goldenを含む）は主担当が固定環境で実測し、件数・exit・JUnitの場所・対象commit・source hashを記録する。
 - 独立レビュー担当は、対象test＋依存境界test・fresh CPU smoke・Ruffを独立実行し、JUnit集計とgolden回帰testcaseの成否、固定旧差分が空であること、承認hashを照合する。
 - レビュー担当による全pytestの再現は必須としない。再現していない事実は対象specの記録へ明記し、再現済みと書かない。
+- 2026-10-17ユーザー決定: fresh CPU smokeも、独立実行がsandboxなどの権限によって実行不能な場合は、主担当が同じ対象sourceと未変更の共用scriptで成功を実測し、レビュワーがそのログ・対象revision/source hashを照合して判定してよい。独立未実行と環境制約をspecへ明記する。実装・test自体の失敗はこの例外に含めず、既知の権限エラーを繰り返し試行したり、sandbox解除を回避策にしたりしない。対象test・依存境界・Ruffの独立実行は従来どおり行う。
 - sandboxを外した実行（danger-full-access等）は、ユーザーの個別の明示承認なしに行わない。
 
 ## specの進め方

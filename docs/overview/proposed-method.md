@@ -25,7 +25,9 @@
 
 ## 2. 最終構成の固定設定
 
-実装上のmode名は`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`である。
+新実装の入口は`run_experiment_sweep.py --configurations fedsda`である。2026-10-16のユーザー判断により、既定を同期時点と局所更新の混合予測・FIFO容量30・Fixed-Shareの時間尺度T120にした。根拠は[研究バックログ](../research/research-backlog.md)の8と[対象spec](../../.kiro/specs/fedsda-default-synchronized-local-mixture-prediction/design.md)。
+
+旧実装との対応に使うmode名は`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`である。
 mode名の`RestartingSoftRouting`だけでは予測方式を一意に定められないため、文脈`switching`まで含めて指定する。
 
 | 設定 | 採用値 |
@@ -38,6 +40,8 @@ mode名の`RestartingSoftRouting`だけでは予測方式を一意に定めら�
 | 集約後再較正 | `fifo_replay` |
 | 新規作成方針 | `forward_persistent` |
 | FIFO長・前向き検証件数 | N_FIFO=30、N_forward=10 |
+| 予測に使うパラメータ（新実装） | `mixture_of_synchronized_and_local_parameters` |
+| Fixed-Shareの時間尺度（新実装） | T=120。モデル別重みと同期・局所間の混合の分け合いに共通して1/Tを用いる |
 | 適合・統合判定の設定値 | γ=0.1 |
 | クラスタリング判定・linkage | `class_functional_confidence`・`average` |
 | クラスタリング実行方針 | `on_new_model` |
@@ -50,7 +54,7 @@ mode名の`RestartingSoftRouting`だけでは予測方式を一意に定めら�
 
 ## 3. 予測・割当・学習の区別
 
-- **予測**: 保持モデルの出力をSwitching重みで混合する。重みは現在のラベルを観測する前のものを使う。
+- **予測**: 同期時点のモデル群と局所更新したモデル群で、それぞれ同じモデル別重みを用いて結合予測を作り、さらにclientごとの二者重みで混ぜる。重みは現在のラベルを観測する前のものを使う。ラベル到着後、二者の損失でも重みを更新する。
 - **割当**: `current_model_id`はドリフト検出、履歴損失、データストアへの帰属に使う。
 - **学習**: 概念別データストアを使い、共有バックボーンと概念固有部をjointで更新する。
 
@@ -60,14 +64,14 @@ FIFOのデータ帰属保留と、前向き検証sessionの候補比較も別の
 
 ## 4. 1サンプルとサーバ同期の処理順
 
-1. 新しい入力に対して各モデルの出力を得て、Switching重みで予測する。
+1. 新しい入力に対して同期時点と局所更新の各モデルの出力を得て、モデル別重みでそれぞれ結合し、二者重みで最終予測を作る。
 2. 正解ラベルで予測を評価し、次回用のrouting損失情報を更新する。
 3. 前向き検証sessionがあれば新着標本を観測し、必要な件数に達した場合は採否を確定する。
 4. その時点の現行割当モデルの損失でClassESRを更新し、新着標本をFIFOへ追加する。
 5. 警報時はFIFOの検知区間を評価し、既存モデル再利用または仮モデルの前向き検証へ進む。
    平時はFIFO上限を超える最古標本を現行ストアへ確定し、ローカル学習する。
 6. 集約間隔Aの境界では、サーバで新規ID登録、モデルごとのFedAvg、必要時のクラスタリング・merge、配布を行う。
-7. 配布後のモデルでFIFO replayを行い、次のサンプルへ進む。
+7. 配布直後の全モデルと共有部を、次の同期まで予測に使う状態として保存する。更新用モデルでFIFO replayを行い、モデル別重みを再較正する（二者重みは保持）。次のサンプルへ進む。
 
 前向き検証の確定は、その標本のClassESR更新より前に行われる。
 新規ID登録はID管理であり、パラメータの二重アップロードを意味しない。

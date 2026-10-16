@@ -36,7 +36,7 @@ python run_experiment_sweep.py \
 | `--study` | 研究の問いの名前（出力先の1段目） | なし |
 | `--label` | 出力先を省略したときの、ディレクトリ名のラベル（`/`・`\`・`:`と、Windowsでファイル名に使えない文字を含まない名前） | `sweep` |
 | `--fedsda-pending-assignment-fifo-capacities` | FedSDAの構成の、帰属の保留（FIFO）の容量（標本数。複数可。下の「帰属の保留の容量とFixed-Shareの時間尺度」）。FedSDAの構成を選んだときだけ | `30`だけ |
-| `--fedsda-fixed-share-time-scales` | FedSDAの構成の、Fixed-Shareの時間尺度T（標本数。複数可。同じ節）。FedSDAの構成を選んだときだけ | `30`だけ |
+| `--fedsda-fixed-share-time-scales` | FedSDAの構成の、Fixed-Shareの時間尺度T（標本数。複数可。同じ節）。FedSDAの構成を選んだときだけ | `120`だけ |
 | `--purpose` | この実験の目的（1行）。実行するときは必須。`README.md`と実行の記録に書く | 必須（`--print-plan`では不要） |
 | `--print-plan` | 計画のrunと、出力先にある済んだrunを表示するだけ。何も実行せず、何も作らない | — |
 
@@ -57,13 +57,13 @@ python run_experiment_sweep.py \
 
 FedSDAのclientは、観測した標本を帰属の保留（FIFO）に置き、あふれた古い標本から、現在のモデルの学習データへ確定する。`--fedsda-pending-assignment-fifo-capacities`で、この容量（標本数）を並べて比べられる。
 
-Fixed-Shareの時間尺度Tは、予測の重みを他のモデルへ分け直す速さ（最良のモデルが入れ替わる見込みの間隔）。混ぜる予測（`fedsda-synchronized-local-mixture-prediction`）の、同期の時点と局所の重みの分け合いの割合も1/Tになる。`--fedsda-fixed-share-time-scales`で並べられる。
+Fixed-Shareの時間尺度Tは、予測の重みを他のモデルへ分け直す速さ（最良のモデルが入れ替わる見込みの間隔）。既定の混ぜる予測（`fedsda`、`fedsda-synchronized-local-mixture-prediction`）の、同期の時点と局所の重みの分け合いの割合も1/Tになる。`--fedsda-fixed-share-time-scales`で並べられる。
 
 - 2つの軸は、それぞれの値だけを替える（指定しない側は構成の値のまま）。両方を指定すると全部の組を作る（容量の順の中で、Tの順）。FedSDAの構成ごとに、組の数だけrunが増える。
 - 掃引の記録の形式の版6まで（2026-10-16より前）は、容量の軸がTも同じ値に替えていた（設定の検査が同じ値を求めた。IMPROVE-015で分けた）。その結果の「容量60」は、T＝60でもある。
-- 既定はどちらも30。30を指定したrunは、指定しないrunと同じ設定・同じ識別子になる。
+- 既定は容量30・T120。容量30とT120を明示したrunは、指定しないrunと同じ設定・同じ識別子になる。
 - 制約: 容量は、警報を待つ扱いの構成（既定）では変化区間の最小件数（5）以上（警報を即時にする構成では1以上）。Tは2以上。満たさない値は、引数の誤り（終了コード2）。
-- Tを替えても予測が変わらない構成がある: 現在のモデルだけで予測する構成（`fedsda-single-model-prediction`）と、Fixed-Shareの重みを予測に使わない構成（`fedsda-adahedge-prediction-weights`）。計画からは除かない。
+- 現在のモデルだけで予測する構成（`fedsda-single-model-prediction`）では、Tを替えても予測は変わらないが、計画からは除かない。AdaHedgeの構成ではモデル別の重みにはTを使わないが、混ぜる予測の同期・局所間の分け合いにはTを使う。
 - 目安（手元の診断、混ぜる予測、研究バックログの8）: 容量を60にすると、circle2の間隔50は学習データの混ざりが減って上がるが、sine2の間隔200は新しい概念の学習が遅れて下がる（データによって得失が割れる）。Tだけ・混ぜる分け合いだけを、それぞれ60にすると、circle2で揃って上がり、sine2はほぼ同じ（どちらもTで決まるので、今は一緒に替わる）。
 - 一覧の表の`pending_assignment_fifo_capacity`と`fixed_share_time_scale`の列に、runの値が入る。
 
@@ -83,7 +83,7 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 どのrunも実行せずに、当たるrunのファイルと、記録された基準版・今の基準版を、標準エラーへ警告として出し、終了コード2で止まる
 （一覧の表と、実行の記録は、書かない）。動作の違うコードの結果が、同じ出力先で混ざらないようにするため。今のコードの結果は、
 別の出力先で実行する。`--print-plan`では、そのrunを`different_behavior_baseline`と、理由つきで表示する。
-比較script（`run_behavior_fix_comparison.py`）も、同じ扱い。
+比較script（`run_behavior_fix_comparison.py`）も、同じ扱い。比較の土台は新しい既定（混ぜる予測・T120）であり、過去の局所予測・T30へ固定しない。
 
 同じ識別子のファイルが、片方しかない、読めない、または、中のrun設定が計画と違うときは、上書きせずに、そのrunを失敗として報告する。
 そのファイルを確かめて、消すか、別の出力先を使う。保存の途中でprocessが強制終了されると、`.npz`だけが残ることがある（そのファイルを消して、もう一度実行する）。
@@ -119,9 +119,11 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 
 ## 構成
 
+2026-10-16のユーザー判断により、既定は混ぜる予測・容量30・T120となった。根拠は[研究バックログの8](../research/research-backlog.md)。`fedsda-synchronized-local-mixture-prediction`は既定と同じ設定として残す。過去の同名構成ではT30などを使っていたため、結果は構成名だけで比べず、保存した完全設定と来歴を確認する。
+
 | 名前 | 内容 | 旧実装（`tools/run_main_ablation_suite.sh`）での名前 |
 |---|---|---|
-| `fedsda` | 提案構成 | `reference` |
+| `fedsda` | 提案構成。同期時点と局所更新の結合予測を混ぜる。FIFO容量30・T120（基準版6） | `reference`（現在は予測方式とTなどに意図した差がある） |
 | `fedsda-without-prediction-weight-recalibration` | 提案構成から、サーバの集約の後の、予測重みの再較正を外す（集約の後も、予測重みと診断重みを、作り直さずに使う） | `no-recalibration` |
 | `fedsda-without-candidate-validation` | 提案構成から、候補モデルの検証を外す（警報の区間に合う保有モデルが無いとき、区間で学習した候補を、警報の後の標本で検証せずに、その場で採用する） | `immediate-creation` |
 | `fedsda-loss-distance-clustering` | 提案構成の、サーバのクラスタリングの、モデル対の比べ方を替える（クラス別の正誤の信頼下限の代わりに、互いの標本での平均損失の増加量で判定する。閾値とlinkageは同じ） | `distance-average` |
@@ -134,6 +136,7 @@ Ctrl-Cで止めたときは、まだworkerへ渡していないrunを取り消�
 | `fedsda-independent-models` | 提案構成のモデルを、共有部を持たないモデルへ替える（隠れ層と分類層の全部を、モデルごとに独立に持つ。ローカル学習は、モデルごとに順に行い、集約後の重みの再較正は行わない） | `independent` |
 | `fedsda-synchronized-model-prediction` | 提案構成の、予測（と予測重みの更新）を、最後の同期の時点のモデルで行う（配布を反映した直後に保有モデル全部を写し、次の同期まで、その写しで予測する。同期の後に作ったモデルは、共有部を写しの値、モデル固有部を現在の値で評価する。損失の監視・候補の検証・学習・統計・アップロードは、局所更新した現在のモデルのまま） | なし（新実装だけ。旧とは照合せず、手元の診断の差し替えと、予測の記録が一致することを確かめた） |
 | `fedsda-synchronized-local-mixture-prediction` | 提案構成の予測を、同期の時点のモデルの結合予測（上の構成と同じ）と、局所更新した今のモデルを同じ重みで結合した予測の、2つを混ぜて行う。混ぜる重みはclientごとに(同期, 局所)＝(0.5, 0.5)から始め、予測の後に、それぞれの損失（1−真のクラスの確率）で`exp(−2·損失)`を掛けて正規化し、Fixed-Shareの時間尺度Tの逆数1/Tを分け合う（学習率2は固定）。予測の記録の`combined_prediction_is_correct`と`any_model_or_combined_prediction_is_correct`は混ぜた予測の側、ほかの項目は同期の側。現在のモデルだけで予測する設定とは組み合わせられない。学習・検出ほかは、局所更新した現在のモデルのまま | なし（新実装だけ。手元の診断の差し替えと、予測の記録が一致することを確かめた） |
+| `fedsda-local-parameter-prediction` | 提案構成から、予測に使うパラメータだけを局所更新した現在の値へ替える。全モデルの結合は維持し、Tは120。現在の学習帰属モデルだけで予測する構成とは異なる | なし（新実装の専用testで保護） |
 
 2026-10-15に予測の設定へ項目（`prediction_model_parameter_source`）を足したので、それより前のFedSDAの結果とは、runの識別子が一致しない（同じ出力先へ実行すると、前のrunは済んだrunとして扱われない）。比べるときは、別の出力先を使う。
 

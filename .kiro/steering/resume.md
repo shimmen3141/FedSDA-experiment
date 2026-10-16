@@ -1,10 +1,9 @@
-## 再開時点（2026-10-17、Claude Code → Codex）
+## 再開案内（2026-10-17、Claude Code → Codex の続行を完了）
 
-- 現在の対象は[fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)。基点HEADは`c4222ff`。混合予測・FIFO容量30・T120を既定にするユーザー判断に基づくspecで、仕様レビューはLuna mediumでPASS済み。
-- Task 1・2の未コミット変更が残っている。Claudeのログでは対象321件、続いて3374件成功と追加修正1件の単独成功を報告しているが、引継ぎ後に現物を再検証中。tasksのcheckboxは未更新だった。変更を破棄・再実装せず確認する。
-- Task 3（Windows/WSLの基準版6追加）は未着手、現在の基準版は5。続いてTask 4文書、Task 5独立実装レビューと全検証を行う。レビューは今回のユーザー指定によりLuna high（過去のmedium承認記録は保持）。
-- 既存版1〜5と固定旧goldenは上書きしない。予測側だけの差を確認し、学習・通信・概念管理の変化を許容しない。研究室サーバのgoldenは対象外。
-- 研究上の未確定事項は`docs/research/method-positioning.md`、研究バックログ、IMPROVE-016を参照。FedSTEPは名称候補で正式決定ではない。機能削減は新既定でのアブレーション後に判断し、自動調整も未採用。今回specへ混ぜない。
+- [fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)は完了。既定は混ぜる予測・FIFO容量30・T120、現在の動作基準は版6。版1〜5と固定旧goldenは維持。局所パラメータだけで予測する比較は`fedsda-local-parameter-prediction`（T120）を使う。
+- Claudeの未コミットTask1・2を保持して再検証し、Task3〜5を続行した。詳細な検証・レビュー・環境制約は同specが正本。レビューはユーザー指定のLuna high。権限で独立freshを実行不能な場合は主担当の成功証拠を照合して判定する決定を、[共通手順](agent-handoff.md#全pytestの独立再現の基準2026-10-07ユーザー決定)へ追記した。
+- 次の候補は、新既定を基準にした前向き検証・集約後FIFO replay・混ぜる予測のアブレーション。局所予測との比較はT120で揃える。実行前に実験計画と重複を確認し、結果を見る前に機能を削除しない。
+- 研究の主軸と未確定事項は`docs/research/method-positioning.md`、研究バックログの8、IMPROVE-016を参照。FedSTEPは名称候補で正式決定ではなく、コード・実験識別名`fedsda`は維持。T/FIFOの自動調整は未採用。評価用seedの分離や比較手法の調整も、今回の既定変更と分けて扱う。
 
 以下は以前の再開案内・履歴。最新の状態の正本は上記specのspec.jsonとtasks.md。
 
@@ -99,6 +98,7 @@ Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う�
 
 ## 完了specの一覧（新しい順。詳細は各spec）
 
+- [fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md): 混ぜる予測・FIFO容量30・T120を既定に採用。局所パラメータ予測の比較構成とWindows/WSLの基準版6を追加し、旧基準は維持。
 - [fedsda-fixed-share-time-scale-axis](../specs/fedsda-fixed-share-time-scale-axis/tasks.md): Fixed-Shareの時間尺度と帰属の保留の容量の同値の検査を外し、時間尺度を掃引の軸`--fedsda-fixed-share-time-scales`で替える。容量の軸は容量だけを替える。既定は不変。
 - [fedsda-synchronized-local-mixture-prediction](../specs/fedsda-synchronized-local-mixture-prediction/tasks.md): 同期の時点のモデルの結合予測と局所のモデルの結合予測を、clientごとの重みで混ぜる予測。診断の差し替えと予測の記録が一致。既定は不変。
 
