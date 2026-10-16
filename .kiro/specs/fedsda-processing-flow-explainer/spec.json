@@ -1,0 +1,56 @@
+{
+  "feature_name": "fedsda-processing-flow-explainer",
+  "created_at": "2026-10-16T15:28:57.518930+09:00",
+  "updated_at": "2026-10-16T15:50:15.477025+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approval_basis": "ユーザーが単一specで完了まで進める方針を了承。主担当が段階gateを確認。"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approval_basis": "ユーザーが単一specで完了まで進める方針を了承。主担当が段階gateを確認。"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approval_basis": "ユーザーが単一specで完了まで進める方針を了承。主担当が段階gateを確認。"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approval_basis": "ユーザーが単一specで完了まで進める方針を了承。主担当が段階gateを確認。"
+    }
+  },
+  "ready_for_implementation": true,
+  "source_reference_commit": "3e6153c",
+  "work_branch": "docs/fedsda-processing-flow",
+  "scope": "単独説明HTML。Python/既定/golden変更なし、全pytest対象外。HTMLはコミット保留。",
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a1436d-314d-7173-a91e-8b6440e7fd47",
+    "result": "PASS。Major修正とtask依存の再確認済み。HTML専用検証scope。"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "medium",
+    "session_id": "01a14378-075a-7b21-aaab-5bfdf6844baa",
+    "result": "PASS。指摘なし。source照合・JS構文・保存済み証拠を独立確認。ブラウザは独立再実行なし。Python構造scriptは一時JSの書込み権限で失敗、再試行なし。"
+  },
+  "validation": {
+    "html_structure": "passed by main",
+    "javascript_syntax": "passed by main and reviewer",
+    "browser": "151 step combinations at actual viewports 1440 and 390; errors/overflow/overlap absent; reduced motion tested",
+    "static_without_javascript": "overview and glossary visible at 390px",
+    "python_tests": "not run; HTML-only scope, no source/tests/goldens changed",
+    "artifact": "requested root HTML updated, byte-identical to work copy; original backed up, Git-untracked status retained",
+    "reviewed_parallel_head": "b68b7a2; no src/spec differences from reference"
+  }
+}
