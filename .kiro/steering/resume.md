@@ -1,3 +1,16 @@
+## 非MNISTの候補検証・共有部反映の診断を完了（2026-10-18、Codex）
+
+[非MNISTでの診断](../../docs/research/fedsda-candidate-backbone-blend-nonmnist-20261018.md)で、保存80対の領域分解を完了。
+同じ手元Ubuntuで4データ×4間隔×3方式×seed0、各5000標本の48runと、小run計測あり/なし24件を完了。
+結果・一時scriptは`results/fedsda-candidate-validation/20261018_other-datasets-blend25/`。
+8worker・各1スレッドで実行し、`main.exit`は0、全48runの精度・設定・観測列・寄与和・hashを照合。実験の背景processは終了。
+25%は検証なし比7条件で数値上改善・9条件で低下。SINEは4間隔すべてで検証ありを下回り、500の低下も解消しなかった。
+SEA/CIRCLEには二値でも検証の片側に変化した特徴領域が来ない例があるが、SINEには同じ欠落がない。
+共有部の既存出力への影響はSEAでも実在するが、精度差への因果寄与割合は未同定。既定変更・自動採否なし。
+製品src・既定・goldenは未変更。Luna highの方法・script・中間/最終証拠レビューはPASS。Minorの反映・独立未実行は同診断メモ。
+次の候補は候補学習から共有部を固定する案×検証on/offの2×2（今回の学習後25%補間とは別）と、実際の混合予測を対象にした検証。
+実装する場合は別specで進める。mainへマージしない。
+
 ## 掃引の再開補助を完了（2026-10-18、Codex）
 
 [experiment-sweep-resumption](../specs/experiment-sweep-resumption/tasks.md)は完了。既存記録形式を維持し、同条件の過去掃引を進捗付きで選択、未完了分を再実行できる。補助記録のあるNPZ単独だけを同一設定・clean source/内容hash・環境で照合し退避して復旧。旧証拠なし・不一致は保持する。--new-outputで明示新規、--output-directoryで明示再開。検証・レビューの正本は同spec、使用手順は[掃引](../../docs/experiments/experiment-sweep.md#途中で止まったとき)。既定・基準版6・goldenは未変更。mainへマージしない。
