@@ -1,3 +1,7 @@
+## 掃引の再開補助を完了（2026-10-18、Codex）
+
+[experiment-sweep-resumption](../specs/experiment-sweep-resumption/tasks.md)は完了。既存記録形式を維持し、同条件の過去掃引を進捗付きで選択、未完了分を再実行できる。補助記録のあるNPZ単独だけを同一設定・clean source/内容hash・環境で照合し退避して復旧。旧証拠なし・不一致は保持する。--new-outputで明示新規、--output-directoryで明示再開。検証・レビューの正本は同spec、使用手順は[掃引](../../docs/experiments/experiment-sweep.md#途中で止まったとき)。既定・基準版6・goldenは未変更。mainへマージしない。
+
 ## 候補検証の原因診断を完了（2026-10-17、Codex）
 
 [候補検証の診断と改善案](../../docs/research/fedsda-candidate-validation-diagnosis-20261017.md)を参照。

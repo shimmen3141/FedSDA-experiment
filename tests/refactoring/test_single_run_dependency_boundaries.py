@@ -5699,6 +5699,20 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_command.py":
         return imported_module_name in (
+            "sys.stdin",
+            "sys.stdout",
+            "argparse.Namespace",
+            "contextlib.redirect_stderr",
+            "contextlib.redirect_stdout",
+            "io.StringIO",
+            "shlex.split",
+            "federated_learning_experiments.core.run_provenance.BEHAVIOR_BASELINE_VERSION",
+            "federated_learning_experiments.core.run_provenance.RunProvenance",
+            "federated_learning_experiments.sweep.experiment_sweep_plan.PlannedExperimentRun",
+            "federated_learning_experiments.sweep.experiment_sweep_resumption.describe_planned_run_set",
+            "federated_learning_experiments.sweep.experiment_sweep_resumption.find_sweep_resumption_candidates",
+            "federated_learning_experiments.sweep.experiment_sweep_resumption.hold_sweep_output_lock",
+            "federated_learning_experiments.sweep.experiment_sweep_resumption.write_sweep_resumption_plan",
             "sys.stderr",
             "federated_learning_experiments.sweep.experiment_sweep_execution.ExistingRunBehaviorBaselineMismatchError",
             "argparse.ArgumentParser",
@@ -5720,6 +5734,39 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.sweep.experiment_sweep_execution.collect_behavior_baseline_mismatch_descriptions",
             "federated_learning_experiments.sweep.experiment_sweep_records.write_run_summary_table",
             "federated_learning_experiments.sweep.experiment_sweep_records.write_sweep_record",
+        )
+    if source_module_path == "sweep/experiment_sweep_resumption.py":
+        return imported_module_name in (
+            "os.fsync",
+            "os.walk",
+            "sys",
+            "hashlib.sha256",
+            "os.replace",
+            "collections.abc.Callable",
+            "collections.abc.Iterator",
+            "contextlib.contextmanager",
+            "dataclasses.dataclass",
+            "json.dumps",
+            "json.loads",
+            "pathlib.Path",
+            "platform.machine",
+            "platform.python_version",
+            "platform.system",
+            "uuid.uuid4",
+            "numpy.__version__",
+            "torch.__version__",
+            "msvcrt.LK_NBLCK",
+            "msvcrt.LK_UNLCK",
+            "msvcrt.locking",
+            "fcntl.LOCK_EX",
+            "fcntl.LOCK_NB",
+            "fcntl.LOCK_UN",
+            "fcntl.flock",
+            "federated_learning_experiments.core.run_provenance.BEHAVIOR_BASELINE_VERSION",
+            "federated_learning_experiments.core.run_provenance.RunProvenance",
+            "federated_learning_experiments.core.run_provenance.convert_run_provenance_to_mapping",
+            "federated_learning_experiments.core.settings_serialization.convert_settings_to_plain_mapping",
+            "federated_learning_experiments.sweep.experiment_sweep_plan.PlannedExperimentRun",
         )
     if source_module_path == "sweep/experiment_sweep_records.py":
         return imported_module_name in (
@@ -5752,6 +5799,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "sweep/experiment_sweep_execution.py":
         return imported_module_name in (
+            "federated_learning_experiments.sweep.experiment_sweep_resumption.can_recover_interrupted_run",
+            "federated_learning_experiments.sweep.experiment_sweep_resumption.hold_sweep_output_lock",
+            "federated_learning_experiments.sweep.experiment_sweep_resumption.recover_interrupted_run",
+            "federated_learning_experiments.sweep.experiment_sweep_resumption.write_run_start_record",
             "federated_learning_experiments.core.run_provenance.BEHAVIOR_BASELINE_VERSION",
             "federated_learning_experiments.core.run_provenance.RunProvenance",
             "federated_learning_experiments.runtime.fedavg_run_settings.FedavgRunSettings",
@@ -7310,6 +7361,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "sweep/experiment_sweep_plan.py",
             "sweep/experiment_sweep_execution.py",
             "sweep/experiment_sweep_records.py",
+            "sweep/experiment_sweep_resumption.py",
             "sweep/experiment_sweep_command.py",
             "runtime/fedsda_run_artifact_files.py",
             "runtime/fedsda_run_record_tables.py",
@@ -7432,6 +7484,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "sweep/experiment_sweep_plan.py",
                     "sweep/experiment_sweep_execution.py",
                     "sweep/experiment_sweep_records.py",
+                    "sweep/experiment_sweep_resumption.py",
                     "sweep/experiment_sweep_command.py",
                     "runtime/fedsda_run_artifact_files.py",
                     "runtime/fedsda_run_record_tables.py",
@@ -7502,6 +7555,8 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     source_module_path
                     == "methods/fedsda/prediction_combination/adahedge_weight_evidence.py"
                     and imported_module_name == "math"
+                    or source_module_path == "sweep/experiment_sweep_resumption.py"
+                    and imported_module_name == "sys"
                 )
             ) or not dependency_is_allowed(
                 source_module_path=source_module_path,

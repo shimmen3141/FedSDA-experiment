@@ -7,13 +7,21 @@
 実行するときは、目的（`--purpose`）が要り、出力先に、目的と出どころを書いた`README.md`を（無ければ）作る。
 """
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from collections.abc import Sequence
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
+from shlex import split as split_shell_arguments
 from sys import argv as process_arguments
+from sys import stdin, stdout
 
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
+from federated_learning_experiments.core.run_provenance import (
+    BEHAVIOR_BASELINE_VERSION,
+    RunProvenance,
+)
 from federated_learning_experiments.data.mnist.mnist_training_data import (
     load_mnist_training_data,
     resolve_mnist_data_directory,
@@ -30,6 +38,7 @@ from federated_learning_experiments.sweep.experiment_sweep_execution import (
 )
 from federated_learning_experiments.sweep.experiment_sweep_plan import (
     ExperimentSweepPlan,
+    PlannedExperimentRun,
     build_planned_experiment_runs,
 )
 from federated_learning_experiments.sweep.experiment_sweep_records import (
@@ -37,6 +46,12 @@ from federated_learning_experiments.sweep.experiment_sweep_records import (
     write_experiment_readme,
     write_run_summary_table,
     write_sweep_record,
+)
+from federated_learning_experiments.sweep.experiment_sweep_resumption import (
+    describe_planned_run_set,
+    find_sweep_resumption_candidates,
+    hold_sweep_output_lock,
+    write_sweep_resumption_plan,
 )
 
 # リポジトリの直下（このファイルは、`src/federated_learning_experiments/sweep/`にある）。
@@ -188,6 +203,11 @@ def _build_argument_parser() -> ArgumentParser:
         help="この実験の目的（1行。実行するときは必須。READMEと実行の記録に書く）",
     )
     argument_parser.add_argument(
+        "--new-output",
+        action="store_true",
+        help="同条件の過去掃引を選ばず、新しい出力先で実行する",
+    )
+    argument_parser.add_argument(
         "--print-plan",
         action="store_true",
         help="計画のrunと、出力先にある済んだrunを表示するだけで、何も実行せず、何も作らない",
@@ -201,6 +221,58 @@ def _report_usage_error(*, argument_parser: ArgumentParser, error_message: str) 
         argument_parser.error(error_message)
     except SystemExit as argument_exit:
         return int(argument_exit.code or 2)
+
+
+def _build_sweep_plan(parsed_arguments: Namespace) -> ExperimentSweepPlan:
+    return ExperimentSweepPlan(
+        configuration_names=tuple(parsed_arguments.configurations),
+        dataset_names=tuple(parsed_arguments.datasets),
+        random_seeds=tuple(parsed_arguments.seeds),
+        client_count=parsed_arguments.client_count,
+        per_client_sample_count=parsed_arguments.per_client_sample_count,
+        server_aggregation_intervals_per_client_samples=tuple(
+            parsed_arguments.aggregation_intervals
+        ),
+        feddrift_loss_increase_thresholds=(
+            tuple(parsed_arguments.feddrift_loss_increase_thresholds)
+            if parsed_arguments.feddrift_loss_increase_thresholds is not None
+            else None
+        ),
+        fedsda_fixed_share_time_scales=(
+            tuple(parsed_arguments.fedsda_fixed_share_time_scales)
+            if parsed_arguments.fedsda_fixed_share_time_scales is not None
+            else None
+        ),
+        fedsda_pending_assignment_fifo_capacities=(
+            tuple(parsed_arguments.fedsda_pending_assignment_fifo_capacities)
+            if parsed_arguments.fedsda_pending_assignment_fifo_capacities is not None
+            else None
+        ),
+    )
+
+
+def _is_interactive() -> bool:
+    return stdin.isatty() and stdout.isatty()
+
+
+def _read_legacy_plan(readme_path: Path) -> list[dict] | None:
+    # README内の既存writerが生成する引数だけを読む。shellとして実行しない。
+    text = readme_path.read_text(encoding="utf-8")
+    baseline_line = f"- 期待する動作の基準版: {BEHAVIOR_BASELINE_VERSION}"
+    if baseline_line not in text.splitlines():
+        return None
+    marker = "## コマンドの引数\n\n```\n"
+    if marker not in text:
+        return None
+    arguments = split_shell_arguments(text.split(marker, 1)[1].split("\n```", 1)[0])
+    try:
+        with redirect_stderr(StringIO()), redirect_stdout(StringIO()):
+            parsed = _build_argument_parser().parse_args(arguments)
+        return describe_planned_run_set(
+            build_planned_experiment_runs(sweep_plan=_build_sweep_plan(parsed))
+        )
+    except (SystemExit, ValueError, TypeError, RunSettingsValidationError):
+        return None
 
 
 def main(command_arguments: Sequence[str] | None = None) -> int:
@@ -236,31 +308,7 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
     try:
         if parsed_arguments.workers < 1:
             raise ValueError("--workers must be positive")
-        sweep_plan = ExperimentSweepPlan(
-            configuration_names=tuple(parsed_arguments.configurations),
-            dataset_names=tuple(parsed_arguments.datasets),
-            random_seeds=tuple(parsed_arguments.seeds),
-            client_count=parsed_arguments.client_count,
-            per_client_sample_count=parsed_arguments.per_client_sample_count,
-            server_aggregation_intervals_per_client_samples=tuple(
-                parsed_arguments.aggregation_intervals
-            ),
-            feddrift_loss_increase_thresholds=(
-                tuple(parsed_arguments.feddrift_loss_increase_thresholds)
-                if parsed_arguments.feddrift_loss_increase_thresholds is not None
-                else None
-            ),
-            fedsda_fixed_share_time_scales=(
-                tuple(parsed_arguments.fedsda_fixed_share_time_scales)
-                if parsed_arguments.fedsda_fixed_share_time_scales is not None
-                else None
-            ),
-            fedsda_pending_assignment_fifo_capacities=(
-                tuple(parsed_arguments.fedsda_pending_assignment_fifo_capacities)
-                if parsed_arguments.fedsda_pending_assignment_fifo_capacities is not None
-                else None
-            ),
-        )
+        sweep_plan = _build_sweep_plan(parsed_arguments)
         planned_runs = build_planned_experiment_runs(sweep_plan=sweep_plan)
     except (TypeError, ValueError, RunSettingsValidationError) as caught_exception:
         return _report_usage_error(
@@ -274,6 +322,76 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
         / (parsed_arguments.study or "")
         / f"{started_time.strftime('%Y%m%d_%H%M%S')}_{parsed_arguments.label}"
     )
+
+    run_provenance = build_run_provenance(repository_directory=_REPOSITORY_DIRECTORY)
+    if parsed_arguments.new_output and parsed_arguments.output_directory is not None:
+        return _report_usage_error(
+            argument_parser=argument_parser,
+            error_message="--new-output cannot be used with --output-directory",
+        )
+    if parsed_arguments.output_directory is None:
+        # 同じ秒に新規実行しても、既存ディレクトリを新規先として使わない。
+        initial_output = output_directory
+        suffix = 2
+        while output_directory.exists():
+            output_directory = initial_output.with_name(f"{initial_output.name}_{suffix}")
+            suffix += 1
+        candidates = find_sweep_resumption_candidates(
+            _REPOSITORY_DIRECTORY / _DEFAULT_RESULT_DIRECTORY_NAME,
+            planned_runs,
+            run_provenance,
+            _read_legacy_plan,
+            lambda run, directory: (
+                find_existing_run_state(planned_run=run, output_directory=directory).run_state
+            ),
+        )
+        if candidates and (parsed_arguments.print_plan or not parsed_arguments.new_output):
+            print("同じ条件の掃引が見つかりました。")
+            for number, candidate in enumerate(candidates, 1):
+                action = (
+                    "完了済み・実行せず終了"
+                    if candidate.completed_run_count == candidate.total_run_count
+                    else "続きから実行"
+                )
+                print(
+                    f"{number}. {candidate.output_directory} "
+                    f"({candidate.completed_run_count}/{candidate.total_run_count} run) "
+                    f"{action} "
+                    f"自動復旧可能{candidate.recoverable_run_count}件・要確認{candidate.conflicting_run_count}件"
+                )
+            if not parsed_arguments.print_plan:
+                if not _is_interactive():
+                    return _report_usage_error(
+                        argument_parser=argument_parser,
+                        error_message="Use --output-directory to resume or --new-output to run anew (non-interactive input).",
+                    )
+                print(f"{len(candidates) + 1}. 新しいディレクトリで実行\n0. キャンセル")
+                while True:
+                    try:
+                        answer = input("選択: ").strip()
+                    except (EOFError, KeyboardInterrupt):
+                        print("キャンセルしました。")
+                        return 0
+                    if answer.isdecimal() and 0 <= int(answer) <= len(candidates) + 1:
+                        choice = int(answer)
+                        break
+                    print("表示された番号を入力してください。")
+                if choice == 0:
+                    return 0
+                if choice <= len(candidates):
+                    selected = candidates[choice - 1]
+                    if selected.completed_run_count == selected.total_run_count:
+                        print("全run完了済みのため、実行せず終了します。")
+                        return 0
+                    if selected.conflicting_run_count:
+                        return _report_usage_error(
+                            argument_parser=argument_parser,
+                            error_message="Selected sweep has conflicting artifacts; inspect them before resuming.",
+                        )
+                    output_directory = selected.output_directory
+                    print(
+                        "再開: 元READMEは初回の記録として保持し、今回の目的・引数はsweep_recordへ記録します。"
+                    )
 
     if parsed_arguments.print_plan:
         print(f"output directory: {output_directory}")
@@ -307,7 +425,6 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
             )
 
     # 要約と実行の記録に、同じ来歴を書く（gitの取り直しで、ずれないように）。
-    run_provenance = build_run_provenance(repository_directory=_REPOSITORY_DIRECTORY)
     # 基準版の違う済んだrunがあれば、出力先を作る前に止める（READMEも作らない）。
     mismatch_descriptions = collect_behavior_baseline_mismatch_descriptions(
         planned_runs=planned_runs, output_directory=output_directory
@@ -318,6 +435,42 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
         )
         return 2
     assert purpose is not None
+    try:
+        with hold_sweep_output_lock(output_directory):
+            # 選択後に別processが開始・完了した可能性があるため、排他の下で再確認。
+            mismatch_descriptions = collect_behavior_baseline_mismatch_descriptions(
+                planned_runs=planned_runs, output_directory=output_directory
+            )
+            if mismatch_descriptions:
+                report_behavior_baseline_mismatch(
+                    ExistingRunBehaviorBaselineMismatchError(mismatch_descriptions)
+                )
+                return 2
+            write_sweep_resumption_plan(output_directory, planned_runs)
+            return _execute_command_in_output(
+                parsed_arguments,
+                sweep_plan,
+                planned_runs,
+                output_directory,
+                run_provenance,
+                started_time,
+                given_arguments,
+                purpose,
+            )
+    except (OSError, ValueError) as error:
+        return _report_usage_error(argument_parser=argument_parser, error_message=str(error))
+
+
+def _execute_command_in_output(
+    parsed_arguments: Namespace,
+    sweep_plan: ExperimentSweepPlan,
+    planned_runs: tuple[PlannedExperimentRun, ...],
+    output_directory: Path,
+    run_provenance: RunProvenance,
+    started_time: datetime,
+    given_arguments: tuple[str, ...],
+    purpose: str,
+) -> int:
     output_directory.mkdir(parents=True, exist_ok=True)
     print(f"output directory: {output_directory}")
     report_experiment_readme(
@@ -339,6 +492,7 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
             worker_count=parsed_arguments.workers,
             run_provenance=run_provenance,
             report_progress=lambda progress_message: print(progress_message, flush=True),
+            _output_lock_held=True,
         )
     except ExistingRunBehaviorBaselineMismatchError as mismatch_error:
         report_behavior_baseline_mismatch(mismatch_error)

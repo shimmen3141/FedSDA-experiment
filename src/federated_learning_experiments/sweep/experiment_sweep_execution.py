@@ -49,6 +49,12 @@ from federated_learning_experiments.runtime.fedsda_run_artifact_files import (
 )
 from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
 from federated_learning_experiments.sweep.experiment_sweep_plan import PlannedExperimentRun
+from federated_learning_experiments.sweep.experiment_sweep_resumption import (
+    can_recover_interrupted_run,
+    hold_sweep_output_lock,
+    recover_interrupted_run,
+    write_run_start_record,
+)
 
 # 構成のディレクトリの中の、runのファイルを置くディレクトリの名前。
 RUN_DIRECTORY_NAME = "runs"
@@ -242,6 +248,7 @@ def execute_planned_experiment_run(
             planned_run=planned_run, output_directory=output_directory
         )
         run_directory.mkdir(parents=True, exist_ok=True)
+        write_run_start_record(output_directory, planned_run, run_provenance)
         if type(planned_run.run_settings) is FedavgRunSettings:
             fedavg_run = execute_fedavg_experiment_run(run_settings=planned_run.run_settings)
             save_fedavg_experiment_run(
@@ -310,6 +317,7 @@ def execute_experiment_sweep(
     worker_count: int,
     run_provenance: RunProvenance,
     report_progress: Callable[[str], None] | None = None,
+    _output_lock_held: bool = False,
 ) -> tuple[ExperimentRunOutcome, ...]:
     """計画のrunを実行して保存し、runごとの結果を、計画の順で返す。
 
@@ -350,6 +358,23 @@ def execute_experiment_sweep(
     if report_progress is not None and not callable(report_progress):
         raise TypeError("report_progress must be callable or None")
 
+    if not _output_lock_held:
+        # 基準版の不一致では、従来どおり補助ファイルも作らない。
+        mismatches = collect_behavior_baseline_mismatch_descriptions(
+            planned_runs=planned_runs, output_directory=output_directory
+        )
+        if mismatches:
+            raise ExistingRunBehaviorBaselineMismatchError(mismatches)
+        with hold_sweep_output_lock(output_directory):
+            return execute_experiment_sweep(
+                planned_runs=planned_runs,
+                output_directory=output_directory,
+                worker_count=worker_count,
+                run_provenance=run_provenance,
+                report_progress=report_progress,
+                _output_lock_held=True,
+            )
+
     started_time = perf_counter()
     outcomes_by_position: dict[int, ExperimentRunOutcome] = {}
 
@@ -379,6 +404,15 @@ def execute_experiment_sweep(
     for run_position, (planned_run, existing_run_state) in enumerate(
         zip(planned_runs, existing_run_states, strict=True)
     ):
+        if existing_run_state.run_state == "conflicting" and can_recover_interrupted_run(
+            output_directory, planned_run, run_provenance
+        ):
+            backup = recover_interrupted_run(output_directory, planned_run, run_provenance)
+            if report_progress is not None:
+                report_progress(f"recovered interrupted run; previous NPZ preserved: {backup}")
+            existing_run_state = find_existing_run_state(
+                planned_run=planned_run, output_directory=output_directory
+            )
         if existing_run_state.run_state == "missing":
             pending_run_positions.append(run_position)
             continue

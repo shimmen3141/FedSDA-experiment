@@ -415,6 +415,8 @@ def test_conflicting_existing_files_are_reported_and_not_overwritten(
         record_table_file_path.unlink()
     elif damage == "missing_summary":
         summary_file_path.unlink()
+        # 開始証拠がない旧成果物は、NPZだけになっても自動復旧しない。
+        (tmp_path / ".resume" / "fedsda" / f"{damaged_run.run_identifier}.json").unlink()
     else:
         summary_file_path.write_text("{not json", encoding="utf-8")
     file_contents_before = {path.name: path.read_bytes() for path in runs_directory.iterdir()}
@@ -1482,7 +1484,7 @@ def test_command_places_results_under_the_study_with_a_readme(tmp_path, monkeypa
     )
     assert f"README: {output_directory / 'README.md'}" in capsys.readouterr().out
     # 研究の問いが無ければ、今までどおり、results/<開始日時>_<ラベル>。
-    assert run_small_command("--label", "flat") == 0
+    assert run_small_command("--label", "flat", "--new-output") == 0
     assert [path.name for path in (tmp_path / "results").glob("*_flat")]
 
 

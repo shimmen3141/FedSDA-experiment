@@ -1,0 +1,78 @@
+{
+  "feature_name": "experiment-sweep-resumption",
+  "created_at": "2026-10-18",
+  "updated_at": "2026-10-18",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "独立Luna high仕様レビューPASS、ユーザー委任"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "high",
+    "base_revision": "8b0c095",
+    "session_id": "01a14a7e-f7a9-7693-84f9-53910d90209d",
+    "result": "PASS、Major0/Minor1。再開時の説明メタデータを明記して反映。",
+    "output": "../../venv/refactoring-tests/sweep-resumption-spec-review.log"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "high",
+    "target": "8b0c095からの未commit差分",
+    "output": [
+      "../../venv/refactoring-tests/sweep-resumption-implementation-review.log",
+      "../../venv/refactoring-tests/sweep-resumption-implementation-review2.log"
+    ],
+    "session_ids": [
+      "01a14a8c-f963-7313-a2a2-01622c1d5a47"
+    ],
+    "result": "初回Major1（未追跡sourceの照合漏れ）を修正。同じsessionでPASS、残るMajor/Minorなし。対象pytestはtmp ACLで独立実行不能、境界2件とRuffは独立確認。主担当fresh16ログを照合。最終全体証拠は別の機械照合レビューで確認。"
+  },
+  "evidence_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "high",
+    "session_id": "01a14aaf-7922-72b2-af14-cfde153460aa",
+    "output": "../../venv/refactoring-tests/sweep-resumption-evidence-review.log",
+    "result": "PASS。最終JUnit14435 cases/14427 passed/8 skipped/0 failure/error、旧・提案goldenと再開31件、fresh16、Linux31、Pyright222、source484パスのhashを独立照合。テストは独立再実行していない。"
+  },
+  "integration_validation": {
+    "full_passed": 14427,
+    "full_skipped": 8,
+    "full_exit_code": 0,
+    "junit": "../../venv/refactoring-tests/resumption-full-verified.xml",
+    "full_log": "../../venv/refactoring-tests/resumption-full-verified.log",
+    "source_sha256_lf": "ff76485e5ef653e1f39daf2903da414fac13f151ad69f45dbfbb3a6d18f714d5",
+    "source_path_count": 484,
+    "tested_base_revision": "8b0c095",
+    "tested_state": "未commit最終source、記録hashはcommit後のHEADと照合する",
+    "environment": "Windows固定venv、OMP/MKL/OpenBLAS各1、pytest-xdist8 workers",
+    "fresh": "../../venv/refactoring-tests/resumption-fresh-final.log: 16 flows passed",
+    "wsl": "../../venv/refactoring-tests/resumption-linux-final.log: 31 passed",
+    "ruff": "checkとformat全374ファイル成功",
+    "pyright": "../../venv/refactoring-tests/resumption-pyright-final.json: 222 files, 0 error/warning"
+  },
+  "completion_decision": "完了。既存成果物形式・動作基準版6・goldenは維持。過去掃引の選択、開始証拠とソースhashを使うNPZ単独の退避再実行、出力先排他を追加。旧証拠なし成果物は自動復旧しない。mainへマージしない。"
+}
