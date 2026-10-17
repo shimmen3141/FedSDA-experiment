@@ -21,8 +21,7 @@ Tはモデル別重みと配布時/ローカル予測の混合で共用し、分
 ## 今回の比較と解釈できる範囲
 
 各構成は6dataset×seed 0–4×間隔50/100/200/500の120run、計720run。
-client数10・各client標本数5000。ユーザーから実行済みとの申告があるが、
-サーバの実際の保存ディレクトリ・実行revision・完走件数はローカルでは未確認である。
+client数10・各client標本数5000。2026-10-17に転送された結果で全720run完走と720対・17指標の比較成立を確認した。実在保存先・来歴・数値と解釈は[結果の記録](../research/fedsda-component-ablation-20261017.md)を参照。要素の採否と既定の変更は行っていない。
 
 | 構成名 | 主な問い | 注意 |
 |---|---|---|
@@ -62,7 +61,7 @@ T120の全120runの完全設定は、`6c3522d`時点の`fedsda`と一致する�
 
 ```bash
 source .venv/bin/activate
-ABLATION_RUN='results/fedsda-component-ablation/<実際の日時とラベル>'
+ABLATION_RUN='results/fedsda-component-ablation/20261017_041328_core-components-mixture-fifo30-t120-n5000'
 python analyze_fedsda_component_ablation.py \
   --baseline-directory results/fedsda-prediction-timing/20261016_142436_synchronized-local-mixture-fifo30-time-scale120-240-n5000/fedsda-synchronized-local-mixture-prediction \
   --ablation-directory "$ABLATION_RUN" \

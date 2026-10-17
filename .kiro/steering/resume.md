@@ -2,7 +2,7 @@
 
 [fedsda-component-ablation-analysis](../specs/fedsda-component-ablation-analysis/tasks.md)で、保存runの対比較CLIと判断手順を実装した。混合/FIFO30/共通T120を基準に、実行済み6構成を既存T120結果と比較する。進捗・承認・検証の正本は同specのspec.json/tasks.md。Luna highの仕様/実装/証拠レビュー、全pytest14396件、fresh16フローで検証した（レビュワーのpytestは権限で実行不能、主担当の証拠を照合。独立で全pytest/freshは再実行していない）。
 
-次はサーバの実在保存先・実行revision・完走件数を確認し、[手順とコマンド](../../docs/experiments/fedsda-component-ablation-analysis.md)で対比較する。現時点では変更側の実験結果は未取得、要素の採否は未判断。許容精度低下幅は未設定・自動採否なし（ユーザー決定）。[主張と証拠・追加比較候補](../../docs/research/method-positioning.md#8-主張と必要な証拠の対応2026-10-17)も整理した。構成選択seedと最終評価seedを分け、候補10–19は未使用確認後に決める。mainへはマージしない。
+サーバから`results/fedsda-component-ablation/20261017_041328_core-components-mixture-fifo30-t120-n5000`へ転送された結果を確認し、6c3522d/基準版6/cleanの720run全完走、既存基準との720対・17指標の比較を完了した。[実測結果と解釈](../../docs/research/fedsda-component-ablation-20261017.md)を参照。次は精度と資源の交換関係を人が確認して採否を決める。 数値は主担当が元JSON840件と全CSV行・144条件の統計を別計算で照合済み。ユーザーの結果データ送信の明示許可後、Luna highの独立レビューもPASS。元JSON/全CSV値と144条件の統計・解釈を独立照合し、Minor2件を修正した（再レビュー不要ルールを適用）。既定は変更していない。許容精度低下幅は未設定・自動採否なし（ユーザー決定）。[主張と証拠・追加比較候補](../../docs/research/method-positioning.md#8-主張と必要な証拠の対応2026-10-17)も整理した。構成選択seedと最終評価seedを分け、候補10–19は未使用確認後に決める。mainへはマージしない。
 
 ## 再開案内（2026-10-17、Claude Code → Codex の続行を完了）
 
