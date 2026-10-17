@@ -1,3 +1,28 @@
+## 候補検証の原因診断を完了（2026-10-17、Codex）
+
+[候補検証の診断と改善案](../../docs/research/fedsda-candidate-validation-diagnosis-20261017.md)を参照。
+サーバ保存120対240NPZの標本・真変化記録を照合し、主担当の別計算も120対840寄与セルで一致した。
+MNIST2/4は両方10クラスで、概念数・入替ラベルが違う。間隔500の1/2の利得は同程度で、3/4・5/6の寄与が損失/利得へ分かれる。
+一時介入はseed0・間隔500・10client各5000標本の5方式10runを完了。別に300標本4方式と計測なし照合2run。
+MNIST2は検証あり92.280%、なし92.172%、なし＋共有部25%反映92.416%。MNIST4は90.276%、91.300%、91.158%。
+共有部25%はM2を改善するがM4の検証なしの利得を一部失う。重み比保持はなし比−0.008/+0.008 ppで、単純な保持は主対策にしない。
+履歴適合参照を無効にする対照は比較参照・却下後再利用も変える複合的な変更。veto単独の効果と解釈しない。
+source・既定・goldenは未変更。実験sourceは9ea110771cad、既定は混合/FIFO30/共通T120、動作基準版6。
+WSL Python3.14/NumPy2.4.6なのでサーバ数値と混ぜず、単一seedの探索として扱う。許容幅は未設定・自動採否なし。
+
+結果・一時scriptは`results/fedsda-component-ablation/20261017_041328_core-components-mixture-fifo30-t120-n5000/candidate_diagnosis_20261017/`。
+`control_summary.csv`/`control_validation.json`が全10件・partial=falseの正本。元の`*_partial.*`は途中出力。
+制御scriptのSHA先頭はd8784095b9e9、重み保持scriptはbce2a3191865。全10件を再実行する必要はない。
+当初batchは完了済みM2を残して自分の群だけ停止し、M4四条件を4並列で再開した。M4と重み保持batchはexit0、背景の学習実行は終了。
+独立Luna highの方法レビューMajor1/Minor2を修正。結果レビューsession `01a14981-fcdb-70c0-af86-20d9f90d7d2e`の中間・最終ともPASS、追加指摘なし。
+最終は全10件のJSON/NPZ指標・寄与・観測列・設定を照合。独立で実験や全pytestは再実行していない。
+ログは`../../venv/refactoring-tests/candidate-diagnosis-{method,evidence,final}-review.log`、索引は結果内`method_review.json`。
+
+次の候補は[IMPROVE-018](../../docs/research/improvement-candidates/improve-018-protect-existing-models-during-candidate-backbone-integration.md)の候補生成・採用での共有部保護と、
+[IMPROVE-019](../../docs/research/improvement-candidates/improve-019-candidate-validation-with-class-support-and-paired-losses.md)の実際の結合予測・クラス支持を踏まえた検証。
+25%補間は共有部固定学習の実験ではなく、最適値や採用設定でもない。検証on/off×共有部保護の2×2、複数seed・他データの比較が必要。
+実装は採否判断後の別spec。mainへマージしない。
+
 ## 今回の作業（2026-10-17）
 
 [fedsda-component-ablation-analysis](../specs/fedsda-component-ablation-analysis/tasks.md)で、保存runの対比較CLIと判断手順を実装した。混合/FIFO30/共通T120を基準に、実行済み6構成を既存T120結果と比較する。進捗・承認・検証の正本は同specのspec.json/tasks.md。Luna highの仕様/実装/証拠レビュー、全pytest14396件、fresh16フローで検証した（レビュワーのpytestは権限で実行不能、主担当の証拠を照合。独立で全pytest/freshは再実行していない）。
