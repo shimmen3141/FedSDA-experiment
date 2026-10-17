@@ -69,3 +69,5 @@ Claude・Codexの交代は[共通引継ぎ手順](../.kiro/steering/agent-handof
 
 コミット保留の3資料と`results/`はgit cloneだけでは取得できない。コミット対象は後続のユーザー指示で決める。
 リファクタリングworktreeにはこれらを複製していない。該当リンクの資料は元checkoutで参照する。
+
+- [現行FedSDAの構成要素比較・判断基準・最終評価手順](experiments/fedsda-component-ablation-analysis.md)

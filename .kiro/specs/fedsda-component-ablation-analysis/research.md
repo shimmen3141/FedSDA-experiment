@@ -1,0 +1,8 @@
+# 調査と判断
+
+- 既存T120/T240実験はformat2のJSON240件。T120120件の全run_settingsが、6c3522dのfedsda builderと一致することを確認した。基準版5・commit3e6153ce594050957e42910ffcef7b2bfcb68590で生成された結果である。
+- そのcommitから6c3522dまでのsrc差分は、混合/T120の既定化、局所予測構成の追加・単一モデル予測の明示化、基準版5→6。学習アルゴリズムの差分はない。既存結果を改名・改版しない。環境一致と来歴差の明示的確認を条件に再利用する。
+- run_summary.csvには完全設定がない。既存artifact loaderはNPZ全列を展開するため、集計はJSONのみを照合する。raw内部の完全性は本機能の保証外。
+- independent-modelsは共有部の除去に加えsequential_per_model_trainingと再較正なしを含む。without-prediction-weight-recalibrationとの差も参考にできるが、共有部のみの因果効果は主張しない。
+- スイッチ遅延と予測精度回復は異なる。精度回復が未保存なら推定値で埋めない。
+- 精度の許容低下幅は未設定、採否は人が判断する。全datasetの平均での自動採否を作らない。

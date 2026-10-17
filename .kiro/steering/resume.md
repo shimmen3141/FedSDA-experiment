@@ -1,3 +1,9 @@
+## 今回の作業（2026-10-17）
+
+[fedsda-component-ablation-analysis](../specs/fedsda-component-ablation-analysis/tasks.md)で、保存runの対比較CLIと判断手順を実装した。混合/FIFO30/共通T120を基準に、実行済み6構成を既存T120結果と比較する。進捗・承認・検証の正本は同specのspec.json/tasks.md。Luna highの仕様/実装/証拠レビュー、全pytest14396件、fresh16フローで検証した（レビュワーのpytestは権限で実行不能、主担当の証拠を照合。独立で全pytest/freshは再実行していない）。
+
+次はサーバの実在保存先・実行revision・完走件数を確認し、[手順とコマンド](../../docs/experiments/fedsda-component-ablation-analysis.md)で対比較する。現時点では変更側の実験結果は未取得、要素の採否は未判断。許容精度低下幅は未設定・自動採否なし（ユーザー決定）。[主張と証拠・追加比較候補](../../docs/research/method-positioning.md#8-主張と必要な証拠の対応2026-10-17)も整理した。構成選択seedと最終評価seedを分け、候補10–19は未使用確認後に決める。mainへはマージしない。
+
 ## 再開案内（2026-10-17、Claude Code → Codex の続行を完了）
 
 - [fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)は完了。既定は混ぜる予測・FIFO容量30・T120、現在の動作基準は版6。版1〜5と固定旧goldenは維持。局所パラメータだけで予測する比較は`fedsda-local-parameter-prediction`（T120）を使う。

@@ -1,0 +1,94 @@
+{
+  "feature_name": "fedsda-component-ablation-analysis",
+  "created_at": "2026-10-17",
+  "updated_at": "2026-10-17",
+  "language": "ja",
+  "phase": "completed",
+  "base_revision": "6c3522d",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna high独立仕様レビューPASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna high独立仕様レビューPASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna high独立仕様レビューPASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、Luna high独立仕様レビューPASS"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "high",
+    "rounds": [
+      {
+        "round": 1,
+        "session_id": "01a14775-5c87-7673-98d8-64c73d2598ac",
+        "result": "手順誤認による再帰レビュー起動失敗。承認に使わない。環境fingerprint範囲のMinorは反映",
+        "output": "..\\..\\venv\\refactoring-tests\\component-ablation-spec-review.log"
+      },
+      {
+        "round": 2,
+        "session_id": "01a14776-eda9-76d2-8b49-161958d43c8a",
+        "result": "FAIL: 構成名と指標表のMajor2件、反映",
+        "output": "..\\..\\venv\\refactoring-tests\\component-ablation-spec-review-2.log"
+      },
+      {
+        "round": 3,
+        "session_id": "01a14778-7942-7611-97ad-f95e25ed0df5",
+        "result": "PASS: Major2件の修正と契約例を確認、指摘なし",
+        "output": "..\\..\\venv\\refactoring-tests\\component-ablation-spec-review-3.log"
+      }
+    ]
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "high",
+    "session_id": "01a1477e-7f3e-75c0-8388-8aa6b16eec1d",
+    "base_revision": "6c3522d",
+    "result": "PASS、指摘なし。対象pytest26件は一時directory走査のPermissionErrorで未実行。Ruff lint/format成功。主担当の全pytestとfreshの照合は別途記録する。",
+    "output": "../../venv/refactoring-tests/component-ablation-implementation-review.log"
+  },
+  "integration_validation": {
+    "source_sha256_lf": "590f78616bfe27d85277709c9cf0b69eb53d5a930b7b8829533b0058a0464118",
+    "source_path_count": 482,
+    "tested_revision": "6c3522d + 新分析CLIとテスト。srcの学習処理と旧goldenは未変更。",
+    "full_passed": 14396,
+    "full_skipped": 8,
+    "full_target_passed": 26,
+    "full_junit": "../../venv/refactoring-tests/component-ablation-full.xml",
+    "full_log": "../../venv/refactoring-tests/component-ablation-full.log",
+    "fresh_smoke": "exit0, original script,16 flows",
+    "fresh_log": "../../venv/refactoring-tests/component-ablation-fresh.log",
+    "quality": "Ruff lint/format、Pyright 0 errors、pip check成功",
+    "baseline_reuse_check": "JSON240件中設定一致T120120件、別設定120件除外、17指標×120件すべて有限。../../venv/refactoring-tests/component-ablation-baseline-check.json",
+    "independent_pytest": "26件ともfixture権限で実行不能、mainの同じ26件は全pytest内で成功",
+    "result": "GO",
+    "full_pytest_independently_rerun": false,
+    "fresh_smoke_independently_rerun": false
+  },
+  "current_task": "全taskの実装・検証・独立レビューを完了。実験結果の取得後に対比較と人による採否判断を行う。",
+  "final_evidence_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "high",
+    "session_id": "01a14788-5dab-7f11-85fc-baf303a84598",
+    "result": "PASS、482パスのsource hash、全pytest14396件（新26件を含む）/skip8、fresh16、Pyright、実在基準120件/17指標、旧基準不変を照合。全pytest/freshは独立再実行していない。",
+    "source_sha256_lf": "590f78616bfe27d85277709c9cf0b69eb53d5a930b7b8829533b0058a0464118",
+    "output": "../../venv/refactoring-tests/component-ablation-final-evidence-review.log",
+    "permission_exception": "2026-10-17ユーザー決定。レビュワーの権限による実行不能時は主担当の実測証拠で判定する。"
+  }
+}
