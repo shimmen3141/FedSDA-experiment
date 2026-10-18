@@ -76,6 +76,28 @@ allocator設定による時間増加は採用保留の理由の一つだが、�
 
 ## 次にuraniumで測るもの
 
+### 転送・実行セットを準備済み
+
+ユーザーがサーバで実行する。ZIPは`results/fedsda-memory-diagnosis/uranium-memory-measurements-20261019.zip`（git管理外、8799 bytes、SHA-256 `fd23f50eaa992f7b977859e562892ebbe134df3b407c19b2468cd320cfb64810`）。製品コードと過去の実験結果を含まず、承認済み診断scriptのコピー、実行/照合script、README、ファイルhash一覧の6ファイルだけを格納する。
+
+ZIPをuraniumのリポジトリ直下へ転送し、そのディレクトリのtmux内で実行する。
+
+```bash
+source .venv/bin/activate
+python -m zipfile -e uranium-memory-measurements-20261019.zip .
+bash results/fedsda-memory-diagnosis/uranium-comparison-20261019/run.sh
+```
+
+元CLI→診断を逐次実行し、完全設定・全指標・NPZ全配列のキー/shape/dtype/bytesを照合する。CLIに最終パラメータが保存されないため、その比較と全乱数状態の比較は対象外。srcのhashが基準と違えば開始前に止まる。allocator設定は変更せず、選んだ環境項目とコードidentityを前後に記録する。既存結果は上書きせず、エラーで止まる。
+
+結果は`results/fedsda-memory-diagnosis/uranium-comparison-20261019/uranium_<日時>_<PID>/`。成功・失敗にかかわらず、このフォルダをPCへ戻して担当者へ渡す。GNU timeは`cli.time.txt`と`diagnostic.time.txt`、保存値の一致は`comparison.json`、診断の段階別計測は`diagnostic/memory.jsonl`にある。実際のuranium測定は未実行で、結果の返却待ち。
+
+準備の検証: `--print-plan`で5000/clientの1run・missingを確認し、出力先未作成も確認。手元Linuxで50/client・元CLI+診断のexit0、全133配列bytes/設定/指標が一致。4つの異常対照（指標差、配列値差、未完了、前後metadata差）も全てexit1。Python3.10文法検査・Linux bash構文検査・ZIPの内容/CRC検査を実施。Python3.10/uraniumの実動作確認ではない。
+
+独立CLI Luna high（session `01a150ca-adcf-7351-a47e-9173506eee5d`）はMinor1件のみ。毎回の補助index更新を既存ファイル上書きと指摘されたため、そのindexの作成を撤去し、出力先は画面表示だけにした。ユーザーのMinor以下は修正のみで再レビュー不要という規約に従い、再レビューは実施していない。ログは`venv/refactoring-tests/uranium-measurement-kit-review.log`。製品src・共通フローへの追加なし、全pytestは再実行していない。
+
+### 測定の目的と切り分け
+
 uranium上で、次の順に環境差と実行入口の差を切り分ける。各測定は並行させず、同じsource・ライブラリ・スレッド設定を使い、実行時の条件と出力を記録する。
 
 1. **元のCLIを再実行する。** `run_experiment_sweep.py`の元コマンドで、`fedsda`、`--datasets mnist2 --seeds 0 --client-count 10 --per-client-sample-count 5000 --aggregation-intervals 50 --workers 1`を揃え、GNU timeでコマンド全体を測る。既存結果の再開・実行スキップでは再測定にならないため、新規出力を明示し、約6.76 GiBを再現するか確認する。

@@ -1,3 +1,9 @@
+## uraniumの2測定用セットを準備（2026-10-19、Codex）
+
+ユーザーがサーバで自分で実行する。転送用ZIPは`results/fedsda-memory-diagnosis/uranium-memory-measurements-20261019.zip`（git管理外、git pullだけでは取得不可）。[転送・実行手順](../../docs/research/fedsda-memory-diagnosis-20261019.md#転送実行セットを準備済み)を参照。元CLIと診断をMNIST2・seed0・10client・5000/client・間隔50・workers1で順に測り、GNU time/段階別RSSと全保存値の照合を残す。src基準hash不一致で開始前に停止、既存のallocator設定は維持して記録、結果は新規出力。
+
+手元Linuxで50/clientの2入口exit0、設定/指標/全133配列bytes一致。異常対照4件を検出、Python3.10文法・bash構文・ZIP検査も成功。独立Luna highはMinor1件のみで修正、規約に従い再レビューなし。実際のuranium測定は未実行で、ユーザーから`uranium_<日時>_<PID>/`フォルダの返却待ち。製品src・既定・共通フロー・保存形式は未変更。結果が来たら6.76 GiBの再現と入口間の差を調べ、その前に本体の省メモリ改修はしない。
+
 ## FedSDAの省メモリ調査を完了（2026-10-19、Codex）
 
 [実測と実装の採否](../../docs/research/fedsda-memory-diagnosis-20261019.md)を参照。ユーザーのuranium向け省メモリ化の依頼に対し、まず製品srcを変えずに手元Ubuntuで7run（1000/client×6、5000/client×1）を完了。研究scriptと元データは`results/fedsda-memory-diagnosis/20261019/`（git管理外）。サーバcommit8ace43から現HEADまでsrc差分は空、source hashはPの72runと同じ。
