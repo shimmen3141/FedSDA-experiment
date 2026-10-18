@@ -1,3 +1,9 @@
+## FedSDAの通常全体runへ同期末回収を接続済み（2026-10-19、Codex）
+
+[fedsda-runtime-memory-reclamation](../specs/fedsda-runtime-memory-reclamation/tasks.md)完了。[通常実行の説明](../../docs/experiments/fedsda-runtime-memory-reclamation.md)。Linux/glibcでは既存コマンドのまま正常同期末に回収、Windows等はno-op。runtimeの新moduleと既存wrapperへの1呼出しに限定し、共通loop/sweep・モデル/学習・設定/成果物形式・goldenは未変更。FedDrift/FedAvgは対象外。
+
+通常Linux CLIの逐次/2worker計6runで全保存値・最終params一致、全pytest/fresh/品質検査と独立レビューを完了。証拠とMinorの修正は同specが正本。サーバでは当branchを更新後に開始する通常FedSDA runから有効となり、試作ZIPの再転送は不要。多worker性能は未測定で既存のworker数指針は引き上げない。mainへマージしない。
+
 ## uraniumの同期末回収で最大RSS81.54%削減を確認（2026-10-19、Codex）
 
 [本規模の対照結果と判断](../../docs/research/fedsda-live-reclamation-uranium-20261019.md)を参照。返却先は`results/fedsda-memory-diagnosis/live-reclamation-20261019_073006/`。5000/client・MNIST2・seed0・間隔50・workers1で最大RSS8.868→1.637 GiB、wall915.31→931.67秒。全133配列bytes・完全設定・全指標・最終サーバparams hashは一致。正常同期100回で生存状態を保った回収を確認。

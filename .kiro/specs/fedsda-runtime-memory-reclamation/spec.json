@@ -1,0 +1,67 @@
+{
+  "feature_name": "fedsda-runtime-memory-reclamation",
+  "created_at": "2026-10-19T08:15:57.824454+09:00",
+  "updated_at": "2026-10-19T08:41:51.652042+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    },
+    "naming": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "base_commit": "f1ea73f",
+    "session_id": "01a1514d-2261-78c3-9a9a-336b65edee38",
+    "findings": "Blocker0/Major0/Minor0",
+    "log": "../../venv/refactoring-tests/runtime-memory-spec-review.log"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "scope": "source review; Linux validation and full pytest pending at review time",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "base_commit": "f1ea73f",
+    "session_id": "01a15153-a81a-7fa3-8864-4249c9b7f02e",
+    "findings": "Blocker0/Major0/Minor0",
+    "log": "../../venv/refactoring-tests/runtime-memory-implementation-review.log",
+    "independent_verification": "3140 target/boundary tests and Ruff/format passed; fresh blocked by Temp permissions, main success evidence checked; Pyright main log checked; NN/full pytest not independently run"
+  },
+  "completion_evidence_review": {
+    "status": "resolved_after_minor_fix",
+    "original_verdict": "FAIL; Blocker0/Major0/Minor1",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "session_id": "01a15162-c0fe-70e0-b5fa-58a7d316d3b3",
+    "log": "../../venv/refactoring-tests/runtime-memory-completion-review.log",
+    "resolution": "PID別の期待回収数・返却順序を追加して主担当再照合成功。個別round番号の実測はなくsource/単位testと合わせて位置を検証。Minorのみのためユーザー指定に従い再レビュー不要。",
+    "primary_acceptance_after_fix": true
+  },
+  "integration_validation": {
+    "unit_and_boundary_passed": 3140,
+    "full_pytest_passed": 14412,
+    "full_pytest_skipped": 8,
+    "junit": "../../venv/refactoring-tests/runtime-memory-full.xml",
+    "fresh_log": "../../venv/refactoring-tests/runtime-memory-fresh.log",
+    "linux_evidence": "results/fedsda-memory-diagnosis/runtime-integration-validation/output-v2/completion-audit.json",
+    "linux_source_bytes_sha256": "6cdbbbf7139a06435dd72607815186cde5236fd6f63a56e674259c66ddeef931",
+    "quality": "Ruff/format/Pyright/pip check/names passed",
+    "scope": "No common loop/sweep, algorithm, settings, artifacts schema, golden or legacy changes; no main merge"
+  }
+}

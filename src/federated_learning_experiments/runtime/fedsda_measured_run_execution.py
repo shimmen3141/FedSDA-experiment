@@ -27,6 +27,9 @@ from federated_learning_experiments.runtime.fedsda_run_participant_factory impor
     FedsdaRunParticipantFactory,
     FedsdaRunParticipantSettings,
 )
+from federated_learning_experiments.runtime.process_memory_reclamation import (
+    reclaim_unused_process_memory,
+)
 from federated_learning_experiments.runtime.single_run_execution import (
     execute_stream_protocol_run,
 )
@@ -99,6 +102,7 @@ class _RoundMeasuringServerOperations:
         self.counts_at_synchronization_end.append(
             self._model_computation_meter.get_model_computation_counts()
         )
+        reclaim_unused_process_memory()
 
     def finalize_started_communications(self, *, completed_round_count: int) -> None:
         self._server_operations.finalize_started_communications(

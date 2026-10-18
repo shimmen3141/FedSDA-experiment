@@ -1,6 +1,8 @@
 """計測つきの全体run: 計測なしの全体runと同じ結果、準備の間の計算の分離、計測の後始末。"""
 
 from dataclasses import fields
+from random import Random
+from unittest.mock import Mock
 
 import pytest
 from test_fedsda_run_client import snapshot_run_client_state
@@ -27,6 +29,59 @@ from federated_learning_experiments.runtime.fedsda_measured_run_execution import
 from federated_learning_experiments.runtime.fedsda_run_metric_derivation import (
     derive_fedsda_run_metrics,
 )
+
+
+@pytest.mark.parametrize("fail_synchronization", [False, True])
+def test_memory_reclamation_follows_successful_synchronization_and_snapshot(
+    monkeypatch, fail_synchronization
+):
+    from federated_learning_experiments.runtime import fedsda_measured_run_execution as execution
+
+    order = []
+    retained_state = [object()]
+    random = Random(42)
+    random_state = random.getstate()
+    failure = RuntimeError("同期失敗")
+
+    def synchronize(**kwargs):
+        order.append(("sync", kwargs))
+        if fail_synchronization:
+            raise failure
+
+    counts = object()
+
+    def snapshot():
+        order.append("snapshot")
+        return counts
+
+    server = Mock()
+    server.synchronize_models.side_effect = synchronize
+    meter = Mock()
+    meter.get_model_computation_counts.side_effect = snapshot
+    wrapper = execution._RoundMeasuringServerOperations(
+        server_operations=server, model_computation_meter=meter
+    )
+
+    def reclaim():
+        assert wrapper.counts_at_synchronization_end[-1] is counts
+        assert retained_state[0] is retained_object
+        order.append("trim")
+
+    retained_object = retained_state[0]
+    monkeypatch.setattr(execution, "reclaim_unused_process_memory", reclaim, raising=False)
+    arguments = dict(round_index=3, new_model_registration_available=True)
+    if fail_synchronization:
+        with pytest.raises(RuntimeError) as raised:
+            wrapper.synchronize_models(**arguments)
+        assert raised.value is failure
+        assert order == [("sync", arguments)]
+        assert wrapper.counts_at_synchronization_end == []
+    else:
+        wrapper.synchronize_models(**arguments)
+        wrapper.synchronize_models(**arguments)
+        assert order == [("sync", arguments), "snapshot", "trim"] * 2
+    assert random.getstate() == random_state
+    assert retained_state == [retained_object]
 
 
 def make_small_run_settings(valid_run_settings_mapping):

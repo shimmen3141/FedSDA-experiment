@@ -5591,6 +5591,16 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
             "federated_learning_experiments.core.settings_field_validation.validate_settings_field_values",
         )
+    if source_module_path == "runtime/process_memory_reclamation.py":
+        return imported_module_name in (
+            "ctypes",
+            "platform",
+            "sys",
+            "collections.abc",
+            "collections.abc.Callable",
+            "functools",
+            "functools.cache",
+        )
     if source_module_path == "runtime/fedsda_measured_run_execution.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5607,6 +5617,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.models.model_computation_measurement.subtract_model_computation_counts",
             "federated_learning_experiments.runtime.fedsda_run_participant_factory.FedsdaRunParticipantFactory",
             "federated_learning_experiments.runtime.fedsda_run_participant_factory.FedsdaRunParticipantSettings",
+            "federated_learning_experiments.runtime.process_memory_reclamation.reclaim_unused_process_memory",
             "federated_learning_experiments.runtime.single_run_execution.execute_stream_protocol_run",
         )
     if source_module_path == "runtime/fedsda_run_metric_derivation.py":
