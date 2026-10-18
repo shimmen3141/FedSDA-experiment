@@ -62,6 +62,9 @@
     "linux_evidence": "results/fedsda-memory-diagnosis/runtime-integration-validation/output-v2/completion-audit.json",
     "linux_source_bytes_sha256": "6cdbbbf7139a06435dd72607815186cde5236fd6f63a56e674259c66ddeef931",
     "quality": "Ruff/format/Pyright/pip check/names passed",
-    "scope": "No common loop/sweep, algorithm, settings, artifacts schema, golden or legacy changes; no main merge"
+    "scope": "No common loop/sweep, algorithm, settings, artifacts schema, golden or legacy changes; no main merge",
+    "tested_commit": "a1411e8e644f8df8054f8c2c0dbd0bf7f18468ef",
+    "source_sha256_lf": "f8ef86ed1b15cae5c5140c6932327a3d511b5daf794e666d5101d6d83f7ae57f",
+    "source_path_count": 492
   }
 }

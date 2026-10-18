@@ -28,4 +28,4 @@
 
 完了証拠の独立CLI Luna highは、元3対の全保存値/params・source hash・JUnit・fresh成功マーカー・旧差分を照合。判定はFAIL、Blocker0/Major0/Minor1で、PID別回収数のassert不足を指摘した。各PIDの回収点が逐次20回・spawn各2回で、その全回収点の後にrun返却が1回あることをassertへ追加し、主担当の再照合は成功した。個々のround番号はtraceにないため、正常同期との位置関係はレビュー済みsourceと同期順序の単位testを合わせた証拠とし、個別roundの実測traceとは表現しない。Minorのみの修正なのでユーザー指定に従い再レビューなし。製品source/testは実装レビュー・全pytest後に変更していない。
 
-仕様・実装・完了証拠のレビューsession/log/元判定と修正後の扱いはspec.json。対象sourceの検証commitはcommit後に追記する。全task完了、mainへマージしない。
+仕様・実装・完了証拠のレビューsession/log/元判定と修正後の扱いはspec.json。対象source/testの検証commitは`a1411e8`。tracked Python/2goldenのLF hashはspec.jsonのintegration_validationに記録した。全task完了、mainへマージしない。
