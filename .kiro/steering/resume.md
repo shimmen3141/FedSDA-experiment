@@ -1,3 +1,7 @@
+## D診断の共通経路からの分離（2026-10-18、Codex）
+
+ユーザー指示により、D専用の共用fresh処理とRuff登録を撤去。専用14件は`tools/research_candidate_validation_waiting/checks.py`に移し、明示実行だけにした。研究CLI本体・結果形式・既存結果は保持する。通常のpytest・CI・製品srcへD専用の分岐や登録を置かない。検証と承認の正本は[candidate-validation-waiting-diagnostic](../specs/candidate-validation-waiting-diagnostic/tasks.md)の追加task 4とspec.jsonのisolation_cleanup。
+
 ## 待機後強制採用の本規模54runを解析完了（2026-10-18、Codex）
 
 [本規模54runの解析](../../docs/research/fedsda-candidate-waiting-n5000-20261018.md)が最新の結果・解釈・次案の正本。入力は`results/fedsda-candidate-validation/waiting-diagnostic-n5000-seeds0-2/`、解析はその`analysis_20261018/`。

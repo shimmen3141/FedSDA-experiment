@@ -26,3 +26,7 @@
 4. If 引数が不正または対象runの出力が既存である, the diagnostic shall 学習前に拒否し、既存結果を上書きしない。
 5. When 計画表示が指定される, the diagnostic shall run格子を表示するだけで、結果ディレクトリや学習状態を作らない。
 6. The diagnostic shall workerごとに独立processで1runのみを処理し、スレッドを各1に制限する。
+
+### Requirement 4: 研究用診断の共通経路からの分離（2026-10-18追加）
+1. The diagnostic shall 通常のpytest収集、共用fresh smoke、共有Ruff設定にD専用の処理・登録を残さない。
+2. The diagnostic shall 既存の研究用CLIと結果形式を維持し、専用検証は明示実行できる場所へ分離する。

@@ -73,5 +73,47 @@
     "source_sha256": "f3497eac5b9506a4b8b9ca84373389411910c78e58adce22f4a389f48bf981d9",
     "source_path_count": 486,
     "post_commit_identity_check": "PASS。固定旧差分空、clean、JUnit件数・旧/提案golden test成功と一致。"
+  },
+  "isolation_cleanup": {
+    "status": "completed",
+    "base_commit": "9f129fe",
+    "user_request": "Dの研究用変更を共通で使う検証・設定から分離する。専用CLIと研究記録は保持する。",
+    "specification_review": {
+      "status": "passed",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "findings": "Major1修正後に同sessionでPASS。",
+      "session_id": "01a14ef7-9c46-7b90-83b9-7855b17440e0",
+      "log": "../../venv/refactoring-tests/candidate-waiting-isolation-spec-recheck.log"
+    },
+    "implementation_review": {
+      "status": "passed",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "session_id": "01a14efa-c439-7403-80df-63fb59a001ad",
+      "log": "../../venv/refactoring-tests/candidate-waiting-isolation-implementation.log",
+      "findings": "指摘0。独立Ruff成功、専用8件成功/IO6件は権限停止。主担当14件成功の証拠を照合。全pytest/freshは独立未実行。",
+      "final_evidence_review": {
+        "status": "passed",
+        "session_id": "01a14efa-c439-7403-80df-63fb59a001ad",
+        "log": "../../venv/refactoring-tests/candidate-waiting-isolation-evidence.log",
+        "findings": "全JUnit・旧/提案回帰PASS・D通常収集除外・専用14件・fresh16flowsを独立読取り照合。独立全pytest/fresh再実行なし。Pyrightとgolden内部ケース内訳は主担当のみ確認。"
+      }
+    },
+    "validation": {
+      "full_junit": "../../venv/refactoring-tests/candidate-waiting-isolation-full.xml",
+      "full_log": "../../venv/refactoring-tests/candidate-waiting-isolation-full.log",
+      "passed": 14427,
+      "skipped": 8,
+      "failures": 0,
+      "errors": 0,
+      "target_junit": "../../venv/refactoring-tests/candidate-waiting-isolation-target.xml",
+      "target_passed": 14,
+      "fresh_log": "../../venv/refactoring-tests/candidate-waiting-isolation-fresh.log",
+      "fresh": "既存16flows成功。D専用処理なし。",
+      "quality": "Ruff check/format成功、Pyright0 errors。",
+      "cli_sha256_unchanged": "e42c577a48f1e14405b96a55d471e31f6b4320cf9938978419b019c2e02e947c",
+      "common_files": "pyproject.toml/fresh_process_smoke.pyは40bf6b8^と一致。src/pytest.ini/CI差分なし。通常JUnitにDなし。"
+    }
   }
 }

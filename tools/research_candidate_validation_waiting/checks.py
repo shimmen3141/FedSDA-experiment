@@ -36,6 +36,10 @@ from federated_learning_experiments.sweep.experiment_configurations import (
 )
 
 
+# 専用検証だけで既存test helperを参照する。共通設定には経路を追加しない。
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tests" / "refactoring"))
+
+
 @pytest.fixture
 def diagnostic():
     path = Path(__file__).resolve().parents[2] / "run_candidate_validation_waiting_diagnostic.py"

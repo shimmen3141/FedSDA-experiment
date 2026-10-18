@@ -35,3 +35,16 @@
 - 同じ実装レビュワーの最終証拠照合PASS、追加指摘なし。全JUnit・18run計36ファイルのhashと判定値を独立照合。全pytest/freshは主担当証拠で、独立学習・全pytest再実行はしていない。
 
 - 実装commit `40bf6b8124e67f4210c6a3d8f268e2dc0f4d9ea3`。コミット後identity照合PASS、source486パスのhashをspec.jsonへ記録。固定旧差分空・clean・全JUnit14441/8skip・旧/提案golden test成功と一致。
+
+## 共通経路からの分離（2026-10-18追加）
+- [x] 4. D専用の検証を共通経路から分離する
+  - 共用fresh/Ruff登録を戻し、専用testをtools/research_candidate_validation_waiting/checks.pyへ移す。
+  - 専用14件、通常収集、共用fresh、全pytest/goldenと品質検査を実測する。
+  - 仕様変更部分の独立CLIレビュー後に着手し、実装レビューと検証結果を追記する。
+  - _Requirements: 4.1, 4.2_
+
+- 分離仕様レビュー: Major1（完了状態と追加taskの矛盾）を採用。過去の承認記録は保持し、phase/readyとisolation_cleanupで追加作業の状態を明示。同sessionで修正箇所だけ再確認する。
+
+- 分離実装レビュー: Luna high、session `01a14efa-c439-7403-80df-63fb59a001ad`、PASS・指摘0。専用8件/Ruffは独立成功、IO6件は権限で停止し主担当14件成功ログを照合。全pytest/freshは独立未実行。
+- 分離後の主担当実測: 専用14件成功。全pytest14427 passed/8 skipped/0 failure/error、旧・提案golden成功、通常JUnitにD専用caseなし。共用fresh16flows、Ruff check/format、Pyright0 errors成功。共用2ファイルはD追加前blobに一致し、src/pytest.ini/CIと研究CLI本体に差分なし。通常sandboxでは専用IO6件と型検査の依存参照が権限停止し、許可済み検証環境で再実測。既存結果・形式・goldenは未変更。証拠はspec.jsonのisolation_cleanup.validation。
+- 最終証拠を同実装レビューsessionで独立照合しPASS。全JUnit、旧/提案回帰、D通常収集除外、専用14件と共用fresh16flowsを確認。Pyrightとgolden内部ケース内訳は主担当の確認であり、独立確認済みとはしない。追加task完了。

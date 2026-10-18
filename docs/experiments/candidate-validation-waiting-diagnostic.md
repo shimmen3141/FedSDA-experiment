@@ -47,3 +47,14 @@ python run_candidate_validation_waiting_diagnostic.py \
 精度だけでなく上下りbyte、合計、推定MAC、保有モデル数、採否と概念別精度を見る。通信は記録パラメータbyteであり、実ネットワークの全byteではない。許容低下幅は未設定、自動採否なし。seed0〜9は探索用であり最終評価用とは扱わない。
 
 手元の1000標本・18runの接続確認は[結果記録](../research/fedsda-candidate-waiting-diagnostic-20261018.md)を参照。性能採否用の54runとは区別する。
+
+## 診断専用の検証（共通検証から分離）
+
+Dは研究用の対照として保持し、通常のpytest収集・共用fresh smoke・共有Ruff設定には含めない。
+研究用CLI本体と過去の結果形式は変更していない。必要な場合だけworktreeルートで次を実行する。
+
+```bash
+python -m pytest tools/research_candidate_validation_waiting/checks.py -q -p no:cacheprovider
+```
+
+専用14件は通常実行との一致、介入・復元・RNG、成果物保護を確認する。共用freshから外した小規模接続確認は、専用検証の実run対照で確認する。通常のFedSDAにDの選択肢や分岐は追加しない。

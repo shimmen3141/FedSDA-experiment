@@ -32,3 +32,9 @@ source全Pythonの正規化hashとscript hashを開始時・run前後で照合�
 D−Oは待機だけでなく凍結・標本帰属・参照作成なども含む。D−Vも方策全体の差であり単一イベントの因果寄与率ではない。既存サーバ結果と異なる環境の片側比較にしない。採否は自動化しない。
 
 NumPyのdefault_rng/Generatorはこの外側RNG検査の対象ではなく、本実装は外側にGeneratorを生成しない。既存run内の局所RandomStateは元の実行が所有する。fingerprintはPython/NumPy/torchの版が一致する同一環境内だけで比較し、Gaussianキャッシュだけが違う状態でもhashが変わることをテストする。
+
+## 共通経路からの分離（2026-10-18追加）
+- 共用fresh_process_smoke.pyからDのimport・実行・専用importlib importを削除し、pyproject.tomlのDランナー登録を戻す。共通設定に除外規則を足さない。
+- 専用testをtools/research_candidate_validation_waiting/checks.pyへ移す。ルートからの深さは変えず、通常収集対象のtest_*.pyという名前も使わない。pytestでパスを明示するときだけ14件を実行する。既存test helperの参照には、研究用checks.py内だけでtests/refactoringをsys.pathへ追加する。専用CLI本体は変更せず、過去のscript hashと再現手順を維持する。
+- 専用検証のコマンドを実行手順に追記する。過去の承認・実測記録は保持し、整理後の検証とレビューを追記する。
+- 共用smokeと設定がD追加前に戻ったこと、通常収集からDが消え専用14件は実行できること、共用freshと全pytest/goldenが成功することを確認する。
