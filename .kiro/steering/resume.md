@@ -1,3 +1,16 @@
+## 候補共有部固定の全144run・結果レビューを完了（2026-10-18、Codex）
+
+全6データ×間隔50/200×seed0〜2×検証on/off×候補共有部stock/frozenの144runを完了。
+[研究記録](../../docs/research/fedsda-frozen-candidate-backbone-20261018.md)が条件・結果・原因分解・改善案・検証とレビューの正本。
+結果と一時scriptは`results/fedsda-candidate-validation/20261018_frozen-candidate-backbone-n2500/`。
+ユーザー選択に従い現行loopのまま生成2500/client、評価は間隔50が2500、200が2400（末尾100未処理）。両intervalのexit=0。
+全体の正本は接頭辞なしのruns/paired/condition_summary/decomposition/adoption_diagnostics.csvとanalysis_validation.json（partial=false）。
+共通2400標本のmatched_prefix_*も144runで照合済み。概念時間集計・履歴却下時の二分区間margin診断を実行済み。
+SINE2は固定で全12対改善。他データは間隔・検証・seed依存。MNIST4の採用遅延・概念別低下、共有部接続のずれ、混合が正しい出力を活かせない例を記録。
+製品src・既定・golden未変更。元source88b63e102a1a20523a9fb6a910a56f727826c285、基準版6。全学習process終了。
+方法/分析・間隔50・全144runの独立Luna highはすべてPASS。全体session01a14d93-a606-7320-987f-f2d7dded99f1、Blocker/Major/Minor0。元288ファイルと統計・主要診断を照合し、間隔200のMNIST4・seed0の再構成1件を独立実行。正本の報告書・review_index.json参照。
+次の研究候補は実際の混合予測による候補検証と、候補head追加/共有部変更/接続先再評価の分離。採否・閾値・新規specは未決定。今回の実験・分析は完了し、一律採用・自動採否なし。mainへマージしない。
+
 ## 非MNISTの候補検証・共有部反映の診断を完了（2026-10-18、Codex）
 
 [非MNISTでの診断](../../docs/research/fedsda-candidate-backbone-blend-nonmnist-20261018.md)で、保存80対の領域分解を完了。
