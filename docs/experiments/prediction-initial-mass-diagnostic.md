@@ -36,3 +36,5 @@ python -m pytest tools/research_prediction_initial_mass/checks.py -q -p no:cache
 小規模実験は1000/client・seed0の24runであり、本規模の採否を決める証拠ではない。72runは手元で自動起動しない。
 
 手元24runは完了し、[結果と解釈](../research/fedsda-prediction-initial-mass-20261018.md)を記録した。Pの一律採用を支持しない結果であり、本規模のコマンドは確認用として扱う。
+
+2026-10-19: 本規模72runも受領・解析した。[本規模の結果と判断](../research/fedsda-prediction-initial-mass-n5000-20261019.md)を参照。今回のPは候補検証の代替として採用を推奨しない。保存済みの同名出力先を使って再実行しない。

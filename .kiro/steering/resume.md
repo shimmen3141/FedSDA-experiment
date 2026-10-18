@@ -1,3 +1,8 @@
+## 予測初期質量Pの本規模72runを解析（2026-10-19、Codex）
+
+[72runの結果と判断](../../docs/research/fedsda-prediction-initial-mass-n5000-20261019.md)が最新。5000/client・seed0〜2・6条件×V/O/R/P。元72runと過去V/O36対照の完全性・設定/指標/全配列を照合。R/P対Oの36対は記録された学習/適応/通信・最終パラメータが一致。
+P−O平均はMNIST2・100が+0.0133pp、SEA4・50が+0.0020ppで極小。他4条件は平均負、MNIST4/SINE2は3seed全て負。V/O双方に精度/合計通信で劣らない点は平均0/6・条件seed0/18。Pの一般採用は推奨せず、候補検証の既定を保持する。次に進むなら候補headの利得と共有部コピーの既存headへの干渉を同じ標本で切り分ける観測を優先。今回、新しい対策・実験・製品コード変更なし。独立CLI Luna high結果レビューPASS・指摘0。
+
 ## 研究用解析CLIを共通検証から分離（2026-10-19、Codex）
 
 直近の研究用scriptの参照・変更履歴を点検し、残っていた構成要素解析の共有Ruff登録と通常pytest専用26件を撤去。CLIと明示検証は`tools/research_component_ablation/{analyze.py,checks.py}`へ移設。[現行コマンドと点検結果](../../docs/experiments/fedsda-component-ablation-analysis.md)を参照。計算・既存結果形式・共通学習フロー・Pの72runコードは未変更。D/P/Rとresults内の一時対照にも通常の学習フローからの呼出しなし。正式な掃引再開補助と旧新版比較の移植検証は保持。検証と承認の正本は[fedsda-component-ablation-analysis](../specs/fedsda-component-ablation-analysis/tasks.md)の追加task4.2とspec.json.isolation_cleanup。独立Luna highレビューPASS。

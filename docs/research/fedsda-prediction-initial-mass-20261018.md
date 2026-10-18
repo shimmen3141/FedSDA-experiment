@@ -63,3 +63,7 @@ Pを既定へ取り込む根拠は得られていない。候補検証は既定�
 
 ## 成果物と検証
 入力は`results/fedsda-candidate-validation/20261018_prediction-initial-mass-pilot-n1000/`。`analysis_20261018/analyze.py`、conditions.csv、regions.csv、audit.jsonを保存。24JSON/24NPZの48hash・CRC・accuracy再計算・全RNG一致、R/P各84介入の重み式・正規化、12対の非予測配列・最終parameter digest・指標を照合した。研究用コードの仕様/実装と検証の正本は[spec](../../.kiro/specs/prediction-initial-mass-diagnostic/tasks.md)。Luna highの独立結果レビューPASS・指摘0（session `01a14f1f-d20d-7603-bd62-0d80a7621f7a`）。元48hash・24NPZ CRC/accuracy/RNG・各84介入・12対の非予測指標/配列と最終params、6条件と48概念寄与を独立照合。全pytest14427 passed/8 skipped、専用19件とfresh16flowsは主担当実測をログ/JUnitで独立照合し、全pytest/fresh/NN自体の独立再実行はしていない。
+
+## 後続の本規模結果（2026-10-19）
+
+5000/client・seed0〜2の72runが完了した。[本規模解析](fedsda-prediction-initial-mass-n5000-20261019.md)が最新。PのMNIST4/CIRCLE2の小規模改善は平均では再現せず、既定変更はしていない。この小規模記録の条件・数値は当時のものとして保持する。
