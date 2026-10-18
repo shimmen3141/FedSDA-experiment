@@ -1,5 +1,7 @@
 # FedSDAの省メモリ調査（2026-10-19）
 
+**最新追記:** uraniumの2測定を受領・再照合した。[サーバ結果と次の判断](fedsda-memory-uranium-results-20261019.md)を参照。元CLIは5.49 GiB、診断は8.89 GiB、同環境の全133配列・設定・指標は一致。手元との保存状態は近く、次は監視threadの上乗せと、生存中の状態を維持した回収の効果を分けて調べる。本体改修はまだ行わない。
+
 ## 目的と判断の境界
 
 uraniumの多コアを利用するため、計算結果・乱数消費・学習/検証/統合の判断・記録形式を維持してメモリだけを減らせるか調べる。ユーザーから受領した調査メモの6.76 GiB/runは、こちらで再計測した値ではない。
@@ -90,7 +92,7 @@ bash results/fedsda-memory-diagnosis/uranium-comparison-20261019/run.sh
 
 元CLI→診断を逐次実行し、完全設定・全指標・NPZ全配列のキー/shape/dtype/bytesを照合する。CLIに最終パラメータが保存されないため、その比較と全乱数状態の比較は対象外。srcのhashが基準と違えば開始前に止まる。allocator設定は変更せず、選んだ環境項目とコードidentityを前後に記録する。既存結果は上書きせず、エラーで止まる。
 
-結果は`results/fedsda-memory-diagnosis/uranium-comparison-20261019/uranium_<日時>_<PID>/`。成功・失敗にかかわらず、このフォルダをPCへ戻して担当者へ渡す。GNU timeは`cli.time.txt`と`diagnostic.time.txt`、保存値の一致は`comparison.json`、診断の段階別計測は`diagnostic/memory.jsonl`にある。実際のuranium測定は未実行で、結果の返却待ち。
+結果は`results/fedsda-memory-diagnosis/uranium-comparison-20261019/uranium_<日時>_<PID>/`。成功・失敗にかかわらず、このフォルダをPCへ戻して担当者へ渡す。GNU timeは`cli.time.txt`と`diagnostic.time.txt`、保存値の一致は`comparison.json`、診断の段階別計測は`diagnostic/memory.jsonl`にある。ユーザーから`uranium_20261019_060505_190543/`を受領し、[再照合と判断](fedsda-memory-uranium-results-20261019.md)を記録した。
 
 準備の検証: `--print-plan`で5000/clientの1run・missingを確認し、出力先未作成も確認。手元Linuxで50/client・元CLI+診断のexit0、全133配列bytes/設定/指標が一致。4つの異常対照（指標差、配列値差、未完了、前後metadata差）も全てexit1。Python3.10文法検査・Linux bash構文検査・ZIPの内容/CRC検査を実施。Python3.10/uraniumの実動作確認ではない。
 

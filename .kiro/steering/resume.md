@@ -1,3 +1,11 @@
+## uraniumの2測定を受領・再解析（2026-10-19、Codex）
+
+[サーバ結果と判断](../../docs/research/fedsda-memory-uranium-results-20261019.md)が最新。入力は`results/fedsda-memory-diagnosis/uranium-comparison-20261019/uranium_20261019_060505_190543/`。元CLI/診断ともexit0、完全設定・全指標・全133配列bytesが一致。metadata前後一致・src基準hash一致、commit8ace43 clean。元CLI最大RSS5.488 GiB、診断8.888 GiB、診断のrun返却まで8.842 GiB。従来の6.76と厳密一致ではないが数GiB級の使用量を確認。
+
+診断側は参照解放・GC後8932.75 MiB→trim後409.32 MiB。ただし学習中に同量を回収できるとは未確認。手元とのTensor storageは275.99 MiB/100552件で一致、Python浅いサイズ354.60対351.40 MiB。完全設定・全指標・最終パラメータhashも手元と一致し、129配列bytes一致、4配列だけ最大2.66e-15以下の末尾差。診断のsystem CPUが15.54→258.92秒と大きく、監視thread/PSS読取りの影響を無視しない。
+
+次は追加監視threadなしの研究用対照と、その同期末に生存状態を保ったtrimを行う対照で、ピーク・時間・全保存値をuraniumで比較する案。**新実験・本体改修は未開始。** 格納形式や学習経路の変更・allocator設定の既定採用は保留。解析と元21ファイルのhashは`results/fedsda-memory-diagnosis/uranium-analysis-20261019/`。独立CLI Luna highはPASS、指摘0。元hash/133配列/設定/指標/手元との末尾差と最終パラメータ/RSS換算を独立照合し、学習・pytestは独立未実行。詳細は同報告書。mainへマージしない。
+
 ## uraniumの2測定用セットを準備（2026-10-19、Codex）
 
 ユーザーがサーバで自分で実行する。転送用ZIPは`results/fedsda-memory-diagnosis/uranium-memory-measurements-20261019.zip`（git管理外、git pullだけでは取得不可）。[転送・実行手順](../../docs/research/fedsda-memory-diagnosis-20261019.md#転送実行セットを準備済み)を参照。元CLIと診断をMNIST2・seed0・10client・5000/client・間隔50・workers1で順に測り、GNU time/段階別RSSと全保存値の照合を残す。src基準hash不一致で開始前に停止、既存のallocator設定は維持して記録、結果は新規出力。
