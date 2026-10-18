@@ -30,6 +30,7 @@
 
 | 日付 | 研究の問い / 結果 | 目的 | 規模 | コード | 結論の参照 |
 |---|---|---|---|---|---|
+| 2026-10-18 | fedsda-candidate-validation / `20261018_waiting-diagnostic-pilot-n1000`（手元Ubuntu） | 待機後強制採用Dの実NN・保存経路の小規模接続確認。性能採否には使わない | 6条件×seed0×V/O/D、1000/client・10clientの18run完了・exit0、6worker各1thread。強制採用131件・うち元非採用115件を照合 | e1df483f6cf1上の未commit診断runner、src未変更。source/script hashを各runへ保存 | [18runの接続確認](../research/fedsda-candidate-waiting-diagnostic-20261018.md)。54run本規模は未実行 |
 | 2026-10-17〜18 | fedsda-candidate-validation / `20261017_230259_additional-seeds` | 候補検証の有無を追加seedで確認 | 6データ×4間隔×seed5〜9×2構成240run、最終記録191完了＋49既存、失敗0。既存0〜4と10seedへ集計 | 8b0c095bd94a/8dba10c98241、基準版6、clean | [受領・条件別再解析](../research/fedsda-server-results-20261018.md) |
 | 2026-10-17〜18 | method-baselines / `20261017_210554_intervals100-500` | FedDriftと2種類のFedAvgの不足間隔を補完 | 6データ×間隔100/500×seed0〜4×3手法180run完了、失敗0 | 8b0c095bd94a、基準版6、clean | [受領・手法比較](../research/fedsda-server-results-20261018.md) |
 | 2026-10-18 | fedsda-prediction-timing / `20261018_032952_pure-predictions-t120` | 純粋2方式と既存混合をT120で比較 | 6データ×4間隔×seed0〜4×2方式240run完了、失敗0 | 8dba10c98241、基準版6、clean | [受領・予測方式比較](../research/fedsda-server-results-20261018.md) |

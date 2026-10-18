@@ -14,6 +14,7 @@ testへ置き換えて廃止する。
 ラウンドごとに新規モデルの登録と集約だけを行う代役。配布は未移植）で、標本列を最後まで進める。
 """
 
+import importlib.util
 import sys
 from pathlib import Path
 from random import Random
@@ -2318,6 +2319,29 @@ def main():
     assert fedavg_run.run_metrics.final_global_model_count == 1
     assert tables["sample_prediction.sample_index"].shape == (2, 30)
     print("PASS FedAvg full run, measurement and artifact roundtrip")
+    diagnostic_spec = importlib.util.spec_from_file_location(
+        "_waiting_diagnostic_smoke",
+        Path(__file__).resolve().parents[2] / "run_candidate_validation_waiting_diagnostic.py",
+    )
+    diagnostic = importlib.util.module_from_spec(diagnostic_spec)
+    sys.modules[diagnostic_spec.name] = diagnostic
+    diagnostic_spec.loader.exec_module(diagnostic)
+    diagnostic_run, diagnostic_events = diagnostic._run_with_policy(
+        build_experiment_run_settings(
+            configuration_name="fedsda",
+            experiment_run_conditions=ExperimentRunConditions(
+                dataset_name="sea2",
+                random_seed=0,
+                client_count=2,
+                per_client_sample_count=30,
+                server_aggregation_interval_per_client_samples=10,
+            ),
+        ),
+        "delayed-forced",
+    )
+    assert diagnostic_run.run_metrics.processed_sample_count == 60
+    assert diagnostic_events == []
+    print("PASS candidate validation waiting diagnostic, fresh full run")
     loaded_forbidden_modules = sorted(
         name
         for name in sys.modules

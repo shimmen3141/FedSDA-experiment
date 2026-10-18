@@ -45,6 +45,7 @@ Claude・Codexの交代は[共通引継ぎ手順](../.kiro/steering/agent-handof
 - [実験設定・掃引計画・manifest](experiments/experiment-configuration.md)
 - [実験の掃引のコマンド（新実装）](experiments/experiment-sweep.md): `run_experiment_sweep.py`の使い方、出力の形、再開。
 - [実験の台帳（新実装）](experiments/experiment-log.md): 新実装で回した実験を1行ずつ。目的、結果の場所、規模、コード、結論の参照。
+- [候補検証の待機・選別の診断](experiments/candidate-validation-waiting-diagnostic.md): 検証あり・即時採用・待機後強制採用を比較する研究用CLI。
 - [データ特性](experiments/dataset-characteristics.md)
 - [評価指標](experiments/metrics.md)
 - [FedDrift元論文との相違点](experiments/differences-from-feddrift.md)

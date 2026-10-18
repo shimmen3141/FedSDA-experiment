@@ -1,3 +1,11 @@
+## 待機後強制採用の診断ランナー（2026-10-18、Codex）
+
+[candidate-validation-waiting-diagnostic](../specs/candidate-validation-waiting-diagnostic/tasks.md)の実装と独立レビューを完了。既定・製品src・既存保存形式・golden未変更。spec完了。検証・レビューの正本は同tasks/spec.json。
+[実行手順](../../docs/experiments/candidate-validation-waiting-diagnostic.md)にV現行検証/O即時採用/D同じ10標本待機後強制採用の比較コマンドを用意した。Dは通常合格と異なる理由を使い、元評価を保持する。
+手元Ubuntuの1000標本・6条件×seed0×3方式の18runは完了・全件照合。[結果記録](../../docs/research/fedsda-candidate-waiting-diagnostic-20261018.md)。実NNで強制131件（元非採用115件）を確認。小規模接続確認であり性能採否には使わない。
+次の主実験は5000/client・6条件×seed0〜2×3方式の54run（未開始）。追加群5〜7の54runは再現確認の候補。G共有ゲートは未実装で、Dの結果後に設計する。
+サーバ補完は純粋予測seed5〜9の240runと比較手法の間隔100/500・seed5〜9の180run。Dと合わせる場合も各7worker、同一サーバの合計14以下。すでに2実験が稼働中なら完了後にDを開始する。mainへマージしない。
+
 ## サーバ3実験の受領・再解析を完了（2026-10-18、Codex）
 
 [受領と条件別比較・次のサーバコマンド](../../docs/research/fedsda-server-results-20261018.md)を参照。新規660runと既存対照240runの設定・環境・NPZ CRC・精度を照合した。独立Luna high PASS、Minorの差分符号説明を反映。

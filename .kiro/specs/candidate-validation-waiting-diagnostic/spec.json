@@ -1,0 +1,73 @@
+{
+  "feature_name": "candidate-validation-waiting-diagnostic",
+  "created_at": "2026-10-18T17:20:00+09:00",
+  "updated_at": "2026-10-18T18:46:39.088196+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "session_id": "01a14e17-6b27-7fe1-8998-d84ab1a218ed",
+    "base_commit": "d861c7c",
+    "findings": "Major3採用・修正。同sessionで全件解消確認。",
+    "logs": [
+      "../../venv/refactoring-tests/candidate-waiting-spec-review.log",
+      "../../venv/refactoring-tests/candidate-waiting-spec-recheck.log",
+      "../../venv/refactoring-tests/candidate-waiting-spec-final.log"
+    ]
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "session_id": "01a14e20-a053-7b83-b384-2544abc1741d",
+    "base_commit": "e1df483",
+    "findings": "Minor1採用。再レビュー不要。3135独立test成功、IO6件とfreshは権限で主担当証拠を照合。",
+    "final_evidence_review": {
+      "status": "passed",
+      "session_id": "01a14e20-a053-7b83-b384-2544abc1741d",
+      "log": "../../venv/refactoring-tests/candidate-waiting-final-evidence-review.log",
+      "findings": "追加指摘なし。全JUnit・18runのhash/評価/来歴を独立照合。独立NN学習・全pytest再実行なし。"
+    }
+  },
+  "integration_validation": {
+    "full_junit": "../../venv/refactoring-tests/candidate-waiting-full.xml",
+    "full_log": "../../venv/refactoring-tests/candidate-waiting-full.log",
+    "full_passed": 14441,
+    "full_skipped": 8,
+    "full_failure": 0,
+    "full_error": 0,
+    "target_junit": "../../venv/refactoring-tests/candidate-waiting-final-target.xml",
+    "target_passed": 3141,
+    "fresh_log": "../../venv/refactoring-tests/candidate-waiting-final-fresh.log",
+    "fresh": "既存16flowsと追加診断接続成功。旧/test importなし。",
+    "quality": "Ruff check/format374 files成功、Pyright0 errors、pip check成功",
+    "pyright_log": "../../venv/refactoring-tests/candidate-waiting-pyright.log",
+    "pilot_directory": "results/fedsda-candidate-validation/20261018_waiting-diagnostic-pilot-n1000",
+    "pilot_completed_runs": 18,
+    "full_scale_runs_started": false
+  }
+}
