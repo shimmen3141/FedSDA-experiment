@@ -30,6 +30,10 @@
 
 | 日付 | 研究の問い / 結果 | 目的 | 規模 | コード | 結論の参照 |
 |---|---|---|---|---|---|
+| 2026-10-17〜18 | fedsda-candidate-validation / `20261017_230259_additional-seeds` | 候補検証の有無を追加seedで確認 | 6データ×4間隔×seed5〜9×2構成240run、最終記録191完了＋49既存、失敗0。既存0〜4と10seedへ集計 | 8b0c095bd94a/8dba10c98241、基準版6、clean | [受領・条件別再解析](../research/fedsda-server-results-20261018.md) |
+| 2026-10-17〜18 | method-baselines / `20261017_210554_intervals100-500` | FedDriftと2種類のFedAvgの不足間隔を補完 | 6データ×間隔100/500×seed0〜4×3手法180run完了、失敗0 | 8b0c095bd94a、基準版6、clean | [受領・手法比較](../research/fedsda-server-results-20261018.md) |
+| 2026-10-18 | fedsda-prediction-timing / `20261018_032952_pure-predictions-t120` | 純粋2方式と既存混合をT120で比較 | 6データ×4間隔×seed0〜4×2方式240run完了、失敗0 | 8dba10c98241、基準版6、clean | [受領・予測方式比較](../research/fedsda-server-results-20261018.md) |
+
 | 2026-10-18 | fedsda-candidate-validation / `20261018_validation-removal-tradeoffs`（再解析のみ） | 検証あり・なし両方を上回るための条件別精度・通信・原因と実験優先順位を整理 | 既存サーバ120対と手元144runの384元JSON、MNIST2・500の10NPZを照合。新規学習なし。Luna high独立照合PASS | 元runのsourceを維持。製品source・既定・golden未変更 | [単純化に向けた分析・次案](../research/fedsda-candidate-validation-simplification-20261018.md) |
 | 2026-10-18 | fedsda-candidate-validation / `20261018_frozen-candidate-backbone-n2500`（手元Ubuntu） | 候補学習から共有部を固定し現行を保持して採用する案と候補検証の相互作用・機構を調べる | 全6データ×間隔50/200×seed0〜2×4構成の144runと小対照16runを完了。生成2500、評価50は2500・200は2400/client（ユーザー選択）。共通2400標本の補助集計も照合。SINE2は固定で全12対改善、他は条件依存。Luna highの全体結果レビューPASS | 88b63e102a1aのsrc、基準版6。製品source・既定・golden未変更 | [分析と改善案](../research/fedsda-frozen-candidate-backbone-20261018.md) |
 | 2026-10-18 | fedsda-candidate-validation / `20261018_other-datasets-blend25`（手元Ubuntu） | 非MNISTの候補検証の得失に、候補採用時の共有部置換がどう関わるかを調べる | 4データ×間隔50/100/200/500×検証あり/なし/なし+共有部25%×seed0、各5000標本、10clientの48run完了。計測あり/なしの小run24件、既存80対の領域・検証支持を照合 | 8dba10c98241のsrc、基準版6。介入は一時script、production未変更 | [非MNISTの診断](../research/fedsda-candidate-backbone-blend-nonmnist-20261018.md)。25%はなし比7条件で数値上改善・9条件で低下。採否未決 |
