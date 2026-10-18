@@ -4,6 +4,8 @@
 
 uraniumの多コアを利用するため、計算結果・乱数消費・学習/検証/統合の判断・記録形式を維持してメモリだけを減らせるか調べる。ユーザーから受領した調査メモの6.76 GiB/runは、こちらで再計測した値ではない。
 
+ユーザーからの追加報告により、6.76 GiBの出所は確定した。uraniumで元の`run_experiment_sweep.py`をMNIST2・seed0・10client・5000標本/client・間隔50・workers1で実行したGNU timeの`Maximum resident set size (kbytes): 7088196`である。コマンド全体の最大RSSで、ホスト使用量をworker数で割った推定値ではない。全並行runがMNIST2であることは並列時の総使用量の説明にはなるが、この単独runの値の説明にはならない。
+
 まず実装を変更せず、保持オブジェクトと解放済み領域の滞留を分けて測定した。新しい製品オプションや共通フローの分岐は追加しない。この文書は実装specではなく、実装の採否に先立つ調査記録。
 
 **現時点では製品コードの改修を見送る。** 省メモリの余地自体はあるが、uraniumの6.76 GiBを手元で再現せず、ピークに効く主要な保持対象は未特定。局所的な回収対策もピーク削減が小さいか、所要時間増加を伴った。次はuraniumで同じ計測を行う価値が高く、現在の証拠だけで保持契約を横断して作り替える価値は低い。
@@ -13,6 +15,7 @@ uraniumの多コアを利用するため、計算結果・乱数消費・学習/
 - ソース: `c6a1720a8ba925efb628c39b0e15ae7af1efc7d9`。`src`の内容hashは`3861f16d77fad2449baf39e37c433bb5343b56f4291efa315ce9c3aea8cf71e2`。
 - 受領メモのサーバcommit `8ace43cefd5cd0acf77d1babccf3df9903ab9c37`から現在まで、`git diff ... -- src`は空。
 - 手元Ubuntu/WSL2、Python 3.14.4、NumPy 2.4.6、torch 2.12.1+cpu、glibc 2.43。uraniumのPython 3.10.16/NumPy 2.2.6とは異なる。
+- 実行入口も異なり、uraniumは元の掃引CLI、手元は診断scriptから製品関数を直接呼んだ。1.69 GiBは最初のrun返却まで、6.76 GiBはコマンド全体。手元も保存後まで約1.77 GiBなので、期間の差だけで説明できたとは扱わない。環境・入口・実際の学習経路を揃えた比較が必要。
 - `fedsda`、MNIST2、seed0、10client、間隔50、1000または5000標本/client。設定は通常の`build_experiment_run_settings`から生成し、既定値を変更しない。
 - OpenMP/MKL/OpenBLASは各1、`torch.set_num_threads(1)`。複数の計測プロセスを並行した。所要時間は同じ負荷条件での性能ベンチマークではない。
 - 一時script、元NPZ/JSON、段階別RSS/PSS、所有量の一覧、照合結果は`results/fedsda-memory-diagnosis/20261019/`。git管理外の研究成果物。
@@ -45,6 +48,8 @@ uraniumの多コアを利用するため、計算結果・乱数消費・学習/
 
 後二者は独立した対照で、設定値と明示trimを併用していない。明示trimは一時script内のみで、標本やモデルへの参照を捨てない。
 
+allocator設定による時間増加は採用保留の理由の一つだが、負荷を揃えた対照ではないため、設定による性能悪化率は確定していない。
+
 表のピークは、各プロセスの開始から**最初の`run_return`まで**に記録した`VmHWM`の最大値で、import・初期準備を含む。保存、所有量調査、2run目を含めない。`analyze.py`の`first_run_process_high_water_mib`が対応する。`high_water_mib`と最終`sampled_peak_rss`は2run目や保存も含むプロセス全体の値で、表との比較には使わない。baseline1000の2run全体のhigh-waterは1174.52 MiBだが、1run目返却時までの最大は1145.94 MiBである。
 
 比較は全133配列の列名・shape・dtype・bytes（NaNと符号付き0を含む）、全指標・設定、最終サーバモデルの全パラメータhashが一致した。外側の乱数や内部の乱数源の全状態を別途記録した検証ではなく、この一致を将来の全条件の同一性保証に一般化しない。
@@ -71,7 +76,13 @@ uraniumの多コアを利用するため、計算結果・乱数消費・学習/
 
 ## 次にuraniumで測るもの
 
-今回の一時scriptと`identity.json`を含む研究ディレクトリをサーバへ移し、同じsourceでまず変更なしの5000標本1runを測る。scriptはgit管理外なので、git pullだけでは取得できない。
+uranium上で、次の順に環境差と実行入口の差を切り分ける。各測定は並行させず、同じsource・ライブラリ・スレッド設定を使い、実行時の条件と出力を記録する。
+
+1. **元のCLIを再実行する。** `run_experiment_sweep.py`の元コマンドで、`fedsda`、`--datasets mnist2 --seeds 0 --client-count 10 --per-client-sample-count 5000 --aggregation-intervals 50 --workers 1`を揃え、GNU timeでコマンド全体を測る。既存結果の再開・実行スキップでは再測定にならないため、新規出力を明示し、約6.76 GiBを再現するか確認する。
+2. **同じ環境・条件で診断scriptを実行する。** 下の例で、段階別のRSS/PSSとコマンド全体の最大RSSを取得する。元CLIとの完全設定・全指標・記録配列の列/shape/dtype/値を照合し、同じ学習経路を比較しているか確認する。環境の異なる手元結果をこの一致の基準にはしない。
+3. **差の位置に応じて調査する。** 両入口とも高ければ増加段階と所有状態を調べる。元CLIだけ高ければ、入口の準備・保存・オブジェクト寿命・親/子processの寄与を優先する。元CLI自体が再現しない場合は、実行条件・環境・負荷の差を先に確認する。
+
+今回の一時scriptと`identity.json`を含む研究ディレクトリをサーバへ移す。scriptはgit管理外なので、git pullだけでは取得できない。以下は手順2の実行例で、手順1の元CLI再現を代替しない。
 
 ```bash
 source .venv/bin/activate
@@ -111,3 +122,4 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 - 修正再確認の独立CLI GPT-6 Luna high: session `01a14fb2-042a-7ab3-bb91-3bebb9439074`、PASS、残る指摘なし。初回がephemeralだったため前回指摘を引き継いだ新規CLI sessionで限定再確認した。両方ともログの実モデルとeffortを確認。
 - 初回は保存値の5比較、代表的な所有関係、source差分が空であることを独立照合。再確認はピークの定義と5000標本の計数・換算を独立照合。学習・pytest・uraniumの計測は独立未実行。製品src・既定・golden・保存形式の変更はなく、全pytestは再実行していない。
 - レビューログは作業rootの`venv/refactoring-tests/memory-diagnosis-{method,final}-review.log`。一時script・元記録の証拠は前述のresults内に保持する。
+- 追加報告の反映: 6.76 GiBのGNU time出力と元条件をユーザーの報告として追記し、uraniumの手順を元CLI再現→同環境の診断script比較へ明確化した。主担当によるサーバ再実測や追加の独立レビューを行った記録ではない。既存の測定値・過去の承認記録は変更していない。
