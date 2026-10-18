@@ -58,6 +58,7 @@ Claude・Codexの交代は[共通引継ぎ手順](../.kiro/steering/agent-handof
 ## 研究上の検討資料 — research
 
 - [リファクタリングの再開案内](../.kiro/steering/resume.md): 現在地、次の候補、読む文書。
+- [FedSDAの省メモリ調査](research/fedsda-memory-diagnosis-20261019.md): Linuxでの段階別実測、結果同一性の対照、実装見送りとuraniumでの次の計測。
 - [新実装の品質検査](research/code-quality.md): Ruff・Pyright・commit hook・CIの設定と実行手順。
 - [リファクタリング方針案](research/refactoring-policy.md): 責務・レイヤー・命名、新APIへの移行、選択肢の追加・削除とcc-sddの評価。
 - [旧実装の1 runの出力と、新実装への移行の一覧](research/legacy-run-output-migration.md): 旧の指標263・配列233の区分と、新実装で保存する範囲・旧の結果からの変換の対応。

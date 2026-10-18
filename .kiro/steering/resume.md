@@ -1,3 +1,13 @@
+## FedSDAの省メモリ調査を完了（2026-10-19、Codex）
+
+[実測と実装の採否](../../docs/research/fedsda-memory-diagnosis-20261019.md)を参照。ユーザーのuranium向け省メモリ化の依頼に対し、まず製品srcを変えずに手元Ubuntuで7run（1000/client×6、5000/client×1）を完了。研究scriptと元データは`results/fedsda-memory-diagnosis/20261019/`（git管理外）。サーバcommit8ace43から現HEADまでsrc差分は空、source hashはPの72runと同じ。
+
+5000/client・MNIST2・間隔50・seed0のrun返却までのピークは1.69 GiB、所有量走査後を含む全プロセスは1.77 GiBで、uraniumの報告6.76 GiBを再現していない。tuple約303 MiB、Tensor storage約276 MiB、保存配列約4.4 MiB。inventoryはgrad/autograd/runtime全体を網羅しない。1000/clientの明示trimは返却時RSSを下げるがピーク約1.6%減。起動時allocator設定はピーク約14.5%減、参考所要時間が増えたため5000/client対照は打切り、未完了を成功に数えない。1000/clientの全6runは全133配列bytes・指標/設定/最終パラメータが一致。通常worker再利用2runで大きな蓄積は観測しないが長期リークは未判定。
+
+**本体改修は見送り。** 次はuraniumで同じ段階別計測を行い、6.76 GiBの発生段階と生存状態を特定してからspec化する。一時scriptはgit pullだけではサーバへ渡らない。実行例は同文書。製品・既定・golden・記録形式は変更せず、全pytestは再実行していない。独立Luna highでピーク集計の期間定義の指摘を修正後PASS。詳細は同文書の検証記録。mainへマージしない。
+
+候補検証の次案は、候補headの補完性/共有部コピーの害/実際の混合への寄与を分離して観測する方向を維持。新しい制御ロジックや掃引は開始していない。
+
 ## 予測初期質量Pの本規模72runを解析（2026-10-19、Codex）
 
 [72runの結果と判断](../../docs/research/fedsda-prediction-initial-mass-n5000-20261019.md)が最新。5000/client・seed0〜2・6条件×V/O/R/P。元72runと過去V/O36対照の完全性・設定/指標/全配列を照合。R/P対Oの36対は記録された学習/適応/通信・最終パラメータが一致。
