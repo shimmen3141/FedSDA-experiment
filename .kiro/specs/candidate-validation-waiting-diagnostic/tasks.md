@@ -33,3 +33,5 @@
 - 最終検証: 全pytest14441 passed/8 skipped/0 failure/error（既存14427＋追加14）、旧・提案goldenを含む。意味変更後の全pytest開始後にRuffによる改行のみ整形し、最終対象＋依存3141件とfreshを再実測して成功。Ruff374 files・Pyright0 errors・pip check成功。元src/golden差分は空。ログ/JUnitはspec.json参照。
 - 小規模パイロット: Ubuntu1000/client・6条件×seed0×3方式の18run全件完走。D131件のうち元非採用115件。全JSON/NPZ・元/適用評価の多重集合・10件境界・同一設定/環境/hash・RNGを照合。性能採否なし。本規模54runは未実行。
 - 同じ実装レビュワーの最終証拠照合PASS、追加指摘なし。全JUnit・18run計36ファイルのhashと判定値を独立照合。全pytest/freshは主担当証拠で、独立学習・全pytest再実行はしていない。
+
+- 実装commit `40bf6b8124e67f4210c6a3d8f268e2dc0f4d9ea3`。コミット後identity照合PASS、source486パスのhashをspec.jsonへ記録。固定旧差分空・clean・全JUnit14441/8skip・旧/提案golden test成功と一致。

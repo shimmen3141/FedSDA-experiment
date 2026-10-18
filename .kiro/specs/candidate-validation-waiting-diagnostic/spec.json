@@ -68,6 +68,10 @@
     "pyright_log": "../../venv/refactoring-tests/candidate-waiting-pyright.log",
     "pilot_directory": "results/fedsda-candidate-validation/20261018_waiting-diagnostic-pilot-n1000",
     "pilot_completed_runs": 18,
-    "full_scale_runs_started": false
+    "full_scale_runs_started": false,
+    "validated_source_commit": "40bf6b8124e67f4210c6a3d8f268e2dc0f4d9ea3",
+    "source_sha256": "f3497eac5b9506a4b8b9ca84373389411910c78e58adce22f4a389f48bf981d9",
+    "source_path_count": 486,
+    "post_commit_identity_check": "PASS。固定旧差分空、clean、JUnit件数・旧/提案golden test成功と一致。"
   }
 }
