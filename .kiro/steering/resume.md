@@ -1,3 +1,11 @@
+## 同期末回収の試作・手元検証を完了（2026-10-19、Codex）
+
+ユーザーの指示に従い、追加比較を実装開始の前提にせず、[run-memory-reclamation-prototype](../specs/run-memory-reclamation-prototype/tasks.md)として独立研究ランナー`tools/research_memory_reclamation/run.py`を実装した。共通学習フロー・製品src・既定・保存形式は変更なし。control→reclaimを独立processで逐次実行し、正常な同期末だけ`malloc_trim(0)`、追加監視thread/GCなし。全保存値と最終paramsを照合する。
+
+手元検証・独立レビュー・指摘の採否の正本は同spec。1000/clientで全保存値一致、ピーク約1174→1114 MiB・wall145→152秒という観測で、uraniumの削減幅/性能率は未確定。仕様/実装は独立Luna high PASS、各Minor1件を修正し再レビュー不要ルールを適用した。
+
+**次はユーザーがuraniumで5000/clientを実行。** 転送ZIPは`results/fedsda-memory-diagnosis/uranium-live-reclamation-20261019.zip`（git管理外）。[踏み台転送・tmux実行・返却手順](../../docs/experiments/run-memory-reclamation-prototype.md)を案内済み。返却する`live-reclamation-<日時>/`全体を受領したら、同一性・生存状態での回収・ピーク/時間から採否を判断する。製品既定へまだ採用しない。mainへマージしない。
+
 ## uraniumの2測定を受領・再解析（2026-10-19、Codex）
 
 [サーバ結果と判断](../../docs/research/fedsda-memory-uranium-results-20261019.md)が最新。入力は`results/fedsda-memory-diagnosis/uranium-comparison-20261019/uranium_20261019_060505_190543/`。元CLI/診断ともexit0、完全設定・全指標・全133配列bytesが一致。metadata前後一致・src基準hash一致、commit8ace43 clean。元CLI最大RSS5.488 GiB、診断8.888 GiB、診断のrun返却まで8.842 GiB。従来の6.76と厳密一致ではないが数GiB級の使用量を確認。

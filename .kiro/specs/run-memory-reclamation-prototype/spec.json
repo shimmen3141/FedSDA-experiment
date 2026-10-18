@@ -1,0 +1,57 @@
+{
+  "feature_name": "run-memory-reclamation-prototype",
+  "created_at": "2026-10-19T07:07:11.227895+09:00",
+  "updated_at": "2026-10-19T07:24:19.109500+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    },
+    "naming": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "base_commit": "95a92b2",
+    "session_id": "01a1510e-5770-7382-8181-41f7a49f49c7",
+    "findings": "Major0/Minor1。task3のレビュー時期明示を採用し修正、Minorのため再レビュー不要。",
+    "log": "../../venv/refactoring-tests/memory-reclamation-spec-review.log"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "base_commit": "95a92b2",
+    "session_id": "01a15117-74c4-7711-a302-fd8c19a52243",
+    "log": "../../venv/refactoring-tests/memory-reclamation-implementation-review.log",
+    "findings": "Major0/Minor1。133配列の件数ゲートと両側欠落テストを追加し修正。Minorのため再レビュー不要。",
+    "independent_verification": "Ruff/format/names/progress/Python3.10文法。pytestは権限で停止し当時の主担当JUnit23件を確認。修正後24件とNNは主担当の実測。"
+  },
+  "integration_validation": {
+    "unit_passed": 24,
+    "unit_junit": "../../venv/refactoring-tests/memory-reclamation-unit.xml",
+    "quality": "isolated Ruff/format py310、names、Python3.10文法、ZIP/root検出/read-only plan成功",
+    "local1000": "results/fedsda-memory-diagnosis/reclamation-local1000",
+    "final_package_smoke": "results/fedsda-memory-diagnosis/reclamation-final-package-smoke50",
+    "source_tree_sha256": "3861f16d77fad2449baf39e37c433bb5343b56f4291efa315ce9c3aea8cf71e2",
+    "runner_sha256": "2d27763ab52b2239920d691cccae6049773db64d359a837d8a1a6138550f1732",
+    "archive_sha256": "1a3bb93824aad95de689f664f3eb28442bb1d54855b5562d981db0fb977d5be9",
+    "server_runs_started": false,
+    "scope": "src/config/tests/pytest/CI/golden変更なし。全pytest未実行。"
+  }
+}
