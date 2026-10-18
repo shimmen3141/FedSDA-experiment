@@ -34,3 +34,13 @@
 - task4.1: 全pytest14396 passed /8 skipped /9 warnings（504.78s）。新しい26テストは全体内で成功。元のfresh16フロー、Ruff lint/format（371ファイル）、Pyright 0 errors、pip check成功。spec naming/progress成功。旧参照/旧golden/srcの数値実装に差分なし。
 - 最終証拠レビュー: Luna highでsource hash（482パス、590f78616bfe27d85277709c9cf0b69eb53d5a930b7b8829533b0058a0464118）、JUnit、freshログ、基準120件と全17指標を照合しPASS。全pytest/freshの独立再実行はしていない。ユーザーの権限例外を適用。
 - 要件対応: 1は設定・重複・環境/来歴・NPZ・不正JSONの契約テスト、2は手計算統計/欠測/対数/同値性、3はstdout・新規出力・fresh CLIと文書を照合。未解決の指摘なし。サーバ結果の実分析と要素の採否は本specの実装完了と区別する。
+
+## 研究用解析の分離（2026-10-18追加）
+- [x] 4.2 解析CLI・専用検証を共通検証から分離する
+  - 移設後の専用26件・CLI接続を確認し、共通Ruff登録を撤去する。
+  - 共通数値/CI/freshと過去の結果を維持し、全pytest/golden・freshを実測する。
+  - 実行手順と引継ぎを更新し、変更仕様と実装の独立CLIレビューを受ける。
+  - _Requirements: 4.1, 4.2_
+- 分離仕様レビュー初回: Major（checksのparents[2]がルートを指さない）は事実誤認として不採用。旧/新は同じ深さであることをPurePath計算で照合し同sessionへ再判定依頼。Minor2（要求番号の明示、現在手順の更新範囲）は採用して明記。
+- 移設後の専用26件成功。通常JUnitは14401 passed/8 skipped/0 failure/errorで専用26件を含まず、旧/提案golden成功。共用fresh16flowsと共有Ruff372files/明示研究lint成功。CLI/testは指定パス置換だけのAST一致。Luna CLIは利用上限で判定なし、代替Haiku5.5 mediumも429週次上限で起動不能。独立Luna highの最終判定待ち。
+- 最終独立レビューLuna high（/root/component_analysis_isolation_review）PASS・指摘0。CLI root2行とtest参照2か所以外にAST差がないことを独立確認。help/Ruff独立成功、pytestは一時領域権限で停止。主担当26件/全JUnit14401+8skip/fresh16と通常収集除外を独立照合。追加task完了、学習/保存形式・過去結果・72runのPコードは変更なし。

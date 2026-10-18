@@ -27,7 +27,8 @@ _CONFIGURATION = "fedsda-without-candidate-validation"
 @pytest.fixture
 def analyzer():
     specification = importlib.util.spec_from_file_location(
-        "_component_ablation_test_module", _ROOT / "analyze_fedsda_component_ablation.py"
+        "_component_ablation_test_module",
+        _ROOT / "tools" / "research_component_ablation" / "analyze.py",
     )
     module = importlib.util.module_from_spec(specification)
     sys.modules[specification.name] = module
@@ -262,7 +263,7 @@ def test_cli_complete_grid_in_fresh_process(tmp_path):
     result = subprocess.run(
         [
             sys.executable,
-            str(_ROOT / "analyze_fedsda_component_ablation.py"),
+            str(_ROOT / "tools" / "research_component_ablation" / "analyze.py"),
             *_arguments(tmp_path),
             "--stdout",
         ],

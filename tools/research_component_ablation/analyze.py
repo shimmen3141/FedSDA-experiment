@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from federated_learning_experiments.configuration.experiment_run_conditions import (  # noqa: E402
     ExperimentRunConditions,
@@ -284,7 +284,7 @@ def _summarize(values: list[tuple[float, float]], direction: int) -> list[str]:
 
 
 def _analysis_revision() -> dict:
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[2]
     result = {"script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
     try:
         result["code_commit"] = subprocess.check_output(

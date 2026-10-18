@@ -62,7 +62,7 @@ T120の全120runの完全設定は、`6c3522d`時点の`fedsda`と一致する�
 ```bash
 source .venv/bin/activate
 ABLATION_RUN='results/fedsda-component-ablation/20261017_041328_core-components-mixture-fifo30-t120-n5000'
-python analyze_fedsda_component_ablation.py \
+python tools/research_component_ablation/analyze.py \
   --baseline-directory results/fedsda-prediction-timing/20261016_142436_synchronized-local-mixture-fifo30-time-scale120-240-n5000/fedsda-synchronized-local-mixture-prediction \
   --ablation-directory "$ABLATION_RUN" \
   --configurations \
@@ -108,3 +108,26 @@ exit0は期待run格子の全対が比較可能、exit1は不足/比較不能、
 標本の予測を正解の観測/学習より先に行う時系列、ラベル到着条件、client参加条件を揃える。
 単純なFedAvg比較と、複数概念に対応するFedDrift比較は役割を分けて残す。
 追加手法は[主軸と比較対象の整理](../research/method-positioning.md#8-主張と必要な証拠の対応2026-10-17)を参照。
+
+## 共通検証からの分離（2026-10-18）
+
+解析CLIと専用検証は`tools/research_component_ablation/`内に置く。通常のpytest・共有Ruff設定には登録せず、研究用の検証は次のように明示実行する。
+
+```bash
+python -m pytest tools/research_component_ablation/checks.py -q -p no:cacheprovider
+```
+
+旧入口`analyze_fedsda_component_ablation.py`は移設した。解析計算・結果形式は変更していない。過去の分析来歴と成果物は保持し、移設後の実行からscript hashとコマンドパスが変わる。通常の学習フローからこの解析CLIを呼ぶ経路はない。
+
+### 研究用コードの点検範囲と分離状況
+
+基準版6確定後（6c3522d以後）の追加履歴と、src・通常test・CI・共有設定からの参照を確認した。
+
+|対象|現在の位置・扱い|共通の学習フローへの実験用分岐|
+|---|---|---|
+|構成要素比較の解析|tools/research_component_ablation。共有Ruff登録と通常pytestの専用26件を撤去|なし|
+|待機後強制採用D|専用CLIとtools/research_candidate_validation_waitingの明示検証。前回分離済み|なし|
+|初期予測質量P/R|tools/research_prediction_initial_mass内だけ。通常収集/共有登録なし|なし|
+|共有部25%反映・候補共有部固定などの一時対照|results配下の研究script。srcからの呼出しなし|なし|
+
+掃引の再開補助（ユーザー依頼で追加した正式機能）は残す。旧新版比較CLIとその通常testは移植検証として以前からあるもので、一時研究介入ではないため今回の移設対象に含めない。採用済み構成やアブレーション選択肢自体も削除していない。

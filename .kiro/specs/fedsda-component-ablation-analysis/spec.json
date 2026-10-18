@@ -1,7 +1,7 @@
 {
   "feature_name": "fedsda-component-ablation-analysis",
   "created_at": "2026-10-17",
-  "updated_at": "2026-10-17",
+  "updated_at": "2026-10-19T00:03:39.728616+09:00",
   "language": "ja",
   "phase": "completed",
   "base_revision": "6c3522d",
@@ -80,7 +80,7 @@
     "full_pytest_independently_rerun": false,
     "fresh_smoke_independently_rerun": false
   },
-  "current_task": "全taskの実装・検証・独立レビューを完了。実験結果の取得後に対比較と人による採否判断を行う。",
+  "current_task": "研究用解析CLIと専用検証を共通検証から分離し、移設後の検証・独立レビューを完了。",
   "final_evidence_review": {
     "status": "passed",
     "model": "gpt-6-luna",
@@ -90,5 +90,53 @@
     "source_sha256_lf": "590f78616bfe27d85277709c9cf0b69eb53d5a930b7b8829533b0058a0464118",
     "output": "../../venv/refactoring-tests/component-ablation-final-evidence-review.log",
     "permission_exception": "2026-10-17ユーザー決定。レビュワーの権限による実行不能時は主担当の実測証拠で判定する。"
+  },
+  "isolation_cleanup": {
+    "status": "completed",
+    "base_commit": "9e12b3a",
+    "specification_review": {
+      "status": "passed",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "session_id": "01a14f3b-00af-77d2-b1b3-0eff0a21811b",
+      "findings": "Majorのパス指摘は誤認と再判定され撤回。Minor2採用、同session再確認PASS。",
+      "log": "../../venv/refactoring-tests/component-ablation-isolation-spec-recheck.log"
+    },
+    "validation": {
+      "target_passed": 26,
+      "target_junit": "../../venv/refactoring-tests/component-ablation-isolation-target.xml",
+      "full_passed": 14401,
+      "full_skipped": 8,
+      "full_failures": 0,
+      "full_errors": 0,
+      "full_junit": "../../venv/refactoring-tests/component-ablation-isolation-full.xml",
+      "fresh": "既存16flows成功。script未変更。",
+      "fresh_log": "../../venv/refactoring-tests/component-ablation-isolation-fresh.log",
+      "quality": "共有Ruff lint/format372files、研究用明示isolated lint/format成功。",
+      "path_only_ast": "旧CLI/testのGit blobから指定パスだけ置換したASTと移設後のASTが一致。",
+      "common_diff": "src/CI/pytest/fresh/他研究・正式機能は未変更。通常JUnitに専用26件なし。"
+    },
+    "implementation_review": {
+      "status": "passed",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "agent_task": "/root/component_analysis_isolation_review",
+      "unavailable_cli_reviews": [
+        {
+          "model": "gpt-6-luna",
+          "reason": "usage_limit_reached、判定なし",
+          "log": "../../venv/refactoring-tests/component-ablation-isolation-implementation.log"
+        },
+        {
+          "model": "claude-haiku-5-5",
+          "effort": "medium",
+          "reason": "weekly limit (429 usage_limit_reached)、起動失敗",
+          "log": "../../venv/refactoring-tests/component-ablation-isolation-haiku-review.json"
+        }
+      ],
+      "review_method": "independent_agent",
+      "findings": "指摘0。AST差はCLI root2行/test参照2か所のみ。独立help/Ruff成功。pytestはtemp権限で停止し主担当26件/全JUnit14401+8skip/fresh16成功と通常収集除外を照合。",
+      "log": "../../venv/refactoring-tests/component-ablation-isolation-independent-review.md"
+    }
   }
 }

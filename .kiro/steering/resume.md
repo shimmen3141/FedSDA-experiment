@@ -1,3 +1,7 @@
+## 研究用解析CLIを共通検証から分離（2026-10-19、Codex）
+
+直近の研究用scriptの参照・変更履歴を点検し、残っていた構成要素解析の共有Ruff登録と通常pytest専用26件を撤去。CLIと明示検証は`tools/research_component_ablation/{analyze.py,checks.py}`へ移設。[現行コマンドと点検結果](../../docs/experiments/fedsda-component-ablation-analysis.md)を参照。計算・既存結果形式・共通学習フロー・Pの72runコードは未変更。D/P/Rとresults内の一時対照にも通常の学習フローからの呼出しなし。正式な掃引再開補助と旧新版比較の移植検証は保持。検証と承認の正本は[fedsda-component-ablation-analysis](../specs/fedsda-component-ablation-analysis/tasks.md)の追加task4.2とspec.json.isolation_cleanup。独立Luna highレビューPASS。
+
 ## 新モデルの初期予測質量の小規模対照（2026-10-18、Codex）
 
 [24runの結果](../../docs/research/fedsda-prediction-initial-mass-20261018.md)が最新。V/O/R比率保持/P小質量、6条件×seed0・1000/client。PはOより2改善/2同値/2悪化。SINE2で−0.36pp、CIRCLE2で+0.07pp。全12対の記録された学習/適応・通信・最終パラメータはOと一致。共有部干渉対策ではなく、Pの一律採用や候補検証の削除はしない。

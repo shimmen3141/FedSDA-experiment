@@ -33,3 +33,7 @@
 | stdout | 入力ディレクトリを変更しない | stdout_read_only |
 
 性質: 入力列挙順を変えても統計値は同じ。基準と変更が同じ値なら全差は0。対のないseedは平均に混入しない。エラー文言・小数桁・Markdownの装飾は自由である。
+
+### Requirement 4: 共通検証からの研究用解析の分離
+4.1. The analyzer shall 共通Ruff登録・通常pytest収集・共用freshから独立した研究用CLIとして保持する。
+4.2. The analyzer shall 既存の解析計算・入力/出力形式を維持し、tools/research_component_ablation内から実行・明示検証できる。過去の結果は変更しない。

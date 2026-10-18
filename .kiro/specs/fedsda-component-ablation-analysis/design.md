@@ -66,3 +66,11 @@ mainはargparseで入力検査後に分析し、--stdoutならMarkdownだけを�
 | change_response_metrics.training_model_switch_timing_metrics.mean_matched_switch_delay_sample_count | 対応スイッチ平均遅延 | sample | 1 | 小 |
 
 回復期精度は保存済みの評価区間の精度であり、回復に要した時間ではない。MACは演算数の見積りで実測時間ではない。モデル数の件数は増/同/減として示す。
+
+## 研究用解析の分離（2026-10-18追加）
+- CLIをtools/research_component_ablation/analyze.py、専用26件を同ディレクトリchecks.pyへ移す。CLIのsrc参照とGit来歴取得のルートを__file__.parents[2]へ修正し、testの2か所のCLI参照を新パスへ向ける。計算・保存schemaは変更しない。移設に伴い分析来歴のscript hashと記録コマンドは変わるが、過去成果物を再生成しない。
+- pyproject.tomlの解析CLI登録を取り除く。共通側に除外規則や互換aliasは追加しない。専用testは通常収集の命名にせず、明示pytestだけにする。共用fresh・CI・製品srcは変更しない。
+- 現行の実行手順を新CLIへ更新する。過去の研究報告の旧コマンド名は履歴として保持する。専用lintは既存と同じ選択をisolatedで明示実行する。
+- 共通登録/通常収集から除外、専用26件成功、既存全pytest/goldenとfresh成功、src/CI/共用fresh差分空を受入証拠とする。再開補助と旧新版比較CLIは、今回の一時研究介入ではなく既存の正式機能/移植検証のため対象外とする。
+
+移設後もchecks.pyのparents[2]はリポジトリルートのまま（tests/refactoring/file.pyとtools/research_component_ablation/file.pyは同じ深さ）。この計算は変更せず、CLI参照2か所を新パスへ変更する。現在の手順更新はdocs/experiments/fedsda-component-ablation-analysis.mdだけ。docs/research/fedsda-server-results-20261018.md内の旧CLI名は実施時の履歴として保持する。
