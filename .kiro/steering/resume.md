@@ -1,3 +1,8 @@
+## 新モデルの初期予測質量の小規模対照（2026-10-18、Codex）
+
+[24runの結果](../../docs/research/fedsda-prediction-initial-mass-20261018.md)が最新。V/O/R比率保持/P小質量、6条件×seed0・1000/client。PはOより2改善/2同値/2悪化。SINE2で−0.36pp、CIRCLE2で+0.07pp。全12対の記録された学習/適応・通信・最終パラメータはOと一致。共有部干渉対策ではなく、Pの一律採用や候補検証の削除はしない。
+研究コードと専用checksは`tools/research_prediction_initial_mass/`内だけ。共通src/pytest/CI/fresh/Ruff設定も既存Dも未変更。確認用[5000/client・72runのコマンド](../../docs/experiments/prediction-initial-mass-diagnostic.md)を用意したが未実行。1000標本ではMNIST2の既知のV>Oを再現しておらず、保護効果の評価には本規模が必要。検証・承認の正本は[prediction-initial-mass-diagnostic](../specs/prediction-initial-mass-diagnostic/tasks.md)。独立Luna highの最終結果・証拠レビューPASS。spec完了。
+
 ## D診断の共通経路からの分離（2026-10-18、Codex）
 
 ユーザー指示により、D専用の共用fresh処理とRuff登録を撤去。専用14件は`tools/research_candidate_validation_waiting/checks.py`に移し、明示実行だけにした。研究CLI本体・結果形式・既存結果は保持する。通常のpytest・CI・製品srcへD専用の分岐や登録を置かない。検証と承認の正本は[candidate-validation-waiting-diagnostic](../specs/candidate-validation-waiting-diagnostic/tasks.md)の追加task 4とspec.jsonのisolation_cleanup。

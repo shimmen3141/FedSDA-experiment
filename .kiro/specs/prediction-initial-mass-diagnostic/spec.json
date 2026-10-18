@@ -1,0 +1,77 @@
+{
+  "feature_name": "prediction-initial-mass-diagnostic",
+  "created_at": "2026-10-18T22:00:01.638479+09:00",
+  "updated_at": "2026-10-18T22:32:10.460249+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "revision": null,
+      "approved_revision": null,
+      "approved_sha256_lf": null
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "base_commit": "7287230",
+    "session_id": "01a14f19-4d12-72b1-b074-2cf21a75f181",
+    "findings": "Major1/Minor1採用。条件/退避順/最終パラメータ証拠を修正し同sessionでPASS。",
+    "logs": [
+      "../../venv/refactoring-tests/prediction-initial-mass-spec.log",
+      "../../venv/refactoring-tests/prediction-initial-mass-spec-recheck.log"
+    ]
+  },
+  "implementation_review": {
+    "status": "passed",
+    "scope": "コード契約と24run結果・最終証拠",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "session_id": "01a14f1f-d20d-7603-bd62-0d80a7621f7a",
+    "base_commit": "7287230",
+    "log": "../../venv/refactoring-tests/prediction-initial-mass-implementation.log",
+    "findings": "Blocker/Major/Minor0。任意style4件は範囲外/挙動無関係のため不採用。独立13件成功、IO6件は権限停止し主担当19passedを照合。",
+    "final_evidence_review": {
+      "status": "passed",
+      "session_id": "01a14f1f-d20d-7603-bd62-0d80a7621f7a",
+      "log": "../../venv/refactoring-tests/prediction-initial-mass-evidence.log",
+      "findings": "指摘0。48元ファイルhash・24NPZ CRC/accuracy/RNG・各84イベント・12対の設定/通信/最終params/非予測指標と配列、6条件と48領域セルを独立照合。全JUnit・fresh/専用ログ・72run計画を照合。独立全pytest/fresh/NN再実行なし。"
+    }
+  },
+  "integration_validation": {
+    "full_junit": "../../venv/refactoring-tests/prediction-initial-mass-full.xml",
+    "full_log": "../../venv/refactoring-tests/prediction-initial-mass-full.log",
+    "passed": 14427,
+    "skipped": 8,
+    "failures": 0,
+    "errors": 0,
+    "target_junit": "../../venv/refactoring-tests/prediction-initial-mass-target.xml",
+    "target_passed": 19,
+    "fresh_log": "../../venv/refactoring-tests/prediction-initial-mass-fresh.log",
+    "fresh": "既存16flows成功。追加なし。",
+    "research_quality": "明示isolated Ruff E4/E7/E9/F/I/B/UPとformat成功。共通設定は変更なし。",
+    "pilot_directory": "results/fedsda-candidate-validation/20261018_prediction-initial-mass-pilot-n1000",
+    "pilot_completed_runs": 24,
+    "source_tree_sha256": "3861f16d77fad2449baf39e37c433bb5343b56f4291efa315ce9c3aea8cf71e2",
+    "script_sha256": "d56b251e5ffd36fedf73d1b4e634caa41703d9ddf811e39c5a9d7294f1b3642c",
+    "server_planned_runs": 72,
+    "server_runs_started": false,
+    "common_diff": "src/tests/pyproject/pytest/CI/既存D diff空、通常JUnitに新研究testなし。"
+  }
+}
