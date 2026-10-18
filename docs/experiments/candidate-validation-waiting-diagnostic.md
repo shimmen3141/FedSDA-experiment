@@ -28,7 +28,7 @@ python run_candidate_validation_waiting_diagnostic.py \
 
 6条件×3seed×3方式＝54run。各client5000標本、10client、FIFO30・共通T120。MNIST2・100/200とSEA4・50は低下側、MNIST4・500とCIRCLE2・200は利得側、SINE2・500はseed依存の補助条件。
 初期結果に応じてseed5〜7も同じ条件で追加する場合は、`--seeds 5 6 7`と別の出力先`waiting-diagnostic-n5000-seeds5-7`へ変更し54run追加する。異なる環境のV/O/Dを片側ずつ混ぜない。
-この文書の54runは計画であり、実行済みの主張ではない。実際に開始した保存先・来歴は台帳とresumeへ記録する。
+この54runは2026-10-18に研究室サーバで完了し、[結果解析](../research/fedsda-candidate-waiting-n5000-20261018.md)を記録した。上記は完了した実験の実行例で、同じ保存先の再実行は拒否される。Dは全6条件の平均で両基準超えを達成しなかったため、追加seedのD再現実験は現在の最優先にはしない。
 
 ## 保存と失敗時
 

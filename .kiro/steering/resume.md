@@ -1,3 +1,10 @@
+## 待機後強制採用の本規模54runを解析完了（2026-10-18、Codex）
+
+[本規模54runの解析](../../docs/research/fedsda-candidate-waiting-n5000-20261018.md)が最新の結果・解釈・次案の正本。入力は`results/fedsda-candidate-validation/waiting-diagnostic-n5000-seeds0-2/`、解析はその`analysis_20261018/`。
+54run全件・元JSON/NPZと旧対照を照合。V/O36runは既存サーバの完全設定・全指標・全133配列に一致。独立CLI Luna highレビューPASS、指摘0。新規学習・製品source/既定/golden変更なし。
+Dは6条件の平均すべてでVかOに精度・合計通信の両方で劣り、両基準超え0。MNIST2はDでもVより3seed全て低下。SEA4はDがOより3seed全て改善するがV平均には届かず、SINEの平均回復は1seed依存。1000標本pilotの良い結果を一般化しない。
+次は待機だけの置換を見送り、Oの学習・採用経路を維持して新IDの予測初期質量を抑える対照を優先候補とする。単なる既存重み比保持の旧対照とは分ける。未実装・未実験で、設計/仕様レビューが必要。G共有ゲートは通信用の別対照として残すが、共有前のローカル精度低下を単独で治すとは期待しない。自動採否・新閾値なし。mainへマージしない。
+
 ## 待機後強制採用の診断ランナー（2026-10-18、Codex）
 
 [candidate-validation-waiting-diagnostic](../specs/candidate-validation-waiting-diagnostic/tasks.md)の実装と独立レビューを完了。既定・製品src・既存保存形式・golden未変更。spec完了。検証・レビューの正本は同tasks/spec.json。

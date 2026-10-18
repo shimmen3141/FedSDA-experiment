@@ -1,5 +1,7 @@
 # 待機後強制採用Dの診断ランナーと小規模接続確認
 
+追補: 後続の[5000標本・54run解析](fedsda-candidate-waiting-n5000-20261018.md)は完了。小規模のMNIST4での良い結果は本規模では一般化できず、最新の判断は後続記録を参照。
+
 2026-10-18。候補検証の待機と選別を切り分ける研究専用ランナーを実装し、手元Ubuntuの実NNで18runを完了した。製品src・既定・既存保存形式・goldenは未変更。
 
 ## 何を確かめたか
@@ -27,7 +29,7 @@ MNIST2ではこの小規模seed0でOがVより高く、CIRCLE2・200では逆に
 
 ## 次の本規模診断
 
-[実行手順](../experiments/candidate-validation-waiting-diagnostic.md)の5000/client・6条件・seed0〜2・3方式、54runが次の対照。元V/O/Dを同じ環境・source・規模・seedで揃える。これは未実行。
+[実行手順](../experiments/candidate-validation-waiting-diagnostic.md)の5000/client・6条件・seed0〜2・3方式、54runが次の対照。元V/O/Dを同じ環境・source・規模・seedで揃える。本記録の時点では未実行（後続解析は冒頭の追補を参照）。
 本規模の結果を確認してから、即時ローカル学習と全体共有を分離するG案へ進むか判断する。実験設計に使ったseedを最終評価の未使用seedとは扱わない。
 
 ## 検証証拠
