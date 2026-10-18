@@ -1,3 +1,9 @@
+## uraniumの同期末回収で最大RSS81.54%削減を確認（2026-10-19、Codex）
+
+[本規模の対照結果と判断](../../docs/research/fedsda-live-reclamation-uranium-20261019.md)を参照。返却先は`results/fedsda-memory-diagnosis/live-reclamation-20261019_073006/`。5000/client・MNIST2・seed0・間隔50・workers1で最大RSS8.868→1.637 GiB、wall915.31→931.67秒。全133配列bytes・完全設定・全指標・最終サーバparams hashは一致。正常同期100回で生存状態を保った回収を確認。
+
+この環境では実装価値が十分ある。次は通常掃引の実行側へLinux/glibc限定で接続する方向を推奨する。現時点では独立研究ランナーのみで、製品既定・標本表現・共通学習フローは未変更。採用価値の判断のための追加実験は不要。複数workerの総スループットは未測定で、81.54%を他条件へ保証しない。独立CLI Luna high PASS、一般化制限のMinor注意は報告書で対応済み。mainへマージしない。
+
 ## 同期末回収の試作・手元検証を完了（2026-10-19、Codex）
 
 ユーザーの指示に従い、追加比較を実装開始の前提にせず、[run-memory-reclamation-prototype](../specs/run-memory-reclamation-prototype/tasks.md)として独立研究ランナー`tools/research_memory_reclamation/run.py`を実装した。共通学習フロー・製品src・既定・保存形式は変更なし。control→reclaimを独立processで逐次実行し、正常な同期末だけ`malloc_trim(0)`、追加監視thread/GCなし。全保存値と最終paramsを照合する。
