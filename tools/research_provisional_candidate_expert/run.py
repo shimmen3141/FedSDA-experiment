@@ -33,11 +33,15 @@ from unittest.mock import patch
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "src"))
-# 変種: 検証あり（V）、検証なし（O）、検証あり＋仮の専門家（A）。
+# 変種 -> （構成、仮の専門家を使うか、検証の標本数——Noneなら構成の値の10——）。
+# 検証あり（V）、検証なし（O）、検証あり＋仮の専門家（A）。B0: 検証の標本数を30にした検証あり（V30）と、
+# それに仮の専門家を足したもの（A30。仮の専門家があれば、検証を延ばしても予測の損が無い）。
 _VARIANTS = {
-    "validation": "fedsda",
-    "no-validation": "fedsda-without-candidate-validation",
-    "provisional-expert": "fedsda",
+    "validation": ("fedsda", False, None),
+    "no-validation": ("fedsda-without-candidate-validation", False, None),
+    "provisional-expert": ("fedsda", True, None),
+    "validation-forward30": ("fedsda", False, 30),
+    "provisional-expert-forward30": ("fedsda", True, 30),
 }
 _LEARNING_RATE = 2.0
 _INITIAL_PROVISIONAL_WEIGHT = 0.5
@@ -221,13 +225,30 @@ def _execute_job(job):
         per_client_sample_count=job["sample_count"],
         server_aggregation_interval_per_client_samples=job["interval"],
     )
+    configuration_name, uses_provisional_expert, validation_sample_count = _VARIANTS[job["variant"]]
     settings = build_experiment_run_settings(
-        configuration_name=_VARIANTS[job["variant"]], experiment_run_conditions=conditions
+        configuration_name=configuration_name, experiment_run_conditions=conditions
     )
+    if validation_sample_count is not None:
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    client,
+                    candidate_model_training_and_acceptance_settings=replace(
+                        client.candidate_model_training_and_acceptance_settings,
+                        candidate_post_alarm_validation_sample_count=validation_sample_count,
+                    ),
+                ),
+            ),
+        )
     client_settings = settings.run_participant_settings.run_client_settings
     started = time.time()
     events = []
-    if job["variant"] == "provisional-expert":
+    if uses_provisional_expert:
         with _provisional_expert_policy(
             share_rate=1.0
             / client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,
@@ -282,7 +303,13 @@ def main():
     parser.add_argument("--intervals", nargs="+", type=int, required=True)
     parser.add_argument("--seeds", nargs="+", type=int, required=True)
     parser.add_argument("--sample-count", type=int, default=2500)
-    parser.add_argument("--variants", nargs="+", default=list(_VARIANTS), choices=list(_VARIANTS))
+    # 既定は最初の3変種（uraniumの本規模の確認と同じ。B0の2変種は、指定したときだけ）。
+    parser.add_argument(
+        "--variants",
+        nargs="+",
+        default=["validation", "no-validation", "provisional-expert"],
+        choices=list(_VARIANTS),
+    )
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--check", action="store_true", help="仮の専門家の重みを常に0にする（検証ありとの一致の照合）")
     parser.add_argument(
@@ -300,7 +327,7 @@ def main():
             interval=i,
             seed=s,
             sample_count=arguments.sample_count,
-            check=arguments.check and v == "provisional-expert",
+            check=arguments.check and _VARIANTS[v][1],
         )
         for d in arguments.datasets
         for i in arguments.intervals
