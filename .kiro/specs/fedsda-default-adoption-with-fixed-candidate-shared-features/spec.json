@@ -1,0 +1,47 @@
+{
+  "feature_name": "fedsda-default-adoption-with-fixed-candidate-shared-features",
+  "created_at": "2026-10-20",
+  "updated_at": "2026-10-20",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー1回目（GPT-6 Luna high）のMinor 3件を反映"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー1回目（GPT-6 Luna high）のMinor 3件を反映"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー1回目（GPT-6 Luna high）のMinor 3件を反映"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー1回目（GPT-6 Luna high）のMinor 3件を反映"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "37ca477",
+  "specification_review": {
+    "status": "passed",
+    "base_revision": "37ca477（未commitのspec文書）",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a15516-9ae9-77c0-9049-3bca955ec625",
+        "result": "CHANGES REQUIRED（Minorのみ3件: 命名表に設定の項目、乱数とoptimizer状態の検証条件の不足、task5の完了条件）。全部反映。Minorのみのため規約により再レビューなし",
+        "output": "../../venv/refactoring-tests/frozen-default-spec-luna-1.log"
+      }
+    ],
+    "selection_reason": "既定の変更と照合の論証。前specの指示（以後のレビューはLuna high）に従った"
+  },
+  "current_task": "Task1"
+}
