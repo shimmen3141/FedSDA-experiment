@@ -65,11 +65,11 @@
     "paths": 18,
     "frames": 453,
     "page_errors": 0,
-    "html_sha256": "32d310adf64c19a2e329306095992936da8d8d77a59d53aecbe2f638cbe37954",
+    "html_sha256": "26b5ce2ec0e69f651fe279823ea49be5419597e3cf8df943e1eb1c17c882ee9f",
     "evidence": "元checkoutのvenv/flow-browser-check/validation.jsonとPNG",
     "numeric_pytest": "HTMLのみのため対象外",
     "followup_evidence": "元checkout venv/flow-browser-check/connections-validation.json・geometry-validation.json・connections-final-*.png",
-    "latest_followup_evidence": "元checkout venv/flow-browser-check/phase-alarm-final-validation.json・phase-result-geometry.json・phase-result-<幅>-<分岐>.png"
+    "latest_followup_evidence": "元checkout venv/flow-browser-check/alarm-size-geometry.json・alarm-wait-signal-geometry.json・alarm-size-<幅>-<分岐>.png・alarm-wait-signal-<幅>-wait.png"
   },
   "followup_reviews": [
     {
@@ -143,6 +143,17 @@
       "resolution": "修飾キーの対象を既存処理と同じAlt/Ctrl/Metaと明記。Minorのみで再レビュー不要。",
       "browser_independent_execution": false,
       "evidence": "18経路453コマ・最終判定PNGを独立照合。主担当が結果3状態×3画面の配置と最終ラベルを追加確認。"
+    },
+    {
+      "scope": "要求21：警報処理記号の寸法と結果の先端表示",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "警報3状態×3画面の寸法・破線・端点・文字配置とW01監視接続の3画面検査・PNGを独立照合。"
     }
   ]
 }

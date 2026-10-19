@@ -83,3 +83,12 @@
 - 独立Luna high実装レビューはPASS（Minor 1）。修飾キー除外の曖昧さは、既存キー処理と同じAlt/Ctrl/Metaが対象と仕様へ明記して解消。Minorのみのため再レビュー不要。独立ブラウザ再実行は未実施。
 - 判定結果3状態と新しいphase文言の枠内検査は3画面で成功。代表PNGを目視。平時に合図なしでも判断へ監視結果を渡すことを明示するため入力線ラベルだけ「監視結果」へ修正し、最終表示を追加確認した。
 - 証拠はGit管理外`venv/flow-browser-check/check-phase-alarm-final.cjs`・`phase-alarm-final-validation.json`、最終文言の配置確認は`phase-result-geometry.cjs`・`phase-result-geometry.json`・`phase-result-<幅>-<分岐>.png`。Node構文・diff --check成功。実験コード・golden未変更、数値pytestは対象外。
+
+## ユーザー追記：警報図形の寸法と接続
+- [x] 9. 要求21の仕様レビュー後、警報ひし形・短い結果線と先端結果、監視線の点線化とW01表示を変更し、寸法・端点・線種・表示範囲と代表画面を検証して実装レビューを反映する。
+
+- 独立Luna highの仕様レビューはPASS。先行受入検査でひし形寸法不一致、監視線の実線、矢印長未変更の失敗を確認した。
+- alarmを再利用判定と同じ170×64へ変更し、signalを32、結果線を38にして両方の点線を短線実線化から除外。結果2行を先端下へ移した。警報から区間分割への始点も合わせ、W01にsignalを追加した。frame契約の差分はW01だけ、他の順序/キー処理は未変更。
+- Chromeの3画面×3警報状態で寸法一致・線種・長さ・上下接続・結果文字とphase文言の枠内を検査成功。さらにW01（標本蓄積の11コマ目）でmonitorとsignalの活性を3画面確認し成功。代表PNGを目視。Node構文・diff --checkも成功。
+- 証拠はGit管理外`venv/flow-browser-check/check-alarm-size.cjs`・`alarm-size-geometry.json`・`alarm-size-<幅>-<分岐>.png`、`check-alarm-wait.cjs`・`alarm-wait-signal-geometry.json`・`alarm-wait-signal-<幅>-wait.png`。数値実装・goldenは未変更のため数値pytestは対象外。
+- 独立Luna high実装レビューはPASS、指摘なし。2つの配置検証記録とA01/W01代表PNGを独立照合。ブラウザ独立再実行は未実施。
