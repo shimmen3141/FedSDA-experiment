@@ -65,8 +65,22 @@
     "paths": 18,
     "frames": 444,
     "page_errors": 0,
-    "html_sha256": "d83cc1a49f1aa9a3bcb10d72a056ac133c42913f3a23becaec80e63a160c6c35",
+    "html_sha256": "19246d847e16db6d9fda240d222382e1b8a06cfa395955c9645b37c669991fbd",
     "evidence": "元checkoutのvenv/flow-browser-check/validation.jsonとPNG",
-    "numeric_pytest": "HTMLのみのため対象外"
-  }
+    "numeric_pytest": "HTMLのみのため対象外",
+    "followup_evidence": "元checkout venv/flow-browser-check/connections-validation.json・geometry-validation.json・connections-final-*.png"
+  },
+  "followup_reviews": [
+    {
+      "scope": "要求5〜7：コピー元・追加先の明示",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "主担当の18経路444コマとPNGを照合。最後の文字サイズ調整は主担当の枠検査で確認。"
+    }
+  ]
 }
