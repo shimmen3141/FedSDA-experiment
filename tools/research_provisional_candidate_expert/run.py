@@ -47,6 +47,14 @@ _VARIANTS = {
     "provisional-expert-forward30": ("fedsda", True, 30),
     "sequential-test": ("fedsda", False, 30),
     "provisional-expert-sequential-test": ("fedsda", True, 30),
+    # アイデア1: 検証なし（すぐ採用）で、送信までの待ちの同期回数（既定1）を延ばす。既定の登録の扱いは、
+    # 待ちの間も現行であり続けたモデルだけを登録するので、短命なモデルはサーバへ共有されない。
+    "no-validation-upload-delay2": ("fedsda-without-candidate-validation", False, None),
+    "no-validation-upload-delay3": ("fedsda-without-candidate-validation", False, None),
+}
+_UPLOAD_DELAY_ROUND_COUNT_BY_VARIANT = {
+    "no-validation-upload-delay2": 2,
+    "no-validation-upload-delay3": 3,
 }
 _SEQUENTIAL_TEST_VARIANTS = ("sequential-test", "provisional-expert-sequential-test")
 # 候補の判定のe-過程の有意水準（閾値1/α）と、賭けの割合の混合。αは検出（ClassESR、0.001）とは別に選んだ値。
@@ -335,6 +343,24 @@ def _execute_job(job):
                 ),
             ),
         )
+    if job["variant"] in _UPLOAD_DELAY_ROUND_COUNT_BY_VARIANT:
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    client,
+                    scalar_settings=replace(
+                        client.scalar_settings,
+                        new_model_upload_delay_round_count=_UPLOAD_DELAY_ROUND_COUNT_BY_VARIANT[
+                            job["variant"]
+                        ],
+                    ),
+                ),
+            ),
+        )
     client_settings = settings.run_participant_settings.run_client_settings
     started = time.time()
     events = []
@@ -373,6 +399,9 @@ def _execute_job(job):
         uploaded_bytes=volume.uploaded_byte_count,
         downloaded_bytes=volume.downloaded_byte_count,
         final_global_model_count=metrics.final_global_model_count,
+        upload_delay_round_count=client_settings.scalar_settings.new_model_upload_delay_round_count,
+        validation_sample_count=client_settings.candidate_model_training_and_acceptance_settings.candidate_post_alarm_validation_sample_count,
+        candidate_model_acceptance_policy=client_settings.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy,
         detection_count=metrics.training_model_switch_detection_metrics.detection_count,
         server_parameter_digest=_digest(
             {
