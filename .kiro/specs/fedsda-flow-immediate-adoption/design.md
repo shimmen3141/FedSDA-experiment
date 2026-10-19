@@ -34,3 +34,6 @@
 - id=candidateの「変化区間の標本」枠だけをdataの青緑にし、assign-candidate/candidate-assign線と対応ラベルも同色にする。candidate-shell（新モデル作成の外枠）、candidate-backbone/head（モデルコピー）、stores/new-store（学習ストアの緑枠）の色は変えない。id=candidateはモデル候補本体ではなく、処理へ切り出した標本の枠を指す。assign-candidateの「変化区間」ラベルは枠自体の名称と重複し線にも重なるため除去する。
 - new-model-shared線とラベルをSVG/frame双方から除去。C03はmodels/storesを追加で活性化、R01はmodelsを追加で活性化する。local-focusで配布時側は薄いままにする。新nモデル/ストアの限定表示は不変。
 - 変更前検査は共有線の存在とC00不在で失敗することを確認。3画面・全経路で順序、コマごとの活性線、標本色とコピー色の違い、更新用モデル群/ストアの濃淡、限定表示と操作を確認する。
+
+## 追記設計：要求10
+サーバのregister_ready_client_modelsは正式IDを割り当てconfirm_held_model_registrationで保有モデルのID/帰属/記録を付け替える。この段階で配布時snapshotは更新しない。従ってR02もnew-modelを表示・活性化し、localOnlyへ追加する。変更は新規モデルのtitle font-size、表示限定CSSのR02追加、R02のactorsへnew-model追加、localOnlyへのR02追加の4箇所のみ。R02の文言や標本枠の表示条件は変えない。検査はR02の新モデルdisplayと配布時のopacity、文字のSVG bboxを確認し、他frame定義の不変を照合する。

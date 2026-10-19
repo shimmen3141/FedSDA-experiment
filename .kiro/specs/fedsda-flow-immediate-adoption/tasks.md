@@ -39,3 +39,13 @@
 - Chromeの1280×720・1440×900・390×844で各6分岐、延べ18経路447コマに成功（issues/pageerror 0）。順序、色差、活性線の分離、追加群の濃淡、限定表示、循環、フェーズ移動、再生、補足を確認。C00/C01/C03のPNGを目視し、コピー2線の全直交segmentが交差しないことも計算で確認。全frameの参照・Node構文・diff --checkも成功。
 - 変更frameはC00の追加とC01/C03/R01のみ。検査は元checkoutのGit管理外`venv/flow-browser-check/check-declutter.cjs`、結果は`declutter-validation.json`、PNGは`declutter-<幅>-<frame>.png`。
 - 独立Luna highの実装レビューはPASS、指摘なし。差分・18経路447コマの証拠とC00/C01/C03のPNGを独立確認した。ブラウザの独立再実行は未実施。
+
+## ユーザー追記：ID登録コマの表示
+- [x] 5. 追記仕様レビュー後、新規モデル文字を拡大し、R02でも表示・活性化して配布時モデルを薄くする。限定差分・文字の収まり・全分岐表示を確認し独立レビューを反映する。
+  - Requirements: 10
+
+- 独立Luna highの仕様レビューはPASS、指摘なし。サーバ登録は保有状態等のID付替えであり、配布時snapshotを更新しないことを実装で確認した。
+- 先行検査は`New model title remains small`で失敗。新モデル名・CSS表示限定・R02 actors・localOnlyの4箇所だけ変更した。4置換の逆変換で変更前HTMLの全テキストに一致することを確認。
+- 当初の18px案は文字幅127.82に対し枠幅125で収まらなかったため、実測113.75の16px（以前13px）へ調整した。枠寸法と他の文字は変更しない。最初の逆変換検査は別の既存18px指定まで拾ったため、タイトル文字列で対象を限定して再確認した。
+- 狭幅390では16px文字幅116.72・左余白1.77pxで枠内に収まっていたが、検査側の2px余白条件に触れたため、実際の枠内＋1pxの確認へ訂正した。HTMLの追加変更はしていない。Chromeの3画面・18経路447コマで表示限定・R02の活性と配布時opacity・文字の収まり・既存操作が成功しissues/pageerror 0。R02のPNGを目視した。検査と証拠はGit管理外`venv/flow-browser-check/check-registration.cjs`、`registration-validation.json`、`registration-<幅>-<frame>.png`。
+- 独立Luna highの実装レビューはPASS、指摘なし。4置換の逆変換一致・全経路の成功証拠・R02の1280/390 PNGを独立確認した。ブラウザの独立再実行は未実施。
