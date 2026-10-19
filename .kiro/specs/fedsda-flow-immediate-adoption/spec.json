@@ -1,0 +1,72 @@
+{
+  "feature_name": "fedsda-flow-immediate-adoption",
+  "created_at": "2026-10-20",
+  "updated_at": "2026-10-20",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "User-delegated scope; independent Luna high specification review PASS, no findings"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "User-delegated scope; independent Luna high specification review PASS, no findings"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "User-delegated scope; independent Luna high specification review PASS, no findings"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "User-delegated scope; independent Luna high specification review PASS, no findings"
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "reviewer": "/root/seed_range_review",
+    "result": "PASS; Blocker/Major/Minor 0"
+  },
+  "implementation_review": {
+    "status": "accepted_after_minor_fix",
+    "initial_verdict": "FAIL",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "reviewer": "/root/seed_range_review",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 1
+    },
+    "resolution": "SVGの読み上げ説明の旧名称を新モデル作成へ修正。Minorのみのため再レビュー不要の規則を適用。ブラウザ独立再実行なし。"
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "paths": 18,
+    "frames": 444,
+    "page_errors": 0,
+    "html_sha256": "d83cc1a49f1aa9a3bcb10d72a056ac133c42913f3a23becaec80e63a160c6c35",
+    "evidence": "元checkoutのvenv/flow-browser-check/validation.jsonとPNG",
+    "numeric_pytest": "HTMLのみのため対象外"
+  }
+}
