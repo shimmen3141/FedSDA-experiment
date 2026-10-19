@@ -207,8 +207,9 @@ def build_final_configuration_fedsda_run_settings(
         ),
         candidate_model_training_and_acceptance_settings=(
             CandidateModelTrainingAndAcceptanceSettings(
+                # 2026-10-20から、候補を検証せずに、その場で採用する（検証の標本数は、使わない）。
                 candidate_model_acceptance_policy=(
-                    "current_model_first_reuse_then_two_segment_candidate_validation"
+                    "current_model_first_reuse_then_candidate_adoption_without_validation"
                 ),
                 candidate_post_alarm_validation_sample_count=(
                     _CANDIDATE_POST_ALARM_VALIDATION_SAMPLE_COUNT
@@ -225,7 +226,8 @@ def build_final_configuration_fedsda_run_settings(
             validation_sample_fraction=_CANDIDATE_VALIDATION_SAMPLE_FRACTION,
             consecutive_non_improving_epoch_limit=_CANDIDATE_CONSECUTIVE_NON_IMPROVING_EPOCH_LIMIT,
             minimum_validation_loss_decrease=_MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,
-            candidate_shared_feature_update_policy="update_shared_features_with_candidate",
+            # 候補の学習では共有部を固定する（採用が、既存のモデルの入力——共有部——を書き換えない）。
+            candidate_shared_feature_update_policy="keep_shared_features_fixed",
         ),
         parameter_optimizer_settings=parameter_optimizer_settings,
         rebuilt_model_parameter_optimizer_settings=parameter_optimizer_settings,

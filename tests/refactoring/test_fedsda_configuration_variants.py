@@ -36,6 +36,7 @@ from federated_learning_experiments.runtime import (
 from federated_learning_experiments.sweep.experiment_configurations import (
     ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
+    CANDIDATE_VALIDATION_CONFIGURATION_NAME,
     CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
     EXPERIMENT_CONFIGURATION_NAMES,
     FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME,
@@ -71,10 +72,16 @@ def replace_prediction_combination_settings(run_participant_settings, **changed_
     )
 
 
-def replace_candidate_model_training_and_acceptance_settings(
-    run_participant_settings, **changed_fields
+def replace_candidate_acceptance_and_shared_feature_update(
+    run_participant_settings,
+    *,
+    candidate_model_acceptance_policy,
+    candidate_shared_feature_update_policy,
 ):
-    """参加者の設定の束の、候補モデルの学習と採否の設定の一部を、置き換える。"""
+    """参加者の設定の束の、候補の採否の方針と、候補の学習での共有部の更新を、一緒に置き換える。
+
+    2つは組合せの制約（候補検証と共有部の固定は組み合わせられない）があるので、1回の置き換えで替える。
+    """
     run_client_settings = run_participant_settings.run_client_settings
     return replace(
         run_participant_settings,
@@ -82,7 +89,11 @@ def replace_candidate_model_training_and_acceptance_settings(
             run_client_settings,
             candidate_model_training_and_acceptance_settings=replace(
                 run_client_settings.candidate_model_training_and_acceptance_settings,
-                **changed_fields,
+                candidate_model_acceptance_policy=candidate_model_acceptance_policy,
+            ),
+            candidate_epoch_training_settings=replace(
+                run_client_settings.candidate_epoch_training_settings,
+                candidate_shared_feature_update_policy=candidate_shared_feature_update_policy,
             ),
         ),
     )
@@ -170,12 +181,15 @@ CONFIGURATION_VARIANTS = {
         legacy_mode_name=PROPOSED_CONFIGURATION_VARIANT.legacy_mode_name,
         # 旧の`tools/run_main_ablation_suite.sh`の`immediate-creation`。
         legacy_setting_overrides={"NEW_MODEL_CREATION_POLICY": "immediate"},
+        # 2026-10-20からの既定は、候補の学習で共有部を固定するので、一緒に更新する値も明示する（旧には、
+        # 固定する扱いが無い）。
         modify_run_participant_settings=lambda run_participant_settings: (
-            replace_candidate_model_training_and_acceptance_settings(
+            replace_candidate_acceptance_and_shared_feature_update(
                 run_participant_settings,
                 candidate_model_acceptance_policy=(
                     "current_model_first_reuse_then_candidate_adoption_without_validation"
                 ),
+                candidate_shared_feature_update_policy="update_shared_features_with_candidate",
             )
         ),
     ),
@@ -934,6 +948,7 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
         SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
         LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
+        CANDIDATE_VALIDATION_CONFIGURATION_NAME,
     )
     assert INDEPENDENT_MODELS_CONFIGURATION_NAME == "fedsda-independent-models"
     assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
@@ -962,6 +977,8 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
         SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
         LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
+        # 2026-10-19までの提案構成と同じ設定なので、実旧との照合は、提案構成の照合が覆う。
+        CANDIDATE_VALIDATION_CONFIGURATION_NAME,
     }
     experiment_run_conditions = ExperimentRunConditions(
         dataset_name="sine2",

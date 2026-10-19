@@ -32,7 +32,9 @@ PROPOSED_FEDSDA_CONFIGURATION_NAME = "fedsda"
 PREDICTION_WEIGHT_RECALIBRATION_ABLATION_CONFIGURATION_NAME = (
     "fedsda-without-prediction-weight-recalibration"
 )
-# 提案構成から、候補検証を外した構成（合う保有モデルが無いとき、学習した候補を、その場で採用する）。
+# 候補検証を外し、候補の学習で共有部も更新する構成（合う保有モデルが無いとき、学習した候補を、その場で採用する）。
+# 2026-10-20に、提案構成が候補検証なし（共有部は固定）になったので、提案構成からは、候補の共有部の固定を外した
+# 構成に当たる。設定は、これまでと同じ（名前は、過去の結果との連続のために残す）。
 CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME = "fedsda-without-candidate-validation"
 # 提案構成の、クラスタリングのモデル対の比べ方を、損失の増加量（互いの標本での平均損失の増加）へ替えた構成。
 LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME = "fedsda-loss-distance-clustering"
@@ -65,6 +67,9 @@ SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME = (
 # 混ぜる予測の寄与を比べる用）。全モデルの結合予測は、提案構成と同じ（`fedsda-single-model-prediction`は、
 # 結合をせず、現在の学習帰属のモデルだけで予測する）。
 LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME = "fedsda-local-parameter-prediction"
+# 2026-10-19までの提案構成（候補を、警報の後の標本で検証してから採否を決め、候補の学習で共有部も更新する）。
+# 提案構成から、採否の方針と候補の共有部の2つを替える（候補検証は、共有部の固定と組み合わせられないため）。
+CANDIDATE_VALIDATION_CONFIGURATION_NAME = "fedsda-with-candidate-validation"
 # `fedavg`の、局所更新の間隔を、集約の間隔と同じにした構成。roundの中は、そのroundの始めに配布されたモデルで
 # 予測し、局所更新は、roundの最後の標本の処理でまとめて行う（`fedavg`は、1標本ごとに局所更新する）。
 FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME = "fedavg-local-updates-per-aggregation"
@@ -87,6 +92,7 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
     SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
     LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
+    CANDIDATE_VALIDATION_CONFIGURATION_NAME,
 )
 
 
@@ -135,10 +141,17 @@ def _replace_prediction_combination_settings(
     )
 
 
-def _replace_candidate_model_training_and_acceptance_settings(
-    *, run_settings: FedsdaRunSettings, **changed_fields: object
+def _replace_candidate_acceptance_and_shared_feature_update(
+    *,
+    run_settings: FedsdaRunSettings,
+    candidate_model_acceptance_policy: str,
+    candidate_shared_feature_update_policy: str,
 ) -> FedsdaRunSettings:
-    """完全なrun設定の、候補モデルの学習と採否の設定の一部を置き換える。"""
+    """完全なrun設定の、候補の採否の方針と、候補の学習での共有部の更新を、一緒に置き換える。
+
+    2つの値は、組合せの制約（候補検証と共有部の固定は組み合わせられない）があるので、片方ずつ置き換えると、
+    途中の設定が拒否されることがある。
+    """
     run_participant_settings = run_settings.run_participant_settings
     run_client_settings = run_participant_settings.run_client_settings
     return replace(
@@ -149,7 +162,11 @@ def _replace_candidate_model_training_and_acceptance_settings(
                 run_client_settings,
                 candidate_model_training_and_acceptance_settings=replace(
                     run_client_settings.candidate_model_training_and_acceptance_settings,
-                    **changed_fields,
+                    candidate_model_acceptance_policy=candidate_model_acceptance_policy,
+                ),
+                candidate_epoch_training_settings=replace(
+                    run_client_settings.candidate_epoch_training_settings,
+                    candidate_shared_feature_update_policy=candidate_shared_feature_update_policy,
                 ),
             ),
         ),
@@ -201,11 +218,20 @@ def build_experiment_run_settings(
             ),
         )
     if configuration_name == CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME:
-        return _replace_candidate_model_training_and_acceptance_settings(
+        return _replace_candidate_acceptance_and_shared_feature_update(
             run_settings=proposed_run_settings,
             candidate_model_acceptance_policy=(
                 "current_model_first_reuse_then_candidate_adoption_without_validation"
             ),
+            candidate_shared_feature_update_policy="update_shared_features_with_candidate",
+        )
+    if configuration_name == CANDIDATE_VALIDATION_CONFIGURATION_NAME:
+        return _replace_candidate_acceptance_and_shared_feature_update(
+            run_settings=proposed_run_settings,
+            candidate_model_acceptance_policy=(
+                "current_model_first_reuse_then_two_segment_candidate_validation"
+            ),
+            candidate_shared_feature_update_policy="update_shared_features_with_candidate",
         )
     if configuration_name == LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME:
         # サーバが読む判定の基準と、統合の方式の宣言の、両方を替える。

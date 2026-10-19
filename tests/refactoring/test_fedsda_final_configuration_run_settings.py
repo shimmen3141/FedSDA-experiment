@@ -145,6 +145,15 @@ LEGACY_AND_NEW_FINAL_CONFIGURATION_CHOICES = (
 )
 
 
+# 旧の最終構成の選択と、意図して違う選択（新の方式の名前→新の既定の値）。2026-10-20から、候補を検証せずに
+# 採用する（旧の`NEW_MODEL_CREATION_POLICY="immediate"`に当たる。旧の最終構成は`forward_persistent`）。
+NEW_FINAL_CONFIGURATION_CHOICES_CHANGED_FROM_LEGACY = {
+    "candidate_model_acceptance_policy": (
+        "current_model_first_reuse_then_candidate_adoption_without_validation"
+    ),
+}
+
+
 def read_legacy_final_configuration_values(dataset_name, legacy_overrides=None):
     """旧の設定を、最終構成の固定設定（と、渡した上書き）で有効化して、全部の値を読む。
 
@@ -230,7 +239,8 @@ def test_final_configuration_defaults_match_legacy_configuration(
     挙動を直した扱いと、選んだ扱いだけは、旧と違う（送信保留のモデルを、現行モデルとして待った後に登録する
     ——LEGACY-016とその見直し——。推定変化区間が最小件数に達するまで警報を待つ——IMPROVE-006——。
     短い警報のあと、取り込んだ前区間を保留から外す——LEGACY-002——。予測を、同期の時点と局所の2つの結合予測を
-    混ぜて行い、Fixed-Shareの時間尺度を120にする——2026-10-16、研究バックログの8——）。
+    混ぜて行い、Fixed-Shareの時間尺度を120にする——2026-10-16、研究バックログの8——。候補を検証せずに採用し、
+    候補の学習では共有部を固定する——2026-10-20——）。
     """
     legacy_values, hidden_layer_widths = read_legacy_final_configuration_values(dataset_name)
     legacy_equivalent_run_settings = make_run_settings_from_legacy_values(
@@ -289,6 +299,16 @@ def test_final_configuration_defaults_match_legacy_configuration(
                     legacy_equivalent_client_settings.prediction_combination_settings,
                     prediction_model_parameter_source="mixture_of_synchronized_and_local_parameters",
                     fixed_share_weight_redistribution_time_scale_samples=120,
+                ),
+                candidate_model_training_and_acceptance_settings=replace(
+                    legacy_equivalent_client_settings.candidate_model_training_and_acceptance_settings,
+                    candidate_model_acceptance_policy=(
+                        "current_model_first_reuse_then_candidate_adoption_without_validation"
+                    ),
+                ),
+                candidate_epoch_training_settings=replace(
+                    legacy_equivalent_client_settings.candidate_epoch_training_settings,
+                    candidate_shared_feature_update_policy="keep_shared_features_fixed",
                 ),
             ),
         ),
@@ -373,7 +393,9 @@ def test_final_configuration_defaults_match_legacy_configuration(
         new_value,
     ) in LEGACY_AND_NEW_FINAL_CONFIGURATION_CHOICES:
         assert legacy_values[legacy_setting_name] == legacy_value, legacy_setting_name
-        assert new_values_by_name.pop(new_setting_name) == new_value, new_setting_name
+        assert new_values_by_name.pop(new_setting_name) == (
+            NEW_FINAL_CONFIGURATION_CHOICES_CHANGED_FROM_LEGACY.get(new_setting_name, new_value)
+        ), new_setting_name
     assert not new_values_by_name
     # 検出器: 旧のmode名（ClassESR）が決める。新は、e-SRで、全体と正解クラスの損失を監視する。
     # モデルの構造も、旧のmode名（ResidualAdapter）が決める。
@@ -499,7 +521,8 @@ def make_golden_condition_run_settings(dataset_name):
         )
     )
     # 旧のgolden・実旧の結果と比べる条件なので、登録の扱いは、固定旧と同じにする（既定は、LEGACY-016の修正後の扱い）。
-    return use_legacy_compatible_policies(
+    # 旧の提案構成は、候補検証あり（2026-10-20からの既定は、検証せずに採用する）。
+    legacy_compatible_run_settings = use_legacy_compatible_policies(
         replace(
             default_run_settings,
             execution_settings=replace(
@@ -525,6 +548,23 @@ def make_golden_condition_run_settings(dataset_name):
                 post_change_recovery_window_sample_count=golden_overrides["STABLE_WINDOW"],
             ),
         )
+    )
+    participant = legacy_compatible_run_settings.run_participant_settings
+    client = participant.run_client_settings
+    return replace(
+        legacy_compatible_run_settings,
+        run_participant_settings=replace(
+            participant,
+            run_client_settings=replace(
+                client,
+                candidate_model_training_and_acceptance_settings=replace(
+                    client.candidate_model_training_and_acceptance_settings,
+                    candidate_model_acceptance_policy=(
+                        "current_model_first_reuse_then_two_segment_candidate_validation"
+                    ),
+                ),
+            ),
+        ),
     )
 
 

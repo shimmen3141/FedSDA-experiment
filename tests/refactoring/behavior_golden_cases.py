@@ -129,6 +129,14 @@ _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH = (
 _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS = {
     _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH: "update_shared_features_with_candidate",
 }
+# 候補の採否の方針。版1〜6は、候補検証あり（版7で、既定が、検証せずに採用する方針へ変わる）。
+_CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH = (
+    "candidate_model_training_and_acceptance_settings",
+    "candidate_model_acceptance_policy",
+)
+_CANDIDATE_VALIDATION_POLICY_NAME = (
+    "current_model_first_reuse_then_two_segment_candidate_validation"
+)
 _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     1: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: {
@@ -168,23 +176,35 @@ _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
 # 版2・3: 登録の扱いは、送信保留の全部を、それ自身のIDで登録する（現在の既定——版5——とは違う扱い）。
 # 版4: 登録は、現行モデルとして待った後に登録する（版5の既定と同じ）。警報は即時（版5の既定とは違う）。
 # 版1〜5: Fixed-Shareの時間尺度Tは30（版6で、既定が120へ変わる）。
+# 版1〜6: 候補の採否の方針は、候補検証あり（版7で、既定が変わる）。候補検証を外した構成のケース
+# （`fedsda-without-candidate-validation`）は、構成が方針を明示するので、当てない。
 _CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION = {
-    1: {_FIXED_SHARE_TIME_SCALE_PATH: 30},
+    1: {
+        _FIXED_SHARE_TIME_SCALE_PATH: 30,
+        _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH: _CANDIDATE_VALIDATION_POLICY_NAME,
+    },
     2: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
         _FIXED_SHARE_TIME_SCALE_PATH: 30,
+        _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH: _CANDIDATE_VALIDATION_POLICY_NAME,
     },
     3: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_EACH_PENDING_MODEL_BY_ITS_OWN_ID_POLICY_NAME,
         _FIXED_SHARE_TIME_SCALE_PATH: 30,
+        _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH: _CANDIDATE_VALIDATION_POLICY_NAME,
     },
     4: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: REGISTER_PENDING_MODEL_AFTER_WAITING_AS_CURRENT_MODEL_POLICY_NAME,
         # 版4の警報の扱いは、即時（版5で、既定が、最小件数まで待つ扱いへ変わる）。
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         _FIXED_SHARE_TIME_SCALE_PATH: 30,
+        _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH: _CANDIDATE_VALIDATION_POLICY_NAME,
     },
-    5: {_FIXED_SHARE_TIME_SCALE_PATH: 30},
+    5: {
+        _FIXED_SHARE_TIME_SCALE_PATH: 30,
+        _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH: _CANDIDATE_VALIDATION_POLICY_NAME,
+    },
+    6: {_CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH: _CANDIDATE_VALIDATION_POLICY_NAME},
 }
 
 
@@ -223,6 +243,8 @@ CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
     "fedsda-synchronized-model-prediction": "tests/refactoring/test_fedsda_synchronized_model_prediction.py",
     "fedsda-synchronized-local-mixture-prediction": "tests/refactoring/test_fedsda_synchronized_local_mixture_prediction.py",
     "fedsda-local-parameter-prediction": "tests/refactoring/test_fedsda_local_parameter_prediction.py",
+    # 版7では、候補検証の経路を守る大きい条件のケースを、この構成で実行する（構成の名前のケースは無い）。
+    "fedsda-with-candidate-validation": "tests/refactoring/test_fedsda_with_candidate_validation.py",
 }
 _VERSION_1_CASE_NAMES = (
     *BASELINE_CONFIGURATION_CASE_NAMES,
@@ -453,16 +475,28 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                     ],
                 ),
             )
-        if _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH in added_settings:
-            client = replace(
-                client,
-                candidate_epoch_training_settings=replace(
-                    client.candidate_epoch_training_settings,
-                    candidate_shared_feature_update_policy=added_settings[
-                        _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH
-                    ],
-                ),
+        # 候補の採否の方針と共有部の更新は、組合せの制約（候補検証と共有部の固定は組み合わせられない）が
+        # あるので、1回の置き換えで、まとめて替える。
+        candidate_changes = {}
+        if (
+            _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH in changed_settings
+            and configuration != "fedsda-without-candidate-validation"
+        ):
+            candidate_changes["candidate_model_training_and_acceptance_settings"] = replace(
+                client.candidate_model_training_and_acceptance_settings,
+                candidate_model_acceptance_policy=changed_settings[
+                    _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH
+                ],
             )
+        if _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH in added_settings:
+            candidate_changes["candidate_epoch_training_settings"] = replace(
+                client.candidate_epoch_training_settings,
+                candidate_shared_feature_update_policy=added_settings[
+                    _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH
+                ],
+            )
+        if candidate_changes:
+            client = replace(client, **candidate_changes)
         if _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH in added_settings:
             client = replace(
                 client,
