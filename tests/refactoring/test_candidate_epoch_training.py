@@ -131,6 +131,7 @@ def test_candidate_generation_epoch_training_and_continued_update_match_legacy(
                 validation_sample_fraction=0.2,
                 consecutive_non_improving_epoch_limit=consecutive_non_improving_epoch_limit,
                 minimum_validation_loss_decrease=minimum_validation_loss_decrease,
+                candidate_shared_feature_update_policy="update_shared_features_with_candidate",
             ),
         )
         if minimum_validation_loss_decrease == 10:
@@ -200,6 +201,7 @@ def valid_settings_arguments():
         validation_sample_fraction=0.2,
         consecutive_non_improving_epoch_limit=2,
         minimum_validation_loss_decrease=0.0001,
+        candidate_shared_feature_update_policy="update_shared_features_with_candidate",
     )
 
 
@@ -232,6 +234,9 @@ def valid_settings_arguments():
         ("minimum_validation_loss_decrease", float("nan")),
         ("minimum_validation_loss_decrease", True),
         ("minimum_validation_loss_decrease", "0"),
+        ("candidate_shared_feature_update_policy", "frozen"),
+        ("candidate_shared_feature_update_policy", None),
+        ("candidate_shared_feature_update_policy", True),
     ],
 )
 def test_candidate_epoch_training_settings_contract(
@@ -360,6 +365,7 @@ def test_candidate_dataset_epochs_matches_legacy(
                 training_dataset=training_dataset,
                 epoch_count=epoch_count,
                 maximum_batch_sample_count=maximum_batch_sample_count,
+                update_shared_features=True,
             )
         training_data_loader.assert_called_once_with(
             training_dataset, batch_size=min(maximum_batch_sample_count, sample_count), shuffle=True
@@ -470,6 +476,7 @@ def test_candidate_epoch_training_matches_legacy(
             validation_sample_fraction=validation_sample_fraction,
             consecutive_non_improving_epoch_limit=1,
             minimum_validation_loss_decrease=minimum_validation_loss_decrease,
+            candidate_shared_feature_update_policy="update_shared_features_with_candidate",
         )
         monkeypatch.setattr(
             config,
@@ -693,6 +700,7 @@ def test_candidate_epoch_training_restores_only_best_parameters(
             validation_sample_fraction=1 / 3,
             consecutive_non_improving_epoch_limit=1,
             minimum_validation_loss_decrease=validation_loss_decrease_at_boundary,
+            candidate_shared_feature_update_policy="update_shared_features_with_candidate",
         )
         initial_training_rng_state = torch.get_rng_state().clone()
         BaseClient._train_new_model(
@@ -796,6 +804,7 @@ def test_candidate_epoch_training_rejects_before_mutation(
             training_dataset=torch.utils.data.TensorDataset(input_features, observed_class_labels),
             epoch_count=1,
             maximum_batch_sample_count=3,
+            update_shared_features=True,
         )
         training_arguments = dict(
             candidate_classifier=candidate_training_state.candidate_classifier,

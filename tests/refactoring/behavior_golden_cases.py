@@ -121,6 +121,14 @@ _FIXED_SHARE_TIME_SCALE_PATH = (
     "prediction_combination_settings",
     "fixed_share_weight_redistribution_time_scale_samples",
 )
+# 候補の学習で、共有部を更新するかどうか（2026-10-20に足した項目）。版1〜6は、どれも候補と一緒に更新する。
+_CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH = (
+    "candidate_epoch_training_settings",
+    "candidate_shared_feature_update_policy",
+)
+_CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS = {
+    _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH: "update_shared_features_with_candidate",
+}
 _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     1: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: {
@@ -132,18 +140,28 @@ _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
         _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
+        **_CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS,
     },
     2: {
         _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH: KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
+        **_CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS,
     },
     3: {
         _SHORT_CHANGE_INTERVAL_ALARM_POLICY_PATH: RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
+        **_CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS,
     },
-    4: dict(_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS),
-    5: dict(_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS),
+    4: {
+        **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
+        **_CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS,
+    },
+    5: {
+        **_PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS,
+        **_CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS,
+    },
+    6: dict(_CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS),
 }
 # 版の後に、最終構成の既定の値が変わった、FedSDAのclientの設定の項目と、その版の値。保存してある設定は、
 # この項目を持つので、比べる前に除かない（上の「後に足された項目」の表へ入れると、除かれて比べられなくなる）。
@@ -432,6 +450,16 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                     client.prediction_combination_settings,
                     prediction_model_parameter_source=added_settings[
                         _PREDICTION_MODEL_PARAMETER_SOURCE_PATH
+                    ],
+                ),
+            )
+        if _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH in added_settings:
+            client = replace(
+                client,
+                candidate_epoch_training_settings=replace(
+                    client.candidate_epoch_training_settings,
+                    candidate_shared_feature_update_policy=added_settings[
+                        _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH
                     ],
                 ),
             )

@@ -331,6 +331,7 @@ def build_session_start_oracle(
             validation_sample_fraction=0.2,
             consecutive_non_improving_epoch_limit=consecutive_non_improving_epoch_limit,
             minimum_validation_loss_decrease=minimum_validation_loss_decrease,
+            candidate_shared_feature_update_policy="update_shared_features_with_candidate",
         ),
         candidate_model_training_and_acceptance_settings=CandidateModelTrainingAndAcceptanceSettings(
             candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",

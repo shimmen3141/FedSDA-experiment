@@ -225,6 +225,7 @@ def build_final_configuration_fedsda_run_settings(
             validation_sample_fraction=_CANDIDATE_VALIDATION_SAMPLE_FRACTION,
             consecutive_non_improving_epoch_limit=_CANDIDATE_CONSECUTIVE_NON_IMPROVING_EPOCH_LIMIT,
             minimum_validation_loss_decrease=_MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,
+            candidate_shared_feature_update_policy="update_shared_features_with_candidate",
         ),
         parameter_optimizer_settings=parameter_optimizer_settings,
         rebuilt_model_parameter_optimizer_settings=parameter_optimizer_settings,

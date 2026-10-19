@@ -53,6 +53,7 @@ def _validate_candidate_epoch_training_inputs(
         validation_sample_fraction=candidate_epoch_training_settings.validation_sample_fraction,
         consecutive_non_improving_epoch_limit=candidate_epoch_training_settings.consecutive_non_improving_epoch_limit,
         minimum_validation_loss_decrease=candidate_epoch_training_settings.minimum_validation_loss_decrease,
+        candidate_shared_feature_update_policy=candidate_epoch_training_settings.candidate_shared_feature_update_policy,
     )
     snapshot_classifier_parameters(classifier=candidate_classifier)
     shared_parameters = tuple(candidate_classifier.feature_extractor.parameters())
@@ -145,6 +146,7 @@ def _train_candidate_dataset_epochs(
     training_dataset: TensorDataset,
     epoch_count: int,
     maximum_batch_sample_count: int,
+    update_shared_features: bool,
 ) -> CandidateEpochTrainingResult:
     training_data_loader = DataLoader(
         training_dataset,
@@ -171,7 +173,7 @@ def _train_candidate_dataset_epochs(
                 shared_feature_extractor=candidate_classifier.feature_extractor,
                 shared_parameter_optimizer=candidate_shared_parameter_optimizer_state.parameter_optimizer_if_any,
                 participating_training_batches=(participating_training_batch,),
-                update_shared_features=True,
+                update_shared_features=update_shared_features,
             )
             candidate_trained_sample_count += len(batch_input_features)
             candidate_parameter_update_step_count += 1
@@ -202,6 +204,11 @@ def train_candidate_classifier_epochs(
         observed_class_labels=observed_class_labels,
         candidate_epoch_training_settings=candidate_epoch_training_settings,
     )
+    # 共有部を固定するときは、共同更新が、共有部の順伝播を勾配なしで行い、共有部のoptimizerを進めない。
+    update_shared_features = (
+        candidate_epoch_training_settings.candidate_shared_feature_update_policy
+        == "update_shared_features_with_candidate"
+    )
     if candidate_epoch_training_settings.candidate_training_strategy == "skip_training":
         return CandidateEpochTrainingResult(
             completed_epoch_count=0,
@@ -224,6 +231,7 @@ def train_candidate_classifier_epochs(
             training_dataset=TensorDataset(input_features, observed_class_labels),
             epoch_count=candidate_epoch_training_settings.maximum_epoch_count,
             maximum_batch_sample_count=candidate_epoch_training_settings.maximum_batch_sample_count,
+            update_shared_features=update_shared_features,
         )
     shuffled_sample_indices = randperm(sample_count)
     validation_sample_indices = shuffled_sample_indices[:validation_sample_count]
@@ -250,6 +258,7 @@ def train_candidate_classifier_epochs(
             training_dataset=training_dataset,
             epoch_count=1,
             maximum_batch_sample_count=candidate_epoch_training_settings.maximum_batch_sample_count,
+            update_shared_features=update_shared_features,
         )
         completed_epoch_count += epoch_training_result.completed_epoch_count
         candidate_trained_sample_count += epoch_training_result.candidate_trained_sample_count

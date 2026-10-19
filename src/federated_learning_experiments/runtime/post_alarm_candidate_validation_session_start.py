@@ -154,6 +154,7 @@ def _validate_post_alarm_candidate_validation_start_inputs(
         validation_sample_fraction=candidate_epoch_training_settings.validation_sample_fraction,
         consecutive_non_improving_epoch_limit=candidate_epoch_training_settings.consecutive_non_improving_epoch_limit,
         minimum_validation_loss_decrease=candidate_epoch_training_settings.minimum_validation_loss_decrease,
+        candidate_shared_feature_update_policy=candidate_epoch_training_settings.candidate_shared_feature_update_policy,
     )
     if (
         type(candidate_model_training_and_acceptance_settings)

@@ -284,6 +284,22 @@ class FedsdaRunClientSettings:
                     f"minimum_change_interval_sample_count={minimum_change_interval!r}。"
                 ),
             )
+        # 検証の期間の後に採用すると、候補の共有部（警報の時点の値）が、期間中に学習したclientの共有部を、
+        # 警報の時点の値へ戻す。共有部を固定するのは、検証せずに、その場で採用するときだけにする。
+        if (
+            self.candidate_epoch_training_settings.candidate_shared_feature_update_policy
+            == "keep_shared_features_fixed"
+            and self.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy
+            == "current_model_first_reuse_then_two_segment_candidate_validation"
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="candidate_shared_feature_update_policy",
+                specified_parameter_value=self.candidate_epoch_training_settings.candidate_shared_feature_update_policy,
+                validation_failure_reason=(
+                    "候補の共有部を固定する設定は、候補を検証してから採否を決める方針と組み合わせられません"
+                    "（検証せずに採用する方針を選ぶか、共有部を候補と一緒に更新してください）。"
+                ),
+            )
         minimum_improvement = self.scalar_settings.minimum_candidate_mean_loss_improvement
         minimum_decrease = self.candidate_epoch_training_settings.minimum_validation_loss_decrease
         if minimum_improvement != minimum_decrease:

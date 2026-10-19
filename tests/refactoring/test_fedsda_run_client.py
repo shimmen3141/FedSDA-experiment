@@ -258,6 +258,7 @@ def make_run_client_settings(
             validation_sample_fraction=VALIDATION_SAMPLE_FRACTION,
             consecutive_non_improving_epoch_limit=EARLY_STOPPING_PATIENCE,
             minimum_validation_loss_decrease=MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,
+            candidate_shared_feature_update_policy="update_shared_features_with_candidate",
         ),
         parameter_optimizer_settings=AdamParameterOptimizerSettings(
             learning_rate=new_model_learning_rate, weight_decay=WEIGHT_DECAY, adam_variant="amsgrad"
@@ -552,10 +553,14 @@ def assert_run_client_uses_legacy_compatible_policies(run_client):
     assert prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples == (
         run_client_settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
     ), "実旧との照合には、Fixed-Shareの時間尺度を、帰属の保留の容量と同じ値にする設定が必要です。"
+    assert (
+        run_client_settings.candidate_epoch_training_settings.candidate_shared_feature_update_policy
+        == ("update_shared_features_with_candidate")
+    ), "実旧との照合には、候補の学習で共有部を候補と一緒に更新する設定が必要です。"
 
 
 def use_legacy_compatible_policies(run_settings):
-    """完全なrun設定の、挙動を直した扱いと、予測の2つの値を、固定旧と同じ値へ替える（実旧・旧のgoldenと比べるtest用）。"""
+    """完全なrun設定の、挙動を直した扱いと、予測の2つの値と、候補の共有部の更新を、固定旧と同じ値へ替える（実旧・旧のgoldenと比べるtest用）。"""
     run_participant_settings = run_settings.run_participant_settings
     run_client_settings = run_participant_settings.run_client_settings
     return replace(
@@ -581,6 +586,12 @@ def use_legacy_compatible_policies(run_settings):
                     fixed_share_weight_redistribution_time_scale_samples=(
                         run_client_settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
                     ),
+                ),
+                # 旧には、候補の学習で共有部を固定する扱いが無い。採否の方針（候補検証の有無）は替えない
+                # （決めるのは呼ぶ側）。
+                candidate_epoch_training_settings=replace(
+                    run_client_settings.candidate_epoch_training_settings,
+                    candidate_shared_feature_update_policy="update_shared_features_with_candidate",
                 ),
             ),
         ),

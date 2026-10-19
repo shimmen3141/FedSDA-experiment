@@ -40,6 +40,16 @@ class CandidateEpochTrainingSettings:
     minimum_validation_loss_decrease: float = field(
         metadata={"minimum_allowed_value": 0, "minimum_value_is_inclusive": True}
     )
+    # 候補の学習で、共有部を候補と一緒に更新するか、固定する（概念固有部——adapterと出力層——だけを、
+    # 警報の時点の共有部の上で学習する）か。保有モデルの局所学習には効かない。
+    candidate_shared_feature_update_policy: str = field(
+        metadata={
+            "allowed_parameter_values": (
+                "update_shared_features_with_candidate",
+                "keep_shared_features_fixed",
+            )
+        }
+    )
 
     def __post_init__(self) -> None:
         for configuration_parameter_name in (

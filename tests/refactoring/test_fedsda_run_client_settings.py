@@ -75,6 +75,7 @@ def make_valid_run_client_settings(valid_run_settings_mapping, **replaced_fields
                 validation_sample_fraction=0.2,
                 consecutive_non_improving_epoch_limit=3,
                 minimum_validation_loss_decrease=0.0001,
+                candidate_shared_feature_update_policy="update_shared_features_with_candidate",
             ),
             parameter_optimizer_settings=AdamParameterOptimizerSettings(
                 learning_rate=0.01, weight_decay=0.001, adam_variant="amsgrad"
