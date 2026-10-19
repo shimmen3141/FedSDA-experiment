@@ -1,26 +1,27 @@
 # リファクタリング再開案内
 
-2026-10-19更新。Claudeへの再引継ぎ用。承認・進捗・検証証拠の正本は各spec。この文書は現在地への入口とする。
+2026-10-20更新。Claudeへの再引継ぎ用。承認・進捗・検証証拠の正本は各spec。この文書は現在地への入口とする。
 
 ## 現在地
 
 - 作業場所は`.worktrees/refactoring`、ブランチは`refactor/architecture`。mainへはまだマージしない。同じworktreeの主担当は一人にする。
 - 直近の対象[seed-range-command-arguments](../specs/seed-range-command-arguments/tasks.md)は完了。下記の最近のspecに未実装task・未解消レビュー指摘はない。開始時にはGitの実状態を再確認する。
 - FedSDAと比較構成、FedDrift、単一モデルのFedAvg（旧Oblivious）の移植・全体run・成果物・掃引入口は接続済み。旧実装は参照として残っている。古い移植順を次の作業と誤認しない。
-- FedSDAの既定は配布時モデルとローカル更新モデルの混合予測、帰属保留FIFO30、共通時間尺度T120。Tはモデル別重みと二者混合で共通に使い、両者を別パラメータにしない。候補検証は引き続き有効。
-- 動作基準は基準版6・環境別golden。既定化と基準版は[fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)、環境と手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。環境差だけを理由にgoldenを更新しない。
+- FedSDAの既定は配布時モデルとローカル更新モデルの混合予測、帰属保留FIFO30、共通時間尺度T120。Tはモデル別重みと二者混合で共通に使い、両者を別パラメータにしない。
+- 2026-10-20から、既定は候補を検証せずにその場で採用し、候補の学習では共有部を固定する（基準版7。[spec](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md)）。それまでの候補検証ありは構成`fedsda-with-candidate-validation`、検証なしで共有部も更新する構成は`fedsda-without-candidate-validation`。候補検証の処理は残している（消すかは、ユーザーが別に決める）。
+- 動作基準は基準版7・環境別golden。版6は[fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)、版7は[fedsda-default-adoption-with-fixed-candidate-shared-features](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md)、環境と手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。環境差だけを理由にgoldenを更新しない。
 
 ## 次の一手
 
 1. [CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[共通引継ぎ手順](agent-handoff.md)を読み、ブランチ・HEAD・差分・対象specを照合する。Claude版cc-sddは`.claude/skills/`、仕様正本は共通の`.kiro/specs/`。
 2. 候補検証研究を続けるなら、下の研究記録を読む。DやPを未実験の案として再実装しない。現在、次の製品アルゴリズム変更のspec・採用決定はない。
-3. 次の候補は、候補headの便益・共有部変更による既存headへの干渉・実際の混合予測への寄与を、同じ到着標本上で切り分ける診断。head採用と共有部反映を分ける案や、候補追加後の混合自体を検証する案を考える。未検証の方向性であり、実証済みの改善策ではない。
+3. 次の候補は、新しい既定の下でのablation（構成の比較）と、通信量の増加（下り。登録の増加）を抑える方法の検討。候補検証の処理を消すかは、ユーザーの判断を待つ。
 4. 新しい研究対照は独立ツールへ閉じ、製品経路を変える場合は別specと実装前の独立仕様レビューを経る。現在の既定を黙って変更しない。
 
 ## 決定事項
 
 - 研究目標は候補検証の削除自体ではなく、「検証なしの改善を残し、検証ありが防ぐ低下・通信増加をより単純に抑える」こと。検証あり＋新方式も候補。許容精度低下幅は未設定で、自動採否はしない。
-- D（待機後強制採用）、R（既存重み比率保持）、P（新IDの初期質量抑制）、共有部25%反映・候補学習中固定は、一般的な置換方式として採用していない。条件限定の改善と一般的な優位を区別する。
+- D（待機後強制採用）、R（既存重み比率保持）、P（新IDの初期質量抑制）、共有部25%反映は、一般的な置換方式として採用していない。候補学習中の共有部の固定は、候補検証ありとの組合せ（codexの小規模・研究ツールの本規模とも不安定）では採らず、検証なしとの組合せを2026-10-20に既定にした（本規模・seed 0〜9）。条件限定の改善と一般的な優位を区別する。
 - 探索用の対照は`tools/research_*`等へ隔離し、共通アルゴリズム・設定選択肢・通常pytest/CI/freshへ枝を増やさない。研究専用checksは明示実行する。通常入口へ採用済みの再開補助・メモリ回収・seed構文は、この研究分岐の扱いとは区別する。
 - 標準JSON/NPZ/READMEの形式は再開補助・省メモリ化・seed構文のためには変更していない。研究診断用の別形式JSONは標準run形式と混同しない。
 - 旧実装との一致を守る参照設定と、改善した新既定を区別する。旧結果の一括変換ではなく、新実装でablationを実行する方針を維持する。
@@ -50,7 +51,7 @@
 
 ## 未解消の事項・次の候補
 
-- 候補検証を単純化しV/O両方に優位となる方式は未達。低下を共有部だけ、待ち時間だけ、初期重みだけに帰属させる証拠はない。
+- 候補検証を単純化しV/O両方に優位となる方式として、検証なし＋候補の共有部の固定を採用した（[研究記録](../../docs/research/fedsda-provisional-candidate-expert-20261019.md)）。検証なしのMNIST2の低下が共有部の上書きから来るという説明は、固定で低下が消えたことと合うが、直接の切り分けではない。
 - 純粋予測方式seed5〜9の240run、手法比較（間隔100/500）seed5〜9の180runは補完コマンドを提示済みだが、実行・結果受領は未確認。確認なしに完了扱い・再発注しない。
 - LEGACY/IMPROVE/NEW/UNPORTEDの現在の採否は[実装findings](../../docs/research/implementation-findings/README.md)と[改善候補](../../docs/research/improvement-candidates/README.md)が正本。10/13以降の修正・採否を、古い「残るLEGACYをまとめて判断」へ戻さない。
 - LEGACY-001とLEGACY-014の概念計数は旧実装を外した後に直す判断、NEW-004は旧依存の計算量照合を外す準備の記録。LEGACY-019の改名参照除外の頻度・影響は未確認。詳細と変更時期は各記録を参照する。
@@ -60,6 +61,7 @@
 
 ## 直近・主要な完了spec
 
+- [fedsda-default-adoption-with-fixed-candidate-shared-features](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md): 候補検証なし＋候補の共有部の固定の既定と基準版7。
 - [seed-range-command-arguments](../specs/seed-range-command-arguments/tasks.md): seedの両端込み範囲と列挙混在。
 - [fedsda-runtime-memory-reclamation](../specs/fedsda-runtime-memory-reclamation/tasks.md): 通常FedSDAの同期末メモリ回収。
 - [run-memory-reclamation-prototype](../specs/run-memory-reclamation-prototype/tasks.md): 同期末回収の独立対照ツール。

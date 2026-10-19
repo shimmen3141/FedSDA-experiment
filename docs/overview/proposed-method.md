@@ -17,7 +17,7 @@
 | ラベル観測前に予測 | Switching SoftRouting | Fixed-Shareで優勢モデルの変化を追跡し、予測を混合する | [SoftRouting](../components/soft-routing.md) |
 | 集約で変わったモデルへroutingを追従 | FIFO replay | 集約後のモデルでFIFO標本を再評価し、routingの損失情報を再較正する | [再較正](../components/shared-backbone.md#集約後のルーティング再較正) |
 | 再来した概念へ対応 | 最良適合の既存モデルを再利用 | 適合する保持モデルがあれば、新規モデル作成を回避する | [モデル再利用](../components/model-reuse.md) |
-| 新しい概念へ対応 | forward persistent | 既存モデルの再適合と候補の前半・後半での優位を確認して新規作成する | [新規モデル作成](../components/new-model-creation.md#forward_persistent) |
+| 新しい概念へ対応 | 即時採用＋候補の共有部の固定（2026-10-20から） | 適合する保持モデルが無ければ、警報の区間で候補の概念固有部（adapterと出力層）だけを学習し、検証せずにその場で採用する。共有部を固定するので、採用が既存モデルの入力を書き換えない | [新規モデル作成](../components/new-model-creation.md)（2026-10-19までは`forward_persistent`） |
 | モデル群を整理 | class-functional confidence、average linkage、通常merge | クラス別の機能的評価で統合候補を作り、モデルを統合する | [統合処理](../components/model-consolidation.md) |
 
 採用要素の役割と、研究として新規性を主張する範囲は別途対応付ける。
@@ -26,6 +26,8 @@
 ## 2. 最終構成の固定設定
 
 新実装の入口は`run_experiment_sweep.py --configurations fedsda`である。2026-10-16のユーザー判断により、既定を同期時点と局所更新の混合予測・FIFO容量30・Fixed-Shareの時間尺度T120にした。根拠は[研究バックログ](../research/research-backlog.md)の8と[対象spec](../../.kiro/specs/fedsda-default-synchronized-local-mixture-prediction/design.md)。
+
+2026-10-20のユーザー判断により、候補を検証せずにその場で採用し、候補の学習では共有部を固定する構成を既定にした（基準版7）。根拠は[研究記録](../research/fedsda-provisional-candidate-expert-20261019.md)の最後の2節と[対象spec](../../.kiro/specs/fedsda-default-adoption-with-fixed-candidate-shared-features/design.md)。それまでの候補検証（`forward_persistent`）は、構成`fedsda-with-candidate-validation`として選べる。
 
 旧実装との対応に使うmode名は`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`である。
 mode名の`RestartingSoftRouting`だけでは予測方式を一意に定められないため、文脈`switching`まで含めて指定する。
@@ -38,8 +40,9 @@ mode名の`RestartingSoftRouting`だけでは予測方式を一意に定めら�
 | 共有表現の学習・勾配統合 | `joint`・`mean` |
 | Residual Adapter rank | 8 |
 | 集約後再較正 | `fifo_replay` |
-| 新規作成方針 | `forward_persistent` |
-| FIFO長・前向き検証件数 | N_FIFO=30、N_forward=10 |
+| 新規作成方針 | `immediate`（新実装の`current_model_first_reuse_then_candidate_adoption_without_validation`。2026-10-19までは`forward_persistent`） |
+| 候補の学習での共有部（新実装） | `keep_shared_features_fixed`（概念固有部だけを学習する。保持モデルのローカル学習はjointのまま） |
+| FIFO長・前向き検証件数 | N_FIFO=30（前向き検証は既定では使わない。`fedsda-with-candidate-validation`ではN_forward=10） |
 | 予測に使うパラメータ（新実装） | `mixture_of_synchronized_and_local_parameters` |
 | Fixed-Shareの時間尺度（新実装） | T=120。モデル別重みと同期・局所間の混合の分け合いに共通して1/Tを用いる |
 | 適合・統合判定の設定値 | γ=0.1 |

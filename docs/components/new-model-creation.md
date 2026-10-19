@@ -2,7 +2,7 @@
 
 > 文書の役割: 個別機能の実装資料
 >
-> 対象と採用状況: 複数の候補検証・作成方針を扱う。最終提案はforward_persistentを採用する。
+> 対象と採用状況: 複数の候補検証・作成方針を扱う。最終提案は、2026-10-19までforward_persistentを採用していた。2026-10-20から、新実装の既定は`immediate`に当たる即時採用で、候補の学習では共有部を固定する（概念固有部だけを学習する。旧実装には無い扱い）。forward_persistentは、新実装の構成`fedsda-with-candidate-validation`で選べる。
 >
 > 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
 

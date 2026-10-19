@@ -136,13 +136,21 @@ def structural_document():
                 unregistered_adopted_model_count=0,
             )
             | (
-                dict(repeated_training_sample_assignment_count=0)
+                dict(repeated_training_sample_assignment_count=0, adopted_candidate_count=1)
                 if "run_client_settings" in cases_run_settings["run_participant_settings"]
                 and "pending_model_registration_settings"
                 in cases_run_settings["run_participant_settings"]["run_client_settings"]
                 else {}
             ),
         )
+        if name in golden.ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES:
+            # 新しい既定のケースは、検証の判定が無く、切替えが採用より多い。
+            cases[name]["coverage"].update(
+                candidate_accepted_count=0,
+                candidate_rejected_count=0,
+                decision_reasons=[],
+                training_model_switch_count=2,
+            )
     return dict(
         baseline_version=golden.BASELINE_VERSION,
         schema_version=1,

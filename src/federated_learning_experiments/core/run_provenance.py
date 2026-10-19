@@ -9,7 +9,7 @@ from typing import cast
 # 今のコードが満たす、期待する動作の基準版（重要動作goldenの現在の版と同じ番号）。goldenの版を上げるときに、
 # 一緒に上げる（testが、goldenのhelperの現在の版との一致を確かめる）。runの設定が選んだ扱い（前の版の扱いを、
 # 設定で選ぶ場合を含む）とは関係しない。
-BEHAVIOR_BASELINE_VERSION = 6
+BEHAVIOR_BASELINE_VERSION = 7
 _RUN_PROVENANCE_KEYS = (
     "code_commit",
     "has_uncommitted_changes",
