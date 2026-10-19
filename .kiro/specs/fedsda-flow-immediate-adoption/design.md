@@ -45,3 +45,11 @@
 - A03はFIFOと警報から区間分割記号へ。A05は変化区間→更新用モデル群の評価線、A06は評価結果→再利用判定へ。A07は★の切替と標本確定。C00はFIFO変化区間→候補の標本枠へ直接接続する。処理記号をすべてのデータ線の中継点にはしない。
 - 旧assignment専用線とそのラベルを削除/置換する。frameのactor/edgeとFIFO区間表示の参照を追随させる。対象はN04/A03〜A07/C00。必要なら補足に「菱形は処理、枠は標本/モデルの実体」を短く追加する。
 - 検査は変更前のassignment枠存在で失敗することを確認。3画面の全経路で新処理記号、データ線の始終点、残存参照なし、★、新n枠限定表示、循環/再生/補足を確認。対象外frameの契約不変を照合し、代表コマの文字・線の交差と接続位置を目視する。
+
+## 追記設計：要求14〜18
+- data-edge-labelとdata-edgeを対応づけ、初期化時に矢印のcomputed colorを文字のcolor/fillへ反映する。黒いラベルや既存tspanも同じ色を継承し、縁取りのstroke:whiteは保持する。
+- fifo-partition線をpartition-fifoへ改称し、pointsは1015,622→1015,660、from/toはpartition/fifo、classはdetect。A03のedge参照だけ追随する。短線のshort判定からこの線を除外し、警報制御線と同じ9 6のdash/animationを使う。
+- assess線は1230,660→1375,660→1375,180→1305,180で更新用バックボーン右辺へ。data-toはbackbone、活性frameはA05のまま。
+- reuse-outcome線をreuse-decision左端から、partitionの下を迂回して左側の結果文字へ接続する（1170,590→1140,590→1140,645→920,645→920,590→900,590）。結果文字はx880,y596,endで既存実体枠を増やさず表示する。A06だけ活性化し、結果文字は選択responseへ対応させる。区間分割記号と線/文字を重ねない。
+- timelineだけに左右keydownを追加し、dotが対象でAlt/Ctrl/Metaなし・補足非表示のとき既存moveを使う。preventDefault/stopPropagation後に移動先dotへfocusする。canvasの既存handlerを残し、ラジオやモーダルへ全画面のキー処理を追加しない。
+- 変更前に色/向き/キー操作の受入検査が失敗することを確認。全経路でラベルfillと矢印strokeの一致、A03向きとdash一致、A05の端点、A06両結果、dotフォーカスから左右と循環、ラジオ操作・モーダル・再生の維持を検査する。新結果線とラベルを3画面で目視する。

@@ -15,3 +15,6 @@
 ## 処理記号の追加
 - partition / 区間分割: 警報時にFIFOの前区間と変化区間を分ける処理。保存場所ではない。
 - reuse-decision / 再利用判定: 区間損失と履歴基準から既存モデルの適合・選択を判断する処理。標本やモデルを保持する場所ではない。
+
+- partition-fifo: FIFOへ区間分割を適用する制御線（旧fifo-partitionの逆向き）。
+- reuse-outcome / reuse-result: 再利用判定の結果を出す線と結果文字。標本やモデルの保存場所ではない。

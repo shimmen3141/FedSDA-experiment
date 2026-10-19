@@ -65,11 +65,11 @@
     "paths": 18,
     "frames": 447,
     "page_errors": 0,
-    "html_sha256": "27af33cd9aebbd297636d8e41c40253cf2cb7958f491efbeff4cf77c6fdd6aef",
+    "html_sha256": "dea76e14b9463b3e9e107e7b40d80d20e092a4d83a717b8bce6a2fc86465ddc2",
     "evidence": "元checkoutのvenv/flow-browser-check/validation.jsonとPNG",
     "numeric_pytest": "HTMLのみのため対象外",
     "followup_evidence": "元checkout venv/flow-browser-check/connections-validation.json・geometry-validation.json・connections-final-*.png",
-    "latest_followup_evidence": "元checkout venv/flow-browser-check/assignment-validation.json・assignment-geometry.json・assignment-evaluation.json・assignment-focus.json・assignment-final-<幅>-<frame>.png"
+    "latest_followup_evidence": "元checkout venv/flow-browser-check/arrows-validation.json・arrows-geometry.json・arrows-<幅>-<frame>.png・arrows-final-<幅>-<frame>.png"
   },
   "followup_reviews": [
     {
@@ -116,6 +116,17 @@
       "findings": 0,
       "browser_independent_execution": false,
       "evidence": "18経路447コマ、線と文字の非交差、代表PNG、A05/A06/A07最終3画面確認の証拠を独立照合"
+    },
+    {
+      "scope": "要求14〜18：矢印の色・向き・結果とタイムライン左右キー",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "18経路447コマ、色/方向/破線/端点/分岐結果、タイムライン実キーとフォーカス・既存操作、非交差検査と代表PNGを独立照合"
     }
   ]
 }

@@ -61,3 +61,14 @@
 - 検査はGit管理外`venv/flow-browser-check/check-assignment.cjs`・`assignment-geometry.cjs`、結果は`assignment-validation.json`・`assignment-geometry.json`、最終PNGは`assignment-final-<幅>-<frame>.png`。
 - A05の非学習表示とA06/A07の更新用側焦点も最終追加確認し、それぞれ3画面で成功。結果は`assignment-evaluation.json`・`assignment-focus.json`、対応PNGを更新した。
 - 独立Luna highの実装レビューはPASS、Blocker/Major/Minor 0。全経路の証拠、新線・処理記号の代表PNG、A05/A06/A07の最終限定検査と対応PNGを独立確認。ブラウザの独立再実行は未実施。実験コード・goldenは未変更で数値pytestは対象外。
+
+## ユーザー追記：矢印の色・向き・結果とタイムラインの左右キー
+- [x] 7. 追記仕様レビュー後、要求14〜18の矢印表現とタイムラインのキー処理を限定変更し、全分岐・色/方向/結果・実キー操作と代表画面を確認して独立レビューを反映する。
+  - Requirements: 14〜18
+
+- 独立Luna highの仕様レビューはPASS、指摘なし。先行受入検査は旧版の矢印ラベルの色不一致で失敗した。
+- 全矢印ラベルを対応する線色に統一し、A03を区間分割→FIFOの赤破線へ反転、A05の評価線を更新用バックボーンの右端へ接続した。A06に分岐に応じた判定結果の出力線を追加した。frame契約の変更はA03/A06のみで、モデル等の配置と他frameの順序・表示契約は保持した。
+- タイムラインのコマボタンに限定した左右キーハンドラを追加し、移動後のコマへフォーカスを追従させた。既存のcanvasキー処理・ラジオ・補足モーダルは変更しない。
+- Chromeの1280×720・1440×900・390×844、各6分岐の18経路447コマでissues/pageerror 0。全ラベルの色、破線と向き、評価端点、分岐結果、実クリック後の左右キー・先頭末尾循環・連続移動とフォーカス、ラジオとモーダルのキー操作を確認した。全frame参照・Node構文・diff --checkも成功。新ラベルと活性線の非交差、処理記号文字の収まりは3画面で追加検査成功し、A03/A05/A06のPNGを目視した。
+- 証拠は元checkoutのGit管理外`venv/flow-browser-check/check-arrows.cjs`・`arrows-validation.json`・`arrows-geometry.cjs`・`arrows-geometry.json`・`arrows-<幅>-<frame>.png`・`arrows-final-<幅>-<frame>.png`。実験コード・goldenは未変更で数値pytestは対象外。
+- 独立Luna highの実装レビューはPASS、Blocker/Major/Minor 0。検証スクリプト・全経路の成功記録・A03/A05/A06と既存再利用分岐の最終PNGを独立照合した。ブラウザの独立再実行は未実施。
