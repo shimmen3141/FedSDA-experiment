@@ -552,6 +552,54 @@ def test_baseline_7_keeps_baseline_6_outside_the_new_default(case_name):
         golden.assert_case_matches(case_name, current[section], previous[section], section)
 
 
+def test_baseline_8_keeps_cases_and_changes_only_the_cross_evaluation_transfer_setting():
+    """版8のケースは版7と同じ。設定は、FedSDAのケースのクロス評価のモデルの送り方だけが違う。"""
+    assert 8 in golden.SUPPORTED_BASELINE_VERSIONS
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[8] == golden.CASE_NAMES_BY_BASELINE_VERSION[7]
+    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[7]:
+        previous = golden.comparable_run_settings(name, 7)
+        current = deepcopy(golden.comparable_run_settings(name, 8))
+        if "cross_evaluation_model_transfer_policy" in current["run_participant_settings"]:
+            assert (
+                current["run_participant_settings"].pop("cross_evaluation_model_transfer_policy")
+                == "reuse_distributed_models_for_cross_evaluation"
+            ), name
+        golden.assert_case_matches(name, current, previous, "run_settings")
+
+
+@pytest.mark.slow
+def test_baseline_8_differs_from_7_only_in_communication_volume():
+    """版7→8の差は通信量だけ。クロス評価が起きたFedSDAのケースは、下りのbyteが減る。"""
+    reduced_case_names = []
+    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[7]:
+        previous = capture_case_once(name, 7)[0]
+        current = capture_case_once(name, 8)[0]
+        for section in ("record_tables", "global_parameters", "coverage"):
+            golden.assert_case_matches(name, current[section], previous[section], section)
+        previous_metrics = _flatten_metric_paths(previous["run_metrics"])
+        current_metrics = _flatten_metric_paths(current["run_metrics"])
+        assert set(previous_metrics) == set(current_metrics), name
+        changed_metrics = {
+            key for key in previous_metrics if previous_metrics[key] != current_metrics[key]
+        }
+        assert all(key.startswith("communication_volume.") for key in changed_metrics), (
+            name,
+            changed_metrics,
+        )
+        cross_evaluated = any(
+            key.startswith("client_cross_evaluation.")
+            and previous["record_tables"][key]["shape"][0] > 0
+            for key in previous["record_tables"]
+        )
+        if not name.startswith("fedsda") or not cross_evaluated:
+            assert not changed_metrics, (name, changed_metrics)
+            continue
+        downloaded = "communication_volume.downloaded_byte_count"
+        assert current_metrics[downloaded] < previous_metrics[downloaded], name
+        reduced_case_names.append(name)
+    assert reduced_case_names
+
+
 @pytest.mark.parametrize(
     ("previous_version", "next_version", "case_name"),
     [
