@@ -92,3 +92,11 @@
 - Chromeの3画面×3警報状態で寸法一致・線種・長さ・上下接続・結果文字とphase文言の枠内を検査成功。さらにW01（標本蓄積の11コマ目）でmonitorとsignalの活性を3画面確認し成功。代表PNGを目視。Node構文・diff --checkも成功。
 - 証拠はGit管理外`venv/flow-browser-check/check-alarm-size.cjs`・`alarm-size-geometry.json`・`alarm-size-<幅>-<分岐>.png`、`check-alarm-wait.cjs`・`alarm-wait-signal-geometry.json`・`alarm-wait-signal-<幅>-wait.png`。数値実装・goldenは未変更のため数値pytestは対象外。
 - 独立Luna high実装レビューはPASS、指摘なし。2つの配置検証記録とA01/W01代表PNGを独立照合。ブラウザ独立再実行は未実施。
+
+## ユーザー追記：検出と対応の用語
+- [x] 10. 要求22の仕様レビュー後、指定文言と必要な折返しだけ反映し、全状態の表示・枠内と分岐操作を確認して独立レビューを反映する。
+
+- 独立Luna high仕様レビューPASS。指定の分岐/結果/既存再利用の文言を反映。長い条件だけ2行・10px表示、帯の高さを116pxにして収めた。全frame契約と結果文字以外のscriptが変更前と全文一致することを確認した。
+- Chromeの3画面×3警報状態で指定結果文の一致と、条件文字・結果文の枠内、従来のひし形寸法/線種/端点に成功。代表PNGを目視。初回は検査helperの日本語期待値がPowerShellパイプで?化して文言比較だけ失敗したため、helper期待値をASCII Unicode escapeに修正して再実行し成功。HTMLの文字は正常で追加修正しなかった。
+- 証拠はGit管理外`venv/flow-browser-check/check-drift-wording.cjs`・`drift-wording-geometry.json`・`drift-wording-<幅>-<分岐>.png`。Node構文・diff --check成功。数値実装未変更のため数値pytest対象外。
+- 独立Luna high実装レビューPASS、指摘なし。全9条件の検査記録と1280/390の代表PNGを独立照合。ブラウザ独立再実行は未実施。

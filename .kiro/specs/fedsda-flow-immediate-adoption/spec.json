@@ -65,11 +65,11 @@
     "paths": 18,
     "frames": 453,
     "page_errors": 0,
-    "html_sha256": "26b5ce2ec0e69f651fe279823ea49be5419597e3cf8df943e1eb1c17c882ee9f",
+    "html_sha256": "0e94c4cf23a08348b9ec3b48c73e61650d8a5934f19811255f8f6aa68e1cdf1e",
     "evidence": "元checkoutのvenv/flow-browser-check/validation.jsonとPNG",
     "numeric_pytest": "HTMLのみのため対象外",
     "followup_evidence": "元checkout venv/flow-browser-check/connections-validation.json・geometry-validation.json・connections-final-*.png",
-    "latest_followup_evidence": "元checkout venv/flow-browser-check/alarm-size-geometry.json・alarm-wait-signal-geometry.json・alarm-size-<幅>-<分岐>.png・alarm-wait-signal-<幅>-wait.png"
+    "latest_followup_evidence": "元checkout venv/flow-browser-check/drift-wording-geometry.json・drift-wording-<幅>-<分岐>.png"
   },
   "followup_reviews": [
     {
@@ -154,6 +154,17 @@
       "findings": 0,
       "browser_independent_execution": false,
       "evidence": "警報3状態×3画面の寸法・破線・端点・文字配置とW01監視接続の3画面検査・PNGを独立照合。"
+    },
+    {
+      "scope": "要求22：検出と対応の用語",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "3画面×3状態の文言一致・枠内検査と1280/390代表PNGを独立照合。frame/handler不変。"
     }
   ]
 }
