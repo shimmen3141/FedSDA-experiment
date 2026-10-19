@@ -285,29 +285,66 @@ def main():
     parser.add_argument("--variants", nargs="+", default=list(_VARIANTS), choices=list(_VARIANTS))
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--check", action="store_true", help="仮の専門家の重みを常に0にする（検証ありとの一致の照合）")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="既存の出力先の済んだrunを飛ばして、残りを実行する（同じ引数で）",
+    )
     arguments = parser.parse_args()
-    arguments.output.mkdir(parents=True, exist_ok=False)
+    arguments.output.mkdir(parents=True, exist_ok=arguments.resume)
+    results_path = arguments.output / "results.json"
     jobs = [
-        dict(variant=v, dataset=d, interval=i, seed=s, sample_count=arguments.sample_count, check=arguments.check and v == "provisional-expert")
+        dict(
+            variant=v,
+            dataset=d,
+            interval=i,
+            seed=s,
+            sample_count=arguments.sample_count,
+            check=arguments.check and v == "provisional-expert",
+        )
         for d in arguments.datasets
         for i in arguments.intervals
         for s in arguments.seeds
         for v in arguments.variants
     ]
+
+    def job_key(job):
+        return tuple(job[k] for k in ("variant", "dataset", "interval", "seed", "sample_count", "check"))
+
+    results = json.loads(results_path.read_text(encoding="utf-8")) if results_path.is_file() else []
+    done = {job_key(result) for result in results}
+    jobs = [job for job in jobs if job_key(job) not in done]
+    print(f"skipped {len(done)} completed runs, running {len(jobs)}", flush=True)
     # 重いMNISTから先に投げる。
     jobs.sort(key=lambda job: not job["dataset"].startswith("mnist"))
-    results = []
+    failures = []
     with ProcessPoolExecutor(max_workers=arguments.workers, mp_context=get_context("spawn")) as pool:
-        futures = [pool.submit(_execute_job, job) for job in jobs]
+        futures = {pool.submit(_execute_job, job): job for job in jobs}
         for future in as_completed(futures):
-            result = future.result()
+            try:
+                result = future.result()
+            except Exception as error:
+                # 1 runの失敗で、ほかのrunを止めない（--resumeで、もう一度実行される）。
+                failures.append(dict(job=futures[future], error=repr(error)))
+                print("FAILED", futures[future], repr(error), flush=True)
+                (arguments.output / "failures.json").write_text(
+                    json.dumps(failures, indent=1), encoding="utf-8"
+                )
+                continue
             results.append(result)
             print(
-                result["variant"], result["dataset"], result["interval"], result["seed"],
-                round(result["accuracy"], 4), int(result["seconds"]), flush=True,
+                result["variant"],
+                result["dataset"],
+                result["interval"],
+                result["seed"],
+                round(result["accuracy"], 4),
+                int(result["seconds"]),
+                flush=True,
             )
-            (arguments.output / "results.json").write_text(json.dumps(results, indent=1), encoding="utf-8")
-    print("wrote", arguments.output / "results.json")
+            temporary_path = results_path.with_name("results.json.tmp")
+            temporary_path.write_text(json.dumps(results, indent=1), encoding="utf-8")
+            temporary_path.replace(results_path)
+    print(f"completed {len(results)}, failed {len(failures)}", flush=True)
 
 
 if __name__ == "__main__":
