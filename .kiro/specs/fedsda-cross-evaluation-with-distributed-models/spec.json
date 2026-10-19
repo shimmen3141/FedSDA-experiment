@@ -1,0 +1,55 @@
+{
+  "feature_name": "fedsda-cross-evaluation-with-distributed-models",
+  "created_at": "2026-10-20",
+  "updated_at": "2026-10-20",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna high）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna high）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna high）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna high）"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "df68f81",
+  "specification_review": {
+    "status": "passed",
+    "base_revision": "df68f81（未commitのspec文書）",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a15618-bad5-7341-9562-c6b95d8379c5",
+        "result": "CHANGES REQUIRED（Major 1: 統合が共有部も平均するので、共有部の送り直しを保証していない。Minor 1: 損失統計の扱い）。全部反映",
+        "output": "../../venv/refactoring-tests/cross-eval-reuse-spec-luna-1.log"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a1561c-3650-78b0-a360-6a8d2a0f3fd9",
+        "result": "PASS（修正箇所の再確認。新たな不整合なし）",
+        "output": "../../venv/refactoring-tests/cross-eval-reuse-spec-luna-2.log"
+      }
+    ],
+    "selection_reason": "通信量の記録とプロトコルの等価性の論証。前specと同じくLuna high"
+  },
+  "current_task": "Task1"
+}
