@@ -23,7 +23,9 @@
 機能境界と状態所有者を先に整理し、最小設定を小規模な実行経路へ接続する。
 汎用の設定基盤を全て完成させてから手法を移植する順序にはしない。
 
-## 現在の状態
+## 過去の状態（2026-10-09以前の経過記録）
+
+以下の「次」「未着手」は当時の記録であり、現在の作業指示ではない。再開時の現在地は[resume.md](resume.md)、個別の完了状態・承認は各specを参照する。
 
 - 診断証拠の複数保持と通知: [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)の全3task承認・別session最終GO。次の境界判断とclient進行はresume.mdを参照。
 

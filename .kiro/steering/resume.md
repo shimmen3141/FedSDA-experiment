@@ -1,422 +1,75 @@
-## seed範囲指定のCLI対応を完了（2026-10-19、Codex）
+# リファクタリング再開案内
 
-[seed-range-command-arguments](../specs/seed-range-command-arguments/tasks.md)完了。`--seeds 0-9`は終端込み、`0-2 5 8-9`の混在可。重複/逆順/uint32範囲外は拒否、展開前に100000件上限を検査。通常掃引・挙動比較・予測初期質量研究CLI・component ablation解析で共通Actionを使い、後段の設定/識別子/再開と記録形式は維持した。
-
-独立Luna highの仕様/実装/完了証拠の確認と全pytestを完了。件数・権限制約・元指摘の修正と検証commitの正本は同spec。使用例は[通常掃引のseed説明](../../docs/experiments/experiment-sweep.md#seedの列挙と範囲)。他軸の範囲やgroup指定は提案のみで未実装。mainへマージしない。
-
-## FedSDAの通常全体runへ同期末回収を接続済み（2026-10-19、Codex）
-
-[fedsda-runtime-memory-reclamation](../specs/fedsda-runtime-memory-reclamation/tasks.md)完了。[通常実行の説明](../../docs/experiments/fedsda-runtime-memory-reclamation.md)。Linux/glibcでは既存コマンドのまま正常同期末に回収、Windows等はno-op。runtimeの新moduleと既存wrapperへの1呼出しに限定し、共通loop/sweep・モデル/学習・設定/成果物形式・goldenは未変更。FedDrift/FedAvgは対象外。
-
-通常Linux CLIの逐次/2worker計6runで全保存値・最終params一致、全pytest/fresh/品質検査と独立レビューを完了。証拠とMinorの修正は同specが正本。サーバでは当branchを更新後に開始する通常FedSDA runから有効となり、試作ZIPの再転送は不要。多worker性能は未測定で既存のworker数指針は引き上げない。mainへマージしない。
-
-## uraniumの同期末回収で最大RSS81.54%削減を確認（2026-10-19、Codex）
-
-[本規模の対照結果と判断](../../docs/research/fedsda-live-reclamation-uranium-20261019.md)を参照。返却先は`results/fedsda-memory-diagnosis/live-reclamation-20261019_073006/`。5000/client・MNIST2・seed0・間隔50・workers1で最大RSS8.868→1.637 GiB、wall915.31→931.67秒。全133配列bytes・完全設定・全指標・最終サーバparams hashは一致。正常同期100回で生存状態を保った回収を確認。
-
-この環境では実装価値が十分ある。次は通常掃引の実行側へLinux/glibc限定で接続する方向を推奨する。現時点では独立研究ランナーのみで、製品既定・標本表現・共通学習フローは未変更。採用価値の判断のための追加実験は不要。複数workerの総スループットは未測定で、81.54%を他条件へ保証しない。独立CLI Luna high PASS、一般化制限のMinor注意は報告書で対応済み。mainへマージしない。
-
-## 同期末回収の試作・手元検証を完了（2026-10-19、Codex）
-
-ユーザーの指示に従い、追加比較を実装開始の前提にせず、[run-memory-reclamation-prototype](../specs/run-memory-reclamation-prototype/tasks.md)として独立研究ランナー`tools/research_memory_reclamation/run.py`を実装した。共通学習フロー・製品src・既定・保存形式は変更なし。control→reclaimを独立processで逐次実行し、正常な同期末だけ`malloc_trim(0)`、追加監視thread/GCなし。全保存値と最終paramsを照合する。
-
-手元検証・独立レビュー・指摘の採否の正本は同spec。1000/clientで全保存値一致、ピーク約1174→1114 MiB・wall145→152秒という観測で、uraniumの削減幅/性能率は未確定。仕様/実装は独立Luna high PASS、各Minor1件を修正し再レビュー不要ルールを適用した。
-
-**次はユーザーがuraniumで5000/clientを実行。** 転送ZIPは`results/fedsda-memory-diagnosis/uranium-live-reclamation-20261019.zip`（git管理外）。[踏み台転送・tmux実行・返却手順](../../docs/experiments/run-memory-reclamation-prototype.md)を案内済み。返却する`live-reclamation-<日時>/`全体を受領したら、同一性・生存状態での回収・ピーク/時間から採否を判断する。製品既定へまだ採用しない。mainへマージしない。
-
-## uraniumの2測定を受領・再解析（2026-10-19、Codex）
-
-[サーバ結果と判断](../../docs/research/fedsda-memory-uranium-results-20261019.md)が最新。入力は`results/fedsda-memory-diagnosis/uranium-comparison-20261019/uranium_20261019_060505_190543/`。元CLI/診断ともexit0、完全設定・全指標・全133配列bytesが一致。metadata前後一致・src基準hash一致、commit8ace43 clean。元CLI最大RSS5.488 GiB、診断8.888 GiB、診断のrun返却まで8.842 GiB。従来の6.76と厳密一致ではないが数GiB級の使用量を確認。
-
-診断側は参照解放・GC後8932.75 MiB→trim後409.32 MiB。ただし学習中に同量を回収できるとは未確認。手元とのTensor storageは275.99 MiB/100552件で一致、Python浅いサイズ354.60対351.40 MiB。完全設定・全指標・最終パラメータhashも手元と一致し、129配列bytes一致、4配列だけ最大2.66e-15以下の末尾差。診断のsystem CPUが15.54→258.92秒と大きく、監視thread/PSS読取りの影響を無視しない。
-
-次は追加監視threadなしの研究用対照と、その同期末に生存状態を保ったtrimを行う対照で、ピーク・時間・全保存値をuraniumで比較する案。**新実験・本体改修は未開始。** 格納形式や学習経路の変更・allocator設定の既定採用は保留。解析と元21ファイルのhashは`results/fedsda-memory-diagnosis/uranium-analysis-20261019/`。独立CLI Luna highはPASS、指摘0。元hash/133配列/設定/指標/手元との末尾差と最終パラメータ/RSS換算を独立照合し、学習・pytestは独立未実行。詳細は同報告書。mainへマージしない。
-
-## uraniumの2測定用セットを準備（2026-10-19、Codex）
-
-ユーザーがサーバで自分で実行する。転送用ZIPは`results/fedsda-memory-diagnosis/uranium-memory-measurements-20261019.zip`（git管理外、git pullだけでは取得不可）。[転送・実行手順](../../docs/research/fedsda-memory-diagnosis-20261019.md#転送実行セットを準備済み)を参照。元CLIと診断をMNIST2・seed0・10client・5000/client・間隔50・workers1で順に測り、GNU time/段階別RSSと全保存値の照合を残す。src基準hash不一致で開始前に停止、既存のallocator設定は維持して記録、結果は新規出力。
-
-手元Linuxで50/clientの2入口exit0、設定/指標/全133配列bytes一致。異常対照4件を検出、Python3.10文法・bash構文・ZIP検査も成功。独立Luna highはMinor1件のみで修正、規約に従い再レビューなし。実際のuranium測定は未実行で、ユーザーから`uranium_<日時>_<PID>/`フォルダの返却待ち。製品src・既定・共通フロー・保存形式は未変更。結果が来たら6.76 GiBの再現と入口間の差を調べ、その前に本体の省メモリ改修はしない。
-
-## FedSDAの省メモリ調査を完了（2026-10-19、Codex）
-
-[実測と実装の採否](../../docs/research/fedsda-memory-diagnosis-20261019.md)を参照。ユーザーのuranium向け省メモリ化の依頼に対し、まず製品srcを変えずに手元Ubuntuで7run（1000/client×6、5000/client×1）を完了。研究scriptと元データは`results/fedsda-memory-diagnosis/20261019/`（git管理外）。サーバcommit8ace43から現HEADまでsrc差分は空、source hashはPの72runと同じ。
-
-5000/client・MNIST2・間隔50・seed0のrun返却までのピークは1.69 GiB、所有量走査後を含む全プロセスは1.77 GiBで、uraniumの報告6.76 GiBを再現していない。tuple約303 MiB、Tensor storage約276 MiB、保存配列約4.4 MiB。inventoryはgrad/autograd/runtime全体を網羅しない。1000/clientの明示trimは返却時RSSを下げるがピーク約1.6%減。起動時allocator設定はピーク約14.5%減、参考所要時間が増えたため5000/client対照は打切り、未完了を成功に数えない。1000/clientの全6runは全133配列bytes・指標/設定/最終パラメータが一致。通常worker再利用2runで大きな蓄積は観測しないが長期リークは未判定。
-
-**本体改修は見送り。** 追加報告で6.76 GiBは元CLI・seed0・workers1のGNU time最大RSS7088196 KiBと確定（総使用量からの推定ではない）。次はuraniumで元CLIの単独runを再現し、同じ環境・設定で診断scriptと出力/メモリを比較する。両方高ければ増加段階、CLIだけ高ければ入口・準備・保存・寿命を調べ、その後にspec化する。手元の時間比較からallocatorの性能悪化率は確定していない。一時scriptはgit pullだけではサーバへ渡らない。実行例と比較順は同文書。製品・既定・golden・記録形式は変更せず、全pytestは再実行していない。独立Luna highでピーク集計の期間定義の指摘を修正後PASS。追加報告の追記はサーバ再実測・追加レビューを行った記録ではない。詳細は同文書の検証記録。mainへマージしない。
-
-候補検証の次案は、候補headの補完性/共有部コピーの害/実際の混合への寄与を分離して観測する方向を維持。新しい制御ロジックや掃引は開始していない。
-
-## 予測初期質量Pの本規模72runを解析（2026-10-19、Codex）
-
-[72runの結果と判断](../../docs/research/fedsda-prediction-initial-mass-n5000-20261019.md)が最新。5000/client・seed0〜2・6条件×V/O/R/P。元72runと過去V/O36対照の完全性・設定/指標/全配列を照合。R/P対Oの36対は記録された学習/適応/通信・最終パラメータが一致。
-P−O平均はMNIST2・100が+0.0133pp、SEA4・50が+0.0020ppで極小。他4条件は平均負、MNIST4/SINE2は3seed全て負。V/O双方に精度/合計通信で劣らない点は平均0/6・条件seed0/18。Pの一般採用は推奨せず、候補検証の既定を保持する。次に進むなら候補headの利得と共有部コピーの既存headへの干渉を同じ標本で切り分ける観測を優先。今回、新しい対策・実験・製品コード変更なし。独立CLI Luna high結果レビューPASS・指摘0。
-
-## 研究用解析CLIを共通検証から分離（2026-10-19、Codex）
-
-直近の研究用scriptの参照・変更履歴を点検し、残っていた構成要素解析の共有Ruff登録と通常pytest専用26件を撤去。CLIと明示検証は`tools/research_component_ablation/{analyze.py,checks.py}`へ移設。[現行コマンドと点検結果](../../docs/experiments/fedsda-component-ablation-analysis.md)を参照。計算・既存結果形式・共通学習フロー・Pの72runコードは未変更。D/P/Rとresults内の一時対照にも通常の学習フローからの呼出しなし。正式な掃引再開補助と旧新版比較の移植検証は保持。検証と承認の正本は[fedsda-component-ablation-analysis](../specs/fedsda-component-ablation-analysis/tasks.md)の追加task4.2とspec.json.isolation_cleanup。独立Luna highレビューPASS。
-
-## 新モデルの初期予測質量の小規模対照（2026-10-18、Codex）
-
-[24runの結果](../../docs/research/fedsda-prediction-initial-mass-20261018.md)が最新。V/O/R比率保持/P小質量、6条件×seed0・1000/client。PはOより2改善/2同値/2悪化。SINE2で−0.36pp、CIRCLE2で+0.07pp。全12対の記録された学習/適応・通信・最終パラメータはOと一致。共有部干渉対策ではなく、Pの一律採用や候補検証の削除はしない。
-研究コードと専用checksは`tools/research_prediction_initial_mass/`内だけ。共通src/pytest/CI/fresh/Ruff設定も既存Dも未変更。確認用[5000/client・72runのコマンド](../../docs/experiments/prediction-initial-mass-diagnostic.md)を用意したが未実行。1000標本ではMNIST2の既知のV>Oを再現しておらず、保護効果の評価には本規模が必要。検証・承認の正本は[prediction-initial-mass-diagnostic](../specs/prediction-initial-mass-diagnostic/tasks.md)。独立Luna highの最終結果・証拠レビューPASS。spec完了。
-
-## D診断の共通経路からの分離（2026-10-18、Codex）
-
-ユーザー指示により、D専用の共用fresh処理とRuff登録を撤去。専用14件は`tools/research_candidate_validation_waiting/checks.py`に移し、明示実行だけにした。研究CLI本体・結果形式・既存結果は保持する。通常のpytest・CI・製品srcへD専用の分岐や登録を置かない。検証と承認の正本は[candidate-validation-waiting-diagnostic](../specs/candidate-validation-waiting-diagnostic/tasks.md)の追加task 4とspec.jsonのisolation_cleanup。
-
-## 待機後強制採用の本規模54runを解析完了（2026-10-18、Codex）
-
-[本規模54runの解析](../../docs/research/fedsda-candidate-waiting-n5000-20261018.md)が最新の結果・解釈・次案の正本。入力は`results/fedsda-candidate-validation/waiting-diagnostic-n5000-seeds0-2/`、解析はその`analysis_20261018/`。
-54run全件・元JSON/NPZと旧対照を照合。V/O36runは既存サーバの完全設定・全指標・全133配列に一致。独立CLI Luna highレビューPASS、指摘0。新規学習・製品source/既定/golden変更なし。
-Dは6条件の平均すべてでVかOに精度・合計通信の両方で劣り、両基準超え0。MNIST2はDでもVより3seed全て低下。SEA4はDがOより3seed全て改善するがV平均には届かず、SINEの平均回復は1seed依存。1000標本pilotの良い結果を一般化しない。
-次は待機だけの置換を見送り、Oの学習・採用経路を維持して新IDの予測初期質量を抑える対照を優先候補とする。単なる既存重み比保持の旧対照とは分ける。未実装・未実験で、設計/仕様レビューが必要。G共有ゲートは通信用の別対照として残すが、共有前のローカル精度低下を単独で治すとは期待しない。自動採否・新閾値なし。mainへマージしない。
-
-## 待機後強制採用の診断ランナー（2026-10-18、Codex）
-
-[candidate-validation-waiting-diagnostic](../specs/candidate-validation-waiting-diagnostic/tasks.md)の実装と独立レビューを完了。既定・製品src・既存保存形式・golden未変更。spec完了。検証・レビューの正本は同tasks/spec.json。
-[実行手順](../../docs/experiments/candidate-validation-waiting-diagnostic.md)にV現行検証/O即時採用/D同じ10標本待機後強制採用の比較コマンドを用意した。Dは通常合格と異なる理由を使い、元評価を保持する。
-手元Ubuntuの1000標本・6条件×seed0×3方式の18runは完了・全件照合。[結果記録](../../docs/research/fedsda-candidate-waiting-diagnostic-20261018.md)。実NNで強制131件（元非採用115件）を確認。小規模接続確認であり性能採否には使わない。
-次の主実験は5000/client・6条件×seed0〜2×3方式の54run（未開始）。追加群5〜7の54runは再現確認の候補。G共有ゲートは未実装で、Dの結果後に設計する。
-サーバ補完は純粋予測seed5〜9の240runと比較手法の間隔100/500・seed5〜9の180run。Dと合わせる場合も各7worker、同一サーバの合計14以下。すでに2実験が稼働中なら完了後にDを開始する。mainへマージしない。
-
-## サーバ3実験の受領・再解析を完了（2026-10-18、Codex）
-
-[受領と条件別比較・次のサーバコマンド](../../docs/research/fedsda-server-results-20261018.md)を参照。新規660runと既存対照240runの設定・環境・NPZ CRC・精度を照合した。独立Luna high PASS、Minorの差分符号説明を反映。
-候補検証はseed0〜9が揃った。なし−ありはMNIST2全間隔で平均負、MNIST4・500で+0.7446pp（9/10改善）、CIRCLE2・100で+0.4518pp。合計通信は全24条件増加。以前の5seedでの符号を10seedに一般化しない。
-混合予測は純粋方式に概ね優るがCIRCLE2・500はローカルのみが+0.4212pp、5seed全て改善。予測方式のseed5〜9を240run、手法比較の間隔100/500のseed5〜9を180runで補完するコマンドを用意した。これらはまだ開始していない。
-次は待機後強制採用Dの診断対照を実装する。ユーザーはこの方向での続行を許可済み。採否・既定変更なし、mainへマージしない。
-
-## 候補検証の単純化に向けた精度・通信の再解析を完了（2026-10-18、Codex）
-
-ユーザーの研究目標は、候補検証なしの利得を保ち、低下を単純なロジックで抑え、あり・なし両方の精度/通信Pareto前線を上回ること。検証ありを改良する方向も許容。採否・許容精度低下幅は未設定。
-[新しい整理](../../docs/research/fedsda-candidate-validation-simplification-20261018.md)が条件別精度・上下り通信・原因・次の実験案の正本。
-既存サーバ120対（5000/client、seed0〜4）と手元144runを別々に再集計し、384元JSONのhash・値を照合。新規NN学習なし、製品source・既定・golden未変更。
-検証なしは同一間隔24条件の平均で精度12改善/12低下、合計通信23増/1減。ありは11条件で精度・合計通信の両方でなしを上回る。通信はパラメータpayloadのみ。
-共有部固定＋検証なし（frozen OFF）が元の両方式を同時に上回る条件は手元12条件中0。共有部固定＋検証あり（frozen ON）は合計通信軸で3、上下りを別軸にすると1。平均の観測点で、統計的優位・自動採否ではない。
-原因は共有部コピーの既存出力への干渉、待機/凍結/却下による学習経路の変更、混合の活用不足、全体モデル数と転送経路の変更に分かれる。寄与率は未同定。単一原因で説明しない。
-次はV現行検証/O即時採用/D同じ待機後に強制採用の対照で、待機側と選別側を切り分ける。その後、即時ローカル学習を残し共有登録だけ実際の混合への寄与で判定するG案を候補にする。D/Gは未実装・未実験。詳細設計と実装は別specで行う。
-最初の候補はMNIST2・100、SEA4・50、SINE2・500、MNIST4・500、CIRCLE2・200、5000/client、seed0〜2。V/O/D45run、G追加で60runという案であり、開始していない。
-再解析成果物は`results/fedsda-candidate-validation/20261018_validation-removal-tradeoffs/`。独立CLI Luna highはPASS、指摘0、session `01a14e03-9f39-7cc0-9e22-ae677520b4c8`。集計の独立照合であり学習・全pytestの再実行ではない。mainへマージしない。
-
-## 候補共有部固定の全144run・結果レビューを完了（2026-10-18、Codex）
-
-全6データ×間隔50/200×seed0〜2×検証on/off×候補共有部stock/frozenの144runを完了。
-[研究記録](../../docs/research/fedsda-frozen-candidate-backbone-20261018.md)が条件・結果・原因分解・改善案・検証とレビューの正本。
-結果と一時scriptは`results/fedsda-candidate-validation/20261018_frozen-candidate-backbone-n2500/`。
-ユーザー選択に従い現行loopのまま生成2500/client、評価は間隔50が2500、200が2400（末尾100未処理）。両intervalのexit=0。
-全体の正本は接頭辞なしのruns/paired/condition_summary/decomposition/adoption_diagnostics.csvとanalysis_validation.json（partial=false）。
-共通2400標本のmatched_prefix_*も144runで照合済み。概念時間集計・履歴却下時の二分区間margin診断を実行済み。
-SINE2は固定で全12対改善。他データは間隔・検証・seed依存。MNIST4の採用遅延・概念別低下、共有部接続のずれ、混合が正しい出力を活かせない例を記録。
-製品src・既定・golden未変更。元source88b63e102a1a20523a9fb6a910a56f727826c285、基準版6。全学習process終了。
-方法/分析・間隔50・全144runの独立Luna highはすべてPASS。全体session01a14d93-a606-7320-987f-f2d7dded99f1、Blocker/Major/Minor0。元288ファイルと統計・主要診断を照合し、間隔200のMNIST4・seed0の再構成1件を独立実行。正本の報告書・review_index.json参照。
-次の研究候補は実際の混合予測による候補検証と、候補head追加/共有部変更/接続先再評価の分離。採否・閾値・新規specは未決定。今回の実験・分析は完了し、一律採用・自動採否なし。mainへマージしない。
-
-## 非MNISTの候補検証・共有部反映の診断を完了（2026-10-18、Codex）
-
-[非MNISTでの診断](../../docs/research/fedsda-candidate-backbone-blend-nonmnist-20261018.md)で、保存80対の領域分解を完了。
-同じ手元Ubuntuで4データ×4間隔×3方式×seed0、各5000標本の48runと、小run計測あり/なし24件を完了。
-結果・一時scriptは`results/fedsda-candidate-validation/20261018_other-datasets-blend25/`。
-8worker・各1スレッドで実行し、`main.exit`は0、全48runの精度・設定・観測列・寄与和・hashを照合。実験の背景processは終了。
-25%は検証なし比7条件で数値上改善・9条件で低下。SINEは4間隔すべてで検証ありを下回り、500の低下も解消しなかった。
-SEA/CIRCLEには二値でも検証の片側に変化した特徴領域が来ない例があるが、SINEには同じ欠落がない。
-共有部の既存出力への影響はSEAでも実在するが、精度差への因果寄与割合は未同定。既定変更・自動採否なし。
-製品src・既定・goldenは未変更。Luna highの方法・script・中間/最終証拠レビューはPASS。Minorの反映・独立未実行は同診断メモ。
-次の候補は候補学習から共有部を固定する案×検証on/offの2×2（今回の学習後25%補間とは別）と、実際の混合予測を対象にした検証。
-実装する場合は別specで進める。mainへマージしない。
-
-## 掃引の再開補助を完了（2026-10-18、Codex）
-
-[experiment-sweep-resumption](../specs/experiment-sweep-resumption/tasks.md)は完了。既存記録形式を維持し、同条件の過去掃引を進捗付きで選択、未完了分を再実行できる。補助記録のあるNPZ単独だけを同一設定・clean source/内容hash・環境で照合し退避して復旧。旧証拠なし・不一致は保持する。--new-outputで明示新規、--output-directoryで明示再開。検証・レビューの正本は同spec、使用手順は[掃引](../../docs/experiments/experiment-sweep.md#途中で止まったとき)。既定・基準版6・goldenは未変更。mainへマージしない。
-
-## 候補検証の原因診断を完了（2026-10-17、Codex）
-
-[候補検証の診断と改善案](../../docs/research/fedsda-candidate-validation-diagnosis-20261017.md)を参照。
-サーバ保存120対240NPZの標本・真変化記録を照合し、主担当の別計算も120対840寄与セルで一致した。
-MNIST2/4は両方10クラスで、概念数・入替ラベルが違う。間隔500の1/2の利得は同程度で、3/4・5/6の寄与が損失/利得へ分かれる。
-一時介入はseed0・間隔500・10client各5000標本の5方式10runを完了。別に300標本4方式と計測なし照合2run。
-MNIST2は検証あり92.280%、なし92.172%、なし＋共有部25%反映92.416%。MNIST4は90.276%、91.300%、91.158%。
-共有部25%はM2を改善するがM4の検証なしの利得を一部失う。重み比保持はなし比−0.008/+0.008 ppで、単純な保持は主対策にしない。
-履歴適合参照を無効にする対照は比較参照・却下後再利用も変える複合的な変更。veto単独の効果と解釈しない。
-source・既定・goldenは未変更。実験sourceは9ea110771cad、既定は混合/FIFO30/共通T120、動作基準版6。
-WSL Python3.14/NumPy2.4.6なのでサーバ数値と混ぜず、単一seedの探索として扱う。許容幅は未設定・自動採否なし。
-
-結果・一時scriptは`results/fedsda-component-ablation/20261017_041328_core-components-mixture-fifo30-t120-n5000/candidate_diagnosis_20261017/`。
-`control_summary.csv`/`control_validation.json`が全10件・partial=falseの正本。元の`*_partial.*`は途中出力。
-制御scriptのSHA先頭はd8784095b9e9、重み保持scriptはbce2a3191865。全10件を再実行する必要はない。
-当初batchは完了済みM2を残して自分の群だけ停止し、M4四条件を4並列で再開した。M4と重み保持batchはexit0、背景の学習実行は終了。
-独立Luna highの方法レビューMajor1/Minor2を修正。結果レビューsession `01a14981-fcdb-70c0-af86-20d9f90d7d2e`の中間・最終ともPASS、追加指摘なし。
-最終は全10件のJSON/NPZ指標・寄与・観測列・設定を照合。独立で実験や全pytestは再実行していない。
-ログは`../../venv/refactoring-tests/candidate-diagnosis-{method,evidence,final}-review.log`、索引は結果内`method_review.json`。
-
-次の候補は[IMPROVE-018](../../docs/research/improvement-candidates/improve-018-protect-existing-models-during-candidate-backbone-integration.md)の候補生成・採用での共有部保護と、
-[IMPROVE-019](../../docs/research/improvement-candidates/improve-019-candidate-validation-with-class-support-and-paired-losses.md)の実際の結合予測・クラス支持を踏まえた検証。
-25%補間は共有部固定学習の実験ではなく、最適値や採用設定でもない。検証on/off×共有部保護の2×2、複数seed・他データの比較が必要。
-実装は採否判断後の別spec。mainへマージしない。
-
-## 今回の作業（2026-10-17）
-
-[fedsda-component-ablation-analysis](../specs/fedsda-component-ablation-analysis/tasks.md)で、保存runの対比較CLIと判断手順を実装した。混合/FIFO30/共通T120を基準に、実行済み6構成を既存T120結果と比較する。進捗・承認・検証の正本は同specのspec.json/tasks.md。Luna highの仕様/実装/証拠レビュー、全pytest14396件、fresh16フローで検証した（レビュワーのpytestは権限で実行不能、主担当の証拠を照合。独立で全pytest/freshは再実行していない）。
-
-サーバから`results/fedsda-component-ablation/20261017_041328_core-components-mixture-fifo30-t120-n5000`へ転送された結果を確認し、6c3522d/基準版6/cleanの720run全完走、既存基準との720対・17指標の比較を完了した。[実測結果と解釈](../../docs/research/fedsda-component-ablation-20261017.md)を参照。次は精度と資源の交換関係を人が確認して採否を決める。 数値は主担当が元JSON840件と全CSV行・144条件の統計を別計算で照合済み。ユーザーの結果データ送信の明示許可後、Luna highの独立レビューもPASS。元JSON/全CSV値と144条件の統計・解釈を独立照合し、Minor2件を修正した（再レビュー不要ルールを適用）。既定は変更していない。許容精度低下幅は未設定・自動採否なし（ユーザー決定）。[主張と証拠・追加比較候補](../../docs/research/method-positioning.md#8-主張と必要な証拠の対応2026-10-17)も整理した。構成選択seedと最終評価seedを分け、候補10–19は未使用確認後に決める。mainへはマージしない。
-
-## 再開案内（2026-10-17、Claude Code → Codex の続行を完了）
-
-- [fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)は完了。既定は混ぜる予測・FIFO容量30・T120、現在の動作基準は版6。版1〜5と固定旧goldenは維持。局所パラメータだけで予測する比較は`fedsda-local-parameter-prediction`（T120）を使う。
-- Claudeの未コミットTask1・2を保持して再検証し、Task3〜5を続行した。詳細な検証・レビュー・環境制約は同specが正本。レビューはユーザー指定のLuna high。権限で独立freshを実行不能な場合は主担当の成功証拠を照合して判定する決定を、[共通手順](agent-handoff.md#全pytestの独立再現の基準2026-10-07ユーザー決定)へ追記した。
-- 次の候補は、新既定を基準にした前向き検証・集約後FIFO replay・混ぜる予測のアブレーション。局所予測との比較はT120で揃える。実行前に実験計画と重複を確認し、結果を見る前に機能を削除しない。
-- 研究の主軸と未確定事項は`docs/research/method-positioning.md`、研究バックログの8、IMPROVE-016を参照。FedSTEPは名称候補で正式決定ではなく、コード・実験識別名`fedsda`は維持。T/FIFOの自動調整は未採用。評価用seedの分離や比較手法の調整も、今回の既定変更と分けて扱う。
-
-以下は以前の再開案内・履歴。最新の状態の正本は上記specのspec.jsonとtasks.md。
-
-# リファクタリングの再開案内
-
-更新: 2026-10-15（2026-10-14の内容に、10-15の作業を書き足した。FedSDAの既定を案Y——現行モデルとして待った後に登録＋短い警報のあと前区間を外す＋最小件数まで警報を待つ——にした。[fedsda-default-waited-registration-and-alarm-wait](../specs/fedsda-default-waited-registration-and-alarm-wait/tasks.md)。基準版5を追加。続けて、runの要約と一覧の表にコードの版と基準版を残し、基準版の違う済んだrunでは掃引を始めずに止めるようにした（[experiment-run-code-provenance](../specs/experiment-run-code-provenance/tasks.md)）。続けて、結果のディレクトリを研究の問い→日時とラベルの2段にし、コマンドが目的のREADMEを置き、gitの中に[実験の台帳](../../docs/experiments/experiment-log.md)を置き、分析scriptが出どころつきのファイルを書くようにした（[experiment-artifact-organization](../specs/experiment-artifact-organization/tasks.md)）。続けて、保有モデルの学習batchの抜き出し方（全履歴・直近K件・指数減衰α）を設定と掃引の軸で選べるようにした（[held-model-training-sample-recency](../specs/held-model-training-sample-recency/tasks.md)、研究バックログの7）。警報を区切りに使う抜き出し（[alarm-anchored-training-sample-selection](../specs/alarm-anchored-training-sample-selection/tasks.md)）は、手元の当たり付けで固定のK・αに届かなかったので、2026-10-15に削除した（取り下げ）。K・αの本規模の掃引（seed 0〜4、2026-10-15に結果）では、全データで全履歴を上回る抜き出し方は無く、既定は全履歴のまま（研究バックログの7）。circle2の定常期の差の調査（研究バックログの8）で、1標本ごとの局所更新が変化の無い時期の精度を下げることが分かり、FedSDAで予測を配布モデルで行う診断が3データ×5 seedの全部で精度を上げた。続けて、局所更新を集約ごとにまとめるFedAvgの構成を足した（[fedavg-local-updates-per-aggregation](../specs/fedavg-local-updates-per-aggregation/tasks.md)）。続けて、FedSDAの予測を最後の同期の時点のモデルで行う設定と構成`fedsda-synchronized-model-prediction`を足した（[fedsda-synchronized-model-prediction](../specs/fedsda-synchronized-model-prediction/tasks.md)。既定は変えていない。serverの本規模の比較の後に、既定にするかを決める）。学習batchの抜き出し方の選択肢は、同期の時点の予測と組み合わせると効果が消えたので、ユーザーの判断で外した（[held-model-training-sample-recency-removal](../specs/held-model-training-sample-recency-removal/tasks.md)）。続けて、同期の時点と局所の2つの結合予測を混ぜる予測を、設定の値と構成`fedsda-synchronized-local-mixture-prediction`で選べるようにした（[fedsda-synchronized-local-mixture-prediction](../specs/fedsda-synchronized-local-mixture-prediction/tasks.md)）。帰属の保留（FIFO）の容量を掃引の軸で並べられるようにした（[fedsda-pending-assignment-fifo-capacity-axis](../specs/fedsda-pending-assignment-fifo-capacity-axis/tasks.md)。circle2の学習データの混ざりの対策の候補。研究バックログの8）。2026-10-16に、Fixed-Shareの時間尺度を容量から分け、別の軸で替えられるようにした（[fedsda-fixed-share-time-scale-axis](../specs/fedsda-fixed-share-time-scale-axis/tasks.md)、IMPROVE-015）。新実装の結果は、worktreeの`results/`に置く（[実験の台帳](../../docs/experiments/experiment-log.md)）。それまでの経緯は下の箇条）。
-
-具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)へ1候補1ファイルで記録する。広い研究アイデアは研究バックログ、不具合の疑いはimplementation-findings。同率現行優先IMPROVE-001（旧ALGO-001）は未検証/未採用で、旧保有順を維持する今回の移植に混ぜない。
-
-Claude・Codexで交代する場合は[共通引継ぎ手順](agent-handoff.md)を参照する。
-Claudeの入口は[CLAUDE.md](../../CLAUDE.md)。同じworktreeとspecを使う。レビュー担当の選択・起動・回数の正本は共通引継ぎ手順。
-
-## 現在の作業（2026-10-13、主担当Claude Code。Codexからの引継ぎの後）
-
-- 同じworktree `.worktrees/refactoring`、ブランチ `refactor/architecture`で再開する。FedSDAの11構成、FedDrift、FedAvg（旧Oblivious）の実験入口まで移植済み。重要動作goldenのspecも完了し、未完了task・レビュー待ちはない。Git状態は再開時に確認する。
-- 完了の正本: [important-behavior-regression-goldensのspec.json](../specs/important-behavior-regression-goldens/spec.json)と[tasks.md](../specs/important-behavior-regression-goldens/tasks.md)。goldenの基準版・環境・追加手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。13構成の小runは全構成の全重要分岐を網羅するものではない。
-- **採否は決まった（2026-10-13ユーザー）。** 正本は[実装findingの決定](../../docs/research/implementation-findings/README.md#決定2026-10-13ユーザー)と[改善候補の決定](../../docs/research/improvement-candidates/README.md#決定2026-10-13ユーザー)、各記録の「判断（2026-10-13）」。進める順: LEGACY-016（送信保留の上書きの対処を含む）→LEGACY-002→LEGACY-014の概念計数→LEGACY-001→整理（IMPROVE-013/014、LEGACY-005の説明）。保留は、効果や頻度を測ってから決める。
-- 挙動を直す変更（016・002）は、旧と同じ扱いを設定で選べる形で入れる（旧実装を外すまで）。旧との照合testと基準版1は、旧と同じ設定で通し続け、直した既定の値は、新しい基準版へ足す。修正で精度・通信量などが下がる場合は、ユーザーへ報告する（2026-10-13ユーザー指示）。
-- **LEGACY-016は完了**（[pending-model-registration-by-own-id](../specs/pending-model-registration-by-own-id/tasks.md)。証拠は同specのtasks.md）。修正の前後の比較（8条件）では、精度は、circle2・sine2で上がり、mnist2で下がった（−0.3〜−0.9ポイント）。下りの通信量は、最大で+46%。ユーザーへ報告済み。ablationの規模の再実験は、未実施。重要動作のgoldenは、基準版1（旧と同じ扱いで照合）と基準版2（既定）の2つ。**次は、LEGACY-002**（短い警報のあと、取込み済みの前区間だけを保留から消費する。同じく、旧と同じ扱いを設定で残す。分岐が1つの機能に閉じない場合は、設定で残さず、差を説明して照合する）。その後、LEGACY-014の概念計数→LEGACY-001→整理。
-- **LEGACY-002も完了**（[too-short-alarm-earlier-sample-release](../specs/too-short-alarm-earlier-sample-release/tasks.md)。証拠は同specのtasks.md）。修正の前後の比較（8条件＋ADWINの2構成）では、精度は、sine2・circle2の一部で下がり（−0.08〜−0.69ポイント）、mnist2で上がった。sine2で、短い警報が約3〜4倍に増えた（IMPROVE-006の検討の材料）。ユーザーへ報告済み。重要動作のgoldenは、基準版1・2（旧と同じ扱いで照合）と基準版3（既定）。実旧との照合の入口のhelperは、`use_legacy_compatible_policies`・`assert_run_client_uses_legacy_compatible_policies`（`tests/refactoring/test_fedsda_run_client.py`）。LEGACY-014の概念計数とLEGACY-001は、旧実装を外したあとに直す（2026-10-13ユーザー決定。古い基準版のgoldenの列を変えるため。見送りではない。NEW-004の記録に一覧）。016・002の影響の比較（4通り×6 dataset×seed 10×集約間隔2つ、`run_behavior_fix_comparison.py`）は、ユーザーが研究室サーバで実行中。**次は、IMPROVE-006（短い警報の連鎖）の具体案の試行**→整理（IMPROVE-013/014、LEGACY-005の説明）。
-- **IMPROVE-006の待つ扱いも実装済み**（[alarm-wait-for-minimum-change-interval](../specs/alarm-wait-for-minimum-change-interval/tasks.md)。証拠は同specのtasks.md）。推定変化区間が最小件数に達するまで警報を待つ扱いを、設定で選べる（`LossChangeDetectionSettings.short_change_interval_alarm_policy`。既定は変えていない。e-SRのときだけ）。手元の9条件では、sine2で精度+0.43ポイント・切替の遅れ34→9標本・短い警報0、グローバルモデル数と下りの通信量は増える。mnist2は、2 seedの平均で精度−0.85±1.02ポイント（判断できない）。ユーザーへ報告済み。既定を切り替えるかどうかは、サーバでの複数seedの比較（`run_behavior_fix_comparison.py … --alarm-wait-levels on`。[実験の入口の文書](../../docs/experiments/experiment-sweep.md)）の後に、ユーザーが決める。待つ扱いを既定にする場合は、新しい基準版が要る。
-- **IMPROVE-013も完了**（[adahedge-weight-evidence-owner-separation](../specs/adahedge-weight-evidence-owner-separation/tasks.md)。証拠は同specのtasks.md）。AdaHedgeの証拠の部品と、全標本の証拠のowner（`AllSampleAdaHedgeWeightEvidenceHolder`）は、手法の層（`methods/fedsda/prediction_combination/`）。真の概念別の診断用の証拠のowner（`TrueConceptAdaHedgeDiagnosticEvidenceCollection`）は、評価の層。値は変えていない。LEGACY-005（クラス統計の説明）も、新実装の説明へ書いた。残る整理は、IMPROVE-014（adapterを持たない構造も扱う分類器の名前。共有部を持たない構造も含めて、名前を決める）。
-- **IMPROVE-014も完了**（[classifier-structure-independent-naming](../specs/classifier-structure-independent-naming/tasks.md)。証拠は同specのtasks.md）。分類器は`ModelArchitectureClassifier`（`learning/models/model_architecture_classifier.py`）、特徴抽出部と分類層の間の部品の属性は`model_owned_feature_transform`。パラメータ名が変わったので、重要動作のgoldenの6ファイルは、キーの名前だけを書き換えた（値は同じ。経緯は[基準の文書](../../docs/experiments/refactoring-baseline.md)）。下の履歴の中の、前の名前（`ResidualAdapterClassifier`、`residual_adapter`の属性）は、当時の記録。
-- **LEGACY-016の扱いの見直し（2026-10-14）**（[pending-model-registration-after-waiting-as-current-model](../specs/pending-model-registration-after-waiting-as-current-model/tasks.md)。証拠は同specのtasks.md）。本規模の比較（2026-10-13、480 run）で、全部登録の扱いは、通信量の増加に見合う精度の改善が無かったので、ユーザーの判断で、現行モデルとして送信までの待ちを終えたモデルだけを登録する扱い（`register_pending_model_after_waiting_as_current_model`）を実装し、一度既定にした。同日、手元の計測（5データ、44 seedの対）で、精度がわずかに下がり、早く共有したモデルの約7割がほかのclientで再利用されていたので、既定を全部登録へ戻した（この扱いは設定で選べる。基準版4が、この扱いを明示して照合する）。配布の仕方で通信量を減らす案は、研究バックログの6へ記録した。基準版4を足した。仕様レビューは9回で、9回目のMajorを直した後、ユーザーの承認で10回目を受けずに実装へ進んだ（手順の逸脱。tasks.md）。研究室サーバでの本規模の比較（新しい既定×短い警報の2水準、と警報を待つ扱い。360 run）は、実装レビューと全pytestの後に、ユーザーが実行する（コマンドは`docs/experiments/experiment-sweep.md`）。002と待つ扱いの判断は、その結果で行う。
-- **既定を案Yにした（2026-10-14、ユーザー判断）**: 本規模の比較（8通り×120 run）とFedDriftとの比較から、案Y（待つ登録＋002を直した側＋待つ警報）を既定にした。根拠はLEGACY-016の記録の末尾。ADWINの2構成は、警報を即時に明示。基準版5を足した。研究室サーバでのFedDrift・FedAvgの新実装での掃引（6データ、seed 0〜9、集約間隔50・200）は、ユーザーが実行する（約1〜2時間の見込み）。
-- **残る事項（2026-10-13時点）**: サーバでの比較の結果の読み解き（LEGACY-016・002の4通りと、IMPROVE-006の待つ扱い。待つ扱いを既定にするかは、その後に、ユーザーが決める）。旧実装を外したあとに直す候補（LEGACY-014の概念計数、LEGACY-001）。研究室サーバ用の基準版2・3のgoldenは、未作成。
-- 全pytestの高速化を入れた（2026-10-13、ユーザー決定）。全pytestは`-n 12 --dist loadfile`で約7分、作業中の確認は`-m "not slow"`を足して約3分半。配り方と印の説明は、共通引継ぎ手順の「全pytestの高速化」。
-- 採否後の変更は影響に応じた別specで扱う。固定旧748c3aaと旧goldenは維持する。新基準版1は修正前の比較に使い、意図した変更の期待差を検証してから必要な新基準版を追加する。旧実装削除やNEW-004の照合削除へ先に進まない。
-
-以下の2026-10-11の引継ぎ、長い過去の分割案、末尾のserver同期開始メモは履歴であり、そこにある「次」「進行中」「未移植」は当時の状態。現在の次の一手は上記を優先し、実際の完了状態は各specで確認する。
-
-## 過去の引継ぎ（2026-10-11、Claude Code→Codex）
-
-### いまの状態
-
-- ブランチ`refactor/architecture`。2026-10-11、ユーザーがpushを明示的に許可。[feddrift-cached-cluster-consolidation](../specs/feddrift-cached-cluster-consolidation/tasks.md)は独立レビュー承認・全回帰成功で完了。数値部を再利用し、次はclientのownerへの統合適用を含むFedDrift固有のサーバ準備・同期とRラウンド進行への接続を調査・仕様化する。状態の正本は各specのspec.jsonとtasks.md。
-- 構成の移植は、10個の全部が完了した（最後は[fedsda-independent-models](../specs/fedsda-independent-models/tasks.md)。独立レビューは承認、指摘は反映済み。検証の証拠は同specのtasks.md）。
-- (B) FedDriftは、数値の判定を先に小さいspecへ切り出して移植中。次は判定後のclient処理とサーバ同期のspec（下の「FedDriftの調査のメモ」）→全構成のgolden→(D)旧実装を外す準備（NEW-004、MNISTの取得コマンド）。順は、決定事項の「進める順」。
-
-### この期間に決まったこと（2026-10-11ユーザー）
-
-- サーバでの新旧比較（提案構成、120 run）は、ユーザーが実行し、全runが11指標で一致した（exit 0）。
-- `independent`は移植する（[調査の文書](../../docs/research/independent-models-migration-scope.md)の案1）→完了。
-- LEGACY-018（共有部を持たないモデルでは、クロス評価の下りの通信量が、重複して数えられる。3〜13%多く出る）は、ほかの構成の数え方へ揃える。時期は、ユーザーが「まとめて直すのと、今直すのと、どちらが良いか」と尋ね、主担当は「LEGACYをまとめて直すとき。ただし、全構成のgoldenを作る前」と答えた（理由: 今直すと、この構成だけ、旧実装との照合から通信量の項目を外す例外が要る。goldenの後だと、goldenを作り直す）。この時期についての、ユーザーの返答は、まだ無い。
-- 構成`fedsda-single-model-prediction`の記録の、重みの項目は、「現在のモデルに重み1」とする入れ方でよい（今の実装のまま）。
-- GPT-6 Lunaは、再び使える。レビュー担当の分担は、共通引継ぎ手順の通常の形（数値・乱数・更新順の実装はHaiku 5.5、命名・文書・機械的な照合はLuna）へ戻す。下の「現在地」の「レビュー担当の利用状況」の行は、古い。
-
-### 作業の仕方で、文書に無いこと
-
-- Git Bashでは、worktreeのルートへ毎回`cd`する。検証の環境変数とコマンドは、共通引継ぎ手順の「検証コマンド」。全pytestは約7分（`-n 12 --dist loadfile`）。`-rs`だけだと失敗したtestの名前が出ないので、`-rf`かJUnitで読む。
-- 構成の照合の土台: `tests/refactoring/test_fedsda_configuration_variants.py`の`CONFIGURATION_VARIANTS`（構成ごとに、旧の構成名・旧の設定の上書き・新の設定の替え方と、照合の分岐のflag）、`tests/refactoring/test_fedsda_run_metric_derivation.py`の`compare_small_run_with_real_legacy`、`tests/refactoring/test_fedsda_stream_protocol_run.py`の`run_real_legacy_whole_run`。モデル構造を変える構成は、`MODEL_ARCHITECTURE_VARIANT_NAMES`へ足すと、mnist2の全状態の照合も行う。
-- 依存境界（`tests/refactoring/test_single_run_dependency_boundaries.py`）は、moduleごとの許可集合。新しいimportを足したら、登録も足す。
-- 旧は、処理の途中で乱数を消費する箇所がある（候補検証の開始での参照モデルの写し、評価用データの抽出など）。経路を変えるときは、乱数を消費する処理を、旧と同じ場合にだけ行う。
-- 編集用のscriptで、同じ置換を二重に適用しない（途中で止まったscriptを、そのまま再実行しない）。
-
-### FedDriftの調査のメモ（(B)の準備。読んだだけで、未仕様化・未実装）
-
-- 旧の構成名は`FedDrift`。client `federated_drift_experiment/clients/feddrift.py`の`FedDriftClient`（基底は`clients/base.py`の`BaseClient`）、サーバ`servers/feddrift.py`の`FedDriftServer`（基底は`servers/clustering.py`の`CrossEvaluationClusteringServer`と`servers/base.py`の`BaseServer`）、モデルは`SimpleMLP`、1時刻の進行は`experiment.py`の`_run_feddrift_timestep`。旧の`tools/run_main_ablation_suite.sh`は、FedDriftを実行しない（`--no-feddrift`）。比較の実行は、`run_pareto_sweep.py`の、検出バッチと検出閾値の掃引。
-- 1時刻（= 検出バッチ`FEDDRIFT_DETECTION_BATCH_SIZE`件）の流れ: (1) clientごとに、その時刻の標本を全部処理する（現在のモデルで予測を記録し、検出バッファへ積む。バッファが検出バッチに達したら、全保有モデルの平均損失の最小を求め、前回の最小より閾値を超えて増えていれば、ドリフトと判定して、現在のモデルのパラメータから新しいモデルを作る。初期学習のepochは0。そうでなければ、最小損失のモデルへ切り替え、標本を学習データへ足して損失の統計を更新する。最後に、評価用データを`random.sample`で保存する）。(2) サーバ`prepare_timestep`: 状態の報告を数え、隔離が明けたモデルだけでクロス評価（モデルは送らない）→距離での階層クラスタリング（既定の結合は`complete`）→統合（clientが、手元のモデルから、重みつき平均を作る）→保留中の新しいモデルへIDを割り当て、隔離の期限を置く。(3) `FEDDRIFT_ROUNDS`回: 各clientが、全保有モデルを、モデルごとに順に学習（更新の回数は、検出バッチ×`UPDATES_PER_SAMPLE`）→FedAvg→全モデルを全clientへ配布。終端では、残りのバッファを処理し、保留中のモデルがあれば、`run_round`を1回。
-- 新実装で使えそうなもの: 実行の枠（`execution/stream_protocol_execution_loop.py`。同期の間隔を検出バッチにすれば、標本→clientの順でも、乱数の消費の順は、旧のclient→標本の順と同じになる見込み: 乱数を使うのは、バッチの末尾の処理だけ）、共有部を持たないモデル構造（`independent_models_without_shared_backbone`）、モデルごとに順に学習する方式（`sequential_per_model_training`）、集約・配布（空の共有部）、クロス評価と距離でのクラスタリング。新しく要るもの: FedDriftのclient（検出バッファ、最小損失の検出、モデルの生成と切替、評価用データの保存、統合の適用）、サーバの時刻の手順（隔離、モデルを送らないクロス評価、結合`complete`、重みつきの統合、R回の学習ラウンド）、終端の処理、指標の導出、構成と掃引の軸（検出バッチ、検出閾値）。置き場所は、方針の正本のとおり`methods/feddrift/`。
-- 実行の枠の、参加者の契約（`execution/run_participant_contracts.py`）は、FedSDAの操作名（候補検証の終端など）を含む。FedDriftの手順（同期の前に統合、同期の中でR回の学習）を、この契約へどう載せるかが、設計の最初の論点。
-- 照合の基準は、構成の移植と同じにする想定（小さい規模で、新と実旧の全体runを同じprocessで実行し、指標と離散列が`==`で一致。ユーザーの確認は、まだ取っていない）。
+2026-10-19更新。Claudeへの再引継ぎ用。承認・進捗・検証証拠の正本は各spec。この文書は現在地への入口とする。
 
 ## 現在地
 
-- **現在の対象:** [important-behavior-regression-goldens](../specs/important-behavior-regression-goldens/tasks.md)。新実装の重要動作を基準版1・環境別goldenで固定し、実装・独立レビュー・最終検証を完了した。旧goldenは維持し、LEGACY/IMPROVEの採否・適用は後続。状態の正本は各spec。
+- 作業場所は`.worktrees/refactoring`、ブランチは`refactor/architecture`。mainへはまだマージしない。同じworktreeの主担当は一人にする。
+- 直近の対象[seed-range-command-arguments](../specs/seed-range-command-arguments/tasks.md)は完了。下記の最近のspecに未実装task・未解消レビュー指摘はない。開始時にはGitの実状態を再確認する。
+- FedSDAと比較構成、FedDrift、単一モデルのFedAvg（旧Oblivious）の移植・全体run・成果物・掃引入口は接続済み。旧実装は参照として残っている。古い移植順を次の作業と誤認しない。
+- FedSDAの既定は配布時モデルとローカル更新モデルの混合予測、帰属保留FIFO30、共通時間尺度T120。Tはモデル別重みと二者混合で共通に使い、両者を別パラメータにしない。候補検証は引き続き有効。
+- 動作基準は基準版6・環境別golden。既定化と基準版は[fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)、環境と手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。環境差だけを理由にgoldenを更新しない。
 
-- **過去の到達点（FedSDA、現在の作業対象ではない）:** [experiment-sweep-command](../specs/experiment-sweep-command/tasks.md)（(A3)新実装の実験の入口: `python run_experiment_sweep.py`。使い方は[docs/experiments/experiment-sweep.md](../../docs/experiments/experiment-sweep.md)）まで完了。構成は、提案構成（`fedsda`）と、移植済みの10構成。速度の対処（[training-batch-sampling-validation-cost](../specs/training-batch-sampling-validation-cost/tasks.md)）も完了: 本番の規模（client 10・標本5000・sine2）の1 runが、257秒（旧実装は179秒）で、結果は、旧実装（手元）と一致する。その前は、(A2-2)の4つ目・最後（予測の診断の指標と記録）まで完了。**これで、旧実装の1 runの出力のうち、「記録から導く（未照合）」の区分（指標124・配列85）の全部が、新実装で導出・保存され、goldenの3ケースと小さい条件で、実旧の値と一致している。**新の1 runの保存は、要約（指標）と、記録の表130列。その前は、(A2-2)の3つ目（クロス評価の表と、モデル対の予測の相補性の指標）、(A2-2)の2つ目（モデル別の診断の指標と記録）、(A2-2)の1つ目（概念の変更への応答の指標と記録、保存する表と列の名前の見直し）と、(A2-1)1 runの実行と保存の骨組み（完全なrun設定から、実行・指標の導出・保存・読込み）。完全なrun設定（(A1)）から、1つの関数で実行して、要約（JSON）と記録の表（NPZ）を、新実装の名前で保存できる。全体runの接続（(4a)・(4b)）は、全部終わっている。新実装の全体runは、blobs以外の全dataset（sine2・sea2・sea4・circle2・mnist2・mnist4）で実行でき、goldenの3ケース（sine2・sea2・mnist2）の33指標と31の離散列が、実行環境のgolden（Windowsの基準環境では固定のWindows用、WSL Ubuntuでは環境ごとのgolden）と一致する（どの環境でも、同じprocessの中の実旧とも一致する。研究室サーバ——Python 3.10.16、NumPy 2.2.6——でも、実旧との一致は、ユーザーが確認済み）。goldenは、環境の記録が完全に一致するものを、自動で選ぶ（[environment-keyed-regression-goldens](../specs/environment-keyed-regression-goldens/tasks.md)）。全pytestは、Windowsで、並列（`-n 8 --dist loadfile`）で約8〜12分（`FDE_MNIST_DATA_DIR`に、MNISTの2つのファイルが要る）。WSLでは、新実装のtest全体（逐次）が約25分。進行中の編集・未解消レビュー指摘はない。
-- **手順（2026-10-12更新）:** cc-sddのskillと標準の構成、実装前の仕様書群の独立CLIレビュー、下位taskごとの実装、実装後の独立CLIレビュー、変異テストは任意。observed-sample-prediction・fedsda-run-client-assembly・initial-model-pretrainingが、この手順で進めたspecなので、文書の形（spec.json、requirements.md、design.md、research.md、naming.md、tasks.mdと末尾の「Implementation Notes」）は、これを参考にしてよい。observed-sample-processingまでのspecの文書（README、review.md、証拠文書、局所名まで載せた命名表、revisionとhash）は、古い手順の形なので、雛形にしない。新しいspecは、cc-sddのskill（`.claude/skills/kiro-spec-*`、`kiro-impl`、`kiro-validate-impl`）と`.kiro/settings/templates/specs/`の雛形から作る。
-- **過去の分割案と調査（当時の記録。現在の次の一手ではない）:** 全体runの接続を2つに分けた。(4a)実行の枠への接続【完了】。(4b)は、調査（2026-10-10）で分けた: (4b-1)候補検証の判定記録の保持【完了】、(4b-2)全体runの結果（指標と離散列）の導出と、実旧・Windows用goldenとの照合【完了】、(4b-計算量1)モデルの計算の計測【完了】、(4b-計算量2)比較用の計算量の指標【完了】、(4b-dataset-合成)合成データの移植【完了】、(4b-dataset-MNIST)MNISTの移植【完了】、(4b-3)Linux用のgoldenと、Linuxでの照合【完了】。(4b)は、これで全部終わった。**次のspecの順序（2026-10-11ユーザー決定）: (A)→(B)→(C)→(D)。(A1)と(A2-1)は完了。(A2-2)「記録から導く（未照合）」の項目の導出と照合は、下のまとまりの(a)〜(f)が、全部、完了した（2026-10-11）。(A2-変換)は、作らないことになった（決定事項の「ablationを新実装でも実行する」）。(A3)と、速度の対処（学習標本の抽出の、全数の検査をやめた）は完了。**次は、提案構成を、ablationの規模で、研究室サーバで実行して、旧実装と比べる確認（ユーザーが実行する、1回。結果待ち）と、構成の移植（軽い見込みの順。決定事項の「進める順」）。構成の名前の案（experiment-sweep-commandの設計の表）は、ユーザーが「良さそう」と了承した（2026-10-11）。構成の移植の1つ目（`fedsda-without-prediction-weight-recalibration`、旧`no-recalibration`）は完了。2つ目（`fedsda-without-candidate-validation`、旧`immediate-creation`）も完了。3つ目（`fedsda-loss-distance-clustering`、旧`distance-average`）も完了。4つ目として、`fedsda-overall-loss-esr-detection`（旧`overall-esr`）も完了（順番を入れ替えた）。次の構成は、`fedsda-adahedge-prediction-weights`（旧`global-routing`。AdaHedge側の名前——`global_diagnostic`・`AdaHedgeDiagnosticEvidence`——の見直しを、この構成で行う）。この構成の調査の結果（2026-10-11）: 旧は、この構成でも、Fixed-ShareとAdaHedgeの両方の重みを毎標本で更新し、予測に使う側だけを替える。使わない側（Fixed-Share）の、予測の正否・最大重みのモデル・有効モデル数も記録するので、新は、標本の予測の記録へ、Fixed-Share側の項目を3つ足す必要がある（記録の表・指標の導出・保存に及ぶ）。名前の案をユーザーへ提示した（未回答）: 案A（主担当の推奨）=AdaHedge側を、役割（global診断）でなく方式の名前（`adahedge_…`）へ改め、Fixed-Share側の項目を`fixed_share_…`で足す。案B=今の名前を残し、Fixed-Share側の3項目だけ足す。ユーザーの決定（2026-10-11）: 案A。合わせて変えた方がよい名前も、変える。→[fedsda-adahedge-prediction-weights](../specs/fedsda-adahedge-prediction-weights/tasks.md)で完了（名前の対応は、そのspecのnaming.md。この案内の、これより前の記述にある古い名前——`global_diagnostic`・`AdaHedgeDiagnosticEvidence`・`FixedSharePredictionWeightController`・`prediction_weight_…`の指標ほか——は、書き換えていない）。次の構成は、`fedsda-single-model-prediction`（旧`hard-routing`。構成名`FedSDA_NoCached_ResidualAdapter_ClassESR`。重みを持たず、現在の学習帰属のモデルだけで予測する）→完了。ADWINの2つ（`fedsda-classwise-adwin-detection`・`fedsda-overall-loss-adwin-detection`）は、[fedsda-adwin-detection](../specs/fedsda-adwin-detection/tasks.md)で完了。`fedsda-without-concept-specific-adapter`（旧`shared-backbone`）も、[fedsda-without-concept-specific-adapter](../specs/fedsda-without-concept-specific-adapter/tasks.md)で完了。残る構成は、`fedsda-independent-models`（旧`independent`）だけ。ユーザーの決定（2026-10-11）: independentは、まず、旧実装との違いを全部洗い出して、規模を報告し、その後に、移植するかを決める。調査は済み（[docs/research/independent-models-migration-scope.md](../../docs/research/independent-models-migration-scope.md)。違いは14項目。見積りは、ADWINの移植の3〜4倍）。ユーザーの決定（2026-10-12）: 移植する（調査の文書の案1。3つのspecに分ける: (a)モデル構造と、clientの予測・学習、(b)サーバの集約・配布・統合・通信量、(c)構成と、実旧の全体runとの照合）。**次の一手は、(a)。**モデル構造を変える構成の、mnist2での照合は、足した（2026-10-12。tests/refactoring/test_fedsda_configuration_variants.pyの`test_model_architecture_variant_matches_real_legacy_whole_run_on_mnist2`。adapterを持たない構成の、mnist2の2条件で、全体runの全状態が、実旧と一致。構成を足すときは、`MODEL_ARCHITECTURE_VARIANT_NAMES`へ足す。このtestの独立レビューは、次のspecのレビューの対象に含める）。**サーバでの新旧比較（提案構成、6 dataset×5 seed×4集約間隔＝120 run）は、ユーザーが実行し、120 runの全部で、11指標が一致した（2026-10-12報告。`compare_sweep_results_with_legacy.py`の終了コード0）。** GPT-6 Lunaは、再び使える（2026-10-12、ユーザー）。レビュー担当の選び方は、共通規約（agent-handoff.md）のとおり: 数値・乱数・更新順の実装はHaiku 5.5、命名・文書・機械的な照合はLuna。その後、(B)FedDrift。以下は、ADWINの着手の前の記述: 残る構成は4つ: `fedsda-classwise-adwin-detection`（旧`class-adwin`。構成名`…ClassADWIN_RestartingSoftRouting`と`--fixed-adwin-delta 0.05`）、`fedsda-overall-loss-adwin-detection`（旧`overall-adwin`）、`fedsda-independent-models`（旧`independent`）、`fedsda-without-concept-specific-adapter`（旧`shared-backbone`）。ADWINの2つは、検出器（旧`FullScanADWIN`と、クラス別の混合）の移植が要る。モデル構造の2つは、分類器の型（`ResidualAdapterClassifier`を前提にした型検査）と、共有部の扱いに及ぶので、変更が大きい見込み。照合の土台は、実旧が重みの記録を持たない構成にも使える（`legacy_records_prediction_weight_diagnostics`）。その後は、`fedsda-single-model-prediction`（旧`hard-routing`）、ADWINの2つ、モデル構造の2つ。サーバでの新旧比較は、ユーザーが実行中（2026-10-11開始。出力先は`results/new-fedsda-main`と`results/legacy-main`）。注意: 旧は、処理の途中で乱数を消費する箇所がある（例: 候補検証の開始での、参照モデルの写し）。構成で経路を変えるときは、乱数を消費する処理を、旧と同じ場合にだけ行う。構成の移植の進め方: 構成ごとに薄いspec。tests/refactoring/test_fedsda_configuration_variants.pyの`CONFIGURATION_VARIANTS`へ、構成（名前、旧の構成名、旧の設定の上書き、新の参加者の設定の変更）を足すと、小さい条件の7つで、実旧の全体runと照合される。構成ごとに、固有の経路を通ったことのtestを1つ足す。sourceは、設定の値と分岐、`sweep/experiment_configurations.py`の構成名。** サーバでの確認の案: `python run_experiment_sweep.py --datasets sea2 sea4 circle2 sine2 mnist2 mnist4 --seeds 0 1 2 3 4 --aggregation-intervals 50 100 200 500 --workers 14 --label fedsda-main`（120 run）と、同じ条件の旧実装（`bash tools/run_main_ablation_suite.sh reference`）を実行し、新の`run_summary.csv`と、旧のCSVを、精度・定常精度・通信量・モデル数・検出数で比べる（比べる小さいscriptを、依頼のときに用意する）。手元（Windows）では、client 10・標本5000・sine2・seed 0・集約間隔50で、新旧が一致することを、確かめてある。速度の実測（2026-10-11、Windows、client 10・seed 0・集約間隔50。runの中の時間）: sine2・標本5000で、新257秒・旧179秒（1.44倍）。sine2・標本500で、新16.8秒・旧10秒。sea4・標本300で、新10.4秒・旧6秒。mnist2・標本300で、新46秒・旧40秒（1.15倍）。差は、標本1件あたりの、ほぼ一定の費用で、モデルの大きいMNISTでは、比が小さい。内訳（sine2・標本500）: 呼出しのたびの入力の検査（損失の評価の入力、共同更新の入力、予測のtensorの3つを外す実験で、16.8秒→13.9秒）が主で、計算量の計測のhookの中身は0.2秒。残りは、処理を小さい関数と記録に分けたことによる費用。検査を残したまま詰められるのは、数%の見込み。ユーザーの決定（2026-10-11）: 重複していて、明確に改善できる検査は、省く。明確な重複は、標本1件の予測の中の、確率のtensorの再検査の1か所で、省いた（[prediction-probability-validation-reuse](../specs/prediction-probability-validation-reuse/tasks.md)。sine2・標本500で16.73秒→15.76秒、sea4・標本300で10.4秒→8.98秒、mnist2・標本300で46秒→44.3秒）。残りの検査（共同更新の入力、損失の評価の分類器と入力）は、重複ではないので、変えていない。構成の移植の最初は、`fedsda-without-prediction-weight-recalibration`（旧`no-recalibration`）ほか、軽い見込みの5つ。照合の基準は、決定事項の「構成の照合の基準」。** 照合のtestの形（新→旧の対応表、対応表の取り違えの検査、通った場合の観測）は、(B)FedDriftの移植でも使える。移行の一覧の残りは、ほかの区分（用途別の計算の計数、最終構成では使わない選択肢の項目、未移植の診断、所要時間）だけ。旧→新の対応の表も、ここにある）。応答の指標は`runtime/fedsda_change_response_metric_derivation.py`（`FedsdaRunMetrics.change_response_metrics`）、対応づけの計算は`evaluation/change_response_metric_calculations.py`。testの`golden_condition_runs`は、実旧が保存した配列の全部（`legacy_saved_arrays`）を持つようになった。対応表を足すときは、`test_change_response_metric_correspondence_distinguishes_metric_pairs`の形（実行した全部の条件で、旧の値が同じになる対と、0のままの項目を数える）で、取り違えを検出できることを確かめる。保存する列の名前は、どのラウンドか・どの時点か・どの標本かが分かる名前にする（サーバの同期のラウンドは`server_round`。2026-10-11ユーザー: 短さより、分かりやすさと実態との一致を優先）。独立レビューの起動は、全部のメッセージが残る出力形式（`--output-format stream-json --verbose`）にし、依頼文に「裏で実行しない、最後のメッセージに全文を書く」と書く（`json`の形式では、最後の返答しか残らず、このspecで、指摘の本文を失った）。旧の指標の計算は、`federated_drift_experiment/experiment.py`の`compute_metrics`と、その周り（`_telemetry_metrics`ほか。465行付近から）、配列は`_save_raw_run`（1361行から）。新の側の入口は、表`runtime/fedsda_run_record_tables.py`（列を足す）と、指標`runtime/fedsda_run_metric_derivation.py`（`FedsdaRunMetrics`へ足す）。照合の道具: `tests/refactoring/test_fedsda_experiment_run_artifacts.py`の`golden_experiment_runs`（goldenの3ケースを、設定から実行）と、`golden_condition_runs`（実旧の実行結果`legacy_result`——263の指標の全部を持つ——と、保存した配列。配列は、いま、31と、ラウンドごとのものだけを取り出しているので、全部を取り出す形へ広げる）。実旧の1 runの出力の全部の名前と値は、scratchpadの`legacy_inventory.py`で出せる（sine2のgoldenの条件）。まとまりの案: (a)検出と警報（`avg_delay`・`change_point_*`・`alarm_*`・`switch_fp_*`・`tp`ほかと、`estimated_drift_*`の配列）、(b)適応と候補の判定の統計（`adaptation_*`・`model_reuse_*`・`provisional_*`と、判定の損失の配列）、(c)モデル別の診断・登録・クラスタリング（`model_*`・`mean_model_count`ほか・`clustering_oracle_*`と、対の距離の配列）、(d)予測の集計（`routing_*`のうち、最終構成で意味のあるもの——oracle・leaderとの比較、クラス別——と、標本ごとの配列）、(e)クロス評価の配列（`cross_evaluation_*`・`model_pair_*`）、(f)検出器の値の時系列（`history_detector_log_e`）。新の記録だけでは導けない項目が見つかったら、移行の一覧へ、理由とともに書く。(A2)の出発点: 完全なrun設定`FedsdaRunSettings`（`runtime/fedsda_run_settings.py`）と、既定値`build_final_configuration_fedsda_run_settings`（`runtime/fedsda_final_configuration_run_settings.py`）、保存用の辞書`convert_settings_to_plain_mapping`（`core/settings_serialization.py`）、計測つきの全体run`execute_fedsda_stream_protocol_run_with_computation_measurement`、指標の導出`derive_fedsda_run_metrics`。旧の保存は、`experiment.py`の`_save_raw_run`（標本ごとの列と診断の列のNPZ）と、`run_pareto_sweep.py`のCSVの行（`_run_resolved`）、`tools/experiments/manifests.py`（manifest）。(A2)は、次の順に分ける（主担当の案。確認事項は、上の「決定事項」のとおり決定済み）: (A2-1)1 runの実行と保存の骨組み（完全なrun設定から、計測つきの全体run→指標の導出→保存。保存の形式——新の名前——を決める。対象は、照合済みの項目、計算量、条件、ラウンドごとのグローバルモデル数とclientの保有モデル数）。(A2-2)以降: 「記録から導く（未照合）」の項目を、まとまりごとに、導出して、実旧と照合する——検出と警報（遅れ、変化点の推定、警報の適合率ほか）、適応と候補の判定の統計、モデル別の診断と登録・クラスタリング（oracleとの比較を含む）、予測の集計（oracle・leaderとの比較）、クロス評価の配列。(A2-変換)旧の結果（CSV・NPZ）を、新の名前へ変換する道具。同じ条件の旧の結果を変換したものと、新実装で実行して保存したものを、照合する。その後、(A3)掃引・並列・コマンド。候補: (A)新実装で実験を実行するための入口——完全なrun設定（設定の束の正式な置き場所、datasetごとの学習率と隠れ層の幅の既定、preset）、結果の保存（旧の`_save_raw_run`・CSV・manifestに当たるもの）、実行のコマンド。これがないと、新実装は、testの中でしか動かない。(B)FedDrift（比較対象の手法）の移植——実行の枠の契約（`RunClientOperations`・`RunServerOperations`・`RunParticipantFactory`）を満たす、別の手法の参加者。計算量の計測（`measure_model_computation`）は、手法に依らず使える。(C)残る診断（モデル別の除外寄与、共有部の勾配、所要時間）と、標本ごとの結果種別の列。最終3goldenは、これらを比べない。(D)旧実装を外す準備（NEW-004の計算量の照合の置き換え、MNISTの取得のコマンド——下の「決定事項」——、旧の代表11ケースの扱い）。主担当の案: (A)→(B)→(C)→(D)。(A)を先にする理由は、FedSDAの実験を新実装で回せるようになり、(B)が、同じ入口と保存を使えるため。研究室サーバ用のgoldenは、まだない（ユーザーが、サーバで`--update`を1回実行して足す。手順は docs/experiments/refactoring-baseline.md の「実行環境ごとの最終構成golden」）。ふだんのspecでは、研究室サーバでの実行を求めない（2026-10-11ユーザー決定。開発中の照合は、Windowsの基準環境とWSLで行う）。以下は、(4b)全体の調査の記録: 出発点: 旧`experiment.py`の`run_random_drift_experiment`の後半（2285〜2350行。`compute_metrics`、最終モデル数、通信量の集計、最終のパラメータ量）、`compute_metrics`（真の概念の変更位置と、検出・切替の位置から、精度・定常精度・適合率・再現率・F1・遅延ほか）、`_save_raw_run`（標本ごとの列と、診断の列の保存）、`tests/test_proposed_regression.py`（goldenの比較項目: `METRICS`と`TRACES`、条件`COMMON`・`CASES`・`ALGORITHM`、環境の記録）、`tests/proposed_regression_golden.json`。新の実行の枠はSINEだけを扱うので、照合できるgoldenは`sine2`の1ケース（`sea2`・`mnist2`は、datasetの移植が要る）。goldenの条件（client 3、標本1500件、集約間隔50、`MIN_STABLE_PERIOD=100`、`DRIFT_PROB=0.015`、事前学習100件・10 epoch・batch 32、FIFO 30、アダプタのrank 8 ほか）を、新の設定の束（`FedsdaRunParticipantSettings`と`StreamProtocolExecutionSettings`）で表す。隠れ層の幅は、旧のdatasetの定義（`config.dataset_spec`）から読む。goldenの指標のうち、計算量（`compute_*`）は、新実装に記録がない（未移植）。移植するか、照合の対象から外して記録するかを、調査で決める。新の記録との対応: 標本ごとの予測の正誤と最大重みのモデルは`SamplePredictionRecordStore`、警報と切替の位置は`LossChangeAlarmRecordStore`・`AdaptationRecordStore`、候補の判定は適応記録（旧の`provisional_model_decisions`の一覧は、まだ持たない）、登録の来歴は`GlobalModelRepository`、クラスタリングの観測は`ModelClusteringRecordStore`、通信量は`CommunicationVolumeRecordStore`、再較正の標本数はFixed-Shareと診断証拠の計数。全体runの実行は、tests/refactoring/test_fedsda_stream_protocol_run.pyの`execute_stream_protocol_run_with_factory`・`make_run_participant_settings`・`run_real_legacy_whole_run`（実旧の全体runを、旧の部品を旧の順に呼んで実行し、サーバとclientを返す）を再利用できる。指標は、まず、同じprocessの中の実旧の`compute_metrics`ほかの結果と照合し（部品の対照）、その上で、goldenのJSONと照合する（別の完了条件）。全体の分け方: 旧の最終構成のサーバは、旧の最終構成のサーバ（`federated_drift_experiment/servers/`の`SharedBackboneFedSDANoCachedServer`。`run_round`は、新規モデルの登録→集約→（新規モデルがあるラウンドだけ）クロス評価・クラスタリング・統合→配布→集約後の予測重みの再較正）を、次のspecに分けて進める（2026-10-10、主担当の調査。(2)から、集約後の再較正を(2')として分けた）。(1)**新規モデルの登録と集約**（旧`_register_new_models`、`update_global_models`。採番、来歴、正式IDの確認、共有部1個と概念固有部ごとのFedAvg、損失統計の平均、通信量）【完了】。(2)**配布とclient側の反映**（旧`broadcast_models`、clientの`apply_server_mapping`）【完了】。(2')**集約後の予測重みと診断証拠の再較正**（`recalibrate_routing_after_aggregation`の`fifo_replay`）【完了】。ここまでで、クラスタリングなしのラウンドが通る。(3)**クロス評価とクラスタリング・統合**（旧`servers/clustering.py`、`_cluster_and_consolidate`、`_merge_clusters`。ID対応を作る）。2つに分けた: (3a)**クロス評価**【完了】、(3b)**クラスタリングと統合**【完了。サーバの1ラウンドの同期の関数を含む】。(4)**全clientとサーバの準備と、全体runの接続**。2つに分けた: (4a)**実行の枠への接続**（サーバの操作の実体と、`prepare_run`を持つfactory。事前学習の結果を、サーバへ登録し、全clientへ渡す）【完了】、(4b)**指標の導出とgoldenとの照合**（ここで、上の「決定事項」のとおりLinuxの再現性を確かめる）。各specの対照は、実旧のサーバと、実`__init__`で作った実旧のclient複数を、ラウンドごとに照合する。モデル別の除外寄与の診断は、小さいspecとして、どの時点でも進められる。新しい接続は、共用の`tests/refactoring/fresh_process_smoke.py`へ流れを足す。
-- 作業場所: `.worktrees/refactoring/`、ブランチ: `refactor/architecture`。元checkout（`main`、HEAD `748c3aa`、`src/`なし）と取り違えない。`federated_drift_experiment/`は固定旧実装との対照・既存golden実行用。`src/federated_learning_experiments/`は移植中の新実装。旧名alias/互換読込みを追加しない。
-- **実行環境の注意:** Windowsの基準環境は、スマートアプリコントロールがtorchの読込み（`venv/Lib/site-packages/torch/_C.cp313-win_amd64.pyd`）を断続的にブロックする（10月3日・5日・8日に発生し、いずれも時間をおいて解消）。発生したら保護設定・venv・goldenを変えず、WSL Ubuntu（`wsl -d Ubuntu`→リポジトリ直下で`source .venv/bin/activate`→worktreeへ移動。Python 3.14.4）で作業を続け、結果を「WSLで成功」と区別して記録する。WSLでは既知の3件が失敗する（Python 3.14の構文解析の違いによる既存test 1件、golden回帰2件の環境差による不一致）。specの完了は、Windows基準での全回帰が済むまで記録しない。
-- **レビュー担当の利用状況（2026-10-09）:** GPT-6 Luna（`codex exec`）は利用上限に達しており、CLIの表示では2026-10-14 12:54まで使えない。それまでは、共通引継ぎ手順の代替規則によりClaude Haiku 5.5（effort `medium`）がLunaの担当分も行う。起動コマンドは共通引継ぎ手順の「承認と独立レビュー」の起動例。Lunaが戻ったら通常の分担へ戻す。
+## 次の一手
+
+1. [CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[共通引継ぎ手順](agent-handoff.md)を読み、ブランチ・HEAD・差分・対象specを照合する。Claude版cc-sddは`.claude/skills/`、仕様正本は共通の`.kiro/specs/`。
+2. 候補検証研究を続けるなら、下の研究記録を読む。DやPを未実験の案として再実装しない。現在、次の製品アルゴリズム変更のspec・採用決定はない。
+3. 次の候補は、候補headの便益・共有部変更による既存headへの干渉・実際の混合予測への寄与を、同じ到着標本上で切り分ける診断。head採用と共有部反映を分ける案や、候補追加後の混合自体を検証する案を考える。未検証の方向性であり、実証済みの改善策ではない。
+4. 新しい研究対照は独立ツールへ閉じ、製品経路を変える場合は別specと実装前の独立仕様レビューを経る。現在の既定を黙って変更しない。
 
 ## 決定事項
 
-- **ablationを新実装でも実行する。旧の結果は変換しない（2026-10-11ユーザー決定。下の「結果の保存と、旧の結果の扱い」の変換の部分を、置き換える）:** 理由: 計算量など、集計方法を変えた指標を、実験しなおして確かめたい。公開するコードで、他人が実験を再現できるようにしたい。旧→新の変換の道具（(A2-変換)）は、作らない。移植する構成は、提案構成と、旧の`run_main_ablation_suite.sh`の10構成: `hard-routing`、`global-routing`、`independent`、`shared-backbone`、`no-recalibration`、`immediate-creation`、`distance-average`、`overall-esr`、`class-adwin`、`overall-adwin`。`meta-routing`と`meta-switching-routing`は、移植しない（予測の結合の比較の目的は、「通常の結合——AdaHedgeの重み、旧の`global-routing`——より、Fixed-Shareの重みが優れる」「結合しない場合——旧の`hard-routing`——より、結合が優れる」を示すことで、この2つで足りる。旧実装での結果は、`results/results_20260831_232910_routing-selection/`と`results_20260830_212508_residual-class-functional-confidence-average-full`にある）。FedDriftとの比較は、論文に載る（(B)で移植する）。
-- **構成の照合の基準（2026-10-11、主担当の提案をユーザーが了承）:** 構成ごとに、小さい規模で、新と実旧を同じprocessで実行し、全体runの指標と離散列が`==`で一致すること（基本はsine2。モデルの構造を変える構成は、mnist2も）と、その構成に固有の経路を通ったことを確かめる。部品ごとの実旧との照合、要素の組合せ、全dataset、specごとのWSLは、省く。指標と表の、新→旧の対応は、既存の照合を、構成でパラメータ化して使う。環境ごとのgoldenは、旧実装を外す直前に、全構成分をまとめて作る。specは、変える部品ごとにまとめ、文書は薄くする。ビット単位で合わせきれない構成が出たら、基準を緩めずに、ユーザーへ報告する。
-- **進める順（2026-10-11ユーザー了承）:** (A3)新実装の実験の入口（掃引・並列・コマンド・保存先。提案構成だけで作る）→提案構成を、ablationの規模で1回、研究室サーバで新旧を比べる（ユーザーに実行を頼むのは、この1回）→構成を、軽い見込みの順に移植（`no-recalibration`・`immediate-creation`・`distance-average`・`global-routing`・`overall-esr`→`hard-routing`・`class-adwin`・`overall-adwin`→`independent`・`shared-backbone`）→(B)FedDrift→全構成のgolden→(D)旧実装を外す準備。
-- **名前（2026-10-11ユーザー）:** 論文や文書では、基本的に、新実装の名前を使う。旧実装の構成名（`hard-routing`ほか）は分かりにくいので、新実装のコマンドでの構成名は、新実装の語に合わせて、分かりやすくする（(A3)で案を出して、確認を受ける）。旧の`global-routing`を移植するとき、AdaHedgeの側の名前（いまは、診断にしか使わないので`global_diagnostic`・`AdaHedgeDiagnosticEvidence`）を、実際の予測にも使える名前へ見直す。
-- **結果の保存と、旧の結果の扱い（2026-10-11ユーザー決定。変換の部分は、上の決定で取り消し）:** 新実装の保存は、新実装の名前で行う。旧の結果（既存の`results/`。CSV 440、NPZ 16286ファイル）は、再実験せずに、旧→新の名前へ変換する（新→旧の変換は作らない）。保存する範囲は、照合済みの33指標と31の配列、計算量、完全な条件、時系列のモデル数に加えて、「記録から導けるが、未照合」の区分（指標124、配列86）の**全部**。全項目の区分は[移行の一覧](../../docs/research/legacy-run-output-migration.md)。研究室サーバ用のgoldenは、ユーザーが追加済み（`058fc2e`。goldenは、Windowsの基準環境・WSL・研究室サーバの3つ）。
-- **MNISTのファイルの取得（2026-10-10ユーザー決定）:** 新実装の実験本体は、MNISTのファイルを取得しない（置いてあるファイルだけを読む）。新しい計算機のために、取得用の小さいコマンドを、別に用意する（`git pull`の後に、一度だけ実行する形）。作る時期は、旧実装を外す段階（それまでは、旧実装の読込みが、なければ取得する。実験の入口も、旧実装のまま）。ファイルは、git管理に入れない（`.gitignore`の`/data/mnist/`のまま）。「いったん」の決定なので、新実装へ実験の入口を移すときに、もう一度確認する。
-- **Linuxの再現性の確認の結果（2026-10-10、主担当の実測）:** 旧実装の最終構成の3ケース（tests/test_proposed_regression.pyの`compute_all`）を、WSL Ubuntu（Python 3.14.4、NumPy 2.4.6、torch 2.12.1+cpu、1 thread）で、別のprocessで2回実行し、結果が完全に一致した（再現する）。Windows用のgoldenとは、sine2（指標10、離散列15）とsea2（指標1、離散列2）で違い、mnist2は一致した。下の決定のとおり、Linux用のgoldenを、別ファイル・別testとして作る（(4b-3)）。WSLの起動: `wsl.exe -d Ubuntu -- bash -lc '...'`（Git Bashからは`MSYS_NO_PATHCONV=1`を付ける。`bash -lc`の文字列の中でshellの変数を使うと、外側で展開されて消えることがある）。リポジトリ直下で`source .venv/bin/activate`、`FDE_MNIST_DATA_DIR`は`data/mnist`。調査用のscript（`venv/refactoring-tests/linux_repro_dump.py`）と出力は、Git管理外。
-- **Linux用のgolden（2026-10-08ユーザー決定、2026-10-10ユーザーが順序を変更）:** 全体runを接続するspecの調査の段で、旧実装をLinuxで2回実行して、結果が一致するか（再現性）を確かめる。一致すれば、Linux用のgoldenを作り（既存のWindows用goldenと回帰testは変更せず、別ファイル・別testにする）、新の全体runをWindowsとLinuxの両方で照合する。一致しなければ、その事実を記録して、Windows用goldenだけで照合する。それまでの部品specは、同じprocessの中の実旧との対照で確かめ、goldenを使わない。WSLのgolden回帰の不一致（環境差。旧実装は固定旧から無変更）を理由にgoldenを変えない。部品の実旧対照と、全体runのgolden一致は、別の完了条件である（サーバ側の部品だけでは、golden一致は確かめられない）。
-- **検出episode（2026-10-09、主担当の判断）:** 制御（旧`DetectionEpisodeController`）と同一episodeの追加検出の経路は当面移植しない。最終構成の既定で無効。記録は[UNPORTED-001](../../docs/research/implementation-findings/unported-001-detection-episode-control.md)。ユーザーが必要と判断すれば覆せる。
-- **回復期だけの混合予測（2026-10-10、主担当の判断）:** 有効化方針`drift_recovery`と、そのときの警報側の通知・重みの再生は当面移植しない。最終構成は常時有効で、通知は何も変えない。記録は[UNPORTED-003](../../docs/research/implementation-findings/unported-003-drift-recovery-prediction-mixture-activation.md)。ユーザーが必要と判断すれば覆せる。
-- **移植しないと決めたもの（2026-10-07ユーザー）:** 参照も学習させる候補検証方針（旧`shadow_tournament`）。記録は[UNPORTED-002](../../docs/research/implementation-findings/unported-002-reference-shadow-tournament.md)。
-- **依存testの方式の一本化は行わない（2026-10-09ユーザー）:** 既存の登録と注入契約testは移さず、消さない。新しいmoduleにはsymbolごとの注入契約testを足さない。記録は[IMPROVE-009](../../docs/research/improvement-candidates/improve-009-unify-dependency-boundary-tests.md)。
-- **手順:** 2026-10-12ユーザー指示により、task実行前に独立CLIが仕様書群をまとめてレビューする段階を追加。実装後の独立CLIレビューは維持する。詳細と承認条件の正本は[共通引継ぎ手順](agent-handoff.md)。
-- **学習の途中失敗のときの計数（2026-10-09ユーザー）:** 1回の共同更新の途中で例外が出た場合の学習量の計数は旧と違うが、現在の流れでは読まれないので、そのままにする。記録は[NEW-003](../../docs/research/implementation-findings/new-003-training-count-after-mid-update-failure.md)。
-- 具体的な簡略化・効率化・局所的なアルゴリズム調整は[改善候補](../../docs/research/improvement-candidates/README.md)、不具合の疑い・移植しない判断・新実装で見つけた事項は[implementation-findings](../../docs/research/implementation-findings/README.md)へ、気づいた時点で1件1ファイルで記録する（2026-10-09ユーザー指示）。研究アルゴリズムの変更は採用していない。
+- 研究目標は候補検証の削除自体ではなく、「検証なしの改善を残し、検証ありが防ぐ低下・通信増加をより単純に抑える」こと。検証あり＋新方式も候補。許容精度低下幅は未設定で、自動採否はしない。
+- D（待機後強制採用）、R（既存重み比率保持）、P（新IDの初期質量抑制）、共有部25%反映・候補学習中固定は、一般的な置換方式として採用していない。条件限定の改善と一般的な優位を区別する。
+- 探索用の対照は`tools/research_*`等へ隔離し、共通アルゴリズム・設定選択肢・通常pytest/CI/freshへ枝を増やさない。研究専用checksは明示実行する。通常入口へ採用済みの再開補助・メモリ回収・seed構文は、この研究分岐の扱いとは区別する。
+- 標準JSON/NPZ/READMEの形式は再開補助・省メモリ化・seed構文のためには変更していない。研究診断用の別形式JSONは標準run形式と混同しない。
+- 旧実装との一致を守る参照設定と、改善した新既定を区別する。旧結果の一括変換ではなく、新実装でablationを実行する方針を維持する。
+- レビュー手順は共通引継ぎ手順を参照する。全pytest、および権限で実行不能なfresh smokeは、独立レビュワーが主担当の実測証拠を照合し、独立未実行を明記して判定できる。過去の子エージェントIDは来歴であり、Claudeから再利用する接続先ではない。
 
-## 完了specの一覧（新しい順。詳細は各spec）
+## 研究記録の入口
 
-- [fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md): 混ぜる予測・FIFO容量30・T120を既定に採用。局所パラメータ予測の比較構成とWindows/WSLの基準版6を追加し、旧基準は維持。
-- [fedsda-fixed-share-time-scale-axis](../specs/fedsda-fixed-share-time-scale-axis/tasks.md): Fixed-Shareの時間尺度と帰属の保留の容量の同値の検査を外し、時間尺度を掃引の軸`--fedsda-fixed-share-time-scales`で替える。容量の軸は容量だけを替える。既定は不変。
-- [fedsda-synchronized-local-mixture-prediction](../specs/fedsda-synchronized-local-mixture-prediction/tasks.md): 同期の時点のモデルの結合予測と局所のモデルの結合予測を、clientごとの重みで混ぜる予測。診断の差し替えと予測の記録が一致。既定は不変。
+- [要素ablation](../../docs/research/fedsda-component-ablation-20261017.md): 720runの条件別比較。検証の有無はデータ・間隔で符号が変わる。「ローカル更新モデルのみ」と「現在の学習帰属モデルのみ」は別方式。
+- [候補検証の原因診断](../../docs/research/fedsda-candidate-validation-diagnosis-20261017.md): MNIST2/4、共有部置換、予測重みなどの初期切分け。
+- [非MNIST共有部反映](../../docs/research/fedsda-candidate-backbone-blend-nonmnist-20261018.md)、[候補共有部固定144run](../../docs/research/fedsda-frozen-candidate-backbone-20261018.md): 単純な共有部保護だけでは全条件を改善できない。後者の間隔200は現行処理どおり2400標本評価（生成2500）。
+- [単純化の整理](../../docs/research/fedsda-candidate-validation-simplification-20261018.md): 問題の分解と次の仮説。5seed時点の表なので最新のV/O判断は次の10seed報告も参照する。
+- [サーバ3実験・10seed比較](../../docs/research/fedsda-server-results-20261018.md): 新規660runと既存対照の受領・照合。検証なしはMNIST2の全間隔で平均低下し、MNIST4・500では改善。通信は24条件平均すべて増加。混合予測とFedDrift/FedAvg比較も含む。
+- [D本規模54run](../../docs/research/fedsda-candidate-waiting-diagnostic-20261018.md): 待機後強制採用はV/O両方を上回る代替にならず、共通経路から分離済み。
+- [R/P本規模72run](../../docs/research/fedsda-prediction-initial-mass-n5000-20261019.md): 予測初期質量だけの制御では保護効果を代替できない。学習・適応・通信をOと揃えた対照。[実行手順](../../docs/experiments/prediction-initial-mass-diagnostic.md)。
+- [uranium回収対照](../../docs/research/fedsda-live-reclamation-uranium-20261019.md): 学習結果を変えずにメモリを減らす実測と適用範囲。現在は通常FedSDAへ接続済み。
 
-- [held-model-training-sample-recency-removal](../specs/held-model-training-sample-recency-removal/tasks.md): 保有モデルの学習batchの抜き出し方の選択肢（直近K件・指数減衰）と掃引の軸を外した。全履歴から一様の動作と値は不変。掃引の記録の形式の版は6。
+## 採用済みの実行補助と環境の注意
 
-- [fedsda-pending-assignment-fifo-capacity-axis](../specs/fedsda-pending-assignment-fifo-capacity-axis/tasks.md): FedSDAの帰属の保留（FIFO）の容量（とFixed-Shareの時間尺度）を、掃引の軸で並べられるようにした。掃引の記録の形式の版は5。
+- 掃引の再開: 同条件の過去出力と進捗から再開先を選択できる。完全な既存runはスキップし、完了済みを選ぶと実行を終える。中断runは補助証明と条件・コード・環境が一致する場合だけ退避して再実行する。証明のない旧不完全ファイルや破損・不一致を盲目的に上書きしない。[手順](../../docs/experiments/experiment-sweep.md)。
+- seed: `--seeds 0-9`は両端込み。`--seeds 0-2 5 8-9`の列挙混在も可。負数・逆順・重複・範囲重複は拒否する。間隔/T/FIFOのステップ付き範囲やdatasetの`all`指定は未実装。
+- メモリ: Linux/glibcの通常FedSDA全体run・掃引は、正常な同期末に`malloc_trim(0)`を呼ぶ。Windows等の非対応環境はno-op。FedDrift/FedAvgや低レベルstream単独には接続していない。[運用と制限](../../docs/experiments/fedsda-runtime-memory-reclamation.md)。
+- uraniumでのMNIST2・seed0・1workerの1対では最大RSS81.54%減、時間1.79%増、全指標・133配列等一致。32/64workersでの導入後の同条件対照は未実施。この削減率から並列数をそのまま算出しない。アルゴリズム・標本表現・allocator設定の一律変更はしていない。
+- 過去の独立回収prototypeは旧source hash固定の研究再現用。通常実行は最新ブランチを取得する。uraniumが一時detached HEADだったためブランチ復帰手順を案内済みだが、サーバ側更新の完了は未確認。
+- サーバ実行と転送はユーザー担当（踏み台経由）。長時間実験はLinux `.venv`・tmux、各数値ライブラリ1thread。uraniumのコア数だけでworkerを増やさず、メモリ・負荷を確認する。
+- Windows検証Pythonは元checkoutの`venv/Scripts/python.exe`。Linux検証WSLは`Ubuntu`を明示する（既定がdocker-desktopになっていた）。MNIST入力・固定環境は基準文書に従う。
+- 研究入力・生の結果・一時スクリプトの多くはGit管理外。`results/`が存在するこのworktreeと、Gitだけをcloneした環境は同じではない。各報告の入力パスと完全性を確認し、一括stageしない。
 
-- [fedsda-synchronized-model-prediction](../specs/fedsda-synchronized-model-prediction/tasks.md): FedSDAの予測（と予測重みの更新）を、最後の同期の時点のモデルで行う設定と構成。学習・検出ほかは現在のモデルのまま。診断の差し替えと予測の記録が一致。
+## 未解消の事項・次の候補
 
-- [fedavg-local-updates-per-aggregation](../specs/fedavg-local-updates-per-aggregation/tasks.md): 局所更新の間隔を集約間隔と同じにしたFedAvgを、構成名で選べるようにした。goldenの事例は、基準版1〜5の13構成で固定し、後から足す構成は専用のtestで守る。
+- 候補検証を単純化しV/O両方に優位となる方式は未達。低下を共有部だけ、待ち時間だけ、初期重みだけに帰属させる証拠はない。
+- 純粋予測方式seed5〜9の240run、手法比較（間隔100/500）seed5〜9の180runは補完コマンドを提示済みだが、実行・結果受領は未確認。確認なしに完了扱い・再発注しない。
+- LEGACY/IMPROVE/NEW/UNPORTEDの現在の採否は[実装findings](../../docs/research/implementation-findings/README.md)と[改善候補](../../docs/research/improvement-candidates/README.md)が正本。10/13以降の修正・採否を、古い「残るLEGACYをまとめて判断」へ戻さない。
+- LEGACY-001とLEGACY-014の概念計数は旧実装を外した後に直す判断、NEW-004は旧依存の計算量照合を外す準備の記録。LEGACY-019の改名参照除外の頻度・影響は未確認。詳細と変更時期は各記録を参照する。
+- 未移植の細目はUNPORTED-001（検出episode）、002（参照も学習する検証）、003（回復期限定の混合）。現在の不具合や移植漏れと自動判定しない。その他の診断追加や旧実装削除は、目的・依存を確認してから仕様化する。
+- 一部の古いspecはtask完了でもphaseが`implementation-complete`等のまま。履歴上の状態表現と直近specの未完了を混同せず、spec.jsonとtasksの証拠を読む。
+- 動作図HTMLは別ブランチ`docs/fedsda-processing-flow`で整理・push済み、専用worktreeは削除済み。mainへのマージは保留。refactoringへ自動コピー・混在させない。
 
-- [important-behavior-regression-goldens](../specs/important-behavior-regression-goldens/tasks.md): 構成選択と重要経路を新APIの基準版・環境別goldenで固定。旧goldenを維持。
+## 直近・主要な完了spec
 
-- [fedavg-experiment-run](../specs/fedavg-experiment-run/tasks.md): 旧Obliviousを正式名fedavgで移植。単一モデルの学習・集約・全体run・共通指標・成果物・掃引入口を接続。
+- [seed-range-command-arguments](../specs/seed-range-command-arguments/tasks.md): seedの両端込み範囲と列挙混在。
+- [fedsda-runtime-memory-reclamation](../specs/fedsda-runtime-memory-reclamation/tasks.md): 通常FedSDAの同期末メモリ回収。
+- [run-memory-reclamation-prototype](../specs/run-memory-reclamation-prototype/tasks.md): 同期末回収の独立対照ツール。
+- [prediction-initial-mass-diagnostic](../specs/prediction-initial-mass-diagnostic/tasks.md): R/Pの独立研究診断。
+- [candidate-validation-waiting-diagnostic](../specs/candidate-validation-waiting-diagnostic/tasks.md): 待機後強制採用Dの研究診断。
+- [experiment-sweep-resumption](../specs/experiment-sweep-resumption/tasks.md): 過去出力の選択・再開・安全復旧。
+- [fedsda-component-ablation-analysis](../specs/fedsda-component-ablation-analysis/tasks.md): 要素ablation解析と人による採否判断の補助。
+- [fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md): 混合予測・FIFO30・共通T120の既定と基準版6。
+- [fedavg-experiment-run](../specs/fedavg-experiment-run/tasks.md): 単一モデル比較手法FedAvgの移植。
+- [feddrift-experiment-sweep](../specs/feddrift-experiment-sweep/tasks.md): FedDriftの全体run・成果物を掃引入口へ接続。
+- [important-behavior-regression-goldens](../specs/important-behavior-regression-goldens/tasks.md): 新実装の重要経路を環境別goldenで固定。
 
-- [feddrift-experiment-sweep](../specs/feddrift-experiment-sweep/tasks.md): 既定FedDrift条件・専用閾値軸を既存の新CLIへ接続し、逐次/spawn実行・保存・再開・CSVを確認。
-
-- [feddrift-experiment-run-artifacts](../specs/feddrift-experiment-run-artifacts/tasks.md): 完全設定から計測run・共通指標・記録表とJSON/NPZ保存・読込みを接続。
-
-- [feddrift-model-diagnostic-metrics](../specs/feddrift-model-diagnostic-metrics/tasks.md): 通常同期後のモデル数系列、終了時のモデル別学習量、クラスタリングと真の概念の一致を全体run指標へ接続。
-- [feddrift-computation-cost-summary](../specs/feddrift-computation-cost-summary/tasks.md): 予測前保有数・server集約/統合/診断とclient統合の計数、FedSDA共通計算量summary。
-- [feddrift-model-computation-measurement](../specs/feddrift-model-computation-measurement/tasks.md): FedSDA共通モデル計測、準備分離、時刻ごとの標本処理/同期と終端の計数。
-- [feddrift-stream-run-and-core-metrics](../specs/feddrift-stream-run-and-core-metrics/tasks.md): FedDrift全体run、共通基本指標、Linux別goldenの接続。
-
-clientの組立てと実行の枠の5操作（`FedsdaRunClient`）、標本1件の予測と学習側の処理（`process_observed_sample`）、警報後の「参照の固定→標本の観測→損失収集→採否評価→確定→正式ID確認」、警報時の「区間の準備→再利用評価→切替または候補検証の開始→完了処理→記録」、候補検証sessionの保持、診断証拠と通知までの部品が、実旧の対応するメソッドとの対照つきで揃っている。サーバ側は、登録・集約・クロス評価・クラスタリングと統合・配布・集約後の再較正と、それらをつなぐ1ラウンドの同期まで揃い、実行の枠へ接続した（全体runを、新実装だけで実行できる）。残りは、全体runの結果の指標の導出と、goldenとの照合。部品の旧実装対照と、新全体runのgolden一致は別の完了条件。
-
-- [feddrift-detection-batch-processing](../specs/feddrift-detection-batch-processing/tasks.md): FedDriftの一バッチの判定→割当・新規モデル生成・前回値更新・評価保持と即時送信保留。
-- [feddrift-detection-batch-assessment](../specs/feddrift-detection-batch-assessment/tasks.md): FedDriftの検出バッチの数値判定。保有順の平均損失・最小選択・閾値比較。client状態更新は上のprocessingで接続、全体runは後続。
-- [fedsda-independent-models](../specs/fedsda-independent-models/tasks.md): 構成の移植の10個目・最後（旧`independent`）。モデル構造`independent_models_without_shared_backbone`（共有部は空。隠れ層は、分類器の`residual_adapter`の場所に、モデルごとに持つ`ModelOwnedHiddenLayers`）。学習の方式`sequential_per_model_training`（モデルごとに順に）。再較正をしない方針との組。パラメータが空のoptimizerの状態（`parameter_optimizer_if_any`）。クロス評価の下りの通信量は、旧と同じ数え方（LEGACY-018）。照合は、sine2の7条件と、mnist2の2条件（全状態）。
-- [fedsda-without-concept-specific-adapter](../specs/fedsda-without-concept-specific-adapter/tasks.md): 構成の移植の9つ目（旧`shared-backbone`）。モデル構造`shared_backbone_without_residual_adapter`。分類器の`residual_adapter`へ、パラメータを持たない`IdentityFeatureAdapter`を置く（概念固有部は、分類層だけ）。計算量の計測は、どちらの部品でも、概念固有部の標本数を数える。
-- [fedsda-adwin-detection](../specs/fedsda-adwin-detection/tasks.md): 構成の移植の7つ目と8つ目（旧`class-adwin`・`overall-adwin`）。検出器`AdwinLossWindowDetector`（旧`FullScanADWIN`）。監視は、設定の`drift_detector_name`が`adwin`のとき、全体（とクラス別）の窓で警報を出す。標本1件の処理が、ADWINのときだけ、補助の判定（旧`_forced_drift_check`）を行う。e値は、負の無限大。構成の照合は、窓の上限を1000にして行う（50では、ADWIN自身が検知しない）。
-- [fedsda-single-model-prediction](../specs/fedsda-single-model-prediction/tasks.md): 構成の移植の6つ目（旧`hard-routing`）。予測の結合の方式`current_training_model_prediction`（再較正をしない方針との組）。現在のモデルだけを評価し、記録の重みの項目は「現在のモデルに重み1」の値。`AdaHedgeWeightEvidenceCollection.evidence_is_updated_by_prediction`が偽なら、学習帰属の変更で始め直さない。
-- [fedsda-adahedge-prediction-weights](../specs/fedsda-adahedge-prediction-weights/tasks.md): 構成の移植の5つ目（旧`global-routing`）と、名前の改め。AdaHedge側を`adahedge_…`・`AdaHedgeWeightEvidence`、Fixed-Share側を`fixed_share_…`・`FixedShareWeightController`へ。予測の結合の方式`adahedge_weighted_prediction`。標本の予測の記録・指標・表へ、Fixed-Shareの重みでの3項目を足した（表`sample_prediction`は133列）。
-- [fedsda-overall-loss-esr-detection](../specs/fedsda-overall-loss-esr-detection/tasks.md): 構成の移植の4つ目（旧`overall-esr`）。`LossChangeDetectionSettings.loss_monitoring_scope`の値`overall_loss`で、損失の監視が、全体の検出器だけを使う。検出器の表示名は`e-SR`。
-- [fedsda-loss-distance-clustering](../specs/fedsda-loss-distance-clustering/tasks.md): 構成の移植の3つ目（旧`distance-average`）。`ModelClusteringCriteria.model_pair_comparison_strategy`（値`mean_loss_increase`）で、サーバが、損失の距離を、判定の値にする。統合の方式の宣言と、値の一致を、run設定が確かめる。
-- [fedsda-without-candidate-validation](../specs/fedsda-without-candidate-validation/tasks.md): 構成の移植の2つ目（旧`immediate-creation`）。設定の値`current_model_first_reuse_then_candidate_adoption_without_validation`で、警報の区間の解決が、学習した候補を、その場で採用する（結果種別`alarm_interval_candidate_adopted_as_new_model`）。候補の学習を`train_candidate_on_alarm_change_interval`へ切り出した。採用に使う3つの引数を、警報の処理の関数へ足した。
-- [fedsda-without-prediction-weight-recalibration](../specs/fedsda-without-prediction-weight-recalibration/tasks.md): 構成の移植の1つ目（旧`no-recalibration`）。設定の値`keep_weights_without_recalibration`（`PredictionCombinationSettings.prediction_weight_recalibration_after_aggregation_policy`）で、clientが、集約後の再較正をせず、Noneを返す。掃引の構成名`fedsda-without-prediction-weight-recalibration`。小さい条件での、実旧との照合を、構成を受け取る形（`compare_small_run_with_real_legacy`）にした。
-- [prediction-probability-validation-reuse](../specs/prediction-probability-validation-reuse/tasks.md): 速度の対処の2つ目。標本1件の予測が、出力から確率への変換で検査した確率を、損失・予測クラス・結合の関数へ、検査済みとして渡す（`prediction_probabilities_are_validated`・`prediction_scores_are_validated`。既定は偽）。多クラスの変換は、変換後の確率も検査する。
-- [training-batch-sampling-validation-cost](../specs/training-batch-sampling-validation-cost/tasks.md): 速度の対処。学習標本の抽出（`sample_training_batches_for_held_models`）が、学習のたびに、保持している標本の全部の中身を検査していたのを、抽出した標本だけにした（入れ物は、これまでどおり、乱数を進める前に検査。不正なら、乱数の状態を戻して拒否）。保持へ入る標本は、観測標本の処理の入口で検査済み。本番の規模の1 runが、68分以上→257秒（旧実装179秒）。結果は、変わらない。
-- [experiment-sweep-command](../specs/experiment-sweep-command/tasks.md): 実験の掃引のコマンド。`python run_experiment_sweep.py --datasets … --seeds … --aggregation-intervals … --workers N`（installと環境変数なしで、リポジトリ直下から）。package `sweep/`: 構成の名前→完全なrun設定（`build_experiment_run_settings`。いまは`fedsda`だけ）、計画と識別子（`ExperimentSweepPlan`、`build_planned_experiment_runs`、`<dataset>_interval<間隔>_seed<seed>_<hash>`）、逐次・並列の実行と再開（`execute_experiment_sweep`。済んだrunを飛ばす、食い違うファイルを上書きしない、中断で待ちのrunを取り消す）、構成ごとの一覧の表`run_summary.csv`、実行の記録`sweep_record_<開始時刻>.json`（計画、引数、コードの版、環境）。出力先は`<出力先>/<構成>/runs/`。
-- [fedsda-prediction-diagnostic-metrics-and-records](../specs/fedsda-prediction-diagnostic-metrics-and-records/tasks.md): 予測の診断の指標と記録。`FedsdaRunMetrics.prediction_diagnostic_metrics`（`FedsdaPredictionDiagnosticMetrics`: 予測した標本数と、予測の種類ごとの正解の数——実際の予測＝Fixed-Shareの結合、どれかのモデルか実際の予測、最大重みのモデル、確信度が最大のモデル、globalの診断重みでの結合、真の概念別の診断重みでの結合——、定常の区間と回復の区間の正解の割合、クラスの間のまとめ、実効モデル数の平均、重みの更新の回数）。計算`calculate_stable_and_recovery_period_accuracies`・`summarize_class_prediction_metrics`。表`sample_prediction`へ、観測したクラスと真の概念、最大の重み、実効モデル数、比較用の予測の正否の列を追加。表`client_weight_update_counts`（clientごとの、globalの診断重みと予測重みの、更新に関わる回数）。旧の40の指標と19の配列が、goldenの3ケースと小さい条件の実旧と一致。
-- [fedsda-cross-evaluation-records-and-metrics](../specs/fedsda-cross-evaluation-records-and-metrics/tasks.md): クロス評価の記録の表と、モデル対の予測の相補性の指標。表`client_cross_evaluation`（clientの評価ごと: ラウンド、client、候補・対象のモデル、標本数、損失の和と二乗和、正誤の4つの数——比べなかった評価では−1）、`client_cross_evaluation_class`（そのクラスごと）。`FedsdaRunMetrics.model_pair_prediction_complementarity_metrics`（`summarize_model_pair_prediction_complementarity`: 正誤を比べた評価の数と標本数、食い違いの割合、標本ごとの選択で得られる上限の改善の割合、両方正解の割合）。旧の5つの指標と28の配列が、goldenの3ケースと小さい条件の実旧と一致。
-- [fedsda-model-diagnostic-metrics-and-records](../specs/fedsda-model-diagnostic-metrics-and-records/tasks.md): モデル別の診断の指標と記録。`FedsdaRunMetrics.model_diagnostic_metrics`（`FedsdaModelDiagnosticMetrics`: サーバの同期のラウンドごとのグローバルモデル数の平均・最大・合計、保有モデル別の学習量——保持している学習標本の数、学習に使った標本の延べ数、パラメータ更新の回数——の、モデルの間のまとめ、クラスタリングの判定と真の概念の一致の比較）。計算`summarize_value_distribution`・`calculate_lower_value_same_concept_auc`（定義できないときはNone）・`calculate_cluster_assignment_true_concept_agreement`。記録の表へ、登録（登録したclient、最大重みになった標本の数）・クラスタリング（最も近い相手、クラスタの大きさ、距離、判定の値、真の概念の一致）の列と、表`client_held_model`を追加。旧の26の指標と17の配列が、goldenの3ケースと小さい条件の実旧と一致。
-- [fedsda-change-response-metrics-and-records](../specs/fedsda-change-response-metrics-and-records/tasks.md): 概念の変更への応答の指標と記録。`FedsdaRunMetrics.change_response_metrics`（`FedsdaChangeResponseMetrics`: 学習帰属の切替の時機——対応した切替の遅れの平均、対応しなかった切替の4区分——、損失の変化の警報の検出の指標、変化点の推定の誤差、適応の区分ごとの件数と適合率、候補の判定の統計、監視の値の最大）。対応づけの計算`match_events_to_concept_changes`・`count_unmatched_events_by_timing`・`calculate_change_point_estimation_errors`。記録の表へ、`loss_change_alarm`・`sample_loss_monitoring`と、適応・候補の判定の列を追加。保存する名前の見直し（表`server_round`、`held_model_count_at_prediction`、`first_new_concept_sample_index`、`switch_sample_index`、`server_round_index`、`registered_server_round_index`）。旧の`compute_metrics`の52項目と監視の値の最大、18の配列が、goldenの3ケースと小さい条件の実旧と一致。
-- [fedsda-experiment-run-artifacts](../specs/fedsda-experiment-run-artifacts/tasks.md): 1 runの実行と保存の骨組み。`execute_fedsda_experiment_run(run_settings=...)`→`FedsdaExperimentRun`（設定、計測つきの全体runの結果、指標）。記録の表`build_fedsda_run_record_tables`（`表の名前.列の名前`→配列。標本ごとの予測、概念の変更、学習帰属の切替、適応——細かい結果種別と、粗い区分——、候補検証の判定、モデルの登録、クラスタリングのモデルごと・対ごとの観測、ラウンドごとのモデル数、ラウンドごとのモデルの計算）。保存`save_fedsda_experiment_run`（要約のJSONと、表のNPZ。上書きしない）と、読込み`load_fedsda_run_artifacts`。ラウンドごとのモデル数は、同期の配布の記録から数える（登録の数と、吸収の数からは、求められない）。旧→新の配列と値の名前の対応は、[移行の一覧](../../docs/research/legacy-run-output-migration.md)。
-- [fedsda-complete-run-settings](../specs/fedsda-complete-run-settings/tasks.md): 完全なrun設定`FedsdaRunSettings`（実行の枠の設定、参加者の設定の束、統合の設定、指標の設定を束ね、生成時に、各部分と、機能の組合せを確かめる）。最終構成の既定値`build_final_configuration_fedsda_run_settings(experiment_run_conditions=...)`（規模・seed・dataset以外の全部の既定値と、datasetごとの隠れ層の幅・学習率——mnistは(1568,)・1e-3、ほかは(32, 32)・1e-2。旧の設定の値と、全datasetで一致。goldenの3ケースの条件は、既定値から、縮小した項目だけを置き換えたもの）。保存用の辞書`convert_settings_to_plain_mapping`（dataclassの設定→型の名前つきの入れ子の辞書）。clientの設定の束へ、検出の方式と、検出器の表示名の一致の検査を足した。既定値の変更は、`dataclasses.replace`（短い書き方と掃引の軸は、(A3)）。
-- [environment-keyed-regression-goldens](../specs/environment-keyed-regression-goldens/tasks.md): 最終構成のgoldenを、実行環境ごとのファイルにした（`tests/refactoring/proposed_regression_goldens/`。1環境1ファイルで、名前は環境の記録から決まる）。`tests/refactoring/test_environment_proposed_regression.py`が、実行環境の記録（`environment()`）と`_env`が完全に一致するgoldenを選び（固定のWindows用も対象）、旧実装の3ケースを照合する。合うgoldenがなければ、goldenとの照合だけをskipする。足すのは、その環境で`--update`、消すのは、ファイルを消すだけ。次の項目（linux-proposed-regression-golden）のtestとgoldenのfileは、このspecで、名前と場所が変わった。
-- [linux-proposed-regression-golden](../specs/linux-proposed-regression-golden/tasks.md): 最終構成のLinux用のgolden（`tests/refactoring/proposed_regression_golden_linux.json`。WSL Ubuntu、Python 3.14.4、NumPy 2.4.6、torch 2.12.1+cpuで作成。Windows用とは、sine2とsea2が違う）。`tests/refactoring/test_linux_proposed_regression.py`が、Linuxで、旧実装の3ケースをLinux用のgoldenと照合する（Linux以外ではskip。作成は、Linuxで`--update`）。新実装の照合（`test_fedsda_run_metric_derivation.py`）は、実行環境のgoldenを選ぶ。全体runの対照の、sine2以外の条件の「通る経路」の期待は、Windowsでだけ確かめる。sourceの変更なし。Windows用のgoldenと既存の回帰testは、変えていない。
-- [mnist-sample-generation](../specs/mnist-sample-generation/tasks.md): MNISTの移植。学習用データの読込み（`data/mnist/mnist_training_data.py`: `MnistTrainingData`——uint8の画素と、数字のラベル。書込み不可——、`resolve_mnist_data_directory`——`FDE_MNIST_DATA_DIR`、なければリポジトリ直下の`data/mnist`——、`load_mnist_training_data`——取得はしない。ファイルがなければ、ファイル名と環境変数を書いた例外。processの中で使い回す）。生成器（`data/mnist/mnist_sample_generation.py`の`MnistSampleGenerator`: 位置を1つ選び、概念kは数字2k−1と2kを入れ替える。標本の特徴のtupleは、256個のfloatを使い回す）。定義へ、mnist2・mnist4（784特徴・10クラス）。datasetごとの学習率と隠れ層の幅の既定（mnistは1e-3、(1568,)）は、新実装の中に持たない（呼出し側が、設定の束へ渡す。完全なrun設定を決めるspecで、置き場所を決める）。実旧との照合: 読込み（6万件）、生成、小さい条件の全体run（4条件）、goldenの条件（mnist2）の33指標と31の離散列。観測標本の特徴を配列で持つ案は、[IMPROVE-012](../../docs/research/improvement-candidates/improve-012-hold-observed-sample-features-as-array.md)。
-- [synthetic-dataset-sample-generation](../specs/synthetic-dataset-sample-generation/tasks.md): 合成データの移植。datasetの定義（`data/dataset_definitions.py`: `DatasetDefinition`——特徴数・概念数・クラス数——、`get_dataset_definition`、`DEFINED_DATASET_NAMES`。sine2・sea2・sea4・circle2）。SEAとCIRCLE-2の生成器（`data/sea/`の`SeaSampleGenerator`、`data/circle/`の`CircleSampleGenerator`。閾値・雑音率・円は、moduleの定数）。生成器の共通の型と、dataset名からの生成（`data/observed_sample_generation.py`: `ObservedSampleGenerator`、`create_observed_sample_generator`、`is_observed_sample_generator_of_dataset`、`build_client_observed_streams`）。観測標本・概念列の型は、特徴数・クラス数・概念数を固定しない。実行の枠・factory・事前学習は、特徴数・クラス数・概念数を、定義から取る。実旧との照合: 生成、概念列、小さい条件の全体run（3 dataset・6条件）、goldenの条件（sea2）の33指標と31の離散列。
-- [comparison-computation-metrics](../specs/comparison-computation-metrics/tasks.md): 手法の比較に使う計算量。サーバのパラメータの積和演算の数（集約`ClientModelAggregation.weighted_parameter_multiply_accumulate_count`、統合と診断のパラメータ距離`ModelConsolidation`の2つのfield。`ServerComputationCounts`）。clientの、標本ごとの保有モデル数の列（`HeldModelCountRecordStore`）。計測つきの全体runの、ラウンドごとのモデルの計算（`RoundModelComputationCounts`: ローカルの処理と、同期の別）と、終端の計算。計算量のまとめ（`summarize_computation_cost`→`ComputationCostSummary`: clientの順伝播と逆伝播の見積り、共有部と概念固有部の内訳、サーバ、平均の保有モデル数、標本あたり・保有モデル×標本あたりの値。「1モデルあたり」には、概念固有部だけの、保有モデル×標本あたりの値を使う——共有部は、保有モデル数に依らない）。指標`FedsdaRunMetrics`へ、サーバの計数、標本数、保有モデル数の合計、まとめを足した。
-- [model-computation-measurement](../specs/model-computation-measurement/tasks.md): モデルの計算を、計測の区間の間、PyTorchの全体のhookで外側から数える（`measure_model_computation`、`ModelComputationCounts`: 共有部・概念固有部を通った標本数、optimizerの更新回数、全結合層の積和演算——順伝播は実測、逆伝播は見積り——、学習と推論の別）。検出器の計算の計数の保持（`LossMonitoringComputationCountStore`）。計測つきの全体run（`execute_fedsda_stream_protocol_run_with_computation_measurement`。準備の間——事前学習——の計数を別に返す）。新実装の重複した順伝播の解消（クロス評価、警報時の区間の準備、集約後の再較正。有界損失の評価へ、出力つき・共有部の使い回し・順伝播なしの検査の入口を足し、取込みが計算済みの損失を受け取れるようにした）。旧の計数の検査（外側からの数え直しと、goldenの3ケースで一致）。
-- [fedsda-run-metric-derivation](../specs/fedsda-run-metric-derivation/tasks.md): 手法に依存しない指標の計算（`evaluation/run_metric_calculations.py`: 概念の変更位置の抽出、変更位置とイベントの対応づけ、精度、定常精度、検出の適合率・再現率・F1、設定`RunMetricSettings`）と、FedSDAの全体runからの導出`derive_fedsda_run_metrics`（`FedsdaRunMetrics`: 精度、定常精度、学習帰属の切替を検出とした指標、最終のグローバルモデル数、通信量、最終のパラメータ量、候補検証の判定の数、混合予測の標本数、再較正で再生した標本数）。状態を変えない。旧の保存形式の31の離散列は、sourceでは作らず、testが新の記録から作って照合する。
-- [candidate-validation-decision-record-retention](../specs/candidate-validation-decision-record-retention/tasks.md): 候補検証の判定記録（確定の`PostAlarmCandidateValidationDecisionRecord`と、終端の回収の`IncompletePostAlarmCandidateValidationDecisionRecord`）を、起きた順に保持するowner`CandidateValidationDecisionRecordStore`（手法の層）。clientのownerの束の`candidate_validation_decision_record_store`。clientの2つの操作（標本の処理、終端の回収）が、戻り値の判定記録を足す。保持した一覧は、実旧の`provisional_model_decisions`と、全項目で一致する（clientの全状態の新旧照合のhelperが、全条件で照合する）。
-- [evaluation-concept-diagnostic-delivery](../specs/evaluation-concept-diagnostic-delivery/tasks.md): 実行の枠の契約`RunClientOperations.process_observed_sample`へ、診断専用の必須の引数`evaluation_concept_id`を足し、区間の進行`run_stream_protocol_intervals`が、概念列`evaluation_concept_traces`の標本位置の値をclientへ渡す（最初に、概念列と観測列の対応を確かめる）。観測標本は、真の概念を持たないまま。全体runの対照から、真の概念を足す中継を外した。真の概念が、診断以外の状態へ影響しないことを、真の概念を捨てる中継で実行した全体runとの比較で確かめる（`test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run`）。single-run-executionの「真の概念を処理部へ渡さない」という設計・命名表の記述は、このspecが置き換えた（対応は、このspecのdesign.md）。
-- [fedsda-run-participant-preparation](../specs/fedsda-run-participant-preparation/tasks.md): 実行の枠の契約を満たす、サーバの操作の実体`FedsdaRunServer`（状態の報告、1ラウンドの同期、終端。同期の結果を保持する）と、runごとの参加者の初期準備`FedsdaRunParticipantFactory`（事前学習→全clientの組立て→サーバの組立て）、その設定の束`FedsdaRunParticipantSettings`。新の全体runの最終状態を、実旧の全体run（旧の部品を旧の順に呼んだもの）と照合した。
-- [model-clustering-and-consolidation](../specs/model-clustering-and-consolidation/tasks.md): クロス評価の結果からの、クラスタリングと統合`cluster_and_consolidate_global_models`（対ごとの損失の距離と判定の値、average linkage、診断の観測、同じクラスタのモデルの、代表への統合とID対応）と、サーバの1ラウンドの同期`synchronize_models_in_server_round`（登録→集約→［クロス評価→クラスタリングと統合］→配布→全clientの再較正）。判定の計算と基準`ModelClusteringCriteria`、診断の記録のowner `ModelClusteringRecordStore`、グローバルモデルを外す操作。実旧のサーバの`run_round`（クラスタリングあり）と、ラウンドごとに照合した。
-- [model-cross-evaluation](../specs/model-cross-evaluation/tasks.md): サーバのクロス評価`cross_evaluate_global_models`（モデルの全部の組を、対象のモデルを保有するclientへ評価させ、軽量メッセージとモデルの転送を通信量へ足し、診断の記録を足して、損失の統計の表と、対ごとの正誤の集計を返す）と、clientの評価`evaluate_candidate_model_on_target_model_samples`（対象のモデルの標本を選び、渡されたモデルの損失の件数・和・2乗和と、保有する対象のモデルとの正誤の比較を返す）。診断の記録のowner `CrossEvaluationRecordStore`。実旧のサーバの`_cross_evaluate`と、clientの評価の両方に対して照合した。
-- [post-aggregation-prediction-recalibration](../specs/post-aggregation-prediction-recalibration/tasks.md): 配布の後の、client 1つの再較正`recalibrate_prediction_state_after_aggregation`（保留中の標本の損失を、現在の保有モデルで計算し直し、その列で、globalの診断証拠とFixed-Shareの重みを再生し、真の概念別の診断証拠を再始動する）と、clientの操作。単一の診断証拠へ、集約後の再生・再始動と3つの計数を足した。登録→集約→配布→再較正のラウンドを、実旧のサーバの`run_round`（クラスタリングなし）と照合した。全clientへ順に呼ぶのは、呼出し側。
-- [global-model-distribution](../specs/global-model-distribution/tasks.md): サーバの配布`distribute_global_models_to_clients`（下りの通信量の記録と、全clientへの受渡し）と、clientでの受取り`apply_global_model_distribution`（ID対応の適用、統計の補完、評価標本・学習データ・計数の付け替え、正式IDの保有モデルの作り直しと共有部へのつなぎ直し、現在の学習帰属の付け替え、サーバの統合による適応記録）。clientは、共有部のoptimizerの状態を保持者`SharedParameterOptimizerStateHolder`で持ち、束は、作り直すモデルのoptimizerの設定`rebuilt_model_parameter_optimizer_settings`を持つ。登録→集約→配布のラウンドと、ID対応つきの受取りを、実旧のサーバとclient 3つに対して照合した。
-- [server-model-registration-and-aggregation](../specs/server-model-registration-and-aggregation/tasks.md): サーバの1ラウンドの前半。送信できる新規モデルの登録`register_ready_client_models`（採番、来歴、clientへの正式IDの確認）と、clientのモデルの集約`aggregate_client_models_into_global_models`（共有部1個と概念固有部ごとのFedAvg、損失統計の平均、上りの通信量）。サーバの状態のowner `GlobalModelRepository`（モデルIDごとの完全なパラメータ、統計、次の正式ID、来歴）と、通信量の`CommunicationVolumeRecordStore`。実旧のサーバと実旧のclient 3つに対して、ラウンドごとに照合した。
-- [initial-model-pretraining](../specs/initial-model-pretraining/tasks.md): runの最初の、初期モデルの事前学習`pretrain_initial_model`（分類器の生成→概念0の標本の生成→epochごとのshuffleとbatchごとの更新→1件ずつの損失統計）と、条件の設定型`InitialModelPretrainingSettings`。結果`PretrainedInitialModel`は、clientの組立ての引数に対応する。実旧の事前学習と、全パラメータ・2つのoptimizerの状態・統計・3つの乱数の状態を照合した。
-- [fedsda-run-client-assembly](../specs/fedsda-run-client-assembly/tasks.md): 最終構成のFedSDAのclient 1つを、初期モデル（分類器と2つのoptimizerの状態）・初期の損失統計・設定の束から組み立てる`assemble_fedsda_run_client`と、実行の枠の契約の5操作（標本の処理、ラウンド境界での保留中の学習、登録できるモデルの有無、送信待ちの進行、終端での未完了の候補検証の回収）を持つ`FedsdaRunClient`。実`__init__`で作った実旧のclient（サーバなし）と、生成直後から終端まで照合した。既存の実行の枠（参加者の検査と区間の進行）で、サーバを何もしない代役にして動く。
-- [observed-sample-prediction](../specs/observed-sample-prediction/tasks.md): 観測した標本1件の予測`predict_observed_sample_and_update_prediction_weights`（保有する全モデルの確率をFixed-Shareの重みで結合→標本ごとの記録→ラベル観測後のFixed-Shareの重みと診断証拠の更新）と、記録を持つ`SamplePredictionRecordStore`。`process_observed_sample`の最初の段として接続した。警報側の通知は、最終構成では何も変えないので移植していない（UNPORTED-003）。
-- [observed-sample-processing](../specs/observed-sample-processing/README.md): 観測した標本1件に対する学習側の処理（候補検証の進行→損失の監視→保留→警報の処理、または帰属の確定と学習）をつなぐ`process_observed_sample`。保留中の標本そのものを持つ`PendingSampleObservationStore`と、警報の位置と監視の値を記録する`LossChangeAlarmRecordStore`を追加。
-- [held-model-training-request-handling](../specs/held-model-training-request-handling/README.md): 学習要求を記録して間隔に達したら学習する`record_training_request_and_train_held_models_when_due`（旧`train_step`）と、保留中の要求を学習する`train_held_models_for_pending_training_requests`（旧`flush_pending_updates`）。共同更新の完了ごとにモデル別の学習量を計数へ足す。件数管理へ、間隔に達したかを読む操作を追加。呼ぶ位置は未接続。
-- [released-pending-sample-assignment](../specs/released-pending-sample-assignment/README.md): 警報のない標本で、保留の容量を超えた最古の標本を既存の吸収で現在のモデルへ確定し、保留から解放する`assign_released_pending_samples_to_current_training_model`。保留位置のownerへ、容量を超える位置を解放せずに読む操作を追加。
-- [shared-verification-infrastructure](../specs/shared-verification-infrastructure/README.md): Git管理下の共用fresh process scriptとそれを別processで実行するtest、依存の許可集合が広すぎないことの検査、汎用の変異toolで見つかったtestの穴2件の修正。sourceの変更なし。
-- [held-candidate-validation-diagnostic-notification](../specs/held-candidate-validation-diagnostic-notification/README.md): 候補検証の進行（`advance_held_candidate_validation`）が、確定時に帰属変更を診断へ通知する。進行の関数の引数が増えたので、これより前のspecの個別fresh CPU script（Git管理外）は現在のsourceでは動かない。
-- [alarm-occurrence-handling](../specs/alarm-occurrence-handling/README.md): 警報1回ぶんの処理（応答→完了処理→適応記録→session保持→診断通知）を`handle_alarm_occurrence`でつなぐ。
-- [held-adahedge-diagnostic-notification](../specs/held-adahedge-diagnostic-notification/README.md)（主担当Codex）: globalと真の概念別oracleの診断証拠の保持と、帰属変更通知（globalだけ再始動）。
-- [adahedge-diagnostic-evidence](../specs/adahedge-diagnostic-evidence/README.md)（主担当Codex）: 単一のAdaHedge診断証拠。
-- [held-candidate-validation-progress](../specs/held-candidate-validation-progress/README.md): 候補検証sessionを1つ保持するownerと、警報応答の反映・標本ごとの進行・終端回収。
-- [candidate-validation-adaptation-recording](../specs/candidate-validation-adaptation-recording/README.md): 候補検証の到達時の確定と未完了の終端回収の適応記録。
-- [alarm-adaptation-recording](../specs/alarm-adaptation-recording/README.md)（主担当Codex）: 適応記録・切替位置・再利用件数のowner（`AdaptationRecordStore`）と、警報応答の記録。
-- [alarm-response-completion](../specs/alarm-response-completion/README.md): 警報応答の後の、損失監視の再開と保留位置の消費。
-- [alarm-buffer-response](../specs/alarm-buffer-response/README.md)、[alarm-training-interval-preparation](../specs/alarm-training-interval-preparation/README.md)、[alarm-change-interval-resolution](../specs/alarm-change-interval-resolution/README.md)、[alarm-interval-model-reuse-assessment](../specs/alarm-interval-model-reuse-assessment/README.md): 警報時の保留標本への応答（区間の準備、再利用評価、区間解決）。
-- 2026-10-07の7 spec: [post-alarm-reference-model-fixation](../specs/post-alarm-reference-model-fixation/README.md)、[post-alarm-candidate-validation-sample-observation](../specs/post-alarm-candidate-validation-sample-observation/README.md)、[post-alarm-candidate-validation-resolution](../specs/post-alarm-candidate-validation-resolution/README.md)、[assigned-training-sample-absorption](../specs/assigned-training-sample-absorption/README.md)、[adopted-candidate-local-adoption](../specs/adopted-candidate-local-adoption/README.md)、[temporary-model-id-allocation](../specs/temporary-model-id-allocation/README.md)、[adopted-candidate-initial-local-registration](../specs/adopted-candidate-initial-local-registration/README.md)。
-- それ以前（設定、単一runの実行順序、予測重み、損失監視、学習、候補の学習ほか）は[roadmap](roadmap.md)。
-
-進め方（実装前のtest、実旧メソッドを使うoracle、検出力の確認、検証コマンド、レビュー依頼の注意）と、機械的な照合（`.kiro/settings/scripts/spec_checks.py`の`names`・`identity`・`progress`、`mutation_check.py`）は[共通引継ぎ手順](agent-handoff.md)。
-
-## ユーザー確認待ち・未解消の事項
-
-- 【決定済み。2026-10-10ユーザー】datasetの移植: 論文の実験で使うのは、blobs以外の全部（sea4、circle2、sine2、sea2、mnist2、mnist4）。時期は、計算量のspecの後、Linux用のgoldenの前（Linux用のgoldenを作る時点で、goldenの3ケース——sine2・sea2・mnist2——を新実装で照合できるようにする）。blobsは移植しない。移植で見直す点: 観測標本の特徴数（いまは2で固定）、概念列の型`ClientConceptTrace`が0/1だけを受理すること（sea4・mnist4は4概念）、datasetごとの学習率と隠れ層の幅（mnistは1e-3、(1568,)）、MNISTの画像の読込み、SEAのラベル雑音と閾値。旧の定義は`federated_drift_experiment/data/`（specs.py、synthetic.py、mnist.py、streams.py）。
-- NEW-004（2026-10-10、ユーザーの指示で記録）: 旧実装の計算量との照合（旧の計数の検査、操作ごとの計数の増分の照合、goldenの計算量の7項目）は、旧実装を外すときに取り除く。標本数の計数は、新実装の機能として残す。取り除く前に、新実装の計算量を基準にしたgoldenか、操作ごとの期待値のtestを用意する。詳細は[記録](../../docs/research/implementation-findings/new-004-legacy-computation-comparison-removal.md)。
-- 【決定済み。2026-10-10ユーザー】計算量の測り方: 旧の計数（モデルへ入力した標本の数）は、手法の比較の指標としては弱い（モデルの大きさを反映しない、単位がそろわない）。旧と同じ件数（goldenとの照合用）に加えて、全結合層の積和演算の数を測る。逆伝播は、後から分離できる形で含める。サーバの計算にも触れる。論文で言いたいこと: 「FedSDAは、FedDriftより、clientの計算が少ない」（結果に従う）、「clientが保有する1モデルあたりの計算量」（保有モデル数は常に変わるので、client・標本ごとの保有モデル数の合計で割る）、「モデル数が増えても、計算が増えにくい」（共有部と概念固有部の内訳、ラウンドごとの計算量と保有モデル数の系列で示す）。specは2つ: (1)model-computation-measurement（旧の計数の検査、順伝播と逆伝播の積和演算の計測、新実装の重複した計算3箇所の解消、goldenの7項目の照合）、(2)比較用の計算量の指標（サーバの演算数——集約・統合・パラメータ距離で扱うパラメータ値の数——、ラウンドごとの系列、保有モデル数での正規化、検出器の計算の扱い）。その後、datasetの移植、Linux用のgolden。調査の結果（旧の計数は、外側からの数え直しと、goldenの3ケースで完全に一致。新実装は、3箇所で、旧より多く順伝播を行っている）は、model-computation-measurementのrequirements.mdとresearch.md。
-- 【決定済み。2026-10-10ユーザー】計算量の指標: 必要。旧の計数に漏れ・重複がないかの検査を含めて、1つのspecで扱う（上の「次の一手」）。旧の計数に誤りが見つかった場合に、goldenの7項目を更新するかは、そのときにユーザーが決める。
-- 【決定済み。2026-10-10ユーザー】真の概念をclientへ渡すか: 実行の枠が、診断専用の引数として、真の概念をclientへ渡す（evaluation-concept-diagnostic-deliveryで実装した）。真の概念に依存する診断（真の概念別の診断証拠、割当概念の計数、標本ごとの記録の概念、クラスタリングの真の概念の一致）は、全体runで行われる。新しい手法のclientを足すときも、真の概念は、診断にだけ使う（契約の説明と、不干渉のtest）。
-- LEGACY-014: 旧の採用分岐は、新モデルへ移す保留標本を割当概念計数と損失統計へ反映しない（他の分岐と非対称）。2026-10-08ユーザー回答: LEGACYは後でまとめて判断するので、現状のまま置く。新実装は旧挙動を維持しtestで固定している。主担当からの再確認は不要。記録は[implementation-findings](../../docs/research/implementation-findings/README.md)。
-- レビュー担当の同定: `codex exec -m gpt-6-luna`で起動したレビュー担当は、自分のモデル名を内部から確認できないと回答する。記録は起動時のmodel指定と実行ログのmodel行に依拠している。実際のルーティングの確認はユーザーへ依頼済み。
-- 全pytestの独立再現: 2026-10-07のユーザー決定により、主担当の実測とJUnit照合で判定する（[共通引継ぎ手順](agent-handoff.md)の同名節）。レビュー担当のsandboxで再現できるようになった場合は、再現した事実を記録してよい。
-- LEGACY-017（2026-10-10）: 旧は、クロス評価の読取りで、現行モデルの空の学習データの列を作ることがある。新は作らない。全体runのgoldenとの照合で、学習データの並びに由来する差が出たら、ここを疑う。記録は[implementation-findings](../../docs/research/implementation-findings/README.md)。
-- 旧実装の記録（この期間の追加）: LEGACY-012（登録途中失敗の部分更新と採番消費）、013（使用済み一時IDへの再登録の黙った置換）、014（上記）、015（標本吸収の途中失敗で先行標本の更新と不正標本が残る）。012/013/015は契約外入力だけで、新実装は状態変更前に拒否する。
-
-## 次の候補（未仕様化・未承認）
-
-### 次: 4分類の採否をClaudeと再検討する
-
-[feddrift-experiment-sweep](../specs/feddrift-experiment-sweep/tasks.md)で既定条件・専用閾値軸・CLI/CSV・再開まで接続した。[fedavg-experiment-run](../specs/fedavg-experiment-run/tasks.md)で単一モデル比較手法の移植も完了した。[important-behavior-regression-goldens](../specs/important-behavior-regression-goldens/tasks.md)で重要動作を守る新実装用の代表goldenを追加した。次は残るLEGACY/IMPROVEの採否と適用を別途進める。既存goldenの再作成や全条件の直積を目的にしない。LEGACY-018は、[cross-evaluation-download-deduplication](../specs/cross-evaluation-download-deduplication/tasks.md)で合意済みの重複除外を主担当判断で先行した。旧との通信量比較は、旧イベントから重複分を引いた期待値へ厳密に照合する。他のLEGACYの扱いは従来の決定記録を維持する。残る適用可能な診断と、旧実装を外す準備も後続。
-
-全体run・共通基本指標・共通モデル計測は接続済み。[feddrift-computation-cost-summary](../specs/feddrift-computation-cost-summary/tasks.md)で保有モデル数とパラメータ演算の記録・共通summary接続を完了した。FedDriftは現在モデルだけで予測するため、予測のforward標本数を保有モデル×標本の分母へ流用しない。適用可能な追加診断と全構成の照合は後続。候補検証/予測混合/再較正はFedDriftへ機械的に当てはめない。基本指標のLinux別goldenと、追加診断/全構成の検証範囲を区別する。
-
-### 過去の候補: サーバ同期と、残る診断（記録時点では未仕様化）
-
-clientは、`assemble_fedsda_run_client`で組み立て、実行の枠の5操作で動かせるようになった。残るのは次のとおり。旧のひとまとまりの流れの単位でspecにし、境界を決めて下位taskへ分ける（数値の一致が繊細な部分が出てきたら、そこだけ別のspecへ切り出す）。
-
-- モデル別の除外寄与の診断: 旧`federated_drift_experiment/diagnostics/routing.py`の`RoutingLeaveOneOutDiagnostics.observe`（予測の直後に、モデルを1つ除いた結合の損失の差を、モデル集合の世代・通信区間・モデルごとに集計する。予測と学習の判断へは戻らない）。入力（モデル別の確率、正規化後のFixed-Shareの重み、globalの診断重み）は`ObservedSamplePrediction`が持つので、`process_observed_sample`の予測の段の直後に呼出しを足せる。通信区間の長さ（集約間隔）が要る。最終3goldenはこの診断を比較しない。IMPROVE-007は診断の選択実行案で未検証/未採用。
-- 予測の集計値: 旧の集計の計数（`routing_diagnostics`ほか）は、`SamplePredictionRecord`の列から導ける（対応はobserved-sample-predictionのresearch.md。testが全項目を実旧と照合している）。実効モデル数の合計は、逐次加算で求める（Python 3.13の組み込みの`sum`は浮動小数を補正つきで足すので、旧の標本ごとの加算と末尾の桁が違う）。集約後のFixed-Shareの重みの再較正（旧`fifo_replay`）は、サーバ同期のspecで扱う。
-- モデルの寸法の置き場所: 事前学習は、隠れ層の幅とクラス数を引数で受け取る（旧はdatasetごとの定義から読む）。入力の特徴数も、引数で受け取る（factoryが、datasetの定義から、特徴数とクラス数を渡す。synthetic-dataset-sample-generationから）。隠れ層の幅は、完全なrun設定を決めるspecで、置き場所を決める。標本生成器は、blobs以外の全dataset（sine2・sea2・sea4・circle2・mnist2・mnist4）に対応している。
-- 全clientとサーバの準備（実行の枠の`prepare_run`を持つfactory）: 上の「次の一手」。束の2つのoptimizerの設定（旧`BASE_LR`と`NEW_MODEL_LR`）、クロス評価の2つの上限（clientが1回の評価に使う標本の上限＝束のスカラーの設定、1つのモデルを評価するclientの上限＝サーバの同期の引数）、クラスタリングの判定の基準（`ModelClusteringCriteria`＝サーバの同期の引数）の置き場所は、完全なrun設定を決めるspecで決める。集約は、非有限のパラメータを拒否する（旧はそのまま平均する。server-model-registration-and-aggregationの設計の「旧と違う点」）。グローバルモデルを、共有部1つと概念固有部に分けて持つ整理は、挙動を変えない移植の後で判断する。モデルの回収・集約・配布、正式IDの確認（`held-model-registration-confirmation`は部品として移植済み）、クラスタリングと統合、集約後のFixed-Shareの重みの再較正（旧`fifo_replay`）、サーバ評価（評価fallbackと`EVAL_MAX_SAMPLES`）、通信量の記録。旧は、送信保留のモデルのIDを持たず、正式IDの確認のときに現行モデルのIDを一時IDとして使う（採用の後に現行モデルが別のモデルへ戻ると、送信保留のモデルと現行モデルが違う。新の送信保留はモデルIDを持つ）。この食い違いの扱いを、サーバ同期のspecで確かめる。
-- 真の概念IDの配線: 済み（evaluation-concept-diagnostic-delivery）。概念列の型`ClientConceptTrace`は、0/1だけを受理する（SINE-2用）。3つ以上の概念を持つdatasetを足すときに、この制約を見直す。
-- 設定の置き場所: clientの設定の束（`runtime/fedsda_run_client_settings.py`）は、機能別の設定型に置き場所のない値（許容する増加量、最小改善量、待ちラウンド数、最小件数、batchの件数、評価標本の件数、検出器の候補数の上限・賭け率・表示名）と、検証済みのrun設定の部分型に入っていない設定型（学習の間隔、候補の初期化、候補の学習、optimizer）をまとめた仮の形である。旧で1つの値を2箇所で使う3組は、同じ値であることを束が確かめる。完全なrun設定（保存表現、preset）を決めるspecで、正式な置き場所を決める。
-- 標本ごとの結果種別の列（旧`history_drift_type`）と保存: 適応記録（位置と結果種別）から導けると見込むが、旧の数値との対応は確かめていない。
-- 計算量と所要時間の記録（旧`_record_model_compute`・`compute_counters`・`phase_seconds`・`processing_times`）と、共有部の勾配の診断（旧`backbone_gradient_diagnostics`）は未移植。
-- 記録のoracle: tests/refactoring/test_fedsda_run_client.py（`build_run_client_oracle`。実旧の事前学習と実`__init__`で実旧clientを作り、新clientを同じ初期モデルから組み立てる。`assert_run_client_matches_legacy`が全ownerを照合する）と、tests/refactoring/test_observed_sample_processing.py（`build_sample_processing_oracle`）を再利用する。
-- 保留標本の並びの検査が、警報の処理・帰属の確定・標本1件の処理の3箇所にある。標本の型と形の検査も、標本1件の処理と予測の2箇所にある（IMPROVE-010）。
-- 全体runを接続するspecの調査の段で、Linuxの再現性を確かめる（上の「決定事項」）。部品の旧対照と全体runのgolden一致を混同しない。
-
-### 2. その先
-
-- 判定記録の一覧（旧`provisional_model_decisions`）の保持と保存。
-- client進行とサーバ同期・ID対応。
-
-### 未移植として残している細目
-
-- 検出episodeの制御（旧`DetectionEpisodeController`、`_resolve_episode_duplicate`）。最終構成で無効のため当面移植しない（上の「検出episodeの判断」）。
-- 正式ID確認は、モデルを保有している前提。欠落時に送信保留のsnapshotから再構築する旧分岐は未移植で、呼出し側のserver/clientで扱う。
-- 計算量診断（旧`_record_model_compute`と`compute_counters`）は未移植。
-- 現在IDへ同じIDを設定するとno-op、学習計数の同ID移管は拒否（LEGACY-011）。
-- 評価fallbackと`EVAL_MAX_SAMPLES`はサーバ評価の接続時、実送信は通信のspecで扱う。
-
-この順序は候補。再開時にコードと完了specを照合し、未移植の依存があれば先に仕様化する。既存の完了タスクを無条件に再実装しない。
-
-新構成の機能名はproduct.md/configuration-foundation/naming.mdを参照。Residual Adapterの語は構造として維持し、部品はNonlinearResidualAdapter、構成はshared_backbone_residual_adapter。旧Switchingの新構成名はfixed_share_weighted_prediction。旧称は過去実験との対応説明で併記する。
-
-## 最初に読む文書と手順
-
-1. worktreeの[AGENTS.md](../../AGENTS.md)と[方針の正本](../../docs/research/refactoring-policy.md)。
-2. [roadmap](roadmap.md)の「現在の状態」、[product](product.md)、[tech](tech.md)、[structure](structure.md)。
-3. 対象specのspec.json→tasks.md→requirements.md／design.md／naming.md（observed-sample-processingまでのspecは、README→spec.json/tasks.md→requirements/design/naming→review/integration-validation）。未完了があれば次のspecより先に扱う。
-4. `git status --short`とブランチを確認し、別タスクの差分・未追跡資料を特定する。文書の案内と実際の状態が違う場合はGitとspecの正本を確認する。
-5. kiroのskillで要求→設計（命名表）→tasks→独立CLIによる仕様書群レビュー・指摘反映→下位taskごとの実装→独立CLIによる実装レビュー→指摘反映→全pytest、の順に進む。手順は共通引継ぎ手順に従う。
-
-## 別タスクと記録の扱い
-
-HTMLは元checkoutの`docs/overview/fedsda-processing-flow.html`にあるコミット保留資料。worktreeへ自動コピー・stageしない。他の保留2資料もAGENTS.mdに従う。
-旧実装の不具合は[implementation-findings](../../docs/research/implementation-findings/README.md)、開発手順の問題は`development-findings/`に記録する。
-中断時は対象specへ未完了task/検証/差分を記録し、この案内の現在地を更新する。別タスクの結果をリファクタリングの完了証拠に混ぜない。
-
-
-## 過去の再開メモ（2026-10-12、server同期開始時）
-
-`feddrift-cached-cluster-consolidation`は完了。過去重み/全0fallback/指定順の平均/統計M2のリセット/隔離期限の数値部をmethods/feddriftへ分離した。server計算と、決定した重みをclient自身の異なるsnapshotへ適用する計算を実旧へ照合済み。これは数値部だけを切り出す共通手順の例外で、owner適用/サーバ進行の完成とは扱わない。
-
-現在の対象は`feddrift-server-synchronization`（task 1完了、task 2進行中）。仕様書群レビューの指摘反映とMajor修正箇所の再確認は完了。次はtask 2を再開する。対象は旧`FedDriftServer.prepare_timestep`（状態記録→隔離解除済みモデルの統合→新規隔離モデルの登録）と、R回のlocal_train/run_training_round（FedAvg→配布）の接続を仕様化する。今回の数値部を再実装せず利用し、旧client.apply_server_mappingの統計選択・標本store/計数の再配置・現在IDの変更・optimizer再構築・一時モデル保持と通信記録まで接続する。既存FedSDA runtimeはexact FedsdaRunClientやFedSDA固有ownerを要求するため、そのままFedDriftへ流用しない。クラスタ判定/linkageも旧FedDriftの設定に照合する。全参加者factory・全体run/goldenも残る。
-
-client assemblyは初期モデル0・optimizer・統計からの独立組立と観測block・一round学習・ready照会・終端flushまで完了。旧experimentは観測→prepare_timestep→R回のlocal_train/server roundなので、FedSDAの実行Protocolへ流用しない。旧early_stoppingは初期学習0回でもrandpermを消費するため構成選択の移植時に扱う。対象コードをClaude/AnthropicまたはOpenAIのGPT-6 Lunaへ送信する独立レビューは、このセッションでユーザーが明示許可した。証拠は各specのspec.json/tasks.md。
+上記は直近と主要な到達点の索引で、全specの一覧ではない。以前の移植は[roadmap](roadmap.md)と各specを参照する。完了specのレビュー経緯・検証件数・commitは各tasks.mdのImplementation Notes等へ集約し、ここへ複製しない。

@@ -4,7 +4,9 @@
 
 **省メモリ化は可能で、この環境では採用する価値が十分ある。** MNIST2・seed0・10 clients・5000標本/client・集約間隔50・1 workerの対照で、最大RSSを81.54%削減し、所要時間の増加は1.79%だった。完全設定・全指標・全133保存配列のdtype/shape/bytes・最終サーバパラメータhashは一致した。
 
-次は、Linux/glibcの実行側に限定した同期末回収として通常の掃引へ接続することを推奨する。アルゴリズム・標本表現・保存形式の変更や、allocator環境変数の一律変更は必要ない。現時点では独立研究ランナーのみで、通常CLIへの接続・製品既定の変更は実施していない。
+この対照の完了時点では、Linux/glibcの実行側に限定した同期末回収を通常の掃引へ接続することを推奨した。アルゴリズム・標本表現・保存形式の変更や、allocator環境変数の一律変更は必要ない。
+
+**後続作業（2026-10-19）:** [fedsda-runtime-memory-reclamation](../../.kiro/specs/fedsda-runtime-memory-reclamation/tasks.md)で通常FedSDA全体run・掃引への接続と検証を完了した。現在の運用・非対応環境でのno-op・適用対象は[運用手順](../experiments/fedsda-runtime-memory-reclamation.md)を参照する。以下は独立研究ランナーで測った対照結果で、導入後の多worker性能を測ったものではない。
 
 ## 条件と比較
 

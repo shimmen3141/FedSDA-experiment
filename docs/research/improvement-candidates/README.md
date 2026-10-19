@@ -32,8 +32,8 @@
 | IMPROVE-014 | adapterを持たない構造も扱う分類器の、クラスと属性の名前を、構造に依らない名前へ改める | 対応済み（`ModelArchitectureClassifier`、属性`model_owned_feature_transform`。goldenは、パラメータ名のキーだけを書き換えた。値は変えない。2026-10-13） | [詳細](improve-014-rename-classifier-that-may-have-no-adapter.md) |
 | IMPROVE-015 | Fixed-Shareの時間尺度を、帰属の保留（FIFO）の容量から分けて指定する | 採用（2026-10-16、[spec](../../../.kiro/specs/fedsda-fixed-share-time-scale-axis/tasks.md)） | [詳細](improve-015-separate-fixed-share-time-scale-from-pending-fifo-capacity.md) |
 | IMPROVE-016 | Fixed-Shareの時間尺度Tと帰属の保留の容量を、clientがその場で決める | 未検証・未採用（2026-10-16） | [詳細](improve-016-adapt-fixed-share-time-scale-and-pending-fifo-capacity.md) |
-| IMPROVE-017 | モデル集合変更時に既存モデル間の重み比を保つ | 保留（単seed試作済み、採否未決。2026-10-17） | [詳細](improve-017-preserve-existing-weight-ratios-on-model-pool-changes.md) |
-| IMPROVE-018 | 候補の共有部統合で既存モデルへの影響を制限する | 保留（単seed試作済み、採否未決。2026-10-17） | [詳細](improve-018-protect-existing-models-during-candidate-backbone-integration.md) |
+| IMPROVE-017 | モデル集合変更時に既存モデル間の重み比を保つ | 未採用（R/Pの複数seed対照を完了。2026-10-19） | [詳細](improve-017-preserve-existing-weight-ratios-on-model-pool-changes.md) |
+| IMPROVE-018 | 候補の共有部統合で既存モデルへの影響を制限する | 保留（非MNISTの反映診断・共有部固定144runを完了、一般方式として未採用。2026-10-18） | [詳細](improve-018-protect-existing-models-during-candidate-backbone-integration.md) |
 | IMPROVE-019 | クラスの支持数と対損失差で候補を検証する | 未検証・未採用（2026-10-17） | [詳細](improve-019-candidate-validation-with-class-support-and-paired-losses.md) |
 
 ## 決定（2026-10-13、ユーザー）
