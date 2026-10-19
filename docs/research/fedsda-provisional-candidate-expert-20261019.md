@@ -238,3 +238,10 @@
 - これまでの既定は構成`fedsda-with-candidate-validation`、検証なし（共有部も更新）は`fedsda-without-candidate-validation`のまま。候補検証と共有部の固定の組合せは、run設定の組立てで拒否する（このツールの`validation-frozen-candidate-backbone`は、関数の差し替えで制約の外を調べた研究用の変種）。
 - このツールの検証ありの変種は、`fedsda-with-candidate-validation`で選ぶように替えた（対照の意味は変わらない）。
 - 通信量の増加は下りで、登録の増加から来る（本規模で、検証ありの登録件数は記録していない。内訳は手元の2500標本の下調べ）。
+
+## 追記: 掃引の入口での新しい既定の確認（2026-10-20、uranium、seed 0〜4）
+
+`results/method-comparison-v7/20261020_035237_fedsda-v7-seeds0-4/`（`run_experiment_sweep.py --configurations fedsda`、120 run、全完了、commit `053fefc`、基準版7、64 workersで26分）。
+
+- 研究ツールの「検証なし＋固定」（`20261020_uranium-frozen-candidate-backbone-n5000`のseed 0〜4）と、120 runすべてで、精度・上り・下りのbyteが完全に一致した。正式の設定（`candidate_shared_feature_update_policy="keep_shared_features_fixed"`）は、研究ツールの差し替えと同じ計算をしている。
+- konanのFedDrift・FedAvg2種（`results/method-baselines/`、seed 0〜4）と並べると、精度は、FedDriftに対してCIRCLE2・50（97.52対97.55）を除く23条件で高く、FedAvg2種に対しては24条件で高い。通信量（上り＋下り）は、FedDriftより、SEA2・SEA4の間隔100〜500（1.5〜1.8倍）とCIRCLE2・500（1.18倍）で多く、ほかの条件で少ない（SINE2・MNISTでは数分の1）。FedAvgに対しては1.1〜2.8倍。マシンが違う（FedSDAはuranium、ベースラインはkonan）ので、比べるのは傾向だけにする。
