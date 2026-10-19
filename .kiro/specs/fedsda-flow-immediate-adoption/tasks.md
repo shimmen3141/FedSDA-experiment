@@ -100,3 +100,11 @@
 - Chromeの3画面×3警報状態で指定結果文の一致と、条件文字・結果文の枠内、従来のひし形寸法/線種/端点に成功。代表PNGを目視。初回は検査helperの日本語期待値がPowerShellパイプで?化して文言比較だけ失敗したため、helper期待値をASCII Unicode escapeに修正して再実行し成功。HTMLの文字は正常で追加修正しなかった。
 - 証拠はGit管理外`venv/flow-browser-check/check-drift-wording.cjs`・`drift-wording-geometry.json`・`drift-wording-<幅>-<分岐>.png`。Node構文・diff --check成功。数値実装未変更のため数値pytest対象外。
 - 独立Luna high実装レビューPASS、指摘なし。全9条件の検査記録と1280/390の代表PNGを独立照合。ブラウザ独立再実行は未実施。
+
+## ユーザー追記：分岐選択肢を1行表示
+- [x] 11. 要求23をレビュー後、改行除去・最小限の列幅/高さ調整を反映し、実測と3画面の収まりを確認して独立レビューを反映する。
+
+- 独立Luna high仕様レビューPASS。改行除去時の長い選択肢はinputを含め約199px、1280時の従来内幅約178px・狭幅150pxでは不足を実Chromeで実測した。第3列のみ220pxへ広げ、条件10pxを保持し、2つのbrを除去。帯高さは80/96pxに戻した。
+- 3画面×3状態の検査でphase3幅220・改行なし・選択肢1行・全ラベル/結果文の枠内と文言不変に成功。代表PNGを目視。script全文とSVG全文は変更前に一致することをassertし、処理・図座標不変を確認。diff --check成功。
+- 証拠はGit管理外`venv/flow-browser-check/measure-phase-inline.cjs`、`check-inline-phase.cjs`・`inline-phase-geometry.json`・`inline-phase-<幅>-<分岐>.png`。HTML表示だけのため数値pytest対象外。
+- 独立Luna high実装レビューPASS、指摘なし。9条件の検証記録と1280/390の代表PNG、差分の限定を独立確認。ブラウザ独立再実行は未実施。
