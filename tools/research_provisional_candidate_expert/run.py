@@ -57,6 +57,18 @@ _VARIANTS = {
     # 検証なしでは、候補をその場で採用するので、採用のときの共有部の上書きが実質的に起きない。
     "no-validation-frozen-candidate-backbone": ("fedsda-without-candidate-validation", False, None),
     "validation-frozen-candidate-backbone": ("fedsda-with-candidate-validation", False, None),
+    # IMPROVE-022: 既定（2026-10-20から、候補検証なし＋候補の共有部の固定）と、その候補の学習を、早期終了
+    # （区間の20%を検証用に取り分け、最大30エポック、改善が3回続けて無ければ止めて最良へ戻す）から、全標本での
+    # 固定エポックの学習へ替えたもの。
+    "default": ("fedsda", False, None),
+    "default-fixed-epochs5": ("fedsda", False, None),
+    "default-fixed-epochs10": ("fedsda", False, None),
+    "default-fixed-epochs30": ("fedsda", False, None),
+}
+_FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
+    "default-fixed-epochs5": 5,
+    "default-fixed-epochs10": 10,
+    "default-fixed-epochs30": 30,
 }
 _FROZEN_CANDIDATE_BACKBONE_VARIANTS = (
     "no-validation-frozen-candidate-backbone",
@@ -392,6 +404,23 @@ def _execute_job(job):
                 ),
             ),
         )
+    if job["variant"] in _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT:
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    client,
+                    candidate_epoch_training_settings=replace(
+                        client.candidate_epoch_training_settings,
+                        candidate_training_strategy="fixed_epoch_training",
+                        maximum_epoch_count=_FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT[job["variant"]],
+                    ),
+                ),
+            ),
+        )
     client_settings = settings.run_participant_settings.run_client_settings
     started = time.time()
     events = []
@@ -445,6 +474,9 @@ def _execute_job(job):
         else 0,
         final_global_model_count=metrics.final_global_model_count,
         upload_delay_round_count=client_settings.scalar_settings.new_model_upload_delay_round_count,
+        candidate_training_strategy=client_settings.candidate_epoch_training_settings.candidate_training_strategy,
+        candidate_maximum_epoch_count=client_settings.candidate_epoch_training_settings.maximum_epoch_count,
+        model_computation_counts=dataclasses.asdict(metrics.model_computation_counts),
         validation_sample_count=client_settings.candidate_model_training_and_acceptance_settings.candidate_post_alarm_validation_sample_count,
         candidate_model_acceptance_policy=client_settings.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy,
         detection_count=metrics.training_model_switch_detection_metrics.detection_count,
