@@ -19,6 +19,7 @@
 import argparse
 import contextlib
 import copy
+import dataclasses
 import hashlib
 import json
 import math
@@ -292,6 +293,12 @@ def _sequential_test_policy(*, events):
         yield
 
 
+def _table_row_count(tables, prefix):
+    """記録の表の、その表名の最初の列の行数（表が無ければ0）。"""
+    columns = sorted(name for name in tables if name.startswith(prefix))
+    return int(len(tables[columns[0]])) if columns else 0
+
+
 def _digest(tensors):
     digest = hashlib.sha256()
     for name in sorted(tensors):
@@ -386,6 +393,11 @@ def _execute_job(job):
         for record in client.owners.sample_prediction_record_store.snapshot_sample_prediction_records()
     ]
     metrics = run.run_metrics
+    from federated_learning_experiments.runtime.fedsda_run_record_tables import (
+        build_fedsda_run_record_tables,
+    )
+
+    tables = build_fedsda_run_record_tables(experiment_run=run)
     repository = run.measured_run.participants.server_operations.owners.global_model_repository
     volume = metrics.communication_volume
     return dict(
@@ -398,6 +410,13 @@ def _execute_job(job):
         ).hexdigest(),
         uploaded_bytes=volume.uploaded_byte_count,
         downloaded_bytes=volume.downloaded_byte_count,
+        # 通信の内訳（モデルの転送回数、通知の回数）と、登録・クロス評価・統合の件数。
+        communication_volume=dataclasses.asdict(volume),
+        registered_model_count=_table_row_count(tables, "model_registration."),
+        client_cross_evaluation_count=_table_row_count(tables, "client_cross_evaluation."),
+        merged_model_count=int(tables["model_clustering.merged_with_other_models"].sum())
+        if "model_clustering.merged_with_other_models" in tables
+        else 0,
         final_global_model_count=metrics.final_global_model_count,
         upload_delay_round_count=client_settings.scalar_settings.new_model_upload_delay_round_count,
         validation_sample_count=client_settings.candidate_model_training_and_acceptance_settings.candidate_post_alarm_validation_sample_count,
