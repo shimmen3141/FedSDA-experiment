@@ -27,3 +27,10 @@
 - コピー線は左右モデル間の余白やモデル間の間隔から下側へ折り返し、コピー先へ接続する。追加線は旧追加線の上側経路を使い、標本線は下側外周を使う。文字・矢尻と箱の交差を実ブラウザで確認して必要な座標だけ調整する。
 - 標本の根拠：runtime/alarm_buffer_response.pyで変化区間のtraining_sampleをtupleにして渡し、alarm_change_interval_resolution.pyで特徴・ラベルを連結して学習、adopted_candidate_local_adoption.pyで同じ標本を新IDのtraining_sample_storeへappendする。図の標本枠はこの一時的な処理対象であり、別の永続ストアではない。
 - 検査は現行版に対して旧名称/旧追加枠で失敗することを先に確認。全経路でC03/R01以外の追加枠のdisplay:none、追加先、コピー先、モデル共有接続、標本線の始点、文字の収まりを確認する。他frameの契約と操作は保持する。
+
+## 追記設計：要求8〜9（共有矢印・同時表示の方針を置換）
+- 新規経路はC00（標本受渡し）→C01（初期値コピー）→C02（候補学習）→C03（追加）。同じ警報応答の説明を分けるもので、実装上の待機や別標本を増やす意味ではない。
+- C00はfifo-assign/assign-candidateを表示し、C01はcopy-backbone/copy-modelだけ表示する。既存の2本のコピー線は交差しない経路なので維持する。
+- id=candidateの「変化区間の標本」枠だけをdataの青緑にし、assign-candidate/candidate-assign線と対応ラベルも同色にする。candidate-shell（新モデル作成の外枠）、candidate-backbone/head（モデルコピー）、stores/new-store（学習ストアの緑枠）の色は変えない。id=candidateはモデル候補本体ではなく、処理へ切り出した標本の枠を指す。assign-candidateの「変化区間」ラベルは枠自体の名称と重複し線にも重なるため除去する。
+- new-model-shared線とラベルをSVG/frame双方から除去。C03はmodels/storesを追加で活性化、R01はmodelsを追加で活性化する。local-focusで配布時側は薄いままにする。新nモデル/ストアの限定表示は不変。
+- 変更前検査は共有線の存在とC00不在で失敗することを確認。3画面・全経路で順序、コマごとの活性線、標本色とコピー色の違い、更新用モデル群/ストアの濃淡、限定表示と操作を確認する。

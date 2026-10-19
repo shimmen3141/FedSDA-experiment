@@ -29,3 +29,13 @@
 - 残存frameで変更した契約はC01/C02/C03/R01のみ。検査はGit管理外`venv/flow-browser-check/check-connections.cjs`、結果は`connections-validation.json`、PNGは`connections-<幅>-<frame>.png`。
 - 独立Luna highの追記実装レビューはPASS、指摘なし。全18経路の結果を照合し、C01/C03/R01のPNGを独立目視。ブラウザの独立再実行は未実施。
 - 追加の文字枠検査で「バックボーンコピー（固定）」の横幅が余白を超えたため、その見出しだけ18pxへ調整。`geometry.cjs`の再検査で候補/新モデル/新ストアの文字収まりと共有ラベルの追加線との非交差が成功した。最終PNGは`connections-final-<frame>.png`、結果は`geometry-validation.json`。
+
+## ユーザー追記：コピーコマの交差解消と同列追加の強調
+- [x] 4. 追記仕様レビュー後、標本受渡しとコピーを分離し、標本系の色を統一、共有矢印を除去して追加コマのモデル/標本群を濃くする。全分岐・限定表示・操作と代表画面を確認し、独立レビューを反映する。
+  - Requirements: 8〜9
+
+- 仕様レビュー初回Major 1は対象「candidate枠」の略記に関する指摘。現行HTMLのid=candidateは変化区間の標本枠であり、候補モデル本体はcandidate-head、外枠はcandidate-shellであることを明示し、色変更対象を限定した。既存ストアの緑は保持。独立Luna high再確認でPASS。
+- 先行受入検査は旧版に対して`Shared arrow remains`で失敗。C00を標本受渡し専用、C01をコピー専用に分け、標本枠/受渡し2線を青緑にした。重複する変化区間ラベルと共有線/ラベルを除去した。C03はmodels/stores、R01はmodelsを追加活性化し、配布時側と新n枠の限定表示は保持した。
+- Chromeの1280×720・1440×900・390×844で各6分岐、延べ18経路447コマに成功（issues/pageerror 0）。順序、色差、活性線の分離、追加群の濃淡、限定表示、循環、フェーズ移動、再生、補足を確認。C00/C01/C03のPNGを目視し、コピー2線の全直交segmentが交差しないことも計算で確認。全frameの参照・Node構文・diff --checkも成功。
+- 変更frameはC00の追加とC01/C03/R01のみ。検査は元checkoutのGit管理外`venv/flow-browser-check/check-declutter.cjs`、結果は`declutter-validation.json`、PNGは`declutter-<幅>-<frame>.png`。
+- 独立Luna highの実装レビューはPASS、指摘なし。差分・18経路447コマの証拠とC00/C01/C03のPNGを独立確認した。ブラウザの独立再実行は未実施。
