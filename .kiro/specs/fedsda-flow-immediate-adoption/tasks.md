@@ -72,3 +72,14 @@
 - Chromeの1280×720・1440×900・390×844、各6分岐の18経路447コマでissues/pageerror 0。全ラベルの色、破線と向き、評価端点、分岐結果、実クリック後の左右キー・先頭末尾循環・連続移動とフォーカス、ラジオとモーダルのキー操作を確認した。全frame参照・Node構文・diff --checkも成功。新ラベルと活性線の非交差、処理記号文字の収まりは3画面で追加検査成功し、A03/A05/A06のPNGを目視した。
 - 証拠は元checkoutのGit管理外`venv/flow-browser-check/check-arrows.cjs`・`arrows-validation.json`・`arrows-geometry.cjs`・`arrows-geometry.json`・`arrows-<幅>-<frame>.png`・`arrows-final-<幅>-<frame>.png`。実験コード・goldenは未変更で数値pytestは対象外。
 - 独立Luna highの実装レビューはPASS、Blocker/Major/Minor 0。検証スクリプト・全経路の成功記録・A03/A05/A06と既存再利用分岐の最終PNGを独立照合した。ブラウザの独立再実行は未実施。
+
+## ユーザー追記：分岐キーと警報処理記号
+- [x] 8. 要求19〜20を仕様レビュー後に実装し、実キーでの分岐/コマ操作と全分岐・警報結果・図の収まりを確認して実装レビューを反映する。
+
+- 仕様レビュー初回Major 1（要求18のラジオ操作維持と要求19の上書き関係未記載）は、要求19が上部分岐ラジオについて要求18を上書きする旨を明記し解消。Luna high再確認PASS。
+- 修正前の実Chrome検査は`Focused branch radio does not move frame`で失敗。stage内の左右キーをコマ移動にし、上下キーは現在stage3/4の有効分岐だけを循環選択する。その他フェーズでのラジオ既定上下切替と、モーダル内の干渉を抑止した。
+- observed_sample_processing.pyの警報抑止条件（検出合図があっても変化区間標本数が最小件数未満なら警報応答しない）を読取照合。alarmをひし形と下向き赤破線の結果出力へ変更し、3状態の結果を具体化。平時にA01を追加し、他のコマ順序は保持。接続2線の端点だけ形状に合わせた。
+- 最終分岐文言でChromeの3画面・18経路453コマに成功（issues/pageerror 0）。ラジオfocus左右でコマ移動のみ、別フェーズの上下不変、phase3警報分岐/phase4応答分岐の上下循環、timeline focus循環、modal・再生・既存図の表示契約を検査。frame契約の変更はA01/W01のみ。平時A01追加以外の順序を保持した。
+- 独立Luna high実装レビューはPASS（Minor 1）。修飾キー除外の曖昧さは、既存キー処理と同じAlt/Ctrl/Metaが対象と仕様へ明記して解消。Minorのみのため再レビュー不要。独立ブラウザ再実行は未実施。
+- 判定結果3状態と新しいphase文言の枠内検査は3画面で成功。代表PNGを目視。平時に合図なしでも判断へ監視結果を渡すことを明示するため入力線ラベルだけ「監視結果」へ修正し、最終表示を追加確認した。
+- 証拠はGit管理外`venv/flow-browser-check/check-phase-alarm-final.cjs`・`phase-alarm-final-validation.json`、最終文言の配置確認は`phase-result-geometry.cjs`・`phase-result-geometry.json`・`phase-result-<幅>-<分岐>.png`。Node構文・diff --check成功。実験コード・golden未変更、数値pytestは対象外。

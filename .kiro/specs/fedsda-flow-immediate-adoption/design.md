@@ -53,3 +53,7 @@
 - reuse-outcome線をreuse-decision左端から、partitionの下を迂回して左側の結果文字へ接続する（1170,590→1140,590→1140,645→920,645→920,590→900,590）。結果文字はx880,y596,endで既存実体枠を増やさず表示する。A06だけ活性化し、結果文字は選択responseへ対応させる。区間分割記号と線/文字を重ねない。
 - timelineだけに左右keydownを追加し、dotが対象でAlt/Ctrl/Metaなし・補足非表示のとき既存moveを使う。preventDefault/stopPropagation後に移動先dotへfocusする。canvasの既存handlerを残し、ラジオやモーダルへ全画面のキー処理を追加しない。
 - 変更前に色/向き/キー操作の受入検査が失敗することを確認。全経路でラベルfillと矢印strokeの一致、A03向きとdash一致、A05の端点、A06両結果、dotフォーカスから左右と循環、ラジオ操作・モーダル・再生の維持を検査する。新結果線とラベルを3画面で目視する。
+
+## 追記：警報判定と分岐キー
+- 分岐ラジオを含むstage内の左右keydownを既定動作より前に処理しmoveを使う。上下は現在stageが3/4の場合だけ対応する有効ラジオを循環選択し既存change/rebuildを使う。モーダル・Alt/Ctrl/Meta付きのキーは除外し、別フェーズのラジオの標準上下切替も抑止する。
+- alarmを同じ領域のひし形へ置換。signalとalarm-partitionをその上下/左端へ合わせる。alarm-outcomeは下向き点線、alarm-resultは横の2行文字で分岐結果を表す。短線実線化を避ける長さを取り、結果とFIFOを接続しない。平時のA01追加以外の順序を保持する。

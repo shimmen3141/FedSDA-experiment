@@ -18,3 +18,6 @@
 
 - partition-fifo: FIFOへ区間分割を適用する制御線（旧fifo-partitionの逆向き）。
 - reuse-outcome / reuse-result: 再利用判定の結果を出す線と結果文字。標本やモデルの保存場所ではない。
+
+- alarm: 警報判定の処理記号。標本を保存しない。
+- alarm-outcome / alarm-result: 警報判断の制御結果の点線と説明。変化後の標本数が警報応答に十分かを区別する。

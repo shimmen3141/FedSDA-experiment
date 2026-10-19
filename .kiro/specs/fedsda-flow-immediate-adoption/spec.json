@@ -63,13 +63,13 @@
       ]
     ],
     "paths": 18,
-    "frames": 447,
+    "frames": 453,
     "page_errors": 0,
-    "html_sha256": "dea76e14b9463b3e9e107e7b40d80d20e092a4d83a717b8bce6a2fc86465ddc2",
+    "html_sha256": "32d310adf64c19a2e329306095992936da8d8d77a59d53aecbe2f638cbe37954",
     "evidence": "元checkoutのvenv/flow-browser-check/validation.jsonとPNG",
     "numeric_pytest": "HTMLのみのため対象外",
     "followup_evidence": "元checkout venv/flow-browser-check/connections-validation.json・geometry-validation.json・connections-final-*.png",
-    "latest_followup_evidence": "元checkout venv/flow-browser-check/arrows-validation.json・arrows-geometry.json・arrows-<幅>-<frame>.png・arrows-final-<幅>-<frame>.png"
+    "latest_followup_evidence": "元checkout venv/flow-browser-check/phase-alarm-final-validation.json・phase-result-geometry.json・phase-result-<幅>-<分岐>.png"
   },
   "followup_reviews": [
     {
@@ -127,6 +127,22 @@
       "findings": 0,
       "browser_independent_execution": false,
       "evidence": "18経路447コマ、色/方向/破線/端点/分岐結果、タイムライン実キーとフォーカス・既存操作、非交差検査と代表PNGを独立照合"
+    },
+    {
+      "scope": "要求19〜20：分岐キー操作と警報処理記号",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_initial_verdict": "FAIL Major 1（要求18との優先関係）",
+      "specification_recheck": "PASS（要求19が上部分岐ラジオについて上書きと明記）",
+      "implementation_verdict": "accepted_after_minor_fix",
+      "implementation_findings": {
+        "major": 0,
+        "minor": 1
+      },
+      "resolution": "修飾キーの対象を既存処理と同じAlt/Ctrl/Metaと明記。Minorのみで再レビュー不要。",
+      "browser_independent_execution": false,
+      "evidence": "18経路453コマ・最終判定PNGを独立照合。主担当が結果3状態×3画面の配置と最終ラベルを追加確認。"
     }
   ]
 }
