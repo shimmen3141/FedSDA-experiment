@@ -65,11 +65,11 @@
     "paths": 18,
     "frames": 447,
     "page_errors": 0,
-    "html_sha256": "d1a824700787c3e1c204d9b1913a73b6ac6961cb4c5a64adddf5ea921d500486",
+    "html_sha256": "27af33cd9aebbd297636d8e41c40253cf2cb7958f491efbeff4cf77c6fdd6aef",
     "evidence": "元checkoutのvenv/flow-browser-check/validation.jsonとPNG",
     "numeric_pytest": "HTMLのみのため対象外",
     "followup_evidence": "元checkout venv/flow-browser-check/connections-validation.json・geometry-validation.json・connections-final-*.png",
-    "latest_followup_evidence": "元checkout venv/flow-browser-check/registration-validation.json・registration-<幅>-<frame>.png"
+    "latest_followup_evidence": "元checkout venv/flow-browser-check/assignment-validation.json・assignment-geometry.json・assignment-evaluation.json・assignment-focus.json・assignment-final-<幅>-<frame>.png"
   },
   "followup_reviews": [
     {
@@ -105,6 +105,17 @@
       "findings": 0,
       "browser_independent_execution": false,
       "evidence": "4置換の逆変換一致、18経路447コマ、R02の1280/390 PNGを独立確認。文字は実測から16pxを採用。"
+    },
+    {
+      "scope": "要求11〜13：中継枠撤去・処理記号と直接データ線",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS",
+      "implementation_verdict": "PASS",
+      "findings": 0,
+      "browser_independent_execution": false,
+      "evidence": "18経路447コマ、線と文字の非交差、代表PNG、A05/A06/A07最終3画面確認の証拠を独立照合"
     }
   ]
 }

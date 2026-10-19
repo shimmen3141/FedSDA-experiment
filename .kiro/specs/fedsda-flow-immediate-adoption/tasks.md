@@ -49,3 +49,15 @@
 - 当初の18px案は文字幅127.82に対し枠幅125で収まらなかったため、実測113.75の16px（以前13px）へ調整した。枠寸法と他の文字は変更しない。最初の逆変換検査は別の既存18px指定まで拾ったため、タイトル文字列で対象を限定して再確認した。
 - 狭幅390では16px文字幅116.72・左余白1.77pxで枠内に収まっていたが、検査側の2px余白条件に触れたため、実際の枠内＋1pxの確認へ訂正した。HTMLの追加変更はしていない。Chromeの3画面・18経路447コマで表示限定・R02の活性と配布時opacity・文字の収まり・既存操作が成功しissues/pageerror 0。R02のPNGを目視した。検査と証拠はGit管理外`venv/flow-browser-check/check-registration.cjs`、`registration-validation.json`、`registration-<幅>-<frame>.png`。
 - 独立Luna highの実装レビューはPASS、指摘なし。4置換の逆変換一致・全経路の成功証拠・R02の1280/390 PNGを独立確認した。ブラウザの独立再実行は未実施。
+
+## ユーザー追記：複数処理をまとめた中継枠の整理
+- [x] 6. 実装照合と追記仕様レビュー後、区間分割・再利用判定の処理記号と直接データ線へ整理し、対象外表示を保持して全分岐/画面を検証し独立レビューを反映する。
+  - Requirements: 11〜13
+
+- 実装の容量超過分吸収→解放、前区間吸収→変化区間評価→適合先吸収/帰属切替または候補という順を読取確認。独立Luna highの仕様レビューはPASS、指摘なし。
+- 先行受入検査が旧枠に対し`Generic assignment hub remains`で失敗後、assignmentを区間分割/再利用判定の菱形2個へ置換し、4種類の標本受渡しを直接線へ変えた。評価結果だけを再利用判定へ渡す。★の切替、FIFO分割と該当区間の濃淡、実装上の処理順は保持した。
+- 全frame参照とNode構文、対象外frame契約の不変を照合。変更契約はN04/A03〜A07/C00のみ。対象の評価結果/再利用コマA06/A07も更新用側へ焦点を合わせた。A05はbackboneを活性化し、共同学習の説明param-localは非活性へ変更して推論と学習を区別した。モデル/ストア/FIFO/サーバ/予測結合の配置と新規追加フロー、操作handlerは変更しない。
+- Chromeの3画面・各6分岐、延べ18経路447コマを検証しissues/pageerror 0。新記号・直接線端点・★・限定表示・既存操作を確認。最終座標の新ラベルと活性線の非交差、菱形文字の収まりも3画面で検査成功。N04/A03/A06/A07/C00のPNGを目視した。補足へ処理記号が保存場所ではない旨だけ追記した。
+- 検査はGit管理外`venv/flow-browser-check/check-assignment.cjs`・`assignment-geometry.cjs`、結果は`assignment-validation.json`・`assignment-geometry.json`、最終PNGは`assignment-final-<幅>-<frame>.png`。
+- A05の非学習表示とA06/A07の更新用側焦点も最終追加確認し、それぞれ3画面で成功。結果は`assignment-evaluation.json`・`assignment-focus.json`、対応PNGを更新した。
+- 独立Luna highの実装レビューはPASS、Blocker/Major/Minor 0。全経路の証拠、新線・処理記号の代表PNG、A05/A06/A07の最終限定検査と対応PNGを独立確認。ブラウザの独立再実行は未実施。実験コード・goldenは未変更で数値pytestは対象外。
