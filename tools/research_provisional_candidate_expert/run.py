@@ -17,6 +17,7 @@
 """
 
 import argparse
+import contextlib
 import copy
 import hashlib
 import json
@@ -36,13 +37,21 @@ sys.path.insert(0, str(_ROOT / "src"))
 # 変種 -> （構成、仮の専門家を使うか、検証の標本数——Noneなら構成の値の10——）。
 # 検証あり（V）、検証なし（O）、検証あり＋仮の専門家（A）。B0: 検証の標本数を30にした検証あり（V30）と、
 # それに仮の専門家を足したもの（A30。仮の専門家があれば、検証を延ばしても予測の損が無い）。
+# 案B: 検証の標本数の上限を30にし、候補と参照の損失の差のe-過程で、証拠が閾値に達したら早く打ち切る
+# （打ち切らずに30標本へ達したら、今の規則で判定する。検証30との違いは、早く打ち切ることだけ）。
 _VARIANTS = {
     "validation": ("fedsda", False, None),
     "no-validation": ("fedsda-without-candidate-validation", False, None),
     "provisional-expert": ("fedsda", True, None),
     "validation-forward30": ("fedsda", False, 30),
     "provisional-expert-forward30": ("fedsda", True, 30),
+    "sequential-test": ("fedsda", False, 30),
+    "provisional-expert-sequential-test": ("fedsda", True, 30),
 }
+_SEQUENTIAL_TEST_VARIANTS = ("sequential-test", "provisional-expert-sequential-test")
+# 候補の判定のe-過程の有意水準（閾値1/α）と、賭けの割合の混合。αは検出（ClassESR、0.001）とは別に選んだ値。
+_SEQUENTIAL_TEST_ALPHA = 0.05
+_SEQUENTIAL_TEST_BETTING_FRACTIONS = (0.1, 0.2, 0.3, 0.4, 0.5)
 _LEARNING_RATE = 2.0
 _INITIAL_PROVISIONAL_WEIGHT = 0.5
 
@@ -194,6 +203,87 @@ def _provisional_expert_policy(*, share_rate, optimizer_settings, check, events)
         yield experts
 
 
+@contextmanager
+def _sequential_test_policy(*, events):
+    """検証の中で、候補と参照の損失の差のe-過程により、早く打ち切る（研究用。実行の間だけ包む）。
+
+    比較する参照は、その標本より前の累積損失が最小の参照（予測可能な選び方）。差d＝参照の損失−候補の損失は
+    [−1, 1]なので、賭けの割合λ∈[0.1, 0.5]の積∏(1＋λd)は、候補が良くない（E[d]≦0）ときの検定の
+    martingaleになり、その平均もe-過程になる。候補が良い側の証拠と、悪い側（−dで同じ形）の証拠の、どちらかが
+    1/αに達したら打ち切る。打ち切ったときは、既存モデルの再適合の判定は今の規則のまま、それまでの標本で行い、
+    再適合が無ければ、候補の採否をe-過程の向きで決める。
+    """
+    import federated_learning_experiments.runtime.post_alarm_candidate_validation_progress as progress_module
+
+    original_observe = progress_module.observe_post_alarm_candidate_validation_sample
+    original_evaluate = progress_module.evaluate_candidate_using_post_alarm_losses
+    threshold = 1.0 / _SEQUENTIAL_TEST_ALPHA
+    # 集めている途中の検証（損失を集める部品のid）→ 打ち切りの向き（"accept"か"reject"）。
+    early_decisions = {}
+
+    def sequential_decision(state):
+        candidate_losses = state.candidate_losses
+        reference_losses_by_model_id = dict(state.reference_losses_by_model_id)
+        favorable = [1.0] * len(_SEQUENTIAL_TEST_BETTING_FRACTIONS)
+        unfavorable = [1.0] * len(_SEQUENTIAL_TEST_BETTING_FRACTIONS)
+        for index, candidate_loss in enumerate(candidate_losses):
+            reference_id = min(
+                reference_losses_by_model_id,
+                key=lambda model_id: (sum(reference_losses_by_model_id[model_id][:index]), model_id),
+            )
+            difference = reference_losses_by_model_id[reference_id][index] - candidate_loss
+            for position, fraction in enumerate(_SEQUENTIAL_TEST_BETTING_FRACTIONS):
+                favorable[position] *= 1.0 + fraction * difference
+                unfavorable[position] *= 1.0 - fraction * difference
+        favorable_evidence = sum(favorable) / len(favorable)
+        unfavorable_evidence = sum(unfavorable) / len(unfavorable)
+        if favorable_evidence >= threshold:
+            return "accept"
+        if unfavorable_evidence >= threshold:
+            return "reject"
+        return None
+
+    def observe(**arguments):
+        collection = arguments["post_alarm_candidate_loss_collection"]
+        complete = original_observe(**arguments)
+        state = collection.get_state_snapshot()
+        if complete or len(state.candidate_losses) < 2:
+            return complete
+        decision = sequential_decision(state)
+        if decision is None:
+            return False
+        early_decisions[id(collection)] = decision
+        return True
+
+    def evaluate(**arguments):
+        candidate_losses = arguments["candidate_losses"]
+        settings = arguments["candidate_model_training_and_acceptance_settings"]
+        if len(candidate_losses) >= settings.candidate_post_alarm_validation_sample_count:
+            events.append(dict(event="sequential_test", decision="timeout", sample_count=len(candidate_losses)))
+            return original_evaluate(**arguments)
+        # 打ち切った検証。集めた件数で、今の規則（再適合の判定）を行う。
+        decision = None
+        for key, value in list(early_decisions.items()):
+            decision = value
+            del early_decisions[key]
+        shortened = replace(settings, candidate_post_alarm_validation_sample_count=len(candidate_losses))
+        evaluation = original_evaluate(**{**arguments, "candidate_model_training_and_acceptance_settings": shortened})
+        events.append(dict(event="sequential_test", decision=decision, sample_count=len(candidate_losses)))
+        if evaluation.reusable_reference_model_id is not None:
+            return evaluation
+        return replace(
+            evaluation,
+            candidate_accepted=decision == "accept",
+            decision_reason=f"sequential_test_{decision}",
+        )
+
+    with (
+        patch.object(progress_module, "observe_post_alarm_candidate_validation_sample", observe),
+        patch.object(progress_module, "evaluate_candidate_using_post_alarm_losses", evaluate),
+    ):
+        yield
+
+
 def _digest(tensors):
     digest = hashlib.sha256()
     for name in sorted(tensors):
@@ -248,17 +338,21 @@ def _execute_job(job):
     client_settings = settings.run_participant_settings.run_client_settings
     started = time.time()
     events = []
-    if uses_provisional_expert:
-        with _provisional_expert_policy(
-            share_rate=1.0
-            / client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,
-            optimizer_settings=client_settings.parameter_optimizer_settings,
-            check=job["check"],
-            events=events,
-        ):
-            run = execute_fedsda_experiment_run(run_settings=settings)
-    else:
+    with contextlib.ExitStack() as stack:
+        if job["variant"] in _SEQUENTIAL_TEST_VARIANTS:
+            stack.enter_context(_sequential_test_policy(events=events))
+        if uses_provisional_expert:
+            stack.enter_context(
+                _provisional_expert_policy(
+                    share_rate=1.0
+                    / client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,
+                    optimizer_settings=client_settings.parameter_optimizer_settings,
+                    check=job["check"],
+                    events=events,
+                )
+            )
         run = execute_fedsda_experiment_run(run_settings=settings)
+    tests = [e for e in events if e["event"] == "sequential_test"]
     clients = run.measured_run.participants.client_operations
     records = [
         record
@@ -288,6 +382,13 @@ def _execute_job(job):
             }
         ),
         session_starts=sum(e["event"] == "session_start" for e in events),
+        sequential_test_decisions={
+            decision: sum(e["decision"] == decision for e in tests)
+            for decision in ("accept", "reject", "timeout")
+        },
+        sequential_test_mean_sample_count=(
+            sum(e["sample_count"] for e in tests) / len(tests) if tests else None
+        ),
         session_outcomes={
             outcome: sum(e.get("outcome") == outcome for e in events)
             for outcome in sorted({e["outcome"] for e in events if "outcome" in e})
