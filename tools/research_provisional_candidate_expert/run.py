@@ -35,19 +35,20 @@ from unittest.mock import patch
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "src"))
-# 変種 -> （構成、仮の専門家を使うか、検証の標本数——Noneなら構成の値の10——）。
+# 変種 -> （構成、仮の専門家を使うか、検証の標本数——Noneなら構成の値の10——）。2026-10-20に既定（`fedsda`）が
+# 候補検証なし＋候補の共有部の固定になったので、検証ありの変種は、それまでの既定と同じ設定の構成で選ぶ。
 # 検証あり（V）、検証なし（O）、検証あり＋仮の専門家（A）。B0: 検証の標本数を30にした検証あり（V30）と、
 # それに仮の専門家を足したもの（A30。仮の専門家があれば、検証を延ばしても予測の損が無い）。
 # 案B: 検証の標本数の上限を30にし、候補と参照の損失の差のe-過程で、証拠が閾値に達したら早く打ち切る
 # （打ち切らずに30標本へ達したら、今の規則で判定する。検証30との違いは、早く打ち切ることだけ）。
 _VARIANTS = {
-    "validation": ("fedsda", False, None),
+    "validation": ("fedsda-with-candidate-validation", False, None),
     "no-validation": ("fedsda-without-candidate-validation", False, None),
-    "provisional-expert": ("fedsda", True, None),
-    "validation-forward30": ("fedsda", False, 30),
-    "provisional-expert-forward30": ("fedsda", True, 30),
-    "sequential-test": ("fedsda", False, 30),
-    "provisional-expert-sequential-test": ("fedsda", True, 30),
+    "provisional-expert": ("fedsda-with-candidate-validation", True, None),
+    "validation-forward30": ("fedsda-with-candidate-validation", False, 30),
+    "provisional-expert-forward30": ("fedsda-with-candidate-validation", True, 30),
+    "sequential-test": ("fedsda-with-candidate-validation", False, 30),
+    "provisional-expert-sequential-test": ("fedsda-with-candidate-validation", True, 30),
     # アイデア1: 検証なし（すぐ採用）で、送信までの待ちの同期回数（既定1）を延ばす。既定の登録の扱いは、
     # 待ちの間も現行であり続けたモデルだけを登録するので、短命なモデルはサーバへ共有されない。
     "no-validation-upload-delay2": ("fedsda-without-candidate-validation", False, None),
@@ -55,7 +56,7 @@ _VARIANTS = {
     # アイデア2: 候補の学習で共有部を更新しない（候補のheadとadapterだけを、警報の時点の共有部の上で学習する）。
     # 検証なしでは、候補をその場で採用するので、採用のときの共有部の上書きが実質的に起きない。
     "no-validation-frozen-candidate-backbone": ("fedsda-without-candidate-validation", False, None),
-    "validation-frozen-candidate-backbone": ("fedsda", False, None),
+    "validation-frozen-candidate-backbone": ("fedsda-with-candidate-validation", False, None),
 }
 _FROZEN_CANDIDATE_BACKBONE_VARIANTS = (
     "no-validation-frozen-candidate-backbone",

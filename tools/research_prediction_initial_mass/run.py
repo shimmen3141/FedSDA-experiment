@@ -127,7 +127,7 @@ def _execute_job(job):
     settings = build_experiment_run_settings(
         configuration_name="fedsda-without-candidate-validation"
         if job["mode"] != "validation"
-        else "fedsda",
+        else "fedsda-with-candidate-validation",
         experiment_run_conditions=ExperimentRunConditions(
             dataset_name=job["dataset"],
             random_seed=job["seed"],

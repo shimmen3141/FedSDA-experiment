@@ -168,7 +168,7 @@ def test_incomplete_session_uses_original_finalization(diagnostic, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "mode,cfg", [("validation", "fedsda"), ("immediate", "fedsda-without-candidate-validation")]
+    "mode,cfg", [("validation", "fedsda-with-candidate-validation"), ("immediate", "fedsda-without-candidate-validation")]
 )
 def test_control_matches_every_array_metrics_and_rng(diagnostic, mode, cfg):
     settings = build_experiment_run_settings(
