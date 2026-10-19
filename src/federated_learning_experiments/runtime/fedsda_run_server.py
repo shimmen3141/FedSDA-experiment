@@ -27,6 +27,7 @@ from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunCl
 from federated_learning_experiments.runtime.server_round_synchronization import (
     ServerRoundSynchronization,
     synchronize_models_in_server_round,
+    validate_cross_evaluation_model_transfer_policy,
 )
 
 
@@ -60,12 +61,14 @@ class FedsdaRunServer:
         owners: FedsdaRunServerOwners,
         model_clustering_criteria: ModelClusteringCriteria,
         maximum_evaluating_client_count_per_model: int,
+        cross_evaluation_model_transfer_policy: str,
         python_random_generator: Random,
     ) -> None:
         self._run_clients = run_clients
         self._owners = owners
         self._model_clustering_criteria = model_clustering_criteria
         self._maximum_evaluating_client_count_per_model = maximum_evaluating_client_count_per_model
+        self._cross_evaluation_model_transfer_policy = cross_evaluation_model_transfer_policy
         self._python_random_generator = python_random_generator
         self._server_round_synchronizations: list[ServerRoundSynchronization] = []
 
@@ -96,6 +99,7 @@ class FedsdaRunServer:
                 maximum_evaluating_client_count_per_model=(
                     self._maximum_evaluating_client_count_per_model
                 ),
+                cross_evaluation_model_transfer_policy=self._cross_evaluation_model_transfer_policy,
                 python_random_generator=self._python_random_generator,
                 round_index=round_index,
                 model_clustering_enabled=new_model_registration_available,
@@ -121,6 +125,7 @@ def assemble_fedsda_run_server(
     initial_loss_statistics: ModelAndClassLossStatistics,
     model_clustering_criteria: ModelClusteringCriteria,
     maximum_evaluating_client_count_per_model: int,
+    cross_evaluation_model_transfer_policy: str,
     python_random_generator: Random,
 ) -> FedsdaRunServer:
     """引数の検査の後、初期モデルを持つグローバルモデルのownerと、空の記録のownerを作って、サーバを返す。
@@ -143,6 +148,9 @@ def assemble_fedsda_run_server(
         raise TypeError("maximum_evaluating_client_count_per_model must be builtin int")
     if maximum_evaluating_client_count_per_model < 1:
         raise ValueError("maximum_evaluating_client_count_per_model must be positive")
+    validate_cross_evaluation_model_transfer_policy(
+        cross_evaluation_model_transfer_policy=cross_evaluation_model_transfer_policy
+    )
     if type(python_random_generator) is not Random:
         raise TypeError("python_random_generator must be exact random.Random")
     return FedsdaRunServer(
@@ -160,5 +168,6 @@ def assemble_fedsda_run_server(
         ),
         model_clustering_criteria=model_clustering_criteria,
         maximum_evaluating_client_count_per_model=maximum_evaluating_client_count_per_model,
+        cross_evaluation_model_transfer_policy=cross_evaluation_model_transfer_policy,
         python_random_generator=python_random_generator,
     )

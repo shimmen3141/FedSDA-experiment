@@ -113,6 +113,8 @@ def make_run_participant_settings(valid_run_settings_mapping, *, update_interval
         hidden_layer_widths=HIDDEN_LAYER_WIDTHS,
         model_clustering_criteria=MODEL_CLUSTERING_CRITERIA,
         maximum_evaluating_client_count_per_model=CROSS_EVALUATION_CLIENT_LIMIT,
+        # 実旧と照合する組立て。クロス評価の通信は、旧の扱い。
+        cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
     )
 
 

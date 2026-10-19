@@ -567,6 +567,8 @@ def use_legacy_compatible_policies(run_settings):
         run_settings,
         run_participant_settings=replace(
             run_participant_settings,
+            # 旧は、クロス評価のために、評価するclientへ候補のモデルを送る（通信量の記録が違う）。
+            cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
             run_client_settings=replace(
                 run_client_settings,
                 pending_model_registration_settings=PendingModelRegistrationSettings(

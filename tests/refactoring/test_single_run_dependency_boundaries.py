@@ -6072,6 +6072,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_client_settings.FedsdaRunClientSettings",
             "federated_learning_experiments.runtime.fedsda_run_server.assemble_fedsda_run_server",
             "federated_learning_experiments.runtime.initial_model_pretraining.pretrain_initial_model",
+            "federated_learning_experiments.runtime.server_round_synchronization.CROSS_EVALUATION_MODEL_TRANSFER_POLICY_NAMES",
         )
     if source_module_path == "runtime/fedsda_run_server.py":
         return imported_module_name in (
@@ -6087,11 +6088,14 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.server_round_synchronization.ServerRoundSynchronization",
             "federated_learning_experiments.runtime.server_round_synchronization.synchronize_models_in_server_round",
+            "federated_learning_experiments.runtime.server_round_synchronization.validate_cross_evaluation_model_transfer_policy",
         )
     if source_module_path == "runtime/server_round_synchronization.py":
         return imported_module_name in (
             "dataclasses.dataclass",
             "random.Random",
+            "torch.Tensor",
+            "torch.equal",
             "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
             "federated_learning_experiments.evaluation.cross_evaluation_record_store.CrossEvaluationRecordStore",
             "federated_learning_experiments.evaluation.model_clustering_record_store.ModelClusteringRecordStore",
@@ -6099,6 +6103,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.model_registration.global_model_repository.GlobalModelRepository",
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.global_model_distribution.distribute_global_models_to_clients",
+            "federated_learning_experiments.runtime.global_model_distribution.record_global_model_distribution_volume",
             "federated_learning_experiments.runtime.global_model_distribution_application.GlobalModelDistributionApplication",
             "federated_learning_experiments.runtime.model_clustering_and_consolidation.ModelConsolidation",
             "federated_learning_experiments.runtime.model_clustering_and_consolidation.cluster_and_consolidate_global_models",
@@ -6109,6 +6114,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.RegisteredClientModel",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.aggregate_client_models_into_global_models",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.register_ready_client_models",
+            "federated_learning_experiments.runtime.server_model_registration_and_aggregation.split_shared_and_concept_specific_parameters",
         )
     if source_module_path == "runtime/model_clustering_and_consolidation.py":
         return imported_module_name in (

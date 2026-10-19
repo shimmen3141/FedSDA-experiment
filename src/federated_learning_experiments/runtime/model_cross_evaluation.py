@@ -183,6 +183,7 @@ def cross_evaluate_global_models(
     round_index: int,
     maximum_evaluating_client_count_per_model: int,
     python_random_generator: Random,
+    record_model_transfers: bool = True,
 ) -> ModelCrossEvaluation:
     """モデルの全部の組（評価する側、対象）を、渡されたIDの順に、対象を保有するclientへ評価させる。
 
@@ -190,7 +191,11 @@ def cross_evaluate_global_models(
     組ごとに、軽量メッセージと、評価する側のモデルの転送（1回のクロス評価の中で、共有部はclientごとに1回、
     概念固有部は（モデル、client）ごとに1回）を通信量へ足し、clientの評価ごとに診断の記録を足す。
     グローバルモデルとclientの状態は変えない（乱数は進む）。途中で失敗したら、済んだ分は残る。
+    `record_model_transfers`が偽なら、メッセージだけを記録し、モデルの転送（共有部と概念固有部）を記録しない
+    （クロス評価で配布するモデルを使う扱い。評価と乱数は同じ）。
     """
+    if type(record_model_transfers) is not bool:
+        raise TypeError("record_model_transfers must be builtin bool")
     _validate_cross_evaluation_inputs(
         run_clients=run_clients,
         global_model_repository=global_model_repository,
@@ -239,6 +244,8 @@ def cross_evaluate_global_models(
                     transfer_direction=transfer_direction, message_count=len(evaluating_clients)
                 )
             for evaluating_client in evaluating_clients:
+                if not record_model_transfers:
+                    break
                 client_id = evaluating_client.client_id
                 # 共有部が空でも、候補とclientの組ごとに全パラメータの転送を1回だけ数える。
                 if shared_parameters and client_id not in client_ids_sent_shared_parameters:

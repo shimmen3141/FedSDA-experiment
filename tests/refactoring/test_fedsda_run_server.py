@@ -185,6 +185,10 @@ def test_server_synchronizes_models_through_round_synchronization(
         assert arguments["model_clustering_record_store"] is owners.model_clustering_record_store
         assert arguments["model_clustering_criteria"] == MODEL_CLUSTERING_CRITERIA
         assert arguments["maximum_evaluating_client_count_per_model"] == 3
+        assert (
+            arguments["cross_evaluation_model_transfer_policy"]
+            == "send_candidate_models_for_cross_evaluation"
+        )
         # サーバは、clientと同じ、runの乱数生成器を使う。
         assert arguments["python_random_generator"] is run_random_sources.python_random_generator
     synchronizations = run_server.snapshot_server_round_synchronizations()
@@ -249,6 +253,7 @@ def test_server_assembly_rejects_invalid_arguments(valid_run_settings_mapping):
         ].owners.loss_statistics_store.get_model_loss_statistics(model_id=0),
         model_clustering_criteria=MODEL_CLUSTERING_CRITERIA,
         maximum_evaluating_client_count_per_model=3,
+        cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
         python_random_generator=run_random_sources.python_random_generator,
     )
     python_random_state = run_random_sources.python_random_generator.getstate()
@@ -270,6 +275,8 @@ def test_server_assembly_rejects_invalid_arguments(valid_run_settings_mapping):
         dict(maximum_evaluating_client_count_per_model=0),
         dict(maximum_evaluating_client_count_per_model=3.0),
         dict(maximum_evaluating_client_count_per_model=True),
+        dict(cross_evaluation_model_transfer_policy="reuse"),
+        dict(cross_evaluation_model_transfer_policy=None),
         dict(python_random_generator=random),
         dict(python_random_generator=type("RandomSubclass", (random.Random,), {})(3)),
     ):

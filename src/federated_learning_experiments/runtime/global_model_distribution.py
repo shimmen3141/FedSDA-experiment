@@ -43,36 +43,34 @@ def _validate_distribution_inputs(
             raise TypeError("model_id_mapping keys and values must be builtin int")
 
 
-def distribute_global_models_to_clients(
+def record_global_model_distribution_volume(
     *,
-    run_clients: tuple[FedsdaRunClient, ...],
-    global_model_repository: GlobalModelRepository,
     communication_volume_record_store: CommunicationVolumeRecordStore,
-    model_id_mapping: dict[int, int],
-) -> tuple[GlobalModelDistributionApplication, ...]:
-    """下りの通信量を記録してから、全clientへ、渡された順に、ID対応と全グローバルモデルを受け取らせる。
+    global_model_repository: GlobalModelRepository,
+    client_count: int,
+) -> None:
+    """全グローバルモデルを全clientへ配布するときの下りの通信量を記録する。状態は変えない。
 
-    通信量は、共有部1個（最初のグローバルモデルのもの）と、全モデルの概念固有部を、clientの数だけ数える。
-    グローバルモデルの状態は変えない。あるclientの受取りが失敗したら、後のclientへ進まない
-    （通信量と、済んだclientの受取りは残る）。
+    共有部1個（最初のグローバルモデルのもの）と、全モデルの概念固有部を、clientの数だけ数え、モデルの転送回数
+    （モデル数×client数）を足す。ID対応のメッセージは数えない。
     """
-    _validate_distribution_inputs(
-        run_clients=run_clients,
-        global_model_repository=global_model_repository,
-        communication_volume_record_store=communication_volume_record_store,
-        model_id_mapping=model_id_mapping,
-    )
-    distributed_parameter_snapshots = tuple(
-        (model_id, global_model_repository.get_global_model_parameters(model_id=model_id))
-        for model_id in global_model_repository.global_model_ids
-    )
-    distributed_loss_statistics = global_model_repository.snapshot_global_model_loss_statistics()
+    if type(communication_volume_record_store) is not CommunicationVolumeRecordStore:
+        raise TypeError(
+            "communication_volume_record_store must be exact CommunicationVolumeRecordStore"
+        )
+    if type(global_model_repository) is not GlobalModelRepository:
+        raise TypeError("global_model_repository must be exact GlobalModelRepository")
+    if type(client_count) is not int or client_count < 0:
+        raise ValueError("client_count must be a nonnegative builtin int")
     # 通信量を記録する前に、全モデルのパラメータを共有部と概念固有部へ分けておく（分けられなければ何も変えない）。
     split_parameter_snapshots = tuple(
-        split_shared_and_concept_specific_parameters(parameter_snapshot=parameter_snapshot)
-        for _, parameter_snapshot in distributed_parameter_snapshots
+        split_shared_and_concept_specific_parameters(
+            parameter_snapshot=global_model_repository.get_global_model_parameters(
+                model_id=model_id
+            )
+        )
+        for model_id in global_model_repository.global_model_ids
     )
-    client_count = len(run_clients)
     if split_parameter_snapshots:
         communication_volume_record_store.record_parameter_transfer(
             transfer_direction="download",
@@ -87,12 +85,50 @@ def distribute_global_models_to_clients(
             )
     communication_volume_record_store.record_model_transfers(
         transfer_direction="download",
-        model_count=len(distributed_parameter_snapshots) * client_count,
+        model_count=len(split_parameter_snapshots) * client_count,
     )
-    if model_id_mapping:
-        communication_volume_record_store.record_messages(
-            transfer_direction="download", message_count=client_count
+
+
+def distribute_global_models_to_clients(
+    *,
+    run_clients: tuple[FedsdaRunClient, ...],
+    global_model_repository: GlobalModelRepository,
+    communication_volume_record_store: CommunicationVolumeRecordStore,
+    model_id_mapping: dict[int, int],
+    record_communication_volume: bool = True,
+) -> tuple[GlobalModelDistributionApplication, ...]:
+    """下りの通信量を記録してから、全clientへ、渡された順に、ID対応と全グローバルモデルを受け取らせる。
+
+    通信量は、共有部1個（最初のグローバルモデルのもの）と、全モデルの概念固有部を、clientの数だけ数える。
+    `record_communication_volume`が偽なら、通信量を記録しない（クロス評価で配布するモデルを使う扱いで、
+    配布をクロス評価の前に記録したラウンド。反映は同じ）。
+    グローバルモデルの状態は変えない。あるclientの受取りが失敗したら、後のclientへ進まない
+    （通信量と、済んだclientの受取りは残る）。
+    """
+    _validate_distribution_inputs(
+        run_clients=run_clients,
+        global_model_repository=global_model_repository,
+        communication_volume_record_store=communication_volume_record_store,
+        model_id_mapping=model_id_mapping,
+    )
+    if type(record_communication_volume) is not bool:
+        raise TypeError("record_communication_volume must be builtin bool")
+    distributed_parameter_snapshots = tuple(
+        (model_id, global_model_repository.get_global_model_parameters(model_id=model_id))
+        for model_id in global_model_repository.global_model_ids
+    )
+    distributed_loss_statistics = global_model_repository.snapshot_global_model_loss_statistics()
+    client_count = len(run_clients)
+    if record_communication_volume:
+        record_global_model_distribution_volume(
+            communication_volume_record_store=communication_volume_record_store,
+            global_model_repository=global_model_repository,
+            client_count=client_count,
         )
+        if model_id_mapping:
+            communication_volume_record_store.record_messages(
+                transfer_direction="download", message_count=client_count
+            )
     return tuple(
         run_client.apply_global_model_distribution(
             model_id_mapping=model_id_mapping,

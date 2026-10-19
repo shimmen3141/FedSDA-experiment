@@ -287,6 +287,8 @@ def build_final_configuration_fedsda_run_settings(
                 model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
             ),
             maximum_evaluating_client_count_per_model=_MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL,
+            # 旧の扱い（クロス評価のために候補のモデルを送る）。既定は、Task2で替える。
+            cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
         ),
         model_consolidation_settings=ModelConsolidationSettings(
             model_clustering_trigger_policy="on_new_model_registration",

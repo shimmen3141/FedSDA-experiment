@@ -137,6 +137,15 @@ _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH = (
 _CANDIDATE_VALIDATION_POLICY_NAME = (
     "current_model_first_reuse_then_two_segment_candidate_validation"
 )
+# 版の後に足された、FedSDAの参加者の設定の項目（`run_participant_settings`からの経路）と、その版の値。
+# クロス評価のモデルの送り方（2026-10-20に足した項目）。版1〜7は、どれも、候補のモデルを送る旧の扱い。
+_CROSS_EVALUATION_MODEL_TRANSFER_POLICY_PATH = ("cross_evaluation_model_transfer_policy",)
+_PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
+    baseline_version: {
+        _CROSS_EVALUATION_MODEL_TRANSFER_POLICY_PATH: "send_candidate_models_for_cross_evaluation"
+    }
+    for baseline_version in (1, 2, 3, 4, 5, 6, 7)
+}
 _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     1: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: {
@@ -533,6 +542,15 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                 ),
             )
         changes["run_client_settings"] = client
+        if (
+            _CROSS_EVALUATION_MODEL_TRANSFER_POLICY_PATH
+            in _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(baseline_version, {})
+        ):
+            changes["cross_evaluation_model_transfer_policy"] = (
+                _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION[baseline_version][
+                    _CROSS_EVALUATION_MODEL_TRANSFER_POLICY_PATH
+                ]
+            )
     return replace(
         settings,
         execution_settings=replace(settings.execution_settings, concept_schedule_settings=schedule),
@@ -564,6 +582,19 @@ def comparable_run_settings(case_name, baseline_version=BASELINE_VERSION):
             assert holder[added_field_path[-1]] == version_value, (
                 f"{case_name}: baseline v{baseline_version} requires "
                 f"{'.'.join(added_field_path)}={version_value!r}"
+            )
+            del holder[added_field_path[-1]]
+        participant_settings = plain_settings["run_participant_settings"]
+        for (
+            added_field_path,
+            version_value,
+        ) in _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(baseline_version, {}).items():
+            holder = participant_settings
+            for field_name in added_field_path[:-1]:
+                holder = holder[field_name]
+            assert holder[added_field_path[-1]] == version_value, (
+                f"{case_name}: baseline v{baseline_version} requires "
+                f"run_participant_settings.{'.'.join(added_field_path)}={version_value!r}"
             )
             del holder[added_field_path[-1]]
     return plain_settings

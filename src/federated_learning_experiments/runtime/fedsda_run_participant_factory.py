@@ -36,6 +36,9 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
 )
 from federated_learning_experiments.runtime.fedsda_run_server import assemble_fedsda_run_server
 from federated_learning_experiments.runtime.initial_model_pretraining import pretrain_initial_model
+from federated_learning_experiments.runtime.server_round_synchronization import (
+    CROSS_EVALUATION_MODEL_TRANSFER_POLICY_NAMES,
+)
 
 # 初期モデルの正式ID。
 _INITIAL_MODEL_ID = 0
@@ -63,6 +66,11 @@ class FedsdaRunParticipantSettings:
     model_clustering_criteria: ModelClusteringCriteria
     # サーバのクロス評価で、1つのモデルを評価するclientの上限。
     maximum_evaluating_client_count_per_model: int
+    # クロス評価のモデルの送り方。`send_candidate_models_for_cross_evaluation`は、評価するclientへ候補のモデルを
+    # 送る（旧と同じ）。`reuse_distributed_models_for_cross_evaluation`は、クロス評価の前に全モデルを配布し、
+    # clientは受け取ったモデルを候補として評価する（クロス評価ではメッセージだけを送り、統合が起きたら、
+    # 値が変わった代表のモデルを送り直す）。状態の更新は同じで、通信量の記録だけが違う。
+    cross_evaluation_model_transfer_policy: str
 
     def __post_init__(self) -> None:
         for settings_field_name, required_type in _REQUIRED_SETTINGS_TYPE_BY_FIELD_NAME.items():
@@ -107,6 +115,20 @@ class FedsdaRunParticipantSettings:
                 configuration_parameter_name="maximum_evaluating_client_count_per_model",
                 specified_parameter_value=self.maximum_evaluating_client_count_per_model,
                 validation_failure_reason="正のbuiltin intを指定してください。",
+            )
+        if (
+            type(self.cross_evaluation_model_transfer_policy) is not str
+            or self.cross_evaluation_model_transfer_policy
+            not in CROSS_EVALUATION_MODEL_TRANSFER_POLICY_NAMES
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="cross_evaluation_model_transfer_policy",
+                specified_parameter_value=self.cross_evaluation_model_transfer_policy,
+                validation_failure_reason=(
+                    "次のどれかを指定してください: "
+                    + "、".join(CROSS_EVALUATION_MODEL_TRANSFER_POLICY_NAMES)
+                    + "。"
+                ),
             )
         maximum_same_cluster_decision_score = (
             self.model_clustering_criteria.maximum_same_cluster_decision_score
@@ -259,6 +281,9 @@ class FedsdaRunParticipantFactory:
             model_clustering_criteria=run_participant_settings.model_clustering_criteria,
             maximum_evaluating_client_count_per_model=(
                 run_participant_settings.maximum_evaluating_client_count_per_model
+            ),
+            cross_evaluation_model_transfer_policy=(
+                run_participant_settings.cross_evaluation_model_transfer_policy
             ),
             python_random_generator=python_random_generator,
         )

@@ -1408,6 +1408,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
             model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
         ),
         maximum_evaluating_client_count_per_model=WHOLE_RUN_CLIENT_COUNT,
+        cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
     )
     torch_random_state = torch.get_rng_state().clone()
     # モデルの計算の計測つきで実行する（計測は、この呼出しの間だけ）。
