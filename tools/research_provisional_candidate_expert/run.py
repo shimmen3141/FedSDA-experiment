@@ -52,7 +52,15 @@ _VARIANTS = {
     # 待ちの間も現行であり続けたモデルだけを登録するので、短命なモデルはサーバへ共有されない。
     "no-validation-upload-delay2": ("fedsda-without-candidate-validation", False, None),
     "no-validation-upload-delay3": ("fedsda-without-candidate-validation", False, None),
+    # アイデア2: 候補の学習で共有部を更新しない（候補のheadとadapterだけを、警報の時点の共有部の上で学習する）。
+    # 検証なしでは、候補をその場で採用するので、採用のときの共有部の上書きが実質的に起きない。
+    "no-validation-frozen-candidate-backbone": ("fedsda-without-candidate-validation", False, None),
+    "validation-frozen-candidate-backbone": ("fedsda", False, None),
 }
+_FROZEN_CANDIDATE_BACKBONE_VARIANTS = (
+    "no-validation-frozen-candidate-backbone",
+    "validation-frozen-candidate-backbone",
+)
 _UPLOAD_DELAY_ROUND_COUNT_BY_VARIANT = {
     "no-validation-upload-delay2": 2,
     "no-validation-upload-delay3": 3,
@@ -293,6 +301,21 @@ def _sequential_test_policy(*, events):
         yield
 
 
+@contextmanager
+def _frozen_candidate_backbone_policy(*, events):
+    """候補の学習（`candidate_epoch_training`）の共同更新で、共有部を更新しない（実行の間だけ包む）。"""
+    import federated_learning_experiments.learning.training.candidate_epoch_training as training_module
+
+    original_update = training_module.perform_joint_model_parameter_update
+
+    def update(**arguments):
+        events.append(dict(event="frozen_candidate_update"))
+        return original_update(**{**arguments, "update_shared_features": False})
+
+    with patch.object(training_module, "perform_joint_model_parameter_update", update):
+        yield
+
+
 def _table_row_count(tables, prefix):
     """記録の表の、その表名の最初の列の行数（表が無ければ0）。"""
     columns = sorted(name for name in tables if name.startswith(prefix))
@@ -374,6 +397,8 @@ def _execute_job(job):
     with contextlib.ExitStack() as stack:
         if job["variant"] in _SEQUENTIAL_TEST_VARIANTS:
             stack.enter_context(_sequential_test_policy(events=events))
+        if job["variant"] in _FROZEN_CANDIDATE_BACKBONE_VARIANTS:
+            stack.enter_context(_frozen_candidate_backbone_policy(events=events))
         if uses_provisional_expert:
             stack.enter_context(
                 _provisional_expert_policy(
@@ -430,6 +455,7 @@ def _execute_job(job):
             }
         ),
         session_starts=sum(e["event"] == "session_start" for e in events),
+        frozen_candidate_update_count=sum(e["event"] == "frozen_candidate_update" for e in events),
         sequential_test_decisions={
             decision: sum(e["decision"] == decision for e in tests)
             for decision in ("accept", "reject", "timeout")
