@@ -93,7 +93,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6)
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7)
 BASELINE_VERSION = 6
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
@@ -276,7 +276,29 @@ CASE_NAMES_BY_BASELINE_VERSION = {
         "fedsda-sine2-reference-reuse",
         "fedsda-sine2-alternative-reference-reuse",
     ),
+    # 版7では、候補検証の経路を守る大きい条件の4ケースを、構成`fedsda-with-candidate-validation`（版6までの
+    # 既定と同じ設定）で実行する。新しい既定（候補検証なし＋候補の共有部の固定）の経路は、同じ条件の2ケース
+    # （seedも同じ0。2026-10-20の下調べで、採用・切替え・再較正が起き、sine2では統合も起きた）で守る。
+    7: (
+        *_VERSION_1_CASE_NAMES,
+        "fedsda-sine2-reference-reuse",
+        "fedsda-sine2-alternative-reference-reuse",
+        "fedsda-sine2-adoption-without-validation",
+        "fedsda-mnist2-adoption-without-validation",
+    ),
 }
+# 候補検証の経路を守る、大きい条件のFedSDAのケース。
+CANDIDATE_VALIDATION_PATH_CASE_NAMES = (
+    "fedsda-sine2-events",
+    "fedsda-mnist2-decisions",
+    "fedsda-sine2-reference-reuse",
+    "fedsda-sine2-alternative-reference-reuse",
+)
+# 新しい既定（候補検証なし＋候補の共有部の固定）の経路を守る、大きい条件のFedSDAのケース（版7から）。
+ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES = (
+    "fedsda-sine2-adoption-without-validation",
+    "fedsda-mnist2-adoption-without-validation",
+)
 CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[BASELINE_VERSION]
 ENVIRONMENT_KEYS = {"system", "machine", "python", "numpy", "torch", "device", "dtype", "threads"}
 CASE_KEYS = {"run_settings", "run_metrics", "record_tables", "global_parameters", "coverage"}
@@ -310,11 +332,16 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
         "fedsda-sine2-events",
         "fedsda-sine2-reference-reuse",
         "fedsda-sine2-alternative-reference-reuse",
+        "fedsda-sine2-adoption-without-validation",
     )
-    rich = sine2_rich or case_name == "fedsda-mnist2-decisions"
-    mnist = case_name == "fedsda-mnist2-decisions"
+    mnist = case_name in ("fedsda-mnist2-decisions", "fedsda-mnist2-adoption-without-validation")
+    rich = sine2_rich or mnist
     configuration = (
-        "fedsda"
+        # 版7からは、候補検証の経路のケースを、版6までの既定と同じ設定の構成で実行する（版6までは、既定から
+        # 組み立て、下の表で、候補検証ありに明示する。どちらも同じ設定になる）。
+        "fedsda-with-candidate-validation"
+        if case_name in CANDIDATE_VALIDATION_PATH_CASE_NAMES and baseline_version >= 7
+        else "fedsda"
         if rich
         else "feddrift"
         if case_name == "feddrift-drift-tail"
@@ -708,6 +735,14 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
         registered_model_count=int(column("model_registration.model_id").size),
         detection_count=run.run_metrics.training_model_switch_detection_metrics.detection_count,
     )
+    if baseline_version >= 7 and type(run.run_settings) not in (
+        FedavgRunSettings,
+        FeddriftRunSettings,
+    ):
+        # 採用した候補の数（検証ありの採用も含む。新しい既定では、全部が検証なしの採用）。
+        coverage.update(
+            adopted_candidate_count=run.run_metrics.change_response_metrics.adaptation_action_metrics.adopt_candidate_model_count
+        )
     if baseline_version >= 2:
         coverage.update(unregistered_adopted_model_count=count_unregistered_adopted_models(run))
     if baseline_version >= 3 and type(run.run_settings) not in (
@@ -778,6 +813,20 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
             assert coverage["merged_model_count"] > 0, case_name
         else:
             assert "second_segment_margin_failed" in reasons, (case_name, reasons)
+    if case_name in ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES:
+        # 検証の判定は無く、候補を、その場で採用する。学習帰属の切替えと、予測の重みの再較正も起きる。
+        assert coverage["candidate_accepted_count"] == coverage["candidate_rejected_count"] == 0
+        assert coverage["decision_reasons"] == []
+        for key in (
+            "adopted_candidate_count",
+            "training_model_switch_count",
+            "recalibration_replayed_sample_count",
+        ):
+            assert coverage[key] > 0, f"{case_name}: required {key}"
+        if case_name == "fedsda-sine2-adoption-without-validation":
+            assert coverage["merged_model_count"] > 0, case_name
+            # 切替えが採用より多い（保有モデルの再利用の経路も通る）。
+            assert coverage["training_model_switch_count"] > coverage["adopted_candidate_count"]
     if case_name == "feddrift-drift-tail":
         assert coverage["detection_count"] > 0 and coverage["registered_model_count"] > 1, coverage
         assert coverage["processed_sample_count_per_client"] == 16, coverage

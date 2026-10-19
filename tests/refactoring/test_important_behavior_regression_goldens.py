@@ -479,6 +479,71 @@ def test_baseline_6_differs_from_5_only_on_the_prediction_side():
     assert prediction_records_changed
 
 
+# 版7で、版6と同じ値であるケース: 候補検証の経路の4ケース（版6までの既定と同じ設定の構成で実行する）、
+# FedDrift・FedAvg、候補検証を外した構成（設定は、版6と同じ）。ほかのFedSDAのケースは、新しい既定を引き継ぐ。
+_BASELINE_7_CASES_KEEPING_BASELINE_6 = (
+    *golden.CANDIDATE_VALIDATION_PATH_CASE_NAMES,
+    "fedsda-without-candidate-validation",
+    "feddrift",
+    "fedavg",
+    "feddrift-drift-tail",
+    "fedavg-no-complete-interval",
+)
+
+
+def test_baseline_7_adds_the_new_default_cases_and_changes_only_candidate_settings():
+    """版7のケースは、版6の全部と、新しい既定の2ケース。設定は、新しい既定を引き継ぐケースだけ、候補の2つの値が違う。"""
+    assert 7 in golden.SUPPORTED_BASELINE_VERSIONS
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[7] == (
+        *golden.CASE_NAMES_BY_BASELINE_VERSION[6],
+        *golden.ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES,
+    )
+    assert set(_BASELINE_7_CASES_KEEPING_BASELINE_6) <= set(
+        golden.CASE_NAMES_BY_BASELINE_VERSION[6]
+    )
+    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[6]:
+        previous = deepcopy(golden.comparable_run_settings(name, 6))
+        current = deepcopy(golden.comparable_run_settings(name, 7))
+        if name.startswith("fedsda"):
+            current_client = current["run_participant_settings"]["run_client_settings"]
+            shared_feature_policy = current_client["candidate_epoch_training_settings"].pop(
+                "candidate_shared_feature_update_policy"
+            )
+            if name not in _BASELINE_7_CASES_KEEPING_BASELINE_6:
+                # 新しい既定を引き継ぐケース: 候補を検証せずに採用し、共有部を固定する。
+                assert shared_feature_policy == "keep_shared_features_fixed", name
+                previous["run_participant_settings"]["run_client_settings"][
+                    "candidate_model_training_and_acceptance_settings"
+                ][
+                    "candidate_model_acceptance_policy"
+                ] = "current_model_first_reuse_then_candidate_adoption_without_validation"
+            else:
+                assert shared_feature_policy == "update_shared_features_with_candidate", name
+        golden.assert_case_matches(name, current, previous, "run_settings")
+    for name in golden.ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES:
+        client = golden.build_case_settings(name, 7).run_participant_settings.run_client_settings
+        assert (
+            client.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy,
+            client.candidate_epoch_training_settings.candidate_shared_feature_update_policy,
+        ) == (
+            "current_model_first_reuse_then_candidate_adoption_without_validation",
+            "keep_shared_features_fixed",
+        )
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("case_name", _BASELINE_7_CASES_KEEPING_BASELINE_6)
+def test_baseline_7_keeps_baseline_6_outside_the_new_default(case_name):
+    """候補検証の経路の4ケース、FedDrift・FedAvg、候補検証を外した構成は、版7でも、版6と同じ値。"""
+    previous = capture_case_once(case_name, 6)[0]
+    current = deepcopy(capture_case_once(case_name, 7)[0])
+    if case_name.startswith("fedsda"):
+        # 版7で足した経路の記録の項目（採用した候補の数）。版6には無い。
+        current["coverage"].pop("adopted_candidate_count")
+    for section in ("run_metrics", "record_tables", "global_parameters", "coverage"):
+        golden.assert_case_matches(case_name, current[section], previous[section], section)
+
+
 @pytest.mark.parametrize(
     ("previous_version", "next_version", "case_name"),
     [
