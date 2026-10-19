@@ -274,3 +274,35 @@ def test_invalid_cross_evaluation_model_transfer_policy_is_rejected(invalid_valu
         error_information.value.configuration_parameter_name
         == "cross_evaluation_model_transfer_policy"
     )
+
+
+def test_default_and_all_fedsda_configurations_reuse_distributed_models():
+    """最終構成の既定と、FedSDAの全部の構成は、配布するモデルを使う扱い。"""
+    from federated_learning_experiments.configuration.experiment_run_conditions import (
+        ExperimentRunConditions,
+    )
+    from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
+    from federated_learning_experiments.sweep.experiment_configurations import (
+        EXPERIMENT_CONFIGURATION_NAMES,
+        build_experiment_run_settings,
+    )
+
+    conditions = ExperimentRunConditions(
+        dataset_name="sine2",
+        random_seed=0,
+        client_count=2,
+        per_client_sample_count=40,
+        server_aggregation_interval_per_client_samples=10,
+    )
+    fedsda_configuration_count = 0
+    for configuration_name in EXPERIMENT_CONFIGURATION_NAMES:
+        run_settings = build_experiment_run_settings(
+            configuration_name=configuration_name, experiment_run_conditions=conditions
+        )
+        if type(run_settings) is not FedsdaRunSettings:
+            continue
+        fedsda_configuration_count += 1
+        assert (
+            run_settings.run_participant_settings.cross_evaluation_model_transfer_policy == REUSE
+        ), configuration_name
+    assert fedsda_configuration_count > 1

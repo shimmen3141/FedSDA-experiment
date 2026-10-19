@@ -240,7 +240,7 @@ def test_final_configuration_defaults_match_legacy_configuration(
     ——LEGACY-016とその見直し——。推定変化区間が最小件数に達するまで警報を待つ——IMPROVE-006——。
     短い警報のあと、取り込んだ前区間を保留から外す——LEGACY-002——。予測を、同期の時点と局所の2つの結合予測を
     混ぜて行い、Fixed-Shareの時間尺度を120にする——2026-10-16、研究バックログの8——。候補を検証せずに採用し、
-    候補の学習では共有部を固定する——2026-10-20——）。
+    候補の学習では共有部を固定する——2026-10-20——。クロス評価で、配布するモデルを使う——2026-10-20——）。
     """
     legacy_values, hidden_layer_widths = read_legacy_final_configuration_values(dataset_name)
     legacy_equivalent_run_settings = make_run_settings_from_legacy_values(
@@ -276,6 +276,8 @@ def test_final_configuration_defaults_match_legacy_configuration(
         legacy_equivalent_run_settings,
         run_participant_settings=replace(
             legacy_equivalent_run_settings.run_participant_settings,
+            # 2026-10-20から、クロス評価で配布するモデルを使う（通信量の記録だけが旧と違う）。
+            cross_evaluation_model_transfer_policy="reuse_distributed_models_for_cross_evaluation",
             run_client_settings=replace(
                 legacy_equivalent_client_settings,
                 pending_model_registration_settings=PendingModelRegistrationSettings(
