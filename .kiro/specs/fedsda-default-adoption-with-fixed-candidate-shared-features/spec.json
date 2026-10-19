@@ -3,7 +3,7 @@
   "created_at": "2026-10-20",
   "updated_at": "2026-10-20",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -43,5 +43,45 @@
     ],
     "selection_reason": "既定の変更と照合の論証。前specの指示（以後のレビューはLuna high）に従った"
   },
-  "current_task": "Task1"
+  "current_task": "全task完了。候補検証の処理を消すかは、ユーザーの判断を待つ（このspecの対象外）。",
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "high（ログで確認）",
+    "session_id": "01a15552-baef-7743-a7a3-d1c4e503f5dc",
+    "base_revision": "37ca477",
+    "target_revision": "169bec6",
+    "result": "PASS（指摘なし）。対象test・依存境界3677 passed、版7ほか18 passed、Ruff成功を独立に実行。fresh smokeはsandboxの一時ファイル権限で実行不能（環境制約の例外を適用）。全pytest・WSL・Pyrightは独立に実行していない。",
+    "output": "../../venv/refactoring-tests/frozen-default-impl-luna-1.log"
+  },
+  "validation": {
+    "source_revision": "169bec6",
+    "source_sha256_lf": "b80f724573635c5f950b4bbbda47cda530c591deadf2bb6251d57188cc842030",
+    "full_pytest": {
+      "passed": 14506,
+      "skipped": 8,
+      "failures": 0,
+      "errors": 0,
+      "exit_code": 0,
+      "junit": "../../venv/refactoring-tests/frozen-default-full.xml"
+    },
+    "wsl": {
+      "passed": 307,
+      "junit": "../../venv/refactoring-tests/frozen-default-wsl.xml"
+    },
+    "main_fresh_smoke": "exit0, 16 flows, original script",
+    "quality": "Ruff lint/format, Pyright 0 errors, pip check passed",
+    "fixed_legacy_and_old_goldens": "unchanged（tools/research_*を除く差分0行。spec_checks identityのNGは研究ツールを含むため）",
+    "full_pytest_independently_rerun": false
+  },
+  "golden_generation": {
+    "source_commit": "27944de",
+    "environments": [
+      "Windows Python3.13.15 NumPy2.4.6 torch2.12.1+cpu",
+      "WSL Linux Python3.14.4 NumPy2.4.6 torch2.12.1+cpu"
+    ],
+    "independent_processes_each": 2,
+    "cases_each": 21,
+    "status": "generated_and_installed"
+  }
 }
