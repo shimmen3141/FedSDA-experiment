@@ -5708,8 +5708,18 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_experiment_run.FedsdaExperimentRun",
             "federated_learning_experiments.runtime.fedsda_run_record_tables.build_fedsda_run_record_tables",
         )
+    if source_module_path == "sweep/seed_argument_parsing.py":
+        return imported_module_name in (
+            "re",
+            "argparse",
+            "argparse.Action",
+            "argparse.ArgumentError",
+            "argparse.ArgumentParser",
+            "argparse.Namespace",
+        )
     if source_module_path == "sweep/experiment_sweep_command.py":
         return imported_module_name in (
+            "federated_learning_experiments.sweep.seed_argument_parsing.SeedListArgumentAction",
             "sys.stdin",
             "sys.stdout",
             "argparse.Namespace",

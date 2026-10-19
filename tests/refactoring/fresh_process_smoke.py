@@ -2234,7 +2234,7 @@ def main():
             "--datasets",
             "sine2",
             "--seeds",
-            "0",
+            "0-0",
             "--client-count",
             "2",
             "--per-client-sample-count",

@@ -464,6 +464,8 @@ def main(argv: list[str] | None = None) -> int:
 
     stdoutでは入力を変更しない。通常出力も新規ディレクトリへの保存のみ。
     """
+    from federated_learning_experiments.sweep.seed_argument_parsing import SeedListArgumentAction
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline-directory", required=True, type=Path)
     parser.add_argument("--ablation-directory", required=True, type=Path)
@@ -471,7 +473,13 @@ def main(argv: list[str] | None = None) -> int:
         "--configurations", nargs="+", choices=_CONFIGURATIONS, default=list(_CONFIGURATIONS)
     )
     parser.add_argument("--datasets", nargs="+", choices=_DATASETS, default=list(_DATASETS))
-    parser.add_argument("--seeds", nargs="+", type=int, default=list(range(5)))
+    parser.add_argument(
+        "--seeds",
+        nargs="+",
+        action=SeedListArgumentAction,
+        default=list(range(5)),
+        help="seed列挙と両端込み範囲（0-2 5）。重複不可、展開後100000個以内",
+    )
     parser.add_argument("--aggregation-intervals", nargs="+", type=int, default=[50, 100, 200, 500])
     parser.add_argument("--client-count", type=int, default=10)
     parser.add_argument("--per-client-sample-count", type=int, default=5000)

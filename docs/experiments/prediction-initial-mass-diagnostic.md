@@ -1,5 +1,7 @@
 # 新モデルの予測初期質量の診断
 
+`--seeds 0-2`は`--seeds 0 1 2`と同じ。終端込みで、`0-2 5 8-9`の混在も可。各値は0以上2**32未満、重複・逆順は不可、展開後100000個以内。[seed指定の共通説明](experiment-sweep.md#seedの列挙と範囲)。
+
 通常構成には追加しない研究用対照。[spec](../../.kiro/specs/prediction-initial-mass-diagnostic/design.md)。共通src・設定・pytest/CI/fresh・Ruff登録は変更しない。コードは`tools/research_prediction_initial_mass/`に閉じ、専用検証も明示実行だけ。既存DのCLIとは独立する。
 
 |mode|意味|

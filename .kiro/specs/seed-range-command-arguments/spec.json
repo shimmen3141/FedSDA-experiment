@@ -1,0 +1,76 @@
+{
+  "feature_name": "seed-range-command-arguments",
+  "created_at": "2026-10-19T10:11:08.506871+09:00",
+  "updated_at": "2026-10-19T10:57:19.939742+09:00",
+  "language": "ja",
+  "phase": "completed",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "naming": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "ready_for_implementation": true,
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "base_commit": "ab9280e",
+    "initial_verdict": "FAIL: Major1 Minor3; clarified uint32 validation, repeated flag test, naming, documentation targets",
+    "session_id": "01a151b6-5ed4-7012-8102-4261157089cb",
+    "log": "../../venv/refactoring-tests/seed-range-spec-review.log",
+    "cli_recheck": "incomplete due to usage limit; not a PASS",
+    "recheck_reviewer": "/root/seed_range_review",
+    "recheck_model": "gpt-6-luna",
+    "recheck_effort": "high",
+    "recheck_verdict": "PASS Blocker0/Major0/Minor0"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "reviewer": "/root/seed_range_review",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "base_commit": "ab9280e",
+    "findings": "Blocker0/Major0/Minor0",
+    "independent_tests_passed": 3154,
+    "independent_temp_blocked": 4,
+    "scope": "source review; full pytest and fresh completion pending",
+    "independent_quality": "Ruff and format passed; main Pyright 0 errors log checked",
+    "main_evidence_for_blocked_tests": "seed-range-target.log: 3280 passed, including 4 tmp_path cases",
+    "fresh": "main 16 flows passed; independent not run",
+    "full_pytest": "レビュー後に主担当が実測、完了証拠を独立照合"
+  },
+  "completion_evidence_review": {
+    "status": "passed",
+    "reviewer": "/root/seed_range_review",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "findings": "Blocker0/Major0/Minor0",
+    "verified": "JUnit14451件、failure/error0、skip8、新規31件、回帰2testcase、fresh16、保護範囲の差分なし"
+  },
+  "integration_validation": {
+    "target_passed": 3280,
+    "prediction_checks_passed": 19,
+    "component_checks_passed": 26,
+    "full_pytest_passed": 14443,
+    "full_pytest_skipped": 8,
+    "full_pytest_seconds": 517.45,
+    "junit": "../../venv/refactoring-tests/seed-range-full.xml",
+    "fresh_log": "../../venv/refactoring-tests/seed-range-fresh.log",
+    "fresh_flows": 16,
+    "quality": "Ruff/format/Pyright/pip check/公開名検査成功",
+    "scope": "seed引数の解釈と4CLI接続だけ。学習/評価/乱数/既存golden/保存schemaを変更せず、mainへマージしない。"
+  }
+}

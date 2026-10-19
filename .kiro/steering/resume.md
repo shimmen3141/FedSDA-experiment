@@ -1,3 +1,9 @@
+## seed範囲指定のCLI対応を完了（2026-10-19、Codex）
+
+[seed-range-command-arguments](../specs/seed-range-command-arguments/tasks.md)完了。`--seeds 0-9`は終端込み、`0-2 5 8-9`の混在可。重複/逆順/uint32範囲外は拒否、展開前に100000件上限を検査。通常掃引・挙動比較・予測初期質量研究CLI・component ablation解析で共通Actionを使い、後段の設定/識別子/再開と記録形式は維持した。
+
+独立Luna highの仕様/実装/完了証拠の確認と全pytestを完了。件数・権限制約・元指摘の修正と検証commitの正本は同spec。使用例は[通常掃引のseed説明](../../docs/experiments/experiment-sweep.md#seedの列挙と範囲)。他軸の範囲やgroup指定は提案のみで未実装。mainへマージしない。
+
 ## FedSDAの通常全体runへ同期末回収を接続済み（2026-10-19、Codex）
 
 [fedsda-runtime-memory-reclamation](../specs/fedsda-runtime-memory-reclamation/tasks.md)完了。[通常実行の説明](../../docs/experiments/fedsda-runtime-memory-reclamation.md)。Linux/glibcでは既存コマンドのまま正常同期末に回収、Windows等はno-op。runtimeの新moduleと既存wrapperへの1呼出しに限定し、共通loop/sweep・モデル/学習・設定/成果物形式・goldenは未変更。FedDrift/FedAvgは対象外。

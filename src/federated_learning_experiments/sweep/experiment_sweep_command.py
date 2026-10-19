@@ -53,6 +53,7 @@ from federated_learning_experiments.sweep.experiment_sweep_resumption import (
     hold_sweep_output_lock,
     write_sweep_resumption_plan,
 )
+from federated_learning_experiments.sweep.seed_argument_parsing import SeedListArgumentAction
 
 # リポジトリの直下（このファイルは、`src/federated_learning_experiments/sweep/`にある）。
 _REPOSITORY_DIRECTORY = Path(__file__).resolve().parents[3]
@@ -132,7 +133,12 @@ def _build_argument_parser() -> ArgumentParser:
         "--datasets", nargs="+", required=True, metavar="NAME", help="datasetの名前"
     )
     argument_parser.add_argument(
-        "--seeds", nargs="+", required=True, type=int, metavar="SEED", help="乱数のseed"
+        "--seeds",
+        nargs="+",
+        required=True,
+        action=SeedListArgumentAction,
+        metavar="SEED",
+        help="乱数のseed。0-9は両端込み、0-2 5の混在可。重複不可、展開後100000個以内",
     )
     argument_parser.add_argument(
         "--client-count", type=int, default=10, help="clientの数（既定10）"

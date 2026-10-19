@@ -198,9 +198,17 @@ def _execute_job(job):
 
 
 def _main(argv=None):
+    from federated_learning_experiments.sweep.seed_argument_parsing import SeedListArgumentAction
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cases", nargs="+", required=True, help="dataset:集約間隔")
-    parser.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
+    parser.add_argument(
+        "--seeds",
+        action=SeedListArgumentAction,
+        nargs="+",
+        default=[0, 1, 2],
+        help="seed列挙と両端込み範囲（0-2 5）。重複不可、展開後100000個以内",
+    )
     parser.add_argument("--modes", choices=_MODES, nargs="+", default=list(_MODES))
     parser.add_argument("--sample-count", type=int, default=5000)
     parser.add_argument("--workers", type=int, default=1)

@@ -989,7 +989,9 @@ def test_command_rejects_invalid_plans_before_running(tmp_path, capsys, invalid_
         == 2
     )
     assert not output_directory.exists()
-    assert "invalid sweep plan" in capsys.readouterr().err
+    error_output = capsys.readouterr().err
+    # seedの誤指定は、計画の構築より前に共通parserで拒否される。
+    assert "invalid sweep plan" in error_output or "argument --seeds" in error_output
 
 
 def test_repository_script_runs_without_installation_or_environment_variables(tmp_path):

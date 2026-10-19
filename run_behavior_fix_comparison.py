@@ -24,6 +24,8 @@
 出どころを書いた`README.md`を（無ければ）作る。1つの出力先は、1つの実験（1つの目的）に使う。
 
 使い方（例）:
+    seedは`--seeds 0-9`（終端込み）や`--seeds 0-2 5 8-9`とも書ける。
+    各値は0以上2**32未満。重複・逆順は不可、展開後100000個以内。
     python run_behavior_fix_comparison.py --datasets sine2 circle2 sea4 mnist2 --seeds 0 1 2 3 4 5 6 7 8 9 \\
         --aggregation-intervals 50 --workers 14 --label waited-registration \\
         --purpose "現行として待つ登録の効果を、本規模で確かめる"
@@ -149,9 +151,14 @@ def build_planned_runs(parsed_arguments):
 
 
 def main(command_arguments=None):
+    from federated_learning_experiments.sweep.seed_argument_parsing import SeedListArgumentAction
+
     argument_parser = ArgumentParser(description=__doc__.split("\n\n")[0])
     argument_parser.add_argument("--datasets", nargs="+", required=True)
-    argument_parser.add_argument("--seeds", nargs="+", required=True, type=int)
+    argument_parser.add_argument(
+        "--seeds", nargs="+", required=True, action=SeedListArgumentAction,
+        help="seed列挙と両端込み範囲（0-2 5）。重複不可、展開後100000個以内",
+    )
     argument_parser.add_argument("--aggregation-intervals", nargs="+", required=True, type=int)
     argument_parser.add_argument("--client-count", type=int, default=10)
     argument_parser.add_argument("--per-client-sample-count", type=int, default=5000)
