@@ -27,4 +27,4 @@
 
 独立Luna highが完了証拠を確認しPASS、追加指摘0。JUnitの14451件・failure/error0・skip8、新規31件の成功、2回帰testcaseの成功、fresh16の成功マーカー、methods/learning/data/runtime・旧回帰test/goldenの差分なしを照合した。全pytest/fresh自体は主担当の実測であり独立再実行ではない。CLI/研究toolsの引数処理は意図した変更で、汎用identityの固定旧tools全体との空diff条件は適用できないため、保護対象を別途照合した。
 
-全task完了。検証source/testのcommitとLF hashはcommit後に追記する。mainへマージしない。
+全task完了。検証source/testのcommitは`37bc7e0`。tracked Python/2goldenのLF hashはspec.jsonのintegration_validationへ記録した。mainへマージしない。

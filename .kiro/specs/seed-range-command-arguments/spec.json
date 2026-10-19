@@ -71,6 +71,9 @@
     "fresh_log": "../../venv/refactoring-tests/seed-range-fresh.log",
     "fresh_flows": 16,
     "quality": "Ruff/format/Pyright/pip check/公開名検査成功",
-    "scope": "seed引数の解釈と4CLI接続だけ。学習/評価/乱数/既存golden/保存schemaを変更せず、mainへマージしない。"
+    "scope": "seed引数の解釈と4CLI接続だけ。学習/評価/乱数/既存golden/保存schemaを変更せず、mainへマージしない。",
+    "tested_commit": "37bc7e0bf414878dca9a2e639a367cc74be5db54",
+    "source_sha256_lf": "e057b40d023e8b0a71442a47ba0144a8f7d01732b8a5e6b98f97d31f283c6f55",
+    "source_path_count": 494
   }
 }
