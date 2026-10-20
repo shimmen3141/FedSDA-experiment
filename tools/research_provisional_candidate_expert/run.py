@@ -109,6 +109,10 @@ _VARIANTS["default-prequential-reuse"] = ("fedsda", False, None)
 # 最も合う保有モデルから始めると、「そのモデルを区間で学習し直すと良くなるか」の比較になり、同じ概念でも
 # 新しいモデルの側へ偏るため。初期化の乱数は、runの乱数の状態を変えないように、分けて使う。
 _VARIANTS["default-prequential-reuse-fresh-learner"] = ("fedsda", False, None)
+# 帰属を1つの推論にまとめる案（`docs/research/fedsda-unified-concept-assignment-inference.md`の3）。検出器の合図と、
+# 再利用の判定（閾値0.1）を、直近L標本（帰属の保留の容量）の窓の中の区分けの比較（符号長）に置き換える。
+_UNIFIED_ASSIGNMENT_INFERENCE_VARIANTS = ("default-unified-assignment-inference",)
+_VARIANTS["default-unified-assignment-inference"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -681,6 +685,176 @@ def _prequential_reuse_policy(
 
 
 @contextmanager
+def _unified_assignment_inference_policy(*, optimizer_settings, share_rate, window_sample_count, grid_sample_count, events):
+    """検出と再利用の判定を、窓の中の区分けの比較へ置き換える（研究用。実行の間だけ包む）。
+
+    標本tの処理の前に、窓W=[t−L+1, t]（警報の後は、警報の次の標本から）について、次の符号長（nats）を比べる。
+    - 続く: Σ_W ℓ_c（cは現在のモデル）＋（窓の中の遷移の数）×(−ln(1−share_rate))。
+    - 切り替わる（位置τ、行き先s）: Σ_{i<τ} ℓ_c ＋ Σ_{i≥τ} ℓ_s ＋ 遷移の符号長（切り替わり1回は
+      −ln(share_rate)＋ln(行き先の数)、ほかは−ln(1−share_rate)）。sは、損失の統計を持つ、c以外の保有モデル、または
+      新しい概念（τから始めた、概念ごとの部分を初期化し直した逐次の学習者の損失）。τは、窓の中の、最小の変化区間
+      （grid）ごとの位置で、t−τ+1≧grid。
+    ℓは対数損失（−log 真のクラスの確率）。保有モデルの損失は、標本tの処理の前の分類器で、窓の標本を計算し直す。
+    切り替わる仮説の最小が、続く仮説より短ければ、警報とし、推定の変化の長さをt−τ+1、再利用の行き先をsとする。
+    """
+    import torch
+    from torch.nn import BCELoss, CrossEntropyLoss
+    from torch.nn.init import zeros_
+
+    import federated_learning_experiments.runtime.alarm_change_interval_resolution as resolution_module
+    import federated_learning_experiments.runtime.fedsda_run_client as client_module
+    from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
+        evaluate_classifier_per_sample_bounded_losses,
+    )
+    from federated_learning_experiments.learning.training.parameter_optimizer_construction import (
+        create_parameter_optimizer,
+    )
+    from federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment import (
+        AlarmIntervalModelReuseAssessment,
+    )
+    from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
+        OverallAndTrueClassLossMonitor,
+    )
+
+    original_process = client_module.process_observed_sample
+    original_observe = OverallAndTrueClassLossMonitor.observe_loss_after_label_observation
+    original_evaluate = resolution_module.evaluate_held_models_for_alarm_interval_reuse
+    # clientごとの窓の状態（保有モデルのregistryのidで分ける）。
+    states = {}
+    # 処理中の標本の判断（監視と再利用の評価が読む）。
+    decision = {}
+    learner_seed = [0]
+
+    def log_losses(classifier, x, y):
+        bounded = evaluate_classifier_per_sample_bounded_losses(classifier=classifier, input_features=x, observed_class_labels=y)
+        return -torch.log(torch.clamp(1.0 - bounded, min=1e-12))
+
+    def fresh_learner(classifier):
+        learner = copy.deepcopy(classifier)
+        learner_seed[0] += 1
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(learner_seed[0])
+            for module in (learner.model_owned_feature_transform, learner.classification_layer):
+                for submodule in module.modules():
+                    if hasattr(submodule, "reset_parameters"):
+                        submodule.reset_parameters()
+            expansion = getattr(learner.model_owned_feature_transform, "feature_expansion", None)
+            if expansion is not None:
+                zeros_(expansion.weight)
+                zeros_(expansion.bias)
+        parameters = tuple(p for name, p in learner.named_parameters() if not name.startswith("feature_extractor."))
+        return dict(classifier=learner, optimizer=create_parameter_optimizer(parameters=parameters, optimizer_settings=optimizer_settings), total=0.0)
+
+    def learn(learner, x, y):
+        model = learner["classifier"]
+        learner["total"] += float(log_losses(model, x, y).sum())
+        with torch.no_grad():
+            shared = model.extract_shared_features(x)
+        learner["optimizer"].zero_grad()
+        predictions = model.forward_from_shared_features(shared)
+        loss = BCELoss()(predictions, y) if model.class_count == 2 else CrossEntropyLoss()(predictions, y.reshape(-1).long())
+        loss.backward()
+        learner["optimizer"].step()
+
+    def process(**arguments):
+        registry = arguments["held_model_training_state_registry"]
+        loss_store = arguments["loss_statistics_store"]
+        observation = arguments["indexed_observation"]
+        state = states.setdefault(id(registry), dict(window=[], learners={}, origin=None))
+        x = observation.training_sample.input_features
+        y = observation.training_sample.observed_class_labels
+        t = observation.sample_index
+        if state["origin"] is None:
+            state["origin"] = t
+        window = state["window"]
+        window.append((t, x, y))
+        del window[: max(len(window) - window_sample_count, 0)]
+        # 新しい概念の学習者: gridごとの位置で始め、窓より前に始めたものは捨てる。
+        if (t - state["origin"]) % grid_sample_count == 0:
+            state["learners"][t] = fresh_learner(registry.get_held_model_training_state(model_id=arguments["current_training_model_assignment"].current_training_model_id).classifier)
+        for start in [s for s in state["learners"] if s < window[0][0]]:
+            del state["learners"][start]
+        for learner in state["learners"].values():
+            learn(learner, x, y)
+        current = arguments["current_training_model_assignment"].current_training_model_id
+        features = torch.cat([w[1] for w in window])
+        labels = torch.cat([w[2] for w in window])
+        held_ids = [s.model_id for s in registry.snapshot_ordered_held_model_training_states()]
+        losses = {m: log_losses(registry.get_held_model_training_state(model_id=m).classifier, features, labels).tolist() for m in held_ids}
+        destinations = [m for m in held_ids if m != current and loss_store.get_model_loss_statistics(model_id=m) is not None]
+        n = len(window)
+        stay_step = -math.log(1.0 - share_rate)
+        switch_step = -math.log(share_rate) + math.log(len(destinations) + 1)
+        stay = sum(losses[current]) + (n - 1) * stay_step
+        best = None
+        for position, (index, _, _) in enumerate(window):
+            span = t - index + 1
+            if span < grid_sample_count:
+                continue
+            # 遷移はn−1回で、そのうち1回が切り替わり。
+            before = sum(losses[current][:position]) + (n - 2) * stay_step + switch_step
+            candidates = [(sum(losses[m][position:]), m) for m in destinations]
+            if index in state["learners"]:
+                candidates.append((state["learners"][index]["total"], None))
+            for after, destination in candidates:
+                total = before + after
+                if best is None or total < best[0]:
+                    best = (total, index, destination)
+        decision.clear()
+        if best is not None and best[0] < stay:
+            decision.update(alarm=True, start=best[1], span=t - best[1] + 1, destination=best[2])
+            events.append(dict(event="unified_alarm", new=best[2] is None, span=t - best[1] + 1))
+        else:
+            decision.update(alarm=False)
+        try:
+            result = original_process(**arguments)
+        finally:
+            decided = dict(decision)
+            decision.clear()
+        if decided.get("alarm") and result.alarm_occurrence_handling is not None:
+            # 警報の後は、窓と学習者を空にする（警報の次の標本から数える）。
+            state["window"] = []
+            state["learners"] = {}
+            state["origin"] = None
+        return result
+
+    def observe(self, **arguments):
+        observation = original_observe(self, **arguments)
+        if not decision:
+            return observation
+        events.append(dict(event="detector_signal", detected=bool(observation.drift_detected)))
+        if decision["alarm"]:
+            return dataclasses.replace(
+                observation,
+                drift_detected=True,
+                detector_candidate_start_sample_index=decision["start"],
+                estimated_change_span_sample_count=decision["span"],
+            )
+        return dataclasses.replace(observation, drift_detected=False)
+
+    def evaluate(**arguments):
+        assessment = original_evaluate(**arguments)
+        if not decision.get("alarm"):
+            return assessment
+        supported = assessment.baseline_supported_interval_mean_losses_by_model_id
+        destination = decision["destination"]
+        reusable = tuple((m, loss) for m, loss in supported if m == destination)
+        if destination is not None and not reusable:
+            events.append(dict(event="unified_destination_without_baseline"))
+        events.append(dict(event="unified_resolution", reuse=bool(reusable)))
+        return AlarmIntervalModelReuseAssessment(
+            baseline_supported_interval_mean_losses_by_model_id=supported, reusable_mean_losses_by_model_id=reusable
+        )
+
+    with (
+        patch.object(client_module, "process_observed_sample", process),
+        patch.object(OverallAndTrueClassLossMonitor, "observe_loss_after_label_observation", observe),
+        patch.object(resolution_module, "evaluate_held_models_for_alarm_interval_reuse", evaluate),
+    ):
+        yield
+
+
+@contextmanager
 def _frozen_candidate_backbone_policy(*, events):
     """候補の学習（`candidate_epoch_training`）の共同更新で、共有部を更新しない（実行の間だけ包む）。"""
     import federated_learning_experiments.learning.training.candidate_epoch_training as training_module
@@ -795,6 +969,17 @@ def _execute_job(job):
             stack.enter_context(_sequential_test_policy(events=events))
         if job["variant"] in _FROZEN_CANDIDATE_BACKBONE_VARIANTS:
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
+        if job["variant"] in _UNIFIED_ASSIGNMENT_INFERENCE_VARIANTS:
+            stack.enter_context(
+                _unified_assignment_inference_policy(
+                    optimizer_settings=client_settings.parameter_optimizer_settings,
+                    share_rate=1.0
+                    / client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,
+                    window_sample_count=client_settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples,
+                    grid_sample_count=client_settings.scalar_settings.minimum_change_interval_sample_count,
+                    events=events,
+                )
+            )
         if job["variant"] in _PREQUENTIAL_REUSE_VARIANTS:
             stack.enter_context(
                 _prequential_reuse_policy(
@@ -906,6 +1091,14 @@ def _execute_job(job):
                 ("original_rule_reuse", "original_reuse", True),
                 ("same_as_original_rule", "same_as_original", True),
             )
+        },
+        unified_assignment_inference={
+            "alarms": sum(e["event"] == "unified_alarm" for e in events),
+            "alarms_to_new": sum(e["event"] == "unified_alarm" and e["new"] for e in events),
+            "resolutions_reusing": sum(e["event"] == "unified_resolution" and e["reuse"] for e in events),
+            "resolutions_creating": sum(e["event"] == "unified_resolution" and not e["reuse"] for e in events),
+            "destinations_without_baseline": sum(e["event"] == "unified_destination_without_baseline" for e in events),
+            "detector_signals": sum(e["event"] == "detector_signal" and e["detected"] for e in events),
         },
         own_loss_fallback_count=sum(e["event"] == "own_loss_fallback_to_training_samples" for e in events),
         withdrawn_into_interval_sample_count=sum(
