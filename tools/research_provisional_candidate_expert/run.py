@@ -84,7 +84,12 @@ _PREQUENTIAL_REUSE_VARIANTS = (
     "default-prequential-reuse-fresh-learner",
     "default-prequential-reuse-fresh-learner-bounded-loss",
     "default-prequential-reuse-fresh-learner-horizon",
+    "default-prequential-reuse-fresh-learner-horizon-evaluation-samples",
 )
+# 先の長さを使う形で、ℓ_mを、学習に使っていない標本（警報の前区間から抜き出して保存している評価用の標本、
+# `ModelEvaluationSampleStore`）で測る。学習の標本で測ると水準を楽観的に見積もり、新しいモデルを作りすぎる
+# （IMPROVE-021の15）。評価用の標本が無いモデルは、学習の標本で測る（その数を記録する）。
+_VARIANTS["default-prequential-reuse-fresh-learner-horizon-evaluation-samples"] = ("fedsda", False, None)
 # 学習者を初期化し直す形に、保有モデルの「自分の概念での損失の水準」を、先の長さHの期待損失として入れる
 # （IMPROVE-021の14、MNIST2の崩れ）。保有モデルmの再利用は、(n＋H)×（区間でのmの1標本あたりの対数損失）、
 # 新しいモデルは、（逐次の学習者の区間の累積の対数損失）＋H×ℓ_m（ℓ_mは、mが自分の学習の標本で出す1標本あたりの
@@ -503,6 +508,7 @@ def _prequential_reuse_policy(
     starts_learner_fresh=False,
     compares_bounded_losses=False,
     horizon_sample_count=None,
+    measures_own_loss_on_evaluation_samples=False,
 ):
     """警報の区間の再利用の判定を、累積の対数損失の比較へ替える（研究用。実行の間だけ包む）。"""
     import torch
@@ -533,7 +539,27 @@ def _prequential_reuse_policy(
         finally:
             resolving.clear()
 
+    import federated_learning_experiments.runtime.alarm_occurrence_handling as alarm_handling_module
+
+    original_respond = alarm_handling_module.respond_to_alarm_with_buffered_samples
+    evaluation_sample_stores = []
+
+    def respond(**arguments):
+        evaluation_sample_stores.append(arguments["model_evaluation_sample_store"])
+        try:
+            return original_respond(**arguments)
+        finally:
+            evaluation_sample_stores.pop()
+
     def own_mean_log_loss(classifier, model_id):
+        if measures_own_loss_on_evaluation_samples and evaluation_sample_stores:
+            collections = evaluation_sample_stores[-1].snapshot_ordered_model_evaluation_samples()
+            samples = next((c.evaluation_samples for c in collections if c.model_id == model_id), ())
+            if samples:
+                features = torch.cat([s.input_features for s in samples])
+                labels = torch.cat([s.observed_class_labels for s in samples])
+                return float(log_losses(classifier, features, labels).mean())
+            events.append(dict(event="own_loss_fallback_to_training_samples"))
         collections = resolving["training_sample_store"].snapshot_ordered_model_training_samples()
         samples = next((c.training_samples for c in collections if c.model_id == model_id), ())
         if not samples:
@@ -644,6 +670,7 @@ def _prequential_reuse_policy(
     with (
         patch.object(resolution_module, "evaluate_held_models_for_alarm_interval_reuse", evaluate),
         patch.object(buffer_module, "resolve_alarm_change_interval", resolve),
+        patch.object(alarm_handling_module, "respond_to_alarm_with_buffered_samples", respond),
     ):
         yield
 
@@ -773,13 +800,20 @@ def _execute_job(job):
                         "default-prequential-reuse-fresh-learner",
                         "default-prequential-reuse-fresh-learner-bounded-loss",
                         "default-prequential-reuse-fresh-learner-horizon",
+                        "default-prequential-reuse-fresh-learner-horizon-evaluation-samples",
                     ),
                     compares_bounded_losses=job["variant"] == "default-prequential-reuse-fresh-learner-bounded-loss",
                     horizon_sample_count=(
                         client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
-                        if job["variant"] == "default-prequential-reuse-fresh-learner-horizon"
+                        if job["variant"]
+                        in (
+                            "default-prequential-reuse-fresh-learner-horizon",
+                            "default-prequential-reuse-fresh-learner-horizon-evaluation-samples",
+                        )
                         else None
                     ),
+                    measures_own_loss_on_evaluation_samples=job["variant"]
+                    == "default-prequential-reuse-fresh-learner-horizon-evaluation-samples",
                 )
             )
         if job["variant"] in _WITHDRAW_RELEASED_SAMPLE_VARIANTS:
@@ -865,6 +899,7 @@ def _execute_job(job):
                 ("same_as_original_rule", "same_as_original", True),
             )
         },
+        own_loss_fallback_count=sum(e["event"] == "own_loss_fallback_to_training_samples" for e in events),
         withdrawn_into_interval_sample_count=sum(
             e["count"] for e in events if e["event"] == "withdrawn_into_interval"
         ),
