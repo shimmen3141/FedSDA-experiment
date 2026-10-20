@@ -67,8 +67,13 @@ _VARIANTS = {
 }
 # IMPROVE-024: 警報の時点で、切り詰めない推定の変化点（警報の位置−検出器が推定した変化の長さ＋1）より後で、
 # 保留の窓より前に、現在のモデルへ解放した標本を、そのモデルの学習データ・概念の計数・損失の統計から外す。
-_WITHDRAW_RELEASED_SAMPLE_VARIANTS = ("default-withdraw-released",)
+_WITHDRAW_RELEASED_SAMPLE_VARIANTS = (
+    "default-withdraw-released",
+    "default-withdraw-released-into-interval",
+)
 _VARIANTS["default-withdraw-released"] = ("fedsda", False, None)
+# 外した標本を、警報の変化区間の先頭へ足す（再利用の判定・候補の学習・帰属の材料に含める）。
+_VARIANTS["default-withdraw-released-into-interval"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -339,8 +344,14 @@ def _remove_bounded_loss_observation(*, loss_moments, observed_loss):
 
 
 @contextmanager
-def _withdraw_released_samples_policy(*, events):
-    """保留から現在のモデルへ解放した標本を記録し、警報の処理の直前に、推定の変化点より後のものを外す（研究用）。"""
+def _withdraw_released_samples_policy(*, events, includes_withdrawn_samples_in_change_interval=False):
+    """保留から現在のモデルへ解放した標本を記録し、警報の処理の直前に、推定の変化点より後のものを外す（研究用）。
+
+    `includes_withdrawn_samples_in_change_interval`がTrueなら、外した標本を、その警報の変化区間の先頭へ
+    （標本の番号の順に）足して、変化区間の解決（再利用の判定、候補の学習、帰属）へ渡す。変化区間の解決を
+    呼ばない警報（候補の検証中、短すぎる区間）では、外した標本は、どのモデルにも戻さない（数だけ記録する）。
+    """
+    import federated_learning_experiments.runtime.alarm_buffer_response as response_module
     import federated_learning_experiments.runtime.alarm_occurrence_handling as alarm_module
     import federated_learning_experiments.runtime.observed_sample_processing as processing_module
     from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
@@ -351,9 +362,30 @@ def _withdraw_released_samples_policy(*, events):
     original_release = processing_module.assign_released_pending_samples_to_current_training_model
     original_respond = alarm_module.respond_to_alarm_with_buffered_samples
     original_record_loss = ModelAndClassLossStatisticsStore.record_assigned_loss
+    original_resolve = response_module.resolve_alarm_change_interval
     # 保留のownerごとの、解放の記録（標本の番号、標本のオブジェクト、観測概念、損失、クラス）。
     releases = {}
     capturing = []
+    # 処理中の警報で外した、変化区間へ足す標本（標本の番号の順の、（標本、観測概念））。
+    withdrawn_for_interval = []
+
+    def resolve(**arguments):
+        prefix = list(withdrawn_for_interval)
+        withdrawn_for_interval.clear()
+        if prefix:
+            arguments = {
+                **arguments,
+                "change_interval_training_samples": (
+                    *(sample for sample, _ in prefix),
+                    *arguments["change_interval_training_samples"],
+                ),
+                "change_interval_sample_concept_ids": (
+                    *(concept for _, concept in prefix),
+                    *arguments["change_interval_sample_concept_ids"],
+                ),
+            }
+            events.append(dict(event="withdrawn_into_interval", count=len(prefix)))
+        return original_resolve(**arguments)
 
     def record_loss(self, *, model_id, observed_loss, observed_class_id=None):
         if capturing:
@@ -412,14 +444,27 @@ def _withdraw_released_samples_policy(*, events):
                         overall_loss_moments=overall, class_loss_moments_by_class_id=tuple(classes.items())
                     )
                 events.append(dict(event="withdraw_released", count=len(present), new_concept=withdrawn_new))
+                if includes_withdrawn_samples_in_change_interval:
+                    withdrawn_for_interval.extend(
+                        (sample, concept)
+                        for _, sample, concept, _, _ in sorted(candidates, key=lambda r: r[0])
+                        if id(sample) in present
+                    )
                 # 外した標本は、記録からも除く（二重に外さない）。
                 releases[id(arguments["pending_training_assignment_buffer"])] = [r for r in history if id(r[1]) not in present]
-        return original_respond(**arguments)
+        try:
+            return original_respond(**arguments)
+        finally:
+            # 変化区間の解決を呼ばなかった警報で、外したまま、どのモデルにも戻さなかった標本の数。
+            if withdrawn_for_interval:
+                events.append(dict(event="withdrawn_not_reassigned", count=len(withdrawn_for_interval)))
+                withdrawn_for_interval.clear()
 
     with (
         patch.object(processing_module, "assign_released_pending_samples_to_current_training_model", release),
         patch.object(alarm_module, "respond_to_alarm_with_buffered_samples", respond),
         patch.object(ModelAndClassLossStatisticsStore, "record_assigned_loss", record_loss),
+        patch.object(response_module, "resolve_alarm_change_interval", resolve),
     ):
         yield
 
@@ -540,7 +585,13 @@ def _execute_job(job):
         if job["variant"] in _FROZEN_CANDIDATE_BACKBONE_VARIANTS:
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
         if job["variant"] in _WITHDRAW_RELEASED_SAMPLE_VARIANTS:
-            stack.enter_context(_withdraw_released_samples_policy(events=events))
+            stack.enter_context(
+                _withdraw_released_samples_policy(
+                    events=events,
+                    includes_withdrawn_samples_in_change_interval=job["variant"]
+                    == "default-withdraw-released-into-interval",
+                )
+            )
         if uses_provisional_expert:
             stack.enter_context(
                 _provisional_expert_policy(
@@ -603,6 +654,12 @@ def _execute_job(job):
         frozen_candidate_update_count=sum(e["event"] == "frozen_candidate_update" for e in events),
         withdrawn_released_sample_count=sum(e["count"] for e in events if e["event"] == "withdraw_released"),
         withdrawn_new_concept_sample_count=sum(e["new_concept"] for e in events if e["event"] == "withdraw_released"),
+        withdrawn_into_interval_sample_count=sum(
+            e["count"] for e in events if e["event"] == "withdrawn_into_interval"
+        ),
+        withdrawn_not_reassigned_sample_count=sum(
+            e["count"] for e in events if e["event"] == "withdrawn_not_reassigned"
+        ),
         sequential_test_decisions={
             decision: sum(e["decision"] == decision for e in tests)
             for decision in ("accept", "reject", "timeout")

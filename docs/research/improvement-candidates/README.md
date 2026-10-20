@@ -39,7 +39,7 @@
 | IMPROVE-021 | 保有モデルの再利用の判定を固定のしきい値から検定へ替える | 保留（2026-10-20。規則の変更の効果は小さい。誤った再利用の主因はモデルの混ざりで、混ざりの87%は保留からの解放。IMPROVE-024へ） | [詳細](improve-021-statistical-test-for-held-model-reuse.md) |
 | IMPROVE-022 | 候補の学習の早期終了を単純にする | 見送り（2026-10-20。固定エポックはMNISTで大きく下がり、SINE2では上がる） | [詳細](improve-022-simplify-candidate-early-stopping.md) |
 | IMPROVE-023 | 候補検証を既定から外した後に残った設定を整理する | 未検証・未採用（2026-10-20。4案の4番目。候補検証の処理を消すかはユーザー判断待ち） | [詳細](improve-023-remove-settings-left-from-candidate-validation.md) |
-| IMPROVE-024 | 警報の時点で、推定した変化点より後に解放された標本を、古いモデルの学習データから外す | 検証中（2026-10-20。外すだけの変種は条件で分かれる——SINE2・500 +1.19pp、MNIST2・500 −0.72pp。区間へ含める変種が次） | [詳細](improve-024-withdraw-released-samples-after-estimated-change-point.md) |
+| IMPROVE-024 | 警報の時点で、推定した変化点より後に解放された標本を、古いモデルの学習データから外す | 検証中（2026-10-20。外すだけの変種、外した標本を変化区間へ足す変種とも、手元の3 seedでは一般的な改善にならない——足す変種は既定との差が−0.09〜+0.47pp。本規模で決着させるか保留かは未決） | [詳細](improve-024-withdraw-released-samples-after-estimated-change-point.md) |
 
 ## 決定（2026-10-13、ユーザー）
 
