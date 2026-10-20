@@ -120,4 +120,13 @@
 
 ### 6. 本規模の再測定と、共有部の送り直しの修正（2026-10-20）
 
-基準版8の本規模の再測定（uranium、`results/method-comparison-v8/20261020_131607_fedsda-old-and-new-default-seeds0-9/`、480 run）で、精度などは480 runすべてで版7と完全に一致し、下りは、MNIST・CIRCLE2で最大20〜27%減ったが、SEA2・SEA4では間隔500で18〜19%増えた。原因は、統合が共有部も加重平均するため、同じ値の共有部が浮動小数点の誤差（約1e-7）で変わり、版8の数え方では共有部を全clientへ送り直したことになること（SEAでは、統合1回の送り直しの約67%）。統合で同じ共有部を平均せずに保つ扱いを、基準版9として既定にした（[spec](../../../.kiro/specs/fedsda-consolidation-keeps-shared-features/tasks.md)）。版9の本規模の再測定は未実施。
+基準版8の本規模の再測定（uranium、`results/method-comparison-v8/20261020_131607_fedsda-old-and-new-default-seeds0-9/`、480 run）で、精度などは480 runすべてで版7と完全に一致し、下りは、MNIST・CIRCLE2で最大20〜27%減ったが、SEA2・SEA4では間隔500で18〜19%増えた。原因は、統合が共有部も加重平均するため、同じ値の共有部が浮動小数点の誤差（約1e-7）で変わり、版8の数え方では共有部を全clientへ送り直したことになること（SEAでは、統合1回の送り直しの約67%）。統合で同じ共有部を平均せずに保つ扱いを、基準版9として既定にした（[spec](../../../.kiro/specs/fedsda-consolidation-keeps-shared-features/tasks.md)）。版9の本規模の再測定は、7に記録した。
+
+### 7. 基準版9の本規模の再測定（2026-10-20）
+
+uraniumで、`results/method-comparison-v9/20261020_184218_fedsda-old-and-new-default-seeds0-9/`（`fedsda`・`fedsda-with-candidate-validation`、6データ、seed 0〜9、間隔50・100・200・500、10 client、各5000標本、480 run全完了、commit `a93edd810ccf`、基準版9、64 workersで87分）。版8（`results/method-comparison-v8/20261020_131607_fedsda-old-and-new-default-seeds0-9/`）・版7（`results/method-comparison-v7/`）と、同じ構成・データ・間隔・seedの対で比べた。script: `C:\Users\yshin\AppData\Local\Temp\claude\c--Users-yshin-Research-FedSDA-experiment\799b882d-c886-45dd-a18e-a06f3e20f4b4\scratchpad\v9_compare.py`。
+
+- 下り（新既定`fedsda`、版7に対する、データ×間隔ごとの10 seedの平均の比）: SEA2 −2.5〜+2.5%、SEA4 −8.5〜+2.5%、SINE2 −5〜−16%、CIRCLE2 +0.3〜−23%、MNIST2 −4〜−27%、MNIST4 −6〜−31%（SINE2・CIRCLE2・MNISTでは、間隔が長いほど減りが大きい）。版8でSEAの間隔500にあった18〜19%の増加は、無くなった。版8に対しては、48の構成×データ×間隔のうち45で減った（増えたのは、新既定のCIRCLE2・間隔50の+2.2%、旧既定のSEA4・間隔50とSINE2・間隔50の+0.5%）。上りの差は±2.5%以内。
+- 精度（版8に対する、データ×間隔ごとの10 seedの平均の差）: 新既定は、24のうち全部が−0.20〜+0.14pp（seedごとでは−0.69〜+0.82pp）。版9は、統合の浮動小数点の誤差を無くすので、その後の状態が少し変わり、版8と完全に一致するrunは少ない（精度と下りの両方が同じrunは、新既定で240のうち58、旧既定で76）。偏った向きは見えない。
+- 旧既定（`fedsda-with-candidate-validation`）は、MNIST4の間隔50・100・500で平均−0.47〜−0.54pp。ただし、seedごとの差は間隔50で−3.5〜+3.1pp、間隔100で−3.3〜+3.6ppと大きくばらつき（対のt値は−0.8・−0.9）、候補検証の判定が小さい状態の差に敏感なためとみる。間隔500は10 seedのうち9で0以下（平均−0.47pp、t値−2.5）だが、48の比較の中の1つで、多重比較の補正はしていない。ほかの23は−0.17〜+0.08pp。
+- 判断: 基準版9は、通信量の数え方の修正（版8）の副作用を除き、精度を変えずに下りを減らす。新既定の比較の基準を、版9のこの結果に置き換える。旧既定のMNIST4・間隔500の小さい低下は、追うなら、統合の前後で共有部が同じかどうかの記録を見る（未実施）。
