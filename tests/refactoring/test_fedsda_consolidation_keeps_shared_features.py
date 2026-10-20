@@ -169,3 +169,107 @@ def test_invalid_consolidated_shared_feature_policy_is_rejected(invalid_value):
     assert (
         error_information.value.configuration_parameter_name == "consolidated_shared_feature_policy"
     )
+
+
+def count_consolidations_and_shared_changes(run_settings):
+    """統合の後の送り直しの記録を包み、統合が起きた回数と、共有部が先に送った値とビット単位で違った回数を数える。"""
+    from unittest.mock import patch
+
+    import federated_learning_experiments.runtime.server_round_synchronization as round_module
+    from federated_learning_experiments.runtime.fedsda_experiment_run import (
+        execute_fedsda_experiment_run,
+    )
+    from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
+        split_shared_and_concept_specific_parameters,
+    )
+
+    counts = dict(consolidations=0, shared_changes=0)
+    original = round_module._record_consolidated_model_resend_volume
+
+    def wrapped(**arguments):
+        if arguments["model_id_mapping"]:
+            counts["consolidations"] += 1
+            repository = arguments["global_model_repository"]
+            shared = split_shared_and_concept_specific_parameters(
+                parameter_snapshot=repository.get_global_model_parameters(
+                    model_id=repository.global_model_ids[0]
+                )
+            )[0]
+            if not parameters_have_the_same_bits(
+                shared, arguments["early_distributed_shared_parameters"]
+            ):
+                counts["shared_changes"] += 1
+        return original(**arguments)
+
+    with patch.object(round_module, "_record_consolidated_model_resend_volume", wrapped):
+        execute_fedsda_experiment_run(run_settings=run_settings)
+    return counts
+
+
+@pytest.mark.slow
+def test_keeping_identical_shared_features_removes_shared_resends():
+    """統合が起きる全体runで、新しい扱いでは共有部の送り直しが0回、旧の扱いでは1回以上。"""
+    # goldenのケースの条件で、seedだけを1にする（seed 0では、旧の扱いでも統合の後の共有部が変わらない。
+    # 2026-10-20の下調べで、seed 1は統合2回とも、旧の扱いで共有部が変わった）。
+    case_settings = build_case_settings("fedsda-sine2-adoption-without-validation", 8)
+    run_settings = replace(
+        case_settings,
+        execution_settings=replace(
+            case_settings.execution_settings,
+            experiment_run_conditions=replace(
+                case_settings.execution_settings.experiment_run_conditions, random_seed=1
+            ),
+        ),
+    )
+    results = {}
+    for policy in (
+        "average_shared_features_with_concept_specific_parts",
+        "keep_identical_shared_features",
+    ):
+        results[policy] = count_consolidations_and_shared_changes(
+            replace(
+                run_settings,
+                run_participant_settings=replace(
+                    run_settings.run_participant_settings,
+                    consolidated_shared_feature_policy=policy,
+                ),
+            )
+        )
+    legacy = results["average_shared_features_with_concept_specific_parts"]
+    kept = results["keep_identical_shared_features"]
+    assert legacy["consolidations"] > 0 and kept["consolidations"] > 0, results
+    assert legacy["shared_changes"] > 0, results
+    assert kept["shared_changes"] == 0, results
+
+
+def test_default_and_all_fedsda_configurations_keep_identical_shared_features():
+    """最終構成の既定と、FedSDAの全部の構成は、同じ共有部を保つ扱い。"""
+    from federated_learning_experiments.configuration.experiment_run_conditions import (
+        ExperimentRunConditions,
+    )
+    from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
+    from federated_learning_experiments.sweep.experiment_configurations import (
+        EXPERIMENT_CONFIGURATION_NAMES,
+        build_experiment_run_settings,
+    )
+
+    conditions = ExperimentRunConditions(
+        dataset_name="sine2",
+        random_seed=0,
+        client_count=2,
+        per_client_sample_count=40,
+        server_aggregation_interval_per_client_samples=10,
+    )
+    fedsda_count = 0
+    for name in EXPERIMENT_CONFIGURATION_NAMES:
+        settings = build_experiment_run_settings(
+            configuration_name=name, experiment_run_conditions=conditions
+        )
+        if type(settings) is not FedsdaRunSettings:
+            continue
+        fedsda_count += 1
+        assert (
+            settings.run_participant_settings.consolidated_shared_feature_policy
+            == "keep_identical_shared_features"
+        ), name
+    assert fedsda_count > 1
