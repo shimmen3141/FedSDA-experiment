@@ -21,7 +21,7 @@
   - 完了条件: 文書が新しい扱いと、過去の結果の通信量の扱いを説明する。
   - _Requirements: 5.1_
 
-- [ ] 5. 実装レビューと最終検証
+- [x] 5. 実装レビューと最終検証
   - 独立CLIの実装レビュー、指摘の反映、全pytest・Ruff・Pyright・WSL（goldenの版1〜8と、このspecのtest）。
   - 完了条件: 実装レビューの判定と指摘の採否、全pytest（件数・exit・JUnit）、Ruff・Pyright、WSLの照合の結果を「Implementation Notes」とspec.jsonへ記録し、レビューがPASSで、全pytestが失敗0。
   - _Requirements: 全部_
@@ -32,3 +32,5 @@
 - Task2: 既定と全FedSDA構成の値のtestのREDを確かめてから既定を替えた。runの識別子`52189bd930df`→`d34424af3358`。全pytest 14517 passed / 8 skipped / 失敗0。
 - Task3: 生成元`29c6406`。Windows（Python 3.13.15）とWSL（Python 3.14.4）で、独立2processの全snapshot一致で21ケースを生成し、`v8/`へ新規に置いた（旧版は上書きしていない）。設置後に`BASELINE_VERSION`と`BEHAVIOR_BASELINE_VERSION`を8へ上げた。版7→8の差の説明のtestは、全21ケースで通信量以外が同じ、クロス評価が起きたFedSDAのケースで下りが減ることを確かめた。Windowsの版1〜8の照合と来歴のtest 304 passed、WSLの版1〜8とこのspecのtest 320 passed（`../../venv/refactoring-tests/cross-eval-wsl.xml`）。
 - Task4: 指標（通信量の定義と、過去の結果の通信量が旧の扱いであること）、最終提案構成（サーバ同期の順）、実験の入口、基準（版8）、IMPROVE-020（採用と実装の経緯）、再開案内を更新した。
+- 実装レビュー1回目（Luna high、session `01a156c1-2df6-72e3-a53f-e73100b90745`、対象`dffd54f..9f6d15b`）: CHANGES REQUIRED。Major 2件（共有部の比較が`torch.equal`の値の比較で、符号付きゼロとNaNでビット単位にならない。全体runのtestの期待値が、実装と同じ配布の量の関数を使っていた）、Minor 1件（命名表に、公開した検査の関数と値の名前の定数が無い）。全部採用し、dtype・形・uint8のbyte列で比べる関数にし、符号付きゼロとNaNのtestを足し、期待値を分けたパラメータから独立に計算して、実装の関数の値がそれと一致することも確かめる形にした。修正の後も、版8のgolden（21ケース）の値は変わらない。2回目（session `01a15724-aee6-72a1-ae53-b4d382bad72c`、修正の再確認）PASS。レビュー担当は、1回目に対象test・依存境界3156件（1件はsandboxの一時ファイルの権限エラー）と版8ほか10件を独立に実行し、fresh smokeは権限エラーで実行できなかった（環境制約の例外）。2回目は対象test 13件。全pytest・WSL・Pyrightは独立に実行していない。
+- 主担当の最終検証（`f7d0e7f`、source hash `82f39ed95a19fd4d8fccb4adfd6ad6932f78a4253c22aa3a9ef47f6e21839328`、498パス）: Windows全pytest 14543 passed / 8 skipped / 失敗0（2314秒、JUnit `../../venv/refactoring-tests/cross-eval-full.xml`）。旧の回帰2件も成功。fresh smoke 16フロー成功（`../../venv/refactoring-tests/cross-eval-fresh.log`）。Pyright 0 errors、pip check・Ruff成功。WSLの版1〜8とこのspecのtestは320件成功（Task3）。`tools/research_*`を除いた旧実装・旧goldenの差分は0行。基準版のgoldenは`v8/`の2ファイルの追加だけ。
