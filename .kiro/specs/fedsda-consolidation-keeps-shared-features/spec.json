@@ -1,0 +1,52 @@
+{
+  "feature_name": "fedsda-consolidation-keeps-shared-features",
+  "created_at": "2026-10-20",
+  "updated_at": "2026-10-20",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna high）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna high）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna high）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna high）"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "a095992",
+  "specification_review": {
+    "status": "passed",
+    "base_revision": "a095992（未commitのspec文書）",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a15818-4475-7b91-a73c-351483bc0482",
+        "result": "CHANGES REQUIRED（Major 2: 全体runの送り直しのtestの空振り、版8→9の比較で指標が抜けている。Minor 1: 共有部が一致する条件の書き方）。全部反映"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a1581a-9e83-7303-a2bc-c125b21d37e2",
+        "result": "PASS（修正の再確認）"
+      }
+    ]
+  },
+  "current_task": "Task1"
+}
