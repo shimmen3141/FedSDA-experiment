@@ -9,13 +9,14 @@
 - FedSDAと比較構成、FedDrift、単一モデルのFedAvg（旧Oblivious）の移植・全体run・成果物・掃引入口は接続済み。旧実装は参照として残っている。古い移植順を次の作業と誤認しない。
 - FedSDAの既定は配布時モデルとローカル更新モデルの混合予測、帰属保留FIFO30、共通時間尺度T120。Tはモデル別重みと二者混合で共通に使い、両者を別パラメータにしない。
 - 2026-10-20から、既定は候補を検証せずにその場で採用し、候補の学習では共有部を固定する（基準版7。[spec](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md)）。それまでの候補検証ありは構成`fedsda-with-candidate-validation`、検証なしで共有部も更新する構成は`fedsda-without-candidate-validation`。候補検証の処理は残している（消すかは、ユーザーが別に決める）。
-- 動作基準は基準版7・環境別golden。版6は[fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)、版7は[fedsda-default-adoption-with-fixed-candidate-shared-features](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md)、環境と手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。環境差だけを理由にgoldenを更新しない。
+- 2026-10-20から、クロス評価で配布するモデルを使う（基準版8。[spec](../specs/fedsda-cross-evaluation-with-distributed-models/tasks.md)。精度は同じで、FedSDAの下りの通信量だけが減る。それまでの結果の通信量は旧の扱い）。
+- 動作基準は基準版8・環境別golden。版6は[fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)、版7は[fedsda-default-adoption-with-fixed-candidate-shared-features](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md)、版8は[fedsda-cross-evaluation-with-distributed-models](../specs/fedsda-cross-evaluation-with-distributed-models/tasks.md)、環境と手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。環境差だけを理由にgoldenを更新しない。
 
 ## 次の一手
 
 1. [CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[共通引継ぎ手順](agent-handoff.md)を読み、ブランチ・HEAD・差分・対象specを照合する。Claude版cc-sddは`.claude/skills/`、仕様正本は共通の`.kiro/specs/`。
 2. 候補検証研究を続けるなら、下の研究記録を読む。DやPを未実験の案として再実装しない。現在、次の製品アルゴリズム変更のspec・採用決定はない。
-3. 次の候補は、改善の4案（[IMPROVE-020〜023](../../docs/research/improvement-candidates/README.md)。進める順は020→022→021→023、各ファイルに前提・方針・やること）。020（クロス評価の通信）の手元の内訳の診断を2026-10-20に始めた。新しい既定の下でのablationは、当面konanの版6の結果で代える。候補検証の処理を消すかは、ユーザーの判断を待つ。
+3. 次の候補は、改善の4案（[IMPROVE-020〜023](../../docs/research/improvement-candidates/README.md)。進める順は020→022→021→023、各ファイルに前提・方針・やること）。020は採用し、基準版8として実装した。022（候補の学習の早期終了）の手元の比較を2026-10-20に始めた。新しい既定の下でのablationは、当面konanの版6の結果で代える。候補検証の処理を消すかは、ユーザーの判断を待つ。
 4. 新しい研究対照は独立ツールへ閉じ、製品経路を変える場合は別specと実装前の独立仕様レビューを経る。現在の既定を黙って変更しない。
 
 ## 決定事項
@@ -61,6 +62,7 @@
 
 ## 直近・主要な完了spec
 
+- [fedsda-cross-evaluation-with-distributed-models](../specs/fedsda-cross-evaluation-with-distributed-models/tasks.md): クロス評価で配布するモデルを使う扱いの既定と基準版8。
 - [fedsda-default-adoption-with-fixed-candidate-shared-features](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md): 候補検証なし＋候補の共有部の固定の既定と基準版7。
 - [seed-range-command-arguments](../specs/seed-range-command-arguments/tasks.md): seedの両端込み範囲と列挙混在。
 - [fedsda-runtime-memory-reclamation](../specs/fedsda-runtime-memory-reclamation/tasks.md): 通常FedSDAの同期末メモリ回収。

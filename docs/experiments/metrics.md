@@ -69,6 +69,13 @@
 - `comm_models_total`はモデル転送回数であり、モデル構造が同じ場合の比較を前提とする。
 - `comm_parameter_values_total`と`comm_bytes_total`は共有部の重複送信を除いた実転送量であり、
   異なるモデル構造の比較ではこちらを主要な通信量とする。
+- 新実装のFedSDAの通信量（`communication_volume.*`）は、2026-10-20から、クロス評価で配布するモデルを使う扱い
+  （`cross_evaluation_model_transfer_policy="reuse_distributed_models_for_cross_evaluation"`、基準版8）で数える。
+  クロス評価をするラウンドでは、クロス評価の前に全グローバルモデルを全clientへ配布し、クロス評価では評価の依頼と
+  返信のメッセージだけを数え、統合が起きたら、ID対応のメッセージと、値が変わった代表のモデルの概念固有部（と、
+  変わったときは共有部）の送り直しを数える。精度・学習・統合は旧の扱いと同じで、下りの通信量だけが減る。
+  2026-10-20までに保存したFedSDAの結果の通信量は、旧の扱い（クロス評価のために評価するclientへ候補のモデルを
+  送る）で記録されているので、新しい結果と通信量を比べるときは扱いの違いに注意する（[spec](../../.kiro/specs/fedsda-cross-evaluation-with-distributed-models/design.md)）。
 - `compute_backbone_examples_total`と`compute_head_examples_total`は、共有表現による特徴抽出の
   再利用を既存の論理モデル処理数と分けて示す。
 - `compute_backbone_optimizer_steps_total`と`compute_head_optimizer_steps_total`は、共有表現方式で

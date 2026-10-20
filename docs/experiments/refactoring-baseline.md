@@ -237,7 +237,7 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 
 | 項目 | 意味 | 変更する場合 |
 | --- | --- | --- |
-| `baseline_version` | 期待する動作の基準。現在は7 | LEGACY/IMPROVEなどで期待値を意図的に変えるとき |
+| `baseline_version` | 期待する動作の基準。現在は8 | LEGACY/IMPROVEなどで期待値を意図的に変えるとき |
 | `schema_version` | このgolden JSONの形式。現在は1 | snapshotの記録形式を変えるとき |
 | `environment` | OS・機種・Python/NumPy/torch・CPU/dtype/thread | 同じ動作基準を別環境で検証するとき |
 | `source_commit` | 生成した生産コードの来歴 | 新しい基準や環境別goldenを生成するとき |
@@ -252,7 +252,10 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 | 4 | 送信保留のモデルを、現行モデルとして待った後に登録する（LEGACY-016の扱いの見直し。[spec](../../.kiro/specs/pending-model-registration-after-waiting-as-current-model/design.md)。警報は即時） | 最終構成の既定から、登録の扱いを`register_pending_model_after_waiting_as_current_model`、警報の扱いを`raise_alarm_immediately`に明示する | 版3の18＋`fedsda-sine2-alternative-reference-reuse` |
 | 5 | 現行モデルとして待った後に登録し、推定変化区間が最小件数に達するまで警報を待つ（案Y。登録・警報の扱いの既定。[spec](../../.kiro/specs/fedsda-default-waited-registration-and-alarm-wait/design.md)） | 局所パラメータ予測・T30を明示（ADWINの2構成は、警報を即時に明示） | 版4と同じ19 |
 | 6 | 予測を同期時点と局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量30。[spec](../../.kiro/specs/fedsda-default-synchronized-local-mixture-prediction/design.md)） | 単一モデル予測は局所パラメータを明示し、Tは120。候補検証ありを明示する（版7で既定が変わったため。候補検証を外した構成のケースを除く） | 版5と同じ19 |
-| 7 | 候補を検証せずにその場で採用し、候補の学習では共有部を固定する（現在の既定。[spec](../../.kiro/specs/fedsda-default-adoption-with-fixed-candidate-shared-features/design.md)） | 新しい既定。候補検証の経路の大きい条件の4ケースは、版6までの既定と同じ設定の構成`fedsda-with-candidate-validation`で実行する | 版6の19＋`fedsda-sine2-adoption-without-validation`・`fedsda-mnist2-adoption-without-validation` |
+| 7 | 候補を検証せずにその場で採用し、候補の学習では共有部を固定する（[spec](../../.kiro/specs/fedsda-default-adoption-with-fixed-candidate-shared-features/design.md)） | 新しい既定。候補検証の経路の大きい条件の4ケースは、版6までの既定と同じ設定の構成`fedsda-with-candidate-validation`で実行する | 版6の19＋`fedsda-sine2-adoption-without-validation`・`fedsda-mnist2-adoption-without-validation` |
+| 8 | クロス評価で、配布するモデルを使う（現在の既定。[spec](../../.kiro/specs/fedsda-cross-evaluation-with-distributed-models/design.md)。通信量の記録だけが版7と違う） | 新しい既定。版1〜7は、クロス評価のために候補のモデルを送る旧の扱いを明示する（参加者の設定の「後に足された項目」の表） | 版7と同じ21 |
+
+版7→8は通信量だけの変更で、全ケースの記録の表・`global_parameters`・`coverage`は版7と同じ。指標は`communication_volume.`の項目だけが違ってよく、FedDrift・FedAvgと、クロス評価が起きないFedSDAのケースは全部が同じ。クロス評価が起きたFedSDAのケースは、下りのbyteが版7より少ないことをtestが確かめる。
 
 版1〜6は、候補の学習で共有部も更新する値（版の後に足された項目）と、候補検証あり（版の後に既定の値が変わった項目。候補検証を外した構成のケースには当てない）を明示して組み立てる。版7では、候補検証の4ケース・FedDrift・FedAvg・候補検証を外した構成のケースが、版6と同じ値であることをtestが確かめる（版7で足した経路の記録の項目——採用した候補の数——を除く）。新しい既定を引き継ぐ小さい条件の構成のケースは、差があってよい。新しい2ケースは、検証の判定が無く、採用・学習帰属の切替え・予測の重みの再較正が起き、sine2では統合と保有モデルの再利用も起きることを、必須の経路として確かめる。
 
