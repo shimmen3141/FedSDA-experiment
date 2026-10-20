@@ -114,6 +114,20 @@ def test_shared_part_is_kept_only_when_contributing_members_match_the_representa
     assert count == (contributing * 2 if kept else legacy_count)
 
 
+@pytest.mark.parametrize("keeps", [False, True])
+def test_parameter_order_follows_the_first_contributing_member(keeps):
+    """代表の件数が0で、メンバーの名前の順が違っても、結果の名前の順は、件数が正の最初のメンバーの順（旧の扱いと同じ）。"""
+    representative = {CONCEPT: torch.full((1, 2), 1.0), SHARED: torch.full((2, 3), 0.3)}
+    member = {SHARED: torch.full((2, 3), 0.3), CONCEPT: torch.full((1, 2), 2.0)}
+    result, _ = _compute_sample_weighted_mean_parameters(
+        model_cluster=(3, 5),
+        parameter_snapshots_by_model_id={3: representative, 5: member},
+        aggregated_training_sample_counts_by_model_id={3: 0, 5: 2},
+        keeps_identical_shared_features=keeps,
+    )
+    assert list(result) == [SHARED, CONCEPT]
+
+
 def test_all_zero_weight_cluster_and_empty_shared_part_are_unchanged():
     zero = {3: parameters(1.0, 1.0), 5: parameters(2.0, 2.0)}
     independent = {

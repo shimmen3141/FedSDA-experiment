@@ -311,7 +311,13 @@ def _compute_sample_weighted_mean_parameters(
         parameter_name: parameter_sum / total_sample_weight
         for parameter_name, parameter_sum in weighted_parameter_sum.items()
     }
-    # 名前の順は、代表のパラメータの順（旧の扱いと同じ）にする。
+    if not kept_shared_parameter_names:
+        # 旧の扱いと同じ（名前の順は、件数が正の最初のメンバーのパラメータの順）。
+        return averaged_parameters, multiply_accumulate_count
+    # 名前の順は、旧の扱いと同じく、件数が正の最初のメンバーのパラメータの順にする。
+    first_contributing_model_id = next(
+        model_id for model_id in model_cluster if sample_weights[model_id] > 0
+    )
     return (
         {
             parameter_name: (
@@ -319,7 +325,7 @@ def _compute_sample_weighted_mean_parameters(
                 if parameter_name in kept_shared_parameter_names
                 else averaged_parameters[parameter_name]
             )
-            for parameter_name in parameter_snapshots_by_model_id[min(model_cluster)]
+            for parameter_name in parameter_snapshots_by_model_id[first_contributing_model_id]
         },
         multiply_accumulate_count,
     )
