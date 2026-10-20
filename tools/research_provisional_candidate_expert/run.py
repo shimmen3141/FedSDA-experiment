@@ -79,7 +79,15 @@ _VARIANTS["default-withdraw-released-into-interval"] = ("fedsda", False, None)
 # （候補の初期値と同じ、区間の平均損失が最小の保有モデルから始め、区間を1標本ずつ、予測してから学習する逐次の
 # 学習者。共有部は固定し、候補の学習と同じ損失とoptimizerの設定で、1標本ごとに1回更新する）。累積の対数損失が
 # 最小のものを選び、新しいモデルが最小なら、今と同じ候補の学習・採用へ進む。閾値は使わない。
-_PREQUENTIAL_REUSE_VARIANTS = ("default-prequential-reuse", "default-prequential-reuse-fresh-learner")
+_PREQUENTIAL_REUSE_VARIANTS = (
+    "default-prequential-reuse",
+    "default-prequential-reuse-fresh-learner",
+    "default-prequential-reuse-fresh-learner-bounded-loss",
+)
+# 学習者を初期化し直す形で、累積を、対数損失ではなく、手法の予測の重みと判定が使う有界の損失（1−真のクラスの確率）で
+# 比べる。上限の無い対数損失では、少数の自信を持った誤りで保有モデルの累積が大きくなり、学び始めの学習者
+# （2値で1標本あたり約ln2）に負ける（IMPROVE-021の11、CIRCLE2の見逃し）。
+_VARIANTS["default-prequential-reuse-fresh-learner-bounded-loss"] = ("fedsda", False, None)
 _VARIANTS["default-prequential-reuse"] = ("fedsda", False, None)
 # 逐次の学習者を、概念ごとの部分（adapterと出力の層）を初期化し直した状態から始める（共有部はそのまま）。
 # 最も合う保有モデルから始めると、「そのモデルを区間で学習し直すと良くなるか」の比較になり、同じ概念でも
@@ -481,7 +489,7 @@ def _withdraw_released_samples_policy(*, events, includes_withdrawn_samples_in_c
 
 
 @contextmanager
-def _prequential_reuse_policy(*, optimizer_settings, events, starts_learner_fresh=False):
+def _prequential_reuse_policy(*, optimizer_settings, events, starts_learner_fresh=False, compares_bounded_losses=False):
     """警報の区間の再利用の判定を、累積の対数損失の比較へ替える（研究用。実行の間だけ包む）。"""
     import torch
     from torch.nn import BCELoss, CrossEntropyLoss
@@ -504,6 +512,8 @@ def _prequential_reuse_policy(*, optimizer_settings, events, starts_learner_fres
         bounded = evaluate_classifier_per_sample_bounded_losses(
             classifier=classifier, input_features=input_features, observed_class_labels=observed_class_labels
         )
+        if compares_bounded_losses:
+            return bounded
         return -torch.log(torch.clamp(1.0 - bounded, min=1e-12))
 
     decision_count = [0]
@@ -704,7 +714,9 @@ def _execute_job(job):
                 _prequential_reuse_policy(
                     optimizer_settings=client_settings.parameter_optimizer_settings,
                     events=events,
-                    starts_learner_fresh=job["variant"] == "default-prequential-reuse-fresh-learner",
+                    starts_learner_fresh=job["variant"]
+                    in ("default-prequential-reuse-fresh-learner", "default-prequential-reuse-fresh-learner-bounded-loss"),
+                    compares_bounded_losses=job["variant"] == "default-prequential-reuse-fresh-learner-bounded-loss",
                 )
             )
         if job["variant"] in _WITHDRAW_RELEASED_SAMPLE_VARIANTS:
