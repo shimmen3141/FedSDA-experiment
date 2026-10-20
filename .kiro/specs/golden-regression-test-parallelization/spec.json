@@ -1,0 +1,52 @@
+{
+  "feature_name": "golden-regression-test-parallelization",
+  "created_at": "2026-10-20",
+  "updated_at": "2026-10-20",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目でMajor解消・残るMinorを反映（GPT-6 Luna high）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目でMajor解消・残るMinorを反映（GPT-6 Luna high）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目でMajor解消・残るMinorを反映（GPT-6 Luna high）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目でMajor解消・残るMinorを反映（GPT-6 Luna high）"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "623b4c5",
+  "specification_review": {
+    "status": "passed",
+    "base_revision": "623b4c5（未commitのspec文書）",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a1590b-2a10-7822-8d12-6228f60df311",
+        "result": "CHANGES REQUIRED（Major 1、Minor 2）。全部反映"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a1590d-095d-70f2-b626-332e51cd2ce0",
+        "result": "Majorは解消。Minor 1（配り方のtestの結果の記録）を反映。Minorのみのため規約により再レビューなし"
+      }
+    ]
+  },
+  "current_task": "Task1"
+}
