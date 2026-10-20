@@ -83,7 +83,14 @@ _PREQUENTIAL_REUSE_VARIANTS = (
     "default-prequential-reuse",
     "default-prequential-reuse-fresh-learner",
     "default-prequential-reuse-fresh-learner-bounded-loss",
+    "default-prequential-reuse-fresh-learner-horizon",
 )
+# 学習者を初期化し直す形に、保有モデルの「自分の概念での損失の水準」を、先の長さHの期待損失として入れる
+# （IMPROVE-021の14、MNIST2の崩れ）。保有モデルmの再利用は、(n＋H)×（区間でのmの1標本あたりの対数損失）、
+# 新しいモデルは、（逐次の学習者の区間の累積の対数損失）＋H×ℓ_m（ℓ_mは、mが自分の学習の標本で出す1標本あたりの
+# 対数損失。専用のモデルを作れば、mが自分の概念で出す水準まで下がるとみなす）。再利用の方が小さいモデルのうち、
+# 区間の損失が最小のものを再利用する。Hは、Fixed-Shareの時間尺度T（既存の設定値）。
+_VARIANTS["default-prequential-reuse-fresh-learner-horizon"] = ("fedsda", False, None)
 # 学習者を初期化し直す形で、累積を、対数損失ではなく、手法の予測の重みと判定が使う有界の損失（1−真のクラスの確率）で
 # 比べる。上限の無い対数損失では、少数の自信を持った誤りで保有モデルの累積が大きくなり、学び始めの学習者
 # （2値で1標本あたり約ln2）に負ける（IMPROVE-021の11、CIRCLE2の見逃し）。
@@ -489,7 +496,14 @@ def _withdraw_released_samples_policy(*, events, includes_withdrawn_samples_in_c
 
 
 @contextmanager
-def _prequential_reuse_policy(*, optimizer_settings, events, starts_learner_fresh=False, compares_bounded_losses=False):
+def _prequential_reuse_policy(
+    *,
+    optimizer_settings,
+    events,
+    starts_learner_fresh=False,
+    compares_bounded_losses=False,
+    horizon_sample_count=None,
+):
     """警報の区間の再利用の判定を、累積の対数損失の比較へ替える（研究用。実行の間だけ包む）。"""
     import torch
     from torch.nn import BCELoss, CrossEntropyLoss
@@ -505,7 +519,28 @@ def _prequential_reuse_policy(*, optimizer_settings, events, starts_learner_fres
         AlarmIntervalModelReuseAssessment,
     )
 
+    import federated_learning_experiments.runtime.alarm_buffer_response as buffer_module
+
     original_evaluate = resolution_module.evaluate_held_models_for_alarm_interval_reuse
+    original_resolve = buffer_module.resolve_alarm_change_interval
+    # 解決中の警報の、学習の標本のowner（先の長さを使う形で、保有モデルの自分の損失の水準を計算するため）。
+    resolving = {}
+
+    def resolve(**arguments):
+        resolving["training_sample_store"] = arguments["training_sample_store"]
+        try:
+            return original_resolve(**arguments)
+        finally:
+            resolving.clear()
+
+    def own_mean_log_loss(classifier, model_id):
+        collections = resolving["training_sample_store"].snapshot_ordered_model_training_samples()
+        samples = next((c.training_samples for c in collections if c.model_id == model_id), ())
+        if not samples:
+            return None
+        features = torch.cat([s.input_features for s in samples])
+        labels = torch.cat([s.observed_class_labels for s in samples])
+        return float(log_losses(classifier, features, labels).mean())
 
     def log_losses(classifier, input_features, observed_class_labels):
         # 有界の損失は1−真のクラスの確率なので、対数損失は−log(1−有界の損失)。
@@ -573,8 +608,24 @@ def _prequential_reuse_policy(*, optimizer_settings, events, starts_learner_fres
         # 候補の初期値（区間の平均損失が最小の保有モデル。同率は列の先着）から始める逐次の学習者。
         initial_model_id = min(supported, key=lambda evaluated: evaluated[1])[0]
         new_total = prequential_log_loss(classifiers[initial_model_id], x, y)
-        best_model_id = min(held_totals, key=lambda model_id: held_totals[model_id])
-        reuses = held_totals[best_model_id] <= new_total
+        if horizon_sample_count is None:
+            best_model_id = min(held_totals, key=lambda model_id: held_totals[model_id])
+            reuses = held_totals[best_model_id] <= new_total
+        else:
+            n = int(x.shape[0])
+            reusable_ids = []
+            for model_id, total in held_totals.items():
+                own = own_mean_log_loss(classifiers[model_id], model_id)
+                if own is None:
+                    continue
+                if (n + horizon_sample_count) * (total / n) <= new_total + horizon_sample_count * own:
+                    reusable_ids.append(model_id)
+            reuses = bool(reusable_ids)
+            best_model_id = (
+                min(reusable_ids, key=lambda model_id: held_totals[model_id])
+                if reusable_ids
+                else min(held_totals, key=lambda model_id: held_totals[model_id])
+            )
         events.append(
             dict(
                 event="prequential_reuse_decision",
@@ -590,7 +641,10 @@ def _prequential_reuse_policy(*, optimizer_settings, events, starts_learner_fres
             reusable_mean_losses_by_model_id=reusable,
         )
 
-    with patch.object(resolution_module, "evaluate_held_models_for_alarm_interval_reuse", evaluate):
+    with (
+        patch.object(resolution_module, "evaluate_held_models_for_alarm_interval_reuse", evaluate),
+        patch.object(buffer_module, "resolve_alarm_change_interval", resolve),
+    ):
         yield
 
 
@@ -715,8 +769,17 @@ def _execute_job(job):
                     optimizer_settings=client_settings.parameter_optimizer_settings,
                     events=events,
                     starts_learner_fresh=job["variant"]
-                    in ("default-prequential-reuse-fresh-learner", "default-prequential-reuse-fresh-learner-bounded-loss"),
+                    in (
+                        "default-prequential-reuse-fresh-learner",
+                        "default-prequential-reuse-fresh-learner-bounded-loss",
+                        "default-prequential-reuse-fresh-learner-horizon",
+                    ),
                     compares_bounded_losses=job["variant"] == "default-prequential-reuse-fresh-learner-bounded-loss",
+                    horizon_sample_count=(
+                        client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
+                        if job["variant"] == "default-prequential-reuse-fresh-learner-horizon"
+                        else None
+                    ),
                 )
             )
         if job["variant"] in _WITHDRAW_RELEASED_SAMPLE_VARIANTS:
