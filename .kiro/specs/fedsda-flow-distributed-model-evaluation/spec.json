@@ -53,9 +53,10 @@
     "paths": 18,
     "frames": 471,
     "page_errors": 0,
-    "html_sha256": "cbc5793cf8b1bf80e0f1e4408513ba4366b1f71897640a11d192781bbc5ba031",
+    "html_sha256": "093d1c1f17caab2227f338c24c8dea6eba4c77f8c837feaa2e7d5e7487d57996",
     "evidence": "元checkout venv/flow-browser-check/distributed-flow-validation.json・distributed-geometry.json・distributed-apply.jsonと代表PNG",
-    "numeric_pytest": "HTMLのみのため対象外"
+    "numeric_pytest": "HTMLのみのため対象外",
+    "latest_followup_evidence": "元checkout venv/flow-browser-check/server-layout-validation.json・server-layout-geometry.json・server-layout-final-<幅>-<frame>.png"
   },
   "implementation_review": {
     "status": "passed",
@@ -65,5 +66,26 @@
     "findings": 0,
     "browser_independent_execution": false,
     "result": "18経路471コマと配置検査・代表PNGを照合。R09の最終追加も確認PASS。"
-  }
+  },
+  "followup_reviews": [
+    {
+      "scope": "要求8〜10：サーバ内処理と通信の分離",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "reviewer": "/root/seed_range_review",
+      "specification_verdict": "PASS after minor clarification",
+      "specification_findings": {
+        "minor": 1
+      },
+      "resolution": "旧配布箱/線名を追記で置換済みとdesign/namingへ明記。",
+      "implementation_verdict": "accepted_after_minor_fix",
+      "implementation_findings": {
+        "major": 0,
+        "minor": 1
+      },
+      "browser_independent_execution": false,
+      "evidence": "18経路471コマと最終geometry成功記録、1280/390代表PNG、最終48px箱の配置を独立照合。",
+      "implementation_resolution": "完了チェック更新前のタスク3未チェックというMinorを、完了チェックと記録の同期で解消。Minorのみで再レビュー不要。"
+    }
+  ]
 }

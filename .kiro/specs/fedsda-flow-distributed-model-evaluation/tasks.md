@@ -13,3 +13,16 @@
 - 代表コマの新ラベルと活性線の非交差・caption収まりは3画面で成功。代表PNGを目視。最終追加のR09対象枠/反映中補助文は3画面の限定検査でも成功した。
 - 証拠は元checkoutのGit管理外`venv/flow-browser-check/check-distributed-flow.cjs`・`distributed-flow-validation.json`・`distributed-flow-<幅>-<frame>.png`、`distributed-geometry.cjs`・`distributed-geometry.json`・`distributed-final-<幅>-<frame>.png`、`distributed-apply.cjs`・`distributed-apply.json`・`distributed-apply-<幅>-R09.png`。Node構文・diff --checkも成功。実験コード/golden未変更で数値pytestは対象外。
 - 独立Luna high実装レビューPASS、指摘なし。全経路と配置検査の記録、R05〜R10の代表PNGを独立照合。R09の最終表示追加も別途確認しPASS。ブラウザ独立再実行は未実施。
+
+## ユーザー追記：サーバ内処理と通信の分離
+- [x] 3. 要求8〜10を仕様レビュー後に反映し、サーバ処理列・条件ひし形・配布2線と強調を整理する。全分岐、3画面、接続/枠内/線ラベル、対象外不変を検証して実装レビューを反映する。
+
+- 追記8〜10の仕様レビューはPASS（Minor 1）。旧design/namingのreceive-modelsとdistribution起点の記載は、追記で置換済みと注記して解消。Minorのみで再レビュー不要。
+- 先行受入はR04が条件ひし形以外の2処理を強調することで失敗。サーバ5段（条件ひし形を含む）・常時薄い順序ガイドへ整理し、early-modelsを集約から、changed-modelsを統合から送る線へ分離。配布箱と旧内部活性線を除去した。
+- 全18経路471コマ、3画面でissues/pageerror 0。R04条件のみ、R03/R07の実行処理、R05/R05a/R06/R08の送受信元と線、旧箱/線の除去、受信保持、順序と既存のキー/循環/focus/再生/補足を確認した。
+- frame契約変更はR04/R05/R05a/R06/R07/R08だけ。buildと操作handler全文が変更前に一致することをassert確認。クライアント側モデル/ストア/FIFO配置・コマ数/順序は不変。
+- 配置検査で文字bboxの逸脱を確認し、20→18px、baseline修正を試したが、画面高によるSVG縮尺と文字の境界差で別画面に逸脱が残った。検査条件は緩和せず、専任fixerにサーバ箱4つの文字/余白だけの根本修正を委譲した。
+- Fixerの実測で、390px時は18px見出しbbox高23.684＋16px説明18.947で41.684になり40px箱に収まらないことを確認。4箱を高さ48px、各行のbaselineを調整しdata-boxも追随。箱のx/y/幅と通信ポート・ガイドは不変。全配置検査が成功しissues[]。最小の上下余白は390pxでも2.263 SVG単位を確保した。検査条件は緩和していない。
+- 最終の配置証拠はGit管理外`venv/flow-browser-check/server-layout-geometry.cjs`・`server-layout-geometry.json`・`server-layout-final-<幅>-<frame>.png`。全経路の証拠は`check-server-layout.cjs`・`server-layout-validation.json`（18経路471コマ、errors0）。
+- 独立Luna highの最終実装確認で、最新4箱48pxの配置、全経路/geometry成功記録、1280のR04/R05/R08と390のR04 PNG、対象外不変を照合し問題なし。ブラウザ独立再実行は未実施。
+- 最終レビューのMinor 1（確認時点のtask3未チェック）は、完了チェックと記録を同期して解消。実装への指摘はなく、Minorのみのため再レビュー不要。
