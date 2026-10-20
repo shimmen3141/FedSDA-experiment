@@ -360,10 +360,11 @@ def test_runs_are_reused_only_for_identical_full_run_settings(monkeypatch):
     monkeypatch.setattr(golden, "build_case_settings", build_with_other_seed)
     # seedを変えた設定では、ケースの必須の経路を通るとは限らない（ここでは実行の回数だけを確かめる）。
     monkeypatch.setattr(golden, "assert_required_paths", lambda *arguments: None)
+    monkeypatch.setattr(golden, "_REUSED_CASE_RUNS", {})
     executed.clear()
     golden.capture_case_reusing_runs("feddrift-drift-tail", 2)
     golden.capture_case_reusing_runs("feddrift-drift-tail", 3)
-    assert executed == ["feddrift-drift-tail"]
+    assert executed == ["feddrift-drift-tail", "feddrift-drift-tail"]
 
 
 # ケースの実行の結果（ケース名と基準版ごとに1回だけ実行して、数値の照合と、版の差の説明のtestで共有する）。
