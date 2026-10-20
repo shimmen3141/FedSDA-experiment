@@ -1,0 +1,69 @@
+{
+  "feature_name": "fedsda-flow-distributed-model-evaluation",
+  "created_at": "2026-10-20",
+  "updated_at": "2026-10-20",
+  "language": "ja",
+  "phase": "completed",
+  "ready_for_implementation": true,
+  "implementation_reference": "refactor/architecture 5d58741",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザー承認と独立Luna high仕様レビューPASS"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザー承認と独立Luna high仕様レビューPASS"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザー承認と独立Luna high仕様レビューPASS"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "basis": "ユーザー承認と独立Luna high仕様レビューPASS"
+    }
+  },
+  "specification_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "reviewer": "/root/seed_range_review",
+    "findings": 0
+  },
+  "validation": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "paths": 18,
+    "frames": 471,
+    "page_errors": 0,
+    "html_sha256": "cbc5793cf8b1bf80e0f1e4408513ba4366b1f71897640a11d192781bbc5ba031",
+    "evidence": "元checkout venv/flow-browser-check/distributed-flow-validation.json・distributed-geometry.json・distributed-apply.jsonと代表PNG",
+    "numeric_pytest": "HTMLのみのため対象外"
+  },
+  "implementation_review": {
+    "status": "passed",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "reviewer": "/root/seed_range_review",
+    "findings": 0,
+    "browser_independent_execution": false,
+    "result": "18経路471コマと配置検査・代表PNGを照合。R09の最終追加も確認PASS。"
+  }
+}
