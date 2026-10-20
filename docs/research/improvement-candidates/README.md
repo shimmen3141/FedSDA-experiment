@@ -36,9 +36,10 @@
 | IMPROVE-018 | 候補の共有部統合で既存モデルへの影響を制限する | 一部採用（候補学習中の共有部の固定を、候補検証なしと組み合わせて既定にした。2026-10-20、基準版7。候補検証ありとの組合せは不採用） | [詳細](improve-018-protect-existing-models-during-candidate-backbone-integration.md) |
 | IMPROVE-019 | クラスの支持数と対損失差で候補を検証する | 未検証・未採用（2026-10-17） | [詳細](improve-019-candidate-validation-with-class-support-and-paired-losses.md) |
 | IMPROVE-020 | 新しいモデルの登録時のクロス評価の通信を減らす | 採用（2026-10-20、配布とクロス評価の入れ替えを基準版8の既定として実装。精度は同じで下りが減る） | [詳細](improve-020-reduce-cross-evaluation-communication.md) |
-| IMPROVE-021 | 保有モデルの再利用の判定を固定のしきい値から検定へ替える | 保留（2026-10-20。規則の変更の効果は小さい。誤った再利用の主因はモデルの混ざりで、その出どころの診断が先） | [詳細](improve-021-statistical-test-for-held-model-reuse.md) |
+| IMPROVE-021 | 保有モデルの再利用の判定を固定のしきい値から検定へ替える | 保留（2026-10-20。規則の変更の効果は小さい。誤った再利用の主因はモデルの混ざりで、混ざりの87%は保留からの解放。IMPROVE-024へ） | [詳細](improve-021-statistical-test-for-held-model-reuse.md) |
 | IMPROVE-022 | 候補の学習の早期終了を単純にする | 見送り（2026-10-20。固定エポックはMNISTで大きく下がり、SINE2では上がる） | [詳細](improve-022-simplify-candidate-early-stopping.md) |
 | IMPROVE-023 | 候補検証を既定から外した後に残った設定を整理する | 未検証・未採用（2026-10-20。4案の4番目。候補検証の処理を消すかはユーザー判断待ち） | [詳細](improve-023-remove-settings-left-from-candidate-validation.md) |
+| IMPROVE-024 | 警報の時点で、推定した変化点より後に解放された標本を、古いモデルの学習データから外す | 未検証・未採用（2026-10-20。IMPROVE-021の診断で、混ざりの87%が保留からの解放と分かった） | [詳細](improve-024-withdraw-released-samples-after-estimated-change-point.md) |
 
 ## 決定（2026-10-13、ユーザー）
 
@@ -63,7 +64,7 @@
 
 ## 記録・更新の規約
 
-IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-024。候補の発見時点で記録し、実験済みである必要はない。
+IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-025。候補の発見時点で記録し、実験済みである必要はない。
 
 各ファイルへ以下を記載する。未確認・未定の項目はそのまま明記する。
 
