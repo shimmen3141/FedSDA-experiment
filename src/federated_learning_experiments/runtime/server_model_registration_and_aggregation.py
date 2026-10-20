@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from torch import Tensor
+from torch import Tensor, uint8
 
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeRecordStore,
@@ -123,6 +123,26 @@ def register_ready_client_models(
                 )
             )
     return tuple(registered_client_models)
+
+
+def parameters_have_the_same_bits(
+    first_parameters: dict[str, Tensor], second_parameters: dict[str, Tensor]
+) -> bool:
+    """2つのパラメータの辞書が、同じ名前の集合で、各tensorのdtype・形・値のbyte列が同じか。
+
+    値の比較と違い、+0.0と-0.0を区別し、同じビットのNaNを同じとする。
+    """
+    if first_parameters.keys() != second_parameters.keys():
+        return False
+    for parameter_name, first_values in first_parameters.items():
+        second_values = second_parameters[parameter_name]
+        if first_values.dtype != second_values.dtype or first_values.shape != second_values.shape:
+            return False
+        if not bool(
+            (first_values.contiguous().view(uint8) == second_values.contiguous().view(uint8)).all()
+        ):
+            return False
+    return True
 
 
 def split_shared_and_concept_specific_parameters(

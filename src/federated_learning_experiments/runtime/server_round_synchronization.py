@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from random import Random
 
-from torch import Tensor, uint8
+from torch import Tensor
 
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeRecordStore,
@@ -29,8 +29,10 @@ from federated_learning_experiments.runtime.global_model_distribution_applicatio
     GlobalModelDistributionApplication,
 )
 from federated_learning_experiments.runtime.model_clustering_and_consolidation import (
+    AVERAGE_SHARED_FEATURES_WITH_CONCEPT_SPECIFIC_PARTS_POLICY_NAME,
     ModelConsolidation,
     cluster_and_consolidate_global_models,
+    validate_consolidated_shared_feature_policy,
 )
 from federated_learning_experiments.runtime.model_cross_evaluation import (
     ModelCrossEvaluation,
@@ -43,6 +45,7 @@ from federated_learning_experiments.runtime.server_model_registration_and_aggreg
     ClientModelAggregation,
     RegisteredClientModel,
     aggregate_client_models_into_global_models,
+    parameters_have_the_same_bits,
     register_ready_client_models,
     split_shared_and_concept_specific_parameters,
 )
@@ -88,17 +91,6 @@ def validate_cross_evaluation_model_transfer_policy(
         )
 
 
-def _tensors_have_the_same_bits(first_tensor: Tensor, second_tensor: Tensor) -> bool:
-    """2つのtensorの、dtype・形と、値のbyte列が同じか（値の比較と違い、+0.0と-0.0を区別し、同じビットのNaNを同じとする）。"""
-    return (
-        first_tensor.dtype == second_tensor.dtype
-        and first_tensor.shape == second_tensor.shape
-        and bool(
-            (first_tensor.contiguous().view(uint8) == second_tensor.contiguous().view(uint8)).all()
-        )
-    )
-
-
 def _record_consolidated_model_resend_volume(
     *,
     communication_volume_record_store: CommunicationVolumeRecordStore,
@@ -136,13 +128,8 @@ def _record_consolidated_model_resend_volume(
             model_id=global_model_repository.global_model_ids[0]
         )
     )[0]
-    shared_parameters_changed = distributed_shared_parameters.keys() != (
-        early_distributed_shared_parameters.keys()
-    ) or any(
-        not _tensors_have_the_same_bits(
-            parameter_values, early_distributed_shared_parameters[parameter_name]
-        )
-        for parameter_name, parameter_values in distributed_shared_parameters.items()
+    shared_parameters_changed = not parameters_have_the_same_bits(
+        distributed_shared_parameters, early_distributed_shared_parameters
     )
     communication_volume_record_store.record_messages(
         transfer_direction="download", message_count=client_count
@@ -177,6 +164,9 @@ def synchronize_models_in_server_round(
     round_index: int,
     model_clustering_enabled: bool,
     cross_evaluation_model_transfer_policy: str = SEND_CANDIDATE_MODELS_FOR_CROSS_EVALUATION_POLICY_NAME,
+    consolidated_shared_feature_policy: str = (
+        AVERAGE_SHARED_FEATURES_WITH_CONCEPT_SPECIFIC_PARTS_POLICY_NAME
+    ),
 ) -> ServerRoundSynchronization:
     """ラウンド境界で、サーバと全clientのモデルを同期させる。
 
@@ -192,6 +182,9 @@ def synchronize_models_in_server_round(
         raise TypeError("model_clustering_enabled must be builtin bool")
     validate_cross_evaluation_model_transfer_policy(
         cross_evaluation_model_transfer_policy=cross_evaluation_model_transfer_policy
+    )
+    validate_consolidated_shared_feature_policy(
+        consolidated_shared_feature_policy=consolidated_shared_feature_policy
     )
     reuses_distributed_models = (
         cross_evaluation_model_transfer_policy
@@ -253,6 +246,7 @@ def synchronize_models_in_server_round(
             model_clustering_record_store=model_clustering_record_store,
             model_clustering_criteria=model_clustering_criteria,
             round_index=round_index,
+            consolidated_shared_feature_policy=consolidated_shared_feature_policy,
         )
         model_id_mapping = model_consolidation.model_id_mapping
     if early_distributed_shared_parameters is not None:

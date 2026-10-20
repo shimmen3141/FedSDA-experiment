@@ -189,6 +189,10 @@ def test_server_synchronizes_models_through_round_synchronization(
             arguments["cross_evaluation_model_transfer_policy"]
             == "send_candidate_models_for_cross_evaluation"
         )
+        assert (
+            arguments["consolidated_shared_feature_policy"]
+            == "average_shared_features_with_concept_specific_parts"
+        )
         # サーバは、clientと同じ、runの乱数生成器を使う。
         assert arguments["python_random_generator"] is run_random_sources.python_random_generator
     synchronizations = run_server.snapshot_server_round_synchronizations()
@@ -254,6 +258,7 @@ def test_server_assembly_rejects_invalid_arguments(valid_run_settings_mapping):
         model_clustering_criteria=MODEL_CLUSTERING_CRITERIA,
         maximum_evaluating_client_count_per_model=3,
         cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
+        consolidated_shared_feature_policy="average_shared_features_with_concept_specific_parts",
         python_random_generator=run_random_sources.python_random_generator,
     )
     python_random_state = run_random_sources.python_random_generator.getstate()
@@ -277,6 +282,8 @@ def test_server_assembly_rejects_invalid_arguments(valid_run_settings_mapping):
         dict(maximum_evaluating_client_count_per_model=True),
         dict(cross_evaluation_model_transfer_policy="reuse"),
         dict(cross_evaluation_model_transfer_policy=None),
+        dict(consolidated_shared_feature_policy="keep"),
+        dict(consolidated_shared_feature_policy=None),
         dict(python_random_generator=random),
         dict(python_random_generator=type("RandomSubclass", (random.Random,), {})(3)),
     ):

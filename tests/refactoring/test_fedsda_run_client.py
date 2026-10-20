@@ -569,6 +569,8 @@ def use_legacy_compatible_policies(run_settings):
             run_participant_settings,
             # 旧は、クロス評価のために、評価するclientへ候補のモデルを送る（通信量の記録が違う）。
             cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
+            # 旧は、統合で、共有部も概念固有部と一緒に平均する。
+            consolidated_shared_feature_policy="average_shared_features_with_concept_specific_parts",
             run_client_settings=replace(
                 run_client_settings,
                 pending_model_registration_settings=PendingModelRegistrationSettings(

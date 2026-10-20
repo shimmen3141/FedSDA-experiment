@@ -24,6 +24,9 @@ from federated_learning_experiments.methods.fedsda.model_registration.global_mod
     GlobalModelRepository,
 )
 from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
+from federated_learning_experiments.runtime.model_clustering_and_consolidation import (
+    validate_consolidated_shared_feature_policy,
+)
 from federated_learning_experiments.runtime.server_round_synchronization import (
     ServerRoundSynchronization,
     synchronize_models_in_server_round,
@@ -62,6 +65,7 @@ class FedsdaRunServer:
         model_clustering_criteria: ModelClusteringCriteria,
         maximum_evaluating_client_count_per_model: int,
         cross_evaluation_model_transfer_policy: str,
+        consolidated_shared_feature_policy: str,
         python_random_generator: Random,
     ) -> None:
         self._run_clients = run_clients
@@ -69,6 +73,7 @@ class FedsdaRunServer:
         self._model_clustering_criteria = model_clustering_criteria
         self._maximum_evaluating_client_count_per_model = maximum_evaluating_client_count_per_model
         self._cross_evaluation_model_transfer_policy = cross_evaluation_model_transfer_policy
+        self._consolidated_shared_feature_policy = consolidated_shared_feature_policy
         self._python_random_generator = python_random_generator
         self._server_round_synchronizations: list[ServerRoundSynchronization] = []
 
@@ -100,6 +105,7 @@ class FedsdaRunServer:
                     self._maximum_evaluating_client_count_per_model
                 ),
                 cross_evaluation_model_transfer_policy=self._cross_evaluation_model_transfer_policy,
+                consolidated_shared_feature_policy=self._consolidated_shared_feature_policy,
                 python_random_generator=self._python_random_generator,
                 round_index=round_index,
                 model_clustering_enabled=new_model_registration_available,
@@ -126,6 +132,7 @@ def assemble_fedsda_run_server(
     model_clustering_criteria: ModelClusteringCriteria,
     maximum_evaluating_client_count_per_model: int,
     cross_evaluation_model_transfer_policy: str,
+    consolidated_shared_feature_policy: str,
     python_random_generator: Random,
 ) -> FedsdaRunServer:
     """引数の検査の後、初期モデルを持つグローバルモデルのownerと、空の記録のownerを作って、サーバを返す。
@@ -151,6 +158,9 @@ def assemble_fedsda_run_server(
     validate_cross_evaluation_model_transfer_policy(
         cross_evaluation_model_transfer_policy=cross_evaluation_model_transfer_policy
     )
+    validate_consolidated_shared_feature_policy(
+        consolidated_shared_feature_policy=consolidated_shared_feature_policy
+    )
     if type(python_random_generator) is not Random:
         raise TypeError("python_random_generator must be exact random.Random")
     return FedsdaRunServer(
@@ -169,5 +179,6 @@ def assemble_fedsda_run_server(
         model_clustering_criteria=model_clustering_criteria,
         maximum_evaluating_client_count_per_model=maximum_evaluating_client_count_per_model,
         cross_evaluation_model_transfer_policy=cross_evaluation_model_transfer_policy,
+        consolidated_shared_feature_policy=consolidated_shared_feature_policy,
         python_random_generator=python_random_generator,
     )

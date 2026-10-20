@@ -140,11 +140,22 @@ _CANDIDATE_VALIDATION_POLICY_NAME = (
 # 版の後に足された、FedSDAの参加者の設定の項目（`run_participant_settings`からの経路）と、その版の値。
 # クロス評価のモデルの送り方（2026-10-20に足した項目）。版1〜7は、どれも、候補のモデルを送る旧の扱い。
 _CROSS_EVALUATION_MODEL_TRANSFER_POLICY_PATH = ("cross_evaluation_model_transfer_policy",)
+# 統合での共有部の扱い（2026-10-20に足した項目）。版1〜8は、どれも、共有部も平均する旧の扱い。
+_CONSOLIDATED_SHARED_FEATURE_POLICY_PATH = ("consolidated_shared_feature_policy",)
 _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     baseline_version: {
-        _CROSS_EVALUATION_MODEL_TRANSFER_POLICY_PATH: "send_candidate_models_for_cross_evaluation"
+        **(
+            {
+                _CROSS_EVALUATION_MODEL_TRANSFER_POLICY_PATH: (
+                    "send_candidate_models_for_cross_evaluation"
+                )
+            }
+            if baseline_version <= 7
+            else {}
+        ),
+        _CONSOLIDATED_SHARED_FEATURE_POLICY_PATH: "average_shared_features_with_concept_specific_parts",
     }
-    for baseline_version in (1, 2, 3, 4, 5, 6, 7)
+    for baseline_version in (1, 2, 3, 4, 5, 6, 7, 8)
 }
 _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     1: {
@@ -550,15 +561,12 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                 ),
             )
         changes["run_client_settings"] = client
-        if (
-            _CROSS_EVALUATION_MODEL_TRANSFER_POLICY_PATH
-            in _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(baseline_version, {})
-        ):
-            changes["cross_evaluation_model_transfer_policy"] = (
-                _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION[baseline_version][
-                    _CROSS_EVALUATION_MODEL_TRANSFER_POLICY_PATH
-                ]
-            )
+        # 参加者の設定の、版の後に足された項目を、その版の値に明示する。
+        for (
+            added_field_path,
+            version_value,
+        ) in _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(baseline_version, {}).items():
+            changes[added_field_path[-1]] = version_value
     return replace(
         settings,
         execution_settings=replace(settings.execution_settings, concept_schedule_settings=schedule),

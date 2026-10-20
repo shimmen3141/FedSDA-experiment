@@ -5413,6 +5413,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "dataclasses.dataclass",
             "torch.Tensor",
+            "torch.uint8",
             "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
             "federated_learning_experiments.learning.loss_statistics.bounded_loss_moments.BoundedLossMoments",
             "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatistics",
@@ -6073,6 +6074,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_server.assemble_fedsda_run_server",
             "federated_learning_experiments.runtime.initial_model_pretraining.pretrain_initial_model",
             "federated_learning_experiments.runtime.server_round_synchronization.CROSS_EVALUATION_MODEL_TRANSFER_POLICY_NAMES",
+            "federated_learning_experiments.runtime.model_clustering_and_consolidation.CONSOLIDATED_SHARED_FEATURE_POLICY_NAMES",
         )
     if source_module_path == "runtime/fedsda_run_server.py":
         return imported_module_name in (
@@ -6089,13 +6091,13 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.server_round_synchronization.ServerRoundSynchronization",
             "federated_learning_experiments.runtime.server_round_synchronization.synchronize_models_in_server_round",
             "federated_learning_experiments.runtime.server_round_synchronization.validate_cross_evaluation_model_transfer_policy",
+            "federated_learning_experiments.runtime.model_clustering_and_consolidation.validate_consolidated_shared_feature_policy",
         )
     if source_module_path == "runtime/server_round_synchronization.py":
         return imported_module_name in (
             "dataclasses.dataclass",
             "random.Random",
             "torch.Tensor",
-            "torch.uint8",
             "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
             "federated_learning_experiments.evaluation.cross_evaluation_record_store.CrossEvaluationRecordStore",
             "federated_learning_experiments.evaluation.model_clustering_record_store.ModelClusteringRecordStore",
@@ -6105,14 +6107,17 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.global_model_distribution.distribute_global_models_to_clients",
             "federated_learning_experiments.runtime.global_model_distribution.record_global_model_distribution_volume",
             "federated_learning_experiments.runtime.global_model_distribution_application.GlobalModelDistributionApplication",
+            "federated_learning_experiments.runtime.model_clustering_and_consolidation.AVERAGE_SHARED_FEATURES_WITH_CONCEPT_SPECIFIC_PARTS_POLICY_NAME",
             "federated_learning_experiments.runtime.model_clustering_and_consolidation.ModelConsolidation",
             "federated_learning_experiments.runtime.model_clustering_and_consolidation.cluster_and_consolidate_global_models",
+            "federated_learning_experiments.runtime.model_clustering_and_consolidation.validate_consolidated_shared_feature_policy",
             "federated_learning_experiments.runtime.model_cross_evaluation.ModelCrossEvaluation",
             "federated_learning_experiments.runtime.model_cross_evaluation.cross_evaluate_global_models",
             "federated_learning_experiments.runtime.post_aggregation_prediction_recalibration.PostAggregationPredictionRecalibration",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.ClientModelAggregation",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.RegisteredClientModel",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.aggregate_client_models_into_global_models",
+            "federated_learning_experiments.runtime.server_model_registration_and_aggregation.parameters_have_the_same_bits",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.register_ready_client_models",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.split_shared_and_concept_specific_parameters",
         )
@@ -6134,6 +6139,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.model_cross_evaluation.CrossEvaluationLossSums",
             "federated_learning_experiments.runtime.model_cross_evaluation.ModelCrossEvaluation",
+            "federated_learning_experiments.runtime.server_model_registration_and_aggregation.parameters_have_the_same_bits",
             "federated_learning_experiments.runtime.server_model_registration_and_aggregation.split_shared_and_concept_specific_parameters",
         )
     if source_module_path == "runtime/model_cross_evaluation.py":

@@ -30,8 +30,30 @@ from federated_learning_experiments.runtime.model_cross_evaluation import (
     ModelCrossEvaluation,
 )
 from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
+    parameters_have_the_same_bits,
     split_shared_and_concept_specific_parameters,
 )
+
+# 統合での共有部の扱い（`FedsdaRunParticipantSettings.consolidated_shared_feature_policy`の値）。
+AVERAGE_SHARED_FEATURES_WITH_CONCEPT_SPECIFIC_PARTS_POLICY_NAME = (
+    "average_shared_features_with_concept_specific_parts"
+)
+KEEP_IDENTICAL_SHARED_FEATURES_POLICY_NAME = "keep_identical_shared_features"
+CONSOLIDATED_SHARED_FEATURE_POLICY_NAMES = (
+    AVERAGE_SHARED_FEATURES_WITH_CONCEPT_SPECIFIC_PARTS_POLICY_NAME,
+    KEEP_IDENTICAL_SHARED_FEATURES_POLICY_NAME,
+)
+
+
+def validate_consolidated_shared_feature_policy(*, consolidated_shared_feature_policy: str) -> None:
+    """統合での共有部の扱いが、builtin strの、2つの値のどちらかであること。"""
+    if type(consolidated_shared_feature_policy) is not str:
+        raise TypeError("consolidated_shared_feature_policy must be builtin str")
+    if consolidated_shared_feature_policy not in CONSOLIDATED_SHARED_FEATURE_POLICY_NAMES:
+        raise ValueError(
+            "consolidated_shared_feature_policy must be one of "
+            f"{CONSOLIDATED_SHARED_FEATURE_POLICY_NAMES}"
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -222,9 +244,13 @@ def _compute_sample_weighted_mean_parameters(
     model_cluster: tuple[int, ...],
     parameter_snapshots_by_model_id: dict[int, dict[str, Tensor]],
     aggregated_training_sample_counts_by_model_id: dict[int, int],
+    keeps_identical_shared_features: bool = False,
 ) -> tuple[dict[str, Tensor], int]:
     """クラスタのメンバーのパラメータの、集約の件数での加重平均。件数がすべて0なら、代表のパラメータ。
 
+    `keeps_identical_shared_features`が真で、加重平均に参加する（正の件数を持つ）メンバー全員の共有部が、代表
+    （クラスタの最小のID）の共有部とビット単位で同じなら、共有部は平均せずに代表の値を使う（同じ値の加重平均の、
+    浮動小数点の誤差を入れない）。概念固有部は、どちらでも同じ加重平均。
     戻り値: (平均したパラメータ, 重み付きの和へ足した、パラメータの値の数)。
     """
     sample_weights = {
@@ -234,13 +260,37 @@ def _compute_sample_weighted_mean_parameters(
     total_sample_weight = sum(sample_weights.values())
     if total_sample_weight <= 0:
         return parameter_snapshots_by_model_id[min(model_cluster)], 0
+    representative_shared_parameters = split_shared_and_concept_specific_parameters(
+        parameter_snapshot=parameter_snapshots_by_model_id[min(model_cluster)]
+    )[0]
+    kept_shared_parameter_names = (
+        frozenset(representative_shared_parameters)
+        if keeps_identical_shared_features
+        and all(
+            parameters_have_the_same_bits(
+                split_shared_and_concept_specific_parameters(
+                    parameter_snapshot=parameter_snapshots_by_model_id[model_id]
+                )[0],
+                representative_shared_parameters,
+            )
+            for model_id in model_cluster
+            if sample_weights[model_id] > 0
+        )
+        else frozenset()
+    )
     weighted_parameter_sum: dict[str, Tensor] | None = None
     multiply_accumulate_count = 0
     for model_id in model_cluster:
         sample_weight = sample_weights[model_id]
         if sample_weight == 0:
             continue
-        member_parameters = parameter_snapshots_by_model_id[model_id]
+        member_parameters = {
+            parameter_name: parameter_values
+            for parameter_name, parameter_values in parameter_snapshots_by_model_id[
+                model_id
+            ].items()
+            if parameter_name not in kept_shared_parameter_names
+        }
         multiply_accumulate_count += sum(
             parameter_values.numel() for parameter_values in member_parameters.values()
         )
@@ -257,10 +307,19 @@ def _compute_sample_weighted_mean_parameters(
                 )
     if weighted_parameter_sum is None:
         raise ValueError("at least one cluster member must have a positive sample weight")
+    averaged_parameters = {
+        parameter_name: parameter_sum / total_sample_weight
+        for parameter_name, parameter_sum in weighted_parameter_sum.items()
+    }
+    # 名前の順は、代表のパラメータの順（旧の扱いと同じ）にする。
     return (
         {
-            parameter_name: parameter_sum / total_sample_weight
-            for parameter_name, parameter_sum in weighted_parameter_sum.items()
+            parameter_name: (
+                representative_shared_parameters[parameter_name].clone()
+                if parameter_name in kept_shared_parameter_names
+                else averaged_parameters[parameter_name]
+            )
+            for parameter_name in parameter_snapshots_by_model_id[min(model_cluster)]
         },
         multiply_accumulate_count,
     )
@@ -307,6 +366,9 @@ def cluster_and_consolidate_global_models(
     model_clustering_record_store: ModelClusteringRecordStore,
     model_clustering_criteria: ModelClusteringCriteria,
     round_index: int,
+    consolidated_shared_feature_policy: str = (
+        AVERAGE_SHARED_FEATURES_WITH_CONCEPT_SPECIFIC_PARTS_POLICY_NAME
+    ),
 ) -> ModelConsolidation:
     """クロス評価したモデル（2つ以上）を、対ごとの判定の値でクラスタリングし、診断の観測を足し、クラスタが減るなら統合する。
 
@@ -315,7 +377,12 @@ def cluster_and_consolidate_global_models(
     判定の値で、average linkageのクラスタを求める。
     統合は、クラスタの最小のID（代表）へ、パラメータ（集約の件数での加重平均）と損失統計（件数での加重平均）を置き、
     ほかのメンバーをグローバルモデルから外す。全部の計算の後で、記録とグローバルモデルを更新する。
+    `consolidated_shared_feature_policy`が`keep_identical_shared_features`なら、メンバーの共有部が代表と
+    ビット単位で同じとき、共有部は平均しない（`_compute_sample_weighted_mean_parameters`）。
     """
+    validate_consolidated_shared_feature_policy(
+        consolidated_shared_feature_policy=consolidated_shared_feature_policy
+    )
     _validate_clustering_and_consolidation_inputs(
         run_clients=run_clients,
         model_cross_evaluation=model_cross_evaluation,
@@ -466,6 +533,10 @@ def cluster_and_consolidate_global_models(
                     model_cluster=model_cluster,
                     parameter_snapshots_by_model_id=parameter_snapshots_by_model_id,
                     aggregated_training_sample_counts_by_model_id=aggregated_training_sample_counts_by_model_id,
+                    keeps_identical_shared_features=(
+                        consolidated_shared_feature_policy
+                        == KEEP_IDENTICAL_SHARED_FEATURES_POLICY_NAME
+                    ),
                 )
             )
             consolidated_parameters_by_representative_model_id[representative_model_id] = (

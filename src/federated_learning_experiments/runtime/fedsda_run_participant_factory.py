@@ -36,6 +36,9 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
 )
 from federated_learning_experiments.runtime.fedsda_run_server import assemble_fedsda_run_server
 from federated_learning_experiments.runtime.initial_model_pretraining import pretrain_initial_model
+from federated_learning_experiments.runtime.model_clustering_and_consolidation import (
+    CONSOLIDATED_SHARED_FEATURE_POLICY_NAMES,
+)
 from federated_learning_experiments.runtime.server_round_synchronization import (
     CROSS_EVALUATION_MODEL_TRANSFER_POLICY_NAMES,
 )
@@ -71,6 +74,10 @@ class FedsdaRunParticipantSettings:
     # clientは受け取ったモデルを候補として評価する（クロス評価ではメッセージだけを送り、統合が起きたら、
     # 値が変わった代表のモデルを送り直す）。状態の更新は同じで、通信量の記録だけが違う。
     cross_evaluation_model_transfer_policy: str
+    # 統合での共有部の扱い。`average_shared_features_with_concept_specific_parts`は、共有部も概念固有部と一緒に
+    # 加重平均する（旧と同じ）。`keep_identical_shared_features`は、メンバーの共有部が代表とビット単位で同じなら、
+    # 平均せずに代表の値を使う（同じ値の加重平均の、浮動小数点の誤差を入れない）。
+    consolidated_shared_feature_policy: str
 
     def __post_init__(self) -> None:
         for settings_field_name, required_type in _REQUIRED_SETTINGS_TYPE_BY_FIELD_NAME.items():
@@ -127,6 +134,20 @@ class FedsdaRunParticipantSettings:
                 validation_failure_reason=(
                     "次のどれかを指定してください: "
                     + "、".join(CROSS_EVALUATION_MODEL_TRANSFER_POLICY_NAMES)
+                    + "。"
+                ),
+            )
+        if (
+            type(self.consolidated_shared_feature_policy) is not str
+            or self.consolidated_shared_feature_policy
+            not in CONSOLIDATED_SHARED_FEATURE_POLICY_NAMES
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="consolidated_shared_feature_policy",
+                specified_parameter_value=self.consolidated_shared_feature_policy,
+                validation_failure_reason=(
+                    "次のどれかを指定してください: "
+                    + "、".join(CONSOLIDATED_SHARED_FEATURE_POLICY_NAMES)
                     + "。"
                 ),
             )
@@ -284,6 +305,9 @@ class FedsdaRunParticipantFactory:
             ),
             cross_evaluation_model_transfer_policy=(
                 run_participant_settings.cross_evaluation_model_transfer_policy
+            ),
+            consolidated_shared_feature_policy=(
+                run_participant_settings.consolidated_shared_feature_policy
             ),
             python_random_generator=python_random_generator,
         )
