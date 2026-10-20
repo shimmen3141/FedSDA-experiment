@@ -600,6 +600,36 @@ def test_baseline_8_differs_from_7_only_in_communication_volume():
     assert reduced_case_names
 
 
+def test_baseline_9_keeps_cases_and_changes_only_the_consolidated_shared_feature_setting():
+    """版9のケースは版8と同じ。設定は、FedSDAのケースの統合での共有部の扱いだけが違う。"""
+    assert 9 in golden.SUPPORTED_BASELINE_VERSIONS
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[9] == golden.CASE_NAMES_BY_BASELINE_VERSION[8]
+    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[8]:
+        previous = golden.comparable_run_settings(name, 8)
+        current = deepcopy(golden.comparable_run_settings(name, 9))
+        if "consolidated_shared_feature_policy" in current["run_participant_settings"]:
+            assert (
+                current["run_participant_settings"].pop("consolidated_shared_feature_policy")
+                == "keep_identical_shared_features"
+            ), name
+        golden.assert_case_matches(name, current, previous, "run_settings")
+
+
+@pytest.mark.slow
+def test_baseline_9_differs_from_8_only_where_consolidation_occurred():
+    """版8→9: FedDrift・FedAvgと、統合が起きないFedSDAのケースは、全部が版8と同じ。統合が起きたケースは差があってよい。"""
+    merged_case_names = []
+    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[8]:
+        previous = capture_case_once(name, 8)[0]
+        current = capture_case_once(name, 9)[0]
+        if name.startswith("fedsda") and previous["coverage"]["merged_model_count"] > 0:
+            merged_case_names.append(name)
+            continue
+        for section in ("run_metrics", "record_tables", "global_parameters", "coverage"):
+            golden.assert_case_matches(name, current[section], previous[section], section)
+    assert merged_case_names
+
+
 @pytest.mark.parametrize(
     ("previous_version", "next_version", "case_name"),
     [

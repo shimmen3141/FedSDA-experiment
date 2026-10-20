@@ -93,7 +93,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8)
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
 BASELINE_VERSION = 8
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
@@ -308,6 +308,14 @@ CASE_NAMES_BY_BASELINE_VERSION = {
     ),
     # 版8は、クロス評価で配布するモデルを使う扱い（通信量の記録だけが版7と違う）。ケースは版7と同じ。
     8: (
+        *_VERSION_1_CASE_NAMES,
+        "fedsda-sine2-reference-reuse",
+        "fedsda-sine2-alternative-reference-reuse",
+        "fedsda-sine2-adoption-without-validation",
+        "fedsda-mnist2-adoption-without-validation",
+    ),
+    # 版9は、統合で同じ共有部を平均せずに保つ扱い。ケースは版8と同じ。
+    9: (
         *_VERSION_1_CASE_NAMES,
         "fedsda-sine2-reference-reuse",
         "fedsda-sine2-alternative-reference-reuse",
