@@ -40,6 +40,7 @@
 | IMPROVE-022 | 候補の学習の早期終了を単純にする | 見送り（2026-10-20。固定エポックはMNISTで大きく下がり、SINE2では上がる） | [詳細](improve-022-simplify-candidate-early-stopping.md) |
 | IMPROVE-023 | 候補検証を既定から外した後に残った設定を整理する | 未検証・未採用（2026-10-20。4案の4番目。候補検証の処理を消すかはユーザー判断待ち） | [詳細](improve-023-remove-settings-left-from-candidate-validation.md) |
 | IMPROVE-024 | 警報の時点で、推定した変化点より後に解放された標本を、古いモデルの学習データから外す | 保留（2026-10-20ユーザー決定。外すだけの変種、外した標本を変化区間へ足す変種とも、手元の3 seedでは一般的な改善にならない——足す変種は既定との差が−0.09〜+0.47pp。ablationの後に本規模で試す予定） | [詳細](improve-024-withdraw-released-samples-after-estimated-change-point.md) |
+| IMPROVE-025 | サーバのクラスタリングの判定を、損失の距離へ単純にする（閾値の置き方を見直す） | 未検証・未採用（2026-10-21。損失の距離の区別の力はクラス別と同等以上。MNIST4の低下は、固定の閾値0.1が同じ概念の対の距離をまたぐための見逃した統合） | [詳細](improve-025-simplify-clustering-decision-to-loss-distance.md) |
 
 ## 決定（2026-10-13、ユーザー）
 
