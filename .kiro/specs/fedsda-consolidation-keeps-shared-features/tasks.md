@@ -21,7 +21,7 @@
   - 完了条件: 文書が新しい扱いと、版8の結果のSEAの通信量の注意を説明する。
   - _Requirements: 5.1_
 
-- [ ] 5. 実装レビューと最終検証
+- [x] 5. 実装レビューと最終検証
   - 独立CLIの実装レビュー、指摘の反映、全pytest・Ruff・Pyright・WSL。
   - 完了条件: 実装レビューの判定と指摘の採否、全pytest（件数・exit・JUnit）、Ruff・Pyright、WSLの照合の結果を「Implementation Notes」とspec.jsonへ記録し、レビューがPASSで、全pytestが失敗0。
   - _Requirements: 全部_
@@ -33,3 +33,5 @@
 - Task2: 全体runの送り直しのtestは、goldenの`fedsda-sine2-adoption-without-validation`の条件（seed 0）では旧の扱いでも共有部が変わらなかったので、seedを1にした（下調べで、旧の扱いの統合2回とも共有部が変わる）。runの識別子`d34424af3358`→`4403b4d6816c`。全pytest 14554 passed / 失敗0。
 - Task3: 生成元`a725c34`。Windows（Python 3.13.15）とWSL（Python 3.14.4）で、独立2processの全snapshot一致で21ケースを生成し、`v9/`へ新規に置いた。設置後に`BASELINE_VERSION`と`BEHAVIOR_BASELINE_VERSION`を9へ上げた。版9の定義と版8→9の差の説明のtestは2 passed（goldenの生成前）。WSLの版1〜9とこのspecのtestは344 passed（`../../venv/refactoring-tests/consolidation-wsl.xml`）。Windowsの版1〜9の照合は、最後の全pytestに含まれるので、単独の実行は途中で止めた（ユーザーと相談のうえ、重複を省いた）。
 - Task4: 基準（版9）、指標（版8の結果のSEAの通信量の注意）、実験の入口、IMPROVE-020、再開案内を更新した。
+- 実装レビュー1回目（Luna high、session `01a15877-ea69-7cb3-881a-a0d61ac0bec8`、対象`d4e8ce2..5c1d47b`）: CHANGES REQUIRED。Major 1件（結果のパラメータの辞書を代表の名前の順で組み直していた。旧の扱いの順は、件数が正の最初のメンバーの順。代表の件数が0で名前の順が違うと、旧の扱いでも順が変わる）。旧の扱いでは平均した辞書をそのまま返し、新しい扱いでも件数が正の最初のメンバーの順にし、testを足した。値は変わらない（版9の21ケースの照合が通る）。2回目（session `01a1587d-a78a-71a2-bbb5-e7d3a89dc311`、修正の再確認）PASS。レビュー担当は、1回目に対象test・依存境界3176件、版9ほか11件、Ruffを独立に実行した。全pytest・WSL・fresh smokeは独立に実行していない。
+- 主担当の最終検証（`c5c15b7`。この1つ前の`1786c23`が本specの最後のcommitで、`c5c15b7`は研究ツールだけの変更。source hash `9a476190f2d5b816f0da41d9fcba4f2fd7f0956de521c5c873a76e97918bf72c`、499パス）: Windows全pytest 14580 passed / 8 skipped / 失敗0（2761秒、JUnit `../../venv/refactoring-tests/consolidation-full.xml`。手元の研究の比較と同時に実行したので遅い）。旧の回帰2件も成功。fresh smoke 16フロー成功（`../../venv/refactoring-tests/consolidation-fresh.log`）。Pyright 0 errors、pip check・Ruff成功。WSLの版1〜9とこのspecのtestは344件成功（Task3）。`tools/research_*`を除いた旧実装・旧goldenの差分は0行。基準版のgoldenは`v9/`の2ファイルの追加だけ。
