@@ -336,6 +336,10 @@ ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES = (
     "fedsda-mnist2-adoption-without-validation",
 )
 CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[BASELINE_VERSION]
+# 全部の版のケースの名前（初めて現れた版の順）。並列の実行での配り方が使う。
+ALL_CASE_NAMES = tuple(
+    dict.fromkeys(name for names in CASE_NAMES_BY_BASELINE_VERSION.values() for name in names)
+)
 ENVIRONMENT_KEYS = {"system", "machine", "python", "numpy", "torch", "device", "dtype", "threads"}
 CASE_KEYS = {"run_settings", "run_metrics", "record_tables", "global_parameters", "coverage"}
 DIGEST_KEYS = {"shape", "dtype", "sha256"}
@@ -995,7 +999,37 @@ class PendingModelNotCurrentWhileWaitingCounter:
 
 
 def capture_case_and_count_divergence_events(case_name, baseline_version=BASELINE_VERSION):
-    """ケースを実行して、（goldenと比べる形の結果、次の版と状態が分かれる事象の数）を返す。
+    """ケースを実行して、（goldenと比べる形の結果、次の版と状態が分かれる事象の数）を返す（毎回実行する）。
+
+    goldenの生成は、こちらを使う（2つの独立processで、それぞれ全ケースを実行して比べるため）。
+    """
+    settings = build_case_settings(case_name, baseline_version)
+    run_outputs = _execute_case_run(case_name, settings)
+    return _assemble_case_capture(case_name, baseline_version, *run_outputs)
+
+
+# 同じprocessの中で、完全なrun設定（保存の形のJSON）→実行の結果（run、記録の表、パラメータ、事象の数）。
+_REUSED_CASE_RUNS = {}
+
+
+def capture_case_reusing_runs(case_name, baseline_version=BASELINE_VERSION):
+    """`capture_case_and_count_divergence_events`と同じ結果を返す。同じprocessの中で、同じ完全なrun設定の
+    runは1回だけ実行し、使い回す（経路の記録、必須の経路の確認、比べる形の設定は、版ごとに組み立てる）。
+
+    完全なrun設定が同じなら、runの結果は同じ（乱数のseedも設定が持つ）。testの側だけが使う。
+    """
+    settings = build_case_settings(case_name, baseline_version)
+    key = json.dumps(_plain(settings), sort_keys=True)
+    if key not in _REUSED_CASE_RUNS:
+        _REUSED_CASE_RUNS[key] = _execute_case_run(case_name, settings)
+    run, tables, parameters, divergence_event_counts = _REUSED_CASE_RUNS[key]
+    return _assemble_case_capture(
+        case_name, baseline_version, run, tables, parameters, dict(divergence_event_counts)
+    )
+
+
+def _execute_case_run(case_name, settings):
+    """run設定からケースを実行して、（run、記録の表、パラメータ、次の版と状態が分かれる事象の数）を返す。
 
     事象の数は、名前→数の辞書: 登録されないまま残った採用（版1→2で直した。runの終わりの状態から数える）、
     前区間のある短い警報（版2→3で、扱いが分かれる。実行の間だけ、警報の処理が呼ぶ完了処理を包んで数える）、
@@ -1013,7 +1047,6 @@ def capture_case_and_count_divergence_events(case_name, baseline_version=BASELIN
         pending_model_not_current_while_waiting_count=0,
         alarm_wait_situation_count=0,
     )
-    settings = build_case_settings(case_name, baseline_version)
     if type(settings) is FedavgRunSettings:
         run = execute_fedavg_experiment_run(run_settings=settings)
         tables = build_fedavg_run_record_tables(experiment_run=run)
@@ -1096,6 +1129,13 @@ def capture_case_and_count_divergence_events(case_name, baseline_version=BASELIN
             mid: repository.get_global_model_parameters(model_id=mid)
             for mid in repository.global_model_ids
         }
+    return run, tables, parameters, divergence_event_counts
+
+
+def _assemble_case_capture(
+    case_name, baseline_version, run, tables, parameters, divergence_event_counts
+):
+    """実行の結果から、版ごとに、goldenと比べる形の結果を組み立てる（経路の記録と必須の経路の確認を含む）。"""
     coverage = _coverage(case_name, run, tables, baseline_version)
     assert_required_paths(case_name, coverage, baseline_version)
     return (

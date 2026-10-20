@@ -1,6 +1,7 @@
 """新実装の重要動作goldenの構造・検出力・数値回帰を検証する。"""
 
 from copy import deepcopy
+from dataclasses import replace
 
 import behavior_golden_cases as golden
 import pytest
@@ -313,6 +314,58 @@ def test_committed_goldens_cover_both_reference_environments(baseline_version):
     assert documents[0]["mnist_sha256"] == documents[1]["mnist_sha256"]
 
 
+def test_runs_are_reused_only_for_identical_full_run_settings(monkeypatch):
+    """同じ完全なrun設定では1回だけ実行し、1つの項目でも違えば別に実行する。経路の記録は版ごとに組み立てる。"""
+    monkeypatch.setattr(golden, "_REUSED_CASE_RUNS", {})
+    executed = []
+    real_execute = golden._execute_case_run
+
+    def counting_execute(case_name, settings):
+        executed.append(case_name)
+        return real_execute(case_name, settings)
+
+    monkeypatch.setattr(golden, "_execute_case_run", counting_execute)
+    # FedDriftのケースは、版1と版2で、完全なrun設定が同じ。
+    assert golden._plain(golden.build_case_settings("feddrift-drift-tail", 1)) == golden._plain(
+        golden.build_case_settings("feddrift-drift-tail", 2)
+    )
+    first = golden.capture_case_reusing_runs("feddrift-drift-tail", 1)
+    second = golden.capture_case_reusing_runs("feddrift-drift-tail", 2)
+    assert executed == ["feddrift-drift-tail"]
+    # 経路の記録は、版ごと（版2からの項目は、版2だけが持つ）。ほかの結果は同じ。
+    assert "unregistered_adopted_model_count" not in first[0]["coverage"]
+    assert "unregistered_adopted_model_count" in second[0]["coverage"]
+    for section in ("run_metrics", "record_tables", "global_parameters"):
+        assert first[0][section] == second[0][section], section
+    # 毎回実行する関数と、同じ結果。
+    assert golden.capture_case_and_count_divergence_events("feddrift-drift-tail", 2) == second
+    # 1つの項目（seed）だけが違う設定は、別に実行する。
+    real_build = golden.build_case_settings
+
+    def build_with_other_seed(case_name, baseline_version=golden.BASELINE_VERSION):
+        settings = real_build(case_name, baseline_version)
+        if baseline_version != 3:
+            return settings
+        conditions = settings.execution_settings.experiment_run_conditions
+        return replace(
+            settings,
+            execution_settings=replace(
+                settings.execution_settings,
+                experiment_run_conditions=replace(
+                    conditions, random_seed=conditions.random_seed + 1
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(golden, "build_case_settings", build_with_other_seed)
+    # seedを変えた設定では、ケースの必須の経路を通るとは限らない（ここでは実行の回数だけを確かめる）。
+    monkeypatch.setattr(golden, "assert_required_paths", lambda *arguments: None)
+    executed.clear()
+    golden.capture_case_reusing_runs("feddrift-drift-tail", 2)
+    golden.capture_case_reusing_runs("feddrift-drift-tail", 3)
+    assert executed == ["feddrift-drift-tail"]
+
+
 # ケースの実行の結果（ケース名と基準版ごとに1回だけ実行して、数値の照合と、版の差の説明のtestで共有する）。
 _CAPTURED_CASES = {}
 
@@ -320,9 +373,7 @@ _CAPTURED_CASES = {}
 def capture_case_once(case_name, baseline_version):
     key = (case_name, baseline_version)
     if key not in _CAPTURED_CASES:
-        _CAPTURED_CASES[key] = golden.capture_case_and_count_divergence_events(
-            case_name, baseline_version
-        )
+        _CAPTURED_CASES[key] = golden.capture_case_reusing_runs(case_name, baseline_version)
     return _CAPTURED_CASES[key]
 
 
@@ -448,43 +499,46 @@ def test_baseline_6_retains_all_cases_and_changes_only_prediction_settings():
         golden.assert_case_matches(name, current, previous, "run_settings")
 
 
+# 版の差の説明のtestで、差が実際に起きることを確かめるケース（比較が空にならないことを保つ。2026-10-20に、
+# 全ケースの結果で、経路を通ることを確かめて選んだ）。
+_CASE_WITH_CHANGED_PREDICTION_RECORDS_IN_BASELINE_6 = "fedsda-sine2-events"
+_CASE_WITH_REDUCED_DOWNLOADS_IN_BASELINE_8 = "fedsda-sine2-adoption-without-validation"
+_CASE_WITH_CONSOLIDATION_IN_BASELINE_9 = "fedsda-sine2-adoption-without-validation"
+
+
 @pytest.mark.slow
-def test_baseline_6_differs_from_5_only_on_the_prediction_side():
-    prediction_records_changed = []
-    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[5]:
-        previous = capture_case_once(name, 5)[0]
-        current = capture_case_once(name, 6)[0]
-        for section in ("global_parameters", "coverage"):
+@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[5])
+def test_baseline_6_differs_from_5_only_on_the_prediction_side(case_name):
+    name = case_name
+    previous = capture_case_once(name, 5)[0]
+    current = capture_case_once(name, 6)[0]
+    for section in ("global_parameters", "coverage"):
+        golden.assert_case_matches(name, current[section], previous[section], section)
+    if not name.startswith("fedsda") or name == "fedsda-single-model-prediction":
+        for section in ("run_metrics", "record_tables"):
             golden.assert_case_matches(name, current[section], previous[section], section)
-        if not name.startswith("fedsda") or name == "fedsda-single-model-prediction":
-            for section in ("run_metrics", "record_tables"):
-                golden.assert_case_matches(name, current[section], previous[section], section)
-            continue
-        previous_tables = previous["record_tables"]
-        current_tables = current["record_tables"]
-        assert set(previous_tables) == set(current_tables), name
-        changed_tables = {
-            key for key in previous_tables if previous_tables[key] != current_tables[key]
-        }
-        assert all(
-            key.startswith("sample_prediction.") or key in _PREDICTION_SIDE_RECORD_TABLE_COLUMNS
-            for key in changed_tables
-        ), (name, changed_tables)
-        previous_metrics = _flatten_metric_paths(previous["run_metrics"])
-        current_metrics = _flatten_metric_paths(current["run_metrics"])
-        assert set(previous_metrics) == set(current_metrics), name
-        changed_metrics = {
-            key for key in previous_metrics if previous_metrics[key] != current_metrics[key]
-        }
-        assert all(
-            key.startswith("prediction_diagnostic_metrics.")
-            or key in _PREDICTION_SIDE_RUN_METRIC_PATHS
-            for key in changed_metrics
-        ), (name, changed_metrics)
-        assert changed_tables or changed_metrics, name
-        if any(key.startswith("sample_prediction.") for key in changed_tables):
-            prediction_records_changed.append(name)
-    assert prediction_records_changed
+        return
+    previous_tables = previous["record_tables"]
+    current_tables = current["record_tables"]
+    assert set(previous_tables) == set(current_tables), name
+    changed_tables = {key for key in previous_tables if previous_tables[key] != current_tables[key]}
+    assert all(
+        key.startswith("sample_prediction.") or key in _PREDICTION_SIDE_RECORD_TABLE_COLUMNS
+        for key in changed_tables
+    ), (name, changed_tables)
+    previous_metrics = _flatten_metric_paths(previous["run_metrics"])
+    current_metrics = _flatten_metric_paths(current["run_metrics"])
+    assert set(previous_metrics) == set(current_metrics), name
+    changed_metrics = {
+        key for key in previous_metrics if previous_metrics[key] != current_metrics[key]
+    }
+    assert all(
+        key.startswith("prediction_diagnostic_metrics.") or key in _PREDICTION_SIDE_RUN_METRIC_PATHS
+        for key in changed_metrics
+    ), (name, changed_metrics)
+    assert changed_tables or changed_metrics, name
+    if name == _CASE_WITH_CHANGED_PREDICTION_RECORDS_IN_BASELINE_6:
+        assert any(key.startswith("sample_prediction.") for key in changed_tables), name
 
 
 # 版7で、版6と同じ値であるケース: 候補検証の経路の4ケース（版6までの既定と同じ設定の構成で実行する）、
@@ -568,36 +622,36 @@ def test_baseline_8_keeps_cases_and_changes_only_the_cross_evaluation_transfer_s
 
 
 @pytest.mark.slow
-def test_baseline_8_differs_from_7_only_in_communication_volume():
+@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[7])
+def test_baseline_8_differs_from_7_only_in_communication_volume(case_name):
     """版7→8の差は通信量だけ。クロス評価が起きたFedSDAのケースは、下りのbyteが減る。"""
-    reduced_case_names = []
-    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[7]:
-        previous = capture_case_once(name, 7)[0]
-        current = capture_case_once(name, 8)[0]
-        for section in ("record_tables", "global_parameters", "coverage"):
-            golden.assert_case_matches(name, current[section], previous[section], section)
-        previous_metrics = _flatten_metric_paths(previous["run_metrics"])
-        current_metrics = _flatten_metric_paths(current["run_metrics"])
-        assert set(previous_metrics) == set(current_metrics), name
-        changed_metrics = {
-            key for key in previous_metrics if previous_metrics[key] != current_metrics[key]
-        }
-        assert all(key.startswith("communication_volume.") for key in changed_metrics), (
-            name,
-            changed_metrics,
-        )
-        cross_evaluated = any(
-            key.startswith("client_cross_evaluation.")
-            and previous["record_tables"][key]["shape"][0] > 0
-            for key in previous["record_tables"]
-        )
-        if not name.startswith("fedsda") or not cross_evaluated:
-            assert not changed_metrics, (name, changed_metrics)
-            continue
-        downloaded = "communication_volume.downloaded_byte_count"
-        assert current_metrics[downloaded] < previous_metrics[downloaded], name
-        reduced_case_names.append(name)
-    assert reduced_case_names
+    name = case_name
+    previous = capture_case_once(name, 7)[0]
+    current = capture_case_once(name, 8)[0]
+    for section in ("record_tables", "global_parameters", "coverage"):
+        golden.assert_case_matches(name, current[section], previous[section], section)
+    previous_metrics = _flatten_metric_paths(previous["run_metrics"])
+    current_metrics = _flatten_metric_paths(current["run_metrics"])
+    assert set(previous_metrics) == set(current_metrics), name
+    changed_metrics = {
+        key for key in previous_metrics if previous_metrics[key] != current_metrics[key]
+    }
+    assert all(key.startswith("communication_volume.") for key in changed_metrics), (
+        name,
+        changed_metrics,
+    )
+    cross_evaluated = any(
+        key.startswith("client_cross_evaluation.")
+        and previous["record_tables"][key]["shape"][0] > 0
+        for key in previous["record_tables"]
+    )
+    if name == _CASE_WITH_REDUCED_DOWNLOADS_IN_BASELINE_8:
+        assert cross_evaluated, name
+    if not name.startswith("fedsda") or not cross_evaluated:
+        assert not changed_metrics, (name, changed_metrics)
+        return
+    downloaded = "communication_volume.downloaded_byte_count"
+    assert current_metrics[downloaded] < previous_metrics[downloaded], name
 
 
 def test_baseline_9_keeps_cases_and_changes_only_the_consolidated_shared_feature_setting():
@@ -616,18 +670,18 @@ def test_baseline_9_keeps_cases_and_changes_only_the_consolidated_shared_feature
 
 
 @pytest.mark.slow
-def test_baseline_9_differs_from_8_only_where_consolidation_occurred():
+@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[8])
+def test_baseline_9_differs_from_8_only_where_consolidation_occurred(case_name):
     """版8→9: FedDrift・FedAvgと、統合が起きないFedSDAのケースは、全部が版8と同じ。統合が起きたケースは差があってよい。"""
-    merged_case_names = []
-    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[8]:
-        previous = capture_case_once(name, 8)[0]
-        current = capture_case_once(name, 9)[0]
-        if name.startswith("fedsda") and previous["coverage"]["merged_model_count"] > 0:
-            merged_case_names.append(name)
-            continue
-        for section in ("run_metrics", "record_tables", "global_parameters", "coverage"):
-            golden.assert_case_matches(name, current[section], previous[section], section)
-    assert merged_case_names
+    name = case_name
+    previous = capture_case_once(name, 8)[0]
+    current = capture_case_once(name, 9)[0]
+    if name == _CASE_WITH_CONSOLIDATION_IN_BASELINE_9:
+        assert previous["coverage"]["merged_model_count"] > 0, name
+    if name.startswith("fedsda") and previous["coverage"]["merged_model_count"] > 0:
+        return
+    for section in ("run_metrics", "record_tables", "global_parameters", "coverage"):
+        golden.assert_case_matches(name, current[section], previous[section], section)
 
 
 @pytest.mark.parametrize(
@@ -761,3 +815,43 @@ def test_changed_real_golden_snapshot_is_detected(section):
         changed[section][field]["sha256"] = "f" * 64
     with pytest.raises(AssertionError, match=rf"fedavg.*{section}.*{re.escape(field)}"):
         golden.assert_case_matches("fedavg", changed, expected)
+
+
+def test_parallel_scope_keeps_tests_of_one_golden_case_in_one_process(request):
+    """並列の実行で、ケースの名前を持つ全部のtestが、そのケースの組へ入る。同じケースは同じ組、重いケースは別々の組。"""
+    from conftest import GOLDEN_CASE_NAMES_IN_OWN_GROUP, select_parallel_test_scope
+
+    all_case_names = golden.ALL_CASE_NAMES
+    scopes_by_case_name = {}
+    for test_item in request.session.items:
+        if test_item.path.name != "test_important_behavior_regression_goldens.py":
+            continue
+        test_scope = select_parallel_test_scope(
+            test_node_id=test_item.nodeid, golden_case_names=all_case_names
+        )
+        call_specification = getattr(test_item, "callspec", None)
+        if call_specification is None or "case_name" not in call_specification.params:
+            assert "::" not in test_scope, test_item.nodeid
+            continue
+        case_name = call_specification.params["case_name"]
+        assert "::golden-case-group-" in test_scope, test_item.nodeid
+        scopes_by_case_name.setdefault(case_name, set()).add(test_scope)
+    assert all(len(scopes) == 1 for scopes in scopes_by_case_name.values())
+    # 組の割り当ての全体は、全部のケースの名前で確かめる（`-k`などで一部のtestだけを選んだときも同じ）。
+    file_path = "tests/refactoring/test_important_behavior_regression_goldens.py"
+    scope_by_case_name = {
+        name: select_parallel_test_scope(
+            test_node_id=f"{file_path}::test[9-{name}]", golden_case_names=all_case_names
+        )
+        for name in all_case_names
+    }
+    for name, scopes in scopes_by_case_name.items():
+        assert scopes == {scope_by_case_name[name]}, name
+    heavy_scopes = [scope_by_case_name[name] for name in GOLDEN_CASE_NAMES_IN_OWN_GROUP]
+    assert len(set(heavy_scopes)) == len(GOLDEN_CASE_NAMES_IN_OWN_GROUP)
+    other_scopes = {
+        scope
+        for name, scope in scope_by_case_name.items()
+        if name not in GOLDEN_CASE_NAMES_IN_OWN_GROUP
+    }
+    assert len(other_scopes) == 2 and not other_scopes & set(heavy_scopes)
