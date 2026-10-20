@@ -74,6 +74,13 @@ _WITHDRAW_RELEASED_SAMPLE_VARIANTS = (
 _VARIANTS["default-withdraw-released"] = ("fedsda", False, None)
 # 外した標本を、警報の変化区間の先頭へ足す（再利用の判定・候補の学習・帰属の材料に含める）。
 _VARIANTS["default-withdraw-released-into-interval"] = ("fedsda", False, None)
+# IMPROVE-021の案A: 警報の区間の再利用の判定を、固定の閾値（区間の平均損失≦履歴の基準＋0.1）から、
+# 区間の累積の対数損失の比較へ替える。比べるのは、履歴の基準を持つ各保有モデル（固定）と、「新しいモデル」
+# （候補の初期値と同じ、区間の平均損失が最小の保有モデルから始め、区間を1標本ずつ、予測してから学習する逐次の
+# 学習者。共有部は固定し、候補の学習と同じ損失とoptimizerの設定で、1標本ごとに1回更新する）。累積の対数損失が
+# 最小のものを選び、新しいモデルが最小なら、今と同じ候補の学習・採用へ進む。閾値は使わない。
+_PREQUENTIAL_REUSE_VARIANTS = ("default-prequential-reuse",)
+_VARIANTS["default-prequential-reuse"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -470,6 +477,93 @@ def _withdraw_released_samples_policy(*, events, includes_withdrawn_samples_in_c
 
 
 @contextmanager
+def _prequential_reuse_policy(*, optimizer_settings, events):
+    """警報の区間の再利用の判定を、累積の対数損失の比較へ替える（研究用。実行の間だけ包む）。"""
+    import torch
+    from torch.nn import BCELoss, CrossEntropyLoss
+
+    import federated_learning_experiments.runtime.alarm_change_interval_resolution as resolution_module
+    from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
+        evaluate_classifier_per_sample_bounded_losses,
+    )
+    from federated_learning_experiments.learning.training.parameter_optimizer_construction import (
+        create_parameter_optimizer,
+    )
+    from federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment import (
+        AlarmIntervalModelReuseAssessment,
+    )
+
+    original_evaluate = resolution_module.evaluate_held_models_for_alarm_interval_reuse
+
+    def log_losses(classifier, input_features, observed_class_labels):
+        # 有界の損失は1−真のクラスの確率なので、対数損失は−log(1−有界の損失)。
+        bounded = evaluate_classifier_per_sample_bounded_losses(
+            classifier=classifier, input_features=input_features, observed_class_labels=observed_class_labels
+        )
+        return -torch.log(torch.clamp(1.0 - bounded, min=1e-12))
+
+    def prequential_log_loss(classifier, input_features, observed_class_labels):
+        learner = copy.deepcopy(classifier)
+        parameters = tuple(
+            parameter
+            for name, parameter in learner.named_parameters()
+            if not name.startswith("feature_extractor.")
+        )
+        optimizer = create_parameter_optimizer(parameters=parameters, optimizer_settings=optimizer_settings)
+        total = 0.0
+        for index in range(input_features.shape[0]):
+            x = input_features[index : index + 1]
+            y = observed_class_labels[index : index + 1]
+            total += float(log_losses(learner, x, y).sum())
+            with torch.no_grad():
+                shared_features = learner.extract_shared_features(x)
+            optimizer.zero_grad()
+            predictions = learner.forward_from_shared_features(shared_features)
+            if learner.class_count == 2:
+                loss = BCELoss()(predictions, y)
+            else:
+                loss = CrossEntropyLoss()(predictions, y.reshape(-1).long())
+            loss.backward()
+            optimizer.step()
+        return total
+
+    def evaluate(**arguments):
+        assessment = original_evaluate(**arguments)
+        supported = assessment.baseline_supported_interval_mean_losses_by_model_id
+        if not supported:
+            return assessment
+        registry = arguments["held_model_training_state_registry"]
+        x, y = arguments["input_features"], arguments["observed_class_labels"]
+        classifiers = {
+            model_id: registry.get_held_model_training_state(model_id=model_id).classifier
+            for model_id, _ in supported
+        }
+        held_totals = {model_id: float(log_losses(classifiers[model_id], x, y).sum()) for model_id, _ in supported}
+        # 候補の初期値（区間の平均損失が最小の保有モデル。同率は列の先着）から始める逐次の学習者。
+        initial_model_id = min(supported, key=lambda evaluated: evaluated[1])[0]
+        new_total = prequential_log_loss(classifiers[initial_model_id], x, y)
+        best_model_id = min(held_totals, key=lambda model_id: held_totals[model_id])
+        reuses = held_totals[best_model_id] <= new_total
+        events.append(
+            dict(
+                event="prequential_reuse_decision",
+                reuse=reuses,
+                original_reuse=assessment.selected_reuse_model_id is not None,
+                same_as_original=(best_model_id if reuses else None) == assessment.selected_reuse_model_id,
+                interval_length=int(x.shape[0]),
+            )
+        )
+        reusable = tuple((m, loss) for m, loss in supported if reuses and m == best_model_id)
+        return AlarmIntervalModelReuseAssessment(
+            baseline_supported_interval_mean_losses_by_model_id=supported,
+            reusable_mean_losses_by_model_id=reusable,
+        )
+
+    with patch.object(resolution_module, "evaluate_held_models_for_alarm_interval_reuse", evaluate):
+        yield
+
+
+@contextmanager
 def _frozen_candidate_backbone_policy(*, events):
     """候補の学習（`candidate_epoch_training`）の共同更新で、共有部を更新しない（実行の間だけ包む）。"""
     import federated_learning_experiments.learning.training.candidate_epoch_training as training_module
@@ -584,6 +678,12 @@ def _execute_job(job):
             stack.enter_context(_sequential_test_policy(events=events))
         if job["variant"] in _FROZEN_CANDIDATE_BACKBONE_VARIANTS:
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
+        if job["variant"] in _PREQUENTIAL_REUSE_VARIANTS:
+            stack.enter_context(
+                _prequential_reuse_policy(
+                    optimizer_settings=client_settings.parameter_optimizer_settings, events=events
+                )
+            )
         if job["variant"] in _WITHDRAW_RELEASED_SAMPLE_VARIANTS:
             stack.enter_context(
                 _withdraw_released_samples_policy(
@@ -654,6 +754,19 @@ def _execute_job(job):
         frozen_candidate_update_count=sum(e["event"] == "frozen_candidate_update" for e in events),
         withdrawn_released_sample_count=sum(e["count"] for e in events if e["event"] == "withdraw_released"),
         withdrawn_new_concept_sample_count=sum(e["new_concept"] for e in events if e["event"] == "withdraw_released"),
+        prequential_reuse_decisions={
+            key: sum(
+                bool(e[field]) == value
+                for e in events
+                if e["event"] == "prequential_reuse_decision"
+            )
+            for key, field, value in (
+                ("reuse", "reuse", True),
+                ("new", "reuse", False),
+                ("original_rule_reuse", "original_reuse", True),
+                ("same_as_original_rule", "same_as_original", True),
+            )
+        },
         withdrawn_into_interval_sample_count=sum(
             e["count"] for e in events if e["event"] == "withdrawn_into_interval"
         ),
