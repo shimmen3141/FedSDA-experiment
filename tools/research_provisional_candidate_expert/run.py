@@ -79,8 +79,12 @@ _VARIANTS["default-withdraw-released-into-interval"] = ("fedsda", False, None)
 # （候補の初期値と同じ、区間の平均損失が最小の保有モデルから始め、区間を1標本ずつ、予測してから学習する逐次の
 # 学習者。共有部は固定し、候補の学習と同じ損失とoptimizerの設定で、1標本ごとに1回更新する）。累積の対数損失が
 # 最小のものを選び、新しいモデルが最小なら、今と同じ候補の学習・採用へ進む。閾値は使わない。
-_PREQUENTIAL_REUSE_VARIANTS = ("default-prequential-reuse",)
+_PREQUENTIAL_REUSE_VARIANTS = ("default-prequential-reuse", "default-prequential-reuse-fresh-learner")
 _VARIANTS["default-prequential-reuse"] = ("fedsda", False, None)
+# 逐次の学習者を、概念ごとの部分（adapterと出力の層）を初期化し直した状態から始める（共有部はそのまま）。
+# 最も合う保有モデルから始めると、「そのモデルを区間で学習し直すと良くなるか」の比較になり、同じ概念でも
+# 新しいモデルの側へ偏るため。初期化の乱数は、runの乱数の状態を変えないように、分けて使う。
+_VARIANTS["default-prequential-reuse-fresh-learner"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -477,7 +481,7 @@ def _withdraw_released_samples_policy(*, events, includes_withdrawn_samples_in_c
 
 
 @contextmanager
-def _prequential_reuse_policy(*, optimizer_settings, events):
+def _prequential_reuse_policy(*, optimizer_settings, events, starts_learner_fresh=False):
     """警報の区間の再利用の判定を、累積の対数損失の比較へ替える（研究用。実行の間だけ包む）。"""
     import torch
     from torch.nn import BCELoss, CrossEntropyLoss
@@ -502,8 +506,25 @@ def _prequential_reuse_policy(*, optimizer_settings, events):
         )
         return -torch.log(torch.clamp(1.0 - bounded, min=1e-12))
 
+    decision_count = [0]
+
     def prequential_log_loss(classifier, input_features, observed_class_labels):
         learner = copy.deepcopy(classifier)
+        if starts_learner_fresh:
+            from torch.nn.init import zeros_
+
+            decision_count[0] += 1
+            with torch.random.fork_rng(devices=[]):
+                torch.manual_seed(decision_count[0])
+                for module in (learner.model_owned_feature_transform, learner.classification_layer):
+                    for submodule in module.modules():
+                        if hasattr(submodule, "reset_parameters"):
+                            submodule.reset_parameters()
+                # 残差のadapterは、広げる側を0で始める（構造の初期化と同じ）。
+                expansion = getattr(learner.model_owned_feature_transform, "feature_expansion", None)
+                if expansion is not None:
+                    zeros_(expansion.weight)
+                    zeros_(expansion.bias)
         parameters = tuple(
             parameter
             for name, parameter in learner.named_parameters()
@@ -681,7 +702,9 @@ def _execute_job(job):
         if job["variant"] in _PREQUENTIAL_REUSE_VARIANTS:
             stack.enter_context(
                 _prequential_reuse_policy(
-                    optimizer_settings=client_settings.parameter_optimizer_settings, events=events
+                    optimizer_settings=client_settings.parameter_optimizer_settings,
+                    events=events,
+                    starts_learner_fresh=job["variant"] == "default-prequential-reuse-fresh-learner",
                 )
             )
         if job["variant"] in _WITHDRAW_RELEASED_SAMPLE_VARIANTS:
