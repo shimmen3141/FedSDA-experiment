@@ -36,7 +36,7 @@
 | IMPROVE-018 | 候補の共有部統合で既存モデルへの影響を制限する | 一部採用（候補学習中の共有部の固定を、候補検証なしと組み合わせて既定にした。2026-10-20、基準版7。候補検証ありとの組合せは不採用） | [詳細](improve-018-protect-existing-models-during-candidate-backbone-integration.md) |
 | IMPROVE-019 | クラスの支持数と対損失差で候補を検証する | 未検証・未採用（2026-10-17） | [詳細](improve-019-candidate-validation-with-class-support-and-paired-losses.md) |
 | IMPROVE-020 | 新しいモデルの登録時のクロス評価の通信を減らす | 採用（2026-10-20、配布とクロス評価の入れ替えを基準版8の既定として実装。精度は同じで下りが減る） | [詳細](improve-020-reduce-cross-evaluation-communication.md) |
-| IMPROVE-021 | 保有モデルの再利用の判定を固定のしきい値から検定へ替える | 検証中（2026-10-20。見逃しは区間の長さに応じた許容で減るが効果は小さい。誤った再利用は平均損失では区別できない） | [詳細](improve-021-statistical-test-for-held-model-reuse.md) |
+| IMPROVE-021 | 保有モデルの再利用の判定を固定のしきい値から検定へ替える | 保留（2026-10-20。規則の変更の効果は小さい。誤った再利用の主因はモデルの混ざりで、その出どころの診断が先） | [詳細](improve-021-statistical-test-for-held-model-reuse.md) |
 | IMPROVE-022 | 候補の学習の早期終了を単純にする | 未検証・未採用（2026-10-20。4案の2番目） | [詳細](improve-022-simplify-candidate-early-stopping.md) |
 | IMPROVE-023 | 候補検証を既定から外した後に残った設定を整理する | 未検証・未採用（2026-10-20。4案の4番目。候補検証の処理を消すかはユーザー判断待ち） | [詳細](improve-023-remove-settings-left-from-candidate-validation.md) |
 
