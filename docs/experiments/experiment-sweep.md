@@ -155,7 +155,7 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 
 2026-10-15に予測の設定へ項目（`prediction_model_parameter_source`）を足したので、それより前のFedSDAの結果とは、runの識別子が一致しない（同じ出力先へ実行すると、前のrunは済んだrunとして扱われない）。比べるときは、別の出力先を使う。
 
-2026-10-20に、参加者の設定へ、クロス評価のモデルの送り方（`cross_evaluation_model_transfer_policy`）を足し、既定を、配布するモデルを使う扱いにした（基準版8。精度は同じで、FedSDAの下りの通信量だけが減る。定義は[指標](metrics.md)）。それより前のFedSDAの結果とは、runの識別子と通信量の数え方が違う。
+2026-10-20に、参加者の設定へ、クロス評価のモデルの送り方（`cross_evaluation_model_transfer_policy`）を足し、既定を、配布するモデルを使う扱いにした（基準版8。精度は同じで、FedSDAの下りの通信量だけが減る。定義は[指標](metrics.md)）。それより前のFedSDAの結果とは、runの識別子と通信量の数え方が違う。同じ日に、参加者の設定へ統合での共有部の扱い（`consolidated_shared_feature_policy`）も足し、既定を、同じ共有部を平均せずに保つ扱いにした（基準版9。統合が起きたrunでは、値がわずかに変わる）。
 
 提案構成以外の構成は、提案構成の、1つの要素だけを変える（`fedsda-with-candidate-validation`だけは、組合せの制約のため2つ）。2026-10-20に候補の学習の設定へ項目（`candidate_shared_feature_update_policy`）を足したので、それより前のFedSDAの結果とは、runの識別子が一致しない。小さい条件（sine2）で、旧実装の、同じ指定の全体runと、指標と離散列が一致することを確かめている。
 

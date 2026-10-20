@@ -76,6 +76,7 @@
   変わったときは共有部）の送り直しを数える。精度・学習・統合は旧の扱いと同じで、下りの通信量だけが減る。
   2026-10-20までに保存したFedSDAの結果の通信量は、旧の扱い（クロス評価のために評価するclientへ候補のモデルを
   送る）で記録されているので、新しい結果と通信量を比べるときは扱いの違いに注意する（[spec](../../.kiro/specs/fedsda-cross-evaluation-with-distributed-models/design.md)）。
+- 基準版8の結果では、統合が共有部も加重平均するため、同じ値の共有部が浮動小数点の誤差（約1e-7）で変わり、統合のたびに共有部を全clientへ送り直したと数えていた（SEAで下りが最大約19%多い）。基準版9（2026-10-20）から、統合は同じ共有部を平均せずに保つので、この送り直しは数えられない（[spec](../../.kiro/specs/fedsda-consolidation-keeps-shared-features/design.md)）。
 - `compute_backbone_examples_total`と`compute_head_examples_total`は、共有表現による特徴抽出の
   再利用を既存の論理モデル処理数と分けて示す。
 - `compute_backbone_optimizer_steps_total`と`compute_head_optimizer_steps_total`は、共有表現方式で

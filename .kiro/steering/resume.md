@@ -10,7 +10,8 @@
 - FedSDAの既定は配布時モデルとローカル更新モデルの混合予測、帰属保留FIFO30、共通時間尺度T120。Tはモデル別重みと二者混合で共通に使い、両者を別パラメータにしない。
 - 2026-10-20から、既定は候補を検証せずにその場で採用し、候補の学習では共有部を固定する（基準版7。[spec](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md)）。それまでの候補検証ありは構成`fedsda-with-candidate-validation`、検証なしで共有部も更新する構成は`fedsda-without-candidate-validation`。候補検証の処理は残している（消すかは、ユーザーが別に決める）。
 - 2026-10-20から、クロス評価で配布するモデルを使う（基準版8。[spec](../specs/fedsda-cross-evaluation-with-distributed-models/tasks.md)。精度は同じで、FedSDAの下りの通信量だけが減る。それまでの結果の通信量は旧の扱い）。
-- 動作基準は基準版8・環境別golden。版6は[fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)、版7は[fedsda-default-adoption-with-fixed-candidate-shared-features](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md)、版8は[fedsda-cross-evaluation-with-distributed-models](../specs/fedsda-cross-evaluation-with-distributed-models/tasks.md)、環境と手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。環境差だけを理由にgoldenを更新しない。
+- 2026-10-20から、統合で同じ共有部を平均せずに保つ（基準版9。[spec](../specs/fedsda-consolidation-keeps-shared-features/tasks.md)。統合が起きたrunでは値がわずかに変わる。版8のSEAの通信量の増加は、この誤差による共有部の送り直しだった）。
+- 動作基準は基準版9・環境別golden。版6は[fedsda-default-synchronized-local-mixture-prediction](../specs/fedsda-default-synchronized-local-mixture-prediction/tasks.md)、版7は[fedsda-default-adoption-with-fixed-candidate-shared-features](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md)、版8は[fedsda-cross-evaluation-with-distributed-models](../specs/fedsda-cross-evaluation-with-distributed-models/tasks.md)、版9は[fedsda-consolidation-keeps-shared-features](../specs/fedsda-consolidation-keeps-shared-features/tasks.md)、環境と手順は[refactoring-baseline.md](../../docs/experiments/refactoring-baseline.md)。環境差だけを理由にgoldenを更新しない。
 
 ## 次の一手
 
@@ -62,6 +63,7 @@
 
 ## 直近・主要な完了spec
 
+- [fedsda-consolidation-keeps-shared-features](../specs/fedsda-consolidation-keeps-shared-features/tasks.md): 統合で同じ共有部を平均せずに保つ扱いの既定と基準版9。
 - [fedsda-cross-evaluation-with-distributed-models](../specs/fedsda-cross-evaluation-with-distributed-models/tasks.md): クロス評価で配布するモデルを使う扱いの既定と基準版8。
 - [fedsda-default-adoption-with-fixed-candidate-shared-features](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md): 候補検証なし＋候補の共有部の固定の既定と基準版7。
 - [seed-range-command-arguments](../specs/seed-range-command-arguments/tasks.md): seedの両端込み範囲と列挙混在。

@@ -237,7 +237,7 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 
 | 項目 | 意味 | 変更する場合 |
 | --- | --- | --- |
-| `baseline_version` | 期待する動作の基準。現在は8 | LEGACY/IMPROVEなどで期待値を意図的に変えるとき |
+| `baseline_version` | 期待する動作の基準。現在は9 | LEGACY/IMPROVEなどで期待値を意図的に変えるとき |
 | `schema_version` | このgolden JSONの形式。現在は1 | snapshotの記録形式を変えるとき |
 | `environment` | OS・機種・Python/NumPy/torch・CPU/dtype/thread | 同じ動作基準を別環境で検証するとき |
 | `source_commit` | 生成した生産コードの来歴 | 新しい基準や環境別goldenを生成するとき |
@@ -253,7 +253,10 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 | 5 | 現行モデルとして待った後に登録し、推定変化区間が最小件数に達するまで警報を待つ（案Y。登録・警報の扱いの既定。[spec](../../.kiro/specs/fedsda-default-waited-registration-and-alarm-wait/design.md)） | 局所パラメータ予測・T30を明示（ADWINの2構成は、警報を即時に明示） | 版4と同じ19 |
 | 6 | 予測を同期時点と局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量30。[spec](../../.kiro/specs/fedsda-default-synchronized-local-mixture-prediction/design.md)） | 単一モデル予測は局所パラメータを明示し、Tは120。候補検証ありを明示する（版7で既定が変わったため。候補検証を外した構成のケースを除く） | 版5と同じ19 |
 | 7 | 候補を検証せずにその場で採用し、候補の学習では共有部を固定する（[spec](../../.kiro/specs/fedsda-default-adoption-with-fixed-candidate-shared-features/design.md)） | 新しい既定。候補検証の経路の大きい条件の4ケースは、版6までの既定と同じ設定の構成`fedsda-with-candidate-validation`で実行する | 版6の19＋`fedsda-sine2-adoption-without-validation`・`fedsda-mnist2-adoption-without-validation` |
-| 8 | クロス評価で、配布するモデルを使う（現在の既定。[spec](../../.kiro/specs/fedsda-cross-evaluation-with-distributed-models/design.md)。通信量の記録だけが版7と違う） | 新しい既定。版1〜7は、クロス評価のために候補のモデルを送る旧の扱いを明示する（参加者の設定の「後に足された項目」の表） | 版7と同じ21 |
+| 8 | クロス評価で、配布するモデルを使う（[spec](../../.kiro/specs/fedsda-cross-evaluation-with-distributed-models/design.md)。通信量の記録だけが版7と違う） | 新しい既定。版1〜7は、クロス評価のために候補のモデルを送る旧の扱いを明示する（参加者の設定の「後に足された項目」の表） | 版7と同じ21 |
+| 9 | 統合で、メンバーの共有部が代表とビット単位で同じなら平均せずに保つ（現在の既定。[spec](../../.kiro/specs/fedsda-consolidation-keeps-shared-features/design.md)。同じ値の加重平均の浮動小数点の誤差を入れない） | 新しい既定。版1〜8は、共有部も平均する旧の扱いを明示する（参加者の設定の「後に足された項目」の表） | 版8と同じ21 |
+
+版8→9では、FedDrift・FedAvgと、統合が起きないFedSDAのケースは、指標・記録の表・`global_parameters`・`coverage`が版8と同じであることをtestが確かめる。統合が起きたFedSDAのケースは、代表の共有部の約1e-7の差が後の学習へ伝わるので、差があってよい。
 
 版7→8は通信量だけの変更で、全ケースの記録の表・`global_parameters`・`coverage`は版7と同じ。指標は`communication_volume.`の項目だけが違ってよく、FedDrift・FedAvgと、クロス評価が起きないFedSDAのケースは全部が同じ。クロス評価が起きたFedSDAのケースは、下りのbyteが版7より少ないことをtestが確かめる。
 
