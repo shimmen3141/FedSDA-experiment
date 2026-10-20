@@ -85,7 +85,11 @@ _PREQUENTIAL_REUSE_VARIANTS = (
     "default-prequential-reuse-fresh-learner-bounded-loss",
     "default-prequential-reuse-fresh-learner-horizon",
     "default-prequential-reuse-fresh-learner-horizon-evaluation-samples",
+    "default-prequential-reuse-fresh-learner-horizon-interval",
 )
+# 先の長さを使う形で、Hを、区間の長さnそのものにする（「この概念は、これまで観測した長さと同じくらい、この先も
+# 続く」とみなす）。HにFixed-ShareのT（120）を使うと、新しいモデルを作りすぎた（IMPROVE-021の16・17）。
+_VARIANTS["default-prequential-reuse-fresh-learner-horizon-interval"] = ("fedsda", False, None)
 # 先の長さを使う形で、ℓ_mを、学習に使っていない標本（警報の前区間から抜き出して保存している評価用の標本、
 # `ModelEvaluationSampleStore`）で測る。学習の標本で測ると水準を楽観的に見積もり、新しいモデルを作りすぎる
 # （IMPROVE-021の15）。評価用の標本が無いモデルは、学習の標本で測る（その数を記録する）。
@@ -639,12 +643,13 @@ def _prequential_reuse_policy(
             reuses = held_totals[best_model_id] <= new_total
         else:
             n = int(x.shape[0])
+            horizon = n if horizon_sample_count == "interval" else horizon_sample_count
             reusable_ids = []
             for model_id, total in held_totals.items():
                 own = own_mean_log_loss(classifiers[model_id], model_id)
                 if own is None:
                     continue
-                if (n + horizon_sample_count) * (total / n) <= new_total + horizon_sample_count * own:
+                if (n + horizon) * (total / n) <= new_total + horizon * own:
                     reusable_ids.append(model_id)
             reuses = bool(reusable_ids)
             best_model_id = (
@@ -801,9 +806,12 @@ def _execute_job(job):
                         "default-prequential-reuse-fresh-learner-bounded-loss",
                         "default-prequential-reuse-fresh-learner-horizon",
                         "default-prequential-reuse-fresh-learner-horizon-evaluation-samples",
+                        "default-prequential-reuse-fresh-learner-horizon-interval",
                     ),
                     compares_bounded_losses=job["variant"] == "default-prequential-reuse-fresh-learner-bounded-loss",
-                    horizon_sample_count=(
+                    horizon_sample_count="interval"
+                    if job["variant"] == "default-prequential-reuse-fresh-learner-horizon-interval"
+                    else (
                         client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples
                         if job["variant"]
                         in (
