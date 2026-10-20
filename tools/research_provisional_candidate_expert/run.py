@@ -65,6 +65,10 @@ _VARIANTS = {
     "default-fixed-epochs10": ("fedsda", False, None),
     "default-fixed-epochs30": ("fedsda", False, None),
 }
+# IMPROVE-024: 警報の時点で、切り詰めない推定の変化点（警報の位置−検出器が推定した変化の長さ＋1）より後で、
+# 保留の窓より前に、現在のモデルへ解放した標本を、そのモデルの学習データ・概念の計数・損失の統計から外す。
+_WITHDRAW_RELEASED_SAMPLE_VARIANTS = ("default-withdraw-released",)
+_VARIANTS["default-withdraw-released"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -314,6 +318,112 @@ def _sequential_test_policy(*, events):
         yield
 
 
+def _remove_bounded_loss_observation(*, loss_moments, observed_loss):
+    """`accumulate_bounded_loss_observation`の逆（1件を外した件数・平均・偏差平方和）。"""
+    from federated_learning_experiments.learning.loss_statistics.bounded_loss_moments import (
+        BoundedLossMoments,
+    )
+
+    count = loss_moments.observed_loss_count - 1
+    if count <= 0:
+        return BoundedLossMoments(observed_loss_count=0, mean_loss=0.0, sum_squared_loss_deviations=0.0)
+    previous_mean = (loss_moments.mean_loss * loss_moments.observed_loss_count - observed_loss) / count
+    deviations = loss_moments.sum_squared_loss_deviations - (observed_loss - previous_mean) * (
+        observed_loss - loss_moments.mean_loss
+    )
+    return BoundedLossMoments(
+        observed_loss_count=count,
+        mean_loss=min(1.0, max(0.0, previous_mean)),
+        sum_squared_loss_deviations=max(0.0, deviations),
+    )
+
+
+@contextmanager
+def _withdraw_released_samples_policy(*, events):
+    """保留から現在のモデルへ解放した標本を記録し、警報の処理の直前に、推定の変化点より後のものを外す（研究用）。"""
+    import federated_learning_experiments.runtime.alarm_occurrence_handling as alarm_module
+    import federated_learning_experiments.runtime.observed_sample_processing as processing_module
+    from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
+        ModelAndClassLossStatistics,
+        ModelAndClassLossStatisticsStore,
+    )
+
+    original_release = processing_module.assign_released_pending_samples_to_current_training_model
+    original_respond = alarm_module.respond_to_alarm_with_buffered_samples
+    original_record_loss = ModelAndClassLossStatisticsStore.record_assigned_loss
+    # 保留のownerごとの、解放の記録（標本の番号、標本のオブジェクト、観測概念、損失、クラス）。
+    releases = {}
+    capturing = []
+
+    def record_loss(self, *, model_id, observed_loss, observed_class_id=None):
+        if capturing:
+            capturing[-1].append((observed_loss, observed_class_id))
+        return original_record_loss(
+            self, model_id=model_id, observed_loss=observed_loss, observed_class_id=observed_class_id
+        )
+
+    def release(**arguments):
+        capturing.append([])
+        try:
+            released = original_release(**arguments)
+        finally:
+            losses = capturing.pop()
+        history = releases.setdefault(id(arguments["pending_training_assignment_buffer"]), [])
+        for observation, (loss, class_id) in zip(released, losses, strict=True):
+            history.append((observation.sample_index, observation.training_sample, observation.observed_concept_id, loss, class_id))
+        # 古い記録は捨てる（推定の変化の長さの上限——検出器の候補の上限1000——より古いものは使わない）。
+        if len(history) > 2000:
+            del history[: len(history) - 2000]
+        return released
+
+    def respond(**arguments):
+        pending = arguments["pending_sample_observations"]
+        history = releases.get(id(arguments["pending_training_assignment_buffer"]), [])
+        estimate = arguments["proposal_sample_index"] - arguments["estimated_change_span_sample_count"] + 1
+        if pending and history and estimate < pending[0].sample_index:
+            model_id = arguments["current_training_model_assignment"].current_training_model_id
+            store = arguments["training_sample_store"]
+            samples = store._training_samples_by_model_id.get(model_id, [])
+            candidates = [r for r in history if estimate <= r[0] < pending[0].sample_index]
+            candidate_ids = {id(r[1]) for r in candidates}
+            present = {id(s) for s in samples} & candidate_ids
+            if present:
+                store._training_samples_by_model_id[model_id] = [s for s in samples if id(s) not in present]
+                counts = arguments["model_training_and_assignment_counts_store"]
+                concept_counts = counts._assigned_sample_counts_by_model_and_concept_id.get(model_id, {})
+                loss_store = arguments["loss_statistics_store"]
+                statistics = loss_store._model_loss_statistics_by_model_id.get(model_id)
+                overall = statistics.overall_loss_moments if statistics is not None else None
+                classes = dict(statistics.class_loss_moments_by_class_id) if statistics is not None else {}
+                new_concept = pending[-1].observed_concept_id
+                withdrawn_new = 0
+                for _, sample, concept, loss, class_id in candidates:
+                    if id(sample) not in present:
+                        continue
+                    if concept is not None and concept_counts.get(concept, 0) > 0:
+                        concept_counts[concept] -= 1
+                    if overall is not None and overall.observed_loss_count > 0:
+                        overall = _remove_bounded_loss_observation(loss_moments=overall, observed_loss=loss)
+                    if class_id in classes and classes[class_id].observed_loss_count > 0:
+                        classes[class_id] = _remove_bounded_loss_observation(loss_moments=classes[class_id], observed_loss=loss)
+                    withdrawn_new += concept == new_concept
+                if statistics is not None:
+                    loss_store._model_loss_statistics_by_model_id[model_id] = ModelAndClassLossStatistics(
+                        overall_loss_moments=overall, class_loss_moments_by_class_id=tuple(classes.items())
+                    )
+                events.append(dict(event="withdraw_released", count=len(present), new_concept=withdrawn_new))
+                # 外した標本は、記録からも除く（二重に外さない）。
+                releases[id(arguments["pending_training_assignment_buffer"])] = [r for r in history if id(r[1]) not in present]
+        return original_respond(**arguments)
+
+    with (
+        patch.object(processing_module, "assign_released_pending_samples_to_current_training_model", release),
+        patch.object(alarm_module, "respond_to_alarm_with_buffered_samples", respond),
+        patch.object(ModelAndClassLossStatisticsStore, "record_assigned_loss", record_loss),
+    ):
+        yield
+
+
 @contextmanager
 def _frozen_candidate_backbone_policy(*, events):
     """候補の学習（`candidate_epoch_training`）の共同更新で、共有部を更新しない（実行の間だけ包む）。"""
@@ -429,6 +539,8 @@ def _execute_job(job):
             stack.enter_context(_sequential_test_policy(events=events))
         if job["variant"] in _FROZEN_CANDIDATE_BACKBONE_VARIANTS:
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
+        if job["variant"] in _WITHDRAW_RELEASED_SAMPLE_VARIANTS:
+            stack.enter_context(_withdraw_released_samples_policy(events=events))
         if uses_provisional_expert:
             stack.enter_context(
                 _provisional_expert_policy(
@@ -489,6 +601,8 @@ def _execute_job(job):
         ),
         session_starts=sum(e["event"] == "session_start" for e in events),
         frozen_candidate_update_count=sum(e["event"] == "frozen_candidate_update" for e in events),
+        withdrawn_released_sample_count=sum(e["count"] for e in events if e["event"] == "withdraw_released"),
+        withdrawn_new_concept_sample_count=sum(e["new_concept"] for e in events if e["event"] == "withdraw_released"),
         sequential_test_decisions={
             decision: sum(e["decision"] == decision for e in tests)
             for decision in ("accept", "reject", "timeout")
