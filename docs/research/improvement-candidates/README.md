@@ -37,7 +37,7 @@
 | IMPROVE-019 | クラスの支持数と対損失差で候補を検証する | 未検証・未採用（2026-10-17） | [詳細](improve-019-candidate-validation-with-class-support-and-paired-losses.md) |
 | IMPROVE-020 | 新しいモデルの登録時のクロス評価の通信を減らす | 採用（2026-10-20、配布とクロス評価の入れ替えを基準版8の既定として実装。精度は同じで下りが減る） | [詳細](improve-020-reduce-cross-evaluation-communication.md) |
 | IMPROVE-021 | 保有モデルの再利用の判定を固定のしきい値から検定へ替える | 保留（2026-10-20。規則の変更の効果は小さい。誤った再利用の主因はモデルの混ざりで、その出どころの診断が先） | [詳細](improve-021-statistical-test-for-held-model-reuse.md) |
-| IMPROVE-022 | 候補の学習の早期終了を単純にする | 未検証・未採用（2026-10-20。4案の2番目） | [詳細](improve-022-simplify-candidate-early-stopping.md) |
+| IMPROVE-022 | 候補の学習の早期終了を単純にする | 見送り（2026-10-20。固定エポックはMNISTで大きく下がり、SINE2では上がる） | [詳細](improve-022-simplify-candidate-early-stopping.md) |
 | IMPROVE-023 | 候補検証を既定から外した後に残った設定を整理する | 未検証・未採用（2026-10-20。4案の4番目。候補検証の処理を消すかはユーザー判断待ち） | [詳細](improve-023-remove-settings-left-from-candidate-validation.md) |
 
 ## 決定（2026-10-13、ユーザー）
