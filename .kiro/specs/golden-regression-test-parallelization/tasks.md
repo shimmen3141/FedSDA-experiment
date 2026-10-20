@@ -20,7 +20,7 @@
   - 完了条件: 前後の時間と合否がImplementation Notesにあり、文書が新しい時間を書く。
   - _Requirements: 4.1, 4.2_
 
-- [ ] 5. 実装レビューと最終検証
+- [x] 5. 実装レビューと最終検証
   - 独立CLIの実装レビュー、指摘の反映、全pytest・Ruff。
   - 完了条件: 実装レビューの判定と指摘の採否、全pytest（件数・exit・JUnit）、Ruffの結果を「Implementation Notes」とspec.jsonへ記録し、レビューがPASSで、全pytestが失敗0。
   - _Requirements: 全部_
@@ -33,3 +33,5 @@
 - Task 3（2026-10-20）: 指定したケースの確認は、分け直したtestの中の確認（指定したケースで、`sample_prediction`の表が版5と違う／クロス評価が起き、下りが減る／版8で`merged_model_count`が1以上）として、goldenのファイルの並列の実行（`-n 12 --dist loadfile`、JUnit `../../venv/refactoring-tests/golden-split-file.xml`）で、`fedsda-sine2-events`（版5→6）と`fedsda-sine2-adoption-without-validation`（版7→8、版8→9）が通った。手順の逸脱として、分け直す前の別の確認は行わず、分け直したtestの確認で代えた（指定が外れると、そのtestが失敗する）。配り方: ケースの名前は21。ケースの名前を持つtestは315件で、組ごとの件数は、sine2-events 17、mnist2-decisions 17、sine2-reference-reuse 15、sine2-alternative-reference-reuse 11、sine2-adoption-without-validation 5、mnist2-adoption-without-validation 5、others-0 131、others-1 114。ファイルの組は51件（ケースの名前を持たないtest）で、ケースの名前を持つのにファイルの組へ戻ったtestは0（配り方のtestで確かめる）。idの読み取りは、設計の「最も長く一致する名前」ではなく、先頭の版の番号（`<数字>-`）を外した残りが、ケースの名前と一致するときだけとした（ケースの名前は数字で始まらないので、同じ結果で、より厳しい）。組ごとの時間（JUnitの合計）は、最長がsine2-eventsの3.7分、ほかは3.3・2.5・1.5・0.7・0.6・0.6・0.3分、ファイルの組0.2分。ファイルの合計は13.4分（変更の前は14.0分。使い回しの効果は小さい見込みどおり）、goldenのファイルだけの並列の実行の時間は260秒（このとき、使い回しのtestの1件が上の理由で失敗）。配り方のtestは、`-k`などで一部だけを選んだときも通るように、組の割り当ての全体を、全部のケースの名前の合成のidで確かめる形にした。
 - Task 4（2026-10-20 20:47〜20:57、Task 1と同じ条件、commit `03bff70`）: 14640 passed / 8 skipped、exit 0、646.1秒（10分46秒。変更の前の874.7秒から26%短い）。件数の増加60件は、分け直したtest（版5のケース19＋版7・8のケース各21＝61件が、元の3件に代わる＝+58件）と、新しい2件（使い回しのtest、配り方のtest）。失敗0。JUnit（`../../venv/refactoring-tests/golden-parallel-after.xml`）の組ごとの合計は、最長が構成の照合の組1の7.4分、goldenの`fedsda-sine2-events`の組6.6分、構成の照合の組0・2が6.1・6.0分、goldenの`fedsda-sine2-reference-reuse`の組5.6分。goldenのファイルの合計は22.8分（単独の実行の13.4分より大きい。12のworkerが同時に重い実行をするための競合とみられるが、確かめていない）。共通引継ぎ手順（`.kiro/steering/agent-handoff.md`）の所要時間を更新した。
 - 実装レビュー1回目（Luna high、session `01a1592d-e872-7712-b966-430e5c228fce`、`ae32e8b..fd6b92c`）: CHANGES REQUIRED、Major 1件（使い回しのtestで、seedを変えた設定を試す前にcacheを空にしていないため、版2はcacheを使い、版3だけが実行される。「違う設定で別に実行する」を確かめていない。Task 2の記録も、testの内容を超えていた）。反映: 試す前にcacheを空にし、版2と版3で2回実行することを確かめる形に直した。cacheの鍵をケースの名前だけに変える変異で、このtestが失敗することを確かめた（元へ戻した）。ほかの確認点（分け直したtestの比べ方、cacheの共有、生成の手順、配り方とidの読み取り、controllerでのimport）は、問題なしとの判定。
+- 実装レビュー2回目（Luna high、session `01a15930-70ae-71a2-b865-f8a69d2ab4d6`、`fd6b92c..0c1ba9e`）: PASS、指摘なし。
+- 最終検証（2026-10-20 21:02〜21:13、commit `0c1ba9e`、Luna 2回目のレビューと同時の実行）: 全pytest 14640 passed / 8 skipped、exit 0、701.3秒（JUnit `../../venv/refactoring-tests/golden-parallel-final.xml`: tests 14648、failures 0、errors 0、skipped 8）。Ruff lint 全体で問題なし。
