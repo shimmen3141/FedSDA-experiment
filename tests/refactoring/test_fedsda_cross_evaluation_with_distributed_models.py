@@ -64,7 +64,20 @@ def run_with_old_policy_and_expected_new_volume(run_settings):
     def cross(**arguments):
         repository = arguments["global_model_repository"]
         client_count = len(arguments["run_clients"])
-        # 先に配布するもの（集約の後の、その時点の全グローバルモデル）。
+        # 先に配布するもの（集約の後の、その時点の全グローバルモデル）を、実装の関数を使わずに数える:
+        # 共有部1個（最初のモデルのもの）と、全モデルの概念固有部を、client数だけ。
+        split_parameters = [
+            split_shared_and_concept_specific_parameters(
+                parameter_snapshot=repository.get_global_model_parameters(model_id=model_id)
+            )
+            for model_id in repository.global_model_ids
+        ]
+        early_bytes = client_count * (
+            byte_size(split_parameters[0][0])
+            + sum(byte_size(concept_specific) for _, concept_specific in split_parameters)
+        )
+        early_models = client_count * len(split_parameters)
+        # 実装の関数も、同じ量を数える。
         early = CommunicationVolumeRecordStore()
         record_global_model_distribution_volume(
             communication_volume_record_store=early,
@@ -72,6 +85,9 @@ def run_with_old_policy_and_expected_new_volume(run_settings):
             client_count=client_count,
         )
         early_snapshot = early.get_state_snapshot()
+        assert early_snapshot.downloaded_byte_count == early_bytes
+        assert early_snapshot.downloaded_model_count == early_models
+        assert early_snapshot.downloaded_message_count == 0
         first_model_id = repository.global_model_ids[0]
         state["early_shared"] = {
             name: value.clone()
@@ -84,10 +100,10 @@ def run_with_old_policy_and_expected_new_volume(run_settings):
         result = original_cross(**arguments)
         after = store.get_state_snapshot()
         # 旧の扱いのクロス評価の、モデルとパラメータの転送を引き、先の配布を足す（メッセージは同じ）。
-        expected["downloaded_byte_count"] += early_snapshot.downloaded_byte_count - (
+        expected["downloaded_byte_count"] += early_bytes - (
             after.downloaded_byte_count - before.downloaded_byte_count
         )
-        expected["downloaded_model_count"] += early_snapshot.downloaded_model_count - (
+        expected["downloaded_model_count"] += early_models - (
             after.downloaded_model_count - before.downloaded_model_count
         )
         state["cross_evaluated"] = True
@@ -128,7 +144,8 @@ def run_with_old_policy_and_expected_new_volume(run_settings):
                     )
                 )[0]
                 if any(
-                    not torch.equal(shared_after[name], state["early_shared"][name])
+                    shared_after[name].numpy().tobytes()
+                    != state["early_shared"][name].numpy().tobytes()
                     for name in shared_after
                 ):
                     observed["shared_resend_rounds"] += 1
@@ -249,6 +266,35 @@ def test_resend_counts_representatives_and_the_shared_part_only_when_it_changed(
     assert snapshot.downloaded_model_count == 4
     assert snapshot.downloaded_message_count == 4
     assert snapshot.uploaded_byte_count == 0
+
+
+@pytest.mark.parametrize(
+    "early_value,later_value,shared_resent",
+    [
+        # 値は等しいが、ビットが違う（符号付きゼロ）: 送り直す。
+        (0.0, -0.0, True),
+        # 同じビットのNaN: 送り直さない（値の比較では、等しくない）。
+        (float("nan"), float("nan"), False),
+    ],
+)
+def test_shared_part_is_compared_bit_by_bit(early_value, later_value, shared_resent):
+    """共有部の比較は、値ではなくビットで行う。"""
+    repository = _Repository({0: _parameters(later_value, 5.0), 2: _parameters(later_value, 7.0)})
+    store = CommunicationVolumeRecordStore()
+    _record_consolidated_model_resend_volume(
+        communication_volume_record_store=store,
+        global_model_repository=repository,
+        model_id_mapping={0: 0, 2: 0},
+        early_distributed_shared_parameters={
+            "feature_extractor.hidden_layers.0.weight": torch.full((2, 3), early_value)
+        },
+        client_count=4,
+    )
+    concept_bytes = 2 * 4
+    shared_bytes = 6 * 4
+    assert store.get_state_snapshot().downloaded_byte_count == 4 * (
+        concept_bytes + shared_resent * shared_bytes
+    )
 
 
 def test_resend_records_nothing_without_consolidation():

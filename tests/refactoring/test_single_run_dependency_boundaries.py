@@ -6095,7 +6095,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "random.Random",
             "torch.Tensor",
-            "torch.equal",
+            "torch.uint8",
             "federated_learning_experiments.evaluation.communication_volume_record_store.CommunicationVolumeRecordStore",
             "federated_learning_experiments.evaluation.cross_evaluation_record_store.CrossEvaluationRecordStore",
             "federated_learning_experiments.evaluation.model_clustering_record_store.ModelClusteringRecordStore",

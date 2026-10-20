@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from random import Random
 
-from torch import Tensor
-from torch import equal as torch_equal
+from torch import Tensor, uint8
 
 from federated_learning_experiments.evaluation.communication_volume_record_store import (
     CommunicationVolumeRecordStore,
@@ -89,6 +88,17 @@ def validate_cross_evaluation_model_transfer_policy(
         )
 
 
+def _tensors_have_the_same_bits(first_tensor: Tensor, second_tensor: Tensor) -> bool:
+    """2つのtensorの、dtype・形と、値のbyte列が同じか（値の比較と違い、+0.0と-0.0を区別し、同じビットのNaNを同じとする）。"""
+    return (
+        first_tensor.dtype == second_tensor.dtype
+        and first_tensor.shape == second_tensor.shape
+        and bool(
+            (first_tensor.contiguous().view(uint8) == second_tensor.contiguous().view(uint8)).all()
+        )
+    )
+
+
 def _record_consolidated_model_resend_volume(
     *,
     communication_volume_record_store: CommunicationVolumeRecordStore,
@@ -129,7 +139,9 @@ def _record_consolidated_model_resend_volume(
     shared_parameters_changed = distributed_shared_parameters.keys() != (
         early_distributed_shared_parameters.keys()
     ) or any(
-        not torch_equal(parameter_values, early_distributed_shared_parameters[parameter_name])
+        not _tensors_have_the_same_bits(
+            parameter_values, early_distributed_shared_parameters[parameter_name]
+        )
         for parameter_name, parameter_values in distributed_shared_parameters.items()
     )
     communication_volume_record_store.record_messages(
