@@ -1227,6 +1227,15 @@ def _execute_job(job):
         validation_sample_count=client_settings.candidate_model_training_and_acceptance_settings.candidate_post_alarm_validation_sample_count,
         candidate_model_acceptance_policy=client_settings.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy,
         detection_count=metrics.training_model_switch_detection_metrics.detection_count,
+        # 検出・変化点の推定・切替えの遅れの指標（掃引の`run_summary.csv`と同じ量。既定と比べるため）。
+        training_model_switch_detection_metrics=dataclasses.asdict(metrics.training_model_switch_detection_metrics),
+        loss_change_alarm_detection_metrics=dataclasses.asdict(
+            metrics.change_response_metrics.loss_change_alarm_detection_metrics
+        ),
+        change_point_estimation_metrics=dataclasses.asdict(metrics.change_response_metrics.change_point_estimation_metrics),
+        training_model_switch_timing_metrics=dataclasses.asdict(
+            metrics.change_response_metrics.training_model_switch_timing_metrics
+        ),
         server_parameter_digest=_digest(
             {
                 f"{model_id}.{name}": value
