@@ -118,6 +118,10 @@ _VARIANTS["default-unified-assignment-inference"] = ("fedsda", False, None)
 # 決める。再利用の判定の閾値（0.1）と、検出器の推定の変化の長さを置き換える。
 _DETECTOR_GATED_SEGMENT_ASSIGNMENT_VARIANTS = ("default-detector-gated-segment-assignment",)
 _VARIANTS["default-detector-gated-segment-assignment"] = ("fedsda", False, None)
+# 製品の経路の、最小記述長の原理で選ぶ扱い（`alarm_interval_assignment_policy`）を選ぶだけで、研究ツールの包みは
+# 使わない（研究ツールの変種`default-detector-gated-segment-assignment`と同じ値になることの照合用。spec
+# `fedsda-minimum-description-length-alarm-interval-assignment`のTask 3）。
+_VARIANTS["default-minimum-description-length"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -894,19 +898,21 @@ def _detector_gated_segment_assignment_policy(*, optimizer_settings, share_rate,
     original_process = client_module.process_observed_sample
     original_observe = OverallAndTrueClassLossMonitor.observe_loss_after_label_observation
     original_evaluate = resolution_module.evaluate_held_models_for_alarm_interval_reuse
+    from federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection import (
+        derive_new_model_initialization_seed,
+    )
+
     processing = []
     decision = {}
-    learner_seed = [0]
 
     def log_losses(classifier, x, y):
         bounded = evaluate_classifier_per_sample_bounded_losses(classifier=classifier, input_features=x, observed_class_labels=y)
         return -torch.log(torch.clamp(1.0 - bounded, min=1e-12))
 
-    def prequential_total(classifier, x, y):
+    def prequential_total(classifier, x, y, seed):
         learner = copy.deepcopy(classifier)
-        learner_seed[0] += 1
         with torch.random.fork_rng(devices=[]):
-            torch.manual_seed(learner_seed[0])
+            torch.manual_seed(seed)
             for module in (learner.model_owned_feature_transform, learner.classification_layer):
                 for submodule in module.modules():
                     if hasattr(submodule, "reset_parameters"):
@@ -951,7 +957,10 @@ def _detector_gated_segment_assignment_policy(*, optimizer_settings, share_rate,
             position = n - span
             before = sum(losses[current][:position]) + switch
             options = [(sum(losses[m][position:]), m) for m in destinations]
-            options.append((prequential_total(template, x[position:], y[position:]), None))
+            seed = derive_new_model_initialization_seed(
+                client_id=arguments["client_id"], alarm_sample_index=sample_index, change_interval_sample_count=span
+            )
+            options.append((prequential_total(template, x[position:], y[position:], seed), None))
             for after, destination in options:
                 if before + after < best[0]:
                     best = (before + after, span, destination)
@@ -1089,6 +1098,22 @@ def _execute_job(job):
                         new_model_upload_delay_round_count=_UPLOAD_DELAY_ROUND_COUNT_BY_VARIANT[
                             job["variant"]
                         ],
+                    ),
+                ),
+            ),
+        )
+    if job["variant"] == "default-minimum-description-length":
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    client,
+                    training_data_assignment_settings=replace(
+                        client.training_data_assignment_settings,
+                        alarm_interval_assignment_policy="minimum_description_length",
                     ),
                 ),
             ),
