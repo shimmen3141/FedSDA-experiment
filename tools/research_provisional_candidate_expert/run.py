@@ -137,6 +137,10 @@ _VARIANTS["default-lifetime-description-length-clustering"] = ("fedsda", False, 
 _VARIANTS["default-pooled-lifetime-description-length-clustering"] = ("fedsda", False, None)
 # 統合で平均せずに代表のパラメータを保つ（今の判定のまま、符号長の判定の2つの形と組み合わせ。IMPROVE-026の5）。
 _VARIANTS["default-keep-representative-consolidation"] = ("fedsda", False, None)
+# 初期モデルの損失の統計を、事前学習の標本の2割（学習に使わない）で取る（LEGACY-020の案(b)）。
+_VARIANTS["default-held-out-initial-model-statistics"] = ("fedsda", False, None)
+# 対照: 同じく学習を先頭の8割にするが、統計は今と同じく学習に使った標本で取る。
+_VARIANTS["default-reduced-initial-model-training-samples"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1143,6 +1147,86 @@ def _uniform_mixture_held_model_code_length_policy(*, mixture_weight, events):
 
 
 @contextmanager
+def _held_out_initial_model_statistics_policy(*, held_out_fraction, events, uses_held_out_statistics=True):
+    """初期モデルの損失の統計を、事前学習に使っていない標本で取る（研究用。LEGACY-020の案(b)。実行の間だけ包む）。
+
+    事前学習の標本の数（設定の値）は変えずに生成し（生成の順と数が同じなので、streamのデータは変わらない）、
+    先頭の(1−held_out_fraction)を学習に使い、残りで、学習の後の損失の統計を取る（元と同じく1件ずつ、全体と
+    観測クラス別）。学習に使う標本が減るので、shuffleのPythonの乱数の消費は変わる。
+    `uses_held_out_statistics`が偽なら、統計は今と同じ（学習に使った標本で取る）にする（学習の標本が減る効果だけを見る対照）。
+    """
+    from dataclasses import replace as dataclass_replace
+
+    import federated_learning_experiments.runtime.fedsda_run_participant_factory as factory_module
+    from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
+        ModelAndClassLossStatisticsStore,
+    )
+    from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
+        evaluate_classifier_per_sample_bounded_losses,
+    )
+
+    import torch
+
+    original_pretrain = factory_module.pretrain_initial_model
+
+    def pretrain(**arguments):
+        settings = arguments["initial_model_pretraining_settings"]
+        generator = arguments["sample_generator"]
+        total_count = settings.pretraining_sample_count
+        held_out_count = int(total_count * held_out_fraction)
+        training_count = total_count - held_out_count
+        generator_type = type(generator)
+        original_generate = generator_type.generate_sample
+        generated = []
+        position = {"next": 0}
+
+        def generate_sample(self, *, concept_id):
+            if self is not generator:
+                return original_generate(self, concept_id=concept_id)
+            if not generated:
+                generated.extend(original_generate(self, concept_id=concept_id) for _ in range(total_count))
+            sample = generated[position["next"]]
+            position["next"] += 1
+            return sample
+
+        with patch.object(generator_type, "generate_sample", generate_sample):
+            result = original_pretrain(
+                **{
+                    **arguments,
+                    "initial_model_pretraining_settings": dataclass_replace(
+                        settings, pretraining_sample_count=training_count
+                    ),
+                }
+            )
+        if not uses_held_out_statistics:
+            return result
+        held_out_samples = generated[training_count:]
+        store = ModelAndClassLossStatisticsStore()
+        for sample in held_out_samples:
+            store.record_assigned_loss(
+                model_id=0,
+                observed_loss=evaluate_classifier_per_sample_bounded_losses(
+                    classifier=result.classifier,
+                    input_features=torch.tensor([list(sample.feature_values)], dtype=torch.float32),
+                    observed_class_labels=torch.tensor([[float(sample.class_label)]], dtype=torch.float32),
+                )[0].item(),
+                observed_class_id=sample.class_label,
+            )
+        statistics = store.get_model_loss_statistics(model_id=0)
+        events.append(
+            dict(
+                event="held_out_initial_model_statistics",
+                training_mean_loss=result.loss_statistics.overall_loss_moments.mean_loss,
+                held_out_mean_loss=statistics.overall_loss_moments.mean_loss,
+            )
+        )
+        return dataclass_replace(result, loss_statistics=statistics)
+
+    with patch.object(factory_module, "pretrain_initial_model", pretrain):
+        yield
+
+
+@contextmanager
 def _keep_representative_consolidation_policy(*, events):
     """サーバの統合で、メンバーのパラメータを平均せず、代表（クラスタの最小のID）のパラメータを保つ（研究用）。
 
@@ -1494,6 +1578,14 @@ def _execute_job(job):
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
         if job["variant"] == "default-recalibrated-detector-baseline":
             stack.enter_context(_recalibrated_detector_baseline_policy(events=events))
+        if job["variant"] in ("default-held-out-initial-model-statistics", "default-reduced-initial-model-training-samples"):
+            stack.enter_context(
+                _held_out_initial_model_statistics_policy(
+                    held_out_fraction=0.2,
+                    events=events,
+                    uses_held_out_statistics=job["variant"] == "default-held-out-initial-model-statistics",
+                )
+            )
         if job["variant"] in (
             "default-keep-representative-consolidation",
             "default-description-length-clustering-keep-representative",
