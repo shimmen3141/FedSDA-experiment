@@ -146,6 +146,8 @@ _VARIANTS["default-cross-validated-initial-model-statistics"] = ("fedsda", False
 # サーバのクラスタリングで、同じであることの証拠（全体の「片方だけが正解した割合」の信頼上限が閾値以下）があるときだけ
 # 統合する（LEGACY-021）。
 _VARIANTS["default-equivalence-clustering-decision"] = ("fedsda", False, None)
+# クロス評価の標本の上限と、モデルごとに保存する評価の標本の上限を、50から200へ増やす（判定の作りは同じ。LEGACY-021）。
+_VARIANTS["default-cross-evaluation-200-samples"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1675,6 +1677,23 @@ def _execute_job(job):
                     training_data_assignment_settings=replace(
                         client.training_data_assignment_settings,
                         alarm_interval_assignment_policy="minimum_description_length",
+                    ),
+                ),
+            ),
+        )
+    if job["variant"] == "default-cross-evaluation-200-samples":
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    client,
+                    scalar_settings=replace(
+                        client.scalar_settings,
+                        maximum_cross_evaluation_sample_count=200,
+                        maximum_stored_evaluation_sample_count_per_model=200,
                     ),
                 ),
             ),
