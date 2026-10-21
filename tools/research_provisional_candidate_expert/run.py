@@ -143,6 +143,9 @@ _VARIANTS["default-held-out-initial-model-statistics"] = ("fedsda", False, None)
 _VARIANTS["default-reduced-initial-model-training-samples"] = ("fedsda", False, None)
 # 初期モデルは今と同じく全部の標本で学習し、統計だけを5分割の交差検証の予測損失で取る（LEGACY-020の案(b)）。
 _VARIANTS["default-cross-validated-initial-model-statistics"] = ("fedsda", False, None)
+# サーバのクラスタリングで、同じであることの証拠（全体の「片方だけが正解した割合」の信頼上限が閾値以下）があるときだけ
+# 統合する（LEGACY-021）。
+_VARIANTS["default-equivalence-clustering-decision"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1317,6 +1320,41 @@ def _cross_validated_initial_model_statistics_policy(*, fold_count, events):
 
 
 @contextmanager
+def _equivalence_clustering_decision_policy(*, events):
+    """サーバのクラスタリングの対の判定の値を、全体の「片方だけが正解した割合」の信頼上限にする（研究用。LEGACY-021）。
+
+    今の判定（クラス別の信頼下限の最大）は、違いの証拠が閾値に届かないと統合する。この変種は、2方向の「片方だけが
+    正解した割合」のWilsonの片側信頼上限（信頼水準は今と同じ0.95を2方向でBonferroni補正）の大きい方を判定の値に
+    する。閾値（0.1）以下なら、同じであることの証拠があるとして統合する。クラスには分けない（クラス別の上限は、
+    各クラスの標本が少なく、ほとんど統合しない。記録からの見積り）。
+    """
+    from math import sqrt
+    from statistics import NormalDist
+
+    import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
+
+    def upper_bound(success, sample_count, confidence_level):
+        proportion = success / sample_count
+        z_value = NormalDist().inv_cdf(confidence_level)
+        denominator = 1.0 + z_value * z_value / sample_count
+        center = proportion + z_value * z_value / (2.0 * sample_count)
+        radius = z_value * sqrt(
+            proportion * (1.0 - proportion) / sample_count + z_value * z_value / (4.0 * sample_count * sample_count)
+        )
+        return min((center + radius) / denominator, 1.0)
+
+    def score(*, overall_unique_correctness_counts, class_unique_correctness_counts, minimum_class_sample_count, confidence_level):
+        sample_count, lower_only, higher_only = overall_unique_correctness_counts
+        level = 1.0 - (1.0 - confidence_level) / 2
+        value = max(upper_bound(lower_only, sample_count, level), upper_bound(higher_only, sample_count, level))
+        events.append(dict(event="equivalence_clustering_decision", sample_count=sample_count, score=value))
+        return value
+
+    with patch.object(consolidation_module, "compute_classwise_unique_correctness_decision_score", score):
+        yield
+
+
+@contextmanager
 def _keep_representative_consolidation_policy(*, events):
     """サーバの統合で、メンバーのパラメータを平均せず、代表（クラスタの最小のID）のパラメータを保つ（研究用）。
 
@@ -1668,6 +1706,8 @@ def _execute_job(job):
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
         if job["variant"] == "default-recalibrated-detector-baseline":
             stack.enter_context(_recalibrated_detector_baseline_policy(events=events))
+        if job["variant"] == "default-equivalence-clustering-decision":
+            stack.enter_context(_equivalence_clustering_decision_policy(events=events))
         if job["variant"] == "default-cross-validated-initial-model-statistics":
             stack.enter_context(_cross_validated_initial_model_statistics_policy(fold_count=5, events=events))
         if job["variant"] in ("default-held-out-initial-model-statistics", "default-reduced-initial-model-training-samples"):
