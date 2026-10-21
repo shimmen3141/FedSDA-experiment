@@ -34,9 +34,11 @@
   - 「現在のモデルのまま」を選んだら、変化区間の長さはn。
   - 足す順は、研究ツールと同じ（Pythonの`sum`で、前の部分の和に切り替わりの符号長を足し、後の部分の和を足す）にし、浮動小数点の結果を揃える。
 
-### モデルを使う計算（新しいmodule `runtime/alarm_interval_minimum_description_length_selection.py`）
-- `evaluate_classifier_per_sample_log_losses(*, classifier, input_features, observed_class_labels)`: 標本ごとの対数損失＝−log(max(1−有界の損失, 1e-12))（有界の損失は既存の`evaluate_classifier_per_sample_bounded_losses`。1−有界の損失は真のクラスの確率）。研究ツールと同じ式。
-- `compute_new_model_prequential_code_length(*, template_classifier, input_features, observed_class_labels, parameter_optimizer_settings, initialization_seed)`: 現在のモデルの分類器の写しを作り、`torch.random.fork_rng`の中で`initialization_seed`を設定して、概念ごとの部分（`model_owned_feature_transform`と`classification_layer`の、`reset_parameters`を持つ全部の部品）を初期化し直し、残差のadapterの広げる側（`feature_expansion`）を0にする。共有部（`feature_extractor`）以外のパラメータのoptimizerを`create_parameter_optimizer`で作る。標本を順に、対数損失を足してから、共有部を勾配なしで計算し、候補の学習と同じ損失（2クラスはBCE、ほかはcross entropy）で1回更新する。符号長（対数損失の和）を返す。runの乱数（torch・Python・NumPy）は変えない。
+### モデルを使う計算（torchを使う計算はlearningの層、ownerをまとめる計算はruntimeの層）
+依存境界の規則（runtimeの層は、moduleごとに許可した名前のほか、torchを直接importしない）に合わせ、torchを使う計算を、learningの層の2つの新しいmoduleへ置く（Task 1で、仕様レビューの後に置き場所を決め直した）。
+- `learning/prediction/classifier_log_loss_evaluation.py`の`evaluate_classifier_per_sample_log_losses(*, classifier, input_features, observed_class_labels)`: 標本ごとの対数損失＝−log(max(1−有界の損失, 1e-12))（有界の損失は既存の`evaluate_classifier_per_sample_bounded_losses`。1−有界の損失は真のクラスの確率）。研究ツールと同じ式。
+- `learning/training/prequential_code_length.py`の`compute_new_model_prequential_code_length(*, template_classifier, input_features, observed_class_labels, parameter_optimizer_settings, initialization_seed)`: 現在のモデルの分類器の写しを作り、既存の`isolated_cpu_torch_random_state`（`torch.random.fork_rng`の中でCPUの乱数だけを設定する。CPUでは、研究ツールの`torch.manual_seed`と同じ値）の中で`initialization_seed`を設定して、概念ごとの部分（`model_owned_feature_transform`と`classification_layer`の、`reset_parameters`を持つ全部の部品）を初期化し直し、残差のadapterの広げる側（`feature_expansion`）を0にする。共有部（`feature_extractor`）以外のパラメータのoptimizerを`create_parameter_optimizer`で作る。標本を順に、対数損失を足してから、共有部を勾配なしで計算し、候補の学習と同じ損失（2クラスはBCE、ほかはcross entropy）で1回更新する。符号長（対数損失の和）を返す。runの乱数（torch・Python・NumPy）は変えない。
+- 以下の2つは`runtime/alarm_interval_minimum_description_length_selection.py`（標本の列の連結に`torch.cat`だけを、moduleごとの許可で使う）。
 - `derive_new_model_initialization_seed(*, client_id, alarm_sample_index, change_interval_sample_count)`: 3つの非負の整数を、10進の文字列にして`:`で区切って連結した文字列（例: `"3:1250:15"`。区切りがあるので、(1, 23, 4)と(12, 3, 4)は別の文字列になる）のUTF-8のSHA-256を取り、先頭8 byteをbig endianの符号なし整数にしたもの。形式と値をtestで固定する。
 - `select_alarm_interval_assignment(*, client_id, alarm_sample_index, pending_sample_observations, held_model_training_state_registry, loss_statistics_store, current_training_model_assignment, parameter_optimizer_settings, switching_probability, change_interval_grid_sample_count)`:
   - 列＝帰属の保留の標本（警報の標本を足した後の、保留の全部。古い順）。
@@ -90,6 +92,7 @@
 
 ## File Structure Plan
 - `src/federated_learning_experiments/methods/fedsda/training_data_assignment/`: 新規`minimum_description_length_assignment_selection.py`、`training_data_assignment_settings.py`。
+- `src/federated_learning_experiments/learning/`: 新規`prediction/classifier_log_loss_evaluation.py`、`training/prequential_code_length.py`。
 - `src/federated_learning_experiments/runtime/`: 新規`alarm_interval_minimum_description_length_selection.py`、`observed_sample_processing.py`、`alarm_occurrence_handling.py`、`alarm_buffer_response.py`、`alarm_change_interval_resolution.py`、`fedsda_run_client.py`、`fedsda_run_client_settings.py`（組合せの検査）、`fedsda_final_configuration_run_settings.py`、`core/run_provenance.py`。
 - `src/federated_learning_experiments/sweep/experiment_configurations.py`（候補検証ありの構成）。
 - `tests/refactoring/`: 新規の部品と接続のtest、`behavior_golden_cases.py`、`test_important_behavior_regression_goldens.py`、`behavior_regression_goldens/v10/`、既定に依るtest、依存境界、`fresh_process_smoke.py`。

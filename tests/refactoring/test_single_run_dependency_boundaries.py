@@ -6851,6 +6851,46 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.strided",
             "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
         )
+    if source_module_path == "learning/prediction/classifier_log_loss_evaluation.py":
+        return imported_module_name in (
+            "torch.Tensor",
+            "torch.clamp",
+            "torch.log",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+        )
+    if source_module_path == "learning/training/prequential_code_length.py":
+        return imported_module_name in (
+            "copy.deepcopy",
+            "torch.Tensor",
+            "torch.no_grad",
+            "torch.nn.BCELoss",
+            "torch.nn.CrossEntropyLoss",
+            "torch.nn.init.zeros_",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
+            "federated_learning_experiments.learning.models.torch_random_state_scope.isolated_cpu_torch_random_state",
+            "federated_learning_experiments.learning.prediction.classifier_log_loss_evaluation.evaluate_classifier_per_sample_log_losses",
+            "federated_learning_experiments.learning.training.parameter_optimizer_construction.create_parameter_optimizer",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+        )
+    if source_module_path == "runtime/alarm_interval_minimum_description_length_selection.py":
+        return imported_module_name in (
+            "hashlib.sha256",
+            "math.isfinite",
+            "torch.cat",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.prediction.classifier_log_loss_evaluation.evaluate_classifier_per_sample_log_losses",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.prequential_code_length.compute_new_model_prequential_code_length",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.MinimumDescriptionLengthAssignmentSelection",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.compute_switching_code_length",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.select_assignment_by_minimum_description_length",
+        )
     if source_module_path == "learning/prediction/classifier_bounded_loss_evaluation.py":
         return imported_module_name in (
             "torch.Tensor",
@@ -7459,6 +7499,9 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/alarm_buffer_response.py",
             "runtime/alarm_response_completion.py",
             "runtime/alarm_change_interval_resolution.py",
+            "learning/prediction/classifier_log_loss_evaluation.py",
+            "learning/training/prequential_code_length.py",
+            "runtime/alarm_interval_minimum_description_length_selection.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -7582,6 +7625,9 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/alarm_buffer_response.py",
                     "runtime/alarm_response_completion.py",
                     "runtime/alarm_change_interval_resolution.py",
+                    "learning/prediction/classifier_log_loss_evaluation.py",
+                    "learning/training/prequential_code_length.py",
+                    "runtime/alarm_interval_minimum_description_length_selection.py",
                 )
                 and isinstance(import_statement, ast.Import)
                 and not (

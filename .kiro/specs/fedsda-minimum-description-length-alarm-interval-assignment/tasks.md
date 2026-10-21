@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 最小記述長の選択の計算を足す（接続はまだしない）
+- [x] 1. 最小記述長の選択の計算を足す（接続はまだしない）
   - 純粋な計算（仮説の符号長と選択、切り替わりの符号長、選び方の値の検査）と、モデルを使う計算（対数損失、予測的符号長、seedの導出、保留の列での選択）のtestを先に書き、REDを確かめる。
   - 完了条件: 新しい部品のtestが通る（3種類の選択、同じ長さの順、刻みより短い列、runの乱数を変えないこと、同じseedで同じ値、共有部を更新しないこと）。依存境界の許可を登録する。
   - _Requirements: 1.2, 1.5, 1.6_
@@ -44,3 +44,6 @@
 - 仕様レビュー2回目（Luna high、session `01a15c28-2d99-7313-9e1f-b490f1d1d390`）: 1回目の3件は解消。Major 1件（版9→10の差の説明で、新しい記録の表の比べ方が未定義）。両方の版を実行した結果を比べ、版10の結果から表を取り除いて比べ、取り除いた表が空であることを確かめる、`coverage`も版10で足す項目を取り除いて比べる、と直した。
 - 仕様レビュー3回目（Luna high、session `01a15c29-7760-79a3-a225-6c66be918cfa`）: 設計は解消。Major 1件（要求4.2が、設計の除外を書いていない）。要求4.2に、両方の版を実行して比べること、表と経路の記録の除外、取り除いた表が空であることを書いた。
 - 仕様レビュー4回目（Luna high、session `01a15c2a-6e59-71a3-b854-6c0e8e423d63`）: PASS。
+- Task 1の途中の設計の変更（2026-10-21）: 依存境界の規則（runtimeの層はtorchを直接importしない。learningの層もmoduleごとに許可した名前だけ）に合わせ、`evaluate_classifier_per_sample_log_losses`を`learning/prediction/classifier_log_loss_evaluation.py`へ、`compute_new_model_prequential_code_length`を`learning/training/prequential_code_length.py`へ置いた（設計では`runtime/alarm_interval_minimum_description_length_selection.py`だった）。初期化の乱数は、既存の`isolated_cpu_torch_random_state`を使う。公開名の置き場所の変更なので、変更部分の仕様の再確認を受ける。
+- 仕様の変更部分の再確認（Luna high、session `01a15c3b-0331-7ea3-8185-d77acb81cbd9`）: PASS（置き場所と依存の方向、命名表との一致、CPUの初期化の乱数が研究ツールと同じになること）。
+- Task 1: REDは、新しいmoduleが無いことによる収集の失敗（新しいmoduleだけのtask）。純粋な計算のtest 17件、モデルを使う計算のtest 12件、依存境界のtestと合わせて3156 passed。Ruff・Pyright（`--pythonpath`付き）0 errors。純粋な計算のtestの1件は、最初、testの例の作り方の誤り（保有モデルの前半の損失を0にしたため、区間10が最短になった）で失敗し、例を直した。`reset_parameters`の呼び出しは、Pyrightの型の推定に合わせて`getattr`で取り出して呼べるときだけ呼ぶ形にした（torchの部品では同じ意味）。

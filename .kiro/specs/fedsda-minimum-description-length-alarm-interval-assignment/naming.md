@@ -12,11 +12,13 @@
 | `compute_switching_code_length` | 同じmoduleの関数 | 帰属先が1回切り替わることの符号長（−ln(切り替わりの確率)＋ln(切り替わり先の数)） | 予測の重み（Fixed-Share）は、同じ確率を重みの分け合いに使う。こちらは符号長 |
 | `MinimumDescriptionLengthAssignmentSelection` | 同じmoduleの型（frozen dataclass） | 選んだ仮説（現在のモデルのまま／保有モデルへ切り替わる／新しいモデルへ切り替わる）、変化区間の長さ、行き先の保有モデルのID、符号長 | 今の`AlarmIntervalModelReuseAssessment`は、履歴の基準と許容量で「合う」モデルの列を持つ評価。こちらは選択の結果 |
 | `select_assignment_by_minimum_description_length` | 同じmoduleの関数 | 標本ごとの対数損失の列と、新しいモデルの予測的符号長から、符号長が最短の仮説を選ぶ | |
-| `alarm_interval_minimum_description_length_selection` | `runtime/`のmodule | 保有モデルの対数損失と、新しいモデルの予測的符号長を、モデルを使って計算し、選択を返す | 純粋な計算のmoduleと分ける（ownerとtorchを使う側） |
-| `evaluate_classifier_per_sample_log_losses` | 同じmoduleの関数 | 標本ごとの対数損失（−log 真のクラスの確率）。既存の有界の損失（1−真のクラスの確率）から計算する | 既存の`evaluate_classifier_per_sample_bounded_losses`は有界の損失 |
-| `compute_new_model_prequential_code_length` | 同じmoduleの関数 | 概念ごとの部分を初期化し直した学習者で、標本を予測してから学ぶ形の符号長（予測的符号長）。runの乱数を変えない | 候補の学習（`candidate_epoch_training`）は候補のパラメータを作る。こちらは符号長を測るだけで、モデルを残さない |
-| `derive_new_model_initialization_seed` | 同じmoduleの関数 | 予測的符号長の学習者の初期化のseedを、clientの番号・警報の標本の番号・変化区間の長さから決める | |
-| `select_alarm_interval_assignment` | 同じmoduleの関数 | 帰属の保留の標本の列で、上の計算をまとめて行い、選択を返す | |
+| `alarm_interval_minimum_description_length_selection` | `runtime/`のmodule | 帰属の保留の標本の列と、保有モデルのowner・損失の統計から、learningの層の計算をまとめて、選択を返す | 純粋な計算のmoduleと分ける（ownerを使う側） |
+| `classifier_log_loss_evaluation` | `learning/prediction/`のmodule | 分類器の標本ごとの対数損失 | 既存の`classifier_bounded_loss_evaluation`は有界の損失 |
+| `evaluate_classifier_per_sample_log_losses` | `classifier_log_loss_evaluation`の関数 | 標本ごとの対数損失（−log 真のクラスの確率）。既存の有界の損失（1−真のクラスの確率）から計算する | 既存の`evaluate_classifier_per_sample_bounded_losses`は有界の損失 |
+| `prequential_code_length` | `learning/training/`のmodule | 新しいモデルの予測的符号長の計算 | |
+| `compute_new_model_prequential_code_length` | `prequential_code_length`の関数 | 概念ごとの部分を初期化し直した学習者で、標本を予測してから学ぶ形の符号長（予測的符号長）。runの乱数を変えない | 候補の学習（`candidate_epoch_training`）は候補のパラメータを作る。こちらは符号長を測るだけで、モデルを残さない |
+| `derive_new_model_initialization_seed` | `alarm_interval_minimum_description_length_selection`の関数 | 予測的符号長の学習者の初期化のseedを、clientの番号・警報の標本の番号・変化区間の長さから決める | |
+| `select_alarm_interval_assignment` | `alarm_interval_minimum_description_length_selection`の関数 | 帰属の保留の標本の列で、上の計算をまとめて行い、選択を返す | |
 | `AlarmIntervalAssignmentSelectionRecordStore` | `evaluation/`の新しいmoduleの型 | 最小記述長の選択ごとの記録（警報の標本の番号、選んだ仮説、変化区間の長さ、行き先、符号長、警報にしたか）を持つ | 警報の記録（`LossChangeAlarmRecordStore`）は検出器の警報。こちらは警報の後の選択 |
 | 記録の表`alarm_interval_assignment_selection.*` | runの記録の表 | 上の記録の列 | |
 | 基準版10 | goldenの版 | 最小記述長の原理で選ぶ扱い（新しい既定）の値 | |
