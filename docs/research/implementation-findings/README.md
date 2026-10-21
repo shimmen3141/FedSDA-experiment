@@ -37,6 +37,7 @@
 | NEW-002 | 候補検証sessionの保持と進行のtestに、汎用の変異toolで見つかった穴が2件ある | 修正済み（2026-10-09、`97d9c43`） | [記録](new-002-held-validation-test-gaps-found-by-mutation-tool.md) |
 | NEW-003 | 1回の共同更新の途中で失敗したときの学習量の計数が、旧と違う | 許容（2026-10-09、ユーザー決定。現在の流れでは読まれない） | [記録](new-003-training-count-after-mid-update-failure.md) |
 | NEW-004 | 旧実装の計算量との照合は、旧実装を外すときに取り除く（残すものと、置き換えるもの） | 後でやる作業の記録・未着手（2026-10-10、ユーザーの指示で記録。時期と方法は、ユーザーが決める） | [記録](new-004-legacy-computation-comparison-removal.md) |
+| NEW-005 | 最小記述長の選択の計算が、計算回数の指標に数えられていない | 未対応（2026-10-21。基準版10の計算量はこの分だけ少なく出る。MNIST2・間隔100の見積りで、run全体の学習の約0.5%、推論の約3%） | [記録](new-005-minimum-description-length-selection-computation-not-counted.md) |
 
 ## 決定（2026-10-13、ユーザー）
 
