@@ -125,6 +125,9 @@ _VARIANTS["default-minimum-description-length"] = ("fedsda", False, None)
 # 基準版10の既定（最小記述長の選択）の上で、「現在のモデルのまま」を選んだら、検出器の基準を、選択の列での現在の
 # モデルの損失の平均に合わせ直す（初期モデルの楽観的な統計による誤警報を止める案。研究記録の設計の14の(a)）。
 _VARIANTS["default-recalibrated-detector-baseline"] = ("fedsda", False, None)
+# 基準版10の既定の上で、最小記述長の選択の保有モデルの符号長を、予測を一様分布と重み1/T（Fixed-Shareの時間尺度）で
+# 混ぜた値にする（見逃した再利用を減らす案。研究記録の設計の17）。
+_VARIANTS["default-uniform-mixture-held-model-code-length"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -1102,6 +1105,32 @@ def _recalibrated_detector_baseline_policy(*, events):
         yield
 
 
+@contextmanager
+def _uniform_mixture_held_model_code_length_policy(*, mixture_weight, events):
+    """最小記述長の選択で、保有モデルの予測を一様分布と混ぜた符号長を使う（研究用。実行の間だけ包む）。
+
+    保有モデル（現在のモデルを含む）の標本ごとの対数損失を、真のクラスの確率pを(1−w)p＋w/K（Kはクラス数）に
+    替えた値にする。少数の標本で極端に自信を持って誤ったモデルが、上限の無い対数損失で大きく罰されるのを抑える。
+    新しいモデルの予測的符号長は替えない（`learning/training/prequential_code_length.py`は別の名前で評価する）。
+    """
+    import torch
+
+    import federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection as selection_module
+
+    original_evaluate = selection_module.evaluate_classifier_per_sample_log_losses
+
+    def evaluate(*, classifier, input_features, observed_class_labels):
+        log_losses = original_evaluate(
+            classifier=classifier, input_features=input_features, observed_class_labels=observed_class_labels
+        )
+        mixed = -torch.log((1.0 - mixture_weight) * torch.exp(-log_losses) + mixture_weight / classifier.class_count)
+        events.append(dict(event="uniform_mixture_held_model_code_length"))
+        return mixed
+
+    with patch.object(selection_module, "evaluate_classifier_per_sample_log_losses", evaluate):
+        yield
+
+
 def _table_row_count(tables, prefix):
     """記録の表の、その表名の最初の列の行数（表が無ければ0）。"""
     columns = sorted(name for name in tables if name.startswith(prefix))
@@ -1220,6 +1249,14 @@ def _execute_job(job):
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
         if job["variant"] == "default-recalibrated-detector-baseline":
             stack.enter_context(_recalibrated_detector_baseline_policy(events=events))
+        if job["variant"] == "default-uniform-mixture-held-model-code-length":
+            stack.enter_context(
+                _uniform_mixture_held_model_code_length_policy(
+                    mixture_weight=1.0
+                    / client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,
+                    events=events,
+                )
+            )
         if job["variant"] in _DETECTOR_GATED_SEGMENT_ASSIGNMENT_VARIANTS:
             stack.enter_context(
                 _detector_gated_segment_assignment_policy(
