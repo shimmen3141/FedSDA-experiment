@@ -86,6 +86,9 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
 from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import (
     FixedShareWeightController,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store import (
+    AlarmIntervalAssignmentSelectionRecordStore,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
 )
@@ -237,6 +240,8 @@ def build_sample_processing_oracle(
             "estimated_change_span_sample_count",
             "estimated_change_point_sample_index",
             "detection_episode_id",
+            # 標本の処理が、選び方の設定から決めて、警報の処理へ渡す。
+            "alarm_interval_assignment_selection",
         )
     }
     processing_arguments.update(
@@ -250,6 +255,7 @@ def build_sample_processing_oracle(
         true_concept_adahedge_diagnostic_evidence_collection=TrueConceptAdaHedgeDiagnosticEvidenceCollection(),
         prediction_combination_strategy="fixed_share_weighted_prediction",
         loss_change_alarm_record_store=LossChangeAlarmRecordStore(),
+        alarm_interval_assignment_selection_record_store=AlarmIntervalAssignmentSelectionRecordStore(),
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=temporary_model_id_allocator,
         pending_model_upload_state=PendingModelUploadState(
@@ -269,6 +275,9 @@ def build_sample_processing_oracle(
         ),
         upload_delay_round_count=UPLOAD_DELAY_ROUND_COUNT,
         short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+        client_id=0,
+        alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+        switching_probability=1.0 / 120,
         batch_sample_count=BATCH_SAMPLE_COUNT,
         local_training_settings=LocalTrainingSettings(
             local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",

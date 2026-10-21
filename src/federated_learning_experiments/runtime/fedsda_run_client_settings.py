@@ -40,6 +40,7 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.predic
     PredictionCombinationSettings,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
 
@@ -282,6 +283,22 @@ class FedsdaRunClientSettings:
                     "警報を待つ扱いでは、帰属保留FIFO容量を、変化区間の最小件数以上にしてください。"
                     f"pending_assignment_buffer_capacity_samples={pending_capacity!r}、"
                     f"minimum_change_interval_sample_count={minimum_change_interval!r}。"
+                ),
+            )
+        # 最小記述長の原理で選ぶ扱いは、候補検証と組み合わせて確かめていない。
+        if (
+            self.training_data_assignment_settings.alarm_interval_assignment_policy
+            == MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME
+            and self.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy
+            == "current_model_first_reuse_then_two_segment_candidate_validation"
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="alarm_interval_assignment_policy",
+                specified_parameter_value=self.training_data_assignment_settings.alarm_interval_assignment_policy,
+                validation_failure_reason=(
+                    "最小記述長の原理で警報の後の変化区間と帰属先を選ぶ扱いは、候補を検証してから採否を決める"
+                    "方針と組み合わせられません（検証せずに採用する方針を選ぶか、検出器の推定と許容量で選ぶ扱いに"
+                    "してください）。"
                 ),
             )
         # 検証の期間の後に採用すると、候補の共有部（警報の時点の値）が、期間中に学習したclientの共有部を、

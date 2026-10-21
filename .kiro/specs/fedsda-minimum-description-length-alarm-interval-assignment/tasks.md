@@ -5,14 +5,14 @@
   - 完了条件: 新しい部品のtestが通る（3種類の選択、同じ長さの順、刻みより短い列、runの乱数を変えないこと、同じseedで同じ値、共有部を更新しないこと）。依存境界の許可を登録する。
   - _Requirements: 1.2, 1.5, 1.6_
 
-- [ ] 2. 設定を足し、標本の処理と警報の処理へ接続する（既定は、まだ変えない）
+- [x] 2. 設定を足し、標本の処理と警報の処理へ接続する（既定は、まだ変えない）
   - 設定の検査（候補検証との組合せの拒否を含む）と、接続のtest（今の扱いでは今と同じ、新しい扱いでは選択の長さと行き先が使われる）を先に書き、REDを確かめる。
   - 設定の項目と検査、clientからの受け渡し、`process_observed_sample`での選択と変化区間の長さの置き換え、警報の処理への受け渡しと、`resolve_alarm_change_interval`での行き先の使い方。全部の設定の組立てで今の扱いを明示し、旧と比べる入口と、基準版1〜9の「後に足された項目」の表へ足す。
   - 完了条件: 新しいtestが通り、既存のtest（実旧との照合、基準版1〜9）が値を変えずに通る。
   - 選択の記録の置き場と記録の表を足し、版1〜9の比べる形から、この表を取り除く（今の扱いでは空の表）。今の扱いで選択の計算が呼ばれないことのtestを足す。
   - _Requirements: 1.1, 1.3, 1.4, 1.7, 1.8, 3.1, 3.2, 4.4_
 
-- [ ] 3. 研究ツールと同じ値になることを確かめる
+- [x] 3. 研究ツールと同じ値になることを確かめる
   - 研究ツールの変種のseedを、製品と同じ式に揃える。照合のscriptで、手元の条件（MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0、2500標本）で、研究ツールの変種と、新しい扱いを選んだ製品の全体runの、精度・通信量・予測の記録のdigest・最終のパラメータのdigest・計算回数が一致することを確かめる。
   - 完了条件: 一致の結果（条件ごと）と、照合のscriptの場所がImplementation Notesにある。一致しない場合は、原因を特定して直すまで次へ進まない。
   - _Requirements: 5.1, 5.2_
@@ -47,3 +47,5 @@
 - Task 1の途中の設計の変更（2026-10-21）: 依存境界の規則（runtimeの層はtorchを直接importしない。learningの層もmoduleごとに許可した名前だけ）に合わせ、`evaluate_classifier_per_sample_log_losses`を`learning/prediction/classifier_log_loss_evaluation.py`へ、`compute_new_model_prequential_code_length`を`learning/training/prequential_code_length.py`へ置いた（設計では`runtime/alarm_interval_minimum_description_length_selection.py`だった）。初期化の乱数は、既存の`isolated_cpu_torch_random_state`を使う。公開名の置き場所の変更なので、変更部分の仕様の再確認を受ける。
 - 仕様の変更部分の再確認（Luna high、session `01a15c3b-0331-7ea3-8185-d77acb81cbd9`）: PASS（置き場所と依存の方向、命名表との一致、CPUの初期化の乱数が研究ツールと同じになること）。
 - Task 1: REDは、新しいmoduleが無いことによる収集の失敗（新しいmoduleだけのtask）。純粋な計算のtest 17件、モデルを使う計算のtest 12件、依存境界のtestと合わせて3156 passed。Ruff・Pyright（`--pythonpath`付き）0 errors。純粋な計算のtestの1件は、最初、testの例の作り方の誤り（保有モデルの前半の損失を0にしたため、区間10が最短になった）で失敗し、例を直した。`reset_parameters`の呼び出しは、Pyrightの型の推定に合わせて`getattr`で取り出して呼べるときだけ呼ぶ形にした（torchの部品では同じ意味）。
+- Task 2: REDは4件（新しい項目が無いことによる失敗）。設計からの変更2点（層の規則に合わせた）: (1) 選び方の値の定数と検査の関数`validate_alarm_interval_assignment_policy`は、純粋な計算のmoduleではなく、設定のmodule`training_data_assignment_settings.py`に置いた（`*_settings.py`は`core`と標準libraryしかimportできない）。(2) 選択の記録の置き場`AlarmIntervalAssignmentSelectionRecordStore`は、`evaluation/`ではなく`methods/fedsda/training_data_assignment/alarm_interval_assignment_selection_record_store.py`に置いた（evaluationの層から手法の層の型を参照しない）。`handle_alarm_occurrence`の新しい引数は、この関数の引数を既定値なしにする規則（testで確かめている）に合わせて必須にし、中で呼ぶ`respond_to_alarm_with_buffered_samples`・`resolve_alarm_change_interval`は既存の呼出しを変えないよう既定値`None`にした。新しい扱いで選んだときの警報の記録の`detector_candidate_start_sample_index`は、研究ツールと同じく、選んだ変化区間の先頭にした（検出器の候補の開始は、選んだ変化点より後のことがあり、記録は候補の開始≦変化点を求める）。選択は、検出器の合図か、ADWINの補助の判定で警報になるときに呼ぶ（研究ツールは検出器の合図だけ。既定のe-SRでは補助の判定は起きないので、既定の値は同じ）。runの識別子`4403b4d6816c`→`73df845459ba`（設定の項目が増えたため。値は今の扱い）。全pytest（`../../venv/refactoring-tests/mdl-task2-full.xml`）は14681件のうち231件が失敗し、全部が`test_observed_sample_processing.py`と`test_alarm_wait_for_minimum_change_interval.py`で、標本の処理の引数を、警報の処理のtestの引数の組から作るときに、新しい引数`alarm_interval_assignment_selection`が混じったため。除く引数に足し、2つのファイルで244 passed / 2 skipped。ほかのファイルは、その全pytestで通った（全pytestの取り直しはTask 7で行う）。Ruff・Pyright 0 errors。
+- Task 3: 研究ツールの変種`default-detector-gated-segment-assignment`の学習者のseedを、`derive_new_model_initialization_seed`と同じ式（clientの番号は、製品が標本の処理へ渡す`client_id`）に揃え、製品の扱いを選ぶだけの変種`default-minimum-description-length`を足した。`results/fedsda-provisional-candidate-expert/20261021_mdl-product-equivalence-n2500/`（MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0、各2500標本、8 run）で、2つの変種の精度・下り・上り・予測の記録のdigest・最終のパラメータのdigest・計算回数・最終のモデル数・登録・統合・検出の回数・変化点の推定の指標が、4条件とも完全に一致した（照合は、Git管理外の一時scriptで行った）。4条件とも3種類の選択が起きた（SEA4は保有モデルへの切り替わりが0回）。研究ツールのseedを揃えたので、uraniumの240 run（通し番号のseed）とは、新しいモデルの学習者の初期化が違い、値は完全には一致しない（Requirement 5.2）。

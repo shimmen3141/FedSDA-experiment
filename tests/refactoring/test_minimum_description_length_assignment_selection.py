@@ -11,12 +11,14 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment impo
     minimum_description_length_assignment_selection as selection_module,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
-    ALARM_INTERVAL_ASSIGNMENT_POLICY_NAMES,
-    DETECTOR_CHANGE_SPAN_AND_MEAN_LOSS_INCREASE_TOLERANCE_POLICY_NAME,
-    MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
     MinimumDescriptionLengthAssignmentSelection,
     compute_switching_code_length,
     select_assignment_by_minimum_description_length,
+)
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    ALARM_INTERVAL_ASSIGNMENT_POLICY_NAMES,
+    DETECTOR_CHANGE_SPAN_AND_MEAN_LOSS_INCREASE_TOLERANCE_POLICY_NAME,
+    MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
     validate_alarm_interval_assignment_policy,
 )
 

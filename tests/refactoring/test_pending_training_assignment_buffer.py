@@ -33,6 +33,7 @@ def make_assignment_buffer(capacity=3):
     return PendingTrainingAssignmentBuffer(
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             pending_assignment_buffer_capacity_samples=capacity,
         ),
     )
@@ -111,6 +112,7 @@ def test_pending_assignment_invalid_inputs_preserve_state_for_capacity(invalid_v
     """改変された設定も既存検証器で再検査する。"""
     training_data_assignment_settings = TrainingDataAssignmentSettings(
         pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+        alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
         pending_assignment_buffer_capacity_samples=3,
     )
     object.__setattr__(
@@ -400,6 +402,7 @@ def test_pending_assignment_public_functions_require_explicit_keyword_arguments(
         PendingTrainingAssignmentBuffer(
             TrainingDataAssignmentSettings(
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+                alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 pending_assignment_buffer_capacity_samples=3,
             )
         )

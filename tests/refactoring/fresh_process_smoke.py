@@ -166,6 +166,9 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_
 from federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings import (
     PredictionCombinationSettings,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store import (
+    AlarmIntervalAssignmentSelectionRecordStore,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
 )
@@ -411,6 +414,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     pending_training_assignment_buffer = PendingTrainingAssignmentBuffer(
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             pending_assignment_buffer_capacity_samples=10,
         )
     )
@@ -562,6 +566,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
             estimated_change_point_sample_index=(
                 pending_sample_observations[0].sample_index if pending_sample_observations else None
             ),
+            alarm_interval_assignment_selection=None,
             **alarm_handling_arguments,
         )
         adaptation_record = alarm_occurrence_handling.adaptation_record
@@ -785,6 +790,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     } | dict(
         training_request_arguments,
         loss_change_alarm_record_store=loss_change_alarm_record_store,
+        alarm_interval_assignment_selection_record_store=AlarmIntervalAssignmentSelectionRecordStore(),
         fixed_share_weight_controller=fixed_share_weight_controller,
         sample_prediction_record_store=sample_prediction_record_store,
         true_concept_adahedge_diagnostic_evidence_collection=TrueConceptAdaHedgeDiagnosticEvidenceCollection(),
@@ -798,6 +804,9 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         minimum_candidate_mean_loss_improvement=0.0,
         upload_delay_round_count=1,
         short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
+        client_id=0,
+        alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+        switching_probability=1.0 / 120,
     )
     record_count_before_processing = len(state_snapshot.adaptation_records)
     first_processed_sample_index = pending_assignment_state.last_observed_sample_index + 1
@@ -1135,6 +1144,7 @@ def run_assembled_client_flow(*, class_count):
         ),
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             pending_assignment_buffer_capacity_samples=pending_capacity,
         ),
         candidate_model_training_and_acceptance_settings=CandidateModelTrainingAndAcceptanceSettings(

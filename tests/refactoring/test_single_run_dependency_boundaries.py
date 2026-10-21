@@ -5947,6 +5947,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_final_configuration_run_settings.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.DETECTOR_CHANGE_SPAN_AND_MEAN_LOSS_INCREASE_TOLERANCE_POLICY_NAME",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
             "federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings.RandomConceptScheduleSettings",
@@ -6226,6 +6227,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_client.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store.AlarmIntervalAssignmentSelectionRecordStore",
             "federated_learning_experiments.evaluation.held_model_count_record_store.HeldModelCountRecordStore",
             "federated_learning_experiments.evaluation.loss_monitoring_computation_count_store.LossMonitoringComputationCountStore",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_validation_decision_record_store.CandidateValidationDecisionRecordStore",
@@ -6279,6 +6281,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_client_settings.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME",
             "dataclasses.dataclass",
             "dataclasses.field",
@@ -6336,6 +6339,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/observed_sample_processing.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store.AlarmIntervalAssignmentSelectionRecordStore",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.validate_alarm_interval_assignment_policy",
+            "federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection.select_alarm_interval_assignment",
             "dataclasses.dataclass",
             "random.Random",
             "torch.Tensor",
@@ -6390,6 +6397,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/alarm_occurrence_handling.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.MinimumDescriptionLengthAssignmentSelection",
             "dataclasses.dataclass",
             "random.Random",
             "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
@@ -6513,6 +6521,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/alarm_buffer_response.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.MinimumDescriptionLengthAssignmentSelection",
             "dataclasses.dataclass",
             "random.Random",
             "federated_learning_experiments.evaluation.model_evaluation_sample_store.ModelEvaluationSampleStore",
@@ -6541,6 +6550,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/alarm_change_interval_resolution.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.MinimumDescriptionLengthAssignmentSelection",
             "dataclasses.dataclass",
             "torch.Tensor",
             "torch.cat",
@@ -6850,6 +6860,15 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "torch.no_grad",
             "torch.strided",
             "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
+        )
+    if (
+        source_module_path
+        == "methods/fedsda/training_data_assignment/alarm_interval_assignment_selection_record_store.py"
+    ):
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "math.isfinite",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.MinimumDescriptionLengthAssignmentSelection",
         )
     if source_module_path == "learning/prediction/classifier_log_loss_evaluation.py":
         return imported_module_name in (
@@ -7502,6 +7521,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "learning/prediction/classifier_log_loss_evaluation.py",
             "learning/training/prequential_code_length.py",
             "runtime/alarm_interval_minimum_description_length_selection.py",
+            "methods/fedsda/training_data_assignment/alarm_interval_assignment_selection_record_store.py",
         ) and isinstance(import_statement, ast.ImportFrom):
             # 通常resolverのpackage別返却差に依存せず、束縛symbolを直接解決する。
             imported_module_names = tuple(
@@ -7628,6 +7648,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "learning/prediction/classifier_log_loss_evaluation.py",
                     "learning/training/prequential_code_length.py",
                     "runtime/alarm_interval_minimum_description_length_selection.py",
+                    "methods/fedsda/training_data_assignment/alarm_interval_assignment_selection_record_store.py",
                 )
                 and isinstance(import_statement, ast.Import)
                 and not (

@@ -89,6 +89,9 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.synchr
 from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot import (
     SynchronizedPredictionModelSnapshot,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store import (
+    AlarmIntervalAssignmentSelectionRecordStore,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
 )
@@ -141,6 +144,8 @@ class FedsdaRunClientOwners:
     )
     loss_change_monitor: OverallAndTrueClassLossMonitor
     loss_change_alarm_record_store: LossChangeAlarmRecordStore
+    # 警報の後の、最小記述長の原理による選択の記録（今の扱いでは、空のまま）。
+    alarm_interval_assignment_selection_record_store: AlarmIntervalAssignmentSelectionRecordStore
     loss_monitoring_computation_count_store: LossMonitoringComputationCountStore
     held_model_count_record_store: HeldModelCountRecordStore
     pending_training_assignment_buffer: PendingTrainingAssignmentBuffer
@@ -287,6 +292,7 @@ class FedsdaRunClient:
             true_concept_adahedge_diagnostic_evidence_collection=owners.true_concept_adahedge_diagnostic_evidence_collection,
             loss_change_monitor=owners.loss_change_monitor,
             loss_change_alarm_record_store=owners.loss_change_alarm_record_store,
+            alarm_interval_assignment_selection_record_store=owners.alarm_interval_assignment_selection_record_store,
             pending_training_assignment_buffer=owners.pending_training_assignment_buffer,
             pending_sample_observation_store=owners.pending_sample_observation_store,
             held_model_training_state_registry=owners.held_model_training_state_registry,
@@ -305,6 +311,11 @@ class FedsdaRunClient:
             upload_delay_round_count=scalar_settings.new_model_upload_delay_round_count,
             minimum_change_interval_sample_count=scalar_settings.minimum_change_interval_sample_count,
             short_change_interval_alarm_policy=self.short_change_interval_alarm_policy,
+            client_id=self.client_id,
+            alarm_interval_assignment_policy=settings.training_data_assignment_settings.alarm_interval_assignment_policy,
+            # 切り替わりの確率は、予測の重み（Fixed-Share）の分け合いの割合と同じ1/T。
+            switching_probability=1.0
+            / settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,
             maximum_alarm_interval_mean_loss_increase=scalar_settings.maximum_tolerated_mean_loss_increase,
             candidate_parameter_initialization_settings=settings.candidate_parameter_initialization_settings,
             architecture_reference_classifier=current_training_classifier,
@@ -683,6 +694,7 @@ def assemble_fedsda_run_client(
             betting_fractions=run_client_settings.loss_monitor_betting_fractions,
         ),
         loss_change_alarm_record_store=LossChangeAlarmRecordStore(),
+        alarm_interval_assignment_selection_record_store=AlarmIntervalAssignmentSelectionRecordStore(),
         loss_monitoring_computation_count_store=LossMonitoringComputationCountStore(),
         held_model_count_record_store=HeldModelCountRecordStore(),
         pending_training_assignment_buffer=PendingTrainingAssignmentBuffer(

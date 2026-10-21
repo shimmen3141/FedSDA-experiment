@@ -46,6 +46,9 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.can
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
+    MinimumDescriptionLengthAssignmentSelection,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
 )
@@ -174,6 +177,7 @@ def respond_to_alarm_with_buffered_samples(
     estimated_change_point_sample_index: int | None,
     detection_episode_id: int | None,
     detector_name: str,
+    alarm_interval_assignment_selection: MinimumDescriptionLengthAssignmentSelection | None = None,
 ) -> AlarmBufferResponse:
 
     if (
@@ -261,6 +265,7 @@ def respond_to_alarm_with_buffered_samples(
         estimated_change_point_sample_index=estimated_change_point_sample_index,
         detection_episode_id=detection_episode_id,
         detector_name=detector_name,
+        alarm_interval_assignment_selection=alarm_interval_assignment_selection,
     )
     return AlarmBufferResponse(
         response_outcome=interval_resolution.resolution_outcome,

@@ -56,6 +56,9 @@ from federated_learning_experiments.methods.fedsda.model_registration.pending_mo
 from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import (
     AllSampleAdaHedgeWeightEvidenceHolder,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
+    MinimumDescriptionLengthAssignmentSelection,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
 )
@@ -118,6 +121,7 @@ def handle_alarm_occurrence(
     estimated_change_point_sample_index: int | None,
     detection_episode_id: int | None,
     detector_name: str,
+    alarm_interval_assignment_selection: MinimumDescriptionLengthAssignmentSelection | None,
 ) -> AlarmOccurrenceHandling:
     """保持中のsessionを応答へ渡し、応答を一度だけ完了させて、記録・保持・診断へ反映する。"""
     # 応答は多くのownerを更新する。応答より後の段だけが検査するownerと値は、応答の前に確かめる。
@@ -179,6 +183,7 @@ def handle_alarm_occurrence(
         estimated_change_point_sample_index=estimated_change_point_sample_index,
         detection_episode_id=detection_episode_id,
         detector_name=detector_name,
+        alarm_interval_assignment_selection=alarm_interval_assignment_selection,
     )
     alarm_response_completion = complete_alarm_buffer_response(
         alarm_buffer_response=alarm_buffer_response,

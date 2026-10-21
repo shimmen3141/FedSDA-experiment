@@ -242,6 +242,7 @@ def make_run_client_settings(
         ),
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             pending_assignment_buffer_capacity_samples=PENDING_CAPACITY,
         ),
         candidate_model_training_and_acceptance_settings=replace(
@@ -579,6 +580,9 @@ def use_legacy_compatible_policies(run_settings):
                 training_data_assignment_settings=replace(
                     run_client_settings.training_data_assignment_settings,
                     pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+                    # 旧は、警報の後の変化区間の長さを検出器の推定で、帰属先を履歴の平均損失からの増加の
+                    # 許容量で選ぶ。
+                    alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 ),
                 loss_change_detection_settings=replace(
                     run_client_settings.loss_change_detection_settings,

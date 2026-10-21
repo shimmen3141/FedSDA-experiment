@@ -16,27 +16,8 @@ kは、刻み（最小の変化区間の件数）の倍数で、列の長さn以
 from dataclasses import dataclass
 from math import isfinite, log
 
-# 警報の後の変化区間の長さと帰属先の選び方。
-# 検出器の推定した変化の長さと、履歴の平均損失からの増加の許容量で選ぶ（基準版9までの扱い）。
-DETECTOR_CHANGE_SPAN_AND_MEAN_LOSS_INCREASE_TOLERANCE_POLICY_NAME = (
-    "detector_change_span_and_mean_loss_increase_tolerance"
-)
-# 最小記述長の原理で選ぶ（基準版10の既定）。
-MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME = "minimum_description_length"
-ALARM_INTERVAL_ASSIGNMENT_POLICY_NAMES: tuple[str, ...] = (
-    DETECTOR_CHANGE_SPAN_AND_MEAN_LOSS_INCREASE_TOLERANCE_POLICY_NAME,
-    MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
-)
 # 選んだ仮説: 現在のモデルのまま、保有モデルへ切り替わる、新しいモデルへ切り替わる。
 SELECTED_HYPOTHESES: tuple[str, ...] = ("current_model", "held_model", "new_model")
-
-
-def validate_alarm_interval_assignment_policy(*, alarm_interval_assignment_policy: str) -> None:
-    """選び方が、builtin strの2つの値のどちらかであることを確かめる。"""
-    if type(alarm_interval_assignment_policy) is not str:
-        raise TypeError("alarm_interval_assignment_policy must be builtin str")
-    if alarm_interval_assignment_policy not in ALARM_INTERVAL_ASSIGNMENT_POLICY_NAMES:
-        raise ValueError("alarm_interval_assignment_policy must be a declared value")
 
 
 def _validate_count(*, count: int, count_name: str, minimum_count: int) -> None:

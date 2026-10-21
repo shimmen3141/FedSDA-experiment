@@ -223,6 +223,36 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
                 for sample_index in getattr(alarm_snapshot, alarm_snapshot_field_name)
             ]
         )
+    # ---- 警報の後の、最小記述長の原理による選択（今の扱いでは、空の表） ----
+    selection_record_lists = [
+        run_client.owners.alarm_interval_assignment_selection_record_store.snapshot_selection_records()
+        for run_client in run_clients
+    ]
+    record_tables["alarm_interval_assignment_selection.client_id"] = _integer_column(
+        [
+            client_id
+            for client_id, selection_records in enumerate(selection_record_lists)
+            for _ in selection_records
+        ]
+    )
+    selection_records = [record for records in selection_record_lists for record in records]
+    for column_name in (
+        "alarm_sample_index",
+        "change_interval_sample_count",
+        "destination_model_id",
+    ):
+        record_tables[f"alarm_interval_assignment_selection.{column_name}"] = _integer_column(
+            [getattr(record, column_name) for record in selection_records]
+        )
+    record_tables["alarm_interval_assignment_selection.selected_hypothesis"] = _text_column(
+        [record.selected_hypothesis for record in selection_records]
+    )
+    record_tables["alarm_interval_assignment_selection.description_length"] = _float_column(
+        [record.description_length for record in selection_records]
+    )
+    record_tables["alarm_interval_assignment_selection.alarm_raised"] = _boolean_column(
+        [record.alarm_raised for record in selection_records]
+    )
     record_tables["sample_loss_monitoring.monitored_log_e_value"] = _float_column(
         [list(alarm_snapshot.monitored_log_e_values) for alarm_snapshot in alarm_snapshots]
     )

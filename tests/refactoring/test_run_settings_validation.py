@@ -94,6 +94,7 @@ def valid_run_settings_mapping():
         ),
         "training_data_assignment_settings": TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             pending_assignment_buffer_capacity_samples=2,
         ),
         "candidate_model_training_and_acceptance_settings": (
@@ -158,6 +159,7 @@ def test_direct_subset_construction_uses_the_same_validation(
         unvalidated_run_settings["training_data_assignment_settings"] = (
             TrainingDataAssignmentSettings(
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+                alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
                 pending_assignment_buffer_capacity_samples=specified_parameter_value,
             )
         )
@@ -235,6 +237,7 @@ def test_run_settings_validation_accepts_valid_component_mapping(
     valid_run_settings_mapping["training_data_assignment_settings"] = (
         TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             pending_assignment_buffer_capacity_samples=specified_parameter_value,
         )
     )
@@ -315,6 +318,7 @@ def test_fixed_share_time_scale_may_differ_from_assignment_buffer_capacity(
     unvalidated_run_settings = valid_run_settings_mapping.copy()
     unvalidated_run_settings["training_data_assignment_settings"] = TrainingDataAssignmentSettings(
         pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+        alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
         pending_assignment_buffer_capacity_samples=specified_parameter_value,
     )
     assert validate_experiment_run_settings(unvalidated_run_settings) is None
@@ -495,6 +499,7 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
             dict(
                 pending_assignment_buffer_capacity_samples=1,
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+                alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             ),
             "pending_assignment_buffer_capacity_samples",
         ),
@@ -582,6 +587,7 @@ def test_integer_settings_reject_invalid_types_and_ranges(
             dict(
                 pending_assignment_buffer_capacity_samples=1,
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+                alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             ),
             "pending_assignment_buffer_capacity_samples",
         ),
@@ -684,6 +690,7 @@ def test_aggregation_interval_can_exceed_stream_length():
             dict(
                 pending_assignment_buffer_capacity_samples=1,
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+                alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             ),
         ),
         (
@@ -784,6 +791,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
         else {
             "pending_assignment_buffer_capacity_samples": int,
             "pending_sample_retention_after_too_short_change_interval_policy": str,
+            "alarm_interval_assignment_policy": str,
         }
         if settings_type is TrainingDataAssignmentSettings
         else {
@@ -865,6 +873,11 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                     "mixture_of_synchronized_and_local_parameters",
                 )
                 if settings_field.name == "prediction_model_parameter_source"
+                else (
+                    "detector_change_span_and_mean_loss_increase_tolerance",
+                    "minimum_description_length",
+                )
+                if settings_field.name == "alarm_interval_assignment_policy"
                 else ("restart_adahedge_preserve_fixed_share_prediction_state",)
             )
         elif settings_field.name in ("e_sr_false_alarm_control_alpha", "adwin_confidence_delta"):

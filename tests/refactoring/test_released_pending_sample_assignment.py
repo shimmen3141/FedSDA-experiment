@@ -57,6 +57,7 @@ def build_released_assignment_oracle(*, class_count, monkeypatch, capacity, pend
     pending_training_assignment_buffer = PendingTrainingAssignmentBuffer(
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
+            alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             pending_assignment_buffer_capacity_samples=capacity,
         )
     )

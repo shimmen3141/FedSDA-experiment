@@ -103,6 +103,16 @@ EXPECTED_TABLE_COLUMNS = {
         estimated_change_point_sample_index="i",
         detector_candidate_start_sample_index="i",
     ),
+    # 最小記述長の原理による選択（今の扱いでは、空の表）。
+    "alarm_interval_assignment_selection": dict(
+        client_id="i",
+        alarm_sample_index="i",
+        selected_hypothesis="U",
+        change_interval_sample_count="i",
+        destination_model_id="i",
+        description_length="f",
+        alarm_raised="b",
+    ),
     "sample_loss_monitoring": dict(monitored_log_e_value="f"),
     "adaptation": dict(
         client_id="i",

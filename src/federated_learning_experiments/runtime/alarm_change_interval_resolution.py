@@ -54,6 +54,9 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.can
 from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import (
     PendingModelUploadState,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
+    MinimumDescriptionLengthAssignmentSelection,
+)
 from federated_learning_experiments.runtime.adopted_candidate_local_adoption import (
     adopt_candidate_as_current_training_model,
 )
@@ -210,6 +213,7 @@ def resolve_alarm_change_interval(
     estimated_change_point_sample_index: int | None,
     detection_episode_id: int | None,
     detector_name: str,
+    alarm_interval_assignment_selection: MinimumDescriptionLengthAssignmentSelection | None = None,
 ) -> AlarmChangeIntervalResolution:
     """区間を評価し、選択があれば吸収と帰属切替え、なければ候補検証sessionを開始する。
 
@@ -243,6 +247,35 @@ def resolve_alarm_change_interval(
         loss_statistics_store=loss_statistics_store,
         maximum_alarm_interval_mean_loss_increase=maximum_alarm_interval_mean_loss_increase,
     )
+    if alarm_interval_assignment_selection is not None:
+        # 最小記述長の原理で選んだ行き先だけを、合うモデルの列にする（区間の平均損失の評価は、候補の初期値の
+        # 選択に使うので、今と同じく行う）。現在のモデルのまま・保有モデルは、その1件（履歴の基準を持つ
+        # モデルの列に含まれるときだけ）。新しいモデル、または含まれなければ、空（新しいモデル）。
+        if (
+            type(alarm_interval_assignment_selection)
+            is not MinimumDescriptionLengthAssignmentSelection
+        ):
+            raise TypeError(
+                "alarm_interval_assignment_selection must be exact "
+                "MinimumDescriptionLengthAssignmentSelection"
+            )
+        destination_model_id = (
+            current_training_model_assignment.current_training_model_id
+            if alarm_interval_assignment_selection.selected_hypothesis == "current_model"
+            else alarm_interval_assignment_selection.destination_model_id
+        )
+        baseline_supported_interval_mean_losses_by_model_id = (
+            alarm_interval_reuse_assessment.baseline_supported_interval_mean_losses_by_model_id
+        )
+        alarm_interval_reuse_assessment = AlarmIntervalModelReuseAssessment(
+            baseline_supported_interval_mean_losses_by_model_id=baseline_supported_interval_mean_losses_by_model_id,
+            reusable_mean_losses_by_model_id=tuple(
+                evaluated_model_loss
+                for evaluated_model_loss in baseline_supported_interval_mean_losses_by_model_id
+                if destination_model_id is not None
+                and evaluated_model_loss[0] == destination_model_id
+            ),
+        )
     selected_reuse_model_id = alarm_interval_reuse_assessment.selected_reuse_model_id
     if selected_reuse_model_id is not None:
         # 吸収は自身の検査と全標本の損失評価の後に更新する。帰属の切替えはその後に行う。

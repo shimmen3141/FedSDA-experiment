@@ -124,6 +124,8 @@ def build_alarm_occurrence_oracle(
         if argument_name not in ARGUMENT_NAMES_DERIVED_FOR_RESPONSE
     }
     handling_arguments.update(
+        # 最小記述長の原理で選ばない（今の扱い）。
+        alarm_interval_assignment_selection=None,
         validation_session_holder=CandidateValidationSessionHolder(),
         adaptation_record_store=AdaptationRecordStore(),
         all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,

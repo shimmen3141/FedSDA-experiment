@@ -100,11 +100,21 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.synchr
 from federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_prediction_model_snapshot import (
     SynchronizedPredictionModelSnapshot,
 )
+from federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store import (
+    AlarmIntervalAssignmentSelectionRecordStore,
+)
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store import (
     PendingSampleObservationStore,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
+)
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
+    validate_alarm_interval_assignment_policy,
+)
+from federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection import (
+    select_alarm_interval_assignment,
 )
 from federated_learning_experiments.runtime.alarm_occurrence_handling import (
     AlarmOccurrenceHandling,
@@ -335,6 +345,7 @@ def process_observed_sample(
     true_concept_adahedge_diagnostic_evidence_collection: TrueConceptAdaHedgeDiagnosticEvidenceCollection,
     loss_change_monitor: OverallAndTrueClassLossMonitor,
     loss_change_alarm_record_store: LossChangeAlarmRecordStore,
+    alarm_interval_assignment_selection_record_store: AlarmIntervalAssignmentSelectionRecordStore,
     pending_training_assignment_buffer: PendingTrainingAssignmentBuffer,
     pending_sample_observation_store: PendingSampleObservationStore,
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
@@ -353,6 +364,9 @@ def process_observed_sample(
     upload_delay_round_count: int,
     minimum_change_interval_sample_count: int,
     short_change_interval_alarm_policy: str,
+    client_id: int,
+    alarm_interval_assignment_policy: str,
+    switching_probability: float,
     maximum_alarm_interval_mean_loss_increase: float,
     candidate_parameter_initialization_settings: CandidateParameterInitializationSettings,
     architecture_reference_classifier: ModelArchitectureClassifier,
@@ -407,6 +421,17 @@ def process_observed_sample(
         raise TypeError("short_change_interval_alarm_policy must be builtin str")
     if short_change_interval_alarm_policy not in SHORT_CHANGE_INTERVAL_ALARM_POLICIES:
         raise ValueError("short_change_interval_alarm_policy must be a declared value")
+    validate_alarm_interval_assignment_policy(
+        alarm_interval_assignment_policy=alarm_interval_assignment_policy
+    )
+    if (
+        type(alarm_interval_assignment_selection_record_store)
+        is not AlarmIntervalAssignmentSelectionRecordStore
+    ):
+        raise TypeError(
+            "alarm_interval_assignment_selection_record_store must be exact "
+            "AlarmIntervalAssignmentSelectionRecordStore"
+        )
     _validate_observed_sample_processing_inputs(
         indexed_observation=indexed_observation,
         owners_by_argument_name=dict(
@@ -528,18 +553,45 @@ def process_observed_sample(
             maximum_mean_loss_increase=maximum_alarm_interval_mean_loss_increase,
         )
     )
+    # 最小記述長の原理で選ぶ扱いでは、検出器の合図があったら、保留の標本（この標本を最後に含む）の列で、
+    # 変化区間の長さと帰属先を選び、以後、検出器の推定の変化の長さの代わりに、選んだ長さを使う。
+    alarm_interval_assignment_selection = None
+    estimated_change_span_sample_count = (
+        loss_monitoring_observation.estimated_change_span_sample_count
+    )
+    if alarm_raised and alarm_interval_assignment_policy == MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME:
+        alarm_interval_assignment_selection = select_alarm_interval_assignment(
+            client_id=client_id,
+            alarm_sample_index=sample_index,
+            pending_sample_observations=pending_sample_observations,
+            held_model_training_state_registry=held_model_training_state_registry,
+            loss_statistics_store=loss_statistics_store,
+            current_training_model_assignment=current_training_model_assignment,
+            parameter_optimizer_settings=parameter_optimizer_settings,
+            switching_probability=switching_probability,
+            change_interval_grid_sample_count=minimum_change_interval_sample_count,
+        )
+        estimated_change_span_sample_count = (
+            alarm_interval_assignment_selection.change_interval_sample_count
+        )
     if (
         alarm_raised
         and short_change_interval_alarm_policy
         == WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME
         and min(
             len(pending_sample_observations),
-            loss_monitoring_observation.estimated_change_span_sample_count,
+            estimated_change_span_sample_count,
         )
         < minimum_change_interval_sample_count
     ):
         # 警報の処理が変化区間とする件数（同じ式）が、最小件数より少ない。警報とせずに、待つ。
         alarm_raised = False
+    if alarm_interval_assignment_selection is not None:
+        alarm_interval_assignment_selection_record_store.append_selection_record(
+            alarm_sample_index=sample_index,
+            selection=alarm_interval_assignment_selection,
+            alarm_raised=alarm_raised,
+        )
     if alarm_raised:
         # (4a) 警報: 保留中の学習要求を先に学習し、警報の位置を記録してから、警報1回ぶんの処理を行う。
         completed_joint_update_losses = train_held_models_for_pending_training_requests(
@@ -553,9 +605,6 @@ def process_observed_sample(
             shared_feature_extractor=shared_feature_extractor,
             shared_parameter_optimizer=shared_parameter_optimizer,
         )
-        estimated_change_span_sample_count = (
-            loss_monitoring_observation.estimated_change_span_sample_count
-        )
         estimated_change_point_sample_index = max(
             0,
             sample_index
@@ -565,8 +614,12 @@ def process_observed_sample(
         loss_change_alarm_record_store.append_alarm_record(
             alarm_sample_index=sample_index,
             estimated_change_point_sample_index=estimated_change_point_sample_index,
+            # 最小記述長の原理で選んだときは、検出器の候補の開始の代わりに、選んだ変化区間の先頭を記録する
+            # （検出器の候補の開始は、選んだ変化点より後のことがある。記録は、候補の開始≦変化点を求める）。
             detector_candidate_start_sample_index=(
                 loss_monitoring_observation.detector_candidate_start_sample_index
+                if alarm_interval_assignment_selection is None
+                else estimated_change_point_sample_index
             ),
         )
         alarm_occurrence_handling = handle_alarm_occurrence(
@@ -590,6 +643,7 @@ def process_observed_sample(
             estimated_change_point_sample_index=estimated_change_point_sample_index,
             detection_episode_id=None,
             detector_name=detector_name,
+            alarm_interval_assignment_selection=alarm_interval_assignment_selection,
             held_model_training_state_registry=held_model_training_state_registry,
             loss_statistics_store=loss_statistics_store,
             training_sample_store=training_sample_store,
