@@ -36,7 +36,7 @@
 | IMPROVE-018 | 候補の共有部統合で既存モデルへの影響を制限する | 一部採用（候補学習中の共有部の固定を、候補検証なしと組み合わせて既定にした。2026-10-20、基準版7。候補検証ありとの組合せは不採用） | [詳細](improve-018-protect-existing-models-during-candidate-backbone-integration.md) |
 | IMPROVE-019 | クラスの支持数と対損失差で候補を検証する | 未検証・未採用（2026-10-17） | [詳細](improve-019-candidate-validation-with-class-support-and-paired-losses.md) |
 | IMPROVE-020 | 新しいモデルの登録時のクロス評価の通信を減らす | 採用（2026-10-20、配布とクロス評価の入れ替えを基準版8の既定として実装。精度は同じで下りが減る） | [詳細](improve-020-reduce-cross-evaluation-communication.md) |
-| IMPROVE-021 | 保有モデルの再利用の判定を固定のしきい値から検定へ替える | 検証中（2026-10-20再開。累積の対数損失で選び、新しいモデル側の学習者を初期化し直す案Aは、判定の正しさ69.6%→75.0%、手元の3 seedで精度は既定と同程度——−0.47〜+0.91pp——、下りは0.93〜1.12倍。本規模——5 seed——では精度差−0.63〜+0.43pp、MNIST2の全間隔で改善、下りは0.87〜1.21倍。検定の案Bは再利用へ偏る見積り） | [詳細](improve-021-statistical-test-for-held-model-reuse.md) |
+| IMPROVE-021 | 保有モデルの再利用の判定を固定のしきい値から検定へ替える | 別の形で採用（2026-10-21、基準版10。警報の後の変化点と帰属先を最小記述長の原理で選ぶ。経緯: 2026-10-20再開。累積の対数損失で選び、新しいモデル側の学習者を初期化し直す案Aは、判定の正しさ69.6%→75.0%、手元の3 seedで精度は既定と同程度——−0.47〜+0.91pp——、下りは0.93〜1.12倍。本規模——5 seed——では精度差−0.63〜+0.43pp、MNIST2の全間隔で改善、下りは0.87〜1.21倍。検定の案Bは再利用へ偏る見積り） | [詳細](improve-021-statistical-test-for-held-model-reuse.md) |
 | IMPROVE-022 | 候補の学習の早期終了を単純にする | 見送り（2026-10-20。固定エポックはMNISTで大きく下がり、SINE2では上がる） | [詳細](improve-022-simplify-candidate-early-stopping.md) |
 | IMPROVE-023 | 候補検証を既定から外した後に残った設定を整理する | 未検証・未採用（2026-10-20。4案の4番目。候補検証の処理を消すかはユーザー判断待ち） | [詳細](improve-023-remove-settings-left-from-candidate-validation.md) |
 | IMPROVE-024 | 警報の時点で、推定した変化点より後に解放された標本を、古いモデルの学習データから外す | 保留（2026-10-20ユーザー決定。2変種とも、手元の3 seedでも本規模——2026-10-21、5 seed——でも一般的な改善にならない。本規模の既定との差は、外すだけ−0.59〜+0.26pp、区間へ足す−0.46〜+0.22pp。見送るかはユーザー判断待ち） | [詳細](improve-024-withdraw-released-samples-after-estimated-change-point.md) |

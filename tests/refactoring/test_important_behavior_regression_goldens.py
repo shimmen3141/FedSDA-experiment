@@ -137,7 +137,13 @@ def structural_document():
                 unregistered_adopted_model_count=0,
             )
             | (
-                dict(repeated_training_sample_assignment_count=0, adopted_candidate_count=1)
+                dict(
+                    repeated_training_sample_assignment_count=0,
+                    adopted_candidate_count=1,
+                    selected_current_model_count=1,
+                    selected_held_model_count=1,
+                    selected_new_model_count=1,
+                )
                 if "run_client_settings" in cases_run_settings["run_participant_settings"]
                 and "pending_model_registration_settings"
                 in cases_run_settings["run_participant_settings"]["run_client_settings"]

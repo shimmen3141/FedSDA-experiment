@@ -208,3 +208,10 @@ seed 5〜9は`results/fedsda-provisional-candidate-expert/20261021_uranium-detec
 - **SINE2の通信の増加の原因**: **見逃した再利用**が増える（11→34回、15→41回）。同じ概念の保有モデルがあるのに新しいモデルを作り、登録（12→30・40回）と、後の統合（18→48・70回）が増える。登録とクロス評価の通信の分だけ、下りが増える（9の表のSINE2の1.09〜1.23倍）。CIRCLE2でも見逃しが少し増える（2→10回、seed 1）。IMPROVE-021の11で見た、上限の無い対数損失で、保有モデルの少数の自信を持った誤りが、新しいモデルの学習者（2値で1標本あたり約ln2）に負ける形と同じとみる（未確認）。
 - MNIST2では、警報の区間の解決の回数が増える（64→151回）。新しい扱いで「現在のモデルのまま」を選んだ後に、検出器が再び警報を出すことが増えるとみる（未確認）。
 
+## 12. 既定への採用（2026-10-21）
+
+ユーザーの判断で、8の形（「いつ」は検出器に任せ、警報の後の変化点と帰属先を符号長で選ぶ）を、製品の既定にした（基準版10。[spec](../../.kiro/specs/fedsda-minimum-description-length-alarm-interval-assignment/design.md)）。製品の名前は、研究分野で使われる語に揃えた: 設定の項目`TrainingDataAssignmentSettings.alarm_interval_assignment_policy`の値`minimum_description_length`（最小記述長の原理）、新しいモデルの符号長は予測的符号長（prequential code length）、切り替わりの符号長はFixed-Shareの切り替わりの確率1/Tから。今の扱いは`detector_change_span_and_mean_loss_increase_tolerance`として残し、構成`fedsda-with-candidate-validation`が使う。
+
+- 研究ツールの変種と製品が同じ値になることを、手元の2500標本（MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0）で確かめた（`results/fedsda-provisional-candidate-expert/20261021_mdl-product-equivalence-n2500/`）。そのため、研究ツールの新しいモデルの学習者のseedを、製品と同じ導出（clientの番号・警報の標本の番号・変化区間の長さのSHA-256）に替えた（commit `b3f1d69`）。これより前の研究ツールの結果（7〜11）とは、seedが違うので、同じ値にはならない。
+- 残る固定の閾値: サーバのクラスタリングの閾値（γ=0.1。clientの許容量と同じ値であることを、参加者の設定の検査が求める）は変えていない。説明長で統合を決める案は[IMPROVE-026](improvement-candidates/improve-026-server-clustering-by-description-length.md)、検出も説明長で行う案は[IMPROVE-027](improvement-candidates/improve-027-calibrated-sequential-change-detection-by-description-length.md)に記録した。
+- 11で見たSINE2・CIRCLE2の見逃した再利用の増加（通信の増加）は、このspecでは扱わない。

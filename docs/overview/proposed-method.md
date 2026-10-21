@@ -16,8 +16,9 @@
 | 保持モデルを学習 | joint学習・平均勾配 | 概念別ストアの損失から共有部と概念固有部を更新する | [ローカル学習](../components/shared-backbone.md#ローカル学習方式) |
 | ラベル観測前に予測 | Switching SoftRouting | Fixed-Shareで優勢モデルの変化を追跡し、予測を混合する | [SoftRouting](../components/soft-routing.md) |
 | 集約で変わったモデルへroutingを追従 | FIFO replay | 集約後のモデルでFIFO標本を再評価し、routingの損失情報を再較正する | [再較正](../components/shared-backbone.md#集約後のルーティング再較正) |
-| 再来した概念へ対応 | 最良適合の既存モデルを再利用 | 適合する保持モデルがあれば、新規モデル作成を回避する | [モデル再利用](../components/model-reuse.md) |
-| 新しい概念へ対応 | 即時採用＋候補の共有部の固定（2026-10-20から） | 適合する保持モデルが無ければ、警報の区間で候補の概念固有部（adapterと出力層）だけを学習し、検証せずにその場で採用する。共有部を固定するので、採用が既存モデルの入力を書き換えない | [新規モデル作成](../components/new-model-creation.md)（2026-10-19までは`forward_persistent`） |
+| 警報の後の変化点と帰属先を選ぶ | 最小記述長（MDL）の原理による選択（2026-10-21から） | 警報の時点はClassESRに任せ、FIFOの標本列を「現在のモデルのまま」「変化点τで別の保持モデルへ」「変化点τで新しいモデルへ」の仮説の符号長（対数損失の和＋切り替わりの符号長）で比べ、最短の仮説の変化点と帰属先を使う。再利用の判定に固定の閾値を使わない | [モデル再利用](../components/model-reuse.md#最小記述長の原理による選択既定) |
+| 再来した概念へ対応 | 選んだ保持モデルを再利用 | 上の選択が保持モデルを選べば、新規モデル作成を回避する | [モデル再利用](../components/model-reuse.md) |
+| 新しい概念へ対応 | 即時採用＋候補の共有部の固定（2026-10-20から） | 上の選択が新しいモデルを選べば、警報の区間で候補の概念固有部（adapterと出力層）だけを学習し、検証せずにその場で採用する。共有部を固定するので、採用が既存モデルの入力を書き換えない | [新規モデル作成](../components/new-model-creation.md)（2026-10-19までは`forward_persistent`） |
 | モデル群を整理 | class-functional confidence、average linkage、通常merge | クラス別の機能的評価で統合候補を作り、モデルを統合する | [統合処理](../components/model-consolidation.md) |
 
 採用要素の役割と、研究として新規性を主張する範囲は別途対応付ける。
@@ -28,6 +29,8 @@
 新実装の入口は`run_experiment_sweep.py --configurations fedsda`である。2026-10-16のユーザー判断により、既定を同期時点と局所更新の混合予測・FIFO容量30・Fixed-Shareの時間尺度T120にした。根拠は[研究バックログ](../research/research-backlog.md)の8と[対象spec](../../.kiro/specs/fedsda-default-synchronized-local-mixture-prediction/design.md)。
 
 2026-10-20のユーザー判断により、候補を検証せずにその場で採用し、候補の学習では共有部を固定する構成を既定にした（基準版7）。根拠は[研究記録](../research/fedsda-provisional-candidate-expert-20261019.md)の最後の2節と[対象spec](../../.kiro/specs/fedsda-default-adoption-with-fixed-candidate-shared-features/design.md)。それまでの候補検証（`forward_persistent`）は、構成`fedsda-with-candidate-validation`として選べる。
+
+2026-10-21のユーザー判断により、警報の後の変化点と帰属先を、最小記述長の原理で選ぶ扱い（`alarm_interval_assignment_policy=minimum_description_length`）を既定にした（基準版10）。根拠は[研究記録](../research/fedsda-unified-concept-assignment-inference.md)と[IMPROVE-021](../research/improvement-candidates/improve-021-statistical-test-for-held-model-reuse.md)、[対象spec](../../.kiro/specs/fedsda-minimum-description-length-alarm-interval-assignment/design.md)。それまでの扱い（検出器の推定の変化区間と、平均損失の増加の許容量γによる再利用の判定。`detector_change_span_and_mean_loss_increase_tolerance`）は、構成`fedsda-with-candidate-validation`が使う（候補検証との組合せは未検証なので、新しい扱いとは組み合わせられない）。
 
 旧実装との対応に使うmode名は`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`である。
 mode名の`RestartingSoftRouting`だけでは予測方式を一意に定められないため、文脈`switching`まで含めて指定する。
@@ -45,7 +48,8 @@ mode名の`RestartingSoftRouting`だけでは予測方式を一意に定めら�
 | FIFO長・前向き検証件数 | N_FIFO=30（前向き検証は既定では使わない。`fedsda-with-candidate-validation`ではN_forward=10） |
 | 予測に使うパラメータ（新実装） | `mixture_of_synchronized_and_local_parameters` |
 | Fixed-Shareの時間尺度（新実装） | T=120。モデル別重みと同期・局所間の混合の分け合いに共通して1/Tを用いる |
-| 適合・統合判定の設定値 | γ=0.1 |
+| 警報の後の変化点と帰属先（新実装） | `minimum_description_length`。切り替わりの確率は予測のFixed-Shareと同じ1/T、変化点τの刻みは最小変化区間の5標本。新しい数値の設定は無い |
+| 適合・統合判定の設定値 | γ=0.1（既定では、警報の後の再利用の判定には使わない。サーバのクラスタリングの閾値と、`fedsda-with-candidate-validation`の適合判定に残る） |
 | クラスタリング判定・linkage | `class_functional_confidence`・`average` |
 | クラスタリング実行方針 | `on_new_model` |
 | クラスタリング後の処理 | `merge` |
@@ -71,7 +75,7 @@ FIFOのデータ帰属保留と、前向き検証sessionの候補比較も別の
 2. 正解ラベルで予測を評価し、次回用のrouting損失情報を更新する。
 3. 前向き検証sessionがあれば新着標本を観測し、必要な件数に達した場合は採否を確定する。
 4. その時点の現行割当モデルの損失でClassESRを更新し、新着標本をFIFOへ追加する。
-5. 警報時はFIFOの検知区間を評価し、既存モデル再利用または仮モデルの前向き検証へ進む。
+5. 警報時は、FIFOの標本列で各仮説の符号長を比べて変化点と帰属先を選び、選んだ区間で、現在のモデルの維持・保持モデルの再利用・候補の採用へ進む（`fedsda-with-candidate-validation`では、検知区間の平均損失で再利用を判定し、仮モデルの前向き検証へ進む）。
    平時はFIFO上限を超える最古標本を現行ストアへ確定し、ローカル学習する。
 6. 集約間隔Aの境界では、サーバで新規ID登録、モデルごとのFedAvg、必要時のクラスタリング・merge、配布を行う。クラスタリングをするラウンドでは、先に全モデルを配布し、clientは受け取ったモデルを候補として、まだ置き換えていない手元の保有モデルの標本で評価する（クロス評価のためだけにモデルを送らない）。mergeが起きたら、ID対応と、値が変わった代表のモデルだけを送り直し、clientはそれを反映する（2026-10-20から。旧実装と結果は同じで、通信量だけが少ない）。
 7. 配布直後の全モデルと共有部を、次の同期まで予測に使う状態として保存する。更新用モデルでFIFO replayを行い、モデル別重みを再較正する（二者重みは保持）。次のサンプルへ進む。

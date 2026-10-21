@@ -254,7 +254,10 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 | 6 | 予測を同期時点と局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量30。[spec](../../.kiro/specs/fedsda-default-synchronized-local-mixture-prediction/design.md)） | 単一モデル予測は局所パラメータを明示し、Tは120。候補検証ありを明示する（版7で既定が変わったため。候補検証を外した構成のケースを除く） | 版5と同じ19 |
 | 7 | 候補を検証せずにその場で採用し、候補の学習では共有部を固定する（[spec](../../.kiro/specs/fedsda-default-adoption-with-fixed-candidate-shared-features/design.md)） | 新しい既定。候補検証の経路の大きい条件の4ケースは、版6までの既定と同じ設定の構成`fedsda-with-candidate-validation`で実行する | 版6の19＋`fedsda-sine2-adoption-without-validation`・`fedsda-mnist2-adoption-without-validation` |
 | 8 | クロス評価で、配布するモデルを使う（[spec](../../.kiro/specs/fedsda-cross-evaluation-with-distributed-models/design.md)。通信量の記録だけが版7と違う） | 新しい既定。版1〜7は、クロス評価のために候補のモデルを送る旧の扱いを明示する（参加者の設定の「後に足された項目」の表） | 版7と同じ21 |
-| 9 | 統合で、メンバーの共有部が代表とビット単位で同じなら平均せずに保つ（現在の既定。[spec](../../.kiro/specs/fedsda-consolidation-keeps-shared-features/design.md)。同じ値の加重平均の浮動小数点の誤差を入れない） | 新しい既定。版1〜8は、共有部も平均する旧の扱いを明示する（参加者の設定の「後に足された項目」の表） | 版8と同じ21 |
+| 9 | 統合で、メンバーの共有部が代表とビット単位で同じなら平均せずに保つ（[spec](../../.kiro/specs/fedsda-consolidation-keeps-shared-features/design.md)。同じ値の加重平均の浮動小数点の誤差を入れない） | 新しい既定。版1〜8は、共有部も平均する旧の扱いを明示する（参加者の設定の「後に足された項目」の表） | 版8と同じ21 |
+| 10 | 警報の後の変化点と帰属先を、最小記述長の原理で選ぶ（現在の既定。[spec](../../.kiro/specs/fedsda-minimum-description-length-alarm-interval-assignment/design.md)） | 新しい既定。候補検証の経路の4ケース（構成`fedsda-with-candidate-validation`）と版1〜9は、今の扱い（`detector_change_span_and_mean_loss_increase_tolerance`）を明示する（版1〜9は、clientの設定の「後に足された項目」の表） | 版9と同じ21 |
+
+版9→10では、FedDrift・FedAvgと、候補検証の経路の4ケースは、指標・記録の表・`global_parameters`・`coverage`が版9と同じであることをtestが確かめる（版10で足した選択の記録の表`alarm_interval_assignment_selection.*`——FedSDAのケースで空——と、経路の記録の選んだ仮説ごとの回数——どれも0——を取り除いて比べる）。新しい既定を引き継ぐFedSDAのケースは、差があってよい。設定は、FedSDAのケースの新しい項目だけが違うことを、別のtestが確かめる。版10の必須の経路は、新しい既定の大きい条件の2ケースで選択が1回以上起き、`fedsda-sine2-adoption-without-validation`では3種類（現在のモデルのまま・保有モデルへ・新しいモデルへ）がそれぞれ1回以上起きること（`fedsda-mnist2-adoption-without-validation`は、保有モデルへの切り替わりが起きない）。版9まではgoldenの記録の表にこの表を含めない。
 
 版8→9では、FedDrift・FedAvgと、統合が起きないFedSDAのケースは、指標・記録の表・`global_parameters`・`coverage`が版8と同じであることをtestが確かめる。統合が起きたFedSDAのケースは、代表の共有部の約1e-7の差が後の学習へ伝わるので、差があってよい。
 
