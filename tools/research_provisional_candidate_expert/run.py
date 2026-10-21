@@ -148,6 +148,10 @@ _VARIANTS["default-cross-validated-initial-model-statistics"] = ("fedsda", False
 _VARIANTS["default-equivalence-clustering-decision"] = ("fedsda", False, None)
 # クロス評価の標本の上限と、モデルごとに保存する評価の標本の上限を、50から200へ増やす（判定の作りは同じ。LEGACY-021）。
 _VARIANTS["default-cross-evaluation-200-samples"] = ("fedsda", False, None)
+# 検出器の基準を、到着した標本での予測的な損失だけで作り、30件（帰属の保留の容量）に届くまで検出しない（LEGACY-020の別案）。
+_VARIANTS["default-arriving-data-detector-baseline"] = ("fedsda", False, None)
+# 同じく、検出を止める件数を5件（最小変化区間）にする。
+_VARIANTS["default-arriving-data-detector-baseline-minimum-interval"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1357,6 +1361,104 @@ def _equivalence_clustering_decision_policy(*, events):
 
 
 @contextmanager
+def _arriving_data_detector_baseline_policy(*, minimum_sample_count, events):
+    """検出器の基準を、到着した標本での現在のモデルの予測的な損失だけで作る（研究用。LEGACY-020の別案）。
+
+    clientとモデルごとに、検出器へ渡す有界の損失（学習の前の、新しい標本での現在のモデルの損失）を足していき、その
+    平均を、検出器の基準（標本ごとの観測と、警報の後のやり直し）にする。損失の統計（事前学習の標本や、候補の学習に
+    使った区間の標本での値を含む）は、基準には使わない。足した件数が`minimum_sample_count`に届くまでは、基準を
+    上限（1−1e-6）にして、検出しない（新しく採用したモデルや、サーバから受け取ったモデルも、そのclientで0件から）。
+    基準は、その標本を足す前の値（予測的）。登録と統合でIDが変わったら、計数の置き場と同じように移す。
+    """
+    import federated_learning_experiments.runtime.fedsda_run_client as client_module
+    import federated_learning_experiments.runtime.observed_sample_processing as processing_module
+    from federated_learning_experiments.learning.training.model_training_and_assignment_counts import (
+        ModelTrainingAndAssignmentCountsStore,
+    )
+    from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
+        OverallAndTrueClassLossMonitor,
+    )
+
+    upper = 1.0 - 1e-6
+    original_process = processing_module.process_observed_sample
+    original_observe = OverallAndTrueClassLossMonitor.observe_loss_after_label_observation
+    original_reset = OverallAndTrueClassLossMonitor.reset
+    original_transfer = ModelTrainingAndAssignmentCountsStore.transfer_model_training_and_assignment_counts
+    original_remap = ModelTrainingAndAssignmentCountsStore.remap_model_training_and_assignment_counts
+    state = {"store": None, "assignment": None}
+    # 計数の置き場（client）ごとの、モデルID → [有界の損失の和, 件数]
+    sums_by_store = {}
+
+    def baseline():
+        table = sums_by_store.get(id(state["store"]), {})
+        entry = table.get(state["assignment"].current_training_model_id)
+        if entry is None or entry[1] < minimum_sample_count:
+            return upper
+        return min(upper, max(0.01, entry[0] / entry[1]))
+
+    def process(**arguments):
+        state["store"] = arguments["model_training_and_assignment_counts_store"]
+        state["assignment"] = arguments["current_training_model_assignment"]
+        try:
+            return original_process(**arguments)
+        finally:
+            state["store"] = None
+            state["assignment"] = None
+
+    def observe(self, **arguments):
+        if state["store"] is None:
+            return original_observe(self, **arguments)
+        model_id = state["assignment"].current_training_model_id
+        observation = original_observe(self, **{**arguments, "current_model_baseline_loss_mean": baseline()})
+        entry = sums_by_store.setdefault(id(state["store"]), {}).setdefault(model_id, [0.0, 0])
+        entry[0] += arguments["observed_loss"]
+        entry[1] += 1
+        return observation
+
+    def reset(self, *, baseline_loss_mean):
+        if state["store"] is None:
+            return original_reset(self, baseline_loss_mean=baseline_loss_mean)
+        recalibrated = baseline()
+        events.append(dict(event="arriving_data_detector_baseline_reset", statistics=baseline_loss_mean, arriving=recalibrated))
+        return original_reset(self, baseline_loss_mean=recalibrated)
+
+    def transfer(self, *, original_model_id, receiving_model_id):
+        result = original_transfer(self, original_model_id=original_model_id, receiving_model_id=receiving_model_id)
+        table = sums_by_store.get(id(self), {})
+        if original_model_id in table:
+            moved = table.pop(original_model_id)
+            receiving = table.setdefault(receiving_model_id, [0.0, 0])
+            receiving[0] += moved[0]
+            receiving[1] += moved[1]
+        return result
+
+    def remap(self, *, model_id_mapping):
+        result = original_remap(self, model_id_mapping=model_id_mapping)
+        table = sums_by_store.get(id(self))
+        if table is not None:
+            remapped = {}
+            for model_id, (loss_sum, count) in table.items():
+                entry = remapped.setdefault(model_id_mapping.get(model_id, model_id), [0.0, 0])
+                entry[0] += loss_sum
+                entry[1] += count
+            sums_by_store[id(self)] = remapped
+        return result
+
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(patch.object(processing_module, "process_observed_sample", process))
+        stack.enter_context(patch.object(client_module, "process_observed_sample", process))
+        stack.enter_context(patch.object(OverallAndTrueClassLossMonitor, "observe_loss_after_label_observation", observe))
+        stack.enter_context(patch.object(OverallAndTrueClassLossMonitor, "reset", reset))
+        stack.enter_context(
+            patch.object(ModelTrainingAndAssignmentCountsStore, "transfer_model_training_and_assignment_counts", transfer)
+        )
+        stack.enter_context(
+            patch.object(ModelTrainingAndAssignmentCountsStore, "remap_model_training_and_assignment_counts", remap)
+        )
+        yield
+
+
+@contextmanager
 def _keep_representative_consolidation_policy(*, events):
     """サーバの統合で、メンバーのパラメータを平均せず、代表（クラスタの最小のID）のパラメータを保つ（研究用）。
 
@@ -1725,6 +1827,18 @@ def _execute_job(job):
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
         if job["variant"] == "default-recalibrated-detector-baseline":
             stack.enter_context(_recalibrated_detector_baseline_policy(events=events))
+        if job["variant"] in (
+            "default-arriving-data-detector-baseline",
+            "default-arriving-data-detector-baseline-minimum-interval",
+        ):
+            stack.enter_context(
+                _arriving_data_detector_baseline_policy(
+                    minimum_sample_count=client_settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
+                    if job["variant"] == "default-arriving-data-detector-baseline"
+                    else client_settings.scalar_settings.minimum_change_interval_sample_count,
+                    events=events,
+                )
+            )
         if job["variant"] == "default-equivalence-clustering-decision":
             stack.enter_context(_equivalence_clustering_decision_policy(events=events))
         if job["variant"] == "default-cross-validated-initial-model-statistics":
