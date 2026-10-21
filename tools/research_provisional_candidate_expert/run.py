@@ -122,6 +122,9 @@ _VARIANTS["default-detector-gated-segment-assignment"] = ("fedsda", False, None)
 # 使わない（研究ツールの変種`default-detector-gated-segment-assignment`と同じ値になることの照合用。spec
 # `fedsda-minimum-description-length-alarm-interval-assignment`のTask 3）。
 _VARIANTS["default-minimum-description-length"] = ("fedsda", False, None)
+# 基準版10の既定（最小記述長の選択）の上で、「現在のモデルのまま」を選んだら、検出器の基準を、選択の列での現在の
+# モデルの損失の平均に合わせ直す（初期モデルの楽観的な統計による誤警報を止める案。研究記録の設計の14の(a)）。
+_VARIANTS["default-recalibrated-detector-baseline"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -1027,6 +1030,78 @@ def _frozen_candidate_backbone_policy(*, events):
         yield
 
 
+@contextmanager
+def _recalibrated_detector_baseline_policy(*, events):
+    """最小記述長の選択が「現在のモデルのまま」なら、検出器の基準を、選択の列での現在のモデルの損失に合わせ直す。
+
+    製品の既定（最小記述長の選択）の上で、実行の間だけ包む。警報の後に検出器をやり直すときの基準と、その後に作る
+    クラス別の検出器の基準を、現在のモデルの損失の統計の平均（初期モデルでは、学習に使った標本での楽観的な値）と、
+    選択の列（保留の標本と警報の標本）での現在のモデルの有界の損失の平均の、大きい方にする。変化が無いという判定を、
+    その概念での損失の水準として使う。次に「現在のモデルのまま」以外で検出器をやり直したら、元へ戻す。
+    """
+    import torch
+
+    import federated_learning_experiments.runtime.observed_sample_processing as processing_module
+    from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
+        evaluate_classifier_per_sample_bounded_losses,
+    )
+    from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
+        OverallAndTrueClassLossMonitor,
+    )
+
+    original_select = processing_module.select_alarm_interval_assignment
+    original_reset = OverallAndTrueClassLossMonitor.reset
+    original_observe = OverallAndTrueClassLossMonitor.observe_loss_after_label_observation
+    # 直前の選択が「現在のモデルのまま」のときの、列での損失の平均（次のやり直しで使う）。
+    pending = {"baseline": None}
+    # 検出器ごとの、合わせ直した基準（下限として使う）。
+    floor_by_monitor_id = {}
+
+    def select(**arguments):
+        selection = original_select(**arguments)
+        pending["baseline"] = None
+        if selection.selected_hypothesis == "current_model":
+            observations = arguments["pending_sample_observations"]
+            registry = arguments["held_model_training_state_registry"]
+            current_model_id = arguments["current_training_model_assignment"].current_training_model_id
+            losses = evaluate_classifier_per_sample_bounded_losses(
+                classifier=registry.get_held_model_training_state(model_id=current_model_id).classifier,
+                input_features=torch.cat([o.training_sample.input_features for o in observations]),
+                observed_class_labels=torch.cat([o.training_sample.observed_class_labels for o in observations]),
+            )
+            # 監視の基準と同じ範囲に制限する（`select_loss_monitoring_baseline_mean_loss`）。
+            pending["baseline"] = min(1.0 - 1e-6, max(0.01, float(losses.mean().item())))
+        return selection
+
+    def reset(self, *, baseline_loss_mean):
+        recalibrated = pending["baseline"]
+        pending["baseline"] = None
+        if recalibrated is None:
+            floor_by_monitor_id.pop(id(self), None)
+            return original_reset(self, baseline_loss_mean=baseline_loss_mean)
+        floor_by_monitor_id[id(self)] = recalibrated
+        events.append(
+            dict(event="recalibrated_detector_baseline", statistics_baseline=baseline_loss_mean, recalibrated=recalibrated)
+        )
+        return original_reset(self, baseline_loss_mean=max(baseline_loss_mean, recalibrated))
+
+    def observe(self, **arguments):
+        floor = floor_by_monitor_id.get(id(self))
+        if floor is not None:
+            arguments = {
+                **arguments,
+                "current_model_baseline_loss_mean": max(arguments["current_model_baseline_loss_mean"], floor),
+            }
+        return original_observe(self, **arguments)
+
+    with (
+        patch.object(processing_module, "select_alarm_interval_assignment", select),
+        patch.object(OverallAndTrueClassLossMonitor, "reset", reset),
+        patch.object(OverallAndTrueClassLossMonitor, "observe_loss_after_label_observation", observe),
+    ):
+        yield
+
+
 def _table_row_count(tables, prefix):
     """記録の表の、その表名の最初の列の行数（表が無ければ0）。"""
     columns = sorted(name for name in tables if name.startswith(prefix))
@@ -1143,6 +1218,8 @@ def _execute_job(job):
             stack.enter_context(_sequential_test_policy(events=events))
         if job["variant"] in _FROZEN_CANDIDATE_BACKBONE_VARIANTS:
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
+        if job["variant"] == "default-recalibrated-detector-baseline":
+            stack.enter_context(_recalibrated_detector_baseline_policy(events=events))
         if job["variant"] in _DETECTOR_GATED_SEGMENT_ASSIGNMENT_VARIANTS:
             stack.enter_context(
                 _detector_gated_segment_assignment_policy(
