@@ -1,7 +1,7 @@
 # LEGACY-020: 初期モデルの損失の統計が、学習に使った標本で取られ、最初の概念の間に誤警報を生む
 
 - 発見日: 2026-10-21。対象: `src/federated_learning_experiments/runtime/initial_model_pretraining.py`の`pretrain_initial_model`（旧の事前学習と同じ扱いを移植したもの）。発見の経緯: 基準版10（最小記述長の選択）で、MNISTの警報が約2倍に増えた原因の調査（[設計の14](../fedsda-unified-concept-assignment-inference.md)）。
-- 種別: 旧から引き継いだ扱いの不具合に近い事項（初期モデルだけで起きる）。状態: 未対応（2026-10-21、ユーザーは直したいが、優先度が低いので後に回す）。
+- 種別: 旧から引き継いだ扱いの不具合に近い事項（初期モデルだけで起きる）。状態: 検証中（2026-10-21、ユーザーの指示で手元の比較を始めた。下の「手元の比較」）。
 
 ## 内容
 
@@ -22,3 +22,27 @@
 
 - (b) 初期モデルの統計を、学習に使っていない標本の損失で取る（例: 事前学習の標本の一部を評価用に取り分ける、または、流れの最初の標本の予測的な損失から取る）。全部の構成の初期の動作が変わるので、基準版を上げる。
 - 「現在のモデルのまま」の後に検出器の基準を選択の列での損失に合わせ直す案は、手元で試したが、本当の変化への感度が落ち、精度が下がった（[設計の16](../fedsda-unified-concept-assignment-inference.md)）。
+
+## 手元の比較（2026-10-21、研究ツール、MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0〜3、各5000標本・10 client）
+
+研究ツール（`tools/research_provisional_candidate_expert/run.py`）の3つの変種を、基準版10の既定と比べた。結果: `results/fedsda-provisional-candidate-expert/20261021_held-out-initial-model-statistics-n5000`、`results/fedsda-provisional-candidate-expert/20261021_reduced-initial-model-training-samples-n5000`、`results/fedsda-provisional-candidate-expert/20261021_initial-model-statistics-seeds2-3-n5000`、`results/fedsda-provisional-candidate-expert/20261021_cross-validated-initial-model-statistics-n5000`。既定のseed 0・1は`results/fedsda-provisional-candidate-expert/20261021_recalibrated-detector-baseline-n5000`の`default`、seed 2・3は`results/fedsda-provisional-candidate-expert/20261021_initial-model-statistics-seeds2-3-n5000`の`default`。
+
+- 取り分け（`default-held-out-initial-model-statistics`）: 事前学習の標本の数（500）は変えずに生成し（streamのデータは変わらない）、先頭の8割で学習し、残り2割で統計を取る。2割は、候補の学習の早期終了の検証の割合と同じ。
+- 対照（`default-reduced-initial-model-training-samples`）: 同じく先頭の8割で学習し、統計は今と同じく学習に使った標本で取る（学習の標本が減る効果だけ）。
+- 交差検証（`default-cross-validated-initial-model-statistics`）: 初期モデルは今と同じく全部の標本で学習し（runの乱数の消費も同じ。最初の警報の前の予測の記録が既定と一致することを確かめた）、統計だけを、5分割の交差検証の予測損失で取る（各折りは、runの乱数から切り離した乱数で、同じ事前学習の関数を呼ぶ）。
+
+MNIST2の初期モデルの統計の平均は、今の扱いで約0.018、取り分け・交差検証で約0.19〜0.22（流れの新しい標本での損失、約0.23に近い）。
+
+| データ | 精度（%）: 既定／対照／取り分け／交差検証 | 警報 | 警報の精度 | 切替えの遅れ（標本） | 下りの比（交差検証） |
+|---|---|---|---|---|---|
+| MNIST2 | 94.89／94.80／94.85／**94.93** | 152／140／57／**58** | 0.29／0.32／0.86／**0.85** | 40.8／40.4／49.1／**50.6** | 1.00 |
+| SINE2 | 98.55／98.58／98.64／**98.45** | 73／66／66／64 | 0.67／0.77／0.79／0.76 | 5.3／5.8／5.9／5.4 | 0.97 |
+| CIRCLE2 | 97.42／97.31／97.28／**97.50** | 245／221／253／193 | 0.18／0.19／0.18／0.22 | 24.7／23.1／24.2／24.9 | 0.89 |
+| SEA4 | 85.23／85.09／85.13／**85.26** | 64／48／41／54 | 0.10／0.33／0.32／0.23 | 40.5／49.5／31.2／62.8 | 0.97 |
+
+- 統計の取り方を変えると、MNIST2の誤警報が大きく減る（警報152→58、警報の精度0.29→0.85、再現率0.87→0.95）。精度は下がらない。
+- 学習の標本を8割に減らすと、精度が少し下がる（対照−既定: MNIST2 −0.09、CIRCLE2 −0.11、SEA4 −0.14pp）。交差検証は、学習の標本を減らさずに統計だけを替えるので、この損が無い。
+- 交差検証と既定の差: 精度はMNIST2 +0.04、CIRCLE2 +0.08、SEA4 +0.03、SINE2 −0.10pp（SINE2はseed 3で−0.22pp、seed 0で+0.27pp）。CIRCLE2の下りが0.89倍。
+- 懸念: MNIST2で、切替えが約10標本遅れる（40.8→50.6）。基準が実際の水準まで上がる分、本当の変化への反応も少し遅くなるとみる。SEA4の遅れの増加（40.5→62.8）は、SEAの検出の再現率が低く（0.14）、対応する切替えが少ないため、値の揺れが大きい。
+- 判断（暫定）: 交差検証の形が有望。本規模（6データ×4間隔×10 seed）で確かめる。
+

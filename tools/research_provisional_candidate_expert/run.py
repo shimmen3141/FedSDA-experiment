@@ -141,6 +141,8 @@ _VARIANTS["default-keep-representative-consolidation"] = ("fedsda", False, None)
 _VARIANTS["default-held-out-initial-model-statistics"] = ("fedsda", False, None)
 # 対照: 同じく学習を先頭の8割にするが、統計は今と同じく学習に使った標本で取る。
 _VARIANTS["default-reduced-initial-model-training-samples"] = ("fedsda", False, None)
+# 初期モデルは今と同じく全部の標本で学習し、統計だけを5分割の交差検証の予測損失で取る（LEGACY-020の案(b)）。
+_VARIANTS["default-cross-validated-initial-model-statistics"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1227,6 +1229,94 @@ def _held_out_initial_model_statistics_policy(*, held_out_fraction, events, uses
 
 
 @contextmanager
+def _cross_validated_initial_model_statistics_policy(*, fold_count, events):
+    """初期モデルの損失の統計を、事前学習の標本での交差検証の予測損失で取る（研究用。LEGACY-020の案(b)）。
+
+    初期モデルは今と同じ呼出しで、事前学習の標本の全部で学習する（runの乱数の消費も今と同じ）。その呼出しで生成
+    された標本を記録し、runの乱数から切り離した乱数（torchはCPUだけを固定のseedで、Pythonは別の生成器）の中で、
+    同じ事前学習の関数を`fold_count`回呼ぶ。各回は、標本を生成の順に`fold_count`個に分けた1つを除いて学習し、
+    除いた標本を1件ずつ評価する。全部の回の評価から、全体と観測クラス別の統計を作り、初期モデルの統計だけを置き換える。
+    """
+    import random
+    from dataclasses import replace as dataclass_replace
+
+    import torch
+
+    import federated_learning_experiments.runtime.fedsda_run_participant_factory as factory_module
+    from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import (
+        ModelAndClassLossStatisticsStore,
+    )
+    from federated_learning_experiments.learning.models.torch_random_state_scope import (
+        isolated_cpu_torch_random_state,
+    )
+    from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
+        evaluate_classifier_per_sample_bounded_losses,
+    )
+
+    original_pretrain = factory_module.pretrain_initial_model
+
+    def pretrain(**arguments):
+        settings = arguments["initial_model_pretraining_settings"]
+        generator = arguments["sample_generator"]
+        generator_type = type(generator)
+        original_generate = generator_type.generate_sample
+        recorded = []
+        served = {"samples": None, "next": 0}
+
+        def generate_sample(self, *, concept_id):
+            if self is not generator:
+                return original_generate(self, concept_id=concept_id)
+            if served["samples"] is not None:
+                sample = served["samples"][served["next"]]
+                served["next"] += 1
+                return sample
+            sample = original_generate(self, concept_id=concept_id)
+            recorded.append(sample)
+            return sample
+
+        with patch.object(generator_type, "generate_sample", generate_sample):
+            result = original_pretrain(**arguments)
+            samples = list(recorded)
+            store = ModelAndClassLossStatisticsStore()
+            for fold_index in range(fold_count):
+                held_out = samples[fold_index::fold_count]
+                training = [s for position, s in enumerate(samples) if position % fold_count != fold_index]
+                served.update(samples=training, next=0)
+                with isolated_cpu_torch_random_state(random_seed=fold_index):
+                    fold_result = original_pretrain(
+                        **{
+                            **arguments,
+                            "initial_model_pretraining_settings": dataclass_replace(
+                                settings, pretraining_sample_count=len(training)
+                            ),
+                            "python_random_generator": random.Random(fold_index),
+                        }
+                    )
+                    for sample in held_out:
+                        store.record_assigned_loss(
+                            model_id=0,
+                            observed_loss=evaluate_classifier_per_sample_bounded_losses(
+                                classifier=fold_result.classifier,
+                                input_features=torch.tensor([list(sample.feature_values)], dtype=torch.float32),
+                                observed_class_labels=torch.tensor([[float(sample.class_label)]], dtype=torch.float32),
+                            )[0].item(),
+                            observed_class_id=sample.class_label,
+                        )
+        statistics = store.get_model_loss_statistics(model_id=0)
+        events.append(
+            dict(
+                event="cross_validated_initial_model_statistics",
+                training_mean_loss=result.loss_statistics.overall_loss_moments.mean_loss,
+                cross_validated_mean_loss=statistics.overall_loss_moments.mean_loss,
+            )
+        )
+        return dataclass_replace(result, loss_statistics=statistics)
+
+    with patch.object(factory_module, "pretrain_initial_model", pretrain):
+        yield
+
+
+@contextmanager
 def _keep_representative_consolidation_policy(*, events):
     """サーバの統合で、メンバーのパラメータを平均せず、代表（クラスタの最小のID）のパラメータを保つ（研究用）。
 
@@ -1578,6 +1668,8 @@ def _execute_job(job):
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
         if job["variant"] == "default-recalibrated-detector-baseline":
             stack.enter_context(_recalibrated_detector_baseline_policy(events=events))
+        if job["variant"] == "default-cross-validated-initial-model-statistics":
+            stack.enter_context(_cross_validated_initial_model_statistics_policy(fold_count=5, events=events))
         if job["variant"] in ("default-held-out-initial-model-statistics", "default-reduced-initial-model-training-samples"):
             stack.enter_context(
                 _held_out_initial_model_statistics_policy(
