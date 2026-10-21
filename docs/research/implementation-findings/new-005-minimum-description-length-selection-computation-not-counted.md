@@ -1,20 +1,18 @@
-# NEW-005: 最小記述長の選択の計算が、計算回数の指標に数えられていない
+# NEW-005: 最小記述長の選択の計算が、計算回数の指標に数えられていない（誤認。数えられていた）
 
-- 発見日: 2026-10-21。対象: `runtime/alarm_interval_minimum_description_length_selection.py`の`select_alarm_interval_assignment`、`learning/training/prequential_code_length.py`、`learning/prediction/classifier_log_loss_evaluation.py`（基準版10、commit `20877d8`）。発見の経緯: MNISTの警報の増加の調査（[設計の14](../fedsda-unified-concept-assignment-inference.md)）。
-- 種別: 指標の数え漏れ（値の計算は正しい）。状態: 未対応（直すかはユーザーが決める）。
+- 発見日: 2026-10-21。対象: `runtime/alarm_interval_minimum_description_length_selection.py`の`select_alarm_interval_assignment`。発見の経緯: MNISTの警報の増加の調査（[設計の14](../fedsda-unified-concept-assignment-inference.md)）。
+- 状態: 誤認として閉じた（2026-10-21、同じ日に実測で確かめた）。
 
-## 内容
+## 経緯
 
-最小記述長の扱い（基準版10の既定）では、警報のたびに、(1) 全部の保有モデルで、列（最大31標本）の標本ごとの対数損失を計算し、(2) 変化区間の長さの候補（5標本刻み）ごとに、新しいモデルの学習者で、予測して1回更新する、を行う。この計算は、計算回数の指標`model_computation_counts`（学習・推論の標本数、更新回数、積和の回数）に数えていない。
+選択の計算（全部の保有モデルでの対数損失の評価と、新しいモデルの学習者の予測と更新）が、計算回数の指標`model_computation_counts`に入っていないと考えて記録した。計測の仕組みを確かめずに、選択のコードに計数の呼出しが無いことだけから判断した誤り。
 
-## 規模の見積り（計算の形からの見積り。実測ではない）
+## 確かめたこと
 
-列の長さが31のとき、(2)の学習者の更新は5＋10＋…＋30＝105標本（概念固有部の学習、共有部は勾配なしの前向き計算）、(1)の推論は31標本×保有モデル数。MNIST2・間隔100（警報約150回、保有モデル数を約3とする）では、学習が約1.6万標本、推論が約1.4万標本。版9の既定のMNIST2・間隔100（10 seedの平均）の、run全体の概念固有部の学習（約357万標本）の約0.5%、推論（約52万標本）の約3%にあたる。
+計測（`learning/models/model_computation_measurement.py`の`measure_model_computation`）は、PyTorchのhookをprocessの全体に登録し、FedSDAの全体runの間（`runtime/fedsda_measured_run_execution.py`）、すべてのモデルの順伝播とoptimizerの更新を数える。選択の計算も、moduleの呼出しとoptimizerの更新で行うので、数えられる。
 
-## 影響
+手元の小さいrun（SINE2・900標本・2 client・間隔50、Git管理外の一時script）で、選択の中だけを別の計測で数え（学習1,290標本、推論2,702標本、更新1,290回ほか）、選択を2回実行させたrunと1回のrunの計数の差が、全部の項目で、選択の中の計数とちょうど一致することを確かめた。
 
-基準版10のrun（uraniumの`method-comparison-v10`ほか）の計算量は、この分だけ少なく出る。版9の既定と比べるときは、この差を付記する。手元のMNIST2・間隔100の実行時間は、最小記述長の方が短かった（候補の学習が減るため。設計の14）。
+## 規模の参考（上の小さいrun）
 
-## 直す方法の案
-
-選択の計算で、既存の計算回数の記録（学習・推論の計数の置き場）へ、学習者の更新と保有モデルの推論を足す。指標の定義を変えるので、基準版を上げる（指標だけの変更）。
+runの全体（概念固有部の学習103,858標本、推論27,262標本）に対し、選択の計算は、学習の約1.2%、推論の約10%、共有部の推論（17,848標本）の約22%だった。基準版10の本規模の計算量の値は、この計算を含む。
