@@ -298,6 +298,8 @@ def test_final_configuration_defaults_match_legacy_configuration(
                     pending_sample_retention_after_too_short_change_interval_policy=(
                         RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME
                     ),
+                    # 2026-10-21から、警報の後の変化区間の長さと帰属先を、最小記述長の原理で選ぶ。
+                    alarm_interval_assignment_policy="minimum_description_length",
                 ),
                 prediction_combination_settings=replace(
                     legacy_equivalent_client_settings.prediction_combination_settings,

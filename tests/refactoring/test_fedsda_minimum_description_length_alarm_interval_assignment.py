@@ -184,3 +184,22 @@ def test_minimum_description_length_selection_sets_the_change_interval_and_desti
             )
     assert raised > 0
     assert hypotheses, hypotheses
+
+
+def test_default_and_configurations_use_minimum_description_length_except_candidate_validation():
+    """最終構成の既定は最小記述長の原理で選び、候補検証ありの構成だけが今の扱いを明示する。"""
+    from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
+    from federated_learning_experiments.sweep.experiment_configurations import (
+        EXPERIMENT_CONFIGURATION_NAMES,
+    )
+
+    checked = 0
+    for configuration_name in EXPERIMENT_CONFIGURATION_NAMES:
+        settings = build_small_settings(configuration_name)
+        if type(settings) is not FedsdaRunSettings:
+            continue
+        checked += 1
+        policy = settings.run_participant_settings.run_client_settings.training_data_assignment_settings.alarm_interval_assignment_policy
+        expected = LEGACY if configuration_name == "fedsda-with-candidate-validation" else MDL
+        assert policy == expected, configuration_name
+    assert checked >= 10

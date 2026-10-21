@@ -146,11 +146,12 @@ def _replace_candidate_acceptance_and_shared_feature_update(
     run_settings: FedsdaRunSettings,
     candidate_model_acceptance_policy: str,
     candidate_shared_feature_update_policy: str,
+    alarm_interval_assignment_policy: str,
 ) -> FedsdaRunSettings:
-    """完全なrun設定の、候補の採否の方針と、候補の学習での共有部の更新を、一緒に置き換える。
+    """完全なrun設定の、候補の採否の方針と、候補の学習での共有部の更新と、警報の後の選び方を、一緒に置き換える。
 
-    2つの値は、組合せの制約（候補検証と共有部の固定は組み合わせられない）があるので、片方ずつ置き換えると、
-    途中の設定が拒否されることがある。
+    3つの値は、組合せの制約（候補検証は、共有部の固定とも、最小記述長の原理で選ぶ扱いとも組み合わせられない）が
+    あるので、片方ずつ置き換えると、途中の設定が拒否されることがある。
     """
     run_participant_settings = run_settings.run_participant_settings
     run_client_settings = run_participant_settings.run_client_settings
@@ -167,6 +168,10 @@ def _replace_candidate_acceptance_and_shared_feature_update(
                 candidate_epoch_training_settings=replace(
                     run_client_settings.candidate_epoch_training_settings,
                     candidate_shared_feature_update_policy=candidate_shared_feature_update_policy,
+                ),
+                training_data_assignment_settings=replace(
+                    run_client_settings.training_data_assignment_settings,
+                    alarm_interval_assignment_policy=alarm_interval_assignment_policy,
                 ),
             ),
         ),
@@ -224,6 +229,10 @@ def build_experiment_run_settings(
                 "current_model_first_reuse_then_candidate_adoption_without_validation"
             ),
             candidate_shared_feature_update_policy="update_shared_features_with_candidate",
+            # 候補検証を外した構成は、警報の後の選び方を既定から引き継ぐ。
+            alarm_interval_assignment_policy=(
+                proposed_run_settings.run_participant_settings.run_client_settings.training_data_assignment_settings.alarm_interval_assignment_policy
+            ),
         )
     if configuration_name == CANDIDATE_VALIDATION_CONFIGURATION_NAME:
         return _replace_candidate_acceptance_and_shared_feature_update(
@@ -232,6 +241,8 @@ def build_experiment_run_settings(
                 "current_model_first_reuse_then_two_segment_candidate_validation"
             ),
             candidate_shared_feature_update_policy="update_shared_features_with_candidate",
+            # 候補検証ありの構成は、警報の後の選び方も、基準版9までの扱い（検出器の推定と許容量）にする。
+            alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
         )
     if configuration_name == LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME:
         # サーバが読む判定の基準と、統合の方式の宣言の、両方を替える。

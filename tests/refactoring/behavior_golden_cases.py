@@ -577,6 +577,14 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                     _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH
                 ],
             )
+        # 警報の後の選び方も、候補検証との組合せの制約があるので、同じ置き換えで替える。
+        if _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH in added_settings:
+            candidate_changes["training_data_assignment_settings"] = replace(
+                client.training_data_assignment_settings,
+                alarm_interval_assignment_policy=added_settings[
+                    _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH
+                ],
+            )
         if candidate_changes:
             client = replace(client, **candidate_changes)
         if _TOO_SHORT_CHANGE_INTERVAL_POLICY_PATH in added_settings:
@@ -585,16 +593,6 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                 training_data_assignment_settings=replace(
                     client.training_data_assignment_settings,
                     pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
-                ),
-            )
-        if _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH in added_settings:
-            client = replace(
-                client,
-                training_data_assignment_settings=replace(
-                    client.training_data_assignment_settings,
-                    alarm_interval_assignment_policy=added_settings[
-                        _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH
-                    ],
                 ),
             )
         changes["run_client_settings"] = client

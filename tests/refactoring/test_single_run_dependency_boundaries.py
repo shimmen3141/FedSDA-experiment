@@ -5947,7 +5947,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_final_configuration_run_settings.py":
         return imported_module_name in (
-            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.DETECTOR_CHANGE_SPAN_AND_MEAN_LOSS_INCREASE_TOLERANCE_POLICY_NAME",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
             "federated_learning_experiments.data.concept_schedules.random_concept_schedule_settings.RandomConceptScheduleSettings",

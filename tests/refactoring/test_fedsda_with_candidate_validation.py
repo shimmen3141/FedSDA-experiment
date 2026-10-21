@@ -80,8 +80,8 @@ def test_fedsda_configurations_have_the_expected_candidate_values_and_run(config
     execute_fedsda_experiment_run(run_settings=run_settings)
 
 
-def test_with_candidate_validation_differs_from_the_default_only_in_the_two_values():
-    """既定と比べて、候補の採否の方針と共有部の2つだけが違う（保存の形で比べる）。"""
+def test_with_candidate_validation_differs_from_the_default_only_in_the_three_values():
+    """既定と比べて、候補の採否の方針と共有部と、警報の後の選び方の3つだけが違う（保存の形で比べる）。"""
     default_mapping = convert_settings_to_plain_mapping(
         build_experiment_run_settings(
             configuration_name="fedsda", experiment_run_conditions=_CONDITIONS
@@ -102,7 +102,12 @@ def test_with_candidate_validation_differs_from_the_default_only_in_the_two_valu
             "candidate_model_acceptance_policy"
         ]
         del client["candidate_epoch_training_settings"]["candidate_shared_feature_update_policy"]
+        del client["training_data_assignment_settings"]["alarm_interval_assignment_policy"]
     assert with_validation_mapping == default_mapping
+    assert (
+        with_validation.run_participant_settings.run_client_settings.training_data_assignment_settings.alarm_interval_assignment_policy
+        == "detector_change_span_and_mean_loss_increase_tolerance"
+    )
     assert collect_settings_types(with_validation) == collect_settings_types(
         build_experiment_run_settings(
             configuration_name="fedsda", experiment_run_conditions=_CONDITIONS

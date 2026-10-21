@@ -279,6 +279,12 @@ def test_candidate_validation_cannot_be_combined_with_fixed_shared_features(
                 client.candidate_epoch_training_settings,
                 candidate_shared_feature_update_policy=shared_feature_policy,
             ),
+            # 候補検証は、最小記述長の原理で選ぶ扱いとも組み合わせられないので、ここでは今の扱いにする
+            # （このtestは、共有部の固定との組合せだけを確かめる）。
+            training_data_assignment_settings=replace(
+                client.training_data_assignment_settings,
+                alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+            ),
         )
 
     if accepted:
