@@ -131,6 +131,10 @@ _VARIANTS["default-uniform-mixture-held-model-code-length"] = ("fedsda", False, 
 # 基準版10の既定の上で、サーバのクラスタリングの判定を、符号長の比較（どちらのモデルも、相手の標本を、新しく学ぶより
 # 短く説明できるか）にする（IMPROVE-026の2の規則MDL（両側））。
 _VARIANTS["default-description-length-clustering"] = ("fedsda", False, None)
+# 同じ比較で、相手自身の費用を、モデルの一生の予測的符号長にする（IMPROVE-026の4）。
+_VARIANTS["default-lifetime-description-length-clustering"] = ("fedsda", False, None)
+# 同じく一生の予測的符号長で、「まとめる」と「別々に持つ」の2つの仮説の符号長を、件数で重み付けして比べる（IMPROVE-026の4）。
+_VARIANTS["default-pooled-lifetime-description-length-clustering"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -1135,32 +1139,59 @@ def _uniform_mixture_held_model_code_length_policy(*, mixture_weight, events):
 
 
 @contextmanager
-def _description_length_clustering_policy(*, optimizer_settings, events):
+def _description_length_clustering_policy(*, optimizer_settings, learning_cost_source, events):
     """サーバのクラスタリングで、モデル対を、符号長の比較で同じ概念とみなす（研究用。実行の間だけ包む。IMPROVE-026）。
 
-    クロス評価で、配布したモデルXの、対象Yの標本での対数損失の和と、候補と対象が同じ評価では、その標本で概念
-    ごとの部分を初期化し直した学習者の予測的符号長（新しく学ぶ費用）を、clientが返すものとして集める。
-    ℓ(X|Y)をYの標本でのXの1標本あたりの対数損失、f(Y)をYの標本で新しく学ぶ1標本あたりの符号長として、対(A, B)の
-    判定の値を max(ℓ(A|B)−f(B), ℓ(B|A)−f(A)) ＋ 閾値 にする（average linkageの後に閾値と比べるので、「対の平均で、
-    どちらのモデルも、相手の標本を、新しく学ぶより短く説明できる」なら同じクラスタ）。判定の値を持つ対だけを置き換え、
-    集めた値が無い対は、今の判定の値のまま（その数をeventsへ記録する）。学習者の初期化の乱数は、runの乱数を消費しない。
+    クロス評価で、配布したモデルXの、対象Yの標本での対数損失の和を、clientが返すものとして集める。ℓ(X|Y)をYの
+    標本でのXの1標本あたりの対数損失、c(Y)を「Yの標本を、Y自身で説明する費用」の1標本あたりの値として、対(A, B)の
+    判定の値を max(ℓ(A|B)−c(B), ℓ(B|A)−c(A)) ＋ 閾値 にする（average linkageの後に閾値と比べるので、「対の平均で、
+    どちらのモデルも、相手の標本を、相手自身の費用以下で説明できる」なら同じクラスタ）。c(Y)の取り方:
+
+    - `fresh_learner`: 候補と対象が同じ評価の標本で、概念ごとの部分を初期化し直した学習者の予測的符号長（新しく
+      学ぶ費用。初期化の乱数は、runの乱数を消費しない）。
+    - `lifetime_prequential_pooled`: 一生の予測的符号長で、2つの仮説の符号長を件数で重み付けして比べる。
+      まとめる（代表Rが両方の標本を説明する）: N_A·ℓ(R|A)＋N_B·ℓ(R|B)、別々に持つ: N_A·c(A)＋N_B·c(B)（Nは一生の
+      件数）。判定の値は min_R［まとめる−別々］/(N_A＋N_B) ＋ 閾値。
+    - `lifetime_prequential`: Yの一生の予測的符号長。clientが、各標本で、学習の前の現在のモデルの損失（検出器へ
+      渡す有界の損失）を対数損失にして、そのときの現在のモデルへ足したもの。登録と統合でIDが変わったら、計数の
+      置き場（`ModelTrainingAndAssignmentCountsStore`）と同じように移す。保有するclientの合計を件数で割る。
+
+    判定の値を持つ対だけを置き換え、集めた値が無い対は、今の判定の値のまま（その数をeventsへ記録する）。
     """
+    import math
+
     import torch
 
     import federated_learning_experiments.runtime.client_model_cross_evaluation as client_cross_module
+    import federated_learning_experiments.runtime.fedsda_run_client as client_module
     import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
     import federated_learning_experiments.runtime.model_cross_evaluation as cross_module
+    import federated_learning_experiments.runtime.observed_sample_processing as processing_module
+    from federated_learning_experiments.learning.training.model_training_and_assignment_counts import (
+        ModelTrainingAndAssignmentCountsStore,
+    )
     from federated_learning_experiments.learning.training.prequential_code_length import (
         compute_new_model_prequential_code_length,
     )
+    from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
+        OverallAndTrueClassLossMonitor,
+    )
 
+    if learning_cost_source not in ("fresh_learner", "lifetime_prequential", "lifetime_prequential_pooled"):
+        raise ValueError(learning_cost_source)
     original_evaluate = client_cross_module.evaluate_classifier_per_sample_bounded_losses_and_outputs
     original_make = cross_module._make_client_cross_evaluation_record
     original_cluster = consolidation_module.cluster_model_ids_by_average_linkage
+    original_process = processing_module.process_observed_sample
+    original_observe = OverallAndTrueClassLossMonitor.observe_loss_after_label_observation
+    original_transfer = ModelTrainingAndAssignmentCountsStore.transfer_model_training_and_assignment_counts
+    original_remap = ModelTrainingAndAssignmentCountsStore.remap_model_training_and_assignment_counts
     stash = {}
     # (round, 候補, 対象) → [件数, 対数損失の和, 新しく学ぶ符号長の和, その件数]
     sums = {}
-    state = {"round": None}
+    state = {"round": None, "store": None, "assignment": None}
+    # 計数の置き場ごとの、モデルID → [一生の対数損失の和, 件数]
+    lifetime_by_store = {}
 
     def evaluate(*, classifier, input_features, observed_class_labels):
         losses, outputs = original_evaluate(
@@ -1193,7 +1224,7 @@ def _description_length_clustering_policy(*, optimizer_settings, events):
             entry = sums.setdefault((round_index, candidate_model_id, target_model_id), [0, 0.0, 0.0, 0])
             entry[0] += count
             entry[1] += stash["log_loss_sum"]
-            if candidate_model_id == target_model_id:
+            if learning_cost_source == "fresh_learner" and candidate_model_id == target_model_id:
                 text = f"{round_index}:{client_id}:{target_model_id}"
                 entry[2] += compute_new_model_prequential_code_length(
                     template_classifier=stash["classifier"],
@@ -1205,6 +1236,48 @@ def _description_length_clustering_policy(*, optimizer_settings, events):
                 entry[3] += count
         return record
 
+    def process(**arguments):
+        state["store"] = arguments["model_training_and_assignment_counts_store"]
+        state["assignment"] = arguments["current_training_model_assignment"]
+        try:
+            return original_process(**arguments)
+        finally:
+            state["store"] = None
+            state["assignment"] = None
+
+    def observe(self, **arguments):
+        store = state["store"]
+        if store is not None:
+            model_id = state["assignment"].current_training_model_id
+            entry = lifetime_by_store.setdefault(id(store), {}).setdefault(model_id, [0.0, 0])
+            entry[0] += -math.log(max(1.0 - arguments["observed_loss"], 1e-12))
+            entry[1] += 1
+        return original_observe(self, **arguments)
+
+    def transfer(self, *, original_model_id, receiving_model_id):
+        result = original_transfer(
+            self, original_model_id=original_model_id, receiving_model_id=receiving_model_id
+        )
+        table = lifetime_by_store.get(id(self), {})
+        if original_model_id in table:
+            moved = table.pop(original_model_id)
+            receiving = table.setdefault(receiving_model_id, [0.0, 0])
+            receiving[0] += moved[0]
+            receiving[1] += moved[1]
+        return result
+
+    def remap(self, *, model_id_mapping):
+        result = original_remap(self, model_id_mapping=model_id_mapping)
+        table = lifetime_by_store.get(id(self))
+        if table is not None:
+            remapped = {}
+            for model_id, (log_loss_sum, count) in table.items():
+                entry = remapped.setdefault(model_id_mapping.get(model_id, model_id), [0.0, 0])
+                entry[0] += log_loss_sum
+                entry[1] += count
+            lifetime_by_store[id(self)] = remapped
+        return result
+
     def cluster(*, model_ids, decision_scores_by_model_pair, maximum_same_cluster_decision_score):
         round_index = state["round"]
 
@@ -1212,9 +1285,20 @@ def _description_length_clustering_policy(*, optimizer_settings, events):
             entry = sums.get((round_index, candidate, target))
             return entry[1] / entry[0] if entry and entry[0] else None
 
+        def lifetime(target):
+            log_loss_sum = 0.0
+            count = 0
+            for table in lifetime_by_store.values():
+                if target in table:
+                    log_loss_sum += table[target][0]
+                    count += table[target][1]
+            return (log_loss_sum / count, count) if count else (None, 0)
+
         def learning_cost(target):
-            entry = sums.get((round_index, target, target))
-            return entry[2] / entry[3] if entry and entry[3] else None
+            if learning_cost_source == "fresh_learner":
+                entry = sums.get((round_index, target, target))
+                return entry[2] / entry[3] if entry and entry[3] else None
+            return lifetime(target)[0]
 
         replaced = {}
         kept = 0
@@ -1225,6 +1309,21 @@ def _description_length_clustering_policy(*, optimizer_settings, events):
                 kept += 1
                 continue
             lower_on_higher, higher_cost, higher_on_lower, lower_cost = values
+            if learning_cost_source == "lifetime_prequential_pooled":
+                lower_on_lower, higher_on_higher = mean_loss(lower, lower), mean_loss(higher, higher)
+                if lower_on_lower is None or higher_on_higher is None:
+                    replaced[(lower, higher)] = score
+                    kept += 1
+                    continue
+                lower_count, higher_count = lifetime(lower)[1], lifetime(higher)[1]
+                separate = lower_count * lower_cost + higher_count * higher_cost
+                merged_by_lower = lower_count * lower_on_lower + higher_count * lower_on_higher
+                merged_by_higher = lower_count * higher_on_lower + higher_count * higher_on_higher
+                replaced[(lower, higher)] = (
+                    (min(merged_by_lower, merged_by_higher) - separate) / (lower_count + higher_count)
+                    + maximum_same_cluster_decision_score
+                )
+                continue
             replaced[(lower, higher)] = (
                 max(lower_on_higher - higher_cost, higher_on_lower - lower_cost) + maximum_same_cluster_decision_score
             )
@@ -1235,11 +1334,24 @@ def _description_length_clustering_policy(*, optimizer_settings, events):
             maximum_same_cluster_decision_score=maximum_same_cluster_decision_score,
         )
 
-    with (
-        patch.object(client_cross_module, "evaluate_classifier_per_sample_bounded_losses_and_outputs", evaluate),
-        patch.object(cross_module, "_make_client_cross_evaluation_record", make),
-        patch.object(consolidation_module, "cluster_model_ids_by_average_linkage", cluster),
-    ):
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(
+            patch.object(client_cross_module, "evaluate_classifier_per_sample_bounded_losses_and_outputs", evaluate)
+        )
+        stack.enter_context(patch.object(cross_module, "_make_client_cross_evaluation_record", make))
+        stack.enter_context(patch.object(consolidation_module, "cluster_model_ids_by_average_linkage", cluster))
+        if learning_cost_source in ("lifetime_prequential", "lifetime_prequential_pooled"):
+            stack.enter_context(patch.object(processing_module, "process_observed_sample", process))
+            stack.enter_context(patch.object(client_module, "process_observed_sample", process))
+            stack.enter_context(
+                patch.object(OverallAndTrueClassLossMonitor, "observe_loss_after_label_observation", observe)
+            )
+            stack.enter_context(
+                patch.object(ModelTrainingAndAssignmentCountsStore, "transfer_model_training_and_assignment_counts", transfer)
+            )
+            stack.enter_context(
+                patch.object(ModelTrainingAndAssignmentCountsStore, "remap_model_training_and_assignment_counts", remap)
+            )
         yield
 
 
@@ -1361,10 +1473,20 @@ def _execute_job(job):
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
         if job["variant"] == "default-recalibrated-detector-baseline":
             stack.enter_context(_recalibrated_detector_baseline_policy(events=events))
-        if job["variant"] == "default-description-length-clustering":
+        if job["variant"] in (
+            "default-description-length-clustering",
+            "default-lifetime-description-length-clustering",
+            "default-pooled-lifetime-description-length-clustering",
+        ):
             stack.enter_context(
                 _description_length_clustering_policy(
-                    optimizer_settings=client_settings.parameter_optimizer_settings, events=events
+                    optimizer_settings=client_settings.parameter_optimizer_settings,
+                    learning_cost_source={
+                        "default-description-length-clustering": "fresh_learner",
+                        "default-lifetime-description-length-clustering": "lifetime_prequential",
+                        "default-pooled-lifetime-description-length-clustering": "lifetime_prequential_pooled",
+                    }[job["variant"]],
+                    events=events,
                 )
             )
         if job["variant"] == "default-uniform-mixture-held-model-code-length":
