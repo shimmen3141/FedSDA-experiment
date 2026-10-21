@@ -40,6 +40,7 @@
 | NEW-003 | 1回の共同更新の途中で失敗したときの学習量の計数が、旧と違う | 許容（2026-10-09、ユーザー決定。現在の流れでは読まれない） | [記録](new-003-training-count-after-mid-update-failure.md) |
 | NEW-004 | 旧実装の計算量との照合は、旧実装を外すときに取り除く（残すものと、置き換えるもの） | 後でやる作業の記録・未着手（2026-10-10、ユーザーの指示で記録。時期と方法は、ユーザーが決める） | [記録](new-004-legacy-computation-comparison-removal.md) |
 | NEW-005 | 最小記述長の選択の計算が、計算回数の指標に数えられていない | 誤認として閉じた（2026-10-21。計測のhookはrun全体にかかり、選択の計算も数えられていた。実測で確認） | [記録](new-005-minimum-description-length-selection-computation-not-counted.md) |
+| NEW-006 | 最小記述長の選択が、一部のクラスだけが変わる新しい概念を、現在のモデルに取り込み続ける | 未対応（2026-10-22。MNIST4・版10で、間隔50の5/20 run、間隔500の4/20 runで、1つの概念が初期モデルに取り込まれ、その概念の精度が77〜88%に留まる。版9では0件） | [記録](new-006-minimum-description-length-keeps-partially-changed-concept-in-current-model.md) |
 
 ## 決定（2026-10-13、ユーザー）
 
