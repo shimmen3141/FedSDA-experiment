@@ -152,6 +152,8 @@ _VARIANTS["default-cross-evaluation-200-samples"] = ("fedsda", False, None)
 _VARIANTS["default-arriving-data-detector-baseline"] = ("fedsda", False, None)
 # 同じく、検出を止める件数を5件（最小変化区間）にする。
 _VARIANTS["default-arriving-data-detector-baseline-minimum-interval"] = ("fedsda", False, None)
+# 最小記述長の選択の「新しいモデル」の学習者を、初期化し直さずに現在のモデルの写しから始める（NEW-006）。
+_VARIANTS["default-copied-new-model-learner"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1459,6 +1461,60 @@ def _arriving_data_detector_baseline_policy(*, minimum_sample_count, events):
 
 
 @contextmanager
+def _copied_new_model_learner_policy(*, events):
+    """最小記述長の選択の「新しいモデル」の学習者を、現在のモデルの写しから始める（研究用。NEW-006）。
+
+    製品の予測的符号長（`learning/training/prequential_code_length.py`）は、概念ごとの部分を初期化し直してから
+    学ぶ。この変種は初期化し直さず、現在のモデルの写しのまま、同じ手順（標本ごとに、対数損失を足してから、共有部を
+    勾配なしで計算し、共有部以外を1回更新する）で学ぶ。変わらないクラスでは現在のモデルと同じ符号長になり、
+    一部のクラスだけが変わる新しい概念を見分けやすくする。
+    """
+    from copy import deepcopy
+
+    from torch import no_grad
+    from torch.nn import BCELoss, CrossEntropyLoss
+
+    import federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection as selection_module
+    from federated_learning_experiments.learning.prediction.classifier_log_loss_evaluation import (
+        evaluate_classifier_per_sample_log_losses,
+    )
+    from federated_learning_experiments.learning.training.parameter_optimizer_construction import (
+        create_parameter_optimizer,
+    )
+
+    def code_length(*, template_classifier, input_features, observed_class_labels, parameter_optimizer_settings, initialization_seed):
+        learner = deepcopy(template_classifier)
+        parameters = tuple(
+            parameter for name, parameter in learner.named_parameters() if not name.startswith("feature_extractor.")
+        )
+        optimizer = create_parameter_optimizer(parameters=parameters, optimizer_settings=parameter_optimizer_settings)
+        total = 0.0
+        for position in range(input_features.shape[0]):
+            features = input_features[position : position + 1]
+            labels = observed_class_labels[position : position + 1]
+            total += float(
+                evaluate_classifier_per_sample_log_losses(
+                    classifier=learner, input_features=features, observed_class_labels=labels
+                ).sum()
+            )
+            with no_grad():
+                shared = learner.extract_shared_features(features)
+            optimizer.zero_grad()
+            predictions = learner.forward_from_shared_features(shared)
+            if learner.class_count == 2:
+                loss = BCELoss()(predictions, labels)
+            else:
+                loss = CrossEntropyLoss()(predictions, labels.reshape(-1).long())
+            loss.backward()
+            optimizer.step()
+        events.append(dict(event="copied_new_model_learner"))
+        return total
+
+    with patch.object(selection_module, "compute_new_model_prequential_code_length", code_length):
+        yield
+
+
+@contextmanager
 def _keep_representative_consolidation_policy(*, events):
     """サーバの統合で、メンバーのパラメータを平均せず、代表（クラスタの最小のID）のパラメータを保つ（研究用）。
 
@@ -1839,6 +1895,8 @@ def _execute_job(job):
                     events=events,
                 )
             )
+        if job["variant"] == "default-copied-new-model-learner":
+            stack.enter_context(_copied_new_model_learner_policy(events=events))
         if job["variant"] == "default-equivalence-clustering-decision":
             stack.enter_context(_equivalence_clustering_decision_policy(events=events))
         if job["variant"] == "default-cross-validated-initial-model-statistics":
@@ -1972,6 +2030,10 @@ def _execute_job(job):
     return dict(
         **{key: job[key] for key in ("variant", "dataset", "interval", "seed", "sample_count", "check")},
         accuracy=metrics.prediction_accuracy,
+        concept_accuracies={
+            str(k): float(tables["sample_prediction.combined_prediction_is_correct"][tables["sample_prediction.observed_concept_id"] == k].mean())
+            for k in sorted(set(tables["sample_prediction.observed_concept_id"].ravel().tolist()))
+        },
         record_accuracy=sum(r.combined_prediction_is_correct for r in records) / len(records),
         any_correct_rate=sum(r.any_model_or_combined_prediction_is_correct for r in records) / len(records),
         prediction_record_digest=hashlib.sha256(
