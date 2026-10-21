@@ -133,3 +133,15 @@ MNIST4のseedごとの差（seed 0〜9）は、間隔100で−4.11・−0.17・�
 - 公式のFedDriftの実装（`FedDrift/`に置いた公式レポジトリ、`fedml_experiments/distributed/fedavg_cont_ens/main_fedavg.py`と`fedml_api/distributed/fedavg_ens/FedAvgEnsAggregatorSoftCluster.py`・`FedAvgEnsDataLoader.py`）は、事前学習をしない。最初の時刻（`curr_train_iteration == 0`）に、モデルを乱数で初期化し（`torch.manual_seed`）、全部のclientを1つのモデルに割り当てて（`cluster_init`）、その時刻のclientの標本でFedAvgで学習する。検出の基準（`mmacc_acc_dict`）は、最初の時刻の**学習の前に**、乱数で初期化したモデルの、その時刻の標本での正解率で初期化し、以後の時刻では、各時刻の学習の前に、新しい時刻の標本での最良のモデルの正解率で置き換える。正解率が基準−δより下がれば、ドリフトとする。基準は、いつも学習の前の予測的な値。
 - 新実装の実験では、比べる方式の全部（FedSDA・FedDrift・FedAvg）が、同じ事前学習の初期モデル（概念0の500標本）から始める（`pretrain_initial_model`を共有する）。これは公式のFedDriftとは違う、実験の枠組みの選択。
 
+## MNIST4の揺れの手元の調査（2026-10-22、Windows、MNIST4・間隔100、seed 0・9）
+
+`results/fedsda-provisional-candidate-expert/20261022_mnist4-cross-validated-initial-statistics-diagnosis`（Git管理外の一時scriptで、既定と交差検証を実行し、250標本ごとの精度・警報・適応・登録・統合を記録）。手元の値はuraniumと一致しない（プラットフォームの違いで軌跡が変わる）が、下がる向きは同じ。
+
+| seed | 既定（手元／uranium） | 交差検証（手元／uranium） | 主な違い |
+|---|---|---|---|
+| 0 | 94.64％／93.80％ | 93.98％（−0.66）／89.69％（−4.11） | 750〜2250標本で差が開き（250標本ごとに最大−3.2pp）、後半は戻る。登録9→5、統合4→0 |
+| 9 | 94.34％／94.33％ | 91.97％（−2.37）／92.61％（−1.72） | 40回目の同期で、違う概念のモデル0と1を判定の値0.0で統合し、モデルが3つ（概念は4つ）のまま、後半の精度が4〜6pp低い |
+
+- seed 9の崩れは、サーバの統合の判定の弱点（[LEGACY-021](legacy-021-classwise-clustering-merges-with-little-evidence.md)。評価の標本が28件しかなく、違いの証拠が足りずに統合した）が、交差検証で軌跡が変わったことで表に出たもの。
+- 既定では、序盤の誤警報で同じ概念の重複モデルを作り、その後に統合する（seed 9で登録9、統合4）。交差検証では、序盤の重複モデルが作られない（登録4〜5、統合0〜1）。seed 0の序盤の低下は、最初の概念の変化への反応の遅れ（交差検証で、基準が上がる分の切替えの遅れ）とみる（未確認）。
+

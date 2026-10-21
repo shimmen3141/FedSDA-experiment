@@ -24,6 +24,7 @@
 | LEGACY-018 | 共有部を持たないモデルでは、クロス評価の下りの通信量が、同じclientへの同じ候補の送信を、重複して数える | 新実装修正。合意済みの重複除外を全構成golden前に主担当判断で先行。固定旧は維持し、旧イベントから重複分を減算して厳密に照合 | [記録](legacy-018-cross-evaluation-download-volume-without-shared-part.md) |
 | LEGACY-019 | 候補検証の途中でIDが付け替わった参照モデルは、その検証で、再利用の対象から外れる | 記録だけ（2026-10-13。旧と同じ扱いを移植済み。頻度と影響は未確認） | [記録](legacy-019-renamed-reference-excluded-from-validation-reuse.md) |
 | LEGACY-020 | 初期モデルの損失の統計が、学習に使った標本で取られ、最初の概念の間に誤警報を生む | 検証中（2026-10-21。初期モデルの統計を交差検証の予測損失で取る形が手元で有望: MNIST2の警報152→58、精度は下がらない。本規模は未実施） | [記録](legacy-020-optimistic-initial-model-loss-statistics.md) |
+| LEGACY-021 | クラス別の正誤の判定が、評価の標本が少ないと、違う概念のモデルを統合する | 未対応（2026-10-22。MNIST4・seed 9で、28標本・片方だけ正解1件の対を判定の値0.0で統合し、精度が下がった。既定での頻度は未確認） | [記録](legacy-021-classwise-clustering-merges-with-little-evidence.md) |
 
 ## 移植しないと決めた旧機能・新実装で見つけた事項
 
