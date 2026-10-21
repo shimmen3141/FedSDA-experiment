@@ -4,6 +4,8 @@ from dataclasses import replace
 
 import pytest
 
+import federated_learning_experiments.runtime.alarm_buffer_response as buffer_response_module
+import federated_learning_experiments.runtime.alarm_change_interval_resolution as resolution_module
 import federated_learning_experiments.runtime.observed_sample_processing as processing_module
 from federated_learning_experiments.configuration.experiment_run_conditions import (
     ExperimentRunConditions,
@@ -131,6 +133,37 @@ def test_minimum_description_length_selection_sets_the_change_interval_and_desti
         return selection
 
     monkeypatch.setattr(processing_module, "select_alarm_interval_assignment", recording)
+    # 解決の処理ごとに、選択と、そのときの現在のモデルが履歴の基準を持つかを記録する。
+    current_model_has_baseline_by_selection_id = {}
+    resolving = []
+    original_resolve = buffer_response_module.resolve_alarm_change_interval
+    original_evaluate = resolution_module.evaluate_held_models_for_alarm_interval_reuse
+
+    def recording_resolve(**arguments):
+        resolving.append(arguments)
+        try:
+            return original_resolve(**arguments)
+        finally:
+            resolving.pop()
+
+    def recording_evaluate(**arguments):
+        assessment = original_evaluate(**arguments)
+        context = resolving[-1]
+        selection = context["alarm_interval_assignment_selection"]
+        if selection is not None:
+            current_model_id = context[
+                "current_training_model_assignment"
+            ].current_training_model_id
+            current_model_has_baseline_by_selection_id[id(selection)] = any(
+                model_id == current_model_id
+                for model_id, _ in assessment.baseline_supported_interval_mean_losses_by_model_id
+            )
+        return assessment
+
+    monkeypatch.setattr(buffer_response_module, "resolve_alarm_change_interval", recording_resolve)
+    monkeypatch.setattr(
+        resolution_module, "evaluate_held_models_for_alarm_interval_reuse", recording_evaluate
+    )
     run = execute_fedsda_experiment_run(
         run_settings=build_small_settings(alarm_interval_assignment_policy=MDL)
     )
@@ -177,13 +210,89 @@ def test_minimum_description_length_selection_sets_the_change_interval_and_desti
             assert record.current_training_model_id == selection.destination_model_id
         elif selection.selected_hypothesis == "new_model":
             assert record.adaptation_outcome == "alarm_interval_candidate_adopted_as_new_model"
+        elif current_model_has_baseline_by_selection_id[id(selection)]:
+            assert record.adaptation_outcome == "alarm_interval_current_model_maintained"
         else:
-            assert record.adaptation_outcome in (
-                "alarm_interval_current_model_maintained",
-                "alarm_interval_candidate_adopted_as_new_model",
-            )
+            # 現在のモデルが履歴の基準を持たなければ、新しいモデルになる（研究ツールと同じ。Requirement 1.3）。
+            assert record.adaptation_outcome == "alarm_interval_candidate_adopted_as_new_model"
     assert raised > 0
     assert hypotheses, hypotheses
+
+
+def test_current_model_selection_without_baseline_adopts_a_new_model(monkeypatch):
+    """「現在のモデルのまま」を選んでも、現在のモデルが履歴の基準を持たなければ、新しいモデルになる。
+
+    研究ツールと同じ扱い（Requirement 1.3）。小さい条件ではこの場面が起きないことがあるので、「現在のモデルの
+    まま」を選んだ解決で、評価の結果の履歴の基準を持つモデルの列から現在のモデルを除いて、場面を作る。
+    """
+    from federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment import (
+        AlarmIntervalModelReuseAssessment,
+    )
+
+    forced = []
+    expected_adoption_count = 0
+    resolving = []
+    original_resolve = buffer_response_module.resolve_alarm_change_interval
+    original_evaluate = resolution_module.evaluate_held_models_for_alarm_interval_reuse
+
+    def recording_resolve(**arguments):
+        resolving.append(arguments)
+        try:
+            return original_resolve(**arguments)
+        finally:
+            resolving.pop()
+
+    def evaluate_without_current_model_baseline(**arguments):
+        assessment = original_evaluate(**arguments)
+        context = resolving[-1]
+        selection = context["alarm_interval_assignment_selection"]
+        nonlocal expected_adoption_count
+        if selection is None:
+            return assessment
+        if selection.selected_hypothesis != "current_model":
+            # 行き先が履歴の基準を持つモデルの列に無ければ（新しいモデルの選択を含む）、候補の採用になる。
+            expected_adoption_count += all(
+                model_id != selection.destination_model_id
+                for model_id, _ in assessment.baseline_supported_interval_mean_losses_by_model_id
+            )
+            return assessment
+        current_model_id = context["current_training_model_assignment"].current_training_model_id
+        forced.append(current_model_id)
+        expected_adoption_count += 1
+        without_current_model = tuple(
+            evaluated_model_loss
+            for evaluated_model_loss in assessment.baseline_supported_interval_mean_losses_by_model_id
+            if evaluated_model_loss[0] != current_model_id
+        )
+        return AlarmIntervalModelReuseAssessment(
+            baseline_supported_interval_mean_losses_by_model_id=without_current_model,
+            reusable_mean_losses_by_model_id=tuple(
+                evaluated_model_loss
+                for evaluated_model_loss in assessment.reusable_mean_losses_by_model_id
+                if evaluated_model_loss[0] != current_model_id
+            ),
+        )
+
+    monkeypatch.setattr(buffer_response_module, "resolve_alarm_change_interval", recording_resolve)
+    monkeypatch.setattr(
+        resolution_module,
+        "evaluate_held_models_for_alarm_interval_reuse",
+        evaluate_without_current_model_baseline,
+    )
+    run = execute_fedsda_experiment_run(
+        run_settings=build_small_settings(alarm_interval_assignment_policy=MDL)
+    )
+    assert forced
+    outcomes = [
+        record.adaptation_outcome
+        for client in run.measured_run.participants.client_operations
+        for record in client.owners.adaptation_record_store.get_state_snapshot().adaptation_records
+    ]
+    # 現在のモデルの維持は1回も起きず、作った場面の数だけ、新しいモデルの選択などに加えて候補の採用が起きる。
+    assert "alarm_interval_current_model_maintained" not in outcomes
+    assert (
+        outcomes.count("alarm_interval_candidate_adopted_as_new_model") == expected_adoption_count
+    )
 
 
 def test_default_and_configurations_use_minimum_description_length_except_candidate_validation():
