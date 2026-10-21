@@ -135,6 +135,10 @@ _VARIANTS["default-description-length-clustering"] = ("fedsda", False, None)
 _VARIANTS["default-lifetime-description-length-clustering"] = ("fedsda", False, None)
 # 同じく一生の予測的符号長で、「まとめる」と「別々に持つ」の2つの仮説の符号長を、件数で重み付けして比べる（IMPROVE-026の4）。
 _VARIANTS["default-pooled-lifetime-description-length-clustering"] = ("fedsda", False, None)
+# 統合で平均せずに代表のパラメータを保つ（今の判定のまま、符号長の判定の2つの形と組み合わせ。IMPROVE-026の5）。
+_VARIANTS["default-keep-representative-consolidation"] = ("fedsda", False, None)
+_VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
+_VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -1139,6 +1143,23 @@ def _uniform_mixture_held_model_code_length_policy(*, mixture_weight, events):
 
 
 @contextmanager
+def _keep_representative_consolidation_policy(*, events):
+    """サーバの統合で、メンバーのパラメータを平均せず、代表（クラスタの最小のID）のパラメータを保つ（研究用）。
+
+    メンバーの標本・計数・IDの付け替えは今と同じ（clientは、メンバーの標本を代表へ移す）。損失の統計の件数で
+    重み付けした平均も今と同じ。符号長の比較の仮説（代表が両方の標本を説明する）と統合の操作を合わせる。
+    """
+    import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
+
+    def keep_representative(*, model_cluster, parameter_snapshots_by_model_id, **_arguments):
+        events.append(dict(event="keep_representative_consolidation", cluster_size=len(model_cluster)))
+        return parameter_snapshots_by_model_id[min(model_cluster)], 0
+
+    with patch.object(consolidation_module, "_compute_sample_weighted_mean_parameters", keep_representative):
+        yield
+
+
+@contextmanager
 def _description_length_clustering_policy(*, optimizer_settings, learning_cost_source, events):
     """サーバのクラスタリングで、モデル対を、符号長の比較で同じ概念とみなす（研究用。実行の間だけ包む。IMPROVE-026）。
 
@@ -1474,9 +1495,17 @@ def _execute_job(job):
         if job["variant"] == "default-recalibrated-detector-baseline":
             stack.enter_context(_recalibrated_detector_baseline_policy(events=events))
         if job["variant"] in (
+            "default-keep-representative-consolidation",
+            "default-description-length-clustering-keep-representative",
+            "default-pooled-lifetime-description-length-clustering-keep-representative",
+        ):
+            stack.enter_context(_keep_representative_consolidation_policy(events=events))
+        if job["variant"] in (
             "default-description-length-clustering",
             "default-lifetime-description-length-clustering",
             "default-pooled-lifetime-description-length-clustering",
+            "default-description-length-clustering-keep-representative",
+            "default-pooled-lifetime-description-length-clustering-keep-representative",
         ):
             stack.enter_context(
                 _description_length_clustering_policy(
@@ -1485,6 +1514,8 @@ def _execute_job(job):
                         "default-description-length-clustering": "fresh_learner",
                         "default-lifetime-description-length-clustering": "lifetime_prequential",
                         "default-pooled-lifetime-description-length-clustering": "lifetime_prequential_pooled",
+                        "default-description-length-clustering-keep-representative": "fresh_learner",
+                        "default-pooled-lifetime-description-length-clustering-keep-representative": "lifetime_prequential_pooled",
                     }[job["variant"]],
                     events=events,
                 )
