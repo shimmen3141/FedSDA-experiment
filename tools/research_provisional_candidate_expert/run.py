@@ -128,6 +128,9 @@ _VARIANTS["default-recalibrated-detector-baseline"] = ("fedsda", False, None)
 # 基準版10の既定の上で、最小記述長の選択の保有モデルの符号長を、予測を一様分布と重み1/T（Fixed-Shareの時間尺度）で
 # 混ぜた値にする（見逃した再利用を減らす案。研究記録の設計の17）。
 _VARIANTS["default-uniform-mixture-held-model-code-length"] = ("fedsda", False, None)
+# 基準版10の既定の上で、サーバのクラスタリングの判定を、符号長の比較（どちらのモデルも、相手の標本を、新しく学ぶより
+# 短く説明できるか）にする（IMPROVE-026の2の規則MDL（両側））。
+_VARIANTS["default-description-length-clustering"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
     "default-fixed-epochs5": 5,
     "default-fixed-epochs10": 10,
@@ -1131,6 +1134,115 @@ def _uniform_mixture_held_model_code_length_policy(*, mixture_weight, events):
         yield
 
 
+@contextmanager
+def _description_length_clustering_policy(*, optimizer_settings, events):
+    """サーバのクラスタリングで、モデル対を、符号長の比較で同じ概念とみなす（研究用。実行の間だけ包む。IMPROVE-026）。
+
+    クロス評価で、配布したモデルXの、対象Yの標本での対数損失の和と、候補と対象が同じ評価では、その標本で概念
+    ごとの部分を初期化し直した学習者の予測的符号長（新しく学ぶ費用）を、clientが返すものとして集める。
+    ℓ(X|Y)をYの標本でのXの1標本あたりの対数損失、f(Y)をYの標本で新しく学ぶ1標本あたりの符号長として、対(A, B)の
+    判定の値を max(ℓ(A|B)−f(B), ℓ(B|A)−f(A)) ＋ 閾値 にする（average linkageの後に閾値と比べるので、「対の平均で、
+    どちらのモデルも、相手の標本を、新しく学ぶより短く説明できる」なら同じクラスタ）。判定の値を持つ対だけを置き換え、
+    集めた値が無い対は、今の判定の値のまま（その数をeventsへ記録する）。学習者の初期化の乱数は、runの乱数を消費しない。
+    """
+    import torch
+
+    import federated_learning_experiments.runtime.client_model_cross_evaluation as client_cross_module
+    import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
+    import federated_learning_experiments.runtime.model_cross_evaluation as cross_module
+    from federated_learning_experiments.learning.training.prequential_code_length import (
+        compute_new_model_prequential_code_length,
+    )
+
+    original_evaluate = client_cross_module.evaluate_classifier_per_sample_bounded_losses_and_outputs
+    original_make = cross_module._make_client_cross_evaluation_record
+    original_cluster = consolidation_module.cluster_model_ids_by_average_linkage
+    stash = {}
+    # (round, 候補, 対象) → [件数, 対数損失の和, 新しく学ぶ符号長の和, その件数]
+    sums = {}
+    state = {"round": None}
+
+    def evaluate(*, classifier, input_features, observed_class_labels):
+        losses, outputs = original_evaluate(
+            classifier=classifier, input_features=input_features, observed_class_labels=observed_class_labels
+        )
+        stash.update(
+            fresh=True,
+            count=int(losses.numel()),
+            log_loss_sum=float((-torch.log(torch.clamp(1.0 - losses, min=1e-12))).sum()),
+            classifier=classifier,
+            input_features=input_features,
+            observed_class_labels=observed_class_labels,
+        )
+        return losses, outputs
+
+    def make(*, round_index, client_id, candidate_model_id, target_model_id, client_cross_evaluation):
+        record = original_make(
+            round_index=round_index,
+            client_id=client_id,
+            candidate_model_id=candidate_model_id,
+            target_model_id=target_model_id,
+            client_cross_evaluation=client_cross_evaluation,
+        )
+        count = client_cross_evaluation.evaluated_sample_count
+        state["round"] = round_index
+        if count > 0:
+            if not stash.get("fresh") or stash["count"] != count:
+                raise RuntimeError("cross evaluation losses were not observed for this record")
+            stash["fresh"] = False
+            entry = sums.setdefault((round_index, candidate_model_id, target_model_id), [0, 0.0, 0.0, 0])
+            entry[0] += count
+            entry[1] += stash["log_loss_sum"]
+            if candidate_model_id == target_model_id:
+                text = f"{round_index}:{client_id}:{target_model_id}"
+                entry[2] += compute_new_model_prequential_code_length(
+                    template_classifier=stash["classifier"],
+                    input_features=stash["input_features"],
+                    observed_class_labels=stash["observed_class_labels"],
+                    parameter_optimizer_settings=optimizer_settings,
+                    initialization_seed=int.from_bytes(hashlib.sha256(text.encode()).digest()[:8], "big"),
+                )
+                entry[3] += count
+        return record
+
+    def cluster(*, model_ids, decision_scores_by_model_pair, maximum_same_cluster_decision_score):
+        round_index = state["round"]
+
+        def mean_loss(candidate, target):
+            entry = sums.get((round_index, candidate, target))
+            return entry[1] / entry[0] if entry and entry[0] else None
+
+        def learning_cost(target):
+            entry = sums.get((round_index, target, target))
+            return entry[2] / entry[3] if entry and entry[3] else None
+
+        replaced = {}
+        kept = 0
+        for (lower, higher), score in decision_scores_by_model_pair.items():
+            values = (mean_loss(lower, higher), learning_cost(higher), mean_loss(higher, lower), learning_cost(lower))
+            if any(v is None for v in values):
+                replaced[(lower, higher)] = score
+                kept += 1
+                continue
+            lower_on_higher, higher_cost, higher_on_lower, lower_cost = values
+            replaced[(lower, higher)] = (
+                max(lower_on_higher - higher_cost, higher_on_lower - lower_cost) + maximum_same_cluster_decision_score
+            )
+        events.append(dict(event="description_length_clustering", replaced=len(replaced) - kept, kept=kept))
+        return original_cluster(
+            model_ids=model_ids,
+            decision_scores_by_model_pair=replaced,
+            maximum_same_cluster_decision_score=maximum_same_cluster_decision_score,
+        )
+
+    with (
+        patch.object(client_cross_module, "evaluate_classifier_per_sample_bounded_losses_and_outputs", evaluate),
+        patch.object(cross_module, "_make_client_cross_evaluation_record", make),
+        patch.object(consolidation_module, "cluster_model_ids_by_average_linkage", cluster),
+    ):
+        yield
+
+
 def _table_row_count(tables, prefix):
     """記録の表の、その表名の最初の列の行数（表が無ければ0）。"""
     columns = sorted(name for name in tables if name.startswith(prefix))
@@ -1249,6 +1361,12 @@ def _execute_job(job):
             stack.enter_context(_frozen_candidate_backbone_policy(events=events))
         if job["variant"] == "default-recalibrated-detector-baseline":
             stack.enter_context(_recalibrated_detector_baseline_policy(events=events))
+        if job["variant"] == "default-description-length-clustering":
+            stack.enter_context(
+                _description_length_clustering_policy(
+                    optimizer_settings=client_settings.parameter_optimizer_settings, events=events
+                )
+            )
         if job["variant"] == "default-uniform-mixture-held-model-code-length":
             stack.enter_context(
                 _uniform_mixture_held_model_code_length_policy(
