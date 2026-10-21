@@ -685,6 +685,69 @@ def test_baseline_9_differs_from_8_only_where_consolidation_occurred(case_name):
         golden.assert_case_matches(name, current[section], previous[section], section)
 
 
+# 版10で、警報の後の選び方が今の扱い（検出器の推定と許容量）のままのケース: FedDrift・FedAvgと、候補検証の
+# 経路の4ケース（候補検証ありの構成）。
+_BASELINE_10_CASES_KEEPING_BASELINE_9 = (
+    *golden.CANDIDATE_VALIDATION_PATH_CASE_NAMES,
+    "feddrift",
+    "fedavg",
+    "feddrift-drift-tail",
+    "fedavg-no-complete-interval",
+)
+_ALARM_INTERVAL_ASSIGNMENT_COVERAGE_KEYS = (
+    "selected_current_model_count",
+    "selected_held_model_count",
+    "selected_new_model_count",
+)
+
+
+def test_baseline_10_keeps_cases_and_changes_only_the_alarm_interval_assignment_setting():
+    """版10のケースは版9と同じ。設定は、FedSDAのケースの警報の後の選び方だけが違う（候補検証ありの構成は今の扱い）。"""
+    assert 10 in golden.SUPPORTED_BASELINE_VERSIONS
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[10] == golden.CASE_NAMES_BY_BASELINE_VERSION[9]
+    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[9]:
+        previous = golden.comparable_run_settings(name, 9)
+        current = deepcopy(golden.comparable_run_settings(name, 10))
+        client_settings = current["run_participant_settings"].get("run_client_settings", {})
+        if "training_data_assignment_settings" in client_settings:
+            policy = client_settings["training_data_assignment_settings"].pop(
+                "alarm_interval_assignment_policy"
+            )
+            expected_policy = (
+                "detector_change_span_and_mean_loss_increase_tolerance"
+                if name in golden.CANDIDATE_VALIDATION_PATH_CASE_NAMES
+                else "minimum_description_length"
+            )
+            assert policy == expected_policy, name
+        golden.assert_case_matches(name, current, previous, "run_settings")
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("case_name", _BASELINE_10_CASES_KEEPING_BASELINE_9)
+def test_baseline_10_keeps_baseline_9_where_the_alarm_interval_assignment_is_unchanged(case_name):
+    """FedDrift・FedAvgと、候補検証ありの構成のケースは、版10でも、版9と同じ値。
+
+    版10で足した選択の記録の表と経路の記録の項目は、取り除いてから比べ、空（どれも0）であることを確かめる。
+    """
+    previous = capture_case_once(case_name, 9)[0]
+    current = deepcopy(capture_case_once(case_name, 10)[0])
+    selection_tables = {
+        name: snapshot
+        for name, snapshot in current["record_tables"].items()
+        if name.startswith(golden.ALARM_INTERVAL_ASSIGNMENT_SELECTION_TABLE_PREFIX)
+    }
+    if case_name.startswith("fedsda"):
+        assert selection_tables, case_name
+    assert all(snapshot["shape"][0] == 0 for snapshot in selection_tables.values()), case_name
+    for name in selection_tables:
+        del current["record_tables"][name]
+    for key in _ALARM_INTERVAL_ASSIGNMENT_COVERAGE_KEYS:
+        if key in current["coverage"]:
+            assert current["coverage"].pop(key) == 0, (case_name, key)
+    for section in ("run_metrics", "record_tables", "global_parameters", "coverage"):
+        golden.assert_case_matches(case_name, current[section], previous[section], section)
+
+
 @pytest.mark.parametrize(
     ("previous_version", "next_version", "case_name"),
     [

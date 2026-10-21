@@ -93,7 +93,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 BASELINE_VERSION = 9
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
@@ -331,6 +331,14 @@ CASE_NAMES_BY_BASELINE_VERSION = {
     ),
     # 版9は、統合で同じ共有部を平均せずに保つ扱い。ケースは版8と同じ。
     9: (
+        *_VERSION_1_CASE_NAMES,
+        "fedsda-sine2-reference-reuse",
+        "fedsda-sine2-alternative-reference-reuse",
+        "fedsda-sine2-adoption-without-validation",
+        "fedsda-mnist2-adoption-without-validation",
+    ),
+    # 版10は、警報の後の変化区間の長さと帰属先を最小記述長の原理で選ぶ扱い。ケースは版9と同じ。
+    10: (
         *_VERSION_1_CASE_NAMES,
         "fedsda-sine2-reference-reuse",
         "fedsda-sine2-alternative-reference-reuse",
@@ -825,6 +833,19 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
         coverage.update(
             adopted_candidate_count=run.run_metrics.change_response_metrics.adaptation_action_metrics.adopt_candidate_model_count
         )
+    if baseline_version >= 10 and type(run.run_settings) not in (
+        FedavgRunSettings,
+        FeddriftRunSettings,
+    ):
+        # 最小記述長の原理で選んだ仮説ごとの回数（選択の記録の表から。今の扱いの構成では、どれも0）。
+        selected_hypotheses = column(
+            "alarm_interval_assignment_selection.selected_hypothesis"
+        ).tolist()
+        coverage.update(
+            selected_current_model_count=selected_hypotheses.count("current_model"),
+            selected_held_model_count=selected_hypotheses.count("held_model"),
+            selected_new_model_count=selected_hypotheses.count("new_model"),
+        )
     if baseline_version >= 2:
         coverage.update(unregistered_adopted_model_count=count_unregistered_adopted_models(run))
     if baseline_version >= 3 and type(run.run_settings) not in (
@@ -909,6 +930,19 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
             assert coverage["merged_model_count"] > 0, case_name
             # 切替えが採用より多い（保有モデルの再利用の経路も通る）。
             assert coverage["training_model_switch_count"] > coverage["adopted_candidate_count"]
+        if baseline_version >= 10:
+            # 最小記述長の原理の選択が起きる。SINE2のケースでは、3種類（現在のモデルのまま、保有モデルへ、新しい
+            # モデルへ）が、それぞれ1回以上起きる。MNIST2のケースでは、保有モデルへの切り替わりが起きない
+            # （2026-10-21の実装の前の確認で0回）ので、3種類は求めない。
+            selection_keys = (
+                "selected_current_model_count",
+                "selected_held_model_count",
+                "selected_new_model_count",
+            )
+            assert sum(coverage[key] for key in selection_keys) > 0, case_name
+            if case_name == "fedsda-sine2-adoption-without-validation":
+                for key in selection_keys:
+                    assert coverage[key] > 0, f"{case_name}: required {key}"
     if case_name == "feddrift-drift-tail":
         assert coverage["detection_count"] > 0 and coverage["registered_model_count"] > 1, coverage
         assert coverage["processed_sample_count_per_client"] == 16, coverage
