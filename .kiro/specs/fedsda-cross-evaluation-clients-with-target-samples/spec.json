@@ -1,0 +1,65 @@
+{
+  "feature_name": "fedsda-cross-evaluation-clients-with-target-samples",
+  "created_at": "2026-10-22T22:06:54Z",
+  "updated_at": "2026-10-23",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー4回目PASS（GPT-6 Luna medium）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー4回目PASS（GPT-6 Luna medium）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー4回目PASS（GPT-6 Luna medium）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー4回目PASS（GPT-6 Luna medium）"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "ca2c1210",
+  "specification_review": {
+    "status": "passed",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（ログで確認）",
+        "session_id": "01a165a9-99c0-7011-9c98-da488f58bfdc",
+        "result": "CHANGES REQUIRED（Major 3、Minor 3、任意 1）。全部反映"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（ログで確認）",
+        "session_id": "01a165ac-1f4f-74f3-bc8d-19cf16ad3d1e",
+        "result": "CHANGES REQUIRED（Major 3、Minor 2）。全部反映"
+      },
+      {
+        "round": 3,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（ログで確認）",
+        "session_id": "01a165ad-c480-7ec2-85a5-36f96ac71874",
+        "result": "CHANGES REQUIRED（Major 1: 研究ツールとの候補の条件の等価性の照合）。反映"
+      },
+      {
+        "round": 4,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（ログで確認）",
+        "session_id": "01a165ae-f3bf-7ea2-86ad-7e68be49b11a",
+        "result": "PASS"
+      }
+    ]
+  },
+  "implementation_assignment": "ユーザー指示（2026-10-23）により、実装はGPT-6.1-sol（codex exec）。主担当（Claude）は最後に意図どおりかを確認する"
+}
