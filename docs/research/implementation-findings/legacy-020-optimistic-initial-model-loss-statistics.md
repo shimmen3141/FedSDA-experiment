@@ -1,7 +1,7 @@
 # LEGACY-020: 初期モデルの損失の統計が、学習に使った標本で取られ、最初の概念の間に誤警報を生む
 
 - 発見日: 2026-10-21。対象: `src/federated_learning_experiments/runtime/initial_model_pretraining.py`の`pretrain_initial_model`（旧の事前学習と同じ扱いを移植したもの）。発見の経緯: 基準版10（最小記述長の選択）で、MNISTの警報が約2倍に増えた原因の調査（[設計の14](../fedsda-unified-concept-assignment-inference.md)）。
-- 種別: 旧から引き継いだ扱いの不具合に近い事項（初期モデルだけで起きる）。状態: 検証中（2026-10-21、ユーザーの指示で手元の比較を始めた。下の「手元の比較」）。
+- 種別: 旧から引き継いだ扱いの不具合に近い事項（初期モデルだけで起きる）。状態: 対応済み（2026-10-22、基準版11。初期モデルの統計を事前学習の標本の5分割交差検証で作る扱いを既定にした。[spec](../../../.kiro/specs/fedsda-warm-started-learner-and-cross-validated-initial-statistics/design.md)。経緯は下の各節と[NEW-006](new-006-minimum-description-length-keeps-partially-changed-concept-in-current-model.md)の組み合わせの節）。
 
 ## 内容
 

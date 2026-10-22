@@ -16,7 +16,8 @@
 | 保持モデルを学習 | joint学習・平均勾配 | 概念別ストアの損失から共有部と概念固有部を更新する | [ローカル学習](../components/shared-backbone.md#ローカル学習方式) |
 | ラベル観測前に予測 | Switching SoftRouting | Fixed-Shareで優勢モデルの変化を追跡し、予測を混合する | [SoftRouting](../components/soft-routing.md) |
 | 集約で変わったモデルへroutingを追従 | FIFO replay | 集約後のモデルでFIFO標本を再評価し、routingの損失情報を再較正する | [再較正](../components/shared-backbone.md#集約後のルーティング再較正) |
-| 警報の後の変化点と帰属先を選ぶ | 最小記述長（MDL）の原理による選択（2026-10-21から） | 警報の時点はClassESRに任せ、FIFOの標本列を「現在のモデルのまま」「変化点τで別の保持モデルへ」「変化点τで新しいモデルへ」の仮説の符号長（対数損失の和＋切り替わりの符号長）で比べ、最短の仮説の変化点と帰属先を使う。再利用の判定に固定の閾値を使わない | [モデル再利用](../components/model-reuse.md#最小記述長の原理による選択既定) |
+| 検出器の基準を作る | 初期モデルの損失の統計の5分割交差検証（2026-10-22から） | 初期モデルの損失の統計（検出器の基準平均）を、事前学習の標本の5分割交差検証で、各標本を学習に使っていないモデルで測った損失から作る。学習に使った標本で測る統計は楽観的で、運用の最初に誤警報が多かった | [ドリフト検出](../components/drift-detection.md#fedsda実装での基準平均) |
+| 警報の後の変化点と帰属先を選ぶ | 最小記述長（MDL）の原理による選択（2026-10-21から） | 警報の時点はClassESRに任せ、FIFOの標本列を「現在のモデルのまま」「変化点τで別の保持モデルへ」「変化点τで新しいモデルへ」の仮説の符号長（対数損失の和＋切り替わりの符号長）で比べ、最短の仮説の変化点と帰属先を使う。再利用の判定に固定の閾値を使わない。「新しいモデル」の仮説は、概念固有部を初期化し直した学習者と、現在のモデルから学習を始める（warm start）学習者の予測的符号長の短い方＋ln 2で測る（2026-10-22から。一部のクラスだけが変わる概念も、全体が変わる概念も見分ける） | [モデル再利用](../components/model-reuse.md#最小記述長の原理による選択既定) |
 | 再来した概念へ対応 | 選んだ保持モデルを再利用 | 上の選択が保持モデルを選べば、新規モデル作成を回避する | [モデル再利用](../components/model-reuse.md) |
 | 新しい概念へ対応 | 即時採用＋候補の共有部の固定（2026-10-20から） | 上の選択が新しいモデルを選べば、警報の区間で候補の概念固有部（adapterと出力層）だけを学習し、検証せずにその場で採用する。共有部を固定するので、採用が既存モデルの入力を書き換えない | [新規モデル作成](../components/new-model-creation.md)（2026-10-19までは`forward_persistent`） |
 | モデル群を整理 | class-functional confidence、average linkage、通常merge | クラス別の機能的評価で統合候補を作り、モデルを統合する | [統合処理](../components/model-consolidation.md) |
@@ -31,6 +32,8 @@
 2026-10-20のユーザー判断により、候補を検証せずにその場で採用し、候補の学習では共有部を固定する構成を既定にした（基準版7）。根拠は[研究記録](../research/fedsda-provisional-candidate-expert-20261019.md)の最後の2節と[対象spec](../../.kiro/specs/fedsda-default-adoption-with-fixed-candidate-shared-features/design.md)。それまでの候補検証（`forward_persistent`）は、構成`fedsda-with-candidate-validation`として選べる。
 
 2026-10-21のユーザー判断により、警報の後の変化点と帰属先を、最小記述長の原理で選ぶ扱い（`alarm_interval_assignment_policy=minimum_description_length`）を既定にした（基準版10）。根拠は[研究記録](../research/fedsda-unified-concept-assignment-inference.md)と[IMPROVE-021](../research/improvement-candidates/improve-021-statistical-test-for-held-model-reuse.md)、[対象spec](../../.kiro/specs/fedsda-minimum-description-length-alarm-interval-assignment/design.md)。それまでの扱い（検出器の推定の変化区間と、平均損失の増加の許容量γによる再利用の判定。`detector_change_span_and_mean_loss_increase_tolerance`）は、構成`fedsda-with-candidate-validation`が使う（候補検証との組合せは未検証なので、新しい扱いとは組み合わせられない）。
+
+2026-10-22のユーザー判断により、2つの扱いを既定にした（基準版11）。(1) 警報の後の「新しいモデル」の仮説の符号長を、初期化し直した学習者とwarm startの学習者の予測的符号長の短い方＋ln 2にする（`new_model_hypothesis_learners=reinitialized_and_warm_started_learners`。[NEW-006](../research/implementation-findings/new-006-minimum-description-length-keeps-partially-changed-concept-in-current-model.md)）。(2) 初期モデルの損失の統計を、事前学習の標本の5分割交差検証で作る（`initial_model_loss_statistics_estimation=five_fold_cross_validation`。[LEGACY-020](../research/implementation-findings/legacy-020-optimistic-initial-model-loss-statistics.md)）。根拠は2つの記録と[対象spec](../../.kiro/specs/fedsda-warm-started-learner-and-cross-validated-initial-statistics/design.md)。本規模（10 seed、MNIST4は20 seed）で、MNIST4は4間隔とも既定より高く（+0.15〜+0.79pp）、MNISTの警報は約3分の1になった。SEA4（−0.05〜−0.25pp）とSINE2（間隔100・200で約−0.1pp）の小さい低下は受け入れた。構成`fedsda-with-candidate-validation`は、どちらも基準版10までの扱い（`reinitialized_learner`、`resubstitution`）を使う。
 
 旧実装との対応に使うmode名は`FedSDA_NoCached_ResidualAdapter_ClassESR_RestartingSoftRouting`である。
 mode名の`RestartingSoftRouting`だけでは予測方式を一意に定められないため、文脈`switching`まで含めて指定する。
@@ -49,6 +52,8 @@ mode名の`RestartingSoftRouting`だけでは予測方式を一意に定めら�
 | 予測に使うパラメータ（新実装） | `mixture_of_synchronized_and_local_parameters` |
 | Fixed-Shareの時間尺度（新実装） | T=120。モデル別重みと同期・局所間の混合の分け合いに共通して1/Tを用いる |
 | 警報の後の変化点と帰属先（新実装） | `minimum_description_length`。切り替わりの確率は予測のFixed-Shareと同じ1/T、変化点τの刻みは最小変化区間の5標本。新しい数値の設定は無い |
+| 「新しいモデル」の仮説の学習者（新実装） | `reinitialized_and_warm_started_learners`（初期化し直した学習者とwarm startの学習者の短い方＋ln 2） |
+| 初期モデルの損失の統計（新実装） | `five_fold_cross_validation`（事前学習の標本の5分割交差検証。初期モデルそのものは全部の標本で学習する） |
 | 適合・統合判定の設定値 | γ=0.1（既定では、警報の後の再利用の判定には使わない。サーバのクラスタリングの閾値と、`fedsda-with-candidate-validation`の適合判定に残る） |
 | クラスタリング判定・linkage | `class_functional_confidence`・`average` |
 | クラスタリング実行方針 | `on_new_model` |

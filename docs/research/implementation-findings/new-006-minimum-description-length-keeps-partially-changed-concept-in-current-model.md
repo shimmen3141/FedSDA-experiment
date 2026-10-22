@@ -1,7 +1,7 @@
 # NEW-006: 最小記述長の選択が、一部のクラスだけが変わる新しい概念を、現在のモデルに取り込み続ける
 
 - 発見日: 2026-10-22。対象: 基準版10の既定の、警報の後の変化点と帰属先の選択（`runtime/alarm_interval_minimum_description_length_selection.py`の`select_alarm_interval_assignment`、新しいモデルの予測的符号長は`learning/training/prequential_code_length.py`）。発見の経緯: MNIST4で、特定のseedに−4pp前後の精度の低下が散発する原因の調査（ユーザーの指示）。
-- 種別: 基準版10で入った選択の弱点（精度の低下を起こす）。状態: 未対応（2026-10-22に記録）。
+- 種別: 基準版10で入った選択の弱点（精度の低下を起こす）。状態: 対応済み（2026-10-22、基準版11。「新しいモデル」の仮説を、初期化し直した学習者とwarm startの学習者——下の「写しの学習者」——の短い方＋ln 2で測る扱いを、初期モデルの統計の交差検証（LEGACY-020）と一緒に既定にした。[spec](../../../.kiro/specs/fedsda-warm-started-learner-and-cross-validated-initial-statistics/design.md)）。
 
 ## 内容
 

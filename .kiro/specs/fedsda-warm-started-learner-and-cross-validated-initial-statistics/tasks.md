@@ -27,13 +27,13 @@
   - 完了条件: 構成のtestが通り、基準版1〜10と実旧との照合が値を変えずに通る。研究ツールの`default`の値が、替える前と同じ。
   - _Requirements: 3.1, 6.2_
 
-- [ ] 5. 基準版11を足す
+- [x] 5. 基準版11を足す
   - 実装の前の確認: 新しい既定の大きい条件の2ケースで、warm startの学習者が短かった「新しいモデル」の選択が1回以上起きるかを確かめる（起きなければ、ケースの選び直しを決める）。→ 起きなかったので、MNIST4のケースを足す（設計の「基準版」）。
   - 版11の定義、版10→11の差の説明のtest、必須の経路を足し、commitしてから、Windowsの基準環境とWSLでgoldenを生成して足し、現在の版を11へ上げる。
   - 完了条件: 版1〜11の照合と、版10→11の差の説明のtestが、WindowsとWSLで通る。
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 6. 文書を合わせる
+- [x] 6. 文書を合わせる
   - 手法の説明、基準（版11）、実験の入口、研究記録（NEW-006・LEGACY-020の状態）、再開案内。
   - 完了条件: 文書が2つの新しい扱いを説明する。
   - _Requirements: 7.1_
@@ -59,3 +59,6 @@
 - 仕様の変更（2026-10-22、Task 5の実装の前の確認）: 既存の大きい条件の2ケースでは、warm startの学習者が短い選択が起きなかった（SINE2は全部が初期化し直した学習者、MNIST2は選択が0回）。版11に、MNIST4のケース`fedsda-mnist4-warm-started-learner`を足し、そこで3種類の選択と2つの学習者を必須の経路にし、MNIST2のケースの選択1回以上は版10までに限ることにした（要求5.1・5.3、設計の「基準版」）。変更部分の仕様の再確認を受ける。
 - 仕様レビュー5回目（MNIST4のケースを足す変更、Luna high、session `01a162f1-1d3b-7241-b8b4-0206aa03ed48`）: CHANGES REQUIRED（中2件: 版10→11の比べ方を共通の21ケースに限ること、SINE2の3種類の選択を要求5.3にも書くこと。低1件: MNIST4のケースの条件の一意性）。要求5.2・5.3と設計を直した。6回目（session `01a162f3-4683-7b53-9d98-5447b8a6d94d`）: PASS。
 - 仕様の変更（6回目の後、Task 5の実装中）: 版11の確認で、MNIST2のケースは警報・採用・切替え・再較正がどれも0回だったので、このケースの採用の経路も版10までに限り、版11ではMNIST4のケースが守ることにした（要求5.3、設計の「基準版」）。MNIST4のケースは、採用3・切替え6・統合2・再較正902標本・3種類の選択7・3・3回・2つの学習者1・2回（Windows）。変更部分の仕様の再確認は、goldenの生成と並行して受ける。
+- 仕様の変更部分と、その実装の再確認（Luna high、session `01a162fb-7537-7551-aa8e-d9e8cca309ff`）: PASS（静的な確認。testは実行していない）。
+- Task 5: 版11の定義（ケース22。MNIST4のケースを足した）、版10→11の差の説明のtest（共通の21ケースの設定、FedDrift・FedAvgと候補検証の経路の4ケースの値）、必須の経路（MNIST4のケースの採用の経路・3種類の選択・2つの学習者、SINE2のケースの3種類の選択。MNIST2のケースの採用の経路と選択は版10まで）、並列の実行での配り方（MNIST4のケースを1ケース1組）を、commit `67d0ed2`に置いた。そのcommitで、Windowsの基準環境（Python 3.13.15）とWSL（Ubuntu、Python 3.14.4）で、各2回の独立したprocessの一致と必須の経路を確かめてgoldenを生成し（`../../venv/refactoring-tests/warm-start-cv-golden-v11-windows.json`、`warm-start-cv-golden-v11-wsl.json`）、`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`を11へ上げた。合成のgoldenで現在の版の構造を確かめるtest（5件）が、版11の経路の項目とMNIST4のケースの採用の経路を持たないために失敗したので、合成のgoldenに2つの回数を足し、MNIST4のケースを採用の経路のケースと同じ値にした。照合（goldenの版1〜11、このspecのtest、来歴のtest）: Windows 547件のうち、合成のgoldenの5件が失敗（直す前のコード。`../../venv/refactoring-tests/warm-start-cv-golden-windows.xml`）、直した後に合成のgoldenのtest 15件が成功。WSL 547件のうち同じ5件が失敗（`warm-start-cv-golden-wsl.xml`。実goldenの照合は全部成功）、直した後に合成のgoldenのtest 15件が成功。全体の取り直しはTask 7の全pytestで行う。
+- Task 6: 手法の説明（`docs/overview/proposed-method.md`。検出器の基準の行、新しいモデルの仮説、2026-10-22の段落、固定設定の2行）、再利用の説明（`docs/components/model-reuse.md`）、検出器の基準（`docs/components/drift-detection.md`）、基準（`docs/experiments/refactoring-baseline.md`の版11と版10→11の説明）、実験の入口（`docs/experiments/experiment-sweep.md`。候補検証ありの構成の違いは3つ→5つ、研究ツールの基点の固定）、研究記録（LEGACY-020・NEW-006の状態と一覧）、再開案内を合わせた。

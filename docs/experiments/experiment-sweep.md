@@ -159,7 +159,9 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 
 2026-10-21に、帰属の設定へ、警報の後の変化点と帰属先の選び方（`alarm_interval_assignment_policy`）を足し、既定を、最小記述長の原理で選ぶ扱い（`minimum_description_length`）にした（基準版10。[説明](../components/model-reuse.md#最小記述長の原理による選択既定)）。それより前のFedSDAの結果とは、runの識別子が一致しない。`fedsda-with-candidate-validation`は今の扱いを明示するので、値は前と同じだが、識別子は変わる。
 
-提案構成以外の構成は、提案構成の、1つの要素だけを変える（`fedsda-with-candidate-validation`だけは、組合せの制約のため3つ）。2026-10-20に候補の学習の設定へ項目（`candidate_shared_feature_update_policy`）を足したので、それより前のFedSDAの結果とは、runの識別子が一致しない。小さい条件（sine2）で、旧実装の、同じ指定の全体runと、指標と離散列が一致することを確かめている。
+2026-10-22に、帰属の設定へ「新しいモデル」の仮説の学習者の組（`new_model_hypothesis_learners`）を、参加者の設定へ初期モデルの損失の統計の推定の仕方（`initial_model_loss_statistics_estimation`）を足し、既定を`reinitialized_and_warm_started_learners`と`five_fold_cross_validation`にした（基準版11。[説明](../components/model-reuse.md#最小記述長の原理による選択既定)、[検出器の基準](../components/drift-detection.md#fedsda実装での基準平均)）。それより前のFedSDAの結果とは、runの識別子が一致しない。`fedsda-with-candidate-validation`は基準版10までの扱いを明示するので、値は前と同じだが、識別子は変わる。研究ツール（`tools/research_provisional_candidate_expert/run.py`）の変種は、基準版10の既定を基点に評価してきたので、`product-default`以外の変種は、この2つの項目を基準版10の値に戻してから差し替える（既定を変える前と同じ値になることを確かめた）。
+
+提案構成以外の構成は、提案構成の、1つの要素だけを変える（`fedsda-with-candidate-validation`だけは、組合せの制約のため5つ）。2026-10-20に候補の学習の設定へ項目（`candidate_shared_feature_update_policy`）を足したので、それより前のFedSDAの結果とは、runの識別子が一致しない。小さい条件（sine2）で、旧実装の、同じ指定の全体runと、指標と離散列が一致することを確かめている。
 
 `fedsda-single-model-prediction`では、標本ごとに、現在のモデルだけを評価する。記録の、重みに関する項目（最大重みのモデル、実効モデル数、Fixed-Share・AdaHedgeの重みでの結合の正否ほか）は、「現在のモデルに重み1」の値になり、「どれかのモデルが正解」「確信度が最大のモデルが正解」も、現在のモデルの正否と同じになる。予測の内訳の指標を、ほかの構成と比べるときは、この違いに注意する。保有モデル×標本の延べ数（`held_model_sample_count`）は、どの構成でも、標本ごとの保有モデル数の合計で、この構成では、評価したモデルの数（標本ごとに1）より大きい。「保有モデル×標本あたり」の計算量は、その分、小さく出る。
 

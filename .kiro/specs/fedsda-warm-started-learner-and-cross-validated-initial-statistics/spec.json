@@ -72,6 +72,13 @@
         "reasoning_effort": "high（ログで確認）",
         "session_id": "01a162f3-4683-7b53-9d98-5447b8a6d94d",
         "result": "PASS（5回目の指摘の解消）"
+      },
+      {
+        "round": 7,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a162fb-7537-7551-aa8e-d9e8cca309ff",
+        "result": "PASS（採用の経路をMNIST4のケースへ移す変更と、その実装——必須の経路・MNIST4のケースの組立て・版10→11の差の説明——の静的な確認）"
       }
     ],
     "base_revision": "102f9be（未commitのspec文書）"

@@ -143,6 +143,8 @@ def structural_document():
                     selected_current_model_count=1,
                     selected_held_model_count=1,
                     selected_new_model_count=1,
+                    selected_reinitialized_learner_count=1,
+                    selected_warm_started_learner_count=1,
                 )
                 if "run_client_settings" in cases_run_settings["run_participant_settings"]
                 and "pending_model_registration_settings"
@@ -150,7 +152,10 @@ def structural_document():
                 else {}
             ),
         )
-        if name in golden.ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES:
+        if name in (
+            *golden.ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES,
+            golden.WARM_STARTED_LEARNER_PATH_CASE_NAME,
+        ):
             # 新しい既定のケースは、検証の判定が無く、切替えが採用より多い。
             cases[name]["coverage"].update(
                 candidate_accepted_count=0,
