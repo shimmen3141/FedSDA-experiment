@@ -176,12 +176,16 @@ _SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS = (
     "default-sample-holding-cross-evaluation",
     "default-sample-holding-cross-evaluation-deferred-1-round",
     "default-sample-holding-cross-evaluation-deferred-500-samples",
+    "product-default-sample-holding-cross-evaluation",
 )
 _VARIANTS["default-sample-holding-cross-evaluation"] = ("fedsda", False, None)
 for _variant_name in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 製品の既定（基準版11以降）を、そのまま使う変種。ほかの変種は、基準版10の既定を基点にする（`_execute_job`）。
 _VARIANTS["product-default"] = ("fedsda", False, None)
+# 製品の既定（基準版11以降）の上で、クロス評価で評価させるclientを、対象の標本を返せるclientに限る（IMPROVE-028）。
+_PRODUCT_DEFAULT_BASED_VARIANTS = ("product-default", "product-default-sample-holding-cross-evaluation")
+_VARIANTS["product-default-sample-holding-cross-evaluation"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1948,7 +1952,7 @@ def _execute_job(job):
     settings = build_experiment_run_settings(
         configuration_name=configuration_name, experiment_run_conditions=conditions
     )
-    if job["variant"] != "product-default":
+    if job["variant"] not in _PRODUCT_DEFAULT_BASED_VARIANTS:
         # 研究ツールの変種は、基準版10の既定を基点として評価してきた。基準版11で既定に足した2つの扱い（warm start
         # の学習者、初期モデルの統計の交差検証）を戻してから、各変種の差し替えを行う（変種が同じ扱いを重ねて
         # 行わないため）。
