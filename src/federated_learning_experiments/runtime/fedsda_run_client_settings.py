@@ -41,6 +41,7 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.predic
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
+    REINITIALIZED_LEARNER_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
 
@@ -283,6 +284,21 @@ class FedsdaRunClientSettings:
                     "警報を待つ扱いでは、帰属保留FIFO容量を、変化区間の最小件数以上にしてください。"
                     f"pending_assignment_buffer_capacity_samples={pending_capacity!r}、"
                     f"minimum_change_interval_sample_count={minimum_change_interval!r}。"
+                ),
+            )
+        # warm startの学習者は、最小記述長の選択だけが使う。ほかの選び方との組合せは意味がない。
+        if (
+            self.training_data_assignment_settings.alarm_interval_assignment_policy
+            != MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME
+            and self.training_data_assignment_settings.new_model_hypothesis_learners
+            != REINITIALIZED_LEARNER_POLICY_NAME
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="new_model_hypothesis_learners",
+                specified_parameter_value=self.training_data_assignment_settings.new_model_hypothesis_learners,
+                validation_failure_reason=(
+                    "「新しいモデル」の仮説の学習者の組は、最小記述長の原理で警報の後の変化区間と帰属先を選ぶ"
+                    "扱いだけが使います（ほかの選び方では、初期化し直した学習者だけを指定してください）。"
                 ),
             )
         # 最小記述長の原理で選ぶ扱いは、候補検証と組み合わせて確かめていない。

@@ -277,6 +277,7 @@ def build_sample_processing_oracle(
         short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         client_id=0,
         alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+        new_model_hypothesis_learners="reinitialized_learner",
         switching_probability=1.0 / 120,
         batch_sample_count=BATCH_SAMPLE_COUNT,
         local_training_settings=LocalTrainingSettings(

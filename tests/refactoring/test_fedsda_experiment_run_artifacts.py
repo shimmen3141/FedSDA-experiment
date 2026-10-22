@@ -112,6 +112,7 @@ EXPECTED_TABLE_COLUMNS = {
         destination_model_id="i",
         description_length="f",
         alarm_raised="b",
+        new_model_learner_name="U",
     ),
     "sample_loss_monitoring": dict(monitored_log_e_value="f"),
     "adaptation": dict(

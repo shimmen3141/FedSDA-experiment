@@ -31,14 +31,20 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
 )
 from federated_learning_experiments.learning.training.prequential_code_length import (
     compute_reinitialized_learner_prequential_code_length,
+    compute_warm_started_learner_prequential_code_length,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
     REINITIALIZED_LEARNER_NAME,
+    WARM_STARTED_LEARNER_NAME,
     MinimumDescriptionLengthAssignmentSelection,
     NewModelLearnerSelection,
     compute_switching_code_length,
     select_assignment_by_minimum_description_length,
     select_new_model_learner,
+)
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+    REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME,
+    validate_new_model_hypothesis_learners,
 )
 
 
@@ -79,13 +85,19 @@ def select_alarm_interval_assignment(
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
     switching_probability: float,
     change_interval_grid_sample_count: int,
+    new_model_hypothesis_learners: str,
 ) -> MinimumDescriptionLengthAssignmentSelection:
     """帰属の保留の標本（警報の標本を最後に含む、古い順）の列で、最小記述長の原理で選ぶ。
 
     行き先は、損失の統計を持つ、現在のモデル以外の保有モデル（保有の順）と、新しいモデル。新しいモデルの
-    予測的符号長は、刻みの倍数の変化区間の長さごとに、列の末尾の標本で計算する。
+    予測的符号長は、刻みの倍数の変化区間の長さごとに、列の末尾の標本で計算する。学習者の組が
+    `reinitialized_and_warm_started_learners`なら、初期化し直した学習者の後に、warm startの学習者でも計算し、
+    短い方＋ln 2を使う（`select_new_model_learner`）。
     """
     _validate_nonnegative_int(value=client_id, value_name="client_id")
+    validate_new_model_hypothesis_learners(
+        new_model_hypothesis_learners=new_model_hypothesis_learners
+    )
     if type(pending_sample_observations) is not tuple or not pending_sample_observations:
         raise ValueError("pending_sample_observations must be a nonempty builtin tuple")
     for observation in pending_sample_observations:
@@ -152,10 +164,27 @@ def select_alarm_interval_assignment(
                 change_interval_sample_count=change_interval_sample_count,
             ),
         )
-        new_model_learner_selections[change_interval_sample_count] = select_new_model_learner(
-            prequential_code_lengths_by_learner_name=(
-                (REINITIALIZED_LEARNER_NAME, reinitialized_learner_code_length),
+        learner_code_lengths: tuple[tuple[str, float], ...] = (
+            (REINITIALIZED_LEARNER_NAME, reinitialized_learner_code_length),
+        )
+        if new_model_hypothesis_learners == REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME:
+            learner_code_lengths += (
+                (
+                    WARM_STARTED_LEARNER_NAME,
+                    compute_warm_started_learner_prequential_code_length(
+                        template_classifier=template_classifier,
+                        input_features=input_features[
+                            sequence_length - change_interval_sample_count :
+                        ],
+                        observed_class_labels=observed_class_labels[
+                            sequence_length - change_interval_sample_count :
+                        ],
+                        parameter_optimizer_settings=parameter_optimizer_settings,
+                    ),
+                ),
             )
+        new_model_learner_selections[change_interval_sample_count] = select_new_model_learner(
+            prequential_code_lengths_by_learner_name=learner_code_lengths
         )
     return select_assignment_by_minimum_description_length(
         current_model_log_losses=log_losses_by_model_id[current_model_id],

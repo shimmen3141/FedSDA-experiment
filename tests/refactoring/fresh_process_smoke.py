@@ -415,6 +415,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+            new_model_hypothesis_learners="reinitialized_learner",
             pending_assignment_buffer_capacity_samples=10,
         )
     )
@@ -806,6 +807,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
         short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         client_id=0,
         alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+        new_model_hypothesis_learners="reinitialized_learner",
         switching_probability=1.0 / 120,
     )
     record_count_before_processing = len(state_snapshot.adaptation_records)
@@ -1145,6 +1147,7 @@ def run_assembled_client_flow(*, class_count):
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+            new_model_hypothesis_learners="reinitialized_learner",
             pending_assignment_buffer_capacity_samples=pending_capacity,
         ),
         candidate_model_training_and_acceptance_settings=CandidateModelTrainingAndAcceptanceSettings(
@@ -1420,6 +1423,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
         maximum_evaluating_client_count_per_model=WHOLE_RUN_CLIENT_COUNT,
         cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
         consolidated_shared_feature_policy="average_shared_features_with_concept_specific_parts",
+        initial_model_loss_statistics_estimation="resubstitution",
     )
     torch_random_state = torch.get_rng_state().clone()
     # モデルの計算の計測つきで実行する（計測は、この呼出しの間だけ）。

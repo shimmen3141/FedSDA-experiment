@@ -407,6 +407,7 @@ def test_selection_combines_the_model_losses_and_prequential_code_lengths(sequen
             parameter_optimizer_settings=OPTIMIZER_SETTINGS,
             switching_probability=1 / 120,
             change_interval_grid_sample_count=5,
+            new_model_hypothesis_learners="reinitialized_learner",
         )
     finally:
         selection_module.compute_reinitialized_learner_prequential_code_length = original
@@ -474,4 +475,106 @@ def test_selection_rejects_an_alarm_index_that_is_not_the_last_pending_sample():
             parameter_optimizer_settings=OPTIMIZER_SETTINGS,
             switching_probability=1 / 120,
             change_interval_grid_sample_count=5,
+            new_model_hypothesis_learners="reinitialized_learner",
         )
+
+
+@pytest.mark.parametrize("sequence_length", (5, 12))
+def test_selection_uses_the_shorter_learner_with_the_learner_selection_code_length(sequence_length):
+    """2つの学習者の組では、変化区間の長さごとに、初期化し直した学習者→warm startの学習者の順に計算し、
+    短い方＋ln 2を「新しいモデル」の符号長にする。"""
+    class_count = 4
+    registry = _registry(class_count=class_count, model_ids=(4, 9))
+    loss_store = ModelAndClassLossStatisticsStore()
+    for model_id in (4, 9):
+        loss_store.record_assigned_loss(model_id=model_id, observed_loss=0.3, observed_class_id=1)
+    assignment = CurrentTrainingModelAssignment(initial_model_id=9)
+    observations = _observations(count=sequence_length, class_count=class_count, seed=5)
+    order = []
+    original_reinitialized = selection_module.compute_reinitialized_learner_prequential_code_length
+    original_warm_started = selection_module.compute_warm_started_learner_prequential_code_length
+
+    def recording_reinitialized(**arguments):
+        order.append(("reinitialized", arguments["input_features"].shape[0]))
+        return original_reinitialized(**arguments)
+
+    def recording_warm_started(**arguments):
+        order.append(("warm_started", arguments["input_features"].shape[0]))
+        return original_warm_started(**arguments)
+
+    selection_module.compute_reinitialized_learner_prequential_code_length = recording_reinitialized
+    selection_module.compute_warm_started_learner_prequential_code_length = recording_warm_started
+    try:
+        selection = select_alarm_interval_assignment(
+            client_id=1,
+            alarm_sample_index=observations[-1].sample_index,
+            pending_sample_observations=observations,
+            held_model_training_state_registry=registry,
+            loss_statistics_store=loss_store,
+            current_training_model_assignment=assignment,
+            parameter_optimizer_settings=OPTIMIZER_SETTINGS,
+            switching_probability=1 / 120,
+            change_interval_grid_sample_count=5,
+            new_model_hypothesis_learners="reinitialized_and_warm_started_learners",
+        )
+    finally:
+        selection_module.compute_reinitialized_learner_prequential_code_length = (
+            original_reinitialized
+        )
+        selection_module.compute_warm_started_learner_prequential_code_length = (
+            original_warm_started
+        )
+    spans = tuple(range(5, sequence_length + 1, 5))
+    assert order == [(kind, span) for span in spans for kind in ("reinitialized", "warm_started")]
+    features = torch.cat([o.training_sample.input_features for o in observations])
+    labels = torch.cat([o.training_sample.observed_class_labels for o in observations])
+    template = registry.get_held_model_training_state(model_id=9).classifier
+    learner_selections = {}
+    for span in spans:
+        reinitialized = compute_reinitialized_learner_prequential_code_length(
+            template_classifier=template,
+            input_features=features[sequence_length - span :],
+            observed_class_labels=labels[sequence_length - span :],
+            parameter_optimizer_settings=OPTIMIZER_SETTINGS,
+            initialization_seed=derive_reinitialized_learner_initialization_seed(
+                client_id=1,
+                alarm_sample_index=observations[-1].sample_index,
+                change_interval_sample_count=span,
+            ),
+        )
+        warm_started = compute_warm_started_learner_prequential_code_length(
+            template_classifier=template,
+            input_features=features[sequence_length - span :],
+            observed_class_labels=labels[sequence_length - span :],
+            parameter_optimizer_settings=OPTIMIZER_SETTINGS,
+        )
+        learner_selections[span] = (
+            ("warm_started_learner", warm_started + math.log(2.0))
+            if warm_started < reinitialized
+            else ("reinitialized_learner", reinitialized + math.log(2.0))
+        )
+
+    def losses(model_id):
+        return tuple(
+            evaluate_classifier_per_sample_log_losses(
+                classifier=registry.get_held_model_training_state(model_id=model_id).classifier,
+                input_features=features,
+                observed_class_labels=labels,
+            ).tolist()
+        )
+
+    expected = select_assignment_by_minimum_description_length(
+        current_model_log_losses=losses(9),
+        held_model_log_losses_by_model_id=((4, losses(4)),),
+        new_model_code_lengths_by_change_interval_sample_count={
+            span: value for span, (_, value) in learner_selections.items()
+        },
+        new_model_learner_names_by_change_interval_sample_count={
+            span: name for span, (name, _) in learner_selections.items()
+        },
+        switching_code_length=compute_switching_code_length(
+            switching_probability=1 / 120, destination_count=2
+        ),
+        change_interval_grid_sample_count=5,
+    )
+    assert selection == expected

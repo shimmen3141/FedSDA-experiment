@@ -19,6 +19,8 @@ class AlarmIntervalAssignmentSelectionRecord:
     description_length: float
     # 選択の後に、短い警報の扱いで警報にしなかったなら、False。
     alarm_raised: bool
+    # 「新しいモデル」を選んだときの、その変化区間の長さで最短だった学習者。ほかの仮説では空の文字列。
+    new_model_learner_name: str
 
 
 class AlarmIntervalAssignmentSelectionRecordStore:
@@ -58,6 +60,7 @@ class AlarmIntervalAssignmentSelectionRecordStore:
                 else selection.destination_model_id,
                 description_length=selection.description_length,
                 alarm_raised=alarm_raised,
+                new_model_learner_name=selection.new_model_learner_name,
             )
         )
 

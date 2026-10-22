@@ -59,6 +59,7 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.predic
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
+    REINITIALIZED_LEARNER_POLICY_NAME,
     RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME,
     TrainingDataAssignmentSettings,
 )
@@ -206,6 +207,7 @@ def build_final_configuration_fedsda_run_settings(
             pending_sample_retention_after_too_short_change_interval_policy=RELEASE_EARLIER_SAMPLES_ASSIGNED_TO_CURRENT_MODEL_POLICY_NAME,
             # 警報の後の変化区間の長さと帰属先は、最小記述長の原理で選ぶ（基準版10の既定）。
             alarm_interval_assignment_policy=MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME,
+            new_model_hypothesis_learners=REINITIALIZED_LEARNER_POLICY_NAME,
             pending_assignment_buffer_capacity_samples=_PENDING_ASSIGNMENT_BUFFER_CAPACITY_SAMPLES,
         ),
         candidate_model_training_and_acceptance_settings=(
@@ -296,6 +298,8 @@ def build_final_configuration_fedsda_run_settings(
             # 2026-10-20から、統合で、メンバーの共有部が代表とビット単位で同じなら平均しない（同じ値の加重平均の、
             # 浮動小数点の誤差を入れない）。
             consolidated_shared_feature_policy="keep_identical_shared_features",
+            # 初期モデルの損失の統計は、学習に使った事前学習の標本で測る。
+            initial_model_loss_statistics_estimation="resubstitution",
         ),
         model_consolidation_settings=ModelConsolidationSettings(
             model_clustering_trigger_policy="on_new_model_registration",

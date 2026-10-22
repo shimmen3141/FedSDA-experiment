@@ -5949,6 +5949,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_final_configuration_run_settings.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.REINITIALIZED_LEARNER_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
             "federated_learning_experiments.core.configuration_errors.RunSettingsValidationError",
@@ -6057,6 +6058,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_participant_factory.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.initial_model_pretraining.FIVE_FOLD_CROSS_VALIDATION_ESTIMATION_NAME",
+            "federated_learning_experiments.runtime.initial_model_pretraining.INITIAL_MODEL_LOSS_STATISTICS_CROSS_VALIDATION_FOLD_COUNT",
+            "federated_learning_experiments.runtime.initial_model_pretraining.INITIAL_MODEL_LOSS_STATISTICS_ESTIMATION_NAMES",
+            "federated_learning_experiments.runtime.initial_model_pretraining.estimate_cross_validated_loss_statistics",
             "dataclasses.dataclass",
             "typing.cast",
             "federated_learning_experiments.configuration.experiment_run_conditions.ExperimentRunConditions",
@@ -6283,6 +6288,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_client_settings.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.REINITIALIZED_LEARNER_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME",
             "dataclasses.dataclass",
@@ -6341,6 +6347,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/observed_sample_processing.py":
         return imported_module_name in (
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.validate_new_model_hypothesis_learners",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store.AlarmIntervalAssignmentSelectionRecordStore",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.validate_alarm_interval_assignment_policy",
@@ -6897,6 +6904,10 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/alarm_interval_minimum_description_length_selection.py":
         return imported_module_name in (
+            "federated_learning_experiments.learning.training.prequential_code_length.compute_warm_started_learner_prequential_code_length",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.WARM_STARTED_LEARNER_NAME",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.validate_new_model_hypothesis_learners",
             "hashlib.sha256",
             "math.isfinite",
             "torch.cat",

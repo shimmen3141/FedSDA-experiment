@@ -177,6 +177,7 @@ def build_alarm_preparation_oracle(
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+            new_model_hypothesis_learners="reinitialized_learner",
             pending_assignment_buffer_capacity_samples=pending_assignment_buffer_capacity_samples,
         )
     )
@@ -440,6 +441,7 @@ def test_alarm_preparation_preserves_empty_and_capacity_plus_one_buffers(
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+            new_model_hypothesis_learners="reinitialized_learner",
             pending_assignment_buffer_capacity_samples=4,
         )
     )

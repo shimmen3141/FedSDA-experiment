@@ -56,7 +56,7 @@
 - FedDrift・FedAvgの参加者の準備は変えない（`PretrainedInitialModel`の項目が増えるだけ）。
 
 ### 計算回数（Requirement 5.5）
-- 計算回数の計測（`measure_model_computation`）は、全体run（参加者の準備を含む）の間、processの全体でモデルの順伝播とoptimizerの更新を数える（NEW-005で確かめた仕組み）。warm startの学習者と一時的な分類器も、この仕組みで数えられる。testで、それぞれの計算の中だけを計測で囲み、計数が0より大きく、全体runで新しい既定と今の扱いの計数の差がそれを含むことを確かめる。
+- 計算回数の計測（`measure_model_computation`）は、全体run（参加者の準備を含む）の間、processの全体でモデルの順伝播とoptimizerの更新を数える（NEW-005で確かめた仕組み）。指標`model_computation_counts`は、参加者の初期準備の後から数え、初期準備（初期モデルの事前学習ほか）の計算は`preparation_model_computation_counts`に分けて、指標に含めない（既存の扱い）。warm startの学習者は警報の処理の中なので指標に入り、交差検証の一時的な分類器は初期準備の中なので、事前学習と同じく初期準備の側に入る。testで、それぞれの計算の中だけを計測で囲んで計数（交差検証は、学習の標本の数が事前学習の標本の数の4倍×epoch数、評価が事前学習の標本の数）を確かめ、全体runで、交差検証を選ぶと初期準備の計数が増え、指標には入らないことを確かめる。
 
 ### 旧と比べる設定の入口（Requirement 4.1）
 - `use_legacy_compatible_policies`は、2つの項目を今の扱いにする。実旧との照合に使う設定の組（`test_fedsda_stream_protocol_run.py`の組立て、fresh script）は、今の扱いを明示する。
@@ -68,7 +68,7 @@
 - 経路の記録（`coverage`）へ、版11から、選択の記録のうち「新しいモデル」で、warm startの学習者が短かった選択の回数を足し、新しい既定の大きい条件のケースで1回以上を必須の経路にする（Requirement 5.3）。どのケースで起きるかは、実装の前の確認で決める（`fedsda-sine2-adoption-without-validation`と`fedsda-mnist2-adoption-without-validation`から選び、どちらでも起きなければ、ケースの選び直しを決める）。
 
 ### 研究ツール（Requirement 6）
-- 照合（6.1）: 既定を変える前に、2つの新しい扱いを設定で選ぶだけの変種（`default-warm-started-learner-and-cross-validated-initial-statistics`）を足す。照合のscript（Git管理外、Implementation Notesに場所を書く）で、手元の2500標本の条件（MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0）で、研究ツールの組み合わせの変種とこの変種の、精度・下り・上り・予測の記録のdigest・最終のパラメータのdigestが一致し、計算回数は、学習の計数が一致し、推論の計数の差が、研究ツールだけが行う、各組の一時的な分類器での学習に使った標本の評価（組ごとに学習に使った標本を1件ずつ1回の順伝播。5組で事前学習の標本の数の4倍）の分だけであることを確かめる（製品は、研究ツールが捨てていたこの評価を行わない）。
+- 照合（6.1）: 既定を変える前に、2つの新しい扱いを設定で選ぶだけの変種（`default-warm-started-learner-and-cross-validated-initial-statistics`）を足す。照合のscript（Git管理外、Implementation Notesに場所を書く）で、手元の2500標本の条件（MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0）で、研究ツールの組み合わせの変種とこの変種の、精度・下り・上り・予測の記録のdigest・最終のパラメータのdigestが一致し、計算回数の指標（`model_computation_counts`。参加者の初期準備の後から数える）が一致し、初期準備の計算（`preparation_model_computation_counts`）は、学習の計数が一致し、推論の計数の差が、研究ツールだけが行う、各組の一時的な分類器での学習に使った標本の評価（組ごとに学習に使った標本を1件ずつ1回の順伝播。5組で事前学習の標本の数の4倍）の分だけであることを確かめる（製品は、研究ツールが捨てていたこの評価を行わない）。
 - 基点の固定（6.2）: 既定を変えた後、研究ツールの全部の変種の設定の組立てで、2つの項目を基準版10の値（`reinitialized_learner`、`resubstitution`）に戻してから、各変種の差し替えを行う（研究ツールの変種は、基準版10の既定を基点として評価してきたため）。製品の既定をそのまま使う変種`product-default`を足す（照合の変種の役割を引き継ぐ）。
 
 ## 旧と違う点

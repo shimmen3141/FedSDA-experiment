@@ -35,7 +35,13 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientSettings,
 )
 from federated_learning_experiments.runtime.fedsda_run_server import assemble_fedsda_run_server
-from federated_learning_experiments.runtime.initial_model_pretraining import pretrain_initial_model
+from federated_learning_experiments.runtime.initial_model_pretraining import (
+    FIVE_FOLD_CROSS_VALIDATION_ESTIMATION_NAME,
+    INITIAL_MODEL_LOSS_STATISTICS_CROSS_VALIDATION_FOLD_COUNT,
+    INITIAL_MODEL_LOSS_STATISTICS_ESTIMATION_NAMES,
+    estimate_cross_validated_loss_statistics,
+    pretrain_initial_model,
+)
 from federated_learning_experiments.runtime.model_clustering_and_consolidation import (
     CONSOLIDATED_SHARED_FEATURE_POLICY_NAMES,
 )
@@ -78,6 +84,10 @@ class FedsdaRunParticipantSettings:
     # 加重平均する（旧と同じ）。`keep_identical_shared_features`は、メンバーの共有部が代表とビット単位で同じなら、
     # 平均せずに代表の値を使う（同じ値の加重平均の、浮動小数点の誤差を入れない）。
     consolidated_shared_feature_policy: str
+    # 初期モデルの損失の統計（検出器の基準）の推定の仕方。`resubstitution`は、学習に使った事前学習の標本で、
+    # 学習の後に測る（旧と同じ）。`five_fold_cross_validation`は、事前学習の標本の5分割交差検証で、各標本を
+    # 学習に使っていないモデルで測る（初期モデルそのものは、どちらも同じ）。
+    initial_model_loss_statistics_estimation: str
 
     def __post_init__(self) -> None:
         for settings_field_name, required_type in _REQUIRED_SETTINGS_TYPE_BY_FIELD_NAME.items():
@@ -149,6 +159,35 @@ class FedsdaRunParticipantSettings:
                     "次のどれかを指定してください: "
                     + "、".join(CONSOLIDATED_SHARED_FEATURE_POLICY_NAMES)
                     + "。"
+                ),
+            )
+        if (
+            type(self.initial_model_loss_statistics_estimation) is not str
+            or self.initial_model_loss_statistics_estimation
+            not in INITIAL_MODEL_LOSS_STATISTICS_ESTIMATION_NAMES
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="initial_model_loss_statistics_estimation",
+                specified_parameter_value=self.initial_model_loss_statistics_estimation,
+                validation_failure_reason=(
+                    "次のどれかを指定してください: "
+                    + "、".join(INITIAL_MODEL_LOSS_STATISTICS_ESTIMATION_NAMES)
+                    + "。"
+                ),
+            )
+        pretraining_sample_count = self.initial_model_pretraining_settings.pretraining_sample_count
+        if (
+            self.initial_model_loss_statistics_estimation
+            == FIVE_FOLD_CROSS_VALIDATION_ESTIMATION_NAME
+            and pretraining_sample_count < INITIAL_MODEL_LOSS_STATISTICS_CROSS_VALIDATION_FOLD_COUNT
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="initial_model_loss_statistics_estimation",
+                specified_parameter_value=self.initial_model_loss_statistics_estimation,
+                validation_failure_reason=(
+                    "交差検証には、分割の数以上の事前学習の標本が要ります。"
+                    f"pretraining_sample_count={pretraining_sample_count!r}、"
+                    f"分割の数={INITIAL_MODEL_LOSS_STATISTICS_CROSS_VALIDATION_FOLD_COUNT!r}。"
                 ),
             )
         maximum_same_cluster_decision_score = (
@@ -275,6 +314,27 @@ class FedsdaRunParticipantFactory:
             sample_generator=sample_generator,
             python_random_generator=python_random_generator,
         )
+        # 初期モデルの損失の統計。交差検証では、一時的な分類器をrunの乱数から切り離した乱数で学習し、統計だけを
+        # 替える（初期モデルとrunの乱数は変えない）。
+        initial_loss_statistics = pretrained_initial_model.loss_statistics
+        if (
+            run_participant_settings.initial_model_loss_statistics_estimation
+            == FIVE_FOLD_CROSS_VALIDATION_ESTIMATION_NAME
+        ):
+            initial_loss_statistics = estimate_cross_validated_loss_statistics(
+                pretraining_samples=pretrained_initial_model.pretraining_samples,
+                fold_count=INITIAL_MODEL_LOSS_STATISTICS_CROSS_VALIDATION_FOLD_COUNT,
+                initial_model_pretraining_settings=(
+                    run_participant_settings.initial_model_pretraining_settings
+                ),
+                model_architecture_settings=run_participant_settings.model_architecture_settings,
+                input_feature_count=dataset_definition.input_feature_count,
+                hidden_layer_widths=run_participant_settings.hidden_layer_widths,
+                class_count=dataset_definition.class_count,
+                parameter_optimizer_settings=(
+                    run_client_settings.rebuilt_model_parameter_optimizer_settings
+                ),
+            )
         run_clients = tuple(
             assemble_fedsda_run_client(
                 client_id=client_id,
@@ -286,7 +346,7 @@ class FedsdaRunParticipantFactory:
                 initial_shared_parameter_optimizer_state=(
                     pretrained_initial_model.shared_parameter_optimizer_state
                 ),
-                initial_loss_statistics=pretrained_initial_model.loss_statistics,
+                initial_loss_statistics=initial_loss_statistics,
                 run_client_settings=run_client_settings,
                 python_random_generator=python_random_generator,
             )
@@ -298,7 +358,7 @@ class FedsdaRunParticipantFactory:
             initial_parameter_snapshot=snapshot_classifier_parameters(
                 classifier=pretrained_initial_model.classifier
             ),
-            initial_loss_statistics=pretrained_initial_model.loss_statistics,
+            initial_loss_statistics=initial_loss_statistics,
             model_clustering_criteria=run_participant_settings.model_clustering_criteria,
             maximum_evaluating_client_count_per_model=(
                 run_participant_settings.maximum_evaluating_client_count_per_model

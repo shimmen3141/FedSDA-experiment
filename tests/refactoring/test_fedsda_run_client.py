@@ -243,6 +243,7 @@ def make_run_client_settings(
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+            new_model_hypothesis_learners="reinitialized_learner",
             pending_assignment_buffer_capacity_samples=PENDING_CAPACITY,
         ),
         candidate_model_training_and_acceptance_settings=replace(
@@ -572,6 +573,8 @@ def use_legacy_compatible_policies(run_settings):
             cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
             # 旧は、統合で、共有部も概念固有部と一緒に平均する。
             consolidated_shared_feature_policy="average_shared_features_with_concept_specific_parts",
+            # 旧は、初期モデルの損失の統計を、学習に使った事前学習の標本で測る。
+            initial_model_loss_statistics_estimation="resubstitution",
             run_client_settings=replace(
                 run_client_settings,
                 pending_model_registration_settings=PendingModelRegistrationSettings(
@@ -583,6 +586,7 @@ def use_legacy_compatible_policies(run_settings):
                     # 旧は、警報の後の変化区間の長さを検出器の推定で、帰属先を履歴の平均損失からの増加の
                     # 許容量で選ぶ。
                     alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+                    new_model_hypothesis_learners="reinitialized_learner",
                 ),
                 loss_change_detection_settings=replace(
                     run_client_settings.loss_change_detection_settings,

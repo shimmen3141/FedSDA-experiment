@@ -157,6 +157,13 @@ _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     }
     for baseline_version in (1, 2, 3, 4, 5, 6, 7, 8)
 }
+# 初期モデルの損失の統計の推定の仕方（2026-10-22に足した項目）。版1〜10は、どれも、学習に使った事前学習の標本で
+# 測る再代入の推定。
+_INITIAL_MODEL_LOSS_STATISTICS_ESTIMATION_PATH = ("initial_model_loss_statistics_estimation",)
+for _baseline_version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
+    _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.setdefault(_baseline_version, {})[
+        _INITIAL_MODEL_LOSS_STATISTICS_ESTIMATION_PATH
+    ] = "resubstitution"
 # 警報の後の変化区間の長さと帰属先の選び方（2026-10-21に足した項目）。版1〜9は、どれも、検出器の推定と
 # 許容量で選ぶ今の扱い。
 _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH = (
@@ -166,8 +173,15 @@ _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH = (
 _ALARM_INTERVAL_ASSIGNMENT_POLICY_DEFAULTS = {
     _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH: "detector_change_span_and_mean_loss_increase_tolerance",
 }
+# 「新しいモデル」の仮説の学習者の組（2026-10-22に足した項目）。版1〜10は、どれも、初期化し直した学習者だけ。
+_NEW_MODEL_HYPOTHESIS_LEARNERS_PATH = (
+    "training_data_assignment_settings",
+    "new_model_hypothesis_learners",
+)
 # 版10で足した、最小記述長の原理による選択の記録の表。版9までの比べる形には含めない（今の扱いでは空の表）。
 ALARM_INTERVAL_ASSIGNMENT_SELECTION_TABLE_PREFIX = "alarm_interval_assignment_selection."
+# 版11で、選択の記録の表に足した列（「新しいモデル」で最短だった学習者）。版10までの比べる形には含めない。
+NEW_MODEL_LEARNER_NAME_TABLE_NAME = "alarm_interval_assignment_selection.new_model_learner_name"
 _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION = {
     1: {
         _PENDING_MODEL_REGISTRATION_SETTINGS_PATH: {
@@ -206,6 +220,10 @@ for _baseline_version in (1, 2, 3, 4, 5, 6, 7, 8, 9):
     _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.setdefault(_baseline_version, {}).update(
         _ALARM_INTERVAL_ASSIGNMENT_POLICY_DEFAULTS
     )
+for _baseline_version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
+    _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.setdefault(_baseline_version, {})[
+        _NEW_MODEL_HYPOTHESIS_LEARNERS_PATH
+    ] = "reinitialized_learner"
 # 版の後に、最終構成の既定の値が変わった、FedSDAのclientの設定の項目と、その版の値。保存してある設定は、
 # この項目を持つので、比べる前に除かない（上の「後に足された項目」の表へ入れると、除かれて比べられなくなる）。
 # 版2・3: 登録の扱いは、送信保留の全部を、それ自身のIDで登録する（現在の既定——版5——とは違う扱い）。
@@ -585,13 +603,19 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                     _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH
                 ],
             )
-        # 警報の後の選び方も、候補検証との組合せの制約があるので、同じ置き換えで替える。
-        if _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH in added_settings:
+        # 警報の後の選び方と学習者の組も、組合せの制約（候補検証と最小記述長の選択、warm startの学習者と
+        # 最小記述長の選択）があるので、同じ置き換えで替える。
+        assignment_changes = {
+            added_field_path[-1]: added_settings[added_field_path]
+            for added_field_path in (
+                _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH,
+                _NEW_MODEL_HYPOTHESIS_LEARNERS_PATH,
+            )
+            if added_field_path in added_settings
+        }
+        if assignment_changes:
             candidate_changes["training_data_assignment_settings"] = replace(
-                client.training_data_assignment_settings,
-                alarm_interval_assignment_policy=added_settings[
-                    _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH
-                ],
+                client.training_data_assignment_settings, **assignment_changes
             )
         if candidate_changes:
             client = replace(client, **candidate_changes)
@@ -1202,9 +1226,13 @@ def _assemble_case_capture(
             record_tables={
                 name: array_snapshot(value)
                 for name, value in tables.items()
-                # 版9までの比べる形には、版10で足した選択の記録の表を含めない（今の扱いでは空の表）。
-                if baseline_version >= 10
-                or not name.startswith(ALARM_INTERVAL_ASSIGNMENT_SELECTION_TABLE_PREFIX)
+                # 版9までの比べる形には、版10で足した選択の記録の表を含めない（今の扱いでは空の表）。版10までの
+                # 比べる形には、版11で足した列を含めない。
+                if (
+                    baseline_version >= 10
+                    or not name.startswith(ALARM_INTERVAL_ASSIGNMENT_SELECTION_TABLE_PREFIX)
+                )
+                and (baseline_version >= 11 or name != NEW_MODEL_LEARNER_NAME_TABLE_NAME)
             },
             global_parameters={
                 f"{mid}.{name}": array_snapshot(value.detach().cpu().numpy())

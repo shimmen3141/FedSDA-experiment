@@ -253,6 +253,9 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     record_tables["alarm_interval_assignment_selection.alarm_raised"] = _boolean_column(
         [record.alarm_raised for record in selection_records]
     )
+    record_tables["alarm_interval_assignment_selection.new_model_learner_name"] = _text_column(
+        [record.new_model_learner_name for record in selection_records]
+    )
     record_tables["sample_loss_monitoring.monitored_log_e_value"] = _float_column(
         [list(alarm_snapshot.monitored_log_e_values) for alarm_snapshot in alarm_snapshots]
     )

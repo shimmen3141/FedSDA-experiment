@@ -34,6 +34,7 @@ def make_assignment_buffer(capacity=3):
         training_data_assignment_settings=TrainingDataAssignmentSettings(
             pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+            new_model_hypothesis_learners="reinitialized_learner",
             pending_assignment_buffer_capacity_samples=capacity,
         ),
     )
@@ -113,6 +114,7 @@ def test_pending_assignment_invalid_inputs_preserve_state_for_capacity(invalid_v
     training_data_assignment_settings = TrainingDataAssignmentSettings(
         pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
         alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+        new_model_hypothesis_learners="reinitialized_learner",
         pending_assignment_buffer_capacity_samples=3,
     )
     object.__setattr__(
@@ -403,6 +405,7 @@ def test_pending_assignment_public_functions_require_explicit_keyword_arguments(
             TrainingDataAssignmentSettings(
                 pending_sample_retention_after_too_short_change_interval_policy=KEEP_ALL_PENDING_SAMPLES_POLICY_NAME,
                 alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+                new_model_hypothesis_learners="reinitialized_learner",
                 pending_assignment_buffer_capacity_samples=3,
             )
         )

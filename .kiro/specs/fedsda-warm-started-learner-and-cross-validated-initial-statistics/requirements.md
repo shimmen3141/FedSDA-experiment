@@ -61,11 +61,11 @@
 2. The validation shall 版10と11の差を、全ケースで、両方の版を実行した結果を比べて確かめる: FedDrift・FedAvgのケースと、候補検証ありの構成のケースは、指標・最終のパラメータ・記録の表（版11の結果から、選択の記録の表に足した列を取り除いたもの）・経路の記録（版11で足す項目を取り除いたもの）が版10と同じ。新しい既定を引き継ぐFedSDAのケースは、設定が2つの新しい項目だけ違う。
 3. The validation shall 新しい既定を引き継ぐ大きい条件のケース（少なくとも1つ）で、「新しいモデル」の選択のうち、warm startの学習者が短かった選択が1回以上起きることを、選択の記録（Requirement 1.5）で確かめる（経路の記録）。
 4. The validation shall 基準版1〜10の照合（計算回数を含む指標の全部を比べる）と、今の扱いでwarm startの学習者と一時的な分類器を作らないことのtestで、今の扱いの値と計算回数が変わらないことを確かめる（Requirement 1.4、2.4）。
-5. The validation shall 新しい既定で、warm startの学習者の計算と、交差検証の一時的な分類器の学習が、計算回数の指標（`model_computation_counts`）に含まれることを確かめる。
+5. The validation shall 新しい既定で、warm startの学習者の計算が計算回数の指標（`model_computation_counts`）に含まれ、交差検証の一時的な分類器の学習が、初期モデルの事前学習と同じく、参加者の初期準備の計算（`preparation_model_computation_counts`。指標には含めない）に含まれることを確かめる。
 
 ### Requirement 6: 研究で評価した値と同じであることを確かめ、研究ツールの意味を保つ
 #### Acceptance Criteria
-1. The validation shall 研究ツールの組み合わせの変種（`default-two-new-model-learners-cross-validated-initial-model-statistics`）と、2つの新しい扱いを選んだ製品の全体runが、同じ条件で、精度・通信量・予測の記録・最終のパラメータが一致し、計算回数は、学習の計数が一致し、推論の計数の差が、研究ツールだけが行う、各組の一時的な分類器での学習に使った標本の評価（組ごとに学習に使った標本を1件ずつ1回の順伝播。5組で事前学習の標本の数の4倍）の分だけであることを、複数のデータセット（MNISTとSINE2・CIRCLE2・SEAのうち少なくとも1つずつ）で確かめる（既定を変える前に、基準版10の既定の上で）。
+1. The validation shall 研究ツールの組み合わせの変種（`default-two-new-model-learners-cross-validated-initial-model-statistics`）と、2つの新しい扱いを選んだ製品の全体runが、同じ条件で、精度・通信量・予測の記録・最終のパラメータが一致し、計算回数の指標（`model_computation_counts`。参加者の初期準備の後から数える）が一致し、初期準備の計算（`preparation_model_computation_counts`）は、学習の計数が一致し、推論の計数の差が、研究ツールだけが行う、各組の一時的な分類器での学習に使った標本の評価（組ごとに学習に使った標本を1件ずつ1回の順伝播。5組で事前学習の標本の数の4倍）の分だけであることを、複数のデータセット（MNISTとSINE2・CIRCLE2・SEAのうち少なくとも1つずつ）で確かめる（既定を変える前に、基準版10の既定の上で）。
 2. The research tool shall 既定を変えた後も、既存の変種が、基準版10の既定の上で評価したときと同じ意味を持つようにする（既定に足した扱いを、変種が重ねて行わない）。
 
 ### Requirement 7: 文書を合わせる

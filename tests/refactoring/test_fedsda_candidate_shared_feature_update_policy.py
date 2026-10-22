@@ -284,6 +284,7 @@ def test_candidate_validation_cannot_be_combined_with_fixed_shared_features(
             training_data_assignment_settings=replace(
                 client.training_data_assignment_settings,
                 alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+                new_model_hypothesis_learners="reinitialized_learner",
             ),
         )
 

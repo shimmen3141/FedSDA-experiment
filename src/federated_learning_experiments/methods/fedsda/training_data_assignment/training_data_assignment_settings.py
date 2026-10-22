@@ -31,6 +31,26 @@ ALARM_INTERVAL_ASSIGNMENT_POLICY_NAMES: tuple[str, ...] = (
 )
 
 
+# 警報の後の最小記述長の選択で、「新しいモデル」の仮説の符号長を測る学習者の組。
+# 概念ごとの部分を初期化し直した学習者だけ（基準版10までの扱い）。
+REINITIALIZED_LEARNER_POLICY_NAME = "reinitialized_learner"
+# 初期化し直した学習者と、現在のモデルの写しを初期化せずに学ばせるwarm startの学習者の、短い方＋ln 2
+# （基準版11の既定）。
+REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME = "reinitialized_and_warm_started_learners"
+NEW_MODEL_HYPOTHESIS_LEARNER_POLICY_NAMES: tuple[str, ...] = (
+    REINITIALIZED_LEARNER_POLICY_NAME,
+    REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME,
+)
+
+
+def validate_new_model_hypothesis_learners(*, new_model_hypothesis_learners: str) -> None:
+    """学習者の組が、builtin strの2つの値のどちらかであることを確かめる。"""
+    if type(new_model_hypothesis_learners) is not str:
+        raise TypeError("new_model_hypothesis_learners must be builtin str")
+    if new_model_hypothesis_learners not in NEW_MODEL_HYPOTHESIS_LEARNER_POLICY_NAMES:
+        raise ValueError("new_model_hypothesis_learners must be a declared value")
+
+
 def validate_alarm_interval_assignment_policy(*, alarm_interval_assignment_policy: str) -> None:
     """選び方が、builtin strの2つの値のどちらかであることを確かめる。"""
     if type(alarm_interval_assignment_policy) is not str:
@@ -61,6 +81,10 @@ class TrainingDataAssignmentSettings:
     # 警報の後の変化区間の長さと帰属先の選び方（`minimum_description_length_assignment_selection`の値）。
     alarm_interval_assignment_policy: str = field(
         metadata={"allowed_parameter_values": ALARM_INTERVAL_ASSIGNMENT_POLICY_NAMES},
+    )
+    # 警報の後の最小記述長の選択の、「新しいモデル」の仮説の学習者の組。最小記述長の原理で選ぶ扱いだけが使う。
+    new_model_hypothesis_learners: str = field(
+        metadata={"allowed_parameter_values": NEW_MODEL_HYPOTHESIS_LEARNER_POLICY_NAMES},
     )
 
     def __post_init__(self) -> None:
