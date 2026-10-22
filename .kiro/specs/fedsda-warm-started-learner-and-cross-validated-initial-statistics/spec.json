@@ -1,0 +1,59 @@
+{
+  "feature_name": "fedsda-warm-started-learner-and-cross-validated-initial-statistics",
+  "created_at": "2026-10-22T07:35:30Z",
+  "updated_at": "2026-10-22",
+  "language": "ja",
+  "phase": "tasks-approved",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS・3回目Minorのみ（GPT-6 Luna high）"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS・3回目Minorのみ（GPT-6 Luna high）"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS・3回目Minorのみ（GPT-6 Luna high）"
+    },
+    "naming": {
+      "generated": true,
+      "approved": true,
+      "approved_by": "ユーザー委任、独立レビュー2回目PASS・3回目Minorのみ（GPT-6 Luna high）"
+    }
+  },
+  "ready_for_implementation": true,
+  "base_revision": "102f9be",
+  "specification_review": {
+    "status": "passed",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a1628c-c9ea-7981-91c3-51b0307d2f22",
+        "result": "CHANGES REQUIRED（Major 1: 研究ツールとの計算回数の一致の条件）。反映"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a1628f-0ff5-76e0-ab1b-3bd43edcb25f",
+        "result": "PASS"
+      },
+      {
+        "round": 3,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "high（ログで確認）",
+        "session_id": "01a16292-67ab-7ba2-b24d-f8444ea88384",
+        "result": "Minor 1（改名するseedの関数の定義場所）。反映。改名後の名前の役割と影響範囲は問題なし"
+      }
+    ],
+    "base_revision": "102f9be（未commitのspec文書）"
+  },
+  "current_task": "1.1"
+}
