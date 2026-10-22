@@ -25,6 +25,7 @@
 | LEGACY-019 | 候補検証の途中でIDが付け替わった参照モデルは、その検証で、再利用の対象から外れる | 記録だけ（2026-10-13。旧と同じ扱いを移植済み。頻度と影響は未確認） | [記録](legacy-019-renamed-reference-excluded-from-validation-reuse.md) |
 | LEGACY-020 | 初期モデルの損失の統計が、学習に使った標本で取られ、最初の概念の間に誤警報を生む | 対応済み（2026-10-22、基準版11。初期モデルの統計を事前学習の標本の5分割交差検証で作る扱いを既定にした） | [記録](legacy-020-optimistic-initial-model-loss-statistics.md) |
 | LEGACY-021 | クラス別の正誤の判定が、違いの証拠が閾値に届かないと、違う概念のモデルを統合する | 未対応（2026-10-22。既定の240 runで、違う概念の統合がMNIST4の11/40 run、CIRCLE2の9、MNIST2の8で起き、多くは約100標本の評価。起きたrunはMNIST4・CIRCLE2で精度が低い傾向） | [記録](legacy-021-classwise-clustering-merges-with-little-evidence.md) |
+| LEGACY-022 | クロス評価で、対象のモデルの標本を持たないclientを評価に選び、登録の後の統合が起きにくい | 未対応（2026-10-23。旧から引き継いだ規則。登録の後の評価の多くが標本0件で、統合はほぼ登録の同期でしか起きない。標本を返せるclientに限ると、手元の4 seedで精度は同じ、CIRCLE2の下りが0.53倍） | [記録](legacy-022-cross-evaluation-selects-clients-without-target-samples.md) |
 
 ## 移植しないと決めた旧機能・新実装で見つけた事項
 
