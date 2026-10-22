@@ -365,3 +365,43 @@ def test_cross_validation_is_counted_in_the_preparation_and_not_in_the_metrics()
             + counts.finalization_model_computation_counts.shared_part_training_example_count
         )
         assert counts.model_computation_counts.shared_part_training_example_count == total
+
+
+def test_every_fedsda_configuration_inherits_the_new_defaults_except_candidate_validation():
+    from federated_learning_experiments.configuration.experiment_run_conditions import (
+        ExperimentRunConditions,
+    )
+    from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
+    from federated_learning_experiments.sweep.experiment_configurations import (
+        EXPERIMENT_CONFIGURATION_NAMES,
+        build_experiment_run_settings,
+    )
+
+    conditions = ExperimentRunConditions(
+        dataset_name="sine2",
+        random_seed=0,
+        client_count=2,
+        per_client_sample_count=200,
+        server_aggregation_interval_per_client_samples=50,
+    )
+    checked = 0
+    for configuration_name in EXPERIMENT_CONFIGURATION_NAMES:
+        settings = build_experiment_run_settings(
+            configuration_name=configuration_name, experiment_run_conditions=conditions
+        )
+        if type(settings) is not FedsdaRunSettings:
+            continue
+        checked += 1
+        participant = settings.run_participant_settings
+        learners = participant.run_client_settings.training_data_assignment_settings.new_model_hypothesis_learners
+        if configuration_name == "fedsda-with-candidate-validation":
+            assert (learners, participant.initial_model_loss_statistics_estimation) == (
+                REINITIALIZED_LEARNER_POLICY_NAME,
+                RESUBSTITUTION_ESTIMATION_NAME,
+            ), configuration_name
+        else:
+            assert (learners, participant.initial_model_loss_statistics_estimation) == (
+                WARM,
+                CROSS_VALIDATION,
+            ), configuration_name
+    assert checked > 2

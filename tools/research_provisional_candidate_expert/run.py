@@ -161,6 +161,8 @@ _VARIANTS["default-two-new-model-learners-cross-validated-initial-model-statisti
 # 製品の、warm startの学習者と、初期モデルの統計の交差検証を、設定で選ぶだけの変種（上の組み合わせと同じ値に
 # なることの照合用。spec fedsda-warm-started-learner-and-cross-validated-initial-statistics）。
 _VARIANTS["default-warm-started-learner-and-cross-validated-initial-statistics"] = ("fedsda", False, None)
+# 製品の既定（基準版11以降）を、そのまま使う変種。ほかの変種は、基準版10の既定を基点にする（`_execute_job`）。
+_VARIANTS["product-default"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1830,6 +1832,26 @@ def _execute_job(job):
     settings = build_experiment_run_settings(
         configuration_name=configuration_name, experiment_run_conditions=conditions
     )
+    if job["variant"] != "product-default":
+        # 研究ツールの変種は、基準版10の既定を基点として評価してきた。基準版11で既定に足した2つの扱い（warm start
+        # の学習者、初期モデルの統計の交差検証）を戻してから、各変種の差し替えを行う（変種が同じ扱いを重ねて
+        # 行わないため）。
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                initial_model_loss_statistics_estimation="resubstitution",
+                run_client_settings=replace(
+                    client,
+                    training_data_assignment_settings=replace(
+                        client.training_data_assignment_settings,
+                        new_model_hypothesis_learners="reinitialized_learner",
+                    ),
+                ),
+            ),
+        )
     if validation_sample_count is not None:
         participant = settings.run_participant_settings
         client = participant.run_client_settings

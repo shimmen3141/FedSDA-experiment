@@ -21,7 +21,7 @@
   - 完了条件: 一致の結果（条件ごと）と、照合のscriptの場所がImplementation Notesにある。一致しない場合は、原因を特定して直すまで次へ進まない。
   - _Requirements: 6.1_
 
-- [ ] 4. 最終構成の既定を替え、研究ツールの基点を固定する
+- [x] 4. 最終構成の既定を替え、研究ツールの基点を固定する
   - 既定と全FedSDA構成の値のtest（候補検証ありの構成は今の扱い）を先に書き、REDを確かめてから、既定を替える。既定に依るtest（runの識別子ほか）を、失敗したものから合わせる。
   - 研究ツールの全部の変種で、2つの項目を基準版10の値に戻してから差し替えを行い、製品の既定をそのまま使う変種を足す。基準版10の既定の変種（`default`）の値が、既定を替える前と同じことを、手元の小さい条件で確かめる。
   - 完了条件: 構成のtestが通り、基準版1〜10と実旧との照合が値を変えずに通る。研究ツールの`default`の値が、替える前と同じ。
@@ -55,3 +55,4 @@
 - 仕様の変更部分の再確認（Luna high、session `01a162a5-9c09-7061-865c-8179b8a321a9`）: PASS。
 - Task 2: 手順の逸脱: 実装を先に書き、新しいtestのREDを確かめなかった（新しいtestは、実装の後に書いて通した）。設定の項目と検査（学習者の組の値、最小記述長の選択を使わない選び方とwarm startの学習者の組合せの拒否、推定の値、交差検証で標本が5より少ない設定の拒否）、clientと参加者の準備からの受け渡し、選択の記録の列、構成の置き換えの関数の引数（候補検証ありの構成は今の扱いを明示、候補検証を外した構成は既定を引き継ぐ）を足した。最終構成の組立ては、まだ今の扱い（`reinitialized_learner`、`resubstitution`）。基準版1〜10の表へ2つの項目を足し、版1〜10の比べる形から新しい列を除いた。runの識別子`f6cae723e023`→`071781327adb`（設定の項目が増えたため。値は今の扱い）。重いtestを外した全体14111 passed / 38 skipped、重いtest（基準版1〜10のgoldenと実旧との照合を含む）631 passed、失敗0。Ruff・Pyright 0 errors。
 - Task 3: 研究ツールに、2つの新しい扱いを設定で選ぶだけの変種`default-warm-started-learner-and-cross-validated-initial-statistics`と、結果の`preparation_model_computation_counts`を足した（commit `e127e6e`）。`results/fedsda-provisional-candidate-expert/20261022_warm-started-cross-validated-product-equivalence-n2500/`（MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0、各2500標本、8 run）で、組み合わせの変種とこの変種の、精度・概念ごとの精度・下り・上り・予測の記録のdigest・最終のパラメータのdigest・計算回数の指標・最終のモデル数・登録・統合・検出の回数・変化点の推定の指標が、4条件とも完全に一致した。初期準備の計算は、学習の計数が一致し、推論の計数の差は共有部・概念固有部とも2000（事前学習の標本500件の4倍）で、見積りどおり。照合のscriptは`../../venv/refactoring-tests/warm-start-cv-task3-compare.py`（Git管理外）。
+- Task 4: REDは、既定の値のtest（最終構成の既定の期待値と、全FedSDA構成の値のtest）。既定を`reinitialized_and_warm_started_learners`・`five_fold_cross_validation`にした（候補検証ありの構成は、Task 2から今の扱いを明示、候補検証を外した構成は既定を引き継ぐ）。既定に依るtestを合わせた: runの識別子`071781327adb`→`db0258193e75`、候補検証ありの構成と既定の差（3つ→5つの値）、前のspec（基準版10）のtestの小さい設定は基準版10の既定を基点にする。研究ツールは、`product-default`以外の変種の設定で、2つの項目を基準版10の値に戻してから差し替えを行うようにし、`product-default`を足した。手元の2500標本の4条件（MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0）で、(1) 既定を替えた後の`default`と、替える前の複製（commit `509a618`の`git archive`、`../../venv/refactoring-tests/pre-default-switch-509a618/`）の`default`、(2) 組み合わせの変種の、替えた後と替える前（Task 3）、(3) `product-default`と、替える前の、2つの扱いを設定で選ぶ変種、が、精度・下り・上り・予測の記録・最終のパラメータ・計算回数（指標と初期準備）ほか12項目で、全部一致した（`results/fedsda-provisional-candidate-expert/20261022_baseline-version-10-pinning-n2500/`、`20261022_pre-default-switch-default-n2500/`）。重いtest（基準版1〜10のgoldenと実旧との照合を含む）631 passed、既定に依るtestを直した後の関係ファイル3216 passed。重いtestを外した全体の取り直しは、Task 7の全pytestで行う。

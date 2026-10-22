@@ -64,19 +64,26 @@ def build_small_settings(configuration_name="fedsda", *, alarm_interval_assignme
             ),
         ),
     )
-    if alarm_interval_assignment_policy is None:
+    # 基準版10の既定（「新しいモデル」の仮説は初期化し直した学習者だけ、初期モデルの統計は再代入の推定）を
+    # 基点にする（このファイルのtestは、基準版10の最小記述長の選択を確かめる）。FedSDA以外の構成は、そのまま。
+    if not hasattr(settings.run_participant_settings, "initial_model_loss_statistics_estimation"):
         return settings
     participant = settings.run_participant_settings
     client = participant.run_client_settings
+    assignment = client.training_data_assignment_settings
     return replace(
         settings,
         run_participant_settings=replace(
             participant,
+            initial_model_loss_statistics_estimation="resubstitution",
             run_client_settings=replace(
                 client,
                 training_data_assignment_settings=replace(
-                    client.training_data_assignment_settings,
-                    alarm_interval_assignment_policy=alarm_interval_assignment_policy,
+                    assignment,
+                    alarm_interval_assignment_policy=assignment.alarm_interval_assignment_policy
+                    if alarm_interval_assignment_policy is None
+                    else alarm_interval_assignment_policy,
+                    new_model_hypothesis_learners="reinitialized_learner",
                 ),
             ),
         ),

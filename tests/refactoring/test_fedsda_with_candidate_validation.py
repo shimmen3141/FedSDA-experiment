@@ -80,8 +80,9 @@ def test_fedsda_configurations_have_the_expected_candidate_values_and_run(config
     execute_fedsda_experiment_run(run_settings=run_settings)
 
 
-def test_with_candidate_validation_differs_from_the_default_only_in_the_three_values():
-    """既定と比べて、候補の採否の方針と共有部と、警報の後の選び方の3つだけが違う（保存の形で比べる）。"""
+def test_with_candidate_validation_differs_from_the_default_only_in_the_five_values():
+    """既定と比べて、候補の採否の方針と共有部と、警報の後の選び方と、「新しいモデル」の仮説の学習者の組と、
+    初期モデルの損失の統計の推定の仕方の5つだけが違う（保存の形で比べる）。"""
     default_mapping = convert_settings_to_plain_mapping(
         build_experiment_run_settings(
             configuration_name="fedsda", experiment_run_conditions=_CONDITIONS
@@ -103,7 +104,13 @@ def test_with_candidate_validation_differs_from_the_default_only_in_the_three_va
         ]
         del client["candidate_epoch_training_settings"]["candidate_shared_feature_update_policy"]
         del client["training_data_assignment_settings"]["alarm_interval_assignment_policy"]
+        del client["training_data_assignment_settings"]["new_model_hypothesis_learners"]
+        del mapping["run_participant_settings"]["initial_model_loss_statistics_estimation"]
     assert with_validation_mapping == default_mapping
+    assert (
+        with_validation.run_participant_settings.run_client_settings.training_data_assignment_settings.new_model_hypothesis_learners,
+        with_validation.run_participant_settings.initial_model_loss_statistics_estimation,
+    ) == ("reinitialized_learner", "resubstitution")
     assert (
         with_validation.run_participant_settings.run_client_settings.training_data_assignment_settings.alarm_interval_assignment_policy
         == "detector_change_span_and_mean_loss_increase_tolerance"

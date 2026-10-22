@@ -280,6 +280,8 @@ def test_final_configuration_defaults_match_legacy_configuration(
             cross_evaluation_model_transfer_policy="reuse_distributed_models_for_cross_evaluation",
             # 2026-10-20から、統合で、同じ共有部を平均せずに保つ。
             consolidated_shared_feature_policy="keep_identical_shared_features",
+            # 2026-10-22から、初期モデルの損失の統計を、事前学習の標本の5分割交差検証で推定する。
+            initial_model_loss_statistics_estimation="five_fold_cross_validation",
             run_client_settings=replace(
                 legacy_equivalent_client_settings,
                 pending_model_registration_settings=PendingModelRegistrationSettings(
@@ -300,6 +302,8 @@ def test_final_configuration_defaults_match_legacy_configuration(
                     ),
                     # 2026-10-21から、警報の後の変化区間の長さと帰属先を、最小記述長の原理で選ぶ。
                     alarm_interval_assignment_policy="minimum_description_length",
+                    # 2026-10-22から、「新しいモデル」の仮説を、初期化し直した学習者とwarm startの学習者で測る。
+                    new_model_hypothesis_learners="reinitialized_and_warm_started_learners",
                 ),
                 prediction_combination_settings=replace(
                     legacy_equivalent_client_settings.prediction_combination_settings,
