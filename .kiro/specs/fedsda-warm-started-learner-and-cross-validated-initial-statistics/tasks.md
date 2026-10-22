@@ -16,7 +16,7 @@
   - 完了条件: 新しいtestが通り、既存のtest（実旧との照合、基準版1〜10）が値を変えずに通る。
   - _Requirements: 1.1, 1.4, 1.5, 1.6, 2.1, 2.3, 2.4, 2.5, 4.1, 4.2, 5.4, 5.5_
 
-- [ ] 3. 研究ツールと同じ値になることを確かめる
+- [x] 3. 研究ツールと同じ値になることを確かめる
   - 研究ツールに、2つの新しい扱いを設定で選ぶだけの変種を足す。照合のscriptで、手元の条件（MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0、2500標本）で、組み合わせの変種と、この変種の、精度・通信量・予測の記録のdigest・最終のパラメータのdigestが一致し、計算回数の指標（`model_computation_counts`。参加者の初期準備の後から数える）が一致し、初期準備の計算（`preparation_model_computation_counts`）は、学習の計数が一致し、推論の計数の差が、研究ツールだけが行う、各組の一時的な分類器での学習に使った標本の評価（組ごとに学習に使った標本を1件ずつ1回の順伝播。5組で事前学習の標本の数の4倍）の分だけであることを確かめる。
   - 完了条件: 一致の結果（条件ごと）と、照合のscriptの場所がImplementation Notesにある。一致しない場合は、原因を特定して直すまで次へ進まない。
   - _Requirements: 6.1_
@@ -54,3 +54,4 @@
 - 仕様の変更（2026-10-22、Task 2の途中）: 計算回数の指標`model_computation_counts`は参加者の初期準備の後から数え、初期準備（事前学習）の計算は`preparation_model_computation_counts`に分けて指標に含めない、という既存の扱いを見落としていた。要求5.5（交差検証の学習は初期準備の側に入る）と6.1（研究ツールとの照合は、指標が一致し、初期準備の計算の推論の差が4N回の順伝播）を直した。変更部分の仕様の再確認を受ける。
 - 仕様の変更部分の再確認（Luna high、session `01a162a5-9c09-7061-865c-8179b8a321a9`）: PASS。
 - Task 2: 手順の逸脱: 実装を先に書き、新しいtestのREDを確かめなかった（新しいtestは、実装の後に書いて通した）。設定の項目と検査（学習者の組の値、最小記述長の選択を使わない選び方とwarm startの学習者の組合せの拒否、推定の値、交差検証で標本が5より少ない設定の拒否）、clientと参加者の準備からの受け渡し、選択の記録の列、構成の置き換えの関数の引数（候補検証ありの構成は今の扱いを明示、候補検証を外した構成は既定を引き継ぐ）を足した。最終構成の組立ては、まだ今の扱い（`reinitialized_learner`、`resubstitution`）。基準版1〜10の表へ2つの項目を足し、版1〜10の比べる形から新しい列を除いた。runの識別子`f6cae723e023`→`071781327adb`（設定の項目が増えたため。値は今の扱い）。重いtestを外した全体14111 passed / 38 skipped、重いtest（基準版1〜10のgoldenと実旧との照合を含む）631 passed、失敗0。Ruff・Pyright 0 errors。
+- Task 3: 研究ツールに、2つの新しい扱いを設定で選ぶだけの変種`default-warm-started-learner-and-cross-validated-initial-statistics`と、結果の`preparation_model_computation_counts`を足した（commit `e127e6e`）。`results/fedsda-provisional-candidate-expert/20261022_warm-started-cross-validated-product-equivalence-n2500/`（MNIST2・SINE2・CIRCLE2・SEA4、間隔100、seed 0、各2500標本、8 run）で、組み合わせの変種とこの変種の、精度・概念ごとの精度・下り・上り・予測の記録のdigest・最終のパラメータのdigest・計算回数の指標・最終のモデル数・登録・統合・検出の回数・変化点の推定の指標が、4条件とも完全に一致した。初期準備の計算は、学習の計数が一致し、推論の計数の差は共有部・概念固有部とも2000（事前学習の標本500件の4倍）で、見積りどおり。照合のscriptは`../../venv/refactoring-tests/warm-start-cv-task3-compare.py`（Git管理外）。
