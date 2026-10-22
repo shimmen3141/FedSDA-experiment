@@ -156,6 +156,8 @@ _VARIANTS["default-arriving-data-detector-baseline-minimum-interval"] = ("fedsda
 _VARIANTS["default-copied-new-model-learner"] = ("fedsda", False, None)
 # 「新しいモデル」の仮説を、初期化し直した学習者と写しの学習者の短い方＋ln 2で測る（NEW-006）。
 _VARIANTS["default-two-new-model-learners"] = ("fedsda", False, None)
+# 2つの学習者に、初期モデルの統計の交差検証を組み合わせる（NEW-006のMNIST2の低下が、初期の誤警報から来るかを見る）。
+_VARIANTS["default-two-new-model-learners-cross-validated-initial-model-statistics"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1933,11 +1935,17 @@ def _execute_job(job):
             )
         if job["variant"] == "default-copied-new-model-learner":
             stack.enter_context(_copied_new_model_learner_policy(events=events))
-        if job["variant"] == "default-two-new-model-learners":
+        if job["variant"] in (
+            "default-two-new-model-learners",
+            "default-two-new-model-learners-cross-validated-initial-model-statistics",
+        ):
             stack.enter_context(_two_new_model_learners_policy(events=events))
         if job["variant"] == "default-equivalence-clustering-decision":
             stack.enter_context(_equivalence_clustering_decision_policy(events=events))
-        if job["variant"] == "default-cross-validated-initial-model-statistics":
+        if job["variant"] in (
+            "default-cross-validated-initial-model-statistics",
+            "default-two-new-model-learners-cross-validated-initial-model-statistics",
+        ):
             stack.enter_context(_cross_validated_initial_model_statistics_policy(fold_count=5, events=events))
         if job["variant"] in ("default-held-out-initial-model-statistics", "default-reduced-initial-model-training-samples"):
             stack.enter_context(
