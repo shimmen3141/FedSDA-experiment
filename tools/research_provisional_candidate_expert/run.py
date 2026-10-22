@@ -169,7 +169,15 @@ _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT = {
     "default-deferred-new-model-clustering-500-samples": 500,
     "default-sample-holding-cross-evaluation-deferred-1-round": 1,
     "default-sample-holding-cross-evaluation-deferred-500-samples": 500,
+    "default-sample-holding-every-round-clustering-deferred-1-round": 1,
 }
+# 上に加えて、クロス評価とクラスタリングを毎回の同期で行う（今は新しいモデルの登録がある同期だけ。遅らせた若い
+# モデルは、次の登録が無いと、二度とクラスタリングの対象にならない）。
+_EVERY_ROUND_CLUSTERING_VARIANTS = (
+    "default-sample-holding-every-round-clustering",
+    "default-sample-holding-every-round-clustering-deferred-1-round",
+)
+_VARIANTS["default-sample-holding-every-round-clustering"] = ("fedsda", False, None)
 # クロス評価で、対象のモデルを評価させるclientを、その対象の標本を返せるclientに限る（IMPROVE-028）。単独と、
 # 統合を遅らせる形との組み合わせ（若いモデルは統合を待ち、証拠が集まってから統合される）。
 _SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS = (
@@ -177,6 +185,8 @@ _SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS = (
     "default-sample-holding-cross-evaluation-deferred-1-round",
     "default-sample-holding-cross-evaluation-deferred-500-samples",
     "product-default-sample-holding-cross-evaluation",
+    "default-sample-holding-every-round-clustering",
+    "default-sample-holding-every-round-clustering-deferred-1-round",
 )
 _VARIANTS["default-sample-holding-cross-evaluation"] = ("fedsda", False, None)
 for _variant_name in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT:
@@ -1678,6 +1688,24 @@ def _sample_holding_cross_evaluation_clients_policy(*, events):
 
 
 @contextmanager
+def _every_round_clustering_policy(*, events):
+    """サーバのクロス評価とクラスタリングを、新しいモデルの登録がある同期だけでなく、モデルが2つ以上ある毎回の
+    同期で行う（研究用。旧の`FEDSDA_CLUSTERING_POLICY = 'every_round'`に当たる。新実装は`on_new_model`だけを
+    移植した。IMPROVE-028・LEGACY-022）。
+    """
+    import federated_learning_experiments.runtime.fedsda_run_server as server_module
+
+    original = server_module.synchronize_models_in_server_round
+
+    def every_round(**arguments):
+        events.append(dict(event="every_round_clustering", forced=not arguments["model_clustering_enabled"]))
+        return original(**{**arguments, "model_clustering_enabled": True})
+
+    with patch.object(server_module, "synchronize_models_in_server_round", every_round):
+        yield
+
+
+@contextmanager
 def _keep_representative_consolidation_policy(*, events):
     """サーバの統合で、メンバーのパラメータを平均せず、代表（クラスタの最小のID）のパラメータを保つ（研究用）。
 
@@ -2106,6 +2134,8 @@ def _execute_job(job):
             stack.enter_context(_equivalence_clustering_decision_policy(events=events))
         if job["variant"] in _SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS:
             stack.enter_context(_sample_holding_cross_evaluation_clients_policy(events=events))
+        if job["variant"] in _EVERY_ROUND_CLUSTERING_VARIANTS:
+            stack.enter_context(_every_round_clustering_policy(events=events))
         if job["variant"] in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT:
             minimum_age_sample_count = _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT[job["variant"]]
             stack.enter_context(
