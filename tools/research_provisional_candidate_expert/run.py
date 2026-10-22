@@ -161,6 +161,15 @@ _VARIANTS["default-two-new-model-learners-cross-validated-initial-model-statisti
 # 製品の、warm startの学習者と、初期モデルの統計の交差検証を、設定で選ぶだけの変種（上の組み合わせと同じ値に
 # なることの照合用。spec fedsda-warm-started-learner-and-cross-validated-initial-statistics）。
 _VARIANTS["default-warm-started-learner-and-cross-validated-initial-statistics"] = ("fedsda", False, None)
+# サーバのクラスタリングで、初めてクロス評価されてから一定の標本数（clientあたり）に満たないモデルを、統合の候補から
+# 外す（NEW-006のSEA4・LEGACY-021。統合が登録の直後に起きることが原因か、の確認）。1標本は「登録の同期だけ外す」
+# （どの間隔でも1回）。500標本は、間隔50で10回、100で5回、200で3回、500で1回。
+_DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT = {
+    "default-deferred-new-model-clustering-1-round": 1,
+    "default-deferred-new-model-clustering-500-samples": 500,
+}
+for _variant_name in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT:
+    _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 製品の既定（基準版11以降）を、そのまま使う変種。ほかの変種は、基準版10の既定を基点にする（`_execute_job`）。
 _VARIANTS["product-default"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
@@ -1558,6 +1567,67 @@ def _two_new_model_learners_policy(*, events):
 
 
 @contextmanager
+def _deferred_new_model_clustering_policy(*, minimum_age_round_count, events):
+    """サーバのクラスタリングで、初めてクロス評価されてから`minimum_age_round_count`回の同期に満たないモデルを、
+    統合の候補から外す（研究用。NEW-006のSEA4・LEGACY-021の、統合の時期の仮説の確認）。
+
+    版10の既定では、統合はほとんどが、吸収されるモデルの登録の直後の同期で起きる。若いモデルを含む対の判定の値を
+    average linkageへ渡さない（値のない対を含むクラスタどうしは統合しない）。判定の値・記録は今と同じ。
+    """
+    import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
+
+    original_validate = consolidation_module._validate_clustering_and_consolidation_inputs
+    original_cluster = consolidation_module.cluster_model_ids_by_average_linkage
+    first_round_by_model_id = {}
+    current_round = {}
+
+    def validate(**arguments):
+        original_validate(**arguments)
+        current_round["index"] = arguments["round_index"]
+        for model_id in arguments["model_cross_evaluation"].cross_evaluated_model_ids:
+            first_round_by_model_id.setdefault(model_id, arguments["round_index"])
+
+    def cluster(*, model_ids, decision_scores_by_model_pair, maximum_same_cluster_decision_score):
+        round_index = current_round["index"]
+        young = {
+            model_id
+            for model_id in model_ids
+            if round_index - first_round_by_model_id[model_id] < minimum_age_round_count
+        }
+        kept = {
+            model_pair: score
+            for model_pair, score in decision_scores_by_model_pair.items()
+            if model_pair[0] not in young and model_pair[1] not in young
+        }
+        clusters = original_cluster(
+            model_ids=model_ids,
+            decision_scores_by_model_pair=kept,
+            maximum_same_cluster_decision_score=maximum_same_cluster_decision_score,
+        )
+        prevented = len(
+            original_cluster(
+                model_ids=model_ids,
+                decision_scores_by_model_pair=decision_scores_by_model_pair,
+                maximum_same_cluster_decision_score=maximum_same_cluster_decision_score,
+            )
+        ) < len(clusters)
+        events.append(
+            dict(
+                event="deferred_new_model_clustering",
+                young_model_count=len(young),
+                removed_pair_count=len(decision_scores_by_model_pair) - len(kept),
+                prevented_consolidation=prevented,
+            )
+        )
+        return clusters
+
+    with patch.object(consolidation_module, "_validate_clustering_and_consolidation_inputs", validate), patch.object(
+        consolidation_module, "cluster_model_ids_by_average_linkage", cluster
+    ):
+        yield
+
+
+@contextmanager
 def _keep_representative_consolidation_policy(*, events):
     """サーバの統合で、メンバーのパラメータを平均せず、代表（クラスタの最小のID）のパラメータを保つ（研究用）。
 
@@ -1984,6 +2054,15 @@ def _execute_job(job):
             stack.enter_context(_two_new_model_learners_policy(events=events))
         if job["variant"] == "default-equivalence-clustering-decision":
             stack.enter_context(_equivalence_clustering_decision_policy(events=events))
+        if job["variant"] in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT:
+            minimum_age_sample_count = _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT[job["variant"]]
+            stack.enter_context(
+                _deferred_new_model_clustering_policy(
+                    # 同期の回数は、clientあたりの標本数を間隔で割った値の切り上げ（少なくとも1回）。
+                    minimum_age_round_count=max(1, -(-minimum_age_sample_count // job["interval"])),
+                    events=events,
+                )
+            )
         if job["variant"] in (
             "default-cross-validated-initial-model-statistics",
             "default-two-new-model-learners-cross-validated-initial-model-statistics",
