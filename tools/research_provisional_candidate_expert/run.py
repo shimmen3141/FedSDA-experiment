@@ -158,6 +158,9 @@ _VARIANTS["default-copied-new-model-learner"] = ("fedsda", False, None)
 _VARIANTS["default-two-new-model-learners"] = ("fedsda", False, None)
 # 2つの学習者に、初期モデルの統計の交差検証を組み合わせる（NEW-006のMNIST2の低下が、初期の誤警報から来るかを見る）。
 _VARIANTS["default-two-new-model-learners-cross-validated-initial-model-statistics"] = ("fedsda", False, None)
+# 製品の、warm startの学習者と、初期モデルの統計の交差検証を、設定で選ぶだけの変種（上の組み合わせと同じ値に
+# なることの照合用。spec fedsda-warm-started-learner-and-cross-validated-initial-statistics）。
+_VARIANTS["default-warm-started-learner-and-cross-validated-initial-statistics"] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1861,6 +1864,23 @@ def _execute_job(job):
                 ),
             ),
         )
+    if job["variant"] == "default-warm-started-learner-and-cross-validated-initial-statistics":
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                initial_model_loss_statistics_estimation="five_fold_cross_validation",
+                run_client_settings=replace(
+                    client,
+                    training_data_assignment_settings=replace(
+                        client.training_data_assignment_settings,
+                        new_model_hypothesis_learners="reinitialized_and_warm_started_learners",
+                    ),
+                ),
+            ),
+        )
     if job["variant"] == "default-minimum-description-length":
         participant = settings.run_participant_settings
         client = participant.run_client_settings
@@ -2099,6 +2119,10 @@ def _execute_job(job):
         candidate_training_strategy=client_settings.candidate_epoch_training_settings.candidate_training_strategy,
         candidate_maximum_epoch_count=client_settings.candidate_epoch_training_settings.maximum_epoch_count,
         model_computation_counts=dataclasses.asdict(metrics.model_computation_counts),
+        # 参加者の初期準備（事前学習ほか）の計算（指標には含めない）。
+        preparation_model_computation_counts=dataclasses.asdict(
+            run.measured_run.preparation_model_computation_counts
+        ),
         validation_sample_count=client_settings.candidate_model_training_and_acceptance_settings.candidate_post_alarm_validation_sample_count,
         candidate_model_acceptance_policy=client_settings.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy,
         detection_count=metrics.training_model_switch_detection_metrics.detection_count,
