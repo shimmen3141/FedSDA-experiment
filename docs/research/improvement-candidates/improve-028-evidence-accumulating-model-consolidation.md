@@ -311,3 +311,10 @@ S_k・N_kは、そのラウンドのkの、件数で重み付けした和と件�
 - 判断（暫定）: 精度をほぼ保ったまま、通信と計算を減らす。LEGACY-022の修正として、基準版12の既定にする候補（2026-10-23のユーザーの方針: 不具合の修正として、本規模の確認の後に独立したspecで扱う）。CIRCLE2・200の−0.14ppとSINE2・500の全seedの小さい低下は、spec の中で、記録の上の理由を確かめる。
 - MNIST4のseed 10〜19（`results/fedsda-provisional-candidate-expert/20261023_uranium-v11-sample-holding-cross-evaluation-mnist4-seeds10-19-n5000`、40 run。既定は`method-comparison-v11/20261022_230722_fedsda-v11-mnist4-seeds10-19`）と合わせた20 seedで、精度の差は−0.01・+0.00・+0.01・+0.04pp（間隔50・100・200・500）、最終のモデル数は4.55〜5.10→4.20〜4.30、下りは0.98〜0.99倍。最も低いrunの精度は、間隔50で94.09→93.40%、間隔100で93.85→93.21%と下がる（1 runずつ。理由は未確認）。
 
+### 10. 拒否権の変種（手元、2026-10-23）
+
+研究ツールの`default-sample-holding-usage-evidence-veto`（`_usage_evidence_veto_policy`。基準版10の既定＋評価のclientを絞る変更＋拒否権。commit `23671e58`）。clientが、毎標本、現在の学習帰属のモデルとほかの保有モデルの対数損失の差を、モデルの対ごとに件数・和・2乗和へ足し、登録と配布のID対応で付け替える。サーバは、今の判定が同じクラスタにしうる対で、若い方（大きいID）の標本での合計 S と信頼の幅cが S − c > ln 2 なら、その対を統合の候補にしない。比べる相手は、同じ条件の`default-sample-holding-cross-evaluation`（2と8の記録）。
+
+- `results/fedsda-provisional-candidate-expert/20261023_usage-evidence-veto-mnist4-n5000`（MNIST4・間隔200・500・seed 0〜3、8 run）: 拒否が起きなかった5 runは同じ値。**間隔500・seed 1（8の見積りで違う概念の統合が3件起きていたrun）は89.23→90.69%（+1.45pp）**。拒否が起きたほかの2 runは+0.02・+0.00pp。
+- `results/fedsda-provisional-candidate-expert/20261023_usage-evidence-veto-n5000`（SEA4・MNIST2・CIRCLE2・SINE2、間隔100、seed 0〜3、16 run）: SEA4・MNIST2は拒否が0回で、全run同じ値。CIRCLE2は3 runで1回ずつ拒否し、−0.06〜+0.00pp、下り1.04〜1.05倍。SINE2はseed 0で14回・seed 3で2回拒否し、+0.01・−0.03pp、seed 0の下りは1.11倍。
+- 判断（暫定）: 拒否権は、違う概念の統合が起きる場面（MNIST4・500・seed 1）だけで働き、ほかではほとんど何もしない（同じ概念の重複の統合を止めすぎない）。SEA4では働かない（5のとおり、利用の実績でも区別できない）。効果は1 runだけなので、本規模（基準版11の上の`product-default-sample-holding-usage-evidence-veto`、研究室サーバ）で、MNIST4の崩れの頻度と、ほかのデータの通信を確かめる。
