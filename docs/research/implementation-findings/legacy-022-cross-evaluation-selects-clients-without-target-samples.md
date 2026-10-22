@@ -1,9 +1,14 @@
 # LEGACY-022: クロス評価で、対象のモデルの標本を持たないclientを評価に選び、登録の後の統合が起きにくい
 
 - 発見日: 2026-10-23。対象: `src/federated_learning_experiments/runtime/model_cross_evaluation.py`（対象のモデルを保有するclientから最大3つを無作為に選ぶ。`_MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL = 3`、`runtime/fedsda_final_configuration_run_settings.py`）、`runtime/fedsda_run_client.py`の`FedsdaRunClient.get_cross_evaluation_held_model_ids`。発見の経緯: SEA4の概念2の取り込みの調査（[NEW-006](new-006-minimum-description-length-keeps-partially-changed-concept-in-current-model.md)）と、統合を遅らせる変種の結果（[IMPROVE-028](../improvement-candidates/improve-028-evidence-accumulating-model-consolidation.md)の1）。
-- 種別: 旧から引き継いだ挙動（旧の`federated_drift_experiment/servers/clustering.py`の`_cross_evaluate`が、`clients/base.py`の`get_held_model_ids`——評価標本・学習データ・保有モデル・現在のモデルのどれかのID——で保有するclientを集め、`config.CROSS_EVAL_MAX_CLIENTS = 3`で無作為に選ぶ。新実装は同じ規則を移植した）。状態: 未対応（2026-10-23に記録）。
+- 種別: 旧から引き継いだ挙動（旧の`federated_drift_experiment/servers/clustering.py`の`_cross_evaluate`が、`clients/base.py`の`get_held_model_ids`——評価標本・学習データ・保有モデル・現在のモデルのどれかのID——で保有するclientを集め、`config.CROSS_EVAL_MAX_CLIENTS = 3`で無作為に選ぶ。新実装は同じ規則を移植した）。状態: 対応実装済み、実装レビュー・基準版12のgolden生成待ち（2026-10-23追記）。
 
 ## 内容
+
+2026-10-23追記: [専用spec](../../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)で製品の選び方を実装し、
+対象を保有し標本を返せるclientだけに限る扱いを既定にした。候補検証ありの構成と版1〜11の照合は従来の扱いを明示する。
+状態は実装レビュー・基準版12のgolden生成待ち。Windows・WSLでの最終照合の結果は主担当が追記する。
+以下の頻度と影響は修正前の記録。
 
 クロス評価では、対象のモデルjについて、jを「保有する」clientから最大3つを無作為に選び、候補のモデルiを、そのclientのjの標本で評価させる。「保有する」には、配布されたパラメータだけを持ち、jの評価標本も学習データも持たないclientが含まれる。そうしたclientは、jの標本を0件しか返さない（評価標本が6件未満で、jが現在の学習帰属でもないとき）。
 
@@ -37,4 +42,3 @@
 ## 関係する時期の規則（2026-10-23）
 
 クロス評価とクラスタリング自体も、新しいモデルの登録がある同期でしか行われない（旧の既定`FEDSDA_CLUSTERING_POLICY = 'on_new_model'`を移植。`every_round`は移植していない。`model_clustering_trigger_policy`は`on_new_model_registration`だけを許す）。登録の後の統合が起きにくいのは、この規則と、上の評価のclientの選び方の2つによる（[IMPROVE-028](../improvement-candidates/improve-028-evidence-accumulating-model-consolidation.md)の3）。
-

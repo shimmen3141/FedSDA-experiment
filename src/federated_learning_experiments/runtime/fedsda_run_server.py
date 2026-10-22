@@ -27,6 +27,9 @@ from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunCl
 from federated_learning_experiments.runtime.model_clustering_and_consolidation import (
     validate_consolidated_shared_feature_policy,
 )
+from federated_learning_experiments.runtime.model_cross_evaluation import (
+    validate_cross_evaluation_client_selection_policy,
+)
 from federated_learning_experiments.runtime.server_round_synchronization import (
     ServerRoundSynchronization,
     synchronize_models_in_server_round,
@@ -65,6 +68,7 @@ class FedsdaRunServer:
         model_clustering_criteria: ModelClusteringCriteria,
         maximum_evaluating_client_count_per_model: int,
         cross_evaluation_model_transfer_policy: str,
+        cross_evaluation_client_selection_policy: str,
         consolidated_shared_feature_policy: str,
         python_random_generator: Random,
     ) -> None:
@@ -73,6 +77,7 @@ class FedsdaRunServer:
         self._model_clustering_criteria = model_clustering_criteria
         self._maximum_evaluating_client_count_per_model = maximum_evaluating_client_count_per_model
         self._cross_evaluation_model_transfer_policy = cross_evaluation_model_transfer_policy
+        self._cross_evaluation_client_selection_policy = cross_evaluation_client_selection_policy
         self._consolidated_shared_feature_policy = consolidated_shared_feature_policy
         self._python_random_generator = python_random_generator
         self._server_round_synchronizations: list[ServerRoundSynchronization] = []
@@ -105,6 +110,7 @@ class FedsdaRunServer:
                     self._maximum_evaluating_client_count_per_model
                 ),
                 cross_evaluation_model_transfer_policy=self._cross_evaluation_model_transfer_policy,
+                cross_evaluation_client_selection_policy=self._cross_evaluation_client_selection_policy,
                 consolidated_shared_feature_policy=self._consolidated_shared_feature_policy,
                 python_random_generator=self._python_random_generator,
                 round_index=round_index,
@@ -132,6 +138,7 @@ def assemble_fedsda_run_server(
     model_clustering_criteria: ModelClusteringCriteria,
     maximum_evaluating_client_count_per_model: int,
     cross_evaluation_model_transfer_policy: str,
+    cross_evaluation_client_selection_policy: str,
     consolidated_shared_feature_policy: str,
     python_random_generator: Random,
 ) -> FedsdaRunServer:
@@ -158,6 +165,9 @@ def assemble_fedsda_run_server(
     validate_cross_evaluation_model_transfer_policy(
         cross_evaluation_model_transfer_policy=cross_evaluation_model_transfer_policy
     )
+    validate_cross_evaluation_client_selection_policy(
+        cross_evaluation_client_selection_policy=cross_evaluation_client_selection_policy
+    )
     validate_consolidated_shared_feature_policy(
         consolidated_shared_feature_policy=consolidated_shared_feature_policy
     )
@@ -179,6 +189,7 @@ def assemble_fedsda_run_server(
         model_clustering_criteria=model_clustering_criteria,
         maximum_evaluating_client_count_per_model=maximum_evaluating_client_count_per_model,
         cross_evaluation_model_transfer_policy=cross_evaluation_model_transfer_policy,
+        cross_evaluation_client_selection_policy=cross_evaluation_client_selection_policy,
         consolidated_shared_feature_policy=consolidated_shared_feature_policy,
         python_random_generator=python_random_generator,
     )

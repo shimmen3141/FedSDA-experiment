@@ -244,6 +244,18 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 
 基準版は、次のとおり。照合のtestは、全部の版を、毎回、確かめる。
 
+基準版12はコードを準備済みで、goldenは未生成・未配置（[spec](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)）。
+ケースは版11と同じ22。クロス評価で対象を保有し標本を返せるclientだけを選び、候補検証ありの構成は従来の扱いを明示する。
+版1〜11の設定は、参加者の設定の補完表で従来の値に戻して照合する。
+`BASELINE_VERSION`と`BEHAVIOR_BASELINE_VERSION`は11を保ち、Windows・WSLでの生成・設置後に主担当が12へ上げる。
+生成元commit、生成・照合の件数と結果は主担当が追記。
+
+版11→12の差の説明はgoldenを使わず、両方の版をその場で実行して比べる。FedDrift・FedAvgと候補検証ありの4ケースは、
+指標・記録の表・最終パラメータ・経路の記録（版12で足す項目を除く）が同じ。新しい既定を引き継ぐFedSDAは設定の新しい項目だけが違う。
+版12のFedSDAの経路の記録に`cross_evaluation_record_count`と`zero_sample_cross_evaluation_count`を足す。
+候補検証ありの4ケースを除き、0件の評価の数は0を必須とし、`fedsda-sine2-adoption-without-validation`と
+`fedsda-mnist4-warm-started-learner`は記録の行が1以上あることも求める。版11までの必須の経路も維持する。
+
 | 版 | 動作 | 設定 | ケース |
 | --- | --- | --- | --- |
 | 1 | 2026-10-13の移植完了時点。FedSDAの登録の扱いは、固定旧と同じ（送信保留を1つだけ保持し、確認で現行モデルを付け替える） | 最終構成の既定から、登録の扱いだけを、`keep_latest_pending_model_and_reassign_current_model_id`へ替えて実行する。保存した設定は、この項目を持たない（版1の後に足された）ので、値を確かめてから、除いて比べる | 17 |

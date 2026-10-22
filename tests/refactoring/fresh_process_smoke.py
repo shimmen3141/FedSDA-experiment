@@ -1422,6 +1422,7 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
         ),
         maximum_evaluating_client_count_per_model=WHOLE_RUN_CLIENT_COUNT,
         cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
+        cross_evaluation_client_selection_policy="clients_holding_target_model",
         consolidated_shared_feature_policy="average_shared_features_with_concept_specific_parts",
         initial_model_loss_statistics_estimation="resubstitution",
     )

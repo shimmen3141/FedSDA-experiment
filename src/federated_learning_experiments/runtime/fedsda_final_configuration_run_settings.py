@@ -297,6 +297,8 @@ def build_final_configuration_fedsda_run_settings(
             # 2026-10-20から、クロス評価の前に全モデルを配布し、clientは受け取ったモデルを候補として評価する
             # （クロス評価のためだけにモデルを送らない。状態は旧の扱いと同じで、通信量だけが違う）。
             cross_evaluation_model_transfer_policy="reuse_distributed_models_for_cross_evaluation",
+            # 2026-10-23から、クロス評価の対象を保有し、対象の標本を返せるclientだけを評価させる。
+            cross_evaluation_client_selection_policy="clients_with_target_model_samples",
             # 2026-10-20から、統合で、メンバーの共有部が代表とビット単位で同じなら平均しない（同じ値の加重平均の、
             # 浮動小数点の誤差を入れない）。
             consolidated_shared_feature_policy="keep_identical_shared_features",

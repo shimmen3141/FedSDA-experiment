@@ -873,6 +873,53 @@ def test_next_baseline_differs_only_where_the_fixed_behavior_occurred(
         ), case_name
 
 
+def test_baseline_12_keeps_cases_and_changes_only_the_client_selection_setting():
+    assert 12 in golden.SUPPORTED_BASELINE_VERSIONS
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[12] == golden.CASE_NAMES_BY_BASELINE_VERSION[11]
+    for case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[11]:
+        previous = golden._plain(golden.build_case_settings(case_name, 11))
+        current = golden._plain(golden.build_case_settings(case_name, 12))
+        if (
+            case_name.startswith("fedsda")
+            and case_name not in golden.CANDIDATE_VALIDATION_PATH_CASE_NAMES
+        ):
+            assert (
+                previous["run_participant_settings"].pop("cross_evaluation_client_selection_policy")
+                == "clients_holding_target_model"
+            )
+            assert (
+                current["run_participant_settings"].pop("cross_evaluation_client_selection_policy")
+                == "clients_with_target_model_samples"
+            )
+        assert current == previous, case_name
+
+
+@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[11])
+@pytest.mark.slow
+def test_baseline_12_runs_both_versions_without_goldens_and_keeps_unaffected_results(case_name):
+    """goldenが未配置でも、版11と12をその場で実行し、経路と、影響を受けない構成の値を守る。"""
+    previous = capture_case_once(case_name, 11)[0]
+    current = deepcopy(capture_case_once(case_name, 12)[0])
+    for key in ("cross_evaluation_record_count", "zero_sample_cross_evaluation_count"):
+        current["coverage"].pop(key, None)
+    if (
+        not case_name.startswith("fedsda")
+        or case_name in golden.CANDIDATE_VALIDATION_PATH_CASE_NAMES
+    ):
+        for section in ("run_metrics", "record_tables", "global_parameters", "coverage"):
+            golden.assert_case_matches(case_name, current[section], previous[section], section)
+
+
+@pytest.mark.slow
+def test_baseline_11_really_contains_zero_sample_cross_evaluations():
+    """0件を除く検証が空振りでないことを、版11の実行の記録から数えて確かめる。"""
+    assert any(
+        capture_case_once(case_name, 11)[1]["zero_sample_cross_evaluation_count"] > 0
+        for case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[11]
+        if case_name.startswith("fedsda")
+    )
+
+
 def test_named_difference_cases_exist_in_both_baseline_versions():
     for (previous_version, next_version), (
         _,

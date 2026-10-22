@@ -258,6 +258,7 @@ def test_server_assembly_rejects_invalid_arguments(valid_run_settings_mapping):
         model_clustering_criteria=MODEL_CLUSTERING_CRITERIA,
         maximum_evaluating_client_count_per_model=3,
         cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
+        cross_evaluation_client_selection_policy="clients_holding_target_model",
         consolidated_shared_feature_policy="average_shared_features_with_concept_specific_parts",
         python_random_generator=run_random_sources.python_random_generator,
     )

@@ -3,7 +3,7 @@
   "created_at": "2026-10-22T22:06:54Z",
   "updated_at": "2026-10-23",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation-in-progress",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -61,5 +61,19 @@
       }
     ]
   },
-  "implementation_assignment": "ユーザー指示（2026-10-23）により、実装はGPT-6.1-sol（codex exec）。主担当（Claude）は最後に意図どおりかを確認する"
+  "implementation_assignment": "ユーザー指示（2026-10-23）により、実装はGPT-6.1-sol（codex exec）。主担当（Claude）は最後に意図どおりかを確認する",
+  "implementation_status": {
+    "completed_tasks": [1, 2, 4],
+    "task_3_code_completed": true,
+    "baseline_version_constants": 11,
+    "implementation_review": "未実施。主担当へ引継ぎ（task 5）",
+    "remaining_work": [
+      "主担当がWindows・WSLで版12のgoldenを生成・設置し、基準版の定数2つを12へ上げる",
+      "独立CLIによる実装レビューと最終検証",
+      "pytest一時ディレクトリのアクセス拒否で実行できなかった構成の全体run照合70件",
+      "Pyrightの依存解決、および評価標本の上限5未満を許す既存設定の扱いの確認"
+    ],
+    "evidence": "tasks.mdのImplementation Notes。一時script・ログ・研究照合のJSONはresults/_sol_tmp/（Git管理外）",
+    "git_operations": "commit・push・stashは実行せず、差分を作業ツリーに残す"
+  }
 }

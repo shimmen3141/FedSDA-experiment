@@ -149,9 +149,10 @@ def _replace_candidate_acceptance_and_shared_feature_update(
     alarm_interval_assignment_policy: str,
     new_model_hypothesis_learners: str,
     initial_model_loss_statistics_estimation: str,
+    cross_evaluation_client_selection_policy: str,
 ) -> FedsdaRunSettings:
     """完全なrun設定の、候補の採否の方針と、候補の学習での共有部の更新と、警報の後の選び方と、「新しいモデル」の
-    仮説の学習者の組と、初期モデルの損失の統計の推定の仕方を、一緒に置き換える。
+    仮説の学習者の組と、初期モデルの損失の統計の推定の仕方と、評価のclientの選び方を、一緒に置き換える。
 
     値には組合せの制約（候補検証は、共有部の固定とも、最小記述長の原理で選ぶ扱いとも組み合わせられない。
     warm startの学習者は、最小記述長の原理で選ぶ扱いだけが使う）があるので、片方ずつ置き換えると、途中の設定が
@@ -164,6 +165,7 @@ def _replace_candidate_acceptance_and_shared_feature_update(
         run_participant_settings=replace(
             run_participant_settings,
             initial_model_loss_statistics_estimation=initial_model_loss_statistics_estimation,
+            cross_evaluation_client_selection_policy=cross_evaluation_client_selection_policy,
             run_client_settings=replace(
                 run_client_settings,
                 candidate_model_training_and_acceptance_settings=replace(
@@ -245,6 +247,9 @@ def build_experiment_run_settings(
             initial_model_loss_statistics_estimation=(
                 proposed_run_settings.run_participant_settings.initial_model_loss_statistics_estimation
             ),
+            cross_evaluation_client_selection_policy=(
+                proposed_run_settings.run_participant_settings.cross_evaluation_client_selection_policy
+            ),
         )
     if configuration_name == CANDIDATE_VALIDATION_CONFIGURATION_NAME:
         return _replace_candidate_acceptance_and_shared_feature_update(
@@ -258,6 +263,8 @@ def build_experiment_run_settings(
             alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
             new_model_hypothesis_learners="reinitialized_learner",
             initial_model_loss_statistics_estimation="resubstitution",
+            # 候補検証との組合せは未検証なので、評価のclientの選び方も版11までの扱いを明示する。
+            cross_evaluation_client_selection_policy="clients_holding_target_model",
         )
     if configuration_name == LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME:
         # サーバが読む判定の基準と、統合の方式の宣言の、両方を替える。

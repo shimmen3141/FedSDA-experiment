@@ -6057,6 +6057,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_participant_factory.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.model_cross_evaluation.CROSS_EVALUATION_CLIENT_SELECTION_POLICY_NAMES",
             "federated_learning_experiments.runtime.initial_model_pretraining.FIVE_FOLD_CROSS_VALIDATION_ESTIMATION_NAME",
             "federated_learning_experiments.runtime.initial_model_pretraining.INITIAL_MODEL_LOSS_STATISTICS_CROSS_VALIDATION_FOLD_COUNT",
             "federated_learning_experiments.runtime.initial_model_pretraining.INITIAL_MODEL_LOSS_STATISTICS_ESTIMATION_NAMES",
@@ -6085,6 +6086,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_server.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.model_cross_evaluation.validate_cross_evaluation_client_selection_policy",
             "dataclasses.dataclass",
             "random.Random",
             "torch.Tensor",
@@ -6102,6 +6104,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/server_round_synchronization.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.model_cross_evaluation.CLIENTS_HOLDING_TARGET_MODEL_POLICY_NAME",
+            "federated_learning_experiments.runtime.model_cross_evaluation.validate_cross_evaluation_client_selection_policy",
             "dataclasses.dataclass",
             "random.Random",
             "torch.Tensor",
@@ -6164,6 +6168,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/client_model_cross_evaluation.py":
         return imported_module_name in (
+            "federated_learning_experiments.evaluation.model_evaluation_sample_records.ObservedEvaluationSample",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
             "dataclasses.dataclass",
             "random.Random",
             "torch.Tensor",
@@ -6233,6 +6239,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "runtime/fedsda_run_client.py":
         return imported_module_name in (
+            "federated_learning_experiments.runtime.client_model_cross_evaluation.target_model_cross_evaluation_samples_are_available",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store.AlarmIntervalAssignmentSelectionRecordStore",
             "federated_learning_experiments.evaluation.held_model_count_record_store.HeldModelCountRecordStore",
             "federated_learning_experiments.evaluation.loss_monitoring_computation_count_store.LossMonitoringComputationCountStore",

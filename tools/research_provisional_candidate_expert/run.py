@@ -195,7 +195,9 @@ for _variant_name in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 製品の既定（基準版11以降）を、そのまま使う変種。ほかの変種は、基準版10の既定を基点にする（`_execute_job`）。
 _VARIANTS["product-default"] = ("fedsda", False, None)
-# 製品の既定（基準版11以降）の上で、クロス評価で評価させるclientを、対象の標本を返せるclientに限る（IMPROVE-028）。
+# 製品の既定の上で、クロス評価で評価させるclientを、対象の標本を返せるclientに限る（IMPROVE-028）。
+# 製品の既定がこの扱いになった後は、製品が同じ候補の集合を作るので、product-defaultと同じ選び方になる。
+# 包みの対象のget_cross_evaluation_held_model_idsは、製品の新しい扱いのクロス評価では呼ばれない。
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
     "product-default",
     "product-default-sample-holding-cross-evaluation",
@@ -2126,7 +2128,7 @@ def _execute_job(job):
     )
     if job["variant"] not in _PRODUCT_DEFAULT_BASED_VARIANTS:
         # 研究ツールの変種は、基準版10の既定を基点として評価してきた。基準版11で既定に足した2つの扱い（warm start
-        # の学習者、初期モデルの統計の交差検証）を戻してから、各変種の差し替えを行う（変種が同じ扱いを重ねて
+        # の学習者、初期モデルの統計の交差検証）と、版12の評価のclientの選び方を戻してから、各変種の差し替えを行う（変種が同じ扱いを重ねて
         # 行わないため）。
         participant = settings.run_participant_settings
         client = participant.run_client_settings
@@ -2135,6 +2137,7 @@ def _execute_job(job):
             run_participant_settings=replace(
                 participant,
                 initial_model_loss_statistics_estimation="resubstitution",
+                cross_evaluation_client_selection_policy="clients_holding_target_model",
                 run_client_settings=replace(
                     client,
                     training_data_assignment_settings=replace(

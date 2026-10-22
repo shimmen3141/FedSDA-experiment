@@ -115,6 +115,7 @@ def make_run_participant_settings(valid_run_settings_mapping, *, update_interval
         maximum_evaluating_client_count_per_model=CROSS_EVALUATION_CLIENT_LIMIT,
         # 実旧と照合する組立て。クロス評価の通信は、旧の扱い。
         cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
+        cross_evaluation_client_selection_policy="clients_holding_target_model",
         consolidated_shared_feature_policy="average_shared_features_with_concept_specific_parts",
         initial_model_loss_statistics_estimation="resubstitution",
     )

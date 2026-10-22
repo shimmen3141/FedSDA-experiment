@@ -35,8 +35,10 @@ from federated_learning_experiments.runtime.model_clustering_and_consolidation i
     validate_consolidated_shared_feature_policy,
 )
 from federated_learning_experiments.runtime.model_cross_evaluation import (
+    CLIENTS_HOLDING_TARGET_MODEL_POLICY_NAME,
     ModelCrossEvaluation,
     cross_evaluate_global_models,
+    validate_cross_evaluation_client_selection_policy,
 )
 from federated_learning_experiments.runtime.post_aggregation_prediction_recalibration import (
     PostAggregationPredictionRecalibration,
@@ -164,6 +166,7 @@ def synchronize_models_in_server_round(
     round_index: int,
     model_clustering_enabled: bool,
     cross_evaluation_model_transfer_policy: str = SEND_CANDIDATE_MODELS_FOR_CROSS_EVALUATION_POLICY_NAME,
+    cross_evaluation_client_selection_policy: str = CLIENTS_HOLDING_TARGET_MODEL_POLICY_NAME,
     consolidated_shared_feature_policy: str = (
         AVERAGE_SHARED_FEATURES_WITH_CONCEPT_SPECIFIC_PARTS_POLICY_NAME
     ),
@@ -180,6 +183,9 @@ def synchronize_models_in_server_round(
     """
     if type(model_clustering_enabled) is not bool:
         raise TypeError("model_clustering_enabled must be builtin bool")
+    validate_cross_evaluation_client_selection_policy(
+        cross_evaluation_client_selection_policy=cross_evaluation_client_selection_policy
+    )
     validate_cross_evaluation_model_transfer_policy(
         cross_evaluation_model_transfer_policy=cross_evaluation_model_transfer_policy
     )
@@ -235,6 +241,7 @@ def synchronize_models_in_server_round(
             maximum_evaluating_client_count_per_model=maximum_evaluating_client_count_per_model,
             python_random_generator=python_random_generator,
             record_model_transfers=not reuses_distributed_models,
+            cross_evaluation_client_selection_policy=cross_evaluation_client_selection_policy,
         )
         model_consolidation = cluster_and_consolidate_global_models(
             run_clients=run_clients,

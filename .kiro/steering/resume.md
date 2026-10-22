@@ -1,11 +1,11 @@
 # リファクタリング再開案内
 
-2026-10-21更新。Claudeへの再引継ぎ用。承認・進捗・検証証拠の正本は各spec。この文書は現在地への入口とする。
+2026-10-23更新。Claudeへの再引継ぎ用。承認・進捗・検証証拠の正本は各spec。この文書は現在地への入口とする。
 
 ## 現在地
 
 - 作業場所は`.worktrees/refactoring`、ブランチは`refactor/architecture`。mainへはまだマージしない。同じworktreeの主担当は一人にする。
-- 直近の対象[fedsda-warm-started-learner-and-cross-validated-initial-statistics](../specs/fedsda-warm-started-learner-and-cross-validated-initial-statistics/tasks.md)は完了。その前の[fedsda-minimum-description-length-alarm-interval-assignment](../specs/fedsda-minimum-description-length-alarm-interval-assignment/tasks.md)は完了。下記の最近のspecに未実装task・未解消レビュー指摘はない。開始時にはGitの実状態を再確認する。
+- 現在の対象は[fedsda-cross-evaluation-clients-with-target-samples](../specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)。対象の標本を返せるclientだけをクロス評価させる扱いを実装し、既定を切り替えた。差分は未commit。主担当が差分を確認し、Windows・WSLの版12のgoldenを生成・設置してから基準版の定数2つを12へ上げ、独立CLIの実装レビューと最終検証へ進む。現在の定数は11。制約・検証の正本は対象specのImplementation Notes。開始時にはGitの実状態を再確認する。
 - FedSDAと比較構成、FedDrift、単一モデルのFedAvg（旧Oblivious）の移植・全体run・成果物・掃引入口は接続済み。旧実装は参照として残っている。古い移植順を次の作業と誤認しない。
 - FedSDAの既定は配布時モデルとローカル更新モデルの混合予測、帰属保留FIFO30、共通時間尺度T120。Tはモデル別重みと二者混合で共通に使い、両者を別パラメータにしない。
 - 2026-10-20から、既定は候補を検証せずにその場で採用し、候補の学習では共有部を固定する（基準版7。[spec](../specs/fedsda-default-adoption-with-fixed-candidate-shared-features/tasks.md)）。それまでの候補検証ありは構成`fedsda-with-candidate-validation`、検証なしで共有部も更新する構成は`fedsda-without-candidate-validation`。候補検証の処理は残している（消すかは、ユーザーが別に決める）。
@@ -18,7 +18,7 @@
 ## 次の一手
 
 1. [CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[共通引継ぎ手順](agent-handoff.md)を読み、ブランチ・HEAD・差分・対象specを照合する。Claude版cc-sddは`.claude/skills/`、仕様正本は共通の`.kiro/specs/`。
-2. 候補検証研究を続けるなら、下の研究記録を読む。DやPを未実験の案として再実装しない。現在、次の製品アルゴリズム変更のspec・採用決定はない。
+2. [対象spec](../specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)の未commitの実装と検証記録を確認し、版12のgoldenの生成・定数の切替・独立実装レビューへ進む。pytestの一時ディレクトリとPyrightの依存解決に関する未検証事項も確認する。候補検証研究を続ける場合は下の研究記録を読み、DやPを未実験の案として再実装しない。
 3. 次の候補は、改善の4案（[IMPROVE-020〜023](../../docs/research/improvement-candidates/README.md)。進める順は020→022→021→023、各ファイルに前提・方針・やること）。020は採用し、基準版8として実装した。022（候補の学習の早期終了）の手元の比較を2026-10-20に始めた。新しい既定の下でのablationは、当面konanの版6の結果で代える。候補検証の処理を消すかは、ユーザーの判断を待つ。
 4. 新しい研究対照は独立ツールへ閉じ、製品経路を変える場合は別specと実装前の独立仕様レビューを経る。現在の既定を黙って変更しない。
 

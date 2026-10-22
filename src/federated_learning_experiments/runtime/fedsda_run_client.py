@@ -104,6 +104,7 @@ from federated_learning_experiments.runtime.candidate_validation_session_holder 
 from federated_learning_experiments.runtime.client_model_cross_evaluation import (
     ClientModelCrossEvaluation,
     evaluate_candidate_model_on_target_model_samples,
+    target_model_cross_evaluation_samples_are_available,
 )
 from federated_learning_experiments.runtime.fedsda_run_client_settings import (
     FedsdaRunClientSettings,
@@ -456,6 +457,20 @@ class FedsdaRunClient:
                     for held_model_training_state in owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
                 ),
                 owners.current_training_model_assignment.current_training_model_id,
+            )
+        )
+
+    def get_model_ids_with_cross_evaluation_samples(self) -> frozenset[int]:
+        """対象を保有し、クロス評価で標本を返せるモデルID。状態も乱数も変えない。"""
+        owners = self._owners
+        return frozenset(
+            state.model_id
+            for state in owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+            if target_model_cross_evaluation_samples_are_available(
+                target_model_id=state.model_id,
+                model_evaluation_sample_store=owners.model_evaluation_sample_store,
+                training_sample_store=owners.training_sample_store,
+                current_training_model_assignment=owners.current_training_model_assignment,
             )
         )
 

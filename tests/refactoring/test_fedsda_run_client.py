@@ -572,6 +572,7 @@ def use_legacy_compatible_policies(run_settings):
             # 旧は、クロス評価のために、評価するclientへ候補のモデルを送る（通信量の記録が違う）。
             cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
             # 旧は、統合で、共有部も概念固有部と一緒に平均する。
+            cross_evaluation_client_selection_policy="clients_holding_target_model",
             consolidated_shared_feature_policy="average_shared_features_with_concept_specific_parts",
             # 旧は、初期モデルの損失の統計を、学習に使った事前学習の標本で測る。
             initial_model_loss_statistics_estimation="resubstitution",

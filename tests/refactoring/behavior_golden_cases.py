@@ -93,7 +93,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
 BASELINE_VERSION = 11
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
@@ -164,6 +164,11 @@ for _baseline_version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
     _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.setdefault(_baseline_version, {})[
         _INITIAL_MODEL_LOSS_STATISTICS_ESTIMATION_PATH
     ] = "resubstitution"
+# 版1〜11の設定では、標本を持たないclientも候補に入れる。
+for _baseline_version in range(1, 12):
+    _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.setdefault(_baseline_version, {})[
+        ("cross_evaluation_client_selection_policy",)
+    ] = "clients_holding_target_model"
 # 警報の後の変化区間の長さと帰属先の選び方（2026-10-21に足した項目）。版1〜9は、どれも、検出器の推定と
 # 許容量で選ぶ今の扱い。
 _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH = (
@@ -375,6 +380,8 @@ CASE_NAMES_BY_BASELINE_VERSION = {
         "fedsda-mnist4-warm-started-learner",
     ),
 }
+# 版12は、対象の標本を返せるclientだけを評価させる。ケースは版11と同じ。
+CASE_NAMES_BY_BASELINE_VERSION[12] = CASE_NAMES_BY_BASELINE_VERSION[11]
 # warm startの学習者の経路を守るケース（版11から）。
 WARM_STARTED_LEARNER_PATH_CASE_NAME = "fedsda-mnist4-warm-started-learner"
 
@@ -847,6 +854,15 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
     def column(name):
         return tables.get(name, np.asarray([], dtype=np.int64))
 
+    if baseline_version >= 12 and type(run.run_settings) not in (
+        FedavgRunSettings,
+        FeddriftRunSettings,
+    ):
+        sample_counts = column("client_cross_evaluation.evaluated_sample_count")
+        coverage.update(
+            cross_evaluation_record_count=int(sample_counts.size),
+            zero_sample_cross_evaluation_count=int(np.count_nonzero(sample_counts == 0)),
+        )
     accepted = column("candidate_validation_decision.candidate_accepted").astype(np.bool_)
     complete = ~column("candidate_validation_decision.is_incomplete_at_run_end").astype(np.bool_)
     coverage.update(
@@ -916,6 +932,17 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
 
 def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION):
     """イベントが空のケースを重要経路の基準に採用しない。"""
+    if (
+        baseline_version >= 12
+        and case_name.startswith("fedsda")
+        and case_name not in CANDIDATE_VALIDATION_PATH_CASE_NAMES
+    ):
+        assert coverage["zero_sample_cross_evaluation_count"] == 0, (case_name, coverage)
+        if case_name in (
+            "fedsda-sine2-adoption-without-validation",
+            WARM_STARTED_LEARNER_PATH_CASE_NAME,
+        ):
+            assert coverage["cross_evaluation_record_count"] > 0, (case_name, coverage)
     if baseline_version >= 2:
         # 版2の扱いでは、採用したモデルが、登録されないまま残らない。
         assert coverage["unregistered_adopted_model_count"] == 0, (case_name, coverage)
@@ -1261,6 +1288,13 @@ def _execute_case_run(case_name, settings):
             mid: repository.get_global_model_parameters(model_id=mid)
             for mid in repository.global_model_ids
         }
+    # 版11→12のtestは、goldenの要約からでなく、その場の実行の記録から0件の行を数える。
+    sample_counts = tables.get(
+        "client_cross_evaluation.evaluated_sample_count", np.asarray([], dtype=np.int64)
+    )
+    divergence_event_counts["zero_sample_cross_evaluation_count"] = int(
+        np.count_nonzero(sample_counts == 0)
+    )
     return run, tables, parameters, divergence_event_counts
 
 

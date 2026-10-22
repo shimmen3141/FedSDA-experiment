@@ -1,4 +1,4 @@
-"""サーバのクロス評価: グローバルモデルの全部の組を、対象のモデルを保有するclientへ評価させて集計する。"""
+"""サーバのクロス評価: グローバルモデルの全部の組を、選んだ方針のclientへ評価させて集計する。"""
 
 from dataclasses import dataclass
 from random import Random
@@ -21,6 +21,30 @@ from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunCl
 from federated_learning_experiments.runtime.server_model_registration_and_aggregation import (
     split_shared_and_concept_specific_parameters,
 )
+
+# クロス評価で評価させるclientの選び方。
+CLIENTS_HOLDING_TARGET_MODEL_POLICY_NAME = "clients_holding_target_model"
+CLIENTS_WITH_TARGET_MODEL_SAMPLES_POLICY_NAME = "clients_with_target_model_samples"
+CROSS_EVALUATION_CLIENT_SELECTION_POLICY_NAMES = (
+    CLIENTS_HOLDING_TARGET_MODEL_POLICY_NAME,
+    CLIENTS_WITH_TARGET_MODEL_SAMPLES_POLICY_NAME,
+)
+
+
+def validate_cross_evaluation_client_selection_policy(
+    *, cross_evaluation_client_selection_policy: str
+) -> None:
+    """選び方の型と、正式な値を、状態を変える前に検査する。"""
+    if type(cross_evaluation_client_selection_policy) is not str:
+        raise TypeError("cross_evaluation_client_selection_policy must be builtin str")
+    if (
+        cross_evaluation_client_selection_policy
+        not in CROSS_EVALUATION_CLIENT_SELECTION_POLICY_NAMES
+    ):
+        raise ValueError(
+            "cross_evaluation_client_selection_policy must be one of "
+            + ", ".join(CROSS_EVALUATION_CLIENT_SELECTION_POLICY_NAMES)
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -183,9 +207,10 @@ def cross_evaluate_global_models(
     round_index: int,
     maximum_evaluating_client_count_per_model: int,
     python_random_generator: Random,
+    cross_evaluation_client_selection_policy: str = CLIENTS_HOLDING_TARGET_MODEL_POLICY_NAME,
     record_model_transfers: bool = True,
 ) -> ModelCrossEvaluation:
-    """モデルの全部の組（評価する側、対象）を、渡されたIDの順に、対象を保有するclientへ評価させる。
+    """モデルの全部の組（評価する側、対象）を、渡されたIDの順に、選んだ方針のclientへ評価させる。
 
     評価する側と対象が違う組では、clientが保有する対象のモデルとの正誤の比較も求める。
     組ごとに、軽量メッセージと、評価する側のモデルの転送（1回のクロス評価の中で、共有部はclientごとに1回、
@@ -193,7 +218,12 @@ def cross_evaluate_global_models(
     グローバルモデルとclientの状態は変えない（乱数は進む）。途中で失敗したら、済んだ分は残る。
     `record_model_transfers`が偽なら、メッセージだけを記録し、モデルの転送（共有部と概念固有部）を記録しない
     （クロス評価で配布するモデルを使う扱い。評価と乱数は同じ）。
+    clientの候補は、対象を保有するとみなすclient（旧の扱い）か、対象を保有し標本を返せるclient。
+    どちらも渡されたclientの順に並べ、上限を超えたときだけ、その列から無作為に選ぶ。
     """
+    validate_cross_evaluation_client_selection_policy(
+        cross_evaluation_client_selection_policy=cross_evaluation_client_selection_policy
+    )
     if type(record_model_transfers) is not bool:
         raise TypeError("record_model_transfers must be builtin bool")
     _validate_cross_evaluation_inputs(
@@ -216,10 +246,16 @@ def cross_evaluate_global_models(
         )
         for model_id, parameter_snapshot in candidate_parameter_snapshots.items()
     }
-    # モデルIDごとの、保有するclientの列（渡されたclientの順）。最初に1回だけ作る。
+    # モデルIDごとの、方針を満たすclientの列（渡されたclientの順）。最初に1回だけ作る。
     holding_clients_by_model_id: dict[int, list[FedsdaRunClient]] = {}
     for run_client in run_clients:
-        for held_model_id in run_client.get_cross_evaluation_held_model_ids():
+        eligible_model_ids = (
+            run_client.get_model_ids_with_cross_evaluation_samples()
+            if cross_evaluation_client_selection_policy
+            == CLIENTS_WITH_TARGET_MODEL_SAMPLES_POLICY_NAME
+            else run_client.get_cross_evaluation_held_model_ids()
+        )
+        for held_model_id in eligible_model_ids:
             holding_clients_by_model_id.setdefault(held_model_id, []).append(run_client)
 
     client_ids_sent_shared_parameters: set[int] = set()

@@ -5,6 +5,9 @@ from random import Random
 
 from torch import Tensor, cat, float32, no_grad, strided, unique
 
+from federated_learning_experiments.evaluation.model_evaluation_sample_records import (
+    ObservedEvaluationSample,
+)
 from federated_learning_experiments.evaluation.model_evaluation_sample_store import (
     ModelEvaluationSampleStore,
 )
@@ -25,6 +28,9 @@ from federated_learning_experiments.learning.training.current_training_model_ass
 )
 from federated_learning_experiments.learning.training.held_model_training_state_registry import (
     HeldModelTrainingStateRegistry,
+)
+from federated_learning_experiments.learning.training.model_training_sample_records import (
+    ObservedTrainingSample,
 )
 from federated_learning_experiments.learning.training.model_training_sample_store import (
     ModelTrainingSampleStore,
@@ -126,6 +132,81 @@ def _count_model_pair_correctness(
     )
 
 
+def _select_target_model_samples(
+    *,
+    target_model_id: int,
+    model_evaluation_sample_store: ModelEvaluationSampleStore,
+    training_sample_store: ModelTrainingSampleStore,
+    current_training_model_assignment: CurrentTrainingModelAssignment,
+) -> tuple[ObservedEvaluationSample | ObservedTrainingSample, ...]:
+    """評価標本、現在の学習帰属の学習データの順に選ぶ。上限の抜き出しは評価側で行う。"""
+    if type(target_model_id) is not int:
+        raise TypeError("target_model_id must be builtin int")
+    for owner_name, owner, required_type in (
+        (
+            "model_evaluation_sample_store",
+            model_evaluation_sample_store,
+            ModelEvaluationSampleStore,
+        ),
+        ("training_sample_store", training_sample_store, ModelTrainingSampleStore),
+        (
+            "current_training_model_assignment",
+            current_training_model_assignment,
+            CurrentTrainingModelAssignment,
+        ),
+    ):
+        if type(owner) is not required_type:
+            raise TypeError(f"{owner_name} must be exact {required_type.__name__}")
+    stored_evaluation_samples = next(
+        (
+            evaluation_sample_collection.evaluation_samples
+            for evaluation_sample_collection in model_evaluation_sample_store.snapshot_ordered_model_evaluation_samples()
+            if evaluation_sample_collection.model_id == target_model_id
+        ),
+        (),
+    )
+    selected_samples: tuple[ObservedEvaluationSample | ObservedTrainingSample, ...]
+    if len(stored_evaluation_samples) >= _MINIMUM_STORED_EVALUATION_SAMPLE_COUNT:
+        selected_samples = stored_evaluation_samples
+    else:
+        current_model_training_samples = (
+            next(
+                (
+                    training_sample_collection.training_samples
+                    for training_sample_collection in training_sample_store.snapshot_ordered_model_training_samples()
+                    if training_sample_collection.model_id == target_model_id
+                ),
+                (),
+            )
+            if target_model_id == current_training_model_assignment.current_training_model_id
+            else ()
+        )
+        selected_samples = (
+            current_model_training_samples
+            if len(current_model_training_samples) >= _MINIMUM_CURRENT_MODEL_TRAINING_SAMPLE_COUNT
+            else ()
+        )
+    return selected_samples
+
+
+def target_model_cross_evaluation_samples_are_available(
+    *,
+    target_model_id: int,
+    model_evaluation_sample_store: ModelEvaluationSampleStore,
+    training_sample_store: ModelTrainingSampleStore,
+    current_training_model_assignment: CurrentTrainingModelAssignment,
+) -> bool:
+    """評価と同じ規則で、対象の標本を返せるか調べる。ownerも乱数も変えない。"""
+    return bool(
+        _select_target_model_samples(
+            target_model_id=target_model_id,
+            model_evaluation_sample_store=model_evaluation_sample_store,
+            training_sample_store=training_sample_store,
+            current_training_model_assignment=current_training_model_assignment,
+        )
+    )
+
+
 @no_grad()
 def evaluate_candidate_model_on_target_model_samples(
     *,
@@ -188,34 +269,12 @@ def evaluate_candidate_model_on_target_model_samples(
     )
 
     # 標本の選択（旧と同じ順: 評価標本→現在の学習帰属の学習データ→なし。上限を超えたら抜き出す）。
-    stored_evaluation_samples = next(
-        (
-            evaluation_sample_collection.evaluation_samples
-            for evaluation_sample_collection in model_evaluation_sample_store.snapshot_ordered_model_evaluation_samples()
-            if evaluation_sample_collection.model_id == target_model_id
-        ),
-        (),
+    selected_samples = _select_target_model_samples(
+        target_model_id=target_model_id,
+        model_evaluation_sample_store=model_evaluation_sample_store,
+        training_sample_store=training_sample_store,
+        current_training_model_assignment=current_training_model_assignment,
     )
-    if len(stored_evaluation_samples) >= _MINIMUM_STORED_EVALUATION_SAMPLE_COUNT:
-        selected_samples = stored_evaluation_samples
-    else:
-        current_model_training_samples = (
-            next(
-                (
-                    training_sample_collection.training_samples
-                    for training_sample_collection in training_sample_store.snapshot_ordered_model_training_samples()
-                    if training_sample_collection.model_id == target_model_id
-                ),
-                (),
-            )
-            if target_model_id == current_training_model_id
-            else ()
-        )
-        selected_samples = (
-            current_model_training_samples
-            if len(current_model_training_samples) >= _MINIMUM_CURRENT_MODEL_TRAINING_SAMPLE_COUNT
-            else ()
-        )
     if len(selected_samples) > maximum_evaluation_sample_count:
         selected_samples = tuple(
             python_random_generator.sample(selected_samples, maximum_evaluation_sample_count)
