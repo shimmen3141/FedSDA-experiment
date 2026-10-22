@@ -186,6 +186,8 @@ _SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS = (
     "default-sample-holding-cross-evaluation-deferred-500-samples",
     "product-default-sample-holding-cross-evaluation",
     "default-sample-holding-every-round-clustering",
+    "default-sample-holding-usage-evidence-veto",
+    "product-default-sample-holding-usage-evidence-veto",
     "default-sample-holding-every-round-clustering-deferred-1-round",
 )
 _VARIANTS["default-sample-holding-cross-evaluation"] = ("fedsda", False, None)
@@ -194,8 +196,19 @@ for _variant_name in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_
 # 製品の既定（基準版11以降）を、そのまま使う変種。ほかの変種は、基準版10の既定を基点にする（`_execute_job`）。
 _VARIANTS["product-default"] = ("fedsda", False, None)
 # 製品の既定（基準版11以降）の上で、クロス評価で評価させるclientを、対象の標本を返せるclientに限る（IMPROVE-028）。
-_PRODUCT_DEFAULT_BASED_VARIANTS = ("product-default", "product-default-sample-holding-cross-evaluation")
+_PRODUCT_DEFAULT_BASED_VARIANTS = (
+    "product-default",
+    "product-default-sample-holding-cross-evaluation",
+    "product-default-sample-holding-usage-evidence-veto",
+)
 _VARIANTS["product-default-sample-holding-cross-evaluation"] = ("fedsda", False, None)
+# 評価のclientを絞る変更に、clientの利用の実績による統合の拒否権を足す（IMPROVE-028の8。LEGACY-021）。
+_USAGE_EVIDENCE_VETO_VARIANTS = (
+    "default-sample-holding-usage-evidence-veto",
+    "product-default-sample-holding-usage-evidence-veto",
+)
+for _variant_name in _USAGE_EVIDENCE_VETO_VARIANTS:
+    _VARIANTS[_variant_name] = ("fedsda", False, None)
 _VARIANTS["default-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _VARIANTS["default-pooled-lifetime-description-length-clustering-keep-representative"] = ("fedsda", False, None)
 _FIXED_CANDIDATE_EPOCH_COUNT_BY_VARIANT = {
@@ -1688,6 +1701,137 @@ def _sample_holding_cross_evaluation_clients_policy(*, events):
 
 
 @contextmanager
+def _usage_evidence_veto_policy(*, events, alpha=0.05, rho=1.0):
+    """サーバの統合に、clientの利用の実績による拒否権を足す（研究用。IMPROVE-028の8）。
+
+    clientは、毎標本、現在の学習帰属のモデル（所有者）oと、ほかの保有モデルkについて、予測の前の確率の対数損失の差
+    x = ℓ_k − ℓ_o を、(o, k)ごとに件数・和・2乗和へ足す（保有モデルの確率は予測のために計算済み）。登録（手元の
+    仮のID→正式ID）と配布（統合のID対応）で、所有者と相手のIDを付け替える。サーバは、今の判定が同じクラスタに
+    しうる対（小さいID a、大きいID b）について、bの標本での全clientの合計 S = Σ(ℓ_a − ℓ_b) と、経験分散の
+    信頼の幅（正規の混合の境界）cを求め、S − c > ln 2（bが、自分の標本を、aより確かに良く説明する）なら、
+    その対の判定の値をaverage linkageへ渡さない（統合の候補にしない）。比べるのは若い方（大きいID）の標本だけ
+    （成熟した方の標本では、同じ概念の若いモデルも劣るため。IMPROVE-028の5）。
+    """
+    import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
+    import federated_learning_experiments.runtime.observed_sample_prediction as prediction_module
+    import federated_learning_experiments.runtime.observed_sample_processing as processing_module
+    import federated_learning_experiments.runtime.server_model_registration_and_aggregation as registration_module
+    from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
+
+    # 証拠: clientの保有モデルの登録簿の識別子 -> {(所有者, 相手): [件数, 和, 2乗和]}
+    evidence = {}
+    context = {}
+    original_predict = processing_module.predict_observed_sample_and_update_prediction_weights
+    original_convert = prediction_module.convert_model_outputs_to_prediction_probabilities
+    original_confirm = registration_module.confirm_held_model_registration
+    original_distribution = FedsdaRunClient.apply_global_model_distribution
+    original_cluster = consolidation_module.cluster_model_ids_by_average_linkage
+
+    def remap(client_key, model_id_mapping):
+        table = evidence.get(client_key)
+        if not table or not model_id_mapping:
+            return
+        merged = {}
+        for (owner, other), values in table.items():
+            owner = model_id_mapping.get(owner, owner)
+            other = model_id_mapping.get(other, other)
+            if owner == other:
+                continue
+            accumulated = merged.setdefault((owner, other), [0, 0.0, 0.0])
+            for position in range(3):
+                accumulated[position] += values[position]
+        evidence[client_key] = merged
+
+    def predict(**arguments):
+        observation = arguments["indexed_observation"]
+        context.update(
+            armed=True,
+            client=id(arguments["held_model_training_state_registry"]),
+            owner=arguments["current_training_model_assignment"].current_training_model_id,
+            label=int(observation.training_sample.observed_class_labels.view(-1)[0].item()),
+        )
+        try:
+            return original_predict(**arguments)
+        finally:
+            context["armed"] = False
+
+    def convert(**arguments):
+        probabilities = original_convert(**arguments)
+        if context.get("armed"):
+            # 最初の変換（予測と重みの更新に使う同期の側の確率）だけを使う。
+            context["armed"] = False
+            owner = context["owner"]
+            if owner in probabilities:
+                losses = {}
+                for model_id, values in probabilities.items():
+                    if arguments["class_count"] == 2:
+                        positive = float(values.view(-1)[0].item())
+                        true_probability = positive if context["label"] == 1 else 1.0 - positive
+                    else:
+                        true_probability = float(values.view(-1)[context["label"]].item())
+                    losses[model_id] = -math.log(max(true_probability, 1e-12))
+                table = evidence.setdefault(context["client"], {})
+                for model_id, loss in losses.items():
+                    if model_id == owner:
+                        continue
+                    difference = loss - losses[owner]
+                    accumulated = table.setdefault((owner, model_id), [0, 0.0, 0.0])
+                    accumulated[0] += 1
+                    accumulated[1] += difference
+                    accumulated[2] += difference * difference
+        return probabilities
+
+    def confirm(**arguments):
+        registry = arguments["held_model_training_state_registry"]
+        before = {state.model_id for state in registry.snapshot_ordered_held_model_training_states()}
+        result = original_confirm(**arguments)
+        after = {state.model_id for state in registry.snapshot_ordered_held_model_training_states()}
+        removed, added = before - after, after - before
+        if len(removed) == 1 and len(added) == 1:
+            remap(id(registry), {next(iter(removed)): next(iter(added))})
+        return result
+
+    def distribution(self, *, model_id_mapping, **arguments):
+        result = original_distribution(self, model_id_mapping=model_id_mapping, **arguments)
+        remap(id(self.owners.held_model_training_state_registry), model_id_mapping)
+        return result
+
+    def cluster(*, model_ids, decision_scores_by_model_pair, maximum_same_cluster_decision_score):
+        kept = {}
+        vetoed = 0
+        for (lower, higher), score in decision_scores_by_model_pair.items():
+            if score <= maximum_same_cluster_decision_score:
+                count = total = squares = 0.0
+                for table in evidence.values():
+                    values = table.get((higher, lower))
+                    if values:
+                        count += values[0]
+                        total += values[1]
+                        squares += values[2]
+                if count > 1:
+                    variance = max(squares - total * total / count, 0.0) + rho
+                    width = math.sqrt(variance * (math.log(variance / rho) + 2 * math.log(1 / alpha)))
+                    if total - width > math.log(2):
+                        vetoed += 1
+                        events.append(dict(event="usage_evidence_veto", pair=(lower, higher), total=total, width=width, count=count))
+                        continue
+            kept[(lower, higher)] = score
+        return original_cluster(
+            model_ids=model_ids,
+            decision_scores_by_model_pair=kept,
+            maximum_same_cluster_decision_score=maximum_same_cluster_decision_score,
+        )
+
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(patch.object(processing_module, "predict_observed_sample_and_update_prediction_weights", predict))
+        stack.enter_context(patch.object(prediction_module, "convert_model_outputs_to_prediction_probabilities", convert))
+        stack.enter_context(patch.object(registration_module, "confirm_held_model_registration", confirm))
+        stack.enter_context(patch.object(FedsdaRunClient, "apply_global_model_distribution", distribution))
+        stack.enter_context(patch.object(consolidation_module, "cluster_model_ids_by_average_linkage", cluster))
+        yield
+
+
+@contextmanager
 def _every_round_clustering_policy(*, events):
     """サーバのクロス評価とクラスタリングを、新しいモデルの登録がある同期だけでなく、モデルが2つ以上ある毎回の
     同期で行う（研究用。旧の`FEDSDA_CLUSTERING_POLICY = 'every_round'`に当たる。新実装は`on_new_model`だけを
@@ -2134,6 +2278,8 @@ def _execute_job(job):
             stack.enter_context(_equivalence_clustering_decision_policy(events=events))
         if job["variant"] in _SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS:
             stack.enter_context(_sample_holding_cross_evaluation_clients_policy(events=events))
+        if job["variant"] in _USAGE_EVIDENCE_VETO_VARIANTS:
+            stack.enter_context(_usage_evidence_veto_policy(events=events))
         if job["variant"] in _EVERY_ROUND_CLUSTERING_VARIANTS:
             stack.enter_context(_every_round_clustering_policy(events=events))
         if job["variant"] in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT:
@@ -2356,6 +2502,7 @@ def _execute_job(job):
             "detector_signals": sum(e["event"] == "detector_signal" and e["detected"] for e in events),
         },
         own_loss_fallback_count=sum(e["event"] == "own_loss_fallback_to_training_samples" for e in events),
+        usage_evidence_veto_count=sum(e["event"] == "usage_evidence_veto" for e in events),
         withdrawn_into_interval_sample_count=sum(
             e["count"] for e in events if e["event"] == "withdrawn_into_interval"
         ),
