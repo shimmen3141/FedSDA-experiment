@@ -33,3 +33,8 @@
 - 精度は4データとも既定と同じ（平均−0.03〜+0.02pp）。
 - CIRCLE2の最終のモデル数が8.75→2.25、下りが0.53倍（統合33→57回）。SINE2の下りは0.94倍。SEA4・MNIST2はほぼ変わらない。
 - 4 seedだけなので暫定。本規模の確認のため、基準版11の既定の上の変種`product-default-sample-holding-cross-evaluation`を足した（比べる相手は`method-comparison-v11`の既定）。
+
+## 関係する時期の規則（2026-10-23）
+
+クロス評価とクラスタリング自体も、新しいモデルの登録がある同期でしか行われない（旧の既定`FEDSDA_CLUSTERING_POLICY = 'on_new_model'`を移植。`every_round`は移植していない。`model_clustering_trigger_policy`は`on_new_model_registration`だけを許す）。登録の後の統合が起きにくいのは、この規則と、上の評価のclientの選び方の2つによる（[IMPROVE-028](../improvement-candidates/improve-028-evidence-accumulating-model-consolidation.md)の3）。
+
