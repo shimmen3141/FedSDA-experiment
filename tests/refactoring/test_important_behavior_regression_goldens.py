@@ -145,6 +145,9 @@ def structural_document():
                     selected_new_model_count=1,
                     selected_reinitialized_learner_count=1,
                     selected_warm_started_learner_count=1,
+                    # 版12で足した、クロス評価の記録の行の数と、そのうち標本が0件の行の数。
+                    cross_evaluation_record_count=1,
+                    zero_sample_cross_evaluation_count=0,
                 )
                 if "run_client_settings" in cases_run_settings["run_participant_settings"]
                 and "pending_model_registration_settings"
