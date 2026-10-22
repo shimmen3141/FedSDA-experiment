@@ -5,7 +5,7 @@
 （`estimate_cross_validated_loss_statistics`）。再代入の推定は、学習に使った標本なので損失が低く出る。
 """
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from random import Random
 
 from numpy.random import RandomState
@@ -386,10 +386,7 @@ def estimate_cross_validated_loss_statistics(
                 concept_specific_parameter_optimizer_state=concept_specific_parameter_optimizer_state,
                 shared_parameter_optimizer_state=shared_parameter_optimizer_state,
                 pretraining_samples=training_samples,
-                initial_model_pretraining_settings=replace(
-                    initial_model_pretraining_settings,
-                    pretraining_sample_count=len(training_samples),
-                ),
+                initial_model_pretraining_settings=initial_model_pretraining_settings,
                 python_random_generator=Random(fold_index),
             )
             for held_out_sample in pretraining_samples[fold_index::fold_count]:

@@ -139,11 +139,11 @@ class MinimumDescriptionLengthAssignmentSelection:
         _validate_code_length(
             code_length=self.description_length, code_length_name="description_length"
         )
+        if type(self.new_model_learner_name) is not str:
+            raise TypeError("new_model_learner_name must be builtin str")
         if self.selected_hypothesis == "new_model":
             _validate_new_model_learner_name(learner_name=self.new_model_learner_name)
-        elif self.new_model_learner_name != NO_NEW_MODEL_LEARNER_NAME or (
-            type(self.new_model_learner_name) is not str
-        ):
+        elif self.new_model_learner_name != NO_NEW_MODEL_LEARNER_NAME:
             raise ValueError("only new_model selection has a new model learner name")
 
 

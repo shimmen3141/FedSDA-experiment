@@ -38,7 +38,7 @@
   - 完了条件: 文書が2つの新しい扱いを説明する。
   - _Requirements: 7.1_
 
-- [ ] 7. 実装レビューと最終検証
+- [x] 7. 実装レビューと最終検証
   - 独立CLIの実装レビュー、指摘の反映、全pytest・Ruff・Pyright・WSL・fresh smoke。
   - 完了条件: 実装レビューの判定と指摘の採否、全pytest（件数・exit・JUnit）、Ruff・Pyright、WSLの照合、fresh smokeの結果を「Implementation Notes」とspec.jsonへ記録し、レビューがPASSで、全pytestが失敗0。
   - _Requirements: 全部_
@@ -62,3 +62,13 @@
 - 仕様の変更部分と、その実装の再確認（Luna high、session `01a162fb-7537-7551-aa8e-d9e8cca309ff`）: PASS（静的な確認。testは実行していない）。
 - Task 5: 版11の定義（ケース22。MNIST4のケースを足した）、版10→11の差の説明のtest（共通の21ケースの設定、FedDrift・FedAvgと候補検証の経路の4ケースの値）、必須の経路（MNIST4のケースの採用の経路・3種類の選択・2つの学習者、SINE2のケースの3種類の選択。MNIST2のケースの採用の経路と選択は版10まで）、並列の実行での配り方（MNIST4のケースを1ケース1組）を、commit `67d0ed2`に置いた。そのcommitで、Windowsの基準環境（Python 3.13.15）とWSL（Ubuntu、Python 3.14.4）で、各2回の独立したprocessの一致と必須の経路を確かめてgoldenを生成し（`../../venv/refactoring-tests/warm-start-cv-golden-v11-windows.json`、`warm-start-cv-golden-v11-wsl.json`）、`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`を11へ上げた。合成のgoldenで現在の版の構造を確かめるtest（5件）が、版11の経路の項目とMNIST4のケースの採用の経路を持たないために失敗したので、合成のgoldenに2つの回数を足し、MNIST4のケースを採用の経路のケースと同じ値にした。照合（goldenの版1〜11、このspecのtest、来歴のtest）: Windows 547件のうち、合成のgoldenの5件が失敗（直す前のコード。`../../venv/refactoring-tests/warm-start-cv-golden-windows.xml`）、直した後に合成のgoldenのtest 15件が成功。WSL 547件のうち同じ5件が失敗（`warm-start-cv-golden-wsl.xml`。実goldenの照合は全部成功）、直した後に合成のgoldenのtest 15件が成功。全体の取り直しはTask 7の全pytestで行う。
 - Task 6: 手法の説明（`docs/overview/proposed-method.md`。検出器の基準の行、新しいモデルの仮説、2026-10-22の段落、固定設定の2行）、再利用の説明（`docs/components/model-reuse.md`）、検出器の基準（`docs/components/drift-detection.md`）、基準（`docs/experiments/refactoring-baseline.md`の版11と版10→11の説明）、実験の入口（`docs/experiments/experiment-sweep.md`。候補検証ありの構成の違いは3つ→5つ、研究ツールの基点の固定）、研究記録（LEGACY-020・NEW-006の状態と一覧）、再開案内を合わせた。
+- Task 7: fresh scriptの最終構成の流れに、基準版11の2つの設定と選択の記録の列の確認を足した（`d436006`。16フロー成功、`../../venv/refactoring-tests/warm-start-cv-fresh.log`）。命名表の新しい公開名に、改名の後の2つの名前を足した（`spec_checks.py names`で未登録なし）。
+- 実装レビュー1回目（Claude Haiku 5.5、effort medium——指定値——、`modelUsage`で実モデルを確認、`is_error=false`、session `cd036d18-610e-4fc7-87b2-7eb2779c9e02`、対象`60869d9..218d94b`）: PASS。選択の理由: 数値・乱数・更新の順序を含む実装のため（規約の表）。レビュー担当は、対象のtest 7ファイル（3339 passed）、Ruff、fresh smoke（16フロー）、`spec_checks.py`（names・progress・identity）を独立に実行した。全pytest、goldenのtest、研究ツールとの全体runの照合は、独立に実行していない。依頼の前後で`git status --short`は同じ。指摘の採否:
+  - Minor 1（固定旧の差分の照合がNG）: 事実として記録する。差分は、このspecより前から足してきた`tools/research_*`の8ファイルだけで（`git diff --name-only 748c3aa HEAD`で確かめた）、固定旧の実装には差分がない。このspecの`tools/research_provisional_candidate_expert/run.py`の変更は、Task 3・4の意図した変更。
+  - Minor 2（全体runの指標にwarm startの学習者の計算が入ることを、run単位で確かめていない）: 採用。warm startの学習者の計算を1回余分に行わせ、全体runの指標の増え方が、余分な計算を内側で計った計数とちょうど一致することを確かめるtestを足した（余分な結果は捨てるので、runの軌跡は変わらない。精度の一致も確かめる）。
+  - Minor 3（新しいモデル以外の仮説で、学習者の名前が非strのとき、`TypeError`にならない）: 採用。型の検査を先に分け、testを足した。
+  - 任意 4（設定の値と学習者の名前が同じ文字列）: 採用。命名表に、同じ文字列で同じ学習者を指すことを書いた。
+  - 任意 5（交差検証の、効果のない設定の置き換え）: 採用。外した（epochごとの学習は標本の数の設定を読まないので、値は変わらない。依存境界の`dataclasses.replace`の許可も外した）。
+  - 任意 6（記録の型で学習者の名前を検査していない）: 不採用。記録は、検査済みの`MinimumDescriptionLengthAssignmentSelection`からだけ作り、その型が検査する。
+  - 任意 7（2つの比較が真偽だけを見る）: 不採用。どちらも「替わったこと」「学んだこと」の確認で、値そのものは別のtest（交差検証の統計の照合、学習率0の照合）が確かめている。
+- 主担当の最終検証（指摘の反映の後の作業ツリー。この後の1つのcommitに含める）: Windows全pytest 14806 passed / 8 skipped / 失敗0（641秒、JUnit `../../venv/refactoring-tests/warm-start-cv-task7-full.xml`。基準版1〜11と実旧との照合、`tests/test_regression.py`・`tests/test_proposed_regression.py`を含む）。前のspecの14705件から101件増えた（このspecで足したtest）。Pyright（設定の範囲）0 errors、Ruff成功、pip check成功。WSLの版1〜11とこのspecのtestはTask 5で確かめた（その後の変更は、型の検査の順、効果のない置き換えの削除、test・文書だけ）。

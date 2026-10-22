@@ -405,3 +405,40 @@ def test_every_fedsda_configuration_inherits_the_new_defaults_except_candidate_v
                 CROSS_VALIDATION,
             ), configuration_name
     assert checked > 2
+
+
+def test_warm_started_learner_computation_is_counted_in_the_run_metrics(monkeypatch):
+    """warm startの学習者の計算を1回余分に行わせると、全体runの指標が、余分な計算の計数だけ増える。
+
+    余分な計算の結果は捨てるので、runの軌跡は変わらない（指標の増え方が、余分な計算を内側で計った計数と一致する）。
+    """
+    import dataclasses
+
+    settings = with_policies(
+        build_small_settings(),
+        new_model_hypothesis_learners=WARM,
+        initial_model_loss_statistics_estimation=CROSS_VALIDATION,
+    )
+    baseline = execute_fedsda_experiment_run(run_settings=settings)
+    original = selection_module.compute_warm_started_learner_prequential_code_length
+    extra_counts = []
+
+    def computing_twice(**arguments):
+        with measure_model_computation() as meter:
+            original(**arguments)
+        extra_counts.append(meter.get_model_computation_counts())
+        return original(**arguments)
+
+    monkeypatch.setattr(
+        selection_module, "compute_warm_started_learner_prequential_code_length", computing_twice
+    )
+    doubled = execute_fedsda_experiment_run(run_settings=settings)
+    assert extra_counts
+    assert doubled.run_metrics.prediction_accuracy == baseline.run_metrics.prediction_accuracy
+    baseline_counts = dataclasses.asdict(baseline.run_metrics.model_computation_counts)
+    doubled_counts = dataclasses.asdict(doubled.run_metrics.model_computation_counts)
+    for name, value in baseline_counts.items():
+        assert doubled_counts[name] - value == sum(
+            getattr(counts, name) for counts in extra_counts
+        ), name
+    assert sum(counts.concept_specific_part_training_example_count for counts in extra_counts) > 0

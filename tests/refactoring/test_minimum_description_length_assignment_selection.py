@@ -320,6 +320,19 @@ def test_selection_record_checks_the_new_model_learner_name():
                 description_length=1.0,
                 new_model_learner_name=name,
             )
+    for hypothesis, destination in (
+        ("new_model", None),
+        ("current_model", None),
+        ("held_model", 3),
+    ):
+        with pytest.raises(TypeError):
+            MinimumDescriptionLengthAssignmentSelection(
+                selected_hypothesis=hypothesis,
+                change_interval_sample_count=5,
+                destination_model_id=destination,
+                description_length=1.0,
+                new_model_learner_name=None,
+            )
     assert (REINITIALIZED_LEARNER_NAME, WARM_STARTED_LEARNER_NAME, NO_NEW_MODEL_LEARNER_NAME) == (
         "reinitialized_learner",
         "warm_started_learner",

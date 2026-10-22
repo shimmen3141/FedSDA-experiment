@@ -5563,7 +5563,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "runtime/initial_model_pretraining.py":
         return imported_module_name in (
             "dataclasses.dataclass",
-            "dataclasses.replace",
             "random.Random",
             "numpy.random.RandomState",
             "torch.float32",
