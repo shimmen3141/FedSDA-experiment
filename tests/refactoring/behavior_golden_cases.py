@@ -93,7 +93,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
 BASELINE_VERSION = 10
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
@@ -363,7 +363,21 @@ CASE_NAMES_BY_BASELINE_VERSION = {
         "fedsda-sine2-adoption-without-validation",
         "fedsda-mnist2-adoption-without-validation",
     ),
+    # 版11は、「新しいモデル」の仮説のwarm startの学習者と、初期モデルの統計の交差検証。版10のケースに、
+    # 一部のクラスだけが変わる概念で、warm startの学習者が短い選択が起きるMNIST4のケースを足す（既存の2つの
+    # 大きい条件のケースでは、この選択が起きない。2026-10-22の実装の前の確認）。
+    11: (
+        *_VERSION_1_CASE_NAMES,
+        "fedsda-sine2-reference-reuse",
+        "fedsda-sine2-alternative-reference-reuse",
+        "fedsda-sine2-adoption-without-validation",
+        "fedsda-mnist2-adoption-without-validation",
+        "fedsda-mnist4-warm-started-learner",
+    ),
 }
+# warm startの学習者の経路を守るケース（版11から）。
+WARM_STARTED_LEARNER_PATH_CASE_NAME = "fedsda-mnist4-warm-started-learner"
+
 # 候補検証の経路を守る、大きい条件のFedSDAのケース。
 CANDIDATE_VALIDATION_PATH_CASE_NAMES = (
     "fedsda-sine2-events",
@@ -416,7 +430,9 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
         "fedsda-sine2-adoption-without-validation",
     )
     mnist = case_name in ("fedsda-mnist2-decisions", "fedsda-mnist2-adoption-without-validation")
-    rich = sine2_rich or mnist
+    # MNIST4のケースは、MNIST2のケースと違い、学習率・事前学習を構成の値に近いまま使う（下の置き換え）。
+    mnist4 = case_name == WARM_STARTED_LEARNER_PATH_CASE_NAME
+    rich = sine2_rich or mnist or mnist4
     configuration = (
         # 版7からは、候補検証の経路のケースを、版6までの既定と同じ設定の構成で実行する（版6までは、既定から
         # 組み立て、下の表で、候補検証ありに明示する。どちらも同じ設定になる）。
@@ -431,9 +447,9 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
         else case_name
     )
     conditions = ExperimentRunConditions(
-        dataset_name="mnist2" if mnist else "sine2",
+        dataset_name="mnist2" if mnist else "mnist4" if mnist4 else "sine2",
         random_seed=4
-        if case_name == "fedsda-sine2-reference-reuse"
+        if case_name in ("fedsda-sine2-reference-reuse", WARM_STARTED_LEARNER_PATH_CASE_NAME)
         else 5
         if case_name == "fedsda-sine2-alternative-reference-reuse"
         else 0
@@ -444,6 +460,8 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
         client_count=3 if sine2_rich else 2,
         per_client_sample_count=100
         if mnist
+        else 1000
+        if mnist4
         else 1500
         if rich
         else 17
@@ -462,7 +480,7 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
     )
     schedule = replace(
         settings.execution_settings.concept_schedule_settings,
-        minimum_sample_index_gap_before_change_trial=30 if mnist else 100 if rich else 1,
+        minimum_sample_index_gap_before_change_trial=30 if mnist or mnist4 else 100 if rich else 1,
         per_eligible_sample_concept_change_probability=0.015
         if rich
         else 1.0
@@ -471,7 +489,7 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
     )
     participant = settings.run_participant_settings
     pretraining = InitialModelPretrainingSettings(
-        pretraining_sample_count=100 if rich else 24,
+        pretraining_sample_count=500 if mnist4 else 100 if rich else 24,
         pretraining_epoch_count=2 if mnist or not rich else 10,
         pretraining_batch_sample_count=32 if rich else 8,
     )
@@ -870,6 +888,17 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
             selected_held_model_count=selected_hypotheses.count("held_model"),
             selected_new_model_count=selected_hypotheses.count("new_model"),
         )
+        if baseline_version >= 11:
+            # 「新しいモデル」を選んだときに、短かった学習者ごとの回数（版11で足した列から）。
+            new_model_learner_names = column(NEW_MODEL_LEARNER_NAME_TABLE_NAME).tolist()
+            coverage.update(
+                selected_reinitialized_learner_count=new_model_learner_names.count(
+                    "reinitialized_learner"
+                ),
+                selected_warm_started_learner_count=new_model_learner_names.count(
+                    "warm_started_learner"
+                ),
+            )
     if baseline_version >= 2:
         coverage.update(unregistered_adopted_model_count=count_unregistered_adopted_models(run))
     if baseline_version >= 3 and type(run.run_settings) not in (
@@ -940,7 +969,19 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
             assert coverage["merged_model_count"] > 0, case_name
         else:
             assert "second_segment_margin_failed" in reasons, (case_name, reasons)
-    if case_name in ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES:
+    # 版11の新しい既定では、MNIST2のケースの条件で警報が出ない（交差検証の統計）。このケースの採用の経路と
+    # 選択は版10までに限り、版11では、MNIST4のケースが守る。
+    adoption_path_case_names = (
+        tuple(
+            name
+            for name in ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES
+            if name != "fedsda-mnist2-adoption-without-validation"
+        )
+        + (WARM_STARTED_LEARNER_PATH_CASE_NAME,)
+        if baseline_version >= 11
+        else ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES
+    )
+    if case_name in adoption_path_case_names:
         # 検証の判定は無く、候補を、その場で採用する。学習帰属の切替えと、予測の重みの再較正も起きる。
         assert coverage["candidate_accepted_count"] == coverage["candidate_rejected_count"] == 0
         assert coverage["decision_reasons"] == []
@@ -964,9 +1005,19 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
                 "selected_new_model_count",
             )
             assert sum(coverage[key] for key in selection_keys) > 0, case_name
-            if case_name == "fedsda-sine2-adoption-without-validation":
+            if case_name in (
+                "fedsda-sine2-adoption-without-validation",
+                WARM_STARTED_LEARNER_PATH_CASE_NAME,
+            ):
                 for key in selection_keys:
                     assert coverage[key] > 0, f"{case_name}: required {key}"
+        if case_name == WARM_STARTED_LEARNER_PATH_CASE_NAME:
+            # 「新しいモデル」の選択で、初期化し直した学習者とwarm startの学習者が、それぞれ1回以上短い。
+            for key in (
+                "selected_reinitialized_learner_count",
+                "selected_warm_started_learner_count",
+            ):
+                assert coverage[key] > 0, f"{case_name}: required {key}"
     if case_name == "feddrift-drift-tail":
         assert coverage["detection_count"] > 0 and coverage["registered_model_count"] > 1, coverage
         assert coverage["processed_sample_count_per_client"] == 16, coverage

@@ -42,6 +42,7 @@ GOLDEN_CASE_NAMES_IN_OWN_GROUP = (
     "fedsda-sine2-alternative-reference-reuse",
     "fedsda-sine2-adoption-without-validation",
     "fedsda-mnist2-adoption-without-validation",
+    "fedsda-mnist4-warm-started-learner",
 )
 OTHER_GOLDEN_CASE_GROUP_COUNT = 2
 

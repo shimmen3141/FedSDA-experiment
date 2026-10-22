@@ -754,6 +754,67 @@ def test_baseline_10_keeps_baseline_9_where_the_alarm_interval_assignment_is_unc
         golden.assert_case_matches(case_name, current[section], previous[section], section)
 
 
+_NEW_DEFAULT_SETTINGS_IN_BASELINE_11 = (
+    (("run_client_settings", "training_data_assignment_settings"), "new_model_hypothesis_learners"),
+    ((), "initial_model_loss_statistics_estimation"),
+)
+_BASELINE_11_COVERAGE_KEYS = (
+    "selected_reinitialized_learner_count",
+    "selected_warm_started_learner_count",
+)
+
+
+def test_baseline_11_adds_the_mnist4_case_and_changes_only_the_two_settings():
+    """版11のケースは、版10のケースにMNIST4のケースを1つ足したもの。共通のケースの設定は、FedSDAのケースの
+    2つの項目（学習者の組、初期モデルの統計の推定）だけが違う（候補検証ありの構成は今の扱い）。"""
+    assert 11 in golden.SUPPORTED_BASELINE_VERSIONS
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[11] == (
+        *golden.CASE_NAMES_BY_BASELINE_VERSION[10],
+        golden.WARM_STARTED_LEARNER_PATH_CASE_NAME,
+    )
+    for name in golden.CASE_NAMES_BY_BASELINE_VERSION[10]:
+        previous = golden.comparable_run_settings(name, 10)
+        current = deepcopy(golden.comparable_run_settings(name, 11))
+        participant = current["run_participant_settings"]
+        if "training_data_assignment_settings" in participant.get("run_client_settings", {}):
+            values = []
+            for path, field_name in _NEW_DEFAULT_SETTINGS_IN_BASELINE_11:
+                holder = participant
+                for key in path:
+                    holder = holder[key]
+                values.append(holder.pop(field_name))
+            expected = (
+                ["reinitialized_learner", "resubstitution"]
+                if name in golden.CANDIDATE_VALIDATION_PATH_CASE_NAMES
+                else ["reinitialized_and_warm_started_learners", "five_fold_cross_validation"]
+            )
+            assert values == expected, name
+        golden.assert_case_matches(name, current, previous, "run_settings")
+    mnist4 = golden.build_case_settings(golden.WARM_STARTED_LEARNER_PATH_CASE_NAME, 11)
+    assert mnist4.run_participant_settings.initial_model_loss_statistics_estimation == (
+        "five_fold_cross_validation"
+    )
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("case_name", _BASELINE_10_CASES_KEEPING_BASELINE_9)
+def test_baseline_11_keeps_baseline_10_where_the_two_settings_are_unchanged(case_name):
+    """FedDrift・FedAvgと、候補検証ありの構成のケースは、版11でも、版10と同じ値。
+
+    版11で足した選択の記録の列と経路の記録の項目は、取り除いてから比べる（列は空、項目はどれも0）。
+    """
+    previous = capture_case_once(case_name, 10)[0]
+    current = deepcopy(capture_case_once(case_name, 11)[0])
+    column = current["record_tables"].pop(golden.NEW_MODEL_LEARNER_NAME_TABLE_NAME, None)
+    if case_name.startswith("fedsda"):
+        assert column is not None and column["shape"][0] == 0, case_name
+    for key in _BASELINE_11_COVERAGE_KEYS:
+        if key in current["coverage"]:
+            assert current["coverage"].pop(key) == 0, (case_name, key)
+    for section in ("run_metrics", "record_tables", "global_parameters", "coverage"):
+        golden.assert_case_matches(case_name, current[section], previous[section], section)
+
+
 @pytest.mark.parametrize(
     ("previous_version", "next_version", "case_name"),
     [

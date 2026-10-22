@@ -57,9 +57,9 @@
 
 ### Requirement 5: 新しい既定を基準版11として足す
 #### Acceptance Criteria
-1. The validation shall 新しい既定での値を、基準版11のgoldenとして、Windowsの基準環境とWSLの両方で足す（ケースは版10と同じ）。
-2. The validation shall 版10と11の差を、全ケースで、両方の版を実行した結果を比べて確かめる: FedDrift・FedAvgのケースと、候補検証ありの構成のケースは、指標・最終のパラメータ・記録の表（版11の結果から、選択の記録の表に足した列を取り除いたもの）・経路の記録（版11で足す項目を取り除いたもの）が版10と同じ。新しい既定を引き継ぐFedSDAのケースは、設定が2つの新しい項目だけ違う。
-3. The validation shall 新しい既定を引き継ぐ大きい条件のケース（少なくとも1つ）で、「新しいモデル」の選択のうち、warm startの学習者が短かった選択が1回以上起きることを、選択の記録（Requirement 1.5）で確かめる（経路の記録）。
+1. The validation shall 新しい既定での値を、基準版11のgoldenとして、Windowsの基準環境とWSLの両方で足す（ケースは、版10と同じ21ケースに、一部のクラスだけが変わる概念のMNIST4のケース`fedsda-mnist4-warm-started-learner`を1つ足した22ケース）。
+2. The validation shall 版10と11の差を、版10と版11に共通する21ケースで、両方の版を実行した結果を比べて確かめる（MNIST4のケースは版10に無いので、版11のgoldenと必須の経路——Requirement 5.3——で確かめる）: FedDrift・FedAvgのケースと、候補検証ありの構成のケースは、指標・最終のパラメータ・記録の表（版11の結果から、選択の記録の表に足した列を取り除いたもの）・経路の記録（版11で足す項目を取り除いたもの）が版10と同じ。新しい既定を引き継ぐ共通のFedSDAのケースは、設定が2つの新しい項目だけ違う。
+3. The validation shall MNIST4のケースで、最小記述長の3種類の選択（現在のモデルのまま、保有モデルへ、新しいモデルへ）と、「新しいモデル」の選択のうち初期化し直した学習者とwarm startの学習者のそれぞれが短かった選択が、1回以上起きることを、選択の記録（Requirement 1.5）で確かめる（経路の記録）。`fedsda-sine2-adoption-without-validation`の3種類の選択（版10の必須の経路）は、版11でも求める。`fedsda-mnist2-adoption-without-validation`の必須の経路（候補の採用・学習帰属の切替え・予測の重みの再較正と、選択1回以上）は、版10までに限る（新しい既定では、このケースの条件で警報が出ない）。版11では、MNIST4のケースが、候補の採用・切替え・再較正（検証の判定は無い）を守る。
 4. The validation shall 基準版1〜10の照合（計算回数を含む指標の全部を比べる）と、今の扱いでwarm startの学習者と一時的な分類器を作らないことのtestで、今の扱いの値と計算回数が変わらないことを確かめる（Requirement 1.4、2.4）。
 5. The validation shall 新しい既定で、warm startの学習者の計算が計算回数の指標（`model_computation_counts`）に含まれ、交差検証の一時的な分類器の学習が、初期モデルの事前学習と同じく、参加者の初期準備の計算（`preparation_model_computation_counts`。指標には含めない）に含まれることを確かめる。
 
