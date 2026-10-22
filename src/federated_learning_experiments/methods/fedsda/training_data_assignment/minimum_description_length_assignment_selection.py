@@ -7,7 +7,8 @@
 - 変化区間の長さkで、ほかの保有モデルmへ切り替わる: 前のn−k件を現在のモデル、後のk件をmの対数損失で
   符号化し、切り替わりの符号長を足す。
 - 変化区間の長さkで、新しいモデルへ切り替わる: 前のn−k件を現在のモデル、後のk件を新しいモデルの予測的
-  符号長（学びながら予測する学習者の対数損失の和）で符号化し、切り替わりの符号長を足す。
+  符号長（学びながら予測する学習者の対数損失の和）で符号化し、切り替わりの符号長を足す。学習者が複数あれば、
+  最短の学習者の予測的符号長に、どの学習者かを表す符号長ln(学習者の数)を足す（`select_new_model_learner`）。
 
 kは、刻み（最小の変化区間の件数）の倍数で、列の長さn以下。新しいモデルの学び始めの誤りの分が、新しいモデルを
 作ることの罰として働くので、固定の閾値を使わない。
@@ -18,6 +19,13 @@ from math import isfinite, log
 
 # 選んだ仮説: 現在のモデルのまま、保有モデルへ切り替わる、新しいモデルへ切り替わる。
 SELECTED_HYPOTHESES: tuple[str, ...] = ("current_model", "held_model", "new_model")
+
+# 「新しいモデル」の仮説の学習者の名前: 概念ごとの部分を初期化し直した学習者、現在のモデルの写しを初期化せずに
+# 学ばせるwarm startの学習者。「新しいモデル」以外の仮説を選んだときの、該当なし。
+REINITIALIZED_LEARNER_NAME = "reinitialized_learner"
+WARM_STARTED_LEARNER_NAME = "warm_started_learner"
+NO_NEW_MODEL_LEARNER_NAME = ""
+_NEW_MODEL_LEARNER_NAMES: tuple[str, ...] = (REINITIALIZED_LEARNER_NAME, WARM_STARTED_LEARNER_NAME)
 
 
 def _validate_count(*, count: int, count_name: str, minimum_count: int) -> None:
@@ -44,6 +52,62 @@ def compute_switching_code_length(*, switching_probability: float, destination_c
     return -log(switching_probability) + log(destination_count)
 
 
+def _validate_new_model_learner_name(*, learner_name: str) -> None:
+    if type(learner_name) is not str:
+        raise TypeError("new model learner name must be builtin str")
+    if learner_name not in _NEW_MODEL_LEARNER_NAMES:
+        raise ValueError("new model learner name must be a declared learner")
+
+
+@dataclass(frozen=True, kw_only=True)
+class NewModelLearnerSelection:
+    """「新しいモデル」の仮説で、予測的符号長が最短だった学習者と、その符号長＋学習者の選択の符号長（nats）。"""
+
+    learner_name: str
+    description_length: float
+
+    def __post_init__(self) -> None:
+        _validate_new_model_learner_name(learner_name=self.learner_name)
+        _validate_code_length(
+            code_length=self.description_length, code_length_name="description_length"
+        )
+
+
+def select_new_model_learner(
+    *, prequential_code_lengths_by_learner_name: tuple[tuple[str, float], ...]
+) -> NewModelLearnerSelection:
+    """学習者ごとの予測的符号長から、最短の学習者を選び、学習者の選択の符号長ln(学習者の数)を足す。
+
+    学習者に一様な事前分布を置いた、どの学習者で符号化したかを表す長さ。同じ値なら、先の学習者を選ぶ。学習者が
+    1つなら、足す値は0で、予測的符号長そのもの。
+    """
+    if type(prequential_code_lengths_by_learner_name) is not tuple:
+        raise TypeError("prequential_code_lengths_by_learner_name must be builtin tuple")
+    if not prequential_code_lengths_by_learner_name:
+        raise ValueError("prequential_code_lengths_by_learner_name must not be empty")
+    seen_learner_names: set[str] = set()
+    for learner_entry in prequential_code_lengths_by_learner_name:
+        if type(learner_entry) is not tuple or len(learner_entry) != 2:
+            raise TypeError("learner entries must be builtin (learner_name, code_length) tuples")
+        learner_name, code_length = learner_entry
+        _validate_new_model_learner_name(learner_name=learner_name)
+        if learner_name in seen_learner_names:
+            raise ValueError("learner names must be unique")
+        seen_learner_names.add(learner_name)
+        _validate_code_length(code_length=code_length, code_length_name="learner code length")
+    best_learner_name, best_code_length = prequential_code_lengths_by_learner_name[0]
+    for learner_name, code_length in prequential_code_lengths_by_learner_name[1:]:
+        if code_length < best_code_length:
+            best_learner_name, best_code_length = learner_name, code_length
+    learner_count = len(prequential_code_lengths_by_learner_name)
+    return NewModelLearnerSelection(
+        learner_name=best_learner_name,
+        description_length=best_code_length
+        if learner_count == 1
+        else best_code_length + log(float(learner_count)),
+    )
+
+
 @dataclass(frozen=True, kw_only=True)
 class MinimumDescriptionLengthAssignmentSelection:
     """最小記述長の原理で選んだ仮説、変化区間の長さ、行き先の保有モデルのID、その仮説の符号長（nats）。"""
@@ -53,6 +117,8 @@ class MinimumDescriptionLengthAssignmentSelection:
     # 行き先の保有モデルのID。現在のモデルのまま、または新しいモデルなら、None。
     destination_model_id: int | None
     description_length: float
+    # 「新しいモデル」を選んだときの、その変化区間の長さで最短だった学習者。ほかの仮説では`NO_NEW_MODEL_LEARNER_NAME`。
+    new_model_learner_name: str
 
     def __post_init__(self) -> None:
         if (
@@ -73,6 +139,12 @@ class MinimumDescriptionLengthAssignmentSelection:
         _validate_code_length(
             code_length=self.description_length, code_length_name="description_length"
         )
+        if self.selected_hypothesis == "new_model":
+            _validate_new_model_learner_name(learner_name=self.new_model_learner_name)
+        elif self.new_model_learner_name != NO_NEW_MODEL_LEARNER_NAME or (
+            type(self.new_model_learner_name) is not str
+        ):
+            raise ValueError("only new_model selection has a new model learner name")
 
 
 def select_assignment_by_minimum_description_length(
@@ -80,6 +152,7 @@ def select_assignment_by_minimum_description_length(
     current_model_log_losses: tuple[float, ...],
     held_model_log_losses_by_model_id: tuple[tuple[int, tuple[float, ...]], ...],
     new_model_code_lengths_by_change_interval_sample_count: dict[int, float],
+    new_model_learner_names_by_change_interval_sample_count: dict[int, str],
     switching_code_length: float,
     change_interval_grid_sample_count: int,
 ) -> MinimumDescriptionLengthAssignmentSelection:
@@ -89,6 +162,8 @@ def select_assignment_by_minimum_description_length(
     `held_model_log_losses_by_model_id`は、行き先の保有モデル（現在のモデル以外。この順に調べる）ごとの、列の
     対数損失。`new_model_code_lengths_by_change_interval_sample_count`は、刻みの倍数の変化区間の長さkごとの、
     列の末尾k件での新しいモデルの予測的符号長（刻みの倍数でn以下の全部のkを持つ）。
+    `new_model_learner_names_by_change_interval_sample_count`は、同じkごとの、その符号長の学習者の名前で、
+    「新しいモデル」を選んだときに結果へ入れる（選択の規則には使わない）。
 
     「現在のモデルのまま」を最初の最良とし、kを短い順に、各kで行き先の保有モデル（順に）、新しいモデルの順に
     調べ、最良より厳密に短いときだけ置き換える（同じ長さなら、先に調べた仮説を選ぶ）。切り替わる仮説の符号長は、
@@ -146,12 +221,25 @@ def select_assignment_by_minimum_description_length(
         )
     for code_length in new_model_code_lengths_by_change_interval_sample_count.values():
         _validate_code_length(code_length=code_length, code_length_name="new model code length")
+    if type(new_model_learner_names_by_change_interval_sample_count) is not dict:
+        raise TypeError(
+            "new_model_learner_names_by_change_interval_sample_count must be builtin dict"
+        )
+    if set(new_model_learner_names_by_change_interval_sample_count) != set(
+        change_interval_sample_counts
+    ):
+        raise ValueError(
+            "new model learner names must cover exactly the grid change interval lengths"
+        )
+    for learner_name in new_model_learner_names_by_change_interval_sample_count.values():
+        _validate_new_model_learner_name(learner_name=learner_name)
 
     best = MinimumDescriptionLengthAssignmentSelection(
         selected_hypothesis="current_model",
         change_interval_sample_count=sequence_length,
         destination_model_id=None,
         description_length=sum(current_model_log_losses),
+        new_model_learner_name=NO_NEW_MODEL_LEARNER_NAME,
     )
     for change_interval_sample_count in change_interval_sample_counts:
         earlier_sample_count = sequence_length - change_interval_sample_count
@@ -179,5 +267,10 @@ def select_assignment_by_minimum_description_length(
                     change_interval_sample_count=change_interval_sample_count,
                     destination_model_id=model_id,
                     description_length=description_length,
+                    new_model_learner_name=new_model_learner_names_by_change_interval_sample_count[
+                        change_interval_sample_count
+                    ]
+                    if hypothesis == "new_model"
+                    else NO_NEW_MODEL_LEARNER_NAME,
                 )
     return best

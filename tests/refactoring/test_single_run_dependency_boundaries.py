@@ -6905,10 +6905,13 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.indexed_observed_training_sample.IndexedObservedTrainingSample",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
-            "federated_learning_experiments.learning.training.prequential_code_length.compute_new_model_prequential_code_length",
+            "federated_learning_experiments.learning.training.prequential_code_length.compute_reinitialized_learner_prequential_code_length",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.REINITIALIZED_LEARNER_NAME",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.MinimumDescriptionLengthAssignmentSelection",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.NewModelLearnerSelection",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.compute_switching_code_length",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.select_assignment_by_minimum_description_length",
+            "federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection.select_new_model_learner",
         )
     if source_module_path == "learning/prediction/classifier_bounded_loss_evaluation.py":
         return imported_module_name in (

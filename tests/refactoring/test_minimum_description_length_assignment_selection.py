@@ -11,9 +11,14 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment impo
     minimum_description_length_assignment_selection as selection_module,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
+    NO_NEW_MODEL_LEARNER_NAME,
+    REINITIALIZED_LEARNER_NAME,
+    WARM_STARTED_LEARNER_NAME,
     MinimumDescriptionLengthAssignmentSelection,
+    NewModelLearnerSelection,
     compute_switching_code_length,
     select_assignment_by_minimum_description_length,
+    select_new_model_learner,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
     ALARM_INTERVAL_ASSIGNMENT_POLICY_NAMES,
@@ -65,13 +70,18 @@ def test_switching_code_length_is_negative_log_probability_plus_log_destination_
         compute_switching_code_length(switching_probability=0.5, destination_count=True)
 
 
-def _select(current, held, new, switching=4.0, grid=5):
+def _select(current, held, new, switching=4.0, grid=5, learner_names=None):
     return select_assignment_by_minimum_description_length(
         current_model_log_losses=tuple(current),
         held_model_log_losses_by_model_id=tuple(
             (model_id, tuple(losses)) for model_id, losses in held
         ),
         new_model_code_lengths_by_change_interval_sample_count=dict(new),
+        new_model_learner_names_by_change_interval_sample_count=(
+            {span: REINITIALIZED_LEARNER_NAME for span in new}
+            if learner_names is None
+            else dict(learner_names)
+        ),
         switching_code_length=switching,
         change_interval_grid_sample_count=grid,
     )
@@ -86,6 +96,7 @@ def test_current_model_is_selected_when_switching_does_not_shorten_the_descripti
         change_interval_sample_count=10,
         destination_model_id=None,
         description_length=sum(current),
+        new_model_learner_name=NO_NEW_MODEL_LEARNER_NAME,
     )
 
 
@@ -101,6 +112,7 @@ def test_held_model_is_selected_with_the_change_interval_where_it_explains_the_s
         change_interval_sample_count=5,
         destination_model_id=7,
         description_length=expected,
+        new_model_learner_name=NO_NEW_MODEL_LEARNER_NAME,
     )
 
 
@@ -115,6 +127,7 @@ def test_new_model_is_selected_when_its_prequential_code_length_is_shortest():
         change_interval_sample_count=5,
         destination_model_id=None,
         description_length=expected,
+        new_model_learner_name=REINITIALIZED_LEARNER_NAME,
     )
 
 
@@ -166,6 +179,7 @@ def test_sequences_shorter_than_the_grid_keep_the_current_model_with_the_whole_s
         change_interval_sample_count=3,
         destination_model_id=None,
         description_length=15.0,
+        new_model_learner_name=NO_NEW_MODEL_LEARNER_NAME,
     )
 
 
@@ -214,6 +228,7 @@ def test_selection_record_rejects_inconsistent_fields():
             change_interval_sample_count=5,
             destination_model_id=None,
             description_length=1.0,
+            new_model_learner_name=NO_NEW_MODEL_LEARNER_NAME,
         )
     with pytest.raises(ValueError):
         MinimumDescriptionLengthAssignmentSelection(
@@ -221,6 +236,7 @@ def test_selection_record_rejects_inconsistent_fields():
             change_interval_sample_count=5,
             destination_model_id=3,
             description_length=1.0,
+            new_model_learner_name=REINITIALIZED_LEARNER_NAME,
         )
     with pytest.raises(ValueError):
         MinimumDescriptionLengthAssignmentSelection(
@@ -228,6 +244,7 @@ def test_selection_record_rejects_inconsistent_fields():
             change_interval_sample_count=5,
             destination_model_id=None,
             description_length=1.0,
+            new_model_learner_name=NO_NEW_MODEL_LEARNER_NAME,
         )
     with pytest.raises(ValueError):
         MinimumDescriptionLengthAssignmentSelection(
@@ -235,5 +252,139 @@ def test_selection_record_rejects_inconsistent_fields():
             change_interval_sample_count=0,
             destination_model_id=None,
             description_length=1.0,
+            new_model_learner_name=NO_NEW_MODEL_LEARNER_NAME,
         )
     assert selection_module.SELECTED_HYPOTHESES == ("current_model", "held_model", "new_model")
+
+
+def test_selection_records_the_learner_of_the_selected_new_model_interval():
+    current = [0.1] * 5 + [3.0] * 10
+    held = [(7, [3.0] * 15)]
+    new = {5: 30.0, 10: 2.0, 15: 40.0}
+    names = {
+        5: REINITIALIZED_LEARNER_NAME,
+        10: WARM_STARTED_LEARNER_NAME,
+        15: REINITIALIZED_LEARNER_NAME,
+    }
+    selected = _select(current, held, new, 4.0, learner_names=names)
+    assert (selected.selected_hypothesis, selected.change_interval_sample_count) == (
+        "new_model",
+        10,
+    )
+    assert selected.new_model_learner_name == WARM_STARTED_LEARNER_NAME
+    # 新しいモデル以外を選んだときは、該当なし。
+    held_selected = _select(
+        [0.1] * 5 + [3.0] * 5,
+        [(7, [3.0] * 5 + [0.05] * 5)],
+        {5: 8.0, 10: 16.0},
+        4.0,
+        learner_names={5: WARM_STARTED_LEARNER_NAME, 10: WARM_STARTED_LEARNER_NAME},
+    )
+    assert held_selected.selected_hypothesis == "held_model"
+    assert held_selected.new_model_learner_name == NO_NEW_MODEL_LEARNER_NAME
+
+
+def test_selection_rejects_learner_names_that_do_not_match_the_code_lengths():
+    for names in (
+        {5: REINITIALIZED_LEARNER_NAME},
+        {5: "other", 10: REINITIALIZED_LEARNER_NAME},
+        {5: NO_NEW_MODEL_LEARNER_NAME, 10: REINITIALIZED_LEARNER_NAME},
+    ):
+        with pytest.raises(ValueError):
+            _select([0.1] * 10, [], {5: 1.0, 10: 1.0}, learner_names=names)
+    with pytest.raises(TypeError):
+        select_assignment_by_minimum_description_length(
+            current_model_log_losses=(0.1,) * 5,
+            held_model_log_losses_by_model_id=(),
+            new_model_code_lengths_by_change_interval_sample_count={5: 1.0},
+            new_model_learner_names_by_change_interval_sample_count=(
+                (5, REINITIALIZED_LEARNER_NAME),
+            ),
+            switching_code_length=1.0,
+            change_interval_grid_sample_count=5,
+        )
+
+
+def test_selection_record_checks_the_new_model_learner_name():
+    for hypothesis, destination, name in (
+        ("new_model", None, NO_NEW_MODEL_LEARNER_NAME),
+        ("new_model", None, "other"),
+        ("current_model", None, REINITIALIZED_LEARNER_NAME),
+        ("held_model", 3, WARM_STARTED_LEARNER_NAME),
+    ):
+        with pytest.raises(ValueError):
+            MinimumDescriptionLengthAssignmentSelection(
+                selected_hypothesis=hypothesis,
+                change_interval_sample_count=5,
+                destination_model_id=destination,
+                description_length=1.0,
+                new_model_learner_name=name,
+            )
+    assert (REINITIALIZED_LEARNER_NAME, WARM_STARTED_LEARNER_NAME, NO_NEW_MODEL_LEARNER_NAME) == (
+        "reinitialized_learner",
+        "warm_started_learner",
+        "",
+    )
+
+
+def test_new_model_learner_is_the_shortest_plus_the_learner_selection_code_length():
+    selected = select_new_model_learner(
+        prequential_code_lengths_by_learner_name=(
+            (REINITIALIZED_LEARNER_NAME, 7.5),
+            (WARM_STARTED_LEARNER_NAME, 3.25),
+        )
+    )
+    assert selected == NewModelLearnerSelection(
+        learner_name=WARM_STARTED_LEARNER_NAME, description_length=3.25 + math.log(2.0)
+    )
+    # 同じ値なら、先の学習者。
+    assert (
+        select_new_model_learner(
+            prequential_code_lengths_by_learner_name=(
+                (REINITIALIZED_LEARNER_NAME, 3.25),
+                (WARM_STARTED_LEARNER_NAME, 3.25),
+            )
+        ).learner_name
+        == REINITIALIZED_LEARNER_NAME
+    )
+    # 学習者が1つなら、足す値は0で、予測的符号長そのもの（基準版10と同じ値）。
+    single = select_new_model_learner(
+        prequential_code_lengths_by_learner_name=((REINITIALIZED_LEARNER_NAME, 0.1 + 0.2),)
+    )
+    assert single == NewModelLearnerSelection(
+        learner_name=REINITIALIZED_LEARNER_NAME, description_length=0.1 + 0.2
+    )
+
+
+@pytest.mark.parametrize(
+    "entries",
+    (
+        (),
+        ((REINITIALIZED_LEARNER_NAME, 1.0), (REINITIALIZED_LEARNER_NAME, 2.0)),
+        (("other", 1.0),),
+        ((NO_NEW_MODEL_LEARNER_NAME, 1.0),),
+        ((REINITIALIZED_LEARNER_NAME, -1.0),),
+        ((REINITIALIZED_LEARNER_NAME, math.nan),),
+        ((REINITIALIZED_LEARNER_NAME, math.inf),),
+    ),
+)
+def test_new_model_learner_selection_rejects_invalid_entries(entries):
+    with pytest.raises(ValueError):
+        select_new_model_learner(prequential_code_lengths_by_learner_name=entries)
+
+
+def test_new_model_learner_selection_rejects_invalid_types():
+    for entries in (
+        [(REINITIALIZED_LEARNER_NAME, 1.0)],
+        ((REINITIALIZED_LEARNER_NAME,),),
+        ((REINITIALIZED_LEARNER_NAME, True),),
+    ):
+        with pytest.raises(TypeError):
+            select_new_model_learner(prequential_code_lengths_by_learner_name=entries)
+    for name, length in ((REINITIALIZED_LEARNER_NAME, 1.0), (WARM_STARTED_LEARNER_NAME, 2.0)):
+        with pytest.raises(ValueError):
+            NewModelLearnerSelection(
+                learner_name=NO_NEW_MODEL_LEARNER_NAME, description_length=length
+            )
+        with pytest.raises(ValueError):
+            NewModelLearnerSelection(learner_name=name, description_length=-1.0)

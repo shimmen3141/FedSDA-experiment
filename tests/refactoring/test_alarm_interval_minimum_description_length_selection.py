@@ -46,9 +46,11 @@ from federated_learning_experiments.learning.training.parameter_optimizer_state 
     ParameterOptimizerState,
 )
 from federated_learning_experiments.learning.training.prequential_code_length import (
-    compute_new_model_prequential_code_length,
+    compute_reinitialized_learner_prequential_code_length,
+    compute_warm_started_learner_prequential_code_length,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
+    REINITIALIZED_LEARNER_NAME,
     compute_switching_code_length,
     select_assignment_by_minimum_description_length,
 )
@@ -56,7 +58,7 @@ from federated_learning_experiments.runtime import (
     alarm_interval_minimum_description_length_selection as selection_module,
 )
 from federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection import (
-    derive_new_model_initialization_seed,
+    derive_reinitialized_learner_initialization_seed,
     select_alarm_interval_assignment,
 )
 
@@ -107,14 +109,14 @@ def test_log_losses_are_negative_log_true_class_probabilities(class_count):
 def test_initialization_seed_uses_a_delimited_decimal_string():
     expected = int.from_bytes(hashlib.sha256(b"3:1250:15").digest()[:8], "big")
     assert (
-        derive_new_model_initialization_seed(
+        derive_reinitialized_learner_initialization_seed(
             client_id=3, alarm_sample_index=1250, change_interval_sample_count=15
         )
         == expected
     )
-    assert derive_new_model_initialization_seed(
+    assert derive_reinitialized_learner_initialization_seed(
         client_id=1, alarm_sample_index=23, change_interval_sample_count=4
-    ) != derive_new_model_initialization_seed(
+    ) != derive_reinitialized_learner_initialization_seed(
         client_id=12, alarm_sample_index=3, change_interval_sample_count=4
     )
     for arguments in (
@@ -123,9 +125,9 @@ def test_initialization_seed_uses_a_delimited_decimal_string():
         dict(client_id=0, alarm_sample_index=0, change_interval_sample_count=0),
     ):
         with pytest.raises(ValueError):
-            derive_new_model_initialization_seed(**arguments)
+            derive_reinitialized_learner_initialization_seed(**arguments)
     with pytest.raises(TypeError):
-        derive_new_model_initialization_seed(
+        derive_reinitialized_learner_initialization_seed(
             client_id=True, alarm_sample_index=0, change_interval_sample_count=5
         )
 
@@ -158,7 +160,7 @@ def test_prequential_code_length_does_not_change_the_template_or_run_randomness(
     random.seed(5)
     np.random.seed(6)
     before = _random_states()
-    code_length = compute_new_model_prequential_code_length(
+    code_length = compute_reinitialized_learner_prequential_code_length(
         template_classifier=template,
         input_features=features,
         observed_class_labels=labels,
@@ -171,14 +173,14 @@ def test_prequential_code_length_does_not_change_the_template_or_run_randomness(
     )
     assert math.isfinite(code_length) and code_length > 0
     # 同じseedなら同じ値、違うseedなら（この入力では）違う値。
-    again = compute_new_model_prequential_code_length(
+    again = compute_reinitialized_learner_prequential_code_length(
         template_classifier=template,
         input_features=features,
         observed_class_labels=labels,
         parameter_optimizer_settings=optimizer_settings,
         initialization_seed=11,
     )
-    other = compute_new_model_prequential_code_length(
+    other = compute_reinitialized_learner_prequential_code_length(
         template_classifier=template,
         input_features=features,
         observed_class_labels=labels,
@@ -196,7 +198,7 @@ def test_prequential_code_length_predicts_each_sample_before_learning_it():
     shared_before = {
         name: value.clone() for name, value in template.feature_extractor.state_dict().items()
     }
-    single = compute_new_model_prequential_code_length(
+    single = compute_reinitialized_learner_prequential_code_length(
         template_classifier=template,
         input_features=features,
         observed_class_labels=labels,
@@ -218,7 +220,7 @@ def test_prequential_code_length_predicts_each_sample_before_learning_it():
 
     prequential_module.evaluate_classifier_per_sample_log_losses = recording
     try:
-        compute_new_model_prequential_code_length(
+        compute_reinitialized_learner_prequential_code_length(
             template_classifier=template,
             input_features=features_two,
             observed_class_labels=labels_two,
@@ -232,6 +234,114 @@ def test_prequential_code_length_predicts_each_sample_before_learning_it():
         torch.equal(shared_before[name], value)
         for name, value in template.feature_extractor.state_dict().items()
     )
+
+
+@pytest.mark.parametrize("class_count", (2, 4))
+@pytest.mark.parametrize(
+    "optimizer_settings", (OPTIMIZER_SETTINGS, SgdParameterOptimizerSettings(learning_rate=0.1))
+)
+def test_warm_started_learner_does_not_change_the_template_or_run_randomness(
+    class_count, optimizer_settings
+):
+    torch.manual_seed(2)
+    template = _classifier(class_count=class_count)
+    features, labels = _samples(count=10, class_count=class_count, seed=3)
+    template_state = {name: value.clone() for name, value in template.state_dict().items()}
+    random.seed(5)
+    np.random.seed(6)
+    before = _random_states()
+    code_length = compute_warm_started_learner_prequential_code_length(
+        template_classifier=template,
+        input_features=features,
+        observed_class_labels=labels,
+        parameter_optimizer_settings=optimizer_settings,
+    )
+    _assert_random_states_equal(before, _random_states())
+    assert all(
+        torch.equal(template_state[name], value) for name, value in template.state_dict().items()
+    )
+    assert math.isfinite(code_length) and code_length > 0
+    assert code_length == compute_warm_started_learner_prequential_code_length(
+        template_classifier=template,
+        input_features=features,
+        observed_class_labels=labels,
+        parameter_optimizer_settings=optimizer_settings,
+    )
+
+
+@pytest.mark.parametrize("class_count", (2, 4))
+def test_warm_started_learner_starts_from_the_template_without_reinitialization(class_count):
+    """学習率0なら学ばないので、符号長は、写しのもとの分類器の、標本ごとの対数損失の和（同じ足す順）。"""
+    torch.manual_seed(9)
+    template = _classifier(class_count=class_count)
+    features, labels = _samples(count=7, class_count=class_count, seed=4)
+    expected = 0.0
+    for position in range(7):
+        expected += float(
+            evaluate_classifier_per_sample_log_losses(
+                classifier=template,
+                input_features=features[position : position + 1],
+                observed_class_labels=labels[position : position + 1],
+            ).sum()
+        )
+    assert (
+        compute_warm_started_learner_prequential_code_length(
+            template_classifier=template,
+            input_features=features,
+            observed_class_labels=labels,
+            parameter_optimizer_settings=SgdParameterOptimizerSettings(learning_rate=0.0),
+        )
+        == expected
+    )
+    # 学ぶと、2件目以降は1件目で学んだ後に予測するので、和は変わる（1件目は同じ）。
+    calls = []
+    original = prequential_module.evaluate_classifier_per_sample_log_losses
+
+    def recording(**arguments):
+        losses = original(**arguments)
+        calls.append(float(losses.sum()))
+        return losses
+
+    prequential_module.evaluate_classifier_per_sample_log_losses = recording
+    try:
+        learned = compute_warm_started_learner_prequential_code_length(
+            template_classifier=template,
+            input_features=features,
+            observed_class_labels=labels,
+            parameter_optimizer_settings=OPTIMIZER_SETTINGS,
+        )
+    finally:
+        prequential_module.evaluate_classifier_per_sample_log_losses = original
+    assert len(calls) == 7
+    assert calls[0] == float(
+        evaluate_classifier_per_sample_log_losses(
+            classifier=template, input_features=features[:1], observed_class_labels=labels[:1]
+        ).sum()
+    )
+    assert learned != expected
+
+
+def test_warm_started_learner_rejects_invalid_inputs():
+    torch.manual_seed(1)
+    template = _classifier(class_count=2)
+    features, labels = _samples(count=3, class_count=2)
+    for arguments in (
+        dict(input_features=features[:0], observed_class_labels=labels[:0]),
+        dict(input_features=features, observed_class_labels=labels[:2]),
+    ):
+        with pytest.raises(ValueError):
+            compute_warm_started_learner_prequential_code_length(
+                template_classifier=template,
+                parameter_optimizer_settings=OPTIMIZER_SETTINGS,
+                **arguments,
+            )
+    with pytest.raises(TypeError):
+        compute_warm_started_learner_prequential_code_length(
+            template_classifier=object(),
+            input_features=features,
+            observed_class_labels=labels,
+            parameter_optimizer_settings=OPTIMIZER_SETTINGS,
+        )
 
 
 def _observations(*, count, class_count, start_index=100, seed=0):
@@ -279,13 +389,13 @@ def test_selection_combines_the_model_losses_and_prequential_code_lengths(sequen
     assignment = CurrentTrainingModelAssignment(initial_model_id=9)
     observations = _observations(count=sequence_length, class_count=class_count)
     recorded_seeds = []
-    original = selection_module.compute_new_model_prequential_code_length
+    original = selection_module.compute_reinitialized_learner_prequential_code_length
 
     def recording(**arguments):
         recorded_seeds.append(arguments["initialization_seed"])
         return original(**arguments)
 
-    selection_module.compute_new_model_prequential_code_length = recording
+    selection_module.compute_reinitialized_learner_prequential_code_length = recording
     try:
         selection = select_alarm_interval_assignment(
             client_id=3,
@@ -299,7 +409,7 @@ def test_selection_combines_the_model_losses_and_prequential_code_lengths(sequen
             change_interval_grid_sample_count=5,
         )
     finally:
-        selection_module.compute_new_model_prequential_code_length = original
+        selection_module.compute_reinitialized_learner_prequential_code_length = original
     features = torch.cat([o.training_sample.input_features for o in observations])
     labels = torch.cat([o.training_sample.observed_class_labels for o in observations])
 
@@ -314,12 +424,12 @@ def test_selection_combines_the_model_losses_and_prequential_code_lengths(sequen
 
     spans = tuple(range(5, sequence_length + 1, 5))
     new_lengths = {
-        span: compute_new_model_prequential_code_length(
+        span: compute_reinitialized_learner_prequential_code_length(
             template_classifier=registry.get_held_model_training_state(model_id=9).classifier,
             input_features=features[sequence_length - span :],
             observed_class_labels=labels[sequence_length - span :],
             parameter_optimizer_settings=OPTIMIZER_SETTINGS,
-            initialization_seed=derive_new_model_initialization_seed(
+            initialization_seed=derive_reinitialized_learner_initialization_seed(
                 client_id=3,
                 alarm_sample_index=observations[-1].sample_index,
                 change_interval_sample_count=span,
@@ -331,6 +441,9 @@ def test_selection_combines_the_model_losses_and_prequential_code_lengths(sequen
         current_model_log_losses=losses(9),
         held_model_log_losses_by_model_id=((4, losses(4)),),
         new_model_code_lengths_by_change_interval_sample_count=new_lengths,
+        new_model_learner_names_by_change_interval_sample_count={
+            span: REINITIALIZED_LEARNER_NAME for span in spans
+        },
         switching_code_length=compute_switching_code_length(
             switching_probability=1 / 120, destination_count=2
         ),
@@ -338,7 +451,7 @@ def test_selection_combines_the_model_losses_and_prequential_code_lengths(sequen
     )
     assert selection == expected
     assert recorded_seeds == [
-        derive_new_model_initialization_seed(
+        derive_reinitialized_learner_initialization_seed(
             client_id=3,
             alarm_sample_index=observations[-1].sample_index,
             change_interval_sample_count=span,

@@ -937,7 +937,7 @@ def _detector_gated_segment_assignment_policy(*, optimizer_settings, share_rate,
     original_observe = OverallAndTrueClassLossMonitor.observe_loss_after_label_observation
     original_evaluate = resolution_module.evaluate_held_models_for_alarm_interval_reuse
     from federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection import (
-        derive_new_model_initialization_seed,
+        derive_reinitialized_learner_initialization_seed,
     )
 
     processing = []
@@ -995,7 +995,7 @@ def _detector_gated_segment_assignment_policy(*, optimizer_settings, share_rate,
             position = n - span
             before = sum(losses[current][:position]) + switch
             options = [(sum(losses[m][position:]), m) for m in destinations]
-            seed = derive_new_model_initialization_seed(
+            seed = derive_reinitialized_learner_initialization_seed(
                 client_id=arguments["client_id"], alarm_sample_index=sample_index, change_interval_sample_count=span
             )
             options.append((prequential_total(template, x[position:], y[position:], seed), None))
@@ -1524,7 +1524,7 @@ def _copied_new_model_learner_policy(*, events):
         events.append(dict(event="copied_new_model_learner"))
         return _copied_learner_prequential_code_length(**arguments)
 
-    with patch.object(selection_module, "compute_new_model_prequential_code_length", code_length):
+    with patch.object(selection_module, "compute_reinitialized_learner_prequential_code_length", code_length):
         yield
 
 
@@ -1540,7 +1540,7 @@ def _two_new_model_learners_policy(*, events):
 
     import federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection as selection_module
 
-    original = selection_module.compute_new_model_prequential_code_length
+    original = selection_module.compute_reinitialized_learner_prequential_code_length
 
     def code_length(**arguments):
         fresh = original(**arguments)
@@ -1548,7 +1548,7 @@ def _two_new_model_learners_policy(*, events):
         events.append(dict(event="two_new_model_learners", fresh=fresh, copied=copied))
         return min(fresh, copied) + math.log(2.0)
 
-    with patch.object(selection_module, "compute_new_model_prequential_code_length", code_length):
+    with patch.object(selection_module, "compute_reinitialized_learner_prequential_code_length", code_length):
         yield
 
 
@@ -1602,7 +1602,7 @@ def _description_length_clustering_policy(*, optimizer_settings, learning_cost_s
         ModelTrainingAndAssignmentCountsStore,
     )
     from federated_learning_experiments.learning.training.prequential_code_length import (
-        compute_new_model_prequential_code_length,
+        compute_reinitialized_learner_prequential_code_length,
     )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
         OverallAndTrueClassLossMonitor,
@@ -1657,7 +1657,7 @@ def _description_length_clustering_policy(*, optimizer_settings, learning_cost_s
             entry[1] += stash["log_loss_sum"]
             if learning_cost_source == "fresh_learner" and candidate_model_id == target_model_id:
                 text = f"{round_index}:{client_id}:{target_model_id}"
-                entry[2] += compute_new_model_prequential_code_length(
+                entry[2] += compute_reinitialized_learner_prequential_code_length(
                     template_classifier=stash["classifier"],
                     input_features=stash["input_features"],
                     observed_class_labels=stash["observed_class_labels"],

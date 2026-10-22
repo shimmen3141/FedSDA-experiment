@@ -30,12 +30,15 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
     SgdParameterOptimizerSettings,
 )
 from federated_learning_experiments.learning.training.prequential_code_length import (
-    compute_new_model_prequential_code_length,
+    compute_reinitialized_learner_prequential_code_length,
 )
 from federated_learning_experiments.methods.fedsda.training_data_assignment.minimum_description_length_assignment_selection import (
+    REINITIALIZED_LEARNER_NAME,
     MinimumDescriptionLengthAssignmentSelection,
+    NewModelLearnerSelection,
     compute_switching_code_length,
     select_assignment_by_minimum_description_length,
+    select_new_model_learner,
 )
 
 
@@ -46,7 +49,7 @@ def _validate_nonnegative_int(*, value: int, value_name: str, minimum_value: int
         raise ValueError(f"{value_name} must be at least {minimum_value}")
 
 
-def derive_new_model_initialization_seed(
+def derive_reinitialized_learner_initialization_seed(
     *, client_id: int, alarm_sample_index: int, change_interval_sample_count: int
 ) -> int:
     """予測的符号長の学習者の初期化のseed。
@@ -130,32 +133,43 @@ def select_alarm_interval_assignment(
     template_classifier = held_model_training_state_registry.get_held_model_training_state(
         model_id=current_model_id
     ).classifier
-    new_model_code_lengths = {
-        change_interval_sample_count: compute_new_model_prequential_code_length(
+    new_model_learner_selections: dict[int, NewModelLearnerSelection] = {}
+    for change_interval_sample_count in range(
+        change_interval_grid_sample_count,
+        sequence_length + 1,
+        change_interval_grid_sample_count,
+    ):
+        reinitialized_learner_code_length = compute_reinitialized_learner_prequential_code_length(
             template_classifier=template_classifier,
             input_features=input_features[sequence_length - change_interval_sample_count :],
             observed_class_labels=observed_class_labels[
                 sequence_length - change_interval_sample_count :
             ],
             parameter_optimizer_settings=parameter_optimizer_settings,
-            initialization_seed=derive_new_model_initialization_seed(
+            initialization_seed=derive_reinitialized_learner_initialization_seed(
                 client_id=client_id,
                 alarm_sample_index=alarm_sample_index,
                 change_interval_sample_count=change_interval_sample_count,
             ),
         )
-        for change_interval_sample_count in range(
-            change_interval_grid_sample_count,
-            sequence_length + 1,
-            change_interval_grid_sample_count,
+        new_model_learner_selections[change_interval_sample_count] = select_new_model_learner(
+            prequential_code_lengths_by_learner_name=(
+                (REINITIALIZED_LEARNER_NAME, reinitialized_learner_code_length),
+            )
         )
-    }
     return select_assignment_by_minimum_description_length(
         current_model_log_losses=log_losses_by_model_id[current_model_id],
         held_model_log_losses_by_model_id=tuple(
             (model_id, log_losses_by_model_id[model_id]) for model_id in destination_model_ids
         ),
-        new_model_code_lengths_by_change_interval_sample_count=new_model_code_lengths,
+        new_model_code_lengths_by_change_interval_sample_count={
+            change_interval_sample_count: learner_selection.description_length
+            for change_interval_sample_count, learner_selection in new_model_learner_selections.items()
+        },
+        new_model_learner_names_by_change_interval_sample_count={
+            change_interval_sample_count: learner_selection.learner_name
+            for change_interval_sample_count, learner_selection in new_model_learner_selections.items()
+        },
         switching_code_length=compute_switching_code_length(
             switching_probability=switching_probability,
             destination_count=len(destination_model_ids) + 1,

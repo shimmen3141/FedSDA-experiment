@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. 2つの扱いの計算を足す（接続はまだしない）
-- [ ] 1.1 学習者の予測的符号長と学習者の選択
+- [x] 1.1 学習者の予測的符号長と学習者の選択
   - warm startの学習者の予測的符号長（runの乱数を変えない、現在のモデルを変えない）、学習者の選択（短い方、同じ値の順、ln Kを足す）、選択の結果の学習者の名前、のtestを先に書き、REDを確かめる。既存の関数の改名（`compute_new_model_prequential_code_length`→`compute_reinitialized_learner_prequential_code_length`、`derive_new_model_initialization_seed`→`derive_reinitialized_learner_initialization_seed`。呼出し・test・依存境界・研究ツール）を行い、値が切り出しの前と同じことを確かめるtestを含める。
   - 完了条件: 新しいtestと、最小記述長の選択の既存のtestが通る。依存境界の許可を登録する。
   - _Requirements: 1.2, 1.3, 1.5_
@@ -49,3 +49,4 @@
 - 命名の変更（2026-10-22、ユーザー指摘）: warm startの学習者の関数と並ぶのに、既存の関数が仮説（new model）の名前だったので、`compute_reinitialized_learner_prequential_code_length`・`derive_reinitialized_learner_initialization_seed`へ改名することにした。公開名の変更なので、仕様レビューで確認を受ける。
 - 仕様レビュー2回目（Luna high、session `01a1628f-0ff5-76e0-ab1b-3bd43edcb25f`）: PASS（1回目の修正と、計算回数の差の見積り——研究ツールの方が4N回の順伝播だけ多い——を確認）。
 - 仕様レビュー3回目（改名の部分、Luna high、session `01a16292-67ab-7ba2-b24d-f8444ea88384`）: Minor 1件（改名するseedの関数の定義場所が、別のmoduleの節に書かれていた）。定義場所を書き足した。改名後の名前の役割と影響範囲は問題なしとの判定。
+- Task 1.1: REDは、新しい名前が無いことによるtestの収集の失敗。2つの関数を改名し（src・test・依存境界・研究ツール）、標本を順に予測して学ぶ部分を`_accumulate_prequential_code_length`へ切り出し、`compute_warm_started_learner_prequential_code_length`、`select_new_model_learner`・`NewModelLearnerSelection`、選択の結果の`new_model_learner_name`を足した。保留の列での選択は、学習者の組の設定（Task 2）が入るまで、初期化し直した学習者だけを`select_new_model_learner`へ渡す（足す値は0）。純粋な計算と保留の列での選択のtest 48件、依存境界と最小記述長の接続のtestを合わせて3181 passed。版10のgoldenの大きい2ケース（SINE2・MNIST2の採用の構成）の照合12件が通り、切り出しと改名で値が変わらないことを確かめた。Ruff・Pyright 0 errors。
