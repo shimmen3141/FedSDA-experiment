@@ -5563,6 +5563,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "runtime/initial_model_pretraining.py":
         return imported_module_name in (
             "dataclasses.dataclass",
+            "dataclasses.replace",
             "random.Random",
             "numpy.random.RandomState",
             "torch.float32",
@@ -5576,6 +5577,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.models.model_architecture_settings.ModelArchitectureSettings",
             "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.models.shared_feature_extractor.SharedFeatureExtractor",
+            "federated_learning_experiments.learning.models.torch_random_state_scope.isolated_cpu_torch_random_state",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
             "federated_learning_experiments.learning.training.initial_model_pretraining_settings.InitialModelPretrainingSettings",
             "federated_learning_experiments.learning.training.joint_model_parameter_update.perform_joint_model_parameter_update",
