@@ -6,7 +6,7 @@ runごとの結果と、一覧の表を保存する。旧実装の`run_pareto_sw
 2026-10-23から、`fedsda-with-candidate-validation`を除くFedSDAの全構成は、クロス評価で対象を保有し、
 対象の標本を返せるclientだけを評価させる既定（`clients_with_target_model_samples`）を引き継ぐ。
 候補検証ありの構成は`clients_holding_target_model`を明示する。コマンドの引数は変わらず、選び方は保存するrun設定に入る。
-基準版12はコードの準備段階で、環境別goldenの生成と現在の基準版の切替は主担当が行う（現時点の定数は11）。
+現在の基準版は12（環境別goldenは生成元`fab7f040`）。
 研究ツールの`product-default`系は製品の新しい既定を使い、`product-default-sample-holding-cross-evaluation`は
 `product-default`と同じ選び方になる。それ以外の変種は基準版10の既定と従来の選び方を基点にする。
 検証の入口は[対象specのImplementation Notes](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)。

@@ -11,7 +11,7 @@
 `fedsda-with-candidate-validation`は、対象を保有するとみなすclientから選ぶ従来の扱いを明示する
 （[LEGACY-022](../research/implementation-findings/legacy-022-cross-evaluation-selects-clients-without-target-samples.md)、
 [spec](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/design.md)）。
-基準版12のコードを準備した段階であり、環境別goldenと基準版の定数の切替は主担当が行う。
+基準版12の既定（環境別goldenは生成元`fab7f040`）。
 
 ## 1. 解決する問題と各要素の役割
 

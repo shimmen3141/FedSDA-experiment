@@ -11,7 +11,7 @@
 [LEGACY-022の修正のspec](../../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)で製品の既定にした。
 対象のモデルを保有することも条件に含め、標本の判定を実評価と共有する。候補検証ありの構成は従来の選び方を明示する。
 研究ツールの`default`系は従来の基点を保ち、`product-default-sample-holding-cross-evaluation`は製品の既定と同じ選び方になる。
-基準版12はコード準備済み、環境別goldenと実装レビューは主担当へ引継ぎ。生成・最終照合の結果は主担当が追記する。
+基準版12として既定にした（環境別goldenは生成元`fab7f040`。実装レビューと最終検証の結果は対象specのImplementation Notes）。
 
 ## 背景（なぜ取り組むか）
 

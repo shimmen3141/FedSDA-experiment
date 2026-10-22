@@ -244,11 +244,10 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 
 基準版は、次のとおり。照合のtestは、全部の版を、毎回、確かめる。
 
-基準版12はコードを準備済みで、goldenは未生成・未配置（[spec](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)）。
+基準版12は、クロス評価で対象の標本を返せるclientだけを評価させる扱い（[spec](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)）。
 ケースは版11と同じ22。クロス評価で対象を保有し標本を返せるclientだけを選び、候補検証ありの構成は従来の扱いを明示する。
 版1〜11の設定は、参加者の設定の補完表で従来の値に戻して照合する。
-`BASELINE_VERSION`と`BEHAVIOR_BASELINE_VERSION`は11を保ち、Windows・WSLでの生成・設置後に主担当が12へ上げる。
-生成元commit、生成・照合の件数と結果は主担当が追記。
+生成元commitは`fab7f040`。Windows（Python 3.13.15）とWSL（Python 3.14.4）で、各2回の独立したprocessの一致と必須の経路を確かめて生成し、`v12/`へ置いた。`BASELINE_VERSION`と`BEHAVIOR_BASELINE_VERSION`は12。照合の件数と結果は対象specのImplementation Notesを正本とする。
 
 版11→12の差の説明はgoldenを使わず、両方の版をその場で実行して比べる。FedDrift・FedAvgと候補検証ありの4ケースは、
 指標・記録の表・最終パラメータ・経路の記録（版12で足す項目を除く）が同じ。新しい既定を引き継ぐFedSDAは設定の新しい項目だけが違う。
