@@ -167,7 +167,17 @@ _VARIANTS["default-warm-started-learner-and-cross-validated-initial-statistics"]
 _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT = {
     "default-deferred-new-model-clustering-1-round": 1,
     "default-deferred-new-model-clustering-500-samples": 500,
+    "default-sample-holding-cross-evaluation-deferred-1-round": 1,
+    "default-sample-holding-cross-evaluation-deferred-500-samples": 500,
 }
+# クロス評価で、対象のモデルを評価させるclientを、その対象の標本を返せるclientに限る（IMPROVE-028）。単独と、
+# 統合を遅らせる形との組み合わせ（若いモデルは統合を待ち、証拠が集まってから統合される）。
+_SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS = (
+    "default-sample-holding-cross-evaluation",
+    "default-sample-holding-cross-evaluation-deferred-1-round",
+    "default-sample-holding-cross-evaluation-deferred-500-samples",
+)
+_VARIANTS["default-sample-holding-cross-evaluation"] = ("fedsda", False, None)
 for _variant_name in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 # 製品の既定（基準版11以降）を、そのまま使う変種。ほかの変種は、基準版10の既定を基点にする（`_execute_job`）。
@@ -1628,6 +1638,42 @@ def _deferred_new_model_clustering_policy(*, minimum_age_round_count, events):
 
 
 @contextmanager
+def _sample_holding_cross_evaluation_clients_policy(*, events):
+    """サーバのクロス評価で、対象のモデルを評価させるclientを、その対象の標本を返せるclientに限る（研究用。IMPROVE-028）。
+
+    今は、配布されたパラメータだけを持つclientも「保有する」とみなされ、最大3つの無作為の選択に入る。そうした
+    clientは標本を0件しか返さないので、登録の後の対は判定の値を持てず、統合されない。clientの標本の選び方
+    （評価標本が下限以上、または対象が現在の学習帰属で、その学習データが下限以上）と同じ条件で絞る。
+    """
+    import federated_learning_experiments.runtime.client_model_cross_evaluation as client_evaluation_module
+    from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
+
+    minimum_stored = client_evaluation_module._MINIMUM_STORED_EVALUATION_SAMPLE_COUNT
+    minimum_training = client_evaluation_module._MINIMUM_CURRENT_MODEL_TRAINING_SAMPLE_COUNT
+    original = FedsdaRunClient.get_cross_evaluation_held_model_ids
+
+    def sample_holding_model_ids(self):
+        owners = self._owners
+        current_model_id = owners.current_training_model_assignment.current_training_model_id
+        model_ids = {
+            collection.model_id
+            for collection in owners.model_evaluation_sample_store.snapshot_ordered_model_evaluation_samples()
+            if len(collection.evaluation_samples) >= minimum_stored
+        }
+        model_ids.update(
+            collection.model_id
+            for collection in owners.training_sample_store.snapshot_ordered_model_training_samples()
+            if collection.model_id == current_model_id and len(collection.training_samples) >= minimum_training
+        )
+        held = original(self)
+        events.append(dict(event="sample_holding_cross_evaluation_clients", removed=len(held - model_ids)))
+        return frozenset(model_ids & held)
+
+    with patch.object(FedsdaRunClient, "get_cross_evaluation_held_model_ids", sample_holding_model_ids):
+        yield
+
+
+@contextmanager
 def _keep_representative_consolidation_policy(*, events):
     """サーバの統合で、メンバーのパラメータを平均せず、代表（クラスタの最小のID）のパラメータを保つ（研究用）。
 
@@ -2054,6 +2100,8 @@ def _execute_job(job):
             stack.enter_context(_two_new_model_learners_policy(events=events))
         if job["variant"] == "default-equivalence-clustering-decision":
             stack.enter_context(_equivalence_clustering_decision_policy(events=events))
+        if job["variant"] in _SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS:
+            stack.enter_context(_sample_holding_cross_evaluation_clients_policy(events=events))
         if job["variant"] in _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT:
             minimum_age_sample_count = _DEFERRED_NEW_MODEL_CLUSTERING_MINIMUM_AGE_SAMPLE_COUNT_BY_VARIANT[job["variant"]]
             stack.enter_context(
