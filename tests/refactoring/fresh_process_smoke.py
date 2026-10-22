@@ -2222,6 +2222,15 @@ def main():
         2,
     )
     assert record_tables["server_round.global_model_count_after_synchronization"].tolist()[0] >= 1
+    # 最終構成の既定（基準版11）は、初期モデルの統計を交差検証で作り、「新しいモデル」の仮説を2つの学習者で測る。
+    saved_participant_settings = run_summary["run_settings"]["run_participant_settings"]
+    assert saved_participant_settings["initial_model_loss_statistics_estimation"] == (
+        "five_fold_cross_validation"
+    )
+    assert saved_participant_settings["run_client_settings"]["training_data_assignment_settings"][
+        "new_model_hypothesis_learners"
+    ] == ("reinitialized_and_warm_started_learners")
+    assert "alarm_interval_assignment_selection.new_model_learner_name" in record_tables
     print(
         "PASS experiment run from final configuration settings, saved and loaded:",
         len(record_tables),
