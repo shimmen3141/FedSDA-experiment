@@ -198,7 +198,17 @@ _VARIANTS["product-default"] = ("fedsda", False, None)
 # 製品の既定の上で、クロス評価で評価させるclientを、対象の標本を返せるclientに限る（IMPROVE-028）。
 # 製品の既定がこの扱いになった後は、製品が同じ候補の集合を作るので、product-defaultと同じ選び方になる。
 # 包みの対象のget_cross_evaluation_held_model_idsは、製品の新しい扱いのクロス評価では呼ばれない。
+# 案B1: 基準版12の集約の直後に、利用の証拠で概念固有部を方向付きに共有する。
+_SOFT_CONCEPT_SHARING_VARIANTS = {
+    "product-default-soft-concept-sharing": ("both", 1.0),
+    "product-default-soft-concept-sharing-adapter-only": ("adapter", 1.0),
+    "product-default-soft-concept-sharing-head-only": ("head", 1.0),
+    "product-default-soft-concept-sharing-budget-half": ("both", 0.5),
+}
+for _variant_name in _SOFT_CONCEPT_SHARING_VARIANTS:
+    _VARIANTS[_variant_name] = ("fedsda", False, None)
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
+    *_SOFT_CONCEPT_SHARING_VARIANTS,
     "product-default",
     "product-default-sample-holding-cross-evaluation",
     "product-default-sample-holding-usage-evidence-veto",
@@ -1708,18 +1718,11 @@ def _sample_holding_cross_evaluation_clients_policy(*, events):
 
 
 @contextmanager
-def _usage_evidence_veto_policy(*, events, alpha=0.05, rho=1.0):
-    """サーバの統合に、clientの利用の実績による拒否権を足す（研究用。IMPROVE-028の8）。
+def _client_usage_evidence(*, discount_factor=1.0):
+    """予測済みの同期モデルの対数損失差を集め、登録・統合のID対応を適用する。
 
-    clientは、毎標本、現在の学習帰属のモデル（所有者）oと、ほかの保有モデルkについて、予測の前の確率の対数損失の差
-    x = ℓ_k − ℓ_o を、(o, k)ごとに件数・和・2乗和へ足す（保有モデルの確率は予測のために計算済み）。登録（手元の
-    仮のID→正式ID）と配布（統合のID対応）で、所有者と相手のIDを付け替える。サーバは、今の判定が同じクラスタに
-    しうる対（小さいID a、大きいID b）について、bの標本での全clientの合計 S = Σ(ℓ_a − ℓ_b) と、経験分散の
-    信頼の幅（正規の混合の境界）cを求め、S − c > ln 2（bが、自分の標本を、aより確かに良く説明する）なら、
-    その対の判定の値をaverage linkageへ渡さない（統合の候補にしない）。比べるのは若い方（大きいID）の標本だけ
-    （成熟した方の標本では、同じ概念の若いモデルも劣るため。IMPROVE-028の5）。
+    値は[件数, 差の和, 差の2乗和]。拒否権では割引せず、案B1では所有者の標本ごとに割り引く。
     """
-    import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
     import federated_learning_experiments.runtime.observed_sample_prediction as prediction_module
     import federated_learning_experiments.runtime.observed_sample_processing as processing_module
     import federated_learning_experiments.runtime.server_model_registration_and_aggregation as registration_module
@@ -1732,7 +1735,6 @@ def _usage_evidence_veto_policy(*, events, alpha=0.05, rho=1.0):
     original_convert = prediction_module.convert_model_outputs_to_prediction_probabilities
     original_confirm = registration_module.confirm_held_model_registration
     original_distribution = FedsdaRunClient.apply_global_model_distribution
-    original_cluster = consolidation_module.cluster_model_ids_by_average_linkage
 
     def remap(client_key, model_id_mapping):
         table = evidence.get(client_key)
@@ -1778,6 +1780,11 @@ def _usage_evidence_veto_policy(*, events, alpha=0.05, rho=1.0):
                         true_probability = float(values.view(-1)[context["label"]].item())
                     losses[model_id] = -math.log(max(true_probability, 1e-12))
                 table = evidence.setdefault(context["client"], {})
+                if discount_factor != 1.0:
+                    # clientの毎標本で、そのclientの全部の対を割り引く（所有者が替わったclientの古い証拠も古びる）。
+                    for accumulated in table.values():
+                        for position in range(3):
+                            accumulated[position] *= discount_factor
                 for model_id, loss in losses.items():
                     if model_id == owner:
                         continue
@@ -1802,6 +1809,30 @@ def _usage_evidence_veto_policy(*, events, alpha=0.05, rho=1.0):
         result = original_distribution(self, model_id_mapping=model_id_mapping, **arguments)
         remap(id(self.owners.held_model_training_state_registry), model_id_mapping)
         return result
+
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(patch.object(processing_module, "predict_observed_sample_and_update_prediction_weights", predict))
+        stack.enter_context(patch.object(prediction_module, "convert_model_outputs_to_prediction_probabilities", convert))
+        stack.enter_context(patch.object(registration_module, "confirm_held_model_registration", confirm))
+        stack.enter_context(patch.object(FedsdaRunClient, "apply_global_model_distribution", distribution))
+        yield evidence
+
+
+@contextmanager
+def _usage_evidence_veto_policy(*, events, alpha=0.05, rho=1.0):
+    """サーバの統合に、clientの利用の実績による拒否権を足す（研究用。IMPROVE-028の8）。
+
+    clientは、毎標本、現在の学習帰属のモデル（所有者）oと、ほかの保有モデルkについて、予測の前の確率の対数損失の差
+    x = ℓ_k − ℓ_o を、(o, k)ごとに件数・和・2乗和へ足す（保有モデルの確率は予測のために計算済み）。登録（手元の
+    仮のID→正式ID）と配布（統合のID対応）で、所有者と相手のIDを付け替える。サーバは、今の判定が同じクラスタに
+    しうる対（小さいID a、大きいID b）について、bの標本での全clientの合計 S = Σ(ℓ_a − ℓ_b) と、経験分散の
+    信頼の幅（正規の混合の境界）cを求め、S − c > ln 2（bが、自分の標本を、aより確かに良く説明する）なら、
+    その対の判定の値をaverage linkageへ渡さない（統合の候補にしない）。比べるのは若い方（大きいID）の標本だけ
+    （成熟した方の標本では、同じ概念の若いモデルも劣るため。IMPROVE-028の5）。
+    """
+    import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
+
+    original_cluster = consolidation_module.cluster_model_ids_by_average_linkage
 
     def cluster(*, model_ids, decision_scores_by_model_pair, maximum_same_cluster_decision_score):
         kept = {}
@@ -1829,12 +1860,128 @@ def _usage_evidence_veto_policy(*, events, alpha=0.05, rho=1.0):
             maximum_same_cluster_decision_score=maximum_same_cluster_decision_score,
         )
 
-    with contextlib.ExitStack() as stack:
-        stack.enter_context(patch.object(processing_module, "predict_observed_sample_and_update_prediction_weights", predict))
-        stack.enter_context(patch.object(prediction_module, "convert_model_outputs_to_prediction_probabilities", convert))
-        stack.enter_context(patch.object(registration_module, "confirm_held_model_registration", confirm))
-        stack.enter_context(patch.object(FedsdaRunClient, "apply_global_model_distribution", distribution))
-        stack.enter_context(patch.object(consolidation_module, "cluster_model_ids_by_average_linkage", cluster))
+    with _client_usage_evidence() as evidence, patch.object(
+        consolidation_module, "cluster_model_ids_by_average_linkage", cluster
+    ):
+        yield
+
+
+@contextmanager
+def _soft_concept_sharing_policy(*, shared_part, borrowing_budget, time_scale_samples, diagnostics):
+    """集約の直後、クロス評価の前に、概念固有部を同時に混ぜる（案B1、研究専用）。"""
+    import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
+    import federated_learning_experiments.runtime.server_round_synchronization as synchronization_module
+
+    if shared_part not in ("both", "adapter", "head"):
+        raise ValueError("shared_part must be both, adapter or head")
+    if not math.isfinite(borrowing_budget) or borrowing_budget < 0:
+        raise ValueError("borrowing_budget must be finite and nonnegative")
+    if not math.isfinite(time_scale_samples) or time_scale_samples < 1:
+        raise ValueError("time_scale_samples must be finite and at least one")
+    diagnostics.update(
+        synchronization_count=0,
+        sharing_synchronization_count=0,
+        borrowed_pseudo_sample_count=0.0,
+        own_training_sample_count=0,
+        different_concept_borrowed_pseudo_sample_count=0.0,
+        unknown_concept_borrowed_pseudo_sample_count=0.0,
+        budget_rescaling_count=0,
+        evidence_uploaded_numeric_value_count=0,
+        borrowed_pseudo_sample_fraction=0.0,
+        different_concept_borrowed_fraction=0.0,
+    )
+    original_aggregate = synchronization_module.aggregate_client_models_into_global_models
+
+    def aggregate(**arguments):
+        result = original_aggregate(**arguments)
+        repository = arguments["global_model_repository"]
+        model_ids = repository.global_model_ids
+        counts = result.aggregated_training_sample_counts_by_model_id
+        diagnostics["synchronization_count"] += 1
+        # 全clientの和のDとnを各対で送るとした数値数。製品の通信量には加算しない。
+        diagnostics["evidence_uploaded_numeric_value_count"] += len(model_ids) ** 2 * 2
+        snapshots = {
+            model_id: repository.get_global_model_parameters(model_id=model_id)
+            for model_id in model_ids
+        }
+        majority = consolidation_module._get_unique_majority_concept_ids(
+            run_clients=arguments["run_clients"], model_ids=model_ids
+        )
+        borrowed_in_round = 0.0
+        for model_id in model_ids:
+            own_count = counts.get(model_id, 0)
+            diagnostics["own_training_sample_count"] += own_count
+            if own_count <= 0:
+                continue
+            weights = {}
+            for other in model_ids:
+                other_count = counts.get(other, 0)
+                if other == model_id or other_count <= 0:
+                    continue
+                count = total = 0.0
+                for table in evidence.values():
+                    values = table.get((model_id, other))
+                    if values:
+                        count += values[0]
+                        total += values[1]
+                if count <= 0:
+                    continue
+                # sigmoid(-z)。大きな正負の証拠でもexpがoverflowしない形。
+                z = total - math.log(2)
+                probability = math.exp(-z) / (1 + math.exp(-z)) if z >= 0 else 1 / (1 + math.exp(z))
+                weights[other] = probability * other_count
+            borrowed = sum(weights.values())
+            budget = borrowing_budget * own_count
+            if borrowed > budget:
+                scale = budget / borrowed
+                weights = {other: weight * scale for other, weight in weights.items()}
+                borrowed = sum(weights.values())
+                diagnostics["budget_rescaling_count"] += 1
+            if borrowed <= 0:
+                # c=0では乗除算も書戻しもしない。集約値のbitをそのまま保つ。
+                continue
+            updated = dict(snapshots[model_id])
+            for name, values in snapshots[model_id].items():
+                is_adapter = name.startswith("model_owned_feature_transform.")
+                is_head = name.startswith("classification_layer.")
+                if not (
+                    (is_adapter and shared_part in ("both", "adapter"))
+                    or (is_head and shared_part in ("both", "head"))
+                ):
+                    continue
+                combined = values * own_count
+                for other, weight in weights.items():
+                    combined = combined + snapshots[other][name] * weight
+                updated[name] = combined / (own_count + borrowed)
+            repository.set_global_model_parameters(model_id=model_id, parameter_snapshot=updated)
+            borrowed_in_round += borrowed
+            for other, weight in weights.items():
+                if model_id not in majority or other not in majority:
+                    diagnostics["unknown_concept_borrowed_pseudo_sample_count"] += weight
+                elif majority[model_id] != majority[other]:
+                    diagnostics["different_concept_borrowed_pseudo_sample_count"] += weight
+        if borrowed_in_round > 0:
+            diagnostics["sharing_synchronization_count"] += 1
+        diagnostics["borrowed_pseudo_sample_count"] += borrowed_in_round
+        borrowed_total = diagnostics["borrowed_pseudo_sample_count"]
+        combined_total = diagnostics["own_training_sample_count"] + borrowed_total
+        # 各モデル・各同期の割合を、分母の件数(N_m+Σw)で重み付けする。
+        diagnostics["borrowed_pseudo_sample_fraction"] = (
+            borrowed_total / combined_total if combined_total else 0.0
+        )
+        diagnostics["different_concept_borrowed_fraction"] = (
+            diagnostics["different_concept_borrowed_pseudo_sample_count"] / borrowed_total
+            if borrowed_total
+            else 0.0
+        )
+        return result
+
+    with (
+        _client_usage_evidence(discount_factor=1 - 1 / time_scale_samples) as evidence,
+        patch.object(
+            synchronization_module, "aggregate_client_models_into_global_models", aggregate
+        ),
+    ):
         yield
 
 
@@ -2264,6 +2411,7 @@ def _execute_job(job):
     client_settings = settings.run_participant_settings.run_client_settings
     started = time.time()
     events = []
+    soft_concept_sharing = {}
     with contextlib.ExitStack() as stack:
         if job["variant"] in _SEQUENTIAL_TEST_VARIANTS:
             stack.enter_context(_sequential_test_policy(events=events))
@@ -2294,6 +2442,16 @@ def _execute_job(job):
             stack.enter_context(_equivalence_clustering_decision_policy(events=events))
         if job["variant"] in _SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS:
             stack.enter_context(_sample_holding_cross_evaluation_clients_policy(events=events))
+        if job["variant"] in _SOFT_CONCEPT_SHARING_VARIANTS:
+            shared_part, borrowing_budget = _SOFT_CONCEPT_SHARING_VARIANTS[job["variant"]]
+            stack.enter_context(
+                _soft_concept_sharing_policy(
+                    shared_part=shared_part,
+                    borrowing_budget=borrowing_budget,
+                    time_scale_samples=client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,
+                    diagnostics=soft_concept_sharing,
+                )
+            )
         if job["variant"] in _USAGE_EVIDENCE_VETO_VARIANTS:
             stack.enter_context(_usage_evidence_veto_policy(events=events))
         if job["variant"] in _EVERY_ROUND_CLUSTERING_VARIANTS:
@@ -2518,6 +2676,7 @@ def _execute_job(job):
             "detector_signals": sum(e["event"] == "detector_signal" and e["detected"] for e in events),
         },
         own_loss_fallback_count=sum(e["event"] == "own_loss_fallback_to_training_samples" for e in events),
+        **({"soft_concept_sharing": soft_concept_sharing} if soft_concept_sharing else {}),
         usage_evidence_veto_count=sum(e["event"] == "usage_evidence_veto" for e in events),
         withdrawn_into_interval_sample_count=sum(
             e["count"] for e in events if e["event"] == "withdrawn_into_interval"
