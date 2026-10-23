@@ -211,7 +211,14 @@ _SOFT_CONCEPT_SHARING_VARIANTS = {
 }
 for _variant_name in _SOFT_CONCEPT_SHARING_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
+_PREDICTION_DISTILLATION_VARIANTS = {
+    "product-default-prediction-distillation": 0.5,
+    "product-default-prediction-distillation-strong": 1.0,
+}
+for _variant_name in _PREDICTION_DISTILLATION_VARIANTS:
+    _VARIANTS[_variant_name] = ("fedsda", False, None)
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
+    *_PREDICTION_DISTILLATION_VARIANTS,
     *_SOFT_CONCEPT_SHARING_VARIANTS,
     "product-default",
     "product-default-sample-holding-cross-evaluation",
@@ -2000,6 +2007,174 @@ def _soft_concept_sharing_policy(
 
 
 @contextmanager
+def _prediction_distillation_policy(*, strength, diagnostics):
+    """同期側の標本別予測を保存し、通常の保有モデル学習の損失だけに蒸留を足す。"""
+    import torch
+    from random import Random
+
+    import federated_learning_experiments.runtime.observed_sample_prediction as prediction_module
+    import federated_learning_experiments.runtime.observed_sample_processing as processing_module
+    import federated_learning_experiments.runtime.held_model_training_request_handling as request_module
+    import federated_learning_experiments.runtime.server_round_synchronization as synchronization_module
+    import federated_learning_experiments.learning.training.held_model_joint_training_iterations as iterations_module
+    import federated_learning_experiments.learning.training.joint_model_parameter_update as update_module
+    from federated_learning_experiments.runtime.model_clustering_and_consolidation import (
+        _get_unique_majority_concept_ids,
+    )
+    from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
+
+    # 標本の参照も保持して、破棄された標本のidの再利用を防ぐ。事前学習標本には記録が無い。
+    observations = {}
+    synchronized_concepts = {}
+    prediction_context = {}
+    training_context = {}
+    totals = dict(trained=0, with_teacher=0, weight=0.0, different=0.0, unknown=0.0)
+    original_predict = processing_module.predict_observed_sample_and_update_prediction_weights
+    original_convert = prediction_module.convert_model_outputs_to_prediction_probabilities
+    original_distribute = synchronization_module.distribute_global_models_to_clients
+    original_iterations = request_module.perform_held_model_joint_training_iterations
+    original_sample = Random.sample
+    original_sample_batches = iterations_module.sample_training_batches_for_held_models
+    original_update = iterations_module.perform_joint_model_parameter_update
+    original_flush = FedsdaRunClient.flush_pending_local_updates
+
+    def distribute(**arguments):
+        result = original_distribute(**arguments)
+        synchronized_concepts.clear()
+        synchronized_concepts.update(_get_unique_majority_concept_ids(
+            run_clients=arguments["run_clients"],
+            model_ids=tuple(arguments["global_model_repository"].global_model_ids),
+        ))
+        return result
+
+    def predict(**arguments):
+        prediction_context["observation"] = arguments["indexed_observation"]
+        training_context["assignment"] = arguments["current_training_model_assignment"]
+        try:
+            return original_predict(**arguments)
+        finally:
+            prediction_context.clear()
+
+    def convert(**arguments):
+        probabilities = original_convert(**arguments)
+        observation = prediction_context.pop("observation", None)
+        if observation is not None:
+            # 最初の変換だけが予測の重みに使う同期側。後の局所側の変換は保存しない。
+            sample = observation.training_sample
+            observations[id(sample)] = (
+                sample,
+                {model_id: value.detach().clone() for model_id, value in probabilities.items()},
+                dict(synchronized_concepts),
+                # 予測のときの現在の学習帰属のモデル（教師の判定の基準。学習までにIDが替わっても、この値で比べる）。
+                training_context["assignment"].current_training_model_id,
+            )
+        return probabilities
+
+    def sample(generator, population, k, *, counts=None):
+        selected = original_sample(generator, population, k, counts=counts)
+        training_context["selected"].append(selected)
+        return selected
+
+    def sample_batches(**arguments):
+        training_context["selected"] = []
+        # 抽出そのものは元のRandom.sampleに任せ、選ばれた標本の参照だけを受け取る。
+        with patch.object(Random, "sample", sample):
+            batches = original_sample_batches(**arguments)
+        training_context["batches"] = tuple(zip(batches, training_context.pop("selected")))
+        return batches
+
+    def iterations(**arguments):
+        # この入口は通常の学習要求だけ。候補学習・再較正・事前学習を包まない。
+        with patch.object(iterations_module, "sample_training_batches_for_held_models", sample_batches), patch.object(
+            iterations_module, "perform_joint_model_parameter_update", update
+        ):
+            return original_iterations(**arguments)
+
+    def flush(self, **arguments):
+        training_context["assignment"] = self.owners.current_training_model_assignment
+        return original_flush(self, **arguments)
+
+    def update(**arguments):
+        batches = iter(training_context.pop("batches"))
+
+        def loss_factory(original_loss, binary):
+            def loss(predictions, labels):
+                base_loss = original_loss()(predictions, labels)
+                batch, selected = next(batches)
+                # 共同更新には過去の保有モデルも参加するが、案Cの対象は現在の学習帰属だけ。
+                if batch.model_id != training_context["assignment"].current_training_model_id:
+                    return base_loss
+                targets, weights = [], []
+                for selected_sample in selected:
+                    totals["trained"] += 1
+                    entry = observations.get(id(selected_sample))
+                    teachers = []
+                    concepts = {}
+                    if entry is not None:
+                        _, probabilities, concepts, predicted_owner = entry
+                        own = probabilities.get(predicted_owner)
+                        if own is not None:
+                            label = int(selected_sample.observed_class_labels.item())
+
+                            def true_probability(value):
+                                if binary:
+                                    return value.item() if label == 1 else 1.0 - value.item()
+                                return value[0, label].item()
+
+                            teachers = [
+                                (model_id, value) for model_id, value in probabilities.items()
+                                if model_id >= 0 and model_id not in (batch.model_id, predicted_owner)
+                                and true_probability(value) > true_probability(own)
+                            ]
+                    if teachers:
+                        totals["with_teacher"] += 1
+                        totals["weight"] += 1.0
+                        for model_id, _ in teachers:
+                            if model_id not in concepts or batch.model_id not in concepts:
+                                totals["unknown"] += 1.0 / len(teachers)
+                            elif concepts[model_id] != concepts[batch.model_id]:
+                                totals["different"] += 1.0 / len(teachers)
+                        targets.append(torch.stack([value for _, value in teachers]).mean(0))
+                        weights.append(1.0)
+                    else:
+                        targets.append(torch.zeros_like(predictions[:1]))
+                        weights.append(0.0)
+                # λ=0では、元の損失Tensorをそのまま返し、演算順序・勾配を完全に保つ。
+                if strength == 0 or not any(weights):
+                    return base_loss
+                target = torch.cat(targets).detach()
+                if binary:
+                    soft_losses = torch.nn.functional.binary_cross_entropy(predictions, target, reduction="none").view(-1)
+                else:
+                    soft_losses = -(target * torch.nn.functional.log_softmax(predictions, dim=1)).sum(dim=1)
+                return base_loss + strength * (soft_losses * predictions.new_tensor(weights)).mean()
+
+            return loss
+
+        with patch.object(update_module, "BCELoss", lambda: loss_factory(torch.nn.BCELoss, True)), patch.object(
+            update_module, "CrossEntropyLoss", lambda: loss_factory(torch.nn.CrossEntropyLoss, False)
+        ):
+            return original_update(**arguments)
+
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(patch.object(processing_module, "predict_observed_sample_and_update_prediction_weights", predict))
+        stack.enter_context(patch.object(prediction_module, "convert_model_outputs_to_prediction_probabilities", convert))
+        stack.enter_context(patch.object(synchronization_module, "distribute_global_models_to_clients", distribute))
+        stack.enter_context(patch.object(request_module, "perform_held_model_joint_training_iterations", iterations))
+        stack.enter_context(patch.object(FedsdaRunClient, "flush_pending_local_updates", flush))
+        yield
+    count = totals["trained"]
+    diagnostics.update(
+        strength=strength,
+        trained_sample_count=count,
+        samples_with_teacher_fraction=totals["with_teacher"] / count if count else 0.0,
+        mean_teacher_weight_sum=totals["weight"] / count if count else 0.0,
+        different_concept_teacher_weight_fraction=totals["different"] / totals["weight"] if totals["weight"] else 0.0,
+        unknown_concept_teacher_weight_fraction=totals["unknown"] / totals["weight"] if totals["weight"] else 0.0,
+    )
+
+
+@contextmanager
 def _every_round_clustering_policy(*, events):
     """サーバのクロス評価とクラスタリングを、新しいモデルの登録がある同期だけでなく、モデルが2つ以上ある毎回の
     同期で行う（研究用。旧の`FEDSDA_CLUSTERING_POLICY = 'every_round'`に当たる。新実装は`on_new_model`だけを
@@ -2445,7 +2620,13 @@ def _execute_job(job):
     started = time.time()
     events = []
     soft_concept_sharing = {}
+    prediction_distillation = {}
     with contextlib.ExitStack() as stack:
+        if job["variant"] in _PREDICTION_DISTILLATION_VARIANTS:
+            stack.enter_context(_prediction_distillation_policy(
+                strength=job.get("prediction_distillation_strength", _PREDICTION_DISTILLATION_VARIANTS[job["variant"]]),
+                diagnostics=prediction_distillation,
+            ))
         if job["variant"] in _SEQUENTIAL_TEST_VARIANTS:
             stack.enter_context(_sequential_test_policy(events=events))
         if job["variant"] in _FROZEN_CANDIDATE_BACKBONE_VARIANTS:
@@ -2711,6 +2892,7 @@ def _execute_job(job):
         },
         own_loss_fallback_count=sum(e["event"] == "own_loss_fallback_to_training_samples" for e in events),
         **({"soft_concept_sharing": soft_concept_sharing} if soft_concept_sharing else {}),
+        **({"prediction_distillation": prediction_distillation} if prediction_distillation else {}),
         usage_evidence_veto_count=sum(e["event"] == "usage_evidence_veto" for e in events),
         withdrawn_into_interval_sample_count=sum(
             e["count"] for e in events if e["event"] == "withdrawn_into_interval"
