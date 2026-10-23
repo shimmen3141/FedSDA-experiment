@@ -217,7 +217,11 @@ _PRODUCT_DEFAULT_BASED_VARIANTS = (
     "product-default-sample-holding-cross-evaluation",
     "product-default-sample-holding-usage-evidence-veto",
     "product-default-all-evaluating-clients",
+    "product-default-all-evaluating-clients-candidate-shared-feature-update",
 )
+# 基準版13の候補: 評価のclientの上限を外し、候補の学習で共有部も更新する（候補の共有部の固定を外す。版11の
+# ablationで、外しても−0.17〜+0.23ppだった）。
+_VARIANTS["product-default-all-evaluating-clients-candidate-shared-feature-update"] = ("fedsda", False, None)
 _VARIANTS["product-default-sample-holding-cross-evaluation"] = ("fedsda", False, None)
 # 製品の既定（基準版12）の上で、クロス評価で1つのモデルを評価させるclientの上限（既定3）を、clientの数へ上げる
 # （標本を返せるclient全部の証拠を使う。基準版8からクロス評価は配布済みのモデルで行うので、増えるのは軽量の
@@ -2288,12 +2292,31 @@ def _execute_job(job):
     settings = build_experiment_run_settings(
         configuration_name=configuration_name, experiment_run_conditions=conditions
     )
-    if job["variant"] == "product-default-all-evaluating-clients":
+    if job["variant"] in (
+        "product-default-all-evaluating-clients",
+        "product-default-all-evaluating-clients-candidate-shared-feature-update",
+    ):
         settings = replace(
             settings,
             run_participant_settings=replace(
                 settings.run_participant_settings,
                 maximum_evaluating_client_count_per_model=conditions.client_count,
+            ),
+        )
+    if job["variant"] == "product-default-all-evaluating-clients-candidate-shared-feature-update":
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    client,
+                    candidate_epoch_training_settings=replace(
+                        client.candidate_epoch_training_settings,
+                        candidate_shared_feature_update_policy="update_shared_features_with_candidate",
+                    ),
+                ),
             ),
         )
     if job["variant"] not in _PRODUCT_DEFAULT_BASED_VARIANTS:
