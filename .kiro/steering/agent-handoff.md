@@ -127,6 +127,8 @@ codex execのWindows sandboxでは一時ディレクトリの操作が拒否さ�
 
 ## 検証コマンド
 
+研究室サーバでの実験条件は[tech.mdの「研究実験の実行環境とコマンド」](tech.md#研究実験の実行環境とコマンド2026-10-24更新)を参照する。uraniumは256コア・標準64 workersで、下記の手元検証や旧16コア向けの14 workersの目安と区別する。研究CLIは`--workers`を明示し、旧Pareto用wrapperの使用を一律には要求しない。
+
 worktreeルートで実行する（Git Bash）。PowerShellでは`$env:NAME='値'`で同じ環境変数を設定し、`$PY`を`../../venv/Scripts/python.exe`へ読み替える。このPCの共有Pythonは`../../venv/Scripts/python.exe`。日本語ファイルを読むPowerShellでは`Get-Content -Encoding UTF8`を使う。
 
 ```bash

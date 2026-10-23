@@ -13,7 +13,7 @@ D−Oは待機だけでなく候補凍結・学習先・参照作成などを含
 
 ## 実行
 
-Linuxの新実装checkoutルート、tmux内で実行する。単独の実験は最大14workers、複数セッションの合計14以下。本例は7workerで、別の7worker実験1つと並行できる。既に7+7workerが稼働中なら、どちらかの完了後に開始する。単独なら14workerへ変更してよい。
+Linuxの新実装checkoutルート、tmux内で実行する。uraniumは256コア・標準64 workers。下の7 workerの例は以前の試行条件であり、全セッション合計14という制限はuraniumには適用しない。現行の配分は[steeringのtech.md](../../.kiro/steering/tech.md)を参照する。
 
 ```bash
 source .venv/bin/activate

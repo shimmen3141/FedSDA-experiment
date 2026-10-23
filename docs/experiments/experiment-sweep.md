@@ -49,7 +49,7 @@ python run_experiment_sweep.py \
 | `--print-plan` | 計画のrunと、出力先にある済んだrunを表示するだけ。何も実行せず、何も作らない | — |
 | `--new-output` | 同条件の過去掃引を再開せず、新しい保存先で実行する（`--output-directory`とは併用不可） | — |
 
-- 研究室サーバ（16コア）では、同時に動かす`--workers`の合計を、14以下にする。長い実験は、tmuxの中で実行する。
+- 長い実験はtmux内で実行する。uraniumは256コア・標準`--workers 64`。手元16コア向けの14という目安と区別する。環境別の現行条件は[steeringのtech.md](../../.kiro/steering/tech.md)を参照する。下の14 workerの例をサーバの上限と解釈しない。
 - 終了コード: 0＝全部のrunが、済んだか、飛ばされた。1＝失敗したrunがある、または、出力先に、読めない要約がある。2＝引数や計画が不正、または、MNISTのファイルがない。
 - scriptは、`OMP_NUM_THREADS`・`MKL_NUM_THREADS`・`OPENBLAS_NUM_THREADS`を、未設定なら1にする（設定されている値は、変えない。結果を再現するには、1のままにする）。
 

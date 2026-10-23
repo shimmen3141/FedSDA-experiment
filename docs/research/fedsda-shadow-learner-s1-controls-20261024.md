@@ -41,7 +41,7 @@ Cは診断用の差で、MDLの新しい採用規則ではない。影と継続�
 | 生成標本数 | clientあたり5,000、client数10 |
 | 影の観測上限 | 240（2T） |
 | 条件数 | 120、各条件の既定と診断で計240 run |
-| 並列 | 最大14 workers、数値ライブラリ各1thread |
+| 並列 | uranium（256コア）の標準64 workers、数値ライブラリ各1thread |
 
 通常ドリフトにも継続対照を足すので、前回の診断と重複する実験ではない。対照の既定も同じLinux環境で取り直す。実行前のprint-planで120条件・240 run・未使用の出力先を確認し、確認だけではディレクトリが作られないことを確認した。本規模はまだ実行していない。サーバの実行速度・メモリで所要時間が変わるため、完了時刻は未見積り。1時間を超える場合の確認は55分間隔というユーザー指定を維持する。
 
@@ -57,13 +57,32 @@ source .venv/bin/activate
 tmux new-session -s fedsda-s1-controls
 ```
 
-開いたtmux内で実行する。
+開いたtmux内で、既存の研究CLIと同じく条件とworkersを明示して実行する。
 
 ```bash
-FDE_WORKERS=14 bash tools/research_shadow_learner_diagnostic/run_controls.sh
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+python -m tools.research_shadow_learner_diagnostic.run_controls \
+  --output results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000 \
+  --intervals 100 500 --seeds 0 1 2 3 4 5 6 7 8 9 \
+  --sample-count 5000 --horizon-samples 240 --workers 64
 ```
 
-同時に別実験があればworkersの合計14以下に下げる。専用wrapperは`.venv`を有効化し、出力先を日時つきで生成し、ログ・GNU time・集計を保存する。既存の`tools/run_server_sweep.sh`は旧Pareto CLI専用で、このJSON/JSONLの研究CLIと互換性がないため使わない。出力は`results/fedsda-shadow-controls/<日時>_uranium-s1-controls-seeds0-9-n5000/`で、実行したcheckout内に作成される。結果を回収するときはこのディレクトリと、隣の同名`.execution.log`・`.time.txt`を一緒に回収する。
+成功後に同じ出力先を分析する。
+
+```bash
+python -m tools.research_shadow_learner_diagnostic.analyze_controls \
+  results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000
+```
+
+6種類の入力（通常ドリフトと4種類の固定概念）はこのCLIに固定されている。直接CLIも`--workers`で任意の正の並列数を指定でき、14の上限は無い。条件・ソースhash・対照/診断の結果・JSONLを保存し、失敗はfailures.jsonへ残す。既存の出力先には上書きしない。
+
+日時つき出力先・ログ・GNU time・成功後の分析までまとめて保存したい場合は、補助shellも使える。
+
+```bash
+FDE_WORKERS=64 bash tools/research_shadow_learner_diagnostic/run_controls.sh
+```
+
+補助shellのuranium向け既定も64へ訂正した。古い14という案内は手元の目安との混同だった。環境別の現行条件と古い記述の所在は[steeringのtech.md](../../.kiro/steering/tech.md)を参照する。旧Pareto CLI専用の`tools/run_server_sweep.sh`を全ての研究CLIへ要求しない。shellの出力は`results/fedsda-shadow-controls/<日時>_uranium-s1-controls-seeds0-9-n5000/`で、結果と隣の同名.execution.log・.time.txtを一緒に回収する。直接CLIの場合は指定した出力ディレクトリを回収する。
 
 ## 結果が返った後の判断
 

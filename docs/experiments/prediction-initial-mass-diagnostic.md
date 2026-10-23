@@ -15,7 +15,7 @@ Tは既存のFixed-Share時間尺度を使う。新しい設定値は増やさ�
 
 ## サーバでの本規模対照
 
-6条件×3seed×4方式=72run。全て10clients、5000/client、FIFO/Tは既定設定から保存する。Linuxのcheckoutで次をtmux内から実行する。同時実験があればworkers合計14以下にする（例: 各7）。
+6条件×3seed×4方式=72run。全て10clients、5000/client、FIFO/Tは既定設定から保存する。Linuxのcheckoutで次をtmux内から実行する。uraniumは256コア・標準64 workers。下の14 workerは以前の例でありサーバの上限ではない。同時実験の配分は[steeringのtech.md](../../.kiro/steering/tech.md)を参照する。
 
 ```bash
 source .venv/bin/activate

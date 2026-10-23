@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 source .venv/bin/activate
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
-workers="${FDE_WORKERS:-14}"
+workers="${FDE_WORKERS:-64}"
 out="${1:-results/fedsda-shadow-controls/$(date +%Y%m%d_%H%M%S)_uranium-s1-controls-seeds0-9-n5000}"
 if [[ -e "$out" ]]; then
     echo "出力先が既に存在します: $out" >&2

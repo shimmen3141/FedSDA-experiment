@@ -26,7 +26,8 @@ Variants:
   overall-adwin       クラス別損失系列を外し、全体損失ADWINだけを使う
 
 FDE_RUN_DIRを省略すると、全variantを同じ日時付き結果ルートへ保存します。
-FDE_WORKERSの既定値は14です。二つのtmuxで並列に実行する場合は各7以下にしてください。
+FDE_WORKERSの既定値14は旧16コア環境向けです。uraniumではFDE_WORKERS=64を明示してください。
+現行の環境別の目安は .kiro/steering/tech.md を参照してください。
 EOF
 }
 
