@@ -49,3 +49,23 @@
 ## 必要な比較と採否の基準
 - 精度（データ×間隔ごと、10 seed以上、MNIST4は20 seed）、回復と定常の期間の精度、計算・通信（予測の側だけなので、変わらないはず）。
 - 採否: 精度が下がる条件が無く、回復の期間の精度が上がるなら、既定の候補。
+
+## 2026-10-23の追記: 今の式の確認と、E1の具体化（主担当がコードを読んで確かめた）
+
+### 今のFixed-Share（`methods/fedsda/prediction_combination/fixed_share_weights.py`の`FixedShareWeightController`）
+1. `update_weights_after_loss_observation`: 有界の損失 ℓ_m＝min(1, max(0, 観測の損失)) で、
+   - 学習率 η＝min(1, √(2 ln M / V))。Vは、観測ごとの「重みの下での損失の分散」Σ_m w_m(ℓ_m − Σ w ℓ)² の累積（AdaHedgeに近い形）。
+   - 事後 p_m ∝ w_m·exp(−η ℓ_m)（正規化）。
+   - **配り直し**: w_m ← (1 − α)·p_m ＋ α·(1/M)、α＝1/T（T＝`fixed_share_weight_redistribution_time_scale_samples`、既定120）。**一様に配る**（確認済み）。
+2. `_synchronize_model_pool`: 保有モデルのIDの集合が変わると（登録・統合・配布）、**重みを一様に戻し、Vも0に戻す**（`model_pool_reset_count`を数える）。
+3. 集約の後: `reset_weights_after_aggregation`で重みとVを消し、`replay_observed_losses_after_aggregation`で、保留の標本（帰属の保留のFIFO）の損失の列を再生して、重みを作り直す（再較正）。
+- したがって、重みの「記憶」は、同期ごと（と、モデルの集合が変わるごと）に消える。概念が再来したとき、過去に良かったモデルの重みは、FIFOの再生と、その後の標本の損失だけで戻る。
+
+### E1の具体化（Mixing Past Posteriors。同期と集合の変化を越える記憶を持つ）
+- 記憶: clientごとに、モデルIDごとの「過去の事後の、割り引いた平均」 r_m を持つ。各観測の後、r ← (1 − β)·r ＋ β·p（pは上の事後）。βは1/T（新しい設定を足さない）。r は、重みの消去（同期・集合の変化）で**消さない**。IDの付け替え（統合の`model_id_mapping`、登録の手元の仮のID→正式ID）では、同じIDになった値を足して付け替える（研究ツールの`_client_usage_evidence`の付け替えと同じ形）。新しいモデルのIDには、r に値が無ければ0を入れ、r を正規化し直す。
+- E1a（最初に試す）: 配り直しの先を、一様（1/M）から、r と一様の混合 ½·r ＋ ½·(1/M) にする（rだけにすると、新しいモデルへ重みが配られなくなるので、一様も残す）。式: w_m ← (1 − α)·p_m ＋ α·(½·r_m ＋ ½·(1/M))。
+- E1b（E1aの次）: 集合の変化と同期の後の**初期の重み**を、一様から ½·r ＋ ½·(1/M) にする（FIFOの再生の出発点が、過去に良かったモデルへ寄る）。
+- 差し込む場所（研究ツールでの試作）: `FixedShareWeightController`のメソッドを包む。(1) `update_weights_after_loss_observation`の後で、事後pを計算し直して r を更新し、配り直しの項を置き換える（重みの式を包みの中で書き直すのが簡単。元の関数の結果は使わず、同じ式で事後を計算する）。(2) `_synchronize_model_pool`と`_clear_weight_evidence`の後の初期の重み（E1b）。r はcontrollerの外（`id(controller)`を鍵にした辞書）に持つ。IDの付け替えは、`FedsdaRunClient.apply_global_model_distribution`と`confirm_held_model_registration`を包んで行う（`_client_usage_evidence`と同じ）。
+- 確かめ方: E1aで混合の割合を0（＝一様だけ）にした場合に、製品の既定と全部の値が一致すること。
+- 期待する効き方の目安: 再来のときに戻るまでの標本数が、今の「FIFOの再生＋その後の損失」より短くなる。回復の期間の精度（`prediction_diagnostic_metrics.combined_prediction_period_accuracies.recovery_period_accuracy`）で見る。
+

@@ -73,3 +73,23 @@
 - 案B1: `fedsda-provisional-candidate-expert/20261023_uranium-v12-soft-concept-sharing-*`（本規模）、`20261023_b1-*`（手元）
 - 案C: `fedsda-provisional-candidate-expert/20261023_c-prediction-distillation-*`（手元）
 - 基準版11のablation: `fedsda-component-ablation-v11/20261022_235734_core-components-v11-seeds0-9`
+
+## 7. 前もって考えておいたこと（2026-10-23、主担当。再開のときに、そのまま使える）
+
+### 7.1 残っている判断への推奨（決めるのはユーザー）
+1. **基準版13には、2つとも入れるのを勧める。**
+   - 評価させるclientの上限を外す: 精度の損が無く（−0.09〜+0.17pp）、計算は全体の+0〜1.7%、通信はほぼ同じ。旧で通信を抑えるために置いた固定の値3が、今の構成では理由を失っている。
+   - 候補の共有部の固定を外す: CIRCLE2は2つの版（11・12）のablationで一貫して+0.1〜+0.2pp。ほかは±0.2ppでばらつき、MNIST4・500で−0.14pp（10 seed）。ただし13の候補（2つを合わせた形）のMNIST4・500は20 seedで+0.05ppで、系統的な悪化とは言いにくい。固定は、版7で候補検証を外したときに足した規則で、版10で見えた効果はMNIST4の崩れの偶然だった（ablationの文書）。規則を1つ減らす単純化として価値がある。
+2. **次の研究は、IMPROVE-030の診断（手元で約1時間、決め手になる）を先に行い、並行してIMPROVE-029のE1a（研究ツールの包み1つ）を試すのを勧める。** 診断で「新しいモデルが僅差で負けている」ならS1へ、そうでなければIMPROVE-030のS3か、IMPROVE-029のE2（クラスに条件付けた重み）へ。
+3. 先行研究の調査の報告（元のcheckoutの`docs/research/FedSDA案B1_B2の先行研究調査と新規性リスク評価.md`、Git管理外）は、worktreeの`docs/research/`へ取り込んでcommitするのを勧める（IMPROVE-028の12が参照し、論文の比較の計画——FedDrift・FedFomo・FedEM/FedRC・FedMerge——の根拠になる）。取り込むかはユーザーの判断。
+
+### 7.2 基準版13のspecの設計の要点（手本は基準版12のspec）
+- **評価させるclientの上限**: `runtime/fedsda_final_configuration_run_settings.py`の`build_final_configuration_fedsda_run_settings`は、実行条件（`experiment_run_conditions`。clientの数を持つ）を受け取るので、`maximum_evaluating_client_count_per_model=_MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL`（3）を、`experiment_run_conditions.client_count`に替えるのが最も簡単（設定の型を変えず、「上限なし」をNoneなどで表す必要が無い）。研究ツールの変種`product-default-all-evaluating-clients`も、同じく参加者の設定をclientの数に置き換えている。
+- **候補の共有部の固定**: 同じ関数の`candidate_shared_feature_update_policy="keep_shared_features_fixed"`を`update_shared_features_with_candidate`へ替える。すると、構成`fedsda-without-candidate-validation`（候補検証なし＋共有部も更新）が、既定と同じ設定になる。goldenの事例（`BASELINE_CONFIGURATION_CASE_NAMES`）にこの構成があるので、(a) 名前を残して既定と同じになることを受け入れる、(b) 固定する構成（例: `fedsda-fixed-candidate-shared-features`）をablationとして足す、のどちらかをspecで決める（(b)を勧める。今の既定から外した要素をablationで測れるようにするのが、これまでの形）。
+- **版1〜12の照合**: goldenの`behavior_golden_cases.py`で、参加者の設定の`maximum_evaluating_client_count_per_model`（版12まで3）と、clientの設定の`candidate_epoch_training_settings.candidate_shared_feature_update_policy`（版7〜12で`keep_shared_features_fixed`）を、版ごとの「既定の値が変わった項目」の表（`_CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION`と、参加者の設定の同じ形の表——無ければ足す）で戻す。候補の共有部の扱いは、版1〜6は`update_shared_features_with_candidate`（今の表の`_CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS`）なので、版7〜12だけが固定であることに注意。
+- **構成`fedsda-with-candidate-validation`**: これまでの版と同じく、今の扱い（上限3、共有部の扱いは今の値）を明示するのが安全（候補検証との組合せは未検証）。
+- **研究ツールの基点の固定**（`_execute_job`）: `product-default`系以外の変種の置き換えに、上限3と、共有部を固定する扱いを足す。
+- **研究ツールとの照合**（既定を替える前に）: 製品の既定（基準版12）に2つの項目だけを新しい値にした全体runと、研究ツールの`product-default-all-evaluating-clients-candidate-shared-feature-update`が、4データ以上で一致すること（精度・通信量——メッセージの数を含む——・予測の記録と最終のパラメータの要約・計算回数）。
+- **版13の必須の経路（案）**: クロス評価で、1つの（候補、対象）の組を4つ以上のclientが評価した記録があるケースが少なくとも1つあること（`client_cross_evaluation`の記録を、同期・候補・対象ごとに数える）。上限を外したことが実際に効いている証拠になる。候補の共有部の更新は、候補の採用があるケース（版7からの採用の経路のケース）で起きるので、今の必須の経路（採用・切替え・再較正）で守られる。
+- **testの絞り方**: 版12と同じく、重要なもの（研究ツールとの照合、版1〜12の照合、版13の必須の経路、版12→13の差の説明——FedDrift・FedAvgと候補検証ありの構成のケースは同じ値）に絞る。
+

@@ -46,3 +46,25 @@
 ## 必要な比較と採否の基準
 - SEA4の精度（10 seed）と概念2の精度、概念2のモデルが残るrunの数。ほかのデータの精度が下がらないこと（特にSINE2の切り替えの遅れ）。計算（影の学習者の分）と通信。
 - 採否: SEA4が上がり、ほかが下がらないなら、既定の候補（基準版を上げる）。
+
+## 2026-10-23の追記: 診断とS1の具体化（主担当がコードを読んで確かめた）
+
+### 今の経路
+- `runtime/observed_sample_processing.py`の`process_observed_sample`: 検出器が警報を出すと、帰属の保留の標本（最大30、警報の標本を最後に含む）の列で`select_alarm_interval_assignment`（`runtime/alarm_interval_minimum_description_length_selection.py`）を呼び、選んだ仮説（`current_model`・`held_model`・`new_model`）と変化区間の長さを、`handle_alarm_occurrence`へ渡す。`new_model`なら候補を学習して採用し（`adopt_candidate_model`）、`current_model`なら現在のモデルのまま。
+- 選択の本体は`methods/fedsda/training_data_assignment/minimum_description_length_assignment_selection.py`の`select_assignment_by_minimum_description_length`。入力は、列の各標本の現在のモデルの対数損失（`current_model_log_losses`）、保有モデルごとの対数損失、変化区間の長さkごとの新しいモデルの予測的符号長（`new_model_code_lengths_by_change_interval_sample_count`）、切り替わりの符号長（`switching_code_length`）。「現在のモデルのまま」の符号長は Σ current_model_log_losses、新しいモデルの仮説（長さk）の符号長は「前のn−k件の現在のモデルの損失の和＋切り替わりの符号長＋新しいモデルの符号長(k)」。
+- 選択の記録（`alarm_interval_assignment_selection`）は、選んだ仮説の符号長だけを持つ。
+
+### 診断の具体化（最初にやる）
+- 研究ツールの一時scriptで、`alarm_interval_minimum_description_length_selection`のmodule の中の名前`select_assignment_by_minimum_description_length`を包み、入力から、「現在のモデルのまま」の符号長 L_cur＝Σ current_model_log_losses と、新しいモデルの最良の符号長 L_new＝min_k（前のn−k件の和＋switching＋new(k)）を計算して、警報の標本の位置・clientと一緒に記録する（元の関数の結果はそのまま返す）。記録の表（`build_fedsda_run_record_tables`を包んで保存）の`sample_prediction.observed_concept_id`から、警報の時点の真の概念と、その前の真の概念を引く。
+- 見るもの: SEA4で、概念0→概念2の変化の後の警報のうち、`current_model`が選ばれたものの L_new − L_cur の分布。**0〜数nats（ln 2の数倍以内）に集まれば仮説どおり**で、S1が効く見込み。数十nats以上なら、区間を延ばしても届かないか、学習者の問題（S3の方向）。
+- 条件: SEA4、間隔100・200、seed 0〜3（手元、1 runあたり10〜20分）。比べるため、SINE2（全体が変わる概念）でも同じ記録を取る（SINE2では差が大きく負——新しいモデルが大きく勝つ——はず）。
+
+### S1の具体化（新しい固定の値を足さない形）
+- 影を作る条件: 警報の後に`current_model`が選ばれたとき、常に作る（警報そのものが、変化の証拠なので、「僅差」の閾値を足さない）。影は、選択で最良だった新しいモデルの学習者（warm startか初期化し直しの短い方）の、学習を終えた状態（区間の末尾まで学んだもの）から始める。1 clientに影は1つ（新しい警報で`current_model`が選ばれたら、作り直す。`new_model`・`held_model`が選ばれたら捨てる）。
+- 証拠の積み方: 影を作った時点の差 D₀＝L_cur − L_new（負、新しいモデルが負けた分）から始め、その後の標本ごとに、学習の前の予測で D ← D ＋ (ℓ_cur − ℓ_shadow)（対数損失。ℓ_curは現在のモデル——同期の時点の写しでなく、学習に使っている現在の分類器——の損失。影も同じく、予測の後にその標本で1回学ぶ）を足す。これは、同じ最小記述長の比較を、区間を延ばして続けることに当たる（区間の長さを後から延ばすだけなので、何度見ても、比べる仮説が2つに決まっていれば、符号長の比較として有効）。
+- 採用: D ＞ 0（影の符号長が、現在のモデルのまま——切り替わりの符号長は D₀ に含まれている——より短くなった）になったら、その時点で新しいモデルとして採用する。採用の方法は、まず今の経路を使う（その時点で、保留の標本の列で`new_model`を選んだことにして`handle_alarm_occurrence`へ渡し、候補を保留の標本で学習して採用する）。影のパラメータをそのまま新しいモデルにする形は、その次に試す。
+- 捨てる: 影を作ってから T 標本（Fixed-Shareの時間尺度、既定120）の間に D ＞ 0 にならなければ捨てる（新しい設定を足さない）。
+- 費用: 影の分の、標本ごとの順伝播1回と学習1回（影がある間だけ）。通信は増えない。
+- 確かめ方: 影を作らない（作る条件を偽にする）場合に、製品の既定と全部の値が一致すること。
+- 研究ツールの差し込む場所: (1) `select_alarm_interval_assignment`を包んで、`current_model`が選ばれたら影を作る（入力の`pending_sample_observations`と、選択の中の学習者の状態が要る。学習者の状態は、`compute_warm_started_learner_prequential_code_length`・`compute_reinitialized_learner_prequential_code_length`を包んで、最後に学んだ学習者を取っておく）。(2) `process_observed_sample`の予測の後で、影の予測と1回の学習、Dの更新、採用の判定を行う（採用は、次の`process_observed_sample`の呼出しで、警報を起こした扱いにして、選択の結果を`new_model`に差し替える形が、今の経路を変えずに済む）。
+
