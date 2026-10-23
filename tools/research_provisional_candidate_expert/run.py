@@ -204,6 +204,10 @@ _SOFT_CONCEPT_SHARING_VARIANTS = {
     "product-default-soft-concept-sharing-adapter-only": ("adapter", 1.0),
     "product-default-soft-concept-sharing-head-only": ("head", 1.0),
     "product-default-soft-concept-sharing-budget-half": ("both", 0.5),
+    # 証拠を、全clientの和ではなく、証拠を持つclientの平均にする（和は、証拠を出すclientの数だけ大きくなり、
+    # 差の小さい概念でも共有がすぐ切れる。割引で1 clientの証拠はδ·Tに有界になるが、和はその数倍になる）。
+    "product-default-soft-concept-sharing-client-mean": ("both", 1.0, "client_mean"),
+    "product-default-soft-concept-sharing-head-only-client-mean": ("head", 1.0, "client_mean"),
 }
 for _variant_name in _SOFT_CONCEPT_SHARING_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
@@ -1867,7 +1871,9 @@ def _usage_evidence_veto_policy(*, events, alpha=0.05, rho=1.0):
 
 
 @contextmanager
-def _soft_concept_sharing_policy(*, shared_part, borrowing_budget, time_scale_samples, diagnostics):
+def _soft_concept_sharing_policy(
+    *, shared_part, borrowing_budget, time_scale_samples, diagnostics, evidence_pooling="client_sum"
+):
     """集約の直後、クロス評価の前に、概念固有部を同時に混ぜる（案B1、研究専用）。"""
     import federated_learning_experiments.runtime.model_clustering_and_consolidation as consolidation_module
     import federated_learning_experiments.runtime.server_round_synchronization as synchronization_module
@@ -1919,13 +1925,17 @@ def _soft_concept_sharing_policy(*, shared_part, borrowing_budget, time_scale_sa
                 if other == model_id or other_count <= 0:
                     continue
                 count = total = 0.0
+                contributing_client_count = 0
                 for table in evidence.values():
                     values = table.get((model_id, other))
                     if values:
                         count += values[0]
                         total += values[1]
+                        contributing_client_count += 1
                 if count <= 0:
                     continue
+                if evidence_pooling == "client_mean":
+                    total /= contributing_client_count
                 # sigmoid(-z)。大きな正負の証拠でもexpがoverflowしない形。
                 z = total - math.log(2)
                 probability = math.exp(-z) / (1 + math.exp(-z)) if z >= 0 else 1 / (1 + math.exp(z))
@@ -2443,13 +2453,14 @@ def _execute_job(job):
         if job["variant"] in _SAMPLE_HOLDING_CROSS_EVALUATION_CLIENTS_VARIANTS:
             stack.enter_context(_sample_holding_cross_evaluation_clients_policy(events=events))
         if job["variant"] in _SOFT_CONCEPT_SHARING_VARIANTS:
-            shared_part, borrowing_budget = _SOFT_CONCEPT_SHARING_VARIANTS[job["variant"]]
+            shared_part, borrowing_budget, *pooling = _SOFT_CONCEPT_SHARING_VARIANTS[job["variant"]]
             stack.enter_context(
                 _soft_concept_sharing_policy(
                     shared_part=shared_part,
                     borrowing_budget=borrowing_budget,
                     time_scale_samples=client_settings.prediction_combination_settings.fixed_share_weight_redistribution_time_scale_samples,
                     diagnostics=soft_concept_sharing,
+                    evidence_pooling=pooling[0] if pooling else "client_sum",
                 )
             )
         if job["variant"] in _USAGE_EVIDENCE_VETO_VARIANTS:
