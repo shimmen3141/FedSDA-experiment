@@ -162,6 +162,8 @@ $PY .kiro/settings/scripts/spec_checks.py identity <feature名> --junit "$TMP/<f
 
 ## Git・成果物・終了時
 
+- ユーザーへの各作業結果の報告では、次にできることと、その中の推奨を理由とともに添える（2026-10-24ユーザー指示）。
+
 - commit/pushは対象ファイルを明示し、日本語メッセージ・AI coauthorなしで行う。保留中の3資料を自動でstageしない。commit後にGit状態を確認する。
 - pushはcommitの区切りごとに通常pushを1回だけ試す。失敗時は原因探索・連続再試行をせず、次のpush成功時に未送信commitも送る。
 - `../../venv/refactoring-tests/`（元checkoutのvenv配下、このPCだけ、Git管理外）に、各specの変異の`report.json`とlog、全pytestのJUnit、レビューの出力を置く（2026-10-09より前のspecは、個別のfresh CPU smokeと変異scriptもここにある）。別PCでは存在しないので、必要なら対象specのintegration-validation.mdから作り直す。results・保留資料・venvもGitで共有されるとは限らない。
