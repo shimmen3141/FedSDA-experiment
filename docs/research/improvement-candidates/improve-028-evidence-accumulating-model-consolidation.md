@@ -5,7 +5,8 @@
 - 基準commit: `f8d02a6`（基準版11。根拠のrawは基準版10の既定）
 - 関係: [LEGACY-021](../implementation-findings/legacy-021-classwise-clustering-merges-with-little-evidence.md)（違う概念の統合）、[IMPROVE-026](improve-026-server-clustering-by-description-length.md)（符号長での統合の判定）、[IMPROVE-025](improve-025-simplify-clustering-decision-to-loss-distance.md)（損失の距離）、[NEW-006](../implementation-findings/new-006-minimum-description-length-keeps-partially-changed-concept-in-current-model.md)の「概念2がどこで取り込まれるか」（SEA4）、[帰属を1つの推論にまとめる案](../fedsda-unified-concept-assignment-inference.md)
 - 種別: アルゴリズムの変更（統合の判定の時期・証拠・操作の作り直し）
-- 状態: 未検証・未採用（2026-10-22。ユーザーの指示で、局所的な調整ではない大きな方向として、4案A〜Dを記録した。前段の仮説の確認は下の「確認の順」の1）
+- 状態: 一部採用・検証中（2026-10-23更新）。評価のclientを標本を返せるclientに限る変更（2・9、LEGACY-022）は基準版12として採用。評価させるclientの上限を外す変更と、候補の共有部の固定を外す変更（13・14・17）は基準版13の候補（ユーザーの判断待ち）。拒否権（8・10・11）は既定にしない（ユーザー判断）。案B1（12〜14）・案C（15・16）は試して採らない。次の方向の候補は案E（15）。現在地のまとめは[研究の引継ぎ](../research-handoff-20261023.md)。
+- 名前の注意: 「4つの方向」の節のA〜D（A: clientの利用の実績、B: 連続的な共有、C: 作ったときの証拠の引継ぎ、D: 種類に依らない概念の表現）と、15節の案C・D・E（C: 予測の空間での蒸留、D: 新しく学ぶ学習者と比べる重み、E: 予測の混合に任せる）は、同じ文字で別の案を指す。15節以降で「案C」と書くときは、蒸留の案（15節）のこと。
 
 2026-10-23追記: 9の本規模の結果に基づき、評価のclientを対象の標本を返せるclientに限る扱いを、
 [LEGACY-022の修正のspec](../../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)で製品の既定にした。
