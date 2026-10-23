@@ -48,7 +48,7 @@
 ## 4. 残っている判断（ユーザーが決める）
 
 1. **基準版13に入れるもの**: (a) 評価させるclientの上限を外す（ユーザーは「外すのがよさそう」と述べた。損はほぼ無い）。(b) 候補の共有部の固定を外す（CIRCLE2は一貫して良く、ほかは中立〜わずかに悪い。精度の改善ではなく、規則を減らす単純化）。ユーザーは、トークン残量のため、版を上げる重いtaskを当面避けると述べた。
-2. **次の研究の方向**: 案E（サーバでは共有せず、clientの予測の混合に任せ、予測の側を強くする。主軸に最も沿う）の設計に進むか。ほかの候補: SEA4の概念2をclientの側で分ける機会の問題（警報の後の「新しいモデル」の仮説、NEW-006の続き）。
+2. **次の研究の方向**: 案E（サーバでは共有せず、clientの予測の混合を強くする。主軸に最も沿う。具体案は[IMPROVE-029](improvement-candidates/improve-029-stronger-prediction-mixture-for-recurring-and-partial-concepts.md)。最初に試すのはE1——Fixed-Shareの配り直しの先を、一様から過去の重みの混合にする、Mixing Past Posteriors）か、SEA4の概念2をclientの側で分ける問題（具体案は[IMPROVE-030](improvement-candidates/improve-030-split-partially-changed-concept-on-client.md)。最初に、警報の後の選択で「新しいモデル」が僅差で負けているかを診断し、仮説どおりならS1——判定を保留して、影の学習者で予測的な符号長の累積差を積み、ln 2を超えたら採用——を試す）か。どちらも、文書に、前提・仕組み・差し込む場所・製品の既定と一致させる確かめ方・比べる相手の結果のディレクトリ・評価の指標を書いてある。
 3. 以前から保留のもの: 候補検証の処理を消すか、Git管理外の3文書（AGENTS.mdの「文書とコミット保留」）の扱い、mainへの統合の時期、IMPROVE-025（損失の距離のクラスタリング。採らない方向）・IMPROVE-026（符号長の統合の判定。保留）・LEGACY-021（違う概念の統合。基準版11で頻度が減った）。
 
 ## 5. 残っているタスクと、次にやること（推奨の順）
@@ -59,7 +59,7 @@
    - 候補の共有部の固定: 最終構成の既定`candidate_shared_feature_update_policy`を`update_shared_features_with_candidate`にする（構成`fedsda-without-candidate-validation`と同じ値になるので、その構成の扱いを決める）。
    - 研究ツールの基点の固定（`_execute_job`）に、変えた項目の版12までの値を足す。研究ツールとの照合は、`product-default-all-evaluating-clients-candidate-shared-feature-update`（13の候補）と、製品の新しい既定が一致することで確かめる。
    - Pyrightは`../../venv/Scripts/pyright.exe --pythonpath "C:/Users/yshin/Research/FedSDA-experiment/venv/Scripts/python.exe"`で実行する（指定しないと依存を解決できず198 errors）。全pytestは`tests`を明示する（`results/`の下の`test-results.txt`がdoctestとして集められて失敗するため）。
-3. **案Eの設計**（4の2で進めると決まったら）: IMPROVE-028の15に前提と方向を書いた。予測の側だけの変更なので、検出・帰属・通信を変えずに比べられる。
+3. **案E（IMPROVE-029）か、SEA4の概念2（IMPROVE-030）**（4の2で決まった方）: 各文書の「試し方（引継ぎ先へ）」の手順で進める。研究ツールの変種は`product-default-…`の名前にして`_PRODUCT_DEFAULT_BASED_VARIANTS`へ足し、実装はSol、確認はClaude、レビューはLuna。
 4. 研究室サーバが空いていれば: 基準版12の既定の製品の入口での本規模（記録の表つき。`run_experiment_sweep.py --configurations fedsda … --study method-comparison-v12`。今後rawで統合や帰属を調べるときの基準）。2026-10-23にコマンドを渡したが、実行されたかは未確認。
 
 ## 6. 主な結果のディレクトリ（`results/`、Git管理外）

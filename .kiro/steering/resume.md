@@ -20,7 +20,7 @@
 ## 次の一手
 
 1. [CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[共通引継ぎ手順](agent-handoff.md)を読み、ブランチ・HEAD・差分・対象specを照合する。Claude版cc-sddは`.claude/skills/`、仕様正本は共通の`.kiro/specs/`。
-2. 次の一手は[研究の引継ぎ](../../docs/research/research-handoff-20261023.md)の5（基準版13に入れるものと、次の研究の方向について、ユーザーの判断を仰ぐ。判断の後に基準版13のspec）。案B1・案Cは試して採らなかった（IMPROVE-028の14・16）。候補検証研究を続ける場合は下の研究記録を読み、DやPを未実験の案として再実装しない。
+2. 次の一手は[研究の引継ぎ](../../docs/research/research-handoff-20261023.md)の5（基準版13に入れるものと、次の研究の方向について、ユーザーの判断を仰ぐ。判断の後に基準版13のspec）。案B1・案Cは試して採らなかった（IMPROVE-028の14・16）。次の研究の候補は、予測の混合を強くする案E（[IMPROVE-029](../../docs/research/improvement-candidates/improve-029-stronger-prediction-mixture-for-recurring-and-partial-concepts.md)）と、SEA4の概念2をclientの側で分ける案（[IMPROVE-030](../../docs/research/improvement-candidates/improve-030-split-partially-changed-concept-on-client.md)）。どちらも実装の手順まで書いてある。候補検証研究を続ける場合は下の研究記録を読み、DやPを未実験の案として再実装しない。
 3. 次の候補は、改善の4案（[IMPROVE-020〜023](../../docs/research/improvement-candidates/README.md)。進める順は020→022→021→023、各ファイルに前提・方針・やること）。020は採用し、基準版8として実装した。022（候補の学習の早期終了）の手元の比較を2026-10-20に始めた。新しい既定の下でのablationは、当面konanの版6の結果で代える。候補検証の処理を消すかは、ユーザーの判断を待つ。
 4. 新しい研究対照は独立ツールへ閉じ、製品経路を変える場合は別specと実装前の独立仕様レビューを経る。現在の既定を黙って変更しない。
 
