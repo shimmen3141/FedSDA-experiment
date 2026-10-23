@@ -5,7 +5,7 @@
 - 基準commit: `09f1d041`（基準版12）
 - 関係: [IMPROVE-028](improve-028-evidence-accumulating-model-consolidation.md)の15（案E）・14・16、[研究の引継ぎ](../research-handoff-20261023.md)、論文の主軸（[method-positioning.md](../method-positioning.md)の1）
 - 種別: アルゴリズムの変更（予測の側だけ）
-- 状態: 未検証・未採用（2026-10-23、ユーザーの指示で、引継ぎ先が実装できる粒度で記録）
+- 状態: E1aの研究用試作・専用検証・独立レビューと24 runの予備対照完了。回復期は6条件中5条件で平均低下、SEA4は同値。今の形は採用せず本規模化を見送る。原因の時系列診断は未実施（2026-10-24）。[試作と実験の記録](../fedsda-mixing-past-posteriors-e1a-20261024.md)。E2は試作・専用検証・独立レビュー、予備対照12 runとMNIST4の5,000標本・4 seedの8 runを完了。長い系列の平均改善は+0.0125/+0.0800ppに留まり、専用枝単独は低下。現行形は未採用・本規模化見送り。[E2の記録](../fedsda-class-conditioned-prediction-e2-20261024.md)。E1b・E3は未試作。
 
 ## 前提（なぜ取り組むか）
 

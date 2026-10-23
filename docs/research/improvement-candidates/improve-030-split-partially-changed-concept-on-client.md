@@ -5,7 +5,7 @@
 - 基準commit: `09f1d041`（基準版12）
 - 関係: [NEW-006](../implementation-findings/new-006-minimum-description-length-keeps-partially-changed-concept-in-current-model.md)（「概念2がどこで取り込まれるか」の節）、[IMPROVE-028](improve-028-evidence-accumulating-model-consolidation.md)の5・11、[研究の引継ぎ](../research-handoff-20261023.md)、過去の研究[候補を仮の専門家として予測だけに使う案](../fedsda-provisional-candidate-expert-20261019.md)
 - 種別: アルゴリズムの変更（clientの帰属の判定）
-- 状態: 未検証・未採用（2026-10-23、ユーザーの指示で、引継ぎ先が実装できる粒度で記録）
+- 状態: S1の成立性診断完了・採用機能は未試作・未採用（2026-10-24）。[影の学習者の診断](../fedsda-shadow-learner-s1-diagnostic-20261024.md)で、SEA4概念2の24影中8件が概念の変わる前に初期差を取り返した。ただしseed偏りと他概念での交差があり、[無変化・オンライン継続対照](../fedsda-shadow-learner-s1-controls-20261024.md)は手元の短い検証とレビューを完了し、uranium本規模の実行待ち。以下の採用手順は検討案であり、実施済みではない。
 
 ## 前提（何が分かっているか）
 

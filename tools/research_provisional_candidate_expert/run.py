@@ -218,6 +218,10 @@ _PREDICTION_DISTILLATION_VARIANTS = {
 for _variant_name in _PREDICTION_DISTILLATION_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
+    "product-default-class-conditioned-prediction",
+    "product-default-class-conditioned-prediction-check",
+    "product-default-mixing-past-posteriors",
+    "product-default-mixing-past-posteriors-disabled",
     *_PREDICTION_DISTILLATION_VARIANTS,
     *_SOFT_CONCEPT_SHARING_VARIANTS,
     "product-default",
@@ -226,6 +230,10 @@ _PRODUCT_DEFAULT_BASED_VARIANTS = (
     "product-default-all-evaluating-clients",
     "product-default-all-evaluating-clients-candidate-shared-feature-update",
 )
+_VARIANTS["product-default-mixing-past-posteriors"] = ("fedsda", False, None)
+_VARIANTS["product-default-mixing-past-posteriors-disabled"] = ("fedsda", False, None)
+_VARIANTS["product-default-class-conditioned-prediction"] = ("fedsda", False, None)
+_VARIANTS["product-default-class-conditioned-prediction-check"] = ("fedsda", False, None)
 # 基準版13の候補: 評価のclientの上限を外し、候補の学習で共有部も更新する（候補の共有部の固定を外す。版11の
 # ablationで、外しても−0.17〜+0.23ppだった）。
 _VARIANTS["product-default-all-evaluating-clients-candidate-shared-feature-update"] = ("fedsda", False, None)
@@ -2621,7 +2629,23 @@ def _execute_job(job):
     events = []
     soft_concept_sharing = {}
     prediction_distillation = {}
+    mixing_past_posteriors = {}
+    class_conditioned_prediction = {}
     with contextlib.ExitStack() as stack:
+        if job["variant"] in ("product-default-class-conditioned-prediction", "product-default-class-conditioned-prediction-check"):
+            from tools.research_provisional_candidate_expert.class_conditioned_prediction import class_conditioned_prediction_policy
+
+            stack.enter_context(class_conditioned_prediction_policy(
+                diagnostics=class_conditioned_prediction,
+                output_baseline=job["variant"].endswith("-check"),
+            ))
+        if job["variant"] in ("product-default-mixing-past-posteriors", "product-default-mixing-past-posteriors-disabled"):
+            from tools.research_provisional_candidate_expert.mixing_past_posteriors import mixing_past_posteriors_policy
+
+            stack.enter_context(mixing_past_posteriors_policy(
+                memory_fraction=0.0 if job["variant"].endswith("-disabled") else 0.5,
+                diagnostics=mixing_past_posteriors,
+            ))
         if job["variant"] in _PREDICTION_DISTILLATION_VARIANTS:
             stack.enter_context(_prediction_distillation_policy(
                 strength=job.get("prediction_distillation_strength", _PREDICTION_DISTILLATION_VARIANTS[job["variant"]]),
@@ -2814,6 +2838,7 @@ def _execute_job(job):
     return dict(
         **{key: job[key] for key in ("variant", "dataset", "interval", "seed", "sample_count", "check")},
         accuracy=metrics.prediction_accuracy,
+        **({"prediction_period_accuracies": dataclasses.asdict(metrics.prediction_diagnostic_metrics.combined_prediction_period_accuracies)} if job.get("record_prediction_period_metrics", False) else {}),
         concept_accuracies={
             str(k): float(tables["sample_prediction.combined_prediction_is_correct"][tables["sample_prediction.observed_concept_id"] == k].mean())
             for k in sorted(set(tables["sample_prediction.observed_concept_id"].ravel().tolist()))
@@ -2893,6 +2918,8 @@ def _execute_job(job):
         own_loss_fallback_count=sum(e["event"] == "own_loss_fallback_to_training_samples" for e in events),
         **({"soft_concept_sharing": soft_concept_sharing} if soft_concept_sharing else {}),
         **({"prediction_distillation": prediction_distillation} if prediction_distillation else {}),
+        **({"mixing_past_posteriors": mixing_past_posteriors} if mixing_past_posteriors else {}),
+        **({"class_conditioned_prediction": class_conditioned_prediction} if class_conditioned_prediction else {}),
         usage_evidence_veto_count=sum(e["event"] == "usage_evidence_veto" for e in events),
         withdrawn_into_interval_sample_count=sum(
             e["count"] for e in events if e["event"] == "withdrawn_into_interval"
@@ -2930,6 +2957,8 @@ def main():
         choices=list(_VARIANTS),
     )
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--print-plan", action="store_true", help="出力先を作らずrunの構成だけを表示する")
+    parser.add_argument("--prediction-period-metrics", action="store_true", help="研究用に回復期・定常期の精度も保存する")
     parser.add_argument("--check", action="store_true", help="仮の専門家の重みを常に0にする（検証ありとの一致の照合）")
     parser.add_argument(
         "--resume",
@@ -2937,7 +2966,6 @@ def main():
         help="既存の出力先の済んだrunを飛ばして、残りを実行する（同じ引数で）",
     )
     arguments = parser.parse_args()
-    arguments.output.mkdir(parents=True, exist_ok=arguments.resume)
     results_path = arguments.output / "results.json"
     jobs = [
         dict(
@@ -2947,18 +2975,25 @@ def main():
             seed=s,
             sample_count=arguments.sample_count,
             check=arguments.check and _VARIANTS[v][1],
+            **({"record_prediction_period_metrics": True} if arguments.prediction_period_metrics else {}),
         )
         for d in arguments.datasets
         for i in arguments.intervals
         for s in arguments.seeds
         for v in arguments.variants
     ]
+    if arguments.print_plan:
+        print(json.dumps({"output": str(arguments.output), "exists": arguments.output.exists(), "workers": arguments.workers, "jobs": jobs}, indent=1))
+        return
+    arguments.output.mkdir(parents=True, exist_ok=arguments.resume)
 
     def job_key(job):
         return tuple(job[k] for k in ("variant", "dataset", "interval", "seed", "sample_count", "check"))
 
     results = json.loads(results_path.read_text(encoding="utf-8")) if results_path.is_file() else []
     done = {job_key(result) for result in results}
+    if arguments.prediction_period_metrics and any("prediction_period_accuracies" not in r for r in results):
+        raise ValueError("既存の結果に回復期の指標がありません。別の出力先を指定してください")
     jobs = [job for job in jobs if job_key(job) not in done]
     print(f"skipped {len(done)} completed runs, running {len(jobs)}", flush=True)
     # 重いMNISTから先に投げる。
