@@ -60,7 +60,7 @@
    - 研究ツールの基点の固定（`_execute_job`）に、変えた項目の版12までの値を足す。研究ツールとの照合は、`product-default-all-evaluating-clients-candidate-shared-feature-update`（13の候補）と、製品の新しい既定が一致することで確かめる。
    - Pyrightは`../../venv/Scripts/pyright.exe --pythonpath "C:/Users/yshin/Research/FedSDA-experiment/venv/Scripts/python.exe"`で実行する（指定しないと依存を解決できず198 errors）。全pytestは`tests`を明示する（`results/`の下の`test-results.txt`がdoctestとして集められて失敗するため）。
 3. **案E（IMPROVE-029）か、SEA4の概念2（IMPROVE-030）**（4の2で決まった方）: 各文書の「試し方（引継ぎ先へ）」の手順で進める。研究ツールの変種は`product-default-…`の名前にして`_PRODUCT_DEFAULT_BASED_VARIANTS`へ足し、実装はSol、確認はClaude、レビューはLuna。
-4. 研究室サーバが空いていれば: 基準版12の既定の製品の入口での本規模（記録の表つき。`run_experiment_sweep.py --configurations fedsda … --study method-comparison-v12`。今後rawで統合や帰属を調べるときの基準）。2026-10-23にコマンドを渡したが、実行されたかは未確認。
+4. 基準版12の既定の製品の入口での本規模（記録の表つき）は、2026-10-24に`results/method-comparison-v12/fedsda`（240 run、seed 0〜9）として取れた。研究ツールの結果と全run一致。rawで統合や帰属を調べるときは、これを使う（MNIST4のseed 10〜19のrawは無い）。
 
 ## 6. 主な結果のディレクトリ（`results/`、Git管理外）
 
