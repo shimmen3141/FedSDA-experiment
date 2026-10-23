@@ -13,6 +13,35 @@
 
 一次分析は入力先の[analysis_controls.md](../../results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000/analysis_controls.md)、[analysis_stability.md](../../results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000/analysis_stability.md)。seed別・学習者別の追加集計は[analysis_uranium.md](../../results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000/analysis_uranium.md)と[summary_uranium.json](../../results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000/summary_uranium.json)。入力・分析ソースのhashを保存し、元のresults.jsonとJSONLは変更しない。追加集計のスクリプトは`results/_sol_prompts/summarize_s1_uranium.py`。
 
+## 標準指標の一覧（2026-10-24追記）
+
+全て10 seedの単純平均で、この表は平均値のみを表示する。標本SD・最小/最大・対象数は[集計JSON](../../results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000/summary_standard_metrics.json)を参照する。精度と上下通信量は既定/診断で全対一致。MB=10^6 byte、G MAC=10^9 MAC。表の「既定→診断」は同条件の対照。
+
+| データ・入力 | 間隔 | 精度%（同値） | 上りMB（同値） | 下りMB（同値） | G MAC（既定→診断） | 追加MAC% | 秒/run（既定→診断） |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| sea4・drift | 100 | 85.395 | 3.587 | 3.884 | 8.693→8.827 | 1.545 | 201.57→236.60 |
+| sea4・drift | 500 | 85.064 | 0.722 | 0.895 | 9.084→9.198 | 1.253 | 195.85→224.68 |
+| sea4・fixed0 | 100 | 88.457 | 3.543 | 3.629 | 8.200→8.237 | 0.458 | 182.63→192.28 |
+| sea4・fixed0 | 500 | 88.014 | 0.712 | 0.780 | 8.305→8.339 | 0.402 | 181.50→189.96 |
+| sea4・fixed2 | 100 | 88.811 | 3.547 | 3.702 | 8.273→8.585 | 3.770 | 208.23→289.16 |
+| sea4・fixed2 | 500 | 88.435 | 0.717 | 0.860 | 8.807→9.105 | 3.385 | 210.23→287.66 |
+| sine2・drift | 100 | 98.502 | 4.523 | 5.905 | 15.170→15.184 | 0.091 | 249.25→252.77 |
+| sine2・drift | 500 | 98.003 | 0.864 | 1.523 | 18.980→19.000 | 0.105 | 276.13→279.62 |
+| sine2・fixed0 | 100 | 99.312 | 3.478 | 3.544 | 8.074→8.085 | 0.139 | 181.09→184.00 |
+| sine2・fixed0 | 500 | 99.229 | 0.697 | 0.732 | 8.055→8.067 | 0.152 | 177.89→181.04 |
+| sine2・fixed1 | 100 | 99.313 | 3.478 | 3.544 | 8.129→8.145 | 0.198 | 181.97→185.31 |
+| sine2・fixed1 | 500 | 99.232 | 0.696 | 0.723 | 8.030→8.045 | 0.188 | 179.33→182.16 |
+
+追加MAC%は10 seedの総追加MAC/総既定MAC。順伝播＋推定逆伝播の計数で、影と検証用オンライン継続対照の両方を含む。別保存の準備用計数は表に別途加算しない。経過秒数は64workers並列下の各runの値で、全実験のwall timeやCPU時間ではない。既定→診断の実行順序や負荷の影響があり、時間差を因果的なオーバーヘッドとは解釈しない。
+
+[標準指標・期間別精度・診断の一覧](../../results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000/analysis_standard_metrics.md)、[seed別CSV](../../results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000/standard_metrics_by_seed.csv)、[集計JSON](../../results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000/summary_standard_metrics.json)を入力先へ保存した。CSVは120条件ごとの既定/診断の精度・概念別精度・期間別精度・上下通信・全モデル計算計数・準備用計数・秒数・診断を保持し、JSONには平均・標本SD・最小/最大・対象数と入力hashを保存する。
+
+無変化入力の回復期精度は対象標本が無いためN/Aとする（指標計算は分母0を0.0で返している）。元の0.0はCSVのraw JSONに保持し、観測された0%と区別した。集計ツールは`python -m tools.research_shadow_learner_diagnostic.summarize_standard_metrics <結果ディレクトリ>`。新しい実験を行う入口ではない。
+
+新しい集計部品の検証は5件成功（0.02秒）。対象無し/真の0%、seed単位の標本SD、MACと準備用計数の区別、標準値や未計上の計算量の不一致拒否を確認した。実データ120条件の再照合とCSV120行・集計12行・精度差全0も確認し、元入力のhashは一致した。製品の全pytestや実験の再実行はしていない。
+
+標準指標の追加の独立レビューは`gpt-6-luna` medium。初回（`01a16a7b-f0bc-7da2-a238-de5e2c024320`）は、表が平均値のみであることと標本SDの参照先を明示する指摘があり反映した。再確認はPASS（`01a16a7d-29e2-7062-a4df-badebdd0b0c6`）。計算・コードの指摘は無し、試験の独立実行は無し。ログは`results/_sol_prompts/s1-standard-metrics-{review,rereview}.txt`。
+
 ## 逆転の出現と無変化対照
 
 D＝初期差＋Σ（製品の現在のモデルの損失−影の損失）。C＝初期差＋Σ（同じオンライン更新で続けた現在の写しの損失−影の損失）。「同時」は、開始概念が変わる前のある同じ標本でD>0かつC>0だったこと。別々の標本で正になっただけの例とは区別する。Cは診断用で、採用規則ではない。
