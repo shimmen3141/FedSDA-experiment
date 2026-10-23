@@ -202,8 +202,13 @@ _PRODUCT_DEFAULT_BASED_VARIANTS = (
     "product-default",
     "product-default-sample-holding-cross-evaluation",
     "product-default-sample-holding-usage-evidence-veto",
+    "product-default-all-evaluating-clients",
 )
 _VARIANTS["product-default-sample-holding-cross-evaluation"] = ("fedsda", False, None)
+# 製品の既定（基準版12）の上で、クロス評価で1つのモデルを評価させるclientの上限（既定3）を、clientの数へ上げる
+# （標本を返せるclient全部の証拠を使う。基準版8からクロス評価は配布済みのモデルで行うので、増えるのは軽量の
+# メッセージとclientの評価の計算だけ）。
+_VARIANTS["product-default-all-evaluating-clients"] = ("fedsda", False, None)
 # 評価のclientを絞る変更に、clientの利用の実績による統合の拒否権を足す（IMPROVE-028の8。LEGACY-021）。
 _USAGE_EVIDENCE_VETO_VARIANTS = (
     "default-sample-holding-usage-evidence-veto",
@@ -2126,6 +2131,14 @@ def _execute_job(job):
     settings = build_experiment_run_settings(
         configuration_name=configuration_name, experiment_run_conditions=conditions
     )
+    if job["variant"] == "product-default-all-evaluating-clients":
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                settings.run_participant_settings,
+                maximum_evaluating_client_count_per_model=conditions.client_count,
+            ),
+        )
     if job["variant"] not in _PRODUCT_DEFAULT_BASED_VARIANTS:
         # 研究ツールの変種は、基準版10の既定を基点として評価してきた。基準版11で既定に足した2つの扱い（warm start
         # の学習者、初期モデルの統計の交差検証）と、版12の評価のclientの選び方を戻してから、各変種の差し替えを行う（変種が同じ扱いを重ねて
