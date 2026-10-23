@@ -3,7 +3,7 @@
   "created_at": "2026-10-22T22:06:54Z",
   "updated_at": "2026-10-23",
   "language": "ja",
-  "phase": "implementation-in-progress",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -62,18 +62,38 @@
     ]
   },
   "implementation_assignment": "ユーザー指示（2026-10-23）により、実装はGPT-6.1-sol（codex exec）。主担当（Claude）は最後に意図どおりかを確認する",
-  "implementation_status": {
-    "completed_tasks": [1, 2, 4],
-    "task_3_code_completed": true,
-    "baseline_version_constants": 11,
-    "implementation_review": "未実施。主担当へ引継ぎ（task 5）",
-    "remaining_work": [
-      "主担当がWindows・WSLで版12のgoldenを生成・設置し、基準版の定数2つを12へ上げる",
-      "独立CLIによる実装レビューと最終検証",
-      "pytest一時ディレクトリのアクセス拒否で実行できなかった構成の全体run照合70件",
-      "Pyrightの依存解決、および評価標本の上限5未満を許す既存設定の扱いの確認"
-    ],
-    "evidence": "tasks.mdのImplementation Notes。一時script・ログ・研究照合のJSONはresults/_sol_tmp/（Git管理外）",
-    "git_operations": "commit・push・stashは実行せず、差分を作業ツリーに残す"
+  "implementation_review": {
+    "status": "passed",
+    "rounds": [
+      {
+        "round": 0,
+        "model": "gpt-6.1-luna",
+        "session_id": "01a165e7-7cb9-7f60-a149-54a637e71248",
+        "result": "実行できず（ChatGPTアカウントのCodexで未対応のモデル）。GPT-6 Lunaで代替"
+      },
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（ログで確認）",
+        "session_id": "01a165e7-ef19-78f0-b28f-4dbd79de92ec",
+        "target": "92fd126e..9890d1fa",
+        "result": "CHANGES REQUIRED（Major 1: 文書の状態、Minor 1: 命名の検査の引数）。反映"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（ログで確認）",
+        "session_id": "01a165eb-c349-7992-93dc-7cdd56a6bf0d",
+        "target": "9890d1fa..bfec854c",
+        "result": "PASS"
+      }
+    ]
+  },
+  "final_verification": {
+    "full_pytest": "14872 passed / 9 skipped / 0 failed（tests、1727秒、cross-eval-full-2.xml）",
+    "goldens_v1_12_wsl": "539 passed（cross-eval-golden-wsl.xml）",
+    "fresh_smoke": "16 flows passed",
+    "pyright": "0 errors",
+    "ruff": "passed"
   }
 }

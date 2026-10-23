@@ -23,7 +23,7 @@
   - 完了条件: 文書が新しい扱いを説明する。
   - _Requirements: 6.1_
 
-- [ ] 5. 実装レビューと最終検証
+- [x] 5. 実装レビューと最終検証
   - 独立CLIの実装レビュー、指摘の反映、全pytest・Ruff・Pyright・WSL。
   - 完了条件: 実装レビューの判定と指摘の採否、全pytest（件数・exit・JUnit）、Ruff・Pyright、WSLの照合の結果を「Implementation Notes」とspec.jsonへ記録し、レビューがPASSで、全pytestが失敗0。
   - _Requirements: 全部_
@@ -61,4 +61,7 @@
 - 実装レビューの担当（2026-10-23のユーザー指示）: Claudeのトークン残量のため、実装レビューはgpt-6.1-luna（codex exec）で行う（規約の表のHaikuの代わり）。
 - 実装レビュー: gpt-6.1-lunaは、このアカウントのCodexで使えなかった（`The 'gpt-6.1-luna' model is not supported when using Codex with a ChatGPT account.`、session `01a165e7-7cb9-7f60-a149-54a637e71248`、レビューは行われていない）。Claudeのトークンを使わないというユーザーの狙いに沿って、GPT-6 Luna（effort medium——ログで確認——）で行った。
 - 実装レビュー1回目（GPT-6 Luna medium、session `01a165e7-ef19-78f0-b28f-4dbd79de92ec`、対象`92fd126e..9890d1fa`）: CHANGES REQUIRED。Major 1件（文書——手法の説明、基準、実験の入口、LEGACY-022、IMPROVE-028、再開案内——が、版12のgoldenの生成・定数の切替を未完了と書き、HEADの状態と食い違う）: 6文書を実状態（生成元`fab7f040`、定数12、残りは最終検証）に合わせた。Minor 1件（命名の検査の引数）: `spec_checks.py names <spec> <変更したsrcのPythonファイル> --base 92fd126e`で、未登録なしを確かめた。コード・testへの指摘は無し（要求1.2〜1.5、検査の位置、標本の選び方の切り出し、研究ツールの照合と基点の固定、版12の必須の経路と差の説明、公開名を確認済み）。レビュー担当は、対象のtest 5ファイル（3200 passed）、Ruff、命名の検査を独立に実行した。全pytest・Pyright・WSL・goldenの再生成は独立に実行していない。
+- 実装レビュー2回目（GPT-6 Luna medium——ログで確認——、session `01a165eb-c349-7992-93dc-7cdd56a6bf0d`、対象`9890d1fa..bfec854c`。修正の再確認）: PASS。6文書がHEADの状態（v12の2ファイル、定数12）と一致し、命名の検査（変更したsrcのPythonファイル9件、`--base 92fd126e`）も未登録なし。
+- 主担当の最終検証: 1回目の全pytest（対象を指定しない実行）は、2 failed（FedDrift・FedAvgの掃引のtestの、混在の計画に入るFedSDAのrunの識別子の期待値。既定の設定が変わったので`db0258193e75`→`08f73bc2aa1d`へ合わせた）と14 errors（`results/implementation-audits/`の下のGit管理外の`test-results.txt`を、pytestがdoctestとして集めた。コードと無関係）。`tests`を明示して取り直した全pytestは14872 passed / 9 skipped / 失敗0（1727秒、JUnit `../../venv/refactoring-tests/cross-eval-full-2.xml`。版1〜12のgolden、実旧との照合——Solが一時ディレクトリの権限で実行できなかった構成の全体run照合を含む——、`tests/test_regression.py`・`tests/test_proposed_regression.py`を含む）。WSL（Ubuntu、Python 3.14.4）の版1〜12のgoldenと、このspecのtest・クロス評価のtestは539 passed（`../../venv/refactoring-tests/cross-eval-golden-wsl.xml`、`9890d1fa`。その後の変更は文書とrunの識別子の期待値だけ）。fresh smoke 16フロー成功（`../../venv/refactoring-tests/cross-eval-fresh.log`）。Pyright（venvのPythonを`--pythonpath`で指定）0 errors（Solの198 errorsは依存の未解決による）、Ruff成功。
+- 残る気づき（Solの引継ぎ）: クロス評価の標本の上限の設定（`maximum_cross_evaluation_sample_count`）は1〜4も許し、その場合は評価に要る5件に届かず、新しい扱いでも0件の評価になる。最終構成は50なので影響は無い。既存の設定の範囲の問題として、このspecでは変えない。
 
