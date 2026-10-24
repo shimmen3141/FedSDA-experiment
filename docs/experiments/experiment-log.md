@@ -30,6 +30,7 @@
 
 | 日付 | 研究の問い / 結果 | 目的 | 規模 | コード | 結論の参照 |
 |---|---|---|---|---|---|
+| 2026-10-24 | fedsda-shadow-lifecycle / `20261024_smoke-n600`（手元） | 採用モデルの登録・実送信・統合・配布・予測利用を非介入で追う | 6入力・seed1・600標本/client・10clients・間隔100、12 run、6workers | e8d20702＋独立研究ツール。ソース249ファイルとツールSHA-256はmetadata | 全12 run成功、元採用方式と全6対で秒以外の全保存指標・MAC・採用経路一致。未登録保留と登録後統合を区別して記録。[結果と限界](../research/fedsda-shadow-model-lifecycle-20261024.md) |
 | 2026-10-18 | fedsda-candidate-validation / `waiting-diagnostic-n5000-seeds0-2`（研究室サーバ） | 候補検証の待機・凍結と選別を本規模で切り分ける | 6条件×seed0〜2×V/O/D、5000/client・10client、54run全件受領・照合。D強制512件・元非採用433件。旧V/O36run全配列/指標/設定一致 | 8ace43cefd5c、clean。source/script hash共通。基準版は診断JSONに記録なし。通常format2と異なる診断専用記録 | [本規模解析](../research/fedsda-candidate-waiting-n5000-20261018.md)。Luna high独立照合PASS。Dは平均で両基準超え0/6、既定変更なし |
 | 2026-10-18 | fedsda-candidate-validation / `20261018_waiting-diagnostic-pilot-n1000`（手元Ubuntu） | 待機後強制採用Dの実NN・保存経路の小規模接続確認。性能採否には使わない | 6条件×seed0×V/O/D、1000/client・10clientの18run完了・exit0、6worker各1thread。強制採用131件・うち元非採用115件を照合 | e1df483f6cf1上の未commit診断runner、src未変更。source/script hashを各runへ保存 | [18runの接続確認](../research/fedsda-candidate-waiting-diagnostic-20261018.md)。54run本規模は未実行 |
 | 2026-10-17〜18 | fedsda-candidate-validation / `20261017_230259_additional-seeds` | 候補検証の有無を追加seedで確認 | 6データ×4間隔×seed5〜9×2構成240run、最終記録191完了＋49既存、失敗0。既存0〜4と10seedへ集計 | 8b0c095bd94a/8dba10c98241、基準版6、clean | [受領・条件別再解析](../research/fedsda-server-results-20261018.md) |
