@@ -124,3 +124,5 @@
 | 2026-10-24 | fedsda-shadow-controls / `results/fedsda-shadow-controls/20261024_smoke-n600`（手元） | S1の無変化入力・現在の写しのオンライン継続を対照として、交差の原因を切り分ける | SEA4通常/概念0固定/概念2固定、SINE2通常/概念0固定/概念1固定。seed1、600標本、間隔100、6条件・各既定との計12 run | 基点186e531b＋専用研究ツール。製品は基準版12のまま | 全6条件成功・失敗0。既定と保存値一致・追加計算を差し引いた計数一致。無変化でも交差あり。本規模はuranium向け準備済み・未実行。[研究記録](../research/fedsda-shadow-learner-s1-controls-20261024.md) |
 
 | 2026-10-24 | fedsda-shadow-controls / `results/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000`（uranium） | S1の無変化・現在モデルのオンライン継続対照を本規模で比較 | 6入力、間隔100/500、seed0〜9、5,000標本、120条件・対照込み240 run、64workers | 基準版12＋研究ツール。ソースSHA-256はresearch-source.jsonと照合済み | 全120条件成功・保存値一致。通常SEA4概念2の同時D/C>0は13/16件、各6 seed。ただし無変化でも発生・再反転が多く採用案は保留。[結果と次の推奨](../research/fedsda-shadow-learner-s1-controls-uranium-results-20261024.md) |
+
+| 2026-10-24 | fedsda-shadow-adoption / `results/fedsda-shadow-adoption/20261024_smoke-n600`（手元） | 実際の採用の経路と標準指標を検証 | SEA4/SINE2各3入力、間隔100、seed1、600標本、6条件・12 run、6workers | 基点25f1b029＋専用研究ツール、製品は基準版12 | 失敗0、採用9件。小規模の動作検証であり効能判定はしない。[研究記録](../research/fedsda-shadow-adoption-and-optimizer-followup-20261024.md) |

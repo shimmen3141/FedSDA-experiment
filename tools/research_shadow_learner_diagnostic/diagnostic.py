@@ -71,7 +71,12 @@ def continue_shadow_observation(
 
 @contextmanager
 def shadow_learner_diagnostic_policy(
-    *, diagnostics, trace, horizon_samples=240, online_current_control=False
+    *,
+    diagnostics,
+    trace,
+    horizon_samples=240,
+    online_current_control=False,
+    adoption_handler=None,
 ):
     """1 clientに影1つ。currentの警報で作り直し、held/newの警報で終了。採用しない。"""
     from unittest.mock import patch
@@ -231,13 +236,15 @@ def shadow_learner_diagnostic_policy(
             maximum_score=max(episode["maximum_score"], score),
             last_sample_index=observation.sample_index,
         )
+        if adoption_handler is not None:
+            state["observations"].append(observation)
         if score > 0.0 and episode["first_crossing_age"] is None:
             episode.update(
                 first_crossing_age=age,
                 first_crossing_sample_index=observation.sample_index,
                 first_crossing_same_alarm_concept=same_concept,
             )
-        if age >= horizon_samples:
+        if age >= horizon_samples and not (adoption_handler is not None and score > 0):
             close(client_id, "horizon", observation.sample_index)
         return result
 
@@ -248,6 +255,27 @@ def shadow_learner_diagnostic_policy(
             result = original_process(**arguments)
         finally:
             process_stack.pop()
+        client_id = arguments["client_id"]
+        state = active.get(client_id)
+        if (
+            adoption_handler is not None
+            and state is not None
+            and result.alarm_occurrence_handling is None
+            and state["episode"]["last_score"] > 0
+        ):
+            adoption_handler(state=state, arguments=arguments)
+            close(
+                client_id,
+                "shadow_adopted",
+                arguments["indexed_observation"].sample_index,
+            )
+            return result
+        if (
+            adoption_handler is not None
+            and state is not None
+            and state["episode"]["observed_sample_count"] >= horizon_samples
+        ):
+            close(client_id, "horizon", arguments["indexed_observation"].sample_index)
         if "selection" not in frame or result.alarm_occurrence_handling is None:
             return result
         selection_frame = frame["selection"]
@@ -303,6 +331,8 @@ def shadow_learner_diagnostic_policy(
             episode=episode,
             same_concept=True,
         )
+        if adoption_handler is not None:
+            active[client_id]["observations"] = list(pending[-span:])
         if online_current_control:
             from tools.research_shadow_learner_diagnostic.controls import (
                 initialize_online_current_control,

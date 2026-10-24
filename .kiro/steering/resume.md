@@ -4,6 +4,8 @@
 
 ## 現在地
 
+- S1の次段階（2026-10-24）: ユーザー指示により[採用実験②とoptimizer対照①](../../docs/research/fedsda-shadow-adoption-and-optimizer-followup-20261024.md)を並行する。②はuranium、①は手元。製品srcは変更しない。独立レビュー後に②のコマンドを提示し、その後①を実行する。
+
 - 標準指標の一覧化（2026-10-24）: S1対照の120条件から、精度・上下通信・MAC・経過時間と診断を併記する[一覧と方法](../../docs/research/fedsda-shadow-learner-s1-controls-uranium-results-20261024.md)を追加。analysis_standard_metrics.md、standard_metrics_by_seed.csv、summary_standard_metrics.jsonを元結果のディレクトリへ保存。今後の研究報告は毎回標準指標を明示し、次の候補と推奨も添える。次の推奨は引き続き初期化・optimizer履歴の対照設計。再実験はしていない。
 
 - uraniumのS1対照の結果確認（2026-10-24）: [120条件・240 runの分析](../../docs/research/fedsda-shadow-learner-s1-controls-uranium-results-20261024.md)を記録。失敗0、全120対で既定と保存値一致・追加計算を除く計数一致。概念2でD/C同時交差は間隔100が13件、500が16件、各6 seedだが無変化でも発生し、D交差後の再反転も多い。D>0だけで採用する案は保留。推奨の次段階は初期化・optimizer履歴の小規模な対照設計。元結果はresults/fedsda-shadow-controls/20261024_uranium-s1-controls-seeds0-9-n5000。以後の報告には次の候補と推奨を添える。

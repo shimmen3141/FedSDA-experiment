@@ -12,15 +12,26 @@ def analyze(output):
     root = Path(__file__).resolve().parents[2]
     metadata = json.loads((output / "research-source.json").read_text(encoding="utf-8"))
     for name, expected in metadata["sha256"].items():
-        if hashlib.sha256((root / name).read_bytes()).hexdigest() != expected:
+        path = root / name
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            snapshot = output / metadata.get("source_snapshots", {}).get(
+                name, "source_snapshot/" + name.replace("\\", "/")
+            )
+            if (
+                snapshot.is_file()
+                and hashlib.sha256(snapshot.read_bytes()).hexdigest() == expected
+            ):
+                continue
             raise ValueError(f"実行時と分析時のソースが異なります: {name}")
     if (output / "failures.json").exists():
         raise ValueError(
             "失敗のある実験は最終集計しません。failures.jsonを確認してください"
         )
     rows = json.loads((output / "results.json").read_text(encoding="utf-8"))
+
     def key(j):
         return j["dataset"], j["stream"], j["interval"], j["seed"]
+
     assert len(rows) == len(metadata["jobs"])
     assert Counter(key(r["job"]) for r in rows) == Counter(
         key(j) for j in metadata["jobs"]
