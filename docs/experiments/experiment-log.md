@@ -144,3 +144,5 @@
 | 2026-10-24 | fedsda-shadow-reconnection / `20261024_smoke-n600`（手元）・`20261024_uranium-reconnection-seeds0-9-n5000`（uranium） | 採用時の共有部再接続の損失変化を非介入で測る | 手元6条件・12 run、uranium120条件・240 run。5000標本・seed0〜9・間隔100/500・64workers、将来30 | 手元e606e54e＋計測、uranium commit未記録、全250ソースSHA256は手元07265cd2と一致 | 全件成功、元採用方式と全120対で秒以外の指標・採用経路・トレース一致。488採用の直近348件/将来282件で悪化。全体精度低下への因果帰属は未確定。[本規模結果](../research/fedsda-shadow-reconnection-uranium-results-20261024.md) |
 
 | 2026-10-25 | fedsda-output-layer-learner / `20261025_local-{drift,fixed2,mnist4}-seeds0-3-n2500` | S3出力層限定学習とwarm初期値整合対照を既定と比較 | SEA4通常/固定2・SINE2通常i100、MNIST4 i500、4seed・2500標本、新規36run＋既定12再利用 | 25fc6e98＋研究ツール、製品変更なし | 全件完了、未採用を推奨。[結果と判断](../research/fedsda-output-layer-learner-s3-20261025.md) |
+
+| 2026-10-25 | fedsda-s3-contribution / `20261025_mnist4-seeds0-3-n2500` | S3の統合前の混合寄与と判断・予測の分岐を非介入で追跡 | MNIST4、間隔500、4seed・2500標本・3構成12run、同条件参照12runと照合、8workers | 7abacd96＋研究ツール、製品変更なし | 全12対で秒以外一致。S3 10候補は局所有益、全体差は判断経路を含む。評価/学習の切り分けを推奨。[診断記録](../research/fedsda-s3-contribution-diagnostic-20261025.md) |
