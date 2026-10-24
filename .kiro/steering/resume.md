@@ -4,7 +4,7 @@
 
 ## 現在地
 
-- S1の次段階（2026-10-24）: ユーザー指示により[採用実験②とoptimizer対照①](../../docs/research/fedsda-shadow-adoption-and-optimizer-followup-20261024.md)を並行する。②はuranium、①は手元。製品srcは変更しない。独立レビュー後に②のコマンドを提示し、その後①を実行する。
+- S1の次段階（2026-10-24）: ユーザー指示により[採用実験②とoptimizer対照①](../../docs/research/fedsda-shadow-adoption-and-optimizer-followup-20261024.md)を並行する。②はuranium、①は手元。製品srcは変更しない。②のツールはpush・コマンド提示済み（サーバ実行はユーザー担当）。①は手元の12条件・24 runを完了、精度差0pp・通信不変。D/C同時交差はoptimizer継続17件、リセット16件で主因とは断定できず、概念2の影は1件だけ。次の推奨は②の本規模の精度差・費用の確認。
 
 - 標準指標の一覧化（2026-10-24）: S1対照の120条件から、精度・上下通信・MAC・経過時間と診断を併記する[一覧と方法](../../docs/research/fedsda-shadow-learner-s1-controls-uranium-results-20261024.md)を追加。analysis_standard_metrics.md、standard_metrics_by_seed.csv、summary_standard_metrics.jsonを元結果のディレクトリへ保存。今後の研究報告は毎回標準指標を明示し、次の候補と推奨も添える。次の推奨は引き続き初期化・optimizer履歴の対照設計。再実験はしていない。
 
