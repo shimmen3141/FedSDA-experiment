@@ -128,3 +128,7 @@
 | 2026-10-24 | fedsda-shadow-adoption / `results/fedsda-shadow-adoption/20261024_smoke-n600`（手元） | 実際の採用の経路と標準指標を検証 | SEA4/SINE2各3入力、間隔100、seed1、600標本、6条件・12 run、6workers | 基点25f1b029＋専用研究ツール、製品は基準版12 | 失敗0、採用9件。小規模の動作検証であり効能判定はしない。[研究記録](../research/fedsda-shadow-adoption-and-optimizer-followup-20261024.md) |
 
 | 2026-10-24 | fedsda-shadow-optimizer / `results/fedsda-shadow-optimizer/20261024_optimizer-keep-vs-reset-n1500`（手元） | 影に対する現在の写しのoptimizer履歴の影響を切り分ける | 6入力、間隔100、seed0/1、1,500標本、12条件・既定との計24 run、8workers | 8010acbc、基準版12＋研究ツール | 失敗0、全12対で既定との精度・通信一致、追加計算を除く計数一致。同時D/C交差は継続17・リセット16、概念2の影は1件のため主因断定不可。[研究記録](../research/fedsda-shadow-adoption-and-optimizer-followup-20261024.md) |
+
+| 2026-10-24 | fedsda-shadow-optimizer / `results/fedsda-shadow-optimizer/20261024_optimizer-keep-vs-reset-seeds0-3-n5000`（手元） | 概念2の影を増やしてoptimizer履歴の影響を比較 | SEA4通常/概念0固定/概念2固定、間隔100、seed0〜3、5,000標本、12条件・計24 run、8workers | 133ad00a、製品基準版12＋研究ツール | 失敗0、全12対で既定と精度・通信一致。概念2の同時交差は継続/resetとも3/24、すべて再反転。[結果](../research/fedsda-shadow-optimizer-expanded-20261024.md) |
+
+| 2026-10-24 | fedsda-shadow-optimizer / `results/fedsda-shadow-optimizer/20261024_noiseless-fixed-seeds0-1-n1500`（手元、smokeは20261024_noiseless-smoke-n600） | 無変化での交差にラベル雑音が与える影響を調べる | SEA4概念0/2固定、間隔100、seed0/1、1,500標本、4条件・計8 run、4workers。600標本・seed1の4 run smoke完了 | 133ad00a＋雑音なし研究ラッパー（metadataにSHA-256とデータ条件） | 全8 run成功。無雑音・無変化でも同時交差あり。雑音ありの同条件は保存済み結果を再利用。手法比較ではない。[結果](../research/fedsda-shadow-optimizer-expanded-20261024.md) |
