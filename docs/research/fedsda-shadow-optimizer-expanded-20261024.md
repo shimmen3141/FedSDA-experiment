@@ -123,3 +123,7 @@ GPT-6.1 Lunaが利用不能だった既往を踏まえ、指定された代替�
 同じ出力は既に存在するので再実験時には新しい出力先を指定する。保存済み結果の再分析だけなら`python -m tools.research_shadow_optimizer_analysis <結果ディレクトリ>`を使用する。
 
 最終の数値・解釈は、GPT-6 Luna、effort medium、独立CLI session `01a16b91-f169-76e1-8f60-3f1d4cfb865f`でPASS。研究記録とanalysis表・同時交差後の39件の記録・雑音対照を照合し、重大な指摘なし。実験・テストの独立実行はしていない。
+
+## ②の結果回収後の案内
+
+uraniumの[採用②の120条件・240 run](fedsda-shadow-adoption-uranium-results-20261024.md)を回収・検算した。SEA4概念2の平均改善は得られず、無変化8条件は全て平均低下。SINE2通常は平均改善だがばらつきと追加費用がある。以後の採否・次の診断の判断はこのサーバ結果を参照する。
