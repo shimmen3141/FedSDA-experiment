@@ -146,3 +146,5 @@
 | 2026-10-25 | fedsda-output-layer-learner / `20261025_local-{drift,fixed2,mnist4}-seeds0-3-n2500` | S3出力層限定学習とwarm初期値整合対照を既定と比較 | SEA4通常/固定2・SINE2通常i100、MNIST4 i500、4seed・2500標本、新規36run＋既定12再利用 | 25fc6e98＋研究ツール、製品変更なし | 全件完了、未採用を推奨。[結果と判断](../research/fedsda-output-layer-learner-s3-20261025.md) |
 
 | 2026-10-25 | fedsda-s3-contribution / `20261025_mnist4-seeds0-3-n2500` | S3の統合前の混合寄与と判断・予測の分岐を非介入で追跡 | MNIST4、間隔500、4seed・2500標本・3構成12run、同条件参照12runと照合、8workers | 7abacd96＋研究ツール、製品変更なし | 全12対で秒以外一致。S3 10候補は局所有益、全体差は判断経路を含む。評価/学習の切り分けを推奨。[診断記録](../research/fedsda-s3-contribution-diagnostic-20261025.md) |
+
+| 2026-10-25 | fedsda-s3-factorial / `20261025_mnist4-seeds0-3-n2500` | S3の符号長評価と候補学習を二因子で切り分ける | MNIST4、間隔500、4seed・2500標本、新規2構成8run＋再利用3構成12run、8workers | 3d5cdc4d＋研究ツール、製品変更なし | 全件完了・20cell検算。Bは既定比+0.268pp、3/4seedで正、MAC+1.754%。未使用seedでの確認を推奨、未採用。[研究記録](../research/fedsda-s3-factorial-20261025.md) |
