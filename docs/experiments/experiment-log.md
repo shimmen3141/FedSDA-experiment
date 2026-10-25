@@ -149,4 +149,4 @@
 
 | 2026-10-25 | fedsda-s3-factorial / `20261025_mnist4-seeds0-3-n2500` | S3の符号長評価と候補学習を二因子で切り分ける | MNIST4、間隔500、4seed・2500標本、新規2構成8run＋再利用3構成12run、8workers | 3d5cdc4d＋研究ツール、製品変更なし | 全件完了・20cell検算。Bは既定比+0.268pp、3/4seedで正、MAC+1.754%。未使用seedでの確認を推奨、未採用。[研究記録](../research/fedsda-s3-factorial-20261025.md) |
 
-| 2026-10-25 | fedsda-s3-validation / `20261025_uranium-holdout-seeds4-7-n2500`（準備）・`20261025_local-seed3-trace-n2500`（手元） | Bを未使用seedで固定検証し、既観測悪化例を非介入追跡 | サーバ4seed・D/W/B/S3の16run計画、手元seed3 Bの1run追跡、MNIST4 i500 n2500 | 3ea9bab2＋研究ツール、製品変更なし | サーバ未実行、手元追跡中。[研究記録](../research/fedsda-s3-validation-20261025.md) |
+| 2026-10-25 | fedsda-s3-validation / `20261025_uranium-holdout-seeds4-7-n2500`（準備）・`20261025_local-seed3-trace-n2500`（手元） | Bを未使用seedで固定検証し、既観測悪化例を非介入追跡 | サーバ4seed・D/W/B/S3の16run計画、手元seed3 Bの1run追跡、MNIST4 i500 n2500 | 3ea9bab2＋研究ツール、製品変更なし | サーバ結果待ち。手元は秒以外一致・10万予測検算、概念1/安定期に低下、55件とLuna最終PASS。共用解析器の片側走査のみ修正。[研究記録](../research/fedsda-s3-validation-20261025.md) |

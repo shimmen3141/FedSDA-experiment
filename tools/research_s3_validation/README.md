@@ -1,6 +1,6 @@
 # Bの未使用seed確認とseed3追跡
 
-[研究記録](../../docs/research/fedsda-s3-validation-20261025.md)。製品と既存研究ツールは変更しない。
+[研究記録](../../docs/research/fedsda-s3-validation-20261025.md)。製品と既存の数値実行部は変更しない。共用追跡解析器の片側走査の不備だけは修正した（研究記録参照）。
 
 ## uraniumでの固定比較
 

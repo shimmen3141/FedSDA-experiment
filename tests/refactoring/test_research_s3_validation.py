@@ -131,3 +131,29 @@ def test_trace_checks_exact_inputs_and_prediction_records(corruption):
             validate_predictions(dict(predictions=predictions), metrics, 1)
     else:
         validate_predictions(dict(predictions=predictions), metrics, 1)
+
+
+@pytest.mark.parametrize("missing_side", ["base", "measured"])
+def test_first_decision_includes_either_one_sided_event(missing_side):
+    from tools.research_s3_contribution.analyze import first_decision_difference
+
+    def record(sample):
+        return dict(
+            client_id=4,
+            sample_index=sample,
+            prediction_order=sample * 10 + 4,
+            selection=dict(
+                selected_hypothesis="held_model",
+                change_interval_sample_count=30,
+                destination_model_id=0,
+                new_model_learner_name="",
+            ),
+            held_parameter_hashes={},
+            observation_indices=[],
+        )
+
+    early, late = record(109), record(126)
+    base, measured = ([late], [early, late]) if missing_side == "base" else ([early, late], [late])
+    result = first_decision_difference(base, measured)
+    assert result["sample_index"] == 109
+    assert result["baseline" if missing_side == "base" else "measured"] is None

@@ -142,24 +142,47 @@ def compare_traces(base, measured, head_adoption_order=None):
 
 def first_decision_difference(base, measured):
     bmap = {(r["client_id"], r["sample_index"]): r for r in base}
+    mmap = {(r["client_id"], r["sample_index"]): r for r in measured}
     fields = (
         "selected_hypothesis",
         "change_interval_sample_count",
         "destination_model_id",
         "new_model_learner_name",
     )
-    for m in measured:
-        b = bmap.get((m["client_id"], m["sample_index"]))
-        if b is None or any(b["selection"][k] != m["selection"][k] for k in fields):
+    # 基準側だけで起きた判断も含め、共通の予測処理順で最初を探す。
+    keys = sorted(
+        set(bmap) | set(mmap),
+        key=lambda key: min(
+            r["prediction_order"]
+            for r in (bmap.get(key), mmap.get(key))
+            if r is not None
+        ),
+    )
+    for key in keys:
+        b, m = bmap.get(key), mmap.get(key)
+        if (
+            b is None
+            or m is None
+            or any(b["selection"][k] != m["selection"][k] for k in fields)
+        ):
+            first = (
+                m
+                if b is None
+                else b
+                if m is None
+                else min((b, m), key=lambda r: r["prediction_order"])
+            )
             return dict(
-                client_id=m["client_id"],
-                sample_index=m["sample_index"],
-                prediction_order=m["prediction_order"],
+                client_id=key[0],
+                sample_index=key[1],
+                prediction_order=first["prediction_order"],
                 baseline=None if b is None else b["selection"],
-                measured=m["selection"],
+                measured=None if m is None else m["selection"],
                 same_held_parameters=b is not None
+                and m is not None
                 and b["held_parameter_hashes"] == m["held_parameter_hashes"],
                 same_window=b is not None
+                and m is not None
                 and b["observation_indices"] == m["observation_indices"],
             )
     return None
