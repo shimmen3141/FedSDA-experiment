@@ -148,3 +148,5 @@
 | 2026-10-25 | fedsda-s3-contribution / `20261025_mnist4-seeds0-3-n2500` | S3の統合前の混合寄与と判断・予測の分岐を非介入で追跡 | MNIST4、間隔500、4seed・2500標本・3構成12run、同条件参照12runと照合、8workers | 7abacd96＋研究ツール、製品変更なし | 全12対で秒以外一致。S3 10候補は局所有益、全体差は判断経路を含む。評価/学習の切り分けを推奨。[診断記録](../research/fedsda-s3-contribution-diagnostic-20261025.md) |
 
 | 2026-10-25 | fedsda-s3-factorial / `20261025_mnist4-seeds0-3-n2500` | S3の符号長評価と候補学習を二因子で切り分ける | MNIST4、間隔500、4seed・2500標本、新規2構成8run＋再利用3構成12run、8workers | 3d5cdc4d＋研究ツール、製品変更なし | 全件完了・20cell検算。Bは既定比+0.268pp、3/4seedで正、MAC+1.754%。未使用seedでの確認を推奨、未採用。[研究記録](../research/fedsda-s3-factorial-20261025.md) |
+
+| 2026-10-25 | fedsda-s3-validation / `20261025_uranium-holdout-seeds4-7-n2500`（準備）・`20261025_local-seed3-trace-n2500`（手元） | Bを未使用seedで固定検証し、既観測悪化例を非介入追跡 | サーバ4seed・D/W/B/S3の16run計画、手元seed3 Bの1run追跡、MNIST4 i500 n2500 | 3ea9bab2＋研究ツール、製品変更なし | サーバ未実行、手元追跡中。[研究記録](../research/fedsda-s3-validation-20261025.md) |
