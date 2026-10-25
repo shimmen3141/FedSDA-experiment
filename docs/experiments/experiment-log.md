@@ -160,3 +160,5 @@
 | 2026-10-25 | fedsda-s3-warm-control / `20261025_uranium-mnist4-i100-500-seeds0-9-n5000`（準備）・手元observer/cumulative-check | 本規模の初期値差とhead学習差の分離、同run累積差計測 | 新規W20＋D/B40再利用、MNIST4 i100/500・10seed・n5000。手元は既知W2500 seed3の非介入検証1run | a1d27637＋新研究ツール、製品変更なし | W本規模未実行。手元Wは秒以外一致・25000入力/digest検証。59件/回帰29件成功、Luna独立PASS。[記録](../research/fedsda-s3-warm-control-20261025.md) |
 
 | 2026-10-25 | fedsda-s3-warm-control / `20261025_uranium-mnist4-i100-500-seeds0-9-n5000`（到着） | 初期値と学習範囲の分離 | W20＋D/B40、MNIST4 i100/500・10seed・n5000、全100万予測照合 | 全数値ソース/参照/環境/checkpointを再確認、実行コード変更なし | W−D+0.0236/+0.0238pp、B−W−0.1504/+0.1220pp。元D NPZで累積差も復元、Luna監査PASS。本実装見送り維持。[結果](../research/fedsda-s3-warm-control-results-20261025.md) |
+
+| 2026-10-25 | fedsda-s3-b-replay / `20261025_uranium-mnist4-i100-500-seeds0-3-7-8-n5000`（準備） | B−W差が発生する時点と概念別救済/悪化を診断 | 新規B8＋既存W8/D8、MNIST4 i100/500・seed0/3/7/8・n5000 | 7ec46add＋専用研究CLI、元数値producer/製品変更なし | 実験未実施、原Bと同じuranium環境でのユーザー実行待ち。研究checks7＋関連pytest77＋設定検証/旧回帰1326成功、Luna medium主/補足PASS。[記録](../research/fedsda-s3-b-replay-20261025.md) |
