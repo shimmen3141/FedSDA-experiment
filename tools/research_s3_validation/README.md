@@ -2,7 +2,7 @@
 
 [研究記録](../../docs/research/fedsda-s3-validation-20261025.md)。製品と既存の数値実行部は変更しない。共用追跡解析器の片側走査の不備だけは修正した（研究記録参照）。
 
-## uraniumでの固定比較
+## 固定比較（今回は手元で実行）
 
 MNIST4・間隔500・2500標本/client・seeds 4–7。
 既定D、初期値整合W、B（評価full・候補学習head）、S3の4構成・16runを全て同じ環境で計測する。
@@ -11,17 +11,18 @@ MNIST4・間隔500・2500標本/client・seeds 4–7。
 モデル順伝播＋推定逆伝播MAC、秒、概念別/安定期/回復期精度を保存する。
 今回の結果を見てBの規則やseedを選び直さない。探索済み0–3をCLIで拒否する。
 
-```bash
-source .venv/bin/activate
-export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
-python -u -m tools.research_s3_validation.run \
-  --output results/fedsda-s3-validation/20261025_uranium-holdout-seeds4-7-n2500 \
-  --seeds 4 5 6 7 --sample-count 2500 --workers 64
-python -m tools.research_s3_validation.analyze \
-  results/fedsda-s3-validation/20261025_uranium-holdout-seeds4-7-n2500
+今回の手元PowerShellでの実行例（worktreeルート、固定venv）。完了済みのため、同じ出力先で再実行しない。
+
+```powershell
+$env:OMP_NUM_THREADS='1'
+$env:MKL_NUM_THREADS='1'
+$env:OPENBLAS_NUM_THREADS='1'
+$env:FDE_MNIST_DATA_DIR=(Resolve-Path ../../data/mnist).Path
+../../venv/Scripts/python.exe -u -m tools.research_s3_validation.run --output results/fedsda-s3-validation/20261025_local-holdout-seeds4-7-n2500 --seeds 4 5 6 7 --sample-count 2500 --workers 8
+../../venv/Scripts/python.exe -m tools.research_s3_validation.analyze results/fedsda-s3-validation/20261025_local-holdout-seeds4-7-n2500
 ```
 
-tmux内で実行する。64は上限で、今回は16jobsなので最大16process。
+この16runは手元で確認する。uraniumは今後の5000標本・多数条件などの本規模で使い、通常64workersを明示する。小規模でもサーバへ回すのは、手元にさらに優先すべき独立作業がある場合だけとする。
 実行前の内部確認は`--print-plan`。既存出力先は拒否し、再開は未対応。
 途中結果は原子的に保存し、失敗があればfailures.jsonを残して解析を拒否する。
 完了時に全矩形・同一入力・数値ソースhashを確認し、解析時も再検査する。
@@ -46,3 +47,11 @@ python -m tools.research_s3_validation.trace --analyze \
 
 追跡には過去のfactorial結果と、そこから参照する元結果・入力proof・seed3の生traceが必要。
 未使用seedのCLIにはこれらは不要。新しい本実装・spec・採用ゲートは作らない。
+
+## 未使用seeds4–7の手元結果
+
+Bは精度88.345%、既定差+0.513pp（SD0.267）、全4seedで正。
+上り260.195MB・下り283.024MB・4173.610GMAC・952.2秒。
+既定比MAC+0.893%、時間は統制した速度比較ではない。W比+0.362/S3比+0.514ppも全4seed正。
+探索0–3を合わせた8seedの+0.3905ppは記述的集計で、主評価は未使用4seed。
+次はuraniumの本規模準備を推奨。詳細は研究記録。製品採用は未決定。
