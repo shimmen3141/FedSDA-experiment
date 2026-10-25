@@ -156,3 +156,5 @@
 | 2026-10-25 | fedsda-s3-fullscale / `20261025_uranium-b-seeds0-9-n5000`（準備） | Bの他データ/間隔での精度と費用を確認 | 6データ×4間隔×10seed・n5000、既定240再利用＋新規B240、64workers | e6f733af＋研究CLI、製品変更なし | 未実行。72件/回帰29件・Luna独立PASS。W/S3を外し既定の全設定/製品src/環境を検証して再利用。[計画](../research/fedsda-s3-fullscale-20261025.md) |
 
 | 2026-10-25 | fedsda-s3-fullscale（到着結果は直下） | Bの5000標本・全6データ/4間隔での影響を確認 | B240＋既定240、10seed、各client5000、元環境Linux・64workers | 全数値ソース/既定の全設定・原記録SHAを再照合、製品変更なし | 完了・失敗0、独立検算とLuna結果レビューPASS。24条件は正12/負12、M4 i500+0.1458pp、i100−0.1268pp。汎用改善の根拠は弱まり既定化見送り推奨。[結果](../research/fedsda-s3-fullscale-results-20261025.md) |
+
+| 2026-10-25 | fedsda-s3-warm-control / `20261025_uranium-mnist4-i100-500-seeds0-9-n5000`（準備）・手元observer/cumulative-check | 本規模の初期値差とhead学習差の分離、同run累積差計測 | 新規W20＋D/B40再利用、MNIST4 i100/500・10seed・n5000。手元は既知W2500 seed3の非介入検証1run | a1d27637＋新研究ツール、製品変更なし | W本規模未実行。手元Wは秒以外一致・25000入力/digest検証。59件/回帰29件成功、Luna独立PASS。[記録](../research/fedsda-s3-warm-control-20261025.md) |
