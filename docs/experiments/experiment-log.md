@@ -166,3 +166,5 @@
 | 2026-10-26 | fedsda-s3-b-replay（到着結果は直下） | B−Wの累積・区間・概念別損益を診断 | 新規B8＋既存W8/D8、MNIST4 i100/500・seed0/3/7/8・n5000 | 原Bの全非秒指標/イベント一致、全80万予測と標準値を別scriptで検算、数値ソース変更なし | 失敗0。選定4seed平均B−W−0.2110/+0.1415pp、seedごとに符号反転時期が異なる。Luna medium独立PASS、機構未特定・本実装保留。[結果](../research/fedsda-s3-b-replay-results-20261026.md) |
 
 | 2026-10-26 | fedsda-s3-b-replay / analysis_transitions（後処理） | client・概念初出/再訪・変化後経過時間で損益を分解 | 既存B8/W8、4seed、40万対応観測、追加NN0 | 740773d9＋専用解析、製品/数値producer変更なし | 全体差へ復元。i100seed7は9client負、i500概念3の損失は500標本以降にも残る。終盤利益には終盤の概念初出が寄与。本実装保留、研究checks3・回帰/関連pytest1403・Luna medium独立PASS。B単独追加実験はいったん区切ることを推奨。[結果](../research/fedsda-s3-b-replay-transitions-20261026.md) |
+
+| 2026-10-26 | version12-version13-comparison-20261026（既存結果後処理） | 共有部固定の根拠と版13候補の採否材料を整理 | 版12/上限のみ/両変更の840記録、主比較72条件セル（全データ10seed）、MNIST4追加20seed別表 | 数値producer/製品変更なし。旧版12対照とネイティブ240件の精度/通信/計算一致、候補画像hashなし | 上限のみ正13/負11、両変更正12/負12条件。共有部固定は合理的な保護策で非低下保証ではない。Luna medium独立PASS、採用範囲は未決定。[比較](../research/fedsda-v12-v13-comparison-and-candidate-freezing-20261026.md) |
