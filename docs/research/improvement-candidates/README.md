@@ -44,8 +44,8 @@
 | IMPROVE-026 | サーバのクラスタリングの判定も、符号長の比較で行う | 保留を提案（2026-10-21。符号長で統合を決める3つの形と、統合で代表のパラメータを保つ形との組み合わせを手元で試した。代表を保つと、新しく学ぶ費用の判定のMNISTの崩れは止まるが、既定より良くならない。当面は閾値0.1のまま） | [詳細](improve-026-server-clustering-by-description-length.md) |
 | IMPROVE-027 | 警報を出す時点も、誤警報の率を抑えた符号長の比較で決める | 未検証・未採用（2026-10-21。毎標本の比較はSINE2で+0.3〜+0.8ppだが誤警報で崩れた。尤度比のe-過程で誤警報を抑える案。研究段階） | [詳細](improve-027-calibrated-sequential-change-detection-by-description-length.md) |
 | IMPROVE-028 | モデルの統合を、登録の直後の1回の判定から、証拠を積み上げる仕組みへ替える（A: clientの利用の実績、B: 連続的な共有、C: 作ったときの証拠の引継ぎ、D: 種類に依らない概念の表現） | 一部採用・検証中（2026-10-23。評価のclientを絞る変更は基準版12として採用。評価のclientの上限を外す・候補の共有部の固定を外すは基準版13の候補。拒否権は既定にしない。案B1（パラメータの共有）・案C（蒸留）は採らない。次の候補は案E） | [詳細](improve-028-evidence-accumulating-model-consolidation.md) |
-| IMPROVE-029 | 予測の混合を、概念の再来と一部だけ変わる概念に強くする（案E: 過去の重みを混ぜて配り直す、クラスに条件付けた重み、帰属の判定からの初期値） | 未検証・未採用（2026-10-23。サーバでの共有・蒸留が違う概念を混ぜて下がった——IMPROVE-028の14・16——ことを受け、予測の側だけで改善する案を記録） | [詳細](improve-029-stronger-prediction-mixture-for-recurring-and-partial-concepts.md) |
-| IMPROVE-030 | 一部だけ変わる概念を、clientの側で新しいモデルとして分けられるようにする（SEA4の概念2。判定を保留して影の学習者で証拠を積む、区間を延ばす、出力層だけの学習者） | S1系列・S3対照と寄与診断まで完了（2026-10-25）、未採用。S3 10候補は局所有益だが方式全体差と異なる。次は符号長評価/実候補学習の切り分け。製品変更なし | [詳細](improve-030-split-partially-changed-concept-on-client.md) |
+| IMPROVE-029 | 予測の混合を概念の再来・部分変化に強くする | E1a/E2は未採用。E3を次候補として提案済み、ユーザー未選択・未試作（2026-10-26） | [詳細](improve-029-stronger-prediction-mixture-for-recurring-and-partial-concepts.md) |
+| IMPROVE-030 | client側で部分変化を新モデルへ分ける | S1/S3/B本規模・W/B再現・交差解析まで完了、未採用。追加NN実験はいったん区切る推奨（2026-10-26） | [詳細](improve-030-split-partially-changed-concept-on-client.md) |
 
 ## 決定（2026-10-13、ユーザー）
 

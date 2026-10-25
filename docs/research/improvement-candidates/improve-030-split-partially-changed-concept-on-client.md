@@ -5,7 +5,7 @@
 - 基準commit: `09f1d041`（基準版12）
 - 関係: [NEW-006](../implementation-findings/new-006-minimum-description-length-keeps-partially-changed-concept-in-current-model.md)（「概念2がどこで取り込まれるか」の節）、[IMPROVE-028](improve-028-evidence-accumulating-model-consolidation.md)の5・11、[研究の引継ぎ](../research-handoff-20261023.md)、過去の研究[候補を仮の専門家として予測だけに使う案](../fedsda-provisional-candidate-expert-20261019.md)
 - 種別: アルゴリズムの変更（clientの帰属の判定）
-- 状態: [S1採用②のサーバ結果](../fedsda-shadow-adoption-uranium-results-20261024.md)を検算完了（2026-10-24、120条件・240 run）。SEA4概念2の平均改善は得られず、無変化入力にも低下あり。製品へ未採用、現行形の本実装は推奨しない。次の候補は採用時の共有部接続とモデル登録・統合経路の診断。[optimizer・雑音対照](../fedsda-shadow-optimizer-expanded-20261024.md)も完了。
+- 状態: 2026-10-26時点、S1採用・接続・来歴・ゲート・S3/Bの二因子/本規模・W/B再現/交差解析まで完了。局所有益な候補はあるが汎用改善や安全な採用規則は得られず、全て製品へ未採用。B単独の追加NN実験はいったん区切る推奨。[最新総括](../research-handoff-20261026.md)、[最終の交差解析](../fedsda-s3-b-replay-transitions-20261026.md)。以下の「次」は各追記当時の記録で、未実施かどうかは最新総括で確認する。
 
 ## 前提（何が分かっているか）
 

@@ -57,6 +57,8 @@ Claude・Codexの交代は[共通引継ぎ手順](../.kiro/steering/agent-handof
 
 ## 研究上の検討資料 — research
 
+- [Claude交代後の研究総括・再開案内（2026-10-26）](research/research-handoff-20261026.md): 一連の実験と判断、成果物、未着手の次候補、他AIへの引継ぎ文面。
+
 - [リファクタリングの再開案内](../.kiro/steering/resume.md): 現在地、次の候補、読む文書。
 - [FedSDAの省メモリ調査](research/fedsda-memory-diagnosis-20261019.md): Linuxでの段階別実測、結果同一性の対照、実装見送りとuraniumでの次の計測。
 - [新実装の品質検査](research/code-quality.md): Ruff・Pyright・commit hook・CIの設定と実行手順。

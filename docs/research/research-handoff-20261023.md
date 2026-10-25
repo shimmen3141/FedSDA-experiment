@@ -1,5 +1,7 @@
 # 研究の引継ぎ（2026-10-23時点）: 統合の判定・共有の研究と、基準版13の候補
 
+> 2026-10-26追記: 本書はClaude交代時点の背景・判断記録。E1a/E2/S1/S3/B等の後続は[最新の研究引継ぎ](research-handoff-20261026.md)を参照する。本書の「次にやること」を現在の未実施taskとして再開しない。
+
 この文書は、別のAIへ引き継ぐとき、またはトークンが回復して再開するときの入口。2026-10-22〜23の研究（IMPROVE-028を中心とする、サーバの統合と、モデルの間の共有の研究）の現在地・前提・分かったこと・残る判断・次の一手をまとめる。詳細な数値・経緯の正本は[IMPROVE-028](improvement-candidates/improve-028-evidence-accumulating-model-consolidation.md)（1〜17節）、実験の一覧は[実験の台帳](../experiments/experiment-log.md)、リファクタリング全体の現在地は[再開案内](../../.kiro/steering/resume.md)。
 
 ## 1. 前提
