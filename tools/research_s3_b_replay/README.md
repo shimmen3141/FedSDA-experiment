@@ -67,3 +67,16 @@ seedは結果を見て選んだ診断ケースであり、新規の性能検証�
 ## 到着結果
 
 2026-10-26、B8run完了・失敗0、原B全非秒指標一致。[結果・判断](../../docs/research/fedsda-s3-b-replay-results-20261026.md)。ユーザー配置先はresults/fedsda-s3-b-replay直下。解析時はそのパスを指定する。4seedの原因診断であり、10seedの新しい性能検証ではない。
+
+## client・真の概念変化後の経過標本数で分ける後処理
+
+保存済み系列だけを使い、追加NN推論・学習は行わない。
+
+```powershell
+../../venv/Scripts/python.exe -m tools.research_s3_b_replay.transitions results/fedsda-s3-b-replay --reference results/fedsda-s3-fullscale --warm-output results/fedsda-s3-warm-control/20261025_uranium-mnist4-i100-500-seeds0-9-n5000
+../../venv/Scripts/python.exe -m tools.research_s3_b_replay.checks_transitions
+```
+
+出力は入力先のanalysis_transitions.json/md。初期episodeを変化後に含めず、概念初出/再訪・client・排他的な経過窓で分ける。
+全体差へ復元できることを確認する。部分群差は標本数で重み付けしたpooled差で、元の概念別seed等重み平均とは異なる。
+真の概念は診断専用。[解析結果と判断](../../docs/research/fedsda-s3-b-replay-transitions-20261026.md)。
