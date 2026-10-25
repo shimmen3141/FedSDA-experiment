@@ -162,3 +162,5 @@
 | 2026-10-25 | fedsda-s3-warm-control / `20261025_uranium-mnist4-i100-500-seeds0-9-n5000`（到着） | 初期値と学習範囲の分離 | W20＋D/B40、MNIST4 i100/500・10seed・n5000、全100万予測照合 | 全数値ソース/参照/環境/checkpointを再確認、実行コード変更なし | W−D+0.0236/+0.0238pp、B−W−0.1504/+0.1220pp。元D NPZで累積差も復元、Luna監査PASS。本実装見送り維持。[結果](../research/fedsda-s3-warm-control-results-20261025.md) |
 
 | 2026-10-25 | fedsda-s3-b-replay / `20261025_uranium-mnist4-i100-500-seeds0-3-7-8-n5000`（準備） | B−W差が発生する時点と概念別救済/悪化を診断 | 新規B8＋既存W8/D8、MNIST4 i100/500・seed0/3/7/8・n5000 | 7ec46add＋専用研究CLI、元数値producer/製品変更なし | 実験未実施、原Bと同じuranium環境でのユーザー実行待ち。研究checks7＋関連pytest77＋設定検証/旧回帰1326成功、Luna medium主/補足PASS。[記録](../research/fedsda-s3-b-replay-20261025.md) |
+
+| 2026-10-26 | fedsda-s3-b-replay（到着結果は直下） | B−Wの累積・区間・概念別損益を診断 | 新規B8＋既存W8/D8、MNIST4 i100/500・seed0/3/7/8・n5000 | 原Bの全非秒指標/イベント一致、全80万予測と標準値を別scriptで検算、数値ソース変更なし | 失敗0。選定4seed平均B−W−0.2110/+0.1415pp、seedごとに符号反転時期が異なる。Luna medium独立PASS、機構未特定・本実装保留。[結果](../research/fedsda-s3-b-replay-results-20261026.md) |

@@ -63,3 +63,7 @@ seedは結果を見て選んだ診断ケースであり、新規の性能検証�
 ```
 
 検証記録は[研究記録](../../docs/research/fedsda-s3-b-replay-20261025.md)。
+
+## 到着結果
+
+2026-10-26、B8run完了・失敗0、原B全非秒指標一致。[結果・判断](../../docs/research/fedsda-s3-b-replay-results-20261026.md)。ユーザー配置先はresults/fedsda-s3-b-replay直下。解析時はそのパスを指定する。4seedの原因診断であり、10seedの新しい性能検証ではない。
