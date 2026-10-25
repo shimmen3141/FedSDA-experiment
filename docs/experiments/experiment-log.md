@@ -152,3 +152,5 @@
 | 2026-10-25 | fedsda-s3-validation / `20261025_uranium-holdout-seeds4-7-n2500`（準備）・`20261025_local-seed3-trace-n2500`（手元） | Bを未使用seedで固定検証し、既観測悪化例を非介入追跡 | サーバ4seed・D/W/B/S3の16run計画、手元seed3 Bの1run追跡、MNIST4 i500 n2500 | 3ea9bab2＋研究ツール、製品変更なし | 本行のサーバ計画はユーザー指示で下記の手元16runへ変更。seed3追跡は秒以外一致・10万予測検算、概念1/安定期に低下、55件とLuna最終PASS。共用解析器の片側走査のみ修正。[研究記録](../research/fedsda-s3-validation-20261025.md) |
 
 | 2026-10-25 | fedsda-s3-validation / `20261025_local-holdout-seeds4-7-n2500`（手元） | Bの未使用seed確認を探索と同じ手元環境で行う | MNIST4 i500 n2500、seeds4–7、D/W/B/S3の16run、8workers | d946c6d4、数値コード変更なし | 16run完了、Bは既定比+0.513pp・全4seed正、W比+0.362/S3比+0.514ppも全4seed正。MAC+0.893%。小規模は手元、本規模はuraniumとのユーザー指示で結果観測前に配置だけ変更。[研究記録](../research/fedsda-s3-validation-20261025.md) |
+
+| 2026-10-25 | fedsda-s3-fullscale / `20261025_uranium-b-seeds0-9-n5000`（準備） | Bの他データ/間隔での精度と費用を確認 | 6データ×4間隔×10seed・n5000、既定240再利用＋新規B240、64workers | e6f733af＋研究CLI、製品変更なし | 未実行。72件/回帰29件・Luna独立PASS。W/S3を外し既定の全設定/製品src/環境を検証して再利用。[計画](../research/fedsda-s3-fullscale-20261025.md) |
