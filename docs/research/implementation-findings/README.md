@@ -25,7 +25,7 @@
 | LEGACY-019 | 候補検証の途中でIDが付け替わった参照モデルは、その検証で、再利用の対象から外れる | 記録だけ（2026-10-13。旧と同じ扱いを移植済み。頻度と影響は未確認） | [記録](legacy-019-renamed-reference-excluded-from-validation-reuse.md) |
 | LEGACY-020 | 初期モデルの損失の統計が、学習に使った標本で取られ、最初の概念の間に誤警報を生む | 対応済み（2026-10-22、基準版11。初期モデルの統計を事前学習の標本の5分割交差検証で作る扱いを既定にした） | [記録](legacy-020-optimistic-initial-model-loss-statistics.md) |
 | LEGACY-021 | クラス別の正誤の判定が、違いの証拠が閾値に届かないと、違う概念のモデルを統合する | 一部対応（2026-10-27、基準版13。評価clientの上限をclientの数にし、LEGACY-023の対策——IMPROVE-031の案A——で学習標本の混入を減らした。クラス別の判定の閾値そのものは変えていない。基準版12の80 runで違う概念の統合は使われ方で5件、精度の損が続いたのは1件） | [記録](legacy-021-classwise-clustering-merges-with-little-evidence.md) |
-| LEGACY-022 | クロス評価で、対象のモデルの標本を持たないclientを評価に選び、登録の後の統合が起きにくい | 未対応（2026-10-23。旧から引き継いだ規則。登録の後の評価の多くが標本0件で、統合はほぼ登録の同期でしか起きない。標本を返せるclientに限ると、手元の4 seedで精度は同じ、CIRCLE2の下りが0.53倍） | [記録](legacy-022-cross-evaluation-selects-clients-without-target-samples.md) |
+| LEGACY-022 | クロス評価で、対象のモデルの標本を持たないclientを評価に選び、登録の後の統合が起きにくい | 対応済み（2026-10-23、基準版12。クロス評価で、対象のモデルの標本を返せるclientだけを評価させる扱いを既定にした。候補検証ありの構成は今の扱い） | [記録](legacy-022-cross-evaluation-selects-clients-without-target-samples.md) |
 | LEGACY-023 | 損失の監視の基準が警報の応答の時点で固定され、若いモデルの学習中の変化を見逃す | 対応済み（2026-10-27、基準版13。損失の低下を検出したら監視の基準を今のモデルの保存平均へ下げる扱いを既定にした。候補検証ありの構成とADWINの2構成は今の扱い） | [記録](legacy-023-loss-monitor-baseline-frozen-at-alarm-reset.md) |
 
 ## 移植しないと決めた旧機能・新実装で見つけた事項

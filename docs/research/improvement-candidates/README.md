@@ -43,8 +43,8 @@
 | IMPROVE-025 | サーバのクラスタリングの判定を、損失の距離へ単純にする（閾値の置き方を見直す） | 未採用を提案（2026-10-21。版10の10 seedで、CIRCLE2の下りは0.80〜0.91倍に減るが、MNISTで精度が下がる——最大−0.49pp——。閾値を固定しない(a)検定・(b)分布の境目は、対ごとの見積りで今の判定より悪い） | [詳細](improve-025-simplify-clustering-decision-to-loss-distance.md) |
 | IMPROVE-026 | サーバのクラスタリングの判定も、符号長の比較で行う | 保留を提案（2026-10-21。符号長で統合を決める3つの形と、統合で代表のパラメータを保つ形との組み合わせを手元で試した。代表を保つと、新しく学ぶ費用の判定のMNISTの崩れは止まるが、既定より良くならない。当面は閾値0.1のまま） | [詳細](improve-026-server-clustering-by-description-length.md) |
 | IMPROVE-027 | 警報を出す時点も、誤警報の率を抑えた符号長の比較で決める | 未検証・未採用（2026-10-21。毎標本の比較はSINE2で+0.3〜+0.8ppだが誤警報で崩れた。尤度比のe-過程で誤警報を抑える案。研究段階） | [詳細](improve-027-calibrated-sequential-change-detection-by-description-length.md) |
-| IMPROVE-028 | モデルの統合を、登録の直後の1回の判定から、証拠を積み上げる仕組みへ替える（A: clientの利用の実績、B: 連続的な共有、C: 作ったときの証拠の引継ぎ、D: 種類に依らない概念の表現） | 一部採用・検証中（2026-10-23。評価のclientを絞る変更は基準版12として採用。評価のclientの上限を外す・候補の共有部の固定を外すは基準版13の候補。拒否権は既定にしない。案B1（パラメータの共有）・案C（蒸留）は採らない。次の候補は案E） | [詳細](improve-028-evidence-accumulating-model-consolidation.md) |
-| IMPROVE-029 | 予測の混合を概念の再来・部分変化に強くする | E1a/E2は未採用。E3を次候補として提案済み、ユーザー未選択・未試作（2026-10-26） | [詳細](improve-029-stronger-prediction-mixture-for-recurring-and-partial-concepts.md) |
+| IMPROVE-028 | モデルの統合を、登録の直後の1回の判定から、証拠を積み上げる仕組みへ替える（A: clientの利用の実績、B: 連続的な共有、C: 作ったときの証拠の引継ぎ、D: 種類に依らない概念の表現） | 一部採用（評価のclientを絞る変更は基準版12、評価のclientの上限の撤廃は基準版13——2026-10-27——として採用。候補の共有部の固定は維持し、外す枝は基準版13のablationで測る。拒否権は既定にしない。案B1（パラメータの共有）・案C（蒸留）は採らない。案Eは未着手） | [詳細](improve-028-evidence-accumulating-model-consolidation.md) |
+| IMPROVE-029 | 予測の混合を概念の再来・部分変化に強くする | E1a/E2は未採用。E3は効く余地の見積りが上限で0.075pp以下のため試作しない（2026-10-26、主担当） | [詳細](improve-029-stronger-prediction-mixture-for-recurring-and-partial-concepts.md) |
 | IMPROVE-030 | client側で部分変化を新モデルへ分ける | S1/S3/B本規模・W/B再現・交差解析まで完了、未採用。追加NN実験はいったん区切る推奨（2026-10-26） | [詳細](improve-030-split-partially-changed-concept-on-client.md) |
 | IMPROVE-031 | 損失の監視の基準を、損失の低下の検出で再設定する | 採用（2026-10-27、基準版13。評価clientの上限の撤廃と合わせて既定にした。本規模で採否の基準を満たす） | [詳細](improve-031-loss-monitor-rebaseline-on-loss-decrease.md) |
 
