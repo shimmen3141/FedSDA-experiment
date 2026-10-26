@@ -29,7 +29,16 @@
   "base_revision": "a9423a9b",
   "specification_review": {
     "status": "pending",
-    "rounds": []
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（ログで確認）",
+        "session_id": "01a17932-aca8-7e40-8c09-1c8ee0d5b4b4",
+        "target": "5d3bc98b",
+        "result": "FAIL（Major 4、Minor 2）。全部反映"
+      }
+    ]
   },
   "implementation_assignment": "基準版12のspecと同じ（2026-10-23のユーザー指示）。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・golden・全pytest・レビューの起動"
 }
