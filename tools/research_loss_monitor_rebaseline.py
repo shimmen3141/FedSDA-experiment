@@ -1,9 +1,12 @@
-"""IMPROVE-031の掃引入口。run-oneは1 processで1 run、launchは子processを並列に動かす。
+"""IMPROVE-031の掃引入口。製品の掃引のコマンドを、変種を有効にして1 runずつ子processで実行する。
 
-例: python -m tools.research_loss_monitor_rebaseline launch --variant
-    product-default-loss-monitor-decrease-rebaseline --datasets sine2 --intervals 100
-    --seeds 0 --jobs 1 --output-root <dir> --purpose "基準の再設定の機能確認"
-照合: compare --expected <既定の出力先> --actual <observe-onlyの出力先>
+研究用CLI（`tools.research_provisional_candidate_expert.run`）と同じ形で指定する:
+    python -m tools.research_loss_monitor_rebaseline --output <出力先> --datasets sine2 --intervals 100
+        --seeds 0 1 --sample-count 5000 --variants product-default-loss-monitor-decrease-rebaseline --workers 64
+各runは`<出力先>/<変種>/<dataset>-i<間隔>-s<seed>/`へ保存する（製品と同じraw）。
+照合: python -m tools.research_loss_monitor_rebaseline compare --expected <保存済みの結果> --actual <出力先>
+（`--actual`の各runを、`--expected`の下から同じファイル名で探して、全raw配列と要約を比べる）
+1 runだけの実行（子processの中身）: python -m tools.research_loss_monitor_rebaseline run-one --variant <変種> -- <掃引の引数>
 """
 
 import argparse
@@ -149,14 +152,14 @@ def _run_one(variant, sweep_arguments):
     return 0
 
 
-def _child_command(arguments, dataset, interval, seed, output_directory):
+def _child_command(arguments, variant, dataset, interval, seed, output_directory):
     return [
         sys.executable,
         "-m",
         "tools.research_loss_monitor_rebaseline",
         "run-one",
         "--variant",
-        arguments.variant,
+        variant,
         "--",
         "--configurations",
         "fedsda",
@@ -175,41 +178,45 @@ def _child_command(arguments, dataset, interval, seed, output_directory):
         "--output-directory",
         str(output_directory),
         "--purpose",
-        f"{arguments.purpose}（変種 {arguments.variant}）",
+        f"{arguments.purpose}（変種 {variant}）",
     ]
 
 
 def _launch(arguments):
-    if min(arguments.jobs, arguments.sample_count, arguments.client_count) < 1:
-        raise ValueError("jobs・sample-count・client-countは正の整数にしてください")
+    if min(arguments.workers, arguments.sample_count, arguments.client_count) < 1:
+        raise ValueError("workers・sample-count・client-countは正の整数にしてください")
     if not arguments.purpose.strip() or any(c in arguments.purpose for c in "\r\n"):
         raise ValueError("purposeは空白だけでない1行にしてください")
+    if len(set(arguments.variants)) != len(arguments.variants):
+        raise ValueError("変種に重複があります")
     # 製品の計画で、datasetや間隔の値の検査も実行前に済ませる。出力先は作らない。
+    output = arguments.output.resolve()
     runs = []
-    for dataset, interval, seed in product(
-        arguments.datasets, arguments.intervals, arguments.seeds
+    for variant, dataset, interval, seed in product(
+        arguments.variants, arguments.datasets, arguments.intervals, arguments.seeds
     ):
-        output_directory = (
-            arguments.output_root.resolve() / f"{dataset}-i{interval}-s{seed}"
-        )
-        command = _child_command(arguments, dataset, interval, seed, output_directory)
+        output_directory = output / variant / f"{dataset}-i{interval}-s{seed}"
+        command = _child_command(arguments, variant, dataset, interval, seed, output_directory)
         _validate_single_run_plan(command[command.index("--") + 1 :])
-        _check_variant(output_directory, arguments.variant)
+        _check_variant(output_directory, variant)
         runs.append((output_directory, command))
     if len({directory for directory, _ in runs}) != len(runs):
         raise ValueError("dataset・間隔・seedに重複があります")
-    arguments.output_root.mkdir(parents=True, exist_ok=True)
+    for variant in arguments.variants:
+        (output / variant).mkdir(parents=True, exist_ok=True)
+    # 同じ出力先への実行（例: MNIST4の追加seed）は、実行ごとの記録を足していく。
+    record_path = output / "launch.json"
+    history = _read_json(record_path)["launches"] if record_path.exists() else []
     record = dict(
         arguments={
             k: str(v) if isinstance(v, Path) else v for k, v in vars(arguments).items()
         },
-        variant=arguments.variant,
         **_provenance(),
         started_at=datetime.now(timezone.utc).isoformat(),
         run_outcomes=[],
     )
-    record_path = arguments.output_root / "launch.json"
-    _write_json(record_path, record)
+    history.append(record)
+    _write_json(record_path, dict(launches=history))
 
     def execute(run):
         directory, command = run
@@ -228,12 +235,16 @@ def _launch(arguments):
             code, status = 2, "failed"
         return dict(output_directory=str(directory), run_status=status, exit_code=code)
 
-    with ThreadPoolExecutor(max_workers=arguments.jobs) as pool:
+    with ThreadPoolExecutor(max_workers=arguments.workers) as pool:
         futures = [pool.submit(execute, run) for run in runs]
         for future in as_completed(futures):
-            record["run_outcomes"].append(future.result())
+            outcome = future.result()
+            record["run_outcomes"].append(outcome)
+            print(f"[{len(record['run_outcomes'])}/{len(runs)}] {outcome['output_directory']}: {outcome['run_status']}", flush=True)
     record["finished_at"] = datetime.now(timezone.utc).isoformat()
-    _write_json(record_path, record)
+    _write_json(record_path, dict(launches=history))
+    counts = {s: sum(r["run_status"] == s for r in record["run_outcomes"]) for s in ("completed", "skipped_existing", "failed")}
+    print(f"completed: {counts['completed']}, skipped (existing): {counts['skipped_existing']}, failed: {counts['failed']}")
     return int(any(run["exit_code"] != 0 for run in record["run_outcomes"]))
 
 
@@ -248,6 +259,10 @@ def _comparable_summary(value):
                 "finished_at",
                 "record_table_file_name",
                 "output_directory",
+                # 実行したコードの来歴。保存済みの結果（別のcommit）とも照合できるように外す。基準版は比べる。
+                "code_commit",
+                "has_uncommitted_changes",
+                "code_revision_unavailable_reason",
             )
             and not key.endswith("_seconds")
         }
@@ -256,21 +271,48 @@ def _comparable_summary(value):
     return value
 
 
+def _file_digest(path):
+    import hashlib
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _run_paths(root, names=None):
+    """rootの下のrawを名前で引く。同じ名前が複数あれば、raw・要約の中身が全部同じときだけ1つとして扱う。
+
+    `names`を渡すと、その名前だけを調べる（保存済みの結果から、照合に使うrunだけを引く）。
+    """
+    candidates = {}
+    for path in sorted(root.glob("**/fedsda/runs/*.npz")):
+        if names is None or path.name in names:
+            candidates.setdefault(path.name, []).append(path)
+    paths = {}
+    for name, found in candidates.items():
+        digests = {(_file_digest(path), _file_digest(path.with_suffix(".json"))) for path in found}
+        if len(digests) != 1:
+            raise ValueError(f"同じ名前で中身の違うrawが2つ以上あります: {[str(path) for path in found]}")
+        paths[name] = found[0]
+    return paths
+
+
 def compare_run_artifacts(expected_directory, actual_directory):
-    """全raw配列と要約を照合する。秒・時刻・出力先の名前だけを除く。"""
+    """`actual_directory`の下の全runを、`expected_directory`の下の同じ名前のrunと照合する。
+
+    全raw配列と要約を比べ、秒・時刻・出力先の名前だけを除く。`expected_directory`は保存済みの結果の
+    ディレクトリをそのまま渡せる（対応するrunがあればよく、ほかのrunは使わない）。
+    """
     import numpy as np
 
-    expected_paths = {
-        path.name: path for path in expected_directory.glob("fedsda/runs/*.npz")
-    }
-    actual_paths = {
-        path.name: path for path in actual_directory.glob("fedsda/runs/*.npz")
-    }
-    if not expected_paths or expected_paths.keys() != actual_paths.keys():
-        raise ValueError("照合するrawの名前の集合が一致しません（空集合も不可）")
+    actual_paths = _run_paths(actual_directory)
+    expected_paths = _run_paths(expected_directory, names=set(actual_paths))
+    if not actual_paths:
+        raise ValueError(f"照合するrawがありません: {actual_directory}")
+    missing = sorted(set(actual_paths) - set(expected_paths))
+    if missing:
+        raise ValueError(f"照合の相手のrawがありません: {missing}")
     array_count = 0
-    for name, expected_path in expected_paths.items():
-        actual_path = actual_paths[name]
+    for name, actual_path in actual_paths.items():
+        expected_path = expected_paths[name]
         with (
             np.load(expected_path, allow_pickle=False) as expected,
             np.load(actual_path, allow_pickle=False) as actual,
@@ -287,40 +329,42 @@ def compare_run_artifacts(expected_directory, actual_directory):
             _read_json(expected_path.with_suffix(".json"))
         ) != _comparable_summary(_read_json(actual_path.with_suffix(".json"))):
             raise ValueError(f"要約が一致しません: {name}")
-    return dict(run_count=len(expected_paths), array_count=array_count)
+    return dict(run_count=len(actual_paths), array_count=array_count)
+
+
+def _launch_parser():
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--datasets", nargs="+", required=True)
+    parser.add_argument("--intervals", nargs="+", type=int, required=True)
+    parser.add_argument("--seeds", nargs="+", type=int, required=True)
+    parser.add_argument("--sample-count", type=int, default=5000)
+    parser.add_argument("--client-count", type=int, default=10)
+    parser.add_argument("--variants", nargs="+", choices=_VARIANTS, required=True)
+    parser.add_argument("--workers", type=int, required=True, help="同時に動かす子processの数")
+    parser.add_argument("--purpose", default="IMPROVE-031の監視の基準の再設定の実験")
+    return parser
 
 
 def main(command_arguments=None):
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
-    commands = parser.add_subparsers(dest="command", required=True)
-    run_one = commands.add_parser("run-one", allow_abbrev=False)
-    run_one.add_argument("--variant", choices=_VARIANTS, required=True)
-    run_one.add_argument("sweep_arguments", nargs=argparse.REMAINDER)
-    launch = commands.add_parser("launch", allow_abbrev=False)
-    launch.add_argument("--variant", choices=_VARIANTS, required=True)
-    launch.add_argument("--datasets", nargs="+", required=True)
-    launch.add_argument("--intervals", nargs="+", type=int, required=True)
-    launch.add_argument("--seeds", nargs="+", type=int, required=True)
-    launch.add_argument("--sample-count", type=int, default=5000)
-    launch.add_argument("--client-count", type=int, default=10)
-    launch.add_argument("--jobs", type=int, required=True)
-    launch.add_argument("--output-root", type=Path, required=True)
-    launch.add_argument("--purpose", required=True)
-    compare = commands.add_parser("compare", allow_abbrev=False)
-    compare.add_argument("--expected", type=Path, required=True)
-    compare.add_argument("--actual", type=Path, required=True)
-    arguments = parser.parse_args(command_arguments)
+    command_arguments = sys.argv[1:] if command_arguments is None else list(command_arguments)
     try:
-        if arguments.command == "run-one":
+        if command_arguments[:1] == ["run-one"]:
+            parser = argparse.ArgumentParser(prog="run-one", allow_abbrev=False)
+            parser.add_argument("--variant", choices=_VARIANTS, required=True)
+            parser.add_argument("sweep_arguments", nargs=argparse.REMAINDER)
+            arguments = parser.parse_args(command_arguments[1:])
             if not arguments.sweep_arguments or arguments.sweep_arguments[0] != "--":
-                raise ValueError(
-                    "run-one --variant <変種> -- <掃引の引数>と指定してください"
-                )
+                raise ValueError("run-one --variant <変種> -- <掃引の引数>と指定してください")
             return _run_one(arguments.variant, arguments.sweep_arguments[1:])
-        if arguments.command == "launch":
-            return _launch(arguments)
-        print(json.dumps(compare_run_artifacts(arguments.expected, arguments.actual)))
-        return 0
+        if command_arguments[:1] == ["compare"]:
+            parser = argparse.ArgumentParser(prog="compare", allow_abbrev=False)
+            parser.add_argument("--expected", type=Path, required=True)
+            parser.add_argument("--actual", type=Path, required=True)
+            arguments = parser.parse_args(command_arguments[1:])
+            print(json.dumps(compare_run_artifacts(arguments.expected, arguments.actual)))
+            return 0
+        return _launch(_launch_parser().parse_args(command_arguments))
     except (ValueError, KeyError, OSError) as error:
         print(str(error), file=sys.stderr)
         return 2

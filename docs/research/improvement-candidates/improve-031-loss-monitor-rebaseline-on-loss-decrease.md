@@ -95,11 +95,14 @@
 - 本規模の比べる相手は、uraniumの基準版12の既定の保存済みrun（`results/method-comparison-v12/fedsda`と`20261024_002727_fedsda-v12-mnist4-seeds10-19`）。
   同じ環境なら、製品のコードは同じ動作（2026-10-26の`cross-evaluation-round-override`の差し替えなしの4 runが保存済みのrunと全表一致）。
 
-### 入口の約束事（`tools/research_loss_monitor_rebaseline.py`、仕様の再レビューの反映）
+### 入口の約束事（`tools/research_loss_monitor_rebaseline.py`）
 
-- `launch`の引数: `--variant`（4つの変種か、介入なしの`product-default`）、`--datasets`、`--intervals`、`--seeds`（どれも空白区切りの複数可。seedは整数の列挙だけ）、
-  `--sample-count`（既定5000）、`--client-count`（既定10）、`--jobs`（同時に動かす子processの数。必須）、`--output-root`（必須）、`--purpose`（必須、1行）。
-- 各run（dataset×間隔×seedの全組合せ）の出力先は`<output-root>/<dataset>-i<間隔>-s<seed>/`、ログは`<output-root>/<dataset>-i<間隔>-s<seed>.log`（標準出力と標準エラー）。
+2026-10-27に、研究用CLI（`tools.research_provisional_candidate_expert.run`、`.kiro/steering/tech.md`の基本の形）に合わせて引数を改めた（ユーザー指摘。改める前の`launch`・`--output-root`・`--jobs`は廃止）。
+
+- 複数のrunの実行（下位コマンドなし）: `--output`（必須）、`--datasets`・`--intervals`・`--seeds`（空白区切りの複数。seedは整数の列挙だけ）、
+  `--sample-count`（既定5000）、`--client-count`（既定10）、`--variants`（4つの変種と、介入なしの`product-default`から複数）、
+  `--workers`（同時に動かす子processの数。必須）、`--purpose`（任意、1行。既定は「IMPROVE-031の監視の基準の再設定の実験」）。
+- 各run（変種×dataset×間隔×seedの全組合せ）の出力先は`<output>/<変種>/<dataset>-i<間隔>-s<seed>/`、ログは`<output>/<変種>/<dataset>-i<間隔>-s<seed>.log`。
 - 子processのコマンドは、固定の形:
   `<同じPython> -m tools.research_loss_monitor_rebaseline run-one --variant <変種> -- --configurations fedsda --datasets <dataset> --seeds <seed>
   --aggregation-intervals <間隔> --per-client-sample-count <標本数> --client-count <client数> --workers 1 --output-directory <runの出力先>
@@ -107,21 +110,26 @@
   環境変数は親のものを引き継ぎ、`OMP_NUM_THREADS`・`MKL_NUM_THREADS`・`OPENBLAS_NUM_THREADS`は未設定なら1にする。
 - `run-one`: `--`の後を製品の掃引のコマンド（`experiment_sweep_command.main`）へそのまま渡す。`--workers 1`・単一のdataset・seed・間隔・`--configurations fedsda`・`--output-directory`の指定を検査し、
   満たさなければ終了コード2。変種を有効にして実行し、製品のコマンドの終了コードが0のときだけ、`loss_monitor_rebaseline_diagnostics.json`を出力先へ書く（変種名、引数、診断、commit）。終了コードはそのまま返す。
-- 完了の判定は、製品の掃引のコマンドに任せる（3回目の仕様レビューの反映）。`launch`はrunを飛ばさず、全runの子processを起動する。
-  製品のコマンドは、出力先に済んだrun（要約・表があり、基準版とrun設定が計画と一致）があれば飛ばし、途中のrunは再開する。
-- 同じ出力先に別の変種を混ぜない: `launch`は起動の前に、`<runの出力先>/loss_monitor_rebaseline_diagnostics.json`があり、その変種名が今回の`--variant`と違えば、終了コード2で全体を止める。
+- 完了の判定は、製品の掃引のコマンドに任せる（3回目の仕様レビューの反映）。全runの子processを起動し、製品のコマンドは、出力先に済んだrun（要約・表があり、基準版とrun設定が計画と一致）があれば飛ばし、途中のrunは再開する。
+- 同じ出力先に別の変種を混ぜない: 起動の前に、`<runの出力先>/loss_monitor_rebaseline_diagnostics.json`があり、その変種名が違えば、終了コード2で全体を止める。
 - `run-one`の診断の書き方: 実行の前に出力先の`sweep_record_*.json`の一覧を取り、実行の後に新しくできた1つを読む。その`run_outcomes`の当該runの`run_status`が
   - `completed`なら、診断を書く（上書き）。
   - `skipped_existing`なら、同じ変種名の診断のJSONが既にあることを確かめ、なければ終了コード2（済んだrunの診断を作り直せないため）。診断は書き換えない。
   - それ以外（失敗など）なら、診断を書かず、製品のコマンドの終了コード（0以外）を返す。新しい記録が1つに定まらないときも終了コード2。
-- `launch`は、開始時に`<output-root>/launch.json`（引数、変種、commit、未commitの変更の有無、開始時刻）を書き、終了時に各runの状態（完了・飛ばした・失敗と終了コード）を足す。
+- 実行の記録: `<output>/launch.json`に、実行ごとの記録（引数、commit、未commitの変更の有無、開始・終了の時刻、各runの状態と終了コード）を`launches`の列として追記する
+  （同じ出力先へ、MNIST4の追加seedなどを別の実行で足せる）。各runの終了ごとに進捗を1行表示し、最後に完了・飛ばし・失敗の数を表示する。
   失敗したrunが1つでもあれば終了コード1、全部が完了か飛ばしなら0。1つの失敗で他のrunを止めない。
+- `compare --expected <保存済みの結果> --actual <出力先>`: `--actual`の下の全runを、`--expected`の下（再帰的に探す）の同じファイル名のrunと照合する。
+  `--expected`には保存済みの結果のディレクトリ（例: `results/method-comparison-v12`）をそのまま渡せ、照合に使わないrunがあってよい。
+  同じ名前のrunが複数あれば、raw・要約のファイルの中身が全部同じときだけ1つとして扱い、違えば終了コード2。相手のないrunがあれば終了コード2。
 
 ### 照合（observe-only）
 
 - 条件: 手元で、製品の掃引のコマンドの入口から、SINE2・CIRCLE2・MNIST4（各client 600標本、間隔100、seed 0）。比べる相手は、同じ手元で同じ条件の製品の既定。
-  uraniumでは、本規模の前に、保存済みの基準版12の1 run（MNIST4・間隔500・seed 7）とも照合する。
-- 一致の定義: 製品のrawの全配列（`numpy.array_equal`、浮動小数は`equal_nan=True`）と、runの要約のJSONの全項目が、実行の時刻・秒数・出力先の名前を除いて同じ。
+  uraniumでは、本規模の前に、保存済みの基準版12の1 run（MNIST4・間隔500・seed 7）とも照合する（`compare --expected results/method-comparison-v12`）。
+- 一致の定義: 製品のrawの全配列（`numpy.array_equal`、浮動小数は`equal_nan=True`）と、runの要約のJSONの全項目が、実行の時刻・秒数・出力先の名前と、
+  実行したコードの来歴（`code_commit`・`has_uncommitted_changes`・`code_revision_unavailable_reason`）を除いて同じ。基準版（`behavior_baseline_version`）は比べる。
+  来歴を除くのは、別のcommitで作った保存済みの結果とも照合するため（2026-10-27。uraniumの差し替えなしのrunと保存済みの基準版12を比べ、違いが`code_commit`だけだったことを確かめた）。
 
 ### 指標の定義（採否の基準の補足）
 

@@ -368,12 +368,11 @@ def test_single_run_plan_and_child_command_are_read_only():
 
     output = Path("_loss_monitor_rebaseline_plan_no_output")
     arguments = SimpleNamespace(
-        variant=_DECREASE,
         sample_count=600,
         client_count=10,
         purpose="専用検証",
     )
-    command = entry._child_command(arguments, "sine2", 100, 0, output)
+    command = entry._child_command(arguments, _DECREASE, "sine2", 100, 0, output)
     sweep = command[command.index("--") + 1 :]
     assert entry._validate_sweep_arguments(sweep) == output
     assert command[:4] == [
@@ -419,8 +418,9 @@ def test_launch_uses_child_processes_continues_after_failure_and_records_status(
         assert (
             entry.main(
                 [
-                    "launch",
-                    "--variant",
+                    "--output",
+                    str(tmp_path),
+                    "--variants",
                     _DECREASE,
                     "--datasets",
                     "sine2",
@@ -429,10 +429,8 @@ def test_launch_uses_child_processes_continues_after_failure_and_records_status(
                     "--seeds",
                     "0",
                     "1",
-                    "--jobs",
+                    "--workers",
                     "2",
-                    "--output-root",
-                    str(tmp_path),
                     "--purpose",
                     "専用検証",
                 ]
@@ -444,23 +442,24 @@ def test_launch_uses_child_processes_continues_after_failure_and_records_status(
         "--study" not in c and "--label" not in c and "--new-output" not in c
         for c in commands
     )
-    record = entry._read_json(tmp_path / "launch.json")
+    record = entry._read_json(tmp_path / "launch.json")["launches"][-1]
     assert sorted(r["exit_code"] for r in record["run_outcomes"]) == [0, 1]
-    assert (tmp_path / "sine2-i100-s0.log").exists()
+    assert (tmp_path / _DECREASE / "sine2-i100-s0.log").exists()
 
 
 def test_launch_rejects_different_variant_before_spawning_any_child(tmp_path):
     from tools import research_loss_monitor_rebaseline as entry
 
-    output = tmp_path / "sine2-i100-s1"
-    output.mkdir()
+    output = tmp_path / _DECREASE / "sine2-i100-s1"
+    output.mkdir(parents=True)
     entry._write_json(output / entry._DIAGNOSTICS_NAME, dict(variant="product-default"))
     with patch.object(entry.subprocess, "run") as child:
         assert (
             entry.main(
                 [
-                    "launch",
-                    "--variant",
+                    "--output",
+                    str(tmp_path),
+                    "--variants",
                     _DECREASE,
                     "--datasets",
                     "sine2",
@@ -469,12 +468,8 @@ def test_launch_rejects_different_variant_before_spawning_any_child(tmp_path):
                     "--seeds",
                     "0",
                     "1",
-                    "--jobs",
+                    "--workers",
                     "1",
-                    "--output-root",
-                    str(tmp_path),
-                    "--purpose",
-                    "専用検証",
                 ]
             )
             == 2
@@ -515,6 +510,63 @@ def test_artifact_comparison_includes_all_arrays_and_non_time_summary_items(tmp_
     )
     with pytest.raises(ValueError, match="raw"):
         entry.compare_run_artifacts(*roots)
+
+
+def test_artifact_comparison_finds_expected_runs_by_name_under_saved_results(tmp_path):
+    from tools import research_loss_monitor_rebaseline as entry
+
+    def write_run(directory, name, value):
+        directory.mkdir(parents=True, exist_ok=True)
+        np.savez(directory / f"{name}.npz", loss=np.array([value]))
+        entry._write_json(directory / f"{name}.json", dict(accuracy=value))
+
+    # 保存済みの結果: 別の実行のディレクトリの下にあり、照合に使わないrunも含む。
+    saved = tmp_path / "saved"
+    write_run(saved / "20261023_sweep/fedsda/runs", "mnist4_interval500_seed7_x", 0.5)
+    write_run(saved / "20261023_sweep/fedsda/runs", "mnist4_interval500_seed8_y", 0.6)
+    actual = tmp_path / "output"
+    write_run(actual / _OBSERVE_ONLY / "mnist4-i500-s7/fedsda/runs", "mnist4_interval500_seed7_x", 0.5)
+    assert entry.compare_run_artifacts(saved, actual) == dict(run_count=1, array_count=1)
+    # 相手が見つからないrunは拒否する。
+    write_run(actual / _OBSERVE_ONLY / "mnist4-i500-s9/fedsda/runs", "mnist4_interval500_seed9_z", 0.7)
+    with pytest.raises(ValueError, match="相手"):
+        entry.compare_run_artifacts(saved, actual)
+    (actual / _OBSERVE_ONLY / "mnist4-i500-s9").rename(tmp_path / "unused")
+    # 同じ名前で中身も同じrawの写し（例: 実行ごとの出力先と、まとめた置き場所）は、1つとして扱う。
+    write_run(saved / "copy/fedsda/runs", "mnist4_interval500_seed7_x", 0.5)
+    assert entry.compare_run_artifacts(saved, actual) == dict(run_count=1, array_count=1)
+    # 同じ名前で中身の違うrawがあると、どれと比べるか決まらないので拒否する。
+    write_run(saved / "other/fedsda/runs", "mnist4_interval500_seed7_x", 0.9)
+    with pytest.raises(ValueError, match="中身の違う"):
+        entry.compare_run_artifacts(saved, actual)
+
+
+def test_artifact_comparison_ignores_code_commit_but_not_baseline_version(tmp_path):
+    from tools import research_loss_monitor_rebaseline as entry
+
+    def write_run(root, commit, baseline_version):
+        directory = root / "fedsda/runs"
+        directory.mkdir(parents=True, exist_ok=True)
+        np.savez(directory / "run.npz", loss=np.array([0.1]))
+        entry._write_json(
+            directory / "run.json",
+            dict(
+                accuracy=0.5,
+                run_provenance=dict(
+                    code_commit=commit,
+                    has_uncommitted_changes=commit == "b",
+                    code_revision_unavailable_reason=None,
+                    behavior_baseline_version=baseline_version,
+                ),
+            ),
+        )
+
+    write_run(tmp_path / "saved", "a", 12)
+    write_run(tmp_path / "actual", "b", 12)
+    assert entry.compare_run_artifacts(tmp_path / "saved", tmp_path / "actual")["run_count"] == 1
+    write_run(tmp_path / "actual", "b", 13)
+    with pytest.raises(ValueError, match="要約"):
+        entry.compare_run_artifacts(tmp_path / "saved", tmp_path / "actual")
 
 
 @pytest.mark.slow
