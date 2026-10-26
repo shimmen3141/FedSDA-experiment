@@ -35,6 +35,9 @@ from unittest.mock import patch
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "src"))
+
+from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import LOSS_MONITOR_REBASELINE_VARIANTS
+
 # 変種 -> （構成、仮の専門家を使うか、検証の標本数——Noneなら構成の値の10——）。2026-10-20に既定（`fedsda`）が
 # 候補検証なし＋候補の共有部の固定になったので、検証ありの変種は、それまでの既定と同じ設定の構成で選ぶ。
 # 検証あり（V）、検証なし（O）、検証あり＋仮の専門家（A）。B0: 検証の標本数を30にした検証あり（V30）と、
@@ -217,7 +220,10 @@ _PREDICTION_DISTILLATION_VARIANTS = {
 }
 for _variant_name in _PREDICTION_DISTILLATION_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
+for _variant_name in LOSS_MONITOR_REBASELINE_VARIANTS:
+    _VARIANTS[_variant_name] = ("fedsda", False, None)
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
+    *LOSS_MONITOR_REBASELINE_VARIANTS,
     "product-default-class-conditioned-prediction",
     "product-default-class-conditioned-prediction-check",
     "product-default-mixing-past-posteriors",
@@ -2630,8 +2636,15 @@ def _execute_job(job):
     soft_concept_sharing = {}
     prediction_distillation = {}
     mixing_past_posteriors = {}
+    loss_monitor_rebaseline = {}
     class_conditioned_prediction = {}
     with contextlib.ExitStack() as stack:
+        if job["variant"] in LOSS_MONITOR_REBASELINE_VARIANTS:
+            from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import loss_monitor_rebaseline_policy
+
+            stack.enter_context(loss_monitor_rebaseline_policy(
+                variant=job["variant"], diagnostics=loss_monitor_rebaseline,
+            ))
         if job["variant"] in ("product-default-class-conditioned-prediction", "product-default-class-conditioned-prediction-check"):
             from tools.research_provisional_candidate_expert.class_conditioned_prediction import class_conditioned_prediction_policy
 
@@ -2919,6 +2932,7 @@ def _execute_job(job):
         **({"soft_concept_sharing": soft_concept_sharing} if soft_concept_sharing else {}),
         **({"prediction_distillation": prediction_distillation} if prediction_distillation else {}),
         **({"mixing_past_posteriors": mixing_past_posteriors} if mixing_past_posteriors else {}),
+        **({"loss_monitor_rebaseline": loss_monitor_rebaseline} if loss_monitor_rebaseline else {}),
         **({"class_conditioned_prediction": class_conditioned_prediction} if class_conditioned_prediction else {}),
         usage_evidence_veto_count=sum(e["event"] == "usage_evidence_veto" for e in events),
         withdrawn_into_interval_sample_count=sum(
