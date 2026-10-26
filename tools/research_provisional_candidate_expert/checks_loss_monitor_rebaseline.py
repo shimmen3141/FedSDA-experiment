@@ -391,6 +391,7 @@ def test_launch_uses_child_processes_continues_after_failure_and_records_status(
     from tools import research_loss_monitor_rebaseline as entry
 
     commands = []
+    entry._write_json(tmp_path / "launch.json", dict(variant="old-format", run_outcomes=[]))
 
     def child(command, **kwargs):
         commands.append(command)
@@ -442,7 +443,10 @@ def test_launch_uses_child_processes_continues_after_failure_and_records_status(
         "--study" not in c and "--label" not in c and "--new-output" not in c
         for c in commands
     )
-    record = entry._read_json(tmp_path / "launch.json")["launches"][-1]
+    launches = entry._read_json(tmp_path / "launch.json")["launches"]
+    # 引数を改める前の形の記録（下で先に書いたもの）は、履歴の最初に残る。
+    assert launches[0] == dict(variant="old-format", run_outcomes=[])
+    record = launches[-1]
     assert sorted(r["exit_code"] for r in record["run_outcomes"]) == [0, 1]
     assert (tmp_path / _DECREASE / "sine2-i100-s0.log").exists()
 

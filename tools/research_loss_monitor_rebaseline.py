@@ -206,7 +206,11 @@ def _launch(arguments):
         (output / variant).mkdir(parents=True, exist_ok=True)
     # 同じ出力先への実行（例: MNIST4の追加seed）は、実行ごとの記録を足していく。
     record_path = output / "launch.json"
-    history = _read_json(record_path)["launches"] if record_path.exists() else []
+    history = []
+    if record_path.exists():
+        previous = _read_json(record_path)
+        # 引数を改める前の形（1回の実行の記録だけ）は、履歴の最初の1件として残す。
+        history = previous["launches"] if "launches" in previous else [previous]
     record = dict(
         arguments={
             k: str(v) if isinstance(v, Path) else v for k, v in vars(arguments).items()
