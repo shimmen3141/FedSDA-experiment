@@ -118,9 +118,17 @@ def _run_variant(arguments, variant):
 
     output_directory = arguments.output.resolve() / variant
     record_path = output_directory / _VARIANT_RECORD_NAME
-    if record_path.exists() and _read_json(record_path).get("variant") != variant:
-        raise ValueError(f"出力先に別の変種の記録があります: {record_path}")
+    if record_path.exists():
+        if _read_json(record_path).get("variant") != variant:
+            raise ValueError(f"出力先に別の変種の記録があります: {record_path}")
+    elif output_directory.exists() and any(output_directory.iterdir()):
+        # 変種の記録は製品のコマンドを呼ぶ前に書くので、記録のない出力先は、この入口で作ったものではない。
+        raise ValueError(f"変種の記録のない出力先は使えません（別の出力先を指定してください）: {output_directory}")
     sweep_arguments = _sweep_arguments(arguments, variant, output_directory)
+    # 変種の記録を、製品のコマンドを呼ぶ前に置く（途中で止まっても、出力先と変種の対応が残る）。
+    if not record_path.exists():
+        output_directory.mkdir(parents=True, exist_ok=True)
+        _write_json(record_path, dict(variant=variant, **_provenance()))
     previous_variant = os.environ.get(_VARIANT_ENVIRONMENT_VARIABLE)
     os.environ[_VARIANT_ENVIRONMENT_VARIABLE] = variant
     experiment_sweep_execution.execute_planned_experiment_run = _execute_run_with_variant
@@ -132,9 +140,6 @@ def _run_variant(arguments, variant):
             del os.environ[_VARIANT_ENVIRONMENT_VARIABLE]
         else:
             os.environ[_VARIANT_ENVIRONMENT_VARIABLE] = previous_variant
-    # 出力先を作るのは製品のコマンド。作られたときだけ、変種の記録を置く（引数の誤りでは何も作らない）。
-    if output_directory.exists() and not record_path.exists():
-        _write_json(record_path, dict(variant=variant, **_provenance()))
     return exit_code
 
 

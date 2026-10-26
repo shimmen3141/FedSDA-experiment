@@ -339,7 +339,8 @@ def test_run_calls_product_sweep_per_variant_with_patch_and_restores(tmp_path, m
                 output=output,
             )
         )
-        output.mkdir(parents=True)
+        # 変種の記録は呼ぶ前に置かれるので、出力先は既にある。
+        assert (output / entry._VARIANT_RECORD_NAME).exists()
         return 0 if len(calls) == 1 else 1
 
     with (
@@ -362,6 +363,54 @@ def test_run_calls_product_sweep_per_variant_with_patch_and_restores(tmp_path, m
     for variant in (_DECREASE, _OBSERVE_ONLY):
         record = json.loads((tmp_path / variant / entry._VARIANT_RECORD_NAME).read_text(encoding="utf-8"))
         assert record["variant"] == variant
+
+
+def test_run_rejects_existing_output_without_variant_record(tmp_path):
+    import federated_learning_experiments.sweep.experiment_sweep_command as command
+    from tools import research_loss_monitor_rebaseline as entry
+
+    output = tmp_path / _DECREASE
+    output.mkdir()
+    (output / "README.md").write_text("別の実行", encoding="utf-8")
+    with patch.object(command, "main") as product_main:
+        assert entry.main(run_arguments(tmp_path, variants=[_DECREASE])) == 2
+        product_main.assert_not_called()
+    assert not (output / entry._VARIANT_RECORD_NAME).exists()
+
+
+def test_variant_record_is_written_before_product_runs(tmp_path):
+    import federated_learning_experiments.sweep.experiment_sweep_command as command
+    from tools import research_loss_monitor_rebaseline as entry
+
+    seen = {}
+
+    def product_main(arguments):
+        output = Path(arguments[arguments.index("--output-directory") + 1])
+        seen["record"] = json.loads((output / entry._VARIANT_RECORD_NAME).read_text(encoding="utf-8"))
+        raise KeyboardInterrupt  # 製品のコマンドが途中で止まった場合
+
+    with patch.object(command, "main", product_main), patch.object(entry, "_provenance", lambda: {}):
+        with pytest.raises(KeyboardInterrupt):
+            entry.main(run_arguments(tmp_path, variants=[_DECREASE]))
+    assert seen["record"]["variant"] == _DECREASE
+    # 止まった出力先を、別の変種の出力先として使う（例: ディレクトリの名前を変えた）と拒否される。
+    (tmp_path / _DECREASE).rename(tmp_path / _OBSERVE_ONLY)
+    with patch.object(command, "main") as product_main:
+        assert entry.main(run_arguments(tmp_path, variants=[_OBSERVE_ONLY])) == 2
+        product_main.assert_not_called()
+
+
+def test_metrics_reject_conflicting_diagnostics_for_the_same_run(tmp_path):
+    from tools import research_loss_monitor_rebaseline_metrics as metrics
+
+    for name, count in (("a", 1), ("b", 2)):
+        directory = tmp_path / name / "loss_monitor_rebaseline_diagnostics"
+        directory.mkdir(parents=True)
+        (directory / "sine2_interval100_seed0_x.json").write_text(
+            json.dumps(dict(diagnostics=dict(rebaseline_count=count))), encoding="utf-8"
+        )
+    with pytest.raises(ValueError, match="中身の違う"):
+        metrics._diagnostics([tmp_path])
 
 
 def test_run_rejects_other_variant_record_before_calling_product(tmp_path):

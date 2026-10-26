@@ -101,16 +101,23 @@ def run_metrics(path):
 
 def _diagnostics(roots):
     found = {}
+
+    def add(key, path, diagnostics):
+        # 同じrunの診断が2つあれば、中身が同じときだけ受け入れる（どれを使ったか曖昧にしない）。
+        if key in found and found[key][1] != diagnostics:
+            raise ValueError(f"同じrunの、中身の違う診断があります: {found[key][0]}、{path}")
+        found[key] = (path, diagnostics)
+
     for root in roots or []:
         # 2026-10-27より前の置き方: runごとの出力先に1つ。
         for path in glob.glob(f"{root}/**/loss_monitor_rebaseline_diagnostics.json", recursive=True):
             npz = glob.glob(str(Path(path).parent / "fedsda/runs/*.npz"))
             if len(npz) == 1:
-                found[_run_key(npz[0])] = json.loads(Path(path).read_text(encoding="utf-8"))["diagnostics"]
+                add(_run_key(npz[0]), path, json.loads(Path(path).read_text(encoding="utf-8"))["diagnostics"])
         # 今の置き方: 変種の出力先の`loss_monitor_rebaseline_diagnostics/<runの識別子>.json`。
         for path in glob.glob(f"{root}/**/loss_monitor_rebaseline_diagnostics/*.json", recursive=True):
-            found[_run_key(path)] = json.loads(Path(path).read_text(encoding="utf-8"))["diagnostics"]
-    return found
+            add(_run_key(path), path, json.loads(Path(path).read_text(encoding="utf-8"))["diagnostics"])
+    return {key: diagnostics for key, (_, diagnostics) in found.items()}
 
 
 def main(command_arguments=None):
