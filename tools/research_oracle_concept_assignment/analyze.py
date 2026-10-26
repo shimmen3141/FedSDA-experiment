@@ -10,7 +10,9 @@ import numpy as np
 from tools.experiments.accuracy_periods import main as accuracy_periods_main
 from tools.research_loss_monitor_rebaseline_metrics import _collect, _table, run_metrics
 from tools.research_oracle_concept_assignment.policy import (
+    ALARM_SAMPLE_COUNT_AFTER_CHANGE,
     ORACLE_CHANGE_ALARM_VARIANT,
+    ORACLE_DELAYED_CHANGE_ALARM_VARIANT,
     ORACLE_VARIANT,
     ORACLE_VARIANTS,
 )
@@ -22,10 +24,14 @@ _ANALYSIS_NAMES = {
         "analysis_oracle_change_alarm",
         "analysis_accuracy_periods_oracle_change_alarm",
     ),
+    ORACLE_DELAYED_CHANGE_ALARM_VARIANT: (
+        "analysis_oracle_delayed_change_alarm_50",
+        "analysis_accuracy_periods_oracle_delayed_change_alarm_50",
+    ),
 }
 
 
-def _read_run(path, diagnostics_directory):
+def _read_run(path, diagnostics_directory, *, alarm_sample_count=5):
     metrics = run_metrics(path)
     summary = json.loads(path.with_suffix(".json").read_text(encoding="utf-8"))
     record = json.loads((diagnostics_directory / f"{path.stem}.json").read_text(encoding="utf-8"))
@@ -43,10 +49,10 @@ def _read_run(path, diagnostics_directory):
         metrics["absorbed_models"] = int(raw["model_clustering.absorbed_into_representative"].sum())
         concepts = raw["sample_prediction.observed_concept_id"]
         expected = sorted(
-            (client, int(i + 4))
+            (client, int(i + alarm_sample_count - 1))
             for client, row in enumerate(concepts)
             for i in np.flatnonzero(row[1:] != row[:-1]) + 1
-            if i + 4 < len(row)
+            if i + alarm_sample_count - 1 < len(row)
         )
         metrics["true_changes"] = int((concepts[:, 1:] != concepts[:, :-1]).sum())
         metrics["alarm_eligible_changes"] = len(expected)
@@ -55,7 +61,9 @@ def _read_run(path, diagnostics_directory):
                 (r["client_id"], r["alarm_sample_index"]) for r in _table(raw, "loss_change_alarm")
             )
             if actual != expected:
-                raise ValueError(f"oracleの警報が真の変化の5標本目と一致しません: {path}")
+                raise ValueError(
+                    f"oracleの警報が真の変化の{alarm_sample_count}標本目と一致しません: {path}"
+                )
             if metrics["adaptation_outcomes"].get("alarm_change_interval_too_short", 0):
                 raise ValueError(f"oracleに短すぎる区間の応答があります: {path}")
         if record["variant"] == ORACLE_VARIANT:
@@ -111,7 +119,11 @@ def analyze(root, *, expected_pairs=16, variant=ORACLE_VARIANT):
         pair = {}
         for name in roots:
             path = Path(paths[name][key])
-            pair[name] = _read_run(path, roots[name] / "oracle_concept_assignment_diagnostics")
+            pair[name] = _read_run(
+                path,
+                roots[name] / "oracle_concept_assignment_diagnostics",
+                alarm_sample_count=ALARM_SAMPLE_COUNT_AFTER_CHANGE[variant],
+            )
         with (
             np.load(paths["default"][key]) as default,
             np.load(paths["oracle"][key]) as oracle,

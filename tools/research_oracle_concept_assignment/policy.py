@@ -8,7 +8,19 @@ from unittest.mock import patch
 ORACLE_VARIANT = "product-default-oracle-concept-assignment"
 # 警報だけを真の変化の5標本目に置き換え、帰属の選択と統合は製品のまま。検出だけで取れる分を測る。
 ORACLE_CHANGE_ALARM_VARIANT = "product-default-oracle-change-alarm"
-ORACLE_VARIANTS = (ORACLE_VARIANT, ORACLE_CHANGE_ALARM_VARIANT)
+# 警報を真の変化の50標本目まで遅らせる。比較の検定が証拠をためる程度の遅れで、製品の選択がどこまで取れるかを測る。
+ORACLE_DELAYED_CHANGE_ALARM_VARIANT = "product-default-oracle-delayed-change-alarm-50"
+ORACLE_VARIANTS = (
+    ORACLE_VARIANT,
+    ORACLE_CHANGE_ALARM_VARIANT,
+    ORACLE_DELAYED_CHANGE_ALARM_VARIANT,
+)
+# 警報を出す標本の、真の変化からの位置（変化の標本を1標本目と数える）。
+ALARM_SAMPLE_COUNT_AFTER_CHANGE = {
+    ORACLE_VARIANT: 5,
+    ORACLE_CHANGE_ALARM_VARIANT: 5,
+    ORACLE_DELAYED_CHANGE_ALARM_VARIANT: 50,
+}
 VARIANTS = ("product-default", *ORACLE_VARIANTS)
 
 
@@ -21,6 +33,7 @@ def _unique_majority(counts):
 
 @dataclass
 class _ConceptChangeAlarm:
+    alarm_sample_count: int = 5
     previous_concept_id: int | None = None
     change_sample_index: int | None = None
 
@@ -29,13 +42,19 @@ class _ConceptChangeAlarm:
             raise ValueError("oracleには真の概念が必要です")
         changed = self.previous_concept_id is not None and concept_id != self.previous_concept_id
         if changed:
-            if self.change_sample_index is not None and sample_index - self.change_sample_index < 5:
-                raise ValueError("前の概念の変化から5標本以内に次の変化が起きました")
+            if (
+                self.change_sample_index is not None
+                and sample_index - self.change_sample_index < self.alarm_sample_count
+            ):
+                raise ValueError(
+                    f"前の概念の変化から{self.alarm_sample_count}標本以内に次の変化が起きました"
+                )
             self.change_sample_index = sample_index
         self.previous_concept_id = concept_id
         return (
             changed,
-            self.change_sample_index is not None and sample_index == self.change_sample_index + 4,
+            self.change_sample_index is not None
+            and sample_index == self.change_sample_index + self.alarm_sample_count - 1,
         )
 
 
@@ -125,7 +144,10 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
         client_id = arguments["client_id"]
         diagnostics["processed_sample_count"] += 1
         pending_buffers[client_id] = arguments["pending_training_assignment_buffer"]
-        alarm = change_alarms.setdefault(client_id, _ConceptChangeAlarm())
+        alarm = change_alarms.setdefault(
+            client_id,
+            _ConceptChangeAlarm(alarm_sample_count=ALARM_SAMPLE_COUNT_AFTER_CHANGE[variant]),
+        )
         changed, raised = alarm.observe(
             sample_index=observation.sample_index,
             concept_id=observation.observed_concept_id,
@@ -150,7 +172,7 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
             return replace(
                 result,
                 drift_detected=raised,
-                estimated_change_span_sample_count=5
+                estimated_change_span_sample_count=alarm.alarm_sample_count
                 if raised
                 else result.estimated_change_span_sample_count,
                 detector_candidate_start_sample_index=alarm.change_sample_index

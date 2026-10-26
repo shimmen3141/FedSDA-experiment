@@ -269,3 +269,14 @@ def test_change_alarm_variant_replaces_only_alarm(tmp_path):
     assert (analysis_root / "analysis_oracle_change_alarm.md").exists()
     assert (analysis_root / "analysis_accuracy_periods_oracle_change_alarm.csv").exists()
     assert not (analysis_root / "analysis_oracle_concept_assignment.md").exists()
+
+
+def test_delayed_alarm_is_on_fiftieth_sample_and_rejects_close_changes():
+    alarm = _ConceptChangeAlarm(alarm_sample_count=50)
+    raised = [i for i in range(100) if alarm.observe(sample_index=i, concept_id=int(i >= 10))[1]]
+    assert raised == [59]
+    alarm = _ConceptChangeAlarm(alarm_sample_count=50)
+    alarm.observe(sample_index=0, concept_id=0)
+    alarm.observe(sample_index=10, concept_id=1)
+    with pytest.raises(ValueError, match="50標本以内"):
+        alarm.observe(sample_index=59, concept_id=0)
