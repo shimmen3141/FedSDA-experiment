@@ -190,3 +190,69 @@ SEAは、x∈[0,10]³の一様分布、ラベルはx1+x2≤θ、ラベルの10%�
 - 判断の基準（Minor）: seedは0〜3の4つ。データごとに、2つの間隔の、(a)の同じseedの対の差（oracle−既定）の平均と、seed間の標準偏差を報告する。
   SEA2・SEA4のどちらかで平均の差が0.3pp以上なら、保有モデルとの比較による検出へ進む候補とする。どちらも0.3pp未満なら進まない。
 
+## 2026-10-27: oracle概念帰属の研究ツールの実装・小規模検証（本実験はsandboxで起動不可）
+
+基点は`3e9e03ff`、基準版13、Windows・Python 3.13.15・NumPy 2.4.6・PyTorch 2.12.1+cpu。独立した設計レビューは主担当が実施済み（gpt-6-luna medium、2回目PASS、session `01a179df-f9fa-7002-a4aa-5f4f6712a493`）。本作業では独立レビューの起動・コミットをしていない。
+
+### 実装と、設計をコードへ対応させた場所
+
+追加は`tools/research_oracle_concept_assignment/`の`__init__.py`、`__main__.py`、`run.py`（入口）、`policy.py`（介入）、`analyze.py`（集計）、`checks_oracle_concept_assignment.py`（専用検証）。製品の`src/`、`tests/`、golden、`docs/reference/options.md`、既存の研究ツールは変更していない。既存の`research_loss_monitor_rebaseline.py`の掃引引数・来歴・JSON入出力・全記録の照合の関数を再利用する。
+
+- 警報の差し込み口: `fedsda_run_client.process_observed_sample`を包み、clientごとに真の概念の変化を記憶する。その標本の処理の間だけ`OverallAndTrueClassLossMonitor.observe_loss_after_label_observation`を包み、製品の計算を実行した後の観測の`drift_detected`を置換する。変化位置`i`の`i+4`だけ真、推定の区間は5標本。監視器の基準の引下げ・計算の計数・予測の混合は製品のまま。元の監視器の合図の抑制回数を別に記録する。
+- 帰属の判定の置換: `observed_sample_processing.select_alarm_interval_assignment`を包み、その内部の`select_assignment_by_minimum_description_length`で、製品の計算を実行した後、結果だけを置き換える。区間は5、行き先は警報の時点の保有モデルから選ぶ。新しいモデルなら、製品が5標本の区間で計算した「初期化し直した学習者／warm startの短い方＋ln 2」の選択を引き継ぐ。記録の符号長は強制した行き先の仮説の値で、最短という意味は持たない。
+- 行き先: そのclientのモデル別の概念の割当計数で一意な多数派を求め、新しい概念に合う保有モデルのうち割当標本数が最大のものを選ぶ。同数なら保有順の先、該当なしなら新しいモデル。毎回、同期・統合の後の保有IDを読む。現在のモデルが該当した場合は`current_model`とする。多数派が同数、または割当標本なしなら概念なし。
+- 保留と学習: 容量30を変更しない。警報の応答・候補の学習と採用は製品の経路を使う。全帰属を計数し、帰属時の既存の多数派と異なる概念を割り当てた件数、および終了時の概念別計数を保存する。run末尾の保留は製品と同じく未確定のまま残し、帰属済み＋保留＝処理標本数を確認する。
+- 統合の判定の置換: `server_round_synchronization.cluster_and_consolidate_global_models`を包み、製品の交差評価と対の計算の後、`cluster_model_ids_by_average_linkage`へ渡す判定値の辞書だけを置換する。概念は製品の`_get_unique_majority_concept_ids`（全clientの計数の合計）を使用。同じ概念の対は0、異なる・概念なしは`max(1, 閾値+1)`。評価の下限を満たさない対もoracleの判定値を持つ。クラスタの作り方、平均、IDの付け替え、交差評価の通信の計数は製品のまま。吸収されたモデルの数と、統合時の概念・クラスタを保存する。
+- 近すぎる変化: 直前の変化からの位置の差が5未満なら、標本処理の前に`ValueError`で止める。変化のない標本では警報を繰り返さない。
+- 入口: 変種ごとに製品の掃引を1回呼び、runの実行関数をmoduleの関数へ差し替え、変種名は環境変数でspawnのworkerへ渡す。設定は両変種とも基準版13の既定。rawは`<変種>/fedsda/runs/`、診断は`<変種>/oracle_concept_assignment_diagnostics/`。診断にrunの経過秒と研究ツールの各PythonファイルのSHA-256も保存する。`--print-plan`は出力先を作らない。
+
+**実装時に必要になった補足**: 製品の即時候補採用（`alarm_change_interval_resolution`→`adopt_candidate_as_current_training_model`）は、5標本を学習標本へ足すが、概念別の割当計数へは足していない。そのままでは採用直後のoracleのモデルが「概念なし」になる。この研究用wrapperでは、即時採用の応答の後、その5標本の概念を公開メソッド`record_assigned_sample_concept`で計数へ補う。学習を繰り返さず、製品側は変更していない。これは設計に明記されていなかった実装上の補足であり、既定の`product-default`へは適用しない。
+
+### 専用検証と、小規模の実測
+
+明示実行した専用pytestは**14 passed / 1 skipped**。skipは2seed・2workerのspawnによる確認で、Windows sandboxがIPCの作成を`WinError 5`で拒否したため。Ruffの専用ディレクトリに対する検査（`--isolated --select F,E9`）も成功。最初の検証ではpytestの一時領域（mode 0o700）への再アクセスも拒否されたため、専用fixtureはworkspaceの`results/.../validation-artifacts/`に通常のディレクトリを作る。権限の変更・sandboxの解除はしていない。
+
+検証に使ったSEA2・間隔100・seed0・600標本/client・10client・1workerのoracleでは、変化はclient8の位置309とclient5の442、警報はそれぞれ313と446。監視器の合図205回を抑制し、警報は上の2回だけ。新しいモデル2・保有モデル0・現在のモデル0、候補の即時採用2、短すぎる区間0。概念1のモデル1・2を1回統合し、吸収は1モデル、異なる概念の統合0。帰属済み5700標本は全件が同じ概念のモデルへ入り、混入0、末尾の保留300標本と合わせて6000標本を照合した。
+
+同じ小規模条件で、入口の`product-default`と製品の掃引の直接実行は**raw全145列が一致**し、要約も時刻・秒数・出力先・コード来歴を除いて一致した。多数派の同数・概念なし、保有ID・最多件数による行き先、変化の間隔1〜4の例外、判定値の置換、計画確認の無書込みも検証した。集計ツールを1対で実行し、期間別CSVと全体・製品の定常期の精度の要約への照合、3つの精度、診断・通信・MACの保存を確認した。
+
+以下は**検証用の小規模1対**であり、5000標本の本実験の結果や天井の判断ではない。
+
+|変種|精度a: 結合|精度b: 真の概念を知る混合|精度c: 最大重みモデル|製品の定常期|回復期（立ち上がりを除く）|遅れで説明できない混入|
+|---|---:|---:|---:|---:|---:|---:|
+|既定|85.6833%|85.9833%|85.9833%|85.6079%|86.8347%|149/6000（2.4833%）|
+|oracle|85.5333%|85.6000%|85.5500%|85.5016%|85.9944%|0/6000|
+
+見逃しは両方とも0/0（末尾300標本未満の変化だけなので**対象なし**。0%とは解釈しない）。全体aの差は−0.1500ppだが、seed間SDと設計の判断は未確定。
+
+|変種|上りbyte|下りbyte|client順伝播MAC|client推定逆伝播MAC|server MAC|監視の候補×賭け率|経過秒|
+|---|---:|---:|---:|---:|---:|---:|---:|
+|既定|424560|424560|326443520|557455360|106140|7427935|17.99|
+|oracle|431580|518160|355327680|591520768|109065|7452535|19.91|
+
+通信・MACは製品の計数。概念の参照・診断保存のPython処理はMACに含まず、経過秒は診断とraw保存を含む。小規模の対と集計の証拠は`results/oracle-concept-assignment/validation-artifacts/check-089477a03105405985ab1ae858d27754/analysis_oracle_concept_assignment.{md,json}`と`analysis_accuracy_periods.csv`。成果物はGit管理外。
+
+### 指定の本実験の状態と、主担当が実行するコマンド
+
+`--print-plan`で両変種16runずつ、計32runの全件が`missing`と確認した。その後、指定の14workersで実行を試みたが、両変種ともworkerの起動で`WinError 5`となり、runは1件も開始していない。READMEと変種の記録は作成済みだが、rawはない。**本実験は未実行**。
+
+|データ|間隔|seed|既定a/b/c|oracle a/b/c|対の差・seed間SD|
+|---|---:|---|---|---|---|
+|SEA2|100|0〜3|未実行|未実行|未集計|
+|SEA2|500|0〜3|未実行|未実行|未集計|
+|SEA4|100|0〜3|未実行|未実行|未集計|
+|SEA4|500|0〜3|未実行|未実行|未集計|
+
+sandbox外の手元の通常のターミナルで、worktreeを作業ディレクトリとして実行する（検証環境のPythonは`../../venv/Scripts/python.exe`）。同じ出力先へ再開できる。
+
+```powershell
+python -m tools.research_oracle_concept_assignment --output results/oracle-concept-assignment/20261027_sea-n5000 --datasets sea2 sea4 --intervals 100 500 --seeds 0 1 2 3 --sample-count 5000 --client-count 10 --variants product-default product-default-oracle-concept-assignment --workers 14
+python -m tools.experiments.accuracy_periods --group default=results/oracle-concept-assignment/20261027_sea-n5000/product-default --group oracle=results/oracle-concept-assignment/20261027_sea-n5000/product-default-oracle-concept-assignment --reference default
+python -m tools.research_oracle_concept_assignment.analyze --root results/oracle-concept-assignment/20261027_sea-n5000
+```
+
+`analyze`は同じ条件の16対を要求し、入力の概念・ラベル系列、警報と真の変化、混入、異なる概念の統合、短すぎる区間を検査する。同じ`accuracy_periods`の入口も呼び、期間別を`analysis_accuracy_periods.csv`へ、3つの精度と全診断・標準指標を`analysis_oracle_concept_assignment.{md,json}`へ保存する。データごとの判断は、同じseedの2間隔のaの差を先に平均してから、4seedの平均と標本SD（ddof=1）を求める。指定の条件が未完了なら判断を保留する。
+
+未実施は、spawn内の変種の実動の確認、本実験32runとその全体・期間別・3精度・見逃し・混入・警報応答・統合・標準指標の比較、および独立した実装レビュー。製品は未変更なので製品の全pytest・golden回帰は実行していない。既存研究ツールの共通化もしていないため、その専用検証の再実行はしていない。初期の一時領域の`.tmp/oracle-checks-2`と`.tmp/oracle-probe-private`はsandboxから移動も拒否され、残っている。
+
+推奨は、上の本実験を通常のターミナルで完了してから、0.3ppの基準を適用すること。小規模の−0.15ppから、SEAの見逃しの改善へ進むかを決める根拠はない。独立レビューと本実験の結果の確認は主担当へ引き継ぐ。
