@@ -50,7 +50,9 @@
 - 同じ標本の後続処理（`runtime/observed_sample_processing.py`）: 返す観測で、log Eを記録し（`append_monitored_log_e_value`）、警報を判定する（e-SRでは`drift_detected`。引下げの標本では偽）。
   `fedsda_run_client.py`は、返す観測の監視の計算回数を記録の場所へ渡す（合計と、下がる向きの検出器の分）。基準を下げた事象は、`observed_sample_processing.py`が、返す観測の`baseline_lowered`が真のとき、
   警報の記録と同じ記録の場所（`LossChangeAlarmRecordStore`）へ足す（新しいメソッド`append_baseline_lowering_record`、記録の表`loss_monitoring_baseline_lowering`、列はclient・標本の位置・下げる前と後の基準）。
-  次の標本の始めの位置の連続性の検査（`loss_change_monitor.last_observation`が`None`なら検査しない）は、警報の応答の後と同じに働く。
+  保留・帰属・標本の位置の管理（保留の位置のowner、保留の標本の記録）は、今と同じ入力と状態で行い、返す観測の新しい項目を使わない。
+  次の標本の始めの検査のうち、監視器の位置の連続性の検査（`loss_change_monitor.last_observation`が`None`なら検査しない）だけが警報の応答の後と同じに働き、
+  保留の位置の連続性の検査（`pending_training_assignment_buffer`の最後の位置）は今と同じに行う。
 - 引下げは警報ではない: 帰属・保留・適応の記録・予測の重みには触れない（監視器の外の処理は、上の記録のほかは変えない）。
 - 状態の写し（`get_state_snapshot`）: 下がる向きの検出器の状態を、写しの新しい項目として足す（「基準を警報まで保つ扱い」では`None`）。実行中に写しから復元する経路は無い（研究ツールの実装で確認済み）。
 - ADWINの経路: 設定の検査で「損失の低下で基準を下げる扱い」を拒否するので、下がる向きの検出器は作られない。
@@ -92,7 +94,9 @@
   MNIST2と、SINE2・CIRCLE2・SEA4（各1 seed、10 client、1500〜2500標本、間隔50または100。基準の引下げが1回以上、評価clientの候補が3を超える同期を含む条件）で比べる。
 - 一致の定義はRequirement 5.4の(a)〜(d)。許容差は置かない。研究のrawと製品のrawは、どちらも製品の保存の関数で書く（研究用の入口は製品の掃引を通すので同じ形）。
   比べる一時scriptは、研究用の入口の`compare`（`tools/research_loss_monitor_rebaseline.py`の`compare_run_artifacts`）の比べ方を基に、(b)の除外と(c)(d)を足す。
-- 研究の診断の`monitor_index`とclientの対応: 研究の診断の`monitor_count`がclientの数と同じで、製品の記録の表のclientごとの事象の数が、`monitor_index`ごとの事象の数と、client 0から順に一致することを確かめてから、列を比べる。
+- 研究の診断のclient ID（要求6.4）: 研究ツールの`loss_monitor_rebaseline_policy`は、`fedsda_run_client.process_observed_sample`を包み、実行中のclient IDを`ContextVar`に置き
+  （`tools/research_loss_monitor_baseline_trace.py`と同じ）、基準を下げた事象ごとに`client_id`を足す。照合は、製品の記録の表の`client_id`と、研究の事象の`client_id`で直接対応させる。
+  研究ツールの変更は診断の項目だけで、研究ツールの専用の検証（観察だけの変種が製品の既定と全記録で一致する検査）がそのまま通ることで、結果を変えないことを確かめる。
 - 結果はtasks.mdのImplementation Notesへ記録する（Git管理外の一時script）。
 
 ### 研究ツールの基点（Requirement 6）
@@ -137,5 +141,5 @@ testは、重要なもの・後で効くもの・複雑なものに絞る（ユ�
 | 3.1 | 既定、候補検証ありの構成・ADWINの2構成の明示、構成のtest |
 | 4.1〜4.2 | 旧と比べる入口、版1〜12の明示と照合 |
 | 5.1〜5.4 | 版13、版12→13の差の説明、引下げの回数の経路、研究ツールとの照合 |
-| 6.1〜6.3 | 研究ツールの基点の固定、IMPROVE-031の変種の意味の保持、固定の確認 |
+| 6.1〜6.4 | 研究ツールの基点の固定、IMPROVE-031の変種の意味の保持、固定の確認、診断のclient ID |
 | 7.1 | 文書 |

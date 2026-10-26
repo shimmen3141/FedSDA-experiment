@@ -37,6 +37,14 @@
         "session_id": "01a17932-aca8-7e40-8c09-1c8ee0d5b4b4",
         "target": "5d3bc98b",
         "result": "FAIL（Major 4、Minor 2）。全部反映"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（ログで確認）",
+        "session_id": "01a17936-365d-77d0-ab79-8e51fb66a2af",
+        "target": "0f6e1d4c",
+        "result": "FAIL（Major 1、Minor 1）。全部反映"
       }
     ]
   },
