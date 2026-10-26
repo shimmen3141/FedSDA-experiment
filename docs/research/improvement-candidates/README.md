@@ -46,6 +46,7 @@
 | IMPROVE-028 | モデルの統合を、登録の直後の1回の判定から、証拠を積み上げる仕組みへ替える（A: clientの利用の実績、B: 連続的な共有、C: 作ったときの証拠の引継ぎ、D: 種類に依らない概念の表現） | 一部採用・検証中（2026-10-23。評価のclientを絞る変更は基準版12として採用。評価のclientの上限を外す・候補の共有部の固定を外すは基準版13の候補。拒否権は既定にしない。案B1（パラメータの共有）・案C（蒸留）は採らない。次の候補は案E） | [詳細](improve-028-evidence-accumulating-model-consolidation.md) |
 | IMPROVE-029 | 予測の混合を概念の再来・部分変化に強くする | E1a/E2は未採用。E3を次候補として提案済み、ユーザー未選択・未試作（2026-10-26） | [詳細](improve-029-stronger-prediction-mixture-for-recurring-and-partial-concepts.md) |
 | IMPROVE-030 | client側で部分変化を新モデルへ分ける | S1/S3/B本規模・W/B再現・交差解析まで完了、未採用。追加NN実験はいったん区切る推奨（2026-10-26） | [詳細](improve-030-split-partially-changed-concept-on-client.md) |
+| IMPROVE-031 | 損失の監視の基準を、損失の低下の検出で再設定する | 採用（2026-10-27、基準版13。評価clientの上限の撤廃と合わせて既定にした。本規模で採否の基準を満たす） | [詳細](improve-031-loss-monitor-rebaseline-on-loss-decrease.md) |
 
 ## 決定（2026-10-13、ユーザー）
 
@@ -70,7 +71,7 @@
 
 ## 記録・更新の規約
 
-IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-031。候補の発見時点で記録し、実験済みである必要はない。
+IDはIMPROVE-連番、ファイル名は`improve-<番号>-<対象と案>.md`。次はIMPROVE-032。候補の発見時点で記録し、実験済みである必要はない。
 
 各ファイルへ以下を記載する。未確認・未定の項目はそのまま明記する。
 

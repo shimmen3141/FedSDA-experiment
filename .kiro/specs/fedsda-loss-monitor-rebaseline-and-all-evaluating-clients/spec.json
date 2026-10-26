@@ -71,6 +71,14 @@
         "session_id": "70c92316-c3ed-4dbe-80e3-297c7ec329bb",
         "target": "f992a3b5..30385447",
         "result": "FAIL（Major 1: 文書がHEADと矛盾。Minor 3）。Major・Minor 1・3を反映、Minor 2は理由を記録して採らない"
+      },
+      {
+        "round": 2,
+        "model": "claude-haiku-5-5",
+        "reasoning_effort": "medium（指定値）",
+        "session_id": "8573b404-8810-446e-955f-9ca3a220347b",
+        "target": "30385447..7a85a68f",
+        "result": "FAIL（Major 4: 同じ古い記述の残り、Minor 1: 改善候補の一覧の行）。全部反映"
       }
     ]
   },

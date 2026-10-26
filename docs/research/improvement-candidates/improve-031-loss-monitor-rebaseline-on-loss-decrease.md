@@ -1,7 +1,7 @@
 # IMPROVE-031: 損失の監視の基準を、損失の低下の検出で再設定する
 
 - 状態: 2026-10-27、ユーザー判断で案A＋評価clientの上限撤廃を既定へ実装。候補共有部の固定は維持する。
-  版13のコードと差のtestは準備済み、golden生成・設置、定数の切替、全pytest、独立実装レビューは主担当の作業待ち。
+  基準版13として既定にした（2026-10-27。goldenは生成元`539363a7`、WindowsとWSL、定数13）。全pytest・WSL・実装レビューの結果は[対象spec](../../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)のImplementation Notes。
   [実装の正本](../../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。以下は実験前に固定した採否の基準と研究の経緯。
 - 対象の問題: [LEGACY-023](../implementation-findings/legacy-023-loss-monitor-baseline-frozen-at-alarm-reset.md)。
   全体の検出器の基準は警報の応答の`reset`でだけ設定され、新しいモデルの採用で若いモデルの高い基準が固定されると、

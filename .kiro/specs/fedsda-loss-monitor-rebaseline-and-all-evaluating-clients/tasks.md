@@ -110,4 +110,7 @@ task 4（文書）はtask 3の版の定数とgoldenの後。task 5は全部の�
   - Minor 2（引下げの後の位置の検査と処理の順序を直接確かめるtestがない）: 採らない。研究ツールとの照合で、標本ごとのlog Eを含む記録の表の全配列・計算回数・事象が許容差なしで一致し、
     版13のgoldenの必須の経路（引下げが起きるケース）も2環境で通るので、この順序は全体runで確かめられている。testは重要なもの・後で効くもの・複雑なものに絞る方針（設計）にも沿う。
   - Minor 3（Ruff format --checkの記述の範囲。`tools/`はプロジェクトの設定で対象外）: 採用。`tools/`はRuffの対象外で、上の品質検査の記述の「397 files」は`src`と`tests/refactoring`の範囲（`tools`は除かれる）。
+- 実装レビュー2回目（Claude Haiku 5.5、effort medium——指定値——、`is_error=false`、`modelUsage`は`claude-haiku-5-5`、session `8573b404-8810-446e-955f-9ca3a220347b`、対象`30385447..7a85a68f`。修正の再確認）: FAIL。
+  1回目の修正箇所・READMEの2行・文字化けの解消・Minorの採否は確認された。残る指摘: Major 4件（同じ古い記述が`proposed-method.md`の22行目、IMPROVE-031の冒頭、`resume.md`の「次の一手」4、
+  LEGACY-021の本文の状態欄に残る）、Minor 1件（改善候補の一覧にIMPROVE-031の行がなく、「次は」の番号が古い）。全部反映した（次のcommit）。
 

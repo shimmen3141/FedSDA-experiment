@@ -1,7 +1,7 @@
 # LEGACY-021: クラス別の正誤の判定が、違いの証拠が閾値に届かないと、違う概念のモデルを統合する
 
 - 発見日: 2026-10-22。対象: `src/federated_learning_experiments/methods/fedsda/consolidation/model_clustering_calculations.py`の`compute_classwise_unique_correctness_decision_score`（旧の`class_functional_confidence`を移植したもの）と、判定の値の閾値0.1、対の評価の標本の最小数`_MINIMUM_PAIR_EVALUATION_SAMPLE_COUNT = 5`（`runtime/fedsda_final_configuration_run_settings.py`）。発見の経緯: 初期モデルの統計を交差検証で取る変種（[LEGACY-020](legacy-020-optimistic-initial-model-loss-statistics.md)）で、MNIST4・間隔100・seed 9の精度が下がった原因の調査。
-- 種別: 旧から引き継いだ判定の弱点。状態: 未対応（2026-10-22に記録）。
+- 種別: 旧から引き継いだ判定の弱点。状態: 一部対応（2026-10-27、基準版13。評価clientの上限をclientの数にし、LEGACY-023の対策で学習標本の混入を減らした。クラス別の判定の閾値そのものは変えていない。記録は2026-10-22）。
 
 ## 内容
 
