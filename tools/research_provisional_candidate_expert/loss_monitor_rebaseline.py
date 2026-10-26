@@ -112,6 +112,8 @@ def loss_monitor_rebaseline_policy(*, variant, diagnostics):
             diagnostics["decrease_alarm_count"] += int(decreased)
             state["diagnostics"]["decrease_alarm_count"] += int(decreased)
         if observation.drift_detected:
+            # 監視器の上がる向きの判定の回数。製品の警報（短い変化区間の方針で取り消されうる`alarm_raised`）や、
+            # 警報の応答の回数とは一致しないことがある（実装レビューのMinor）。
             diagnostics["upward_alarm_count"] += 1
             state["diagnostics"]["upward_alarm_count"] += 1
             for event in state["pending_rebaselines"]:
