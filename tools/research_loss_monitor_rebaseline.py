@@ -30,8 +30,12 @@ for _thread_count_variable_name in (
 _REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPOSITORY_ROOT / "src"))
 
+from federated_learning_experiments.runtime import (  # noqa: E402
+    fedsda_final_configuration_run_settings,
+)
 from federated_learning_experiments.sweep import experiment_sweep_execution  # noqa: E402
 from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import (  # noqa: E402
+    ALL_EVALUATING_CLIENTS_LOSS_MONITOR_REBASELINE_VARIANTS,
     LOSS_MONITOR_REBASELINE_VARIANTS,
     loss_monitor_rebaseline_policy,
 )
@@ -132,9 +136,19 @@ def _run_variant(arguments, variant):
     previous_variant = os.environ.get(_VARIANT_ENVIRONMENT_VARIABLE)
     os.environ[_VARIANT_ENVIRONMENT_VARIABLE] = variant
     experiment_sweep_execution.execute_planned_experiment_run = _execute_run_with_variant
+    # 上限の撤廃は、runの設定に入る（計画を作るのは親のprocessで、workerは計画の設定のまま実行する）。
+    # 設定が変わるので、runの識別子も既定と別になる。
+    previous_maximum = fedsda_final_configuration_run_settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL
+    if variant in ALL_EVALUATING_CLIENTS_LOSS_MONITOR_REBASELINE_VARIANTS:
+        fedsda_final_configuration_run_settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL = (
+            arguments.client_count
+        )
     try:
         exit_code = run_sweep(sweep_arguments)
     finally:
+        fedsda_final_configuration_run_settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL = (
+            previous_maximum
+        )
         experiment_sweep_execution.execute_planned_experiment_run = _execute_planned_experiment_run
         if previous_variant is None:
             del os.environ[_VARIANT_ENVIRONMENT_VARIABLE]

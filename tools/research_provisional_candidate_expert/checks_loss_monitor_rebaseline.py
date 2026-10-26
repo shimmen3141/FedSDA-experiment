@@ -365,6 +365,38 @@ def test_run_calls_product_sweep_per_variant_with_patch_and_restores(tmp_path, m
         assert record["variant"] == variant
 
 
+_COMBINED = "product-default-all-evaluating-clients-loss-monitor-decrease-rebaseline"
+
+
+@pytest.mark.parametrize("variant,expected", [(_COMBINED, 7), (_DECREASE, 3)])
+def test_run_sets_evaluating_client_limit_only_for_combined_variant(tmp_path, variant, expected):
+    import federated_learning_experiments.sweep.experiment_sweep_command as command
+    from federated_learning_experiments.runtime import (
+        fedsda_final_configuration_run_settings as settings,
+    )
+    from tools import research_loss_monitor_rebaseline as entry
+
+    seen = {}
+
+    def product_main(arguments):
+        seen["limit"] = settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL
+        return 0
+
+    arguments = run_arguments(tmp_path, variants=[variant])
+    arguments[arguments.index("--variants") : arguments.index("--variants")] = ["--client-count", "7"]
+    with patch.object(command, "main", product_main), patch.object(entry, "_provenance", lambda: {}):
+        assert entry.main(arguments) == 0
+    assert seen["limit"] == expected
+    assert settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL == 3
+
+
+def test_research_cli_registers_combined_variant_on_product_default():
+    from tools.research_provisional_candidate_expert import run
+
+    assert _COMBINED in run._PRODUCT_DEFAULT_BASED_VARIANTS
+    assert run._VARIANTS[_COMBINED] == ("fedsda", False, None)
+
+
 def test_run_rejects_existing_output_without_variant_record(tmp_path):
     import federated_learning_experiments.sweep.experiment_sweep_command as command
     from tools import research_loss_monitor_rebaseline as entry
@@ -543,6 +575,20 @@ def test_parallel_workers_apply_variant_and_write_diagnostics(tmp_path):
     assert all(d["monitor_count"] == 10 for d in diagnostics)
     # workerの中でも変種が働き、基準の再設定が起きている。
     assert sum(d["rebaseline_count"] for d in diagnostics) > 0
+
+
+@pytest.mark.slow
+def test_combined_variant_product_sweep_records_limit_and_rebaselines(tmp_path):
+    from tools import research_loss_monitor_rebaseline as entry
+
+    assert entry.main(run_arguments(tmp_path, variants=[_COMBINED], seeds=("0", "1"), workers="2")) == 0
+    summaries = sorted((tmp_path / _COMBINED / "fedsda/runs").glob("*.json"))
+    assert len(summaries) == 2
+    for path in summaries:
+        text = path.read_text(encoding="utf-8")
+        assert '"maximum_evaluating_client_count_per_model": 10' in text
+    records = sorted((tmp_path / _COMBINED / entry._DIAGNOSTICS_DIRECTORY_NAME).glob("*.json"))
+    assert sum(json.loads(r.read_text(encoding="utf-8"))["diagnostics"]["rebaseline_count"] for r in records) > 0
 
 
 @pytest.mark.slow

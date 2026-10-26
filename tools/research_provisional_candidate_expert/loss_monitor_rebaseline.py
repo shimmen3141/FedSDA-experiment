@@ -9,7 +9,13 @@ LOSS_MONITOR_REBASELINE_VARIANTS = {
     "product-default-loss-monitor-decrease-rebaseline-observe-only": (True, None),
     "product-default-loss-monitor-ratio-rebaseline-1p5": (False, 1.5),
     "product-default-loss-monitor-ratio-rebaseline-2": (False, 2.0),
+    # 基準版13の候補: 案Aと、交差評価の評価clientの上限の撤廃（上限をclientの数にする）を合わせる。
+    "product-default-all-evaluating-clients-loss-monitor-decrease-rebaseline": (False, None),
 }
+# 交差評価の評価clientの上限を、clientの数にする変種（上限の差し替えは、設定を作る側が行う）。
+ALL_EVALUATING_CLIENTS_LOSS_MONITOR_REBASELINE_VARIANTS = (
+    "product-default-all-evaluating-clients-loss-monitor-decrease-rebaseline",
+)
 
 
 def _validate_baseline(value):

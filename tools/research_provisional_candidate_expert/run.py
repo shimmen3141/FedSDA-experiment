@@ -36,7 +36,10 @@ from unittest.mock import patch
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "src"))
 
-from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import LOSS_MONITOR_REBASELINE_VARIANTS
+from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import (
+    ALL_EVALUATING_CLIENTS_LOSS_MONITOR_REBASELINE_VARIANTS,
+    LOSS_MONITOR_REBASELINE_VARIANTS,
+)
 
 # 変種 -> （構成、仮の専門家を使うか、検証の標本数——Noneなら構成の値の10——）。2026-10-20に既定（`fedsda`）が
 # 候補検証なし＋候補の共有部の固定になったので、検証ありの変種は、それまでの既定と同じ設定の構成で選ぶ。
@@ -2484,6 +2487,7 @@ def _execute_job(job):
     if job["variant"] in (
         "product-default-all-evaluating-clients",
         "product-default-all-evaluating-clients-candidate-shared-feature-update",
+        *ALL_EVALUATING_CLIENTS_LOSS_MONITOR_REBASELINE_VARIANTS,
     ):
         settings = replace(
             settings,
