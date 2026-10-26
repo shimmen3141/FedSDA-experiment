@@ -148,6 +148,8 @@ def structural_document():
                     # 版12で足した、クロス評価の記録の行の数と、そのうち標本が0件の行の数。
                     cross_evaluation_record_count=1,
                     zero_sample_cross_evaluation_count=0,
+                    # 版13で足した、損失の監視の基準を下げた回数（下の2つの必須の経路のケースは1）。
+                    loss_monitoring_baseline_lowering_count=0,
                 )
                 if "run_client_settings" in cases_run_settings["run_participant_settings"]
                 and "pending_model_registration_settings"
@@ -166,6 +168,11 @@ def structural_document():
                 decision_reasons=[],
                 training_model_switch_count=2,
             )
+        if name in (
+            "fedsda-sine2-adoption-without-validation",
+            golden.WARM_STARTED_LEARNER_PATH_CASE_NAME,
+        ):
+            cases[name]["coverage"]["loss_monitoring_baseline_lowering_count"] = 1
     return dict(
         baseline_version=golden.BASELINE_VERSION,
         schema_version=1,
