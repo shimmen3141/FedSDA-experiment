@@ -1,12 +1,16 @@
-"""IMPROVE-031の掃引入口。製品の掃引のコマンドを、変種を有効にして1 runずつ子processで実行する。
+"""IMPROVE-031の掃引入口。製品の掃引のコマンドを、変種を有効にして変種ごとに1回実行する。
 
 研究用CLI（`tools.research_provisional_candidate_expert.run`）と同じ形で指定する:
     python -m tools.research_loss_monitor_rebaseline --output <出力先> --datasets sine2 --intervals 100
         --seeds 0 1 --sample-count 5000 --variants product-default-loss-monitor-decrease-rebaseline --workers 64
-各runは`<出力先>/<変種>/<dataset>-i<間隔>-s<seed>/`へ保存する（製品と同じraw）。
+変種ごとに`<出力先>/<変種>/`を製品の掃引の出力先にする（README、実行の記録、`fedsda/runs/*.npz`は製品と同じ置き方）。
+変種の診断は`<出力先>/<変種>/loss_monitor_rebaseline_diagnostics/<runの識別子>.json`へ書く。
 照合: python -m tools.research_loss_monitor_rebaseline compare --expected <保存済みの結果> --actual <出力先>
 （`--actual`の各runを、`--expected`の下から同じファイル名で探して、全raw配列と要約を比べる）
-1 runだけの実行（子processの中身）: python -m tools.research_loss_monitor_rebaseline run-one --variant <変種> -- <掃引の引数>
+
+変種は、製品の掃引のrunの実行の関数（`experiment_sweep_execution.execute_planned_experiment_run`）を、
+このモジュールの`_execute_run_with_variant`へ差し替えて有効にする。並列のworker（spawn）は、差し替えた関数を
+名前で読み込み、変種の名前を環境変数から受け取るので、worker の中でも変種が有効になる。
 """
 
 import argparse
@@ -14,9 +18,6 @@ import json
 import os
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
-from itertools import product
 from pathlib import Path
 
 for _thread_count_variable_name in (
@@ -29,13 +30,19 @@ for _thread_count_variable_name in (
 _REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPOSITORY_ROOT / "src"))
 
+from federated_learning_experiments.sweep import experiment_sweep_execution  # noqa: E402
 from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import (  # noqa: E402
     LOSS_MONITOR_REBASELINE_VARIANTS,
     loss_monitor_rebaseline_policy,
 )
 
 _VARIANTS = ("product-default", *LOSS_MONITOR_REBASELINE_VARIANTS)
-_DIAGNOSTICS_NAME = "loss_monitor_rebaseline_diagnostics.json"
+# workerのprocessへ変種の名前を渡す環境変数（spawnのworkerは親の環境を引き継ぐ）。
+_VARIANT_ENVIRONMENT_VARIABLE = "FDE_LOSS_MONITOR_REBASELINE_VARIANT"
+_DIAGNOSTICS_DIRECTORY_NAME = "loss_monitor_rebaseline_diagnostics"
+_VARIANT_RECORD_NAME = "loss_monitor_rebaseline_variant.json"
+# 差し替える前の、製品のrunの実行の関数（このモジュールを読み込んだ時点の値）。
+_execute_planned_experiment_run = experiment_sweep_execution.execute_planned_experiment_run
 
 
 def _write_json(path, value):
@@ -60,121 +67,44 @@ def _provenance():
     return dict(commit=commit, has_uncommitted_changes=bool(dirty.strip()))
 
 
-def _check_variant(output_directory, variant, *, required=False):
-    path = output_directory / _DIAGNOSTICS_NAME
-    if not path.exists():
-        if required:
-            raise ValueError(f"済んだrunの診断がありません: {path}")
-        return
-    if _read_json(path).get("variant") != variant:
-        raise ValueError(f"出力先に別の変種の診断があります: {path}")
-
-
-def _validate_sweep_arguments(arguments):
-    parser = argparse.ArgumentParser(allow_abbrev=False, add_help=False)
-    for name in (
-        "--workers",
-        "--datasets",
-        "--seeds",
-        "--aggregation-intervals",
-        "--configurations",
-        "--output-directory",
-    ):
-        parser.add_argument(name, nargs="+", action="append", required=True)
-    parsed, _ = parser.parse_known_args(arguments)
-    for name, values in vars(parsed).items():
-        if len(values) != 1 or len(values[0]) != 1:
-            raise ValueError(f"{name}は1回だけ、1つの値を指定してください")
-    if parsed.workers != [["1"]] or parsed.configurations != [["fedsda"]]:
-        raise ValueError("--workers 1と--configurations fedsdaが必要です")
-    int(parsed.seeds[0][0])
-    int(parsed.aggregation_intervals[0][0])
-    _validate_single_run_plan(arguments)
-    return Path(parsed.output_directory[0][0])
-
-
-def _validate_single_run_plan(arguments):
-    from federated_learning_experiments.sweep.experiment_sweep_command import (
-        _build_argument_parser,
-        _build_sweep_plan,
-    )
-    from federated_learning_experiments.sweep.experiment_sweep_plan import (
-        build_planned_experiment_runs,
-    )
-
-    parser = _build_argument_parser()
-    parser.allow_abbrev = False
-    parsed = parser.parse_args(arguments)
-    if parsed.print_plan:
-        raise ValueError("run-oneでは--print-planは使えません")
-    if len(build_planned_experiment_runs(sweep_plan=_build_sweep_plan(parsed))) != 1:
-        raise ValueError("1 processで実行できるのは1 runだけです")
-
-
-def _new_run_status(output_directory, previous_records):
-    records = set(output_directory.glob("sweep_record_*.json")) - previous_records
-    if len(records) != 1:
-        raise ValueError("今回の掃引の記録が1つに定まりません")
-    outcomes = _read_json(next(iter(records)))["run_outcomes"]
-    if len(outcomes) != 1 or outcomes[0]["configuration_name"] != "fedsda":
-        raise ValueError("今回の掃引の結果がfedsdaの1 runに定まりません")
-    return outcomes[0]["run_status"]
-
-
-def _run_one(variant, sweep_arguments):
-    from federated_learning_experiments.sweep.experiment_sweep_command import (
-        main as run_sweep,
-    )
-
-    output_directory = _validate_sweep_arguments(sweep_arguments)
-    _check_variant(output_directory, variant)
-    previous_records = set(output_directory.glob("sweep_record_*.json"))
+def _execute_run_with_variant(*, planned_run, output_directory, run_provenance):
+    """変種を有効にして製品の1 runを実行し、済んだら変種の診断を書く（workerのprocessでも呼ばれる）。"""
+    variant = os.environ[_VARIANT_ENVIRONMENT_VARIABLE]
+    if variant not in _VARIANTS:
+        raise ValueError(f"変種の名前が不正です: {variant}")
     diagnostics = {}
     with loss_monitor_rebaseline_policy(variant=variant, diagnostics=diagnostics):
-        exit_code = run_sweep(sweep_arguments)
-    if exit_code != 0:
-        return exit_code
-    status = _new_run_status(output_directory, previous_records)
-    if status == "skipped_existing":
-        _check_variant(output_directory, variant, required=True)
-    elif status == "completed":
-        _write_json(
-            output_directory / _DIAGNOSTICS_NAME,
-            dict(
-                variant=variant,
-                sweep_arguments=sweep_arguments,
-                diagnostics=diagnostics,
-                **_provenance(),
-            ),
+        outcome = _execute_planned_experiment_run(
+            planned_run=planned_run,
+            output_directory=output_directory,
+            run_provenance=run_provenance,
         )
-    else:
-        raise ValueError(f"成功した掃引に想定外のrun状態があります: {status}")
-    return 0
+    if outcome.run_status == "completed":
+        directory = output_directory / _DIAGNOSTICS_DIRECTORY_NAME
+        directory.mkdir(parents=True, exist_ok=True)
+        _write_json(
+            directory / f"{planned_run.run_identifier}.json",
+            dict(variant=variant, run_identifier=planned_run.run_identifier, diagnostics=diagnostics),
+        )
+    return outcome
 
 
-def _child_command(arguments, variant, dataset, interval, seed, output_directory):
+def _sweep_arguments(arguments, variant, output_directory):
     return [
-        sys.executable,
-        "-m",
-        "tools.research_loss_monitor_rebaseline",
-        "run-one",
-        "--variant",
-        variant,
-        "--",
         "--configurations",
         "fedsda",
         "--datasets",
-        dataset,
+        *arguments.datasets,
         "--seeds",
-        str(seed),
+        *[str(seed) for seed in arguments.seeds],
         "--aggregation-intervals",
-        str(interval),
+        *[str(interval) for interval in arguments.intervals],
         "--per-client-sample-count",
         str(arguments.sample_count),
         "--client-count",
         str(arguments.client_count),
         "--workers",
-        "1",
+        str(arguments.workers),
         "--output-directory",
         str(output_directory),
         "--purpose",
@@ -182,74 +112,45 @@ def _child_command(arguments, variant, dataset, interval, seed, output_directory
     ]
 
 
-def _launch(arguments):
+def _run_variant(arguments, variant):
+    """1つの変種で、製品の掃引のコマンドを実行する。完了・再開・飛ばしの判定は製品のコマンドに任せる。"""
+    from federated_learning_experiments.sweep.experiment_sweep_command import main as run_sweep
+
+    output_directory = arguments.output.resolve() / variant
+    record_path = output_directory / _VARIANT_RECORD_NAME
+    if record_path.exists() and _read_json(record_path).get("variant") != variant:
+        raise ValueError(f"出力先に別の変種の記録があります: {record_path}")
+    sweep_arguments = _sweep_arguments(arguments, variant, output_directory)
+    previous_variant = os.environ.get(_VARIANT_ENVIRONMENT_VARIABLE)
+    os.environ[_VARIANT_ENVIRONMENT_VARIABLE] = variant
+    experiment_sweep_execution.execute_planned_experiment_run = _execute_run_with_variant
+    try:
+        exit_code = run_sweep(sweep_arguments)
+    finally:
+        experiment_sweep_execution.execute_planned_experiment_run = _execute_planned_experiment_run
+        if previous_variant is None:
+            del os.environ[_VARIANT_ENVIRONMENT_VARIABLE]
+        else:
+            os.environ[_VARIANT_ENVIRONMENT_VARIABLE] = previous_variant
+    # 出力先を作るのは製品のコマンド。作られたときだけ、変種の記録を置く（引数の誤りでは何も作らない）。
+    if output_directory.exists() and not record_path.exists():
+        _write_json(record_path, dict(variant=variant, **_provenance()))
+    return exit_code
+
+
+def _run(arguments):
     if min(arguments.workers, arguments.sample_count, arguments.client_count) < 1:
         raise ValueError("workers・sample-count・client-countは正の整数にしてください")
     if not arguments.purpose.strip() or any(c in arguments.purpose for c in "\r\n"):
         raise ValueError("purposeは空白だけでない1行にしてください")
     if len(set(arguments.variants)) != len(arguments.variants):
         raise ValueError("変種に重複があります")
-    # 製品の計画で、datasetや間隔の値の検査も実行前に済ませる。出力先は作らない。
-    output = arguments.output.resolve()
-    runs = []
-    for variant, dataset, interval, seed in product(
-        arguments.variants, arguments.datasets, arguments.intervals, arguments.seeds
-    ):
-        output_directory = output / variant / f"{dataset}-i{interval}-s{seed}"
-        command = _child_command(arguments, variant, dataset, interval, seed, output_directory)
-        _validate_single_run_plan(command[command.index("--") + 1 :])
-        _check_variant(output_directory, variant)
-        runs.append((output_directory, command))
-    if len({directory for directory, _ in runs}) != len(runs):
-        raise ValueError("dataset・間隔・seedに重複があります")
+    exit_codes = []
     for variant in arguments.variants:
-        (output / variant).mkdir(parents=True, exist_ok=True)
-    # 同じ出力先への実行（例: MNIST4の追加seed）は、実行ごとの記録を足していく。
-    record_path = output / "launch.json"
-    history = []
-    if record_path.exists():
-        previous = _read_json(record_path)
-        # 引数を改める前の形（1回の実行の記録だけ）は、履歴の最初の1件として残す。
-        history = previous["launches"] if "launches" in previous else [previous]
-    record = dict(
-        arguments={
-            k: str(v) if isinstance(v, Path) else v for k, v in vars(arguments).items()
-        },
-        **_provenance(),
-        started_at=datetime.now(timezone.utc).isoformat(),
-        run_outcomes=[],
-    )
-    history.append(record)
-    _write_json(record_path, dict(launches=history))
-
-    def execute(run):
-        directory, command = run
-        previous = set(directory.glob("sweep_record_*.json"))
-        try:
-            with directory.with_suffix(".log").open("w", encoding="utf-8") as log:
-                code = subprocess.run(
-                    command, cwd=_REPOSITORY_ROOT, stdout=log, stderr=log
-                ).returncode
-                status = _new_run_status(directory, previous) if code == 0 else "failed"
-                # 子processの失敗の終了コードは、そのまま残す。成功の終了コードで想定外の状態のときだけ2にする。
-                if code == 0 and status not in ("completed", "skipped_existing"):
-                    code, status = 2, "failed"
-        except (OSError, ValueError, KeyError) as error:
-            print(f"{directory}: {error}", file=sys.stderr)
-            code, status = 2, "failed"
-        return dict(output_directory=str(directory), run_status=status, exit_code=code)
-
-    with ThreadPoolExecutor(max_workers=arguments.workers) as pool:
-        futures = [pool.submit(execute, run) for run in runs]
-        for future in as_completed(futures):
-            outcome = future.result()
-            record["run_outcomes"].append(outcome)
-            print(f"[{len(record['run_outcomes'])}/{len(runs)}] {outcome['output_directory']}: {outcome['run_status']}", flush=True)
-    record["finished_at"] = datetime.now(timezone.utc).isoformat()
-    _write_json(record_path, dict(launches=history))
-    counts = {s: sum(r["run_status"] == s for r in record["run_outcomes"]) for s in ("completed", "skipped_existing", "failed")}
-    print(f"completed: {counts['completed']}, skipped (existing): {counts['skipped_existing']}, failed: {counts['failed']}")
-    return int(any(run["exit_code"] != 0 for run in record["run_outcomes"]))
+        print(f"== {variant}", flush=True)
+        exit_codes.append(_run_variant(arguments, variant))
+    # 製品のコマンドの終了コード（0: 全部済んだか飛ばした、1: 失敗したrunがある、2: 引数・計画の誤り）の最大。
+    return max(exit_codes)
 
 
 def _comparable_summary(value):
@@ -336,7 +237,7 @@ def compare_run_artifacts(expected_directory, actual_directory):
     return dict(run_count=len(actual_paths), array_count=array_count)
 
 
-def _launch_parser():
+def _run_parser():
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--datasets", nargs="+", required=True)
@@ -345,7 +246,7 @@ def _launch_parser():
     parser.add_argument("--sample-count", type=int, default=5000)
     parser.add_argument("--client-count", type=int, default=10)
     parser.add_argument("--variants", nargs="+", choices=_VARIANTS, required=True)
-    parser.add_argument("--workers", type=int, required=True, help="同時に動かす子processの数")
+    parser.add_argument("--workers", type=int, required=True)
     parser.add_argument("--purpose", default="IMPROVE-031の監視の基準の再設定の実験")
     return parser
 
@@ -353,14 +254,6 @@ def _launch_parser():
 def main(command_arguments=None):
     command_arguments = sys.argv[1:] if command_arguments is None else list(command_arguments)
     try:
-        if command_arguments[:1] == ["run-one"]:
-            parser = argparse.ArgumentParser(prog="run-one", allow_abbrev=False)
-            parser.add_argument("--variant", choices=_VARIANTS, required=True)
-            parser.add_argument("sweep_arguments", nargs=argparse.REMAINDER)
-            arguments = parser.parse_args(command_arguments[1:])
-            if not arguments.sweep_arguments or arguments.sweep_arguments[0] != "--":
-                raise ValueError("run-one --variant <変種> -- <掃引の引数>と指定してください")
-            return _run_one(arguments.variant, arguments.sweep_arguments[1:])
         if command_arguments[:1] == ["compare"]:
             parser = argparse.ArgumentParser(prog="compare", allow_abbrev=False)
             parser.add_argument("--expected", type=Path, required=True)
@@ -368,7 +261,7 @@ def main(command_arguments=None):
             arguments = parser.parse_args(command_arguments[1:])
             print(json.dumps(compare_run_artifacts(arguments.expected, arguments.actual)))
             return 0
-        return _launch(_launch_parser().parse_args(command_arguments))
+        return _run(_run_parser().parse_args(command_arguments))
     except (ValueError, KeyError, OSError) as error:
         print(str(error), file=sys.stderr)
         return 2

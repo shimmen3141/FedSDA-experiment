@@ -102,10 +102,14 @@ def run_metrics(path):
 def _diagnostics(roots):
     found = {}
     for root in roots or []:
+        # 2026-10-27より前の置き方: runごとの出力先に1つ。
         for path in glob.glob(f"{root}/**/loss_monitor_rebaseline_diagnostics.json", recursive=True):
             npz = glob.glob(str(Path(path).parent / "fedsda/runs/*.npz"))
             if len(npz) == 1:
                 found[_run_key(npz[0])] = json.loads(Path(path).read_text(encoding="utf-8"))["diagnostics"]
+        # 今の置き方: 変種の出力先の`loss_monitor_rebaseline_diagnostics/<runの識別子>.json`。
+        for path in glob.glob(f"{root}/**/loss_monitor_rebaseline_diagnostics/*.json", recursive=True):
+            found[_run_key(path)] = json.loads(Path(path).read_text(encoding="utf-8"))["diagnostics"]
     return found
 
 

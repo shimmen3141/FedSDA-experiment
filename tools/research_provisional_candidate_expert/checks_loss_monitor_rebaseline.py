@@ -259,227 +259,121 @@ def test_adwin_and_preexisting_monitor_are_rejected():
             observe(old, 0)
 
 
-def sweep_arguments(output):
+def run_arguments(output, *, variants, seeds=("0",), workers="1", dataset="sine2"):
     return [
-        "--configurations",
-        "fedsda",
-        "--datasets",
-        "sine2",
-        "--seeds",
-        "0",
-        "--aggregation-intervals",
-        "100",
-        "--per-client-sample-count",
-        "600",
-        "--client-count",
-        "10",
-        "--workers",
-        "1",
-        "--output-directory",
+        "--output",
         str(output),
+        "--datasets",
+        dataset,
+        "--intervals",
+        "100",
+        "--seeds",
+        *seeds,
+        "--sample-count",
+        "600",
+        "--variants",
+        *variants,
+        "--workers",
+        workers,
         "--purpose",
         "IMPROVE-031の専用検証",
     ]
 
 
-@pytest.mark.parametrize(
-    "status,existing,code",
-    [
-        ("completed", False, 0),
-        ("skipped_existing", True, 0),
-        ("skipped_existing", False, 2),
-        ("failed", False, 1),
-    ],
-)
-def test_run_one_preserves_diagnostics_on_skip_and_failure(
-    tmp_path, status, existing, code
+@pytest.mark.parametrize("status,written", [("completed", True), ("failed", False)])
+def test_execute_run_with_variant_enables_policy_and_writes_diagnostics_only_when_completed(
+    tmp_path, monkeypatch, status, written
 ):
+    from tools import research_loss_monitor_rebaseline as entry
+
+    original_init = OverallAndTrueClassLossMonitor.__init__
+    seen = {}
+
+    def product_run(*, planned_run, output_directory, run_provenance):
+        # 製品のrunの実行の中では、変種の包みが有効になっている。
+        seen["patched"] = OverallAndTrueClassLossMonitor.__init__ is not original_init
+        return SimpleNamespace(run_status=status)
+
+    monkeypatch.setenv(entry._VARIANT_ENVIRONMENT_VARIABLE, _DECREASE)
+    with patch.object(entry, "_execute_planned_experiment_run", product_run):
+        outcome = entry._execute_run_with_variant(
+            planned_run=SimpleNamespace(run_identifier="sine2_interval100_seed0_x"),
+            output_directory=tmp_path,
+            run_provenance=None,
+        )
+    assert outcome.run_status == status
+    assert seen["patched"]
+    assert OverallAndTrueClassLossMonitor.__init__ is original_init
+    path = tmp_path / entry._DIAGNOSTICS_DIRECTORY_NAME / "sine2_interval100_seed0_x.json"
+    assert path.exists() is written
+    if written:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        assert record["variant"] == _DECREASE
+        assert record["run_identifier"] == "sine2_interval100_seed0_x"
+
+
+def test_execute_run_with_variant_rejects_unknown_variant(monkeypatch):
+    from tools import research_loss_monitor_rebaseline as entry
+
+    monkeypatch.setenv(entry._VARIANT_ENVIRONMENT_VARIABLE, "unknown")
+    with pytest.raises(ValueError, match="変種"):
+        entry._execute_run_with_variant(planned_run=None, output_directory=None, run_provenance=None)
+
+
+def test_run_calls_product_sweep_per_variant_with_patch_and_restores(tmp_path, monkeypatch):
     import federated_learning_experiments.sweep.experiment_sweep_command as command
     from tools import research_loss_monitor_rebaseline as entry
 
-    path = tmp_path / entry._DIAGNOSTICS_NAME
-    saved = dict(
-        variant=_OBSERVE_ONLY, diagnostics={"rebaseline_count": 0, "sentinel": 42}
-    )
-    if existing:
-        entry._write_json(path, saved)
+    monkeypatch.delenv(entry._VARIANT_ENVIRONMENT_VARIABLE, raising=False)
+    calls = []
+    original_execute = entry.experiment_sweep_execution.execute_planned_experiment_run
 
-    def sweep(arguments):
-        entry._write_json(
-            tmp_path / "sweep_record_fake.json",
+    def product_main(arguments):
+        output = Path(arguments[arguments.index("--output-directory") + 1])
+        calls.append(
             dict(
-                run_outcomes=[
-                    dict(
-                        configuration_name="fedsda",
-                        run_status=status,
-                    )
-                ]
-            ),
-        )
-        return 1 if status == "failed" else 0
-
-    with patch.object(command, "main", sweep):
-        assert (
-            entry.main(
-                [
-                    "run-one",
-                    "--variant",
-                    _OBSERVE_ONLY,
-                    "--",
-                    *sweep_arguments(tmp_path),
-                ]
+                arguments=list(arguments),
+                patched=entry.experiment_sweep_execution.execute_planned_experiment_run
+                is entry._execute_run_with_variant,
+                variant=entry.os.environ[entry._VARIANT_ENVIRONMENT_VARIABLE],
+                output=output,
             )
-            == code
         )
-    if existing:
-        assert entry._read_json(path) == saved
-    else:
-        assert path.exists() == (status == "completed")
-
-
-@pytest.mark.parametrize(
-    "replacement",
-    [
-        ["--workers", "2"],
-        ["--datasets", "sine2", "circle2"],
-        ["--seeds", "0-1"],
-        ["--configurations", "fedavg"],
-        ["--aggregation-intervals", "50", "100"],
-        ["--work", "2"],
-        ["--fedsda-fixed-share-time-scales", "50", "100"],
-    ],
-)
-def test_run_one_rejects_multiple_runs_and_workers(replacement):
-    from tools import research_loss_monitor_rebaseline as entry
-
-    output = Path("_loss_monitor_rebaseline_invalid_no_output")
-    assert not output.exists()
-    arguments = sweep_arguments(output) + replacement
-    try:
-        code = entry.main(["run-one", "--variant", _DECREASE, "--", *arguments])
-    except SystemExit as error:
-        code = error.code
-    assert code == 2
-    assert not output.exists()
-
-
-def test_single_run_plan_and_child_command_are_read_only():
-    from tools import research_loss_monitor_rebaseline as entry
-
-    output = Path("_loss_monitor_rebaseline_plan_no_output")
-    arguments = SimpleNamespace(
-        sample_count=600,
-        client_count=10,
-        purpose="専用検証",
-    )
-    command = entry._child_command(arguments, _DECREASE, "sine2", 100, 0, output)
-    sweep = command[command.index("--") + 1 :]
-    assert entry._validate_sweep_arguments(sweep) == output
-    assert command[:4] == [
-        entry.sys.executable,
-        "-m",
-        "tools.research_loss_monitor_rebaseline",
-        "run-one",
-    ]
-    assert sweep[sweep.index("--workers") + 1] == "1"
-    assert not output.exists()
-
-
-def test_launch_uses_child_processes_continues_after_failure_and_records_status(
-    tmp_path,
-):
-    from tools import research_loss_monitor_rebaseline as entry
-
-    commands = []
-    entry._write_json(tmp_path / "launch.json", dict(variant="old-format", run_outcomes=[]))
-
-    def child(command, **kwargs):
-        commands.append(command)
-        args = command[command.index("--") + 1 :]
-        output = entry._validate_sweep_arguments(args)
-        output.mkdir()
-        status = "completed" if "s0" in output.name else "failed"
-        entry._write_json(
-            output / "sweep_record_fake.json",
-            dict(
-                run_outcomes=[
-                    dict(
-                        configuration_name="fedsda",
-                        run_status=status,
-                    )
-                ]
-            ),
-        )
-        return SimpleNamespace(returncode=0 if status == "completed" else 1)
+        output.mkdir(parents=True)
+        return 0 if len(calls) == 1 else 1
 
     with (
-        patch.object(entry.subprocess, "run", child),
+        patch.object(command, "main", product_main),
         patch.object(entry, "_provenance", lambda: {}),
     ):
-        assert (
-            entry.main(
-                [
-                    "--output",
-                    str(tmp_path),
-                    "--variants",
-                    _DECREASE,
-                    "--datasets",
-                    "sine2",
-                    "--intervals",
-                    "100",
-                    "--seeds",
-                    "0",
-                    "1",
-                    "--workers",
-                    "2",
-                    "--purpose",
-                    "専用検証",
-                ]
-            )
-            == 1
-        )
-    assert len(commands) == 2
-    assert all(
-        "--study" not in c and "--label" not in c and "--new-output" not in c
-        for c in commands
-    )
-    launches = entry._read_json(tmp_path / "launch.json")["launches"]
-    # 引数を改める前の形の記録（下で先に書いたもの）は、履歴の最初に残る。
-    assert launches[0] == dict(variant="old-format", run_outcomes=[])
-    record = launches[-1]
-    assert sorted(r["exit_code"] for r in record["run_outcomes"]) == [0, 1]
-    assert (tmp_path / _DECREASE / "sine2-i100-s0.log").exists()
+        code = entry.main(run_arguments(tmp_path, variants=[_DECREASE, _OBSERVE_ONLY], seeds=("0", "1"), workers="4"))
+    # 終了コードは変種ごとの製品のコマンドの終了コードの最大。
+    assert code == 1
+    assert [c["variant"] for c in calls] == [_DECREASE, _OBSERVE_ONLY]
+    assert all(c["patched"] for c in calls)
+    assert entry.experiment_sweep_execution.execute_planned_experiment_run is original_execute
+    assert entry._VARIANT_ENVIRONMENT_VARIABLE not in entry.os.environ
+    first = calls[0]["arguments"]
+    assert first[first.index("--seeds") + 1 : first.index("--aggregation-intervals")] == ["0", "1"]
+    assert first[first.index("--workers") + 1] == "4"
+    assert first[first.index("--per-client-sample-count") + 1] == "600"
+    assert calls[0]["output"] == tmp_path.resolve() / _DECREASE
+    assert "--study" not in first and "--label" not in first
+    for variant in (_DECREASE, _OBSERVE_ONLY):
+        record = json.loads((tmp_path / variant / entry._VARIANT_RECORD_NAME).read_text(encoding="utf-8"))
+        assert record["variant"] == variant
 
 
-def test_launch_rejects_different_variant_before_spawning_any_child(tmp_path):
+def test_run_rejects_other_variant_record_before_calling_product(tmp_path):
+    import federated_learning_experiments.sweep.experiment_sweep_command as command
     from tools import research_loss_monitor_rebaseline as entry
 
-    output = tmp_path / _DECREASE / "sine2-i100-s1"
-    output.mkdir(parents=True)
-    entry._write_json(output / entry._DIAGNOSTICS_NAME, dict(variant="product-default"))
-    with patch.object(entry.subprocess, "run") as child:
-        assert (
-            entry.main(
-                [
-                    "--output",
-                    str(tmp_path),
-                    "--variants",
-                    _DECREASE,
-                    "--datasets",
-                    "sine2",
-                    "--intervals",
-                    "100",
-                    "--seeds",
-                    "0",
-                    "1",
-                    "--workers",
-                    "1",
-                ]
-            )
-            == 2
-        )
-        child.assert_not_called()
-    assert not (tmp_path / "launch.json").exists()
+    output = tmp_path / _DECREASE
+    output.mkdir()
+    entry._write_json(output / entry._VARIANT_RECORD_NAME, dict(variant="product-default"))
+    with patch.object(command, "main") as product_main:
+        assert entry.main(run_arguments(tmp_path, variants=[_DECREASE])) == 2
+        product_main.assert_not_called()
 
 
 def test_artifact_comparison_includes_all_arrays_and_non_time_summary_items(tmp_path):
@@ -578,17 +472,28 @@ def test_artifact_comparison_ignores_code_commit_but_not_baseline_version(tmp_pa
 def test_observe_only_product_sweep_matches_all_saved_items(tmp_path, dataset):
     from tools import research_loss_monitor_rebaseline as entry
 
-    expected, actual = tmp_path / "product", tmp_path / "observe-only"
-    for variant, output in (("product-default", expected), (_OBSERVE_ONLY, actual)):
-        args = sweep_arguments(output)
-        args[args.index("--datasets") + 1] = dataset
-        assert entry.main(["run-one", "--variant", variant, "--", *args]) == 0
-    assert entry.compare_run_artifacts(expected, actual)["run_count"] == 1
-    diagnostics = json.loads(
-        (actual / entry._DIAGNOSTICS_NAME).read_text(encoding="utf-8")
-    )
-    assert diagnostics["diagnostics"]["monitor_count"] == 10
-    assert diagnostics["diagnostics"]["rebaseline_count"] == 0
+    arguments = run_arguments(tmp_path, variants=["product-default", _OBSERVE_ONLY], dataset=dataset)
+    assert entry.main(arguments) == 0
+    assert entry.compare_run_artifacts(tmp_path / "product-default", tmp_path / _OBSERVE_ONLY)["run_count"] == 1
+    (record,) = (tmp_path / _OBSERVE_ONLY / entry._DIAGNOSTICS_DIRECTORY_NAME).glob("*.json")
+    diagnostics = json.loads(record.read_text(encoding="utf-8"))["diagnostics"]
+    assert diagnostics["monitor_count"] == 10
+    assert diagnostics["rebaseline_count"] == 0
+
+
+@pytest.mark.slow
+def test_parallel_workers_apply_variant_and_write_diagnostics(tmp_path):
+    from tools import research_loss_monitor_rebaseline as entry
+
+    # 2 seed・2 workerで、製品の掃引の並列の経路（spawnのworker）を通す。
+    assert entry.main(run_arguments(tmp_path, variants=[_DECREASE], seeds=("0", "1"), workers="2")) == 0
+    runs = sorted((tmp_path / _DECREASE / "fedsda/runs").glob("*.npz"))
+    records = sorted((tmp_path / _DECREASE / entry._DIAGNOSTICS_DIRECTORY_NAME).glob("*.json"))
+    assert [r.stem for r in records] == [r.stem for r in runs] and len(runs) == 2
+    diagnostics = [json.loads(r.read_text(encoding="utf-8"))["diagnostics"] for r in records]
+    assert all(d["monitor_count"] == 10 for d in diagnostics)
+    # workerの中でも変種が働き、基準の再設定が起きている。
+    assert sum(d["rebaseline_count"] for d in diagnostics) > 0
 
 
 @pytest.mark.slow

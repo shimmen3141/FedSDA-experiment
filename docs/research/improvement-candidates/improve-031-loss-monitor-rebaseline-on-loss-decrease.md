@@ -97,31 +97,29 @@
 
 ### 入口の約束事（`tools/research_loss_monitor_rebaseline.py`）
 
-2026-10-27に、研究用CLI（`tools.research_provisional_candidate_expert.run`、`.kiro/steering/tech.md`の基本の形）に合わせて引数を改めた（ユーザー指摘。改める前の`launch`・`--output-root`・`--jobs`は廃止）。
+2026-10-27に2回改めた。1回目は研究用CLI（`tools.research_provisional_candidate_expert.run`、`.kiro/steering/tech.md`の基本の形）に合わせて引数を改め（ユーザー指摘）、
+2回目は1 runごとの出力先をやめ、これまでと同じ置き方（1つの実験の出力先の下に`fedsda/runs/*.npz`）にした（ユーザー指摘）。それまでの`launch`・`run-one`・子processの起動は廃止。
 
-- 複数のrunの実行（下位コマンドなし）: `--output`（必須）、`--datasets`・`--intervals`・`--seeds`（空白区切りの複数。seedは整数の列挙だけ）、
+- 実行（下位コマンドなし）: `--output`（必須）、`--datasets`・`--intervals`・`--seeds`（空白区切りの複数。seedは整数の列挙だけ）、
   `--sample-count`（既定5000）、`--client-count`（既定10）、`--variants`（4つの変種と、介入なしの`product-default`から複数）、
-  `--workers`（同時に動かす子processの数。必須）、`--purpose`（任意、1行。既定は「IMPROVE-031の監視の基準の再設定の実験」）。
-- 各run（変種×dataset×間隔×seedの全組合せ）の出力先は`<output>/<変種>/<dataset>-i<間隔>-s<seed>/`、ログは`<output>/<変種>/<dataset>-i<間隔>-s<seed>.log`。
-- 子processのコマンドは、固定の形:
-  `<同じPython> -m tools.research_loss_monitor_rebaseline run-one --variant <変種> -- --configurations fedsda --datasets <dataset> --seeds <seed>
-  --aggregation-intervals <間隔> --per-client-sample-count <標本数> --client-count <client数> --workers 1 --output-directory <runの出力先>
-  --purpose "<purpose>（変種 <変種>）"`。`--study`・`--label`・`--new-output`は渡さない（`--output-directory`と併用できない、または不要）。
-  環境変数は親のものを引き継ぎ、`OMP_NUM_THREADS`・`MKL_NUM_THREADS`・`OPENBLAS_NUM_THREADS`は未設定なら1にする。
-- `run-one`: `--`の後を製品の掃引のコマンド（`experiment_sweep_command.main`）へそのまま渡す。`--workers 1`・単一のdataset・seed・間隔・`--configurations fedsda`・`--output-directory`の指定を検査し、
-  満たさなければ終了コード2。変種を有効にして実行し、製品のコマンドの終了コードが0のときだけ、`loss_monitor_rebaseline_diagnostics.json`を出力先へ書く（変種名、引数、診断、commit）。終了コードはそのまま返す。
-- 完了の判定は、製品の掃引のコマンドに任せる（3回目の仕様レビューの反映）。全runの子processを起動し、製品のコマンドは、出力先に済んだrun（要約・表があり、基準版とrun設定が計画と一致）があれば飛ばし、途中のrunは再開する。
-- 同じ出力先に別の変種を混ぜない: 起動の前に、`<runの出力先>/loss_monitor_rebaseline_diagnostics.json`があり、その変種名が違えば、終了コード2で全体を止める。
-- `run-one`の診断の書き方: 実行の前に出力先の`sweep_record_*.json`の一覧を取り、実行の後に新しくできた1つを読む。その`run_outcomes`の当該runの`run_status`が
-  - `completed`なら、診断を書く（上書き）。
-  - `skipped_existing`なら、同じ変種名の診断のJSONが既にあることを確かめ、なければ終了コード2（済んだrunの診断を作り直せないため）。診断は書き換えない。
-  - それ以外（失敗など）なら、診断を書かず、製品のコマンドの終了コード（0以外）を返す。新しい記録が1つに定まらないときも終了コード2。
-- 実行の記録: `<output>/launch.json`に、実行ごとの記録（引数、commit、未commitの変更の有無、開始・終了の時刻、各runの状態と終了コード）を`launches`の列として追記する
-  （同じ出力先へ、MNIST4の追加seedなどを別の実行で足せる）。各runの終了ごとに進捗を1行表示し、最後に完了・飛ばし・失敗の数を表示する。
-  失敗したrunが1つでもあれば終了コード1、全部が完了か飛ばしなら0。1つの失敗で他のrunを止めない。
+  `--workers`（製品の掃引のコマンドのworkerの数。必須）、`--purpose`（任意、1行。既定は「IMPROVE-031の監視の基準の再設定の実験」）。
+- 変種ごとに、製品の掃引のコマンド（`experiment_sweep_command.main`）を1回呼ぶ。引数は固定の形:
+  `--configurations fedsda --datasets <…> --seeds <…> --aggregation-intervals <…> --per-client-sample-count <標本数> --client-count <client数>
+  --workers <workers> --output-directory <output>/<変種> --purpose "<purpose>（変種 <変種>）"`。`--study`・`--label`・`--new-output`は渡さない。
+  出力先`<output>/<変種>/`の中は、製品の掃引の出力と同じ（README、実行の記録、`fedsda/runs/*.npz`・`*.json`、`run_summary.csv`）。
+- 変種の有効化: 呼ぶ間だけ、製品の`experiment_sweep_execution.execute_planned_experiment_run`を、このモジュールの`_execute_run_with_variant`へ差し替え、
+  変種の名前を環境変数`FDE_LOSS_MONITOR_REBASELINE_VARIANT`へ置く（呼んだ後に両方とも元へ戻す）。並列のworker（spawn）は、差し替えた関数を名前で読み込み、
+  環境変数を引き継ぐので、workerの中でも変種が有効になる。`_execute_run_with_variant`は、変種のcontextmanagerの中で製品の元の関数を呼び、
+  runが`completed`のときだけ、診断を`<output>/<変種>/loss_monitor_rebaseline_diagnostics/<runの識別子>.json`（変種名、runの識別子、診断）へ書く。製品の`fedsda/runs/`には何も足さない。
+- 完了・再開・飛ばしの判定と、終了コードは、製品の掃引のコマンドに任せる。入口の終了コードは、変種ごとの製品のコマンドの終了コードの最大（0: 全部済んだか飛ばした、1: 失敗したrunがある、2: 引数・計画の誤り）。
+  製品のコマンドは、同じ出力先に違う計画（例: seedを足す）を拒否するので、MNIST4の追加seedは別の`--output`にする（基準版12と同じ）。
+- 同じ出力先に別の変種を混ぜない: 製品のコマンドが出力先を作ったら`<output>/<変種>/loss_monitor_rebaseline_variant.json`（変種名、commit、未commitの変更の有無）を置く。
+  呼ぶ前にこれがあり、変種名が違えば、製品のコマンドを呼ばずに終了コード2。
 - `compare --expected <保存済みの結果> --actual <出力先>`: `--actual`の下の全runを、`--expected`の下（再帰的に探す）の同じファイル名のrunと照合する。
   `--expected`には保存済みの結果のディレクトリ（例: `results/method-comparison-v12`）をそのまま渡せ、照合に使わないrunがあってよい。
   同じ名前のrunが複数あれば、raw・要約のファイルの中身が全部同じときだけ1つとして扱い、違えば終了コード2。相手のないrunがあれば終了コード2。
+- 2026-10-27より前の置き方（`<output>/<変種>/<dataset>-i<間隔>-s<seed>/`）の結果（`20261027_uranium-decrease-rebaseline-n5000`ほか）は、そのまま残す。
+  指標の集計（`tools/research_loss_monitor_rebaseline_metrics.py`）と`compare`は、どちらの置き方も読める。
 
 ### 照合（observe-only）
 
