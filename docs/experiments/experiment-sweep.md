@@ -1,5 +1,13 @@
 # 実験の掃引のコマンド（新実装）
 
+2026-10-27の新しい既定: FedSDAは損失の低下で監視の基準を下げ、クロス評価の上限を実験のclient数にする。
+候補検証ありの構成は基準を警報まで保ち上限3、ADWINの2構成は基準を警報まで保ち上限はclient数。
+コマンドの引数は変わらないが、完全設定が変わるのでrunの識別子は変わる。過去の結果は保存された設定と来歴で区別する。
+版13のコードは準備済みで、goldenと版の定数は12のまま（主担当の生成・切替待ち）。
+研究CLIの非product系は版10を保ち、IMPROVE-031と上限撤廃だけの比較は版12を基点にする。
+研究入口はbuilderの結果を置き換え、product-defaultだけは製品の新しい既定を使う。
+[検証と未実施範囲](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。
+
 新実装（`src/federated_learning_experiments/`）で、構成・dataset・seed・集約間隔の全部の組合せを実行し、
 runごとの結果と、一覧の表を保存する。旧実装の`run_pareto_sweep.py`・`tools/run_server_sweep.sh`に当たる。
 

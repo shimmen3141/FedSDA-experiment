@@ -409,6 +409,7 @@ def test_model_class_statistics_connects_to_baseline_and_monitor():
     )
     monitor = OverallAndTrueClassLossMonitor(
         loss_change_detection_settings=LossChangeDetectionSettings(
+            loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
             short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",

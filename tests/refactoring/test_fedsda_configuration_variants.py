@@ -104,6 +104,10 @@ def replace_loss_monitoring_scope(
 ):
     """参加者の設定の束の、損失の監視の設定（対象、検出器）と、それに対応する検出器の表示名を、置き換える。"""
     run_client_settings = run_participant_settings.run_client_settings
+    if changed_detection_settings_fields.get("drift_detector_name") == "adwin":
+        changed_detection_settings_fields["loss_monitoring_baseline_update_policy"] = (
+            "keep_baseline_until_alarm"
+        )
     return replace(
         run_participant_settings,
         run_client_settings=replace(

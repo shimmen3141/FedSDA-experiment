@@ -50,6 +50,7 @@ SHORT_ALARM_OUTCOME = "alarm_change_interval_too_short"
 
 def make_detection_settings(**replaced_values):
     return LossChangeDetectionSettings(
+        loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
         **dict(
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
@@ -58,7 +59,7 @@ def make_detection_settings(**replaced_values):
             adwin_minimum_test_window_sample_count=10,
             short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         )
-        | replaced_values
+        | replaced_values,
     )
 
 

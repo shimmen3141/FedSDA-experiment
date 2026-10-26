@@ -573,6 +573,7 @@ def use_legacy_compatible_policies(run_settings):
             cross_evaluation_model_transfer_policy="send_candidate_models_for_cross_evaluation",
             # 旧は、統合で、共有部も概念固有部と一緒に平均する。
             cross_evaluation_client_selection_policy="clients_holding_target_model",
+            maximum_evaluating_client_count_per_model=3,
             consolidated_shared_feature_policy="average_shared_features_with_concept_specific_parts",
             # 旧は、初期モデルの損失の統計を、学習に使った事前学習の標本で測る。
             initial_model_loss_statistics_estimation="resubstitution",
@@ -591,6 +592,7 @@ def use_legacy_compatible_policies(run_settings):
                 ),
                 loss_change_detection_settings=replace(
                     run_client_settings.loss_change_detection_settings,
+                    loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
                     short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
                 ),
                 prediction_combination_settings=replace(

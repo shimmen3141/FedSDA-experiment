@@ -345,6 +345,8 @@ class FedsdaRunClient:
         )
         loss_monitoring_observation = sample_processing.loss_monitoring_observation
         owners.loss_monitoring_computation_count_store.record_loss_monitoring_computation(
+            decrease_detector_component_update_count=loss_monitoring_observation.decrease_detector_component_update_count,
+            decrease_detector_evaluated_candidate_bet_count=loss_monitoring_observation.decrease_detector_evaluated_candidate_bet_count,
             detector_component_update_count=loss_monitoring_observation.component_update_count,
             evaluated_candidate_bet_count=loss_monitoring_observation.evaluated_candidate_bet_count,
         )

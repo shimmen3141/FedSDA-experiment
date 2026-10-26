@@ -3,7 +3,7 @@
 依存: task 1 → task 2 → task 3 → task 4 → task 5。task 2はtask 1の新しい項目と研究ツールとの照合の一致が前提。task 3（版13）はtask 1・2の既定が確定した後。
 task 4（文書）はtask 3の版の定数とgoldenの後。task 5は全部の後。
 
-- [ ] 1. 損失の低下で監視の基準を下げる扱いを選べるようにする（既定は、まだ変えない）
+- [x] 1. 損失の低下で監視の基準を下げる扱いを選べるようにする（既定は、まだ変えない）
   - 部品のtest（Validation Designの(i)〜(viii)）と、設定の検査のtest（不正な値・型、ADWINとの組合せ）を先に書き、REDを確かめる。
   - 値の名前と組、検出の設定の新しい項目と検査、監視器の下がる向きの検出器と基準の引下げ、監視の計算回数への算入（合計と下がる向きの検出器の分）、観測の新しい項目、状態の写しの新しい項目、
     基準を下げた事象の記録の表（`append_baseline_lowering_record`）とrunの指標。全部の`LossChangeDetectionSettings`の組立て（最終構成、構成、旧と比べる入口、実旧との照合の組、test・fresh script）で今の扱いを明示し、
@@ -14,7 +14,7 @@ task 4（文書）はtask 3の版の定数とgoldenの後。task 5は全部の�
   - 完了条件: 新しいtestが通り、既存のtest（実旧との照合、基準版1〜12）が値を変えずに通り、研究ツールとの照合が一致する。
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 4.1, 4.2, 5.4, 6.4_
 
-- [ ] 2. 最終構成の既定を替え、研究ツールの基点を固定する
+- [x] 2. 最終構成の既定を替え、研究ツールの基点を固定する
   - 既定と全FedSDA構成の2つの値（候補検証ありの構成は「基準を警報まで保つ扱い」と上限3、ADWINの2構成は「基準を警報まで保つ扱い」）のtestを先に書き、REDを確かめてから、既定を替える。
     版1〜12の上限3の明示（参加者の設定の「値が変わった項目」）を足す。既定に依るtest（runの識別子ほか）を、失敗したものから合わせる。
   - 研究用CLIと研究用の入口の基点の固定・IMPROVE-031の変種の基準版12への戻しを足し、既定を替える前に保存した小さい条件の結果と、替えた後の結果が同じことを確かめる
@@ -23,12 +23,13 @@ task 4（文書）はtask 3の版の定数とgoldenの後。task 5は全部の�
   - _Requirements: 2.1, 3.1, 4.2, 6.1, 6.2, 6.3_
 
 - [ ] 3. 基準版13を足す
+  - [x] 今回の担当範囲のコード（版13の登録・経路の記録と必須の経路・goldenを使わない版12→13の差のtest）。golden生成・配置・定数の切替とWindows/WSLの全golden照合は主担当が行うため、親taskは未完了。
   - 経路の記録の新しい項目（版13から）、版13の定義と必須の経路、版12→13の差の説明のtestを足し、commitしてから、Windowsの基準環境とWSLでgoldenを生成して足し、現在の版を13へ上げる
     （goldenの生成・設置・定数の切替は主担当が行う）。
   - 完了条件: 版1〜13の照合と、版12→13の差の説明のtestが、WindowsとWSLで通る。
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 4. 文書を合わせる
+- [x] 4. 文書を合わせる
   - 手法の説明、基準（版13）、実験の入口、LEGACY-023・LEGACY-021・実装の不具合の一覧、IMPROVE-031、v12・v13比較、再開案内。
   - 完了条件: 文書が新しい扱いを説明する。
   - _Requirements: 7.1_
@@ -39,6 +40,37 @@ task 4（文書）はtask 3の版の定数とgoldenの後。task 5は全部の�
   - _Requirements: 全部_
 
 ## Implementation Notes
+- 最後の対象検証（task 5の全pytestではない）: `../../venv/Scripts/python.exe`、`PYTHONPATH=src;.`、OMP/MKL/OPENBLAS各1。新spec、損失監視・記録store・設定検査・依存境界・既定/構成・候補検証・クロス評価・掃引/識別子・研究専用検証の実行可能部分は4778 passed / 88 skipped / 88 deselected（34.94秒、exit 0、`results/_sol_tmp/rebaseline_targeted_final.log`）。追加の補助部品のtestは293 passed / 1 deselected（61.17秒）。別実行の件数は重複するため合算しない。tmp_path/tmp_path_factoryを使うtestは既知のPermissionErrorのため、Git管理外の実行補助でskipし、未実行として扱った。先に通常のpytestで確認したsetup errorは隠さず途中の記録へ残す。
+- 品質検査: 指定範囲`src tests/refactoring tools`のRuff check成功（exit 0）、Ruff format --check成功（397 files already formatted、exit 0）、git diff --check成功（exit 0）。初回のformat失敗は編集したファイルの整形で解消した。GitのLF/CRLF警告がPowerShellのリダイレクトでNativeCommandErrorに表示されたため、gitの実exit codeも明示確認した。無関係なファイルの整形は行っていない。
+- 未実施と懸念: 全pytest、版1〜12の全ケースのgolden、版13のgolden生成・設置と数値照合、Windows/WSLの全体照合、Pyright、fresh process smoke、独立実装レビュー（task 5）は未実施。権限で使えないtestを成功扱いにはしていない。版13のgoldenを前提とする既存testは、主担当の設置まで完了しない。旧実装・旧goldenと版1〜12のgolden・AGENTS.md・CLAUDE.md・agent-handoff.md・requirements.md/design.md/naming.mdは差分なし。commit/push/stash・再委譲・独立レビューの起動は行っていない。
+- 変更したファイル（責務別。新規test以外は既存のファイル）:
+  - `src/federated_learning_experiments/`: `methods/fedsda/loss_change_detection/{loss_change_detection_settings,overall_and_true_class_loss_monitoring}.py`、`evaluation/{loss_change_alarm_record_store,loss_monitoring_computation_count_store}.py`、`runtime/{fedsda_final_configuration_run_settings,fedsda_run_client,fedsda_run_metric_derivation,fedsda_run_record_tables,observed_sample_processing}.py`、`sweep/experiment_configurations.py`。
+  - `tools/`: `research_loss_monitor_rebaseline.py`、`research_provisional_candidate_expert/{run,loss_monitor_rebaseline,checks_loss_monitor_rebaseline}.py`。
+  - `tests/refactoring/`: 新規`test_fedsda_loss_monitor_rebaseline_and_all_evaluating_clients.py`、`behavior_golden_cases.py`、`test_important_behavior_regression_goldens.py`、`fresh_process_smoke.py`、`test_{alarm_wait_for_minimum_change_interval,bounded_loss_moments,loss_baseline_selection,model_and_class_loss_statistics,pending_training_assignment_buffer,run_settings_validation,single_run_dependency_boundaries,fedsda_run_client,fedsda_final_configuration_run_settings,fedsda_configuration_variants,fedsda_with_candidate_validation,fedsda_experiment_run_artifacts,fedavg_experiment_sweep,feddrift_experiment_sweep}.py`。
+  - 文書: `docs/overview/proposed-method.md`、`docs/components/drift-detection.md`、`docs/experiments/{experiment-log,experiment-sweep,refactoring-baseline}.md`、`docs/research/implementation-findings/{README,legacy-021-classwise-clustering-merges-with-little-evidence,legacy-023-loss-monitor-baseline-frozen-at-alarm-reset}.md`、`docs/research/improvement-candidates/improve-031-loss-monitor-rebaseline-on-loss-decrease.md`、`docs/research/fedsda-v12-v13-comparison-and-candidate-freezing-20261026.md`、`.kiro/steering/resume.md`、本`tasks.md`。Git管理外のscriptと結果は`results/_sol_tmp/`のみ。
+- Task 3のコード: 版13未登録によるRED 1 failedを確認後、同じ22ケースを登録し、版13からFedSDAのcoverageへ引下げ回数を足した。候補検証あり4ケースは0、指定されたSINE2とMNIST4の2ケースは1以上を必須とした。goldenを使わず両版の全22ケースを実行する差のtestと、版1〜13の全ケースの上限・監視方針の直接検査は23 passed / 499 deselected（221.57秒）。旧来の必須の経路も通る。`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`は12、v13のディレクトリは作っていない。
+- 差のtestの判断: 版13の新しい指標（回数と下がる向きの計算回数）と表は、候補検証ありでは0と空であることを直接検査し、その追加分だけを除いて版12の既存の全項目と比較する。版1〜12のcaptureも追加分が0であることを検査して除くため、既存goldenの値とschemaは変更しない。設計の「指標・表が同じ」は、この明示したschema追加分の検査を伴う同一性として実装した。
+- 既定切替後の照合: 版1〜12の小さいFedSDAケース132 passed / 390 deselected（67.65秒）。runtimeのclient・server・全体run・指標・保存の実行可能部分87 passed / 80 skipped（167.44秒）。旧と照合する経路はkeepと上限3（元から異なる上限を使う組はその値）を明示する。80件はtmp_pathの権限で未実行と、それに依存する網羅test。既定の構成・研究・候補検証・識別子は、最後の対象検証107 passed / 26 skipped / 11 deselected（29.49秒）。識別子の期待値2件は、実測の`fc28fa415515`へ合わせた。
+- Task 4: 手法・ドリフト検出の基準の説明・基準版の手順・実験入口と台帳・LEGACY-023/021と一覧・IMPROVE-031・版12/13比較・resumeを更新した。既定のコードが変わったことと、配置済みgolden/定数が12のままであることを分け、履歴の研究結果は保った。文書だけの変更に動作testのREDは追加しない。
+- CLIの読取り専用の確認: 新既定のSINE2・seed 0・10 client・600標本・間隔100を`--print-plan`で確認し、予定1 run、状態missing、識別子`79b7f09c618b`を確認した。出力先`results/_sol_tmp/rebaseline_readonly_plan`が前後とも存在せず、計画確認がディレクトリを作らないことも確認した（4データの照合に先立つ確認ではない）。
+- Task 1の研究照合（既定の切替前、全条件10 client・2500標本）: 一時scriptは`results/_sol_tmp/rebaseline_compare.py`。製品は基準版12の既定の2値だけを置き換えて全体runを実行し、製品の保存関数でrawを作成。研究は`python -m tools.research_loss_monitor_rebaseline`の組合せ変種で保存した。以下の4条件で(a)研究の既存145配列をarray_equal（浮動小数はequal_nan=True）、(b)列挙した除外以外の全要約、(c)製品の監視合計−下がる向きの分、(d)client ID別の位置・前後の基準の列と総回数が許容差なしで一致した。
+
+  | データ | seed | 間隔 | 引下げ回数 | 上限適用前の候補の最大数 |
+  |---|---|---|---|---|
+  | SINE2 | 0 | 50 | 66 | 10 |
+  | CIRCLE2 | 0 | 50 | 113 | 10 |
+  | SEA4 | 1 | 50 | 23 | 10 |
+  | MNIST2 | 0 | 100 | 125 | 8 |
+
+  結果は`results/_sol_tmp/rebaseline/<dataset>_s<seed>/comparison.json`、rawと研究診断も同じ配下（Git管理外）。追加した製品の引下げの表は研究側では空になるため、既存145配列の比較から分け、(d)で研究の診断と直接比較した。今回の照合では実行前の`--print-plan`確認を実施していない（研究入口には同オプションが無い）。出力先は専用の未使用パスで、通常の重複拒否を変えず、既存結果の上書きはしていない。この手順上の不足は、結果の一致とは分けて記録する。
+- Task 2の実装と固定の確認: 既定をlower＋client数へ切替。候補検証ありはkeep＋3、ADWINの2構成はkeep＋client数を明示。製品の上限3は候補検証ありの構成でだけ宣言し、旧比較の入口と版1〜12は歴史上の値3を明示する。版1〜12はclientの「後に足された項目」の表へkeepを足し、参加者の「値が変わった項目」の表で3を組み立て、保存済み設定から除かずに比べる。研究CLIの非product系は版10、IMPROVE-031と上限撤廃だけの比較は版12へ戻してから介入する。研究入口は定数の差替えを外し、構成が呼ぶbuilderの結果を置き換える形にした。product-defaultは製品の既定を使う。
+- 研究の固定の実測（SINE2・seed 0・10 client・600標本・間隔100）: `before.json`と`after.json`で、研究CLIのdefaultとproduct-default-loss-monitor-decrease-rebaselineの秒数以外の全出力が一致。研究入口の組合せ変種も`entry_before/`と`entry_after/`の145配列・全非秒要約が一致した。案Aの小さい条件でも1回の引下げがあり、そのclient IDは8。研究専用の観察だけの照合は、製品の対照を版12の設定で作る形へ合わせる（製品の新既定との直接比較では意味が変わるため）。
+- Task 2の検証: 新specは22 passed。既定に依る6件とADWINの構成期待値1件の失敗を確認して修正し、既定・構成・掃引の実行可能部分は46 passed / 62 skipped / 77 deselected（2.07秒）。候補検証ありの差のtestの失敗1件を、追加された2値も直接検査する形へ修正し、再実行1 passed。skipは権限を要するtmp_pathと、それに依存する網羅testで、未実行として扱う。
+- 実装担当の範囲（基点`f992a3b5`）: task 1〜4のtest・source・文書を直接実装する。task 3はコードだけ。golden生成・設置、版の定数の切替、task 5、独立レビュー、再委譲、commit・push・stashは行わない。版13のgoldenが前提となるtask 4の記述は、コード準備とgolden未配置を区別して書く（今回の指示で文書も担当するため）。
+- Task 1のRED: 部品・設定のtestを先に足し、必須設定項目の未実装で18 failedを確認した。次に記録と計算回数のtestを足し、未実装で2 failed / 18 passedを確認した。境界値では下がる向きの検出器の合図が1標本で出て再開されるため、増分のtestは再開前の検出器を照合する形にした。
+- Task 1の処理: 今の監視の観測→下がる向きの観測→上がる合図が無いときだけ基準を下げる、の順序を研究案Aと合わせた。全体だけの経路とクラス別混合の両方を接続。返す観測は引下げ前の値に計算回数・引下げの項目を足し、引下げ時のlast_observationはreset後のNoneのまま。観測・計算回数store・run指標に下がる向きの分を持ち、既存合計へも算入する。事象は警報と別の表`loss_monitoring_baseline_lowering`へclient・位置・前後の基準を保存する。帰属・保留・適応・重みの処理は変更しない。研究診断はContextVarでprocess_observed_sampleのclient IDを各事象へ足す。
+- Task 1の途中の検証: 新規20件成功。既存の設定testの辞書の組立てとmetadata期待値の不足134件を確認して明示を足した。部品・設定・依存境界は4624 passed / 1 failed（追加したmath.isfiniteの許可登録漏れ、その後修正）。版1〜12の小さいケース群のgolden照合180 passed / 296 deselected（89.99秒）。既存goldenは変更していない。研究専用検証は56 passed / 6 deselected / 12 setup errors（一時ディレクトリのPermissionError。12件は未実行）。ログは`results/_sol_tmp/rebaseline_*.log`。
+- Task 2のRED: 既定と全FedSDA構成の2つの値のtestを先に足し、既定がkeepのため1 failedを確認した。既定の切替はtask 1の研究照合の完了後に行う。
 - 進め方（基準版12のspecと同じ。2026-10-23のユーザー指示を引き継ぐ）: 実装（task 1〜4のtest・source・文書。task 3のgoldenの生成・設置・定数の切替を除く）はGPT-6.1-sol（独立CLI、`codex exec`）が行い、
   主担当（Claude）は、仕様書群の作成、実装前の独立CLIによる仕様レビューの起動、実装の確認（差分と仕様書群の照合、対象testの実行）、goldenの生成、全pytest、実装レビューの起動を行う。
   実装レビューは、実装した担当とも主担当とも別の独立CLIで行う。

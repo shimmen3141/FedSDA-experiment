@@ -18,7 +18,9 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 for _thread_count_variable_name in (
     "OMP_NUM_THREADS",
@@ -30,10 +32,10 @@ for _thread_count_variable_name in (
 _REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPOSITORY_ROOT / "src"))
 
-from federated_learning_experiments.runtime import (  # noqa: E402
-    fedsda_final_configuration_run_settings,
+from federated_learning_experiments.sweep import (  # noqa: E402
+    experiment_configurations,
+    experiment_sweep_execution,
 )
-from federated_learning_experiments.sweep import experiment_sweep_execution  # noqa: E402
 from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import (  # noqa: E402
     ALL_EVALUATING_CLIENTS_LOSS_MONITOR_REBASELINE_VARIANTS,
     LOSS_MONITOR_REBASELINE_VARIANTS,
@@ -138,17 +140,38 @@ def _run_variant(arguments, variant):
     experiment_sweep_execution.execute_planned_experiment_run = _execute_run_with_variant
     # 上限の撤廃は、runの設定に入る（計画を作るのは親のprocessで、workerは計画の設定のまま実行する）。
     # 設定が変わるので、runの識別子も既定と別になる。
-    previous_maximum = fedsda_final_configuration_run_settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL
-    if variant in ALL_EVALUATING_CLIENTS_LOSS_MONITOR_REBASELINE_VARIANTS:
-        fedsda_final_configuration_run_settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL = (
-            arguments.client_count
+    original_builder = experiment_configurations.build_final_configuration_fedsda_run_settings
+
+    def build_research_base(**builder_arguments):
+        settings = original_builder(**builder_arguments)
+        if variant == "product-default":
+            return settings
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        return replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                maximum_evaluating_client_count_per_model=(
+                    arguments.client_count
+                    if variant in ALL_EVALUATING_CLIENTS_LOSS_MONITOR_REBASELINE_VARIANTS
+                    else 3
+                ),
+                run_client_settings=replace(
+                    client,
+                    loss_change_detection_settings=replace(
+                        client.loss_change_detection_settings,
+                        loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
+                    ),
+                ),
+            ),
         )
     try:
-        exit_code = run_sweep(sweep_arguments)
+        with patch.object(
+            experiment_configurations, "build_final_configuration_fedsda_run_settings", build_research_base
+        ):
+            exit_code = run_sweep(sweep_arguments)
     finally:
-        fedsda_final_configuration_run_settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL = (
-            previous_maximum
-        )
         experiment_sweep_execution.execute_planned_experiment_run = _execute_planned_experiment_run
         if previous_variant is None:
             del os.environ[_VARIANT_ENVIRONMENT_VARIABLE]

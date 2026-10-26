@@ -93,7 +93,7 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
 BASELINE_VERSION = 12
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
@@ -116,6 +116,10 @@ _PREDICTION_MODEL_PARAMETER_SOURCE_PATH = (
 _PREDICTION_MODEL_PARAMETER_SOURCE_DEFAULTS = {
     _PREDICTION_MODEL_PARAMETER_SOURCE_PATH: "current_local_parameters",
 }
+_LOSS_MONITORING_BASELINE_UPDATE_POLICY_PATH = (
+    "loss_change_detection_settings",
+    "loss_monitoring_baseline_update_policy",
+)
 # Fixed-Shareの時間尺度T。版1〜5は30（帰属の保留の容量と同じ値）。
 _FIXED_SHARE_TIME_SCALE_PATH = (
     "prediction_combination_settings",
@@ -236,6 +240,16 @@ for _baseline_version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
 # 版1〜5: Fixed-Shareの時間尺度Tは30（版6で、既定が120へ変わる）。
 # 版1〜6: 候補の採否の方針は、候補検証あり（版7で、既定が変わる）。候補検証を外した構成のケース
 # （`fedsda-without-candidate-validation`）は、構成が方針を明示するので、当てない。
+for _baseline_version in range(1, 13):
+    _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.setdefault(_baseline_version, {})[
+        _LOSS_MONITORING_BASELINE_UPDATE_POLICY_PATH
+    ] = "keep_baseline_until_alarm"
+
+# 既存の項目の値が版13で変わる。保存してある設定からは除かず、上限3を明示して照合する。
+_PARTICIPANT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION = {
+    version: {("maximum_evaluating_client_count_per_model",): 3} for version in range(1, 13)
+}
+
 _CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION = {
     1: {
         _FIXED_SHARE_TIME_SCALE_PATH: 30,
@@ -382,6 +396,8 @@ CASE_NAMES_BY_BASELINE_VERSION = {
 }
 # 版12は、対象の標本を返せるclientだけを評価させる。ケースは版11と同じ。
 CASE_NAMES_BY_BASELINE_VERSION[12] = CASE_NAMES_BY_BASELINE_VERSION[11]
+# 版13は、損失の低下による基準の引下げと、評価clientの上限の撤廃。ケースは版12と同じ。
+CASE_NAMES_BY_BASELINE_VERSION[13] = CASE_NAMES_BY_BASELINE_VERSION[12]
 # warm startの学習者の経路を守るケース（版11から）。
 WARM_STARTED_LEARNER_PATH_CASE_NAME = "fedsda-mnist4-warm-started-learner"
 
@@ -549,6 +565,14 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
                 ),
             )
         added_settings = _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(baseline_version, {})
+        if _LOSS_MONITORING_BASELINE_UPDATE_POLICY_PATH in added_settings:
+            client = replace(
+                client,
+                loss_change_detection_settings=replace(
+                    client.loss_change_detection_settings,
+                    loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
+                ),
+            )
         changed_settings = _CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION.get(
             baseline_version, {}
         )
@@ -654,6 +678,13 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
             )
         changes["run_client_settings"] = client
         # 参加者の設定の、版の後に足された項目を、その版の値に明示する。
+        for (
+            field_path,
+            version_value,
+        ) in _PARTICIPANT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION.get(
+            baseline_version, {}
+        ).items():
+            changes[field_path[-1]] = version_value
         for (
             added_field_path,
             version_value,
@@ -854,6 +885,14 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
     def column(name):
         return tables.get(name, np.asarray([], dtype=np.int64))
 
+    if baseline_version >= 13 and type(run.run_settings) not in (
+        FedavgRunSettings,
+        FeddriftRunSettings,
+    ):
+        coverage["loss_monitoring_baseline_lowering_count"] = int(
+            column("loss_monitoring_baseline_lowering.sample_index").size
+        )
+
     if baseline_version >= 12 and type(run.run_settings) not in (
         FedavgRunSettings,
         FeddriftRunSettings,
@@ -932,6 +971,14 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
 
 def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION):
     """イベントが空のケースを重要経路の基準に採用しない。"""
+    if baseline_version >= 13 and case_name.startswith("fedsda"):
+        if case_name in CANDIDATE_VALIDATION_PATH_CASE_NAMES:
+            assert coverage["loss_monitoring_baseline_lowering_count"] == 0, (case_name, coverage)
+        elif case_name in (
+            "fedsda-sine2-adoption-without-validation",
+            WARM_STARTED_LEARNER_PATH_CASE_NAME,
+        ):
+            assert coverage["loss_monitoring_baseline_lowering_count"] > 0, (case_name, coverage)
     if (
         baseline_version >= 12
         and case_name.startswith("fedsda")
@@ -1304,13 +1351,21 @@ def _assemble_case_capture(
     """実行の結果から、版ごとに、goldenと比べる形の結果を組み立てる（経路の記録と必須の経路の確認を含む）。"""
     coverage = _coverage(case_name, run, tables, baseline_version)
     assert_required_paths(case_name, coverage, baseline_version)
+    run_metrics = _plain(run.run_metrics)
+    if baseline_version <= 12 and "loss_monitoring_computation_counts" in run_metrics:
+        assert run_metrics.pop("loss_monitoring_baseline_lowering_count") == 0
+        counts = run_metrics["loss_monitoring_computation_counts"]
+        assert counts.pop("decrease_detector_component_update_count") == 0
+        assert counts.pop("decrease_detector_evaluated_candidate_bet_count") == 0
     return (
         dict(
             run_settings=comparable_run_settings(case_name, baseline_version),
-            run_metrics=_plain(run.run_metrics),
+            run_metrics=run_metrics,
             record_tables={
                 name: array_snapshot(value)
                 for name, value in tables.items()
+                if baseline_version >= 13
+                or not name.startswith("loss_monitoring_baseline_lowering.")
                 # 版9までの比べる形には、版10で足した選択の記録の表を含めない（今の扱いでは空の表）。版10までの
                 # 比べる形には、版11で足した列を含めない。
                 if (

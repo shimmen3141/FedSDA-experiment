@@ -1,6 +1,7 @@
 """IMPROVE-031の研究介入。監視の再設定だけを製品の外から行う。"""
 
 from contextlib import ExitStack, contextmanager
+from contextvars import ContextVar
 from unittest.mock import patch
 from weakref import WeakKeyDictionary
 
@@ -37,6 +38,17 @@ def loss_monitor_rebaseline_policy(*, variant, diagnostics):
     from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
         OverallAndTrueClassLossMonitor,
     )
+    from federated_learning_experiments.runtime import fedsda_run_client
+
+    active_client_id = ContextVar("loss_monitor_rebaseline_client_id", default=None)
+    process_original = fedsda_run_client.process_observed_sample
+
+    def process(**arguments):
+        token = active_client_id.set(arguments["client_id"])
+        try:
+            return process_original(**arguments)
+        finally:
+            active_client_id.reset(token)
 
     states = WeakKeyDictionary()
     monitor_type = OverallAndTrueClassLossMonitor
@@ -138,6 +150,7 @@ def loss_monitor_rebaseline_policy(*, variant, diagnostics):
             self.reset(baseline_loss_mean=current)
             # 全件を保存する。未到来の次の警報はNoneで、打切りと0標本を区別する。
             event = dict(
+                client_id=active_client_id.get(),
                 monitor_index=state["monitor_index"],
                 sample_index=arguments["sample_index"],
                 frozen_baseline_loss_mean=frozen,
@@ -154,6 +167,7 @@ def loss_monitor_rebaseline_policy(*, variant, diagnostics):
         return observation
 
     with ExitStack() as stack:
+        stack.enter_context(patch.object(fedsda_run_client, "process_observed_sample", process))
         stack.enter_context(patch.object(monitor_type, "__init__", initialize))
         stack.enter_context(patch.object(monitor_type, "reset", reset))
         stack.enter_context(

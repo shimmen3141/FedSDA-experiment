@@ -6,7 +6,7 @@
 
 import math
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import cast
 
 from .adwin_loss_window_detection import AdwinLossWindowDetector, AdwinLossWindowState
@@ -15,7 +15,10 @@ from .bounded_loss_e_sr_detection import (
     BoundedLossESRState,
     _validate_bounded_number,
 )
-from .loss_change_detection_settings import LossChangeDetectionSettings
+from .loss_change_detection_settings import (
+    LOWER_BASELINE_ON_LOSS_DECREASE_POLICY_NAME,
+    LossChangeDetectionSettings,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -32,6 +35,11 @@ class LossMonitoringObservation:
     evaluated_candidate_bet_count: int
     # ADWINの、全体の窓の標本数（更新と、検知による削除の後）。e-SRでは、None。
     overall_adwin_window_sample_count: int | None = None
+    decrease_detector_component_update_count: int = 0
+    decrease_detector_evaluated_candidate_bet_count: int = 0
+    baseline_lowered: bool = False
+    previous_baseline_loss_mean: float | None = None
+    lowered_baseline_loss_mean: float | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -47,6 +55,7 @@ class OverallAndTrueClassLossMonitoringState:
     # ADWINで監視する設定だけが持つ（e-SRでは、Noneと、空）。クラス別は、初出順。
     overall_adwin_state: AdwinLossWindowState | None = None
     class_adwin_states_by_class_id: tuple[tuple[int, AdwinLossWindowState], ...] = ()
+    decrease_esr_state: BoundedLossESRState | None = None
 
 
 class OverallAndTrueClassLossMonitor:
@@ -105,6 +114,60 @@ class OverallAndTrueClassLossMonitor:
         self._class_sample_indices_by_class_id: dict[int, deque[int]] = {}
         self._last_sample_index: int | None = None
         self._last_observation: LossMonitoringObservation | None = None
+        self._decrease_detector = self._make_decrease_detector()
+
+    def _make_decrease_detector(self) -> BoundedLossESRDetector | None:
+        if (
+            self._loss_change_detection_settings.loss_monitoring_baseline_update_policy
+            != LOWER_BASELINE_ON_LOSS_DECREASE_POLICY_NAME
+        ):
+            return None
+        return BoundedLossESRDetector(
+            baseline_loss_mean=1.0 - self._overall_detector._baseline_loss_mean,
+            false_alarm_control_alpha=float(
+                self._loss_change_detection_settings.e_sr_false_alarm_control_alpha
+            ),
+            maximum_retained_candidate_count=self._maximum_retained_candidate_count,
+            betting_fractions=self._betting_fractions,
+        )
+
+    def _observe_loss_decrease(
+        self, *, observed_loss: float, current_model_baseline_loss_mean: float
+    ) -> LossMonitoringObservation:
+        observation = cast(LossMonitoringObservation, self._last_observation)
+        if self._decrease_detector is None:
+            return observation
+        decrease_observation = self._decrease_detector.observe_loss(
+            observed_loss=1.0 - observed_loss
+        )
+        previous_baseline = None
+        lowered_baseline = None
+        if not observation.drift_detected and decrease_observation.drift_detected:
+            frozen_baseline = self._overall_detector._baseline_loss_mean
+            if current_model_baseline_loss_mean < frozen_baseline:
+                previous_baseline = frozen_baseline
+                self.reset(baseline_loss_mean=current_model_baseline_loss_mean)
+                lowered_baseline = self._overall_detector._baseline_loss_mean
+            else:
+                self._decrease_detector = self._make_decrease_detector()
+        result = replace(
+            observation,
+            component_update_count=observation.component_update_count + 1,
+            evaluated_candidate_bet_count=(
+                observation.evaluated_candidate_bet_count
+                + decrease_observation.evaluated_candidate_bet_count
+            ),
+            decrease_detector_component_update_count=1,
+            decrease_detector_evaluated_candidate_bet_count=(
+                decrease_observation.evaluated_candidate_bet_count
+            ),
+            baseline_lowered=lowered_baseline is not None,
+            previous_baseline_loss_mean=previous_baseline,
+            lowered_baseline_loss_mean=lowered_baseline,
+        )
+        if not result.baseline_lowered:
+            self._last_observation = result
+        return result
 
     @staticmethod
     def _make_adwin_detector(
@@ -247,7 +310,10 @@ class OverallAndTrueClassLossMonitor:
                 component_update_count=1,
                 evaluated_candidate_bet_count=overall_observation.evaluated_candidate_bet_count,
             )
-            return self._last_observation
+            return self._observe_loss_decrease(
+                observed_loss=observed_loss,
+                current_model_baseline_loss_mean=current_model_baseline_loss_mean,
+            )
         class_detector = self._class_detectors_by_class_id.get(observed_class_id)
         if class_detector is None:
             class_detector = BoundedLossESRDetector(
@@ -323,7 +389,10 @@ class OverallAndTrueClassLossMonitor:
                 observed_class_id
             ].last_observation.evaluated_candidate_bet_count,
         )
-        return self._last_observation
+        return self._observe_loss_decrease(
+            observed_loss=observed_loss,
+            current_model_baseline_loss_mean=current_model_baseline_loss_mean,
+        )
 
     def reset(self, *, baseline_loss_mean: float) -> None:
         """検証済みbaselineでoverallを再開し、class/global位置を破棄する。ADWINの窓も、空にする。"""
@@ -334,10 +403,16 @@ class OverallAndTrueClassLossMonitor:
         self._class_sample_indices_by_class_id.clear()
         self._last_sample_index = None
         self._last_observation = None
+        self._decrease_detector = self._make_decrease_detector()
 
     def get_state_snapshot(self) -> OverallAndTrueClassLossMonitoringState:
         """class初出順を保存し、配列/dequeを独立したimmutable値へコピーする。"""
         return OverallAndTrueClassLossMonitoringState(
+            decrease_esr_state=(
+                None
+                if self._decrease_detector is None
+                else self._decrease_detector.get_state_snapshot()
+            ),
             overall_esr_state=(
                 None if self._uses_adwin else self._overall_detector.get_state_snapshot()
             ),

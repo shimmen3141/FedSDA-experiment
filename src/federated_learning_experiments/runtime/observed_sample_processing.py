@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from random import Random
+from typing import cast
 
 from torch import Tensor, cat
 from torch.optim import Optimizer
@@ -534,6 +535,16 @@ def process_observed_sample(
     loss_change_alarm_record_store.append_monitored_log_e_value(
         log_e_value=loss_monitoring_observation.log_e_value
     )
+    if loss_monitoring_observation.baseline_lowered:
+        loss_change_alarm_record_store.append_baseline_lowering_record(
+            sample_index=loss_monitoring_observation.sample_index,
+            previous_baseline_loss_mean=cast(
+                float, loss_monitoring_observation.previous_baseline_loss_mean
+            ),
+            lowered_baseline_loss_mean=cast(
+                float, loss_monitoring_observation.lowered_baseline_loss_mean
+            ),
+        )
     # (3) 標本を保留へ足す（警報の判定の後、警報の処理の前）。
     pending_training_assignment_buffer.append_observed_sample_index(sample_index=sample_index)
     pending_sample_observation_store.append_pending_sample_observation(

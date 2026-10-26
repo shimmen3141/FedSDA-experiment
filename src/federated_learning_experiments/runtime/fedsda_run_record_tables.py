@@ -223,6 +223,21 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
                 for sample_index in getattr(alarm_snapshot, alarm_snapshot_field_name)
             ]
         )
+    record_tables["loss_monitoring_baseline_lowering.client_id"] = _integer_column(
+        [
+            client_id
+            for client_id, snapshot in enumerate(alarm_snapshots)
+            for _ in snapshot.baseline_lowering_sample_indices
+        ]
+    )
+    for column_name, field_name, make_column in (
+        ("sample_index", "baseline_lowering_sample_indices", _integer_column),
+        ("previous_baseline_loss_mean", "previous_baseline_loss_means", _float_column),
+        ("lowered_baseline_loss_mean", "lowered_baseline_loss_means", _float_column),
+    ):
+        record_tables[f"loss_monitoring_baseline_lowering.{column_name}"] = make_column(
+            [value for snapshot in alarm_snapshots for value in getattr(snapshot, field_name)]
+        )
     # ---- 警報の後の、最小記述長の原理による選択（今の扱いでは、空の表） ----
     selection_record_lists = [
         run_client.owners.alarm_interval_assignment_selection_record_store.snapshot_selection_records()

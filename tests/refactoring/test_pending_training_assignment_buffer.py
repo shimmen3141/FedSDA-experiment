@@ -340,6 +340,7 @@ def test_pending_assignment_copies_instances_and_random_states_are_independent()
 def test_pending_assignment_monitoring_span_connects_to_buffer_partition(capacity):
     """monitor public結果を入力し、FIFO前の候補を明示的に切り詰める。"""
     loss_change_detection_settings = LossChangeDetectionSettings(
+        loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
         short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         e_sr_false_alarm_control_alpha=0.01,
         adwin_confidence_delta=0.05,

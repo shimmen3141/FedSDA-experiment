@@ -280,6 +280,7 @@ def test_final_configuration_defaults_match_legacy_configuration(
             cross_evaluation_model_transfer_policy="reuse_distributed_models_for_cross_evaluation",
             # 2026-10-20から、統合で、同じ共有部を平均せずに保つ。
             cross_evaluation_client_selection_policy="clients_with_target_model_samples",
+            maximum_evaluating_client_count_per_model=legacy_equivalent_run_settings.execution_settings.experiment_run_conditions.client_count,
             consolidated_shared_feature_policy="keep_identical_shared_features",
             # 2026-10-22から、初期モデルの損失の統計を、事前学習の標本の5分割交差検証で推定する。
             initial_model_loss_statistics_estimation="five_fold_cross_validation",
@@ -292,6 +293,7 @@ def test_final_configuration_defaults_match_legacy_configuration(
                 ),
                 loss_change_detection_settings=replace(
                     legacy_equivalent_client_settings.loss_change_detection_settings,
+                    loss_monitoring_baseline_update_policy="lower_baseline_on_loss_decrease",
                     short_change_interval_alarm_policy=(
                         WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME
                     ),

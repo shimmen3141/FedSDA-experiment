@@ -7,11 +7,20 @@
 2026-10-23から、クロス評価では、対象のモデルを保有し、その標本を返せるclientだけを評価させる
 （`cross_evaluation_client_selection_policy=clients_with_target_model_samples`）。対象の評価標本が6件以上あればそれを使い、
 足りなければ対象が現在の学習帰属で、学習データが11件以上ある場合に使う。候補は渡されたclientの順に並べ、
-3 clientを超えたときだけ無作為に3つ選ぶ。候補がなければ依頼しない。標本を選ぶ規則は評価と共有する。
+2026-10-27から、上限を実験のclient数にし、候補の全部をその順に評価させる（上限のための乱数を消費しない）。
+候補がなければ依頼しない。標本を選ぶ規則は評価と共有する。
 `fedsda-with-candidate-validation`は、対象を保有するとみなすclientから選ぶ従来の扱いを明示する
 （[LEGACY-022](../research/implementation-findings/legacy-022-cross-evaluation-selects-clients-without-target-samples.md)、
 [spec](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/design.md)）。
-基準版12の既定（環境別goldenは生成元`fab7f040`）。
+候補検証ありの構成は評価clientの上限3も保つ。
+
+2026-10-27から、損失の低下を下がる向きのe-SRで検出し、上がる向きの合図がなく、保存平均が固定基準より小さいとき、
+監視器を保存平均で再設定する（`loss_monitoring_baseline_update_policy=lower_baseline_on_loss_decrease`）。
+返す観測は再設定前の値で、引下げは警報・適応として数えない。帰属・保留・予測の重みも変えない。
+候補検証ありとADWINの2構成は`keep_baseline_until_alarm`を明示する。
+これらは基準版13のコードとして実装済みだが、版13のgolden生成・配置と版の定数の切替は主担当が行うため未実施。
+現在の定数と配置済みgoldenは版12（生成元`fab7f040`）のまま。
+[対象spec](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)に検証と未完了範囲を記録する。
 
 ## 1. 解決する問題と各要素の役割
 

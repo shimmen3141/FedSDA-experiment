@@ -106,6 +106,7 @@ _LOSS_CHANGE_DETECTION_CHANGES_BY_CONFIGURATION_NAME: dict[str, tuple[dict[str, 
     CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME: (
         {
             "drift_detector_name": "adwin",
+            "loss_monitoring_baseline_update_policy": "keep_baseline_until_alarm",
             "short_change_interval_alarm_policy": RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         },
         "ADWIN",
@@ -113,6 +114,7 @@ _LOSS_CHANGE_DETECTION_CHANGES_BY_CONFIGURATION_NAME: dict[str, tuple[dict[str, 
     OVERALL_LOSS_ADWIN_DETECTION_CONFIGURATION_NAME: (
         {
             "drift_detector_name": "adwin",
+            "loss_monitoring_baseline_update_policy": "keep_baseline_until_alarm",
             "loss_monitoring_scope": "overall_loss",
             "short_change_interval_alarm_policy": RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         },
@@ -150,6 +152,8 @@ def _replace_candidate_acceptance_and_shared_feature_update(
     new_model_hypothesis_learners: str,
     initial_model_loss_statistics_estimation: str,
     cross_evaluation_client_selection_policy: str,
+    loss_monitoring_baseline_update_policy: str,
+    maximum_evaluating_client_count_per_model: int,
 ) -> FedsdaRunSettings:
     """完全なrun設定の、候補の採否の方針と、候補の学習での共有部の更新と、警報の後の選び方と、「新しいモデル」の
     仮説の学習者の組と、初期モデルの損失の統計の推定の仕方と、評価のclientの選び方を、一緒に置き換える。
@@ -166,8 +170,13 @@ def _replace_candidate_acceptance_and_shared_feature_update(
             run_participant_settings,
             initial_model_loss_statistics_estimation=initial_model_loss_statistics_estimation,
             cross_evaluation_client_selection_policy=cross_evaluation_client_selection_policy,
+            maximum_evaluating_client_count_per_model=maximum_evaluating_client_count_per_model,
             run_client_settings=replace(
                 run_client_settings,
+                loss_change_detection_settings=replace(
+                    run_client_settings.loss_change_detection_settings,
+                    loss_monitoring_baseline_update_policy=loss_monitoring_baseline_update_policy,
+                ),
                 candidate_model_training_and_acceptance_settings=replace(
                     run_client_settings.candidate_model_training_and_acceptance_settings,
                     candidate_model_acceptance_policy=candidate_model_acceptance_policy,
@@ -250,6 +259,12 @@ def build_experiment_run_settings(
             cross_evaluation_client_selection_policy=(
                 proposed_run_settings.run_participant_settings.cross_evaluation_client_selection_policy
             ),
+            loss_monitoring_baseline_update_policy=(
+                proposed_run_settings.run_participant_settings.run_client_settings.loss_change_detection_settings.loss_monitoring_baseline_update_policy
+            ),
+            maximum_evaluating_client_count_per_model=(
+                proposed_run_settings.run_participant_settings.maximum_evaluating_client_count_per_model
+            ),
         )
     if configuration_name == CANDIDATE_VALIDATION_CONFIGURATION_NAME:
         return _replace_candidate_acceptance_and_shared_feature_update(
@@ -265,6 +280,8 @@ def build_experiment_run_settings(
             initial_model_loss_statistics_estimation="resubstitution",
             # 候補検証との組合せは未検証なので、評価のclientの選び方も版11までの扱いを明示する。
             cross_evaluation_client_selection_policy="clients_holding_target_model",
+            loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
+            maximum_evaluating_client_count_per_model=3,
         )
     if configuration_name == LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME:
         # サーバが読む判定の基準と、統合の方式の宣言の、両方を替える。

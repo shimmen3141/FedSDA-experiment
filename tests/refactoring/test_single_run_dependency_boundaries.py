@@ -6350,9 +6350,11 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "math.inf",
             "math.isnan",
+            "math.isfinite",
         )
     if source_module_path == "runtime/observed_sample_processing.py":
         return imported_module_name in (
+            "typing.cast",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.validate_new_model_hypothesis_learners",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store.AlarmIntervalAssignmentSelectionRecordStore",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings.MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME",

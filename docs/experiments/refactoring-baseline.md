@@ -244,6 +244,15 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 
 基準版は、次のとおり。照合のtestは、全部の版を、毎回、確かめる。
 
+版13のコードは、損失の低下で監視の基準を下げる扱いと評価clientの上限をclient数にする扱いを足した。
+ケースは版12と同じ22。版1〜12はkeepと上限3を明示し、新しい設定項目は値を確かめてから除くが、
+上限は既存項目なので除かず保存値と照合する。版13からFedSDAのcoverageへ引下げ回数を足し、候補検証ありの4ケースは0、
+`fedsda-sine2-adoption-without-validation`と`fedsda-mnist4-warm-started-learner`は1以上を必須とする。
+版12→13の差のtestはgoldenを使わず、両版をその場で実行する。影響を受けない構成は、追加した0の指標・空の表と
+coverageの項目を確認して除き、既存の全指標・表・パラメータ・coverageの一致を確かめる。
+**版13のgolden生成・配置と定数の切替は未実施**。`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`は12を維持し、
+Windows/WSLの生成と全ケース照合は主担当が行う。[対象spec](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。
+
 基準版12は、クロス評価で対象の標本を返せるclientだけを評価させる扱い（[spec](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)）。
 ケースは版11と同じ22。クロス評価で対象を保有し標本を返せるclientだけを選び、候補検証ありの構成は従来の扱いを明示する。
 版1〜11の設定は、参加者の設定の補完表で従来の値に戻して照合する。

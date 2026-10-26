@@ -1,4 +1,4 @@
-"""検出方式・監視対象・誤警報制御値と、合図を警報とする時機の固定条件。"""
+"""検出方式・監視対象・誤警報制御値、警報の時機と監視の基準の扱いの固定条件。"""
 
 from dataclasses import dataclass, field
 
@@ -18,6 +18,14 @@ WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME = (
 SHORT_CHANGE_INTERVAL_ALARM_POLICIES = (
     RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
     WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME,
+)
+
+# 警報の応答まで基準を保つか、損失の低下を検出したときだけ保存平均へ下げるか。
+KEEP_BASELINE_UNTIL_ALARM_POLICY_NAME = "keep_baseline_until_alarm"
+LOWER_BASELINE_ON_LOSS_DECREASE_POLICY_NAME = "lower_baseline_on_loss_decrease"
+LOSS_MONITORING_BASELINE_UPDATE_POLICIES = (
+    KEEP_BASELINE_UNTIL_ALARM_POLICY_NAME,
+    LOWER_BASELINE_ON_LOSS_DECREASE_POLICY_NAME,
 )
 
 
@@ -77,9 +85,31 @@ class LossChangeDetectionSettings:
     short_change_interval_alarm_policy: str = field(
         metadata={"allowed_parameter_values": SHORT_CHANGE_INTERVAL_ALARM_POLICIES},
     )
+    loss_monitoring_baseline_update_policy: str = field(
+        metadata={"allowed_parameter_values": LOSS_MONITORING_BASELINE_UPDATE_POLICIES},
+    )
 
     def __post_init__(self) -> None:
         validate_settings_field_values(self)
+        if type(self.loss_monitoring_baseline_update_policy) is not str:
+            raise RunSettingsValidationError(
+                configuration_parameter_name="loss_monitoring_baseline_update_policy",
+                specified_parameter_value=self.loss_monitoring_baseline_update_policy,
+                validation_failure_reason="builtin strで指定してください。",
+            )
+        if (
+            self.drift_detector_name == "adwin"
+            and self.loss_monitoring_baseline_update_policy
+            == LOWER_BASELINE_ON_LOSS_DECREASE_POLICY_NAME
+        ):
+            raise RunSettingsValidationError(
+                configuration_parameter_name="loss_monitoring_baseline_update_policy",
+                specified_parameter_value=self.loss_monitoring_baseline_update_policy,
+                validation_failure_reason=(
+                    "drift_detector_name=adwinでは、"
+                    f"{KEEP_BASELINE_UNTIL_ALARM_POLICY_NAME}を指定してください。"
+                ),
+            )
         # ADWINは、検知したときに窓の古い側を削るので、再開せずに待っても、合図が続かない。
         if (
             self.drift_detector_name == "adwin"

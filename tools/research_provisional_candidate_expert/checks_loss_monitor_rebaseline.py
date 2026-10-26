@@ -26,9 +26,27 @@ _DECREASE = "product-default-loss-monitor-decrease-rebaseline"
 _OBSERVE_ONLY = _DECREASE + "-observe-only"
 
 
+def _build_baseline_12_settings(**arguments):
+    from federated_learning_experiments.runtime.fedsda_final_configuration_run_settings import (
+        build_final_configuration_fedsda_run_settings,
+    )
+
+    settings = build_final_configuration_fedsda_run_settings(**arguments)
+    participant = settings.run_participant_settings
+    client = participant.run_client_settings
+    return replace(settings, run_participant_settings=replace(
+        participant, maximum_evaluating_client_count_per_model=3,
+        run_client_settings=replace(client, loss_change_detection_settings=replace(
+            client.loss_change_detection_settings,
+            loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
+        )),
+    ))
+
+
 def monitor(baseline=0.6, *, detector="e_sr", scope="overall_loss"):
     return OverallAndTrueClassLossMonitor(
         loss_change_detection_settings=LossChangeDetectionSettings(
+           loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
             drift_detector_name=detector,
             loss_monitoring_scope=scope,
             e_sr_false_alarm_control_alpha=0.001,
@@ -371,15 +389,23 @@ _COMBINED = "product-default-all-evaluating-clients-loss-monitor-decrease-rebase
 @pytest.mark.parametrize("variant,expected", [(_COMBINED, 7), (_DECREASE, 3)])
 def test_run_sets_evaluating_client_limit_only_for_combined_variant(tmp_path, variant, expected):
     import federated_learning_experiments.sweep.experiment_sweep_command as command
-    from federated_learning_experiments.runtime import (
-        fedsda_final_configuration_run_settings as settings,
-    )
+    from federated_learning_experiments.sweep import experiment_configurations as configurations
+    from federated_learning_experiments.configuration.experiment_run_conditions import ExperimentRunConditions
     from tools import research_loss_monitor_rebaseline as entry
 
     seen = {}
+    conditions = ExperimentRunConditions(
+        dataset_name="sine2", random_seed=0, client_count=7,
+        per_client_sample_count=600, server_aggregation_interval_per_client_samples=100,
+    )
+    original_builder = configurations.build_final_configuration_fedsda_run_settings
 
     def product_main(arguments):
-        seen["limit"] = settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL
+        participant = configurations.build_final_configuration_fedsda_run_settings(
+            experiment_run_conditions=conditions
+        ).run_participant_settings
+        seen["limit"] = participant.maximum_evaluating_client_count_per_model
+        assert participant.run_client_settings.loss_change_detection_settings.loss_monitoring_baseline_update_policy == "keep_baseline_until_alarm"
         return 0
 
     arguments = run_arguments(tmp_path, variants=[variant])
@@ -387,7 +413,7 @@ def test_run_sets_evaluating_client_limit_only_for_combined_variant(tmp_path, va
     with patch.object(command, "main", product_main), patch.object(entry, "_provenance", lambda: {}):
         assert entry.main(arguments) == 0
     assert seen["limit"] == expected
-    assert settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL == 3
+    assert configurations.build_final_configuration_fedsda_run_settings is original_builder
 
 
 def test_research_cli_registers_combined_variant_on_product_default():
@@ -552,9 +578,11 @@ def test_artifact_comparison_ignores_code_commit_but_not_baseline_version(tmp_pa
 @pytest.mark.parametrize("dataset", ["sine2", "circle2", "mnist4"])
 def test_observe_only_product_sweep_matches_all_saved_items(tmp_path, dataset):
     from tools import research_loss_monitor_rebaseline as entry
+    from federated_learning_experiments.sweep import experiment_configurations as configurations
 
     arguments = run_arguments(tmp_path, variants=["product-default", _OBSERVE_ONLY], dataset=dataset)
-    assert entry.main(arguments) == 0
+    with patch.object(configurations, "build_final_configuration_fedsda_run_settings", _build_baseline_12_settings):
+        assert entry.main(arguments) == 0
     assert entry.compare_run_artifacts(tmp_path / "product-default", tmp_path / _OBSERVE_ONLY)["run_count"] == 1
     (record,) = (tmp_path / _OBSERVE_ONLY / entry._DIAGNOSTICS_DIRECTORY_NAME).glob("*.json")
     diagnostics = json.loads(record.read_text(encoding="utf-8"))["diagnostics"]
@@ -594,6 +622,7 @@ def test_combined_variant_product_sweep_records_limit_and_rebaselines(tmp_path):
 @pytest.mark.slow
 def test_observe_only_research_run_matches_product_including_parameter_digest():
     from tools.research_provisional_candidate_expert.run import _execute_job
+    from federated_learning_experiments.sweep import experiment_configurations as configurations
 
     job = dict(
         dataset="sine2",
@@ -603,7 +632,8 @@ def test_observe_only_research_run_matches_product_including_parameter_digest():
         check=False,
         record_prediction_period_metrics=True,
     )
-    expected = _execute_job({**job, "variant": "product-default"})
+    with patch.object(configurations, "build_final_configuration_fedsda_run_settings", _build_baseline_12_settings):
+        expected = _execute_job({**job, "variant": "product-default"})
     actual = _execute_job({**job, "variant": _OBSERVE_ONLY})
     assert actual.pop("loss_monitor_rebaseline")["rebaseline_count"] == 0
     for record in (actual, expected):

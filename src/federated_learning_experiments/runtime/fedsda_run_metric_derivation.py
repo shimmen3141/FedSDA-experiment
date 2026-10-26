@@ -93,6 +93,7 @@ class FedsdaRunMetrics:
     held_model_sample_count: int
     # 計算量のまとめ（モデルの計算の計数があるときだけ。なければNone）。
     computation_cost_summary: ComputationCostSummary | None
+    loss_monitoring_baseline_lowering_count: int = 0
 
 
 def _count_parameter_values_and_bytes(*, parameters: dict[str, Tensor]) -> tuple[int, int]:
@@ -234,6 +235,12 @@ def derive_fedsda_run_metrics(
         for run_client in run_clients
     )
     return FedsdaRunMetrics(
+        loss_monitoring_baseline_lowering_count=sum(
+            len(
+                client.owners.loss_change_alarm_record_store.get_state_snapshot().baseline_lowering_sample_indices
+            )
+            for client in run_clients
+        ),
         server_computation_counts=server_computation_counts,
         processed_sample_count=processed_sample_count,
         held_model_sample_count=held_model_sample_count,
@@ -306,6 +313,14 @@ def derive_fedsda_run_metrics(
             for run_client in run_clients
         ),
         loss_monitoring_computation_counts=LossMonitoringComputationCounts(
+            decrease_detector_component_update_count=sum(
+                counts.decrease_detector_component_update_count
+                for counts in loss_monitoring_computation_counts_by_client
+            ),
+            decrease_detector_evaluated_candidate_bet_count=sum(
+                counts.decrease_detector_evaluated_candidate_bet_count
+                for counts in loss_monitoring_computation_counts_by_client
+            ),
             detector_component_update_count=sum(
                 client_counts.detector_component_update_count
                 for client_counts in loss_monitoring_computation_counts_by_client

@@ -923,6 +923,65 @@ def test_baseline_11_really_contains_zero_sample_cross_evaluations():
     )
 
 
+def test_baseline_13_keeps_cases_and_changes_only_baseline_policy_and_client_limit():
+    assert 13 in golden.SUPPORTED_BASELINE_VERSIONS
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[13] == golden.CASE_NAMES_BY_BASELINE_VERSION[12]
+    for version in range(1, 14):
+        for case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[version]:
+            settings = golden.build_case_settings(case_name, version)
+            if not case_name.startswith("fedsda"):
+                continue
+            participant = settings.run_participant_settings
+            candidate_validation = case_name in golden.CANDIDATE_VALIDATION_PATH_CASE_NAMES
+            assert participant.maximum_evaluating_client_count_per_model == (
+                3
+                if version <= 12 or candidate_validation
+                else settings.execution_settings.experiment_run_conditions.client_count
+            ), (version, case_name)
+            policy = participant.run_client_settings.loss_change_detection_settings.loss_monitoring_baseline_update_policy
+            assert policy == (
+                "keep_baseline_until_alarm"
+                if version <= 12 or candidate_validation or "adwin" in case_name
+                else "lower_baseline_on_loss_decrease"
+            ), (version, case_name)
+    for case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[12]:
+        previous = golden._plain(golden.build_case_settings(case_name, 12))
+        current = golden._plain(golden.build_case_settings(case_name, 13))
+        if (
+            case_name.startswith("fedsda")
+            and case_name not in golden.CANDIDATE_VALIDATION_PATH_CASE_NAMES
+        ):
+            for mapping in (previous, current):
+                participant = mapping["run_participant_settings"]
+                participant.pop("maximum_evaluating_client_count_per_model")
+                participant["run_client_settings"]["loss_change_detection_settings"].pop(
+                    "loss_monitoring_baseline_update_policy"
+                )
+        assert current == previous, case_name
+
+
+@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[12])
+@pytest.mark.slow
+def test_baseline_13_runs_both_versions_without_goldens_and_keeps_unaffected_results(case_name):
+    previous = capture_case_once(case_name, 12)[0]
+    current = deepcopy(capture_case_once(case_name, 13)[0])
+    if (
+        not case_name.startswith("fedsda")
+        or case_name in golden.CANDIDATE_VALIDATION_PATH_CASE_NAMES
+    ):
+        current["coverage"].pop("loss_monitoring_baseline_lowering_count", None)
+        if case_name.startswith("fedsda"):
+            assert current["run_metrics"].pop("loss_monitoring_baseline_lowering_count") == 0
+            counts = current["run_metrics"]["loss_monitoring_computation_counts"]
+            assert counts.pop("decrease_detector_component_update_count") == 0
+            assert counts.pop("decrease_detector_evaluated_candidate_bet_count") == 0
+            for name in tuple(current["record_tables"]):
+                if name.startswith("loss_monitoring_baseline_lowering."):
+                    assert current["record_tables"].pop(name)["shape"] == [0]
+        for section in ("run_metrics", "record_tables", "global_parameters", "coverage"):
+            golden.assert_case_matches(case_name, current[section], previous[section], section)
+
+
 def test_named_difference_cases_exist_in_both_baseline_versions():
     for (previous_version, next_version), (
         _,

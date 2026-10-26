@@ -67,6 +67,7 @@ def valid_run_settings_mapping():
             residual_adapter_requested_rank=2,
         ),
         "loss_change_detection_settings": LossChangeDetectionSettings(
+            loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
             short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
@@ -670,6 +671,7 @@ def test_aggregation_interval_can_exceed_stream_length():
             (
                 LossChangeDetectionSettings,
                 dict(
+                    loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
                     drift_detector_name="e_sr",
                     loss_monitoring_scope="overall_and_true_class_losses",
                     e_sr_false_alarm_control_alpha=specified_parameter_value,
@@ -784,6 +786,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             "adwin_confidence_delta": float,
             "adwin_minimum_test_window_sample_count": int,
             "short_change_interval_alarm_policy": str,
+            "loss_monitoring_baseline_update_policy": str,
         }
         if settings_type is LossChangeDetectionSettings
         else {
@@ -875,6 +878,8 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 == "pending_sample_retention_after_too_short_change_interval_policy"
                 else ("raise_alarm_immediately", "wait_until_change_interval_reaches_minimum")
                 if settings_field.name == "short_change_interval_alarm_policy"
+                else ("keep_baseline_until_alarm", "lower_baseline_on_loss_decrease")
+                if settings_field.name == "loss_monitoring_baseline_update_policy"
                 else (
                     "current_local_parameters",
                     "parameters_at_last_synchronization",
@@ -981,6 +986,7 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
             (
                 LossChangeDetectionSettings,
                 dict(
+                    loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
                     drift_detector_name="e_sr",
                     loss_monitoring_scope="overall_and_true_class_losses",
                     e_sr_false_alarm_control_alpha=0.05,
@@ -1183,6 +1189,7 @@ def test_monitoring_alpha_rejects_nonfinite_and_out_of_range_values(specified_pa
     """誤警報制御値はboolを除く有限実数の開区間だけを受理する。"""
     with pytest.raises(RunSettingsValidationError) as validation_error:
         LossChangeDetectionSettings(
+            loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
             short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",

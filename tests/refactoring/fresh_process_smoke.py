@@ -440,6 +440,7 @@ def run_smoke_scenario(*, class_count, smoke_scenario):
     )
     loss_change_monitor = OverallAndTrueClassLossMonitor(
         loss_change_detection_settings=LossChangeDetectionSettings(
+            loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
             short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",
@@ -1117,6 +1118,7 @@ def run_assembled_client_flow(*, class_count):
     pending_capacity = 6
     run_client_settings = FedsdaRunClientSettings(
         loss_change_detection_settings=LossChangeDetectionSettings(
+            loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
             short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
             drift_detector_name="e_sr",
             loss_monitoring_scope="overall_and_true_class_losses",

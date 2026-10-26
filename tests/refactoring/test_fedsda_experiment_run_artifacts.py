@@ -103,6 +103,12 @@ EXPECTED_TABLE_COLUMNS = {
         estimated_change_point_sample_index="i",
         detector_candidate_start_sample_index="i",
     ),
+    "loss_monitoring_baseline_lowering": dict(
+        client_id="i",
+        sample_index="i",
+        previous_baseline_loss_mean="f",
+        lowered_baseline_loss_mean="f",
+    ),
     # 最小記述長の原理による選択（今の扱いでは、空の表）。
     "alarm_interval_assignment_selection": dict(
         client_id="i",

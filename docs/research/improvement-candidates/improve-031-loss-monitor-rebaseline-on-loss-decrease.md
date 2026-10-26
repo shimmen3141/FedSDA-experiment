@@ -1,6 +1,8 @@
 # IMPROVE-031: 損失の監視の基準を、損失の低下の検出で再設定する
 
-- 状態: 設計（2026-10-26）。案Aから研究用の変種を試作する。採否の基準は、実験の前にこの文書で固定する（下の「採否の基準」）。
+- 状態: 2026-10-27、ユーザー判断で案A＋評価clientの上限撤廃を既定へ実装。候補共有部の固定は維持する。
+  版13のコードと差のtestは準備済み、golden生成・設置、定数の切替、全pytest、独立実装レビューは主担当の作業待ち。
+  [実装の正本](../../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。以下は実験前に固定した採否の基準と研究の経緯。
 - 対象の問題: [LEGACY-023](../implementation-findings/legacy-023-loss-monitor-baseline-frozen-at-alarm-reset.md)。
   全体の検出器の基準は警報の応答の`reset`でだけ設定され、新しいモデルの採用で若いモデルの高い基準が固定されると、
   モデルの損失の水準が下がった後の概念の変化を見逃す。見逃しは学習標本の混入を生み、違う概念の統合（LEGACY-021）の前提になる。

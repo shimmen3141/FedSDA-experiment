@@ -130,7 +130,6 @@ _NEW_MODEL_UPLOAD_DELAY_ROUND_COUNT = 1
 _MAXIMUM_STORED_EVALUATION_SAMPLE_COUNT_PER_MODEL = 50
 _ADDED_EVALUATION_BATCH_SAMPLE_COUNT = 20
 _MAXIMUM_CROSS_EVALUATION_SAMPLE_COUNT = 50
-_MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL = 3
 _MINIMUM_PAIR_EVALUATION_SAMPLE_COUNT = 5
 _CLUSTERING_CONFIDENCE_LEVEL = 0.95
 
@@ -169,6 +168,7 @@ def build_final_configuration_fedsda_run_settings(
     )
     run_client_settings = FedsdaRunClientSettings(
         loss_change_detection_settings=LossChangeDetectionSettings(
+            loss_monitoring_baseline_update_policy="lower_baseline_on_loss_decrease",
             short_change_interval_alarm_policy=WAIT_UNTIL_CHANGE_INTERVAL_REACHES_MINIMUM_POLICY_NAME,
             drift_detector_name="e_sr",
             # ADWINの値は、提案構成（e-SR）では使わない。ADWINで監視する構成が、この値を使う（旧の既定と同じ）。
@@ -293,7 +293,7 @@ def build_final_configuration_fedsda_run_settings(
                 clustering_confidence_level=_CLUSTERING_CONFIDENCE_LEVEL,
                 model_pair_comparison_strategy="classwise_unique_correctness_lower_confidence_bound",
             ),
-            maximum_evaluating_client_count_per_model=_MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL,
+            maximum_evaluating_client_count_per_model=experiment_run_conditions.client_count,
             # 2026-10-20から、クロス評価の前に全モデルを配布し、clientは受け取ったモデルを候補として評価する
             # （クロス評価のためだけにモデルを送らない。状態は旧の扱いと同じで、通信量だけが違う）。
             cross_evaluation_model_transfer_policy="reuse_distributed_models_for_cross_evaluation",

@@ -80,9 +80,9 @@ def test_fedsda_configurations_have_the_expected_candidate_values_and_run(config
     execute_fedsda_experiment_run(run_settings=run_settings)
 
 
-def test_with_candidate_validation_differs_from_the_default_only_in_the_five_values():
+def test_with_candidate_validation_differs_from_the_default_only_in_the_explicit_values():
     """既定と比べて、候補の採否の方針と共有部と、警報の後の選び方と、「新しいモデル」の仮説の学習者の組と、
-    初期モデルの損失の統計の推定の仕方と、評価のclientの選び方の6つだけが違う（保存の形で比べる）。"""
+    初期モデルの損失の統計の推定の仕方と、評価clientの選び方・上限と、監視の基準の扱いが違う（保存の形で比べる）。"""
     default_mapping = convert_settings_to_plain_mapping(
         build_experiment_run_settings(
             configuration_name="fedsda", experiment_run_conditions=_CONDITIONS
@@ -106,6 +106,16 @@ def test_with_candidate_validation_differs_from_the_default_only_in_the_five_val
         del client["training_data_assignment_settings"]["alarm_interval_assignment_policy"]
         del client["training_data_assignment_settings"]["new_model_hypothesis_learners"]
         del mapping["run_participant_settings"]["initial_model_loss_statistics_estimation"]
+        assert client["loss_change_detection_settings"].pop(
+            "loss_monitoring_baseline_update_policy"
+        ) == (
+            "keep_baseline_until_alarm"
+            if mapping is with_validation_mapping
+            else "lower_baseline_on_loss_decrease"
+        )
+        assert mapping["run_participant_settings"].pop(
+            "maximum_evaluating_client_count_per_model"
+        ) == (3 if mapping is with_validation_mapping else _CONDITIONS.client_count)
         assert mapping["run_participant_settings"].pop(
             "cross_evaluation_client_selection_policy"
         ) == (
