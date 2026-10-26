@@ -271,4 +271,4 @@
   掃引の入口では、製品の掃引のコマンドを呼ぶ間、親のprocessで`fedsda_final_configuration_run_settings._MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL`をclientの数にする
   （上限はrunの設定に入り、workerは計画の設定のまま実行する。設定が変わるので、runの識別子は既定と別）。研究用CLIでは、既存の上限の撤廃の変種と同じく設定を差し替える。
 - 専用の検証: 上限が組み合わせた変種のときだけ差し替わり、元へ戻ること、研究用CLIの登録、製品の掃引を2 workerで流してrunの要約の上限が10で再設定も起きること（遅い検証）。全54件成功。
-
+- 組み合わせた変種のレビュー: gpt-6-luna（medium、読取り専用、session 01a178e2-224f-7ff2-8941-b20a8066a360）でPASS、指摘なし。
