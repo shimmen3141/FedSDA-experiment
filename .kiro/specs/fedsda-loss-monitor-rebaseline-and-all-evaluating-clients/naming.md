@@ -5,12 +5,18 @@
 | 公開名 | 場所 | 役割 |
 |---|---|---|
 | `KEEP_BASELINE_UNTIL_ALARM_POLICY_NAME`、`LOWER_BASELINE_ON_LOSS_DECREASE_POLICY_NAME`、`LOSS_MONITORING_BASELINE_UPDATE_POLICIES` | `methods/fedsda/loss_change_detection/loss_change_detection_settings.py`の定数 | 損失の監視の基準の扱いの2つの値（「基準を警報まで保つ扱い」——今の扱い——と「損失の低下で基準を下げる扱い」）の名前と、その組 |
+| `LossChangeAlarmRecordStore.append_baseline_lowering_record` | `evaluation/loss_change_alarm_record_store.py`のメソッド | 損失の監視の基準を下げた事象（標本の位置、下げる前と後の固定された基準）を1件足す。警報の記録（`append_alarm_record`）とは別の表 |
+| 記録の表`loss_monitoring_baseline_lowering` | 保存するrawの表の名前 | 基準を下げた事象の列（client・標本の位置・下げる前と後の基準）。警報の表（`loss_change_alarm`）とは別 |
 | 基準版13 | goldenの版 | 損失の低下で監視の基準を下げる扱いと、クロス評価の評価clientの上限をclientの数にする扱い（新しい既定）の値 |
 
-設定の項目`loss_monitoring_baseline_update_policy`、観測の項目`baseline_lowered`、状態の写しの新しい項目、runの指標と経路の記録の項目`loss_monitoring_baseline_lowering_count`、
-監視器の非公開の下がる向きの検出器と、関数の引数は、設計に書く。
+設定の項目`loss_monitoring_baseline_update_policy`、観測の項目（`baseline_lowered`、`previous_baseline_loss_mean`、`lowered_baseline_loss_mean`、
+`decrease_detector_component_update_count`、`decrease_detector_evaluated_candidate_bet_count`）、計算回数の記録の項目、状態の写しの新しい項目、
+runの指標と経路の記録の項目`loss_monitoring_baseline_lowering_count`、監視器の非公開の下がる向きの検出器と、関数の引数は、fieldか非公開の名前なので命名の表には入れず、設計に書く。
 
 似た名前との違い:
+- `append_alarm_record`（既存）: 警報の事象（変化の推定・合図）。`append_baseline_lowering_record`（新）: 警報ではない基準の引下げ。警報の数の指標には入らない。
+- runの指標の`loss_monitoring_baseline_lowering_count`（新）: 基準を下げた事象の数。今の警報の数の指標とは別に数える。
+- 監視の計算回数の`decrease_detector_*`（新）: 合計（既存の2項目）のうちの、下がる向きの検出器の分。
 - `SHORT_CHANGE_INTERVAL_ALARM_POLICIES`（既存）: 検出器の合図があり推定の変化区間が短いときに、警報とするかどうか（警報の時機）。新しい組は、警報の間に監視の基準を変えるかどうか。
 - `LOWER_BASELINE_ON_LOSS_DECREASE_POLICY_NAME`の「lower」は、基準を下げる向きにだけ変えることを指す（上げない）。研究ツールの変種名の「decrease-rebaseline」と同じ扱い。
 - 研究ツールの`LOSS_MONITOR_REBASELINE_VARIANTS`・`loss_monitor_rebaseline_policy`（既存、`tools/`）: 製品の外から監視器を包む研究用の実装。製品の新しい扱いは、監視器の中の正式な実装で、研究ツールの変種は基準版12の上の意味を保つ。
@@ -21,5 +27,8 @@
 |---|---|---|
 | `LossChangeDetectionSettings` | 検出方式・監視対象・誤警報の制御・警報の時機 | 加えて、監視の基準の扱い（ADWINでは今の扱いだけ） |
 | `OverallAndTrueClassLossMonitor` | 基準は警報の応答の`reset`でだけ変わる | 設定により、損失の低下を検出したとき、基準を今のモデルの保存平均へ下げる |
+| `OverallAndTrueClassLossMonitor.observe_loss_after_label_observation` | 今の監視の観測を返す | 加えて、下がる向きの検出器を観測させ、条件を満たせば基準を下げる。返す観測は引下げの前の値に、計算回数と引下げの項目を足したもの |
+| `OverallAndTrueClassLossMonitor.reset`、`get_state_snapshot` | 全体とクラス別の検出器 | 加えて、下がる向きの検出器を作り直す・写しに含める |
+| `LossMonitoringObservation`、`LossMonitoringComputationCounts`、`LossMonitoringComputationCountStore.record_loss_monitoring_computation` | 合計の計算回数 | 加えて、下がる向きの検出器の分と、引下げの項目（観測） |
 | `build_final_configuration_fedsda_run_settings` | 評価clientの上限は3 | 評価clientの上限はclientの数、監視の基準は損失の低下で下げる |
 | `BASELINE_VERSION`、`BEHAVIOR_BASELINE_VERSION` | 12 | 13 |

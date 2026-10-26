@@ -42,15 +42,23 @@
   3. 偽で、下がる向きの検出器の合図が真で、`current_model_baseline_loss_mean` < 全体の検出器の基準なら、`self.reset(baseline_loss_mean=current_model_baseline_loss_mean)`を呼ぶ
      （全体の検出器・クラス別の検出器・標本位置・`_last_observation`を消し、下がる向きの検出器も作り直す。警報の応答の`reset`と同じ）。基準を下げた回数を1足す。
   4. 偽で、合図が真で、保存平均が基準以上なら、下がる向きの検出器だけを、今の全体の検出器の基準で作り直す。
-  5. 返す観測は、手順の前に作った観測（引下げの前の値）。ただし、監視の計算回数（`component_update_count`、`evaluated_candidate_bet_count`）は、下がる向きの検出器の更新1回と、
-     その観測の`evaluated_candidate_bet_count`を足した値にする（Requirement 1.4）。引下げが起きた標本かどうか（`baseline_lowered`、真偽）を観測に足す。
-- 引下げは警報ではない: 帰属・保留・適応の記録・予測の重みには触れない（監視器の外の処理は変えない）。
+  5. 返す観測は、手順の前に作った観測（引下げの前の値）に、次の項目を足したもの（`dataclasses.replace`で作る）:
+     監視の計算回数の合計（`component_update_count`、`evaluated_candidate_bet_count`）に、下がる向きの検出器の更新1回と、その観測の`evaluated_candidate_bet_count`を足す。
+     下がる向きの検出器の分だけを、新しい項目`decrease_detector_component_update_count`・`decrease_detector_evaluated_candidate_bet_count`に置く（「基準を警報まで保つ扱い」では0）。
+     引下げが起きたか（`baseline_lowered`）と、起きたときの下げる前・後の固定された基準（`previous_baseline_loss_mean`・`lowered_baseline_loss_mean`、起きなければ`None`）を置く。
+     監視器の`_last_observation`は、引下げが起きなければ、この返す観測にする。引下げが起きれば、`reset`で`None`になったまま（警報の応答の後と同じ）。
+- 同じ標本の後続処理（`runtime/observed_sample_processing.py`）: 返す観測で、log Eを記録し（`append_monitored_log_e_value`）、警報を判定する（e-SRでは`drift_detected`。引下げの標本では偽）。
+  `fedsda_run_client.py`は、返す観測の監視の計算回数を記録の場所へ渡す（合計と、下がる向きの検出器の分）。基準を下げた事象は、`observed_sample_processing.py`が、返す観測の`baseline_lowered`が真のとき、
+  警報の記録と同じ記録の場所（`LossChangeAlarmRecordStore`）へ足す（新しいメソッド`append_baseline_lowering_record`、記録の表`loss_monitoring_baseline_lowering`、列はclient・標本の位置・下げる前と後の基準）。
+  次の標本の始めの位置の連続性の検査（`loss_change_monitor.last_observation`が`None`なら検査しない）は、警報の応答の後と同じに働く。
+- 引下げは警報ではない: 帰属・保留・適応の記録・予測の重みには触れない（監視器の外の処理は、上の記録のほかは変えない）。
 - 状態の写し（`get_state_snapshot`）: 下がる向きの検出器の状態を、写しの新しい項目として足す（「基準を警報まで保つ扱い」では`None`）。実行中に写しから復元する経路は無い（研究ツールの実装で確認済み）。
 - ADWINの経路: 設定の検査で「損失の低下で基準を下げる扱い」を拒否するので、下がる向きの検出器は作られない。
 
-### 基準を下げた回数の記録（Requirement 1.5、5.3）
-- clientは、観測の`baseline_lowered`を数え、runの指標に、全clientの合計を`loss_monitoring_baseline_lowering_count`として足す（置き場所は、今の警報の数などの検出の指標と同じ集計の場所。
-  記録の表は足さない）。経路の記録（goldenの`coverage`）に、版13から同じ名前で足す（FedSDAのケースだけ）。
+### 基準を下げた事象と、監視の計算回数の記録（Requirement 1.4、1.5、5.3）
+- 記録の表`loss_monitoring_baseline_lowering`（上記）。runの指標に、全clientの事象の数の合計を`loss_monitoring_baseline_lowering_count`として足す（置き場所は、今の警報の数などの検出の指標と同じ集計の場所）。
+- 監視の計算回数（`LossMonitoringComputationCountStore`、`LossMonitoringComputationCounts`と、それを集めるrunの指標）に、下がる向きの検出器の分の2項目を足す（合計の2項目は今の名前のまま、下がる向きの検出器の分を含む）。
+- 経路の記録（goldenの`coverage`）に、版13から`loss_monitoring_baseline_lowering_count`を足す（FedSDAのケースだけ）。
 
 ### 評価clientの上限（Requirement 2.1）
 - 最終構成の既定（`fedsda_final_configuration_run_settings.py`）の`maximum_evaluating_client_count_per_model`を、`experiment_run_conditions.client_count`にする。定数`_MAXIMUM_EVALUATING_CLIENT_COUNT_PER_MODEL`は、
@@ -65,9 +73,12 @@
   ほかに`LossChangeDetectionSettings`を組み立てる箇所）は、`keep_baseline_until_alarm`を明示する。上限は、その組が今使っている値を明示する（既定のbuilderから取っていた組は3）。
 
 ### 基準版（Requirement 4.2、5.1〜5.3）
-- 版1〜12: clientの設定の「後に足された項目」の表へ、`("loss_change_detection_settings", "loss_monitoring_baseline_update_policy")`＝`keep_baseline_until_alarm`を、版1〜12とも足す。
+- 版1〜12: clientの設定の「後に足された項目」の表（`_CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION`）へ、`("loss_change_detection_settings", "loss_monitoring_baseline_update_policy")`＝`keep_baseline_until_alarm`を、
+  版1〜12とも足す（保存してある設定はこの項目を持たないので、組み立てた値がこの値であることを確かめてから除いて比べる。版12の`cross_evaluation_client_selection_policy`と同じ経路）。
   参加者の設定の上限は、既存の項目で値が変わるので、「版の後に値が変わった項目」の扱い（clientの設定の`_CLIENT_SETTING_VALUES_CHANGED_AFTER_BASELINE_VERSION`と同じ形）を参加者の設定にも用意し、
-  版1〜12で上限3を明示する（保存してある設定は上限の項目を持つので、比べる前に除かない）。照合は、既存の版ごとの照合のtestを全部の版で通す。
+  版1〜12の全FedSDAケースで上限3を明示する（候補検証ありの構成のケースは構成が3を明示するので、どちらでも3）。保存してある設定は上限の項目を持つので、比べる前に除かない。
+  したがって、版1〜12の上限3は、既存の照合（保存してある`run_settings`と組み立てた設定の比較）で確かめられる。加えて、新しいtestで、版1〜12の全FedSDAケースの組み立てた上限が3、
+  版13の新しい既定を引き継ぐFedSDAケースの上限がそのケースのclientの数、候補検証ありの4ケースが3であることを、直接確かめる。照合は、既存の版ごとの照合のtestを全部の版で通す。
 - 経路の記録に、版13から`loss_monitoring_baseline_lowering_count`を足す（FedSDAのケースだけ）。
 - 版13を足す（ケースは版12と同じ22）。必須の経路: 候補検証ありの構成で実行する4ケース（`CANDIDATE_VALIDATION_PATH_CASE_NAMES`）で`loss_monitoring_baseline_lowering_count`が0。
   新しい既定を引き継ぐFedSDAのケースのうち、`fedsda-sine2-adoption-without-validation`と`fedsda-mnist4-warm-started-learner`で1以上（goldenの生成の前に主担当が値を確かめ、0なら
@@ -79,9 +90,9 @@
 - 既定を変える前に（task 1の後）、製品の全体run（基準版12の既定の設定に、`loss_monitoring_baseline_update_policy="lower_baseline_on_loss_decrease"`と上限＝clientの数だけを置き換えた設定。
   一時scriptで`execute_fedsda_experiment_run`と保存を呼ぶ）と、研究用の入口の`product-default-all-evaluating-clients-loss-monitor-decrease-rebaseline`（製品の掃引のraw）を、
   MNIST2と、SINE2・CIRCLE2・SEA4（各1 seed、10 client、1500〜2500標本、間隔50または100。基準の引下げが1回以上、評価clientの候補が3を超える同期を含む条件）で比べる。
-- 一致を求める項目: 精度、通信量（`communication_volume`の全項目）、予測の記録の要約、最終のパラメータの要約、`model_computation_counts`・`preparation_model_computation_counts`、
-  記録の表の全配列（`numpy.array_equal`。監視の計算回数に当たる列があれば、それを除く）、基準を下げた回数（製品の指標と、研究の診断の`rebaseline_count`）。
-- 監視の計算回数: 製品の値から、下がる向きの検出器の分（各標本の更新1回と、その観測の候補×賭け率の数）を引くと、研究の値に一致することを確かめる。
+- 一致の定義はRequirement 5.4の(a)〜(d)。許容差は置かない。研究のrawと製品のrawは、どちらも製品の保存の関数で書く（研究用の入口は製品の掃引を通すので同じ形）。
+  比べる一時scriptは、研究用の入口の`compare`（`tools/research_loss_monitor_rebaseline.py`の`compare_run_artifacts`）の比べ方を基に、(b)の除外と(c)(d)を足す。
+- 研究の診断の`monitor_index`とclientの対応: 研究の診断の`monitor_count`がclientの数と同じで、製品の記録の表のclientごとの事象の数が、`monitor_index`ごとの事象の数と、client 0から順に一致することを確かめてから、列を比べる。
 - 結果はtasks.mdのImplementation Notesへ記録する（Git管理外の一時script）。
 
 ### 研究ツールの基点（Requirement 6）
