@@ -107,8 +107,13 @@
   環境変数は親のものを引き継ぎ、`OMP_NUM_THREADS`・`MKL_NUM_THREADS`・`OPENBLAS_NUM_THREADS`は未設定なら1にする。
 - `run-one`: `--`の後を製品の掃引のコマンド（`experiment_sweep_command.main`）へそのまま渡す。`--workers 1`・単一のdataset・seed・間隔・`--configurations fedsda`・`--output-directory`の指定を検査し、
   満たさなければ終了コード2。変種を有効にして実行し、製品のコマンドの終了コードが0のときだけ、`loss_monitor_rebaseline_diagnostics.json`を出力先へ書く（変種名、引数、診断、commit）。終了コードはそのまま返す。
-- 完了済みのrun: `<runの出力先>/loss_monitor_rebaseline_diagnostics.json`があり、その中の変種名が今回の`--variant`と同じなら、子processを起動せず飛ばす。
-  変種名が違えば、終了コード2で全体を止める（同じ出力先に別の変種を混ぜない）。それ以外（未実行・途中）は起動する（途中のrunは製品のコマンドの再開に任せる）。
+- 完了の判定は、製品の掃引のコマンドに任せる（3回目の仕様レビューの反映）。`launch`はrunを飛ばさず、全runの子processを起動する。
+  製品のコマンドは、出力先に済んだrun（要約・表があり、基準版とrun設定が計画と一致）があれば飛ばし、途中のrunは再開する。
+- 同じ出力先に別の変種を混ぜない: `launch`は起動の前に、`<runの出力先>/loss_monitor_rebaseline_diagnostics.json`があり、その変種名が今回の`--variant`と違えば、終了コード2で全体を止める。
+- `run-one`の診断の書き方: 実行の前に出力先の`sweep_record_*.json`の一覧を取り、実行の後に新しくできた1つを読む。その`run_outcomes`の当該runの`run_status`が
+  - `completed`なら、診断を書く（上書き）。
+  - `skipped_existing`なら、同じ変種名の診断のJSONが既にあることを確かめ、なければ終了コード2（済んだrunの診断を作り直せないため）。診断は書き換えない。
+  - それ以外（失敗など）なら、診断を書かず、製品のコマンドの終了コード（0以外）を返す。新しい記録が1つに定まらないときも終了コード2。
 - `launch`は、開始時に`<output-root>/launch.json`（引数、変種、commit、未commitの変更の有無、開始時刻）を書き、終了時に各runの状態（完了・飛ばした・失敗と終了コード）を足す。
   失敗したrunが1つでもあれば終了コード1、全部が完了か飛ばしなら0。1つの失敗で他のrunを止めない。
 
