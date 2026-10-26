@@ -169,3 +169,6 @@
 基準版12のMNIST4の80 runで精度の損が続いた唯一の崩れ（間隔500・seed 7）は、評価clientの上限3のため、概念1にいるclientが統合の判定の評価から外れて起きた。
 詳細は[LEGACY-021の追記](implementation-findings/legacy-021-classwise-clustering-merges-with-little-evidence.md)。
 また、S3のBの本規模でのMNIST4の差（間隔100は−0.127pp、間隔500は+0.146pp）は、主にseed 7の概念1の扱いの切り替わりによる（間隔500は既定で取り込まれBで回復、間隔100は逆。B再現runの概念別精度）。Bの系統的な効果の根拠にはならない。
+
+上の追記の後、uraniumで統合のroundだけ上限を外す対照を行い、5対のうち4対の違う概念の統合が起きなかった（seed 12は+1.30pp）。
+全roundで外しても、別の軌跡で同じ対が統合される例があった（seed 7）。上限の撤廃は崩れの一部を防ぐが、全部ではない。詳細は同じLEGACY-021の追記。
