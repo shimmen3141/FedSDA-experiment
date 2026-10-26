@@ -184,3 +184,9 @@
 
 - 入口の引数の変更（2026-10-27、commit 6810a4c6・0faf8d10）の変更部分のレビュー: gpt-6-luna（medium、読取り専用、session 01a1783a-766a-75d0-bb06-527dd2c5c94b）でPASS。
   Minor: 引数を改める前の形の`launch.json`が残る出力先へ追記すると`KeyError` → 前の形の記録を履歴の最初の1件として残すよう直した（0faf8d10）。専用の検証は54件成功。
+
+## uraniumでの照合（2026-10-27）
+
+`results/loss-monitor-rebaseline/20261027_uranium-observe-only-check`（commit 19aa3308、観察だけの変種、MNIST4・間隔500・seed 7）を、
+保存済みの基準版12（`results/method-comparison-v12`）と`compare`で照合し、raw 141配列と要約が一致した（照合は手元で実行。uraniumの貼り付けでモジュール名が崩れ、照合のコマンドが実行されなかったため）。
+本規模へ進む。
