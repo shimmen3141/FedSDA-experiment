@@ -87,3 +87,27 @@ task 4（文書）はtask 3の版の定数とgoldenの後。task 5は全部の�
   - Minor 2（要求1.3の「後続処理は返す観測を使う」の範囲が広い）: 返す観測を使うのはlog Eの記録・警報の判定・計算回数の記録だけで、保留・帰属・位置の管理は今と同じ入力で行うこと、
     次の標本の検査のうち監視器の連続性の検査だけが警報の応答の後と同じで、保留の位置の検査は今と同じであることを、要求1.3と設計に書き分けた。
 - 仕様レビュー3回目（GPT-6 Luna、effort medium——ログで確認——、session `01a17938-2fe1-78b2-84c7-48eaf5118a8f`、対象`38ffcc03`）: PASS。2回目のMajor 1件・Minor 1件の解消を確認、残る指摘なし。ready_for_implementation=true。
+- Task 3（主担当）: 生成元`539363a7`（Solの実装のcommit）。Windows（Python 3.13.15）とWSL（Ubuntu、Python 3.14.4）で、helperの`--baseline-version 13`により各2回の独立したprocessの一致と必須の経路を確かめて22ケースを生成し
+  （`../../venv/refactoring-tests/v13-golden-windows.json`、`v13-golden-wsl.json`）、`v13/`へ新規に置いて、`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`を13へ上げた（`30385447`）。
+  基準を下げた回数: `fedsda-sine2-adoption-without-validation`はWindows 41・WSL 35、`fedsda-mnist4-warm-started-learner`は5・6、候補検証ありの4ケースは0、ほかの既定を引き継ぐケースは0（runが短く引下げの前に終わる）。
+- 主担当の確認（Solの実装の後）: 製品の差分を仕様書群と照合した（監視器の更新順序・返す観測・`_last_observation`・計算回数の2系統・`reset`での作り直し・状態の写し、
+  後続処理の記録、既定と候補検証あり・ADWINの構成、設定の検査）。対象の製品のtest 4703 passed / 12 skipped（Windows、8並列）。研究ツールの専用の検証54 passed。
+- 最終検証の1回目の全pytest（Windows、`tests`、8並列、`v13-full.log`）: 15056 passed / 8 skipped / 6 failed。WSLの版1〜13のgoldenとこのspecのtest: 561 passed / 5 failed。
+  - 失敗5件（両環境）: 合成のgoldenのtest（`test_unknown_environment_has_no_match_but_reads_structure`、`test_unicode_dtype_is_a_valid_digest`、`test_generation_requires_two_matching_process_results`の3件）が、
+    版13で足した経路の記録の項目を持たない。版12と同じく、合成のgoldenへ`loss_monitoring_baseline_lowering_count`を足した（必須の経路の2ケースは1、ほかは0）。
+  - 失敗1件（Windows）: `test_current_model_selection_without_baseline_adopts_a_new_model`。新しい既定では、小さい条件で「現在のモデルのまま」の選択が起きなくなった。
+    このファイルの小さい設定は基準版10の既定を基点にすると明示しているので、基点に`keep_baseline_until_alarm`を足した。
+- 最終検証（`30385447`）: 全pytest（Windows、`tests`、8並列）15062 passed / 8 skipped / 失敗0（1311秒、exit 0、JUnit `../../venv/refactoring-tests/v13-full-2.xml`。版1〜13のgolden、実旧との照合、
+  `tests/test_regression.py`・`tests/test_proposed_regression.py`を含む）。WSL（Ubuntu、Python 3.14.4）の版1〜13のgolden・来歴・このspecのtest 566 passed（1346秒、exit 0、`../../venv/refactoring-tests/v13-golden-wsl.xml`）。
+  Pyright（venvのPythonを`--pythonpath`で指定、`src`）0 errors。Ruff check（`src tests/refactoring tools`、プロジェクトの設定）成功。
+- 実装レビュー1回目（Claude Haiku 5.5、effort medium——指定値——、`is_error=false`、`modelUsage`は`claude-haiku-5-5`、session `70c92316-c3ed-4dbe-80e3-297c7ec329bb`、対象`f992a3b5..30385447`）: FAIL。
+  コード・testは要求と研究の案Aに一致と判定（監視器の順序・返す観測・計算回数・reset・状態の写し・後続処理・既定と構成・版1〜12の明示・版13の必須の経路・研究ツールの基点・主担当のtestの修正2箇所、命名の検査は未登録なし）。
+  レビュー担当はtestの実行が権限の承認待ちで実行できず、読みによる確認。指摘と採否:
+  - Major 1（文書がHEADと矛盾。`resume.md`、`refactoring-baseline.md`、`experiment-sweep.md`が版13のgolden未作成・定数12と書く）: 採用。挙げられた3か所に加え、同じ古い記述を
+    `drift-detection.md`・`proposed-method.md`・v12・v13比較・LEGACY-021・LEGACY-023・`resume.md`の別の行でも直した。あわせて、Solの書き込みで文字が「?」に壊れていた
+    `docs/research/implementation-findings/README.md`のLEGACY-021・LEGACY-023の行を、元の件名と新しい状態で書き直した（レビューでは見つかっていなかった。主担当が文書の確認で見つけた）。
+  - Minor 1（基準を下げた回数が環境で違う）: 採用。goldenは環境ごとに持つ設計で違反ではない。回数を`refactoring-baseline.md`と上のTask 3に記録した。研究ツールとの照合（task 1）はWindowsで行った。
+  - Minor 2（引下げの後の位置の検査と処理の順序を直接確かめるtestがない）: 採らない。研究ツールとの照合で、標本ごとのlog Eを含む記録の表の全配列・計算回数・事象が許容差なしで一致し、
+    版13のgoldenの必須の経路（引下げが起きるケース）も2環境で通るので、この順序は全体runで確かめられている。testは重要なもの・後で効くもの・複雑なものに絞る方針（設計）にも沿う。
+  - Minor 3（Ruff format --checkの記述の範囲。`tools/`はプロジェクトの設定で対象外）: 採用。`tools/`はRuffの対象外で、上の品質検査の記述の「397 files」は`src`と`tests/refactoring`の範囲（`tools`は除かれる）。
+

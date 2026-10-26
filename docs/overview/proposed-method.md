@@ -18,7 +18,7 @@
 監視器を保存平均で再設定する（`loss_monitoring_baseline_update_policy=lower_baseline_on_loss_decrease`）。
 返す観測は再設定前の値で、引下げは警報・適応として数えない。帰属・保留・予測の重みも変えない。
 候補検証ありとADWINの2構成は`keep_baseline_until_alarm`を明示する。
-これらは基準版13のコードとして実装済みだが、版13のgolden生成・配置と版の定数の切替は主担当が行うため未実施。
+これらは基準版13として既定にした（goldenは生成元`539363a7`、WindowsとWSL。現在の版の定数は13）。
 現在の定数と配置済みgoldenは版12（生成元`fab7f040`）のまま。
 [対象spec](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)に検証と未完了範囲を記録する。
 

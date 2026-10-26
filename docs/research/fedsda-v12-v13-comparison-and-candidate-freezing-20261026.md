@@ -4,7 +4,7 @@
 
 2026-10-27追記: 版13の採用範囲は、案A（損失低下の検出で監視の基準を下げる）＋評価clientの上限撤廃に決定した。
 候補共有部の固定は維持する。下の「未決定」と3構成の比較は2026-10-26時点の記録で、今回の採用範囲とは区別する。
-コードと差のtestは実装済み、版13のgolden・定数の切替と最終レビューは未実施。
+基準版13として実装し既定にした（goldenは生成元`539363a7`、定数13）。実装レビューと最終検証は[対象spec](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)のImplementation Notes。
 [実装と検証の正本](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。
 
 ## 1. まず「版13」を区別する

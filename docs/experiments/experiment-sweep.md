@@ -3,7 +3,7 @@
 2026-10-27の新しい既定: FedSDAは損失の低下で監視の基準を下げ、クロス評価の上限を実験のclient数にする。
 候補検証ありの構成は基準を警報まで保ち上限3、ADWINの2構成は基準を警報まで保ち上限はclient数。
 コマンドの引数は変わらないが、完全設定が変わるのでrunの識別子は変わる。過去の結果は保存された設定と来歴で区別する。
-版13のコードは準備済みで、goldenと版の定数は12のまま（主担当の生成・切替待ち）。
+基準版13のgoldenは生成元`539363a7`（WindowsとWSL）、版の定数は13。
 研究CLIの非product系は版10を保ち、IMPROVE-031と上限撤廃だけの比較は版12を基点にする。
 研究入口はbuilderの結果を置き換え、product-defaultだけは製品の新しい既定を使う。
 [検証と未実施範囲](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。
@@ -14,7 +14,7 @@ runごとの結果と、一覧の表を保存する。旧実装の`run_pareto_sw
 2026-10-23から、`fedsda-with-candidate-validation`を除くFedSDAの全構成は、クロス評価で対象を保有し、
 対象の標本を返せるclientだけを評価させる既定（`clients_with_target_model_samples`）を引き継ぐ。
 候補検証ありの構成は`clients_holding_target_model`を明示する。コマンドの引数は変わらず、選び方は保存するrun設定に入る。
-現在の基準版は12（環境別goldenは生成元`fab7f040`）。
+現在の基準版は13（環境別goldenは生成元`539363a7`）。
 研究ツールの`product-default`系は製品の新しい既定を使い、`product-default-sample-holding-cross-evaluation`は
 `product-default`と同じ選び方になる。それ以外の変種は基準版10の既定と従来の選び方を基点にする。
 検証の入口は[対象specのImplementation Notes](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)。

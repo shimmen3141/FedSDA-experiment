@@ -250,8 +250,8 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 `fedsda-sine2-adoption-without-validation`と`fedsda-mnist4-warm-started-learner`は1以上を必須とする。
 版12→13の差のtestはgoldenを使わず、両版をその場で実行する。影響を受けない構成は、追加した0の指標・空の表と
 coverageの項目を確認して除き、既存の全指標・表・パラメータ・coverageの一致を確かめる。
-**版13のgolden生成・配置と定数の切替は未実施**。`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`は12を維持し、
-Windows/WSLの生成と全ケース照合は主担当が行う。[対象spec](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。
+版13のgoldenは生成元`539363a7`。Windows（Python 3.13.15）とWSL（Python 3.14.4）で、各2回の独立したprocessの一致と必須の経路を確かめて生成し、`v13/`へ置いた。
+`BASELINE_VERSION`と`BEHAVIOR_BASELINE_VERSION`は13。基準を下げた回数は環境で違う（`fedsda-sine2-adoption-without-validation`はWindows 41・WSL 35、`fedsda-mnist4-warm-started-learner`は5・6。goldenは環境ごとに持つ）。[対象spec](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。
 
 基準版12は、クロス評価で対象の標本を返せるclientだけを評価させる扱い（[spec](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)）。
 ケースは版11と同じ22。クロス評価で対象を保有し標本を返せるclientだけを選び、候補検証ありの構成は従来の扱いを明示する。

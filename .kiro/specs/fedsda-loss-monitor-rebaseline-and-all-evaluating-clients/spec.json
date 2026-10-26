@@ -60,5 +60,24 @@
       }
     ]
   },
-  "implementation_assignment": "基準版12のspecと同じ（2026-10-23のユーザー指示）。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・golden・全pytest・レビューの起動"
+  "implementation_assignment": "基準版12のspecと同じ（2026-10-23のユーザー指示）。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・golden・全pytest・レビューの起動",
+  "implementation_review": {
+    "status": "pending",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "claude-haiku-5-5",
+        "reasoning_effort": "medium（指定値）",
+        "session_id": "70c92316-c3ed-4dbe-80e3-297c7ec329bb",
+        "target": "f992a3b5..30385447",
+        "result": "FAIL（Major 1: 文書がHEADと矛盾。Minor 3）。Major・Minor 1・3を反映、Minor 2は理由を記録して採らない"
+      }
+    ]
+  },
+  "final_verification": {
+    "full_pytest": "15062 passed / 8 skipped / 0 failed（tests、1311秒、v13-full-2.xml、30385447）",
+    "goldens_v1_13_wsl": "566 passed（v13-golden-wsl.xml）",
+    "pyright": "0 errors",
+    "ruff": "passed"
+  }
 }

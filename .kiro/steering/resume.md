@@ -5,10 +5,10 @@
 ## 現在地
 
 - **最新の総括・再開順は[研究の引継ぎ（2026-10-26）](../../docs/research/research-handoff-20261026.md)**。Claude交代後の一連の研究、結果の所在、訂正、未着手事項をまとめている。
-- [損失監視の基準の引下げと評価client上限撤廃](../specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)のtask 1・2とtask 3のコード、task 4の文書を実装。版13の内容は案A＋上限撤廃、候補共有部の固定は維持する。定数と配置済みgoldenは12のまま。
-- 次の一手は主担当による版13のWindows/WSL golden生成・設置、定数の切替、task 5の全pytest・独立実装レビュー。実測と未実行の正本は対象specのImplementation Notes。E1a/E2/S1/S3/B・E3とmain統合は未採用／未決定のまま。
+- **製品の既定は基準版13**（[損失監視の基準の引下げと評価client上限撤廃](../specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)、IMPROVE-031の案A＋評価clientの上限撤廃。候補共有部の固定は維持）。goldenは生成元`539363a7`（WindowsとWSL）、定数13。
+- 実装レビュー・全pytest・WSLの結果の正本は対象specのImplementation Notes。E1a/E2/S1/S3/B・E3とmain統合は未採用／未決定のまま。v13のablation（共有部の固定を外す枝を含む）と、評価の設計（研究バックログの9）は未着手。
 
-- 2026-10-27: [IMPROVE-031](../../docs/research/improvement-candidates/improve-031-loss-monitor-rebaseline-on-loss-decrease.md)は上限撤廃とともに既定へ実装済み。版13のgoldenと最終承認は作業待ち（上記spec）。
+- 2026-10-27: [IMPROVE-031](../../docs/research/improvement-candidates/improve-031-loss-monitor-rebaseline-on-loss-decrease.md)は上限撤廃とともに既定へ実装済み。基準版13として既定にした（上記spec）。
 - 2026-10-27: 評価の設計（流れの長さ、期間別の精度、FedDriftとの公正な比べ方）は未決。ユーザーが後で考える。検討の材料は[研究バックログの9](../../docs/research/research-backlog.md)。
 
 ## 研究の経緯（過去時点の推奨を含む）

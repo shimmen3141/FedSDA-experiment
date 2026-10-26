@@ -88,7 +88,7 @@ ARL 1000以上を狙う設定であり、「誤警報確率0.1%」を意味し�
 下がる向きの計算は監視の合計に含め、その分も別に記録する。引下げは`loss_monitoring_baseline_lowering`と
 run指標`loss_monitoring_baseline_lowering_count`へ記録する。
 以下の固定基準の説明は、再設定の間の扱いに当たる。候補検証ありとADWINの2構成、版1〜12は
-`keep_baseline_until_alarm`で従来の扱いを保つ。版13のgolden・定数の切替は主担当の作業待ち。
+`keep_baseline_until_alarm`で従来の扱いを保つ。基準版13（goldenは生成元`539363a7`、WindowsとWSL）。
 
 検出器をリセットするとき、現在モデルの履歴損失平均を`m`として固定する。数値的不安定性を
 避けるため下限を設ける。モデルのオンライン更新によって定常時の損失平均も変わり得るため、

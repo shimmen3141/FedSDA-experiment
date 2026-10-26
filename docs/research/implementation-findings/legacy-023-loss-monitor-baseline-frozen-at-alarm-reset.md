@@ -63,5 +63,5 @@ LEGACY-020（初期モデルの楽観的な基準による誤警報）とは、�
 
 2026-10-27、案A（下がる向きのe-SRで低下を検出して保存平均へ基準を下げる）を製品の既定へ実装した。
 同時に評価clientの上限をclient数へ変更した。候補検証あり・ADWINの2構成と版1〜12は従来の扱いを明示する。
-4データの研究変種との完全一致と版12→13の差のtestを確認。版13のgolden・定数の切替、全pytestと独立実装レビューは主担当の作業待ち。
+4データの研究変種との完全一致と版12→13の差のtestを確認。基準版13のgolden（生成元`539363a7`、WindowsとWSL）を置き、定数を13へ上げた。全pytestと実装レビューの結果は対象specのImplementation Notes。
 [実装と検証の正本](../../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。
