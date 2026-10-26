@@ -89,6 +89,12 @@ def _run_variant(arguments, variant):
             f"変種の記録のない出力先は使えません（別の出力先を指定してください）: {output_directory}"
         )
     sweep_arguments = _sweep_arguments(arguments, variant, output_directory)
+    if arguments.pending_assignment_fifo_capacity is not None:
+        # 判断の窓を広げる診断。製品の掃引の軸をそのまま使い、既定と変種に同じ容量を渡す。
+        sweep_arguments += [
+            "--fedsda-pending-assignment-fifo-capacities",
+            str(arguments.pending_assignment_fifo_capacity),
+        ]
     if arguments.print_plan:
         return run_sweep([*sweep_arguments, "--print-plan"])
     # 変種の記録を、製品のコマンドを呼ぶ前に置く（途中で止まっても、出力先と変種の対応が残る）。
@@ -134,6 +140,7 @@ def _run_parser():
     parser.add_argument("--client-count", type=int, default=10)
     parser.add_argument("--variants", nargs="+", choices=_VARIANTS, required=True)
     parser.add_argument("--workers", type=int, required=True)
+    parser.add_argument("--pending-assignment-fifo-capacity", type=int)
     parser.add_argument("--purpose", default="IMPROVE-030の概念を分けたときの天井の診断")
     parser.add_argument("--print-plan", action="store_true")
     return parser
