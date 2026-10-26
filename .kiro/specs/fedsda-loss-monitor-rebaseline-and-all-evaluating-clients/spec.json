@@ -79,6 +79,14 @@
         "session_id": "8573b404-8810-446e-955f-9ca3a220347b",
         "target": "30385447..7a85a68f",
         "result": "FAIL（Major 4: 同じ古い記述の残り、Minor 1: 改善候補の一覧の行）。全部反映"
+      },
+      {
+        "round": 3,
+        "model": "claude-haiku-5-5",
+        "reasoning_effort": "medium（指定値）",
+        "session_id": "fe1d4d17-167c-4e81-ac40-099a0051ab05",
+        "target": "7a85a68f..39a624b1",
+        "result": "FAIL（文書のずれ、Major 3・Minor 3）。ユーザー判断で重大度の基準と過去の記録の扱いを規約に入れ、今の状態の正本だけ直した"
       }
     ]
   },

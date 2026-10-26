@@ -237,7 +237,7 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 
 | 項目 | 意味 | 変更する場合 |
 | --- | --- | --- |
-| `baseline_version` | 期待する動作の基準。現在は9 | LEGACY/IMPROVEなどで期待値を意図的に変えるとき |
+| `baseline_version` | 期待する動作の基準。現在の値は定数`BASELINE_VERSION`（`tests/refactoring/behavior_golden_cases.py`）と、下の基準版の節 | LEGACY/IMPROVEなどで期待値を意図的に変えるとき |
 | `schema_version` | このgolden JSONの形式。現在は1 | snapshotの記録形式を変えるとき |
 | `environment` | OS・機種・Python/NumPy/torch・CPU/dtype/thread | 同じ動作基準を別環境で検証するとき |
 | `source_commit` | 生成した生産コードの来歴 | 新しい基準や環境別goldenを生成するとき |

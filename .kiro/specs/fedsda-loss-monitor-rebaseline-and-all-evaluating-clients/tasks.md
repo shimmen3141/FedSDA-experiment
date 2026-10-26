@@ -113,4 +113,12 @@ task 4（文書）はtask 3の版の定数とgoldenの後。task 5は全部の�
 - 実装レビュー2回目（Claude Haiku 5.5、effort medium——指定値——、`is_error=false`、`modelUsage`は`claude-haiku-5-5`、session `8573b404-8810-446e-955f-9ca3a220347b`、対象`30385447..7a85a68f`。修正の再確認）: FAIL。
   1回目の修正箇所・READMEの2行・文字化けの解消・Minorの採否は確認された。残る指摘: Major 4件（同じ古い記述が`proposed-method.md`の22行目、IMPROVE-031の冒頭、`resume.md`の「次の一手」4、
   LEGACY-021の本文の状態欄に残る）、Minor 1件（改善候補の一覧にIMPROVE-031の行がなく、「次は」の番号が古い）。全部反映した（次のcommit）。
+- 実装レビュー3回目（Claude Haiku 5.5、effort medium——指定値——、`is_error=false`、`modelUsage`は`claude-haiku-5-5`、session `fe1d4d17-167c-4e81-ac40-099a0051ab05`、対象`7a85a68f..39a624b1`）: FAIL。
+  2回目の5件は解消。新たにMajor 3件（`refactoring-baseline.md:240`の「現在は9」、`ablation-plan.md:11`の「現在の基準は…版6」、`resume.md`の「次の一手」2）・Minor 3件（IMPROVE-029の10行目、IMPROVE-031の節名、`resume.md`の「直近に完了したspec」）。
+  ユーザーの判断（2026-10-27）: 実装に問題がないのに文書のずれでレビューを繰り返すのは無駄。日付つきの過去の記録は、その時点の記録として書き換えない。Major以上は実装・結果に影響する実質的なものに限る。
+  これを規約（`.kiro/steering/agent-handoff.md`の「レビューに出す前と依頼文」の重大度と文書の扱い）に反映した。この基準での採否:
+  - 直した（今の状態の正本）: `refactoring-baseline.md`の版の表（番号を書き写さず、定数と基準版の節を参照する形にした）、`resume.md`の「次の一手」2・「直近に完了したspec」・動作基準の行（定数と基準の文書を正本として参照）。
+  - 直さない（日付つきの過去の記録、または正しい記述）: `ablation-plan.md:11`（「現行基準の比較（2026-10-17）」の節の記録）、IMPROVE-029の10行目（2026-10-26の書き足し）、
+    IMPROVE-031の節名（研究用の変種の基点は今も基準版12で、記述は正しい）。
+  - 今の状態の正本の文書（上の規約の一覧）を機械的に走査し、今の状態として古い版番号を書いた記述が残っていないことを確かめた。
 
