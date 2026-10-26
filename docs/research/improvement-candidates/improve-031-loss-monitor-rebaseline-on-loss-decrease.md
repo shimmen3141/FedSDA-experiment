@@ -95,6 +95,23 @@
 - 本規模の比べる相手は、uraniumの基準版12の既定の保存済みrun（`results/method-comparison-v12/fedsda`と`20261024_002727_fedsda-v12-mnist4-seeds10-19`）。
   同じ環境なら、製品のコードは同じ動作（2026-10-26の`cross-evaluation-round-override`の差し替えなしの4 runが保存済みのrunと全表一致）。
 
+### 入口の約束事（`tools/research_loss_monitor_rebaseline.py`、仕様の再レビューの反映）
+
+- `launch`の引数: `--variant`（4つの変種か、介入なしの`product-default`）、`--datasets`、`--intervals`、`--seeds`（どれも空白区切りの複数可。seedは整数の列挙だけ）、
+  `--sample-count`（既定5000）、`--client-count`（既定10）、`--jobs`（同時に動かす子processの数。必須）、`--output-root`（必須）、`--purpose`（必須、1行）。
+- 各run（dataset×間隔×seedの全組合せ）の出力先は`<output-root>/<dataset>-i<間隔>-s<seed>/`、ログは`<output-root>/<dataset>-i<間隔>-s<seed>.log`（標準出力と標準エラー）。
+- 子processのコマンドは、固定の形:
+  `<同じPython> -m tools.research_loss_monitor_rebaseline run-one --variant <変種> -- --configurations fedsda --datasets <dataset> --seeds <seed>
+  --aggregation-intervals <間隔> --per-client-sample-count <標本数> --client-count <client数> --workers 1 --output-directory <runの出力先>
+  --purpose "<purpose>（変種 <変種>）"`。`--study`・`--label`・`--new-output`は渡さない（`--output-directory`と併用できない、または不要）。
+  環境変数は親のものを引き継ぎ、`OMP_NUM_THREADS`・`MKL_NUM_THREADS`・`OPENBLAS_NUM_THREADS`は未設定なら1にする。
+- `run-one`: `--`の後を製品の掃引のコマンド（`experiment_sweep_command.main`）へそのまま渡す。`--workers 1`・単一のdataset・seed・間隔・`--configurations fedsda`・`--output-directory`の指定を検査し、
+  満たさなければ終了コード2。変種を有効にして実行し、製品のコマンドの終了コードが0のときだけ、`loss_monitor_rebaseline_diagnostics.json`を出力先へ書く（変種名、引数、診断、commit）。終了コードはそのまま返す。
+- 完了済みのrun: `<runの出力先>/loss_monitor_rebaseline_diagnostics.json`があり、その中の変種名が今回の`--variant`と同じなら、子processを起動せず飛ばす。
+  変種名が違えば、終了コード2で全体を止める（同じ出力先に別の変種を混ぜない）。それ以外（未実行・途中）は起動する（途中のrunは製品のコマンドの再開に任せる）。
+- `launch`は、開始時に`<output-root>/launch.json`（引数、変種、commit、未commitの変更の有無、開始時刻）を書き、終了時に各runの状態（完了・飛ばした・失敗と終了コード）を足す。
+  失敗したrunが1つでもあれば終了コード1、全部が完了か飛ばしなら0。1つの失敗で他のrunを止めない。
+
 ### 照合（observe-only）
 
 - 条件: 手元で、製品の掃引のコマンドの入口から、SINE2・CIRCLE2・MNIST4（各client 600標本、間隔100、seed 0）。比べる相手は、同じ手元で同じ条件の製品の既定。
