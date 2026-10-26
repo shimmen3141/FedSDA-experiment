@@ -1,12 +1,15 @@
 """警報・帰属の選択・統合の判定だけを製品の外から置き換える。"""
 
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
 from itertools import combinations
 from unittest.mock import patch
 
 ORACLE_VARIANT = "product-default-oracle-concept-assignment"
-VARIANTS = ("product-default", ORACLE_VARIANT)
+# 警報だけを真の変化の5標本目に置き換え、帰属の選択と統合は製品のまま。検出だけで取れる分を測る。
+ORACLE_CHANGE_ALARM_VARIANT = "product-default-oracle-change-alarm"
+ORACLE_VARIANTS = (ORACLE_VARIANT, ORACLE_CHANGE_ALARM_VARIANT)
+VARIANTS = ("product-default", *ORACLE_VARIANTS)
 
 
 def _unique_majority(counts):
@@ -222,19 +225,26 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
             ):
                 return select_original(**selection_arguments)
 
-        with (
-            patch.object(
-                OverallAndTrueClassLossMonitor,
-                "observe_loss_after_label_observation",
-                observe,
-            ),
-            patch.object(processing, "select_alarm_interval_assignment", select),
-        ):
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch.object(
+                    OverallAndTrueClassLossMonitor,
+                    "observe_loss_after_label_observation",
+                    observe,
+                )
+            )
+            if variant == ORACLE_VARIANT:
+                stack.enter_context(
+                    patch.object(processing, "select_alarm_interval_assignment", select)
+                )
             result = process_original(**arguments)
         if result.alarm_occurrence_handling is not None:
             # 応答の内訳の正本はraw。ここでは製品の応答の結果も保存する。
             outcome = result.alarm_occurrence_handling.alarm_response_completion.alarm_buffer_response.response_outcome
-            if outcome == "alarm_interval_candidate_adopted_as_new_model":
+            if (
+                variant == ORACLE_VARIANT
+                and outcome == "alarm_interval_candidate_adopted_as_new_model"
+            ):
                 # 製品の即時採用は、区間を学習標本へ足すが、概念別の割当計数へは足さない。
                 # oracleの多数派を採用直後から使えるよう、診断の計数だけを補う（学習は繰り返さない）。
                 for assigned in selected_interval:
@@ -281,19 +291,24 @@ def oracle_concept_assignment_policy(*, variant, diagnostics):
             )
         return result
 
-    with (
-        patch.object(fedsda_run_client, "process_observed_sample", process),
-        patch.object(
-            server_round_synchronization,
-            "cluster_and_consolidate_global_models",
-            consolidate,
-        ),
-        patch.object(
-            ModelTrainingAndAssignmentCountsStore,
-            "record_assigned_sample_concept",
-            record_assignment,
-        ),
-    ):
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(fedsda_run_client, "process_observed_sample", process))
+        if variant == ORACLE_VARIANT:
+            stack.enter_context(
+                patch.object(
+                    server_round_synchronization,
+                    "cluster_and_consolidate_global_models",
+                    consolidate,
+                )
+            )
+        # 帰属の記録は、どちらの変種でも元の処理を呼んだ後に数えるだけ。
+        stack.enter_context(
+            patch.object(
+                ModelTrainingAndAssignmentCountsStore,
+                "record_assigned_sample_concept",
+                record_assignment,
+            )
+        )
         yield
     diagnostics["final_assignment_concept_counts"] = [
         store.snapshot_model_training_and_assignment_counts().assigned_sample_counts_by_model_and_concept_id

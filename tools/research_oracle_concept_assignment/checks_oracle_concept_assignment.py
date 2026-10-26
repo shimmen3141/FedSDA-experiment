@@ -12,6 +12,7 @@ import pytest
 
 from tools.research_oracle_concept_assignment import run as entry
 from tools.research_oracle_concept_assignment.policy import (
+    ORACLE_CHANGE_ALARM_VARIANT,
     ORACLE_VARIANT,
     _ConceptChangeAlarm,
     _oracle_pair_scores,
@@ -223,3 +224,48 @@ def test_spawn_workers_apply_oracle(tmp_path, capsys):
         diagnostics = json.loads(record.read_text(encoding="utf-8"))["diagnostics"]
         assert diagnostics["alarms"]
         assert diagnostics["mixed_assignment_count"] == 0
+
+
+def test_change_alarm_variant_replaces_only_alarm(tmp_path):
+    from tools.research_oracle_concept_assignment.analyze import analyze
+
+    root = tmp_path / "alarm"
+    assert entry.main(_arguments(root, [ORACLE_CHANGE_ALARM_VARIANT])) == 0
+    (raw,) = (root / ORACLE_CHANGE_ALARM_VARIANT / "fedsda/runs").glob("*.npz")
+    (record,) = (root / ORACLE_CHANGE_ALARM_VARIANT / entry._DIAGNOSTICS_DIRECTORY_NAME).glob(
+        "*.json"
+    )
+    diagnostics = json.loads(record.read_text(encoding="utf-8"))["diagnostics"]
+    with np.load(raw, allow_pickle=False) as z:
+        concepts = z["sample_prediction.observed_concept_id"]
+        expected = sorted(
+            (c, int(i + 4))
+            for c, row in enumerate(concepts)
+            for i in np.flatnonzero(row[1:] != row[:-1]) + 1
+            if i + 4 < len(row)
+        )
+        actual = sorted(
+            (r["client_id"], r["alarm_sample_index"]) for r in _table(z, "loss_change_alarm")
+        )
+        assert actual == expected and actual
+        # 帰属の選択は製品のMDLのまま（今のモデルの継続は保留の全長、それ以外は5の倍数の区間）。
+        selections = _table(z, "alarm_interval_assignment_selection")
+        assert selections and all(
+            r["selected_hypothesis"] == "current_model" or r["change_interval_sample_count"] % 5 == 0
+            for r in selections
+        )
+    assert diagnostics["selections"] == [] and diagnostics["consolidations"] == []
+    assert (
+        diagnostics["assigned_sample_count"] + diagnostics["pending_sample_count"]
+        == diagnostics["processed_sample_count"]
+    )
+    # 集計は、全体の正解のoracleと別の名前へ保存する。
+    analysis_root = tmp_path / "analysis"
+    shutil.copytree(raw.parents[2], analysis_root / ORACLE_CHANGE_ALARM_VARIANT)
+    default_root = tmp_path / "default"
+    assert entry.main(_arguments(default_root, ["product-default"])) == 0
+    shutil.copytree(default_root / "product-default", analysis_root / "product-default")
+    analyze(analysis_root, expected_pairs=1, variant=ORACLE_CHANGE_ALARM_VARIANT)
+    assert (analysis_root / "analysis_oracle_change_alarm.md").exists()
+    assert (analysis_root / "analysis_accuracy_periods_oracle_change_alarm.csv").exists()
+    assert not (analysis_root / "analysis_oracle_concept_assignment.md").exists()
