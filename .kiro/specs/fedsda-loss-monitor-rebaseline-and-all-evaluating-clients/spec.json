@@ -3,7 +3,7 @@
   "created_at": "2026-10-27T03:00:00Z",
   "updated_at": "2026-10-27",
   "language": "ja",
-  "phase": "tasks-approved",
+  "phase": "completed",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -62,7 +62,7 @@
   },
   "implementation_assignment": "基準版12のspecと同じ（2026-10-23のユーザー指示）。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・golden・全pytest・レビューの起動",
   "implementation_review": {
-    "status": "pending",
+    "status": "completed_without_final_pass",
     "rounds": [
       {
         "round": 1,
@@ -87,8 +87,17 @@
         "session_id": "fe1d4d17-167c-4e81-ac40-099a0051ab05",
         "target": "7a85a68f..39a624b1",
         "result": "FAIL（文書のずれ、Major 3・Minor 3）。ユーザー判断で重大度の基準と過去の記録の扱いを規約に入れ、今の状態の正本だけ直した"
+      },
+      {
+        "round": 4,
+        "model": "claude-haiku-5-5",
+        "reasoning_effort": "medium（指定値）",
+        "session_id": "e15dc2ec-ae2c-4bd0-a58f-1674139e4ff5",
+        "target": "39a624b1..f4557e66",
+        "result": "FAIL（文書だけ: Major 2・Minor 1・任意 1。実装・test・結果に影響する問題なし）。Major・Minorを反映"
       }
-    ]
+    ],
+    "note": "1〜4回目とも、コード・testは要求と研究の案Aに一致と判定。FAILの理由は文書のずれだけ。2026-10-27のユーザー判断で、文書だけの修正は同じ段階の再確認を要しないと規約を改め、4回目の指摘を反映して完了とした（実装レビューのPASSは得ていない）"
   },
   "final_verification": {
     "full_pytest": "15062 passed / 8 skipped / 0 failed（tests、1311秒、v13-full-2.xml、30385447）",

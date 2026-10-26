@@ -222,7 +222,7 @@ goldenが通っても、全seed・全データセット・全オプションの�
 コミット保留の3資料と既存の`results/`は、リファクタリングのために削除・上書きしない。
 
 
-## 新実装の重要動作golden（基準版1〜3）
+## 新実装の重要動作golden（基準版）
 
 旧基準とは別に、`tests/refactoring/behavior_regression_goldens/v1/`へ新APIの基準を保存する。
 FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境界の追加4ケースを扱う。
@@ -276,7 +276,9 @@ coverageの項目を確認して除き、既存の全指標・表・パラメー
 | 8 | クロス評価で、配布するモデルを使う（[spec](../../.kiro/specs/fedsda-cross-evaluation-with-distributed-models/design.md)。通信量の記録だけが版7と違う） | 新しい既定。版1〜7は、クロス評価のために候補のモデルを送る旧の扱いを明示する（参加者の設定の「後に足された項目」の表） | 版7と同じ21 |
 | 9 | 統合で、メンバーの共有部が代表とビット単位で同じなら平均せずに保つ（[spec](../../.kiro/specs/fedsda-consolidation-keeps-shared-features/design.md)。同じ値の加重平均の浮動小数点の誤差を入れない） | 新しい既定。版1〜8は、共有部も平均する旧の扱いを明示する（参加者の設定の「後に足された項目」の表） | 版8と同じ21 |
 | 10 | 警報の後の変化点と帰属先を、最小記述長の原理で選ぶ（[spec](../../.kiro/specs/fedsda-minimum-description-length-alarm-interval-assignment/design.md)） | 新しい既定。候補検証の経路の4ケース（構成`fedsda-with-candidate-validation`）と版1〜9は、今の扱い（`detector_change_span_and_mean_loss_increase_tolerance`）を明示する（版1〜9は、clientの設定の「後に足された項目」の表） | 版9と同じ21 |
-| 11 | 「新しいモデル」の仮説を、初期化し直した学習者とwarm startの学習者の短い方＋ln 2で測り、初期モデルの損失の統計を事前学習の標本の5分割交差検証で作る（現在の既定。[spec](../../.kiro/specs/fedsda-warm-started-learner-and-cross-validated-initial-statistics/design.md)） | 新しい既定。候補検証の経路の4ケースと版1〜10は、今の扱い（`reinitialized_learner`、`resubstitution`）を明示する（clientと参加者の設定の「後に足された項目」の表） | 版10の21＋`fedsda-mnist4-warm-started-learner` |
+| 11 | 「新しいモデル」の仮説を、初期化し直した学習者とwarm startの学習者の短い方＋ln 2で測り、初期モデルの損失の統計を事前学習の標本の5分割交差検証で作る（[spec](../../.kiro/specs/fedsda-warm-started-learner-and-cross-validated-initial-statistics/design.md)） | 新しい既定。候補検証の経路の4ケースと版1〜10は、今の扱い（`reinitialized_learner`、`resubstitution`）を明示する（clientと参加者の設定の「後に足された項目」の表） | 版10の21＋`fedsda-mnist4-warm-started-learner` |
+| 12 | クロス評価で、対象のモデルの標本を返せるclientだけを評価させる（[spec](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/design.md)） | 新しい既定。候補検証ありの構成と版1〜11は、今の扱い（`clients_holding_target_model`）を明示する（参加者の設定の「後に足された項目」の表） | 版11と同じ22 |
+| 13 | 損失の低下を検出したら監視の基準を下げ、クロス評価の評価clientの上限をclientの数にする（現在の既定。[spec](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/design.md)） | 新しい既定。候補検証ありの構成は今の扱い（`keep_baseline_until_alarm`、上限3）、ADWINの2構成は`keep_baseline_until_alarm`を明示し、版1〜12は今の扱いと上限3を明示する（clientの設定の「後に足された項目」の表と、参加者の設定の「値が変わった項目」の扱い） | 版12と同じ22 |
 
 版9→10では、FedDrift・FedAvgと、候補検証の経路の4ケースは、指標・記録の表・`global_parameters`・`coverage`が版9と同じであることをtestが確かめる（版10で足した選択の記録の表`alarm_interval_assignment_selection.*`——FedSDAのケースで空——と、経路の記録の選んだ仮説ごとの回数——どれも0——を取り除いて比べる）。新しい既定を引き継ぐFedSDAのケースは、差があってよい。設定は、FedSDAのケースの新しい項目だけが違うことを、別のtestが確かめる。版10の必須の経路は、新しい既定の大きい条件の2ケースで選択が1回以上起き、`fedsda-sine2-adoption-without-validation`では3種類（現在のモデルのまま・保有モデルへ・新しいモデルへ）がそれぞれ1回以上起きること（`fedsda-mnist2-adoption-without-validation`は、保有モデルへの切り替わりが起きない）。版9まではgoldenの記録の表にこの表を含めない。
 
