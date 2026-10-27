@@ -17,7 +17,7 @@
     `docs/reference/options.md`が直接編集されていない（必要なら再生成されている）。
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 4. 確認（主担当）
+- [x] 4. 確認（主担当）
   - 全pytest、WSLのgolden、pyright、ruff。独立の実装レビュー1回。
 
 ## Implementation Notes（2026-10-27、実装担当）

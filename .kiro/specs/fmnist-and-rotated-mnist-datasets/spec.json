@@ -35,7 +35,33 @@
   },
   "implementation_assignment": "基準版12〜14のspecと同じ。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・全pytest・レビューの起動",
   "implementation_base_revision": "1bace5df",
-  "implementation_status": "tasks-1-3-implemented-awaiting-principal-validation-and-review",
-  "next_action": "主担当がtask 4の全pytest・WSLのgolden・独立実装レビューを行い、sandbox制約の10件も通常環境で確認する。実装担当の検証記録はtasks.md末尾",
-  "commit_policy": "今回の実装担当はcommitしない。主担当の確認後に判断する。先行実装の調査の記録・画像データ・一時検証成果物はstageしない"
+  "implementation_status": "completed",
+  "implementation_review": {
+    "status": "passed",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（指定値）",
+        "session_id": "01a17d79-b815-7f91-8fd2-a487a34ac6cb",
+        "target": "1bace5df..a5d81b5b",
+        "result": "FAIL（Major 1: MNISTとFashion-MNISTの読込みのcacheがディレクトリだけで共有され、同じ置き場所で混ざる）。主担当がcacheの鍵に種類を含め、同じ置き場所を拒否して修正（d0faa447）"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（指定値）",
+        "session_id": "01a17d7c-cdeb-7050-b7cd-29c757d52dc4",
+        "target": "a5d81b5b..d0faa447",
+        "result": "PASS（指摘なし）"
+      }
+    ]
+  },
+  "final_verification": {
+    "full_pytest": "15149 passed / 8 skipped / 1 failed（tests、-n 12、920秒、datasets-full.xml）。失敗は test_experiment_sweep_resumption.py の1件で、実行中に読込みの修正（d0faa447）を書き込んだ時期と重なる。修正後のコードで、そのファイルとデータ・設定・掃引・依存境界の9ファイルを流し直し 4854 passed（datasets-rerun.xml）",
+    "goldens_and_new_tests_wsl": "586 passed（版1〜14のgolden、新しい2つのtestファイル。datasets-golden-wsl.xml。a5d81b5bの時点）",
+    "pyright": "0 errors",
+    "ruff": "passed"
+  },
+  "commit_policy": "先行実装の調査の記録（results/dataset-surveys/）、画像データ（data/fashion-mnist/）、実装担当の一時検証成果物（.tmp/）はstageしない（いずれもgitの管理外）"
 }
