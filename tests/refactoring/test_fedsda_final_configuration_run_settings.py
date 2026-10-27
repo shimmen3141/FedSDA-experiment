@@ -569,23 +569,7 @@ def make_golden_condition_run_settings(dataset_name):
             ),
         )
     )
-    participant = legacy_compatible_run_settings.run_participant_settings
-    client = participant.run_client_settings
-    return replace(
-        legacy_compatible_run_settings,
-        run_participant_settings=replace(
-            participant,
-            run_client_settings=replace(
-                client,
-                candidate_model_training_and_acceptance_settings=replace(
-                    client.candidate_model_training_and_acceptance_settings,
-                    candidate_model_acceptance_policy=(
-                        "current_model_first_reuse_then_two_segment_candidate_validation"
-                    ),
-                ),
-            ),
-        ),
-    )
+    return legacy_compatible_run_settings
 
 
 def test_defaults_can_be_replaced_and_are_validated_again():

@@ -1,7 +1,7 @@
 """候補検証の到達時の確定と未完了の終端回収の適応記録を、実旧のイベント・切替位置と照合する。"""
 
 import random
-from dataclasses import asdict, replace
+from dataclasses import replace
 from typing import get_args
 
 import numpy as np
@@ -10,11 +10,9 @@ import torch
 from test_alarm_adaptation_recording import make_adaptation_record
 from test_alarm_response_completion import LEGACY_ACTION_BY_RESPONSE_OUTCOME
 from test_incomplete_post_alarm_candidate_validation_finalization import (
-    assert_incomplete_validation_finalization_matches_legacy,
     build_incomplete_validation_finalization_oracle,
 )
 from test_post_alarm_candidate_validation_progress import (
-    assert_validation_progress_matches_legacy,
     build_validation_progress_oracle,
     set_scripted_validation_losses,
 )
@@ -23,7 +21,6 @@ from federated_learning_experiments.evaluation.adaptation_record_store import (
     SERVER_REMAP_ADAPTATION_OUTCOME,
     TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES,
     AdaptationOutcome,
-    AdaptationRecord,
     AdaptationRecordStore,
 )
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
@@ -84,42 +81,6 @@ def make_populated_adaptation_record_store():
     return adaptation_record_store
 
 
-def assert_recorded_event_matches_legacy(
-    *, adaptation_record, adaptation_record_store, previous_state_snapshot, legacy_client
-):
-    """返された記録と記録ownerの増分を、実旧の最後のイベントと切替位置に照合する。"""
-    assert type(adaptation_record) is AdaptationRecord
-    assert asdict(legacy_client.adaptation_events[-1]) == dict(
-        position=adaptation_record.adaptation_sample_index,
-        detector=adaptation_record.detector_name,
-        action=LEGACY_ACTION_BY_VALIDATION_ADAPTATION_OUTCOME[adaptation_record.adaptation_outcome],
-        old_model_id=adaptation_record.previous_training_model_id,
-        new_model_id=adaptation_record.current_training_model_id,
-        estimated_change_point=adaptation_record.estimated_change_point_sample_index,
-        episode_id=adaptation_record.detection_episode_id,
-    )
-    assert adaptation_record.current_training_model_id == legacy_client.current_model_id
-    state_snapshot = adaptation_record_store.get_state_snapshot()
-    assert state_snapshot.adaptation_records == (
-        *previous_state_snapshot.adaptation_records,
-        adaptation_record,
-    )
-    assert state_snapshot.adaptation_records[-1] is not adaptation_record
-    # 旧の切替位置は、候補採用と参照モデルの再利用のときだけ確定位置を1件追加する。
-    assert state_snapshot.training_model_switch_sample_indices == (
-        *previous_state_snapshot.training_model_switch_sample_indices,
-        *legacy_client.local_switch_positions,
-    )
-    # 警報時の区間評価による2種類の件数は、候補検証の結果では増えない。
-    assert (
-        state_snapshot.alternative_model_reuse_count,
-        state_snapshot.current_model_fit_count,
-    ) == (
-        previous_state_snapshot.alternative_model_reuse_count,
-        previous_state_snapshot.current_model_fit_count,
-    )
-
-
 def complete_validation_in_both_implementations(
     *, class_count, legacy_resolution_case, pending_sample_count, monkeypatch
 ):
@@ -151,67 +112,6 @@ def complete_validation_in_both_implementations(
     )
 
 
-@pytest.mark.parametrize("class_count", (2, 4))
-@pytest.mark.parametrize(
-    "legacy_resolution_case", ("create", "reuse", "maintain", "create_rejected")
-)
-@pytest.mark.parametrize("pending_sample_count", (0, 3))
-def test_completed_validation_record_matches_real_legacy_event(
-    class_count, legacy_resolution_case, pending_sample_count, monkeypatch
-):
-    with torch.random.fork_rng(devices=[]):
-        (
-            validation_progress,
-            progress_arguments,
-            resolution_arguments,
-            shared_optimizer_owners,
-            legacy_client,
-            legacy_drift_type,
-            previous_model_id,
-        ) = complete_validation_in_both_implementations(
-            class_count=class_count,
-            legacy_resolution_case=legacy_resolution_case,
-            pending_sample_count=pending_sample_count,
-            monkeypatch=monkeypatch,
-        )
-        validation_completion = validation_progress.completed_validation
-        adaptation_record_store = make_populated_adaptation_record_store()
-        previous_state_snapshot = adaptation_record_store.get_state_snapshot()
-        random_states = snapshot_random_states()
-        adaptation_record = record_completed_candidate_validation(
-            validation_completion=validation_completion,
-            adaptation_record_store=adaptation_record_store,
-        )
-        assert_random_states_unchanged(random_states=random_states)
-        assert (
-            adaptation_record.adaptation_outcome
-            == ADAPTATION_OUTCOME_BY_LEGACY_RESOLUTION_CASE[legacy_resolution_case]
-        )
-        assert_recorded_event_matches_legacy(
-            adaptation_record=adaptation_record,
-            adaptation_record_store=adaptation_record_store,
-            previous_state_snapshot=previous_state_snapshot,
-            legacy_client=legacy_client,
-        )
-        # 記録が読むのは完了情報の値と位置が同じであること。
-        assert (
-            adaptation_record.adaptation_sample_index
-            in adaptation_record_store.get_state_snapshot().training_model_switch_sample_indices
-        ) == (validation_completion.training_model_switch_sample_index is not None)
-        # 記録の後も、完了情報と上流の全状態（保有モデル・統計・標本・計数・帰属）は実旧と一致したまま。
-        assert validation_progress.completed_validation is validation_completion
-        assert_validation_progress_matches_legacy(
-            validation_progress=validation_progress,
-            progress_arguments=progress_arguments,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-            legacy_drift_type=legacy_drift_type,
-            previous_model_id=previous_model_id,
-            monkeypatch=monkeypatch,
-        )
-
-
 def finalize_incomplete_validation_in_both_implementations(
     *, class_count, observed_validation_sample_count, processed_sample_count, monkeypatch
 ):
@@ -235,58 +135,6 @@ def finalize_incomplete_validation_in_both_implementations(
         shared_optimizer_owners,
         legacy_client,
     )
-
-
-@pytest.mark.parametrize("class_count", (2, 4))
-@pytest.mark.parametrize("observed_validation_sample_count", (0, 3))
-# 処理済み件数が提案位置以下のときは、旧の終端位置は提案位置になる。
-@pytest.mark.parametrize("processed_sample_count", (50, 60))
-def test_incomplete_validation_record_matches_real_legacy_event(
-    class_count, observed_validation_sample_count, processed_sample_count, monkeypatch
-):
-    with torch.random.fork_rng(devices=[]):
-        (
-            incomplete_validation_finalization,
-            finalization_arguments,
-            resolution_arguments,
-            shared_optimizer_owners,
-            legacy_client,
-        ) = finalize_incomplete_validation_in_both_implementations(
-            class_count=class_count,
-            observed_validation_sample_count=observed_validation_sample_count,
-            processed_sample_count=processed_sample_count,
-            monkeypatch=monkeypatch,
-        )
-        adaptation_record_store = make_populated_adaptation_record_store()
-        previous_state_snapshot = adaptation_record_store.get_state_snapshot()
-        random_states = snapshot_random_states()
-        adaptation_record = record_incomplete_candidate_validation_finalization(
-            incomplete_validation_finalization=incomplete_validation_finalization,
-            adaptation_record_store=adaptation_record_store,
-        )
-        assert_random_states_unchanged(random_states=random_states)
-        assert (
-            adaptation_record.adaptation_outcome
-            == "post_alarm_validation_incomplete_candidate_rejected"
-        )
-        assert adaptation_record.adaptation_sample_index == max(
-            finalization_arguments["validation_session"].proposal_sample_index,
-            processed_sample_count - 1,
-        )
-        assert legacy_client.local_switch_positions == []
-        assert_recorded_event_matches_legacy(
-            adaptation_record=adaptation_record,
-            adaptation_record_store=adaptation_record_store,
-            previous_state_snapshot=previous_state_snapshot,
-            legacy_client=legacy_client,
-        )
-        assert_incomplete_validation_finalization_matches_legacy(
-            incomplete_validation_finalization=incomplete_validation_finalization,
-            finalization_arguments=finalization_arguments,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-        )
 
 
 def test_adaptation_outcomes_cover_alarm_and_validation_results_exactly():

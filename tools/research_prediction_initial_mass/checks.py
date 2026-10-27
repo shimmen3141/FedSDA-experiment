@@ -129,7 +129,7 @@ def test_restores_on_exception_without_rng_changes(diagnostic):
 
 
 @pytest.mark.parametrize(
-    "mode,cfg", [("validation", "fedsda-with-candidate-validation"), ("immediate", "fedsda-without-candidate-validation")]
+    "mode,cfg", [("immediate", "fedsda-without-candidate-validation")]
 )
 def test_control_matches_every_array_metrics_and_rng(diagnostic, mode, cfg):
     settings = build_experiment_run_settings(
@@ -180,7 +180,7 @@ def test_plan_is_read_only_and_rejects_existing_reservation(diagnostic, tmp_path
     ]
     assert diagnostic._main(argv) == 0
     plan = json.loads(capsys.readouterr().out)
-    assert len(plan["jobs"]) == 4
+    assert len(plan["jobs"]) == 3
     assert not output.exists()
     output.mkdir()
     (output / plan["jobs"][0]["run_name"]).mkdir()
@@ -270,7 +270,7 @@ def test_failed_worker_retains_reservation_and_no_completion(
             "--sample-count",
             "100",
             "--modes",
-            "validation",
+            "immediate",
             "--output-directory",
             str(output),
             "--purpose",

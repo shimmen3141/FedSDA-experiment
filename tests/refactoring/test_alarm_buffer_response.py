@@ -2,7 +2,6 @@
 
 import random
 from collections import defaultdict, deque
-from copy import deepcopy
 from dataclasses import FrozenInstanceError, replace
 from unittest.mock import patch
 
@@ -15,8 +14,8 @@ from test_adopted_candidate_initial_local_registration import (
 from test_alarm_change_interval_resolution import (
     assert_alarm_change_interval_resolution_matches_legacy,
     assert_alarm_change_interval_resolution_state_unchanged,
-    resolve_alarm_change_interval_in_legacy_client,
     snapshot_alarm_change_interval_resolution_state,
+    use_immediate_candidate_adoption,
 )
 from test_alarm_training_interval_preparation import (
     assert_evaluation_samples_match_legacy,
@@ -24,11 +23,7 @@ from test_alarm_training_interval_preparation import (
 )
 from test_assigned_training_sample_absorption import assert_absorption_matches_legacy
 from test_joint_model_parameter_update import (
-    assert_nested_state_equal,
     run_legacy_joint_update,
-)
-from test_post_alarm_candidate_validation_sample_observation import (
-    assert_collected_losses_match_legacy,
 )
 
 import federated_learning_experiments.runtime.alarm_buffer_response as response_module
@@ -50,9 +45,6 @@ from federated_learning_experiments.runtime.alarm_change_interval_resolution imp
 )
 from federated_learning_experiments.runtime.alarm_training_interval_preparation import (
     prepare_alarm_training_intervals,
-)
-from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import (
-    observe_post_alarm_candidate_validation_sample,
 )
 
 
@@ -360,6 +352,9 @@ def test_buffer_response_matches_real_legacy(
             estimated_change_span_sample_count=estimated_change_span_sample_count,
             minimum_change_interval_sample_count=minimum_change_interval_sample_count,
         )
+        use_immediate_candidate_adoption(
+            monkeypatch, response_arguments, resolution_arguments, legacy_client=legacy_client
+        )
         initial_training_model_id = legacy_client.current_model_id
         initial_torch_random_state = torch.get_rng_state().clone()
         numpy_random_state = np.random.get_state()
@@ -402,201 +397,6 @@ def test_buffer_response_matches_real_legacy(
                 shared_optimizer_owners=shared_optimizer_owners,
                 legacy_client=legacy_client,
             )
-        if response.active_validation_session is not None:
-            training_sample = (
-                response.prepared_alarm_training_intervals.change_interval_observations[
-                    -1
-                ].training_sample
-            )
-            session = response.active_validation_session
-            assert (
-                legacy_client._observe_forward_validation(
-                    training_sample.input_features,
-                    training_sample.observed_class_labels,
-                    response_arguments["proposal_sample_index"] + 1,
-                )
-                == 0
-            )
-            assert (
-                observe_post_alarm_candidate_validation_sample(
-                    sample_index=response_arguments["proposal_sample_index"] + 1,
-                    input_features=training_sample.input_features,
-                    observed_class_labels=training_sample.observed_class_labels,
-                    candidate_classifier=session.candidate_training_state.candidate_classifier,
-                    reference_classifiers_by_model_id=session.fixed_reference_models.reference_classifiers_by_model_id,
-                    post_alarm_candidate_loss_collection=session.post_alarm_candidate_loss_collection,
-                )
-                is False
-            )
-            assert_collected_losses_match_legacy(
-                post_alarm_candidate_loss_collection=session.post_alarm_candidate_loss_collection,
-                legacy_session=legacy_client._forward_validation,
-            )
-
-
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("empty_buffer", [False, True])
-@pytest.mark.parametrize("negative_training_model_id", [False, True])
-def test_active_candidate_alarm_absorbs_all_and_preserves_session(
-    class_count, empty_buffer, negative_training_model_id, monkeypatch
-):
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(816)
-        (
-            response_arguments,
-            preparation_arguments,
-            resolution_arguments,
-            shared_optimizer_owners,
-            legacy_client,
-        ) = build_buffer_response_oracle(
-            monkeypatch=monkeypatch,
-            class_count=class_count,
-            alarm_interval_resolution_case="no_model_fits",
-        )
-        initial_torch_random_state = torch.get_rng_state().clone()
-        resolve_alarm_change_interval_in_legacy_client(
-            resolution_arguments=resolution_arguments,
-            legacy_client=legacy_client,
-            monkeypatch=monkeypatch,
-        )
-        torch.set_rng_state(initial_torch_random_state)
-        interval_resolution = resolve_alarm_change_interval(**resolution_arguments)
-        active_validation_session = interval_resolution.started_validation_session
-        legacy_session = legacy_client._forward_validation
-        assert active_validation_session is not None and legacy_session is not None
-        response_arguments["active_validation_session"] = active_validation_session
-        if negative_training_model_id:
-            target_model_id = next(model_id for model_id in legacy_client.models if model_id < 0)
-            legacy_client.current_model_id = target_model_id
-            response_arguments["current_training_model_assignment"].assign_model_for_training(
-                model_id=target_model_id
-            )
-        if empty_buffer:
-            response_arguments["pending_training_assignment_buffer"].drain_pending_sample_indices()
-            response_arguments["pending_sample_observations"] = ()
-        pending_assignment_snapshot = response_arguments[
-            "pending_training_assignment_buffer"
-        ].get_state_snapshot()
-        session_loss_snapshot = (
-            active_validation_session.post_alarm_candidate_loss_collection.get_state_snapshot()
-        )
-        session_parameters = tuple(
-            active_validation_session.candidate_training_state.candidate_classifier.parameters()
-        ) + tuple(
-            parameter
-            for classifier in active_validation_session.fixed_reference_models.reference_classifiers_by_model_id.values()
-            for parameter in classifier.parameters()
-        )
-        session_parameter_snapshot = tuple(
-            parameter.detach().clone() for parameter in session_parameters
-        )
-        session_gradient_snapshot = tuple(
-            None if parameter.grad is None else parameter.grad.detach().clone()
-            for parameter in session_parameters
-        )
-        session_reference_history_snapshot = dict(
-            active_validation_session.fixed_reference_models.reference_historical_mean_losses_by_model_id
-        )
-        numpy_random_state = np.random.get_state()
-        initial_torch_random_state = torch.get_rng_state().clone()
-        session_optimizer_snapshot = deepcopy(
-            tuple(
-                optimizer_owner.parameter_optimizer.state_dict()
-                for optimizer_owner in (
-                    active_validation_session.candidate_training_state.candidate_shared_parameter_optimizer_state,
-                    active_validation_session.candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
-                )
-            )
-        )
-        session_pending_samples = active_validation_session.pending_assignment_training_samples
-        initial_training_model_id = legacy_client.current_model_id
-        legacy_result = run_legacy_buffer_response(
-            response_arguments=response_arguments,
-            legacy_client=legacy_client,
-            monkeypatch=monkeypatch,
-        )
-        for argument_name in (
-            "minimum_change_interval_sample_count",
-            "estimated_change_span_sample_count",
-            "model_evaluation_sample_store",
-            "candidate_epoch_training_settings",
-            "candidate_parameter_initialization_settings",
-            "architecture_reference_classifier",
-            "parameter_optimizer_settings",
-            "candidate_model_training_and_acceptance_settings",
-            "maximum_alarm_interval_mean_loss_increase",
-            "proposal_sample_index",
-            "estimated_change_point_sample_index",
-            "detection_episode_id",
-            "detector_name",
-        ):
-            response_arguments[argument_name] = object()
-        # 現行への吸収以外は呼ばない。wrapperで実呼出しを禁止する。
-        with (
-            patch.object(
-                response_module,
-                "prepare_alarm_training_intervals",
-                side_effect=AssertionError("must not prepare"),
-            ),
-            patch.object(
-                response_module,
-                "resolve_alarm_change_interval",
-                side_effect=AssertionError("must not resolve"),
-            ),
-        ):
-            response = response_module.respond_to_alarm_with_buffered_samples(**response_arguments)
-        response_arguments["model_evaluation_sample_store"] = preparation_arguments[
-            "model_evaluation_sample_store"
-        ]
-        assert response.response_outcome == "alarm_during_candidate_validation"
-        assert torch.equal(torch.get_rng_state(), initial_torch_random_state)
-        assert np.random.get_state()[0] == numpy_random_state[0]
-        assert np.array_equal(np.random.get_state()[1], numpy_random_state[1])
-        assert np.random.get_state()[2:] == numpy_random_state[2:]
-        assert response.active_validation_session is active_validation_session
-        assert legacy_client._forward_validation is legacy_session
-        assert (
-            active_validation_session.pending_assignment_training_samples is session_pending_samples
-        )
-        assert (
-            active_validation_session.post_alarm_candidate_loss_collection.get_state_snapshot()
-            == session_loss_snapshot
-        )
-        for parameter, previous_parameter in zip(session_parameters, session_parameter_snapshot):
-            assert torch.equal(parameter, previous_parameter)
-        for parameter, previous_parameter in zip(session_parameters, session_gradient_snapshot):
-            if previous_parameter is None:
-                assert parameter.grad is None
-            else:
-                assert torch.equal(parameter.grad, previous_parameter)
-        assert (
-            active_validation_session.fixed_reference_models.reference_historical_mean_losses_by_model_id
-            == session_reference_history_snapshot
-        )
-        assert_nested_state_equal(
-            tuple(
-                optimizer_owner.parameter_optimizer.state_dict()
-                for optimizer_owner in (
-                    active_validation_session.candidate_training_state.candidate_shared_parameter_optimizer_state,
-                    active_validation_session.candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
-                )
-            ),
-            session_optimizer_snapshot,
-        )
-        assert (
-            response_arguments["pending_training_assignment_buffer"].get_state_snapshot()
-            == pending_assignment_snapshot
-        )
-        assert_buffer_response_matches_legacy(
-            response=response,
-            response_arguments=response_arguments,
-            preparation_arguments=preparation_arguments,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-            legacy_result=legacy_result,
-            initial_training_model_id=initial_training_model_id,
-        )
 
 
 def test_empty_buffer_is_insufficient_without_candidate_work(monkeypatch):

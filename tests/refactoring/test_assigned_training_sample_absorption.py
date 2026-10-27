@@ -4,6 +4,7 @@ import random
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import replace
+from typing import Any
 
 import numpy as np
 import pytest
@@ -569,25 +570,13 @@ def test_all_losses_are_evaluated_before_per_sample_owner_updates(monkeypatch):
 
 
 @pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize(
-    "legacy_resolution_case", ["create_rejected", "maintain_current", "reuse_other"]
-)
-def test_absorption_matches_actual_legacy_non_adoption_branches_of_forward_validation(
-    class_count, legacy_resolution_case, monkeypatch
-):
+@pytest.mark.parametrize("expected_model_id", [9, 4])
+def test_absorption_matches_actual_legacy_store_update(class_count, expected_model_id, monkeypatch):
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(509)
         adoption_arguments, _, legacy_client, _ = build_local_adoption_oracle(
             class_count=class_count, pending_sample_count=4, monkeypatch=monkeypatch
         )
-        legacy_session = legacy_client._forward_validation
-        # 候補の損失を参照より大きくし、実旧の判定を非採用にする。
-        legacy_session.candidate_losses = [0.9] * 4
-        legacy_session.reference_losses = {4: [0.2] * 4, 9: [0.3] * 4}
-        if legacy_resolution_case == "maintain_current":
-            legacy_session.reference_historical_means = {9: 0.3}
-        elif legacy_resolution_case == "reuse_other":
-            legacy_session.reference_historical_means = {4: 0.2}
         registry = adoption_arguments["held_model_training_state_registry"]
         current_training_model_assignment = adoption_arguments["current_training_model_assignment"]
         previous_held_model_ids = tuple(legacy_client.models)
@@ -598,20 +587,17 @@ def test_absorption_matches_actual_legacy_non_adoption_branches_of_forward_valid
             for parameter in state.classifier.parameters()
         )
 
-        legacy_drift_type = legacy_client._finalize_forward_validation(57)
-        assert not legacy_client.provisional_model_decisions[-1].accepted
-        expected_model_id = {"create_rejected": 9, "maintain_current": 9, "reuse_other": 4}[
-            legacy_resolution_case
-        ]
-        assert legacy_client.current_model_id == expected_model_id
-        assert legacy_drift_type == (1 if legacy_resolution_case == "reuse_other" else 0)
-        assert (
-            legacy_client.adaptation_events[-1].action
-            == {
-                "create_rejected": "create_rejected",
-                "maintain_current": "maintain",
-                "reuse_other": "reuse",
-            }[legacy_resolution_case]
+        # 検証なしの警報応答も使う、既存モデルへの取り込みを直接照合する。
+        # 帰属先の決定・切替えは、この部品の責務に含めない。
+        pending_samples = adoption_arguments["pending_assignment_training_samples"]
+        assert isinstance(pending_samples, tuple)
+        legacy_client._set_local_current_model(expected_model_id)
+        legacy_client._absorb_into_store(
+            expected_model_id,
+            [
+                (sample.input_features, sample.observed_class_labels, 1)
+                for sample in pending_samples
+            ],
         )
         assert tuple(legacy_client.models) == previous_held_model_ids
         assert legacy_client.next_temp_id == previous_next_temporary_model_id
@@ -843,6 +829,8 @@ def test_absorption_with_evaluated_losses_still_rejects_invalid_samples_without_
         )
         evaluated_observed_losses = evaluate_absorption_losses(absorption_arguments)
         training_samples = absorption_arguments["assigned_training_samples"]
+        assert isinstance(training_samples, tuple)
+        assert isinstance(training_samples[1], ObservedTrainingSample)
         previous_snapshot = snapshot_absorption_state(
             absorption_arguments=absorption_arguments,
             shared_optimizer_owners=shared_optimizer_owners,
@@ -863,17 +851,16 @@ def test_absorption_with_evaluated_losses_still_rejects_invalid_samples_without_
                 observed_class_labels=training_samples[1].observed_class_labels.repeat(2, 1),
             ),
         ):
+            invalid_arguments: dict[str, Any] = dict(absorption_arguments)
+            invalid_arguments["assigned_training_samples"] = (
+                training_samples[0],
+                invalid_sample,
+                training_samples[2],
+            )
             with measure_model_computation() as model_computation_meter:
                 with pytest.raises(ValueError):
                     absorb_assigned_training_samples_into_held_model(
-                        **absorption_arguments
-                        | dict(
-                            assigned_training_samples=(
-                                training_samples[0],
-                                invalid_sample,
-                                training_samples[2],
-                            )
-                        ),
+                        **invalid_arguments,
                         evaluated_observed_losses=evaluated_observed_losses,
                     )
             assert not any(vars(model_computation_meter.get_model_computation_counts()).values())

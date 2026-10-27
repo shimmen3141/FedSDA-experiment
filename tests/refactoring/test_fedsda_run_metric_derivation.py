@@ -4,9 +4,7 @@
 （新の記録から、旧の列がすべて作れることを確かめる）。
 """
 
-import hashlib
 import io
-import json
 import random
 import sys
 from contextlib import redirect_stdout
@@ -28,7 +26,6 @@ from test_cross_evaluation_download_deduplication import (
     expected_legacy_communication_volume_after_deduplication,
     observe_legacy_duplicate_downloads,
 )
-from test_environment_proposed_regression import describe_missing_golden, find_golden_path
 from test_fedsda_run_client import (
     LEGACY_ACTION_BY_ADAPTATION_OUTCOME,
     LEGACY_REASON_BY_DECISION_REASON,
@@ -85,19 +82,22 @@ UNDERIVED_LEGACY_METRIC_NAMES = ()
 GOLDEN_CONDITION_PATHS_BY_DATASET_NAME = {
     "sine2": dict(
         multiple_global_models=True,
-        candidate_decisions=True,
+        model_consolidation=True,
+        candidate_adoptions=True,
         multiple_held_models=True,
         synchronization_computation=True,
     ),
     "sea2": dict(
         multiple_global_models=False,
-        candidate_decisions=False,
+        model_consolidation=False,
+        candidate_adoptions=False,
         multiple_held_models=False,
         synchronization_computation=False,
     ),
     "mnist2": dict(
         multiple_global_models=False,
-        candidate_decisions=True,
+        model_consolidation=True,
+        candidate_adoptions=True,
         multiple_held_models=True,
         synchronization_computation=True,
     ),
@@ -193,12 +193,39 @@ LEGACY_METRIC_NAMES_OF_UNUSED_OPTIONS = (
 # 最後のtestが、この観測から確かめる。
 LEGACY_CHANGE_RESPONSE_METRIC_VALUE_OBSERVATIONS = []
 # 実行した全部の条件で、旧の値が同じになる、指標の対（対応表で、この2つを取り違えても、照合は検出できない）。
+# 検証なしでは、候補検証の指標と棄却の件数は常に0。残る指標の取り違えは、別に検出する。
+_CANDIDATE_VALIDATION_ONLY_LEGACY_METRIC_NAMES = (
+    "adaptation_create_rejected_count",
+    "provisional_acceptance_rate",
+    "provisional_matched_true_count",
+    "provisional_accepted_matched_true_count",
+    "provisional_rejected_matched_true_count",
+    "provisional_accepted_precision",
+    "provisional_interval_count_mean",
+    "provisional_training_count_mean",
+    "provisional_validation_count_mean",
+    "provisional_resolution_delay_mean",
+    "provisional_accepted_full_margin_mean",
+    "provisional_accepted_recent_margin_mean",
+    "provisional_rejected_full_margin_mean",
+    "provisional_rejected_recent_margin_mean",
+    "provisional_matched_full_margin_mean",
+    "provisional_matched_recent_margin_mean",
+    "provisional_unmatched_full_margin_mean",
+    "provisional_unmatched_recent_margin_mean",
+    "provisional_reject_insufficient_forward_data_count",
+    "provisional_reject_first_interval_count",
+    "provisional_reject_second_interval_count",
+    "provisional_reject_first_and_second_count",
+    "provisional_reject_current_refit_count",
+    "provisional_reject_alternative_refit_count",
+    "provisional_reject_reference_refit_count",
+    "provisional_reference_excess_mean",
+)
+# 検証なしでは、維持・再利用は警報の区間で決まり、後の候補検証からは増えない。
 INDISTINGUISHABLE_LEGACY_CHANGE_RESPONSE_METRIC_NAME_PAIRS = {
-    # 最終構成では、候補の学習区間の全部を、学習に使う（新は、1つの値で持つ）。
-    ("provisional_interval_count_mean", "provisional_training_count_mean"),
-    # 最終構成の検証は、提案の次の標本から、1標本ずつ進む（判定までの標本数と、検証に使った標本数が、同じになる）。
-    # 新の2つの値は、別の記録（判定の位置と、検証の標本数）から作り、表の列で、別々に、旧の配列と照合している。
-    ("provisional_resolution_delay_mean", "provisional_validation_count_mean"),
+    ("adaptation_maintain_count", "model_reuse_current_fit_count"),
+    ("adaptation_reuse_count", "model_reuse_alternative_fit_count"),
 }
 
 
@@ -368,11 +395,8 @@ LEGACY_MODEL_DIAGNOSTIC_METRIC_VALUE_OBSERVATIONS = []
 # クラスタの割当の適合率・再現率・F1は、実行した条件では、いつも同じ値になる（統合した対が、すべて、真の概念の一致する対で、
 # 一致する対を、すべて統合したか、統合が1つもないか）。この3つは、4通りの数（条件の間で、互いに違う値を取る）から、
 # 計算のmoduleが作り、乱数の列で、旧と同じ式と照合してある（test_model_diagnostic_metric_calculations.py）。
-INDISTINGUISHABLE_LEGACY_MODEL_DIAGNOSTIC_METRIC_NAME_PAIRS = {
-    ("clustering_oracle_merge_f1", "clustering_oracle_merge_precision"),
-    ("clustering_oracle_merge_f1", "clustering_oracle_merge_recall"),
-    ("clustering_oracle_merge_precision", "clustering_oracle_merge_recall"),
-}
+# 3モデルの統合を含む検証なしの条件で、26項目の指標をすべて区別する。
+INDISTINGUISHABLE_LEGACY_MODEL_DIAGNOSTIC_METRIC_NAME_PAIRS: set[tuple[str, str]] = set()
 
 
 def derive_legacy_model_diagnostic_metric_values(run_metrics):
@@ -1026,7 +1050,7 @@ def make_golden_condition_settings(
 def golden_condition_runs(request, tmp_path_factory):
     """goldenの条件（datasetごと）で、実旧の`run_random_drift_experiment`（保存つき）と、新の全体run＋導出を、1回ずつ実行する。
 
-    旧の実行は、旧の回帰test（`run_case`）と同じ設定の文脈・同じ引数で行う。呼出し側の乱数は進めない。
+    旧の回帰testの条件を使い、採否の方針だけimmediateへ替える。呼出し側の乱数は進めない。
     """
     dataset_name = request.param
     assert dataset_name in legacy_regression.CASES
@@ -1042,7 +1066,7 @@ def golden_condition_runs(request, tmp_path_factory):
             ParameterAssignment("aggregation_interval", 50),
             ParameterAssignment("fedsda_distance_threshold", 0.1),
         ),
-        algorithm=legacy_regression.ALGORITHM,
+        algorithm=replace(legacy_regression.ALGORITHM, new_model_creation_policy="immediate"),
     )
     raw_path = tmp_path_factory.mktemp("legacy-raw") / f"{dataset_name}.npz"
     python_random_state = random.getstate()
@@ -1056,6 +1080,7 @@ def golden_condition_runs(request, tmp_path_factory):
                     {
                         **legacy_regression.COMMON,
                         **legacy_regression.CASES[dataset_name],
+                        "NEW_MODEL_CREATION_POLICY": "immediate",
                     }
                 ),
                 configuration.activated(),
@@ -1187,12 +1212,10 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
         assert 0 < detection_metrics.matched_detection_count < detection_metrics.detection_count
     else:
         assert run_metrics.final_global_model_count == 1
-    assert (run_metrics.candidate_validation_decision_count > 0) == (
-        expected_paths["candidate_decisions"]
-    )
-    assert (detection_metrics.detection_count > 0) == expected_paths["candidate_decisions"]
+    assert run_metrics.candidate_validation_decision_count == 0
+    assert (detection_metrics.detection_count > 0) == expected_paths["candidate_adoptions"]
     assert (detection_metrics.matched_detection_count > 0) == (
-        expected_paths["candidate_decisions"]
+        expected_paths["candidate_adoptions"]
     )
     # 計算量: 積和演算の数が、標本数の計数と、層の形から計算した値と一致する。
     assert_multiply_accumulate_counts_match_example_counts(
@@ -1251,8 +1274,8 @@ def test_golden_condition_comparison_computation_metrics_match_real_legacy_count
         diagnostic_parameter_distance_multiply_accumulate_count=diagnostic_distance_count,
     )
     expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
-    assert (consolidation_count > 0) == expected_paths["multiple_global_models"]
-    assert (diagnostic_distance_count > 0) == expected_paths["multiple_global_models"]
+    assert (consolidation_count > 0) == expected_paths["model_consolidation"]
+    assert (diagnostic_distance_count > 0) == expected_paths["model_consolidation"]
     # 処理した標本数と、保有モデル×標本の延べ数（旧の、予測でモデルへ入力した標本の数）。
     per_client_sample_count = legacy_regression.CASES[golden_condition_runs.dataset_name][
         "TOTAL_DATA_POINTS"
@@ -1413,72 +1436,20 @@ def test_golden_condition_trace_arrays_match_real_legacy_saved_arrays(golden_con
     assert trace_arrays["drift_positions"].size > 0
     # 列が、中身のある比較になっている（旧の回帰testの経路の件数。datasetごとの期待は、上の表）。
     expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
-    if expected_paths["multiple_global_models"]:
+    if expected_paths["model_consolidation"]:
         assert trace_arrays["model_registration_ids"].size > 1
         assert trace_arrays["clustering_absorbed"].sum() > 0
         assert trace_arrays["clustering_pair_same_cluster"].size > 0
     else:
         assert trace_arrays["model_registration_ids"].size == 1
-    if expected_paths["candidate_decisions"]:
-        assert trace_arrays["provisional_accepted"].sum() > 0
-        assert (~trace_arrays["provisional_accepted"]).sum() > 0
+    if expected_paths["candidate_adoptions"]:
+        assert "create" in trace_arrays["adaptation_actions"].tolist()
         assert trace_arrays["switch_positions"].size > 0
         assert len(set(trace_arrays["adaptation_actions"].tolist())) > 2
-        assert len(set(trace_arrays["provisional_reasons"].tolist())) > 1
+        assert trace_arrays["provisional_reasons"].size == 0
     else:
         # 警報のたびに現行モデルを維持する（候補の判定まで進まない）。
         assert set(trace_arrays["adaptation_actions"].tolist()) == {"maintain"}
-
-
-def test_golden_condition_metrics_and_traces_match_environment_golden(golden_condition_runs):
-    """導出した指標と列が、実行環境のgoldenと一致する。
-
-    goldenは、実行環境に依存する（旧実装の結果自体が、OSや、Python・NumPyの版で違う）。実行環境の記録と
-    完全に一致するgolden（固定のWindows用のgoldenか、環境ごとのgolden）を選ぶ。なければ、照合しない。
-    同じprocessの中の実旧との照合（上の2つ）は、どの環境でも行う。
-    """
-    environment = legacy_regression.environment()
-    golden_path = find_golden_path(environment)
-    if golden_path is None:
-        pytest.skip(describe_missing_golden(environment))
-    golden = json.loads(golden_path.read_text(encoding="utf-8"))
-    assert golden["_env"] == environment
-    golden_case = golden["cases"][golden_condition_runs.dataset_name]
-    legacy_metric_values = derive_legacy_metric_values(golden_condition_runs.run_metrics)
-    assert set(golden_case["metrics"]) == set(legacy_metric_values) | set(
-        UNDERIVED_LEGACY_METRIC_NAMES
-    )
-    for legacy_metric_name, metric_value in legacy_metric_values.items():
-        assert float(metric_value) == pytest.approx(
-            golden_case["metrics"][legacy_metric_name], rel=0, abs=1e-9
-        ), legacy_metric_name
-    trace_arrays = derive_legacy_trace_arrays(
-        run_result=golden_condition_runs.run_result,
-        participants=golden_condition_runs.participants,
-    )
-    assert set(golden_case["traces"]) == set(trace_arrays)
-    for trace_name, trace_values in trace_arrays.items():
-        # 旧の回帰test（`run_case`）と同じ、形と、正規化したJSONのSHA-256。
-        serialized_values = json.dumps(
-            trace_values.tolist(), separators=(",", ":"), ensure_ascii=True
-        )
-        assert golden_case["traces"][trace_name] == dict(
-            shape=list(trace_values.shape),
-            sha256=hashlib.sha256(serialized_values.encode()).hexdigest(),
-        ), trace_name
-
-
-def test_golden_condition_decision_kinds_are_reported(golden_condition_runs):
-    """goldenの条件の全体runが通った、候補の判定の種類（別の保有モデルの再利用を含むか）を確かめる。"""
-    trace_arrays = derive_legacy_trace_arrays(
-        run_result=golden_condition_runs.run_result,
-        participants=golden_condition_runs.participants,
-    )
-    observed_reasons = set(trace_arrays["provisional_reasons"].tolist())
-    assert (
-        observed_reasons
-        == GOLDEN_CONDITION_DECISION_REASONS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
-    ), sorted(observed_reasons)
 
 
 # goldenの条件の全体runが通る、候補の判定の理由（実旧の名前）。
@@ -1547,6 +1518,8 @@ def test_derivation_does_not_change_participant_state_and_is_repeatable(golden_c
 # 統合が起きる条件、終端で候補検証が回収される条件、処理されない末尾がある条件（末尾に変更がありうる）、
 # 候補が区間の判定で棄却される条件（全体runの対照の条件から、実旧だけの実行で理由を調べて選んだ）。
 SMALL_RUN_CONDITIONS = [
+    # 検証なしでも、3モデルの統合と、統合による学習帰属の付け替えを通る。
+    (1, 5, 600, 10, 30, 0.05, 1),
     (7, 3, 300, 10, 30, 0.05, 2),
     (17, 3, 250, 10, 30, 0.05, 2),
     (23, 2, 300, 10, 25, 0.06, 2),
@@ -1919,14 +1892,6 @@ def compare_small_run_with_real_legacy(
         stable_accuracy_differs=(
             run_metrics.stable_period_prediction_accuracy != run_metrics.prediction_accuracy
         ),
-        # 終端で回収された、未完了の候補検証の判定（列では、理由が「前向きの標本が足りない」）。
-        incomplete_candidate_validation_decision=(
-            "insufficient_forward_data" in trace_arrays["provisional_reasons"].tolist()
-        ),
-        candidate_rejected_by_segment_margin=bool(
-            {"first_interval", "second_interval", "first_and_second"}
-            & set(trace_arrays["provisional_reasons"].tolist())
-        ),
         models_absorbed=bool(trace_arrays["clustering_absorbed"].any()),
         server_remapped_adaptation="server_merge" in trace_arrays["adaptation_actions"].tolist(),
     )
@@ -2090,7 +2055,7 @@ def test_derivation_rejects_invalid_arguments(golden_condition_runs):
         != run_metrics.training_model_switch_detection_metrics
     ) == (
         GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name][
-            "candidate_decisions"
+            "candidate_adoptions"
         ]
     )
     assert (
@@ -2117,7 +2082,11 @@ def test_change_response_metric_correspondence_distinguishes_metric_pairs():
     observations = LEGACY_CHANGE_RESPONSE_METRIC_VALUE_OBSERVATIONS
     if len(observations) < len(GOLDEN_DATASET_NAMES) + 2 * len(SMALL_RUN_CONDITIONS):
         pytest.skip("goldenと、対照の全条件を実行したときだけ確かめる")
-    legacy_metric_names = sorted(observations[0])
+    for name in _CANDIDATE_VALIDATION_ONLY_LEGACY_METRIC_NAMES:
+        assert all(observation[name] == 0 for observation in observations), name
+    legacy_metric_names = sorted(
+        set(observations[0]) - set(_CANDIDATE_VALIDATION_ONLY_LEGACY_METRIC_NAMES)
+    )
     indistinguishable_name_pairs = {
         (first_name, second_name)
         for first_name, second_name in combinations(legacy_metric_names, 2)
@@ -2155,7 +2124,7 @@ def test_model_diagnostic_metric_correspondence_distinguishes_metric_pairs():
     }
     assert (
         indistinguishable_name_pairs == INDISTINGUISHABLE_LEGACY_MODEL_DIAGNOSTIC_METRIC_NAME_PAIRS
-    )
+    ), indistinguishable_name_pairs
     # どの条件でも同じ値のままの指標（値の照合が、取り違え以外の誤りも検出しにくいもの）は、ない。
     assert not [
         legacy_metric_name

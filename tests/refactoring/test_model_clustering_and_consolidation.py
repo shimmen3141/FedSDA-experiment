@@ -228,6 +228,8 @@ CLUSTERING_ROUND_CONDITIONS = [
     (4, 30, 3, {}),
     (4, 25, 31, MORE_EVALUATION_SAMPLES),
     (4, 13, 5, {}),
+    # 検証なしでも、2モデルの統合・再統合と現行モデルの付け替えを通る。
+    (4, 30, 7, {}),
 ]
 
 
@@ -410,17 +412,17 @@ def test_clustering_round_conditions_cover_required_paths():
 
 
 def build_cross_evaluated_server_round_oracle(*, monkeypatch, valid_run_settings_mapping):
-    """クラスタリングの直前の状態: 8ラウンド同期し、9ラウンドめの登録・集約・クロス評価まで済ませた状態。
+    """クラスタリングの直前の状態: 10ラウンド同期し、11ラウンドめの登録・集約・クロス評価まで済ませた状態。
 
-    この標本列（2値、区間長16、seed 23）では、9ラウンドめに、新規モデルが3つ登録され、クラスタリングで、
+    この検証なしの標本列（4値、区間長22、seed 11）では、11ラウンドめに、新規モデルが3つ登録され、クラスタリングで、
     モデル1・2・3が1つへ集まる（下のtestが確かめる）。
     戻り値: (oracle, 同期のowner, クロス評価の結果, 集約の結果, ラウンド)。
     """
-    client_streams = make_client_streams(round_count=9, concept_block_length=16, stream_seed=23)
+    client_streams = make_client_streams(round_count=11, concept_block_length=22, stream_seed=11)
     server_round_oracle = build_server_round_oracle(
         monkeypatch=monkeypatch,
         valid_run_settings_mapping=valid_run_settings_mapping,
-        class_count=2,
+        class_count=4,
         **FIFO_REPLAY_RECALIBRATION,
     )
     synchronization_owners = make_synchronization_owners(server_round_oracle)
@@ -428,14 +430,14 @@ def build_cross_evaluated_server_round_oracle(*, monkeypatch, valid_run_settings
     legacy_server = server_round_oracle["legacy_server"]
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(41)
-        for round_index in range(8):
+        for round_index in range(10):
             run_round_with_clustering_in_both(
                 server_round_oracle=server_round_oracle,
                 synchronization_owners=synchronization_owners,
                 client_streams=client_streams,
                 round_index=round_index,
             )
-        round_index = 8
+        round_index = 10
         process_round_samples_in_both(
             server_round_oracle=server_round_oracle,
             client_streams=client_streams,
@@ -689,16 +691,25 @@ def test_clustering_and_consolidation_reject_invalid_arguments_before_any_update
     arguments = get_clustering_and_consolidation_arguments(cross_evaluated_state)
     state_snapshot = snapshot_server_and_client_states(server_round_oracle)
     model_clustering_record_store = arguments["model_clustering_record_store"]
+    assert isinstance(model_clustering_record_store, ModelClusteringRecordStore)
+    pair_observations_before = model_clustering_record_store.snapshot_pair_clustering_observations()
+    model_observations_before = (
+        model_clustering_record_store.snapshot_model_clustering_observations()
+    )
     for invalid_case_name, make_invalid_arguments in INVALID_CLUSTERING_ARGUMENT_CASES.items():
         with pytest.raises((TypeError, ValueError)):
             cluster_and_consolidate_global_models(**arguments | make_invalid_arguments(arguments))
         assert_server_and_client_states_unchanged(
             state_snapshot=state_snapshot, server_round_oracle=server_round_oracle
         )
-        assert model_clustering_record_store.snapshot_pair_clustering_observations() == (), (
-            invalid_case_name
+        assert (
+            model_clustering_record_store.snapshot_pair_clustering_observations()
+            == pair_observations_before
+        ), invalid_case_name
+        assert (
+            model_clustering_record_store.snapshot_model_clustering_observations()
+            == model_observations_before
         )
-        assert model_clustering_record_store.snapshot_model_clustering_observations() == ()
 
 
 def test_clustering_without_consolidation_keeps_global_models(
@@ -711,6 +722,9 @@ def test_clustering_without_consolidation_keeps_global_models(
     server_round_oracle = cross_evaluated_state["server_round_oracle"]
     arguments = get_clustering_and_consolidation_arguments(cross_evaluated_state)
     state_snapshot = snapshot_server_and_client_states(server_round_oracle)
+    record_store = arguments["model_clustering_record_store"]
+    assert isinstance(record_store, ModelClusteringRecordStore)
+    previous_observation_count = len(record_store.snapshot_model_clustering_observations())
     model_consolidation = cluster_and_consolidate_global_models(
         **arguments
         | dict(
@@ -725,9 +739,9 @@ def test_clustering_without_consolidation_keeps_global_models(
     assert_server_and_client_states_unchanged(
         state_snapshot=state_snapshot, server_round_oracle=server_round_oracle
     )
-    model_observations = arguments[
-        "model_clustering_record_store"
-    ].snapshot_model_clustering_observations()
+    model_observations = record_store.snapshot_model_clustering_observations()[
+        previous_observation_count:
+    ]
     assert [model_observation.model_id for model_observation in model_observations] == [0, 1, 2, 3]
     assert not any(
         model_observation.merged_with_other_models for model_observation in model_observations
@@ -739,17 +753,17 @@ def test_server_round_synchronization_stops_at_failed_stage_without_rollback(
     monkeypatch, valid_run_settings_mapping
 ):
     """クラスタリングと統合の段が失敗したら、配布と再較正へ進まない。登録・集約・クロス評価の分は残る。"""
-    client_streams = make_client_streams(round_count=9, concept_block_length=16, stream_seed=23)
+    client_streams = make_client_streams(round_count=11, concept_block_length=22, stream_seed=11)
     server_round_oracle = build_server_round_oracle(
         monkeypatch=monkeypatch,
         valid_run_settings_mapping=valid_run_settings_mapping,
-        class_count=2,
+        class_count=4,
         **FIFO_REPLAY_RECALIBRATION,
     )
     synchronization_owners = make_synchronization_owners(server_round_oracle)
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(41)
-        for round_index in range(8):
+        for round_index in range(10):
             run_round_with_clustering_in_both(
                 server_round_oracle=server_round_oracle,
                 synchronization_owners=synchronization_owners,
@@ -757,13 +771,23 @@ def test_server_round_synchronization_stops_at_failed_stage_without_rollback(
                 round_index=round_index,
             )
         process_round_samples_in_both(
-            server_round_oracle=server_round_oracle, client_streams=client_streams, round_index=8
+            server_round_oracle=server_round_oracle, client_streams=client_streams, round_index=10
         )
         global_model_repository = server_round_oracle["global_model_repository"]
-        assert global_model_repository.global_model_ids == (0,)
+        assert global_model_repository.global_model_ids == (0, 1)
+        record_store = synchronization_owners["model_clustering_record_store"]
+        assert isinstance(record_store, ModelClusteringRecordStore)
+        model_observations_before = record_store.snapshot_model_clustering_observations()
         volume_before = server_round_oracle[
             "communication_volume_record_store"
         ].get_state_snapshot()
+        held_classifiers_before = [
+            {
+                id(state.classifier)
+                for state in client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+            }
+            for client in server_round_oracle["run_clients"]
+        ]
         called_stage_names = []
         for stage_name in (
             "distribute_global_models_to_clients",
@@ -780,32 +804,27 @@ def test_server_round_synchronization_stops_at_failed_stage_without_rollback(
             monkeypatch.setattr(synchronization_module, stage_name, record_stage_call)
         with pytest.raises(RuntimeError, match="injected consolidation failure"):
             synchronize_models_in_server_round(
-                **synchronization_owners, round_index=8, model_clustering_enabled=True
+                **synchronization_owners, round_index=10, model_clustering_enabled=True
             )
     assert called_stage_names == ["cluster_and_consolidate_global_models"]
-    # 登録（3つ）と集約とクロス評価は済んでいる。統合と配布は行われていない。
+    # 登録（2つ）と集約とクロス評価は済んでいる。統合と配布は行われていない。
     assert global_model_repository.global_model_ids == (0, 1, 2, 3)
     assert global_model_repository.next_global_model_id == 4
     assert synchronization_owners[
         "cross_evaluation_record_store"
     ].snapshot_client_cross_evaluation_records()
-    assert (
-        synchronization_owners[
-            "model_clustering_record_store"
-        ].snapshot_model_clustering_observations()
-        == ()
-    )
+    assert record_store.snapshot_model_clustering_observations() == model_observations_before
     volume_after = server_round_oracle["communication_volume_record_store"].get_state_snapshot()
     assert volume_after.uploaded_model_count > volume_before.uploaded_model_count
     assert volume_after.downloaded_message_count > volume_before.downloaded_message_count
-    for run_client in server_round_oracle["run_clients"]:
-        # 配布を受け取っていないので、clientは、ほかのclientが登録したモデルを保有していない。
-        assert (
-            len(
-                run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
-            )
-            == 2
-        )
+    run_clients = server_round_oracle["run_clients"]
+    assert isinstance(run_clients, tuple)
+    for run_client, classifiers_before in zip(run_clients, held_classifiers_before):
+        # 自分の一時IDの登録だけが済み、配布による作り直し・他clientのモデルの追加は起きていない。
+        assert {
+            id(state.classifier)
+            for state in run_client.owners.held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+        } == classifiers_before
 
 
 def test_server_round_synchronization_rejects_invalid_clustering_flag(
@@ -892,9 +911,9 @@ def test_pair_is_evaluated_only_with_minimum_sample_count_in_all_four_loss_sums(
             ),
         )
     )
-    pair_observations = arguments[
-        "model_clustering_record_store"
-    ].snapshot_pair_clustering_observations()
+    record_store = arguments["model_clustering_record_store"]
+    assert isinstance(record_store, ModelClusteringRecordStore)
+    pair_observations = record_store.snapshot_pair_clustering_observations()
     assert {
         (pair_observation.lower_model_id, pair_observation.higher_model_id): (
             pair_observation.loss_increase_distance

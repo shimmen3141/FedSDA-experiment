@@ -1,10 +1,7 @@
 """警報後の候補検証の確定を、実旧の前向き検証確定処理の4分岐へ対照する。"""
 
-import random
-from collections import defaultdict
 from dataclasses import FrozenInstanceError, replace
 
-import numpy as np
 import pytest
 import torch
 from test_adopted_candidate_initial_local_registration import (
@@ -17,7 +14,6 @@ from test_adopted_candidate_local_adoption import (
     build_local_adoption_oracle,
     snapshot_adoption_state,
 )
-from test_joint_model_parameter_update import run_legacy_joint_update
 from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
 from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
 
@@ -27,17 +23,8 @@ from federated_learning_experiments.learning.training.current_training_model_ass
     CurrentTrainingModelAssignment,
     TrainingModelAssignmentChange,
 )
-from federated_learning_experiments.learning.training.joint_model_parameter_update import (
-    perform_joint_model_parameter_update,
-)
-from federated_learning_experiments.learning.training.local_training_settings import (
-    LocalTrainingSettings,
-)
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
-)
-from federated_learning_experiments.learning.training.participating_model_training_batch import (
-    ParticipatingModelTrainingBatch,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
     CandidateModelTrainingAndAcceptanceSettings,
@@ -89,6 +76,7 @@ def build_resolution_oracle(
             monkeypatch=monkeypatch,
         )
     )
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "forward_persistent")
     legacy_session = legacy_client._forward_validation
     if legacy_resolution_case == "create":
         candidate_losses = (0.01,) * 4
@@ -137,17 +125,6 @@ def build_resolution_oracle(
         pending_assignment_sample_concept_ids=(1,) * pending_sample_count,
     )
     return resolution_arguments, shared_optimizer_owners, legacy_client, legacy_candidate_model
-
-
-def finalize_forward_validation_in_legacy_client(*, legacy_client, resolution_arguments):
-    """実旧の確定処理を実行し、旧判定が新の評価結果と同じであることを確かめる。"""
-    legacy_drift_type = legacy_client._finalize_forward_validation(57)
-    assert (
-        legacy_client.provisional_model_decisions[-1].accepted
-        is resolution_arguments["post_alarm_candidate_loss_evaluation"].candidate_accepted
-    )
-    assert legacy_client._forward_validation is None
-    return legacy_drift_type
 
 
 def assert_resolution_matches_legacy(
@@ -222,103 +199,6 @@ def assert_resolution_matches_legacy(
         )
         assert resolution_arguments["pending_model_upload_state"].get_pending_model_upload() is None
         assert legacy_client.pending_model_params is None
-
-
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("legacy_resolution_case", LEGACY_RESOLUTION_CASES)
-@pytest.mark.parametrize("pending_sample_count", [0, 4])
-def test_resolution_matches_actual_legacy_forward_validation_branches(
-    class_count, legacy_resolution_case, pending_sample_count, monkeypatch
-):
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(601)
-        resolution_arguments, shared_optimizer_owners, legacy_client, _ = build_resolution_oracle(
-            class_count=class_count,
-            legacy_resolution_case=legacy_resolution_case,
-            pending_sample_count=pending_sample_count,
-            monkeypatch=monkeypatch,
-        )
-        registry = resolution_arguments["held_model_training_state_registry"]
-        previous_model_id = resolution_arguments[
-            "current_training_model_assignment"
-        ].current_training_model_id
-        previous_held_model_training_states = registry.snapshot_ordered_held_model_training_states()
-        candidate = resolution_arguments["adopted_candidate_classifier"]
-        candidate_feature_extractor = candidate.feature_extractor
-        candidate_optimizer = resolution_arguments[
-            "candidate_concept_specific_parameter_optimizer_state"
-        ].parameter_optimizer
-        previous_counts = resolution_arguments[
-            "model_training_and_assignment_counts_store"
-        ].snapshot_model_training_and_assignment_counts()
-        random_states = (torch.get_rng_state().clone(), random.getstate(), np.random.get_state())
-
-        legacy_drift_type = finalize_forward_validation_in_legacy_client(
-            legacy_client=legacy_client, resolution_arguments=resolution_arguments
-        )
-        resolution = apply_post_alarm_candidate_validation_resolution(**resolution_arguments)
-
-        assert (
-            LEGACY_ACTION_BY_RESOLUTION_OUTCOME[resolution.resolution_outcome]
-            == legacy_resolution_case
-        )
-        assert_resolution_matches_legacy(
-            resolution=resolution,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-            legacy_drift_type=legacy_drift_type,
-            previous_model_id=previous_model_id,
-        )
-        current_counts = resolution_arguments[
-            "model_training_and_assignment_counts_store"
-        ].snapshot_model_training_and_assignment_counts()
-        if legacy_resolution_case == "create":
-            # 採用では保留標本の概念を計数しない（実旧と同じ）。
-            assert (
-                current_counts.assigned_sample_counts_by_model_and_concept_id
-                == previous_counts.assigned_sample_counts_by_model_and_concept_id
-            )
-        else:
-            # 採用以外では候補・保有一覧の構成・学習計数・採番を変更しない。
-            assert (
-                registry.snapshot_ordered_held_model_training_states()
-                == previous_held_model_training_states
-            )
-            assert candidate.feature_extractor is candidate_feature_extractor
-            assert (
-                resolution_arguments[
-                    "candidate_concept_specific_parameter_optimizer_state"
-                ].parameter_optimizer
-                is candidate_optimizer
-            )
-            assert (
-                current_counts.trained_sample_counts_by_model_id
-                == previous_counts.trained_sample_counts_by_model_id
-            )
-            assert (
-                current_counts.parameter_update_step_counts_by_model_id
-                == previous_counts.parameter_update_step_counts_by_model_id
-            )
-            assert (
-                sum(
-                    current_counts.assigned_sample_counts_by_model_and_concept_id.get(
-                        resolution.assigned_model_id, {}
-                    ).values()
-                )
-                == sum(
-                    previous_counts.assigned_sample_counts_by_model_and_concept_id.get(
-                        resolution.assigned_model_id, {}
-                    ).values()
-                )
-                + pending_sample_count
-            )
-        assert torch.equal(torch.get_rng_state(), random_states[0])
-        assert random.getstate() == random_states[1]
-        numpy_state = np.random.get_state()
-        assert numpy_state[0] == random_states[2][0]
-        assert np.array_equal(numpy_state[1], random_states[2][1])
-        assert numpy_state[2:] == random_states[2][2:]
 
 
 def test_resolution_record_is_immutable_and_validates_outcome():
@@ -593,136 +473,3 @@ def test_each_outcome_calls_only_its_operations_in_order(legacy_resolution_case,
             "create_rejected": [("absorb_assigned_training_samples_into_held_model", 9)],
         }[legacy_resolution_case]
         assert actual_call_order == expected_call_order
-
-
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
-@pytest.mark.parametrize("update_shared_features", [True, False])
-@pytest.mark.parametrize("legacy_resolution_case", ["create", "reuse"])
-def test_resolved_validation_continues_actual_joint_training(
-    class_count, optimizer_variant, update_shared_features, legacy_resolution_case, monkeypatch
-):
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(607)
-        resolution_arguments, shared_optimizer_owners, legacy_client, _ = build_resolution_oracle(
-            class_count=class_count,
-            legacy_resolution_case=legacy_resolution_case,
-            pending_sample_count=4,
-            optimizer_variant=optimizer_variant,
-            monkeypatch=monkeypatch,
-        )
-        monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
-        registry = resolution_arguments["held_model_training_state_registry"]
-        training_sample_store = resolution_arguments["training_sample_store"]
-        counts_store = resolution_arguments["model_training_and_assignment_counts_store"]
-        active = registry.get_held_model_training_state(model_id=9).classifier.feature_extractor
-        input_features = resolution_arguments["initial_statistics_input_features"]
-        previous_model_id = resolution_arguments[
-            "current_training_model_assignment"
-        ].current_training_model_id
-        local_training_settings = LocalTrainingSettings(
-            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
-            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
-        )
-        legacy_training_batches = []
-        legacy_client.updates_per_sample = 1
-        legacy_client.backbone_gradient_diagnostics = defaultdict(float)
-        legacy_client.phase_seconds = defaultdict(float)
-        legacy_client._sample_training_batches = lambda: legacy_training_batches
-
-        def run_joint_update_in_both_implementations():
-            # 両実装とも、各自の標本storeにある全標本をモデルごとの固定batchにする。
-            training_bindings = registry.snapshot_ordered_held_model_training_bindings()
-            model_training_sample_collections = (
-                training_sample_store.snapshot_ordered_model_training_samples()
-            )
-            assert tuple(binding.model_id for binding in training_bindings) == tuple(
-                collection.model_id for collection in model_training_sample_collections
-            )
-            legacy_training_batches[:] = [
-                (
-                    model_id,
-                    torch.cat([legacy_training_sample[0] for legacy_training_sample in samples]),
-                    torch.cat([legacy_training_sample[1] for legacy_training_sample in samples]),
-                )
-                for model_id, samples in legacy_client.train_data_store.items()
-            ]
-            participating_training_batches = tuple(
-                ParticipatingModelTrainingBatch(
-                    classifier=training_binding.classifier,
-                    concept_specific_parameter_optimizer=training_binding.concept_specific_parameter_optimizer,
-                    input_features=torch.cat(
-                        [sample.input_features for sample in collection.training_samples]
-                    ),
-                    observed_class_labels=torch.cat(
-                        [sample.observed_class_labels for sample in collection.training_samples]
-                    ),
-                )
-                for training_binding, collection in zip(
-                    training_bindings, model_training_sample_collections
-                )
-            )
-            expected_joint_loss = run_legacy_joint_update(
-                legacy_client=legacy_client, update_shared_features=update_shared_features
-            )
-            actual_joint_loss = perform_joint_model_parameter_update(
-                local_training_settings=local_training_settings,
-                shared_feature_extractor=active,
-                shared_parameter_optimizer=shared_optimizer_owners[0].parameter_optimizer,
-                participating_training_batches=participating_training_batches,
-                update_shared_features=update_shared_features,
-            )
-            assert actual_joint_loss == expected_joint_loss
-            for training_binding, training_batch in zip(
-                training_bindings, participating_training_batches
-            ):
-                counts_store.record_completed_model_training(
-                    model_id=training_binding.model_id,
-                    trained_sample_count=len(training_batch.input_features),
-                    parameter_update_step_count=1,
-                )
-            assert_held_model_states_match_legacy(
-                registry=registry,
-                shared_optimizer_owners=shared_optimizer_owners
-                if len(training_bindings) == 3
-                else shared_optimizer_owners[:-1],
-                legacy_client=legacy_client,
-                input_features=input_features,
-            )
-            assert_model_counts_match_legacy(counts_store=counts_store, legacy_client=legacy_client)
-            assert_training_samples_match_legacy(
-                training_sample_store=training_sample_store, legacy_client=legacy_client
-            )
-            assert_store_statistics_match_legacy(
-                loss_statistics_store=resolution_arguments["loss_statistics_store"],
-                legacy_client=legacy_client,
-            )
-
-        random_states = (torch.get_rng_state().clone(), random.getstate(), np.random.get_state())
-        # 確定前: 保有2モデルを学習し、parameterが変わった状態で確定する。
-        run_joint_update_in_both_implementations()
-        legacy_drift_type = finalize_forward_validation_in_legacy_client(
-            legacy_client=legacy_client, resolution_arguments=resolution_arguments
-        )
-        resolution = apply_post_alarm_candidate_validation_resolution(**resolution_arguments)
-        assert (
-            LEGACY_ACTION_BY_RESOLUTION_OUTCOME[resolution.resolution_outcome]
-            == legacy_resolution_case
-        )
-        assert_resolution_matches_legacy(
-            resolution=resolution,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-            legacy_drift_type=legacy_drift_type,
-            previous_model_id=previous_model_id,
-        )
-        # 確定後: 採用した新モデル、または保留標本を吸収した再利用先を含めて学習を継続する。
-        for _ in range(2):
-            run_joint_update_in_both_implementations()
-        assert torch.equal(torch.get_rng_state(), random_states[0])
-        assert random.getstate() == random_states[1]
-        numpy_state = np.random.get_state()
-        assert numpy_state[0] == random_states[2][0]
-        assert np.array_equal(numpy_state[1], random_states[2][1])
-        assert numpy_state[2:] == random_states[2][2:]

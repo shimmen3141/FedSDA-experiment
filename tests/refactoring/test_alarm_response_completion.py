@@ -15,6 +15,7 @@ from test_alarm_buffer_response import (
 from test_alarm_change_interval_resolution import (
     assert_alarm_change_interval_resolution_state_unchanged,
     snapshot_alarm_change_interval_resolution_state,
+    use_immediate_candidate_adoption,
 )
 from test_loss_change_monitoring import assert_class_monitor_matches_reference
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
@@ -24,9 +25,6 @@ from federated_drift_experiment.adaptation_events import AdaptationEvent
 from federated_drift_experiment.drift_detectors.e_detector import BoundedMeanEDetector
 from federated_learning_experiments.learning.training.current_training_model_assignment import (
     TrainingModelAssignmentChange,
-)
-from federated_learning_experiments.learning.training.indexed_observed_training_sample import (
-    IndexedObservedTrainingSample,
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
@@ -354,6 +352,9 @@ def test_response_completion_matches_real_legacy(
             estimated_change_span_sample_count=estimated_change_span_sample_count,
             minimum_change_interval_sample_count=minimum_change_interval_sample_count,
         )
+        use_immediate_candidate_adoption(
+            monkeypatch, response_arguments, legacy_client=legacy_client
+        )
         initial_training_model_id = legacy_client.current_model_id
         initial_torch_random_state = torch.get_rng_state().clone()
         legacy_result = run_legacy_alarm_with_real_completion(
@@ -412,131 +413,6 @@ def test_response_completion_matches_real_legacy(
         )
 
 
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("second_alarm_sample_count", [0, 3])
-def test_second_alarm_during_started_validation_completes_like_legacy(
-    class_count, second_alarm_sample_count, monkeypatch, valid_run_settings_mapping
-):
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(823)
-        (
-            response_arguments,
-            completion_arguments,
-            preparation_arguments,
-            resolution_arguments,
-            shared_optimizer_owners,
-            legacy_client,
-        ) = build_response_completion_oracle(
-            monkeypatch=monkeypatch,
-            loss_change_detection_settings=valid_run_settings_mapping[
-                "loss_change_detection_settings"
-            ],
-            class_count=class_count,
-            alarm_interval_resolution_case="no_model_fits",
-            earlier_sample_count=0,
-        )
-        initial_training_model_id = legacy_client.current_model_id
-        initial_torch_random_state = torch.get_rng_state().clone()
-        run_legacy_alarm_with_real_completion(
-            response_arguments=response_arguments,
-            legacy_client=legacy_client,
-            monkeypatch=monkeypatch,
-        )
-        torch.set_rng_state(initial_torch_random_state)
-        first_response_completion = complete_alarm_buffer_response(
-            alarm_buffer_response=respond_to_alarm_with_buffered_samples(**response_arguments),
-            **completion_arguments,
-        )
-        started_validation_session = (
-            first_response_completion.alarm_buffer_response.active_validation_session
-        )
-        legacy_session = legacy_client._forward_validation
-        assert started_validation_session is not None and legacy_session is not None
-        # 候補検証の開始後に届いた標本を保留し、同じ損失を監視へ与えてから2回目の警報とする。
-        first_alarm_observations = response_arguments["pending_sample_observations"]
-        second_alarm_observations = tuple(
-            IndexedObservedTrainingSample(
-                sample_index=response_arguments["proposal_sample_index"] + 1 + sample_offset,
-                training_sample=first_alarm_observations[sample_offset].training_sample,
-                observed_concept_id=first_alarm_observations[sample_offset].observed_concept_id,
-            )
-            for sample_offset in range(second_alarm_sample_count)
-        )
-        for indexed_observation in second_alarm_observations:
-            completion_arguments["pending_training_assignment_buffer"].append_observed_sample_index(
-                sample_index=indexed_observation.sample_index
-            )
-        observe_monitored_losses_in_both_implementations(
-            completion_arguments=completion_arguments,
-            legacy_client=legacy_client,
-            class_count=class_count,
-            first_sample_index=response_arguments["proposal_sample_index"] + 1,
-            monitored_losses=MONITORED_LOSSES_AFTER_COMPLETION[:second_alarm_sample_count],
-        )
-        second_alarm_sample_index = (
-            response_arguments["proposal_sample_index"] + second_alarm_sample_count
-        )
-        response_arguments.update(
-            active_validation_session=started_validation_session,
-            pending_sample_observations=second_alarm_observations,
-            proposal_sample_index=second_alarm_sample_index,
-            estimated_change_point_sample_index=second_alarm_sample_index,
-        )
-        completion_arguments.update(
-            alarm_sample_index=second_alarm_sample_index,
-            estimated_change_point_sample_index=second_alarm_sample_index,
-        )
-        torch_random_state_before_second_alarm = torch.get_rng_state().clone()
-        legacy_result = run_legacy_alarm_with_real_completion(
-            response_arguments=response_arguments,
-            legacy_client=legacy_client,
-            monkeypatch=monkeypatch,
-        )
-        assert torch.equal(torch.get_rng_state(), torch_random_state_before_second_alarm)
-        second_alarm_response = respond_to_alarm_with_buffered_samples(**response_arguments)
-        assert torch.equal(torch.get_rng_state(), torch_random_state_before_second_alarm)
-        second_response_completion = complete_alarm_buffer_response(
-            alarm_buffer_response=second_alarm_response, **completion_arguments
-        )
-        assert (
-            second_alarm_response.response_outcome == "alarm_during_candidate_validation"
-            and second_alarm_response.active_validation_session is started_validation_session
-            and legacy_client._forward_validation is legacy_session
-        )
-        assert second_response_completion.previous_training_model_id == initial_training_model_id
-        assert (
-            second_response_completion.alarm_buffer_response.active_validation_session
-            is started_validation_session
-        )
-        assert_response_completion_matches_legacy(
-            response_completion=second_response_completion,
-            completion_arguments=completion_arguments,
-            legacy_client=legacy_client,
-            legacy_result=legacy_result,
-            pending_sample_indices_before_completion=tuple(
-                indexed_observation.sample_index
-                for indexed_observation in second_alarm_observations
-            ),
-        )
-        assert_buffer_response_matches_legacy(
-            response=second_alarm_response,
-            response_arguments=response_arguments,
-            preparation_arguments=preparation_arguments,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-            legacy_result=legacy_result,
-            initial_training_model_id=initial_training_model_id,
-        )
-        observe_monitored_losses_in_both_implementations(
-            completion_arguments=completion_arguments,
-            legacy_client=legacy_client,
-            class_count=class_count,
-            first_sample_index=second_alarm_sample_index + 1,
-            monitored_losses=MONITORED_LOSSES_AFTER_COMPLETION,
-        )
-
-
 @pytest.mark.parametrize(
     "legacy_model_statistics,expected_baseline_mean_loss",
     [
@@ -567,6 +443,9 @@ def test_completion_baseline_follows_current_model_statistics_like_legacy(
             estimated_change_span_sample_count=6,
             minimum_change_interval_sample_count=99,
             earlier_sample_count=0,
+        )
+        use_immediate_candidate_adoption(
+            monkeypatch, response_arguments, legacy_client=legacy_client
         )
         # 変化区間が不足する応答は統計を更新しないので、応答後に現行モデルの統計だけを置き換える。
         alarm_buffer_response = respond_to_alarm_with_buffered_samples(**response_arguments)

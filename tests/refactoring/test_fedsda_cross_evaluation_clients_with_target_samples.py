@@ -42,9 +42,7 @@ def test_all_fedsda_configurations_choose_expected_clients(configuration_name):
     settings = build_experiment_run_settings(
         configuration_name=configuration_name, experiment_run_conditions=conditions
     )
-    assert settings.run_participant_settings.cross_evaluation_client_selection_policy == (
-        OLD if configuration_name == "fedsda-with-candidate-validation" else NEW
-    )
+    assert settings.run_participant_settings.cross_evaluation_client_selection_policy == (NEW)
 
 
 @pytest.mark.parametrize("invalid", [None, True, "samples"])

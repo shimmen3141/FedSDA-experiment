@@ -12,6 +12,7 @@ from test_adahedge_weight_evidence import (
 )
 from test_alarm_adaptation_recording import RECORDING_ORACLE_CASES
 from test_alarm_buffer_response import assert_buffer_response_matches_legacy
+from test_alarm_change_interval_resolution import use_immediate_candidate_adoption
 from test_alarm_response_completion import (
     LEGACY_ACTION_BY_RESPONSE_OUTCOME,
     assert_response_completion_matches_legacy,
@@ -171,11 +172,15 @@ def test_alarm_occurrence_signature_extends_response_arguments():
 
 
 @pytest.mark.parametrize("class_count", (2, 4))
-@pytest.mark.parametrize("recording_oracle_case", RECORDING_ORACLE_CASES)
+@pytest.mark.parametrize("recording_oracle_case", RECORDING_ORACLE_CASES[:4])
 def test_alarm_occurrence_matches_real_legacy_alarm(
     class_count, recording_oracle_case, monkeypatch, valid_run_settings_mapping
 ):
-    expected_response_outcome = recording_oracle_case[0]
+    expected_response_outcome = (
+        "alarm_interval_candidate_adopted_as_new_model"
+        if recording_oracle_case[0] == "alarm_interval_candidate_validation_started"
+        else recording_oracle_case[0]
+    )
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(823)
         (
@@ -191,6 +196,13 @@ def test_alarm_occurrence_matches_real_legacy_alarm(
             valid_run_settings_mapping=valid_run_settings_mapping,
             class_count=class_count,
             recording_oracle_case=recording_oracle_case,
+        )
+        use_immediate_candidate_adoption(
+            monkeypatch,
+            handling_arguments,
+            response_arguments,
+            resolution_arguments,
+            legacy_client=legacy_client,
         )
         validation_session_holder = handling_arguments["validation_session_holder"]
         adaptation_record_store = handling_arguments["adaptation_record_store"]
@@ -217,37 +229,6 @@ def test_alarm_occurrence_matches_real_legacy_alarm(
         # 応答より後の段（完了・記録・保持・通知）は乱数を消費しない。
         assert torch.equal(torch.get_rng_state(), expected_torch_random_state)
         expected_record_count = 1
-        if expected_response_outcome == "alarm_during_candidate_validation":
-            # 1回目の警報が開始して保持させたsessionを、2回目の警報が保持から読む。
-            started_validation_session = validation_session_holder.held_validation_session
-            assert started_validation_session is not None
-            assert (
-                alarm_occurrence_handling.alarm_response_completion.alarm_buffer_response.active_validation_session
-                is started_validation_session
-            )
-            # 保留位置を消費した後の同じ位置で、保留標本なしの警報を受ける（上流の記録oracleと同じ形）。
-            handling_arguments.update(
-                pending_sample_observations=(),
-                estimated_change_point_sample_index=handling_arguments["alarm_sample_index"],
-            )
-            response_arguments.update(
-                active_validation_session=started_validation_session,
-                pending_sample_observations=(),
-                estimated_change_point_sample_index=handling_arguments["alarm_sample_index"],
-            )
-            legacy_result = run_legacy_alarm_with_real_completion(
-                response_arguments=response_arguments,
-                legacy_client=legacy_client,
-                monkeypatch=monkeypatch,
-            )
-            pending_sample_indices_before_alarm = (
-                pending_training_assignment_buffer.get_state_snapshot().pending_sample_indices
-            )
-            torch_random_state_before_second_alarm = torch.get_rng_state().clone()
-            alarm_occurrence_handling = handle_alarm_occurrence(**handling_arguments)
-            assert torch.equal(torch.get_rng_state(), torch_random_state_before_second_alarm)
-            assert validation_session_holder.held_validation_session is started_validation_session
-            expected_record_count = 2
     assert type(alarm_occurrence_handling) is AlarmOccurrenceHandling
     alarm_response_completion = alarm_occurrence_handling.alarm_response_completion
     adaptation_record = alarm_occurrence_handling.adaptation_record
@@ -312,7 +293,10 @@ def test_alarm_occurrence_matches_real_legacy_alarm(
     )
     assert_adahedge_matches_legacy(all_sample_weight_evidence, legacy_client.expert_router)
     assert all_sample_weight_evidence.concept_operation_restart_count == (
-        1 if expected_response_outcome == "alarm_interval_held_model_reused" else 0
+        1
+        if expected_response_outcome
+        in ("alarm_interval_held_model_reused", "alarm_interval_candidate_adopted_as_new_model")
+        else 0
     )
 
 

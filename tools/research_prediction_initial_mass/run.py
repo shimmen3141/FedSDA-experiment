@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "src"))
-_MODES = ("validation", "immediate", "ratio-preserved", "small-new-mass")
+_MODES = ("immediate", "ratio-preserved", "small-new-mass")
 _DATASETS = ("sea2", "sea4", "sine2", "circle2", "mnist2", "mnist4")
 
 
@@ -125,9 +125,7 @@ def _execute_job(job):
     np.random.seed(job["seed"])
     torch.manual_seed(job["seed"])
     settings = build_experiment_run_settings(
-        configuration_name="fedsda-without-candidate-validation"
-        if job["mode"] != "validation"
-        else "fedsda-with-candidate-validation",
+        configuration_name="fedsda-without-candidate-validation",
         experiment_run_conditions=ExperimentRunConditions(
             dataset_name=job["dataset"],
             random_seed=job["seed"],

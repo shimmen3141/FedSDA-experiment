@@ -316,7 +316,6 @@ CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
     "fedsda-synchronized-local-mixture-prediction": "tests/refactoring/test_fedsda_synchronized_local_mixture_prediction.py",
     "fedsda-local-parameter-prediction": "tests/refactoring/test_fedsda_local_parameter_prediction.py",
     # 版7では、候補検証の経路を守る大きい条件のケースを、この構成で実行する（構成の名前のケースは無い）。
-    "fedsda-with-candidate-validation": "tests/refactoring/test_fedsda_with_candidate_validation.py",
 }
 _VERSION_1_CASE_NAMES = (
     *BASELINE_CONFIGURATION_CASE_NAMES,
@@ -348,8 +347,7 @@ CASE_NAMES_BY_BASELINE_VERSION = {
         "fedsda-sine2-reference-reuse",
         "fedsda-sine2-alternative-reference-reuse",
     ),
-    # 版7では、候補検証の経路を守る大きい条件の4ケースを、構成`fedsda-with-candidate-validation`（版6までの
-    # 既定と同じ設定）で実行する。新しい既定（候補検証なし＋候補の共有部の固定）の経路は、同じ条件の2ケース
+    # 版7では、候補検証の経路を守る大きい条件の4ケースを、版6までの既定と同じ設定で記録した。新しい既定（候補検証なし＋候補の共有部の固定）の経路は、同じ条件の2ケース
     # （seedも同じ0。2026-10-20の下調べで、採用・切替え・再較正が起き、sine2では統合も起きた）で守る。
     7: (
         *_VERSION_1_CASE_NAMES,
@@ -525,11 +523,7 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
     mnist4 = case_name == WARM_STARTED_LEARNER_PATH_CASE_NAME
     rich = sine2_rich or mnist or mnist4
     configuration = (
-        # 版7からは、候補検証の経路のケースを、版6までの既定と同じ設定の構成で実行する（版6までは、既定から
-        # 組み立て、下の表で、候補検証ありに明示する。どちらも同じ設定になる）。
-        "fedsda-with-candidate-validation"
-        if case_name in CANDIDATE_VALIDATION_PATH_CASE_NAMES and baseline_version >= 7
-        else "fedsda"
+        "fedsda"
         if rich
         else "feddrift"
         if case_name == "feddrift-drift-tail"
@@ -584,7 +578,7 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
         pretraining_epoch_count=2 if mnist or not rich else 10,
         pretraining_batch_sample_count=32 if rich else 8,
     )
-    changes = dict(
+    changes: dict = dict(
         initial_model_pretraining_settings=pretraining,
         hidden_layer_widths=participant.hidden_layer_widths if rich else (5, 4),
     )
@@ -775,6 +769,38 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
             version_value,
         ) in _PARTICIPANT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(baseline_version, {}).items():
             changes[added_field_path[-1]] = version_value
+    if case_name in CANDIDATE_VALIDATION_PATH_CASE_NAMES and baseline_version >= 7:
+        from federated_learning_experiments.runtime.fedsda_run_client_settings import (
+            FedsdaRunClientSettings,
+        )
+
+        client = changes["run_client_settings"]
+        assert isinstance(client, FedsdaRunClientSettings)
+        changes["run_client_settings"] = replace(
+            client,
+            candidate_model_training_and_acceptance_settings=replace(
+                client.candidate_model_training_and_acceptance_settings,
+                candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
+            ),
+            candidate_epoch_training_settings=replace(
+                client.candidate_epoch_training_settings,
+                candidate_shared_feature_update_policy="update_shared_features_with_candidate",
+            ),
+            training_data_assignment_settings=replace(
+                client.training_data_assignment_settings,
+                alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
+                new_model_hypothesis_learners="reinitialized_learner",
+            ),
+            loss_change_detection_settings=replace(
+                client.loss_change_detection_settings,
+                loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
+            ),
+        )
+        changes.update(
+            initial_model_loss_statistics_estimation="resubstitution",
+            cross_evaluation_client_selection_policy="clients_holding_target_model",
+            maximum_evaluating_client_count_per_model=3,
+        )
     return replace(
         settings,
         execution_settings=replace(settings.execution_settings, concept_schedule_settings=schedule),

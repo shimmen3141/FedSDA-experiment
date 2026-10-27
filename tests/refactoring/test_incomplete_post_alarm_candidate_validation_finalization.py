@@ -1,15 +1,11 @@
 """未完了候補の不足判定記録を、実旧の終端確定記録へ対照する。"""
 
 import math
-import random
-from collections import defaultdict
 from dataclasses import FrozenInstanceError, fields, replace
 from inspect import Parameter, signature
 from unittest.mock import Mock
 
-import numpy as np
 import pytest
-import test_post_alarm_candidate_validation_session_start as session_start_test_module
 import torch
 from test_adopted_candidate_initial_local_registration import assert_held_model_states_match_legacy
 from test_adopted_candidate_local_adoption import (
@@ -17,38 +13,17 @@ from test_adopted_candidate_local_adoption import (
     assert_training_samples_match_legacy,
     snapshot_adoption_state,
 )
-from test_candidate_epoch_training import assert_candidate_epoch_training_matches_legacy
-from test_joint_model_parameter_update import run_legacy_joint_update
 from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
 from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
 from test_post_alarm_candidate_validation_progress import build_validation_progress_oracle
-from test_post_alarm_candidate_validation_sample_observation import (
-    assert_collected_losses_match_legacy,
-)
-from test_post_alarm_candidate_validation_session_start import (
-    assert_started_session_matches_legacy,
-    begin_candidate_validation_session_in_legacy_client,
-    build_session_start_oracle,
-)
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
     snapshot_parameter_values_and_gradients,
 )
 
 import federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization as finalization_module
-from federated_drift_experiment import config
-from federated_drift_experiment.models import ResidualAdapterMLP
-from federated_learning_experiments.learning.training.joint_model_parameter_update import (
-    perform_joint_model_parameter_update,
-)
-from federated_learning_experiments.learning.training.local_training_settings import (
-    LocalTrainingSettings,
-)
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
-)
-from federated_learning_experiments.learning.training.participating_model_training_batch import (
-    ParticipatingModelTrainingBatch,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import (
     IncompletePostAlarmCandidateValidationDecisionRecord,
@@ -59,12 +34,6 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.pos
 from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import (
     IncompletePostAlarmCandidateValidationFinalization,
     finalize_incomplete_post_alarm_candidate_validation,
-)
-from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import (
-    observe_post_alarm_candidate_validation_sample,
-)
-from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import (
-    start_post_alarm_candidate_validation_session,
 )
 
 
@@ -222,93 +191,6 @@ def assert_incomplete_validation_finalization_matches_legacy(
     assert legacy_client.local_model_changes == [] and legacy_client.local_switch_positions == []
 
 
-@pytest.mark.parametrize("class_count", (2, 4))
-@pytest.mark.parametrize(
-    "observed_validation_sample_count,processed_sample_count", ((0, 0), (1, 53), (3, 60))
-)
-@pytest.mark.parametrize("pending_sample_count", (0, 3))
-def test_incomplete_validation_finalization_matches_legacy(
-    class_count,
-    observed_validation_sample_count,
-    processed_sample_count,
-    pending_sample_count,
-    monkeypatch,
-):
-    with torch.random.fork_rng(devices=[]):
-        finalization_arguments, resolution_arguments, shared_optimizer_owners, legacy_client = (
-            build_incomplete_validation_finalization_oracle(
-                class_count=class_count,
-                observed_validation_sample_count=observed_validation_sample_count,
-                pending_sample_count=pending_sample_count,
-                processed_sample_count=processed_sample_count,
-                monkeypatch=monkeypatch,
-            )
-        )
-        validation_session = finalization_arguments["validation_session"]
-        if observed_validation_sample_count == 1:
-            validation_session = replace(
-                validation_session,
-                estimated_change_point_sample_index=None,
-                detection_episode_id=None,
-            )
-            finalization_arguments["validation_session"] = validation_session
-            legacy_client._forward_validation.estimated_change_point = None
-            legacy_client._forward_validation.episode_id = None
-        collection_state_snapshot = (
-            validation_session.post_alarm_candidate_loss_collection.get_state_snapshot()
-        )
-        previous_snapshot = snapshot_adoption_state(
-            adoption_arguments=resolution_arguments, shared_optimizer_owners=shared_optimizer_owners
-        )
-        reference_parameter_snapshots = snapshot_parameter_values_and_gradients(
-            parameter
-            for classifier in validation_session.fixed_reference_models.reference_classifiers_by_model_id.values()
-            for parameter in classifier.parameters()
-        )
-        legacy_client.finalize_incomplete_forward_validation()
-        incomplete_validation_finalization = finalize_incomplete_post_alarm_candidate_validation(
-            **finalization_arguments
-        )
-        assert_incomplete_validation_finalization_matches_legacy(
-            incomplete_validation_finalization=incomplete_validation_finalization,
-            finalization_arguments=finalization_arguments,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-        )
-        assert (
-            validation_session.post_alarm_candidate_loss_collection.get_state_snapshot()
-            == collection_state_snapshot
-        )
-        assert_parameter_values_and_gradients_unchanged(
-            previous_snapshot["registration_state"]["parameter_snapshots"]
-        )
-        assert_parameter_values_and_gradients_unchanged(reference_parameter_snapshots)
-        from test_joint_model_parameter_update import assert_nested_state_equal
-
-        for owner, parameter_optimizer, optimizer_state in previous_snapshot["registration_state"][
-            "optimizers"
-        ]:
-            assert owner.parameter_optimizer is parameter_optimizer
-            assert_nested_state_equal(parameter_optimizer.state_dict(), optimizer_state)
-        assert (
-            resolution_arguments["temporary_model_id_allocator"].next_temporary_model_id
-            == previous_snapshot["next_temporary_model_id"]
-        )
-        pending_upload_state = resolution_arguments["pending_model_upload_state"]
-        assert (
-            pending_upload_state.get_pending_model_upload(),
-            pending_upload_state.remaining_upload_delay_round_count,
-        ) == previous_snapshot["registration_state"]["pending_model_upload"]
-        initial_rng_state = previous_snapshot["registration_state"]["random_states"]
-        assert torch.equal(torch.get_rng_state(), initial_rng_state[0])
-        assert random.getstate() == initial_rng_state[1]
-        expected_rng_state = np.random.get_state()
-        assert expected_rng_state[0] == initial_rng_state[2][0]
-        assert np.array_equal(expected_rng_state[1], initial_rng_state[2][1])
-        assert expected_rng_state[2:] == initial_rng_state[2][2:]
-
-
 def test_incomplete_validation_finalization_without_session_is_noop(monkeypatch):
     with torch.random.fork_rng(devices=[]):
         finalization_arguments, resolution_arguments, owners, _ = (
@@ -335,39 +217,6 @@ def test_incomplete_validation_finalization_without_session_is_noop(monkeypatch)
         )
         assert_adoption_state_unchanged(
             previous_snapshot=previous_snapshot, adoption_arguments=resolution_arguments
-        )
-
-
-@pytest.mark.parametrize("class_count", (2, 4))
-def test_incomplete_validation_finalization_uses_current_training_model(class_count, monkeypatch):
-    with torch.random.fork_rng(devices=[]):
-        finalization_arguments, resolution_arguments, owners, legacy_client = (
-            build_incomplete_validation_finalization_oracle(
-                class_count=class_count, monkeypatch=monkeypatch
-            )
-        )
-        finalization_arguments["current_training_model_assignment"].assign_model_for_training(
-            model_id=4
-        )
-        legacy_client.current_model_id = 4
-        assert finalization_arguments["validation_session"].initial_training_model_id == 9
-        finalization_arguments["pending_assignment_sample_concept_ids"] = (None, 1, None)
-        legacy_client._forward_validation.held_data = [
-            (sample.input_features, sample.observed_class_labels, concept_id)
-            for sample, concept_id in zip(
-                finalization_arguments["validation_session"].pending_assignment_training_samples,
-                (None, 1, None),
-            )
-        ]
-        legacy_client.finalize_incomplete_forward_validation()
-        result = finalize_incomplete_post_alarm_candidate_validation(**finalization_arguments)
-        assert result.current_training_model_id == 4
-        assert_incomplete_validation_finalization_matches_legacy(
-            incomplete_validation_finalization=result,
-            finalization_arguments=finalization_arguments,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=owners,
-            legacy_client=legacy_client,
         )
 
 
@@ -567,101 +416,6 @@ def test_incomplete_validation_finalization_result_is_immutable(monkeypatch):
             IncompletePostAlarmCandidateValidationFinalization(*vars(result).values())
 
 
-@pytest.mark.parametrize("class_count", (2, 4))
-@pytest.mark.parametrize(
-    "observed_validation_sample_count,processed_sample_count", ((0, 0), (1, 53), (3, 60))
-)
-def test_incomplete_validation_decision_record_matches_legacy(
-    class_count, observed_validation_sample_count, processed_sample_count, monkeypatch
-):
-    with torch.random.fork_rng(devices=[]):
-        progress_arguments, _, _, legacy_client, _ = build_validation_progress_oracle(
-            class_count=class_count,
-            legacy_resolution_case="create",
-            pending_sample_count=0,
-            monkeypatch=monkeypatch,
-        )
-        validation_session = progress_arguments["validation_session"]
-        legacy_session = legacy_client._forward_validation
-        legacy_session.candidate_losses = legacy_session.candidate_losses[
-            :observed_validation_sample_count
-        ]
-        legacy_session.reference_losses = {
-            model_id: losses[:observed_validation_sample_count]
-            for model_id, losses in legacy_session.reference_losses.items()
-        }
-        collection = PostAlarmCandidateLossCollection(
-            candidate_model_training_and_acceptance_settings=progress_arguments[
-                "candidate_model_training_and_acceptance_settings"
-            ],
-            proposal_sample_index=validation_session.proposal_sample_index,
-            reference_model_ids=tuple(legacy_session.reference_models),
-        )
-        for sample_index in range(observed_validation_sample_count):
-            collection.observe_losses_after_label_observation(
-                sample_index=validation_session.proposal_sample_index + 1 + sample_index,
-                candidate_loss=legacy_session.candidate_losses[sample_index],
-                reference_losses_by_model_id={
-                    model_id: losses[sample_index]
-                    for model_id, losses in legacy_session.reference_losses.items()
-                },
-            )
-        validation_session = replace(
-            validation_session, post_alarm_candidate_loss_collection=collection
-        )
-        collection_state_snapshot = collection.get_state_snapshot()
-        assert not collection_state_snapshot.ready_for_acceptance_evaluation
-        assert collection_state_snapshot.validation_sample_count == observed_validation_sample_count
-        legacy_client.processed_samples = processed_sample_count
-        legacy_client.finalize_incomplete_forward_validation()
-        legacy_decision = legacy_client.provisional_model_decisions[-1]
-        decision_record = IncompletePostAlarmCandidateValidationDecisionRecord(
-            proposal_sample_index=validation_session.proposal_sample_index,
-            finalization_sample_index=max(
-                validation_session.proposal_sample_index, processed_sample_count - 1
-            ),
-            detector_name=validation_session.detector_name,
-            candidate_training_interval_sample_count=len(
-                validation_session.training_input_features
-            ),
-            validation_sample_count=collection_state_snapshot.validation_sample_count,
-        )
-        assert decision_record.proposal_sample_index == legacy_decision.position
-        assert decision_record.finalization_sample_index == legacy_decision.resolution_position
-        assert decision_record.detector_name == legacy_decision.detector
-        assert (
-            decision_record.candidate_training_interval_sample_count
-            == legacy_decision.interval_count
-            == legacy_decision.training_count
-        )
-        assert decision_record.validation_sample_count == legacy_decision.validation_count
-        assert (
-            decision_record.validation_sample_count
-            != decision_record.candidate_training_interval_sample_count
-        )
-        assert decision_record.finalization_delay_sample_count == legacy_decision.resolution_delay
-        # 不足recordの型そのものが棄却・比較未成立を表す。旧理由やNaNを新fieldへ持ち込まない。
-        assert type(decision_record) is IncompletePostAlarmCandidateValidationDecisionRecord
-        assert legacy_decision.accepted is False
-        assert legacy_decision.reason == "insufficient_forward_data"
-        assert legacy_decision.reference_model_id is None
-        assert legacy_decision.validation_source == "forward"
-        for field_name in (
-            "candidate_mean_loss",
-            "reference_mean_loss",
-            "candidate_recent_loss",
-            "reference_recent_loss",
-            "full_margin",
-            "recent_margin",
-            "reference_excess",
-            "reference_historical_mean",
-        ):
-            assert math.isnan(getattr(legacy_decision, field_name))
-            assert not hasattr(decision_record, field_name)
-        assert not hasattr(decision_record, "reference_model_id")
-        assert collection.get_state_snapshot() == collection_state_snapshot
-
-
 def test_incomplete_validation_decision_record_is_immutable():
     decision_record = IncompletePostAlarmCandidateValidationDecisionRecord(
         proposal_sample_index=53,
@@ -700,274 +454,3 @@ def test_incomplete_validation_decision_record_is_immutable():
                     if name != field_name
                 }
             )
-
-
-@pytest.mark.parametrize(
-    "class_count,optimizer_variant,observed_validation_sample_count,pending_sample_count",
-    [
-        (class_count, optimizer_variant, observed_validation_sample_count, 3)
-        for class_count in (2, 4)
-        for optimizer_variant, observed_validation_sample_count in (
-            ("standard", 0),
-            ("amsgrad", 1),
-            ("sgd", 3),
-        )
-    ]
-    + [(2, "standard", 3, 0)],
-)
-def test_incomplete_validation_finalization_connects_actual_training(
-    class_count,
-    optimizer_variant,
-    observed_validation_sample_count,
-    pending_sample_count,
-    monkeypatch,
-):
-    """実NN開始・未到達観測・終端回収・共同更新を、制御lossなしで同じowner上へ接続する。"""
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(877)
-        finalization_arguments, resolution_arguments, shared_optimizer_owners, legacy_client = (
-            build_incomplete_validation_finalization_oracle(
-                class_count=class_count,
-                observed_validation_sample_count=observed_validation_sample_count,
-                pending_sample_count=pending_sample_count,
-                processed_sample_count=60,
-                optimizer_variant=optimizer_variant,
-                monkeypatch=monkeypatch,
-            )
-        )
-        fixation_arguments = {
-            name: resolution_arguments[name]
-            for name in ("held_model_training_state_registry", "loss_statistics_store")
-        }
-        # 引数構成だけを再利用し、候補生成/学習・固定参照は両実装の実処理を呼ぶ。
-        monkeypatch.setattr(
-            session_start_test_module,
-            "build_fixation_oracle",
-            lambda **arguments: (
-                fixation_arguments,
-                resolution_arguments,
-                shared_optimizer_owners,
-                legacy_client,
-            ),
-        )
-        legacy_client.model_cls = lambda: ResidualAdapterMLP(input_dim=2, dataset="sine2")
-        session_start_arguments, _, _ = build_session_start_oracle(
-            class_count=class_count,
-            optimizer_variant=optimizer_variant,
-            minimum_validation_loss_decrease=0,
-            monkeypatch=monkeypatch,
-        )
-        session_start_arguments["proposal_sample_index"] = 53
-        if pending_sample_count == 0:
-            session_start_arguments.update(
-                estimated_change_point_sample_index=None, detection_episode_id=None
-            )
-        initial_rng_state = (
-            torch.get_rng_state().clone(),
-            random.getstate(),
-            np.random.get_state(),
-        )
-        legacy_session, legacy_epoch_training_calls = (
-            begin_candidate_validation_session_in_legacy_client(
-                session_start_arguments=session_start_arguments, legacy_client=legacy_client
-            )
-        )
-        expected_rng_state = torch.get_rng_state().clone()
-        torch.set_rng_state(initial_rng_state[0])
-        started_session = start_post_alarm_candidate_validation_session(**session_start_arguments)
-        assert torch.equal(torch.get_rng_state(), expected_rng_state)
-        assert_started_session_matches_legacy(
-            started_session=started_session,
-            legacy_session=legacy_session,
-            legacy_client=legacy_client,
-            legacy_epoch_training_calls=legacy_epoch_training_calls,
-            session_start_arguments=session_start_arguments,
-        )
-        candidate_training_state = started_session.candidate_training_state
-        candidate_epoch_training_result = started_session.candidate_epoch_training_result
-        shared_optimizer_owners[-1] = (
-            candidate_training_state.candidate_shared_parameter_optimizer_state
-        )
-        resolution_arguments.update(
-            adopted_candidate_classifier=candidate_training_state.candidate_classifier,
-            candidate_concept_specific_parameter_optimizer_state=candidate_training_state.candidate_concept_specific_parameter_optimizer_state,
-            initial_statistics_input_features=started_session.training_input_features,
-            initial_statistics_observed_class_labels=started_session.training_observed_class_labels,
-            candidate_trained_sample_count=candidate_epoch_training_result.candidate_trained_sample_count,
-            candidate_parameter_update_step_count=candidate_epoch_training_result.candidate_parameter_update_step_count,
-        )
-        finalization_arguments["validation_session"] = started_session
-        previous_snapshot = snapshot_adoption_state(
-            adoption_arguments=resolution_arguments, shared_optimizer_owners=shared_optimizer_owners
-        )
-        reference_parameter_snapshots = snapshot_parameter_values_and_gradients(
-            parameter
-            for classifier in started_session.fixed_reference_models.reference_classifiers_by_model_id.values()
-            for parameter in classifier.parameters()
-        )
-        for sample_offset in range(observed_validation_sample_count):
-            sample_index = started_session.proposal_sample_index + 1 + sample_offset
-            input_features = started_session.training_input_features[
-                sample_offset : sample_offset + 1
-            ]
-            observed_class_labels = started_session.training_observed_class_labels[
-                sample_offset : sample_offset + 1
-            ]
-            assert (
-                legacy_client._observe_forward_validation(
-                    input_features, observed_class_labels, sample_index
-                )
-                == 0
-            )
-            assert (
-                observe_post_alarm_candidate_validation_sample(
-                    sample_index=sample_index,
-                    input_features=input_features,
-                    observed_class_labels=observed_class_labels,
-                    candidate_classifier=candidate_training_state.candidate_classifier,
-                    reference_classifiers_by_model_id=started_session.fixed_reference_models.reference_classifiers_by_model_id,
-                    post_alarm_candidate_loss_collection=started_session.post_alarm_candidate_loss_collection,
-                )
-                is False
-            )
-            assert_collected_losses_match_legacy(
-                post_alarm_candidate_loss_collection=started_session.post_alarm_candidate_loss_collection,
-                legacy_session=legacy_session,
-            )
-            assert_adoption_state_unchanged(
-                previous_snapshot=previous_snapshot, adoption_arguments=resolution_arguments
-            )
-            assert_parameter_values_and_gradients_unchanged(reference_parameter_snapshots)
-        collection_state_snapshot = (
-            started_session.post_alarm_candidate_loss_collection.get_state_snapshot()
-        )
-        assert collection_state_snapshot.validation_sample_count == observed_validation_sample_count
-        assert not collection_state_snapshot.ready_for_acceptance_evaluation
-        legacy_client.finalize_incomplete_forward_validation()
-        incomplete_validation_finalization = finalize_incomplete_post_alarm_candidate_validation(
-            **finalization_arguments
-        )
-        assert_incomplete_validation_finalization_matches_legacy(
-            incomplete_validation_finalization=incomplete_validation_finalization,
-            finalization_arguments=finalization_arguments,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-        )
-        assert (
-            started_session.post_alarm_candidate_loss_collection.get_state_snapshot()
-            == collection_state_snapshot
-        )
-        assert_parameter_values_and_gradients_unchanged(
-            previous_snapshot["registration_state"]["parameter_snapshots"]
-        )
-        assert_parameter_values_and_gradients_unchanged(reference_parameter_snapshots)
-        assert_candidate_epoch_training_matches_legacy(
-            candidate_training_state=candidate_training_state,
-            legacy_candidate=legacy_session.candidate,
-        )
-        registry = finalization_arguments["held_model_training_state_registry"]
-        training_sample_store = finalization_arguments["training_sample_store"]
-        counts_store = finalization_arguments["model_training_and_assignment_counts_store"]
-        active = registry.get_held_model_training_state(
-            model_id=incomplete_validation_finalization.current_training_model_id
-        ).classifier.feature_extractor
-        local_training_settings = LocalTrainingSettings(
-            local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
-            shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
-        )
-        monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
-        legacy_client.updates_per_sample = 1
-        legacy_client.backbone_gradient_diagnostics = defaultdict(float)
-        legacy_training_batches = []
-        legacy_client._sample_training_batches = lambda: legacy_training_batches
-        for _ in range(2):
-            training_bindings = registry.snapshot_ordered_held_model_training_bindings()
-            model_training_sample_collections = (
-                training_sample_store.snapshot_ordered_model_training_samples()
-            )
-            assert tuple(binding.model_id for binding in training_bindings) == tuple(
-                collection.model_id for collection in model_training_sample_collections
-            )
-            legacy_training_batches[:] = [
-                (
-                    model_id,
-                    torch.cat([sample[0] for sample in samples]),
-                    torch.cat([sample[1] for sample in samples]),
-                )
-                for model_id, samples in legacy_client.train_data_store.items()
-            ]
-            participating_training_batches = tuple(
-                ParticipatingModelTrainingBatch(
-                    classifier=binding.classifier,
-                    concept_specific_parameter_optimizer=binding.concept_specific_parameter_optimizer,
-                    input_features=torch.cat(
-                        [sample.input_features for sample in collection.training_samples]
-                    ),
-                    observed_class_labels=torch.cat(
-                        [sample.observed_class_labels for sample in collection.training_samples]
-                    ),
-                )
-                for binding, collection in zip(training_bindings, model_training_sample_collections)
-            )
-            expected_joint_loss = run_legacy_joint_update(
-                legacy_client=legacy_client, update_shared_features=True
-            )
-            actual_joint_loss = perform_joint_model_parameter_update(
-                local_training_settings=local_training_settings,
-                shared_feature_extractor=active,
-                shared_parameter_optimizer=shared_optimizer_owners[0].parameter_optimizer,
-                participating_training_batches=participating_training_batches,
-                update_shared_features=True,
-            )
-            assert actual_joint_loss == expected_joint_loss
-            for binding, batch in zip(training_bindings, participating_training_batches):
-                counts_store.record_completed_model_training(
-                    model_id=binding.model_id,
-                    trained_sample_count=len(batch.input_features),
-                    parameter_update_step_count=1,
-                )
-            assert_held_model_states_match_legacy(
-                registry=registry,
-                shared_optimizer_owners=shared_optimizer_owners[:-1],
-                legacy_client=legacy_client,
-                input_features=started_session.training_input_features,
-            )
-            assert_model_counts_match_legacy(counts_store=counts_store, legacy_client=legacy_client)
-            assert_training_samples_match_legacy(
-                training_sample_store=training_sample_store, legacy_client=legacy_client
-            )
-            assert_store_statistics_match_legacy(
-                loss_statistics_store=finalization_arguments["loss_statistics_store"],
-                legacy_client=legacy_client,
-            )
-            assert_candidate_epoch_training_matches_legacy(
-                candidate_training_state=candidate_training_state,
-                legacy_candidate=legacy_session.candidate,
-            )
-            assert_parameter_values_and_gradients_unchanged(reference_parameter_snapshots)
-            assert (
-                started_session.post_alarm_candidate_loss_collection.get_state_snapshot()
-                == collection_state_snapshot
-            )
-            assert (
-                finalization_arguments[
-                    "current_training_model_assignment"
-                ].current_training_model_id
-                == legacy_client.current_model_id
-            )
-        pending_upload_state = resolution_arguments["pending_model_upload_state"]
-        assert (
-            pending_upload_state.get_pending_model_upload(),
-            pending_upload_state.remaining_upload_delay_round_count,
-        ) == previous_snapshot["registration_state"]["pending_model_upload"]
-        assert (
-            resolution_arguments["temporary_model_id_allocator"].next_temporary_model_id
-            == previous_snapshot["next_temporary_model_id"]
-        )
-        assert torch.equal(torch.get_rng_state(), expected_rng_state)
-        assert random.getstate() == initial_rng_state[1]
-        numpy_state = np.random.get_state()
-        assert numpy_state[0] == initial_rng_state[2][0]
-        assert np.array_equal(numpy_state[1], initial_rng_state[2][1])
-        assert numpy_state[2:] == initial_rng_state[2][2:]

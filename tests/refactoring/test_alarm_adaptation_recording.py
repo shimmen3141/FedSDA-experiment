@@ -10,6 +10,7 @@ import torch
 from test_alarm_change_interval_resolution import (
     assert_alarm_change_interval_resolution_state_unchanged,
     snapshot_alarm_change_interval_resolution_state,
+    use_immediate_candidate_adoption,
 )
 from test_alarm_response_completion import (
     LEGACY_ACTION_BY_RESPONSE_OUTCOME,
@@ -56,6 +57,7 @@ def build_completed_recording_oracle(
     valid_run_settings_mapping,
     class_count=2,
     recording_oracle_case=RECORDING_ORACLE_CASES[1],
+    with_candidate_validation=True,
 ):
     """上流の応答・完了を呼出側で実行し、記録境界には完成した値だけを渡す。"""
     (
@@ -78,6 +80,12 @@ def build_completed_recording_oracle(
         earlier_sample_count=0,
         estimated_change_span_sample_count=estimated_change_span_sample_count,
     )
+    if not with_candidate_validation:
+        use_immediate_candidate_adoption(
+            monkeypatch, response_arguments, resolution_arguments, legacy_client=legacy_client
+        )
+        if expected_response_outcome == "alarm_interval_candidate_validation_started":
+            expected_response_outcome = "alarm_interval_candidate_adopted_as_new_model"
     initial_torch_random_state = torch.get_rng_state().clone()
     legacy_result = run_legacy_alarm_with_real_completion(
         response_arguments=response_arguments,
@@ -222,7 +230,7 @@ def assert_recording_preserves_upstream_state(
 
 
 @pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("recording_oracle_case", RECORDING_ORACLE_CASES)
+@pytest.mark.parametrize("recording_oracle_case", RECORDING_ORACLE_CASES[:4])
 def test_completed_alarm_record_matches_all_real_legacy_event_fields(
     class_count,
     recording_oracle_case,
@@ -244,6 +252,7 @@ def test_completed_alarm_record_matches_all_real_legacy_event_fields(
             valid_run_settings_mapping=valid_run_settings_mapping,
             class_count=class_count,
             recording_oracle_case=recording_oracle_case,
+            with_candidate_validation=False,
         )
         adaptation_record_store = AdaptationRecordStore()
 

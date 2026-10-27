@@ -394,16 +394,10 @@ def test_every_fedsda_configuration_inherits_the_new_defaults_except_candidate_v
         checked += 1
         participant = settings.run_participant_settings
         learners = participant.run_client_settings.training_data_assignment_settings.new_model_hypothesis_learners
-        if configuration_name == "fedsda-with-candidate-validation":
-            assert (learners, participant.initial_model_loss_statistics_estimation) == (
-                REINITIALIZED_LEARNER_POLICY_NAME,
-                RESUBSTITUTION_ESTIMATION_NAME,
-            ), configuration_name
-        else:
-            assert (learners, participant.initial_model_loss_statistics_estimation) == (
-                WARM,
-                CROSS_VALIDATION,
-            ), configuration_name
+        assert (learners, participant.initial_model_loss_statistics_estimation) == (
+            WARM,
+            CROSS_VALIDATION,
+        ), configuration_name
     assert checked > 2
 
 

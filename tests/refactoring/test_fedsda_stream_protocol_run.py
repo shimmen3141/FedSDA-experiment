@@ -591,8 +591,7 @@ def test_whole_run_conditions_cover_required_paths():
     assert observed_paths >= {
         "alarm_raised",
         # 候補の採用と、終端での未完了の候補検証の回収。
-        "post_alarm_validation_candidate_adopted",
-        "post_alarm_validation_incomplete_candidate_rejected",
+        "alarm_interval_candidate_adopted_as_new_model",
         "new_model_registered",
         "models_clustered",
         "models_consolidated",
@@ -601,14 +600,6 @@ def test_whole_run_conditions_cover_required_paths():
         "adaptation_server_merge",
         "server_consolidation_parameters_accumulated",
         "server_parameter_distance_computed",
-        # 候補の判定の種類: 採用、区間の判定での棄却（前半、後半、両方）、現行モデルの維持、終端の回収。
-        # 別の保有モデルの再利用（alternative_reference_refit）は、この条件では通らない。
-        "decision_accepted",
-        "decision_first_interval",
-        "decision_second_interval",
-        "decision_first_and_second",
-        "decision_current_reference_refit",
-        "decision_insufficient_forward_data",
     }, sorted(observed_paths)
 
 
@@ -617,15 +608,15 @@ def test_whole_run_conditions_cover_required_paths():
 # 最後の要素は、その条件が通ることを確かめる経路（sine2の条件が通らない、別の保有モデルの再利用を含む）。Windowsでの値で、
 # ほかの環境では、通る経路が違うことがある（Windows以外では、経路は確かめない）。
 OTHER_DATASET_WHOLE_RUN_CONDITIONS = [
-    ("sea2", 1, 3, 500, 25, 60, 0.03, 2, {"decision_alternative_reference_refit"}),
+    ("sea2", 1, 3, 500, 25, 60, 0.03, 2, {"alarm_interval_held_model_reused"}),
     ("sea2", 17, 3, 300, 10, 30, 0.05, 1, set()),
     ("sea4", 23, 5, 300, 10, 50, 0.03, 2, {"multiple_global_models_at_run_end"}),
-    ("sea4", 2, 5, 300, 10, 50, 0.03, 2, {"models_consolidated"}),
+    ("sea4", 0, 5, 600, 10, 30, 0.05, 1, {"models_consolidated"}),
     ("circle2", 7, 3, 500, 25, 60, 0.03, 2, {"models_consolidated"}),
     ("circle2", 17, 3, 300, 10, 30, 0.05, 1, set()),
     # MNIST（784特徴・10クラス）: 新旧の全体runを、2 dataset×6 seed×4条件（48条件。全部一致）進めて選んだ。
     ("mnist2", 17, 3, 400, 10, 30, 0.05, 2, {"multiple_global_models_at_run_end"}),
-    ("mnist2", 2, 3, 500, 25, 60, 0.03, 2, {"models_consolidated"}),
+    ("mnist2", 1, 3, 500, 10, 30, 0.05, 2, {"models_consolidated"}),
     (
         "mnist4",
         17,
@@ -635,9 +626,9 @@ OTHER_DATASET_WHOLE_RUN_CONDITIONS = [
         30,
         0.05,
         2,
-        {"multiple_global_models_at_run_end", "decision_alternative_reference_refit"},
+        {"multiple_global_models_at_run_end", "alarm_interval_held_model_reused"},
     ),
-    ("mnist4", 7, 3, 400, 10, 30, 0.05, 2, {"decision_alternative_reference_refit"}),
+    ("mnist4", 7, 3, 400, 10, 30, 0.05, 2, {"alarm_interval_held_model_reused"}),
 ]
 # MNISTの小さい条件の、隠れ層の幅（合成データの小さい条件の幅では、概念の変化が損失に現れず、モデルが増えない）。
 MNIST_HIDDEN_LAYER_WIDTHS = (48,)
@@ -736,8 +727,16 @@ def test_whole_run_of_other_datasets_matches_real_legacy_whole_run(
         observed_paths.add("models_consolidated")
     if len(legacy_server.global_models) >= 2:
         observed_paths.add("multiple_global_models_at_run_end")
+    observed_paths |= {
+        record.adaptation_outcome
+        for client in participants.client_operations
+        for record in client.owners.adaptation_record_store.get_state_snapshot().adaptation_records
+    }
     if required_paths:
-        assert observed_paths >= required_paths | {"new_model_registered", "decision_accepted"}
+        assert observed_paths >= required_paths | {
+            "new_model_registered",
+            "alarm_interval_candidate_adopted_as_new_model",
+        }
 
 
 def owners_decision_records(run_client):
@@ -805,6 +804,7 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
         )
     )
     assert delivered_run_result == run_result
+    assert delivered_participants is not None
     assert (
         run_random_sources.python_random_generator.getstate()
         == delivered_random_sources.python_random_generator.getstate()
@@ -813,6 +813,7 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
     for run_client, delivered_run_client in zip(
         participants.client_operations, delivered_participants.client_operations, strict=True
     ):
+        assert isinstance(delivered_run_client, FedsdaRunClient)
         assert run_client is not delivered_run_client
         state_snapshot = snapshot_run_client_state(
             run_client=run_client,
@@ -898,8 +899,8 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
             for record in owners.sample_prediction_record_store.snapshot_sample_prediction_records()
         )
         assert delivered_run_client.owners.true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
-    # 判定記録の比較は、空どうしの比較ではない。
-    assert sum(client_decision_record_counts) > 0
+    # 検証なしのrunでは、どちらも判定記録を作らない。
+    assert sum(client_decision_record_counts) == 0
     # サーバ側は、クラスタリングの真の概念の一致の診断だけが違う。
     server_owners = participants.server_operations.owners
     delivered_server_owners = delivered_participants.server_operations.owners

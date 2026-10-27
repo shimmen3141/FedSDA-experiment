@@ -204,10 +204,12 @@ MAPPING_OBSERVED_COVERAGE_BY_CONDITION = {}
 # ID対応の作り方: "largest_into_smallest"は、最大の正式ID（3つ以上あれば、大きいほうから2つ）を最小の正式IDへ集める。
 # "smallest_into_largest"は、最小の正式ID（つなぎ先だったモデル）を最大の正式IDへ集める。
 MODEL_ID_MAPPING_CONDITIONS = [
+    # 検証なしでも、ID統合の後に評価標本を上限まで選び直す。
+    (2, 16, 23, 10, dict(stored_evaluation_sample_limit=1), "largest_into_smallest"),
     (2, 13, 5, 10, {}, "largest_into_smallest"),
     (2, 13, 5, 13, SMALL_EVALUATION_SAMPLE_LIMIT, "largest_into_smallest"),
     (2, 22, 11, 10, DIFFERENT_LEARNING_RATES, "largest_into_smallest"),
-    (2, 10, 50, 10, {}, "largest_into_smallest"),
+    (2, 10, 50, 4, {}, "largest_into_smallest"),
     (
         2,
         9,
@@ -378,7 +380,7 @@ def test_model_id_mapping_conditions_cover_required_paths():
 
 
 def build_synchronized_server_round_oracle(*, monkeypatch, valid_run_settings_mapping):
-    """10ラウンド同期した状態。正式IDのモデルは0と2。client 1は、一時IDのモデルを保有し、それが現在の学習帰属。"""
+    """検証なしで4ラウンド同期した状態。正式IDは0と1。client 1・2は一時IDが現在の学習帰属。"""
     client_streams = make_client_streams(round_count=10, concept_block_length=10, stream_seed=50)
     server_round_oracle = build_server_round_oracle(
         monkeypatch=monkeypatch,
@@ -387,17 +389,17 @@ def build_synchronized_server_round_oracle(*, monkeypatch, valid_run_settings_ma
     )
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(41)
-        for round_index in range(10):
+        for round_index in range(4):
             run_synchronization_round_in_both(
                 server_round_oracle=server_round_oracle,
                 client_streams=client_streams,
                 round_index=round_index,
                 distribute_in_both=distribute_to_each_client_in_both,
             )
-    assert sorted(server_round_oracle["legacy_server"].global_models) == [0, 2]
+    assert sorted(server_round_oracle["legacy_server"].global_models) == [0, 1]
     assert [
         legacy_client.current_model_id for legacy_client in server_round_oracle["legacy_clients"]
-    ] == [2, -101, 2]
+    ] == [1, -101, -102]
     return server_round_oracle
 
 
@@ -467,12 +469,12 @@ FIRST_PARAMETER_NAME = "feature_extractor.hidden_layers.0.weight"
 INVALID_DISTRIBUTION_APPLICATION_ARGUMENT_CASES = (
     {
         "mapping_none": lambda arguments: dict(model_id_mapping=None),
-        "mapping_list": lambda arguments: dict(model_id_mapping=[(2, 0)]),
+        "mapping_list": lambda arguments: dict(model_id_mapping=[(1, 0)]),
         "mapping_subclass": lambda arguments: dict(
-            model_id_mapping=type("DictSubclass", (dict,), {})({2: 0})
+            model_id_mapping=type("DictSubclass", (dict,), {})({1: 0})
         ),
         "mapping_bool_key": lambda arguments: dict(model_id_mapping={True: 0}),
-        "mapping_float_value": lambda arguments: dict(model_id_mapping={2: 0.0}),
+        "mapping_float_value": lambda arguments: dict(model_id_mapping={1: 0.0}),
         "mapping_text_key": lambda arguments: dict(model_id_mapping={"2": 0}),
         "parameters_list": lambda arguments: dict(
             distributed_parameter_snapshots=list(arguments["distributed_parameter_snapshots"])
@@ -589,7 +591,7 @@ INVALID_DISTRIBUTION_APPLICATION_ARGUMENT_CASES = (
             distributed_parameter_snapshots=tuple(
                 distributed_snapshot
                 for distributed_snapshot in arguments["distributed_parameter_snapshots"]
-                if distributed_snapshot[0] != 2
+                if distributed_snapshot[0] != 1
             )
         ),
         "random_generator_module": lambda arguments: dict(python_random_generator=random),
@@ -631,7 +633,7 @@ def test_distribution_application_rejects_invalid_arguments_before_any_update(
         monkeypatch=monkeypatch, valid_run_settings_mapping=valid_run_settings_mapping
     )
     python_random_generator = server_round_oracle["python_random_generator"]
-    # client 0は現在の学習帰属が正式ID 2、client 1は一時ID。
+    # client 0は現在の学習帰属が正式ID 1、client 1は一時ID。
     for client_index in (0, 1):
         run_client = server_round_oracle["run_clients"][client_index]
         arguments = get_distribution_application_arguments(
@@ -720,7 +722,7 @@ STATES_KEPT_BY_DISTRIBUTION_APPLICATION = (
 )
 
 
-@pytest.mark.parametrize("model_id_mapping", [{}, {2: 0}])
+@pytest.mark.parametrize("model_id_mapping", [{}, {1: 0}])
 def test_distribution_application_keeps_states_outside_its_responsibility(
     model_id_mapping, monkeypatch, valid_run_settings_mapping
 ):
@@ -818,7 +820,12 @@ DISTRIBUTION_ROUND_CONDITIONS = [
     (*server_round_condition, condition_overrides)
     for server_round_condition in SERVER_ROUND_CONDITIONS
     for condition_overrides in ({}, DIFFERENT_LEARNING_RATES)
-] + [(2, 16, 23, {}), (2, 9, 7, SMALL_EVALUATION_SAMPLE_LIMIT)]
+] + [
+    (2, 16, 23, {}),
+    (2, 9, 7, SMALL_EVALUATION_SAMPLE_LIMIT),
+    # 検証なしで、採番だけが済んだ一時IDを保有したまま配布を受ける。
+    (2, 22, 7, {}),
+]
 
 
 @pytest.mark.parametrize(
@@ -942,7 +949,6 @@ def test_distribution_round_conditions_cover_required_paths():
         "temporary_model_held_at_distribution",
         "unregistered_temporary_model_held_at_distribution",
         "previously_unheld_model_received",
-        "validation_session_held_at_distribution",
         "aggregation_mixes_models_without_training_data",
         "different_learning_rates",
     }, observed_paths
@@ -959,9 +965,9 @@ def test_server_distribution_with_model_id_mapping_matches_real_legacy_server(
     volume_before = communication_volume_record_store.get_state_snapshot()
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(43)
-        # サーバは、集めたモデル（ID 2）も持ったまま配る（グローバルモデルを外すのは、統合の処理）。
+        # サーバは、集めたモデル（ID 1）も持ったまま配る（グローバルモデルを外すのは、統合の処理）。
         distribution_applications = distribute_from_server_in_both(
-            server_round_oracle, model_id_mapping={2: 0}
+            server_round_oracle, model_id_mapping={1: 0}
         )
     assert_all_states_match_legacy_after_distribution(server_round_oracle)
     volume_after = communication_volume_record_store.get_state_snapshot()
@@ -974,7 +980,7 @@ def test_server_distribution_with_model_id_mapping_matches_real_legacy_server(
     assert [
         distribution_application.training_assignment_change is not None
         for distribution_application in distribution_applications
-    ] == [True, False, True]
+    ] == [True, False, False]
 
 
 def get_distribution_arguments(server_round_oracle):
@@ -1007,9 +1013,9 @@ INVALID_DISTRIBUTION_ARGUMENT_CASES = {
         )
     ),
     "mapping_none": lambda arguments: dict(model_id_mapping=None),
-    "mapping_list": lambda arguments: dict(model_id_mapping=[(2, 0)]),
+    "mapping_list": lambda arguments: dict(model_id_mapping=[(1, 0)]),
     "mapping_bool_key": lambda arguments: dict(model_id_mapping={True: 0}),
-    "mapping_float_value": lambda arguments: dict(model_id_mapping={2: 0.0}),
+    "mapping_float_value": lambda arguments: dict(model_id_mapping={1: 0.0}),
 }
 
 
@@ -1122,7 +1128,7 @@ def test_distribution_keeps_communication_volume_when_first_client_rejects(
     state_snapshot = snapshot_server_and_client_states(server_round_oracle)
     with pytest.raises(ValueError, match="current training model after model_id_mapping"):
         distribute_global_models_to_clients(
-            **get_distribution_arguments(server_round_oracle) | dict(model_id_mapping={2: 99})
+            **get_distribution_arguments(server_round_oracle) | dict(model_id_mapping={1: 99})
         )
     volume_before = state_snapshot["communication_volume"]
     volume_after = server_round_oracle["communication_volume_record_store"].get_state_snapshot()

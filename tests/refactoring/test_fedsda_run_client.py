@@ -165,7 +165,7 @@ def set_legacy_configuration(
         SOFT_ROUTING_ACTIVATION_POLICY="always",
         ROUTING_ACTIVE_SET_POLICY="all",
         ROUTING_ARCHIVE_SHADOW_DIAGNOSTICS=False,
-        NEW_MODEL_CREATION_POLICY="forward_persistent",
+        NEW_MODEL_CREATION_POLICY="immediate",
         NEW_MODEL_TRAINING="early_stopping",
         NEW_MODEL_INITIALIZATION="best_candidate",
         SHARED_BACKBONE_TRAINING="joint",
@@ -224,6 +224,7 @@ def make_run_client_settings(
     added_evaluation_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
     cross_evaluation_sample_limit=CROSS_EVALUATION_SAMPLE_LIMIT,
     cross_evaluation_client_limit=CROSS_EVALUATION_CLIENT_LIMIT,
+    with_candidate_validation=False,
 ):
     """上の条件と同じ値の、新の束。"""
     return FedsdaRunClientSettings(
@@ -249,6 +250,11 @@ def make_run_client_settings(
         candidate_model_training_and_acceptance_settings=replace(
             valid_run_settings_mapping["candidate_model_training_and_acceptance_settings"],
             candidate_post_alarm_validation_sample_count=validation_sample_count,
+            candidate_model_acceptance_policy=(
+                "current_model_first_reuse_then_two_segment_candidate_validation"
+                if with_candidate_validation
+                else "current_model_first_reuse_then_candidate_adoption_without_validation"
+            ),
         ),
         candidate_parameter_initialization_settings=CandidateParameterInitializationSettings(
             candidate_parameter_initialization_source="lowest_evaluated_mean_loss_model"
@@ -362,6 +368,7 @@ def build_run_client_oracle(
     added_evaluation_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
     cross_evaluation_sample_limit=CROSS_EVALUATION_SAMPLE_LIMIT,
     cross_evaluation_client_limit=CROSS_EVALUATION_CLIENT_LIMIT,
+    with_candidate_validation=False,
 ):
     """実旧の事前学習と実__init__で実旧clientを作り、同じ初期モデル・統計・条件から新clientを組み立てる。
 
@@ -402,6 +409,7 @@ def build_run_client_oracle(
         np.random.set_state(numpy_random_state)
     run_client_settings = make_run_client_settings(
         valid_run_settings_mapping,
+        with_candidate_validation=with_candidate_validation,
         update_interval=update_interval,
         validation_sample_count=validation_sample_count,
         base_learning_rate=base_learning_rate,
@@ -1085,19 +1093,16 @@ def test_run_client_trajectories_cover_required_paths():
         for condition_outcomes, _, _ in OBSERVED_COVERAGE_BY_CONDITION.values()
         for adaptation_outcome in condition_outcomes
     }
-    # 候補検証の確定での他モデルの再利用は、標本1件の処理の対照（上流）が通している。
-    # サーバの統合による付け替えは、サーバなしの対照では起きない。
-    # 警報の位置での候補の採用は、候補検証をしない構成だけで起きる（test_fedsda_configuration_variants.pyが通す）。
-    assert observed_outcomes >= set(LEGACY_ACTION_BY_ADAPTATION_OUTCOME) - {
+    assert observed_outcomes >= {
         "alarm_interval_candidate_adopted_as_new_model",
-        "post_alarm_validation_held_model_reused",
-        "server_consolidation_training_model_remapped",
+        "alarm_interval_current_model_maintained",
+        "alarm_interval_held_model_reused",
     }
     assert any(
         upload_wait_advanced
         for _, upload_wait_advanced, _ in OBSERVED_COVERAGE_BY_CONDITION.values()
     )
-    assert any(
+    assert not any(
         validation_was_held for _, _, validation_was_held in OBSERVED_COVERAGE_BY_CONDITION.values()
     )
 
@@ -1470,13 +1475,18 @@ PROCESSED_SAMPLE_COUNT = 25
 
 
 def build_processed_run_client(
-    *, monkeypatch, valid_run_settings_mapping, sample_count=PROCESSED_SAMPLE_COUNT
+    *,
+    monkeypatch,
+    valid_run_settings_mapping,
+    sample_count=PROCESSED_SAMPLE_COUNT,
+    with_candidate_validation=False,
 ):
     """標本を処理した後のclient（保留・学習データ・記録がある状態）と、乱数生成器、次の観測標本。"""
     run_client, _, assembly_arguments = build_run_client_oracle(
         monkeypatch=monkeypatch,
         valid_run_settings_mapping=valid_run_settings_mapping,
         class_count=2,
+        with_candidate_validation=with_candidate_validation,
     )
     stream = make_concept_stream(
         sample_count=sample_count + 1, concept_block_length=13, stream_seed=5
@@ -1660,6 +1670,7 @@ def test_finalization_rejects_held_validation_without_held_concept_ids(
             monkeypatch=monkeypatch,
             valid_run_settings_mapping=valid_run_settings_mapping,
             sample_count=19,
+            with_candidate_validation=True,
         )
         owners = run_client.owners
         pending_sample_observation_store = owners.pending_sample_observation_store

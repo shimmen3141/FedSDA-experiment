@@ -36,7 +36,6 @@ from federated_learning_experiments.runtime import (
 from federated_learning_experiments.sweep.experiment_configurations import (
     ADAHEDGE_PREDICTION_WEIGHTS_CONFIGURATION_NAME,
     CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME,
-    CANDIDATE_VALIDATION_CONFIGURATION_NAME,
     CLASSWISE_ADWIN_DETECTION_CONFIGURATION_NAME,
     EXPERIMENT_CONFIGURATION_NAMES,
     FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME,
@@ -514,15 +513,9 @@ def test_without_candidate_validation_takes_its_own_path(configuration_name):
                 "forward_validation_pending",
             } & set(legacy_actions)
     assert adopted_at_alarm_count > 0
-    # 同じ条件の提案構成は、候補検証を開始していて、結果が、この構成と違う条件がある。
-    assert any(
-        comparison["proposed"].run_metrics.change_response_metrics
-        != comparison["variant"].run_metrics.change_response_metrics
-        for comparison in comparisons
-    )
-    assert any(
-        comparison["variant"].run_metrics.prediction_accuracy
-        != comparison["proposed"].run_metrics.prediction_accuracy
+    # 検証なしへ揃えた旧との照合の基点と、同じ数値になる。
+    assert all(
+        comparison["proposed"].run_metrics == comparison["variant"].run_metrics
         for comparison in comparisons
     )
 
@@ -952,7 +945,6 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
         SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
         LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
-        CANDIDATE_VALIDATION_CONFIGURATION_NAME,
     )
     assert INDEPENDENT_MODELS_CONFIGURATION_NAME == "fedsda-independent-models"
     assert WITHOUT_CONCEPT_SPECIFIC_ADAPTER_CONFIGURATION_NAME == (
@@ -981,8 +973,6 @@ def test_configuration_names_build_run_settings_that_differ_only_in_the_changed_
         SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
         SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
         LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
-        # 2026-10-19までの提案構成と同じ設定なので、実旧との照合は、提案構成の照合が覆う。
-        CANDIDATE_VALIDATION_CONFIGURATION_NAME,
     }
     experiment_run_conditions = ExperimentRunConditions(
         dataset_name="sine2",

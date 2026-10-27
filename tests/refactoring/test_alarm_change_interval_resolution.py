@@ -4,7 +4,7 @@ import math
 import random
 from collections import Counter, defaultdict, deque
 from copy import deepcopy
-from dataclasses import FrozenInstanceError, fields
+from dataclasses import FrozenInstanceError, fields, replace
 from unittest.mock import patch
 
 import numpy as np
@@ -17,9 +17,6 @@ from test_candidate_epoch_training import assert_candidate_epoch_training_matche
 from test_joint_model_parameter_update import assert_nested_state_equal, run_legacy_joint_update
 from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
 from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
-from test_post_alarm_candidate_validation_sample_observation import (
-    assert_collected_losses_match_legacy,
-)
 from test_post_alarm_candidate_validation_session_start import build_session_start_oracle
 from test_post_alarm_reference_model_fixation import (
     assert_fixed_references_match_legacy,
@@ -81,9 +78,6 @@ from federated_learning_experiments.runtime.alarm_change_interval_resolution imp
     ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES,
     AlarmChangeIntervalResolution,
     resolve_alarm_change_interval,
-)
-from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import (
-    observe_post_alarm_candidate_validation_sample,
 )
 from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import (
     PostAlarmCandidateValidationSession,
@@ -193,6 +187,7 @@ LEGACY_ACTION_BY_ALARM_INTERVAL_RESOLUTION_OUTCOME = {
     "alarm_interval_held_model_reused": "reuse",
     "alarm_interval_current_model_maintained": "maintain",
     "alarm_interval_candidate_validation_started": "create_pending",
+    "alarm_interval_candidate_adopted_as_new_model": "create",
 }
 
 # 現行は保有順の最後のモデル。履歴基準が区間平均と同じなら適合、1/4なら不適合、平均0なら基準なし。
@@ -605,7 +600,11 @@ def assert_alarm_change_interval_resolution_matches_legacy(
         == LEGACY_ACTION_BY_ALARM_INTERVAL_RESOLUTION_OUTCOME[resolution_outcome]
     )
     assert legacy_drift_type == (
-        1 if resolution_outcome == "alarm_interval_held_model_reused" else 0
+        2
+        if resolution_outcome == "alarm_interval_candidate_adopted_as_new_model"
+        else 1
+        if resolution_outcome == "alarm_interval_held_model_reused"
+        else 0
     )
     assert legacy_adaptation_events[0]["old_model_id"] == initial_training_model_id
     current_training_model_id = resolution_arguments[
@@ -616,7 +615,10 @@ def assert_alarm_change_interval_resolution_matches_legacy(
     training_model_assignment_change = (
         alarm_change_interval_resolution.training_model_assignment_change
     )
-    if resolution_outcome == "alarm_interval_held_model_reused":
+    if resolution_outcome in (
+        "alarm_interval_held_model_reused",
+        "alarm_interval_candidate_adopted_as_new_model",
+    ):
         assert type(training_model_assignment_change) is TrainingModelAssignmentChange
         assert (
             training_model_assignment_change.previous_model_id,
@@ -628,7 +630,11 @@ def assert_alarm_change_interval_resolution_matches_legacy(
         assert legacy_client.local_switch_positions == [
             resolution_arguments["proposal_sample_index"]
         ]
-        assert dict(legacy_client.reuse_selection_counts) == {"alternative_fit": 1}
+        assert dict(legacy_client.reuse_selection_counts) == (
+            {"alternative_fit": 1}
+            if resolution_outcome == "alarm_interval_held_model_reused"
+            else {}
+        )
     else:
         assert training_model_assignment_change is None
         assert legacy_client.local_model_changes == []
@@ -665,6 +671,11 @@ def assert_alarm_change_interval_resolution_matches_legacy(
     )
     started_validation_session = alarm_change_interval_resolution.started_validation_session
     legacy_session = legacy_client._forward_validation
+    if resolution_outcome == "alarm_interval_candidate_adopted_as_new_model":
+        assert started_validation_session is None
+        assert legacy_session is None
+        assert len(legacy_epoch_training_calls.call_args_list) > 0
+        return
     if resolution_outcome != "alarm_interval_candidate_validation_started":
         assert started_validation_session is None
         assert legacy_session is None
@@ -869,91 +880,6 @@ def test_alarm_change_interval_resolution_matches_legacy(
             observed_concept_id is not None
             for observed_concept_id in resolution_arguments["change_interval_sample_concept_ids"]
         )
-
-
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("candidate_parameter_initialization_source", LEGACY_INITIALIZATION_NAMES)
-@pytest.mark.parametrize(
-    "alarm_interval_resolution_case",
-    [
-        alarm_interval_resolution_case
-        for alarm_interval_resolution_case in ALARM_INTERVAL_RESOLUTION_CASES
-        if ALARM_INTERVAL_RESOLUTION_CASES[alarm_interval_resolution_case][
-            "expected_resolution_outcome"
-        ]
-        == "alarm_interval_candidate_validation_started"
-    ],
-)
-def test_alarm_change_interval_resolution_starts_candidate_validation_like_legacy(
-    class_count,
-    candidate_parameter_initialization_source,
-    alarm_interval_resolution_case,
-    monkeypatch,
-):
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(842)
-        (
-            resolution_arguments,
-            shared_optimizer_owners,
-            legacy_client,
-            _,
-        ) = build_alarm_change_interval_resolution_oracle(
-            class_count=class_count,
-            alarm_interval_resolution_case=alarm_interval_resolution_case,
-            candidate_parameter_initialization_source=candidate_parameter_initialization_source,
-            monkeypatch=monkeypatch,
-        )
-        initial_training_model_id = legacy_client.current_model_id
-        initial_rng_state = torch.get_rng_state().clone()
-        (
-            legacy_drift_type,
-            legacy_adaptation_events,
-            legacy_epoch_training_calls,
-        ) = resolve_alarm_change_interval_in_legacy_client(
-            legacy_client=legacy_client,
-            resolution_arguments=resolution_arguments,
-            monkeypatch=monkeypatch,
-        )
-        expected_rng_state = torch.get_rng_state().clone()
-        assert not torch.equal(expected_rng_state, initial_rng_state)
-        torch.set_rng_state(initial_rng_state)
-        state_snapshot = snapshot_alarm_change_interval_resolution_state(
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-        )
-        alarm_change_interval_resolution = resolve_alarm_change_interval(**resolution_arguments)
-        assert (
-            alarm_change_interval_resolution.resolution_outcome
-            == "alarm_interval_candidate_validation_started"
-        )
-        assert (
-            alarm_change_interval_resolution.alarm_interval_reuse_assessment.selected_reuse_model_id
-            is None
-        )
-        # 保有モデル・統計・標本・計数・現行IDは不変で、torch乱数は実旧の処理後と一致する。
-        assert_alarm_change_interval_resolution_state_unchanged(
-            state_snapshot, expected_rng_state=expected_rng_state
-        )
-        assert_alarm_change_interval_resolution_matches_legacy(
-            alarm_change_interval_resolution=alarm_change_interval_resolution,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-            legacy_drift_type=legacy_drift_type,
-            legacy_adaptation_events=legacy_adaptation_events,
-            legacy_epoch_training_calls=legacy_epoch_training_calls,
-            initial_training_model_id=initial_training_model_id,
-        )
-        # 候補は保有モデルと実体を共有しない。
-        held_parameter_storage_addresses = {
-            parameter.data_ptr()
-            for state in resolution_arguments[
-                "held_model_training_state_registry"
-            ].snapshot_ordered_held_model_training_states()
-            for parameter in state.classifier.parameters()
-        }
-        for parameter in alarm_change_interval_resolution.started_validation_session.candidate_training_state.candidate_classifier.parameters():
-            assert parameter.data_ptr() not in held_parameter_storage_addresses
 
 
 class TupleSubclass(tuple):
@@ -1770,77 +1696,15 @@ def test_resolved_alarm_change_interval_continues_joint_training(
         assert numpy_state[2:] == random_states[2][2:]
 
 
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
-def test_alarm_change_interval_resolution_observes_samples_after_started_validation_like_legacy(
-    class_count, optimizer_variant, monkeypatch
-):
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(847)
-        (
-            resolution_arguments,
-            _,
-            legacy_client,
-            _,
-        ) = build_alarm_change_interval_resolution_oracle(
-            class_count=class_count,
-            alarm_interval_resolution_case="no_model_fits",
-            optimizer_variant=optimizer_variant,
-            monkeypatch=monkeypatch,
+def use_immediate_candidate_adoption(monkeypatch, *argument_mappings, legacy_client=None):
+    """候補検証を主題にしない旧との照合で、候補をその場で採用する組へ揃える。"""
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "immediate")
+    for arguments in argument_mappings:
+        arguments["candidate_model_training_and_acceptance_settings"] = replace(
+            arguments["candidate_model_training_and_acceptance_settings"],
+            candidate_model_acceptance_policy="current_model_first_reuse_then_candidate_adoption_without_validation",
         )
-        initial_rng_state = torch.get_rng_state().clone()
-        resolve_alarm_change_interval_in_legacy_client(
-            legacy_client=legacy_client,
-            resolution_arguments=resolution_arguments,
-            monkeypatch=monkeypatch,
-        )
-        expected_rng_state = torch.get_rng_state().clone()
-        torch.set_rng_state(initial_rng_state)
-        started_validation_session = resolve_alarm_change_interval(
-            **resolution_arguments
-        ).started_validation_session
-        assert torch.equal(torch.get_rng_state(), expected_rng_state)
-        legacy_session = legacy_client._forward_validation
-        # 実観測。旧は損失評価と収集だけを呼び、到達時の採否確定は起動しない。
-        validation_samples = tuple(
-            (
-                started_validation_session.proposal_sample_index + 1 + sample_offset,
-                started_validation_session.training_input_features[sample_offset].reshape(1, -1)
-                * 0.5
-                + 0.1 * sample_offset,
-                started_validation_session.training_observed_class_labels[sample_offset].reshape(
-                    1, 1
-                ),
-            )
-            for sample_offset in range(legacy_session.target_count)
-        )
-        for sample_offset, (sample_index, input_features, observed_class_labels) in enumerate(
-            validation_samples
-        ):
-            with torch.no_grad():
-                legacy_session.append_losses(
-                    legacy_session.candidate.per_sample_error(input_features, observed_class_labels)
-                    .reshape(-1)[0]
-                    .item(),
-                    {
-                        model_id: legacy_reference_model.per_sample_error(
-                            input_features, observed_class_labels
-                        )
-                        .reshape(-1)[0]
-                        .item()
-                        for model_id, legacy_reference_model in legacy_session.reference_models.items()
-                    },
-                )
-            assert observe_post_alarm_candidate_validation_sample(
-                sample_index=sample_index,
-                input_features=input_features,
-                observed_class_labels=observed_class_labels,
-                candidate_classifier=started_validation_session.candidate_training_state.candidate_classifier,
-                reference_classifiers_by_model_id=started_validation_session.fixed_reference_models.reference_classifiers_by_model_id,
-                post_alarm_candidate_loss_collection=started_validation_session.post_alarm_candidate_loss_collection,
-            ) is (sample_offset == legacy_session.target_count - 1)
-            assert_collected_losses_match_legacy(
-                post_alarm_candidate_loss_collection=started_validation_session.post_alarm_candidate_loss_collection,
-                legacy_session=legacy_session,
-            )
-        assert torch.equal(torch.get_rng_state(), expected_rng_state)
+        if legacy_client is not None:
+            legacy_client.next_temp_id = arguments[
+                "temporary_model_id_allocator"
+            ].next_temporary_model_id

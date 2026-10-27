@@ -121,6 +121,7 @@ def build_sample_processing_oracle(
     recording_oracle_case,
     historical_mean_losses,
     minimum_candidate_mean_loss_improvement,
+    with_candidate_validation=True,
 ):
     """警報1回ぶんの処理のoracleで最初の警報を両実装に処理させ、その直後から標本処理を続けられる状態を作る。
 
@@ -148,6 +149,12 @@ def build_sample_processing_oracle(
     for indexed_observation in alarm_pending_observations:
         pending_sample_observation_store.append_pending_sample_observation(
             indexed_observation=indexed_observation
+        )
+    if not with_candidate_validation:
+        from test_alarm_change_interval_resolution import use_immediate_candidate_adoption
+
+        use_immediate_candidate_adoption(
+            monkeypatch, handling_arguments, response_arguments, legacy_client=legacy_client
         )
     initial_torch_random_state = torch.get_rng_state().clone()
     run_legacy_alarm_with_real_completion(
@@ -204,7 +211,12 @@ def build_sample_processing_oracle(
     legacy_client.forward_validation_samples = VALIDATION_SAMPLE_COUNT
     legacy_client.model_upload_delay_rounds = UPLOAD_DELAY_ROUND_COUNT
     legacy_client.__dict__.pop("_sample_training_batches", None)
-    temporary_model_id_allocator = TemporaryModelIdAllocator(client_id=legacy_client.client_id)
+    temporary_model_id_allocator = (
+        TemporaryModelIdAllocator(client_id=legacy_client.client_id)
+        if with_candidate_validation
+        else handling_arguments["temporary_model_id_allocator"]
+    )
+    assert isinstance(temporary_model_id_allocator, TemporaryModelIdAllocator)
     # 履歴統計を両実装で同じ値へ置き換え、監視を両実装の実物のresetで始め直す（基準が低いと警報が起きやすい）。
     loss_statistics_store = handling_arguments["loss_statistics_store"]
     for model_id, historical_mean_loss in zip(tuple(legacy_client.models), historical_mean_losses):
@@ -258,7 +270,9 @@ def build_sample_processing_oracle(
         alarm_interval_assignment_selection_record_store=AlarmIntervalAssignmentSelectionRecordStore(),
         pending_sample_observation_store=pending_sample_observation_store,
         temporary_model_id_allocator=temporary_model_id_allocator,
-        pending_model_upload_state=PendingModelUploadState(
+        pending_model_upload_state=handling_arguments["pending_model_upload_state"]
+        if not with_candidate_validation
+        else PendingModelUploadState(
             pending_model_registration_policy=KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
         ),
         local_training_request_schedule=LocalTrainingRequestSchedule(
@@ -504,6 +518,7 @@ def test_sample_processing_matches_real_legacy_sample_processing(
                 recording_oracle_case=recording_oracle_case,
                 historical_mean_losses=historical_mean_losses,
                 minimum_candidate_mean_loss_improvement=minimum_candidate_mean_loss_improvement,
+                with_candidate_validation=False,
             )
         )
         python_random_generator = processing_arguments["python_random_generator"]
@@ -605,12 +620,16 @@ def test_sample_processing_trajectories_cover_every_adaptation_outcome():
         for condition_outcomes in OBSERVED_OUTCOMES_BY_CONDITION.values()
         for adaptation_outcome in condition_outcomes
     }
-    # 終端の回収と、サーバの統合による付け替えは、標本1件の処理では起きない。
-    # 警報の位置での候補の採用は、候補検証をしない構成だけで起きる（test_fedsda_configuration_variants.pyが通す）。
-    assert observed_outcomes == set(LEGACY_ACTION_BY_ADAPTATION_OUTCOME) - {
-        "alarm_interval_candidate_adopted_as_new_model",
-        "post_alarm_validation_incomplete_candidate_rejected",
-        "server_consolidation_training_model_remapped",
+    assert observed_outcomes == {
+        name
+        for name in LEGACY_ACTION_BY_ADAPTATION_OUTCOME
+        if not name.startswith("post_alarm_validation_")
+        and name
+        not in {
+            "alarm_during_candidate_validation",
+            "alarm_interval_candidate_validation_started",
+            "server_consolidation_training_model_remapped",
+        }
     }
     # 予測の対照が、モデル集合の変更（重みの初期化）と、最大重みのモデルの交代を通っていること。
     assert any(

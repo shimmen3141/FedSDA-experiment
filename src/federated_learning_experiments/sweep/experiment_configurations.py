@@ -67,9 +67,6 @@ SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME = (
 # 混ぜる予測の寄与を比べる用）。全モデルの結合予測は、提案構成と同じ（`fedsda-single-model-prediction`は、
 # 結合をせず、現在の学習帰属のモデルだけで予測する）。
 LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME = "fedsda-local-parameter-prediction"
-# 2026-10-19までの提案構成（候補を、警報の後の標本で検証してから採否を決め、候補の学習で共有部も更新する）。
-# 提案構成から、採否の方針と候補の共有部の2つを替える（候補検証は、共有部の固定と組み合わせられないため）。
-CANDIDATE_VALIDATION_CONFIGURATION_NAME = "fedsda-with-candidate-validation"
 # `fedavg`の、局所更新の間隔を、集約の間隔と同じにした構成。roundの中は、そのroundの始めに配布されたモデルで
 # 予測し、局所更新は、roundの最後の標本の処理でまとめて行う（`fedavg`は、1標本ごとに局所更新する）。
 FEDAVG_LOCAL_UPDATES_PER_AGGREGATION_CONFIGURATION_NAME = "fedavg-local-updates-per-aggregation"
@@ -92,7 +89,6 @@ EXPERIMENT_CONFIGURATION_NAMES: tuple[str, ...] = (
     SYNCHRONIZED_MODEL_PREDICTION_CONFIGURATION_NAME,
     SYNCHRONIZED_LOCAL_MIXTURE_PREDICTION_CONFIGURATION_NAME,
     LOCAL_PARAMETER_PREDICTION_CONFIGURATION_NAME,
-    CANDIDATE_VALIDATION_CONFIGURATION_NAME,
 )
 
 
@@ -265,23 +261,6 @@ def build_experiment_run_settings(
             maximum_evaluating_client_count_per_model=(
                 proposed_run_settings.run_participant_settings.maximum_evaluating_client_count_per_model
             ),
-        )
-    if configuration_name == CANDIDATE_VALIDATION_CONFIGURATION_NAME:
-        return _replace_candidate_acceptance_and_shared_feature_update(
-            run_settings=proposed_run_settings,
-            candidate_model_acceptance_policy=(
-                "current_model_first_reuse_then_two_segment_candidate_validation"
-            ),
-            candidate_shared_feature_update_policy="update_shared_features_with_candidate",
-            # 候補検証ありの構成は、警報の後の選び方も、基準版9までの扱い（検出器の推定と許容量）にする。
-            # 学習者の組と初期モデルの統計の推定も、基準版10までの扱いにする（候補検証との組合せは未検証）。
-            alarm_interval_assignment_policy="detector_change_span_and_mean_loss_increase_tolerance",
-            new_model_hypothesis_learners="reinitialized_learner",
-            initial_model_loss_statistics_estimation="resubstitution",
-            # 候補検証との組合せは未検証なので、評価のclientの選び方も版11までの扱いを明示する。
-            cross_evaluation_client_selection_policy="clients_holding_target_model",
-            loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
-            maximum_evaluating_client_count_per_model=3,
         )
     if configuration_name == LOSS_DISTANCE_CLUSTERING_CONFIGURATION_NAME:
         # サーバが読む判定の基準と、統合の方式の宣言の、両方を替える。

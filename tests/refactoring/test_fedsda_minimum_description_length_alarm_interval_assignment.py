@@ -110,9 +110,22 @@ def test_policy_field_accepts_only_declared_values():
 
 
 def test_minimum_description_length_is_rejected_with_candidate_validation():
+    from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
+
+    run_settings = build_small_settings()
+    assert isinstance(run_settings, FedsdaRunSettings)
     with pytest.raises(RunSettingsValidationError) as error_information:
-        build_small_settings(
-            "fedsda-with-candidate-validation", alarm_interval_assignment_policy=MDL
+        settings = run_settings.run_participant_settings.run_client_settings
+        replace(
+            settings,
+            candidate_model_training_and_acceptance_settings=replace(
+                settings.candidate_model_training_and_acceptance_settings,
+                candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
+            ),
+            candidate_epoch_training_settings=replace(
+                settings.candidate_epoch_training_settings,
+                candidate_shared_feature_update_policy="update_shared_features_with_candidate",
+            ),
         )
     assert (
         error_information.value.configuration_parameter_name == "alarm_interval_assignment_policy"
@@ -321,6 +334,6 @@ def test_default_and_configurations_use_minimum_description_length_except_candid
             continue
         checked += 1
         policy = settings.run_participant_settings.run_client_settings.training_data_assignment_settings.alarm_interval_assignment_policy
-        expected = LEGACY if configuration_name == "fedsda-with-candidate-validation" else MDL
+        expected = MDL
         assert policy == expected, configuration_name
     assert checked >= 10

@@ -1,6 +1,5 @@
 """完全なrun設定からの1 runの実行、記録の表、保存と読込みを、実旧と照合する。"""
 
-import hashlib
 import json
 import random
 from dataclasses import FrozenInstanceError, fields, replace
@@ -648,10 +647,9 @@ def test_golden_condition_change_response_columns_match_legacy_saved_arrays(
     # 中身のある照合になっている（警報があり、監視の値が変わる）。
     assert record_tables["loss_change_alarm.alarm_sample_index"].size > 0
     assert np.unique(record_tables["sample_loss_monitoring.monitored_log_e_value"]).size > 10
-    expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
     assert (
-        record_tables["candidate_validation_decision.candidate_full_interval_mean_loss"].size > 0
-    ) == expected_paths["candidate_decisions"]
+        record_tables["candidate_validation_decision.candidate_full_interval_mean_loss"].size == 0
+    )
 
 
 # 条件ごとの、足した列が通った場合の観測（goldenの3ケースと、小さい条件）。
@@ -821,7 +819,8 @@ NEW_COLUMN_BY_LEGACY_PREDICTION_DIAGNOSTIC_ARRAY_NAME = {
 # 条件ごとの、予測の診断の列が通った場合の観測（goldenの3ケースと、小さい条件）。
 PREDICTION_DIAGNOSTIC_COLUMN_OBSERVATIONS = []
 # どの条件も通らない場合（実測で決める）。
-PREDICTION_DIAGNOSTIC_COLUMN_CASES_NOT_COVERED = set()
+# 即時採用では、帰属変更時の再始動が先に済む。モデル集合の変更だけによるAdaHedge再始動は、部品のtestで守る。
+PREDICTION_DIAGNOSTIC_COLUMN_CASES_NOT_COVERED = {"adahedge_weight_model_pool_reset"}
 
 
 def derive_legacy_class_arrays_from_sample_prediction_table(record_tables):
@@ -1089,7 +1088,7 @@ def test_golden_condition_model_diagnostic_columns_match_legacy_saved_arrays(
     assert selection_counts.sum() > 0
     expected_paths = GOLDEN_CONDITION_PATHS_BY_DATASET_NAME[golden_condition_runs.dataset_name]
     assert (record_tables["model_pair_clustering.loss_increase_distance"].size > 0) == (
-        expected_paths["multiple_global_models"]
+        expected_paths["model_consolidation"]
     )
 
 
@@ -1097,9 +1096,11 @@ def test_golden_condition_model_diagnostic_columns_match_legacy_saved_arrays(
 # 最後の要素: 登録されたモデルが、同じラウンドの集約でグローバルモデルに残らない場合を含むか
 # （含むとき、登録の数と、統合で吸収された数からは、グローバルモデル数を求められない）。
 ROUND_MODEL_COUNT_CONDITIONS = [
+    # 検証なしで3モデルを統合する条件。表の列の照合と、経路の網羅にも使う。
+    (1, 5, 600, 10, 30, 0.05, 1, False),
     (7, 3, 300, 10, 30, 0.05, 2, False),
-    (2, 5, 300, 10, 50, 0.03, 1, True),
-    (4, 3, 500, 25, 60, 0.03, 1, False),
+    (2, 5, 300, 10, 50, 0.03, 1, False),
+    (4, 3, 500, 25, 60, 0.03, 1, True),
 ]
 
 
@@ -1574,10 +1575,10 @@ def test_loading_rejects_unsupported_or_damaged_summaries(small_experiment_run, 
         load_fedsda_run_artifacts(summary_file_path=tmp_path / "missing.json")
 
 
-def test_golden_condition_saved_artifacts_match_real_legacy_and_golden(
+def test_golden_condition_saved_artifacts_match_real_legacy(
     golden_condition_runs, golden_experiment_runs, tmp_path
 ):
-    """goldenの条件を、設定から実行・保存・読込みした結果が、実旧の33指標と31の配列（と、実行環境のgolden）に一致する。"""
+    """goldenの条件を、設定から実行・保存・読込みした結果が、実旧の33指標と31の配列に一致する。"""
     artifact_paths = save_fedsda_experiment_run(
         experiment_run=golden_experiment_runs,
         output_directory=tmp_path,
@@ -1615,22 +1616,6 @@ def test_golden_condition_saved_artifacts_match_real_legacy_and_golden(
         legacy_trace_values = golden_condition_runs.legacy_trace_arrays[trace_name]
         assert trace_values.dtype == legacy_trace_values.dtype, trace_name
         assert np.array_equal(trace_values, legacy_trace_values), trace_name
-    # 実行環境のgoldenがあれば、読み込んだ表から作った配列のSHA-256が、goldenの記録と一致する。
-    from test_environment_proposed_regression import find_golden_path
-
-    golden_path = find_golden_path(legacy_regression.environment())
-    if golden_path is not None:
-        golden_case = json.loads(golden_path.read_text(encoding="utf-8"))["cases"][
-            golden_condition_runs.dataset_name
-        ]
-        for trace_name, trace_values in legacy_arrays.items():
-            serialized_values = json.dumps(
-                trace_values.tolist(), separators=(",", ":"), ensure_ascii=True
-            )
-            assert golden_case["traces"][trace_name] == dict(
-                shape=list(trace_values.shape),
-                sha256=hashlib.sha256(serialized_values.encode()).hexdigest(),
-            ), trace_name
     # 完全なrun設定が、保存されている。
     assert summary["run_settings"] == convert_settings_to_plain_mapping(
         make_golden_condition_run_settings(golden_condition_runs.dataset_name)

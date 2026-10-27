@@ -1,4 +1,4 @@
-"""採用候補のローカル採用を、実旧の前向き検証確定処理の採用分岐へ対照する。"""
+"""採用候補のローカル採用を、実旧の検証なしの生成・登録と帰属切替へ対照する。"""
 
 import random
 from collections import Counter, defaultdict
@@ -90,7 +90,7 @@ def build_local_adoption_oracle(
             monkeypatch=monkeypatch,
         )
     )
-    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "forward_persistent")
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "immediate")
     temporary_model_id_allocator = TemporaryModelIdAllocator(client_id=3)
     training_sample_store = ModelTrainingSampleStore()
     counts_store = ModelTrainingAndAssignmentCountsStore()
@@ -184,11 +184,37 @@ def build_local_adoption_oracle(
     return adoption_arguments, shared_optimizer_owners, legacy_client, legacy_candidate_model
 
 
-def finalize_adoption_in_legacy_client(*, legacy_client):
-    """実旧の確定処理を実行する。採用と判定されたことだけを前提として確認する。"""
-    assert legacy_client._finalize_forward_validation(57) == 2
-    assert legacy_client.provisional_model_decisions[-1].accepted
-    assert legacy_client._forward_validation is None
+def adopt_trained_candidate_in_legacy_client(*, legacy_client):
+    """学習済み候補の登録と、検証なしの帰属切替を、実旧の操作で行う。
+
+    生成・学習は上流の対照が担う。ここでは学習済み候補を渡し、実旧の生成時の学習だけを置き換える。
+    """
+    session = legacy_client._forward_validation
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(legacy_client, "_new_model", lambda: session.candidate)
+        monkeypatch.setattr(session.candidate, "set_params", lambda parameters: None)
+        monkeypatch.setattr(session.candidate, "reset_optimizer", lambda: None)
+
+        def record_completed_training(model, bx, by):
+            legacy_client.compute_counters["training_examples"] += (
+                session.candidate_training_examples
+            )
+            legacy_client.compute_counters["optimizer_steps"] += session.candidate_optimizer_steps
+
+        monkeypatch.setattr(
+            legacy_client, "_train_new_model", record_completed_training, raising=False
+        )
+        legacy_client.phase_seconds = defaultdict(float)
+        temporary_id, _ = legacy_client._spawn_new_model(
+            session.training_x,
+            session.training_y,
+            pending_ready=False,
+            initialization_params=session.candidate.get_params(),
+        )
+    legacy_client.train_data_store[temporary_id].extend(session.held_data)
+    legacy_client._set_local_current_model(temporary_id)
+    legacy_client.local_switch_positions.append(57)
+    legacy_client._forward_validation = None
 
 
 def assert_training_samples_match_legacy(*, training_sample_store, legacy_client):
@@ -316,7 +342,7 @@ def assert_adoption_rejected_without_any_change(
 @pytest.mark.parametrize("pending_sample_count", [0, 1, 4])
 @pytest.mark.parametrize("candidate_training_counts", [(0, 0), (11, 3)])
 @pytest.mark.parametrize("existing_pending_model_id", [None, 9])
-def test_local_adoption_matches_actual_legacy_forward_validation_acceptance(
+def test_local_adoption_matches_actual_legacy_immediate_creation(
     class_count,
     held_model_ids,
     pending_sample_count,
@@ -349,7 +375,7 @@ def test_local_adoption_matches_actual_legacy_forward_validation_acceptance(
         ].snapshot_ordered_model_training_samples()
         random_states = (torch.get_rng_state().clone(), random.getstate(), np.random.get_state())
 
-        finalize_adoption_in_legacy_client(legacy_client=legacy_client)
+        adopt_trained_candidate_in_legacy_client(legacy_client=legacy_client)
         assignment_change = adopt_candidate_as_current_training_model(**adoption_arguments)
 
         assert (assignment_change.previous_model_id, assignment_change.current_model_id) == (
@@ -416,7 +442,7 @@ def test_two_consecutive_adoptions_match_actual_legacy(class_count, monkeypatch)
         adoption_arguments, shared_optimizer_owners, legacy_client, _ = build_local_adoption_oracle(
             class_count=class_count, monkeypatch=monkeypatch
         )
-        finalize_adoption_in_legacy_client(legacy_client=legacy_client)
+        adopt_trained_candidate_in_legacy_client(legacy_client=legacy_client)
         first_assignment_change = adopt_candidate_as_current_training_model(**adoption_arguments)
         assert_local_adoption_matches_legacy(
             adoption_arguments=adoption_arguments,
@@ -447,7 +473,7 @@ def test_two_consecutive_adoptions_match_actual_legacy(class_count, monkeypatch)
             "pending_assignment_training_samples",
         ):
             adoption_arguments[argument_name] = second_adoption_arguments[argument_name]
-        finalize_adoption_in_legacy_client(legacy_client=legacy_client)
+        adopt_trained_candidate_in_legacy_client(legacy_client=legacy_client)
         second_assignment_change = adopt_candidate_as_current_training_model(**adoption_arguments)
         assert (
             second_assignment_change.previous_model_id == first_assignment_change.current_model_id
@@ -832,7 +858,7 @@ def test_adopted_candidate_continues_actual_joint_training_and_confirmation(
             update_shared_features=True,
         )
 
-        finalize_adoption_in_legacy_client(legacy_client=legacy_client)
+        adopt_trained_candidate_in_legacy_client(legacy_client=legacy_client)
         assignment_change = adopt_candidate_as_current_training_model(**adoption_arguments)
         temporary_model_id = assignment_change.current_model_id
         assert_local_adoption_matches_legacy(

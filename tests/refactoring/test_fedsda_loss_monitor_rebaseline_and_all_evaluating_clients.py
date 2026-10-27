@@ -222,7 +222,6 @@ def test_final_configuration_and_all_fedsda_configurations_use_explicit_policies
             "keep_baseline_until_alarm"
             if name
             in (
-                "fedsda-with-candidate-validation",
                 "fedsda-classwise-adwin-detection",
                 "fedsda-overall-loss-adwin-detection",
             )
@@ -232,6 +231,4 @@ def test_final_configuration_and_all_fedsda_configurations_use_explicit_policies
             settings.run_client_settings.loss_change_detection_settings.loss_monitoring_baseline_update_policy
             == expected_policy
         ), name
-        assert settings.maximum_evaluating_client_count_per_model == (
-            3 if name == "fedsda-with-candidate-validation" else 7
-        ), name
+        assert settings.maximum_evaluating_client_count_per_model == 7, name

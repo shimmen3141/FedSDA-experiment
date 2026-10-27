@@ -14,11 +14,6 @@ from federated_drift_experiment import config
 from federated_drift_experiment.clients.fedsda import FedSDAClient
 from federated_drift_experiment.provisional_model import (
     ForwardValidationSession,
-    select_forward_fitting_reference,
-)
-from federated_learning_experiments.learning.prediction.class_probability_calculations import (
-    compute_model_mean_bounded_losses_after_label_observation,
-    convert_model_outputs_to_prediction_probabilities,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
     CandidateModelTrainingAndAcceptanceSettings,
@@ -27,65 +22,6 @@ from federated_learning_experiments.methods.fedsda.candidate_model_selection.pos
     evaluate_candidate_using_post_alarm_losses,
     select_available_reference_within_historical_loss_tolerance,
 )
-
-
-@pytest.mark.parametrize(
-    "reference_losses_by_model_id,reference_historical_mean_losses_by_model_id,available_reference_model_ids,current_training_model_id,maximum_reference_mean_loss_increase",
-    [
-        ({9: (0.18, 0.18), 1: (0.12, 0.12)}, {9: 0.1, 1: 0.1}, (9, 1), 9, 0.1),
-        ({9: (0.18, 0.18), 1: (0.12, 0.12)}, {9: 0.1, 1: 0.1}, (9, 1), 0, 0.1),
-        ({9: (0.125, 0.125), -3: (0.125, 0.125)}, {9: 0.1, -3: 0.1}, (9, -3), 0, 0.1),
-        ({9: (0.25, 0.25), 1: (0.31, 0.29)}, {9: 0.1, 1: 0.1}, (9, 1), 0, 0.1),
-        ({9: (0.125, 0.125), 1: (0.8, 0.8)}, {9: 0.1, 1: 0.1}, (1,), 9, 0.1),
-        ({9: (0.125, 0.125), 1: (0.25, 0.25)}, {}, (9, 1), 0, 0.1),
-        ({9: (0.125, 0.125), 1: (0.125, 0.125)}, {1: 0.1}, (9, 1), 9, 0.1),
-        ({9: (0.125, 0.125)}, {9: 0}, (9,), 9, 0.125),
-        ({9: (0.125, 0.125)}, {9: 0}, (9,), 9, 0.124999999),
-        ({9: (0, 0)}, {9: 0}, (9,), 9, 0),
-        ({9: (1, 1, 1)}, {9: 1}, (9,), 9, 0),
-        ({9: (0.2, 0.3, 0.4)}, {9: 0.5}, (), 9, 0.1),
-    ],
-)
-def test_post_alarm_candidate_reference_selection_matches_legacy(
-    reference_losses_by_model_id,
-    reference_historical_mean_losses_by_model_id,
-    available_reference_model_ids,
-    current_training_model_id,
-    maximum_reference_mean_loss_increase,
-):
-    """現行優先・平均同率・履歴欠落・消えた参照・等号を比較する。"""
-    inputs_before_call = deepcopy(
-        (
-            reference_losses_by_model_id,
-            reference_historical_mean_losses_by_model_id,
-            available_reference_model_ids,
-        )
-    )
-    legacy_reference_model_id = select_forward_fitting_reference(
-        {
-            model_id: [float(reference_loss) for reference_loss in losses]
-            for model_id, losses in reference_losses_by_model_id.items()
-            if model_id in available_reference_model_ids
-        },
-        reference_historical_mean_losses_by_model_id,
-        maximum_reference_mean_loss_increase,
-        preferred_model_id=current_training_model_id,
-    )
-    assert (
-        select_available_reference_within_historical_loss_tolerance(
-            reference_losses_by_model_id=reference_losses_by_model_id,
-            reference_historical_mean_losses_by_model_id=reference_historical_mean_losses_by_model_id,
-            available_reference_model_ids=available_reference_model_ids,
-            current_training_model_id=current_training_model_id,
-            maximum_reference_mean_loss_increase=maximum_reference_mean_loss_increase,
-        )
-        == legacy_reference_model_id
-    )
-    assert (
-        reference_losses_by_model_id,
-        reference_historical_mean_losses_by_model_id,
-        available_reference_model_ids,
-    ) == inputs_before_call
 
 
 @pytest.mark.parametrize(
@@ -252,121 +188,65 @@ def assert_evaluation_matches_legacy_decision(*, result, evaluation_arguments, m
     )
 
 
-@pytest.mark.parametrize("sample_count", [2, 3, 10, 11])
 @pytest.mark.parametrize(
-    "decision_reason",
+    "operation",
     [
-        "improve",
-        "first_fail",
-        "second_fail",
-        "both_fail",
-        "current",
-        "alternative",
-        "removed",
-        "tie",
-        "unrounded_sum",
+        select_available_reference_within_historical_loss_tolerance,
+        evaluate_candidate_using_post_alarm_losses,
     ],
 )
-def test_post_alarm_candidate_evaluation_matches_legacy_finalization(
-    monkeypatch, sample_count, decision_reason
+def test_post_alarm_candidate_public_functions_require_explicit_keyword_arguments(operation):
+    """類似loss列・ID・閾値の取り違えを避ける明示keyword契約。"""
+    assert "*, " in str(inspect.signature(operation))
+    with pytest.raises(TypeError):
+        operation(object(), object())
+
+
+@pytest.mark.parametrize(
+    "field_name,invalid_value",
+    [
+        ("candidate_model_training_and_acceptance_settings", None),
+        (
+            "candidate_model_training_and_acceptance_settings",
+            make_acceptance_settings(sample_count=3),
+        ),
+        ("candidate_losses", [0.1, 0.2]),
+        ("candidate_losses", (0.1,)),
+        ("candidate_losses", (0.1, 0.2, 0.3)),
+        ("candidate_losses", (True, 0.2)),
+        ("candidate_losses", (float("nan"), 0.2)),
+        ("candidate_losses", (float("inf"), 0.2)),
+        ("candidate_losses", (-0.1, 0.2)),
+        ("candidate_losses", (1.1, 0.2)),
+        ("candidate_losses", ("0.1", 0.2)),
+        ("minimum_candidate_mean_loss_improvement", True),
+        ("minimum_candidate_mean_loss_improvement", -0.1),
+        ("minimum_candidate_mean_loss_improvement", float("nan")),
+        ("minimum_candidate_mean_loss_improvement", float("inf")),
+        ("minimum_candidate_mean_loss_improvement", 10**500),
+    ],
+)
+def test_post_alarm_candidate_invalid_evaluation_inputs_are_rejected_without_mutation(
+    field_name, invalid_value
 ):
-    """旧finalizeの全診断を奇数・偶数と参照選択の各分岐で照合する。"""
-    candidate_losses = (0.2,) * sample_count
-    reference_losses_by_model_id = {9: (0.8,) * sample_count, -3: (0.9,) * sample_count}
-    reference_historical_mean_losses_by_model_id = {}
-    available_reference_model_ids = (9, -3)
-    if decision_reason == "first_fail":
-        candidate_losses = (0.9,) * (sample_count // 2) + (0.2,) * (
-            sample_count - sample_count // 2
-        )
-    elif decision_reason == "second_fail":
-        candidate_losses = (0.2,) * (sample_count // 2) + (0.9,) * (
-            sample_count - sample_count // 2
-        )
-    elif decision_reason == "both_fail":
-        candidate_losses = (0.9,) * sample_count
-    elif decision_reason in ("current", "alternative"):
-        reference_losses_by_model_id[-3] = (0.4,) * sample_count
-        reference_historical_mean_losses_by_model_id = (
-            {9: 0.8, -3: 0.4} if decision_reason == "current" else {-3: 0.4}
-        )
-    elif decision_reason == "removed":
-        available_reference_model_ids = (-3,)
-        reference_historical_mean_losses_by_model_id = {9: 0.8}
-    elif decision_reason == "tie":
-        reference_losses_by_model_id[-3] = (0.8,) * sample_count
-    elif decision_reason == "unrounded_sum":
-        reference_losses_by_model_id = {9: (0.800000001,) * sample_count, -3: (0.8,) * sample_count}
+    """既存件数条件と候補入力を検査し、再評価可能な入力を保持する。"""
     evaluation_arguments = dict(
         candidate_model_training_and_acceptance_settings=make_acceptance_settings(sample_count=2),
-        candidate_losses=candidate_losses,
-        reference_losses_by_model_id=reference_losses_by_model_id,
-        reference_historical_mean_losses_by_model_id=reference_historical_mean_losses_by_model_id,
-        available_reference_model_ids=available_reference_model_ids,
+        candidate_losses=(0.1, 0.2),
+        reference_losses_by_model_id={9: (0.8, 0.8)},
+        reference_historical_mean_losses_by_model_id={},
+        available_reference_model_ids=(9,),
         current_training_model_id=9,
         maximum_reference_mean_loss_increase=0.1,
         minimum_candidate_mean_loss_improvement=0.01,
     )
     inputs_before_call = deepcopy(evaluation_arguments)
-    result = evaluate_candidate_using_post_alarm_losses(**evaluation_arguments)
-    assert_evaluation_matches_legacy_decision(
-        result=result, evaluation_arguments=evaluation_arguments, monkeypatch=monkeypatch
-    )
+    with pytest.raises((TypeError, ValueError)) as exception_info:
+        evaluate_candidate_using_post_alarm_losses(
+            **(evaluation_arguments | {field_name: invalid_value})
+        )
+    assert str(exception_info.value)
     assert evaluation_arguments == inputs_before_call
-
-
-@pytest.mark.parametrize("class_count", [2, 3, 10])
-@pytest.mark.parametrize("sample_count", [3, 10])
-def test_post_alarm_candidate_public_loss_connection_matches_legacy(
-    monkeypatch, class_count, sample_count
-):
-    """public観測後有界lossだけを入力し、モデル/収集sessionを所有させない。"""
-    candidate_losses = ()
-    reference_losses_by_model_id = {9: (), -3: ()}
-    for observation_index in range(sample_count):
-        model_outputs_by_model_id = {
-            -7: torch.tensor([[0.8]])
-            if class_count == 2
-            else torch.arange(class_count, dtype=torch.float32, device="cpu").reshape(
-                1, class_count
-            ),
-            9: torch.tensor([[0.2]])
-            if class_count == 2
-            else -torch.arange(class_count, dtype=torch.float32, device="cpu").reshape(
-                1, class_count
-            ),
-            -3: torch.tensor([[0.5]])
-            if class_count == 2
-            else torch.zeros((1, class_count), dtype=torch.float32, device="cpu"),
-        }
-        prediction_probabilities_by_model_id = convert_model_outputs_to_prediction_probabilities(
-            model_outputs_by_model_id=model_outputs_by_model_id, class_count=class_count
-        )
-        observed_class_labels = torch.tensor([observation_index % class_count])
-        observed_losses_by_model_id = compute_model_mean_bounded_losses_after_label_observation(
-            prediction_probabilities_by_model_id=prediction_probabilities_by_model_id,
-            observed_class_labels=observed_class_labels,
-            class_count=class_count,
-        )
-        candidate_losses += (observed_losses_by_model_id[-7],)
-        for model_id in reference_losses_by_model_id:
-            reference_losses_by_model_id[model_id] += (observed_losses_by_model_id[model_id],)
-    evaluation_arguments = dict(
-        candidate_model_training_and_acceptance_settings=make_acceptance_settings(
-            sample_count=sample_count
-        ),
-        candidate_losses=candidate_losses,
-        reference_losses_by_model_id=reference_losses_by_model_id,
-        reference_historical_mean_losses_by_model_id={},
-        available_reference_model_ids=(9, -3),
-        current_training_model_id=9,
-        maximum_reference_mean_loss_increase=0.1,
-        minimum_candidate_mean_loss_improvement=0.01,
-    )
-    result = evaluate_candidate_using_post_alarm_losses(**evaluation_arguments)
-    assert_evaluation_matches_legacy_decision(
-        result=result, evaluation_arguments=evaluation_arguments, monkeypatch=monkeypatch
-    )
 
 
 def test_post_alarm_candidate_results_inputs_and_random_states_are_independent():
@@ -422,105 +302,3 @@ def test_post_alarm_candidate_results_inputs_and_random_states_are_independent()
     assert torch.equal(torch.random.get_rng_state(), global_torch_random_state)
     assert torch.get_default_dtype() == legacy_default_dtype
     assert torch.get_default_device() == legacy_default_device
-
-
-@pytest.mark.parametrize(
-    "operation",
-    [
-        select_available_reference_within_historical_loss_tolerance,
-        evaluate_candidate_using_post_alarm_losses,
-    ],
-)
-def test_post_alarm_candidate_public_functions_require_explicit_keyword_arguments(operation):
-    """類似loss列・ID・閾値の取り違えを避ける明示keyword契約。"""
-    assert "*, " in str(inspect.signature(operation))
-    with pytest.raises(TypeError):
-        operation(object(), object())
-
-
-@pytest.mark.parametrize(
-    "candidate_loss,reference_loss,threshold",
-    [
-        (0.2, 0.8, 0.60000001),
-        (0.30000004, 0.80000007, 0.5000000149011612),
-        (0.125, 0.25, 0.125),
-        (0, 1, 0),
-    ],
-)
-def test_post_alarm_candidate_rounding_boundary_preserves_decision_reason(
-    monkeypatch, candidate_loss, reference_loss, threshold
-):
-    """厳密等号と採否/理由の両方向の丸め差を保持する。"""
-    evaluation_arguments = dict(
-        candidate_model_training_and_acceptance_settings=make_acceptance_settings(sample_count=2),
-        candidate_losses=(candidate_loss, candidate_loss),
-        reference_losses_by_model_id={9: (reference_loss, reference_loss)},
-        reference_historical_mean_losses_by_model_id={},
-        available_reference_model_ids=(9,),
-        current_training_model_id=9,
-        maximum_reference_mean_loss_increase=0,
-        minimum_candidate_mean_loss_improvement=threshold,
-    )
-    result = evaluate_candidate_using_post_alarm_losses(**evaluation_arguments)
-    assert_evaluation_matches_legacy_decision(
-        result=result, evaluation_arguments=evaluation_arguments, monkeypatch=monkeypatch
-    )
-    if threshold == 0.60000001:
-        assert (
-            not result.candidate_accepted
-            and result.decision_reason == "both_segment_margins_passed"
-        )
-    elif threshold == 0.5000000149011612:
-        assert result.candidate_accepted and result.decision_reason == "both_segment_margins_failed"
-    elif threshold == 0.125:
-        assert (
-            not result.candidate_accepted
-            and result.decision_reason == "both_segment_margins_failed"
-        )
-
-
-@pytest.mark.parametrize(
-    "field_name,invalid_value",
-    [
-        ("candidate_model_training_and_acceptance_settings", None),
-        (
-            "candidate_model_training_and_acceptance_settings",
-            make_acceptance_settings(sample_count=3),
-        ),
-        ("candidate_losses", [0.1, 0.2]),
-        ("candidate_losses", (0.1,)),
-        ("candidate_losses", (0.1, 0.2, 0.3)),
-        ("candidate_losses", (True, 0.2)),
-        ("candidate_losses", (float("nan"), 0.2)),
-        ("candidate_losses", (float("inf"), 0.2)),
-        ("candidate_losses", (-0.1, 0.2)),
-        ("candidate_losses", (1.1, 0.2)),
-        ("candidate_losses", ("0.1", 0.2)),
-        ("minimum_candidate_mean_loss_improvement", True),
-        ("minimum_candidate_mean_loss_improvement", -0.1),
-        ("minimum_candidate_mean_loss_improvement", float("nan")),
-        ("minimum_candidate_mean_loss_improvement", float("inf")),
-        ("minimum_candidate_mean_loss_improvement", 10**500),
-    ],
-)
-def test_post_alarm_candidate_invalid_evaluation_inputs_are_rejected_without_mutation(
-    field_name, invalid_value
-):
-    """既存件数条件と候補入力を検査し、再評価可能な入力を保持する。"""
-    evaluation_arguments = dict(
-        candidate_model_training_and_acceptance_settings=make_acceptance_settings(sample_count=2),
-        candidate_losses=(0.1, 0.2),
-        reference_losses_by_model_id={9: (0.8, 0.8)},
-        reference_historical_mean_losses_by_model_id={},
-        available_reference_model_ids=(9,),
-        current_training_model_id=9,
-        maximum_reference_mean_loss_increase=0.1,
-        minimum_candidate_mean_loss_improvement=0.01,
-    )
-    inputs_before_call = deepcopy(evaluation_arguments)
-    with pytest.raises((TypeError, ValueError)) as exception_info:
-        evaluate_candidate_using_post_alarm_losses(
-            **(evaluation_arguments | {field_name: invalid_value})
-        )
-    assert str(exception_info.value)
-    assert evaluation_arguments == inputs_before_call

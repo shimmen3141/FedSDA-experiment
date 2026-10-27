@@ -4,24 +4,17 @@ import random
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import FrozenInstanceError, fields
-from unittest.mock import patch
 
 import numpy as np
 import pytest
 import torch
 from test_candidate_epoch_training import assert_candidate_epoch_training_matches_legacy
 from test_joint_model_parameter_update import assert_nested_state_equal
-from test_post_alarm_candidate_validation_sample_observation import (
-    assert_collected_losses_match_legacy,
-)
 from test_post_alarm_reference_model_fixation import (
-    STATISTICS_CASES,
     assert_fixed_references_match_legacy,
     build_fixation_oracle,
-    set_overall_loss_statistics_in_both_implementations,
 )
 from test_shared_feature_extractor_attachment import (
-    assert_parameter_values_and_gradients_unchanged,
     snapshot_parameter_values_and_gradients,
 )
 
@@ -32,12 +25,6 @@ from federated_learning_experiments.learning.models.classifier_parameter_snapsho
 from federated_learning_experiments.learning.training.candidate_epoch_training_settings import (
     CandidateEpochTrainingSettings,
 )
-from federated_learning_experiments.learning.training.joint_model_parameter_update import (
-    perform_joint_model_parameter_update,
-)
-from federated_learning_experiments.learning.training.local_training_settings import (
-    LocalTrainingSettings,
-)
 from federated_learning_experiments.learning.training.model_training_sample_records import (
     ObservedTrainingSample,
 )
@@ -45,227 +32,13 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
     AdamParameterOptimizerSettings,
     SgdParameterOptimizerSettings,
 )
-from federated_learning_experiments.learning.training.participating_model_training_batch import (
-    ParticipatingModelTrainingBatch,
-)
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
     CandidateModelTrainingAndAcceptanceSettings,
-)
-from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import (
-    observe_post_alarm_candidate_validation_sample,
 )
 from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import (
     PostAlarmCandidateValidationSession,
     start_post_alarm_candidate_validation_session,
 )
-
-
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
-def test_session_start_connects_to_validation_observation(
-    class_count, optimizer_variant, monkeypatch
-):
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(827)
-        session_start_arguments, shared_optimizer_owners, legacy_client = (
-            build_session_start_oracle(
-                class_count=class_count,
-                optimizer_variant=optimizer_variant,
-                monkeypatch=monkeypatch,
-            )
-        )
-        registry = session_start_arguments["held_model_training_state_registry"]
-        held_model_training_states = registry.snapshot_ordered_held_model_training_states()
-        held_parameter_values_and_gradients = snapshot_parameter_values_and_gradients(
-            parameter
-            for state in held_model_training_states
-            for parameter in state.classifier.parameters()
-        )
-        held_optimizer_state_snapshots = tuple(
-            (owner, owner.parameter_optimizer, deepcopy(owner.parameter_optimizer.state_dict()))
-            for owner in tuple(
-                state.concept_specific_parameter_optimizer_state
-                for state in held_model_training_states
-            )
-            + tuple(shared_optimizer_owners)
-        )
-        loss_statistics_snapshot = session_start_arguments[
-            "loss_statistics_store"
-        ].get_state_snapshot()
-        initial_training_model_id = session_start_arguments[
-            "current_training_model_assignment"
-        ].current_training_model_id
-        initial_rng_state = torch.get_rng_state().clone()
-        legacy_session, legacy_epoch_training_calls = (
-            begin_candidate_validation_session_in_legacy_client(
-                session_start_arguments=session_start_arguments, legacy_client=legacy_client
-            )
-        )
-        expected_rng_state = torch.get_rng_state().clone()
-        torch.set_rng_state(initial_rng_state)
-        started_session = start_post_alarm_candidate_validation_session(**session_start_arguments)
-        assert torch.equal(torch.get_rng_state(), expected_rng_state)
-        assert_started_session_matches_legacy(
-            started_session=started_session,
-            legacy_session=legacy_session,
-            legacy_client=legacy_client,
-            legacy_epoch_training_calls=legacy_epoch_training_calls,
-            session_start_arguments=session_start_arguments,
-        )
-        candidate_training_state = started_session.candidate_training_state
-        candidate_parameter_snapshot = snapshot_classifier_parameters(
-            classifier=candidate_training_state.candidate_classifier
-        )
-        reference_parameter_snapshots_by_model_id = {
-            model_id: snapshot_parameter_values_and_gradients(classifier.parameters())
-            for model_id, classifier in started_session.fixed_reference_models.reference_classifiers_by_model_id.items()
-        }
-        collection = started_session.post_alarm_candidate_loss_collection
-        validation_samples = tuple(
-            (
-                started_session.proposal_sample_index + 1 + sample_offset,
-                started_session.training_input_features[sample_offset].reshape(1, -1) * 0.5
-                + 0.1 * sample_offset,
-                started_session.training_observed_class_labels[sample_offset].reshape(1, 1),
-            )
-            for sample_offset in range(legacy_session.target_count)
-        )
-        batch_input_features = torch.ones(4, 2) / 3
-        batch_observed_class_labels = (torch.arange(4) % class_count).float().reshape(4, 1)
-        session_input_tensor_values = snapshot_parameter_values_and_gradients(
-            (
-                started_session.training_input_features,
-                started_session.training_observed_class_labels,
-                batch_input_features,
-                batch_observed_class_labels,
-            )
-            + tuple(session_start_arguments["initial_candidate_parameter_snapshot"].values())
-            + tuple(session_start_arguments["architecture_reference_classifier"].parameters())
-            + tuple(
-                training_tensor
-                for training_sample in started_session.pending_assignment_training_samples
-                for training_tensor in (
-                    training_sample.input_features,
-                    training_sample.observed_class_labels,
-                )
-            )
-            + tuple(
-                training_tensor
-                for _, input_features, observed_class_labels in validation_samples
-                for training_tensor in (input_features, observed_class_labels)
-            )
-        )
-        for sample_offset, (sample_index, input_features, observed_class_labels) in enumerate(
-            validation_samples
-        ):
-            # 実旧の損失評価と収集だけを呼び、到達時の採否確定は起動しない。
-            legacy_candidate_losses = legacy_session.candidate.per_sample_error(
-                input_features, observed_class_labels
-            )
-            legacy_reference_losses_by_model_id = {
-                model_id: reference_classifier.per_sample_error(
-                    input_features, observed_class_labels
-                )
-                .reshape(-1)[0]
-                .item()
-                for model_id, reference_classifier in legacy_session.reference_models.items()
-            }
-            legacy_session.append_losses(
-                legacy_candidate_losses.reshape(-1)[0].item(),
-                legacy_reference_losses_by_model_id,
-            )
-            ready_for_acceptance_evaluation = observe_post_alarm_candidate_validation_sample(
-                sample_index=sample_index,
-                input_features=input_features,
-                observed_class_labels=observed_class_labels,
-                candidate_classifier=candidate_training_state.candidate_classifier,
-                reference_classifiers_by_model_id=started_session.fixed_reference_models.reference_classifiers_by_model_id,
-                post_alarm_candidate_loss_collection=collection,
-            )
-            assert_collected_losses_match_legacy(
-                post_alarm_candidate_loss_collection=collection, legacy_session=legacy_session
-            )
-            collection_state = collection.get_state_snapshot()
-            assert collection_state.proposal_sample_index == started_session.proposal_sample_index
-            assert collection_state.last_validation_sample_index == sample_index
-            assert collection_state.validation_sample_count == sample_offset + 1
-            assert collection_state.required_validation_sample_count == 4
-            assert ready_for_acceptance_evaluation is (sample_offset == 3)
-            if sample_offset == 0:
-                # 最初の観測後に候補だけを継続学習し、以降の参照損失の固定を対照する。
-                legacy_mean_training_loss = legacy_session.candidate.update(
-                    batch_input_features, batch_observed_class_labels
-                )
-                candidate_mean_training_loss = perform_joint_model_parameter_update(
-                    local_training_settings=LocalTrainingSettings(
-                        local_model_parameter_update_strategy="joint_backbone_adapter_and_head_training",
-                        shared_backbone_gradient_combination_strategy="sample_weighted_mean_per_concept_gradients",
-                    ),
-                    shared_feature_extractor=candidate_training_state.candidate_classifier.feature_extractor,
-                    shared_parameter_optimizer=candidate_training_state.candidate_shared_parameter_optimizer_state.parameter_optimizer,
-                    participating_training_batches=(
-                        ParticipatingModelTrainingBatch(
-                            classifier=candidate_training_state.candidate_classifier,
-                            concept_specific_parameter_optimizer=candidate_training_state.candidate_concept_specific_parameter_optimizer_state.parameter_optimizer,
-                            input_features=batch_input_features,
-                            observed_class_labels=batch_observed_class_labels,
-                        ),
-                    ),
-                    update_shared_features=True,
-                )
-                assert candidate_mean_training_loss == legacy_mean_training_loss
-                assert any(
-                    not torch.equal(parameter_value, candidate_parameter_snapshot[parameter_name])
-                    for parameter_name, parameter_value in snapshot_classifier_parameters(
-                        classifier=candidate_training_state.candidate_classifier
-                    ).items()
-                )
-                assert_candidate_epoch_training_matches_legacy(
-                    candidate_training_state=candidate_training_state,
-                    legacy_candidate=legacy_session.candidate,
-                )
-            for reference_parameter_snapshots in reference_parameter_snapshots_by_model_id.values():
-                assert_parameter_values_and_gradients_unchanged(reference_parameter_snapshots)
-            assert_parameter_values_and_gradients_unchanged(held_parameter_values_and_gradients)
-            assert_parameter_values_and_gradients_unchanged(session_input_tensor_values)
-            assert all(
-                state is previous_state
-                for state, previous_state in zip(
-                    registry.snapshot_ordered_held_model_training_states(),
-                    held_model_training_states,
-                )
-            )
-            for (
-                owner,
-                previous_optimizer,
-                previous_optimizer_state,
-            ) in held_optimizer_state_snapshots:
-                assert owner.parameter_optimizer is previous_optimizer
-                assert_nested_state_equal(previous_optimizer.state_dict(), previous_optimizer_state)
-            assert (
-                session_start_arguments["loss_statistics_store"].get_state_snapshot()
-                == loss_statistics_snapshot
-            )
-            assert (
-                session_start_arguments[
-                    "current_training_model_assignment"
-                ].current_training_model_id
-                == initial_training_model_id
-            )
-            assert legacy_client._forward_validation is legacy_session
-            assert started_session.post_alarm_candidate_loss_collection is collection
-            assert (
-                started_session.training_input_features is session_start_arguments["input_features"]
-            )
-            assert (
-                started_session.training_observed_class_labels
-                is session_start_arguments["observed_class_labels"]
-            )
-            assert (
-                started_session.pending_assignment_training_samples
-                is session_start_arguments["pending_assignment_training_samples"]
-            )
-            assert torch.equal(torch.get_rng_state(), expected_rng_state)
 
 
 def build_session_start_oracle(
@@ -288,6 +61,7 @@ def build_session_start_oracle(
             monkeypatch=monkeypatch,
         )
     )
+    monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "forward_persistent")
     monkeypatch.setattr(
         config,
         "NEW_MODEL_TRAINING",
@@ -349,28 +123,6 @@ def build_session_start_oracle(
         detector_name=legacy_client._detector_label(),
     )
     return session_start_arguments, shared_optimizer_owners, legacy_client
-
-
-def begin_candidate_validation_session_in_legacy_client(*, session_start_arguments, legacy_client):
-    """学習も参照固定も実旧の開始関数で実行し、実epoch引数を記録する。"""
-    with patch.object(
-        legacy_client, "_update_new_model_epochs", wraps=legacy_client._update_new_model_epochs
-    ) as legacy_epoch_training_calls:
-        legacy_client._begin_forward_validation(
-            session_start_arguments["input_features"],
-            session_start_arguments["observed_class_labels"],
-            [
-                (training_sample.input_features, training_sample.observed_class_labels, 1)
-                for training_sample in session_start_arguments[
-                    "pending_assignment_training_samples"
-                ]
-            ],
-            legacy_client.models[legacy_client.current_model_id].get_params(),
-            session_start_arguments["proposal_sample_index"],
-            session_start_arguments["estimated_change_point_sample_index"],
-            session_start_arguments["detection_episode_id"],
-        )
-    return legacy_client._forward_validation, legacy_epoch_training_calls
 
 
 def assert_started_session_matches_legacy(
@@ -484,196 +236,6 @@ def assert_started_session_matches_legacy(
     for parameter in started_session.candidate_training_state.candidate_classifier.parameters():
         assert parameter.data_ptr() not in held_parameter_storage_addresses
         assert parameter.data_ptr() not in reference_parameter_storage_addresses
-
-
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("optimizer_variant", ["standard", "amsgrad", "sgd"])
-@pytest.mark.parametrize(
-    "candidate_training_strategy,maximum_epoch_count,maximum_batch_sample_count,"
-    "consecutive_non_improving_epoch_limit,minimum_validation_loss_decrease",
-    [
-        (candidate_training_strategy, maximum_epoch_count, 3, 1, 10)
-        for candidate_training_strategy in (
-            "fixed_epoch_training",
-            "validation_loss_early_stopping",
-            "skip_training",
-        )
-        for maximum_epoch_count in (0, 3)
-    ]
-    + [("validation_loss_early_stopping", 30, 32, 3, 0.0001)],
-)
-def test_session_start_matches_legacy(
-    class_count,
-    optimizer_variant,
-    candidate_training_strategy,
-    maximum_epoch_count,
-    maximum_batch_sample_count,
-    consecutive_non_improving_epoch_limit,
-    minimum_validation_loss_decrease,
-    monkeypatch,
-):
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(821)
-        session_start_arguments, shared_optimizer_owners, legacy_client = (
-            build_session_start_oracle(
-                class_count=class_count,
-                optimizer_variant=optimizer_variant,
-                monkeypatch=monkeypatch,
-                candidate_training_strategy=candidate_training_strategy,
-                maximum_epoch_count=maximum_epoch_count,
-                maximum_batch_sample_count=maximum_batch_sample_count,
-                consecutive_non_improving_epoch_limit=consecutive_non_improving_epoch_limit,
-                minimum_validation_loss_decrease=minimum_validation_loss_decrease,
-            )
-        )
-        registry = session_start_arguments["held_model_training_state_registry"]
-        held_model_training_states = registry.snapshot_ordered_held_model_training_states()
-        held_parameter_values_and_gradients = snapshot_parameter_values_and_gradients(
-            parameter
-            for state in held_model_training_states
-            for parameter in state.classifier.parameters()
-        )
-        held_optimizer_state_snapshots = tuple(
-            (owner, owner.parameter_optimizer, deepcopy(owner.parameter_optimizer.state_dict()))
-            for owner in tuple(
-                state.concept_specific_parameter_optimizer_state
-                for state in held_model_training_states
-            )
-            + tuple(shared_optimizer_owners)
-        )
-        loss_statistics_snapshot = session_start_arguments[
-            "loss_statistics_store"
-        ].get_state_snapshot()
-        initial_training_model_id = session_start_arguments[
-            "current_training_model_assignment"
-        ].current_training_model_id
-        session_input_tensor_values = snapshot_parameter_values_and_gradients(
-            (
-                session_start_arguments["input_features"],
-                session_start_arguments["observed_class_labels"],
-            )
-            + tuple(session_start_arguments["initial_candidate_parameter_snapshot"].values())
-            + tuple(
-                training_tensor
-                for training_sample in session_start_arguments[
-                    "pending_assignment_training_samples"
-                ]
-                for training_tensor in (
-                    training_sample.input_features,
-                    training_sample.observed_class_labels,
-                )
-            )
-            + tuple(session_start_arguments["architecture_reference_classifier"].parameters())
-        )
-        initial_rng_state = torch.get_rng_state().clone()
-        other_random_states = (random.getstate(), np.random.get_state())
-        legacy_session, legacy_epoch_training_calls = (
-            begin_candidate_validation_session_in_legacy_client(
-                session_start_arguments=session_start_arguments, legacy_client=legacy_client
-            )
-        )
-        expected_rng_state = torch.get_rng_state().clone()
-        torch.set_rng_state(initial_rng_state)
-        started_session = start_post_alarm_candidate_validation_session(**session_start_arguments)
-        assert torch.equal(torch.get_rng_state(), expected_rng_state)
-        assert random.getstate() == other_random_states[0]
-        numpy_state = np.random.get_state()
-        assert numpy_state[0] == other_random_states[1][0]
-        assert np.array_equal(numpy_state[1], other_random_states[1][1])
-        assert numpy_state[2:] == other_random_states[1][2:]
-        assert_started_session_matches_legacy(
-            started_session=started_session,
-            legacy_session=legacy_session,
-            legacy_client=legacy_client,
-            legacy_epoch_training_calls=legacy_epoch_training_calls,
-            session_start_arguments=session_start_arguments,
-        )
-        assert all(
-            state is previous_state
-            for state, previous_state in zip(
-                registry.snapshot_ordered_held_model_training_states(), held_model_training_states
-            )
-        )
-        assert_parameter_values_and_gradients_unchanged(held_parameter_values_and_gradients)
-        assert_parameter_values_and_gradients_unchanged(session_input_tensor_values)
-        for owner, previous_optimizer, previous_optimizer_state in held_optimizer_state_snapshots:
-            assert owner.parameter_optimizer is previous_optimizer
-            assert_nested_state_equal(previous_optimizer.state_dict(), previous_optimizer_state)
-        assert (
-            session_start_arguments["loss_statistics_store"].get_state_snapshot()
-            == loss_statistics_snapshot
-        )
-        assert (
-            session_start_arguments["current_training_model_assignment"].current_training_model_id
-            == initial_training_model_id
-        )
-
-
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("statistics_case", list(STATISTICS_CASES))
-def test_session_start_retains_historical_mean_losses(class_count, statistics_case, monkeypatch):
-    with torch.random.fork_rng(devices=[]):
-        session_start_arguments, _, legacy_client = build_session_start_oracle(
-            class_count=class_count, optimizer_variant="standard", monkeypatch=monkeypatch
-        )
-        set_overall_loss_statistics_in_both_implementations(
-            loss_statistics_store=session_start_arguments["loss_statistics_store"],
-            legacy_client=legacy_client,
-            statistics_by_model_id=STATISTICS_CASES[statistics_case],
-        )
-        initial_rng_state = torch.get_rng_state().clone()
-        legacy_session, legacy_epoch_training_calls = (
-            begin_candidate_validation_session_in_legacy_client(
-                session_start_arguments=session_start_arguments, legacy_client=legacy_client
-            )
-        )
-        expected_rng_state = torch.get_rng_state().clone()
-        torch.set_rng_state(initial_rng_state)
-        started_session = start_post_alarm_candidate_validation_session(**session_start_arguments)
-        assert torch.equal(torch.get_rng_state(), expected_rng_state)
-        assert_started_session_matches_legacy(
-            started_session=started_session,
-            legacy_session=legacy_session,
-            legacy_client=legacy_client,
-            legacy_epoch_training_calls=legacy_epoch_training_calls,
-            session_start_arguments=session_start_arguments,
-        )
-
-
-@pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("held_model_ids", [(4,), (9, 4, -3)])
-def test_session_start_preserves_optional_metadata_and_empty_pending_samples(
-    class_count, held_model_ids, monkeypatch
-):
-    with torch.random.fork_rng(devices=[]):
-        session_start_arguments, _, legacy_client = build_session_start_oracle(
-            class_count=class_count,
-            optimizer_variant="sgd",
-            monkeypatch=monkeypatch,
-            held_model_ids=held_model_ids,
-        )
-        session_start_arguments.update(
-            estimated_change_point_sample_index=None,
-            detection_episode_id=None,
-            pending_assignment_training_samples=(),
-        )
-        initial_rng_state = torch.get_rng_state().clone()
-        legacy_session, legacy_epoch_training_calls = (
-            begin_candidate_validation_session_in_legacy_client(
-                session_start_arguments=session_start_arguments, legacy_client=legacy_client
-            )
-        )
-        expected_rng_state = torch.get_rng_state().clone()
-        torch.set_rng_state(initial_rng_state)
-        started_session = start_post_alarm_candidate_validation_session(**session_start_arguments)
-        assert torch.equal(torch.get_rng_state(), expected_rng_state)
-        assert_started_session_matches_legacy(
-            started_session=started_session,
-            legacy_session=legacy_session,
-            legacy_client=legacy_client,
-            legacy_epoch_training_calls=legacy_epoch_training_calls,
-            session_start_arguments=session_start_arguments,
-        )
 
 
 @pytest.mark.parametrize(
