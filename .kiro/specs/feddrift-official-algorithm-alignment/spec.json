@@ -1,0 +1,28 @@
+{
+  "feature_name": "feddrift-official-algorithm-alignment",
+  "created_at": "2026-10-27T09:30:00Z",
+  "updated_at": "2026-10-27",
+  "language": "ja",
+  "phase": "specification_review",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": false
+    },
+    "design": {
+      "generated": true,
+      "approved": false
+    },
+    "tasks": {
+      "generated": true,
+      "approved": false
+    },
+    "naming": {
+      "generated": true,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false,
+  "base_revision": "f1611d21",
+  "implementation_assignment": "基準版12・13のspecと同じ（2026-10-23のユーザー指示）。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・golden・全pytest・レビューの起動"
+}
