@@ -75,6 +75,14 @@ FedDriftの再実装のうち、アルゴリズムの差（監査のD01〜D04、
   `Σ_c len(client cの学習標本の保管のモデルmの標本)`にする（今の時刻の塊を含む。論文のMergeの`Σ_{c,t≤τ} w_{c,m}^{(t)} N_c^{(t)}`）。
 - 全clientで件数が0のモデルは、今の`_model_weights[m]`の値を使う（初期のモデル0の事前学習の重み500など。件数0のモデルは評価の標本も無く、統合の対象になる見込みは小さい）。
 - 統合の後の代表の重みは、今と同じく`consolidate_feddrift_cached_model_clusters`の和。その後の学習のroundの集約は、今と同じく重みを学習標本の件数の和に置き換える（標本の保管は統合で付け替わるので、二重の数えにならない）。
+- 保管のIDの遷移と数え方（時刻τでモデルAとBを統合し、代表を`r = min(A, B)`とする）:
+  1. 統合の前: client cの保管に`S_c[A]`・`S_c[B]`（時刻τの塊を含む）。サーバは`n_A = Σ_c |S_c[A]|`、`n_B = Σ_c |S_c[B]|`を計算し、`{A: n_A, B: n_B}`を統合器へ渡す。
+  2. 統合器（`cached_model_cluster_consolidation.py` 68〜76行）: サーバのパラメータと各clientの保持するパラメータを`n_A`・`n_B`で平均し、代表の重みを`n_A + n_B`にする（`_model_weights[r]`）。
+  3. 配布の適用（`feddrift_model_distribution_application.py` 191行、`ModelTrainingSampleStore.remap_model_training_sample_collections`）: 各clientで`S_c[A]`と`S_c[B]`が`S_c[r]`へ連結される
+     （各標本は1回だけ入る）。よって`Σ_c |S_c[r]| = n_A + n_B`。
+  4. 同じ時刻の学習のroundの集約: `_model_weights[r]`を`Σ_c |S_c[r]| = n_A + n_B`で置き換える（加算ではない。統合と集約の間に標本は足されない）。
+  5. 次の時刻τ+1の統合: `_model_weights`を使わず、保管から`Σ_c |S_c[r]|`（時刻τ+1の塊を含む）を数え直す。
+  したがって各標本は、どの時点の重みにも1回だけ数えられる。件数0のモデルの`_model_weights`の値を使う規則は、統合器の「重みの和が0なら各1」（同72〜73行）より前に適用する。
 - 統合の判定に使う評価の標本（クロス評価の距離）も、手順1で評価の標本の保管へ足された今の時刻の標本を含む（今と同じ。公式の`cluster_data`の`t ≤ curr_iter`と同じ向き）。
 ### D07の一部
 - 既定の`maximum_cross_evaluation_client_count`をclientの数にする。版1〜13は3。
