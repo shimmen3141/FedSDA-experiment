@@ -160,8 +160,23 @@ def write_run_summary_table(
                 client_settings = summary["run_settings"]["run_participant_settings"][
                     "run_client_settings"
                 ]
-                for name in ("detection_batch_sample_count", "loss_increase_threshold"):
-                    table_row[name] = client_settings[name]
+                for name in (
+                    "detection_batch_sample_count",
+                    "loss_increase_threshold",
+                    "model_comparison_criterion",
+                    "new_model_parameter_source",
+                    "detection_reference_after_drift",
+                ):
+                    table_row[name] = client_settings.get(name)
+                server_settings = summary["run_settings"]["run_participant_settings"][
+                    "server_settings"
+                ]
+                for name in (
+                    "training_model_eligibility",
+                    "consolidation_weight_timing",
+                    "maximum_cross_evaluation_client_count",
+                ):
+                    table_row[name] = server_settings.get(name)
         except (OSError, ValueError, KeyError, TypeError, AttributeError) as caught_exception:
             unreadable_run_summary_descriptions.append(
                 f"{summary_file_path}: {type(caught_exception).__name__}: {caught_exception}"

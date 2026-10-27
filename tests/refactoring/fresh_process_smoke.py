@@ -1820,6 +1820,9 @@ def run_feddrift_detection_batch_smoke():
                     )
                 ),
                 run_client_settings=FeddriftRunClientSettings(
+                    model_comparison_criterion="bounded_loss",
+                    new_model_parameter_source="current_training_model",
+                    detection_reference_after_drift="new_model_batch_value",
                     loss_increase_threshold=1.0,
                     detection_batch_sample_count=3,
                     local_training_batch_sample_count=3,
@@ -1855,6 +1858,9 @@ def run_feddrift_detection_batch_smoke():
             server = FeddriftRunServer(
                 run_clients=(client,),
                 server_settings=FeddriftServerSettings(
+                    model_comparison_criterion="bounded_loss",
+                    training_model_eligibility="held_models_with_training_samples",
+                    consolidation_weight_timing="weights_before_current_timestep",
                     maximum_same_cluster_loss_increase=1.0,
                     cluster_linkage="complete",
                     minimum_cross_evaluation_sample_count=5,
@@ -1901,6 +1907,9 @@ def run_feddrift_detection_batch_smoke():
     )
     settings = FeddriftRunParticipantSettings(
         run_client_settings=FeddriftRunClientSettings(
+            model_comparison_criterion="bounded_loss",
+            new_model_parameter_source="current_training_model",
+            detection_reference_after_drift="new_model_batch_value",
             loss_increase_threshold=1.0,
             detection_batch_sample_count=3,
             local_training_batch_sample_count=3,
@@ -1910,6 +1919,9 @@ def run_feddrift_detection_batch_smoke():
             new_model_optimizer_settings=optimizer_settings,
         ),
         server_settings=FeddriftServerSettings(
+            model_comparison_criterion="bounded_loss",
+            training_model_eligibility="held_models_with_training_samples",
+            consolidation_weight_timing="weights_before_current_timestep",
             maximum_same_cluster_loss_increase=1.0,
             cluster_linkage="complete",
             minimum_cross_evaluation_sample_count=5,

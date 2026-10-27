@@ -22,8 +22,36 @@ class FeddriftServerSettings:
     local_training_round_count: int
     initial_model_aggregation_weight: int
     rebuilt_model_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings
+    model_comparison_criterion: str
+    training_model_eligibility: str
+    consolidation_weight_timing: str
 
     def __post_init__(self) -> None:
+        for name, choices in (
+            ("model_comparison_criterion", ("bounded_loss", "classification_error_rate")),
+            (
+                "training_model_eligibility",
+                ("held_models_with_training_samples", "models_assigned_in_current_timestep"),
+            ),
+            (
+                "consolidation_weight_timing",
+                (
+                    "weights_before_current_timestep",
+                    "weights_including_current_timestep_assignments",
+                ),
+            ),
+        ):
+            value = getattr(self, name)
+            if type(value) is not str:
+                raise TypeError(f"{name}はbuiltin strが必要です。")
+            if value not in choices:
+                raise ValueError(f"{name}が未対応です。")
+        if (
+            self.model_comparison_criterion != "bounded_loss"
+            or self.training_model_eligibility != "held_models_with_training_samples"
+            or self.consolidation_weight_timing != "weights_before_current_timestep"
+        ) and self.new_model_isolation_timestep_count != 1:
+            raise ValueError("新しいFedDriftの扱いでは隔離期間は1だけです。")
         if type(self.maximum_same_cluster_loss_increase) is not float:
             raise TypeError("距離閾値はbuiltin floatが必要です。")
         if not isfinite(self.maximum_same_cluster_loss_increase):

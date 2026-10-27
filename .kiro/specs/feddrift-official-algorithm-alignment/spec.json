@@ -57,5 +57,7 @@
       }
     ]
   },
-  "implementation_assignment": "基準版12・13のspecと同じ（2026-10-23のユーザー指示）。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・golden・全pytest・レビューの起動"
+  "implementation_assignment": "基準版12・13のspecと同じ（2026-10-23のユーザー指示）。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・golden・全pytest・レビューの起動",
+  "implementation_status": "implemented_pending_validation_and_v14_goldens",
+  "implementation_next_step": "版1〜13の検証の後、主担当が版14のgoldenを生成・配置し、全pytest・WSL・独立実装レビューを実施する。実装担当はコミットしない。"
 }

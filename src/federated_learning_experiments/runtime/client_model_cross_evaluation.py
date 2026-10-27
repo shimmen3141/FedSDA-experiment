@@ -58,7 +58,10 @@ class ModelPairCorrectnessCounts:
 
 @dataclass(frozen=True, kw_only=True)
 class ClientModelCrossEvaluation:
-    """clientの評価1回の結果。標本が足りないときは、件数0・和0で、正誤の数を持たない。"""
+    """clientの評価1回の結果。標本不足では件数0・和0で、正誤の数を持たない。
+
+    lossの和には選んだ基準の値を格納する。FedDriftの誤り率では誤り数になる。
+    """
 
     evaluated_sample_count: int
     bounded_loss_sum: float
@@ -219,6 +222,7 @@ def evaluate_candidate_model_on_target_model_samples(
     current_training_model_assignment: CurrentTrainingModelAssignment,
     maximum_evaluation_sample_count: int,
     python_random_generator: Random,
+    model_comparison_criterion: str = "bounded_loss",
 ) -> ClientModelCrossEvaluation:
     """対象のモデルの標本を選び、渡されたモデルの有界損失の件数・和・2乗和を返す。
 
@@ -226,6 +230,11 @@ def evaluate_candidate_model_on_target_model_samples(
     標本は、対象のモデルの評価標本（足りなければ、対象が現在の学習帰属のときだけ、その学習データ）。
     上限を超えたら、借りた乱数生成器で抜き出す。どのownerも変えない。
     """
+    if type(model_comparison_criterion) is not str or model_comparison_criterion not in (
+        "bounded_loss",
+        "classification_error_rate",
+    ):
+        raise ValueError("モデルの比較の基準が未対応です。")
     for owner_name, owner, required_type in (
         (
             "held_model_training_state_registry",
@@ -313,6 +322,12 @@ def evaluate_candidate_model_on_target_model_samples(
             observed_class_labels=observed_class_labels,
         )
     )
+    if model_comparison_criterion == "classification_error_rate":
+        predictions = predict_class_labels_from_prediction_scores(
+            prediction_scores=candidate_classifier_outputs,
+            class_count=candidate_classifier.class_count,
+        )
+        per_sample_loss_tensor = (predictions != observed_class_labels).float().reshape(-1)
     per_sample_losses = per_sample_loss_tensor.numpy()
     evaluated_sample_count = len(per_sample_losses)
     bounded_loss_sum = float(per_sample_losses.sum())

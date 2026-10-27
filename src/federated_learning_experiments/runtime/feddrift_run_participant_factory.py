@@ -63,6 +63,20 @@ class FeddriftRunParticipantSettings:
             or any(type(width) is not int or width < 1 for width in self.hidden_layer_widths)
         ):
             raise ValueError("隠れ層の幅には正のbuiltin intの非空tupleが必要です。")
+        client, server = self.run_client_settings, self.server_settings
+        if client.model_comparison_criterion != server.model_comparison_criterion:
+            raise ValueError("clientとserverの比較の基準を一致させてください。")
+        policies = (
+            client.model_comparison_criterion == "classification_error_rate",
+            client.new_model_parameter_source == "minimum_criterion_held_model",
+            client.detection_reference_after_drift == "minimum_held_model_batch_value",
+            server.training_model_eligibility == "models_assigned_in_current_timestep",
+            server.consolidation_weight_timing == "weights_including_current_timestep_assignments",
+        )
+        if any(policies) and not all(policies):
+            raise ValueError("FedDriftの旧方式と新方式の混在は未対応です。")
+        if any(policies) and server.new_model_isolation_timestep_count != 1:
+            raise ValueError("新しいFedDriftの扱いでは隔離期間は1だけです。")
         if (
             self.server_settings.initial_model_aggregation_weight
             != self.initial_model_pretraining_settings.pretraining_sample_count

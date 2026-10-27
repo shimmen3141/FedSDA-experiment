@@ -20,8 +20,27 @@ class FeddriftRunClientSettings:
     maximum_stored_evaluation_sample_count_per_model: int
     added_evaluation_batch_sample_count: int
     new_model_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings
+    model_comparison_criterion: str
+    new_model_parameter_source: str
+    detection_reference_after_drift: str
 
     def __post_init__(self) -> None:
+        for name, choices in (
+            ("model_comparison_criterion", ("bounded_loss", "classification_error_rate")),
+            (
+                "new_model_parameter_source",
+                ("current_training_model", "minimum_criterion_held_model"),
+            ),
+            (
+                "detection_reference_after_drift",
+                ("new_model_batch_value", "minimum_held_model_batch_value"),
+            ),
+        ):
+            value = getattr(self, name)
+            if type(value) is not str:
+                raise TypeError(f"{name}はbuiltin strが必要です。")
+            if value not in choices:
+                raise ValueError(f"{name}が未対応です。")
         if type(self.loss_increase_threshold) is not float or (
             not isfinite(self.loss_increase_threshold) or self.loss_increase_threshold < 0
         ):

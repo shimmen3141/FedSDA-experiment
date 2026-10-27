@@ -93,8 +93,8 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
-BASELINE_VERSION = 13
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
+BASELINE_VERSION = 14
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
 # （保存の形）。保存してある設定と比べるときは、組み立てた設定の値がこの値であることを確かめてから除く（その版の
@@ -398,6 +398,7 @@ CASE_NAMES_BY_BASELINE_VERSION = {
 CASE_NAMES_BY_BASELINE_VERSION[12] = CASE_NAMES_BY_BASELINE_VERSION[11]
 # 版13は、損失の低下による基準の引下げと、評価clientの上限の撤廃。ケースは版12と同じ。
 CASE_NAMES_BY_BASELINE_VERSION[13] = CASE_NAMES_BY_BASELINE_VERSION[12]
+CASE_NAMES_BY_BASELINE_VERSION[14] = CASE_NAMES_BY_BASELINE_VERSION[13]
 # warm startの学習者の経路を守るケース（版11から）。
 WARM_STARTED_LEARNER_PATH_CASE_NAME = "fedsda-mnist4-warm-started-learner"
 
@@ -527,16 +528,33 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
             local_update_interval_per_client_samples=3,
         )
     elif type(settings) is FeddriftRunSettings:
-        threshold = 0.03 if case_name == "feddrift-drift-tail" else 0.1
+        threshold = (
+            (0.03 if case_name == "feddrift-drift-tail" else 0.1)
+            if baseline_version <= 13
+            else participant.run_client_settings.loss_increase_threshold
+        )
         changes.update(
             run_client_settings=replace(
                 participant.run_client_settings,
+                **(
+                    _FEDDRIFT_SETTINGS_ADDED_AFTER_V13["run_client_settings"]
+                    if baseline_version <= 13
+                    else {}
+                ),
                 loss_increase_threshold=threshold,
                 local_training_batch_sample_count=4,
                 added_evaluation_batch_sample_count=3,
             ),
             server_settings=replace(
                 participant.server_settings,
+                **(
+                    _FEDDRIFT_SETTINGS_ADDED_AFTER_V13["server_settings"]
+                    if baseline_version <= 13
+                    else {}
+                ),
+                maximum_cross_evaluation_client_count=3
+                if baseline_version <= 13
+                else conditions.client_count,
                 maximum_same_cluster_loss_increase=threshold,
                 initial_model_aggregation_weight=24,
                 local_training_round_count=3 if case_name == "feddrift-drift-tail" else 2,
@@ -702,6 +720,20 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
     )
 
 
+_FEDDRIFT_SETTINGS_ADDED_AFTER_V13 = {
+    "run_client_settings": {
+        "model_comparison_criterion": "bounded_loss",
+        "new_model_parameter_source": "current_training_model",
+        "detection_reference_after_drift": "new_model_batch_value",
+    },
+    "server_settings": {
+        "model_comparison_criterion": "bounded_loss",
+        "training_model_eligibility": "held_models_with_training_samples",
+        "consolidation_weight_timing": "weights_before_current_timestep",
+    },
+}
+
+
 def comparable_run_settings(case_name, baseline_version=BASELINE_VERSION):
     """保存してある`run_settings`と比べる形の設定（読込みの検査と、実行した結果の照合の、両方が使う）。
 
@@ -710,6 +742,12 @@ def comparable_run_settings(case_name, baseline_version=BASELINE_VERSION):
     """
     settings = build_case_settings(case_name, baseline_version)
     plain_settings = _plain(settings)
+    if type(settings) is FeddriftRunSettings and baseline_version <= 13:
+        for section, fields in _FEDDRIFT_SETTINGS_ADDED_AFTER_V13.items():
+            holder = plain_settings["run_participant_settings"][section]
+            for name, value in fields.items():
+                assert holder[name] == value
+                del holder[name]
     if type(settings) not in (FedavgRunSettings, FeddriftRunSettings):
         client_settings = plain_settings["run_participant_settings"]["run_client_settings"]
         for added_field_path, version_value in _CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION.get(

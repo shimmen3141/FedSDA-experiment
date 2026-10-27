@@ -81,6 +81,9 @@ def make_inputs(monkeypatch, dataset="sine2", optimizer="sgd", epochs=1, clients
 
     settings = FeddriftRunParticipantSettings(
         run_client_settings=FeddriftRunClientSettings(
+            model_comparison_criterion="bounded_loss",
+            new_model_parameter_source="current_training_model",
+            detection_reference_after_drift="new_model_batch_value",
             loss_increase_threshold=1.0,
             detection_batch_sample_count=3,
             local_training_batch_sample_count=3,
@@ -90,6 +93,9 @@ def make_inputs(monkeypatch, dataset="sine2", optimizer="sgd", epochs=1, clients
             new_model_optimizer_settings=optimizer_settings(0.02),
         ),
         server_settings=FeddriftServerSettings(
+            model_comparison_criterion="bounded_loss",
+            training_model_eligibility="held_models_with_training_samples",
+            consolidation_weight_timing="weights_before_current_timestep",
             maximum_same_cluster_loss_increase=1.0,
             cluster_linkage="complete",
             minimum_cross_evaluation_sample_count=5,

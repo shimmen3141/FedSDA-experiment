@@ -292,7 +292,18 @@ class FeddriftRunServer:
                 }
             )
         )
+        eligible = self._current_timestep_training_model_ids()
+        if eligible is not None:
+            active_ids = tuple(mid for mid in active_ids if mid in eligible)
         self._aggregate_and_distribute_models(active_ids=active_ids, update_model_weights=True)
+
+    def _current_timestep_training_model_ids(self) -> frozenset[int] | None:
+        if self._settings.training_model_eligibility == "held_models_with_training_samples":
+            return None
+        return frozenset(
+            client.owners.current_training_model_assignment.current_training_model_id
+            for client in self.run_clients
+        )
 
     def _aggregate_and_distribute_models(
         self, *, active_ids: tuple[int, ...], update_model_weights: bool
@@ -375,14 +386,25 @@ class FeddriftRunServer:
                 model_id=mid, loss_statistics=statistics
             )
         self._model_weights = planned_weights
-        for parameters in planned_parameters.values():
-            self._record_parameter_transfer("download", parameters, len(self.run_clients))
+        preserve_inactive = (
+            update_model_weights
+            and self._settings.training_model_eligibility == "models_assigned_in_current_timestep"
+        )
+        preserved_ids = (
+            frozenset(planned_parameters).difference(active_ids)
+            if preserve_inactive
+            else frozenset()
+        )
+        for mid, parameters in planned_parameters.items():
+            if mid not in preserved_ids:
+                self._record_parameter_transfer("download", parameters, len(self.run_clients))
         for client in self.run_clients:
             client.apply_server_model_distribution(
                 model_id_mapping={},
                 model_parameters_by_model_id=planned_parameters,
                 server_loss_statistics=tuple(planned_statistics.items()),
                 rebuilt_model_optimizer_settings=self._settings.rebuilt_model_optimizer_settings,
+                preserved_model_ids=preserved_ids,
             )
 
         self._aggregation_parameter_multiply_accumulate_count += sum(
@@ -403,9 +425,15 @@ class FeddriftRunServer:
         """観測を追加せず、準備後に設定された回数だけ学習・集約・配布する。"""
         self._validate_operation(timestep_index)
         self.prepare_timestep(timestep_index=timestep_index)
+        eligible = self._current_timestep_training_model_ids()
+        if eligible is not None:
+            # 割当IDの報告はprepareのupload、対象集合はparameterを持たない通知として数える。
+            self.communication_volume_record_store.record_messages(
+                transfer_direction="download", message_count=len(self.run_clients)
+            )
         for _ in range(self._settings.local_training_round_count):
             for client in self.run_clients:
-                client.train_local_round()
+                client.train_local_round(eligible_model_ids=eligible)
             self.aggregate_and_distribute_training_round(timestep_index=timestep_index)
         self._synchronized_timestep_model_counts.append(
             FeddriftSynchronizedTimestepModelCounts(
@@ -435,6 +463,11 @@ class FeddriftRunServer:
                 raise ValueError("全clientとserverは同じrun Randomを借りることが必要です。")
             owners = client.owners
             client._settings.__post_init__()
+            if (
+                client._settings.model_comparison_criterion
+                != self._settings.model_comparison_criterion
+            ):
+                raise ValueError("clientとserverの比較の基準を一致させてください。")
             _validate_confirmation_inputs(
                 registered_global_model_id=0,
                 held_model_training_state_registry=owners.held_model_training_state_registry,
@@ -579,6 +612,7 @@ class FeddriftRunServer:
                         current_training_model_assignment=owners.current_training_model_assignment,
                         maximum_evaluation_sample_count=self._settings.maximum_client_evaluation_sample_count,
                         python_random_generator=self._random,
+                        model_comparison_criterion=self._settings.model_comparison_criterion,
                     )
                     total_count += evaluation.evaluated_sample_count
                     total_loss += evaluation.bounded_loss_sum
@@ -685,11 +719,13 @@ class FeddriftRunServer:
                 minimum_evaluated_sample_count=self._settings.minimum_cross_evaluation_sample_count,
                 maximum_same_cluster_loss_increase=self._settings.maximum_same_cluster_loss_increase,
                 cluster_linkage=self._settings.cluster_linkage,
+                model_comparison_criterion=self._settings.model_comparison_criterion,
             )
             distances = _loss_increase_distances(
                 model_ids=mature,
                 loss_sums_by_model_pair=statistics,
                 minimum_evaluated_sample_count=self._settings.minimum_cross_evaluation_sample_count,
+                model_comparison_criterion=self._settings.model_comparison_criterion,
             )
             self._record_clustering(timestep_index, mature, clusters, distances)
             if len(clusters) < len(mature):
@@ -698,13 +734,24 @@ class FeddriftRunServer:
                     mid: self.global_model_repository.get_global_model_parameters(model_id=mid)
                     for mid in ids
                 }
+                weights = {mid: self._model_weights.get(mid, 0) for mid in ids}
+                if (
+                    self._settings.consolidation_weight_timing
+                    == "weights_including_current_timestep_assignments"
+                ):
+                    sample_counts = dict.fromkeys(ids, 0)
+                    for client in self.run_clients:
+                        for collection in client.owners.training_sample_store.snapshot_ordered_model_training_samples():
+                            if collection.model_id in sample_counts:
+                                sample_counts[collection.model_id] += len(
+                                    collection.training_samples
+                                )
+                    weights = {mid: sample_counts[mid] or weights[mid] for mid in ids}
                 consolidation = consolidate_feddrift_cached_model_clusters(
                     timestep_index=timestep_index,
                     model_clusters=all_clusters,
                     model_parameters_by_model_id=parameters,
-                    historical_model_weights_by_model_id={
-                        mid: weight for mid, weight in self._model_weights.items() if mid in ids
-                    },
+                    historical_model_weights_by_model_id=weights,
                     loss_moments_by_model_id={
                         mid: stat.overall_loss_moments
                         for mid, stat in self.global_model_repository.snapshot_global_model_loss_statistics()

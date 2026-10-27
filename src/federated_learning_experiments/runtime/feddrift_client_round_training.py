@@ -34,8 +34,14 @@ def train_feddrift_held_models_for_round(
     batch_sample_count: int,
     updates_per_sample: int,
     k_steps: int,
+    eligible_model_ids: frozenset[int] | None = None,
 ) -> tuple[float, ...]:
     """全参加列を検査してから、store順に各モデルの予算を続けて更新する。"""
+    if eligible_model_ids is not None and (
+        type(eligible_model_ids) is not frozenset
+        or any(type(mid) is not int or mid < 0 for mid in eligible_model_ids)
+    ):
+        raise ValueError("学習対象は非負builtin intのfrozensetが必要です。")
     for owner, expected in (
         (held_model_training_state_registry, HeldModelTrainingStateRegistry),
         (training_sample_store, ModelTrainingSampleStore),
@@ -57,7 +63,9 @@ def train_feddrift_held_models_for_round(
     participants = tuple(
         collection
         for collection in training_sample_store.snapshot_ordered_model_training_samples()
-        if collection.model_id in states and len(collection.training_samples) >= batch_sample_count
+        if collection.model_id in states
+        and len(collection.training_samples) >= batch_sample_count
+        and (eligible_model_ids is None or collection.model_id in eligible_model_ids)
     )
     # 乱数/先行モデルを更新する前に、全参加populationを検査する。
     for collection in participants:

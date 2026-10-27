@@ -107,7 +107,7 @@ def test_mixed_plan_expands_only_applicable_axis_in_order_and_preserves_fedsda_h
 
 def test_default_threshold_matches_explicit_default_axis():
     assert build_planned_experiment_runs(sweep_plan=plan()) == build_planned_experiment_runs(
-        sweep_plan=plan(feddrift_loss_increase_thresholds=(0.1,))
+        sweep_plan=plan(feddrift_loss_increase_thresholds=(0.2,))
     )
 
 
@@ -292,7 +292,7 @@ def conditions(dataset="sine2"):
 
 
 @pytest.mark.parametrize("dataset", ("sine2", "sea2", "sea4", "circle2", "mnist2", "mnist4"))
-def test_default_settings_match_actual_legacy_values_without_rng_changes(dataset):
+def test_default_settings_preserve_common_legacy_values_without_rng_changes(dataset):
     before = rng_snapshot()
     run = build_default_feddrift_run_settings(experiment_run_conditions=conditions(dataset))
     assert_rng_equal(before)
@@ -311,15 +311,13 @@ def test_default_settings_match_actual_legacy_values_without_rng_changes(dataset
         ("updates_per_sample", "UPDATES_PER_SAMPLE"),
         ("maximum_stored_evaluation_sample_count_per_model", "STORED_DATA_LIMIT"),
         ("added_evaluation_batch_sample_count", "EVAL_STORE_SAMPLE_SIZE"),
-        ("loss_increase_threshold", "FEDDRIFT_DISTANCE_THRESHOLD"),
     ):
         assert getattr(client, name) == getattr(config, legacy)
+    assert server.maximum_cross_evaluation_client_count == conditions(dataset).client_count
     assert client.detection_batch_sample_count == 3
     for name, legacy in (
-        ("maximum_same_cluster_loss_increase", "FEDDRIFT_DISTANCE_THRESHOLD"),
         ("cluster_linkage", "FEDDRIFT_CLUSTER_LINKAGE"),
         ("minimum_cross_evaluation_sample_count", "CLUSTER_MIN_EVAL_N"),
-        ("maximum_cross_evaluation_client_count", "CROSS_EVAL_MAX_CLIENTS"),
         ("maximum_client_evaluation_sample_count", "EVAL_MAX_SAMPLES"),
         ("new_model_isolation_timestep_count", "FEDDRIFT_ISOLATION_TIMESTEPS"),
         ("local_training_round_count", "FEDDRIFT_ROUNDS"),
@@ -358,7 +356,7 @@ def test_threshold_applies_to_both_owners(threshold):
     )
 
 
-@pytest.mark.parametrize("invalid", (None, True, 1, -1.0, float("nan"), float("inf")))
+@pytest.mark.parametrize("invalid", (True, 1, -1.0, float("nan"), float("inf")))
 def test_default_settings_reject_invalid_threshold_without_rng_changes(invalid):
     before = rng_snapshot()
     with pytest.raises((TypeError, ValueError)):

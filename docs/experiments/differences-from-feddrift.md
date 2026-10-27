@@ -1,119 +1,45 @@
-# FedDrift 元論文との相違点
+# FedDrift元論文・公式コードとの対応
 
-> 文書の役割: 比較対象の再現条件の説明
->
-> 対象と採用状況: 本実装とFedDrift元論文のデータ・学習・評価条件の相違を扱う。FedSDA最終構成の仕様とは分けて読む。
->
-> 最終構成の正本: [FedSDAの最終提案構成](../overview/proposed-method.md)
+この文書は、新実装のFedDriftの比較条件の正本である。基準版14では、検知・選択・新モデルの複写元・検知の基準値・学習対象・統合重みを、下記の範囲で論文と公式コードへそろえる。公式コードの直接利用や、論文の実験全体の再現を意味しない。
 
-本実装の **FedDrift ベースライン**と、FedDrift 元論文（Jothimurugesan et al., 2023）および公開実装 `microsoft/FedDrift` との相違点を一元的にまとめる。照合元は `FedDrift_paper/`（論文 tex、特に `appendix-expt-setup.tex`）と `FedDrift/`（clone した参照コード）。
+参照は元checkoutの`FedDrift_paper/`のTeXと、`FedDrift/`の公式clone（commit `e4ac32fe17edf8de23579678a12fb4d7b5f45746`）。過去の差のIDは[2026-10-21の実装監査](../../results/implementation-audits/feddrift-20261021/feddrift-implementation-audit.md)に対応する。監査は変更前の記録として保持する。実装の仕様は[要求](../../.kiro/specs/feddrift-official-algorithm-alignment/requirements.md)・[設計](../../.kiro/specs/feddrift-official-algorithm-alignment/design.md)、版と検証状況は[基準の文書](refactoring-baseline.md)・[実装記録](../../.kiro/specs/feddrift-official-algorithm-alignment/tasks.md)を参照する。
 
-> このファイルは **論文/参照の FedDrift ↔ 本実装の FedDrift** の対応に絞る。提案手法 FedSDA の
-> 詳細は [fedsda-algorithm.md](../overview/fedsda-algorithm.md)、全変数の意味・手法間の使い分けは
-> [hyperparameters.md](../reference/hyperparameters.md) を参照。FedSDA は「なぜ FedDrift をこう
-> 実装したか」を説明する範囲でのみ登場する。
+## そろえた範囲
 
-区分:
-- ✅ **忠実**（論文・参照コードと一致することを確認済み）
-- ⚠️ **意図的な相違**（本研究の実験設計による）
-- ❌ **未実装**（本研究のスコープ外）
-
----
-
-## 1. データセット定義
-
-FedDrift 由来の合成データとMNISTの生成規則は論文・参照コードに合わせている。実装は
-`federated_drift_experiment/data/`へ集約し、合成生成器は`synthetic.py`、固定系列は
-`schedules.py`、MNIST読込みと概念変換は`mnist.py`に分離している。
-
-| dataset | 生成規則 | 参照との照合 | 判定 |
-|---|---|---|---|
-| **sine2** | x₁,x₂~U[0,1]²、概念0: y=1 iff x₂≤sin(x₁)、概念1: 反転 | 参照 `sine/data_loader.py::generate_sine_sample` と完全一致 | ✅ |
-| **circle2** | x₁,x₂~U[0,1]²、円 (0.2,0.5,0.15)/(0.6,0.5,0.25) の**外側=1**（z>0） | 参照 `circle/data_loader.py::generate_circle_sample` と z 式・極性・中心/半径すべて一致 | ✅ |
-| **sea4** | x₁,x₂,x₃~U[0,10]（x₃ ノイズ特徴）、y=1 iff x₁+x₂≤θ、θ={9,8,7,9.5}、10% ラベルノイズ | 論文 appendix の定義と一致 | ✅ |
-| **sea2** | `sea4` の概念0/1 | 参照のSEA-2に一致 | ✅ |
-| **mnist2 / mnist4** | 元ラベルと1↔2 / 3↔4 / 5↔6の交換 | 論文 appendix の概念A～Dに一致 | ✅ |
-| **blobs**（既定） | 独自の 2 次元合成（ガウス2塊×ラベル反転 / 同心円×ラベル反転） | **論文に存在しない独自データ** | ⚠️ |
-
-### 注記
-
-- **sea4 の閾値**: 参照コードは同梱 CSV（`concept1..4.csv`）を読むが、`concept4.csv` は実測 θ≈9.0 で別概念と潰れるズレがある。本実装は**論文 appendix の正準定義 θ_D=9.5** を採用し、4 概念が区別されるようにしている（`config.SEA_THRESHOLDS`）。信号は論文どおり x₁+x₂（x₃ はノイズ）。
-- **ノイズ**: ラベルノイズ 10% は論文どおり **sea4 / sea2**。sine2 / circle2 にはノイズなし。
-- **blobs**: FedDrift には無い独自データ。概念差が劇的（ラベル反転＋共変量シフト）で、ドリフトが最も検出しやすいケースとして用いている。論文の CIRCLE/SINE とは別物。
-- ✅ **SEA-2・MNIST-2/4** を実装済み。MNISTの概念A～Dは、元ラベル、1↔2、3↔4、
-  5↔6の交換。固定系列はデータセットから独立した`CONCEPT_SCHEDULE=feddrift_fixed`で選ぶ。
-- ❌ **FMoW** は未実装。
-
----
-
-## 2. 実験セットアップ（⚠️ 意図的な相違）
-
-データ定義は忠実だが、`sea4` / `circle2` / `sine2` はドリフトの**出し方・処理粒度**が
-論文と異なる。本実装が連続ストリームを扱うための設計判断であり、バグではない。
-全データセットで`random`と`feddrift_fixed`を選択でき、後者が論文と元実装の固定系列である。
-
-| 項目 | 論文 / FedDrift | 本実装 | 実装箇所 |
-|---|---|---|---|
-| ドリフト系列 | 10 時刻 × 500 サンプル/クライアント、**固定 staggered パターン**、切替は時刻境界のみ | `feddrift_fixed`は一致。既定`random`は`MIN_STABLE_PERIOD`後に確率`DRIFT_PROB`で切替 | `data/schedules.py::make_concept_schedules` |
-| 切替回数 | `A.cp` / `B.cp` で規定 | `feddrift_fixed`は一致。`random`は再帰的に複数回 | 同上 |
-| 検出単位 | 時刻（500 サンプル）単位で検出 | `FEDDRIFT_DETECTION_BATCH_SIZE`(既定 50) 件ごと。完了時にのみ集約するため通信間隔も兼ねる（§3） | `clients/feddrift.py` |
-| 学習の反復 | 固定 500 サンプルに R=100 ラウンド（≒反復エポック） | 既定は単一パス相当（`FEDDRIFT_ROUNDS`=1）。R を上げれば論文どおりの反復学習も可（§3） | `experiment.py` |
-
-従来名における「切替回数」の相違は recovery 分析に直結する。本実装は1ランで多数の
-ドリフトイベントが生じ、それをΔ=0起点に集計する。`feddrift_fixed`では論文と同じイベントを使う。
-
----
-
-## 3. 学習ハイパーパラメータ
-
-論文 `appendix-expt-setup.tex` の Table（training-params）と本実装の **FedDrift** の対応。
-
-| 記号 | 説明 | 論文（合成データ） | 本実装（FedDrift） | 判定 |
-|---|---|---|---|---|
-| K | 1 ラウンドあたりのローカル学習ステップ数 | 50 | `FEDDRIFT_DETECTION_BATCH_SIZE × UPDATES_PER_SAMPLE`（既定 50×1） | ✅ |
-| η | 学習率（SINE/CIRCLE/SEA） | 10⁻² | `BASE_LR=0.01` | ✅ |
-| — | Adam weight_decay / amsgrad | 10⁻³ / True | `WEIGHT_DECAY=1e-3` / `AMSGRAD=True` | ✅ |
-| B | ミニバッチサイズ | 50 | `CLIENT_BATCH_SIZE=32` | ⚠️ |
-| L | 1 データ点あたりのローカル更新回数 | （明記なし） | `UPDATES_PER_SAMPLE=1`（両手法共通） | — |
-| （検出/時刻粒度） | 1 時刻あたりのデータ数＝検出単位 | 500 | `FEDDRIFT_DETECTION_BATCH_SIZE=50`（＝1ラウンドの処理サンプル数） | ⚠️ |
-| R | 1 時刻あたりの通信ラウンド数 | 100 | `FEDDRIFT_ROUNDS=1`（既定。下記） | ⚠️ |
-
-### 補足: 検出粒度・学習量・R の扱い
-
-- **検出単位 ＝ `FEDDRIFT_DETECTION_BATCH_SIZE`（＝1ラウンドで処理するサンプル数）**。元 FedDrift は**時刻(500 サンプル)単位で検出**する。これを独立パラメータ化し既定 50 とした（概念は論文の時刻粒度そのもの、値のみ相違）。主ループはこの件数を 1 ラウンドで処理し、溜まるたびに検出+割り当て+**通信**を行う（＝**集約(通信)間隔も兼ねる**。掃引で大きくすると通信量が反比例して減る＝精度–通信量トレードオフの軸）。
-- **1 ラウンドの学習量（論文 K）＝ `FEDDRIFT_DETECTION_BATCH_SIZE × UPDATES_PER_SAMPLE`**。バッチの各データ点に対し FedSDA と同じ `UPDATES_PER_SAMPLE` 回の更新を行うのと同予算。これにより**総ローカル更新数は `FEDDRIFT_DETECTION_BATCH_SIZE` に依らず `TOTAL_DATA_POINTS × UPDATES_PER_SAMPLE`（R=1 なら FedSDA と一致）**となり、検出バッチを掃引しても学習量が変わらない（通信だけを変数にできる）。
-- **R ＝ `FEDDRIFT_ROUNDS`**。論文はバッチを R=100 ラウンド収束まで反復学習する。本実装は**既定 R=1**で、これは比較対象の FedSDA が**オンライン単一パス**（各データ点 1 回）で、その学習・通信予算と揃えるため。`FEDDRIFT_ROUNDS=100` にすれば論文忠実な FedDrift（バッチ収束学習）を再現できるが、総更新数・総通信量が R 倍になり FedSDA との予算一致は崩れる。R は `FEDDRIFT_DETECTION_BATCH_SIZE`（検出粒度↔通信）と**直交する第2の通信軸**（バッチあたり収束度↔通信）。
-
-FedSDA 側の対応変数（`AGGREGATION_INTERVAL` 等）や手法間の使い分けは [hyperparameters.md](../reference/hyperparameters.md) を参照。
-
----
-
-## 4. 評価指標
-
-| 項目 | 論文 | 本実装 |
+| 差 | 基準版14の既定 | 論文・公式コードの根拠 |
 |---|---|---|
-| 主指標 | 各時刻 τ の学習後、τ+1 の（次概念）held-out で test accuracy（ドリフト時刻除外） | prequential `accuracy`（全期間の総合精度）+ `stable_accuracy`（定常精度: 真ドリフト直後 `STABLE_WINDOW`=W サンプルを除外した prequential）+ 回復曲線 acc(Δ)（適応速度）の3層。論文流の「次時刻 held-out・ブロック評価」は per-sample ランダムドリフト設定に噛み合わない（＆ prequential と役割が重複）ため標準実行では用いない |
-| 検出閾値 | 損失/距離の閾値で検出 | `FEDDRIFT_DISTANCE_THRESHOLD`（損失増分の閾値）。`run_pareto_sweep.py` で掃引し感度を提示 |
+| D01 検知・モデル選択 | 分類の誤り率を最小化。同値は保有順で最初。最小値が保存した基準値＋δを超えたとき検知 | `algo-creation.tex`の式2・Algorithm 2・accuracyの説明。公式`FedAvgEnsDataLoader.py`の`cluster_hierarchical`・`train_acc_matrix` |
+| D01 統合の距離 | `max(E_ij − E_ii, E_ji − E_jj, 0)`。complete linkage、停止閾値はδ | 論文Algorithm 2、公式の距離A・linkage F |
+| D02 新モデルの初期値 | その塊で誤り率が最小の既存モデルからパラメータを複写 | 公式`find_unused_model_lru(..., best_model)`。論文はInitializeとのみ記載 |
+| D03 次の検知の基準値 | 検知の有無によらず、その塊の既存モデルの最小の誤り率 | 論文の前時刻の最小値、公式の`set_acc(c, newest_acc)`。学習後の再評価は行わない |
+| D04 学習・集約の対象 | 今の時刻にどれかのclientへ割り当てられたモデルだけ。そのモデルの過去の学習標本を持つ全clientが、件数条件を満たせば学習 | `appendix-expt-setup.tex`の「現在クラスタされているモデルだけを学習」。公式Trainer・Aggregatorの現在の割当による除外 |
+| D07 評価clientの上限 | 実験のclient数。今の塊を含む、対象モデルに割り当てた標本で評価 | 論文Algorithm 2の全client・全時刻のデータからの標本、公式の`cluster_data` |
+| D08 統合の重み | 今の塊を含む、全clientのモデル別の学習標本数。件数0なら保存済み重みを使用 | 論文Mergeの`Σ w N`、公式`merge`の現在の時刻までの割当。塊の件数が同じなら比例する |
+| D10 隔離 | W=1。作成した時刻は統合せず、次の時刻から統合・他clientの選択の候補 | 公式`update_marking`の時刻τ＋Wでの解除に対応。W>1の公式の固定・選択制限は実装しない |
 
-**実装忠実性の検証**: 論文式（各時刻の学習後に次時刻コンセプトの held-out で評価・ドリフト時刻除外）で本実装の FedDrift 再実装は論文値（SINE ≈97.4%）にほぼ一致することを確認済み。厳密な論文再現が必要な場合は、境界ドリフト・固定バッチの専用設（`FEDDRIFT_ROUNDS`=100 等）で別途評価する。
+2値1出力の分類器は、既存の予測関数と同じく確率が0.5を超えたとき1、それ以外は0とする。多クラスはargmax（同点は最小クラス番号）。確信度だけが変わり予測クラスが変わらなければ、誤り率は変わらない。
 
-回復除外窓 W（`STABLE_WINDOW`=200）は最も遅い回復のプラトーを越える大きめ固定値で、
-`MIN_STABLE_PERIOD` 未満（次ドリフトを跨がない）。`recovery_analysis.py` の回復窓 window と同値。
+δのデータ別の既定はSEA2・SEA4が0.04、SINE2が0.20、CIRCLE2・MNIST2・MNIST4が0.10（公式`default_deltas`）。掃引の`--feddrift-loss-increase-thresholds`による明示値を優先し、次にbuilder引数、そのどちらもなければデータ別の既定を使う。検知と統合に同じ値を渡す。論文付録の0.02〜0.20の掃引は別の実験として行う。
 
----
+統合前に標本数を数え、統合時のIDの付替えで標本を連結する。その後の集約は、その件数で重みを置き換えるので、統合の重みをさらに加算する二重計数はしない。未使用モデルは保有を続け、次の時刻の選択に備える。
 
-## 5. 実装上の設計判断
+## 開示する差・共通の実験条件
 
-- **サーバ側モデル間距離の評価**: FedDrift 公開実装は aggregator が全クライアントの生データ（`all_data`）を中央に集めて距離を計算する**シミュレーション近道**を取る。本実装はこれに倣わず、評価対象モデルをデータ保持クライアントへ配布して現地評価させ、**集約統計量 (n, Σℓ, Σℓ²) のみ**を返す federated な形にしている（サブサンプリング `CROSS_EVAL_MAX_CLIENTS` / `EVAL_MAX_SAMPLES` による近似）。詳細と根拠は [fedsda-algorithm.md](../overview/fedsda-algorithm.md) §3 を参照。
-- **FedDrift は再実装**であり、参照コードをそのまま呼んでいるわけではない。sea4 も CSV を読まず生成器で論文定義を再現している。
+| 差 | 本実装の条件と限界 |
+|---|---|
+| D05 optimizer | 配布でoptimizerを作り直す。公式も時刻ごとにプロセスを起動し直し、R=1では実質同じだが、複数roundで状態を保持する公式の学習とは異なる。未使用モデルは再構築せず保持する |
+| D06 初期化 | 全手法共通の単一モデルの事前学習（既定500件・10 epoch）。論文の合成データの「1概念・1モデルから始める」に沿う。公式READMEのclient別初期化Fとは異なる。付録のF型はFMoWで使われる |
+| D07 評価の場所・標本・不足対 | client側で評価し、各clientの標本上限は50。評価の保存標本が6件未満なら、現在の割当の学習標本が11件以上のときだけ代用し、評価実施には5件を要する。距離に必要な4評価が最低件数に足りない対は統合しない。公式の中央で全データから最大20バッチを取る方式と同じ標本ではない |
+| D09 モデル容量 | 公式の容量上限・LRUによる枠の再利用を実装しない。モデルを再来に備えて保持する |
+| D11 ネットワーク・更新予算 | 全手法で共通の構造・オンラインの更新予算を使う。集約間隔の塊で検知し、既定のlocal roundは1。論文の固定500件・R=100の条件とは異なる。roundだけを増やして論文値を再現できるとは扱わない |
+| D12 評価 | 学習前の予測で評価するprequential方式。公式の次の時刻のテストとは評価時点が異なる |
 
-## 現行FedDriftの位置付け
+クロス評価のclient上限の撤廃で増える計算・通信も計数する。D04の対象集合は、既存の小さな通知と同じくメッセージ件数へ入れ、パラメータのbyteへは入れない。対象外モデルのround学習・集約・パラメータ通信は数えない。比較結果には精度だけでなく、上り・下り通信量、計算量の計数/MAC、経過時間を並べる。今回の実装変更による精度や費用の改善・悪化は、対照実験前には結論を出さない。
 
-- モード`FedDrift`は監査結果を反映した論文準拠フローである。新規モデルを
-  `FEDDRIFT_ISOLATION_TIMESTEPS` 時刻だけ隔離し、FedAvgは正確に `FEDDRIFT_ROUNDS` 回だけ実行する。
-- FedDriftのクラスタリングは `FEDDRIFT_CLUSTER_LINKAGE=complete` とし、論文のmax-linkageに準拠する。
-- FedSDAは従来結果との互換性から `FEDSDA_CLUSTER_LINKAGE=connected` を既定とする。
-  `--cluster-linkage complete` により、max-linkageとの比較を明示的に実行できる。
-- クロス評価は配布済みモデルのクライアントキャッシュを再利用する。モデルパラメータ通信は
-  `comm_models_*`、評価依頼・統計返送などは`comm_messages_*`へ分離して数える。
-- 旧v1実装は論文準拠でない余分な通信を含むため、実行モードから削除した。
+## データと基準版
+
+新実装の対象はSINE2・SEA2/4・CIRCLE2・MNIST2/4。SEA4は論文付録の閾値（9、8、7、9.5）と10%のラベルノイズを用いる。公式配布CSVの概念4との差は、論文の定義を選んだ条件として残る。FMoWは対象外。既定の概念系列は、最低間隔を満たした後に確率的に変化する系列で、論文の固定staggered系列とは異なる。
+
+基準版1〜13は、有界損失・判定前の現在モデルからの複写・複写したモデルの値を基準値にする扱い・学習標本を持つ全保有モデルの学習・前の集約時点の統合重みを明示する。評価clientの上限は3、通常の閾値は0.1（経路確認の`feddrift-drift-tail`だけ0.03という既存条件を維持）。旧goldenは変更しない。新旧の項目を混ぜたrun設定と、新方式のW≠1は拒否する。
+
+基準版14のgoldenの生成・配置、FedSDA・FedAvgが版13と同じ値になることの最終確認は主担当が行う。生成前のコードと、生成・確認済みのgoldenは区別する。

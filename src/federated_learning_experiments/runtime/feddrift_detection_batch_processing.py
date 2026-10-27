@@ -117,6 +117,9 @@ class FeddriftDetectionBatchProcessor:
         | SgdParameterOptimizerSettings,
         loss_increase_threshold: float,
         previous_minimum_mean_bounded_loss: float | None = None,
+        model_comparison_criterion: str = "bounded_loss",
+        new_model_parameter_source: str = "current_training_model",
+        detection_reference_after_drift: str = "new_model_batch_value",
     ) -> None:
         for owner, expected_type in (
             (held_model_training_state_registry, HeldModelTrainingStateRegistry),
@@ -155,6 +158,22 @@ class FeddriftDetectionBatchProcessor:
         self._optimizer_settings = new_model_optimizer_settings
         self._threshold = loss_increase_threshold
         self._previous_loss = previous_minimum_mean_bounded_loss
+        for value, choices in (
+            (model_comparison_criterion, ("bounded_loss", "classification_error_rate")),
+            (
+                new_model_parameter_source,
+                ("current_training_model", "minimum_criterion_held_model"),
+            ),
+            (
+                detection_reference_after_drift,
+                ("new_model_batch_value", "minimum_held_model_batch_value"),
+            ),
+        ):
+            if type(value) is not str or value not in choices:
+                raise ValueError("FedDriftの検出の設定が未対応です。")
+        self._criterion = model_comparison_criterion
+        self._parameter_source = new_model_parameter_source
+        self._reference_after_drift = detection_reference_after_drift
 
     @property
     def previous_minimum_mean_bounded_loss(self) -> float | None:
@@ -288,6 +307,7 @@ class FeddriftDetectionBatchProcessor:
             observed_class_labels=labels,
             previous_minimum_mean_bounded_loss=self._previous_loss,
             loss_increase_threshold=self._threshold,
+            model_comparison_criterion=self._criterion,
         )
         previous_id = self._assignment.current_training_model_id
         created_state = None
@@ -295,8 +315,12 @@ class FeddriftDetectionBatchProcessor:
         if assessment.drift_detected:
             assigned_id = self._allocator.next_temporary_model_id
             self._validate_new_model_id(assigned_id, states)
-            current = self._registry.get_held_model_training_state(model_id=previous_id).classifier
-            # 最小損失モデルではなく、判定前の現在モデルから複写する。
+            source_id = (
+                assessment.minimum_loss_model_id
+                if self._parameter_source == "minimum_criterion_held_model"
+                else previous_id
+            )
+            current = self._registry.get_held_model_training_state(model_id=source_id).classifier
             classifier = ModelArchitectureClassifier(
                 model_architecture_settings=current.model_architecture_settings,
                 input_feature_count=current.input_feature_count,
@@ -327,6 +351,10 @@ class FeddriftDetectionBatchProcessor:
                 class_count=classifier.class_count,
             )
             next_loss = statistics.overall_loss_moments.mean_loss
+            if self._reference_after_drift == "minimum_held_model_batch_value":
+                next_loss = assessment.minimum_mean_bounded_loss
+            elif self._criterion == "classification_error_rate":
+                next_loss = dict(assessment.model_mean_bounded_losses)[source_id]
             pending_upload = PendingModelUpload(
                 model_id=assigned_id,
                 parameter_snapshot=snapshot_classifier_parameters(classifier=classifier),

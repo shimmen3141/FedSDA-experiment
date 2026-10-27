@@ -12,8 +12,12 @@ from federated_learning_experiments.learning.models.model_architecture_classifie
 from federated_learning_experiments.learning.models.model_architecture_settings import (
     ModelArchitectureSettings,
 )
+from federated_learning_experiments.learning.prediction.class_probability_calculations import (
+    predict_class_labels_from_prediction_scores,
+)
 from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import (
     evaluate_classifier_per_sample_bounded_losses,
+    evaluate_classifier_per_sample_bounded_losses_and_outputs,
     validate_classifier_bounded_loss_inputs,
 )
 
@@ -25,7 +29,10 @@ def _validate_bounded_loss(value: float) -> None:
 
 @dataclass(frozen=True, kw_only=True)
 class FeddriftDetectionBatchAssessment:
-    """保有順の平均損失と、最小モデルの選択・ドリフトの判断。"""
+    """保有順の平均基準値と、最小モデルの選択・ドリフトの判断。
+
+    lossの既存fieldには、選んだ基準の値（有界損失または誤り率）が入る。
+    """
 
     model_mean_bounded_losses: tuple[tuple[int, float], ...]
     minimum_loss_model_id: int
@@ -64,8 +71,14 @@ def assess_feddrift_detection_batch(
     observed_class_labels: Tensor,
     previous_minimum_mean_bounded_loss: float | None,
     loss_increase_threshold: float,
+    model_comparison_criterion: str = "bounded_loss",
 ) -> FeddriftDetectionBatchAssessment:
     """全モデルの評価前に入力を検査し、旧と同じ保有順・平均・比較で判断する。"""
+    if type(model_comparison_criterion) is not str or model_comparison_criterion not in (
+        "bounded_loss",
+        "classification_error_rate",
+    ):
+        raise ValueError("モデルの比較の基準が未対応です。")
     if type(held_models) is not tuple or not held_models:
         raise ValueError("保有モデルは非空のtupleが必要です。")
     if previous_minimum_mean_bounded_loss is not None:
@@ -105,11 +118,23 @@ def assess_feddrift_detection_batch(
     # 全モデルの入力検査が終わってから、保有順の評価を始める。
     model_mean_bounded_losses: list[tuple[int, float]] = []
     for model_id, classifier in held_models:
-        losses = evaluate_classifier_per_sample_bounded_losses(
-            classifier=classifier,
-            input_features=input_features,
-            observed_class_labels=observed_class_labels,
-        )
+        if model_comparison_criterion == "classification_error_rate":
+            _, outputs = evaluate_classifier_per_sample_bounded_losses_and_outputs(
+                classifier=classifier,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+            )
+            predictions = predict_class_labels_from_prediction_scores(
+                prediction_scores=outputs,
+                class_count=classifier.class_count,
+            )
+            losses = (predictions != observed_class_labels).float()
+        else:
+            losses = evaluate_classifier_per_sample_bounded_losses(
+                classifier=classifier,
+                input_features=input_features,
+                observed_class_labels=observed_class_labels,
+            )
         model_mean_bounded_losses.append((model_id, float(losses.mean().item())))
     minimum_loss_model_id, minimum_mean_bounded_loss = min(
         model_mean_bounded_losses, key=lambda item: item[1]

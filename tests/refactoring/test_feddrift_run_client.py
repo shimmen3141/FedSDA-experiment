@@ -117,6 +117,9 @@ def build_assembly_inputs(*, monkeypatch, class_count=2, optimizer_name="sgd", t
         initial_parameter_optimizer_state=optimizer_state,
         initial_loss_statistics=stats,
         run_client_settings=FeddriftRunClientSettings(
+            model_comparison_criterion="bounded_loss",
+            new_model_parameter_source="current_training_model",
+            detection_reference_after_drift="new_model_batch_value",
             loss_increase_threshold=threshold,
             detection_batch_sample_count=3,
             local_training_batch_sample_count=3,

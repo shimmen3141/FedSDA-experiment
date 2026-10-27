@@ -5318,6 +5318,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.models.model_architecture_classifier.INDEPENDENT_MODELS_ARCHITECTURE_NAME",
             "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
+            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses_and_outputs",
+            "federated_learning_experiments.learning.prediction.class_probability_calculations.predict_class_labels_from_prediction_scores",
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
         )
     if (

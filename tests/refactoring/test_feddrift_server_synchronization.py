@@ -301,6 +301,9 @@ def test_distribution_rejects_before_owners_or_rng(case, monkeypatch):
 
 def settings_inputs(optimizer_settings, **overrides):
     result = dict(
+        model_comparison_criterion="bounded_loss",
+        training_model_eligibility="held_models_with_training_samples",
+        consolidation_weight_timing="weights_before_current_timestep",
         maximum_same_cluster_loss_increase=1.0,
         cluster_linkage="complete",
         minimum_cross_evaluation_sample_count=5,

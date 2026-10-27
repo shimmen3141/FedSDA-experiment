@@ -5,7 +5,7 @@
 ## 現在地
 
 - **最新の総括・再開順は[研究の引継ぎ（2026-10-26）](../../docs/research/research-handoff-20261026.md)**。Claude交代後の一連の研究、結果の所在、訂正、未着手事項をまとめている。
-- **製品の既定は基準版13**（[損失監視の基準の引下げと評価client上限撤廃](../specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)、IMPROVE-031の案A＋評価clientの上限撤廃。候補共有部の固定は維持）。goldenは生成元`539363a7`（WindowsとWSL）、定数13。
+- **コードの既定を基準版14へ切替、検証・golden・独立実装レビュー待ち**（[FedDriftの公式アルゴリズムとの整合](../specs/feddrift-official-algorithm-alignment/tasks.md)、未コミット）。版14のgoldenは主担当が生成・配置する。既存の確定goldenは版13まで（生成元`539363a7`、WindowsとWSL）。FedSDAは引き続き[版13の設定](../specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)で、候補共有部の固定は維持。
 - 実装レビュー・全pytest・WSLの結果の正本は対象specのImplementation Notes。E1a/E2/S1/S3/B・E3とmain統合は未採用／未決定のまま。v13のablation（共有部の固定を外す枝を含む）と、評価の設計（研究バックログの9）は未着手。
 
 - 2026-10-27: [IMPROVE-031](../../docs/research/improvement-candidates/improve-031-loss-monitor-rebaseline-on-loss-decrease.md)は上限撤廃とともに既定へ実装済み。基準版13として既定にした（上記spec）。

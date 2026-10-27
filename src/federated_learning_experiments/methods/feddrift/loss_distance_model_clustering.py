@@ -8,7 +8,13 @@ def _loss_increase_distances(
     model_ids: tuple[int, ...],
     loss_sums_by_model_pair: dict[tuple[int, int], tuple[int, float, float]],
     minimum_evaluated_sample_count: int,
+    model_comparison_criterion: str = "bounded_loss",
 ) -> dict[tuple[int, int], float]:
+    if type(model_comparison_criterion) is not str or model_comparison_criterion not in (
+        "bounded_loss",
+        "classification_error_rate",
+    ):
+        raise ValueError("モデルの比較の基準が未対応です。")
     if type(model_ids) is not tuple or type(loss_sums_by_model_pair) is not dict:
         raise TypeError("ID列はtuple、評価統計はdictが必要です。")
     if (
@@ -47,6 +53,8 @@ def _loss_increase_distances(
             result[(left, right)] = max(
                 lr[1] / lr[0] - ll[1] / ll[0], rl[1] / rl[0] - rr[1] / rr[0]
             )
+            if model_comparison_criterion == "classification_error_rate":
+                result[(left, right)] = max(result[(left, right)], 0.0)
     return result
 
 
@@ -57,6 +65,7 @@ def cluster_feddrift_model_ids(
     minimum_evaluated_sample_count: int,
     maximum_same_cluster_loss_increase: float,
     cluster_linkage: str,
+    model_comparison_criterion: str = "bounded_loss",
 ) -> tuple[tuple[int, ...], ...]:
     """件数条件を満たす4損失から距離を作り、指定linkageで分割する。"""
     if type(maximum_same_cluster_loss_increase) is not float or type(cluster_linkage) is not str:
@@ -71,6 +80,7 @@ def cluster_feddrift_model_ids(
         model_ids=model_ids,
         loss_sums_by_model_pair=loss_sums_by_model_pair,
         minimum_evaluated_sample_count=minimum_evaluated_sample_count,
+        model_comparison_criterion=model_comparison_criterion,
     )
     ids = sorted(model_ids)
     if cluster_linkage == "connected":

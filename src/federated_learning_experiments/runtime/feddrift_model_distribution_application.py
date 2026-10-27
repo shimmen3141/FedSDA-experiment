@@ -70,6 +70,7 @@ def apply_feddrift_model_distribution(
     adaptation_record_store: AdaptationRecordStore,
     processed_sample_count: int,
     python_random_generator: Random,
+    preserved_model_ids: frozenset[int] = frozenset(),
 ) -> None:
     """全入力を検査して正式モデルを再構築し、ownerへ反映する。"""
     for owner, owner_type in (
@@ -99,6 +100,12 @@ def apply_feddrift_model_distribution(
     if not model_parameters_by_model_id:
         raise ValueError("配布モデルは空にできません。")
     states = held_model_training_state_registry.snapshot_ordered_held_model_training_states()
+    if type(preserved_model_ids) is not frozenset or any(
+        type(mid) is not int or mid < 0 for mid in preserved_model_ids
+    ):
+        raise ValueError("保持対象は非負builtin intのfrozensetが必要です。")
+    if not preserved_model_ids <= {state.model_id for state in states}:
+        raise ValueError("保持対象は保有モデルである必要があります。")
     for state in states:
         if type(state) is not HeldModelTrainingState:
             raise TypeError("保有記録はexact HeldModelTrainingStateが必要です。")
@@ -161,6 +168,9 @@ def apply_feddrift_model_distribution(
     )
     rebuilt = []
     for model_id, parameters in model_parameters_by_model_id.items():
+        if model_id in preserved_model_ids:
+            rebuilt.append(next(state for state in states if state.model_id == model_id))
+            continue
         classifier = ModelArchitectureClassifier(
             model_architecture_settings=reference.model_architecture_settings,
             input_feature_count=reference.input_feature_count,

@@ -153,6 +153,7 @@ class FeddriftRunClient:
         server_loss_statistics: tuple[tuple[int, ModelAndClassLossStatistics], ...],
         rebuilt_model_optimizer_settings: AdamParameterOptimizerSettings
         | SgdParameterOptimizerSettings,
+        preserved_model_ids: frozenset[int] = frozenset(),
     ) -> None:
         """統合または配布を、同じownerへ反映する。"""
         apply_feddrift_model_distribution(
@@ -169,6 +170,7 @@ class FeddriftRunClient:
             adaptation_record_store=self._owners.adaptation_record_store,
             processed_sample_count=self._stream_processor.processed_sample_count,
             python_random_generator=self._random,
+            preserved_model_ids=preserved_model_ids,
         )
 
     @property
@@ -217,7 +219,9 @@ class FeddriftRunClient:
             indexed_observations=tuple(indexed_observations)
         )
 
-    def train_local_round(self) -> tuple[float, ...]:
+    def train_local_round(
+        self, *, eligible_model_ids: frozenset[int] | None = None
+    ) -> tuple[float, ...]:
         """旧の検出batch件数を倍率として、一roundだけ連続更新する。"""
         owners = self._owners
         return train_feddrift_held_models_for_round(
@@ -228,6 +232,7 @@ class FeddriftRunClient:
             batch_sample_count=self._settings.local_training_batch_sample_count,
             updates_per_sample=self._settings.updates_per_sample,
             k_steps=self._settings.detection_batch_sample_count,
+            eligible_model_ids=eligible_model_ids,
         )
 
     def flush_detection_buffer(self) -> FeddriftDetectionBatchTransition | None:
@@ -310,6 +315,9 @@ def assemble_feddrift_run_client(
         python_random_generator=python_random_generator,
         new_model_optimizer_settings=run_client_settings.new_model_optimizer_settings,
         loss_increase_threshold=run_client_settings.loss_increase_threshold,
+        model_comparison_criterion=run_client_settings.model_comparison_criterion,
+        new_model_parameter_source=run_client_settings.new_model_parameter_source,
+        detection_reference_after_drift=run_client_settings.detection_reference_after_drift,
     )
     return FeddriftRunClient(
         client_id=client_id,

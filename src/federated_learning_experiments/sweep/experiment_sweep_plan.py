@@ -256,7 +256,8 @@ def build_planned_experiment_runs(
                                 ),
                             )
                             for threshold in (
-                                sweep_plan.feddrift_loss_increase_thresholds or (0.1,)
+                                sweep_plan.feddrift_loss_increase_thresholds
+                                or (participant.run_client_settings.loss_increase_threshold,)
                             )
                         )
                     elif type(run_settings) is FedsdaRunSettings and _fedsda_axis_names(

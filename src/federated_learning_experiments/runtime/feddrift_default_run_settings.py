@@ -25,6 +25,15 @@ from federated_learning_experiments.runtime.feddrift_stream_run_execution import
     FeddriftStreamProtocolExecutionSettings,
 )
 
+_LOSS_INCREASE_THRESHOLDS_BY_DATASET = {
+    "sea2": 0.04,
+    "sea4": 0.04,
+    "sine2": 0.20,
+    "circle2": 0.10,
+    "mnist2": 0.10,
+    "mnist4": 0.10,
+}
+
 _MODEL_DEFAULTS_BY_DATASET = {
     "sine2": ((32, 32), 0.01),
     "sea2": ((32, 32), 0.01),
@@ -36,12 +45,18 @@ _MODEL_DEFAULTS_BY_DATASET = {
 
 
 def build_default_feddrift_run_settings(
-    *, experiment_run_conditions: ExperimentRunConditions, loss_increase_threshold: float = 0.1
+    *,
+    experiment_run_conditions: ExperimentRunConditions,
+    loss_increase_threshold: float | None = None,
 ) -> FeddriftRunSettings:
-    """旧の既定に対応する条件を作る。生成・実行や乱数消費は行わない。"""
+    """公式にそろえた既定条件を作る。生成・実行や乱数消費は行わない。"""
     if type(experiment_run_conditions) is not ExperimentRunConditions:
         raise TypeError("experiment_run_conditions must be exact ExperimentRunConditions")
     experiment_run_conditions.__post_init__()
+    if loss_increase_threshold is None:
+        loss_increase_threshold = _LOSS_INCREASE_THRESHOLDS_BY_DATASET[
+            experiment_run_conditions.dataset_name
+        ]
     execution_settings = FeddriftStreamProtocolExecutionSettings(
         experiment_run_conditions=experiment_run_conditions,
         concept_schedule_settings=RandomConceptScheduleSettings(
@@ -60,6 +75,9 @@ def build_default_feddrift_run_settings(
         execution_settings=execution_settings,
         run_participant_settings=FeddriftRunParticipantSettings(
             run_client_settings=FeddriftRunClientSettings(
+                model_comparison_criterion="classification_error_rate",
+                new_model_parameter_source="minimum_criterion_held_model",
+                detection_reference_after_drift="minimum_held_model_batch_value",
                 loss_increase_threshold=loss_increase_threshold,
                 detection_batch_sample_count=experiment_run_conditions.server_aggregation_interval_per_client_samples,
                 local_training_batch_sample_count=32,
@@ -69,10 +87,13 @@ def build_default_feddrift_run_settings(
                 new_model_optimizer_settings=optimizer,
             ),
             server_settings=FeddriftServerSettings(
+                model_comparison_criterion="classification_error_rate",
+                training_model_eligibility="models_assigned_in_current_timestep",
+                consolidation_weight_timing="weights_including_current_timestep_assignments",
                 maximum_same_cluster_loss_increase=loss_increase_threshold,
                 cluster_linkage="complete",
                 minimum_cross_evaluation_sample_count=5,
-                maximum_cross_evaluation_client_count=3,
+                maximum_cross_evaluation_client_count=experiment_run_conditions.client_count,
                 maximum_client_evaluation_sample_count=50,
                 new_model_isolation_timestep_count=1,
                 local_training_round_count=1,
