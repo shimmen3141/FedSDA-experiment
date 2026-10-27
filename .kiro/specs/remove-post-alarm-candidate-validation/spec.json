@@ -1,0 +1,16 @@
+{
+  "feature_name": "remove-post-alarm-candidate-validation",
+  "created_at": "2026-10-28T00:00:00Z",
+  "updated_at": "2026-10-28",
+  "language": "ja",
+  "phase": "specification_review",
+  "approvals": {
+    "requirements": {"generated": true, "approved": false},
+    "design": {"generated": true, "approved": false},
+    "tasks": {"generated": true, "approved": false},
+    "naming": {"generated": true, "approved": false}
+  },
+  "ready_for_implementation": false,
+  "base_revision": "0d6c586d",
+  "implementation_assignment": "基準版12〜14のspecと同じ。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・golden・全pytest・レビューの起動"
+}
