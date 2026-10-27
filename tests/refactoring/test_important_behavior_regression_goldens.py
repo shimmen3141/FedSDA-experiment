@@ -406,6 +406,8 @@ def capture_case_once(case_name, baseline_version):
         (baseline_version, case_name)
         for baseline_version, case_names in golden.CASE_NAMES_BY_BASELINE_VERSION.items()
         for case_name in case_names
+        if case_name
+        not in golden.EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[baseline_version]
     ],
 )
 @pytest.mark.slow
@@ -421,8 +423,10 @@ def test_new_implementation_matches_important_behavior_golden(case_name, baselin
     assert document["mnist_sha256"] == golden.mnist_sha256(), "MNIST reference data changed"
     golden.assert_case_matches(
         case_name,
-        capture_case_once(case_name, baseline_version)[0],
-        document["cases"][case_name],
+        golden.without_removed_candidate_validation_items(
+            capture_case_once(case_name, baseline_version)[0]
+        ),
+        golden.without_removed_candidate_validation_items(document["cases"][case_name]),
     )
 
 

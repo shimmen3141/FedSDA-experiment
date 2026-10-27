@@ -6617,7 +6617,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
             "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
             "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.start_post_alarm_candidate_validation_session",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.train_candidate_on_alarm_change_interval",
+            "federated_learning_experiments.runtime.alarm_interval_candidate_training.train_candidate_on_alarm_change_interval",
         )
     if source_module_path == "runtime/alarm_interval_model_reuse_assessment.py":
         return imported_module_name in (
@@ -6686,6 +6686,26 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "dataclasses.dataclass",
             "torch.Tensor",
+            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
+            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
+            "federated_learning_experiments.learning.training.candidate_epoch_training.CandidateEpochTrainingResult",
+            "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
+            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
+            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
+            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
+            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
+            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection.PostAlarmCandidateLossCollection",
+            "federated_learning_experiments.runtime.alarm_interval_candidate_training.train_candidate_on_alarm_change_interval",
+            "federated_learning_experiments.runtime.candidate_classifier_construction.IndependentCandidateTrainingState",
+            "federated_learning_experiments.runtime.post_alarm_reference_model_fixation.FixedPostAlarmReferenceModels",
+            "federated_learning_experiments.runtime.post_alarm_reference_model_fixation.fix_reference_models_at_alarm",
+        )
+    if source_module_path == "runtime/alarm_interval_candidate_training.py":
+        return imported_module_name in (
+            "dataclasses.dataclass",
+            "torch.Tensor",
             "torch.float32",
             "torch.is_grad_enabled",
             "torch.isfinite",
@@ -6702,11 +6722,8 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection.PostAlarmCandidateLossCollection",
             "federated_learning_experiments.runtime.candidate_classifier_construction.IndependentCandidateTrainingState",
             "federated_learning_experiments.runtime.candidate_classifier_construction.create_independent_candidate_training_state",
-            "federated_learning_experiments.runtime.post_alarm_reference_model_fixation.FixedPostAlarmReferenceModels",
-            "federated_learning_experiments.runtime.post_alarm_reference_model_fixation.fix_reference_models_at_alarm",
         )
     if source_module_path == "learning/training/candidate_epoch_training_settings.py":
         return imported_module_name in (
@@ -7553,6 +7570,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "runtime/post_alarm_candidate_validation_sample_observation.py",
             "runtime/post_alarm_reference_model_fixation.py",
             "runtime/post_alarm_candidate_validation_session_start.py",
+            "runtime/alarm_interval_candidate_training.py",
             "runtime/post_alarm_candidate_validation_progress.py",
             "methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
             "runtime/incomplete_post_alarm_candidate_validation_finalization.py",
@@ -7682,6 +7700,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "runtime/post_alarm_candidate_validation_sample_observation.py",
                     "runtime/post_alarm_reference_model_fixation.py",
                     "runtime/post_alarm_candidate_validation_session_start.py",
+                    "runtime/alarm_interval_candidate_training.py",
                     "runtime/post_alarm_candidate_validation_progress.py",
                     "methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
                     "runtime/incomplete_post_alarm_candidate_validation_finalization.py",
@@ -11407,14 +11426,14 @@ def test_candidate_epoch_training_dependency_contract(
         ("from dataclasses import dataclass as AcceptedDependency", True),
         ("from torch import Tensor", True),
         ("from torch import Tensor as AcceptedDependency", True),
-        ("from torch import float32", True),
-        ("from torch import float32 as AcceptedDependency", True),
-        ("from torch import is_grad_enabled", True),
-        ("from torch import is_grad_enabled as AcceptedDependency", True),
-        ("from torch import isfinite", True),
-        ("from torch import isfinite as AcceptedDependency", True),
-        ("from torch import strided", True),
-        ("from torch import strided as AcceptedDependency", True),
+        ("from torch import float32", False),
+        ("from torch import float32 as AcceptedDependency", False),
+        ("from torch import is_grad_enabled", False),
+        ("from torch import is_grad_enabled as AcceptedDependency", False),
+        ("from torch import isfinite", False),
+        ("from torch import isfinite as AcceptedDependency", False),
+        ("from torch import strided", False),
+        ("from torch import strided as AcceptedDependency", False),
         (
             "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
             True,
@@ -11433,19 +11452,19 @@ def test_candidate_epoch_training_dependency_contract(
         ),
         (
             "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
-            True,
+            False,
         ),
         (
             "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters as AcceptedDependency",
-            True,
+            False,
         ),
         (
             "from ..learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
-            True,
+            False,
         ),
         (
             "from ..learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters as AcceptedDependency",
-            True,
+            False,
         ),
         (
             "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
@@ -11481,19 +11500,19 @@ def test_candidate_epoch_training_dependency_contract(
         ),
         (
             "from federated_learning_experiments.learning.training.candidate_epoch_training import train_candidate_classifier_epochs",
-            True,
+            False,
         ),
         (
             "from federated_learning_experiments.learning.training.candidate_epoch_training import train_candidate_classifier_epochs as AcceptedDependency",
-            True,
+            False,
         ),
         (
             "from ..learning.training.candidate_epoch_training import train_candidate_classifier_epochs",
-            True,
+            False,
         ),
         (
             "from ..learning.training.candidate_epoch_training import train_candidate_classifier_epochs as AcceptedDependency",
-            True,
+            False,
         ),
         (
             "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings",
@@ -11638,19 +11657,19 @@ def test_candidate_epoch_training_dependency_contract(
         ),
         (
             "from federated_learning_experiments.runtime.candidate_classifier_construction import create_independent_candidate_training_state",
-            True,
+            False,
         ),
         (
             "from federated_learning_experiments.runtime.candidate_classifier_construction import create_independent_candidate_training_state as AcceptedDependency",
-            True,
+            False,
         ),
         (
             "from .candidate_classifier_construction import create_independent_candidate_training_state",
-            True,
+            False,
         ),
         (
             "from .candidate_classifier_construction import create_independent_candidate_training_state as AcceptedDependency",
-            True,
+            False,
         ),
         (
             "from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import FixedPostAlarmReferenceModels",

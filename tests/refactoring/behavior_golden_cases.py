@@ -416,6 +416,73 @@ ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES = (
 )
 CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[BASELINE_VERSION]
 # 全部の版のケースの名前（初めて現れた版の順）。並列の実行での配り方が使う。
+# 候補検証の処理を消す基準版15のspecにより、検証ありの方針のcaseを数値照合から外す。
+# 判定が0件でも方針が検証ありなら外す。保存済みgoldenと組立ての両方からtestで確かめる。
+_EARLY_CANDIDATE_VALIDATION_CONFIGURATION_CASE_NAMES = (
+    "fedsda",
+    "fedsda-without-prediction-weight-recalibration",
+    "fedsda-loss-distance-clustering",
+    "fedsda-overall-loss-esr-detection",
+    "fedsda-adahedge-prediction-weights",
+    "fedsda-single-model-prediction",
+    "fedsda-classwise-adwin-detection",
+    "fedsda-overall-loss-adwin-detection",
+    "fedsda-without-concept-specific-adapter",
+    "fedsda-independent-models",
+)
+EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION = {
+    1: (
+        *_EARLY_CANDIDATE_VALIDATION_CONFIGURATION_CASE_NAMES,
+        "fedsda-sine2-events",
+        "fedsda-mnist2-decisions",
+    ),
+    2: (
+        *_EARLY_CANDIDATE_VALIDATION_CONFIGURATION_CASE_NAMES,
+        "fedsda-sine2-events",
+        "fedsda-mnist2-decisions",
+        "fedsda-sine2-reference-reuse",
+    ),
+    3: (
+        *_EARLY_CANDIDATE_VALIDATION_CONFIGURATION_CASE_NAMES,
+        "fedsda-sine2-events",
+        "fedsda-mnist2-decisions",
+        "fedsda-sine2-reference-reuse",
+    ),
+    **{
+        version: (
+            *_EARLY_CANDIDATE_VALIDATION_CONFIGURATION_CASE_NAMES,
+            *CANDIDATE_VALIDATION_PATH_CASE_NAMES,
+        )
+        for version in (4, 5, 6)
+    },
+    **{version: CANDIDATE_VALIDATION_PATH_CASE_NAMES for version in range(7, 15)},
+}
+# 記録・指標・設定を消す段で、goldenの中の完全な鍵の道を足す。task 1では何も除かない。
+REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS: tuple[tuple[str, ...], ...] = ()
+
+
+def without_removed_candidate_validation_items(snapshot, path=()):
+    """名前を挙げた項目だけを除く。入力と、一覧にない差はそのまま残す。"""
+    from copy import deepcopy
+
+    result = deepcopy(snapshot)
+    for removed_path in REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS:
+        if removed_path[: len(path)] != path:
+            continue
+        relative_path = removed_path[len(path) :]
+        if not relative_path:
+            continue
+        holder = result
+        for key in relative_path[:-1]:
+            if not isinstance(holder, dict) or key not in holder:
+                break
+            holder = holder[key]
+        else:
+            if isinstance(holder, dict):
+                holder.pop(relative_path[-1], None)
+    return result
+
+
 ALL_CASE_NAMES = tuple(
     dict.fromkeys(name for names in CASE_NAMES_BY_BASELINE_VERSION.values() for name in names)
 )
@@ -1460,12 +1527,22 @@ def load_golden(path, baseline_version=BASELINE_VERSION):
         )
         for name, case in document["cases"].items():
             assert set(case) == CASE_KEYS, name
-            assert_case_matches(
-                name,
-                case["run_settings"],
-                comparable_run_settings(name, baseline_version),
-                "run_settings",
-            )
+            if (
+                name
+                not in EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[
+                    baseline_version
+                ]
+            ):
+                assert_case_matches(
+                    name,
+                    without_removed_candidate_validation_items(
+                        case["run_settings"], ("run_settings",)
+                    ),
+                    without_removed_candidate_validation_items(
+                        comparable_run_settings(name, baseline_version), ("run_settings",)
+                    ),
+                    "run_settings",
+                )
             assert isinstance(case["run_metrics"], dict) and case["run_metrics"], name
             for section in ("record_tables", "global_parameters"):
                 assert isinstance(case[section], dict) and case[section], (name, section)

@@ -60,6 +60,9 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.mini
 from federated_learning_experiments.runtime.adopted_candidate_local_adoption import (
     adopt_candidate_as_current_training_model,
 )
+from federated_learning_experiments.runtime.alarm_interval_candidate_training import (
+    train_candidate_on_alarm_change_interval,
+)
 from federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment import (
     evaluate_held_models_for_alarm_interval_reuse,
 )
@@ -69,7 +72,6 @@ from federated_learning_experiments.runtime.assigned_training_sample_absorption 
 from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import (
     PostAlarmCandidateValidationSession,
     start_post_alarm_candidate_validation_session,
-    train_candidate_on_alarm_change_interval,
 )
 
 ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES: tuple[str, ...] = (

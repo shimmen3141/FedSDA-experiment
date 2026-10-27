@@ -114,7 +114,7 @@ class ContributionTracker(RemovalTracker):
         import federated_learning_experiments.runtime.alarm_buffer_response as response
         import federated_learning_experiments.runtime.alarm_change_interval_resolution as resolution
         import federated_learning_experiments.runtime.alarm_interval_minimum_description_length_selection as selection
-        import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start as candidate_start
+        import federated_learning_experiments.runtime.alarm_interval_candidate_training as candidate_training
 
         original_select = processing.select_alarm_interval_assignment
         original_mdl = selection.select_assignment_by_minimum_description_length
@@ -122,7 +122,7 @@ class ContributionTracker(RemovalTracker):
         original_fresh = selection.compute_reinitialized_learner_prequential_code_length
         original_resolve = response.resolve_alarm_change_interval
         original_adopt = resolution.adopt_candidate_as_current_training_model
-        original_create = candidate_start.create_independent_candidate_training_state
+        original_create = candidate_training.create_independent_candidate_training_state
 
         def select(**kw):
             registry = kw["held_model_training_state_registry"]
@@ -301,7 +301,7 @@ class ContributionTracker(RemovalTracker):
                 ),
                 patch.object(response, "resolve_alarm_change_interval", resolve),
                 patch.object(
-                    candidate_start,
+                    candidate_training,
                     "create_independent_candidate_training_state",
                     create,
                 ),
