@@ -21,7 +21,7 @@
   - 完了条件: (iii)(iv)(v)(vii)(x)が通り、今の値の設定の既存のtestが値を変えずに通る。
   - _Requirements: 1.3, 3.1, 3.2, 3.3, 3.5, 4.1, 5.2, 6.1, 6.2_
 
-- [ ] 4. 既定を替え、基準版14を足す
+- [x] 4. 既定を替え、基準版14を足す
   - 既定のFedDriftの設定（新しい値の全部、上限＝clientの数、δのデータ別の既定）と、掃引で閾値を指定しないときの既定のtest（(ix)）を先に書き、REDを確かめてから既定を替える。
   - `BEHAVIOR_BASELINE_VERSION = 14`、runの設定の記録の新しい項目。既定に依るtest（runの識別子ほか）を直す。
   - goldenの版14（Windows・Linux）は主担当が作り、版14のFedSDA・FedAvgのcaseが版13と同じ値であることを確かめる（(viii)）。
@@ -33,7 +33,7 @@
     `docs/reference/options.md`は直接編集しない（必要なら生成の道具で再生成する）。
   - _Requirements: 8.1, 8.2, 8.3_
 
-- [ ] 6. 確認（主担当）
+- [x] 6. 確認（主担当）
   - 全pytest、WSLのgolden、pyright、ruff。独立の実装レビュー1回（文書だけの修正は再確認を要しない）。
 
 ## Implementation Notes
