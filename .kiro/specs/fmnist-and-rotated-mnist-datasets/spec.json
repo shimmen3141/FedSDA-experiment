@@ -1,0 +1,38 @@
+{
+  "feature_name": "fmnist-and-rotated-mnist-datasets",
+  "created_at": "2026-10-27T12:00:00Z",
+  "updated_at": "2026-10-27",
+  "language": "ja",
+  "phase": "implementation",
+  "approvals": {
+    "requirements": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna medium）"},
+    "design": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna medium）"},
+    "tasks": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna medium）"},
+    "naming": {"generated": true, "approved": true, "approved_by": "ユーザー委任、独立レビュー2回目PASS（GPT-6 Luna medium）"}
+  },
+  "ready_for_implementation": true,
+  "base_revision": "268ebeed",
+  "specification_review": {
+    "status": "passed",
+    "rounds": [
+      {
+        "round": 1,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（指定値）",
+        "session_id": "01a17d5e-5058-7d41-81cd-b260c831f296",
+        "target": "作業ツリー（未commit）",
+        "result": "FAIL（Blocker 1: 全角のマイナス記号の式の読み違い。ASCIIの式と具体的な組に直した。Minor 3、任意 1）。全部反映"
+      },
+      {
+        "round": 2,
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium（指定値）",
+        "session_id": "01a17d5f-fc93-79e2-a4c5-2f77a8db73d9",
+        "target": "作業ツリー（未commit）",
+        "result": "PASS（Minor 1: task 3の完了条件。反映）"
+      }
+    ]
+  },
+  "implementation_assignment": "基準版12〜14のspecと同じ。実装はGPT-6.1-sol（codex exec）。主担当（Claude）は仕様書群・確認・全pytest・レビューの起動",
+  "commit_policy": "2026-10-27のユーザー指示により、先行実装の調査の記録（results/dataset-surveys/、gitの管理外）だけをコミット・プッシュしない。仕様・実装・文書は通常どおりコミットする"
+}
