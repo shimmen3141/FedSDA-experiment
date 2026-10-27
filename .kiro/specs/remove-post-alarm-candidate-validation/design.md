@@ -21,6 +21,11 @@
 - 保存した設定と、組み立てた設定の照合（`behavior_golden_cases.py`の1458行付近）も、同じ除く一覧で行う。
 - 版15: case名の一覧は版14から4 caseを除いたもの。版15のgoldenを作った後、4.4のtestで版14と比べる。
 
+## 乱数の状態の照合（要求4.7）
+- 対象: 版15の18 caseのうちFedSDAの14 case（goldenのcaseの条件の小さいrun）。比較の地点: runの終わり（全clientの終端の処理の後、runの指標の導出の前）。
+- 記録するもの: runが借りるPython `Random`の`getstate()`、NumPyの`RandomState`の`get_state()`、torchのCPUの`get_rng_state()`（runの中で使う乱数源の全部。実装担当が、runが使う乱数源を確かめて一覧にする）。
+- fixtureはtask 1の開始時のHEADで作り、testのデータとしてcommitする。許容差なし。消す段で一致しなくなったら、その段の変更を直す（fixtureを直さない）。
+
 ## 数値の不変の根拠（調査の報告の4）
 - 毎標本の検証の進行・終端の処理は、検証が無いとすぐ戻る。呼び出しを消しても、乱数・パラメータ・記録は変わらない見込み。
 - 参照モデルの固定（torchの乱数を使う）は、検証の開始の側だけ。

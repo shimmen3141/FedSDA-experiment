@@ -51,13 +51,29 @@ testは、重要なもの・後で効くもの・複雑なものに絞る（基�
 ### Requirement 4: golden・照合・基準版
 4.1 The goldens shall 版1〜14の保存済みのJSONを変えない。各版で、候補検証ありの方針を使うcaseを照合から外し、外したcaseの名前と理由をtestに明示する。
 4.2 The goldens shall 残すcaseの照合で、消した記録の表・指標・設定の項目を、名前を挙げた一覧で除いてから比べる（一覧にない差は失敗にする）。
-4.3 The run provenance shall `BEHAVIOR_BASELINE_VERSION`を15にする。版15のcaseは、版14のcaseから候補検証ありの4 caseを除いたもの。版15のgolden（Windows・Linux）は主担当が作る。
+4.3 The run provenance shall `BEHAVIOR_BASELINE_VERSION`を15にする。版15のcaseは、版14の22 caseから候補検証ありの4 case（`fedsda-sine2-events`、`fedsda-mnist2-decisions`、
+   `fedsda-sine2-reference-reuse`、`fedsda-sine2-alternative-reference-reuse`）を除いた次の18 case: `fedavg`、`fedavg-no-complete-interval`、`feddrift`、`feddrift-drift-tail`、`fedsda`、
+   `fedsda-adahedge-prediction-weights`、`fedsda-classwise-adwin-detection`、`fedsda-independent-models`、`fedsda-loss-distance-clustering`、`fedsda-mnist2-adoption-without-validation`、
+   `fedsda-mnist4-warm-started-learner`、`fedsda-overall-loss-adwin-detection`、`fedsda-overall-loss-esr-detection`、`fedsda-sine2-adoption-without-validation`、`fedsda-single-model-prediction`、
+   `fedsda-without-candidate-validation`、`fedsda-without-concept-specific-adapter`、`fedsda-without-prediction-weight-recalibration`。
+   testは、版15のcaseの一覧が「版14の一覧 − 上の4 case」と等しいことを確かめる。版15のgolden（Windows・Linux）は主担当が作る。
 4.4 The tests shall 版15の各caseの、4.2で除いた後の値が、版14の同じcaseと一致することを確かめる。
-4.5 The tests shall 候補検証ありの経路の、旧実装との照合（調査の報告の3の表の関数）を消す。検証なしの変種（`fedsda-without-candidate-validation`ほか）と部品ごとの照合は残し、検証ありのfixtureに依っていたものは、旧実装が同じ振る舞いになる検証なしの設定へ直す（直せないものは、理由とともに消す）。
+4.6 The tests shall 版1〜14の各版で外すcaseを、「その版の`build_case_settings`が検証ありの方針を選ぶcase」と定め、外すcaseの定数の一覧が、保存済みのgoldenの設定の記録から求めた一覧と等しいことを確かめる。
+   版7〜14で外すのは4.3の4 caseだけであることも確かめる。版1〜6は、調査の報告の2の表（FedSDAの12〜14 case）と一致することを確かめる。
+4.7 The tests shall 候補検証を使わないFedSDAのcase（4.3の18 caseのうちFedSDAの14 case）について、runの終わり（全clientの終端の処理の後）のPython Random・NumPy・torchの乱数の状態を、
+   消す前のコード（task 1の時点のHEAD）で記録したfixtureと完全一致で比べる（許容差なし）。fixtureはtask 1で作り、以後の段で変えない。
+4.5 The tests shall 旧実装との照合を、次の規則で扱う。
+   (a) 照合の主題が候補検証の経路（調査の報告の3の最初の表の関数）のtestは消す。
+   (b) 主題が候補検証ではない照合（候補の生成・学習・採用、共有部の統合、警報の応答、全体run）で、検証ありのfixture（旧実装の`NEW_MODEL_CREATION_POLICY="forward_persistent"`ほか）に依るものは、
+       旧実装の`immediate`と新実装の検証なしの方針の組へ直す。直した後に旧実装と一致しない、または旧実装に対応する検証なしの設定が無いものだけを、理由をtaskの記録に書いて消す。
+   (c) 検証なしの変種（`fedsda-without-candidate-validation`ほか）と部品ごとの照合は、そのまま残す。
 
 ### Requirement 5: 数値の不変
 5.1 The change shall 候補検証を使わない全構成で、予測・学習したパラメータ・通信・計算量・runの指標（消したものを除く）・乱数の状態を変えない。4.1・4.2・4.4のgoldenの照合で確かめる。
 5.2 The change shall FedDrift・FedAvgの保存の形とrunの識別子を変えない。
+
+5.3 The change shall 消した名前（モジュール・型・関数・設定の項目・値・記録の列・指標・構成名`fedsda-with-candidate-validation`）を、`src/`・`tests/`・`tools/`・入口のscriptから参照しない
+   （過去の記録の文書、既存のspec、旧実装、保存済みのgoldenのJSON、goldenの照合の「外すcase」「除く項目」の一覧は除く）。
 
 ### Requirement 6: 研究用の道具と文書
 6.1 The tools shall `run_candidate_validation_waiting_diagnostic.py`と`tools/research_candidate_validation_waiting/`を消す。`tools/research_prediction_initial_mass/`・`tools/research_provisional_candidate_expert/`は、候補検証のモード・変種だけを外し、
