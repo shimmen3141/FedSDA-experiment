@@ -39,3 +39,16 @@
 ## 検証結果
 
 （未記入）
+
+## 2026-10-28: 案2で進める（主担当）
+
+- ユーザーの判断: 候補検証は複雑で、論文で触れる必要もないので、案2（候補検証の処理・設定・記録・指標と、構成`fedsda-with-candidate-validation`を消す）で進める。
+  候補検証ありの結果は、今後のコードで再現できなくてよい（過去の結果は、保存した設定・来歴のまま参考にできる）。
+- 影響範囲の調査（gpt-6.1-sol、読取りだけ）: 中心の14モジュールで2,022行、testは約7,000〜10,000行の削除の見込み。版7〜14のgoldenにも候補検証ありのcaseが4つある。
+  候補検証を使わない計算は保てる見込みで、保存の形とFedSDAのrunの識別子は変わる。報告は[specのscoping-report.md](../../../.kiro/specs/remove-post-alarm-candidate-validation/scoping-report.md)。
+- [spec](../../../.kiro/specs/remove-post-alarm-candidate-validation/requirements.md)（独立レビュー2回目でPASS）。決めたこと: 過去のgoldenのJSONは変えず、候補検証ありのcaseを照合から外し、消した項目は名前を挙げて除いて比べる。
+  基準版15を足す。旧実装との照合は候補検証の経路だけをやめる。研究用の道具はモード単位で外す。構成`fedsda-without-candidate-validation`の名前は変えない。旧実装は変えない。
+- task 1（commit `51f31cb6`）: 候補の学習を`runtime/alarm_interval_candidate_training.py`へ移し、goldenの外すcaseの仕組みと、移す前のコードで採った乱数の状態のfixture（FedSDAの14 case）を足した。
+  通常の環境の全pytestで15072 passed / 8 skipped / 0 failed。
+- task 2: 実装担当が段の境界の食い違い（消す設定の型を後の段の処理が使う、消す構成名を研究用の道具が参照する）で2回止まり、主担当が段の境界を直した（設定の型の削除をtask 3へ、研究用の道具の候補検証のモードの削除をtask 2へ）。
+  3回目は実装の途中で実装担当の利用の上限に達し、同じsessionで再開する。
