@@ -44,6 +44,8 @@ testは、重要なもの・後で効くもの・複雑なものに絞る（基�
 1.4 The FedDrift settings shall 基準の種類（今の有界損失と、新しい誤り率）を設定の値で選べ、基準版1〜13の設定は今の有界損失を明示する。
 1.5 The FedDrift default settings shall δを、公式コードのデータ別の既定値（`default_deltas`: SEA 0.04、SINE 0.20、CIRCLE 0.10、MNIST 0.10）にする。
   統合の停止の閾値δ'は、論文と公式の既定のとおりδと同じ値にする。δの掃引（論文の付録の0.02〜0.20）は、この仕様の外の実験で行う。
+1.6 The FedDrift settings shall δを、掃引の軸で明示した値、組立ての引数で明示した値、データ別の既定の順に優先し、明示した値があるときデータ別の既定を使わない。
+  基準版1〜13の設定は0.1を明示する。
 
 ### Requirement 2: 新しいモデルの複写元と、次の検知の基準値（D02・D03）
 #### Acceptance Criteria
@@ -61,7 +63,8 @@ testは、重要なもの・後で効くもの・複雑なものに絞る（基�
 
 ### Requirement 4: 統合の重みに今の時刻の割当を含める（D08）
 #### Acceptance Criteria
-4.1 When サーバがモデルを統合するとき, the FedDrift server shall 各モデルの重みを、初期のモデルの重み（今の設定）と、今の時刻までに全clientがそのモデルへ割り当てた標本数の和にする。
+4.1 When サーバがモデルを統合するとき, the FedDrift server shall 各モデルの重みを、統合の時点で全clientがそのモデルへ割り当てた学習標本の件数の和（今の時刻の塊を含む）にする。
+  全clientで件数が0のモデルは、今の重み（初期のモデルの事前学習の重みなど）を使う（式と時点は設計書）。
 4.2 The FedDrift settings shall この扱いを設定の値で選べ、基準版1〜13の設定は今の扱いを明示する。
 
 ### Requirement 5: 隔離の期間（D10）
@@ -75,7 +78,8 @@ testは、重要なもの・後で効くもの・複雑なものに絞る（基�
 
 ### Requirement 6: クロス評価の対象のclient（D07の一部）
 #### Acceptance Criteria
-6.1 The FedDrift default settings shall 1つのモデルを評価させるclientの上限（`maximum_cross_evaluation_client_count`）を、実験のclientの数にする。
+6.1 The FedDrift default settings shall 1つのモデルを評価させるclientの上限（`maximum_cross_evaluation_client_count`）を、実験のclientの数にする
+  （論文のAlgorithm 2の全データの標本での評価に合わせる。増える計算・通信は数えて報告する。理由は設計書）。
 6.2 The FedDrift settings for 基準版1〜13 shall 上限3のままとする。
 
 ### Requirement 7: 基準版14と既存の値の維持

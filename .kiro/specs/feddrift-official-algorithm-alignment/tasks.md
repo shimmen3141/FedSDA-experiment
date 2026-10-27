@@ -16,9 +16,9 @@
   - _Requirements: 1.1, 1.2, 2.1, 2.2_
 
 - [ ] 3. サーバ側（D01の距離・D04・D08・D07の上限）
-  - Validation Designの(iii)(iv)(v)(vii)のtestを先に書き、REDを確かめてから実装する。
+  - Validation Designの(iii)(iv)(v)(vii)(x)のtestを先に書き、REDを確かめてから実装する。
   - クロス評価の誤りの数の集計と距離（0での下限）、今の時刻に割り当てたモデルの集合と学習・集約の対象、統合の重み。集合の伝達と通信の計数の判断を記録する。
-  - 完了条件: (iii)(iv)(v)(vii)が通り、今の値の設定の既存のtestが値を変えずに通る。
+  - 完了条件: (iii)(iv)(v)(vii)(x)が通り、今の値の設定の既存のtestが値を変えずに通る。
   - _Requirements: 1.3, 3.1, 3.2, 3.3, 3.5, 4.1, 5.2, 6.1, 6.2_
 
 - [ ] 4. 既定を替え、基準版14を足す
@@ -26,7 +26,7 @@
   - `BEHAVIOR_BASELINE_VERSION = 14`、runの設定の記録の新しい項目。既定に依るtest（runの識別子ほか）を直す。
   - goldenの版14（Windows・Linux）は主担当が作り、版14のFedSDA・FedAvgのcaseが版13と同じ値であることを確かめる（(viii)）。
   - 完了条件: 全部の対象のtestと版1〜14のgoldenが通る。
-  - _Requirements: 1.5, 6.1, 7.1, 7.2, 7.4_
+  - _Requirements: 1.5, 1.6, 6.1, 7.1, 7.2, 7.4_
 
 - [ ] 5. 文書
   - `docs/experiments/differences-from-feddrift.md`を書き直す（そろえた差・開示する差・根拠・監査と論文の参照）。`docs/experiments/refactoring-baseline.md`の版の表に版14。
