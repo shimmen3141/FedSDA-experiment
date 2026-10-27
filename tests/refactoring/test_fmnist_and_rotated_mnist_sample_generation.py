@@ -142,3 +142,32 @@ def test_fashion_reuses_idx_validation(tmp_path, monkeypatch):
         create_observed_sample_generator(
             dataset_name="fmnist2", numpy_random_generator=np.random.RandomState(0)
         )
+
+
+@pytest.mark.parametrize("dataset_name", ["mnist2", "fmnist2", "rotmnist2"])
+def test_shared_directory_for_mnist_and_fashion_is_rejected(tmp_path, monkeypatch, dataset_name):
+    """ファイル名が同じなので、2つの置き場所が同じディレクトリなら、どちらの読込みも取り違えとして拒否する。"""
+    write_mnist_files(tmp_path, pixel_rows=make_pixel_rows(1), digit_labels=[1])
+    monkeypatch.setenv("FDE_MNIST_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("FDE_FASHION_MNIST_DATA_DIR", str(tmp_path))
+    with pytest.raises(ValueError, match="must not share a directory"):
+        create_observed_sample_generator(
+            dataset_name=dataset_name, numpy_random_generator=np.random.RandomState(0)
+        )
+
+
+def test_cache_does_not_mix_mnist_and_fashion(image_directories):
+    """MNISTを先に読んでも、Fashion-MNISTは自分のファイルのラベルを使う（逆順も同じ）。"""
+    from federated_learning_experiments.data.mnist.mnist_training_data import (
+        load_fashion_mnist_training_data,
+        load_mnist_training_data,
+    )
+
+    mnist_directory, fashion_directory = image_directories
+    mnist = load_mnist_training_data(data_directory=mnist_directory)
+    fashion = load_fashion_mnist_training_data(data_directory=fashion_directory)
+    assert mnist is not fashion
+    assert mnist.digit_labels.tolist() == list(reversed(range(10)))
+    assert fashion.digit_labels.tolist() == list(range(10))
+    assert load_mnist_training_data(data_directory=mnist_directory) is mnist
+    assert load_fashion_mnist_training_data(data_directory=fashion_directory) is fashion

@@ -56,8 +56,9 @@ class MnistTrainingData:
             raise ValueError("digit_labels must be read-only")
 
 
-# 解決したディレクトリごとの、読んだ結果（読込みに成功したものだけ）。
-_LOADED_TRAINING_DATA_BY_DIRECTORY: dict[Path, MnistTrainingData] = {}
+# データの種類と解決したディレクトリの組ごとの、読んだ結果（読込みに成功したものだけ）。
+# MNISTとFashion-MNISTはファイル名が同じなので、種類を鍵に含めて混ざらないようにする。
+_LOADED_TRAINING_DATA_BY_DIRECTORY: dict[tuple[str, Path], MnistTrainingData] = {}
 
 
 def resolve_mnist_data_directory() -> Path:
@@ -131,6 +132,8 @@ def load_mnist_training_data(*, data_directory: Path) -> MnistTrainingData:
         data_directory=data_directory,
         dataset_display_name="MNIST",
         directory_environment_variable=_DATA_DIRECTORY_ENVIRONMENT_VARIABLE,
+        other_dataset_directory=resolve_fashion_mnist_data_directory(),
+        other_dataset_display_name="Fashion-MNIST",
     )
 
 
@@ -140,17 +143,31 @@ def load_fashion_mnist_training_data(*, data_directory: Path) -> MnistTrainingDa
         data_directory=data_directory,
         dataset_display_name="Fashion-MNIST",
         directory_environment_variable=_FASHION_DATA_DIRECTORY_ENVIRONMENT_VARIABLE,
+        other_dataset_directory=resolve_mnist_data_directory(),
+        other_dataset_display_name="MNIST",
     )
 
 
 def _load_training_data(
-    *, data_directory: Path, dataset_display_name: str, directory_environment_variable: str
+    *,
+    data_directory: Path,
+    dataset_display_name: str,
+    directory_environment_variable: str,
+    other_dataset_directory: Path,
+    other_dataset_display_name: str,
 ) -> MnistTrainingData:
     if not isinstance(data_directory, Path):
         raise TypeError("data_directory must be pathlib.Path")
     resolved_directory = data_directory.resolve()
-    if resolved_directory in _LOADED_TRAINING_DATA_BY_DIRECTORY:
-        return _LOADED_TRAINING_DATA_BY_DIRECTORY[resolved_directory]
+    # ファイル名が同じなので、もう一方のデータの置き場所と同じディレクトリは、取り違えとして拒否する。
+    if resolved_directory == other_dataset_directory.resolve():
+        raise ValueError(
+            f"{dataset_display_name} and {other_dataset_display_name} must not share a directory: "
+            f"{resolved_directory}"
+        )
+    cache_key = (dataset_display_name, resolved_directory)
+    if cache_key in _LOADED_TRAINING_DATA_BY_DIRECTORY:
+        return _LOADED_TRAINING_DATA_BY_DIRECTORY[cache_key]
     missing_file_names = [
         file_name
         for file_name in (_IMAGE_FILE_NAME, _LABEL_FILE_NAME)
@@ -177,5 +194,5 @@ def _load_training_data(
             f"{dataset_display_name} image and label counts differ: {len(pixel_values)} and {len(digit_labels)}"
         )
     mnist_training_data = MnistTrainingData(pixel_values=pixel_values, digit_labels=digit_labels)
-    _LOADED_TRAINING_DATA_BY_DIRECTORY[resolved_directory] = mnist_training_data
+    _LOADED_TRAINING_DATA_BY_DIRECTORY[cache_key] = mnist_training_data
     return mnist_training_data
