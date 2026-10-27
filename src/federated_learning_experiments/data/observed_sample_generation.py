@@ -8,12 +8,20 @@ from federated_learning_experiments.data.circle.circle_sample_generation import 
     CircleSampleGenerator,
 )
 from federated_learning_experiments.data.dataset_definitions import get_dataset_definition
+from federated_learning_experiments.data.mnist.fashion_mnist_sample_generation import (
+    FashionMnistSampleGenerator,
+)
 from federated_learning_experiments.data.mnist.mnist_sample_generation import (
     MnistSampleGenerator,
 )
 from federated_learning_experiments.data.mnist.mnist_training_data import (
+    load_fashion_mnist_training_data,
     load_mnist_training_data,
+    resolve_fashion_mnist_data_directory,
     resolve_mnist_data_directory,
+)
+from federated_learning_experiments.data.mnist.rotated_mnist_sample_generation import (
+    RotatedMnistSampleGenerator,
 )
 from federated_learning_experiments.data.observed_streams import (
     ClientConceptTrace,
@@ -38,6 +46,10 @@ _GENERATOR_TYPE_BY_DATASET_NAME: dict[str, type] = {
     "circle2": CircleSampleGenerator,
     "mnist2": MnistSampleGenerator,
     "mnist4": MnistSampleGenerator,
+    "fmnist2": FashionMnistSampleGenerator,
+    "fmnist4": FashionMnistSampleGenerator,
+    "rotmnist2": RotatedMnistSampleGenerator,
+    "rotmnist4": RotatedMnistSampleGenerator,
 }
 
 # 下の関数が返す、生成器の型（受け取る側の、exact型の検査に使う）。
@@ -66,14 +78,21 @@ def create_observed_sample_generator(
             numpy_random_generator=numpy_random_generator,
             concept_count=dataset_definition.concept_count,
         )
-    if generator_type is MnistSampleGenerator:
-        # MNISTは、置いてあるファイルから読んだ学習用データ（processの中で使い回す）を使う。
-        return MnistSampleGenerator(
+    if generator_type in (
+        MnistSampleGenerator,
+        FashionMnistSampleGenerator,
+        RotatedMnistSampleGenerator,
+    ):
+        # MNIST形式の画像は、置き場所ごとに学習用データを読み、processの中で使い回す。
+        training_data = (
+            load_fashion_mnist_training_data(data_directory=resolve_fashion_mnist_data_directory())
+            if generator_type is FashionMnistSampleGenerator
+            else load_mnist_training_data(data_directory=resolve_mnist_data_directory())
+        )
+        return generator_type(
             numpy_random_generator=numpy_random_generator,
             concept_count=dataset_definition.concept_count,
-            mnist_training_data=load_mnist_training_data(
-                data_directory=resolve_mnist_data_directory()
-            ),
+            mnist_training_data=training_data,
         )
     if generator_type is CircleSampleGenerator:
         return CircleSampleGenerator(numpy_random_generator=numpy_random_generator)
@@ -83,7 +102,7 @@ def create_observed_sample_generator(
 
 
 def is_observed_sample_generator_of_dataset(*, sample_generator: object, dataset_name: str) -> bool:
-    """生成器が、そのdatasetのもの（型が一致し、SEAとMNISTなら概念数も一致する）かを返す。"""
+    """生成器の型と、SEA・MNIST形式の画像なら概念数も、そのdatasetと一致するかを返す。"""
     dataset_definition = get_dataset_definition(dataset_name=dataset_name)
     if type(sample_generator) is not _get_generator_type(dataset_name=dataset_name):
         return False

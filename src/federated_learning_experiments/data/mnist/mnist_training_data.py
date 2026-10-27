@@ -1,4 +1,4 @@
-"""置いてあるgzipのIDXファイルから、MNISTの学習用データ（画素と数字のラベル）を読む。取得はしない。"""
+"""置いてあるgzipのIDXファイルから、MNIST・Fashion-MNISTの学習用データを読む。取得はしない。"""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -13,6 +13,7 @@ from numpy import frombuffer, int64, ndarray, uint8
 
 # 置き場所を指定する環境変数（旧実装と同じ名前）。
 _DATA_DIRECTORY_ENVIRONMENT_VARIABLE = "FDE_MNIST_DATA_DIR"
+_FASHION_DATA_DIRECTORY_ENVIRONMENT_VARIABLE = "FDE_FASHION_MNIST_DATA_DIR"
 _IMAGE_FILE_NAME = "train-images-idx3-ubyte.gz"
 _LABEL_FILE_NAME = "train-labels-idx1-ubyte.gz"
 # IDX形式の先頭の、識別の数値。
@@ -24,11 +25,11 @@ _PIXEL_COUNT_PER_IMAGE = 784
 
 @dataclass(frozen=True, kw_only=True, eq=False)
 class MnistTrainingData:
-    """MNISTの学習用データ。配列は書込み不可で、processの中で使い回す。"""
+    """MNIST形式の学習用データ。Fashion-MNISTも同じ型。配列は書込み不可で使い回す。"""
 
     # uint8の画素（件数×784）。float32への変換は、生成器が行う。
     pixel_values: ndarray
-    # 画像の数字（int64、件数）。概念で交換する前のラベル。
+    # 画像のクラス（int64、件数）。概念で交換する前のラベル。
     digit_labels: ndarray
 
     def __post_init__(self) -> None:
@@ -67,34 +68,42 @@ def resolve_mnist_data_directory() -> Path:
     return Path(__file__).resolve().parents[4] / "data" / "mnist"
 
 
-def _read_pixel_values(image_file_path: Path) -> ndarray:
+def resolve_fashion_mnist_data_directory() -> Path:
+    """Fashion-MNISTの環境変数、なければリポジトリ直下の`data/fashion-mnist`を返す。"""
+    configured_directory = environ.get(_FASHION_DATA_DIRECTORY_ENVIRONMENT_VARIABLE)
+    if configured_directory:
+        return Path(configured_directory)
+    return Path(__file__).resolve().parents[4] / "data" / "fashion-mnist"
+
+
+def _read_pixel_values(image_file_path: Path, *, dataset_display_name: str = "MNIST") -> ndarray:
     with open_gzip_file(image_file_path, "rb") as image_stream:
         magic_number, image_count, row_count, column_count = unpack(">IIII", image_stream.read(16))
         if magic_number != _IMAGE_MAGIC_NUMBER:
-            raise ValueError(f"invalid MNIST image magic number: {magic_number}")
+            raise ValueError(f"invalid {dataset_display_name} image magic number: {magic_number}")
         if row_count * column_count != _PIXEL_COUNT_PER_IMAGE:
             raise ValueError(
-                f"MNIST images must have {_PIXEL_COUNT_PER_IMAGE} pixels: {row_count}x{column_count}"
+                f"{dataset_display_name} images must have {_PIXEL_COUNT_PER_IMAGE} pixels: {row_count}x{column_count}"
             )
         pixel_bytes = image_stream.read()
     if len(pixel_bytes) != image_count * _PIXEL_COUNT_PER_IMAGE:
         raise ValueError(
-            "invalid MNIST image payload: "
+            f"invalid {dataset_display_name} image payload: "
             f"expected {image_count * _PIXEL_COUNT_PER_IMAGE} bytes, got {len(pixel_bytes)}"
         )
     # bytesから作った配列は、書込み不可。
     return frombuffer(pixel_bytes, dtype=uint8).reshape(image_count, _PIXEL_COUNT_PER_IMAGE)
 
 
-def _read_digit_labels(label_file_path: Path) -> ndarray:
+def _read_digit_labels(label_file_path: Path, *, dataset_display_name: str = "MNIST") -> ndarray:
     with open_gzip_file(label_file_path, "rb") as label_stream:
         magic_number, label_count = unpack(">II", label_stream.read(8))
         if magic_number != _LABEL_MAGIC_NUMBER:
-            raise ValueError(f"invalid MNIST label magic number: {magic_number}")
+            raise ValueError(f"invalid {dataset_display_name} label magic number: {magic_number}")
         label_bytes = label_stream.read()
     if len(label_bytes) != label_count:
         raise ValueError(
-            f"invalid MNIST label payload: expected {label_count} bytes, got {len(label_bytes)}"
+            f"invalid {dataset_display_name} label payload: expected {label_count} bytes, got {len(label_bytes)}"
         )
     digit_labels = frombuffer(label_bytes, dtype=uint8).astype(int64)
     digit_labels.setflags(write=False)
@@ -102,13 +111,15 @@ def _read_digit_labels(label_file_path: Path) -> ndarray:
 
 
 def _read_file_or_reject_damaged_file(
-    *, read_file: Callable[[Path], ndarray], file_path: Path
+    *, read_file: Callable[[Path], ndarray], file_path: Path, dataset_display_name: str
 ) -> ndarray:
     """ファイルを読む。形式の不正（途中で切れたgzip、gzipでない、先頭の数値に足りない）は、ファイル名つきで拒否する。"""
     try:
         return read_file(file_path)
     except (ValueError, EOFError, BadGzipFile, StructUnpackError) as read_error:
-        raise ValueError(f"invalid MNIST file {file_path.name}: {read_error}") from read_error
+        raise ValueError(
+            f"invalid {dataset_display_name} file {file_path.name}: {read_error}"
+        ) from read_error
 
 
 def load_mnist_training_data(*, data_directory: Path) -> MnistTrainingData:
@@ -116,6 +127,25 @@ def load_mnist_training_data(*, data_directory: Path) -> MnistTrainingData:
 
     ファイルがなければ、取得を試みずに拒否する。
     """
+    return _load_training_data(
+        data_directory=data_directory,
+        dataset_display_name="MNIST",
+        directory_environment_variable=_DATA_DIRECTORY_ENVIRONMENT_VARIABLE,
+    )
+
+
+def load_fashion_mnist_training_data(*, data_directory: Path) -> MnistTrainingData:
+    """Fashion-MNISTをMNISTと同じIDXの検査で読む。取得・MD5の検査は行わない。"""
+    return _load_training_data(
+        data_directory=data_directory,
+        dataset_display_name="Fashion-MNIST",
+        directory_environment_variable=_FASHION_DATA_DIRECTORY_ENVIRONMENT_VARIABLE,
+    )
+
+
+def _load_training_data(
+    *, data_directory: Path, dataset_display_name: str, directory_environment_variable: str
+) -> MnistTrainingData:
     if not isinstance(data_directory, Path):
         raise TypeError("data_directory must be pathlib.Path")
     resolved_directory = data_directory.resolve()
@@ -128,19 +158,23 @@ def load_mnist_training_data(*, data_directory: Path) -> MnistTrainingData:
     ]
     if missing_file_names:
         raise FileNotFoundError(
-            f"MNIST files are missing in {resolved_directory}: {', '.join(missing_file_names)}. "
-            f"Place them there, or set {_DATA_DIRECTORY_ENVIRONMENT_VARIABLE} to the directory "
+            f"{dataset_display_name} files are missing in {resolved_directory}: {', '.join(missing_file_names)}. "
+            f"Place them there, or set {directory_environment_variable} to the directory "
             "that holds them (this implementation does not download them)."
         )
     pixel_values = _read_file_or_reject_damaged_file(
-        read_file=_read_pixel_values, file_path=resolved_directory / _IMAGE_FILE_NAME
+        read_file=lambda path: _read_pixel_values(path, dataset_display_name=dataset_display_name),
+        file_path=resolved_directory / _IMAGE_FILE_NAME,
+        dataset_display_name=dataset_display_name,
     )
     digit_labels = _read_file_or_reject_damaged_file(
-        read_file=_read_digit_labels, file_path=resolved_directory / _LABEL_FILE_NAME
+        read_file=lambda path: _read_digit_labels(path, dataset_display_name=dataset_display_name),
+        file_path=resolved_directory / _LABEL_FILE_NAME,
+        dataset_display_name=dataset_display_name,
     )
     if len(pixel_values) != len(digit_labels):
         raise ValueError(
-            f"MNIST image and label counts differ: {len(pixel_values)} and {len(digit_labels)}"
+            f"{dataset_display_name} image and label counts differ: {len(pixel_values)} and {len(digit_labels)}"
         )
     mnist_training_data = MnistTrainingData(pixel_values=pixel_values, digit_labels=digit_labels)
     _LOADED_TRAINING_DATA_BY_DIRECTORY[resolved_directory] = mnist_training_data

@@ -84,7 +84,14 @@ def build_default_fedavg_run_settings(
     if type(experiment_run_conditions) is not ExperimentRunConditions:
         raise TypeError("exact実行条件が必要です。")
     experiment_run_conditions.__post_init__()
-    mnist = experiment_run_conditions.dataset_name.startswith("mnist")
+    mnist = experiment_run_conditions.dataset_name in (
+        "mnist2",
+        "mnist4",
+        "fmnist2",
+        "fmnist4",
+        "rotmnist2",
+        "rotmnist4",
+    )
     return FedavgRunSettings(
         execution_settings=StreamProtocolExecutionSettings(
             experiment_run_conditions=experiment_run_conditions,

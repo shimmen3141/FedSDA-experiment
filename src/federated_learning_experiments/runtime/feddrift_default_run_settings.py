@@ -32,6 +32,10 @@ _LOSS_INCREASE_THRESHOLDS_BY_DATASET = {
     "circle2": 0.10,
     "mnist2": 0.10,
     "mnist4": 0.10,
+    "fmnist2": 0.10,
+    "fmnist4": 0.10,
+    "rotmnist2": 0.10,
+    "rotmnist4": 0.10,
 }
 
 _MODEL_DEFAULTS_BY_DATASET = {
@@ -41,6 +45,10 @@ _MODEL_DEFAULTS_BY_DATASET = {
     "circle2": ((32, 32), 0.01),
     "mnist2": ((1568,), 0.001),
     "mnist4": ((1568,), 0.001),
+    "fmnist2": ((1568,), 0.001),
+    "fmnist4": ((1568,), 0.001),
+    "rotmnist2": ((1568,), 0.001),
+    "rotmnist4": ((1568,), 0.001),
 }
 
 

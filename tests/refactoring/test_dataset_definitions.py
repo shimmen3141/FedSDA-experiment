@@ -17,11 +17,11 @@ DATASET_NAMES = ("sine2", "sea2", "sea4", "circle2", "mnist2", "mnist4")
 
 
 def test_defined_dataset_names_are_all_datasets_except_blobs():
-    """定義のあるdatasetは、実旧のdatasetのうち、blobs以外の全部（定義した順）。実行条件が受け取る名前と同じ。"""
+    """既存6データの定義順を保って4データを足し、実行条件が受け取る名前と一致する。"""
     from federated_drift_experiment.data.specs import DATASET_SPECS
 
-    assert DEFINED_DATASET_NAMES == DATASET_NAMES
-    assert set(DEFINED_DATASET_NAMES) == set(DATASET_SPECS) - {"blobs"}
+    assert DEFINED_DATASET_NAMES == (*DATASET_NAMES, "fmnist2", "fmnist4", "rotmnist2", "rotmnist4")
+    assert set(DATASET_NAMES) == set(DATASET_SPECS) - {"blobs"}
     dataset_name_field = next(
         settings_field
         for settings_field in fields(ExperimentRunConditions)

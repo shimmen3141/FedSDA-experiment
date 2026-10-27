@@ -66,17 +66,37 @@ def borrow_legacy_numpy_random_generator(monkeypatch, legacy_numpy_random_genera
     )
 
 
-def test_expected_generator_types_cover_all_defined_datasets():
+def test_expected_generator_types_cover_all_defined_datasets(tmp_path, monkeypatch):
     """定義のある全datasetに生成器があり、検査用の型の一覧と一致する。"""
     from federated_learning_experiments.data.dataset_definitions import (
         DEFINED_DATASET_NAMES as ALL_DEFINED_DATASET_NAMES,
     )
+    from federated_learning_experiments.data.mnist.fashion_mnist_sample_generation import (
+        FashionMnistSampleGenerator,
+    )
+    from federated_learning_experiments.data.mnist.rotated_mnist_sample_generation import (
+        RotatedMnistSampleGenerator,
+    )
+    from tests.refactoring.test_mnist_sample_generation import make_pixel_rows, write_mnist_files
+
+    write_mnist_files(tmp_path, pixel_rows=make_pixel_rows(1), digit_labels=[0])
+    monkeypatch.setenv("FDE_FASHION_MNIST_DATA_DIR", str(tmp_path))
 
     assert tuple(EXPECTED_GENERATOR_TYPE_BY_DATASET_NAME) == DEFINED_DATASET_NAMES
-    assert ALL_DEFINED_DATASET_NAMES == (*DEFINED_DATASET_NAMES, "mnist2", "mnist4")
+    assert ALL_DEFINED_DATASET_NAMES == (
+        *DEFINED_DATASET_NAMES,
+        "mnist2",
+        "mnist4",
+        "fmnist2",
+        "fmnist4",
+        "rotmnist2",
+        "rotmnist4",
+    )
     assert set(OBSERVED_SAMPLE_GENERATOR_TYPES) == {
         *EXPECTED_GENERATOR_TYPE_BY_DATASET_NAME.values(),
         MnistSampleGenerator,
+        FashionMnistSampleGenerator,
+        RotatedMnistSampleGenerator,
     }
     assert all(
         type(

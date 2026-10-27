@@ -230,7 +230,14 @@ def make_experiment_run_conditions(dataset_name, legacy_values):
     )
 
 
-@pytest.mark.parametrize("dataset_name", DEFINED_DATASET_NAMES)
+@pytest.mark.parametrize(
+    "dataset_name",
+    [
+        name
+        for name in DEFINED_DATASET_NAMES
+        if name in ("sine2", "sea2", "sea4", "circle2", "mnist2", "mnist4")
+    ],
+)
 def test_final_configuration_defaults_match_legacy_configuration(
     dataset_name, valid_run_settings_mapping
 ):

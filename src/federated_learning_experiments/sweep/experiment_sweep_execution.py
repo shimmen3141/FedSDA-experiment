@@ -297,7 +297,14 @@ def _estimate_run_cost(planned_run: PlannedExperimentRun) -> tuple[int, int, int
     experiment_run_conditions = (
         planned_run.run_settings.execution_settings.experiment_run_conditions
     )
-    dataset_cost = {"mnist4": 2, "mnist2": 1}.get(experiment_run_conditions.dataset_name, 0)
+    dataset_cost = {
+        "mnist4": 2,
+        "mnist2": 1,
+        "fmnist4": 2,
+        "fmnist2": 1,
+        "rotmnist4": 2,
+        "rotmnist2": 1,
+    }.get(experiment_run_conditions.dataset_name, 0)
     return (
         dataset_cost,
         experiment_run_conditions.client_count * experiment_run_conditions.per_client_sample_count,

@@ -13,7 +13,18 @@ class ExperimentRunConditions:
 
     dataset_name: str = field(
         metadata={
-            "allowed_parameter_values": ("sine2", "sea2", "sea4", "circle2", "mnist2", "mnist4")
+            "allowed_parameter_values": (
+                "sine2",
+                "sea2",
+                "sea4",
+                "circle2",
+                "mnist2",
+                "mnist4",
+                "fmnist2",
+                "fmnist4",
+                "rotmnist2",
+                "rotmnist4",
+            )
         },
     )
     random_seed: int = field(

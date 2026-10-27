@@ -23,9 +23,12 @@ runごとの結果と、一覧の表を保存する。旧実装の`run_pareto_sw
 
 - Pythonの環境（リポジトリの`.venv`ほか。torchとNumPyが入っていること）を有効にする。
 - packageのinstallや、`PYTHONPATH`の設定は、要らない。リポジトリの直下の`run_experiment_sweep.py`を実行する。
-- MNIST（`mnist2`・`mnist4`）を使うときは、`train-images-idx3-ubyte.gz`と`train-labels-idx1-ubyte.gz`を、
+- MNIST（`mnist2`・`mnist4`・`rotmnist2`・`rotmnist4`）を使うときは、`train-images-idx3-ubyte.gz`と`train-labels-idx1-ubyte.gz`を、
   リポジトリ直下の`data/mnist/`へ置く（別の場所なら、環境変数`FDE_MNIST_DATA_DIR`で指定する）。
   コマンドは、ファイルを取得しない。置かれていなければ、runを始める前に、置き場所を示して止まる。
+- Fashion-MNIST（`fmnist2`・`fmnist4`）は、同名の学習用IDXファイルを`data/fashion-mnist/`へ置く
+  （別の場所なら`FDE_FASHION_MNIST_DATA_DIR`）。[定義・根拠と取得後のMD5照合の手順](dataset-characteristics.md#fashion-mnistの配置)に従う。
+  4データの概念・先行実装との差も[データ特性](dataset-characteristics.md#fashion-mnistのラベルの入れ替えとmnistの回転)を参照する。
 
 ## 実行
 
@@ -42,7 +45,7 @@ python run_experiment_sweep.py \
 | 引数 | 内容 | 既定 |
 |---|---|---|
 | `--configurations` | 実験の構成の名前（複数可。下の「構成」） | `fedsda`（提案構成） |
-| `--datasets` | datasetの名前（複数可）。`sine2`・`sea2`・`sea4`・`circle2`・`mnist2`・`mnist4` | 必須 |
+| `--datasets` | datasetの名前（複数可）。`sine2`・`sea2`・`sea4`・`circle2`・`mnist2`・`mnist4`・`fmnist2`・`fmnist4`・`rotmnist2`・`rotmnist4` | 必須 |
 | `--seeds` | 乱数のseed。列挙・両端込みの範囲・混在が可能（下記） | 必須 |
 | `--aggregation-intervals` | サーバの集約の間隔（clientあたりの標本数。複数可） | 必須 |
 | `--client-count` | clientの数 | 10 |
@@ -58,7 +61,7 @@ python run_experiment_sweep.py \
 | `--new-output` | 同条件の過去掃引を再開せず、新しい保存先で実行する（`--output-directory`とは併用不可） | — |
 
 - 長い実験はtmux内で実行する。uraniumは256コア・標準`--workers 64`。手元16コア向けの14という目安と区別する。環境別の現行条件は[steeringのtech.md](../../.kiro/steering/tech.md)を参照する。下の14 workerの例をサーバの上限と解釈しない。
-- 終了コード: 0＝全部のrunが、済んだか、飛ばされた。1＝失敗したrunがある、または、出力先に、読めない要約がある。2＝引数や計画が不正、または、MNISTのファイルがない。
+- 終了コード: 0＝全部のrunが、済んだか、飛ばされた。1＝失敗したrunがある、または、出力先に、読めない要約がある。2＝引数や計画が不正、または、MNIST・Fashion-MNISTのファイルがない。
 - scriptは、`OMP_NUM_THREADS`・`MKL_NUM_THREADS`・`OPENBLAS_NUM_THREADS`を、未設定なら1にする（設定されている値は、変えない。結果を再現するには、1のままにする）。
 
 ## 結果の置き場所、README、台帳
@@ -209,7 +212,7 @@ python compare_sweep_results_with_legacy.py \
 python run_experiment_sweep.py --configurations fedsda feddrift --datasets sine2 --seeds 0 1 --client-count 10 --per-client-sample-count 5000 --aggregation-intervals 50 --feddrift-loss-increase-thresholds 0.05 0.1 --workers 14 --study fedsda-vs-feddrift --label threshold --purpose "FedDriftの損失増分閾値を替えて、FedSDAと比べる"
 ```
 
-この例はFedSDA 2 run、FedDrift 4 run。同じdataset・seed・規模・間隔で比較し、閾値軸はFedSDAを複製しない。FedDriftのRは既定1で、client/serverの閾値を同時に設定する。対応datasetはsine2・sea2・sea4・circle2・mnist2・mnist4。MNISTのファイルを配置する手順は既存と同じ。
+この例はFedSDA 2 run、FedDrift 4 run。同じdataset・seed・規模・間隔で比較し、閾値軸はFedSDAを複製しない。FedDriftのRは既定1で、client/serverの閾値を同時に設定する。対応datasetは上の`--datasets`の10データで共通。新しい4データのδの既定はMNISTと同じ0.10（新データ固有の公式値ではない）。画像の配置は上の手順に従う。
 
 保存先は`<出力先>/feddrift/runs/`。要約JSONは完全条件と共通指標、NPZは記録表。`feddrift/run_summary.csv`は検出バッチ件数と損失増分閾値も含む。再実行は同じ条件の結果を飛ばし、破損・片方だけ・手法/条件不一致は上書きせず失敗とする。
 

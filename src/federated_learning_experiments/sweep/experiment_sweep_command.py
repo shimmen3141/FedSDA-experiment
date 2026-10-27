@@ -23,7 +23,9 @@ from federated_learning_experiments.core.run_provenance import (
     RunProvenance,
 )
 from federated_learning_experiments.data.mnist.mnist_training_data import (
+    load_fashion_mnist_training_data,
     load_mnist_training_data,
+    resolve_fashion_mnist_data_directory,
     resolve_mnist_data_directory,
 )
 from federated_learning_experiments.sweep.experiment_configurations import (
@@ -58,7 +60,6 @@ from federated_learning_experiments.sweep.seed_argument_parsing import SeedListA
 # リポジトリの直下（このファイルは、`src/federated_learning_experiments/sweep/`にある）。
 _REPOSITORY_DIRECTORY = Path(__file__).resolve().parents[3]
 _DEFAULT_RESULT_DIRECTORY_NAME = "results"
-_MNIST_DATASET_NAME_PREFIX = "mnist"
 # ディレクトリの区切りと、Windowsでファイル名に使えない文字。
 _DIRECTORY_NAME_SEPARATORS = ("/", "\\", ":", "*", "?", '"', "<", ">", "|")
 
@@ -417,17 +418,29 @@ def main(command_arguments: Sequence[str] | None = None) -> int:
             )
         return 0
 
-    if any(
-        dataset_name.startswith(_MNIST_DATASET_NAME_PREFIX)
-        for dataset_name in sweep_plan.dataset_names
+    for dataset_names, display_name, load_training_data, resolve_data_directory in (
+        (
+            ("mnist2", "mnist4", "rotmnist2", "rotmnist4"),
+            "MNIST",
+            load_mnist_training_data,
+            resolve_mnist_data_directory,
+        ),
+        (
+            ("fmnist2", "fmnist4"),
+            "Fashion-MNIST",
+            load_fashion_mnist_training_data,
+            resolve_fashion_mnist_data_directory,
+        ),
     ):
-        # MNISTのファイルは、取得しない。置かれていなければ、runを始める前に止まる。
+        if not any(dataset_name in dataset_names for dataset_name in sweep_plan.dataset_names):
+            continue
+        # 画像のファイルは、取得しない。置かれていなければ、runを始める前に止まる。
         try:
-            load_mnist_training_data(data_directory=resolve_mnist_data_directory())
+            load_training_data(data_directory=resolve_data_directory())
         except (OSError, ValueError) as caught_exception:
             return _report_usage_error(
                 argument_parser=argument_parser,
-                error_message=f"MNIST data is not available: {caught_exception}",
+                error_message=f"{display_name} data is not available: {caught_exception}",
             )
 
     # 要約と実行の記録に、同じ来歴を書く（gitの取り直しで、ずれないように）。
