@@ -1,0 +1,331 @@
+"""手法比較の累積精度と上下通信量を、seed間の95%信頼区間付きで描く。
+
+例: python -m tools.research_method_pareto_figure --series "FedSDA=results/study:fedsda"
+    --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 --output results/figures/methods
+補足図は調整用seedの取得済みrunを全て使う。未完了のδもseed数と共にCSVへ残す。
+"""
+
+import argparse
+import csv
+import math
+import sys
+import warnings
+from collections import defaultdict
+from functools import cache
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import mpmath
+import numpy as np
+from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
+
+from tools.research_feddrift_delta_comparison import _read_runs
+
+_COLORS = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4")
+_MARKERS = ("o", "s", "^", "D", "v")
+
+
+@cache
+def _t_critical_95(degrees_of_freedom):
+    # 固定venvのmpmathを使う。正のtの上側確率は I_(ν/(ν+t²))(ν/2, 1/2) / 2。
+    # 自由度1の97.5百分位も16未満なので、この範囲で二分探索する。
+    low, high = 0.0, 16.0
+    for _ in range(60):
+        middle = (low + high) / 2
+        x = degrees_of_freedom / (degrees_of_freedom + middle * middle)
+        tail = float(mpmath.betainc(degrees_of_freedom / 2, 0.5, 0, x, regularized=True)) / 2
+        if tail > 0.025:
+            low = middle
+        else:
+            high = middle
+    return (low + high) / 2
+
+
+def _parse_series(item):
+    try:
+        label, source = item.split("=", 1)
+        root, configuration = source.rsplit(":", 1)
+    except ValueError as error:
+        raise ValueError(f"表示名=ディレクトリ:構成で指定してください: {item}") from error
+    if not label.strip() or not root.strip() or not configuration.strip():
+        raise ValueError(f"表示名・ディレクトリ・構成は空にできません: {item}")
+    return label, root, configuration
+
+
+def _collect_cells(items, datasets, intervals, *, frontier=False):
+    cells = {}
+    for item in items:
+        label, root, configuration = _parse_series(item)
+        if label in cells:
+            raise ValueError(f"表示名が重複しています: {label}")
+        groups = defaultdict(dict)
+        runs = _read_runs(root, configuration_filter=configuration, include_computation=False)
+        for (_, dataset, interval, seed, delta), run in runs.items():
+            if (datasets is not None and dataset not in datasets) or interval not in intervals:
+                continue
+            key = (dataset, interval, delta if frontier else None)
+            if seed in groups[key]:
+                raise ValueError(
+                    f"同じデータ・間隔・seedのrunが2つあります（δの混在を含む）: {label} {key} {seed}"
+                )
+            accuracy = run["accuracy"]
+            upload, download = float(run["upload"]), float(run["download"])
+            if not math.isfinite(accuracy) or not 0 <= accuracy <= 100:
+                raise ValueError(f"精度が不正です: {label} {key} {seed}")
+            if (
+                not all(math.isfinite(v) and v >= 0 for v in (upload, download))
+                or upload + download <= 0
+            ):
+                raise ValueError(f"対数軸に描ける正の通信量が必要です: {label} {key} {seed}")
+            if delta is not None and not math.isfinite(float(delta)):
+                raise ValueError(f"δが不正です: {label} {key} {seed}")
+            groups[key][seed] = dict(run, delta=delta)
+        if not groups:
+            raise ValueError(f"対象のrunがありません: {label} {root}:{configuration}")
+        cells[label] = (configuration, groups)
+    return cells
+
+
+def _summarize(cells, datasets, intervals, *, frontier=False):
+    rows = []
+    for label, (configuration, groups) in cells.items():
+        for dataset in datasets:
+            for interval in intervals:
+                keys = [key for key in groups if key[:2] == (dataset, interval)]
+                if not keys:
+                    raise ValueError(f"対象のrunがありません: {label} {dataset} 間隔{interval}")
+                for key in sorted(keys, key=lambda key: (key[2] is not None, key[2])):
+                    seeds = sorted(groups[key])
+                    runs = [groups[key][seed] for seed in seeds]
+                    accuracies = [run["accuracy"] for run in runs]
+                    count = len(seeds)
+                    half_width = (
+                        float(
+                            _t_critical_95(count - 1) * np.std(accuracies, ddof=1) / np.sqrt(count)
+                        )
+                        if count > 1
+                        else None
+                    )
+                    deltas = {run["delta"] for run in runs}
+                    delta = (
+                        next(iter(deltas))
+                        if configuration == "feddrift" and len(deltas) == 1
+                        else None
+                    )
+                    rows.append(
+                        dict(
+                            kind="frontier" if frontier else "series",
+                            series=label,
+                            configuration=configuration,
+                            dataset=dataset,
+                            interval=interval,
+                            seed_count=count,
+                            seeds=" ".join(map(str, seeds)),
+                            mean_accuracy_percent=float(np.mean(accuracies)),
+                            accuracy_ci95_half_width_pp=half_width,
+                            mean_communication_byte=float(
+                                np.mean([r["upload"] + r["download"] for r in runs])
+                            ),
+                            delta=delta,
+                            is_nondominated=None,
+                        )
+                    )
+    return rows
+
+
+def _check_seeds(cells, datasets, intervals, allow_different):
+    for dataset in datasets:
+        for interval in intervals:
+            seed_sets = {
+                label: sorted(groups.get((dataset, interval, None), {}))
+                for label, (_, groups) in cells.items()
+            }
+            if len({tuple(seeds) for seeds in seed_sets.values()}) > 1:
+                message = f"系列間のseedがそろっていません: {dataset} 間隔{interval} {seed_sets}"
+                if not allow_different:
+                    raise ValueError(message)
+                warnings.warn(message, stacklevel=2)
+
+
+def _mark_frontier(rows):
+    # 同値の点は両方残す。一方の軸で厳密に良い場合だけ支配とする。
+    for row in rows:
+        row["is_nondominated"] = not any(
+            other["dataset"] == row["dataset"]
+            and other["mean_communication_byte"] <= row["mean_communication_byte"]
+            and other["mean_accuracy_percent"] >= row["mean_accuracy_percent"]
+            and (
+                other["mean_communication_byte"] < row["mean_communication_byte"]
+                or other["mean_accuracy_percent"] > row["mean_accuracy_percent"]
+            )
+            for other in rows
+        )
+
+
+def _draw(rows, datasets, labels, prefix, frontier_rows=()):
+    columns = min(3, len(datasets))
+    row_count = math.ceil(len(datasets) / columns)
+    with plt.rc_context(
+        {
+            "font.size": 10,
+            "text.color": "black",
+            "axes.labelcolor": "black",
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
+        }
+    ):
+        figure, axes = plt.subplots(
+            row_count, columns, figsize=(4.1 * columns, 3.2 * row_count), squeeze=False
+        )
+        handles = []
+        try:
+            for index, (axis, dataset) in enumerate(zip(axes.flat, datasets)):
+                background = [row for row in frontier_rows if row["dataset"] == dataset]
+                if background:
+                    axis.scatter(
+                        [r["mean_communication_byte"] / 1e6 for r in background],
+                        [r["mean_accuracy_percent"] for r in background],
+                        color="0.75",
+                        s=13,
+                        alpha=0.55,
+                        zorder=1,
+                    )
+                    frontier = sorted(
+                        (r for r in background if r["is_nondominated"]),
+                        key=lambda r: r["mean_communication_byte"],
+                    )
+                    axis.plot(
+                        [r["mean_communication_byte"] / 1e6 for r in frontier],
+                        [r["mean_accuracy_percent"] for r in frontier],
+                        color="0.4",
+                        linewidth=1.2,
+                        zorder=2,
+                    )
+                for series_index, label in enumerate(labels):
+                    points = [r for r in rows if r["dataset"] == dataset and r["series"] == label]
+                    x = [r["mean_communication_byte"] / 1e6 for r in points]
+                    y = [r["mean_accuracy_percent"] for r in points]
+                    errors = [
+                        r["accuracy_ci95_half_width_pp"]
+                        if r["accuracy_ci95_half_width_pp"] is not None
+                        else float("nan")
+                        for r in points
+                    ]
+                    handle = axis.errorbar(
+                        x,
+                        y,
+                        yerr=errors,
+                        label=label,
+                        color=_COLORS[series_index],
+                        marker=_MARKERS[series_index],
+                        linewidth=1.5,
+                        markersize=6.5,
+                        capsize=3,
+                        zorder=3,
+                    )
+                    if index == 0:
+                        handles.append(handle)
+                    if series_index == 0:
+                        for px, py, point in zip(x, y, points):
+                            axis.annotate(
+                                str(point["interval"]),
+                                (px, py),
+                                xytext=(6, 5),
+                                textcoords="offset points",
+                                fontsize=8,
+                                color="0.25",
+                            )
+                axis.set_title(dataset.upper())
+                axis.set_xscale("log")
+                axis.xaxis.set_major_locator(LogLocator(base=10, subs=(1, 2, 5)))
+                axis.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}"))
+                axis.xaxis.set_minor_formatter(NullFormatter())
+                axis.set_xlabel("Communication (upload + download, MB)")
+                axis.set_ylabel("Cumulative accuracy (%)")
+                axis.grid(True, color="0.9", linewidth=0.5)
+                axis.margins(x=0.18, y=0.22)
+            for axis in list(axes.flat)[len(datasets) :]:
+                axis.set_visible(False)
+            legend_labels = list(labels)
+            if frontier_rows:
+                from matplotlib.lines import Line2D
+
+                handles.append(Line2D([], [], marker="o", color="0.4", markersize=3, linewidth=1.2))
+                legend_labels.append(" / ".join(dict.fromkeys(r["series"] for r in frontier_rows)))
+            legend_columns = min(3, len(handles))
+            legend_height = 0.32 * math.ceil(len(handles) / legend_columns)
+            figure.legend(
+                handles, legend_labels, loc="lower center", ncol=legend_columns, frameon=False
+            )
+            figure.tight_layout(rect=(0, legend_height / figure.get_figheight(), 1, 1))
+            for extension in ("pdf", "png"):
+                # 排他的に作り、事前確認後に作られた既存ファイルも上書きしない。
+                with Path(f"{prefix}.{extension}").open("xb") as stream:
+                    figure.savefig(stream, format=extension, dpi=300, bbox_inches="tight")
+        finally:
+            plt.close(figure)
+
+
+def _write_csv(path, rows):
+    with path.open("x", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def main(command_arguments=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--series", action="append", required=True)
+    parser.add_argument("--frontier", action="append", default=[])
+    parser.add_argument("--datasets", nargs="+", help="対象と並び（省略時は主図のデータを名前順）")
+    parser.add_argument("--intervals", nargs="+", type=int, default=[50, 100, 200, 500])
+    parser.add_argument("--allow-different-seeds", action="store_true")
+    parser.add_argument("--output", required=True, help="拡張子なしの出力prefix")
+    arguments = parser.parse_args(command_arguments)
+    try:
+        if len(arguments.series) > len(_COLORS):
+            raise ValueError("主図は5系列までです")
+        if len(set(arguments.intervals)) != len(arguments.intervals) or any(
+            i <= 0 for i in arguments.intervals
+        ):
+            raise ValueError("間隔は重複のない正の整数にしてください")
+        cells = _collect_cells(arguments.series, arguments.datasets, arguments.intervals)
+        datasets = arguments.datasets or sorted(
+            {key[0] for _, groups in cells.values() for key in groups}
+        )
+        if len(set(datasets)) != len(datasets):
+            raise ValueError("データの指定が重複しています")
+        rows = _summarize(cells, datasets, arguments.intervals)
+        _check_seeds(cells, datasets, arguments.intervals, arguments.allow_different_seeds)
+        frontier_rows = []
+        if arguments.frontier:
+            frontier_cells = _collect_cells(
+                arguments.frontier, datasets, arguments.intervals, frontier=True
+            )
+            frontier_rows = _summarize(frontier_cells, datasets, arguments.intervals, frontier=True)
+            _mark_frontier(frontier_rows)
+        prefix = Path(arguments.output)
+        prefixes = [prefix] + ([Path(f"{prefix}-frontier")] if frontier_rows else [])
+        for destination in prefixes:
+            for extension in ("pdf", "png", "csv"):
+                path = Path(f"{destination}.{extension}")
+                if path.exists():
+                    raise ValueError(f"既存のファイルは上書きしません: {path}")
+        prefix.parent.mkdir(parents=True, exist_ok=True)
+        _draw(rows, datasets, list(cells), prefix)
+        _write_csv(Path(f"{prefix}.csv"), rows)
+        if frontier_rows:
+            _draw(rows, datasets, list(cells), prefixes[1], frontier_rows)
+            _write_csv(Path(f"{prefixes[1]}.csv"), rows + frontier_rows)
+        print(f"出力: {', '.join(map(str, prefixes))} (.pdf, .png, .csv)")
+        return 0
+    except (ValueError, KeyError, OSError, IndexError, TypeError) as error:
+        print(str(error), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

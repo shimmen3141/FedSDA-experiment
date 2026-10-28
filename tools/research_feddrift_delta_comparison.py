@@ -28,14 +28,18 @@ def _run_key(path):
     return dataset, interval, seed
 
 
-def _read_runs(root):
+def _read_runs(root, *, configuration_filter=None, include_computation=True):
     """`<root>/**/<構成>/runs/*.json`の要約を読む。同じ（構成、データ、間隔、seed、δ）が2つあれば止める。"""
     runs = {}
     for path in glob.glob(f"{root}/**/runs/*.json", recursive=True):
         configuration = Path(path).parent.parent.name
+        if configuration_filter is not None and configuration != configuration_filter:
+            continue
         summary = json.loads(Path(path).read_text(encoding="utf-8"))
-        client_settings = summary["run_settings"].get("run_participant_settings", {}).get(
-            "run_client_settings", {}
+        client_settings = (
+            summary["run_settings"]
+            .get("run_participant_settings", {})
+            .get("run_client_settings", {})
         )
         delta = client_settings.get("loss_increase_threshold")
         key = (configuration, *_run_key(path), delta)
@@ -43,14 +47,17 @@ def _read_runs(root):
             raise ValueError(f"同じrunが2つあります: {key}")
         metrics = summary["run_metrics"]
         communication = metrics["communication_volume"]
-        computation = metrics["computation_cost_summary"]
         runs[key] = dict(
             accuracy=100 * float(metrics["prediction_accuracy"]),
             upload=communication["uploaded_byte_count"],
             download=communication["downloaded_byte_count"],
-            client_mac=computation["client_forward_multiply_accumulate_count"]
-            + computation["client_estimated_backward_multiply_accumulate_count"],
         )
+        if include_computation:
+            computation = metrics["computation_cost_summary"]
+            runs[key]["client_mac"] = (
+                computation["client_forward_multiply_accumulate_count"]
+                + computation["client_estimated_backward_multiply_accumulate_count"]
+            )
     return runs
 
 
@@ -72,11 +79,15 @@ def select(arguments):
         expected = sorted(arguments.tuning_seeds)
         incomplete = {delta: seeds for delta, seeds in seed_sets.items() if seeds != expected}
         if incomplete and not arguments.exclude_incomplete_deltas:
-            raise ValueError(f"{dataset}・間隔{interval}で調整用のseedがそろっていません: {incomplete}")
+            raise ValueError(
+                f"{dataset}・間隔{interval}で調整用のseedがそろっていません: {incomplete}"
+            )
         complete = {delta: values for delta, values in by_delta.items() if delta not in incomplete}
         if not complete:
             raise ValueError(f"{dataset}・間隔{interval}で調整用のseedがそろったδがありません")
-        accuracies = {delta: [run["accuracy"] for _, run in values] for delta, values in complete.items()}
+        accuracies = {
+            delta: [run["accuracy"] for _, run in values] for delta, values in complete.items()
+        }
         means = {delta: float(np.mean(values)) for delta, values in accuracies.items()}
         communications = {
             delta: float(np.mean([(run["upload"] + run["download"]) / 1e6 for _, run in values]))
@@ -87,7 +98,9 @@ def select(arguments):
         # 幅: 最良の精度のδの、seed間の標準誤差の倍数か、固定のpp（指定が無ければ0で、最良の精度のδ）。
         if arguments.tolerance_standard_errors is not None:
             values = accuracies[best_delta]
-            standard_error = float(np.std(values, ddof=1) / np.sqrt(len(values))) if len(values) > 1 else 0.0
+            standard_error = (
+                float(np.std(values, ddof=1) / np.sqrt(len(values))) if len(values) > 1 else 0.0
+            )
             tolerance = arguments.tolerance_standard_errors * standard_error
         else:
             tolerance = arguments.tolerance_pp
@@ -124,7 +137,9 @@ def select(arguments):
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
-    print("|データ|間隔|選んだδ|平均精度%|平均通信MB|精度最良のδ|平均精度%|平均通信MB|幅pp|欠けて外したδ|")
+    print(
+        "|データ|間隔|選んだδ|平均精度%|平均通信MB|精度最良のδ|平均精度%|平均通信MB|幅pp|欠けて外したδ|"
+    )
     print("|---|---:|---:|---:|---:|---:|---:|---:|---:|---|")
     for row in rows:
         print(
@@ -174,7 +189,9 @@ def compare(arguments):
                 continue
             method = f"{name}/{configuration}"
             if seed in cells[(method, dataset, interval)]:
-                raise ValueError(f"同じ手法・条件・seedが2つあります: {method} {dataset} {interval} {seed}")
+                raise ValueError(
+                    f"同じ手法・条件・seedが2つあります: {method} {dataset} {interval} {seed}"
+                )
             cells[(method, dataset, interval)][seed] = run
     methods = sorted({key[0] for key in cells})
     if arguments.reference not in methods:
@@ -238,7 +255,9 @@ def main(command_arguments=None):
     choose.add_argument("--tuning-root", required=True)
     choose.add_argument("--tuning-seeds", nargs="+", type=int, default=[100, 101, 102])
     choose.add_argument("--output", required=True)
-    choose.add_argument("--deltas", nargs="+", type=float, help="調整したδの格子（runが1つも無いδも欠けとして扱う）")
+    choose.add_argument(
+        "--deltas", nargs="+", type=float, help="調整したδの格子（runが1つも無いδも欠けとして扱う）"
+    )
     choose.add_argument(
         "--exclude-incomplete-deltas",
         action="store_true",
