@@ -40,8 +40,7 @@ RECORDING_ORACLE_CASES = (
     ("alarm_change_interval_too_short", "current_model_maintained", 2),
     ("alarm_interval_held_model_reused", "other_model_reused", 3),
     ("alarm_interval_current_model_maintained", "current_model_maintained", 99),
-    ("alarm_interval_candidate_validation_started", "no_model_fits", 3),
-    ("alarm_during_candidate_validation", "no_model_fits", 3),
+    ("alarm_interval_candidate_adopted_as_new_model", "no_model_fits", 3),
 )
 
 
@@ -51,7 +50,6 @@ def build_completed_recording_oracle(
     valid_run_settings_mapping,
     class_count=2,
     recording_oracle_case=RECORDING_ORACLE_CASES[1],
-    with_candidate_validation=True,
 ):
     """上流の応答・完了を呼出側で実行し、記録境界には完成した値だけを渡す。"""
     (
@@ -74,12 +72,9 @@ def build_completed_recording_oracle(
         earlier_sample_count=0,
         estimated_change_span_sample_count=estimated_change_span_sample_count,
     )
-    if not with_candidate_validation:
-        use_immediate_candidate_adoption(
-            monkeypatch, response_arguments, resolution_arguments, legacy_client=legacy_client
-        )
-        if expected_response_outcome == "alarm_interval_candidate_validation_started":
-            expected_response_outcome = "alarm_interval_candidate_adopted_as_new_model"
+    use_immediate_candidate_adoption(
+        monkeypatch, response_arguments, resolution_arguments, legacy_client=legacy_client
+    )
     initial_torch_random_state = torch.get_rng_state().clone()
     legacy_result = run_legacy_alarm_with_real_completion(
         response_arguments=response_arguments,
@@ -91,24 +86,6 @@ def build_completed_recording_oracle(
         alarm_buffer_response=respond_to_alarm_with_buffered_samples(**response_arguments),
         **completion_arguments,
     )
-    if expected_response_outcome == "alarm_during_candidate_validation":
-        # 実際に開始したsessionを次の警報へ渡す。保留位置を消費後の同じ位置も許容される。
-        response_arguments.update(
-            pending_sample_observations=(),
-            estimated_change_point_sample_index=response_arguments["proposal_sample_index"],
-        )
-        completion_arguments["estimated_change_point_sample_index"] = response_arguments[
-            "proposal_sample_index"
-        ]
-        legacy_result = run_legacy_alarm_with_real_completion(
-            response_arguments=response_arguments,
-            legacy_client=legacy_client,
-            monkeypatch=monkeypatch,
-        )
-        alarm_response_completion = complete_alarm_buffer_response(
-            alarm_buffer_response=respond_to_alarm_with_buffered_samples(**response_arguments),
-            **completion_arguments,
-        )
     assert type(alarm_response_completion) is AlarmResponseCompletion
     assert (
         alarm_response_completion.alarm_buffer_response.response_outcome
@@ -151,7 +128,7 @@ def assert_recording_preserves_upstream_state(
     shared_optimizer_owners,
     recording_operation,
 ):
-    """監視/FIFO/帰属/標本/モデル/optimizer/乱数/sessionを記録前後で照合する。"""
+    """監視/FIFO/帰属/標本/モデル/optimizer/乱数を記録前後で照合する。"""
     upstream_state_snapshot = snapshot_alarm_change_interval_resolution_state(
         resolution_arguments=resolution_arguments,
         shared_optimizer_owners=shared_optimizer_owners,
@@ -181,7 +158,7 @@ def assert_recording_preserves_upstream_state(
 
 
 @pytest.mark.parametrize("class_count", [2, 4])
-@pytest.mark.parametrize("recording_oracle_case", RECORDING_ORACLE_CASES[:4])
+@pytest.mark.parametrize("recording_oracle_case", RECORDING_ORACLE_CASES)
 def test_completed_alarm_record_matches_all_real_legacy_event_fields(
     class_count,
     recording_oracle_case,
@@ -203,7 +180,6 @@ def test_completed_alarm_record_matches_all_real_legacy_event_fields(
             valid_run_settings_mapping=valid_run_settings_mapping,
             class_count=class_count,
             recording_oracle_case=recording_oracle_case,
-            with_candidate_validation=False,
         )
         adaptation_record_store = AdaptationRecordStore()
 

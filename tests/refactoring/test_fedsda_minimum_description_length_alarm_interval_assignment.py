@@ -297,7 +297,7 @@ def test_current_model_selection_without_baseline_adopts_a_new_model(monkeypatch
     )
 
 
-def test_default_and_configurations_use_minimum_description_length_except_candidate_validation():
+def test_default_and_configurations_use_minimum_description_length():
     """最終構成の既定は最小記述長の原理で選び、候補検証ありの構成だけが今の扱いを明示する。"""
     from federated_learning_experiments.runtime.fedsda_run_settings import FedsdaRunSettings
     from federated_learning_experiments.sweep.experiment_configurations import (

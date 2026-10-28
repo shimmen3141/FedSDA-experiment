@@ -111,7 +111,7 @@ MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT = 3
 FALSE_ALARM_CONTROL_ALPHA = 0.05
 MAXIMUM_RETAINED_CANDIDATE_COUNT = 50
 MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE = 0.1
-MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT = 0.0001
+MINIMUM_VALIDATION_LOSS_DECREASE = 0.0001
 CANDIDATE_EPOCH_COUNT = 5
 EARLY_STOPPING_PATIENCE = 3
 VALIDATION_SAMPLE_FRACTION = 0.2
@@ -196,7 +196,7 @@ def set_legacy_configuration(
         ADWIN_MAX_WINDOW=MAXIMUM_RETAINED_CANDIDATE_COUNT,
         NEW_MODEL_EPOCHS=CANDIDATE_EPOCH_COUNT,
         NEW_MODEL_EARLY_STOPPING_PATIENCE=EARLY_STOPPING_PATIENCE,
-        NEW_MODEL_EARLY_STOPPING_MIN_DELTA=MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,
+        NEW_MODEL_EARLY_STOPPING_MIN_DELTA=MINIMUM_VALIDATION_LOSS_DECREASE,
         NEW_MODEL_VALIDATION_FRACTION=VALIDATION_SAMPLE_FRACTION,
     ).items():
         assert hasattr(config, legacy_setting_name), legacy_setting_name
@@ -215,7 +215,6 @@ def make_run_client_settings(
     added_evaluation_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
     cross_evaluation_sample_limit=CROSS_EVALUATION_SAMPLE_LIMIT,
     cross_evaluation_client_limit=CROSS_EVALUATION_CLIENT_LIMIT,
-    with_candidate_validation=False,
 ):
     """上の条件と同じ値の、新の束。"""
     return FedsdaRunClientSettings(
@@ -247,7 +246,7 @@ def make_run_client_settings(
             maximum_batch_sample_count=BATCH_SAMPLE_COUNT,
             validation_sample_fraction=VALIDATION_SAMPLE_FRACTION,
             consecutive_non_improving_epoch_limit=EARLY_STOPPING_PATIENCE,
-            minimum_validation_loss_decrease=MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,
+            minimum_validation_loss_decrease=MINIMUM_VALIDATION_LOSS_DECREASE,
             candidate_shared_feature_update_policy="update_shared_features_with_candidate",
         ),
         parameter_optimizer_settings=AdamParameterOptimizerSettings(
@@ -349,7 +348,6 @@ def build_run_client_oracle(
     added_evaluation_sample_count=ADDED_EVALUATION_SAMPLE_COUNT,
     cross_evaluation_sample_limit=CROSS_EVALUATION_SAMPLE_LIMIT,
     cross_evaluation_client_limit=CROSS_EVALUATION_CLIENT_LIMIT,
-    with_candidate_validation=False,
 ):
     """実旧の事前学習と実__init__で実旧clientを作り、同じ初期モデル・統計・条件から新clientを組み立てる。
 
@@ -390,7 +388,6 @@ def build_run_client_oracle(
         np.random.set_state(numpy_random_state)
     run_client_settings = make_run_client_settings(
         valid_run_settings_mapping,
-        with_candidate_validation=with_candidate_validation,
         update_interval=update_interval,
         validation_sample_count=validation_sample_count,
         base_learning_rate=base_learning_rate,
@@ -429,17 +426,6 @@ def assert_samples_equal_legacy(samples, legacy_samples):
         assert sample.observed_class_labels.dtype == legacy_sample[1].dtype
         assert torch.equal(sample.input_features, legacy_sample[0])
         assert torch.equal(sample.observed_class_labels, legacy_sample[1])
-
-
-# 判定記録の理由の名前から、実旧の候補の判定の理由への対応。
-LEGACY_REASON_BY_DECISION_REASON = {
-    "current_reference_within_historical_loss_tolerance": "current_reference_refit",
-    "alternative_reference_within_historical_loss_tolerance": "alternative_reference_refit",
-    "first_segment_margin_failed": "first_interval",
-    "second_segment_margin_failed": "second_interval",
-    "both_segment_margins_failed": "first_and_second",
-    "both_segment_margins_passed": "accepted",
-}
 
 
 def make_comparison_input_features(input_feature_count):
@@ -1328,14 +1314,12 @@ def build_processed_run_client(
     monkeypatch,
     valid_run_settings_mapping,
     sample_count=PROCESSED_SAMPLE_COUNT,
-    with_candidate_validation=False,
 ):
     """標本を処理した後のclient（保留・学習データ・記録がある状態）と、乱数生成器、次の観測標本。"""
     run_client, _, assembly_arguments = build_run_client_oracle(
         monkeypatch=monkeypatch,
         valid_run_settings_mapping=valid_run_settings_mapping,
         class_count=2,
-        with_candidate_validation=with_candidate_validation,
     )
     stream = make_concept_stream(
         sample_count=sample_count + 1, concept_block_length=13, stream_seed=5

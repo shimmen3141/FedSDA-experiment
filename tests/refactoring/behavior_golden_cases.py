@@ -93,8 +93,8 @@ from federated_learning_experiments.sweep.experiment_configurations import (  # 
 # 版5: FedSDAが、さらに、推定変化区間が最小件数に達するまで警報を待つ（IMPROVE-006。案Y。最終構成の既定。
 #      ADWINの2構成は、警報を即時に明示）。版4との差は、版4の扱いで、警報を待つ場面が起きるケースに限る。
 # 版6: 予測を同期時点・局所更新の混合へ、Fixed-Shareの時間尺度を120へ替える（容量は30）。
-SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
-BASELINE_VERSION = 14
+SUPPORTED_BASELINE_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+BASELINE_VERSION = 15
 SCHEMA_VERSION = 1
 # 版の後に足された、FedSDAのclientの設定の項目（`run_client_settings`からの経路）と、その版の動作に当たる値
 # （保存の形）。保存してある設定と比べるときは、組み立てた設定の値がこの値であることを確かめてから除く（その版の
@@ -409,7 +409,6 @@ ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES = (
     "fedsda-sine2-adoption-without-validation",
     "fedsda-mnist2-adoption-without-validation",
 )
-CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[BASELINE_VERSION]
 # 全部の版のケースの名前（初めて現れた版の順）。並列の実行での配り方が使う。
 # 候補検証の処理を消す基準版15のspecにより、検証ありの方針のcaseを数値照合から外す。
 # 判定が0件でも方針が検証ありなら外す。保存済みgoldenと組立ての両方からtestで確かめる。
@@ -451,7 +450,15 @@ EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION = {
         for version in (4, 5, 6)
     },
     **{version: CANDIDATE_VALIDATION_PATH_CASE_NAMES for version in range(7, 15)},
+    15: (),
 }
+# 版15は、版14の検証ありの4 caseだけを外す。残すcaseの条件・順序は変えない。
+CASE_NAMES_BY_BASELINE_VERSION[15] = tuple(
+    name
+    for name in CASE_NAMES_BY_BASELINE_VERSION[14]
+    if name not in EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[14]
+)
+CASE_NAMES = CASE_NAMES_BY_BASELINE_VERSION[BASELINE_VERSION]
 # 記録・指標・設定を消した項目の、goldenの中の完全な鍵の道（task 3・4で足した。一覧にない差は失敗のまま）。
 REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS: tuple[tuple[str, ...], ...] = (
     (

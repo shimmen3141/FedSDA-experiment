@@ -131,11 +131,10 @@ def test_alarm_change_interval_resolution_is_immutable():
         ):
             with pytest.raises(FrozenInstanceError):
                 setattr(alarm_change_interval_resolution, field_name, None)
-    # 正式値以外の結果種別（候補検証の確定処理の値や旧のaction名を含む）は拒否する。
+    # 正式値以外の結果種別（旧のaction名を含む）は拒否する。
     for invalid_case in (
         "held_reference_model_reused",
         "current_model_maintained",
-        "candidate_validation_started",
         "reuse",
         "",
         None,

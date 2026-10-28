@@ -28,7 +28,6 @@ from test_cross_evaluation_download_deduplication import (
 )
 from test_fedsda_run_client import (
     LEGACY_ACTION_BY_ADAPTATION_OUTCOME,
-    LEGACY_REASON_BY_DECISION_REASON,
     snapshot_run_client_state,
 )
 from test_fedsda_stream_protocol_run import (
@@ -226,35 +225,6 @@ INDISTINGUISHABLE_LEGACY_CHANGE_RESPONSE_METRIC_NAME_PAIRS = {
 }
 
 
-# 候補検証を消したので、判定の指標は無い（基準版15のspec）。旧の検証なしのrunでは、旧の候補の判定の指標は
-# すべて0なので、旧の名前へは0を写す（消す前の新の指標も、判定の無いrunでは0だった）。
-_NO_CANDIDATE_VALIDATION_DECISION_METRICS = SimpleNamespace(
-    matched_decision_count=0,
-    matched_accepted_decision_count=0,
-    matched_rejected_decision_count=0,
-    incomplete_at_run_end_decision_count=0,
-    first_segment_margin_failed_decision_count=0,
-    second_segment_margin_failed_decision_count=0,
-    both_segment_margins_failed_decision_count=0,
-    current_reference_within_historical_loss_tolerance_decision_count=0,
-    alternative_reference_within_historical_loss_tolerance_decision_count=0,
-    accepted_decision_rate=0.0,
-    accepted_decision_precision=0.0,
-    mean_candidate_training_interval_sample_count=0.0,
-    mean_validation_sample_count=0.0,
-    mean_resolution_delay_sample_count=0.0,
-    accepted_mean_full_interval_loss_margin=0.0,
-    accepted_mean_second_segment_loss_margin=0.0,
-    rejected_mean_full_interval_loss_margin=0.0,
-    rejected_mean_second_segment_loss_margin=0.0,
-    matched_mean_full_interval_loss_margin=0.0,
-    matched_mean_second_segment_loss_margin=0.0,
-    unmatched_mean_full_interval_loss_margin=0.0,
-    unmatched_mean_second_segment_loss_margin=0.0,
-    mean_reference_loss_excess_over_historical_mean=0.0,
-)
-
-
 def derive_legacy_change_response_metric_values(run_metrics):
     """応答の指標を、旧の指標（`compute_metrics`と、監視の値の最大）の名前へ写す（照合のための対応表）。
 
@@ -267,7 +237,6 @@ def derive_legacy_change_response_metric_values(run_metrics):
     alarm_metrics = change_response_metrics.loss_change_alarm_detection_metrics
     change_point_metrics = change_response_metrics.change_point_estimation_metrics
     action_metrics = change_response_metrics.adaptation_action_metrics
-    decision_metrics = _NO_CANDIDATE_VALIDATION_DECISION_METRICS
     false_switch_count = (
         detection_metrics.detection_count - detection_metrics.matched_detection_count
     )
@@ -316,69 +285,32 @@ def derive_legacy_change_response_metric_values(run_metrics):
         server_mapping_change_count=action_metrics.remap_by_server_consolidation_count,
         model_reuse_current_fit_count=action_metrics.current_model_fit_selection_count,
         model_reuse_alternative_fit_count=action_metrics.alternative_model_reuse_selection_count,
-        # 候補の判定。
-        provisional_acceptance_rate=decision_metrics.accepted_decision_rate,
-        provisional_matched_true_count=decision_metrics.matched_decision_count,
-        provisional_accepted_matched_true_count=decision_metrics.matched_accepted_decision_count,
-        provisional_rejected_matched_true_count=decision_metrics.matched_rejected_decision_count,
-        provisional_accepted_precision=decision_metrics.accepted_decision_precision,
-        # 最終構成では、候補の学習区間の全部を、学習に使う（旧の2つの指標は同じ値）。
-        provisional_interval_count_mean=(
-            decision_metrics.mean_candidate_training_interval_sample_count
-        ),
-        provisional_training_count_mean=(
-            decision_metrics.mean_candidate_training_interval_sample_count
-        ),
-        provisional_validation_count_mean=decision_metrics.mean_validation_sample_count,
-        provisional_resolution_delay_mean=decision_metrics.mean_resolution_delay_sample_count,
-        provisional_accepted_full_margin_mean=(
-            decision_metrics.accepted_mean_full_interval_loss_margin
-        ),
-        provisional_accepted_recent_margin_mean=(
-            decision_metrics.accepted_mean_second_segment_loss_margin
-        ),
-        provisional_rejected_full_margin_mean=(
-            decision_metrics.rejected_mean_full_interval_loss_margin
-        ),
-        provisional_rejected_recent_margin_mean=(
-            decision_metrics.rejected_mean_second_segment_loss_margin
-        ),
-        provisional_matched_full_margin_mean=decision_metrics.matched_mean_full_interval_loss_margin,
-        provisional_matched_recent_margin_mean=(
-            decision_metrics.matched_mean_second_segment_loss_margin
-        ),
-        provisional_unmatched_full_margin_mean=(
-            decision_metrics.unmatched_mean_full_interval_loss_margin
-        ),
-        provisional_unmatched_recent_margin_mean=(
-            decision_metrics.unmatched_mean_second_segment_loss_margin
-        ),
-        provisional_reject_insufficient_forward_data_count=(
-            decision_metrics.incomplete_at_run_end_decision_count
-        ),
-        provisional_reject_first_interval_count=(
-            decision_metrics.first_segment_margin_failed_decision_count
-        ),
-        provisional_reject_second_interval_count=(
-            decision_metrics.second_segment_margin_failed_decision_count
-        ),
-        provisional_reject_first_and_second_count=(
-            decision_metrics.both_segment_margins_failed_decision_count
-        ),
-        provisional_reject_current_refit_count=(
-            decision_metrics.current_reference_within_historical_loss_tolerance_decision_count
-        ),
-        provisional_reject_alternative_refit_count=(
-            decision_metrics.alternative_reference_within_historical_loss_tolerance_decision_count
-        ),
-        # 旧の「参照の再適合」は、現行と、別の保有モデルの合計。
-        provisional_reject_reference_refit_count=(
-            decision_metrics.current_reference_within_historical_loss_tolerance_decision_count
-            + decision_metrics.alternative_reference_within_historical_loss_tolerance_decision_count
-        ),
-        provisional_reference_excess_mean=(
-            decision_metrics.mean_reference_loss_excess_over_historical_mean
-        ),
+        # 旧の検証なしのrunの候補判定の指標は0。旧の名前だけを対応表に残す。
+        provisional_acceptance_rate=0.0,
+        provisional_matched_true_count=0,
+        provisional_accepted_matched_true_count=0,
+        provisional_rejected_matched_true_count=0,
+        provisional_accepted_precision=0.0,
+        provisional_interval_count_mean=0.0,
+        provisional_training_count_mean=0.0,
+        provisional_validation_count_mean=0.0,
+        provisional_resolution_delay_mean=0.0,
+        provisional_accepted_full_margin_mean=0.0,
+        provisional_accepted_recent_margin_mean=0.0,
+        provisional_rejected_full_margin_mean=0.0,
+        provisional_rejected_recent_margin_mean=0.0,
+        provisional_matched_full_margin_mean=0.0,
+        provisional_matched_recent_margin_mean=0.0,
+        provisional_unmatched_full_margin_mean=0.0,
+        provisional_unmatched_recent_margin_mean=0.0,
+        provisional_reject_insufficient_forward_data_count=0,
+        provisional_reject_first_interval_count=0,
+        provisional_reject_second_interval_count=0,
+        provisional_reject_first_and_second_count=0,
+        provisional_reject_current_refit_count=0,
+        provisional_reject_alternative_refit_count=0,
+        provisional_reject_reference_refit_count=0,
+        provisional_reference_excess_mean=0.0,
     )
 
 
@@ -742,12 +674,6 @@ def derive_legacy_trace_arrays(*, run_result, participants):
         for client_id, adaptation_snapshot in enumerate(adaptation_snapshots)
         for adaptation_record in adaptation_snapshot.adaptation_records
     ]
-    # 候補検証を消したので、判定の記録は無い（旧の検証なしのrunと同じく、旧の形の配列は空）。
-    decisions = []
-
-    def decision_is_incomplete(decision_record):
-        return False
-
     registration_records = (
         server_owners.global_model_repository.snapshot_model_registration_records()
     )
@@ -791,43 +717,12 @@ def derive_legacy_trace_arrays(*, run_result, participants):
             [adaptation_record.current_training_model_id for _, adaptation_record in adaptations],
             dtype=np.int32,
         ),
-        provisional_client_ids=np.asarray(
-            [client_id for client_id, _ in decisions], dtype=np.int32
-        ),
-        provisional_positions=np.asarray(
-            [decision_record.proposal_sample_index for _, decision_record in decisions],
-            dtype=np.int32,
-        ),
-        # 採否と理由は、記録のとおりに写す（理由から採否を逆算しない。LEGACY-001）。
-        provisional_accepted=np.asarray(
-            [
-                False
-                if decision_is_incomplete(decision_record)
-                else decision_record.post_alarm_candidate_loss_evaluation.candidate_accepted
-                for _, decision_record in decisions
-            ],
-            dtype=np.bool_,
-        ),
-        provisional_reasons=np.asarray(
-            [
-                "insufficient_forward_data"
-                if decision_is_incomplete(decision_record)
-                else LEGACY_REASON_BY_DECISION_REASON[
-                    decision_record.post_alarm_candidate_loss_evaluation.decision_reason
-                ]
-                for _, decision_record in decisions
-            ],
-            dtype=np.str_,
-        ),
-        provisional_resolution_positions=np.asarray(
-            [
-                decision_record.finalization_sample_index
-                if decision_is_incomplete(decision_record)
-                else decision_record.resolution_sample_index
-                for _, decision_record in decisions
-            ],
-            dtype=np.int32,
-        ),
+        # 旧の検証なしのrunでは、候補の判定の配列はすべて空。
+        provisional_client_ids=np.asarray([], dtype=np.int32),
+        provisional_positions=np.asarray([], dtype=np.int32),
+        provisional_accepted=np.asarray([], dtype=np.bool_),
+        provisional_reasons=np.asarray([], dtype=np.str_),
+        provisional_resolution_positions=np.asarray([], dtype=np.int32),
         model_registration_ids=np.asarray(
             [registration_record.model_id for registration_record in registration_records],
             dtype=np.int32,
@@ -1016,7 +911,7 @@ def make_golden_condition_settings(
         FALSE_ALARM_CONTROL_ALPHA=legacy_values["E_DETECTOR_ALPHA"],
         MAXIMUM_RETAINED_CANDIDATE_COUNT=legacy_values["ADWIN_MAX_WINDOW"],
         MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE=legacy_values["FEDSDA_DISTANCE_THRESHOLD"],
-        MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT=legacy_values["NEW_MODEL_EARLY_STOPPING_MIN_DELTA"],
+        MINIMUM_VALIDATION_LOSS_DECREASE=legacy_values["NEW_MODEL_EARLY_STOPPING_MIN_DELTA"],
         CANDIDATE_EPOCH_COUNT=legacy_values["NEW_MODEL_EPOCHS"],
         EARLY_STOPPING_PATIENCE=legacy_values["NEW_MODEL_EARLY_STOPPING_PATIENCE"],
         VALIDATION_SAMPLE_FRACTION=legacy_values["NEW_MODEL_VALIDATION_FRACTION"],

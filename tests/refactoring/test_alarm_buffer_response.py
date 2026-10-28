@@ -219,11 +219,7 @@ def assert_buffer_response_matches_legacy(
     else:
         assert legacy_drift_type == 0
         assert len(legacy_epoch_training_calls.call_args_list) == 0
-        assert legacy_adaptation_events[0]["action"] == (
-            "forward_validation_pending"
-            if response.response_outcome == "alarm_during_candidate_validation"
-            else "insufficient_data"
-        )
+        assert legacy_adaptation_events[0]["action"] == "insufficient_data"
 
 
 def continue_joint_training_after_buffer_response(
@@ -414,7 +410,6 @@ def test_empty_buffer_is_insufficient_without_candidate_work(monkeypatch):
 @pytest.mark.parametrize(
     "invalid_case",
     [
-        "session",
         "fifo",
         "observations",
         "record",
@@ -453,9 +448,7 @@ def test_buffer_response_rejects_owned_inputs_before_updates(invalid_case, monke
     ].get_state_snapshot()
     valid_response_arguments = dict(response_arguments)
     observations = response_arguments["pending_sample_observations"]
-    if invalid_case == "session":
-        response_arguments["active_validation_session"] = object()
-    elif invalid_case == "fifo":
+    if invalid_case == "fifo":
         response_arguments["pending_training_assignment_buffer"] = object()
     elif invalid_case == "observations":
         response_arguments["pending_sample_observations"] = list(observations)
@@ -550,8 +543,6 @@ def test_response_record_rejects_inconsistent_fields_and_is_frozen(monkeypatch):
     ]:
         with pytest.raises(ValueError):
             replace(response, response_outcome=response_outcome)
-    with pytest.raises(ValueError):
-        replace(response, response_outcome="alarm_during_candidate_validation")
     with pytest.raises(ValueError):
         replace(response, prepared_alarm_training_intervals=None)
     with pytest.raises(ValueError):

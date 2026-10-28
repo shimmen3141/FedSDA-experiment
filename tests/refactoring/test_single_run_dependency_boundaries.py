@@ -632,13 +632,7 @@ def test_alarm_occurrence_handling_dependency_contract(
 # END alarm_occurrence_handling dependency contract
 
 
-# BEGIN held_candidate_validation_progress dependency contract
-
-
-# END held_candidate_validation_progress dependency contract
-
-
-# BEGIN candidate_validation_adaptation_recording dependency contract
+# BEGIN adaptation_record_store dependency contract
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_acceptance",
     [
@@ -648,7 +642,7 @@ def test_alarm_occurrence_handling_dependency_contract(
         ("evaluation/adaptation_record_store.py", "import typing", False),
     ],
 )
-def test_candidate_validation_adaptation_recording_dependency_contract(
+def test_adaptation_record_store_dependency_contract(
     source_module_path, source_text, expected_acceptance
 ):
     dependency_boundary_violations = collect_dependency_boundary_violations(
@@ -657,7 +651,7 @@ def test_candidate_validation_adaptation_recording_dependency_contract(
     assert (not dependency_boundary_violations) == expected_acceptance
 
 
-# END candidate_validation_adaptation_recording dependency contract
+# END adaptation_record_store dependency contract
 
 
 # BEGIN alarm_response_completion dependency contract

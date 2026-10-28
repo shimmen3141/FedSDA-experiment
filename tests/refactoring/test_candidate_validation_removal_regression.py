@@ -17,13 +17,51 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
 )
 
 
+def test_baseline_15_keeps_exactly_the_non_validation_cases_of_baseline_14():
+    from federated_learning_experiments.core.run_provenance import BEHAVIOR_BASELINE_VERSION
+
+    assert BEHAVIOR_BASELINE_VERSION == golden.BASELINE_VERSION == 15
+    expected = tuple(
+        name
+        for name in golden.CASE_NAMES_BY_BASELINE_VERSION[14]
+        if name not in golden.EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[14]
+    )
+    assert len(expected) == 18
+    assert golden.CASE_NAMES_BY_BASELINE_VERSION[15] == expected
+    for name in expected:
+        assert golden.build_case_settings(name, 15) == golden.build_case_settings(name, 14)
+
+
+@pytest.mark.parametrize(
+    "case_name",
+    [
+        name
+        for name in golden.CASE_NAMES_BY_BASELINE_VERSION[14]
+        if name not in golden.EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[14]
+    ],
+)
+def test_baseline_15_saved_values_match_baseline_14_except_removed_items(case_name):
+    paths = sorted(golden.golden_directory(15).glob("*.json"))
+    assert len(paths) == 2, "baseline v15 Windows/Linux goldens are required (task 6)"
+    for path in paths:
+        current = golden.load_golden(path, 15)
+        previous_path = golden.find_golden_path(current["environment"], baseline_version=14)
+        assert previous_path is not None, current["environment"]
+        previous = golden.load_golden(previous_path, 14)
+        golden.assert_case_matches(
+            case_name,
+            golden.without_removed_candidate_validation_items(current["cases"][case_name]),
+            golden.without_removed_candidate_validation_items(previous["cases"][case_name]),
+        )
+
+
 def test_candidate_training_keeps_early_stopping_without_acceptance_settings():
-    assert "candidate_model_training_and_acceptance_settings" not in {
-        field.name for field in fields(FedsdaRunClientSettings)
-    }
-    assert "minimum_candidate_mean_loss_improvement" not in {
-        field.name for field in fields(FedsdaRunClientScalarSettings)
-    }
+    # 除く項目の一覧と、製品の型から消したfieldの対応を確かめる。
+    for removed_path, settings_type in zip(
+        golden.REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS[:2],
+        (FedsdaRunClientSettings, FedsdaRunClientScalarSettings),
+    ):
+        assert removed_path[-1] not in {field.name for field in fields(settings_type)}
     settings = golden.build_case_settings("fedsda", 14).run_participant_settings.run_client_settings
     assert settings.candidate_epoch_training_settings.minimum_validation_loss_decrease == 0.0001
     assert settings.scalar_settings.maximum_tolerated_mean_loss_increase == 0.1

@@ -1056,7 +1056,6 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
         " sample_weighted_mean_per_concept_gradients",
         "refit_compare_two_window",
         "candidate_refit_compare_two_window",
-        "two_segment_candidate_validation",
         "ON_NEW_MODEL_REGISTRATION",
         " on_new_model_registration",
         "CLASSWISE_UNIQUE_CORRECTNESS_LOWER_CONFIDENCE_BOUND",

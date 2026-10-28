@@ -474,16 +474,6 @@ def test_without_candidate_validation_takes_its_own_path(configuration_name):
                 adaptation_record.adaptation_outcome
                 for adaptation_record in run_client.owners.adaptation_record_store.get_state_snapshot().adaptation_records
             ]
-            # 候補検証に関わる結果（開始、検証中の警報、検証の確定）は、1つも無い。
-            assert not any(
-                adaptation_outcome.startswith("post_alarm_validation_")
-                or adaptation_outcome
-                in (
-                    "alarm_interval_candidate_validation_started",
-                    "alarm_during_candidate_validation",
-                )
-                for adaptation_outcome in adaptation_outcomes
-            )
             client_adopted_at_alarm_count = adaptation_outcomes.count(
                 "alarm_interval_candidate_adopted_as_new_model"
             )

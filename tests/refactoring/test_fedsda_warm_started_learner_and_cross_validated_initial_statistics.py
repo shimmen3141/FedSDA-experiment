@@ -367,7 +367,7 @@ def test_cross_validation_is_counted_in_the_preparation_and_not_in_the_metrics()
         assert counts.model_computation_counts.shared_part_training_example_count == total
 
 
-def test_every_fedsda_configuration_inherits_the_new_defaults_except_candidate_validation():
+def test_every_fedsda_configuration_inherits_the_new_defaults():
     from federated_learning_experiments.configuration.experiment_run_conditions import (
         ExperimentRunConditions,
     )

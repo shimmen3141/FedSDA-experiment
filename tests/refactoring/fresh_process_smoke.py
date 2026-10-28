@@ -180,23 +180,6 @@ DETECTOR_NAME = "ClassESR"
 CURRENT_MODEL_ID = 2
 OTHER_MODEL_ID = -103
 EPISODE_ID = 1
-ALARM_OUTCOMES_WITHOUT_ACTIVE_VALIDATION = (
-    "alarm_change_interval_too_short",
-    "alarm_interval_held_model_reused",
-    "alarm_interval_current_model_maintained",
-    "alarm_interval_candidate_validation_started",
-)
-MODEL_SWITCHING_OUTCOMES = (
-    "alarm_interval_held_model_reused",
-    "post_alarm_validation_candidate_adopted",
-    "post_alarm_validation_held_model_reused",
-)
-# (名前, 1回目の警報の推定区間長, 警報時に履歴基準へ適合させるモデル, 期待する1回目の結果, 候補検証の進め方)
-# 候補検証の進め方: None（開始しない）、"alarm_during_validation"（未到達のまま次の警報）、
-# または (参照の許容損失増加, 候補に要求する改善, 期待する確定の結果)。許容損失増加がNoneなら、
-# 他の保有モデルだけが履歴基準に適合する値を実行時に決める。
-
-
 # 保存の関数へ渡すrunの来歴（test moduleをimportしないので、ここで作る）。
 TEST_RUN_PROVENANCE = RunProvenance(
     code_commit="0123456789abcdef0123456789abcdef01234567",
@@ -786,7 +769,6 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
     assert stage_counts["sample_processing"] == processed_sample_count * WHOLE_RUN_CLIENT_COUNT
     assert stage_counts["server_synchronization"] == round_count
     # 候補検証の締めの段は、候補検証を消したので無い（基準版15のspec）。
-    assert "incomplete_candidate_validation_finalization" not in stage_counts
     assert run_result.execution_events[-1].stage_name == "started_communication_finalization"
     participants = measured_run.participants
     run_server = participants.server_operations

@@ -32,7 +32,7 @@
   - goldenの除く項目の一覧を確定する（一覧にない差は失敗）。
   - _Requirements: 3.1, 3.2, 3.3, 4.2, 5.1, 5.2_
 
-- [ ] 5. 研究用の道具・文書・版15
+- [x] 5. 研究用の道具・文書・版15
   - 研究用の道具のうち、task 2〜4で扱っていない残り（task 3・4で消した名前に依る出力の項目など）を直し、調査の報告の5の表の道具ごとに、残るモードの専用の検証（`checks*.py`）が通ることを確かめて記録する。
   - 文書（要求6.2・6.3）。`BEHAVIOR_BASELINE_VERSION = 15`と版15のcaseの一覧（要求4.3）、版15と版14の比較のtest（版15のファイルが無い間は失敗してよい。記録に書く）。
   - 要求5.3の参照の検査を、消した全部の名前で行う。
@@ -420,3 +420,539 @@
 - 確認（通常の環境）: 全pytest 13008 passed / 8 skipped / 1 failed（失敗は上の消したtest）。消した後に、goldenの構造の検査79件を流し直して全部通過。
   版1〜14の残すcaseの数値の照合と、乱数の状態の照合は、全pytestで通った。pyright 0 errors、ruff check・formatは通過。
 - 残り（task 5）: `with_candidate_validation`の引数、`RECORDING_ORACLE_CASES`の候補検証の結果の値のcaseなど、testの補助に残る候補検証の名前の整理と、要求5.3の参照の検査。
+
+
+### task 5（2026-10-28、実装担当）
+
+- 基点は`refactor/architecture`、HEAD `15748ff6`。task 5だけを実装した。task 6、版15のgolden生成・配置、stage・commit・pushは行っていない。開始時からの未追跡`.tmp/`は保持し、今回の一時検証資料もそこへ置いた。
+- 共通引継ぎ手順とkiro-implのmanual・`--review off`で進め、完了の判定はkiro-verify-completionで証拠と照合した。task単位の独立レビューは増やしていない。全task後の独立CLI実装レビューはtask 6で主担当が行う。
+
+変更したものと判断:
+
+- `with_candidate_validation`の引数と到達しない分岐を、`build_completed_recording_oracle`、`build_sample_processing_oracle`、`make_run_client_settings`、`build_run_client_oracle`、`build_processed_run_client`から除いた。
+  `RECORDING_ORACLE_CASES`の候補採用は`alarm_interval_candidate_adopted_as_new_model`で直接表し、検証中の警報caseを除いた（元から通常の照合のparametrizeには入っていなかった）。
+- `LEGACY_REASON_BY_DECISION_REASON`と、空の判定記録を走査していた配列の組立てを除いた。旧の`provisional_*`配列は空の配列を直接作り、旧の候補判定の指標へは0を直接対応させる。
+  task 4の`_NO_CANDIDATE_VALIDATION_DECISION_METRICS`も除き、消した新の指標のfieldを持つ代用品を残さない。旧の名前は旧実装の数値・配列との照合の側にだけ残した。
+- test用の`MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT`は、用途どおり`MINIMUM_VALIDATION_LOSS_DECREASE`へ改めた（0.0001のまま）。
+  候補検証の結果の値を挙げた到達不能の分岐・網羅の除外、fresh smokeの未使用定数、空の依存契約の区切りを整理した。
+  残る依存契約testは実態どおり`test_adaptation_record_store_dependency_contract`へ改めた。
+- 要求4.5(a): `test_buffer_response_rejects_owned_inputs_before_updates[session]`を削除した。削除済みの`active_validation_session`を注入し、未知の引数としてのTypeErrorだけで通っていたため。
+  `test_run_settings_validation.py`の無効値の一覧から、消した方針名`two_segment_candidate_validation`も除いた（14パラメータ分）。他の無効値・型・更新前の拒否の検査は残した。
+  全体runを流した後の参照検査で見つけた上記sessionのcaseは、この段の最小の修正として含め、同ファイル全55件を再検証した。
+- 研究用の`run.py`から、廃止済みの検証モードの出力`session_starts`、`sequential_test_decisions`、`sequential_test_mean_sample_count`を除いた。
+  専用検査の実際の製品対照runで、これらの項目が無いことも確かめる。既存の保存結果と解析側は変更していない。
+
+版15（要求4.3・4.4）:
+
+- `BEHAVIOR_BASELINE_VERSION`とhelperの`BASELINE_VERSION`を15にし、対応版へ15を足した。case一覧は版14の順を保ち、検証ありの4 caseを除いた18 case。
+  `test_baseline_15_keeps_exactly_the_non_validation_cases_of_baseline_14`で件数・一覧・各caseの組立てた設定の版14との一致を確認した。
+- `test_baseline_15_saved_values_match_baseline_14_except_removed_items[case_name]`（18件）は、Windows・Linuxの両goldenについて、要求4.2の完全な鍵の道の一覧で除いた後のsnapshot全体を版14と比較する。
+  版15が無い間は明示的に失敗する。`test_committed_goldens_cover_both_reference_environments[15]`（1件）も同じ理由で失敗する。許容する失敗はこの19件だけ。
+- `test_new_implementation_matches_important_behavior_golden[15-<case_name>]`（18件）は現在、対応する数値goldenが無い理由でskipする。既存の版1〜14の数値照合と保存済みJSONの構造検査は引き続き実行する。
+  golden検出力のtestは版14を明示して読むようにし、構造検査用の壊すcaseは残る採用caseへ替えた。これらは版15のファイル不足に巻き込まれない。
+- REDの実測: 版の定数を上げる前の新しい一覧testは`14 == 15`で1 failed。研究出力の削除前の専用testは、上記の出力項目が残ることで1 failed。変更後の対象検査は下記のとおり。
+- 生成手順を読んでhelperのCLI `--help`と組立てを確認した。`--baseline-version`省略時は15、2独立processの一致・HEAD一致・src変更なし・既存出力の拒否は既存どおり。
+  主担当はtask 5のsrc変更をcommitした後、文書の次のコマンドをそのまま使える（未使用の出力先を選ぶ）。今回は生成自体を実行していない。
+
+```powershell
+$goldenSourceCommit=git rev-parse HEAD
+../../venv/Scripts/python.exe tests/refactoring/behavior_golden_cases.py --output ../../venv/refactoring-tests/behavior-candidate-windows.json --source-commit $goldenSourceCommit
+```
+
+文書（要求6.2・6.3）:
+
+- `docs/overview/proposed-method.md`: 現在の構成・設定・標本処理順から候補検証を除き、版15と検証の正本を案内した。候補学習の早期終了用の検証は残る。
+- `docs/experiments/experiment-sweep.md`: 現在の基準版と構成一覧を直し、版14までの結果の集計、データ・間隔・seedによる対応、FedSDAの末尾hashの変更、過去掃引へ再開・seed追加せず新しい保存先を使うことを書いた。
+- `docs/experiments/refactoring-baseline.md`: 現在の版の説明と版15の行を足し、生成待ち・比較の対象と除く項目・生成コマンドの前提を記載した。版1〜14の行は書き換えていない。
+- `docs/components/new-model-creation.md`・`model-reuse.md`: 今の実装の説明だけを直し、前向き検証などの旧実装の説明は旧側の資料として残した。
+- 改善候補一覧のIMPROVE-023、IMPROVE-023の新しい日付つき結果、resumeの現在地を更新した。過去の日付つきの節と承認記録、既存の他specは変更していない。
+- 集計の道具`accuracy_periods._run_key`と`research_feddrift_delta_comparison._run_key`を実行し、SINE2・SEA4・MNIST2・MNIST4の同じデータ・間隔100・seed7で、末尾hashだけが違う2つのrunが対応することを確認した（2関数×4条件）。
+  消した項目を集計側が参照しないことも検索で確認した。保存済みの本規模結果全体の再集計は実施していない。
+
+要求5.3の参照検査:
+
+- `git grep -n -w -F -e <名前> ... -- src/ tests/ tools/ '*.py' ':!federated_drift_experiment/' ':!*.json'`を実行した。ルート入口scriptも対象。
+  下の全名前を指定した（元のHEADから消したmoduleと、現行srcに残らない型・関数・method、設定・結果の値・記録16列・指標23項目ほかを列挙）。共有の`validation_sample_count`は早期終了でも使う別の名前なので削除対象に含めず、部分一致だけによる別名の一致を避けるため`-w`を用いた。
+- 一致は`behavior_golden_cases.py`の旧方針・除く項目の定義25行と、`test_candidate_validation_removal_regression.py`の保存済み方針から外すcaseを求める検査3行だけ。
+  前者は要求4.2・後者は要求4.6に必要なgolden除外定義の照合で、現在の設定や実行を参照していない。該当定義・照合を除いた検索は**0件、exit 1**（一致無し）。
+  全結果は`.tmp/task5-reference-grep.txt`、最終の残りは`.tmp/task5-reference-filtered.txt`（空）、一覧は`.tmp/task5-reference-names.json`。
+
+<details>
+<summary>検査に使った名前の全一覧</summary>
+
+```text
+CANDIDATE_VALIDATION_CONFIGURATION_NAME
+CandidateModelTrainingAndAcceptanceSettings
+CandidateValidationDecisionMetrics
+CandidateValidationDecisionRecordStore
+CandidateValidationSessionHolder
+FixedPostAlarmReferenceModels
+HeldCandidateValidationAdvance
+HeldIncompleteCandidateValidationFinalization
+IncompletePostAlarmCandidateValidationDecisionRecord
+IncompletePostAlarmCandidateValidationFinalization
+LEGACY_REASON_BY_DECISION_REASON
+PostAlarmCandidateLossCollection
+PostAlarmCandidateLossCollectionState
+PostAlarmCandidateLossEvaluation
+PostAlarmCandidateValidationCompletion
+PostAlarmCandidateValidationDecisionRecord
+PostAlarmCandidateValidationProgress
+PostAlarmCandidateValidationResolution
+PostAlarmCandidateValidationSession
+_CANDIDATE_POST_ALARM_VALIDATION_SAMPLE_COUNT
+_DecisionValues
+_MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT
+_evaluate_single_sample_bounded_loss
+_held_validation_session
+_mean_bounded_loss
+_mean_of_finite_values
+_select_validated_reusable_reference
+_select_validation_assignment_sample_concept_ids
+_validate_bounded_observed_loss
+_validate_concept_ids
+_validate_holder_and_record_store
+_validate_incomplete_validation_finalization_inputs
+_validate_loss_sequence
+_validate_nonnegative_finite_number
+_validate_post_alarm_candidate_validation_start_inputs
+_validate_reference_loss_inputs
+_validate_resolution_inputs
+_validate_sample_index_not_before_proposal
+_validate_session_training_tensor_pair
+_validate_validation_progress_inputs
+_validate_validation_progress_threshold
+_validation_assignment_sample_concept_ids
+accepted_decision_precision
+accepted_decision_rate
+accepted_mean_full_interval_loss_margin
+accepted_mean_second_segment_loss_margin
+active_validation_session
+advance_held_candidate_validation
+advance_post_alarm_candidate_validation
+alarm_during_candidate_validation
+alarm_interval_candidate_validation_started
+alternative_reference_within_historical_loss_tolerance
+alternative_reference_within_historical_loss_tolerance_decision_count
+append_candidate_validation_decision_record
+apply_alarm_response_to_validation_session_holder
+apply_post_alarm_candidate_validation_resolution
+both_segment_margins_failed
+both_segment_margins_failed_decision_count
+both_segment_margins_passed
+candidate_model_acceptance_policy
+candidate_model_training_and_acceptance_settings
+candidate_post_alarm_validation_sample_count
+candidate_validation_adaptation_recording
+candidate_validation_decision.candidate_accepted
+candidate_validation_decision.candidate_full_interval_mean_loss
+candidate_validation_decision.candidate_second_segment_mean_loss
+candidate_validation_decision.candidate_training_interval_sample_count
+candidate_validation_decision.client_id
+candidate_validation_decision.comparison_reference_model_id
+candidate_validation_decision.decision_reason
+candidate_validation_decision.detector_name
+candidate_validation_decision.is_incomplete_at_run_end
+candidate_validation_decision.matched_to_concept_change
+candidate_validation_decision.proposal_sample_index
+candidate_validation_decision.reference_full_interval_mean_loss
+candidate_validation_decision.reference_historical_mean_loss
+candidate_validation_decision.reference_second_segment_mean_loss
+candidate_validation_decision.resolution_sample_index
+candidate_validation_decision.validation_sample_count
+candidate_validation_decision_count
+candidate_validation_decision_metrics
+candidate_validation_decision_record_store
+candidate_validation_session_holder
+count_rejected_decisions_with_reason
+current_model_first_reuse_then_candidate_adoption_without_validation
+current_model_first_reuse_then_two_segment_candidate_validation
+current_reference_within_historical_loss_tolerance
+current_reference_within_historical_loss_tolerance_decision_count
+defer_during_candidate_validation_count
+evaluate_candidate_using_post_alarm_losses
+fedsda-with-candidate-validation
+finalization_delay_sample_count
+finalize_held_incomplete_candidate_validation
+finalize_incomplete_candidate_validation
+finalize_incomplete_post_alarm_candidate_validation
+first_segment_margin_failed
+first_segment_margin_failed_decision_count
+fix_reference_models_at_alarm
+full_validation_mean_loss_advantage
+held_candidate_validation_progress
+held_validation_session
+hold_validation_assignment_sample_concept_ids
+hold_validation_session
+incomplete_at_run_end_decision_count
+incomplete_candidate_validation_finalization
+incomplete_post_alarm_candidate_validation_decision_record
+incomplete_post_alarm_candidate_validation_finalization
+matched_accepted_decision_count
+matched_decision_count
+matched_mean_full_interval_loss_margin
+matched_mean_second_segment_loss_margin
+matched_rejected_decision_count
+mean_candidate_training_interval_sample_count
+mean_reference_loss_excess_over_historical_mean
+mean_resolution_delay_sample_count
+mean_validation_sample_count
+minimum_candidate_mean_loss_improvement
+observe_losses_after_label_observation
+observe_post_alarm_candidate_validation_sample
+post_alarm_candidate_loss_collection
+post_alarm_candidate_loss_evaluation
+post_alarm_candidate_validation_decision_record
+post_alarm_candidate_validation_progress
+post_alarm_candidate_validation_resolution
+post_alarm_candidate_validation_sample_observation
+post_alarm_candidate_validation_session_start
+post_alarm_reference_model_fixation
+post_alarm_validation_candidate_adopted
+post_alarm_validation_candidate_rejected
+post_alarm_validation_current_model_maintained
+post_alarm_validation_held_model_reused
+post_alarm_validation_incomplete_candidate_rejected
+ready_for_acceptance_evaluation
+record_completed_candidate_validation
+record_incomplete_candidate_validation_finalization
+reference_mean_loss_difference_from_history
+reject_candidate_model_count
+rejected_mean_full_interval_loss_margin
+rejected_mean_second_segment_loss_margin
+release_validation_assignment_sample_concept_ids
+release_validation_session
+research_candidate_validation_waiting
+run_candidate_validation_waiting_diagnostic
+second_segment_margin_failed
+second_segment_margin_failed_decision_count
+second_segment_mean_loss_advantage
+select_available_reference_within_historical_loss_tolerance
+select_post_alarm_reference_historical_mean_loss
+snapshot_candidate_validation_decision_records
+start_candidate_validation_count
+start_post_alarm_candidate_validation_session
+started_validation_session
+unmatched_mean_full_interval_loss_margin
+unmatched_mean_second_segment_loss_margin
+validation_assignment_sample_concept_ids
+validation_completion_delay_sample_count
+validation_session_holder
+with_candidate_validation
+```
+
+</details>
+
+<details>
+<summary>変更したファイルの全一覧（29ファイル）</summary>
+
+- `.kiro/specs/remove-post-alarm-candidate-validation/tasks.md`
+- `.kiro/steering/resume.md`
+- `docs/components/model-reuse.md`
+- `docs/components/new-model-creation.md`
+- `docs/experiments/experiment-sweep.md`
+- `docs/experiments/refactoring-baseline.md`
+- `docs/overview/proposed-method.md`
+- `docs/research/improvement-candidates/README.md`
+- `docs/research/improvement-candidates/improve-023-remove-settings-left-from-candidate-validation.md`
+- `src/federated_learning_experiments/core/run_provenance.py`
+- `tests/refactoring/behavior_golden_cases.py`
+- `tests/refactoring/fresh_process_smoke.py`
+- `tests/refactoring/test_alarm_adaptation_recording.py`
+- `tests/refactoring/test_alarm_buffer_response.py`
+- `tests/refactoring/test_alarm_change_interval_resolution.py`
+- `tests/refactoring/test_alarm_occurrence_handling.py`
+- `tests/refactoring/test_candidate_validation_removal_regression.py`
+- `tests/refactoring/test_fedsda_configuration_variants.py`
+- `tests/refactoring/test_fedsda_minimum_description_length_alarm_interval_assignment.py`
+- `tests/refactoring/test_fedsda_run_client.py`
+- `tests/refactoring/test_fedsda_run_metric_derivation.py`
+- `tests/refactoring/test_fedsda_stream_protocol_run.py`
+- `tests/refactoring/test_fedsda_warm_started_learner_and_cross_validated_initial_statistics.py`
+- `tests/refactoring/test_important_behavior_regression_goldens.py`
+- `tests/refactoring/test_observed_sample_processing.py`
+- `tests/refactoring/test_run_settings_validation.py`
+- `tests/refactoring/test_single_run_dependency_boundaries.py`
+- `tools/research_provisional_candidate_expert/checks_loss_monitor_rebaseline.py`
+- `tools/research_provisional_candidate_expert/run.py`
+
+</details>
+
+検証の実行条件と結果:
+
+- Pythonは`../../venv/Scripts/python.exe`、`PYTHONPATH="src;."`、`OMP_NUM_THREADS=1 MKL_NUM_THREADS=1`、既存のMNIST固定入力。srcの乱数源とfixtureは変えていない。
+- 事前の`tempfile.mkdtemp()`で作った場所のファイル書込みが`PermissionError`になることを確認した。権限・sandboxを変更せず、以前のtaskと同じ一時pluginで一時領域fixtureと内部TemporaryDirectoryの2関数を理由つきskipにした。
+  pluginの読込みだけrunnerの`sys.path`へ`.tmp`を足した（PYTHONPATHは指定どおり）。全体は、ファイルの所属を保つ7群とgoldenのcase別6群、同時8 process。slowは除外せず全収集対象を実行した。
+- 初回は全13040件、12562 passed / 459 skipped / 19 failed。後で上記の死んだsession入力case1件を消し、変更したfile単位で上書き照合した最終の全対象は**13039件、12561 passed / 459 skipped / 19 failed、exit 1**。
+  失敗は上記の版15待ちだけ。開始時相当13016件＋新規19件＋対応版追加19件−無効値の14件−sessionの1件＝13039件。
+- JUnit: 初回`.tmp/task5-final-files-{0..6}.xml`と`.tmp/task5-final-golden-{0..5}.xml`。
+  最終のfile単位の再検証は`.tmp/task5-late-recheck.xml`（指標と削除の検査、32 passed / 36 skipped / 18 expected failed）と`.tmp/task5-buffer-recheck.xml`（55 passed）。
+  初回の該当file分を再検証の全件で置き換えた集約は`.tmp/task5-final-merged.xml`、集計は`.tmp/task5-results.json`。重複実行を通過件数へ二重加算していない。
+- 版1〜14の残すcaseの数値goldenは**170 passed**。要求4.6の版別除外一覧は14 passed。要求4.7のPython Random・NumPy RandomState・torch CPUのrun終端の全状態は**14 passed**。
+  `tests/test_regression.py::test_regression`もpassed。保存済みのgolden JSONと乱数fixture、旧実装、`docs/reference/options.md`に今回の差分がないこと、固定旧`748c3aa`から旧package・2golden・2回帰testに差分がないことを`git diff --exit-code`で確認した。
+- skip459件は、sandbox415件（fixture413＋内部保存2）、版15の数値golden未生成18件、Linux専用・POSIX bash不在・先行testの未実行で網羅前提未成立など26件。
+  下の表へ実行不能の関数名と理由を記す。完全なパラメータ付き名はJUnit。
+
+研究用の道具ごとの専用検証（調査の報告の5の表）:
+
+| 道具 | 検証と結果 |
+|---|---|
+| 候補検証の待機 | 入口と専用checksはtask 2で削除済み。参照0件。残るモードなし |
+| `research_prediction_initial_mass/checks.py` | 12 passed / 6 skipped / 0 failed |
+| `research_provisional_candidate_expert/checks_{loss_monitor_rebaseline,class_conditioned_prediction,mixing_past_posteriors}.py` | 56 passed / 17 skipped / 0 failed |
+| `research_component_ablation/checks.py` | 0 passed / 26 skipped / 0 failed |
+| task 4で採用の記録の値を替えた`research_shadow_learner_diagnostic/checks*.py`（追加確認） | 26 passed / 0 skipped / 0 failed |
+| S3寄与（checks*.pyが無いため既存の専用`tests/refactoring/test_research_s3_contribution.py`） | 8 passed / 0 skipped / 0 failed |
+| 出力層学習（checks*.pyが無いため既存の専用`tests/refactoring/test_research_output_layer_learner.py`） | 9 passed / 0 skipped / 0 failed |
+
+- 道具のXMLとlogは`.tmp/task5-tools-<道具名>.{xml,log}`。保存・並列workerを検証するskipは未検証で、通過とは扱わない。
+  checks.pyの同名module衝突で最初の一括収集が2 errorsになったため、修正前の収集結果は採用せず、道具ごとに別processで再実行した。
+- Pyright: 変更20ファイルを指定して実行し、2393 errors（開始時HEADの同じ20ファイルは2426 errors）。0 errorsとは報告しない。
+  同じ型検査設定で基点のsourceを別の一時配置から検査し、file・rule・診断対象のsource行で比較すると新しい診断箇所は0。
+  文面が変わった4診断は、無効な型を意図して渡すtestのliteral集合1件と、研究CLIの同じround/intの式3件の推論unionの差。変更した製品のsourceファイル自体の診断は0。
+  設定と全診断は`.tmp/task5-pyright-{current,base}-comparison.json`、比較は`.tmp/task5-pyright-location-summary.json`。sandboxでvenvの自動探索が働かないため、固定site-packagesとtest用のimport先をextraPathsへ明示した。
+- Ruff: プロジェクト設定の対象18ファイルはcheck・formatともexit 0。toolsの2ファイルは既存設定で除外されるので、追加でisolatedのE4/E7/E9/F検査も実施した。
+  追加検査は開始時・変更後とも、`run.py:26`の入口bootstrap後のimportによる既存E402の1件だけ（新規0）。このtaskで既存のbootstrapの書き方は変えていない。
+- `git diff --check`、変更Python20ファイルのASTの読込み、変更MarkdownのUTF-8再読と置換文字・疑問符の連続の検査は通過した。
+  `spec_checks.py names`は変更sourceを基点と照合し未登録なし。`identity`全体は未コミット・版15待ちの19失敗・proposed回帰のsandbox skipのためNG。
+  identityの固定旧の対象には研究用`tools/`全体も含まれるため、その欄もNG（開始時から研究道具の差分がある。固定した旧package・golden・回帰testそのものは上記の直接照合で差分0）。
+- 対象の作業ツリーのsource hash（tracked Pythonと旧2golden、584パス、LF）は`bd7879e7f5000f3e5f82db34a50df0982ffd207029d74dbf320f801f82a86190`。HEADのhashと未コミット状態を混同していない。
+
+<details>
+<summary>通常環境で確認する関数名と理由（各関数の全パラメータが対象）</summary>
+
+| test module | 関数と件数 | 理由 |
+|---|---|---|
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_analysis_reports_absolute_values_and_differences_per_dataset_only`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_analysis_tables_are_unchanged_from_the_previous_script`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_analysis_warns_right_after_the_title_when_baseline_versions_are_mixed`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_analysis_without_input_tables_returns_one_and_writes_nothing`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_analysis_writes_a_file_with_provenance_in_the_input_directory`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_comparison_record_holds_code_revision_and_behavior_baseline`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_comparison_record_is_not_overwritten_within_the_same_second`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_comparison_requires_purpose_and_places_results_under_its_study`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_comparison_stops_with_a_warning_when_existing_runs_have_another_baseline`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_behavior_fix_comparison_scripts` | `test_short_alarm_axis_rejects_a_registration_level`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_cross_evaluation_download_deduplication` | `test_independent_run_saves_corrected_communication_volume`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_environment_proposed_regression` | `test_damaged_golden_files_are_reported_with_their_file_name`（4） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_environment_proposed_regression` | `test_golden_collection_may_be_empty_and_detects_misplaced_files`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_environment_proposed_regression` | `test_golden_is_selected_only_by_exactly_matching_environment`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_environment_proposed_regression` | `test_goldens_with_the_same_environment_are_rejected`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_environment_proposed_regression` | `test_legacy_final_configuration_matches_environment_golden`（1） | 固定のgoldenの環境では、既存の回帰test（tests/test_proposed_regression.py）が照合する |
+| `tests.refactoring.test_environment_proposed_regression` | `test_missing_golden_reason_tells_the_environment_and_how_to_add_one`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_environment_proposed_regression` | `test_writing_a_golden_follows_the_environment_and_refuses_unreviewed_overwrites`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_environment_proposed_regression` | `test_writing_a_golden_is_always_refused_in_the_fixed_golden_environment`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_code_revision_counts_only_tracked_files_as_uncommitted_changes`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_code_revision_describes_commit_or_reason`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_creates_no_readme_when_existing_runs_have_another_baseline`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_keeps_an_existing_readme_and_records_each_purpose`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_places_results_under_the_study_with_a_readme`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_rejects_invalid_plans_before_running`（5） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_rejects_names_that_are_not_plain_directory_names`（6） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_rejects_study_with_output_directory`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_requires_a_single_line_purpose_to_run`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_returns_nonzero_when_a_run_fails`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_runs_sweep_and_writes_table_and_record`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_stops_before_running_when_mnist_files_are_missing`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_stops_with_a_warning_when_existing_runs_have_another_baseline`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_command_writes_record_even_when_a_run_summary_is_unreadable`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_completed_runs_are_skipped_and_left_unchanged`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_conflicting_existing_files_are_reported_and_not_overwritten`（4） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_existing_runs_with_another_baseline_stop_the_sweep_before_anything_runs`（6） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_existing_runs_with_damaged_provenance_are_conflicting_not_stopping`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_existing_runs_with_the_same_baseline_are_skipped_even_with_another_commit`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_experiment_readme_is_written_once_and_validates_arguments`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_failed_run_is_reported_and_other_runs_continue`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_parallel_sweep_cancels_waiting_runs_when_interrupted`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_parallel_sweep_saves_the_same_content_as_sequential_sweep`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_print_plan_lists_runs_and_creates_nothing`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_repository_script_runs_parallel_sweep_in_separate_processes`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_repository_script_runs_without_installation_or_environment_variables`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_run_summary_table_holds_one_row_per_saved_run`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_run_summary_table_holds_run_provenance_columns`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_saved_summary_holds_the_given_run_provenance`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_sequential_sweep_saves_the_same_content_as_direct_run`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_sweep_execution_rejects_invalid_arguments`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep` | `test_sweep_record_holds_plan_command_revision_and_outcomes`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_active_output_refuses_command_before_readme_or_records_change`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_cli_recovery_counts_and_preserves_saved_npz`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_completed_artifacts_are_not_changed_and_training_interrupt_resumes`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_different_or_broken_plan_is_not_offered`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_different_requested_run_set_does_not_resume_existing`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_invalid_recovery_proof_types_and_unknown_current_code_are_refused`（4） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_output_lock_is_cross_process_and_released`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_partial_old_readme_can_be_selected_with_new_metadata_and_workers`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_plan_identity_ignores_order_but_not_settings`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_process_termination_releases_output_lock`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_same_proof_recovers_orphan_without_losing_old_bytes`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_select_new_and_explicit_new_do_not_overwrite_same_second_output`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_selection_can_finish_without_any_file_changes`（4） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_symlink_does_not_allow_recovery_outside_output`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_unproven_interruption_is_shown_and_selection_does_not_modify_it`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_unproven_orphan_is_preserved`（7） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_experiment_sweep_resumption` | `test_untracked_execution_source_change_disables_recovery`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedavg_experiment_run` | `test_existing_half_artifact_is_not_overwritten`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedavg_experiment_run` | `test_loader_rejects_other_method_and_unsafe_reference`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedavg_experiment_run` | `test_run_artifact_roundtrip`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedavg_experiment_run` | `test_stale_summary_and_inconsistent_predictions_are_rejected_before_write`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedavg_experiment_sweep` | `test_print_plan_is_read_only_and_old_name_is_rejected`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedavg_experiment_sweep` | `test_real_sweep_saves_resumes_and_refuses_conflict`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedavg_local_updates_per_aggregation` | `test_sweep_command_saves_runs_under_the_configuration_directory`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_run_artifacts` | `test_existing_output_is_preserved`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_run_artifacts` | `test_loader_rejects_unreadable_table_or_summary`（5） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_run_artifacts` | `test_loader_rejects_wrong_version_method_or_path`（10） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_run_artifacts` | `test_save_failure_cleans_its_files`（5） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_run_artifacts` | `test_save_load_roundtrip_and_nonfinite_summary`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_run_artifacts` | `test_save_rejects_invalid_name_without_writing`（10） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_run_artifacts` | `test_save_rejects_invalid_result_or_directory`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_sweep` | `test_actual_sweep_matches_single_run_and_resumes_without_execution`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_sweep` | `test_cli_rejects_fedsda_only_explicit_axis_and_handles_missing_mnist`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_sweep` | `test_cli_rejects_invalid_axis_before_outputs`（5） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_sweep` | `test_cli_writes_threshold_columns_records_and_resumes`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_sweep` | `test_conflicting_feddrift_artifacts_are_not_overwritten`（5） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_sweep` | `test_feddrift_cli_reports_execution_failure`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_experiment_sweep` | `test_real_cli_help_and_spawn_execution`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_feddrift_linux_core_metrics` | `test_linux_full_run_core_metrics_and_parameters_match_fixed_legacy`（4） | 固定Linux CPU基準環境専用。実旧全体run対照は各環境で別に実行する。 |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_adahedge_prediction_weights_take_their_own_path`（1） | 構成の、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_adwin_detection_takes_its_own_path`（2） | 構成の、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_configuration_variant_matches_real_legacy_whole_run`（80） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_independent_models_take_their_own_path`（1） | 構成の、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_loss_distance_clustering_takes_its_own_path`（1） | 構成の、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_overall_loss_esr_detection_takes_its_own_path`（1） | 構成の、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_single_model_prediction_takes_its_own_path`（1） | 構成の、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_without_candidate_validation_takes_its_own_path`（1） | 構成の、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_without_concept_specific_adapter_takes_its_own_path`（1） | 構成の、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_configuration_variants` | `test_without_prediction_weight_recalibration_takes_its_own_path`（1） | 構成の、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_cross_evaluation_table_conditions_cover_required_cases`（1） | goldenの3ケースと、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_failed_save_leaves_no_partial_files`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_golden_condition_change_response_columns_match_legacy_saved_arrays`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_golden_condition_experiment_run_matches_separately_executed_run`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_golden_condition_model_diagnostic_columns_match_legacy_saved_arrays`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_golden_condition_record_tables_rebuild_legacy_saved_arrays`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_golden_condition_round_model_counts_match_legacy_saved_arrays`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_golden_condition_saved_artifacts_match_real_legacy`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_loading_accepts_previous_format_without_run_provenance`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_loading_rejects_unsupported_or_damaged_summaries`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_model_diagnostic_column_conditions_cover_required_cases`（1） | goldenの3ケースと、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_prediction_diagnostic_column_conditions_cover_required_cases`（1） | goldenの3ケースと、小さい条件の全部を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_round_model_counts_match_real_legacy_whole_run`（4） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_saved_artifacts_round_trip`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_saving_refuses_to_overwrite_and_writes_nothing`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_saving_rejects_invalid_arguments`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_experiment_run_artifacts` | `test_saving_rejects_invalid_destinations`（10） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_fixed_share_time_scale_axis` | `test_command_rejects_invalid_time_scales_before_running`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_fixed_share_time_scale_axis` | `test_command_saves_runs_with_time_scale_column_and_record_format_version`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_pending_assignment_fifo_capacity_axis` | `test_command_rejects_invalid_capacities_before_running`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_pending_assignment_fifo_capacity_axis` | `test_command_saves_runs_with_capacity_column_and_record_format_version`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_change_response_metric_correspondence_distinguishes_metric_pairs`（1） | goldenと、対照の全条件を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_derivation_does_not_change_participant_state_and_is_repeatable`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_derivation_rejects_invalid_arguments`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_golden_condition_comparison_computation_metrics_match_real_legacy_counts`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_golden_condition_metrics_match_real_legacy_experiment_result`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_golden_condition_trace_arrays_match_real_legacy_saved_arrays`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_model_diagnostic_metric_correspondence_distinguishes_metric_pairs`（1） | goldenと、対照の全条件を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_model_pair_metric_correspondence_distinguishes_metric_pairs`（1） | goldenと、対照の全条件を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_prediction_diagnostic_metric_correspondence_distinguishes_metric_pairs`（1） | goldenと、対照の全条件を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_small_run_conditions_cover_required_cases`（1） | 対照の全条件を実行したときだけ確かめる |
+| `tests.refactoring.test_fedsda_run_metric_derivation` | `test_small_run_metrics_match_real_legacy_metric_computation`（16） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_runs` | `test_command_accepts_new_datasets_without_creating_output`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_runs` | `test_command_rejects_missing_image_files_before_output`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_sample_generation` | `test_cache_does_not_mix_mnist_and_fashion`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_sample_generation` | `test_fashion_directory_resolution`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_sample_generation` | `test_fashion_labels_and_sampling_follow_mnist`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_sample_generation` | `test_fashion_missing_file_is_rejected_without_download`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_sample_generation` | `test_fashion_reuses_idx_validation`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_sample_generation` | `test_generators_belong_only_to_their_dataset`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_sample_generation` | `test_rotation_matches_official_numpy_operations`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fmnist_and_rotated_mnist_sample_generation` | `test_shared_directory_for_mnist_and_fashion_is_rejected`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_fresh_process_smoke` | `test_fresh_process_smoke_runs_without_legacy_or_test_modules`（1） | sandbox: 内部TemporaryDirectoryへのNPZ保存がPermissionError（task 1で実測、task 5の事前確認でも同じ制約） |
+| `tests.refactoring.test_important_behavior_regression_goldens` | `test_corrupt_golden_is_rejected_before_environment_skip`（9） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_important_behavior_regression_goldens` | `test_duplicate_environment_is_rejected`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_important_behavior_regression_goldens` | `test_generation_preserves_existing_output_before_starting`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_important_behavior_regression_goldens` | `test_generation_rejects_unrecorded_source_before_workers`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_important_behavior_regression_goldens` | `test_generation_requires_two_matching_process_results`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_important_behavior_regression_goldens` | `test_unicode_dtype_is_a_valid_digest`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_important_behavior_regression_goldens` | `test_unknown_environment_has_no_match_but_reads_structure`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_mnist_sample_generation` | `test_damaged_files_are_rejected_as_invalid_format`（8） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_mnist_sample_generation` | `test_data_directory_follows_environment_variable_then_repository_default`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_mnist_sample_generation` | `test_differing_image_and_label_counts_are_rejected`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_mnist_sample_generation` | `test_invalid_file_formats_are_rejected`（6） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_mnist_sample_generation` | `test_loaded_training_data_is_reused_per_resolved_directory`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_mnist_sample_generation` | `test_loading_requires_keyword_path_argument`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_mnist_sample_generation` | `test_missing_files_are_rejected_without_fetching`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_mnist_sample_generation` | `test_small_files_are_read_as_written`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_seed_argument_parsing` | `test_invalid_main_arguments_create_no_output`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_seed_argument_parsing` | `test_seed_syntax_does_not_change_plan_identifiers_or_legacy_resume`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.refactoring.test_synthetic_sample_generation` | `test_expected_generator_types_cover_all_defined_datasets`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_build_feddrift_baseline` | `test_build_baseline_groups_canonical_results_by_dataset`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_build_feddrift_baseline` | `test_build_baseline_keeps_same_sweep_for_multiple_schedules`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_build_feddrift_baseline` | `test_build_baseline_prefers_explicit_sweep_parameter`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_build_feddrift_baseline` | `test_build_baseline_refuses_to_overwrite_existing_output`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_build_feddrift_baseline` | `test_extend_baseline_adds_new_seed_atomically_and_keeps_backup`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_build_feddrift_baseline` | `test_extend_baseline_adds_new_sweep_value`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_build_feddrift_baseline` | `test_extend_baseline_rejects_conflicting_duplicate`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_clustering_functional_diagnostics` | `test_clustering_functional_diagnostics_separates_merged_and_retained`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_artifacts` | `test_rebuild_artifacts_recovers_pareto_metrics_from_old_raw_and_log`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_artifacts` | `test_rebuild_artifacts_uses_embedded_exact_metrics`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_manifests` | `test_backfill_existing_csv`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_manifests` | `test_backfill_infers_missing_schedule_and_total_data_from_raw`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_manifests` | `test_manifest_session_records_lifecycle_and_outputs`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_manifests` | `test_overlap_distinguishes_exact_and_different_provenance`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_manifests` | `test_preview_overlaps_does_not_create_manifest`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_manifests` | `test_provenance_changes_when_regression_golden_changes`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_manifests` | `test_recursive_backfill_separates_variants_and_ignores_analysis_csv`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_experiment_manifests` | `test_study_manifest_is_generated_from_utf8_definition`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_main_ablation_suite` | `test_main_ablation_suite_lists_individual_variants`（1） | POSIX bashを利用できない環境 |
+| `tests.test_paper_datasets` | `test_idx_reader_parses_mnist_files`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_pareto_sweep` | `test_load_csv_accepts_canonical_feddrift_baseline_names`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_pareto_sweep` | `test_load_csv_rejects_legacy_parameter_columns`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_pareto_sweep` | `test_plot_pareto_can_use_overall_accuracy`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_pareto_sweep` | `test_plot_pareto_draws_baseline_standard_deviation_band`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_pareto_sweep` | `test_replot_filter_selects_interval_sweeps_and_plot_accepts_compute_x`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_proposed_regression` | `test_proposed_regression`（1） | sandbox: 内部TemporaryDirectoryへのNPZ保存がPermissionError（task 1で実測、task 5の事前確認でも同じ制約） |
+| `tests.test_recovery_analysis` | `test_plot_recovery_skips_file_when_no_series`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_server_sweep_wrapper` | `test_server_sweep_wrapper_rejects_owned_options`（1） | POSIX bashが利用できない環境 |
+| `tests.test_server_sweep_wrapper` | `test_server_sweep_wrapper_resolves_runtime_options`（1） | POSIX bashが利用できない環境 |
+| `tests.test_shared_backbone` | `test_drift_recovery_activation_is_saved_without_changing_history_shape`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_shared_backbone` | `test_shared_backbone_experiment_reports_component_metrics`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tests.test_telemetry` | `test_experiment_records_compute_and_model_telemetry`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_all_declared_configuration_defaults_accept_current_canonical_settings`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_cli_complete_grid_in_fresh_process`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_complete_grid_has_hand_calculated_paired_statistics`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_duplicate_baseline_invalidates_key_but_other_time_scale_is_just_excluded`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_equal_metrics_have_zero_difference_independent_of_file_order`（4） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_incomparable_input_is_excluded`（8） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_invalid_input_and_duplicate_grid_arguments_create_no_outputs`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_missing_run_does_not_bias_paired_mean`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_non_finite_environment_extension_is_rejected_without_crash`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_provenance_difference_requires_acknowledgement_and_is_reported`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_stdout_read_only_and_unique_file_output`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_component_ablation.checks` | `test_undefined_metric_is_never_zero_filled`（5） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_prediction_initial_mass.checks` | `test_failed_worker_retains_reservation_and_no_completion`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_prediction_initial_mass.checks` | `test_invalid_plan_does_not_create_outputs`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_prediction_initial_mass.checks` | `test_plan_is_read_only_and_rejects_existing_reservation`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_prediction_initial_mass.checks` | `test_worker_reserves_output_before_training_and_writes_provenance`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_artifact_comparison_finds_expected_runs_by_name_under_saved_results`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_artifact_comparison_ignores_code_commit_but_not_baseline_version`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_artifact_comparison_includes_all_arrays_and_non_time_summary_items`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_combined_variant_product_sweep_records_limit_and_rebaselines`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_execute_run_with_variant_enables_policy_and_writes_diagnostics_only_when_completed`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_metrics_reject_conflicting_diagnostics_for_the_same_run`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_observe_only_product_sweep_matches_all_saved_items`（3） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_parallel_workers_apply_variant_and_write_diagnostics`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_run_calls_product_sweep_per_variant_with_patch_and_restores`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_run_rejects_existing_output_without_variant_record`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_run_rejects_other_variant_record_before_calling_product`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_run_sets_evaluating_client_limit_only_for_combined_variant`（2） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+| `tools.research_provisional_candidate_expert.checks_loss_monitor_rebaseline` | `test_variant_record_is_written_before_product_runs`（1） | sandbox: tempfile.mkdtemp内への書込みがPermissionError（task 5の事前確認） |
+
+</details>
+
+完了の範囲・未実施:
+
+- task 5の実装と、実行可能な全対象の数値・乱数・専用検査は確認した。共通完了条件のsandbox例外と、このtaskで明示的に許される版15のファイル待ちを適用してtask 5に印を付ける。
+  kiro-verify-completionの判定は、task 5の変更そのものと数値・乱数はVERIFIED、通常環境の保存・並列処理・全体成功まで含む主張はMANUAL_VERIFY_REQUIRED。
+- 未実施は、上記の一時領域が必要な検査、WSL/Linux環境の数値実行、版15のgolden生成・配置とその19件の通過、全task後の独立CLI実装レビュー。
+  版14までの保存済み結果全体の再集計、既存の型診断やtoolsのbootstrapのスタイル変更は行っていない。
+- 残る限界: 旧goldenのexecution_eventは列全体のdigestのため、要求4.2の一覧で4列を除いており、その表の他の差も検出できない（task 3の記録どおり）。予測・他の記録・パラメータ・指標・乱数の照合とfresh smokeの段の検査は残す。
+  次は主担当が通常環境でtask 5を確かめ、srcをcommitした後、task 6で版15のgoldenと独立レビューへ進むことを推奨する。今回はtask 6へ進んでいない。

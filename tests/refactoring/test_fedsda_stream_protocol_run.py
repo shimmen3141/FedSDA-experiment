@@ -537,19 +537,8 @@ def test_whole_stream_protocol_run_matches_real_legacy_whole_run(
         observed_paths.add("server_consolidation_parameters_accumulated")
     if diagnostic_distance_count > 0:
         observed_paths.add("server_parameter_distance_computed")
-    # 候補の判定の種類（実旧の理由）。保持した判定記録との照合は、clientの全状態の照合が行う。
-    observed_paths |= {
-        f"decision_{legacy_decision.reason}"
-        for legacy_client in legacy_clients
-        for legacy_decision in legacy_client.provisional_model_decisions
-    }
-    # 終端での回収は、実旧では、理由が「前向きの標本が足りない」の、候補の判定として残る。
-    assert ("post_alarm_validation_incomplete_candidate_rejected" in observed_paths) == any(
-        legacy_decision.reason == "insufficient_forward_data"
-        for legacy_client in legacy_clients
-        for legacy_decision in legacy_client.provisional_model_decisions
-    )
-    # 終端の後、どのclientも、候補検証を保持していない。
+    # 旧の検証なしのrunにも、判定の記録と実行中の検証が無い。
+    assert all(legacy_client.provisional_model_decisions == [] for legacy_client in legacy_clients)
     assert all(legacy_client._forward_validation is None for legacy_client in legacy_clients)
     if any(synchronization.registered_client_models for synchronization in synchronizations):
         observed_paths.add("new_model_registered")

@@ -165,15 +165,11 @@ def test_alarm_occurrence_signature_extends_response_arguments():
 
 
 @pytest.mark.parametrize("class_count", (2, 4))
-@pytest.mark.parametrize("recording_oracle_case", RECORDING_ORACLE_CASES[:4])
+@pytest.mark.parametrize("recording_oracle_case", RECORDING_ORACLE_CASES)
 def test_alarm_occurrence_matches_real_legacy_alarm(
     class_count, recording_oracle_case, monkeypatch, valid_run_settings_mapping
 ):
-    expected_response_outcome = (
-        "alarm_interval_candidate_adopted_as_new_model"
-        if recording_oracle_case[0] == "alarm_interval_candidate_validation_started"
-        else recording_oracle_case[0]
-    )
+    expected_response_outcome = recording_oracle_case[0]
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(823)
         (
@@ -236,17 +232,16 @@ def test_alarm_occurrence_matches_real_legacy_alarm(
         legacy_result=legacy_result,
         pending_sample_indices_before_completion=pending_sample_indices_before_alarm,
     )
-    if expected_response_outcome != "alarm_during_candidate_validation":
-        assert_buffer_response_matches_legacy(
-            response=alarm_buffer_response,
-            response_arguments=response_arguments,
-            preparation_arguments=preparation_arguments,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-            legacy_result=legacy_result,
-            initial_training_model_id=initial_training_model_id,
-        )
+    assert_buffer_response_matches_legacy(
+        response=alarm_buffer_response,
+        response_arguments=response_arguments,
+        preparation_arguments=preparation_arguments,
+        resolution_arguments=resolution_arguments,
+        shared_optimizer_owners=shared_optimizer_owners,
+        legacy_client=legacy_client,
+        legacy_result=legacy_result,
+        initial_training_model_id=initial_training_model_id,
+    )
     # 記録: 実旧の適応イベント・切替位置・再利用件数と一致する。
     assert legacy_result[1][0] == dict(
         position=adaptation_record.adaptation_sample_index,

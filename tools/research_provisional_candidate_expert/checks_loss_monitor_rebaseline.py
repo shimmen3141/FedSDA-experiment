@@ -635,6 +635,10 @@ def test_observe_only_research_run_matches_product_including_parameter_digest():
     with patch.object(configurations, "build_final_configuration_fedsda_run_settings", _build_baseline_12_settings):
         expected = _execute_job({**job, "variant": "product-default"})
     actual = _execute_job({**job, "variant": _OBSERVE_ONLY})
+    for record in (actual, expected):
+        assert not {
+            "session_starts", "sequential_test_decisions", "sequential_test_mean_sample_count"
+        } & record.keys()
     assert actual.pop("loss_monitor_rebaseline")["rebaseline_count"] == 0
     for record in (actual, expected):
         for key in ("variant", "seconds"):

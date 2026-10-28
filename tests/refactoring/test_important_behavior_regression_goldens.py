@@ -122,13 +122,6 @@ def structural_document():
                 processed_sample_count_per_client=count // interval * interval,
                 unprocessed_tail_sample_count_per_client=count % interval,
                 synchronization_round_count=count // interval,
-                candidate_accepted_count=1,
-                candidate_rejected_count=1,
-                decision_reasons=[
-                    "first_segment_margin_failed",
-                    "second_segment_margin_failed",
-                    "alternative_reference_within_historical_loss_tolerance",
-                ],
                 training_model_switch_count=1,
                 merged_model_count=1,
                 recalibration_replayed_sample_count=1,
@@ -163,9 +156,6 @@ def structural_document():
         ):
             # 新しい既定のケースは、検証の判定が無く、切替えが採用より多い。
             cases[name]["coverage"].update(
-                candidate_accepted_count=0,
-                candidate_rejected_count=0,
-                decision_reasons=[],
                 training_model_switch_count=2,
             )
         if name in (
@@ -226,7 +216,7 @@ def test_corrupt_golden_is_rejected_before_environment_skip(tmp_path, structural
     import json
 
     document = deepcopy(structural_document)
-    case = document["cases"]["fedsda-sine2-events"]
+    case = document["cases"]["fedsda-sine2-adoption-without-validation"]
     if damage == "unknown_version":
         document["baseline_version"] = max(golden.SUPPORTED_BASELINE_VERSIONS) + 1
     elif damage == "boolean_version":
@@ -1050,7 +1040,7 @@ def test_generation_rejects_unrecorded_source_before_workers(monkeypatch, tmp_pa
 def test_changed_real_golden_snapshot_is_detected(section):
     import re
 
-    document = golden.load_golden(next(golden.GOLDEN_DIRECTORY.glob("windows-*.json")))
+    document = golden.load_golden(next(golden.golden_directory(14).glob("windows-*.json")), 14)
     expected = document["cases"]["fedavg"]
     changed = deepcopy(expected)
     if section == "run_settings":

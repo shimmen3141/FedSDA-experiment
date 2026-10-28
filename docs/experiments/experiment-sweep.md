@@ -1,9 +1,9 @@
 # 実験の掃引のコマンド（新実装）
 
 2026-10-27の新しい既定: FedSDAは損失の低下で監視の基準を下げ、クロス評価の上限を実験のclient数にする。
-候補検証ありの構成は基準を警報まで保ち上限3、ADWINの2構成は基準を警報まで保ち上限はclient数。
+ADWINの2構成は基準を警報まで保ち上限はclient数。
 コマンドの引数は変わらないが、完全設定が変わるのでrunの識別子は変わる。過去の結果は保存された設定と来歴で区別する。
-基準版13のgoldenは生成元`539363a7`（WindowsとWSL）、版の定数は13。
+現在の基準版は15。版15のgoldenは主担当の生成待ち（[削除spec](../../.kiro/specs/remove-post-alarm-candidate-validation/tasks.md)）。
 研究CLIの非product系は版10を保ち、IMPROVE-031と上限撤廃だけの比較は版12を基点にする。
 研究入口はbuilderの結果を置き換え、product-defaultだけは製品の新しい既定を使う。
 [検証と未実施範囲](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。
@@ -11,13 +11,18 @@
 新実装（`src/federated_learning_experiments/`）で、構成・dataset・seed・集約間隔の全部の組合せを実行し、
 runごとの結果と、一覧の表を保存する。旧実装の`run_pareto_sweep.py`・`tools/run_server_sweep.sh`に当たる。
 
-2026-10-23から、`fedsda-with-candidate-validation`を除くFedSDAの全構成は、クロス評価で対象を保有し、
+FedSDAの全構成は、クロス評価で対象を保有し、
 対象の標本を返せるclientだけを評価させる既定（`clients_with_target_model_samples`）を引き継ぐ。
-候補検証ありの構成は`clients_holding_target_model`を明示する。コマンドの引数は変わらず、選び方は保存するrun設定に入る。
-現在の基準版は13（環境別goldenは生成元`539363a7`）。
+コマンドの引数は変わらず、選び方は保存するrun設定に入る。
 研究ツールの`product-default`系は製品の新しい既定を使い、`product-default-sample-holding-cross-evaluation`は
 `product-default`と同じ選び方になる。それ以外の変種は基準版10の既定と従来の選び方を基点にする。
 検証の入口は[対象specのImplementation Notes](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/tasks.md)。
+
+基準版15では候補検証の記録の表・指標・設定を保存しない。設定が減るため、FedSDAのrun識別子の末尾hashは変わる。
+基準版14までの結果を読む集計の道具（`tools/experiments/accuracy_periods.py`、
+`tools/research_feddrift_delta_comparison.py`など）はそのまま使える。runはデータ・集約間隔・seed（構成も揃える）で対応させ、
+hashで対応させない。過去の掃引への再開・seed追加は行わず、新しい保存先へ実行する。
+FedDrift・FedAvgの保存の形とrun識別子は変わらない。
 
 ## 準備
 
@@ -152,7 +157,7 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 
 2026-10-16のユーザー判断により、既定は混ぜる予測・容量30・T120となった。根拠は[研究バックログの8](../research/research-backlog.md)。`fedsda-synchronized-local-mixture-prediction`は既定と同じ設定として残す。過去の同名構成ではT30などを使っていたため、結果は構成名だけで比べず、保存した完全設定と来歴を確認する。
 
-2026-10-20のユーザー判断により、既定は、候補を検証せずにその場で採用し、候補の学習では共有部を固定する（概念固有部——adapterと出力層——だけを、警報の時点の共有部の上で学習する）構成になった（基準版7）。根拠は[研究記録](../research/fedsda-provisional-candidate-expert-20261019.md)の最後の2節（本規模、6データ・4間隔・seed 0〜9で、24条件中18条件で候補検証ありより高精度、有意の目安で下回る条件なし。下りの通信は最大で約25%増える）。それまでの既定（候補検証あり）は`fedsda-with-candidate-validation`で選べる。候補検証と共有部の固定は組み合わせられない（検証の期間の後に採用すると、clientの共有部を警報の時点の値へ戻すため。run設定の組立てで拒否する）。`fedsda`の2026-10-19までの結果と、これからの結果は、同じ名前でも別の設定なので、保存した完全設定と来歴で区別する。
+2026-10-20のユーザー判断により、既定は、候補を検証せずにその場で採用し、候補の学習では共有部を固定する（概念固有部——adapterと出力層——だけを、警報の時点の共有部の上で学習する）構成になった（基準版7）。根拠は[研究記録](../research/fedsda-provisional-candidate-expert-20261019.md)の最後の2節（本規模、6データ・4間隔・seed 0〜9で、24条件中18条件で候補検証ありより高精度、有意の目安で下回る条件なし。下りの通信は最大で約25%増える）。候補検証ありの構成と、候補検証だけの設定・組合せの制約は削除した。`fedsda`の2026-10-19までの結果と、これからの結果は、同じ名前でも別の設定なので、保存した完全設定と来歴で区別する。
 
 | 名前 | 内容 | 旧実装（`tools/run_main_ablation_suite.sh`）での名前 |
 |---|---|---|
@@ -167,10 +172,9 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 | `fedsda-overall-loss-adwin-detection` | 同じく、ADWINで、全体の損失の窓だけを監視する | `overall-adwin` |
 | `fedsda-without-concept-specific-adapter` | 提案構成のモデルから、概念固有の残差adapterを外す（概念固有部は、出力層だけ） | `shared-backbone` |
 | `fedsda-independent-models` | 提案構成のモデルを、共有部を持たないモデルへ替える（隠れ層と分類層の全部を、モデルごとに独立に持つ。ローカル学習は、モデルごとに順に行い、集約後の重みの再較正は行わない） | `independent` |
-| `fedsda-synchronized-model-prediction` | 提案構成の、予測（と予測重みの更新）を、最後の同期の時点のモデルで行う（配布を反映した直後に保有モデル全部を写し、次の同期まで、その写しで予測する。同期の後に作ったモデルは、共有部を写しの値、モデル固有部を現在の値で評価する。損失の監視・候補の検証・学習・統計・アップロードは、局所更新した現在のモデルのまま） | なし（新実装だけ。旧とは照合せず、手元の診断の差し替えと、予測の記録が一致することを確かめた） |
+| `fedsda-synchronized-model-prediction` | 提案構成の、予測（と予測重みの更新）を、最後の同期の時点のモデルで行う（配布を反映した直後に保有モデル全部を写し、次の同期まで、その写しで予測する。同期の後に作ったモデルは、共有部を写しの値、モデル固有部を現在の値で評価する。損失の監視・学習・統計・アップロードは、局所更新した現在のモデルのまま） | なし（新実装だけ。旧とは照合せず、手元の診断の差し替えと、予測の記録が一致することを確かめた） |
 | `fedsda-synchronized-local-mixture-prediction` | 提案構成の予測を、同期の時点のモデルの結合予測（上の構成と同じ）と、局所更新した今のモデルを同じ重みで結合した予測の、2つを混ぜて行う。混ぜる重みはclientごとに(同期, 局所)＝(0.5, 0.5)から始め、予測の後に、それぞれの損失（1−真のクラスの確率）で`exp(−2·損失)`を掛けて正規化し、Fixed-Shareの時間尺度Tの逆数1/Tを分け合う（学習率2は固定）。予測の記録の`combined_prediction_is_correct`と`any_model_or_combined_prediction_is_correct`は混ぜた予測の側、ほかの項目は同期の側。現在のモデルだけで予測する設定とは組み合わせられない。学習・検出ほかは、局所更新した現在のモデルのまま | なし（新実装だけ。手元の診断の差し替えと、予測の記録が一致することを確かめた） |
 | `fedsda-local-parameter-prediction` | 提案構成から、予測に使うパラメータだけを局所更新した現在の値へ替える。全モデルの結合は維持し、Tは120。現在の学習帰属モデルだけで予測する構成とは異なる | なし（新実装の専用testで保護） |
-| `fedsda-with-candidate-validation` | 2026-10-19までの提案構成。提案構成から、候補の採否を「警報の後の10標本で、既存モデルの再適合と、2区間の改善を確かめてから採否を決める」へ、候補の学習を「共有部も一緒に更新する」へ、警報の後の変化点と帰属先の選び方を今の扱い（`detector_change_span_and_mean_loss_increase_tolerance`）へ替える（3つを替えるのは、組合せの制約のため） | `reference`の候補検証（基準版7の候補検証のケースは、この構成で実行する） |
 
 2026-10-15に予測の設定へ項目（`prediction_model_parameter_source`）を足したので、それより前のFedSDAの結果とは、runの識別子が一致しない（同じ出力先へ実行すると、前のrunは済んだrunとして扱われない）。比べるときは、別の出力先を使う。
 
@@ -180,7 +184,7 @@ NPZ・run JSON・一覧CSV・README・sweep_recordの既存の形式と版は変
 
 2026-10-22に、帰属の設定へ「新しいモデル」の仮説の学習者の組（`new_model_hypothesis_learners`）を、参加者の設定へ初期モデルの損失の統計の推定の仕方（`initial_model_loss_statistics_estimation`）を足し、既定を`reinitialized_and_warm_started_learners`と`five_fold_cross_validation`にした（基準版11。[説明](../components/model-reuse.md#最小記述長の原理による選択既定)、[検出器の基準](../components/drift-detection.md#fedsda実装での基準平均)）。それより前のFedSDAの結果とは、runの識別子が一致しない。`fedsda-with-candidate-validation`は基準版10までの扱いを明示するので、値は前と同じだが、識別子は変わる。研究ツール（`tools/research_provisional_candidate_expert/run.py`）の変種は、基準版10の既定を基点に評価してきたので、`product-default`以外の変種は、この2つの項目を基準版10の値に戻してから差し替える（既定を変える前と同じ値になることを確かめた）。
 
-提案構成以外の構成は、提案構成の、1つの要素だけを変える（`fedsda-with-candidate-validation`だけは、組合せの制約のため5つ）。2026-10-20に候補の学習の設定へ項目（`candidate_shared_feature_update_policy`）を足したので、それより前のFedSDAの結果とは、runの識別子が一致しない。小さい条件（sine2）で、旧実装の、同じ指定の全体runと、指標と離散列が一致することを確かめている。
+提案構成以外の構成は、提案構成の、1つの要素だけを変える。2026-10-20に候補の学習の設定へ項目（`candidate_shared_feature_update_policy`）を足したので、それより前のFedSDAの結果とは、runの識別子が一致しない。小さい条件（sine2）で、旧実装の、同じ指定の全体runと、指標と離散列が一致することを確かめている。
 
 `fedsda-single-model-prediction`では、標本ごとに、現在のモデルだけを評価する。記録の、重みに関する項目（最大重みのモデル、実効モデル数、Fixed-Share・AdaHedgeの重みでの結合の正否ほか）は、「現在のモデルに重み1」の値になり、「どれかのモデルが正解」「確信度が最大のモデルが正解」も、現在のモデルの正否と同じになる。予測の内訳の指標を、ほかの構成と比べるときは、この違いに注意する。保有モデル×標本の延べ数（`held_model_sample_count`）は、どの構成でも、標本ごとの保有モデル数の合計で、この構成では、評価したモデルの数（標本ごとに1）より大きい。「保有モデル×標本あたり」の計算量は、その分、小さく出る。
 

@@ -2577,7 +2577,6 @@ def _execute_job(job):
                 )
             )
         run = execute_fedsda_experiment_run(run_settings=settings)
-    tests = [e for e in events if e["event"] == "sequential_test"]
     clients = run.measured_run.participants.client_operations
     records = [
         record
@@ -2640,7 +2639,6 @@ def _execute_job(job):
                 for name, value in repository.get_global_model_parameters(model_id=model_id).items()
             }
         ),
-        session_starts=sum(e["event"] == "session_start" for e in events),
         frozen_candidate_update_count=sum(e["event"] == "frozen_candidate_update" for e in events),
         withdrawn_released_sample_count=sum(e["count"] for e in events if e["event"] == "withdraw_released"),
         withdrawn_new_concept_sample_count=sum(e["new_concept"] for e in events if e["event"] == "withdraw_released"),
@@ -2682,13 +2680,6 @@ def _execute_job(job):
         ),
         withdrawn_not_reassigned_sample_count=sum(
             e["count"] for e in events if e["event"] == "withdrawn_not_reassigned"
-        ),
-        sequential_test_decisions={
-            decision: sum(e["decision"] == decision for e in tests)
-            for decision in ("accept", "reject", "timeout")
-        },
-        sequential_test_mean_sample_count=(
-            sum(e["sample_count"] for e in tests) / len(tests) if tests else None
         ),
         session_outcomes={
             outcome: sum(e.get("outcome") == outcome for e in events)
