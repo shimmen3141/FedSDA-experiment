@@ -153,4 +153,5 @@ FedDCA、FL-HVDは本選別では一次資料と再現可能性の確認を完�
 - また、帰属は今はMDLによる選択なので、「Sequential-Test assignment」は今の構成とずれる。
 - 推奨: **FedHASP**（Federated learning with Hard Assignment and Soft Prediction）。主軸の「硬い帰属と柔らかい予測の分離」をそのまま表す。副題で統計的な判定と集約の間隔への頑健さを補う（例: 「... for Interval-Robust Adaptation to Distributed Concept Drift」）。
 - 次点: FedHASTE（Hard Assignment and Soft Tracking of Experts）。予測の側の仕組み（専門家の追従）まで表すが、「haste（急ぐ）」の語感が内容と合わない。
+- **決定（2026-10-29、ユーザー）: 論文での手法名はFedHASP**。コード・設定・結果・文書の`fedsda`/FedSDAは改名しない（run識別子・golden・過去の記録との対応を保つため）。論文の原稿と、匿名で公開するコードの写しでだけFedHASPと呼ぶ。
 - 2つとも、Web検索では同名の連合学習の手法は見つからなかった。検索で見つからないことは存在しないことの証明ではないので、投稿の前にGoogle Scholar・arXiv・GitHubで再確認する。コードの名前（`fedsda`）は変えない（6節）。
