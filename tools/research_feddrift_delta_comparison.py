@@ -1,7 +1,7 @@
 """FedDriftのδをデータ×間隔ごとに選び、手法を同じ条件で並べる研究用の集計。
 
 - `select`: δの調整の掃引の結果（調整用のseed）から、データ×間隔ごとに、seedの平均の全体の累積精度が最大のδを選ぶ
-  （同じ値なら小さいδ）。選んだδの表（CSV）と、本評価の掃引のコマンド（データとδの組ごとに1つ）を書き出す。
+  （同じ値なら小さいδ）。幅を指定すると、最良の平均精度から幅に入るδのうち、平均の通信（上り＋下り）が最小のδを選ぶ。選んだδの表（CSV）と、本評価の掃引のコマンド（データとδの組ごとに1つ）を書き出す。
 - `compare`: 結果の置き場所を`名前=ディレクトリ`で複数受け取り、手法（名前/構成）×データ×間隔ごとに、全体の累積精度、
   基準の手法との同じseedの対の差、上り・下りの通信byte、clientのMAC（順伝播＋推定逆伝播）を並べる。
 
@@ -60,7 +60,7 @@ def select(arguments):
     for (configuration, dataset, interval, seed, delta), run in runs.items():
         if configuration != "feddrift":
             continue
-        by_cell[(dataset, interval)][delta].append((seed, run["accuracy"]))
+        by_cell[(dataset, interval)][delta].append((seed, run))
     if not by_cell:
         raise ValueError(f"FedDriftのrunがありません: {arguments.tuning_root}")
     rows = []
@@ -73,21 +73,40 @@ def select(arguments):
         incomplete = {delta: seeds for delta, seeds in seed_sets.items() if seeds != expected}
         if incomplete and not arguments.exclude_incomplete_deltas:
             raise ValueError(f"{dataset}・間隔{interval}で調整用のseedがそろっていません: {incomplete}")
-        means = {
-            delta: float(np.mean([a for _, a in values]))
-            for delta, values in by_delta.items()
-            if delta not in incomplete
-        }
-        if not means:
+        complete = {delta: values for delta, values in by_delta.items() if delta not in incomplete}
+        if not complete:
             raise ValueError(f"{dataset}・間隔{interval}で調整用のseedがそろったδがありません")
+        accuracies = {delta: [run["accuracy"] for _, run in values] for delta, values in complete.items()}
+        means = {delta: float(np.mean(values)) for delta, values in accuracies.items()}
+        communications = {
+            delta: float(np.mean([(run["upload"] + run["download"]) / 1e6 for _, run in values]))
+            for delta, values in complete.items()
+        }
         best = max(means.values())
-        chosen = min(delta for delta, mean in means.items() if mean == best)
+        best_delta = min(delta for delta, mean in means.items() if mean == best)
+        # 幅: 最良の精度のδの、seed間の標準誤差の倍数か、固定のpp（指定が無ければ0で、最良の精度のδ）。
+        if arguments.tolerance_standard_errors is not None:
+            values = accuracies[best_delta]
+            standard_error = float(np.std(values, ddof=1) / np.sqrt(len(values))) if len(values) > 1 else 0.0
+            tolerance = arguments.tolerance_standard_errors * standard_error
+        else:
+            tolerance = arguments.tolerance_pp
+        # 幅に入るδのうち通信が最小のδ（同じなら精度が高い方、さらに同じなら小さいδ）。
+        chosen = min(
+            (delta for delta, mean in means.items() if mean >= best - tolerance),
+            key=lambda delta: (communications[delta], -means[delta], delta),
+        )
         rows.append(
             dict(
                 dataset=dataset,
                 interval=interval,
                 selected_delta=chosen,
-                selected_mean_accuracy=best,
+                selected_mean_accuracy=means[chosen],
+                selected_mean_communication_mb=communications[chosen],
+                best_accuracy_delta=best_delta,
+                best_mean_accuracy=best,
+                best_mean_communication_mb=communications[best_delta],
+                tolerance_pp=tolerance,
                 # 欠けたδは、済んだseedの数と一緒に残す（例: `0.04:1/3`）。
                 excluded_incomplete_deltas=" ".join(
                     f"{delta:.2f}:{len(seeds)}/{len(expected)}"
@@ -105,11 +124,13 @@ def select(arguments):
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
-    print("|データ|間隔|選んだδ|調整用seedの平均精度%|欠けて外したδ|")
-    print("|---|---:|---:|---:|---|")
+    print("|データ|間隔|選んだδ|平均精度%|平均通信MB|精度最良のδ|平均精度%|平均通信MB|幅pp|欠けて外したδ|")
+    print("|---|---:|---:|---:|---:|---:|---:|---:|---:|---|")
     for row in rows:
         print(
             f"|{row['dataset']}|{row['interval']}|{row['selected_delta']:.2f}|{row['selected_mean_accuracy']:.2f}|"
+            f"{row['selected_mean_communication_mb']:.1f}|{row['best_accuracy_delta']:.2f}|"
+            f"{row['best_mean_accuracy']:.2f}|{row['best_mean_communication_mb']:.1f}|{row['tolerance_pp']:.3f}|"
             f"{row['excluded_incomplete_deltas']}|"
         )
     # 掃引は、データ×間隔の直積で流すので、データとδの組ごとに、そのδを選んだ間隔をまとめる。
@@ -223,14 +244,26 @@ def main(command_arguments=None):
         action="store_true",
         help="調整用のseedがそろわないδを、そのデータ×間隔の候補から外す（外したδはCSVと表に残す）",
     )
+    tolerance = choose.add_mutually_exclusive_group()
+    tolerance.add_argument(
+        "--tolerance-pp",
+        type=float,
+        default=0.0,
+        help="最良の平均精度からこの幅（pp）に入るδのうち、通信が最小のδを選ぶ",
+    )
+    tolerance.add_argument(
+        "--tolerance-standard-errors",
+        type=float,
+        help="幅を、最良の精度のδのseed間の標準誤差のこの倍数にする",
+    )
     choose.add_argument("--evaluation-seeds", default="0-9")
     choose.add_argument("--client-count", type=int, default=10)
     choose.add_argument("--per-client-sample-count", type=int, default=5000)
     choose.add_argument("--workers", type=int, default=64)
-    choose.add_argument("--study", default="feddrift-tuned-delta-v14")
+    choose.add_argument("--study", default="feddrift-tuned-delta-v15")
     choose.add_argument(
         "--purpose",
-        default="基準版14のFedDriftを、調整用のseedでデータ×間隔ごとに選んだδで評価する",
+        default="基準版15のFedDriftを、調整用のseedでデータ×間隔ごとに選んだδで評価する",
     )
     table = commands.add_parser("compare")
     table.add_argument("--group", action="append", required=True)
