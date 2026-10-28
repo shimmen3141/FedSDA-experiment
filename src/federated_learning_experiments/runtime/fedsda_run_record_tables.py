@@ -321,50 +321,6 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
         [adaptation_record.current_training_model_id for _, adaptation_record in adaptations]
     )
 
-    # ---- 候補検証の判定（確定したものと、終端で回収した未完了のもの） ----
-    # 未完了の判定は、比較した参照モデルと、平均損失を持たない（参照モデルは−1、損失はNaN）。
-    # 「変更に対応したか」は、clientごとに、提案の位置を記録の順に並べて、変更位置と対応づけた結果。
-    decision_columns: dict[str, list[int]] = {
-        column_name: []
-        for column_name in (
-            "client_id",
-            "proposal_sample_index",
-            "resolution_sample_index",
-            "candidate_training_interval_sample_count",
-            "validation_sample_count",
-            "comparison_reference_model_id",
-        )
-    }
-    decision_flag_columns: dict[str, list[bool]] = {
-        column_name: []
-        for column_name in (
-            "is_incomplete_at_run_end",
-            "candidate_accepted",
-            "matched_to_concept_change",
-        )
-    }
-    decision_text_columns: dict[str, list[str]] = {"decision_reason": [], "detector_name": []}
-    decision_loss_column_names = (
-        "candidate_full_interval_mean_loss",
-        "reference_full_interval_mean_loss",
-        "candidate_second_segment_mean_loss",
-        "reference_second_segment_mean_loss",
-        "reference_historical_mean_loss",
-    )
-    decision_loss_columns: dict[str, list[float]] = {
-        column_name: [] for column_name in decision_loss_column_names
-    }
-    for column_name, integer_values in decision_columns.items():
-        record_tables[f"candidate_validation_decision.{column_name}"] = _integer_column(
-            integer_values
-        )
-    for column_name, flag_values in decision_flag_columns.items():
-        record_tables[f"candidate_validation_decision.{column_name}"] = _boolean_column(flag_values)
-    for column_name, text_values in decision_text_columns.items():
-        record_tables[f"candidate_validation_decision.{column_name}"] = _text_column(text_values)
-    for column_name, loss_values in decision_loss_columns.items():
-        record_tables[f"candidate_validation_decision.{column_name}"] = _float_column(loss_values)
-
     # ---- モデルの登録 ----
     global_model_repository = server_owners.global_model_repository
     registration_records = global_model_repository.snapshot_model_registration_records()

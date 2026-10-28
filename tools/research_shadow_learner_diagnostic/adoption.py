@@ -101,7 +101,9 @@ def adopt_shadow(*, state, arguments):
         adaptation_record=AdaptationRecord(
             adaptation_sample_index=a["indexed_observation"].sample_index,
             detector_name="research_shadow_score",
-            adaptation_outcome="post_alarm_validation_candidate_adopted",
+            # 候補検証の結果の値は消した（基準版15のspec）。同じく学習帰属を切り替える採用として記録する
+            # （この道具の採用は、detector_nameで区別する）。
+            adaptation_outcome="alarm_interval_candidate_adopted_as_new_model",
             previous_training_model_id=assignment.previous_model_id,
             current_training_model_id=assignment.current_model_id,
             estimated_change_point_sample_index=e["alarm_sample_index"]

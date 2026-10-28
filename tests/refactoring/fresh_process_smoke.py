@@ -947,7 +947,6 @@ def run_whole_stream_protocol_run(*, run_client_settings, random_seed, dataset_n
     assert run_metrics.communication_volume == communication_volume
     assert run_metrics.final_parameter_value_count > 0
     assert run_metrics.final_parameter_byte_count == 4 * run_metrics.final_parameter_value_count
-    assert run_metrics.candidate_validation_decision_count == 0
     assert (
         run_metrics.mixed_prediction_sample_count == processed_sample_count * WHOLE_RUN_CLIENT_COUNT
     )

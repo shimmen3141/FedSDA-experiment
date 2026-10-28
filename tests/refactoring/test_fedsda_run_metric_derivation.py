@@ -163,9 +163,9 @@ def derive_legacy_metric_values(run_metrics):
         ),
         final_parameter_values=run_metrics.final_parameter_value_count,
         final_parameter_bytes=run_metrics.final_parameter_byte_count,
-        # 最終構成の候補の判定は、すべて、警報後の標本での検証（旧の2つの指標は同じ値）。
-        provisional_proposal_count=run_metrics.candidate_validation_decision_count,
-        provisional_forward_count=run_metrics.candidate_validation_decision_count,
+        # 候補検証を消したので、候補の判定は無い（旧の検証なしのrunでも0）。
+        provisional_proposal_count=0,
+        provisional_forward_count=0,
         routing_soft_prediction_sample_count=run_metrics.mixed_prediction_sample_count,
         routing_switching_recalibration_sample_count=(
             run_metrics.fixed_share_weight_recalibration_replayed_sample_count
@@ -226,6 +226,35 @@ INDISTINGUISHABLE_LEGACY_CHANGE_RESPONSE_METRIC_NAME_PAIRS = {
 }
 
 
+# 候補検証を消したので、判定の指標は無い（基準版15のspec）。旧の検証なしのrunでは、旧の候補の判定の指標は
+# すべて0なので、旧の名前へは0を写す（消す前の新の指標も、判定の無いrunでは0だった）。
+_NO_CANDIDATE_VALIDATION_DECISION_METRICS = SimpleNamespace(
+    matched_decision_count=0,
+    matched_accepted_decision_count=0,
+    matched_rejected_decision_count=0,
+    incomplete_at_run_end_decision_count=0,
+    first_segment_margin_failed_decision_count=0,
+    second_segment_margin_failed_decision_count=0,
+    both_segment_margins_failed_decision_count=0,
+    current_reference_within_historical_loss_tolerance_decision_count=0,
+    alternative_reference_within_historical_loss_tolerance_decision_count=0,
+    accepted_decision_rate=0.0,
+    accepted_decision_precision=0.0,
+    mean_candidate_training_interval_sample_count=0.0,
+    mean_validation_sample_count=0.0,
+    mean_resolution_delay_sample_count=0.0,
+    accepted_mean_full_interval_loss_margin=0.0,
+    accepted_mean_second_segment_loss_margin=0.0,
+    rejected_mean_full_interval_loss_margin=0.0,
+    rejected_mean_second_segment_loss_margin=0.0,
+    matched_mean_full_interval_loss_margin=0.0,
+    matched_mean_second_segment_loss_margin=0.0,
+    unmatched_mean_full_interval_loss_margin=0.0,
+    unmatched_mean_second_segment_loss_margin=0.0,
+    mean_reference_loss_excess_over_historical_mean=0.0,
+)
+
+
 def derive_legacy_change_response_metric_values(run_metrics):
     """応答の指標を、旧の指標（`compute_metrics`と、監視の値の最大）の名前へ写す（照合のための対応表）。
 
@@ -238,7 +267,7 @@ def derive_legacy_change_response_metric_values(run_metrics):
     alarm_metrics = change_response_metrics.loss_change_alarm_detection_metrics
     change_point_metrics = change_response_metrics.change_point_estimation_metrics
     action_metrics = change_response_metrics.adaptation_action_metrics
-    decision_metrics = change_response_metrics.candidate_validation_decision_metrics
+    decision_metrics = _NO_CANDIDATE_VALIDATION_DECISION_METRICS
     false_switch_count = (
         detection_metrics.detection_count - detection_metrics.matched_detection_count
     )
@@ -281,7 +310,8 @@ def derive_legacy_change_response_metric_values(run_metrics):
         adaptation_reuse_precision=action_metrics.reuse_held_model_precision,
         adaptation_create_count=action_metrics.adopt_candidate_model_count,
         adaptation_create_precision=action_metrics.adopt_candidate_model_precision,
-        adaptation_create_rejected_count=action_metrics.reject_candidate_model_count,
+        # 候補の棄却は、候補検証を消したので無い。
+        adaptation_create_rejected_count=0,
         adaptation_maintain_count=action_metrics.maintain_current_model_count,
         server_mapping_change_count=action_metrics.remap_by_server_consolidation_count,
         model_reuse_current_fit_count=action_metrics.current_model_fit_selection_count,
@@ -1206,7 +1236,6 @@ def test_golden_condition_metrics_match_real_legacy_experiment_result(golden_con
         assert 0 < detection_metrics.matched_detection_count < detection_metrics.detection_count
     else:
         assert run_metrics.final_global_model_count == 1
-    assert run_metrics.candidate_validation_decision_count == 0
     assert (detection_metrics.detection_count > 0) == expected_paths["candidate_adoptions"]
     assert (detection_metrics.matched_detection_count > 0) == (
         expected_paths["candidate_adoptions"]
@@ -1831,11 +1860,9 @@ def compare_small_run_with_real_legacy(
     )
     assert run_metrics.final_parameter_value_count == legacy_parameter_value_count
     assert run_metrics.final_parameter_byte_count == legacy_parameter_byte_count
-    assert (
-        run_metrics.candidate_validation_decision_count
-        == legacy_metrics["provisional_proposal_count"]
-        == legacy_metrics["provisional_forward_count"]
-    )
+    # 候補検証を消したので、新に判定は無い。旧の検証なしのrunでも0。
+    assert legacy_metrics["provisional_proposal_count"] == 0
+    assert legacy_metrics["provisional_forward_count"] == 0
     if legacy_records_prediction_weight_diagnostics:
         assert run_metrics.mixed_prediction_sample_count == sum(
             legacy_client.soft_routing_activation.soft_sample_count

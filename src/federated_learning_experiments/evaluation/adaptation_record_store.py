@@ -4,17 +4,10 @@ from dataclasses import dataclass, replace
 from typing import Literal, get_args
 
 AdaptationOutcome = Literal[
-    "alarm_during_candidate_validation",
     "alarm_change_interval_too_short",
     "alarm_interval_held_model_reused",
     "alarm_interval_current_model_maintained",
-    "alarm_interval_candidate_validation_started",
     "alarm_interval_candidate_adopted_as_new_model",
-    "post_alarm_validation_candidate_adopted",
-    "post_alarm_validation_held_model_reused",
-    "post_alarm_validation_current_model_maintained",
-    "post_alarm_validation_candidate_rejected",
-    "post_alarm_validation_incomplete_candidate_rejected",
     "server_consolidation_training_model_remapped",
 ]
 
@@ -22,8 +15,6 @@ AdaptationOutcome = Literal[
 TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES: tuple[AdaptationOutcome, ...] = (
     "alarm_interval_held_model_reused",
     "alarm_interval_candidate_adopted_as_new_model",
-    "post_alarm_validation_candidate_adopted",
-    "post_alarm_validation_held_model_reused",
 )
 # サーバの統合で、学習帰属IDが付け替わった結果。IDは変わるが、警報による切替ではないので、
 # 切替位置ではなく、付け替えの位置として記録する。

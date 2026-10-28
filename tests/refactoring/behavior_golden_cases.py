@@ -452,7 +452,7 @@ EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION = {
     },
     **{version: CANDIDATE_VALIDATION_PATH_CASE_NAMES for version in range(7, 15)},
 }
-# 記録・指標・設定を消す段で、goldenの中の完全な鍵の道を足す。task 1では何も除かない。
+# 記録・指標・設定を消した項目の、goldenの中の完全な鍵の道（task 3・4で足した。一覧にない差は失敗のまま）。
 REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS: tuple[tuple[str, ...], ...] = (
     (
         "run_settings",
@@ -472,6 +472,48 @@ REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS: tuple[tuple[str, ...], ...] = (
     ("record_tables", "execution_event.client_id"),
     ("record_tables", "execution_event.sample_index"),
     ("record_tables", "execution_event.round_index"),
+    # 候補検証の判定の記録の表（task 4。保存済みのgoldenでは、検証なしのcaseでも空の16列を持つ）。
+    ("record_tables", "candidate_validation_decision.candidate_accepted"),
+    ("record_tables", "candidate_validation_decision.candidate_full_interval_mean_loss"),
+    ("record_tables", "candidate_validation_decision.candidate_second_segment_mean_loss"),
+    ("record_tables", "candidate_validation_decision.candidate_training_interval_sample_count"),
+    ("record_tables", "candidate_validation_decision.client_id"),
+    ("record_tables", "candidate_validation_decision.comparison_reference_model_id"),
+    ("record_tables", "candidate_validation_decision.decision_reason"),
+    ("record_tables", "candidate_validation_decision.detector_name"),
+    ("record_tables", "candidate_validation_decision.is_incomplete_at_run_end"),
+    ("record_tables", "candidate_validation_decision.matched_to_concept_change"),
+    ("record_tables", "candidate_validation_decision.proposal_sample_index"),
+    ("record_tables", "candidate_validation_decision.reference_full_interval_mean_loss"),
+    ("record_tables", "candidate_validation_decision.reference_historical_mean_loss"),
+    ("record_tables", "candidate_validation_decision.reference_second_segment_mean_loss"),
+    ("record_tables", "candidate_validation_decision.resolution_sample_index"),
+    ("record_tables", "candidate_validation_decision.validation_sample_count"),
+    # 候補検証の指標（task 4）。
+    ("run_metrics", "candidate_validation_decision_count"),
+    ("run_metrics", "change_response_metrics", "candidate_validation_decision_metrics"),
+    (
+        "run_metrics",
+        "change_response_metrics",
+        "adaptation_action_metrics",
+        "start_candidate_validation_count",
+    ),
+    (
+        "run_metrics",
+        "change_response_metrics",
+        "adaptation_action_metrics",
+        "reject_candidate_model_count",
+    ),
+    (
+        "run_metrics",
+        "change_response_metrics",
+        "adaptation_action_metrics",
+        "defer_during_candidate_validation_count",
+    ),
+    # 判定の記録の表から求めていた網羅の項目（task 4）。
+    ("coverage", "candidate_accepted_count"),
+    ("coverage", "candidate_rejected_count"),
+    ("coverage", "decision_reasons"),
 )
 
 
@@ -1035,14 +1077,7 @@ def _coverage(case_name, run, tables, baseline_version=BASELINE_VERSION):
             cross_evaluation_record_count=int(sample_counts.size),
             zero_sample_cross_evaluation_count=int(np.count_nonzero(sample_counts == 0)),
         )
-    accepted = column("candidate_validation_decision.candidate_accepted").astype(np.bool_)
-    complete = ~column("candidate_validation_decision.is_incomplete_at_run_end").astype(np.bool_)
     coverage.update(
-        candidate_accepted_count=int(np.count_nonzero(accepted & complete)),
-        candidate_rejected_count=int(np.count_nonzero(~accepted & complete)),
-        decision_reasons=sorted(
-            set(column("candidate_validation_decision.decision_reason").tolist())
-        ),
         training_model_switch_count=int(column("training_model_switch.client_id").size),
         merged_model_count=int(
             np.count_nonzero(column("model_clustering.merged_with_other_models"))
@@ -1139,60 +1174,6 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
     if baseline_version >= 3 and "repeated_training_sample_assignment_count" in coverage:
         # 版3の扱いでは、同じ標本が、2回取り込まれない。
         assert coverage["repeated_training_sample_assignment_count"] == 0, (case_name, coverage)
-    # 候補検証の経路の網羅。候補検証を消したので、goldenの照合から外したcaseを補助のtestで流すときは、確かめない（基準版15のspec）。
-    if (
-        case_name.startswith("fedsda-")
-        and case_name
-        in (
-            "fedsda-sine2-events",
-            "fedsda-sine2-reference-reuse",
-            "fedsda-sine2-alternative-reference-reuse",
-            "fedsda-mnist2-decisions",
-        )
-        and case_name
-        not in EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[baseline_version]
-    ):
-        for key in (
-            "candidate_accepted_count",
-            "candidate_rejected_count",
-            "training_model_switch_count",
-            "recalibration_replayed_sample_count",
-        ):
-            assert coverage[key] > 0, f"{case_name}: required {key}"
-        reasons = set(coverage["decision_reasons"])
-        if case_name == "fedsda-sine2-events":
-            # 版2では、別の保有モデルの再利用の判定を通らない（上の、ケース名の注記）。
-            assert (
-                {"first_segment_margin_failed"}
-                | (
-                    {"alternative_reference_within_historical_loss_tolerance"}
-                    if baseline_version == 1
-                    else set()
-                )
-            ) <= reasons, (case_name, reasons)
-            assert coverage["merged_model_count"] > 0, case_name
-        elif case_name == "fedsda-sine2-reference-reuse":
-            # 版4では、別の保有モデルの再利用の判定を通らない（上の、ケース名の注記）。版5では、再び通る。
-            assert (
-                {"second_segment_margin_failed"}
-                | (
-                    {"alternative_reference_within_historical_loss_tolerance"}
-                    if baseline_version != 4
-                    else set()
-                )
-            ) <= reasons, (case_name, reasons)
-            assert coverage["merged_model_count"] > 0, case_name
-        elif case_name == "fedsda-sine2-alternative-reference-reuse":
-            # 版4の、別の保有モデルの再利用と、第2区間の差の不足の経路を守るケース。版5では、どちらの経路も、
-            # `fedsda-sine2-reference-reuse`が受け持つ（このケースでは、環境によって、どちらも通らないことがある）。
-            if baseline_version == 4:
-                assert {
-                    "alternative_reference_within_historical_loss_tolerance",
-                    "second_segment_margin_failed",
-                } <= reasons, (case_name, reasons)
-            assert coverage["merged_model_count"] > 0, case_name
-        else:
-            assert "second_segment_margin_failed" in reasons, (case_name, reasons)
     # 版11の新しい既定では、MNIST2のケースの条件で警報が出ない（交差検証の統計）。このケースの採用の経路と
     # 選択は版10までに限り、版11では、MNIST4のケースが守る。
     adoption_path_case_names = (
@@ -1207,8 +1188,6 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
     )
     if case_name in adoption_path_case_names:
         # 検証の判定は無く、候補を、その場で採用する。学習帰属の切替えと、予測の重みの再較正も起きる。
-        assert coverage["candidate_accepted_count"] == coverage["candidate_rejected_count"] == 0
-        assert coverage["decision_reasons"] == []
         for key in (
             "adopted_candidate_count",
             "training_model_switch_count",

@@ -1044,37 +1044,6 @@ def test_generation_rejects_unrecorded_source_before_workers(monkeypatch, tmp_pa
     assert not output.exists()
 
 
-def test_incomplete_candidate_is_not_counted_as_rejection():
-    from types import SimpleNamespace
-
-    import numpy as np
-
-    result = SimpleNamespace(
-        generated_sample_count_per_client=3,
-        processed_sample_count_per_client=3,
-        unprocessed_tail_sample_count_per_client=0,
-        synchronization_interval_count=1,
-    )
-    run = SimpleNamespace(
-        measured_run=SimpleNamespace(run_result=result),
-        run_metrics=SimpleNamespace(
-            training_model_switch_detection_metrics=SimpleNamespace(detection_count=0)
-        ),
-    )
-    coverage = golden._coverage(
-        "test-case",
-        run,
-        {
-            "candidate_validation_decision.candidate_accepted": np.asarray([True, False, False]),
-            "candidate_validation_decision.is_incomplete_at_run_end": np.asarray(
-                [False, False, True]
-            ),
-        },
-        baseline_version=1,
-    )
-    assert coverage["candidate_accepted_count"] == coverage["candidate_rejected_count"] == 1
-
-
 @pytest.mark.parametrize(
     "section", ("run_settings", "run_metrics", "record_tables", "global_parameters")
 )

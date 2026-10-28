@@ -259,9 +259,10 @@ def test_record_store_keeps_input_order_equal_positions_and_old_immutable_snapsh
     first_snapshot = adaptation_record_store.get_state_snapshot()
     for adaptation_sample_index, adaptation_outcome in (
         (9, "alarm_interval_current_model_maintained"),
-        (2, "alarm_during_candidate_validation"),
+        # 候補検証の結果の値は消した（基準版15のspec）。学習帰属を切り替えない値で、入力順と同じ位置を確かめる。
+        (2, "alarm_change_interval_too_short"),
         (5, "alarm_change_interval_too_short"),
-        (5, "alarm_interval_candidate_validation_started"),
+        (5, "alarm_change_interval_too_short"),
         (9, "alarm_interval_held_model_reused"),
     ):
         adaptation_record_store.append_adaptation_record(

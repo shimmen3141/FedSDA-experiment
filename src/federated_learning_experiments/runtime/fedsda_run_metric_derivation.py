@@ -78,7 +78,6 @@ class FedsdaRunMetrics:
     communication_volume: CommunicationVolumeSnapshot
     final_parameter_value_count: int
     final_parameter_byte_count: int
-    candidate_validation_decision_count: int
     mixed_prediction_sample_count: int
     fixed_share_weight_recalibration_replayed_sample_count: int
     adahedge_weight_recalibration_replayed_sample_count: int
@@ -289,7 +288,6 @@ def derive_fedsda_run_metrics(
         communication_volume=server_owners.communication_volume_record_store.get_state_snapshot(),
         final_parameter_value_count=final_parameter_value_count,
         final_parameter_byte_count=final_parameter_byte_count,
-        candidate_validation_decision_count=0,
         # 重みで結合して予測する方式では、結合が常時有効なので、予測した標本のすべてを数える。
         # 現在のモデルだけで予測する方式では、0。
         mixed_prediction_sample_count=sum(

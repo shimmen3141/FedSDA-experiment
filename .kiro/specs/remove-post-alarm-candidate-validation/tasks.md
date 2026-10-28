@@ -28,7 +28,7 @@
     この段で成り立たなくなるtest（候補検証の部品のtest、設定の検査のtest）を、要求4.5の規則で扱う。保存の形の変わる設定の項目は、要求4.2の除く項目の一覧に足す。
   - _Requirements: 1.2, 1.3, 1.4, 2.1, 2.3, 4.2, 4.5_
 
-- [ ] 4. 記録・指標・保存の形を消す
+- [x] 4. 記録・指標・保存の形を消す
   - goldenの除く項目の一覧を確定する（一覧にない差は失敗）。
   - _Requirements: 3.1, 3.2, 3.3, 4.2, 5.1, 5.2_
 
@@ -394,3 +394,29 @@
 - 確認（通常の環境）: 全pytest 13036 passed / 8 skipped / 1 failed（失敗は上の`missing_path`で、直した後にそのtestを含む構造の検査11件、依存の境界2257件、設定の検査1201件を流し直して全部通過）。
   版1〜14の残すcaseの数値の照合と、乱数の状態の照合は、全pytestで通った。pyright 0 errors、ruff check・formatは通過。
   消した名前（設定の型・項目・方針の値、検証の実行・状態の型と関数）は、保存済みのgoldenのJSONと、goldenの照合の一覧を除き、`src/`・`tests/`・`tools/`から参照されない（`git grep`）。
+
+### task 4（2026-10-28、主担当）
+
+- ユーザーの指示（Codexの利用の上限が近い）で、task 4から主担当が行った。基点はHEAD `a1e88ed4`。
+- 製品のコードから消したもの:
+  - 適応の結果の値7つ（`AdaptationOutcome`と`TRAINING_MODEL_SWITCH_ADAPTATION_OUTCOMES`）: `alarm_during_candidate_validation`、`alarm_interval_candidate_validation_started`、
+    `post_alarm_validation_candidate_adopted`・`_held_model_reused`・`_current_model_maintained`・`_candidate_rejected`・`_incomplete_candidate_rejected`。粗い区分への対応表（`ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME`）からも消した。
+  - 適応の指標3つ（`start_candidate_validation_count`、`reject_candidate_model_count`、`defer_during_candidate_validation_count`）、`CandidateValidationDecisionMetrics`（23項目）と`candidate_validation_decision_metrics`、
+    判定の値の補助（`_DecisionValues`、`_mean_of_finite_values`）、runの指標の`candidate_validation_decision_count`。
+  - 記録の表`candidate_validation_decision.*`（16列）。
+- goldenの除く項目に足したもの: `record_tables/candidate_validation_decision.*`の16列、`run_metrics/candidate_validation_decision_count`、`run_metrics/change_response_metrics/candidate_validation_decision_metrics`、
+  `run_metrics/change_response_metrics/adaptation_action_metrics/{start_candidate_validation_count,reject_candidate_model_count,defer_during_candidate_validation_count}`、
+  網羅の`coverage/{candidate_accepted_count,candidate_rejected_count,decision_reasons}`（判定の記録の表から求めていた項目。網羅の計算からも消した）。
+  候補検証の経路の網羅の確かめ（外した4 caseだけが対象で、もう確かめる場面が無い）と、その場の採用の経路での「判定が無い」の確かめは消した。
+- testで直したもの:
+  - 旧の指標・配列への対応（`test_fedsda_run_metric_derivation.py`、`test_fedsda_experiment_run_artifacts.py`）: 旧の候補の判定の指標と配列は、旧の検証なしのrunでは0か空なので、
+    新の指標から写すのをやめ、0を写す（`_NO_CANDIDATE_VALIDATION_DECISION_METRICS`）か、旧の判定の配列が空であることを確かめる（`LEGACY_CANDIDATE_VALIDATION_DECISION_ARRAY_NAMES`）形にした。
+  - 旧のactionへの対応（`test_fedsda_experiment_run_artifacts.py`、`test_alarm_response_completion.py`）から、候補検証の区分と結果の値を消し、task 3で入れた一時の除外を元に戻した。
+  - 記録の保存の順のtest（`test_alarm_adaptation_recording.py`）で、消した結果の値の代わりに、学習帰属を切り替えず、適合の数にも数えない`alarm_change_interval_too_short`を使った。
+  - 消した網羅の項目の数え方のtest（`test_incomplete_candidate_is_not_counted_as_rejection`）を消した。`fresh_process_smoke.py`の判定の数の確かめを消した。
+- 研究用の道具: `tools/research_shadow_learner_diagnostic/adoption.py`は、自分の遅れた採用を、消した`post_alarm_validation_candidate_adopted`で記録していた。
+  同じく学習帰属を切り替える採用の`alarm_interval_candidate_adopted_as_new_model`へ替えた（粗い区分は同じ「候補の採用」で、指標の数え方は変わらない。この道具の採用は`detector_name="research_shadow_score"`で区別する）。
+  過去の結果の記録は変わらない。
+- 確認（通常の環境）: 全pytest 13008 passed / 8 skipped / 1 failed（失敗は上の消したtest）。消した後に、goldenの構造の検査79件を流し直して全部通過。
+  版1〜14の残すcaseの数値の照合と、乱数の状態の照合は、全pytestで通った。pyright 0 errors、ruff check・formatは通過。
+- 残り（task 5）: `with_candidate_validation`の引数、`RECORDING_ORACLE_CASES`の候補検証の結果の値のcaseなど、testの補助に残る候補検証の名前の整理と、要求5.3の参照の検査。

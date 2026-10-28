@@ -130,24 +130,6 @@ EXPECTED_TABLE_COLUMNS = {
         previous_training_model_id="i",
         current_training_model_id="i",
     ),
-    "candidate_validation_decision": dict(
-        client_id="i",
-        proposal_sample_index="i",
-        is_incomplete_at_run_end="b",
-        candidate_accepted="b",
-        decision_reason="U",
-        resolution_sample_index="i",
-        detector_name="U",
-        candidate_training_interval_sample_count="i",
-        validation_sample_count="i",
-        comparison_reference_model_id="i",
-        candidate_full_interval_mean_loss="f",
-        reference_full_interval_mean_loss="f",
-        candidate_second_segment_mean_loss="f",
-        reference_second_segment_mean_loss="f",
-        reference_historical_mean_loss="f",
-        matched_to_concept_change="b",
-    ),
     "model_registration": dict(
         model_id="i",
         registered_server_round_index="i",
@@ -229,22 +211,11 @@ EXPECTED_TABLE_COLUMNS = {
 }
 # 新の粗い区分から、旧の`action`への対応（照合のため。旧の結果の変換では、逆向きに使う）。
 LEGACY_ACTION_BY_ADAPTATION_ACTION = {
-    "defer_during_candidate_validation": "forward_validation_pending",
     "skip_too_short_change_interval": "insufficient_data",
     "reuse_held_model": "reuse",
     "maintain_current_model": "maintain",
-    "start_candidate_validation": "create_pending",
     "adopt_candidate_model": "create",
-    "reject_candidate_model": "create_rejected",
     "remap_by_server_consolidation": "server_merge",
-}
-LEGACY_REASON_BY_DECISION_REASON = {
-    "current_reference_within_historical_loss_tolerance": "current_reference_refit",
-    "alternative_reference_within_historical_loss_tolerance": "alternative_reference_refit",
-    "first_segment_margin_failed": "first_interval",
-    "second_segment_margin_failed": "second_interval",
-    "both_segment_margins_failed": "first_and_second",
-    "both_segment_margins_passed": "accepted",
 }
 
 
@@ -252,7 +223,6 @@ def derive_legacy_trace_arrays_from_record_tables(record_tables):
     """保存する表だけから、旧の保存形式の31の配列を作る（表が、旧の配列を作るのに足りることの確認）。"""
     correctness = record_tables["sample_prediction.combined_prediction_is_correct"]
     maximum_weight_model_ids = record_tables["sample_prediction.maximum_weight_model_id"]
-    is_incomplete = record_tables["candidate_validation_decision.is_incomplete_at_run_end"]
     return dict(
         history_accuracy=correctness.astype(np.int8),
         history_model_id=maximum_weight_model_ids.astype(np.int32),
@@ -279,29 +249,12 @@ def derive_legacy_trace_arrays_from_record_tables(record_tables):
         adaptation_new_model_ids=record_tables["adaptation.current_training_model_id"].astype(
             np.int32
         ),
-        provisional_client_ids=record_tables["candidate_validation_decision.client_id"].astype(
-            np.int32
-        ),
-        provisional_positions=record_tables[
-            "candidate_validation_decision.proposal_sample_index"
-        ].astype(np.int32),
-        provisional_accepted=record_tables["candidate_validation_decision.candidate_accepted"],
-        provisional_reasons=np.asarray(
-            [
-                "insufficient_forward_data"
-                if incomplete
-                else LEGACY_REASON_BY_DECISION_REASON[decision_reason]
-                for incomplete, decision_reason in zip(
-                    is_incomplete.tolist(),
-                    record_tables["candidate_validation_decision.decision_reason"].tolist(),
-                    strict=True,
-                )
-            ],
-            dtype=np.str_,
-        ),
-        provisional_resolution_positions=record_tables[
-            "candidate_validation_decision.resolution_sample_index"
-        ].astype(np.int32),
+        # 候補検証を消したので、判定の記録は無い（旧の検証なしのrunと同じく、旧の判定の配列は空。基準版15のspec）。
+        provisional_client_ids=np.asarray([], dtype=np.int32),
+        provisional_positions=np.asarray([], dtype=np.int32),
+        provisional_accepted=np.asarray([], dtype=np.bool_),
+        provisional_reasons=np.asarray([], dtype=np.str_),
+        provisional_resolution_positions=np.asarray([], dtype=np.int32),
         model_registration_ids=record_tables["model_registration.model_id"].astype(np.int32),
         model_registration_rounds=record_tables[
             "model_registration.registered_server_round_index"
@@ -528,25 +481,10 @@ def test_adaptation_actions_cover_every_adaptation_outcome():
     # 粗い区分→旧の`action`が、既存の対照の対応（結果種別→旧の`action`）と一致する。
     from test_observed_sample_processing import LEGACY_ACTION_BY_ADAPTATION_OUTCOME
 
-    # 候補検証の結果の値は、task 4で製品の対応表から消すまで、比べる対象から除く（基準版15のspec、要求3.3）。
-    candidate_validation_outcomes = {
-        "alarm_during_candidate_validation",
-        "alarm_interval_candidate_validation_started",
-        "post_alarm_validation_candidate_adopted",
-        "post_alarm_validation_held_model_reused",
-        "post_alarm_validation_current_model_maintained",
-        "post_alarm_validation_candidate_rejected",
-        "post_alarm_validation_incomplete_candidate_rejected",
-    }
     assert {
         adaptation_outcome: LEGACY_ACTION_BY_ADAPTATION_ACTION[adaptation_action]
         for adaptation_outcome, adaptation_action in ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME.items()
-        if adaptation_outcome not in candidate_validation_outcomes
-    } == {
-        adaptation_outcome: legacy_action
-        for adaptation_outcome, legacy_action in LEGACY_ACTION_BY_ADAPTATION_OUTCOME.items()
-        if adaptation_outcome not in candidate_validation_outcomes
-    }
+    } == LEGACY_ACTION_BY_ADAPTATION_OUTCOME
 
 
 @pytest.mark.slow
@@ -623,19 +561,22 @@ NEW_COLUMN_BY_LEGACY_CHANGE_RESPONSE_ARRAY_NAME = {
     "history_detector_log_e": "sample_loss_monitoring.monitored_log_e_value",
     "adaptation_detectors": "adaptation.detector_name",
     "adaptation_estimated_change_points": "adaptation.estimated_change_point_sample_index",
-    "provisional_detectors": "candidate_validation_decision.detector_name",
-    # 最終構成では、候補の学習区間の全部を、学習に使う（旧の2つの配列は同じ値）。
-    "provisional_interval_counts": "candidate_validation_decision.candidate_training_interval_sample_count",
-    "provisional_training_counts": "candidate_validation_decision.candidate_training_interval_sample_count",
-    "provisional_validation_counts": "candidate_validation_decision.validation_sample_count",
-    "provisional_reference_model_ids": "candidate_validation_decision.comparison_reference_model_id",
-    "provisional_candidate_mean_losses": "candidate_validation_decision.candidate_full_interval_mean_loss",
-    "provisional_reference_mean_losses": "candidate_validation_decision.reference_full_interval_mean_loss",
-    "provisional_candidate_recent_losses": "candidate_validation_decision.candidate_second_segment_mean_loss",
-    "provisional_reference_recent_losses": "candidate_validation_decision.reference_second_segment_mean_loss",
-    "provisional_reference_historical_means": "candidate_validation_decision.reference_historical_mean_loss",
-    "provisional_matched_true": "candidate_validation_decision.matched_to_concept_change",
 }
+
+# 旧の候補の判定の配列（候補検証を消したので、新に対応する列は無い。旧の検証なしのrunでは空）。
+LEGACY_CANDIDATE_VALIDATION_DECISION_ARRAY_NAMES = (
+    "provisional_detectors",
+    "provisional_interval_counts",
+    "provisional_training_counts",
+    "provisional_validation_counts",
+    "provisional_reference_model_ids",
+    "provisional_candidate_mean_losses",
+    "provisional_reference_mean_losses",
+    "provisional_candidate_recent_losses",
+    "provisional_reference_recent_losses",
+    "provisional_reference_historical_means",
+    "provisional_matched_true",
+)
 
 
 def test_golden_condition_change_response_columns_match_legacy_saved_arrays(
@@ -662,9 +603,9 @@ def test_golden_condition_change_response_columns_match_legacy_saved_arrays(
     # 中身のある照合になっている（警報があり、監視の値が変わる）。
     assert record_tables["loss_change_alarm.alarm_sample_index"].size > 0
     assert np.unique(record_tables["sample_loss_monitoring.monitored_log_e_value"]).size > 10
-    assert (
-        record_tables["candidate_validation_decision.candidate_full_interval_mean_loss"].size == 0
-    )
+    # 候補検証を消したので、新に判定の列は無い。旧の検証なしのrunでも、判定の配列は空。
+    for legacy_array_name in LEGACY_CANDIDATE_VALIDATION_DECISION_ARRAY_NAMES:
+        assert legacy_saved_arrays[legacy_array_name].size == 0, legacy_array_name
 
 
 # 条件ごとの、足した列が通った場合の観測（goldenの3ケースと、小さい条件）。

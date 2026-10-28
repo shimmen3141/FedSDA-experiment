@@ -20,17 +20,10 @@ from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunCl
 
 # 適応の結果種別から、粗い区分への対応。旧の結果（粗い区分しか持たない）を変換した表と、同じ列を持てるようにする。
 ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME: dict[str, str] = {
-    "alarm_during_candidate_validation": "defer_during_candidate_validation",
     "alarm_change_interval_too_short": "skip_too_short_change_interval",
     "alarm_interval_held_model_reused": "reuse_held_model",
     "alarm_interval_current_model_maintained": "maintain_current_model",
-    "alarm_interval_candidate_validation_started": "start_candidate_validation",
     "alarm_interval_candidate_adopted_as_new_model": "adopt_candidate_model",
-    "post_alarm_validation_candidate_adopted": "adopt_candidate_model",
-    "post_alarm_validation_held_model_reused": "reuse_held_model",
-    "post_alarm_validation_current_model_maintained": "maintain_current_model",
-    "post_alarm_validation_candidate_rejected": "reject_candidate_model",
-    "post_alarm_validation_incomplete_candidate_rejected": "reject_candidate_model",
     "server_consolidation_training_model_remapped": "remap_by_server_consolidation",
 }
 # 学習帰属を、別のモデルへ切り替える区分（変更位置と対応づけて、適合率を求める）。
@@ -66,10 +59,7 @@ class AdaptationActionMetrics:
 
     maintain_current_model_count: int
     reuse_held_model_count: int
-    start_candidate_validation_count: int
     adopt_candidate_model_count: int
-    reject_candidate_model_count: int
-    defer_during_candidate_validation_count: int
     skip_too_short_change_interval_count: int
     remap_by_server_consolidation_count: int
     reuse_held_model_precision: float
@@ -77,44 +67,6 @@ class AdaptationActionMetrics:
     # 警報の区間の再利用の評価で、現行モデルが合うと判定した数と、別の保有モデルを選んだ数。
     current_model_fit_selection_count: int
     alternative_model_reuse_selection_count: int
-
-
-@dataclass(frozen=True, kw_only=True)
-class CandidateValidationDecisionMetrics:
-    """候補検証の判定の統計。
-
-    「変更に対応した」は、clientごとに、判定の提案の位置を記録の順に並べて、変更位置と対応づけた結果。
-    損失の差は、参照の平均損失−候補の平均損失（正なら、候補のほうが良い）。平均は、有限の値だけの平均
-    （終端で回収した未完了の判定は、損失を持たない）。
-    """
-
-    accepted_decision_rate: float
-    matched_decision_count: int
-    matched_accepted_decision_count: int
-    matched_rejected_decision_count: int
-    # 採用した判定のうち、変更に対応したものの割合。
-    accepted_decision_precision: float
-    mean_candidate_training_interval_sample_count: float
-    mean_validation_sample_count: float
-    # 提案から、確定（または終端の回収）までの標本数の平均。
-    mean_resolution_delay_sample_count: float
-    accepted_mean_full_interval_loss_margin: float
-    accepted_mean_second_segment_loss_margin: float
-    rejected_mean_full_interval_loss_margin: float
-    rejected_mean_second_segment_loss_margin: float
-    matched_mean_full_interval_loss_margin: float
-    matched_mean_second_segment_loss_margin: float
-    unmatched_mean_full_interval_loss_margin: float
-    unmatched_mean_second_segment_loss_margin: float
-    # 棄却の理由ごとの数。
-    incomplete_at_run_end_decision_count: int
-    first_segment_margin_failed_decision_count: int
-    second_segment_margin_failed_decision_count: int
-    both_segment_margins_failed_decision_count: int
-    current_reference_within_historical_loss_tolerance_decision_count: int
-    alternative_reference_within_historical_loss_tolerance_decision_count: int
-    # 参照の、検証の区間の平均損失−履歴の平均損失の、平均。
-    mean_reference_loss_excess_over_historical_mean: float
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -126,33 +78,12 @@ class FedsdaChangeResponseMetrics:
     loss_change_alarm_detection_metrics: DetectionMetrics
     change_point_estimation_metrics: ChangePointEstimationMetrics
     adaptation_action_metrics: AdaptationActionMetrics
-    candidate_validation_decision_metrics: CandidateValidationDecisionMetrics
     # 損失の監視の値（log e）の、有限の値の最大。有限の値が1つもなければ、負の無限大。
     maximum_monitored_log_e_value: float
 
 
-def _mean_of_finite_values(values: list[float]) -> float:
-    finite_values = [value for value in values if isfinite(value)]
-    return sum(finite_values) / len(finite_values) if finite_values else 0.0
-
-
 def _ratio_or_zero(*, numerator: int, denominator: int) -> float:
     return numerator / denominator if denominator else 0.0
-
-
-@dataclass(frozen=True, kw_only=True)
-class _DecisionValues:
-    """判定1つの、統計に使う値（確定した判定と、未完了の判定を、同じ形にする）。"""
-
-    candidate_accepted: bool
-    decision_reason: str | None
-    matched_to_concept_change: bool
-    candidate_training_interval_sample_count: int
-    validation_sample_count: int
-    resolution_delay_sample_count: int
-    full_interval_loss_margin: float
-    second_segment_loss_margin: float
-    reference_loss_excess_over_historical_mean: float
 
 
 def derive_fedsda_change_response_metrics(
@@ -161,7 +92,7 @@ def derive_fedsda_change_response_metrics(
     concept_change_sample_indices_by_client: tuple[tuple[int, ...], ...],
     maximum_delay_sample_count: int,
 ) -> FedsdaChangeResponseMetrics:
-    """clientの記録（切替、警報、適応、判定、監視の値）と、変更位置から、応答の指標を導出する。"""
+    """clientの記録（切替、警報、適応、監視の値）と、変更位置から、応答の指標を導出する。"""
     if type(run_clients) is not tuple:
         raise TypeError("run_clients must be builtin tuple")
     for run_client in run_clients:
@@ -187,7 +118,6 @@ def derive_fedsda_change_response_metrics(
     )
     current_model_fit_selection_count = 0
     alternative_model_reuse_selection_count = 0
-    decisions: list[_DecisionValues] = []
     finite_monitored_log_e_values: list[float] = []
 
     for run_client, concept_change_sample_indices in zip(
@@ -266,16 +196,6 @@ def derive_fedsda_change_response_metrics(
         current_model_fit_selection_count += adaptation_snapshot.current_model_fit_count
         alternative_model_reuse_selection_count += adaptation_snapshot.alternative_model_reuse_count
 
-    accepted_decisions = [decision for decision in decisions if decision.candidate_accepted]
-    rejected_decisions = [decision for decision in decisions if not decision.candidate_accepted]
-    matched_decisions = [decision for decision in decisions if decision.matched_to_concept_change]
-    unmatched_decisions = [
-        decision for decision in decisions if not decision.matched_to_concept_change
-    ]
-
-    def count_rejected_decisions_with_reason(decision_reason: str | None) -> int:
-        return sum(decision.decision_reason == decision_reason for decision in rejected_decisions)
-
     return FedsdaChangeResponseMetrics(
         training_model_switch_timing_metrics=TrainingModelSwitchTimingMetrics(
             mean_matched_switch_delay_sample_count=(
@@ -312,12 +232,7 @@ def derive_fedsda_change_response_metrics(
         adaptation_action_metrics=AdaptationActionMetrics(
             maintain_current_model_count=adaptation_action_counts["maintain_current_model"],
             reuse_held_model_count=adaptation_action_counts["reuse_held_model"],
-            start_candidate_validation_count=adaptation_action_counts["start_candidate_validation"],
             adopt_candidate_model_count=adaptation_action_counts["adopt_candidate_model"],
-            reject_candidate_model_count=adaptation_action_counts["reject_candidate_model"],
-            defer_during_candidate_validation_count=adaptation_action_counts[
-                "defer_during_candidate_validation"
-            ],
             skip_too_short_change_interval_count=adaptation_action_counts[
                 "skip_too_short_change_interval"
             ],
@@ -334,80 +249,6 @@ def derive_fedsda_change_response_metrics(
             ),
             current_model_fit_selection_count=current_model_fit_selection_count,
             alternative_model_reuse_selection_count=alternative_model_reuse_selection_count,
-        ),
-        candidate_validation_decision_metrics=CandidateValidationDecisionMetrics(
-            accepted_decision_rate=_ratio_or_zero(
-                numerator=len(accepted_decisions), denominator=len(decisions)
-            ),
-            matched_decision_count=len(matched_decisions),
-            matched_accepted_decision_count=sum(
-                decision.candidate_accepted for decision in matched_decisions
-            ),
-            matched_rejected_decision_count=sum(
-                not decision.candidate_accepted for decision in matched_decisions
-            ),
-            accepted_decision_precision=_ratio_or_zero(
-                numerator=sum(
-                    decision.matched_to_concept_change for decision in accepted_decisions
-                ),
-                denominator=len(accepted_decisions),
-            ),
-            mean_candidate_training_interval_sample_count=_mean_of_finite_values(
-                [float(decision.candidate_training_interval_sample_count) for decision in decisions]
-            ),
-            mean_validation_sample_count=_mean_of_finite_values(
-                [float(decision.validation_sample_count) for decision in decisions]
-            ),
-            mean_resolution_delay_sample_count=_mean_of_finite_values(
-                [float(decision.resolution_delay_sample_count) for decision in decisions]
-            ),
-            accepted_mean_full_interval_loss_margin=_mean_of_finite_values(
-                [decision.full_interval_loss_margin for decision in accepted_decisions]
-            ),
-            accepted_mean_second_segment_loss_margin=_mean_of_finite_values(
-                [decision.second_segment_loss_margin for decision in accepted_decisions]
-            ),
-            rejected_mean_full_interval_loss_margin=_mean_of_finite_values(
-                [decision.full_interval_loss_margin for decision in rejected_decisions]
-            ),
-            rejected_mean_second_segment_loss_margin=_mean_of_finite_values(
-                [decision.second_segment_loss_margin for decision in rejected_decisions]
-            ),
-            matched_mean_full_interval_loss_margin=_mean_of_finite_values(
-                [decision.full_interval_loss_margin for decision in matched_decisions]
-            ),
-            matched_mean_second_segment_loss_margin=_mean_of_finite_values(
-                [decision.second_segment_loss_margin for decision in matched_decisions]
-            ),
-            unmatched_mean_full_interval_loss_margin=_mean_of_finite_values(
-                [decision.full_interval_loss_margin for decision in unmatched_decisions]
-            ),
-            unmatched_mean_second_segment_loss_margin=_mean_of_finite_values(
-                [decision.second_segment_loss_margin for decision in unmatched_decisions]
-            ),
-            incomplete_at_run_end_decision_count=count_rejected_decisions_with_reason(None),
-            first_segment_margin_failed_decision_count=count_rejected_decisions_with_reason(
-                "first_segment_margin_failed"
-            ),
-            second_segment_margin_failed_decision_count=count_rejected_decisions_with_reason(
-                "second_segment_margin_failed"
-            ),
-            both_segment_margins_failed_decision_count=count_rejected_decisions_with_reason(
-                "both_segment_margins_failed"
-            ),
-            current_reference_within_historical_loss_tolerance_decision_count=(
-                count_rejected_decisions_with_reason(
-                    "current_reference_within_historical_loss_tolerance"
-                )
-            ),
-            alternative_reference_within_historical_loss_tolerance_decision_count=(
-                count_rejected_decisions_with_reason(
-                    "alternative_reference_within_historical_loss_tolerance"
-                )
-            ),
-            mean_reference_loss_excess_over_historical_mean=_mean_of_finite_values(
-                [decision.reference_loss_excess_over_historical_mean for decision in decisions]
-            ),
         ),
         maximum_monitored_log_e_value=max(finite_monitored_log_e_values, default=float("-inf")),
     )
