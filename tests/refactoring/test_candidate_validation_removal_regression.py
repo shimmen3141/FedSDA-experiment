@@ -7,8 +7,9 @@ import behavior_golden_cases as golden
 import pytest
 from behavior_random_state_cases import (
     RANDOM_STATE_CASE_NAMES,
-    RANDOM_STATE_FIXTURE_PATH,
+    RANDOM_STATE_FIXTURE_PATHS,
     capture_run_end_random_states,
+    find_random_state_fixture,
 )
 
 from federated_learning_experiments.runtime.fedsda_run_client_settings import (
@@ -127,8 +128,9 @@ def test_comparison_excludes_only_named_paths_without_changing_inputs(monkeypatc
         )
 
 
-def test_random_state_fixture_covers_exactly_the_remaining_fedsda_cases():
-    document = json.loads(RANDOM_STATE_FIXTURE_PATH.read_text(encoding="utf-8"))
+@pytest.mark.parametrize("path", RANDOM_STATE_FIXTURE_PATHS, ids=lambda path: path.name)
+def test_random_state_fixture_covers_exactly_the_remaining_fedsda_cases(path):
+    document = json.loads(path.read_text(encoding="utf-8"))
     assert document["source_commit"] == "6adb3ee77ae57af4bcef612916fc6389d075ab80"
     assert document["baseline_version"] == 14
     assert len(RANDOM_STATE_CASE_NAMES) == 14
@@ -138,9 +140,19 @@ def test_random_state_fixture_covers_exactly_the_remaining_fedsda_cases():
         assert set(state) == {"python_random", "numpy_random_state", "torch_cpu"}
 
 
+def test_random_state_fixtures_cover_both_reference_environments():
+    systems = {
+        json.loads(path.read_text(encoding="utf-8"))["environment"]["system"]
+        for path in RANDOM_STATE_FIXTURE_PATHS
+    }
+    assert systems == {"Windows", "Linux"}
+
+
 @pytest.mark.slow
 @pytest.mark.parametrize("case_name", RANDOM_STATE_CASE_NAMES)
 def test_run_end_random_states_match_before_candidate_training_move(case_name):
-    document = json.loads(RANDOM_STATE_FIXTURE_PATH.read_text(encoding="utf-8"))
+    document = find_random_state_fixture(golden.numerical_environment())
+    if document is None:
+        pytest.skip("この数値の環境の乱数の状態のfixtureが無い")
     actual = capture_run_end_random_states(case_name)
     assert actual == document["cases"][case_name], case_name

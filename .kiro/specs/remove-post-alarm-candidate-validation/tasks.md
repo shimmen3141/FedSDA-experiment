@@ -38,7 +38,7 @@
   - 要求5.3の参照の検査を、消した全部の名前で行う。
   - _Requirements: 4.3, 4.4, 5.3, 6.1, 6.2, 6.3_
 
-- [ ] 6. 確認（主担当）
+- [x] 6. 確認（主担当）
   - 版15のgolden（Windows・Linux）を作り、4.4のtestを通す。全pytest、WSLのgolden、pyright、ruff。独立の実装レビュー1回。
 
 
@@ -956,3 +956,27 @@ with_candidate_validation
   版14までの保存済み結果全体の再集計、既存の型診断やtoolsのbootstrapのスタイル変更は行っていない。
 - 残る限界: 旧goldenのexecution_eventは列全体のdigestのため、要求4.2の一覧で4列を除いており、その表の他の差も検出できない（task 3の記録どおり）。予測・他の記録・パラメータ・指標・乱数の照合とfresh smokeの段の検査は残す。
   次は主担当が通常環境でtask 5を確かめ、srcをcommitした後、task 6で版15のgoldenと独立レビューへ進むことを推奨する。今回はtask 6へ進んでいない。
+
+### task 6（2026-10-28、主担当）
+
+- task 5を通常の環境で確かめてcommitした（`c13149ea`）。全pytest 12993 passed / 27 skipped / 19 failed（19件は版15のgoldenが未配置のことによるものだけ）。
+- 版15のgolden: 生成元`c13149ea`で、Windows（Python 3.13.15）とWSL（Python 3.14.4）で生成し（各18 case、helperの2回の独立したprocessの一致の検査を通過）、`behavior_regression_goldens/v15/`へ置いた。
+- WSLの照合で3件が失敗し、次のように扱った。
+  - 要求4.7の乱数の状態の2 case（`fedsda-sine2-adoption-without-validation`、`fedsda-mnist4-warm-started-learner`）: task 1のfixtureはWindowsで採ったもの。
+    消す前のコード（`6adb3ee7`の一時のworktreeに、採取のhelperだけを写した）をWSLで実行して14 caseを採り、今のコードのWSLの値と比べると14 caseすべてで完全一致した。
+    Windowsのfixtureと違うのは上の2 caseだけ（消す前のコードでも違う）なので、環境の差と判断した。
+    Linuxのfixture`golden/fedsda_without_candidate_validation_random_states_linux.json`を、同じ形（生成元`6adb3ee7`、版14）で足した。
+    `RANDOM_STATE_FIXTURE_PATHS`と`find_random_state_fixture`で数値の環境が一致するfixtureを選び、無い環境ではskipする。両環境のfixtureがあることも確かめる。task 1のWindowsのfixtureは変えていない。
+  - `test_baseline_11_really_contains_zero_sample_cross_evaluations`: 版14まではWSLでも通っていた。残すcaseで件数0のクロス評価があるのはWindowsの`fedsda-mnist4-warm-started-learner`（6件）だけで、
+    Linuxでは外した候補検証ありのcaseだけにあった。Windowsでは必須のまま、他の環境で該当が無ければ理由つきでskipにした。
+- 確認（最終）:
+  - 通常の環境の全pytest 13030 passed / 9 skipped / 0 failed（上の2つのtestの直しの前に開始）。直した2ファイル（`test_candidate_validation_removal_regression.py`の全部と、上の版11のtest）を直した後に流し直して53 passed。
+  - WSL: `test_important_behavior_regression_goldens.py`・`test_experiment_run_code_provenance.py`・`test_candidate_validation_removal_regression.py`で430 passed / 1 skipped（上の版11のtest）。
+  - 研究用の道具の専用の検証（task 5でsandboxのためskipしたものを含む）: `research_prediction_initial_mass/checks.py` 18 passed、
+    `research_provisional_candidate_expert/checks_{loss_monitor_rebaseline,class_conditioned_prediction,mixing_past_posteriors}.py` 54・6・13 passed、`research_component_ablation/checks.py` 26 passed（skip・失敗なし）。
+  - pyright（プロジェクトの設定）0 errors、ruff check・format通過。
+- 独立の実装レビュー（gpt-6-luna、medium、`git diff 6adb3ee7 c13149ea`）: FAIL。Blockerなし。
+  - Major: 版15のgoldenが未配置で、版15と版14の比較ができていない → 配置し、両環境で比較が通った。
+  - Minor: 外したcaseでは候補検証以外の旧値も比べない／全経路の同等性は版1〜14の照合と乱数の照合に依る → 確認の範囲の限界として残す（外したcaseは今のコードで実行できない。検証なしの全構成は、数値goldenと乱数の状態の完全一致で確かめた）。
+  - 主担当の判断で、Majorの解消は配置と比較の通過で確かめ、再レビューはしていない。
+- 残る限界: 旧goldenの`execution_event`は列全体のdigestのため4列を除いている（task 3の記録）。

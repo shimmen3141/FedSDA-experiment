@@ -15,6 +15,13 @@ from federated_learning_experiments.runtime.fedsda_experiment_run import (
 RANDOM_STATE_FIXTURE_PATH = (
     Path(__file__).parent / "golden" / "fedsda_without_candidate_validation_random_states.json"
 )
+# Linuxでは数値の差で乱数の消費の回数が変わるcaseがあるので、同じHEADのコードでLinuxでも採った（task 6）。
+RANDOM_STATE_FIXTURE_PATHS = (
+    RANDOM_STATE_FIXTURE_PATH,
+    Path(__file__).parent
+    / "golden"
+    / "fedsda_without_candidate_validation_random_states_linux.json",
+)
 RANDOM_STATE_CASE_NAMES = tuple(
     name
     for name in golden.CASE_NAMES_BY_BASELINE_VERSION[14]
@@ -55,6 +62,15 @@ def capture_run_end_random_states(case_name):
         execute_fedsda_experiment_run(run_settings=golden.build_case_settings(case_name, 14))
     assert len(captured) == 1
     return captured[0]
+
+
+def find_random_state_fixture(environment):
+    """数値の環境が一致するfixtureを返す。無ければNone。"""
+    for path in RANDOM_STATE_FIXTURE_PATHS:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        if document["environment"] == environment:
+            return document
+    return None
 
 
 def generate_random_state_fixture():

@@ -61,3 +61,14 @@
 - 全対象は12561 passed / 459 skipped / 19 failed。19件は版15のgolden未生成だけ。skipのうち415件はsandboxの一時領域制約、18件は版15の数値golden待ち。
   通常環境での全体成功と版15のgolden、独立実装レビューは未実施。詳細な名前・条件・検証結果は[対象specのtask 5の記録](../../../.kiro/specs/remove-post-alarm-candidate-validation/tasks.md)を正本とする。
 - 基準版14までの結果を読む集計の道具はそのまま使う。runの対応はデータ・間隔・seedで取り、FedSDAで変わる末尾hashを対応の鍵にしない。過去の掃引へ再開・seed追加せず、新しい保存先を使う。
+
+## 2026-10-28: task 6の確認（主担当）
+
+- 版15のgoldenを生成元`c13149ea`でWindows（Python 3.13.15）とWSL（Python 3.14.4）で生成・配置した（各18 case）。版15の18 caseは、消した項目を除くと版14と一致した（両環境）。
+- WSLで、task 1の乱数のfixture（Windowsで採取）と2 case（`fedsda-sine2-adoption-without-validation`、`fedsda-mnist4-warm-started-learner`）が合わなかった。
+  消す前のコード（`6adb3ee7`）をLinuxで実行しても同じ値になり、14 caseすべてで消す前と後が一致したので、環境の差（Linuxの数値の差で乱数の消費の回数が変わる）と判断した。
+  Linuxのfixtureを別のファイルとして足し、照合は数値の環境が一致するfixtureで行う。Windowsのfixtureは変えていない。
+- 版11の件数0のクロス評価が空振りでないことの確かめは、Linuxでは外した候補検証ありのcaseだけが該当していた。残すcaseで該当するのはWindowsの`fedsda-mnist4-warm-started-learner`（6件）だけなので、Windowsで必須、他の環境で該当が無ければ理由つきでskipにした。
+- 確認: 通常の環境の全pytest 13030 passed / 9 skipped / 0 failed（testの直しの前に開始。直した2ファイルは後で流し直して53 passed）。WSLのgoldenの照合 430 passed / 1 skipped（上のskip）。pyright 0 errors、ruff通過。
+- 独立の実装レビュー（gpt-6-luna、medium）: FAIL。Blockerなし。Majorは版15のgoldenが未配置で比較ができていないこと（配置して解消）。Minorは、外したcaseでは候補検証以外の旧値も比べないこと、全経路の同等性を版1〜14の照合と乱数の照合に依ることの記録の要求。
+  この2つは確認の範囲の限界として残す（外したcaseは今のコードで実行できない。検証なしの全構成は、数値goldenと乱数の状態の完全一致で確かめた）。

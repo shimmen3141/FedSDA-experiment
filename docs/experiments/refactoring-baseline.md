@@ -242,10 +242,10 @@ FedSDAの11構成・FedDrift・FedAvgの小さいrunと、重要イベント/境
 | `environment` | OS・機種・Python/NumPy/torch・CPU/dtype/thread | 同じ動作基準を別環境で検証するとき |
 | `source_commit` | 生成した生産コードの来歴 | 新しい基準や環境別goldenを生成するとき |
 
-現在の基準版は15（`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`）。版15のgoldenは未生成。
+現在の基準版は15（`BASELINE_VERSION`・`BEHAVIOR_BASELINE_VERSION`）。版15のgoldenは生成元`c13149ea`（WindowsとWSL）。
 版1〜14の保存済みJSONは変更しない。候補検証ありのcaseは版ごとの明示した一覧で外し、
 残すcaseは削除した項目だけを完全な鍵の道の一覧で除いて照合する。版15の18 caseも、同じ除外後の値を版14と照合する。
-乱数はtask 1開始時に採ったFedSDAの14 caseのfixtureと完全一致で比べる。
+乱数は、消す前のコード（`6adb3ee7`）で採ったFedSDAの14 caseのfixtureと完全一致で比べる。fixtureは環境ごと（Windowsはtask 1、Linuxはtask 6で採取）で、数値の環境が一致するものを使う。
 進捗・未検証は[taskの記録](../../.kiro/specs/remove-post-alarm-candidate-validation/tasks.md)を参照する。
 
 基準版は次のとおり（過去の版の行は当時の記録として残す）。
@@ -286,7 +286,7 @@ coverageの項目を確認して除き、既存の全指標・表・パラメー
 | 12 | クロス評価で、対象のモデルの標本を返せるclientだけを評価させる（[spec](../../.kiro/specs/fedsda-cross-evaluation-clients-with-target-samples/design.md)） | 新しい既定。候補検証ありの構成と版1〜11は、今の扱い（`clients_holding_target_model`）を明示する（参加者の設定の「後に足された項目」の表） | 版11と同じ22 |
 | 13 | 損失の低下を検出したら監視の基準を下げ、クロス評価の評価clientの上限をclientの数にする（[spec](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/design.md)） | 候補検証ありの構成は今の扱い（`keep_baseline_until_alarm`、上限3）、ADWINの2構成は`keep_baseline_until_alarm`を明示し、版1〜12は今の扱いと上限3を明示する（clientの設定の「後に足された項目」の表と、参加者の設定の「値が変わった項目」の扱い） | 版12と同じ22 |
 | 14 | FedDriftの誤り率による検知・選択、最小モデルからの複写と最小値の保存、現在の割当のあるモデルだけの学習、現在の塊を含む統合重み、評価client上限＝client数、データ別δ（現在のコードの既定。[spec](../../.kiro/specs/feddrift-official-algorithm-alignment/design.md)） | 版1〜13の旧設定を明示。FedSDA・FedAvgは版13と同じ条件。定数14へ切替済み。goldenの生成・配置と版14の値の最終確認は主担当が行う | 版13と同じ22（版14のgoldenは未配置） |
-| 15 | 警報後の候補検証の処理・設定・記録・指標・構成を削除（[spec](../../.kiro/specs/remove-post-alarm-candidate-validation/requirements.md)） | 検証なしの計算・乱数を維持。保存の形とFedSDAのrun識別子のhashは変わる。消した項目を完全な鍵の道で除いて版14と比較する | 版14の22から検証あり4 caseを除いた18。Windows・Linuxのgoldenは主担当がtask 6で生成・配置する |
+| 15 | 警報後の候補検証の処理・設定・記録・指標・構成を削除（[spec](../../.kiro/specs/remove-post-alarm-candidate-validation/requirements.md)） | 検証なしの計算・乱数を維持。保存の形とFedSDAのrun識別子のhashは変わる。消した項目を完全な鍵の道で除いて版14と比較する | 版14の22から検証あり4 caseを除いた18。生成元`c13149ea`（WindowsとWSL） |
 
 版9→10では、FedDrift・FedAvgと、候補検証の経路の4ケースは、指標・記録の表・`global_parameters`・`coverage`が版9と同じであることをtestが確かめる（版10で足した選択の記録の表`alarm_interval_assignment_selection.*`——FedSDAのケースで空——と、経路の記録の選んだ仮説ごとの回数——どれも0——を取り除いて比べる）。新しい既定を引き継ぐFedSDAのケースは、差があってよい。設定は、FedSDAのケースの新しい項目だけが違うことを、別のtestが確かめる。版10の必須の経路は、新しい既定の大きい条件の2ケースで選択が1回以上起き、`fedsda-sine2-adoption-without-validation`では3種類（現在のモデルのまま・保有モデルへ・新しいモデルへ）がそれぞれ1回以上起きること（`fedsda-mnist2-adoption-without-validation`は、保有モデルへの切り替わりが起きない）。版9まではgoldenの記録の表にこの表を含めない。
 

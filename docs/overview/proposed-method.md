@@ -21,7 +21,7 @@ ADWINの2構成は`keep_baseline_until_alarm`を明示する。
 
 現在の基準版は15。2026-10-28に、警報後の候補検証の処理・状態・設定・記録・指標と、その構成を削除した。
 候補をその場で採用する計算は維持し、論文では候補検証を説明の対象に含めない。
-版15のgoldenは主担当による生成待ち。検証の状態は[削除specの記録](../../.kiro/specs/remove-post-alarm-candidate-validation/tasks.md)、
+版15のgoldenは生成元`c13149ea`（WindowsとWSL）。検証の状態は[削除specの記録](../../.kiro/specs/remove-post-alarm-candidate-validation/tasks.md)、
 版の扱いは[回帰基準](../experiments/refactoring-baseline.md)を参照する。
 
 ## 1. 解決する問題と各要素の役割

@@ -5,7 +5,7 @@
 ## 現在地
 
 - **最新の総括・再開順は[研究の引継ぎ（2026-10-26）](../../docs/research/research-handoff-20261026.md)**。Claude交代後の一連の研究、結果の所在、訂正、未着手事項をまとめている。
-- **候補検証の削除はtask 1〜5実装済み、現在の基準版は15**（[対象spec](../specs/remove-post-alarm-candidate-validation/tasks.md)）。task 5は未コミット。版15のgolden生成・通常環境での全確認・独立実装レビューはtask 6で主担当が行う。版1〜14の保存済みgoldenとtask 1の乱数fixtureは維持する。sandboxで実行できなかったtestの名前・理由と、版15のファイル待ちのtestは対象specの末尾を参照する。
+- **候補検証の削除は完了、現在の基準版は15**（[対象spec](../specs/remove-post-alarm-candidate-validation/tasks.md)、2026-10-28）。版15のgoldenは生成元`c13149ea`（WindowsとWSL）。版1〜14の保存済みgoldenと乱数のfixtureは維持する。版14で始めた掃引は、版15のコードでは再開できない（始めたときのコードで再開する）。
 - 実装レビュー・全pytest・WSLの結果の正本は対象specのImplementation Notes。E1a/E2/S1/S3/B・E3とmain統合は未採用／未決定のまま。v13のablation（共有部の固定を外す枝を含む）と、評価の設計（研究バックログの9）は未着手。
 
 - 2026-10-27: [IMPROVE-031](../../docs/research/improvement-candidates/improve-031-loss-monitor-rebaseline-on-loss-decrease.md)は上限撤廃とともに既定へ実装済み。基準版13として既定にした（上記spec）。

@@ -3,7 +3,7 @@
 2026-10-27の新しい既定: FedSDAは損失の低下で監視の基準を下げ、クロス評価の上限を実験のclient数にする。
 ADWINの2構成は基準を警報まで保ち上限はclient数。
 コマンドの引数は変わらないが、完全設定が変わるのでrunの識別子は変わる。過去の結果は保存された設定と来歴で区別する。
-現在の基準版は15。版15のgoldenは主担当の生成待ち（[削除spec](../../.kiro/specs/remove-post-alarm-candidate-validation/tasks.md)）。
+現在の基準版は15。版15のgoldenは生成元`c13149ea`（WindowsとWSL）（[削除spec](../../.kiro/specs/remove-post-alarm-candidate-validation/tasks.md)）。
 研究CLIの非product系は版10を保ち、IMPROVE-031と上限撤廃だけの比較は版12を基点にする。
 研究入口はbuilderの結果を置き換え、product-defaultだけは製品の新しい既定を使う。
 [検証と未実施範囲](../../.kiro/specs/fedsda-loss-monitor-rebaseline-and-all-evaluating-clients/tasks.md)。
