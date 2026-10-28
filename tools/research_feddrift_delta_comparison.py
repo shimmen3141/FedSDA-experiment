@@ -2,8 +2,9 @@
 
 - `select`: δの調整の掃引の結果（調整用のseed）から、データ×間隔ごとに、seedの平均の全体の累積精度が最大のδを選ぶ
   （同じ値なら小さいδ）。幅を指定すると、最良の平均精度から幅に入るδのうち、平均の通信（上り＋下り）が最小のδを選ぶ。選んだδの表（CSV）と、本評価の掃引のコマンド（データとδの組ごとに1つ）を書き出す。
-- `compare`: 結果の置き場所を`名前=ディレクトリ`で複数受け取り、手法（名前/構成）×データ×間隔ごとに、全体の累積精度、
-  基準の手法との同じseedの対の差、上り・下りの通信byte、clientのMAC（順伝播＋推定逆伝播）を並べる。
+- `compare`: 結果の置き場所を`名前=ディレクトリ`で複数受け取り、手法（名前/構成）×データ×間隔ごとに、全体の累積精度（平均とseed間のSD）、
+  基準の手法との同じseedの対の差（平均、SE、95%信頼区間の半幅、勝ち・負け・同じのseedの数）、上り・下りの通信byte（上り＋下りのSDも）、
+  clientのMAC（順伝播＋推定逆伝播）を並べる。
 
 精度はrunの要約（`run_metrics.prediction_accuracy`、5000標本の全体の累積精度。評価の設計の主指標）を使う。
 期間別の精度は`python -m tools.experiments.accuracy_periods`で別に見る。
@@ -15,9 +16,27 @@ import glob
 import json
 import sys
 from collections import defaultdict
+from functools import cache
 from pathlib import Path
 
+import mpmath
 import numpy as np
+
+
+@cache
+def _t_critical_95(degrees_of_freedom):
+    # 固定venvのmpmathを使う。正のtの上側確率は I_(ν/(ν+t²))(ν/2, 1/2) / 2。
+    # 自由度1の97.5百分位も16未満なので、この範囲で二分探索する。
+    low, high = 0.0, 16.0
+    for _ in range(60):
+        middle = (low + high) / 2
+        x = degrees_of_freedom / (degrees_of_freedom + middle * middle)
+        tail = float(mpmath.betainc(degrees_of_freedom / 2, 0.5, 0, x, regularized=True)) / 2
+        if tail > 0.025:
+            low = middle
+        else:
+            high = middle
+    return (low + high) / 2
 
 
 def _run_key(path):
@@ -213,6 +232,14 @@ def compare(arguments):
                 def mean(field, seeds=seeds, runs=runs):
                     return float(np.mean([runs[s][field] for s in seeds]))
 
+                def standard_deviation(values):
+                    return float(np.std(values, ddof=1)) if len(values) > 1 else float("nan")
+
+                difference_se = (
+                    standard_deviation(differences) / np.sqrt(len(differences))
+                    if len(paired) > 1
+                    else float("nan")
+                )
                 rows.append(
                     dict(
                         dataset=dataset,
@@ -220,13 +247,24 @@ def compare(arguments):
                         method=method,
                         seeds=len(seeds),
                         accuracy=mean("accuracy"),
+                        accuracy_sd=standard_deviation([runs[s]["accuracy"] for s in seeds]),
                         paired_seeds=len(paired),
                         difference=float(np.mean(differences)) if paired else float("nan"),
-                        difference_se=float(np.std(differences, ddof=1) / np.sqrt(len(differences)))
+                        difference_se=float(difference_se),
+                        difference_ci95_half_width=float(
+                            _t_critical_95(len(paired) - 1) * difference_se
+                        )
                         if len(paired) > 1
                         else float("nan"),
+                        # 同じseedの対で、基準より高い・低い・同じseedの数。
+                        wins=sum(d > 0 for d in differences),
+                        losses=sum(d < 0 for d in differences),
+                        ties=sum(d == 0 for d in differences),
                         upload=mean("upload"),
                         download=mean("download"),
+                        communication_sd=standard_deviation(
+                            [runs[s]["upload"] + runs[s]["download"] for s in seeds]
+                        ),
                         client_mac=mean("client_mac"),
                     )
                 )
@@ -236,14 +274,17 @@ def compare(arguments):
             writer.writeheader()
             writer.writerows(rows)
     print(
-        f"精度は%（全体の累積精度、seedの平均）。差は{arguments.reference}との同じseedの対の差（pp）とSE。通信はbyte/run、MACはclientの順伝播＋推定逆伝播/run。"
+        f"精度は%（全体の累積精度、seedの平均±seed間のSD）。差は{arguments.reference}との同じseedの対の差（pp）と、そのSE・95%信頼区間の半幅、"
+        "勝ち/負け/同じのseedの数。通信はbyte/run（上り＋下りのSDも）、MACはclientの順伝播＋推定逆伝播/run。"
     )
-    print("|データ|間隔|手法|seed|精度|差|SE|上り|下り|client MAC|")
-    print("|---|---:|---|---:|---:|---:|---:|---:|---:|---:|")
+    print("|データ|間隔|手法|seed|精度±SD|差|SE|95%CI±|勝/負/同|上り|下り|通信SD|client MAC|")
+    print("|---|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|")
     for row in rows:
         print(
-            f"|{row['dataset']}|{row['interval']}|{row['method']}|{row['seeds']}|{row['accuracy']:.2f}|"
-            f"{row['difference']:+.2f}|{row['difference_se']:.2f}|{row['upload']:.3g}|{row['download']:.3g}|{row['client_mac']:.3g}|"
+            f"|{row['dataset']}|{row['interval']}|{row['method']}|{row['seeds']}|"
+            f"{row['accuracy']:.2f}±{row['accuracy_sd']:.2f}|{row['difference']:+.2f}|{row['difference_se']:.2f}|"
+            f"{row['difference_ci95_half_width']:.2f}|{row['wins']}/{row['losses']}/{row['ties']}|"
+            f"{row['upload']:.3g}|{row['download']:.3g}|{row['communication_sd']:.3g}|{row['client_mac']:.3g}|"
         )
     return 0
 

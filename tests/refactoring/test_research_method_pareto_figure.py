@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from tools import research_feddrift_delta_comparison as comparison
 from tools import research_method_pareto_figure as figure
 from tools.research_feddrift_delta_comparison import _read_runs
 
@@ -93,7 +94,11 @@ def test_statistics_and_outputs(tmp_path):
     assert float(row["mean_accuracy_percent"]) == pytest.approx(80)
     # 自由度2のtの97.5百分位=4.3026527297、標本標準偏差10pp。
     assert float(row["accuracy_ci95_half_width_pp"]) == pytest.approx(24.8413771172)
+    assert float(row["accuracy_sd_pp"]) == pytest.approx(10)
     assert float(row["mean_communication_byte"]) == 400
+    # 上り＋下りは300・400・500 byte。
+    assert float(row["communication_sd_byte"]) == pytest.approx(100)
+    assert float(row["communication_ci95_half_width_byte"]) == pytest.approx(248.413771172)
     assert row["seed_count"] == "3"
     assert row["seeds"] == "0 1 2"
     assert float(row["delta"]) == 0.1
@@ -237,3 +242,56 @@ def test_invalid_or_missing_values_fail(tmp_path, case):
     elif case == "intervals":
         arguments += ["--intervals", "50", "50"]
     assert figure.main(arguments) == 2
+
+
+@pytest.mark.parametrize("error_bars", ["sd", "ci95"])
+def test_error_bar_choice_draws_both_axes(tmp_path, monkeypatch, error_bars):
+    for seed, accuracy, upload in [(0, 0.7, 100), (1, 0.8, 200), (2, 0.9, 300)]:
+        _run(tmp_path, seed=seed, accuracy=accuracy, upload=upload)
+    recorded = []
+    original = figure.plt.Axes.errorbar
+
+    def errorbar(self, *arguments, **keywords):
+        recorded.append((keywords["xerr"], keywords["yerr"]))
+        return original(self, *arguments, **keywords)
+
+    monkeypatch.setattr(figure.plt.Axes, "errorbar", errorbar)
+    output = tmp_path / "figure"
+    assert figure.main([*_arguments(tmp_path, output), "--error-bars", error_bars]) == 0
+    # 精度のSDは10pp、通信（上り＋下り 300・400・500 byte）のSDは100 byte。横はMBで描く。
+    expected = {"sd": ([100 / 1e6], [10]), "ci95": ([248.413771172 / 1e6], [24.8413771172])}
+    assert recorded[0][0] == pytest.approx(expected[error_bars][0])
+    assert recorded[0][1] == pytest.approx(expected[error_bars][1])
+
+
+def test_compare_reports_spread_and_paired_difference(tmp_path):
+    for seed, reference, other in [(0, 0.70, 0.72), (1, 0.80, 0.79), (2, 0.90, 0.95)]:
+        _run(tmp_path / "a", seed=seed, accuracy=reference, upload=100 * (seed + 1))
+        _run(tmp_path / "b", seed=seed, accuracy=other)
+    output = tmp_path / "compare.csv"
+    assert (
+        comparison.main(
+            [
+                "compare",
+                "--group",
+                f"A={tmp_path / 'a'}",
+                "--group",
+                f"B={tmp_path / 'b'}",
+                "--reference",
+                "A/feddrift",
+                "--output",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    rows = {row["method"]: row for row in _rows(output)}
+    assert float(rows["A/feddrift"]["accuracy_sd"]) == pytest.approx(10)
+    assert float(rows["A/feddrift"]["communication_sd"]) == pytest.approx(100)
+    other = rows["B/feddrift"]
+    # 対の差は+2・−1・+5 pp（平均2、SD3）。
+    assert float(other["difference"]) == pytest.approx(2)
+    assert float(other["difference_se"]) == pytest.approx(3 / 3**0.5)
+    assert float(other["difference_ci95_half_width"]) == pytest.approx(4.3026527297 * 3 / 3**0.5)
+    assert (other["wins"], other["losses"], other["ties"]) == ("2", "1", "0")
+    assert float(other["communication_sd"]) == 0

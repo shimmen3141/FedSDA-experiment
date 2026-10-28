@@ -1,7 +1,8 @@
-"""手法比較の累積精度と上下通信量を、seed間の95%信頼区間付きで描く。
+"""手法比較の累積精度と上下通信量を、seed間のばらつき（既定は±1 SD、縦と横）付きで描く。
 
 例: python -m tools.research_method_pareto_figure --series "FedSDA=results/study:fedsda"
     --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 --output results/figures/methods
+`--error-bars ci95`で、平均の95%信頼区間（seed間のt分布）に替える。
 補足図は調整用seedの取得済みrunを全て使う。未完了のδもseed数と共にCSVへ残す。
 """
 
@@ -11,37 +12,32 @@ import math
 import sys
 import warnings
 from collections import defaultdict
-from functools import cache
 from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import mpmath
 import numpy as np
 from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
-from tools.research_feddrift_delta_comparison import _read_runs
+from tools.research_feddrift_delta_comparison import _read_runs, _t_critical_95
 
 _COLORS = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4")
 _MARKERS = ("o", "s", "^", "D", "v")
+_ERROR_BAR_DESCRIPTIONS = {
+    "sd": "±1 SD over seeds",
+    "ci95": "95% confidence interval of the mean over seeds",
+}
 
 
-@cache
-def _t_critical_95(degrees_of_freedom):
-    # 固定venvのmpmathを使う。正のtの上側確率は I_(ν/(ν+t²))(ν/2, 1/2) / 2。
-    # 自由度1の97.5百分位も16未満なので、この範囲で二分探索する。
-    low, high = 0.0, 16.0
-    for _ in range(60):
-        middle = (low + high) / 2
-        x = degrees_of_freedom / (degrees_of_freedom + middle * middle)
-        tail = float(mpmath.betainc(degrees_of_freedom / 2, 0.5, 0, x, regularized=True)) / 2
-        if tail > 0.025:
-            low = middle
-        else:
-            high = middle
-    return (low + high) / 2
+def _spread(values):
+    """seed間のSDと、平均の95%信頼区間の半幅（1 seedならNone）。"""
+    count = len(values)
+    if count < 2:
+        return None, None
+    standard_deviation = float(np.std(values, ddof=1))
+    return standard_deviation, float(_t_critical_95(count - 1) * standard_deviation / np.sqrt(count))
 
 
 def _parse_series(item):
@@ -101,14 +97,10 @@ def _summarize(cells, datasets, intervals, *, frontier=False):
                     seeds = sorted(groups[key])
                     runs = [groups[key][seed] for seed in seeds]
                     accuracies = [run["accuracy"] for run in runs]
+                    communications = [run["upload"] + run["download"] for run in runs]
                     count = len(seeds)
-                    half_width = (
-                        float(
-                            _t_critical_95(count - 1) * np.std(accuracies, ddof=1) / np.sqrt(count)
-                        )
-                        if count > 1
-                        else None
-                    )
+                    accuracy_sd, half_width = _spread(accuracies)
+                    communication_sd, communication_half_width = _spread(communications)
                     deltas = {run["delta"] for run in runs}
                     delta = (
                         next(iter(deltas))
@@ -125,10 +117,11 @@ def _summarize(cells, datasets, intervals, *, frontier=False):
                             seed_count=count,
                             seeds=" ".join(map(str, seeds)),
                             mean_accuracy_percent=float(np.mean(accuracies)),
+                            accuracy_sd_pp=accuracy_sd,
                             accuracy_ci95_half_width_pp=half_width,
-                            mean_communication_byte=float(
-                                np.mean([r["upload"] + r["download"] for r in runs])
-                            ),
+                            mean_communication_byte=float(np.mean(communications)),
+                            communication_sd_byte=communication_sd,
+                            communication_ci95_half_width_byte=communication_half_width,
                             delta=delta,
                             is_nondominated=None,
                         )
@@ -165,7 +158,15 @@ def _mark_frontier(rows):
         )
 
 
-def _draw(rows, datasets, labels, prefix, frontier_rows=()):
+def _draw(rows, datasets, labels, prefix, frontier_rows=(), error_bars="sd"):
+    accuracy_key, communication_key = {
+        "sd": ("accuracy_sd_pp", "communication_sd_byte"),
+        "ci95": ("accuracy_ci95_half_width_pp", "communication_ci95_half_width_byte"),
+    }[error_bars]
+
+    def error(row, key, scale=1.0):
+        return row[key] / scale if row[key] is not None else float("nan")
+
     columns = min(3, len(datasets))
     row_count = math.ceil(len(datasets) / columns)
     with plt.rc_context(
@@ -208,16 +209,11 @@ def _draw(rows, datasets, labels, prefix, frontier_rows=()):
                     points = [r for r in rows if r["dataset"] == dataset and r["series"] == label]
                     x = [r["mean_communication_byte"] / 1e6 for r in points]
                     y = [r["mean_accuracy_percent"] for r in points]
-                    errors = [
-                        r["accuracy_ci95_half_width_pp"]
-                        if r["accuracy_ci95_half_width_pp"] is not None
-                        else float("nan")
-                        for r in points
-                    ]
                     handle = axis.errorbar(
                         x,
                         y,
-                        yerr=errors,
+                        yerr=[error(r, accuracy_key) for r in points],
+                        xerr=[error(r, communication_key, 1e6) for r in points],
                         label=label,
                         color=_COLORS[series_index],
                         marker=_MARKERS[series_index],
@@ -283,6 +279,12 @@ def main(command_arguments=None):
     parser.add_argument("--datasets", nargs="+", help="対象と並び（省略時は主図のデータを名前順）")
     parser.add_argument("--intervals", nargs="+", type=int, default=[50, 100, 200, 500])
     parser.add_argument("--allow-different-seeds", action="store_true")
+    parser.add_argument(
+        "--error-bars",
+        choices=sorted(_ERROR_BAR_DESCRIPTIONS),
+        default="sd",
+        help="誤差棒（縦は精度、横は通信）: sd=±1 SD（既定）、ci95=平均の95%%信頼区間",
+    )
     parser.add_argument("--output", required=True, help="拡張子なしの出力prefix")
     arguments = parser.parse_args(command_arguments)
     try:
@@ -315,12 +317,20 @@ def main(command_arguments=None):
                 if path.exists():
                     raise ValueError(f"既存のファイルは上書きしません: {path}")
         prefix.parent.mkdir(parents=True, exist_ok=True)
-        _draw(rows, datasets, list(cells), prefix)
+        _draw(rows, datasets, list(cells), prefix, error_bars=arguments.error_bars)
         _write_csv(Path(f"{prefix}.csv"), rows)
         if frontier_rows:
-            _draw(rows, datasets, list(cells), prefixes[1], frontier_rows)
+            _draw(
+                rows,
+                datasets,
+                list(cells),
+                prefixes[1],
+                frontier_rows,
+                error_bars=arguments.error_bars,
+            )
             _write_csv(Path(f"{prefixes[1]}.csv"), rows + frontier_rows)
         print(f"出力: {', '.join(map(str, prefixes))} (.pdf, .png, .csv)")
+        print(f"誤差棒（図の説明に書く）: {_ERROR_BAR_DESCRIPTIONS[arguments.error_bars]}")
         return 0
     except (ValueError, KeyError, OSError, IndexError, TypeError) as error:
         print(str(error), file=sys.stderr)
