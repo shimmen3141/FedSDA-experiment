@@ -27,6 +27,10 @@ from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import 
     ALL_EVALUATING_CLIENTS_LOSS_MONITOR_REBASELINE_VARIANTS,
     LOSS_MONITOR_REBASELINE_VARIANTS,
 )
+from tools.research_provisional_candidate_expert.reverse_prequential import (
+    REVERSE_PREQUENTIAL_VARIANTS,
+    reverse_prequential_policy,
+)
 
 # 変種 -> （構成、仮の専門家を使うか、検証の標本数）。候補検証の変種は廃止した。
 _VARIANTS = {
@@ -200,7 +204,10 @@ for _variant_name in _PREDICTION_DISTILLATION_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 for _variant_name in LOSS_MONITOR_REBASELINE_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
+for _variant_name in REVERSE_PREQUENTIAL_VARIANTS:
+    _VARIANTS[_variant_name] = ("fedsda", False, None)
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
+    *REVERSE_PREQUENTIAL_VARIANTS,
     *LOSS_MONITOR_REBASELINE_VARIANTS,
     "product-default-class-conditioned-prediction",
     "product-default-class-conditioned-prediction-check",
@@ -2394,7 +2401,11 @@ def _execute_job(job):
     mixing_past_posteriors = {}
     loss_monitor_rebaseline = {}
     class_conditioned_prediction = {}
+    prequential_measurement = {}
     with contextlib.ExitStack() as stack:
+        stack.enter_context(reverse_prequential_policy(
+            variant=job["variant"], diagnostics=prequential_measurement,
+        ))
         if job["variant"] in LOSS_MONITOR_REBASELINE_VARIANTS:
             from tools.research_provisional_candidate_expert.loss_monitor_rebaseline import loss_monitor_rebaseline_policy
 
@@ -2618,6 +2629,11 @@ def _execute_job(job):
         candidate_training_strategy=client_settings.candidate_epoch_training_settings.candidate_training_strategy,
         candidate_maximum_epoch_count=client_settings.candidate_epoch_training_settings.maximum_epoch_count,
         model_computation_counts=dataclasses.asdict(metrics.model_computation_counts),
+        prequential_measurement=prequential_measurement,
+        alarm_interval_assignment_selection={
+            name: values.tolist() for name, values in tables.items()
+            if name.startswith("alarm_interval_assignment_selection.")
+        },
         # 参加者の初期準備（事前学習ほか）の計算（指標には含めない）。
         preparation_model_computation_counts=dataclasses.asdict(
             run.measured_run.preparation_model_computation_counts
