@@ -1,6 +1,7 @@
-# 論文の評価の実験の計画（基準版14、2026-10-28）
+# 論文の評価の実験の計画（基準版14・15、2026-10-28）
 
-論文の主な比較（FedSDA・FedDrift・FedAvg）を、基準版14の同じ条件で取るための計画と、2026-10-28の時点の状態。今の状態の正本として、実験が進んだら更新する。
+論文の主な比較（FedSDA・FedDrift・FedAvg）を、同じ条件で取るための計画と、2026-10-28の時点の状態。今の状態の正本として、実験が進んだら更新する。
+2026-10-28に基準版15（候補検証の削除）へ切り替えた。FedSDA（候補検証を使わない構成）・FedDrift・FedAvgの値は版14と同じなので、残りの実験は版15のコードで流し、版14・13の結果とデータ・間隔・seedで対応させる。
 
 ## 共通の条件
 - 10 client、各client 5000標本、集約間隔50・100・200・500、評価のseed 0〜9。
@@ -13,7 +14,7 @@
 | 手法 | 構成 | 備考 |
 |---|---|---|
 | FedSDA | `fedsda`（基準版14の既定） | 版14の変更はFedDriftだけなので、版13の既定と同じ設定・同じ値 |
-| FedDrift（δを調整） | `feddrift`、データ×間隔ごとに選んだδ | 調整用のseed 100〜102で、δ 0.02〜0.20（論文の付録と同じ10値）から全体の累積精度が最大のδ（同じなら小さいδ）。[FedDriftとの差](differences-from-feddrift.md) |
+| FedDrift（δを調整） | `feddrift`、データ×間隔ごとに選んだδ | 調整用のseed 100〜102で、δ 0.02〜0.20（論文の付録と同じ10値）から、最良の平均精度から0.1ppの幅に入るδのうち通信が最小のδ（[δの調整の結果](../research/feddrift-delta-tuning-v14-20261028.md)）。[FedDriftとの差](differences-from-feddrift.md) |
 | FedDrift（公式の既定のδ） | `feddrift`（δはデータ別の既定） | 参考。新しい4データは0.10（MNISTの公式の既定） |
 | FedAvg | `fedavg-local-updates-per-aggregation`（主表）、`fedavg`（参考） | 主表は配布されたモデルで予測し塊の終わりに学習する形（FedDriftの公式のFedAvgと同じ時間の流れ）。`fedavg`は1標本ごとに局所で適応する参考 |
 
@@ -21,22 +22,26 @@
 | 実験 | 6データ | 新しい4データ |
 |---|---|---|
 | FedSDA | 済み: `results/fedsda-component-ablation-v13/20261027_044431_core-components-v13-seeds0-9/fedsda`（240 run、版13、版14と同じ設定） | 未実行（下の「新しいデータ」に含む） |
-| FedDrift（δの調整、seed 100〜102） | 実行中（uranium、720 run） | 当面は行わない（公式の既定の0.10。時間があるときに他の値も試す、2026-10-28のユーザー判断） |
-| FedDrift（調整したδ、seed 0〜9） | 未実行（調整の後、`select`が書き出すコマンド） | — |
-| FedDrift（公式の既定のδ、seed 0〜9） | 未確認（`--study feddrift-official-default-v14`のコマンド、240 run） | 未実行（下の「新しいデータ」に含む） |
+| FedDrift（δの調整、seed 100〜102） | 済み（709/720 runで停止、[結果](../research/feddrift-delta-tuning-v14-20261028.md)） | 当面は行わない（公式の既定の0.10。時間があるときに他の値も試す、2026-10-28のユーザー判断） |
+| FedDrift（調整したδ、seed 0〜9） | 未実行（`--study feddrift-tuned-delta-v15`の18コマンド、240 run） | — |
+| FedDrift（公式の既定のδ、seed 0〜9） | 未実行（`--study feddrift-official-default-v15`、240 run） | 未実行（下の「新しいデータ」に含む） |
 | FedAvg・FedAvg（塊の終わりに学習） | 未実行（下の「FedAvg」、480 run）。基準版5〜6の頃の結果（`results/method-baselines/`）は間隔・seedが一部だけで、版14との一致も確かめていないので使わない | 未実行（下の「新しいデータ」に含む） |
 | 構成要素の比較（ablation） | 済み: [基準版13の構成要素比較](../research/fedsda-component-ablation-v13-20261027.md)（版14でも同じ） | 行わない（必要なら後で） |
 
 ## 残りのコマンド（uranium、workersの合計は上限に収まるよう分ける）
 新しいデータ（640 run。先に`data/fashion-mnist/`へFashion-MNISTの2ファイルを置き、MD5を照合する）:
 ```
-python run_experiment_sweep.py --configurations fedsda feddrift fedavg fedavg-local-updates-per-aggregation --datasets fmnist2 fmnist4 rotmnist2 rotmnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study new-datasets-v14 --label fmnist-rotmnist-seeds0-9 --purpose "調整に使っていない新しいデータ（Fashion-MNISTのラベルの入れ替え、MNISTの回転）で、基準版14の各手法を比べる"
+python run_experiment_sweep.py --configurations fedsda feddrift fedavg fedavg-local-updates-per-aggregation --datasets fmnist2 fmnist4 rotmnist2 rotmnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study new-datasets-v15 --label fmnist-rotmnist-seeds0-9 --purpose "調整に使っていない新しいデータ（Fashion-MNISTのラベルの入れ替え、MNISTの回転）で、基準版15の各手法を比べる"
 ```
 FedAvg（6データ、480 run）:
 ```
-python run_experiment_sweep.py --configurations fedavg fedavg-local-updates-per-aggregation --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study method-comparison-v14 --label fedavg-seeds0-9 --purpose "基準版14のFedAvgの2構成を、6データで評価する"
+python run_experiment_sweep.py --configurations fedavg fedavg-local-updates-per-aggregation --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study method-comparison-v15 --label fedavg-seeds0-9 --purpose "基準版15のFedAvgの2構成を、6データで評価する"
 ```
-FedDrift（調整したδ）: δの調整が終わったら、`python tools/research_feddrift_delta_comparison.py select --tuning-root <調整の出力先> --output <出力先>/selected_delta.csv`の書き出すコマンド。
+FedDrift（調整したδ）: `results/feddrift-delta-tuning-v14/selected-delta-tolerance-0.1pp.commands.txt`の18コマンド（`select`が書き出したもの）。
+FedDrift（公式の既定のδ、6データ、240 run）:
+```
+python run_experiment_sweep.py --configurations feddrift --datasets sea2 sea4 sine2 circle2 mnist2 mnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study feddrift-official-default-v15 --label official-default-delta-seeds0-9 --purpose "基準版15のFedDriftを、公式のデータ別の既定のδで評価する"
+```
 
 ## 候補検証を消す作業（IMPROVE-023）との関係
 [候補検証を消すspec](../../.kiro/specs/remove-post-alarm-candidate-validation/requirements.md)の後も、候補検証を使わないFedSDAの計算は変えない（goldenと乱数の状態で確かめる）。
