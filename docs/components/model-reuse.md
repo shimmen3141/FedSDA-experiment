@@ -32,7 +32,7 @@ Pareto CSVには診断用として次の件数を保存する。
 
 新実装の設定値は`alarm_interval_assignment_policy=minimum_description_length`（基準版10。[spec](../../.kiro/specs/fedsda-minimum-description-length-alarm-interval-assignment/design.md)、経緯は[研究記録](../research/fedsda-unified-concept-assignment-inference.md)）。警報を出す時点は、これまでどおりClassESRが決める。警報の後の変化点と帰属先を、固定の許容量の代わりに、最小記述長（MDL）の原理で選ぶ。
 
-1. 列W＝帰属の保留（FIFO）の標本と警報の標本（古い順、最大30件）。各保持モデルで、標本ごとの対数損失−ln p(真のクラス)を計算する。
+1. 列W＝帰属の保留（FIFO）の標本と警報の標本（古い順、最大31件）。警報の標本は、容量を超えた分を解放する前に保留へ足すので、Wは容量（既定30件）＋1件になり得る（`pending_training_assignment_buffer.py`の`append_observed_sample_index`。選択でも切り詰めない）。各保持モデルで、標本ごとの対数損失−ln p(真のクラス)を計算する。
 2. 次の仮説の符号長（nats）を比べる。
    - 現在のモデルのまま: Wの全部を現在のモデルの対数損失で符号化する。
    - 変化点τで保持モデルmへ: τより前を現在のモデル、後を保持モデルm（損失の統計を持つ、現在のモデル以外のモデル）で符号化し、切り替わりの符号長を足す。
