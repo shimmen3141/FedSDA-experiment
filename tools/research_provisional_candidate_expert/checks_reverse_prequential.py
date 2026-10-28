@@ -168,3 +168,51 @@ def test_update_counts_and_default_transparency(variant):
     )
     if variant == "product-default":
         assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "default-reverse-prequential-grid5",
+        "default-reverse-prequential-grid1",
+        "default-reverse-prequential-grid1-position-cost",
+    ],
+)
+def test_short_window_falls_back_to_product_selection(variant):
+    """Wが最小変化区間（5件）より短いと、変種も製品と同じ選択（現在のまま）を返し、学習者を使わない。"""
+    from federated_learning_experiments.runtime import observed_sample_processing as processing
+    from tests.refactoring.test_alarm_interval_minimum_description_length_selection import (
+        CurrentTrainingModelAssignment,
+        ModelAndClassLossStatisticsStore,
+        _assert_random_states_equal,
+        _observations,
+        _random_states,
+        _registry,
+    )
+    from tools.research_provisional_candidate_expert.reverse_prequential import (
+        reverse_prequential_policy,
+    )
+
+    observations = _observations(count=4, class_count=4)
+    arguments = dict(
+        client_id=1,
+        alarm_sample_index=observations[-1].sample_index,
+        pending_sample_observations=observations,
+        held_model_training_state_registry=_registry(class_count=4, model_ids=(4, 9)),
+        loss_statistics_store=ModelAndClassLossStatisticsStore(),
+        current_training_model_assignment=CurrentTrainingModelAssignment(initial_model_id=9),
+        parameter_optimizer_settings=OPTIMIZER_SETTINGS,
+        switching_probability=1 / 120,
+        change_interval_grid_sample_count=5,
+        new_model_hypothesis_learners="reinitialized_and_warm_started_learners",
+    )
+    before = _random_states()
+    expected = processing.select_alarm_interval_assignment(**arguments)
+    diagnostics = {}
+    with reverse_prequential_policy(variant=variant, diagnostics=diagnostics):
+        actual = processing.select_alarm_interval_assignment(**arguments)
+    _assert_random_states_equal(before, _random_states())
+    assert actual == expected
+    assert actual.selected_hypothesis == "current_model"
+    assert diagnostics["learner_update_count"] == 0
+    assert diagnostics["selections"][0]["candidate_lengths"] == ()

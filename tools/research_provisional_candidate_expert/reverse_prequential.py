@@ -130,7 +130,18 @@ def reverse_prequential_policy(*, variant, diagnostics):
             stack.enter_context(
                 patch.object(training, "create_parameter_optimizer", optimizer_factory)
             )
-            if variant not in REVERSE_PREQUENTIAL_VARIANTS:
+            # 列Wが最小変化区間より短いと切替の候補が無く、製品は学習者を使わずに「現在のまま」を選ぶ
+            # （その後、件数不足で警報を保留する）。この場合は変種でも製品の選択をそのまま使う。
+            reverse_candidates = (
+                candidate_lengths(
+                    len(arguments["pending_sample_observations"]),
+                    arguments["change_interval_grid_sample_count"],
+                    variant != REVERSE_PREQUENTIAL_VARIANTS[0],
+                )
+                if variant in REVERSE_PREQUENTIAL_VARIANTS
+                else ()
+            )
+            if not reverse_candidates:
                 for name, attribute in (
                     (
                         selection.REINITIALIZED_LEARNER_NAME,
@@ -154,12 +165,7 @@ def reverse_prequential_policy(*, variant, diagnostics):
                 )
             else:
                 observations = arguments["pending_sample_observations"]
-                minimum = arguments["change_interval_grid_sample_count"]
-                candidates = candidate_lengths(
-                    len(observations), minimum, variant != REVERSE_PREQUENTIAL_VARIANTS[0]
-                )
-                if not candidates:
-                    raise ValueError("逆順の測定には最小変化区間以上の標本が必要です")
+                candidates = reverse_candidates
                 classifier = (
                     arguments["held_model_training_state_registry"]
                     .get_held_model_training_state(
