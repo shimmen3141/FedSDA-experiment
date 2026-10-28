@@ -66,11 +66,20 @@ def select(arguments):
     rows = []
     for (dataset, interval), by_delta in sorted(by_cell.items()):
         seed_sets = {delta: sorted(s for s, _ in values) for delta, values in by_delta.items()}
+        # 指定したδの格子のうち、1つもrunが無いδも欠けとして扱う（黙って候補から抜けないように）。
+        for delta in arguments.deltas or ():
+            seed_sets.setdefault(delta, [])
         expected = sorted(arguments.tuning_seeds)
         incomplete = {delta: seeds for delta, seeds in seed_sets.items() if seeds != expected}
-        if incomplete:
+        if incomplete and not arguments.exclude_incomplete_deltas:
             raise ValueError(f"{dataset}・間隔{interval}で調整用のseedがそろっていません: {incomplete}")
-        means = {delta: float(np.mean([a for _, a in values])) for delta, values in by_delta.items()}
+        means = {
+            delta: float(np.mean([a for _, a in values]))
+            for delta, values in by_delta.items()
+            if delta not in incomplete
+        }
+        if not means:
+            raise ValueError(f"{dataset}・間隔{interval}で調整用のseedがそろったδがありません")
         best = max(means.values())
         chosen = min(delta for delta, mean in means.items() if mean == best)
         rows.append(
@@ -79,7 +88,15 @@ def select(arguments):
                 interval=interval,
                 selected_delta=chosen,
                 selected_mean_accuracy=best,
-                **{f"mean_accuracy_delta_{delta:.2f}": means[delta] for delta in sorted(means)},
+                # 欠けたδは、済んだseedの数と一緒に残す（例: `0.04:1/3`）。
+                excluded_incomplete_deltas=" ".join(
+                    f"{delta:.2f}:{len(seeds)}/{len(expected)}"
+                    for delta, seeds in sorted(incomplete.items())
+                ),
+                **{
+                    f"mean_accuracy_delta_{delta:.2f}": means.get(delta, "")
+                    for delta in sorted(seed_sets)
+                },
             )
         )
     output = Path(arguments.output)
@@ -88,11 +105,12 @@ def select(arguments):
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
-    print("|データ|間隔|選んだδ|調整用seedの平均精度%|")
-    print("|---|---:|---:|---:|")
+    print("|データ|間隔|選んだδ|調整用seedの平均精度%|欠けて外したδ|")
+    print("|---|---:|---:|---:|---|")
     for row in rows:
         print(
             f"|{row['dataset']}|{row['interval']}|{row['selected_delta']:.2f}|{row['selected_mean_accuracy']:.2f}|"
+            f"{row['excluded_incomplete_deltas']}|"
         )
     # 掃引は、データ×間隔の直積で流すので、データとδの組ごとに、そのδを選んだ間隔をまとめる。
     groups = defaultdict(list)
@@ -199,6 +217,12 @@ def main(command_arguments=None):
     choose.add_argument("--tuning-root", required=True)
     choose.add_argument("--tuning-seeds", nargs="+", type=int, default=[100, 101, 102])
     choose.add_argument("--output", required=True)
+    choose.add_argument("--deltas", nargs="+", type=float, help="調整したδの格子（runが1つも無いδも欠けとして扱う）")
+    choose.add_argument(
+        "--exclude-incomplete-deltas",
+        action="store_true",
+        help="調整用のseedがそろわないδを、そのデータ×間隔の候補から外す（外したδはCSVと表に残す）",
+    )
     choose.add_argument("--evaluation-seeds", default="0-9")
     choose.add_argument("--client-count", type=int, default=10)
     choose.add_argument("--per-client-sample-count", type=int, default=5000)
