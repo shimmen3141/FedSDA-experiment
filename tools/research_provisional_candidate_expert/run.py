@@ -2705,6 +2705,20 @@ def _execute_job(job):
     )
 
 
+def _execute_job_in_worker(job):
+    """プールのworkerで1 runを実行し、run内の例外を、pickleできる文字列の例外へ包んで返す。
+
+    製品の例外（例: キーワード専用のconstructorを持つRunExecutionError）はpickleの往復で復元できず、
+    プールでは元の例外がBrokenProcessPoolとして見える（fedsda-class-conditioned-prediction-e2-20261024.md）。
+    """
+    import traceback
+
+    try:
+        return _execute_job(job)
+    except Exception as error:
+        raise RuntimeError(f"{type(error).__name__}: {error}\n{traceback.format_exc()}") from None
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
@@ -2763,7 +2777,7 @@ def main():
     jobs.sort(key=lambda job: not job["dataset"].startswith("mnist"))
     failures = []
     with ProcessPoolExecutor(max_workers=arguments.workers, mp_context=get_context("spawn")) as pool:
-        futures = {pool.submit(_execute_job, job): job for job in jobs}
+        futures = {pool.submit(_execute_job_in_worker, job): job for job in jobs}
         for future in as_completed(futures):
             try:
                 result = future.result()
