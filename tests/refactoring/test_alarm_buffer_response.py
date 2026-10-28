@@ -81,7 +81,6 @@ def build_buffer_response_oracle(
     del response_arguments["change_interval_sample_concept_ids"]
     response_arguments.update(preparation_arguments)
     response_arguments.update(
-        active_validation_session=None,
         minimum_change_interval_sample_count=minimum_change_interval_sample_count,
     )
     return (
@@ -207,15 +206,6 @@ def assert_buffer_response_matches_legacy(
             indexed_observation.observed_concept_id
             for indexed_observation in response.prepared_alarm_training_intervals.change_interval_observations
         )
-        if response.active_validation_session is not None:
-            assert (
-                response.active_validation_session.pending_assignment_training_samples
-                == resolution_arguments["change_interval_training_samples"]
-            )
-            # 下位helperは呼出し元から借用したtuple自体の参照一致を検査する。
-            resolution_arguments["change_interval_training_samples"] = (
-                response.active_validation_session.pending_assignment_training_samples
-            )
         assert_alarm_change_interval_resolution_matches_legacy(
             alarm_change_interval_resolution=response.change_interval_resolution,
             resolution_arguments=resolution_arguments,
@@ -225,10 +215,6 @@ def assert_buffer_response_matches_legacy(
             legacy_adaptation_events=legacy_adaptation_events,
             legacy_epoch_training_calls=legacy_epoch_training_calls,
             initial_training_model_id=initial_training_model_id,
-        )
-        assert (
-            response.active_validation_session
-            is response.change_interval_resolution.started_validation_session
         )
     else:
         assert legacy_drift_type == 0
@@ -544,7 +530,6 @@ def test_response_record_rejects_inconsistent_fields_and_is_frozen(monkeypatch):
         response_outcome="alarm_change_interval_too_short",
         prepared_alarm_training_intervals=prepared_intervals,
         change_interval_resolution=None,
-        active_validation_session=None,
     )
     with pytest.raises(FrozenInstanceError):
         response.response_outcome = "anything"
@@ -569,8 +554,6 @@ def test_response_record_rejects_inconsistent_fields_and_is_frozen(monkeypatch):
         replace(response, response_outcome="alarm_during_candidate_validation")
     with pytest.raises(ValueError):
         replace(response, prepared_alarm_training_intervals=None)
-    with pytest.raises(ValueError):
-        replace(response, active_validation_session=object())
     with pytest.raises(ValueError):
         replace(response, response_outcome="alarm_interval_held_model_reused")
 
@@ -598,29 +581,12 @@ def test_response_record_rejects_inconsistent_fields_and_is_frozen(monkeypatch):
             response_outcome=change_interval_resolution.resolution_outcome,
             prepared_alarm_training_intervals=prepared_intervals,
             change_interval_resolution=change_interval_resolution,
-            active_validation_session=change_interval_resolution.started_validation_session,
         )
         assert response.pending_assignment_buffer_should_be_cleared is True
         with pytest.raises(ValueError):
             replace(response, prepared_alarm_training_intervals=None)
         with pytest.raises(ValueError):
             replace(response, change_interval_resolution=None)
-        with pytest.raises(ValueError):
-            replace(response, active_validation_session=object())
-        if response.active_validation_session is not None:
-            session = response.active_validation_session
-            response = AlarmBufferResponse(
-                response_outcome="alarm_during_candidate_validation",
-                prepared_alarm_training_intervals=None,
-                change_interval_resolution=None,
-                active_validation_session=session,
-            )
-            assert response.active_validation_session is session
-            assert response.pending_assignment_buffer_should_be_cleared is True
-            with pytest.raises(ValueError):
-                replace(response, active_validation_session=None)
-            with pytest.raises(ValueError):
-                replace(response, prepared_alarm_training_intervals=prepared_intervals)
 
 
 def test_prepare_precedes_resolution_and_preserves_original_metadata(monkeypatch):

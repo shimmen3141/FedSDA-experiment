@@ -14,11 +14,6 @@ from federated_learning_experiments.methods.fedsda.prediction_combination.all_sa
     AllSampleAdaHedgeWeightEvidenceHolder,
 )
 from federated_learning_experiments.runtime.alarm_occurrence_handling import handle_alarm_occurrence
-from federated_learning_experiments.runtime.held_candidate_validation_progress import (
-    advance_held_candidate_validation,
-    apply_alarm_response_to_validation_session_holder,
-    finalize_held_incomplete_candidate_validation,
-)
 from federated_learning_experiments.runtime.observed_sample_prediction import (
     predict_observed_sample_and_update_prediction_weights,
 )
@@ -230,9 +225,6 @@ def test_true_concept_collection_rejects_invalid_id_without_creating(invalid_tru
         (recalibrate_prediction_state_after_aggregation, True),
         (process_observed_sample, True),
         (handle_alarm_occurrence, False),
-        (advance_held_candidate_validation, False),
-        (apply_alarm_response_to_validation_session_holder, False),
-        (finalize_held_incomplete_candidate_validation, False),
         (restart_all_sample_adahedge_weight_evidence_after_training_assignment_change, False),
     ],
 )
@@ -244,11 +236,4 @@ def test_true_concept_collection_is_received_only_by_prediction_and_recalibratio
     assert (
         "true_concept_adahedge_diagnostic_evidence_collection" in parameter_names
     ) is receives_true_concept_collection
-    # 終端回収と、警報の応答の、保持への反映は、学習帰属を変えないので、全標本の側のownerも受け取らない。
-    assert ("all_sample_adahedge_weight_evidence_holder" in parameter_names) is (
-        entry_function
-        not in (
-            finalize_held_incomplete_candidate_validation,
-            apply_alarm_response_to_validation_session_holder,
-        )
-    )
+    assert "all_sample_adahedge_weight_evidence_holder" in parameter_names

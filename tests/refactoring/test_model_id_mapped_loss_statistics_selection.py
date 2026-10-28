@@ -709,7 +709,6 @@ def test_mapping_selection_connects_store_updates_and_baseline_selection():
     from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
         select_alarm_interval_reuse_baseline_mean_loss,
         select_loss_monitoring_baseline_mean_loss,
-        select_post_alarm_reference_historical_mean_loss,
     )
 
     inputs = build_valid_selection_inputs_for_rejection_tests()
@@ -762,7 +761,6 @@ def test_mapping_selection_connects_store_updates_and_baseline_selection():
     for selector in [
         select_loss_monitoring_baseline_mean_loss,
         select_alarm_interval_reuse_baseline_mean_loss,
-        select_post_alarm_reference_historical_mean_loss,
     ]:
         assert (
             selector(loss_moments=record.overall_loss_moments)

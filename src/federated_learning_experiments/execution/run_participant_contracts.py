@@ -34,8 +34,6 @@ class RunClientOperations(Protocol):
 
     def advance_new_model_upload_wait_after_synchronization(self, *, round_index: int) -> None: ...
 
-    def finalize_incomplete_candidate_validation(self) -> None: ...
-
 
 class RunServerOperations(Protocol):
     """serverへ同期前記録・同期・開始済み通信の終端を依頼する。"""

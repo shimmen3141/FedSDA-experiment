@@ -57,9 +57,6 @@ from federated_learning_experiments.evaluation.run_metric_calculations import (
     RunMetricSettings,
 )
 from federated_learning_experiments.execution.run_participant_contracts import RunParticipants
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import (
-    IncompletePostAlarmCandidateValidationDecisionRecord,
-)
 from federated_learning_experiments.methods.fedsda.consolidation.model_clustering_calculations import (
     ModelClusteringCriteria,
 )
@@ -715,14 +712,11 @@ def derive_legacy_trace_arrays(*, run_result, participants):
         for client_id, adaptation_snapshot in enumerate(adaptation_snapshots)
         for adaptation_record in adaptation_snapshot.adaptation_records
     ]
-    decisions = [
-        (client_id, decision_record)
-        for client_id, run_client in enumerate(run_clients)
-        for decision_record in run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
-    ]
+    # 候補検証を消したので、判定の記録は無い（旧の検証なしのrunと同じく、旧の形の配列は空）。
+    decisions = []
 
     def decision_is_incomplete(decision_record):
-        return type(decision_record) is IncompletePostAlarmCandidateValidationDecisionRecord
+        return False
 
     registration_records = (
         server_owners.global_model_repository.snapshot_model_registration_records()
@@ -1476,10 +1470,6 @@ def test_derivation_does_not_change_participant_state_and_is_repeatable(golden_c
                         python_random_generator=run_client._python_random_generator,
                     )
                 )
-                for run_client in participants.client_operations
-            ],
-            [
-                run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
                 for run_client in participants.client_operations
             ],
             server_owners.communication_volume_record_store.get_state_snapshot(),

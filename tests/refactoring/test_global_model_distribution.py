@@ -5,6 +5,7 @@ from dataclasses import replace
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_adopted_candidate_initial_local_registration import convert_legacy_parameter_name
 from test_fedsda_run_client import (
     LEARNING_RATE,
@@ -15,7 +16,6 @@ from test_fedsda_run_client import (
     run_in_both,
     snapshot_run_client_state,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 from test_server_model_registration_and_aggregation import (
     CLIENT_COUNT,
@@ -709,10 +709,8 @@ def test_client_rejects_invalid_distribution_through_its_operation(
 STATES_KEPT_BY_DISTRIBUTION_APPLICATION = (
     "pending_assignment",
     "pending_sample_observations",
-    "validation_assignment_sample_concept_ids",
     "monitoring",
     "alarm_records",
-    "held_validation_session",
     "pending_training_request_count",
     "diagnostics",
     "fixed_share_weights",
@@ -757,7 +755,7 @@ def test_distribution_application_keeps_states_outside_its_responsibility(
             run_client=run_client, python_random_generator=python_random_generator
         )
         for state_name in STATES_KEPT_BY_DISTRIBUTION_APPLICATION:
-            if state_name in ("held_validation_session", "pending_model_upload"):
+            if state_name == "pending_model_upload":
                 assert current_snapshot[state_name] is state_snapshot[state_name], state_name
             else:
                 assert current_snapshot[state_name] == state_snapshot[state_name], state_name

@@ -12,17 +12,11 @@ import torch
 
 from federated_drift_experiment import config
 from federated_drift_experiment.clients.fedsda import FedSDAClient
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
-    CandidateModelTrainingAndAcceptanceSettings,
-)
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import (
     select_candidate_initial_parameter_snapshot,
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
-)
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
-    evaluate_candidate_using_post_alarm_losses,
 )
 
 
@@ -509,33 +503,14 @@ def test_candidate_parameter_initialization_preserves_gradients_and_shared_state
     assert snapshots[-7]["adapter.float64"].grad_fn is not None
 
 
-def test_candidate_parameter_initialization_connects_post_alarm_evaluated_losses(monkeypatch):
+def test_candidate_parameter_initialization_uses_evaluated_mean_losses(monkeypatch):
     """再利用も候補採用も失敗した参照を、公開評価の平均だけで初期値として選ぶ。"""
     snapshots = build_candidate_parameter_initialization_inputs()
     original = copy.deepcopy(snapshots)
     reference_losses_by_model_id = {-7: (0.6, 0.6), 4: (0.2, 0.2)}
-    candidate_losses = (0.9, 0.9)
-    candidate_model_training_and_acceptance_settings = CandidateModelTrainingAndAcceptanceSettings(
-        candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
-        candidate_post_alarm_validation_sample_count=2,
-    )
-    evaluation_results_by_model_id = {}
-    for model_id, losses in reference_losses_by_model_id.items():
-        result = evaluate_candidate_using_post_alarm_losses(
-            candidate_model_training_and_acceptance_settings=candidate_model_training_and_acceptance_settings,
-            candidate_losses=candidate_losses,
-            reference_losses_by_model_id={model_id: losses},
-            reference_historical_mean_losses_by_model_id={model_id: 0.1},
-            available_reference_model_ids=(model_id,),
-            current_training_model_id=-7,
-            maximum_reference_mean_loss_increase=0.0,
-            minimum_candidate_mean_loss_improvement=0.0,
-        )
-        assert result.reusable_reference_model_id is None and not result.candidate_accepted
-        evaluation_results_by_model_id[model_id] = result
     losses = tuple(
-        (model_id, result.reference_full_interval_mean_loss)
-        for model_id, result in evaluation_results_by_model_id.items()
+        (model_id, float(torch.tensor(values, dtype=torch.float32).mean().item()))
+        for model_id, values in reference_losses_by_model_id.items()
     )
     actual = select_candidate_initial_parameter_snapshot(
         settings=CandidateParameterInitializationSettings(
@@ -559,7 +534,6 @@ def test_candidate_parameter_initialization_connects_post_alarm_evaluated_losses
             actual=snapshots[model_id], expected=original[model_id]
         )
     assert reference_losses_by_model_id == {-7: (0.6, 0.6), 4: (0.2, 0.2)}
-    assert candidate_losses == (0.9, 0.9)
 
 
 def test_candidate_parameter_initialization_rejects_nonfinite_average_results(monkeypatch):

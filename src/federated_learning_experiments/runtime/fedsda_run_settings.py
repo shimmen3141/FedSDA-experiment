@@ -84,8 +84,5 @@ class FedsdaRunSettings:
             prediction_combination_settings=run_client_settings.prediction_combination_settings,
             local_training_settings=run_client_settings.local_training_settings,
             training_data_assignment_settings=run_client_settings.training_data_assignment_settings,
-            candidate_model_training_and_acceptance_settings=(
-                run_client_settings.candidate_model_training_and_acceptance_settings
-            ),
             model_consolidation_settings=self.model_consolidation_settings,
         )

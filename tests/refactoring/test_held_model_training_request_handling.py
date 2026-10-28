@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_adopted_candidate_initial_local_registration import (
     assert_held_model_states_match_legacy,
 )
@@ -14,7 +15,6 @@ from test_assigned_training_sample_absorption import (
     build_absorption_oracle,
     snapshot_absorption_state,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 
 import federated_learning_experiments.learning.training.held_model_joint_training_iterations as joint_training_iteration_module
 import federated_learning_experiments.runtime.held_model_training_request_handling as training_request_module

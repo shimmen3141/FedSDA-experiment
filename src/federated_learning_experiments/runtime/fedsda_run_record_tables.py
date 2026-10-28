@@ -12,20 +12,8 @@ from typing import cast
 
 from numpy import asarray, bool_, float64, int64, ndarray, str_
 
-from federated_learning_experiments.evaluation.change_response_metric_calculations import (
-    match_events_to_concept_changes,
-)
-from federated_learning_experiments.evaluation.run_metric_calculations import (
-    extract_concept_change_sample_indices,
-)
 from federated_learning_experiments.learning.models.model_computation_measurement import (
     ModelComputationCounts,
-)
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import (
-    IncompletePostAlarmCandidateValidationDecisionRecord,
-)
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import (
-    PostAlarmCandidateValidationDecisionRecord,
 )
 from federated_learning_experiments.runtime.fedsda_change_response_metric_derivation import (
     ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME,
@@ -336,9 +324,6 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     # ---- 候補検証の判定（確定したものと、終端で回収した未完了のもの） ----
     # 未完了の判定は、比較した参照モデルと、平均損失を持たない（参照モデルは−1、損失はNaN）。
     # 「変更に対応したか」は、clientごとに、提案の位置を記録の順に並べて、変更位置と対応づけた結果。
-    maximum_delay_sample_count = (
-        experiment_run.run_settings.run_metric_settings.maximum_detection_delay_sample_count
-    )
     decision_columns: dict[str, list[int]] = {
         column_name: []
         for column_name in (
@@ -369,69 +354,6 @@ def build_fedsda_run_record_tables(*, experiment_run: FedsdaExperimentRun) -> di
     decision_loss_columns: dict[str, list[float]] = {
         column_name: [] for column_name in decision_loss_column_names
     }
-    for client_id, run_client in enumerate(run_clients):
-        decision_records = run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
-        matched_decision_positions = set(
-            match_events_to_concept_changes(
-                concept_change_sample_indices=extract_concept_change_sample_indices(
-                    concept_ids_by_sample_index=run_result.evaluation_concept_traces[
-                        client_id
-                    ].concept_ids_by_sample_index
-                ),
-                event_sample_indices=tuple(
-                    decision_record.proposal_sample_index for decision_record in decision_records
-                ),
-                maximum_delay_sample_count=maximum_delay_sample_count,
-            ).matched_event_positions
-        )
-        for decision_position, decision_record in enumerate(decision_records):
-            decision_columns["client_id"].append(client_id)
-            decision_columns["proposal_sample_index"].append(decision_record.proposal_sample_index)
-            decision_columns["candidate_training_interval_sample_count"].append(
-                decision_record.candidate_training_interval_sample_count
-            )
-            decision_text_columns["detector_name"].append(decision_record.detector_name)
-            decision_flag_columns["matched_to_concept_change"].append(
-                decision_position in matched_decision_positions
-            )
-            if type(decision_record) is IncompletePostAlarmCandidateValidationDecisionRecord:
-                incomplete_record = cast(
-                    IncompletePostAlarmCandidateValidationDecisionRecord, decision_record
-                )
-                decision_flag_columns["is_incomplete_at_run_end"].append(True)
-                decision_flag_columns["candidate_accepted"].append(False)
-                decision_text_columns["decision_reason"].append("")
-                decision_columns["resolution_sample_index"].append(
-                    incomplete_record.finalization_sample_index
-                )
-                decision_columns["validation_sample_count"].append(
-                    incomplete_record.validation_sample_count
-                )
-                decision_columns["comparison_reference_model_id"].append(MISSING_INTEGER_VALUE)
-                for column_name in decision_loss_column_names:
-                    decision_loss_columns[column_name].append(float("nan"))
-            else:
-                completed_record = cast(PostAlarmCandidateValidationDecisionRecord, decision_record)
-                loss_evaluation = completed_record.post_alarm_candidate_loss_evaluation
-                decision_flag_columns["is_incomplete_at_run_end"].append(False)
-                decision_flag_columns["candidate_accepted"].append(
-                    loss_evaluation.candidate_accepted
-                )
-                decision_text_columns["decision_reason"].append(loss_evaluation.decision_reason)
-                decision_columns["resolution_sample_index"].append(
-                    completed_record.resolution_sample_index
-                )
-                decision_columns["validation_sample_count"].append(
-                    loss_evaluation.validation_sample_count
-                )
-                decision_columns["comparison_reference_model_id"].append(
-                    loss_evaluation.comparison_reference_model_id
-                )
-                for column_name in decision_loss_column_names:
-                    loss_value = getattr(loss_evaluation, column_name)
-                    decision_loss_columns[column_name].append(
-                        float("nan") if loss_value is None else loss_value
-                    )
     for column_name, integer_values in decision_columns.items():
         record_tables[f"candidate_validation_decision.{column_name}"] = _integer_column(
             integer_values

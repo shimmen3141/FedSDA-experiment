@@ -6,7 +6,7 @@ from dataclasses import FrozenInstanceError, replace
 import numpy as np
 import pytest
 import torch
-from test_held_candidate_validation_progress import make_subclass_copy
+from alarm_interval_test_support import make_subclass_copy
 
 from federated_learning_experiments.evaluation.loss_change_alarm_record_store import (
     LossChangeAlarmRecordSnapshot,
@@ -62,7 +62,6 @@ def test_pending_observation_store_keeps_appended_observations_in_order():
         for stored_observation, pending_observation in zip(snapshot, pending_observations)
     )
     assert PendingSampleObservationStore().snapshot_pending_sample_observations() == ()
-    assert pending_sample_observation_store.validation_assignment_sample_concept_ids is None
 
 
 @pytest.mark.parametrize(
@@ -144,62 +143,6 @@ def test_pending_observation_store_rejects_indices_that_are_not_the_latest(
         pending_sample_observation_store.snapshot_pending_sample_observations()
         == pending_observations
     )
-
-
-def test_pending_observation_store_holds_validation_concept_ids_until_released():
-    pending_sample_observation_store, pending_observations = make_store_with_pending_observations(
-        (5, 6)
-    )
-    sample_concept_ids = (1, None, 0)
-    pending_sample_observation_store.hold_validation_assignment_sample_concept_ids(
-        sample_concept_ids=sample_concept_ids
-    )
-    assert (
-        pending_sample_observation_store.validation_assignment_sample_concept_ids
-        is sample_concept_ids
-    )
-    # 保持中の上書きは拒否し、保持している値を変えない。
-    with pytest.raises(ValueError, match="already held"):
-        pending_sample_observation_store.hold_validation_assignment_sample_concept_ids(
-            sample_concept_ids=()
-        )
-    assert (
-        pending_sample_observation_store.validation_assignment_sample_concept_ids
-        is sample_concept_ids
-    )
-    # 保留標本の操作は、概念IDの保持に影響しない。
-    pending_sample_observation_store.retain_latest_pending_sample_observations(
-        retained_sample_indices=()
-    )
-    assert (
-        pending_sample_observation_store.validation_assignment_sample_concept_ids
-        is sample_concept_ids
-    )
-    assert (
-        pending_sample_observation_store.release_validation_assignment_sample_concept_ids()
-        is sample_concept_ids
-    )
-    assert pending_sample_observation_store.validation_assignment_sample_concept_ids is None
-    with pytest.raises(ValueError, match="not held"):
-        pending_sample_observation_store.release_validation_assignment_sample_concept_ids()
-    # 空のtupleも「保持している」状態として扱う（候補検証へ渡した標本が0件）。
-    pending_sample_observation_store.hold_validation_assignment_sample_concept_ids(
-        sample_concept_ids=()
-    )
-    assert pending_sample_observation_store.validation_assignment_sample_concept_ids == ()
-    assert pending_sample_observation_store.release_validation_assignment_sample_concept_ids() == ()
-
-
-@pytest.mark.parametrize(
-    "invalid_concept_ids", [[1, 0], TupleSubclass((1, 0)), (1, True), (1, 0.0), (1, "0"), None]
-)
-def test_pending_observation_store_rejects_invalid_concept_ids(invalid_concept_ids):
-    pending_sample_observation_store = PendingSampleObservationStore()
-    with pytest.raises(TypeError):
-        pending_sample_observation_store.hold_validation_assignment_sample_concept_ids(
-            sample_concept_ids=invalid_concept_ids
-        )
-    assert pending_sample_observation_store.validation_assignment_sample_concept_ids is None
 
 
 def test_alarm_record_store_appends_values_and_alarm_positions():

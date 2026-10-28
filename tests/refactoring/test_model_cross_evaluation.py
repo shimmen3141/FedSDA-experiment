@@ -5,6 +5,7 @@ from dataclasses import replace
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_fedsda_run_client import (
     CROSS_EVALUATION_CLIENT_LIMIT,
     CROSS_EVALUATION_SAMPLE_LIMIT,
@@ -19,7 +20,6 @@ from test_global_model_distribution import (
     convert_legacy_global_models,
     make_client_streams,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_post_aggregation_prediction_recalibration import (
     FIFO_REPLAY_RECALIBRATION,
     run_round_with_recalibration_in_both,

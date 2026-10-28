@@ -168,14 +168,6 @@ def run_stream_protocol_intervals(
                 client_id=client_operation.client_id,
                 round_index=round_index,
             )
-    for client_operation in participants.client_operations:
-        invoke_run_operation_and_record_success(
-            run_operation=client_operation.finalize_incomplete_candidate_validation,
-            operation_arguments={},
-            execution_events=execution_events,
-            stage_name="incomplete_candidate_validation_finalization",
-            client_id=client_operation.client_id,
-        )
     invoke_run_operation_and_record_success(
         run_operation=participants.server_operations.finalize_started_communications,
         operation_arguments={"completed_round_count": synchronization_interval_count},

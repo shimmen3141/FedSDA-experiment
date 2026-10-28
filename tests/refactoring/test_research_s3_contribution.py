@@ -39,10 +39,6 @@ def test_real_s3_adoption_is_connected_to_lifecycle_tracker(classes, monkeypatch
     arguments, _, _, _ = build_alarm_change_interval_resolution_oracle(
         class_count=classes, alarm_interval_resolution_case="no_model_fits", monkeypatch=monkeypatch
     )
-    arguments["candidate_model_training_and_acceptance_settings"] = replace(
-        arguments["candidate_model_training_and_acceptance_settings"],
-        candidate_model_acceptance_policy="current_model_first_reuse_then_candidate_adoption_without_validation",
-    )
     arguments["candidate_epoch_training_settings"] = replace(
         arguments["candidate_epoch_training_settings"],
         candidate_training_strategy="fixed_epoch_training",

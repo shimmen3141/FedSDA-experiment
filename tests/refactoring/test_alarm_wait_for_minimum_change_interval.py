@@ -161,16 +161,6 @@ def to_comparable(value):
 
 def describe_processing_state(processing_arguments):
     state = snapshot_sample_processing_state(processing_arguments=processing_arguments)
-    # 保持中の候補検証は、有無と、候補の分類器のパラメータで比べる。
-    held_session = state.pop("held_validation_session")
-    state["held_validation_session"] = (
-        None
-        if held_session is None
-        else [
-            parameter.detach().clone()
-            for parameter in held_session.candidate_training_state.candidate_classifier.parameters()
-        ]
-    )
     return to_comparable(state)
 
 
@@ -228,7 +218,7 @@ def run_sample_processing_trajectory(
             class_count=2,
             recording_oracle_case=recording_oracle_case,
             historical_mean_losses=historical_mean_losses,
-            minimum_candidate_mean_loss_improvement=0.0,
+            minimum_validation_loss_decrease=0.0,
         )
         processing_arguments["short_change_interval_alarm_policy"] = (
             short_change_interval_alarm_policy
@@ -365,9 +355,6 @@ def test_waiting_processes_short_interval_signal_like_a_sample_without_signal(
         deferred_signal_count += signal_is_deferred
         # 処理の後の状態で数える。待った標本の処理の中で、保持していた検証が完了した場合は、数えない
         # （少なく数える側。下の網羅のtestは、1件以上あることを確かめる）。
-        deferred_signal_count_while_holding_validation += (
-            signal_is_deferred and waiting_step["state"]["held_validation_session"] is not None
-        )
         alarm_count += waiting_step["alarm_handled"]
     OBSERVED_TRAJECTORY_COVERAGE[(recording_oracle_case, historical_mean_losses, block_length)] = (
         deferred_signal_count,
@@ -385,8 +372,6 @@ def test_waiting_trajectories_cover_deferred_signals_and_alarms():
     assert sum(alarms for _, alarms, _ in coverage) > 0
     assert any(deferred and alarms for deferred, alarms, _ in coverage)
     # 候補検証を保持している間の合図を、待った標本がある（要求1.5）。保持していない間に待った標本もある。
-    assert any(held_deferred > 0 for _, _, held_deferred in coverage)
-    assert any(deferred > held_deferred for deferred, _, held_deferred in coverage)
 
 
 def test_immediate_policy_raises_short_alarms_on_the_same_stream(
@@ -457,7 +442,7 @@ def test_undeclared_policy_is_rejected_before_any_update(
             class_count=2,
             recording_oracle_case=RECORDING_ORACLE_CASES[2],
             historical_mean_losses=(0.05, 0.05, 0.05),
-            minimum_candidate_mean_loss_improvement=0.0,
+            minimum_validation_loss_decrease=0.0,
         )
         state_before = describe_processing_state(processing_arguments)
         processing_arguments["short_change_interval_alarm_policy"] = invalid_policy

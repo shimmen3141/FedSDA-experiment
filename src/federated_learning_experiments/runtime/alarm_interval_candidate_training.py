@@ -33,9 +33,6 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
     AdamParameterOptimizerSettings,
     SgdParameterOptimizerSettings,
 )
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
-    CandidateModelTrainingAndAcceptanceSettings,
-)
 
 from .candidate_classifier_construction import (
     IndependentCandidateTrainingState,
@@ -88,7 +85,6 @@ def _validate_alarm_interval_candidate_training_inputs(
     *,
     architecture_reference_classifier: ModelArchitectureClassifier,
     candidate_epoch_training_settings: CandidateEpochTrainingSettings,
-    candidate_model_training_and_acceptance_settings: CandidateModelTrainingAndAcceptanceSettings,
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
     loss_statistics_store: ModelAndClassLossStatisticsStore,
     current_training_model_assignment: CurrentTrainingModelAssignment,
@@ -131,22 +127,6 @@ def _validate_alarm_interval_candidate_training_inputs(
         minimum_validation_loss_decrease=candidate_epoch_training_settings.minimum_validation_loss_decrease,
         candidate_shared_feature_update_policy=candidate_epoch_training_settings.candidate_shared_feature_update_policy,
     )
-    if (
-        type(candidate_model_training_and_acceptance_settings)
-        is not CandidateModelTrainingAndAcceptanceSettings
-    ):
-        raise TypeError("candidate_model_training_and_acceptance_settingsはexact設定型が必要です。")
-    if (
-        type(
-            candidate_model_training_and_acceptance_settings.candidate_post_alarm_validation_sample_count
-        )
-        is not int
-    ):
-        raise TypeError("候補の検証標本件数はbool以外のbuiltin intが必要です。")
-    CandidateModelTrainingAndAcceptanceSettings(
-        candidate_model_acceptance_policy=candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy,
-        candidate_post_alarm_validation_sample_count=candidate_model_training_and_acceptance_settings.candidate_post_alarm_validation_sample_count,
-    )
     if type(held_model_training_state_registry) is not HeldModelTrainingStateRegistry:
         raise TypeError("held_model_training_state_registryはexact登録owner型が必要です。")
     if type(loss_statistics_store) is not ModelAndClassLossStatisticsStore:
@@ -157,7 +137,7 @@ def _validate_alarm_interval_candidate_training_inputs(
         held_model_training_state_registry.snapshot_ordered_held_model_training_states()
     )
     if not held_model_training_states:
-        raise LookupError("候補検証の開始には保有モデルが必要です。")
+        raise LookupError("候補の学習には保有モデルが必要です。")
     if current_training_model_assignment.current_training_model_id not in tuple(
         held_model_training_state.model_id
         for held_model_training_state in held_model_training_states
@@ -217,7 +197,6 @@ def train_candidate_on_alarm_change_interval(
     initial_candidate_parameter_snapshot: dict[str, Tensor],
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings,
     candidate_epoch_training_settings: CandidateEpochTrainingSettings,
-    candidate_model_training_and_acceptance_settings: CandidateModelTrainingAndAcceptanceSettings,
     held_model_training_state_registry: HeldModelTrainingStateRegistry,
     loss_statistics_store: ModelAndClassLossStatisticsStore,
     current_training_model_assignment: CurrentTrainingModelAssignment,
@@ -236,7 +215,6 @@ def train_candidate_on_alarm_change_interval(
     _validate_alarm_interval_candidate_training_inputs(
         architecture_reference_classifier=architecture_reference_classifier,
         candidate_epoch_training_settings=candidate_epoch_training_settings,
-        candidate_model_training_and_acceptance_settings=candidate_model_training_and_acceptance_settings,
         held_model_training_state_registry=held_model_training_state_registry,
         loss_statistics_store=loss_statistics_store,
         current_training_model_assignment=current_training_model_assignment,

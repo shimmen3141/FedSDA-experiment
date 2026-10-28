@@ -9,12 +9,12 @@ from unittest.mock import Mock
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_alarm_occurrence_handling import build_alarm_occurrence_oracle
 from test_fixed_share_weights import (
     assert_fixed_share_state_matches_reference,
     capture_fixed_share_controller_state,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 from test_training_assignment_all_sample_adahedge_weight_evidence_restart import (
     ClientAdaHedgeEvidenceOwners,

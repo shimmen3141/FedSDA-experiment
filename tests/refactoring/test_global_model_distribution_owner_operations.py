@@ -2,12 +2,12 @@
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_alarm_adaptation_recording import make_adaptation_record
 from test_global_model_repository_and_communication_volume import (
     make_loss_statistics,
     make_repository,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 
 from federated_learning_experiments.evaluation.adaptation_record_store import (
     SERVER_REMAP_ADAPTATION_OUTCOME,

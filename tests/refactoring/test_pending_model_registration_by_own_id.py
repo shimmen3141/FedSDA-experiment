@@ -526,7 +526,8 @@ def test_whole_run_with_keep_latest_policy_leaves_adopted_models_unregistered(
     experiment_run, observation = sine2_event_runs_by_policy[
         KEEP_LATEST_PENDING_MODEL_AND_REASSIGN_CURRENT_MODEL_ID_POLICY_NAME
     ]
-    assert golden.count_unregistered_adopted_models(experiment_run) == 2
+    # 候補検証を消したので、この条件のrunは検証なしで流れる（前は候補検証ありで2件。基準版15のspec）。
+    assert golden.count_unregistered_adopted_models(experiment_run) == 4
     # 採番はされるが、モデルは登録されない（欠番）か、送信保留が上書きされる。
     assert (
         observation["registered_model_missing_from_client_count"]

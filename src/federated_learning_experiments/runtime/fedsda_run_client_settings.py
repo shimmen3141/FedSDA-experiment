@@ -23,9 +23,6 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
     AdamParameterOptimizerSettings,
     SgdParameterOptimizerSettings,
 )
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
-    CandidateModelTrainingAndAcceptanceSettings,
-)
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
 )
@@ -56,10 +53,7 @@ _COUNT_FIELD_NAMES = (
     "maximum_cross_evaluation_sample_count",
     "loss_monitor_maximum_retained_candidate_count",
 )
-_MEAN_LOSS_FIELD_NAMES = (
-    "maximum_tolerated_mean_loss_increase",
-    "minimum_candidate_mean_loss_improvement",
-)
+_MEAN_LOSS_FIELD_NAMES = ("maximum_tolerated_mean_loss_increase",)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -67,13 +61,10 @@ class FedsdaRunClientScalarSettings:
     """機能別の設定型に置き場所がまだない、数値と文字列の値。範囲は、値を使う部品の検査と同じ。
 
     `maximum_tolerated_mean_loss_increase`は、履歴の平均損失からの増加をどこまで「このモデルに合う」と
-    みなすかの許容量で、候補検証の参照モデルの評価と、警報区間での保有モデルの再利用評価の両方に使う。
+    みなすかの許容量で、警報区間での保有モデルの再利用評価に使う。
     """
 
     maximum_tolerated_mean_loss_increase: float = field(
-        metadata={"parameter_unit": "mean bounded loss"} | _NONNEGATIVE
-    )
-    minimum_candidate_mean_loss_improvement: float = field(
         metadata={"parameter_unit": "mean bounded loss"} | _NONNEGATIVE
     )
     new_model_upload_delay_round_count: int = field(
@@ -141,9 +132,6 @@ _REQUIRED_SETTINGS_TYPES_BY_FIELD_NAME: dict[str, tuple[type, ...]] = {
     "local_training_settings": (LocalTrainingSettings,),
     "local_training_schedule_settings": (LocalTrainingScheduleSettings,),
     "training_data_assignment_settings": (TrainingDataAssignmentSettings,),
-    "candidate_model_training_and_acceptance_settings": (
-        CandidateModelTrainingAndAcceptanceSettings,
-    ),
     "candidate_parameter_initialization_settings": (CandidateParameterInitializationSettings,),
     "candidate_epoch_training_settings": (CandidateEpochTrainingSettings,),
     "parameter_optimizer_settings": (
@@ -173,7 +161,6 @@ class FedsdaRunClientSettings:
     local_training_settings: LocalTrainingSettings
     local_training_schedule_settings: LocalTrainingScheduleSettings
     training_data_assignment_settings: TrainingDataAssignmentSettings
-    candidate_model_training_and_acceptance_settings: CandidateModelTrainingAndAcceptanceSettings
     candidate_parameter_initialization_settings: CandidateParameterInitializationSettings
     candidate_epoch_training_settings: CandidateEpochTrainingSettings
     parameter_optimizer_settings: AdamParameterOptimizerSettings | SgdParameterOptimizerSettings
@@ -299,49 +286,6 @@ class FedsdaRunClientSettings:
                 validation_failure_reason=(
                     "「新しいモデル」の仮説の学習者の組は、最小記述長の原理で警報の後の変化区間と帰属先を選ぶ"
                     "扱いだけが使います（ほかの選び方では、初期化し直した学習者だけを指定してください）。"
-                ),
-            )
-        # 最小記述長の原理で選ぶ扱いは、候補検証と組み合わせて確かめていない。
-        if (
-            self.training_data_assignment_settings.alarm_interval_assignment_policy
-            == MINIMUM_DESCRIPTION_LENGTH_POLICY_NAME
-            and self.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy
-            == "current_model_first_reuse_then_two_segment_candidate_validation"
-        ):
-            raise RunSettingsValidationError(
-                configuration_parameter_name="alarm_interval_assignment_policy",
-                specified_parameter_value=self.training_data_assignment_settings.alarm_interval_assignment_policy,
-                validation_failure_reason=(
-                    "最小記述長の原理で警報の後の変化区間と帰属先を選ぶ扱いは、候補を検証してから採否を決める"
-                    "方針と組み合わせられません（検証せずに採用する方針を選ぶか、検出器の推定と許容量で選ぶ扱いに"
-                    "してください）。"
-                ),
-            )
-        # 検証の期間の後に採用すると、候補の共有部（警報の時点の値）が、期間中に学習したclientの共有部を、
-        # 警報の時点の値へ戻す。共有部を固定するのは、検証せずに、その場で採用するときだけにする。
-        if (
-            self.candidate_epoch_training_settings.candidate_shared_feature_update_policy
-            == "keep_shared_features_fixed"
-            and self.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy
-            == "current_model_first_reuse_then_two_segment_candidate_validation"
-        ):
-            raise RunSettingsValidationError(
-                configuration_parameter_name="candidate_shared_feature_update_policy",
-                specified_parameter_value=self.candidate_epoch_training_settings.candidate_shared_feature_update_policy,
-                validation_failure_reason=(
-                    "候補の共有部を固定する設定は、候補を検証してから採否を決める方針と組み合わせられません"
-                    "（検証せずに採用する方針を選ぶか、共有部を候補と一緒に更新してください）。"
-                ),
-            )
-        minimum_improvement = self.scalar_settings.minimum_candidate_mean_loss_improvement
-        minimum_decrease = self.candidate_epoch_training_settings.minimum_validation_loss_decrease
-        if minimum_improvement != minimum_decrease:
-            raise RunSettingsValidationError(
-                configuration_parameter_name="minimum_candidate_mean_loss_improvement",
-                specified_parameter_value=minimum_improvement,
-                validation_failure_reason=(
-                    "最終FedSDA構成では候補の平均損失の最小改善量を、候補の学習の早期終了の最小改善量と同値にしてください。"
-                    f"minimum_validation_loss_decrease={minimum_decrease!r}。"
                 ),
             )
         local_batch_sample_count = self.scalar_settings.local_training_batch_sample_count

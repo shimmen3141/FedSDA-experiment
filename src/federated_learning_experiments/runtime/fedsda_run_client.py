@@ -65,9 +65,6 @@ from federated_learning_experiments.learning.training.shared_parameter_optimizer
 from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
     TemporaryModelIdAllocator,
 )
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_validation_decision_record_store import (
-    CandidateValidationDecisionRecordStore,
-)
 from federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring import (
     OverallAndTrueClassLossMonitor,
 )
@@ -98,9 +95,6 @@ from federated_learning_experiments.methods.fedsda.training_data_assignment.pend
 from federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer import (
     PendingTrainingAssignmentBuffer,
 )
-from federated_learning_experiments.runtime.candidate_validation_session_holder import (
-    CandidateValidationSessionHolder,
-)
 from federated_learning_experiments.runtime.client_model_cross_evaluation import (
     ClientModelCrossEvaluation,
     evaluate_candidate_model_on_target_model_samples,
@@ -112,10 +106,6 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
 from federated_learning_experiments.runtime.global_model_distribution_application import (
     GlobalModelDistributionApplication,
     apply_global_model_distribution,
-)
-from federated_learning_experiments.runtime.held_candidate_validation_progress import (
-    HeldIncompleteCandidateValidationFinalization,
-    finalize_held_incomplete_candidate_validation,
 )
 from federated_learning_experiments.runtime.held_model_training_request_handling import (
     train_held_models_for_pending_training_requests,
@@ -136,9 +126,7 @@ class FedsdaRunClientOwners:
 
     fixed_share_weight_controller: FixedShareWeightController
     sample_prediction_record_store: SamplePredictionRecordStore
-    validation_session_holder: CandidateValidationSessionHolder
     adaptation_record_store: AdaptationRecordStore
-    candidate_validation_decision_record_store: CandidateValidationDecisionRecordStore
     all_sample_adahedge_weight_evidence_holder: AllSampleAdaHedgeWeightEvidenceHolder
     true_concept_adahedge_diagnostic_evidence_collection: (
         TrueConceptAdaHedgeDiagnosticEvidenceCollection
@@ -287,7 +275,6 @@ class FedsdaRunClient:
             ),
             fixed_share_weight_controller=owners.fixed_share_weight_controller,
             sample_prediction_record_store=owners.sample_prediction_record_store,
-            validation_session_holder=owners.validation_session_holder,
             adaptation_record_store=owners.adaptation_record_store,
             all_sample_adahedge_weight_evidence_holder=owners.all_sample_adahedge_weight_evidence_holder,
             true_concept_adahedge_diagnostic_evidence_collection=owners.true_concept_adahedge_diagnostic_evidence_collection,
@@ -306,9 +293,6 @@ class FedsdaRunClient:
             pending_model_upload_state=owners.pending_model_upload_state,
             local_training_request_schedule=owners.local_training_request_schedule,
             prediction_combination_strategy=settings.prediction_combination_settings.prediction_combination_strategy,
-            candidate_model_training_and_acceptance_settings=settings.candidate_model_training_and_acceptance_settings,
-            maximum_reference_mean_loss_increase=scalar_settings.maximum_tolerated_mean_loss_increase,
-            minimum_candidate_mean_loss_improvement=scalar_settings.minimum_candidate_mean_loss_improvement,
             upload_delay_round_count=scalar_settings.new_model_upload_delay_round_count,
             minimum_change_interval_sample_count=scalar_settings.minimum_change_interval_sample_count,
             short_change_interval_alarm_policy=self.short_change_interval_alarm_policy,
@@ -350,13 +334,6 @@ class FedsdaRunClient:
             detector_component_update_count=loss_monitoring_observation.component_update_count,
             evaluated_candidate_bet_count=loss_monitoring_observation.evaluated_candidate_bet_count,
         )
-        completed_validation = (
-            sample_processing.held_validation_advance.validation_progress.completed_validation
-        )
-        if completed_validation is not None:
-            owners.candidate_validation_decision_record_store.append_candidate_validation_decision_record(
-                decision_record=completed_validation.decision_record
-            )
         return sample_processing
 
     def flush_pending_local_updates(self, *, round_index: int) -> tuple[float, ...]:
@@ -518,44 +495,6 @@ class FedsdaRunClient:
             true_concept_adahedge_diagnostic_evidence_collection=owners.true_concept_adahedge_diagnostic_evidence_collection,
         )
 
-    def finalize_incomplete_candidate_validation(
-        self,
-    ) -> HeldIncompleteCandidateValidationFinalization | None:
-        """終端で、保持中の未完了の候補検証を回収し、候補検証へ渡した標本の概念IDの保持を外す。
-
-        回収したときは、その判定記録（未完了用）を、判定記録の保持へ足す。
-        """
-        owners = self._owners
-        if owners.validation_session_holder.held_validation_session is None:
-            return None
-        validation_assignment_sample_concept_ids = (
-            owners.pending_sample_observation_store.validation_assignment_sample_concept_ids
-        )
-        if validation_assignment_sample_concept_ids is None:
-            raise ValueError(
-                "validation assignment sample concept IDs must be held while a session is held"
-            )
-        last_observed_sample_index = owners.pending_training_assignment_buffer.get_state_snapshot().last_observed_sample_index
-        incomplete_validation_finalization = finalize_held_incomplete_candidate_validation(
-            validation_session_holder=owners.validation_session_holder,
-            adaptation_record_store=owners.adaptation_record_store,
-            processed_sample_count=(
-                0 if last_observed_sample_index is None else last_observed_sample_index + 1
-            ),
-            pending_assignment_sample_concept_ids=validation_assignment_sample_concept_ids,
-            held_model_training_state_registry=owners.held_model_training_state_registry,
-            loss_statistics_store=owners.loss_statistics_store,
-            training_sample_store=owners.training_sample_store,
-            model_training_and_assignment_counts_store=owners.model_training_and_assignment_counts_store,
-            current_training_model_assignment=owners.current_training_model_assignment,
-        )
-        owners.pending_sample_observation_store.release_validation_assignment_sample_concept_ids()
-        if incomplete_validation_finalization is not None:
-            owners.candidate_validation_decision_record_store.append_candidate_validation_decision_record(
-                decision_record=incomplete_validation_finalization.incomplete_validation_finalization.decision_record
-            )
-        return incomplete_validation_finalization
-
 
 def _validate_optimizer_state_parameters(
     *,
@@ -691,9 +630,7 @@ def assemble_fedsda_run_client(
             prediction_combination_settings=run_client_settings.prediction_combination_settings
         ),
         sample_prediction_record_store=SamplePredictionRecordStore(),
-        validation_session_holder=CandidateValidationSessionHolder(),
         adaptation_record_store=AdaptationRecordStore(),
-        candidate_validation_decision_record_store=CandidateValidationDecisionRecordStore(),
         all_sample_adahedge_weight_evidence_holder=AllSampleAdaHedgeWeightEvidenceHolder(
             # 現在のモデルだけで予測する構成では、予測の処理が、証拠を更新しない。
             evidence_is_updated_by_prediction=(

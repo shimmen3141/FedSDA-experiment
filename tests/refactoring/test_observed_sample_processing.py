@@ -7,6 +7,7 @@ from dataclasses import replace
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_adahedge_weight_evidence import assert_adahedge_matches_legacy
 from test_adopted_candidate_initial_local_registration import (
     assert_held_model_states_match_legacy,
@@ -18,11 +19,7 @@ from test_alarm_response_completion import (
     LEGACY_ACTION_BY_RESPONSE_OUTCOME,
     run_legacy_alarm_with_real_completion,
 )
-from test_candidate_validation_adaptation_recording import (
-    LEGACY_ACTION_BY_VALIDATION_ADAPTATION_OUTCOME,
-)
 from test_fixed_share_weights import capture_fixed_share_controller_state
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_joint_model_parameter_update import assert_nested_state_equal
 from test_loss_change_monitoring import assert_class_monitor_matches_reference
 from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
@@ -102,7 +99,6 @@ from federated_learning_experiments.runtime.observed_sample_processing import (
 
 LEGACY_ACTION_BY_ADAPTATION_OUTCOME = (
     LEGACY_ACTION_BY_RESPONSE_OUTCOME
-    | LEGACY_ACTION_BY_VALIDATION_ADAPTATION_OUTCOME
     # サーバの統合で学習帰属のIDが付け替わったとき（配布の受取り）。
     | {"server_consolidation_training_model_remapped": "server_merge"}
 )
@@ -120,8 +116,8 @@ def build_sample_processing_oracle(
     class_count,
     recording_oracle_case,
     historical_mean_losses,
-    minimum_candidate_mean_loss_improvement,
-    with_candidate_validation=True,
+    minimum_validation_loss_decrease,
+    with_candidate_validation=False,
 ):
     """警報1回ぶんの処理のoracleで最初の警報を両実装に処理させ、その直後から標本処理を続けられる状態を作る。
 
@@ -162,21 +158,7 @@ def build_sample_processing_oracle(
     )
     # 新側は、実旧と同じ状態から始めた生成器とtorchの乱数で、同じ警報を処理する（一致は上流のtestが確かめている）。
     torch.set_rng_state(initial_torch_random_state)
-    alarm_occurrence_handling = handle_alarm_occurrence(**handling_arguments)
-    alarm_buffer_response = (
-        alarm_occurrence_handling.alarm_response_completion.alarm_buffer_response
-    )
-    if alarm_buffer_response.response_outcome == "alarm_interval_candidate_validation_started":
-        concept_ids_by_training_sample_identity = {
-            id(indexed_observation.training_sample): indexed_observation.observed_concept_id
-            for indexed_observation in alarm_pending_observations
-        }
-        pending_sample_observation_store.hold_validation_assignment_sample_concept_ids(
-            sample_concept_ids=tuple(
-                concept_ids_by_training_sample_identity[id(training_sample)]
-                for training_sample in alarm_buffer_response.active_validation_session.pending_assignment_training_samples
-            )
-        )
+    handle_alarm_occurrence(**handling_arguments)
     pending_sample_observation_store.retain_latest_pending_sample_observations(
         retained_sample_indices=pending_training_assignment_buffer.get_state_snapshot().pending_sample_indices
     )
@@ -185,7 +167,7 @@ def build_sample_processing_oracle(
     monkeypatch.setattr(config, "LOCAL_UPDATE_INTERVAL", UPDATE_INTERVAL)
     # 旧は、候補の学習の早期終了と、候補検証の採否の余裕に、同じ設定値を使う。
     monkeypatch.setattr(
-        config, "NEW_MODEL_EARLY_STOPPING_MIN_DELTA", minimum_candidate_mean_loss_improvement
+        config, "NEW_MODEL_EARLY_STOPPING_MIN_DELTA", minimum_validation_loss_decrease
     )
     monkeypatch.setattr(config, "SHARED_BACKBONE_TRAINING", "joint")
     monkeypatch.setattr(config, "SHARED_BACKBONE_GRADIENT_STRATEGY", "mean")
@@ -281,11 +263,9 @@ def build_sample_processing_oracle(
                 joint_update_iterations_per_training_request=ITERATIONS_PER_REQUEST,
             )
         ),
-        maximum_reference_mean_loss_increase=legacy_client.distance_threshold,
-        minimum_candidate_mean_loss_improvement=minimum_candidate_mean_loss_improvement,
         candidate_epoch_training_settings=replace(
             handling_arguments["candidate_epoch_training_settings"],
-            minimum_validation_loss_decrease=minimum_candidate_mean_loss_improvement,
+            minimum_validation_loss_decrease=minimum_validation_loss_decrease,
         ),
         upload_delay_round_count=UPLOAD_DELAY_ROUND_COUNT,
         short_change_interval_alarm_policy=RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
@@ -408,21 +388,7 @@ def assert_sample_processing_state_matches_legacy(
         monitor=processing_arguments["loss_change_monitor"], reference_monitor=legacy_client
     )
     # 候補検証の保持と、学習要求の保留。
-    validation_session_holder = processing_arguments["validation_session_holder"]
-    assert (validation_session_holder.held_validation_session is None) == (
-        legacy_client._forward_validation is None
-    )
     # 候補検証へ渡した標本の概念IDは、実旧のsessionが持つ標本の概念IDと同じ。
-    assert processing_arguments[
-        "pending_sample_observation_store"
-    ].validation_assignment_sample_concept_ids == (
-        None
-        if legacy_client._forward_validation is None
-        else tuple(
-            legacy_held_sample[2]
-            for legacy_held_sample in legacy_client._forward_validation.held_data
-        )
-    )
     assert (
         processing_arguments["local_training_request_schedule"].pending_training_request_count
         == legacy_client._pending_updates
@@ -497,14 +463,14 @@ OBSERVED_PREDICTION_COVERAGE_BY_CONDITION = {}
 @pytest.mark.parametrize("recording_oracle_case", TRAJECTORY_ORACLE_CASES)
 @pytest.mark.parametrize("stream_name", STREAM_NAMES)
 @pytest.mark.parametrize("historical_mean_losses", HISTORICAL_MEAN_LOSS_PROFILES)
-@pytest.mark.parametrize("minimum_candidate_mean_loss_improvement", (10.0, 0.0))
+@pytest.mark.parametrize("minimum_validation_loss_decrease", (10.0, 0.0))
 @pytest.mark.slow
 def test_sample_processing_matches_real_legacy_sample_processing(
     class_count,
     recording_oracle_case,
     stream_name,
     historical_mean_losses,
-    minimum_candidate_mean_loss_improvement,
+    minimum_validation_loss_decrease,
     monkeypatch,
     valid_run_settings_mapping,
 ):
@@ -517,7 +483,7 @@ def test_sample_processing_matches_real_legacy_sample_processing(
                 class_count=class_count,
                 recording_oracle_case=recording_oracle_case,
                 historical_mean_losses=historical_mean_losses,
-                minimum_candidate_mean_loss_improvement=minimum_candidate_mean_loss_improvement,
+                minimum_validation_loss_decrease=minimum_validation_loss_decrease,
                 with_candidate_validation=False,
             )
         )
@@ -595,7 +561,7 @@ def test_sample_processing_matches_real_legacy_sample_processing(
         recording_oracle_case,
         stream_name,
         historical_mean_losses,
-        minimum_candidate_mean_loss_improvement,
+        minimum_validation_loss_decrease,
     )
     OBSERVED_OUTCOMES_BY_CONDITION[condition] = tuple(observed_outcomes)
     OBSERVED_PREDICTION_COVERAGE_BY_CONDITION[condition] = (
@@ -643,7 +609,7 @@ def test_sample_processing_trajectories_cover_every_adaptation_outcome():
 
 
 def build_default_sample_processing_oracle(
-    *, monkeypatch, valid_run_settings_mapping, validation_is_held=True
+    *, monkeypatch, valid_run_settings_mapping, validation_is_held=False
 ):
     """最初の警報で候補検証を開始した（保持ありで始まる）状態。保持なしを指定すると、最初の警報が現行を維持した状態。
 
@@ -655,7 +621,7 @@ def build_default_sample_processing_oracle(
         class_count=2,
         recording_oracle_case=RECORDING_ORACLE_CASES[3 if validation_is_held else 2],
         historical_mean_losses=(0.1, 0.1, 0.1) if validation_is_held else (0.9, 0.9, 0.9),
-        minimum_candidate_mean_loss_improvement=10.0,
+        minimum_validation_loss_decrease=10.0,
     )
 
 
@@ -692,13 +658,9 @@ def snapshot_sample_processing_state(*, processing_arguments):
             "pending_training_assignment_buffer"
         ].get_state_snapshot(),
         pending_sample_observations=pending_sample_observation_store.snapshot_pending_sample_observations(),
-        validation_assignment_sample_concept_ids=pending_sample_observation_store.validation_assignment_sample_concept_ids,
         monitoring=processing_arguments["loss_change_monitor"].get_state_snapshot(),
         alarm_records=processing_arguments["loss_change_alarm_record_store"].get_state_snapshot(),
         adaptation_records=processing_arguments["adaptation_record_store"].get_state_snapshot(),
-        held_validation_session=processing_arguments[
-            "validation_session_holder"
-        ].held_validation_session,
         pending_training_request_count=processing_arguments[
             "local_training_request_schedule"
         ].pending_training_request_count,
@@ -752,7 +714,7 @@ def assert_sample_processing_state_unchanged(*, state_snapshot, processing_argum
                 current_state, previous_state
             ):
                 assert_nested_state_equal(current_optimizer_state, previous_optimizer_state)
-        elif state_name in ("held_validation_session", "pending_model_upload"):
+        elif state_name == "pending_model_upload":
             # 保持中のsessionと送信保留は、同じオブジェクトのままであることを確かめる（中身は比べない）。
             assert current_state is previous_state
         else:
@@ -783,20 +745,12 @@ def make_store_with_other_pending_observations(
     replaced_store = PendingSampleObservationStore()
     for pending_observation in pending_sample_observations:
         replaced_store.append_pending_sample_observation(indexed_observation=pending_observation)
-    validation_assignment_sample_concept_ids = (
-        pending_sample_observation_store.validation_assignment_sample_concept_ids
-    )
-    if validation_assignment_sample_concept_ids is not None:
-        replaced_store.hold_validation_assignment_sample_concept_ids(
-            sample_concept_ids=validation_assignment_sample_concept_ids
-        )
     return replaced_store
 
 
 OWNER_ARGUMENT_NAMES_VALIDATED_FIRST = (
     "fixed_share_weight_controller",
     "sample_prediction_record_store",
-    "validation_session_holder",
     "adaptation_record_store",
     "all_sample_adahedge_weight_evidence_holder",
     "true_concept_adahedge_diagnostic_evidence_collection",
@@ -867,14 +821,6 @@ INVALID_SAMPLE_PROCESSING_INPUT_CASES = {
         ValueError,
     ),
     # 候補検証の保持の有無と、候補検証へ渡した標本の概念IDの保持の有無が合わない。
-    "validation_concept_ids_do_not_match_held_session": (
-        lambda processing_arguments, indexed_observation: dict(
-            pending_sample_observation_store=make_store_with_inverted_concept_id_holding(
-                processing_arguments["pending_sample_observation_store"]
-            )
-        ),
-        ValueError,
-    ),
     # 標本の型と形（1標本であること）は、本処理が最初に確かめる。
     "training_sample_other_type": (
         lambda processing_arguments, indexed_observation: dict(
@@ -1090,7 +1036,6 @@ REJECTION_MESSAGES = {
     "sample_index_skipped": "follow the last observed sample index",
     "monitor_last_observation_is_not_previous_sample": "follow the last monitored sample index",
     "pending_observation_store_not_aligned": "must match pending sample indices",
-    "validation_concept_ids_do_not_match_held_session": "exactly while a session is held",
     "training_sample_other_type": "training_sample must be exact",
     "training_sample_subclass": "training_sample must be exact",
     "concept_id_bool": "observed_concept_id must be builtin int or None",
@@ -1157,13 +1102,11 @@ def make_store_with_inverted_concept_id_holding(pending_sample_observation_store
         pending_observation
     ) in pending_sample_observation_store.snapshot_pending_sample_observations():
         replaced_store.append_pending_sample_observation(indexed_observation=pending_observation)
-    if pending_sample_observation_store.validation_assignment_sample_concept_ids is None:
-        replaced_store.hold_validation_assignment_sample_concept_ids(sample_concept_ids=(0,))
     return replaced_store
 
 
 @pytest.mark.parametrize("invalid_case", INVALID_SAMPLE_PROCESSING_INPUT_CASES)
-@pytest.mark.parametrize("validation_is_held", (True, False))
+@pytest.mark.parametrize("validation_is_held", (False,))
 def test_sample_processing_rejects_invalid_input_before_any_update(
     invalid_case, validation_is_held, monkeypatch, valid_run_settings_mapping
 ):
@@ -1174,10 +1117,6 @@ def test_sample_processing_rejects_invalid_input_before_any_update(
             monkeypatch=monkeypatch,
             valid_run_settings_mapping=valid_run_settings_mapping,
             validation_is_held=validation_is_held,
-        )
-        validation_session_holder = processing_arguments["validation_session_holder"]
-        assert (validation_session_holder.held_validation_session is not None) == (
-            validation_is_held
         )
         indexed_observation = make_next_observation(processing_arguments=processing_arguments)
         state_snapshot = snapshot_sample_processing_state(processing_arguments=processing_arguments)
@@ -1229,7 +1168,6 @@ def make_owner_subclass_instance(owner):
 
 SAMPLE_PROCESSING_STEP_NAMES = (
     "predict_observed_sample_and_update_prediction_weights",
-    "advance_held_candidate_validation",
     "evaluate_classifier_per_sample_bounded_losses",
     "train_held_models_for_pending_training_requests",
     "handle_alarm_occurrence",
@@ -1289,9 +1227,6 @@ def test_sample_without_alarm_runs_steps_in_legacy_order(monkeypatch, valid_run_
         alarm_records_before = processing_arguments[
             "loss_change_alarm_record_store"
         ].get_state_snapshot()
-        held_concept_ids = processing_arguments[
-            "pending_sample_observation_store"
-        ].validation_assignment_sample_concept_ids
         step_calls = record_sample_processing_steps(
             monkeypatch, processing_arguments=processing_arguments
         )
@@ -1301,12 +1236,11 @@ def test_sample_without_alarm_runs_steps_in_legacy_order(monkeypatch, valid_run_
     assert not sample_processing.loss_monitoring_observation.drift_detected
     assert [step_call["step_name"] for step_call in step_calls] == [
         "predict_observed_sample_and_update_prediction_weights",
-        "advance_held_candidate_validation",
         "evaluate_classifier_per_sample_bounded_losses",
         "assign_released_pending_samples_to_current_training_model",
         "record_training_request_and_train_held_models_when_due",
     ]
-    prediction_call, advance_call, evaluation_call, assignment_call, training_call = step_calls
+    prediction_call, evaluation_call, assignment_call, training_call = step_calls
     # 予測は最初の段。その時点では、この標本の予測の記録はまだなく、候補検証の進行の時点では足されている。
     assert prediction_call["arguments"]["indexed_observation"] is indexed_observation
     assert prediction_call["pending_sample_indices"] == pending_sample_indices_before
@@ -1316,22 +1250,15 @@ def test_sample_without_alarm_runs_steps_in_legacy_order(monkeypatch, valid_run_
         recorded_record is not prediction_record
         for recorded_record in prediction_call["sample_prediction_records"]
     )
-    assert advance_call["sample_prediction_records"][-1] is prediction_record
+    assert evaluation_call["sample_prediction_records"][-1] is prediction_record
     # 候補検証の観測と損失の評価の時点では、この標本はまだ保留にも監視の記録にも入っていない。
-    for step_call in (advance_call, evaluation_call):
+    for step_call in (evaluation_call,):
         assert step_call["pending_sample_indices"] == pending_sample_indices_before
         assert all(
             pending_observation is not indexed_observation
             for pending_observation in step_call["pending_sample_observations"]
         )
         assert step_call["alarm_records"] == alarm_records_before
-    assert advance_call["arguments"]["sample_index"] == indexed_observation.sample_index
-    assert (
-        advance_call["arguments"]["input_features"]
-        is indexed_observation.training_sample.input_features
-    )
-    assert held_concept_ids is not None
-    assert advance_call["arguments"]["pending_assignment_sample_concept_ids"] == held_concept_ids
     assert (
         evaluation_call["arguments"]["input_features"]
         is indexed_observation.training_sample.input_features
@@ -1364,6 +1291,7 @@ def test_sample_without_alarm_runs_steps_in_legacy_order(monkeypatch, valid_run_
 
 
 def test_sample_with_alarm_runs_steps_in_legacy_order(monkeypatch, valid_run_settings_mapping):
+    monkeypatch.setitem(globals(), "UPDATE_INTERVAL", 3)
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(823)
         processing_arguments, _, legacy_client = build_sample_processing_oracle(
@@ -1372,7 +1300,7 @@ def test_sample_with_alarm_runs_steps_in_legacy_order(monkeypatch, valid_run_set
             class_count=2,
             recording_oracle_case=RECORDING_ORACLE_CASES[2],
             historical_mean_losses=(0.1, 0.1, 0.1),
-            minimum_candidate_mean_loss_improvement=10.0,
+            minimum_validation_loss_decrease=10.0,
         )
         schedule = processing_arguments["local_training_request_schedule"]
         monitor = processing_arguments["loss_change_monitor"]
@@ -1413,12 +1341,11 @@ def test_sample_with_alarm_runs_steps_in_legacy_order(monkeypatch, valid_run_set
     assert sample_processing.loss_monitoring_observation.drift_detected
     assert [step_call["step_name"] for step_call in step_calls] == [
         "predict_observed_sample_and_update_prediction_weights",
-        "advance_held_candidate_validation",
         "evaluate_classifier_per_sample_bounded_losses",
         "train_held_models_for_pending_training_requests",
         "handle_alarm_occurrence",
     ]
-    _, _, _, training_call, alarm_call = step_calls
+    _, _, training_call, alarm_call = step_calls
     # 保留中の学習要求の学習は、警報の位置の記録と警報の処理より前。
     assert training_call["alarm_records"].alarm_sample_indices == (
         alarm_records_before.alarm_sample_indices
@@ -1499,7 +1426,6 @@ def test_failed_step_stops_sample_processing_before_later_steps(
             process_observed_sample(indexed_observation=indexed_observation, **processing_arguments)
     assert [step_call["step_name"] for step_call in step_calls] == [
         "predict_observed_sample_and_update_prediction_weights",
-        "advance_held_candidate_validation",
         "evaluate_classifier_per_sample_bounded_losses",
         "assign_released_pending_samples_to_current_training_model",
     ]
@@ -1531,7 +1457,6 @@ def test_samples_without_concept_id_are_processed_without_true_concept_diagnosti
         created_true_concept_ids = (
             true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
         )
-        completed_validation_count = 0
         processed_observations = []
         for _ in range(12):
             indexed_observation = replace(
@@ -1547,15 +1472,11 @@ def test_samples_without_concept_id_are_processed_without_true_concept_diagnosti
             )
             assert prediction_record.observed_concept_id is None
             assert prediction_record.true_concept_diagnostic_prediction_is_correct is None
-            completed_validation_count += int(
-                sample_processing.held_validation_advance.adaptation_record is not None
-            )
     assert (
         true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
         == created_true_concept_ids
     )
     # 候補検証が、この標本列の途中で1回以上確定している（確定の後の段も、概念IDなしで通っている）。
-    assert completed_validation_count >= 1
     pending_sample_observations = processing_arguments[
         "pending_sample_observation_store"
     ].snapshot_pending_sample_observations()
@@ -1570,67 +1491,3 @@ def test_samples_without_concept_id_are_processed_without_true_concept_diagnosti
     )
     assert pending_sample_observations[-1] is processed_observations[-1]
     assert pending_sample_observations[-1].observed_concept_id is None
-
-
-def test_validation_concept_ids_are_selected_from_latest_pending_observations():
-    """候補検証へ渡された標本は保留の末尾。同じ標本のオブジェクトが古い側にもあっても、末尾の概念IDを選ぶ。"""
-    select_concept_ids = sample_processing_module._select_validation_assignment_sample_concept_ids
-    shared_training_sample = ObservedTrainingSample(
-        input_features=torch.tensor([[0.25, 0.5]]), observed_class_labels=torch.tensor([[0.0]])
-    )
-    other_training_sample = ObservedTrainingSample(
-        input_features=torch.tensor([[0.5, 0.25]]), observed_class_labels=torch.tensor([[1.0]])
-    )
-    pending_sample_observations = tuple(
-        IndexedObservedTrainingSample(
-            sample_index=sample_index,
-            training_sample=training_sample,
-            observed_concept_id=observed_concept_id,
-        )
-        for sample_index, (training_sample, observed_concept_id) in enumerate(
-            (
-                (shared_training_sample, 1),
-                (other_training_sample, None),
-                (shared_training_sample, 2),
-            )
-        )
-    )
-    assert select_concept_ids(
-        pending_sample_observations=pending_sample_observations,
-        validation_assignment_training_samples=(shared_training_sample,),
-    ) == (2,)
-    assert select_concept_ids(
-        pending_sample_observations=pending_sample_observations,
-        validation_assignment_training_samples=(other_training_sample, shared_training_sample),
-    ) == (None, 2)
-    assert select_concept_ids(
-        pending_sample_observations=pending_sample_observations,
-        validation_assignment_training_samples=(
-            shared_training_sample,
-            other_training_sample,
-            shared_training_sample,
-        ),
-    ) == (1, None, 2)
-    assert (
-        select_concept_ids(
-            pending_sample_observations=pending_sample_observations,
-            validation_assignment_training_samples=(),
-        )
-        == ()
-    )
-    # 末尾と同一でない標本（値が同じ別のオブジェクト、古い側だけにある並び、保留より多い）は拒否する。
-    equal_training_sample = ObservedTrainingSample(
-        input_features=shared_training_sample.input_features,
-        observed_class_labels=shared_training_sample.observed_class_labels,
-    )
-    for invalid_training_samples in (
-        (equal_training_sample,),
-        (other_training_sample,),
-        (shared_training_sample, other_training_sample),
-        (shared_training_sample,) * 4,
-    ):
-        with pytest.raises(ValueError, match="latest pending sample observations"):
-            select_concept_ids(
-                pending_sample_observations=pending_sample_observations,
-                validation_assignment_training_samples=invalid_training_samples,
-            )

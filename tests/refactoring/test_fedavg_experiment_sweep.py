@@ -38,7 +38,8 @@ def test_mixed_plan_uses_feddrift_axis_only_and_preserves_existing_identity():
     assert [r.configuration_name for r in runs] == ["fedsda"] * 2 + ["feddrift"] * 4 + [
         "fedavg"
     ] * 2
-    assert runs[0].run_identifier == "sine2_interval3_seed0_fc28fa415515"
+    # FedSDAの識別子は、候補検証の設定の項目を消したので変わった（基準版15のspec。前はfc28fa415515）。
+    assert runs[0].run_identifier == "sine2_interval3_seed0_f9bff53a0cdc"
     assert all(type(r.run_settings) is FedavgRunSettings for r in runs[-2:])
     assert len({r.run_identifier for r in runs}) == 8
 

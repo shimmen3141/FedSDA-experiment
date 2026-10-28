@@ -31,9 +31,6 @@ from federated_learning_experiments.learning.models.model_architecture_settings 
 from federated_learning_experiments.learning.training.local_training_settings import (
     LocalTrainingSettings,
 )
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
-    CandidateModelTrainingAndAcceptanceSettings,
-)
 from federated_learning_experiments.methods.fedsda.consolidation.model_consolidation_settings import (
     ModelConsolidationSettings,
 )
@@ -99,14 +96,6 @@ def valid_run_settings_mapping():
             new_model_hypothesis_learners="reinitialized_learner",
             pending_assignment_buffer_capacity_samples=2,
         ),
-        "candidate_model_training_and_acceptance_settings": (
-            CandidateModelTrainingAndAcceptanceSettings(
-                candidate_model_acceptance_policy=(
-                    "current_model_first_reuse_then_two_segment_candidate_validation"
-                ),
-                candidate_post_alarm_validation_sample_count=3,
-            )
-        ),
         "model_consolidation_settings": ModelConsolidationSettings(
             model_clustering_trigger_policy="on_new_model_registration",
             model_pair_comparison_strategy=("classwise_unique_correctness_lower_confidence_bound"),
@@ -130,7 +119,6 @@ def valid_run_settings_mapping():
                 "prediction_combination_settings",
                 "local_training_settings",
                 "training_data_assignment_settings",
-                "candidate_model_training_and_acceptance_settings",
                 "model_consolidation_settings",
             )
             for specified_parameter_value in (None, False)
@@ -264,7 +252,6 @@ def test_run_settings_validation_accepts_valid_component_mapping(
         "prediction_combination_settings",
         "local_training_settings",
         "training_data_assignment_settings",
-        "candidate_model_training_and_acceptance_settings",
         "model_consolidation_settings",
         "mode",
         "routing_settings",
@@ -346,7 +333,6 @@ def test_fixed_share_time_scale_may_differ_from_assignment_buffer_capacity(
         "prediction_combination_settings",
         "local_training_settings",
         "training_data_assignment_settings",
-        "candidate_model_training_and_acceptance_settings",
         "model_consolidation_settings",
         "aaa_unknown",
     ],
@@ -509,14 +495,6 @@ def test_unknown_dataset_identifiers_are_rejected(specified_parameter_value):
             ),
             "pending_assignment_buffer_capacity_samples",
         ),
-        (
-            CandidateModelTrainingAndAcceptanceSettings,
-            dict(
-                candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
-                candidate_post_alarm_validation_sample_count=2,
-            ),
-            "candidate_post_alarm_validation_sample_count",
-        ),
     ],
 )
 @pytest.mark.parametrize("specified_parameter_value", [True, False, "1", 1.0, None, [], -1])
@@ -537,11 +515,7 @@ def test_integer_settings_reject_invalid_types_and_ranges(
         "0以上"
         if configuration_parameter_name == "random_seed"
         else "2以上"
-        if configuration_parameter_name
-        in (
-            "fixed_share_weight_redistribution_time_scale_samples",
-            "candidate_post_alarm_validation_sample_count",
-        )
+        if configuration_parameter_name in ("fixed_share_weight_redistribution_time_scale_samples",)
         else "1以上"
     ) in (validation_error.value.validation_failure_reason)
 
@@ -598,14 +572,6 @@ def test_integer_settings_reject_invalid_types_and_ranges(
             ),
             "pending_assignment_buffer_capacity_samples",
         ),
-        (
-            CandidateModelTrainingAndAcceptanceSettings,
-            dict(
-                candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
-                candidate_post_alarm_validation_sample_count=2,
-            ),
-            "candidate_post_alarm_validation_sample_count",
-        ),
     ],
 )
 @pytest.mark.parametrize("specified_parameter_value", [0, 1, 2, 10**400])
@@ -620,11 +586,7 @@ def test_integer_settings_validate_boundary_values(
     if (
         configuration_parameter_name != "random_seed"
         and specified_parameter_value == 0
-        or configuration_parameter_name
-        in (
-            "fixed_share_weight_redistribution_time_scale_samples",
-            "candidate_post_alarm_validation_sample_count",
-        )
+        or configuration_parameter_name in ("fixed_share_weight_redistribution_time_scale_samples",)
         and specified_parameter_value == 1
     ):
         with pytest.raises(RunSettingsValidationError) as validation_error:
@@ -710,13 +672,6 @@ def test_aggregation_interval_can_exceed_stream_length():
             ),
         ),
         (
-            CandidateModelTrainingAndAcceptanceSettings,
-            dict(
-                candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
-                candidate_post_alarm_validation_sample_count=2,
-            ),
-        ),
-        (
             ModelConsolidationSettings,
             dict(
                 model_clustering_trigger_policy="on_new_model_registration",
@@ -760,7 +715,6 @@ def test_settings_instances_are_immutable(settings_type, valid_settings_values):
         PredictionCombinationSettings,
         TrainingDataAssignmentSettings,
         LocalTrainingSettings,
-        CandidateModelTrainingAndAcceptanceSettings,
         ModelConsolidationSettings,
     ],
 )
@@ -810,11 +764,6 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             "shared_backbone_gradient_combination_strategy": str,
         }
         if settings_type is LocalTrainingSettings
-        else {
-            "candidate_model_acceptance_policy": str,
-            "candidate_post_alarm_validation_sample_count": int,
-        }
-        if settings_type is CandidateModelTrainingAndAcceptanceSettings
         else {
             "model_clustering_trigger_policy": str,
             "model_pair_comparison_strategy": str,
@@ -868,11 +817,6 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 if settings_field.name == "local_model_parameter_update_strategy"
                 else ("sample_weighted_mean_per_concept_gradients",)
                 if settings_field.name == "shared_backbone_gradient_combination_strategy"
-                else (
-                    "current_model_first_reuse_then_two_segment_candidate_validation",
-                    "current_model_first_reuse_then_candidate_adoption_without_validation",
-                )
-                if settings_field.name == "candidate_model_acceptance_policy"
                 else ("on_new_model_registration",)
                 if settings_field.name == "model_clustering_trigger_policy"
                 else ("classwise_unique_correctness_lower_confidence_bound", "mean_loss_increase")
@@ -917,11 +861,7 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 0
                 if settings_field.name == "random_seed"
                 else 2
-                if settings_field.name
-                in (
-                    "fixed_share_weight_redistribution_time_scale_samples",
-                    "candidate_post_alarm_validation_sample_count",
-                )
+                if settings_field.name in ("fixed_share_weight_redistribution_time_scale_samples",)
                 else 1
             )
             assert settings_field.metadata["minimum_value_is_inclusive"] is True
@@ -933,7 +873,6 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
             if settings_field.name in (
                 "fixed_share_weight_redistribution_time_scale_samples",
                 "pending_assignment_buffer_capacity_samples",
-                "candidate_post_alarm_validation_sample_count",
             ):
                 assert settings_field.metadata["parameter_unit"] == "sample/client"
     with pytest.raises(TypeError):
@@ -952,8 +891,6 @@ def test_field_annotations_and_metadata_declare_parameter_constraints(settings_t
                 "joint_backbone_adapter_and_head_training",
                 "sample_weighted_mean_per_concept_gradients",
             )
-        elif settings_type is CandidateModelTrainingAndAcceptanceSettings:
-            settings_type("current_model_first_reuse_then_two_segment_candidate_validation", 2)
         elif settings_type is ModelConsolidationSettings:
             settings_type(
                 "on_new_model_registration",
@@ -1012,14 +949,6 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
                 "loss_monitoring_scope",
             )
         ],
-        (
-            CandidateModelTrainingAndAcceptanceSettings,
-            dict(
-                candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
-                candidate_post_alarm_validation_sample_count=2,
-            ),
-            "candidate_model_acceptance_policy",
-        ),
         *[
             (
                 ModelConsolidationSettings,
@@ -1125,8 +1054,6 @@ def test_requested_adapter_rank_is_preserved(specified_parameter_value):
         " joint_backbone_adapter_and_head_training",
         "SAMPLE_WEIGHTED_MEAN_PER_CONCEPT_GRADIENTS",
         " sample_weighted_mean_per_concept_gradients",
-        "CURRENT_MODEL_FIRST_REUSE_THEN_TWO_SEGMENT_CANDIDATE_VALIDATION",
-        " current_model_first_reuse_then_two_segment_candidate_validation",
         "refit_compare_two_window",
         "candidate_refit_compare_two_window",
         "two_segment_candidate_validation",
@@ -1161,21 +1088,6 @@ def test_component_options_reject_unknown_names(
     assert validation_error.value.specified_parameter_value is specified_parameter_value
     assert "文字列" in validation_error.value.validation_failure_reason
     assert expected_failure_reason in validation_error.value.validation_failure_reason
-
-
-@pytest.mark.parametrize("specified_parameter_value", [3, 5, 101, 10**400 + 1])
-def test_candidate_post_alarm_validation_accepts_odd_sample_counts(specified_parameter_value):
-    """将来検証件数は2以上の奇数を受理し、丸めず保持する。"""
-    settings_instance = CandidateModelTrainingAndAcceptanceSettings(
-        candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
-        candidate_post_alarm_validation_sample_count=specified_parameter_value,
-    )
-    assert settings_instance.candidate_model_acceptance_policy == (
-        "current_model_first_reuse_then_two_segment_candidate_validation"
-    )
-    assert (
-        settings_instance.candidate_post_alarm_validation_sample_count is specified_parameter_value
-    )
 
 
 @pytest.mark.parametrize(

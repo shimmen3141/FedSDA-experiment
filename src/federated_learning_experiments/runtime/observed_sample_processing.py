@@ -1,4 +1,4 @@
-"""観測した標本1件を処理する: 予測→候補検証の進行→損失の監視→保留→（警報の処理｜帰属の確定と学習）。"""
+"""観測した標本1件を処理する: 予測→損失の監視→保留→（警報の処理｜帰属の確定と学習）。"""
 
 from dataclasses import dataclass
 from random import Random
@@ -68,9 +68,6 @@ from federated_learning_experiments.learning.training.parameter_optimizer_settin
 from federated_learning_experiments.learning.training.temporary_model_id_allocation import (
     TemporaryModelIdAllocator,
 )
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
-    CandidateModelTrainingAndAcceptanceSettings,
-)
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
 )
@@ -122,13 +119,6 @@ from federated_learning_experiments.runtime.alarm_occurrence_handling import (
     AlarmOccurrenceHandling,
     handle_alarm_occurrence,
 )
-from federated_learning_experiments.runtime.candidate_validation_session_holder import (
-    CandidateValidationSessionHolder,
-)
-from federated_learning_experiments.runtime.held_candidate_validation_progress import (
-    HeldCandidateValidationAdvance,
-    advance_held_candidate_validation,
-)
 from federated_learning_experiments.runtime.held_model_training_request_handling import (
     record_training_request_and_train_held_models_when_due,
     train_held_models_for_pending_training_requests,
@@ -147,7 +137,6 @@ class ObservedSampleProcessing:
     """標本1件の処理の結果。警報の有無で、警報の処理か、帰属の確定と学習のどちらかが入る。"""
 
     observed_sample_prediction: ObservedSamplePrediction
-    held_validation_advance: HeldCandidateValidationAdvance
     loss_monitoring_observation: LossMonitoringObservation
     alarm_occurrence_handling: AlarmOccurrenceHandling | None
     released_sample_observations: tuple[IndexedObservedTrainingSample, ...]
@@ -158,7 +147,6 @@ class ObservedSampleProcessing:
 _REQUIRED_OWNER_TYPES_BY_ARGUMENT_NAME = {
     "fixed_share_weight_controller": FixedShareWeightController,
     "sample_prediction_record_store": SamplePredictionRecordStore,
-    "validation_session_holder": CandidateValidationSessionHolder,
     "adaptation_record_store": AdaptationRecordStore,
     "all_sample_adahedge_weight_evidence_holder": AllSampleAdaHedgeWeightEvidenceHolder,
     "true_concept_adahedge_diagnostic_evidence_collection": TrueConceptAdaHedgeDiagnosticEvidenceCollection,
@@ -183,7 +171,6 @@ def _validate_observed_sample_processing_inputs(
     indexed_observation: IndexedObservedTrainingSample,
     owners_by_argument_name: dict[str, object],
     python_random_generator: Random,
-    validation_session_holder: CandidateValidationSessionHolder,
     loss_change_monitor: OverallAndTrueClassLossMonitor,
     pending_training_assignment_buffer: PendingTrainingAssignmentBuffer,
     pending_sample_observation_store: PendingSampleObservationStore,
@@ -239,37 +226,6 @@ def _validate_observed_sample_processing_inputs(
         != pending_assignment_state.pending_sample_indices
     ):
         raise ValueError("pending sample observations must match pending sample indices")
-    # 候補検証を保持している間だけ、候補検証へ渡した標本の概念IDを保持していること。
-    if (validation_session_holder.held_validation_session is None) != (
-        pending_sample_observation_store.validation_assignment_sample_concept_ids is None
-    ):
-        raise ValueError(
-            "validation assignment sample concept IDs must be held exactly while a session is held"
-        )
-
-
-def _select_validation_assignment_sample_concept_ids(
-    *,
-    pending_sample_observations: tuple[IndexedObservedTrainingSample, ...],
-    validation_assignment_training_samples: tuple[ObservedTrainingSample, ...],
-) -> tuple[int | None, ...]:
-    """候補検証へ渡された標本（警報時の保留標本の末尾）の概念IDを返す。末尾と同一でなければ拒否する。"""
-    latest_pending_observations = pending_sample_observations[
-        len(pending_sample_observations) - len(validation_assignment_training_samples) :
-    ]
-    if len(latest_pending_observations) != len(validation_assignment_training_samples) or any(
-        pending_observation.training_sample is not training_sample
-        for pending_observation, training_sample in zip(
-            latest_pending_observations, validation_assignment_training_samples
-        )
-    ):
-        raise ValueError(
-            "validation assignment samples must be the latest pending sample observations"
-        )
-    return tuple(
-        pending_observation.observed_concept_id
-        for pending_observation in latest_pending_observations
-    )
 
 
 def _current_model_loss_worsened_over_adwin_window(
@@ -341,7 +297,6 @@ def process_observed_sample(
     indexed_observation: IndexedObservedTrainingSample,
     fixed_share_weight_controller: FixedShareWeightController,
     sample_prediction_record_store: SamplePredictionRecordStore,
-    validation_session_holder: CandidateValidationSessionHolder,
     adaptation_record_store: AdaptationRecordStore,
     all_sample_adahedge_weight_evidence_holder: AllSampleAdaHedgeWeightEvidenceHolder,
     true_concept_adahedge_diagnostic_evidence_collection: TrueConceptAdaHedgeDiagnosticEvidenceCollection,
@@ -360,9 +315,6 @@ def process_observed_sample(
     pending_model_upload_state: PendingModelUploadState,
     local_training_request_schedule: LocalTrainingRequestSchedule,
     prediction_combination_strategy: str,
-    candidate_model_training_and_acceptance_settings: CandidateModelTrainingAndAcceptanceSettings,
-    maximum_reference_mean_loss_increase: float,
-    minimum_candidate_mean_loss_improvement: float,
     upload_delay_round_count: int,
     minimum_change_interval_sample_count: int,
     short_change_interval_alarm_policy: str,
@@ -443,7 +395,6 @@ def process_observed_sample(
         owners_by_argument_name=dict(
             fixed_share_weight_controller=fixed_share_weight_controller,
             sample_prediction_record_store=sample_prediction_record_store,
-            validation_session_holder=validation_session_holder,
             adaptation_record_store=adaptation_record_store,
             all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
             true_concept_adahedge_diagnostic_evidence_collection=true_concept_adahedge_diagnostic_evidence_collection,
@@ -462,7 +413,6 @@ def process_observed_sample(
             local_training_request_schedule=local_training_request_schedule,
         ),
         python_random_generator=python_random_generator,
-        validation_session_holder=validation_session_holder,
         loss_change_monitor=loss_change_monitor,
         pending_training_assignment_buffer=pending_training_assignment_buffer,
         pending_sample_observation_store=pending_sample_observation_store,
@@ -483,32 +433,6 @@ def process_observed_sample(
         synchronized_prediction_model_snapshot=synchronized_prediction_model_snapshot,
         synchronized_and_local_prediction_mixture=synchronized_and_local_prediction_mixture,
     )
-    # (1) 保持中の候補検証へ、この標本を観測させる。確定したら学習帰属が変わりうる。
-    held_validation_advance = advance_held_candidate_validation(
-        validation_session_holder=validation_session_holder,
-        adaptation_record_store=adaptation_record_store,
-        all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
-        sample_index=sample_index,
-        input_features=input_features,
-        observed_class_labels=observed_class_labels,
-        candidate_model_training_and_acceptance_settings=candidate_model_training_and_acceptance_settings,
-        maximum_reference_mean_loss_increase=maximum_reference_mean_loss_increase,
-        minimum_candidate_mean_loss_improvement=minimum_candidate_mean_loss_improvement,
-        pending_assignment_sample_concept_ids=(
-            pending_sample_observation_store.validation_assignment_sample_concept_ids or ()
-        ),
-        temporary_model_id_allocator=temporary_model_id_allocator,
-        upload_delay_round_count=upload_delay_round_count,
-        pending_model_upload_state=pending_model_upload_state,
-        held_model_training_state_registry=held_model_training_state_registry,
-        loss_statistics_store=loss_statistics_store,
-        training_sample_store=training_sample_store,
-        model_training_and_assignment_counts_store=model_training_and_assignment_counts_store,
-        current_training_model_assignment=current_training_model_assignment,
-    )
-    if held_validation_advance.validation_progress.completed_validation is not None:
-        pending_sample_observation_store.release_validation_assignment_sample_concept_ids()
-    # (2) (1)の後の現在のモデルで、この標本の損失を評価して監視へ渡す。
     current_training_model_id = current_training_model_assignment.current_training_model_id
     observed_loss = evaluate_classifier_per_sample_bounded_losses(
         classifier=held_model_training_state_registry.get_held_model_training_state(
@@ -640,7 +564,6 @@ def process_observed_sample(
             ),
         )
         alarm_occurrence_handling = handle_alarm_occurrence(
-            validation_session_holder=validation_session_holder,
             adaptation_record_store=adaptation_record_store,
             all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
             loss_change_monitor=loss_change_monitor,
@@ -656,7 +579,6 @@ def process_observed_sample(
             architecture_reference_classifier=architecture_reference_classifier,
             parameter_optimizer_settings=parameter_optimizer_settings,
             candidate_epoch_training_settings=candidate_epoch_training_settings,
-            candidate_model_training_and_acceptance_settings=candidate_model_training_and_acceptance_settings,
             estimated_change_point_sample_index=estimated_change_point_sample_index,
             detection_episode_id=None,
             detector_name=detector_name,
@@ -670,21 +592,6 @@ def process_observed_sample(
             pending_model_upload_state=pending_model_upload_state,
             upload_delay_round_count=upload_delay_round_count,
         )
-        alarm_buffer_response = (
-            alarm_occurrence_handling.alarm_response_completion.alarm_buffer_response
-        )
-        active_validation_session = alarm_buffer_response.active_validation_session
-        if (
-            alarm_buffer_response.response_outcome == "alarm_interval_candidate_validation_started"
-            and active_validation_session is not None
-        ):
-            # 開始した候補検証へ渡した標本（警報時の保留標本の末尾）の概念IDを、確定まで保持する。
-            pending_sample_observation_store.hold_validation_assignment_sample_concept_ids(
-                sample_concept_ids=_select_validation_assignment_sample_concept_ids(
-                    pending_sample_observations=pending_sample_observations,
-                    validation_assignment_training_samples=active_validation_session.pending_assignment_training_samples,
-                )
-            )
         # 保留標本を、警報の処理の後に保留位置のownerに残った位置へ合わせる。
         pending_sample_observation_store.retain_latest_pending_sample_observations(
             retained_sample_indices=pending_training_assignment_buffer.get_state_snapshot().pending_sample_indices
@@ -717,7 +624,6 @@ def process_observed_sample(
         )
     return ObservedSampleProcessing(
         observed_sample_prediction=observed_sample_prediction,
-        held_validation_advance=held_validation_advance,
         loss_monitoring_observation=loss_monitoring_observation,
         alarm_occurrence_handling=alarm_occurrence_handling,
         released_sample_observations=released_sample_observations,

@@ -21,9 +21,6 @@ from test_assigned_training_sample_absorption import assert_absorption_matches_l
 from test_joint_model_parameter_update import run_legacy_joint_update
 from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
 from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
-from test_post_alarm_candidate_validation_sample_observation import (
-    assert_collected_losses_match_legacy,
-)
 
 import federated_learning_experiments.runtime.alarm_training_interval_preparation as preparation_module
 from federated_drift_experiment import config
@@ -69,9 +66,6 @@ from federated_learning_experiments.runtime.alarm_change_interval_resolution imp
 )
 from federated_learning_experiments.runtime.alarm_training_interval_preparation import (
     prepare_alarm_training_intervals,
-)
-from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import (
-    observe_post_alarm_candidate_validation_sample,
 )
 
 
@@ -757,7 +751,9 @@ def test_alarm_preparation_evaluates_losses_once_before_saving_evaluation_and_re
 @pytest.mark.parametrize("class_count", [2, 4])
 @pytest.mark.parametrize(
     "alarm_interval_resolution_case",
-    ["other_model_reused", "current_model_maintained", "no_model_fits"],
+    # 合うモデルが無いcaseは、新ではその場で候補を採用し、実旧の`immediate`と一時のIDの割当てが違う。
+    # 候補検証を消したので、比べられる実旧の経路が無い（基準版15のspec、要求4.5(b)）。この経路は、版7〜14のgoldenが照合する。
+    ["other_model_reused", "current_model_maintained"],
 )
 def test_prepared_alarm_interval_continues_resolution_and_joint_training(
     class_count,
@@ -926,32 +922,6 @@ def test_prepared_alarm_interval_continues_resolution_and_joint_training(
         assert_evaluation_samples_match_legacy(
             preparation_arguments=preparation_arguments, legacy_client=legacy_client
         )
-        if alarm_change_interval_resolution.started_validation_session is not None:
-            # 準備→候補開始→共同更新の後、実旧と新の候補へ同じ1標本を観測させる。
-            training_sample = prepared_intervals.change_interval_observations[-1].training_sample
-            assert (
-                legacy_client._observe_forward_validation(
-                    training_sample.input_features,
-                    training_sample.observed_class_labels,
-                    resolution_arguments["proposal_sample_index"] + 1,
-                )
-                == 0
-            )
-            assert (
-                observe_post_alarm_candidate_validation_sample(
-                    sample_index=resolution_arguments["proposal_sample_index"] + 1,
-                    input_features=training_sample.input_features,
-                    observed_class_labels=training_sample.observed_class_labels,
-                    candidate_classifier=alarm_change_interval_resolution.started_validation_session.candidate_training_state.candidate_classifier,
-                    reference_classifiers_by_model_id=alarm_change_interval_resolution.started_validation_session.fixed_reference_models.reference_classifiers_by_model_id,
-                    post_alarm_candidate_loss_collection=alarm_change_interval_resolution.started_validation_session.post_alarm_candidate_loss_collection,
-                )
-                is False
-            )
-            assert_collected_losses_match_legacy(
-                post_alarm_candidate_loss_collection=alarm_change_interval_resolution.started_validation_session.post_alarm_candidate_loss_collection,
-                legacy_session=legacy_client._forward_validation,
-            )
         assert torch.equal(torch.get_rng_state(), random_states[0])
         assert random.getstate() == random_states[1]
         numpy_state = np.random.get_state()

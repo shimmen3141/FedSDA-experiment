@@ -4,6 +4,7 @@ import random
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_fedsda_run_client import (
     assert_run_client_matches_legacy,
     assert_run_client_state_unchanged,
@@ -15,7 +16,6 @@ from test_global_model_distribution import (
     assert_all_states_match_legacy_after_distribution,
     make_client_streams,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 from test_server_model_registration_and_aggregation import (
     SERVER_ROUND_CONDITIONS,

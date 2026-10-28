@@ -5,8 +5,8 @@ from dataclasses import replace
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_fedsda_stream_protocol_run import make_execution_settings, make_run_participant_settings
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_model_clustering_and_consolidation import MODEL_CLUSTERING_CRITERIA
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 

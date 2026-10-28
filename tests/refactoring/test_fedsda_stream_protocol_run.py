@@ -8,6 +8,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_fedsda_run_client import (
     ADAPTER_RANK,
     CROSS_EVALUATION_CLIENT_LIMIT,
@@ -19,7 +20,6 @@ from test_fedsda_run_client import (
     set_legacy_configuration,
     snapshot_run_client_state,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_initial_model_pretraining import assert_numpy_random_states_equal
 from test_model_clustering_and_consolidation import (
     MODEL_CLUSTERING_CRITERIA,
@@ -242,9 +242,6 @@ class ConceptWithholdingClientOperations:
         )
         self.advance_new_model_upload_wait_after_synchronization = (
             run_client.advance_new_model_upload_wait_after_synchronization
-        )
-        self.finalize_incomplete_candidate_validation = (
-            run_client.finalize_incomplete_candidate_validation
         )
 
     def process_observed_sample(self, *, observed_sample, sample_index, evaluation_concept_id):
@@ -546,12 +543,6 @@ def test_whole_stream_protocol_run_matches_real_legacy_whole_run(
         for legacy_client in legacy_clients
         for legacy_decision in legacy_client.provisional_model_decisions
     }
-    assert sum(
-        len(
-            run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
-        )
-        for run_client in participants.client_operations
-    ) == sum(len(legacy_client.provisional_model_decisions) for legacy_client in legacy_clients)
     # 終端での回収は、実旧では、理由が「前向きの標本が足りない」の、候補の判定として残る。
     assert ("post_alarm_validation_incomplete_candidate_rejected" in observed_paths) == any(
         legacy_decision.reason == "insufficient_forward_data"
@@ -560,10 +551,6 @@ def test_whole_stream_protocol_run_matches_real_legacy_whole_run(
     )
     # 終端の後、どのclientも、候補検証を保持していない。
     assert all(legacy_client._forward_validation is None for legacy_client in legacy_clients)
-    assert all(
-        run_client.owners.validation_session_holder.held_validation_session is None
-        for run_client in participants.client_operations
-    )
     if any(synchronization.registered_client_models for synchronization in synchronizations):
         observed_paths.add("new_model_registered")
     if any(synchronization.model_consolidation is not None for synchronization in synchronizations):
@@ -739,11 +726,6 @@ def test_whole_run_of_other_datasets_matches_real_legacy_whole_run(
         }
 
 
-def owners_decision_records(run_client):
-    """clientが保持している、候補検証の判定記録の一覧。"""
-    return run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
-
-
 # 真の概念に依存する診断（読取りの項目名）。真の概念を受け取らない全体runでは、これらだけが違ってよい。
 CONCEPT_DEPENDENT_STATE_NAMES = (
     "diagnostics",
@@ -751,7 +733,6 @@ CONCEPT_DEPENDENT_STATE_NAMES = (
     "sample_prediction_records",
     # 保留中の標本と、候補検証へ渡した標本は、診断用の概念IDを一緒に持つ。
     "pending_sample_observations",
-    "validation_assignment_sample_concept_ids",
 )
 
 
@@ -809,7 +790,6 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
         run_random_sources.python_random_generator.getstate()
         == delivered_random_sources.python_random_generator.getstate()
     )
-    client_decision_record_counts = []
     for run_client, delivered_run_client in zip(
         participants.client_operations, delivered_participants.client_operations, strict=True
     ):
@@ -835,7 +815,7 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
                 )
             elif state_name == "optimizer_states":
                 states_equal = repr(state) == repr(delivered_state)
-            elif state_name in ("held_validation_session", "pending_model_upload"):
+            elif state_name == "pending_model_upload":
                 # 別のrunの別のオブジェクトなので、有無だけを比べる。
                 states_equal = (state is None) == (delivered_state is None)
             elif state_name in (
@@ -884,10 +864,6 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
                 for pending_observation in delivered_state_snapshot["pending_sample_observations"]
             )
         ) == repr(state_snapshot["pending_sample_observations"])
-        # 候補検証の判定記録は、真の概念に依存しない。
-        decision_records = owners_decision_records(run_client)
-        assert decision_records == owners_decision_records(delivered_run_client)
-        client_decision_record_counts.append(len(decision_records))
         # 真の概念を受け取らないと、割当概念の計数と、真の概念別の診断証拠は、作られない。
         owners = run_client.owners
         assert (
@@ -899,8 +875,6 @@ def test_true_concepts_affect_only_concept_dependent_diagnostics_of_whole_run(
             for record in owners.sample_prediction_record_store.snapshot_sample_prediction_records()
         )
         assert delivered_run_client.owners.true_concept_adahedge_diagnostic_evidence_collection.created_true_concept_ids
-    # 検証なしのrunでは、どちらも判定記録を作らない。
-    assert sum(client_decision_record_counts) == 0
     # サーバ側は、クラスタリングの真の概念の一致の診断だけが違う。
     server_owners = participants.server_operations.owners
     delivered_server_owners = delivered_participants.server_operations.owners

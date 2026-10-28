@@ -32,7 +32,6 @@ from federated_learning_experiments.runtime.fedsda_run_client_settings import (
 
 VALID_SCALAR_VALUES = dict(
     maximum_tolerated_mean_loss_increase=0.1,
-    minimum_candidate_mean_loss_improvement=0.0001,
     new_model_upload_delay_round_count=1,
     minimum_change_interval_sample_count=3,
     local_training_batch_sample_count=4,
@@ -61,9 +60,6 @@ def make_valid_run_client_settings(valid_run_settings_mapping, **replaced_fields
             ),
             training_data_assignment_settings=valid_run_settings_mapping[
                 "training_data_assignment_settings"
-            ],
-            candidate_model_training_and_acceptance_settings=valid_run_settings_mapping[
-                "candidate_model_training_and_acceptance_settings"
             ],
             candidate_parameter_initialization_settings=CandidateParameterInitializationSettings(
                 candidate_parameter_initialization_source="lowest_evaluated_mean_loss_model"
@@ -138,7 +134,6 @@ def test_settings_bundle_requires_same_kind_of_two_optimizer_settings(valid_run_
         ("maximum_tolerated_mean_loss_increase", 0.0),
         ("maximum_tolerated_mean_loss_increase", 0),
         ("maximum_tolerated_mean_loss_increase", 2.5),
-        ("minimum_candidate_mean_loss_improvement", 0.0),
         ("new_model_upload_delay_round_count", 1),
         ("minimum_change_interval_sample_count", 1),
         ("local_training_batch_sample_count", 1),
@@ -163,10 +158,7 @@ INVALID_NUMBERS = (True, "1", None, math.nan, math.inf)
     [
         *[
             (scalar_field_name, rejected_value)
-            for scalar_field_name in (
-                "maximum_tolerated_mean_loss_increase",
-                "minimum_candidate_mean_loss_improvement",
-            )
+            for scalar_field_name in ("maximum_tolerated_mean_loss_increase",)
             # numpyのfloat64はfloatの派生型。builtinの型だけを受け入れる。
             for rejected_value in (*INVALID_NUMBERS, -1e-9, -1, np.float64(0.5))
         ],
@@ -204,7 +196,6 @@ SETTINGS_FIELD_NAMES = (
     "local_training_settings",
     "local_training_schedule_settings",
     "training_data_assignment_settings",
-    "candidate_model_training_and_acceptance_settings",
     "candidate_parameter_initialization_settings",
     "candidate_epoch_training_settings",
     "parameter_optimizer_settings",
@@ -300,40 +291,6 @@ def test_settings_bundle_accepts_fixed_share_time_scale_different_from_pending_c
     assert (
         settings.training_data_assignment_settings.pending_assignment_buffer_capacity_samples
         == pending_capacity
-    )
-
-
-def test_settings_bundle_requires_equal_minimum_improvement_and_early_stopping_decrease(
-    valid_run_settings_mapping,
-):
-    valid_settings = make_valid_run_client_settings(valid_run_settings_mapping)
-    with pytest.raises(RunSettingsValidationError) as raised_error:
-        make_valid_run_client_settings(
-            valid_run_settings_mapping,
-            scalar_settings=replace(
-                valid_settings.scalar_settings, minimum_candidate_mean_loss_improvement=0.5
-            ),
-        )
-    assert (
-        raised_error.value.configuration_parameter_name == "minimum_candidate_mean_loss_improvement"
-    )
-    with pytest.raises(RunSettingsValidationError):
-        make_valid_run_client_settings(
-            valid_run_settings_mapping,
-            candidate_epoch_training_settings=replace(
-                valid_settings.candidate_epoch_training_settings,
-                minimum_validation_loss_decrease=0.5,
-            ),
-        )
-    # 両方を同じ値に変えれば受け入れる。
-    make_valid_run_client_settings(
-        valid_run_settings_mapping,
-        scalar_settings=replace(
-            valid_settings.scalar_settings, minimum_candidate_mean_loss_improvement=0.5
-        ),
-        candidate_epoch_training_settings=replace(
-            valid_settings.candidate_epoch_training_settings, minimum_validation_loss_decrease=0.5
-        ),
     )
 
 

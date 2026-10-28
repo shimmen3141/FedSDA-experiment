@@ -383,9 +383,6 @@ def test_model_class_statistics_rejects_invalid_input_atomically(field_name, inv
 
 def test_model_class_statistics_connects_to_baseline_and_monitor():
     """全体とclassの平均が異なっても全体を明示して監視・参照に接続する。"""
-    from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
-        select_available_reference_within_historical_loss_tolerance,
-    )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
         RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         LossChangeDetectionSettings,
@@ -395,7 +392,6 @@ def test_model_class_statistics_connects_to_baseline_and_monitor():
     )
     from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
         select_loss_monitoring_baseline_mean_loss,
-        select_post_alarm_reference_historical_mean_loss,
     )
 
     store = ModelAndClassLossStatisticsStore()
@@ -431,22 +427,6 @@ def test_model_class_statistics_connects_to_baseline_and_monitor():
     assert observation.component_update_count == 2
     assert monitor.get_state_snapshot().class_esr_states_by_class_id[0][1].baseline_loss_mean == 0.5
     state_before_call = store.get_state_snapshot()
-    reference_historical_mean_losses_by_model_id = {
-        7: select_post_alarm_reference_historical_mean_loss(
-            loss_moments=snapshot.overall_loss_moments
-        )
-    }
-    reference_losses_by_model_id = {7: (0.4, 0.5)}
-    assert (
-        select_available_reference_within_historical_loss_tolerance(
-            reference_losses_by_model_id=reference_losses_by_model_id,
-            reference_historical_mean_losses_by_model_id=reference_historical_mean_losses_by_model_id,
-            available_reference_model_ids=(7,),
-            current_training_model_id=7,
-            maximum_reference_mean_loss_increase=0.1,
-        )
-        == 7
-    )
     assert store.get_state_snapshot() == state_before_call
 
 

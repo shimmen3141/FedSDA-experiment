@@ -5,7 +5,6 @@
 
 from dataclasses import dataclass
 from math import isfinite
-from typing import cast
 
 from federated_learning_experiments.evaluation.change_response_metric_calculations import (
     UnmatchedEventCounts,
@@ -16,12 +15,6 @@ from federated_learning_experiments.evaluation.change_response_metric_calculatio
 from federated_learning_experiments.evaluation.run_metric_calculations import (
     DetectionMetrics,
     calculate_detection_metrics,
-)
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import (
-    IncompletePostAlarmCandidateValidationDecisionRecord,
-)
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import (
-    PostAlarmCandidateValidationDecisionRecord,
 )
 from federated_learning_experiments.runtime.fedsda_run_client import FedsdaRunClient
 
@@ -272,72 +265,6 @@ def derive_fedsda_change_response_metrics(
             ] += 1
         current_model_fit_selection_count += adaptation_snapshot.current_model_fit_count
         alternative_model_reuse_selection_count += adaptation_snapshot.alternative_model_reuse_count
-
-        # ---- 候補検証の判定（提案の位置を、記録の順で、変更位置と対応づける） ----
-        decision_records = owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
-        decision_matching = match_events_to_concept_changes(
-            concept_change_sample_indices=concept_change_sample_indices,
-            event_sample_indices=tuple(
-                decision_record.proposal_sample_index for decision_record in decision_records
-            ),
-            maximum_delay_sample_count=maximum_delay_sample_count,
-        )
-        matched_decision_positions = set(decision_matching.matched_event_positions)
-        for decision_position, decision_record in enumerate(decision_records):
-            if type(decision_record) is IncompletePostAlarmCandidateValidationDecisionRecord:
-                incomplete_record = cast(
-                    IncompletePostAlarmCandidateValidationDecisionRecord, decision_record
-                )
-                decisions.append(
-                    _DecisionValues(
-                        candidate_accepted=False,
-                        decision_reason=None,
-                        matched_to_concept_change=decision_position in matched_decision_positions,
-                        candidate_training_interval_sample_count=(
-                            incomplete_record.candidate_training_interval_sample_count
-                        ),
-                        validation_sample_count=incomplete_record.validation_sample_count,
-                        resolution_delay_sample_count=(
-                            incomplete_record.finalization_sample_index
-                            - incomplete_record.proposal_sample_index
-                        ),
-                        full_interval_loss_margin=float("nan"),
-                        second_segment_loss_margin=float("nan"),
-                        reference_loss_excess_over_historical_mean=float("nan"),
-                    )
-                )
-                continue
-            completed_record = cast(PostAlarmCandidateValidationDecisionRecord, decision_record)
-            loss_evaluation = completed_record.post_alarm_candidate_loss_evaluation
-            decisions.append(
-                _DecisionValues(
-                    candidate_accepted=loss_evaluation.candidate_accepted,
-                    decision_reason=loss_evaluation.decision_reason,
-                    matched_to_concept_change=decision_position in matched_decision_positions,
-                    candidate_training_interval_sample_count=(
-                        completed_record.candidate_training_interval_sample_count
-                    ),
-                    validation_sample_count=loss_evaluation.validation_sample_count,
-                    resolution_delay_sample_count=(
-                        completed_record.resolution_sample_index
-                        - completed_record.proposal_sample_index
-                    ),
-                    full_interval_loss_margin=(
-                        loss_evaluation.reference_full_interval_mean_loss
-                        - loss_evaluation.candidate_full_interval_mean_loss
-                    ),
-                    second_segment_loss_margin=(
-                        loss_evaluation.reference_second_segment_mean_loss
-                        - loss_evaluation.candidate_second_segment_mean_loss
-                    ),
-                    reference_loss_excess_over_historical_mean=(
-                        float("nan")
-                        if loss_evaluation.reference_historical_mean_loss is None
-                        else loss_evaluation.reference_full_interval_mean_loss
-                        - loss_evaluation.reference_historical_mean_loss
-                    ),
-                )
-            )
 
     accepted_decisions = [decision for decision in decisions if decision.candidate_accepted]
     rejected_decisions = [decision for decision in decisions if not decision.candidate_accepted]

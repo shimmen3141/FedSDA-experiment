@@ -34,9 +34,6 @@ from federated_learning_experiments.learning.training.local_training_settings im
 from federated_learning_experiments.learning.training.parameter_optimizer_settings import (
     AdamParameterOptimizerSettings,
 )
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
-    CandidateModelTrainingAndAcceptanceSettings,
-)
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
 )
@@ -122,12 +119,11 @@ _FIXED_SHARE_WEIGHT_REDISTRIBUTION_TIME_SCALE_SAMPLES = 120
 # ---- モデルの再利用と、候補の作成・検証 ----
 # 履歴の平均損失からの増加の許容量（γ）。クラスタリングの、同じクラスタとみなす判定の値の上限にも使う。
 _MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE = 0.1
-_CANDIDATE_POST_ALARM_VALIDATION_SAMPLE_COUNT = 10
 _CANDIDATE_MAXIMUM_EPOCH_COUNT = 30
 _CANDIDATE_VALIDATION_SAMPLE_FRACTION = 0.2
 _CANDIDATE_CONSECUTIVE_NON_IMPROVING_EPOCH_LIMIT = 3
-# 候補の平均損失の最小改善量（候補の学習の、早期終了の最小改善量と同じ値）。
-_MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT = 0.0001
+# 候補の学習で、早期終了の改善とみなす最小幅。
+_MINIMUM_VALIDATION_LOSS_DECREASE = 0.0001
 _NEW_MODEL_UPLOAD_DELAY_ROUND_COUNT = 1
 
 # ---- 評価標本と、サーバのクロス評価・クラスタリング ----
@@ -216,17 +212,6 @@ def build_final_configuration_fedsda_run_settings(
             new_model_hypothesis_learners=REINITIALIZED_AND_WARM_STARTED_LEARNERS_POLICY_NAME,
             pending_assignment_buffer_capacity_samples=_PENDING_ASSIGNMENT_BUFFER_CAPACITY_SAMPLES,
         ),
-        candidate_model_training_and_acceptance_settings=(
-            CandidateModelTrainingAndAcceptanceSettings(
-                # 2026-10-20から、候補を検証せずに、その場で採用する（検証の標本数は、使わない）。
-                candidate_model_acceptance_policy=(
-                    "current_model_first_reuse_then_candidate_adoption_without_validation"
-                ),
-                candidate_post_alarm_validation_sample_count=(
-                    _CANDIDATE_POST_ALARM_VALIDATION_SAMPLE_COUNT
-                ),
-            )
-        ),
         candidate_parameter_initialization_settings=CandidateParameterInitializationSettings(
             candidate_parameter_initialization_source="lowest_evaluated_mean_loss_model"
         ),
@@ -236,7 +221,7 @@ def build_final_configuration_fedsda_run_settings(
             maximum_batch_sample_count=_LOCAL_TRAINING_BATCH_SAMPLE_COUNT,
             validation_sample_fraction=_CANDIDATE_VALIDATION_SAMPLE_FRACTION,
             consecutive_non_improving_epoch_limit=_CANDIDATE_CONSECUTIVE_NON_IMPROVING_EPOCH_LIMIT,
-            minimum_validation_loss_decrease=_MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,
+            minimum_validation_loss_decrease=_MINIMUM_VALIDATION_LOSS_DECREASE,
             # 候補の学習では共有部を固定する（採用が、既存のモデルの入力——共有部——を書き換えない）。
             candidate_shared_feature_update_policy="keep_shared_features_fixed",
         ),
@@ -249,7 +234,6 @@ def build_final_configuration_fedsda_run_settings(
         ),
         scalar_settings=FedsdaRunClientScalarSettings(
             maximum_tolerated_mean_loss_increase=_MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
-            minimum_candidate_mean_loss_improvement=_MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,
             new_model_upload_delay_round_count=_NEW_MODEL_UPLOAD_DELAY_ROUND_COUNT,
             minimum_change_interval_sample_count=_MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT,
             local_training_batch_sample_count=_LOCAL_TRAINING_BATCH_SAMPLE_COUNT,

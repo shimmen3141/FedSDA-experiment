@@ -6,6 +6,7 @@ from dataclasses import replace
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_fedsda_run_client import (
     CROSS_EVALUATION_CLIENT_LIMIT,
     MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
@@ -16,7 +17,6 @@ from test_global_model_distribution import (
     assert_all_states_match_legacy_after_distribution,
     make_client_streams,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_model_cross_evaluation import (
     MORE_EVALUATION_SAMPLES,
     derive_legacy_cross_evaluation_diagnostics,

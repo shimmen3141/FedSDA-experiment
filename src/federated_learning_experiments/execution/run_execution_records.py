@@ -19,7 +19,6 @@ RUN_EXECUTION_STAGE_NAMES = (
     "registration_readiness_check",
     "server_synchronization",
     "upload_wait_advance",
-    "incomplete_candidate_validation_finalization",
     "started_communication_finalization",
     "observed_stream_finalization",
 )

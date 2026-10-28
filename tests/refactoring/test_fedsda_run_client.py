@@ -4,22 +4,20 @@ import random
 from collections import Counter
 from copy import deepcopy
 from dataclasses import replace
-from math import isnan
 
 import numpy as np
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_adopted_candidate_initial_local_registration import (
     assert_held_model_states_match_legacy,
     convert_legacy_parameter_name,
 )
 from test_classifier_bounded_loss_evaluation import assert_initial_loss_statistics_match_legacy
 from test_fedsda_run_client_settings import VALID_SCALAR_VALUES
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_joint_model_parameter_update import assert_nested_state_equal
 from test_loss_change_monitoring import assert_class_monitor_matches_reference
 from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
-from test_observed_sample_prediction import assert_prediction_state_matches_legacy
 from test_observed_sample_processing import (
     LEGACY_ACTION_BY_ADAPTATION_OUTCOME,
     assert_sample_processing_state_unchanged,
@@ -33,7 +31,6 @@ from federated_drift_experiment.clients.shared_backbone import (
 )
 from federated_drift_experiment.data.specs import DATASET_SPECS, DatasetSpec
 from federated_drift_experiment.models import ResidualAdapterMLP
-from federated_drift_experiment.provisional_model import ProvisionalModelDecision
 from federated_learning_experiments.core.configuration_errors import RunSettingsValidationError
 from federated_learning_experiments.data.observed_streams import (
     ClientConceptTrace,
@@ -73,12 +70,6 @@ from federated_learning_experiments.learning.training.parameter_optimizer_state 
 )
 from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import (
     CandidateParameterInitializationSettings,
-)
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import (
-    IncompletePostAlarmCandidateValidationDecisionRecord,
-)
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import (
-    PostAlarmCandidateValidationDecisionRecord,
 )
 from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
     RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
@@ -247,15 +238,6 @@ def make_run_client_settings(
             new_model_hypothesis_learners="reinitialized_learner",
             pending_assignment_buffer_capacity_samples=PENDING_CAPACITY,
         ),
-        candidate_model_training_and_acceptance_settings=replace(
-            valid_run_settings_mapping["candidate_model_training_and_acceptance_settings"],
-            candidate_post_alarm_validation_sample_count=validation_sample_count,
-            candidate_model_acceptance_policy=(
-                "current_model_first_reuse_then_two_segment_candidate_validation"
-                if with_candidate_validation
-                else "current_model_first_reuse_then_candidate_adoption_without_validation"
-            ),
-        ),
         candidate_parameter_initialization_settings=CandidateParameterInitializationSettings(
             candidate_parameter_initialization_source="lowest_evaluated_mean_loss_model"
         ),
@@ -281,7 +263,6 @@ def make_run_client_settings(
             **VALID_SCALAR_VALUES
             | dict(
                 maximum_tolerated_mean_loss_increase=MAXIMUM_TOLERATED_MEAN_LOSS_INCREASE,
-                minimum_candidate_mean_loss_improvement=MINIMUM_CANDIDATE_MEAN_LOSS_IMPROVEMENT,
                 new_model_upload_delay_round_count=UPLOAD_DELAY_ROUND_COUNT,
                 minimum_change_interval_sample_count=MINIMUM_CHANGE_INTERVAL_SAMPLE_COUNT,
                 local_training_batch_sample_count=BATCH_SAMPLE_COUNT,
@@ -459,73 +440,6 @@ LEGACY_REASON_BY_DECISION_REASON = {
     "both_segment_margins_failed": "first_and_second",
     "both_segment_margins_passed": "accepted",
 }
-
-
-def assert_candidate_validation_decision_records_match_legacy(
-    *, decision_records, legacy_decisions
-):
-    """保持した判定記録の一覧を、実旧の候補の判定の一覧（`provisional_model_decisions`）と、全項目で照合する。"""
-    assert len(decision_records) == len(legacy_decisions)
-    for decision_record, legacy_decision in zip(decision_records, legacy_decisions, strict=True):
-        assert type(legacy_decision) is ProvisionalModelDecision
-        assert decision_record.proposal_sample_index == legacy_decision.position
-        assert decision_record.detector_name == legacy_decision.detector
-        assert (
-            decision_record.candidate_training_interval_sample_count
-            == legacy_decision.interval_count
-            == legacy_decision.training_count
-        )
-        # 最終構成の判定は、すべて、警報後の標本での検証。
-        assert legacy_decision.validation_source == "forward"
-        if type(decision_record) is IncompletePostAlarmCandidateValidationDecisionRecord:
-            # 終端での、未完了の候補検証の回収。比較は成立していない。
-            assert decision_record.finalization_sample_index == legacy_decision.resolution_position
-            assert decision_record.validation_sample_count == legacy_decision.validation_count
-            assert legacy_decision.accepted is False
-            assert legacy_decision.reason == "insufficient_forward_data"
-            assert legacy_decision.reference_model_id is None
-            assert all(
-                isnan(legacy_loss)
-                for legacy_loss in (
-                    legacy_decision.candidate_mean_loss,
-                    legacy_decision.reference_mean_loss,
-                    legacy_decision.candidate_recent_loss,
-                    legacy_decision.reference_recent_loss,
-                    legacy_decision.reference_historical_mean,
-                )
-            )
-            continue
-        assert type(decision_record) is PostAlarmCandidateValidationDecisionRecord
-        loss_evaluation = decision_record.post_alarm_candidate_loss_evaluation
-        assert decision_record.resolution_sample_index == legacy_decision.resolution_position
-        assert loss_evaluation.validation_sample_count == legacy_decision.validation_count
-        assert loss_evaluation.candidate_accepted is legacy_decision.accepted
-        assert (
-            LEGACY_REASON_BY_DECISION_REASON[loss_evaluation.decision_reason]
-            == legacy_decision.reason
-        )
-        assert loss_evaluation.comparison_reference_model_id == legacy_decision.reference_model_id
-        assert (
-            loss_evaluation.candidate_full_interval_mean_loss == legacy_decision.candidate_mean_loss
-        )
-        assert (
-            loss_evaluation.reference_full_interval_mean_loss == legacy_decision.reference_mean_loss
-        )
-        assert (
-            loss_evaluation.candidate_second_segment_mean_loss
-            == legacy_decision.candidate_recent_loss
-        )
-        assert (
-            loss_evaluation.reference_second_segment_mean_loss
-            == legacy_decision.reference_recent_loss
-        )
-        if loss_evaluation.reference_historical_mean_loss is None:
-            assert isnan(legacy_decision.reference_historical_mean)
-        else:
-            assert (
-                loss_evaluation.reference_historical_mean_loss
-                == legacy_decision.reference_historical_mean
-            )
 
 
 def make_comparison_input_features(input_feature_count):
@@ -711,17 +625,6 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
         legacy_client.detector_candidate_start_positions
     )
     # 候補検証の保持、学習要求、一時ID、送信保留。
-    assert (owners.validation_session_holder.held_validation_session is None) == (
-        legacy_client._forward_validation is None
-    )
-    assert owners.pending_sample_observation_store.validation_assignment_sample_concept_ids == (
-        None
-        if legacy_client._forward_validation is None
-        else tuple(
-            legacy_held_sample[2]
-            for legacy_held_sample in legacy_client._forward_validation.held_data
-        )
-    )
     assert (
         owners.local_training_request_schedule.pending_training_request_count
         == legacy_client._pending_updates
@@ -786,33 +689,6 @@ def assert_run_client_matches_legacy(*, run_client, legacy_client, python_random
     # 更新は、処理した標本1件につき、全体と正解クラスの2つ。
     assert loss_monitoring_computation_counts.detector_component_update_count == 2 * len(
         alarm_record_snapshot.monitored_log_e_values
-    )
-    # 候補検証の判定記録: 実旧の候補の判定の一覧と1件ずつ対応する。
-    decision_records = owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
-    assert_candidate_validation_decision_records_match_legacy(
-        decision_records=decision_records,
-        legacy_decisions=legacy_client.provisional_model_decisions,
-    )
-    # 判定記録は、適応記録の、候補検証の確定と終端回収の結果と、同じ数・同じ位置にある。
-    assert [
-        (
-            decision_record.finalization_sample_index
-            if type(decision_record) is IncompletePostAlarmCandidateValidationDecisionRecord
-            else decision_record.resolution_sample_index
-        )
-        for decision_record in decision_records
-    ] == [
-        adaptation_record.adaptation_sample_index
-        for adaptation_record in adaptation_record_snapshot.adaptation_records
-        if adaptation_record.adaptation_outcome.startswith("post_alarm_validation_")
-    ]
-    # 予測: Fixed-Shareの重み、診断証拠、標本ごとの記録と旧の列・集計の計数。
-    assert_prediction_state_matches_legacy(
-        fixed_share_weight_controller=owners.fixed_share_weight_controller,
-        all_sample_adahedge_weight_evidence_holder=owners.all_sample_adahedge_weight_evidence_holder,
-        true_concept_adahedge_diagnostic_evidence_collection=owners.true_concept_adahedge_diagnostic_evidence_collection,
-        sample_prediction_record_store=owners.sample_prediction_record_store,
-        legacy_client=legacy_client,
     )
 
 
@@ -1048,23 +924,6 @@ def test_run_client_matches_real_legacy_client_from_construction_to_run_end(
                     < remaining_wait
                 )
                 assert_run_client_matches_legacy(run_client=run_client, legacy_client=legacy_client)
-        # 終端: 未完了の候補検証の回収。
-        validation_was_held = (
-            run_client.owners.validation_session_holder.held_validation_session is not None
-        )
-        finalization, _ = run_in_both(
-            run_client=run_client,
-            legacy_client=legacy_client,
-            python_random_generator=python_random_generator,
-            legacy_operation=legacy_client.finalize_incomplete_forward_validation,
-            operation=run_client.finalize_incomplete_candidate_validation,
-        )
-        assert (finalization is not None) == validation_was_held
-        assert run_client.owners.validation_session_holder.held_validation_session is None
-        assert_run_client_matches_legacy(run_client=run_client, legacy_client=legacy_client)
-        # 2回目の回収は何もしない。
-        assert run_client.finalize_incomplete_candidate_validation() is None
-        assert_run_client_matches_legacy(run_client=run_client, legacy_client=legacy_client)
     OBSERVED_COVERAGE_BY_CONDITION[
         (
             class_count,
@@ -1080,7 +939,6 @@ def test_run_client_matches_real_legacy_client_from_construction_to_run_end(
             for adaptation_record in run_client.owners.adaptation_record_store.get_state_snapshot().adaptation_records
         ),
         upload_wait_advanced,
-        validation_was_held,
     )
 
 
@@ -1090,7 +948,7 @@ def test_run_client_trajectories_cover_required_paths():
         pytest.skip("対照の全条件を実行したときだけ確かめる")
     observed_outcomes = {
         adaptation_outcome
-        for condition_outcomes, _, _ in OBSERVED_COVERAGE_BY_CONDITION.values()
+        for condition_outcomes, _ in OBSERVED_COVERAGE_BY_CONDITION.values()
         for adaptation_outcome in condition_outcomes
     }
     assert observed_outcomes >= {
@@ -1099,11 +957,7 @@ def test_run_client_trajectories_cover_required_paths():
         "alarm_interval_held_model_reused",
     }
     assert any(
-        upload_wait_advanced
-        for _, upload_wait_advanced, _ in OBSERVED_COVERAGE_BY_CONDITION.values()
-    )
-    assert not any(
-        validation_was_held for _, _, validation_was_held in OBSERVED_COVERAGE_BY_CONDITION.values()
+        upload_wait_advanced for _, upload_wait_advanced in OBSERVED_COVERAGE_BY_CONDITION.values()
     )
 
 
@@ -1238,9 +1092,6 @@ def test_assembly_copies_initial_model_and_keeps_clients_independent(
     assert second_client.client_id == 2
     assert second_client.owners.temporary_model_id_allocator.next_temporary_model_id == -102
     # 判定記録の保持は、clientごとに別々で、組立ての直後は空。
-    first_decision_record_store = first_client.owners.candidate_validation_decision_record_store
-    second_decision_record_store = second_client.owners.candidate_validation_decision_record_store
-    assert first_decision_record_store is not second_decision_record_store
     assert (
         first_client.owners.loss_monitoring_computation_count_store
         is not second_client.owners.loss_monitoring_computation_count_store
@@ -1255,8 +1106,6 @@ def test_assembly_copies_initial_model_and_keeps_clients_independent(
         is not second_client.owners.held_model_count_record_store
     )
     assert second_client.owners.held_model_count_record_store.snapshot_held_model_counts() == ()
-    assert first_decision_record_store.snapshot_candidate_validation_decision_records() == ()
-    assert second_decision_record_store.snapshot_candidate_validation_decision_records() == ()
     # 片方のclientだけ標本を処理しても、もう片方と、渡した初期モデルは変わらない。
     second_client_snapshot = snapshot_run_client_state(
         run_client=second_client, python_random_generator=second_random_generator
@@ -1660,43 +1509,6 @@ def test_run_client_processes_samples_without_concept_id_as_the_execution_contra
     ]
 
 
-def test_finalization_rejects_held_validation_without_held_concept_ids(
-    monkeypatch, valid_run_settings_mapping
-):
-    """候補検証を保持しているのに、概念IDを保持していない状態では、何も変えずに拒否する。"""
-    with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(41)
-        run_client, python_random_generator, _ = build_processed_run_client(
-            monkeypatch=monkeypatch,
-            valid_run_settings_mapping=valid_run_settings_mapping,
-            sample_count=19,
-            with_candidate_validation=True,
-        )
-        owners = run_client.owners
-        pending_sample_observation_store = owners.pending_sample_observation_store
-        assert owners.validation_session_holder.held_validation_session is not None
-        held_concept_ids = (
-            pending_sample_observation_store.release_validation_assignment_sample_concept_ids()
-        )
-        state_snapshot = snapshot_run_client_state(
-            run_client=run_client, python_random_generator=python_random_generator
-        )
-        with pytest.raises(ValueError, match="concept IDs must be held"):
-            run_client.finalize_incomplete_candidate_validation()
-        assert_run_client_state_unchanged(
-            state_snapshot=state_snapshot,
-            run_client=run_client,
-            python_random_generator=python_random_generator,
-        )
-        # 概念IDの保持を戻せば、回収できる。
-        pending_sample_observation_store.hold_validation_assignment_sample_concept_ids(
-            sample_concept_ids=held_concept_ids
-        )
-        assert run_client.finalize_incomplete_candidate_validation() is not None
-        assert owners.validation_session_holder.held_validation_session is None
-        assert pending_sample_observation_store.validation_assignment_sample_concept_ids is None
-
-
 class ServerOperationsDoingNothing:
     """実行の枠が求めるサーバの操作の、何もしない代役（呼出しだけを記録する）。"""
 
@@ -1778,7 +1590,6 @@ def test_run_clients_run_as_participants_of_the_stream_protocol_loop(
         expected_stage_names += ["registration_readiness_check"] * client_count
         expected_stage_names += ["server_synchronization"]
         expected_stage_names += ["upload_wait_advance"] * client_count
-    expected_stage_names += ["incomplete_candidate_validation_finalization"] * client_count
     expected_stage_names += ["started_communication_finalization"]
     assert [
         execution_event.stage_name for execution_event in execution_events
@@ -1805,7 +1616,6 @@ def test_run_clients_run_as_participants_of_the_stream_protocol_loop(
         )
         # 境界で学習要求が消化され、終端で候補検証の保持が外れている。
         assert owners.local_training_request_schedule.pending_training_request_count == 0
-        assert owners.validation_session_holder.held_validation_session is None
         assert (
             len(owners.loss_change_alarm_record_store.get_state_snapshot().monitored_log_e_values)
             == processed_sample_count

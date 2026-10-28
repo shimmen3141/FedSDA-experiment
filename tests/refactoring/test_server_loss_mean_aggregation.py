@@ -387,7 +387,6 @@ def test_server_loss_mean_aggregation_connects_whole_server_update_and_id_supple
     from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
         select_alarm_interval_reuse_baseline_mean_loss,
         select_loss_monitoring_baseline_mean_loss,
-        select_post_alarm_reference_historical_mean_loss,
     )
 
     prior = ModelAndClassLossStatistics(
@@ -475,7 +474,6 @@ def test_server_loss_mean_aggregation_connects_whole_server_update_and_id_supple
     for selector in (
         select_loss_monitoring_baseline_mean_loss,
         select_alarm_interval_reuse_baseline_mean_loss,
-        select_post_alarm_reference_historical_mean_loss,
     ):
         assert (
             selector(loss_moments=updated.overall_loss_moments)

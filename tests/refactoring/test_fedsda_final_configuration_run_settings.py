@@ -99,12 +99,6 @@ LEGACY_AND_NEW_FINAL_CONFIGURATION_CHOICES = (
         "sample_weighted_mean_per_concept_gradients",
     ),
     (
-        "NEW_MODEL_CREATION_POLICY",
-        "forward_persistent",
-        "candidate_model_acceptance_policy",
-        "current_model_first_reuse_then_two_segment_candidate_validation",
-    ),
-    (
         "NEW_MODEL_TRAINING",
         "early_stopping",
         "candidate_training_strategy",
@@ -147,11 +141,7 @@ LEGACY_AND_NEW_FINAL_CONFIGURATION_CHOICES = (
 
 # 旧の最終構成の選択と、意図して違う選択（新の方式の名前→新の既定の値）。2026-10-20から、候補を検証せずに
 # 採用する（旧の`NEW_MODEL_CREATION_POLICY="immediate"`に当たる。旧の最終構成は`forward_persistent`）。
-NEW_FINAL_CONFIGURATION_CHOICES_CHANGED_FROM_LEGACY = {
-    "candidate_model_acceptance_policy": (
-        "current_model_first_reuse_then_candidate_adoption_without_validation"
-    ),
-}
+NEW_FINAL_CONFIGURATION_CHOICES_CHANGED_FROM_LEGACY = {}
 
 
 def read_legacy_final_configuration_values(dataset_name, legacy_overrides=None):
@@ -320,12 +310,6 @@ def test_final_configuration_defaults_match_legacy_configuration(
                     prediction_model_parameter_source="mixture_of_synchronized_and_local_parameters",
                     fixed_share_weight_redistribution_time_scale_samples=120,
                 ),
-                candidate_model_training_and_acceptance_settings=replace(
-                    legacy_equivalent_client_settings.candidate_model_training_and_acceptance_settings,
-                    candidate_model_acceptance_policy=(
-                        "current_model_first_reuse_then_candidate_adoption_without_validation"
-                    ),
-                ),
                 candidate_epoch_training_settings=replace(
                     legacy_equivalent_client_settings.candidate_epoch_training_settings,
                     candidate_shared_feature_update_policy="keep_shared_features_fixed",
@@ -379,9 +363,6 @@ def test_final_configuration_defaults_match_legacy_configuration(
         ),
         shared_backbone_gradient_combination_strategy=(
             run_client_settings.local_training_settings.shared_backbone_gradient_combination_strategy
-        ),
-        candidate_model_acceptance_policy=(
-            run_client_settings.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy
         ),
         candidate_training_strategy=(
             run_client_settings.candidate_epoch_training_settings.candidate_training_strategy

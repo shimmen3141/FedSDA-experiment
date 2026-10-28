@@ -2623,8 +2623,6 @@ def _execute_job(job):
         preparation_model_computation_counts=dataclasses.asdict(
             run.measured_run.preparation_model_computation_counts
         ),
-        validation_sample_count=client_settings.candidate_model_training_and_acceptance_settings.candidate_post_alarm_validation_sample_count,
-        candidate_model_acceptance_policy=client_settings.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy,
         detection_count=metrics.training_model_switch_detection_metrics.detection_count,
         # 検出・変化点の推定・切替えの遅れの指標（掃引の`run_summary.csv`と同じ量。既定と比べるため）。
         training_model_switch_detection_metrics=dataclasses.asdict(metrics.training_model_switch_detection_metrics),

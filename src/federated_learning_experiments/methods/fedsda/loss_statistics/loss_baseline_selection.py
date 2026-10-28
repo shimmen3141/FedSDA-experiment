@@ -44,14 +44,3 @@ def select_alarm_interval_reuse_baseline_mean_loss(
     ):
         return None
     return validated_loss_moments.mean_loss
-
-
-def select_post_alarm_reference_historical_mean_loss(
-    *,
-    loss_moments: BoundedLossMoments | None,
-) -> float | None:
-    """警報後の参照比較には2件以上の保存平均を零も含めて使用する。"""
-    validated_loss_moments = _validate_optional_loss_moments(loss_moments=loss_moments)
-    if validated_loss_moments is None or validated_loss_moments.observed_loss_count < 2:
-        return None
-    return validated_loss_moments.mean_loss

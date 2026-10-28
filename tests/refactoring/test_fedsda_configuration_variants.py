@@ -71,10 +71,9 @@ def replace_prediction_combination_settings(run_participant_settings, **changed_
     )
 
 
-def replace_candidate_acceptance_and_shared_feature_update(
+def replace_candidate_shared_feature_update(
     run_participant_settings,
     *,
-    candidate_model_acceptance_policy,
     candidate_shared_feature_update_policy,
 ):
     """参加者の設定の束の、候補の採否の方針と、候補の学習での共有部の更新を、一緒に置き換える。
@@ -86,10 +85,6 @@ def replace_candidate_acceptance_and_shared_feature_update(
         run_participant_settings,
         run_client_settings=replace(
             run_client_settings,
-            candidate_model_training_and_acceptance_settings=replace(
-                run_client_settings.candidate_model_training_and_acceptance_settings,
-                candidate_model_acceptance_policy=candidate_model_acceptance_policy,
-            ),
             candidate_epoch_training_settings=replace(
                 run_client_settings.candidate_epoch_training_settings,
                 candidate_shared_feature_update_policy=candidate_shared_feature_update_policy,
@@ -187,11 +182,8 @@ CONFIGURATION_VARIANTS = {
         # 2026-10-20からの既定は、候補の学習で共有部を固定するので、一緒に更新する値も明示する（旧には、
         # 固定する扱いが無い）。
         modify_run_participant_settings=lambda run_participant_settings: (
-            replace_candidate_acceptance_and_shared_feature_update(
+            replace_candidate_shared_feature_update(
                 run_participant_settings,
-                candidate_model_acceptance_policy=(
-                    "current_model_first_reuse_then_candidate_adoption_without_validation"
-                ),
                 candidate_shared_feature_update_policy="update_shared_features_with_candidate",
             )
         ),
@@ -491,11 +483,6 @@ def test_without_candidate_validation_takes_its_own_path(configuration_name):
                     "alarm_during_candidate_validation",
                 )
                 for adaptation_outcome in adaptation_outcomes
-            )
-            assert run_client.owners.validation_session_holder.held_validation_session is None
-            assert (
-                run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
-                == ()
             )
             client_adopted_at_alarm_count = adaptation_outcomes.count(
                 "alarm_interval_candidate_adopted_as_new_model"

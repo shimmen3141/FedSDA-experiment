@@ -134,10 +134,7 @@ _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_DEFAULTS = {
     _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH: "update_shared_features_with_candidate",
 }
 # 候補の採否の方針。版1〜6は、候補検証あり（版7で、既定が、検証せずに採用する方針へ変わる）。
-_CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH = (
-    "candidate_model_training_and_acceptance_settings",
-    "candidate_model_acceptance_policy",
-)
+_CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH = ("candidate_model_acceptance_policy",)
 _CANDIDATE_VALIDATION_POLICY_NAME = (
     "current_model_first_reuse_then_two_segment_candidate_validation"
 )
@@ -456,7 +453,26 @@ EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION = {
     **{version: CANDIDATE_VALIDATION_PATH_CASE_NAMES for version in range(7, 15)},
 }
 # 記録・指標・設定を消す段で、goldenの中の完全な鍵の道を足す。task 1では何も除かない。
-REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS: tuple[tuple[str, ...], ...] = ()
+REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS: tuple[tuple[str, ...], ...] = (
+    (
+        "run_settings",
+        "run_participant_settings",
+        "run_client_settings",
+        "candidate_model_training_and_acceptance_settings",
+    ),
+    (
+        "run_settings",
+        "run_participant_settings",
+        "run_client_settings",
+        "scalar_settings",
+        "minimum_candidate_mean_loss_improvement",
+    ),
+    # FedAvgの実行eventの表は、廃止した終端の段だけ行が減る。保存済みgoldenは列全体のdigestを持つ。
+    ("record_tables", "execution_event.stage_name"),
+    ("record_tables", "execution_event.client_id"),
+    ("record_tables", "execution_event.sample_index"),
+    ("record_tables", "execution_event.round_index"),
+)
 
 
 def without_removed_candidate_validation_items(snapshot, path=()):
@@ -714,16 +730,6 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
         # 候補の採否の方針と共有部の更新は、組合せの制約（候補検証と共有部の固定は組み合わせられない）が
         # あるので、1回の置き換えで、まとめて替える。
         candidate_changes = {}
-        if (
-            _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH in changed_settings
-            and configuration != "fedsda-without-candidate-validation"
-        ):
-            candidate_changes["candidate_model_training_and_acceptance_settings"] = replace(
-                client.candidate_model_training_and_acceptance_settings,
-                candidate_model_acceptance_policy=changed_settings[
-                    _CANDIDATE_MODEL_ACCEPTANCE_POLICY_PATH
-                ],
-            )
         if _CANDIDATE_SHARED_FEATURE_UPDATE_POLICY_PATH in added_settings:
             candidate_changes["candidate_epoch_training_settings"] = replace(
                 client.candidate_epoch_training_settings,
@@ -778,10 +784,6 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
         assert isinstance(client, FedsdaRunClientSettings)
         changes["run_client_settings"] = replace(
             client,
-            candidate_model_training_and_acceptance_settings=replace(
-                client.candidate_model_training_and_acceptance_settings,
-                candidate_model_acceptance_policy="current_model_first_reuse_then_two_segment_candidate_validation",
-            ),
             candidate_epoch_training_settings=replace(
                 client.candidate_epoch_training_settings,
                 candidate_shared_feature_update_policy="update_shared_features_with_candidate",
@@ -1104,7 +1106,17 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
     """イベントが空のケースを重要経路の基準に採用しない。"""
     if baseline_version >= 13 and case_name.startswith("fedsda"):
         if case_name in CANDIDATE_VALIDATION_PATH_CASE_NAMES:
-            assert coverage["loss_monitoring_baseline_lowering_count"] == 0, (case_name, coverage)
+            # 候補検証を消したので、goldenの照合から外したこのcaseを補助のtestで流すときは、確かめない（基準版15のspec）。
+            if (
+                case_name
+                not in EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[
+                    baseline_version
+                ]
+            ):
+                assert coverage["loss_monitoring_baseline_lowering_count"] == 0, (
+                    case_name,
+                    coverage,
+                )
         elif case_name in (
             "fedsda-sine2-adoption-without-validation",
             WARM_STARTED_LEARNER_PATH_CASE_NAME,
@@ -1127,11 +1139,18 @@ def assert_required_paths(case_name, coverage, baseline_version=BASELINE_VERSION
     if baseline_version >= 3 and "repeated_training_sample_assignment_count" in coverage:
         # 版3の扱いでは、同じ標本が、2回取り込まれない。
         assert coverage["repeated_training_sample_assignment_count"] == 0, (case_name, coverage)
-    if case_name.startswith("fedsda-") and case_name in (
-        "fedsda-sine2-events",
-        "fedsda-sine2-reference-reuse",
-        "fedsda-sine2-alternative-reference-reuse",
-        "fedsda-mnist2-decisions",
+    # 候補検証の経路の網羅。候補検証を消したので、goldenの照合から外したcaseを補助のtestで流すときは、確かめない（基準版15のspec）。
+    if (
+        case_name.startswith("fedsda-")
+        and case_name
+        in (
+            "fedsda-sine2-events",
+            "fedsda-sine2-reference-reuse",
+            "fedsda-sine2-alternative-reference-reuse",
+            "fedsda-mnist2-decisions",
+        )
+        and case_name
+        not in EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[baseline_version]
     ):
         for key in (
             "candidate_accepted_count",

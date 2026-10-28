@@ -602,7 +602,6 @@ INVALID_COMPLETION_INPUT_CASES = {
                     change_interval_start_sample_index=None,
                 ),
                 change_interval_resolution=None,
-                active_validation_session=None,
             ),
         ),
         ValueError,

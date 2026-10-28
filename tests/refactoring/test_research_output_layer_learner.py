@@ -254,10 +254,6 @@ def test_forced_warm_selection_trains_and_adopts_real_head_candidate(classes, mo
         alarm_interval_resolution_case="no_model_fits",
         monkeypatch=monkeypatch,
     )
-    arguments["candidate_model_training_and_acceptance_settings"] = replace(
-        arguments["candidate_model_training_and_acceptance_settings"],
-        candidate_model_acceptance_policy="current_model_first_reuse_then_candidate_adoption_without_validation",
-    )
     arguments["candidate_epoch_training_settings"] = replace(
         arguments["candidate_epoch_training_settings"],
         candidate_training_strategy="fixed_epoch_training",

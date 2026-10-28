@@ -6,6 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_assigned_training_sample_absorption import (
     assert_absorption_matches_legacy,
     assert_absorption_state_unchanged,
@@ -13,7 +14,6 @@ from test_assigned_training_sample_absorption import (
     build_absorption_oracle,
     snapshot_absorption_state,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 
 import federated_learning_experiments.runtime.released_pending_sample_assignment as released_assignment_module
 from federated_drift_experiment.clients.fedsda import FedSDAClient

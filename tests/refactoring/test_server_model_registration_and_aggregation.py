@@ -6,6 +6,7 @@ from copy import deepcopy
 import numpy as np
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_adopted_candidate_initial_local_registration import convert_legacy_parameter_name
 from test_cross_evaluation_download_deduplication import (
     expected_legacy_communication_volume_after_deduplication,
@@ -22,7 +23,6 @@ from test_fedsda_run_client import (
     set_legacy_configuration,
     snapshot_run_client_state,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 import federated_learning_experiments.runtime.server_model_registration_and_aggregation as server_round_module

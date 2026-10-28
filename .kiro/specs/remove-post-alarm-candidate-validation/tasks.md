@@ -23,7 +23,7 @@
     `tools/research_prediction_initial_mass/`・`tools/research_provisional_candidate_expert/`の候補検証のモード・変種の削除と、残るモードの専用の検証）も、この段で行う（要求6.1の一部。2回目の停止の報告を受けて前倒しした）。
   - _Requirements: 1.1, 4.5, 6.1_
 
-- [ ] 3. 実行と状態、設定の型・項目・値・制約を消す
+- [x] 3. 実行と状態、設定の型・項目・値・制約を消す
   - 候補検証の実行と状態（要求2.1・2.3）と、設定（要求1.2・1.3）を一緒に消す。共有の値（要求1.4）は残す。
     この段で成り立たなくなるtest（候補検証の部品のtest、設定の検査のtest）を、要求4.5の規則で扱う。保存の形の変わる設定の項目は、要求4.2の除く項目の一覧に足す。
   - _Requirements: 1.2, 1.3, 1.4, 2.1, 2.3, 4.2, 4.5_
@@ -364,3 +364,33 @@
 - 通常の環境での、上記sandbox除外testを含む`tests/`全体と研究用の保存・並列workerの専用検査、既存のproposed回帰とfresh-processの一時保存先の検査、resumptionの単独再試行が残る。WSL/Linux固定環境の数値照合もこのWindowsの実行では行っていない。数値・乱数の照合と実行可能な全体の検査は通過したが、通常環境の全pytestまでPASSとは報告しない（`MANUAL_VERIFY_REQUIRED`）。
 - 通常runから候補検証の入口を外した状態で、部品を直接構築するtestは残る。設定・状態・保存の削除はtask 3以降の担当範囲である。モデル集合だけによるAdaHedge再始動の全runの経路は、上記の条件探索でも得られていない。部品の検査を残し、全runの網羅の除外を明示した。
 - この記録はUTF-8で書込み後に再読し、置換文字・疑問符の連続への文字化けがなく、日本語の本文が保存されていることを確認した。過去の停止・承認の記録は書き換えていない。
+
+### task 3（2026-10-28、実装担当の途中から主担当が仕上げた）
+
+- 実装担当（gpt-6.1-sol）が、HEAD `769adeab`から変更の大部分を入れたところで、Codexの利用の上限が近いため主担当が止めた（ユーザーの判断。実装担当の記録は無い）。
+  止めた時点の作業ツリーの全pytestは172 failed / 12948 passed / 24 skipped。主担当が残りを直した。
+- 消したもの（実装担当）: 候補検証の実行と状態の13モジュール（`runtime/`の`candidate_validation_adaptation_recording.py`、`candidate_validation_session_holder.py`、`held_candidate_validation_progress.py`、
+  `incomplete_post_alarm_candidate_validation_finalization.py`、`post_alarm_candidate_validation_progress.py`・`_resolution.py`・`_sample_observation.py`・`_session_start.py`、`post_alarm_reference_model_fixation.py`、
+  `methods/fedsda/candidate_model_selection/`の`candidate_model_training_and_acceptance_settings.py`、`candidate_validation_decision_record_store.py`、`incomplete_post_alarm_candidate_validation_decision_record.py`、
+  `post_alarm_candidate_loss_collection.py`、`post_alarm_candidate_loss_evaluation.py`、`post_alarm_candidate_validation_decision_record.py`）、設定の型と項目・検証ありの方針の値・制約、実行の契約の締めの段、
+  関係するtest（`test_candidate_validation_adaptation_recording.py`、`test_candidate_validation_decision_record_store.py`、`test_held_candidate_validation_progress.py`、`test_incomplete_post_alarm_candidate_validation_finalization.py`ほか）。
+  共有のtestの補助は`tests/refactoring/alarm_interval_test_support.py`へ移した。
+- goldenの除く項目（`REMOVED_CANDIDATE_VALIDATION_ITEM_PATHS`）: `run_settings/run_participant_settings/run_client_settings/candidate_model_training_and_acceptance_settings`、
+  `run_settings/run_participant_settings/run_client_settings/scalar_settings/minimum_candidate_mean_loss_improvement`、`record_tables/execution_event.{stage_name,client_id,sample_index,round_index}`。
+  実行の出来事の表は、消した締めの段の行が無くなる。保存済みのgoldenは列ごとのhashだけを持つので、その行だけを除けず、表の4列ごと除いた。この表のほかの差も照合で見えなくなる（限界）。
+  予測・パラメータ・runの指標・記録のほかの表と、要求4.7の乱数の状態は、引き続き照合する。段の回数は`fresh_process_smoke.py`で確かめる（締めの段が無いこと）。
+- 主担当が直したもの:
+  - 消したclientの判定の記録への参照の残り（`test_fedsda_run_metric_derivation.py`の2か所、`test_fedsda_stream_protocol_run.py`の補助と1か所）。旧の形の`provisional_*`の配列は、旧の検証なしのrunと同じく空にした。
+  - 版どうしを比べるtest（`test_baseline_6_differs…`〜`test_baseline_13_runs…`、`test_next_baseline_differs…`）が、比べる版のどちらかで外したcaseを流さないよう、`_cases_runnable_in_both`で絞った。
+  - `assert_required_paths`の候補検証の経路の網羅（候補の採用・棄却の件数、基準の引下げ0件）を、外したcaseでは確かめないようにした（外したcaseの条件で補助のtestが全体runを流すため）。
+    壊れたgoldenの拒否のtestの`missing_path`は、残すcase（`fedsda-sine2-adoption-without-validation`の統合の数）を壊す形に替えた。
+  - 要求4.5(b): 合うモデルが無いcaseは、新ではその場で候補を採用し、旧の`immediate`と一時のIDの割当てが違う（新−100、旧−103）。比べられる旧の経路が無いので、
+    `test_alarm_training_interval_preparation.py`の`no_model_fits`と、`test_too_short_alarm_earlier_sample_release.py`のその場の採用の応答の、旧との照合を外した（理由をコメントに書いた。この経路は版7〜14のgoldenが照合する）。
+  - 消した制約のtest: `test_minimum_description_length_is_rejected_with_candidate_validation`を消し、共有部の固定との組合せのtestを「共有部の2つの方針がどちらも組み立てられる」に替えた。
+  - 期待値: FedSDAのrunの識別子のhash（`fc28fa415515`→`f9bff53a0cdc`、2つのtest）、`fedsda-sine2-events`の条件の検証なしのrunでの登録されない採用の数（2→4）。いずれも候補検証を消したことによる想定の変化。
+  - 引数の消し残し（`test_alarm_wait_for_minimum_change_interval.py`の`minimum_validation_loss_decrease=0.0`）、消した設定の値を含む誤りの値の一覧（`test_run_settings_validation.py`）、
+    使われない変数・import、空白だけの行、空になった依存の契約の区切り。
+  - task 4の範囲の先取りは、`test_fedsda_experiment_run_artifacts.py`の対応表の比較から、候補検証の結果の値を除いたところだけ（製品の対応表から消すのはtask 4）。
+- 確認（通常の環境）: 全pytest 13036 passed / 8 skipped / 1 failed（失敗は上の`missing_path`で、直した後にそのtestを含む構造の検査11件、依存の境界2257件、設定の検査1201件を流し直して全部通過）。
+  版1〜14の残すcaseの数値の照合と、乱数の状態の照合は、全pytestで通った。pyright 0 errors、ruff check・formatは通過。
+  消した名前（設定の型・項目・方針の値、検証の実行・状態の型と関数）は、保存済みのgoldenのJSONと、goldenの照合の一覧を除き、`src/`・`tests/`・`tools/`から参照されない（`git grep`）。

@@ -63,7 +63,6 @@ def validate_prepared_run_participants(*, participants: object, client_count: in
         "flush_pending_local_updates",
         "has_model_ready_for_server_registration",
         "advance_new_model_upload_wait_after_synchronization",
-        "finalize_incomplete_candidate_validation",
     )
     for expected_client_id, client_operations_instance in enumerate(participants.client_operations):
         if type(getattr(client_operations_instance, "client_id", None)) is not int:

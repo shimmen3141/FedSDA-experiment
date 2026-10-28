@@ -142,7 +142,6 @@ def _replace_prediction_combination_settings(
 def _replace_candidate_acceptance_and_shared_feature_update(
     *,
     run_settings: FedsdaRunSettings,
-    candidate_model_acceptance_policy: str,
     candidate_shared_feature_update_policy: str,
     alarm_interval_assignment_policy: str,
     new_model_hypothesis_learners: str,
@@ -172,10 +171,6 @@ def _replace_candidate_acceptance_and_shared_feature_update(
                 loss_change_detection_settings=replace(
                     run_client_settings.loss_change_detection_settings,
                     loss_monitoring_baseline_update_policy=loss_monitoring_baseline_update_policy,
-                ),
-                candidate_model_training_and_acceptance_settings=replace(
-                    run_client_settings.candidate_model_training_and_acceptance_settings,
-                    candidate_model_acceptance_policy=candidate_model_acceptance_policy,
                 ),
                 candidate_epoch_training_settings=replace(
                     run_client_settings.candidate_epoch_training_settings,
@@ -238,9 +233,6 @@ def build_experiment_run_settings(
     if configuration_name == CANDIDATE_VALIDATION_ABLATION_CONFIGURATION_NAME:
         return _replace_candidate_acceptance_and_shared_feature_update(
             run_settings=proposed_run_settings,
-            candidate_model_acceptance_policy=(
-                "current_model_first_reuse_then_candidate_adoption_without_validation"
-            ),
             candidate_shared_feature_update_policy="update_shared_features_with_candidate",
             # 候補検証を外した構成は、警報の後の選び方、学習者の組、初期モデルの統計の推定を、既定から引き継ぐ。
             alarm_interval_assignment_policy=(

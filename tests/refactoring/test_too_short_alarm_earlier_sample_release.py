@@ -279,16 +279,22 @@ def test_completion_releases_earlier_interval_after_too_short_change_interval(
             assert response_completion.previous_training_model_id == initial_training_model_id
             assert response_completion.current_training_model_id == initial_training_model_id
         # 区間の準備と解決（取込み、評価標本、統計、学習帰属）は、方針に依らず、実旧と同じ。
-        assert_buffer_response_matches_legacy(
-            response=alarm_buffer_response,
-            response_arguments=response_arguments,
-            preparation_arguments=preparation_arguments,
-            resolution_arguments=resolution_arguments,
-            shared_optimizer_owners=shared_optimizer_owners,
-            legacy_client=legacy_client,
-            legacy_result=legacy_result,
-            initial_training_model_id=initial_training_model_id,
-        )
+        # ただし、合うモデルが無く、その場で候補を採用した応答は、実旧の`immediate`と一時のIDの割当てが違う
+        # （候補検証を消したので、比べられる実旧の経路が無い。基準版15のspec、要求4.5(b)）。この経路は、版7〜14のgoldenが照合する。
+        if (
+            alarm_buffer_response.response_outcome
+            != "alarm_interval_candidate_adopted_as_new_model"
+        ):
+            assert_buffer_response_matches_legacy(
+                response=alarm_buffer_response,
+                response_arguments=response_arguments,
+                preparation_arguments=preparation_arguments,
+                resolution_arguments=resolution_arguments,
+                shared_optimizer_owners=shared_optimizer_owners,
+                legacy_client=legacy_client,
+                legacy_result=legacy_result,
+                initial_training_model_id=initial_training_model_id,
+            )
         # 再開した監視は、方針に依らず、実旧と同じ値で進む。
         observe_monitored_losses_in_both_implementations(
             completion_arguments=completion_arguments,

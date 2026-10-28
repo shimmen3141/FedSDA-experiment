@@ -43,26 +43,21 @@ from federated_learning_experiments.runtime.alarm_occurrence_handling import (
 from federated_learning_experiments.runtime.alarm_response_completion import (
     AlarmResponseCompletion,
 )
-from federated_learning_experiments.runtime.candidate_validation_session_holder import (
-    CandidateValidationSessionHolder,
-)
 
 # 接続する既存の5段。新moduleが参照する名前で、この順に1回ずつ実行される。
 ALARM_OCCURRENCE_STEP_NAMES = (
     "respond_to_alarm_with_buffered_samples",
     "complete_alarm_buffer_response",
     "record_completed_alarm_response",
-    "apply_alarm_response_to_validation_session_holder",
     "restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
 )
 ARGUMENT_NAMES_ADDED_TO_RESPONSE = (
-    "validation_session_holder",
     "adaptation_record_store",
     "all_sample_adahedge_weight_evidence_holder",
     "loss_change_monitor",
     "alarm_sample_index",
 )
-ARGUMENT_NAMES_DERIVED_FOR_RESPONSE = ("active_validation_session", "proposal_sample_index")
+ARGUMENT_NAMES_DERIVED_FOR_RESPONSE = ("proposal_sample_index",)
 # 再始動が観測できるよう、警報の前に新旧の診断証拠へ与える損失。
 DIAGNOSTIC_LOSSES_BEFORE_ALARM = {2: 0.1, -1: 0.8}
 REUSED_HELD_MODEL_ORACLE_CASE = RECORDING_ORACLE_CASES[1]
@@ -127,7 +122,6 @@ def build_alarm_occurrence_oracle(
     handling_arguments.update(
         # 最小記述長の原理で選ばない（今の扱い）。
         alarm_interval_assignment_selection=None,
-        validation_session_holder=CandidateValidationSessionHolder(),
         adaptation_record_store=AdaptationRecordStore(),
         all_sample_adahedge_weight_evidence_holder=all_sample_adahedge_weight_evidence_holder,
         loss_change_monitor=completion_arguments["loss_change_monitor"],
@@ -150,7 +144,6 @@ def snapshot_owners_updated_after_response(*, handling_arguments):
         handling_arguments["loss_change_monitor"].get_state_snapshot(),
         handling_arguments["pending_training_assignment_buffer"].get_state_snapshot(),
         handling_arguments["adaptation_record_store"].get_state_snapshot(),
-        handling_arguments["validation_session_holder"].held_validation_session,
         get_adahedge_evidence_snapshot(
             handling_arguments[
                 "all_sample_adahedge_weight_evidence_holder"
@@ -204,7 +197,6 @@ def test_alarm_occurrence_matches_real_legacy_alarm(
             resolution_arguments,
             legacy_client=legacy_client,
         )
-        validation_session_holder = handling_arguments["validation_session_holder"]
         adaptation_record_store = handling_arguments["adaptation_record_store"]
         all_sample_adahedge_weight_evidence_holder = handling_arguments[
             "all_sample_adahedge_weight_evidence_holder"
@@ -280,13 +272,6 @@ def test_alarm_occurrence_matches_real_legacy_alarm(
         == legacy_client.reuse_selection_counts["current_fit"]
     )
     # 保持: 実旧のsession属性の有無と一致し、保持しているのは応答のsessionそのもの。
-    assert (
-        validation_session_holder.held_validation_session
-        is alarm_buffer_response.active_validation_session
-    )
-    assert (validation_session_holder.held_validation_session is not None) == (
-        legacy_client._forward_validation is not None
-    )
     # 診断: 実旧の再始動hookを通した後のAdaHedge状態と一致し、再始動は他モデルの再利用のときだけ1回。
     all_sample_weight_evidence = (
         all_sample_adahedge_weight_evidence_holder.all_sample_weight_evidence
@@ -325,11 +310,9 @@ def test_alarm_occurrence_runs_each_step_once_in_order(monkeypatch, valid_run_se
         (_, response_step_arguments, alarm_buffer_response),
         (_, completion_step_arguments, alarm_response_completion),
         (_, recording_step_arguments, adaptation_record),
-        (_, holder_step_arguments, _),
         (_, notification_step_arguments, _),
     ) = step_calls
     # 応答: 進行中のsessionは保持から、提案位置は警報位置から与える。他は受け取った引数そのもの。
-    assert response_step_arguments.pop("active_validation_session") is None
     assert (
         response_step_arguments.pop("proposal_sample_index")
         == (handling_arguments["alarm_sample_index"])
@@ -350,8 +333,6 @@ def test_alarm_occurrence_runs_each_step_once_in_order(monkeypatch, valid_run_se
     }
     assert recording_step_arguments.pop("alarm_response_completion") is alarm_response_completion
     assert recording_step_arguments.keys() == {"detector_name", "adaptation_record_store"}
-    assert holder_step_arguments.pop("alarm_buffer_response") is alarm_buffer_response
-    assert holder_step_arguments.keys() == {"validation_session_holder"}
     training_model_assignment_change = (
         alarm_buffer_response.change_interval_resolution.training_model_assignment_change
     )
@@ -362,7 +343,6 @@ def test_alarm_occurrence_runs_each_step_once_in_order(monkeypatch, valid_run_se
         response_step_arguments,
         completion_step_arguments,
         recording_step_arguments,
-        holder_step_arguments,
         notification_step_arguments,
     ):
         for argument_name, argument in step_arguments.items():
@@ -386,7 +366,6 @@ def get_last_observed_sample_index(handling_arguments):
 
 
 OWNER_ARGUMENT_NAMES_VALIDATED_BEFORE_RESPONSE = (
-    "validation_session_holder",
     "adaptation_record_store",
     "all_sample_adahedge_weight_evidence_holder",
     "loss_change_monitor",

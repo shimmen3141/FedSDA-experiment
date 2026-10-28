@@ -36,8 +36,6 @@ from federated_learning_experiments.sweep.experiment_configurations import (
 
 UPDATE = "update_shared_features_with_candidate"
 FIXED = "keep_shared_features_fixed"
-VALIDATION = "current_model_first_reuse_then_two_segment_candidate_validation"
-WITHOUT_VALIDATION = "current_model_first_reuse_then_candidate_adoption_without_validation"
 
 
 def make_settings(*, candidate_training_strategy, policy):
@@ -204,10 +202,6 @@ def build_small_settings(configuration_name, **changed_epoch_training_fields):
             participant,
             run_client_settings=replace(
                 client,
-                candidate_model_training_and_acceptance_settings=replace(
-                    client.candidate_model_training_and_acceptance_settings,
-                    candidate_model_acceptance_policy=WITHOUT_VALIDATION,
-                ),
                 candidate_epoch_training_settings=replace(
                     client.candidate_epoch_training_settings, **changed_epoch_training_fields
                 ),
@@ -243,19 +237,15 @@ def test_independent_models_give_the_same_run_with_either_value():
         assert np.array_equal(column, fixed_tables[name], equal_nan=column.dtype.kind == "f"), name
 
 
+# 候補検証ありの方針（共有部の固定と組み合わせられなかった）は、基準版15のspecで消した。共有部の2つの方針は、どちらも組み立てられる。
 @pytest.mark.parametrize(
-    "acceptance_policy,shared_feature_policy,accepted",
-    [
-        (VALIDATION, UPDATE, True),
-        (VALIDATION, FIXED, False),
-        (WITHOUT_VALIDATION, UPDATE, True),
-        (WITHOUT_VALIDATION, FIXED, True),
-    ],
+    "shared_feature_policy,accepted",
+    [(UPDATE, True), (FIXED, True)],
 )
-def test_candidate_validation_cannot_be_combined_with_fixed_shared_features(
-    acceptance_policy, shared_feature_policy, accepted
+def test_both_shared_feature_policies_build_without_candidate_validation(
+    shared_feature_policy, accepted
 ):
-    """候補検証ありと、共有部の固定の組合せだけを、run設定の組立てで拒否する。"""
+    """候補検証を消した後は、共有部の更新と固定のどちらも、run設定として組み立てられる。"""
     settings = build_experiment_run_settings(
         configuration_name="fedsda",
         experiment_run_conditions=ExperimentRunConditions(
@@ -271,10 +261,6 @@ def test_candidate_validation_cannot_be_combined_with_fixed_shared_features(
     def build():
         return replace(
             client,
-            candidate_model_training_and_acceptance_settings=replace(
-                client.candidate_model_training_and_acceptance_settings,
-                candidate_model_acceptance_policy=acceptance_policy,
-            ),
             candidate_epoch_training_settings=replace(
                 client.candidate_epoch_training_settings,
                 candidate_shared_feature_update_policy=shared_feature_policy,

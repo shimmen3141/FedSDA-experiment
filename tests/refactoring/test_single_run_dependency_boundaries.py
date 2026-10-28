@@ -8,89 +8,6 @@ from pathlib import Path
 import pytest
 
 
-# BEGIN held_candidate_validation_diagnostic_notification dependency contract
-@pytest.mark.parametrize(
-    "source_module_path,source_text,expected_acceptance",
-    [
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import AllSampleAdaHedgeWeightEvidenceHolder",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import AllSampleAdaHedgeWeightEvidenceHolder as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import restart_all_sample_adahedge_weight_evidence_after_training_assignment_change as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.prediction_combination.adahedge_weight_evidence import AdaHedgeWeightEvidence",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.alarm_occurrence_handling import handle_alarm_occurrence",
-            False,
-        ),
-    ],
-)
-def test_held_candidate_validation_diagnostic_notification_dependency_contract(
-    source_module_path, source_text, expected_acceptance
-):
-    dependency_boundary_violations = collect_dependency_boundary_violations(
-        source_module_path=source_module_path, source_text=source_text
-    )
-    assert (not dependency_boundary_violations) == expected_acceptance
-
-
-# END held_candidate_validation_diagnostic_notification dependency contract
-
-
 # BEGIN alarm_occurrence_handling dependency contract
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_acceptance",
@@ -465,31 +382,6 @@ def test_held_candidate_validation_diagnostic_notification_dependency_contract(
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            True,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import _private",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import *",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
             "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import CandidateParameterInitializationSettings",
             True,
         ),
@@ -665,56 +557,6 @@ def test_held_candidate_validation_diagnostic_notification_dependency_contract(
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.candidate_validation_session_holder import CandidateValidationSessionHolder",
-            True,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.candidate_validation_session_holder import CandidateValidationSessionHolder as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "import federated_learning_experiments.runtime.candidate_validation_session_holder",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.candidate_validation_session_holder import _private",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.candidate_validation_session_holder import *",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.held_candidate_validation_progress import apply_alarm_response_to_validation_session_holder",
-            True,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.held_candidate_validation_progress import apply_alarm_response_to_validation_session_holder as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "import federated_learning_experiments.runtime.held_candidate_validation_progress",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.held_candidate_validation_progress import _private",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.held_candidate_validation_progress import *",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
             "from federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart import restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
             True,
         ),
@@ -740,21 +582,6 @@ def test_held_candidate_validation_diagnostic_notification_dependency_contract(
         ),
         (
             "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.held_candidate_validation_progress import advance_held_candidate_validation",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.held_candidate_validation_progress import finalize_held_incomplete_candidate_validation",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import advance_post_alarm_candidate_validation",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
             "from federated_learning_experiments.runtime.alarm_buffer_response import AlarmBufferResponse",
             False,
         ),
@@ -766,11 +593,6 @@ def test_held_candidate_validation_diagnostic_notification_dependency_contract(
         (
             "runtime/alarm_occurrence_handling.py",
             "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
-            False,
-        ),
-        (
-            "runtime/alarm_occurrence_handling.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
             False,
         ),
         (
@@ -811,572 +633,6 @@ def test_alarm_occurrence_handling_dependency_contract(
 
 
 # BEGIN held_candidate_validation_progress dependency contract
-@pytest.mark.parametrize(
-    "source_module_path,source_text,expected_acceptance",
-    [
-        (
-            "runtime/candidate_validation_session_holder.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_session_holder.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_session_holder.py",
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_session_holder.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_session_holder.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import start_post_alarm_candidate_validation_session",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_session_holder.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_session_holder.py",
-            "from dataclasses import dataclass",
-            False,
-        ),
-        ("runtime/candidate_validation_session_holder.py", "import torch", False),
-        (
-            "runtime/candidate_validation_session_holder.py",
-            "from federated_drift_experiment import config",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from dataclasses import dataclass",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from dataclasses import dataclass as AcceptedDependency",
-            True,
-        ),
-        ("runtime/held_candidate_validation_progress.py", "import dataclasses", False),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from dataclasses import _private",
-            False,
-        ),
-        ("runtime/held_candidate_validation_progress.py", "from dataclasses import *", False),
-        ("runtime/held_candidate_validation_progress.py", "from torch import Tensor", True),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from torch import Tensor as AcceptedDependency",
-            True,
-        ),
-        ("runtime/held_candidate_validation_progress.py", "import torch", False),
-        ("runtime/held_candidate_validation_progress.py", "from torch import _private", False),
-        ("runtime/held_candidate_validation_progress.py", "from torch import *", False),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecord",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecord as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.evaluation.adaptation_record_store",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.evaluation.adaptation_record_store",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.learning.training.current_training_model_assignment",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.learning.training.held_model_training_state_registry",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.learning.training.model_training_and_assignment_counts",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.learning.training.model_training_sample_store",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.model_training_sample_store import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.model_training_sample_store import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.temporary_model_id_allocation import TemporaryModelIdAllocator",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.temporary_model_id_allocation import TemporaryModelIdAllocator as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.learning.training.temporary_model_id_allocation",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.temporary_model_id_allocation import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.learning.training.temporary_model_id_allocation import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUploadState",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUploadState as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.alarm_buffer_response import AlarmBufferResponse",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.alarm_buffer_response import AlarmBufferResponse as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.alarm_buffer_response",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.alarm_buffer_response import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.alarm_buffer_response import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_adaptation_recording import record_completed_candidate_validation",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_adaptation_recording import record_completed_candidate_validation as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.candidate_validation_adaptation_recording",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_adaptation_recording import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_adaptation_recording import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_adaptation_recording import record_incomplete_candidate_validation_finalization",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_adaptation_recording import record_incomplete_candidate_validation_finalization as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.candidate_validation_adaptation_recording",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_adaptation_recording import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_adaptation_recording import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_session_holder import CandidateValidationSessionHolder",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_session_holder import CandidateValidationSessionHolder as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.candidate_validation_session_holder",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_session_holder import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.candidate_validation_session_holder import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import IncompletePostAlarmCandidateValidationFinalization",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import IncompletePostAlarmCandidateValidationFinalization as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import finalize_incomplete_post_alarm_candidate_validation",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import finalize_incomplete_post_alarm_candidate_validation as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import PostAlarmCandidateValidationProgress",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import PostAlarmCandidateValidationProgress as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_progress",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import advance_post_alarm_candidate_validation",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import advance_post_alarm_candidate_validation as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_progress",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import _private",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import *",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.alarm_buffer_response import respond_to_alarm_with_buffered_samples",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.alarm_response_completion import complete_alarm_buffer_response",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.alarm_adaptation_recording import record_completed_alarm_response",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
-            False,
-        ),
-        ("runtime/held_candidate_validation_progress.py", "from torch import no_grad", False),
-        ("runtime/held_candidate_validation_progress.py", "import os", False),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_drift_experiment import config",
-            False,
-        ),
-        (
-            "runtime/held_candidate_validation_progress.py",
-            "from federated_learning_experiments.runtime import candidate_validation_session_holder",
-            False,
-        ),
-    ],
-)
-def test_held_candidate_validation_progress_dependency_contract(
-    source_module_path, source_text, expected_acceptance
-):
-    dependency_boundary_violations = collect_dependency_boundary_violations(
-        source_module_path=source_module_path, source_text=source_text
-    )
-    assert (not dependency_boundary_violations) == expected_acceptance
 
 
 # END held_candidate_validation_progress dependency contract
@@ -1386,328 +642,10 @@ def test_held_candidate_validation_progress_dependency_contract(
 @pytest.mark.parametrize(
     "source_module_path,source_text,expected_acceptance",
     [
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationOutcome",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationOutcome as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.evaluation.adaptation_record_store",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.evaluation.adaptation_record_store.AdaptationOutcome",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecord",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecord as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.evaluation.adaptation_record_store",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.evaluation.adaptation_record_store",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import _private",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.learning.training.current_training_model_assignment",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import _private",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import IncompletePostAlarmCandidateValidationDecisionRecord",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import IncompletePostAlarmCandidateValidationDecisionRecord as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import _private",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import PostAlarmCandidateValidationDecisionRecord",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import PostAlarmCandidateValidationDecisionRecord as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import _private",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import IncompletePostAlarmCandidateValidationFinalization",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import IncompletePostAlarmCandidateValidationFinalization as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization.IncompletePostAlarmCandidateValidationFinalization",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import _private",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import PostAlarmCandidateValidationCompletion",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import PostAlarmCandidateValidationCompletion as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_progress",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.PostAlarmCandidateValidationCompletion",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import _private",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import PostAlarmCandidateValidationResolution",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import PostAlarmCandidateValidationResolution as AcceptedDependency",
-            True,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution.PostAlarmCandidateValidationResolution",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import _private",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import *",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import advance_post_alarm_candidate_validation",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import finalize_incomplete_post_alarm_candidate_validation",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.evaluation.adaptation_record_store import AdaptationRecordSnapshot",
-            False,
-        ),
-        ("runtime/candidate_validation_adaptation_recording.py", "from typing import cast", False),
-        ("runtime/candidate_validation_adaptation_recording.py", "import torch", False),
-        ("runtime/candidate_validation_adaptation_recording.py", "import os", False),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_drift_experiment import config",
-            False,
-        ),
-        (
-            "runtime/candidate_validation_adaptation_recording.py",
-            "from federated_learning_experiments.runtime import alarm_adaptation_recording",
-            False,
-        ),
         ("evaluation/adaptation_record_store.py", "from typing import get_args", True),
         ("evaluation/adaptation_record_store.py", "from typing import Literal, get_args", True),
         ("evaluation/adaptation_record_store.py", "from typing import cast", False),
         ("evaluation/adaptation_record_store.py", "import typing", False),
-        (
-            "evaluation/adaptation_record_store.py",
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import PostAlarmCandidateValidationCompletion",
-            False,
-        ),
     ],
 )
 def test_candidate_validation_adaptation_recording_dependency_contract(
@@ -2480,46 +1418,6 @@ def test_alarm_response_completion_dependency_contract(source_text, expected_acc
             True,
         ),
         (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import _private",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.child import CandidateModelTrainingAndAcceptanceSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import field",
-            False,
-        ),
-        (
-            "from ..methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            True,
-        ),
-        (
             "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings import CandidateParameterInitializationSettings",
             True,
         ),
@@ -2792,11 +1690,11 @@ def test_alarm_response_completion_dependency_contract(source_text, expected_acc
         ),
         (
             "from federated_learning_experiments.runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
-            True,
+            False,
         ),
         (
             "from federated_learning_experiments.runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model as AcceptedDependency",
-            True,
+            False,
         ),
         (
             "import federated_learning_experiments.runtime.assigned_training_sample_absorption",
@@ -2828,47 +1726,7 @@ def test_alarm_response_completion_dependency_contract(source_text, expected_acc
         ),
         (
             "from ..runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start",
             False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import _private",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.child import PostAlarmCandidateValidationSession",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import field",
-            False,
-        ),
-        (
-            "from ..runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
-            True,
         ),
         ("import os", False),
         ("import numpy", False),
@@ -3880,13 +2738,10 @@ def test_alarm_training_interval_preparation_dependency_contract(
                 "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
                 "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
                 "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
-                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
                 "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization.select_candidate_initial_parameter_snapshot",
                 "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
                 "federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment.evaluate_held_models_for_alarm_interval_reuse",
                 "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
-                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.start_post_alarm_candidate_validation_session",
             )
             for source_text, expected_acceptance in (
                 (
@@ -3925,13 +2780,10 @@ def test_alarm_training_interval_preparation_dependency_contract(
                 "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
                 "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
                 "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
-                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
                 "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization.select_candidate_initial_parameter_snapshot",
                 "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
                 "federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment.evaluate_held_models_for_alarm_interval_reuse",
                 "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
-                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.start_post_alarm_candidate_validation_session",
             )
             for source_text, expected_acceptance in (
                 (
@@ -3989,31 +2841,11 @@ def test_alarm_training_interval_preparation_dependency_contract(
             False,
         ),
         (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import _validate_post_alarm_candidate_validation_start_inputs",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import advance_post_alarm_candidate_validation",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization import finalize_incomplete_post_alarm_candidate_validation",
-            False,
-        ),
-        (
             "from federated_learning_experiments.runtime.adopted_candidate_local_adoption import adopt_candidate_as_current_training_model",
             True,
         ),
         (
             "from federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment import assess_alarm_interval_model_reuse",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
             False,
         ),
         (
@@ -4142,10 +2974,6 @@ def test_alarm_change_interval_resolution_dependency_contract(source_text, expec
             False,
         ),
         (
-            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_post_alarm_reference_historical_mean_loss",
-            False,
-        ),
-        (
             "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_loss_monitoring_baseline_mean_loss",
             False,
         ),
@@ -4154,15 +2982,7 @@ def test_alarm_change_interval_resolution_dependency_contract(source_text, expec
             False,
         ),
         (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
-            False,
-        ),
-        (
             "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
-            False,
-        ),
-        (
-            "from .post_alarm_candidate_validation_session_start import start_post_alarm_candidate_validation_session",
             False,
         ),
         (
@@ -4218,10 +3038,6 @@ def test_alarm_interval_reuse_evaluation_dependency_contract(source_text, expect
             False,
         ),
         (
-            "from .post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
-            False,
-        ),
-        (
             "from .candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
             False,
         ),
@@ -4242,150 +3058,6 @@ def test_alarm_interval_reuse_evaluation_dependency_contract(source_text, expect
 def test_alarm_interval_reuse_assessment_dependency_contract(source_text, expected_acceptance):
     dependency_boundary_violations = collect_dependency_boundary_violations(
         source_module_path="methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
-        source_text=source_text,
-    )
-    assert (not dependency_boundary_violations) == expected_acceptance
-
-
-@pytest.mark.parametrize(
-    "source_text,expected_acceptance",
-    [
-        *[
-            (source_text, expected_acceptance)
-            for imported_module_name in (
-                "dataclasses.dataclass",
-                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-                "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-                "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
-                "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
-                "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
-                "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
-                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-                "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
-            )
-            for source_text, expected_acceptance in (
-                (
-                    f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]}",
-                    True,
-                ),
-                (
-                    f"from {imported_module_name.rsplit('.', 1)[0]} import {imported_module_name.rsplit('.', 1)[1]} as AcceptedDependency",
-                    True,
-                ),
-                (f"import {imported_module_name.rsplit('.', 1)[0]}", False),
-                (f"import {imported_module_name.rsplit('.', 1)[0]} as AcceptedDependency", False),
-                (f"import {imported_module_name}", False),
-                (f"import {imported_module_name} as AcceptedDependency", False),
-                (f"from {imported_module_name.rsplit('.', 1)[0]} import _private", False),
-                (
-                    f"from {imported_module_name.rsplit('.', 1)[0]}.child import {imported_module_name.rsplit('.', 1)[1]}",
-                    False,
-                ),
-                (f"from {imported_module_name.rsplit('.', 1)[0]} import field", False),
-            )
-        ],
-        *[
-            (source_text, expected_acceptance)
-            for imported_module_name in (
-                "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-                "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-                "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
-                "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
-                "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
-                "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
-                "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-                "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
-            )
-            for source_text, expected_acceptance in (
-                (
-                    f"from {imported_module_name.rsplit('.', 1)[0].replace('federated_learning_experiments.runtime.', '.').replace('federated_learning_experiments.', '..')} import {imported_module_name.rsplit('.', 1)[1]}",
-                    True,
-                ),
-                (
-                    f"from {imported_module_name.rsplit('.', 2)[0]} import {imported_module_name.rsplit('.', 2)[1]}",
-                    False,
-                ),
-            )
-        ],
-        ("from math import isfinite", False),
-        ("from random import Random", False),
-        ("from torch import Tensor", False),
-        ("from __future__ import annotations", False),
-        (
-            "from federated_learning_experiments.configuration.run_settings import RunSettings",
-            False,
-        ),
-        ("from federated_drift_experiment import config", False),
-        (
-            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
-            False,
-        ),
-        (
-            "from .candidate_classifier_construction import create_independent_candidate_training_state",
-            False,
-        ),
-        (
-            "from .post_alarm_candidate_validation_progress import progress_post_alarm_candidate_validation",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.loss_change_detection.detection_episode import DetectionEpisodeController",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training import HeldModelTrainingStateRegistry",
-            False,
-        ),
-    ],
-)
-def test_incomplete_validation_finalization_dependency_contract(source_text, expected_acceptance):
-    dependency_boundary_violations = collect_dependency_boundary_violations(
-        source_module_path="runtime/incomplete_post_alarm_candidate_validation_finalization.py",
-        source_text=source_text,
-    )
-    assert (not dependency_boundary_violations) == expected_acceptance
-
-
-@pytest.mark.parametrize(
-    "source_text,expected_acceptance",
-    [
-        ("from dataclasses import dataclass", True),
-        ("from dataclasses import dataclass as AcceptedDependency", True),
-        ("import dataclasses", False),
-        ("import dataclasses as AcceptedDependency", False),
-        ("import dataclasses.dataclass", False),
-        ("import dataclasses.dataclass as AcceptedDependency", False),
-        ("from dataclasses import field", False),
-        ("from dataclasses import _private", False),
-        ("from dataclasses.child import dataclass", False),
-        ("from math import isfinite", False),
-        ("from random import Random", False),
-        ("from torch import Tensor", False),
-        ("from __future__ import annotations", False),
-        ("from federated_drift_experiment import config", False),
-        (
-            "from ....runtime.incomplete_post_alarm_candidate_validation_finalization import IncompletePostAlarmCandidateValidationFinalization",
-            False,
-        ),
-        (
-            "from .post_alarm_candidate_loss_evaluation import PostAlarmCandidateLossEvaluation",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection import dataclass",
-            False,
-        ),
-    ],
-)
-def test_incomplete_validation_decision_record_dependency_contract(
-    source_text, expected_acceptance
-):
-    dependency_boundary_violations = collect_dependency_boundary_violations(
-        source_module_path="methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
         source_text=source_text,
     )
     assert (not dependency_boundary_violations) == expected_acceptance
@@ -5426,14 +4098,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
             "federated_learning_experiments.runtime.held_model_registration_confirmation.confirm_held_model_registration",
         )
-    if (
-        source_module_path
-        == "methods/fedsda/candidate_model_selection/candidate_validation_decision_record_store.py"
-    ):
-        return imported_module_name in (
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
-        )
     if source_module_path == "methods/fedsda/consolidation/model_clustering_calculations.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -5694,11 +4358,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "numpy.int64",
             "numpy.ndarray",
             "numpy.str_",
-            "federated_learning_experiments.evaluation.change_response_metric_calculations.match_events_to_concept_changes",
-            "federated_learning_experiments.evaluation.run_metric_calculations.extract_concept_change_sample_indices",
             "federated_learning_experiments.learning.models.model_computation_measurement.ModelComputationCounts",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
             "federated_learning_experiments.runtime.fedsda_change_response_metric_derivation.ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME",
             "federated_learning_experiments.runtime.fedsda_experiment_run.FedsdaExperimentRun",
             "federated_learning_experiments.runtime.fedsda_model_diagnostic_metric_derivation.collect_client_held_model_training_amounts",
@@ -5945,15 +4605,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         return imported_module_name in (
             "dataclasses.dataclass",
             "math.isfinite",
-            "typing.cast",
             "federated_learning_experiments.evaluation.change_response_metric_calculations.UnmatchedEventCounts",
             "federated_learning_experiments.evaluation.change_response_metric_calculations.calculate_change_point_estimation_errors",
             "federated_learning_experiments.evaluation.change_response_metric_calculations.count_unmatched_events_by_timing",
             "federated_learning_experiments.evaluation.change_response_metric_calculations.match_events_to_concept_changes",
             "federated_learning_experiments.evaluation.run_metric_calculations.DetectionMetrics",
             "federated_learning_experiments.evaluation.run_metric_calculations.calculate_detection_metrics",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
             "federated_learning_experiments.runtime.fedsda_run_client.FedsdaRunClient",
         )
     if source_module_path == "runtime/fedsda_run_settings.py":
@@ -5982,7 +4639,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.local_training_schedule_settings.LocalTrainingScheduleSettings",
             "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
             "federated_learning_experiments.methods.fedsda.consolidation.model_clustering_calculations.ModelClusteringCriteria",
             "federated_learning_experiments.methods.fedsda.consolidation.model_consolidation_settings.ModelConsolidationSettings",
@@ -6264,7 +4920,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.training_data_assignment.alarm_interval_assignment_selection_record_store.AlarmIntervalAssignmentSelectionRecordStore",
             "federated_learning_experiments.evaluation.held_model_count_record_store.HeldModelCountRecordStore",
             "federated_learning_experiments.evaluation.loss_monitoring_computation_count_store.LossMonitoringComputationCountStore",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_validation_decision_record_store.CandidateValidationDecisionRecordStore",
             "copy.deepcopy",
             "dataclasses.dataclass",
             "random.Random",
@@ -6299,14 +4954,11 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.prediction_combination.synchronized_and_local_prediction_mixture.SynchronizedAndLocalPredictionMixture",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_sample_observation_store.PendingSampleObservationStore",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
-            "federated_learning_experiments.runtime.candidate_validation_session_holder.CandidateValidationSessionHolder",
             "federated_learning_experiments.runtime.client_model_cross_evaluation.ClientModelCrossEvaluation",
             "federated_learning_experiments.runtime.client_model_cross_evaluation.evaluate_candidate_model_on_target_model_samples",
             "federated_learning_experiments.runtime.fedsda_run_client_settings.FedsdaRunClientSettings",
             "federated_learning_experiments.runtime.global_model_distribution_application.GlobalModelDistributionApplication",
             "federated_learning_experiments.runtime.global_model_distribution_application.apply_global_model_distribution",
-            "federated_learning_experiments.runtime.held_candidate_validation_progress.HeldIncompleteCandidateValidationFinalization",
-            "federated_learning_experiments.runtime.held_candidate_validation_progress.finalize_held_incomplete_candidate_validation",
             "federated_learning_experiments.runtime.held_model_training_request_handling.train_held_models_for_pending_training_requests",
             "federated_learning_experiments.runtime.observed_sample_processing.ObservedSampleProcessing",
             "federated_learning_experiments.runtime.observed_sample_processing.process_observed_sample",
@@ -6327,7 +4979,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.local_training_settings.LocalTrainingSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings.LossChangeDetectionSettings",
             "federated_learning_experiments.methods.fedsda.prediction_combination.prediction_combination_settings.PredictionCombinationSettings",
@@ -6410,7 +5061,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.LossMonitoringObservation",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor",
@@ -6422,9 +5072,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
             "federated_learning_experiments.runtime.alarm_occurrence_handling.AlarmOccurrenceHandling",
             "federated_learning_experiments.runtime.alarm_occurrence_handling.handle_alarm_occurrence",
-            "federated_learning_experiments.runtime.candidate_validation_session_holder.CandidateValidationSessionHolder",
-            "federated_learning_experiments.runtime.held_candidate_validation_progress.HeldCandidateValidationAdvance",
-            "federated_learning_experiments.runtime.held_candidate_validation_progress.advance_held_candidate_validation",
             "federated_learning_experiments.runtime.held_model_training_request_handling.record_training_request_and_train_held_models_when_due",
             "federated_learning_experiments.runtime.held_model_training_request_handling.train_held_models_for_pending_training_requests",
             "federated_learning_experiments.runtime.observed_sample_prediction.ObservedSamplePrediction",
@@ -6453,7 +5100,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
             "federated_learning_experiments.methods.fedsda.loss_change_detection.overall_and_true_class_loss_monitoring.OverallAndTrueClassLossMonitor",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
@@ -6462,50 +5108,7 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.alarm_buffer_response.respond_to_alarm_with_buffered_samples",
             "federated_learning_experiments.runtime.alarm_response_completion.AlarmResponseCompletion",
             "federated_learning_experiments.runtime.alarm_response_completion.complete_alarm_buffer_response",
-            "federated_learning_experiments.runtime.candidate_validation_session_holder.CandidateValidationSessionHolder",
-            "federated_learning_experiments.runtime.held_candidate_validation_progress.apply_alarm_response_to_validation_session_holder",
             "federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart.restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
-        )
-    if source_module_path == "runtime/candidate_validation_session_holder.py":
-        return imported_module_name in (
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-        )
-    if source_module_path == "runtime/held_candidate_validation_progress.py":
-        return imported_module_name in (
-            "dataclasses.dataclass",
-            "torch.Tensor",
-            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
-            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
-            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
-            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
-            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
-            "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
-            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
-            "federated_learning_experiments.runtime.alarm_buffer_response.AlarmBufferResponse",
-            "federated_learning_experiments.runtime.candidate_validation_adaptation_recording.record_completed_candidate_validation",
-            "federated_learning_experiments.runtime.candidate_validation_adaptation_recording.record_incomplete_candidate_validation_finalization",
-            "federated_learning_experiments.runtime.candidate_validation_session_holder.CandidateValidationSessionHolder",
-            "federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization.IncompletePostAlarmCandidateValidationFinalization",
-            "federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization.finalize_incomplete_post_alarm_candidate_validation",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.PostAlarmCandidateValidationProgress",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.advance_post_alarm_candidate_validation",
-            "federated_learning_experiments.methods.fedsda.prediction_combination.all_sample_adahedge_weight_evidence_holder.AllSampleAdaHedgeWeightEvidenceHolder",
-            "federated_learning_experiments.runtime.training_assignment_all_sample_adahedge_weight_evidence_restart.restart_all_sample_adahedge_weight_evidence_after_training_assignment_change",
-        )
-    if source_module_path == "runtime/candidate_validation_adaptation_recording.py":
-        return imported_module_name in (
-            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationOutcome",
-            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecord",
-            "federated_learning_experiments.evaluation.adaptation_record_store.AdaptationRecordStore",
-            "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
-            "federated_learning_experiments.runtime.incomplete_post_alarm_candidate_validation_finalization.IncompletePostAlarmCandidateValidationFinalization",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_progress.PostAlarmCandidateValidationCompletion",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution.PostAlarmCandidateValidationResolution",
         )
     if source_module_path == "runtime/alarm_adaptation_recording.py":
         return imported_module_name in (
@@ -6574,7 +5177,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
             "federated_learning_experiments.methods.fedsda.training_data_assignment.pending_training_assignment_buffer.PendingTrainingAssignmentBuffer",
@@ -6583,8 +5185,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.runtime.alarm_change_interval_resolution.AlarmChangeIntervalResolution",
             "federated_learning_experiments.runtime.alarm_change_interval_resolution.resolve_alarm_change_interval",
             "federated_learning_experiments.runtime.alarm_training_interval_preparation.prepare_alarm_training_intervals",
-            "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
         )
     if source_module_path == "runtime/alarm_change_interval_resolution.py":
         return imported_module_name in (
@@ -6608,15 +5208,12 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.alarm_interval_model_reuse_assessment.AlarmIntervalModelReuseAssessment",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization.select_candidate_initial_parameter_snapshot",
             "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization_settings.CandidateParameterInitializationSettings",
             "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
             "federated_learning_experiments.runtime.adopted_candidate_local_adoption.adopt_candidate_as_current_training_model",
             "federated_learning_experiments.runtime.alarm_interval_model_reuse_assessment.evaluate_held_models_for_alarm_interval_reuse",
             "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.start_post_alarm_candidate_validation_session",
             "federated_learning_experiments.runtime.alarm_interval_candidate_training.train_candidate_on_alarm_change_interval",
         )
     if source_module_path == "runtime/alarm_interval_model_reuse_assessment.py":
@@ -6638,70 +5235,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "dataclasses.dataclass",
             "math.isfinite",
         )
-    if source_module_path == "runtime/incomplete_post_alarm_candidate_validation_finalization.py":
-        return imported_module_name in (
-            "dataclasses.dataclass",
-            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
-            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
-            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.incomplete_post_alarm_candidate_validation_decision_record.IncompletePostAlarmCandidateValidationDecisionRecord",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-            "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
-        )
-    if source_module_path == (
-        "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py"
-    ):
-        return imported_module_name == "dataclasses.dataclass"
-    if source_module_path == "runtime/post_alarm_candidate_validation_progress.py":
-        return imported_module_name in (
-            "dataclasses.dataclass",
-            "math.isfinite",
-            "torch.Tensor",
-            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
-            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
-            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
-            "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation.evaluate_candidate_using_post_alarm_losses",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
-            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution.PostAlarmCandidateValidationResolution",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution.apply_post_alarm_candidate_validation_resolution",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation.observe_post_alarm_candidate_validation_sample",
-            "federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-        )
-    if (
-        source_module_path
-        == "methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py"
-    ):
-        return imported_module_name in (
-            "dataclasses.dataclass",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation.PostAlarmCandidateLossEvaluation",
-        )
-    if source_module_path == "runtime/post_alarm_candidate_validation_session_start.py":
-        return imported_module_name in (
-            "dataclasses.dataclass",
-            "torch.Tensor",
-            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
-            "federated_learning_experiments.learning.training.candidate_epoch_training.CandidateEpochTrainingResult",
-            "federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
-            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
-            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
-            "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
-            "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection.PostAlarmCandidateLossCollection",
-            "federated_learning_experiments.runtime.alarm_interval_candidate_training.train_candidate_on_alarm_change_interval",
-            "federated_learning_experiments.runtime.candidate_classifier_construction.IndependentCandidateTrainingState",
-            "federated_learning_experiments.runtime.post_alarm_reference_model_fixation.FixedPostAlarmReferenceModels",
-            "federated_learning_experiments.runtime.post_alarm_reference_model_fixation.fix_reference_models_at_alarm",
-        )
     if source_module_path == "runtime/alarm_interval_candidate_training.py":
         return imported_module_name in (
             "dataclasses.dataclass",
@@ -6721,7 +5254,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
             "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
             "federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
             "federated_learning_experiments.runtime.candidate_classifier_construction.IndependentCandidateTrainingState",
             "federated_learning_experiments.runtime.candidate_classifier_construction.create_independent_candidate_training_state",
         )
@@ -6771,44 +5303,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if source_module_path == "learning/training/temporary_model_id_allocation.py":
         return imported_module_name == "__future__.annotations"
-    if source_module_path == "runtime/post_alarm_reference_model_fixation.py":
-        return imported_module_name in (
-            "__future__.annotations",
-            "dataclasses.dataclass",
-            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
-            "federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection.select_post_alarm_reference_historical_mean_loss",
-        )
-    if source_module_path == "runtime/post_alarm_candidate_validation_sample_observation.py":
-        return imported_module_name in (
-            "__future__.annotations",
-            "torch.Tensor",
-            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
-            "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.evaluate_classifier_per_sample_bounded_losses",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection.PostAlarmCandidateLossCollection",
-        )
-    if source_module_path == "runtime/post_alarm_candidate_validation_resolution.py":
-        return imported_module_name in (
-            "__future__.annotations",
-            "dataclasses.dataclass",
-            "torch.Tensor",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation.PostAlarmCandidateLossEvaluation",
-            "federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
-            "federated_learning_experiments.learning.training.parameter_optimizer_state.ParameterOptimizerState",
-            "federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-            "federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            "federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
-            "federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
-            "federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
-            "federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
-            "federated_learning_experiments.learning.training.current_training_model_assignment.TrainingModelAssignmentChange",
-            "federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
-            "federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
-            "federated_learning_experiments.runtime.adopted_candidate_local_adoption.adopt_candidate_as_current_training_model",
-            "federated_learning_experiments.runtime.assigned_training_sample_absorption.absorb_assigned_training_samples_into_held_model",
-        )
     if source_module_path == "runtime/assigned_training_sample_absorption.py":
         return imported_module_name in (
             "federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation.validate_classifier_bounded_loss_inputs",
@@ -7313,15 +5807,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
         )
     if (
         source_module_path
-        == "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py"
-    ):
-        # 収集状態は同機能設定だけを参照し、数値評価へ依存しない。
-        return imported_module_name in (
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
-        )
-    if (
-        source_module_path
         == "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py"
     ):
         # 保留位置FIFOは同機能の容量条件だけを参照する。
@@ -7335,20 +5820,6 @@ def dependency_is_allowed(*, source_module_path, imported_module_name):
     if source_module_path == "methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py":
         # 単系列の数値検出器だけにNumPyを許可する。
         return imported_module_name == "numpy" or imported_module_name.startswith("numpy.")
-    if (
-        source_module_path
-        == "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py"
-    ):
-        # 候補loss評価だけにtorchと同機能の固定条件を許可する。
-        return (
-            imported_module_name == "torch"
-            or imported_module_name.startswith("torch.")
-            or imported_module_name
-            == "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings"
-            or imported_module_name.startswith(
-                "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings."
-            )
-        )
     if source_module_path in (
         "learning/models/torch_random_state_scope.py",
         "learning/prediction/class_probability_calculations.py",
@@ -7485,9 +5956,6 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "methods/fedsda/prediction_combination/adahedge_weight_evidence.py",
             "evaluation/adaptation_record_store.py",
             "runtime/alarm_adaptation_recording.py",
-            "runtime/candidate_validation_adaptation_recording.py",
-            "runtime/candidate_validation_session_holder.py",
-            "runtime/held_candidate_validation_progress.py",
             "runtime/alarm_occurrence_handling.py",
             "methods/fedsda/training_data_assignment/pending_sample_observation_store.py",
             "evaluation/loss_change_alarm_record_store.py",
@@ -7544,7 +6012,6 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "learning/models/model_computation_measurement.py",
             "methods/fedsda/model_registration/global_model_repository.py",
             "methods/fedsda/consolidation/model_clustering_calculations.py",
-            "methods/fedsda/candidate_model_selection/candidate_validation_decision_record_store.py",
             "runtime/server_model_registration_and_aggregation.py",
             "learning/training/shared_parameter_optimizer_state_holder.py",
             "runtime/held_model_training_request_handling.py",
@@ -7566,15 +6033,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
             "learning/training/temporary_model_id_allocation.py",
             "runtime/adopted_candidate_local_adoption.py",
             "runtime/assigned_training_sample_absorption.py",
-            "runtime/post_alarm_candidate_validation_resolution.py",
-            "runtime/post_alarm_candidate_validation_sample_observation.py",
-            "runtime/post_alarm_reference_model_fixation.py",
-            "runtime/post_alarm_candidate_validation_session_start.py",
             "runtime/alarm_interval_candidate_training.py",
-            "runtime/post_alarm_candidate_validation_progress.py",
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
-            "runtime/incomplete_post_alarm_candidate_validation_finalization.py",
-            "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
             "runtime/alarm_interval_model_reuse_assessment.py",
             "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
             "learning/training/indexed_observed_training_sample.py",
@@ -7615,9 +6074,6 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "methods/fedsda/prediction_combination/adahedge_weight_evidence.py",
                     "evaluation/adaptation_record_store.py",
                     "runtime/alarm_adaptation_recording.py",
-                    "runtime/candidate_validation_adaptation_recording.py",
-                    "runtime/candidate_validation_session_holder.py",
-                    "runtime/held_candidate_validation_progress.py",
                     "runtime/alarm_occurrence_handling.py",
                     "methods/fedsda/training_data_assignment/pending_sample_observation_store.py",
                     "evaluation/loss_change_alarm_record_store.py",
@@ -7674,7 +6130,6 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "learning/models/model_computation_measurement.py",
                     "methods/fedsda/model_registration/global_model_repository.py",
                     "methods/fedsda/consolidation/model_clustering_calculations.py",
-                    "methods/fedsda/candidate_model_selection/candidate_validation_decision_record_store.py",
                     "runtime/server_model_registration_and_aggregation.py",
                     "learning/training/shared_parameter_optimizer_state_holder.py",
                     "runtime/held_model_training_request_handling.py",
@@ -7696,15 +6151,7 @@ def collect_dependency_boundary_violations(*, source_module_path, source_text):
                     "learning/training/temporary_model_id_allocation.py",
                     "runtime/adopted_candidate_local_adoption.py",
                     "runtime/assigned_training_sample_absorption.py",
-                    "runtime/post_alarm_candidate_validation_resolution.py",
-                    "runtime/post_alarm_candidate_validation_sample_observation.py",
-                    "runtime/post_alarm_reference_model_fixation.py",
-                    "runtime/post_alarm_candidate_validation_session_start.py",
                     "runtime/alarm_interval_candidate_training.py",
-                    "runtime/post_alarm_candidate_validation_progress.py",
-                    "methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
-                    "runtime/incomplete_post_alarm_candidate_validation_finalization.py",
-                    "methods/fedsda/candidate_model_selection/incomplete_post_alarm_candidate_validation_decision_record.py",
                     "runtime/alarm_interval_model_reuse_assessment.py",
                     "methods/fedsda/candidate_model_selection/alarm_interval_model_reuse_assessment.py",
                     "learning/training/indexed_observed_training_sample.py",
@@ -7897,10 +6344,6 @@ def test_held_model_registration_confirmation_exact_dependency_contract(
         ),
         (
             "from federated_learning_experiments.runtime.held_model_registration_confirmation import confirm_held_model_registration",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_post_alarm_candidate_losses",
             False,
         ),
         (
@@ -8199,10 +6642,6 @@ def test_temporary_model_id_allocation_rejects_every_import_except_annotations(
             False,
         ),
         (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_post_alarm_candidate_losses",
-            False,
-        ),
-        (
             "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUpload",
             False,
         ),
@@ -8440,477 +6879,6 @@ def test_assigned_training_sample_absorption_exact_dependency_contract(
 @pytest.mark.parametrize(
     "source_text,expected_acceptance",
     [
-        (
-            "import torch",
-            False,
-        ),
-        (
-            "from torch import float32",
-            False,
-        ),
-        (
-            "import numpy",
-            False,
-        ),
-        (
-            "import math",
-            False,
-        ),
-        (
-            "import random",
-            False,
-        ),
-        (
-            "from random import Random",
-            False,
-        ),
-        (
-            "import dataclasses",
-            False,
-        ),
-        (
-            "from dataclasses import field",
-            False,
-        ),
-        (
-            "import federated_drift_experiment",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.configuration.run_settings import RunSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import select_available_reference_within_historical_loss_tolerance",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollection",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights import FixedShareWeightController",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.adopted_candidate_initial_local_registration import register_adopted_candidate_as_temporary_held_model",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.held_model_registration_confirmation import confirm_held_model_registration",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.adopted_candidate_local_adoption import _validate_adoption_inputs",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.evaluation.model_evaluation_sample_store import ModelEvaluationSampleStore",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.adopted_candidate_local_adoption",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime import adopted_candidate_local_adoption",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import *",
-            False,
-        ),
-        (
-            "from dataclasses import dataclass",
-            True,
-        ),
-        (
-            "from torch import Tensor",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import PostAlarmCandidateLossEvaluation",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_state import ParameterOptimizerState",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import TrainingModelAssignmentChange",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.temporary_model_id_allocation import TemporaryModelIdAllocator",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUploadState",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.adopted_candidate_local_adoption import adopt_candidate_as_current_training_model",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
-            True,
-        ),
-        (
-            "from .adopted_candidate_local_adoption import adopt_candidate_as_current_training_model as adopt",
-            True,
-        ),
-        ("from __future__ import annotations", True),
-    ],
-)
-def test_post_alarm_candidate_validation_resolution_exact_dependency_contract(
-    source_text, expected_acceptance
-):
-    assert (
-        not collect_dependency_boundary_violations(
-            source_module_path="runtime/post_alarm_candidate_validation_resolution.py",
-            source_text=source_text,
-        )
-    ) == expected_acceptance
-
-
-@pytest.mark.parametrize(
-    "source_text,expected_acceptance",
-    [
-        (
-            "import torch",
-            False,
-        ),
-        (
-            "from torch import no_grad",
-            False,
-        ),
-        (
-            "from torch import float32",
-            False,
-        ),
-        (
-            "import numpy",
-            False,
-        ),
-        (
-            "import math",
-            False,
-        ),
-        (
-            "import random",
-            False,
-        ),
-        (
-            "from dataclasses import dataclass",
-            False,
-        ),
-        (
-            "import federated_drift_experiment",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.configuration.run_settings import RunSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollectionState",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import PostAlarmCandidateLossEvaluation",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.adopted_candidate_local_adoption import adopt_candidate_as_current_training_model",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.assigned_training_sample_absorption import absorb_assigned_training_samples_into_held_model",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.joint_model_parameter_update import perform_joint_model_parameter_update",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import _validate_classifier_bounded_loss_inputs",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.prediction import classifier_bounded_loss_evaluation",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import *",
-            False,
-        ),
-        (
-            "from torch import Tensor",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.prediction.classifier_bounded_loss_evaluation import evaluate_classifier_per_sample_bounded_losses",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollection",
-            True,
-        ),
-        (
-            "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier as Classifier",
-            True,
-        ),
-        ("from __future__ import annotations", True),
-    ],
-)
-def test_post_alarm_candidate_validation_sample_observation_exact_dependency_contract(
-    source_text, expected_acceptance
-):
-    assert (
-        not collect_dependency_boundary_violations(
-            source_module_path="runtime/post_alarm_candidate_validation_sample_observation.py",
-            source_text=source_text,
-        )
-    ) == expected_acceptance
-
-
-@pytest.mark.parametrize(
-    "source_text,expected_acceptance",
-    [
-        (
-            "import torch",
-            False,
-        ),
-        (
-            "from torch import Tensor",
-            False,
-        ),
-        (
-            "from torch import manual_seed",
-            False,
-        ),
-        (
-            "import numpy",
-            False,
-        ),
-        (
-            "import math",
-            False,
-        ),
-        (
-            "import random",
-            False,
-        ),
-        (
-            "import copy",
-            False,
-        ),
-        (
-            "from copy import deepcopy",
-            False,
-        ),
-        (
-            "import dataclasses",
-            False,
-        ),
-        (
-            "import federated_drift_experiment",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.configuration.run_settings import RunSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.torch_random_state_scope import isolated_cpu_torch_random_state",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.shared_feature_extractor import SharedFeatureExtractor",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.model_architecture_settings import ModelArchitectureSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_state import ParameterOptimizerState",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingState",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.adopted_candidate_shared_feature_integration import integrate_adopted_candidate_shared_features",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_loss_monitoring_baseline_mean_loss",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_alarm_interval_reuse_baseline_mean_loss",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollection",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import observe_post_alarm_candidate_validation_sample",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import _validate_classifier_parameter_snapshot_inputs",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.models.model_architecture_classifier",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models import ModelArchitectureClassifier",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import *",
-            False,
-        ),
-        (
-            "from dataclasses import dataclass",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import select_post_alarm_reference_historical_mean_loss",
-            True,
-        ),
-        (
-            "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier as Classifier",
-            True,
-        ),
-        ("from __future__ import annotations", True),
-    ],
-)
-def test_post_alarm_reference_model_fixation_exact_dependency_contract(
-    source_text, expected_acceptance
-):
-    assert (
-        not collect_dependency_boundary_violations(
-            source_module_path="runtime/post_alarm_reference_model_fixation.py",
-            source_text=source_text,
-        )
-    ) == expected_acceptance
-
-
-@pytest.mark.parametrize(
-    "source_text,expected_acceptance",
-    [
         ("import torch", False),
         ("import random", False),
         ("import math", False),
@@ -8921,7 +6889,6 @@ def test_post_alarm_reference_model_fixation_exact_dependency_contract(
         ("from torch.nn import Module", False),
         ("from __future__ import annotations", False),
         ("import federated_drift_experiment", False),
-        ("from .post_alarm_reference_model_fixation import fix_reference_models_at_alarm", False),
         (
             "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
             False,
@@ -9574,11 +7541,6 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ),
         (
             "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
-            "from .post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/candidate_parameter_initialization.py",
             "import federated_drift_experiment.config",
             "federated_drift_experiment.config",
         ),
@@ -9722,56 +7684,6 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ),
         ("learning/prediction/class_probability_calculations.py", "import numpy", "numpy"),
         (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "import numpy",
-            "numpy",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.internal",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "from .candidate_model_training_and_acceptance_settings import UnsupportedSettings",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.UnsupportedSettings",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "import torch",
-            "torch",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "import config",
-            "config",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "from federated_drift_experiment import provisional_model",
-            "federated_drift_experiment",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "from ....runtime import single_run_execution",
-            "federated_learning_experiments.runtime.single_run_execution",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "from . import post_alarm_candidate_loss_evaluation",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "from ..training_data_assignment import pending_training_assignment_buffer",
-            "federated_learning_experiments.methods.fedsda.training_data_assignment",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "from . import another_loss_collection",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection",
-        ),
-        (
             "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
             "import numpy",
             "numpy",
@@ -9823,36 +7735,6 @@ def test_single_run_layers_import_only_allowed_dependencies():
             "federated_learning_experiments.methods.fedsda.prediction_combination.fixed_share_weights",
         ),
         ("learning/prediction/another_prediction.py", "import torch", "torch"),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
-            "import numpy",
-            "numpy",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
-            "import config",
-            "config",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
-            "from federated_drift_experiment import provisional_model",
-            "federated_drift_experiment",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
-            "from ....runtime import single_run_execution",
-            "federated_learning_experiments.runtime.single_run_execution",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
-            "from ..loss_change_detection import overall_and_true_class_loss_monitoring",
-            "federated_learning_experiments.methods.fedsda.loss_change_detection",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
-            "from ....learning.prediction import class_probability_calculations",
-            "federated_learning_experiments.learning.prediction",
-        ),
         ("methods/fedsda/candidate_model_selection/another_candidate.py", "import torch", "torch"),
         (
             "methods/fedsda/loss_change_detection/bounded_loss_e_sr_detection.py",
@@ -10018,11 +7900,6 @@ def test_single_run_layers_import_only_allowed_dependencies():
         ),
         (
             "learning/loss_statistics/bounded_loss_moments.py",
-            "from ...methods.fedsda.candidate_model_selection import post_alarm_candidate_loss_evaluation",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection",
-        ),
-        (
-            "learning/loss_statistics/bounded_loss_moments.py",
             "from ..prediction import class_probability_calculations",
             "federated_learning_experiments.learning.prediction",
         ),
@@ -10048,11 +7925,6 @@ def test_single_run_layers_import_only_allowed_dependencies():
             "methods/fedsda/loss_statistics/loss_baseline_selection.py",
             "from ..loss_change_detection import overall_and_true_class_loss_monitoring",
             "federated_learning_experiments.methods.fedsda.loss_change_detection",
-        ),
-        (
-            "methods/fedsda/loss_statistics/loss_baseline_selection.py",
-            "from ..candidate_model_selection import post_alarm_candidate_loss_evaluation",
-            "federated_learning_experiments.methods.fedsda.candidate_model_selection",
         ),
         (
             "methods/fedsda/loss_statistics/loss_baseline_selection.py",
@@ -10506,28 +8378,12 @@ def test_single_run_dependency_checker_rejects_forbidden_imports(
         ),
         ("learning/prediction/class_probability_calculations.py", "import torch"),
         (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_collection.py",
-            "from dataclasses import dataclass",
-        ),
-        (
             "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
             "from .training_data_assignment_settings import TrainingDataAssignmentSettings",
         ),
         (
             "methods/fedsda/training_data_assignment/pending_training_assignment_buffer.py",
             "from collections import deque",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
-            "import torch",
-        ),
-        (
-            "methods/fedsda/candidate_model_selection/post_alarm_candidate_loss_evaluation.py",
-            "from .candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
         ),
         ("learning/prediction/class_probability_calculations.py", "from torch import Tensor"),
         (
@@ -11415,1079 +9271,6 @@ def test_candidate_epoch_training_dependency_contract(
     assert (
         not collect_dependency_boundary_violations(
             source_module_path=source_module_path, source_text=source_text
-        )
-    ) == expected_acceptance
-
-
-@pytest.mark.parametrize(
-    "source_text,expected_acceptance",
-    [
-        ("from dataclasses import dataclass", True),
-        ("from dataclasses import dataclass as AcceptedDependency", True),
-        ("from torch import Tensor", True),
-        ("from torch import Tensor as AcceptedDependency", True),
-        ("from torch import float32", False),
-        ("from torch import float32 as AcceptedDependency", False),
-        ("from torch import is_grad_enabled", False),
-        ("from torch import is_grad_enabled as AcceptedDependency", False),
-        ("from torch import isfinite", False),
-        ("from torch import isfinite as AcceptedDependency", False),
-        ("from torch import strided", False),
-        ("from torch import strided as AcceptedDependency", False),
-        (
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
-            True,
-        ),
-        (
-            "from ..learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters as AcceptedDependency",
-            False,
-        ),
-        (
-            "from ..learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters",
-            False,
-        ),
-        (
-            "from ..learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.model_architecture_classifier import ModelArchitectureClassifier as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier",
-            True,
-        ),
-        (
-            "from ..learning.models.model_architecture_classifier import ModelArchitectureClassifier as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training import CandidateEpochTrainingResult",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training import CandidateEpochTrainingResult as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..learning.training.candidate_epoch_training import CandidateEpochTrainingResult",
-            True,
-        ),
-        (
-            "from ..learning.training.candidate_epoch_training import CandidateEpochTrainingResult as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training import train_candidate_classifier_epochs",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training import train_candidate_classifier_epochs as AcceptedDependency",
-            False,
-        ),
-        (
-            "from ..learning.training.candidate_epoch_training import train_candidate_classifier_epochs",
-            False,
-        ),
-        (
-            "from ..learning.training.candidate_epoch_training import train_candidate_classifier_epochs as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings",
-            True,
-        ),
-        (
-            "from ..learning.training.candidate_epoch_training_settings import CandidateEpochTrainingSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
-            True,
-        ),
-        (
-            "from ..learning.training.current_training_model_assignment import CurrentTrainingModelAssignment as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
-            True,
-        ),
-        (
-            "from ..learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_records import ObservedTrainingSample as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..learning.training.model_training_sample_records import ObservedTrainingSample",
-            True,
-        ),
-        (
-            "from ..learning.training.model_training_sample_records import ObservedTrainingSample as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings",
-            True,
-        ),
-        (
-            "from ..learning.training.parameter_optimizer_settings import AdamParameterOptimizerSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import SgdParameterOptimizerSettings",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import SgdParameterOptimizerSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..learning.training.parameter_optimizer_settings import SgdParameterOptimizerSettings",
-            True,
-        ),
-        (
-            "from ..learning.training.parameter_optimizer_settings import SgdParameterOptimizerSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            True,
-        ),
-        (
-            "from ..methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollection",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollection as AcceptedDependency",
-            True,
-        ),
-        (
-            "from ..methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollection",
-            True,
-        ),
-        (
-            "from ..methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import PostAlarmCandidateLossCollection as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.candidate_classifier_construction import IndependentCandidateTrainingState",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.candidate_classifier_construction import IndependentCandidateTrainingState as AcceptedDependency",
-            True,
-        ),
-        ("from .candidate_classifier_construction import IndependentCandidateTrainingState", True),
-        (
-            "from .candidate_classifier_construction import IndependentCandidateTrainingState as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.candidate_classifier_construction import create_independent_candidate_training_state",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.candidate_classifier_construction import create_independent_candidate_training_state as AcceptedDependency",
-            False,
-        ),
-        (
-            "from .candidate_classifier_construction import create_independent_candidate_training_state",
-            False,
-        ),
-        (
-            "from .candidate_classifier_construction import create_independent_candidate_training_state as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import FixedPostAlarmReferenceModels",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import FixedPostAlarmReferenceModels as AcceptedDependency",
-            True,
-        ),
-        ("from .post_alarm_reference_model_fixation import FixedPostAlarmReferenceModels", True),
-        (
-            "from .post_alarm_reference_model_fixation import FixedPostAlarmReferenceModels as AcceptedDependency",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import fix_reference_models_at_alarm",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import fix_reference_models_at_alarm as AcceptedDependency",
-            True,
-        ),
-        ("from .post_alarm_reference_model_fixation import fix_reference_models_at_alarm", True),
-        (
-            "from .post_alarm_reference_model_fixation import fix_reference_models_at_alarm as AcceptedDependency",
-            True,
-        ),
-        ("import dataclasses", False),
-        ("import dataclasses as AcceptedDependency", False),
-        ("from dataclasses import *", False),
-        ("from dataclasses import _private", False),
-        ("import torch", False),
-        ("import torch as AcceptedDependency", False),
-        ("from torch import *", False),
-        ("from torch import _private", False),
-        (
-            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.models.classifier_parameter_snapshot",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.models.classifier_parameter_snapshot as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.models.model_architecture_classifier",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.models.model_architecture_classifier as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.model_architecture_classifier import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.model_architecture_classifier import _private",
-            False,
-        ),
-        ("import federated_learning_experiments.learning.training.candidate_epoch_training", False),
-        (
-            "import federated_learning_experiments.learning.training.candidate_epoch_training as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.candidate_epoch_training_settings",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.candidate_epoch_training_settings as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.candidate_epoch_training_settings import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.current_training_model_assignment",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.current_training_model_assignment as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.held_model_training_state_registry",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.held_model_training_state_registry as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.model_training_sample_records",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.model_training_sample_records as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_records import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_records import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.parameter_optimizer_settings",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.parameter_optimizer_settings as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_settings import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection import _private",
-            False,
-        ),
-        ("import federated_learning_experiments.runtime.candidate_classifier_construction", False),
-        (
-            "import federated_learning_experiments.runtime.candidate_classifier_construction as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.candidate_classifier_construction import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.candidate_classifier_construction import _private",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_reference_model_fixation",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_reference_model_fixation as AcceptedDependency",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import *",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import _private",
-            False,
-        ),
-        ("from __future__ import annotations", False),
-        ("import random", False),
-        ("import numpy", False),
-        ("import math", False),
-        ("import pathlib", False),
-        ("import os", False),
-        ("from pathlib import Path", False),
-        ("from copy import deepcopy", False),
-        ("from dataclasses import replace", False),
-        ("from torch import manual_seed", False),
-        ("from torch import get_rng_state", False),
-        ("from torch import set_rng_state", False),
-        ("from torch import rand", False),
-        ("from torch import randperm", False),
-        ("from torch import save", False),
-        ("from torch import load", False),
-        ("from torch.nn import Linear", False),
-        ("from torch.optim import Adam", False),
-        ("import federated_drift_experiment", False),
-        ("from federated_drift_experiment import config", False),
-        (
-            "from federated_learning_experiments.configuration.run_settings import RunSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.torch_random_state_scope import isolated_cpu_torch_random_state",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models.classifier_parameter_snapshot import _validate_classifier_parameter_snapshot_inputs",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.models import ModelArchitectureClassifier",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training import CandidateEpochTrainingSettings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingState",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.parameter_optimizer_state import ParameterOptimizerState",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime import IndependentCandidateTrainingState",
-            False,
-        ),
-        (
-            "from .post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
-            False,
-        ),
-        ("from ..models.model_architecture_classifier import ModelArchitectureClassifier", False),
-        ("from ..learning.models import model_architecture_classifier", False),
-        (
-            "from ..learning.models.classifier_parameter_snapshot import snapshot_classifier_parameters, _private",
-            False,
-        ),
-        ("from .candidate_classifier_construction import _private", False),
-        ("from .post_alarm_reference_model_fixation import ModelArchitectureClassifier", False),
-        (
-            "from .post_alarm_candidate_validation_sample_observation import observe_post_alarm_candidate_validation_sample",
-            False,
-        ),
-        (
-            "from .post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "from ..methods.fedsda.candidate_model_selection.candidate_parameter_initialization import select_candidate_initial_parameter_snapshot",
-            False,
-        ),
-        (
-            "from ..methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
-            False,
-        ),
-        ("from ..methods.fedsda.drift_detection import DriftDetectionSettings", False),
-        (
-            "from ..methods.fedsda.model_registration.pending_model_upload import PendingModelUpload",
-            False,
-        ),
-        ("import dataclasses.dataclass", False),
-        ("import dataclasses.dataclass as AcceptedDependency", False),
-        ("import torch.Tensor", False),
-        ("import torch.Tensor as AcceptedDependency", False),
-        ("import torch.float32", False),
-        ("import torch.float32 as AcceptedDependency", False),
-        ("import torch.is_grad_enabled", False),
-        ("import torch.is_grad_enabled as AcceptedDependency", False),
-        ("import torch.isfinite", False),
-        ("import torch.isfinite as AcceptedDependency", False),
-        ("import torch.strided", False),
-        ("import torch.strided as AcceptedDependency", False),
-        (
-            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.models.classifier_parameter_snapshot.snapshot_classifier_parameters as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.models.model_architecture_classifier.ModelArchitectureClassifier as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.candidate_epoch_training.CandidateEpochTrainingResult",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.candidate_epoch_training.CandidateEpochTrainingResult as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.candidate_epoch_training.train_candidate_classifier_epochs",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.candidate_epoch_training.train_candidate_classifier_epochs as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.candidate_epoch_training_settings.CandidateEpochTrainingSettings as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.model_training_sample_records.ObservedTrainingSample as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.parameter_optimizer_settings.AdamParameterOptimizerSettings as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.parameter_optimizer_settings.SgdParameterOptimizerSettings as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection.PostAlarmCandidateLossCollection",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_collection.PostAlarmCandidateLossCollection as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.candidate_classifier_construction.IndependentCandidateTrainingState",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.candidate_classifier_construction.IndependentCandidateTrainingState as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.candidate_classifier_construction.create_independent_candidate_training_state",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.candidate_classifier_construction.create_independent_candidate_training_state as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_reference_model_fixation.FixedPostAlarmReferenceModels",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_reference_model_fixation.FixedPostAlarmReferenceModels as AcceptedDependency",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_reference_model_fixation.fix_reference_models_at_alarm",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_reference_model_fixation.fix_reference_models_at_alarm as AcceptedDependency",
-            False,
-        ),
-    ],
-)
-def test_session_start_dependency_contract(source_text, expected_acceptance):
-    assert (
-        not collect_dependency_boundary_violations(
-            source_module_path="runtime/post_alarm_candidate_validation_session_start.py",
-            source_text=source_text,
-        )
-    ) == expected_acceptance
-
-
-@pytest.mark.parametrize(
-    ("source_text", "expected_acceptance"),
-    [
-        ("from dataclasses import dataclass", True),
-        ("from dataclasses import dataclass as AcceptedDependency", True),
-        ("import dataclasses.dataclass", False),
-        ("import dataclasses", False),
-        ("from math import isfinite", True),
-        ("from math import isfinite as AcceptedDependency", True),
-        ("import math.isfinite", False),
-        ("import math", False),
-        ("from torch import Tensor", True),
-        ("from torch import Tensor as AcceptedDependency", True),
-        ("import torch.Tensor", False),
-        ("import torch", False),
-        (
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics import ModelAndClassLossStatisticsStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics.ModelAndClassLossStatisticsStore",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.loss_statistics.model_and_class_loss_statistics",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.current_training_model_assignment import CurrentTrainingModelAssignment as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.current_training_model_assignment.CurrentTrainingModelAssignment",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.current_training_model_assignment",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.held_model_training_state_registry import HeldModelTrainingStateRegistry as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.held_model_training_state_registry.HeldModelTrainingStateRegistry",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.held_model_training_state_registry",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_and_assignment_counts import ModelTrainingAndAssignmentCountsStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.model_training_and_assignment_counts.ModelTrainingAndAssignmentCountsStore",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.model_training_and_assignment_counts",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.model_training_sample_store import ModelTrainingSampleStore as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.model_training_sample_store.ModelTrainingSampleStore",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.model_training_sample_store",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.temporary_model_id_allocation import TemporaryModelIdAllocator",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.learning.training.temporary_model_id_allocation import TemporaryModelIdAllocator as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.temporary_model_id_allocation.TemporaryModelIdAllocator",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.learning.training.temporary_model_id_allocation",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import CandidateModelTrainingAndAcceptanceSettings as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings.CandidateModelTrainingAndAcceptanceSettings",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import evaluate_candidate_using_post_alarm_losses as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation.evaluate_candidate_using_post_alarm_losses",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import PostAlarmCandidateValidationDecisionRecord",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record import PostAlarmCandidateValidationDecisionRecord as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record.PostAlarmCandidateValidationDecisionRecord",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_validation_decision_record",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUploadState",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload import PendingModelUploadState as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload.PendingModelUploadState",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.model_registration.pending_model_upload",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import PostAlarmCandidateValidationResolution",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import PostAlarmCandidateValidationResolution as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution.PostAlarmCandidateValidationResolution",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import apply_post_alarm_candidate_validation_resolution as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution.apply_post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import observe_post_alarm_candidate_validation_sample",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation import observe_post_alarm_candidate_validation_sample as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation.observe_post_alarm_candidate_validation_sample",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_sample_observation",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start.PostAlarmCandidateValidationSession",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start",
-            False,
-        ),
-        ("from dataclasses import replace", False),
-        ("from dataclasses import dataclass, replace", False),
-        ("from __future__ import annotations", False),
-        ("import math", False),
-        ("import torch", False),
-        ("from torch import rand", False),
-        ("from pathlib import Path", False),
-        ("from federated_drift_experiment import config", False),
-        (
-            "from federated_learning_experiments.runtime.candidate_classifier_construction import create_independent_candidate_training_state",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import fix_reference_models_at_alarm",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import _validate_resolution_inputs",
-            False,
-        ),
-        ("from federated_learning_experiments.configuration import RunSettings", False),
-        (
-            "from .post_alarm_candidate_validation_session_start import PostAlarmCandidateValidationSession",
-            True,
-        ),
-        ("from . import post_alarm_candidate_validation_resolution", False),
-    ],
-)
-def test_validation_progress_dependency_contract(source_text, expected_acceptance):
-    assert (
-        not collect_dependency_boundary_violations(
-            source_module_path="runtime/post_alarm_candidate_validation_progress.py",
-            source_text=source_text,
-        )
-    ) == expected_acceptance
-
-
-@pytest.mark.parametrize(
-    ("source_text", "expected_acceptance"),
-    [
-        ("from dataclasses import dataclass", True),
-        ("from dataclasses import dataclass as AcceptedDependency", True),
-        ("import dataclasses.dataclass", False),
-        ("import dataclasses", False),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import PostAlarmCandidateLossEvaluation",
-            True,
-        ),
-        (
-            "from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import PostAlarmCandidateLossEvaluation as AcceptedDependency",
-            True,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation.PostAlarmCandidateLossEvaluation",
-            False,
-        ),
-        (
-            "import federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation",
-            False,
-        ),
-        ("from dataclasses import replace", False),
-        ("from dataclasses import dataclass, replace", False),
-        ("from __future__ import annotations", False),
-        ("import math", False),
-        ("import torch", False),
-        ("from torch import rand", False),
-        ("from pathlib import Path", False),
-        ("from federated_drift_experiment import config", False),
-        (
-            "from federated_learning_experiments.runtime.candidate_classifier_construction import create_independent_candidate_training_state",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_reference_model_fixation import fix_reference_models_at_alarm",
-            False,
-        ),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_resolution import _validate_resolution_inputs",
-            False,
-        ),
-        ("from federated_learning_experiments.configuration import RunSettings", False),
-        (
-            "from .post_alarm_candidate_loss_evaluation import PostAlarmCandidateLossEvaluation",
-            True,
-        ),
-        ("from . import post_alarm_candidate_loss_evaluation", False),
-        ("from math import isfinite", False),
-        (
-            "from federated_learning_experiments.runtime.post_alarm_candidate_validation_progress import PostAlarmCandidateValidationProgress",
-            False,
-        ),
-    ],
-)
-def test_validation_decision_record_dependency_contract(source_text, expected_acceptance):
-    assert (
-        not collect_dependency_boundary_violations(
-            source_module_path="methods/fedsda/candidate_model_selection/post_alarm_candidate_validation_decision_record.py",
-            source_text=source_text,
         )
     ) == expected_acceptance
 

@@ -289,12 +289,7 @@ def derive_fedsda_run_metrics(
         communication_volume=server_owners.communication_volume_record_store.get_state_snapshot(),
         final_parameter_value_count=final_parameter_value_count,
         final_parameter_byte_count=final_parameter_byte_count,
-        candidate_validation_decision_count=sum(
-            len(
-                run_client.owners.candidate_validation_decision_record_store.snapshot_candidate_validation_decision_records()
-            )
-            for run_client in run_clients
-        ),
+        candidate_validation_decision_count=0,
         # 重みで結合して予測する方式では、結合が常時有効なので、予測した標本のすべてを数える。
         # 現在のモデルだけで予測する方式では、0。
         mixed_prediction_sample_count=sum(

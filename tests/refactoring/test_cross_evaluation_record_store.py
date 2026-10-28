@@ -4,7 +4,7 @@ import math
 from dataclasses import replace
 
 import pytest
-from test_held_candidate_validation_progress import make_subclass_copy
+from alarm_interval_test_support import make_subclass_copy
 
 from federated_learning_experiments.evaluation.cross_evaluation_record_store import (
     ClientCrossEvaluationRecord,

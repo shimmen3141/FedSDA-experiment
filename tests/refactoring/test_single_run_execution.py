@@ -128,12 +128,6 @@ class ObservingRunClient:
         # 次の標本処理を観測するときの区間位置だけを進める。
         self.observer.current_round_index = round_index + 1
 
-    def finalize_incomplete_candidate_validation(self):
-        self.observer.record_operation_call(
-            stage_name="incomplete_candidate_validation_finalization",
-            client_id=self.client_id,
-        )
-
 
 class ObservingRunServer:
     """同期時のboolと通信終端の完了区間数を観測する接続先。"""
@@ -483,7 +477,6 @@ def test_single_run_repeated_conditions_are_independent_across_intervening_runs(
         ("registration_readiness_check", 1, None, 1),
         ("server_synchronization", None, None, 1),
         ("upload_wait_advance", 1, None, 1),
-        ("incomplete_candidate_validation_finalization", 1, None, None),
         ("started_communication_finalization", None, None, None),
     ],
 )
@@ -903,7 +896,6 @@ def test_single_run_runtime_prepares_once_and_orders_supply_before_execution(
         "flush_pending_local_updates",
         "has_model_ready_for_server_registration",
         "advance_new_model_upload_wait_after_synchronization",
-        "finalize_incomplete_candidate_validation",
         "record_client_states_before_synchronization",
         "synchronize_models",
         "finalize_started_communications",
@@ -1231,13 +1223,6 @@ def test_interval_execution_matches_sample_client_and_synchronization_order():
             )
             for client_id in range(3)
         )
-    expected_operation_calls.extend(
-        RunExecutionEvent(
-            stage_name="incomplete_candidate_validation_finalization",
-            client_id=client_id,
-        )
-        for client_id in range(3)
-    )
     expected_operation_calls.append(
         RunExecutionEvent(stage_name="started_communication_finalization")
     )
@@ -1286,15 +1271,11 @@ def test_interval_execution_processes_only_complete_intervals_and_preserves_term
         for sample_index in range(processed_sample_count_per_client)
         for client_id in range(3)
     ]
-    expected_execution_events = tuple(
-        RunExecutionEvent(
-            stage_name="incomplete_candidate_validation_finalization",
-            client_id=client_id,
-        )
-        for client_id in range(3)
-    ) + (RunExecutionEvent(stage_name="started_communication_finalization"),)
-    assert execution_events[-4:] == expected_execution_events
-    assert observer.operation_calls[-4:] == list(expected_execution_events)
+    expected_execution_events = (
+        RunExecutionEvent(stage_name="started_communication_finalization"),
+    )
+    assert execution_events[-1:] == expected_execution_events
+    assert observer.operation_calls[-1:] == list(expected_execution_events)
     assert len(observer.synchronization_readiness_values) == completed_round_count
     assert observer.finalized_communication_round_counts == [completed_round_count]
     if completed_round_count == 0:
@@ -1379,7 +1360,6 @@ def test_interval_execution_rejects_non_boolean_registration_readiness(invalid_r
         RunExecutionEvent(stage_name="registration_readiness_check", client_id=1, round_index=1),
         RunExecutionEvent(stage_name="server_synchronization", round_index=1),
         RunExecutionEvent(stage_name="upload_wait_advance", client_id=1, round_index=1),
-        RunExecutionEvent(stage_name="incomplete_candidate_validation_finalization", client_id=1),
         RunExecutionEvent(stage_name="started_communication_finalization"),
     ],
 )
@@ -1589,17 +1569,6 @@ def valid_run_result_field_values():
     [
         (RunParticipantFactory, {"validate_configuration", "prepare_run"}),
         (
-            RunClientOperations,
-            {
-                "client_id",
-                "process_observed_sample",
-                "flush_pending_local_updates",
-                "has_model_ready_for_server_registration",
-                "advance_new_model_upload_wait_after_synchronization",
-                "finalize_incomplete_candidate_validation",
-            },
-        ),
-        (
             RunServerOperations,
             {
                 "record_client_states_before_synchronization",
@@ -1623,7 +1592,6 @@ def test_run_participant_protocols_expose_only_declared_observation_operations(
         "flush_pending_local_updates": ("round_index",),
         "has_model_ready_for_server_registration": (),
         "advance_new_model_upload_wait_after_synchronization": ("round_index",),
-        "finalize_incomplete_candidate_validation": (),
         "record_client_states_before_synchronization": ("round_index",),
         "synchronize_models": ("round_index", "new_model_registration_available"),
         "finalize_started_communications": ("completed_round_count",),
@@ -1654,7 +1622,6 @@ def test_run_participants_preserve_operation_references_and_reject_mutable_clien
         flush_pending_local_updates=lambda *, round_index: None,
         has_model_ready_for_server_registration=lambda: False,
         advance_new_model_upload_wait_after_synchronization=lambda *, round_index: None,
-        finalize_incomplete_candidate_validation=lambda: None,
         record_client_states_before_synchronization=lambda *, round_index: None,
         synchronize_models=lambda *, round_index, new_model_registration_available: None,
         finalize_started_communications=lambda *, completed_round_count: None,
@@ -1701,7 +1668,6 @@ def test_run_execution_events_preserve_stage_and_optional_positions():
         "registration_readiness_check",
         "server_synchronization",
         "upload_wait_advance",
-        "incomplete_candidate_validation_finalization",
         "started_communication_finalization",
     )
     for stage_name in stage_names:

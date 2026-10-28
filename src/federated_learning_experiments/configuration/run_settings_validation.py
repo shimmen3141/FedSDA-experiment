@@ -14,9 +14,6 @@ from federated_learning_experiments.learning.models.model_architecture_settings 
 from federated_learning_experiments.learning.training.local_training_settings import (
     LocalTrainingSettings,
 )
-from federated_learning_experiments.methods.fedsda.candidate_model_selection.candidate_model_training_and_acceptance_settings import (
-    CandidateModelTrainingAndAcceptanceSettings,
-)
 from federated_learning_experiments.methods.fedsda.consolidation.model_consolidation_settings import (
     ModelConsolidationSettings,
 )
@@ -38,10 +35,6 @@ initial_component_settings_types = (
     ("prediction_combination_settings", PredictionCombinationSettings),
     ("local_training_settings", LocalTrainingSettings),
     ("training_data_assignment_settings", TrainingDataAssignmentSettings),
-    (
-        "candidate_model_training_and_acceptance_settings",
-        CandidateModelTrainingAndAcceptanceSettings,
-    ),
     ("model_consolidation_settings", ModelConsolidationSettings),
 )
 

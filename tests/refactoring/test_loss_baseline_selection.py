@@ -16,7 +16,6 @@ from federated_learning_experiments.learning.loss_statistics.bounded_loss_moment
 from federated_learning_experiments.methods.fedsda.loss_statistics.loss_baseline_selection import (
     select_alarm_interval_reuse_baseline_mean_loss,
     select_loss_monitoring_baseline_mean_loss,
-    select_post_alarm_reference_historical_mean_loss,
 )
 
 
@@ -155,7 +154,6 @@ def test_loss_baseline_rejects_invalid_input(field_name, invalid_value):
     for operation in (
         select_loss_monitoring_baseline_mean_loss,
         select_alarm_interval_reuse_baseline_mean_loss,
-        select_post_alarm_reference_historical_mean_loss,
     ):
         with pytest.raises((TypeError, ValueError), match=field_name):
             operation(loss_moments=loss_moments)
@@ -168,9 +166,6 @@ def test_loss_baseline_rejects_invalid_input(field_name, invalid_value):
 
 def test_loss_baseline_connects_to_monitor_and_reference():
     """監視のn1平均と履歴のn2平均0を異なるpublic用途へ渡す。"""
-    from federated_learning_experiments.methods.fedsda.candidate_model_selection.post_alarm_candidate_loss_evaluation import (
-        select_available_reference_within_historical_loss_tolerance,
-    )
     from federated_learning_experiments.methods.fedsda.loss_change_detection.loss_change_detection_settings import (
         RAISE_ALARM_IMMEDIATELY_POLICY_NAME,
         LossChangeDetectionSettings,
@@ -184,7 +179,6 @@ def test_loss_baseline_connects_to_monitor_and_reference():
     )
     baseline_mean_loss = select_loss_monitoring_baseline_mean_loss(loss_moments=loss_moments)
     assert select_alarm_interval_reuse_baseline_mean_loss(loss_moments=loss_moments) is None
-    assert select_post_alarm_reference_historical_mean_loss(loss_moments=loss_moments) is None
     monitor = OverallAndTrueClassLossMonitor(
         loss_change_detection_settings=LossChangeDetectionSettings(
             loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
@@ -212,21 +206,6 @@ def test_loss_baseline_connects_to_monitor_and_reference():
         observed_loss_count=2, mean_loss=0, sum_squared_loss_deviations=0
     )
     assert select_alarm_interval_reuse_baseline_mean_loss(loss_moments=loss_moments) is None
-    reference_historical_mean_losses_by_model_id = {
-        7: select_post_alarm_reference_historical_mean_loss(loss_moments=loss_moments)
-    }
-    reference_losses_by_model_id = {7: (0.1, 0.2)}
-    assert reference_historical_mean_losses_by_model_id == {7: 0.0}
-    assert (
-        select_available_reference_within_historical_loss_tolerance(
-            reference_losses_by_model_id=reference_losses_by_model_id,
-            reference_historical_mean_losses_by_model_id=reference_historical_mean_losses_by_model_id,
-            available_reference_model_ids=(7,),
-            current_training_model_id=7,
-            maximum_reference_mean_loss_increase=0.2,
-        )
-        == 7
-    )
 
 
 def test_loss_baseline_preserves_shared_state():
@@ -252,7 +231,6 @@ def test_loss_baseline_preserves_shared_state():
             for operation in (
                 select_loss_monitoring_baseline_mean_loss,
                 select_alarm_interval_reuse_baseline_mean_loss,
-                select_post_alarm_reference_historical_mean_loss,
             ):
                 result = operation(loss_moments=loss_moments)
                 assert type(result) is float
@@ -276,7 +254,6 @@ def test_loss_baseline_uses_keyword_arguments():
     for operation in (
         select_loss_monitoring_baseline_mean_loss,
         select_alarm_interval_reuse_baseline_mean_loss,
-        select_post_alarm_reference_historical_mean_loss,
     ):
         with pytest.raises(TypeError):
             operation(None)

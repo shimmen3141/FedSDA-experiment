@@ -6,6 +6,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from test_adopted_candidate_initial_local_registration import convert_legacy_parameter_name
 from test_fedsda_run_client import (
     ADAPTER_RANK,
@@ -20,7 +21,6 @@ from test_fedsda_run_client import (
     run_in_both,
     set_legacy_configuration,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_joint_model_parameter_update import assert_nested_state_equal
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 

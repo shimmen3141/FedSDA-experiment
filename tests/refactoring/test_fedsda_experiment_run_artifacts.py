@@ -7,6 +7,7 @@ from dataclasses import FrozenInstanceError, fields, replace
 import numpy as np
 import pytest
 import torch
+from alarm_interval_test_support import make_subclass_copy
 from run_provenance_examples import TEST_RUN_PROVENANCE
 from test_fedsda_final_configuration_run_settings import make_golden_condition_run_settings
 from test_fedsda_run_metric_derivation import (
@@ -26,7 +27,6 @@ from test_fedsda_stream_protocol_run import (
     make_run_participant_settings,
     run_real_legacy_whole_run,
 )
-from test_held_candidate_validation_progress import make_subclass_copy
 from test_run_settings_validation import valid_run_settings_mapping as valid_run_settings_mapping
 
 from federated_learning_experiments.configuration.experiment_run_conditions import (
@@ -528,10 +528,25 @@ def test_adaptation_actions_cover_every_adaptation_outcome():
     # 粗い区分→旧の`action`が、既存の対照の対応（結果種別→旧の`action`）と一致する。
     from test_observed_sample_processing import LEGACY_ACTION_BY_ADAPTATION_OUTCOME
 
+    # 候補検証の結果の値は、task 4で製品の対応表から消すまで、比べる対象から除く（基準版15のspec、要求3.3）。
+    candidate_validation_outcomes = {
+        "alarm_during_candidate_validation",
+        "alarm_interval_candidate_validation_started",
+        "post_alarm_validation_candidate_adopted",
+        "post_alarm_validation_held_model_reused",
+        "post_alarm_validation_current_model_maintained",
+        "post_alarm_validation_candidate_rejected",
+        "post_alarm_validation_incomplete_candidate_rejected",
+    }
     assert {
         adaptation_outcome: LEGACY_ACTION_BY_ADAPTATION_ACTION[adaptation_action]
         for adaptation_outcome, adaptation_action in ADAPTATION_ACTION_BY_ADAPTATION_OUTCOME.items()
-    } == LEGACY_ACTION_BY_ADAPTATION_OUTCOME
+        if adaptation_outcome not in candidate_validation_outcomes
+    } == {
+        adaptation_outcome: legacy_action
+        for adaptation_outcome, legacy_action in LEGACY_ACTION_BY_ADAPTATION_OUTCOME.items()
+        if adaptation_outcome not in candidate_validation_outcomes
+    }
 
 
 @pytest.mark.slow

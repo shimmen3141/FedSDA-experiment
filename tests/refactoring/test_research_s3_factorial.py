@@ -60,10 +60,6 @@ def resolve_candidate(classes, learner, policy, monkeypatch):
     kw, _, _, _ = build_alarm_change_interval_resolution_oracle(
         class_count=classes, alarm_interval_resolution_case="no_model_fits", monkeypatch=monkeypatch
     )
-    kw["candidate_model_training_and_acceptance_settings"] = replace(
-        kw["candidate_model_training_and_acceptance_settings"],
-        candidate_model_acceptance_policy="current_model_first_reuse_then_candidate_adoption_without_validation",
-    )
     kw["candidate_epoch_training_settings"] = replace(
         kw["candidate_epoch_training_settings"],
         candidate_training_strategy="fixed_epoch_training",

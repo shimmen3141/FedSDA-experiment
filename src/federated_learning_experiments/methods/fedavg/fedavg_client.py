@@ -177,9 +177,6 @@ class FedavgClient:
     def advance_new_model_upload_wait_after_synchronization(self, *, round_index: int) -> None:
         pass
 
-    def finalize_incomplete_candidate_validation(self) -> None:
-        pass
-
     def apply_global_parameters(self, *, parameter_snapshot: dict[str, Tensor]) -> None:
         """配布値を検査してから新モデルと新optimizerへ交換する。"""
         current = snapshot_classifier_parameters(classifier=self.classifier)

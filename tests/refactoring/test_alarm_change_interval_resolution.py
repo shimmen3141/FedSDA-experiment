@@ -4,24 +4,22 @@ import math
 import random
 from collections import Counter, defaultdict, deque
 from copy import deepcopy
-from dataclasses import FrozenInstanceError, fields, replace
+from dataclasses import FrozenInstanceError, fields
 from unittest.mock import patch
 
 import numpy as np
 import pytest
 import torch
+from alarm_interval_test_support import (
+    build_candidate_training_oracle,
+    set_overall_loss_statistics_in_both_implementations,
+)
 from test_adopted_candidate_initial_local_registration import assert_held_model_states_match_legacy
 from test_adopted_candidate_local_adoption import assert_training_samples_match_legacy
 from test_alarm_interval_model_reuse_assessment import LEGACY_INITIALIZATION_NAMES
-from test_candidate_epoch_training import assert_candidate_epoch_training_matches_legacy
 from test_joint_model_parameter_update import assert_nested_state_equal, run_legacy_joint_update
 from test_loss_statistics_model_id_reassignment import assert_store_statistics_match_legacy
 from test_model_training_and_assignment_counts import assert_model_counts_match_legacy
-from test_post_alarm_candidate_validation_session_start import build_session_start_oracle
-from test_post_alarm_reference_model_fixation import (
-    assert_fixed_references_match_legacy,
-    set_overall_loss_statistics_in_both_implementations,
-)
 from test_shared_feature_extractor_attachment import (
     assert_parameter_values_and_gradients_unchanged,
     snapshot_parameter_values_and_gradients,
@@ -79,16 +77,12 @@ from federated_learning_experiments.runtime.alarm_change_interval_resolution imp
     AlarmChangeIntervalResolution,
     resolve_alarm_change_interval,
 )
-from federated_learning_experiments.runtime.post_alarm_candidate_validation_session_start import (
-    PostAlarmCandidateValidationSession,
-)
 
 
 def test_alarm_change_interval_resolution_is_immutable():
     assert ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES == (
         "alarm_interval_held_model_reused",
         "alarm_interval_current_model_maintained",
-        "alarm_interval_candidate_validation_started",
         "alarm_interval_candidate_adopted_as_new_model",
     )
     assert type(ALARM_CHANGE_INTERVAL_RESOLUTION_OUTCOMES) is tuple
@@ -97,7 +91,6 @@ def test_alarm_change_interval_resolution_is_immutable():
         "alarm_interval_reuse_assessment",
         "assigned_model_id",
         "training_model_assignment_change",
-        "started_validation_session",
     )
     assert all(field.kw_only for field in fields(AlarmChangeIntervalResolution))
     alarm_interval_reuse_assessment = AlarmIntervalModelReuseAssessment(
@@ -107,24 +100,21 @@ def test_alarm_change_interval_resolution_is_immutable():
     training_model_assignment_change = TrainingModelAssignmentChange(
         previous_model_id=4, current_model_id=-103
     )
-    started_validation_session = object.__new__(PostAlarmCandidateValidationSession)
     # 3つの結果種別それぞれのfieldの組を、そのまま保持する。
     for (
         resolution_outcome,
         assigned_model_id,
         field_value,
-        expected_started_validation_session,
     ) in (
-        ("alarm_interval_held_model_reused", -103, training_model_assignment_change, None),
-        ("alarm_interval_current_model_maintained", 4, None, None),
-        ("alarm_interval_candidate_validation_started", None, None, started_validation_session),
+        ("alarm_interval_held_model_reused", -103, training_model_assignment_change),
+        ("alarm_interval_current_model_maintained", 4, None),
+        ("alarm_interval_candidate_adopted_as_new_model", -103, training_model_assignment_change),
     ):
         alarm_change_interval_resolution = AlarmChangeIntervalResolution(
             resolution_outcome=resolution_outcome,
             alarm_interval_reuse_assessment=alarm_interval_reuse_assessment,
             assigned_model_id=assigned_model_id,
             training_model_assignment_change=field_value,
-            started_validation_session=expected_started_validation_session,
         )
         assert alarm_change_interval_resolution.resolution_outcome == resolution_outcome
         assert (
@@ -133,16 +123,11 @@ def test_alarm_change_interval_resolution_is_immutable():
         )
         assert alarm_change_interval_resolution.assigned_model_id == assigned_model_id
         assert alarm_change_interval_resolution.training_model_assignment_change is field_value
-        assert (
-            alarm_change_interval_resolution.started_validation_session
-            is expected_started_validation_session
-        )
         for field_name in (
             "resolution_outcome",
             "alarm_interval_reuse_assessment",
             "assigned_model_id",
             "training_model_assignment_change",
-            "started_validation_session",
         ):
             with pytest.raises(FrozenInstanceError):
                 setattr(alarm_change_interval_resolution, field_name, None)
@@ -162,7 +147,6 @@ def test_alarm_change_interval_resolution_is_immutable():
                 alarm_interval_reuse_assessment=alarm_interval_reuse_assessment,
                 assigned_model_id=4,
                 training_model_assignment_change=None,
-                started_validation_session=None,
             )
     # 全fieldがkeyword必須。
     with pytest.raises(TypeError):
@@ -186,7 +170,6 @@ def test_alarm_change_interval_resolution_is_immutable():
 LEGACY_ACTION_BY_ALARM_INTERVAL_RESOLUTION_OUTCOME = {
     "alarm_interval_held_model_reused": "reuse",
     "alarm_interval_current_model_maintained": "maintain",
-    "alarm_interval_candidate_validation_started": "create_pending",
     "alarm_interval_candidate_adopted_as_new_model": "create",
 }
 
@@ -255,7 +238,7 @@ ALARM_INTERVAL_RESOLUTION_CASES = {
             model_id: (3, mean_loss / 4)
             for model_id, mean_loss in legacy_interval_mean_losses_by_model_id.items()
         },
-        expected_resolution_outcome="alarm_interval_candidate_validation_started",
+        expected_resolution_outcome="alarm_interval_candidate_adopted_as_new_model",
         expected_assigned_model_id=None,
     ),
     "no_model_has_usable_history": dict(
@@ -265,7 +248,7 @@ ALARM_INTERVAL_RESOLUTION_CASES = {
             -3: (1, legacy_interval_mean_losses_by_model_id[-3]),
             4: (0, 0.0),
         },
-        expected_resolution_outcome="alarm_interval_candidate_validation_started",
+        expected_resolution_outcome="alarm_interval_candidate_adopted_as_new_model",
         expected_assigned_model_id=None,
     ),
     "lowest_mean_model_lacks_history": dict(
@@ -276,7 +259,7 @@ ALARM_INTERVAL_RESOLUTION_CASES = {
             else (3, mean_loss / 4)
             for model_id, mean_loss in legacy_interval_mean_losses_by_model_id.items()
         },
-        expected_resolution_outcome="alarm_interval_candidate_validation_started",
+        expected_resolution_outcome="alarm_interval_candidate_adopted_as_new_model",
         expected_assigned_model_id=None,
     ),
     "single_model_does_not_fit": dict(
@@ -284,7 +267,7 @@ ALARM_INTERVAL_RESOLUTION_CASES = {
         statistics_by_model_id=lambda legacy_interval_mean_losses_by_model_id: {
             4: (3, legacy_interval_mean_losses_by_model_id[4] / 4),
         },
-        expected_resolution_outcome="alarm_interval_candidate_validation_started",
+        expected_resolution_outcome="alarm_interval_candidate_adopted_as_new_model",
         expected_assigned_model_id=None,
     ),
 }
@@ -302,11 +285,13 @@ def build_alarm_change_interval_resolution_oracle(
     held_model_ids = ALARM_INTERVAL_RESOLUTION_CASES[alarm_interval_resolution_case][
         "held_model_ids"
     ]
-    session_start_arguments, shared_optimizer_owners, legacy_client = build_session_start_oracle(
-        class_count=class_count,
-        optimizer_variant=optimizer_variant,
-        monkeypatch=monkeypatch,
-        held_model_ids=held_model_ids,
+    session_start_arguments, shared_optimizer_owners, legacy_client = (
+        build_candidate_training_oracle(
+            class_count=class_count,
+            optimizer_variant=optimizer_variant,
+            monkeypatch=monkeypatch,
+            held_model_ids=held_model_ids,
+        )
     )
     registry = session_start_arguments["held_model_training_state_registry"]
     held_model_training_states = registry.snapshot_ordered_held_model_training_states()
@@ -413,7 +398,6 @@ def build_alarm_change_interval_resolution_oracle(
                 "architecture_reference_classifier",
                 "parameter_optimizer_settings",
                 "candidate_epoch_training_settings",
-                "candidate_model_training_and_acceptance_settings",
                 "proposal_sample_index",
                 "estimated_change_point_sample_index",
                 "detection_episode_id",
@@ -669,92 +653,10 @@ def assert_alarm_change_interval_resolution_matches_legacy(
         legacy_client=legacy_client,
         input_features=change_interval_input_features,
     )
-    started_validation_session = alarm_change_interval_resolution.started_validation_session
-    legacy_session = legacy_client._forward_validation
-    if resolution_outcome == "alarm_interval_candidate_adopted_as_new_model":
-        assert started_validation_session is None
-        assert legacy_session is None
-        assert len(legacy_epoch_training_calls.call_args_list) > 0
-        return
-    if resolution_outcome != "alarm_interval_candidate_validation_started":
-        assert started_validation_session is None
-        assert legacy_session is None
-        assert len(legacy_epoch_training_calls.call_args_list) == 0
-        return
-    assert alarm_change_interval_resolution.assigned_model_id is None
-    assert dict(legacy_client.reuse_selection_counts) == {}
-    assert type(started_validation_session) is PostAlarmCandidateValidationSession
-    assert legacy_session is not None
-    assert_candidate_epoch_training_matches_legacy(
-        candidate_training_state=started_validation_session.candidate_training_state,
-        legacy_candidate=legacy_session.candidate,
+    assert legacy_client._forward_validation is None
+    assert bool(legacy_epoch_training_calls.call_args_list) == (
+        resolution_outcome == "alarm_interval_candidate_adopted_as_new_model"
     )
-    assert_fixed_references_match_legacy(
-        fixed_reference_models=started_validation_session.fixed_reference_models,
-        legacy_reference_models=legacy_session.reference_models,
-        registry=registry,
-        input_features=change_interval_input_features,
-    )
-    assert (
-        started_validation_session.fixed_reference_models.reference_historical_mean_losses_by_model_id
-        == legacy_session.reference_historical_means
-    )
-    assert started_validation_session.proposal_sample_index == legacy_session.proposal_position
-    assert (
-        started_validation_session.estimated_change_point_sample_index
-        == legacy_session.estimated_change_point
-    )
-    assert started_validation_session.detection_episode_id == legacy_session.episode_id
-    assert started_validation_session.detector_name == legacy_session.detector
-    assert started_validation_session.initial_training_model_id == legacy_session.old_model_id
-    # 区間は標本順の連結で、旧のbx/byと同じ値。
-    assert torch.equal(
-        started_validation_session.training_input_features, legacy_session.training_x
-    )
-    assert torch.equal(
-        started_validation_session.training_observed_class_labels, legacy_session.training_y
-    )
-    assert (
-        started_validation_session.training_input_features.shape == legacy_session.training_x.shape
-    )
-    # 保留標本は渡した標本列そのもので、旧の保留標本と同じTensor objectを同じ順に持つ。
-    assert (
-        started_validation_session.pending_assignment_training_samples
-        is resolution_arguments["change_interval_training_samples"]
-    )
-    assert len(legacy_session.held_data) == len(
-        started_validation_session.pending_assignment_training_samples
-    )
-    for training_sample, legacy_training_sample, observed_concept_id in zip(
-        started_validation_session.pending_assignment_training_samples,
-        legacy_session.held_data,
-        resolution_arguments["change_interval_sample_concept_ids"],
-    ):
-        assert training_sample.input_features is legacy_training_sample[0]
-        assert training_sample.observed_class_labels is legacy_training_sample[1]
-        assert observed_concept_id == legacy_training_sample[2]
-    candidate_epoch_training_result = started_validation_session.candidate_epoch_training_result
-    assert candidate_epoch_training_result.completed_epoch_count == sum(
-        legacy_epoch_training_call.args[2]
-        for legacy_epoch_training_call in legacy_epoch_training_calls.call_args_list
-    )
-    assert (
-        candidate_epoch_training_result.candidate_trained_sample_count
-        == legacy_session.candidate_training_examples
-    )
-    assert (
-        candidate_epoch_training_result.candidate_parameter_update_step_count
-        == legacy_session.candidate_optimizer_steps
-    )
-    collection_state = (
-        started_validation_session.post_alarm_candidate_loss_collection.get_state_snapshot()
-    )
-    assert collection_state.proposal_sample_index == legacy_session.proposal_position
-    assert collection_state.candidate_losses == tuple(legacy_session.candidate_losses) == ()
-    assert collection_state.reference_losses_by_model_id == tuple(
-        (model_id, tuple(losses)) for model_id, losses in legacy_session.reference_losses.items()
-    )
-    assert collection_state.required_validation_sample_count == legacy_session.target_count
 
 
 @pytest.mark.parametrize("class_count", [2, 4])
@@ -767,7 +669,7 @@ def assert_alarm_change_interval_resolution_matches_legacy(
         if ALARM_INTERVAL_RESOLUTION_CASES[alarm_interval_resolution_case][
             "expected_resolution_outcome"
         ]
-        != "alarm_interval_candidate_validation_started"
+        != "alarm_interval_candidate_adopted_as_new_model"
     ],
 )
 def test_alarm_change_interval_resolution_matches_legacy(
@@ -1277,11 +1179,6 @@ INVALID_START_ONLY_INPUT_CASES = {
     "architecture_reference_none": ("architecture_reference_classifier", None, TypeError),
     "optimizer_settings_none": ("parameter_optimizer_settings", None, TypeError),
     "epoch_training_settings_none": ("candidate_epoch_training_settings", None, TypeError),
-    "acceptance_settings_none": (
-        "candidate_model_training_and_acceptance_settings",
-        None,
-        TypeError,
-    ),
     "proposal_index_bool": ("proposal_sample_index", True, TypeError),
     "proposal_index_negative": ("proposal_sample_index", -1, ValueError),
     "change_point_after_proposal": ("estimated_change_point_sample_index", 41, ValueError),
@@ -1404,7 +1301,7 @@ def test_alarm_change_interval_resolution_calls_only_selected_operations_in_orde
             "absorb_assigned_training_samples_into_held_model",
             "snapshot_classifier_parameters",
             "select_candidate_initial_parameter_snapshot",
-            "start_post_alarm_candidate_validation_session",
+            "train_candidate_on_alarm_change_interval",
         ):
             monkeypatch.setattr(
                 resolution_module,
@@ -1453,50 +1350,50 @@ def test_alarm_change_interval_resolution_calls_only_selected_operations_in_orde
             operation_calls[0][1]["maximum_alarm_interval_mean_loss_increase"]
             == resolution_arguments["maximum_alarm_interval_mean_loss_increase"]
         )
-        if expected_resolution_outcome == "alarm_interval_candidate_validation_started":
+        if expected_resolution_outcome == "alarm_interval_candidate_adopted_as_new_model":
             # 保有順の全モデルのsnapshot→初期値選択→session開始。吸収と帰属切替えは呼ばない。
             assert [operation_name for operation_name, _ in operation_calls] == (
                 ["evaluate_held_models_for_alarm_interval_reuse"]
                 + ["snapshot_classifier_parameters"] * len(held_model_ids)
                 + [
                     "select_candidate_initial_parameter_snapshot",
-                    "start_post_alarm_candidate_validation_session",
+                    "train_candidate_on_alarm_change_interval",
+                    "assign_model_for_training",
                 ]
             )
             registry = resolution_arguments["held_model_training_state_registry"]
             for (_, operation_keyword_arguments), state in zip(
-                operation_calls[1:-2], registry.snapshot_ordered_held_model_training_states()
+                operation_calls[1:-3], registry.snapshot_ordered_held_model_training_states()
             ):
                 assert operation_keyword_arguments["classifier"] is state.classifier
             assert (
-                operation_calls[-2][1]["evaluated_mean_losses_by_model_id"]
+                operation_calls[-3][1]["evaluated_mean_losses_by_model_id"]
                 == alarm_change_interval_resolution.alarm_interval_reuse_assessment.baseline_supported_interval_mean_losses_by_model_id
             )
-            assert operation_calls[-2][1]["current_training_model_id"] == initial_training_model_id
-            assert tuple(operation_calls[-2][1]["available_parameter_snapshots_by_model_id"]) == (
+            assert operation_calls[-3][1]["current_training_model_id"] == initial_training_model_id
+            assert tuple(operation_calls[-3][1]["available_parameter_snapshots_by_model_id"]) == (
                 held_model_ids
             )
             assert (
-                operation_calls[-2][1]["settings"]
+                operation_calls[-3][1]["settings"]
                 is resolution_arguments["candidate_parameter_initialization_settings"]
             )
             # session開始は、評価と同じ区間のTensorと、渡した標本列そのものを保留標本として受け取る。
             assert (
-                operation_calls[-1][1]["input_features"] is operation_calls[0][1]["input_features"]
+                operation_calls[-2][1]["input_features"] is operation_calls[0][1]["input_features"]
             )
             assert (
-                operation_calls[-1][1]["observed_class_labels"]
+                operation_calls[-2][1]["observed_class_labels"]
                 is operation_calls[0][1]["observed_class_labels"]
             )
             assert (
-                operation_calls[-1][1]["pending_assignment_training_samples"]
+                operation_calls[-2][1]["pending_assignment_training_samples"]
                 is change_interval_training_samples
             )
             for field_name in (
                 "architecture_reference_classifier",
                 "parameter_optimizer_settings",
                 "candidate_epoch_training_settings",
-                "candidate_model_training_and_acceptance_settings",
                 "held_model_training_state_registry",
                 "loss_statistics_store",
                 "current_training_model_assignment",
@@ -1505,7 +1402,7 @@ def test_alarm_change_interval_resolution_calls_only_selected_operations_in_orde
                 "detection_episode_id",
                 "detector_name",
             ):
-                assert operation_calls[-1][1][field_name] is resolution_arguments[field_name]
+                assert operation_calls[-2][1][field_name] is resolution_arguments[field_name]
             return
         # 吸収→帰属切替えの順に1回ずつ。初期値選択とsession開始は呼ばない。
         assert [operation_name for operation_name, _ in operation_calls] == [
@@ -1697,14 +1594,9 @@ def test_resolved_alarm_change_interval_continues_joint_training(
 
 
 def use_immediate_candidate_adoption(monkeypatch, *argument_mappings, legacy_client=None):
-    """候補検証を主題にしない旧との照合で、候補をその場で採用する組へ揃える。"""
     monkeypatch.setattr(config, "NEW_MODEL_CREATION_POLICY", "immediate")
-    for arguments in argument_mappings:
-        arguments["candidate_model_training_and_acceptance_settings"] = replace(
-            arguments["candidate_model_training_and_acceptance_settings"],
-            candidate_model_acceptance_policy="current_model_first_reuse_then_candidate_adoption_without_validation",
-        )
-        if legacy_client is not None:
+    if legacy_client is not None:
+        for arguments in argument_mappings:
             legacy_client.next_temp_id = arguments[
                 "temporary_model_id_allocator"
             ].next_temporary_model_id

@@ -1,16 +1,8 @@
-"""学習帰属が未確定の標本（位置・標本・診断用概念ID）と、候補検証へ渡した標本の概念IDを保持する。"""
+"""学習帰属が未確定の標本（位置・標本・診断用概念ID）を保持する。"""
 
 from federated_learning_experiments.learning.training.indexed_observed_training_sample import (
     IndexedObservedTrainingSample,
 )
-
-
-def _validate_concept_ids(*, sample_concept_ids: tuple[int | None, ...]) -> None:
-    if type(sample_concept_ids) is not tuple:
-        raise TypeError("sample_concept_ids must be exact tuple")
-    for observed_concept_id in sample_concept_ids:
-        if observed_concept_id is not None and type(observed_concept_id) is not int:
-            raise TypeError("concept IDs must be builtin int or None")
 
 
 class PendingSampleObservationStore:
@@ -18,7 +10,6 @@ class PendingSampleObservationStore:
 
     def __init__(self) -> None:
         self._pending_sample_observations: list[IndexedObservedTrainingSample] = []
-        self._validation_assignment_sample_concept_ids: tuple[int | None, ...] | None = None
 
     def append_pending_sample_observation(
         self, *, indexed_observation: IndexedObservedTrainingSample
@@ -60,25 +51,3 @@ class PendingSampleObservationStore:
         ):
             raise ValueError("retained sample indices must be the latest pending sample indices")
         del self._pending_sample_observations[: pending_sample_count - retained_sample_count]
-
-    @property
-    def validation_assignment_sample_concept_ids(self) -> tuple[int | None, ...] | None:
-        """候補検証へ渡した標本の概念ID。候補検証へ渡した標本がなければNone。"""
-        return self._validation_assignment_sample_concept_ids
-
-    def hold_validation_assignment_sample_concept_ids(
-        self, *, sample_concept_ids: tuple[int | None, ...]
-    ) -> None:
-        """開始した候補検証へ渡した標本の概念IDを、確定まで保持する。保持中の上書きは拒否する。"""
-        _validate_concept_ids(sample_concept_ids=sample_concept_ids)
-        if self._validation_assignment_sample_concept_ids is not None:
-            raise ValueError("validation assignment sample concept IDs are already held")
-        self._validation_assignment_sample_concept_ids = sample_concept_ids
-
-    def release_validation_assignment_sample_concept_ids(self) -> tuple[int | None, ...]:
-        """候補検証の確定で、保持していた概念IDを外して返す。"""
-        if self._validation_assignment_sample_concept_ids is None:
-            raise ValueError("validation assignment sample concept IDs are not held")
-        sample_concept_ids = self._validation_assignment_sample_concept_ids
-        self._validation_assignment_sample_concept_ids = None
-        return sample_concept_ids

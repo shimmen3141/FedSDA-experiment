@@ -242,7 +242,10 @@ def test_corrupt_golden_is_rejected_before_environment_skip(tmp_path, structural
     elif damage == "missing_column":
         case["record_tables"] = {}
     elif damage == "missing_path":
-        case["coverage"]["merged_model_count"] = 0
+        # 候補検証のcaseは照合から外して網羅も確かめないので、残すcaseの重要な経路を壊す（基準版15のspec）。
+        document["cases"]["fedsda-sine2-adoption-without-validation"]["coverage"][
+            "merged_model_count"
+        ] = 0
     else:
         case["run_metrics"]["bad"] = float("nan")
     path = tmp_path / "damaged.json"
@@ -527,13 +530,26 @@ def test_baseline_6_retains_all_cases_and_changes_only_prediction_settings():
 
 # 版の差の説明のtestで、差が実際に起きることを確かめるケース（比較が空にならないことを保つ。2026-10-20に、
 # 全ケースの結果で、経路を通ることを確かめて選んだ）。
+def _cases_runnable_in_both(case_names, *baseline_versions):
+    """候補検証の処理を消したので、比べる版のどれかで候補検証ありの方針を使うcaseは、もう流せない（基準版15のspec）。"""
+    excluded = set().union(
+        *(
+            golden.EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[version]
+            for version in baseline_versions
+        )
+    )
+    return tuple(case_name for case_name in case_names if case_name not in excluded)
+
+
 _CASE_WITH_CHANGED_PREDICTION_RECORDS_IN_BASELINE_6 = "fedsda-sine2-events"
 _CASE_WITH_REDUCED_DOWNLOADS_IN_BASELINE_8 = "fedsda-sine2-adoption-without-validation"
 _CASE_WITH_CONSOLIDATION_IN_BASELINE_9 = "fedsda-sine2-adoption-without-validation"
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[5])
+@pytest.mark.parametrize(
+    "case_name", _cases_runnable_in_both(golden.CASE_NAMES_BY_BASELINE_VERSION[5], 5, 6)
+)
 def test_baseline_6_differs_from_5_only_on_the_prediction_side(case_name):
     name = case_name
     previous = capture_case_once(name, 5)[0]
@@ -600,27 +616,20 @@ def test_baseline_7_adds_the_new_default_cases_and_changes_only_candidate_settin
             if name not in _BASELINE_7_CASES_KEEPING_BASELINE_6:
                 # 新しい既定を引き継ぐケース: 候補を検証せずに採用し、共有部を固定する。
                 assert shared_feature_policy == "keep_shared_features_fixed", name
-                previous["run_participant_settings"]["run_client_settings"][
-                    "candidate_model_training_and_acceptance_settings"
-                ][
-                    "candidate_model_acceptance_policy"
-                ] = "current_model_first_reuse_then_candidate_adoption_without_validation"
             else:
                 assert shared_feature_policy == "update_shared_features_with_candidate", name
         golden.assert_case_matches(name, current, previous, "run_settings")
     for name in golden.ADOPTION_WITHOUT_VALIDATION_PATH_CASE_NAMES:
         client = golden.build_case_settings(name, 7).run_participant_settings.run_client_settings
         assert (
-            client.candidate_model_training_and_acceptance_settings.candidate_model_acceptance_policy,
             client.candidate_epoch_training_settings.candidate_shared_feature_update_policy,
-        ) == (
-            "current_model_first_reuse_then_candidate_adoption_without_validation",
-            "keep_shared_features_fixed",
-        )
+        ) == ("keep_shared_features_fixed",)
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("case_name", _BASELINE_7_CASES_KEEPING_BASELINE_6)
+@pytest.mark.parametrize(
+    "case_name", _cases_runnable_in_both(_BASELINE_7_CASES_KEEPING_BASELINE_6, 6, 7)
+)
 def test_baseline_7_keeps_baseline_6_outside_the_new_default(case_name):
     """候補検証の経路の4ケース、FedDrift・FedAvg、候補検証を外した構成は、版7でも、版6と同じ値。"""
     previous = capture_case_once(case_name, 6)[0]
@@ -648,7 +657,9 @@ def test_baseline_8_keeps_cases_and_changes_only_the_cross_evaluation_transfer_s
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[7])
+@pytest.mark.parametrize(
+    "case_name", _cases_runnable_in_both(golden.CASE_NAMES_BY_BASELINE_VERSION[7], 7, 8)
+)
 def test_baseline_8_differs_from_7_only_in_communication_volume(case_name):
     """版7→8の差は通信量だけ。クロス評価が起きたFedSDAのケースは、下りのbyteが減る。"""
     name = case_name
@@ -696,7 +707,9 @@ def test_baseline_9_keeps_cases_and_changes_only_the_consolidated_shared_feature
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[8])
+@pytest.mark.parametrize(
+    "case_name", _cases_runnable_in_both(golden.CASE_NAMES_BY_BASELINE_VERSION[8], 8, 9)
+)
 def test_baseline_9_differs_from_8_only_where_consolidation_occurred(case_name):
     """版8→9: FedDrift・FedAvgと、統合が起きないFedSDAのケースは、全部が版8と同じ。統合が起きたケースは差があってよい。"""
     name = case_name
@@ -748,7 +761,9 @@ def test_baseline_10_keeps_cases_and_changes_only_the_alarm_interval_assignment_
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("case_name", _BASELINE_10_CASES_KEEPING_BASELINE_9)
+@pytest.mark.parametrize(
+    "case_name", _cases_runnable_in_both(_BASELINE_10_CASES_KEEPING_BASELINE_9, 9, 10)
+)
 def test_baseline_10_keeps_baseline_9_where_the_alarm_interval_assignment_is_unchanged(case_name):
     """FedDrift・FedAvgと、候補検証ありの構成のケースは、版10でも、版9と同じ値。
 
@@ -816,7 +831,9 @@ def test_baseline_11_adds_the_mnist4_case_and_changes_only_the_two_settings():
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("case_name", _BASELINE_10_CASES_KEEPING_BASELINE_9)
+@pytest.mark.parametrize(
+    "case_name", _cases_runnable_in_both(_BASELINE_10_CASES_KEEPING_BASELINE_9, 10, 11)
+)
 def test_baseline_11_keeps_baseline_10_where_the_two_settings_are_unchanged(case_name):
     """FedDrift・FedAvgと、候補検証ありの構成のケースは、版11でも、版10と同じ値。
 
@@ -839,7 +856,9 @@ def test_baseline_11_keeps_baseline_10_where_the_two_settings_are_unchanged(case
     [
         (previous_version, next_version, case_name)
         for previous_version, next_version in BASELINE_VERSION_DIFFERENCES
-        for case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[previous_version]
+        for case_name in _cases_runnable_in_both(
+            golden.CASE_NAMES_BY_BASELINE_VERSION[previous_version], previous_version, next_version
+        )
     ],
 )
 def test_next_baseline_differs_only_where_the_fixed_behavior_occurred(
@@ -908,7 +927,9 @@ def test_baseline_12_keeps_cases_and_changes_only_the_client_selection_setting()
         assert current == previous, case_name
 
 
-@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[11])
+@pytest.mark.parametrize(
+    "case_name", _cases_runnable_in_both(golden.CASE_NAMES_BY_BASELINE_VERSION[11], 11, 12)
+)
 @pytest.mark.slow
 def test_baseline_12_runs_both_versions_without_goldens_and_keeps_unaffected_results(case_name):
     """goldenが未配置でも、版11と12をその場で実行し、経路と、影響を受けない構成の値を守る。"""
@@ -931,6 +952,7 @@ def test_baseline_11_really_contains_zero_sample_cross_evaluations():
         capture_case_once(case_name, 11)[1]["zero_sample_cross_evaluation_count"] > 0
         for case_name in golden.CASE_NAMES_BY_BASELINE_VERSION[11]
         if case_name.startswith("fedsda")
+        and case_name not in golden.EXCLUDED_CANDIDATE_VALIDATION_CASE_NAMES_BY_BASELINE_VERSION[11]
     )
 
 
@@ -971,7 +993,9 @@ def test_baseline_13_keeps_cases_and_changes_only_baseline_policy_and_client_lim
         assert current == previous, case_name
 
 
-@pytest.mark.parametrize("case_name", golden.CASE_NAMES_BY_BASELINE_VERSION[12])
+@pytest.mark.parametrize(
+    "case_name", _cases_runnable_in_both(golden.CASE_NAMES_BY_BASELINE_VERSION[12], 12, 13)
+)
 @pytest.mark.slow
 def test_baseline_13_runs_both_versions_without_goldens_and_keeps_unaffected_results(case_name):
     previous = capture_case_once(case_name, 12)[0]
