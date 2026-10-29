@@ -39,7 +39,7 @@ def test_mixed_plan_uses_feddrift_axis_only_and_preserves_existing_identity():
         "fedavg"
     ] * 2
     # change_interval_searchを今の扱いで追加したため、FedSDAのhashはf9bff53a0cdcから変わる。
-    assert runs[0].run_identifier == "sine2_interval3_seed0_8f83dd4d55c0"
+    assert runs[0].run_identifier == "sine2_interval3_seed0_82d64db8888d"
     assert all(type(r.run_settings) is FedavgRunSettings for r in runs[-2:])
     assert len({r.run_identifier for r in runs}) == 8
 

@@ -36,10 +36,17 @@ def _build_baseline_12_settings(**arguments):
     client = participant.run_client_settings
     return replace(settings, run_participant_settings=replace(
         participant, maximum_evaluating_client_count_per_model=3,
-        run_client_settings=replace(client, loss_change_detection_settings=replace(
-            client.loss_change_detection_settings,
-            loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
-        )),
+        run_client_settings=replace(
+            client,
+            loss_change_detection_settings=replace(
+                client.loss_change_detection_settings,
+                loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
+            ),
+            training_data_assignment_settings=replace(
+                client.training_data_assignment_settings,
+                change_interval_search="minimum_interval_multiples_with_forward_prequential_code",
+            ),
+        ),
     ))
 
 

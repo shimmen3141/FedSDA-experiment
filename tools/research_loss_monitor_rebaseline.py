@@ -32,6 +32,9 @@ for _thread_count_variable_name in (
 _REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPOSITORY_ROOT / "src"))
 
+from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (  # noqa: E402
+    MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
+)
 from federated_learning_experiments.sweep import (  # noqa: E402
     experiment_configurations,
     experiment_sweep_execution,
@@ -159,6 +162,10 @@ def _run_variant(arguments, variant):
                 ),
                 run_client_settings=replace(
                     client,
+                    training_data_assignment_settings=replace(
+                        client.training_data_assignment_settings,
+                        change_interval_search=MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
+                    ),
                     loss_change_detection_settings=replace(
                         client.loss_change_detection_settings,
                         loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",

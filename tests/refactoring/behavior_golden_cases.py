@@ -313,6 +313,7 @@ BASELINE_CONFIGURATION_CASE_NAMES = (
 )
 # goldenの事例にしない構成の名前と、その構成を守る専用のtestのファイル（リポジトリの根からの位置）。
 CONFIGURATIONS_PROTECTED_WITHOUT_GOLDEN: dict[str, str] = {
+    "fedsda-minimum-interval-multiples-change-interval-search": "tests/refactoring/test_fedsda_every_sample_change_interval_search_default.py",
     "fedsda-every-sample-change-interval-search": "tests/refactoring/test_fedsda_reverse_prequential_change_interval_search.py",
     "fedavg-local-updates-per-aggregation": "tests/refactoring/test_fedavg_local_updates_per_aggregation.py",
     "fedsda-synchronized-model-prediction": "tests/refactoring/test_fedsda_synchronized_model_prediction.py",
@@ -799,6 +800,7 @@ def build_case_settings(case_name, baseline_version=BASELINE_VERSION):
             for added_field_path in (
                 _ALARM_INTERVAL_ASSIGNMENT_POLICY_PATH,
                 _NEW_MODEL_HYPOTHESIS_LEARNERS_PATH,
+                _CHANGE_INTERVAL_SEARCH_PATH,
             )
             if added_field_path in added_settings
         }

@@ -91,7 +91,7 @@ def test_existing_configuration_values_and_non_fedsda_identifiers_are_unchanged(
         assignment = mapping["run_participant_settings"]["run_client_settings"][
             "training_data_assignment_settings"
         ]
-        assert assignment.pop("change_interval_search") == FORWARD
+        assert assignment.pop("change_interval_search") == REVERSE
     else:
         assert run.run_identifier == f"circle2_interval10_seed0_{previous_hash}"
     canonical = json.dumps(
@@ -271,7 +271,7 @@ def test_reverse_search_uses_one_reversed_prefix_stream_per_learner(monkeypatch,
         assert updates == []
 
 
-def test_new_configuration_only_changes_the_search_setting():
+def test_every_sample_configuration_matches_default_and_comparison_keeps_forward_search():
     from federated_learning_experiments.configuration.experiment_run_conditions import (
         ExperimentRunConditions,
     )
@@ -292,24 +292,9 @@ def test_new_configuration_only_changes_the_search_setting():
     new = configurations.build_experiment_run_settings(
         configuration_name=CONFIGURATION, experiment_run_conditions=conditions
     )
-    participant = new.run_participant_settings
-    client = participant.run_client_settings
+    client = new.run_participant_settings.run_client_settings
     assert client.training_data_assignment_settings.change_interval_search == REVERSE
-    assert (
-        replace(
-            new,
-            run_participant_settings=replace(
-                participant,
-                run_client_settings=replace(
-                    client,
-                    training_data_assignment_settings=replace(
-                        client.training_data_assignment_settings, change_interval_search=FORWARD
-                    ),
-                ),
-            ),
-        )
-        == default
-    )
+    assert new == default
     for name in configurations.EXPERIMENT_CONFIGURATION_NAMES:
         settings = configurations.build_experiment_run_settings(
             configuration_name=name, experiment_run_conditions=conditions
@@ -317,7 +302,12 @@ def test_new_configuration_only_changes_the_search_setting():
         if type(settings) is FedsdaRunSettings:
             assert (
                 settings.run_participant_settings.run_client_settings.training_data_assignment_settings.change_interval_search
-                == (REVERSE if name == CONFIGURATION else FORWARD)
+                == (
+                    FORWARD
+                    if name
+                    == configurations.MINIMUM_INTERVAL_MULTIPLES_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME
+                    else REVERSE
+                )
             )
 
 

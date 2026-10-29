@@ -210,6 +210,8 @@ for _variant_name in LOSS_MONITOR_REBASELINE_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
 for _variant_name in REVERSE_PREQUENTIAL_VARIANTS:
     _VARIANTS[_variant_name] = ("fedsda", False, None)
+# 組Eのproduct-default系は、基準版16から新しい探索を使う製品の既定の上で評価する。
+# 版10・版12を基点とする変種とIMPROVE-032の選択の差し替えは、実行時に元の探索へ戻す。
 _PRODUCT_DEFAULT_BASED_VARIANTS = (
     *REVERSE_PREQUENTIAL_VARIANTS,
     *LOSS_MONITOR_REBASELINE_VARIANTS,
@@ -2219,6 +2221,9 @@ def _execute_job(job):
     from federated_learning_experiments.configuration.experiment_run_conditions import (
         ExperimentRunConditions,
     )
+    from federated_learning_experiments.methods.fedsda.training_data_assignment.training_data_assignment_settings import (
+        MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
+    )
     from federated_learning_experiments.runtime.fedsda_experiment_run import (
         execute_fedsda_experiment_run,
     )
@@ -2242,7 +2247,7 @@ def _execute_job(job):
         "product-default-all-evaluating-clients",
         "product-default-all-evaluating-clients-candidate-shared-feature-update",
     ):
-        # IMPROVE-031は、基準版12の2つの値へ戻してから研究の介入を当てる。
+        # IMPROVE-031は、基準版12の値へ戻してから研究の介入を当てる。
         participant = settings.run_participant_settings
         client = participant.run_client_settings
         settings = replace(
@@ -2252,6 +2257,10 @@ def _execute_job(job):
                 maximum_evaluating_client_count_per_model=3,
                 run_client_settings=replace(
                     client,
+                    training_data_assignment_settings=replace(
+                        client.training_data_assignment_settings,
+                        change_interval_search=MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
+                    ),
                     loss_change_detection_settings=replace(
                         client.loss_change_detection_settings,
                         loss_monitoring_baseline_update_policy="keep_baseline_until_alarm",
@@ -2309,6 +2318,23 @@ def _execute_job(job):
                     training_data_assignment_settings=replace(
                         client.training_data_assignment_settings,
                         new_model_hypothesis_learners="reinitialized_learner",
+                        change_interval_search=MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
+                    ),
+                ),
+            ),
+        )
+    if job["variant"] in REVERSE_PREQUENTIAL_VARIANTS:
+        participant = settings.run_participant_settings
+        client = participant.run_client_settings
+        settings = replace(
+            settings,
+            run_participant_settings=replace(
+                participant,
+                run_client_settings=replace(
+                    client,
+                    training_data_assignment_settings=replace(
+                        client.training_data_assignment_settings,
+                        change_interval_search=MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME,
                     ),
                 ),
             ),
@@ -2408,10 +2434,13 @@ def _execute_job(job):
     class_conditioned_prediction = {}
     prequential_measurement = {}
     with contextlib.ExitStack() as stack:
-        # この構成は途中までの和の製品関数を使う。研究用レコーダは総和の関数を
+        # 新しい探索は途中までの和の製品関数を使う。研究用レコーダは総和の関数を
         # 包むため測定対象外とし、prequential_measurementは空（0回の意味ではない）。
         # R1との照合にはmodel_computation_countsと製品の選択記録を使う。
-        if job["variant"] != "every-sample-change-interval-search-configuration":
+        if job["variant"] in REVERSE_PREQUENTIAL_VARIANTS or (
+            client_settings.training_data_assignment_settings.change_interval_search
+            == MINIMUM_INTERVAL_MULTIPLES_WITH_FORWARD_PREQUENTIAL_CODE_SEARCH_NAME
+        ):
             stack.enter_context(reverse_prequential_policy(
                 variant=job["variant"], diagnostics=prequential_measurement,
             ))
