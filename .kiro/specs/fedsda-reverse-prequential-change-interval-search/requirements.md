@@ -50,8 +50,13 @@
 
 ### Requirement 5: 研究ツールの変種R1と同じ値になる
 #### Acceptance Criteria
-1. The validation shall 新しい構成の全体runと、研究ツールの変種R1（`default-reverse-prequential-grid1`）が、同じ条件で、精度・通信量・予測の記録・最終のパラメータ・計算回数の指標・選択の記録で一致することを、複数のデータセット（MNISTとSINE2・CIRCLE2・SEAのうち少なくとも1つずつ）と、列Wが最小変化区間より短い警報が起きる条件を含めて確かめる。
+1. The validation shall 新しい構成の全体runと、研究ツールの変種R1（`default-reverse-prequential-grid1`）が、同じ条件で、精度・通信量・予測の記録のdigest・最終のパラメータのdigest・計算回数の指標・選択の記録（警報ごとの変化区間の長さ、仮説、行き先、学習者の名前、符号長）で**完全に一致する**（浮動小数点の値も、許容誤差を置かずに同じ）ことを、複数のデータセット（MNISTとSINE2・CIRCLE2・SEAのうち少なくとも1つずつ）と、列Wが最小変化区間より短い警報が起きる条件を含めて確かめる。製品の途中までの和は、研究ツールと同じく、各標本の評価の値（builtin float）を処理の順に1件ずつ足すので、足す順の違いによる差は生じない。
 2. The validation shall 測定用の学習者の更新回数が、学習者ごとに警報1回あたり列Wの長さ（列Wが最小変化区間より短い警報では0）であることを確かめる。
+
+### Requirement 7: 本規模の実験で既定と比べる
+#### Acceptance Criteria
+1. The experiment shall 新しい構成を、研究室サーバ（uranium、標準64 workers）で、10データ（SINE2、CIRCLE2、SEA2、SEA4、MNIST2、MNIST4、fmnist2、fmnist4、rotmnist2、rotmnist4）×集約間隔4つ（50・100・200・500）×seed 0〜9、10 client×5000標本で実行する（400 run）。比べる相手の既定のFedSDAは実行済みの結果を使う（6データは`results/fedsda-component-ablation-v13/20261027_044431_core-components-v13-seeds0-9/fedsda`——基準版15と同じ値——、新しい4データは`results/new-datasets-v15/20261029_024740_fedsda-seeds0-9/fedsda`）。runの対応はデータ・間隔・seedで取る。
+2. The experiment shall 全体の累積精度（同じseedの対の差、平均±SD、勝ち/負け）、上り・下りの通信、clientの計算回数（MAC）、警報の回数、選んだ変化区間の長さの分布を、データ×間隔ごとに集計し、IMPROVE-032と実験の台帳に記録する。採否はユーザーが判断する（このspecでは既定を変えない）。
 
 ### Requirement 6: 文書を合わせる
 #### Acceptance Criteria

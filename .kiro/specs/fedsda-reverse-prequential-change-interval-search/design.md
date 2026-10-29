@@ -31,7 +31,7 @@
   - `compute_reinitialized_learner_prequential_code_length_prefixes(*, template_classifier, input_features, observed_class_labels, parameter_optimizer_settings, initialization_seed)`
   - `compute_warm_started_learner_prequential_code_length_prefixes(*, template_classifier, input_features, observed_class_labels, parameter_optimizer_settings)`
   - 戻り値は、標本の数と同じ長さのbuiltin floatのtupleで、i番目（0始まり）は、渡された順の先頭i+1件の予測的符号長。最後の要素は、同じ入力での今の関数の値と同じ。学習者の初期化・共有部の固定・損失・optimizerの設定・batchの作り方は、今の関数と同じ。runの乱数を消費せず、`template_classifier`を変えない。
-  - 途中までの和は、各標本の対数損失（builtin float）を、渡された順に1件ずつ足して作る（研究ツールの`reverse_prequential_prefixes`と同じ足す順。研究ツールは、製品の学習の各標本の評価の値を足していた）。
+  - 途中までの和は、今の`_accumulate_prequential_code_length`の足し方（標本1件ずつ、`evaluate_classifier_per_sample_log_losses`の1件分の値の`.sum()`をbuiltin floatにして足す）のまま、各標本を足した直後の値を順に残して作る。研究ツールの`reverse_prequential_prefixes`も、製品の学習の中の同じ評価の値を、同じ順に1件ずつ足しているので、値は完全に一致する（許容誤差を置かない）。
 
 ### seed（`runtime/alarm_interval_minimum_description_length_selection.py`、Requirement 2.4）
 - 新しい関数`derive_reinitialized_learner_single_pass_initialization_seed(*, client_id, alarm_sample_index)`: 2つの値を10進の文字列にして`:`で区切った文字列（例: `3:1250`）のUTF-8のSHA-256の先頭8 byteを、big endianの符号なし整数にしたもの（研究ツールの変種と同じ値）。今の`derive_reinitialized_learner_initialization_seed`（kを含む）は変えない。
@@ -42,16 +42,23 @@
 - `every_sample_with_reverse_prequential_code`:
   - 列Wの長さnが最小変化区間（`change_interval_grid_sample_count`）以上なら、列Wを新しい方から古い方へ並べ替えた入力で、初期化し直した学習者の途中までの和を`compute_reinitialized_learner_prequential_code_length_prefixes`（seedは`derive_reinitialized_learner_single_pass_initialization_seed`）で、設定が`reinitialized_and_warm_started_learners`ならwarm startの学習者の途中までの和を`compute_warm_started_learner_prequential_code_length_prefixes`で、この順に1回ずつ計算する。kの候補（最小変化区間以上・n以下の全部の整数）ごとに、各学習者の途中までの和のk番目（先頭k件）を予測的符号長として`select_new_model_learner`へ渡す。
   - nが最小変化区間より短ければ、学習者を計算せず、kの候補は空（今と同じく「現在のモデルのまま」になる）。
-- 純粋な計算`select_assignment_by_minimum_description_length`（`methods/fedsda/training_data_assignment/minimum_description_length_assignment_selection.py`）に引数`change_interval_step_sample_count`を足す。kの候補は「`change_interval_grid_sample_count`以上・n以下で、`change_interval_grid_sample_count`から`change_interval_step_sample_count`刻み」とし、入力の符号長の辞書がその候補の全部を持つことを検査する。今の扱いは刻み＝最小変化区間を渡す（値は同じ）。新しい扱いは刻み1を渡す。仮説の調べる順（kを短い順、各kで保有モデル→新しいモデル）、厳密に短いときだけ置き換える規則、足す順は変えない。
+- 純粋な計算`select_assignment_by_minimum_description_length`（`methods/fedsda/training_data_assignment/minimum_description_length_assignment_selection.py`）に、必須の引数`change_interval_step_sample_count`（正の整数）を足す。既存の引数`change_interval_grid_sample_count`は、kの最小（最小変化区間）の意味のまま残す（名前は変えない）。kの候補は`range(change_interval_grid_sample_count, n + 1, change_interval_step_sample_count)`とし、入力の符号長の辞書（`new_model_code_lengths_by_change_interval_sample_count`と学習者の名前の辞書）の鍵がその候補とちょうど同じであることを検査する。刻みは呼出し側（`select_alarm_interval_assignment`）が設定から決める: 今の扱いは刻み＝`change_interval_grid_sample_count`（値は基準版15と同じ）、新しい扱いは刻み1。仮説の調べる順（kを短い順、各kで保有モデル→新しいモデル）、厳密に短いときだけ置き換える規則、足す順は変えない。研究ツールの`select_reverse_assignment`（位置の項なし）と同じ規則になる。
 
 ### 計算回数（Requirement 5.2）
 - 測定用の学習者の計算は、今と同じく警報の処理の中で計算回数の指標（`model_computation_counts`）に入る。新しい扱いでは、学習者ごとに警報1回あたりn回の更新になる。
 
-### 基準版（Requirement 4.1）
-- 基準版1〜15: clientの設定の「後に足された項目」の表へ`change_interval_search`＝`minimum_interval_multiples_with_forward_prequential_code`を、全部の版に足す。goldenの値と版は変えない。runの識別子が変わるtestは、新しい値に合わせる（設定の項目が増えるため。値は今の扱い）。
+### 基準版とrunの識別子（Requirement 4.1）
+- goldenのJSON（`tests/refactoring/behavior_regression_goldens/v1`〜`v15`）は変えない。設定の項目が増えるので、goldenに保存された設定と比べるときの「後に足された項目」の表（`tests/refactoring/behavior_golden_cases.py`の`_CLIENT_SETTINGS_ADDED_AFTER_BASELINE_VERSION`）へ、版1〜15の全部に、パス`("training_data_assignment_settings", "change_interval_search")`＝`minimum_interval_multiples_with_forward_prequential_code`を足す（`new_model_hypothesis_learners`の扱い——`_NEW_MODEL_HYPOTHESIS_LEARNERS_PATH`——と同じ形）。記録の表には列を足さないので、比べる形から取り除く列はない。
+- runの識別子（設定のhash）は、FedSDAの全構成で変わる（項目が増えるため。値は今の扱い）。`tests/refactoring/test_experiment_sweep.py`ほかの、FedSDAの識別子を直書きしたtestを新しい値に合わせる。FedDrift・FedAvgの識別子（`test_feddrift_experiment_sweep.py`、`test_fedavg_experiment_sweep.py`）は変わらないことを確かめる。結果の照合はデータ・間隔・seedで取るので、実行済みの結果との比較には影響しない。
 
 ### 研究ツール（Requirement 5.1）
-- 研究ツールに、新しい構成を使う変種`every-sample-change-interval-search-configuration`を足す（設定の差し替えをしない）。照合のscript（Git管理外。Implementation Notesに場所を書く）で、手元の小さい条件（MNIST4・SINE2・SEA4・CIRCLE2、間隔50、seed 0、各client 1000標本程度。列Wが最小変化区間より短い警報が1回以上起きる条件を含める）で、研究ツールの変種R1とこの変種の、精度・下り・上り・予測の記録のdigest・最終のパラメータのdigest・計算回数の指標・選択の記録（変化区間の長さ、仮説、行き先、学習者の名前）が一致することを確かめる。
+- 研究ツールに、新しい構成を使う変種`every-sample-change-interval-search-configuration`を足す（設定の差し替えをしない）。照合のscript（Git管理外。Implementation Notesに場所を書く）で、手元の小さい条件（MNIST4・SINE2・SEA4・CIRCLE2、間隔50、seed 0、各client 1000標本程度。列Wが最小変化区間より短い警報が1回以上起きる条件を含める）で、研究ツールの変種R1とこの変種の、精度・下り・上り・予測の記録のdigest・最終のパラメータのdigest・計算回数の指標・選択の記録（警報ごとの変化区間の長さ、仮説、行き先、学習者の名前、符号長）が完全に一致する（許容誤差なし）ことを確かめる。
+- 研究ツールとの細部の対応（列を新しい順へ並べ替えること、kの候補、seed、2つの学習者を計算する順——初期化し直した学習者→warm startの学習者——、短い列で学習者を使わないこと）は、上の全体runの一致に加えて、製品の部品のtestで直接確かめる（期待値は、研究ツールを呼ばず、今の関数を並べ替えた入力に当てた値や、seedの文字列から直接計算した値で書く）。
+
+### 本規模の実験（Requirement 7）
+- 実装・検証・commit・pushの後、uraniumで次のコマンドを流す（`tools/run_server_sweep.sh`は使わず、過去の本規模の実験と同じく`run_experiment_sweep.py`を直接、tmuxで）。実行はユーザーが行い、主担当がコマンドを渡す（内部確認として`--print-plan`で構成を確かめる。提示するコマンドには含めない）。
+  `python run_experiment_sweep.py --configurations fedsda-every-sample-change-interval-search --datasets sine2 circle2 sea2 sea4 mnist2 mnist4 fmnist2 fmnist4 rotmnist2 rotmnist4 --seeds 0-9 --aggregation-intervals 50 100 200 500 --client-count 10 --per-client-sample-count 5000 --workers 64 --study fedsda-every-sample-change-interval-search --label seeds0-9 --purpose "..."`
+- 集計は`tools/research_feddrift_delta_comparison.py compare`（既定のFedSDAとの同じseedの対の差、SD、勝ち/負け、通信、MAC）と、選択の記録の集計（警報の回数、選んだkの分布）で行い、IMPROVE-032と実験の台帳に書く。
 - 研究ツールの他の変種の意味は変わらない（新しい項目の既定は今の扱い）。
 
 ## 旧と違う点
@@ -85,3 +92,4 @@
 | 4.1〜4.2 | 基準版1〜15の表と照合、呼ばれないことのtest |
 | 5.1〜5.2 | 研究ツールの照合の変種と照合のscript、更新回数のtest |
 | 6.1 | 文書 |
+| 7.1〜7.2 | 本規模の実験のコマンドと集計 |

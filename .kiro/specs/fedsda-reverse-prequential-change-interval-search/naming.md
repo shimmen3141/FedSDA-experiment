@@ -13,6 +13,8 @@
 | `derive_reinitialized_learner_single_pass_initialization_seed` | `runtime/alarm_interval_minimum_description_length_selection`の関数 | 1本の流れで全部のkを測るときの、初期化し直す学習者の初期化のseed（clientの番号と警報の標本の番号から） | `derive_reinitialized_learner_initialization_seed`はkごとに測るときのseed（kも含む） |
 | `EVERY_SAMPLE_CHANGE_INTERVAL_SEARCH_CONFIGURATION_NAME`（値`fedsda-every-sample-change-interval-search`） | `sweep/experiment_configurations`の定数 | 最終構成の既定から、変化区間の候補の探し方だけを新しい値に替えた構成 | |
 
+値の名前の「forward」「reverse」は、列Wの時間の順（古い→新しい）に対する、予測的符号長を測るときの標本の処理の順を表す。forwardは古い方から新しい方へ（kごとに末尾k件を測る今の扱い）、reverseは新しい方から古い方へ（列Wを新しい順に並べ替えて1本の流れで測る）。どちらも、並べた順に「予測→損失を足す→1回更新」する点は同じで、「reverse」は学習の手順を逆にする意味ではない。
+
 設定の項目`TrainingDataAssignmentSettings.change_interval_search`と、関数の引数（`select_alarm_interval_assignment`の`change_interval_search`、`select_assignment_by_minimum_description_length`の`change_interval_step_sample_count`）は、設計に書く。
 
 ## 既存の公開名で、役割が変わるもの
