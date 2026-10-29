@@ -238,3 +238,7 @@ SEA4の概念は「特徴0＋特徴1が閾値以下ならラベル1」の閾値�
 - 全データでも、統合（吸収）はほとんどが年齢0で起きる（同じ概念の対: SINE2 952/1020、MNIST2 116/123、CIRCLE2 110/130。違う概念の対: SEA4 113/117、MNIST4 11/14、CIRCLE2 8/11。真の概念は記録の表`model_pair_clustering`の診断値）。サーバのクラスタリングは、実質的に「登録したばかりのモデルが、既存のモデルの重複かどうか」を1回だけ判定している（[LEGACY-021](legacy-021-classwise-clustering-merges-with-little-evidence.md)）。
 - 判断: SEA4の低下の経路は両方ある。clientの側で概念2を分ける機会が少なく（区間の約2割）、分けても、サーバが登録の直後に、違いの証拠が足りないまま統合する。精度を分けるのは後者（概念2のモデルが1つでも残るか）。概念2が専用のモデルを持てれば、概念2の精度が約3pp高く、SEA4全体で、精度の低いrunで約0.8pp、40 runの平均で約0.35ppの上がり幅にあたる（見積り）。
 
+
+## 基準版16でwarm startの学習者を外した比較（2026-10-30、研究室サーバ、6データ×4間隔×seed 0〜9）
+
+構成`fedsda-without-warm-started-learner`（spec `fedsda-without-warm-started-learner-configuration`）の240 run（`results/fedsda-component-ablation-v16/20261030_052220_without-warm-started-learner-seeds0-9`）を、同じstudyの`fedsda`（基準版16）と比べた。精度の差は24セルで−0.22〜+0.05pp（平均−0.03pp）、10 seedすべてで下がるセルは無い。最も下がったのはMNIST4・間隔500（−0.22pp、10 seed中9で下がる）。概念が取り込まれたrun（概念0以外の精度が88%未満）は、MNIST2・MNIST4の80 runで`fedsda`が0、外した構成が1（MNIST4・500・seed 1、概念1が84.7%）。版11で入れたときの差（MNIST4で+0.15〜+0.79pp、取り込み9→ほぼ0）ほどの効果は見えない。版11以降の変更で取り込みが起きにくくなったとみる（未確認）。新しい4データ（fmnistではwarm startが新しいモデルの約6割で選ばれる）の比較は未実行。詳細は[基準版16の構成要素の比較](../fedsda-component-ablation-v16-20261030.md)。
